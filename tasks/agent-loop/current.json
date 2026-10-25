@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-FINITE-TYPING-20261025",
     "revision": "r1",
-    "status": "OUTCOME_FROZEN_PENDING_INTEGRATION",
+    "status": "INTEGRATED_ACCEPTED_CLEAN",
     "contract": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1.md",
     "contract_sha256": "dfff6b8af11651122ebc0b3be6cb6a8722b3ce7a60845eb4e82ba1a9488eee68",
     "baseline": "c28827b29b4ff5f2f9d89c03f504fb9f886534f8",
@@ -30,7 +30,7 @@
     "checker": "36 pins match; 4/4 Lean pass; exact signatures; axioms in cap.",
     "acceptance": "4/4 checks; exact query; CLEAN review.",
     "author": "P/Q Sol/high, 600s each; disjoint leases.",
-    "next_action": "After integration, consult dispatcher for next sprint.",
+    "next_action": "Sprint integrated; consult dispatcher for next scoped proposition.",
     "non_goal": "No reachability/progress, source/native, A/B, or production claim."
   },
   "workers": [
@@ -76,7 +76,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Luna: P/Q STOPPED; 4/4 Lean pass; independent review CLEAN; integrating outcome."
+      "receipt": "Luna: finite Call typing integrated/pushed; current state and Git reconciled."
     },
     {
       "id": "/root/call_step_typing_author",
@@ -380,8 +380,8 @@
       "details": "R3 review blocking; R4 Flow/source projection next."
     }
   ],
-  "closure": "Finite Call typing ACCEPTED/CLEAN; original parents remain OPEN.",
-  "next_action": "Outcome frozen; integrate then consult dispatcher for next sprint.",
+  "closure": "Finite Call typing accepted/CLEAN; original A/B and adequacy remain OPEN.",
+  "next_action": "Finite Call typing accepted and pushed; dispatch next bounded proof sprint.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -500,7 +500,7 @@
       "record": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1-outcome.md",
       "sha256": "f82192a95c9d5cac2474160e56654ffa6b36fa737edca09fd443b3b0fab1456d",
       "closure": "Finite Call typing ACCEPTED/CLEAN; adequacy/A-B OPEN.",
-      "commit": "PENDING"
+      "commit": "3bbd875a8"
     }
   ],
   "resource_observation": "Finite Call sprint cap 2460s; P/Q STOPPED; 4/4 Lean used.",
