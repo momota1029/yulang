@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-ENTRY-SPINE-20261025",
     "revision": "r3",
-    "status": "R3_CHECKED_REVIEW_READY",
+    "status": "COMPLETE_ACCEPTED_CLEAN",
     "contract": "tasks/agent-loop/sprints/call-entry-spine-20261025-r3.md",
     "contract_sha256": "e331976b445955fa6e982427287494772bc8a823b706f460291c91d4078d4928",
     "baseline": "33cc19a20",
@@ -26,12 +26,13 @@
     },
     "outcome": "tasks/agent-loop/sprints/call-entry-spine-20261025-r3-outcome.md",
     "closure": "Syntax typing only; all operational/source/A-B/inference/production parents OPEN.",
-    "review": "Independent reviewer RUNNING; report delivered read-only to Luna for exact-path archival.",
+    "review": "CLEAN; reviewer STOPPED; report hash 1c6bfc4f5dfa140c8d571fe88edd6302a7e184dce0d5e7feb4f07d7385a93a37",
     "checker": "Both Lean invocations exit 0; exact five signatures; axioms [propext] for P/composition, none for Q.",
     "acceptance": "Exact theorem; two complete successful receipts; standard axioms; CLEAN independent review.",
     "author": "Luna composition only; P/Q frozen, no new author.",
-    "next_action": "Reviewer audits frozen proof, signatures, axioms, and complete receipt; no compiler run.",
-    "prior_r2": "FAILED_VERIFICATION/UNACCEPTED; receipt and outcome frozen."
+    "next_action": "Sprint closed; consult dispatcher for next exact Lean proposition.",
+    "prior_r2": "FAILED_VERIFICATION/UNACCEPTED; receipt and outcome frozen.",
+    "outcome_sha256": "da4481a11082779b090563f7d7511652e39958b4ee48511de652ed4046cca9c1"
   },
   "workers": [
     {
@@ -77,17 +78,6 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "Active r3 primary/composer; owns two Lean receipts, fresh review, adjudication and Git."
-    },
-    {
-      "id": "/root/call_entry_spine_r3_review",
-      "role": "fresh nonauthor audit of P/Q/composition and complete receipts",
-      "state": "RUNNING",
-      "session": "LEAN-CALL-CONTEXT-TYPING-20261025/root-turn-9",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Fresh START acknowledged; read-only source/receipt review; no Lean/tests/Git/descendants."
     }
   ],
   "leases": [
@@ -96,186 +86,6 @@
       "owner": "/root",
       "state": "HELD",
       "reason": "Primary-owned current state."
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CallContextTyping.lean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r1 frozen"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CoreSyntax.olean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CoreSyntax.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/Contracts.olean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/Contracts.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CoreSubstitution.olean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CoreSubstitution.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CoreExecution.olean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CoreExecution.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallContextTyping.olean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallContextTyping.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CoreSubstitution.lean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r1 frozen"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CallPeelingTyping.lean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 compiled immutable input; source/output hashes pinned."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-peeling-typing.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 compiled immutable input; source/output hashes pinned."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntryTyping.olean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntryTyping.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntrySpine.olean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntrySpine.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r1 serialized output"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CallEntryTypingRepair.lean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 compiled immutable input; source/output hashes pinned."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-entry-typing-repair-r2.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 compiled immutable input; source/output hashes pinned."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntryTypingRepair.olean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 compiled immutable input; source/output hashes pinned."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntryTypingRepair.ilean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 compiled immutable input; source/output hashes pinned."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallPeelingTyping.olean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 compiled immutable input; source/output hashes pinned."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallPeelingTyping.ilean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 compiled immutable input; source/output hashes pinned."
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CallEntrySpineComposition.lean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r3 primary composition source."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-entry-spine-r3-verification.jsonl",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r3 serialized Lean receipts."
-    },
-    {
-      "path": "notes/theory/lean/.lake/call-entry-spine-r3-check.lean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r3 signature/axiom query."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntrySpineComposition.olean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r3 serialized output."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntrySpineComposition.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "r3 serialized output."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-entry-spine-r3-review.md",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Primary archives reviewer final report at exact path."
     }
   ],
   "pending": [
@@ -418,8 +228,8 @@
       "details": "R3 review blocking; R4 Flow/source projection next."
     }
   ],
-  "closure": "r2 P/Q compile; composition failed; parent syntax theorem and original goal OPEN.",
-  "next_action": "Await fresh reviewer result; archive exact report and adjudicate.",
+  "closure": "r3 exact completeCallEntry_typed syntax theorem ACCEPTED/CLEAN; operational/source/A-B/inference/production parents OPEN.",
+  "next_action": "r3 outcome/review/receipts archived; sprint-end dispatcher consultation pending.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -509,8 +319,16 @@
       "record": "tasks/agent-loop/sprints/call-entry-spine-20261025-r1-outcome.md",
       "sha256": "11f2478ec74c36fa14c46b66a9027dc9bc8f3fce2e62f6c0356ab8063989c8bb",
       "closure": "P compile failure; Q/compose unchecked; theorem OPEN."
+    },
+    {
+      "id": "LEAN-CALL-ENTRY-SPINE-20261025/r3",
+      "record": "tasks/agent-loop/sprints/call-entry-spine-20261025-r3-outcome.md",
+      "sha256": "da4481a11082779b090563f7d7511652e39958b4ee48511de652ed4046cca9c1",
+      "review": "CLEAN; fresh nonauthor reviewer STOPPED.",
+      "closure": "Exact syntax-typing composition checked; all operational/source/A-B/inference/production parents OPEN.",
+      "integration": "Included in current integration commit; ordinary push."
     }
   ],
-  "resource_observation": "Composition grant charged 240s conservatively; verification calls 0.427s; fresh review 420s and integration 180s reserved.",
-  "checker": "R3 composition 0.220s; exact signature/axiom query 0.207s; no unexpected axioms."
+  "resource_observation": "r3 closed within 1080s cap; review CLEAN; no carryover.",
+  "checker": "Two successful Lean invocations; five exact signatures; axioms within contract; fresh review CLEAN."
 }
