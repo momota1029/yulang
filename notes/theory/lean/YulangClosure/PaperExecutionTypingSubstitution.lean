@@ -114,6 +114,9 @@ theorem PaperValueTyped.subst_explicit (σ : Nat → Ty) {declarations : Declara
     (motive_5 := fun e computation ty _ => PaperComputationTyped (mapDeclarationTable σ declarations)
       (mapGraphEnvironment σ graphTypes) (mapTypeEnvironment σ e)
       (mapPaperComputation σ computation) (subst σ ty))
+    (motive_6 := fun e continuation response result _ =>
+      PaperContinuationTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+        (mapTypeEnvironment σ e) (mapPaperValue σ continuation) (subst σ response) (subst σ result))
     (by intro environment; exact ValuesTyped.nil)
     (by intro environment value values ty types hvalue hvalues ihValue ihValues
         simpa [mapTypeEnvironment] using ValuesTyped.cons ihValue ihValues)
@@ -165,6 +168,14 @@ theorem PaperValueTyped.subst_explicit (σ : Nat → Ty) {declarations : Declara
         simpa [mapPaperValue, subst] using PaperValueTyped.topView ihValue)
     (by intro environment metadata value ty hvalue ihValue
         simpa [mapPaperValue] using PaperValueTyped.view ihValue)
+    (by intro environment owners binder body responseType resultType hcontinuation ihContinuation
+        have ihContinuation' :
+            PaperContinuationTyped (mapDeclarationTable σ declarations)
+              (mapGraphEnvironment σ graphTypes) (mapTypeEnvironment σ environment)
+              (.continuation owners binder (mapPaperComputation σ body))
+              (subst σ responseType) (subst σ resultType) := by
+          simpa [mapPaperValue] using ihContinuation
+        simpa [mapPaperValue, subst] using PaperValueTyped.continuation ihContinuation')
     (by intro environment value ty hvalue ihValue
         simpa [mapPaperComputation] using PaperComputationTyped.ret ihValue)
     (by intro environment first body firstType resultType hfirst hbody ihFirst ihBody
@@ -203,7 +214,47 @@ theorem PaperValueTyped.subst_explicit (σ : Nat → Ty) {declarations : Declara
         rw [responseType]
         simpa [mapPaperComputation, mapTypeArguments, mapOperationArguments] using
           PaperComputationTyped.perform resolved' arity' payloadTyping')
+    (by intro environment opInstance payload continuation declaration arguments resultType
+          resolved arity instanceEq payloadTyping continuationTyping ihPayload ihContinuation
+        have resolved' := OperationDeclarationResolved.typeTransport σ resolved
+        have commute := operation_declaration_instantiation_subst declaration arguments σ arity
+        have instance' : opInstance.subst σ =
+            (declaration.substAmbient σ).instantiate (mapOperationArguments σ arguments) := by
+          rw [instanceEq]
+          exact commute
+        have payloadType :
+            subst σ (declaration.instantiate arguments).payloadType =
+              ((declaration.substAmbient σ).instantiate (mapOperationArguments σ arguments)).payloadType := by
+          simpa [OperationInstance.subst] using congrArg OperationInstance.payloadType commute
+        have responseType :
+            subst σ (declaration.instantiate arguments).responseType =
+              ((declaration.substAmbient σ).instantiate (mapOperationArguments σ arguments)).responseType := by
+          simpa [OperationInstance.subst] using congrArg OperationInstance.responseType commute
+        have payloadTyping' :
+            PaperValueTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+              (mapTypeEnvironment σ environment) (mapPaperValue σ payload)
+              ((declaration.substAmbient σ).instantiate (mapOperationArguments σ arguments)).payloadType := by
+          rw [← payloadType]
+          exact ihPayload
+        have continuationTyping' :
+            PaperContinuationTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+              (mapTypeEnvironment σ environment) (mapPaperValue σ continuation)
+              ((declaration.substAmbient σ).instantiate (mapOperationArguments σ arguments)).responseType
+              (subst σ resultType) := by
+          rw [← responseType]
+          exact ihContinuation
+        have arity' : (mapOperationArguments σ arguments).length =
+            (declaration.substAmbient σ).typeArity := by
+          simp [mapOperationArguments, OperationDeclaration.substAmbient, arity]
+        simpa [mapPaperComputation] using
+          PaperComputationTyped.request resolved' arity' instance' payloadTyping' continuationTyping')
+    (by intro environment continuation response responseType resultType hcontinuation hresponse
+          ihContinuation ihResponse
+        simpa [mapPaperComputation] using PaperComputationTyped.resume ihContinuation ihResponse)
     (by intro environment reason ty; simpa [mapPaperComputation, subst] using PaperComputationTyped.fail)
+    (by intro environment owners binder body responseType resultType hbody ihBody
+        simpa [mapPaperValue, mapPaperComputation, mapTypeEnvironment, subst] using
+          PaperContinuationTyped.continuation ihBody)
     derivation
 
 
@@ -256,6 +307,20 @@ theorem RecordPayloadsTyped.typeTransport (σ : Nat → Ty) {declarations : Decl
             (PaperValueTyped.subst_explicit σ valueProof) (ih tail)
 
 
+
+theorem PaperContinuationTyped.typeTransport (σ : Nat → Ty)
+    {declarations : DeclarationTable} {graphTypes : GraphEnvironment}
+    {environment : TypeEnvironment} {owners : List OwnerName} {binder : TermName}
+    {body : Computation} {response result : Ty}
+    (derivation : PaperContinuationTyped declarations graphTypes environment
+      (.continuation owners binder body) response result) :
+    PaperContinuationTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+      (mapTypeEnvironment σ environment) (.continuation owners binder (mapPaperComputation σ body))
+      (subst σ response) (subst σ result) := by
+  have transported := PaperValueTyped.subst_explicit σ (PaperValueTyped.continuation derivation)
+  simp only [mapPaperValue, subst] at transported
+  cases transported with
+  | continuation body => exact body
 
 theorem PaperComputationTyped.typeTransport (σ : Nat → Ty)
     {declarations : DeclarationTable} {graphTypes : GraphEnvironment}

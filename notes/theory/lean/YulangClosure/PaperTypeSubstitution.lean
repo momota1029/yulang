@@ -28,6 +28,7 @@ inductive Ty where
   | mu (body : Ty)
   | thunk (result : Ty)
   | callable (carrier result : Ty)
+  | kont (response result : Ty)
   | poly (body : Ty)
   deriving DecidableEq, Repr
 
@@ -54,6 +55,7 @@ def mapVars (ρ : Nat → Nat) : Ty → Ty
   | .mu body => .mu (mapVars (liftRen ρ) body)
   | .thunk result => .thunk (mapVars ρ result)
   | .callable carrier result => .callable (mapVars ρ carrier) (mapVars ρ result)
+  | .kont response result => .kont (mapVars ρ response) (mapVars ρ result)
   | .poly body => .poly (mapVars (liftRen ρ) body)
 
 def liftSub (σ : Nat → Ty) : Nat → Ty
@@ -77,6 +79,7 @@ def subst (σ : Nat → Ty) : Ty → Ty
   | .mu body => .mu (subst (liftSub σ) body)
   | .thunk result => .thunk (subst σ result)
   | .callable carrier result => .callable (subst σ carrier) (subst σ result)
+  | .kont response result => .kont (subst σ response) (subst σ result)
   | .poly body => .poly (subst (liftSub σ) body)
 
 def idSub (i : Nat) : Ty := .var i
@@ -146,6 +149,7 @@ theorem subst_mapVars (σ : Nat → Ty) (ρ : Nat → Nat) (t : Ty) :
         _ = subst (liftSub (fun i => σ (ρ i))) body := by rw [h]
   | thunk result ih => simp [subst, mapVars, ih]
   | callable carrier result ihc ihr => simp [subst, mapVars, ihc, ihr]
+  | kont response result ihr ihA => simp [subst, mapVars, ihr, ihA]
   | poly body ih =>
       apply congrArg Ty.poly
       have h : (fun i => liftSub σ (liftRen ρ i)) =
@@ -182,6 +186,7 @@ theorem mapVars_subst (ρ : Nat → Nat) (σ : Nat → Ty) (t : Ty) :
       exact mapLiftSub ρ σ
   | thunk result ih => simp [subst, mapVars, ih]
   | callable carrier result ihc ihr => simp [subst, mapVars, ihc, ihr]
+  | kont response result ihr ihA => simp [subst, mapVars, ihr, ihA]
   | poly body ih =>
       simp only [mapVars, subst]
       rw [ih (liftRen ρ) (liftSub σ)]
@@ -231,6 +236,7 @@ theorem subst_comp (σ τ : Nat → Ty) (t : Ty) :
       exact liftSub_comp σ τ
   | thunk result ih => simp [subst, ih]
   | callable carrier result ihc ihr => simp [subst, ihc, ihr]
+  | kont response result ihr ihA => simp [subst, ihr, ihA]
   | poly body ih =>
       simp only [subst]
       rw [ih (liftSub σ) (liftSub τ)]

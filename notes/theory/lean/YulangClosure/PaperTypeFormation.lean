@@ -43,6 +43,7 @@ mutual
     | mu {scope body} : Formed (scope + 1) body → Formed scope (.mu body)
     | thunk {scope result} : Formed scope result → Formed scope (.thunk result)
     | callable {scope carrier result} : Formed scope carrier → Formed scope result → Formed scope (.callable carrier result)
+    | kont {scope response result} : Formed scope response → Formed scope result → Formed scope (.kont response result)
     | poly {scope body} : Formed (scope + 1) body → Formed scope (.poly body)
 
   inductive TupleFormed : Nat → Ty → Prop where
@@ -90,6 +91,7 @@ mutual
         | succ i => exact Nat.succ_lt_succ (mapScope i (Nat.lt_of_succ_lt_succ hi))
     | thunk hr => exact .thunk (formed_mapVars ρ hr mapScope)
     | callable hc hr => exact .callable (formed_mapVars ρ hc mapScope) (formed_mapVars ρ hr mapScope)
+    | kont hq ha => exact .kont (formed_mapVars ρ hq mapScope) (formed_mapVars ρ ha mapScope)
     | poly hb =>
         apply Formed.poly
         apply formed_mapVars (liftRen ρ) hb
@@ -154,6 +156,7 @@ mutual
             exact Nat.succ_lt_succ hj
     | thunk hr => exact .thunk (formed_subst σ hr subScope)
     | callable hc hr => exact .callable (formed_subst σ hc subScope) (formed_subst σ hr subScope)
+    | kont hq ha => exact .kont (formed_subst σ hq subScope) (formed_subst σ ha subScope)
     | poly hb =>
         apply Formed.poly
         apply formed_subst (liftSub σ) hb

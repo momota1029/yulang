@@ -690,6 +690,11 @@ mutual
     | view {metadata value ty} :
         PaperValueTyped declarations graphTypes environment value ty →
         PaperValueTyped declarations graphTypes environment (.view metadata value) ty
+    | continuation {owners binder body responseType resultType} :
+        PaperContinuationTyped declarations graphTypes environment
+          (.continuation owners binder body) responseType resultType →
+        PaperValueTyped declarations graphTypes environment (.continuation owners binder body)
+          (.kont responseType resultType)
 
   inductive PaperComputationTyped (declarations : DeclarationTable)
       (graphTypes : GraphEnvironment) : TypeEnvironment → Computation → Ty → Prop where
@@ -724,8 +729,31 @@ mutual
           (declaration.instantiate arguments).payloadType →
         PaperComputationTyped declarations graphTypes environment
           (.perform operation arguments payload) (declaration.instantiate arguments).responseType
+    | request {opInstance payload continuation declaration arguments resultType} :
+        OperationDeclarationResolved declarations.operations opInstance.identity declaration →
+        arguments.length = declaration.typeArity →
+        opInstance = declaration.instantiate arguments →
+        PaperValueTyped declarations graphTypes environment payload
+          (declaration.instantiate arguments).payloadType →
+        PaperContinuationTyped declarations graphTypes environment continuation
+          (declaration.instantiate arguments).responseType resultType →
+        PaperComputationTyped declarations graphTypes environment
+          (.request opInstance payload continuation) resultType
+    | resume {continuation response responseType resultType} :
+        PaperContinuationTyped declarations graphTypes environment continuation responseType resultType →
+        PaperValueTyped declarations graphTypes environment response responseType →
+        PaperComputationTyped declarations graphTypes environment
+          (.resume continuation response) resultType
     | fail {reason ty} :
         PaperComputationTyped declarations graphTypes environment (.fail reason) ty
+
+  /-- A continuation keeps the operation response and normal result as separate indices. -/
+  inductive PaperContinuationTyped (declarations : DeclarationTable)
+      (graphTypes : GraphEnvironment) : TypeEnvironment → Value → Ty → Ty → Prop where
+    | continuation {owners binder body responseType resultType} :
+        PaperComputationTyped declarations graphTypes (responseType :: environment) body resultType →
+        PaperContinuationTyped declarations graphTypes environment
+          (.continuation owners binder body) responseType resultType
 
 end
 
