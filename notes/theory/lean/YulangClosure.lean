@@ -4,6 +4,7 @@ import YulangClosure.ControlComposition
 import YulangClosure.CoreExecution
 import YulangClosure.CoreControlBridge
 import YulangClosure.PaperTypeSubstitution
+import YulangClosure.NativeIntegerComparison
 
 #print axioms YulangClosure.finite_prefix_composition
 #print axioms YulangClosure.run_at_every_time

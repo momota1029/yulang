@@ -1,0 +1,282 @@
+# R43 primary verification receipt
+
+Disposition in progress. R42 remains `FAILED / EVIDENCE_CONTRACT_BLOCKER`; no integration authorized until fresh review.
+
+## Frozen evidence chain
+
+- R43 contract SHA-256: `f287eb0b0f817f63edcd9e7a6bddef96ca926d0259876945497a1ffcea215d94`.
+- Baseline: `9c104326a8ee688ec98a1f26bb5f700ad3fa85ca`.
+- Candidate SHA-256: `2352602b7047611e9f9722d788ed1acdf9f4960d178c48f6a08b1a7054f93e79`.
+- R42 audit source SHA-256: `eb3fcc52c652f87f598ea9136271eea3364a4eaedb0948bf941610ee8d75d573`.
+- R42 primary receipt SHA-256: `33a61dc2e2efcb0d811b77f0213f8cfc9a44769c7b1f7579cde15ff537f80834`.
+- R42 independent review SHA-256: `9fe02ad3d00694e804c677eaebea1f75fc7ec3302bdd5404dc671547e2a481df`.
+- R42 isolated root (single comparison import) SHA-256: `b4b04a6a3b2cc0c7c330e93195539f7344612347c9b51b7f2dc8cf0be4994454`.
+- Isolated candidate copied byte-identically into fresh worktree `/tmp/yulang-r43-native-integer-20261026`.
+- Dependency pins checked in the fresh worktree before any Lake call:
+  - manuscript `a003b56a2f32eed06a2c604ef8aed043d43752cbed0b09028eff7f6efac4886b`
+  - NativeLiteralReadback `53a745397fed4b319225541b8e764a32cdc72032ca4e8be48d9d4a23d3901c54`
+  - producer invariant `1f73d0a4e221cb2d2a182876cf9928ebd3cab34edd6d36f4a46bb6bd3ca9a651`
+  - decimal.rs `83ba443036c7da05f9d72d4bbba98b05c4cab2135062743ffe8e3f05250d1cae`
+  - machine.rs `b621ba8ec28d7819db881a4fd5bad0236edbf23e2aa92a879eb1dd211a30c46e`
+  - source_annotation.rs `409ce491bc216c6963bf76d20810790aa2756edf260ecc35e76d5cfc05d24b3f`
+  - Lean toolchain `ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c`
+  - lakefile `2514197994dc47b5e4c6f15ff8c9251f994056b6e32bf2648588ffc10251e194`
+  - manifest `058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3`
+  - baseline root `aeb4b99af2a786363446c49a07cf1df4ac631c411c93305b110f6868078b8641`
+- Baseline contains historical tracked `.lake/*.lean` audit sources only; no `.lake/build` cache exists. R43 creates a fresh build cache and reuses no R40/R42 artifacts.
+
+## Capture protocol
+
+A primary-owned Python subprocess wrapper records argv, cwd, UTC start/end, monotonic elapsed nanoseconds, exit code, byte counts and SHA-256 for raw stdout/stderr files. Outputs are directed to files at process launch without truncation or summarization. The two Lean/Lake process calls run sequentially, once each. Wrapper/manifest/raw logs remain under the isolated worktree and their complete bytes are embedded below after capture.
+
+## Exact invocation manifest
+
+```json
+{
+  "worktree": "/tmp/yulang-r43-native-integer-20261026",
+  "calls": [
+    {
+      "name": "01-lake-version",
+      "argv": [
+        "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+        "--version"
+      ],
+      "cwd": "/tmp/yulang-r43-native-integer-20261026/notes/theory/lean",
+      "start_utc": "2026-10-25T20:16:32.761601+00:00",
+      "end_utc": "2026-10-25T20:16:33.226815+00:00",
+      "elapsed_monotonic_ns": 465192023,
+      "exit_code": 0,
+      "stdout_path": "/tmp/yulang-r43-native-integer-20261026/tasks/agent-loop/logs/01-lake-version.stdout.bin",
+      "stdout_bytes": 53,
+      "stdout_sha256": "165f92ed239a8c7db772bf5ee9d58c59357b489951582a12c86dc9d8e06b23a2",
+      "stderr_path": "/tmp/yulang-r43-native-integer-20261026/tasks/agent-loop/logs/01-lake-version.stderr.bin",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "02-focused-build",
+      "argv": [
+        "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+        "build",
+        "+YulangClosure.NativeIntegerComparison"
+      ],
+      "cwd": "/tmp/yulang-r43-native-integer-20261026/notes/theory/lean",
+      "start_utc": "2026-10-25T20:16:33.226942+00:00",
+      "end_utc": "2026-10-25T20:16:43.915506+00:00",
+      "elapsed_monotonic_ns": 10688554657,
+      "exit_code": 0,
+      "stdout_path": "/tmp/yulang-r43-native-integer-20261026/tasks/agent-loop/logs/02-focused-build.stdout.bin",
+      "stdout_bytes": 3288,
+      "stdout_sha256": "9cd6f097877030587d56371f47e315d0b50acdb0d6d5c8fe78bd2ac80369c329",
+      "stderr_path": "/tmp/yulang-r43-native-integer-20261026/tasks/agent-loop/logs/02-focused-build.stderr.bin",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "total_elapsed_monotonic_ns": 11153746680,
+  "pre_hashes": {
+    "docs/yulang-operational-type-safety-ja.tex": "a003b56a2f32eed06a2c604ef8aed043d43752cbed0b09028eff7f6efac4886b",
+    "notes/theory/lean/YulangClosure/NativeLiteralReadback.lean": "53a745397fed4b319225541b8e764a32cdc72032ca4e8be48d9d4a23d3901c54",
+    "notes/theory/2026-10-25-native-literal-producer-invariant.md": "1f73d0a4e221cb2d2a182876cf9928ebd3cab34edd6d36f4a46bb6bd3ca9a651",
+    "tools/inference-playground/src/runtime/decimal.rs": "83ba443036c7da05f9d72d4bbba98b05c4cab2135062743ffe8e3f05250d1cae",
+    "tools/inference-playground/src/runtime/machine.rs": "b621ba8ec28d7819db881a4fd5bad0236edbf23e2aa92a879eb1dd211a30c46e",
+    "crates/yu-hir/src/module/source_annotation.rs": "409ce491bc216c6963bf76d20810790aa2756edf260ecc35e76d5cfc05d24b3f",
+    "notes/theory/lean/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "notes/theory/lean/lakefile.toml": "2514197994dc47b5e4c6f15ff8c9251f994056b6e32bf2648588ffc10251e194",
+    "notes/theory/lean/lake-manifest.json": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+    "notes/theory/lean/YulangClosure.lean": "aeb4b99af2a786363446c49a07cf1df4ac631c411c93305b110f6868078b8641",
+    "notes/theory/lean/YulangClosure/NativeIntegerComparison.lean": "2352602b7047611e9f9722d788ed1acdf9f4960d178c48f6a08b1a7054f93e79"
+  },
+  "post_hashes": {
+    "docs/yulang-operational-type-safety-ja.tex": "a003b56a2f32eed06a2c604ef8aed043d43752cbed0b09028eff7f6efac4886b",
+    "notes/theory/lean/YulangClosure/NativeLiteralReadback.lean": "53a745397fed4b319225541b8e764a32cdc72032ca4e8be48d9d4a23d3901c54",
+    "notes/theory/2026-10-25-native-literal-producer-invariant.md": "1f73d0a4e221cb2d2a182876cf9928ebd3cab34edd6d36f4a46bb6bd3ca9a651",
+    "tools/inference-playground/src/runtime/decimal.rs": "83ba443036c7da05f9d72d4bbba98b05c4cab2135062743ffe8e3f05250d1cae",
+    "tools/inference-playground/src/runtime/machine.rs": "b621ba8ec28d7819db881a4fd5bad0236edbf23e2aa92a879eb1dd211a30c46e",
+    "crates/yu-hir/src/module/source_annotation.rs": "409ce491bc216c6963bf76d20810790aa2756edf260ecc35e76d5cfc05d24b3f",
+    "notes/theory/lean/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "notes/theory/lean/lakefile.toml": "2514197994dc47b5e4c6f15ff8c9251f994056b6e32bf2648588ffc10251e194",
+    "notes/theory/lean/lake-manifest.json": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+    "notes/theory/lean/YulangClosure.lean": "aeb4b99af2a786363446c49a07cf1df4ac631c411c93305b110f6868078b8641",
+    "notes/theory/lean/YulangClosure/NativeIntegerComparison.lean": "2352602b7047611e9f9722d788ed1acdf9f4960d178c48f6a08b1a7054f93e79"
+  },
+  "same_inputs": true
+}
+```
+
+## 01-lake-version raw stdout
+
+Path: `/tmp/yulang-r43-native-integer-20261026/tasks/agent-loop/logs/01-lake-version.stdout.bin`; bytes: 53; SHA-256: `165f92ed239a8c7db772bf5ee9d58c59357b489951582a12c86dc9d8e06b23a2`.
+
+```text
+Lake version 5.0.0-src+eb6cafb (Lean version 4.35.0)
+```
+
+## 01-lake-version raw stderr
+
+Path: `/tmp/yulang-r43-native-integer-20261026/tasks/agent-loop/logs/01-lake-version.stderr.bin`; bytes: 0; SHA-256: `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+
+```text
+```
+
+## 02-focused-build raw stdout
+
+Path: `/tmp/yulang-r43-native-integer-20261026/tasks/agent-loop/logs/02-focused-build.stdout.bin`; bytes: 3288; SHA-256: `9cd6f097877030587d56371f47e315d0b50acdb0d6d5c8fe78bd2ac80369c329`.
+
+```text
+✔ [2/25] Built YulangClosure.Contracts (2.6s)
+✔ [3/25] Built YulangClosure.CoreSyntax (3.6s)
+✔ [4/25] Built YulangClosure.CoreSubstitution (1.5s)
+✔ [5/25] Built YulangClosure.CoreExecution (854ms)
+✔ [6/25] Built YulangClosure.CallContextTyping (236ms)
+✔ [7/25] Built YulangClosure.CallEntryTypingRepair (196ms)
+✔ [8/25] Built YulangClosure.CallPeelingTyping (215ms)
+✔ [9/25] Built YulangClosure.ControlSyntax (841ms)
+✔ [10/25] Built YulangClosure.CallFailureUnwind (211ms)
+✔ [11/25] Built YulangClosure.CallRequestUnwind (268ms)
+✔ [12/25] Built YulangClosure.CallResponseCancellation (357ms)
+✔ [13/25] Built YulangClosure.CallCaptureTyping (191ms)
+✔ [14/25] Built YulangClosure.ControlTyping (561ms)
+✔ [15/25] Built YulangClosure.CallCaptureResponse (205ms)
+✔ [16/25] Built YulangClosure.CallTerminalTyping (193ms)
+✔ [17/25] Built YulangClosure.CallRequestBoundary (657ms)
+✔ [18/25] Built YulangClosure.CallStepTypingRepair (627ms)
+✔ [19/25] Built YulangClosure.CallPrefixTyping (174ms)
+✔ [20/25] Built YulangClosure.CallFiniteTyping (178ms)
+✔ [21/25] Built YulangClosure.CallUnwindTypingRepair (229ms)
+✔ [22/25] Built YulangClosure.CallRequestBoundaryComposition (228ms)
+✔ [23/25] Built YulangClosure.CallLiteralResponse (340ms)
+✔ [24/25] Built YulangClosure.NativeLiteralReadback (410ms)
+⚠ [25/25] Built YulangClosure.NativeIntegerComparison (994ms)
+warning: YulangClosure/NativeIntegerComparison.lean:25:33: This simp argument is unused:
+  Nat.add_mul
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [value, Nat.pow_succ, Nat.mul_add, Nat.mul_assoc, Nat.mul_comm, Nat.mul_left_comm, Nat.add_assoc]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+warning: YulangClosure/NativeIntegerComparison.lean:26:37: This simp argument is unused:
+  Nat.mul_left_comm
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [value, Nat.pow_succ, Nat.add_mul, Nat.mul_add, Nat.mul_assoc, Nat.mul_comm, Nat.add_assoc]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+warning: YulangClosure/NativeIntegerComparison.lean:118:32: This simp argument is unused:
+  Prod.fst
+
+Hint: Omit it from the simp argument list.
+  [apply] simp only [normalize, he, Prod.snd]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+warning: YulangClosure/NativeIntegerComparison.lean:118:42: This simp argument is unused:
+  Prod.snd
+
+Hint: Omit it from the simp argument list.
+  [apply] simp only [normalize, he, Prod.fst]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+warning: YulangClosure/NativeIntegerComparison.lean:213:28: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: YulangClosure/NativeIntegerComparison.lean:219:30: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: YulangClosure/NativeIntegerComparison.lean:219:42: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+Build completed successfully (25 jobs).
+```
+
+## 02-focused-build raw stderr
+
+Path: `/tmp/yulang-r43-native-integer-20261026/tasks/agent-loop/logs/02-focused-build.stderr.bin`; bytes: 0; SHA-256: `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+
+```text
+```
+
+## Capture wrapper
+
+```python
+import datetime as dt
+import hashlib
+import json
+import pathlib
+import subprocess
+import sys
+import time
+
+root = pathlib.Path('/tmp/yulang-r43-native-integer-20261026')
+lean = root / 'notes/theory/lean'
+logs = root / 'tasks/agent-loop/logs'
+lake = '/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake'
+expected = {
+    'docs/yulang-operational-type-safety-ja.tex': 'a003b56a2f32eed06a2c604ef8aed043d43752cbed0b09028eff7f6efac4886b',
+    'notes/theory/lean/YulangClosure/NativeLiteralReadback.lean': '53a745397fed4b319225541b8e764a32cdc72032ca4e8be48d9d4a23d3901c54',
+    'notes/theory/2026-10-25-native-literal-producer-invariant.md': '1f73d0a4e221cb2d2a182876cf9928ebd3cab34edd6d36f4a46bb6bd3ca9a651',
+    'tools/inference-playground/src/runtime/decimal.rs': '83ba443036c7da05f9d72d4bbba98b05c4cab2135062743ffe8e3f05250d1cae',
+    'tools/inference-playground/src/runtime/machine.rs': 'b621ba8ec28d7819db881a4fd5bad0236edbf23e2aa92a879eb1dd211a30c46e',
+    'crates/yu-hir/src/module/source_annotation.rs': '409ce491bc216c6963bf76d20810790aa2756edf260ecc35e76d5cfc05d24b3f',
+    'notes/theory/lean/lean-toolchain': 'ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c',
+    'notes/theory/lean/lakefile.toml': '2514197994dc47b5e4c6f15ff8c9251f994056b6e32bf2648588ffc10251e194',
+    'notes/theory/lean/lake-manifest.json': '058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3',
+    'notes/theory/lean/YulangClosure.lean': 'aeb4b99af2a786363446c49a07cf1df4ac631c411c93305b110f6868078b8641',
+    'notes/theory/lean/YulangClosure/NativeIntegerComparison.lean': '2352602b7047611e9f9722d788ed1acdf9f4960d178c48f6a08b1a7054f93e79',
+}
+def sha(p):
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+def check_pins():
+    actual = {name: sha(root / name) for name in expected}
+    mismatch = {name: (expected[name], actual[name]) for name in expected if expected[name] != actual[name]}
+    if mismatch:
+        raise SystemExit(f'PIN_MISMATCH {mismatch}')
+    return actual
+
+pre = check_pins()
+commands = [
+    ('01-lake-version', [lake, '--version'], lean),
+    ('02-focused-build', [lake, 'build', '+YulangClosure.NativeIntegerComparison'], lean),
+]
+records = []
+for name, argv, cwd in commands:
+    out = logs / f'{name}.stdout.bin'
+    err = logs / f'{name}.stderr.bin'
+    start_utc = dt.datetime.now(dt.timezone.utc).isoformat()
+    start_ns = time.monotonic_ns()
+    with out.open('wb') as stdout, err.open('wb') as stderr:
+        proc = subprocess.Popen(argv, cwd=cwd, stdout=stdout, stderr=stderr)
+        try:
+            code = proc.wait(timeout=60)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+            raise SystemExit(f'TIMEOUT {name} after 60 seconds; no retry')
+    elapsed = time.monotonic_ns() - start_ns
+    end_utc = dt.datetime.now(dt.timezone.utc).isoformat()
+    record = {
+        'name': name, 'argv': argv, 'cwd': str(cwd), 'start_utc': start_utc,
+        'end_utc': end_utc, 'elapsed_monotonic_ns': elapsed, 'exit_code': code,
+        'stdout_path': str(out), 'stdout_bytes': out.stat().st_size, 'stdout_sha256': sha(out),
+        'stderr_path': str(err), 'stderr_bytes': err.stat().st_size, 'stderr_sha256': sha(err),
+    }
+    records.append(record)
+    if code != 0:
+        (logs / 'manifest.json').write_text(json.dumps({'pre_hashes': pre, 'calls': records}, indent=2) + '\n')
+        raise SystemExit(f'CALL_FAILED {name} exit={code}; no retry')
+    if elapsed > 60_000_000_000:
+        raise SystemExit(f'CALL_BUDGET_EXCEEDED {name}; stop')
+
+total = sum(x['elapsed_monotonic_ns'] for x in records)
+if total > 60_000_000_000:
+    raise SystemExit('CUMULATIVE_CHECKER_BUDGET_EXCEEDED; stop')
+post = check_pins()
+manifest = {
+    'worktree': str(root), 'calls': records, 'total_elapsed_monotonic_ns': total,
+    'pre_hashes': pre, 'post_hashes': post, 'same_inputs': pre == post,
+}
+(logs / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+print(json.dumps(manifest, indent=2))
+```

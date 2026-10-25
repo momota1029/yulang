@@ -1,0 +1,623 @@
+# R42 primary verification receipt
+
+Candidate SHA-256: 2352602b7047611e9f9722d788ed1acdf9f4960d178c48f6a08b1a7054f93e79
+Audit source SHA-256: eb3fcc52c652f87f598ea9136271eea3364a4eaedb0948bf941610ee8d75d573
+
+Complete audit source executed in the isolated project:
+
+```lean
+import Lean.Elab.Command
+import Lean.Util.CollectAxioms
+import YulangClosure.NativeIntegerComparison
+set_option pp.fullNames true
+set_option pp.universes false
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.fold_expansion with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.fold_expansion is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.fold_expansion"
+#check @YulangClosure.NativeIntegerComparison.fold_expansion
+#print axioms YulangClosure.NativeIntegerComparison.fold_expansion
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.fold_expansion
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.fold_expansion: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.fold_expansion"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.fold_zero with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.fold_zero is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.fold_zero"
+#check @YulangClosure.NativeIntegerComparison.fold_zero
+#print axioms YulangClosure.NativeIntegerComparison.fold_zero
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.fold_zero
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.fold_zero: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.fold_zero"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.parseBytes_success_iff with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.parseBytes_success_iff is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.parseBytes_success_iff"
+#check @YulangClosure.NativeIntegerComparison.parseBytes_success_iff
+#print axioms YulangClosure.NativeIntegerComparison.parseBytes_success_iff
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.parseBytes_success_iff
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.parseBytes_success_iff: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.parseBytes_success_iff"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.parts_success_iff with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.parts_success_iff is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.parts_success_iff"
+#check @YulangClosure.NativeIntegerComparison.parts_success_iff
+#print axioms YulangClosure.NativeIntegerComparison.parts_success_iff
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.parts_success_iff
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.parts_success_iff: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.parts_success_iff"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.parts_reject_iff with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.parts_reject_iff is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.parts_reject_iff"
+#check @YulangClosure.NativeIntegerComparison.parts_reject_iff
+#print axioms YulangClosure.NativeIntegerComparison.parts_reject_iff
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.parts_reject_iff
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.parts_reject_iff: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.parts_reject_iff"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.trim_spec with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.trim_spec is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.trim_spec"
+#check @YulangClosure.NativeIntegerComparison.trim_spec
+#print axioms YulangClosure.NativeIntegerComparison.trim_spec
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.trim_spec
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.trim_spec: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.trim_spec"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.normalize_spec with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.normalize_spec is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.normalize_spec"
+#check @YulangClosure.NativeIntegerComparison.normalize_spec
+#print axioms YulangClosure.NativeIntegerComparison.normalize_spec
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.normalize_spec
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.normalize_spec: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.normalize_spec"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.value_bound with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.value_bound is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.value_bound"
+#check @YulangClosure.NativeIntegerComparison.value_bound
+#print axioms YulangClosure.NativeIntegerComparison.value_bound
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.value_bound
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.value_bound: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.value_bound"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.value_lower with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.value_lower is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.value_lower"
+#check @YulangClosure.NativeIntegerComparison.value_lower
+#print axioms YulangClosure.NativeIntegerComparison.value_lower
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.value_lower
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.value_lower: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.value_lower"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.block_lt with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.block_lt is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.block_lt"
+#check @YulangClosure.NativeIntegerComparison.block_lt
+#print axioms YulangClosure.NativeIntegerComparison.block_lt
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.block_lt
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.block_lt: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.block_lt"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.compare_add_prefix with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.compare_add_prefix is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.compare_add_prefix"
+#check @YulangClosure.NativeIntegerComparison.compare_add_prefix
+#print axioms YulangClosure.NativeIntegerComparison.compare_add_prefix
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.compare_add_prefix
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.compare_add_prefix: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.compare_add_prefix"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.lex_value with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.lex_value is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.lex_value"
+#check @YulangClosure.NativeIntegerComparison.lex_value
+#print axioms YulangClosure.NativeIntegerComparison.lex_value
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.lex_value
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.lex_value: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.lex_value"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.shorter_value with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.shorter_value is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.shorter_value"
+#check @YulangClosure.NativeIntegerComparison.shorter_value
+#print axioms YulangClosure.NativeIntegerComparison.shorter_value
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.shorter_value
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.shorter_value: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.shorter_value"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.magnitude_value with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.magnitude_value is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.magnitude_value"
+#check @YulangClosure.NativeIntegerComparison.magnitude_value
+#print axioms YulangClosure.NativeIntegerComparison.magnitude_value
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.magnitude_value
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.magnitude_value: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.magnitude_value"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.compareParts_value with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.compareParts_value is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.compareParts_value"
+#check @YulangClosure.NativeIntegerComparison.compareParts_value
+#print axioms YulangClosure.NativeIntegerComparison.compareParts_value
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.compareParts_value
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.compareParts_value: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.compareParts_value"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.parts_spec with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.parts_spec is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.parts_spec"
+#check @YulangClosure.NativeIntegerComparison.parts_spec
+#print axioms YulangClosure.NativeIntegerComparison.parts_spec
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.parts_spec
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.parts_spec: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.parts_spec"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.compare_decode with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.compare_decode is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.compare_decode"
+#check @YulangClosure.NativeIntegerComparison.compare_decode
+#print axioms YulangClosure.NativeIntegerComparison.compare_decode
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.compare_decode
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.compare_decode: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.compare_decode"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.boolean_projections with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.boolean_projections is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.boolean_projections"
+#check @YulangClosure.NativeIntegerComparison.boolean_projections
+#print axioms YulangClosure.NativeIntegerComparison.boolean_projections
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.boolean_projections
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.boolean_projections: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.boolean_projections"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.intEq_decode with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.intEq_decode is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.intEq_decode"
+#check @YulangClosure.NativeIntegerComparison.intEq_decode
+#print axioms YulangClosure.NativeIntegerComparison.intEq_decode
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.intEq_decode
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.intEq_decode: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.intEq_decode"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.intLt_decode with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.intLt_decode is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.intLt_decode"
+#check @YulangClosure.NativeIntegerComparison.intLt_decode
+#print axioms YulangClosure.NativeIntegerComparison.intLt_decode
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.intLt_decode
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.intLt_decode: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.intLt_decode"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.intLe_decode with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.intLe_decode is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.intLe_decode"
+#check @YulangClosure.NativeIntegerComparison.intLe_decode
+#print axioms YulangClosure.NativeIntegerComparison.intLe_decode
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.intLe_decode
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.intLe_decode: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.intLe_decode"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.intGt_decode with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.intGt_decode is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.intGt_decode"
+#check @YulangClosure.NativeIntegerComparison.intGt_decode
+#print axioms YulangClosure.NativeIntegerComparison.intGt_decode
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.intGt_decode
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.intGt_decode: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.intGt_decode"
+run_cmd do
+  match (← Lean.getEnv).find? `YulangClosure.NativeIntegerComparison.intGe_decode with
+  | some (.thmInfo _) => pure ()
+  | _ => throwError "YulangClosure.NativeIntegerComparison.intGe_decode is not a theorem declaration"
+  Lean.logInfo "YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.intGe_decode"
+#check @YulangClosure.NativeIntegerComparison.intGe_decode
+#print axioms YulangClosure.NativeIntegerComparison.intGe_decode
+run_cmd do
+  let axioms ← Lean.collectAxioms `YulangClosure.NativeIntegerComparison.intGe_decode
+  for ax in axioms do
+    unless #[`propext, `Quot.sound].contains ax do
+      throwError "unapproved axiom in YulangClosure.NativeIntegerComparison.intGe_decode: {ax}"
+  Lean.logInfo "YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.intGe_decode"
+```
+
+Commands and full untruncated outputs will be appended after execution.
+
+## Process receipt
+
+Invocation 1/5 (native Lake version):
+- Command: `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake --version`
+- Exit: 0.
+- Output: `Lake version 5.0.0-src+eb6cafb (Lean version 4.35.0)`
+- Exact wall duration: UNKNOWN; the primary did not retain the tool wrapper duration field for this completed call.
+Invocation 2/5 (pinned Lean version):
+- Command: `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake env lean --version` (cwd: isolated `notes/theory/lean` project).
+- Exit: 0; wrapper-reported wall time: 0.000011841 s.
+- Output: `Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)`
+Invocation 3/5 (focused module build, isolated worktree):
+- Command: `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake build +YulangClosure.NativeIntegerComparison` (cwd: `/tmp/yulang-r42-native-integer-20261026/notes/theory/lean`).
+- Exit: 0; wrapper-reported wall time: 10.032475366 s.
+- Tool output: Lake built the focused target and its dependencies (25 jobs), ending with `Build completed successfully (25 jobs).` Warnings: unused simp arguments `Nat.add_mul` and `Nat.mul_left_comm` at candidate lines 25–26; unused `Prod.fst` and `Prod.snd` at line 118; deprecated `if_pos` / `if_neg` at lines 213 and 219. No errors.
+- Candidate SHA-256 after build: `2352602b7047611e9f9722d788ed1acdf9f4960d178c48f6a08b1a7054f93e79` (unchanged from frozen contract).
+Invocation 4/5 (complete 23-declaration theorem/type/axiom audit, isolated worktree):
+- Command: `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake env lean -j1 -M1024 --root=. /tmp/yulang-r42-native-integer-20261026/tasks/agent-loop/inbox/native-integer-comparison-r42-audit.lean` (cwd: `/tmp/yulang-r42-native-integer-20261026/notes/theory/lean`).
+- Exit: 0; wrapper-reported wall time: 2.343649 s.
+- Complete untruncated stdout follows; every theorem declaration was validated as `.thmInfo`, checked with `#check @...`, printed via `#print axioms`, and passed a strict `Lean.collectAxioms` check allowing only `propext` and `Quot.sound`.
+
+```text
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.fold_expansion
+YulangClosure.NativeIntegerComparison.fold_expansion : ∀ (ds : List UInt8) (acc : Nat),
+  YulangClosure.NativeLiteral.decimalFold acc ds = acc * 10 ^ ds.length + YulangClosure.NativeIntegerComparison.value ds
+'YulangClosure.NativeIntegerComparison.fold_expansion' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.fold_expansion
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.fold_zero
+YulangClosure.NativeIntegerComparison.fold_zero : ∀ (ds : List UInt8),
+  YulangClosure.NativeLiteral.decimalFold 0 ds = YulangClosure.NativeIntegerComparison.value ds
+'YulangClosure.NativeIntegerComparison.fold_zero' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.fold_zero
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.parseBytes_success_iff
+YulangClosure.NativeIntegerComparison.parseBytes_success_iff : ∀ (bytes : List UInt8),
+  (∃ p, YulangClosure.NativeIntegerComparison.parseBytes bytes = Option.some p) ↔
+    (YulangClosure.NativeLiteral.splitSign bytes).snd ≠ [] ∧
+      YulangClosure.NativeLiteral.Digits (YulangClosure.NativeLiteral.splitSign bytes).snd
+'YulangClosure.NativeIntegerComparison.parseBytes_success_iff' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.parseBytes_success_iff
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.parts_success_iff
+YulangClosure.NativeIntegerComparison.parts_success_iff : ∀ (text : String),
+  (∃ p, YulangClosure.NativeIntegerComparison.parts text = Option.some p) ↔ YulangClosure.NativeLiteral.Grammar text
+'YulangClosure.NativeIntegerComparison.parts_success_iff' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.parts_success_iff
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.parts_reject_iff
+YulangClosure.NativeIntegerComparison.parts_reject_iff : ∀ (text : String),
+  YulangClosure.NativeIntegerComparison.parts text = Option.none ↔ ¬YulangClosure.NativeLiteral.Grammar text
+'YulangClosure.NativeIntegerComparison.parts_reject_iff' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.parts_reject_iff
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.trim_spec
+@YulangClosure.NativeIntegerComparison.trim_spec : ∀ {ds : List UInt8},
+  YulangClosure.NativeLiteral.Digits ds →
+    YulangClosure.NativeLiteral.Digits (YulangClosure.NativeIntegerComparison.trimZeros ds) ∧
+      YulangClosure.NativeIntegerComparison.value (YulangClosure.NativeIntegerComparison.trimZeros ds) =
+          YulangClosure.NativeIntegerComparison.value ds ∧
+        (YulangClosure.NativeIntegerComparison.trimZeros ds = [] ∨
+          ∃ c cs, YulangClosure.NativeIntegerComparison.trimZeros ds = c :: cs ∧ 48 < c.toNat)
+'YulangClosure.NativeIntegerComparison.trim_spec' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.trim_spec
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.normalize_spec
+YulangClosure.NativeIntegerComparison.normalize_spec : ∀ (negative : Bool) {ds : List UInt8},
+  YulangClosure.NativeLiteral.Digits ds →
+    YulangClosure.NativeLiteral.Digits (YulangClosure.NativeIntegerComparison.normalize negative ds).snd ∧
+      YulangClosure.NativeIntegerComparison.Canonical
+          (YulangClosure.NativeIntegerComparison.normalize negative ds).snd ∧
+        YulangClosure.NativeLiteral.signedValue (YulangClosure.NativeIntegerComparison.normalize negative ds).fst
+              (YulangClosure.NativeIntegerComparison.value
+                (YulangClosure.NativeIntegerComparison.normalize negative ds).snd) =
+            YulangClosure.NativeLiteral.signedValue negative (YulangClosure.NativeIntegerComparison.value ds) ∧
+          ((YulangClosure.NativeIntegerComparison.normalize negative ds).fst = Bool.true →
+            0 <
+              YulangClosure.NativeIntegerComparison.value
+                (YulangClosure.NativeIntegerComparison.normalize negative ds).snd)
+'YulangClosure.NativeIntegerComparison.normalize_spec' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.normalize_spec
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.value_bound
+@YulangClosure.NativeIntegerComparison.value_bound : ∀ {ds : List UInt8},
+  YulangClosure.NativeLiteral.Digits ds → YulangClosure.NativeIntegerComparison.value ds < 10 ^ ds.length
+'YulangClosure.NativeIntegerComparison.value_bound' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.value_bound
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.value_lower
+@YulangClosure.NativeIntegerComparison.value_lower : ∀ {c : UInt8} {cs : List UInt8},
+  48 < c.toNat → 10 ^ cs.length ≤ YulangClosure.NativeIntegerComparison.value (c :: cs)
+'YulangClosure.NativeIntegerComparison.value_lower' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.value_lower
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.block_lt
+@YulangClosure.NativeIntegerComparison.block_lt : ∀ {a b p x y : Nat}, a < b → x < p → a * p + x < b * p + y
+'YulangClosure.NativeIntegerComparison.block_lt' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.block_lt
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.compare_add_prefix
+YulangClosure.NativeIntegerComparison.compare_add_prefix : ∀ (pre x y : Nat),
+  Ord.compare (pre + x) (pre + y) = Ord.compare x y
+'YulangClosure.NativeIntegerComparison.compare_add_prefix' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.compare_add_prefix
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.lex_value
+@YulangClosure.NativeIntegerComparison.lex_value : ∀ {left right : List UInt8},
+  YulangClosure.NativeLiteral.Digits left →
+    YulangClosure.NativeLiteral.Digits right →
+      left.length = right.length →
+        YulangClosure.NativeIntegerComparison.lexCompare left right =
+          Ord.compare (YulangClosure.NativeIntegerComparison.value left)
+            (YulangClosure.NativeIntegerComparison.value right)
+'YulangClosure.NativeIntegerComparison.lex_value' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.lex_value
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.shorter_value
+@YulangClosure.NativeIntegerComparison.shorter_value : ∀ {left right : List UInt8},
+  YulangClosure.NativeLiteral.Digits left →
+    YulangClosure.NativeLiteral.Digits right →
+      YulangClosure.NativeIntegerComparison.Canonical left →
+        YulangClosure.NativeIntegerComparison.Canonical right →
+          left.length < right.length →
+            YulangClosure.NativeIntegerComparison.value left < YulangClosure.NativeIntegerComparison.value right
+'YulangClosure.NativeIntegerComparison.shorter_value' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.shorter_value
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.magnitude_value
+@YulangClosure.NativeIntegerComparison.magnitude_value : ∀ {left right : List UInt8},
+  YulangClosure.NativeLiteral.Digits left →
+    YulangClosure.NativeLiteral.Digits right →
+      YulangClosure.NativeIntegerComparison.Canonical left →
+        YulangClosure.NativeIntegerComparison.Canonical right →
+          YulangClosure.NativeIntegerComparison.magnitude left right =
+            Ord.compare (YulangClosure.NativeIntegerComparison.value left)
+              (YulangClosure.NativeIntegerComparison.value right)
+'YulangClosure.NativeIntegerComparison.magnitude_value' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.magnitude_value
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.compareParts_value
+@YulangClosure.NativeIntegerComparison.compareParts_value : ∀ {left right : Bool × List UInt8},
+  YulangClosure.NativeLiteral.Digits left.snd →
+    YulangClosure.NativeLiteral.Digits right.snd →
+      YulangClosure.NativeIntegerComparison.Canonical left.snd →
+        YulangClosure.NativeIntegerComparison.Canonical right.snd →
+          (left.fst = Bool.true → 0 < YulangClosure.NativeIntegerComparison.value left.snd) →
+            (right.fst = Bool.true → 0 < YulangClosure.NativeIntegerComparison.value right.snd) →
+              YulangClosure.NativeIntegerComparison.compareParts left right =
+                Ord.compare
+                  (YulangClosure.NativeLiteral.signedValue left.fst
+                    (YulangClosure.NativeIntegerComparison.value left.snd))
+                  (YulangClosure.NativeLiteral.signedValue right.fst
+                    (YulangClosure.NativeIntegerComparison.value right.snd))
+'YulangClosure.NativeIntegerComparison.compareParts_value' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.compareParts_value
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.parts_spec
+@YulangClosure.NativeIntegerComparison.parts_spec : ∀ {text : String} {p : Bool × List UInt8},
+  YulangClosure.NativeIntegerComparison.parts text = Option.some p →
+    YulangClosure.NativeLiteral.Grammar text ∧
+      YulangClosure.NativeLiteral.Digits p.snd ∧
+        YulangClosure.NativeIntegerComparison.Canonical p.snd ∧
+          YulangClosure.NativeLiteral.signedValue p.fst (YulangClosure.NativeIntegerComparison.value p.snd) =
+              YulangClosure.NativeLiteral.mathematicalValue text ∧
+            (p.fst = Bool.true → 0 < YulangClosure.NativeIntegerComparison.value p.snd)
+'YulangClosure.NativeIntegerComparison.parts_spec' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.parts_spec
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.compare_decode
+@YulangClosure.NativeIntegerComparison.compare_decode : ∀ {left right : String} {a b : Int},
+  YulangClosure.NativeLiteral.decodeInteger left = Option.some a →
+    YulangClosure.NativeLiteral.decodeInteger right = Option.some b →
+      YulangClosure.NativeIntegerComparison.compare left right = Option.some (Ord.compare a b)
+'YulangClosure.NativeIntegerComparison.compare_decode' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.compare_decode
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.boolean_projections
+@YulangClosure.NativeIntegerComparison.boolean_projections : ∀ {left right : String} {a b : Int},
+  YulangClosure.NativeLiteral.decodeInteger left = Option.some a →
+    YulangClosure.NativeLiteral.decodeInteger right = Option.some b →
+      YulangClosure.NativeIntegerComparison.intEq left right = Option.some (Decidable.decide (a = b)) ∧
+        YulangClosure.NativeIntegerComparison.intLt left right = Option.some (Decidable.decide (a < b)) ∧
+          YulangClosure.NativeIntegerComparison.intLe left right = Option.some (Decidable.decide (a ≤ b)) ∧
+            YulangClosure.NativeIntegerComparison.intGt left right = Option.some (Decidable.decide (a > b)) ∧
+              YulangClosure.NativeIntegerComparison.intGe left right = Option.some (Decidable.decide (a ≥ b))
+'YulangClosure.NativeIntegerComparison.boolean_projections' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.boolean_projections
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.intEq_decode
+@YulangClosure.NativeIntegerComparison.intEq_decode : ∀ {left right : String} {a b : Int},
+  YulangClosure.NativeLiteral.decodeInteger left = Option.some a →
+    YulangClosure.NativeLiteral.decodeInteger right = Option.some b →
+      YulangClosure.NativeIntegerComparison.intEq left right = Option.some (Decidable.decide (a = b))
+'YulangClosure.NativeIntegerComparison.intEq_decode' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.intEq_decode
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.intLt_decode
+@YulangClosure.NativeIntegerComparison.intLt_decode : ∀ {left right : String} {a b : Int},
+  YulangClosure.NativeLiteral.decodeInteger left = Option.some a →
+    YulangClosure.NativeLiteral.decodeInteger right = Option.some b →
+      YulangClosure.NativeIntegerComparison.intLt left right = Option.some (Decidable.decide (a < b))
+'YulangClosure.NativeIntegerComparison.intLt_decode' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.intLt_decode
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.intLe_decode
+@YulangClosure.NativeIntegerComparison.intLe_decode : ∀ {left right : String} {a b : Int},
+  YulangClosure.NativeLiteral.decodeInteger left = Option.some a →
+    YulangClosure.NativeLiteral.decodeInteger right = Option.some b →
+      YulangClosure.NativeIntegerComparison.intLe left right = Option.some (Decidable.decide (a ≤ b))
+'YulangClosure.NativeIntegerComparison.intLe_decode' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.intLe_decode
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.intGt_decode
+@YulangClosure.NativeIntegerComparison.intGt_decode : ∀ {left right : String} {a b : Int},
+  YulangClosure.NativeLiteral.decodeInteger left = Option.some a →
+    YulangClosure.NativeLiteral.decodeInteger right = Option.some b →
+      YulangClosure.NativeIntegerComparison.intGt left right = Option.some (Decidable.decide (a > b))
+'YulangClosure.NativeIntegerComparison.intGt_decode' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.intGt_decode
+YULANG_AUDIT_BEGIN YulangClosure.NativeIntegerComparison.intGe_decode
+@YulangClosure.NativeIntegerComparison.intGe_decode : ∀ {left right : String} {a b : Int},
+  YulangClosure.NativeLiteral.decodeInteger left = Option.some a →
+    YulangClosure.NativeLiteral.decodeInteger right = Option.some b →
+      YulangClosure.NativeIntegerComparison.intGe left right = Option.some (Decidable.decide (a ≥ b))
+'YulangClosure.NativeIntegerComparison.intGe_decode' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeIntegerComparison.intGe_decode
+```
+- Audit output integrity: 23 `YULANG_AUDIT_BEGIN` and 23 `YULANG_AUDIT_END` markers; all 23 theorem axiom lines contain only `[propext]` or `[propext, Quot.sound]`.
+Invocation 5/5 (default root target build with exactly one import added in isolated worktree):
+- Command: `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake build` (cwd: `/tmp/yulang-r42-native-integer-20261026/notes/theory/lean`).
+- Exit: 0; wrapper-reported wall time: 4.230859 s.
+- Complete untruncated stdout:
+
+```text
+⚠ [25/31] Replayed YulangClosure.NativeIntegerComparison
+warning: YulangClosure/NativeIntegerComparison.lean:25:33: This simp argument is unused:
+  Nat.add_mul
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [value, Nat.pow_succ, Nat.mul_add, Nat.mul_assoc, Nat.mul_comm, Nat.mul_left_comm, Nat.add_assoc]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+warning: YulangClosure/NativeIntegerComparison.lean:26:37: This simp argument is unused:
+  Nat.mul_left_comm
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [value, Nat.pow_succ, Nat.add_mul, Nat.mul_add, Nat.mul_assoc, Nat.mul_comm, Nat.add_assoc]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+warning: YulangClosure/NativeIntegerComparison.lean:118:32: This simp argument is unused:
+  Prod.fst
+
+Hint: Omit it from the simp argument list.
+  [apply] simp only [normalize, he, Prod.snd]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+warning: YulangClosure/NativeIntegerComparison.lean:118:42: This simp argument is unused:
+  Prod.snd
+
+Hint: Omit it from the simp argument list.
+  [apply] simp only [normalize, he, Prod.fst]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+warning: YulangClosure/NativeIntegerComparison.lean:213:28: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: YulangClosure/NativeIntegerComparison.lean:219:30: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: YulangClosure/NativeIntegerComparison.lean:219:42: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+✔ [26/31] Built YulangClosure.CoreComposition (2.3s)
+⚠ [27/31] Built YulangClosure.ControlComposition (876ms)
+warning: YulangClosure/ControlComposition.lean:304:57: This simp argument is unused:
+  sourceFrameControl
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [sourceStackEmbedding, sourceFramesControl]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+warning: YulangClosure/ControlComposition.lean:310:57: This simp argument is unused:
+  sourceFrameControl
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [sourceStackEmbedding, sourceFramesControl]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+warning: YulangClosure/ControlComposition.lean:316:57: This simp argument is unused:
+  sourceFrameControl
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [sourceStackEmbedding, sourceFramesControl]
+✔ [28/31] Built YulangClosure.PaperTypeSubstitution (3.4s)
+✔ [29/31] Built YulangClosure.CoreControlBridge (523ms)
+ℹ [30/31] Built YulangClosure (165ms)
+info: YulangClosure.lean:9:0: 'YulangClosure.finite_prefix_composition' does not depend on any axioms
+info: YulangClosure.lean:10:0: 'YulangClosure.run_at_every_time' does not depend on any axioms
+info: YulangClosure.lean:11:0: 'YulangClosure.saved_reusable' does not depend on any axioms
+info: YulangClosure.lean:12:0: 'YulangClosure.SourceProblem.native_success_elaborates' does not depend on any axioms
+info: YulangClosure.lean:14:0: 'YulangClosure.Control.control_preservation' does not depend on any axioms
+info: YulangClosure.lean:15:0: 'YulangClosure.Control.progress' depends on axioms: [propext]
+info: YulangClosure.lean:16:0: 'YulangClosure.Control.resume_reusable' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: YulangClosure.lean:17:0: 'YulangClosure.Control.prefix_fail_absorbing' depends on axioms: [propext]
+info: YulangClosure.lean:18:0: 'YulangClosure.Control.finite_trace_safety' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: YulangClosure.lean:19:0: 'YulangClosure.Control.finite_prefix_control' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: YulangClosure.lean:21:0: 'YulangClosure.Original.substituteRaw_composition' depends on axioms: [propext, Quot.sound]
+info: YulangClosure.lean:22:0: 'YulangClosure.Original.substComp_typed' depends on axioms: [propext]
+info: YulangClosure.lean:23:0: 'YulangClosure.Original.single_raw' depends on axioms: [propext]
+info: YulangClosure.lean:24:0: 'YulangClosure.Original.raw_step_lifts' depends on axioms: [propext]
+info: YulangClosure.lean:25:0: 'YulangClosure.Original.raw_finite_safety' depends on axioms: [propext]
+info: YulangClosure.lean:27:0: 'YulangClosure.Original.principal_preservation' depends on axioms: [propext]
+info: YulangClosure.lean:28:0: 'YulangClosure.Original.closed_bottom' does not depend on any axioms
+info: YulangClosure.lean:30:0: 'YulangClosure.CoreControlBridge.successor_coverage' does not depend on any axioms
+info: YulangClosure.lean:31:0: 'YulangClosure.CoreControlBridge.machine_finite_coverage' depends on axioms: [propext]
+info: YulangClosure.lean:32:0: 'YulangClosure.CoreControlBridge.finite_closed_safety' depends on axioms: [propext]
+info: YulangClosure.lean:34:0: 'YulangClosure.PaperTypes.subst_id' depends on axioms: [propext, Quot.sound]
+info: YulangClosure.lean:35:0: 'YulangClosure.PaperTypes.subst_comp' depends on axioms: [propext, Quot.sound]
+info: YulangClosure.lean:36:0: 'YulangClosure.PaperTypes.OperationInstance.subst_comp' depends on axioms: [propext, Quot.sound]
+Build completed successfully (31 jobs).
+```
+
+Frozen artifact and static source scan:
+- Isolated root `notes/theory/lean/YulangClosure.lean` SHA-256: `b4b04a6a3b2cc0c7c330e93195539f7344612347c9b51b7f2dc8cf0be4994454`.
+- Candidate scanned for `sorry`, `admit`, `axiom `, `unsafe `, `Lean.ofReduceBool`, `implemented_by`, and `run_tac`; no occurrences. It declares no project axioms. This is a textual bypass scan, not a proof of semantic correspondence.
