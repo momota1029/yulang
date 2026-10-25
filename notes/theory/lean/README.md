@@ -102,3 +102,10 @@ LEAN-CORE-20261024/r1。[元構文との対応稿](../2026-10-24-lean-core-corre
 LEAN-STRUCTURAL-20261024/r1。union injection/case、同じ値への二つの導出を持つ intersection/choose、Top、Bottom elimination を、既存の `Original.raw_finite_safety` に組み込んだ。両 branch の型付き代入、raw embedding、canonical forms、principal 保存、進行、**拡張した RawStep の全 successor** の逆方向対応を検査した。式本体の安全性を新しく仮定していない。
 
 intersection の Prop 型証拠のみを計算表現で消去する `rawProofBoth` と、明示 evidence を保持する `rawBoth` は別である。任意の明示 evidence/runtime View/metadata の消去定理を主張しない。全元型の型付き代入、Control への接続、source/native/SCC の親義務は OPEN のままである。[対応と限界](../2026-10-24-lean-core-correspondence.md)、[検査・査読記録](../../../tasks/agent-loop/sprints/lean-structural-20261024-outcome.md)を参照。
+
+
+## 抽象 Focus の有限完了
+
+`ForceCompletion.lean` は r7 の抽象 administrative machine に対し、任意の `FocusResult` を、同じ trace と literal な順序付き wrapper を持つ `CountedRun` と同値にする。証明は pending stack の帰納と既存の `observe_run` / `run_backward` を使う。Lean 4.35.0 で検査済み、公理依存は `[propext, Quot.sound]`。独立査読は CLEAN。
+
+これは抽象的な有限成功の zipper 補題であり、O-NORM に再利用できる局所結果である。元 Yulang の source encoding、beta/packet realization、Force/View applicability、O-RESULT、termination、raw error coverage、source/native correspondence は証明しない。O-NORM、O-RESULT、元の意味論・型推論の親義務は OPEN のまま。[r11 outcome](../../../tasks/agent-loop/sprints/force-completion-20261025-r11-outcome.md) に固定ハッシュ、checker receipt、独立査読と残る premise を記録する。
