@@ -4,18 +4,18 @@
   "phase": "ACTIVE",
   "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
   "active_sprint": {
-    "id": "FULL-PAPER-TYPE-SUBSTITUTION-20261026/r29",
+    "id": "PAPER-GUARD-CONSTRUCTOR-AUTHORITY-20261026/r30",
     "revision": "r1",
-    "status": "ACCEPTED_INTERMEDIATE_AWAITING_DISPATCH",
-    "contract": "tasks/agent-loop/sprints/paper-fresh-heap-allocation-r29-r1.md",
-    "contract_sha256": "1859d9a005b9bfbff2fd98de5bf7e2d984b48f890cd42ca37b5909f5439d8c70",
-    "baseline": "79b7a88a0cca341306d399dbb0b788d298540612",
+    "status": "CONTRACT_FROZEN_AWAITING_RESEARCH_ACK",
+    "contract": "tasks/agent-loop/sprints/paper-guard-constructor-authority-r30-r1.md",
+    "contract_sha256": "77d1512967f84808ea7bffe1a488e3b2d34b4aaa50ea3475a3753aa99236a3b6",
+    "baseline": "f7a8ade138d1abec51a204b36fe5e4b06f856ce9",
     "branch": "research/simple-sub-intrusion",
-    "checkout": "/tmp/yulang-r29-fresh-heap",
-    "claim": "Explicit finite fresh block allocation with represented payload typing.",
-    "outcome": "R29 candidate from selector; guardedness, source-formal order and full paper graph extension OPEN.",
-    "proof_worker": "R29 worker and M1 reviewer STOPPED; primary accepted the exact bounded intermediate after complete final build/audit and clean review.",
-    "budget": "Worker 4 calls/27.421 checker s/3 failures then STOP; primary 4 total invocations including 2 version preflights, final build+audit 4.444998 checker s; reviewer 0 checker calls; all R29 budgets spent."
+    "checkout": "/home/momota1029/rust/yulang",
+    "claim": "Source/authority correspondence for guard classification over every PaperExecutionSyntax.Value constructor.",
+    "outcome": "Resolve cited barriers/traversals or freeze exact first missing authority; no new semantics or proof projection.",
+    "proof_worker": "Primary source-proof intake; one registered researcher assigned after contract commit; fresh M1 after freeze.",
+    "budget": "600 active s total: primary <=240, researcher <=180, M1 <=180; Lean/Lake/Rust/build/test/runtime calls 0; no Astra."
   },
   "workers": [
     {
@@ -115,29 +115,18 @@
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Primary adjudication accepted bounded R29 intermediate; build/audit pass, 31 public declarations, only propext/Quot.sound, source scan 0 matches."
+      "receipt": "R29 accepted and pushed at f7a8ade; R30 contract frozen, source-only authority gate; no R30 worker started yet."
     },
     {
-      "id": "/root/r29_registered_lean_prover",
-      "role": "R29 proof worker",
-      "state": "STOPPED",
-      "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
-      "requested_model": "registered lean_prover",
+      "id": "/root/r30_source_researcher",
+      "role": "R30 complementary source researcher",
+      "state": "NOT_STARTED",
+      "session": null,
+      "requested_model": "registered researcher",
       "requested_effort": "role default",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Concrete handoff and checks log: 4 calls/27.421 checker s/3 failures; focused build #3 PASS; audit #4 missing-file FAIL; STOP receipt: no Lean/Lake process, no descendants, writes stopped."
-    },
-    {
-      "id": "/root/r29_independent_m1",
-      "role": "R29 independent M1 reviewer",
-      "state": "STOPPED",
-      "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
-      "requested_model": "registered spec_auditor",
-      "requested_effort": "role default",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "M1 CLEAN, no findings; source-only review complete; zero checker/cache/Git/writes; STOPPED."
+      "receipt": "Awaiting committed exact contract and supported spawn acknowledgement."
     }
   ],
   "leases": [
@@ -217,59 +206,19 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/paper-term-substitution-r28-primary-verification.txt",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/PaperExecutionGraphWeakening.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/paper-fresh-heap-allocation-r29-r1.md",
+      "path": "tasks/agent-loop/sprints/paper-guard-constructor-authority-r30-r1.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "notes/theory/lean/YulangClosure/PaperFreshHeapAllocation.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/R29Audit.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build",
+      "path": "tasks/agent-loop/inbox/paper-guard-constructor-authority-r30.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/paper-fresh-heap-allocation-r29-worker-checks.txt",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/paper-fresh-heap-allocation-r29.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/paper-fresh-heap-allocation-r29-primary-verification.txt",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/paper-fresh-heap-allocation-r29-review.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/paper-fresh-heap-allocation-r29-adjudication.md",
-      "owner": "/root",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/paper-guard-constructor-authority-r30-research.md",
+      "owner": "/root/r30_source_researcher",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -441,8 +390,8 @@
       "details": "Bounded source-generated guard theorem accepted in isolation; full-paper/native bridge OPEN; native pending-cell republication blocks naive immutable relation."
     }
   ],
-  "closure": "R29 ACCEPTED as bounded finite block payload-allocation intermediate after primary PASS and clean independent M1; original full substitution/inference/A-B/source/native and graph guard remain OPEN.",
-  "next_action": "R29 adjudicated; await sprint dispatcher next packet; no R29 checker budget remains.",
+  "closure": "R29 accepted bounded finite allocation intermediate and pushed; full paper graph guard is open. R30 tests source authority for its constructor classification only.",
+  "next_action": "Run R30 source-authority mapping under frozen contract; no Lean/Rust work.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "8 UNKNOWN reservations remain quarantined.",
