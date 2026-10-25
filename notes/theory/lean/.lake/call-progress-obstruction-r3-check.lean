@@ -1,0 +1,9 @@
+import YulangClosure.CallProgressObstruction
+
+#print YulangClosure.Control.viewed_force_reachable
+#print axioms YulangClosure.Control.viewed_force_reachable
+#print YulangClosure.Control.viewed_force_no_successor
+#print axioms YulangClosure.Control.viewed_force_no_successor
+#print YulangClosure.Control.reachable_typed_viewed_force_stuck
+#print axioms YulangClosure.Control.reachable_typed_viewed_force_stuck
+#print axioms YulangClosure.Control.call_state_typed_prefix_preservation
