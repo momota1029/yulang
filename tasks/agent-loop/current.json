@@ -6,7 +6,7 @@
 "active_sprint": {
 "id": "LEAN-CALL-CAPTURE-RESPONSE-20261025",
 "revision": "r1",
-"status": "READY",
+"status": "ACTIVE",
 "contract": "tasks/agent-loop/sprints/call-capture-response-20261025-r1.md",
 "contract_sha256": "af006b81aa906e5017f23c3b15e754ac603355745372b283e220f93a5fcb5c49",
 "baseline": "79e71c17d",
@@ -25,12 +25,12 @@
 "lean_invocation_cap": 4
 },
 "outcome": "tasks/agent-loop/sprints/call-capture-response-20261025-r1-outcome.md",
-"closure": "Contract frozen; P/Q awaiting activation. Parent Call A/B and source/native gates OPEN.",
+"closure": "P/Q launched on exact leases; source work in progress. Parent Call A/B and source/native gates OPEN.",
 "review": "Fresh nonauthor compiler referee after both authors STOP; report path reserved in contract.",
 "checker": "New sprint checks NOT_RUN; all source pins matched at freeze.",
 "acceptance": "Exact P/Q/composition signatures; 4/4 exit0; allowed axioms only; CLEAN independent review required.",
 "author": "Luna owns composition, verification, review/adjudication and Git; P/Q have disjoint source/handoff/output leases.",
-"next_action": "Activate P and Q after frozen contract checkpoint is pushed.",
+"next_action": "Receive frozen P/Q handoffs; then serialize Lean verification.",
 "non_goal": "No semantic rule change, source/native closure, Call A/B, inference A/B, or production authority."
 },
 "workers": [
@@ -81,24 +81,24 @@
 {
 "id": "/root/call_response_cancellation_prover",
 "role": "P constructive proof: capture/bind response cancellation",
-"state": "WAITING",
+"state": "RUNNING",
 "session": "LEAN-CALL-CAPTURE-RESPONSE-20261025/root-turn-14",
 "requested_model": "Sol",
 "requested_effort": "high",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "Exact r1 lease reserved; awaiting activation; no writes yet."
+"receipt": "P activated on exact lease; cancellation proof in progress."
 },
 {
 "id": "/root/call_capture_typing_prover",
 "role": "Q constructive proof: typing through captured frames",
-"state": "WAITING",
+"state": "RUNNING",
 "session": "LEAN-CALL-CAPTURE-RESPONSE-20261025/root-turn-14",
 "requested_model": "Sol",
 "requested_effort": "high",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "Exact r1 lease reserved; awaiting activation; no writes yet."
+"receipt": "Q activated on exact lease; frame-typing proof in progress."
 }
 ],
 "leases": [
@@ -345,8 +345,8 @@
 "details": "R3 review blocking; R4 Flow/source projection next."
 }
 ],
-"closure": "Call r3 ACCEPTED/CLEAN; Force research artifacts checkpointed; capture-response r1 ready to launch. Parent gates OPEN.",
-"next_action": "Commit/push capture-response r1 contract/state; activate P and Q.",
+"closure": "r3 accepted; Force files checkpointed; Call capture-response r1 authors active; parent gates OPEN.",
+"next_action": "P/Q authors RUNNING; verify current pins and wait for frozen handoffs.",
 "legacy_reconciliation": {
 "required": false,
 "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -494,6 +494,6 @@
 "commit": "79e71c17d"
 }
 ],
-"resource_observation": "Four Force research groups checkpointed; 16 former untracked files now tracked; 3 UNKNOWN quarantines retained.",
+"resource_observation": "P/Q running in two slots; 3 UNKNOWN quarantines retained; tree has no untracked Force files.",
 "checker": "4 exact calls pass; source/output hashes match receipt; query axiom set allowed."
 }
