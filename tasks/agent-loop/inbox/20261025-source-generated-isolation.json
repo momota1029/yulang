@@ -1,0 +1,17 @@
+{
+  "utc": "2026-10-25T09:16:13.291858+00:00",
+  "parent_session": "01a17247-73d1-7663-9c3b-ff5b5b9c2ef1",
+  "foreign_parent": "01a17150-2005-7562-81fd-359b3e7a268c",
+  "baseline": "0132d07ca7e149b59f529469d1479a1c8cfa577a",
+  "isolated_checkout": "/tmp/yulang-source-interaction-01a17247-20261025",
+  "original_proof_worker": "01a17250-4f6a-7662-93fb-04dc70ec3efb",
+  "original_native_worker": "01a17250-8b64-7f43-90dd-b056be263a0c",
+  "original_sources": {
+    "notes/theory/lean/YulangClosure/SourceGeneratedInteraction.lean": "7eb9d792f6093a0b82be85e2a751732febede649d9a4a2ae25eda0bd1d14d8d2",
+    "tools/inference-playground/examples/source_generated_interaction_20261025.rs": "18ee279d48f997bf97cf6766f613c2b5f047c44768b528fd6daf0d40d187ca87"
+  },
+  "copied_verified_objects": 128,
+  "foreign_cessation": "UNKNOWN; original paths untouched and remain quarantined",
+  "snapshot": "/tmp/yulang-concurrent-write-20261025-vubiuts4",
+  "handoff_recovery": "Original native handoff also changed after collision; recovered its exact bytes from primary pre-mutation snapshot."
+}

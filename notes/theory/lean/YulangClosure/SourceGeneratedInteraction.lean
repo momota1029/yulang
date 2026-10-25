@@ -1,22 +1,25 @@
 import YulangClosure.HandlerGraphRecursiveTrace
 
-/-! Candidate source-generated histories for the existing research machine.
-The initial guard and each allocation's finite fresh-cycle criterion construct
-the final guard. No final graph typing, rank, or guard is a history premise.
-This does not strengthen generic Run or establish full-paper/native coverage.
-Author: /root/source_generated_proof_20261025. Checker/review owned by primary. -/
-namespace YulangClosure.HandlerGraph.Combined.SourceGenerated
+/-! Finite source-generated interaction histories in the existing research
+machine. Allocation is the actual sourceFresh/allocate construction, with
+source RHS/capture typing and its local finite transparent-cycle criterion.
+No final graph typing or guard is supplied by a history constructor.
+
+This domain refines Extension.Run; it does not replace the broader Run or claim
+that arbitrary typed immutable extensions are guarded. Full paper syntax and
+native source-to-machine correspondence remain separate obligations. -/
+namespace YulangClosure.HandlerGraph.SourceGenerated
 open HigherOrder (Ty Context emptyContext OperationInstance)
 open YulangClosure.HandlerGraph.Extension
 open YulangClosure.HandlerGraph.Recursive
+open YulangClosure.HandlerGraph.Combined
 
-/-- Data retains the actual finite allocation history, so its guard can be
-constructed without choice. Old references may have any Type; each fresh family
-has arbitrary finite size, including zero. Publication and answering have exactly
-the existing Run interfaces; only its unrestricted extension is specialized. -/
+/-- Arbitrary finite histories; reference sorts need not be finite. Only each
+new recursive family is finite, and n may be zero. Publication and answers use
+the existing raw rules, including full operation-instance equality. -/
 inductive History (B : Type) (initialGraph : Graph B) (initialTypes : B → Ty)
     (initial : Comp B Empty) :
-    (R : Type) → Graph R → (R → Ty) → Comp R Empty → List (Saved R) → Type 1 where
+    (R : Type) → Graph R → (R → Ty) → Comp R Empty → List (Saved R) → Prop where
   | start : History B initialGraph initialTypes initial
       B initialGraph initialTypes initial []
   | internal {R : Type} {graph : Graph R} {xi : R → Ty}
@@ -34,9 +37,10 @@ inductive History (B : Type) (initialGraph : Graph B) (initialTypes : B → Ty)
       (rhs : Fin n → Value R Empty) (capture : Nat → Value R Empty) :
       History B initialGraph initialTypes initial R graph xi current arena →
       (∀ s, ValueTyped xi emptyTy (sourceContext nu env) (rhs s) (nu s)) →
-      CapturesTyped xi env capture → FreshNoCycle (sourceFresh capture rhs) →
-      History B initialGraph initialTypes initial (Sum R (Fin n))
-        (allocate graph (sourceFresh capture rhs)) (joinTy xi nu)
+      CapturesTyped xi env capture →
+      FreshNoCycle (sourceFresh capture rhs) →
+      History B initialGraph initialTypes initial
+        (Sum R (Fin n)) (allocate graph (sourceFresh capture rhs)) (joinTy xi nu)
         (mapComp Sum.inl current) (arena.map (Saved.map Sum.inl))
   | answer {R : Type} {graph : Graph R} {xi : R → Ty} {saved : Saved R}
       {current next : Comp R Empty} {arena : List (Saved R)}
@@ -47,92 +51,127 @@ inductive History (B : Type) (initialGraph : Graph B) (initialTypes : B → Ty)
       History B initialGraph initialTypes initial R graph xi next arena
 
 variable {B R : Type} {initialGraph : Graph B} {initialTypes : B → Ty}
-  {initial : Comp B Empty} {graph : Graph R} {xi : R → Ty}
-  {current : Comp R Empty} {arena : List (Saved R)}
+    {initial : Comp B Empty} {graph : Graph R} {xi : R → Ty}
+    {current : Comp R Empty} {arena : List (Saved R)} {result : Ty}
 
-theorem History.graphTyped
-    (history : History B initialGraph initialTypes initial R graph xi current arena)
-    (typed : WellTyped initialGraph initialTypes) : WellTyped graph xi := by
-  induction history with
-  | start => exact typed
-  | internal _ _ ih => exact ih
-  | publish _ _ ih => exact ih
-  | allocation rhs capture _ hrhs hcapture _ ih =>
-      exact source_allocation_typed ih hrhs hcapture
-  | answer _ _ _ _ ih => exact ih
-
-/-- This is data, not Nonempty followed by a choice oracle. Every local rank
-comes from allocationGuard's existing finite algorithm. -/
-def History.graphGuard
-    (history : History B initialGraph initialTypes initial R graph xi current arena)
-    (guard : GuardedValueGraph.Guarded (projectGraph initialGraph)) :
-    GuardedValueGraph.Guarded (projectGraph graph) := by
-  induction history with
-  | start => exact guard
-  | internal _ _ ih => exact ih
-  | publish _ _ ih => exact ih
-  | allocation rhs capture _ _ _ cycle ih =>
-      exact allocationGuard ih (sourceFresh capture rhs) cycle
-  | answer _ _ _ _ ih => exact ih
-
-/-- The packet's cycle falsifier is ruled out on the actual final projection,
-including paths crossing allocation boundaries. Typing is not used here. -/
-theorem History.no_transparent_cycle
-    (history : History B initialGraph initialTypes initial R graph xi current arena)
-    (guard : GuardedValueGraph.Guarded (projectGraph initialGraph)) (r : R) :
-    ¬ GuardedValueGraph.TransparentPath (projectGraph graph) r r :=
-  GuardedValueGraph.no_transparent_cycle (history.graphGuard guard) r
-
-/-- Erasure supplies the target typing demanded by generic Run.extension from
-the source constructor's RHS/capture derivations, rather than assuming it. -/
-theorem History.erase
-    (history : History B initialGraph initialTypes initial R graph xi current arena)
-    (typed : WellTyped initialGraph initialTypes) :
-    Run B initialGraph initialTypes initial R graph xi current arena := by
-  induction history with
-  | start => exact .start
-  | internal _ step ih => exact .internal ih step
-  | publish saved _ ih => exact .publish saved ih
-  | allocation rhs capture prior hrhs hcapture _ ih =>
-      exact run_source_extension ih (prior.graphTyped typed) rhs hrhs capture hcapture
-  | answer _ member matched responseTyped ih =>
-      exact .answer ih member matched responseTyped
-
-theorem History.invariant
-    (history : History B initialGraph initialTypes initial R graph xi current arena)
-    (typed : WellTyped initialGraph initialTypes)
-    (initialTyped : CompTyped initialTypes emptyTy emptyContext initial result) :
-    WellTyped graph xi ∧ CompTyped xi emptyTy emptyContext current result ∧
-      ∀ s, s ∈ arena → SavedTyped xi s result :=
-  run_invariant typed initialTyped (history.erase typed)
-
-/-- An actual immutable chain retains every original node and its type, not
-only the values referenced by the current computation or latest arena entry. -/
-def History.chain
+/-- Erasure preserves the exact graph, current term and entire arena. Its
+extension typing premise is proved from source typing, not assumed. -/
+theorem erase_and_graph
+    (initialGraphTyped : WellTyped initialGraph initialTypes)
     (history : History B initialGraph initialTypes initial R graph xi current arena) :
-    Chain B initialGraph initialTypes R graph xi := by
+    Run B initialGraph initialTypes initial R graph xi current arena ∧ WellTyped graph xi := by
   induction history with
-  | start => exact .refl
-  | internal _ _ ih => exact ih
-  | publish _ _ ih => exact ih
-  | allocation rhs capture _ _ _ _ ih =>
-      exact .snoc ih (sourceEmbedding _ _ _ capture rhs)
-  | answer _ _ _ _ ih => exact ih
+  | start => exact ⟨.start, initialGraphTyped⟩
+  | internal prior step ih => exact ⟨.internal ih.1 step, ih.2⟩
+  | publish saved prior ih => exact ⟨.publish saved ih.1, ih.2⟩
+  | allocation rhs capture prior hrhs hcapture hcycle ih =>
+      exact ⟨run_source_extension ih.1 ih.2 rhs hrhs capture hcapture,
+        sourceExtension_typed ih.2 rhs hrhs capture hcapture⟩
+  | answer prior member matched typed ih =>
+      exact ⟨.answer ih.1 member matched typed, ih.2⟩
 
-theorem History.old_nodes
-    (history : History B initialGraph initialTypes initial R graph xi current arena)
-    (r : B) :
-    graph (history.chain.embedding.refs r) =
-      mapValue history.chain.embedding.refs (initialGraph r) ∧
-    xi (history.chain.embedding.refs r) = initialTypes r :=
-  ⟨history.chain.embedding.nodes r, history.chain.embedding.types r⟩
+theorem erase
+    (initialGraphTyped : WellTyped initialGraph initialTypes)
+    (history : History B initialGraph initialTypes initial R graph xi current arena) :
+    Run B initialGraph initialTypes initial R graph xi current arena :=
+  (erase_and_graph initialGraphTyped history).1
 
-/-- Every entry has reached-root provenance and an origin typing derivation.
-The existing generic provenance theorem is consumed after source erasure. -/
-theorem History.saved_origin_typed
-    (history : History B initialGraph initialTypes initial R graph xi current arena)
-    (typed : WellTyped initialGraph initialTypes)
+/-- Prop-valued histories eliminate only into Prop. Each witness is nevertheless
+the actual constructive allocationGuard, never a caller-supplied final guard.
+The initial graph is the sole global guard premise. -/
+theorem guarded
+    (initialGuard : GuardedValueGraph.Guarded (projectGraph initialGraph))
+    (history : History B initialGraph initialTypes initial R graph xi current arena) :
+    Nonempty (GuardedValueGraph.Guarded (projectGraph graph)) := by
+  induction history with
+  | start => exact ⟨initialGuard⟩
+  | internal prior step ih => exact ih
+  | publish saved prior ih => exact ih
+  | allocation rhs capture prior hrhs hcapture hcycle ih =>
+      obtain ⟨guard⟩ := ih
+      exact ⟨sourceExtension_guarded guard rhs capture hcycle⟩
+  | answer prior member matched typed ih => exact ih
+
+/-- Apply exact erasure to the original interaction invariant: every stored
+record is covered, including older entries after any number of allocations. -/
+theorem invariant
+    (initialGraphTyped : WellTyped initialGraph initialTypes)
     (initialTyped : CompTyped initialTypes emptyTy emptyContext initial result)
+    (history : History B initialGraph initialTypes initial R graph xi current arena) :
+    WellTyped graph xi ∧ CompTyped xi emptyTy emptyContext current result ∧
+      ∀ saved, saved ∈ arena → SavedTyped xi saved result :=
+  run_invariant initialGraphTyped initialTyped (erase initialGraphTyped history)
+
+/-- Every finite internal prefix after every finite source history is safe,
+with a guard derived from the initial graph and local source allocation checks. -/
+theorem prefix_safety
+    (initialGraphTyped : WellTyped initialGraph initialTypes)
+    (initialTyped : CompTyped initialTypes emptyTy emptyContext initial result)
+    (initialGuard : GuardedValueGraph.Guarded (projectGraph initialGraph))
+    (history : History B initialGraph initialTypes initial R graph xi current arena)
+    (steps : Prefix graph current trace last) :
+    CompTyped xi emptyTy emptyContext last result ∧ CanProgress graph last ∧
+      (∀ saved, saved ∈ arena → SavedTyped xi saved result) := by
+  obtain ⟨guard⟩ := guarded initialGuard history
+  exact run_prefix_safety initialGraphTyped initialTyped
+    (erase initialGraphTyped history) guard steps
+
+theorem prefix_four
+    (initialGraphTyped : WellTyped initialGraph initialTypes)
+    (initialTyped : CompTyped initialTypes emptyTy emptyContext initial result)
+    (initialGuard : GuardedValueGraph.Guarded (projectGraph initialGraph))
+    (history : History B initialGraph initialTypes initial R graph xi current arena)
+    (steps : Prefix graph current trace last) :
+    (∃ v, last = .ret v) ∨ (∃ op p k, last = .request op p k) ∨
+      (∃ reason, last = .fail reason) ∨ ∃ event next, Step graph last event next := by
+  obtain ⟨guard⟩ := guarded initialGuard history
+  exact run_prefix_four initialGraphTyped initialTyped
+    (erase initialGraphTyped history) guard steps
+
+/-- Actual raw prefixes can be appended without any new typing assumptions. -/
+theorem internal_prefix
+    (history : History B initialGraph initialTypes initial R graph xi current arena)
+    (steps : Prefix graph current trace last) :
+    History B initialGraph initialTypes initial R graph xi last arena := by
+  revert history
+  induction steps with
+  | refl => intro history; exact history
+  | cons step _ ih => intro history; exact ih (.internal history step)
+
+/-- Both answers are sequentially legal and independently typed. The first
+answer leaves the exact arena available for the second. -/
+theorem answer_twice
+    (history : History B initialGraph initialTypes initial R graph xi current arena)
+    (saved : Saved R) (member : saved ∈ arena) (one two : Value R Empty)
+    (hOne : ValueTyped xi emptyTy emptyContext one saved.operation.responseType)
+    (hTwo : ValueTyped xi emptyTy emptyContext two saved.operation.responseType) :
+    History B initialGraph initialTypes initial R graph xi (saved.resume one) arena ∧
+    History B initialGraph initialTypes initial R graph xi (saved.resume two) arena := by
+  have first := History.answer history member (.matched saved.operation rfl one) hOne
+  exact ⟨first, .answer first member (.matched saved.operation rfl two) hTwo⟩
+
+/-- Uniform over every saved member and every independently chosen finite
+response family (including zero); responses may use the current fresh nodes. -/
+theorem all_saved_responses
+    (initialGraphTyped : WellTyped initialGraph initialTypes)
+    (initialTyped : CompTyped initialTypes emptyTy emptyContext initial result)
+    (initialGuard : GuardedValueGraph.Guarded (projectGraph initialGraph))
+    (history : History B initialGraph initialTypes initial R graph xi current arena)
+    (saved : Saved R) (member : saved ∈ arena)
+    (responses : Fin count → Value R Empty)
+    (typed : ∀ i, ValueTyped xi emptyTy emptyContext (responses i) saved.operation.responseType) :
+    ∀ i trace last, Prefix graph (saved.resume (responses i)) trace last →
+      CompTyped xi emptyTy emptyContext last result ∧ CanProgress graph last := by
+  obtain ⟨guard⟩ := guarded initialGuard history
+  exact run_all_saved_responses initialGraphTyped initialTyped
+    (erase initialGraphTyped history) guard saved member responses typed
+
+/-- Saved provenance is inherited without supplying origin/saved typing. The
+chain is the existing immutable embedding chain, retaining exact code/payload. -/
+theorem saved_origin_typed
+    (initialGraphTyped : WellTyped initialGraph initialTypes)
+    (initialTyped : CompTyped initialTypes emptyTy emptyContext initial result)
+    (history : History B initialGraph initialTypes initial R graph xi current arena)
     (saved : Saved R) (member : saved ∈ arena) :
     ∃ (V : Type) (originGraph : Graph V) (originTypes : V → Ty)
       (origin : Saved V) (originArena : List (Saved V)),
@@ -141,108 +180,76 @@ theorem History.saved_origin_typed
       SavedTyped originTypes origin result ∧
       ∃ chain : Chain V originGraph originTypes R graph xi,
         saved = origin.map chain.embedding.refs :=
-  run_saved_origin_typed typed initialTyped (history.erase typed) saved member
+  run_saved_origin_typed initialGraphTyped initialTyped
+    (erase initialGraphTyped history) saved member
 
-theorem History.prefix_safety
-    (history : History B initialGraph initialTypes initial R graph xi current arena)
-    (typed : WellTyped initialGraph initialTypes)
-    (initialTyped : CompTyped initialTypes emptyTy emptyContext initial result)
-    (guard : GuardedValueGraph.Guarded (projectGraph initialGraph))
-    (steps : Prefix graph current trace last) :
-    CompTyped xi emptyTy emptyContext last result ∧ CanProgress graph last ∧
-      (∀ s, s ∈ arena → SavedTyped xi s result) :=
-  run_prefix_safety typed initialTyped (history.erase typed) (history.graphGuard guard) steps
-
-theorem History.prefix_four
-    (history : History B initialGraph initialTypes initial R graph xi current arena)
-    (typed : WellTyped initialGraph initialTypes)
-    (initialTyped : CompTyped initialTypes emptyTy emptyContext initial result)
-    (guard : GuardedValueGraph.Guarded (projectGraph initialGraph))
-    (steps : Prefix graph current trace last) :
-    (∃ v, last = .ret v) ∨ (∃ op p k, last = .request op p k) ∨
-      (∃ reason, last = .fail reason) ∨ ∃ event next, Step graph last event next :=
-  run_prefix_four typed initialTyped (history.erase typed) (history.graphGuard guard) steps
-
-/-- Each independently typed response to ANY saved entry enjoys the same
-all-prefix result. No restriction to the newest entry or old-world responses. -/
-theorem History.all_saved_responses
-    (history : History B initialGraph initialTypes initial R graph xi current arena)
-    (typed : WellTyped initialGraph initialTypes)
-    (initialTyped : CompTyped initialTypes emptyTy emptyContext initial result)
-    (guard : GuardedValueGraph.Guarded (projectGraph initialGraph))
-    (s : Saved R) (member : s ∈ arena)
-    (responses : Fin count → Value R Empty)
-    (responseTyped : ∀ i,
-      ValueTyped xi emptyTy emptyContext (responses i) s.operation.responseType) :
-    ∀ i trace last, Prefix graph (s.resume (responses i)) trace last →
-      CompTyped xi emptyTy emptyContext last result ∧ CanProgress graph last :=
-  run_all_saved_responses typed initialTyped (history.erase typed)
-    (history.graphGuard guard) s member responses responseTyped
-
-/-- Prefix is Prop, so its constructor-by-constructor history extension is
-asserted as Nonempty; no elimination of a raw proof into history data. -/
-theorem History.internal_prefix
-    (history : History B initialGraph initialTypes initial R graph xi current arena)
-    (steps : Prefix graph current trace last) :
-    Nonempty (History B initialGraph initialTypes initial R graph xi last arena) := by
-  revert history
-  induction steps with
-  | refl => intro history; exact ⟨history⟩
-  | cons step _ ih => intro history; exact ih (.internal history step)
-
-namespace Recovered
+namespace RecoveredTrace
 open YulangClosure.HandlerGraph.Extension.Demo
 open YulangClosure.HandlerGraph.Combined.ConcreteSourceRun
 open YulangClosure.HandlerGraph.Combined.RecursiveTrace
 
-/-- The recovered recursive callback is allocated from its WHOLE source RHS,
-then supplied to the old operation-73 continuation. -/
-def firstAnswer :
-    History (Fin 1) old oldTypes saved.suspended FirstRef recursiveGraph recursiveTypes
+/-- Reconstruct the recovered self-recursive trace inside the new domain. Its
+actual source RHS, capture typing and local cycle check supply the allocation. -/
+theorem first_answer :
+    History (Fin 1) old oldTypes saved.suspended
+      FirstRef recursiveGraph recursiveTypes
       ((saved.map Sum.inl).resume recursiveResponse) [saved.map Sum.inl] := by
-  apply History.answer (History.allocation recursiveRhs captures (.publish saved .start)
-    (fun _ => recursiveCallback_typed) captures_typed recursiveFresh_noCycle)
+  apply History.answer
+  · exact History.allocation recursiveRhs captures (.publish saved .start)
+      (fun _ => recursiveCallback_typed) captures_typed recursiveFresh_noCycle
   · exact List.mem_cons.mpr (.inl rfl)
   · exact .matched (s := saved.map Sum.inl) operation rfl recursiveResponse
   · exact recursiveResponse_typed
 
-/-- Reuse the established six-step RAW trace, publish operation 75, allocate
-the second actual source family, and resume the older operation-73 entry.
-Only the initial graph guard is later needed by the safety consumer. -/
-theorem original_entry_reused_history :
-    Nonempty (History (Fin 1) old oldTypes saved.suspended SecondRef
-      RecursiveTrace.secondGraph RecursiveTrace.secondTypes
-      (((saved.map Sum.inl).map Sum.inl).resume transportedResponse)
-      RecursiveTrace.secondArena) := by
-  obtain ⟨reached⟩ := firstAnswer.internal_prefix recursive_callback_reaches_own_request
-  let published := History.publish recursiveSaved reached
-  let allocated := History.allocation secondRhs secondCaptures published
+theorem later_publication :
+    History (Fin 1) old oldTypes saved.suspended
+      FirstRef recursiveGraph recursiveTypes recursiveSaved.suspended
+      [recursiveSaved, saved.map Sum.inl] :=
+  .publish recursiveSaved (internal_prefix first_answer recursive_callback_reaches_own_request)
+
+theorem second_allocation :
+    History (Fin 1) old oldTypes saved.suspended
+      SecondRef secondGraph RecursiveTrace.secondTypes
+      ((recursiveSaved.map Sum.inl).suspended) RecursiveTrace.secondArena := by
+  exact History.allocation secondRhs secondCaptures later_publication
     secondRhs_typed secondCaptures_typed secondFresh_noCycle
-  refine ⟨History.answer allocated ?_ ?_ transportedResponse_typed⟩
+
+/-- The reused operation-73 record is the second arena member; neither the
+operation-75 record nor its own-reference payload is discarded. -/
+theorem old_entry_reused :
+    History (Fin 1) old oldTypes saved.suspended
+      SecondRef secondGraph RecursiveTrace.secondTypes
+      (((saved.map Sum.inl).map Sum.inl).resume transportedResponse) RecursiveTrace.secondArena := by
+  apply History.answer second_allocation
   · exact List.mem_cons.mpr (.inr (List.mem_cons.mpr (.inl rfl)))
   · exact .matched (s := (saved.map Sum.inl).map Sum.inl)
       operation rfl transportedResponse
+  · exact transportedResponse_typed
 
-/-- Parent application: the recovered interaction no longer supplies either
-intermediate or final graph typing/guard as an external safety premise. -/
-theorem reused_entry_every_prefix_safe
-    (steps : Prefix RecursiveTrace.secondGraph
+/-- The generic theorem now supplies all-prefix safety for the recovered
+interaction using only the INITIAL graph guard, not secondGraph_guard. -/
+theorem every_prefix_safe
+    (steps : Prefix secondGraph
       (((saved.map Sum.inl).map Sum.inl).resume transportedResponse) trace last) :
     CompTyped RecursiveTrace.secondTypes emptyTy emptyContext last unitTy ∧
-      CanProgress RecursiveTrace.secondGraph last ∧
-      (∀ s, s ∈ RecursiveTrace.secondArena →
-        SavedTyped RecursiveTrace.secondTypes s unitTy) := by
-  obtain ⟨history⟩ := original_entry_reused_history
-  exact history.prefix_safety old_typed saved_actual_request oldGraphGuard steps
+      CanProgress secondGraph last ∧
+      (∀ s, s ∈ RecursiveTrace.secondArena → SavedTyped RecursiveTrace.secondTypes s unitTy) :=
+  prefix_safety old_typed saved_actual_request oldGraphGuard old_entry_reused steps
 
-theorem reused_entry_every_prefix_four
-    (steps : Prefix RecursiveTrace.secondGraph
+theorem every_prefix_four
+    (steps : Prefix secondGraph
       (((saved.map Sum.inl).map Sum.inl).resume transportedResponse) trace last) :
     (∃ v, last = .ret v) ∨ (∃ op p k, last = .request op p k) ∨
-      (∃ reason, last = .fail reason) ∨
-      ∃ event next, Step RecursiveTrace.secondGraph last event next := by
-  obtain ⟨history⟩ := original_entry_reused_history
-  exact history.prefix_four old_typed saved_actual_request oldGraphGuard steps
+      (∃ reason, last = .fail reason) ∨ ∃ event next, Step secondGraph last event next :=
+  prefix_four old_typed saved_actual_request oldGraphGuard old_entry_reused steps
 
-end Recovered
-end YulangClosure.HandlerGraph.Combined.SourceGenerated
+/-- The existing six-step trace after reuse is a further source history. Its
+endpoint equation and binder closure are proved in the pinned trace dependency. -/
+theorem repeated_request_history :
+    History (Fin 1) old oldTypes saved.suspended
+      SecondRef secondGraph RecursiveTrace.secondTypes
+      ((recursiveSaved.map Sum.inl).suspended) RecursiveTrace.secondArena :=
+  internal_prefix old_entry_reused reused_entry_reaches_own_request
+
+end RecoveredTrace
+end YulangClosure.HandlerGraph.SourceGenerated
