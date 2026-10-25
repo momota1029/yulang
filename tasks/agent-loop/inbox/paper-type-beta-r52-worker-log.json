@@ -1,0 +1,94 @@
+{
+  "observed_timing_origin_ns": 46338347008107,
+  "pre_origin_preparation_seconds": "UNKNOWN; charge whole grant conservatively",
+  "lake": "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+  "pins": {
+    "/tmp/yulang-r52-type-beta/notes/theory/lean/YulangClosure/PaperExecutionBinderLaws.lean": "568a9a5a1991bb605d85e9b58f33638fb445b1325516e10eed0f076f72346d7a",
+    "/tmp/yulang-r52-type-beta/notes/theory/lean/YulangClosure/PaperExecutionTypingSubstitution.lean": "3b1588bff2d28a3db7aa241c930495b84f090e880ad49ac8fb2d593d54943d41",
+    "/tmp/yulang-r52-type-beta/notes/theory/lean/YulangClosure/PaperTypeSubstitution.lean": "02834720f622642dd4c7a27ea51451deb7386877b091fbccc828a66eaa8e4861",
+    "/tmp/yulang-r52-type-beta/notes/theory/lean/YulangClosure/PaperExecutionSyntax.lean": "e38cd059caf7d81549a09f360d81e52cb4aecb8a95d8eb3f308ffda7d38a8932",
+    "/tmp/yulang-r52-type-beta/notes/theory/lean/YulangClosure/PaperTermSubstitution.lean": "a4f87f9604c03beefdc44de5d45fcd9f5924ca9580c75edf353cf267e69a0d4f",
+    "/tmp/yulang-r52-type-beta/notes/theory/lean/YulangClosure/DeclSubst.lean": "f1463d4dceeab7251b2a65508b23a7ef4ab3a575b2792793be04a858e9191258",
+    "/tmp/yulang-r52-type-beta/notes/theory/lean/YulangClosure/PaperPerformLetExecution.lean": "2f0026049554cb870158115b4bab8d42f7cbee8b030ee3f84a904763c328cac0",
+    "/tmp/yulang-r52-type-beta/notes/theory/lean/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "/tmp/yulang-r52-type-beta/notes/theory/lean/lakefile.toml": "2514197994dc47b5e4c6f15ff8c9251f994056b6e32bf2648588ffc10251e194",
+    "/tmp/yulang-r52-type-beta/notes/theory/lean/lake-manifest.json": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+    "/home/momota1029/rust/yulang/tasks/agent-loop/sprints/paper-type-beta-execution-r52.md": "51df4b8f28ffd4afb348b93639654c4439802d473b2b9c0e9036dab91fde1e4a"
+  },
+  "calls": [
+    {
+      "n": 1,
+      "argv": [
+        "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+        "--version"
+      ],
+      "cwd": "/tmp/yulang-r52-type-beta/notes/theory/lean",
+      "pid": 77908,
+      "start_ns": 46358811368220,
+      "end_ns": 46358879552565,
+      "duration_s": 0.068184345,
+      "exit": 0,
+      "timeout": false,
+      "stdout_sha256": "165f92ed239a8c7db772bf5ee9d58c59357b489951582a12c86dc9d8e06b23a2",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "process_waited": true
+    },
+    {
+      "n": 2,
+      "argv": [
+        "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+        "env",
+        "lean",
+        "-j1",
+        "-M1024",
+        "--version"
+      ],
+      "cwd": "/tmp/yulang-r52-type-beta/notes/theory/lean",
+      "pid": 77915,
+      "start_ns": 46358948592093,
+      "end_ns": 46359017688621,
+      "duration_s": 0.069096528,
+      "exit": 0,
+      "timeout": false,
+      "stdout_sha256": "eb22144228dd41cd51a0c84af4f976cd0cef473102dcf99b60be756b11f2b95a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "process_waited": true
+    },
+    {
+      "n": 3,
+      "argv": [
+        "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+        "build",
+        "+YulangClosure.PaperCoreStep"
+      ],
+      "cwd": "/tmp/yulang-r52-type-beta/notes/theory/lean",
+      "pid": 77969,
+      "start_ns": 46359091897030,
+      "end_ns": 46387751751091,
+      "duration_s": 28.659854061,
+      "exit": 0,
+      "timeout": false,
+      "stdout_sha256": "c284557418d0821897f214cc476feef43bc77f4c554ccce270ea6af39766d3b2",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "process_waited": true
+    }
+  ],
+  "stop": {
+    "observed_end_ns": 46471345563338,
+    "observed_post_origin_elapsed_s": 132.998555231,
+    "actual_agent_activation_ns": "UNKNOWN",
+    "pre_origin_elapsed_s": "UNKNOWN",
+    "conservative_worker_charge_s": 1200,
+    "checker_total_s": 28.797134934000002,
+    "literal_calls": 3,
+    "proof_construction_failures": 0,
+    "proof_construction": "NOT_STARTED",
+    "candidate_exists": false,
+    "audit_exists": false,
+    "remaining_process_group_or_isolated_cwd_members": [],
+    "descendants_spawned": 0,
+    "r2_contract_sha256": "36dd807bdac1a89260e2e907fb88b8d3cb6720a0703167d3d4df65255546b500",
+    "generated_inventory_sha256": "e2e561d8c539424a70bd813cf992b8ff0a8423f0dff00ad5e312f0dca67caed5",
+    "state": "STOPPED"
+  }
+}
