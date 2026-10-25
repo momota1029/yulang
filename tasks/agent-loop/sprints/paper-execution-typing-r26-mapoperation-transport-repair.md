@@ -3,7 +3,7 @@
 Status: CANDIDATE; no worker edits or checker calls before exact hash, fresh Astra runtime receipt, exact leases and committed acknowledgement. This follows the user's explicit requirement that proof and review subagents use Astra.
 Branch: research/simple-sub-intrusion
 Baseline: 036e97ef905a50bcd6a5257709ee8f6d1228ff1e (R25 adjudicated FAILED_CHECK)
-Contract revision: r1
+Contract revision: r2
 
 ## Parent, evidence and bounded outcome
 
@@ -20,11 +20,16 @@ R26 does not prove one-step execution preservation, request/frame/continuation c
 ## Frozen inputs
 
     docs/yulang-operational-type-safety-ja.tex a003b56a2f32eed06a2c604ef8aed043d43752cbed0b09028eff7f6efac4886b
+    baseline PaperExecutionSyntax.lean e38cd059caf7d81549a09f360d81e52cb4aecb8a95d8eb3f308ffda7d38a8932
+    baseline PaperExecutionTypingSubstitution.lean 3b1588bff2d28a3db7aa241c930495b84f090e880ad49ac8fb2d593d54943d41
     notes/theory/lean/YulangClosure/PaperExecutionSyntax.lean eec31d92375ea700061ff6b0a8c5ac7742db5fe77aa96dd28bc75ad7c93fc2dd (frozen R25 candidate; primary seeds the isolated checkout)
     notes/theory/lean/YulangClosure/PaperExecutionTypingSubstitution.lean 6e8c1b8d1cf62736d6df172430bf20e44d35b6d527d468b07dc80ebe7ce736f3 (frozen R25 failed candidate; worker may repair only the mapped constructor application)
     notes/theory/lean/YulangClosure/PaperMapOperationIntegration.lean 98e78766e2d2671d6d4aae6250fbe001c3eb8e9825df1aac62e5c97efcf1851f (frozen R25 candidate; worker may repair only integration proofs if the focused build exposes an in-scope mismatch)
     notes/theory/lean/YulangClosure/PaperExecutionBinderLaws.lean 568a9a5a1991bb605d85e9b58f33638fb445b1325516e10eed0f076f72346d7a
     notes/theory/lean/YulangClosure/PaperOperationMapperTyping.lean 175c307e00bea7ba6ec44ff153f50a7d9d943de8bdc3d4dccb02a41bc53dde77
+    notes/theory/lean/YulangClosure/PaperTypeFormation.lean 29c1a85b4d2588224bf1847f78a7b4d94db095488f3bba4937888a3815f39d13
+    notes/theory/lean/YulangClosure/PaperTypeSubstitution.lean 02834720f622642dd4c7a27ea51451deb7386877b091fbccc828a66eaa8e4861
+    notes/theory/lean/YulangClosure/DeclSubst.lean f1463d4dceeab7251b2a65508b23a7ef4ab3a575b2792793be04a858e9191258
     tasks/agent-loop/inbox/paper-typing-subst-r25-adjudication.md efc475c8ebfd3e4ce5fcdfd4c06f2cb092b519ebfebd311d4c9a14d9e947e1e4
     tasks/agent-loop/inbox/paper-typing-subst-r25.md d31aff1170c0219c851c349c420a788a4a941071a38cf6182bf21e69eca54056
     tasks/agent-loop/inbox/paper-typing-subst-r25-worker-checks.txt 0da3d9820e2d635b7ab7fe7dbfb076491dfeabcc9ac7829da636ff7292a52a92
