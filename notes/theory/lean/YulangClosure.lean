@@ -8,6 +8,7 @@ import YulangClosure.NativeIntegerComparison
 import YulangClosure.PaperTupleSplitExecution
 import YulangClosure.PaperPerformLetExecution
 import YulangClosure.PaperResumeExecution
+import YulangClosure.PaperTypeBetaExecution
 
 #print axioms YulangClosure.finite_prefix_composition
 #print axioms YulangClosure.run_at_every_time

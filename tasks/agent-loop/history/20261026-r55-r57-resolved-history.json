@@ -1,0 +1,45 @@
+{
+  "archived_from_current": [
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r55-contract-r1",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r55.md",
+      "sha256": "611ea5ec46a32be40d4a45fe46257c8686f868429eeb25f4525a79cea0ebaeb1"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r55-outcome",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r55-outcome.md",
+      "sha256": "85a0fd5a8b5c4114359f6fcb7438b8540781a6647af90ee606ad51a23a555f54"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r56-contract-r1",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r56.md",
+      "sha256": "734715b75b15c0dfe8964f16fc3afbcb2a56b99b91e7f93381873130d7294447"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r56-primary-handoff",
+      "record": "tasks/agent-loop/inbox/paper-type-beta-r56-yulang3-primary.md",
+      "sha256": "76f101876529c9d103309f86da925de3703cadd31b5823880601dc7213c1ac27"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r56-outcome",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r56-outcome.md",
+      "sha256": "f7871eb12687243e77ff7fe23c55b664e0c27c2f5bb416b2a37a7eac9807a01a"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r57-contract-r1",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r57.md",
+      "sha256": "a6956775f817b66b4a3c7653ff0f52a92f770ab99baaee90669828ca8179458c"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r57-primary-handoff",
+      "record": "tasks/agent-loop/inbox/paper-type-beta-r57-yulang3-primary.md",
+      "sha256": "881e90eb8d6b450f9fd257dc4e17db8488de9a5d08abad43863270ba1f1bf90c"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r57-outcome",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r57-outcome.md",
+      "sha256": "3fa2fe42e4938a3ca9894bd903475b17463afd6672bc8b2426af8ca686f0f152"
+    }
+  ],
+  "note": "Resolved R55-R57 history retained here to keep the live scheduling snapshot compact."
+}
