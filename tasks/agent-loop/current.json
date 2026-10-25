@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r58",
     "revision": "r1",
-    "status": "REVIEW_PENDING",
+    "status": "REVIEW_RUNNING",
     "contract": "tasks/agent-loop/sprints/paper-type-beta-execution-r58.md",
     "contract_sha256": "711db469a7464a9db8ea6cc55d3342b922563b4e7a39ce5a3012dbf69d7eb896",
     "baseline": "8f5edad44b22723e91dd5fe5ff14ca94cac17116",
@@ -141,13 +141,13 @@
     {
       "id": "/root/r58_compiler_referee",
       "role": "fresh independent compiler_referee review",
-      "state": "NOT_STARTED",
-      "session": null,
-      "requested_model": "registered role defaults",
-      "requested_effort": "registered role defaults",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Frozen candidate, exact 34-name audit and full output ready; fresh review lease starts now, 180s/0 checker calls."
+      "state": "RUNNING",
+      "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "gpt-6.1-sol",
+      "observed_effort": "medium",
+      "receipt": "Fresh compiler_referee dispatched after frozen 34/34 audit; read-only review, 180s/0 checker calls."
     }
   ],
   "leases": [
@@ -481,7 +481,7 @@
       "sha256": "0de3f301b8c8e6a137b3ebec5f78adc9c08e12e0791ffe3c1490c47290d8831d"
     }
   ],
-  "resource_observation": "R55 worker 253.121s conservatively charged, audit exit 1. R56 primary origin 48401291550615ns; 3 calls, root build 54.304217993 checker s, 161.382 conservative elapsed s charged; stopped without audit/review. No budget transfer. R57 origin 2026-10-25T22:31:11.959580Z/48729098930805ns; fresh 600s total, primary 420s/4 calls/90 checker, reviewer 180s/0 calls; no native calls yet. R57 stopped after 4/4 calls; root build passed 48.880379530s, audit failed 1.740203162s; 50.620582692 checker s, 129.763s charged; no review or integration. R58 origin 2026-10-25T22:37:31.134943Z/49098575220987ns; fresh 900s (primary 720s/6 calls/120 checker, reviewer 180s/0), no native calls yet. R58 primary 4/6 calls, 45.336 checker s, 141.204s at freeze; clean exit, review not started.",
+  "resource_observation": "R55 worker 253.121s conservatively charged, audit exit 1. R56 primary origin 48401291550615ns; 3 calls, root build 54.304217993 checker s, 161.382 conservative elapsed s charged; stopped without audit/review. No budget transfer. R57 origin 2026-10-25T22:31:11.959580Z/48729098930805ns; fresh 600s total, primary 420s/4 calls/90 checker, reviewer 180s/0 calls; no native calls yet. R57 stopped after 4/4 calls; root build passed 48.880379530s, audit failed 1.740203162s; 50.620582692 checker s, 129.763s charged; no review or integration. R58 origin 2026-10-25T22:37:31.134943Z/49098575220987ns; fresh 900s (primary 720s/6 calls/120 checker, reviewer 180s/0), no native calls yet. R58 primary 4/6 calls, 45.336 checker s, 141.204s at freeze; clean exit, review not started. Fresh compiler_referee launched; 180s/0 checker calls; review lease restricted to R58 review receipt.",
   "native_bridge": {
     "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
     "state": "OPEN; NAIVE_RELATION_BLOCKED",
