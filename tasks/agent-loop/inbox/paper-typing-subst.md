@@ -1,6 +1,28 @@
-# Paper execution typing substitution — r1 handoff
+# Paper execution typing substitution — active handoff
 
-Status: active work; no result has yet been proved for the full paper judgment.
+Status: active primary-only work; no result has yet been proved for the full
+paper judgment. Revision 1 is preserved as a failed attempt; revision 2 is the
+active contract.
+
+## Revision 1 result and revision 2 transition
+
+Revision 1 exceeded its six-call cap: nine serial Lean invocations used about
+25 checker seconds. The earlier grant is fully charged. The syntax-only source
+passed before recursive syntax-map functions were added; the current source
+snapshot then failed termination checking. No typing judgments or substitution
+theorem were completed. The exact failed bytes are preserved in
+`PaperTyping.lean` with SHA-256
+`a89201a928d3fbc02cff8ca99c45ae9f75fba813fe4b73b2bc9ba5bcaf09958e`.
+
+Revision 2 is recorded at
+`tasks/agent-loop/sprints/paper-typing-subst-r1-rev2.md`. Its approved repair
+route uses membership-carrying list traversals and explicit strict-subterm
+arguments. No Lean check is run until those traversals and decrease arguments
+are fully written and inspected. The current `ValueGraph.guarded : Prop` is
+only an arbitrary proposition and does not encode the paper's recursive graph
+guard; replace it with the actual guard condition before claiming graph typing
+or recursive-value coverage. The full paper rule inventory below remains the
+acceptance criterion.
 
 ## Original theorem and coverage obligations
 
