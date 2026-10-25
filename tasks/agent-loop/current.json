@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-UNWIND-20261025",
     "revision": "r1",
-    "status": "FROZEN_AUTHOR_READY",
+    "status": "AUTHOR_READY_PREFLIGHT_PASSED",
     "contract": "tasks/agent-loop/sprints/call-unwind-20261025-r1.md",
     "contract_sha256": "efeaabb27416bd9cb51066c37f8a36d13b3a4ced3eeba7f1f9488ac4ada38a2a",
     "baseline": "64d39df59",
@@ -27,10 +27,10 @@
     "outcome": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
     "closure": "Finite Call typing r1 ACCEPTED/CLEAN; original A/B and adequacy OPEN.",
     "review": "NOT_RUN; activate P/Q after contract/state commit; review only after both STOP and four successful Lean invocations.",
-    "checker": "50 frozen pins; activation preflight pending; three new output pairs absent.",
+    "checker": "50 pinned source/evidence/output hashes match; all 15 assigned source/output paths absent.",
     "acceptance": "Exact P/Q/composition compile; full receipts; exact signatures/axioms; fresh CLEAN review.",
     "author": "Separate Sol/high P/Q authors, 900s/600s, disjoint exact leases.",
-    "next_action": "Revalidate frozen pins and absent outputs, then activate P/Q in parallel.",
+    "next_action": "Activate disjoint P and Q author leases; freeze their handoffs after STOP.",
     "non_goal": "No global progress/reachability, cleanup correctness, source/native, A/B, inference, or production claim."
   },
   "workers": [
@@ -357,7 +357,7 @@
     }
   ],
   "closure": "Finite Call typing accepted/CLEAN; original A/B and adequacy remain OPEN.",
-  "next_action": "Contract/state frozen; revalidate pins and output absence, then activate P/Q.",
+  "next_action": "Preflight clean: 50 pins match and 15 outputs absent; activate P/Q.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
