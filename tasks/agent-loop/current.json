@@ -2,37 +2,36 @@
 "schema_version": 1,
 "mode": "LIVE",
 "phase": "ACTIVE",
-"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-13",
+"session": "LEAN-CALL-CAPTURE-RESPONSE-20261025/root-turn-14",
 "active_sprint": {
-"id": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025",
-"revision": "r3",
-"status": "DONE",
-"contract": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3.md",
-"contract_sha256": "1a32aed55bf4db354e7d4ce69d08f8bfe5c596743f359f771fcd26feade98e71",
-"baseline": "2ed4a20a6",
-"claim": "Verify and compose frozen P/Q candidates for a typed reachable View-wrapped Force head with no successor in the current relation.",
+"id": "LEAN-CALL-CAPTURE-RESPONSE-20261025",
+"revision": "r1",
+"status": "READY",
+"contract": "tasks/agent-loop/sprints/call-capture-response-20261025-r1.md",
+"contract_sha256": "af006b81aa906e5017f23c3b15e754ac603355745372b283e220f93a5fcb5c49",
+"baseline": "79e71c17d",
+"claim": "Response substitution cancels captureBind and preserves typing through arbitrary captured Call frames.",
 "worktree": "/home/momota1029/rust/yulang",
 "branch": "research/simple-sub-intrusion",
 "resources": {
-"cap_seconds": 1500,
-"grant_map": "Luna composition 240 + serial Lean verification 480 + fresh review 600 + integration 180; P/Q author grants spent in r2; Astra 0.",
+"cap_seconds": 3000,
+"grant_map": "P 900 + Q 600 + Luna 240 + serialized checks 480 + review 600 + integration 180; Astra 0.",
 "astra": 0,
-"max_concurrent_new_author_assignments": 0,
+"max_concurrent_new_author_assignments": 2,
 "lean_processes": 1,
 "cpu": 1,
 "memory_mib": 1024,
 "verification_timeout_seconds": 120,
 "lean_invocation_cap": 4
 },
-"outcome": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3-outcome.md",
-"outcome_sha256": "84381305fb3446effb694ddf814a22af45a6115941b7dcc7259fbe38dacdfa6c",
-"closure": "P/Q/composition verified; CLEAN review; formal obstruction accepted. Parent gates OPEN.",
-"review": "CLEAN; report tasks/agent-loop/inbox/20261025-call-progress-obstruction-r3-review.md.",
-"checker": "4/4 serial invocations exit0; exact query; axioms within [propext, Quot.sound].",
-"acceptance": "ACCEPTED/CLEAN for formal obstruction only; parent gates remain OPEN.",
-"author": "No author restart. Luna owns composition, four serial checks, review/adjudication and Git.",
-"next_action": "Await end-of-sprint dispatcher recommendation.",
-"non_goal": "No source/native, Call A/B, inference A/B, semantic approval or production claim."
+"outcome": "tasks/agent-loop/sprints/call-capture-response-20261025-r1-outcome.md",
+"closure": "Contract frozen; P/Q awaiting activation. Parent Call A/B and source/native gates OPEN.",
+"review": "Fresh nonauthor compiler referee after both authors STOP; report path reserved in contract.",
+"checker": "New sprint checks NOT_RUN; all source pins matched at freeze.",
+"acceptance": "Exact P/Q/composition signatures; 4/4 exit0; allowed axioms only; CLEAN independent review required.",
+"author": "Luna owns composition, verification, review/adjudication and Git; P/Q have disjoint source/handoff/output leases.",
+"next_action": "Activate P and Q after frozen contract checkpoint is pushed.",
+"non_goal": "No semantic rule change, source/native closure, Call A/B, inference A/B, or production authority."
 },
 "workers": [
 {
@@ -72,45 +71,34 @@
 "id": "/root",
 "role": "primary authority/current/Git integrator",
 "state": "RUNNING",
-"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-13",
+"session": "LEAN-CALL-CAPTURE-RESPONSE-20261025/root-turn-14",
 "requested_model": "user-selected primary",
 "requested_effort": "high",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "r3 ACCEPTED/CLEAN; current-state and outcome integration in progress."
+"receipt": "Call r3 ACCEPTED/CLEAN; Force research checkpoints integrated; capture-response r1 frozen."
 },
 {
-"id": "/root/view_force_reachability_prover",
-"role": "P constructive prover: exact five-step typed Call reachability",
-"state": "STOPPED",
-"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-13",
+"id": "/root/call_response_cancellation_prover",
+"role": "P constructive proof: capture/bind response cancellation",
+"state": "WAITING",
+"session": "LEAN-CALL-CAPTURE-RESPONSE-20261025/root-turn-14",
 "requested_model": "Sol",
 "requested_effort": "high",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "P candidate/handoff frozen; python wrapper exit127; Lean NOT_RUN; writes ceased."
+"receipt": "Exact r1 lease reserved; awaiting activation; no writes yet."
 },
 {
-"id": "/root/view_force_stuck_prover",
-"role": "Q constructive prover: exhaustive no-successor theorem",
-"state": "STOPPED",
-"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-13",
+"id": "/root/call_capture_typing_prover",
+"role": "Q constructive proof: typing through captured frames",
+"state": "WAITING",
+"session": "LEAN-CALL-CAPTURE-RESPONSE-20261025/root-turn-14",
 "requested_model": "Sol",
 "requested_effort": "high",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "Q candidate/handoff frozen; Lean NOT_RUN; writes ceased; no descendants."
-},
-{
-"id": "/root/call_progress_obstruction_r3_review",
-"role": "fresh nonauthor compiler referee: full r3 obstruction packet",
-"state": "STOPPED",
-"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-13",
-"requested_model": "Sol",
-"requested_effort": "medium",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "CLEAN review returned; STOPPED; report frozen by Luna."
+"receipt": "Exact r1 lease reserved; awaiting activation; no writes yet."
 }
 ],
 "leases": [
@@ -121,112 +109,100 @@
 "reason": "primary current-state lease"
 },
 {
-"path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1.md",
+"path": "tasks/agent-loop/sprints/call-capture-response-20261025-r1.md",
 "owner": "/root",
 "state": "FROZEN",
-"reason": "frozen proposition contract"
+"reason": "approved exact r1 contract"
 },
 {
-"path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r2.md",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "frozen exact output amendment"
+"path": "notes/theory/lean/YulangClosure/CallResponseCancellation.lean",
+"owner": "/root/call_response_cancellation_prover",
+"state": "HELD",
+"reason": "P exact source lease"
 },
 {
-"path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1-outcome.md",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "r2 launcher failure receipt"
+"path": "tasks/agent-loop/inbox/20261025-call-response-cancellation.md",
+"owner": "/root/call_response_cancellation_prover",
+"state": "HELD",
+"reason": "P handoff"
 },
 {
-"path": "notes/theory/lean/YulangClosure/CallViewedForceReachability.lean",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "r2 candidate; no source edits"
+"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallResponseCancellation.olean",
+"owner": "/root/call_response_cancellation_prover",
+"state": "HELD",
+"reason": "P exact output"
 },
 {
-"path": "tasks/agent-loop/inbox/20261025-call-viewed-force-reachability.md",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "r2 source/handoff evidence"
+"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallResponseCancellation.ilean",
+"owner": "/root/call_response_cancellation_prover",
+"state": "HELD",
+"reason": "P exact output"
 },
 {
-"path": "notes/theory/lean/YulangClosure/CallViewedForceStuck.lean",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "r2 candidate; no source edits"
+"path": "notes/theory/lean/YulangClosure/CallCaptureTyping.lean",
+"owner": "/root/call_capture_typing_prover",
+"state": "HELD",
+"reason": "Q exact source lease"
 },
 {
-"path": "tasks/agent-loop/inbox/20261025-call-viewed-force-stuck.md",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "r2 source/handoff evidence"
+"path": "tasks/agent-loop/inbox/20261025-call-capture-typing.md",
+"owner": "/root/call_capture_typing_prover",
+"state": "HELD",
+"reason": "Q handoff"
 },
 {
-"path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3.md",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "fresh verification-only r3"
+"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallCaptureTyping.olean",
+"owner": "/root/call_capture_typing_prover",
+"state": "HELD",
+"reason": "Q exact output"
 },
 {
-"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallViewedForceReachability.olean",
+"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallCaptureTyping.ilean",
+"owner": "/root/call_capture_typing_prover",
+"state": "HELD",
+"reason": "Q exact output"
+},
+{
+"path": "notes/theory/lean/YulangClosure/CallCaptureResponse.lean",
 "owner": "/root",
 "state": "HELD",
-"reason": "exact r3 verification output"
+"reason": "Luna composition"
 },
 {
-"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallViewedForceReachability.ilean",
+"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallCaptureResponse.olean",
 "owner": "/root",
 "state": "HELD",
-"reason": "exact r3 verification output"
+"reason": "Luna exact output"
 },
 {
-"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallViewedForceStuck.olean",
+"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallCaptureResponse.ilean",
 "owner": "/root",
 "state": "HELD",
-"reason": "exact r3 verification output"
+"reason": "Luna exact output"
 },
 {
-"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallViewedForceStuck.ilean",
+"path": "notes/theory/lean/.lake/call-capture-response-r1-check.lean",
 "owner": "/root",
 "state": "HELD",
-"reason": "exact r3 verification output"
+"reason": "exact query source"
 },
 {
-"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallProgressObstruction.olean",
+"path": "tasks/agent-loop/inbox/20261025-call-capture-response-r1-verification.jsonl",
 "owner": "/root",
 "state": "HELD",
-"reason": "exact r3 verification output"
+"reason": "serialized verification receipt"
 },
 {
-"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallProgressObstruction.ilean",
+"path": "tasks/agent-loop/inbox/20261025-call-capture-response-r1-review.md",
 "owner": "/root",
 "state": "HELD",
-"reason": "exact r3 verification output"
+"reason": "fresh independent review"
 },
 {
-"path": "notes/theory/lean/.lake/call-progress-obstruction-r3-check.lean",
+"path": "tasks/agent-loop/sprints/call-capture-response-20261025-r1-outcome.md",
 "owner": "/root",
 "state": "HELD",
-"reason": "exact r3 output"
-},
-{
-"path": "tasks/agent-loop/inbox/20261025-call-progress-obstruction-r3-verification.jsonl",
-"owner": "/root",
-"state": "HELD",
-"reason": "exact r3 output"
-},
-{
-"path": "tasks/agent-loop/inbox/20261025-call-progress-obstruction-r3-review.md",
-"owner": "/root",
-"state": "HELD",
-"reason": "exact r3 output"
-},
-{
-"path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3-outcome.md",
-"owner": "/root",
-"state": "HELD",
-"reason": "exact r3 output"
+"reason": "r1 outcome"
 }
 ],
 "pending": [
@@ -369,8 +345,8 @@
 "details": "R3 review blocking; R4 Flow/source projection next."
 }
 ],
-"closure": "r3 ACCEPTED/CLEAN for formal obstruction; parent gates remain OPEN.",
-"next_action": "Await end-of-sprint dispatcher recommendation.",
+"closure": "Call r3 ACCEPTED/CLEAN; Force research artifacts checkpointed; capture-response r1 ready to launch. Parent gates OPEN.",
+"next_action": "Commit/push capture-response r1 contract/state; activate P and Q.",
 "legacy_reconciliation": {
 "required": false,
 "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -490,8 +466,34 @@
 "id": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/r2",
 "record": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1-outcome.md",
 "sha256": "dc329ddc99486ff2ae375b6f398721cbcabacde7ea9de67c9f8f7398a67e0176"
+},
+{
+"id": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/r3",
+"record": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3-outcome.md",
+"sha256": "84381305fb3446effb694ddf814a22af45a6115941b7dcc7259fbe38dacdfa6c",
+"commit": "0c7ce488f"
+},
+{
+"id": "FORCE-SOURCE-REALIZATION-20261025/r2",
+"record": "tasks/agent-loop/sprints/force-source-realization-20261025-r2-outcome.md",
+"commit": "b2b6bae2e"
+},
+{
+"id": "FORCE-PROJECTION-DESIGN-20261025/r3",
+"record": "tasks/agent-loop/sprints/force-projection-design-20261025-r3-outcome.md",
+"commit": "d9862f4a0"
+},
+{
+"id": "FORCE-SOURCE-EQUATIONS-20261025/r4+r5",
+"record": "tasks/agent-loop/sprints/force-source-mapop-correction-20261025-r5-outcome.md",
+"commit": "8f789f8f5"
+},
+{
+"id": "FORCE-ADMIN-RESULT-DISCHARGE-20261025/r6",
+"record": "tasks/agent-loop/sprints/force-admin-result-discharge-20261025-r6-outcome.md",
+"commit": "79e71c17d"
 }
 ],
-"resource_observation": "R3 4/4 pass; CLEAN review; 3 UNKNOWN quarantines retained.",
+"resource_observation": "Four Force research groups checkpointed; 16 former untracked files now tracked; 3 UNKNOWN quarantines retained.",
 "checker": "4 exact calls pass; source/output hashes match receipt; query axiom set allowed."
 }
