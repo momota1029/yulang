@@ -1,4 +1,5 @@
 import YulangClosure.PaperExecutionSyntax
+import YulangClosure.DeclSubst
 
 /-!
 Arbitrary type-substitution transport for the explicitly represented partial
@@ -8,7 +9,7 @@ full source/native correspondence and omitted rules remain open.
 -/
 namespace YulangClosure.PaperTypes
 
-theorem argsSyntax_subst (σ : Nat → Ty) (types : List Ty) :
+theorem typingArgsSyntax_subst (σ : Nat → Ty) (types : List Ty) :
     argsSyntax (types.map (subst σ)) = subst σ (argsSyntax types) := by
   induction types with
   | nil => rfl
@@ -60,6 +61,24 @@ theorem RecordField.subst (σ : Nat → Ty) {recordType fieldType : Ty}
   induction field with
   | here => exact .here
   | there _ ih => exact .there ih
+
+theorem OperationDeclarationResolved.typeTransport (σ : Nat → Ty)
+    {operations : List OperationDeclaration} {operation : DeclarationId}
+    {declaration : OperationDeclaration}
+    (resolved : OperationDeclarationResolved operations operation declaration) :
+    OperationDeclarationResolved
+      (operations.map (OperationDeclaration.substAmbient σ)) operation
+      (declaration.substAmbient σ) := by
+  rcases resolved with ⟨hmember, hidentity, hunique⟩
+  refine ⟨List.mem_map.mpr ⟨declaration, hmember, rfl⟩, ?_, ?_⟩
+  · simpa [OperationDeclaration.substAmbient] using hidentity
+  · intro other hother hotherIdentity
+    rcases List.mem_map.mp hother with ⟨original, horiginal, rfl⟩
+    have horiginalIdentity : original.identity = operation := by
+      simpa [OperationDeclaration.substAmbient] using hotherIdentity
+    have heq := hunique original horiginal horiginalIdentity
+    subst original
+    rfl
 
 @[simp] theorem mapRecordFields_labels (σ : Nat → Ty)
     (fields : List (Label × Presence × Value)) :
@@ -118,7 +137,7 @@ theorem PaperValueTyped.subst_explicit (σ : Nat → Ty) {declarations : Declara
           PaperValueTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
             (mapTypeEnvironment σ environment) _ _))
     (by intro environment values types hvalues ihValues
-        simpa [mapPaperValue, argsSyntax_subst] using PaperValueTyped.tuple ihValues)
+        simpa [mapPaperValue, typingArgsSyntax_subst] using PaperValueTyped.tuple ihValues)
     (by intro environment values elementType hvalues ihValues
         simpa [mapPaperValue, mapDeclarationTable, subst] using PaperValueTyped.sequence ihValues)
     (by intro environment fields recordType labels required shape unique allRequired hfields ihFields
@@ -161,6 +180,29 @@ theorem PaperValueTyped.subst_explicit (σ : Nat → Ty) {declarations : Declara
     (by intro environment value recordType label presence fieldType hvalue hfield ihValue
         simpa [mapPaperComputation, subst] using
           PaperComputationTyped.lookup ihValue (RecordField.subst σ hfield))
+    (by intro environment operation arguments payload declaration resolved arity payloadTyping ihPayload
+        have resolved' := OperationDeclarationResolved.typeTransport σ resolved
+        have commute := operation_declaration_instantiation_subst declaration arguments σ arity
+        have payloadType :
+            subst σ (declaration.instantiate arguments).payloadType =
+              ((declaration.substAmbient σ).instantiate (mapOperationArguments σ arguments)).payloadType := by
+          simpa [OperationInstance.subst] using congrArg OperationInstance.payloadType commute
+        have responseType :
+            subst σ (declaration.instantiate arguments).responseType =
+              ((declaration.substAmbient σ).instantiate (mapOperationArguments σ arguments)).responseType := by
+          simpa [OperationInstance.subst] using congrArg OperationInstance.responseType commute
+        have payloadTyping' :
+            PaperValueTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+              (mapTypeEnvironment σ environment) (mapPaperValue σ payload)
+              ((declaration.substAmbient σ).instantiate (mapOperationArguments σ arguments)).payloadType := by
+          rw [← payloadType]
+          exact ihPayload
+        have arity' : (mapOperationArguments σ arguments).length =
+            (declaration.substAmbient σ).typeArity := by
+          simp [mapOperationArguments, OperationDeclaration.substAmbient, arity]
+        rw [responseType]
+        simpa [mapPaperComputation, mapTypeArguments, mapOperationArguments] using
+          PaperComputationTyped.perform resolved' arity' payloadTyping')
     (by intro environment reason ty; simpa [mapPaperComputation, subst] using PaperComputationTyped.fail)
     derivation
 

@@ -597,13 +597,18 @@ def mapRecordFields (σ : Nat → Ty) (fields : List (Label × Presence × Value
   fields.map fun field => (field.1, field.2.1, mapPaperValue σ field.2.2)
 
 /-!
-These are the first extrinsic typing judgments for the paper syntax. They
-encode the directly represented core rules below; this is not yet the complete
-§types/§machine judgment or the substitution theorem. In particular, variant
-and nominal tables, operations, handlers,
-graphs, primitives, templates, patterns, and all remaining constructors must
-be added before claiming paper coverage.
+These are partial extrinsic typing judgments for the paper syntax. They
+include the declared-operation `perform` rule, but are not the complete
+§types/§machine judgment or full-paper substitution theorem. Variant and
+nominal values, handlers, graphs, primitives, templates, patterns and other
+constructors remain outside this relation.
 -/
+/-- Resolve an operation identity to its unique declaration in the table. -/
+def OperationDeclarationResolved (operations : List OperationDeclaration)
+    (operation : DeclarationId) (declaration : OperationDeclaration) : Prop :=
+  declaration ∈ operations ∧ declaration.identity = operation ∧
+    ∀ other, other ∈ operations → other.identity = operation → other = declaration
+
 mutual
   inductive ValuesTyped (declarations : DeclarationTable) (graphTypes : GraphEnvironment) :
       TypeEnvironment → List Value → List Ty → Prop where
@@ -712,6 +717,13 @@ mutual
         RecordField recordType label presence fieldType →
         PaperComputationTyped declarations graphTypes environment (.lookup value label)
           (.union (.base .unit) fieldType)
+    | perform {operation arguments payload declaration} :
+        OperationDeclarationResolved declarations.operations operation declaration →
+        arguments.length = declaration.typeArity →
+        PaperValueTyped declarations graphTypes environment payload
+          (declaration.instantiate arguments).payloadType →
+        PaperComputationTyped declarations graphTypes environment
+          (.perform operation arguments payload) (declaration.instantiate arguments).responseType
     | fail {reason ty} :
         PaperComputationTyped declarations graphTypes environment (.fail reason) ty
 
