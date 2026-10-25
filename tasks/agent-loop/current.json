@@ -27,10 +27,10 @@
 "outcome": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3-outcome.md",
 "closure": "Not yet proved. P/Q candidates uncompiled; original parent gates OPEN.",
 "review": "Fresh compiler referee only after all four serial invocations pass.",
-"checker": "P/Q direct lake invocations exit0; hashes and complete streams recorded; 2/4 complete.",
+"checker": "P, Q and composition exit0; hashes/streams recorded; 3/4 complete.",
 "acceptance": "P, Q, composition and exact signature/axiom query compile; complete receipts; CLEAN independent review.",
 "author": "No author restart. Luna owns composition, four serial checks, review/adjudication and Git.",
-"next_action": "Checkpoint P/Q receipts; author Luna composition against frozen modules.",
+"next_action": "Freeze composition/query source and receipt checkpoint; run exact signature/axiom query.",
 "non_goal": "No source/native, Call A/B, inference A/B, semantic approval or production claim."
 },
 "workers": [
@@ -480,6 +480,6 @@
 "sha256": "dc329ddc99486ff2ae375b6f398721cbcabacde7ea9de67c9f8f7398a67e0176"
 }
 ],
-"resource_observation": "R3 P/Q 2/4 exit0; P lint warning recorded; Q clean; 3 UNKNOWN reserved.",
-"checker": "P/Q compiled exit0; exact source, dependency, stdout/stderr and output hashes recorded."
+"resource_observation": "R3 3/4 exit0; P warning recorded; Q and composition clean; 3 UNKNOWN reserved.",
+"checker": "Three serialized modules compile; receipt complete through composition; query pending."
 }
