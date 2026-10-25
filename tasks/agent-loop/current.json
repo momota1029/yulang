@@ -439,6 +439,6 @@
    "sha256": "8ad36a0dbcb99faf2a87164b4fcd87e21754f1c40583fee963bd95b267d8655c"
   }
  ],
- "resource_observation": "P 900s and Q 300s active; no Lean yet; compiler ticket held by P first; three UNKNOWN reservations retained.",
+ "resource_observation": "P/Q active; P owns first Lean ticket; three UNKNOWN reserved.",
  "checker": "r2 output paths pinned; recheck dependencies before Lean."
 }
