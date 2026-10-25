@@ -3,6 +3,7 @@ import YulangClosure.CoreComposition
 import YulangClosure.ControlComposition
 import YulangClosure.CoreExecution
 import YulangClosure.CoreControlBridge
+import YulangClosure.PaperTypeSubstitution
 
 #print axioms YulangClosure.finite_prefix_composition
 #print axioms YulangClosure.run_at_every_time
@@ -28,3 +29,7 @@ import YulangClosure.CoreControlBridge
 #print axioms YulangClosure.CoreControlBridge.successor_coverage
 #print axioms YulangClosure.CoreControlBridge.machine_finite_coverage
 #print axioms YulangClosure.CoreControlBridge.finite_closed_safety
+
+#print axioms YulangClosure.PaperTypes.subst_id
+#print axioms YulangClosure.PaperTypes.subst_comp
+#print axioms YulangClosure.PaperTypes.OperationInstance.subst_comp
