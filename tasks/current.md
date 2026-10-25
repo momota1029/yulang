@@ -1,5 +1,17 @@
 # Current task: complete type inference and replace F5
 
+2026-10-26 `yulang3` proof checkpoint: fresh Lean proofs establish arbitrary
+type-binder-block cancellation, actual type-application preservation, and
+registered-template expansion from independent body derivations, and repeated
+empty-owner response/resume with failure unwinding. All 85
+explicit declarations passed exact type/axiom audits and fresh independent
+review. Type-beta/template integration into the combined executor and root is
+in progress; whole-language
+progress, source/native realization and inference A/B remain OPEN. See the
+[proof record](../notes/progress/2026-10-26-yulang3-execution-proofs.md) for
+scope, hashes, checks, warning owners and remaining obligations. Existing
+remote sprint records and withdrawn questions are preserved.
+
 2026-10-25 workflow maintenance: added the `yulang-lean-proofs` skill and
 `lean_prover` leaf, source-reading routes, pinned Lean execution and per-theorem
 axiom audits. Focused tooling tests, real Lean positive/negative checks and fresh
