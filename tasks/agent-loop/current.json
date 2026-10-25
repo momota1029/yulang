@@ -7,7 +7,7 @@
     "id": "PARALLEL-THEORY-20261025/r1",
     "contract": "tasks/agent-loop/sprints/parallel-theory-20261025-r1.md",
     "contract_sha256": "0751276e8eedf50d113475a0ef1c41b27b7ffd77cc4ccc28761e3cc9e792ff76",
-    "status": "ACTIVE",
+    "status": "DONE",
     "resources": {
       "seconds": 3600,
       "authors_seconds_each": 600,
@@ -15,8 +15,9 @@
       "lean_seconds": 300,
       "lean_calls": 40,
       "review_seconds_each": 300,
-      "contingency_seconds": 600,
-      "new_active_children_max": 3
+      "contingency_seconds": 480,
+      "new_active_children_max": 3,
+      "dispatcher_seconds": 120
     },
     "dependency_intake": {
       "at": "2026-10-25T06:37:36.257129+00:00",
@@ -34,7 +35,10 @@
       "end_utc": "2026-10-25T06:53:39.478377+00:00",
       "seconds": 900,
       "receipt": "Prospective explicit switch: old candidate frozen, no remaining source edits; new primary preparation/integration begins now. Existing separate integration120 available after review."
-    }
+    },
+    "freeze_utc": "2026-10-25T06:44:20.172533+00:00",
+    "outcome": "tasks/agent-loop/sprints/parallel-theory-20261025-r1-outcome.md",
+    "outcome_sha256": "d59c662faf73f8dd4c22719bdefa940a57148f7477153108bf645c936dc4230d"
   },
   "workers": [
     {
@@ -80,28 +84,6 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "New primary90006:38:39.478377–06:53:39.478377UTC; old source frozen, old integration1202026-10-25T06:40:16.465192+00:00–2026-10-25T06:42:16.465192+00:00."
-    },
-    {
-      "id": "/root/higher_order_safety_astra_r1",
-      "role": "theory operational safety author",
-      "state": "RUNNING",
-      "session": "PARALLEL-THEORY-20261025/root-r1",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Actual spawn acknowledged before 2026-10-25T06:36:43.352751+00:00;600s grant; exact leases in parallel contract."
-    },
-    {
-      "id": "/root/guarded_value_graph_astra_r1",
-      "role": "theory guarded recursive graph author",
-      "state": "RUNNING",
-      "session": "PARALLEL-THEORY-20261025/root-r1",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Actual spawn acknowledged before 2026-10-25T06:36:43.352751+00:00;600s grant; exact leases in parallel contract."
     }
   ],
   "leases": [
@@ -111,79 +93,9 @@
       "state": "HELD"
     },
     {
-      "path": "notes/theory/lean/YulangClosure/HigherOrderSafety.lean",
-      "owner": "/root/higher_order_safety_astra_r1",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/theory/2026-10-25-higher-order-operational-safety.md",
-      "owner": "/root/higher_order_safety_astra_r1",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-higher-order-safety.md",
-      "owner": "/root/higher_order_safety_astra_r1",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/GuardedValueGraph.lean",
-      "owner": "/root/guarded_value_graph_astra_r1",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/theory/2026-10-25-guarded-value-graph-theory.md",
-      "owner": "/root/guarded_value_graph_astra_r1",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-guarded-value-graph.md",
-      "owner": "/root/guarded_value_graph_astra_r1",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/parallel-theory-20261025-r1.md",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
       "path": "tasks/agent-loop/sprints/parallel-theory-20261025-r1-outcome.md",
       "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-parallel-theory-r1-verification.jsonl",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/theory/lean/.lake/parallel-theory-r1-run.py",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/theory/lean/.lake/parallel-theory-r1-check.lean",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderSafety.olean",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderSafety.ilean",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/GuardedValueGraph.olean",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/GuardedValueGraph.ilean",
-      "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -306,7 +218,7 @@
       "id": "RESPONSE-ENCODING-1",
       "state": "OPEN",
       "owner": "primary proof intake",
-      "details": "Reviewed callable-as-value embedding; native closure/body/layout/current-value/recursive graph/dispatch remain OPEN. Current substitution candidate checked; independent review pending."
+      "details": "Reviewed higher-order embedding/substitution/local safety and actualcallablecapture; nativecurrentvalue/fullgraph/layout/dispatch and live metadata OPEN."
     },
     {
       "id": "RESPONSE-INSTANCE-1",
@@ -319,10 +231,35 @@
       "state": "OPEN",
       "owner": "primary native-proof intake",
       "details": "Reviewed structural replay/order/response/outer-stack supplier; frame metadata/error exclusion/full Call OPEN."
+    },
+    {
+      "id": "GVG-GUARD-COMPLETE-1",
+      "state": "OPEN",
+      "owner": "next finite graph proof lane"
+    },
+    {
+      "id": "GVG-FORMS-1",
+      "state": "OPEN",
+      "owner": "full paper graph proof intake"
+    },
+    {
+      "id": "GVG-REC-RHS-1",
+      "state": "OPEN",
+      "owner": "full paper simultaneous binder proof intake"
+    },
+    {
+      "id": "HO-METADATA-ADEQUACY-1",
+      "state": "OPEN",
+      "owner": "primary semantic/source intake"
+    },
+    {
+      "id": "HO-INTERACTION-1",
+      "state": "OPEN",
+      "owner": "next repeated request/resume theory lane"
     }
   ],
-  "closure": "Full goal OPEN. Finite higher-order substitution, actual callable capture and typed entry constructors independentlyCLEAN accepted. Parallel theory operational safety and guarded recursive graph candidates active; full language/native/Call/Force/inference A/B OPEN.",
-  "next_action": "Verify and independently review both actual parallel theory author results, apply exact accepted lemmas to original parents; primary solely owns source repairs/checker/Git.",
+  "closure": "Full goal OPEN. HigherOrder allconstructor local operational safety and restricted guarded immutable graph extension/canonical forms now independentlyCLEAN accepted. Fullpaper/native/live metadata/inference A/B not closed.",
+  "next_action": "After normalpush, grant parallel next theory: finitecycle→rank complete construction and repeated saved continuation interaction. DispatcherSTOP2100lifetime; no newauthors yet.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three unrelated UNKNOWN reservations remain quarantined.",
@@ -399,18 +336,26 @@
       "id": "LEAN-HIGHER-ORDER-SUBSTITUTION-ENTRY-20261025/r1",
       "record": "tasks/agent-loop/sprints/higher-order-substitution-entry-20261025-r1-outcome.md",
       "sha256": "6d7d5d1d11457a4189932bddb78d80f0ca381713c401712bd5e9d7e0d2fa6874",
-      "git": "ReviewCLEAN; integration120 active; pending normal commit/push."
+      "git": "Committed/pushed intended98118c293..b4fbebb66; upstream matches.",
+      "commit": "b4fbebb66ad0d915e757c36d06456fef1eaa1910"
+    },
+    {
+      "id": "PARALLEL-THEORY-20261025/r1",
+      "record": "tasks/agent-loop/sprints/parallel-theory-20261025-r1-outcome.md",
+      "sha256": "d59c662faf73f8dd4c22719bdefa940a57148f7477153108bf645c936dc4230d",
+      "git": "IndependentCLEAN accepted; exactintegration active, normalcommit/push pending."
     }
   ],
-  "resource_observation": "Two theory authors RUNNING, old reviewerSTOP86.825/300s. New primary900 ending06:53:39.478377; old integration120 active.3UNKNOWN quarantines unchanged.",
-  "checker": "PASS:7calls3.042638s;finalmodules2/4/6 plus query7;73pairs+21examples;axioms subset[propext,Quot.sound]. Three failed initial source calls retained.",
+  "resource_observation": "All4 theory children actualSTOP;2freshCLEANreports; primary900deadline06:53:39.478377 performs Git.9Lean calls8.041126s;contingency480remaining;3UNKNOWN quarantines.",
+  "checker": "Both newmodules+query PASS final7/8/9;105pairs99public+6examplesproofs/38examples;axioms subset[propext,Quot.sound].9calls; all failures retained; runner all+query preflight error launched no Lean.",
   "boundary_consultation": {
     "owner": "/root/next_action_selector_astra",
-    "grant_seconds": 1980,
+    "grant_seconds": 2100,
     "current_grant_seconds": 120,
     "status": "STOPPED",
-    "receipt": "Actual followup before06:32:52UTC; read-only final, requestedAstra/medium observedUNKNOWN;120s charged.",
-    "result": "Two theory lanes; primary grants contract parallel-theory-20261025-r1.md with3600s separate envelope."
+    "receipt": "Actual followup acknowledged before2026-10-25T06:45:18.658984+00:00;120s standalone charged from parallelcontingency;2100lifetime;read-only/no descendants.",
+    "scope": "Old substitution sprint accepted/pushed; puretheory pair checked and freshreviews active. Choose next original theory bottleneck with exact disjoint multistage packets, sourceindependent, no closurepromotion.",
+    "result": "Next independent theory: finitecycle→rank certificate completeness and repeated request/resume interaction with immutable saved handles; start only after both reviewsaccepted/newexactcontract."
   },
   "pending_details": {
     "record": "tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1-outcome.md",
