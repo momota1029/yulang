@@ -26,11 +26,11 @@
     },
     "outcome": "tasks/agent-loop/sprints/call-entry-spine-20261025-r3-outcome.md",
     "closure": "Syntax typing only; all operational/source/A-B/inference/production parents OPEN.",
-    "review": "Fresh nonauthor review ready; no review assignment started yet.",
+    "review": "Fresh nonauthor reviewer assigned; awaiting actual START acknowledgement.",
     "checker": "Both Lean invocations exit 0; exact five signatures; axioms [propext] for P/composition, none for Q.",
     "acceptance": "Exact theorem; two complete successful receipts; standard axioms; CLEAN independent review.",
     "author": "Luna composition only; P/Q frozen, no new author.",
-    "next_action": "Freeze checked artifacts/receipt, then assign isolated fresh reviewer.",
+    "next_action": "Reviewer audits frozen proof, signatures, axioms, and complete receipt; no compiler run.",
     "prior_r2": "FAILED_VERIFICATION/UNACCEPTED; receipt and outcome frozen."
   },
   "workers": [
@@ -77,6 +77,17 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "Active r3 primary/composer; owns two Lean receipts, fresh review, adjudication and Git."
+    },
+    {
+      "id": "/root/call_entry_spine_r3_review",
+      "role": "fresh nonauthor audit of P/Q/composition and complete receipts",
+      "state": "NOT_STARTED",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Exact frozen r3 review packet assigned; awaiting actual START acknowledgement."
     }
   ],
   "leases": [
@@ -262,9 +273,9 @@
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-entry-spine-r3-review.md",
-      "owner": "/root",
+      "owner": "/root/call_entry_spine_r3_review",
       "state": "HELD",
-      "reason": "fresh reviewer handoff output."
+      "reason": "Fresh isolated review handoff; one writer."
     }
   ],
   "pending": [
