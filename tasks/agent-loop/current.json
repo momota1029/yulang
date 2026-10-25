@@ -114,7 +114,7 @@
    "requested_effort": "UNKNOWN",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R59 primary verification stopped on call-3 capture gap; receipt tasks/agent-loop/inbox/paper-heap-observation-r59-primary.md SHA c632aa6abaf59ef96a5318fe247e38404bb728afa3b8663397a314551b042642. Calls 1–2 versions exit 0; call 3 output/exit/duration UNKNOWN and not retried. No review/import."
+   "receipt": "R59 primary verification stopped on call-3 capture gap; receipt tasks/agent-loop/inbox/paper-heap-observation-r59-primary.md SHA e1a3978562e02440bcb5cd82642c2cc2bc45f5fac4bc615899f347163f9c0ec9. Calls 1–2 versions exit 0; call 3 output/exit/duration UNKNOWN and not retried. No review/import."
   },
   {
    "id": "/root/r59_heap_observation_proof",

@@ -1,17 +1,17 @@
 # R59 primary verification receipt — stopped on capture gap
 
-Sprint: `PAPER-HEAP-OBSERVATION-20261026/r59`  
-Baseline: `4eb348f7ebf53509ae701c6b0434041a90f8f573`  
-Branch: `yulang3`  
+Sprint: `PAPER-HEAP-OBSERVATION-20261026/r59`
+Baseline: `4eb348f7ebf53509ae701c6b0434041a90f8f573`
+Branch: `yulang3`
 Disposition: **PRIMARY VERIFICATION NOT ESTABLISHED; STOPPED**. This is a process-evidence failure, not a mathematical counterexample. No root import or integration is authorized by this receipt.
 
 ## Frozen intake
 
-Source handoff SHA-256: `b7976c6ae7a8a276b4a59e479b71bc0bdec20696a974dff367492e02541ac5f6`.  
-Proof handoff SHA-256: `a115016535753182240188232262e8f19613fbf6e8784137048bd5f632e8f9bf`.  
-Worker check log SHA-256: `b3847d011403975667bf2cbddb897c0934bf71912627d9200c035e51f946982a`.  
-Candidate SHA-256 (worker isolated checkout): `19b54b87b63cdc4175b1b641ca83d0c1e9454e2439c58a0936bf31fa5bc4725f`.  
-Audit source SHA-256 (worker isolated checkout): `07327b553d9f51e1e5dcfc2e352cc72953c6e7bb943d819777ce4d9967f98aed`.  
+Source handoff SHA-256: `b7976c6ae7a8a276b4a59e479b71bc0bdec20696a974dff367492e02541ac5f6`.
+Proof handoff SHA-256: `a115016535753182240188232262e8f19613fbf6e8784137048bd5f632e8f9bf`.
+Worker check log SHA-256: `b3847d011403975667bf2cbddb897c0934bf71912627d9200c035e51f946982a`.
+Candidate SHA-256 (worker isolated checkout): `19b54b87b63cdc4175b1b641ca83d0c1e9454e2439c58a0936bf31fa5bc4725f`.
+Audit source SHA-256 (worker isolated checkout): `07327b553d9f51e1e5dcfc2e352cc72953c6e7bb943d819777ce4d9967f98aed`.
 Worker's 96-file build-cache manifest SHA-256: `b79a2fc5ed4abb0173b02df86286615cb09a6c15d7020aaa52aefa53f5977dab`. The primary did not use this cache.
 
 I created a separate detached primary worktree at the exact baseline and copied only the frozen candidate and audit source into it. All 18 hashes in the R59 contract's frozen-input block matched. The primary worktree HEAD was the exact baseline. Native Lake resolved read-only to `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake`, SHA-256 `8ba83c98f76562d03b8dbc33f1057151ba6cbb121679dde76b2260ccc90495e1`.
