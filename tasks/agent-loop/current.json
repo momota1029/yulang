@@ -6,16 +6,16 @@
   "active_sprint": {
     "id": "LEAN-CALL-FINITE-TYPING-20261025",
     "revision": "r1",
-    "status": "AUTHORS_STOPPED_VERIFICATION_READY",
+    "status": "OUTCOME_FROZEN_PENDING_INTEGRATION",
     "contract": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1.md",
     "contract_sha256": "dfff6b8af11651122ebc0b3be6cb6a8722b3ce7a60845eb4e82ba1a9488eee68",
     "baseline": "c28827b29b4ff5f2f9d89c03f504fb9f886534f8",
-    "claim": "Typed arbitrary finite CallControlStep prefixes, plus returned/requested typing conditional on empty endpoint frames.",
+    "claim": "Finite Call prefixes typed; terminal typing when frames empty.",
     "worktree": "/home/momota1029/rust/yulang",
     "branch": "research/simple-sub-intrusion",
     "resources": {
       "cap_seconds": 2460,
-      "grant_map": "P 600 + Q 600 + Luna composition 180 + serialized verification 480 + fresh review 420 + integration 180; Astra 0.",
+      "grant_map": "P/Q 600 each; compose 180; verify 480; review 420; integrate 180.",
       "astra": 0,
       "max_concurrent_new_author_assignments": 2,
       "lean_processes": 1,
@@ -25,13 +25,13 @@
       "lean_invocation_cap": 4
     },
     "outcome": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1-outcome.md",
-    "closure": "CallStepTypingRepair ACCEPTED/CLEAN; r9 and original A/B gates remain OPEN.",
-    "review": "NOT_RUN; authors STOPPED; pin check and four Lean invocations pending.",
-    "checker": "P/Q frozen; authors STOPPED; pins pending.",
-    "acceptance": "Exact P/Q/composition compile; signature/axioms in cap; complete receipts; fresh CLEAN review.",
-    "author": "Two independent Sol/high authors, 600s each, disjoint source/handoff leases.",
-    "next_action": "Revalidate pins; compile P/Q/composition and query serially; review.",
-    "non_goal": "No reachability/progress, world/effect/metadata, source/native, A/B, inference or production claim."
+    "closure": "Step typing accepted; original A/B open.",
+    "review": "Fresh compiler_referee CLEAN; reviewer STOPPED.",
+    "checker": "36 pins match; 4/4 Lean pass; exact signatures; axioms in cap.",
+    "acceptance": "4/4 checks; exact query; CLEAN review.",
+    "author": "P/Q Sol/high, 600s each; disjoint leases.",
+    "next_action": "After integration, consult dispatcher for next sprint.",
+    "non_goal": "No reachability/progress, source/native, A/B, or production claim."
   },
   "workers": [
     {
@@ -43,7 +43,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Unknown identity/session/model; reservation quarantined."
+      "receipt": "UNKNOWN identity/session/model; reservation quarantined."
     },
     {
       "id": "/root/resident_implementer_idle",
@@ -54,7 +54,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Unknown identity/session/model; reservation quarantined."
+      "receipt": "UNKNOWN identity/session/model; reservation quarantined."
     },
     {
       "id": "/root/runtime_source_supplier_proof",
@@ -65,7 +65,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Unknown identity/session/model; reservation quarantined."
+      "receipt": "UNKNOWN identity/session/model; reservation quarantined."
     },
     {
       "id": "/root",
@@ -76,7 +76,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Luna primary: activates disjoint P/Q leases, current state and Git integration for finite Call typing sprint."
+      "receipt": "Luna: P/Q STOPPED; 4/4 Lean pass; independent review CLEAN; integrating outcome."
     },
     {
       "id": "/root/call_step_typing_author",
@@ -86,7 +86,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "P source/handoff frozen; writes stopped. Candidate SHA 95c49da; handoff SHA 9a2e420. No Lean/tests/Git.",
+      "receipt": "STOPPED; P source/handoff frozen.",
       "session": "LEAN-CALL-FINITE-TYPING-20261025/root-turn-10"
     },
     {
@@ -97,8 +97,19 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Q source/handoff frozen; writes stopped. Candidate SHA 319466c8; handoff SHA 3b749fe6. No Lean/tests/Git.",
+      "receipt": "STOPPED; Q source/handoff frozen.",
       "session": "LEAN-CALL-FINITE-TYPING-20261025/root-turn-10"
+    },
+    {
+      "id": "/root/call_finite_typing_review",
+      "role": "fresh independent compiler_referee",
+      "state": "STOPPED",
+      "session": "LEAN-CALL-FINITE-TYPING-20261025/root-turn-10",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "CLEAN; review report frozen by Luna; reviewer STOPPED, read-only."
     }
   ],
   "leases": [
@@ -369,8 +380,8 @@
       "details": "R3 review blocking; R4 Flow/source projection next."
     }
   ],
-  "closure": "r3 syntax theorem and r2 existing-step Call typing theorem ACCEPTED/CLEAN; operational/source/A-B/inference/production gates OPEN.",
-  "next_action": "P/Q STOPPED; revalidate pins, verify serially, then fresh review.",
+  "closure": "Finite Call typing ACCEPTED/CLEAN; original parents remain OPEN.",
+  "next_action": "Outcome frozen; integrate then consult dispatcher for next sprint.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -483,8 +494,15 @@
       "sha256": "803dbc0e9724a18149bebf7bc40965c144bbfcefe3c9bce879333c40a9a0ac20",
       "closure": "Existing-step typing preservation ACCEPTED/CLEAN; full adequacy and original A/B remain OPEN.",
       "commit": "577285ec9"
+    },
+    {
+      "id": "LEAN-CALL-FINITE-TYPING-20261025/r1",
+      "record": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1-outcome.md",
+      "sha256": "f82192a95c9d5cac2474160e56654ffa6b36fa737edca09fd443b3b0fab1456d",
+      "closure": "Finite Call typing ACCEPTED/CLEAN; adequacy/A-B OPEN.",
+      "commit": "PENDING"
     }
   ],
-  "resource_observation": "Fresh 2460s finite-typing cap; P/Q 600s each; four serial Lean invocations; UNKNOWN reservations unchanged.",
+  "resource_observation": "Finite Call sprint cap 2460s; P/Q STOPPED; 4/4 Lean used.",
   "checker": "Finite typing inputs and output artifacts revalidated; all new author/query/output/review/outcome paths absent."
 }
