@@ -1,0 +1,80 @@
+{
+  "baseline": "7a2e033a703854a6a9fd6011d1cb4896783a1f24",
+  "cwd": "/tmp/yulang-r45-tuple-split-primary/notes/theory/lean",
+  "lake": "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+  "calls": [
+    {
+      "call": 1,
+      "argv": [
+        "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+        "--version"
+      ],
+      "cwd": "/tmp/yulang-r45-tuple-split-primary/notes/theory/lean",
+      "started_utc": "2026-10-25T20:38:19.622282+00:00",
+      "ended_utc": "2026-10-25T20:38:19.653383+00:00",
+      "duration_ns": 30887634,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_bytes": 53,
+      "stdout_sha256": "165f92ed239a8c7db772bf5ee9d58c59357b489951582a12c86dc9d8e06b23a2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "call": 2,
+      "argv": [
+        "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+        "env",
+        "lean",
+        "--version"
+      ],
+      "cwd": "/tmp/yulang-r45-tuple-split-primary/notes/theory/lean",
+      "started_utc": "2026-10-25T20:38:19.653471+00:00",
+      "ended_utc": "2026-10-25T20:38:19.713667+00:00",
+      "duration_ns": 60034933,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_bytes": 106,
+      "stdout_sha256": "eb22144228dd41cd51a0c84af4f976cd0cef473102dcf99b60be756b11f2b95a",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "call": 3,
+      "argv": [
+        "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+        "build"
+      ],
+      "cwd": "/tmp/yulang-r45-tuple-split-primary/notes/theory/lean",
+      "started_utc": "2026-10-25T20:38:19.713765+00:00",
+      "ended_utc": "2026-10-25T20:38:59.267074+00:00",
+      "duration_ns": 38761872427,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_bytes": 235860,
+      "stdout_sha256": "0cf3c76eec38aaa7235eecb598c2d93a79443b2b6159e46e0e205fe062c976b9",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "call": 4,
+      "argv": [
+        "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+        "env",
+        "lean",
+        ".lake/R45Audit.lean"
+      ],
+      "cwd": "/tmp/yulang-r45-tuple-split-primary/notes/theory/lean",
+      "started_utc": "2026-10-25T20:38:59.267253+00:00",
+      "ended_utc": "2026-10-25T20:39:00.475446+00:00",
+      "duration_ns": 1208022286,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_bytes": 22728,
+      "stdout_sha256": "10277de7fd16528babb1d5e7a1526072bdd0330d97ac7cac0c8ad8d657572ebe",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "total_duration_ns": 40060817280
+}

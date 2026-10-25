@@ -1,0 +1,278 @@
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.prefixReplacement_tail
+YulangClosure.PaperTypes.PaperTupleSplitExecution.prefixReplacement_tail : ∀
+  (values : List YulangClosure.PaperTypes.Value) (rho : Nat → YulangClosure.PaperTypes.Value) (n : Nat),
+  YulangClosure.PaperTypes.PaperTupleSplitExecution.prefixReplacement values rho (values.length + n) = rho n
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.prefixReplacement_tail' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.prefixReplacement_tail
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement_tail
+YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement_tail : ∀
+  (values : List YulangClosure.PaperTypes.Value) (rho : Nat → YulangClosure.PaperTypes.Value) (n : Nat),
+  YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement values rho (values.length + n) = rho n
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement_tail' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement_tail
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.values_length
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.values_length : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {vs : List YulangClosure.PaperTypes.Value} {ts : List YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.ValuesTyped d g e vs ts → vs.length = ts.length
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.values_length' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.values_length
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement_typed
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement_typed : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {source target : YulangClosure.PaperTypes.TypeEnvironment} {vs : List YulangClosure.PaperTypes.Value}
+  {ts : List YulangClosure.PaperTypes.Ty} {rho : Nat → YulangClosure.PaperTypes.Value},
+  YulangClosure.PaperTypes.ValuesTyped d g target vs ts →
+    YulangClosure.PaperTypes.TermSubstitutionTyped d g source target rho →
+      YulangClosure.PaperTypes.TermSubstitutionTyped d g (YulangClosure.PaperTypes.extendTupleEnvironment ts source)
+        target (YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement vs rho)
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement_typed' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement_typed
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement_identity_typed
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement_identity_typed : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {e : YulangClosure.PaperTypes.TypeEnvironment} {vs : List YulangClosure.PaperTypes.Value}
+  {ts : List YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.ValuesTyped d g e vs ts →
+    YulangClosure.PaperTypes.TermSubstitutionTyped d g (YulangClosure.PaperTypes.extendTupleEnvironment ts e) e
+      (YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement vs YulangClosure.PaperTypes.Value.variable)
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement_identity_typed' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement_identity_typed
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep_eq
+YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep_eq : ∀ (values : List YulangClosure.PaperTypes.Value)
+  (binders : List YulangClosure.PaperTypes.TermName) (body : YulangClosure.PaperTypes.Computation),
+  binders.length = values.length →
+    YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep
+        (YulangClosure.PaperTypes.Computation.split (YulangClosure.PaperTypes.Value.tuple values) binders body) =
+      YulangClosure.PaperTypes.termSubstituteComputation
+        (YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement values
+          YulangClosure.PaperTypes.Value.variable)
+        body
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep_eq' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep_eq
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep_arity_mismatch
+YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep_arity_mismatch : ∀
+  (values : List YulangClosure.PaperTypes.Value) (binders : List YulangClosure.PaperTypes.TermName)
+  (body : YulangClosure.PaperTypes.Computation),
+  binders.length ≠ values.length →
+    YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep
+        (YulangClosure.PaperTypes.Computation.split (YulangClosure.PaperTypes.Value.tuple values) binders body) =
+      Option.none
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep_arity_mismatch' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep_arity_mismatch
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.split_applicable_of_components
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.split_applicable_of_components : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {e : YulangClosure.PaperTypes.TypeEnvironment} {values : List YulangClosure.PaperTypes.Value}
+  {types : List YulangClosure.PaperTypes.Ty} {binders : List YulangClosure.PaperTypes.TermName}
+  {body : YulangClosure.PaperTypes.Computation} {result : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.ValuesTyped d g e values types →
+    binders.length = types.length →
+      YulangClosure.PaperTypes.PaperComputationTyped d g (YulangClosure.PaperTypes.extendTupleEnvironment types e) body
+          result →
+        ∃ next,
+          YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep
+                (YulangClosure.PaperTypes.Computation.split (YulangClosure.PaperTypes.Value.tuple values) binders
+                  body) =
+              Option.some next ∧
+            YulangClosure.PaperTypes.PaperComputationTyped d g e next result
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.split_applicable_of_components' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.split_applicable_of_components
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.split_applicable
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.split_applicable : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {values : List YulangClosure.PaperTypes.Value} {binders : List YulangClosure.PaperTypes.TermName}
+  {body : YulangClosure.PaperTypes.Computation} {result : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e
+      (YulangClosure.PaperTypes.Computation.split (YulangClosure.PaperTypes.Value.tuple values) binders body) result →
+    ∃ next,
+      YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep
+            (YulangClosure.PaperTypes.Computation.split (YulangClosure.PaperTypes.Value.tuple values) binders body) =
+          Option.some next ∧
+        YulangClosure.PaperTypes.PaperComputationTyped d g e next result
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.split_applicable' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.split_applicable
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.split_preservation
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.split_preservation : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {e : YulangClosure.PaperTypes.TypeEnvironment} {c next : YulangClosure.PaperTypes.Computation}
+  {result : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e c result →
+    YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep c = Option.some next →
+      YulangClosure.PaperTypes.PaperComputationTyped d g e next result
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.split_preservation' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.split_preservation
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.step_extends
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.step_extends : ∀ {c next : YulangClosure.PaperTypes.Computation},
+  YulangClosure.PaperTypes.PaperCoreStep.step c = Option.some next →
+    YulangClosure.PaperTypes.PaperTupleSplitExecution.step c = Option.some next
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.step_extends' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.step_extends
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep_to_step
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep_to_step : ∀
+  {c next : YulangClosure.PaperTypes.Computation},
+  YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep c = Option.some next →
+    YulangClosure.PaperTypes.PaperTupleSplitExecution.step c = Option.some next
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep_to_step' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep_to_step
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.preservation
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.preservation : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {c next : YulangClosure.PaperTypes.Computation} {result : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e c result →
+    YulangClosure.PaperTypes.PaperTupleSplitExecution.step c = Option.some next →
+      YulangClosure.PaperTypes.PaperComputationTyped d g e next result
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.preservation' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.preservation
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.controlStep_extends
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.controlStep_extends : ∀
+  {s next : YulangClosure.PaperTypes.PaperCoreControl.State},
+  YulangClosure.PaperTypes.PaperCoreControl.controlStep s = Option.some next →
+    YulangClosure.PaperTypes.PaperTupleSplitExecution.controlStep s = Option.some next
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.controlStep_extends' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.controlStep_extends
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.controlStep_evidence
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.controlStep_evidence : ∀
+  {s next : YulangClosure.PaperTypes.PaperCoreControl.State},
+  YulangClosure.PaperTypes.PaperTupleSplitExecution.controlStep s = Option.some next →
+    YulangClosure.PaperTypes.PaperTupleSplitExecution.ControlStepEvidence s next
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.controlStep_evidence' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.controlStep_evidence
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.evidence_preservation
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.evidence_preservation : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {e : YulangClosure.PaperTypes.TypeEnvironment} {s next : YulangClosure.PaperTypes.PaperCoreControl.State}
+  {result : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperCoreControl.StateTyped d g e s result →
+    YulangClosure.PaperTypes.PaperTupleSplitExecution.ControlStepEvidence s next →
+      YulangClosure.PaperTypes.PaperCoreControl.StateTyped d g e next result
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.evidence_preservation' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.evidence_preservation
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.control_preservation
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.control_preservation : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {e : YulangClosure.PaperTypes.TypeEnvironment} {s next : YulangClosure.PaperTypes.PaperCoreControl.State}
+  {result : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperCoreControl.StateTyped d g e s result →
+    YulangClosure.PaperTypes.PaperTupleSplitExecution.controlStep s = Option.some next →
+      YulangClosure.PaperTypes.PaperCoreControl.StateTyped d g e next result
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.control_preservation' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.control_preservation
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.old_context_step
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.old_context_step : ∀
+  {head next : YulangClosure.PaperTypes.Computation},
+  YulangClosure.PaperTypes.PaperCoreControl.PaperLetContextStep head next →
+    YulangClosure.PaperTypes.PaperTupleSplitExecution.PaperLetContextStep head next
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.old_context_step' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.old_context_step
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.plug_step
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.plug_step : ∀ {head next : YulangClosure.PaperTypes.Computation},
+  YulangClosure.PaperTypes.PaperTupleSplitExecution.PaperLetContextStep head next →
+    ∀ (stack : List YulangClosure.PaperTypes.Computation),
+      YulangClosure.PaperTypes.PaperTupleSplitExecution.PaperLetContextStep
+        (YulangClosure.PaperTypes.PaperCoreControl.plug stack head)
+        (YulangClosure.PaperTypes.PaperCoreControl.plug stack next)
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.plug_step' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.plug_step
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.evidence_erasure
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.evidence_erasure : ∀
+  {s next : YulangClosure.PaperTypes.PaperCoreControl.State},
+  YulangClosure.PaperTypes.PaperTupleSplitExecution.ControlStepEvidence s next →
+    YulangClosure.PaperTypes.PaperCoreControl.erase s = YulangClosure.PaperTypes.PaperCoreControl.erase next ∨
+      YulangClosure.PaperTypes.PaperTupleSplitExecution.PaperLetContextStep
+        (YulangClosure.PaperTypes.PaperCoreControl.erase s) (YulangClosure.PaperTypes.PaperCoreControl.erase next)
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.evidence_erasure' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.evidence_erasure
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.erasure
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.erasure : ∀
+  {s next : YulangClosure.PaperTypes.PaperCoreControl.State},
+  YulangClosure.PaperTypes.PaperTupleSplitExecution.controlStep s = Option.some next →
+    YulangClosure.PaperTypes.PaperCoreControl.erase s = YulangClosure.PaperTypes.PaperCoreControl.erase next ∨
+      YulangClosure.PaperTypes.PaperTupleSplitExecution.PaperLetContextStep
+        (YulangClosure.PaperTypes.PaperCoreControl.erase s) (YulangClosure.PaperTypes.PaperCoreControl.erase next)
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.erasure' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.erasure
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.trace_preservation
+@YulangClosure.PaperTypes.PaperTupleSplitExecution.trace_preservation : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {e : YulangClosure.PaperTypes.TypeEnvironment} {s last : YulangClosure.PaperTypes.PaperCoreControl.State}
+  {result : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperCoreControl.StateTyped d g e s result →
+    YulangClosure.PaperTypes.PaperTupleSplitExecution.Trace s last →
+      YulangClosure.PaperTypes.PaperCoreControl.StateTyped d g e last result
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.trace_preservation' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.trace_preservation
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.example_order
+YulangClosure.PaperTypes.PaperTupleSplitExecution.example_order : YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep
+    (YulangClosure.PaperTypes.Computation.split
+      (YulangClosure.PaperTypes.Value.tuple
+        [YulangClosure.PaperTypes.Value.literal (YulangClosure.PaperTypes.Literal.integer 7),
+          YulangClosure.PaperTypes.Value.literal (YulangClosure.PaperTypes.Literal.boolean Bool.true)])
+      [10, 20]
+      (YulangClosure.PaperTypes.Computation.ret
+        (YulangClosure.PaperTypes.Value.tuple
+          [YulangClosure.PaperTypes.Value.variable 1, YulangClosure.PaperTypes.Value.variable 0]))) =
+  Option.some
+    (YulangClosure.PaperTypes.Computation.ret
+      (YulangClosure.PaperTypes.Value.tuple
+        [YulangClosure.PaperTypes.Value.literal (YulangClosure.PaperTypes.Literal.integer 7),
+          YulangClosure.PaperTypes.Value.literal (YulangClosure.PaperTypes.Literal.boolean Bool.true)]))
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.example_order' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.example_order
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.example_empty
+YulangClosure.PaperTypes.PaperTupleSplitExecution.example_empty : YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep
+    (YulangClosure.PaperTypes.Computation.split (YulangClosure.PaperTypes.Value.tuple []) []
+      (YulangClosure.PaperTypes.Computation.ret (YulangClosure.PaperTypes.Value.variable 0))) =
+  Option.some (YulangClosure.PaperTypes.Computation.ret (YulangClosure.PaperTypes.Value.variable 0))
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.example_empty' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.example_empty
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.example_external_under_binder
+YulangClosure.PaperTypes.PaperTupleSplitExecution.example_external_under_binder : YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep
+    (YulangClosure.PaperTypes.Computation.split
+      (YulangClosure.PaperTypes.Value.tuple [YulangClosure.PaperTypes.Value.variable 0]) [10]
+      ((YulangClosure.PaperTypes.Computation.ret
+            (YulangClosure.PaperTypes.Value.literal YulangClosure.PaperTypes.Literal.unit)).letE
+        (YulangClosure.PaperTypes.Computation.ret
+          (YulangClosure.PaperTypes.Value.tuple
+            [YulangClosure.PaperTypes.Value.variable 0, YulangClosure.PaperTypes.Value.variable 1,
+              YulangClosure.PaperTypes.Value.variable 2])))) =
+  Option.some
+    ((YulangClosure.PaperTypes.Computation.ret
+          (YulangClosure.PaperTypes.Value.literal YulangClosure.PaperTypes.Literal.unit)).letE
+      (YulangClosure.PaperTypes.Computation.ret
+        (YulangClosure.PaperTypes.Value.tuple
+          [YulangClosure.PaperTypes.Value.variable 0, YulangClosure.PaperTypes.Value.variable 1,
+            YulangClosure.PaperTypes.Value.variable 1])))
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.example_external_under_binder' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.example_external_under_binder
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.example_arity_mismatch
+YulangClosure.PaperTypes.PaperTupleSplitExecution.example_arity_mismatch : YulangClosure.PaperTypes.PaperTupleSplitExecution.splitStep
+    (YulangClosure.PaperTypes.Computation.split
+      (YulangClosure.PaperTypes.Value.tuple
+        [YulangClosure.PaperTypes.Value.literal YulangClosure.PaperTypes.Literal.unit])
+      [] (YulangClosure.PaperTypes.Computation.ret (YulangClosure.PaperTypes.Value.variable 0))) =
+  Option.none
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.example_arity_mismatch' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.example_arity_mismatch
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperTupleSplitExecution.example_not_sequential
+YulangClosure.PaperTypes.PaperTupleSplitExecution.example_not_sequential : have body :=
+  YulangClosure.PaperTypes.Computation.ret (YulangClosure.PaperTypes.Value.variable 0);
+have first := YulangClosure.PaperTypes.Value.literal (YulangClosure.PaperTypes.Literal.integer 7);
+have last := YulangClosure.PaperTypes.Value.variable 0;
+YulangClosure.PaperTypes.termSubstituteComputation
+      (YulangClosure.PaperTypes.PaperTupleSplitExecution.tupleReplacement [first, last]
+        YulangClosure.PaperTypes.Value.variable)
+      body =
+    Option.some (YulangClosure.PaperTypes.Computation.ret (YulangClosure.PaperTypes.Value.variable 0)) ∧
+  (YulangClosure.PaperTypes.termSubstituteComputation (YulangClosure.PaperTypes.PaperCoreStep.singleReplacement last)
+          body).bind
+      (YulangClosure.PaperTypes.termSubstituteComputation
+        (YulangClosure.PaperTypes.PaperCoreStep.singleReplacement first)) =
+    Option.some
+      (YulangClosure.PaperTypes.Computation.ret
+        (YulangClosure.PaperTypes.Value.literal (YulangClosure.PaperTypes.Literal.integer 7)))
+'YulangClosure.PaperTypes.PaperTupleSplitExecution.example_not_sequential' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperTupleSplitExecution.example_not_sequential

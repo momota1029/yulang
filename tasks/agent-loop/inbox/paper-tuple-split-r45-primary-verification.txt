@@ -1,0 +1,38 @@
+# R45 primary verification — CLEAN BUILD/AUDIT, independent review pending
+
+Sprint `PAPER-TUPLE-SPLIT-REPAIR-20261026/r45`; contract SHA-256 `2579b7cd0cba6c5c5cb494a39b02b97e0c3ddebbf31f1f475b44c91f6b096175`. Baseline `7a2e033a703854a6a9fd6011d1cb4896783a1f24`; isolated checkout `/tmp/yulang-r45-tuple-split-primary`. R44 remains FIRST_BUILD_FAILED and is not reclassified.
+
+## Frozen input and source correspondence
+
+Worker candidate SHA-256 `7bc13a41a0333d885b91291a7fbb1ef18302a94c79a34f21469dbae19d76f84d`; audit source SHA-256 `83c6a0f623d7c9a2a1761987bd6717a3dccd81e7a614b0fd5b2b3f736f559a0b`. The R45 candidate differs from the preserved R44 seed only at the permitted nil branch (`rfl` → `simp only [List.length_nil, Nat.zero_add, prefixReplacement]`). All dependencies/configuration match their frozen source pins:
+
+- `docs/yulang-operational-type-safety-ja.tex` `a003b56a2f32eed06a2c604ef8aed043d43752cbed0b09028eff7f6efac4886b`
+- `notes/theory/lean/YulangClosure/PaperTermSubstitution.lean` `a4f87f9604c03beefdc44de5d45fcd9f5924ca9580c75edf353cf267e69a0d4f`
+- `notes/theory/lean/YulangClosure/PaperCoreStep.lean` `503f81c162f7b9ceb0f7d27aa9796b8d7010345653267c675267ce14214c57e9`
+- `notes/theory/lean/YulangClosure/PaperCoreControl.lean` `261d6a77438eec1a32e0299b73583899204ed7c2fe0590b819ecd3fd5b89876e`
+- `notes/theory/lean/YulangClosure/PaperExecutionSyntax.lean` `e38cd059caf7d81549a09f360d81e52cb4aecb8a95d8eb3f308ffda7d38a8932`
+- `notes/theory/lean/YulangClosure/PaperExecutionTypingSubstitution.lean` `3b1588bff2d28a3db7aa241c930495b84f090e880ad49ac8fb2d593d54943d41`
+- `notes/theory/lean/lean-toolchain` `ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c`
+- `notes/theory/lean/lakefile.toml` `2514197994dc47b5e4c6f15ff8c9251f994056b6e32bf2648588ffc10251e194`
+- `notes/theory/lean/lake-manifest.json` `058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3`
+
+Baseline root SHA-256 `b4b04a6a3b2cc0c7c330e93195539f7344612347c9b51b7f2dc8cf0be4994454`; isolated imported root SHA-256 `44bc52747836a81fb3d9ae5017d935d3fd9259e2edad8f16b91b48a1c2a5cd0d`. Root delta is exactly one import, `YulangClosure.PaperTupleSplitExecution`. No other tracked source changed.
+
+## Four captured primary calls
+
+Each raw stdout/stderr is stored at the listed repository path; the JSON manifest is `paper-tuple-split-r45-primary-calls.json` (SHA-256 `0f44c9b8c4a5edcca3e057494dde5419db2fee54920e48e2a7143122a8337614`). Calls ran sequentially from `/tmp/yulang-r45-tuple-split-primary/notes/theory/lean`; toolchain Lake was `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake`. All outputs were captured as bytes directly from process launch.
+
+| # | Exact arguments | Exit | Duration | stdout bytes / SHA-256 | stderr bytes / SHA-256 |
+|---:|---|---:|---:|---|---|
+| 1 | `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake --version` | 0 | 0.030887634s | 53 / `165f92ed239a8c7db772bf5ee9d58c59357b489951582a12c86dc9d8e06b23a2` (`paper-tuple-split-r45-primary-call-01.stdout`) | 0 / `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` (`paper-tuple-split-r45-primary-call-01.stderr`) |
+| 2 | `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake env lean --version` | 0 | 0.060034933s | 106 / `eb22144228dd41cd51a0c84af4f976cd0cef473102dcf99b60be756b11f2b95a` (`paper-tuple-split-r45-primary-call-02.stdout`) | 0 / `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` (`paper-tuple-split-r45-primary-call-02.stderr`) |
+| 3 | `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake build` | 0 | 38.761872427s | 235860 / `0cf3c76eec38aaa7235eecb598c2d93a79443b2b6159e46e0e205fe062c976b9` (`paper-tuple-split-r45-primary-call-03.stdout`) | 0 / `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` (`paper-tuple-split-r45-primary-call-03.stderr`) |
+| 4 | `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake env lean .lake/R45Audit.lean` | 0 | 1.208022286s | 22728 / `10277de7fd16528babb1d5e7a1526072bdd0330d97ac7cac0c8ad8d657572ebe` (`paper-tuple-split-r45-primary-call-04.stdout`) | 0 / `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` (`paper-tuple-split-r45-primary-call-04.stderr`) |
+
+Total: 4/4 calls, 40.060817280 checker seconds; all exit 0, no timeout, below 90-second total and 60-second per-call caps.
+
+## Audit result and acceptance boundary
+
+Primary audit output contains 27 ordered `YULANG_AUDIT_BEGIN`/`YULANG_AUDIT_END` pairs and 27 complete `Lean.collectAxioms` reports aligned with the 27 audited declarations. The only reported sets are `[propext]` (2 declarations) and `[propext, Quot.sound]` (25 declarations). All five required examples appear in the audit. Worker also reports `validate_audit` PASS. Focused proof build and primary default root build both exit 0.
+
+Candidate and audit artifact hashes are verified against the worker handoff. Complete worker raw log is `paper-tuple-split-r45-worker.log`; worker handoff is `paper-tuple-split-r45.md`. Fresh independent compiler_referee review remains pending. No main-worktree source integration or theorem/parent closure is claimed. R44, full-state/current-port/residual-graph, source/native, inference A/B, whole executor and production remain OPEN.
