@@ -1,0 +1,9 @@
+R24 primary verification receipt
+
+Invocation 1/3, charged: `lake build -j1 -M1024 +YulangClosure.PaperOperationMapperTyping`
+Exit: 1; wall time: 0.1 sec; checker time: 0 sec.
+Diagnostic: error: unknown short option '-j'
+Classification: Lake CLI option syntax error before Lean checking; no source/theorem verdict.
+
+R24.1 amendment: total remains 8 invocations / 120 checker sec / 1200 active sec; worker cap 5, primary cap 3. Two primary calls remain. Next: focused Lake build without Lake-level `-j`; then complete audit if build succeeds.
+

@@ -3,7 +3,7 @@
 Status: CANDIDATE until Luna validates the exact adapter typing context and grants leases. No worker/checker may act before a fresh receipt is recorded and committed.  
 Branch: `research/simple-sub-intrusion`  
 Baseline: `c2bd4055094e7b75a2155638611f015f0baa52ea` (R23 source-gate stop adjudicated)  
-Contract revision: r1
+Contract revision: r2 (bounded R24.1 resource reallocation)
 
 ## Original parent and selected outcome
 
@@ -54,3 +54,9 @@ Exact worker writes in isolated checkout `/tmp/yulang-r24-mapop`: new `notes/the
 Envelope from the sprint-end selector: 1200 active seconds including intake/review; at most 8 literal serial Lean/Lake invocations and 120 checker seconds; worker cap 6, primary reserves 2; one checker/cache owner at a time; at most two heavyweight builds, no more than one concurrent. Use pinned Lean 4.35.0, `-j1 -M1024`. Worker must not edit or run a checker before fresh receipt/hash reconciliation and committed acknowledgement. No tests, default/full build, Rust build, dependency changes or network activity.
 
 Review mode M1: one fresh non-author source/spec reviewer checks direction, identity, scope, theorem premises, mapped-plan result, polarity example and complete axiom output. Convergence requires no blocking/major finding or one bounded repair plus re-frozen delta review. Stop for source ambiguity, new semantic choice, authority/dependency change, budget boundary, checker failure, STOP or session end. Preserve R23/R18 and all original parent statuses.
+
+## R24.1 bounded resource reallocation
+
+This amendment changes only the allocation of the fixed R24 envelope. Preserve the total at 1200 active seconds, 8 serial Lean/Lake invocations, 120 checker seconds, and one reviewer. Change the per-lane caps from worker 6 / primary 2 to worker 5 / primary 3. The worker is STOPPED and its three output artifacts remain frozen; no worker allocation is reopened.
+
+Primary invocation 1/3 was consumed by the exact command `lake build -j1 -M1024 +YulangClosure.PaperOperationMapperTyping`, which exited 1 with `error: unknown short option '-j'` before any Lean checker ran. This is a Lake CLI option error, not a source or theorem verdict; measured process wall time was 0.1 sec and checker time 0 sec. Keep the failed call charged. Seven total calls remain, including two primary calls. Run the focused build as `lake build +YulangClosure.PaperOperationMapperTyping` (the project `lakefile.toml` fixes `moreLeanArgs = ["-j1", "-M1024"]`), then only if it succeeds run `lake env lean -j1 -M1024 .lake/R24Audit.lean`. Stop on either failure. This amendment does not reset elapsed time, checker time, or any other budget.
