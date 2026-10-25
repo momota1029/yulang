@@ -38,7 +38,10 @@ theorem argsSyntax_subst (σ : Nat → Ty) (types : List Ty) :
       | mk identity ty =>
           by_cases h : identity = index
           · simp [lookupGraphEnvironment, mapGraphEnvironment, h]
-          · simp [lookupGraphEnvironment, mapGraphEnvironment, h, ih]
+          · simp [lookupGraphEnvironment, mapGraphEnvironment, h]
+            change lookupGraphEnvironment (mapGraphEnvironment σ tail) index =
+              (lookupGraphEnvironment tail index).map (subst σ)
+            rw [ih]
 
 mutual
   theorem ValuesTyped.subst (σ : Nat → Ty) {declarations : DeclarationTable}

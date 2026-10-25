@@ -36,6 +36,30 @@ guard; replace it with the actual guard condition before claiming graph typing
 or recursive-value coverage. The full paper rule inventory below remains the
 acceptance criterion.
 
+R4 primary continuation evidence: the pinned toolchain is Lean 4.35.0
+(`lake` 5.0.0-src+eb6cafb). A fresh focused module build failed. Replacing
+the four `cases` calls with `induction ... generalizing environment` confirms
+that Lean's induction tactic rejects each of the four mutually inductive
+judgments. The generated `PaperValueTyped.rec` (and sibling recursors) expose
+all four mutual motives, so the next proof method is an explicit four-motive
+recursor, not another direct `induction` attempt. Returning to `cases` leaves
+kernel environment-index mismatches in `ValuesTyped` and `ValuesAllTyped`, plus
+constructor goals where `mapPaperValue`/`mapPaperComputation` and `subst` must
+be normalized explicitly. `lookupGraphEnvironment_subst` was repaired to
+rewrite its recursive tail explicitly; that lemma no longer appears among the
+current errors, though the containing module still does not compile. No
+substitution theorem or accepted module result follows from this run.
+
+Commands: resolved `lake` at the installed Lean 4.35.0 toolchain; checked
+`lake --version` and `lake env lean --version`; ran the focused module build
+three times (initial failure, direct mutual-induction rejection, and current
+constructor/environment-index diagnostics); inspected generated recursor
+types with `lake env lean --stdin -j1 -M1024`. The first unqualified namespace
+probe was an invalid-name diagnostic, not evidence about recursor availability.
+The valid fully qualified probe confirmed the mutual recursors. These serial
+primary checks stayed within the R4 call/time envelope. Full-paper coverage,
+graph-guard correction and independent review remain open.
+
 ## Original theorem and coverage obligations
 
 Parent: `docs/yulang-operational-type-safety-ja.tex:953–977`, item 2; downstream
