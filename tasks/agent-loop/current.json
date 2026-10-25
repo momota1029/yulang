@@ -27,10 +27,10 @@
 "outcome": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3-outcome.md",
 "closure": "Not yet proved. P/Q candidates uncompiled; original parent gates OPEN.",
 "review": "Fresh compiler referee only after all four serial invocations pass.",
-"checker": "26 source/receipt pins match; six assigned module outputs absent; direct lake and lean present.",
+"checker": "P direct lake invocation exit0; unused hsuffix lint warning recorded; 1/4 complete.",
 "acceptance": "P, Q, composition and exact signature/axiom query compile; complete receipts; CLEAN independent review.",
 "author": "No author restart. Luna owns composition, four serial checks, review/adjudication and Git.",
-"next_action": "Run P, Q, composition and query serially; append each receipt row before proceeding.",
+"next_action": "Flush P receipt checkpoint; revalidate Q source/dependency, then run Q.",
 "non_goal": "No source/native, Call A/B, inference A/B, semantic approval or production claim."
 },
 "workers": [
@@ -480,6 +480,6 @@
 "sha256": "dc329ddc99486ff2ae375b6f398721cbcabacde7ea9de67c9f8f7398a67e0176"
 }
 ],
-"resource_observation": "R3 active; 26 pins match; 0/4 Lean; direct launcher; 3 UNKNOWN reserved.",
-"checker": "26 pins match; candidate module outputs absent; no Lean calls run in r3."
+"resource_observation": "R3 P 1/4 exit0; no timeout; Q next; 3 UNKNOWN reserved.",
+"checker": "P source/output hashes recorded; Lean exit0; hsuffix unused-variable warning."
 }
