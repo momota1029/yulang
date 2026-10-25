@@ -4,17 +4,17 @@
   "phase": "ACTIVE",
   "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
   "active_sprint": {
-    "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r56",
+    "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r57",
     "revision": "r1",
-    "status": "FAILED",
-    "contract": "tasks/agent-loop/sprints/paper-type-beta-execution-r56.md",
-    "contract_sha256": "734715b75b15c0dfe8964f16fc3afbcb2a56b99b91e7f93381873130d7294447",
-    "baseline": "bd445803661013d7ab725f6d0da17e71e3a6a5dd",
+    "status": "ASSIGNED",
+    "contract": "tasks/agent-loop/sprints/paper-type-beta-execution-r57.md",
+    "contract_sha256": "a6956775f817b66b4a3c7653ff0f52a92f770ab99baaee90669828ca8179458c",
+    "baseline": "fa776ddb531576a2cee4b0ae223aefbc254e1882",
     "branch": "yulang3",
-    "claim": "Complete strict audit and root verification of the unchanged manuscript-explicit type-application beta preservation candidate, followed by independent review; parent remains open until every gate passes.",
-    "outcome": "Isolated root build failed because candidate import was appended after existing commands; no candidate module build, audit, review, integration or theorem acceptance. Primary setup error, not counterexample.",
+    "claim": "Complete exact 34-declaration audit and corrected root verification of the unchanged manuscript-explicit type-application beta preservation candidate, then obtain fresh independent review; parent remains open.",
+    "outcome": "R57 begins after R56 root import placement failure. Correct import location is frozen in contract; no native calls yet.",
     "budget": "Primary 420s/4 calls/90 checker; fresh reviewer 180s/0 checker; aggregate 600s/4 calls/90 checker.",
-    "next_action": "R56 failed at first build; consult selector for a fresh yulang3 packet, no R56 retries."
+    "next_action": "Run only four pinned native calls; stop at first failure, then fresh compiler_referee review if all pass."
   },
   "workers": [
     {
@@ -108,13 +108,13 @@
     {
       "id": "/root",
       "role": "primary/checker/integrator",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
       "requested_model": "user-selected model",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R56 stopped after 3 calls/54.304217993 checker s/161.382 charged s; root import placement error; no audit/review."
+      "receipt": "R57 primary active; origin 2026-10-25T22:31:11.959580Z/48729098930805 ns; 0/4 native calls; exact root-import correction packet."
     },
     {
       "id": "/root/r55_type_beta_finalize",
@@ -126,6 +126,17 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "Frozen R55 handoff 4cb89d…94128b; candidate 0a1834…a8c1c8; 4 calls/34.788968363 native s/253.121 conservatively charged s; candidate build passed; strict audit failed; no processes/writes."
+    },
+    {
+      "id": "/root/r57_compiler_referee",
+      "role": "fresh independent compiler_referee review",
+      "state": "NOT_STARTED",
+      "session": null,
+      "requested_model": "registered role defaults",
+      "requested_effort": "registered role defaults",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "180s/0 checker calls, only after frozen successful primary audit."
     }
   ],
   "leases": [
@@ -138,11 +149,6 @@
       "path": "tasks/agent-loop/sprints/paper-type-beta-execution-r55.md",
       "owner": "/root",
       "state": "HELD"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/PaperTypeBetaExecution.lean",
-      "owner": "/root",
-      "state": "FROZEN"
     },
     {
       "path": "notes/theory/lean/.lake/R55Audit.lean",
@@ -165,11 +171,6 @@
       "state": "HELD"
     },
     {
-      "path": "notes/theory/lean/YulangClosure.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
       "path": "notes/theory/lean/.lake/R56Audit.lean",
       "owner": "/root",
       "state": "FROZEN"
@@ -178,6 +179,21 @@
       "path": "tasks/agent-loop/inbox/paper-type-beta-r56-yulang3-primary.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/paper-type-beta-execution-r57.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/paper-type-beta-r57-yulang3-primary.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/paper-type-beta-r57-review.md",
+      "owner": "/root/r57_compiler_referee",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -349,8 +365,8 @@
       "details": "Bounded proof accepted; full-paper/native bridge open; pending-cell republication blocks naive relation."
     }
   ],
-  "closure": "R51 bounded slice integrated. R52 no candidate. R53/R54 construction failures. R55 built candidate but audit template failed. R56 stopped because temporary root import was appended after commands; no complete audit/review/integration. Type-beta and parent OPEN. Question bundles committed on yulang3; both withdrawn and unanswered.",
-  "next_action": "Consult selector at R56 first-build obstruction boundary. Continue only with a fresh exact-name audit packet on yulang3; preserve external proof arrivals.",
+  "closure": "R51 bounded slice integrated. R52 no candidate. R53/R54 construction failures. R55 candidate build passed but audit template failed. R56 failed due temporary import after commands. R57 is a fresh exact-name audit/root verification packet; type-beta and parent remain OPEN. Question bundles are committed on yulang3, both withdrawn and unanswered.",
+  "next_action": "R57 authorized on yulang3; exact audit after corrected leading root import; preserve external proof arrivals.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "8 UNKNOWN reservations remain quarantined.",
@@ -384,71 +400,6 @@
       "sha256": "662d2b7bc6140206c7ae9d9a4a5413bbd4fc9a68421745c97cd29beb03c67c36"
     },
     {
-      "id": "PAPER-EMPTY-OWNER-RESUME-20261026/r50-contract-r5",
-      "record": "tasks/agent-loop/sprints/paper-empty-owner-resume-r50-r5.md",
-      "sha256": "9b5755f6ee4bc5f4974094679b56dcc6607aa346a78f2c8d01867d7baab14c5b"
-    },
-    {
-      "id": "PAPER-EMPTY-OWNER-RESUME-20261026/r50-result-r6",
-      "record": "tasks/agent-loop/sprints/paper-empty-owner-resume-r50-r6.md",
-      "sha256": "763d55046d46525a4a9d0ae5c737f50a94f24f29294465a4db90ec4a69dbfcbd"
-    },
-    {
-      "id": "PAPER-R50-PROCESS-EVIDENCE-20261026/r51-contract-r1",
-      "record": "tasks/agent-loop/sprints/paper-resume-process-evidence-r51.md",
-      "sha256": "7c79cc4cb903a9df69ee7b8cbacbb1136c33c46242cee084ebdae708072ddd34"
-    },
-    {
-      "id": "PAPER-R50-PROCESS-EVIDENCE-20261026/r51-contract-r2",
-      "record": "tasks/agent-loop/sprints/paper-resume-process-evidence-r51-r2.md",
-      "sha256": "bc814b87f9c746dd7a72a193499f0791f7ad6630cf4a64ee3fe96357dbb6c400"
-    },
-    {
-      "id": "PAPER-R50-PROCESS-EVIDENCE-20261026/r51-review",
-      "record": "tasks/agent-loop/inbox/paper-resume-execution-r51-review.md",
-      "sha256": "cb602acd8db9950581a799b3668bae3bd326696e4c1b10214dd6c9a02de5b641"
-    },
-    {
-      "id": "PAPER-R50-PROCESS-EVIDENCE-20261026/r51-integration",
-      "record": "tasks/agent-loop/inbox/paper-resume-execution-r51-integration.md",
-      "sha256": "b99bff8135336b5b86d399dc44c2f0ba8518e7a6724b270ab116bb6911287c8d"
-    },
-    {
-      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r52-contract-r1",
-      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r52.md",
-      "sha256": "51df4b8f28ffd4afb348b93639654c4439802d473b2b9c0e9036dab91fde1e4a"
-    },
-    {
-      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r52-contract-r2",
-      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r52-r2.md",
-      "sha256": "36dd807bdac1a89260e2e907fb88b8d3cb6720a0703167d3d4df65255546b500"
-    },
-    {
-      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r52-outcome",
-      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r52-outcome.md",
-      "sha256": "bd18a011e049680302e46038af334d635eefedadfa3a873b1a2091dc02eee3dd"
-    },
-    {
-      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r53-outcome",
-      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r53-outcome.md",
-      "sha256": "bca9a06b64406eaea56201f34d007676d5fbac3733502a52bd68b075080bd7ab"
-    },
-    {
-      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r54-contract-r1",
-      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r54.md",
-      "sha256": "0680e30999831fb0bee66efe6e7b86c3dcde57d5169292a0e1551d3a9084feef"
-    },
-    {
-      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r54-contract-r2",
-      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r54-r2.md",
-      "sha256": "0b6fb7b142d9292c5f35e0dde0aa6748c43bb032c7bc0d57db4e659011454661"
-    },
-    {
-      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r54-outcome",
-      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r54-outcome.md",
-      "sha256": "72d85244a70b17e9b49ffcdd7198b3139be7cb53f11f29a35c510506dcc83597"
-    },
-    {
       "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r55-contract-r1",
       "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r55.md",
       "sha256": "611ea5ec46a32be40d4a45fe46257c8686f868429eeb25f4525a79cea0ebaeb1"
@@ -472,9 +423,19 @@
       "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r56-outcome",
       "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r56-outcome.md",
       "sha256": "f7871eb12687243e77ff7fe23c55b664e0c27c2f5bb416b2a37a7eac9807a01a"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r57-contract-r1",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r57.md",
+      "sha256": "a6956775f817b66b4a3c7653ff0f52a92f770ab99baaee90669828ca8179458c"
+    },
+    {
+      "id": "PAPER-RESOLVED-HISTORY-R50-R54-20261026/r1",
+      "record": "tasks/agent-loop/history/20261026-r50-r54-resolved-history.json",
+      "sha256": "70491ac97c54176fab804ae22d557544a1057350e449917d08a8cea7baa995a4"
     }
   ],
-  "resource_observation": "R55 worker 253.121s conservatively charged, audit exit 1. R56 primary origin 48401291550615ns; 3 calls, root build 54.304217993 checker s, 161.382 conservative elapsed s charged; stopped without audit/review. No budget transfer.",
+  "resource_observation": "R55 worker 253.121s conservatively charged, audit exit 1. R56 primary origin 48401291550615ns; 3 calls, root build 54.304217993 checker s, 161.382 conservative elapsed s charged; stopped without audit/review. No budget transfer. R57 origin 2026-10-25T22:31:11.959580Z/48729098930805ns; fresh 600s total, primary 420s/4 calls/90 checker, reviewer 180s/0 calls; no native calls yet.",
   "native_bridge": {
     "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
     "state": "OPEN; NAIVE_RELATION_BLOCKED",

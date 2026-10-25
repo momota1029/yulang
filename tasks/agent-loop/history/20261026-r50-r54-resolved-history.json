@@ -1,0 +1,70 @@
+{
+  "archived_from_current": [
+    {
+      "id": "PAPER-EMPTY-OWNER-RESUME-20261026/r50-contract-r5",
+      "record": "tasks/agent-loop/sprints/paper-empty-owner-resume-r50-r5.md",
+      "sha256": "9b5755f6ee4bc5f4974094679b56dcc6607aa346a78f2c8d01867d7baab14c5b"
+    },
+    {
+      "id": "PAPER-EMPTY-OWNER-RESUME-20261026/r50-result-r6",
+      "record": "tasks/agent-loop/sprints/paper-empty-owner-resume-r50-r6.md",
+      "sha256": "763d55046d46525a4a9d0ae5c737f50a94f24f29294465a4db90ec4a69dbfcbd"
+    },
+    {
+      "id": "PAPER-R50-PROCESS-EVIDENCE-20261026/r51-contract-r1",
+      "record": "tasks/agent-loop/sprints/paper-resume-process-evidence-r51.md",
+      "sha256": "7c79cc4cb903a9df69ee7b8cbacbb1136c33c46242cee084ebdae708072ddd34"
+    },
+    {
+      "id": "PAPER-R50-PROCESS-EVIDENCE-20261026/r51-contract-r2",
+      "record": "tasks/agent-loop/sprints/paper-resume-process-evidence-r51-r2.md",
+      "sha256": "bc814b87f9c746dd7a72a193499f0791f7ad6630cf4a64ee3fe96357dbb6c400"
+    },
+    {
+      "id": "PAPER-R50-PROCESS-EVIDENCE-20261026/r51-review",
+      "record": "tasks/agent-loop/inbox/paper-resume-execution-r51-review.md",
+      "sha256": "cb602acd8db9950581a799b3668bae3bd326696e4c1b10214dd6c9a02de5b641"
+    },
+    {
+      "id": "PAPER-R50-PROCESS-EVIDENCE-20261026/r51-integration",
+      "record": "tasks/agent-loop/inbox/paper-resume-execution-r51-integration.md",
+      "sha256": "b99bff8135336b5b86d399dc44c2f0ba8518e7a6724b270ab116bb6911287c8d"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r52-contract-r1",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r52.md",
+      "sha256": "51df4b8f28ffd4afb348b93639654c4439802d473b2b9c0e9036dab91fde1e4a"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r52-contract-r2",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r52-r2.md",
+      "sha256": "36dd807bdac1a89260e2e907fb88b8d3cb6720a0703167d3d4df65255546b500"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r52-outcome",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r52-outcome.md",
+      "sha256": "bd18a011e049680302e46038af334d635eefedadfa3a873b1a2091dc02eee3dd"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r53-outcome",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r53-outcome.md",
+      "sha256": "bca9a06b64406eaea56201f34d007676d5fbac3733502a52bd68b075080bd7ab"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r54-contract-r1",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r54.md",
+      "sha256": "0680e30999831fb0bee66efe6e7b86c3dcde57d5169292a0e1551d3a9084feef"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r54-contract-r2",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r54-r2.md",
+      "sha256": "0b6fb7b142d9292c5f35e0dde0aa6748c43bb032c7bc0d57db4e659011454661"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r54-outcome",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r54-outcome.md",
+      "sha256": "72d85244a70b17e9b49ffcdd7198b3139be7cb53f11f29a35c510506dcc83597"
+    }
+  ],
+  "note": "Resolved R50–R54 scheduling records retained from current.json to keep the compact live snapshot within its size limit."
+}
