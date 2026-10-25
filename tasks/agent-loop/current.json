@@ -2,31 +2,39 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "LEAN-HIGHER-ORDER-PROOF-CORE-20261025/root-r1",
+  "session": "PARALLEL-THEORY-20261025/root-r1",
   "active_sprint": {
-    "id": "LEAN-HIGHER-ORDER-PROOF-CORE-20261025",
-    "revision": "r1",
-    "status": "DONE",
-    "contract": "tasks/agent-loop/sprints/higher-order-proof-core-20261025-r1.md",
-    "contract_sha256": "56a820500ce7bc3f3d0996e106a9981e539f2e2e05554f15526903e146fcaeb6",
-    "baseline": "77df594169ad07ff9cb523699485cd0e7146e86f",
-    "claim": "Construct structural typing-preserving higher-order syntax embedding; old typed Function becomes actual typed Value and response/cell input. Full native/Call/inference parents OPEN.",
+    "id": "PARALLEL-THEORY-20261025/r1",
+    "contract": "tasks/agent-loop/sprints/parallel-theory-20261025-r1.md",
+    "contract_sha256": "0751276e8eedf50d113475a0ef1c41b27b7ffd77cc4ccc28761e3cc9e792ff76",
+    "status": "ACTIVE",
     "resources": {
-      "seconds": 1800,
-      "author_astra": 300,
-      "primary_seconds": 600,
-      "lean_calls": 24,
-      "lean_seconds": 180,
-      "review_astra": 300,
-      "integration_seconds": 120,
-      "contingency_seconds": 300,
-      "lean_concurrent": 1,
-      "memory_mib": 1024
+      "seconds": 3600,
+      "authors_seconds_each": 600,
+      "primary_seconds": 900,
+      "lean_seconds": 300,
+      "lean_calls": 40,
+      "review_seconds_each": 300,
+      "contingency_seconds": 600,
+      "new_active_children_max": 3
     },
-    "implementation": "NO_SAFE_CODE_SLICE; no runtime defect at Lambda/Callee and Value/Computation entry.",
-    "outcome": "tasks/agent-loop/sprints/higher-order-proof-core-20261025-r1-outcome.md",
-    "outcome_sha256": "0f3bbd63b4d21873e0ff32901d57cdffd572ee7353bf8e62aff9ad3e2babda80",
-    "review": "Fresh nonauthor CLEAN; reporta3aad3636d1480b2bb4cb17c06db9dc7561d4c9878ba835939a9881143f4f4ac; research only, no parent closure."
+    "dependency_intake": {
+      "at": "2026-10-25T06:37:36.257129+00:00",
+      "status": "INDEPENDENTLY_CLEAN_ACCEPTED",
+      "receipt": "tasks/agent-loop/inbox/20261025-higher-order-substitution-entry-r1-verification.jsonl",
+      "sha256": "8e5c0f3b8be37879f9009b8e5ed57a2911b6d130e3ae690fc66a3e43554a5a25",
+      "modules": [
+        "HigherOrderSubstitution",
+        "HigherOrderEnvironment",
+        "HigherOrderEntry"
+      ]
+    },
+    "primary_grant": {
+      "start_utc": "2026-10-25T06:38:39.478377+00:00",
+      "end_utc": "2026-10-25T06:53:39.478377+00:00",
+      "seconds": 900,
+      "receipt": "Prospective explicit switch: old candidate frozen, no remaining source edits; new primary preparation/integration begins now. Existing separate integration120 available after review."
+    }
   },
   "workers": [
     {
@@ -66,116 +74,116 @@
       "id": "/root",
       "role": "primary authority/source/coauthor/Git",
       "state": "RUNNING",
-      "session": "LEAN-HIGHER-ORDER-PROOF-CORE-20261025/root-r1",
+      "session": "PARALLEL-THEORY-20261025/root-r1",
       "requested_model": "user-selected primary",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Primary integration120s from2026-10-25T06:24:48.728750+00:00 through2026-10-25T06:26:48.728750+00:00 after independentCLEAN; source/proof frozen."
+      "receipt": "New primary90006:38:39.478377–06:53:39.478377UTC; old source frozen, old integration1202026-10-25T06:40:16.465192+00:00–2026-10-25T06:42:16.465192+00:00."
     },
     {
-      "id": "/root/higher_order_proof_core_astra_r1",
-      "role": "constructive higher-order syntax/embedding author",
-      "state": "STOPPED",
-      "session": "LEAN-HIGHER-ORDER-PROOF-CORE-20261025/root-r1",
+      "id": "/root/higher_order_safety_astra_r1",
+      "role": "theory operational safety author",
+      "state": "RUNNING",
+      "session": "PARALLEL-THEORY-20261025/root-r1",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Actual final STOP06:19:52UTC ~189/300s; handoffc1c1b5de2d0b906540a1ba50f7bf70673543b30379cd77b54861bf52f1cecfbb; no processes/descendants. Primary acknowledged."
+      "receipt": "Actual spawn acknowledged before 2026-10-25T06:36:43.352751+00:00;600s grant; exact leases in parallel contract."
     },
     {
-      "id": "/root/higher_order_proof_core_review_astra_r1",
-      "role": "fresh independent nonauthor reviewer",
-      "state": "STOPPED",
-      "session": "LEAN-HIGHER-ORDER-PROOF-CORE-20261025/root-r1",
+      "id": "/root/guarded_value_graph_astra_r1",
+      "role": "theory guarded recursive graph author",
+      "state": "RUNNING",
+      "session": "PARALLEL-THEORY-20261025/root-r1",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Actual finalSTOP06:23:59.109299UTC84.109/300s CLEAN; no descendants/processes; reporta3aad3636d1480b2bb4cb17c06db9dc7561d4c9878ba835939a9881143f4f4ac."
+      "receipt": "Actual spawn acknowledged before 2026-10-25T06:36:43.352751+00:00;600s grant; exact leases in parallel contract."
     }
   ],
   "leases": [
-    {
-      "path": "notes/design/2026-10-25-higher-order-proof-core.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/HigherOrderSyntax.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/HigherOrderEmbedding.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-higher-order-proof-core.md",
-      "owner": "/root/higher_order_proof_core_astra_r1",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-25-higher-order-source-constructor-map.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/higher-order-proof-core-r1-run.py",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/higher-order-proof-core-r1-check.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderSyntax.olean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderSyntax.ilean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderEmbedding.olean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderEmbedding.ilean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-higher-order-proof-core-r1-verification.jsonl",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/higher-order-proof-core-20261025-r1-outcome.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/higher-order-proof-core-20261025-r1.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
     {
       "path": "tasks/agent-loop/current.json",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261025-higher-order-proof-core-review.md",
-      "owner": "/root/higher_order_proof_core_review_astra_r1",
-      "state": "FROZEN"
+      "path": "notes/theory/lean/YulangClosure/HigherOrderSafety.lean",
+      "owner": "/root/higher_order_safety_astra_r1",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-25-higher-order-operational-safety.md",
+      "owner": "/root/higher_order_safety_astra_r1",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-higher-order-safety.md",
+      "owner": "/root/higher_order_safety_astra_r1",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/GuardedValueGraph.lean",
+      "owner": "/root/guarded_value_graph_astra_r1",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-25-guarded-value-graph-theory.md",
+      "owner": "/root/guarded_value_graph_astra_r1",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-guarded-value-graph.md",
+      "owner": "/root/guarded_value_graph_astra_r1",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/parallel-theory-20261025-r1.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/parallel-theory-20261025-r1-outcome.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-parallel-theory-r1-verification.jsonl",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/lean/.lake/parallel-theory-r1-run.py",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/lean/.lake/parallel-theory-r1-check.lean",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderSafety.olean",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderSafety.ilean",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/GuardedValueGraph.olean",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/GuardedValueGraph.ilean",
+      "owner": "/root",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -298,23 +306,23 @@
       "id": "RESPONSE-ENCODING-1",
       "state": "OPEN",
       "owner": "primary proof intake",
-      "details": "Reviewed structural all-constructor higher-order embedding removes missing callable Value representation; actual typed function argument/response/genericcell endpoints. Native closure body/layout/current-value/recursivegraph/dispatch and HO-SUBSTITUTION-1 OPEN, exact owners in higher-order outcome."
+      "details": "Reviewed callable-as-value embedding; native closure/body/layout/current-value/recursive graph/dispatch remain OPEN. Current substitution candidate checked; independent review pending."
     },
     {
       "id": "RESPONSE-INSTANCE-1",
       "state": "OPEN",
       "owner": "primary source-proof intake",
-      "details": "Reviewed ground primitive declaration construction and local source coherence/retention accepted; global native/formal hrequest, polymorphic/effectful/callable instances OPEN."
+      "details": "Reviewed ground declaration/instance construction; global native trace and polymorphic/effectful/callable instances OPEN."
     },
     {
       "id": "RESPONSE-TEMPLATE-1",
       "state": "OPEN",
       "owner": "primary native-proof intake",
-      "details": "IndependentCLEAN native capture builder/entry finite traces/order/response/outer stack structural supplier; typed frame/metadata/callable/Call semantic interpretation and error exclusion remain OPEN."
+      "details": "Reviewed structural replay/order/response/outer-stack supplier; frame metadata/error exclusion/full Call OPEN."
     }
   ],
-  "closure": "Full goal OPEN. Higher-order structural typing embedding and callable-as-value endpoints independentlyCLEAN; earlier lexical/currentcell supplier77df59416 and native replay/primitive suppliers retained. Full native layout/value/recursive/dispatch/trace, new-core substitution/safety, Force and inference A/B OPEN.",
-  "next_action": "Sprint boundary after integration: construct higher-order capture-avoiding substitution and consume in actual closure/entry body typing, preserving all native source premises.",
+  "closure": "Full goal OPEN. Finite higher-order substitution, actual callable capture and typed entry constructors independentlyCLEAN accepted. Parallel theory operational safety and guarded recursive graph candidates active; full language/native/Call/Force/inference A/B OPEN.",
+  "next_action": "Verify and independently review both actual parallel theory author results, apply exact accepted lemmas to original parents; primary solely owns source repairs/checker/Git.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three unrelated UNKNOWN reservations remain quarantined.",
@@ -336,7 +344,7 @@
       }
     ]
   },
-  "user_goal": "Complete Lean proofs of Yulang semantics/type inference; commit and push reviewed milestones.",
+  "user_goal": "Complete Lean Yulang proofs; user2026-10-25 explicitly requests implementation-independent theory in parallel Astra subagent lanes, alongside existing connection work.",
   "history": [
     {
       "id": "LEAN-CALL-REQUEST-BOUNDARY-20261025/r2",
@@ -349,56 +357,60 @@
       "id": "CALL-NATIVE-RESPONSE-AUTHENTICITY-20261025/r1",
       "record": "tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1-outcome.md",
       "sha256": "600e6bf271c64ea89d7ae05a0a65afac3eecf70a1464d51e17d9e4343dcf1d45",
-      "commit": "3a1af4d9c1c31b13d4d6bbc5e12acf3d55b08484",
-      "push": "Succeeded; origin d1308e8b0 -> 3a1af4d9c."
+      "commit": "3a1af4d9c1c31b13d4d6bbc5e12acf3d55b08484"
     },
     {
       "id": "LEAN-CALL-LITERAL-RESPONSE-20261025/r3",
       "record": "tasks/agent-loop/sprints/call-literal-response-20261025-r2-outcome.md",
       "sha256": "308c8407e7de9c78374f0f13ee1a3e561ee31c6828c3e4d90f67788aa7ccabfd",
-      "commit": "a2d093870f7dbe86609a62bfe46649f5375e3a24",
-      "push": "Succeeded; origin3a1af4d9c -> a2d093870."
+      "commit": "a2d093870f7dbe86609a62bfe46649f5375e3a24"
     },
     {
       "id": "LEAN-NATIVE-LITERAL-READBACK-20261025/r2",
       "record": "tasks/agent-loop/sprints/native-literal-readback-20261025-r1-outcome.md",
       "sha256": "9e891c832e9b2fce3c339eeffb0568a7502fa01fb1f3f855b8b825e52a65d0e2",
-      "commit": "6d9e769abbd6c119bf71c4a2f9bb9202bed064de",
-      "push": "Succeeded; origin a2d093870 -> 6d9e769ab."
+      "commit": "6d9e769abbd6c119bf71c4a2f9bb9202bed064de"
     },
     {
       "id": "LEAN-PRIMITIVE-OPERATION-INSTANCE-20261025/r1",
       "record": "tasks/agent-loop/sprints/primitive-operation-instance-20261025-r1-outcome.md",
       "sha256": "9b4dea2272357e0d8afe0b1c7c984e93fc44a7787d3e39107a5c65addf0e8292",
-      "commit": "8c505d5ae5e3b784b172100b25041c8167e74682",
-      "push": "Succeeded; origin6d9e769ab ->8c505d5ae."
+      "commit": "8c505d5ae5e3b784b172100b25041c8167e74682"
     },
     {
       "id": "LEAN-NATIVE-TEMPLATE-REPLAY-20261025/r1",
       "record": "tasks/agent-loop/sprints/native-template-replay-20261025-r1-outcome.md",
       "sha256": "c8f85475c1f6cfef7399e8b24dc35bb191c3295d24d8ee252e8b7acb6d2e8db9",
-      "commit": "657d688fc022261fa1013f7eb4f2b323d6cfd4a6",
-      "push": "Succeeded; origin8c505d5ae ->657d688fc."
+      "commit": "657d688fc022261fa1013f7eb4f2b323d6cfd4a6"
     },
     {
       "id": "LEAN-NATIVE-CLOSURE-ENVIRONMENT-20261025/r1",
       "record": "tasks/agent-loop/sprints/native-closure-environment-20261025-r1-outcome.md",
       "sha256": "8533ed84a3ea46e012b6626b1ac94234ce6bd8dfecbe357e74234ab207004bb7",
-      "commit": "77df594169ad07ff9cb523699485cd0e7146e86f",
-      "push": "Succeeded; origin657d688fc ->77df59416."
+      "commit": "77df594169ad07ff9cb523699485cd0e7146e86f"
+    },
+    {
+      "id": "LEAN-HIGHER-ORDER-PROOF-CORE-20261025/r1",
+      "record": "tasks/agent-loop/sprints/higher-order-proof-core-20261025-r1-outcome.md",
+      "sha256": "0f3bbd63b4d21873e0ff32901d57cdffd572ee7353bf8e62aff9ad3e2babda80",
+      "commit": "98118c2933694a03fcbf443a4cd638e350f76394"
+    },
+    {
+      "id": "LEAN-HIGHER-ORDER-SUBSTITUTION-ENTRY-20261025/r1",
+      "record": "tasks/agent-loop/sprints/higher-order-substitution-entry-20261025-r1-outcome.md",
+      "sha256": "6d7d5d1d11457a4189932bddb78d80f0ca381713c401712bd5e9d7e0d2fa6874",
+      "git": "ReviewCLEAN; integration120 active; pending normal commit/push."
     }
   ],
-  "resource_observation": "author189/300sSTOP;primarysourcefreeze06:22:20 before06:26:26 bound;Lean8calls3.733904196997173s;review84.109/300sSTOP;integration120from2026-10-25T06:24:48.728750+00:00;contingency300unused;dispatcher1680chargedSTOPPED;3quarantines.",
-  "checker": "8Lean calls3.733904196997173s; final3/4/8PASS59signature/axiompairs33examples64pins37priorchains; onlypropext/Quot.sound; no warnings. Frozen for independentreview.",
+  "resource_observation": "Two theory authors RUNNING, old reviewerSTOP86.825/300s. New primary900 ending06:53:39.478377; old integration120 active.3UNKNOWN quarantines unchanged.",
+  "checker": "PASS:7calls3.042638s;finalmodules2/4/6 plus query7;73pairs+21examples;axioms subset[propext,Quot.sound]. Three failed initial source calls retained.",
   "boundary_consultation": {
     "owner": "/root/next_action_selector_astra",
-    "grant_seconds": 1680,
-    "current_grant_seconds": 180,
-    "scope": "Completed77df59416. Determine next decisive source-layout or genuine callable-as-value construction under existing full operational spec; no endless standalone structural suppliers.",
-    "status": "DONE",
-    "reason": "Fresh standalone180s boundary grant; prior1050 retained charged.",
-    "receipt": "Actual final received; no writes/processes/descendants; requestedAstra/medium observedUNKNOWN; lifetime1680charged.",
-    "result": "STOPPED; higher-order structural embedding/callable-as-value chosen, source companion lane and fresh review. Corrected authority: paper is target/proposal; no compiler architecture approval."
+    "grant_seconds": 1980,
+    "current_grant_seconds": 120,
+    "status": "STOPPED",
+    "receipt": "Actual followup before06:32:52UTC; read-only final, requestedAstra/medium observedUNKNOWN;120s charged.",
+    "result": "Two theory lanes; primary grants contract parallel-theory-20261025-r1.md with3600s separate envelope."
   },
   "pending_details": {
     "record": "tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1-outcome.md",
