@@ -2,11 +2,11 @@
 "schema_version": 1,
 "mode": "LIVE",
 "phase": "ACTIVE",
-"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
+"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-13",
 "active_sprint": {
 "id": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025",
 "revision": "r3",
-"status": "REVIEW",
+"status": "DONE",
 "contract": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3.md",
 "contract_sha256": "1a32aed55bf4db354e7d4ce69d08f8bfe5c596743f359f771fcd26feade98e71",
 "baseline": "2ed4a20a6",
@@ -25,12 +25,13 @@
 "lean_invocation_cap": 4
 },
 "outcome": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3-outcome.md",
-"closure": "P, Q and typed composition compile; exact signatures/axioms pass; fresh independent review pending. Parent gates OPEN.",
-"review": "Fresh nonauthor compiler referee activated on frozen r3 packet; report pending.",
+"outcome_sha256": "84381305fb3446effb694ddf814a22af45a6115941b7dcc7259fbe38dacdfa6c",
+"closure": "P/Q/composition verified; CLEAN review; formal obstruction accepted. Parent gates OPEN.",
+"review": "CLEAN; report tasks/agent-loop/inbox/20261025-call-progress-obstruction-r3-review.md.",
 "checker": "4/4 serial invocations exit0; exact query; axioms within [propext, Quot.sound].",
-"acceptance": "P/Q/composition signatures and receipt pass; CLEAN fresh independent review still required.",
+"acceptance": "ACCEPTED/CLEAN for formal obstruction only; parent gates remain OPEN.",
 "author": "No author restart. Luna owns composition, four serial checks, review/adjudication and Git.",
-"next_action": "Receive independent review; adjudicate, record outcome and push.",
+"next_action": "Await end-of-sprint dispatcher recommendation.",
 "non_goal": "No source/native, Call A/B, inference A/B, semantic approval or production claim."
 },
 "workers": [
@@ -71,18 +72,18 @@
 "id": "/root",
 "role": "primary authority/current/Git integrator",
 "state": "RUNNING",
-"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
+"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-13",
 "requested_model": "user-selected primary",
 "requested_effort": "high",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "R2 launcher failure documented; P/Q STOPPED; r3 verification-only ready."
+"receipt": "r3 ACCEPTED/CLEAN; current-state and outcome integration in progress."
 },
 {
 "id": "/root/view_force_reachability_prover",
 "role": "P constructive prover: exact five-step typed Call reachability",
 "state": "STOPPED",
-"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
+"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-13",
 "requested_model": "Sol",
 "requested_effort": "high",
 "observed_model": "UNKNOWN",
@@ -93,7 +94,7 @@
 "id": "/root/view_force_stuck_prover",
 "role": "Q constructive prover: exhaustive no-successor theorem",
 "state": "STOPPED",
-"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
+"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-13",
 "requested_model": "Sol",
 "requested_effort": "high",
 "observed_model": "UNKNOWN",
@@ -103,13 +104,13 @@
 {
 "id": "/root/call_progress_obstruction_r3_review",
 "role": "fresh nonauthor compiler referee: full r3 obstruction packet",
-"state": "RUNNING",
-"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
+"state": "STOPPED",
+"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-13",
 "requested_model": "Sol",
 "requested_effort": "medium",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "Activated for frozen read-only r3 review; report pending."
+"receipt": "CLEAN review returned; STOPPED; report frozen by Luna."
 }
 ],
 "leases": [
@@ -368,8 +369,8 @@
 "details": "R3 review blocking; R4 Flow/source projection next."
 }
 ],
-"closure": "P/Q/composition compile and axioms pass; fresh independent review active; parent gates remain OPEN.",
-"next_action": "Fresh r3 review active; await report, adjudicate and integrate.",
+"closure": "r3 ACCEPTED/CLEAN for formal obstruction; parent gates remain OPEN.",
+"next_action": "Await end-of-sprint dispatcher recommendation.",
 "legacy_reconciliation": {
 "required": false,
 "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -491,6 +492,6 @@
 "sha256": "dc329ddc99486ff2ae375b6f398721cbcabacde7ea9de67c9f8f7398a67e0176"
 }
 ],
-"resource_observation": "R3 4/4 pass; fresh reviewer active; 3 UNKNOWN quarantines retained.",
+"resource_observation": "R3 4/4 pass; CLEAN review; 3 UNKNOWN quarantines retained.",
 "checker": "4 exact calls pass; source/output hashes match receipt; query axiom set allowed."
 }

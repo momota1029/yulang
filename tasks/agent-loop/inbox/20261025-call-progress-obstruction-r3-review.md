@@ -1,0 +1,19 @@
+# Independent review — LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/r3
+
+Verdict: **CLEAN**. No blocking, major, or minor findings within the frozen r3 scope.
+
+Reviewer: `/root/call_progress_obstruction_r3_review`, fresh nonauthor compiler referee. The reviewer STOPPED after review. No descendants, Lean invocations, tests, Git operations, or writes occurred during the review.
+
+## Review evidence and findings
+
+The reviewer read the governing proposition contracts and primary definitions before consulting author handoffs. All supplied contract, source, handoff, query, receipt, and accepted finite-typing outcome hashes matched. All eight governing source pins and every dependency/output `.olean` and `.ilean` hash recorded in the receipt matched current files.
+
+- **Construction and reachability:** `CallViewedForceReachability.lean:14–65` constructs every required `CallTerm` field, including identity adapter typing, carrier thunk typing, source-receipt and wrap-plan equalities, and receiver freshness. Lines 76–105 compose `start`, `attachReceipt`, `enterLambda`, and two `enterBind` transitions. This matches Value entry in `CoreExecution.lean:403–414`. The target retains both binds, receiver scope, world, occurrence metadata, and literal suffix. No suffix inspection or metadata law is assumed.
+- **No successor:** `CallViewedForceStuck.lean:7–13` quantifies over arbitrary metadata, state, operand, and occurrence, with only the exact head equality as premise. It eliminates all 28 current `CallControlStep` constructors. The two Force rules at `ControlSyntax.lean:299` and `:310` require `.delay` or `.original (.delay ...)`, neither of which matches `.view value occurrence`. No other transition class applies.
+- **Typing composition:** `CallProgressObstruction.lean:22–32` applies the accepted `initial_call_prefix_terminal_typing` theorem to P's witness and actual five-step prefix. The suffix result remains the independent `Control.Ty result`; it is not identified with `Original.Ty target.resultType`. The unit Call result follows definitionally from P's witness. Q establishes stuckness at that same target. No hidden progress, source-authenticity, or terminal-frame premise is used.
+- **Verification:** The receipt has exactly four ordered, separated invocations, all exit 0 and not timed out. Complete stream hashes match, including the full 1,118-line query output. P reports no axioms; Q, composition, and accepted prefix preservation report only `[propext]`, within `[propext, Quot.sound]`. No proof hole, new axiom, or semantic override appears. P's unused `hsuffix` warning is harmless; its reachability result is stronger than the exported conditional statement.
+- **Timestamp observation:** Receipt JSONL line 2 has wall-clock samples `started_utc=2026-10-25T03:58:58.580656+00:00` and `ended_utc=2026-10-25T03:58:58.341330+00:00`, while `elapsed_s=0.3064112749998458`. The primary independently found the contemporaneous host journal entry `2026-10-25T12:58:58.219473+09:00 systemd-resolved: Clock change detected. Flushing caches.` This is 03:58:58.219473 UTC, at the same moment as the samples. The positive monotonic duration and separation from adjacent invocations remain consistent. Preserve the receipt unchanged; its wall-clock difference cannot measure Q's elapsed duration.
+
+This establishes only an obstruction in the current formal relation. It does not repair the missing viewed-Force transition or establish source/frontend realization. The source semantics require Force/Call on viewed operands to expose the body (`docs/yulang-operational-type-safety-ja.tex:490–493`); this submission records the current formal relation's gap without changing semantics. Parent source/native correspondence, Call A/B, inference A/B, semantic approval, and production gates remain OPEN.
+
+Reviewer STOPPED; inspection ceased.
