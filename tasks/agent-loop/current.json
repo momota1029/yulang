@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-UNWIND-20261025",
     "revision": "r1",
-    "status": "PRIMARY_VERIFY_RUNNING",
+    "status": "COMPOSITION_FAILED_STOPPED",
     "contract": "tasks/agent-loop/sprints/call-unwind-20261025-r1.md",
     "contract_sha256": "efeaabb27416bd9cb51066c37f8a36d13b3a4ced3eeba7f1f9488ac4ada38a2a",
     "baseline": "64d39df59",
@@ -26,11 +26,11 @@
     },
     "outcome": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
     "closure": "Finite Call typing r1 ACCEPTED/CLEAN; original A/B and adequacy OPEN.",
-    "review": "NOT_RUN; both authors STOPPED, all 50 pins match, all candidate/handoff hashes match receipts; serial Lean verification is starting with P.",
-    "checker": "50 contract pins matched; four candidate/handoff hashes matched; all six assigned output paths absent before verification.",
+    "review": "NOT_RUN; invocation 3 failed on initial resultType/literalSuffix equalities; STOP per frozen r1. No repair or fourth query.",
+    "checker": "50 pins matched; P/Q compile pass; composition invocation 3 failed (exit 1); STOP per contract.",
     "acceptance": "Exact P/Q/composition compile; full receipts; exact signatures/axioms; fresh CLEAN review.",
     "author": "Separate Sol/high P/Q authors, 900s/600s, disjoint exact leases.",
-    "next_action": "Compile frozen P, then Q, compose the two initial-trace corollaries, and query exact signatures/axioms, strictly serially.",
+    "next_action": "Consult dispatcher; retain P/Q as independent-review-pending candidates; composition and parent claims OPEN.",
     "non_goal": "No global progress/reachability, cleanup correctness, source/native, A/B, inference, or production claim."
   },
   "workers": [
@@ -76,7 +76,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Luna primary: froze Call request/failure unwind contract; exact leases, composition, verification, review and Git."
+      "receipt": "Primary: P/Q compiled; composition invocation 3 failed on initial resultType/literalSuffix equalities; stopped, no repair/query."
     },
     {
       "id": "/root/call_step_typing_author",
@@ -141,7 +141,7 @@
       "path": "notes/theory/lean/YulangClosure/CallUnwindTyping.lean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Luna typed initial-trace composition"
+      "reason": "Frozen failed r1 composition candidate; no repair authorized."
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-unwind-r1-verification.jsonl",
