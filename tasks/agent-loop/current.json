@@ -6,15 +6,15 @@
  "active_sprint": {
   "id": "YULANG3-HEAP-EXECUTION-BRIDGE-20261026/r62",
   "revision": "r1",
-  "status": "AUTHORIZED_NOT_STARTED",
+  "status": "ACTIVE_PROOF_LAUNCHED_SESSION_UNVERIFIED",
   "contract": "tasks/agent-loop/sprints/yulang3-heap-execution-bridge-r62.md",
   "contract_sha256": "9de3e01ef995fef5bc00448e7c90cfdcc0bbd5461894af8bc94f546996832f0b",
   "baseline": "408c1c6a8276ca74f0760cb3d71dd11e704826c0",
   "branch": "yulang3",
   "claim": "Connect finite allocated-heap operand observation to one actual R61 connected-executor Force/Delay transition; retain BodiesTyped and HeapPayloadTyped conditions and R23/source/native open.",
-  "outcome": "No proof worker or checker started. Fresh contract and current state must be committed before admission.",
+  "outcome": "Registered lean_prover collaboration launch acknowledged; exact runtime session token is not exposed. Proof lease held, worker state UNKNOWN until a compatible active receipt is available.",
   "budget": "1800s total: lean_prover 900s/10 calls/150 checker; primary 720s/4 calls/150 checker; fresh compiler_referee 180s/0 calls.",
-  "next_action": "Commit contract/current, then launch one registered lean_prover with exact isolated leases."
+  "next_action": "Preserve all proof leases; receive frozen handoff or cessation evidence. No primary checker call before proof stop."
  },
  "workers": [
   {
@@ -119,13 +119,13 @@
   {
    "id": "/root/r62_heap_execution_proof",
    "role": "registered lean_prover",
-   "state": "NOT_STARTED",
-   "session": null,
+   "state": "UNKNOWN",
+   "session": "collaboration-agent:/root/r62_heap_execution_proof",
    "requested_model": "registered role defaults",
    "requested_effort": "registered role defaults",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Reserved proof packet, 900s/10 calls/150 checker seconds; no launch yet."
+   "receipt": "Actual registered lean_prover collaboration spawn acknowledged; tool exposes task identity but no session UUID compatible with current-state schema. 900s/10 calls/150 checker grant. Exact leases remain HELD; no primary verification until cessation."
   },
   {
    "id": "/root/r62_heap_execution_review",
@@ -565,7 +565,7 @@
    "sha256": "44a546c209a7050a7059dfcf0574d817b73076ad55043730de7a29fd6ca0668a"
   }
  ],
- "resource_observation": "R61 complete; minor environment provenance limitation accepted and archived. R62 not yet started; no worker or checker calls.",
+ "resource_observation": "R62 proof launch acknowledged. Tool session token unavailable to current-state schema; worker UNKNOWN and exact leases held. No checker results yet.",
  "native_bridge": {
   "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
   "state": "OPEN; NAIVE_RELATION_BLOCKED",
