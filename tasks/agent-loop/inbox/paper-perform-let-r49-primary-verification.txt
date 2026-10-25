@@ -1,0 +1,67 @@
+# R49 Luna primary verification
+
+Status: PASS; independent compiler_referee review remains pending. This receipt
+covers only the frozen R49 perform/request-let module at the contract baseline.
+It does not close the original full-state/source/native parent.
+
+Contract: `tasks/agent-loop/sprints/paper-perform-let-finalize-r49.md`
+Contract SHA-256: `25712855fab407813a89d0970b2bde50e07625fbf6ac1bba8ca236596a565dc4`
+Primary checkout: `/tmp/yulang-r49-perform-let-primary`
+Baseline: `a955e74ffee83560204b74b91e2154e8076f5fa1`
+
+Frozen artifacts:
+
+- Candidate SHA-256: `2f0026049554cb870158115b4bab8d42f7cbee8b030ee3f84a904763c328cac0`
+- Audit source SHA-256: `be0a8400df0f3696791f4ae4c176738fb9d38a2ee7e7a307b7a50f8df5b09c2e`
+- Root with import SHA-256: `e2fa0363e9963358a8946f9942f4d2358187272220ddcce5ce89be373089da10`
+- Root delta: exactly one line, `import YulangClosure.PaperPerformLetExecution`.
+- Manifest: `paper-perform-let-r49-primary-manifest.json`, SHA-256
+  `ef4602854106b05b7c02d44ce09e58e074b242b69c60d6b173929805d49eb1da`.
+
+All twelve frozen manuscript/dependency/root/toolchain/Lake pins match the
+R49 contract. Candidate and audit hashes match the worker-frozen bytes.
+
+## Captured invocations
+
+Each process was launched by the primary capture harness, which wrote complete
+stdout and stderr bytes at process completion and recorded monotonic duration,
+exit, byte count and SHA-256 in the manifest. All commands ran sequentially in
+`/tmp/yulang-r49-perform-let-primary/notes/theory/lean`; all exited 0 and none
+timed out.
+
+1. `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake --version`
+   — 0.034993467 s. Raw files: `paper-perform-let-r49-primary-call-01.stdout`
+   SHA-256 `165f92ed239a8c7db772bf5ee9d58c59357b489951582a12c86dc9d8e06b23a2`;
+   stderr is empty (SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`).
+2. `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake env lean --version`
+   — 0.068273664 s. Raw stdout SHA-256
+   `eb22144228dd41cd51a0c84af4f976cd0cef473102dcf99b60be756b11f2b95a`;
+   stderr empty with the same empty-file hash.
+3. `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake build`
+   — 31.063996396 s. Raw stdout: 236337 bytes, SHA-256
+   `e70d886179b64e096de165b77a9e77df24b75962662885e7699788b422945bd5`;
+   stderr empty with the same empty-file hash.
+4. `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake env lean -j1 -M1024 .lake/R49Audit.lean`
+   — 1.587456825 s. Raw stdout: 47235 bytes, SHA-256
+   `cb61cc9f38bff07dc0aed764a5ce005b3b8057eaf92efa18da39bc5d73e5531a`;
+   stderr empty with the same empty-file hash.
+
+Total checker time: **32.754720352 seconds**, within the primary cap of four
+calls and 90 checker seconds. The primary captured all command output in the
+paired `paper-perform-let-r49-primary-call-*.stdout` and `*.stderr` files.
+
+## Strict audit result
+
+The primary default root build compiled the imported module. The strict audit
+exited 0 and contains exactly 37 ordered theorem declaration checks, 37 full
+printed theorem types, 37 complete axiom reports, 37 `YULANG_AUDIT_BEGIN`
+markers and 37 matching `YULANG_AUDIT_END` markers. Five declarations have no
+axioms; the other 32 depend exactly on `[propext, Quot.sound]`. No
+`Classical.choice` appears. `Lean.collectAxioms` enforces the unchanged exact
+whitelist `{propext, Quot.sound}` for every public declaration.
+
+Primary performed no source/test/fixture/expected-output/Rust changes. Main
+root imports and compiler code remain unmodified pending the fresh independent
+review. R46, R47 and R48 remain FAILED; R45 remains CLEAN/integrated. General
+owner renaming, full-state/current-port/residual-graph/source-owner simulation,
+source/native, inference A/B, whole executor and production remain OPEN.
