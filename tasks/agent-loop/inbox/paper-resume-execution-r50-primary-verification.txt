@@ -1,0 +1,27 @@
+R50 primary verification receipt — exact baseline e85eb20fd40426316790d1fb543d64b7676b58e8
+
+Checkout: /tmp/yulang-r50-empty-owner-primary (detached exact baseline).
+Candidate SHA-256: 5ab59033b0cea347144c50a5323e4dd6cb59cc6bfbdc0bffd063a4808e741935.
+Audit SHA-256: 7cc577fff482bac2674c6449b43cf89edfb04c9bc258c6bfaf3e5bed499aea3e.
+Root delta: exactly one line, +import YulangClosure.PaperResumeExecution.
+All manuscript, root, R49, R45, R28, syntax, typing-substitution, term-substitution, Lean toolchain and Lake dependency pins matched the r5 contract.
+Worker handoff SHA-256: 3532c0276c4865629c84ebaca713ac570d3ff501334cd920609ea75b34f6e58e.
+Worker log SHA-256: 4a99134be26e0924d8c0337f525a6b11723fde415c2d0db101e9913b43ed73ea.
+Worker used 4/8 calls and 36.776924062/120 checker seconds; STOPPED. Primary used 4/4 calls and 35.838434179/60 checker seconds; all four calls exited 0.
+The strict audit checks all 18 public declarations as theorem declarations, prints every complete type and axiom list, pairs ordered BEGIN/END markers, and enforces exactly [propext, Quot.sound] for each.
+
+Primary process records:
+Call 1: argv=["lake", "--version"]; cwd=/tmp/yulang-r50-empty-owner-primary/notes/theory/lean; start=2026-10-25T21:33:04.586076+00:00; end=2026-10-25T21:33:05.005244+00:00; monotonic=0.419154871 s; exit=0; timeout=False.
+  stdout: 53 bytes, SHA-256 165f92ed239a8c7db772bf5ee9d58c59357b489951582a12c86dc9d8e06b23a2.
+  stderr: 0 bytes, SHA-256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.
+Call 2: argv=["lean", "--version"]; cwd=/tmp/yulang-r50-empty-owner-primary/notes/theory/lean; start=2026-10-25T21:33:05.005894+00:00; end=2026-10-25T21:33:05.036933+00:00; monotonic=0.031029459 s; exit=0; timeout=False.
+  stdout: 106 bytes, SHA-256 eb22144228dd41cd51a0c84af4f976cd0cef473102dcf99b60be756b11f2b95a.
+  stderr: 0 bytes, SHA-256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.
+Call 3: argv=["lake", "build"]; cwd=/tmp/yulang-r50-empty-owner-primary/notes/theory/lean; start=2026-10-25T21:33:05.037195+00:00; end=2026-10-25T21:33:39.294979+00:00; monotonic=33.185073003 s; exit=0; timeout=False.
+  stdout: 236398 bytes, SHA-256 72b4aee610bac0c5a3d81f318bc7028c5e70f9d8fd85b5c0f7f1e5024a27e13a.
+  stderr: 0 bytes, SHA-256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.
+Call 4: argv=["lake", "env", "lean", ".lake/R50Audit.lean"]; cwd=/tmp/yulang-r50-empty-owner-primary/notes/theory/lean; start=2026-10-25T21:33:39.295484+00:00; end=2026-10-25T21:33:41.498669+00:00; monotonic=2.203176846 s; exit=0; timeout=False.
+  stdout: 26852 bytes, SHA-256 8753fae9e2b966c87ed163f4f2faac7b1049c776b479155ff7c6673080497df6.
+  stderr: 0 bytes, SHA-256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.
+
+Limitations: fresh independent review pending. Full-owner, source/native, inference A/B, whole-executor and production gates remain OPEN. The two user-withdrawn questions remain WITHDRAWN_BY_USER; no semantics were adopted.

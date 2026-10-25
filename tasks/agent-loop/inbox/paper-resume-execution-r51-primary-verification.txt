@@ -1,0 +1,22 @@
+R51 primary verification — process-evidence-only packet; unchanged R50 candidate.
+
+Baseline: e85eb20fd40426316790d1fb543d64b7676b58e8. Checkout: /tmp/yulang-r51-r50-process-evidence.
+R50 semantic review reused by exact receipt hash: a1438c78a0cc2a6d5105fd07687f6b73902c0893f2257f13855b4fe2a139eaa3.
+Candidate SHA-256: 5ab59033b0cea347144c50a5323e4dd6cb59cc6bfbdc0bffd063a4808e741935.
+Audit SHA-256: 7cc577fff482bac2674c6449b43cf89edfb04c9bc258c6bfaf3e5bed499aea3e.
+Root delta: exactly one added import, `import YulangClosure.PaperResumeExecution`.
+All 11 baseline manuscript/root/R49/R45/R28/syntax/substitution/toolchain/dependency pins match the R51 contract.
+Native Lake was resolved by the recorded read-only `elan which lake`; the returned absolute executable was used for every command below.
+
+Primary process calls:
+Call 1: argv=["/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake", "--version"]; cwd=/tmp/yulang-r51-r50-process-evidence/notes/theory/lean; UTC 2026-10-25T21:40:31.703530+00:00 to 2026-10-25T21:40:31.967496+00:00; monotonic 0.263951810s; exit 0; timeout=False.
+  stdout 53 bytes SHA-256 165f92ed239a8c7db772bf5ee9d58c59357b489951582a12c86dc9d8e06b23a2; stderr 0 bytes SHA-256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.
+Call 2: argv=["/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake", "env", "lean", "--version"]; cwd=/tmp/yulang-r51-r50-process-evidence/notes/theory/lean; UTC 2026-10-25T21:40:31.967818+00:00 to 2026-10-25T21:40:32.042519+00:00; monotonic 0.074690438s; exit 0; timeout=False.
+  stdout 106 bytes SHA-256 eb22144228dd41cd51a0c84af4f976cd0cef473102dcf99b60be756b11f2b95a; stderr 0 bytes SHA-256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.
+Call 3: argv=["/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake", "build"]; cwd=/tmp/yulang-r51-r50-process-evidence/notes/theory/lean; UTC 2026-10-25T21:40:32.043222+00:00 to 2026-10-25T21:41:08.332021+00:00; monotonic 35.166319924s; exit 0; timeout=False.
+  stdout 236396 bytes SHA-256 73398ae309b7f2a706207a5c276816b1d5c2b97a56ced0b75964d245ecd47076; stderr 0 bytes SHA-256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.
+Call 4: argv=["/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake", "env", "lean", ".lake/R50Audit.lean"]; cwd=/tmp/yulang-r51-r50-process-evidence/notes/theory/lean; UTC 2026-10-25T21:41:08.333087+00:00 to 2026-10-25T21:41:10.761256+00:00; monotonic 2.428157567s; exit 0; timeout=False.
+  stdout 26852 bytes SHA-256 8753fae9e2b966c87ed163f4f2faac7b1049c776b479155ff7c6673080497df6; stderr 0 bytes SHA-256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.
+
+R50 historical call03 discrepancy retained unchanged: UTC span 34.257784s vs monotonic 33.185073003s; cause UNKNOWN. R51 timing below is independently measured and does not revise R50.
+R50 semantic review is reused, not repeated; this packet closes executable/process evidence only. Full-owner/source-native/inference A/B/whole-executor/production remain OPEN.

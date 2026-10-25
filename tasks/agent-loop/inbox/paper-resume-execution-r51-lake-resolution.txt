@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "elan",
+    "which",
+    "lake"
+  ],
+  "cwd": "/tmp/yulang-r51-r50-process-evidence/notes/theory/lean",
+  "start_utc": "2026-10-25T21:40:31.659760+00:00",
+  "end_utc": "2026-10-25T21:40:31.702429+00:00",
+  "monotonic_seconds": 0.042634743,
+  "exit": 0,
+  "stdout_bytes": 71,
+  "stdout_sha256": "a48c8e76473eedb9b44031d567aa014c8ab7f541d88a303f160ce43d7e45e36f",
+  "stdout": "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+  "stderr_bytes": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "lake_binary_sha256": "8ba83c98f76562d03b8dbc33f1057151ba6cbb121679dde76b2260ccc90495e1"
+}

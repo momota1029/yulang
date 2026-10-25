@@ -1,0 +1,180 @@
+{
+  "packet_start_utc": "2026-10-25T21:39:55.649469+00:00",
+  "packet_start_monotonic_ns": 45750544684644,
+  "receipt_freeze_utc": "2026-10-25T21:41:10.771298+00:00",
+  "receipt_freeze_monotonic_ns": 45823418302076,
+  "primary_active_seconds_through_receipt_freeze": 72.873617432,
+  "resolution": {
+    "argv": [
+      "elan",
+      "which",
+      "lake"
+    ],
+    "cwd": "/tmp/yulang-r51-r50-process-evidence/notes/theory/lean",
+    "start_utc": "2026-10-25T21:40:31.659760+00:00",
+    "end_utc": "2026-10-25T21:40:31.702429+00:00",
+    "monotonic_seconds": 0.042634743,
+    "exit": 0,
+    "stdout_bytes": 71,
+    "stdout_sha256": "a48c8e76473eedb9b44031d567aa014c8ab7f541d88a303f160ce43d7e45e36f",
+    "stdout": "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+    "stderr_bytes": 0,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lake_binary_sha256": "8ba83c98f76562d03b8dbc33f1057151ba6cbb121679dde76b2260ccc90495e1"
+  },
+  "dependency_pins": [
+    {
+      "path": "docs/yulang-operational-type-safety-ja.tex",
+      "expected": "a003b56a2f32eed06a2c604ef8aed043d43752cbed0b09028eff7f6efac4886b",
+      "sha256": "a003b56a2f32eed06a2c604ef8aed043d43752cbed0b09028eff7f6efac4886b",
+      "match": true
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure.lean",
+      "expected": "e2fa0363e9963358a8946f9942f4d2358187272220ddcce5ce89be373089da10",
+      "sha256": "e2fa0363e9963358a8946f9942f4d2358187272220ddcce5ce89be373089da10",
+      "match": true
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/PaperPerformLetExecution.lean",
+      "expected": "2f0026049554cb870158115b4bab8d42f7cbee8b030ee3f84a904763c328cac0",
+      "sha256": "2f0026049554cb870158115b4bab8d42f7cbee8b030ee3f84a904763c328cac0",
+      "match": true
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/PaperTupleSplitExecution.lean",
+      "expected": "7bc13a41a0333d885b91291a7fbb1ef18302a94c79a34f21469dbae19d76f84d",
+      "sha256": "7bc13a41a0333d885b91291a7fbb1ef18302a94c79a34f21469dbae19d76f84d",
+      "match": true
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/PaperCoreStep.lean",
+      "expected": "503f81c162f7b9ceb0f7d27aa9796b8d7010345653267c675267ce14214c57e9",
+      "sha256": "503f81c162f7b9ceb0f7d27aa9796b8d7010345653267c675267ce14214c57e9",
+      "match": true
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/PaperExecutionSyntax.lean",
+      "expected": "e38cd059caf7d81549a09f360d81e52cb4aecb8a95d8eb3f308ffda7d38a8932",
+      "sha256": "e38cd059caf7d81549a09f360d81e52cb4aecb8a95d8eb3f308ffda7d38a8932",
+      "match": true
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/PaperExecutionTypingSubstitution.lean",
+      "expected": "3b1588bff2d28a3db7aa241c930495b84f090e880ad49ac8fb2d593d54943d41",
+      "sha256": "3b1588bff2d28a3db7aa241c930495b84f090e880ad49ac8fb2d593d54943d41",
+      "match": true
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/PaperTermSubstitution.lean",
+      "expected": "a4f87f9604c03beefdc44de5d45fcd9f5924ca9580c75edf353cf267e69a0d4f",
+      "sha256": "a4f87f9604c03beefdc44de5d45fcd9f5924ca9580c75edf353cf267e69a0d4f",
+      "match": true
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "expected": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+      "match": true
+    },
+    {
+      "path": "notes/theory/lean/lakefile.toml",
+      "expected": "2514197994dc47b5e4c6f15ff8c9251f994056b6e32bf2648588ffc10251e194",
+      "sha256": "2514197994dc47b5e4c6f15ff8c9251f994056b6e32bf2648588ffc10251e194",
+      "match": true
+    },
+    {
+      "path": "notes/theory/lean/lake-manifest.json",
+      "expected": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+      "match": true
+    }
+  ],
+  "candidate_sha256": "5ab59033b0cea347144c50a5323e4dd6cb59cc6bfbdc0bffd063a4808e741935",
+  "audit_sha256": "7cc577fff482bac2674c6449b43cf89edfb04c9bc258c6bfaf3e5bed499aea3e",
+  "root_delta": "--- baseline-root\n+++ r51-root\n@@ -7,6 +7,7 @@\n import YulangClosure.NativeIntegerComparison\n import YulangClosure.PaperTupleSplitExecution\n import YulangClosure.PaperPerformLetExecution\n+import YulangClosure.PaperResumeExecution\n \n #print axioms YulangClosure.finite_prefix_composition\n #print axioms YulangClosure.run_at_every_time\n",
+  "calls": [
+    {
+      "call": 1,
+      "argv": [
+        "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+        "--version"
+      ],
+      "cwd": "/tmp/yulang-r51-r50-process-evidence/notes/theory/lean",
+      "start_utc": "2026-10-25T21:40:31.703530+00:00",
+      "end_utc": "2026-10-25T21:40:31.967496+00:00",
+      "start_monotonic_ns": 45785473013955,
+      "end_monotonic_ns": 45785736965765,
+      "monotonic_seconds": 0.26395181,
+      "exit": 0,
+      "timed_out": false,
+      "stdout_bytes": 53,
+      "stdout_sha256": "165f92ed239a8c7db772bf5ee9d58c59357b489951582a12c86dc9d8e06b23a2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "call": 2,
+      "argv": [
+        "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+        "env",
+        "lean",
+        "--version"
+      ],
+      "cwd": "/tmp/yulang-r51-r50-process-evidence/notes/theory/lean",
+      "start_utc": "2026-10-25T21:40:31.967818+00:00",
+      "end_utc": "2026-10-25T21:40:32.042519+00:00",
+      "start_monotonic_ns": 45785737297680,
+      "end_monotonic_ns": 45785811988118,
+      "monotonic_seconds": 0.074690438,
+      "exit": 0,
+      "timed_out": false,
+      "stdout_bytes": 106,
+      "stdout_sha256": "eb22144228dd41cd51a0c84af4f976cd0cef473102dcf99b60be756b11f2b95a",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "call": 3,
+      "argv": [
+        "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+        "build"
+      ],
+      "cwd": "/tmp/yulang-r51-r50-process-evidence/notes/theory/lean",
+      "start_utc": "2026-10-25T21:40:32.043222+00:00",
+      "end_utc": "2026-10-25T21:41:08.332021+00:00",
+      "start_monotonic_ns": 45785812702782,
+      "end_monotonic_ns": 45820979022706,
+      "monotonic_seconds": 35.166319924,
+      "exit": 0,
+      "timed_out": false,
+      "stdout_bytes": 236396,
+      "stdout_sha256": "73398ae309b7f2a706207a5c276816b1d5c2b97a56ced0b75964d245ecd47076",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "call": 4,
+      "argv": [
+        "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+        "env",
+        "lean",
+        ".lake/R50Audit.lean"
+      ],
+      "cwd": "/tmp/yulang-r51-r50-process-evidence/notes/theory/lean",
+      "start_utc": "2026-10-25T21:41:08.333087+00:00",
+      "end_utc": "2026-10-25T21:41:10.761256+00:00",
+      "start_monotonic_ns": 45820980102953,
+      "end_monotonic_ns": 45823408260520,
+      "monotonic_seconds": 2.428157567,
+      "exit": 0,
+      "timed_out": false,
+      "stdout_bytes": 26852,
+      "stdout_sha256": "8753fae9e2b966c87ed163f4f2faac7b1049c776b479155ff7c6673080497df6",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "verification_receipt_sha256": "13a4dbe27c7da65949be229c3db9d3f99c3445599e81ef1f741134486812e9cd",
+  "total_checker_seconds": 37.933119739
+}
