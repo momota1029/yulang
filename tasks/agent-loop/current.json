@@ -6,7 +6,7 @@
 "active_sprint": {
 "id": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025",
 "revision": "r3",
-"status": "READY",
+"status": "RUNNING",
 "contract": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3.md",
 "contract_sha256": "1a32aed55bf4db354e7d4ce69d08f8bfe5c596743f359f771fcd26feade98e71",
 "baseline": "2ed4a20a6",
@@ -27,10 +27,10 @@
 "outcome": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3-outcome.md",
 "closure": "Not yet proved. P/Q candidates uncompiled; original parent gates OPEN.",
 "review": "Fresh compiler referee only after all four serial invocations pass.",
-"checker": "Source/dependency revalidation pending; use direct lake launcher, no python alias.",
+"checker": "26 source/receipt pins match; six assigned module outputs absent; direct lake and lean present.",
 "acceptance": "P, Q, composition and exact signature/axiom query compile; complete receipts; CLEAN independent review.",
 "author": "No author restart. Luna owns composition, four serial checks, review/adjudication and Git.",
-"next_action": "Commit/push r3 START state; then directly invoke P, Q, composition, signature query in order.",
+"next_action": "Run P, Q, composition and query serially; append each receipt row before proceeding.",
 "non_goal": "No source/native, Call A/B, inference A/B, semantic approval or production claim."
 },
 "workers": [
@@ -480,6 +480,6 @@
 "sha256": "dc329ddc99486ff2ae375b6f398721cbcabacde7ea9de67c9f8f7398a67e0176"
 }
 ],
-"resource_observation": "R3 fresh 1500s; no authors; Lean calls serialized; 3 UNKNOWN reserved.",
-"checker": "r2 launcher was python missing; lake/Lean not run. R3 pins to revalidate."
+"resource_observation": "R3 active; 26 pins match; 0/4 Lean; direct launcher; 3 UNKNOWN reserved.",
+"checker": "26 pins match; candidate module outputs absent; no Lean calls run in r3."
 }
