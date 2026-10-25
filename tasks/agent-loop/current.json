@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-ENTRY-SPINE-20261025",
     "revision": "r2",
-    "status": "P_Q_COMPILED_COMPOSE_PENDING",
+    "status": "FAILED_VERIFICATION_CLOSED",
     "contract": "tasks/agent-loop/sprints/call-entry-spine-20261025-r2.md",
     "contract_sha256": "0f81f286dd3910f48b3f7b49d4f61a6c7a415609a16f0e473fe093bf567c18d4",
     "baseline": "3199f25f0",
@@ -26,12 +26,13 @@
     },
     "outcome": "tasks/agent-loop/sprints/call-entry-spine-20261025-r2-outcome.md",
     "closure": "Syntax typing only; operational/source/A-B/inference/production parents OPEN.",
-    "review": "Fresh nonauthor review only after successful serial checks and frozen receipts.",
-    "checker": "P Repair and unchanged Q compiled exit 0; outputs hashed; composition/query pending.",
+    "review": "NOT_STARTED; no candidate accepted.",
+    "checker": "P/Q compiled exit 0; composition failed exit 1; query/review NOT_RUN; receipt archived.",
     "acceptance": "Exact P/Q/compose statements compile; complete receipts; standard axioms; CLEAN review.",
     "author": "P source/handoff frozen; Luna composition and serialized verification next.",
-    "next_action": "Compile Luna composition module; stop on first failure.",
-    "prior_r1": "FAILED_VERIFICATION/UNACCEPTED; exact failure receipt and outcome retained."
+    "next_action": "Await dispatcher proposal for a fresh primary-owned composition repair packet.",
+    "prior_r1": "FAILED_VERIFICATION/UNACCEPTED; exact failure receipt and outcome retained.",
+    "outcome_sha256": "da5f6535b97858bafd02be62ba346b876838d98bf691aa1cd0ee3f1f533cf0bd"
   },
   "workers": [
     {
@@ -76,7 +77,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Active r2 primary; owns composition, serialized Lean receipts, fresh review and Git."
+      "receipt": "Active r2 primary; stopped after first composition failure; owns outcome, dispatcher and Git."
     },
     {
       "id": "/root/call_entry_body_typing",
@@ -173,13 +174,13 @@
       "path": "notes/theory/lean/YulangClosure/CallPeelingTyping.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "Immutable r1 Q input; first checked in r2."
+      "reason": "r2 stopped; frozen artifact/receipt."
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-peeling-typing.md",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "Immutable r1 Q input; first checked in r2."
+      "reason": "r2 stopped; frozen artifact/receipt."
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntryTyping.olean",
@@ -209,31 +210,31 @@
       "path": "notes/theory/lean/YulangClosure/CallEntryTypingRepair.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "P STOP; frozen r2 candidate/handoff."
+      "reason": "r2 stopped; frozen artifact/receipt."
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-entry-typing-repair-r2.md",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "P STOP; frozen r2 candidate/handoff."
+      "reason": "r2 stopped; frozen artifact/receipt."
     },
     {
       "path": "notes/theory/lean/YulangClosure/CallEntrySpineRepair.lean",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "r2 composition module."
+      "state": "FROZEN",
+      "reason": "r2 stopped; frozen artifact/receipt."
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-entry-spine-r2-verification.jsonl",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "r2 serialized Lean receipts."
+      "state": "FROZEN",
+      "reason": "r2 stopped; frozen artifact/receipt."
     },
     {
       "path": "notes/theory/lean/.lake/call-entry-spine-r2-check.lean",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "r2 exact signature/axiom query."
+      "state": "FROZEN",
+      "reason": "r2 stopped; frozen artifact/receipt."
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntryTypingRepair.olean",
@@ -412,8 +413,8 @@
       "details": "R3 review blocking; R4 Flow/source projection next."
     }
   ],
-  "closure": "r1 P Lean failure; syntax theorem unaccepted; original semantics/inference goal OPEN.",
-  "next_action": "Freeze r2, obtain fresh P START, then compose/check within contract.",
+  "closure": "r2 P/Q compile; composition failed; parent syntax theorem and original goal OPEN.",
+  "next_action": "New composition-only sprint requires fresh contract, exact output leases and budget.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -505,6 +506,6 @@
       "closure": "P compile failure; Q/compose unchecked; theorem OPEN."
     }
   ],
-  "resource_observation": "P 600s charged; P/Q compile 2.887s total; compose 240s and remaining verification/review/integration reserved.",
+  "resource_observation": "r2 P 600s + compose 240s charged; verification 3.128s; review/integration not run.",
   "checker": "P/Q exit 0; composition next; one Lean process; stop on first failure."
 }
