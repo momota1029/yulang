@@ -1,5 +1,45 @@
 # Yulang closure: Lean root composition and control
 
+## 2026-10-26: explicit execution proof extension
+
+`PaperExtendedExecution.lean` connects actual type application, registered
+template expansion, repeated empty-owner response/resume, and literal failure
+unwinding to one deterministic executor. Its preservation and finite-interaction
+theorems retain the same declarations, graph environment, lexical environment
+and final result type. Registered bodies are independently typed; foreign
+responses are checked against the actual request instance. Internal preservation
+is proved from the execution function rather than supplied as a law.
+
+The supporting modules are `PaperTypeApplicationPreservation.lean` (arbitrary
+type-binder-block cancellation), `PaperTemplateExecution.lean` (actual lookup,
+arity checks and simultaneous expansion), and `PaperCombinedExecution.lean`
+(concrete repeated interactions and failure). The explicit paper judgment and
+all its substitution/weakening recursors also now include intersection choose
+and Bottom elimination; `PaperEliminationExamples.lean` checks polarity, binder
+capture and actual execution. False selects left and true selects right.
+
+The default root imports these modules and passed `lake build` with Lean 4.35.0
+(49 jobs). From this directory, run the committed complete module audit with:
+
+```sh
+lake build
+lake env lean -j1 -M1024 AuditExecutionProofs.lean
+```
+
+The audit checks all 1,368 theorem constants in the eleven new/changed modules,
+including generated/private helpers, and the three new typing constructors.
+All actual axiom lists contain only `propext` and/or `Quot.sound`, or are empty.
+Independent review accepted the stated scopes; detailed hashes, receipts,
+warning accounting and remaining obligations are in the
+[proof record](../../progress/2026-10-26-yulang3-execution-proofs.md).
+
+These are concrete preservation results for the represented partial executor.
+Full progress, nonempty-owner/current-world resumption, guarded graph canonical
+forms, remaining source/native realization and inference A/B are still OPEN.
+An open Bottom assumption permits absurd typing but proves no closed-Bottom
+impossibility. The historical composition results and their distinct premises
+are documented below.
+
 LEAN-ROOT-20261024/r2、LEAN-CONTROL-20261024/r1。**元 Yulang 全体の証明は未完了**。本ディレクトリは guide §3 の有限 prefix 合成を、独立した一段の意味論・型・抽象化 interface に分解した最初の Lean 化である。Lean 4.35.0 による検査済み。独立査読は条件付き合成の範囲を受理した。
 
 ## 構成

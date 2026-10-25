@@ -1,15 +1,18 @@
 # Current task: complete type inference and replace F5
 
-2026-10-26 `yulang3` proof checkpoint: fresh Lean proofs establish arbitrary
-type-binder-block cancellation, actual type-application preservation, and
-registered-template expansion from independent body derivations, and repeated
-empty-owner response/resume with failure unwinding. All 85
-explicit declarations passed exact type/axiom audits and fresh independent
-review. Type-beta/template integration into the combined executor and root is
-in progress; whole-language
-progress, source/native realization and inference A/B remain OPEN. See the
+2026-10-26 `yulang3` proof integration: actual type application, registered
+template expansion, repeated empty-owner response/resume and failure unwinding
+are connected to one concrete executor. Intersection choose and Bottom
+elimination now have the complete affected typing/substitution/weakening cases;
+choose executes through existing control. All 131 newly authored theorems and
+the changed foundations passed independent scoped review. The final default
+root build passed 49 jobs; the reproducible exact-module audit passed all 1,368
+theorem constants plus three new typing constructors, with only standard
+`propext`/`Quot.sound` or no axioms. Whole-language progress, nonempty-owner
+current-world behavior, graph guardedness, source/native realization and
+inference A/B remain OPEN. See the
 [proof record](../notes/progress/2026-10-26-yulang3-execution-proofs.md) for
-scope, hashes, checks, warning owners and remaining obligations. Existing
+scope, hashes, checks, warning accounting and remaining obligations. Concurrent
 remote sprint records and withdrawn questions are preserved.
 
 2026-10-25 workflow maintenance: added the `yulang-lean-proofs` skill and
@@ -18,7 +21,7 @@ axiom audits. Focused tooling tests, real Lean positive/negative checks and fres
 workflow review passed; proof/semantic gates and live scheduling state are
 unchanged. See the [completion record](../notes/progress/2026-10-25-lean-proof-workflow.md).
 
-Current direction (2026-10-24, latest user instruction): prioritize scoped release, then remaining inference-independent proofs, primary only and before implementation. Research checkpoint `f3bb3c1ce` in the [source manuscript](../docs/yulang-source-type-safety-ja.tex) constructs the all-matching-input release candidate, cumulative target projection, exact crossing history and current-state resumption (Theorem 11.7); connects rank-2 payload use to the existing computed-fetch restriction (12.1); and proves the listed operator/for/rule/Yumark-shell expansions. A paper source counterexample shows that the previous existential AllowAll grant query can bypass callback protection (15.1). An explicit permission repair is combined with source safety in Theorem 15.4. **All results are unreviewed research; no theorem, semantic-adoption or production gate is promoted.** Multiple-input release selection, permission/owner-policy adoption and full behavioral adequacy, remaining surface/declaration expansion, independent review, inference/native correspondence and original A/B remain OPEN. No compiler code or tests changed. See the [release outcome](agent-loop/sprints/release-closure-20261024-outcome.md) and [current state](agent-loop/current.json). Prior history is pinned in the new immutable prior-state archive; UNKNOWN reservations and original user files are preserved.
+Prior direction (2026-10-24): prioritize scoped release, then remaining inference-independent proofs, primary only and before implementation. Research checkpoint `f3bb3c1ce` in the [source manuscript](../docs/yulang-source-type-safety-ja.tex) constructs the all-matching-input release candidate, cumulative target projection, exact crossing history and current-state resumption (Theorem 11.7); connects rank-2 payload use to the existing computed-fetch restriction (12.1); and proves the listed operator/for/rule/Yumark-shell expansions. A paper source counterexample shows that the previous existential AllowAll grant query can bypass callback protection (15.1). An explicit permission repair is combined with source safety in Theorem 15.4. **All results are unreviewed research; no theorem, semantic-adoption or production gate is promoted.** Multiple-input release selection, permission/owner-policy adoption and full behavioral adequacy, remaining surface/declaration expansion, independent review, inference/native correspondence and original A/B remain OPEN. No compiler code or tests changed. See the [release outcome](agent-loop/sprints/release-closure-20261024-outcome.md) and [current state](agent-loop/current.json). Prior history is pinned in the new immutable prior-state archive; UNKNOWN reservations and original user files are preserved.
 
 2026-10-25 proof checkpoint: the abstract r7 administrative model now has a checked and independently reviewed arbitrary-focus `FocusResult ↔ CountedRun` theorem. This local finite-success lemma can be reused toward O-NORM; it does not close O-NORM/O-RESULT, source/native correspondence, or the original semantics/type-inference goal. See the [r11 outcome](agent-loop/sprints/force-completion-20261025-r11-outcome.md) and [Lean theory map](../notes/theory/lean/README.md). The exact source-selected Force/View and packet-opening premises remain OPEN.
 

@@ -134,6 +134,7 @@ def step : Computation → Option Computation
   | .unionCase (.injectRight value) _ _ _ right =>
       termSubstituteComputation (singleReplacement value) right
   | .unroll (.roll value) => some (.ret value)
+  | .choose (.both value) _ => some (.ret value)
   | .field (.record fields) label => (lookupRecord fields label).map Computation.ret
   | .lookup (.record fields) label =>
       some (.ret (match lookupRecord fields label with
@@ -193,6 +194,22 @@ theorem unroll_applicable {d g e value a}
   | unroll hv =>
       cases hv with
       | roll hv => exact ⟨.ret value, rfl, .ret hv⟩
+
+/-- Both sides return the same raw payload, with the selected typing derivation. -/
+theorem choose_applicable {d g e value side resultType}
+    (hc : PaperComputationTyped d g e (.choose (.both value) side) resultType) :
+    ∃ result, step (.choose (.both value) side) = some result ∧
+      PaperComputationTyped d g e result resultType := by
+  cases hc with
+  | chooseLeft hv =>
+      cases hv with
+      | both left right => exact ⟨.ret value, rfl, .ret left⟩
+  | chooseRight hv =>
+      cases hv with
+      | both left right => exact ⟨.ret value, rfl, .ret right⟩
+
+/-- The partial operational function gives Bottom elimination no principal step. -/
+theorem absurd_no_step (value : Value) : step (.absurd value) = none := rfl
 
 /-- Required-field coverage excludes a missing required runtime label. -/
 theorem field_applicable {d g e fields label a}
@@ -260,6 +277,10 @@ theorem preservation {d g e c c' a}
   | unroll value =>
       cases value with
       | roll value => exact finish (unroll_applicable hc) hs
+      | _ => simp [step] at hs
+  | choose value side =>
+      cases value with
+      | both value => exact finish (choose_applicable hc) hs
       | _ => simp [step] at hs
   | field recordValue label =>
       cases recordValue with

@@ -83,6 +83,12 @@ theorem PaperValueTyped.graphWeaken {declarations : DeclarationTable}
     (by intro declarations graphTypes environment continuation response responseType resultType hcontinuation hresponse ihContinuation ihResponse new hpres; exact PaperComputationTyped.resume (ihContinuation new hpres) (ihResponse new hpres))
     (by intro declarations graphTypes environment value body hvalue ihValue new hpres; exact PaperComputationTyped.unroll (ihValue new hpres))
     (by intro declarations graphTypes environment identity typeArguments arguments typeArity formals result body resolved arity argumentsTyping ihArguments new hpres; exact PaperComputationTyped.template resolved arity (ihArguments new hpres))
+    (by intro declarations graphTypes environment value left right hvalue ihValue new hpres
+        exact PaperComputationTyped.chooseLeft (ihValue new hpres))
+    (by intro declarations graphTypes environment value left right hvalue ihValue new hpres
+        exact PaperComputationTyped.chooseRight (ihValue new hpres))
+    (by intro declarations graphTypes environment value resultType hvalue ihValue new hpres
+        exact PaperComputationTyped.absurd (ihValue new hpres))
     (by intro declarations graphTypes environment reason ty new hpres; exact PaperComputationTyped.fail)
     (by intro declarations graphTypes environment owners binder body responseType resultType hbody ihBody new hpres; exact PaperContinuationTyped.continuation (ihBody new hpres))
     derivation new hpres

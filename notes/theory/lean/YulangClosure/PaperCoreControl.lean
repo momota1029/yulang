@@ -90,6 +90,12 @@ theorem controlStep_evidence {s s' : State} (hs : controlStep s = some s') :
       obtain ⟨next, hnext, he⟩ := Option.map_eq_some_iff.mp hs
       cases he
       exact .delegate hnext
+  | choose value side =>
+      change (PaperCoreStep.step (.choose value side)).map
+        (fun next => (⟨next, stack⟩ : State)) = some s' at hs
+      obtain ⟨next, hnext, he⟩ := Option.map_eq_some_iff.mp hs
+      cases he
+      exact .delegate hnext
   | field value label =>
       change (PaperCoreStep.step (.field value label)).map
         (fun next => (⟨next, stack⟩ : State)) = some s' at hs

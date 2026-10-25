@@ -8,6 +8,8 @@ import YulangClosure.NativeIntegerComparison
 import YulangClosure.PaperTupleSplitExecution
 import YulangClosure.PaperPerformLetExecution
 import YulangClosure.PaperResumeExecution
+import YulangClosure.PaperExtendedExecution
+import YulangClosure.PaperEliminationExamples
 import YulangClosure.PaperTypeBetaExecution
 
 #print axioms YulangClosure.finite_prefix_composition

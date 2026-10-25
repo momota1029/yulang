@@ -819,6 +819,18 @@ mutual
           (formals.map (instantiateType typeArguments)) →
         PaperComputationTyped declarations graphTypes environment
           (.template identity typeArguments arguments) (instantiateType typeArguments result)
+    /-- Structural intersection elimination selects one derivation of the same raw value.
+    The established raw polarity is false for left and true for right. -/
+    | chooseLeft {value left right} :
+        PaperValueTyped declarations graphTypes environment value (.intersection left right) →
+        PaperComputationTyped declarations graphTypes environment (.choose value false) left
+    | chooseRight {value left right} :
+        PaperValueTyped declarations graphTypes environment value (.intersection left right) →
+        PaperComputationTyped declarations graphTypes environment (.choose value true) right
+    /-- Bottom elimination is a typing rule, without an operational reduction. -/
+    | absurd {value resultType} :
+        PaperValueTyped declarations graphTypes environment value .bottom →
+        PaperComputationTyped declarations graphTypes environment (.absurd value) resultType
     | fail {reason ty} :
         PaperComputationTyped declarations graphTypes environment (.fail reason) ty
 

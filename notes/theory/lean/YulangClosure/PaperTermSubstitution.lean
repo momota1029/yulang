@@ -60,6 +60,8 @@ mutual
     | .field v l => .field (renameTermValue f v) l
     | .lookup v l => .lookup (renameTermValue f v) l
     | .unroll v => .unroll (renameTermValue f v)
+    | .choose v side => .choose (renameTermValue f v) side
+    | .absurd v => .absurd (renameTermValue f v)
     | .unionCase v ln l rn r => .unionCase (renameTermValue f v) ln
         (renameTermComputation (liftTermRenaming f) l) rn (renameTermComputation (liftTermRenaming f) r)
     | .perform op ts v => .perform op ts (renameTermValue f v)
@@ -212,6 +214,15 @@ theorem PaperValueTyped.termRename {declarations : DeclarationTable} {graphTypes
         simpa only [renameTermValue_record_eq, renameTermValue, renameTermComputation, List.attach_map_val, List.map_nil, List.map_cons] using PaperComputationTyped.unroll (ihValue target f h))
     (by intro declarations graphTypes environment identity typeArguments arguments typeArity formals result body resolved arity argumentsTyping ihArguments target f h
         simpa only [renameTermValue_record_eq, renameTermValue, renameTermComputation, List.attach_map_val, List.map_nil, List.map_cons] using PaperComputationTyped.template resolved arity (ihArguments target f h))
+    (by intro declarations graphTypes environment value left right hvalue ihValue target f h
+        simpa only [renameTermComputation] using
+          PaperComputationTyped.chooseLeft (ihValue target f h))
+    (by intro declarations graphTypes environment value left right hvalue ihValue target f h
+        simpa only [renameTermComputation] using
+          PaperComputationTyped.chooseRight (ihValue target f h))
+    (by intro declarations graphTypes environment value resultType hvalue ihValue target f h
+        simpa only [renameTermComputation] using
+          PaperComputationTyped.absurd (resultType := resultType) (ihValue target f h))
     (by intro declarations graphTypes environment reason ty target f h
         simpa only [renameTermValue_record_eq, renameTermValue, renameTermComputation, List.attach_map_val, List.map_nil, List.map_cons] using PaperComputationTyped.fail)
     (by intro declarations graphTypes environment owners binder body responseType resultType hbody ihBody target f h
@@ -274,6 +285,8 @@ mutual
     | .field v l => .field (replaceTermValue rho v) l
     | .lookup v l => .lookup (replaceTermValue rho v) l
     | .unroll v => .unroll (replaceTermValue rho v)
+    | .choose v side => .choose (replaceTermValue rho v) side
+    | .absurd v => .absurd (replaceTermValue rho v)
     | .unionCase v ln l rn r => .unionCase (replaceTermValue rho v) ln
         (replaceTermComputation (liftTermSubstitution rho) l) rn (replaceTermComputation (liftTermSubstitution rho) r)
     | .perform op ts v => .perform op ts (replaceTermValue rho v)
@@ -439,6 +452,15 @@ theorem PaperValueTyped.termReplace {declarations : DeclarationTable} {graphType
         simpa only [replaceTermValue_record_eq, replaceTermValue, replaceTermComputation, List.attach_map_val, List.map_nil, List.map_cons] using PaperComputationTyped.unroll (ihValue target rho h))
     (by intro declarations graphTypes environment identity typeArguments arguments typeArity formals result body resolved arity argumentsTyping ihArguments target rho h
         simpa only [replaceTermValue_record_eq, replaceTermValue, replaceTermComputation, List.attach_map_val, List.map_nil, List.map_cons] using PaperComputationTyped.template resolved arity (ihArguments target rho h))
+    (by intro declarations graphTypes environment value left right hvalue ihValue target rho h
+        simpa only [replaceTermComputation] using
+          PaperComputationTyped.chooseLeft (ihValue target rho h))
+    (by intro declarations graphTypes environment value left right hvalue ihValue target rho h
+        simpa only [replaceTermComputation] using
+          PaperComputationTyped.chooseRight (ihValue target rho h))
+    (by intro declarations graphTypes environment value resultType hvalue ihValue target rho h
+        simpa only [replaceTermComputation] using
+          PaperComputationTyped.absurd (resultType := resultType) (ihValue target rho h))
     (by intro declarations graphTypes environment reason ty target rho h
         simpa only [replaceTermValue_record_eq, replaceTermValue, replaceTermComputation, List.attach_map_val, List.map_nil, List.map_cons] using PaperComputationTyped.fail)
     (by intro declarations graphTypes environment owners binder body responseType resultType hbody ihBody target rho h
@@ -467,7 +489,8 @@ mutual
     | with_reducible decreasing_trivial
 
   def supportedTermComputation : Computation → Bool
-    | .ret v | .force v | .field v _ | .lookup v _ | .unroll v | .perform _ _ v => supportedTermValue v
+    | .ret v | .force v | .field v _ | .lookup v _ | .unroll v | .perform _ _ v
+    | .choose v _ | .absurd v => supportedTermValue v
     | .call a b | .resume a b | .request _ a b => supportedTermValue a && supportedTermValue b
     | .letE a b => supportedTermComputation a && supportedTermComputation b
     | .split v _ b => supportedTermValue v && supportedTermComputation b
@@ -607,6 +630,12 @@ theorem PaperValueTyped.termSupported {declarations graphTypes environment value
     (by intro declarations graphTypes environment identity typeArguments arguments typeArity formals result body resolved arity argumentsTyping ihArguments
         simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
         all_goals assumption)
+    (by intro declarations graphTypes environment value left right hvalue ihValue
+        simpa only [supportedTermComputation] using ihValue)
+    (by intro declarations graphTypes environment value left right hvalue ihValue
+        simpa only [supportedTermComputation] using ihValue)
+    (by intro declarations graphTypes environment value resultType hvalue ihValue
+        simpa only [supportedTermComputation] using ihValue)
     (by intro declarations graphTypes environment reason ty
         simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
         all_goals assumption)
