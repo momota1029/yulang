@@ -26,11 +26,11 @@
 },
 "outcome": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3-outcome.md",
 "closure": "P, Q and typed composition compile; exact signatures/axioms pass; fresh independent review pending. Parent gates OPEN.",
-"review": "Not yet assigned; frozen snapshot needs fresh nonauthor compiler referee.",
+"review": "Fresh nonauthor compiler referee activated on frozen r3 packet; report pending.",
 "checker": "4/4 serial invocations exit0; exact query; axioms within [propext, Quot.sound].",
 "acceptance": "P/Q/composition signatures and receipt pass; CLEAN fresh independent review still required.",
 "author": "No author restart. Luna owns composition, four serial checks, review/adjudication and Git.",
-"next_action": "Commit/push exact reviewer reservation; then activate read-only review of frozen packet.",
+"next_action": "Receive independent review; adjudicate, record outcome and push.",
 "non_goal": "No source/native, Call A/B, inference A/B, semantic approval or production claim."
 },
 "workers": [
@@ -103,13 +103,13 @@
 {
 "id": "/root/call_progress_obstruction_r3_review",
 "role": "fresh nonauthor compiler referee: full r3 obstruction packet",
-"state": "WAITING",
+"state": "RUNNING",
 "session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
 "requested_model": "Sol",
 "requested_effort": "medium",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "Reviewer reservation acknowledged; no reads until frozen activation checkpoint."
+"receipt": "Activated for frozen read-only r3 review; report pending."
 }
 ],
 "leases": [
@@ -368,8 +368,8 @@
 "details": "R3 review blocking; R4 Flow/source projection next."
 }
 ],
-"closure": "R2 launcher failure documented; P/Q frozen; r3 verification-only READY; parent gates remain OPEN.",
-"next_action": "Commit/push r3 START, then direct serialized P/Q/composition/query checks.",
+"closure": "P/Q/composition compile and axioms pass; fresh independent review active; parent gates remain OPEN.",
+"next_action": "Fresh r3 review active; await report, adjudicate and integrate.",
 "legacy_reconciliation": {
 "required": false,
 "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -491,6 +491,6 @@
 "sha256": "dc329ddc99486ff2ae375b6f398721cbcabacde7ea9de67c9f8f7398a67e0176"
 }
 ],
-"resource_observation": "R3 4/4 pass; reviewer reserved WAITING; 3 UNKNOWN quarantines retained.",
+"resource_observation": "R3 4/4 pass; fresh reviewer active; 3 UNKNOWN quarantines retained.",
 "checker": "4 exact calls pass; source/output hashes match receipt; query axiom set allowed."
 }
