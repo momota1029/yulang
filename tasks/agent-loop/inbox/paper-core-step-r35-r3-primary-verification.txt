@@ -1,0 +1,182 @@
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.singleReplacement_typed
+@YulangClosure.PaperTypes.PaperCoreStep.singleReplacement_typed : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {v : YulangClosure.PaperTypes.Value} {a : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperValueTyped d g e v a →
+    YulangClosure.PaperTypes.TermSubstitutionTyped d g (a :: e) e
+      (YulangClosure.PaperTypes.PaperCoreStep.singleReplacement v)
+'YulangClosure.PaperTypes.PaperCoreStep.singleReplacement_typed' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.singleReplacement_typed
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.shape_labels
+@YulangClosure.PaperTypes.PaperCoreStep.shape_labels : ∀ {r : YulangClosure.PaperTypes.Ty}
+  {labels required : List YulangClosure.PaperTypes.Label},
+  YulangClosure.PaperTypes.RecordShape r labels required →
+    YulangClosure.PaperTypes.PaperCoreStep.recordLabels r = labels ∧
+      YulangClosure.PaperTypes.PaperCoreStep.requiredLabels r = required ∧ labels.Nodup
+'YulangClosure.PaperTypes.PaperCoreStep.shape_labels' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.shape_labels
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.field_label_mem
+@YulangClosure.PaperTypes.PaperCoreStep.field_label_mem : ∀ {r : YulangClosure.PaperTypes.Ty}
+  {label : YulangClosure.PaperTypes.Label} {presence : YulangClosure.PaperTypes.Presence}
+  {a : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.RecordField r label presence a →
+    label ∈ YulangClosure.PaperTypes.PaperCoreStep.recordLabels r
+'YulangClosure.PaperTypes.PaperCoreStep.field_label_mem' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.field_label_mem
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.field_required_mem
+@YulangClosure.PaperTypes.PaperCoreStep.field_required_mem : ∀ {r : YulangClosure.PaperTypes.Ty}
+  {label : YulangClosure.PaperTypes.Label} {presence : YulangClosure.PaperTypes.Presence}
+  {a : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.RecordField r label presence a →
+    presence = YulangClosure.PaperTypes.Presence.required →
+      label ∈ YulangClosure.PaperTypes.PaperCoreStep.requiredLabels r
+'YulangClosure.PaperTypes.PaperCoreStep.field_required_mem' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.field_required_mem
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.field_declaredType
+@YulangClosure.PaperTypes.PaperCoreStep.field_declaredType : ∀ {r : YulangClosure.PaperTypes.Ty}
+  {label : YulangClosure.PaperTypes.Label} {presence : YulangClosure.PaperTypes.Presence}
+  {a : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.RecordField r label presence a →
+    (YulangClosure.PaperTypes.PaperCoreStep.recordLabels r).Nodup →
+      YulangClosure.PaperTypes.PaperCoreStep.declaredType r label = Option.some a
+'YulangClosure.PaperTypes.PaperCoreStep.field_declaredType' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.field_declaredType
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.field_type_unique
+@YulangClosure.PaperTypes.PaperCoreStep.field_type_unique : ∀ {r : YulangClosure.PaperTypes.Ty}
+  {labels required : List YulangClosure.PaperTypes.Label} {label : YulangClosure.PaperTypes.Label}
+  {p q : YulangClosure.PaperTypes.Presence} {a b : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.RecordShape r labels required →
+    YulangClosure.PaperTypes.RecordField r label p a → YulangClosure.PaperTypes.RecordField r label q b → a = b
+'YulangClosure.PaperTypes.PaperCoreStep.field_type_unique' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.field_type_unique
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.lookupRecord_none_iff
+@YulangClosure.PaperTypes.PaperCoreStep.lookupRecord_none_iff : ∀
+  {fields : List (YulangClosure.PaperTypes.Label × YulangClosure.PaperTypes.Presence × YulangClosure.PaperTypes.Value)}
+  {label : YulangClosure.PaperTypes.Label},
+  YulangClosure.PaperTypes.PaperCoreStep.lookupRecord fields label = Option.none ↔ ¬label ∈ List.map Prod.fst fields
+'YulangClosure.PaperTypes.PaperCoreStep.lookupRecord_none_iff' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.lookupRecord_none_iff
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.lookupRecord_typed
+@YulangClosure.PaperTypes.PaperCoreStep.lookupRecord_typed : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {fields : List (YulangClosure.PaperTypes.Label × YulangClosure.PaperTypes.Presence × YulangClosure.PaperTypes.Value)}
+  {r : YulangClosure.PaperTypes.Ty} {labels required : List YulangClosure.PaperTypes.Label}
+  {label : YulangClosure.PaperTypes.Label} {presence : YulangClosure.PaperTypes.Presence}
+  {a : YulangClosure.PaperTypes.Ty} {v : YulangClosure.PaperTypes.Value},
+  YulangClosure.PaperTypes.RecordShape r labels required →
+    YulangClosure.PaperTypes.RecordPayloadsTyped d g e fields r →
+      YulangClosure.PaperTypes.RecordField r label presence a →
+        YulangClosure.PaperTypes.PaperCoreStep.lookupRecord fields label = Option.some v →
+          YulangClosure.PaperTypes.PaperValueTyped d g e v a
+'YulangClosure.PaperTypes.PaperCoreStep.lookupRecord_typed' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.lookupRecord_typed
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.letRet_applicable
+@YulangClosure.PaperTypes.PaperCoreStep.letRet_applicable : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {value : YulangClosure.PaperTypes.Value} {body : YulangClosure.PaperTypes.Computation}
+  {a : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e ((YulangClosure.PaperTypes.Computation.ret value).letE body) a →
+    ∃ result,
+      YulangClosure.PaperTypes.PaperCoreStep.step ((YulangClosure.PaperTypes.Computation.ret value).letE body) =
+          Option.some result ∧
+        YulangClosure.PaperTypes.PaperComputationTyped d g e result a
+'YulangClosure.PaperTypes.PaperCoreStep.letRet_applicable' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.letRet_applicable
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.force_applicable
+@YulangClosure.PaperTypes.PaperCoreStep.force_applicable : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {body : YulangClosure.PaperTypes.Computation} {a : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e
+      (YulangClosure.PaperTypes.Computation.force (YulangClosure.PaperTypes.Value.delay body)) a →
+    ∃ result,
+      YulangClosure.PaperTypes.PaperCoreStep.step
+            (YulangClosure.PaperTypes.Computation.force (YulangClosure.PaperTypes.Value.delay body)) =
+          Option.some result ∧
+        YulangClosure.PaperTypes.PaperComputationTyped d g e result a
+'YulangClosure.PaperTypes.PaperCoreStep.force_applicable' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.force_applicable
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.unionLeft_applicable
+@YulangClosure.PaperTypes.PaperCoreStep.unionLeft_applicable : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {value : YulangClosure.PaperTypes.Value} {lb : YulangClosure.PaperTypes.TermName}
+  {left : YulangClosure.PaperTypes.Computation} {rb : YulangClosure.PaperTypes.TermName}
+  {right : YulangClosure.PaperTypes.Computation} {a : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e
+      (YulangClosure.PaperTypes.Computation.unionCase value.injectLeft lb left rb right) a →
+    ∃ result,
+      YulangClosure.PaperTypes.PaperCoreStep.step
+            (YulangClosure.PaperTypes.Computation.unionCase value.injectLeft lb left rb right) =
+          Option.some result ∧
+        YulangClosure.PaperTypes.PaperComputationTyped d g e result a
+'YulangClosure.PaperTypes.PaperCoreStep.unionLeft_applicable' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.unionLeft_applicable
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.unionRight_applicable
+@YulangClosure.PaperTypes.PaperCoreStep.unionRight_applicable : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {value : YulangClosure.PaperTypes.Value} {lb : YulangClosure.PaperTypes.TermName}
+  {left : YulangClosure.PaperTypes.Computation} {rb : YulangClosure.PaperTypes.TermName}
+  {right : YulangClosure.PaperTypes.Computation} {a : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e
+      (YulangClosure.PaperTypes.Computation.unionCase value.injectRight lb left rb right) a →
+    ∃ result,
+      YulangClosure.PaperTypes.PaperCoreStep.step
+            (YulangClosure.PaperTypes.Computation.unionCase value.injectRight lb left rb right) =
+          Option.some result ∧
+        YulangClosure.PaperTypes.PaperComputationTyped d g e result a
+'YulangClosure.PaperTypes.PaperCoreStep.unionRight_applicable' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.unionRight_applicable
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.unroll_applicable
+@YulangClosure.PaperTypes.PaperCoreStep.unroll_applicable : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {value : YulangClosure.PaperTypes.Value} {a : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e (YulangClosure.PaperTypes.Computation.unroll value.roll) a →
+    ∃ result,
+      YulangClosure.PaperTypes.PaperCoreStep.step (YulangClosure.PaperTypes.Computation.unroll value.roll) =
+          Option.some result ∧
+        YulangClosure.PaperTypes.PaperComputationTyped d g e result a
+'YulangClosure.PaperTypes.PaperCoreStep.unroll_applicable' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.unroll_applicable
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.field_applicable
+@YulangClosure.PaperTypes.PaperCoreStep.field_applicable : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {fields : List (YulangClosure.PaperTypes.Label × YulangClosure.PaperTypes.Presence × YulangClosure.PaperTypes.Value)}
+  {label : YulangClosure.PaperTypes.Label} {a : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e
+      (YulangClosure.PaperTypes.Computation.field (YulangClosure.PaperTypes.Value.record fields) label) a →
+    ∃ result,
+      YulangClosure.PaperTypes.PaperCoreStep.step
+            (YulangClosure.PaperTypes.Computation.field (YulangClosure.PaperTypes.Value.record fields) label) =
+          Option.some result ∧
+        YulangClosure.PaperTypes.PaperComputationTyped d g e result a
+'YulangClosure.PaperTypes.PaperCoreStep.field_applicable' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.field_applicable
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.lookup_applicable
+@YulangClosure.PaperTypes.PaperCoreStep.lookup_applicable : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {fields : List (YulangClosure.PaperTypes.Label × YulangClosure.PaperTypes.Presence × YulangClosure.PaperTypes.Value)}
+  {label : YulangClosure.PaperTypes.Label} {a : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e
+      (YulangClosure.PaperTypes.Computation.lookup (YulangClosure.PaperTypes.Value.record fields) label) a →
+    ∃ result,
+      YulangClosure.PaperTypes.PaperCoreStep.step
+            (YulangClosure.PaperTypes.Computation.lookup (YulangClosure.PaperTypes.Value.record fields) label) =
+          Option.some result ∧
+        YulangClosure.PaperTypes.PaperComputationTyped d g e result a
+'YulangClosure.PaperTypes.PaperCoreStep.lookup_applicable' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.lookup_applicable
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperCoreStep.preservation
+@YulangClosure.PaperTypes.PaperCoreStep.preservation : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {c c' : YulangClosure.PaperTypes.Computation} {a : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e c a →
+    YulangClosure.PaperTypes.PaperCoreStep.step c = Option.some c' →
+      YulangClosure.PaperTypes.PaperComputationTyped d g e c' a
+'YulangClosure.PaperTypes.PaperCoreStep.preservation' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperCoreStep.preservation
+
+PRIMARY VERIFICATION RECEIPT
+Primary focused command 1: native Lake build +YulangClosure.PaperCoreStep; exit 0, `Build completed successfully (10 jobs)`. Existing replayed linter warnings only.
+Primary focused command 2: native `lake env lean -j1 -M1024 .lake/R35Audit.lean`; exit 0. The complete captured output above contains all 16 theorem types and axiom reports.
+Primary focused command 3: repeated the same audit command to capture complete output in this file; exit 0.
+Primary audit validator: skill `validate_audit` accepted all 16 declarations in this saved output; exit 0. No Python bytecode writes enabled.
+Primary allowance charged conservatively at 4/4 invocations and 60/60 checker seconds. R35 aggregate: 10/14 invocations and <=98.087541475/180 checker seconds charged, no reset. All primary checker/cache activity stopped after these commands.
