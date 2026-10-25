@@ -1,0 +1,601 @@
+{
+  "event": "User requested crash recovery and commit before new work",
+  "baseline": "d8af06a7e6a9a6d0ba22b887c2dc28ceec9d31d2",
+  "utc": "2026-10-25T09:00:57.969435+00:00",
+  "original_state": {
+    "schema_version": 1,
+    "mode": "LIVE",
+    "phase": "ACTIVE",
+    "session": "COMBINED-RECURSIVE-INTERACTION-THEORY-20261025/root-r2",
+    "active_sprint": {
+      "id": "COMBINED-RECURSIVE-INTERACTION-THEORY-20261025",
+      "revision": "r2",
+      "status": "PARTIAL_REVIEWED",
+      "contract": "tasks/agent-loop/sprints/combined-recursive-interaction-theory-20261025-r2.md",
+      "contract_sha256": "b6fbc0648dcaf9fbbc0750fef390f793460331f2a6576b0e181d7a2ef8df6f92",
+      "baseline": "d8af06a7e6a9a6d0ba22b887c2dc28ceec9d31d2",
+      "claim": "r2 fixed recursive op75 trace completed, serial Lean and explicit axiom query PASS, fresh independent Astra review CLEAN. Full paper/native/A-B remain OPEN.",
+      "resources": {
+        "seconds": 3600,
+        "dispatch": 180,
+        "writer": 600,
+        "primary": 1200,
+        "review": 600,
+        "lean_seconds": 180,
+        "lean_calls": 36,
+        "contingency": 840
+      },
+      "primary_grant": "08:49:17–09:09:17Z; r1 budget not reset."
+    },
+    "workers": [
+      {
+        "id": "/root/resident_dispatcher_loop_a",
+        "role": "legacy dispatcher",
+        "state": "UNKNOWN",
+        "session": null,
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "Unknown identity; lease quarantined."
+      },
+      {
+        "id": "/root/resident_implementer_idle",
+        "role": "legacy implementer",
+        "state": "UNKNOWN",
+        "session": null,
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "Unknown identity; lease quarantined."
+      },
+      {
+        "id": "/root/runtime_source_supplier_proof",
+        "role": "legacy proof worker",
+        "state": "UNKNOWN",
+        "session": null,
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "Unknown identity; lease quarantined."
+      },
+      {
+        "id": "/root",
+        "role": "primary/checker/integrator",
+        "state": "RUNNING",
+        "session": "COMBINED-RECURSIVE-INTERACTION-THEORY-20261025/root-r2",
+        "requested_model": "user-selected Astra",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "r2 active; primary grant through09:09:17Z."
+      },
+      {
+        "id": "/root/handler_graph_extension_interaction_astra_r1",
+        "role": "full combined transport/interaction author",
+        "state": "STOPPED",
+        "session": "COMBINED-RECURSIVE-INTERACTION-THEORY-20261025/root-r1",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "STOP08:15:19;471.333s charged; frozen."
+      },
+      {
+        "id": "/root/handler_bearing_recursive_allocation_astra_r1",
+        "role": "actual handler-bearing recursive allocation author",
+        "state": "STOPPED",
+        "session": "COMBINED-RECURSIVE-INTERACTION-THEORY-20261025/root-r1",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "STOP08:15:56;508s charged; frozen."
+      },
+      {
+        "id": "/root/extension_join_review_astra_r1",
+        "role": "independent reviewer A plus join",
+        "state": "STOPPED",
+        "session": "COMBINED-RECURSIVE-INTERACTION-THEORY-20261025/root-r1",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "STOP08:41:57;PARTIAL;no edits."
+      },
+      {
+        "id": "/root/allocation_join_review_astra_r1",
+        "role": "independent reviewer B plus join",
+        "state": "STOPPED",
+        "session": "COMBINED-RECURSIVE-INTERACTION-THEORY-20261025/root-r1",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "STOP08:42:00;PARTIAL;no edits."
+      },
+      {
+        "id": "/root/handler_graph_recursive_trace_astra_r2",
+        "role": "recursive op75 proof author",
+        "state": "STOPPED",
+        "session": "COMBINED-RECURSIVE-INTERACTION-THEORY-20261025/root-r2",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "STOP08:51:54;157.240s charged; frozen; no descendants."
+      },
+      {
+        "id": "/root/handler_graph_recursive_trace_review_astra_r2",
+        "role": "fresh independent recursive-trace reviewer",
+        "state": "STOPPED",
+        "session": "COMBINED-RECURSIVE-INTERACTION-THEORY-20261025/root-r2",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "STOP08:57:50Z;292s reserved; no report/processes/descendants."
+      },
+      {
+        "id": "/root/handler_recursive_trace_review2_astra_r2",
+        "role": "fresh recursive-trace reviewer",
+        "state": "STOPPED",
+        "session": "COMBINED-RECURSIVE-INTERACTION-THEORY-20261025/root-r2",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "CLEAN for fixed trace; STOP09:00:14.819Z;117.819s; no edits/descendants."
+      },
+      {
+        "id": "/root/recursive_trace_selector_astra_r2",
+        "role": "read-only r2 end-boundary selector",
+        "state": "STOPPED",
+        "session": "COMBINED-RECURSIVE-INTERACTION-THEORY-20261025/root-r2",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "Read-only outcome selection complete; no writes/checks/descendants."
+      }
+    ],
+    "leases": [
+      {
+        "path": "notes/theory/lean/YulangClosure/HandlerGraphRecInteraction.lean",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/2026-10-25-handler-recursive-interaction-composition.md",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/sprints/combined-recursive-interaction-theory-20261025-r1.md",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/sprints/combined-recursive-interaction-theory-20261025-r1-outcome.md",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261025-combined-recursive-interaction-theory-r1-verification.jsonl",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/.lake/combined-recursive-interaction-theory-r1-run.py",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/.lake/combined-recursive-interaction-theory-r1-check.lean",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/current.json",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphTransport.olean",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphTransport.ilean",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphInteraction.olean",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphInteraction.ilean",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphRecAllocation.olean",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphRecAllocation.ilean",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphRecInteraction.olean",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphRecInteraction.ilean",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/HandlerGraphTransport.lean",
+        "owner": "/root/handler_graph_extension_interaction_astra_r1",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/HandlerGraphInteraction.lean",
+        "owner": "/root/handler_graph_extension_interaction_astra_r1",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-25-handler-graph-extension-interaction.md",
+        "owner": "/root/handler_graph_extension_interaction_astra_r1",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261025-handler-graph-extension-interaction.md",
+        "owner": "/root/handler_graph_extension_interaction_astra_r1",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/HandlerGraphRecAllocation.lean",
+        "owner": "/root/handler_bearing_recursive_allocation_astra_r1",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-25-handler-bearing-recursive-allocation.md",
+        "owner": "/root/handler_bearing_recursive_allocation_astra_r1",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261025-handler-bearing-recursive-allocation.md",
+        "owner": "/root/handler_bearing_recursive_allocation_astra_r1",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261025-handler-graph-extension-interaction-review.md",
+        "owner": "/root/extension_join_review_astra_r1",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261025-handler-bearing-recursive-allocation-review.md",
+        "owner": "/root/allocation_join_review_astra_r1",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/HandlerGraphRecursiveTrace.lean",
+        "owner": "/root",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261025-handler-graph-recursive-trace-r2.md",
+        "owner": "/root/handler_graph_recursive_trace_astra_r2",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261025-handler-graph-recursive-trace-r2-review.md",
+        "owner": "/root/handler_recursive_trace_review2_astra_r2",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/sprints/combined-recursive-interaction-theory-20261025-r2.md",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/sprints/combined-recursive-interaction-theory-20261025-r2-outcome.md",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261025-handler-graph-recursive-trace-r2-verification.jsonl",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/.lake/handler-graph-recursive-trace-r2-run.py",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/lean/.lake/handler-graph-recursive-trace-r2-check.lean",
+        "owner": "/root",
+        "state": "HELD"
+      }
+    ],
+    "pending": [
+      {
+        "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+        "state": "OPEN",
+        "owner": "Luna"
+      },
+      {
+        "id": "R64-SRC-ANN-ARG-1",
+        "state": "OPEN",
+        "owner": "Luna"
+      },
+      {
+        "id": "R65-CURRENT-OPERAND-1",
+        "state": "OPEN",
+        "owner": "Luna"
+      },
+      {
+        "id": "R66-LAMBDA-RESULT-STAGE-1",
+        "state": "OPEN",
+        "owner": "Luna"
+      },
+      {
+        "id": "R67-DIRECT-BODY-CHECK-1",
+        "state": "OPEN",
+        "owner": "Luna"
+      },
+      {
+        "id": "R68-OWNER-CONSUMER-1",
+        "state": "OPEN",
+        "owner": "Luna"
+      },
+      {
+        "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+        "state": "OPEN_UNADOPTED_PROPOSAL",
+        "owner": "Luna"
+      },
+      {
+        "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+        "state": "OPEN",
+        "owner": "Luna"
+      },
+      {
+        "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+        "state": "OPEN",
+        "owner": "Luna"
+      },
+      {
+        "id": "R72-LATER-OCCURRENCE-1",
+        "state": "OPEN",
+        "owner": "Luna"
+      },
+      {
+        "id": "R149-SOURCE-OWNER-CLOSURE-1",
+        "state": "OPEN_SOURCE_TO_CST",
+        "owner": "Luna intake"
+      },
+      {
+        "id": "R339-D2-WHOLE-FRAME-RETIREMENT",
+        "state": "OPEN_REMAINDER",
+        "owner": "Luna"
+      },
+      {
+        "id": "R340-D3-AUTHENTIC-APPLY-CONTINUATION",
+        "state": "OPEN_REMAINDER",
+        "owner": "Luna"
+      },
+      {
+        "id": "R345-N-REMAINDER",
+        "state": "OPEN_REMAINDER",
+        "owner": "Luna"
+      },
+      {
+        "id": "OP-SEMANTICS-FULL-EFFECT",
+        "state": "OPEN_REVIEW",
+        "owner": "primary"
+      },
+      {
+        "id": "DOT-SELECTION-EVIDENCE-BRIDGE",
+        "state": "OPEN_REVIEW",
+        "owner": "primary"
+      },
+      {
+        "id": "CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE",
+        "state": "OPEN_REVIEW",
+        "owner": "primary"
+      },
+      {
+        "id": "SOURCE-SAFETY-BRIDGE",
+        "state": "OPEN_REVIEW",
+        "owner": "primary"
+      },
+      {
+        "id": "CALL-CONTEXT-PLUG-PRESERVATION",
+        "state": "OPEN",
+        "owner": "Luna intake; later sprint after r9 execution adequacy"
+      },
+      {
+        "id": "BOUNDED-CALL-FINITE-PREFIX-SAFETY",
+        "state": "OPEN",
+        "owner": "Luna intake; later sprint after exact A/hash"
+      },
+      {
+        "id": "CALL-STEP-ERASURE",
+        "state": "OPEN",
+        "owner": "r9 S / Luna intake; launch after checked implementation seam"
+      },
+      {
+        "id": "CALL-RAW-SUCCESSOR-COVERAGE",
+        "state": "OPEN",
+        "owner": "r9 C / Luna intake; launch after checked implementation seam"
+      },
+      {
+        "id": "FORCE-SOURCE-REALIZATION-20261025",
+        "state": "OPEN_SOURCE_EQUATIONS",
+        "owner": "Luna"
+      },
+      {
+        "id": "RESPONSE-ENCODING-1",
+        "state": "OPEN",
+        "owner": "primary proof intake",
+        "details": "Native current value/fullgraph/layout/dispatch/metadata correspondence OPEN."
+      },
+      {
+        "id": "RESPONSE-INSTANCE-1",
+        "state": "OPEN",
+        "owner": "primary source-proof intake",
+        "details": "Native global trace and polymorphic/effectful/callable instances OPEN."
+      },
+      {
+        "id": "RESPONSE-TEMPLATE-1",
+        "state": "OPEN",
+        "owner": "primary native-proof intake",
+        "details": "Native frame metadata/error exclusion/full Call OPEN."
+      },
+      {
+        "id": "GVG-FORMS-1",
+        "state": "OPEN",
+        "owner": "full paper graph proof intake"
+      },
+      {
+        "id": "GVG-REC-RHS-1",
+        "state": "OPEN",
+        "owner": "full paper simultaneous binder proof intake",
+        "details": "Full-paper omitted forms OPEN."
+      },
+      {
+        "id": "HO-METADATA-ADEQUACY-1",
+        "state": "OPEN",
+        "owner": "primary semantic/source intake"
+      },
+      {
+        "id": "HO-SHALLOW-HANDLER-1",
+        "state": "OPEN",
+        "owner": "new higher-order handler theory lane",
+        "details": "HO-HANDLER-VALUE-EMPTY-1 source/directmapping mismatch OPEN."
+      },
+      {
+        "id": "HO-HANDLER-GRAPH-COMPOSITION-1",
+        "state": "OPEN",
+        "owner": "primary later integration",
+        "details": "Full-paper source/native application OPEN."
+      },
+      {
+        "id": "GRAPH-CONTINUATION-EXTENSION-1",
+        "state": "OPEN",
+        "owner": "new actual graph continuation theory lane",
+        "details": "Combined source extension/publication and full-paper application OPEN."
+      }
+    ],
+    "closure": "r2 fixed recursive op75 trace PARTIAL_REVIEWED/CLEAN; full original Lean Yulang goal OPEN.",
+    "next_action": "At r2 end, selector consult original parent and propose next highest-leverage Lean/source obligation; do not narrow user goal. Git checkpoint remains pending writable .git/network.",
+    "legacy_reconciliation": {
+      "required": false,
+      "reason": "Three unrelated UNKNOWN reservations remain quarantined.",
+      "reservations": [
+        {
+          "id": "/root/resident_dispatcher_loop_a",
+          "path": "tasks/agent-loop/board.md",
+          "state": "UNKNOWN_QUARANTINED"
+        },
+        {
+          "id": "/root/resident_implementer_idle",
+          "path": "UNKNOWN historical implementation lease",
+          "state": "UNKNOWN_QUARANTINED"
+        },
+        {
+          "id": "/root/runtime_source_supplier_proof",
+          "path": "UNKNOWN historical proof lease",
+          "state": "UNKNOWN_QUARANTINED"
+        }
+      ]
+    },
+    "user_goal": "Complete Yulang Lean proofs; user requests implementation-independent theory and Astra parallel subagents.",
+    "history": [
+      {
+        "id": "HANDLER-RECURSIVE-RHS-THEORY-20261025/r1",
+        "record": "tasks/agent-loop/sprints/handler-recursive-rhs-theory-20261025-r1-outcome.md",
+        "sha256": "e79ad59f2a27f211b0e487823a7cf3fdd148f5d4b1d6905d539514e582c97ecf",
+        "git": "Normal push succeeded03eb4b672..d94c36b61;upstream matches."
+      },
+      {
+        "id": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/r1",
+        "record": "tasks/agent-loop/sprints/graph-handler-interaction-theory-20261025-r1-outcome.md",
+        "sha256": "c355f3625401ae8c23834adf298833e24b194ddc9895c14c0aefbb2b78adf418",
+        "git": "Normal push succeeded d94c36b61..7ff6e74d4;upstream matches."
+      },
+      {
+        "id": "HANDLER-GRAPH-EXTENSION-THEORY-20261025/r1",
+        "record": "tasks/agent-loop/sprints/handler-graph-extension-theory-20261025-r1-outcome.md",
+        "sha256": "63eedec037dfc62cf1ff7556c85987a9a7d446680d8ef541ac02adf5a3906268",
+        "git": "Normal push succeeded7ff6e74d4..d8af06a7e;HEAD equals upstream."
+      },
+      {
+        "id": "COMBINED-RECURSIVE-INTERACTION-THEORY-20261025/r1",
+        "record": "tasks/agent-loop/sprints/combined-recursive-interaction-theory-20261025-r1-outcome.md",
+        "sha256": "df968bb8f64bbb7f04547437816730ab3e63d55fefa93db6794b70c42d54d09b",
+        "git": "Uncommitted; .git read-only."
+      }
+    ],
+    "resource_observation": "r1 authors/reviewers STOP; Lean53/68.331s. r2 selector180s STOP; author157.240s STOP; reviewer1 292s reserved STOP/no verdict, reviewer2 117.819s STOP/CLEAN; primary grant through09:09:17Z. Lean3/36 calls,3.906s. 3 legacy UNKNOWN quarantined. Git read-only; origin DNS failed.",
+    "checker": "workflow check PASS; r2 repaired source Lean PASS; 36 declaration query PASS/no warnings, axioms only propext/Quot.sound; independent review CLEAN for fixed trace. Full parent OPEN.",
+    "pending_details": {
+      "record": "tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1-outcome.md",
+      "sha256": "600e6bf271c64ea89d7ae05a0a65afac3eecf70a1464d51e17d9e4343dcf1d45"
+    }
+  },
+  "original_files": {
+    "utc": "2026-10-25T08:59:28.002962+00:00",
+    "baseline": "d8af06a7e6a9a6d0ba22b887c2dc28ceec9d31d2",
+    "files": {
+      "notes/theory/2026-10-25-handler-bearing-recursive-allocation.md": "6a5784e42bbe0fb39ad590e42bed4e8535968a7bb320d642e8674ce326482e4f",
+      "notes/theory/2026-10-25-handler-graph-extension-interaction.md": "f07d14714bec4823fa9c463bfb600bf7ee8274b1cbe6b781fc35ebc1f3875bd4",
+      "notes/theory/2026-10-25-handler-recursive-interaction-composition.md": "7d00bc092d001e1f3e5e9a185bf51ad388999ff950191af147b03be4eb0588cd",
+      "notes/theory/lean/YulangClosure/HandlerGraphInteraction.lean": "a5094f70dc2ec2843a431cfb24f0111166fbc9172b7e6df08d0d8c800a8ce018",
+      "notes/theory/lean/YulangClosure/HandlerGraphRecAllocation.lean": "5563163a5fe2741dc4cb1968329e5ec417a170099448978b653dc487cd136dfd",
+      "notes/theory/lean/YulangClosure/HandlerGraphRecInteraction.lean": "dc1f89a1e1b8b0b4a9e2e95fdcc47334b1b7578a8fef3f947574678ce8dfdba7",
+      "notes/theory/lean/YulangClosure/HandlerGraphRecursiveTrace.lean": "bd07ea464ba42b1073b69b2af0bc5d26c1ca148a58598d6d10973ba54dc29909",
+      "notes/theory/lean/YulangClosure/HandlerGraphTransport.lean": "a869e61005910dba00cf9cfa57065a45afeac08413974e343d9bcc16821f629d",
+      "tasks/agent-loop/current.json": "3dd18ce7c5cc260f0686600a59e4c033706108982452df072af72971b8beb833",
+      "tasks/agent-loop/inbox/20261025-combined-recursive-interaction-theory-r1-verification.jsonl": "a5430a82bfd77a77a15a04c03b6aee3fc5029da1367d05b28dc8ce808a05b531",
+      "tasks/agent-loop/inbox/20261025-handler-bearing-recursive-allocation-review.md": "846bdce9d2dd54b220fefb5b03607e4d97509b5ecf02ad5caeb3efcac205990a",
+      "tasks/agent-loop/inbox/20261025-handler-bearing-recursive-allocation.md": "578dfb56f929bd1f7526d9e2e8328875c87dac670244064c2fd2efcbfdaff3b7",
+      "tasks/agent-loop/inbox/20261025-handler-graph-extension-interaction-review.md": "800e88f74369a13e9ce7490356d8da5dd87f6ee61f7a8cd32c6287c35b19e283",
+      "tasks/agent-loop/inbox/20261025-handler-graph-extension-interaction.md": "7775a725f0edc842bdd4895de7a8e9ab65a02d4540c27748c39c9bc13dad068d",
+      "tasks/agent-loop/inbox/20261025-handler-graph-recursive-trace-r2-verification.jsonl": "4bf969fc8905cbb3f390e7061993ff14bdfb7ed98c716df9f078f780ccc905d6",
+      "tasks/agent-loop/inbox/20261025-handler-graph-recursive-trace-r2.md": "e8c0244189c18749904d26918caff21b3de75a33622d3f8d1eadae8f5fb5710b",
+      "tasks/agent-loop/sprints/combined-recursive-interaction-theory-20261025-r1-outcome.md": "df968bb8f64bbb7f04547437816730ab3e63d55fefa93db6794b70c42d54d09b",
+      "tasks/agent-loop/sprints/combined-recursive-interaction-theory-20261025-r1.md": "16364e08bf9352ecf3d81ff20f672b5c1b0c1a15026511c63253f4111b2b8687",
+      "tasks/agent-loop/sprints/combined-recursive-interaction-theory-20261025-r2-outcome.md": "7a9f56252e57b8917c435c71d4e716b2ae2954a5a6324f271fb61ee8de2855e6",
+      "tasks/agent-loop/sprints/combined-recursive-interaction-theory-20261025-r2.md": "b6fbc0648dcaf9fbbc0750fef390f793460331f2a6576b0e181d7a2ef8df6f92"
+    }
+  },
+  "backup_path": "/tmp/yulang-crash-recovery-20261025-fhnlzz2l",
+  "backup_sha256": {
+    "manifest.json": "fc756a92c1a6f2a45623c2f18bf7d1ac259ab309ea2c59a6d8f7269745449eaf",
+    "worktree.patch": "ab0a8b196a0cbd60a5d83429baee5b5a0894219e0c475a2b2d7cbf51e50ddfc4",
+    "dirty-files.tar.gz": "db383ba8d004ce78f797a9039693f020a0452770639dcf0f9f9852709d376e90",
+    "index.patch": "b9171a405f5f1e472dd2f315dae5574fdcbac33ea3a2ade1846d705cb814ba47"
+  },
+  "runtime_observations": {
+    "initial_list_agents": [
+      "/root"
+    ],
+    "interrupt_not_found": [
+      "/root/handler_graph_recursive_trace_review_astra_r2",
+      "/root/handler_recursive_trace_review2_astra_r2"
+    ],
+    "interpretation": "Not-found is not a write-cessation receipt. Both stale identities remain UNKNOWN; shared report path quarantined."
+  },
+  "review_provenance_gap": "Persisted r1 reviews reach RecInteraction 13e1350e...; later delta-review claims exist only in primary outcome prose. Fresh independent review covers the unpersisted delta and r2."
+}
