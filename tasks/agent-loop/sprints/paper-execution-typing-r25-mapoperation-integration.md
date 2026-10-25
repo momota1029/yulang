@@ -3,7 +3,7 @@
 Status: CANDIDATE; no writer/checker may act before exact contract hash, fresh runtime receipt, leases and committed acknowledgement.
 Branch: research/simple-sub-intrusion
 Baseline: 70c3d29f76fa54f209fe8271e2ca25f079f26acf (R24 accepted as reviewed prerequisite)
-Contract revision: r2
+Contract revision: r3
 
 ## Parent and selected outcome
 
@@ -46,12 +46,11 @@ Only after an actual worker/session receipt and committed acknowledgement, one r
 - notes/theory/lean/.lake/R25Audit.lean
 - notes/theory/lean/.lake/build (dedicated cache in this isolated worktree; worker owns it during construction, then stops and hands it to primary before final verification)
 - tasks/agent-loop/inbox/paper-typing-subst-r25-worker-checks.txt
-- tasks/agent-loop/inbox/paper-typing-subst-r25-primary-verification.txt
 - tasks/agent-loop/inbox/paper-typing-subst-r25.md
 
 R24 module and all other dependencies are read-only. Worker must source-audit first; if blocked, write only the handoff and stop. If the source gate passes, continue within this packet through the constructor, transport case, inversion/iff, exact audit source and handoff. No child agents.
 
-Worker is the sole checker/cache owner during construction and may use the leased isolated .lake/build and worker-checks receipt within its 10-call cap. After a frozen handoff and actual STOP/cessation receipt, the primary takes sole ownership of that exact isolated cache path and a separate tasks/agent-loop/inbox/paper-typing-subst-r25-primary-verification.txt path for the final focused build and final exact audit (2 calls). Run these exact commands, serially, with the existing lakefile Lean options; do not pass Lean flags as Lake build options:
+Worker is the sole checker/cache owner during construction and may use the leased isolated .lake/build and worker-checks receipt within its 10-call cap. After a frozen handoff and actual STOP/cessation receipt, only the primary owns tasks/agent-loop/inbox/paper-typing-subst-r25-primary-verification.txt and takes sole ownership of that exact isolated cache path for the final focused build and final exact audit (2 calls). Run these exact commands, serially, with the existing lakefile Lean options; do not pass Lean flags as Lake build options:
 
     lake build +YulangClosure.PaperMapOperationIntegration
     lake env lean -j1 -M1024 .lake/R25Audit.lean
