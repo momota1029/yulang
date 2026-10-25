@@ -335,4 +335,22 @@ theorem PaperComputationTyped.typeTransport (σ : Nat → Ty)
   | delay body => exact body
 
 
+theorem resumeVariableBoolInt (declarations : DeclarationTable) :
+    PaperComputationTyped declarations []
+      [.kont (.base .bool) (.base .int)]
+      (.resume (.variable 0) (.literal (.boolean true))) (.base .int) := by
+  apply PaperComputationTyped.resume
+  · exact PaperValueTyped.variable rfl
+  · exact PaperValueTyped.literal
+
+theorem resumeVariableWrongResponseImpossible (declarations : DeclarationTable) :
+    ¬ PaperComputationTyped declarations []
+      [.kont (.base .bool) (.base .int)]
+      (.resume (.variable 0) (.literal (.boolean true))) (.base .bool) := by
+  intro derivation
+  cases derivation with
+  | resume continuation response =>
+      cases continuation <;> simp_all [lookupTypeEnvironment]
+
+
 end YulangClosure.PaperTypes

@@ -740,7 +740,8 @@ mutual
         PaperComputationTyped declarations graphTypes environment
           (.request opInstance payload continuation) resultType
     | resume {continuation response responseType resultType} :
-        PaperContinuationTyped declarations graphTypes environment continuation responseType resultType →
+        PaperValueTyped declarations graphTypes environment continuation
+          (.kont responseType resultType) →
         PaperValueTyped declarations graphTypes environment response responseType →
         PaperComputationTyped declarations graphTypes environment
           (.resume continuation response) resultType
