@@ -18,17 +18,18 @@ Revision 2 is recorded at
 `tasks/agent-loop/sprints/paper-typing-subst-r1-rev2.md`. Four further Lean
 invocations (about 17 checker seconds) still failed termination. Attached
 subtype evidence remained inaccessible to the generic decrease tactic, and
-composite list members required projection-size chains. Revision 3 is recorded
-at `tasks/agent-loop/sprints/paper-execution-syntax-subst-r3.md`. Explicitly
+composite list members required projection-size chains. Revision 3 is recorded at
+`tasks/agent-loop/sprints/paper-execution-syntax-subst-r3.md`; revision 4 is
+active at `tasks/agent-loop/sprints/paper-execution-typing-r4.md`. Explicitly
 named membership proofs and product/option projection inequalities now make
 the full raw syntax traversal compile. Lean exited 0; it emitted only unused
 callback-name warnings because the recursive termination proof consumes the
-proofs. Full typing judgments and the substitution theorem are still absent.
+proofs. The first partial typing judgments were added, but the check failed because the environment was a fixed mutual-inductive parameter and let/lambda extend it. Revision 4 moves the environment into each judgment index. The full rule inventory and theorem remain open.
 
 The source is now named `PaperExecutionSyntax.lean` to reflect that it contains
 raw execution syntax and substitution maps, not typing judgments. Its current
 SHA-256 is
-`9a978c9c58bed2cdaf560a53924cc0a15d1f2b22072da5adc0b9139a7339871c`. The current
+`2c2f7efac389488cdebee22fb5c6c666b183f7c200fd3ffec73c9c2fb41ae81d`. The current
 `ValueGraph.guarded : Prop` is
 only an arbitrary proposition and does not encode the paper's recursive graph
 guard; replace it with the actual guard condition before claiming graph typing

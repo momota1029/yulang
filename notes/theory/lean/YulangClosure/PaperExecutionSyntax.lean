@@ -550,10 +550,121 @@ def mapSubject (σ : Nat → Ty) : Subject → Subject
   | .value value => .value (mapPaperValue σ value)
   | .computation computation => .computation (mapPaperComputation σ computation)
 
+def lookupTypeEnvironment : TypeEnvironment → Nat → Option Ty
+  | [], _ => none
+  | ty :: _, 0 => some ty
+  | _ :: rest, index + 1 => lookupTypeEnvironment rest index
+
+def lookupGraphEnvironment : GraphEnvironment → Nat → Option Ty
+  | [], _ => none
+  | (name, ty) :: rest, index =>
+      if name = index then some ty else lookupGraphEnvironment rest index
+
+def literalType : Literal → Ty
+  | .unit => .base .unit
+  | .boolean _ => .base .bool
+  | .integer _ => .base .int
+  | .floatBits _ => .base .float
+  | .string _ => .base .string
+  | .bytes _ => .base .bytes
+  | .path _ => .base .path
+  | .character _ => .base .char
+
 /-!
-The remaining declarations in this module will encode the mutually
-inductive syntactic judgments from paper §types and §machine.  In particular,
-`Bad` is deliberately not a `Computation` constructor.
+These are the first extrinsic typing judgments for the paper syntax. They
+encode the directly represented core rules below; this is not yet the complete
+§types/§machine judgment or the substitution theorem. In particular, record
+shape/declaration evidence, variant and nominal tables, operations, handlers,
+graphs, primitives, templates, patterns, and all remaining constructors must
+be added before claiming paper coverage.
+-/
+mutual
+  inductive ValuesTyped (declarations : DeclarationTable) (graphTypes : GraphEnvironment) :
+      TypeEnvironment → List Value → List Ty → Prop where
+    | nil : ValuesTyped declarations graphTypes environment [] []
+    | cons {value values ty types} :
+        PaperValueTyped declarations graphTypes environment value ty →
+        ValuesTyped declarations graphTypes environment values types →
+        ValuesTyped declarations graphTypes environment (value :: values) (ty :: types)
+
+  inductive ValuesAllTyped (declarations : DeclarationTable) (graphTypes : GraphEnvironment) :
+      TypeEnvironment → List Value → Ty → Prop where
+    | nil {ty} : ValuesAllTyped declarations graphTypes environment [] ty
+    | cons {value values ty} :
+        PaperValueTyped declarations graphTypes environment value ty →
+        ValuesAllTyped declarations graphTypes environment values ty →
+        ValuesAllTyped declarations graphTypes environment (value :: values) ty
+
+  inductive PaperValueTyped (declarations : DeclarationTable) (graphTypes : GraphEnvironment) :
+      TypeEnvironment → Value → Ty → Prop where
+    | variable {index ty} : lookupTypeEnvironment environment index = some ty →
+        PaperValueTyped declarations graphTypes environment (.variable index) ty
+    | graphReference {identity ty} : lookupGraphEnvironment graphTypes identity = some ty →
+        PaperValueTyped declarations graphTypes environment (.graphReference identity) ty
+    | literal {value} :
+        PaperValueTyped declarations graphTypes environment (.literal value) (literalType value)
+    | tuple {values types} :
+        ValuesTyped declarations graphTypes environment values types →
+        PaperValueTyped declarations graphTypes environment (.tuple values) (argsSyntax types)
+    | sequence {values elementType} :
+        ValuesAllTyped declarations graphTypes environment values elementType →
+        PaperValueTyped declarations graphTypes environment (.sequence values)
+          (.nominal declarations.nativeListIdentity (.tupleCons elementType .tupleNil))
+    | delay {body resultType} :
+        PaperComputationTyped declarations graphTypes environment body resultType →
+        PaperValueTyped declarations graphTypes environment (.delay body) (.thunk resultType)
+    | valueLambda {profile parameter body inputType outputType} :
+        PaperComputationTyped declarations graphTypes (inputType :: environment) body outputType →
+        PaperValueTyped declarations graphTypes environment
+          (.lambda .value profile parameter body) (.callable inputType outputType)
+    | computationLambda {profile parameter body inputType outputType} :
+        PaperComputationTyped declarations graphTypes (.thunk inputType :: environment)
+          body outputType →
+        PaperValueTyped declarations graphTypes environment
+          (.lambda .computation profile parameter body) (.callable inputType outputType)
+    | injectLeft {value left right} :
+        PaperValueTyped declarations graphTypes environment value left →
+        PaperValueTyped declarations graphTypes environment (.injectLeft value) (.union left right)
+    | injectRight {value left right} :
+        PaperValueTyped declarations graphTypes environment value right →
+        PaperValueTyped declarations graphTypes environment (.injectRight value) (.union left right)
+    | both {value left right} :
+        PaperValueTyped declarations graphTypes environment value left →
+        PaperValueTyped declarations graphTypes environment value right →
+        PaperValueTyped declarations graphTypes environment (.both value) (.intersection left right)
+    | topView {value ty} :
+        PaperValueTyped declarations graphTypes environment value ty →
+        PaperValueTyped declarations graphTypes environment (.topView value) .top
+    | view {metadata value ty} :
+        PaperValueTyped declarations graphTypes environment value ty →
+        PaperValueTyped declarations graphTypes environment (.view metadata value) ty
+
+  inductive PaperComputationTyped (declarations : DeclarationTable)
+      (graphTypes : GraphEnvironment) : TypeEnvironment → Computation → Ty → Prop where
+    | ret {value ty} :
+        PaperValueTyped declarations graphTypes environment value ty →
+        PaperComputationTyped declarations graphTypes environment (.ret value) ty
+    | letE {first body firstType resultType} :
+        PaperComputationTyped declarations graphTypes environment first firstType →
+        PaperComputationTyped declarations graphTypes (firstType :: environment) body resultType →
+        PaperComputationTyped declarations graphTypes environment (.letE first body) resultType
+    | force {thunk resultType} :
+        PaperValueTyped declarations graphTypes environment thunk (.thunk resultType) →
+        PaperComputationTyped declarations graphTypes environment (.force thunk) resultType
+    | call {function thunk argumentType resultType} :
+        PaperValueTyped declarations graphTypes environment function
+          (.callable argumentType resultType) →
+        PaperValueTyped declarations graphTypes environment thunk (.thunk argumentType) →
+        PaperComputationTyped declarations graphTypes environment (.call function thunk) resultType
+    | fail {reason ty} :
+        PaperComputationTyped declarations graphTypes environment (.fail reason) ty
+
+end
+
+/-!
+`Bad` is deliberately not a `Computation` constructor. The declarations above
+remain a partial rule map until every constructor and premise in the handoff's
+inventory is represented and reviewed.
 -/
 
 end YulangClosure.PaperTypes
