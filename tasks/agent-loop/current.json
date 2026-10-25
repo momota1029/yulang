@@ -6,15 +6,15 @@
  "active_sprint": {
   "id": "PAPER-HEAP-OBSERVATION-20261026/r59",
   "revision": "r1",
-  "status": "RUNNING_PROOF",
+  "status": "STOPPED_PRIMARY_CAPTURE_GAP",
   "contract": "tasks/agent-loop/sprints/paper-heap-observation-r59.md",
   "contract_sha256": "fd8913816e2ab6c6f3316f2be50125b148dab192aefc1de3b529644547604e21",
   "baseline": "4eb348f7ebf53509ae701c6b0434041a90f8f573",
   "branch": "yulang3",
   "claim": "Finite graph-reference/type-beta observation preserves represented paper typing and connects an allocated typed heap to Force/Delay; parent remains OPEN.",
-  "outcome": "Source lane frozen with a bounded direct-identification falsifier (mutable None→Some publication); source-to-paper realization stays OPEN and NO_SAFE_CODE_SLICE. Proof construction/build remains active; parent remains OPEN.",
+  "outcome": "Worker candidate/build/audit frozen and reported passing, source falsifier frozen. Primary pinned versions and all 18 inputs matched, but primary call 3 lost its session/output/exit/duration; exact verification is not established, no retry under R59 cap, no review or import.",
   "budget": "1800s total; proof 600s/8 calls/90 checker; source 240s/0 calls; primary 600s/4 calls/90 checker; reviewer 180s/0 calls; 180s integration reserve.",
-  "next_action": "Continue the exact proof lease. After proof writer freezes/stops, primary verifies frozen evidence, then obtain fresh independent review before any root import."
+  "next_action": "Consult sprint dispatcher for a fresh bounded next gate; any future verification needs a new packet with captured session IDs and complete raw output. Keep current frozen candidate separate and all parents OPEN."
  },
  "workers": [
   {
@@ -108,24 +108,24 @@
   {
    "id": "/root",
    "role": "primary/proof coordinator/checker/integrator",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
    "requested_model": "user-selected primary",
    "requested_effort": "UNKNOWN",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "collaboration.list_agents at 2026-10-25 22:53:50 UTC reported /root running; R59 primary owns current state/contract/Git."
+   "receipt": "R59 primary verification stopped on call-3 capture gap; receipt tasks/agent-loop/inbox/paper-heap-observation-r59-primary.md SHA c632aa6abaf59ef96a5318fe247e38404bb728afa3b8663397a314551b042642. Calls 1–2 versions exit 0; call 3 output/exit/duration UNKNOWN and not retried. No review/import."
   },
   {
    "id": "/root/r59_heap_observation_proof",
    "role": "registered lean_prover",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
    "requested_model": "registered role defaults",
    "requested_effort": "registered role defaults",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Agent launch ACK; individual session ID UNKNOWN; requested lean_prover defaults; observed model/effort UNKNOWN; first activity ~2026-10-25T22:55Z (exact timestamp UNKNOWN, charged from grant origin); verified R59 contract hash; source reads begun; zero writes/checker calls; no descendants."
+   "receipt": "Frozen handoff SHA-256 a115016535753182240188232262e8f19613fbf6e8784137048bd5f632e8f9bf; candidate SHA 19b54b87b63cdc4175b1b641ca83d0c1e9454e2439c58a0936bf31fa5bc4725f; worker build/audit passed. 5/8 calls, 42.160528/90 checker seconds; charged 404.594/600 seconds through 2026-10-25T23:00:34.593651Z. Writers/processes stopped; independent review pending."
   },
   {
    "id": "/root/r59_heap_observation_source",
@@ -164,7 +164,7 @@
   {
    "path": "tasks/agent-loop/inbox/paper-heap-observation-r59-primary.md",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "tasks/agent-loop/sprints/paper-heap-observation-r59-outcome.md",
@@ -174,27 +174,27 @@
   {
    "path": "notes/theory/lean/YulangClosure/PaperHeapObservation.lean",
    "owner": "/root/r59_heap_observation_proof",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "notes/theory/lean/.lake/R59Audit.lean",
    "owner": "/root/r59_heap_observation_proof",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "notes/theory/lean/.lake/build",
    "owner": "/root/r59_heap_observation_proof",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "tasks/agent-loop/inbox/paper-heap-observation-r59-worker-checks.txt",
    "owner": "/root/r59_heap_observation_proof",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "tasks/agent-loop/inbox/paper-heap-observation-r59.md",
    "owner": "/root/r59_heap_observation_proof",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "tasks/agent-loop/inbox/paper-heap-observation-r59-source.md",
@@ -376,8 +376,8 @@
    "details": "Bounded proof accepted; full-paper/native bridge open; pending-cell republication blocks naive relation."
   }
  ],
- "closure": "R59 source lane stopped and frozen; proof lane remains active. Source realization remains OPEN; no compiler edit. All parent gates remain OPEN.",
- "next_action": "R59 proof lane active; source receipt frozen; preserve external proofs and withdrawn questions; retain all parent gates OPEN.",
+ "closure": "R59 stopped on primary process-evidence capture gap, not a mathematical counterexample. Candidate remains unintegrated; all original inference/executor/source-native and production gates remain OPEN.",
+ "next_action": "R59 stopped with primary verification capture gap; await dispatcher selection for a fresh packet. Preserve frozen artifacts, external proof provenance and withdrawn questions.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "8 UNKNOWN reservations remain quarantined.",
@@ -439,9 +439,14 @@
    "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r58-review",
    "record": "tasks/agent-loop/inbox/paper-type-beta-r58-review.md",
    "sha256": "059cb2de4cdc8c1e746628f485f445671a927c13f82cef8bbf8defb6c0bbe39c"
+  },
+  {
+   "id": "EXTERNAL-YULANG3-EXECUTION-PROOFS-20261026/commit-31b1473",
+   "record": "notes/progress/2026-10-26-yulang3-execution-proofs.md",
+   "sha256": "83f909b1e026604b8c3dd6b098869f6a1b66f1f50d58e1f853c45da3d2ea0c4c"
   }
  ],
- "resource_observation": "R59 origin 2026-10-25T22:53:50Z. Monotonic origin UNKNOWN; conservatively charge workers from grant origin. Proof first activity ~22:55Z, exact start UNKNOWN; source first timestamp UNKNOWN. 1800s grant includes 180s integration reserve; no carryover. Eight prior UNKNOWN identities remain quarantined. Source lane stopped 2026-10-25T22:57:43Z; exact usage UNKNOWN, full 240s charged; zero executable calls. Handoff SHA b7976c6ae7a8a276b4a59e479b71bc0bdec20696a974dff367492e02541ac5f6.",
+ "resource_observation": "R59 origin 2026-10-25T22:53:50Z; monotonic origin UNKNOWN; no carryover. Source stopped 22:57:43Z; full 240s charged, exact usage UNKNOWN, 0 checker. Proof stopped 23:00:34.593651Z; 404.594s charged, 5 calls/42.160528 checker seconds. Primary calls 1–2 exit 0; call 3 capture lost (exit/duration/output UNKNOWN); conservative 180s timeout exceeds 90s checker cap, no retry. Eight UNKNOWN identities remain quarantined.",
  "native_bridge": {
   "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
   "state": "OPEN; NAIVE_RELATION_BLOCKED",
