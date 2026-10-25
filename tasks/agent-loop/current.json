@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-ENTRY-SPINE-20261025",
     "revision": "r2",
-    "status": "P_RUNNING_REPAIR",
+    "status": "P_STOPPED_COMPOSITION_READY",
     "contract": "tasks/agent-loop/sprints/call-entry-spine-20261025-r2.md",
     "contract_sha256": "0f81f286dd3910f48b3f7b49d4f61a6c7a415609a16f0e473fe093bf567c18d4",
     "baseline": "3199f25f0",
@@ -27,10 +27,10 @@
     "outcome": "tasks/agent-loop/sprints/call-entry-spine-20261025-r2-outcome.md",
     "closure": "Syntax typing only; operational/source/A-B/inference/production parents OPEN.",
     "review": "Fresh nonauthor review only after successful serial checks and frozen receipts.",
-    "checker": "Not run; r1 failed P elaboration; r2 P uses new path; frozen pins revalidated.",
+    "checker": "No r2 Lean yet; P exact proposition statically MATCHED; author STOPPED.",
     "acceptance": "Exact P/Q/compose statements compile; complete receipts; standard axioms; CLEAN review.",
-    "author": "P repair RUNNING from fresh r2 START acknowledgement; Q frozen input unchanged.",
-    "next_action": "Await frozen P repair handoff; then compose and serialize Lean checks.",
+    "author": "P source/handoff frozen; Luna composition and serialized verification next.",
+    "next_action": "Freeze P/compose/query candidates; verify reused r3 artifacts, then run P, Q, compose, query serially.",
     "prior_r1": "FAILED_VERIFICATION/UNACCEPTED; exact failure receipt and outcome retained."
   },
   "workers": [
@@ -81,13 +81,13 @@
     {
       "id": "/root/call_entry_body_typing",
       "role": "P repair author: unchanged callEntryBody_typed",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "session": "LEAN-CALL-CONTEXT-TYPING-20261025/root-turn-9",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Fresh r2 START acknowledged; exact P repair leases only; active branch-local proof work; no Lean/tests/Git/descendants."
+      "receipt": "STOP 2026-10-25T02:38:35Z; P source f90c2192422e35cc7f85716e29199c9587976e230e12543aff0609eedcc49c39; handoff cf35a45c656146fd182e5c7b90ea0eb5d69d072696a301a6c4f543de28e856cd; exact proposition MATCH; no Lean/tests/Git."
     }
   ],
   "leases": [
@@ -207,15 +207,15 @@
     },
     {
       "path": "notes/theory/lean/YulangClosure/CallEntryTypingRepair.lean",
-      "owner": "/root/call_entry_body_typing",
-      "state": "HELD",
-      "reason": "New P repair; exact r2 lease."
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "P STOP; frozen r2 candidate/handoff."
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-entry-typing-repair-r2.md",
-      "owner": "/root/call_entry_body_typing",
-      "state": "HELD",
-      "reason": "P repair handoff; exact r2 lease."
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "P STOP; frozen r2 candidate/handoff."
     },
     {
       "path": "notes/theory/lean/YulangClosure/CallEntrySpineRepair.lean",
@@ -505,6 +505,6 @@
       "closure": "P compile failure; Q/compose unchecked; theorem OPEN."
     }
   ],
-  "resource_observation": "P 600s cap active; compose 240, verification 480, review 420, integrate 180 reserved; no carryover.",
+  "resource_observation": "P 600s fully charged; composition 240, verification 480, review 420, integration 180 remain; no carryover.",
   "checker": "Lean 4.35; reuse r3 only by source and .olean/.ilean hash match; stop on first failure."
 }
