@@ -1,12 +1,12 @@
 import YulangClosure.PaperExecutionSyntax
 
 /-!
-Unfinished simultaneous type-substitution attempt for the explicitly
-represented core typing rules in `PaperExecutionSyntax`. This revision does
-not compile: mutual induction over the four judgments and several constructor
-cases still need repair. It is not a proof of the full paper theorem. The
-source module lists omitted rules and a placeholder graph guard that must be
-resolved before the parent can close.
+Unfinished simultaneous type-substitution construction for the explicitly
+represented partial paper judgments, including records, required projection,
+and declared lookup. The standalone record-map equality is checked, but the
+mutual proof still has an index mismatch; this module does not compile. R6 and
+R7 handoffs preserve diagnostics. This is not the full paper theorem; omitted
+rules and graph/source correspondence remain open.
 -/
 namespace YulangClosure.PaperTypes
 
@@ -47,6 +47,27 @@ theorem argsSyntax_subst (σ : Nat → Ty) (types : List Ty) :
               (lookupGraphEnvironment tail index).map (subst σ)
             rw [ih]
 
+theorem RecordShape.subst (σ : Nat → Ty) {recordType : Ty} {labels required : List Label}
+    (shape : RecordShape recordType labels required) :
+    RecordShape (subst σ recordType) labels required := by
+  induction shape with
+  | nil => exact .nil
+  | required _ unique ih => exact .required ih unique
+  | optional _ unique ih => exact .optional ih unique
+
+theorem RecordField.subst (σ : Nat → Ty) {recordType fieldType : Ty}
+    {label : Label} {presence : Presence}
+    (field : RecordField recordType label presence fieldType) :
+    RecordField (subst σ recordType) label presence (subst σ fieldType) := by
+  induction field with
+  | here => exact .here
+  | there _ ih => exact .there ih
+
+@[simp] theorem mapRecordFields_labels (σ : Nat → Ty)
+    (fields : List (Label × Presence × Value)) :
+    (mapRecordFields σ fields).map Prod.fst = fields.map Prod.fst := by
+  simp [mapRecordFields, List.map_map, Function.comp_def]
+
 mutual
   theorem ValuesTyped.subst (σ : Nat → Ty) {declarations : DeclarationTable}
       {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
@@ -71,6 +92,18 @@ mutual
     | cons value values =>
         simpa [mapTypeEnvironment] using
           ValuesAllTyped.cons (PaperValueTyped.subst σ value) (ValuesAllTyped.subst σ values)
+
+  theorem RecordPayloadsTyped.subst (σ : Nat → Ty) {declarations : DeclarationTable}
+      {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
+      {fields : List (Label × Presence × Value)} {recordType : Ty}
+      (derivation : RecordPayloadsTyped declarations graphTypes environment fields recordType) :
+      RecordPayloadsTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+        (mapTypeEnvironment σ environment) (mapRecordFields σ fields) (subst σ recordType) := by
+    cases derivation with
+    | nil => exact .nil
+    | cons field value fields =>
+        exact .cons (RecordField.subst σ field) (PaperValueTyped.subst σ value)
+          (RecordPayloadsTyped.subst σ fields)
 
   theorem PaperValueTyped.subst (σ : Nat → Ty) {declarations : DeclarationTable}
       {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
@@ -97,6 +130,16 @@ mutual
     | sequence values =>
         simpa [mapPaperValue, mapDeclarationTable, subst] using
           PaperValueTyped.sequence (ValuesAllTyped.subst σ values)
+    | @record _ fields recordType labels required shape unique allRequired payloads =>
+        have unique' := unique
+        have required' := allRequired
+        rw [← mapRecordFields_labels σ] at unique'
+        have required'' : ∀ label, label ∈ required →
+            label ∈ (mapRecordFields σ fields).map Prod.fst := by
+          simpa only [mapRecordFields_labels] using required'
+        simpa [mapPaperValue, mapRecordFields, List.attach_map_val] using
+          PaperValueTyped.record (RecordShape.subst σ shape) unique' required''
+            (RecordPayloadsTyped.subst σ payloads)
     | delay body =>
         simpa [mapPaperValue, subst] using PaperValueTyped.delay (PaperComputationTyped.subst σ body)
     | valueLambda body =>
@@ -136,6 +179,12 @@ mutual
         simpa [mapPaperComputation] using
           PaperComputationTyped.call (PaperValueTyped.subst σ function)
             (PaperValueTyped.subst σ thunk)
+    | field value field =>
+        simpa [mapPaperComputation] using
+          PaperComputationTyped.field (PaperValueTyped.subst σ value) (RecordField.subst σ field)
+    | lookup value field =>
+        simpa [mapPaperComputation, subst] using
+          PaperComputationTyped.lookup (PaperValueTyped.subst σ value) (RecordField.subst σ field)
     | fail => simpa [mapPaperComputation, subst] using PaperComputationTyped.fail
 end
 

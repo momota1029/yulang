@@ -570,11 +570,37 @@ def literalType : Literal → Ty
   | .path _ => .base .path
   | .character _ => .base .char
 
+/-- Structural record declarations, without an ambient type-formation premise.
+`RecordFormed` additionally establishes payload formation at a chosen scope. -/
+inductive RecordShape : Ty → List Label → List Label → Prop where
+  | nil : RecordShape .recordNil [] []
+  | required {label field tail labels required} :
+      RecordShape tail labels required → label ∉ labels →
+      RecordShape (.recordCons label (Presence.encode .required) field tail)
+        (label :: labels) (label :: required)
+  | optional {label field tail labels required} :
+      RecordShape tail labels required → label ∉ labels →
+      RecordShape (.recordCons label (Presence.encode .optional) field tail)
+        (label :: labels) required
+
+/-- Declared membership is independent of the order of the runtime fields. -/
+inductive RecordField : Ty → Label → Presence → Ty → Prop where
+  | here {label presence field tail} :
+      RecordField (.recordCons label (Presence.encode presence) field tail) label presence field
+  | there {label presence field tail other otherPresence otherType} :
+      RecordField tail label presence field →
+      RecordField (.recordCons other (Presence.encode otherPresence) otherType tail)
+        label presence field
+
+def mapRecordFields (σ : Nat → Ty) (fields : List (Label × Presence × Value)) :
+    List (Label × Presence × Value) :=
+  fields.map fun field => (field.1, field.2.1, mapPaperValue σ field.2.2)
+
 /-!
 These are the first extrinsic typing judgments for the paper syntax. They
 encode the directly represented core rules below; this is not yet the complete
-§types/§machine judgment or the substitution theorem. In particular, record
-shape/declaration evidence, variant and nominal tables, operations, handlers,
+§types/§machine judgment or the substitution theorem. In particular, variant
+and nominal tables, operations, handlers,
 graphs, primitives, templates, patterns, and all remaining constructors must
 be added before claiming paper coverage.
 -/
@@ -595,6 +621,21 @@ mutual
         ValuesAllTyped declarations graphTypes environment values ty →
         ValuesAllTyped declarations graphTypes environment (value :: values) ty
 
+  /-- Each present field has a declared payload type. The raw presence tag is
+  retained metadata; declaration presence controls requiredness, not this tag. -/
+  inductive RecordPayloadsTyped (declarations : DeclarationTable)
+      (graphTypes : GraphEnvironment) : TypeEnvironment →
+      List (Label × Presence × Value) → Ty → Prop where
+    | nil {environment recordType} :
+        RecordPayloadsTyped declarations graphTypes environment [] recordType
+    | cons {label tag value fields recordType presence fieldType} :
+        {environment : TypeEnvironment} →
+        RecordField recordType label presence fieldType →
+        PaperValueTyped declarations graphTypes environment value fieldType →
+        RecordPayloadsTyped declarations graphTypes environment fields recordType →
+        RecordPayloadsTyped declarations graphTypes environment
+          ((label, tag, value) :: fields) recordType
+
   inductive PaperValueTyped (declarations : DeclarationTable) (graphTypes : GraphEnvironment) :
       TypeEnvironment → Value → Ty → Prop where
     | variable {index ty} : lookupTypeEnvironment environment index = some ty →
@@ -610,6 +651,12 @@ mutual
         ValuesAllTyped declarations graphTypes environment values elementType →
         PaperValueTyped declarations graphTypes environment (.sequence values)
           (.nominal declarations.nativeListIdentity (.tupleCons elementType .tupleNil))
+    | record {fields recordType labels required} :
+        RecordShape recordType labels required →
+        (fields.map Prod.fst).Nodup →
+        (∀ label, label ∈ required → label ∈ fields.map Prod.fst) →
+        RecordPayloadsTyped declarations graphTypes environment fields recordType →
+        PaperValueTyped declarations graphTypes environment (.record fields) recordType
     | delay {body resultType} :
         PaperComputationTyped declarations graphTypes environment body resultType →
         PaperValueTyped declarations graphTypes environment (.delay body) (.thunk resultType)
@@ -656,6 +703,15 @@ mutual
           (.callable argumentType resultType) →
         PaperValueTyped declarations graphTypes environment thunk (.thunk argumentType) →
         PaperComputationTyped declarations graphTypes environment (.call function thunk) resultType
+    | field {value recordType label fieldType} :
+        PaperValueTyped declarations graphTypes environment value recordType →
+        RecordField recordType label .required fieldType →
+        PaperComputationTyped declarations graphTypes environment (.field value label) fieldType
+    | lookup {value recordType label presence fieldType} :
+        PaperValueTyped declarations graphTypes environment value recordType →
+        RecordField recordType label presence fieldType →
+        PaperComputationTyped declarations graphTypes environment (.lookup value label)
+          (.union (.base .unit) fieldType)
     | fail {reason ty} :
         PaperComputationTyped declarations graphTypes environment (.fail reason) ty
 
