@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-ENTRY-SPINE-20261025",
     "revision": "r3",
-    "status": "FROZEN_COMPOSITION_NOT_STARTED",
+    "status": "R3_COMPOSITION_CANDIDATE_READY",
     "contract": "tasks/agent-loop/sprints/call-entry-spine-20261025-r3.md",
     "contract_sha256": "e331976b445955fa6e982427287494772bc8a823b706f460291c91d4078d4928",
     "baseline": "33cc19a20",
@@ -27,10 +27,10 @@
     "outcome": "tasks/agent-loop/sprints/call-entry-spine-20261025-r3-outcome.md",
     "closure": "Syntax typing only; all operational/source/A-B/inference/production parents OPEN.",
     "review": "Fresh nonauthor review only after both checks succeed.",
-    "checker": "Not run; r2 P/Q compiled; r2 composition failure documented; r3 exact new paths absent.",
+    "checker": "No r3 Lean yet; exact theorem restated in new path; P/Q/r3 binaries pinned in contract.",
     "acceptance": "Exact theorem; two complete successful receipts; standard axioms; CLEAN independent review.",
     "author": "Luna composition only; P/Q frozen, no new author.",
-    "next_action": "Freeze r3 contract/current, then compose using outer consumer witness and verify.",
+    "next_action": "Record reused artifact hashes, then invoke new composition once; stop on failure.",
     "prior_r2": "FAILED_VERIFICATION/UNACCEPTED; receipt and outcome frozen."
   },
   "workers": [
@@ -500,6 +500,6 @@
       "closure": "P compile failure; Q/compose unchecked; theorem OPEN."
     }
   ],
-  "resource_observation": "Fresh r3 cap 1080s; no carryover; two invocations; no review until success.",
-  "checker": "Two Lean invocations only; reuse P/Q and r3 dependencies by exact accepted hashes; stop on first failure."
+  "resource_observation": "r3 fresh cap 1080s; composition candidate written; verification/review/integration reserved.",
+  "checker": "Two invocations only: composition compile, then signatures/axioms query."
 }
