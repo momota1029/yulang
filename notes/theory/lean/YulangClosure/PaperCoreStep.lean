@@ -64,7 +64,7 @@ theorem field_required_mem {r label presence a}
   induction hf with
   | here =>
       intro he
-      subst presence
+      cases he
       simp [requiredLabels, Presence.encode]
   | @there label presence a tail other otherPresence otherType hf ih =>
       intro he
@@ -140,5 +140,135 @@ def step : Computation → Option Computation
         | some value => .injectRight value
         | none => .injectLeft (.literal .unit)))
   | _ => none
+
+
+/-- The let/return redex applies and preserves the unchanged shared contexts. -/
+theorem letRet_applicable {d g e value body a}
+    (hc : PaperComputationTyped d g e (.letE (.ret value) body) a) :
+    ∃ result, step (.letE (.ret value) body) = some result ∧
+      PaperComputationTyped d g e result a := by
+  cases hc with
+  | letE hf hb =>
+      cases hf with
+      | ret hv => exact hb.termSubstitute (singleReplacement_typed hv)
+
+/-- Force/Delay requires no substitution or change of result type. -/
+theorem force_applicable {d g e body a}
+    (hc : PaperComputationTyped d g e (.force (.delay body)) a) :
+    ∃ result, step (.force (.delay body)) = some result ∧
+      PaperComputationTyped d g e result a := by
+  cases hc with
+  | force hv =>
+      cases hv with
+      | delay hb => exact ⟨body, rfl, hb⟩
+
+/-- Only the left injection's branch receives its payload. -/
+theorem unionLeft_applicable {d g e value lb left rb right a}
+    (hc : PaperComputationTyped d g e
+      (.unionCase (.injectLeft value) lb left rb right) a) :
+    ∃ result, step (.unionCase (.injectLeft value) lb left rb right) = some result ∧
+      PaperComputationTyped d g e result a := by
+  cases hc with
+  | unionCase hv hl hr =>
+      cases hv with
+      | injectLeft hv => exact hl.termSubstitute (singleReplacement_typed hv)
+
+/-- Only the right injection's branch receives its payload. -/
+theorem unionRight_applicable {d g e value lb left rb right a}
+    (hc : PaperComputationTyped d g e
+      (.unionCase (.injectRight value) lb left rb right) a) :
+    ∃ result, step (.unionCase (.injectRight value) lb left rb right) = some result ∧
+      PaperComputationTyped d g e result a := by
+  cases hc with
+  | unionCase hv hl hr =>
+      cases hv with
+      | injectRight hv => exact hr.termSubstitute (singleReplacement_typed hv)
+
+/-- Unrolling returns exactly the payload at the typing rule's unfolding. -/
+theorem unroll_applicable {d g e value a}
+    (hc : PaperComputationTyped d g e (.unroll (.roll value)) a) :
+    ∃ result, step (.unroll (.roll value)) = some result ∧
+      PaperComputationTyped d g e result a := by
+  cases hc with
+  | unroll hv =>
+      cases hv with
+      | roll hv => exact ⟨.ret value, rfl, .ret hv⟩
+
+/-- Required-field coverage excludes a missing required runtime label. -/
+theorem field_applicable {d g e fields label a}
+    (hc : PaperComputationTyped d g e (.field (.record fields) label) a) :
+    ∃ result, step (.field (.record fields) label) = some result ∧
+      PaperComputationTyped d g e result a := by
+  cases hc with
+  | field hv hf =>
+      cases hv with
+      | record shape unique required payloads =>
+          have hm : label ∈ fields.map Prod.fst := by
+            apply required
+            rw [← (shape_labels shape).2.1]
+            exact field_required_mem hf rfl
+          have hn : lookupRecord fields label ≠ none := by
+            intro absent
+            exact (lookupRecord_none_iff.mp absent) hm
+          cases hl : lookupRecord fields label with
+          | none => exact False.elim (hn hl)
+          | some value =>
+              exact ⟨.ret value, by simp [step, hl],
+                .ret (lookupRecord_typed shape payloads hf hl)⟩
+
+/-- Lookup handles runtime presence and absence for either declared presence. -/
+theorem lookup_applicable {d g e fields label a}
+    (hc : PaperComputationTyped d g e (.lookup (.record fields) label) a) :
+    ∃ result, step (.lookup (.record fields) label) = some result ∧
+      PaperComputationTyped d g e result a := by
+  cases hc with
+  | lookup hv hf =>
+      cases hv with
+      | record shape unique required payloads =>
+          cases hl : lookupRecord fields label with
+          | none =>
+              exact ⟨.ret (.injectLeft (.literal .unit)), by simp [step, hl],
+                .ret (.injectLeft .literal)⟩
+          | some value =>
+              exact ⟨.ret (.injectRight value), by simp [step, hl],
+                .ret (.injectRight (lookupRecord_typed shape payloads hf hl))⟩
+
+/-- Every successor of this partial raw step preserves the original result type. -/
+theorem preservation {d g e c c' a}
+    (hc : PaperComputationTyped d g e c a) (hs : step c = some c') :
+    PaperComputationTyped d g e c' a := by
+  have finish {redex : Computation}
+      (hr : ∃ result, step redex = some result ∧ PaperComputationTyped d g e result a)
+      (hstep : step redex = some c') : PaperComputationTyped d g e c' a := by
+    rcases hr with ⟨result, he, ht⟩
+    have heq : result = c' := Option.some.inj (he.symm.trans hstep)
+    exact heq ▸ ht
+  cases c with
+  | letE first body =>
+      cases first with
+      | ret value => exact finish (letRet_applicable hc) hs
+      | _ => simp [step] at hs
+  | force thunk =>
+      cases thunk with
+      | delay body => exact finish (force_applicable hc) hs
+      | _ => simp [step] at hs
+  | unionCase value lb left rb right =>
+      cases value with
+      | injectLeft value => exact finish (unionLeft_applicable hc) hs
+      | injectRight value => exact finish (unionRight_applicable hc) hs
+      | _ => simp [step] at hs
+  | unroll value =>
+      cases value with
+      | roll value => exact finish (unroll_applicable hc) hs
+      | _ => simp [step] at hs
+  | field recordValue label =>
+      cases recordValue with
+      | record fields => exact finish (field_applicable hc) hs
+      | _ => simp [step] at hs
+  | lookup recordValue label =>
+      cases recordValue with
+      | record fields => exact finish (lookup_applicable hc) hs
+      | _ => simp [step] at hs
+  | _ => simp [step] at hs
 
 end YulangClosure.PaperTypes.PaperCoreStep
