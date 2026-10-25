@@ -87,18 +87,18 @@
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Active receipt: source pins checked; designing fixed CallTerm and five-step witness; no Lean invocation yet."
+   "receipt": "P source frozen; sole serialized Lean invocation active."
   },
   {
    "id": "/root/view_force_stuck_prover",
    "role": "Q constructive prover: exhaustive no-successor theorem",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
    "requested_model": "Sol",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Active receipt: constructing exhaustive 28-constructor no-successor proof; waiting for P compile ticket."
+   "receipt": "Q source/handoff frozen; no Lean; writes stopped pending P completion and Luna ticket."
   }
  ],
  "leases": [
@@ -123,14 +123,14 @@
   {
    "path": "notes/theory/lean/YulangClosure/CallViewedForceStuck.lean",
    "owner": "/root/view_force_stuck_prover",
-   "state": "HELD",
-   "reason": "exact Q output lease; writer waits for activation"
+   "state": "FROZEN",
+   "reason": "Q candidate and handoff frozen; generated outputs await compile ticket"
   },
   {
    "path": "tasks/agent-loop/inbox/20261025-call-viewed-force-stuck.md",
    "owner": "/root/view_force_stuck_prover",
-   "state": "HELD",
-   "reason": "exact Q handoff lease; writer waits for activation"
+   "state": "FROZEN",
+   "reason": "Q candidate and handoff frozen; generated outputs await compile ticket"
   },
   {
    "path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1.md",
@@ -439,6 +439,6 @@
    "sha256": "8ad36a0dbcb99faf2a87164b4fcd87e21754f1c40583fee963bd95b267d8655c"
   }
  ],
- "resource_observation": "P/Q active; P owns first Lean ticket; three UNKNOWN reserved.",
+ "resource_observation": "P active on sole Lean ticket; Q frozen awaiting ticket; three UNKNOWN reserved.",
  "checker": "r2 output paths pinned; recheck dependencies before Lean."
 }
