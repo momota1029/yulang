@@ -4,17 +4,17 @@
  "phase": "ACTIVE",
  "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
  "active_sprint": {
-  "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r61",
+  "id": "YULANG3-HEAP-EXECUTION-BRIDGE-20261026/r62",
   "revision": "r1",
-  "status": "ACCEPTED_WITH_MINOR_LIMITATION",
-  "contract": "tasks/agent-loop/sprints/yulang3-execution-proof-reconciliation-r61.md",
-  "contract_sha256": "a5ad219e95459a9d103c58a9bf97ed0d225c7d69972c45787b6648af0198d881",
-  "baseline": "998de2a605b88a7c54db3177e21f86764016cffe",
+  "status": "AUTHORIZED_NOT_STARTED",
+  "contract": "tasks/agent-loop/sprints/yulang3-heap-execution-bridge-r62.md",
+  "contract_sha256": "9de3e01ef995fef5bc00448e7c90cfdcc0bbd5461894af8bc94f546996832f0b",
+  "baseline": "408c1c6a8276ca74f0760cb3d71dd11e704826c0",
   "branch": "yulang3",
-  "claim": "Independently reconcile external connected executor/elimination proof under explicit BodiesTyped premise; preserve R23 source-embedding gate and all broad parents OPEN.",
-  "outcome": "Bounded represented executor/elimination claims accepted after independent review, with minor incomplete environment provenance. R23, source/native and full-language gates remain OPEN.",
-  "budget": "1200s total: primary 900s/4 calls/240 checker seconds; fresh compiler_referee 300s/0 checker calls; no proof author or integration lane.",
-  "next_action": "R61 complete; dispatch next parent-critical packet."
+  "claim": "Connect finite allocated-heap operand observation to one actual R61 connected-executor Force/Delay transition; retain BodiesTyped and HeapPayloadTyped conditions and R23/source/native open.",
+  "outcome": "No proof worker or checker started. Fresh contract and current state must be committed before admission.",
+  "budget": "1800s total: lean_prover 900s/10 calls/150 checker; primary 720s/4 calls/150 checker; fresh compiler_referee 180s/0 calls.",
+  "next_action": "Commit contract/current, then launch one registered lean_prover with exact isolated leases."
  },
  "workers": [
   {
@@ -117,15 +117,26 @@
    "receipt": "R61 accepted with minor env-provenance limitation; outcome receipt committed."
   },
   {
-   "id": "/root/r61_execution_proof_review",
-   "role": "fresh non-author compiler_referee",
-   "state": "STOPPED",
-   "session": "collaboration-agent:/root/r61_execution_proof_review",
+   "id": "/root/r62_heap_execution_proof",
+   "role": "registered lean_prover",
+   "state": "NOT_STARTED",
+   "session": null,
    "requested_model": "registered role defaults",
    "requested_effort": "registered role defaults",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Stopped; one minor, no blocking/major. Frozen review SHA 24514b97e01284969123935ec3d5ec81498a0619cbecfaca8448051db36ed747; cessation reported."
+   "receipt": "Reserved proof packet, 900s/10 calls/150 checker seconds; no launch yet."
+  },
+  {
+   "id": "/root/r62_heap_execution_review",
+   "role": "fresh non-author compiler_referee",
+   "state": "NOT_STARTED",
+   "session": null,
+   "requested_model": "registered role defaults",
+   "requested_effort": "registered role defaults",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Reserved after primary freeze, 180s/0 checker calls."
   }
  ],
  "leases": [
@@ -135,79 +146,219 @@
    "state": "FROZEN"
   },
   {
-   "path": "tasks/agent-loop/sprints/yulang3-execution-proof-reconciliation-r61.md",
+   "path": "tasks/agent-loop/sprints/yulang3-heap-execution-bridge-r62.md",
    "owner": "/root",
-   "state": "FROZEN"
+   "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-primary.md",
+   "path": "tasks/agent-loop/inbox/paper-heap-execution-r62-primary.md",
    "owner": "/root",
-   "state": "FROZEN"
+   "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-review.md",
-   "owner": "/root/r61_execution_proof_review",
-   "state": "FROZEN"
+   "path": "tasks/agent-loop/inbox/paper-heap-execution-r62-review.md",
+   "owner": "/root/r62_heap_execution_review",
+   "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/sprints/yulang3-execution-proof-reconciliation-r61-outcome.md",
+   "path": "tasks/agent-loop/sprints/yulang3-heap-execution-bridge-r62-outcome.md",
    "owner": "/root",
-   "state": "FROZEN"
+   "state": "HELD"
   },
   {
-   "path": "R61-isolated/run_call.py",
-   "owner": "/root",
-   "state": "FROZEN"
+   "path": "R62-isolated/PaperHeapObservation.lean",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
   },
   {
-   "path": "R61-isolated/process-manifest.json",
-   "owner": "/root",
-   "state": "FROZEN"
+   "path": "R62-isolated/PaperHeapExecution.lean",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
   },
   {
-   "path": "R61-isolated/lake-build",
-   "owner": "/root",
-   "state": "FROZEN"
+   "path": "R62-isolated/R62Audit.lean",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
   },
   {
-   "path": "R61-isolated/call-01.stdout",
-   "owner": "/root",
-   "state": "FROZEN"
+   "path": "R62-isolated/run_call.py",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
   },
   {
-   "path": "R61-isolated/call-01.stderr",
-   "owner": "/root",
-   "state": "FROZEN"
+   "path": "R62-isolated/process-manifest.json",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
   },
   {
-   "path": "R61-isolated/call-02.stdout",
-   "owner": "/root",
-   "state": "FROZEN"
+   "path": "R62-isolated/proof-checks.txt",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
   },
   {
-   "path": "R61-isolated/call-02.stderr",
-   "owner": "/root",
-   "state": "FROZEN"
+   "path": "R62-isolated/lake-build",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
   },
   {
-   "path": "R61-isolated/call-03.stdout",
-   "owner": "/root",
-   "state": "FROZEN"
+   "path": "tasks/agent-loop/inbox/paper-heap-execution-r62.md",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
   },
   {
-   "path": "R61-isolated/call-03.stderr",
+   "path": "R62-primary/run_call.py",
    "owner": "/root",
-   "state": "FROZEN"
+   "state": "HELD"
   },
   {
-   "path": "R61-isolated/call-04.stdout",
+   "path": "R62-primary/process-manifest.json",
    "owner": "/root",
-   "state": "FROZEN"
+   "state": "HELD"
   },
   {
-   "path": "R61-isolated/call-04.stderr",
+   "path": "R62-primary/lake-build",
    "owner": "/root",
-   "state": "FROZEN"
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-01.stdout",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-01.stderr",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-02.stdout",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-02.stderr",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-03.stdout",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-03.stderr",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-04.stdout",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-04.stderr",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-05.stdout",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-05.stderr",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-06.stdout",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-06.stderr",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-07.stdout",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-07.stderr",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-08.stdout",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-08.stderr",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-09.stdout",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-09.stderr",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-10.stdout",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-isolated/call-10.stderr",
+   "owner": "/root/r62_heap_execution_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-primary/call-01.stdout",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-primary/call-01.stderr",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-primary/call-02.stdout",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-primary/call-02.stderr",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-primary/call-03.stdout",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-primary/call-03.stderr",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-primary/call-04.stdout",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "R62-primary/call-04.stderr",
+   "owner": "/root",
+   "state": "HELD"
   }
  ],
  "pending": [
@@ -379,8 +530,8 @@
    "details": "Bounded proof accepted; full-paper/native bridge open; pending-cell republication blocks naive relation."
   }
  ],
- "closure": "R61 accepted only conditional represented claims, with minor environment provenance gap. R23/full-language/source-native/production OPEN; R59 FAILED.",
- "next_action": "R61 accepted with limitation; consult dispatcher for next parent-critical packet.",
+ "closure": "R61 accepted conditional represented executor/elimination claim with minor environment provenance limitation. R62 starts fresh; R23, guard, source/native, full-language inference/executor and production remain OPEN; R59 candidate remains distinct.",
+ "next_action": "Commit R62 frozen contract/current/history before launching the proof lane.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "8 UNKNOWN reservations remain quarantined.",
@@ -409,82 +560,12 @@
  "user_goal": "Complete Lean proofs of Yulang inference/executor semantics; Lean primary, Rust secondary; preserve original claims.",
  "history": [
   {
-   "id": "PAPER-RESOLVED-HISTORY-R39-R50-20261026/r1",
-   "record": "tasks/agent-loop/history/20261026-r39-r50-resolved-history.json",
-   "sha256": "662d2b7bc6140206c7ae9d9a4a5413bbd4fc9a68421745c97cd29beb03c67c36"
-  },
-  {
-   "id": "PAPER-RESOLVED-HISTORY-R50-R54-20261026/r1",
-   "record": "tasks/agent-loop/history/20261026-r50-r54-resolved-history.json",
-   "sha256": "70491ac97c54176fab804ae22d557544a1057350e449917d08a8cea7baa995a4"
-  },
-  {
-   "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r58-contract-r1",
-   "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r58.md",
-   "sha256": "711db469a7464a9db8ea6cc55d3342b922563b4e7a39ce5a3012dbf69d7eb896"
-  },
-  {
-   "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r58-primary-handoff",
-   "record": "tasks/agent-loop/inbox/paper-type-beta-r58-yulang3-primary.md",
-   "sha256": "8534f0fdc5cb2a459bb999cec7ae9a089c3b841722b23353bcd78601fce39683"
-  },
-  {
-   "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r58-primary-outcome",
-   "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r58-outcome.md",
-   "sha256": "5c693fedf8e98a471bdf5f6712e49ca0146a0f97957acfb946732fc54dc5f60c"
-  },
-  {
-   "id": "PAPER-RESOLVED-HISTORY-R55-R57-20261026/r1",
-   "record": "tasks/agent-loop/history/20261026-r55-r57-resolved-history.json",
-   "sha256": "c40886718413a6fad3af59bd9c1d385c7afbb19415d943a199f4918dfaa3b7d7"
-  },
-  {
-   "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r58-review",
-   "record": "tasks/agent-loop/inbox/paper-type-beta-r58-review.md",
-   "sha256": "059cb2de4cdc8c1e746628f485f445671a927c13f82cef8bbf8defb6c0bbe39c"
-  },
-  {
-   "id": "EXTERNAL-YULANG3-EXECUTION-PROOFS-20261026/commit-31b1473",
-   "record": "notes/progress/2026-10-26-yulang3-execution-proofs.md",
-   "sha256": "83f909b1e026604b8c3dd6b098869f6a1b66f1f50d58e1f853c45da3d2ea0c4c"
-  },
-  {
-   "id": "PAPER-HEAP-OBSERVATION-20261026/r59-final-capture-failure",
-   "record": "tasks/agent-loop/inbox/paper-heap-observation-r59-primary.md",
-   "sha256": "e1a3978562e02440bcb5cd82642c2cc2bc45f5fac4bc615899f347163f9c0ec9"
-  },
-  {
-   "id": "PAPER-HEAP-OBSERVATION-r59-proof-freeze",
-   "record": "tasks/agent-loop/inbox/paper-heap-observation-r59.md",
-   "sha256": "a115016535753182240188232262e8f19613fbf6e8784137048bd5f632e8f9bf"
-  },
-  {
-   "id": "PAPER-HEAP-OBSERVATION-r59-source-freeze",
-   "record": "tasks/agent-loop/inbox/paper-heap-observation-r59-source.md",
-   "sha256": "b7976c6ae7a8a276b4a59e479b71bc0bdec20696a974dff367492e02541ac5f6"
-  },
-  {
-   "id": "PAPER-HEAP-OBSERVATION-r59-check-capture",
-   "record": "tasks/agent-loop/inbox/paper-heap-observation-r59-worker-checks.txt",
-   "sha256": "b3847d011403975667bf2cbddb897c0934bf71912627d9200c035e51f946982a"
-  },
-  {
-   "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r60-invocation-failure",
-   "record": "tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r60-primary.md",
-   "sha256": "5174425304aecb9cc6f8b30920944a6bde81b377e7a7dd28da68ef1e8818a668"
-  },
-  {
-   "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r61-review",
-   "record": "tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-review.md",
-   "sha256": "24514b97e01284969123935ec3d5ec81498a0619cbecfaca8448051db36ed747"
-  },
-  {
-   "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r61-outcome",
-   "record": "tasks/agent-loop/sprints/yulang3-execution-proof-reconciliation-r61-outcome.md",
-   "sha256": "29f7b0fd7fbbfe17fc3a0e0bcb5e00a7e4801c7961427d38fcc4a9b5314181e8"
+   "id": "YULANG3-RESOLVED-HISTORY-20261026/R39-R61",
+   "record": "tasks/agent-loop/history/20261026-r39-r61-resolved-history.json",
+   "sha256": "44a546c209a7050a7059dfcf0574d817b73076ad55043730de7a29fd6ca0668a"
   }
  ],
- "resource_observation": "R59 capture FAILED; R60 invalid Lake option. R61 primary 4/4 exit0, 62.167 checker seconds. Reviewer 0 checker; 300s conservatively charged, stopped. Eight legacy identities quarantined.",
+ "resource_observation": "R61 complete; minor environment provenance limitation accepted and archived. R62 not yet started; no worker or checker calls.",
  "native_bridge": {
   "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
   "state": "OPEN; NAIVE_RELATION_BLOCKED",

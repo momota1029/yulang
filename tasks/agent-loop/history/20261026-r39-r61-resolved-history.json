@@ -1,0 +1,81 @@
+{
+ "schema_version": 1,
+ "id": "YULANG3-RESOLVED-HISTORY-20261026/R39-R61",
+ "records": [
+  {
+   "id": "PAPER-RESOLVED-HISTORY-R39-R50-20261026/r1",
+   "record": "tasks/agent-loop/history/20261026-r39-r50-resolved-history.json",
+   "sha256": "662d2b7bc6140206c7ae9d9a4a5413bbd4fc9a68421745c97cd29beb03c67c36"
+  },
+  {
+   "id": "PAPER-RESOLVED-HISTORY-R50-R54-20261026/r1",
+   "record": "tasks/agent-loop/history/20261026-r50-r54-resolved-history.json",
+   "sha256": "70491ac97c54176fab804ae22d557544a1057350e449917d08a8cea7baa995a4"
+  },
+  {
+   "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r58-contract-r1",
+   "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r58.md",
+   "sha256": "711db469a7464a9db8ea6cc55d3342b922563b4e7a39ce5a3012dbf69d7eb896"
+  },
+  {
+   "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r58-primary-handoff",
+   "record": "tasks/agent-loop/inbox/paper-type-beta-r58-yulang3-primary.md",
+   "sha256": "8534f0fdc5cb2a459bb999cec7ae9a089c3b841722b23353bcd78601fce39683"
+  },
+  {
+   "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r58-primary-outcome",
+   "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r58-outcome.md",
+   "sha256": "5c693fedf8e98a471bdf5f6712e49ca0146a0f97957acfb946732fc54dc5f60c"
+  },
+  {
+   "id": "PAPER-RESOLVED-HISTORY-R55-R57-20261026/r1",
+   "record": "tasks/agent-loop/history/20261026-r55-r57-resolved-history.json",
+   "sha256": "c40886718413a6fad3af59bd9c1d385c7afbb19415d943a199f4918dfaa3b7d7"
+  },
+  {
+   "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r58-review",
+   "record": "tasks/agent-loop/inbox/paper-type-beta-r58-review.md",
+   "sha256": "059cb2de4cdc8c1e746628f485f445671a927c13f82cef8bbf8defb6c0bbe39c"
+  },
+  {
+   "id": "EXTERNAL-YULANG3-EXECUTION-PROOFS-20261026/commit-31b1473",
+   "record": "notes/progress/2026-10-26-yulang3-execution-proofs.md",
+   "sha256": "83f909b1e026604b8c3dd6b098869f6a1b66f1f50d58e1f853c45da3d2ea0c4c"
+  },
+  {
+   "id": "PAPER-HEAP-OBSERVATION-20261026/r59-final-capture-failure",
+   "record": "tasks/agent-loop/inbox/paper-heap-observation-r59-primary.md",
+   "sha256": "e1a3978562e02440bcb5cd82642c2cc2bc45f5fac4bc615899f347163f9c0ec9"
+  },
+  {
+   "id": "PAPER-HEAP-OBSERVATION-r59-proof-freeze",
+   "record": "tasks/agent-loop/inbox/paper-heap-observation-r59.md",
+   "sha256": "a115016535753182240188232262e8f19613fbf6e8784137048bd5f632e8f9bf"
+  },
+  {
+   "id": "PAPER-HEAP-OBSERVATION-r59-source-freeze",
+   "record": "tasks/agent-loop/inbox/paper-heap-observation-r59-source.md",
+   "sha256": "b7976c6ae7a8a276b4a59e479b71bc0bdec20696a974dff367492e02541ac5f6"
+  },
+  {
+   "id": "PAPER-HEAP-OBSERVATION-r59-check-capture",
+   "record": "tasks/agent-loop/inbox/paper-heap-observation-r59-worker-checks.txt",
+   "sha256": "b3847d011403975667bf2cbddb897c0934bf71912627d9200c035e51f946982a"
+  },
+  {
+   "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r60-invocation-failure",
+   "record": "tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r60-primary.md",
+   "sha256": "5174425304aecb9cc6f8b30920944a6bde81b377e7a7dd28da68ef1e8818a668"
+  },
+  {
+   "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r61-review",
+   "record": "tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-review.md",
+   "sha256": "24514b97e01284969123935ec3d5ec81498a0619cbecfaca8448051db36ed747"
+  },
+  {
+   "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r61-outcome",
+   "record": "tasks/agent-loop/sprints/yulang3-execution-proof-reconciliation-r61-outcome.md",
+   "sha256": "29f7b0fd7fbbfe17fc3a0e0bcb5e00a7e4801c7961427d38fcc4a9b5314181e8"
+  }
+ ]
+}
