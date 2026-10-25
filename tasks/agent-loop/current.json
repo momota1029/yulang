@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-UNWIND-20261025",
     "revision": "r2",
-    "status": "REVIEW_CLEAN_PENDING_INTEGRATION",
+    "status": "ACCEPTED_CLEAN",
     "contract": "tasks/agent-loop/sprints/call-unwind-20261025-r2.md",
     "contract_sha256": "4847f89672c8821df47d9ed2e1162b150b3b578b4aec8304e6d2331389c27c01",
     "baseline": "33cd9e0a5",
@@ -25,12 +25,12 @@
       "lean_invocation_cap": 2
     },
     "outcome": "tasks/agent-loop/sprints/call-unwind-20261025-r2-outcome.md",
-    "closure": "r1 FAILED_VERIFICATION / UNACCEPTED; P/Q compile only; review pending.",
-    "review": "CLEAN; nonauthor reviewer STOPPED. Review message received; primary will write leased report after transfer.",
-    "checker": "62 pins match; source 1eaea193; six paths absent.",
+    "closure": "Bounded formal Call request/failure unwind plus initial-prefix typing ACCEPTED/CLEAN; global/source/A-B gates OPEN.",
+    "review": "CLEAN; fresh nonauthor combined review; report SHA e3391a49968f668eb106daccaa47979d4165a313525d0d1f2827784c012ee079.",
+    "checker": "62 pins match; two serial invocations exit 0; exact query axioms match; fresh review CLEAN.",
     "acceptance": "Exact two corollaries compile; complete receipts; exact signatures/axioms; fresh combined CLEAN review.",
     "author": "Luna owns new composition, verification, adjudication and Git; no P/Q restart.",
-    "next_action": "Record full CLEAN review and revalidate pins/streams; then adjudicate and integrate exact reviewed paths.",
+    "next_action": "Consult dispatcher at r2 closure for the next exact open proof proposition.",
     "non_goal": "No reachability, source/native, cleanup correctness, A/B, inference, or production claim."
   },
   "workers": [
@@ -76,7 +76,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "r2 composition source frozen/committed at 406b08b24; 62-pin check passed; two serial invocations authorized."
+      "receipt": "R2 proof and review complete; integrating exact frozen artifacts; parent gates remain open."
     },
     {
       "id": "/root/call_step_typing_author",
@@ -194,50 +194,50 @@
     {
       "path": "notes/theory/lean/YulangClosure/CallUnwindTypingRepair.lean",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "r2 primary lease"
+      "state": "FROZEN",
+      "reason": "accepted r2 evidence; bytes frozen"
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-unwind-r2-verification.jsonl",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "r2 primary lease"
+      "state": "FROZEN",
+      "reason": "accepted r2 evidence; bytes frozen"
     },
     {
       "path": "notes/theory/lean/.lake/call-unwind-r2-check.lean",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "r2 primary lease"
+      "state": "FROZEN",
+      "reason": "accepted r2 evidence; bytes frozen"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallUnwindTypingRepair.olean",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "r2 primary lease"
+      "state": "FROZEN",
+      "reason": "accepted r2 evidence; bytes frozen"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallUnwindTypingRepair.ilean",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "r2 primary lease"
+      "state": "FROZEN",
+      "reason": "accepted r2 evidence; bytes frozen"
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-unwind-r2-review.md",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "primary transcribes stopped reviewer receipt"
+      "state": "FROZEN",
+      "reason": "accepted r2 evidence; bytes frozen"
     },
     {
       "path": "tasks/agent-loop/sprints/call-unwind-20261025-r2-outcome.md",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "r2 primary lease"
+      "state": "FROZEN",
+      "reason": "accepted r2 evidence; bytes frozen"
     },
     {
       "path": "tasks/agent-loop/sprints/call-unwind-20261025-r2.md",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "r2 primary lease"
+      "reason": "accepted r2 evidence; bytes frozen"
     }
   ],
   "pending": [
@@ -380,8 +380,8 @@
       "details": "R3 review blocking; R4 Flow/source projection next."
     }
   ],
-  "closure": "r1 failed; r2 frozen. Parent A/B and adequacy OPEN.",
-  "next_action": "r2 preflight passed; activate Luna composition after checkpoint.",
+  "closure": "Finite Call typing and bounded Call unwind typing ACCEPTED/CLEAN; parent A/B and source/native OPEN.",
+  "next_action": "Consult dispatcher for next exact proof proposition; r9 and parent gates remain OPEN.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -491,6 +491,11 @@
       "record": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
       "sha256": "331aab9fffd7f17fe7cbfdae98d723111a7a331b92cb672a7012a664557ef405",
       "commit": "33cd9e0a5"
+    },
+    {
+      "id": "LEAN-CALL-UNWIND-20261025/r2",
+      "record": "tasks/agent-loop/sprints/call-unwind-20261025-r2-outcome.md",
+      "sha256": "8ad36a0dbcb99faf2a87164b4fcd87e21754f1c40583fee963bd95b267d8655c"
     }
   ],
   "resource_observation": "Finite Call sprint cap 2460s; P/Q STOPPED; 4/4 Lean used.",
