@@ -283,6 +283,10 @@ theorem PaperValueTyped.subst_explicit (σ : Nat → Ty) {declarations : Declara
         have ihFunction := ihFunction σ
         have ihThunk := ihThunk σ
         simpa [mapPaperComputation] using PaperComputationTyped.call ihFunction ihThunk)
+    (by intro declarations graphTypes environment value leftBinder left rightBinder right
+          leftType rightType resultType hvalue hleft hright ihValue ihLeft ihRight σ
+        simpa only [mapPaperComputation, mapTypeEnvironment, List.map_cons] using
+          PaperComputationTyped.unionCase (ihValue σ) (ihLeft σ) (ihRight σ))
     (by intro declarations graphTypes environment value recordType label fieldType hvalue hfield ihValue σ
         have ihValue := ihValue σ
         simpa [mapPaperComputation] using
@@ -462,6 +466,47 @@ theorem PaperContinuationTyped.typeTransport (σ : Nat → Ty)
       simpa only [mapTypeEnvironment, List.map_cons] using
         PaperComputationTyped.typeTransport σ body
 
+
+/-- Inversion retains the exact overall result type in both branch premises. -/
+theorem PaperComputationTyped.unionCaseInversion
+    {declarations : DeclarationTable} {graphTypes : GraphEnvironment}
+    {environment : TypeEnvironment} {value : Value}
+    {leftBinder rightBinder : TermName} {left right : Computation} {resultType : Ty}
+    (derivation : PaperComputationTyped declarations graphTypes environment
+      (.unionCase value leftBinder left rightBinder right) resultType) :
+    ∃ leftType rightType,
+      PaperValueTyped declarations graphTypes environment value (.union leftType rightType) ∧
+      PaperComputationTyped declarations graphTypes (leftType :: environment) left resultType ∧
+      PaperComputationTyped declarations graphTypes (rightType :: environment) right resultType := by
+  cases derivation with
+  | unionCase valueTyping leftTyping rightTyping =>
+      exact ⟨_, _, valueTyping, leftTyping, rightTyping⟩
+
+/-- Left injection composes with union typing; both branch premises remain. -/
+theorem PaperComputationTyped.unionCaseInjectLeft
+    {declarations : DeclarationTable} {graphTypes : GraphEnvironment}
+    {environment : TypeEnvironment} {value : Value}
+    {leftBinder rightBinder : TermName} {left right : Computation}
+    {leftType rightType resultType : Ty}
+    (valueTyping : PaperValueTyped declarations graphTypes environment value leftType)
+    (leftTyping : PaperComputationTyped declarations graphTypes (leftType :: environment) left resultType)
+    (rightTyping : PaperComputationTyped declarations graphTypes (rightType :: environment) right resultType) :
+    PaperComputationTyped declarations graphTypes environment
+      (.unionCase (.injectLeft value) leftBinder left rightBinder right) resultType := by
+  exact .unionCase (.injectLeft valueTyping) leftTyping rightTyping
+
+/-- Right injection composes with union typing; both branch premises remain. -/
+theorem PaperComputationTyped.unionCaseInjectRight
+    {declarations : DeclarationTable} {graphTypes : GraphEnvironment}
+    {environment : TypeEnvironment} {value : Value}
+    {leftBinder rightBinder : TermName} {left right : Computation}
+    {leftType rightType resultType : Ty}
+    (valueTyping : PaperValueTyped declarations graphTypes environment value rightType)
+    (leftTyping : PaperComputationTyped declarations graphTypes (leftType :: environment) left resultType)
+    (rightTyping : PaperComputationTyped declarations graphTypes (rightType :: environment) right resultType) :
+    PaperComputationTyped declarations graphTypes environment
+      (.unionCase (.injectRight value) leftBinder left rightBinder right) resultType := by
+  exact .unionCase (.injectRight valueTyping) leftTyping rightTyping
 
 /-- Invert actual raw wrap typing, recovering every endpoint and body premise. -/
 theorem PaperValueTyped.wrapInversion

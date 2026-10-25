@@ -1,0 +1,131 @@
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperValueTyped.subst_explicit
+YulangClosure.PaperTypes.PaperValueTyped.subst_explicit : ∀ (σ : Nat → YulangClosure.PaperTypes.Ty)
+  {declarations : YulangClosure.PaperTypes.DeclarationTable} {graphTypes : YulangClosure.PaperTypes.GraphEnvironment}
+  {environment : YulangClosure.PaperTypes.TypeEnvironment} {value : YulangClosure.PaperTypes.Value}
+  {ty : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperValueTyped declarations graphTypes environment value ty →
+    YulangClosure.PaperTypes.PaperValueTyped (YulangClosure.PaperTypes.mapDeclarationTable σ declarations)
+      (YulangClosure.PaperTypes.mapGraphEnvironment σ graphTypes)
+      (YulangClosure.PaperTypes.mapTypeEnvironment σ environment) (YulangClosure.PaperTypes.mapPaperValue σ value)
+      (YulangClosure.PaperTypes.subst σ ty)
+'YulangClosure.PaperTypes.PaperValueTyped.subst_explicit' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperValueTyped.subst_explicit
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.ValuesTyped.typeTransport
+YulangClosure.PaperTypes.ValuesTyped.typeTransport : ∀ (σ : Nat → YulangClosure.PaperTypes.Ty)
+  {declarations : YulangClosure.PaperTypes.DeclarationTable} {graphTypes : YulangClosure.PaperTypes.GraphEnvironment}
+  {environment : YulangClosure.PaperTypes.TypeEnvironment} {values : List YulangClosure.PaperTypes.Value}
+  {types : List YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.ValuesTyped declarations graphTypes environment values types →
+    YulangClosure.PaperTypes.ValuesTyped (YulangClosure.PaperTypes.mapDeclarationTable σ declarations)
+      (YulangClosure.PaperTypes.mapGraphEnvironment σ graphTypes)
+      (YulangClosure.PaperTypes.mapTypeEnvironment σ environment)
+      (List.map (YulangClosure.PaperTypes.mapPaperValue σ) values) (List.map (YulangClosure.PaperTypes.subst σ) types)
+'YulangClosure.PaperTypes.ValuesTyped.typeTransport' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.ValuesTyped.typeTransport
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.ValuesAllTyped.typeTransport
+YulangClosure.PaperTypes.ValuesAllTyped.typeTransport : ∀ (σ : Nat → YulangClosure.PaperTypes.Ty)
+  {declarations : YulangClosure.PaperTypes.DeclarationTable} {graphTypes : YulangClosure.PaperTypes.GraphEnvironment}
+  {environment : YulangClosure.PaperTypes.TypeEnvironment} {values : List YulangClosure.PaperTypes.Value}
+  {ty : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.ValuesAllTyped declarations graphTypes environment values ty →
+    YulangClosure.PaperTypes.ValuesAllTyped (YulangClosure.PaperTypes.mapDeclarationTable σ declarations)
+      (YulangClosure.PaperTypes.mapGraphEnvironment σ graphTypes)
+      (YulangClosure.PaperTypes.mapTypeEnvironment σ environment)
+      (List.map (YulangClosure.PaperTypes.mapPaperValue σ) values) (YulangClosure.PaperTypes.subst σ ty)
+'YulangClosure.PaperTypes.ValuesAllTyped.typeTransport' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.ValuesAllTyped.typeTransport
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.RecordPayloadsTyped.typeTransport
+YulangClosure.PaperTypes.RecordPayloadsTyped.typeTransport : ∀ (σ : Nat → YulangClosure.PaperTypes.Ty)
+  {declarations : YulangClosure.PaperTypes.DeclarationTable} {graphTypes : YulangClosure.PaperTypes.GraphEnvironment}
+  {environment : YulangClosure.PaperTypes.TypeEnvironment}
+  {fields : List (YulangClosure.PaperTypes.Label × YulangClosure.PaperTypes.Presence × YulangClosure.PaperTypes.Value)}
+  {recordType : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.RecordPayloadsTyped declarations graphTypes environment fields recordType →
+    YulangClosure.PaperTypes.RecordPayloadsTyped (YulangClosure.PaperTypes.mapDeclarationTable σ declarations)
+      (YulangClosure.PaperTypes.mapGraphEnvironment σ graphTypes)
+      (YulangClosure.PaperTypes.mapTypeEnvironment σ environment) (YulangClosure.PaperTypes.mapRecordFields σ fields)
+      (YulangClosure.PaperTypes.subst σ recordType)
+'YulangClosure.PaperTypes.RecordPayloadsTyped.typeTransport' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.RecordPayloadsTyped.typeTransport
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperComputationTyped.typeTransport
+YulangClosure.PaperTypes.PaperComputationTyped.typeTransport : ∀ (σ : Nat → YulangClosure.PaperTypes.Ty)
+  {declarations : YulangClosure.PaperTypes.DeclarationTable} {graphTypes : YulangClosure.PaperTypes.GraphEnvironment}
+  {environment : YulangClosure.PaperTypes.TypeEnvironment} {computation : YulangClosure.PaperTypes.Computation}
+  {ty : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped declarations graphTypes environment computation ty →
+    YulangClosure.PaperTypes.PaperComputationTyped (YulangClosure.PaperTypes.mapDeclarationTable σ declarations)
+      (YulangClosure.PaperTypes.mapGraphEnvironment σ graphTypes)
+      (YulangClosure.PaperTypes.mapTypeEnvironment σ environment)
+      (YulangClosure.PaperTypes.mapPaperComputation σ computation) (YulangClosure.PaperTypes.subst σ ty)
+'YulangClosure.PaperTypes.PaperComputationTyped.typeTransport' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperComputationTyped.typeTransport
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperContinuationTyped.typeTransport
+YulangClosure.PaperTypes.PaperContinuationTyped.typeTransport : ∀ (σ : Nat → YulangClosure.PaperTypes.Ty)
+  {declarations : YulangClosure.PaperTypes.DeclarationTable} {graphTypes : YulangClosure.PaperTypes.GraphEnvironment}
+  {environment : YulangClosure.PaperTypes.TypeEnvironment} {continuation : YulangClosure.PaperTypes.Value}
+  {response result : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperContinuationTyped declarations graphTypes environment continuation response result →
+    YulangClosure.PaperTypes.PaperContinuationTyped (YulangClosure.PaperTypes.mapDeclarationTable σ declarations)
+      (YulangClosure.PaperTypes.mapGraphEnvironment σ graphTypes)
+      (YulangClosure.PaperTypes.mapTypeEnvironment σ environment)
+      (YulangClosure.PaperTypes.mapPaperValue σ continuation) (YulangClosure.PaperTypes.subst σ response)
+      (YulangClosure.PaperTypes.subst σ result)
+'YulangClosure.PaperTypes.PaperContinuationTyped.typeTransport' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperContinuationTyped.typeTransport
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperComputationTyped.unionCaseInversion
+@YulangClosure.PaperTypes.PaperComputationTyped.unionCaseInversion : ∀
+  {declarations : YulangClosure.PaperTypes.DeclarationTable} {graphTypes : YulangClosure.PaperTypes.GraphEnvironment}
+  {environment : YulangClosure.PaperTypes.TypeEnvironment} {value : YulangClosure.PaperTypes.Value}
+  {leftBinder rightBinder : YulangClosure.PaperTypes.TermName} {left right : YulangClosure.PaperTypes.Computation}
+  {resultType : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped declarations graphTypes environment
+      (YulangClosure.PaperTypes.Computation.unionCase value leftBinder left rightBinder right) resultType →
+    ∃ leftType rightType,
+      YulangClosure.PaperTypes.PaperValueTyped declarations graphTypes environment value (leftType.union rightType) ∧
+        YulangClosure.PaperTypes.PaperComputationTyped declarations graphTypes (leftType :: environment) left
+            resultType ∧
+          YulangClosure.PaperTypes.PaperComputationTyped declarations graphTypes (rightType :: environment) right
+            resultType
+'YulangClosure.PaperTypes.PaperComputationTyped.unionCaseInversion' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperComputationTyped.unionCaseInversion
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperComputationTyped.unionCaseInjectLeft
+@YulangClosure.PaperTypes.PaperComputationTyped.unionCaseInjectLeft : ∀
+  {declarations : YulangClosure.PaperTypes.DeclarationTable} {graphTypes : YulangClosure.PaperTypes.GraphEnvironment}
+  {environment : YulangClosure.PaperTypes.TypeEnvironment} {value : YulangClosure.PaperTypes.Value}
+  {leftBinder rightBinder : YulangClosure.PaperTypes.TermName} {left right : YulangClosure.PaperTypes.Computation}
+  {leftType rightType resultType : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperValueTyped declarations graphTypes environment value leftType →
+    YulangClosure.PaperTypes.PaperComputationTyped declarations graphTypes (leftType :: environment) left resultType →
+      YulangClosure.PaperTypes.PaperComputationTyped declarations graphTypes (rightType :: environment) right
+          resultType →
+        YulangClosure.PaperTypes.PaperComputationTyped declarations graphTypes environment
+          (YulangClosure.PaperTypes.Computation.unionCase value.injectLeft leftBinder left rightBinder right) resultType
+'YulangClosure.PaperTypes.PaperComputationTyped.unionCaseInjectLeft' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperComputationTyped.unionCaseInjectLeft
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperComputationTyped.unionCaseInjectRight
+@YulangClosure.PaperTypes.PaperComputationTyped.unionCaseInjectRight : ∀
+  {declarations : YulangClosure.PaperTypes.DeclarationTable} {graphTypes : YulangClosure.PaperTypes.GraphEnvironment}
+  {environment : YulangClosure.PaperTypes.TypeEnvironment} {value : YulangClosure.PaperTypes.Value}
+  {leftBinder rightBinder : YulangClosure.PaperTypes.TermName} {left right : YulangClosure.PaperTypes.Computation}
+  {leftType rightType resultType : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperValueTyped declarations graphTypes environment value rightType →
+    YulangClosure.PaperTypes.PaperComputationTyped declarations graphTypes (leftType :: environment) left resultType →
+      YulangClosure.PaperTypes.PaperComputationTyped declarations graphTypes (rightType :: environment) right
+          resultType →
+        YulangClosure.PaperTypes.PaperComputationTyped declarations graphTypes environment
+          (YulangClosure.PaperTypes.Computation.unionCase value.injectRight leftBinder left rightBinder right)
+          resultType
+'YulangClosure.PaperTypes.PaperComputationTyped.unionCaseInjectRight' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperComputationTyped.unionCaseInjectRight
+@YulangClosure.PaperTypes.PaperComputationTyped.unionCase : ∀ {declarations : YulangClosure.PaperTypes.DeclarationTable}
+  {graphTypes : YulangClosure.PaperTypes.GraphEnvironment} {environment : YulangClosure.PaperTypes.TypeEnvironment}
+  {value : YulangClosure.PaperTypes.Value} {leftBinder : YulangClosure.PaperTypes.TermName}
+  {left : YulangClosure.PaperTypes.Computation} {rightBinder : YulangClosure.PaperTypes.TermName}
+  {right : YulangClosure.PaperTypes.Computation} {leftType rightType resultType : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperValueTyped declarations graphTypes environment value (leftType.union rightType) →
+    YulangClosure.PaperTypes.PaperComputationTyped declarations graphTypes (leftType :: environment) left resultType →
+      YulangClosure.PaperTypes.PaperComputationTyped declarations graphTypes (rightType :: environment) right
+          resultType →
+        YulangClosure.PaperTypes.PaperComputationTyped declarations graphTypes environment
+          (YulangClosure.PaperTypes.Computation.unionCase value leftBinder left rightBinder right) resultType
+'YulangClosure.PaperTypes.PaperComputationTyped.unionCase' does not depend on any axioms

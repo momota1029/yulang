@@ -744,6 +744,13 @@ mutual
           (.callable argumentType resultType) →
         PaperValueTyped declarations graphTypes environment thunk (.thunk argumentType) →
         PaperComputationTyped declarations graphTypes environment (.call function thunk) resultType
+    /-- Union elimination gives both branches the same result and shared tail. -/
+    | unionCase {value leftBinder left rightBinder right leftType rightType resultType} :
+        PaperValueTyped declarations graphTypes environment value (.union leftType rightType) →
+        PaperComputationTyped declarations graphTypes (leftType :: environment) left resultType →
+        PaperComputationTyped declarations graphTypes (rightType :: environment) right resultType →
+        PaperComputationTyped declarations graphTypes environment
+          (.unionCase value leftBinder left rightBinder right) resultType
     | field {value recordType label fieldType} :
         PaperValueTyped declarations graphTypes environment value recordType →
         RecordField recordType label .required fieldType →
