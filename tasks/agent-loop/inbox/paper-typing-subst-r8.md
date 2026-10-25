@@ -1,51 +1,76 @@
-# FULL-PAPER-TYPE-SUBSTITUTION-20261025/r8 — active checkpoint
+# FULL-PAPER-TYPE-SUBSTITUTION-20261025/r8 — frozen integration failure
 
-Status: `ACTIVE_PRIMARY_CONSTRUCTION`, no theorem transport accepted yet.
+Outcome: `FAILED_CHECK_PRIMARY_BOUNDARY` for the R8 integrated module. One
+standalone value-typing transport candidate is checked in the R8 scratch file;
+the full requested record/paper-typing substitution slice is NOT complete.
 Baseline: `492f48e12cbccec3b4f5d5e10b9c6a334c6bcd51` on
 `research/simple-sub-intrusion`. Contract SHA-256
 `65834569d8bdf44215a2de7201e70de3e9542063d0b7c3c18d45245144627b14`.
-R7 remains frozen `FAILED_CHECK`; its receipt is preserved at
+R7 remains frozen `FAILED_CHECK` in
 `tasks/agent-loop/inbox/paper-typing-subst-r7.md`.
 
-## R8 work and current evidence
+## Checked standalone artifact
 
-R8 keeps `PaperExecutionSyntax.lean` read-only. It uses the exact five-motive
-recursor `RecordPayloadsTyped.rec` and writes scratch only to
-`notes/theory/lean/.lake/R8IndexProbe.lean` plus the leased typing proof file.
+`notes/theory/lean/.lake/R8TransportProbe.lean` SHA-256
+`71e31e9a94f55b735adddde3e10c3e14dd147f407ad4f2682e3ff29cae8e21ca` was
+compiled successfully with Lean 4.35.0 via `lake env lean`. It contains a
+standalone `PaperValueTyped.subst_explicit` theorem proved by applying
+`PaperValueTyped.rec` with all five motives explicitly set to the σ-transformed
+target relations. Its handlers use the eliminator's IHs. This covers all value
+constructors, including record values, and recursively carries the Values,
+RecordPayloads and Computation motives. It also checks
+`mapPaperValue_record_eq` by lifting the concrete `List.attach_map_val` instance
+through `Value.record`.
 
-A first probe attempt used `aesop`, which is unavailable in this project import
-context; it produced no index evidence. A second `induction ... using` attempt
-left the sibling motives unresolved, showing that the recursor's motives must be
-supplied explicitly. Both attempts were discarded as failed scratch proofs and
-are not results.
+Complete printed axiom audits from that successful invocation:
 
-The third invocation printed the full `RecordPayloadsTyped.rec` type. Its five
-motives quantify the environment and relevant syntax/result indices; the cons
-handler receives separate payload and value induction hypotheses. The fourth
-invocation successfully checked `payload_identity_transport` by applying that
-recursor with all five motives explicitly set to their identity relations and
-supplying all constructor handlers. `#print axioms payload_identity_transport`
-reported no axioms. This establishes an indexed identity eliminator probe only;
-it is not a σ-substitution result and does not prove the prior kernel mismatch
-has been repaired for the mapped target.
+- `mapPaperValue_record_eq`: `[propext, Quot.sound]`
+- `PaperValueTyped.subst_explicit`: `[propext, Quot.sound]`
 
-The current scratch file is a successful axiom-free identity probe. No
-`PaperExecutionTypingSubstitution.lean` theorem was changed during R8, and no
-focused typing-substitution build or substitution axiom audit has yet run.
-The paper's original substitution theorem, source/native record bridge, and all
-downstream safety/inference/executor/A-B gates remain OPEN.
+No `sorryAx`, `_f`, or project axiom appeared in these two scratch declarations.
+This is a checked value-judgment slice, not a successful focused module build,
+not five separately exported transport theorems, and not the original full
+paper substitution theorem.
+
+## Failed integration attempt
+
+The R8 primary integration attempt copied the explicit value theorem into
+`PaperExecutionTypingSubstitution.lean` and tried to add a standalone
+computation theorem. The focused Lake build failed. `PaperExecutionSyntax`
+built; the typing module did not:
+
+1. Defining `PaperValueTyped.subst` caused unqualified `subst` references in
+   its own motive arguments and lookup proofs to resolve to the new theorem
+   instead of the type substitution function. The resulting diagnostics report
+   `Ty` where a typing derivation was expected and a proof where `Ty → Ty` was
+   expected. The scratch theorem avoids the collision with the name
+   `PaperValueTyped.subst_explicit`.
+2. The direct `induction` tactic does not support `PaperComputationTyped`, which
+   belongs to the mutual inductive family. Computation transport also needs an
+   explicit recursor proof, with motive names that do not shadow the type
+   substitution function.
+
+The exact failed integration source was preserved as
+`notes/theory/lean/.lake/R8FailedModule.lean`, SHA-256
+`739172d53849c5a99a078d37ba11938b60db2b26a5f341cbe8a0ac58da1ffb71`.
+The leased main typing file was returned byte-for-byte to its R8 input hash
+`647146f77ba98b997c16cc08cc735ec2e1eaaf72e0b56e262b54e25604c3529d`; no
+failed declaration was retained as a deliverable. The syntax input remains
+read-only at hash `8ad8bc4b1549eadaa73c743438b333c62b44be7bdff0346f690b7da9e6353a97`.
 
 ## Accounting and continuation
 
-R8 consumed 4/8 serial Lean/Lake invocations and less than one checker second.
-The two early failed scratch attempts are preserved in this accounting but are
-not accepted results. Static tooling checks from R7 remain separate; no R8
-static check or independent review is claimed. No tests, Rust/native builds, or
-compiler implementation changes were made. All eight historical/foreign
-UNKNOWN reservations remain quarantined; no reviewer slot is established.
+R8 consumed 8/8 serial Lean/Lake invocations, approximately 14.6 checker
+seconds, under its 120 checker-second and 900 active-second limits. Two early
+probe failures (unavailable `aesop`; omitted sibling motives) were preserved in
+that count and are not results. The last focused module build failed as above.
+No test, Rust/native build, compiler change, independent review, or source/native
+record bridge is claimed. All eight historical/foreign UNKNOWN reservations
+remain quarantined; no reviewer slot is established.
 
-Next: replace the old mutually recursive `.subst` proof block with the same
-explicit five-motive eliminator architecture, using arbitrary σ target motives
-and recursor-provided IHs. Use the checked record-map equality as an explicit
-support lemma. Build and audit all five target transports; stop on a concrete
-eliminator/index obstruction or the R8 budget boundary.
+At the boundary, use the standalone checked recursor proof as the base for the
+next integration step: give the exported theorem a non-conflicting name for the
+type substitution function, and prove computation transport through the same
+explicit five-motive eliminator rather than ordinary mutual `induction`. Preserve
+the original arbitrary σ claim, the record rule distinctions, and every
+omitted-paper/source/native obligation.
