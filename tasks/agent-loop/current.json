@@ -6,15 +6,15 @@
  "active_sprint": {
   "id": "PAPER-HEAP-OBSERVATION-20261026/r59",
   "revision": "r1",
-  "status": "RUNNING_PROOF_AND_SOURCE",
+  "status": "RUNNING_PROOF",
   "contract": "tasks/agent-loop/sprints/paper-heap-observation-r59.md",
   "contract_sha256": "fd8913816e2ab6c6f3316f2be50125b148dab192aefc1de3b529644547604e21",
   "baseline": "4eb348f7ebf53509ae701c6b0434041a90f8f573",
   "branch": "yulang3",
   "claim": "Finite graph-reference/type-beta observation preserves represented paper typing and connects an allocated typed heap to Force/Delay; parent remains OPEN.",
-  "outcome": "Proof and source lanes acknowledged; frozen inputs report MATCH. Proof construction/checker not yet reported; parent remains OPEN.",
+  "outcome": "Source lane frozen with a bounded direct-identification falsifier (mutable None→Some publication); source-to-paper realization stays OPEN and NO_SAFE_CODE_SLICE. Proof construction/build remains active; parent remains OPEN.",
   "budget": "1800s total; proof 600s/8 calls/90 checker; source 240s/0 calls; primary 600s/4 calls/90 checker; reviewer 180s/0 calls; 180s integration reserve.",
-  "next_action": "Continue both exact leases; monitor writer receipts and consume frozen evidence before independent review."
+  "next_action": "Continue the exact proof lease. After proof writer freezes/stops, primary verifies frozen evidence, then obtain fresh independent review before any root import."
  },
  "workers": [
   {
@@ -130,13 +130,13 @@
   {
    "id": "/root/r59_heap_observation_source",
    "role": "researcher/source bridge falsifier",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
    "requested_model": "registered role defaults",
    "requested_effort": "registered role defaults",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Agent launch ACK; individual session ID and first active timestamp UNKNOWN; requested researcher defaults; observed model/effort UNKNOWN; all 18 frozen-input hashes reported MATCH; source reads begun; zero writes/build/test/checker/Git; only leased handoff write."
+   "receipt": "Frozen source handoff SHA-256 b7976c6ae7a8a276b4a59e479b71bc0bdec20696a974dff367492e02541ac5f6; source trace falsifies direct immutable-heap identification via None→Some publication; NO_SAFE_CODE_SLICE; review pending; full 240s reserved charged, exact usage UNKNOWN; zero executable checks/Git; no descendants."
   },
   {
    "id": "/root/r59_heap_observation_review",
@@ -199,7 +199,7 @@
   {
    "path": "tasks/agent-loop/inbox/paper-heap-observation-r59-source.md",
    "owner": "/root/r59_heap_observation_source",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "tasks/agent-loop/inbox/paper-heap-observation-r59-review.md",
@@ -376,8 +376,8 @@
    "details": "Bounded proof accepted; full-paper/native bridge open; pending-cell republication blocks naive relation."
   }
  ],
- "closure": "R58 bounded represented type-beta result integrated after CLEAN review at 4eb348f. R59 assigned finite heap observation-to-Force proof and independent source bridge; external proof arrivals remain separate immutable inputs; all original executor, inference A/B, source/native and production parents remain OPEN.",
- "next_action": "R59 proof/source lanes active under exact leases; preserve external proofs and withdrawn questions; retain all parent gates OPEN.",
+ "closure": "R59 source lane stopped and frozen; proof lane remains active. Source realization remains OPEN; no compiler edit. All parent gates remain OPEN.",
+ "next_action": "R59 proof lane active; source receipt frozen; preserve external proofs and withdrawn questions; retain all parent gates OPEN.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "8 UNKNOWN reservations remain quarantined.",
@@ -441,7 +441,7 @@
    "sha256": "059cb2de4cdc8c1e746628f485f445671a927c13f82cef8bbf8defb6c0bbe39c"
   }
  ],
- "resource_observation": "R59 origin 2026-10-25T22:53:50Z. Monotonic origin UNKNOWN; conservatively charge workers from grant origin. Proof first activity ~22:55Z, exact start UNKNOWN; source first timestamp UNKNOWN. 1800s grant includes 180s integration reserve; no carryover. Eight prior UNKNOWN identities remain quarantined.",
+ "resource_observation": "R59 origin 2026-10-25T22:53:50Z. Monotonic origin UNKNOWN; conservatively charge workers from grant origin. Proof first activity ~22:55Z, exact start UNKNOWN; source first timestamp UNKNOWN. 1800s grant includes 180s integration reserve; no carryover. Eight prior UNKNOWN identities remain quarantined. Source lane stopped 2026-10-25T22:57:43Z; exact usage UNKNOWN, full 240s charged; zero executable calls. Handoff SHA b7976c6ae7a8a276b4a59e479b71bc0bdec20696a974dff367492e02541ac5f6.",
  "native_bridge": {
   "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
   "state": "OPEN; NAIVE_RELATION_BLOCKED",
