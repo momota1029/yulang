@@ -2,20 +2,20 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "LEAN-CALL-FINITE-TYPING-20261025/root-turn-10",
+  "session": "LEAN-CALL-UNWIND-20261025/root-turn-11",
   "active_sprint": {
-    "id": "LEAN-CALL-FINITE-TYPING-20261025",
+    "id": "LEAN-CALL-UNWIND-20261025",
     "revision": "r1",
-    "status": "INTEGRATED_ACCEPTED_CLEAN",
-    "contract": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1.md",
-    "contract_sha256": "dfff6b8af11651122ebc0b3be6cb6a8722b3ce7a60845eb4e82ba1a9488eee68",
-    "baseline": "c28827b29b4ff5f2f9d89c03f504fb9f886534f8",
-    "claim": "Finite Call prefixes typed; terminal typing when frames empty.",
+    "status": "FROZEN_AUTHOR_READY",
+    "contract": "tasks/agent-loop/sprints/call-unwind-20261025-r1.md",
+    "contract_sha256": "efeaabb27416bd9cb51066c37f8a36d13b3a4ced3eeba7f1f9488ac4ada38a2a",
+    "baseline": "64d39df59",
+    "claim": "Construct actual finite request/failure unwinds; type supplied prefixes ending in those signals.",
     "worktree": "/home/momota1029/rust/yulang",
     "branch": "research/simple-sub-intrusion",
     "resources": {
-      "cap_seconds": 2460,
-      "grant_map": "P/Q 600 each; compose 180; verify 480; review 420; integrate 180.",
+      "cap_seconds": 3000,
+      "grant_map": "P 900 + Q 600 + Luna 240 + verification 480 + review 600 + integration 180; Astra 0.",
       "astra": 0,
       "max_concurrent_new_author_assignments": 2,
       "lean_processes": 1,
@@ -24,14 +24,14 @@
       "verification_timeout_seconds": 120,
       "lean_invocation_cap": 4
     },
-    "outcome": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1-outcome.md",
-    "closure": "Step typing accepted; original A/B open.",
-    "review": "Fresh compiler_referee CLEAN; reviewer STOPPED.",
-    "checker": "36 pins match; 4/4 Lean pass; exact signatures; axioms in cap.",
-    "acceptance": "4/4 checks; exact query; CLEAN review.",
-    "author": "P/Q Sol/high, 600s each; disjoint leases.",
-    "next_action": "Sprint integrated; consult dispatcher for next scoped proposition.",
-    "non_goal": "No reachability/progress, source/native, A/B, or production claim."
+    "outcome": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
+    "closure": "Finite Call typing r1 ACCEPTED/CLEAN; original A/B and adequacy OPEN.",
+    "review": "NOT_RUN; activate P/Q after contract/state commit; review only after both STOP and four successful Lean invocations.",
+    "checker": "50 frozen pins; activation preflight pending; three new output pairs absent.",
+    "acceptance": "Exact P/Q/composition compile; full receipts; exact signatures/axioms; fresh CLEAN review.",
+    "author": "Separate Sol/high P/Q authors, 900s/600s, disjoint exact leases.",
+    "next_action": "Revalidate frozen pins and absent outputs, then activate P/Q in parallel.",
+    "non_goal": "No global progress/reachability, cleanup correctness, source/native, A/B, inference, or production claim."
   },
   "workers": [
     {
@@ -71,173 +71,149 @@
       "id": "/root",
       "role": "primary authority/current/Git integrator",
       "state": "RUNNING",
-      "session": "LEAN-CALL-FINITE-TYPING-20261025/root-turn-10",
+      "session": "LEAN-CALL-UNWIND-20261025/root-turn-11",
       "requested_model": "user-selected primary",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Luna: finite Call typing integrated/pushed; current state and Git reconciled."
+      "receipt": "Luna primary: froze Call request/failure unwind contract; exact leases, composition, verification, review and Git."
     },
     {
       "id": "/root/call_step_typing_author",
-      "role": "P prover: finite-prefix preservation",
-      "state": "STOPPED",
+      "role": "P prover: actual request unwind and captureFrames",
+      "state": "WAITING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "STOPPED; P source/handoff frozen.",
-      "session": "LEAN-CALL-FINITE-TYPING-20261025/root-turn-10"
+      "receipt": "Fresh P grant frozen; awaiting actual START acknowledgement.",
+      "session": null
     },
     {
       "id": "/root/call_entry_body_typing",
-      "role": "Q prover: returned/requested terminal typing",
-      "state": "STOPPED",
+      "role": "Q prover: actual failure unwind",
+      "state": "WAITING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "STOPPED; Q source/handoff frozen.",
-      "session": "LEAN-CALL-FINITE-TYPING-20261025/root-turn-10"
+      "receipt": "Fresh Q grant frozen; awaiting actual START acknowledgement.",
+      "session": null
     },
     {
       "id": "/root/call_finite_typing_review",
-      "role": "fresh independent compiler_referee",
+      "role": "prior finite-typing independent reviewer",
       "state": "STOPPED",
-      "session": "LEAN-CALL-FINITE-TYPING-20261025/root-turn-10",
+      "session": null,
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "CLEAN; review report frozen by Luna; reviewer STOPPED, read-only."
+      "receipt": "Prior CLEAN review completed; not assigned to new sprint."
     }
   ],
   "leases": [
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallStepTyping.olean",
-      "owner": "/root",
+      "path": "notes/theory/lean/YulangClosure/CallRequestUnwind.lean",
+      "owner": "/root/call_step_typing_author",
       "state": "HELD",
-      "reason": "Luna-only step 3 exact theorem module output."
+      "reason": "P request unwind module"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallStepTyping.ilean",
+      "path": "tasks/agent-loop/inbox/20261025-call-request-unwind.md",
+      "owner": "/root/call_step_typing_author",
+      "state": "HELD",
+      "reason": "P handoff"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CallFailureUnwind.lean",
+      "owner": "/root/call_entry_body_typing",
+      "state": "HELD",
+      "reason": "Q failure unwind module"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-call-failure-unwind.md",
+      "owner": "/root/call_entry_body_typing",
+      "state": "HELD",
+      "reason": "Q handoff"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CallUnwindTyping.lean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Luna-only step 3 exact theorem module output."
+      "reason": "Luna typed initial-trace composition"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-call-unwind-r1-verification.jsonl",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Four serialized Lean receipts"
+    },
+    {
+      "path": "notes/theory/lean/.lake/call-unwind-r1-check.lean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Exact signature/axiom query"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallRequestUnwind.olean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "P source-adjacent compiler output"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallRequestUnwind.ilean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "P source-adjacent compiler output"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallFailureUnwind.olean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Q source-adjacent compiler output"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallFailureUnwind.ilean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Q source-adjacent compiler output"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallUnwindTyping.olean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "composition source-adjacent compiler output"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallUnwindTyping.ilean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "composition source-adjacent compiler output"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-call-unwind-r1-review.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Luna records fresh review receipt"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/call-unwind-20261025-r1.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Frozen sprint contract"
     },
     {
       "path": "tasks/agent-loop/current.json",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Primary state."
+      "reason": "Primary state and exact leases"
     },
     {
-      "path": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Frozen sprint contract."
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CallStepTypingRepair.olean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Accepted one-step dependency."
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CallStepTypingRepair.ilean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Accepted one-step dependency."
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CallPrefixTyping.lean",
+      "path": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
       "owner": "/root",
       "state": "HELD",
-      "reason": "P author STOPPED; frozen candidate awaiting serialized verification."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-prefix-typing.md",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "P author STOPPED; frozen candidate awaiting serialized verification."
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CallTerminalTyping.lean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Q author STOPPED; frozen candidate awaiting serialized verification."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-terminal-typing.md",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Q author STOPPED; frozen candidate awaiting serialized verification."
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CallFiniteTyping.lean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Luna composition module."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-finite-typing-r1-verification.jsonl",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Serialized compile/query receipts."
-    },
-    {
-      "path": "notes/theory/lean/.lake/call-finite-typing-r1-check.lean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Exact signature/axiom query."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallPrefixTyping.olean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Luna P compilation output."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallPrefixTyping.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Luna P compilation output."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallTerminalTyping.olean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Luna Q compilation output."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallTerminalTyping.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Luna Q compilation output."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallFiniteTyping.olean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Luna composition output."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallFiniteTyping.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Luna composition output."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-finite-typing-r1-review.md",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Fresh independent review."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1-outcome.md",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Luna outcome."
+      "reason": "Luna adjudicated outcome"
     }
   ],
   "pending": [
@@ -381,7 +357,7 @@
     }
   ],
   "closure": "Finite Call typing accepted/CLEAN; original A/B and adequacy remain OPEN.",
-  "next_action": "Finite Call typing accepted and pushed; dispatch next bounded proof sprint.",
+  "next_action": "Contract/state frozen; revalidate pins and output absence, then activate P/Q.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
