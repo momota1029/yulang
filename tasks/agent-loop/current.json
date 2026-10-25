@@ -6,15 +6,15 @@
  "active_sprint": {
   "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r61",
   "revision": "r1",
-  "status": "ACTIVE",
+  "status": "PRIMARY_COMPLETE_REVIEW_PENDING",
   "contract": "tasks/agent-loop/sprints/yulang3-execution-proof-reconciliation-r61.md",
   "contract_sha256": "a5ad219e95459a9d103c58a9bf97ed0d225c7d69972c45787b6648af0198d881",
   "baseline": "998de2a605b88a7c54db3177e21f86764016cffe",
   "branch": "yulang3",
   "claim": "Independently reconcile external connected executor/elimination proof under explicit BodiesTyped premise; preserve R23 source-embedding gate and all broad parents OPEN.",
-  "outcome": "Fresh R61 authorized after R60 invalid Lake option. No checker call has started. Four corrected calls only; stop on first error/capture gap/pin mismatch/cap.",
+  "outcome": "All 23 pins matched; root build and complete audit exit 0. validate_audit passed 1,368 declarations, 26 roots, 3 constructors. Conditional BodiesTyped theorem only; independent review pending.",
   "budget": "1200s total: primary 900s/4 calls/240 checker seconds; fresh compiler_referee 300s/0 checker calls; no proof author or integration lane.",
-  "next_action": "Verify exact baseline pins, then run the four literal commands with durable pre-call captures; freeze and request independent review only after primary intake."
+  "next_action": "Freeze primary receipt and captures; obtain fresh compiler_referee review of exact claims and R23 boundary."
  },
  "workers": [
   {
@@ -114,7 +114,7 @@
    "requested_effort": "UNKNOWN",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R61 started from committed baseline; no native calls yet. Prior R60 receipt frozen separately."
+   "receipt": "R61 primary complete; 4 calls exit0, 62.167034733 checker seconds. Receipt tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-primary.md; review pending."
   },
   {
    "id": "/root/r61_execution_proof_review",
@@ -142,7 +142,7 @@
   {
    "path": "tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-primary.md",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-review.md",
@@ -157,57 +157,57 @@
   {
    "path": "R61-isolated/run_call.py",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "R61-isolated/process-manifest.json",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "R61-isolated/lake-build",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "R61-isolated/call-01.stdout",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "R61-isolated/call-01.stderr",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "R61-isolated/call-02.stdout",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "R61-isolated/call-02.stderr",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "R61-isolated/call-03.stdout",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "R61-isolated/call-03.stderr",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "R61-isolated/call-04.stdout",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "R61-isolated/call-04.stderr",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   }
  ],
  "pending": [
@@ -379,8 +379,8 @@
    "details": "Bounded proof accepted; full-paper/native bridge open; pending-cell republication blocks naive relation."
   }
  ],
- "closure": "R60 stopped because Lake rejected an unsupported option before build. R61 is a fresh packet at a new baseline; R59 remains independently failed. External commit 31b1473a9 remains distinct; R23 and all full inference/executor/source-native/production parents remain OPEN.",
- "next_action": "R61 contract frozen; commit contract/current before native checker work, then verify pins and run only its four corrected calls.",
+ "closure": "R61 primary reproduced the external root build and 1,368-declaration audit with corrected commands. Independent semantic/source review is pending. R23 and all full inference/executor/source-native/production parents remain OPEN; R59 remains independently failed.",
+ "next_action": "Fresh compiler_referee review of frozen R61 evidence; no source integration before adjudication.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "8 UNKNOWN reservations remain quarantined.",
@@ -474,7 +474,7 @@
    "sha256": "5174425304aecb9cc6f8b30920944a6bde81b377e7a7dd28da68ef1e8818a668"
   }
  ],
- "resource_observation": "R59 origin 2026-10-25T22:53:50Z; monotonic origin UNKNOWN; no carryover. Source stopped 22:57:43Z; full 240s charged, exact usage UNKNOWN, 0 checker. Proof stopped 23:00:34.593651Z; 404.594s charged, 5 calls/42.160528 checker seconds. Primary calls 1–2 exit 0; call 3 capture lost (exit/duration/output UNKNOWN); conservative 180s timeout exceeds 90s checker cap, no retry. Eight UNKNOWN identities remain quarantined. R60 origin 2026-10-25T23:07:58Z; 1200s grant, primary 900s/4 calls/240 checker, reviewer 300s/0 calls; no calls yet. R60 stopped 2026-10-25T23:11:28Z; 23 pins matched. Calls1–2 0.598129325s; call3 exit1 at 0.071035524s (unsupported Lake -j1); total 0.669164849 checker seconds; call4 NOT_RUN; no retry/reviewer. R61 origin 23:13:33Z; new 1200s grant, primary 900s/4 calls/240 checker, fresh reviewer 300s; no calls yet.",
+ "resource_observation": "R59: source 240s charged/0 checker; proof 404.594s/42.161 checker; primary call3 capture lost, FAILED. R60: 1200s grant; calls1-2 versions pass, call3 invalid Lake -j1 exit1/0.071s, call4 NOT_RUN. R61: primary 4/4 exit0, 62.167 checker seconds, audit PASS; fresh review pending. Eight UNKNOWN identities remain quarantined.",
  "native_bridge": {
   "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
   "state": "OPEN; NAIVE_RELATION_BLOCKED",
