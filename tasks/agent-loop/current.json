@@ -4,17 +4,17 @@
   "phase": "ACTIVE",
   "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
   "active_sprint": {
-    "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r55",
+    "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r56",
     "revision": "r1",
-    "status": "FAILED",
-    "contract": "tasks/agent-loop/sprints/paper-type-beta-execution-r55.md",
-    "contract_sha256": "611ea5ec46a32be40d4a45fe46257c8686f868429eeb25f4525a79cea0ebaeb1",
-    "baseline": "7ea6d0130f4258e0eedf43643130da590a7b0d45",
-    "branch": "research/simple-sub-intrusion",
-    "claim": "Preserve the unchanged manuscript-explicit type-application beta reduction in existing represented typing judgments using cancellation and PaperValueTyped.subst_explicit.",
-    "outcome": "Candidate module build passed. Strict audit failed to parse eight private names in the pinned template after 26 public blocks; no complete audit, primary verification or review. No theorem accepted; parent remains OPEN.",
-    "budget": "Worker 600s/4 calls/90 checker; Luna 1020s/4 calls/90 checker; fresh reviewer 180s/0 checker; aggregate 1800s/8 calls/180 checker.",
-    "next_action": "R55 stopped at strict-audit failure; consult selector for a fresh exact audit packet, with no R55 retries or semantic question activity."
+    "status": "ASSIGNED",
+    "contract": "tasks/agent-loop/sprints/paper-type-beta-execution-r56.md",
+    "contract_sha256": "734715b75b15c0dfe8964f16fc3afbcb2a56b99b91e7f93381873130d7294447",
+    "baseline": "bd445803661013d7ab725f6d0da17e71e3a6a5dd",
+    "branch": "yulang3",
+    "claim": "Complete strict audit and root verification of the unchanged manuscript-explicit type-application beta preservation candidate, followed by independent review; parent remains open until every gate passes.",
+    "outcome": "R56 corrects only the audit mechanism for exact private declaration names; candidate bytes and theorem statements remain frozen.",
+    "budget": "Primary 420s/4 calls/90 checker; fresh reviewer 180s/0 checker; aggregate 600s/4 calls/90 checker.",
+    "next_action": "Verify exact candidate and all declaration types/axioms, isolated root build, then fresh independent review. Stop at first failure."
   },
   "workers": [
     {
@@ -114,7 +114,7 @@
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R55 primary active since fixed origin 47855273027957ns; contract/pins checked; worker dispatched."
+      "receipt": "R56 primary active on yulang3; fixed origin 48401291550615ns; no checker calls yet."
     },
     {
       "id": "/root/r55_type_beta_finalize",
@@ -128,7 +128,7 @@
       "receipt": "Frozen R55 handoff 4cb89d…94128b; candidate 0a1834…a8c1c8; 4 calls/34.788968363 native s/253.121 conservatively charged s; candidate build passed; strict audit failed; no processes/writes."
     },
     {
-      "id": "/root/r55_referee",
+      "id": "/root/r56_referee",
       "role": "fresh independent compiler_referee",
       "state": "NOT_STARTED",
       "session": null,
@@ -136,7 +136,7 @@
       "requested_effort": "registered role defaults",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Not launched; audit gate failed."
+      "receipt": "Launch only after R56 candidate/audit/raw log freeze; zero checker calls."
     }
   ],
   "leases": [
@@ -152,8 +152,8 @@
     },
     {
       "path": "notes/theory/lean/YulangClosure/PaperTypeBetaExecution.lean",
-      "owner": "/root/r55_type_beta_finalize",
-      "state": "FROZEN"
+      "owner": "/root",
+      "state": "HELD"
     },
     {
       "path": "notes/theory/lean/.lake/R55Audit.lean",
@@ -164,6 +164,31 @@
       "path": "tasks/agent-loop/inbox/paper-type-beta-r55.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/paper-type-beta-execution-r56.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/paper-type-beta-r56-primary.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/paper-type-beta-r56-review.md",
+      "owner": "/root/r56_referee",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure.lean",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/lean/.lake/R56Audit.lean",
+      "owner": "/root",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -335,8 +360,8 @@
       "details": "Bounded proof accepted; full-paper/native bridge open; pending-cell republication blocks naive relation."
     }
   ],
-  "closure": "R51 bounded slice integrated. R52 no candidate. R53/R54 stopped in construction. R55 candidate build passed, but strict audit template failed on eight private names; no accepted theorem. Type-beta and full parent OPEN. Both questions WITHDRAWN_BY_USER and unanswered.",
-  "next_action": "Consult selector at R55 audit obstruction boundary. Fresh packet required for audit-source correction and complete verification. Withdrawn questions remain untouched.",
+  "closure": "R51 bounded slice integrated. R52 no candidate. R53/R54 construction failures. R55 candidate module built but strict audit failed on private-name syntax; no theorem accepted. R56 ASSIGNED on yulang3 for exact-name audit/root verification/review. Both semantic questions committed, WITHDRAWN_BY_USER and unanswered.",
+  "next_action": "R56 yulang3 exact-name audit packet; monitor external branch updates and preserve incoming proof artifacts for provenance review.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "8 UNKNOWN reservations remain quarantined.",
@@ -443,9 +468,14 @@
       "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r55-outcome",
       "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r55-outcome.md",
       "sha256": "85a0fd5a8b5c4114359f6fcb7438b8540781a6647af90ee606ad51a23a555f54"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r56-contract-r1",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r56.md",
+      "sha256": "734715b75b15c0dfe8964f16fc3afbcb2a56b99b91e7f93381873130d7294447"
     }
   ],
-  "resource_observation": "R54 primary overrun remains 453.065/420s and recorded in R54 outcome. R55 worker charged 253.121s conservatively from primary origin 47855273027957ns after missed pre-read worker origin capture; 4 calls/34.788968363 native seconds, audit exit 1. R55 primary origin fixed; no resource transfers.",
+  "resource_observation": "R55 worker closed at 253.121s conservatively charged, audit exit 1. R56 fresh primary origin 48401291550615ns; grant 420s primary + 180s reviewer, no transfer.",
   "native_bridge": {
     "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
     "state": "OPEN; NAIVE_RELATION_BLOCKED",
