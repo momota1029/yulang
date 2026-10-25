@@ -6,15 +6,15 @@
  "active_sprint": {
   "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r61",
   "revision": "r1",
-  "status": "PRIMARY_COMPLETE_REVIEW_PENDING",
+  "status": "ACCEPTED_WITH_MINOR_LIMITATION",
   "contract": "tasks/agent-loop/sprints/yulang3-execution-proof-reconciliation-r61.md",
   "contract_sha256": "a5ad219e95459a9d103c58a9bf97ed0d225c7d69972c45787b6648af0198d881",
   "baseline": "998de2a605b88a7c54db3177e21f86764016cffe",
   "branch": "yulang3",
   "claim": "Independently reconcile external connected executor/elimination proof under explicit BodiesTyped premise; preserve R23 source-embedding gate and all broad parents OPEN.",
-  "outcome": "All 23 pins matched; root build and complete audit exit 0. validate_audit passed 1,368 declarations, 26 roots, 3 constructors. Conditional BodiesTyped theorem only; independent review pending.",
+  "outcome": "Bounded represented executor/elimination claims accepted after independent review, with minor incomplete environment provenance. R23, source/native and full-language gates remain OPEN.",
   "budget": "1200s total: primary 900s/4 calls/240 checker seconds; fresh compiler_referee 300s/0 checker calls; no proof author or integration lane.",
-  "next_action": "Freeze primary receipt and captures; obtain fresh compiler_referee review of exact claims and R23 boundary."
+  "next_action": "R61 complete; dispatch next parent-critical packet."
  },
  "workers": [
   {
@@ -114,18 +114,18 @@
    "requested_effort": "UNKNOWN",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R61 primary complete; 4 calls exit0, 62.167034733 checker seconds. Receipt tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-primary.md; review pending."
+   "receipt": "R61 accepted with minor env-provenance limitation; outcome receipt committed."
   },
   {
    "id": "/root/r61_execution_proof_review",
    "role": "fresh non-author compiler_referee",
-   "state": "UNKNOWN",
+   "state": "STOPPED",
    "session": "collaboration-agent:/root/r61_execution_proof_review",
    "requested_model": "registered role defaults",
    "requested_effort": "registered role defaults",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Fresh non-author compiler_referee was actually spawned by collaboration. Its collaboration task identity is /root/r61_execution_proof_review, but runtime exposes no session token compatible with current.json primary session; activity therefore records UNKNOWN, and its exact review file lease remains held/quarantined. Reviewer confirms read-only role, so findings will arrive by message and be transcribed by primary."
+   "receipt": "Stopped; one minor, no blocking/major. Frozen review SHA 24514b97e01284969123935ec3d5ec81498a0619cbecfaca8448051db36ed747; cessation reported."
   }
  ],
  "leases": [
@@ -147,12 +147,12 @@
   {
    "path": "tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-review.md",
    "owner": "/root/r61_execution_proof_review",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "tasks/agent-loop/sprints/yulang3-execution-proof-reconciliation-r61-outcome.md",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "R61-isolated/run_call.py",
@@ -379,8 +379,8 @@
    "details": "Bounded proof accepted; full-paper/native bridge open; pending-cell republication blocks naive relation."
   }
  ],
- "closure": "R61 primary reproduced the external root build and 1,368-declaration audit with corrected commands. Independent semantic/source review is pending. R23 and all full inference/executor/source-native/production parents remain OPEN; R59 remains independently failed.",
- "next_action": "Fresh compiler_referee review of frozen R61 evidence; no source integration before adjudication.",
+ "closure": "R61 accepted only conditional represented claims, with minor environment provenance gap. R23/full-language/source-native/production OPEN; R59 FAILED.",
+ "next_action": "R61 accepted with limitation; consult dispatcher for next parent-critical packet.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "8 UNKNOWN reservations remain quarantined.",
@@ -472,9 +472,19 @@
    "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r60-invocation-failure",
    "record": "tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r60-primary.md",
    "sha256": "5174425304aecb9cc6f8b30920944a6bde81b377e7a7dd28da68ef1e8818a668"
+  },
+  {
+   "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r61-review",
+   "record": "tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-review.md",
+   "sha256": "24514b97e01284969123935ec3d5ec81498a0619cbecfaca8448051db36ed747"
+  },
+  {
+   "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r61-outcome",
+   "record": "tasks/agent-loop/sprints/yulang3-execution-proof-reconciliation-r61-outcome.md",
+   "sha256": "8a8439f051e920a1997371f113dcc3c2eab68bc365255654b87253d09db129c4"
   }
  ],
- "resource_observation": "R59 primary capture FAILED; source 240s/0 checker, proof 404.594s/42.161 checker. R60 invalid Lake -j1 exit1. R61 4/4 exit0, 62.167 checker, audit PASS. Eight legacy identities quarantined. Fresh reviewer spawn acknowledged; UNKNOWN because collaboration session token cannot fit current-session schema; review lease retained.",
+ "resource_observation": "R59 capture FAILED; R60 invalid Lake option. R61 primary 4/4 exit0, 62.167 checker seconds. Reviewer 0 checker; 300s conservatively charged, stopped. Eight legacy identities quarantined.",
  "native_bridge": {
   "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
   "state": "OPEN; NAIVE_RELATION_BLOCKED",
