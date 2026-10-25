@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-UNWIND-20261025",
     "revision": "r1",
-    "status": "AUTHORS_RUNNING",
+    "status": "P_RUNNING_Q_STOPPED",
     "contract": "tasks/agent-loop/sprints/call-unwind-20261025-r1.md",
     "contract_sha256": "efeaabb27416bd9cb51066c37f8a36d13b3a4ced3eeba7f1f9488ac4ada38a2a",
     "baseline": "64d39df59",
@@ -26,11 +26,11 @@
     },
     "outcome": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
     "closure": "Finite Call typing r1 ACCEPTED/CLEAN; original A/B and adequacy OPEN.",
-    "review": "NOT_RUN; P and Q sent actual START acknowledgements and are activated; review only after both STOP and four successful Lean invocations.",
-    "checker": "50 pinned source/evidence/output hashes match; all 15 assigned source/output paths absent at preflight; P/Q actual START acknowledgements recorded.",
+    "review": "NOT_RUN; Q stopped with frozen source/handoff hashes; P remains RUNNING; review only after both STOP and four successful Lean invocations.",
+    "checker": "50 pinned source/evidence/output hashes matched twice by Q; Q source/handoff hashes recorded; P still RUNNING.",
     "acceptance": "Exact P/Q/composition compile; full receipts; exact signatures/axioms; fresh CLEAN review.",
     "author": "Separate Sol/high P/Q authors, 900s/600s, disjoint exact leases.",
-    "next_action": "P and Q prove their exact frozen propositions under disjoint leases; Luna composes after both STOP.",
+    "next_action": "Wait for P STOP; then reconcile all pins, compose, run the four serialized Lean invocations, and request fresh independent review.",
     "non_goal": "No global progress/reachability, cleanup correctness, source/native, A/B, inference, or production claim."
   },
   "workers": [
@@ -92,12 +92,12 @@
     {
       "id": "/root/call_entry_body_typing",
       "role": "Q prover: actual failure unwind",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Actual START acknowledged for fresh Q grant; exact two-path lease accepted; no writes/processes before activation.",
+      "receipt": "STOP 2026-10-25T03:32:52Z; source SHA-256 2d7422bc4c83310a1a1d0a2bcaa5528bb6a8801520c42db2f2ada6b12224b89c; handoff SHA-256 880f530091fce6f2994c0b69a4b6f22a91a9fd6fbba9f1ee559c14d952d37437; all writes ended.",
       "session": "LEAN-CALL-UNWIND-20261025/root-turn-11"
     },
     {
