@@ -488,6 +488,10 @@ mutual
       | with_reducible decreasing_trivial
 end
 
+/-- The code-table lookup key; all other entry components remain in the entry. -/
+def templateIdentity : TemplateBody → Nat
+  | .mk identity _ _ _ _ => identity
+
 def mapTemplateBody (σ : Nat → Ty) : TemplateBody → TemplateBody
   | .mk identity arity formals result body =>
       let lifted := liftSubN arity σ
@@ -609,14 +613,21 @@ def mapRecordFields (σ : Nat → Ty) (fields : List (Label × Presence × Value
 These are partial extrinsic typing judgments for the paper syntax. They
 include the declared-operation `perform` rule, but are not the complete
 §types/§machine judgment or full-paper substitution theorem. Variant and
-nominal values, handlers, graphs, primitives, templates, patterns and other
-constructors remain outside this relation.
+nominal values, handlers, graphs, primitives, patterns and other constructors
+remain outside this relation. Template invocation instances are represented;
+typing the registered template bodies remains a separate open judgment.
 -/
 /-- Resolve an operation identity to its unique declaration in the table. -/
 def OperationDeclarationResolved (operations : List OperationDeclaration)
     (operation : DeclarationId) (declaration : OperationDeclaration) : Prop :=
   declaration ∈ operations ∧ declaration.identity = operation ∧
     ∀ other, other ∈ operations → other.identity = operation → other = declaration
+
+/-- Resolve a code identity to its unique complete template entry. -/
+def TemplateDeclarationResolved (templates : List TemplateBody)
+    (identity : Nat) (declaration : TemplateBody) : Prop :=
+  declaration ∈ templates ∧ templateIdentity declaration = identity ∧
+    ∀ other, other ∈ templates → templateIdentity other = identity → other = declaration
 
 mutual
   inductive ValuesTyped : DeclarationTable → GraphEnvironment →
@@ -798,6 +809,16 @@ mutual
         PaperValueTyped declarations graphTypes environment value (.mu body) →
         PaperComputationTyped declarations graphTypes environment (.unroll value)
           (instantiateType [.mu body] body)
+    /-- Invocation uses one type instance for every formal and the result.
+    Typing the registered body is a separate table well-typedness obligation. -/
+    | template {identity typeArguments arguments typeArity formals result body} :
+        TemplateDeclarationResolved declarations.templates identity
+          (.mk identity typeArity formals result body) →
+        typeArguments.length = typeArity →
+        ValuesTyped declarations graphTypes environment arguments
+          (formals.map (instantiateType typeArguments)) →
+        PaperComputationTyped declarations graphTypes environment
+          (.template identity typeArguments arguments) (instantiateType typeArguments result)
     | fail {reason ty} :
         PaperComputationTyped declarations graphTypes environment (.fail reason) ty
 

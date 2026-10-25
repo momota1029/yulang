@@ -41,6 +41,18 @@ theorem instantiateType_subst (arguments : List Ty) (σ : Nat → Ty)
       (subst_comp (liftSubN arity σ)
         (instantiateSubstitution (mapOperationArguments σ arguments)) body).symm
 
+/-- All formal types use the very same invocation instance as the result. -/
+theorem instantiateFormalTypes_subst (arguments : List Ty) (σ : Nat → Ty)
+    (arity : Nat) (arityEq : arguments.length = arity) (formals : List Ty) :
+    (formals.map (instantiateType arguments)).map (subst σ) =
+      (formals.map (subst (liftSubN arity σ))).map
+        (instantiateType (mapTypeArguments σ arguments)) := by
+  induction formals with
+  | nil => rfl
+  | cons formal rest ih =>
+      simp only [List.map_cons, instantiateType_subst arguments σ arity arityEq,
+        mapOperationArguments, mapTypeArguments, ih]
+
 @[simp] theorem literalType_subst (σ : Nat → Ty) (literal : Literal) :
     subst σ (literalType literal) = literalType literal := by
   cases literal <;> rfl
@@ -102,6 +114,28 @@ theorem OperationDeclarationResolved.typeTransport (σ : Nat → Ty)
     rcases List.mem_map.mp hother with ⟨original, horiginal, rfl⟩
     have horiginalIdentity : original.identity = operation := by
       simpa [OperationDeclaration.substAmbient] using hotherIdentity
+    have heq := hunique original horiginal horiginalIdentity
+    subst original
+    rfl
+
+@[simp] theorem templateIdentity_mapTemplateBody (σ : Nat → Ty) (declaration : TemplateBody) :
+    templateIdentity (mapTemplateBody σ declaration) = templateIdentity declaration := by
+  cases declaration
+  rfl
+
+/-- Mapping retains the unique code identity and the entire mapped entry. -/
+theorem TemplateDeclarationResolved.typeTransport (σ : Nat → Ty)
+    {templates : List TemplateBody} {identity : Nat} {declaration : TemplateBody}
+    (resolved : TemplateDeclarationResolved templates identity declaration) :
+    TemplateDeclarationResolved (templates.map (mapTemplateBody σ)) identity
+      (mapTemplateBody σ declaration) := by
+  rcases resolved with ⟨hmember, hidentity, hunique⟩
+  refine ⟨List.mem_map.mpr ⟨declaration, hmember, rfl⟩, ?_, ?_⟩
+  · simpa only [templateIdentity_mapTemplateBody] using hidentity
+  · intro other hother hotherIdentity
+    rcases List.mem_map.mp hother with ⟨original, horiginal, rfl⟩
+    have horiginalIdentity : templateIdentity original = identity := by
+      simpa only [templateIdentity_mapTemplateBody] using hotherIdentity
     have heq := hunique original horiginal horiginalIdentity
     subst original
     rfl
@@ -397,6 +431,22 @@ theorem PaperValueTyped.subst_explicit (σ : Nat → Ty) {declarations : Declara
           simpa [mapPaperComputation] using result
         rw [commute]
         exact result')
+    (by intro declarations graphTypes environment identity typeArguments arguments
+          typeArity formals result body resolved arity argumentsTyping ihArguments σ
+        have resolved' := TemplateDeclarationResolved.typeTransport σ resolved
+        have arity' : (mapTypeArguments σ typeArguments).length = typeArity := by
+          simpa only [mapTypeArguments, List.length_map] using arity
+        have argumentsTyping' :
+            ValuesTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+              (mapTypeEnvironment σ environment) (arguments.map (mapPaperValue σ))
+              ((formals.map (subst (liftSubN typeArity σ))).map
+                (instantiateType (mapTypeArguments σ typeArguments))) := by
+          rw [← instantiateFormalTypes_subst typeArguments σ typeArity arity formals]
+          exact ihArguments σ
+        have commute := instantiateType_subst typeArguments σ typeArity arity result
+        rw [commute]
+        simpa [mapPaperComputation, mapTemplateBody, mapTypeArguments, mapOperationArguments] using
+          PaperComputationTyped.template resolved' arity' argumentsTyping')
     (by intro declarations graphTypes environment reason ty σ; simpa [mapPaperComputation, subst] using PaperComputationTyped.fail)
     (by intro declarations graphTypes environment owners binder body responseType resultType hbody ihBody σ
         have ihBody := ihBody σ
@@ -483,6 +533,24 @@ theorem PaperContinuationTyped.typeTransport (σ : Nat → Ty)
       simpa only [mapTypeEnvironment, List.map_cons] using
         PaperComputationTyped.typeTransport σ body
 
+
+/-- Invocation inversion recovers the one declaration/instance and exact result. -/
+theorem PaperComputationTyped.templateInversion
+    {declarations : DeclarationTable} {graphTypes : GraphEnvironment}
+    {environment : TypeEnvironment} {identity : Nat} {typeArguments : List Ty}
+    {arguments : List Value} {resultType : Ty}
+    (derivation : PaperComputationTyped declarations graphTypes environment
+      (.template identity typeArguments arguments) resultType) :
+    ∃ typeArity formals result body,
+      TemplateDeclarationResolved declarations.templates identity
+        (.mk identity typeArity formals result body) ∧
+      typeArguments.length = typeArity ∧
+      ValuesTyped declarations graphTypes environment arguments
+        (formals.map (instantiateType typeArguments)) ∧
+      resultType = instantiateType typeArguments result := by
+  cases derivation with
+  | template resolved arity argumentsTyping =>
+      exact ⟨_, _, _, _, resolved, arity, argumentsTyping, rfl⟩
 
 /-- Raw split inversion retains its exact body result and explicit binder arity. -/
 theorem PaperComputationTyped.splitInversion
