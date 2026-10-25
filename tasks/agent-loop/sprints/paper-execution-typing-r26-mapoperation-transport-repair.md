@@ -1,9 +1,9 @@
 # Sprint FULL-PAPER-TYPE-SUBSTITUTION-20261026/r26 — mapOperation transport repair
 
-Status: CANDIDATE; no worker edits or checker calls before exact hash, fresh registered lean_prover runtime receipt, exact leases and committed acknowledgement.
+Status: ADMITTED under r6; the primary acknowledgement is this contract/current-state commit. The prior `/root/r17_forall` source/hash worker is STOPPED with handoff SHA-256 `15f7b65725258cb3a04e7d145ecc882b31ad451650a1b4eedd4e45ce8292f691`; 12 inputs and 2 baseline hashes matched, with 0 source/cache/audit edits and 0 checker calls. Exact stop timestamp is UNKNOWN. The new registered `lean_prover` assignment needs a fresh runtime receipt before any write or checker call.
 Branch: research/simple-sub-intrusion
 Baseline: 036e97ef905a50bcd6a5257709ee8f6d1228ff1e (R25 adjudicated FAILED_CHECK)
-Contract revision: r3
+Contract revision: r6
 
 ## Parent, evidence and bounded outcome
 
@@ -38,7 +38,7 @@ The primary revalidates every listed hash and the R24/baseline dependencies in `
 
 ## Exact leases and sequential lanes
 
-Only after a fresh registered `lean_prover` worker/session receipt, reconciled capacity, exact hash verification and committed acknowledgement, one worker may write in `/tmp/yulang-r26-mapop`:
+The focused outcome is to reconstruct the exact mapped `mapOperation` judgment without changing its shared declaration, source/target instances, adapters, or arbitrary-substitution scope. R25 failed at constructor-index inference; R26 now supplies those mapped indices explicitly. Assign this bounded construction to the registered `lean_prover` leaf. No Astra assignment is requested. Only after a fresh registered `lean_prover` runtime receipt, exact hash verification, reconciled capacity, and committed acknowledgement may that worker write in `/tmp/yulang-r26-mapop`:
 
 - `notes/theory/lean/YulangClosure/PaperExecutionTypingSubstitution.lean` (repair only the mapped constructor application and any direct premises needed by that case)
 - `notes/theory/lean/.lake/R26Audit.lean`
@@ -46,17 +46,17 @@ Only after a fresh registered `lean_prover` worker/session receipt, reconciled c
 - `tasks/agent-loop/inbox/paper-typing-subst-r26-worker-checks.txt`
 - `tasks/agent-loop/inbox/paper-typing-subst-r26.md`
 
-`PaperExecutionSyntax.lean` and `PaperMapOperationIntegration.lean` are primary-seeded frozen R25 inputs and read-only for the worker. R24, the paper and all other dependencies are read-only. The worker source-audits the exact mismatch and indices first, then may repair only the mapped constructor application and its direct premises in `PaperExecutionTypingSubstitution.lean`. Any focused-build failure in any module, including Integration, stops the packet without repair or retry. No child agents and no Git operations. This is a registered `lean_prover` assignment; no Astra assignment or override is requested.
+`PaperExecutionSyntax.lean` and `PaperMapOperationIntegration.lean` are primary-seeded frozen R25 inputs and read-only for the worker. R24, the paper and all other dependencies are read-only. The worker source-audits the exact mismatch and indices first, then may repair only the mapped constructor application and its direct premises in `PaperExecutionTypingSubstitution.lean`. Any focused-build failure in any module, including Integration, stops the packet without repair or retry. No child agents and no Git operations. The prior `/root/r17_forall` identity is STOPPED by its explicit handoff `paper-typing-subst-r26.md` revision 1; it made no source/cache edits and has no descendants. Its exact paths are reassigned to the registered `lean_prover` assignment after committed acknowledgement. No other proof author is assigned.
 
-The worker is sole checker/cache owner during construction, with at most 6 serial invocations and 100 shared checker seconds. If the focused build passes, the worker writes an exact audit file and runs its audit; then freezes the artifact/log/handoff and sends an actual writes-stopped receipt. After that receipt only, the primary owns the exact cache and `tasks/agent-loop/inbox/paper-typing-subst-r26-primary-verification.txt` for the final focused build and final audit (2 invocations). Commands, serially:
+The worker is sole checker/cache owner during construction, with at most 6 serial invocations and 100 checker seconds. The primary reserves the remaining 2 invocations and 20 checker seconds, for the total envelope of 8 invocations and 120 checker seconds. If the focused build passes, the worker writes an exact audit file and runs its audit; then freezes the artifact/log/handoff and sends an actual writes-stopped receipt. After that receipt only, the primary owns the exact cache and `tasks/agent-loop/inbox/paper-typing-subst-r26-primary-verification.txt` for the final focused build and final audit (2 invocations). Commands, serially:
 
     lake build +YulangClosure.PaperMapOperationIntegration
     lake env lean -j1 -M1024 .lake/R26Audit.lean
 
 One heavy build at a time, pinned Lean 4.35.0, `LEAN_NUM_THREADS=1`, Lean `-j1 -M1024`; Lake build uses the lakefile's existing `moreLeanArgs`. Failed calls count. First failed check stops all checking, including primary verification; no retries or budget transfer.
 
-After freeze, one fresh non-author M1 reviewer may write `tasks/agent-loop/inbox/paper-typing-subst-r26-review.md`; the reviewer runs no checker and does not overlap worker/cache ownership. The proof author must have a confirmed writes-stopped receipt before the reviewer starts. Record the reviewer's fresh runtime receipt and observed model/effort, using UNKNOWN where the tools provide no evidence. The proof and review assignments remain sequential. This packet requests no Astra role or override.
+After freeze and the proof author's writes-stopped receipt, one fresh non-author M1 reviewer may write `tasks/agent-loop/inbox/paper-typing-subst-r26-review.md` for at most 120 active seconds. The reviewer runs no checker and does not overlap worker/cache ownership. Record fresh runtime/model receipts, using UNKNOWN where the tools provide no evidence. Proof and review remain sequential.
 
 ## Resource and stop contract
 
-Envelope: 1200 active seconds, 8 literal serial Lean/Lake invocations total, 120 checker seconds; worker cap 6 and primary reserves 2; one heavy build at a time. R25's unused budget is not transferred. Version queries count if used. No tests, default/full build, Rust build, network/dependency activity or shared/generated cache reuse. Current state retains 8 UNKNOWN reservations, all quarantined. Capacity counts the primary and worker during construction; after the worker's actual STOP receipt, a fresh reviewer may run sequentially. Do not admit other agents or treat a STOPPED record as new capacity. This packet requests no Astra assignment, so the one-Astra quota is not part of its admission. Stop at source ambiguity, first failed check, budget edge, authority/dependency/lease change, STOP or session end. Preserve R25 as FAILED_CHECK; R23/R18 and all original parent gates remain OPEN.
+Envelope: 1200 active seconds; proof worker cap 180 active seconds; reviewer cap 120 active seconds; 8 literal serial Lean/Lake invocations and 120 checker seconds total. Worker cap is 6 invocations/100 checker seconds; the primary reserves 2 invocations/20 checker seconds. One heavy build at a time. R25's unused budget is not transferred. Version queries count if used. No tests, default/full build, Rust build, network/dependency activity or shared/generated cache reuse. The 8 UNKNOWN historical reservations remain quarantined and counted. Capacity is 10/12 during construction (8 quarantined reservations, primary, proof worker); a fresh reviewer may run sequentially only after the proof author's writes-stopped receipt. No other agents or descendants. Stop at source ambiguity, first failed check, budget edge, authority/dependency/lease change, STOP or session end. Preserve R25 as FAILED_CHECK; R23/R18 and all original parent gates remain OPEN.
