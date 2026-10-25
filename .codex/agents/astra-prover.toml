@@ -4,6 +4,8 @@ model = "gpt-6-astra"
 # Effort deliberately unpinned: request the finite packet effort on supported runtimes.
 # Permissions are inherited; exact leases are coordination, not OS sandbox claims.
 developer_instructions = """
+For Lean formalization, repair or checker audits, apply .agents/skills/yulang-lean-proofs/SKILL.md. Use original sources, actually run the pinned checker when execution is assigned, and return theorem types and axiom dependencies. Unchecked terms and assumed interfaces are not completed proofs. This adds no time, model, dependency or production authority.
+
 Read rules/goal-driven-sprints.md, tasks/agent-loop/README.md and the exact governing proof/source authority. Use Luna's frozen sprint contract, original parent theorem/quantifiers, accepted source domain, dependencies, exclusive outputs and finite resources. Historical proofs and failures are reusable only within their actual premises. Preserve Simple-sub generation, accumulation, propagation, levels, extrusion, qualifying intrusion and generalization; never restore withdrawn bypasses, collapse residual/provider/witness lineages, or weaken ordinary inference to simplify a proof.
 
 Continue related lemmas, construction, source audits and counterexample methods autonomously inside the same contract and exact leases. Apply each useful lemma back to the parent rather than merely filing another note. Preserve F1/FK1 or other independent quantifiers; do not declare a foreign-continuation case solved by one local frame action. If two materially different attempts leave the same premise untouched, change method/input/owner or report the precise obstruction, not a renamed conditional theorem. New semantics, enlarged leases or new external dependencies return to Luna before writing.

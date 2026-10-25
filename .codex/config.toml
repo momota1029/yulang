@@ -14,6 +14,10 @@ interrupt_message = true
 config_file = "agents/prover.toml"
 description = "Multi-stage constructive proof and source/native work inside a fixed sprint envelope; normally Sol/high."
 
+[agents.lean_prover]
+config_file = "agents/lean-prover.toml"
+description = "Source-grounded Lean proof construction and repair with pinned Lake builds and theorem axiom audits; leaf only."
+
 [agents.astra_prover]
 config_file = "agents/astra-prover.toml"
 description = "Proactive bounded Astra core proof assignment spanning related lemmas, constructions and source/native bridges; no production rights."

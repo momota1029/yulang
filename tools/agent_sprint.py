@@ -138,7 +138,7 @@ class SprintModel:
         require(self.phase == "ACTIVE", "no active session")
         require(ident not in self.jobs and bool(ident), "assignment ID must be unique")
         require(lane in {"proof", "implementation", "verification"}, "unknown lane")
-        require(role in {"prover", "astra_prover", "implementer",
+        require(role in {"prover", "lean_prover", "astra_prover", "implementer",
                          "implementation_escalation", "researcher"}, "unknown role")
         require(bool(steps) and len(steps) <= 8 and all(steps), "finite nonempty stage plan required")
         require(0 < seconds <= 1800 and effort in {"low", "medium", "high"}, "invalid assignment budget")
@@ -151,6 +151,8 @@ class SprintModel:
         require(lane != "implementation" or role in {"implementer", "implementation_escalation"}, "invalid implementation role")
         require(role != "implementer" or (lane == "implementation" and model == LUNA and effort == "high"), "Luna/high implementation floor")
         require(role != "astra_prover" or (lane == "proof" and model == ASTRA), "Astra proof role has no production rights")
+        require(role != "lean_prover" or (lane in {"proof", "verification"} and not coordinator),
+                "Lean specialist is a proof/verification leaf")
         require(role != "implementation_escalation" or
                 (lane == "implementation" and model == ASTRA and
                  bool(implementation_evidence) and
@@ -498,6 +500,7 @@ def check_repository(root: Path, *, inventory: dict[str, str] | None = None) -> 
     active = ["AGENTS.md", "rules/agent-orchestration.md",
               "rules/research-lab.md", "rules/orchestration-budget.md",
               ".codex/agents/prover.toml", ".codex/agents/astra-prover.toml",
+              ".codex/agents/lean-prover.toml",
               ".codex/agents/implementer.toml", ".codex/agents/next-action-selector.toml",
               ".codex/agents/implementation-escalation.toml"]
     override = root / "AGENTS.override.md"
@@ -506,7 +509,7 @@ def check_repository(root: Path, *, inventory: dict[str, str] | None = None) -> 
     for path in active:
         text = (root / path).read_text()
         require("goal-driven-sprints.md" in text, f"missing active policy route: {path}")
-    for name in ("yulang-research-loop", "yulang-next-action", "yulang-sprint"):
+    for name in ("yulang-research-loop", "yulang-next-action", "yulang-sprint", "yulang-lean-proofs"):
         p = root / f".agents/skills/{name}/SKILL.md"
         text = p.read_text()
         require(text.startswith(f"---\nname: {name}\ndescription: ") and "\n---\n" in text,

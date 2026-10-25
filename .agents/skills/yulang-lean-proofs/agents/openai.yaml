@@ -1,0 +1,6 @@
+interface:
+  display_name: "Yulang Lean Proofs"
+  short_description: "Build and audit source-grounded Yulang Lean proofs"
+  default_prompt: "Use $yulang-lean-proofs to formalize the assigned Yulang theorem from its governing sources, run the pinned Lean toolchain, and report checked declarations and remaining premises."
+policy:
+  allow_implicit_invocation: true

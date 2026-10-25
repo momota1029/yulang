@@ -151,6 +151,16 @@ A workflow-maintenance, plan-only, status-only or question-answering request
 neither starts research workers nor authorizes compiler work. Do not launch a
 nested CLI to simulate unavailable subagent tools. Config edits are not hot reload.
 
+## Lean proof work
+
+For Lean formalization, proof repair or checker audits, apply
+[yulang-lean-proofs](.agents/skills/yulang-lean-proofs/SKILL.md) and use registered
+`lean_prover` for a bounded leaf packet. Read the original claim and corrections,
+run the pinned project in `notes/theory/lean`, and report theorem types plus
+complete axiom audits. A proposition definition, assumed `LocalLaws`, or default
+build does not close the whole-language obligation. Follow the skill's source map
+and execution guide. The role adds no compiler, dependency, Git or scheduling rights.
+
 ## Preserved non-negotiable boundaries
 
 Keep original Simple-sub A/B claims, quantifiers, source/native correspondence,

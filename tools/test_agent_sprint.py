@@ -48,6 +48,23 @@ class SprintTransitions(unittest.TestCase):
         self.implementation()
         self.assertEqual([j["worker_state"] for j in self.m.jobs.values()], ["RUNNING", "RUNNING"])
 
+    def test_lean_specialist_can_work_as_proof_or_verification_leaf(self) -> None:
+        self.m.assign("LP", "proof", ["proof.md"], ["formalize", "run Lean"], role="lean_prover")
+        self.m.assign("LV", "verification", ["aux.md"], ["audit axioms"], role="lean_prover")
+        self.assertEqual(self.m.jobs["LP"]["status"], "ASSIGNED")
+        self.assertEqual(self.m.jobs["LV"]["worker_state"], "NOT_STARTED")
+        self.assertFalse(self.m.closed_gates)
+
+    def test_lean_specialist_has_no_production_or_coordinator_rights(self) -> None:
+        with self.assertRaises(ProtocolError):
+            self.m.assign("LI", "implementation", ["impl.rs"], ["code"],
+                          role="lean_prover", model=LUNA, production=True)
+        with self.assertRaises(ProtocolError):
+            self.m.assign("LC", "proof", ["proof.md"], ["delegate"],
+                          role="lean_prover", coordinator=True, leaf_paths=("leaf1.md",))
+        self.assertFalse(self.m.jobs)
+        self.assertFalse(self.m.leases)
+
     def test_internal_step_continues_same_goal_without_dispatch(self) -> None:
         self.proof(astra=True)
         fixed = self.m.contract_hash
