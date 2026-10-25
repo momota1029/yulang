@@ -1,9 +1,9 @@
 # Sprint FULL-PAPER-TYPE-SUBSTITUTION-20261026/r25 — mapOperation typing integration
 
-Status: CANDIDATE; no writer/checker may act before exact contract hash, fresh runtime receipt, leases and committed acknowledgement.
+Status: ADMITTED after exact contract hash, fresh runtime receipt, source-hash verification, sequential checker/cache leases and committed acknowledgement.
 Branch: research/simple-sub-intrusion
 Baseline: 70c3d29f76fa54f209fe8271e2ca25f079f26acf (R24 accepted as reviewed prerequisite)
-Contract revision: r3
+Contract revision: r4
 
 ## Parent and selected outcome
 
