@@ -2,464 +2,113 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
+  "session": "HANDLER-GRAPH-EXTENSION-THEORY-20261025/root-r1",
   "active_sprint": {
-    "id": "GRAPH-HANDLER-INTERACTION-THEORY-20261025",
+    "id": "HANDLER-GRAPH-EXTENSION-THEORY-20261025",
     "revision": "r1",
-    "status": "REVIEWED",
-    "contract": "tasks/agent-loop/sprints/graph-handler-interaction-theory-20261025-r1.md",
-    "contract_sha256": "7f9dd634a1a70b082033518d8d46a936fb4e78b1780c4cb373166d72f5a65467",
-    "baseline": "d94c36b61dc140ba9fa1441c9cab9e0577280392",
-    "claim": "Typed actual HO graph observation/execution applied to source allocation, and handler root-only repeated interaction;full-paper/native/combined-language parents OPEN.",
-    "resources": {
-      "seconds": 5400,
-      "author_A_seconds": 1200,
-      "author_B_seconds": 900,
-      "primary_seconds": 1500,
-      "lean_seconds": 300,
-      "lean_calls": 64,
-      "review_seconds_each": 450,
-      "contingency_seconds": 600,
-      "max_new_children": 3,
-      "contingency_allocation": "Selector120s prospectively authorized 2026-10-25T07:38:00.946948+00:00;480remains."
-    },
-    "primary_grant": "Prospective07:28:39.478377–07:53:39.478377UTC;previous1200 owns preparation before then;previous400extension cancelled unused."
+    "status": "ACCEPTED_LOCAL_THEORY",
+    "contract": "tasks/agent-loop/sprints/handler-graph-extension-theory-20261025-r1.md",
+    "contract_sha256": "b0b9f069dc8f08ed5f87a26b37d98df404e5a9dd4f0628244adc79095634a9e8",
+    "baseline": "7ff6e74d4515099bdb13e1cbf20fc38257cb2e36",
+    "claim": "Combined handler/graph raw safety with explicit prior-machine correspondence; actual saved graph continuations through arbitrary finite immutable extensions. Full paper/native parents OPEN.",
+    "resources": {"seconds":7200,"author_A_seconds":1800,"author_B_seconds":1200,"primary_seconds":1800,"lean_seconds":360,"lean_calls":72,"review_seconds_each":600,"contingency_seconds":840,"max_new_children":3},
+    "primary_grant": "Prospective07:53:39.478377–08:23:39.478377UTC;earlier prep/intake/checks charged previous1500;prior480contingency not carried."
   },
   "workers": [
-    {
-      "id": "/root/resident_dispatcher_loop_a",
-      "role": "legacy dispatcher",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Unknown runtime identity; reservation quarantined."
-    },
-    {
-      "id": "/root/resident_implementer_idle",
-      "role": "legacy implementer",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Unknown runtime identity; reservation quarantined."
-    },
-    {
-      "id": "/root/runtime_source_supplier_proof",
-      "role": "legacy proof worker",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Unknown runtime identity; reservation quarantined."
-    },
-    {
-      "id": "/root",
-      "role": "primary authority/source/coauthor/Git",
-      "state": "RUNNING",
-      "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
-      "requested_model": "user-selected primary",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Actual continuing primary entered new1500window07:28:39.478377–07:53:39.478377UTC;prior1200owns preparation,no reset;prior400extensioncancelledunused. Snapshot2026-10-25T07:28:45.345535+00:00"
-    },
-    {
-      "id": "/root/higher_order_graph_safety_astra_r1",
-      "role": "graph observation/execution author",
-      "state": "STOPPED",
-      "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Actual STOP07:34:12.632716UTC;439.957/1200s conservative;handoffcfb4616a4cfd46bc1d4f1485996144a624326f55dc970279c8d4dbc2a5dcc986;no processes/descendants. Primary acknowledges source/note takeover 2026-10-25T07:34:33.656964+00:00"
-    },
-    {
-      "id": "/root/higher_order_handler_interaction_astra_r1",
-      "role": "handler interaction author",
-      "state": "STOPPED",
-      "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Actual STOP07:31:30.789324UTC;278.113/900s conservative;handoff4f9996c88bdf9e4c5c3ee7c69e6a0fe6c23828b731513e8cf7a0ec5556c0b589;no processes/descendants. Primary acknowledges source/note takeover 2026-10-25T07:31:45.053702+00:00"
-    },
-    {
-      "id": "/root/higher_order_graph_safety_review_astra_r1",
-      "role": "independent graph observation/execution reviewer",
-      "state": "STOPPED",
-      "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Actual STOP07:38:34.161232UTC;conservative117.443/450s;CLEAN reportaf94d01b70394e5b3ee0bcfc1e6cbb314f06f63f1d9595a5c04ecc27fb0785b0;no processes/children."
-    },
-    {
-      "id": "/root/higher_order_handler_interaction_review_astra_r1",
-      "role": "independent handler interaction reviewer",
-      "state": "STOPPED",
-      "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Actual STOP07:38:31.284693UTC;conservative114.566792/450s;CLEAN reportc1db54cfc1ed0a78c51b045dcd2f3e407733cddda02b3f426694c17cd31421a3;no processes/children."
-    },
-    {
-      "id": "/root/next_action_selector_astra",
-      "role": "boundary selector",
-      "state": "STOPPED",
-      "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Actual FINAL STOP received before 2026-10-25T07:40:07.072460+00:00;120s charged,2460lifetime;no checks/writes/children/processes."
-    }
+    {"id":"/root/resident_dispatcher_loop_a","role":"legacy dispatcher","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Unknown runtime identity; reservation quarantined."},
+    {"id":"/root/resident_implementer_idle","role":"legacy implementer","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Unknown runtime identity; reservation quarantined."},
+    {"id":"/root/runtime_source_supplier_proof","role":"legacy proof worker","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Unknown runtime identity; reservation quarantined."},
+    {"id":"/root","role":"primary authority/source/coauthor/Git","state":"RUNNING","session":"HANDLER-GRAPH-EXTENSION-THEORY-20261025/root-r1","requested_model":"user-selected primary","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Actual primary adjudication/integration active;1800grant ends08:23:39.478377UTC;both independent CLEAN/STOP receipts read;full parent OPEN."},
+    {"id":"/root/handler_graph_composition_astra_r1","role":"combined handler/graph author","state":"STOPPED","session":"HANDLER-GRAPH-EXTENSION-THEORY-20261025/root-r1","requested_model":"gpt-6-astra","requested_effort":"medium","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"ActualSTOP07:52:21.474671UTC;494s/1800charged;handoffa7781647f896ae20a77b8d62e39f534ac9923c29ea2c44d07945312b72aa535a;no descendants/processes."},
+    {"id":"/root/graph_continuation_extension_astra_r1","role":"immutable extension/saved continuation author","state":"STOPPED","session":"HANDLER-GRAPH-EXTENSION-THEORY-20261025/root-r1","requested_model":"gpt-6-astra","requested_effort":"medium","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"ActualSTOP07:53:04.230399UTC;537s/1200charged;handoff4a1e61cf1b12284611038382b53abe71ea0886efc0aaf26a0d0fdde019bf3016;no descendants/processes."},
+    {"id":"/root/handler_graph_composition_review_astra_r1","role":"combined handler/graph reviewer","state":"STOPPED","session":"HANDLER-GRAPH-EXTENSION-THEORY-20261025/root-r1","requested_model":"gpt-6-astra","requested_effort":"medium","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"CLEAN frozenreported172734119c69d1b2c3f626965d112641cf118feae9f704a0d32d887fd036ba;actualSTOP08:01:32.782917UTC;240/600conservativecharge."},
+    {"id":"/root/graph_continuation_extension_review_astra_r1","role":"graph extension reviewer","state":"STOPPED","session":"HANDLER-GRAPH-EXTENSION-THEORY-20261025/root-r1","requested_model":"gpt-6-astra","requested_effort":"medium","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"CLEAN report65bc8bd475ba6781d3c7ce28df9ca1dd2c1b7c8a269374e07bb54a5e8534a4ad;actualSTOP08:01:59.682645UTC;134.683/600charged."}
   ],
   "leases": [
-    {
-      "path": "tasks/agent-loop/sprints/graph-handler-interaction-theory-20261025-r1.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/current.json",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/graph-handler-interaction-theory-20261025-r1-outcome.md",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-graph-handler-interaction-theory-r1-verification.jsonl",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/graph-handler-interaction-theory-r1-run.py",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/graph-handler-interaction-theory-r1-check.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderGraphObservation.olean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderGraphObservation.ilean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderGraphSafety.olean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderGraphSafety.ilean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderHandlerInteraction.olean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderHandlerInteraction.ilean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/HigherOrderGraphObservation.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/HigherOrderGraphSafety.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-25-higher-order-graph-safety.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-higher-order-graph-safety.md",
-      "owner": "/root/higher_order_graph_safety_astra_r1",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/HigherOrderHandlerInteraction.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-25-higher-order-handler-interaction.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-higher-order-handler-interaction.md",
-      "owner": "/root/higher_order_handler_interaction_astra_r1",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-higher-order-graph-safety-review.md",
-      "owner": "/root/higher_order_graph_safety_review_astra_r1",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-higher-order-handler-interaction-review.md",
-      "owner": "/root/higher_order_handler_interaction_review_astra_r1",
-      "state": "FROZEN"
-    }
+    {"path":"tasks/agent-loop/sprints/handler-graph-extension-theory-20261025-r1.md","owner":"/root","state":"FROZEN"},
+    {"path":"tasks/agent-loop/sprints/handler-graph-extension-theory-20261025-r1-outcome.md","owner":"/root","state":"FROZEN"},
+    {"path":"tasks/agent-loop/inbox/20261025-handler-graph-extension-theory-r1-verification.jsonl","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/.lake/handler-graph-extension-theory-r1-run.py","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/.lake/handler-graph-extension-theory-r1-check.lean","owner":"/root","state":"FROZEN"},
+    {"path":"tasks/agent-loop/current.json","owner":"/root","state":"HELD"},
+    {"path":"notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphSyntax.olean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphSyntax.ilean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphEmbedding.olean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphEmbedding.ilean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphSafety.olean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphSafety.ilean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphCorrespondence.olean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/.lake/build/lib/lean/YulangClosure/HandlerGraphCorrespondence.ilean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/.lake/build/lib/lean/YulangClosure/GraphExtensionTransport.olean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/.lake/build/lib/lean/YulangClosure/GraphExtensionTransport.ilean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/.lake/build/lib/lean/YulangClosure/GraphContinuationExtension.olean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/.lake/build/lib/lean/YulangClosure/GraphContinuationExtension.ilean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/YulangClosure/HandlerGraphSyntax.lean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/YulangClosure/HandlerGraphEmbedding.lean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/YulangClosure/HandlerGraphSafety.lean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/YulangClosure/HandlerGraphCorrespondence.lean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/2026-10-25-handler-graph-composition.md","owner":"/root","state":"FROZEN"},
+    {"path":"tasks/agent-loop/inbox/20261025-handler-graph-composition.md","owner":"/root/handler_graph_composition_astra_r1","state":"FROZEN"},
+    {"path":"notes/theory/lean/YulangClosure/GraphExtensionTransport.lean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/lean/YulangClosure/GraphContinuationExtension.lean","owner":"/root","state":"FROZEN"},
+    {"path":"notes/theory/2026-10-25-graph-continuation-extension.md","owner":"/root","state":"FROZEN"},
+    {"path":"tasks/agent-loop/inbox/20261025-graph-continuation-extension.md","owner":"/root/graph_continuation_extension_astra_r1","state":"FROZEN"},
+    {"path":"tasks/agent-loop/inbox/20261025-handler-graph-composition-review.md","owner":"/root/handler_graph_composition_review_astra_r1","state":"FROZEN"},
+    {"path":"tasks/agent-loop/inbox/20261025-graph-continuation-extension-review.md","owner":"/root/graph_continuation_extension_review_astra_r1","state":"FROZEN"}
   ],
   "pending": [
-    {
-      "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
-      "state": "OPEN",
-      "owner": "Luna"
-    },
-    {
-      "id": "R64-SRC-ANN-ARG-1",
-      "state": "OPEN",
-      "owner": "Luna"
-    },
-    {
-      "id": "R65-CURRENT-OPERAND-1",
-      "state": "OPEN",
-      "owner": "Luna"
-    },
-    {
-      "id": "R66-LAMBDA-RESULT-STAGE-1",
-      "state": "OPEN",
-      "owner": "Luna"
-    },
-    {
-      "id": "R67-DIRECT-BODY-CHECK-1",
-      "state": "OPEN",
-      "owner": "Luna"
-    },
-    {
-      "id": "R68-OWNER-CONSUMER-1",
-      "state": "OPEN",
-      "owner": "Luna"
-    },
-    {
-      "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
-      "state": "OPEN_UNADOPTED_PROPOSAL",
-      "owner": "Luna"
-    },
-    {
-      "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
-      "state": "OPEN",
-      "owner": "Luna"
-    },
-    {
-      "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
-      "state": "OPEN",
-      "owner": "Luna"
-    },
-    {
-      "id": "R72-LATER-OCCURRENCE-1",
-      "state": "OPEN",
-      "owner": "Luna"
-    },
-    {
-      "id": "R149-SOURCE-OWNER-CLOSURE-1",
-      "state": "OPEN_SOURCE_TO_CST",
-      "owner": "Luna intake"
-    },
-    {
-      "id": "R339-D2-WHOLE-FRAME-RETIREMENT",
-      "state": "OPEN_REMAINDER",
-      "owner": "Luna"
-    },
-    {
-      "id": "R340-D3-AUTHENTIC-APPLY-CONTINUATION",
-      "state": "OPEN_REMAINDER",
-      "owner": "Luna"
-    },
-    {
-      "id": "R345-N-REMAINDER",
-      "state": "OPEN_REMAINDER",
-      "owner": "Luna"
-    },
-    {
-      "id": "OP-SEMANTICS-FULL-EFFECT",
-      "state": "OPEN_REVIEW",
-      "owner": "primary"
-    },
-    {
-      "id": "DOT-SELECTION-EVIDENCE-BRIDGE",
-      "state": "OPEN_REVIEW",
-      "owner": "primary"
-    },
-    {
-      "id": "CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE",
-      "state": "OPEN_REVIEW",
-      "owner": "primary"
-    },
-    {
-      "id": "SOURCE-SAFETY-BRIDGE",
-      "state": "OPEN_REVIEW",
-      "owner": "primary"
-    },
-    {
-      "id": "CALL-CONTEXT-PLUG-PRESERVATION",
-      "state": "OPEN",
-      "owner": "Luna intake; later sprint after r9 execution adequacy"
-    },
-    {
-      "id": "BOUNDED-CALL-FINITE-PREFIX-SAFETY",
-      "state": "OPEN",
-      "owner": "Luna intake; later sprint after exact A/hash"
-    },
-    {
-      "id": "CALL-STEP-ERASURE",
-      "state": "OPEN",
-      "owner": "r9 S / Luna intake; launch after checked implementation seam"
-    },
-    {
-      "id": "CALL-RAW-SUCCESSOR-COVERAGE",
-      "state": "OPEN",
-      "owner": "r9 C / Luna intake; launch after checked implementation seam"
-    },
-    {
-      "id": "FORCE-SOURCE-REALIZATION-20261025",
-      "state": "OPEN_SOURCE_EQUATIONS",
-      "owner": "Luna"
-    },
-    {
-      "id": "RESPONSE-ENCODING-1",
-      "state": "OPEN",
-      "owner": "primary proof intake",
-      "details": "Reviewed higher-order embedding/substitution/local safety and actualcallablecapture; nativecurrentvalue/fullgraph/layout/dispatch and live metadata OPEN."
-    },
-    {
-      "id": "RESPONSE-INSTANCE-1",
-      "state": "OPEN",
-      "owner": "primary source-proof intake",
-      "details": "Reviewed ground declaration/instance construction; global native trace and polymorphic/effectful/callable instances OPEN."
-    },
-    {
-      "id": "RESPONSE-TEMPLATE-1",
-      "state": "OPEN",
-      "owner": "primary native-proof intake",
-      "details": "Reviewed structural replay/order/response/outer-stack supplier; frame metadata/error exclusion/full Call OPEN."
-    },
-    {
-      "id": "GVG-FORMS-1",
-      "state": "OPEN",
-      "owner": "full paper graph proof intake"
-    },
-    {
-      "id": "GVG-REC-RHS-1",
-      "state": "OPEN",
-      "owner": "full paper simultaneous binder proof intake",
-      "details": "Accepted-HO actual source RHS allocation now consumed by canonical observation and every internal execution prefix;full-paper omitted forms OPEN."
-    },
-    {
-      "id": "HO-METADATA-ADEQUACY-1",
-      "state": "OPEN",
-      "owner": "primary semantic/source intake"
-    },
-    {
-      "id": "HO-SHALLOW-HANDLER-1",
-      "state": "OPEN",
-      "owner": "new higher-order handler theory lane",
-      "details": "Accepted-HO handler value safety and root-only repeated saved interaction accepted;fullpaper/source/native OPEN. HO-HANDLER-VALUE-EMPTY-1 directmapping mismatch remains OPEN."
-    },
-    {
-      "id": "HO-HANDLER-GRAPH-COMPOSITION-1",
-      "state": "OPEN",
-      "owner": "primary later integration",
-      "details": "Current independent full-HigherOrder handler/graph extensions each embed frozen core. Combined handler+graph language and original full-paper theorem require explicit composition; neither lane implies it."
-    }
+    {"id":"R61-SOURCE-ASCRIPTION-FORMATION-1","state":"OPEN","owner":"Luna"},
+    {"id":"R64-SRC-ANN-ARG-1","state":"OPEN","owner":"Luna"},
+    {"id":"R65-CURRENT-OPERAND-1","state":"OPEN","owner":"Luna"},
+    {"id":"R66-LAMBDA-RESULT-STAGE-1","state":"OPEN","owner":"Luna"},
+    {"id":"R67-DIRECT-BODY-CHECK-1","state":"OPEN","owner":"Luna"},
+    {"id":"R68-OWNER-CONSUMER-1","state":"OPEN","owner":"Luna"},
+    {"id":"R69-CONSUMER-ORIGIN-SOURCE-LAW-1","state":"OPEN_UNADOPTED_PROPOSAL","owner":"Luna"},
+    {"id":"R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1","state":"OPEN","owner":"Luna"},
+    {"id":"R71-RAW-CANONICAL-FIBER-COVERAGE-1","state":"OPEN","owner":"Luna"},
+    {"id":"R72-LATER-OCCURRENCE-1","state":"OPEN","owner":"Luna"},
+    {"id":"R149-SOURCE-OWNER-CLOSURE-1","state":"OPEN_SOURCE_TO_CST","owner":"Luna intake"},
+    {"id":"R339-D2-WHOLE-FRAME-RETIREMENT","state":"OPEN_REMAINDER","owner":"Luna"},
+    {"id":"R340-D3-AUTHENTIC-APPLY-CONTINUATION","state":"OPEN_REMAINDER","owner":"Luna"},
+    {"id":"R345-N-REMAINDER","state":"OPEN_REMAINDER","owner":"Luna"},
+    {"id":"OP-SEMANTICS-FULL-EFFECT","state":"OPEN_REVIEW","owner":"primary"},
+    {"id":"DOT-SELECTION-EVIDENCE-BRIDGE","state":"OPEN_REVIEW","owner":"primary"},
+    {"id":"CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE","state":"OPEN_REVIEW","owner":"primary"},
+    {"id":"SOURCE-SAFETY-BRIDGE","state":"OPEN_REVIEW","owner":"primary"},
+    {"id":"CALL-CONTEXT-PLUG-PRESERVATION","state":"OPEN","owner":"Luna intake; later sprint after r9 execution adequacy"},
+    {"id":"BOUNDED-CALL-FINITE-PREFIX-SAFETY","state":"OPEN","owner":"Luna intake; later sprint after exact A/hash"},
+    {"id":"CALL-STEP-ERASURE","state":"OPEN","owner":"r9 S / Luna intake; launch after checked implementation seam"},
+    {"id":"CALL-RAW-SUCCESSOR-COVERAGE","state":"OPEN","owner":"r9 C / Luna intake; launch after checked implementation seam"},
+    {"id":"FORCE-SOURCE-REALIZATION-20261025","state":"OPEN_SOURCE_EQUATIONS","owner":"Luna"},
+    {"id":"RESPONSE-ENCODING-1","state":"OPEN","owner":"primary proof intake","details":"Reviewed higher-order embedding/substitution/local safety and actualcallablecapture; nativecurrentvalue/fullgraph/layout/dispatch and live metadata OPEN."},
+    {"id":"RESPONSE-INSTANCE-1","state":"OPEN","owner":"primary source-proof intake","details":"Reviewed ground declaration/instance construction; global native trace and polymorphic/effectful/callable instances OPEN."},
+    {"id":"RESPONSE-TEMPLATE-1","state":"OPEN","owner":"primary native-proof intake","details":"Reviewed structural replay/order/response/outer-stack supplier; frame metadata/error exclusion/full Call OPEN."},
+    {"id":"GVG-FORMS-1","state":"OPEN","owner":"full paper graph proof intake"},
+    {"id":"GVG-REC-RHS-1","state":"OPEN","owner":"full paper simultaneous binder proof intake","details":"Accepted-HO actual source RHS allocation now consumed by canonical observation and every internal execution prefix;full-paper omitted forms OPEN."},
+    {"id":"HO-METADATA-ADEQUACY-1","state":"OPEN","owner":"primary semantic/source intake"},
+    {"id":"HO-SHALLOW-HANDLER-1","state":"OPEN","owner":"new higher-order handler theory lane","details":"Accepted-HO handler value safety and root-only repeated saved interaction accepted;fullpaper/source/native OPEN. HO-HANDLER-VALUE-EMPTY-1 directmapping mismatch remains OPEN."},
+    {"id":"HO-HANDLER-GRAPH-COMPOSITION-1","state":"OPEN","owner":"primary later integration","details":"Combined six-sort local raw safety and previous-machine simulations accepted; arbitrary handler-bearing RHS allocation, full-paper source/native application OPEN."},
+    {"id":"GRAPH-CONTINUATION-EXTENSION-1","state":"OPEN","owner":"new actual graph continuation theory lane","details":"Full old-graph finite immutable extension/resumption and actual run invariant accepted; combined HandlerGraph extension/publication/response and full-paper application OPEN."}
   ],
-  "closure": "Original full goal OPEN. Actual HO graph observations/internal execution from source allocation and root-only repeated handler interaction independently CLEAN and locally accepted. Combined grammar,fresh response graph extensions,full forms,metadata/native/inference A/B OPEN.",
-  "next_action": "Integrate/push accepted graph observation and handler interaction; next dispatcher proposal is combined language and immutable graph continuation extension.",
+  "closure": "Original full goal OPEN. Combined six-sort handler/graph safety and old-graph saved-continuation immutable-extension interaction independently CLEAN and locally accepted. Combined fresh interaction/arbitrary handler-bearing allocation, full paper/native/inference A/B remain OPEN.",
+  "next_action": "Integrate/push exact reviewed16paths; then new fixed outcome combines full HandlerGraph fresh saved interaction with arbitrary handler-bearing RHS allocation and actual joint theorem.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three unrelated UNKNOWN reservations remain quarantined.",
     "reservations": [
-      {
-        "id": "/root/resident_dispatcher_loop_a",
-        "path": "tasks/agent-loop/board.md",
-        "state": "UNKNOWN_QUARANTINED"
-      },
-      {
-        "id": "/root/resident_implementer_idle",
-        "path": "UNKNOWN historical implementation lease",
-        "state": "UNKNOWN_QUARANTINED"
-      },
-      {
-        "id": "/root/runtime_source_supplier_proof",
-        "path": "UNKNOWN historical proof lease",
-        "state": "UNKNOWN_QUARANTINED"
-      }
+      {"id":"/root/resident_dispatcher_loop_a","path":"tasks/agent-loop/board.md","state":"UNKNOWN_QUARANTINED"},
+      {"id":"/root/resident_implementer_idle","path":"UNKNOWN historical implementation lease","state":"UNKNOWN_QUARANTINED"},
+      {"id":"/root/runtime_source_supplier_proof","path":"UNKNOWN historical proof lease","state":"UNKNOWN_QUARANTINED"}
     ]
   },
   "user_goal": "Complete Lean Yulang proofs; user2026-10-25 explicitly requests implementation-independent theory in parallel Astra subagent lanes, alongside existing connection work.",
   "history": [
-    {
-      "id": "PARALLEL-THEORY-20261025/r1",
-      "record": "tasks/agent-loop/sprints/parallel-theory-20261025-r1-outcome.md",
-      "sha256": "d59c662faf73f8dd4c22719bdefa940a57148f7477153108bf645c936dc4230d",
-      "commit": "e9c0a89d2f92ac0116a75e5c7e24623e4c38acd9"
-    },
-    {
-      "id": "GUARD-INTERACTION-THEORY-20261025/r1",
-      "record": "tasks/agent-loop/sprints/guard-interaction-theory-20261025-r1-outcome.md",
-      "sha256": "9bffe30363b2830eb8fafcb5af837541cb7ba3314e9daa73013e4865f56fd4e5",
-      "commit": "03eb4b672c29f92c7bed0e2b6e4a1fbb53741c82"
-    },
-    {
-      "id": "HANDLER-RECURSIVE-RHS-THEORY-20261025/r1",
-      "record": "tasks/agent-loop/sprints/handler-recursive-rhs-theory-20261025-r1-outcome.md",
-      "sha256": "e79ad59f2a27f211b0e487823a7cf3fdd148f5d4b1d6905d539514e582c97ecf",
-      "git": "Normal push succeeded03eb4b672..d94c36b61;upstream matches.",
-      "commit": "d94c36b61dc140ba9fa1441c9cab9e0577280392"
-    },
-    {
-      "id": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/r1",
-      "record": "tasks/agent-loop/sprints/graph-handler-interaction-theory-20261025-r1-outcome.md",
-      "sha256": "c355f3625401ae8c23834adf298833e24b194ddc9895c14c0aefbb2b78adf418",
-      "git": "Reviewed milestone approved;exact-path commit/push pending."
-    }
+    {"id":"HANDLER-RECURSIVE-RHS-THEORY-20261025/r1","record":"tasks/agent-loop/sprints/handler-recursive-rhs-theory-20261025-r1-outcome.md","sha256":"e79ad59f2a27f211b0e487823a7cf3fdd148f5d4b1d6905d539514e582c97ecf","git":"Normal push succeeded03eb4b672..d94c36b61;upstream matches.","commit":"d94c36b61dc140ba9fa1441c9cab9e0577280392"},
+    {"id":"GRAPH-HANDLER-INTERACTION-THEORY-20261025/r1","record":"tasks/agent-loop/sprints/graph-handler-interaction-theory-20261025-r1-outcome.md","sha256":"c355f3625401ae8c23834adf298833e24b194ddc9895c14c0aefbb2b78adf418","git":"Normal push succeeded d94c36b61..7ff6e74d4;upstream matches.","commit":"7ff6e74d4515099bdb13e1cbf20fc38257cb2e36"},
+    {"id":"HANDLER-GRAPH-EXTENSION-THEORY-20261025/r1","record":"tasks/agent-loop/sprints/handler-graph-extension-theory-20261025-r1-outcome.md","sha256":"63eedec037dfc62cf1ff7556c85987a9a7d446680d8ef541ac02adf5a3906268","git":"Reviewed16path normal integration pending actual commit/push."}
   ],
-  "resource_observation": "All current children actualSTOP;primary integrating within1500window ending07:53:39.478377;480contingency remains;3UNKNOWN unchanged.",
-  "checker": "Final9–12 PASS warningfree;12calls/16.54111255200769s;231axiompairs+8examples;onlypropext/Quot.sound;failures1,4,6retained.",
-  "boundary_consultation": {
-    "owner": "/root/next_action_selector_astra",
-    "grant_seconds": 2460,
-    "current_grant_seconds": 120,
-    "status": "STOPPED",
-    "receipt": "Actual FINAL STOP received before 2026-10-25T07:40:07.072460+00:00;120s charged,2460lifetime;no checks/writes/children/processes.",
-    "scope": "Sprint end integration; next parent-theory composition/fresh graph-extension proposal conditional on both new reviews.",
-    "result": "Proposes full combined handler+graph grammar/root propagation safety and old graph saved-continuation stability through arbitrary immutable fresh extensions;primary exact contract pending."
-  },
-  "pending_details": {
-    "record": "tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1-outcome.md",
-    "sha256": "600e6bf271c64ea89d7ae05a0a65afac3eecf70a1464d51e17d9e4343dcf1d45"
-  }
+  "resource_observation": "A494/1800 B537/1200 STOP;reviews240/600 and134.683/600 CLEAN/STOP;selector120charged lifetime2580 STOP;720contingencyremaining;primaryuntil08:23:39.478377;3legacyUNKNOWN.",
+  "checker": "Final17–23PASS warningfree;23calls/78.120933s;598pairs;onlypropext/Quot.sound;121pins53chains11receipts unchanged.",
+  "boundary_consultation": {"owner":"/root/next_action_selector_astra","grant_seconds":2580,"current_grant_seconds":120,"status":"STOPPED","receipt":"ActualFINALSTOPlastclock08:00:32UTC,receivedbefore2026-10-25T08:02:01.439302+00:00;120chargedfromcontingency,720remaining;2580lifetime;no writes/checks/children/processes.","scope":"Integrationboundary;conditionalnextsubstantialparent-theorysprintproposal,noauthority/write/check/child grants.","result":"Conditionalnext:fullsixsortroot-savedextensioninteraction + arbitraryhandler-bearingrecursiveRHSallocation;primary actualallocation-to-interactioncomposition.7200proposed;twoCLEANreviews required."},
+  "pending_details": {"record":"tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1-outcome.md","sha256":"600e6bf271c64ea89d7ae05a0a65afac3eecf70a1464d51e17d9e4343dcf1d45"}
 }
