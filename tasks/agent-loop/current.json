@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-UNWIND-20261025",
     "revision": "r1",
-    "status": "COMPOSITION_FAILED_STOPPED",
+    "status": "STOPPED_FAILED_DISPATCH_PENDING",
     "contract": "tasks/agent-loop/sprints/call-unwind-20261025-r1.md",
     "contract_sha256": "efeaabb27416bd9cb51066c37f8a36d13b3a4ced3eeba7f1f9488ac4ada38a2a",
     "baseline": "64d39df59",
@@ -26,11 +26,11 @@
     },
     "outcome": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
     "closure": "Finite Call typing r1 ACCEPTED/CLEAN; original A/B and adequacy OPEN.",
-    "review": "NOT_RUN; invocation 3 failed on initial resultType/literalSuffix equalities; STOP per frozen r1. No repair or fourth query.",
-    "checker": "50 pins matched; P/Q compile pass; composition invocation 3 failed (exit 1); STOP per contract.",
+    "review": "NOT_RUN; r1 stopped after composition invocation 3 failed. Outcome records no review or promotion.",
+    "checker": "50 pins matched; P/Q compile pass; composition exit 1; r1 stop rule honored; outcome written.",
     "acceptance": "Exact P/Q/composition compile; full receipts; exact signatures/axioms; fresh CLEAN review.",
     "author": "Separate Sol/high P/Q authors, 900s/600s, disjoint exact leases.",
-    "next_action": "Consult dispatcher; retain P/Q as independent-review-pending candidates; composition and parent claims OPEN.",
+    "next_action": "Await dispatcher recommendation for a fresh separately frozen proposition/revision.",
     "non_goal": "No global progress/reachability, cleanup correctness, source/native, A/B, inference, or production claim."
   },
   "workers": [
