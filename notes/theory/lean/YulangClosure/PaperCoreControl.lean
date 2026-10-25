@@ -72,12 +72,37 @@ theorem controlStep_evidence {s s' : State} (hs : controlStep s = some s') :
           obtain ⟨next, hnext, he⟩ := Option.map_eq_some_iff.mp hs
           cases he
           exact .pop hnext
-  | _ =>
-      change (PaperCoreStep.step _).map
+  | force thunk =>
+      change (PaperCoreStep.step (.force thunk)).map
         (fun next => (⟨next, stack⟩ : State)) = some s' at hs
       obtain ⟨next, hnext, he⟩ := Option.map_eq_some_iff.mp hs
       cases he
       exact .delegate hnext
+  | unionCase value leftBinder left rightBinder right =>
+      change (PaperCoreStep.step (.unionCase value leftBinder left rightBinder right)).map
+        (fun next => (⟨next, stack⟩ : State)) = some s' at hs
+      obtain ⟨next, hnext, he⟩ := Option.map_eq_some_iff.mp hs
+      cases he
+      exact .delegate hnext
+  | unroll value =>
+      change (PaperCoreStep.step (.unroll value)).map
+        (fun next => (⟨next, stack⟩ : State)) = some s' at hs
+      obtain ⟨next, hnext, he⟩ := Option.map_eq_some_iff.mp hs
+      cases he
+      exact .delegate hnext
+  | field value label =>
+      change (PaperCoreStep.step (.field value label)).map
+        (fun next => (⟨next, stack⟩ : State)) = some s' at hs
+      obtain ⟨next, hnext, he⟩ := Option.map_eq_some_iff.mp hs
+      cases he
+      exact .delegate hnext
+  | lookup value label =>
+      change (PaperCoreStep.step (.lookup value label)).map
+        (fun next => (⟨next, stack⟩ : State)) = some s' at hs
+      obtain ⟨next, hnext, he⟩ := Option.map_eq_some_iff.mp hs
+      cases he
+      exact .delegate hnext
+  | _ => simp [controlStep, PaperCoreStep.step] at hs
 
 /-- Stack typing reconstructs the ordinary paper computation typing judgment. -/
 theorem plug_typed {d g e stack a result head}

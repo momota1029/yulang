@@ -1,0 +1,42 @@
+R36/r2 Luna primary intake and verification
+
+Baseline: 658f69056
+Admission/cache acknowledgement: eab8ee945
+Contract: tasks/agent-loop/sprints/paper-core-control-r36-r2.md
+Contract SHA-256: 84c679419e1fd4cb75f4d16e2c2b9c537f0f10e5b29ac6d5fe885e697079bfe2
+Worker: /root/r36_r2_registered_lean_prover; runtime session UUID UNKNOWN; effective model/effort UNKNOWN.
+
+Frozen worker artifacts:
+- notes/theory/lean/YulangClosure/PaperCoreControl.lean
+  SHA-256 261d6a77438eec1a32e0299b73583899204ed7c2fe0590b819ecd3fd5b89876e
+- tasks/agent-loop/inbox/paper-core-control-r36-r2-worker-checks.txt
+  SHA-256 1d9319d43cdce8808961af8b319a6d20ef02f37a58cb93526a25ff7b14bb9daa
+- tasks/agent-loop/inbox/paper-core-control-r36-r2.md
+  SHA-256 bc4046485dccea2750f1e24b91696ba0ba2c0fe52fc05bbf5bce3e8e0fcffeac
+- notes/theory/lean/.lake/R36AuditR2.lean
+  SHA-256 1a100c49eb1907b0c41de6655711dfa005058e1efd82961b1496f4c4eaec76f2
+
+Primary source-diff inspection against the frozen r1 baseline found exactly the
+contracted repair in `controlStep_evidence`: five explicit supported heads
+(force, unionCase, unroll, field, lookup) retain their named constructor in the
+Option.map success equation; the remaining unsupported heads simplify to an
+impossible successful equation. The let-push/pop cases and every definition and
+theorem statement are unchanged. No assumption/helper or out-of-scope source
+change was introduced.
+
+The frozen worker log reports the pinned project-scoped build and audit both
+exited 0, and the skill validator passed all eight full theorem declarations,
+types and complete axiom lists. `plug_typed` and `erase_typed` have no axioms;
+the other six report `[propext, Quot.sound]`. Worker usage is 2/7 native calls
+and 1.0449385740066646/119.475628262 checker seconds. Frozen dependency,
+toolchain/config, r1 evidence and imported R35 artifact hashes match their pins.
+
+The worker stopped all writes at 2026-10-25T19:14:20.541255Z and its final
+process scan found no Lean/Lake/elan/checker process. This receipt records primary
+intake and source-diff review only; it is not the fresh independent review.
+
+Bounded result: ordinary paper-syntax let control, preservation and erasure
+stuttering simulation are a checked candidate pending independent review. The
+full manuscript state/control/current-port/residual-graph bridge, omitted
+frames, full source/native correspondence, inference A/B and production remain
+OPEN. No implementation slice or tests are authorized.
