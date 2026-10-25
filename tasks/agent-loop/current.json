@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-ENTRY-SPINE-20261025",
     "revision": "r1",
-    "status": "P_Q_STOPPED_COMPOSITION_READY",
+    "status": "FAILED_VERIFICATION_CLOSED",
     "contract": "tasks/agent-loop/sprints/call-entry-spine-20261025-r1.md",
     "contract_sha256": "77affc0d4d0765c8fffd92fc41653a154ab66bb6598c31c039e4e518d449d4d9",
     "baseline": "e5ea192c0d42bcbc470fee9fb8474d1b8cbee981",
@@ -25,13 +25,14 @@
       "lean_invocation_cap": 9
     },
     "outcome": "tasks/agent-loop/sprints/call-entry-spine-20261025-r1-outcome.md",
-    "closure": "Syntax typing only; operational/source/A-B parents stay OPEN.",
-    "review": "Fresh nonauthor review after authors STOP and receipts freeze.",
-    "checker": "No Lean yet; P/Q exact propositions statically matched; both authors STOPPED.",
-    "acceptance": "Exact P/Q/compose statements compile; complete receipts; standard axioms; CLEAN review.",
+    "closure": "P/Q unaccepted candidates; r3 typed plugging remains accepted; operational/source/A-B parents OPEN.",
+    "review": "NOT_STARTED; no candidate accepted.",
+    "checker": "P failed first Lean compile; Q/composition/query NOT_RUN; exact full receipt archived.",
+    "acceptance": "UNACCEPTED: first required Lean module failed; preserve exact P/Q propositions and candidate hashes.",
     "author": "P/Q STOPPED; frozen candidates ready for Luna composition. No budget carryover.",
-    "next_action": "Compose exact contract theorem; serialize pinned Lean checks, then independent review.",
-    "prior_r3": "Accepted formal typed-plugging dependency from r3; all pins in frozen contract."
+    "next_action": "Freeze r1 outcome; new r2 repair requires its own contract, leases and fresh budget.",
+    "prior_r3": "Accepted formal typed-plugging dependency from r3; all pins in frozen contract.",
+    "outcome_sha256": "11f2478ec74c36fa14c46b66a9027dc9bc8f3fce2e62f6c0356ab8063989c8bb"
   },
   "workers": [
     {
@@ -76,7 +77,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Active primary; owns r3 authority, serialized compiler receipts, review appointment, adjudication and Git."
+      "receipt": "Active r1 primary; stopped serial checking on first P compile failure; owns failure outcome and Git."
     },
     {
       "id": "/root/call_entry_body_typing",
@@ -112,115 +113,151 @@
       "path": "notes/theory/lean/YulangClosure/CallContextTyping.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "Immutable r1 candidate snapshot for r3 downstream verification."
+      "reason": "r1 frozen"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CoreSyntax.olean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact ignored compiler output regranted by r3."
+      "reason": "r1 serialized output"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CoreSyntax.ilean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact ignored compiler output regranted by r3."
+      "reason": "r1 serialized output"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/Contracts.olean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact ignored compiler output regranted by r3."
+      "reason": "r1 serialized output"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/Contracts.ilean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact ignored compiler output regranted by r3."
+      "reason": "r1 serialized output"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CoreSubstitution.olean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact ignored compiler output regranted by r3."
+      "reason": "r1 serialized output"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CoreSubstitution.ilean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact ignored compiler output regranted by r3."
+      "reason": "r1 serialized output"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CoreExecution.olean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact ignored compiler output regranted by r3."
+      "reason": "r1 serialized output"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CoreExecution.ilean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact ignored compiler output regranted by r3."
+      "reason": "r1 serialized output"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallContextTyping.olean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact ignored compiler output regranted by r3."
+      "reason": "r1 serialized output"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallContextTyping.ilean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact ignored compiler output regranted by r3."
+      "reason": "r1 serialized output"
     },
     {
       "path": "notes/theory/lean/YulangClosure/CoreSubstitution.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "Sole author STOP; revision-2 bytes frozen for serialized verification and independent review."
+      "reason": "r1 frozen"
     },
     {
       "path": "notes/theory/lean/YulangClosure/CallEntryTyping.lean",
-      "owner": "/root/call_entry_body_typing",
+      "owner": "/root",
       "state": "FROZEN",
-      "reason": "P STOP; frozen candidate and revision-1 handoff."
+      "reason": "r1 frozen"
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-entry-typing.md",
-      "owner": "/root/call_entry_body_typing",
+      "owner": "/root",
       "state": "FROZEN",
-      "reason": "P STOP; frozen candidate and revision-1 handoff."
+      "reason": "r1 frozen"
     },
     {
       "path": "notes/theory/lean/YulangClosure/CallPeelingTyping.lean",
-      "owner": "/root/call_wrap_typing",
+      "owner": "/root",
       "state": "FROZEN",
-      "reason": "Q STOP; frozen candidate and revision-1 handoff."
+      "reason": "r1 frozen"
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-peeling-typing.md",
-      "owner": "/root/call_wrap_typing",
+      "owner": "/root",
       "state": "FROZEN",
-      "reason": "Q STOP; frozen candidate and revision-1 handoff."
+      "reason": "r1 frozen"
     },
     {
       "path": "notes/theory/lean/YulangClosure/CallEntrySpine.lean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Primary composition after author STOP."
+      "reason": "r1 serialized output"
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-entry-spine-verification.jsonl",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Primary serialized compiler receipts."
+      "reason": "r1 serialized output"
     },
     {
       "path": "notes/theory/lean/.lake/call-entry-spine-r1-check.lean",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact primary query source."
+      "reason": "r1 serialized output"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntryTyping.olean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "r1 serialized output"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntryTyping.ilean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "r1 serialized output"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallPeelingTyping.olean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "r1 serialized output"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallPeelingTyping.ilean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "r1 serialized output"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntrySpine.olean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "r1 serialized output"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEntrySpine.ilean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "r1 serialized output"
     }
   ],
   "pending": [
@@ -228,143 +265,143 @@
       "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
       "state": "OPEN",
       "owner": "Luna",
-      "details": "tasks/agent-loop/inbox/20261019-r61-proof.md"
+      "details": "Proof: tasks/agent-loop/inbox/20261019-r61-proof.md"
     },
     {
       "id": "R64-SRC-ANN-ARG-1",
       "state": "OPEN",
       "owner": "Luna",
-      "details": "tasks/agent-loop/inbox/20261019-r64-proof.md"
+      "details": "Proof: tasks/agent-loop/inbox/20261019-r64-proof.md"
     },
     {
       "id": "R65-CURRENT-OPERAND-1",
       "state": "OPEN",
       "owner": "Luna",
-      "details": "tasks/agent-loop/inbox/20261019-r65-proof.md"
+      "details": "Proof: tasks/agent-loop/inbox/20261019-r65-proof.md"
     },
     {
       "id": "R66-LAMBDA-RESULT-STAGE-1",
       "state": "OPEN",
       "owner": "Luna",
-      "details": "tasks/agent-loop/inbox/20261019-r66-proof.md"
+      "details": "Proof: tasks/agent-loop/inbox/20261019-r66-proof.md"
     },
     {
       "id": "R67-DIRECT-BODY-CHECK-1",
       "state": "OPEN",
       "owner": "Luna",
-      "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md"
+      "details": "notes/design/2026-10-19-r67-direct-lambda-checking.md"
     },
     {
       "id": "R68-OWNER-CONSUMER-1",
       "state": "OPEN",
       "owner": "Luna",
-      "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"
+      "details": "retained lambda introduction; owner consumer premise open."
     },
     {
       "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
       "state": "OPEN_UNADOPTED_PROPOSAL",
       "owner": "Luna",
-      "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"
+      "details": "Proposal unadopted; source law open."
     },
     {
       "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
       "state": "OPEN",
       "owner": "Luna",
-      "details": "tasks/agent-loop/inbox/20261019-r70-proof.md"
+      "details": "Proof: tasks/agent-loop/inbox/20261019-r70-proof.md"
     },
     {
       "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
       "state": "OPEN",
       "owner": "Luna",
-      "details": "R230; R231\u2013234; R236; R237 found no callback slot-4 alias to later raw WorkBound; coverage open."
+      "details": "R237: raw WorkBound callback coverage open."
     },
     {
       "id": "R72-LATER-OCCURRENCE-1",
       "state": "OPEN",
       "owner": "Luna",
-      "details": "R229; R231\u2013233 found no slot-4 post-alias consumer; bridge open."
+      "details": "R229\u2013233: slot-4 bridge open."
     },
     {
       "id": "R149-SOURCE-OWNER-CLOSURE-1",
       "state": "OPEN_SOURCE_TO_CST",
       "owner": "Luna intake",
-      "details": "R149 outcome: private sample-environment seam; parser/HIR readback OPEN."
+      "details": "R149: parser/HIR readback open."
     },
     {
       "id": "R339-D2-WHOLE-FRAME-RETIREMENT",
       "state": "OPEN_REMAINDER",
       "owner": "Luna",
-      "details": "R346 fixed-key replay accepted; R347 projected C_s \u2194 H\u2080(S) open; R348 bounded extension accepted after review; full N open."
+      "details": "R347 projected C_s/H\u2080(S) and full N open."
     },
     {
       "id": "R340-D3-AUTHENTIC-APPLY-CONTINUATION",
       "state": "OPEN_REMAINDER",
       "owner": "Luna",
-      "details": "R340 partial under realization premises; full C/M open; S0 row corrected, review pending."
+      "details": "R340 partial; full C/M and review open."
     },
     {
       "id": "R345-N-REMAINDER",
       "state": "OPEN_REMAINDER",
       "owner": "Luna",
-      "details": "R346 fixed-key replay accepted; R347 projected C_s \u2194 H\u2080(S) open; R348 bounded extension accepted after review; full N open."
+      "details": "R347 projected C_s/H\u2080(S) and full N open."
     },
     {
       "id": "OP-SEMANTICS-FULL-EFFECT",
       "state": "OPEN_REVIEW",
       "owner": "primary",
-      "details": "15.4 repair candidate; source application, adoption and review OPEN."
+      "details": "15.4 candidate; source adoption/review open."
     },
     {
       "id": "DOT-SELECTION-EVIDENCE-BRIDGE",
       "state": "OPEN_REVIEW",
       "owner": "primary",
-      "details": "Finite selected-code bridge; effect lifetime, resolver and snapshot lifecycle OPEN."
+      "details": "Effect lifetime, resolver, snapshot lifecycle open."
     },
     {
       "id": "CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE",
       "state": "OPEN_REVIEW",
       "owner": "primary",
-      "details": "Rank-2 computed-fetch source boundary clarified (12.1); explicit all-input release (11.7). Semantic choice, native correspondence/review OPEN."
+      "details": "Semantics/native correspondence/review open."
     },
     {
       "id": "SOURCE-SAFETY-BRIDGE",
       "state": "OPEN_REVIEW",
       "owner": "primary",
-      "details": "Partial; joint route/instance/owner/forwarding premises absent; no counterexample; adoption/full surface OPEN."
+      "details": "Joint route/instance/owner/forwarding premises open."
     },
     {
       "id": "CALL-CONTEXT-PLUG-PRESERVATION",
       "state": "OPEN",
       "owner": "Luna intake; later sprint after r9 execution adequacy",
-      "details": "OPEN: P/Q unchanged A claim; no r8 proof grant issued; wait for checked raw/typed Call coverage."
+      "details": "Await raw/typed Call coverage; A claim unchanged."
     },
     {
       "id": "BOUNDED-CALL-FINITE-PREFIX-SAFETY",
       "state": "OPEN",
       "owner": "Luna intake; later sprint after exact A/hash",
-      "details": "OPEN: B unchanged arbitrary-suffix finite-prefix claim; not issued in r9."
+      "details": "B arbitrary-suffix claim unchanged; unissued."
     },
     {
       "id": "CALL-STEP-ERASURE",
       "state": "OPEN",
       "owner": "r9 S / Luna intake; launch after checked implementation seam",
-      "details": "OPEN/unissued; await checked Force input and independent raw relation."
+      "details": "Unissued; await Force input and raw relation."
     },
     {
       "id": "CALL-RAW-SUCCESSOR-COVERAGE",
       "state": "OPEN",
       "owner": "r9 C / Luna intake; launch after checked implementation seam",
-      "details": "OPEN/unissued; await checked Force input and independent raw relation."
+      "details": "Unissued; await Force input and raw relation."
     },
     {
       "id": "FORCE-SOURCE-REALIZATION-20261025",
       "state": "OPEN_SOURCE_EQUATIONS",
       "owner": "Luna",
-      "details": "R3 review BLOCKING; r4 F/P derive Flow rows and executable source projection."
+      "details": "R3 review blocking; R4 Flow/source projection next."
     }
   ],
-  "closure": "Force source applicability and original parent OPEN; r3 typed plugging accepted.",
-  "next_action": "Compose contract theorem; serial Lean check, then fresh review.",
+  "closure": "r1 P Lean failure; syntax theorem unaccepted; original semantics/inference goal OPEN.",
+  "next_action": "Dispatcher-proposed r2 P repair; fresh contract required.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -448,8 +485,14 @@
       "sha256": "98b9a65a899264cf739ad0ee42ed104e2c01716f530c9d11b561a9f2a0d1e9d3",
       "closure": "Typed plugging checked/CLEAN; operational/source/A-B and parent OPEN.",
       "commit": "f105e0ce0"
+    },
+    {
+      "id": "LEAN-CALL-ENTRY-SPINE-20261025/r1",
+      "record": "tasks/agent-loop/sprints/call-entry-spine-20261025-r1-outcome.md",
+      "sha256": "11f2478ec74c36fa14c46b66a9027dc9bc8f3fce2e62f6c0356ab8063989c8bb",
+      "closure": "P compile failure; Q/compose unchecked; theorem OPEN."
     }
   ],
-  "resource_observation": "P 900s/Q 1200s charged; Luna compose 600s, serial check 480s, review 600s, integrate 300s.",
-  "checker": "Single Lean 4.35 check authorized after frozen author output; no tests."
+  "resource_observation": "r1 charged P 900s/Q 1200s/Luna compose 600s; verify stopped at 2.807s; no review.",
+  "checker": "P invocation 1/9 failed in 2.807s; stop required; no further Lean invocations."
 }
