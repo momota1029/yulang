@@ -3,7 +3,7 @@
 Status: CANDIDATE; no writer/checker may act before exact contract hash, fresh runtime receipt, leases and committed acknowledgement.
 Branch: research/simple-sub-intrusion
 Baseline: 70c3d29f76fa54f209fe8271e2ca25f079f26acf (R24 accepted as reviewed prerequisite)
-Contract revision: r1
+Contract revision: r2
 
 ## Parent and selected outcome
 
@@ -44,17 +44,26 @@ Only after an actual worker/session receipt and committed acknowledgement, one r
 - notes/theory/lean/YulangClosure/PaperExecutionTypingSubstitution.lean
 - new notes/theory/lean/YulangClosure/PaperMapOperationIntegration.lean
 - notes/theory/lean/.lake/R25Audit.lean
+- notes/theory/lean/.lake/build (dedicated cache in this isolated worktree; worker owns it during construction, then stops and hands it to primary before final verification)
+- tasks/agent-loop/inbox/paper-typing-subst-r25-worker-checks.txt
+- tasks/agent-loop/inbox/paper-typing-subst-r25-primary-verification.txt
 - tasks/agent-loop/inbox/paper-typing-subst-r25.md
 
 R24 module and all other dependencies are read-only. Worker must source-audit first; if blocked, write only the handoff and stop. If the source gate passes, continue within this packet through the constructor, transport case, inversion/iff, exact audit source and handoff. No child agents.
 
-Primary owns current state, checker/cache output, final focused build and final exact audit (2 calls), adjudication and Git. One fresh non-author reviewer, only after freeze, may write tasks/agent-loop/inbox/paper-typing-subst-r25-review.md; reviewer runs no checker. No overlapping checker/cache owner.
+Worker is the sole checker/cache owner during construction and may use the leased isolated .lake/build and worker-checks receipt within its 10-call cap. After a frozen handoff and actual STOP/cessation receipt, the primary takes sole ownership of that exact isolated cache path and a separate tasks/agent-loop/inbox/paper-typing-subst-r25-primary-verification.txt path for the final focused build and final exact audit (2 calls). Run these exact commands, serially, with the existing lakefile Lean options; do not pass Lean flags as Lake build options:
+
+    lake build +YulangClosure.PaperMapOperationIntegration
+    lake env lean -j1 -M1024 .lake/R25Audit.lean
+
+One fresh non-author reviewer, only after freeze, may write tasks/agent-loop/inbox/paper-typing-subst-r25-review.md; reviewer runs no checker. No overlapping checker/cache owner.
 
 ## Inputs and frozen hashes
 
     docs/yulang-operational-type-safety-ja.tex  a003b56a2f32eed06a2c604ef8aed043d43752cbed0b09028eff7f6efac4886b
     notes/theory/lean/YulangClosure/PaperExecutionSyntax.lean  e38cd059caf7d81549a09f360d81e52cb4aecb8a95d8eb3f308ffda7d38a8932
     notes/theory/lean/YulangClosure/PaperExecutionTypingSubstitution.lean  3b1588bff2d28a3db7aa241c930495b84f090e880ad49ac8fb2d593d54943d41
+    notes/theory/lean/YulangClosure/PaperExecutionBinderLaws.lean  568a9a5a1991bb605d85e9b58f33638fb445b1325516e10eed0f076f72346d7a
     notes/theory/lean/YulangClosure/PaperOperationMapperTyping.lean  175c307e00bea7ba6ec44ff153f50a7d9d943de8bdc3d4dccb02a41bc53dde77
     notes/theory/lean/YulangClosure/PaperTypeFormation.lean  29c1a85b4d2588224bf1847f78a7b4d94db095488f3bba4937888a3815f39d13
     notes/theory/lean/YulangClosure/PaperTypeSubstitution.lean  02834720f622642dd4c7a27ea51451deb7386877b091fbccc828a66eaa8e4861
