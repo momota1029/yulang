@@ -6,9 +6,9 @@
   "active_sprint": {
     "id": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025",
     "revision": "r1",
-    "status": "READY",
+    "status": "RUNNING",
     "contract": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1.md",
-    "contract_sha256": "55c7e955790fcf960b306f5e05b50adf6d5aafb29a96c83a9511361b87cd5e80",
+    "contract_sha256": "6020b57d97d0642be5702dafe52efa5fc302165ded16d5e717a159b7e92bee5c",
     "baseline": "8fd63cadc",
     "claim": "Construct an actually reachable, typed View-wrapped Force Call head and prove it has no successor in the current formal relation.",
     "worktree": "/home/momota1029/rust/yulang",
@@ -30,7 +30,7 @@
     "checker": "Proposal audits only; P and Q require Lean construction and bounded four-invocation receipt.",
     "acceptance": "P five-step theorem, Q exhaustive no-successor theorem, composition with accepted initial prefix typing, complete serial receipt and CLEAN independent review.",
     "author": "Luna owns state, composition, verification, review/adjudication and Git. P/Q only authors; three UNKNOWN quarantines stay reserved.",
-    "next_action": "Activate separately leased P/Q proof authors after START state checkpoint is pushed.",
+    "next_action": "Both exact leases reserved; P/Q acknowledged waiting. Commit/push activation state, then grant their packets.",
     "non_goal": "No source/frontend reachability, native correspondence, Call A/B, inference A/B, semantic approval or production claim."
   },
   "workers": [
@@ -76,7 +76,29 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Preparing and integrating fresh obstruction sprint; no child writes authorized until activation checkpoint."
+      "receipt": "P/Q reservations acknowledged; current state records exact leases before activation."
+    },
+    {
+      "id": "/root/view_force_reachability_prover",
+      "role": "P constructive prover: exact five-step typed Call reachability",
+      "state": "WAITING",
+      "session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Reservation acknowledged; no source reads/writes until activation checkpoint."
+    },
+    {
+      "id": "/root/view_force_stuck_prover",
+      "role": "Q constructive prover: exhaustive no-successor theorem",
+      "state": "WAITING",
+      "session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Reservation acknowledged; no source reads/writes until activation checkpoint."
     }
   ],
   "leases": [
@@ -91,6 +113,30 @@
       "owner": "/root",
       "state": "FROZEN",
       "reason": "frozen r1 contract"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CallViewedForceReachability.lean",
+      "owner": "/root/view_force_reachability_prover",
+      "state": "HELD",
+      "reason": "exact P output lease; writer waits for activation"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-call-viewed-force-reachability.md",
+      "owner": "/root/view_force_reachability_prover",
+      "state": "HELD",
+      "reason": "exact P handoff lease; writer waits for activation"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CallViewedForceStuck.lean",
+      "owner": "/root/view_force_stuck_prover",
+      "state": "HELD",
+      "reason": "exact Q output lease; writer waits for activation"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-call-viewed-force-stuck.md",
+      "owner": "/root/view_force_stuck_prover",
+      "state": "HELD",
+      "reason": "exact Q handoff lease; writer waits for activation"
     }
   ],
   "pending": [
@@ -351,6 +397,6 @@
       "sha256": "8ad36a0dbcb99faf2a87164b4fcd87e21754f1c40583fee963bd95b267d8655c"
     }
   ],
-  "resource_observation": "New r1 envelope reserved at 2700s; P/Q not yet activated; three UNKNOWN reservations retained.",
+  "resource_observation": "P 900s and Q 300s grants reserved; both acknowledged WAITING; three UNKNOWN reservations retained; no proof work started.",
   "checker": "Pre-dispatch: contract and prior accepted finite-prefix dependency pins frozen; source hashes to recheck before Lean invocation."
 }
