@@ -2,36 +2,36 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "LEAN-CALL-UNWIND-20261025/root-turn-11",
+  "session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
   "active_sprint": {
-    "id": "LEAN-CALL-UNWIND-20261025",
-    "revision": "r2",
-    "status": "ACCEPTED_CLEAN",
-    "contract": "tasks/agent-loop/sprints/call-unwind-20261025-r2.md",
-    "contract_sha256": "4847f89672c8821df47d9ed2e1162b150b3b578b4aec8304e6d2331389c27c01",
-    "baseline": "33cd9e0a5",
-    "claim": "Compose the unchanged actual request/failure unwinds with supplied typed initial prefixes, using a checked equality bridge.",
+    "id": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025",
+    "revision": "r1",
+    "status": "READY",
+    "contract": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1.md",
+    "contract_sha256": "55c7e955790fcf960b306f5e05b50adf6d5aafb29a96c83a9511361b87cd5e80",
+    "baseline": "8fd63cadc",
+    "claim": "Construct an actually reachable, typed View-wrapped Force Call head and prove it has no successor in the current formal relation.",
     "worktree": "/home/momota1029/rust/yulang",
     "branch": "research/simple-sub-intrusion",
     "resources": {
-      "cap_seconds": 1260,
-      "grant_map": "Luna compose 240 + verify 240 + fresh review 600 + integration 180; Astra 0.",
+      "cap_seconds": 2700,
+      "grant_map": "P 900 + Q 300 + composition 240 + serial Lean verification 480 + fresh review 600 + integration 180; Astra 0.",
       "astra": 0,
-      "max_concurrent_new_author_assignments": 1,
+      "max_concurrent_new_author_assignments": 2,
       "lean_processes": 1,
       "cpu": 1,
       "memory_mib": 1024,
       "verification_timeout_seconds": 120,
-      "lean_invocation_cap": 2
+      "lean_invocation_cap": 4
     },
-    "outcome": "tasks/agent-loop/sprints/call-unwind-20261025-r2-outcome.md",
-    "closure": "Bounded formal Call request/failure unwind plus initial-prefix typing ACCEPTED/CLEAN; global/source/A-B gates OPEN.",
-    "review": "CLEAN; fresh nonauthor combined review; report SHA e3391a49968f668eb106daccaa47979d4165a313525d0d1f2827784c012ee079.",
-    "checker": "62 pins match; two serial invocations exit 0; exact query axioms match; fresh review CLEAN.",
-    "acceptance": "Exact two corollaries compile; complete receipts; exact signatures/axioms; fresh combined CLEAN review.",
-    "author": "Luna owns new composition, verification, adjudication and Git; no P/Q restart.",
-    "next_action": "Consult dispatcher at r2 closure for the next exact open proof proposition.",
-    "non_goal": "No reachability, source/native, cleanup correctness, A/B, inference, or production claim."
+    "outcome": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1-outcome.md",
+    "closure": "Not yet proved. Call progress/A-B, source/native, inference and production gates remain OPEN.",
+    "review": "Not assigned; require fresh nonauthor review after P/Q STOP and exact outputs freeze.",
+    "checker": "Proposal audits only; P and Q require Lean construction and bounded four-invocation receipt.",
+    "acceptance": "P five-step theorem, Q exhaustive no-successor theorem, composition with accepted initial prefix typing, complete serial receipt and CLEAN independent review.",
+    "author": "Luna owns state, composition, verification, review/adjudication and Git. P/Q only authors; three UNKNOWN quarantines stay reserved.",
+    "next_action": "Activate separately leased P/Q proof authors after START state checkpoint is pushed.",
+    "non_goal": "No source/frontend reachability, native correspondence, Call A/B, inference A/B, semantic approval or production claim."
   },
   "workers": [
     {
@@ -71,173 +71,26 @@
       "id": "/root",
       "role": "primary authority/current/Git integrator",
       "state": "RUNNING",
-      "session": "LEAN-CALL-UNWIND-20261025/root-turn-11",
+      "session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
       "requested_model": "user-selected primary",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R2 proof and review complete; integrating exact frozen artifacts; parent gates remain open."
-    },
-    {
-      "id": "/root/call_step_typing_author",
-      "role": "P prover: actual request unwind and captureFrames",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "STOP; P source/handoff hashes recorded in r1 handoff.",
-      "session": "LEAN-CALL-UNWIND-20261025/root-turn-11"
-    },
-    {
-      "id": "/root/call_entry_body_typing",
-      "role": "Q prover: actual failure unwind",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "STOP; Q source/handoff hashes recorded in r1 handoff.",
-      "session": "LEAN-CALL-UNWIND-20261025/root-turn-11"
-    },
-    {
-      "id": "/root/call_unwind_r2_review",
-      "role": "fresh r2 combined compiler referee",
-      "state": "STOPPED",
-      "session": "LEAN-CALL-UNWIND-20261025/root-turn-11",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "CLEAN; STOP; read-only review message; no filesystem writes. Hashes and evidence in r2 report."
+      "receipt": "Preparing and integrating fresh obstruction sprint; no child writes authorized until activation checkpoint."
     }
   ],
   "leases": [
     {
-      "path": "notes/theory/lean/YulangClosure/CallRequestUnwind.lean",
-      "owner": "/root/call_step_typing_author",
-      "state": "FROZEN",
-      "reason": "frozen evidence"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-request-unwind.md",
-      "owner": "/root/call_step_typing_author",
-      "state": "FROZEN",
-      "reason": "frozen evidence"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CallFailureUnwind.lean",
-      "owner": "/root/call_entry_body_typing",
-      "state": "FROZEN",
-      "reason": "frozen evidence"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-failure-unwind.md",
-      "owner": "/root/call_entry_body_typing",
-      "state": "FROZEN",
-      "reason": "frozen evidence"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CallUnwindTyping.lean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "frozen evidence"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-unwind-r1-verification.jsonl",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "frozen evidence"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallRequestUnwind.olean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "frozen evidence"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallRequestUnwind.ilean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "frozen evidence"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallFailureUnwind.olean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "frozen evidence"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallFailureUnwind.ilean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "frozen evidence"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/call-unwind-20261025-r1.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "frozen evidence"
-    },
-    {
       "path": "tasks/agent-loop/current.json",
       "owner": "/root",
       "state": "HELD",
-      "reason": "r2 primary lease"
+      "reason": "primary current-state lease"
     },
     {
-      "path": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
+      "path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1.md",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "frozen evidence"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CallUnwindTypingRepair.lean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "accepted r2 evidence; bytes frozen"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-unwind-r2-verification.jsonl",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "accepted r2 evidence; bytes frozen"
-    },
-    {
-      "path": "notes/theory/lean/.lake/call-unwind-r2-check.lean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "accepted r2 evidence; bytes frozen"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallUnwindTypingRepair.olean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "accepted r2 evidence; bytes frozen"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallUnwindTypingRepair.ilean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "accepted r2 evidence; bytes frozen"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-unwind-r2-review.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "accepted r2 evidence; bytes frozen"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/call-unwind-20261025-r2-outcome.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "accepted r2 evidence; bytes frozen"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/call-unwind-20261025-r2.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "accepted r2 evidence; bytes frozen"
+      "reason": "frozen r1 contract"
     }
   ],
   "pending": [
@@ -380,8 +233,8 @@
       "details": "R3 review blocking; R4 Flow/source projection next."
     }
   ],
-  "closure": "Finite Call typing and bounded Call unwind typing ACCEPTED/CLEAN; parent A/B and source/native OPEN.",
-  "next_action": "Consult dispatcher for next exact proof proposition; r9 and parent gates remain OPEN.",
+  "closure": "Accepted bounded Call prefix typing and request/failure unwind typing; progress obstruction now READY; original A/B and source/native remain OPEN.",
+  "next_action": "Push START checkpoint, then activate disjoint P/Q proof authors; preserve the three UNKNOWN reservations and unrelated Force evidence.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -498,6 +351,6 @@
       "sha256": "8ad36a0dbcb99faf2a87164b4fcd87e21754f1c40583fee963bd95b267d8655c"
     }
   ],
-  "resource_observation": "Finite Call sprint cap 2460s; P/Q STOPPED; 4/4 Lean used.",
-  "checker": "Finite typing inputs and output artifacts revalidated; all new author/query/output/review/outcome paths absent."
+  "resource_observation": "New r1 envelope reserved at 2700s; P/Q not yet activated; three UNKNOWN reservations retained.",
+  "checker": "Pre-dispatch: contract and prior accepted finite-prefix dependency pins frozen; source hashes to recheck before Lean invocation."
 }
