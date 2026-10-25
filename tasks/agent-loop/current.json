@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-UNWIND-20261025",
     "revision": "r2",
-    "status": "FROZEN_PREFLIGHT_PASSED",
+    "status": "PRIMARY_COMPOSITION_RUNNING",
     "contract": "tasks/agent-loop/sprints/call-unwind-20261025-r2.md",
     "contract_sha256": "4847f89672c8821df47d9ed2e1162b150b3b578b4aec8304e6d2331389c27c01",
     "baseline": "33cd9e0a5",
@@ -26,11 +26,11 @@
     },
     "outcome": "tasks/agent-loop/sprints/call-unwind-20261025-r2-outcome.md",
     "closure": "r1 FAILED_VERIFICATION / UNACCEPTED; P/Q compile only; review pending.",
-    "review": "NOT_RUN; frozen P/Q candidates and equality-bridge composition require two serial Lean invocations, then fresh combined review.",
+    "review": "NOT_RUN; r2 contract/state committed at d8f8ef077; Luna is writing the new isolated composition module.",
     "checker": "62 frozen pins match; all 7 r2 assigned source/output/review paths absent.",
     "acceptance": "Exact two corollaries compile; complete receipts; exact signatures/axioms; fresh combined CLEAN review.",
     "author": "Luna owns new composition, verification, adjudication and Git; no P/Q restart.",
-    "next_action": "Activate Luna composition lease after frozen contract/state checkpoint; reviewer starts only after both invocations pass.",
+    "next_action": "Write exact r2 module with normalized initial-state equalities; stop on first mismatch before the two serial invocations.",
     "non_goal": "No reachability, source/native, cleanup correctness, A/B, inference, or production claim."
   },
   "workers": [
@@ -76,7 +76,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Luna r2 primary; froze new equality-bridge composition contract after r1 STOP."
+      "receipt": "Luna r2 activated after d8f8ef077; exclusive composition/verification lease; no reviewer active."
     },
     {
       "id": "/root/call_step_typing_author",
