@@ -6,15 +6,15 @@
   "active_sprint": {
     "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r56",
     "revision": "r1",
-    "status": "ASSIGNED",
+    "status": "FAILED",
     "contract": "tasks/agent-loop/sprints/paper-type-beta-execution-r56.md",
     "contract_sha256": "734715b75b15c0dfe8964f16fc3afbcb2a56b99b91e7f93381873130d7294447",
     "baseline": "bd445803661013d7ab725f6d0da17e71e3a6a5dd",
     "branch": "yulang3",
     "claim": "Complete strict audit and root verification of the unchanged manuscript-explicit type-application beta preservation candidate, followed by independent review; parent remains open until every gate passes.",
-    "outcome": "R56 corrects only the audit mechanism for exact private declaration names; candidate bytes and theorem statements remain frozen.",
+    "outcome": "Isolated root build failed because candidate import was appended after existing commands; no candidate module build, audit, review, integration or theorem acceptance. Primary setup error, not counterexample.",
     "budget": "Primary 420s/4 calls/90 checker; fresh reviewer 180s/0 checker; aggregate 600s/4 calls/90 checker.",
-    "next_action": "Verify exact candidate and all declaration types/axioms, isolated root build, then fresh independent review. Stop at first failure."
+    "next_action": "R56 failed at first build; consult selector for a fresh yulang3 packet, no R56 retries."
   },
   "workers": [
     {
@@ -108,13 +108,13 @@
     {
       "id": "/root",
       "role": "primary/checker/integrator",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
       "requested_model": "user-selected model",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R56 primary active on yulang3; fixed origin 48401291550615ns; no checker calls yet."
+      "receipt": "R56 stopped after 3 calls/54.304217993 checker s/161.382 charged s; root import placement error; no audit/review."
     },
     {
       "id": "/root/r55_type_beta_finalize",
@@ -126,17 +126,6 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "Frozen R55 handoff 4cb89d…94128b; candidate 0a1834…a8c1c8; 4 calls/34.788968363 native s/253.121 conservatively charged s; candidate build passed; strict audit failed; no processes/writes."
-    },
-    {
-      "id": "/root/r56_referee",
-      "role": "fresh independent compiler_referee",
-      "state": "NOT_STARTED",
-      "session": null,
-      "requested_model": "registered role defaults",
-      "requested_effort": "registered role defaults",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Launch only after R56 candidate/audit/raw log freeze; zero checker calls."
     }
   ],
   "leases": [
@@ -153,7 +142,7 @@
     {
       "path": "notes/theory/lean/YulangClosure/PaperTypeBetaExecution.lean",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/lean/.lake/R55Audit.lean",
@@ -168,7 +157,7 @@
     {
       "path": "tasks/agent-loop/sprints/paper-type-beta-execution-r56.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/paper-type-beta-r56-primary.md",
@@ -176,19 +165,19 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/paper-type-beta-r56-review.md",
-      "owner": "/root/r56_referee",
-      "state": "HELD"
-    },
-    {
       "path": "notes/theory/lean/YulangClosure.lean",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/lean/.lake/R56Audit.lean",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/paper-type-beta-r56-yulang3-primary.md",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -360,8 +349,8 @@
       "details": "Bounded proof accepted; full-paper/native bridge open; pending-cell republication blocks naive relation."
     }
   ],
-  "closure": "R51 bounded slice integrated. R52 no candidate. R53/R54 construction failures. R55 candidate module built but strict audit failed on private-name syntax; no theorem accepted. R56 ASSIGNED on yulang3 for exact-name audit/root verification/review. Both semantic questions committed, WITHDRAWN_BY_USER and unanswered.",
-  "next_action": "R56 yulang3 exact-name audit packet; monitor external branch updates and preserve incoming proof artifacts for provenance review.",
+  "closure": "R51 bounded slice integrated. R52 no candidate. R53/R54 construction failures. R55 built candidate but audit template failed. R56 stopped because temporary root import was appended after commands; no complete audit/review/integration. Type-beta and parent OPEN. Question bundles committed on yulang3; both withdrawn and unanswered.",
+  "next_action": "Consult selector at R56 first-build obstruction boundary. Continue only with a fresh exact-name audit packet on yulang3; preserve external proof arrivals.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "8 UNKNOWN reservations remain quarantined.",
@@ -473,9 +462,19 @@
       "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r56-contract-r1",
       "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r56.md",
       "sha256": "734715b75b15c0dfe8964f16fc3afbcb2a56b99b91e7f93381873130d7294447"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r56-primary-handoff",
+      "record": "tasks/agent-loop/inbox/paper-type-beta-r56-yulang3-primary.md",
+      "sha256": "76f101876529c9d103309f86da925de3703cadd31b5823880601dc7213c1ac27"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r56-outcome",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r56-outcome.md",
+      "sha256": "f7871eb12687243e77ff7fe23c55b664e0c27c2f5bb416b2a37a7eac9807a01a"
     }
   ],
-  "resource_observation": "R55 worker closed at 253.121s conservatively charged, audit exit 1. R56 fresh primary origin 48401291550615ns; grant 420s primary + 180s reviewer, no transfer.",
+  "resource_observation": "R55 worker 253.121s conservatively charged, audit exit 1. R56 primary origin 48401291550615ns; 3 calls, root build 54.304217993 checker s, 161.382 conservative elapsed s charged; stopped without audit/review. No budget transfer.",
   "native_bridge": {
     "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
     "state": "OPEN; NAIVE_RELATION_BLOCKED",
