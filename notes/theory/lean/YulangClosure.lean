@@ -9,6 +9,7 @@ import YulangClosure.PaperTupleSplitExecution
 import YulangClosure.PaperPerformLetExecution
 import YulangClosure.PaperResumeExecution
 import YulangClosure.PaperExtendedExecution
+import YulangClosure.PaperHeapExecution
 import YulangClosure.PaperEliminationExamples
 import YulangClosure.PaperTypeBetaExecution
 
