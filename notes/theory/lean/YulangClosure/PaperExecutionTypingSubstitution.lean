@@ -15,6 +15,25 @@ theorem typingArgsSyntax_subst (σ : Nat → Ty) (types : List Ty) :
   | nil => rfl
   | cons head tail ih => simp [argsSyntax, subst, ih]
 
+theorem instantiateType_subst (arguments : List Ty) (σ : Nat → Ty)
+    (arity : Nat) (arityEq : arguments.length = arity) (body : Ty) :
+    subst σ (instantiateType arguments body) =
+      instantiateType (mapOperationArguments σ arguments)
+        (subst (liftSubN arity σ) body) := by
+  unfold instantiateType
+  calc
+    subst σ (subst (instantiateSubstitution arguments) body) =
+        subst (fun i => subst σ (instantiateSubstitution arguments i)) body :=
+      subst_comp (instantiateSubstitution arguments) σ body
+    _ = subst (fun i =>
+          subst (instantiateSubstitution (mapOperationArguments σ arguments))
+            (liftSubN arity σ i)) body := by
+      rw [instantiateSubstitution_commutes arguments σ arity arityEq]
+    _ = subst (instantiateSubstitution (mapOperationArguments σ arguments))
+          (subst (liftSubN arity σ) body) :=
+      (subst_comp (liftSubN arity σ)
+        (instantiateSubstitution (mapOperationArguments σ arguments)) body).symm
+
 @[simp] theorem literalType_subst (σ : Nat → Ty) (literal : Literal) :
     subst σ (literalType literal) = literalType literal := by
   cases literal <;> rfl
@@ -176,6 +195,40 @@ theorem PaperValueTyped.subst_explicit (σ : Nat → Ty) {declarations : Declara
               (subst σ responseType) (subst σ resultType) := by
           simpa [mapPaperValue] using ihContinuation
         simpa [mapPaperValue, subst] using PaperValueTyped.continuation ihContinuation')
+    (by intro environment function body argument hfunction ihFunction
+        have ihFunction' :
+            PaperValueTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+              (mapTypeEnvironment σ environment) (mapPaperValue σ function)
+              (.poly (subst (liftSub σ) body)) := by
+          simpa [subst] using ihFunction
+        have commuteRaw := instantiateType_subst [argument] σ 1 rfl body
+        have commute :
+            subst σ (instantiateType [argument] body) =
+              instantiateType [subst σ argument] (subst (liftSub σ) body) := by
+          simpa [instantiateType, mapOperationArguments, liftSubN] using commuteRaw
+        have result := PaperValueTyped.typeApplication
+          (argument := subst σ argument) ihFunction'
+        have result' :
+            PaperValueTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+              (mapTypeEnvironment σ environment)
+              (mapPaperValue σ (.typeApplication function argument))
+              (instantiateType [subst σ argument] (subst (liftSub σ) body)) := by
+          simpa [mapPaperValue] using result
+        rw [commute]
+        exact result')
+    (by intro environment value body hvalue ihValue
+        have commuteRaw := instantiateType_subst [.mu body] σ 1 rfl body
+        have commute :
+            subst σ (instantiateType [.mu body] body) =
+              instantiateType [.mu (subst (liftSub σ) body)] (subst (liftSub σ) body) := by
+          simpa [instantiateType, mapOperationArguments, liftSubN, subst] using commuteRaw
+        have ihValue' :
+            PaperValueTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+              (mapTypeEnvironment σ environment) (mapPaperValue σ value)
+              (instantiateType [.mu (subst (liftSub σ) body)] (subst (liftSub σ) body)) := by
+          rw [← commute]
+          exact ihValue
+        simpa [mapPaperValue, subst] using PaperValueTyped.roll ihValue')
     (by intro environment value ty hvalue ihValue
         simpa [mapPaperComputation] using PaperComputationTyped.ret ihValue)
     (by intro environment first body firstType resultType hfirst hbody ihFirst ihBody
@@ -251,6 +304,25 @@ theorem PaperValueTyped.subst_explicit (σ : Nat → Ty) {declarations : Declara
     (by intro environment continuation response responseType resultType hcontinuation hresponse
           ihContinuation ihResponse
         simpa [mapPaperComputation] using PaperComputationTyped.resume ihContinuation ihResponse)
+    (by intro environment value body hvalue ihValue
+        have commuteRaw := instantiateType_subst [.mu body] σ 1 rfl body
+        have commute :
+            subst σ (instantiateType [.mu body] body) =
+              instantiateType [.mu (subst (liftSub σ) body)] (subst (liftSub σ) body) := by
+          simpa [instantiateType, mapOperationArguments, liftSubN, subst] using commuteRaw
+        have ihValue' :
+            PaperValueTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+              (mapTypeEnvironment σ environment) (mapPaperValue σ value)
+              (.mu (subst (liftSub σ) body)) := by
+          simpa [subst] using ihValue
+        have result := PaperComputationTyped.unroll ihValue'
+        have result' :
+            PaperComputationTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+              (mapTypeEnvironment σ environment) (mapPaperComputation σ (.unroll value))
+              (instantiateType [.mu (subst (liftSub σ) body)] (subst (liftSub σ) body)) := by
+          simpa [mapPaperComputation] using result
+        rw [commute]
+        exact result')
     (by intro environment reason ty; simpa [mapPaperComputation, subst] using PaperComputationTyped.fail)
     (by intro environment owners binder body responseType resultType hbody ihBody
         simpa [mapPaperValue, mapPaperComputation, mapTypeEnvironment, subst] using
@@ -351,6 +423,30 @@ theorem resumeVariableWrongResponseImpossible (declarations : DeclarationTable) 
   cases derivation with
   | resume continuation response =>
       cases continuation <;> simp_all [lookupTypeEnvironment]
+
+theorem typeApplicationBoolVariable (declarations : DeclarationTable) :
+    PaperValueTyped declarations [] [.poly (.var 0)]
+      (.typeApplication (.variable 0) (.base .bool)) (.base .bool) := by
+  have functionTyping :
+      PaperValueTyped declarations [] [.poly (.var 0)] (.variable 0) (.poly (.var 0)) :=
+    PaperValueTyped.variable rfl
+  simpa [instantiateType, instantiateSubstitution, lookupTypeArgument, subst] using
+    (PaperValueTyped.typeApplication functionTyping)
+
+theorem rollVariable (declarations : DeclarationTable) :
+    PaperValueTyped declarations [] [.mu (.var 0)]
+      (.roll (.variable 0)) (.mu (.var 0)) := by
+  apply PaperValueTyped.roll
+  exact PaperValueTyped.variable rfl
+
+theorem unrollVariable (declarations : DeclarationTable) :
+    PaperComputationTyped declarations [] [.mu (.var 0)]
+      (.unroll (.variable 0)) (.mu (.var 0)) := by
+  have valueTyping :
+      PaperValueTyped declarations [] [.mu (.var 0)] (.variable 0) (.mu (.var 0)) :=
+    PaperValueTyped.variable rfl
+  simpa [instantiateType, instantiateSubstitution, lookupTypeArgument, subst] using
+    (PaperComputationTyped.unroll valueTyping)
 
 
 end YulangClosure.PaperTypes

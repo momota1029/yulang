@@ -1,4 +1,5 @@
 import YulangClosure.PaperTypeFormation
+import YulangClosure.DeclSubst
 
 /-!
 Raw objects for the paper's execution typing judgments.  This module is the
@@ -137,6 +138,10 @@ end
 
 def mapTypeArguments (σ : Nat → Ty) (arguments : List Ty) : List Ty :=
   arguments.map (subst σ)
+
+/-- Instantiate the leading type binders of a type with their actual arguments. -/
+def instantiateType (arguments : List Ty) (body : Ty) : Ty :=
+  subst (instantiateSubstitution arguments) body
 
 def mapViewMetadata (σ : Nat → Ty) : ViewMetadata → ViewMetadata
   | .mk identity source target arguments =>
@@ -695,6 +700,14 @@ mutual
           (.continuation owners binder body) responseType resultType →
         PaperValueTyped declarations graphTypes environment (.continuation owners binder body)
           (.kont responseType resultType)
+    | typeApplication {function body argument} :
+        PaperValueTyped declarations graphTypes environment function (.poly body) →
+        PaperValueTyped declarations graphTypes environment (.typeApplication function argument)
+          (instantiateType [argument] body)
+    | roll {value body} :
+        PaperValueTyped declarations graphTypes environment value
+          (instantiateType [.mu body] body) →
+        PaperValueTyped declarations graphTypes environment (.roll value) (.mu body)
 
   inductive PaperComputationTyped (declarations : DeclarationTable)
       (graphTypes : GraphEnvironment) : TypeEnvironment → Computation → Ty → Prop where
@@ -745,6 +758,10 @@ mutual
         PaperValueTyped declarations graphTypes environment response responseType →
         PaperComputationTyped declarations graphTypes environment
           (.resume continuation response) resultType
+    | unroll {value body} :
+        PaperValueTyped declarations graphTypes environment value (.mu body) →
+        PaperComputationTyped declarations graphTypes environment (.unroll value)
+          (instantiateType [.mu body] body)
     | fail {reason ty} :
         PaperComputationTyped declarations graphTypes environment (.fail reason) ty
 
