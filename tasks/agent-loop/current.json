@@ -119,13 +119,13 @@
   {
    "id": "/root/r61_execution_proof_review",
    "role": "fresh non-author compiler_referee",
-   "state": "NOT_STARTED",
-   "session": null,
+   "state": "RUNNING",
+   "session": "collaboration-agent:/root/r61_execution_proof_review",
    "requested_model": "registered role defaults",
    "requested_effort": "registered role defaults",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Reserved for post-primary-freeze review; 300s, zero checker calls."
+   "receipt": "Actual collaboration spawn acknowledged; fresh non-author review active, 300s max, zero checker calls; sole write lease is tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-review.md."
   }
  ],
  "leases": [
@@ -474,7 +474,7 @@
    "sha256": "5174425304aecb9cc6f8b30920944a6bde81b377e7a7dd28da68ef1e8818a668"
   }
  ],
- "resource_observation": "R59: source 240s charged/0 checker; proof 404.594s/42.161 checker; primary call3 capture lost, FAILED. R60: 1200s grant; calls1-2 versions pass, call3 invalid Lake -j1 exit1/0.071s, call4 NOT_RUN. R61: primary 4/4 exit0, 62.167 checker seconds, audit PASS; fresh review pending. Eight UNKNOWN identities remain quarantined.",
+ "resource_observation": "R59: source 240s charged/0 checker; proof 404.594s/42.161 checker; primary call3 capture lost, FAILED. R60: 1200s grant; calls1-2 versions pass, call3 invalid Lake -j1 exit1/0.071s, call4 NOT_RUN. R61: primary 4/4 exit0, 62.167 checker seconds, audit PASS; fresh review pending. Eight UNKNOWN identities remain quarantined. Fresh compiler_referee launched for R61 review (300s/0 checker); exact single-file lease.",
  "native_bridge": {
   "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
   "state": "OPEN; NAIVE_RELATION_BLOCKED",
