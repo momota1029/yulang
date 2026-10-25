@@ -4,35 +4,34 @@
   "phase": "ACTIVE",
   "session": "LEAN-CALL-CONTEXT-TYPING-20261025/root-turn-9",
   "active_sprint": {
-    "id": "LEAN-CALL-ENTRY-SPINE-20261025",
-    "revision": "r3",
-    "status": "COMPLETE_ACCEPTED_CLEAN",
-    "contract": "tasks/agent-loop/sprints/call-entry-spine-20261025-r3.md",
-    "contract_sha256": "e331976b445955fa6e982427287494772bc8a823b706f460291c91d4078d4928",
-    "baseline": "33cc19a20",
-    "claim": "Repair Luna composition only; preserve exact completeCallEntry_typed and frozen P/Q inputs.",
+    "id": "LEAN-CALL-STEP-TYPING-20261025",
+    "revision": "r1",
+    "status": "R1_PREFLIGHT_PENDING",
+    "contract": "tasks/agent-loop/sprints/call-step-typing-20261025-r1.md",
+    "contract_sha256": "677671916d8c628ba45e2492bd799dd69436d1a9ac2ee726ed1139cf11eff8f2",
+    "baseline": "12a081b82e2a84678aab7f5d0f301cd724c72542",
+    "claim": "Existing CallControlStep one-step preservation of CallStateTyped, resultType, and literalSuffix only.",
     "worktree": "/home/momota1029/rust/yulang",
     "branch": "research/simple-sub-intrusion",
     "resources": {
-      "cap_seconds": 1080,
-      "grant_map": "compose 240 + verify/preflight 240 + fresh review 420 + integrate 180; Astra 0.",
+      "cap_seconds": 2280,
+      "grant_map": "proof 1200 + serialized verification 480 + fresh review 420 + integrate 180; Astra 0.",
       "astra": 0,
-      "max_concurrent_new_author_assignments": 0,
+      "max_concurrent_new_author_assignments": 1,
       "lean_processes": 1,
       "cpu": 1,
       "memory_mib": 1024,
       "verification_timeout_seconds": 120,
-      "lean_invocation_cap": 2
+      "lean_invocation_cap": 4
     },
-    "outcome": "tasks/agent-loop/sprints/call-entry-spine-20261025-r3-outcome.md",
-    "closure": "Syntax typing only; all operational/source/A-B/inference/production parents OPEN.",
-    "review": "CLEAN; reviewer STOPPED; report hash 1c6bfc4f5dfa140c8d571fe88edd6302a7e184dce0d5e7feb4f07d7385a93a37",
-    "checker": "Both Lean invocations exit 0; exact five signatures; axioms [propext] for P/composition, none for Q.",
-    "acceptance": "Exact theorem; two complete successful receipts; standard axioms; CLEAN independent review.",
-    "author": "Luna composition only; P/Q frozen, no new author.",
-    "next_action": "Sprint closed; consult dispatcher for next exact Lean proposition.",
-    "prior_r2": "FAILED_VERIFICATION/UNACCEPTED; receipt and outcome frozen.",
-    "outcome_sha256": "da4481a11082779b090563f7d7511652e39958b4ee48511de652ed4046cca9c1"
+    "outcome": "tasks/agent-loop/sprints/call-step-typing-20261025-r1-outcome.md",
+    "closure": "r3 completeCallEntry_typed accepted/CLEAN; r9 source-input and original A/B gates remain OPEN.",
+    "review": "NOT_RUN; requires frozen theorem and complete current-byte receipts.",
+    "checker": "Preflight required: current ControlSyntax/ControlTyping outputs are stale; no current-byte receipts.",
+    "acceptance": "Exact one-step theorem; rebuilt current Control modules; successful Lean/query; fresh independent CLEAN review.",
+    "author": "One Sol/high prover; proof edits gated on current Control module preflight.",
+    "next_action": "Serialize current ControlSyntax and ControlTyping checks before author edits.",
+    "non_goal": "No progress, world/effect/metadata, source/native, Call A/B, inference, or production claim."
   },
   "workers": [
     {
@@ -229,7 +228,7 @@
     }
   ],
   "closure": "r3 exact completeCallEntry_typed syntax theorem ACCEPTED/CLEAN; operational/source/A-B/inference/production parents OPEN.",
-  "next_action": "r3 outcome/review/receipts archived; sprint-end dispatcher consultation pending.",
+  "next_action": "r3 pushed at 12a081b82; r1 frozen; primary preflights current Control modules before proof-lane edits.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -326,9 +325,10 @@
       "sha256": "da4481a11082779b090563f7d7511652e39958b4ee48511de652ed4046cca9c1",
       "review": "CLEAN; fresh nonauthor reviewer STOPPED.",
       "closure": "Exact syntax-typing composition checked; all operational/source/A-B/inference/production parents OPEN.",
-      "integration": "Included in current integration commit; ordinary push."
+      "integration": "Pushed to origin/research/simple-sub-intrusion.",
+      "commit": "12a081b82e2a84678aab7f5d0f301cd724c72542"
     }
   ],
-  "resource_observation": "r3 closed within 1080s cap; review CLEAN; no carryover.",
-  "checker": "Two successful Lean invocations; five exact signatures; axioms within contract; fresh review CLEAN."
+  "resource_observation": "r3 closed; r1 fresh 2280s cap with no carryover; three UNKNOWN quarantines preserved.",
+  "checker": "r3 theorem CLEAN; current CallControlStep theorem not yet checked; stale Control module artifacts require rebuild."
 }
