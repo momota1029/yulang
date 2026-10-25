@@ -481,7 +481,7 @@
   {
    "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r61-outcome",
    "record": "tasks/agent-loop/sprints/yulang3-execution-proof-reconciliation-r61-outcome.md",
-   "sha256": "8a8439f051e920a1997371f113dcc3c2eab68bc365255654b87253d09db129c4"
+   "sha256": "29f7b0fd7fbbfe17fc3a0e0bcb5e00a7e4801c7961427d38fcc4a9b5314181e8"
   }
  ],
  "resource_observation": "R59 capture FAILED; R60 invalid Lake option. R61 primary 4/4 exit0, 62.167 checker seconds. Reviewer 0 checker; 300s conservatively charged, stopped. Eight legacy identities quarantined.",

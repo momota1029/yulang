@@ -22,7 +22,7 @@ The exact external source at the pinned baseline builds under Lean 4.35.0. All f
 
 ## Review and process evidence
 
-Primary receipt: `tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-primary.md`, SHA-256 `2a4db510cfb1d4e4afd68b4ff1b269669b0d96d15dd52bfb130a1c37fa21b9f8`.
+Primary receipt: `tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-primary.md`, SHA-256 `291bafc8a58846c4be9c1e41c8d62e4c3df18275ab09dfbd24fc99bfbd9a3c90`.
 
 Independent review: `tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r61-review.md`, SHA-256 `24514b97e01284969123935ec3d5ec81498a0619cbecfaca8448051db36ed747`. The reviewer was read-only; the primary transcribed the reviewer's exact returned receipt bytes and retained reviewer authorship. Reviewer used zero checker calls and reported cessation; exact active duration was not exposed and the full 300-second reservation is conservatively charged.
 
