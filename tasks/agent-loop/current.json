@@ -2,36 +2,29 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "LEAN-CALL-REQUEST-BOUNDARY-20261025/root-resume-r2",
+  "session": "CALL-NATIVE-RESPONSE-AUTHENTICITY-20261025/root-r1",
   "active_sprint": {
-    "id": "LEAN-CALL-REQUEST-BOUNDARY-20261025",
-    "revision": "r2",
+    "id": "CALL-NATIVE-RESPONSE-AUTHENTICITY-20261025",
+    "revision": "r1",
     "status": "RESULT",
-    "contract": "tasks/agent-loop/sprints/call-request-boundary-20261025-r2.md",
-    "contract_sha256": "b92747b9e519be2f9f3c14c01db0f1353a0a3ea461fb8633b0d25eb2ff27896f",
-    "baseline": "4d15e26ff207993a8e9049fb21f754f219c0a273",
-    "claim": "Every finite represented Call request-unwind prefix has its exact captured state; typed completion composes with response plugging.",
-    "worktree": "/home/momota1029/rust/yulang",
+    "contract": "tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1.md",
+    "contract_sha256": "e1e260369eb0ee55acd3bcf49759a45f56692e2cb3f9928d95d2338a0eb03f06",
+    "baseline": "d1308e8b0612abf95f25d7adae137e9b769269db",
+    "claim": "Supply actual source/native accepted-response typing/instance/hole correspondence, or locate its first exact missing construction. Original parent remains unrestricted.",
     "branch": "research/simple-sub-intrusion",
     "resources": {
       "cap_seconds": 1800,
-      "grant_map": "r1 author300 charged + primary600 + checks240 + review300 + integration120 + contingency240",
-      "astra": 600,
-      "max_concurrent_new_author_assignments": 1,
-      "lean_processes": 1,
-      "cpu": 1,
-      "memory_mib": 1024,
-      "verification_timeout_seconds": 120,
-      "lean_invocation_cap": 12
+      "astra_seconds": 600,
+      "astra_concurrent": 1,
+      "author_seconds": 300,
+      "review_seconds": 300,
+      "executables": 0
     },
-    "outcome": "tasks/agent-loop/sprints/call-request-boundary-20261025-r2-outcome.md",
-    "closure": "Universal represented request boundary and typed actual-prefix composition reviewed CLEAN; Git integration pending.",
-    "review": "CLEAN independent review accepted; frozen report SHA d9887dc10b74b263a5a94795251299e6d53ed2f7bac6865d18858c33bd08cbf6.",
-    "checker": "r2 rows2/4/5 pass final sources/query; all10 public axioms [propext];15 checked falsifiers;5 total calls2.203071898s.",
-    "acceptance": "Universal partial/complete request-prefix characterization; typed actual-request composition; CLEAN review.",
-    "author": "Current user-selected primary repairs/composes; fresh Astra reviewer after freeze.",
-    "next_action": "Integrate exact reviewed paths; then select next original-goal obstruction.",
-    "non_goal": "No semantic/source restriction, runtime change, source-native/Call A/B/inference A/B or production closure."
+    "outcome": "tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1-outcome.md",
+    "implementation": "NO_SAFE_CODE_SLICE: ResumeArgument and enter_template lack checked encoding.",
+    "review": "Independent CLEAN accepted; report a7fd56ee2fc51274a4a3c888a3029c1f22d6a4a3c6d1ac38f93f8dfa318ebd26.",
+    "next_action": "Integrate audit, then issue checked literal extension packet.",
+    "closure": "Exact representation obstruction and native local facts reviewed; original parent OPEN; Git integration pending."
   },
   "workers": [
     {
@@ -71,45 +64,45 @@
       "id": "/root",
       "role": "primary authority/current/Git integrator",
       "state": "RUNNING",
-      "session": "LEAN-CALL-REQUEST-BOUNDARY-20261025/root-resume-r2",
+      "session": "CALL-NATIVE-RESPONSE-AUTHENTICITY-20261025/root-r1",
       "requested_model": "user-selected primary",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Current primary active after user continuation; authority and Git owner; actual model telemetry UNKNOWN."
-    },
-    {
-      "id": "/root/call_request_boundary_astra_r1",
-      "role": "bounded constructive proof author",
-      "state": "STOPPED",
-      "session": "LEAN-CALL-REQUEST-BOUNDARY-20261025/root-turn-15",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Final handoff: writes stopped 2026-10-25T04:38:04Z; no descendants or running subprocesses; r1 check exit1; 300s charged."
-    },
-    {
-      "id": "/root/call_request_boundary_review_astra_r2",
-      "role": "independent proof reviewer",
-      "state": "STOPPED",
-      "session": "LEAN-CALL-REQUEST-BOUNDARY-20261025/root-resume-r2",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Frozen CLEAN report/final message received 2026-10-25T04:44:34Z; writes STOPPED; no descendants or running subprocesses; 300s charged."
+      "receipt": "Current primary authorizes source-bridge sprint after reviewed boundary commit/push; actual model telemetry UNKNOWN."
     },
     {
       "id": "/root/next_action_selector_astra",
       "role": "read-only sprint-boundary dispatcher",
-      "state": "RUNNING",
-      "session": "LEAN-CALL-REQUEST-BOUNDARY-20261025/root-resume-r2",
+      "state": "STOPPED",
+      "session": "CALL-NATIVE-RESPONSE-AUTHENTICITY-20261025/root-r1",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Actual successful launch for next original-parent outcome at r2 completion; no write lease; 180s charged, separate boundary consultation."
+      "receipt": "Second read-only proposal received; all eight literal constructors and unchanged safety theorem verification selected; no writes/descendants/processes; cumulative360s charged."
+    },
+    {
+      "id": "/root/call_native_response_astra_r1",
+      "role": "constructive source/native prover",
+      "state": "STOPPED",
+      "session": "CALL-NATIVE-RESPONSE-AUTHENTICITY-20261025/root-r1",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Frozen handoff revision1 received by 2026-10-25T04:51:54Z; writes STOPPED; no descendants/processes; 300s charged."
+    },
+    {
+      "id": "/root/call_native_response_review_astra_r1",
+      "role": "independent source/proof-conformance reviewer",
+      "state": "STOPPED",
+      "session": "CALL-NATIVE-RESPONSE-AUTHENTICITY-20261025/root-r1",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Actual launch and final CLEAN report received; writer STOPPED, no descendants/processes; full300s charged."
     }
   ],
   "leases": [
@@ -120,100 +113,29 @@
       "reason": "primary current-state lease"
     },
     {
-      "path": "tasks/agent-loop/sprints/call-request-boundary-20261025-r1.md",
+      "path": "tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1.md",
       "owner": "/root",
-      "state": "FROZEN",
-      "reason": "frozen exact r1 contract; hash pinned"
+      "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/YulangClosure/CallRequestBoundary.lean",
+      "path": "tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1-outcome.md",
       "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 primary repair after actual writer STOP."
+      "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261025-call-request-boundary.md",
-      "owner": "/root/call_request_boundary_astra_r1",
-      "state": "FROZEN",
-      "reason": "Immutable r1 failed-check handoff; author STOP acknowledged."
+      "path": "notes/theory/2026-10-25-call-native-response-authenticity.md",
+      "owner": "/root/call_native_response_astra_r1",
+      "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallRequestBoundary.olean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 primary repair after actual writer STOP."
+      "path": "tasks/agent-loop/inbox/20261025-call-native-response-authenticity.md",
+      "owner": "/root/call_native_response_astra_r1",
+      "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallRequestBoundary.ilean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 primary repair after actual writer STOP."
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/CallRequestBoundaryComposition.lean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "primary composition after Astra STOP"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-request-boundary-composition.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "primary composition handoff"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallRequestBoundaryComposition.olean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "generated output exact lease"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallRequestBoundaryComposition.ilean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "generated output exact lease"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/call-request-boundary-20261025-r2.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 exact lease"
-    },
-    {
-      "path": "notes/theory/lean/.lake/call-request-boundary-r1-failed.lean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 exact lease"
-    },
-    {
-      "path": "notes/theory/lean/.lake/call-request-boundary-r2-check.lean",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 exact lease"
-    },
-    {
-      "path": "notes/theory/lean/.lake/call-request-boundary-r2-run.py",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 exact lease"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-request-boundary-r2-verification.jsonl",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 exact lease"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-request-boundary-r2-review.md",
-      "owner": "/root/call_request_boundary_review_astra_r2",
-      "state": "FROZEN",
-      "reason": "fresh nonauthor review report"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/call-request-boundary-20261025-r2-outcome.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "r2 exact lease"
+      "path": "tasks/agent-loop/inbox/20261025-call-native-response-authenticity-review.md",
+      "owner": "/root/call_native_response_review_astra_r1",
+      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -354,10 +276,28 @@
       "state": "OPEN_SOURCE_EQUATIONS",
       "owner": "Luna",
       "details": "R3 review blocking; R4 Flow/source projection next."
+    },
+    {
+      "id": "RESPONSE-ENCODING-1",
+      "state": "OPEN",
+      "owner": "primary proof intake",
+      "details": "Reviewed native audit: literal constructors/typing first; callable closure/environment representation later."
+    },
+    {
+      "id": "RESPONSE-INSTANCE-1",
+      "state": "OPEN",
+      "owner": "primary source-proof intake",
+      "details": "Shared declaration identity and instantiated type arguments for payload/response/template still need encoding."
+    },
+    {
+      "id": "RESPONSE-TEMPLATE-1",
+      "state": "OPEN",
+      "owner": "primary native-proof intake",
+      "details": "Local native response/hole/order facts inspected; typed frame/environment/renaming simulation still open."
     }
   ],
-  "closure": "Full user goal OPEN; request-boundary/typed-response milestone reviewed CLEAN; integration pending.",
-  "next_action": "Select next proof/source-owner outcome; preserve three UNKNOWN quarantines.",
+  "closure": "Full user goal OPEN. Exact request-boundary milestone d1308e8b0 reviewed CLEAN and pushed; native response correspondence now targeted.",
+  "next_action": "Construct accepted-response source bridge or precise owner obstruction, then independent review.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three unrelated UNKNOWN reservations remain quarantined.",
@@ -385,16 +325,23 @@
       "id": "LEAN-CALL-REQUEST-BOUNDARY-20261025/r2",
       "record": "tasks/agent-loop/sprints/call-request-boundary-20261025-r2-outcome.md",
       "sha256": "6c0ba51cd0b3cfbd82c1b51ae714227d1b8d3276cf2841c673166788f6fc8332",
-      "contains_prior_history_count": 23
+      "contains_prior_history_count": 23,
+      "commit": "d1308e8b0612abf95f25d7adae137e9b769269db"
+    },
+    {
+      "id": "CALL-NATIVE-RESPONSE-AUTHENTICITY-20261025/r1",
+      "record": "tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1-outcome.md",
+      "sha256": "600e6bf271c64ea89d7ae05a0a65afac3eecf70a1464d51e17d9e4343dcf1d45"
     }
   ],
-  "resource_observation": "r1 author300s and r2 reviewer300s charged; both STOPPED. r2 Lean5 calls/2.203071898s;3 UNKNOWN quarantines retained.",
-  "checker": "Lean final sources/query and independent CLEAN review accepted; agent_sprint static check PASS; 57 scheduler unit tests PASS (simulation/static only).",
+  "resource_observation": "Native author300/reviewer300 STOPPED; both selector180 consultations STOPPED (360 cumulative);3 UNKNOWN quarantines retained.",
+  "checker": "Source review CLEAN; agent_sprint STATIC CHECK PASS; no Lean/tests/build/runtime run in source audit.",
   "boundary_consultation": {
     "owner": "/root/next_action_selector_astra",
-    "grant_seconds": 180,
+    "grant_seconds": 360,
     "scope": "Read-only next original-parent outcome selection; no proof/code/semantic authority or write lease.",
     "reason": "User requires Astra agents; previous Sol dispatcher completed; r2 author/reviewer STOPPED; no overlapping Astra child.",
-    "status": "RUNNING"
+    "status": "DONE",
+    "result": "Selected all8 existing literals with legacy unit preserved, exact raw erasure/substitution, and actual Call response application; no semantic decision required."
   }
 }
