@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-FINITE-TYPING-20261025",
     "revision": "r1",
-    "status": "P_STOPPED_Q_RUNNING",
+    "status": "AUTHORS_STOPPED_VERIFICATION_READY",
     "contract": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1.md",
     "contract_sha256": "dfff6b8af11651122ebc0b3be6cb6a8722b3ce7a60845eb4e82ba1a9488eee68",
     "baseline": "c28827b29b4ff5f2f9d89c03f504fb9f886534f8",
@@ -26,11 +26,11 @@
     },
     "outcome": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1-outcome.md",
     "closure": "CallStepTypingRepair ACCEPTED/CLEAN; r9 and original A/B gates remain OPEN.",
-    "review": "NOT_RUN; P frozen/STOPPED, Q active; wait for Q STOP before serialized verification.",
-    "checker": "P frozen hashes recorded; Q remains active; static validation pending.",
+    "review": "NOT_RUN; P/Q frozen and STOPPED; source pins revalidation and four serialized Lean invocations pending.",
+    "checker": "P/Q frozen source and handoff hashes recorded; authors STOPPED; dependency revalidation pending.",
     "acceptance": "Exact P/Q/composition compile; signature/axioms in cap; complete receipts; fresh CLEAN review.",
     "author": "Two independent Sol/high authors, 600s each, disjoint source/handoff leases.",
-    "next_action": "Wait for Q handoff and STOP; then revalidate pins, compile P/Q/composition serially and review.",
+    "next_action": "Revalidate all frozen contract pins; compile P, Q, composition and exact query serially, then fresh independent review.",
     "non_goal": "No reachability/progress, world/effect/metadata, source/native, A/B, inference or production claim."
   },
   "workers": [
@@ -92,12 +92,12 @@
     {
       "id": "/root/call_entry_body_typing",
       "role": "Q prover: returned/requested terminal typing",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Fresh Q grant acknowledged; active on exact Q source and handoff paths only; no Lean/tests/Git; requested Sol/high, observed UNKNOWN.",
+      "receipt": "Q source/handoff frozen; writes stopped. Candidate SHA 319466c8; handoff SHA 3b749fe6. No Lean/tests/Git.",
       "session": "LEAN-CALL-FINITE-TYPING-20261025/root-turn-10"
     }
   ],
@@ -152,15 +152,15 @@
     },
     {
       "path": "notes/theory/lean/YulangClosure/CallTerminalTyping.lean",
-      "owner": "/root/call_entry_body_typing",
+      "owner": "/root",
       "state": "HELD",
-      "reason": "Q proof module."
+      "reason": "Q author STOPPED; frozen candidate awaiting serialized verification."
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-terminal-typing.md",
-      "owner": "/root/call_entry_body_typing",
+      "owner": "/root",
       "state": "HELD",
-      "reason": "Q handoff."
+      "reason": "Q author STOPPED; frozen candidate awaiting serialized verification."
     },
     {
       "path": "notes/theory/lean/YulangClosure/CallFiniteTyping.lean",
@@ -370,7 +370,7 @@
     }
   ],
   "closure": "r3 syntax theorem and r2 existing-step Call typing theorem ACCEPTED/CLEAN; operational/source/A-B/inference/production gates OPEN.",
-  "next_action": "P frozen/STOPPED; Q author active on disjoint lease. Wait for Q STOP before any Lean verification.",
+  "next_action": "Both P/Q authors STOPPED with frozen handoffs. Revalidate contract pins; proceed with authorized serialized Lean checks and composition.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
