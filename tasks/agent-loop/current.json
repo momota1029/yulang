@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-ENTRY-SPINE-20261025",
     "revision": "r2",
-    "status": "FROZEN_P_NOT_STARTED",
+    "status": "P_RUNNING_REPAIR",
     "contract": "tasks/agent-loop/sprints/call-entry-spine-20261025-r2.md",
     "contract_sha256": "0f81f286dd3910f48b3f7b49d4f61a6c7a415609a16f0e473fe093bf567c18d4",
     "baseline": "3199f25f0",
@@ -29,8 +29,8 @@
     "review": "Fresh nonauthor review only after successful serial checks and frozen receipts.",
     "checker": "Not run; r1 failed P elaboration; r2 P uses new path; frozen pins revalidated.",
     "acceptance": "Exact P/Q/compose statements compile; complete receipts; standard axioms; CLEAN review.",
-    "author": "P repair assigned to prior stopped author; awaiting actual fresh START receipt.",
-    "next_action": "Commit/freeze r2 contract and current state, then launch P repair.",
+    "author": "P repair RUNNING from fresh r2 START acknowledgement; Q frozen input unchanged.",
+    "next_action": "Await frozen P repair handoff; then compose and serialize Lean checks.",
     "prior_r1": "FAILED_VERIFICATION/UNACCEPTED; exact failure receipt and outcome retained."
   },
   "workers": [
@@ -81,13 +81,13 @@
     {
       "id": "/root/call_entry_body_typing",
       "role": "P repair author: unchanged callEntryBody_typed",
-      "state": "NOT_STARTED",
-      "session": null,
+      "state": "RUNNING",
+      "session": "LEAN-CALL-CONTEXT-TYPING-20261025/root-turn-9",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "r2 frozen packet assigned; fresh followup launch acknowledgement pending."
+      "receipt": "Fresh r2 START acknowledged; exact P repair leases only; active branch-local proof work; no Lean/tests/Git/descendants."
     }
   ],
   "leases": [
@@ -505,6 +505,6 @@
       "closure": "P compile failure; Q/compose unchecked; theorem OPEN."
     }
   ],
-  "resource_observation": "Fresh r2 cap 1920s; no r1 carryover; P launch pending.",
+  "resource_observation": "P 600s cap active; compose 240, verification 480, review 420, integrate 180 reserved; no carryover.",
   "checker": "Lean 4.35; reuse r3 only by source and .olean/.ilean hash match; stop on first failure."
 }
