@@ -244,6 +244,13 @@ mutual
   def renameVal (r : Nat → Nat) : Val → Val
     | .var i => .var (r i)
     | .unit => .unit
+    | .bool v => .bool v
+    | .int v => .int v
+    | .floatBits v => .floatBits v
+    | .string v => .string v
+    | .bytes v => .bytes v
+    | .path v => .path v
+    | .char v => .char v
     | .delay m => .delay (renameComp r m)
     | .inLeft v => .inLeft (renameVal r v)
     | .inRight v => .inRight (renameVal r v)
@@ -267,6 +274,13 @@ mutual
   def substVal (s : Nat → Val) : Val → Val
     | .var i => s i
     | .unit => .unit
+    | .bool v => .bool v
+    | .int v => .int v
+    | .floatBits v => .floatBits v
+    | .string v => .string v
+    | .bytes v => .bytes v
+    | .path v => .path v
+    | .char v => .char v
     | .delay m => .delay (substComp s m)
     | .inLeft v => .inLeft (substVal s v)
     | .inRight v => .inRight (substVal s v)
@@ -288,6 +302,13 @@ mutual
     cases h with
     | var he => exact .var ((hr _).trans he)
     | unit => exact .unit
+    | bool => exact .bool
+    | int => exact .int
+    | floatBits => exact .floatBits
+    | string => exact .string
+    | bytes => exact .bytes
+    | path => exact .path
+    | char => exact .char
     | delay hm => exact .delay (renameComp_typed hm hr)
     | inLeft hv => exact .inLeft (renameVal_typed hv hr)
     | inRight hv => exact .inRight (renameVal_typed hv hr)
@@ -323,6 +344,13 @@ mutual
     cases h with
     | var he => exact hs _ _ he
     | unit => exact .unit
+    | bool => exact .bool
+    | int => exact .int
+    | floatBits => exact .floatBits
+    | string => exact .string
+    | bytes => exact .bytes
+    | path => exact .path
+    | char => exact .char
     | delay hm => exact .delay (substComp_typed hm hs)
     | inLeft hv => exact .inLeft (substVal_typed hv hs)
     | inRight hv => exact .inRight (substVal_typed hv hs)
@@ -387,6 +415,13 @@ mutual
     cases v with
     | var i => simp only [Val.raw, renameVal, renameRaw, hq]
     | unit => rfl
+    | bool v => rfl
+    | int v => rfl
+    | floatBits v => rfl
+    | string v => rfl
+    | bytes v => rfl
+    | path v => rfl
+    | char v => rfl
     | inLeft v =>
       simp only [Val.raw, renameVal, rawIn, Forest.two, renameRaw, renameForest,
         renameVal_raw v r q hq]
@@ -445,6 +480,13 @@ mutual
     cases v with
     | var i => exact hq i
     | unit => rfl
+    | bool v => rfl
+    | int v => rfl
+    | floatBits v => rfl
+    | string v => rfl
+    | bytes v => rfl
+    | path v => rfl
+    | char v => rfl
     | inLeft v =>
       simp only [Val.raw, substVal, rawIn, Forest.two, substituteRaw, substituteForest,
         substVal_raw v s q hq]

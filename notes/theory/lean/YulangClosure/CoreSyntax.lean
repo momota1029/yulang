@@ -113,6 +113,13 @@ mutual
   inductive Val where
     | var (index : Nat)
     | unit
+    | bool (value : Bool)
+    | int (value : Int)
+    | floatBits (value : UInt64)
+    | string (value : String)
+    | bytes (value : List UInt8)
+    | path (value : List UInt8)
+    | char (value : String)
     | delay (body : Comp)
     | inLeft (value : Val)
     | inRight (value : Val)
@@ -127,6 +134,27 @@ mutual
     | chooseRight (value : Val)
     | absurd (value : Val)
 end
+
+/-- The base and value representation preserve the existing literal domains. -/
+def Literal.base : Literal → Base
+  | .unit => .unit
+  | .bool _ => .bool
+  | .int _ => .int
+  | .floatBits _ => .float
+  | .string _ => .string
+  | .bytes _ => .bytes
+  | .path _ => .path
+  | .char _ => .char
+
+def Literal.toVal : Literal → Val
+  | .unit => .unit
+  | .bool v => .bool v
+  | .int v => .int v
+  | .floatBits v => .floatBits v
+  | .string v => .string v
+  | .bytes v => .bytes v
+  | .path v => .path v
+  | .char v => .char v
 
 /-- This computational image erases ONLY the two Prop typing derivations.
 The single underlying child is retained; no runtime View/receipt is erased.
@@ -145,6 +173,13 @@ mutual
   def Val.raw : Val → Raw
     | .var i => .var .value i
     | .unit => .atom (.literal .unit)
+    | .bool v => .atom (.literal (.bool v))
+    | .int v => .atom (.literal (.int v))
+    | .floatBits v => .atom (.literal (.floatBits v))
+    | .string v => .atom (.literal (.string v))
+    | .bytes v => .atom (.literal (.bytes v))
+    | .path v => .atom (.literal (.path v))
+    | .char v => .atom (.literal (.char v))
     | .delay m => rawDelay m.raw
     | .inLeft v => rawIn false v.raw
     | .inRight v => rawIn true v.raw
@@ -172,6 +207,13 @@ mutual
   inductive ValTyped : Context → Val → Ty → Prop
     | var : env i = some a → ValTyped env (.var i) a
     | unit : ValTyped env .unit (.base .unit)
+    | bool : ValTyped env (.bool v) (.base .bool)
+    | int : ValTyped env (.int v) (.base .int)
+    | floatBits : ValTyped env (.floatBits v) (.base .float)
+    | string : ValTyped env (.string v) (.base .string)
+    | bytes : ValTyped env (.bytes v) (.base .bytes)
+    | path : ValTyped env (.path v) (.base .path)
+    | char : ValTyped env (.char v) (.base .char)
     | delay : CompTyped env m a → ValTyped env (.delay m) (.thunk a)
     | inLeft : ValTyped env v a → ValTyped env (.inLeft v) (.union a b)
     | inRight : ValTyped env v b → ValTyped env (.inRight v) (.union a b)

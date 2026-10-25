@@ -242,6 +242,8 @@ theorem request_progress {sig : Signature} {md : Metadata W} {f : Frame}
         · subst q; exact ⟨_, .mapHit⟩
         · exact ⟨_, .mapMiss he⟩
   | originalBind _ => cases hf
+  | typedCallBind _ => cases hf
+  | typedCallAdapter _ _ _ => cases hf
   | originalBoundary => cases hf
 
 theorem fail_progress {sig : Signature} {md : Metadata W} {f : Frame}
