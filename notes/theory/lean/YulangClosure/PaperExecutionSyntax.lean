@@ -615,7 +615,7 @@ def OperationDeclarationResolved (operations : List OperationDeclaration)
     ∀ other, other ∈ operations → other.identity = operation → other = declaration
 
 mutual
-  inductive ValuesTyped (declarations : DeclarationTable) (graphTypes : GraphEnvironment) :
+  inductive ValuesTyped : DeclarationTable → GraphEnvironment →
       TypeEnvironment → List Value → List Ty → Prop where
     | nil : ValuesTyped declarations graphTypes environment [] []
     | cons {value values ty types} :
@@ -623,7 +623,7 @@ mutual
         ValuesTyped declarations graphTypes environment values types →
         ValuesTyped declarations graphTypes environment (value :: values) (ty :: types)
 
-  inductive ValuesAllTyped (declarations : DeclarationTable) (graphTypes : GraphEnvironment) :
+  inductive ValuesAllTyped : DeclarationTable → GraphEnvironment →
       TypeEnvironment → List Value → Ty → Prop where
     | nil {ty} : ValuesAllTyped declarations graphTypes environment [] ty
     | cons {value values ty} :
@@ -633,8 +633,7 @@ mutual
 
   /-- Each present field has a declared payload type. The raw presence tag is
   retained metadata; declaration presence controls requiredness, not this tag. -/
-  inductive RecordPayloadsTyped (declarations : DeclarationTable)
-      (graphTypes : GraphEnvironment) : TypeEnvironment →
+  inductive RecordPayloadsTyped : DeclarationTable → GraphEnvironment → TypeEnvironment →
       List (Label × Presence × Value) → Ty → Prop where
     | nil {environment recordType} :
         RecordPayloadsTyped declarations graphTypes environment [] recordType
@@ -646,7 +645,7 @@ mutual
         RecordPayloadsTyped declarations graphTypes environment
           ((label, tag, value) :: fields) recordType
 
-  inductive PaperValueTyped (declarations : DeclarationTable) (graphTypes : GraphEnvironment) :
+  inductive PaperValueTyped : DeclarationTable → GraphEnvironment →
       TypeEnvironment → Value → Ty → Prop where
     | variable {index ty} : lookupTypeEnvironment environment index = some ty →
         PaperValueTyped declarations graphTypes environment (.variable index) ty
@@ -700,6 +699,15 @@ mutual
           (.continuation owners binder body) responseType resultType →
         PaperValueTyped declarations graphTypes environment (.continuation owners binder body)
           (.kont responseType resultType)
+    /-- Value-only universal introduction. All shared contexts move under the
+    fresh binder together. The inline shift is definitionally equal to
+    `shiftTypeSubstitution` in the downstream binder-laws module. -/
+    | typeAbstraction {body bodyType} :
+        PaperValueTyped
+          (mapDeclarationTable (fun index => .var (index + 1)) declarations)
+          (mapGraphEnvironment (fun index => .var (index + 1)) graphTypes)
+          (mapTypeEnvironment (fun index => .var (index + 1)) environment) body bodyType →
+        PaperValueTyped declarations graphTypes environment (.typeAbstraction body) (.poly bodyType)
     | typeApplication {function body argument} :
         PaperValueTyped declarations graphTypes environment function (.poly body) →
         PaperValueTyped declarations graphTypes environment (.typeApplication function argument)
@@ -709,8 +717,7 @@ mutual
           (instantiateType [.mu body] body) →
         PaperValueTyped declarations graphTypes environment (.roll value) (.mu body)
 
-  inductive PaperComputationTyped (declarations : DeclarationTable)
-      (graphTypes : GraphEnvironment) : TypeEnvironment → Computation → Ty → Prop where
+  inductive PaperComputationTyped : DeclarationTable → GraphEnvironment → TypeEnvironment → Computation → Ty → Prop where
     | ret {value ty} :
         PaperValueTyped declarations graphTypes environment value ty →
         PaperComputationTyped declarations graphTypes environment (.ret value) ty
@@ -766,8 +773,7 @@ mutual
         PaperComputationTyped declarations graphTypes environment (.fail reason) ty
 
   /-- A continuation keeps the operation response and normal result as separate indices. -/
-  inductive PaperContinuationTyped (declarations : DeclarationTable)
-      (graphTypes : GraphEnvironment) : TypeEnvironment → Value → Ty → Ty → Prop where
+  inductive PaperContinuationTyped : DeclarationTable → GraphEnvironment → TypeEnvironment → Value → Ty → Ty → Prop where
     | continuation {owners binder body responseType resultType} :
         PaperComputationTyped declarations graphTypes (responseType :: environment) body resultType →
         PaperContinuationTyped declarations graphTypes environment
