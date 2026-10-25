@@ -538,8 +538,8 @@ mutual
     | .scope owner body => .scope owner (renameCallComp r body)
     | .expose effectView resultView body =>
         .expose effectView resultView (renameCallComp r body)
-    | .request instance payload continuation =>
-        .request instance (renameCallValue r payload)
+    | .request opInstance payload continuation =>
+        .request opInstance (renameCallValue r payload)
           (renameCallComp (upCall r) continuation)
     | .fail reason => .fail reason
 end
@@ -567,7 +567,8 @@ mutual
           cases i <;> simp [upCall, Original.extend, hr]))
     | force hv => exact .force (renameCallValue_typed hv hr)
     | scope hc => exact .scope (renameCallComp_typed hc hr)
-    | expose hc => exact .expose (renameCallComp_typed hc hr)
+    | expose effectView resultView hc =>
+        exact .expose effectView resultView (renameCallComp_typed hc hr)
     | request hp hk =>
         exact .request (renameCallValue_typed hp hr)
           (renameCallComp_typed hk (by
@@ -596,8 +597,8 @@ mutual
     | .scope owner body => .scope owner (substituteCallComp s body)
     | .expose effectView resultView body =>
         .expose effectView resultView (substituteCallComp s body)
-    | .request instance payload continuation =>
-        .request instance (substituteCallValue s payload)
+    | .request opInstance payload continuation =>
+        .request opInstance (substituteCallValue s payload)
           (substituteCallComp (liftCallSubstitution s) continuation)
     | .fail reason => .fail reason
 end
@@ -636,14 +637,15 @@ mutual
     | ret hv => exact .ret (substituteCallValue_typed hv hs)
     | bind hm hn =>
         exact .bind (substituteCallComp_typed hm hs)
-          (substituteCallComp_typed hn (liftCallSubstitution s)
+          (substituteCallComp_typed (s := liftCallSubstitution s) hn
             (liftedCallSubstitution_typed hs))
     | force hv => exact .force (substituteCallValue_typed hv hs)
     | scope hc => exact .scope (substituteCallComp_typed hc hs)
-    | expose hc => exact .expose (substituteCallComp_typed hc hs)
+    | expose effectView resultView hc =>
+        exact .expose effectView resultView (substituteCallComp_typed hc hs)
     | request hp hk =>
         exact .request (substituteCallValue_typed hp hs)
-          (substituteCallComp_typed hk (liftCallSubstitution s)
+          (substituteCallComp_typed (s := liftCallSubstitution s) hk
             (liftedCallSubstitution_typed hs))
     | fail => exact .fail
 end
