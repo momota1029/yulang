@@ -15,10 +15,19 @@ theorem were completed. The exact failed bytes are preserved in
 `a89201a928d3fbc02cff8ca99c45ae9f75fba813fe4b73b2bc9ba5bcaf09958e`.
 
 Revision 2 is recorded at
-`tasks/agent-loop/sprints/paper-typing-subst-r1-rev2.md`. Its approved repair
-route uses membership-carrying list traversals and explicit strict-subterm
-arguments. No Lean check is run until those traversals and decrease arguments
-are fully written and inspected. The current `ValueGraph.guarded : Prop` is
+`tasks/agent-loop/sprints/paper-typing-subst-r1-rev2.md`. Four further Lean
+invocations (about 17 checker seconds) still failed termination. Attached
+subtype evidence remained inaccessible to the generic decrease tactic, and
+composite list members required projection-size chains. Revision 3 is recorded
+at `tasks/agent-loop/sprints/paper-execution-syntax-subst-r3.md`; it names
+attached values and membership proofs explicitly and adds proved product/option
+projection inequalities before the next check.
+
+The source is now named `PaperExecutionSyntax.lean` to reflect that it contains
+raw execution syntax and substitution maps, not typing judgments. Its current
+SHA-256 is
+`0a5e0aeee6b1545887d9c2419ed5810269f39749e2f2bd00e85d1aa417f173a5`. The current
+`ValueGraph.guarded : Prop` is
 only an arbitrary proposition and does not encode the paper's recursive graph
 guard; replace it with the actual guard condition before claiming graph typing
 or recursive-value coverage. The full paper rule inventory below remains the
