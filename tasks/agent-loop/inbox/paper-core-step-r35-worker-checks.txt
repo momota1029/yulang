@@ -1,0 +1,36 @@
+R35 worker receipt, revision 1
+Worker: /root/r35_registered_lean_prover
+Runtime receipt: 2026-10-25 18:37:43 UTC
+Observed model/effort: UNKNOWN (not exposed by runtime metadata)
+Primary execution acknowledgement: message identifying committed/pushed 07fa8c167
+Contract baseline: 0f0d63373bc7762fdef2ae501bbe3a2a75a84ff6
+Contract SHA-256: dc7eca6cd6f1a316bf8426af33fe0c4f823f3b4374c25760503926df9b0c6ecb
+
+Read-only toolchain lookup, cwd notes/theory/lean:
+$ elan which lake
+/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake
+[exit 0; tool wall time 0.000014907 seconds]
+No native Lake or Lean version command was executed. The project pin was read:
+leanprover/lean4:v4.35.0. This is a pin/lookup receipt, not an executed version.
+
+Frozen SHA-256 verification, exit 0:
+a003b56a2f32eed06a2c604ef8aed043d43752cbed0b09028eff7f6efac4886b  docs/yulang-operational-type-safety-ja.tex
+e38cd059caf7d81549a09f360d81e52cb4aecb8a95d8eb3f308ffda7d38a8932  notes/theory/lean/YulangClosure/PaperExecutionSyntax.lean
+3b1588bff2d28a3db7aa241c930495b84f090e880ad49ac8fb2d593d54943d41  notes/theory/lean/YulangClosure/PaperExecutionTypingSubstitution.lean
+a4f87f9604c03beefdc44de5d45fcd9f5924ca9580c75edf353cf267e69a0d4f  notes/theory/lean/YulangClosure/PaperTermSubstitution.lean
+2514197994dc47b5e4c6f15ff8c9251f994056b6e32bf2648588ffc10251e194  notes/theory/lean/lakefile.toml
+
+FIRST FAILED COMMAND, cwd /home/momota1029/rust/yulang:
+rg -n 'inductive Presence|def Presence.encode|namespace Presence|lookupTypeEnvironment' notes/theory/lean/YulangClosure/PaperTypeFormation.lean notes/theory/lean/YulangClosure/PaperExecutionSyntax.lean; sed -n '1,65p' notes/theory/lean/YulangClosure/PaperTypeFormation.lean; ls notes/theory/lean/.lake/build/lib/lean/YulangClosure/PaperTermSubstitution.olean
+
+The rg/sed reads succeeded and exposed Presence.encode and lookupTypeEnvironment.
+The final ls failed with this complete material diagnostic:
+ls: cannot access 'notes/theory/lean/.lake/build/lib/lean/YulangClosure/PaperTermSubstitution.olean': No such file or directory
+[exit 2; tool wall time 0.000016428 seconds]
+
+Stopped at this failure under R35 r1. No retry, build, checker or proof execution.
+Lake/checker invocations: 0/10; checker seconds: 0/120.
+No theorem types or axiom results exist for this packet. No theorem delivered.
+No PaperCoreStep.lean or R35Audit.lean was written. No generated cache writes.
+Only this receipt and the one handoff were written after the stop trigger to
+preserve evidence. No descendants, Git, compiler, configuration or other writes.
