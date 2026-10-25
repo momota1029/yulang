@@ -14,7 +14,7 @@
   "claim": "Connect finite allocated-heap operand observation to one actual R61 connected-executor Force/Delay transition; retain BodiesTyped and HeapPayloadTyped conditions and R23/source/native open.",
   "outcome": "lean_prover spawn acknowledged; runtime session token unavailable, so worker UNKNOWN and proof leases remain HELD.",
   "budget": "1800s total: lean_prover 900s/10 calls/150 checker; primary 720s/4 calls/150 checker; fresh compiler_referee 180s/0 calls.",
-  "next_action": "Hold proof leases; await frozen handoff or cessation before primary verification."
+  "next_action": "Hold leases; await proof handoff or cessation before primary verification."
  },
  "workers": [
   {
@@ -565,7 +565,7 @@
    "sha256": "44a546c209a7050a7059dfcf0574d817b73076ad55043730de7a29fd6ca0668a"
   }
  ],
- "resource_observation": "R62 lean_prover spawn acknowledged. Session UUID unavailable; worker UNKNOWN, leases HELD, no checker result.",
+ "resource_observation": "R62 proof spawned; session unavailable; UNKNOWN, leases held; no checker result.",
  "native_bridge": {
   "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
   "state": "OPEN; NAIVE_RELATION_BLOCKED",
