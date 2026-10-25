@@ -1,444 +1,413 @@
 {
- "schema_version": 1,
- "mode": "LIVE",
- "phase": "ACTIVE",
- "session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
- "active_sprint": {
-  "id": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025",
-  "revision": "r2",
-  "status": "RUNNING",
-  "contract": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r2.md",
-  "contract_sha256": "01aa44596c1f2aeae77afb0c90f5026fc263e522b7771c2ced274deb957f9e9c",
-  "baseline": "4866464a5",
-  "claim": "Construct an actually reachable, typed View-wrapped Force Call head and prove it has no successor in the current formal relation.",
-  "worktree": "/home/momota1029/rust/yulang",
-  "branch": "research/simple-sub-intrusion",
-  "resources": {
-   "cap_seconds": 2700,
-   "grant_map": "P 900 + Q 300 + composition 240 + serial Lean verification 480 + fresh review 600 + integration 180; Astra 0.",
-   "astra": 0,
-   "max_concurrent_new_author_assignments": 2,
-   "lean_processes": 1,
-   "cpu": 1,
-   "memory_mib": 1024,
-   "verification_timeout_seconds": 120,
-   "lean_invocation_cap": 4
-  },
-  "outcome": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1-outcome.md",
-  "closure": "Not yet proved. Call progress/A-B, source/native, inference and production gates remain OPEN.",
-  "review": "Not assigned; require fresh nonauthor review after P/Q STOP and exact outputs freeze.",
-  "checker": "Proposal audits only; P and Q require Lean construction and bounded four-invocation receipt.",
-  "acceptance": "P five-step theorem, Q exhaustive no-successor theorem, composition with accepted initial prefix typing, complete serial receipt and CLEAN independent review.",
-  "author": "Luna owns state, composition, verification, review/adjudication and Git. P/Q only authors; three UNKNOWN quarantines stay reserved.",
-  "next_action": "r2 exact generated-output leases frozen; activate P/Q only after this state checkpoint is pushed.",
-  "non_goal": "No source/frontend reachability, native correspondence, Call A/B, inference A/B, semantic approval or production claim."
- },
- "workers": [
-  {
-   "id": "/root/resident_dispatcher_loop_a",
-   "role": "legacy dispatcher",
-   "state": "UNKNOWN",
-   "session": null,
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "high",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "UNKNOWN identity/session/model; reservation quarantined."
-  },
-  {
-   "id": "/root/resident_implementer_idle",
-   "role": "legacy implementer",
-   "state": "UNKNOWN",
-   "session": null,
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "high",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "UNKNOWN identity/session/model; reservation quarantined."
-  },
-  {
-   "id": "/root/runtime_source_supplier_proof",
-   "role": "legacy proof worker",
-   "state": "UNKNOWN",
-   "session": null,
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "high",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "UNKNOWN identity/session/model; reservation quarantined."
-  },
-  {
-   "id": "/root",
-   "role": "primary authority/current/Git integrator",
-   "state": "RUNNING",
-   "session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
-   "requested_model": "user-selected primary",
-   "requested_effort": "high",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "P active on fixed term/five-step trace and Q active on exhaustive successor exclusion; Lean tickets serialized."
-  },
-  {
-   "id": "/root/view_force_reachability_prover",
-   "role": "P constructive prover: exact five-step typed Call reachability",
-   "state": "RUNNING",
-   "session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
-   "requested_model": "Sol",
-   "requested_effort": "high",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "P source frozen; sole serialized Lean invocation active."
-  },
-  {
-   "id": "/root/view_force_stuck_prover",
-   "role": "Q constructive prover: exhaustive no-successor theorem",
-   "state": "STOPPED",
-   "session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
-   "requested_model": "Sol",
-   "requested_effort": "high",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "Q source/handoff frozen; no Lean; writes stopped pending P completion and Luna ticket."
-  }
- ],
- "leases": [
-  {
-   "path": "tasks/agent-loop/current.json",
-   "owner": "/root",
-   "state": "HELD",
-   "reason": "primary current-state lease"
-  },
-  {
-   "path": "notes/theory/lean/YulangClosure/CallViewedForceReachability.lean",
-   "owner": "/root/view_force_reachability_prover",
-   "state": "HELD",
-   "reason": "exact P output lease; writer waits for activation"
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261025-call-viewed-force-reachability.md",
-   "owner": "/root/view_force_reachability_prover",
-   "state": "HELD",
-   "reason": "exact P handoff lease; writer waits for activation"
-  },
-  {
-   "path": "notes/theory/lean/YulangClosure/CallViewedForceStuck.lean",
-   "owner": "/root/view_force_stuck_prover",
-   "state": "FROZEN",
-   "reason": "Q candidate and handoff frozen; generated outputs await compile ticket"
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261025-call-viewed-force-stuck.md",
-   "owner": "/root/view_force_stuck_prover",
-   "state": "FROZEN",
-   "reason": "Q candidate and handoff frozen; generated outputs await compile ticket"
-  },
-  {
-   "path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1.md",
-   "owner": "/root",
-   "state": "FROZEN",
-   "reason": "superseded only for output-path enumeration by r2 before author activation"
-  },
-  {
-   "path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r2.md",
-   "owner": "/root",
-   "state": "FROZEN",
-   "reason": "exact generated-output lease amendment"
-  },
-  {
-   "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallViewedForceReachability.olean",
-   "owner": "/root/view_force_reachability_prover",
-   "state": "HELD",
-   "reason": "exact generated module output lease"
-  },
-  {
-   "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallViewedForceReachability.ilean",
-   "owner": "/root/view_force_reachability_prover",
-   "state": "HELD",
-   "reason": "exact generated module output lease"
-  },
-  {
-   "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallViewedForceStuck.olean",
-   "owner": "/root/view_force_stuck_prover",
-   "state": "HELD",
-   "reason": "exact generated module output lease"
-  },
-  {
-   "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallViewedForceStuck.ilean",
-   "owner": "/root/view_force_stuck_prover",
-   "state": "HELD",
-   "reason": "exact generated module output lease"
-  },
-  {
-   "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallProgressObstruction.olean",
-   "owner": "/root",
-   "state": "HELD",
-   "reason": "exact generated composition module output lease"
-  },
-  {
-   "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallProgressObstruction.ilean",
-   "owner": "/root",
-   "state": "HELD",
-   "reason": "exact generated composition module output lease"
-  }
- ],
- "pending": [
-  {
-   "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
-   "state": "OPEN",
-   "owner": "Luna",
-   "details": "Proof: tasks/agent-loop/inbox/20261019-r61-proof.md"
-  },
-  {
-   "id": "R64-SRC-ANN-ARG-1",
-   "state": "OPEN",
-   "owner": "Luna",
-   "details": "Proof: tasks/agent-loop/inbox/20261019-r64-proof.md"
-  },
-  {
-   "id": "R65-CURRENT-OPERAND-1",
-   "state": "OPEN",
-   "owner": "Luna",
-   "details": "Proof: tasks/agent-loop/inbox/20261019-r65-proof.md"
-  },
-  {
-   "id": "R66-LAMBDA-RESULT-STAGE-1",
-   "state": "OPEN",
-   "owner": "Luna",
-   "details": "Proof: tasks/agent-loop/inbox/20261019-r66-proof.md"
-  },
-  {
-   "id": "R67-DIRECT-BODY-CHECK-1",
-   "state": "OPEN",
-   "owner": "Luna",
-   "details": "notes/design/2026-10-19-r67-direct-lambda-checking.md"
-  },
-  {
-   "id": "R68-OWNER-CONSUMER-1",
-   "state": "OPEN",
-   "owner": "Luna",
-   "details": "retained lambda introduction; owner consumer premise open."
-  },
-  {
-   "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
-   "state": "OPEN_UNADOPTED_PROPOSAL",
-   "owner": "Luna",
-   "details": "Proposal unadopted; source law open."
-  },
-  {
-   "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
-   "state": "OPEN",
-   "owner": "Luna",
-   "details": "Proof: tasks/agent-loop/inbox/20261019-r70-proof.md"
-  },
-  {
-   "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
-   "state": "OPEN",
-   "owner": "Luna",
-   "details": "R237: raw WorkBound callback coverage open."
-  },
-  {
-   "id": "R72-LATER-OCCURRENCE-1",
-   "state": "OPEN",
-   "owner": "Luna",
-   "details": "R229–233: slot-4 bridge open."
-  },
-  {
-   "id": "R149-SOURCE-OWNER-CLOSURE-1",
-   "state": "OPEN_SOURCE_TO_CST",
-   "owner": "Luna intake",
-   "details": "R149: parser/HIR readback open."
-  },
-  {
-   "id": "R339-D2-WHOLE-FRAME-RETIREMENT",
-   "state": "OPEN_REMAINDER",
-   "owner": "Luna",
-   "details": "R347 projected C_s/H₀(S) and full N open."
-  },
-  {
-   "id": "R340-D3-AUTHENTIC-APPLY-CONTINUATION",
-   "state": "OPEN_REMAINDER",
-   "owner": "Luna",
-   "details": "R340 partial; full C/M and review open."
-  },
-  {
-   "id": "R345-N-REMAINDER",
-   "state": "OPEN_REMAINDER",
-   "owner": "Luna",
-   "details": "R347 projected C_s/H₀(S) and full N open."
-  },
-  {
-   "id": "OP-SEMANTICS-FULL-EFFECT",
-   "state": "OPEN_REVIEW",
-   "owner": "primary",
-   "details": "15.4 candidate; source adoption/review open."
-  },
-  {
-   "id": "DOT-SELECTION-EVIDENCE-BRIDGE",
-   "state": "OPEN_REVIEW",
-   "owner": "primary",
-   "details": "Effect lifetime, resolver, snapshot lifecycle open."
-  },
-  {
-   "id": "CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE",
-   "state": "OPEN_REVIEW",
-   "owner": "primary",
-   "details": "Semantics/native correspondence/review open."
-  },
-  {
-   "id": "SOURCE-SAFETY-BRIDGE",
-   "state": "OPEN_REVIEW",
-   "owner": "primary",
-   "details": "Joint route/instance/owner/forwarding premises open."
-  },
-  {
-   "id": "CALL-CONTEXT-PLUG-PRESERVATION",
-   "state": "OPEN",
-   "owner": "Luna intake; later sprint after r9 execution adequacy",
-   "details": "Await raw/typed Call coverage; A claim unchanged."
-  },
-  {
-   "id": "BOUNDED-CALL-FINITE-PREFIX-SAFETY",
-   "state": "OPEN",
-   "owner": "Luna intake; later sprint after exact A/hash",
-   "details": "B arbitrary-suffix claim unchanged; unissued."
-  },
-  {
-   "id": "CALL-STEP-ERASURE",
-   "state": "OPEN",
-   "owner": "r9 S / Luna intake; launch after checked implementation seam",
-   "details": "Unissued; await Force input and raw relation."
-  },
-  {
-   "id": "CALL-RAW-SUCCESSOR-COVERAGE",
-   "state": "OPEN",
-   "owner": "r9 C / Luna intake; launch after checked implementation seam",
-   "details": "Unissued; await Force input and raw relation."
-  },
-  {
-   "id": "FORCE-SOURCE-REALIZATION-20261025",
-   "state": "OPEN_SOURCE_EQUATIONS",
-   "owner": "Luna",
-   "details": "R3 review blocking; R4 Flow/source projection next."
-  }
- ],
- "closure": "Accepted bounded Call prefix typing and request/failure unwind typing; progress obstruction now READY; original A/B and source/native remain OPEN.",
- "next_action": "Push START checkpoint, then activate disjoint P/Q proof authors; preserve the three UNKNOWN reservations and unrelated Force evidence.",
- "legacy_reconciliation": {
-  "required": false,
-  "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
-  "reservations": [
-   {
-    "id": "/root/resident_dispatcher_loop_a",
-    "path": "tasks/agent-loop/board.md",
-    "state": "UNKNOWN_QUARANTINED"
-   },
-   {
-    "id": "/root/resident_implementer_idle",
-    "path": "UNKNOWN historical implementation lease",
-    "state": "UNKNOWN_QUARANTINED"
-   },
-   {
-    "id": "/root/runtime_source_supplier_proof",
-    "path": "UNKNOWN historical proof lease",
-    "state": "UNKNOWN_QUARANTINED"
-   }
-  ]
- },
- "user_goal": "Prove Yulang semantics and type inference with complete proofs in notes/theory/lean; primary commits and pushes reviewed milestones.",
- "history": [
-  {
-   "id": "FORCE-ADMIN-RESULT-DISCHARGE-20261025/r7",
-   "record": "tasks/agent-loop/sprints/force-admin-result-discharge-20261025-r7-outcome.md",
-   "commit": "9b7b4e00dd3862bf4bf0281594f3a658ba9fd59b"
-  },
-  {
-   "id": "FORCE-SOURCE-REALIZATION-20261025/r8",
-   "record": "tasks/agent-loop/sprints/force-source-realization-20261025-r8-outcome.md",
-   "sha256": "4c63f6f55a4fd5ee2afeb83a5df575704715b7bc093a1934997b4cb4994ba5eb",
-   "commit": "a8afc44cc26271b257e039c90b2443b77de9fa23"
-  },
-  {
-   "id": "FORCE-PRODUCER-EXPORT-TRACE-20261025/r1",
-   "record": "tasks/agent-loop/sprints/force-producer-export-trace-20261025-r1-outcome.md",
-   "sha256": "bf544d639797fbecad878095916588d300eddf1e9c786d37786c9ebca01e232f",
-   "commit": "cfea96fbe617f8a2017ca322961472e701e7bff7"
-  },
-  {
-   "id": "FORCE-DECLARATIVE-CONSTRUCTION-20261025/r10",
-   "record": "tasks/agent-loop/sprints/force-declarative-construction-20261025-r10.md",
-   "sha256": "ddcfe7b8ff5065ab76dae1c753ad43a33b0f7ef38682ff4829dd218c2094e521",
-   "commit": "cfea96fbe617f8a2017ca322961472e701e7bff7"
-  },
-  {
-   "id": "FORCE-DECLARATIVE-CONSTRUCTION-20261025/r10",
-   "record": "tasks/agent-loop/sprints/force-declarative-construction-20261025-r10-outcome.md",
-   "sha256": "5f445c4e693387496a3d9a232c9ed9f273509dd6c1f71aa6e6de8e890f80c62d",
-   "commit": "cfea96fbe617f8a2017ca322961472e701e7bff7"
-  },
-  {
-   "id": "FORCE-COMPLETION-20261025/r11",
-   "record": "tasks/agent-loop/sprints/force-completion-20261025-r11-outcome.md",
-   "sha256": "e38b47c52a25d5a3561f2823e55be23129bd8cc920fabdbf3d3561ae0c454b6a",
-   "commit": "e2d3f14bd795f7ef4e61f6453b3a5d4dc38b80dd"
-  },
-  {
-   "id": "FORCE-LOCAL-APPLICABILITY-20261025/r12",
-   "record": "tasks/agent-loop/sprints/force-local-applicability-20261025-r12-outcome.md",
-   "commit": "PENDING"
-  },
-  {
-   "id": "FORCE-LOCAL-APPLICABILITY-20261025/r12.1",
-   "record": "tasks/agent-loop/sprints/force-local-applicability-20261025-r12-outcome.md",
-   "sha256": "c790537a61232946a2e01c5d67551a05207f2c07f839839902978acf9144a5b4",
-   "commit": "f4bf568a07cdeaa310aae0b30aa19d31d6580cbf"
-  },
-  {
-   "id": "LEAN-CALL-CONTEXT-TYPING-20261025/r3",
-   "record": "tasks/agent-loop/sprints/call-context-typing-20261025-r3-outcome.md",
-   "sha256": "98b9a65a899264cf739ad0ee42ed104e2c01716f530c9d11b561a9f2a0d1e9d3",
-   "commit": "f105e0ce0"
-  },
-  {
-   "id": "LEAN-CALL-ENTRY-SPINE-20261025/r1",
-   "record": "tasks/agent-loop/sprints/call-entry-spine-20261025-r1-outcome.md",
-   "sha256": "11f2478ec74c36fa14c46b66a9027dc9bc8f3fce2e62f6c0356ab8063989c8bb"
-  },
-  {
-   "id": "LEAN-CALL-ENTRY-SPINE-20261025/r3",
-   "record": "tasks/agent-loop/sprints/call-entry-spine-20261025-r3-outcome.md",
-   "sha256": "da4481a11082779b090563f7d7511652e39958b4ee48511de652ed4046cca9c1",
-   "commit": "12a081b82e2a84678aab7f5d0f301cd724c72542"
-  },
-  {
-   "id": "LEAN-CALL-STEP-TYPING-20261025/r1",
-   "record": "tasks/agent-loop/sprints/call-step-typing-20261025-r1-outcome.md",
-   "sha256": "d7606d506a52be722e4504cce91eee1b76c73df14659b3b67eb6b2b4f4dfa158",
-   "commit": "862c8777684587f6ca2b20d22859f954804a2c50"
-  },
-  {
-   "id": "LEAN-CALL-STEP-TYPING-20261025/r2",
-   "record": "tasks/agent-loop/sprints/call-step-typing-20261025-r2-outcome.md",
-   "sha256": "803dbc0e9724a18149bebf7bc40965c144bbfcefe3c9bce879333c40a9a0ac20",
-   "commit": "577285ec9"
-  },
-  {
-   "id": "LEAN-CALL-FINITE-TYPING-20261025/r1",
-   "record": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1-outcome.md",
-   "sha256": "f82192a95c9d5cac2474160e56654ffa6b36fa737edca09fd443b3b0fab1456d",
-   "commit": "3bbd875a8"
-  },
-  {
-   "id": "LEAN-CALL-UNWIND-20261025/r1",
-   "record": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
-   "sha256": "331aab9fffd7f17fe7cbfdae98d723111a7a331b92cb672a7012a664557ef405",
-   "commit": "33cd9e0a5"
-  },
-  {
-   "id": "LEAN-CALL-UNWIND-20261025/r2",
-   "record": "tasks/agent-loop/sprints/call-unwind-20261025-r2-outcome.md",
-   "sha256": "8ad36a0dbcb99faf2a87164b4fcd87e21754f1c40583fee963bd95b267d8655c"
-  }
- ],
- "resource_observation": "P active on sole Lean ticket; Q frozen awaiting ticket; three UNKNOWN reserved.",
- "checker": "r2 output paths pinned; recheck dependencies before Lean."
+"schema_version": 1,
+"mode": "LIVE",
+"phase": "ACTIVE",
+"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
+"active_sprint": {
+"id": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025",
+"revision": "r2",
+"status": "FAILED_VERIFICATION",
+"contract": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r2.md",
+"contract_sha256": "01aa44596c1f2aeae77afb0c90f5026fc263e522b7771c2ced274deb957f9e9c",
+"baseline": "4866464a5",
+"claim": "Construct an actually reachable, typed View-wrapped Force Call head and prove it has no successor in the current formal relation.",
+"worktree": "/home/momota1029/rust/yulang",
+"branch": "research/simple-sub-intrusion",
+"resources": {
+"cap_seconds": 2700,
+"grant_map": "P 900 + Q 300 + composition 240 + serial Lean verification 480 + fresh review 600 + integration 180; Astra 0.",
+"astra": 0,
+"max_concurrent_new_author_assignments": 2,
+"lean_processes": 1,
+"cpu": 1,
+"memory_mib": 1024,
+"verification_timeout_seconds": 120,
+"lean_invocation_cap": 4
+},
+"outcome": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1-outcome.md",
+"closure": "Launcher exit 127; Lean NOT_RUN. No theorem accepted; all parent gates OPEN.",
+"review": "NOT_RUN; no reviewer appointed.",
+"checker": "P wrapper: python missing, exit127 before lake/Lean; Q/compose/query NOT_RUN.",
+"acceptance": "NOT_MET. P/Q are uncompiled candidates; composition and fresh independent review outstanding.",
+"author": "P/Q STOPPED; Luna owns fresh verification-only revision; no source repairs.",
+"next_action": "Close r2 with launcher failure; issue fresh verification-only r3 using direct lake or python3.",
+"non_goal": "No source/frontend reachability, native correspondence, Call A/B, inference A/B, semantic approval or production claim."
+},
+"workers": [
+{
+"id": "/root/resident_dispatcher_loop_a",
+"role": "legacy dispatcher",
+"state": "UNKNOWN",
+"session": null,
+"requested_model": "gpt-6.1-sol",
+"requested_effort": "high",
+"observed_model": "UNKNOWN",
+"observed_effort": "UNKNOWN",
+"receipt": "UNKNOWN identity/session/model; reservation quarantined."
+},
+{
+"id": "/root/resident_implementer_idle",
+"role": "legacy implementer",
+"state": "UNKNOWN",
+"session": null,
+"requested_model": "gpt-6.1-sol",
+"requested_effort": "high",
+"observed_model": "UNKNOWN",
+"observed_effort": "UNKNOWN",
+"receipt": "UNKNOWN identity/session/model; reservation quarantined."
+},
+{
+"id": "/root/runtime_source_supplier_proof",
+"role": "legacy proof worker",
+"state": "UNKNOWN",
+"session": null,
+"requested_model": "gpt-6.1-sol",
+"requested_effort": "high",
+"observed_model": "UNKNOWN",
+"observed_effort": "UNKNOWN",
+"receipt": "UNKNOWN identity/session/model; reservation quarantined."
+},
+{
+"id": "/root",
+"role": "primary authority/current/Git integrator",
+"state": "RUNNING",
+"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
+"requested_model": "user-selected primary",
+"requested_effort": "high",
+"observed_model": "UNKNOWN",
+"observed_effort": "UNKNOWN",
+"receipt": "R2 closed at launcher exit127 before Lean; P/Q stopped, candidate artifacts frozen."
+},
+{
+"id": "/root/view_force_reachability_prover",
+"role": "P constructive prover: exact five-step typed Call reachability",
+"state": "STOPPED",
+"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
+"requested_model": "Sol",
+"requested_effort": "high",
+"observed_model": "UNKNOWN",
+"observed_effort": "UNKNOWN",
+"receipt": "P candidate/handoff frozen; python wrapper exit127; Lean NOT_RUN; writes ceased."
+},
+{
+"id": "/root/view_force_stuck_prover",
+"role": "Q constructive prover: exhaustive no-successor theorem",
+"state": "STOPPED",
+"session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
+"requested_model": "Sol",
+"requested_effort": "high",
+"observed_model": "UNKNOWN",
+"observed_effort": "UNKNOWN",
+"receipt": "Q candidate/handoff frozen; Lean NOT_RUN; writes ceased; no descendants."
+}
+],
+"leases": [
+{
+"path": "tasks/agent-loop/current.json",
+"owner": "/root",
+"state": "HELD",
+"reason": "primary current-state lease"
+},
+{
+"path": "notes/theory/lean/YulangClosure/CallViewedForceReachability.lean",
+"owner": "/root/view_force_reachability_prover",
+"state": "FROZEN",
+"reason": "uncompiled r2 candidate; author STOPPED"
+},
+{
+"path": "tasks/agent-loop/inbox/20261025-call-viewed-force-reachability.md",
+"owner": "/root/view_force_reachability_prover",
+"state": "FROZEN",
+"reason": "uncompiled r2 candidate; author STOPPED"
+},
+{
+"path": "notes/theory/lean/YulangClosure/CallViewedForceStuck.lean",
+"owner": "/root/view_force_stuck_prover",
+"state": "FROZEN",
+"reason": "uncompiled r2 candidate; author STOPPED"
+},
+{
+"path": "tasks/agent-loop/inbox/20261025-call-viewed-force-stuck.md",
+"owner": "/root/view_force_stuck_prover",
+"state": "FROZEN",
+"reason": "uncompiled r2 candidate; author STOPPED"
+},
+{
+"path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1.md",
+"owner": "/root",
+"state": "FROZEN",
+"reason": "superseded only for output-path enumeration by r2 before author activation"
+},
+{
+"path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r2.md",
+"owner": "/root",
+"state": "FROZEN",
+"reason": "exact generated-output lease amendment"
+}
+],
+"pending": [
+{
+"id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+"state": "OPEN",
+"owner": "Luna",
+"details": "Proof: tasks/agent-loop/inbox/20261019-r61-proof.md"
+},
+{
+"id": "R64-SRC-ANN-ARG-1",
+"state": "OPEN",
+"owner": "Luna",
+"details": "Proof: tasks/agent-loop/inbox/20261019-r64-proof.md"
+},
+{
+"id": "R65-CURRENT-OPERAND-1",
+"state": "OPEN",
+"owner": "Luna",
+"details": "Proof: tasks/agent-loop/inbox/20261019-r65-proof.md"
+},
+{
+"id": "R66-LAMBDA-RESULT-STAGE-1",
+"state": "OPEN",
+"owner": "Luna",
+"details": "Proof: tasks/agent-loop/inbox/20261019-r66-proof.md"
+},
+{
+"id": "R67-DIRECT-BODY-CHECK-1",
+"state": "OPEN",
+"owner": "Luna",
+"details": "notes/design/2026-10-19-r67-direct-lambda-checking.md"
+},
+{
+"id": "R68-OWNER-CONSUMER-1",
+"state": "OPEN",
+"owner": "Luna",
+"details": "retained lambda introduction; owner consumer premise open."
+},
+{
+"id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+"state": "OPEN_UNADOPTED_PROPOSAL",
+"owner": "Luna",
+"details": "Proposal unadopted; source law open."
+},
+{
+"id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+"state": "OPEN",
+"owner": "Luna",
+"details": "Proof: tasks/agent-loop/inbox/20261019-r70-proof.md"
+},
+{
+"id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+"state": "OPEN",
+"owner": "Luna",
+"details": "R237: raw WorkBound callback coverage open."
+},
+{
+"id": "R72-LATER-OCCURRENCE-1",
+"state": "OPEN",
+"owner": "Luna",
+"details": "R229–233: slot-4 bridge open."
+},
+{
+"id": "R149-SOURCE-OWNER-CLOSURE-1",
+"state": "OPEN_SOURCE_TO_CST",
+"owner": "Luna intake",
+"details": "R149: parser/HIR readback open."
+},
+{
+"id": "R339-D2-WHOLE-FRAME-RETIREMENT",
+"state": "OPEN_REMAINDER",
+"owner": "Luna",
+"details": "R347 projected C_s/H₀(S) and full N open."
+},
+{
+"id": "R340-D3-AUTHENTIC-APPLY-CONTINUATION",
+"state": "OPEN_REMAINDER",
+"owner": "Luna",
+"details": "R340 partial; full C/M and review open."
+},
+{
+"id": "R345-N-REMAINDER",
+"state": "OPEN_REMAINDER",
+"owner": "Luna",
+"details": "R347 projected C_s/H₀(S) and full N open."
+},
+{
+"id": "OP-SEMANTICS-FULL-EFFECT",
+"state": "OPEN_REVIEW",
+"owner": "primary",
+"details": "15.4 candidate; source adoption/review open."
+},
+{
+"id": "DOT-SELECTION-EVIDENCE-BRIDGE",
+"state": "OPEN_REVIEW",
+"owner": "primary",
+"details": "Effect lifetime, resolver, snapshot lifecycle open."
+},
+{
+"id": "CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE",
+"state": "OPEN_REVIEW",
+"owner": "primary",
+"details": "Semantics/native correspondence/review open."
+},
+{
+"id": "SOURCE-SAFETY-BRIDGE",
+"state": "OPEN_REVIEW",
+"owner": "primary",
+"details": "Joint route/instance/owner/forwarding premises open."
+},
+{
+"id": "CALL-CONTEXT-PLUG-PRESERVATION",
+"state": "OPEN",
+"owner": "Luna intake; later sprint after r9 execution adequacy",
+"details": "Await raw/typed Call coverage; A claim unchanged."
+},
+{
+"id": "BOUNDED-CALL-FINITE-PREFIX-SAFETY",
+"state": "OPEN",
+"owner": "Luna intake; later sprint after exact A/hash",
+"details": "B arbitrary-suffix claim unchanged; unissued."
+},
+{
+"id": "CALL-STEP-ERASURE",
+"state": "OPEN",
+"owner": "r9 S / Luna intake; launch after checked implementation seam",
+"details": "Unissued; await Force input and raw relation."
+},
+{
+"id": "CALL-RAW-SUCCESSOR-COVERAGE",
+"state": "OPEN",
+"owner": "r9 C / Luna intake; launch after checked implementation seam",
+"details": "Unissued; await Force input and raw relation."
+},
+{
+"id": "FORCE-SOURCE-REALIZATION-20261025",
+"state": "OPEN_SOURCE_EQUATIONS",
+"owner": "Luna",
+"details": "R3 review blocking; R4 Flow/source projection next."
+}
+],
+"closure": "R2 failed at launcher; Lean not run; no theorem accepted; parent obligations remain OPEN.",
+"next_action": "Preserve P/Q candidates; fresh r3 verifies without author restarts; three UNKNOWN reservations remain.",
+"legacy_reconciliation": {
+"required": false,
+"reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
+"reservations": [
+{
+"id": "/root/resident_dispatcher_loop_a",
+"path": "tasks/agent-loop/board.md",
+"state": "UNKNOWN_QUARANTINED"
+},
+{
+"id": "/root/resident_implementer_idle",
+"path": "UNKNOWN historical implementation lease",
+"state": "UNKNOWN_QUARANTINED"
+},
+{
+"id": "/root/runtime_source_supplier_proof",
+"path": "UNKNOWN historical proof lease",
+"state": "UNKNOWN_QUARANTINED"
+}
+]
+},
+"user_goal": "Prove Yulang semantics and type inference with complete proofs in notes/theory/lean; primary commits and pushes reviewed milestones.",
+"history": [
+{
+"id": "FORCE-ADMIN-RESULT-DISCHARGE-20261025/r7",
+"record": "tasks/agent-loop/sprints/force-admin-result-discharge-20261025-r7-outcome.md",
+"commit": "9b7b4e00dd3862bf4bf0281594f3a658ba9fd59b"
+},
+{
+"id": "FORCE-SOURCE-REALIZATION-20261025/r8",
+"record": "tasks/agent-loop/sprints/force-source-realization-20261025-r8-outcome.md",
+"sha256": "4c63f6f55a4fd5ee2afeb83a5df575704715b7bc093a1934997b4cb4994ba5eb",
+"commit": "a8afc44cc26271b257e039c90b2443b77de9fa23"
+},
+{
+"id": "FORCE-PRODUCER-EXPORT-TRACE-20261025/r1",
+"record": "tasks/agent-loop/sprints/force-producer-export-trace-20261025-r1-outcome.md",
+"sha256": "bf544d639797fbecad878095916588d300eddf1e9c786d37786c9ebca01e232f",
+"commit": "cfea96fbe617f8a2017ca322961472e701e7bff7"
+},
+{
+"id": "FORCE-DECLARATIVE-CONSTRUCTION-20261025/r10",
+"record": "tasks/agent-loop/sprints/force-declarative-construction-20261025-r10.md",
+"sha256": "ddcfe7b8ff5065ab76dae1c753ad43a33b0f7ef38682ff4829dd218c2094e521",
+"commit": "cfea96fbe617f8a2017ca322961472e701e7bff7"
+},
+{
+"id": "FORCE-DECLARATIVE-CONSTRUCTION-20261025/r10",
+"record": "tasks/agent-loop/sprints/force-declarative-construction-20261025-r10-outcome.md",
+"sha256": "5f445c4e693387496a3d9a232c9ed9f273509dd6c1f71aa6e6de8e890f80c62d",
+"commit": "cfea96fbe617f8a2017ca322961472e701e7bff7"
+},
+{
+"id": "FORCE-COMPLETION-20261025/r11",
+"record": "tasks/agent-loop/sprints/force-completion-20261025-r11-outcome.md",
+"sha256": "e38b47c52a25d5a3561f2823e55be23129bd8cc920fabdbf3d3561ae0c454b6a",
+"commit": "e2d3f14bd795f7ef4e61f6453b3a5d4dc38b80dd"
+},
+{
+"id": "FORCE-LOCAL-APPLICABILITY-20261025/r12",
+"record": "tasks/agent-loop/sprints/force-local-applicability-20261025-r12-outcome.md",
+"commit": "PENDING"
+},
+{
+"id": "FORCE-LOCAL-APPLICABILITY-20261025/r12.1",
+"record": "tasks/agent-loop/sprints/force-local-applicability-20261025-r12-outcome.md",
+"sha256": "c790537a61232946a2e01c5d67551a05207f2c07f839839902978acf9144a5b4",
+"commit": "f4bf568a07cdeaa310aae0b30aa19d31d6580cbf"
+},
+{
+"id": "LEAN-CALL-CONTEXT-TYPING-20261025/r3",
+"record": "tasks/agent-loop/sprints/call-context-typing-20261025-r3-outcome.md",
+"sha256": "98b9a65a899264cf739ad0ee42ed104e2c01716f530c9d11b561a9f2a0d1e9d3",
+"commit": "f105e0ce0"
+},
+{
+"id": "LEAN-CALL-ENTRY-SPINE-20261025/r1",
+"record": "tasks/agent-loop/sprints/call-entry-spine-20261025-r1-outcome.md",
+"sha256": "11f2478ec74c36fa14c46b66a9027dc9bc8f3fce2e62f6c0356ab8063989c8bb"
+},
+{
+"id": "LEAN-CALL-ENTRY-SPINE-20261025/r3",
+"record": "tasks/agent-loop/sprints/call-entry-spine-20261025-r3-outcome.md",
+"sha256": "da4481a11082779b090563f7d7511652e39958b4ee48511de652ed4046cca9c1",
+"commit": "12a081b82e2a84678aab7f5d0f301cd724c72542"
+},
+{
+"id": "LEAN-CALL-STEP-TYPING-20261025/r1",
+"record": "tasks/agent-loop/sprints/call-step-typing-20261025-r1-outcome.md",
+"sha256": "d7606d506a52be722e4504cce91eee1b76c73df14659b3b67eb6b2b4f4dfa158",
+"commit": "862c8777684587f6ca2b20d22859f954804a2c50"
+},
+{
+"id": "LEAN-CALL-STEP-TYPING-20261025/r2",
+"record": "tasks/agent-loop/sprints/call-step-typing-20261025-r2-outcome.md",
+"sha256": "803dbc0e9724a18149bebf7bc40965c144bbfcefe3c9bce879333c40a9a0ac20",
+"commit": "577285ec9"
+},
+{
+"id": "LEAN-CALL-FINITE-TYPING-20261025/r1",
+"record": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1-outcome.md",
+"sha256": "f82192a95c9d5cac2474160e56654ffa6b36fa737edca09fd443b3b0fab1456d",
+"commit": "3bbd875a8"
+},
+{
+"id": "LEAN-CALL-UNWIND-20261025/r1",
+"record": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
+"sha256": "331aab9fffd7f17fe7cbfdae98d723111a7a331b92cb672a7012a664557ef405",
+"commit": "33cd9e0a5"
+},
+{
+"id": "LEAN-CALL-UNWIND-20261025/r2",
+"record": "tasks/agent-loop/sprints/call-unwind-20261025-r2-outcome.md",
+"sha256": "8ad36a0dbcb99faf2a87164b4fcd87e21754f1c40583fee963bd95b267d8655c"
+},
+{
+"id": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/r2",
+"record": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1-outcome.md",
+"sha256": "dc329ddc99486ff2ae375b6f398721cbcabacde7ea9de67c9f8f7398a67e0176"
+}
+],
+"resource_observation": "P 900s + Q 300s charged; 4 Lean calls unused; 3 UNKNOWN reserved.",
+"checker": "R2: launcher exit127; lake/Lean NOT_RUN; candidates uncompiled."
 }
