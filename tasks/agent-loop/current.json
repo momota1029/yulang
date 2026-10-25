@@ -12,9 +12,9 @@
   "baseline": "408c1c6a8276ca74f0760cb3d71dd11e704826c0",
   "branch": "yulang3",
   "claim": "Connect finite allocated-heap operand observation to one actual R61 connected-executor Force/Delay transition; retain BodiesTyped and HeapPayloadTyped conditions and R23/source/native open.",
-  "outcome": "Registered lean_prover collaboration launch acknowledged; exact runtime session token is not exposed. Proof lease held, worker state UNKNOWN until a compatible active receipt is available.",
+  "outcome": "lean_prover spawn acknowledged; runtime session token unavailable, so worker UNKNOWN and proof leases remain HELD.",
   "budget": "1800s total: lean_prover 900s/10 calls/150 checker; primary 720s/4 calls/150 checker; fresh compiler_referee 180s/0 calls.",
-  "next_action": "Preserve all proof leases; receive frozen handoff or cessation evidence. No primary checker call before proof stop."
+  "next_action": "Hold proof leases; await frozen handoff or cessation before primary verification."
  },
  "workers": [
   {
@@ -125,7 +125,7 @@
    "requested_effort": "registered role defaults",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Actual registered lean_prover collaboration spawn acknowledged; tool exposes task identity but no session UUID compatible with current-state schema. 900s/10 calls/150 checker grant. Exact leases remain HELD; no primary verification until cessation."
+   "receipt": "lean_prover spawn acknowledged; tool task ID available, no compatible session UUID. 900s/10 calls/150 checker grant; UNKNOWN, leases HELD; primary waits for cessation."
   },
   {
    "id": "/root/r62_heap_execution_review",
@@ -565,7 +565,7 @@
    "sha256": "44a546c209a7050a7059dfcf0574d817b73076ad55043730de7a29fd6ca0668a"
   }
  ],
- "resource_observation": "R62 proof launch acknowledged. Tool session token unavailable to current-state schema; worker UNKNOWN and exact leases held. No checker results yet.",
+ "resource_observation": "R62 lean_prover spawn acknowledged. Session UUID unavailable; worker UNKNOWN, leases HELD, no checker result.",
  "native_bridge": {
   "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
   "state": "OPEN; NAIVE_RELATION_BLOCKED",
