@@ -6,7 +6,7 @@
 "active_sprint": {
 "id": "LEAN-CALL-CAPTURE-RESPONSE-20261025",
 "revision": "r1",
-"status": "INTEGRATING",
+"status": "DONE",
 "contract": "tasks/agent-loop/sprints/call-capture-response-20261025-r1.md",
 "contract_sha256": "af006b81aa906e5017f23c3b15e754ac603355745372b283e220f93a5fcb5c49",
 "baseline": "79e71c17d",
@@ -25,12 +25,12 @@
 "lean_invocation_cap": 4
 },
 "outcome": "tasks/agent-loop/sprints/call-capture-response-20261025-r1-outcome.md",
-"closure": "Scoped P/Q/composition claims ACCEPTED/CLEAN; Luna integrating reviewed milestone.",
+"closure": "Scoped syntax-level response cancellation and typing accepted CLEAN; milestone integrated.",
 "review": "CLEAN; report SHA-256 1d94a31da7822060f6fafe1131b8cdd943843c0625f85fc1c337cf86a470af5b.",
 "checker": "4/4 Lean checks exit 0; hashes/timestamps consistent; axioms [propext] only; static checker passed.",
 "acceptance": "Exact signatures; 4/4 exit 0; [propext] only; CLEAN review.",
 "author": "Luna owns composition, verification, review and Git; P/Q candidates frozen.",
-"next_action": "Commit and push reviewed paths; then consult dispatcher at sprint boundary.",
+"next_action": "Consult dispatcher for next outcome toward original semantics/type-inference proofs.",
 "non_goal": "No semantic, source/native, A/B, inference, or production closure."
 },
 "workers": [
@@ -287,8 +287,8 @@
 "details": "R3 review blocking; R4 Flow/source projection next."
 }
 ],
-"closure": "Capture-response r1 accepted CLEAN; reviewed milestone integration in progress; parent gates OPEN.",
-"next_action": "Explicit-path commit/push, then end-of-sprint selection.",
+"closure": "Capture-response r1 ACCEPTED/CLEAN and committed; parent source/native, Call A/B, inference A/B and production gates OPEN.",
+"next_action": "Select next proof/source-owner outcome; preserve three UNKNOWN quarantines.",
 "legacy_reconciliation": {
 "required": false,
 "reason": "Three unrelated UNKNOWN reservations remain quarantined.",
@@ -441,9 +441,9 @@
 "sha256": "d6bd96f5df49a3e2b00574e87eff6b07b79add75c749e3a57d761da264c41606",
 "review": "tasks/agent-loop/inbox/20261025-call-capture-response-r1-review.md",
 "review_sha256": "1d94a31da7822060f6fafe1131b8cdd943843c0625f85fc1c337cf86a470af5b",
-"commit": "PENDING"
+"commit": "45ebac6b3"
 }
 ],
-"resource_observation": "P/Q stopped; 4 Lean calls 3.581760s; CLEAN review; three UNKNOWN quarantines retained.",
+"resource_observation": "Reviewed milestone committed as 45ebac6b3; four Lean checks 3.581760s; 3 UNKNOWN quarantines retained.",
 "checker": "4 exact calls pass; source/output hashes match receipt; query axiom set allowed."
 }
