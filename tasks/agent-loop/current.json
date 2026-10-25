@@ -2,32 +2,34 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "LEAN-PRIMITIVE-OPERATION-INSTANCE-20261025/root-r1",
+  "session": "LEAN-NATIVE-TEMPLATE-REPLAY-20261025/root-r1",
   "active_sprint": {
-    "id": "LEAN-PRIMITIVE-OPERATION-INSTANCE-20261025",
+    "id": "LEAN-NATIVE-TEMPLATE-REPLAY-20261025",
     "revision": "r1",
     "status": "REVIEW",
-    "contract": "tasks/agent-loop/sprints/primitive-operation-instance-20261025-r1.md",
-    "contract_sha256": "2d885257c3e93748dc2b9b5e42a6bce1a3a5c615be382f561e484b3ea71f7c0a",
-    "baseline": "6d9e769abbd6c119bf71c4a2f9bb9202bed064de",
-    "claim": "Construct same-declaration primitive OperationInstance and derive response-type equality; source identity/signature coherence plus actual template retention.",
+    "contract": "tasks/agent-loop/sprints/native-template-replay-20261025-r1.md",
+    "contract_sha256": "8e60f8c80fbc6ca07fabec90cd2db9455f39192500fd34bbc2674dad28e112f2",
+    "baseline": "8c505d5ae5e3b784b172100b25041c8167e74682",
+    "claim": "Actual capture builder yields acyclic unique-Hole template; arbitrary finite entry prefixes preserve response/outer stack/order and terminate at Hole or explicit metadata error.",
     "resources": {
       "seconds": 1800,
       "author_astra": 300,
-      "primary_seconds": 600,
-      "lean_seconds": 180,
+      "primary_seconds": 840,
       "lean_calls": 24,
+      "lean_seconds": 180,
       "review_astra": 300,
       "integration_seconds": 120,
-      "contingency_seconds": 300,
+      "contingency_seconds": 0,
       "lean_concurrent": 1,
-      "memory_mib": 1024
+      "memory_mib": 1024,
+      "boundary_contingency_seconds": 60
     },
-    "outcome": "tasks/agent-loop/sprints/primitive-operation-instance-20261025-r1-outcome.md",
-    "review": "Fresh independent CLEAN8e91e530ff003c9e635ca43ebdaa67ca73d87b299174fc8777d7a883c16d3b31; primary accepted bounded component.",
-    "implementation": "NO_SAFE_CODE_SLICE; formal constructor->Call response consumer.",
-    "next_action": "Integrate coherent reviewed primitive instance component, then sprint-end dispatcher for original-parent remainder.",
-    "outcome_sha256": "9b4dea2272357e0d8afe0b1c7c984e93fc44a7787d3e39107a5c65addf0e8292"
+    "outcome": "tasks/agent-loop/sprints/native-template-replay-20261025-r1-outcome.md",
+    "review": "Fresh independent CLEAN report17e4c3cb76791d54f184437efb432c182947fcb4f548371a1a9c40c36e5afefa; primary adjudicated; exactsource/receipt frozen.",
+    "implementation": "NO_SAFE_CODE_SLICE; formal builder/entry consumer applied to actual native sources.",
+    "next_action": "Primary integrate approved local native template structural supplier within120s; wholegoal OPEN.",
+    "amendment": "r1 resource amendment primarygrant20261025T05:52:46UTC: original contingency300 reallocated60 selector+240primary; original1800total, sameclaims/leases/verification/review/integration unchanged; primary wallbound05:56:40UTC.",
+    "outcome_sha256": "c8f85475c1f6cfef7399e8b24dc35bb191c3295d24d8ee252e8b7acb6d2e8db9"
   },
   "workers": [
     {
@@ -67,34 +69,34 @@
       "id": "/root",
       "role": "primary authority/current/Git integrator",
       "state": "RUNNING",
-      "session": "LEAN-PRIMITIVE-OPERATION-INSTANCE-20261025/root-r1",
+      "session": "LEAN-NATIVE-TEMPLATE-REPLAY-20261025/root-r1",
       "requested_model": "user-selected primary",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Reserved integration120s started05:40:21UTC after fresh independent CLEAN; primaryproduction600 already conservatively charged."
+      "receipt": "Primary integration120s from05:55:40UTC after independentCLEAN; source frozen, no more proof/source edits."
     },
     {
-      "id": "/root/primitive_operation_instance_astra_r1",
-      "role": "constructive primitive operation instance author",
+      "id": "/root/native_template_replay_astra_r1",
+      "role": "constructive template builder/replay author",
       "state": "STOPPED",
-      "session": "LEAN-PRIMITIVE-OPERATION-INSTANCE-20261025/root-r1",
+      "session": "LEAN-NATIVE-TEMPLATE-REPLAY-20261025/root-r1",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Actual final handoff1b7bbb89e6b84c232ac3fd982a139a3e1781a9dd4b2786479641df8aab4e26a7 received by05:36:41UTC;writesSTOPPED/no descendants/processes;300s charged."
+      "receipt": "STOPPED handoff at05:47:10.221031UTC; no descendants or processes; source candidate bbad66e7025a659b90dc55f17e662216a3ba2c359d37c9b79b7a5dfe65aac382; handoff4f98d0892cf8bb7d45a5bdf47d86b4a8a662b137f030c268b0f7008f13a3b76b."
     },
     {
-      "id": "/root/primitive_operation_instance_review_astra_r1",
-      "role": "fresh independent source/proof reviewer",
+      "id": "/root/native_template_replay_review_astra_r1",
+      "role": "fresh independent combined source/formal reviewer",
       "state": "STOPPED",
-      "session": "LEAN-PRIMITIVE-OPERATION-INSTANCE-20261025/root-r1",
+      "session": "LEAN-NATIVE-TEMPLATE-REPLAY-20261025/root-r1",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Actual final CLEAN report8e91e530ff003c9e635ca43ebdaa67ca73d87b299174fc8777d7a883c16d3b31 received by05:40:21UTC;writesSTOPPED/no descendants/processes;300s charged."
+      "receipt": "CLEAN STOP05:55:29.381431UTC after66.147s; no descendants/processes; reportSHA17e4c3cb76791d54f184437efb432c182947fcb4f548371a1a9c40c36e5afefa"
     }
   ],
   "leases": [
@@ -104,73 +106,58 @@
       "state": "HELD"
     },
     {
-      "path": "notes/theory/lean/YulangClosure/PrimitiveOperationInstance.lean",
+      "path": "notes/theory/lean/YulangClosure/NativeTemplateReplay.lean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/YulangClosure/CallDeclaredLiteralResponse.lean",
+      "path": "tasks/agent-loop/inbox/20261025-native-template-replay.md",
+      "owner": "/root/native_template_replay_astra_r1",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-25-native-template-replay-correspondence.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261025-primitive-operation-instance.md",
-      "owner": "/root/primitive_operation_instance_astra_r1",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-25-operation-declaration-coherence.md",
+      "path": "notes/theory/lean/.lake/native-template-replay-r1-run.py",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/primitive-operation-instance-r1-run.py",
+      "path": "notes/theory/lean/.lake/native-template-replay-r1-check.lean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/primitive-operation-instance-r1-check.lean",
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/NativeTemplateReplay.olean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/PrimitiveOperationInstance.olean",
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/NativeTemplateReplay.ilean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/PrimitiveOperationInstance.ilean",
+      "path": "tasks/agent-loop/inbox/20261025-native-template-replay-r1-verification.jsonl",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallDeclaredLiteralResponse.olean",
+      "path": "tasks/agent-loop/sprints/native-template-replay-20261025-r1-outcome.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallDeclaredLiteralResponse.ilean",
+      "path": "tasks/agent-loop/sprints/native-template-replay-20261025-r1.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261025-primitive-operation-instance-r1-verification.jsonl",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/primitive-operation-instance-20261025-r1-outcome.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/primitive-operation-instance-20261025-r1.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-primitive-operation-instance-review.md",
-      "owner": "/root/primitive_operation_instance_review_astra_r1",
+      "path": "tasks/agent-loop/inbox/20261025-native-template-replay-review.md",
+      "owner": "/root/native_template_replay_review_astra_r1",
       "state": "FROZEN"
     }
   ],
@@ -305,11 +292,12 @@
     {
       "id": "RESPONSE-TEMPLATE-1",
       "state": "OPEN",
-      "owner": "primary native-proof intake"
+      "owner": "primary native-proof intake",
+      "details": "IndependentCLEAN native capture builder/entry finite traces/order/response/outer stack structural supplier; typed frame/metadata/callable/Call semantic interpretation and error exclusion remain OPEN."
     }
   ],
-  "closure": "Full goal OPEN. Native primitive readback pushed6d9e769ab; ground primitive declaration instance/local coherence CLEAN accepted, integration pending. Whole traces, callable/environment, effect/polymorphism, template/Force/inference parents OPEN.",
-  "next_action": "Integrate coherent reviewed primitive instance component, then sprint-end dispatcher for original-parent remainder.",
+  "closure": "Full goal OPEN. Primitive native readback6d9e769ab and ground declared operation/Call response8c505d5ae independentlyCLEAN committed+pushed. Whole traces, callable/environment, effect/polymorphism, template/Force/inference parents OPEN.",
+  "next_action": "Primary integrate approved local native template structural supplier within120s; wholegoal OPEN.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three unrelated UNKNOWN reservations remain quarantined.",
@@ -360,23 +348,29 @@
       "sha256": "9e891c832e9b2fce3c339eeffb0568a7502fa01fb1f3f855b8b825e52a65d0e2",
       "commit": "6d9e769abbd6c119bf71c4a2f9bb9202bed064de",
       "push": "Succeeded; origin a2d093870 -> 6d9e769ab."
+    },
+    {
+      "id": "LEAN-PRIMITIVE-OPERATION-INSTANCE-20261025/r1",
+      "record": "tasks/agent-loop/sprints/primitive-operation-instance-20261025-r1-outcome.md",
+      "sha256": "9b4dea2272357e0d8afe0b1c7c984e93fc44a7787d3e39107a5c65addf0e8292",
+      "commit": "8c505d5ae5e3b784b172100b25041c8167e74682",
+      "push": "Succeeded; origin6d9e769ab ->8c505d5ae."
     }
   ],
-  "resource_observation": "Author300+primary600+review300 charged;Lean4calls/4.248637401993619s;integration120 active05:40:21UTC;contingency300unused;dispatcher1050priorcharged;3quarantines.",
-  "checker": "Final2/3/4PASS;22 signature/axiom pairs subset[propext,Quot.sound],28examples;32prior chains match;source/proof reviewCLEAN primaryaccepted;static/diffPASS.",
+  "resource_observation": "AuthorSTOPPED123s/300grant;primarysource840cap05:56:40 with final freeze05:54:17;12Lean24.742s/180;review300reserved;integration120reserved;contingency60selector+240primary granted; oldselector1230retained, now1290charged.",
+  "checker": "12Lean calls24.74206657799732s; final11/12PASS42pairs axioms subset[propext,Quot.sound],15examples;34accepted prior module chains+55pins match. All failedsource/stdout retained. Finalreceipt742e269b921e28299939797f267e8a2bbc86860e4a07cf9c1fdb4a4a02076bf6.",
   "boundary_consultation": {
     "owner": "/root/next_action_selector_astra",
-    "grant_seconds": 1050,
-    "current_grant_seconds": 180,
-    "scope": "Completed native primitive readback sprint; select next original-parent outcome, source/formal shared operation instance vs callable/full-trace obligations. Read-only no agents/Git/tests.",
+    "grant_seconds": 1290,
+    "current_grant_seconds": 60,
+    "scope": "Source/repair contingency reallocation240s and60s dispatcher, same exact native template claim/leases; original600s expires05:52:40UTC.",
     "status": "DONE",
-    "reason": "Fresh sprint-end boundary grant180s; prior870 conservatively charged unchanged.",
-    "receipt": "Actual collaboration.followup_task returned for /root/next_action_selector_astra at 2026-10-25T05:30:58.466554+00:00;180s grant, requestedAstra/medium observedUNKNOWN.",
-    "result": "Actual180s followup returned STOPPED; select shared operation declaration/finite identity construction and source coherence seam; lifetime1050 charged."
+    "reason": "Fresh standalone180s boundary grant; prior1050 retained charged.",
+    "receipt": "Actual collaboration.followup_task acknowledged; requestedAstra/medium observedUNKNOWN; finite60s.",
+    "result": "Selector STOPPED supports primary840s bound05:56:40UTC; preserve full finite trace/source claim, constructive axioms, fresh review.1290s lifetime charged."
   },
   "pending_details": {
     "record": "tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1-outcome.md",
     "sha256": "600e6bf271c64ea89d7ae05a0a65afac3eecf70a1464d51e17d9e4343dcf1d45"
-  },
-  "source_note_sha256": "5acf2d32c897619ceb77e26db07e221c8f2ecd9a7da160d2828c211eb46c9736"
+  }
 }
