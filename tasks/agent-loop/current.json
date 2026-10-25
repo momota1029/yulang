@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-UNWIND-20261025",
     "revision": "r1",
-    "status": "AUTHOR_READY_PREFLIGHT_PASSED",
+    "status": "AUTHORS_RUNNING",
     "contract": "tasks/agent-loop/sprints/call-unwind-20261025-r1.md",
     "contract_sha256": "efeaabb27416bd9cb51066c37f8a36d13b3a4ced3eeba7f1f9488ac4ada38a2a",
     "baseline": "64d39df59",
@@ -26,11 +26,11 @@
     },
     "outcome": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
     "closure": "Finite Call typing r1 ACCEPTED/CLEAN; original A/B and adequacy OPEN.",
-    "review": "NOT_RUN; activate P/Q after contract/state commit; review only after both STOP and four successful Lean invocations.",
-    "checker": "50 pinned source/evidence/output hashes match; all 15 assigned source/output paths absent.",
+    "review": "NOT_RUN; P and Q sent actual START acknowledgements and are activated; review only after both STOP and four successful Lean invocations.",
+    "checker": "50 pinned source/evidence/output hashes match; all 15 assigned source/output paths absent at preflight; P/Q actual START acknowledgements recorded.",
     "acceptance": "Exact P/Q/composition compile; full receipts; exact signatures/axioms; fresh CLEAN review.",
     "author": "Separate Sol/high P/Q authors, 900s/600s, disjoint exact leases.",
-    "next_action": "Activate disjoint P and Q author leases; freeze their handoffs after STOP.",
+    "next_action": "P and Q prove their exact frozen propositions under disjoint leases; Luna composes after both STOP.",
     "non_goal": "No global progress/reachability, cleanup correctness, source/native, A/B, inference, or production claim."
   },
   "workers": [
@@ -81,24 +81,24 @@
     {
       "id": "/root/call_step_typing_author",
       "role": "P prover: actual request unwind and captureFrames",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Fresh P grant frozen; awaiting actual START acknowledgement.",
-      "session": null
+      "receipt": "Actual START acknowledged for fresh P grant; exact two-path lease accepted; no writes/processes before activation.",
+      "session": "LEAN-CALL-UNWIND-20261025/root-turn-11"
     },
     {
       "id": "/root/call_entry_body_typing",
       "role": "Q prover: actual failure unwind",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Fresh Q grant frozen; awaiting actual START acknowledgement.",
-      "session": null
+      "receipt": "Actual START acknowledged for fresh Q grant; exact two-path lease accepted; no writes/processes before activation.",
+      "session": "LEAN-CALL-UNWIND-20261025/root-turn-11"
     },
     {
       "id": "/root/call_finite_typing_review",
