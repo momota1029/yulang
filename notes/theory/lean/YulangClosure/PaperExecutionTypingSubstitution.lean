@@ -1,12 +1,10 @@
 import YulangClosure.PaperExecutionSyntax
 
 /-!
-Unfinished simultaneous type-substitution construction for the explicitly
-represented partial paper judgments, including records, required projection,
-and declared lookup. The standalone record-map equality is checked, but the
-mutual proof still has an index mismatch; this module does not compile. R6 and
-R7 handoffs preserve diagnostics. This is not the full paper theorem; omitted
-rules and graph/source correspondence remain open.
+Arbitrary type-substitution transport for the explicitly represented partial
+paper typing judgments, including records, required projection, and declared
+lookup. The represented judgments are only a subset of the full paper system;
+full source/native correspondence and omitted rules remain open.
 -/
 namespace YulangClosure.PaperTypes
 
@@ -68,124 +66,166 @@ theorem RecordField.subst (σ : Nat → Ty) {recordType fieldType : Ty}
     (mapRecordFields σ fields).map Prod.fst = fields.map Prod.fst := by
   simp [mapRecordFields, List.map_map, Function.comp_def]
 
-mutual
-  theorem ValuesTyped.subst (σ : Nat → Ty) {declarations : DeclarationTable}
-      {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
-      {values : List Value} {types : List Ty}
-      (derivation : ValuesTyped declarations graphTypes environment values types) :
-      ValuesTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
-        (mapTypeEnvironment σ environment) (values.map (mapPaperValue σ)) (types.map (subst σ)) := by
-    cases derivation with
-    | nil => exact .nil
-    | cons value values =>
-        simpa [mapTypeEnvironment] using
-          ValuesTyped.cons (PaperValueTyped.subst σ value) (ValuesTyped.subst σ values)
+theorem mapPaperValue_record_eq (σ : Nat → Ty) (fields : List (Label × Presence × Value)) :
+    mapPaperValue σ (.record fields) = .record (mapRecordFields σ fields) := by
+  simp only [mapPaperValue]
+  exact congrArg Value.record (List.attach_map_val (l := fields)
+    (f := fun field : Label × Presence × Value =>
+      (field.1, field.2.1, mapPaperValue σ field.2.2)))
 
-  theorem ValuesAllTyped.subst (σ : Nat → Ty) {declarations : DeclarationTable}
-      {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
-      {values : List Value} {ty : Ty}
-      (derivation : ValuesAllTyped declarations graphTypes environment values ty) :
-      ValuesAllTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
-        (mapTypeEnvironment σ environment) (values.map (mapPaperValue σ)) (subst σ ty) := by
-    cases derivation with
-    | nil => exact .nil
-    | cons value values =>
-        simpa [mapTypeEnvironment] using
-          ValuesAllTyped.cons (PaperValueTyped.subst σ value) (ValuesAllTyped.subst σ values)
-
-  theorem RecordPayloadsTyped.subst (σ : Nat → Ty) {declarations : DeclarationTable}
-      {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
-      {fields : List (Label × Presence × Value)} {recordType : Ty}
-      (derivation : RecordPayloadsTyped declarations graphTypes environment fields recordType) :
-      RecordPayloadsTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
-        (mapTypeEnvironment σ environment) (mapRecordFields σ fields) (subst σ recordType) := by
-    cases derivation with
-    | nil => exact .nil
-    | cons field value fields =>
-        exact .cons (RecordField.subst σ field) (PaperValueTyped.subst σ value)
-          (RecordPayloadsTyped.subst σ fields)
-
-  theorem PaperValueTyped.subst (σ : Nat → Ty) {declarations : DeclarationTable}
-      {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
-      {value : Value} {ty : Ty}
-      (derivation : PaperValueTyped declarations graphTypes environment value ty) :
-      PaperValueTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
-        (mapTypeEnvironment σ environment) (mapPaperValue σ value) (subst σ ty) := by
-    cases derivation with
-    | «variable» lookup =>
+theorem PaperValueTyped.subst_explicit (σ : Nat → Ty) {declarations : DeclarationTable}
+    {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
+    {value : Value} {ty : Ty}
+    (derivation : PaperValueTyped declarations graphTypes environment value ty) :
+    PaperValueTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+      (mapTypeEnvironment σ environment) (mapPaperValue σ value) (subst σ ty) := by
+  exact PaperValueTyped.rec
+    (motive_1 := fun e values types _ => ValuesTyped (mapDeclarationTable σ declarations)
+      (mapGraphEnvironment σ graphTypes) (mapTypeEnvironment σ e)
+      (values.map (mapPaperValue σ)) (types.map (subst σ)))
+    (motive_2 := fun e values ty _ => ValuesAllTyped (mapDeclarationTable σ declarations)
+      (mapGraphEnvironment σ graphTypes) (mapTypeEnvironment σ e)
+      (values.map (mapPaperValue σ)) (subst σ ty))
+    (motive_3 := fun e fields ty _ => RecordPayloadsTyped (mapDeclarationTable σ declarations)
+      (mapGraphEnvironment σ graphTypes) (mapTypeEnvironment σ e)
+      (mapRecordFields σ fields) (subst σ ty))
+    (motive_4 := fun e value ty _ => PaperValueTyped (mapDeclarationTable σ declarations)
+      (mapGraphEnvironment σ graphTypes) (mapTypeEnvironment σ e)
+      (mapPaperValue σ value) (subst σ ty))
+    (motive_5 := fun e computation ty _ => PaperComputationTyped (mapDeclarationTable σ declarations)
+      (mapGraphEnvironment σ graphTypes) (mapTypeEnvironment σ e)
+      (mapPaperComputation σ computation) (subst σ ty))
+    (by intro environment; exact ValuesTyped.nil)
+    (by intro environment value values ty types hvalue hvalues ihValue ihValues
+        simpa [mapTypeEnvironment] using ValuesTyped.cons ihValue ihValues)
+    (by intro environment ty; exact ValuesAllTyped.nil)
+    (by intro environment value values ty hvalue hvalues ihValue ihValues
+        simpa [mapTypeEnvironment] using ValuesAllTyped.cons ihValue ihValues)
+    (by intro environment recordType; exact RecordPayloadsTyped.nil)
+    (by intro label tag value fields recordType presence fieldType environment hfield hvalue hfields ihValue ihFields
+        simpa [mapRecordFields] using RecordPayloadsTyped.cons
+          (RecordField.subst σ hfield) ihValue ihFields)
+    (by intro environment index ty lookup
         simp only [mapPaperValue]
         apply PaperValueTyped.variable
-        simpa [lookupTypeEnvironment_subst] using congrArg (Option.map (subst σ)) lookup
-    | graphReference lookup =>
+        simpa [lookupTypeEnvironment_subst] using congrArg (Option.map (subst σ)) lookup)
+    (by intro environment identity ty lookup
         simp only [mapPaperValue]
         apply PaperValueTyped.graphReference
-        simpa [lookupGraphEnvironment_subst] using congrArg (Option.map (subst σ)) lookup
-    | literal =>
+        simpa [lookupGraphEnvironment_subst] using congrArg (Option.map (subst σ)) lookup)
+    (by intro environment literal
         simpa [mapPaperValue] using (PaperValueTyped.literal :
           PaperValueTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
-            (mapTypeEnvironment σ environment) _ _)
-    | tuple values =>
-        simpa [mapPaperValue, argsSyntax_subst] using
-          (PaperValueTyped.tuple (ValuesTyped.subst σ values))
-    | sequence values =>
-        simpa [mapPaperValue, mapDeclarationTable, subst] using
-          PaperValueTyped.sequence (ValuesAllTyped.subst σ values)
-    | @record _ fields recordType labels required shape unique allRequired payloads =>
-        have unique' := unique
-        have required' := allRequired
-        rw [← mapRecordFields_labels σ] at unique'
-        have required'' : ∀ label, label ∈ required →
-            label ∈ (mapRecordFields σ fields).map Prod.fst := by
-          simpa only [mapRecordFields_labels] using required'
-        simpa [mapPaperValue, mapRecordFields, List.attach_map_val] using
-          PaperValueTyped.record (RecordShape.subst σ shape) unique' required''
-            (RecordPayloadsTyped.subst σ payloads)
-    | delay body =>
-        simpa [mapPaperValue, subst] using PaperValueTyped.delay (PaperComputationTyped.subst σ body)
-    | valueLambda body =>
+            (mapTypeEnvironment σ environment) _ _))
+    (by intro environment values types hvalues ihValues
+        simpa [mapPaperValue, argsSyntax_subst] using PaperValueTyped.tuple ihValues)
+    (by intro environment values elementType hvalues ihValues
+        simpa [mapPaperValue, mapDeclarationTable, subst] using PaperValueTyped.sequence ihValues)
+    (by intro environment fields recordType labels required shape unique allRequired hfields ihFields
+        have unique' : (mapRecordFields σ fields).map Prod.fst |>.Nodup := by
+          simpa only [mapRecordFields_labels] using unique
+        have required' : ∀ label, label ∈ required → label ∈ (mapRecordFields σ fields).map Prod.fst := by
+          simpa only [mapRecordFields_labels] using allRequired
+        have result := PaperValueTyped.record (RecordShape.subst σ shape) unique' required' ihFields
+        simpa only [mapPaperValue_record_eq] using result)
+    (by intro environment body resultType hbody ihBody
+        simpa [mapPaperValue, subst] using PaperValueTyped.delay ihBody)
+    (by intro environment profile parameter body inputType outputType hbody ihBody
         simpa [mapPaperValue, mapPaperComputation, mapTypeEnvironment, subst] using
-          PaperValueTyped.valueLambda (PaperComputationTyped.subst σ body)
-    | computationLambda body =>
+          PaperValueTyped.valueLambda ihBody)
+    (by intro environment profile parameter body inputType outputType hbody ihBody
         simpa [mapPaperValue, mapPaperComputation, mapTypeEnvironment, subst] using
-          PaperValueTyped.computationLambda (PaperComputationTyped.subst σ body)
-    | injectLeft value =>
-        simpa [mapPaperValue, subst] using PaperValueTyped.injectLeft (PaperValueTyped.subst σ value)
-    | injectRight value =>
-        simpa [mapPaperValue, subst] using PaperValueTyped.injectRight (PaperValueTyped.subst σ value)
-    | both left right =>
-        simpa [mapPaperValue, subst] using
-          PaperValueTyped.both (PaperValueTyped.subst σ left) (PaperValueTyped.subst σ right)
-    | topView value =>
-        simpa [mapPaperValue, subst] using PaperValueTyped.topView (PaperValueTyped.subst σ value)
-    | view value =>
-        simpa [mapPaperValue] using PaperValueTyped.view (PaperValueTyped.subst σ value)
-
-  theorem PaperComputationTyped.subst (σ : Nat → Ty) {declarations : DeclarationTable}
-      {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
-      {computation : Computation} {ty : Ty}
-      (derivation : PaperComputationTyped declarations graphTypes environment computation ty) :
-      PaperComputationTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
-        (mapTypeEnvironment σ environment) (mapPaperComputation σ computation) (subst σ ty) := by
-    cases derivation with
-    | ret value =>
-        simpa [mapPaperComputation] using PaperComputationTyped.ret (PaperValueTyped.subst σ value)
-    | letE first body =>
+          PaperValueTyped.computationLambda ihBody)
+    (by intro environment value left right hvalue ihValue
+        simpa [mapPaperValue, subst] using PaperValueTyped.injectLeft ihValue)
+    (by intro environment value left right hvalue ihValue
+        simpa [mapPaperValue, subst] using PaperValueTyped.injectRight ihValue)
+    (by intro environment value left right hleft hright ihLeft ihRight
+        simpa [mapPaperValue, subst] using PaperValueTyped.both ihLeft ihRight)
+    (by intro environment value ty hvalue ihValue
+        simpa [mapPaperValue, subst] using PaperValueTyped.topView ihValue)
+    (by intro environment metadata value ty hvalue ihValue
+        simpa [mapPaperValue] using PaperValueTyped.view ihValue)
+    (by intro environment value ty hvalue ihValue
+        simpa [mapPaperComputation] using PaperComputationTyped.ret ihValue)
+    (by intro environment first body firstType resultType hfirst hbody ihFirst ihBody
         simpa [mapPaperComputation, mapTypeEnvironment] using
-          PaperComputationTyped.letE (PaperComputationTyped.subst σ first)
-            (PaperComputationTyped.subst σ body)
-    | force thunk =>
-        simpa [mapPaperComputation] using PaperComputationTyped.force (PaperValueTyped.subst σ thunk)
-    | call function thunk =>
+          PaperComputationTyped.letE ihFirst ihBody)
+    (by intro environment thunk resultType hthunk ihThunk
+        simpa [mapPaperComputation] using PaperComputationTyped.force ihThunk)
+    (by intro environment function thunk argumentType resultType hfunction hthunk ihFunction ihThunk
+        simpa [mapPaperComputation] using PaperComputationTyped.call ihFunction ihThunk)
+    (by intro environment value recordType label fieldType hvalue hfield ihValue
         simpa [mapPaperComputation] using
-          PaperComputationTyped.call (PaperValueTyped.subst σ function)
-            (PaperValueTyped.subst σ thunk)
-    | field value field =>
-        simpa [mapPaperComputation] using
-          PaperComputationTyped.field (PaperValueTyped.subst σ value) (RecordField.subst σ field)
-    | lookup value field =>
+          PaperComputationTyped.field ihValue (RecordField.subst σ hfield))
+    (by intro environment value recordType label presence fieldType hvalue hfield ihValue
         simpa [mapPaperComputation, subst] using
-          PaperComputationTyped.lookup (PaperValueTyped.subst σ value) (RecordField.subst σ field)
-    | fail => simpa [mapPaperComputation, subst] using PaperComputationTyped.fail
-end
+          PaperComputationTyped.lookup ihValue (RecordField.subst σ hfield))
+    (by intro environment reason ty; simpa [mapPaperComputation, subst] using PaperComputationTyped.fail)
+    derivation
+
+
+theorem ValuesTyped.typeTransport (σ : Nat → Ty) {declarations : DeclarationTable}
+    {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
+    {values : List Value} {types : List Ty}
+    (derivation : ValuesTyped declarations graphTypes environment values types) :
+    ValuesTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+      (mapTypeEnvironment σ environment) (values.map (mapPaperValue σ)) (types.map (subst σ)) := by
+  induction values generalizing types environment with
+  | nil =>
+      cases derivation
+      exact .nil
+  | cons value values ih =>
+      cases derivation with
+      | cons head tail =>
+          simpa [mapTypeEnvironment] using ValuesTyped.cons
+            (PaperValueTyped.subst_explicit σ head) (ih tail)
+
+theorem ValuesAllTyped.typeTransport (σ : Nat → Ty) {declarations : DeclarationTable}
+    {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
+    {values : List Value} {ty : Ty}
+    (derivation : ValuesAllTyped declarations graphTypes environment values ty) :
+    ValuesAllTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+      (mapTypeEnvironment σ environment) (values.map (mapPaperValue σ)) (subst σ ty) := by
+  induction values generalizing ty environment with
+  | nil =>
+      cases derivation
+      exact .nil
+  | cons value values ih =>
+      cases derivation with
+      | cons head tail =>
+          simpa [mapTypeEnvironment] using ValuesAllTyped.cons
+            (PaperValueTyped.subst_explicit σ head) (ih tail)
+
+theorem RecordPayloadsTyped.typeTransport (σ : Nat → Ty) {declarations : DeclarationTable}
+    {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
+    {fields : List (Label × Presence × Value)} {recordType : Ty}
+    (derivation : RecordPayloadsTyped declarations graphTypes environment fields recordType) :
+    RecordPayloadsTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+      (mapTypeEnvironment σ environment) (mapRecordFields σ fields) (subst σ recordType) := by
+  induction fields generalizing recordType environment with
+  | nil =>
+      cases derivation
+      exact .nil
+  | cons field fields ih =>
+      cases derivation with
+      | cons fieldProof valueProof tail =>
+          exact .cons (RecordField.subst σ fieldProof)
+            (PaperValueTyped.subst_explicit σ valueProof) (ih tail)
+
+
+
+theorem PaperComputationTyped.typeTransport (σ : Nat → Ty)
+    {declarations : DeclarationTable} {graphTypes : GraphEnvironment}
+    {environment : TypeEnvironment} {computation : Computation} {ty : Ty}
+    (derivation : PaperComputationTyped declarations graphTypes environment computation ty) :
+    PaperComputationTyped (mapDeclarationTable σ declarations)
+      (mapGraphEnvironment σ graphTypes) (mapTypeEnvironment σ environment)
+      (mapPaperComputation σ computation) (subst σ ty) := by
+  have transported := PaperValueTyped.subst_explicit σ (PaperValueTyped.delay derivation)
+  simp only [mapPaperValue, subst] at transported
+  cases transported with
+  | delay body => exact body
+
 
 end YulangClosure.PaperTypes
