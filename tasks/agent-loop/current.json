@@ -5,33 +5,33 @@
   "session": "LEAN-CALL-UNWIND-20261025/root-turn-11",
   "active_sprint": {
     "id": "LEAN-CALL-UNWIND-20261025",
-    "revision": "r1",
-    "status": "STOPPED_FAILED_DISPATCH_PENDING",
-    "contract": "tasks/agent-loop/sprints/call-unwind-20261025-r1.md",
-    "contract_sha256": "efeaabb27416bd9cb51066c37f8a36d13b3a4ced3eeba7f1f9488ac4ada38a2a",
-    "baseline": "64d39df59",
-    "claim": "Construct actual finite request/failure unwinds; type supplied prefixes ending in those signals.",
+    "revision": "r2",
+    "status": "FROZEN_PREFLIGHT_PASSED",
+    "contract": "tasks/agent-loop/sprints/call-unwind-20261025-r2.md",
+    "contract_sha256": "4847f89672c8821df47d9ed2e1162b150b3b578b4aec8304e6d2331389c27c01",
+    "baseline": "33cd9e0a5",
+    "claim": "Compose the unchanged actual request/failure unwinds with supplied typed initial prefixes, using a checked equality bridge.",
     "worktree": "/home/momota1029/rust/yulang",
     "branch": "research/simple-sub-intrusion",
     "resources": {
-      "cap_seconds": 3000,
-      "grant_map": "P 900 + Q 600 + Luna 240 + verification 480 + review 600 + integration 180; Astra 0.",
+      "cap_seconds": 1260,
+      "grant_map": "Luna compose 240 + verify 240 + fresh review 600 + integration 180; Astra 0.",
       "astra": 0,
-      "max_concurrent_new_author_assignments": 2,
+      "max_concurrent_new_author_assignments": 1,
       "lean_processes": 1,
       "cpu": 1,
       "memory_mib": 1024,
       "verification_timeout_seconds": 120,
-      "lean_invocation_cap": 4
+      "lean_invocation_cap": 2
     },
-    "outcome": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
-    "closure": "Finite Call typing r1 ACCEPTED/CLEAN; original A/B and adequacy OPEN.",
-    "review": "NOT_RUN; r1 stopped after composition invocation 3 failed. Outcome records no review or promotion.",
-    "checker": "50 pins matched; P/Q compile pass; composition exit 1; r1 stop rule honored; outcome written.",
-    "acceptance": "Exact P/Q/composition compile; full receipts; exact signatures/axioms; fresh CLEAN review.",
-    "author": "Separate Sol/high P/Q authors, 900s/600s, disjoint exact leases.",
-    "next_action": "Await dispatcher recommendation for a fresh separately frozen proposition/revision.",
-    "non_goal": "No global progress/reachability, cleanup correctness, source/native, A/B, inference, or production claim."
+    "outcome": "tasks/agent-loop/sprints/call-unwind-20261025-r2-outcome.md",
+    "closure": "r1 FAILED_VERIFICATION / UNACCEPTED; P/Q compile only; review pending.",
+    "review": "NOT_RUN; frozen P/Q candidates and equality-bridge composition require two serial Lean invocations, then fresh combined review.",
+    "checker": "62 frozen pins match; all 7 r2 assigned source/output/review paths absent.",
+    "acceptance": "Exact two corollaries compile; complete receipts; exact signatures/axioms; fresh combined CLEAN review.",
+    "author": "Luna owns new composition, verification, adjudication and Git; no P/Q restart.",
+    "next_action": "Activate Luna composition lease after frozen contract/state checkpoint; reviewer starts only after both invocations pass.",
+    "non_goal": "No reachability, source/native, cleanup correctness, A/B, inference, or production claim."
   },
   "workers": [
     {
@@ -76,7 +76,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Primary: P/Q compiled; composition invocation 3 failed on initial resultType/literalSuffix equalities; stopped, no repair/query."
+      "receipt": "Luna r2 primary; froze new equality-bridge composition contract after r1 STOP."
     },
     {
       "id": "/root/call_step_typing_author",
@@ -86,7 +86,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "STOP 2026-10-25T03:33:23Z; source SHA-256 e4835bd2c2487b14d658b02373e0507ea6c201b81a1fb81d396b0f05a1850fc9; handoff SHA-256 4aacb47b569a1bba3df4519e1540dbedd07cc3d42f0ce255641f5cd3119a710b; all writes ended.",
+      "receipt": "STOP; P source/handoff hashes recorded in r1 handoff.",
       "session": "LEAN-CALL-UNWIND-20261025/root-turn-11"
     },
     {
@@ -97,123 +97,136 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "STOP 2026-10-25T03:32:52Z; source SHA-256 2d7422bc4c83310a1a1d0a2bcaa5528bb6a8801520c42db2f2ada6b12224b89c; handoff SHA-256 880f530091fce6f2994c0b69a4b6f22a91a9fd6fbba9f1ee559c14d952d37437; all writes ended.",
+      "receipt": "STOP; Q source/handoff hashes recorded in r1 handoff.",
       "session": "LEAN-CALL-UNWIND-20261025/root-turn-11"
-    },
-    {
-      "id": "/root/call_finite_typing_review",
-      "role": "prior finite-typing independent reviewer",
-      "state": "STOPPED",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Prior CLEAN review completed; not assigned to new sprint."
     }
   ],
   "leases": [
     {
       "path": "notes/theory/lean/YulangClosure/CallRequestUnwind.lean",
       "owner": "/root/call_step_typing_author",
-      "state": "HELD",
-      "reason": "P request unwind module"
+      "state": "FROZEN",
+      "reason": "frozen evidence"
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-request-unwind.md",
       "owner": "/root/call_step_typing_author",
-      "state": "HELD",
-      "reason": "P handoff"
+      "state": "FROZEN",
+      "reason": "frozen evidence"
     },
     {
       "path": "notes/theory/lean/YulangClosure/CallFailureUnwind.lean",
       "owner": "/root/call_entry_body_typing",
-      "state": "HELD",
-      "reason": "Q failure unwind module"
+      "state": "FROZEN",
+      "reason": "frozen evidence"
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-failure-unwind.md",
       "owner": "/root/call_entry_body_typing",
-      "state": "HELD",
-      "reason": "Q handoff"
+      "state": "FROZEN",
+      "reason": "frozen evidence"
     },
     {
       "path": "notes/theory/lean/YulangClosure/CallUnwindTyping.lean",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "Frozen failed r1 composition candidate; no repair authorized."
+      "state": "FROZEN",
+      "reason": "frozen evidence"
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-unwind-r1-verification.jsonl",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "Four serialized Lean receipts"
-    },
-    {
-      "path": "notes/theory/lean/.lake/call-unwind-r1-check.lean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Exact signature/axiom query"
+      "state": "FROZEN",
+      "reason": "frozen evidence"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallRequestUnwind.olean",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "P source-adjacent compiler output"
+      "state": "FROZEN",
+      "reason": "frozen evidence"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallRequestUnwind.ilean",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "P source-adjacent compiler output"
+      "state": "FROZEN",
+      "reason": "frozen evidence"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallFailureUnwind.olean",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "Q source-adjacent compiler output"
+      "state": "FROZEN",
+      "reason": "frozen evidence"
     },
     {
       "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallFailureUnwind.ilean",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "Q source-adjacent compiler output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallUnwindTyping.olean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "composition source-adjacent compiler output"
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallUnwindTyping.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "composition source-adjacent compiler output"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-call-unwind-r1-review.md",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Luna records fresh review receipt"
+      "state": "FROZEN",
+      "reason": "frozen evidence"
     },
     {
       "path": "tasks/agent-loop/sprints/call-unwind-20261025-r1.md",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "Frozen sprint contract"
+      "reason": "frozen evidence"
     },
     {
       "path": "tasks/agent-loop/current.json",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Primary state and exact leases"
+      "reason": "r2 primary lease"
     },
     {
       "path": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
       "owner": "/root",
+      "state": "FROZEN",
+      "reason": "frozen evidence"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CallUnwindTypingRepair.lean",
+      "owner": "/root",
       "state": "HELD",
-      "reason": "Luna adjudicated outcome"
+      "reason": "r2 primary lease"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-call-unwind-r2-verification.jsonl",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "r2 primary lease"
+    },
+    {
+      "path": "notes/theory/lean/.lake/call-unwind-r2-check.lean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "r2 primary lease"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallUnwindTypingRepair.olean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "r2 primary lease"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallUnwindTypingRepair.ilean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "r2 primary lease"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-call-unwind-r2-review.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "r2 primary lease"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/call-unwind-20261025-r2-outcome.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "r2 primary lease"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/call-unwind-20261025-r2.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "r2 primary lease"
     }
   ],
   "pending": [
@@ -356,8 +369,8 @@
       "details": "R3 review blocking; R4 Flow/source projection next."
     }
   ],
-  "closure": "Finite Call typing accepted/CLEAN; original A/B and adequacy remain OPEN.",
-  "next_action": "Preflight clean: 50 pins match and 15 outputs absent; activate P/Q.",
+  "closure": "r1 failed; r2 frozen. Parent A/B and adequacy OPEN.",
+  "next_action": "r2 preflight passed; activate Luna composition after checkpoint.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -384,99 +397,89 @@
     {
       "id": "FORCE-ADMIN-RESULT-DISCHARGE-20261025/r7",
       "record": "tasks/agent-loop/sprints/force-admin-result-discharge-20261025-r7-outcome.md",
-      "closure": "Abstract theorem checked/CLEAN; source and parent OPEN.",
       "commit": "9b7b4e00dd3862bf4bf0281594f3a658ba9fd59b"
     },
     {
       "id": "FORCE-SOURCE-REALIZATION-20261025/r8",
       "record": "tasks/agent-loop/sprints/force-source-realization-20261025-r8-outcome.md",
       "sha256": "4c63f6f55a4fd5ee2afeb83a5df575704715b7bc093a1934997b4cb4994ba5eb",
-      "closure": "N1/R source obstructions CLEAN; source theorem and parent OPEN.",
       "commit": "a8afc44cc26271b257e039c90b2443b77de9fa23"
     },
     {
       "id": "FORCE-PRODUCER-EXPORT-TRACE-20261025/r1",
       "record": "tasks/agent-loop/sprints/force-producer-export-trace-20261025-r1-outcome.md",
       "sha256": "bf544d639797fbecad878095916588d300eddf1e9c786d37786c9ebca01e232f",
-      "closure": "N/R producer obstructions CLEAN; no source theorem; parent OPEN.",
       "commit": "cfea96fbe617f8a2017ca322961472e701e7bff7"
     },
     {
       "id": "FORCE-DECLARATIVE-CONSTRUCTION-20261025/r10",
       "record": "tasks/agent-loop/sprints/force-declarative-construction-20261025-r10.md",
       "sha256": "ddcfe7b8ff5065ab76dae1c753ad43a33b0f7ef38682ff4829dd218c2094e521",
-      "closure": "N/R derivations CLEAN; promotions BLOCKING; parent OPEN.",
       "commit": "cfea96fbe617f8a2017ca322961472e701e7bff7"
     },
     {
       "id": "FORCE-DECLARATIVE-CONSTRUCTION-20261025/r10",
       "record": "tasks/agent-loop/sprints/force-declarative-construction-20261025-r10-outcome.md",
       "sha256": "5f445c4e693387496a3d9a232c9ed9f273509dd6c1f71aa6e6de8e890f80c62d",
-      "closure": "N/R derivations CLEAN; promotions BLOCKING; parent OPEN.",
       "commit": "cfea96fbe617f8a2017ca322961472e701e7bff7"
     },
     {
       "id": "FORCE-COMPLETION-20261025/r11",
       "record": "tasks/agent-loop/sprints/force-completion-20261025-r11-outcome.md",
-      "closure": "Abstract equivalence checked/CLEAN; source applicability and parent OPEN.",
-      "commit": "e2d3f14bd795f7ef4e61f6453b3a5d4dc38b80dd",
-      "sha256": "e38b47c52a25d5a3561f2823e55be23129bd8cc920fabdbf3d3561ae0c454b6a"
+      "sha256": "e38b47c52a25d5a3561f2823e55be23129bd8cc920fabdbf3d3561ae0c454b6a",
+      "commit": "e2d3f14bd795f7ef4e61f6453b3a5d4dc38b80dd"
     },
     {
       "id": "FORCE-LOCAL-APPLICABILITY-20261025/r12",
       "record": "tasks/agent-loop/sprints/force-local-applicability-20261025-r12-outcome.md",
-      "closure": "Source applicability or exact obstruction; parent OPEN.",
       "commit": "PENDING"
     },
     {
       "id": "FORCE-LOCAL-APPLICABILITY-20261025/r12.1",
       "record": "tasks/agent-loop/sprints/force-local-applicability-20261025-r12-outcome.md",
       "sha256": "c790537a61232946a2e01c5d67551a05207f2c07f839839902978acf9144a5b4",
-      "closure": "Source applicability obstruction CLEAN; no refutation; parent OPEN.",
       "commit": "f4bf568a07cdeaa310aae0b30aa19d31d6580cbf"
     },
     {
       "id": "LEAN-CALL-CONTEXT-TYPING-20261025/r3",
       "record": "tasks/agent-loop/sprints/call-context-typing-20261025-r3-outcome.md",
       "sha256": "98b9a65a899264cf739ad0ee42ed104e2c01716f530c9d11b561a9f2a0d1e9d3",
-      "closure": "Typed plugging checked/CLEAN; operational/source/A-B and parent OPEN.",
       "commit": "f105e0ce0"
     },
     {
       "id": "LEAN-CALL-ENTRY-SPINE-20261025/r1",
       "record": "tasks/agent-loop/sprints/call-entry-spine-20261025-r1-outcome.md",
-      "sha256": "11f2478ec74c36fa14c46b66a9027dc9bc8f3fce2e62f6c0356ab8063989c8bb",
-      "closure": "P compile failure; Q/compose unchecked; theorem OPEN."
+      "sha256": "11f2478ec74c36fa14c46b66a9027dc9bc8f3fce2e62f6c0356ab8063989c8bb"
     },
     {
       "id": "LEAN-CALL-ENTRY-SPINE-20261025/r3",
       "record": "tasks/agent-loop/sprints/call-entry-spine-20261025-r3-outcome.md",
       "sha256": "da4481a11082779b090563f7d7511652e39958b4ee48511de652ed4046cca9c1",
-      "review": "CLEAN; fresh nonauthor reviewer STOPPED.",
-      "closure": "Exact syntax-typing composition checked; all operational/source/A-B/inference/production parents OPEN.",
-      "integration": "Pushed to origin/research/simple-sub-intrusion.",
       "commit": "12a081b82e2a84678aab7f5d0f301cd724c72542"
     },
     {
       "id": "LEAN-CALL-STEP-TYPING-20261025/r1",
       "record": "tasks/agent-loop/sprints/call-step-typing-20261025-r1-outcome.md",
       "sha256": "d7606d506a52be722e4504cce91eee1b76c73df14659b3b67eb6b2b4f4dfa158",
-      "closure": "FAILED_VERIFICATION / UNACCEPTED; first compile diagnostics frozen; no query or review.",
       "commit": "862c8777684587f6ca2b20d22859f954804a2c50"
     },
     {
       "id": "LEAN-CALL-STEP-TYPING-20261025/r2",
       "record": "tasks/agent-loop/sprints/call-step-typing-20261025-r2-outcome.md",
       "sha256": "803dbc0e9724a18149bebf7bc40965c144bbfcefe3c9bce879333c40a9a0ac20",
-      "closure": "Existing-step typing preservation ACCEPTED/CLEAN; full adequacy and original A/B remain OPEN.",
       "commit": "577285ec9"
     },
     {
       "id": "LEAN-CALL-FINITE-TYPING-20261025/r1",
       "record": "tasks/agent-loop/sprints/call-finite-typing-20261025-r1-outcome.md",
       "sha256": "f82192a95c9d5cac2474160e56654ffa6b36fa737edca09fd443b3b0fab1456d",
-      "closure": "Finite Call typing ACCEPTED/CLEAN; adequacy/A-B OPEN.",
       "commit": "3bbd875a8"
+    },
+    {
+      "id": "LEAN-CALL-UNWIND-20261025/r1",
+      "record": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
+      "sha256": "331aab9fffd7f17fe7cbfdae98d723111a7a331b92cb672a7012a664557ef405",
+      "commit": "33cd9e0a5"
     }
   ],
   "resource_observation": "Finite Call sprint cap 2460s; P/Q STOPPED; 4/4 Lean used.",
