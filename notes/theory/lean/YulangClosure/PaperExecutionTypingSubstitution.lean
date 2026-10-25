@@ -15,6 +15,13 @@ theorem typingArgsSyntax_subst (σ : Nat → Ty) (types : List Ty) :
   | nil => rfl
   | cons head tail ih => simp [argsSyntax, subst, ih]
 
+/-- Simultaneous substitution preserves the cons-derived tuple binder order. -/
+theorem mapTypeEnvironment_extendTupleEnvironment (σ : Nat → Ty)
+    (types : List Ty) (environment : TypeEnvironment) :
+    mapTypeEnvironment σ (extendTupleEnvironment types environment) =
+      extendTupleEnvironment (types.map (subst σ)) (mapTypeEnvironment σ environment) := by
+  simp [mapTypeEnvironment, extendTupleEnvironment]
+
 theorem instantiateType_subst (arguments : List Ty) (σ : Nat → Ty)
     (arity : Nat) (arityEq : arguments.length = arity) (body : Ty) :
     subst σ (instantiateType arguments body) =
@@ -283,6 +290,16 @@ theorem PaperValueTyped.subst_explicit (σ : Nat → Ty) {declarations : Declara
         have ihFunction := ihFunction σ
         have ihThunk := ihThunk σ
         simpa [mapPaperComputation] using PaperComputationTyped.call ihFunction ihThunk)
+    (by intro declarations graphTypes environment tuple binders body types resultType
+          arity htuple hbody ihTuple ihBody σ
+        have arity' : binders.length = (types.map (subst σ)).length := by
+          simpa only [List.length_map] using arity
+        have tupleTyping := ihTuple σ
+        rw [← typingArgsSyntax_subst σ types] at tupleTyping
+        have bodyTyping := ihBody σ
+        rw [mapTypeEnvironment_extendTupleEnvironment] at bodyTyping
+        simpa only [mapPaperComputation] using
+          PaperComputationTyped.split arity' tupleTyping bodyTyping)
     (by intro declarations graphTypes environment value leftBinder left rightBinder right
           leftType rightType resultType hvalue hleft hright ihValue ihLeft ihRight σ
         simpa only [mapPaperComputation, mapTypeEnvironment, List.map_cons] using
@@ -466,6 +483,33 @@ theorem PaperContinuationTyped.typeTransport (σ : Nat → Ty)
       simpa only [mapTypeEnvironment, List.map_cons] using
         PaperComputationTyped.typeTransport σ body
 
+
+/-- Raw split inversion retains its exact body result and explicit binder arity. -/
+theorem PaperComputationTyped.splitInversion
+    {declarations : DeclarationTable} {graphTypes : GraphEnvironment}
+    {environment : TypeEnvironment} {tuple : Value} {binders : List TermName}
+    {body : Computation} {resultType : Ty}
+    (derivation : PaperComputationTyped declarations graphTypes environment
+      (.split tuple binders body) resultType) :
+    ∃ types, binders.length = types.length ∧
+      PaperValueTyped declarations graphTypes environment tuple (argsSyntax types) ∧
+      PaperComputationTyped declarations graphTypes (extendTupleEnvironment types environment)
+        body resultType := by
+  cases derivation with
+  | split arity tupleTyping bodyTyping => exact ⟨_, arity, tupleTyping, bodyTyping⟩
+
+/-- Tuple introduction composes with split using the same ordered component list. -/
+theorem PaperComputationTyped.splitTuple
+    {declarations : DeclarationTable} {graphTypes : GraphEnvironment}
+    {environment : TypeEnvironment} {values : List Value} {types : List Ty}
+    {binders : List TermName} {body : Computation} {resultType : Ty}
+    (valuesTyping : ValuesTyped declarations graphTypes environment values types)
+    (arity : binders.length = types.length)
+    (bodyTyping : PaperComputationTyped declarations graphTypes
+      (extendTupleEnvironment types environment) body resultType) :
+    PaperComputationTyped declarations graphTypes environment (.split (.tuple values) binders body)
+      resultType := by
+  exact .split arity (.tuple valuesTyping) bodyTyping
 
 /-- Inversion retains the exact overall result type in both branch premises. -/
 theorem PaperComputationTyped.unionCaseInversion

@@ -519,6 +519,10 @@ structure ValueGraph where
 abbrev TypeEnvironment := List Ty
 abbrev GraphEnvironment := List (Nat × Ty)
 
+/-- Ordered paper binders extend by repeated cons: the last binder is index 0. -/
+def extendTupleEnvironment (types : List Ty) (environment : TypeEnvironment) : TypeEnvironment :=
+  types.reverse ++ environment
+
 inductive Subject where
   | value (value : Value)
   | computation (computation : Computation)
@@ -744,6 +748,13 @@ mutual
           (.callable argumentType resultType) →
         PaperValueTyped declarations graphTypes environment thunk (.thunk argumentType) →
         PaperComputationTyped declarations graphTypes environment (.call function thunk) resultType
+    /-- Tuple split preserves ordered components and binds exactly their arity. -/
+    | split {tuple binders body types resultType} :
+        binders.length = types.length →
+        PaperValueTyped declarations graphTypes environment tuple (argsSyntax types) →
+        PaperComputationTyped declarations graphTypes (extendTupleEnvironment types environment)
+          body resultType →
+        PaperComputationTyped declarations graphTypes environment (.split tuple binders body) resultType
     /-- Union elimination gives both branches the same result and shared tail. -/
     | unionCase {value leftBinder left rightBinder right leftType rightType resultType} :
         PaperValueTyped declarations graphTypes environment value (.union leftType rightType) →
