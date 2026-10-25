@@ -24,7 +24,7 @@ active at `tasks/agent-loop/sprints/paper-execution-typing-r4.md`. Explicitly
 named membership proofs and product/option projection inequalities now make
 the full raw syntax traversal compile. Lean exited 0; it emitted only unused
 callback-name warnings because the recursive termination proof consumes the
-proofs. The first partial typing judgments were added, but the check failed because the environment was a fixed mutual-inductive parameter and let/lambda extend it. Revision 4 moves the environment into each judgment index. The full rule inventory and theorem remain open.
+proofs. The first partial typing judgments initially failed because the environment was a fixed mutual-inductive parameter; revision 4 moves it into each judgment index, and the syntax/judgment module now builds. A new candidate at `PaperExecutionTypingSubstitution.lean` attempts mutual substitution, but its latest build fails: Lean’s `induction` tactic cannot directly induct over these mutually defined judgments, and the `cases` rewrite still has unresolved constructor type mismatches. No substitution theorem is established. The complete rule inventory and theorem remain open.
 
 The source is now named `PaperExecutionSyntax.lean` to reflect that it contains
 raw execution syntax and substitution maps, not typing judgments. Its current
