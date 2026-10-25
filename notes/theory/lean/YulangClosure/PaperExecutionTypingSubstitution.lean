@@ -16,6 +16,10 @@ theorem argsSyntax_subst (σ : Nat → Ty) (types : List Ty) :
   | nil => rfl
   | cons head tail ih => simp [argsSyntax, subst, ih]
 
+@[simp] theorem literalType_subst (σ : Nat → Ty) (literal : Literal) :
+    subst σ (literalType literal) = literalType literal := by
+  cases literal <;> rfl
+
 @[simp] theorem lookupTypeEnvironment_subst (σ : Nat → Ty)
     (environment : TypeEnvironment) (index : Nat) :
     lookupTypeEnvironment (mapTypeEnvironment σ environment) index =
@@ -52,7 +56,9 @@ mutual
         (mapTypeEnvironment σ environment) (values.map (mapPaperValue σ)) (types.map (subst σ)) := by
     cases derivation with
     | nil => exact .nil
-    | cons value values => exact .cons (PaperValueTyped.subst σ value) (ValuesTyped.subst σ values)
+    | cons value values =>
+        simpa [mapTypeEnvironment] using
+          ValuesTyped.cons (PaperValueTyped.subst σ value) (ValuesTyped.subst σ values)
 
   theorem ValuesAllTyped.subst (σ : Nat → Ty) {declarations : DeclarationTable}
       {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
@@ -62,7 +68,9 @@ mutual
         (mapTypeEnvironment σ environment) (values.map (mapPaperValue σ)) (subst σ ty) := by
     cases derivation with
     | nil => exact .nil
-    | cons value values => exact .cons (PaperValueTyped.subst σ value) (ValuesAllTyped.subst σ values)
+    | cons value values =>
+        simpa [mapTypeEnvironment] using
+          ValuesAllTyped.cons (PaperValueTyped.subst σ value) (ValuesAllTyped.subst σ values)
 
   theorem PaperValueTyped.subst (σ : Nat → Ty) {declarations : DeclarationTable}
       {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
@@ -72,30 +80,42 @@ mutual
         (mapTypeEnvironment σ environment) (mapPaperValue σ value) (subst σ ty) := by
     cases derivation with
     | «variable» lookup =>
+        simp only [mapPaperValue]
         apply PaperValueTyped.variable
-        simpa using congrArg (Option.map (subst σ)) lookup
+        simpa [lookupTypeEnvironment_subst] using congrArg (Option.map (subst σ)) lookup
     | graphReference lookup =>
+        simp only [mapPaperValue]
         apply PaperValueTyped.graphReference
-        simpa using congrArg (Option.map (subst σ)) lookup
-    | literal => exact .literal
+        simpa [lookupGraphEnvironment_subst] using congrArg (Option.map (subst σ)) lookup
+    | literal =>
+        simpa [mapPaperValue] using (PaperValueTyped.literal :
+          PaperValueTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
+            (mapTypeEnvironment σ environment) _ _)
     | tuple values =>
-        apply PaperValueTyped.tuple
-        simpa only [argsSyntax_subst] using ValuesTyped.subst σ values
+        simpa [mapPaperValue, argsSyntax_subst] using
+          (PaperValueTyped.tuple (ValuesTyped.subst σ values))
     | sequence values =>
-        simpa [mapPaperValue, subst] using PaperValueTyped.sequence (ValuesAllTyped.subst σ values)
-    | delay body => exact PaperValueTyped.delay (PaperComputationTyped.subst σ body)
+        simpa [mapPaperValue, mapDeclarationTable, subst] using
+          PaperValueTyped.sequence (ValuesAllTyped.subst σ values)
+    | delay body =>
+        simpa [mapPaperValue, subst] using PaperValueTyped.delay (PaperComputationTyped.subst σ body)
     | valueLambda body =>
-        simpa [mapPaperValue, mapTypeEnvironment] using
+        simpa [mapPaperValue, mapPaperComputation, mapTypeEnvironment, subst] using
           PaperValueTyped.valueLambda (PaperComputationTyped.subst σ body)
     | computationLambda body =>
-        simpa [mapPaperValue, mapTypeEnvironment] using
+        simpa [mapPaperValue, mapPaperComputation, mapTypeEnvironment, subst] using
           PaperValueTyped.computationLambda (PaperComputationTyped.subst σ body)
-    | injectLeft value => exact PaperValueTyped.injectLeft (PaperValueTyped.subst σ value)
-    | injectRight value => exact PaperValueTyped.injectRight (PaperValueTyped.subst σ value)
+    | injectLeft value =>
+        simpa [mapPaperValue, subst] using PaperValueTyped.injectLeft (PaperValueTyped.subst σ value)
+    | injectRight value =>
+        simpa [mapPaperValue, subst] using PaperValueTyped.injectRight (PaperValueTyped.subst σ value)
     | both left right =>
-        exact PaperValueTyped.both (PaperValueTyped.subst σ left) (PaperValueTyped.subst σ right)
-    | topView value => exact PaperValueTyped.topView (PaperValueTyped.subst σ value)
-    | view value => exact PaperValueTyped.view (PaperValueTyped.subst σ value)
+        simpa [mapPaperValue, subst] using
+          PaperValueTyped.both (PaperValueTyped.subst σ left) (PaperValueTyped.subst σ right)
+    | topView value =>
+        simpa [mapPaperValue, subst] using PaperValueTyped.topView (PaperValueTyped.subst σ value)
+    | view value =>
+        simpa [mapPaperValue] using PaperValueTyped.view (PaperValueTyped.subst σ value)
 
   theorem PaperComputationTyped.subst (σ : Nat → Ty) {declarations : DeclarationTable}
       {graphTypes : GraphEnvironment} {environment : TypeEnvironment}
@@ -104,16 +124,19 @@ mutual
       PaperComputationTyped (mapDeclarationTable σ declarations) (mapGraphEnvironment σ graphTypes)
         (mapTypeEnvironment σ environment) (mapPaperComputation σ computation) (subst σ ty) := by
     cases derivation with
-    | ret value => exact PaperComputationTyped.ret (PaperValueTyped.subst σ value)
+    | ret value =>
+        simpa [mapPaperComputation] using PaperComputationTyped.ret (PaperValueTyped.subst σ value)
     | letE first body =>
         simpa [mapPaperComputation, mapTypeEnvironment] using
           PaperComputationTyped.letE (PaperComputationTyped.subst σ first)
             (PaperComputationTyped.subst σ body)
-    | force thunk => exact PaperComputationTyped.force (PaperValueTyped.subst σ thunk)
+    | force thunk =>
+        simpa [mapPaperComputation] using PaperComputationTyped.force (PaperValueTyped.subst σ thunk)
     | call function thunk =>
-        exact PaperComputationTyped.call (PaperValueTyped.subst σ function)
-          (PaperValueTyped.subst σ thunk)
-    | fail => exact PaperComputationTyped.fail
+        simpa [mapPaperComputation] using
+          PaperComputationTyped.call (PaperValueTyped.subst σ function)
+            (PaperValueTyped.subst σ thunk)
+    | fail => simpa [mapPaperComputation, subst] using PaperComputationTyped.fail
 end
 
 end YulangClosure.PaperTypes

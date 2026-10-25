@@ -78,9 +78,48 @@ The live runtime inventory had no dispatcher or worker beyond `/root`, and
 eight old/foreign reservations remain quarantined. The new envelope is
 degraded serial primary work only: at most 900 active seconds, 8 serial
 Lean/Lake invocations and 120 checker seconds; R1–R4 charges remain intact.
-Fresh independent review is still NOT_RUN. R5's first method is the explicit
+Fresh independent review is still NOT_RUN. R5's planned method was an explicit
 four-motive mutual recursor, with exact environment-index transport and
-constructor normalization; no source-domain or semantic change is admitted.
+constructor normalization. The working proof instead abandons direct
+`induction` and uses a mutually declared theorem block: each judgment is
+case-split, then recursive cases call the corresponding sibling theorem
+explicitly. Lean accepts the structural recursion and normalized constructor
+goals. There is no standalone application of `PaperValueTyped.rec`. This is a
+proof-method adaptation only; no source-domain or semantic change is admitted.
+
+R5 handoff revision 3 supersedes the prior receipt for contract SHA-256
+`bc88e820daef09b5e85b19515024f6c1122e3155faab2bd20705978b52847871`.
+R5 checked partial result: pinned `lake build
++YulangClosure.PaperExecutionTypingSubstitution` exits 0, and the proof checker
+accepts all eight declarations under Lean 4.35.0. The four substitution theorem
+types are conditional on the actual derivation constructors in this module:
+`ValuesTyped.subst`, `ValuesAllTyped.subst`, `PaperValueTyped.subst`, and
+`PaperComputationTyped.subst` map declaration tables, graph-type environments,
+term environments, raw syntax, and result types consistently. Their reported
+axiom sets are `[propext, Quot.sound]` each. Supporting results report
+`argsSyntax_subst: [propext]`, `literalType_subst: []`,
+`lookupTypeEnvironment_subst: []`, and
+`lookupGraphEnvironment_subst: [propext]`. The helper rejects `sorryAx` and
+axioms outside its whitelist; no project axiom appears.
+
+This is a kernel-checked theorem for the *current partial judgment*, not yet a
+source-corresponding instance of the paper's full typing relation. It covers 13
+value constructors, five computation constructors, and the list rules. In
+manuscript order, the first omitted typing case is record formation/value typing
+with field-presence and declaration evidence. Variant/nominal tables, graph
+guarding, operations/handlers/mappers, primitives/templates, patterns,
+continuations and administrative forms remain absent. The arbitrary
+`ValueGraph.guarded : Prop` is still not the paper guard. No application to
+`thm:safety` or full inference/executor/A-B parent follows; those gates remain
+OPEN. Independent review and source correspondence remain NOT_RUN/OPEN.
+
+R5 resource receipt at this checkpoint: seven of eight allocated serial
+Lean/Lake invocations used; cumulative checker wall time stayed under ten
+seconds of the 120-second cap. The accepted module and per-declaration axiom
+audit are the observable before/after evidence. Continue inside the same
+envelope by adding the first omitted paper rule with its presence/declaration
+evidence, then extend the mutual substitution proof without dropping later
+constructors or shared indices.
 
 ## Original theorem and coverage obligations
 
