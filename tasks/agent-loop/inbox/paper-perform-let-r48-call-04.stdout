@@ -1,0 +1,9 @@
+.lake/R48DependencyAudit.lean:57:36: error(lean.invalidField): Invalid field notation: Type of
+  x✝
+is not known; cannot resolve field `getUsedConstants`
+
+Hint: Consider replacing the field projection `.getUsedConstants` with a call to the function `Expr.getUsedConstants`.
+.lake/R48DependencyAudit.lean:56:22: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+  HAppend (Array Name) (Option ?m.307) ?m.311
+
+Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
