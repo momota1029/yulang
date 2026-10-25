@@ -678,6 +678,17 @@ mutual
           body outputType →
         PaperValueTyped declarations graphTypes environment
           (.lambda .computation profile parameter body) (.callable inputType outputType)
+    /-- The argument adapter consumes the outer input; the result adapter
+    consumes the inner output, both under the same shared environment. -/
+    | wrap {function argumentAdapter resultAdapter inputType outputType
+        adaptedInputType adaptedOutputType} :
+        PaperValueTyped declarations graphTypes environment function (.callable inputType outputType) →
+        PaperComputationTyped declarations graphTypes (adaptedInputType :: environment)
+          argumentAdapter inputType →
+        PaperComputationTyped declarations graphTypes (outputType :: environment)
+          resultAdapter adaptedOutputType →
+        PaperValueTyped declarations graphTypes environment
+          (.wrap function argumentAdapter resultAdapter) (.callable adaptedInputType adaptedOutputType)
     | injectLeft {value left right} :
         PaperValueTyped declarations graphTypes environment value left →
         PaperValueTyped declarations graphTypes environment (.injectLeft value) (.union left right)

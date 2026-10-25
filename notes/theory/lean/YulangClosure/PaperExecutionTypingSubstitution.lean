@@ -189,6 +189,11 @@ theorem PaperValueTyped.subst_explicit (σ : Nat → Ty) {declarations : Declara
         have ihBody := ihBody σ
         simpa [mapPaperValue, mapPaperComputation, mapTypeEnvironment, subst] using
           PaperValueTyped.computationLambda ihBody)
+    (by intro declarations graphTypes environment function argumentAdapter resultAdapter
+          inputType outputType adaptedInputType adaptedOutputType
+          hfunction hargument hresult ihFunction ihArgument ihResult σ
+        simpa only [mapPaperValue, subst, mapTypeEnvironment, List.map_cons] using
+          PaperValueTyped.wrap (ihFunction σ) (ihArgument σ) (ihResult σ))
     (by intro declarations graphTypes environment value left right hvalue ihValue σ
         have ihValue := ihValue σ
         simpa [mapPaperValue, subst] using PaperValueTyped.injectLeft ihValue)
@@ -456,6 +461,43 @@ theorem PaperContinuationTyped.typeTransport (σ : Nat → Ty)
       apply PaperContinuationTyped.continuation
       simpa only [mapTypeEnvironment, List.map_cons] using
         PaperComputationTyped.typeTransport σ body
+
+
+/-- Invert actual raw wrap typing, recovering every endpoint and body premise. -/
+theorem PaperValueTyped.wrapInversion
+    {declarations : DeclarationTable} {graphTypes : GraphEnvironment}
+    {environment : TypeEnvironment} {function : Value}
+    {argumentAdapter resultAdapter : Computation} {ty : Ty}
+    (derivation : PaperValueTyped declarations graphTypes environment
+      (.wrap function argumentAdapter resultAdapter) ty) :
+    ∃ inputType outputType adaptedInputType adaptedOutputType,
+      ty = .callable adaptedInputType adaptedOutputType ∧
+      PaperValueTyped declarations graphTypes environment function (.callable inputType outputType) ∧
+      PaperComputationTyped declarations graphTypes (adaptedInputType :: environment)
+        argumentAdapter inputType ∧
+      PaperComputationTyped declarations graphTypes (outputType :: environment)
+        resultAdapter adaptedOutputType := by
+  cases derivation with
+  | wrap functionTyping argumentTyping resultTyping =>
+      exact ⟨_, _, _, _, rfl, functionTyping, argumentTyping, resultTyping⟩
+
+/-- Consume the outer input thunk and obtain the outer output via existing Call. -/
+theorem PaperComputationTyped.callWrapped
+    {declarations : DeclarationTable} {graphTypes : GraphEnvironment}
+    {environment : TypeEnvironment} {function thunk : Value}
+    {argumentAdapter resultAdapter : Computation}
+    {inputType outputType adaptedInputType adaptedOutputType : Ty}
+    (functionTyping : PaperValueTyped declarations graphTypes environment function
+      (.callable inputType outputType))
+    (argumentTyping : PaperComputationTyped declarations graphTypes (adaptedInputType :: environment)
+      argumentAdapter inputType)
+    (resultTyping : PaperComputationTyped declarations graphTypes (outputType :: environment)
+      resultAdapter adaptedOutputType)
+    (thunkTyping : PaperValueTyped declarations graphTypes environment thunk (.thunk adaptedInputType)) :
+    PaperComputationTyped declarations graphTypes environment
+      (.call (.wrap function argumentAdapter resultAdapter) thunk) adaptedOutputType := by
+  exact .call (.wrap functionTyping argumentTyping resultTyping) thunkTyping
+
 
 /-- The shared captured type remains free beneath the new universal binder. -/
 theorem typeAbstractionSharedVariable (declarations : DeclarationTable)
