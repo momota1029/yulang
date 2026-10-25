@@ -2,27 +2,28 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "HANDLER-RECURSIVE-RHS-THEORY-20261025/root-r1",
+  "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
   "active_sprint": {
-    "id": "HANDLER-RECURSIVE-RHS-THEORY-20261025",
+    "id": "GRAPH-HANDLER-INTERACTION-THEORY-20261025",
     "revision": "r1",
     "status": "REVIEWED",
-    "contract": "tasks/agent-loop/sprints/handler-recursive-rhs-theory-20261025-r1.md",
-    "contract_sha256": "a921540d9539741dcc9dbacb9bd45f0dc086ecb97cdb03dc360dbbda1fd267eb",
-    "baseline": "03eb4b672c29f92c7bed0e2b6e4a1fbb53741c82",
-    "claim": "Full higher-order shallow handler value safety and actual higher-order recursive RHS allocation; full-paper/native parents OPEN.",
+    "contract": "tasks/agent-loop/sprints/graph-handler-interaction-theory-20261025-r1.md",
+    "contract_sha256": "7f9dd634a1a70b082033518d8d46a936fb4e78b1780c4cb373166d72f5a65467",
+    "baseline": "d94c36b61dc140ba9fa1441c9cab9e0577280392",
+    "claim": "Typed actual HO graph observation/execution applied to source allocation, and handler root-only repeated interaction;full-paper/native/combined-language parents OPEN.",
     "resources": {
       "seconds": 5400,
-      "author_seconds_each": 1200,
-      "primary_seconds": 1200,
+      "author_A_seconds": 1200,
+      "author_B_seconds": 900,
+      "primary_seconds": 1500,
       "lean_seconds": 300,
-      "lean_calls": 60,
+      "lean_calls": 64,
       "review_seconds_each": 450,
       "contingency_seconds": 600,
       "max_new_children": 3,
-      "contingency_allocation": "Primary400s07:28:39.478377–07:35:19.478377;selector120s prospectively now;80s remains."
+      "contingency_allocation": "Selector120s prospectively authorized 2026-10-25T07:38:00.946948+00:00;480remains."
     },
-    "primary_grant": "Prospective07:08:39.478377–07:28:39.478377UTC; previous primary900 owns preparation until then."
+    "primary_grant": "Prospective07:28:39.478377–07:53:39.478377UTC;previous1200 owns preparation before then;previous400extension cancelled unused."
   },
   "workers": [
     {
@@ -62,132 +63,72 @@
       "id": "/root",
       "role": "primary authority/source/coauthor/Git",
       "state": "RUNNING",
-      "session": "HANDLER-RECURSIVE-RHS-THEORY-20261025/root-r1",
+      "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
       "requested_model": "user-selected primary",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Actual continuing primary entered new1200window07:08:39.478377–07:28:39.478377UTC;previous900 preparation ended without reset. Snapshot2026-10-25T07:08:57.939053+00:00"
+      "receipt": "Actual continuing primary entered new1500window07:28:39.478377–07:53:39.478377UTC;prior1200owns preparation,no reset;prior400extensioncancelledunused. Snapshot2026-10-25T07:28:45.345535+00:00"
     },
     {
-      "id": "/root/higher_order_handler_astra_r1",
-      "role": "higher-order shallow handler author",
+      "id": "/root/higher_order_graph_safety_astra_r1",
+      "role": "graph observation/execution author",
       "state": "STOPPED",
-      "session": "HANDLER-RECURSIVE-RHS-THEORY-20261025/root-r1",
+      "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "ActualSTOP07:14:09.461690UTC,403.443/1200s conservative;handoffd27cd60588af48976d7ac41199ac188adbc4b1639679eca81b11c30fafea4833;no processes/children. Primary acknowledges source/note takeover 2026-10-25T07:14:40.175763+00:00"
+      "receipt": "Actual STOP07:34:12.632716UTC;439.957/1200s conservative;handoffcfb4616a4cfd46bc1d4f1485996144a624326f55dc970279c8d4dbc2a5dcc986;no processes/descendants. Primary acknowledges source/note takeover 2026-10-25T07:34:33.656964+00:00"
     },
     {
-      "id": "/root/higher_order_rec_rhs_astra_r1",
-      "role": "higher-order recursive RHS author",
+      "id": "/root/higher_order_handler_interaction_astra_r1",
+      "role": "handler interaction author",
       "state": "STOPPED",
-      "session": "HANDLER-RECURSIVE-RHS-THEORY-20261025/root-r1",
+      "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "ActualSTOP07:16:03.091297UTC,517.072/1200s conservative;handoff282c3bd3d2e00826c9c4cf1202e7b8bdc45afe8f65b0a2da17eb0e65c04eedf5;no processes/children;primary acknowledges takeover 2026-10-25T07:16:30.933241+00:00"
+      "receipt": "Actual STOP07:31:30.789324UTC;278.113/900s conservative;handoff4f9996c88bdf9e4c5c3ee7c69e6a0fe6c23828b731513e8cf7a0ec5556c0b589;no processes/descendants. Primary acknowledges source/note takeover 2026-10-25T07:31:45.053702+00:00"
     },
     {
-      "id": "/root/higher_order_handler_review_astra_r1",
-      "role": "fresh independent handler reviewer",
+      "id": "/root/higher_order_graph_safety_review_astra_r1",
+      "role": "independent graph observation/execution reviewer",
       "state": "STOPPED",
-      "session": "HANDLER-RECURSIVE-RHS-THEORY-20261025/root-r1",
+      "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Actual STOP07:23:55.351180UTC;conservative113.351/450s;CLEAN report5be714bc5ca8c9d667e6ce71fb3fa46bf9eea4514338aaa3140660627a93d520;no processes/children."
+      "receipt": "Actual STOP07:38:34.161232UTC;conservative117.443/450s;CLEAN reportaf94d01b70394e5b3ee0bcfc1e6cbb314f06f63f1d9595a5c04ecc27fb0785b0;no processes/children."
     },
     {
-      "id": "/root/higher_order_rec_rhs_review_astra_r1",
-      "role": "fresh independent recursive RHS reviewer",
+      "id": "/root/higher_order_handler_interaction_review_astra_r1",
+      "role": "independent handler interaction reviewer",
       "state": "STOPPED",
-      "session": "HANDLER-RECURSIVE-RHS-THEORY-20261025/root-r1",
+      "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Actual STOP07:24:04.890811UTC;conservative122.891/450s;CLEAN report2ec12a1fcbbe813175a220946117680d58b06f99428ce7b9fc3ebc7898ae3f94;no processes/children."
+      "receipt": "Actual STOP07:38:31.284693UTC;conservative114.566792/450s;CLEAN reportc1db54cfc1ed0a78c51b045dcd2f3e407733cddda02b3f426694c17cd31421a3;no processes/children."
     },
     {
       "id": "/root/next_action_selector_astra",
-      "role": "sprint boundary selector",
+      "role": "boundary selector",
       "state": "STOPPED",
-      "session": "HANDLER-RECURSIVE-RHS-THEORY-20261025/root-r1",
+      "session": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/root-r1",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Actual FINAL STOP received before 2026-10-25T07:25:10.698326+00:00;120s charged from contingency,2340lifetime;read-only,no checks/writes/children."
+      "receipt": "Actual FINAL STOP received before 2026-10-25T07:40:07.072460+00:00;120s charged,2460lifetime;no checks/writes/children/processes."
     }
   ],
   "leases": [
     {
-      "path": "notes/theory/lean/YulangClosure/HigherOrderHandlerSyntax.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/HigherOrderHandlerSafety.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-25-higher-order-shallow-handler-theory.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-higher-order-shallow-handler.md",
-      "owner": "/root/higher_order_handler_astra_r1",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/HigherOrderGraphSyntax.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/YulangClosure/HigherOrderRecAllocation.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-25-higher-order-recursive-rhs-theory.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-higher-order-recursive-rhs.md",
-      "owner": "/root/higher_order_rec_rhs_astra_r1",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/handler-recursive-rhs-theory-20261025-r1.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/handler-recursive-rhs-theory-20261025-r1-outcome.md",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261025-handler-recursive-rhs-theory-r1-verification.jsonl",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/handler-recursive-rhs-theory-r1-run.py",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/lean/.lake/handler-recursive-rhs-theory-r1-check.lean",
+      "path": "tasks/agent-loop/sprints/graph-handler-interaction-theory-20261025-r1.md",
       "owner": "/root",
       "state": "FROZEN"
     },
@@ -197,53 +138,98 @@
       "state": "HELD"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderHandlerSyntax.olean",
+      "path": "tasks/agent-loop/sprints/graph-handler-interaction-theory-20261025-r1-outcome.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-graph-handler-interaction-theory-r1-verification.jsonl",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderHandlerSyntax.ilean",
+      "path": "notes/theory/lean/.lake/graph-handler-interaction-theory-r1-run.py",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderHandlerSafety.olean",
+      "path": "notes/theory/lean/.lake/graph-handler-interaction-theory-r1-check.lean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderHandlerSafety.ilean",
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderGraphObservation.olean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderGraphSyntax.olean",
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderGraphObservation.ilean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderGraphSyntax.ilean",
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderGraphSafety.olean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderRecAllocation.olean",
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderGraphSafety.ilean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderRecAllocation.ilean",
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderHandlerInteraction.olean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261025-higher-order-shallow-handler-review.md",
-      "owner": "/root/higher_order_handler_review_astra_r1",
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderHandlerInteraction.ilean",
+      "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261025-higher-order-recursive-rhs-review.md",
-      "owner": "/root/higher_order_rec_rhs_review_astra_r1",
+      "path": "notes/theory/lean/YulangClosure/HigherOrderGraphObservation.lean",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/HigherOrderGraphSafety.lean",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-25-higher-order-graph-safety.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-higher-order-graph-safety.md",
+      "owner": "/root/higher_order_graph_safety_astra_r1",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/HigherOrderHandlerInteraction.lean",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-25-higher-order-handler-interaction.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-higher-order-handler-interaction.md",
+      "owner": "/root/higher_order_handler_interaction_astra_r1",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-higher-order-graph-safety-review.md",
+      "owner": "/root/higher_order_graph_safety_review_astra_r1",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-higher-order-handler-interaction-review.md",
+      "owner": "/root/higher_order_handler_interaction_review_astra_r1",
       "state": "FROZEN"
     }
   ],
@@ -390,7 +376,7 @@
       "id": "GVG-REC-RHS-1",
       "state": "OPEN",
       "owner": "full paper simultaneous binder proof intake",
-      "details": "Full accepted-HO source RHS allocation locally accepted; full-paper omitted forms OPEN. B-OBSERVE-1 graph canonical/operational theorem OPEN."
+      "details": "Accepted-HO actual source RHS allocation now consumed by canonical observation and every internal execution prefix;full-paper omitted forms OPEN."
     },
     {
       "id": "HO-METADATA-ADEQUACY-1",
@@ -401,7 +387,7 @@
       "id": "HO-SHALLOW-HANDLER-1",
       "state": "OPEN",
       "owner": "new higher-order handler theory lane",
-      "details": "Local accepted-HO handler value safety accepted; saved interaction/fullpaper/source/native OPEN. HO-HANDLER-VALUE-EMPTY-1 no-value-arm directmapping mismatch OPEN;no semantics change."
+      "details": "Accepted-HO handler value safety and root-only repeated saved interaction accepted;fullpaper/source/native OPEN. HO-HANDLER-VALUE-EMPTY-1 directmapping mismatch remains OPEN."
     },
     {
       "id": "HO-HANDLER-GRAPH-COMPOSITION-1",
@@ -410,8 +396,8 @@
       "details": "Current independent full-HigherOrder handler/graph extensions each embed frozen core. Combined handler+graph language and original full-paper theorem require explicit composition; neither lane implies it."
     }
   ],
-  "closure": "Original full goal OPEN. Both new full-accepted-HO handler value safety and actual recursive RHS graph allocation independently CLEAN and accepted locally. Combined grammar, graph observation,full forms,metadata/native and inference A/B remain OPEN.",
-  "next_action": "Integrate reviewed theory milestone; dispatcher prepares next graph observation/handler interaction proposal.",
+  "closure": "Original full goal OPEN. Actual HO graph observations/internal execution from source allocation and root-only repeated handler interaction independently CLEAN and locally accepted. Combined grammar,fresh response graph extensions,full forms,metadata/native/inference A/B OPEN.",
+  "next_action": "Integrate/push accepted graph observation and handler interaction; next dispatcher proposal is combined language and immutable graph continuation extension.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three unrelated UNKNOWN reservations remain quarantined.",
@@ -451,19 +437,26 @@
       "id": "HANDLER-RECURSIVE-RHS-THEORY-20261025/r1",
       "record": "tasks/agent-loop/sprints/handler-recursive-rhs-theory-20261025-r1-outcome.md",
       "sha256": "e79ad59f2a27f211b0e487823a7cf3fdd148f5d4b1d6905d539514e582c97ecf",
+      "git": "Normal push succeeded03eb4b672..d94c36b61;upstream matches.",
+      "commit": "d94c36b61dc140ba9fa1441c9cab9e0577280392"
+    },
+    {
+      "id": "GRAPH-HANDLER-INTERACTION-THEORY-20261025/r1",
+      "record": "tasks/agent-loop/sprints/graph-handler-interaction-theory-20261025-r1-outcome.md",
+      "sha256": "c355f3625401ae8c23834adf298833e24b194ddc9895c14c0aefbb2b78adf418",
       "git": "Reviewed milestone approved;exact-path commit/push pending."
     }
   ],
-  "resource_observation": "All current children STOP with actual receipts;primary integrating within original1200window ending07:28:39.478377. Assigned400contingency extension not yet used;80 unassigned;3UNKNOWN unchanged.",
-  "checker": "Rows13–17 PASS;281 axiom results subset{propext,Quot.sound};17calls25.46509404799508s;no final warnings;failure rows retained.",
+  "resource_observation": "All current children actualSTOP;primary integrating within1500window ending07:53:39.478377;480contingency remains;3UNKNOWN unchanged.",
+  "checker": "Final9–12 PASS warningfree;12calls/16.54111255200769s;231axiompairs+8examples;onlypropext/Quot.sound;failures1,4,6retained.",
   "boundary_consultation": {
     "owner": "/root/next_action_selector_astra",
-    "grant_seconds": 2340,
+    "grant_seconds": 2460,
     "current_grant_seconds": 120,
     "status": "STOPPED",
-    "receipt": "Actual FINAL STOP received before 2026-10-25T07:25:10.698326+00:00;120s charged from contingency,2340lifetime;read-only,no checks/writes/children.",
-    "scope": "Integration seam; next independent theory sprint proposal conditional on current fresh reviews; no dispatch authority.",
-    "result": "Proposes full-HO graph typed observation+raw safety+source allocation application and handler root-only repeated interaction;4800s draft, primary exact contract pending."
+    "receipt": "Actual FINAL STOP received before 2026-10-25T07:40:07.072460+00:00;120s charged,2460lifetime;no checks/writes/children/processes.",
+    "scope": "Sprint end integration; next parent-theory composition/fresh graph-extension proposal conditional on both new reviews.",
+    "result": "Proposes full combined handler+graph grammar/root propagation safety and old graph saved-continuation stability through arbitrary immutable fresh extensions;primary exact contract pending."
   },
   "pending_details": {
     "record": "tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1-outcome.md",
