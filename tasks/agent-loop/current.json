@@ -5,33 +5,33 @@
 "session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
 "active_sprint": {
 "id": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025",
-"revision": "r2",
-"status": "FAILED_VERIFICATION",
-"contract": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r2.md",
-"contract_sha256": "01aa44596c1f2aeae77afb0c90f5026fc263e522b7771c2ced274deb957f9e9c",
-"baseline": "4866464a5",
-"claim": "Construct an actually reachable, typed View-wrapped Force Call head and prove it has no successor in the current formal relation.",
+"revision": "r3",
+"status": "READY",
+"contract": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3.md",
+"contract_sha256": "1a32aed55bf4db354e7d4ce69d08f8bfe5c596743f359f771fcd26feade98e71",
+"baseline": "2ed4a20a6",
+"claim": "Verify and compose frozen P/Q candidates for a typed reachable View-wrapped Force head with no successor in the current relation.",
 "worktree": "/home/momota1029/rust/yulang",
 "branch": "research/simple-sub-intrusion",
 "resources": {
-"cap_seconds": 2700,
-"grant_map": "P 900 + Q 300 + composition 240 + serial Lean verification 480 + fresh review 600 + integration 180; Astra 0.",
+"cap_seconds": 1500,
+"grant_map": "Luna composition 240 + serial Lean verification 480 + fresh review 600 + integration 180; P/Q author grants spent in r2; Astra 0.",
 "astra": 0,
-"max_concurrent_new_author_assignments": 2,
+"max_concurrent_new_author_assignments": 0,
 "lean_processes": 1,
 "cpu": 1,
 "memory_mib": 1024,
 "verification_timeout_seconds": 120,
 "lean_invocation_cap": 4
 },
-"outcome": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1-outcome.md",
-"closure": "Launcher exit 127; Lean NOT_RUN. No theorem accepted; all parent gates OPEN.",
-"review": "NOT_RUN; no reviewer appointed.",
-"checker": "P wrapper: python missing, exit127 before lake/Lean; Q/compose/query NOT_RUN.",
-"acceptance": "NOT_MET. P/Q are uncompiled candidates; composition and fresh independent review outstanding.",
-"author": "P/Q STOPPED; Luna owns fresh verification-only revision; no source repairs.",
-"next_action": "Close r2 with launcher failure; issue fresh verification-only r3 using direct lake or python3.",
-"non_goal": "No source/frontend reachability, native correspondence, Call A/B, inference A/B, semantic approval or production claim."
+"outcome": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3-outcome.md",
+"closure": "Not yet proved. P/Q candidates uncompiled; original parent gates OPEN.",
+"review": "Fresh compiler referee only after all four serial invocations pass.",
+"checker": "Source/dependency revalidation pending; use direct lake launcher, no python alias.",
+"acceptance": "P, Q, composition and exact signature/axiom query compile; complete receipts; CLEAN independent review.",
+"author": "No author restart. Luna owns composition, four serial checks, review/adjudication and Git.",
+"next_action": "Commit/push r3 START state; then directly invoke P, Q, composition, signature query in order.",
+"non_goal": "No source/native, Call A/B, inference A/B, semantic approval or production claim."
 },
 "workers": [
 {
@@ -76,7 +76,7 @@
 "requested_effort": "high",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "R2 closed at launcher exit127 before Lean; P/Q stopped, candidate artifacts frozen."
+"receipt": "R2 launcher failure documented; P/Q STOPPED; r3 verification-only ready."
 },
 {
 "id": "/root/view_force_reachability_prover",
@@ -109,40 +109,112 @@
 "reason": "primary current-state lease"
 },
 {
-"path": "notes/theory/lean/YulangClosure/CallViewedForceReachability.lean",
-"owner": "/root/view_force_reachability_prover",
-"state": "FROZEN",
-"reason": "uncompiled r2 candidate; author STOPPED"
-},
-{
-"path": "tasks/agent-loop/inbox/20261025-call-viewed-force-reachability.md",
-"owner": "/root/view_force_reachability_prover",
-"state": "FROZEN",
-"reason": "uncompiled r2 candidate; author STOPPED"
-},
-{
-"path": "notes/theory/lean/YulangClosure/CallViewedForceStuck.lean",
-"owner": "/root/view_force_stuck_prover",
-"state": "FROZEN",
-"reason": "uncompiled r2 candidate; author STOPPED"
-},
-{
-"path": "tasks/agent-loop/inbox/20261025-call-viewed-force-stuck.md",
-"owner": "/root/view_force_stuck_prover",
-"state": "FROZEN",
-"reason": "uncompiled r2 candidate; author STOPPED"
-},
-{
 "path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1.md",
 "owner": "/root",
 "state": "FROZEN",
-"reason": "superseded only for output-path enumeration by r2 before author activation"
+"reason": "frozen proposition contract"
 },
 {
 "path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r2.md",
 "owner": "/root",
 "state": "FROZEN",
-"reason": "exact generated-output lease amendment"
+"reason": "frozen exact output amendment"
+},
+{
+"path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r1-outcome.md",
+"owner": "/root",
+"state": "FROZEN",
+"reason": "r2 launcher failure receipt"
+},
+{
+"path": "notes/theory/lean/YulangClosure/CallViewedForceReachability.lean",
+"owner": "/root",
+"state": "FROZEN",
+"reason": "r2 candidate; no source edits"
+},
+{
+"path": "tasks/agent-loop/inbox/20261025-call-viewed-force-reachability.md",
+"owner": "/root",
+"state": "FROZEN",
+"reason": "r2 source/handoff evidence"
+},
+{
+"path": "notes/theory/lean/YulangClosure/CallViewedForceStuck.lean",
+"owner": "/root",
+"state": "FROZEN",
+"reason": "r2 candidate; no source edits"
+},
+{
+"path": "tasks/agent-loop/inbox/20261025-call-viewed-force-stuck.md",
+"owner": "/root",
+"state": "FROZEN",
+"reason": "r2 source/handoff evidence"
+},
+{
+"path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3.md",
+"owner": "/root",
+"state": "FROZEN",
+"reason": "fresh verification-only r3"
+},
+{
+"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallViewedForceReachability.olean",
+"owner": "/root",
+"state": "HELD",
+"reason": "exact r3 verification output"
+},
+{
+"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallViewedForceReachability.ilean",
+"owner": "/root",
+"state": "HELD",
+"reason": "exact r3 verification output"
+},
+{
+"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallViewedForceStuck.olean",
+"owner": "/root",
+"state": "HELD",
+"reason": "exact r3 verification output"
+},
+{
+"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallViewedForceStuck.ilean",
+"owner": "/root",
+"state": "HELD",
+"reason": "exact r3 verification output"
+},
+{
+"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallProgressObstruction.olean",
+"owner": "/root",
+"state": "HELD",
+"reason": "exact r3 verification output"
+},
+{
+"path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallProgressObstruction.ilean",
+"owner": "/root",
+"state": "HELD",
+"reason": "exact r3 verification output"
+},
+{
+"path": "notes/theory/lean/.lake/call-progress-obstruction-r3-check.lean",
+"owner": "/root",
+"state": "HELD",
+"reason": "exact r3 output"
+},
+{
+"path": "tasks/agent-loop/inbox/20261025-call-progress-obstruction-r3-verification.jsonl",
+"owner": "/root",
+"state": "HELD",
+"reason": "exact r3 output"
+},
+{
+"path": "tasks/agent-loop/inbox/20261025-call-progress-obstruction-r3-review.md",
+"owner": "/root",
+"state": "HELD",
+"reason": "exact r3 output"
+},
+{
+"path": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3-outcome.md",
+"owner": "/root",
+"state": "HELD",
+"reason": "exact r3 output"
 }
 ],
 "pending": [
@@ -285,8 +357,8 @@
 "details": "R3 review blocking; R4 Flow/source projection next."
 }
 ],
-"closure": "R2 failed at launcher; Lean not run; no theorem accepted; parent obligations remain OPEN.",
-"next_action": "Preserve P/Q candidates; fresh r3 verifies without author restarts; three UNKNOWN reservations remain.",
+"closure": "R2 launcher failure documented; P/Q frozen; r3 verification-only READY; parent gates remain OPEN.",
+"next_action": "Commit/push r3 START, then direct serialized P/Q/composition/query checks.",
 "legacy_reconciliation": {
 "required": false,
 "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -408,6 +480,6 @@
 "sha256": "dc329ddc99486ff2ae375b6f398721cbcabacde7ea9de67c9f8f7398a67e0176"
 }
 ],
-"resource_observation": "P 900s + Q 300s charged; 4 Lean calls unused; 3 UNKNOWN reserved.",
-"checker": "R2: launcher exit127; lake/Lean NOT_RUN; candidates uncompiled."
+"resource_observation": "R3 fresh 1500s; no authors; Lean calls serialized; 3 UNKNOWN reserved.",
+"checker": "r2 launcher was python missing; lake/Lean not run. R3 pins to revalidate."
 }
