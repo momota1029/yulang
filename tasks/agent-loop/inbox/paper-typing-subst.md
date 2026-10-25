@@ -60,6 +60,16 @@ The valid fully qualified probe confirmed the mutual recursors. These serial
 primary checks stayed within the R4 call/time envelope. Full-paper coverage,
 graph-guard correction and independent review remain open.
 
+A final bounded syntax probe changed each `cases derivation with` to
+`cases derivation generalizing environment with`; pinned Lean rejects that
+syntax in this mutually declared theorem block. The probe also confirms the
+underlying constructor goals are independent of the `environment` binder:
+their metavariable cases still require explicit elaboration even if the syntax
+were accepted. The file has been returned to the last syntactically valid
+`cases` version. R4 has now consumed all eight allowed serial Lean/Lake
+invocations; stop checking this candidate until a renewed contract or later
+authorized work.
+
 ## Original theorem and coverage obligations
 
 Parent: `docs/yulang-operational-type-safety-ja.tex:953–977`, item 2; downstream
