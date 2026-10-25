@@ -4,17 +4,17 @@
  "phase": "ACTIVE",
  "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
  "active_sprint": {
-  "id": "PAPER-HEAP-OBSERVATION-20261026/r59",
+  "id": "YULANG3-EXECUTION-PROOF-RECONCILIATION-20261026/r60",
   "revision": "r1",
-  "status": "STOPPED_PRIMARY_CAPTURE_GAP",
-  "contract": "tasks/agent-loop/sprints/paper-heap-observation-r59.md",
-  "contract_sha256": "fd8913816e2ab6c6f3316f2be50125b148dab192aefc1de3b529644547604e21",
-  "baseline": "4eb348f7ebf53509ae701c6b0434041a90f8f573",
+  "status": "RUNNING_PRIMARY_RECONCILIATION",
+  "contract": "tasks/agent-loop/sprints/yulang3-execution-proof-reconciliation-r60.md",
+  "contract_sha256": "427f73724eaf6e0c96bd55e33f419421cec606c10a3319bc907334a3b26c942b",
+  "baseline": "bfc2cb6455ddca5ba805276e1d9729a206d82dcd",
   "branch": "yulang3",
-  "claim": "Finite graph-reference/type-beta observation preserves represented paper typing and connects an allocated typed heap to Force/Delay; parent remains OPEN.",
-  "outcome": "Worker candidate/build/audit frozen and reported passing, source falsifier frozen. Primary pinned versions and all 18 inputs matched, but primary call 3 lost its session/output/exit/duration; exact verification is not established, no retry under R59 cap, no review or import.",
-  "budget": "1800s total; proof 600s/8 calls/90 checker; source 240s/0 calls; primary 600s/4 calls/90 checker; reviewer 180s/0 calls; 180s integration reserve.",
-  "next_action": "Consult sprint dispatcher for a fresh bounded next gate; any future verification needs a new packet with captured session IDs and complete raw output. Keep current frozen candidate separate and all parents OPEN."
+  "claim": "Independently reconcile external connected executor/elimination proof under explicit BodiesTyped premise; preserve R23 source-embedding gate and all broad parents OPEN.",
+  "outcome": "External commit 31b1473a9d90355903e1462a4f2f75abae75e48e is frozen as a distinct input. Primary build/audit and source/R23 reconciliation not yet run.",
+  "budget": "1200s total: primary 900s/4 calls/240 checker seconds; fresh compiler_referee 300s/0 calls; no proof author or integration lane.",
+  "next_action": "Verify every contract hash in isolated checkout; capture process stdout/stderr to durable files before each native call; run version, root build and complete AuditExecutionProofs; then stop and obtain fresh review."
  },
  "workers": [
   {
@@ -108,46 +108,24 @@
   {
    "id": "/root",
    "role": "primary/proof coordinator/checker/integrator",
-   "state": "STOPPED",
+   "state": "RUNNING",
    "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
    "requested_model": "user-selected primary",
    "requested_effort": "UNKNOWN",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R59 primary verification stopped on call-3 capture gap; receipt tasks/agent-loop/inbox/paper-heap-observation-r59-primary.md SHA e1a3978562e02440bcb5cd82642c2cc2bc45f5fac4bc615899f347163f9c0ec9. Calls 1–2 versions exit 0; call 3 output/exit/duration UNKNOWN and not retried. No review/import."
+   "receipt": "R60 primary owns intake/reconciliation/Git; exact start charge from 2026-10-25T23:07:58Z; no checker calls yet."
   },
   {
-   "id": "/root/r59_heap_observation_proof",
-   "role": "registered lean_prover",
-   "state": "STOPPED",
-   "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
-   "requested_model": "registered role defaults",
-   "requested_effort": "registered role defaults",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "Frozen handoff SHA-256 a115016535753182240188232262e8f19613fbf6e8784137048bd5f632e8f9bf; candidate SHA 19b54b87b63cdc4175b1b641ca83d0c1e9454e2439c58a0936bf31fa5bc4725f; worker build/audit passed. 5/8 calls, 42.160528/90 checker seconds; charged 404.594/600 seconds through 2026-10-25T23:00:34.593651Z. Writers/processes stopped; independent review pending."
-  },
-  {
-   "id": "/root/r59_heap_observation_source",
-   "role": "researcher/source bridge falsifier",
-   "state": "STOPPED",
-   "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
-   "requested_model": "registered role defaults",
-   "requested_effort": "registered role defaults",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "Frozen source handoff SHA-256 b7976c6ae7a8a276b4a59e479b71bc0bdec20696a974dff367492e02541ac5f6; source trace falsifies direct immutable-heap identification via None→Some publication; NO_SAFE_CODE_SLICE; review pending; full 240s reserved charged, exact usage UNKNOWN; zero executable checks/Git; no descendants."
-  },
-  {
-   "id": "/root/r59_heap_observation_review",
-   "role": "fresh independent compiler_referee review",
+   "id": "/root/r60_execution_proof_review",
+   "role": "fresh non-author compiler_referee",
    "state": "NOT_STARTED",
    "session": null,
    "requested_model": "registered role defaults",
    "requested_effort": "registered role defaults",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Reserved for post-freeze independent review; zero checker calls."
+   "receipt": "Reserved for post-primary-freeze review; 300s, zero checker calls."
   }
  ],
  "leases": [
@@ -157,52 +135,77 @@
    "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/sprints/paper-heap-observation-r59.md",
+   "path": "tasks/agent-loop/sprints/yulang3-execution-proof-reconciliation-r60.md",
    "owner": "/root",
    "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/inbox/paper-heap-observation-r59-primary.md",
-   "owner": "/root",
-   "state": "FROZEN"
-  },
-  {
-   "path": "tasks/agent-loop/sprints/paper-heap-observation-r59-outcome.md",
+   "path": "tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r60-primary.md",
    "owner": "/root",
    "state": "HELD"
   },
   {
-   "path": "notes/theory/lean/YulangClosure/PaperHeapObservation.lean",
-   "owner": "/root/r59_heap_observation_proof",
-   "state": "FROZEN"
+   "path": "tasks/agent-loop/inbox/yulang3-execution-proof-reconciliation-r60-review.md",
+   "owner": "/root",
+   "state": "HELD"
   },
   {
-   "path": "notes/theory/lean/.lake/R59Audit.lean",
-   "owner": "/root/r59_heap_observation_proof",
-   "state": "FROZEN"
+   "path": "tasks/agent-loop/sprints/yulang3-execution-proof-reconciliation-r60-outcome.md",
+   "owner": "/root",
+   "state": "HELD"
   },
   {
-   "path": "notes/theory/lean/.lake/build",
-   "owner": "/root/r59_heap_observation_proof",
-   "state": "FROZEN"
+   "path": "R60-isolated/run_call.py",
+   "owner": "/root",
+   "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/inbox/paper-heap-observation-r59-worker-checks.txt",
-   "owner": "/root/r59_heap_observation_proof",
-   "state": "FROZEN"
+   "path": "R60-isolated/process-manifest.json",
+   "owner": "/root",
+   "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/inbox/paper-heap-observation-r59.md",
-   "owner": "/root/r59_heap_observation_proof",
-   "state": "FROZEN"
+   "path": "R60-isolated/lake-build",
+   "owner": "/root",
+   "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/inbox/paper-heap-observation-r59-source.md",
-   "owner": "/root/r59_heap_observation_source",
-   "state": "FROZEN"
+   "path": "R60-isolated/call-01.stdout",
+   "owner": "/root",
+   "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/inbox/paper-heap-observation-r59-review.md",
+   "path": "R60-isolated/call-01.stderr",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "R60-isolated/call-02.stdout",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "R60-isolated/call-02.stderr",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "R60-isolated/call-03.stdout",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "R60-isolated/call-03.stderr",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "R60-isolated/call-04.stdout",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "R60-isolated/call-04.stderr",
    "owner": "/root",
    "state": "HELD"
   }
@@ -376,8 +379,8 @@
    "details": "Bounded proof accepted; full-paper/native bridge open; pending-cell republication blocks naive relation."
   }
  ],
- "closure": "R59 stopped on primary process-evidence capture gap, not a mathematical counterexample. Candidate remains unintegrated; all original inference/executor/source-native and production gates remain OPEN.",
- "next_action": "R59 stopped with primary verification capture gap; await dispatcher selection for a fresh packet. Preserve frozen artifacts, external proof provenance and withdrawn questions.",
+ "closure": "R59 failed on primary capture evidence, not mathematics; its candidate is unintegrated. External commit 31b1473a9 remains distinct, awaiting R60 reconciliation. R23 and all full inference/executor/source-native/production parents remain OPEN.",
+ "next_action": "R60 independently reconcile external proof, audit and R23 BodyTyped source boundary. R59 candidate is deferred; preserve withdrawn questions and eight UNKNOWN quarantines.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "8 UNKNOWN reservations remain quarantined.",
@@ -444,9 +447,29 @@
    "id": "EXTERNAL-YULANG3-EXECUTION-PROOFS-20261026/commit-31b1473",
    "record": "notes/progress/2026-10-26-yulang3-execution-proofs.md",
    "sha256": "83f909b1e026604b8c3dd6b098869f6a1b66f1f50d58e1f853c45da3d2ea0c4c"
+  },
+  {
+   "id": "PAPER-HEAP-OBSERVATION-20261026/r59-final-capture-failure",
+   "record": "tasks/agent-loop/inbox/paper-heap-observation-r59-primary.md",
+   "sha256": "e1a3978562e02440bcb5cd82642c2cc2bc45f5fac4bc615899f347163f9c0ec9"
+  },
+  {
+   "id": "PAPER-HEAP-OBSERVATION-r59-proof-freeze",
+   "record": "tasks/agent-loop/inbox/paper-heap-observation-r59.md",
+   "sha256": "a115016535753182240188232262e8f19613fbf6e8784137048bd5f632e8f9bf"
+  },
+  {
+   "id": "PAPER-HEAP-OBSERVATION-r59-source-freeze",
+   "record": "tasks/agent-loop/inbox/paper-heap-observation-r59-source.md",
+   "sha256": "b7976c6ae7a8a276b4a59e479b71bc0bdec20696a974dff367492e02541ac5f6"
+  },
+  {
+   "id": "PAPER-HEAP-OBSERVATION-r59-check-capture",
+   "record": "tasks/agent-loop/inbox/paper-heap-observation-r59-worker-checks.txt",
+   "sha256": "b3847d011403975667bf2cbddb897c0934bf71912627d9200c035e51f946982a"
   }
  ],
- "resource_observation": "R59 origin 2026-10-25T22:53:50Z; monotonic origin UNKNOWN; no carryover. Source stopped 22:57:43Z; full 240s charged, exact usage UNKNOWN, 0 checker. Proof stopped 23:00:34.593651Z; 404.594s charged, 5 calls/42.160528 checker seconds. Primary calls 1–2 exit 0; call 3 capture lost (exit/duration/output UNKNOWN); conservative 180s timeout exceeds 90s checker cap, no retry. Eight UNKNOWN identities remain quarantined.",
+ "resource_observation": "R59 origin 2026-10-25T22:53:50Z; monotonic origin UNKNOWN; no carryover. Source stopped 22:57:43Z; full 240s charged, exact usage UNKNOWN, 0 checker. Proof stopped 23:00:34.593651Z; 404.594s charged, 5 calls/42.160528 checker seconds. Primary calls 1–2 exit 0; call 3 capture lost (exit/duration/output UNKNOWN); conservative 180s timeout exceeds 90s checker cap, no retry. Eight UNKNOWN identities remain quarantined. R60 origin 2026-10-25T23:07:58Z; 1200s grant, primary 900s/4 calls/240 checker, reviewer 300s/0 calls; no calls yet.",
  "native_bridge": {
   "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
   "state": "OPEN; NAIVE_RELATION_BLOCKED",
