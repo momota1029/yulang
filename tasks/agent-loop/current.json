@@ -6,7 +6,7 @@
 "active_sprint": {
 "id": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025",
 "revision": "r3",
-"status": "RUNNING",
+"status": "REVIEW",
 "contract": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3.md",
 "contract_sha256": "1a32aed55bf4db354e7d4ce69d08f8bfe5c596743f359f771fcd26feade98e71",
 "baseline": "2ed4a20a6",
@@ -25,12 +25,12 @@
 "lean_invocation_cap": 4
 },
 "outcome": "tasks/agent-loop/sprints/call-progress-obstruction-20261025-r3-outcome.md",
-"closure": "Not yet proved. P/Q candidates uncompiled; original parent gates OPEN.",
-"review": "Fresh compiler referee only after all four serial invocations pass.",
-"checker": "P, Q and composition exit0; hashes/streams recorded; 3/4 complete.",
-"acceptance": "P, Q, composition and exact signature/axiom query compile; complete receipts; CLEAN independent review.",
+"closure": "P, Q and typed composition compile; exact signatures/axioms pass; fresh independent review pending. Parent gates OPEN.",
+"review": "Not yet assigned; frozen snapshot needs fresh nonauthor compiler referee.",
+"checker": "4/4 serial invocations exit0; exact query; axioms within [propext, Quot.sound].",
+"acceptance": "P/Q/composition signatures and receipt pass; CLEAN fresh independent review still required.",
 "author": "No author restart. Luna owns composition, four serial checks, review/adjudication and Git.",
-"next_action": "Freeze composition/query source and receipt checkpoint; run exact signature/axiom query.",
+"next_action": "Freeze receipt/source hashes; assign fresh reviewer; integrate only after adjudication.",
 "non_goal": "No source/native, Call A/B, inference A/B, semantic approval or production claim."
 },
 "workers": [
@@ -480,6 +480,6 @@
 "sha256": "dc329ddc99486ff2ae375b6f398721cbcabacde7ea9de67c9f8f7398a67e0176"
 }
 ],
-"resource_observation": "R3 3/4 exit0; P warning recorded; Q and composition clean; 3 UNKNOWN reserved.",
-"checker": "Three serialized modules compile; receipt complete through composition; query pending."
+"resource_observation": "R3 4/4 exit0; fresh review and integration remain; 3 UNKNOWN reserved.",
+"checker": "4 exact calls pass; source/output hashes match receipt; query axiom set allowed."
 }
