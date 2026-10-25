@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-STEP-TYPING-20261025",
     "revision": "r1",
-    "status": "R1_PROOF_ACTIVE",
+    "status": "PREFLIGHT_PASS_AUTHOR_READY",
     "contract": "tasks/agent-loop/sprints/call-step-typing-20261025-r1.md",
     "contract_sha256": "677671916d8c628ba45e2492bd799dd69436d1a9ac2ee726ed1139cf11eff8f2",
     "baseline": "12a081b82e2a84678aab7f5d0f301cd724c72542",
@@ -27,10 +27,10 @@
     "outcome": "tasks/agent-loop/sprints/call-step-typing-20261025-r1-outcome.md",
     "closure": "r3 completeCallEntry_typed accepted/CLEAN; r9 source-input and original A/B gates remain OPEN.",
     "review": "NOT_RUN; requires frozen theorem and complete current-byte receipts.",
-    "checker": "Preflight complete: current pinned ControlSyntax and ControlTyping rebuilt successfully; theorem author lease active.",
+    "checker": "2/4 Lean invocations consumed; exact-source ControlSyntax and ControlTyping preflight both succeeded. CallStepTyping and signature remain unchecked.",
     "acceptance": "Exact one-step theorem; rebuilt current Control modules; successful Lean/query; fresh independent CLEAN review.",
     "author": "One Sol/high prover; exact source preflight complete and author writes active under two exact paths.",
-    "next_action": "Author proves the frozen one-step theorem and stops at handoff; Luna then verifies/query-checks, followed by fresh independent review.",
+    "next_action": "Author acknowledgement after explicit two-path activation; then prove and STOP at frozen handoff.",
     "non_goal": "No progress, world/effect/metadata, source/native, Call A/B, inference, or production claim."
   },
   "workers": [
@@ -81,13 +81,13 @@
     {
       "id": "/root/call_step_typing_author",
       "role": "constructive prover; exact r1 proof author",
-      "state": "RUNNING",
+      "state": "WAITING",
       "session": "LEAN-CALL-CONTEXT-TYPING-20261025/root-turn-9",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Read-only preparation completed; pinned ControlSyntax and ControlTyping preflight both succeeded with durable receipts. Explicit author write lease active for CallStepTyping.lean and the r1 handoff only; must STOP before verification."
+      "receipt": "Read-only preparation completed and both current-byte preflights passed. Luna sent explicit activation for the two exact author paths; awaiting the author turn acknowledgement before recording resumed RUNNING."
     }
   ],
   "leases": [
@@ -104,18 +104,6 @@
       "reason": "r1 serialized Lean preflight and verification receipts."
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/ControlSyntax.olean/.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Rebuild current pinned source; existing outputs are stale."
-    },
-    {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/ControlTyping.olean/.ilean",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Rebuild against current ControlSyntax output."
-    },
-    {
       "path": "notes/theory/lean/YulangClosure/CallStepTyping.lean",
       "owner": "/root/call_step_typing_author",
       "state": "HELD",
@@ -126,6 +114,60 @@
       "owner": "/root/call_step_typing_author",
       "state": "HELD",
       "reason": "Single frozen r1 author handoff."
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/ControlSyntax.olean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Exact current-source ControlSyntax preflight output."
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/ControlSyntax.ilean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Exact current-source ControlSyntax preflight output."
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/ControlTyping.olean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Exact current-source ControlTyping preflight output."
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/ControlTyping.ilean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Exact current-source ControlTyping preflight output."
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallStepTyping.olean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Luna-only step 3 exact theorem module output."
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallStepTyping.ilean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Luna-only step 3 exact theorem module output."
+    },
+    {
+      "path": "notes/theory/lean/.lake/call-step-typing-r1-check.lean",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Luna-only step 4 exact signature and axiom query."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-call-step-typing-r1-review.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Luna-owned fresh nonauthor review report intake."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/call-step-typing-20261025-r1-outcome.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Luna-owned final outcome and integration receipt."
     }
   ],
   "pending": [
@@ -269,7 +311,7 @@
     }
   ],
   "closure": "r3 exact completeCallEntry_typed syntax theorem ACCEPTED/CLEAN; operational/source/A-B/inference/production parents OPEN.",
-  "next_action": "r1 ControlSyntax and ControlTyping exact-source preflight passed; author may prove exact call_state_typed_step_preservation under two leased paths.",
+  "next_action": "ControlSyntax and ControlTyping preflight passed (2/4 invocations); author has explicit two-path activation and is awaiting resumed-work acknowledgement.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -370,6 +412,6 @@
       "commit": "12a081b82e2a84678aab7f5d0f301cd724c72542"
     }
   ],
-  "resource_observation": "r1 cap 2280s; ControlSyntax/ControlTyping preflight succeeded; one author now active; three UNKNOWN quarantines unchanged.",
-  "checker": "r1 ControlSyntax and ControlTyping exact-source preflight succeeded with complete receipts; CallStepTyping theorem and signature remain unchecked."
+  "resource_observation": "r1 cap 2280s; 2/4 Lean invocations used, 1.3565s primary elapsed; current Control sources compiled; one author activated; three UNKNOWN quarantines unchanged.",
+  "checker": "r1 exact-source ControlSyntax/ControlTyping preflight passed; CallStepTyping theorem and signature remain unchecked."
 }
