@@ -220,3 +220,43 @@ successful enqueue. Entire Context factoring, Value/record ports, one shared
 native execution, accepted-drain exclusion of unfinished owners and semantic
 fiber/source closure remain OPEN. This checkpoint does not close
 `MERGE-EXPANSION-COVER-1` or the original inference theorem.
+
+## Recursive Replay publication and frame acceptance
+
+The recursive graph checkpoint is published as
+`97163d357ad273e3e46e6e50914fa6c1f53b553c`, parent `736b40b`.
+The expected-parent update and fetched parent/tree/staged identity are verified.
+
+The frame producer constructs `NativeFrameRollback` from computed push,
+first-snapshot preparation, protected mutation and pop. The empty-start
+execution derives the untouched old portion, exact first original payloads,
+contiguous increasing old-index restoration order, every intermediate no-gap
+guard and exact checkpoint rollback. Every successful event prefix is covered,
+including an empty stack after removing old frames and later reusing their
+numeric indices. Neither final journal shape nor restoration success is an
+independent root hypothesis.
+
+Fresh nonauthor `/root/native_frame_review_r3` accepts the frozen packet with
+no findings. Receipt SHA-256:
+`e444877a2496721bd4b1b2df349b374f323ef0716d913d76ba23bb69b77c14c0`.
+The reviewer verified all 42 review-manifest entries and 7,294 dependency
+entries, all 110 originating theorem types/axioms and all 24 authored roots.
+Axiom distribution: 61 none; 10 only `propext`; 28 additionally `Quot.sound`;
+11 also `Classical.choice`. All seven producer calls and the three failed
+calls remain preserved, with 15.736938 measured seconds in total. Final changed
+source has no warnings, holes, project axioms or bypass. Reviewer checks used
+0/2; producer and reviewer have stopped all writes.
+
+The prior disclosed helper temporary-path deviation in producer calls 03/04
+is retained; final helper execution uses the owned scratch TMPDIR. It changed
+no repository path outside the exact producer lease and does not alter the
+mathematical acceptance. No setup failure is reported as a successful check.
+
+The actual native application still must establish the empty route-start undo,
+logical payload readbacks, protection of every old write/pop (including
+terminal-prepared skips and helper cleanup), recursive top ownership and the
+same chronological operation/restoration/worklist history. The theorem does
+not cover an arbitrary checkpoint within older undo storage or prove accepted
+drain, original source/Call meaning or full inference soundness. All four local
+components are now independently accepted; global import/audit integration is
+the next primary-owned gate.
