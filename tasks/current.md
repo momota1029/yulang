@@ -1,3 +1,38 @@
+# Current task: original whole-Yulang metatheory
+
+2026-10-26: the user's request covers original whole-language soundness,
+Effect hygiene, principality and inference termination on `yulang3`.
+**The full original claims remain OPEN.** Four new, independently reviewed
+Lean components construct ordered scope-transformer laws, exact original
+publication/owner hygiene, joint finite-use quotient descent in both directions,
+and unconditional local Context scanner termination with constructed topology.
+The exact fiber criterion is a result about the fixed transport; it is not
+identified with the original principal instance ordering. Local scan termination
+explicitly excludes post-scan callbacks and the growing whole inference drain.
+
+Reviewed proof checkpoints have been pushed as `de313acb2`, `61d78978c`,
+`974fa7127` and `df30b4602`. `WholeMetatheory.lean` adds the four modules to the
+ordinary default target while preserving every previous import target and the
+reserved original root. The **105-job default build** and **242-originating-
+theorem audit** both pass pinned Lean 4.35.0; all 18 required audit roots are
+included. All 164 inventoried source/config inputs match their verification snapshot.
+No custom axiom, proof hole or kernel bypass is used. Standard logical axioms
+remain explicit. New modules and audit have no warnings; the 668 existing
+warnings come from nine unchanged baseline files. Raw logs, complete theorem
+axiom inventories and source hashes are retained with the
+[whole-metatheory proof ledger](../notes/progress/2026-10-26-whole-metatheory.md).
+
+The first remaining whole-language owners are authentic original source/world/
+Call interpretation, same-history native success and completed-drain evidence,
+one original scoped strategy with principal ordering across uses and futures,
+and a concrete full inferInitial/inferStep instance with global progress through
+allocation, callbacks, extrusion/intrusion, Replay and generalization.
+No original source restriction or runtime behavior change is introduced.
+Previous task records below are retained as history; foreign scheduling state
+is not rewritten by this continuation.
+
+---
+
 # Current task: complete type inference and replace F5
 
 2026-10-26 continued proof construction from `60e868422` on `yulang3`:

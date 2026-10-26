@@ -1,0 +1,1785 @@
+{
+  "baseline": "a9c746f31cc0eabeba9ebf5b673b6f121ed0ca82",
+  "toolchain": "Lean 4.35.0 / eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+  "build": {
+    "command": [
+      "lake",
+      "--no-cache",
+      "build"
+    ],
+    "exit_code": 0,
+    "jobs": 105,
+    "seconds": 435.8,
+    "warnings": {
+      "YulangClosure/PaperExecutionSyntax.lean": 23,
+      "YulangClosure/PaperExecutionBinderLaws.lean": 235,
+      "YulangClosure/ControlComposition.lean": 3,
+      "YulangClosure/PaperTermSubstitution.lean": 96,
+      "YulangClosure/PaperCoreStep.lean": 4,
+      "YulangClosure/PaperTypeBetaExecution.lean": 276,
+      "YulangClosure/PaperTupleSplitExecution.lean": 22,
+      "YulangClosure/PaperPerformLetExecution.lean": 2,
+      "YulangClosure/NativeIntegerComparison.lean": 7
+    },
+    "warnings_baseline_unchanged": true
+  },
+  "audit": {
+    "command": [
+      "lake",
+      "--no-cache",
+      "env",
+      "lean",
+      "-j1",
+      "-M1536",
+      "AuditWholeMetatheory.lean"
+    ],
+    "exit_code": 0,
+    "seconds": 7.4,
+    "module_counts": {
+      "YulangClosure.NativeScopeTransformer": 107,
+      "YulangClosure.OriginalEffectHygiene": 24,
+      "YulangClosure.OriginalPrincipality": 36,
+      "YulangClosure.OriginalInferenceTermination": 75
+    },
+    "total": 242,
+    "required_roots": 18,
+    "axiom_distribution": [
+      {
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "count": 122
+      },
+      {
+        "axioms": [
+          "propext"
+        ],
+        "count": 33
+      },
+      {
+        "axioms": [],
+        "count": 74
+      },
+      {
+        "axioms": [
+          "propext",
+          "Classical.choice",
+          "Quot.sound"
+        ],
+        "count": 13
+      }
+    ]
+  },
+  "checked_inputs": 164,
+  "logs": {
+    "whole-default-build.log": {
+      "sha256": "8943f3a2ac04dbed0511db345124d417ef378c4db5d8358af63948214480552b",
+      "bytes": 465697
+    },
+    "whole-audit.log": {
+      "sha256": "bae70a7f09b26cea1db092f75561546bb5fe085b8653c666f07a3d777a802ab4",
+      "bytes": 170123
+    },
+    "integration-input-hashes.json": {
+      "sha256": "56badefc5d6ad94b1059762fb8810cdae647e2bef9d5501d39d592f3d133d391",
+      "bytes": 18623
+    }
+  },
+  "theorems": [
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.protect_then_release._simp_1_4",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.missing_retained._simp_1_2",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.entryAt_absent._simp_1_3",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.missing_congr",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Entry.mk.injEq",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.entryAt_absent._simp_1_2",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_3",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Entry.mk.inj",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.protect_then_release._simp_1_5",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_congr._simp_1_2",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.entryAt.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_2",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.release.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_3",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_protect",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.entryAt_encode",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.missing_retained",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.ordered_associativity",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.then_entry._simp_1_3",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Transformer.evaluate.eq_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.composeEntry.eq_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_8",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.entryAt.eq_2",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.identityEntry.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.compose_missing",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_4",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_7",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_identity._simp_1_3",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.protect_then_release",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.local_support_injection_is_insufficient",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.State.mk.injEq",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.release_no_revival",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.release_removes._simp_1_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "_private.YulangClosure.NativeScopeTransformer.0.YulangClosure.NativeScopeTransformer.entryAt.match_1.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.then_entry._simp_1_4",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Transformer.then.eq_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.renamed_protection",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Fact.mk.sizeOf_spec",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Equivalent.symm",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Transformer.mk.inj",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.witness_observer_preserved",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_2",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_2",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.missing_retained._simp_1_3",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Transformer.mk.sizeOf_spec",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.renamed_output_has_origin",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_protection",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.new_protection_has_origin",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.missing_retained._simp_1_4",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_congr",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.renamed_entry",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.entryAt_absent",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Transformer.entry.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Entry.rename.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.mem_injective_map",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.missing_nil",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.compose_missing._simp_1_3",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Entry.mk.sizeOf_spec",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_identity",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_rename",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_release._simp_1_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.missing_append",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.compiled_execution",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_release",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.missing_append._simp_1_2",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_then",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.State.mk.sizeOf_spec",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_stamp",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_6",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.stamp.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.missing_has_entry",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.renamed_protection._simp_1_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Transformer.mk.injEq",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.State.mk.inj",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.release_removes",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_protection._simp_1_2",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_congr._simp_1_3",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_protection._simp_1_3",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "_private.YulangClosure.NativeScopeTransformer.0.YulangClosure.NativeScopeTransformer.entryAt.match_1.eq_2",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.State.rename.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Transformer.rename.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.missing_rename",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_stamp._simp_1_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.missing_nil._simp_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_3",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.untouched_scope",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Equivalent.refl",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.keys.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.release_no_revival._simp_1_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.stamp_then_protect",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.encode.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Fact.mk.injEq",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.protect_then_stamp",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.missing_append._simp_1_3",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Fact.mk.inj",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_3",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.identity.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.compose_missing._simp_1_2",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Equivalent.trans",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.then_entry",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.entryAt.eq_def",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.protect.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.Missing.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.NativeScopeTransformer",
+      "name": "YulangClosure.NativeScopeTransformer.evaluate_protect._simp_1_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.SourceIdentityWorld.OwnerActive.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.source_publication_constructs_replay",
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalSource.Binder.isEvent.eq_1",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.substitution_cannot_identify_distinct_operations",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.Native.name_preserves_historical_evidence",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.publication_candidate_provenance",
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.operation_substitution_keeps_declaration",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.execution_lookup_provenance",
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.description_extension_keeps_replay",
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.Native.return_then_name_cannot_revive",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.Native.owned_return_expires",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalSource.Environment.publish.eq_1",
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.replay_rejects_foreign_path",
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.future_scope_has_no_replay_value",
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "_private.YulangClosure.OriginalEffectHygiene.0.YulangClosure.SourceIdentityWorld.OwnerActive.match_1.eq_2",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.generated_new_use_keeps_original_publication",
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.publication_lookup_provenance",
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.published_execution_judgment",
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalSource.Environment.executionValue.eq_1",
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalEffectHygiene.published_replay_provenance",
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "_private.YulangClosure.OriginalEffectHygiene.0.YulangClosure.SourceIdentityWorld.OwnerActive.match_1.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalSource.Environment.atPublication.eq_1",
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.SourceIdentityWorld.OwnerActive.eq_2",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalEffectHygiene",
+      "name": "YulangClosure.OriginalSource.Frame.exitPath.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.package.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.constructive_two_use_descent",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.use_bounds",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.Generalization.ConstraintBounded.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied._simp_1_2",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent._proof_1_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied._simp_1_2",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.two_use_disagreement_blocks_joint_descent",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.store.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.pullback_eq_self",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.before.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed._proof_1_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.Generalization.StoreBounded.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent._proof_1_2",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.bounded",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed._proof_1_2",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied._simp_1_3",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.quotient.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.canonical",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.before_satisfied",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied._simp_1_5",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.canonical._proof_1_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.joint_descent_iff_fiber_constant",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied._simp_1_2",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.constant",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.quotient_uses_complete_on_fiber",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied._simp_1_6",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.joint_solution_coverage_iff",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.root_descent",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalPrincipality",
+      "name": "YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_3",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.NativeContextExpansion.scanStep.eq_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.pendingRank.eq_2",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.context_children_with_ready_smaller._proof_1_4",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.traversalRank_reverse._proof_1_4",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff._simp_1_4",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanStep_decreases",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.parse_stable",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.constructed_context_children",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_9",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.drain_projection_not_accessible",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_3",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.contextTraversal_decreases._proof_1_5",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.contextTraversal_decreases._proof_1_4",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.store_step_contexts_formed",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_8",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanLoop_stable._proof_1_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_2",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.storeContextsFormed.eq_1",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_4",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.traversalChildren_rank",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_4",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.traversalRank.match_1.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.store_run_contexts_formed",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.constructed_postorder_descent",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.pendingRank.match_1.eq_2",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.traversalChildren.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_2",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanStep_wellFounded",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanStep_accessible",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanTotal._proof_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_5",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.NativeValuePorts.ContextsFormed.eq_1",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.pendingRank.eq_def",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanTotal.eq_def",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanTotal.eq_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.traversalRank_append",
+      "axioms": [
+        "propext"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanLoop_stable",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.traversalRank_filter_le",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.native_context_scan_accessible",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.traversalRank.eq_def",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.traversalRank.match_1.eq_2",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.contextTraversal_decreases",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanTotal_execution",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff._proof_1_5",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.traversalRank.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.pendingRank.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.traversalRank_reverse",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanTotal_success_iff",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanRank.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_3",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.context_children_with_ready_smaller",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.intern_contexts_formed",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_2",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanLoop_eq_total._proof_1_2",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.scanTotal.match_1.eq_2",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.store_history_contexts_formed",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.two_children_smaller",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_6",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.traversalRank.eq_2",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_7",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.contextTraversal_wellFounded",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.pendingRank.match_1.eq_1",
+      "axioms": []
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanLoop_eq_total",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.scanStep_varying_tables_wellFounded",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_4",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.constructed_context_children._proof_1_1",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.ScanExecution.brecOn",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "YulangClosure.OriginalInferenceTermination.contextTraversal_varying_tables_wellFounded",
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ]
+    },
+    {
+      "originating_module": "YulangClosure.OriginalInferenceTermination",
+      "name": "_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.scanTotal.match_1.eq_1",
+      "axioms": []
+    }
+  ]
+}

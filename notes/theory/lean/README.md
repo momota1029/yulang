@@ -1,5 +1,39 @@
 # Yulang closure: Lean root composition and control
 
+## 2026-10-26 original whole-Yulang metatheory
+
+Four independently reviewed components extend the original soundness, Effect
+hygiene, principality and inference-termination work from `a9c746f31`.
+**All four whole-language goals remain OPEN.** The default import surface is
+[`WholeMetatheory`](YulangClosure/WholeMetatheory.lean), and the exact original
+premises, constructive results and remaining owners are recorded in the
+[Japanese proof ledger](../../progress/2026-10-26-whole-metatheory.md).
+
+- `NativeScopeTransformer`: ordered finite-content composition, release,
+  applicable-guard provenance and shared injective scope/tag renaming.
+- `OriginalEffectHygiene`: original publication plus execution-lookup provenance,
+  generated-use application, and owned-return expiry with historical receipts
+  preserved through Name; the original semantic guards remain explicit.
+- `OriginalPrincipality`: exact joint descent through the existing finite-use
+  quotient iff the original valuation is constant on its fibers; a genuine
+  reverse construction and a fully discharged two-use example. This criterion
+  has not been identified with the original semantic principal ordering.
+- `OriginalInferenceTermination`: unconditional Context scanner descent and
+  total success-or-rejection execution, derived stored topology, and ready-marker
+  control ranks. Post-scan callbacks and the growing whole drain remain open.
+
+Pinned Lean 4.35.0 accepts the ordinary **105-job** default build and the complete
+**242-originating-theorem** census for these four modules, including private
+and generated declarations and all 18 required audit roots. Run
+`lake --no-cache env lean -j1 -M1536 AuditWholeMetatheory.lean` after the build.
+All 164 inventoried source/config inputs match the checked snapshot. Only standard
+`propext`, `Classical.choice` and `Quot.sound` occur. New modules/audit have no
+warnings; 668 existing warnings belong to nine byte-identical baseline files.
+Full raw logs, every theorem's axiom list and input hashes are retained in
+[the evidence directory](../../progress/evidence/2026-10-26-whole-metatheory).
+The reserved original root, original source domain and compiler behavior remain
+unchanged. The earlier entries below retain their historical verification scope.
+
 ## 2026-10-26 continuation: shared histories, current Replay and identity world
 
 Four independently reviewed proof components continue the unchanged original

@@ -1,0 +1,2132 @@
+YULANG_AUDIT_MODULE YulangClosure.NativeScopeTransformer 107
+YULANG_AUDIT_MODULE YulangClosure.OriginalEffectHygiene 24
+YULANG_AUDIT_MODULE YulangClosure.OriginalPrincipality 36
+YULANG_AUDIT_MODULE YulangClosure.OriginalInferenceTermination 75
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.protect_then_release._simp_1_4
+YulangClosure.NativeScopeTransformer.protect_then_release._simp_1_4 : ∀ (scope : Nat)
+  (initial : YulangClosure.NativeScopeTransformer.State) (observed : Nat),
+  (observed ∈ ((YulangClosure.NativeScopeTransformer.release scope).evaluate initial).protections) =
+    (observed ∈ initial.protections ∧ observed ≠ scope)
+'YulangClosure.NativeScopeTransformer.protect_then_release._simp_1_4' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.protect_then_release._simp_1_4
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.missing_retained._simp_1_2
+@YulangClosure.NativeScopeTransformer.missing_retained._simp_1_2 : ∀ {α : Type u_1} {p : α → Bool} {as : List α}
+  {x : α}, (x ∈ List.filter p as) = (x ∈ as ∧ p x = Bool.true)
+'YulangClosure.NativeScopeTransformer.missing_retained._simp_1_2' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.missing_retained._simp_1_2
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.entryAt_absent._simp_1_3
+@YulangClosure.NativeScopeTransformer.entryAt_absent._simp_1_3 : ∀ {p q : Prop}, (¬(p ∨ q)) = (¬p ∧ ¬q)
+'YulangClosure.NativeScopeTransformer.entryAt_absent._simp_1_3' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.entryAt_absent._simp_1_3
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.missing_congr
+YulangClosure.NativeScopeTransformer.missing_congr : ∀ (guards : List Nat) {first second : List Nat},
+  (∀ (tag : Nat), tag ∈ first ↔ tag ∈ second) →
+    (YulangClosure.NativeScopeTransformer.Missing guards first ↔
+      YulangClosure.NativeScopeTransformer.Missing guards second)
+'YulangClosure.NativeScopeTransformer.missing_congr' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.missing_congr
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Entry.mk.injEq
+YulangClosure.NativeScopeTransformer.Entry.mk.injEq : ∀ (keep : Bool) (missing : List Nat) (keep_1 : Bool)
+  (missing_1 : List Nat),
+  ({ keep := keep, missing := missing } = { keep := keep_1, missing := missing_1 }) =
+    (keep = keep_1 ∧ missing = missing_1)
+'YulangClosure.NativeScopeTransformer.Entry.mk.injEq' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Entry.mk.injEq
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.entryAt_absent._simp_1_2
+@YulangClosure.NativeScopeTransformer.entryAt_absent._simp_1_2 : ∀ {α : Type u_1} {b : α} {l : List α} {a : α},
+  (a ∈ b :: l) = (a = b ∨ a ∈ l)
+'YulangClosure.NativeScopeTransformer.entryAt_absent._simp_1_2' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.entryAt_absent._simp_1_2
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_3
+YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_3 : ∀ (a : List Nat)
+  (a_1 : List (Nat × YulangClosure.NativeScopeTransformer.Entry)) (b : List Nat)
+  (b_1 : List (Nat × YulangClosure.NativeScopeTransformer.Entry)),
+  ¬a = b → { stamped := a, scopes := a_1 } = { stamped := b, scopes := b_1 } → False
+'YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_3' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_3
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Entry.mk.inj
+@YulangClosure.NativeScopeTransformer.Entry.mk.inj : ∀ {keep : Bool} {missing : List Nat} {keep_1 : Bool}
+  {missing_1 : List Nat},
+  { keep := keep, missing := missing } = { keep := keep_1, missing := missing_1 } → keep = keep_1 ∧ missing = missing_1
+'YulangClosure.NativeScopeTransformer.Entry.mk.inj' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Entry.mk.inj
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.protect_then_release._simp_1_5
+YulangClosure.NativeScopeTransformer.protect_then_release._simp_1_5 : ∀ (scope tag : Nat)
+  (initial : YulangClosure.NativeScopeTransformer.State) (observed : Nat),
+  (observed ∈ ((YulangClosure.NativeScopeTransformer.protect scope tag).evaluate initial).protections) =
+    (observed ∈ initial.protections ∨ observed = scope ∧ ¬tag ∈ initial.inputs)
+'YulangClosure.NativeScopeTransformer.protect_then_release._simp_1_5' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.protect_then_release._simp_1_5
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_congr._simp_1_2
+@YulangClosure.NativeScopeTransformer.evaluate_congr._simp_1_2 : ∀ {α : Type u_1} {a : α} {s t : List α},
+  (a ∈ s ++ t) = (a ∈ s ∨ a ∈ t)
+'YulangClosure.NativeScopeTransformer.evaluate_congr._simp_1_2' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_congr._simp_1_2
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.entryAt.eq_1
+YulangClosure.NativeScopeTransformer.entryAt.eq_1 : ∀ (x : Nat),
+  YulangClosure.NativeScopeTransformer.entryAt [] x = YulangClosure.NativeScopeTransformer.identityEntry
+'YulangClosure.NativeScopeTransformer.entryAt.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.entryAt.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_1
+YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_1 : ∀ (a : Bool) (a_1 : List Nat),
+  { keep := a, missing := a_1 } = { keep := a, missing := a_1 }
+'YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_2
+YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_2 : ∀ (a a_1 b : List Nat),
+  ¬a_1 = b → { inputs := a, protections := a_1 } = { inputs := a, protections := b } → False
+'YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_2' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_2
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.release.eq_1
+YulangClosure.NativeScopeTransformer.release.eq_1 : ∀ (scope : Nat),
+  YulangClosure.NativeScopeTransformer.release scope = { scopes := [(scope, { keep := Bool.false })] }
+'YulangClosure.NativeScopeTransformer.release.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.release.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_3
+@YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_3 : ∀ {α : Type u_1} {a : α} {s t : List α},
+  (a ∈ s ++ t) = (a ∈ s ∨ a ∈ t)
+'YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_3' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_3
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_protect
+YulangClosure.NativeScopeTransformer.evaluate_protect : ∀ (scope tag : Nat)
+  (initial : YulangClosure.NativeScopeTransformer.State) (observed : Nat),
+  observed ∈ ((YulangClosure.NativeScopeTransformer.protect scope tag).evaluate initial).protections ↔
+    observed ∈ initial.protections ∨ observed = scope ∧ ¬tag ∈ initial.inputs
+'YulangClosure.NativeScopeTransformer.evaluate_protect' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_protect
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.entryAt_encode
+YulangClosure.NativeScopeTransformer.entryAt_encode : ∀ (support : List Nat)
+  (value : Nat → YulangClosure.NativeScopeTransformer.Entry) (scope : Nat),
+  YulangClosure.NativeScopeTransformer.entryAt (YulangClosure.NativeScopeTransformer.encode support value) scope =
+    if scope ∈ support then value scope else YulangClosure.NativeScopeTransformer.identityEntry
+'YulangClosure.NativeScopeTransformer.entryAt_encode' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.entryAt_encode
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.missing_retained
+YulangClosure.NativeScopeTransformer.missing_retained : ∀ (guards stamps inputs : List Nat),
+  YulangClosure.NativeScopeTransformer.Missing (List.filter (fun tag => Decidable.decide ¬tag ∈ stamps) guards) inputs ↔
+    YulangClosure.NativeScopeTransformer.Missing guards (inputs ++ stamps)
+'YulangClosure.NativeScopeTransformer.missing_retained' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.missing_retained
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.ordered_associativity
+YulangClosure.NativeScopeTransformer.ordered_associativity : ∀
+  (first second third : YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State),
+  YulangClosure.NativeScopeTransformer.Equivalent (((first.then second).then third).evaluate initial)
+    ((first.then (second.then third)).evaluate initial)
+'YulangClosure.NativeScopeTransformer.ordered_associativity' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.ordered_associativity
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.then_entry._simp_1_3
+@YulangClosure.NativeScopeTransformer.then_entry._simp_1_3 : ∀ {α : Type u_1} {a : α} {s t : List α},
+  (a ∈ s ++ t) = (a ∈ s ∨ a ∈ t)
+'YulangClosure.NativeScopeTransformer.then_entry._simp_1_3' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.then_entry._simp_1_3
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Transformer.evaluate.eq_1
+YulangClosure.NativeScopeTransformer.Transformer.evaluate.eq_1 : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State),
+  transformer.evaluate initial =
+    { inputs := initial.inputs ++ transformer.stamped,
+      protections :=
+        List.filter (fun scope => (transformer.entry scope).keep) initial.protections ++
+          List.filter
+            (fun scope =>
+              Decidable.decide
+                (YulangClosure.NativeScopeTransformer.Missing (transformer.entry scope).missing initial.inputs))
+            (YulangClosure.NativeScopeTransformer.keys transformer.scopes) }
+'YulangClosure.NativeScopeTransformer.Transformer.evaluate.eq_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Transformer.evaluate.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.composeEntry.eq_1
+YulangClosure.NativeScopeTransformer.composeEntry.eq_1 : ∀ (first second : YulangClosure.NativeScopeTransformer.Entry)
+  (firstStamps : List Nat),
+  YulangClosure.NativeScopeTransformer.composeEntry first second firstStamps =
+    { keep := first.keep && second.keep,
+      missing :=
+        (if second.keep = Bool.true then first.missing else []) ++
+          List.filter (fun tag => Decidable.decide ¬tag ∈ firstStamps) second.missing }
+'YulangClosure.NativeScopeTransformer.composeEntry.eq_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.composeEntry.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_8
+@YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_8 : ∀ {a b c : Prop}, (a ∧ b ∧ c) = (b ∧ a ∧ c)
+'YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_8' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_8
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.entryAt.eq_2
+YulangClosure.NativeScopeTransformer.entryAt.eq_2 : ∀ (x scope : Nat)
+  (entry : YulangClosure.NativeScopeTransformer.Entry) (rest : List (Nat × YulangClosure.NativeScopeTransformer.Entry)),
+  YulangClosure.NativeScopeTransformer.entryAt ((scope, entry) :: rest) x =
+    if scope = x then entry else YulangClosure.NativeScopeTransformer.entryAt rest x
+'YulangClosure.NativeScopeTransformer.entryAt.eq_2' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.entryAt.eq_2
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.identityEntry.eq_1
+YulangClosure.NativeScopeTransformer.identityEntry.eq_1 : YulangClosure.NativeScopeTransformer.identityEntry = { }
+'YulangClosure.NativeScopeTransformer.identityEntry.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.identityEntry.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.compose_missing
+YulangClosure.NativeScopeTransformer.compose_missing : ∀ (first second : YulangClosure.NativeScopeTransformer.Entry)
+  (stamps inputs : List Nat),
+  YulangClosure.NativeScopeTransformer.Missing
+      (YulangClosure.NativeScopeTransformer.composeEntry first second stamps).missing inputs ↔
+    second.keep = Bool.true ∧ YulangClosure.NativeScopeTransformer.Missing first.missing inputs ∨
+      YulangClosure.NativeScopeTransformer.Missing second.missing (inputs ++ stamps)
+'YulangClosure.NativeScopeTransformer.compose_missing' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.compose_missing
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_4
+@YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_4 : ∀ {a b c : Prop}, ((a ∨ b) ∨ c) = (a ∨ b ∨ c)
+'YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_4' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_4
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_7
+@YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_7 : ∀ {a b c : Prop}, ((a ∧ b) ∧ c) = (a ∧ b ∧ c)
+'YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_7' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_7
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_identity._simp_1_3
+YulangClosure.NativeScopeTransformer.evaluate_identity._simp_1_3 : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State) (scope : Nat),
+  (scope ∈ (transformer.evaluate initial).protections) =
+    ((transformer.entry scope).keep = Bool.true ∧ scope ∈ initial.protections ∨
+      YulangClosure.NativeScopeTransformer.Missing (transformer.entry scope).missing initial.inputs)
+'YulangClosure.NativeScopeTransformer.evaluate_identity._simp_1_3' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_identity._simp_1_3
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.protect_then_release
+YulangClosure.NativeScopeTransformer.protect_then_release : ∀ (scope tag : Nat)
+  (initial : YulangClosure.NativeScopeTransformer.State),
+  YulangClosure.NativeScopeTransformer.Equivalent
+    (((YulangClosure.NativeScopeTransformer.protect scope tag).then
+          (YulangClosure.NativeScopeTransformer.release scope)).evaluate
+      initial)
+    ((YulangClosure.NativeScopeTransformer.release scope).evaluate initial)
+'YulangClosure.NativeScopeTransformer.protect_then_release' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.protect_then_release
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.local_support_injection_is_insufficient
+YulangClosure.NativeScopeTransformer.local_support_injection_is_insufficient : have transformer :=
+  YulangClosure.NativeScopeTransformer.release 0;
+have initial := { protections := [1] };
+have scopes := fun x => 0;
+(∀ (a : Nat),
+    a ∈ YulangClosure.NativeScopeTransformer.keys transformer.scopes →
+      ∀ (b : Nat), b ∈ YulangClosure.NativeScopeTransformer.keys transformer.scopes → scopes a = scopes b → a = b) ∧
+  ¬YulangClosure.NativeScopeTransformer.Equivalent ((transformer.rename scopes id).evaluate (initial.rename scopes id))
+      ((transformer.evaluate initial).rename scopes id)
+'YulangClosure.NativeScopeTransformer.local_support_injection_is_insufficient' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.local_support_injection_is_insufficient
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.State.mk.injEq
+YulangClosure.NativeScopeTransformer.State.mk.injEq : ∀ (inputs protections inputs_1 protections_1 : List Nat),
+  ({ inputs := inputs, protections := protections } = { inputs := inputs_1, protections := protections_1 }) =
+    (inputs = inputs_1 ∧ protections = protections_1)
+'YulangClosure.NativeScopeTransformer.State.mk.injEq' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.State.mk.injEq
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.release_no_revival
+YulangClosure.NativeScopeTransformer.release_no_revival : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer) (scope : Nat)
+  (initial : YulangClosure.NativeScopeTransformer.State),
+  ¬YulangClosure.NativeScopeTransformer.Missing (transformer.entry scope).missing initial.inputs →
+    ¬scope ∈ (((YulangClosure.NativeScopeTransformer.release scope).then transformer).evaluate initial).protections
+'YulangClosure.NativeScopeTransformer.release_no_revival' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.release_no_revival
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.release_removes._simp_1_1
+YulangClosure.NativeScopeTransformer.release_removes._simp_1_1 : ∀ (scope : Nat)
+  (initial : YulangClosure.NativeScopeTransformer.State) (observed : Nat),
+  (observed ∈ ((YulangClosure.NativeScopeTransformer.release scope).evaluate initial).protections) =
+    (observed ∈ initial.protections ∧ observed ≠ scope)
+'YulangClosure.NativeScopeTransformer.release_removes._simp_1_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.release_removes._simp_1_1
+YULANG_AUDIT_BEGIN _private.YulangClosure.NativeScopeTransformer.0.YulangClosure.NativeScopeTransformer.entryAt.match_1.eq_1
+_private.YulangClosure.NativeScopeTransformer.0.YulangClosure.NativeScopeTransformer.entryAt.match_1.eq_1 : ∀
+  (motive : List (Nat × YulangClosure.NativeScopeTransformer.Entry) → Nat → Sort u_1) (x : Nat)
+  (h_1 : (x : Nat) → motive [] x)
+  (h_2 :
+    (scope : Nat) →
+      (entry : YulangClosure.NativeScopeTransformer.Entry) →
+        (rest : List (Nat × YulangClosure.NativeScopeTransformer.Entry)) →
+          (wanted : Nat) → motive ((scope, entry) :: rest) wanted),
+  (match [], x with
+    | [], x => h_1 x
+    | (scope, entry) :: rest, wanted => h_2 scope entry rest wanted) =
+    h_1 x
+'_private.YulangClosure.NativeScopeTransformer.0.YulangClosure.NativeScopeTransformer.entryAt.match_1.eq_1' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.NativeScopeTransformer.0.YulangClosure.NativeScopeTransformer.entryAt.match_1.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.then_entry._simp_1_4
+@YulangClosure.NativeScopeTransformer.then_entry._simp_1_4 : ∀ {p q : Prop}, (¬(p ∨ q)) = (¬p ∧ ¬q)
+'YulangClosure.NativeScopeTransformer.then_entry._simp_1_4' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.then_entry._simp_1_4
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Transformer.then.eq_1
+YulangClosure.NativeScopeTransformer.Transformer.then.eq_1 : ∀
+  (first second : YulangClosure.NativeScopeTransformer.Transformer),
+  first.then second =
+    { stamped := first.stamped ++ second.stamped,
+      scopes :=
+        YulangClosure.NativeScopeTransformer.encode
+          (YulangClosure.NativeScopeTransformer.keys first.scopes ++
+            YulangClosure.NativeScopeTransformer.keys second.scopes)
+          fun scope =>
+          YulangClosure.NativeScopeTransformer.composeEntry (first.entry scope) (second.entry scope) first.stamped }
+'YulangClosure.NativeScopeTransformer.Transformer.then.eq_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Transformer.then.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.renamed_protection
+YulangClosure.NativeScopeTransformer.renamed_protection : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State) (scopes tags : Nat → Nat),
+  Function.Injective scopes →
+    Function.Injective tags →
+      ∀ (scope : Nat),
+        scopes scope ∈ ((transformer.rename scopes tags).evaluate (initial.rename scopes tags)).protections ↔
+          scope ∈ (transformer.evaluate initial).protections
+'YulangClosure.NativeScopeTransformer.renamed_protection' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.renamed_protection
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Fact.mk.sizeOf_spec
+@YulangClosure.NativeScopeTransformer.Fact.mk.sizeOf_spec : ∀ {Witness : Type} [inst : SizeOf Witness]
+  (witness : Witness) (state : YulangClosure.NativeScopeTransformer.State),
+  SizeOf.sizeOf { witness := witness, state := state } = 1 + SizeOf.sizeOf witness + SizeOf.sizeOf state
+'YulangClosure.NativeScopeTransformer.Fact.mk.sizeOf_spec' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Fact.mk.sizeOf_spec
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Equivalent.symm
+@YulangClosure.NativeScopeTransformer.Equivalent.symm : ∀ {first second : YulangClosure.NativeScopeTransformer.State},
+  YulangClosure.NativeScopeTransformer.Equivalent first second →
+    YulangClosure.NativeScopeTransformer.Equivalent second first
+'YulangClosure.NativeScopeTransformer.Equivalent.symm' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Equivalent.symm
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Transformer.mk.inj
+@YulangClosure.NativeScopeTransformer.Transformer.mk.inj : ∀ {stamped : List Nat}
+  {scopes : List (Nat × YulangClosure.NativeScopeTransformer.Entry)} {stamped_1 : List Nat}
+  {scopes_1 : List (Nat × YulangClosure.NativeScopeTransformer.Entry)},
+  { stamped := stamped, scopes := scopes } = { stamped := stamped_1, scopes := scopes_1 } →
+    stamped = stamped_1 ∧ scopes = scopes_1
+'YulangClosure.NativeScopeTransformer.Transformer.mk.inj' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Transformer.mk.inj
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.witness_observer_preserved
+@YulangClosure.NativeScopeTransformer.witness_observer_preserved : ∀ {Witness : Type} {Result : Sort u_1}
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer)
+  (fact : YulangClosure.NativeScopeTransformer.Fact Witness) (observe : Witness → Result),
+  observe (transformer.applyFact fact).witness = observe fact.witness
+'YulangClosure.NativeScopeTransformer.witness_observer_preserved' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.witness_observer_preserved
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_2
+YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_2 : ∀ (a : List Nat)
+  (a_1 b : List (Nat × YulangClosure.NativeScopeTransformer.Entry)),
+  ¬a_1 = b → { stamped := a, scopes := a_1 } = { stamped := a, scopes := b } → False
+'YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_2' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_2
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_2
+YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_2 : ∀ (a : Bool) (a_1 b : List Nat),
+  ¬a_1 = b → { keep := a, missing := a_1 } = { keep := a, missing := b } → False
+'YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_2' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_2
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.missing_retained._simp_1_3
+@YulangClosure.NativeScopeTransformer.missing_retained._simp_1_3 : ∀ {α : Type u_1} {a : α} {s t : List α},
+  (a ∈ s ++ t) = (a ∈ s ∨ a ∈ t)
+'YulangClosure.NativeScopeTransformer.missing_retained._simp_1_3' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.missing_retained._simp_1_3
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Transformer.mk.sizeOf_spec
+YulangClosure.NativeScopeTransformer.Transformer.mk.sizeOf_spec : ∀ (stamped : List Nat)
+  (scopes : List (Nat × YulangClosure.NativeScopeTransformer.Entry)),
+  SizeOf.sizeOf { stamped := stamped, scopes := scopes } = 1 + SizeOf.sizeOf stamped + SizeOf.sizeOf scopes
+'YulangClosure.NativeScopeTransformer.Transformer.mk.sizeOf_spec' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Transformer.mk.sizeOf_spec
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.renamed_output_has_origin
+YulangClosure.NativeScopeTransformer.renamed_output_has_origin : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State) (scopes tags : Nat → Nat) (observed : Nat),
+  observed ∈ ((transformer.rename scopes tags).evaluate (initial.rename scopes tags)).protections →
+    ∃ scope, scopes scope = observed
+'YulangClosure.NativeScopeTransformer.renamed_output_has_origin' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.renamed_output_has_origin
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_protection
+YulangClosure.NativeScopeTransformer.evaluate_protection : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State) (scope : Nat),
+  scope ∈ (transformer.evaluate initial).protections ↔
+    (transformer.entry scope).keep = Bool.true ∧ scope ∈ initial.protections ∨
+      YulangClosure.NativeScopeTransformer.Missing (transformer.entry scope).missing initial.inputs
+'YulangClosure.NativeScopeTransformer.evaluate_protection' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_protection
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.new_protection_has_origin
+YulangClosure.NativeScopeTransformer.new_protection_has_origin : ∀
+  (steps : List YulangClosure.NativeScopeTransformer.Transformer) (initial : YulangClosure.NativeScopeTransformer.State)
+  (scope : Nat),
+  scope ∈ (YulangClosure.NativeScopeTransformer.execute steps initial).protections →
+    ¬scope ∈ initial.protections →
+      ∃ before transformer after,
+        steps = before ++ transformer :: after ∧
+          YulangClosure.NativeScopeTransformer.Missing (transformer.entry scope).missing
+            (YulangClosure.NativeScopeTransformer.execute before initial).inputs
+'YulangClosure.NativeScopeTransformer.new_protection_has_origin' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.new_protection_has_origin
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.missing_retained._simp_1_4
+@YulangClosure.NativeScopeTransformer.missing_retained._simp_1_4 : ∀ {p q : Prop}, (¬(p ∨ q)) = (¬p ∧ ¬q)
+'YulangClosure.NativeScopeTransformer.missing_retained._simp_1_4' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.missing_retained._simp_1_4
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_congr
+YulangClosure.NativeScopeTransformer.evaluate_congr : ∀ (transformer : YulangClosure.NativeScopeTransformer.Transformer)
+  {first second : YulangClosure.NativeScopeTransformer.State},
+  YulangClosure.NativeScopeTransformer.Equivalent first second →
+    YulangClosure.NativeScopeTransformer.Equivalent (transformer.evaluate first) (transformer.evaluate second)
+'YulangClosure.NativeScopeTransformer.evaluate_congr' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_congr
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.renamed_entry
+YulangClosure.NativeScopeTransformer.renamed_entry : ∀
+  (entries : List (Nat × YulangClosure.NativeScopeTransformer.Entry)) (scopes tags : Nat → Nat),
+  Function.Injective scopes →
+    ∀ (scope : Nat),
+      YulangClosure.NativeScopeTransformer.entryAt
+          (List.map (fun entry => (scopes entry.fst, entry.snd.rename tags)) entries) (scopes scope) =
+        (YulangClosure.NativeScopeTransformer.entryAt entries scope).rename tags
+'YulangClosure.NativeScopeTransformer.renamed_entry' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.renamed_entry
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.entryAt_absent
+YulangClosure.NativeScopeTransformer.entryAt_absent : ∀
+  (entries : List (Nat × YulangClosure.NativeScopeTransformer.Entry)) (scope : Nat),
+  ¬scope ∈ YulangClosure.NativeScopeTransformer.keys entries →
+    YulangClosure.NativeScopeTransformer.entryAt entries scope = YulangClosure.NativeScopeTransformer.identityEntry
+'YulangClosure.NativeScopeTransformer.entryAt_absent' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.entryAt_absent
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Transformer.entry.eq_1
+YulangClosure.NativeScopeTransformer.Transformer.entry.eq_1 : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer) (scope : Nat),
+  transformer.entry scope = YulangClosure.NativeScopeTransformer.entryAt transformer.scopes scope
+'YulangClosure.NativeScopeTransformer.Transformer.entry.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Transformer.entry.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Entry.rename.eq_1
+YulangClosure.NativeScopeTransformer.Entry.rename.eq_1 : ∀ (entry : YulangClosure.NativeScopeTransformer.Entry)
+  (tags : Nat → Nat), entry.rename tags = { keep := entry.keep, missing := List.map tags entry.missing }
+'YulangClosure.NativeScopeTransformer.Entry.rename.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Entry.rename.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.mem_injective_map
+YulangClosure.NativeScopeTransformer.mem_injective_map : ∀ (map : Nat → Nat),
+  Function.Injective map → ∀ (items : List Nat) (item : Nat), map item ∈ List.map map items ↔ item ∈ items
+'YulangClosure.NativeScopeTransformer.mem_injective_map' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.mem_injective_map
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.missing_nil
+YulangClosure.NativeScopeTransformer.missing_nil : ∀ (inputs : List Nat),
+  ¬YulangClosure.NativeScopeTransformer.Missing [] inputs
+'YulangClosure.NativeScopeTransformer.missing_nil' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.missing_nil
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.compose_missing._simp_1_3
+YulangClosure.NativeScopeTransformer.compose_missing._simp_1_3 : ∀ (guards stamps inputs : List Nat),
+  YulangClosure.NativeScopeTransformer.Missing (List.filter (fun tag => Decidable.decide ¬tag ∈ stamps) guards) inputs =
+    YulangClosure.NativeScopeTransformer.Missing guards (inputs ++ stamps)
+'YulangClosure.NativeScopeTransformer.compose_missing._simp_1_3' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.compose_missing._simp_1_3
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_1
+YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_1 : ∀ (a a_1 : List Nat),
+  { inputs := a, protections := a_1 } = { inputs := a, protections := a_1 }
+'YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Entry.mk.sizeOf_spec
+YulangClosure.NativeScopeTransformer.Entry.mk.sizeOf_spec : ∀ (keep : Bool) (missing : List Nat),
+  SizeOf.sizeOf { keep := keep, missing := missing } = 1 + SizeOf.sizeOf keep + SizeOf.sizeOf missing
+'YulangClosure.NativeScopeTransformer.Entry.mk.sizeOf_spec' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Entry.mk.sizeOf_spec
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_identity
+YulangClosure.NativeScopeTransformer.evaluate_identity : ∀ (initial : YulangClosure.NativeScopeTransformer.State),
+  YulangClosure.NativeScopeTransformer.Equivalent (YulangClosure.NativeScopeTransformer.identity.evaluate initial)
+    initial
+'YulangClosure.NativeScopeTransformer.evaluate_identity' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_identity
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_rename
+YulangClosure.NativeScopeTransformer.evaluate_rename : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State) (scopes tags : Nat → Nat),
+  Function.Injective scopes →
+    Function.Injective tags →
+      YulangClosure.NativeScopeTransformer.Equivalent
+        ((transformer.rename scopes tags).evaluate (initial.rename scopes tags))
+        ((transformer.evaluate initial).rename scopes tags)
+'YulangClosure.NativeScopeTransformer.evaluate_rename' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_rename
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_release._simp_1_1
+YulangClosure.NativeScopeTransformer.evaluate_release._simp_1_1 : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State) (scope : Nat),
+  (scope ∈ (transformer.evaluate initial).protections) =
+    ((transformer.entry scope).keep = Bool.true ∧ scope ∈ initial.protections ∨
+      YulangClosure.NativeScopeTransformer.Missing (transformer.entry scope).missing initial.inputs)
+'YulangClosure.NativeScopeTransformer.evaluate_release._simp_1_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_release._simp_1_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.missing_append
+YulangClosure.NativeScopeTransformer.missing_append : ∀ (first second inputs : List Nat),
+  YulangClosure.NativeScopeTransformer.Missing (first ++ second) inputs ↔
+    YulangClosure.NativeScopeTransformer.Missing first inputs ∨
+      YulangClosure.NativeScopeTransformer.Missing second inputs
+'YulangClosure.NativeScopeTransformer.missing_append' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.missing_append
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.compiled_execution
+YulangClosure.NativeScopeTransformer.compiled_execution : ∀
+  (steps : List YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State),
+  YulangClosure.NativeScopeTransformer.Equivalent
+    ((YulangClosure.NativeScopeTransformer.compile steps).evaluate initial)
+    (YulangClosure.NativeScopeTransformer.execute steps initial)
+'YulangClosure.NativeScopeTransformer.compiled_execution' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.compiled_execution
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_release
+YulangClosure.NativeScopeTransformer.evaluate_release : ∀ (scope : Nat)
+  (initial : YulangClosure.NativeScopeTransformer.State) (observed : Nat),
+  observed ∈ ((YulangClosure.NativeScopeTransformer.release scope).evaluate initial).protections ↔
+    observed ∈ initial.protections ∧ observed ≠ scope
+'YulangClosure.NativeScopeTransformer.evaluate_release' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_release
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.missing_append._simp_1_2
+@YulangClosure.NativeScopeTransformer.missing_append._simp_1_2 : ∀ {a b c : Prop}, ((a ∨ b) ∧ c) = (a ∧ c ∨ b ∧ c)
+'YulangClosure.NativeScopeTransformer.missing_append._simp_1_2' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.missing_append._simp_1_2
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_then
+YulangClosure.NativeScopeTransformer.evaluate_then : ∀ (first second : YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State),
+  YulangClosure.NativeScopeTransformer.Equivalent ((first.then second).evaluate initial)
+    (second.evaluate (first.evaluate initial))
+'YulangClosure.NativeScopeTransformer.evaluate_then' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_then
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.State.mk.sizeOf_spec
+YulangClosure.NativeScopeTransformer.State.mk.sizeOf_spec : ∀ (inputs protections : List Nat),
+  SizeOf.sizeOf { inputs := inputs, protections := protections } = 1 + SizeOf.sizeOf inputs + SizeOf.sizeOf protections
+'YulangClosure.NativeScopeTransformer.State.mk.sizeOf_spec' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.State.mk.sizeOf_spec
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_stamp
+YulangClosure.NativeScopeTransformer.evaluate_stamp : ∀ (tag : Nat)
+  (initial : YulangClosure.NativeScopeTransformer.State) (scope : Nat),
+  scope ∈ ((YulangClosure.NativeScopeTransformer.stamp tag).evaluate initial).protections ↔ scope ∈ initial.protections
+'YulangClosure.NativeScopeTransformer.evaluate_stamp' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_stamp
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_6
+@YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_6 : ∀ {a b c : Prop}, (a ∧ (b ∨ c)) = (a ∧ b ∨ a ∧ c)
+'YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_6' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_then._simp_1_6
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.stamp.eq_1
+YulangClosure.NativeScopeTransformer.stamp.eq_1 : ∀ (tag : Nat),
+  YulangClosure.NativeScopeTransformer.stamp tag = { stamped := [tag] }
+'YulangClosure.NativeScopeTransformer.stamp.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.stamp.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.missing_has_entry
+YulangClosure.NativeScopeTransformer.missing_has_entry : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer) (scope : Nat) (inputs : List Nat),
+  YulangClosure.NativeScopeTransformer.Missing (transformer.entry scope).missing inputs →
+    scope ∈ YulangClosure.NativeScopeTransformer.keys transformer.scopes
+'YulangClosure.NativeScopeTransformer.missing_has_entry' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.missing_has_entry
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.renamed_protection._simp_1_1
+YulangClosure.NativeScopeTransformer.renamed_protection._simp_1_1 : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State) (scope : Nat),
+  (scope ∈ (transformer.evaluate initial).protections) =
+    ((transformer.entry scope).keep = Bool.true ∧ scope ∈ initial.protections ∨
+      YulangClosure.NativeScopeTransformer.Missing (transformer.entry scope).missing initial.inputs)
+'YulangClosure.NativeScopeTransformer.renamed_protection._simp_1_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.renamed_protection._simp_1_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Transformer.mk.injEq
+YulangClosure.NativeScopeTransformer.Transformer.mk.injEq : ∀ (stamped : List Nat)
+  (scopes : List (Nat × YulangClosure.NativeScopeTransformer.Entry)) (stamped_1 : List Nat)
+  (scopes_1 : List (Nat × YulangClosure.NativeScopeTransformer.Entry)),
+  ({ stamped := stamped, scopes := scopes } = { stamped := stamped_1, scopes := scopes_1 }) =
+    (stamped = stamped_1 ∧ scopes = scopes_1)
+'YulangClosure.NativeScopeTransformer.Transformer.mk.injEq' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Transformer.mk.injEq
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.State.mk.inj
+@YulangClosure.NativeScopeTransformer.State.mk.inj : ∀ {inputs protections inputs_1 protections_1 : List Nat},
+  { inputs := inputs, protections := protections } = { inputs := inputs_1, protections := protections_1 } →
+    inputs = inputs_1 ∧ protections = protections_1
+'YulangClosure.NativeScopeTransformer.State.mk.inj' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.State.mk.inj
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.release_removes
+YulangClosure.NativeScopeTransformer.release_removes : ∀ (scope : Nat)
+  (initial : YulangClosure.NativeScopeTransformer.State),
+  ¬scope ∈ ((YulangClosure.NativeScopeTransformer.release scope).evaluate initial).protections
+'YulangClosure.NativeScopeTransformer.release_removes' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.release_removes
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_protection._simp_1_2
+@YulangClosure.NativeScopeTransformer.evaluate_protection._simp_1_2 : ∀ {α : Type u_1} {a : α} {s t : List α},
+  (a ∈ s ++ t) = (a ∈ s ∨ a ∈ t)
+'YulangClosure.NativeScopeTransformer.evaluate_protection._simp_1_2' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_protection._simp_1_2
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_congr._simp_1_3
+YulangClosure.NativeScopeTransformer.evaluate_congr._simp_1_3 : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State) (scope : Nat),
+  (scope ∈ (transformer.evaluate initial).protections) =
+    ((transformer.entry scope).keep = Bool.true ∧ scope ∈ initial.protections ∨
+      YulangClosure.NativeScopeTransformer.Missing (transformer.entry scope).missing initial.inputs)
+'YulangClosure.NativeScopeTransformer.evaluate_congr._simp_1_3' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_congr._simp_1_3
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_protection._simp_1_3
+@YulangClosure.NativeScopeTransformer.evaluate_protection._simp_1_3 : ∀ {α : Type u_1} {p : α → Bool} {as : List α}
+  {x : α}, (x ∈ List.filter p as) = (x ∈ as ∧ p x = Bool.true)
+'YulangClosure.NativeScopeTransformer.evaluate_protection._simp_1_3' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_protection._simp_1_3
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_1
+YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_1 : ∀ (a : List Nat)
+  (a_1 : List (Nat × YulangClosure.NativeScopeTransformer.Entry)),
+  { stamped := a, scopes := a_1 } = { stamped := a, scopes := a_1 }
+'YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.instDecidableEqTransformer.decEq._proof_1
+YULANG_AUDIT_BEGIN _private.YulangClosure.NativeScopeTransformer.0.YulangClosure.NativeScopeTransformer.entryAt.match_1.eq_2
+_private.YulangClosure.NativeScopeTransformer.0.YulangClosure.NativeScopeTransformer.entryAt.match_1.eq_2 : ∀
+  (motive : List (Nat × YulangClosure.NativeScopeTransformer.Entry) → Nat → Sort u_1) (scope : Nat)
+  (entry : YulangClosure.NativeScopeTransformer.Entry) (rest : List (Nat × YulangClosure.NativeScopeTransformer.Entry))
+  (wanted : Nat) (h_1 : (x : Nat) → motive [] x)
+  (h_2 :
+    (scope : Nat) →
+      (entry : YulangClosure.NativeScopeTransformer.Entry) →
+        (rest : List (Nat × YulangClosure.NativeScopeTransformer.Entry)) →
+          (wanted : Nat) → motive ((scope, entry) :: rest) wanted),
+  (match (scope, entry) :: rest, wanted with
+    | [], x => h_1 x
+    | (scope, entry) :: rest, wanted => h_2 scope entry rest wanted) =
+    h_2 scope entry rest wanted
+'_private.YulangClosure.NativeScopeTransformer.0.YulangClosure.NativeScopeTransformer.entryAt.match_1.eq_2' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.NativeScopeTransformer.0.YulangClosure.NativeScopeTransformer.entryAt.match_1.eq_2
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.State.rename.eq_1
+YulangClosure.NativeScopeTransformer.State.rename.eq_1 : ∀ (state : YulangClosure.NativeScopeTransformer.State)
+  (scopes tags : Nat → Nat),
+  state.rename scopes tags = { inputs := List.map tags state.inputs, protections := List.map scopes state.protections }
+'YulangClosure.NativeScopeTransformer.State.rename.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.State.rename.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Transformer.rename.eq_1
+YulangClosure.NativeScopeTransformer.Transformer.rename.eq_1 : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer) (scopes tags : Nat → Nat),
+  transformer.rename scopes tags =
+    { stamped := List.map tags transformer.stamped,
+      scopes := List.map (fun entry => (scopes entry.fst, entry.snd.rename tags)) transformer.scopes }
+'YulangClosure.NativeScopeTransformer.Transformer.rename.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Transformer.rename.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.missing_rename
+YulangClosure.NativeScopeTransformer.missing_rename : ∀ (guards inputs : List Nat) (tags : Nat → Nat),
+  Function.Injective tags →
+    (YulangClosure.NativeScopeTransformer.Missing (List.map tags guards) (List.map tags inputs) ↔
+      YulangClosure.NativeScopeTransformer.Missing guards inputs)
+'YulangClosure.NativeScopeTransformer.missing_rename' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.missing_rename
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_stamp._simp_1_1
+YulangClosure.NativeScopeTransformer.evaluate_stamp._simp_1_1 : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State) (scope : Nat),
+  (scope ∈ (transformer.evaluate initial).protections) =
+    ((transformer.entry scope).keep = Bool.true ∧ scope ∈ initial.protections ∨
+      YulangClosure.NativeScopeTransformer.Missing (transformer.entry scope).missing initial.inputs)
+'YulangClosure.NativeScopeTransformer.evaluate_stamp._simp_1_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_stamp._simp_1_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.missing_nil._simp_1
+YulangClosure.NativeScopeTransformer.missing_nil._simp_1 : ∀ (inputs : List Nat),
+  YulangClosure.NativeScopeTransformer.Missing [] inputs = False
+'YulangClosure.NativeScopeTransformer.missing_nil._simp_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.missing_nil._simp_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_3
+YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_3 : ∀ (a : Bool) (a_1 : List Nat) (b : Bool)
+  (b_1 : List Nat), ¬a = b → { keep := a, missing := a_1 } = { keep := b, missing := b_1 } → False
+'YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_3' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.instDecidableEqEntry.decEq._proof_3
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.untouched_scope
+YulangClosure.NativeScopeTransformer.untouched_scope : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer) (scope : Nat)
+  (initial : YulangClosure.NativeScopeTransformer.State),
+  ¬scope ∈ YulangClosure.NativeScopeTransformer.keys transformer.scopes →
+    (scope ∈ (transformer.evaluate initial).protections ↔ scope ∈ initial.protections)
+'YulangClosure.NativeScopeTransformer.untouched_scope' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.untouched_scope
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Equivalent.refl
+YulangClosure.NativeScopeTransformer.Equivalent.refl : ∀ (state : YulangClosure.NativeScopeTransformer.State),
+  YulangClosure.NativeScopeTransformer.Equivalent state state
+'YulangClosure.NativeScopeTransformer.Equivalent.refl' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Equivalent.refl
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.keys.eq_1
+YulangClosure.NativeScopeTransformer.keys.eq_1 : ∀ (entries : List (Nat × YulangClosure.NativeScopeTransformer.Entry)),
+  YulangClosure.NativeScopeTransformer.keys entries = List.map Prod.fst entries
+'YulangClosure.NativeScopeTransformer.keys.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.keys.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.release_no_revival._simp_1_1
+YulangClosure.NativeScopeTransformer.release_no_revival._simp_1_1 : ∀ (scope : Nat)
+  (initial : YulangClosure.NativeScopeTransformer.State),
+  (scope ∈ ((YulangClosure.NativeScopeTransformer.release scope).evaluate initial).protections) = False
+'YulangClosure.NativeScopeTransformer.release_no_revival._simp_1_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.release_no_revival._simp_1_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.stamp_then_protect
+YulangClosure.NativeScopeTransformer.stamp_then_protect : ∀ (scope tag : Nat)
+  (initial : YulangClosure.NativeScopeTransformer.State) (observed : Nat),
+  observed ∈
+      (((YulangClosure.NativeScopeTransformer.stamp tag).then
+              (YulangClosure.NativeScopeTransformer.protect scope tag)).evaluate
+          initial).protections ↔
+    observed ∈ initial.protections
+'YulangClosure.NativeScopeTransformer.stamp_then_protect' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.stamp_then_protect
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.encode.eq_1
+YulangClosure.NativeScopeTransformer.encode.eq_1 : ∀ (support : List Nat)
+  (value : Nat → YulangClosure.NativeScopeTransformer.Entry),
+  YulangClosure.NativeScopeTransformer.encode support value =
+    List.filterMap
+      (fun scope =>
+        if value scope = YulangClosure.NativeScopeTransformer.identityEntry then Option.none
+        else Option.some (scope, value scope))
+      support
+'YulangClosure.NativeScopeTransformer.encode.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.encode.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Fact.mk.injEq
+@YulangClosure.NativeScopeTransformer.Fact.mk.injEq : ∀ {Witness : Type} (witness : Witness)
+  (state : YulangClosure.NativeScopeTransformer.State) (witness_1 : Witness)
+  (state_1 : YulangClosure.NativeScopeTransformer.State),
+  ({ witness := witness, state := state } = { witness := witness_1, state := state_1 }) =
+    (witness = witness_1 ∧ state = state_1)
+'YulangClosure.NativeScopeTransformer.Fact.mk.injEq' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Fact.mk.injEq
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.protect_then_stamp
+YulangClosure.NativeScopeTransformer.protect_then_stamp : ∀ (scope tag : Nat)
+  (initial : YulangClosure.NativeScopeTransformer.State) (observed : Nat),
+  observed ∈
+      (((YulangClosure.NativeScopeTransformer.protect scope tag).then
+              (YulangClosure.NativeScopeTransformer.stamp tag)).evaluate
+          initial).protections ↔
+    observed ∈ initial.protections ∨ observed = scope ∧ ¬tag ∈ initial.inputs
+'YulangClosure.NativeScopeTransformer.protect_then_stamp' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.protect_then_stamp
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.missing_append._simp_1_3
+@YulangClosure.NativeScopeTransformer.missing_append._simp_1_3 : ∀ {α : Sort u_1} {p q : α → Prop},
+  (∃ x, p x ∨ q x) = ((∃ x, p x) ∨ ∃ x, q x)
+'YulangClosure.NativeScopeTransformer.missing_append._simp_1_3' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.missing_append._simp_1_3
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Fact.mk.inj
+@YulangClosure.NativeScopeTransformer.Fact.mk.inj : ∀ {Witness : Type} {witness : Witness}
+  {state : YulangClosure.NativeScopeTransformer.State} {witness_1 : Witness}
+  {state_1 : YulangClosure.NativeScopeTransformer.State},
+  { witness := witness, state := state } = { witness := witness_1, state := state_1 } →
+    witness = witness_1 ∧ state = state_1
+'YulangClosure.NativeScopeTransformer.Fact.mk.inj' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Fact.mk.inj
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_3
+YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_3 : ∀ (a a_1 b b_1 : List Nat),
+  ¬a = b → { inputs := a, protections := a_1 } = { inputs := b, protections := b_1 } → False
+'YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_3' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.instDecidableEqState.decEq._proof_3
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.identity.eq_1
+YulangClosure.NativeScopeTransformer.identity.eq_1 : YulangClosure.NativeScopeTransformer.identity = { }
+'YulangClosure.NativeScopeTransformer.identity.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.identity.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.compose_missing._simp_1_2
+YulangClosure.NativeScopeTransformer.compose_missing._simp_1_2 : ∀ (first second inputs : List Nat),
+  YulangClosure.NativeScopeTransformer.Missing (first ++ second) inputs =
+    (YulangClosure.NativeScopeTransformer.Missing first inputs ∨
+      YulangClosure.NativeScopeTransformer.Missing second inputs)
+'YulangClosure.NativeScopeTransformer.compose_missing._simp_1_2' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.compose_missing._simp_1_2
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Equivalent.trans
+@YulangClosure.NativeScopeTransformer.Equivalent.trans : ∀
+  {first middle last : YulangClosure.NativeScopeTransformer.State},
+  YulangClosure.NativeScopeTransformer.Equivalent first middle →
+    YulangClosure.NativeScopeTransformer.Equivalent middle last →
+      YulangClosure.NativeScopeTransformer.Equivalent first last
+'YulangClosure.NativeScopeTransformer.Equivalent.trans' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Equivalent.trans
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.then_entry
+YulangClosure.NativeScopeTransformer.then_entry : ∀ (first second : YulangClosure.NativeScopeTransformer.Transformer)
+  (scope : Nat),
+  (first.then second).entry scope =
+    YulangClosure.NativeScopeTransformer.composeEntry (first.entry scope) (second.entry scope) first.stamped
+'YulangClosure.NativeScopeTransformer.then_entry' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.then_entry
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.entryAt.eq_def
+YulangClosure.NativeScopeTransformer.entryAt.eq_def : ∀ (x : List (Nat × YulangClosure.NativeScopeTransformer.Entry))
+  (x_1 : Nat),
+  YulangClosure.NativeScopeTransformer.entryAt x x_1 =
+    match x, x_1 with
+    | [], x => YulangClosure.NativeScopeTransformer.identityEntry
+    | (scope, entry) :: rest, wanted =>
+      if scope = wanted then entry else YulangClosure.NativeScopeTransformer.entryAt rest wanted
+'YulangClosure.NativeScopeTransformer.entryAt.eq_def' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.entryAt.eq_def
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.protect.eq_1
+YulangClosure.NativeScopeTransformer.protect.eq_1 : ∀ (scope tag : Nat),
+  YulangClosure.NativeScopeTransformer.protect scope tag = { scopes := [(scope, { missing := [tag] })] }
+'YulangClosure.NativeScopeTransformer.protect.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.protect.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.Missing.eq_1
+YulangClosure.NativeScopeTransformer.Missing.eq_1 : ∀ (guards inputs : List Nat),
+  YulangClosure.NativeScopeTransformer.Missing guards inputs = ∃ tag, tag ∈ guards ∧ ¬tag ∈ inputs
+'YulangClosure.NativeScopeTransformer.Missing.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.Missing.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.NativeScopeTransformer.evaluate_protect._simp_1_1
+YulangClosure.NativeScopeTransformer.evaluate_protect._simp_1_1 : ∀
+  (transformer : YulangClosure.NativeScopeTransformer.Transformer)
+  (initial : YulangClosure.NativeScopeTransformer.State) (scope : Nat),
+  (scope ∈ (transformer.evaluate initial).protections) =
+    ((transformer.entry scope).keep = Bool.true ∧ scope ∈ initial.protections ∨
+      YulangClosure.NativeScopeTransformer.Missing (transformer.entry scope).missing initial.inputs)
+'YulangClosure.NativeScopeTransformer.evaluate_protect._simp_1_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeScopeTransformer.evaluate_protect._simp_1_1
+YULANG_AUDIT_BEGIN YulangClosure.SourceIdentityWorld.OwnerActive.eq_1
+@YulangClosure.SourceIdentityWorld.OwnerActive.eq_1 : ∀ {Site : Type}
+  (c : YulangClosure.SourceIdentityWorld.Control Site),
+  YulangClosure.SourceIdentityWorld.OwnerActive c YulangClosure.SourceIdentityWorld.Owner.moduleRun = True
+'YulangClosure.SourceIdentityWorld.OwnerActive.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.SourceIdentityWorld.OwnerActive.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.source_publication_constructs_replay
+@YulangClosure.OriginalEffectHygiene.source_publication_constructs_replay : ∀ {Value : Type}
+  (environment : YulangClosure.OriginalSource.Environment Value) (name : YulangClosure.OriginalSource.Name)
+  (site : YulangClosure.OriginalSource.Site),
+  environment.publicationValid [(name, site)] →
+    ∃ identity record published restored,
+      environment.publicationCandidate site = Option.some (identity, record) ∧
+        environment.publications identity = Option.some record ∧
+          environment.publish [(name, site)] = Option.some published ∧
+            published.atPublication name = Option.some restored ∧
+              record.captures = environment.names ∧
+                restored.eventPath = record.entryPath ∧
+                  restored.names = record.entryNames ∧
+                    restored.replay = Option.some record.fixedFrames ∧
+                      restored.anchors = environment.anchors ∧ restored.publications = environment.publications
+'YulangClosure.OriginalEffectHygiene.source_publication_constructs_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.source_publication_constructs_replay
+YULANG_AUDIT_BEGIN YulangClosure.OriginalSource.Binder.isEvent.eq_1
+YulangClosure.OriginalSource.Binder.isEvent.eq_1 : ∀ (binder : YulangClosure.OriginalSource.Binder),
+  binder.isEvent =
+    match binder.kind with
+    | YulangClosure.OriginalSource.BinderKind.invocation => Bool.true
+    | YulangClosure.OriginalSource.BinderKind.receipt => Bool.true
+    | YulangClosure.OriginalSource.BinderKind.returnRebind => Bool.true
+    | YulangClosure.OriginalSource.BinderKind.rigidOperation => Bool.true
+    | YulangClosure.OriginalSource.BinderKind.response => Bool.true
+    | YulangClosure.OriginalSource.BinderKind.oneShot => Bool.true
+    | x => Bool.false
+'YulangClosure.OriginalSource.Binder.isEvent.eq_1' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.OriginalSource.Binder.isEvent.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.substitution_cannot_identify_distinct_operations
+YulangClosure.OriginalEffectHygiene.substitution_cannot_identify_distinct_operations : ∀
+  (first second : YulangClosure.PaperTypes.OperationInstance) (left right : Nat → YulangClosure.PaperTypes.Ty),
+  first.identity ≠ second.identity →
+    YulangClosure.PaperTypes.OperationInstance.subst left first ≠
+      YulangClosure.PaperTypes.OperationInstance.subst right second
+'YulangClosure.OriginalEffectHygiene.substitution_cannot_identify_distinct_operations' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.substitution_cannot_identify_distinct_operations
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.Native.name_preserves_historical_evidence
+@YulangClosure.OriginalEffectHygiene.Native.name_preserves_historical_evidence : ∀ {K V D ViewData Rest Site : Type}
+  [inst : DecidableEq K] [inst_1 : DecidableEq V]
+  {before after : YulangClosure.SourceIdentityWorld.World K D V ViewData Site Rest} {environment : Nat} {key : K}
+  {site : Site} {dispatch : Option Nat} {result : YulangClosure.SourceIdentityWorld.Received V},
+  YulangClosure.SourceIdentityWorld.observeName before environment key site dispatch = Option.some (after, result) →
+    after.control = before.control ∧
+      after.receiving.views = before.receiving.views ∧
+        (∀ (receipt : YulangClosure.SourceIdentityWorld.Receipt K Site),
+            YulangClosure.SourceFunctionMembership.Recorded before.receiving receipt →
+              YulangClosure.SourceFunctionMembership.Recorded after.receiving receipt) ∧
+          ∀ (owner : YulangClosure.SourceIdentityWorld.Owner),
+            ¬YulangClosure.SourceIdentityWorld.OwnerActive before.control owner →
+              ¬YulangClosure.SourceIdentityWorld.OwnerActive after.control owner
+'YulangClosure.OriginalEffectHygiene.Native.name_preserves_historical_evidence' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.Native.name_preserves_historical_evidence
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.publication_candidate_provenance
+@YulangClosure.OriginalEffectHygiene.publication_candidate_provenance : ∀ {Value : Type}
+  {environment : YulangClosure.OriginalSource.Environment Value} {site : YulangClosure.OriginalSource.Site}
+  {identity : YulangClosure.OriginalSource.PublicationId Value}
+  {record : YulangClosure.OriginalSource.PublicationRecord Value},
+  environment.publicationCandidate site = Option.some (identity, record) →
+    record.identity = identity ∧
+      record.captures = environment.names ∧
+        record.fixedFrames = List.filter (fun frame => frame.binder.isFixed) (environment.prefixAtShared site) ∧
+          (∀ (frame : YulangClosure.OriginalSource.Frame Value),
+              frame ∈ record.fixedFrames → frame.binder.isFixed = Bool.true) ∧
+            ∃ entry,
+              (List.dropWhile (fun entry => entry.site != site) environment.initializers).head? = Option.some entry ∧
+                record.entryPath = entry.path ∧
+                  record.entryNames = entry.names ∧
+                    record.entryFrames = entry.frames ∧
+                      record.initializers = List.dropWhile (fun entry => entry.site != site) environment.initializers
+'YulangClosure.OriginalEffectHygiene.publication_candidate_provenance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.publication_candidate_provenance
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.operation_substitution_keeps_declaration
+YulangClosure.OriginalEffectHygiene.operation_substitution_keeps_declaration : ∀
+  (operation : YulangClosure.PaperTypes.OperationInstance) (substitution : Nat → YulangClosure.PaperTypes.Ty),
+  (YulangClosure.PaperTypes.OperationInstance.subst substitution operation).identity = operation.identity
+'YulangClosure.OriginalEffectHygiene.operation_substitution_keeps_declaration' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.operation_substitution_keeps_declaration
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.execution_lookup_provenance
+@YulangClosure.OriginalEffectHygiene.execution_lookup_provenance : ∀ {Value : Type}
+  {environment : YulangClosure.OriginalSource.Environment Value} {binder : YulangClosure.OriginalSource.Binder}
+  {value : YulangClosure.OriginalSource.ScopedValue Value},
+  environment.executionValue binder = Option.some value →
+    ∃ history frame,
+      environment.replay = Option.some history ∧
+        frame ∈ history ∧ frame.binder = binder ∧ frame.entryPath = environment.eventPath ∧ frame.value = value
+'YulangClosure.OriginalEffectHygiene.execution_lookup_provenance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.execution_lookup_provenance
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.description_extension_keeps_replay
+@YulangClosure.OriginalEffectHygiene.description_extension_keeps_replay : ∀ {Value : Type}
+  (environment : YulangClosure.OriginalSource.Environment Value)
+  (description target : YulangClosure.OriginalSource.Binder)
+  (candidate : YulangClosure.OriginalSource.ScopedValue Value),
+  description.isEvent = Bool.false →
+    (environment.extend description candidate).executionValue target = environment.executionValue target
+'YulangClosure.OriginalEffectHygiene.description_extension_keeps_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.description_extension_keeps_replay
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.Native.return_then_name_cannot_revive
+@YulangClosure.OriginalEffectHygiene.Native.return_then_name_cannot_revive : ∀ {K V D ViewData Rest Site : Type}
+  [inst : DecidableEq K] [inst_1 : DecidableEq V]
+  {before returned after : YulangClosure.SourceIdentityWorld.World K D V ViewData Site Rest} {id : Nat}
+  {previous : YulangClosure.SourceIdentityWorld.Owner}
+  {value returnedValue result : YulangClosure.SourceIdentityWorld.Received V} {environment : Nat} {key : K}
+  {site : Site} {dispatch : Option Nat},
+  YulangClosure.SourceIdentityWorld.returnOwned before id previous value = Option.some (returned, returnedValue) →
+    YulangClosure.SourceIdentityWorld.observeName returned environment key site dispatch = Option.some (after, result) →
+      ¬YulangClosure.SourceIdentityWorld.OwnerActive after.control
+            (YulangClosure.SourceIdentityWorld.Owner.invocation id) ∧
+        ∀ (receipt : YulangClosure.SourceIdentityWorld.Receipt K Site),
+          YulangClosure.SourceFunctionMembership.Recorded before.receiving receipt →
+            YulangClosure.SourceFunctionMembership.Recorded after.receiving receipt
+'YulangClosure.OriginalEffectHygiene.Native.return_then_name_cannot_revive' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.Native.return_then_name_cannot_revive
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.Native.owned_return_expires
+@YulangClosure.OriginalEffectHygiene.Native.owned_return_expires : ∀ {Site : Type}
+  {before after : YulangClosure.SourceIdentityWorld.Control Site} {id : Nat}
+  {previous : YulangClosure.SourceIdentityWorld.Owner},
+  before.leave id previous = Option.some after →
+    ¬YulangClosure.SourceIdentityWorld.OwnerActive after (YulangClosure.SourceIdentityWorld.Owner.invocation id)
+'YulangClosure.OriginalEffectHygiene.Native.owned_return_expires' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.Native.owned_return_expires
+YULANG_AUDIT_BEGIN YulangClosure.OriginalSource.Environment.publish.eq_1
+@YulangClosure.OriginalSource.Environment.publish.eq_1 : ∀ {Value : Type}
+  (environment : YulangClosure.OriginalSource.Environment Value)
+  (bindings : List (YulangClosure.OriginalSource.Name × YulangClosure.OriginalSource.Site)),
+  environment.publish bindings = do
+    let additions ←
+      List.mapM
+          (fun binding => do
+            let candidate ← environment.publicationCandidate binding.snd
+            Pure.pure (binding.fst, candidate.fst))
+          bindings
+    Pure.pure
+        { root := environment.root, anchors := environment.anchors, publications := environment.publications,
+          origin := environment.origin, eventPath := environment.eventPath, names := additions ++ environment.names,
+          frames := environment.frames, replay := environment.replay, initializers := environment.initializers }
+'YulangClosure.OriginalSource.Environment.publish.eq_1' depends on axioms: [propext, Classical.choice, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalSource.Environment.publish.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.replay_rejects_foreign_path
+@YulangClosure.OriginalEffectHygiene.replay_rejects_foreign_path : ∀ {Value : Type}
+  {environment : YulangClosure.OriginalSource.Environment Value}
+  {history : List (YulangClosure.OriginalSource.Frame Value)} {binder : YulangClosure.OriginalSource.Binder},
+  environment.replay = Option.some history →
+    (∀ (frame : YulangClosure.OriginalSource.Frame Value),
+        frame ∈ history → frame.binder = binder → frame.entryPath ≠ environment.eventPath) →
+      environment.executionValue binder = Option.none
+'YulangClosure.OriginalEffectHygiene.replay_rejects_foreign_path' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.replay_rejects_foreign_path
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.future_scope_has_no_replay_value
+@YulangClosure.OriginalEffectHygiene.future_scope_has_no_replay_value : ∀ {Value : Type}
+  (environment : YulangClosure.OriginalSource.Environment Value) (site arity : Nat)
+  (kind : YulangClosure.OriginalSource.BinderKind) (candidate : YulangClosure.OriginalSource.ScopedValue Value)
+  (target : YulangClosure.OriginalSource.Binder),
+  kind = YulangClosure.OriginalSource.BinderKind.invocation ∨
+      kind = YulangClosure.OriginalSource.BinderKind.rigidOperation ∨
+        kind = YulangClosure.OriginalSource.BinderKind.response →
+    (environment.extend { site := site, kind := kind, arity := arity } candidate).executionValue target = Option.none
+'YulangClosure.OriginalEffectHygiene.future_scope_has_no_replay_value' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.future_scope_has_no_replay_value
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalEffectHygiene.0.YulangClosure.SourceIdentityWorld.OwnerActive.match_1.eq_2
+_private.YulangClosure.OriginalEffectHygiene.0.YulangClosure.SourceIdentityWorld.OwnerActive.match_1.eq_2 : ∀
+  (motive : YulangClosure.SourceIdentityWorld.Owner → Sort u_1) (id : Nat)
+  (h_1 : Unit → motive YulangClosure.SourceIdentityWorld.Owner.moduleRun)
+  (h_2 : (id : Nat) → motive (YulangClosure.SourceIdentityWorld.Owner.invocation id)),
+  (match YulangClosure.SourceIdentityWorld.Owner.invocation id with
+    | YulangClosure.SourceIdentityWorld.Owner.moduleRun => h_1 ()
+    | YulangClosure.SourceIdentityWorld.Owner.invocation id => h_2 id) =
+    h_2 id
+'_private.YulangClosure.OriginalEffectHygiene.0.YulangClosure.SourceIdentityWorld.OwnerActive.match_1.eq_2' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalEffectHygiene.0.YulangClosure.SourceIdentityWorld.OwnerActive.match_1.eq_2
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.generated_new_use_keeps_original_publication
+@YulangClosure.OriginalEffectHygiene.generated_new_use_keeps_original_publication : ∀ {Value : Type}
+  (kernel : YulangClosure.OriginalSource.Kernel Value) (environment : YulangClosure.OriginalSource.Environment Value)
+  (context : YulangClosure.OriginalSource.Context) (site : YulangClosure.OriginalSource.Site)
+  (definition : YulangClosure.OriginalSource.Definition) (instanceName : YulangClosure.OriginalSource.Name)
+  (rest : YulangClosure.OriginalSource.Client),
+  YulangClosure.OriginalSource.Satisfies kernel environment
+      (YulangClosure.OriginalSource.BuildJoint context
+        (YulangClosure.OriginalSource.Client.newUse site definition instanceName rest)) →
+    ∃ candidate restored aliased identity record,
+      kernel.admitted environment { site := site, kind := YulangClosure.OriginalSource.BinderKind.publishedInstance }
+          candidate ∧
+        YulangClosure.OriginalSource.SourceJudgment kernel restored definition.context definition.source ∧
+          YulangClosure.OriginalSource.JointJudgment kernel aliased
+              (YulangClosure.OriginalSource.bindNames context site YulangClosure.OriginalSource.BindingKind.local
+                [instanceName])
+              rest ∧
+            environment.publicationName definition.anchor = Option.some identity ∧
+              environment.publications identity = Option.some record ∧
+                record.identity = identity ∧
+                  (∀ (frame : YulangClosure.OriginalSource.Frame Value),
+                      frame ∈ record.fixedFrames → frame.binder.isFixed = Bool.true) ∧
+                    restored.root = environment.root ∧
+                      restored.anchors = environment.anchors ∧
+                        restored.publications = environment.publications ∧
+                          restored.eventPath = record.entryPath ∧
+                            restored.names = record.entryNames ∧
+                              restored.replay = Option.some record.fixedFrames ∧
+                                aliased.publicationName instanceName = Option.some identity
+'YulangClosure.OriginalEffectHygiene.generated_new_use_keeps_original_publication' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.generated_new_use_keeps_original_publication
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.publication_lookup_provenance
+@YulangClosure.OriginalEffectHygiene.publication_lookup_provenance : ∀ {Value : Type}
+  {environment restored : YulangClosure.OriginalSource.Environment Value} {name : YulangClosure.OriginalSource.Name},
+  environment.atPublication name = Option.some restored →
+    ∃ identity record,
+      environment.publicationName name = Option.some identity ∧
+        environment.publications identity = Option.some record ∧
+          record.identity = identity ∧
+            (∀ (frame : YulangClosure.OriginalSource.Frame Value),
+                frame ∈ record.fixedFrames → frame.binder.isFixed = Bool.true) ∧
+              restored = environment.restore record
+'YulangClosure.OriginalEffectHygiene.publication_lookup_provenance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.publication_lookup_provenance
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.published_execution_judgment
+@YulangClosure.OriginalEffectHygiene.published_execution_judgment : ∀ {Value : Type}
+  (kernel : YulangClosure.OriginalSource.Kernel Value)
+  {environment restored : YulangClosure.OriginalSource.Environment Value} {name : YulangClosure.OriginalSource.Name}
+  {binder : YulangClosure.OriginalSource.Binder} {body : YulangClosure.OriginalSource.RuleTree},
+  environment.atPublication name = Option.some restored →
+    YulangClosure.OriginalSource.Judgment kernel restored
+        (YulangClosure.OriginalSource.RuleTree.executionE binder body) →
+      ∃ value identity record frame,
+        kernel.admitted restored binder value ∧
+          YulangClosure.OriginalSource.Judgment kernel (restored.extend binder value) body ∧
+            environment.publicationName name = Option.some identity ∧
+              environment.publications identity = Option.some record ∧
+                record.identity = identity ∧
+                  frame ∈ record.fixedFrames ∧
+                    frame.binder = binder ∧
+                      frame.entryPath = record.entryPath ∧ frame.value = value ∧ binder.isFixed = Bool.true
+'YulangClosure.OriginalEffectHygiene.published_execution_judgment' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.published_execution_judgment
+YULANG_AUDIT_BEGIN YulangClosure.OriginalSource.Environment.executionValue.eq_1
+@YulangClosure.OriginalSource.Environment.executionValue.eq_1 : ∀ {Value : Type}
+  (environment : YulangClosure.OriginalSource.Environment Value) (binder : YulangClosure.OriginalSource.Binder),
+  environment.executionValue binder = do
+    let saved ← environment.replay
+    let frame ←
+      List.find? (fun frame => Decidable.decide (frame.binder = binder ∧ frame.entryPath = environment.eventPath)) saved
+    Pure.pure frame.value
+'YulangClosure.OriginalSource.Environment.executionValue.eq_1' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalSource.Environment.executionValue.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalEffectHygiene.published_replay_provenance
+@YulangClosure.OriginalEffectHygiene.published_replay_provenance : ∀ {Value : Type}
+  {environment restored : YulangClosure.OriginalSource.Environment Value} {name : YulangClosure.OriginalSource.Name}
+  {binder : YulangClosure.OriginalSource.Binder} {value : YulangClosure.OriginalSource.ScopedValue Value},
+  environment.atPublication name = Option.some restored →
+    restored.executionValue binder = Option.some value →
+      ∃ identity record frame,
+        environment.publicationName name = Option.some identity ∧
+          environment.publications identity = Option.some record ∧
+            record.identity = identity ∧
+              frame ∈ record.fixedFrames ∧
+                frame.binder = binder ∧
+                  frame.entryPath = record.entryPath ∧
+                    frame.value = value ∧
+                      binder.isFixed = Bool.true ∧
+                        restored.root = environment.root ∧
+                          restored.anchors = environment.anchors ∧
+                            restored.publications = environment.publications ∧
+                              (binder.isEvent = Bool.true → (restored.extend binder value).eventPath = frame.exitPath)
+'YulangClosure.OriginalEffectHygiene.published_replay_provenance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalEffectHygiene.published_replay_provenance
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalEffectHygiene.0.YulangClosure.SourceIdentityWorld.OwnerActive.match_1.eq_1
+_private.YulangClosure.OriginalEffectHygiene.0.YulangClosure.SourceIdentityWorld.OwnerActive.match_1.eq_1 : ∀
+  (motive : YulangClosure.SourceIdentityWorld.Owner → Sort u_1)
+  (h_1 : Unit → motive YulangClosure.SourceIdentityWorld.Owner.moduleRun)
+  (h_2 : (id : Nat) → motive (YulangClosure.SourceIdentityWorld.Owner.invocation id)),
+  (match YulangClosure.SourceIdentityWorld.Owner.moduleRun with
+    | YulangClosure.SourceIdentityWorld.Owner.moduleRun => h_1 ()
+    | YulangClosure.SourceIdentityWorld.Owner.invocation id => h_2 id) =
+    h_1 ()
+'_private.YulangClosure.OriginalEffectHygiene.0.YulangClosure.SourceIdentityWorld.OwnerActive.match_1.eq_1' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalEffectHygiene.0.YulangClosure.SourceIdentityWorld.OwnerActive.match_1.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalSource.Environment.atPublication.eq_1
+@YulangClosure.OriginalSource.Environment.atPublication.eq_1 : ∀ {Value : Type}
+  (environment : YulangClosure.OriginalSource.Environment Value) (binding : YulangClosure.OriginalSource.Name),
+  environment.atPublication binding = do
+    let identity ← environment.publicationName binding
+    let record ← environment.publications identity
+    if ¬(record.identity = identity ∧ (record.fixedFrames.all fun frame => frame.binder.isFixed) = Bool.true) then
+        Option.none
+      else Pure.pure (environment.restore record)
+'YulangClosure.OriginalSource.Environment.atPublication.eq_1' depends on axioms: [propext, Classical.choice, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalSource.Environment.atPublication.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.SourceIdentityWorld.OwnerActive.eq_2
+@YulangClosure.SourceIdentityWorld.OwnerActive.eq_2 : ∀ {Site : Type}
+  (c : YulangClosure.SourceIdentityWorld.Control Site) (id : Nat),
+  YulangClosure.SourceIdentityWorld.OwnerActive c (YulangClosure.SourceIdentityWorld.Owner.invocation id) =
+    ∃ invocation, c.invocations.cell id = Option.some invocation ∧ invocation.active = Bool.true
+'YulangClosure.SourceIdentityWorld.OwnerActive.eq_2' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.SourceIdentityWorld.OwnerActive.eq_2
+YULANG_AUDIT_BEGIN YulangClosure.OriginalSource.Frame.exitPath.eq_1
+@YulangClosure.OriginalSource.Frame.exitPath.eq_1 : ∀ {Value : Type} (frame : YulangClosure.OriginalSource.Frame Value),
+  frame.exitPath =
+    { parents := frame.entryPath, occurrence := frame.value.event.occurrence }.path frame.binder frame.value.data
+'YulangClosure.OriginalSource.Frame.exitPath.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalSource.Frame.exitPath.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation.eq_1
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation.eq_1 : ∀ (x : YulangClosure.SimpleSub.Kind)
+  (i : Nat),
+  YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation x i =
+    if i = 4 ∨ i = 5 then YulangClosure.SimpleSub.Term.atom 0
+    else
+      if i = 7 ∨ i = 8 then YulangClosure.SimpleSub.Term.atom 1
+      else
+        if i = 9 then (YulangClosure.SimpleSub.Term.atom 0).union (YulangClosure.SimpleSub.Term.atom 1)
+        else YulangClosure.SimpleSub.Term.atom 2
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.package.eq_1
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.package.eq_1 : ∀ (input output : Nat),
+  YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.package input output =
+    (YulangClosure.SimpleSub.Term.var input).function (YulangClosure.SimpleSub.Term.var input)
+      (YulangClosure.SimpleSub.Term.var output)
+      (YulangClosure.SimpleSub.Term.recordCons 7 Bool.true
+        ((YulangClosure.SimpleSub.Term.var output).tupleCons YulangClosure.SimpleSub.Term.tupleNil)
+        (YulangClosure.SimpleSub.Term.recordCons 9 Bool.false
+          (YulangClosure.SimpleSub.Term.variantCons 3 (YulangClosure.SimpleSub.Term.var output)
+            YulangClosure.SimpleSub.Term.variantNil)
+          YulangClosure.SimpleSub.Term.recordNil))
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.package.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.package.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.constructive_two_use_descent
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.constructive_two_use_descent : ∃ σ,
+  YulangClosure.SimpleSub.Store.Satisfied σ
+      (YulangClosure.SimpleSub.Generalization.usesStore 3 0
+          YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.after [0, 1]
+          (List.map
+            (YulangClosure.SimpleSub.Constraint.rename
+              YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.quotient)
+            YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.store) ++
+        List.map
+          (YulangClosure.SimpleSub.Constraint.rename YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.map)
+          YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients) ∧
+    (∀ (k : YulangClosure.SimpleSub.Kind) (root : YulangClosure.SimpleSub.Term k),
+        YulangClosure.SimpleSub.Term.subst σ
+            (YulangClosure.SimpleSub.Term.rename YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.map root) =
+          YulangClosure.SimpleSub.Term.subst YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation
+            root) ∧
+      σ YulangClosure.SimpleSub.Kind.value 4 = YulangClosure.SimpleSub.Term.atom 0 ∧
+        σ YulangClosure.SimpleSub.Kind.value 7 = YulangClosure.SimpleSub.Term.atom 1 ∧
+          σ YulangClosure.SimpleSub.Kind.effect 4 = YulangClosure.SimpleSub.Term.atom 0 ∧
+            σ YulangClosure.SimpleSub.Kind.effect 7 = YulangClosure.SimpleSub.Term.atom 1 ∧
+              σ YulangClosure.SimpleSub.Kind.value 9 =
+                  (YulangClosure.SimpleSub.Term.atom 0).union (YulangClosure.SimpleSub.Term.atom 1) ∧
+                YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.quotient YulangClosure.SimpleSub.Kind.value
+                      1 =
+                    YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.quotient
+                      YulangClosure.SimpleSub.Kind.value 2 ∧
+                  1 ≠ 2
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.constructive_two_use_descent' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.constructive_two_use_descent
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.use_bounds
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.use_bounds : ∀ (use : Nat), use ∈ [0, 1] → use < 2
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.use_bounds' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.use_bounds
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.Generalization.ConstraintBounded.eq_1
+YulangClosure.SimpleSub.Generalization.ConstraintBounded.eq_1 : ∀ (n : Nat) (c : YulangClosure.SimpleSub.Constraint),
+  YulangClosure.SimpleSub.Generalization.ConstraintBounded n c =
+    (YulangClosure.SimpleSub.Generalization.Bounded n c.lower ∧
+      YulangClosure.SimpleSub.Generalization.Bounded n c.upper)
+'YulangClosure.SimpleSub.Generalization.ConstraintBounded.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.SimpleSub.Generalization.ConstraintBounded.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied._simp_1_2
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied._simp_1_2 : ∀
+  (ρ : YulangClosure.SimpleSub.Valuation) (c : YulangClosure.SimpleSub.Constraint)
+  (store : YulangClosure.SimpleSub.Store),
+  YulangClosure.SimpleSub.Store.Satisfied ρ (c :: store) =
+    (YulangClosure.SimpleSub.Constraint.Satisfied ρ c ∧ YulangClosure.SimpleSub.Store.Satisfied ρ store)
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied._simp_1_2' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied._simp_1_2
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent._proof_1_1
+@YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent._proof_1_1 : ∀ {n count : Nat} (i : Nat),
+  ¬i < n → i < count * n + n → ¬i - n < count * n → False
+'YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent._proof_1_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent._proof_1_1
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied._simp_1_2
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied._simp_1_2 : ∀
+  (ρ : YulangClosure.SimpleSub.Valuation) (c : YulangClosure.SimpleSub.Constraint)
+  (store : YulangClosure.SimpleSub.Store),
+  YulangClosure.SimpleSub.Store.Satisfied ρ (c :: store) =
+    (YulangClosure.SimpleSub.Constraint.Satisfied ρ c ∧ YulangClosure.SimpleSub.Store.Satisfied ρ store)
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied._simp_1_2' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied._simp_1_2
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.two_use_disagreement_blocks_joint_descent
+YulangClosure.SimpleSub.OriginalPrincipality.two_use_disagreement_blocks_joint_descent : ∀
+  (ρ : YulangClosure.SimpleSub.Valuation),
+  ρ YulangClosure.SimpleSub.Kind.value 3 ≠ ρ YulangClosure.SimpleSub.Kind.value 5 →
+    ¬∃ σ,
+        ∀ (k : YulangClosure.SimpleSub.Kind) (i : Nat),
+          σ k
+              (YulangClosure.SimpleSub.Generalization.transport 2 2 0
+                (YulangClosure.SimpleSub.Generalization.quotientLevels 2 (fun x i => i) fun x x_1 => 0) (fun x x_1 => 0)
+                k i) =
+            ρ k i
+'YulangClosure.SimpleSub.OriginalPrincipality.two_use_disagreement_blocks_joint_descent' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.two_use_disagreement_blocks_joint_descent
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.store.eq_1
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.store.eq_1 : YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.store =
+  [{ kind := YulangClosure.SimpleSub.Kind.value, lower := YulangClosure.SimpleSub.Term.var 2,
+      upper := YulangClosure.SimpleSub.Term.var 1 },
+    { kind := YulangClosure.SimpleSub.Kind.effect, lower := YulangClosure.SimpleSub.Term.var 2,
+      upper := YulangClosure.SimpleSub.Term.var 1 },
+    { kind := YulangClosure.SimpleSub.Kind.value,
+      lower := YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.package 1 2,
+      upper := YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.package 2 1 }]
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.store.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.store.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.pullback_eq_self
+@YulangClosure.SimpleSub.OriginalPrincipality.pullback_eq_self : ∀ {n count boundary : Nat}
+  {after : YulangClosure.SimpleSub.Generalization.Levels} {q : YulangClosure.SimpleSub.Renaming},
+  YulangClosure.SimpleSub.Generalization.Canonical n q →
+    ∀ (ρ : YulangClosure.SimpleSub.Valuation),
+      YulangClosure.SimpleSub.OriginalPrincipality.FiberConstant
+          (YulangClosure.SimpleSub.Generalization.transport n count boundary after q) ρ →
+        (fun k i => ρ k (YulangClosure.SimpleSub.Generalization.transport n count boundary after q k i)) = ρ
+'YulangClosure.SimpleSub.OriginalPrincipality.pullback_eq_self' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.pullback_eq_self
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.before.eq_1
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.before.eq_1 : ∀ (x : YulangClosure.SimpleSub.Kind) (i : Nat),
+  YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.before x i = i
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.before.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.before.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed._proof_1_1
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed._proof_1_1 : ∀ (i : Nat),
+  i < 9 → ¬(i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 ∨ i = 4 ∨ i = 5 ∨ i = 6 ∨ i = 7 ∨ i = 8) → False
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed._proof_1_1' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed._proof_1_1
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent
+@YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent : ∀ {n count boundary : Nat}
+  {after : YulangClosure.SimpleSub.Generalization.Levels} {q : YulangClosure.SimpleSub.Renaming},
+  YulangClosure.SimpleSub.Generalization.Canonical n q →
+    ∀ (k : YulangClosure.SimpleSub.Kind) (i : Nat),
+      YulangClosure.SimpleSub.Generalization.transport n count boundary after q k
+          (YulangClosure.SimpleSub.Generalization.transport n count boundary after q k i) =
+        YulangClosure.SimpleSub.Generalization.transport n count boundary after q k i
+'YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.Generalization.StoreBounded.eq_1
+YulangClosure.SimpleSub.Generalization.StoreBounded.eq_1 : ∀ (n : Nat) (store : YulangClosure.SimpleSub.Store),
+  YulangClosure.SimpleSub.Generalization.StoreBounded n store =
+    ∀ (c : YulangClosure.SimpleSub.Constraint), c ∈ store → YulangClosure.SimpleSub.Generalization.ConstraintBounded n c
+'YulangClosure.SimpleSub.Generalization.StoreBounded.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.SimpleSub.Generalization.StoreBounded.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent._proof_1_2
+@YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent._proof_1_2 : ∀ {n : Nat} {count : Nat} (i : Nat),
+  ¬i < n → (i - n) % n + (i - n) / n * n = i - n → ¬n + (i - n) / n * n + (i - n) % n = i → False
+'YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent._proof_1_2' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.transport_idempotent._proof_1_2
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.bounded
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.bounded : YulangClosure.SimpleSub.Generalization.StoreBounded
+  3 YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.store
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.bounded' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.bounded
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed._proof_1_2
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed._proof_1_2 : ∀ (i : Nat),
+  ¬i < 9 → ¬3 * (2 + 1) ≤ i → False
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed._proof_1_2' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed._proof_1_2
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied : YulangClosure.SimpleSub.Store.Satisfied
+  YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation
+  YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied._simp_1_3
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied._simp_1_3 : ∀
+  (ρ : YulangClosure.SimpleSub.Valuation), YulangClosure.SimpleSub.Store.Satisfied ρ [] = True
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied._simp_1_3' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied._simp_1_3
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.quotient.eq_1
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.quotient.eq_1 : ∀ (x : YulangClosure.SimpleSub.Kind)
+  (i : Nat), YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.quotient x i = if i = 2 then 1 else i
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.quotient.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.quotient.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.canonical
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.canonical : YulangClosure.SimpleSub.Generalization.Canonical
+  3 YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.quotient
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.canonical' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.canonical
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed : ∀ (k : YulangClosure.SimpleSub.Kind)
+  (i : Nat),
+  YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation k
+      (YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.map k i) =
+    YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation k i
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation_fixed
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied : YulangClosure.SimpleSub.Store.Satisfied
+  YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation
+  (YulangClosure.SimpleSub.Generalization.usesStore 3 0
+    YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.before [0, 1]
+    YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.store)
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.before_satisfied
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.before_satisfied : YulangClosure.SimpleSub.Store.Satisfied
+  YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation
+  (YulangClosure.SimpleSub.Generalization.usesStore 3 0
+      YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.before [0, 1]
+      YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.store ++
+    YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients)
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.before_satisfied' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.before_satisfied
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied._simp_1_5
+@YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied._simp_1_5 : ∀
+  {k : YulangClosure.SimpleSub.Kind} (t : YulangClosure.SimpleSub.Term k), YulangClosure.SimpleSub.Sub t t = True
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied._simp_1_5' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied._simp_1_5
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.canonical._proof_1_1
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.canonical._proof_1_1 : ∀ (i : Nat),
+  i < 3 → ¬(i = 0 ∨ i = 1 ∨ i = 2) → False
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.canonical._proof_1_1' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.canonical._proof_1_1
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.joint_descent_iff_fiber_constant
+@YulangClosure.SimpleSub.OriginalPrincipality.joint_descent_iff_fiber_constant : ∀ {n count boundary : Nat}
+  {after : YulangClosure.SimpleSub.Generalization.Levels} {q : YulangClosure.SimpleSub.Renaming},
+  YulangClosure.SimpleSub.Generalization.Canonical n q →
+    ∀ (ρ : YulangClosure.SimpleSub.Valuation),
+      (∃ σ,
+          ∀ (k : YulangClosure.SimpleSub.Kind) (i : Nat),
+            σ k (YulangClosure.SimpleSub.Generalization.transport n count boundary after q k i) = ρ k i) ↔
+        YulangClosure.SimpleSub.OriginalPrincipality.FiberConstant
+          (YulangClosure.SimpleSub.Generalization.transport n count boundary after q) ρ
+'YulangClosure.SimpleSub.OriginalPrincipality.joint_descent_iff_fiber_constant' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.joint_descent_iff_fiber_constant
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied._simp_1_2
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied._simp_1_2 : ∀
+  (ρ : YulangClosure.SimpleSub.Valuation) (c : YulangClosure.SimpleSub.Constraint)
+  (store : YulangClosure.SimpleSub.Store),
+  YulangClosure.SimpleSub.Store.Satisfied ρ (c :: store) =
+    (YulangClosure.SimpleSub.Constraint.Satisfied ρ c ∧ YulangClosure.SimpleSub.Store.Satisfied ρ store)
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied._simp_1_2' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients_satisfied._simp_1_2
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.constant
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.constant : YulangClosure.SimpleSub.OriginalPrincipality.FiberConstant
+  YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.map
+  YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.constant' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.constant
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.quotient_uses_complete_on_fiber
+@YulangClosure.SimpleSub.OriginalPrincipality.quotient_uses_complete_on_fiber : ∀ {n count boundary : Nat}
+  {before after : YulangClosure.SimpleSub.Generalization.Levels} {q : YulangClosure.SimpleSub.Renaming}
+  {uses : List Nat} {store : YulangClosure.SimpleSub.Store},
+  YulangClosure.SimpleSub.Generalization.Canonical n q →
+    YulangClosure.SimpleSub.Generalization.StoreBounded n store →
+      YulangClosure.SimpleSub.Generalization.PreservesAnchors n boundary before after q →
+        (∀ (use : Nat), use ∈ uses → use < count) →
+          ∀ (clients : YulangClosure.SimpleSub.Store) (ρ : YulangClosure.SimpleSub.Valuation),
+            YulangClosure.SimpleSub.OriginalPrincipality.FiberConstant
+                (YulangClosure.SimpleSub.Generalization.transport n count boundary after q) ρ →
+              YulangClosure.SimpleSub.Store.Satisfied ρ
+                  (YulangClosure.SimpleSub.Generalization.usesStore n boundary before uses store ++ clients) →
+                YulangClosure.SimpleSub.Store.Satisfied ρ
+                  (YulangClosure.SimpleSub.Generalization.usesStore n boundary after uses
+                      (List.map (YulangClosure.SimpleSub.Constraint.rename q) store) ++
+                    List.map
+                      (YulangClosure.SimpleSub.Constraint.rename
+                        (YulangClosure.SimpleSub.Generalization.transport n count boundary after q))
+                      clients)
+'YulangClosure.SimpleSub.OriginalPrincipality.quotient_uses_complete_on_fiber' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.quotient_uses_complete_on_fiber
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients.eq_1
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients.eq_1 : YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients =
+  [{ kind := YulangClosure.SimpleSub.Kind.value, lower := YulangClosure.SimpleSub.Term.var 4,
+      upper := YulangClosure.SimpleSub.Term.var 9 },
+    { kind := YulangClosure.SimpleSub.Kind.value, lower := YulangClosure.SimpleSub.Term.var 7,
+      upper := YulangClosure.SimpleSub.Term.var 9 },
+    { kind := YulangClosure.SimpleSub.Kind.effect,
+      lower := (YulangClosure.SimpleSub.Term.var 4).union (YulangClosure.SimpleSub.Term.var 7),
+      upper := YulangClosure.SimpleSub.Term.var 9 }]
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.clients.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied._simp_1_6
+@YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied._simp_1_6 : ∀
+  {k : YulangClosure.SimpleSub.Kind} (t : YulangClosure.SimpleSub.Term k), YulangClosure.SimpleSub.Sub t t = True
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied._simp_1_6' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.uses_satisfied._simp_1_6
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.joint_solution_coverage_iff
+@YulangClosure.SimpleSub.OriginalPrincipality.joint_solution_coverage_iff : ∀ {n count boundary : Nat}
+  {before after : YulangClosure.SimpleSub.Generalization.Levels} {q : YulangClosure.SimpleSub.Renaming}
+  {uses : List Nat} {store : YulangClosure.SimpleSub.Store},
+  YulangClosure.SimpleSub.Generalization.Canonical n q →
+    YulangClosure.SimpleSub.Generalization.StoreBounded n store →
+      YulangClosure.SimpleSub.Generalization.PreservesAnchors n boundary before after q →
+        (∀ (use : Nat), use ∈ uses → use < count) →
+          ∀ (clients : YulangClosure.SimpleSub.Store) (observe : YulangClosure.SimpleSub.Valuation → Prop),
+            (∃ σ,
+                YulangClosure.SimpleSub.Store.Satisfied σ
+                    (YulangClosure.SimpleSub.Generalization.usesStore n boundary after uses
+                        (List.map (YulangClosure.SimpleSub.Constraint.rename q) store) ++
+                      List.map
+                        (YulangClosure.SimpleSub.Constraint.rename
+                          (YulangClosure.SimpleSub.Generalization.transport n count boundary after q))
+                        clients) ∧
+                  observe fun k i =>
+                    σ k (YulangClosure.SimpleSub.Generalization.transport n count boundary after q k i)) ↔
+              ∃ ρ,
+                YulangClosure.SimpleSub.Store.Satisfied ρ
+                    (YulangClosure.SimpleSub.Generalization.usesStore n boundary before uses store ++ clients) ∧
+                  YulangClosure.SimpleSub.OriginalPrincipality.FiberConstant
+                      (YulangClosure.SimpleSub.Generalization.transport n count boundary after q) ρ ∧
+                    observe ρ
+'YulangClosure.SimpleSub.OriginalPrincipality.joint_solution_coverage_iff' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.joint_solution_coverage_iff
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.root_descent
+@YulangClosure.SimpleSub.OriginalPrincipality.root_descent : ∀ {map : YulangClosure.SimpleSub.Renaming}
+  {ρ σ : YulangClosure.SimpleSub.Valuation},
+  (∀ (k : YulangClosure.SimpleSub.Kind) (i : Nat), σ k (map k i) = ρ k i) →
+    ∀ {k : YulangClosure.SimpleSub.Kind} (root : YulangClosure.SimpleSub.Term k),
+      YulangClosure.SimpleSub.Term.subst σ (YulangClosure.SimpleSub.Term.rename map root) =
+        YulangClosure.SimpleSub.Term.subst ρ root
+'YulangClosure.SimpleSub.OriginalPrincipality.root_descent' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.root_descent
+YULANG_AUDIT_BEGIN YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied
+YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied : YulangClosure.SimpleSub.Store.Satisfied
+  YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.valuation
+  YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.store
+'YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.SimpleSub.OriginalPrincipality.TwoUseExample.base_satisfied
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_3
+@YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_3 : ∀ {left : Nat}
+  {right parent : Nat}, right < parent → ¬parent = parent - 1 + 1 → False
+'YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_3' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_3
+YULANG_AUDIT_BEGIN YulangClosure.NativeContextExpansion.scanStep.eq_1
+YulangClosure.NativeContextExpansion.scanStep.eq_1 : ∀ (t : YulangClosure.NativeContextExpansion.Tables)
+  (s : YulangClosure.NativeContextExpansion.Scan),
+  YulangClosure.NativeContextExpansion.scanStep t s =
+    match s.pending with
+    | (id, mode) :: rest =>
+      if id = 0 ∨ (id, mode) ∈ s.visited then
+        Pure.pure
+          { pending := rest, visited := s.visited, filters := s.filters, residual := s.residual,
+            replayFilters := s.replayFilters, directed := s.directed, replayResidual := s.replayResidual }
+      else
+        have s :=
+          { pending := rest, visited := (id, mode) :: s.visited, filters := s.filters, residual := s.residual,
+            replayFilters := s.replayFilters, directed := s.directed, replayResidual := s.replayResidual };
+        do
+        let node ← t.contexts id
+        match node with
+          | YulangClosure.NativeContextExpansion.Expr.prefix w input =>
+            if
+                (mode = YulangClosure.NativeContextExpansion.Mode.outer ∨
+                    mode = YulangClosure.NativeContextExpansion.Mode.replay ∧ input = 0) ∧
+                  input < id ∧ YulangClosure.NativeContextExpansion.weightValid t w = Bool.true then
+              Pure.pure
+                { pending := (input, mode) :: rest, visited := s.visited,
+                  filters := YulangClosure.NativeMergeExpansion.attach w s.filters,
+                  residual := if mode = YulangClosure.NativeContextExpansion.Mode.outer then input else s.residual,
+                  replayFilters :=
+                    s.replayFilters || Decidable.decide (mode = YulangClosure.NativeContextExpansion.Mode.replay),
+                  directed := s.directed, replayResidual := s.replayResidual }
+            else Option.none
+          | YulangClosure.NativeContextExpansion.Expr.replay lower upper =>
+            if lower < id ∧ upper < id then
+              have childMode :=
+                if mode = YulangClosure.NativeContextExpansion.Mode.directed then
+                  YulangClosure.NativeContextExpansion.Mode.directed
+                else YulangClosure.NativeContextExpansion.Mode.replay;
+              Pure.pure
+                { pending := (lower, childMode) :: (upper, childMode) :: rest, visited := s.visited,
+                  filters := s.filters, residual := s.residual, replayFilters := s.replayFilters,
+                  directed := s.directed,
+                  replayResidual :=
+                    s.replayResidual || Decidable.decide (mode = YulangClosure.NativeContextExpansion.Mode.outer) }
+            else Option.none
+          | YulangClosure.NativeContextExpansion.Expr.swap input =>
+            if input < id then
+              Pure.pure
+                { pending := (input, YulangClosure.NativeContextExpansion.Mode.directed) :: rest, visited := s.visited,
+                  filters := s.filters, residual := s.residual, replayFilters := s.replayFilters, directed := Bool.true,
+                  replayResidual := s.replayResidual }
+            else Option.none
+          | YulangClosure.NativeContextExpansion.Expr.without input =>
+            if input < id then
+              Pure.pure
+                { pending := (input, YulangClosure.NativeContextExpansion.Mode.directed) :: rest, visited := s.visited,
+                  filters := s.filters, residual := s.residual, replayFilters := s.replayFilters, directed := Bool.true,
+                  replayResidual := s.replayResidual }
+            else Option.none
+          | YulangClosure.NativeContextExpansion.Expr.suffix input weight => Option.none
+          | YulangClosure.NativeContextExpansion.Expr.both input certificate => Option.none
+    | x => Option.none
+'YulangClosure.NativeContextExpansion.scanStep.eq_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.NativeContextExpansion.scanStep.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.pendingRank.eq_2
+YulangClosure.OriginalInferenceTermination.pendingRank.eq_2 : ∀ (id : Nat)
+  (snd : YulangClosure.NativeContextExpansion.Mode) (rest : List (Nat × YulangClosure.NativeContextExpansion.Mode)),
+  YulangClosure.OriginalInferenceTermination.pendingRank ((id, snd) :: rest) =
+    3 ^ id + YulangClosure.OriginalInferenceTermination.pendingRank rest
+'YulangClosure.OriginalInferenceTermination.pendingRank.eq_2' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.pendingRank.eq_2
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.context_children_with_ready_smaller._proof_1_4
+YulangClosure.OriginalInferenceTermination.context_children_with_ready_smaller._proof_1_4 : ∀ (parent input : Nat),
+  4 ^ input + 4 ^ input + 1 < 4 ^ parent → 0 < 4 ^ input → ¬4 ^ input + 1 < 4 ^ parent → False
+'YulangClosure.OriginalInferenceTermination.context_children_with_ready_smaller._proof_1_4' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.context_children_with_ready_smaller._proof_1_4
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.traversalRank_reverse._proof_1_4
+YulangClosure.OriginalInferenceTermination.traversalRank_reverse._proof_1_4 : ∀ (rest : List (Nat × Bool)) (id : Nat)
+  (ready : Bool),
+  ¬YulangClosure.OriginalInferenceTermination.traversalRank rest + ((if ready = Bool.true then 1 else 4 ^ id) + 0) =
+        (if ready = Bool.true then 1 else 4 ^ id) + YulangClosure.OriginalInferenceTermination.traversalRank rest →
+    False
+'YulangClosure.OriginalInferenceTermination.traversalRank_reverse._proof_1_4' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.traversalRank_reverse._proof_1_4
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller
+@YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller : ∀ {left right parent : Nat},
+  left < parent → right < parent → 4 ^ left + 4 ^ right + 1 < 4 ^ parent
+'YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff._simp_1_4
+@YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff._simp_1_4 : ∀ {α : Type u_1} (a : α) (l : List α),
+  (a :: l = []) = False
+'YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff._simp_1_4' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff._simp_1_4
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanStep_decreases
+@YulangClosure.OriginalInferenceTermination.scanStep_decreases : ∀ {t : YulangClosure.NativeContextExpansion.Tables}
+  {s u : YulangClosure.NativeContextExpansion.Scan},
+  YulangClosure.NativeContextExpansion.scanStep t s = Option.some u →
+    YulangClosure.OriginalInferenceTermination.scanRank u < YulangClosure.OriginalInferenceTermination.scanRank s
+'YulangClosure.OriginalInferenceTermination.scanStep_decreases' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanStep_decreases
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.parse_stable
+YulangClosure.OriginalInferenceTermination.parse_stable : ∀ (t : YulangClosure.NativeContextExpansion.Tables)
+  (root extra : Nat),
+  YulangClosure.NativeContextExpansion.parse t (3 ^ root + extra) root =
+    YulangClosure.NativeContextExpansion.parse t (3 ^ root) root
+'YulangClosure.OriginalInferenceTermination.parse_stable' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.parse_stable
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.constructed_context_children
+@YulangClosure.OriginalInferenceTermination.constructed_context_children : ∀
+  {s : YulangClosure.NativeContextTables.Store},
+  YulangClosure.NativeContextTables.History s →
+    ∀ {id : Nat} {node : YulangClosure.NativeContextExpansion.Expr},
+      s.tables.contexts id = Option.some node →
+        ∀ (child : Nat), child ∈ YulangClosure.NativeValuePorts.contextInputs node → child < id
+'YulangClosure.OriginalInferenceTermination.constructed_context_children' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.constructed_context_children
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_9
+YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_9 : ∀
+  (rest : List (Nat × YulangClosure.NativeContextExpansion.Mode)) (id lower upper : Nat),
+  3 ^ lower + 3 ^ upper < 3 ^ id →
+    ¬3 ^ lower + (3 ^ upper + YulangClosure.OriginalInferenceTermination.pendingRank rest) <
+          3 ^ id + YulangClosure.OriginalInferenceTermination.pendingRank rest →
+      False
+'YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_9' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_9
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.drain_projection_not_accessible
+YulangClosure.OriginalInferenceTermination.drain_projection_not_accessible : ∀
+  (s : YulangClosure.NativeDrainOwnership.State),
+  ¬Acc (fun next prev => YulangClosure.NativeDrainOwnership.Step prev next) s
+'YulangClosure.OriginalInferenceTermination.drain_projection_not_accessible' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.drain_projection_not_accessible
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_3
+@YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_3 : ∀ {left : Nat} {right parent : Nat},
+  right < parent → ¬parent = parent - 1 + 1 → False
+'YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_3' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_3
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.contextTraversal_decreases._proof_1_5
+YulangClosure.OriginalInferenceTermination.contextTraversal_decreases._proof_1_5 : ∀ (id : Nat)
+  (node : YulangClosure.NativeContextExpansion.Expr) (rest : List (Nat × Bool)) (keep : Nat × Bool → Bool)
+  (backwards : Bool),
+  YulangClosure.OriginalInferenceTermination.traversalRank
+          (List.map (fun id => (id, Bool.false)) (YulangClosure.NativeValuePorts.contextInputs node)) +
+        1 <
+      4 ^ id →
+    YulangClosure.OriginalInferenceTermination.traversalRank
+          (List.filter keep (YulangClosure.OriginalInferenceTermination.traversalChildren node backwards)) ≤
+        YulangClosure.OriginalInferenceTermination.traversalRank
+          (List.map (fun child => (child, Bool.false)) (YulangClosure.NativeValuePorts.contextInputs node)) →
+      ¬YulangClosure.OriginalInferenceTermination.traversalRank
+                (List.filter keep (YulangClosure.OriginalInferenceTermination.traversalChildren node backwards)) +
+              (1 + YulangClosure.OriginalInferenceTermination.traversalRank rest) <
+            4 ^ id + YulangClosure.OriginalInferenceTermination.traversalRank rest →
+        False
+'YulangClosure.OriginalInferenceTermination.contextTraversal_decreases._proof_1_5' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.contextTraversal_decreases._proof_1_5
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.contextTraversal_decreases._proof_1_4
+YulangClosure.OriginalInferenceTermination.contextTraversal_decreases._proof_1_4 : ∀ (id : Nat)
+  (node : YulangClosure.NativeContextExpansion.Expr) (rest : List (Nat × Bool)) (keep : Nat × Bool → Bool)
+  (backwards : Bool),
+  YulangClosure.OriginalInferenceTermination.traversalRank
+          (List.map (fun id => (id, Bool.false)) (YulangClosure.NativeValuePorts.contextInputs node)) +
+        1 <
+      4 ^ id →
+    YulangClosure.OriginalInferenceTermination.traversalRank
+          (List.filter keep (YulangClosure.OriginalInferenceTermination.traversalChildren node backwards)) ≤
+        YulangClosure.OriginalInferenceTermination.traversalRank
+          (List.map (fun child => (child, Bool.false)) (YulangClosure.NativeValuePorts.contextInputs node)) →
+      ¬YulangClosure.OriginalInferenceTermination.traversalRank
+                (List.filter keep (YulangClosure.OriginalInferenceTermination.traversalChildren node backwards)) +
+              YulangClosure.OriginalInferenceTermination.traversalRank rest <
+            4 ^ id + YulangClosure.OriginalInferenceTermination.traversalRank rest →
+        False
+'YulangClosure.OriginalInferenceTermination.contextTraversal_decreases._proof_1_4' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.contextTraversal_decreases._proof_1_4
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.store_step_contexts_formed
+@YulangClosure.OriginalInferenceTermination.store_step_contexts_formed : ∀
+  {s u : YulangClosure.NativeContextTables.Store},
+  YulangClosure.NativeContextTables.Step s u →
+    YulangClosure.OriginalInferenceTermination.storeContextsFormed s →
+      YulangClosure.OriginalInferenceTermination.storeContextsFormed u
+'YulangClosure.OriginalInferenceTermination.store_step_contexts_formed' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.store_step_contexts_formed
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_8
+YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_8 : ∀
+  (rest : List (Nat × YulangClosure.NativeContextExpansion.Mode)) (id input : Nat),
+  3 ^ input < 3 ^ id →
+    ¬3 ^ input + YulangClosure.OriginalInferenceTermination.pendingRank rest <
+          3 ^ id + YulangClosure.OriginalInferenceTermination.pendingRank rest →
+      False
+'YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_8' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_8
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanLoop_stable._proof_1_1
+YulangClosure.OriginalInferenceTermination.scanLoop_stable._proof_1_1 : ∀
+  (s : YulangClosure.NativeContextExpansion.Scan) (fuel extra : Nat),
+  YulangClosure.OriginalInferenceTermination.scanRank s ≤ fuel →
+    ¬YulangClosure.OriginalInferenceTermination.scanRank s ≤ fuel + extra → False
+'YulangClosure.OriginalInferenceTermination.scanLoop_stable._proof_1_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanLoop_stable._proof_1_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_2
+@YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_2 : ∀ {left : Nat}
+  {right parent : Nat}, right < parent → ¬right ≤ parent - 1 → False
+'YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_2' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_2
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.storeContextsFormed.eq_1
+YulangClosure.OriginalInferenceTermination.storeContextsFormed.eq_1 : ∀ (s : YulangClosure.NativeContextTables.Store),
+  YulangClosure.OriginalInferenceTermination.storeContextsFormed s =
+    YulangClosure.NativeValuePorts.ContextsFormed (YulangClosure.NativeContextTables.values s.contexts)
+'YulangClosure.OriginalInferenceTermination.storeContextsFormed.eq_1' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.storeContextsFormed.eq_1
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_4
+_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_4 : ∀
+  (motive : YulangClosure.NativeContextExpansion.Expr → Sort u_1) (input : Nat)
+  (h_1 : (w input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.prefix w input))
+  (h_2 : (lower upper : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.replay lower upper))
+  (h_3 : (input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.swap input))
+  (h_4 : (input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.without input))
+  (h_5 : (input weight : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.suffix input weight))
+  (h_6 : (input certificate : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.both input certificate)),
+  (match YulangClosure.NativeContextExpansion.Expr.without input with
+    | YulangClosure.NativeContextExpansion.Expr.prefix w input => h_1 w input
+    | YulangClosure.NativeContextExpansion.Expr.replay lower upper => h_2 lower upper
+    | YulangClosure.NativeContextExpansion.Expr.swap input => h_3 input
+    | YulangClosure.NativeContextExpansion.Expr.without input => h_4 input
+    | YulangClosure.NativeContextExpansion.Expr.suffix input weight => h_5 input weight
+    | YulangClosure.NativeContextExpansion.Expr.both input certificate => h_6 input certificate) =
+    h_4 input
+'_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_4' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_4
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.traversalChildren_rank
+YulangClosure.OriginalInferenceTermination.traversalChildren_rank : ∀ (node : YulangClosure.NativeContextExpansion.Expr)
+  (backwards : Bool),
+  YulangClosure.OriginalInferenceTermination.traversalRank
+      (YulangClosure.OriginalInferenceTermination.traversalChildren node backwards) =
+    YulangClosure.OriginalInferenceTermination.traversalRank
+      (List.map (fun child => (child, Bool.false)) (YulangClosure.NativeValuePorts.contextInputs node))
+'YulangClosure.OriginalInferenceTermination.traversalChildren_rank' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.traversalChildren_rank
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_4
+@YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_4 : ∀ {left right parent : Nat},
+  3 ^ left ≤ 3 ^ (parent - 1) →
+    3 ^ right ≤ 3 ^ (parent - 1) → 0 < 3 ^ (parent - 1) → ¬3 ^ left + 3 ^ right < 3 ^ (parent - 1) * 3 → False
+'YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_4' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_4
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.traversalRank.match_1.eq_1
+_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.traversalRank.match_1.eq_1 : ∀
+  (motive : List (Nat × Bool) → Sort u_1) (h_1 : Unit → motive [])
+  (h_2 : (id : Nat) → (ready : Bool) → (rest : List (Nat × Bool)) → motive ((id, ready) :: rest)),
+  (match [] with
+    | [] => h_1 ()
+    | (id, ready) :: rest => h_2 id ready rest) =
+    h_1 ()
+'_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.traversalRank.match_1.eq_1' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.traversalRank.match_1.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.store_run_contexts_formed
+@YulangClosure.OriginalInferenceTermination.store_run_contexts_formed : ∀
+  {s u : YulangClosure.NativeContextTables.Store},
+  YulangClosure.NativeContextTables.Run s u →
+    YulangClosure.OriginalInferenceTermination.storeContextsFormed s →
+      YulangClosure.OriginalInferenceTermination.storeContextsFormed u
+'YulangClosure.OriginalInferenceTermination.store_run_contexts_formed' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.store_run_contexts_formed
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_1
+@YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_1 : ∀ {left right parent : Nat},
+  left < parent → right < parent → ¬left ≤ parent - 1 → False
+'YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_1' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.constructed_postorder_descent
+@YulangClosure.OriginalInferenceTermination.constructed_postorder_descent : ∀
+  {s : YulangClosure.NativeContextTables.Store},
+  YulangClosure.NativeContextTables.History s →
+    ∀ {id : Nat} {node : YulangClosure.NativeContextExpansion.Expr},
+      s.tables.contexts id = Option.some node →
+        ∀ (rest : List (Nat × Bool)) (keep : Nat × Bool → Bool) (ready backwards : Bool),
+          YulangClosure.OriginalInferenceTermination.ContextTraversalStep s.tables ((id, Bool.false) :: rest)
+            (List.filter keep (YulangClosure.OriginalInferenceTermination.traversalChildren node backwards) ++
+              if ready = Bool.true then (id, Bool.true) :: rest else rest)
+'YulangClosure.OriginalInferenceTermination.constructed_postorder_descent' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.constructed_postorder_descent
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.pendingRank.match_1.eq_2
+_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.pendingRank.match_1.eq_2 : ∀
+  (motive : List (Nat × YulangClosure.NativeContextExpansion.Mode) → Sort u_1) (id : Nat)
+  (snd : YulangClosure.NativeContextExpansion.Mode) (rest : List (Nat × YulangClosure.NativeContextExpansion.Mode))
+  (h_1 : Unit → motive [])
+  (h_2 :
+    (id : Nat) →
+      (snd : YulangClosure.NativeContextExpansion.Mode) →
+        (rest : List (Nat × YulangClosure.NativeContextExpansion.Mode)) → motive ((id, snd) :: rest)),
+  (match (id, snd) :: rest with
+    | [] => h_1 ()
+    | (id, snd) :: rest => h_2 id snd rest) =
+    h_2 id snd rest
+'_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.pendingRank.match_1.eq_2' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.pendingRank.match_1.eq_2
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.traversalChildren.eq_1
+YulangClosure.OriginalInferenceTermination.traversalChildren.eq_1 : ∀ (node : YulangClosure.NativeContextExpansion.Expr)
+  (backwards : Bool),
+  YulangClosure.OriginalInferenceTermination.traversalChildren node backwards =
+    if backwards = Bool.true then
+      (List.map (fun child => (child, Bool.false)) (YulangClosure.NativeValuePorts.contextInputs node)).reverse
+    else List.map (fun child => (child, Bool.false)) (YulangClosure.NativeValuePorts.contextInputs node)
+'YulangClosure.OriginalInferenceTermination.traversalChildren.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.traversalChildren.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_2
+@YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_2 : ∀ {left : Nat} {right parent : Nat},
+  right < parent → ¬right ≤ parent - 1 → False
+'YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_2' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_2
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanStep_wellFounded
+YulangClosure.OriginalInferenceTermination.scanStep_wellFounded : ∀ (t : YulangClosure.NativeContextExpansion.Tables),
+  WellFounded fun next prev => YulangClosure.NativeContextExpansion.scanStep t prev = Option.some next
+'YulangClosure.OriginalInferenceTermination.scanStep_wellFounded' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanStep_wellFounded
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_1
+_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_1 : ∀
+  (motive : YulangClosure.NativeContextExpansion.Expr → Sort u_1) (w input : Nat)
+  (h_1 : (w input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.prefix w input))
+  (h_2 : (lower upper : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.replay lower upper))
+  (h_3 : (input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.swap input))
+  (h_4 : (input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.without input))
+  (h_5 : (input weight : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.suffix input weight))
+  (h_6 : (input certificate : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.both input certificate)),
+  (match YulangClosure.NativeContextExpansion.Expr.prefix w input with
+    | YulangClosure.NativeContextExpansion.Expr.prefix w input => h_1 w input
+    | YulangClosure.NativeContextExpansion.Expr.replay lower upper => h_2 lower upper
+    | YulangClosure.NativeContextExpansion.Expr.swap input => h_3 input
+    | YulangClosure.NativeContextExpansion.Expr.without input => h_4 input
+    | YulangClosure.NativeContextExpansion.Expr.suffix input weight => h_5 input weight
+    | YulangClosure.NativeContextExpansion.Expr.both input certificate => h_6 input certificate) =
+    h_1 w input
+'_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_1' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanStep_accessible
+YulangClosure.OriginalInferenceTermination.scanStep_accessible : ∀ (t : YulangClosure.NativeContextExpansion.Tables)
+  (s : YulangClosure.NativeContextExpansion.Scan),
+  Acc (fun next prev => YulangClosure.NativeContextExpansion.scanStep t prev = Option.some next) s
+'YulangClosure.OriginalInferenceTermination.scanStep_accessible' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanStep_accessible
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanTotal._proof_1
+YulangClosure.OriginalInferenceTermination.scanTotal._proof_1 : ∀ (t : YulangClosure.NativeContextExpansion.Tables)
+  (s u : YulangClosure.NativeContextExpansion.Scan),
+  YulangClosure.NativeContextExpansion.scanStep t s = Option.some u →
+    InvImage (fun x1 x2 => x1 < x2) (fun x => YulangClosure.OriginalInferenceTermination.scanRank x) u s
+'YulangClosure.OriginalInferenceTermination.scanTotal._proof_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanTotal._proof_1
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_5
+_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_5 : ∀
+  (motive : YulangClosure.NativeContextExpansion.Expr → Sort u_1) (input weight : Nat)
+  (h_1 : (w input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.prefix w input))
+  (h_2 : (lower upper : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.replay lower upper))
+  (h_3 : (input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.swap input))
+  (h_4 : (input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.without input))
+  (h_5 : (input weight : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.suffix input weight))
+  (h_6 : (input certificate : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.both input certificate)),
+  (match YulangClosure.NativeContextExpansion.Expr.suffix input weight with
+    | YulangClosure.NativeContextExpansion.Expr.prefix w input => h_1 w input
+    | YulangClosure.NativeContextExpansion.Expr.replay lower upper => h_2 lower upper
+    | YulangClosure.NativeContextExpansion.Expr.swap input => h_3 input
+    | YulangClosure.NativeContextExpansion.Expr.without input => h_4 input
+    | YulangClosure.NativeContextExpansion.Expr.suffix input weight => h_5 input weight
+    | YulangClosure.NativeContextExpansion.Expr.both input certificate => h_6 input certificate) =
+    h_5 input weight
+'_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_5' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_5
+YULANG_AUDIT_BEGIN YulangClosure.NativeValuePorts.ContextsFormed.eq_1
+YulangClosure.NativeValuePorts.ContextsFormed.eq_1 : ∀ (contexts : List YulangClosure.NativeContextExpansion.Expr),
+  YulangClosure.NativeValuePorts.ContextsFormed contexts =
+    ∀ (index : Nat) (node : YulangClosure.NativeContextExpansion.Expr),
+      contexts[index]? = Option.some node →
+        ∀ (input : Nat), input ∈ YulangClosure.NativeValuePorts.contextInputs node → input ≤ index
+'YulangClosure.NativeValuePorts.ContextsFormed.eq_1' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.NativeValuePorts.ContextsFormed.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.pendingRank.eq_def
+YulangClosure.OriginalInferenceTermination.pendingRank.eq_def : ∀
+  (x : List (Nat × YulangClosure.NativeContextExpansion.Mode)),
+  YulangClosure.OriginalInferenceTermination.pendingRank x =
+    match x with
+    | [] => 0
+    | (id, snd) :: rest => 3 ^ id + YulangClosure.OriginalInferenceTermination.pendingRank rest
+'YulangClosure.OriginalInferenceTermination.pendingRank.eq_def' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.pendingRank.eq_def
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_1
+@YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_1 : ∀ {left right parent : Nat},
+  left < parent → right < parent → ¬left ≤ parent - 1 → False
+'YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.two_children_smaller._proof_1_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanTotal.eq_def
+YulangClosure.OriginalInferenceTermination.scanTotal.eq_def : ∀ (t : YulangClosure.NativeContextExpansion.Tables)
+  (s : YulangClosure.NativeContextExpansion.Scan),
+  YulangClosure.OriginalInferenceTermination.scanTotal t s =
+    if s.pending = [] then YulangClosure.NativeContextExpansion.finish s
+    else
+      match _next : YulangClosure.NativeContextExpansion.scanStep t s with
+      | Option.none => Option.none
+      | Option.some u => YulangClosure.OriginalInferenceTermination.scanTotal t u
+'YulangClosure.OriginalInferenceTermination.scanTotal.eq_def' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanTotal.eq_def
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanTotal.eq_1
+YulangClosure.OriginalInferenceTermination.scanTotal.eq_1 : ∀ (t : YulangClosure.NativeContextExpansion.Tables)
+  (s : YulangClosure.NativeContextExpansion.Scan),
+  YulangClosure.OriginalInferenceTermination.scanTotal t s =
+    if s.pending = [] then YulangClosure.NativeContextExpansion.finish s
+    else
+      match _next : YulangClosure.NativeContextExpansion.scanStep t s with
+      | Option.none => Option.none
+      | Option.some u => YulangClosure.OriginalInferenceTermination.scanTotal t u
+'YulangClosure.OriginalInferenceTermination.scanTotal.eq_1' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanTotal.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.traversalRank_append
+YulangClosure.OriginalInferenceTermination.traversalRank_append : ∀ (left right : List (Nat × Bool)),
+  YulangClosure.OriginalInferenceTermination.traversalRank (left ++ right) =
+    YulangClosure.OriginalInferenceTermination.traversalRank left +
+      YulangClosure.OriginalInferenceTermination.traversalRank right
+'YulangClosure.OriginalInferenceTermination.traversalRank_append' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.traversalRank_append
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanLoop_stable
+YulangClosure.OriginalInferenceTermination.scanLoop_stable : ∀ (t : YulangClosure.NativeContextExpansion.Tables)
+  (s : YulangClosure.NativeContextExpansion.Scan) (fuel extra : Nat),
+  YulangClosure.OriginalInferenceTermination.scanRank s ≤ fuel →
+    YulangClosure.NativeContextExpansion.scanLoop t (fuel + extra) s =
+      YulangClosure.NativeContextExpansion.scanLoop t fuel s
+'YulangClosure.OriginalInferenceTermination.scanLoop_stable' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanLoop_stable
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.traversalRank_filter_le
+YulangClosure.OriginalInferenceTermination.traversalRank_filter_le : ∀ (pending : List (Nat × Bool))
+  (keep : Nat × Bool → Bool),
+  YulangClosure.OriginalInferenceTermination.traversalRank (List.filter keep pending) ≤
+    YulangClosure.OriginalInferenceTermination.traversalRank pending
+'YulangClosure.OriginalInferenceTermination.traversalRank_filter_le' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.traversalRank_filter_le
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.native_context_scan_accessible
+YulangClosure.OriginalInferenceTermination.native_context_scan_accessible : ∀
+  (s : YulangClosure.NativeContextTables.Store) (root : Nat),
+  Acc (fun next prev => YulangClosure.NativeContextExpansion.scanStep s.tables prev = Option.some next)
+    { pending := [(root, YulangClosure.NativeContextExpansion.Mode.outer)], residual := root }
+'YulangClosure.OriginalInferenceTermination.native_context_scan_accessible' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.native_context_scan_accessible
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.traversalRank.eq_def
+YulangClosure.OriginalInferenceTermination.traversalRank.eq_def : ∀ (x : List (Nat × Bool)),
+  YulangClosure.OriginalInferenceTermination.traversalRank x =
+    match x with
+    | [] => 0
+    | (id, ready) :: rest =>
+      (if ready = Bool.true then 1 else 4 ^ id) + YulangClosure.OriginalInferenceTermination.traversalRank rest
+'YulangClosure.OriginalInferenceTermination.traversalRank.eq_def' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.traversalRank.eq_def
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.traversalRank.match_1.eq_2
+_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.traversalRank.match_1.eq_2 : ∀
+  (motive : List (Nat × Bool) → Sort u_1) (id : Nat) (ready : Bool) (rest : List (Nat × Bool)) (h_1 : Unit → motive [])
+  (h_2 : (id : Nat) → (ready : Bool) → (rest : List (Nat × Bool)) → motive ((id, ready) :: rest)),
+  (match (id, ready) :: rest with
+    | [] => h_1 ()
+    | (id, ready) :: rest => h_2 id ready rest) =
+    h_2 id ready rest
+'_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.traversalRank.match_1.eq_2' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.traversalRank.match_1.eq_2
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.contextTraversal_decreases
+@YulangClosure.OriginalInferenceTermination.contextTraversal_decreases : ∀
+  {t : YulangClosure.NativeContextExpansion.Tables} {before after : List (Nat × Bool)},
+  YulangClosure.OriginalInferenceTermination.ContextTraversalStep t before after →
+    YulangClosure.OriginalInferenceTermination.traversalRank after <
+      YulangClosure.OriginalInferenceTermination.traversalRank before
+'YulangClosure.OriginalInferenceTermination.contextTraversal_decreases' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.contextTraversal_decreases
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanTotal_execution
+YulangClosure.OriginalInferenceTermination.scanTotal_execution : ∀ (t : YulangClosure.NativeContextExpansion.Tables)
+  (s : YulangClosure.NativeContextExpansion.Scan),
+  YulangClosure.OriginalInferenceTermination.ScanExecution t s
+    (YulangClosure.OriginalInferenceTermination.scanTotal t s)
+'YulangClosure.OriginalInferenceTermination.scanTotal_execution' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanTotal_execution
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff._proof_1_5
+YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff._proof_1_5 : ∀
+  (rest : List (Nat × YulangClosure.NativeContextExpansion.Mode)) (id : Nat),
+  0 < 3 ^ id → 3 ^ id + YulangClosure.OriginalInferenceTermination.pendingRank rest = 0 → False
+'YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff._proof_1_5' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff._proof_1_5
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.traversalRank.eq_1
+YulangClosure.OriginalInferenceTermination.traversalRank.eq_1 : YulangClosure.OriginalInferenceTermination.traversalRank
+    [] =
+  0
+'YulangClosure.OriginalInferenceTermination.traversalRank.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.traversalRank.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.pendingRank.eq_1
+YulangClosure.OriginalInferenceTermination.pendingRank.eq_1 : YulangClosure.OriginalInferenceTermination.pendingRank
+    [] =
+  0
+'YulangClosure.OriginalInferenceTermination.pendingRank.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.pendingRank.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.traversalRank_reverse
+YulangClosure.OriginalInferenceTermination.traversalRank_reverse : ∀ (pending : List (Nat × Bool)),
+  YulangClosure.OriginalInferenceTermination.traversalRank pending.reverse =
+    YulangClosure.OriginalInferenceTermination.traversalRank pending
+'YulangClosure.OriginalInferenceTermination.traversalRank_reverse' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.traversalRank_reverse
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanTotal_success_iff
+YulangClosure.OriginalInferenceTermination.scanTotal_success_iff : ∀ (t : YulangClosure.NativeContextExpansion.Tables)
+  (s : YulangClosure.NativeContextExpansion.Scan) (p : YulangClosure.NativeContextExpansion.Parsed),
+  YulangClosure.OriginalInferenceTermination.scanTotal t s = Option.some p ↔
+    YulangClosure.NativeContextExpansion.ScanRun t s p
+'YulangClosure.OriginalInferenceTermination.scanTotal_success_iff' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanTotal_success_iff
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff
+YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff : ∀
+  (pending : List (Nat × YulangClosure.NativeContextExpansion.Mode)),
+  YulangClosure.OriginalInferenceTermination.pendingRank pending = 0 ↔ pending = []
+'YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.pendingRank_zero_iff
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanRank.eq_1
+YulangClosure.OriginalInferenceTermination.scanRank.eq_1 : ∀ (s : YulangClosure.NativeContextExpansion.Scan),
+  YulangClosure.OriginalInferenceTermination.scanRank s =
+    YulangClosure.OriginalInferenceTermination.pendingRank s.pending
+'YulangClosure.OriginalInferenceTermination.scanRank.eq_1' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanRank.eq_1
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_3
+_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_3 : ∀
+  (motive : YulangClosure.NativeContextExpansion.Expr → Sort u_1) (input : Nat)
+  (h_1 : (w input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.prefix w input))
+  (h_2 : (lower upper : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.replay lower upper))
+  (h_3 : (input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.swap input))
+  (h_4 : (input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.without input))
+  (h_5 : (input weight : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.suffix input weight))
+  (h_6 : (input certificate : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.both input certificate)),
+  (match YulangClosure.NativeContextExpansion.Expr.swap input with
+    | YulangClosure.NativeContextExpansion.Expr.prefix w input => h_1 w input
+    | YulangClosure.NativeContextExpansion.Expr.replay lower upper => h_2 lower upper
+    | YulangClosure.NativeContextExpansion.Expr.swap input => h_3 input
+    | YulangClosure.NativeContextExpansion.Expr.without input => h_4 input
+    | YulangClosure.NativeContextExpansion.Expr.suffix input weight => h_5 input weight
+    | YulangClosure.NativeContextExpansion.Expr.both input certificate => h_6 input certificate) =
+    h_3 input
+'_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_3' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_3
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.context_children_with_ready_smaller
+YulangClosure.OriginalInferenceTermination.context_children_with_ready_smaller : ∀
+  (node : YulangClosure.NativeContextExpansion.Expr) (parent : Nat),
+  (∀ (child : Nat), child ∈ YulangClosure.NativeValuePorts.contextInputs node → child < parent) →
+    YulangClosure.OriginalInferenceTermination.traversalRank
+          (List.map (fun id => (id, Bool.false)) (YulangClosure.NativeValuePorts.contextInputs node)) +
+        1 <
+      4 ^ parent
+'YulangClosure.OriginalInferenceTermination.context_children_with_ready_smaller' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.context_children_with_ready_smaller
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.intern_contexts_formed
+YulangClosure.OriginalInferenceTermination.intern_contexts_formed : ∀ (s : YulangClosure.NativeContextTables.Store)
+  (node : YulangClosure.NativeContextExpansion.Expr),
+  YulangClosure.OriginalInferenceTermination.storeContextsFormed s →
+    (∀ (input : Nat), input ∈ YulangClosure.NativeValuePorts.contextInputs node → input ≤ s.contexts.length) →
+      YulangClosure.OriginalInferenceTermination.storeContextsFormed (s.intern node).fst
+'YulangClosure.OriginalInferenceTermination.intern_contexts_formed' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.intern_contexts_formed
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_2
+_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_2 : ∀
+  (motive : YulangClosure.NativeContextExpansion.Expr → Sort u_1) (lower upper : Nat)
+  (h_1 : (w input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.prefix w input))
+  (h_2 : (lower upper : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.replay lower upper))
+  (h_3 : (input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.swap input))
+  (h_4 : (input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.without input))
+  (h_5 : (input weight : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.suffix input weight))
+  (h_6 : (input certificate : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.both input certificate)),
+  (match YulangClosure.NativeContextExpansion.Expr.replay lower upper with
+    | YulangClosure.NativeContextExpansion.Expr.prefix w input => h_1 w input
+    | YulangClosure.NativeContextExpansion.Expr.replay lower upper => h_2 lower upper
+    | YulangClosure.NativeContextExpansion.Expr.swap input => h_3 input
+    | YulangClosure.NativeContextExpansion.Expr.without input => h_4 input
+    | YulangClosure.NativeContextExpansion.Expr.suffix input weight => h_5 input weight
+    | YulangClosure.NativeContextExpansion.Expr.both input certificate => h_6 input certificate) =
+    h_2 lower upper
+'_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_2' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_2
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanLoop_eq_total._proof_1_2
+YulangClosure.OriginalInferenceTermination.scanLoop_eq_total._proof_1_2 : ∀ (fuel : Nat)
+  (s : YulangClosure.NativeContextExpansion.Scan),
+  YulangClosure.OriginalInferenceTermination.scanRank s ≤ fuel + 1 →
+    ∀ (u : YulangClosure.NativeContextExpansion.Scan),
+      YulangClosure.OriginalInferenceTermination.scanRank u < YulangClosure.OriginalInferenceTermination.scanRank s →
+        ¬YulangClosure.OriginalInferenceTermination.scanRank u ≤ fuel → False
+'YulangClosure.OriginalInferenceTermination.scanLoop_eq_total._proof_1_2' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanLoop_eq_total._proof_1_2
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.scanTotal.match_1.eq_2
+_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.scanTotal.match_1.eq_2 : ∀
+  (motive : Option YulangClosure.NativeContextExpansion.Scan → Sort u_1) (u : YulangClosure.NativeContextExpansion.Scan)
+  (h_1 : Option.some u = Option.none → motive Option.none)
+  (h_2 :
+    (u_1 : YulangClosure.NativeContextExpansion.Scan) → Option.some u = Option.some u_1 → motive (Option.some u_1)),
+  (match _next : Option.some u with
+    | Option.none => h_1 _next
+    | Option.some u_1 => h_2 u_1 _next) =
+    h_2 u (Eq.refl (Option.some u))
+'_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.scanTotal.match_1.eq_2' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.scanTotal.match_1.eq_2
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.store_history_contexts_formed
+@YulangClosure.OriginalInferenceTermination.store_history_contexts_formed : ∀
+  {s : YulangClosure.NativeContextTables.Store},
+  YulangClosure.NativeContextTables.History s → YulangClosure.OriginalInferenceTermination.storeContextsFormed s
+'YulangClosure.OriginalInferenceTermination.store_history_contexts_formed' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.store_history_contexts_formed
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.two_children_smaller
+@YulangClosure.OriginalInferenceTermination.two_children_smaller : ∀ {left right parent : Nat},
+  left < parent → right < parent → 3 ^ left + 3 ^ right < 3 ^ parent
+'YulangClosure.OriginalInferenceTermination.two_children_smaller' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.two_children_smaller
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_6
+_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_6 : ∀
+  (motive : YulangClosure.NativeContextExpansion.Expr → Sort u_1) (input certificate : Nat)
+  (h_1 : (w input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.prefix w input))
+  (h_2 : (lower upper : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.replay lower upper))
+  (h_3 : (input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.swap input))
+  (h_4 : (input : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.without input))
+  (h_5 : (input weight : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.suffix input weight))
+  (h_6 : (input certificate : Nat) → motive (YulangClosure.NativeContextExpansion.Expr.both input certificate)),
+  (match YulangClosure.NativeContextExpansion.Expr.both input certificate with
+    | YulangClosure.NativeContextExpansion.Expr.prefix w input => h_1 w input
+    | YulangClosure.NativeContextExpansion.Expr.replay lower upper => h_2 lower upper
+    | YulangClosure.NativeContextExpansion.Expr.swap input => h_3 input
+    | YulangClosure.NativeContextExpansion.Expr.without input => h_4 input
+    | YulangClosure.NativeContextExpansion.Expr.suffix input weight => h_5 input weight
+    | YulangClosure.NativeContextExpansion.Expr.both input certificate => h_6 input certificate) =
+    h_6 input certificate
+'_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_6' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.NativeContextExpansion.scanStep.match_1.eq_6
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.traversalRank.eq_2
+YulangClosure.OriginalInferenceTermination.traversalRank.eq_2 : ∀ (id : Nat) (ready : Bool) (rest : List (Nat × Bool)),
+  YulangClosure.OriginalInferenceTermination.traversalRank ((id, ready) :: rest) =
+    (if ready = Bool.true then 1 else 4 ^ id) + YulangClosure.OriginalInferenceTermination.traversalRank rest
+'YulangClosure.OriginalInferenceTermination.traversalRank.eq_2' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.traversalRank.eq_2
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_7
+YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_7 : ∀
+  (rest : List (Nat × YulangClosure.NativeContextExpansion.Mode)) (id : Nat),
+  0 < 3 ^ id →
+    ¬YulangClosure.OriginalInferenceTermination.pendingRank rest <
+          3 ^ id + YulangClosure.OriginalInferenceTermination.pendingRank rest →
+      False
+'YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_7' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanStep_decreases._proof_1_7
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.contextTraversal_wellFounded
+YulangClosure.OriginalInferenceTermination.contextTraversal_wellFounded : ∀
+  (t : YulangClosure.NativeContextExpansion.Tables),
+  WellFounded fun next prev => YulangClosure.OriginalInferenceTermination.ContextTraversalStep t prev next
+'YulangClosure.OriginalInferenceTermination.contextTraversal_wellFounded' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.contextTraversal_wellFounded
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.pendingRank.match_1.eq_1
+_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.pendingRank.match_1.eq_1 : ∀
+  (motive : List (Nat × YulangClosure.NativeContextExpansion.Mode) → Sort u_1) (h_1 : Unit → motive [])
+  (h_2 :
+    (id : Nat) →
+      (snd : YulangClosure.NativeContextExpansion.Mode) →
+        (rest : List (Nat × YulangClosure.NativeContextExpansion.Mode)) → motive ((id, snd) :: rest)),
+  (match [] with
+    | [] => h_1 ()
+    | (id, snd) :: rest => h_2 id snd rest) =
+    h_1 ()
+'_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.pendingRank.match_1.eq_1' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.pendingRank.match_1.eq_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanLoop_eq_total
+YulangClosure.OriginalInferenceTermination.scanLoop_eq_total : ∀ (t : YulangClosure.NativeContextExpansion.Tables)
+  (fuel : Nat) (s : YulangClosure.NativeContextExpansion.Scan),
+  YulangClosure.OriginalInferenceTermination.scanRank s ≤ fuel →
+    YulangClosure.NativeContextExpansion.scanLoop t fuel s = YulangClosure.OriginalInferenceTermination.scanTotal t s
+'YulangClosure.OriginalInferenceTermination.scanLoop_eq_total' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanLoop_eq_total
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.scanStep_varying_tables_wellFounded
+YulangClosure.OriginalInferenceTermination.scanStep_varying_tables_wellFounded : WellFounded fun next prev =>
+  ∃ t, YulangClosure.NativeContextExpansion.scanStep t prev = Option.some next
+'YulangClosure.OriginalInferenceTermination.scanStep_varying_tables_wellFounded' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.scanStep_varying_tables_wellFounded
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_4
+@YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_4 : ∀ {left right parent : Nat},
+  4 ^ left ≤ 4 ^ (parent - 1) →
+    4 ^ right ≤ 4 ^ (parent - 1) → 0 < 4 ^ (parent - 1) → ¬4 ^ left + 4 ^ right + 1 < 4 ^ (parent - 1) * 4 → False
+'YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_4' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.two_children_with_ready_smaller._proof_1_4
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.constructed_context_children._proof_1_1
+@YulangClosure.OriginalInferenceTermination.constructed_context_children._proof_1_1 : ∀ {id : Nat},
+  ¬id = 0 → ∀ (child : Nat), child ≤ id - 1 → ¬child < id → False
+'YulangClosure.OriginalInferenceTermination.constructed_context_children._proof_1_1' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.constructed_context_children._proof_1_1
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.ScanExecution.brecOn
+@YulangClosure.OriginalInferenceTermination.ScanExecution.brecOn : ∀ {t : YulangClosure.NativeContextExpansion.Tables}
+  {motive :
+    (a : YulangClosure.NativeContextExpansion.Scan) →
+      (a_1 : Option YulangClosure.NativeContextExpansion.Parsed) →
+        YulangClosure.OriginalInferenceTermination.ScanExecution t a a_1 → Prop}
+  {a : YulangClosure.NativeContextExpansion.Scan} {a_1 : Option YulangClosure.NativeContextExpansion.Parsed}
+  (t_1 : YulangClosure.OriginalInferenceTermination.ScanExecution t a a_1),
+  (∀ (a : YulangClosure.NativeContextExpansion.Scan) (a_2 : Option YulangClosure.NativeContextExpansion.Parsed)
+      (t_2 : YulangClosure.OriginalInferenceTermination.ScanExecution t a a_2),
+      YulangClosure.OriginalInferenceTermination.ScanExecution.below t_2 → motive a a_2 t_2) →
+    motive a a_1 t_1
+'YulangClosure.OriginalInferenceTermination.ScanExecution.brecOn' depends on axioms: [propext, Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.ScanExecution.brecOn
+YULANG_AUDIT_BEGIN YulangClosure.OriginalInferenceTermination.contextTraversal_varying_tables_wellFounded
+YulangClosure.OriginalInferenceTermination.contextTraversal_varying_tables_wellFounded : WellFounded fun next prev =>
+  ∃ t, YulangClosure.OriginalInferenceTermination.ContextTraversalStep t prev next
+'YulangClosure.OriginalInferenceTermination.contextTraversal_varying_tables_wellFounded' depends on axioms: [propext,
+ Quot.sound]
+YULANG_AUDIT_END YulangClosure.OriginalInferenceTermination.contextTraversal_varying_tables_wellFounded
+YULANG_AUDIT_BEGIN _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.scanTotal.match_1.eq_1
+_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.scanTotal.match_1.eq_1 : ∀
+  (motive : Option YulangClosure.NativeContextExpansion.Scan → Sort u_1)
+  (h_1 : Option.none = Option.none → motive Option.none)
+  (h_2 : (u : YulangClosure.NativeContextExpansion.Scan) → Option.none = Option.some u → motive (Option.some u)),
+  (match _next : Option.none with
+    | Option.none => h_1 _next
+    | Option.some u => h_2 u _next) =
+    h_1 (Eq.refl Option.none)
+'_private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.scanTotal.match_1.eq_1' does not depend on any axioms
+YULANG_AUDIT_END _private.YulangClosure.OriginalInferenceTermination.0.YulangClosure.OriginalInferenceTermination.scanTotal.match_1.eq_1
+YULANG_AUDIT_COUNT 242
