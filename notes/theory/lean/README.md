@@ -1,5 +1,33 @@
 # Yulang closure: Lean root composition and control
 
+## 2026-10-26 whole-metatheory continuation r2
+
+Four further independently reviewed constructions are published in separate
+commits: `b8115116f` original recursive source receiver/readout;
+`ecde5039c` actual fresh allocation and scoped evaluation transport;
+`d29e73ff9` source-owned pure nested-record adapters with constructed child
+contracts and execution; `61397ece0` successful Context expansion closure.
+**Original whole soundness, Effect hygiene, principality and inference
+termination remain OPEN.** The [r2 ledger](../../progress/2026-10-26-whole-metatheory-r2.md)
+gives the exact local statements and the remaining source/native owners.
+
+`WholeMetatheory` now imports all eight components. On the updated
+goal-indexed Function checking interface, pinned Lean 4.35.0 accepts the
+**112-job default build** and the **717-distinct-theorem complete audit**, with
+all **89 required roots**. The audit covers 671 originating theorem constants
+in the eight-module combined environment plus 46 shared generated source-rule
+equations. It retains all standalone record-audit theorem names without
+double-counting shared helpers. Complete types and transitive axioms are printed;
+only standard `propext`, `Classical.choice`, `Quot.sound` occur.
+
+All 176 inventoried formal/configuration inputs match the checked snapshot.
+New proofs/audits have no warnings; the 668 existing warnings belong to nine
+byte-identical baseline files. Raw new logs stay outside tracked sources; the
+ledger retains commands, hashes and review receipts, and the repository keeps
+the complete reusable audit programs. Concurrent `ff12ce504` and `4c5fff3b2`
+were preserved, with source/record dependency refresh reviewed before integration.
+Previous entries below are historical verification records.
+
 ## 2026-10-26 original whole-Yulang metatheory
 
 Four independently reviewed components extend the original soundness, Effect

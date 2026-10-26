@@ -1,3 +1,36 @@
+# Current task: original whole-Yulang metatheory, continuation r2
+
+2026-10-26: the user's instruction is to finish the original proofs while
+committing and pushing coherent pieces frequently. Four additional proof
+packets are independently reviewed and pushed: `b8115116f`, `ecde5039c`,
+`d29e73ff9`, `61397ece0`. They construct the original recursive source receiver,
+actual fresh-ID transport, source-owned pure nested-record child contracts and
+execution, and successful Context expansion closure respectively.
+
+**The original whole-language soundness, Effect hygiene, principality and
+inference-termination roots remain OPEN.** The exact statement/premise boundary
+is in the [r2 proof ledger](../notes/progress/2026-10-26-whole-metatheory-r2.md).
+The first remaining owners include authentic descriptor/structuralFields
+readback and recursive introduction; source inventory/owner/receipt correspondence;
+same native extrusion receiver authentication and one all-future principal
+strategy; and a global rank for repeated extrusion siblings, growing captured
+graphs, generation invalidation and nested drains. No source restriction or
+private availability cap is substituted for those obligations.
+
+All eight WholeMetatheory components pass the updated **112-job default build**.
+The complete integrated audit checks **717 distinct theorem constants and 89
+required roots**, including shared generated source-rule helpers and all
+standalone record theorem names. All 176 formal/configuration inputs remain
+unchanged across verification. Only standard logical axioms occur; new proofs
+have no warnings, and 668 inherited warnings belong to nine unchanged files.
+The goal-indexed checking interface from concurrent `4c5fff3b2` was retained;
+record and source receiver dependencies were revalidated. Reproducible audit
+programs and independent receipts are committed; raw new logs stay scratch.
+The reserved original closure root and foreign loop state are unchanged.
+Previous task records below remain historical evidence.
+
+---
+
 # Current task: original whole-Yulang metatheory
 
 2026-10-26: the user's request covers original whole-language soundness,

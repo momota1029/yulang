@@ -94,3 +94,33 @@ Scratch evidence in `/workspace/scratch/e3678bef96db/fresh-scope-r2`:
 The review used two focused checks. No compiler, semantics, toolchain,
 configuration or reviewed producer source was edited. Default-target
 integration and full native source coverage are separate obligations.
+
+## Dependency refresh at 4c5fff3b2
+
+The primary independently re-reviewed the concrete concurrent interface delta
+before final integration. `OriginalSourceGeneration.lean` is now
+`0f25e53350edf9c452fd3c0f461602437ca2adf979859fda5e2492bcc403ae55`;
+`OriginalSourceEnvironment.lean` is
+`0e12d33d1b912820324f5140fbe3f16983d0b7ef33137642aaef07faa573f132`.
+The source module remains exactly `ab86c4448...`; no producer proof repair.
+
+The new goal-indexed `Kernel.checkingAdmitted` changes the Function checking
+observation premise. The concrete source-rule equations and Name proof do
+not construct `Checking.function`. `foldedNameKernel` updates the Name atom
+meaning and preserves the new original checking-admission field. The owner,
+runtime endpoint and current-event decoder operations used here are unchanged.
+The Environment delta explicitly preserves the legacy admission convention in
+its existing kernel constructors; those constructors are not used to infer a
+new Return admission by this packet. The same local acceptance therefore holds
+with the new dependencies. This is a nonauthor review of the unchanged source
+packet, not its producer's self-review.
+
+The primary's updated ordinary default build exited 0, 112 jobs. The integrated
+complete audit exited 0, checking all 73 originating SourcePrincipalTransport
+theorems and all ten of its required roots within 717 distinct audited theorem
+constants. The full census includes 46 shared sourceRules equations whose
+origin changes under combined imports. Every type and transitive axiom report
+was retained; only standard axioms occur. All 176 formal/configuration inputs
+match the checked snapshot. Exact global evidence hashes and commands are in
+the continuation ledger, `notes/progress/2026-10-26-whole-metatheory-r2.md`.
+The earlier frozen-baseline receipt above remains historical evidence.
