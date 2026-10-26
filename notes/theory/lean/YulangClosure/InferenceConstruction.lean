@@ -37,6 +37,10 @@ import YulangClosure.OriginalFunctionFuture
 
 import YulangClosure.OriginalRecursivePair
 
+import YulangClosure.OriginalWorldReadout
+import YulangClosure.OriginalTerminationClosure
+import YulangClosure.OriginalSourceEvents
+
 /-!
 Source and native constructions for the original inference-soundness obligation.
 

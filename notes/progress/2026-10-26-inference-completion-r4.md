@@ -1596,3 +1596,62 @@ Fast-forward retained those four files and all staged component bytes. The
 unchanged; the new foreign module is outside that explicitly selected audit
 snapshot. The nonforced retry changes only the parent/tree and this primary
 publication record, not any reviewed proof or component review.
+
+The retry published checkpoint 21 as
+`3f391497bf650b7c95585d838313ba6445c57659`, parent
+`f9a008d2e782f476affe0c1342797bd13caba371`, tree
+`f93c03790574ffec2694bfb1453fcfd46e2e5850`. Exact remote equality, parent,
+tree and empty staged index were verified at 16:10:50.092109 UTC. The only
+remaining tracked changes were the two deliberately pending integration
+sources, whose frozen hashes still matched. The unpublished first attempt
+remains recorded and is not counted as a pushed checkpoint.
+
+The concurrent FiniteCopyClosure source and review were read after the
+fast-forward. Their result is a conditional, merge-free algebraic obstruction:
+primitive Closed and source/native Seed premises are still uninstantiated.
+It is not an established original-source counterexample, native divergence or
+failure of soundness. Its four separate paths remain preserved outside the
+frozen successor integration target; no algorithm or source semantics changed.
+
+## Checkpoint 22: successor integration independently accepted
+
+Fresh independent integration review ACCEPTs the exact four-file import/audit
+packet with no remaining finding. Review receipt `dbc08874...`, 171-artifact
+manifest `d3d4ba37...` and stopped record `a2c4f631...` froze at
+16:16:51.426701 UTC. Primary read the complete receipt and rehashed all 171
+review artifacts. The reviewer changed no producer file, Git state or shared
+status and ran zero of its two possible checker bundles: complete existing
+kernel logs and exact component checks resolved this import-only change.
+
+The independent parser reconstructed every one of the 9,954 full theorem
+records, verified all 1,763 roots and 1,077 private theorems, and compared all
+old 9,595 records byte-for-byte. All 132 inputs match in repository, checked
+project and snapshot; all 287 root artifacts are intact. The exact delta is
+three imports, three origin selections and 123 roots (40 + 11 + 72). Every old
+root and the complete audit algorithm are unchanged. TerminationClosure's 25
+records also match its independent log verbatim; differing isolated/full-print
+formats for other components are crosswalked without a false textual-identity
+claim. The old 432-artifact integration freeze and every original/rejected/
+repaired SourceEvents artifact set remain unchanged.
+
+The review's two data-verifier failures are retained: an overstrict optional-@
+type-header recognizer plus omitted default-library globs, and a lexical scan
+that mistook existing identifiers named admit for the tactic. Both corrected
+reconciliations exit 0. These are not Lean failures or mathematical findings.
+All 668 old warning first-lines and actual standard axiom sets are retained.
+
+The checkpoint accepts the exact selected 67-origin construction graph, not
+the new ParameterWorld file or foreign FiniteCopyClosure module. The original
+formal contract/delivery, full post-bind world, concrete kernel, general
+recursion, same-scoped witness and native correspondence gates remain OPEN.
+No proof is promoted merely from the audit count or the unchanged default
+build. The explicit construction target is the verified import surface.
+
+Before checkpoint 22 publication, fetch found the disjoint concurrent
+`66a43e970` OriginalRecursiveClosure packet. Its four new paths were retained
+by fast-forward; all 132 frozen integration inputs and four accepted outputs
+remain unchanged. The canonical raw-anchor/Shared-witness result was read with
+its explicit limits: empty binding/installed output lists, Site-indexed helper,
+and no original typed-admission or generated-Lambda linkage. It supplies no
+raw-only restriction on original Shared, which may depend on preceding typed
+EventFields. This separate packet is outside the 67-origin snapshot.
