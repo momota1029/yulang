@@ -417,3 +417,73 @@ The producer's complete final census contains 652 declarations, 228 theorem
 constants and 78 named roots. It remains pending acceptance. The seven Kernel
 meanings and the versioned native table construction are not supplied by this
 review assignment or by the number of checked declarations.
+
+
+Published checkpoint 6: `82b8fb669c5b51c6c99771cd2208c9730ebc85c3`;
+the expected-parent remote update and fetched/local tree comparison agree.
+
+## Native table-lifetime continuation
+
+The Context producer has a new disjoint packet pinned to checkpoint 6:
+`NativeContextTables.lean`, `2026-10-26-native-context-tables.md` and
+`20261026-native-context-tables-r4.md`, with owned `context-tables-r4/**` scratch,
+cache and temporary files. Budget: 3,600 wall seconds, at most 24 focused checks,
+one thread, Lean 1 GiB and ordinary checks at most 120 seconds. The first plan
+must identify the exact constructor/readset/mutation map within 300 seconds.
+The target is source-determined lifetime/readback for all five table lanes:
+Contexts, weights, Views, contributions and actual Prefix identity handles,
+including publication windows, interned reuse and cancellation/retry.
+
+The previous ContextReadback packet remains frozen and under fresh review;
+it may be imported by this continuation only after primary acceptance. Already
+accepted ContextExpansion, ExecutionHistory and ValuePorts are immutable inputs.
+No new native semantics, supported-domain restriction, generic whole-table
+identity premise, optional evidence-allocation premise or completed-body oracle
+is authorized. The next proof must apply the constructed lifetime facts to
+prefix/body readback. The original whole inference goal remains the same.
+
+
+## Constructing Value child issuance in the drain history
+
+The primary opens a disjoint `NativeValueDrain.lean` packet with note
+`2026-10-26-native-value-drain.md`, handoff
+`20261026-native-value-drain-r4.md`, and owned `value-drain-r4/**` scratch/cache.
+It is pinned to accepted checkpoint 6. Budget: 2,700 wall seconds and at most
+18 focused single-thread/1-GiB checks, ordinary bounds below 120 seconds.
+The target is the exact remaining child-key-to-issued-Work seam: derive one
+common control run directly from computed two-phase Value admission/enqueue,
+retain the full raw task and complete child receipt, and apply subsequent
+quiescent readback in that same history to every generated child. No separate
+unrelated cursor/frame histories or assumed child-completion certificate may
+replace the construction. This packet is disjoint from the five-lane native
+table-lifetime worker and requires fresh independent review before acceptance.
+
+
+## Checkpoint 7: accepted shared Context/drain readback
+
+The primary accepts the fresh independent ContextReadback review at its exact
+fixed-table, shared-control interpretation boundary. Review receipt SHA-256:
+`10d23c6fb91c8ca8082bd505cfd4edf4d9e0d35088c033b4a8e6666bc71beb45`.
+No blocking, major or minor finding remains. The reviewer reconciled 155 hashes,
+652 complete declaration type/axiom blocks, 228 theorem constants and all 78
+named roots; 26 theorem constants use the permitted `Classical.choice` together
+with `propext` and `Quot.sound`. Thirteen producer checks and all failures are
+retained. No extra Lean check was warranted (0/2); both packet writers stopped.
+
+This constructs the original occurrence's Context prefix, active-or-sealed
+processing owner, exact duplicates and retained transport route, then derives
+actual receipts at a true quiescent cut from the same committed projection.
+An inner settlement can still have an active outer owner. Optional native
+completion-observation allocation is not a success premise. The table-lifetime,
+actual callback/issued-Work, carrier transport, Effect/diagnostic, complete Value
+and original same-scoped semantic interpretations retain their exact boundaries.
+The separate table and Value-issuance packets now target two of these premises.
+
+The original semantic-operator producer's next packet is under preparatory fresh
+review by `/root/original_source_review_r4`, with sole receipt
+`20261026-original-source-interpretation-review-r4.md` and owned
+`source-interpretation-review-r4/**`. Budget: 1,800 wall seconds and at most two
+risk-driven ordinary bounded checks. Only governing-source and provisional
+source correspondence are reviewed before the final freeze; acceptance requires
+all final output hashes and the final complete census. The all-installed binding
+coverage and independently scoped positive evidence choices must remain exact.
