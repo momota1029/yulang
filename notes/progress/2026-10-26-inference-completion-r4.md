@@ -111,3 +111,50 @@ identification and original inference soundness remain OPEN. This checkpoint
 does not change Rust, imports, configuration, protected scheduling state or
 the reserved original root. Source construction and the shared native drain
 construction continue in their existing disjoint leases.
+
+Published checkpoint 1: `2ceba875f5b9c3eea16c819b2341df67d4b76f3e`;
+remote CAS update, fetched tree/parent and local branch synchronization agree.
+
+## Checkpoint 2: complete local Context decomposition
+
+The frozen `NativeContextExpansion.lean`, construction paper and producer
+handoff were independently ACCEPTed by `/root/context_expansion_review_r4`.
+The primary accepts the local constructor/callback/body/transport result at
+that exact boundary. All six Context constructors, three parser modes, every
+filter callback, all seven Effect endpoint constructors, consumed/residual
+selection and exact full child payloads are represented. Positive-depth
+coverage reads the actual installed body. Value Context forwarding preserves
+the whole arbitrary Value request, with Value dispatch still outstanding.
+
+The reviewer reconciled 203 hashes, all 31 source inputs, and the complete
+855-declaration census: 296 theorem constants / 50 named roots, including
+12 private theorem constants. The theorem axiom sets are 196 none, 51 only
+`propext`, and 49 `propext, Quot.sound`. Sixteen producer checks retain all
+failures and final successful unabridged types; reviewer calls 0/2. Both
+writers stopped. Review receipt:
+`tasks/agent-loop/inbox/20261026-native-context-expansion-review-r4.md`, hash
+`e646fdb001054b6bdc97be6e2238d664554b3a38197cb6c09838d939b5aea500`.
+
+`InstalledAt` also permits a pending owner. It is not termination or a completed
+semantic proof. CONTEXT-COMMITTED-READBACK remains open: actual Context
+publication precedes completed Dispatch; already-discharged and duplicate
+branches must locate the same complete owner in one history. A queued key
+changed by merge needs the actual Transport/Derived path to its canonical
+processing owner. Registered keys and pending coverage alone do not supply
+that path. Actual settlement cuts, Value dispatch, diagnostic acceptance,
+ordered acknowledgements and the full source witness retain their owners.
+
+## Continuing dictionary interpretation packet
+
+After its first accepted freeze, `/root/source_membership_r4` received a new
+disjoint packet: `NativeDictionaryDenotation.lean`,
+`2026-10-26-native-dictionary-denotation.md`, and
+`20261026-native-dictionary-denotation-r4.md`; scratch/cache is
+`dictionary-denotation-r4/**`. Budget: 1,800 wall seconds and at most 12 focused
+checks, with the existing one-thread/1-GiB/120-second limits. The accepted
+receiving files remain frozen. The actual implementation owner is
+`tools/inference-playground/src/runtime/dispatch.rs` with its program/machine
+consumers; an initial `crates/yu-eval` locator was corrected before source use.
+Construct the determined ordered dictionary algebra and the exact original
+interpretation if its source clauses supply it. Candidate/runtime key equality
+must not stand in for the original full `nu,K,D` descriptor witness.
