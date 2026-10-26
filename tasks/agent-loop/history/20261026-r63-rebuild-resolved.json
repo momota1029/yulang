@@ -1,0 +1,225 @@
+{
+  "id": "R63-REBUILD-RESOLVED-20261026",
+  "checkpoint": "2f9b5a2a1255563dcc9567953be1374b0662acb1",
+  "active_sprint": {
+    "id": "YULANG3-VIEW-OBSERVATION-COVERAGE-REBUILD-20261026/r1",
+    "revision": "r2",
+    "status": "ENDED_ACCEPTED_RESEARCH_RESULT",
+    "contract": "tasks/agent-loop/sprints/yulang3-view-observation-coverage-r63-rebuild.md",
+    "contract_sha256": "909068e6aebc834ae4d6f99b8055f5448dbe26c914c9c71f1e51f81aae001cd9",
+    "baseline": "93d08d5867015741b3588ea3df4c56903b2bbe83",
+    "coordination_baseline": "43473afa61a5fd7853635e134b3d40db125ec71d",
+    "branch": "yulang3",
+    "claim": "Reconstruct the same four represented view-observation declarations; preserve R62 conditions.",
+    "outcome": "CLEAN bounded represented result accepted after fresh review; source integration NOT AUTHORIZED/NOT PERFORMED. Parent gates remain OPEN.",
+    "budget": "1800s total; proof 600s/4 calls/150 checker; primary 1020s/4 calls/150 checker; review 180s/0 calls.",
+    "next_action": "Sprint ended. No source integration; select the next parent/outcome only at the next sprint boundary."
+  },
+  "workers": [
+    {
+      "id": "/root/r63_rebuild_proof",
+      "role": "registered lean_prover",
+      "state": "STOPPED",
+      "session": "collaboration-agent:/root/r63_rebuild_proof; session UUID UNKNOWN",
+      "requested_model": "registered role defaults",
+      "requested_effort": "registered role defaults",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "STOPPED; candidate/handoff frozen; four calls pass; details in handoff; runtime identity unknown."
+    },
+    {
+      "id": "/root/r63_rebuild_review",
+      "role": "fresh non-author compiler_referee",
+      "state": "STOPPED",
+      "session": "collaboration-agent:/root/r63_rebuild_review; session UUID unavailable",
+      "requested_model": "registered role defaults",
+      "requested_effort": "registered role defaults",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "STOPPED; CLEAN review returned; zero calls/writes/children; runtime identity unknown."
+    }
+  ],
+  "leases": [
+    {
+      "path": "tasks/agent-loop/sprints/yulang3-view-observation-coverage-r63-rebuild.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/yulang3-view-observation-coverage-r63-rebuild-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/notes/theory/lean/YulangClosure/PaperObservationCoverage.lean",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/notes/theory/lean/.lake/R63RebuildAudit.lean",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/run_call.py",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/process-manifest.json",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/proof-checks.txt",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/lake-build",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/call-01.stdout",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/call-01.stderr",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/call-02.stdout",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/call-02.stderr",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/call-03.stdout",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/call-03.stderr",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/call-04.stdout",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/call-04.stderr",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/tasks/agent-loop/inbox/paper-observation-coverage-r63-rebuild.md",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/notes/theory/lean/YulangClosure/PaperObservationCoverage.lean",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/notes/theory/lean/.lake/R63RebuildAudit.lean",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/run_call.py",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/process-manifest.json",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/proof-checks.txt",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/lake-build",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/call-01.stdout",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/call-01.stderr",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/call-02.stdout",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/call-02.stderr",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/call-03.stdout",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/call-03.stderr",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/call-04.stdout",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/call-04.stderr",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/tasks/agent-loop/inbox/paper-observation-coverage-r63-rebuild-primary.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/paper-observation-coverage-r63-rebuild-review.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-proof/notes/theory/lean/.lake/build",
+      "owner": "/root/r63_rebuild_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "R63-rebuild-primary/notes/theory/lean/.lake/build",
+      "owner": "/root",
+      "state": "FROZEN"
+    }
+  ],
+  "outcome": {
+    "id": "YULANG3-VIEW-OBSERVATION-COVERAGE-REBUILD-20261026/R1",
+    "record": "tasks/agent-loop/sprints/yulang3-view-observation-coverage-r63-rebuild-outcome.md",
+    "sha256": "4d509ca70b594656a8182a6e425daeb70616a8f5a769880f825b4e7f59082fb6"
+  },
+  "disposition": "Accepted bounded research result and records checkpointed/pushed; no remaining live writer/review. Frozen evidence retained; no filesystem deletion or unknown lease release."
+}
