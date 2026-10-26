@@ -29,6 +29,10 @@ to a concrete original `SourceProblem` instance.
 | `OriginalFirstDrainBoundary` | Constructs a first empty field cut from the supplied finite event list and derives its entry program counter and exact settlement update. | Global initialization has a pre-seed empty field cut; the separate active-cut supplier below is required for the post-tau application. |
 | `OriginalDrainFrontier` | Derives the poll invariant from initialization, then constructs a nonempty first same-owner boundary after the actual active/Dispatch cut with no supplied poll invariant. | Authentic tau/event extraction and exclusion of other-owner settlement where NQ requires it; no boundary existence or full NQ conclusion. |
 | `OriginalScopedClosure` | Constructs the full original Source/Client scoped presentation, proves all-constructor erasure, retains Shared/Event routing, and opens the actual outer-annotation export through original publication restoration. | Semantic fixed-dependency eligibility, endpoint grafts, originalNewInstance interpretation, all-valid-view E_V and complete source/native publication extraction. |
+| `OriginalNameForceExtraction` | Computes the registered lexical Name/Observe Delay's full prefix graph, failures, exact Return/receipt and frozen extraction record; an allocated-and-bound case derives Force and Return directly. | Selected concrete operator, not arbitrary opaque Force equivalence; raw decoder/readout coherence, dictionary poststate, independent all-future history/guards and actual receiver-entry packet remain. |
+| `OriginalBoundWorkExecution` | Composes actual selected scoped Value Bound, physical insertion, Value capture/emission/sample and the same retained state's captured-fiber loop; proves full child delivery and both partial-write error cases. | The result stops before origin metadata; unscoped OwnerEmission, Effect capture, earlier source-link extraction and complete native Work execution remain separate. |
+| `OriginalMemberEntryFields` | Emits the operational/Internal field split at actual pairRegistration, reconstructs each original installed object and preserves one whole source component, captures and shared witness maps. | Opaque semantic fields lack complete typed dependency schemas; no semantic PairAssignment validity, whole eligibility walk, endpoint graft or E_V result. |
+| `OriginalStageWorkConservation` | Derives a new completion on the exact remaining suffix after every queue snapshot before the first same-owner boundary from actual initialized stage execution. | Ghost admitted-work identity and completion tracking still need native extraction; nested-owner exclusion, injective multiplicity and NQ successor production are separate. |
 
 The first two modules, their reusable audit and fresh review were pushed as
 [`a209a9d46b4707d29d60b210e490d13f49efa263`](https://github.com/momota1029/yulang/commit/a209a9d46b4707d29d60b210e490d13f49efa263).
@@ -40,8 +44,11 @@ The four later execution modules were pushed as
 [`f8442e8e618940e0575897e373b2e3faa55e3d30`](https://github.com/momota1029/yulang/commit/f8442e8e618940e0575897e373b2e3faa55e3d30).
 The carrier and bound-fiber modules were pushed as
 [`e7551b943fa5dcd8205e2f5ec82380c9688a9cb3`](https://github.com/momota1029/yulang/commit/e7551b943fa5dcd8205e2f5ec82380c9688a9cb3).
-The seven Work/fiber/stage/scoped modules form the next independently accepted
-and default-built slice.
+The seven Work/fiber/stage/scoped modules were pushed as
+[`519655caeb05ef83b08b2955f60ec200a7e44536`](https://github.com/momota1029/yulang/commit/519655caeb05ef83b08b2955f60ec200a7e44536).
+The four new execution/registration/conservation modules form the next
+kernel-checked and default-built slice; their exact independent acceptance
+is recorded in the linked reviews below.
 
 ## Verification
 
@@ -206,6 +213,69 @@ receipts. The final frozen checks, rather than earlier partial interfaces,
 are the evidence used for integration. No compiler or original source semantics
 changed in this slice.
 
+### Concrete Name/Bound execution, registration and fresh completion
+
+The next four frozen modules are ordinary `OriginalProofProgress` imports.
+The full default build passed **150 jobs**, exit 0, with zero warnings/errors.
+All four source hashes still match their frozen audit/review inputs. The log
+is `/tmp/yulang-name-bound-member-conservation-full-integration.log`, SHA-256
+`b74fa58c8adb43b39ef03ec6049c138b974dceb1613f4215827bbe4b81395431`.
+
+| Origin module | All declarations | Theorem constants | Authored roots |
+| --- | ---: | ---: | ---: |
+| `OriginalNameForceExtraction` | 409 | 189 | 31 |
+| `OriginalBoundWorkExecution` | 545 | 196 | 37 |
+| `OriginalMemberEntryFields` | 123 | 40 | 16 |
+| `OriginalStageWorkConservation` | 111 | 79 | 34 |
+| **New census** | **1188** | **504** | **118** |
+
+The cumulative twenty-three-module census therefore covers **2589 theorem
+constants**. Every new module has a full origin-based audit of definitions,
+private/generated declarations, complete types and transitive axioms. The
+reusable `AuditOriginalNameForceExtraction`, `AuditOriginalBoundWorkExecution`,
+`AuditOriginalMemberEntryFields` and `AuditOriginalStageWorkConservation` files
+are byte-identical copies of successfully checked audit scripts. These counts
+describe coverage; no original root is closed by their size.
+
+Name Force is now a computed interpretation at the existing Inputs boundary.
+Its raw tagged graph includes errors and every finite observation budget;
+failed phases remain observations with invalid guards. CheckedDomain,
+ActualAdm and other owners are retained. The exact native dictionary-free
+bind/allocation application constructs Force and Return rather than receiving
+them as assumptions. Generic all-future world/guard evidence remains separate.
+Dictionary-machine poststate and changing instrumentation are explicitly
+outside the unchanged world projection; the note does not hide them in Rest.
+
+The scoped Value Bound composition respects source order: admission, physical
+append/readback, actual no-op Value capture, dirty/evidence emission/sample,
+then the first executable-fiber loop on that very retained state. Its success
+cut is `originMetadata`, not full extrusion completion. The two-source
+fixture produces raw children 3 and 4 with their complete keys and target
+fiber `[4,3]`. Insertion-sample and first-transfer-sample failures preserve the
+actual earlier writes. Unscoped and Effect owners remain explicit external
+cuts instead of inheriting a scoped-Value invariant.
+
+MemberEntry construction keeps one complete original source relation while
+separating the raw member object from its Internal inferred descriptor at the
+actual registration owner. Exact installed-object and capture readbacks are
+proved. The complete semantic field-dependency telescope is still absent;
+no arbitrary graph or assumed eligible-Desc result substitutes for it.
+
+Stage conservation now requires a NEW processed append on an actual event
+edge in the remaining suffix after each queue observation. It derives
+ownership/index/poll invariants from initialization and selects a nonempty
+first prefix after the actual Dispatch cut. Arbitrary bookkeeping cannot
+supply processing evidence. The theorem admits nested frames, so it does
+not certify ordinary-route absence of nested settlement or generation change.
+Processed is ghost tracking and membership is not injective accounting of
+duplicate equal Work values. Full native extraction and NQ remain open.
+
+All producer failure/repair logs and exact independent review receipts are
+retained. New proof checks keep the unchanged 1 GiB project limit; exhaustive
+type/axiom inspections use their explicitly authorized local 2 GiB limit.
+Only `propext`, `Classical.choice` and `Quot.sound` occur. No new proof hole,
+project axiom, unchecked native evaluation or kernel bypass is introduced.
+
 ### Actual execution suppliers and first-boundary integration
 
 `OriginalProofProgress` now includes the four additional modules as ordinary
@@ -306,6 +376,14 @@ Every production author is separate from its reviewer:
   [scoped-closure review](2026-10-27-scoped-closure-review.md).
 - Original instance-operation formulation: `/root`,
   [principal-order review](2026-10-27-principal-order-review.md).
+- Concrete Name Force and observation extraction: `/root`,
+  [Name Force review](2026-10-27-name-force-extraction-review.md).
+- Same-state selected Bound/insertion/fiber-loop composition: `/root/principality`,
+  [Bound execution review](2026-10-27-bound-work-execution-review.md).
+- Source-owned MemberEntry field registration: `/root`,
+  [MemberEntry review](2026-10-27-member-entry-fields-review.md).
+- Fresh completion from exact stage-event suffixes: `/root/principality`,
+  [stage conservation review](2026-10-27-stage-work-conservation-review.md).
 
 The review receipts bind exact source hashes, report independent checker
 outcomes and retain the local interpretation/source-correspondence limits.
@@ -340,11 +418,13 @@ fixture; it is not a Lean infinite execution or a refutation of the original
 possibilities. A finite successful-drain premise or a machine-size cap is
 not substituted for this target.
 
-Current construction targets the actual Name-owned Force observation/extraction
-supplier, the same-state selected Work-to-physical-insertion/fiber-loop join,
-and the original semantic dependency inventory/eligible-Desc owner. These
-successors are excluded from this checkpoint until they pass their own
-construction, source-correspondence, checker and independent-review gates.
+Current follow-up targets the actual Name observation-to-receiver entry
+packet at its same post-Force event, structural child admission/enqueue before
+the first boundary, and the original complete typed field-dependency owners
+needed before eligible-Desc construction. The local Force/Bound joins and
+MemberEntry split above do not discharge those remaining owners. Subsequent
+constructions stay outside this checkpoint until their own source/checker
+and independent-review gates pass.
 None of the integrated local suppliers is treated as a completed original
 source/native or whole-language goal instance.
 

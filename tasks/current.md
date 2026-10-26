@@ -48,13 +48,27 @@ The cumulative nineteen-module census is 2085 theorem constants. The default
 146-job build passed with zero warnings/errors; every frozen source hash still
 matches its review input. These counts do not close an original proof goal.
 
+The next four checked modules compute lexical Name Force observations, the
+same-state selected scoped Value Bound/insertion/fiber-loop join, source-owned
+MemberEntry registration fields, and fresh completion after every exact queue
+snapshot before the first boundary. Their exhaustive audits cover 1188
+originating declarations, 504 theorem constants and 118 authored roots. The
+cumulative twenty-three-module census is 2589 theorem constants. The full
+150-job default build passed with zero warnings/errors and all frozen proof
+hashes unchanged. Independent reviews retain the exact native/readout limits;
+these counts do not close an original whole-language goal.
+
 The principal operation is already specified in the original documents; its
 complete semantic interpretation and all-valid-view E_V remain to be proved.
-Active follow-up constructs Name-owned Force observations, the same-state
-selected Work/insertion/fiber-loop join, and the original semantic dependency
-inventory/eligible-Desc owner. Complete Call interpretation, global
-source/native scoped correspondence and the whole growing inference relation
-remain uninstantiated.
+Active follow-up constructs the Name observation's actual same-event receiver
+entry packet, structural admission/enqueue before the first boundary, and the
+complete typed semantic dependency inventory required by eligible Desc.
+The Name interpretation does not identify arbitrary opaque Force relations;
+the Bound result stops before origin metadata; MemberEntry does not certify
+opaque contract dependencies; stage completion is ghost tracking with native
+extraction still open. Complete Call interpretation, global source/native
+scoped correspondence and the whole growing inference relation remain
+uninstantiated.
 Existing no-normal-drain evidence is not a Lean divergence proof. The separate
 statement-preserving cleanup of nine older modules resolves all 668 lint
 warnings; its independently reviewed 131-job full build has zero warnings
