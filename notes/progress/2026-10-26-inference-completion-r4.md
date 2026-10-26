@@ -946,3 +946,47 @@ source execution admission and raw event keys must remain unchanged. Full
 original Kernel/source registrations, recursive L4 and native success-to-one-
 same-scoped-witness closure remain OPEN. The separately frozen finite Checking
 module ed011e4 is under fresh nonauthor review and is not in this checkpoint.
+
+## Checkpoint 13 publication and checkpoint 14 finite checking acceptance
+
+Environment checkpoint13 was published as
+`45d307a0aa01722b5aac289b07d71953630abca7`, parentfb6f2905a and
+ tree27d582f34cefce6eaf8ca427b8755a3828358a8f. The nonforce expected-parent
+update, exact fetched parent/tree and clean tracked worktree/index were verified
+at 2026-10-26T13:57:06.311916+00:00.
+
+Fresh independent review ACCEPTs OriginalSourceChecking source
+`ed011e4c35e889b13bfe2757271570b683ae06b07b3ed520f7bb8436d4faacef`.
+Receipt `8cc0adefcd17a315a46afcc062a435b83acbee42a6107fc95e612b0458bde560`
+reconciles all827 declarations/299 theorem constants/54 authored roots, full
+transitive axiom reports, all9 mathematical dependencies and the exact10-module
+cone. Final checks15/16 pass without diagnostics. Six independent probes pass:
+inactive observation versus original False meaning; empty finite Union; shared
+existential correlation; genuine App callee subject; and no closed True→False
+proof. The first reviewer-only redundant-tactic failure is retained. No producer
+repair, project axiom, accepted sorryAx or checker bypass occurred. The reviewer
+stopped all writers/processes at 14:06:07.643754 UTC.
+
+The complete selected Phi reification, explicit finite proof syntax, genuine
+mutual Checking induction, all five decoded modes and concrete structural/App/
+Function-child suppliers are constructed at completed Meaning. The accepted
+kernel's checking fields carry actual registered finite proof data. Authentic
+original descriptor/primitive/guard/capture/readout registrations still need to
+supply those constructors; arbitrary original Kernel soundness is not assumed
+or established. Original local Function application still carries targetReadback.
+
+Two next packets follow the canonical source rather than the rejected generic
+recursive closure shortcuts. The separate goal-indexed checker admission design
+is accepted for implementation after this publication: preserve source admission
+and raw keys, correct only the local Function telescope, and prove exact initial-
+goal recovery plus a nonconstant nested-domain discriminator. A read-only
+independent source review is active; no Generation edit has been released yet.
+The separate OriginalRecursivePair packet has exclusive new module/note/handoff
+and recursive-pair-r4 scratch leases,3600 seconds/max28 focused120-second checks,
+no children or Git. It constructs the selected pair's actual receiver/Force/Bind/
+pending/opposite-Name/own-return phases and complete source-owned positive readout.
+It may not assume sourceCases, replace, or equality of an invented phase relation
+with opaque execute. Canonical missing input constructors may be built where the
+selected embedding authorizes them; fixed original predicates still need their
+actual evidence. Final cone verification must consume the explicitly released
+Generation revision. General L4 and whole original inference soundness stay OPEN.
