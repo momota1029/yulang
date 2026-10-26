@@ -285,3 +285,71 @@ replay module and 1,940 across all 20 inference modules. The producer's broader
 audit log SHA-256:
 `47ee04ef6e8ba067d94b34ca8c1ec02e81301411019a42805f6dd8f417122fb0`.
 Only the accepted replay packet and primary integration records are staged.
+
+
+## Checkpoint 5 and the original record-boundary bridge
+
+Checkpoint 4 is published and synchronized as
+`f5b947056f23fb50236463d86738bdea579c1514`. Fresh
+`finite_row_solver_review` accepts the executable finite closure with no repair:
+81 theorem constants / 142 total originating declarations, all 40 authored
+roots, no choice or project axioms. Review SHA-256
+`530b4df61d754a7a2852a7f8cff1f4504a9bfcd3b63dd33cafe37618bff57e82`.
+Frozen source SHA-256
+`9f8e2cf43ade40c17a09387d5888833002ee42791eff0d2d608f83d6ca39e974`;
+paper `c16cabe5a514ef0a99ecbe983961a148a70f54117e7830d923cb580fb89a7577`;
+producer handoff
+`9923888ec4abaaa9073cda9a49e6b43745316cfa735647cb083190df26742a95`.
+The solver constructs the previously supplied syntactic saturation from actual
+finite propagation, proves least membership and exact same-table syntactic
+completeness, and derives the model/decision for the original clauses.
+
+The fresh selector's `20261026-inference-native-continuation.md` identifies a
+real original-domain representation seam: native width/optional record
+comparisons cannot be translated universally into the existing exact structural
+relation. The next coherent research construction therefore retains unchanged-
+view routing separately from concrete boundary plans, using the completed
+record preservation result. It does not add concrete adaptation transitivity,
+a source restriction, runtime pass or semantic adoption.
+
+New exact leases, with frozen existing dependencies:
+
+- `boundary_query_construction`: new `BoundaryQueryClosure.lean`,
+  `2026-10-26-boundary-query-closure.md`,
+  `20261026-inference-boundary-query-closure.md` and isolated scratch
+  `inference-boundary-query-closure`; 1,800 seconds, at most 18 focused
+  120-second/1-GiB/single-thread Lean calls. Construct finite exact endpoint
+  query closure, preserving provenance and honest fixed/growing-wiring bounds.
+- `native_record_correspondence`: new
+  `2026-10-26-native-record-query-correspondence.md`,
+  `20261026-inference-native-record-query.md` and own scratch; 900 seconds,
+  read-only original source/native construction, no Rust/Lean edits or checks.
+- Primary: new `NativeRecordPlan.lean`,
+  `2026-10-26-native-record-plan-construction.md` and isolated
+  `inference-native-record-plan`; at most 18 focused bounded Lean invocations,
+  no Rust edits. Transcribe the actual record shape/child skeleton and prove
+  filling its precise child holes yields the existing record compiler equation.
+
+Lean paths are under `notes/theory/lean/YulangClosure`; theory papers under
+`notes/theory`; handoffs under `tasks/agent-loop/inbox`. Every coherent packet
+still requires fresh nonauthor M3 review. The source identity, context, child
+cast and full request/resumption/Call obligations are not silently discharged
+by retaining raw labels or constructing a finite skeleton.
+
+Checkpoint 5 integration passes the inference import target (24 jobs) and the
+exact originating-theorem audit: 2,021 constants across 21 modules, including
+all 81 new saturation theorems and the required constructive solver roots.
+Build log SHA-256:
+`88917f482aed2a15d5d4f43e7ba63ee1fa040ee2d6eb8401e02de16f47815d5b`;
+audit log SHA-256:
+`fe88fa92e6d141197341ea2e7d7488c2f5fd65f44f76151d15810969502757ca`.
+Only the accepted finite solver, its reviews/selector and primary integration
+records are included in this checkpoint.
+
+The primary transferred the unused `NativeRecordPlan` lease to fresh generic
+leaf `native_record_plan_construction`, with the same 1,800-second / 18 focused
+bounded-Lean-call budget and isolated scratch. No primary source file or
+checker attempt existed at transfer. Its additional exact handoff lease is
+`tasks/agent-loop/inbox/20261026-inference-native-record-plan.md`. The completed
+native record paper is frozen for its read-only use and later fresh joint
+review. Primary retains Git, integration, shared records and adjudication.

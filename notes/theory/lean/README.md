@@ -46,6 +46,17 @@ explicit bridge to the abstract full-product merge. The component contributes
 87 theorem constants; the full inference audit now covers 1,940 across 20
 modules. Arbitrary native histories and full source soundness remain OPEN.
 
+`NativeRowSaturation` computes the finite missing clause closure and proves
+that its strict-decrease bound is sufficient. Successful local checks construct
+all five syntactic saturation fields, preserve the literal original clause
+prefix and derive the shared regular model and decision for those original
+clauses. Leastness and the converse characterize exactly the existence of a
+same-table syntactically saturated extension. This is a proof-side structural
+solver; it does not replace native width/optional record adaptation or supply
+the full original source witness. Independent review accepts all 81 new theorem
+constants; the inference build passes 24 jobs and the audit covers 2,021 theorem
+constants across 21 modules.
+
 ## 2026-10-26 continuation: construct terminal inference evidence
 
 The final connection is

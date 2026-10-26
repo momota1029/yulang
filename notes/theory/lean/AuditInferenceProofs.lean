@@ -33,7 +33,8 @@ run_cmd do
     `YulangClosure.SimpleSubLatticeGrowingInference,
     `YulangClosure.NativeRowModel,
     `YulangClosure.RecordBoundaryPreservation,
-    `YulangClosure.NativeReplayCoverage
+    `YulangClosure.NativeReplayCoverage,
+    `YulangClosure.NativeRowSaturation
   ]
   let roots : Array Name := #[
     `YulangClosure.BirthLevelSCC.finiteReach_iff,
@@ -155,7 +156,31 @@ run_cmd do
     `YulangClosure.NativeReplayCoverage.temporal_three_case_coverage,
     `YulangClosure.NativeReplayCoverage.equal_level_row_bound_is_upper,
     `YulangClosure.NativeReplayCoverage.function_children_exact,
-    `YulangClosure.NativeReplayCoverage.live_concat_saved_count_misses_atom
+    `YulangClosure.NativeReplayCoverage.live_concat_saved_count_misses_atom,
+    `YulangClosure.SimpleSub.NativeRowSaturation.remaining_strict,
+    `YulangClosure.SimpleSub.NativeRowSaturation.close_correct,
+    `YulangClosure.SimpleSub.NativeRowSaturation.clauses_retains,
+    `YulangClosure.SimpleSub.NativeRowSaturation.clauses_prefix,
+    `YulangClosure.SimpleSub.NativeRowSaturation.completed_saturated,
+    `YulangClosure.SimpleSub.NativeRowSaturation.solve_success,
+    `YulangClosure.SimpleSub.NativeRowSaturation.solve_original_model,
+    `YulangClosure.SimpleSub.NativeRowSaturation.solve_original_store,
+    `YulangClosure.SimpleSub.NativeRowSaturation.solve_original_history,
+    `YulangClosure.SimpleSub.NativeRowSaturation.clauses_least,
+    `YulangClosure.SimpleSub.NativeRowSaturation.solve_complete,
+    `YulangClosure.SimpleSub.NativeRowSaturation.solve_exists_iff,
+    `YulangClosure.SimpleSub.NativeRowSaturation.recursive_solved,
+    `YulangClosure.SimpleSub.NativeRowSaturation.recursive_original_store_constructed,
+    `YulangClosure.SimpleSub.NativeRowSaturation.recursive_original_decided,
+    `YulangClosure.SimpleSub.NativeRowSaturation.alias_solved,
+    `YulangClosure.SimpleSub.NativeRowSaturation.alias_cycle_computed,
+    `YulangClosure.SimpleSub.NativeRowSaturation.incompatible_atoms_rejected,
+    `YulangClosure.SimpleSub.NativeRowSaturation.malformed_bound_rejected,
+    `YulangClosure.SimpleSub.NativeRowSaturation.duplicate_labels_rejected,
+    `YulangClosure.SimpleSub.NativeRowSaturation.function_signed_children,
+    `YulangClosure.SimpleSub.NativeRowSaturation.optional_metadata_not_erased,
+    `YulangClosure.SimpleSub.NativeRowSaturation.tuple_arity_not_erased,
+    `YulangClosure.SimpleSub.NativeRowSaturation.variant_payload_arity_not_erased
   ]
   let env ← getEnv
   let mut targets : Array Name := #[]
