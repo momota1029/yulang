@@ -1,3 +1,39 @@
+# Current task: original whole-Yulang Lean metatheory, 2026-10-27
+
+The user renewed the full original soundness, Effect hygiene, principality and
+inference-termination request on `yulang3`, with frequent coherent pushes.
+All four original whole-language goals remain **OPEN**. The current work uses
+pinned Lean 4.35.0 and preserves the original source/algorithmic scope.
+
+First reviewed construction: the original formal contract is selected from its
+complete pre-invocation telescope, and an actual Force/Return supplies the native
+bind's old-world and returned-value membership premises. Both source modes and
+the original hole-relative operator are retained. The two added modules have a
+fresh complete 65-theorem audit and independent nonauthor acceptance. Their
+reusable checker is `notes/theory/lean/AuditOriginalFormalEntry.lean`; the exact
+acceptance boundary is in
+[the formal-entry review](../notes/progress/2026-10-27-formal-entry-review.md).
+
+The next coherent slice constructs the source-owned body consumer, computes
+Value Return/Shared at the decoder's own Event, and establishes native Replay
+allocated-prefix chronology. A principality interface diagnostic preserves
+the original source/order boundary. All six modules have a complete 323-theorem
+type/axiom audit; the full 131-job default build succeeded. Fresh independent
+reviews and exact remaining premises are recorded in
+[the continuation ledger](../notes/progress/2026-10-27-original-full-proof-status.md).
+
+Active follow-up: the actual identity Lambda Name supplier and the actual
+ordinary/restoration Replay queue machine. Complete Call interpretation, the
+original principal ordering, global source/native scoped correspondence and
+the whole growing inference transition relation remain uninstantiated.
+Existing no-normal-drain evidence is not a Lean divergence proof. Primary also
+owns the statement-preserving follow-up for the nine older modules' lint
+warnings enumerated in the ledger; no lint option has been disabled.
+The historical foreign scheduling snapshot is preserved; this isolated checkout
+has no authority to reclaim those recorded foreign workers or leases.
+
+---
+
 # Current task: original whole-Yulang metatheory, continuation r2
 
 2026-10-26: the user's instruction is to finish the original proofs while
