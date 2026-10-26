@@ -1,5 +1,44 @@
 # Yulang closure: Lean root composition and control
 
+## 2026-10-26: substitution, call entry, allocation and integer arithmetic
+
+Four additional modules advance the original obligations without changing
+existing judgments or compiler behavior:
+
+- `PaperTermSubstitutionAlgebra.lean` proves identity/composition and type/term
+  commutation for the existing raw operations, exact graph-formal and response
+  substitution, and composition of the typed partial APIs.
+- `PaperCallEntryFormation.lean` constructs the actual same-owner entry code
+  for both lambda modes and arbitrary finite wrapper spines. It also proves the
+  exact `Force(View ...)` frontier of the current partial executor.
+- `PaperAllocationExecution.lean` derives finite execution and saved-response
+  typing across actual fresh allocations, with responses checked in the current
+  graph and a concrete reusable-continuation example.
+- `NativeIntegerArithmetic.lean` proves the arbitrary-width carry/borrow
+  algorithm computes addition/subtraction, including exact String decoding,
+  and applies it to the existing completed native-request theorem.
+
+The default library retains its original root and adds the explicit
+`YulangClosure.ProofAdvancement` glob. Ordinary `lake build` includes all four
+modules; the reserved original root file is unchanged. The integrated default
+build passed 58 jobs using Lean 4.35.0. Run the complete new-module audit with:
+
+```sh
+lake build
+lake env lean -j1 -M1024 AuditProofAdvancement.lean
+```
+
+All 538 module-originated theorem constants, including private/generated
+helpers, passed type and axiom inspection. Dependencies contain only the
+standard `propext`, `Classical.choice`, `Quot.sound`, or none. Non-author review
+accepted each stated scope. The [proof record](../../progress/2026-10-26-yulang3-proof-advancement.md)
+contains the exact improvements, hashes, evidence and review receipts.
+
+Whole-language progress, full Force/View/scope and nonempty-owner/current-world
+execution, guardedness, remaining source/native correspondence, and original
+inference A/B remain OPEN. Raw substitution equations preserve the existing
+opaque fallback; they do not assert coverage of omitted source constructors.
+
 ## 2026-10-26: explicit execution proof extension
 
 `PaperExtendedExecution.lean` connects actual type application, registered

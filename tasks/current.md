@@ -1,5 +1,20 @@
 # Current task: complete type inference and replace F5
 
+2026-10-26 further `yulang3` proof advancement: capture-avoiding term
+substitution algebra, constructive same-owner call entry, actual fresh
+allocation/execution with reusable saved responses, and exact arbitrary-width
+native integer addition/subtraction are checked and independently reviewed.
+The completed-request arithmetic corollaries discharge their output grammar
+premise; allocation state/body typing is derived in the extended graph.
+The ordinary default build now includes all four new modules and passed
+58 jobs. The complete new-module audit passed 538 theorem constants (including
+private/generated helpers), with only standard axioms. Original whole-language
+progress, Force/View/scope, nonempty-owner/current-world behavior, guardedness,
+source/native correspondence and inference A/B remain OPEN. See the
+[proof record](../notes/progress/2026-10-26-yulang3-proof-advancement.md) for exact
+scope, hashes, verification and review receipts. R63's reserved root and foreign
+live scheduling records are preserved.
+
 2026-10-26 `yulang3` proof integration: actual type application, registered
 template expansion, repeated empty-owner response/resume and failure unwinding
 are connected to one concrete executor. Intersection choose and Bottom

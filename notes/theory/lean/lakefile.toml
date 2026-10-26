@@ -5,3 +5,4 @@ moreLeanArgs = ["-j1", "-M1024"]
 
 [[lean_lib]]
 name = "YulangClosure"
+globs = ["YulangClosure", "YulangClosure.ProofAdvancement"]
