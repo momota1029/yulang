@@ -3,7 +3,9 @@ import Lean.Util.CollectAxioms
 import YulangClosure.InferenceProofs
 
 /-! Exact originating-module audit, including private and generated theorems.
-Run `lake build` followed by `lake env lean -j1 -M1024 AuditInferenceProofs.lean`.
+Run `lake build` followed by `lake env lean -j1 -M1536 AuditInferenceProofs.lean`.
+The complete type/axiom census needs this local memory bound; proof builds retain
+the project's 1-GiB limit. No audit target or axiom check is omitted.
 Kernel acceptance does not establish unprovided theorem premises or source meaning.
 -/
 set_option pp.fullNames true
@@ -241,6 +243,38 @@ run_cmd do
     `YulangClosure.NativeReplayAcknowledgement.Witness.retired_running_reachable,
     `YulangClosure.NativeReplayAcknowledgement.Witness.repeated_relation_distinct_occurrences,
     `YulangClosure.NativeReplayAcknowledgement.Witness.empty_initial_not_retired,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.prepareGuard_some_exact,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.prepareGuard_readback_exact,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.scanCount_bound,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.scanCount_prefix,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.scanCount_finish_or_failure,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.trace_reachable,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.trace_exact_fields,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.scan_trace_aux,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.scan_constructs_trace,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.scan_accounted,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.scan_steps_bounded,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.scan_exact_first_failure,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.scan_successful_prefix,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.scan_complete_exact_steps,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.paired_cursor_frame_step,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.scan_preserves_other_fields,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.scan_complete_frame,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.trace_prefix,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.resource_stop_prefix,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.committed_reachable,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.commit_scan_outcome,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.commit_scan_complete_frame,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.complete_scan_then_append,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.reprepare_deficit_decreases,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.nonterminal_reprepare,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.paired_owner_lookup_step,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.Witness.retained_working_reachable,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.Witness.retained_diagnostics_reachable,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.Witness.working_commit_reprepare,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.Witness.diagnostics_commit_reprepare,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.Witness.second_reprepare_uses_prepared_not_completed,
+    `YulangClosure.NativeReplayAcknowledgement.Repreparation.Witness.missing_owner_stops_at_first,
     `YulangClosure.SimpleSub.NativeRowSaturation.remaining_strict,
     `YulangClosure.SimpleSub.NativeRowSaturation.close_correct,
     `YulangClosure.SimpleSub.NativeRowSaturation.clauses_retains,

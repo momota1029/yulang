@@ -646,3 +646,201 @@ acknowledgement producer a separate 300-second read-only investigation of the
 specific working-stage re-preparation extension: zero file writes, checks,
 native probes or children. Any constructive delta requires a new exact lease
 after the accepted checkpoint is safely published.
+
+Checkpoint 8 is published and locally synchronized as
+`9fe10fd65bc8eac14ac1a9ef0560ea11c36756b1`, with exact parent, staged-tree and
+remote expected-head checks. Its seven-module proof surface and all frozen
+reviewed inputs match the 83-job/2,515-theorem validation. The checkout was
+clean after synchronization. The full original inference root stays OPEN.
+
+## Concrete re-preparation transition delta
+
+The read-only follow-up verifies that merely relaxing the terminal preflight's
+stage guard would be incorrect. `prepare_nonterminal_drain` indexes the current
+`prepared_acks`, repeatedly advances it while below the vector length, and has
+no internal stage guard. Its callers include Diagnostics as well as working
+constructor stages. Terminal preparation instead indexes `completed_acks` when
+the two frontiers coincide. The nonterminal helper preserves
+`terminal_prepared`; a final resource observation may fail even after the
+frontier has reached the vector length.
+
+The primary grants a distinct constructive delta to
+`native_replay_acknowledgement`: only the existing
+`NativeReplayAcknowledgement.lean`, new
+`2026-10-26-native-replay-repreparation.md`, new inbox
+`20261026-inference-native-replay-repreparation.md`, and isolated scratch
+`inference-native-replay-repreparation`. Baseline is checkpoint 8. Budget:
+1,200 seconds, at most ten focused single-thread/1-GiB/120-second Lean calls;
+zero native tests, children, Git or other source/shared writes. Earlier papers,
+receipts and checker logs stay byte-preserved.
+
+The delta must derive the exact finite successful prefix or first native
+cursor-guard failure, link the selected frame ack to the existing cursor
+preparation step, and preserve accounting through commit and re-preparation.
+No assumed valid-ack list substitutes for the computation; resource failure
+remains distinct from a completed frontier and native `Ok`. Complete shared
+map/journal authentication and the Effect expansion induction remain OPEN.
+The same fresh nonauthor may review this narrow delta after its freeze, under
+the existing M3 delta-review policy; no reviewer contributes to construction.
+
+## Unchanged full parent and remaining source-owner applications
+
+The goal is still the original proposition at `Contracts.lean:128`:
+
+```lean
+∀ s x d a, p.supported s → p.generates s x d → p.solves d a →
+  ∃ e, p.sourceJudgment s x e ∧ p.sameScoped s x e a
+```
+
+`SourceProblem` is an abstract interface; its proposition definition is not a
+concrete full-language instance. The checked constructions remove supplied
+models, closure evidence and local accounting hypotheses at their stated
+boundaries. They do not independently establish the following native/source
+inputs to the original root. The primary remains responsible for their
+construction; no source restriction or semantic adoption closes them.
+
+| Remaining obligation | Actual owner and next evidence |
+| --- | --- |
+| Native growing-history and current expansion closure | Construct one erased execution graph from the actual bound, relation, worklist, replay-operation, drain and journal maps. `merge_candidate_rows`, `candidate_context_begin_replay`, all-owner canonicalization and the Context Effect consumer must supply `MERGE-EXPANSION-COVER-1`: transported installed Allowance fibers plus their exact residual, every newly combined or suppressed product, recursive/cyclic dispositions and outstanding child owners. The admitted-pair memo cannot stand in for returned semantic proof. The re-preparation delta addresses one identified local transition only. |
+| Original boundary classification and executable record view | Authenticate each real source query as unchanged-view routing or the original semantic adaptation boundary `j`; for an adaptation, connect the filled native skeleton to the executable `RecMap` with distinct input/output visible ports. Formal-domain record queries, literals, row IDs and absent Record annotations cannot supply that equation by renaming. General child request/resumption contracts and contextual-effect meaning must apply to the same boundary. |
+| Complete original Call and shared source witness | Construct the full decorated Call evidence from actual successful native inference, then reconstruct the original source judgment with the same lexical/scoped witness across sharing, generalization, all uses and clients. An original `G_call` solution already contains its decorated certificate; reading that field does not prove the native producer. The earlier ten-field candidate remains unadopted. |
+
+The source investigations establish concrete compensation paths, not a new
+source-generated solver defect or an impossibility result. Full native/source
+correspondence, original inference soundness and the separate principality/
+natural-inference obligations remain OPEN. Existing original-source semantics,
+expected outputs and production inference behavior are preserved.
+
+## Re-preparation freeze and integrated verification
+
+The producer constructs the stage-free prepared-index event, exact executable
+native cursor guard, finite successful-prefix scan and its full/first-failing-
+guard alternative. `Repreparation.nonterminal_reprepare` builds the guarded
+trace and derives reachability, accounting and preservation of every other
+frame field. `paired_owner_lookup_step` uses the same selected ack and the
+explicit owner-readback equation for the existing cursor preparation step.
+Commit, resource-stopped prefixes, fully-prepared append, working and
+Diagnostics are covered. All 35 previous authored theorem statements and the
+old terminal preflight remain unchanged; their proofs are rechecked over the
+extended transition relation.
+
+Frozen extended module SHA-256:
+`5264c6b6d9904a43ec0b50c3ac0100a05612b724f52a8601e3a93c771f8204df`;
+new delta paper `08c8e2d19cc36bb1572bfeba569bfb5e7b382098e2ec2201e8edfaa116f7fb2b`;
+revision-1 handoff `efd9f69636c87e2eb3d3f487ab0f7f0e9ce1bfd557d959260f7b8bdd2aff4fb4`.
+The accepted predecessor papers, receipts and complete evidence stay intact.
+The worker stops after 433 seconds, four focused checker calls of ten granted,
+and zero native tests/probes, children, Git or shared-status edits.
+
+`check03` passes two jobs with zero warnings; `audit04` checks all 723 originating
+declarations, 306 theorem constants and 67 authored roots (35 old plus 32 new),
+including private/generated proofs. Across all declarations, the exact axiom
+sets are 585 none, 72 propext, 38 propext/Quot.sound and 28 with all three allowed
+standard axioms. No project axiom, hole or bypass. Final build log SHA-256
+`892032aec1f6cf18f2fd353a5d5324f8b94f1f0cbbacfd8bcafb3e4ff32137d5`;
+final audit `31a971b68216fc44a9cca9e4be423bc11e94798d58365dae43b0f0b31dde2523`;
+manifest `366bec659fa56a20b8c4f73e3b4495adda40ef1e583171613f0f1c5e5a57ae46`.
+The two failed repair logs and corresponding source snapshots are retained.
+
+The primary adds all 32 new roots to the global inference audit and checks the
+ordinary default build on the freeze. `native_lifecycle_review` has a fresh
+900-second nonauthor delta-review lease, only new inbox
+`20261026-inference-native-replay-repreparation-review.md` and isolated scratch
+of that name; zero optional checker/native runs and no source writes. Its
+acceptance must retain the resource-failure and global-readback boundaries.
+
+The ordinary integrated build passes **83 jobs**, log SHA-256
+`e7faf7a0df9e0c03c3edc311fea605d0c9cb9ca75402e274bc8e863aa8666580`.
+The subsequent complete 24-module audit at `-M1024` exits 134 with Lean's
+interpreter `memory_exception`, before emitting a completed census; it does
+not establish an audit pass or a mathematical counterexample. The failure log
+is preserved at `native-repreparation-final-audit.log`, SHA-256
+`48bc2200174632932b9ea98fd0a0c30e6dc353ce535531045f1c7efc7b79940a`.
+
+The primary grants one task-local complete-audit retry at `-M1536`, still one
+thread and 120 seconds. Resource inspection finds an 8-GiB cgroup limit,
+approximately 99 MB of anonymous memory and 7.86 GB of file cache, with zero
+OOM events and about 9 GiB host available memory. No other checker is active.
+This resolves the concrete larger-census memory limit; all theorem/type/axiom
+checks remain intact. The committed audit command documents its local bound;
+project configuration, proof-build limits, toolchain and dependencies are
+unchanged. The successful ordinary build is not repeated for this audit-only
+command adjustment, and no earlier log is overwritten.
+
+The bounded retry **passes** the complete type/axiom audit: **2,576 distinct
+originating theorem constants across the same 24 modules**, including all 32
+new required roots and every private/generated theorem. The seven new modules
+now contribute 937 theorem constants beyond the 1,639 baseline; these remain
+audit-coverage counts, not independent original-language obligations.
+
+| Final theorem-only axiom set | Count |
+| --- | ---: |
+| None | 1,239 |
+| `propext` | 779 |
+| `Quot.sound` | 2 |
+| `propext`, `Quot.sound` | 522 |
+| `propext`, `Classical.choice`, `Quot.sound` | 34 |
+
+The 34 choice-dependent declarations consist of six canonical-row example
+results/helpers and 28 acknowledgement/re-preparation theorems, including
+generic roots. No project axiom, hole, unchecked evaluation or bypass.
+Final complete audit SHA-256:
+`028950594e14cee96f497ef42f76c50b8e667f3c6ee3135e15e5105f8e7281bb`;
+validation/29-input manifest:
+`77ed4150e2c13c93d11ef39286bac9bc285778ced49c57c4fe831d918f9bab06`.
+Every source/configuration entry was rehashed and matched. The evidence files
+are `native-repreparation-final-audit-1536.log` and
+`native-repreparation-final-validation.json` under the primary scratch root.
+The previously successful 83-job build remains the exact proof-source check.
+
+The final build again reports 668 existing lint warnings, all in original
+sources whose bytes match baseline `bf81a1bd444b3bcbecca6b754ea6fb603262f368`.
+Changed files and the final complete audit produce zero warnings. Exact owners:
+
+| Original Lean module | Replayed warnings |
+| --- | ---: |
+| `ControlComposition` | 3 |
+| `PaperExecutionSyntax` | 23 |
+| `PaperExecutionBinderLaws` | 235 |
+| `PaperTermSubstitution` | 96 |
+| `PaperCoreStep` | 4 |
+| `NativeIntegerComparison` | 7 |
+| `PaperTupleSplitExecution` | 22 |
+| `PaperPerformLetExecution` | 2 |
+| `PaperTypeBetaExecution` | 276 |
+
+These are unused-variable/argument lint diagnostics in frozen original proof
+dependencies, outside the exact new-construction source leases. Warning-only
+rewrites would require a separate source-specific proof-repair and review
+packet; no such rewrite or suppression is mixed into this inference checkpoint.
+No checker process remains from the primary verification.
+
+## Accepted re-preparation delta and checkpoint 9
+
+The fresh nonauthor delta verdict is **ACCEPT, no mandatory findings**.
+Receipt `20261026-inference-native-replay-repreparation-review.md` has SHA-256
+`864dd5017a9238ccbb11f5c1a4478002e77eab00b70d1568652b978f9fe33ada`;
+its metadata census is
+`31fb092379bf9c1bfaa429577ca3935343c66ff91570c3f34ba01998836016df`.
+The reviewer rehashes all 37 producer manifest entries and all 44 inspected
+identities, reads every new root type and actual native guard/caller, and
+checks all complete audit blocks. It uses zero checker/native/probe/Git calls
+and stops all writes after 322 seconds of its 900-second grant.
+
+The primary accepts that verdict at exactly its stated projection boundary.
+The 350-line additive delta preserves all 35 old authored printed type/axiom
+blocks byte for byte. Generated recursors, constructor indices and helper
+types necessarily change with the extra transition; their full new audit is
+included rather than claiming all generated declarations are unchanged.
+The final global comparison changes only the acknowledgement module's census
+from 245 to 306; all other 23 module counts remain identical. Of 29 checked
+source/configuration inputs, only that module and the global audit program
+change. No proof source changes follow the final check.
+
+The former concrete nonterminal-transition omission is now closed at the
+projection level. Actual shared-map and native-event authentication, resource
+failure correspondence, the full journal, semantic child closure and
+`MERGE-EXPANSION-COVER-1` retain their exact OPEN status. The full original
+source soundness proposition is not promoted. Producer/reviewer papers retain
+their freeze-time labels; this final acceptance supersedes pending-review
+status without rewriting their audited bytes.

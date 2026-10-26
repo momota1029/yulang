@@ -429,6 +429,7 @@ inductive FrameEvent where
   | enterDiagnostics
   | diagnostics
   | preflight (a : Ack)
+  | reprepare (slot : Nat) (a : Ack)
   | markTerminal (transactional : Bool)
   | complete (a : Ack)
   | emptyReady
@@ -455,6 +456,11 @@ inductive FrameStep : FrameProjection → FrameEvent → FrameProjection → Pro
       (stage : f.stage = .acknowledgements) (same : f.completed = f.prepared)
       (readback : f.acks[f.completed]? = some a) (bound : f.completed < f.acks.length) :
       FrameStep f (.preflight a) { f with prepared := f.prepared + 1 }
+  /-- prepare_nonterminal_drain has no stage test and reads the prepared index. -/
+  | reprepare (f : FrameProjection) (a : Ack) (alive : f.present = true)
+      (top : f.index + 1 = f.stackLength) (lower : f.completed ≤ f.prepared)
+      (bound : f.prepared < f.acks.length) (readback : f.acks[f.prepared]? = some a) :
+      FrameStep f (.reprepare f.prepared a) { f with prepared := f.prepared + 1 }
   | markTerminal (f : FrameProjection) (transactional : Bool) (alive : f.present = true)
       (stage : f.stage = .acknowledgements ∨ f.stage = .returnReady) :
       FrameStep f (.markTerminal transactional) { f with terminalPrepared := transactional }
@@ -508,6 +514,8 @@ theorem frame_step_preserves {f g : FrameProjection} {e : FrameEvent}
   | diagnostics alive stage =>
       exact ⟨hcp, hpl, hx, by simp, by simp, by simp, by simp [alive]⟩
   | preflight a alive stage same readback bound =>
+      exact ⟨by simp; omega, by simp; omega, hx, hz, hr, hd, by simp [alive]⟩
+  | reprepare a alive top lower bound readback =>
       exact ⟨by simp; omega, by simp; omega, hx, hz, hr, hd, by simp [alive]⟩
   | markTerminal transactional alive stage =>
       exact ⟨hcp, hpl, hx, hz, hr, hd, hp⟩
@@ -628,5 +636,347 @@ theorem empty_initial_not_retired : initial.native.retired = false ∧
     Step 0 [] initial .noChild { initial with native := { initial.native with retired := true } } := by
   exact ⟨rfl, Step.noChild initial rfl rfl rfl (by decide)⟩
 end Witness
+
+/-! Retained-ack re-preparation delta. Resource reservation remains separate
+from this executable native cursor-guard scan. A successful guard scan is not
+an unconditional native `Ok`, nor authentication of the supplied owner map. -/
+namespace Repreparation
+
+/-- Exact successful cursor guards of prepare_replay_child_completion.
+The native function does not test retired, and Ready is rejected. -/
+def prepareGuard (owner : Option NativeState) (a : Ack) : Bool :=
+  match owner with
+  | none => false
+  | some s => decide (s.consumed ≤ a.index ∧ a.index < s.queued) &&
+      match s.waiting with
+      | .idle => true
+      | .running expected _ => decide (expected = a ∧ s.queued = a.index + 1)
+      | .ready _ _ _ => false
+
+theorem prepareGuard_some_exact (s : NativeState) (a : Ack) :
+    prepareGuard (some s) a = true ↔
+      s.consumed ≤ a.index ∧ a.index < s.queued ∧ CompletionWait a.operation a.index s := by
+  cases s with
+  | mk queued consumed retired waiting =>
+      cases waiting <;> simp [prepareGuard, CompletionWait, and_assoc]
+
+theorem prepareGuard_readback_exact (s : Projection) (a : Ack) :
+    prepareGuard (readback s) a = true ↔ s.present = true ∧
+      s.native.consumed ≤ a.index ∧ a.index < s.native.queued ∧
+      CompletionWait a.operation a.index s.native := by
+  cases h : s.present with
+  | false => simp [readback, h, prepareGuard]
+  | true => simpa [readback, h] using prepareGuard_some_exact s.native a
+
+abbrev Owners := Nat → Option NativeState
+
+def guard (owners : Owners) (a : Ack) : Bool := prepareGuard (owners a.operation) a
+
+/-- Number of consecutive successful native guard checks, stopping at the first failure. -/
+def scanCount (owners : Owners) : List Ack → Nat
+  | [] => 0
+  | a :: rest => if guard owners a then scanCount owners rest + 1 else 0
+
+theorem scanCount_bound (owners : Owners) (xs : List Ack) :
+    scanCount owners xs ≤ xs.length := by
+  induction xs with
+  | nil => simp [scanCount]
+  | cons a xs ih => simp only [scanCount]; split <;> simp_all
+
+theorem scanCount_prefix (owners : Owners) (xs : List Ack) :
+    ∀ i < scanCount owners xs, ∃ a, xs[i]? = some a ∧ guard owners a = true := by
+  induction xs with
+  | nil => simp [scanCount]
+  | cons a xs ih =>
+      intro i hi
+      by_cases hg : guard owners a = true
+      · cases i with
+        | zero => exact ⟨a, rfl, hg⟩
+        | succ i =>
+            have bound : i < scanCount owners xs := by simp [scanCount, hg] at hi; omega
+            obtain ⟨b, hb, good⟩ := ih i bound
+            exact ⟨b, hb, good⟩
+      · simp [scanCount, hg] at hi
+
+theorem scanCount_finish_or_failure (owners : Owners) (xs : List Ack) :
+    scanCount owners xs = xs.length ∨
+      ∃ a, xs[scanCount owners xs]? = some a ∧ guard owners a = false := by
+  induction xs with
+  | nil => exact Or.inl rfl
+  | cons a xs ih =>
+      by_cases hg : guard owners a = true
+      · rcases ih with done | ⟨b, hb, bad⟩
+        · exact Or.inl (by simp [scanCount, hg, done])
+        · exact Or.inr ⟨b, by simpa [scanCount, hg] using hb, bad⟩
+      · exact Or.inr ⟨a, by simp [scanCount, hg], by simpa using hg⟩
+
+def scanSteps (owners : Owners) (f : FrameProjection) : Nat :=
+  scanCount owners (f.acks.drop f.prepared)
+
+def scanFrame (owners : Owners) (f : FrameProjection) : FrameProjection :=
+  { f with prepared := f.prepared + scanSteps owners f }
+
+/-- A finite sequence of the actual prepared-index writes and selected guards. -/
+inductive Trace (owners : Owners) : FrameProjection → Nat → FrameProjection → Prop
+  | nil (f) : Trace owners f 0 f
+  | cons {f g h n a} : guard owners a = true →
+      FrameStep f (.reprepare f.prepared a) g → Trace owners g n h →
+      Trace owners f (n + 1) h
+
+theorem trace_reachable {owners : Owners} {f g : FrameProjection} {n index : Nat}
+    {destination : Option Ack} (trace : Trace owners f n g)
+    (reachable : FrameReachable index destination f) : FrameReachable index destination g := by
+  induction trace with
+  | nil => exact reachable
+  | cons good step rest ih => exact ih (FrameReachable.step reachable step)
+
+theorem trace_exact_fields {owners : Owners} {f g : FrameProjection} {n : Nat}
+    (trace : Trace owners f n g) : g = { f with prepared := f.prepared + n } := by
+  induction trace with
+  | nil => simp
+  | cons good step rest ih =>
+      cases step
+      simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih
+
+theorem scan_trace_aux (owners : Owners) (xs : List Ack) {index : Nat} {destination : Option Ack} :
+    ∀ f, FrameReachable index destination f → f.present = true →
+      f.acks.drop f.prepared = xs →
+      Trace owners f (scanCount owners xs)
+        { f with prepared := f.prepared + scanCount owners xs } := by
+  induction xs with
+  | nil =>
+      intro f reachable alive drop
+      simpa [scanCount] using Trace.nil (owners := owners) f
+  | cons a xs ih =>
+      intro f reachable alive drop
+      by_cases good : guard owners a = true
+      · have selected : f.acks[f.prepared]? = some a := by
+          simpa only [List.head?_drop, List.head?_cons] using congrArg List.head? drop
+        obtain ⟨bound, _⟩ := List.getElem?_eq_some_iff.mp selected
+        have inv := terminal_projection_accounting reachable
+        have top := terminal_projection_live_top reachable alive
+        have step := FrameStep.reprepare f a alive top.symm inv.completed_le_prepared bound selected
+        have next := FrameReachable.step reachable step
+        have tail : ({ f with prepared := f.prepared + 1 } : FrameProjection).acks.drop
+            ({ f with prepared := f.prepared + 1 } : FrameProjection).prepared = xs := by
+          simp only [List.drop_add_one_eq_tail_drop, drop, List.tail_cons]
+        have rest := ih _ next alive tail
+        have result := Trace.cons good step rest
+        simpa [scanCount, good, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using result
+      · simpa [scanCount, good] using Trace.nil (owners := owners) f
+
+theorem scan_constructs_trace (owners : Owners) {index : Nat} {destination : Option Ack}
+    {f : FrameProjection} (reachable : FrameReachable index destination f) (alive : f.present = true) :
+    Trace owners f (scanSteps owners f) (scanFrame owners f) := by
+  exact scan_trace_aux owners _ f reachable alive rfl
+
+/-- No valid-ack list or completion invariant is supplied: the scan computes its prefix. -/
+theorem scan_accounted (owners : Owners) {index : Nat} {destination : Option Ack}
+    {f : FrameProjection} (reachable : FrameReachable index destination f) (alive : f.present = true) :
+    FrameReachable index destination (scanFrame owners f) ∧ FrameAccounting (scanFrame owners f) := by
+  have h := trace_reachable (scan_constructs_trace owners reachable alive) reachable
+  exact ⟨h, terminal_projection_accounting h⟩
+
+theorem scan_steps_bounded (owners : Owners) (f : FrameProjection) :
+    scanSteps owners f ≤ f.acks.length - f.prepared := by
+  simpa [scanSteps] using scanCount_bound owners (f.acks.drop f.prepared)
+
+theorem scan_exact_first_failure (owners : Owners) {index : Nat} {destination : Option Ack}
+    {f : FrameProjection} (reachable : FrameReachable index destination f) :
+    (scanFrame owners f).prepared = f.acks.length ∨
+      ∃ a, f.acks[(scanFrame owners f).prepared]? = some a ∧ guard owners a = false := by
+  have bound := (terminal_projection_accounting reachable).prepared_le_length
+  rcases scanCount_finish_or_failure owners (f.acks.drop f.prepared) with done | ⟨a, selected, bad⟩
+  · left
+    have hcount : scanSteps owners f = f.acks.length - f.prepared := by simpa [scanSteps] using done
+    simp only [scanFrame, hcount]
+    omega
+  · right
+    exact ⟨a, by simpa only [scanFrame, scanSteps, List.getElem?_drop] using selected, bad⟩
+
+theorem scan_successful_prefix (owners : Owners) (f : FrameProjection) :
+    ∀ i < scanSteps owners f, ∃ a, f.acks[f.prepared + i]? = some a ∧ guard owners a = true := by
+  intro i hi
+  obtain ⟨a, selected, good⟩ := scanCount_prefix owners (f.acks.drop f.prepared) i hi
+  exact ⟨a, by simpa only [List.getElem?_drop] using selected, good⟩
+
+theorem scan_complete_exact_steps (owners : Owners) (f : FrameProjection)
+    (done : (scanFrame owners f).prepared = f.acks.length) :
+    scanSteps owners f = f.acks.length - f.prepared := by
+  change f.prepared + scanSteps owners f = f.acks.length at done
+  omega
+
+/-- The same selected ack supplies both existing cursor preparation and the new frame write. -/
+theorem paired_cursor_frame_step {index : Nat} {destination : Option Ack} {children : List Nat}
+    {f : FrameProjection} {s : Projection} {a : Ack}
+    (frame : FrameReachable index destination f) (cursor : Reachable a.operation children s)
+    (alive : f.present = true) (selected : f.acks[f.prepared]? = some a)
+    (good : prepareGuard (readback s) a = true) :
+    ∃ u g, Step a.operation children s (.prepare a) u ∧
+      FrameStep f (.reprepare f.prepared a) g ∧
+      Accounting a.operation children.length u ∧ FrameAccounting g := by
+  obtain ⟨salive, lower, upper, waiting⟩ := (prepareGuard_readback_exact s a).mp good
+  obtain ⟨bound, _⟩ := List.getElem?_eq_some_iff.mp selected
+  have fi := terminal_projection_accounting frame
+  have top := terminal_projection_live_top frame alive
+  have hs := Step.prepare (children := children) s a.index salive lower upper waiting
+  have hf := FrameStep.reprepare f a alive top.symm fi.completed_le_prepared bound selected
+  exact ⟨_, _, hs, hf, step_preserves hs (cursor_projection_accounting cursor), frame_step_preserves hf fi⟩
+
+/-- Restoring the original prepared counter restores the entire original frame. -/
+theorem scan_preserves_other_fields (owners : Owners) (f : FrameProjection) :
+    { scanFrame owners f with prepared := f.prepared } = f := by
+  cases f
+  rfl
+
+theorem scan_complete_frame (owners : Owners) (f : FrameProjection)
+    (done : (scanFrame owners f).prepared = f.acks.length) :
+    scanFrame owners f = { f with prepared := f.acks.length } := by
+  exact congrArg (fun p => { f with prepared := p }) done
+
+theorem trace_prefix {owners : Owners} {f g : FrameProjection} {n : Nat}
+    (trace : Trace owners f n g) : ∀ k ≤ n, ∃ h, Trace owners f k h := by
+  induction trace with
+  | nil =>
+      intro k bound
+      have : k = 0 := by omega
+      subst k
+      exact ⟨_, Trace.nil _⟩
+  | @cons f g h n a good step rest ih =>
+      intro k bound
+      cases k with
+      | zero => exact ⟨_, Trace.nil _⟩
+      | succ k =>
+          obtain ⟨u, hu⟩ := ih k (by omega)
+          exact ⟨u, Trace.cons good step hu⟩
+
+/-- Any resource-stopped successful prefix remains accounted, including the
+full prefix before a failing final resource observation. This does not assert
+that native resource reservation succeeds or authenticate a resource event. -/
+theorem resource_stop_prefix (owners : Owners) {index : Nat} {destination : Option Ack}
+    {f : FrameProjection} (reachable : FrameReachable index destination f) (alive : f.present = true)
+    (k : Nat) (bound : k ≤ scanSteps owners f) :
+    ∃ g, Trace owners f k g ∧ FrameReachable index destination g ∧ FrameAccounting g ∧
+      g = { f with prepared := f.prepared + k } := by
+  obtain ⟨g, hg⟩ := trace_prefix (scan_constructs_trace owners reachable alive) k bound
+  have hr := trace_reachable hg reachable
+  exact ⟨g, hg, hr, terminal_projection_accounting hr, trace_exact_fields hg⟩
+
+def committed (f : FrameProjection) : FrameProjection :=
+  { f with prepared := f.completed, terminalPrepared := false }
+
+theorem committed_reachable {index : Nat} {destination : Option Ack} {f : FrameProjection}
+    (reachable : FrameReachable index destination f) (alive : f.present = true) :
+    FrameReachable index destination (committed f) :=
+  FrameReachable.step reachable (FrameStep.commit f alive)
+
+/-- Post-commit frontier restoration or the exact first failed guard; no stage
+restriction excludes Diagnostics, and no completed-frontier premise is assumed. -/
+theorem commit_scan_outcome (owners : Owners) {index : Nat} {destination : Option Ack}
+    {f : FrameProjection} (reachable : FrameReachable index destination f) (alive : f.present = true) :
+    let g := scanFrame owners (committed f)
+    FrameReachable index destination g ∧ FrameAccounting g ∧
+      g.terminalPrepared = false ∧ g.stage = f.stage ∧ g.completed = f.completed ∧
+      g.done = f.done ∧
+      (g.prepared = f.acks.length ∨ ∃ a, f.acks[g.prepared]? = some a ∧ guard owners a = false) := by
+  have start := committed_reachable reachable alive
+  have accounted := scan_accounted owners start alive
+  have outcome := scan_exact_first_failure owners start
+  exact ⟨accounted.1, accounted.2, rfl, rfl, rfl, rfl, outcome⟩
+
+theorem commit_scan_complete_frame (owners : Owners) (f : FrameProjection)
+    (done : (scanFrame owners (committed f)).prepared = f.acks.length) :
+    scanFrame owners (committed f) =
+      { f with prepared := f.acks.length, terminalPrepared := false } := by
+  exact scan_complete_frame owners (committed f) done
+
+theorem complete_scan_then_append (owners : Owners) {index : Nat} {destination : Option Ack}
+    {f : FrameProjection} (reachable : FrameReachable index destination f) (alive : f.present = true)
+    (working : f.stage = .working) (done : (scanFrame owners f).prepared = f.acks.length) (a : Ack) :
+    ∃ g, FrameStep (scanFrame owners f) (.takeAck a) g ∧
+      FrameReachable index destination g ∧ FrameAccounting g ∧ g.prepared = g.acks.length := by
+  have accounted := scan_accounted owners reachable alive
+  have step := FrameStep.takeAck (scanFrame owners f) a alive working
+  have hr := FrameReachable.step accounted.1 step
+  refine ⟨_, step, hr, terminal_projection_accounting hr, ?_⟩
+  simpa [scanFrame, List.length_append] using done
+
+theorem reprepare_deficit_decreases {f g : FrameProjection} {slot : Nat} {a : Ack}
+    (step : FrameStep f (.reprepare slot a) g) :
+    (f.acks.length - g.prepared) + 1 = f.acks.length - f.prepared := by
+  cases step
+  simp only
+  omega
+
+/-- Combined finite scan root. All success/failure information is computed
+from the native cursor readbacks, not supplied as a valid retained-ack list. -/
+theorem nonterminal_reprepare (owners : Owners) {index : Nat} {destination : Option Ack}
+    {f : FrameProjection} (reachable : FrameReachable index destination f) (alive : f.present = true) :
+    let n := scanSteps owners f
+    let g := scanFrame owners f
+    Trace owners f n g ∧ FrameReachable index destination g ∧ FrameAccounting g ∧
+      { g with prepared := f.prepared } = f ∧ n ≤ f.acks.length - f.prepared ∧
+      (∀ i < n, ∃ a, f.acks[f.prepared + i]? = some a ∧ guard owners a = true) ∧
+      (g.prepared = f.acks.length ∨ ∃ a, f.acks[g.prepared]? = some a ∧ guard owners a = false) := by
+  have accounted := scan_accounted owners reachable alive
+  exact ⟨scan_constructs_trace owners reachable alive, accounted.1, accounted.2,
+    scan_preserves_other_fields owners f, scan_steps_bounded owners f,
+    scan_successful_prefix owners f, scan_exact_first_failure owners reachable⟩
+
+theorem paired_owner_lookup_step (owners : Owners) {index : Nat} {destination : Option Ack}
+    {children : List Nat} {f : FrameProjection} {s : Projection} {a : Ack}
+    (frame : FrameReachable index destination f) (cursor : Reachable a.operation children s)
+    (alive : f.present = true) (selected : f.acks[f.prepared]? = some a)
+    (lookup : owners a.operation = readback s) (good : guard owners a = true) :
+    ∃ u g, Step a.operation children s (.prepare a) u ∧
+      FrameStep f (.reprepare f.prepared a) g ∧
+      Accounting a.operation children.length u ∧ FrameAccounting g := by
+  exact paired_cursor_frame_step frame cursor alive selected (by simpa [guard, lookup] using good)
+
+namespace Witness
+def firstAck : Ack := ⟨0, 0⟩
+def secondAck : Ack := ⟨0, 1⟩
+def owners : Owners := fun operation =>
+  if operation = 0 then some ⟨2, 0, false, .idle⟩ else none
+def retainedWorking : FrameProjection :=
+  { initialFrame 0 none with acks := [firstAck, secondAck], prepared := 2 }
+def retainedDiagnostics : FrameProjection :=
+  { retainedWorking with stage := .diagnostics }
+
+theorem retained_working_reachable : FrameReachable 0 none retainedWorking := by
+  have h₁ := FrameStep.takeAck (initialFrame 0 none) firstAck rfl rfl
+  have h₂ := FrameStep.takeAck
+    { initialFrame 0 none with acks := [firstAck], prepared := 1 } secondAck rfl rfl
+  exact FrameReachable.step (FrameReachable.step FrameReachable.initial h₁) h₂
+
+theorem retained_diagnostics_reachable : FrameReachable 0 none retainedDiagnostics :=
+  FrameReachable.step retained_working_reachable
+    (FrameStep.enterDiagnostics retainedWorking rfl rfl)
+
+theorem working_commit_reprepare :
+    scanSteps owners (committed retainedWorking) = 2 ∧
+      scanFrame owners (committed retainedWorking) = retainedWorking ∧
+      FrameReachable 0 none (scanFrame owners (committed retainedWorking)) := by
+  exact ⟨rfl, rfl, (commit_scan_outcome owners retained_working_reachable rfl).1⟩
+
+theorem diagnostics_commit_reprepare :
+    scanSteps owners (committed retainedDiagnostics) = 2 ∧
+      scanFrame owners (committed retainedDiagnostics) = retainedDiagnostics ∧
+      FrameReachable 0 none (scanFrame owners (committed retainedDiagnostics)) := by
+  exact ⟨rfl, rfl, (commit_scan_outcome owners retained_diagnostics_reachable rfl).1⟩
+
+theorem second_reprepare_uses_prepared_not_completed :
+    let f := { committed retainedWorking with prepared := 1 }
+    f.completed = 0 ∧ f.prepared = 1 ∧ f.acks[f.prepared]? = some secondAck ∧
+      FrameStep f (.reprepare 1 secondAck) retainedWorking := by
+  refine ⟨rfl, rfl, rfl, ?_⟩
+  exact FrameStep.reprepare _ secondAck rfl rfl (by decide) (by decide) rfl
+
+theorem missing_owner_stops_at_first :
+    scanSteps (fun _ => none) (committed retainedWorking) = 0 ∧
+      guard (fun _ => none) firstAck = false := ⟨rfl, rfl⟩
+end Witness
+
+end Repreparation
 
 end YulangClosure.NativeReplayAcknowledgement

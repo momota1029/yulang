@@ -2,6 +2,27 @@
 
 ## 2026-10-26 continuation: actual native inference correspondence
 
+Final checked state, including retained-acknowledgement re-preparation:
+the ordinary default build passes **83 jobs**, and the complete inference audit
+passes **2,576 distinct originating theorem constants across 24 modules**,
+including private/generated helpers. Every new component and the narrow
+re-preparation delta have fresh independent nonauthor acceptance at their
+stated boundaries. The full original `SourceProblem.InferenceSoundness` is
+still **OPEN**, on actual shared native-history/merge correspondence, original
+source record-boundary execution, complete Call evidence and the same scoped
+source witness.
+
+The complete census uses the task-local command
+`lake env lean -j1 -M1536 AuditInferenceProofs.lean`; the first 1-GiB whole-census
+attempt exhausted its memory limit and is preserved in the progress record.
+Ordinary proof builds retain the project's 1-GiB setting. Only the standard
+`propext`, `Quot.sound` and `Classical.choice` axioms occur; the latter appears
+in six canonical-row example helpers/results and 28 acknowledgement or
+re-preparation theorems, including generic roots. Changed files have no lint
+warnings. Existing lint warnings in nine unchanged proof dependencies remain
+separately accounted. The following paragraphs record individual integration
+milestones and their earlier census sizes.
+
 The [native inventory](../2026-10-26-native-bound-inventory-construction.md)
 constructs a read-only test adapter for all eight physical bound lanes,
 including nonrepresentative rows. Raw slots and provenance remain separate
@@ -88,7 +109,7 @@ The [lifecycle construction frontier](../2026-10-26-native-replay-lifecycle.md)
 records actual third-owner transport carriers and the still-open
 `MERGE-EXPANSION-COVER-1` induction for discharged Effect expansions.
 
-The seven new components pass the ordinary default build (**83 jobs**) and
+At checkpoint 8 the seven new components pass the ordinary default build (**83 jobs**) and
 the exact audit of **2,515 distinct originating theorem constants across 24
 inference modules**, including private/generated helpers. Fresh independent
 reviews accept every component at its stated boundary; the joint lifecycle
@@ -100,6 +121,18 @@ acknowledgement-projection theorems, including generic roots. The unchanged
 original `SourceProblem.InferenceSoundness` remains **OPEN**. The continuation
 record contains the complete theorem census, reviewed hashes, native/source
 obligations and exact publication checkpoints.
+
+The [retained-ack re-preparation delta](../2026-10-26-native-replay-repreparation.md)
+then fills that concrete local transition gap. It adds the actual stage-free
+prepared-index write, computes the exact successful guard prefix, and derives
+complete preparation or the first false guard. Same-ack cursor/frame pairing,
+every resource-stopped prefix, commit and the following append preserve their
+accounting; working and Diagnostics witnesses are checked. Every other frame
+field is preserved. The 35 previous authored theorem types and axiom blocks
+remain identical, and 32 additional authored roots are audited. A complete
+frontier is still distinct from native `Ok`, and authenticating the input
+owner map and actual shared execution remains OPEN. The final 83-job build
+and 2,576-theorem census above include this independently accepted delta.
 
 ## 2026-10-26 continuation: construct terminal inference evidence
 
