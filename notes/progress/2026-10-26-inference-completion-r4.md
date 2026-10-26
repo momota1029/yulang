@@ -1068,3 +1068,124 @@ all six staged own paths and every accepted core hash remained unchanged.
 Those commits supply reviewed source-receiver and successful fresh-ID transport
 components, not full original principality or Effect/inference soundness.
 The interface publication is based on that exact new parent.
+
+
+## Checkpoint 15 publication and concrete admission review
+
+Checkpoint15 published as `4c5fff3b2addbbea61a110865cb9273d10c9f97d`,
+parentecde5039c and treee5c64501d7ebe2d968793fcad6e9c34ac443d2a8.
+Exact remote equality, parent/tree and clean tracked worktree/index were
+verified at14:27:32.972106 UTC. No forced ref update was used.
+
+The concrete OriginalCheckingAdmission author froze at14:31:31.130557 UTC:
+code77a8dd74…, notebeee58dc…, handoff9d9b478a…. Ten of28 focused checks
+were used; checks9/10 pass with90 originating declarations,65 theorem constants
+and all45 authored roots. Every complete type/axiom record and all failed
+snapshots are retained. Fresh original_source_review_r4 was assigned only
+its new review receipt and checking-admission-review-r4 scratch,1200 seconds,
+at most3 focused120-second bundles,1CPU/thread,-j1-M1024,1280MiB aggregate.
+No new concrete admission acceptance is inferred before that review.
+
+A successor author packet has only new OriginalFunctionFuture module/note/
+handoff and function-future-r4 scratch leases,1800 seconds/max16 focused checks,
+with the same ordinary checker bounds. Its exact parent seam is domain meaning
+at the decoded current event versus hereditary value probes at later events.
+It must derive authentic source-owned future registration, retaining the whole
+fixed prefix, current world and joint witness; no future GoalMeaning oracle,
+arbitrary reroot/drop-frames, or silently frozen future witness is permitted.
+No core edit is authorized. A source-supported minimal interface repair must
+return to the primary before changing any frozen dependency.
+
+Primary froze124 exact Lean/config inputs for a disjoint InferenceConstruction
+integration candidate, including both newly published foreign components but
+excluding unaccepted admission/PairK successors. The59-origin planned census
+has8965 theorems and1455 required roots. All111 inputs of the completed foreign
+warm cache were verified before copying its generated artifacts into a new
+primary-owned cache; no foreign cache is written. Snapshot and input hashes are
+retained under final-validation-r4/snapshots/01-published-through-15.
+The first bounded build stopped before Lean checking because sandbox execution
+could not detect the native executable path. The exact local toolchain succeeds
+in an approved unsandboxed read-only startup probe (Lean4.35.0/eb6cafb); the next
+build uses that approved execution route with all original240-second,1CPU and
+aggregate6144MiB limits. The failed startup log remains evidence, not a proof
+failure or claimed build pass. No toolchain/project configuration changed.
+
+
+## Published-component integration verification (successors still excluded)
+
+Primary build02 passes the actual configured default library together with the
+explicit InferenceConstruction target:122 jobs,48.2999 seconds,peak aggregate
+RSS1,053,712,384 bytes. The668 warning first-lines are exactly identical to the
+previous accepted r5 default build, across the same9 byte-unchanged inputs;
+no new warning arose. A naive text count also matched the word warning inside
+34 diagnostic bodies; only actual warning records are counted.
+
+Audit03 passes in41.4291 seconds,peak aggregate RSS1,369,378,816 bytes. The
+postprocessor reconciles59 exact originating modules,8963 theorem constants,
+1455 required named roots,124 frozen source/config inputs and complete full
+printed types/transitive axiom blocks. The standard axiom distribution is
+4848 empty,2219 propext-only,8 Quot.sound-only,1467 propext+Quot.sound,421 all
+three standard axioms. No project axiom,sorryAx,unapproved axiom,truncated type,
+replacement character or missing required root appears.
+
+The first postprocessor correctly rejected the naive8965 isolated-count sum.
+Two generated theorem names already occur under an earlier imported origin:
+NativeValuePorts.intern.eq_1 (isolated Interner → integrated ContextTables), and
+OriginalSource.Binder.isEvent.eq_1 (isolated EffectHygiene → integrated Source-
+Environment). All isolated names remain present globally and their complete
+printed type/axiom text is byte-identical. The original expected counts and
+failed reconciliation are retained; the adjusted8963 count removes these two
+duplicates only. The earlier ContextTables521→520 reconciliation is unchanged.
+Audit log84032c46…, build logf3a95613…, full records and exact reconciliations
+are retained in final-validation-r4. This verifies the selected component
+surface, not every unrelated project origin or whole original soundness.
+Concrete admission, selected PairK and future-event work remain excluded from
+this snapshot until independently accepted and explicitly reverified.
+
+
+A later fetch found and preserved d29e73ff9 (source-owned record adapters),
+61397ece0 (native Context consume closure) and ff5a86e62 (foreign reviewed
+metatheory integration). They change no owned core or active new proof files.
+The WholeMetatheory import/audit surface now has eight accepted components;
+its reviewed default/census output includes the current core15 interface.
+The previous primary124-input build/audit remains an exact historical snapshot;
+its WholeMetatheory hash is not silently treated as the new one. The primary
+candidate adds the two new origins and will explicitly refresh/reverify it.
+
+The source-record standalone307-theorem census shares51 generated source-rule
+helpers with already audited earlier origins (46 in OriginalSourceInterpretation,
+5 in SourcePrincipalTransport); every shared name and axiom list matches.
+Thus it adds256 new unique theorems to the current combined target. Native
+Context progress adds50, with28 authored roots. All23 record roots are retained.
+The planned61-origin combined census is9269, pending actual refreshed execution.
+These foreign components retain their own author and fresh nonauthor receipts;
+no r4 mathematical authorship or whole-source closure is claimed for them.
+
+
+## Checkpoint 16: concrete current-goal admission accepted
+
+Fresh review ACCEPTs code77a8dd74…, notebeee58dc…, producer9d9b478a…,
+receipt3e8fb7ec…. All16 producer manifest entries,167 snapshot entries across
+10 author checks and90 complete declaration/type/axiom pairs match. All65
+originating theorems and45 authored roots remain present. Independent review
+rebuilt the11-module frozen cone from an empty cache and passed five additional
+descriptor-dependent-incidence probes, separating both directions while keeping
+a common admitted candidate. Its first scratch audit had a Name-namespace error;
+that entire bundle is preserved as failed despite the successful preceding
+module builds. The second bundle corrected only that reviewer identifier and
+passed with no diagnostics. No material mathematical/source finding remains.
+
+The actual local Function application now constructs target-domain admission,
+raw input recovery and active observation, correct wrapper projections and
+source App/Lambda incidence without targetReadback. Both recursive child meanings
+come from the actual finite Checking induction; guards/captures retain finite
+registered proof code. The target-own checkedIncidences is used throughout.
+The same original callable/provider/current event and whole raw observation
+remain attached. Native Received/Receipt supply retains its explicit original
+view/event-registration premises. This closes the reported current-goal mismatch,
+not the all-future original registry or native whole-source theorem.
+Reviewer writes/checkers stopped14:44:24.462319 UTC; freeze33449908…. The author
+continues only the separate new future-event packet; these accepted bytes are
+immutable. The primary consumes this local result at the stated future event-
+registry seam and retains general recursive introduction and native-success
+correspondence as open owners. No original supported source form is removed.
