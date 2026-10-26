@@ -1,5 +1,48 @@
 # Current task: complete type inference and replace F5
 
+2026-10-26 actual native inference correspondence on `yulang3`: seven new
+Lean components now construct a shared regular row model, finite clause
+saturation, optional-record plans and normal preservation, exact query routing,
+native indexed record-plan filling, replay-product/temporal coverage, and
+cursor/terminal acknowledgement accounting. The final delta computes retained
+ack re-preparation after commit, including working and Diagnostics stages,
+complete or first-failing-guard prefixes, local same-ack cursor/frame pairing,
+and resource-stopped prefixes. The native inventory adapter covers all eight
+physical bound lanes and preserves raw/canonical identities and retained
+provenance; its focused test passes (1 passed, 815 filtered). All constructed
+components and the final delta have independent nonauthor acceptance at their
+stated boundaries. Nine substantive checkpoints have been pushed, through
+`34500c0ea9d30b53f047674766b9704823dee9f4`.
+
+Final ordinary Lean build: **83 jobs**. The complete inference audit passes
+**2,576 distinct originating theorem constants across 24 modules**, including
+private/generated helpers and every required root. The full census uses a
+local 1.5-GiB bound after the retained 1-GiB memory-limit failure; ordinary
+proof builds, project configuration and dependencies remain unchanged. Only
+standard `propext`, `Quot.sound` and `Classical.choice` occur; generic
+acknowledgement/re-preparation roots also use choice. No project axiom, proof
+hole or bypass. Changed files have zero lint warnings; the 668 pre-existing
+warnings in nine frozen original proof dependencies and the separate repair
+ownership boundary are recorded in the progress ledger.
+
+**Complete original `SourceProblem.InferenceSoundness` remains OPEN.** The
+first native construction frontier is `MERGE-EXPANSION-COVER-1`: transport an
+actual discharged Effect expansion's installed Allowance fibers and residual
+through merge, and construct recursively current dispositions for all new or
+suppressed replay products, cycles and pending child owners. The actual shared
+operation/worklist/frame/journal history must also authenticate the projected
+proofs. Original source query-to-boundary/executable-record-view correspondence,
+general child request/resumption and context meaning, complete native Call
+evidence, and the same original scoped source witness remain separate OPEN
+inputs. The admission-time native `completed` map is not a returned semantic
+certificate. No source restriction, new semantic adoption or production
+inference behavior change closes these obligations. Exact constructions,
+review receipts, theorem boundaries, warnings, failed/successful checks and
+published checkpoints are in the
+[native inference continuation record](../notes/progress/2026-10-26-native-inference-correspondence.md).
+The reserved original root, foreign scheduling state and all task history are
+preserved; all assigned producers and reviewers have stopped writes.
+
 2026-10-26 continued inference evidence construction on `yulang3`:
 lawful constructor completion, interleaved graph allocation/constraint histories,
 computed exact finite union/intersection certificates and the unchanged original

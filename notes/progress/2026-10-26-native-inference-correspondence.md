@@ -844,3 +844,30 @@ failure correspondence, the full journal, semantic child closure and
 source soundness proposition is not promoted. Producer/reviewer papers retain
 their freeze-time labels; this final acceptance supersedes pending-review
 status without rewriting their audited bytes.
+
+Checkpoint 9 is published and locally synchronized as
+`34500c0ea9d30b53f047674766b9704823dee9f4`, with exact staged-tree, parent and
+remote expected-head verification. Its frozen module, all required roots and
+reviewed inputs match the final 83-job/2,576-theorem evidence. The checkout and
+index were clean immediately after synchronization.
+
+## Final task synchronization and retained goal
+
+The closing documentation checkpoint prepends one new entry to
+`tasks/current.md`, preserving every byte of its earlier history, and records
+the final verification and exact remaining source/native applications here.
+The Lean README identifies the latest 24-module census separately from earlier
+integration milestones. No proof/configuration, runtime, expected-output or
+dependency changes follow the final check. The original root and foreign
+central scheduling snapshot remain byte-identical to the starting baseline.
+
+All currently assigned producers and reviewers have completed and stopped
+writes; all primary checker sessions have exited. The focused native inventory
+test and every checked proof component are preserved in the nine substantive
+published checkpoints. The final record synchronization requires only the
+explicit documentation diff/byte-preservation checks, with no repeated broad
+build or native test. The primary retains ownership of the unchanged full
+inference goal and the precise remaining obligations in the table above.
+`SourceProblem.InferenceSoundness` remains **OPEN**; no native compiler defect
+or impossibility result was established, and no proof-dependent production or
+semantic-adoption gate is promoted by this continuation.
