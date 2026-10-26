@@ -158,3 +158,75 @@ consumers; an initial `crates/yu-eval` locator was corrected before source use.
 Construct the determined ordered dictionary algebra and the exact original
 interpretation if its source clauses supply it. Candidate/runtime key equality
 must not stand in for the original full `nu,K,D` descriptor witness.
+
+Published checkpoint 2: `3bb2b6f58c34a34f133df1f7333199d09365202e`;
+the expected-parent remote update and fetched/local tree comparison agree.
+
+## Source registration repair found by independent review
+
+The first raw-source registration/census was not accepted as final. The producer
+found that a binding annotation must start at an already annotated initializer's
+`finalRoot` and target the distinct binding occurrence, preserving actual
+nontransitive boundary order. A fresh reviewer independently demonstrated that
+the initial Block tree confined the binding's Shared/Return-rebind frames to a
+statement sibling, leaving the final Name outside its actual scope. Re-running
+the source under `newUse` also duplicated Shared introductions per description.
+These are actual builder defects, not generic semantic-Kernel premises.
+
+The primary authorized repair in the existing exact source-generation leases,
+an additional 1,800 wall seconds and a finite checker cap of 29. The repair must
+construct suffix continuations inside the right scopes and one original anchor
+strategy, preserving actual invocation identities and closures' creation scopes.
+No Kernel callback may simply assert the missing shared relation. Prior sources,
+censuses and the review probe remain retained as superseded evidence. Reviewer
+budget is extended by at most 1,200 seconds solely for this delta, still with
+one remaining focused call. Complete fresh source hashes/census are required.
+
+## Shared drain control construction frozen for fresh review
+
+The primary's `NativeDrainOwnership.lean`, its paper and
+`20261026-native-drain-ownership-r4.md` are frozen. The live fresh reviewer is
+`/root/native_drain_review_r4`, with sole receipt
+`20261026-native-drain-ownership-review-r4.md`, owned scratch, a 900-second budget
+and at most two risk-driven focused checks. This primary cannot self-certify it.
+
+The construction proves conservation and diagnostic/terminal stage implications
+from one forward queue/operation/frame history. Each Replay child keeps its own
+task/relation. Native Transport changes a separate processing relation without
+losing the admitted occurrence. The explicit synchronous run includes the whole
+start/transport/dispatch/diagnostic/ack/return/delivery sequence. No child typing,
+independent cursor/frame histories, or global LocalLaws premise is assumed.
+Original committed erasure/cancellation and body/semantic readback remain OPEN.
+
+Final named verification is call 12. The valid complete origin census is call
+15: 512 declarations / 187 theorem constants / 17 authored roots. The theorem
+axiom sets are 107 none, 28 `propext`, 10 `propext, Quot.sound`, and 42 with those
+two plus `Classical.choice`. All are standard permitted axioms, explicitly
+reported. Calls 13–14 are retained output-collection failures: an incomplete
+visible log with a hash mismatch, then two UTF-8 replacement characters. The
+final audit reaches EOF with all balanced blocks and no omitted/corrupt type.
+An earlier aggregate-wrapper memory kill justified 1.25 GiB including wrapper
+and Lake; Lean/project remains `-j1 -M1024`. Fifteen of 24 calls were consumed.
+
+The dictionary producer also stopped with a checked 37-root / 131-theorem
+artifact and its exact typed whole-instance/evidence-to-body-label residual.
+It awaits a fresh nonauthor review before integration. Previously accepted
+receiving and Context bytes remain unchanged.
+
+## Checkpoint 3: accepted shared forward drain ownership
+
+`/root/native_drain_review_r4` independently ACCEPTed the frozen primary packet
+at its stated control-ownership boundary. The primary accepts this result with
+the review's exact qualification: the theorem covers issued occurrences and
+transferred tickets, not termination, every allocated-but-untransferred child,
+a receipt bijection, or complete Rust refinement. The review independently
+checked all three frozen outputs, 27 source inputs, 146 isolated baseline
+entries, all 512 complete census blocks and the 187-theorem handoff appendix.
+No further checker call was warranted (0/2). The review receipt hash is
+`2b811b13fc915e9362fd6d61d46fff7cb46ea870d3e012878ccc8a8f0b9dbe3f`.
+
+The dictionary freeze is now under fresh independent review by
+`/root/dictionary_denotation_review_r4`, with sole receipt
+`20261026-native-dictionary-denotation-review-r4.md`, owned scratch, 900 wall
+seconds and at most two focused checks only for concrete risks. Original source
+scope/anchor repair continues under its already recorded bounded extension.
