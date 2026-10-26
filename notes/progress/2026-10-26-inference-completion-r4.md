@@ -1655,3 +1655,114 @@ its explicit limits: empty binding/installed output lists, Site-indexed helper,
 and no original typed-admission or generated-Lambda linkage. It supplies no
 raw-only restriction on original Shared, which may depend on preceding typed
 EventFields. This separate packet is outside the 67-origin snapshot.
+
+Checkpoint 22 published as
+`ef1fc3fdec7f4cbafa17d95cdb5cbc9881b602f3`, parent
+`66a43e9702e4ee189285985707f20a0ac52c078f`, tree
+`6830465528bf33368ef60d8d90e5d9831a352247`. Exact fetched remote equality,
+parent/tree, empty index and clean tracked worktree were verified at
+16:23:09.713770 UTC. Active new ParameterWorld files were preserved untracked.
+
+## Checkpoint 23: original formal selection, native bind and Shared decoder
+
+The first OriginalParameterWorld stage is independently ACCEPTed at the local
+source-data/plain-native-bind/Shared-decoder boundary. The exact source is
+`73af381dcf6796a06d9508b8c7725ce6b3dfc0c84c3193246a3db5d8bbc1dc64`.
+`source_assigned_native_delivery` computes the formal name and fresh allocator
+address, uses the pre-invocation formal selection and one retained payload,
+and proves the whole post-bind decoder/native installed-map equation. It
+preserves every prior installed Some, the old fixed-frame prefix, and old
+saved-environment address lookup under current formal-name shadowing.
+
+Its pre-state representation equation is still an induction invariant. The
+supplied enclosing scope/route, selected contract and complete raw path are
+not yet authenticated against the decoded original scope or actual execution.
+The payload constructor accepts supplied raw data; it does not prove that a
+Force or Return produced those data. Its address-indexed fresh contract update
+preserves old populated cells but does not prove semantic membership at A.
+The generated formal Shared is on the additive owned surface; unchanged legacy
+sourceRules does not yet emit it. The virtual owner at route tag 2 is explicitly
+distinct from the physical Value/Computation delivery position. Complete raw
+independent records survive before erasure, but a direct Runtime parent cannot
+recover fields that were erased before it was supplied. Original Shared may
+depend on preceding typed EventFields; a raw-key map is not all-strategy coverage.
+
+The author used ten of its original 24 checks. Checks 7, 9 and 10 establish
+the final module, complete 357-origin-constant census / 120 theorem constants /
+30 authored roots, and actual compiled/current audit inventories (all zero).
+All failures 1–5 and 8 remain frozen. The complete stage1 411-artifact manifest
+`ddf8f1db...`, freeze `3c079aa1...` and stopped `1203777d...` are unchanged.
+Author source froze at 16:18:26.016939 UTC; all stage1 writes stopped at
+16:25:05.518027 UTC. The only transitive axioms are the standard propext,
+Classical.choice and Quot.sound; no project axiom or admitted proof is present.
+
+Fresh nonauthor review ACCEPT receipt
+`3e609622169d93e8906c819f74390fe5aaee3de5c191e30b87e96aeee59dcb4a`,
+565-artifact manifest `e5f7248f...` and stopped record `9fe5fd0c...` froze at
+16:34:07.356950 UTC, after 804.35695 seconds of a 1200-second packet. All 3/3
+permitted checker bundles were used. A genuinely empty-cache build passed all
+17 jobs in 88.8411 seconds. The reviewer-only implicit View naming failure was
+rejected by the audit, fully retained, and repaired within the last bundle.
+The final full 357 type/axiom records match the author's census exactly,
+including 20 private declarations and the foreign-namespace
+OriginalWorldReadout.ViewAssignment.received.eq_1 theorem. The isolated 120
+count must be reconciled by origin at later aggregate integration.
+
+Four independent scratch probes establish contract exclusion from raw keys,
+one exact Shared application, and complete old capture readout preservation
+after the fresh contract update, using vector/AddressesWithin/saved-environment
+physical invariants. This last result is reviewer evidence, not an added public
+producer theorem. The producer's public capture result remains address-only.
+Primary read the entire source, note, producer and review, rehashed all 411
+original artifacts, all nine documentation-repair artifacts, all 565 review
+artifacts and all 19 source/config inputs in both repository and review copy.
+
+The review required a documentation-only precision repair: Return-shaped data
+must not be described as an actually evaluated completed Return. Primary fixed
+note sections 3/6 and producer limitation 6, retained exact before/after bytes
+and diff, and ran zero extra Lean checks. Accepted note is `b9c89c69...`,
+producer `968d92a4...`, nine-artifact repair manifest `8a09ee1f...`, freeze
+`82d97ff2...`, stopped `21928bba...`. The original 411-artifact freeze remains
+immutable. Root's read-only filename lookup failures are retained in
+`checkpoint23-intake/read-attempts.json`; they changed no proof or evidence.
+
+At 16:29 UTC the same author received exact NEW OriginalParameterSemantics
+module/note/handoff and private-cache paths. The original 17:07:10 UTC deadline
+and 24-check total are unchanged: ten spent, at most fourteen remaining.
+The frozen stage1 module is a pinned dependency and remains untouched. The
+new target constructs the genuinely missing native Event presentation,
+separates raw current records from scoped logical assignments, computes every
+occupied cell and actual capture/alias readout, fixes Inputs before Force,
+and proves initial representation and direct post-bind PhiW. Authentic same-port
+Background handling is permitted only when its actual incidence is constructed;
+ordinary completed-Meaning checking cannot supply hole-relative transport.
+
+A separate read-only consultation identified the actual legacy sourceRules
+formal-Shared omission as the next source-owned correction. Its first runtime
+turn ended with a model-capacity error after useful findings; the same inherited
+agent resumed within the original 16:45 UTC deadline, without checks, writes,
+model switching or budget reset. No existing source/core edit is authorized to
+that read-only packet. A coordinated migration must keep active dependency
+snapshots immutable, avoid double-inserting the additive Shared, use the real
+anchorValue from the original environment, and retain the virtual/physical
+owner distinction. No whole original inference-soundness claim is closed by
+this local checkpoint or by the pending construction.
+
+
+Checkpoint 23's first expected-parent update returned GitHub UNKNOWN at
+16:36:25 UTC. Fresh fetch found the disjoint five-path concurrent
+OriginalPrincipalClosure commit `e59365772`; the attempted unpublished commit
+`24b385d5dffbb1b76c2cae1dbdfb157049260e74`, old payload/tree and exact API error
+remain preserved. Its parent is the previously published checkpoint 22.
+The branch fast-forward retained all five foreign files and all exact staged
+stage1/review bytes. All 19 stage1 inputs remain unchanged; the active new
+Semantics file remains separate and untracked.
+
+The concurrent principal-closure receipt, source header/conclusion and source
+scope were read. It supplies an exact source census and conditional joint
+solution-set/regular-lattice obstruction, while the complete seven Call
+certificates and original source judgment remain open. Neither original
+principality refutation nor an inference-soundness failure follows merely
+from the native rejection and this algebraic result. These five foreign paths
+are preserved, outside the accepted 67-origin and isolated stage1 audit sets.
+The nonforced retry changes only the parent/tree and primary progress record.
