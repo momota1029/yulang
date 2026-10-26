@@ -1,0 +1,59 @@
+--- a/src/candidate_context.rs
++++ b/src/candidate_context.rs
+@@ -2854,6 +2854,37 @@
+         })
+     }
+     pub(super) fn observed_dependencies(&self) -> impl Iterator<Item = &Dependency> { self.dependencies.iter() }
++    // Private proof observer only: immutable retained evidence before the
++    // selected row merge. This is not an inference or authorization consumer.
++    pub(super) fn proof_association_snapshot(&self) {
++        for (index, relation) in self.relations.iter().enumerate().take(68) {
++            let sources = relation.key.sources.map(|id| self.source_events(id));
++            eprintln!("ASSOCIATION_RELATION index={index} relation={relation:?} sources={sources:?} flow={:?}",
++                self.scoped_flow(RelationId(index as u32)));
++        }
++        for dependency in self.observed_dependencies() {
++            let child = match *dependency {
++                Dependency::Derived { child, .. } | Dependency::FunctionPort { child, .. }
++                | Dependency::TuplePort { child, .. } | Dependency::RecordPort { child, .. }
++                | Dependency::VariantPort { child, .. } | Dependency::Replay { child, .. }
++                | Dependency::Transport { child, .. } => child,
++            };
++            if child.0 <= 67 { eprintln!("ASSOCIATION_DEPENDENCY {dependency:?}"); }
++        }
++        for origin in &self.origins {
++            if origin.relation.0 <= 67 { eprintln!("ASSOCIATION_ORIGIN {origin:?}"); }
++        }
++        for (index, admission) in self.observed_bound_admissions() {
++            if admission.relation.is_some_and(|id| id.0 <= 67) {
++                eprintln!("ASSOCIATION_ADMISSION index={index} {admission:?}");
++            }
++        }
++        for relation in 0..68 {
++            for (index, emission) in self.observed_bound_emissions_for_relation(RelationId(relation)) {
++                eprintln!("ASSOCIATION_EMISSION relation={relation} index={index} {emission:?}");
++            }
++        }
++    }
+     // Borrowed research-only access to the retained producer records. These
+     // helpers expose no mutation route and intentionally keep admission and
+     // physical-emission rows separate.
+--- a/src/candidate_intrusion.rs
++++ b/src/candidate_intrusion.rs
+@@ -604,6 +604,16 @@
+         parent_index: usize,
+     ) -> Result<(), SolveAvailabilityError> {
+         candidate_context::r148_trace(format!("row-merge copy={copy:?} parent={parent:?} root={root:?} parent_index={parent_index}"));
++        if parent_index == 4 {
++            let intrusion = &self.candidate_graph.as_ref().unwrap().intrusion;
++            let context = &intrusion.effect_algebra.context;
++            for (index, record) in intrusion.parents.iter().enumerate().take(5) {
++                eprintln!("ASSOCIATION_PARENT index={index} {record:?} source_events={:?}",
++                    record.sources.map(|id| context.source_events(id)));
++            }
++            eprintln!("ASSOCIATION_GRAPH {:?}", self.batch.candidate_source.references);
++            context.proof_association_snapshot();
++        }
+         let state = &self
+             .candidate_graph
+             .as_ref()

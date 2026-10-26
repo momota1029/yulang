@@ -248,3 +248,57 @@ Scratch evidence: `/workspace/scratch/e3678bef96db/native-principal-r3`.
 The additional observation/build receipts are in
 `/workspace/scratch/e3678bef96db/native-termination-trace-r3` and
 `/workspace/scratch/e3678bef96db/native-observer-repro-r3`.
+
+## Pre-merge association evidence
+
+The separately reviewed [association extension](fixtures/2026-10-26-native-association-observer.patch)
+adds immutable readouts immediately after trace event 127 and before that
+merge's representative checks, journal writes, bound copying or row mutation.
+It does not bypass the public conflict-export guard. The readout is deliberately
+limited to parent records 0--4, relations 0--67 and their selected retained
+evidence, together with the complete `Graph` Debug value at that point. It is
+not an exhaustive-context census and introduces no inference-state writes.
+
+Apply this extension after the existing preparation command and before the
+build command above, using the same new external directory:
+
+```sh
+patch --batch --forward -d "$proof_dir/observer/source/crates/yu-solver" -p1 < notes/theory/fixtures/2026-10-26-native-association-observer.patch
+```
+
+The unchanged observer client then emits `ASSOCIATION_` lines alongside the
+original `PROOF_TRACE` stream. This is observation code, not a production
+patch. Formatting and output allocate and take time; the readout does not
+establish a formal equivalence theorem between instrumented and native runs.
+
+One exact-fixture run completed in 0.372 s with observer exit 0, one Int/Bool
+conflict and seven source Calls. No timeout or prefix cutoff occurred. Removing
+the association lines leaves all 1,404 original trace lines byte-for-byte
+unchanged, with SHA-256
+`3d8e9aab2c3339efd6ab22059284919e6863bfc057a0201fa0a9e44175df744d`.
+The successful incremental build exited 0 in 8.877 s. An earlier failed build
+(exit 101, 4.796 s) used the nonexistent `self.candidate_source` path; the final
+extension correctly reads `self.batch.candidate_source`. That failure is a
+build observation, not an inference outcome.
+
+The 337 association lines contain five parents, one Graph, 68 relations,
+105 dependencies, 33 origins, 63 admissions and 62 emissions. Every printed
+`RelationId` resolves inside the selected relation prefix; every printed
+emission's admission also occurs in the readout. The four FunctionPort records
+of the relevant cut and the producer links into the receiving boundary are
+present. Their original signed interpretation is a separate proof obligation;
+the source-set union does not itself select one original receiving Value.
+
+| Frozen evidence | SHA-256 |
+| --- | --- |
+| Association extension patch | `890fdc94090809ae33c0af93b4bccd7f0cd22447aad2752dea1c02c975a0231c` |
+| Extended private `candidate_context.rs` | `0c7eb06e357fbb57e2e10ce3d308ed6dace5c07a0c4bd1b534f2e34fea57517a` |
+| Extended private `candidate_intrusion.rs` | `3cecc6455588e79873fbc2b613eacdbfe38c5c8119441b2bfbcd539ceb45a868` |
+| Selected association readout | `cdceaf656e6100e3361d344bf9f927bf43925099c2077b3e3c654ac585765d36` |
+| Combined stderr | `8a52c0817b0201b4f5262aad61631c0a8b717c2f8b6a0dfe4986f8cc5222cf29` |
+| Successful build log | `a4226663135b05e178c9a27810b77d0be2deeaec679e940407e962910a332126` |
+
+The association hash identifies this frozen readout; Debug iteration order for
+HashMaps is not a portable textual ordering guarantee. Receipts and raw output
+are retained outside Git at
+`/workspace/scratch/e3678bef96db/native-association-observer-r3`.
