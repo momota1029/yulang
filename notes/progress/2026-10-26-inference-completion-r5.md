@@ -91,3 +91,35 @@ Its receipt is `tasks/agent-loop/inbox/20261026-native-row-representative-review
 This checkpoint does not authenticate a whole native execution or rollback
 history. Combined table lifetime, Value/Call/Context/world semantics, original
 source reconstruction, general termination and principality remain open.
+
+## Checkpoint 2: concrete Context callbacks
+
+Checkpoint 1 was pushed as `f67e402f7b89980d699260df1b28218f1cd43fd7`
+using an expected-head, non-force branch update. The fetched commit's five
+files match the reviewed/authored SHA256 values exactly.
+
+`NativeContextCompletion.lean` constructs the plain child callback from raw
+relation/task/source guards and the live caller frame. Successful callbacks
+construct the existing native enqueue and shared readback events, retaining
+the full source-local child Context, sources and transformer. Failed
+reservation and partial batches preserve their already-issued prefix;
+reusing an interned relation still creates a new serial occurrence. Owner
+finish and settled child/readback acknowledgements compose one history.
+
+All 24 authored roots pass pinned Lean with full types/axiom outputs; 21 use
+only `propext` and `Quot.sound`, two only `propext`, and one also uses
+`Classical.choice`. Fresh nonauthor `/root/proof_review_r5` returned
+**ACCEPT** for stage 1. The module is frozen at
+`5bc4bb4151087462cfbede6f0d6accece70c41ea5061f1ef100ad081e28344b4`.
+The successful audit is retained. Early failed checks are documented only by
+their summaries/tool transcripts, not separately retained raw logs; this
+evidence limitation is explicit in the review and was not a semantic blocker.
+
+The `.derived` admission list is still a separate projection, not a native
+readback edge event. Exact body/emitted-list correspondence and existence of
+a later settling history are explicit premises. Original native admission,
+rollback and complete source semantics are not closed by these local results.
+The next worker packet owns only `NativeContextCallbackConstruction.lean`
+and its paired note/handoff, with a 1,500-second/12-check bound, to derive the
+emitted-list correspondence from actual collect/admit computations while
+leaving this accepted stage immutable.

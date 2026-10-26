@@ -1,0 +1,41 @@
+# Independent review: native Context completion r5 stage 1
+
+Decision: **ACCEPT** for the frozen stage-1 local callback/forward-history construction and its expressly conditional completed-owner/settled-readback applications. No BLOCKING or major semantic finding. The original parent remains OPEN; this review does not certify a full Rust refinement.
+
+Reviewer: fresh `/root/proof_review_r5`, generic compiler-referee fallback, neither author nor coauthor of this component or its predecessor. No descendants. Root AGENTS, proof-closure policy, design authority, current inference principles, birth-level correction, yulang-lean-proofs and compiler-referee policy govern this review. Original source-preservation quantifiers and unchanged supported source domain were retained.
+
+## Exact reviewed bytes and dependencies
+
+- Delivered `NativeContextCompletion.lean`: SHA256 `5bc4bb4151087462cfbede6f0d6accece70c41ea5061f1ef100ad081e28344b4`.
+- Frozen `NativeContextReadback.lean`: SHA256 `321d087c8d2df5099f67beb75e4316d44114806bbfae2aa64ebda22a34bd83f2`.
+- Stage-1 audit log: `/workspace/scratch/c10e953a5453/context-completion-r5/audit-stage1.log`, SHA256 `36a0121a176b0c8107794eb42a058b58e63d819588c16a83a923f2de4f18174f`.
+
+Reviewed the repository-delivered module, paired note/handoff, frozen predecessor definitions/events and consumed readback theorems, raw Context expansion/admission definitions, drain issuance/control events and relevant actual Rust owners. The producer scratch module has additional appended stage-2 theorems; those are NOT reviewed or accepted here. Its original stage-1 declarations are unchanged by that append. Recomputed both assigned module hashes. Verified the repository and producer-project bytes of `NativeContextExpansion`, `NativeDrainOwnership`, `NativeExecutionHistory`, `NativeReplayCurrent`, `NativeReplayAcknowledgement`, `NativeMergeExpansion` and `NativeReplayCoverage` are identical. The primary subsequently reported predecessor publication at `ee61ba0b68789e2dea9eac024130f21c5a4e6453`; the current repository predecessor hash independently matches the same frozen dependency.
+
+## Checker evidence and limits
+
+Inspected pinned Lean 4.35.0 / Lake 5.0.0-src+eb6cafb version output, exact module successful build and all 24 complete theorem-type/transitive-axiom blocks. Independently parsed unique balanced audit boundaries and checked that those 24 names equal every authored theorem root in the delivered file. All 24 PASS records occur with successful exits. Complete axiom census for those roots: 21 `propext, Quot.sound`; 2 `propext` (`native_step_issued_retained`, `native_run_issued_retained`); 1 `propext, Classical.choice, Quot.sound` (`callbacks_settled_readback`). No project axiom or `sorryAx`. This is the authored-root audit, not an all-origin census claim. Focused source inspection found no proof holes or checker bypass in the component/consumed dependency surface; `admit` is an ordinary actual function/constructor name here.
+
+No additional Lean process was warranted: zero of two allowed risk-driven checks used. Existing clean checker evidence was not repeated. Neither stage-2 additions nor their build artifacts are used as evidence of the reviewed theorem statements.
+
+Evidence retention limitation (nonblocking to the local mathematical acceptance): the note records the initial Lake installation-recognition failure and an early conjunction/queue-membership/arithmetic elaboration failure, but their raw outputs are not separately present under the supplied scratch directory. Only `audit-stage1.log` is a retained `.log` there. The primary has requested exact retained paths/transcript locators from the producer. Treat these earlier failures as summarized/transcript evidence until supplied, not as independently inspected raw logs. This limitation does not establish a theorem defect, and the final successful checker evidence remains available.
+
+## Semantic checks
+
+`rawGuard` computes the complete child via `admittedChild`, checks source-local Context availability, relation validity, exact processing-parent relation, exact full child relation and exact raw task payload. It does not accept a recursive-completion predicate. Parent sources/whole transformer are inherited from the actual processing relation; child Context comes from the child's source upper, rather than the parent's stored or post-check Context. The task remains raw while the relation uses the current representative map.
+
+`enqueueChild` requires a working frame with a current occurrence and matching processing identity. Successful reservation constructs the existing `enqueuePlain` control event and the predecessor's administrative control event from the SAME native state. The issued work uses the chosen task/relation IDs, no Replay ticket, and a fresh serial. Both queue directions were inspected. Existing relation reuse still issues a fresh work occurrence and preserves caller frames, owners and memo; no pair-current memo is promoted into completion.
+
+Admission's Derived emission precedes queue reservation in the local callback. Reservation failure retains that emission while preserving native queue/caller/memo and returning no receipt. Batch traversal stops on the first failed callback, retains the earlier issued prefix and returns the failed input plus exact unrun suffix. Empty batches, repeated relation IDs and front/back insertion remain covered. `batch_partial_prefix` proves the count equation; the executable recursion supplies the actual ordered prefix/suffix structure.
+
+The Derived list is separate ghost output because the frozen predecessor has no admission-owner event. It is NOT inserted into `State.edges` by `queued_step`, nor certified there by any theorem. This explicit projection boundary agrees with the note; treating the callback as full admission refinement would exceed the accepted claim.
+
+`finish_after_callbacks` uses batch preservation of frames/data, actual current-owner identity and actual existing owner entry to construct `Step.finish` on the post-callback state. Its `finishPrefix = some body` and full ordered child-list equality remain explicit premises. The theorem does not infer either premise from queue success. `callbacks_settled_readback` preserves the same issued work occurrences into one supplied later Run, then applies the actual predecessor quiescent readback. Queue/stack emptiness and existence of that later history remain assumptions; no termination/completion existence is hidden in the conclusion. Resolved canonical-owner body readback and RouteValid follow from that same history rather than an independently supplied child-closure law.
+
+The inspected Rust order is consistent with this bounded cut: `candidate_context_admit` computes source Context and interns relation before Derived attachment/resource sample; `enqueue_item` performs evidence admission before reserve, then queue insertion; `step_typed_drain` runs Context before Dispatch and clears the current owner only after Dispatch finishes. The local source correspondence is limited to successful admission plus modeled reservation outcome: allocation/interning/resource failures before that cut and all side effects of such failures are not authenticated by this callback model.
+
+## Remaining original obligations
+
+Actual Rust-to-event extraction and ID selection/interner allocation, admission dependency integration in the predecessor driver, constructor-derived whole-body emitted-list correspondence, Replay-bearing enqueue callbacks, physical bound/replay callback composition, Value structured ports, cancellation/table lifetime, committed combined-history authentication and original source/Call/world semantics remain OPEN. The theorem provides no existence proof for the later settled history, no whole-solver termination or principality, and no closure of `SourceProblem.InferenceSoundness`/`MERGE-EXPANSION-COVER-1`. No source restriction or compiler semantic change was introduced to achieve this local result.
+
+Writes stopped. This review modified only its exclusive receipt. No compiler/configuration/shared-status/code, Git index/ref, reviewed source/note/handoff or producer scratch was changed. The separate A review is complete and stopped. No descendant or background checker exists.
