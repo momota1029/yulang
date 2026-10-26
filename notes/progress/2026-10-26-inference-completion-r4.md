@@ -487,3 +487,104 @@ risk-driven ordinary bounded checks. Only governing-source and provisional
 source correspondence are reviewed before the final freeze; acceptance requires
 all final output hashes and the final complete census. The all-installed binding
 coverage and independently scoped positive evidence choices must remain exact.
+
+
+Published checkpoint 7: `ee61ba0b68789e2dea9eac024130f21c5a4e6453`;
+the expected-parent update and fetched/local tree comparison agree. The table
+producer may now pin the exact accepted ContextReadback module for its existing
+application lease; no mutable predecessor input is used.
+
+## Material source-interpretation and issuance corrections
+
+Fresh source review found that raw execution observations must not carry the
+checked Function's result interface. The same raw Unit return can require a Unit
+or Bool recursive certificate under distinct checked descriptions. The first
+operator incorrectly retained one recursive TraceRow and varied only a fixed
+guard. The producer separated raw execution/development from the Challenge-indexed
+positive P_F clause. Full positive observation transport is now an explicit
+premise of conditional Function comparison, rather than inferred from guard
+metadata. The superseded successful checks and source bytes remain retained;
+only a fresh final census and review may accept the repaired interpretation.
+The review also retains the literal/formal-Name applications' exact local scope:
+full heterogeneous source payloads and nested environment actions remain a
+separate constructive premise, not an unchosen-model impossibility claim.
+
+The primary's Value issuance construction reached checked common enqueue/control
+history and all-child return readback. Before freezing, native source inspection
+identified a further real control change: prepare_nonterminal_drain can advance
+prepared_acks, especially after commit re-arms it. The primary is constructing
+that actual preflight and its same-history prefix, rather than treating arbitrary
+active frames as already prepared. The earlier successful 22-root / 63-theorem
+census is retained as superseded evidence; no source-corresponding acceptance or
+publication is claimed for that interim cut.
+
+
+## Checkpoint 8: accepted selected original semantic operator
+
+The primary accepts the repaired OriginalSourceInterpretation packet after
+fresh source review. Review receipt SHA-256:
+`07a5747f0a8772bf073f4bbcc23ecd81c4eeb5e76e1ded5d5a176ca58608ec84`.
+The raw-observation/checked-P_F indexing defect was a MAJOR finding and was
+repaired before acceptance. The final code hash is
+`feddd8155e6130279c202453e4562019fde5c0ad0f3a0a491dcbc0cb4ef572ef`.
+All 816 originating declaration type/axiom pairs, 281 theorem constants and
+48 public roots reconcile. Final producer checks 08/09 pass without diagnostics;
+9/20 calls were used. One independent 120-second bounded review bundle rebuilt
+the complete eight-module cone and checked eight concrete risk-focused theorems
+in 60.85 seconds, all exit zero without diagnostics. The second review check was
+unneeded. All material superseded bytes/failures remain recorded.
+
+The accepted result constructs the selected positive simultaneous V/W/T/Car
+operator, greatest fixed point, value-hole-only background and exact local
+literal/formal-Name/Return/native-bind applications. It does not claim the
+actual recursive pair sourceCases, arbitrary nested-binder interpretation,
+authentic whole P_F expansion, all seven Kernel fields or whole inference
+soundness. These exact original parents remain OPEN, with no source-domain
+restriction or guessed W/Z semantics introduced.
+
+## Full scoped environment interpretation continuation
+
+The source producer started its next disjoint packet at 12:29:38 UTC with
+3,600 wall seconds and at most 24 ordinary bounded focused checks. Exact paths:
+`OriginalSourceEnvironment.lean`, `2026-10-26-original-source-environment.md`,
+`20261026-original-source-environment-r4.md`, plus owned
+`source-environment-r4/**` scratch/cache/TMPDIR. Accepted Syntax/Generation and
+now the exact accepted Interpretation hash are immutable inputs. The target is
+a heterogeneous payload, exact raw-challenge encoding/decoding, deterministic
+ordered Environment/publication fold, authentic admission correspondence and
+original finite-checking applications. Actual runtime identity must exclude
+logical-description variation while its semantic decoration retains the full
+original correlated witness and live configuration. Fresh review is required;
+no old-file, compiler, dependency, shared-status or Git writes are delegated.
+
+
+## Concurrent additive r5 reconciliation
+
+The checkpoint-8 ref update returned a GitHub GraphQL UNKNOWN error. A fresh
+fetch before retry found a real concurrent fast-forward from checkpoint 7:
+`f67e402f7b89980d699260df1b28218f1cd43fd7`,
+`6a1cdf3635b339ca851c1db7d089a6f8d2190468`, and
+`e5d2b7b7a6ec340743668075780e95e8a98c8ef5`. These are separate r5 checkpoint
+contributions, not work authored or reviewed by this r4 team. The additions
+construct row representatives, Context callback/settled readback and outer Value
+structure. Their own progress/review receipts retain their acceptance boundaries.
+
+The primary verified all 13 remote changes were additions disjoint from every
+staged r4 path, then fast-forwarded without stashing/resetting/overwriting any
+work. All five staged blobs and their working bytes remained identical. The
+unpublished first candidate `935ee2b0ceeed56090185aac546bb3777d60247b` is retained
+only as a superseded commit object; no force update was attempted. The retry is
+rebuilt on the fetched r5 head. Existing pinned dependencies are unchanged.
+
+The r5 workers are not available in this session's live agent tree; an internal
+contact attempt found no live agent and delivered nothing. This r4 team does
+not reclaim their leases, modify their component/progress files or claim their
+verification as its own. The r4 table lifetime, heterogeneous Environment and
+Value issuance packets remain disjoint. Final import integration must reconcile
+current published imports and preserve both sets of accepted modules.
+
+A second expected-head retry encountered concurrent checkpoint
+`62bdf0357a22f40543949adcc26d177c277e5678` (representative-to-shared-readback
+application). Its changes were again disjoint from all staged r4 paths and were
+fast-forwarded intact. The superseded second candidate was
+`e56307ba5482a0a5796e95d87a48603ee1f9d986`; no forced update was used.
