@@ -13,6 +13,7 @@ import YulangClosure.SimpleSubLatticeCertificates
 import YulangClosure.SimpleSubLatticeInference
 import YulangClosure.SimpleSubLatticeDecision
 import YulangClosure.SimpleSubLatticeGrowingInference
+import YulangClosure.NativeRowModel
 
 /-!
 Checked inference proof components, integrated incrementally.

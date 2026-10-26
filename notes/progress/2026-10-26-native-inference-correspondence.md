@@ -177,3 +177,54 @@ lines, including the blank separator. Native file hashes and tested bytes are
 unchanged. This checkpoint stages only the accepted inventory, its producer and
 review receipts, the selector receipt and primary navigation/progress records.
 The original full inference root remains OPEN.
+
+
+## Checkpoint 2: canonical row models, reviewed
+
+Checkpoint 1 is published as `218ea864b7284468b6ab1f480f490e93522ea6af`;
+remote tree/index/parent equality and local branch synchronization were checked.
+Fresh `native_model_review` accepted the finite structural model construction
+without mandatory repair. The five saturation premises contain only finite
+syntax and closure, not a graph/model or acceptance conclusion. The construction
+uses one shared lower-join interpretation in every port, distinct upper-meet
+nodes, proved guardedness and the actual finite decision. Its publication
+application retains all original inventory/metadata and literal history premises.
+Review SHA-256 `39cde3455bc6e8a3a590e9203360334b5a404f892cad551eaa068eb2b965663c`.
+Frozen source SHA-256
+`16835744153d05150992175ddb866ccc202e0f31781ed1a5a26c3e55c54a26bb`.
+The producer's full audit covers 209 declarations / 137 theorem constants;
+only six recursive-example helpers depend on Classical.choice. Generic
+construction/application roots use propext and Quot.sound.
+
+The next constructive leaf `finite_row_solver_construction` owns only new
+`NativeRowSaturation.lean`, `2026-10-26-finite-native-row-saturation.md`, its
+`20261026-inference-native-row-saturation.md` handoff and isolated scratch
+`inference-native-row-saturation`. It must compute a genuine finite clause
+closure, prove success constructs the syntactic Saturated fields and retain the
+original input clauses, then apply this reviewed model theorem. It may not
+replace construction by an assumed saturation/model or add a production checker.
+Budget 1,800 seconds, at most 18 focused 120-second/1-GiB/single-thread Lean
+calls. Exact original optional-record/contextual-effect/native-source boundaries
+remain unchanged. The accepted model dependency is frozen during this work.
+
+Checkpoint 2 integration: the inference import target passes 21 jobs; the exact
+origin audit passes 1,776 theorem constants across 18 modules, including all
+new required model roots and private/generated helpers. Build log SHA-256:
+`0e73dc9b6b21e2272c6323d42513af9c9cd25996fed6e65ea09777c6dee51fc2`.
+Audit log SHA-256:
+`da234e45cfc52441f87b06b0db51442489577ea345d1c32e94cd8bd2f5255bfd`.
+Only the accepted model packet and primary import/audit/navigation/progress
+changes are staged for this checkpoint; other frozen proof packets remain
+separate. The complete default target is reserved for final integration.
+
+
+During checkpoint 2 staging, `git diff --check` found three surplus terminal
+newlines after the model module's closing namespace. The primary removed only
+those three bytes. Fresh delta review verified the exact byte relation and
+accepted it without a proof rerun; no Lean token changed. Integrated model SHA-256
+is `30016f40295a803df2ed3d9b46efd256d1427400f55bda1810e22a00f89d7780`;
+updated review SHA-256 is
+`b0fbc7460a2f5c20e89961114b968a180f2eea3daf659d36197b2bc804ace41d`.
+The original paper/receipt retain the historical producer hashes. The dependent
+saturation worker refreshed its isolated source before its first build. Final
+integration will rebuild the exact committed bytes.

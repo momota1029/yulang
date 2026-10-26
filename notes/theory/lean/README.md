@@ -13,6 +13,19 @@ This inventory is not a Lean semantic model or a whole-source soundness result.
 Subsequent constructed proof components and their exact native/source boundaries
 are tracked in the [new continuation record](../../progress/2026-10-26-native-inference-correspondence.md).
 
+`NativeRowModel` constructs one finite regular graph and one shared row
+interpretation from independently stated syntactic saturation conditions.
+`canonical_bounds`, `canonical_valid`, `canonical_guard_checked` and
+`canonical_decided` derive every retained inequality, validity, the actual guard
+check and terminal decision success. All four Function ports use the same map;
+lower joins and upper meets remain distinct. Its original-publication
+application retains the actual growing-history, inventory and metadata
+obligations. The new component has independent acceptance; integration checks
+all 1,776 originating theorem constants in 18 inference modules. Six recursive
+example helpers use standard `Classical.choice`; generic canonical roots use
+only `propext` and `Quot.sound`. Full native saturation, original optional-record
+adaptation, contextual effects and source/Call reconstruction remain OPEN.
+
 ## 2026-10-26 continuation: construct terminal inference evidence
 
 The final connection is

@@ -30,7 +30,8 @@ run_cmd do
     `YulangClosure.SimpleSubLatticeCertificates,
     `YulangClosure.SimpleSubLatticeInference,
     `YulangClosure.SimpleSubLatticeDecision,
-    `YulangClosure.SimpleSubLatticeGrowingInference
+    `YulangClosure.SimpleSubLatticeGrowingInference,
+    `YulangClosure.NativeRowModel
   ]
   let roots : Array Name := #[
     `YulangClosure.BirthLevelSCC.finiteReach_iff,
@@ -112,7 +113,19 @@ run_cmd do
     `YulangClosure.SimpleSub.LatticeGrowingInference.GrowingHistory.flatten,
     `YulangClosure.SimpleSub.LatticeGrowingInference.GrowingHistory.decided_sound,
     `YulangClosure.SimpleSub.LatticeGrowingInference.completed_decided_growing_store_sound,
-    `YulangClosure.SimpleSub.LatticeGrowingInference.completed_decided_growing_publication_with_clients
+    `YulangClosure.SimpleSub.LatticeGrowingInference.completed_decided_growing_publication_with_clients,
+    `YulangClosure.SimpleSub.NativeRowModel.canonical_bounds,
+    `YulangClosure.SimpleSub.NativeRowModel.canonical_valid,
+    `YulangClosure.SimpleSub.NativeRowModel.canonical_guarded,
+    `YulangClosure.SimpleSub.NativeRowModel.canonical_guard_checked,
+    `YulangClosure.SimpleSub.NativeRowModel.canonical_decided,
+    `YulangClosure.SimpleSub.NativeRowModel.canonical_interval,
+    `YulangClosure.SimpleSub.NativeRowModel.canonical_completed_publication,
+    `YulangClosure.SimpleSub.NativeRowModel.canonical_decoded_store,
+    `YulangClosure.SimpleSub.NativeRowModel.recursive_store_constructed,
+    `YulangClosure.SimpleSub.NativeRowModel.recursive_decision_constructed,
+    `YulangClosure.SimpleSub.NativeRowModel.alias_cycle_constructed,
+    `YulangClosure.SimpleSub.NativeRowModel.lower_join_upper_meet_need_not_equal
   ]
   let env ← getEnv
   let mut targets : Array Name := #[]
