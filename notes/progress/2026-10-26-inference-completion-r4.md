@@ -1401,3 +1401,67 @@ the concurrent five paths and every staged own path. All five reviewed files
 and all129checked inputs remain byte-identical. Only this primary publication
 record and the commit parent/tree change for the nonforced retry; no proof
 or integration revalidation is implied by the branch race itself.
+
+Checkpoint19 retry published as `efa0e4453df7021144efc253699cce88cdfb8b85`,
+parent11b0bf084 and tree17fcccd4fef2a590c305da4b9c273ef4417897f9.
+Exact remote equality, parent/tree and clean tracked worktree/index were
+verified at15:30:51.971156 UTC. The concurrent termination component remains
+preserved and separately reviewed; the unpublished first commit is retained
+as evidence, not counted as a published checkpoint.
+
+## Checkpoint 20: computed immutable bind/capture readout accepted
+
+Fresh nonauthor review ACCEPTs the partial native constructor, with no
+blocking or major finding. Exact codeedb82b9e…, final note07247b1b…,
+producer99cfcca0…, review59e50312… and freeze50a494fa… are fixed. Reviewer
+writes/checkers stopped15:36:38.954742 UTC;64review artifacts remain pinned.
+All201 original author artifacts matched at intake;199 remain at their
+original paths, and the two explicitly corrected prose predecessors are
+preserved. All13 dependency/configuration inputs remain byte-identical.
+
+parameter_bind_readout computes the actual Store.push/bindValue equation,
+without a desired registry law. The one joint assignment uses cell address
+and view, keeping same-view/different-cell contracts distinct. Every Some is
+interpreted, including out-of-count functional-store entries; finite support
+is derived for the actual vector representation. Old environment records and
+saved captures remain under the real allocated-address and existing-saved-
+environment conditions. resolvedCaptureData constructs the exact Pair record
+from raw lookup/cell data. The actual Pair entry step consumes this equation.
+The supplied recursive binding fields are one complete PhiW conjunct, not the
+whole world. Older Shared frames remain complete and the current witness is
+read at the actual current event.
+
+The independent reviewer rebuilt all11 modules from an empty cache, reproduced
+all120 complete originating type/axiom reports,67theorems and40named roots,
+and checked six additional axiom-free probes. The probes independently show
+that a future saved-index or unallocated old address can change under bind;
+the delivered preservation premises are therefore material. A count0/address99
+functional Some remains interpreted but cannot be an actual vector projection.
+One of3 focused bundles passed in61.582seconds, peakRSS1,155,416,064bytes.
+Only the three accepted standard axioms appear in module constants. All
+author failures, deprecated-warning repairs, sandbox-startup and reviewer
+parser failures remain preserved.
+
+Three minor prose findings are CLOSED without changing Lean: actual callback
+preprocessing can replace the incoming view and mutate receiving, and record/
+unit patterns differ, so the correspondence is the plain bind substep after
+preprocessing; total WorldRegistry.rebind equality may be a valid particular
+sufficient premise but is not proved universally; the completed-entry source
+locator is §4, not §5. Author r1 and primary r2 preserve their prior prose,
+separate freeze receipts and zero-check repair histories.
+
+Full source-owned PhiW/B_H.W, callback/receipt/pattern/full-entry correspondence,
+retained formal Shared/EventField emission and its native/scoped assignment
+link, complete future Function, general L4 and original inference soundness
+remain OPEN. This acceptance neither invents that evidence nor narrows the
+parent grammar to plain immutable binds.
+
+The independent SourceEvents code/prose packet froze15:37:29 UTC at
+b5a4b389…/b9ac11a7…/c2660a36…, freezebbbb36eb… with274retained artifacts.
+Final module10 and complete census14 are clean:678module constants,
+180theorems,40fully qualified roots; all49 scratch probe constants, including
+17theorems, were separately fully audited. Fresh function_future_review_r4
+now owns only its new source-events review receipt/cache,1200seconds/max3
+focused120second bundles. It must distinguish source record construction from
+original semantic challenge-domain completeness and preserve all raw operands,
+owner routes, dependency telescopes and description/runtime separation.
