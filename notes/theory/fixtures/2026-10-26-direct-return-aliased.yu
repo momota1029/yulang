@@ -1,0 +1,10 @@
+my top h = {
+    my f x y = { h x; f {a: y}; y }
+    my gi = f {a: 0}
+    my i: int = gi 0
+    my gb = f {a: true}
+    my b: bool = gb true
+    (i, b)
+}
+my ignore x = 0
+my main = top ignore

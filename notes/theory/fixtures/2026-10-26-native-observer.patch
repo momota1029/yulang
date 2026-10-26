@@ -1,0 +1,135 @@
+--- original/crates/yu-solver/src/candidate_context.rs
++++ observed/crates/yu-solver/src/candidate_context.rs
+@@ -22,6 +22,24 @@
+ #[cfg(test)]
+ pub(super) fn r148_trace_finish() -> Vec<String> {
+     R148_TRACE.with(|trace| trace.borrow_mut().take().unwrap_or_default())
++}
++// Proof-only streaming observer in an isolated source snapshot.
++// It does not modify any solver field; its explicit bound aborts this private
++// observation attempt and must never be reported as native termination.
++#[cfg(not(test))]
++pub(super) fn r148_trace(event: impl Into<String>) {
++    use std::sync::OnceLock;
++    static LIMIT: OnceLock<usize> = OnceLock::new();
++    let limit = *LIMIT.get_or_init(|| std::env::var("YULANG_PROOF_TRACE_LIMIT")
++        .ok().and_then(|value| value.parse().ok()).unwrap_or(0));
++    if limit == 0 { return; }
++    std::thread_local! { static COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
++    COUNT.with(|count| {
++        let number = count.get() + 1;
++        count.set(number);
++        eprintln!("PROOF_TRACE[{number}] {}", event.into());
++        if number >= limit { panic!("PROOF_TRACE_PREFIX_LIMIT: observation stopped, not solver completion"); }
++    });
+ }
+ use crate::candidate_effect::BoundKey;
+ use crate::*;
+@@ -3151,7 +3169,6 @@
+         Ok(())
+     }
+     fn dependency(&mut self, dependency: Dependency) -> Result<(), SolveAvailabilityError> {
+-        #[cfg(test)]
+         if matches!(dependency, Dependency::Transport { .. } | Dependency::Replay { .. }) {
+             r148_trace(format!("relation-consumer {dependency:?}"));
+         }
+@@ -4236,7 +4253,6 @@
+             let (from, parent, _) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_keys[index];
+             let to = BoundKey(self.canonical_extrusion(from.0), from.1, self.canonical_extrusion(from.2));
+             if to != from {
+-                #[cfg(test)]
+                 r148_trace(format!("canonicalize raw={from:?} canonical={to:?} relation={parent:?}"));
+                 self.candidate_context_transport_witness(parent, to, 0, Some(TransportWitness { from, to, reason: TransportReason::EqualityCanonicalization }))?;
+                 let pair = self.candidate_context_pair(bound_pair(to));
+--- original/crates/yu-solver/src/candidate_extrusion.rs
++++ observed/crates/yu-solver/src/candidate_extrusion.rs
+@@ -28,7 +28,6 @@
+         level: u32,
+     ) -> Result<ExtrusionEndpoint, SolveAvailabilityError> {
+         let occurrence = self.begin_candidate_extrusion()?;
+-        #[cfg(test)]
+         candidate_context::r148_trace(format!(
+             "extrusion-start occurrence={occurrence} initial={initial:?} polarity={polarity:?} target={level} processing={:?}",
+             self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.processing));
+@@ -84,7 +83,6 @@
+             let root = Key(self.canonical_extrusion(initial), polarity, level);
+             work_push!(work, Work::Visit(root))?;
+             while let Some(task) = work.pop().or_else(|| pending_bounds.pop()) {
+-                #[cfg(test)]
+                 candidate_context::r148_trace(format!("work-pop occurrence={occurrence} task={task:?}"));
+                 match task {
+                     Work::Visit(key @ Key(endpoint, p, target)) => {
+@@ -397,7 +395,6 @@
+                         initialized_allowances.push(installed);
+                     }
+                     Work::Bound(owner, p, key, source) => {
+-                        #[cfg(test)]
+                         candidate_context::r148_trace(format!("work-bound occurrence={occurrence} operation={initial:?} operation_polarity={polarity:?} target={level} raw={source:?} owner={owner:?} side={p:?} selected={key:?}"));
+                         let copied = rows
+                             .get(&key)
+@@ -575,7 +572,6 @@
+                 .or_else(|| structure.get(&root))
+                 .copied()
+                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+-            #[cfg(test)]
+             candidate_context::r148_trace(format!("extrusion-finish occurrence={occurrence} output={result:?}"));
+             self.finish_candidate_extrusion(occurrence, parent_start, result)?;
+             // Selected Work::Bound copies are one-sided; only incoming cuts
+--- original/crates/yu-solver/src/candidate_intrusion.rs
++++ observed/crates/yu-solver/src/candidate_intrusion.rs
+@@ -603,7 +603,6 @@
+         root: Option<CanonicalValuePairKey>,
+         parent_index: usize,
+     ) -> Result<(), SolveAvailabilityError> {
+-        #[cfg(test)]
+         candidate_context::r148_trace(format!("row-merge copy={copy:?} parent={parent:?} root={root:?} parent_index={parent_index}"));
+         let state = &self
+             .candidate_graph
+--- original/crates/yu-solver/src/lib.rs
++++ observed/crates/yu-solver/src/lib.rs
+@@ -14286,6 +14286,30 @@
+     }
+ 
+     #[cfg(feature = "shadow-apply-candidate")]
++    fn proof_endpoint_readout(&self, endpoint: ValueEndpointKey) -> String {
++        if let ValueEndpointKey::ValueRow(row) = endpoint {
++            let bound = &self.bounds[row as usize];
++            return format!("row{}@{} lowerRows={:?}/{} upperRows={:?}/{} lowerTerms={:?}/{} upperTerms={:?}/{}",
++                row, self.value_levels[row as usize],
++                &bound.direct_lower_rows[..bound.direct_lower_rows.len().min(6)], bound.direct_lower_rows.len(),
++                &bound.direct_upper_rows[..bound.direct_upper_rows.len().min(6)], bound.direct_upper_rows.len(),
++                &bound.exact_non_variable_lowers[..bound.exact_non_variable_lowers.len().min(6)], bound.exact_non_variable_lowers.len(),
++                &bound.exact_non_variable_uppers[..bound.exact_non_variable_uppers.len().min(6)], bound.exact_non_variable_uppers.len());
++        }
++        if let Some((argument, ae, re, result)) = Self::positive_function_children(&self.store, endpoint) {
++            return format!("F+({:?},{:?},{:?},{:?})", self.value_endpoint(argument, Polarity::Negative),
++                self.effect_endpoint(ae, Polarity::Negative), self.effect_endpoint(re, Polarity::Positive),
++                self.value_endpoint(result, Polarity::Positive));
++        }
++        if let Some((argument, ae, re, result)) = Self::negative_function_children(&self.store, endpoint) {
++            return format!("F-({:?},{:?},{:?},{:?})", self.value_endpoint(argument, Polarity::Positive),
++                self.effect_endpoint(ae, Polarity::Positive), self.effect_endpoint(re, Polarity::Negative),
++                self.value_endpoint(result, Polarity::Negative));
++        }
++        format!("{:?}", endpoint)
++    }
++
++    #[cfg(feature = "shadow-apply-candidate")]
+     fn step_typed_drain(&mut self, index: usize) -> Result<DrainStep, SolveAvailabilityError> {
+         use candidate_context::TypedDrainStage as Stage;
+         let frame = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?
+@@ -14355,6 +14379,14 @@
+             }
+             Stage::Dispatch => {
+                 let mut item = current.ok_or(SolveAvailabilityError::IdentityExhausted)?;
++                // Proof-only readout; no mutation or routing decision.
++                if let LiveConstraintTask::Value(pair) = item.task {
++                    let state = &self.candidate_graph.as_ref().unwrap().intrusion;
++                    candidate_context::r148_trace(format!("dispatch generation={} rows={} queue={} pair={:?} lower={} upper={}",
++                        state.generation, self.value_levels.len(),
++                        self.typed_worklist.len(), pair, self.proof_endpoint_readout(pair.lower),
++                        self.proof_endpoint_readout(pair.upper)));
++                }
+                 item.replay_ack = None;
+                 self.dispatch_live_item(item, Some(index), consumed.ok_or(SolveAvailabilityError::IdentityExhausted)?, &mut transitions)?;
+                 let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
