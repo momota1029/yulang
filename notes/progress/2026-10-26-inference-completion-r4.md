@@ -1189,3 +1189,51 @@ continues only the separate new future-event packet; these accepted bytes are
 immutable. The primary consumes this local result at the stated future event-
 registry seam and retains general recursive introduction and native-success
 correspondence as open owners. No original supported source form is removed.
+
+Checkpoint16 published as `99f18bdc54df8057f5a6d5d4bec5dc449336c234`,
+parentff5a86e62 and treee113ee7c58b49fc32e252353cab2de55ff73d5e8.
+Exact remote equality, parent/tree and clean tracked worktree/index were
+verified at14:46:15.449691 UTC. The expected-parent ref update was nonforced.
+
+## Checkpoint 17: actual future-invocation observation accepted
+
+Fresh independent review ACCEPTs the frozen OriginalFunctionFuture packet:
+codee90f98aa…, note09ea9623…, producera6ff728c…, reviewafa74032….
+The reviewer reconciled all155 producer manifest artifacts, including every
+failure, and rebuilt the13-job dependency cone from an empty isolated cache.
+An exact-raw-invocation discriminator and all39 complete declaration/type/axiom
+reports passed; the reports exactly match the author's census. There are24
+theorem constants and20 authored roots. Actual axioms are propext and
+Quot.sound only. The initial sandbox Lake-location failure is retained;
+the same fixed native toolchain passed via the permitted escalation route.
+The successful bundle took55.131 seconds with1,157,013,504-byte peak aggregate
+RSS. The reviewer/source/probe/checker freeze is15:01:06.660912 UTC; no owned
+processes or descendants remain.
+
+The new public application consumes actual goal-admitted raw invocation data
+and the finite Checking observation child. It supplies the observation action
+at that invocation's actual event, retaining all ten Event coordinates, the
+entire Shared/runtime prefix, current joint witness and original registrations.
+It needs neither token choice nor an event-readback equation or future
+GoalMeaning assumption. The retained subject is precisely state.goalRow;
+source owner existence is still the separate original-registration obligation.
+
+The independent counterexample uses the exact admitted raw payload and its
+computed event. Both domains remain nonempty and the entire current domain
+GoalMeaning holds for arbitrary ports, yet the needed later inclusion fails.
+A second witness keeps static fiber/eta0 and raw history/current fixed but
+changes the joint witness, so it cannot be the decoder's event. These identify
+formal-interface gaps; they are not original source unsoundness examples.
+The original Initial/Response/raw Resume/FutureUse EventField ownership and
+coverage, coherent domain/value event reading, future guards/captures,
+hereditary Function membership and general L4 remain OPEN.
+
+The next-action consultation selected an actual immutable parameter-binding
+world-readout construction. It explicitly rejected an unnecessarily strong
+whole-registry equality: ordinary formal binding preserves old Shared frames,
+but the current EventField/witness telescope can extend. The next packet must
+compute the actual post-bind registry and apply full PhiW directly, retaining
+actual saved captures and all source-owned fields. It cannot choose convenient
+unowned witness positions or treat native view handles as semantic proofs.
+Pair's existing conditional rebind theorem remains frozen and is not promoted
+to that missing correspondence result.
