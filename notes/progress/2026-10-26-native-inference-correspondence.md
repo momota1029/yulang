@@ -402,3 +402,88 @@ wording points in one paper-only delta: the already-typed raw query is passed
 directly to canonical context conversion, and a local annotation's fresh row is
 allocated before checking but exposed/returned afterward. No source/native or
 Lean bytes change. The reviewer receives that exact delta for acknowledgement.
+
+## Checkpoint 7: native indexed record plans and authentic source generation
+
+Checkpoint 6 is published and synchronized as
+`f7c7dcfc5cf2b55aedea5625470e81483d0561b8` after exact index/tree/parent and
+expected-head checks. The native source review accepts the exact two-wording
+delta: current paper SHA-256
+`7e903edc8348d900954d655f82d9cadb623b47e8224e525602b3cef42777ccd1`,
+final review `743bc17fbceacf5382a4a3d9e11208af563ff87870a6efdfd921205961acb52c`.
+The producer records retain the original frozen paper identity as historical
+evidence. Every native and Lean input is unchanged.
+
+The new Lean plan bridge is frozen at
+`3cf43fdb754748b83a6816791d640752dda491b87f7e2513a27548a950b27d43`,
+with paper `a8cf460f72dbbe521761d1e09c4095c44d471538f4f0fb9c6d1c120e0603446f`
+and producer handoff
+`80ec857a08d2528f6871ebfd9167be2242af813ef48b97dcf5cc867a95b55b12`.
+It constructs exact first-source lookup, original paired indices, diagnostic
+classification and sibling queue order. Filling all holes with one fixed
+boundary-scoped resolver equals the accepted record compiler, including child
+resolution failure. The real formal's equal-row payloads have a constructed
+identity filling and independent visible-view normal preservation.
+
+Fresh nonauthor `native_record_plan_review` owns only its
+`20261026-inference-native-record-plan-review.md` inbox receipt and isolated
+scratch: 900-second M3 joint proof/source review, no optional checkers or probes.
+It consumes the separately accepted native owner audit and must retain every
+original semantic-boundary, contextual, child-contract and complete-Call premise.
+The source-to-semantic-boundary equation is now the material integration seam.
+Fresh `native_soundness_boundary_seam` owns only
+`20261026-inference-source-boundary-next.md` and scratch for a 450-second,
+zero-checker next-action selection at that seam. The lease grants no production
+or semantic change. Ready proof integration continues during that inspection.
+
+Checkpoint 7 integration passes the inference target (26 jobs) and the exact
+origin audit: 2,270 theorem constants across 23 modules, including all 122 new
+plan constants and every one of its 28 required authored roots. Build log
+SHA-256 `5dd4a2a1e522d688787be60e209524d2eda73061bb23d7f78fb965bf10e57f72`;
+audit log `c9caf1687cd0cb813c4a4ef97b04faebaf8d219ae0810e481fb194d0681b38ed`.
+The audit still permits only standard Lean axioms and rejects project axioms
+or missing required roots. Publication waits for the joint plan review.
+
+Fresh `native_record_plan_review` accepts the exact joint Lean/native source
+bridge without mandatory repair. Review SHA-256:
+`ce4f2acee3e4d183b6a282191b720fcc3ba0927583531fdb53d4c0e2effaa3ad`.
+It independently checked all 251 declarations / 122 theorem constants, including
+32 private declarations and every required root, actual native owners and the
+preserved original semantic premises. Zero additional checker/native calls.
+The only historical manifest difference is the already accepted two-wording
+source-paper correction. This completes checkpoint 7's publication gate.
+
+## Next construction: actual replay lifecycle
+
+The selector freezes `20261026-inference-source-boundary-next.md`, SHA-256
+`a7e256cd39eeffe8901db6a087789a7ea676e2a5e555f1f533e5b55692711c54`.
+Its decisive actual owner equation is that `mark_candidate_pair` records the
+current generation at pair admission, before structured children finish.
+Therefore native `completed` is a duplicate/recursion guard, not a returned
+semantic certificate. The next proof must construct old-work dispositions,
+owner/acknowledgement conservation and expansion transport through merge; it
+cannot identify that map with the abstract scheduler's completed list.
+
+Two disjoint exact leases are granted:
+
+- `native_replay_lifecycle`: optional new `NativeReplayLifecycle.lean`,
+  `2026-10-26-native-replay-lifecycle.md`, inbox
+  `20261026-inference-native-replay-lifecycle.md` and isolated scratch
+  `inference-native-replay-lifecycle`; 1,800 seconds, at most 18 focused
+  120-second/1-GiB/single-thread Lean calls. Construct source-faithful replay
+  ownership and coverage from actual transitions, or freeze the first concrete
+  missing native equation. No assumed skip-validity/coverage root, source
+  restriction, runtime retention mechanism or production change.
+- `native_replay_lifecycle_source`: only inbox
+  `20261026-inference-native-replay-lifecycle-source.md` and own scratch;
+  900 seconds, zero checks/probes. Independently attack actual suppression,
+  all-owner canonicalization, active/expanded/returned dispositions, rollback
+  and numeric operation-ID reuse. This source contributor cannot independently
+  certify the co-developed proof.
+
+Both are generic leaf fallbacks with no children, Git, shared records, existing
+source writes or native tests. The eventual coherent packet needs a different
+fresh nonauthor M3 reviewer. Full dispatch cases and original source scope stay
+fixed; exact semantic record-boundary attachment and complete Call remain later
+obligations, not adopted definitions. Completed record-plan integration proceeds
+independently of this next proof attempt.

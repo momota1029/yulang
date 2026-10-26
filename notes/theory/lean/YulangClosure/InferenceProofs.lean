@@ -18,6 +18,7 @@ import YulangClosure.RecordBoundaryPreservation
 import YulangClosure.NativeReplayCoverage
 import YulangClosure.NativeRowSaturation
 import YulangClosure.BoundaryQueryClosure
+import YulangClosure.NativeRecordPlan
 
 /-!
 Checked inference proof components, integrated incrementally.

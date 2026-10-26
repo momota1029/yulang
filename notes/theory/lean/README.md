@@ -67,6 +67,17 @@ and audits 2,148 theorem constants across 22 modules. Actual source/context edge
 eligibility, native scheduling correspondence and the semantic meaning of each
 boundary remain independent application obligations.
 
+`NativeRecordPlan` constructs the native first-match, target-ordered indexed
+record skeleton and proves that filling it with one boundary-scoped resolver
+equals the existing record compiler. Its failure classification separates
+missing-required diagnostic recovery from comparison success and unavailable
+presence; it retains every common optional payload and original field index.
+The genuine record-formal trace has a constructed identity filling and normal
+preservation instance. The integrated audit now checks 2,270 theorem constants
+across 23 modules; the inference target passes 26 jobs. This still requires the
+original source query-to-adaptation equation, general child contracts, native
+currentness/context meaning and complete Call evidence.
+
 ## 2026-10-26 continuation: construct terminal inference evidence
 
 The final connection is
