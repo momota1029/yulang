@@ -244,3 +244,43 @@ hit its 120-second bound after compiled dependencies; this preserved timeout
 is a real check failure. The narrower remaining ProofAdvancement target then
 built successfully (52 jobs). The default target will be checked once after
 all intended new imports are final. No reserved root/configuration is edited.
+
+## Checkpoint 6: constructed source signatures and occurrence partitions
+
+Checkpoint 5 was pushed as `c6e06af06b702030dec6028ca66dd5ab4a7a94b1`
+and exact-byte checked after fetch/fast-forward.
+
+`SourceSignatureConstruction.lean` implements the adopted finite registered
+source-frame construction and proves its exact correspondence with
+independent source-edge, finite provenance and contextual support grammars.
+It retains whole original nodes/catalogues, dependent packets, original
+owner/receiver identities and complete ordered reference/substitution routes.
+Empty or unselected schemas remain supported without fabricating a license.
+Insertion is injective on the entire retained primitive/local license record.
+
+`installCall` allocates all six original Call regions and every actual arm,
+then constructs the Call node, so `raw_call_static_incidence` assumes no
+pre-registered Call. The decisive origin results show that a reference stays
+inherited even when original owner equals receiving registration, and that
+two conjunction origins remain distinct despite coincident owner data.
+Finite reference cycles cannot invent an introduction.
+
+Frozen module SHA256:
+`ed07890e29b4dcb38cabd18ec0e196efde9e95c64902942a9906a470b38c3311`.
+All 45 authored public roots pass pinned Lean. The exact all-origin census
+contains 848 declarations / 383 theorem constants, including 18 private:
+249 theorem constants use no axioms, 104 only `propext`, 30 only `propext`
+and `Quot.sound`. Ten focused checks were used with failed repairs retained.
+Fresh independent nonauthor `/root/source_signature_review_r5` verified all
+35 frozen source/policy/runtime input hashes, all root and census blocks/EOF,
+and returned **ACCEPT** with no findings. Its frozen receipt SHA256 is
+`bb8b762ad9eb01e4ee221363bd2c06a5794449e4c7a835c65388e110cea75dae`.
+
+`StaticCallIncidence` remains only the static component of the original atom;
+it does not supply authentic dependent schemas, source registration or full
+semantic Call meaning. `LeafLicensedField` remains a retained primitive/local
+license, not composite DeclContribution. Lawful whole substitutions, complete
+license/attachment grammars, original C0/admission/world inputs and native
+accepted-success-to-original-Kernel satisfaction are not assumed discharged.
+The separate follow-on contribution construction addresses the adopted
+composite grammar while this independently accepted packet remains immutable.
