@@ -1237,3 +1237,65 @@ actual saved captures and all source-owned fields. It cannot choose convenient
 unowned witness positions or treat native view handles as semantic proofs.
 Pair's existing conditional rebind theorem remains frozen and is not promoted
 to that missing correspondence result.
+
+Checkpoint17 published as `3be95e44e203f9bf522576fc7ff1a5a889fbe046`,
+parent99f18bdc5 and treed3be5018c789f5a11a83e84737f646bc71b9cf81.
+Exact remote equality, parent/tree and clean tracked worktree/index were
+verified at15:02:57.182181 UTC without a forced update.
+
+## Checkpoint 18: selected recursive pair accepted
+
+Independent reviewer original_source_review_r4 ACCEPTs the exact bounded raw
+constructor/positive-field/background-world packet, severity none. Frozen code
+1069c185…, note679bd16d…, producerde6139b1…, reviewe98b15e5… and review
+freeze1046f0dd… were reconciled. Review stopped15:05:27.146061 UTC, with109
+frozen artifacts and no owned checker process or descendant. All3 deliverables,
+65 author artifacts and12 listed authority/dependency inputs match; all17
+author attempt sources/logs and their material failures remain preserved.
+
+The source constructor computes the real mutually recursive lambda/Name rules,
+resolved opposite-member lookup and the recursiveJointMemberWorld atom's
+incidence. The heap constructs two distinct providers with the same completed
+saved lexical environment. The suffix stores an arbitrary returned argument,
+reads the captured opposite member, emits the actual Name receipt and returns
+through its own active invocation. Raw carrier transitions retain all requests,
+responses, divergence and pending prefixes; Return never filters by a desired
+value or a convenient replacement body plan.
+
+canonical_world constructs every PhiW field, including every installed Some
+even outside count. world_after_actual_force_return unfolds the whole B_H.Car,
+gets its full current world and actual returned value, transports all previous
+value/carrier fields and constructs result-extended B_H.W. Its actual readout,
+Return classification, lawful event/hole-position action and immediate guard
+premises remain explicit. The two holes are exact VALUE tuples, not world,
+carrier, continuation or safety holes. This is not ordinary Meaning.W and does
+not complete sourceCases/replace, selected Knu/O-pair, the original recursive
+atom, general L4 or whole inference soundness.
+
+The full origin census covers643 constants,240 theorems and69 authored roots,
+including43 private names and24 generated declarations outside the principal
+namespace. Only propext,Quot.sound,Classical.choice occur. The fresh reviewer
+rebuilt all9 modules from an empty cache and explicitly audited all13 author
+probe/scaffolding theorem types and axioms, filling the author's missing
+per-probe printed audit. The one successful bundle took50.27 seconds, peak
+aggregate RSS1,149,706,240 bytes, no diagnostics. The probes separate provider
+80/81 from argument77, retain old captures, arbitrary divergent lengths,
+response alternatives7/9, an installed carrier99 beyond count3, and distinct
+checked Return descriptors130/131.
+
+Accepted scope precisions: canonicalObservation describes post-start Force/
+suffix State; initial/receipt raw witnesses are not yet full P_F correspondence.
+Hygienic separates names, not all source sites. FreshProviders supplies distinct
+IDs/absence of old captures, not complete native allocation freshness. These
+facts cannot be promoted to the remaining source-owned registration evidence.
+
+The new OriginalWorldReadout leaf has only its new module/note/producer and
+world-readout-r4 scratch leases. It runs15:04:17–15:34:17 UTC, at most16 focused
+120-second checks,1CPU/thread,-j1-M1024,1280MiB aggregate, own cache. Pair was
+released only after the above fresh acceptance. Existing cores stay immutable.
+The root separately found SG3.3's explicit 'initializer/rebind installs Shared'
+authority: the present Lambda generation's lack of sharedE does not establish
+that actual rebind evidence needs no new Shared ownership. Both constructor
+and all-future consultation owners must reconcile that source/IR boundary.
+Old Shared preservation is distinct from complete new EventField/Shared
+registration. No missing evidence is silently removed from the original goal.
