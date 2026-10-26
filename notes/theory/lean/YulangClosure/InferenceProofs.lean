@@ -22,6 +22,7 @@ import YulangClosure.NativeRecordPlan
 import YulangClosure.NativeReplayAcknowledgement
 import YulangClosure.RecordBoundaryExecution
 import YulangClosure.SourceIdentityLambda
+import YulangClosure.NativeMergeExpansion
 
 /-!
 Checked inference proof components, integrated incrementally.

@@ -177,3 +177,58 @@ Primary integration passes **52 jobs** and the exact contextual theorem audit,
 exit zero in 80.801 seconds. New files have no warnings. The 658 lint warnings
 in seven unchanged direct proof dependencies are retained for the final owner
 accounting; this result does not claim a warning-free whole project.
+
+Publication 2 succeeded as `316d84a51aa0efa41d9a8ba3a3e6f761bba73684`,
+`proof: construct identity substitution and retained relay typing`. The exact
+seven-file tree and expected-parent non-forced update were verified, then
+remote/local HEAD and the clean index were reconciled. Native merge artifacts
+were excluded from that checkpoint.
+
+### Accepted native merge-expansion components
+
+`NativeMergeExpansion` now constructs the installed identity Allowance carriers,
+both level-directed residual storage owners, exact post-check carriers at any
+third owner, and original-parent dependency paths through equality transport.
+ParentCopy selects the actual complete physical BoundKeys; an obsolete raw
+incidence is not copied merely because its owner ID matches. The all-owner
+canonicalization scan retains its frozen-prefix membership boundary.
+
+`Effect.operand_expansion_transport` proves the complete local Effect outcome
+equation under `current (old row) = current row`: every indexed Support member,
+both tail forms, local return, conflict and unavailable outcome. Replay's empty
+event induction constructs historical operation/child indices for all fired
+products and both old/old and whole-dependency skips. It assumes no public
+`Covered`, `CurrentTransport` or returned-completion ledger. Historical creation
+remains distinct from current semantic validity and actual child return.
+
+Frozen module SHA-256:
+`f14bd35e8f7a6b9f326dadf003797c63f4a48fd0d0c0c9d68891c579560baf6e`.
+Frozen paper SHA-256:
+`7b67ade29d703d0e83f597352208750c93100fc0393067c2cee108122a06bec3`.
+Producer receipt SHA-256:
+`8a7fac9ab5c3244963e1a83993cc4f5c6a06819379731ebc553fcfba36dbd2cb`.
+Fresh nonauthor `/root/native_merge_review` accepts the bounded construction
+without repair findings. Its receipt
+`tasks/agent-loop/inbox/20261026-native-merge-review-r2.md` has SHA-256
+`e59436e8350bfe9914dca81156075732c1bf7e9612c04702ca5b8efe286a2eab`.
+It verified all 24 input pins, eight evidence logs and the isolated build inputs,
+read all 36 authored theorem types, and stopped writes without checker/probe runs.
+
+The full originating census passes **270 theorem constants / 36 authored roots**
+among 638 originating declarations. Distribution: 168 no axioms, 73 `propext`,
+29 `propext` plus `Quot.sound`. No choice, project axiom, hole or bypass; no new
+warning. Eight producer calls were used; failed calls 01/03/04/06 and the
+successful 02/05/07/08 remain distinguished. Full audit log SHA-256:
+`fe3f0a8a1a5203ce396a86be30a04cd6dc2b9735623e11a9e6edafadaf464fdc`.
+
+The primary registered the module and all 36 authored roots in the existing
+inference import/census. Final phase verification is one normal default build
+and one complete inference census after the three local reviews. The default
+build receives a finite 240-second total allowance for the remaining cold
+dependencies, based on the observed 70.249- and 80.801-second focused builds;
+each Lean invocation still uses the unchanged `-j1 -M1024` project settings.
+The full census uses the previously documented local `-M1536` bound. This
+allowance is task-local and does not alter project configuration or packages.
+The integrated inference target has already passed **53 jobs**, exit zero;
+the subsequent ordinary default build is still in progress at this checkpoint.
+Only that observed focused result and the frozen local audit are claimed here.
