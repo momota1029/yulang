@@ -685,3 +685,48 @@ be replaced with a guessed whole-state rollback. Complete original raw keys,
 source/demand identity, guarded error cuts and same-ID meanings are required.
 No accepted prior module, native code, shared import/configuration or Git write
 is delegated. The separately active original source Environment packet continues.
+
+Published checkpoint9: `77d0a7b3972986090e9329eaa5cb56734b2f1e1d`,
+parent `6b26127636b988614c676270c37a428464948f37`, tree
+`c06dd61f3cf35010fa3c229ebd071723ac6284d3`. Expected-head non-force update,
+fetched commit/parent/tree and local staged-tree synchronization all agree.
+
+## Checkpoint 10: accepted Context table lifetime and combined readback
+
+The primary accepts `NativeContextTables.lean` after fresh independent review
+and the batched warning repair. Final source SHA-256:
+`eaf2b037af40af01ad116e1ae413a6c7d5a0023d49c8b9f1b92d29c319d2df81`.
+Review receipt SHA-256:
+`7d496a57591ba03382da346a5fcaa56cda8e96db7602ce01c36c1deff0ee7150`.
+
+The construction derives all five native table projections, successful evaluator
+transport, cache insertion/removal, versioned observations and rollback/retry
+lifetimes from the same allocation/Context/drain history. The principal committed
+roots no longer take fixed Tables or arbitrary equality of table functions as a
+premise. All six Context constructors and all existing Readback transitions are
+preserved. View reservation, optional source-weight allocation, publication and
+sampling remain separate actual cuts. Every original filter is retained even
+when allocations occur between checks. Ghost births/versions are explicitly
+proof annotations and never inferred from optional completion telemetry.
+
+The reviewer checked native owners, all397 final artifacts and18 unchanged input
+files, all1125 declaration type/axiom pairs,521 theorem constants and145 authored
+roots. Final check19 builds and audits without warnings, after exactly21 local
+proof/attribute lines were repaired. Every named-root type and axiom report is
+unchanged;1123 of1125 full declaration entries are byte-identical, and the other
+two are generated simp-auxiliary renamings with unchanged types and axioms.
+The original warning-bearing freeze and every failed check remain retained.
+Nineteen of24 producer calls were used; no redundant reviewer Lean invocation
+was necessary. Both author and reviewer stopped writing the frozen component.
+
+The represented combined-history premise still needs extraction from authentic
+native callbacks/journal/resource cuts and complete raw relations/tasks. Actual
+Value/Effect semantics, diagnostic acceptance, original full source meanings and
+sameScoped remain required at their original owners. This is a concrete removal
+of the fixed-table lifetime premise, not full inference soundness or termination.
+
+The relation-interner producer activated its next disjoint packet at12:56:09 UTC,
+deadline13:41:09, max20 checks. A separate600-second read-only source/checking
+route task now investigates the next actual finite Checking/Kernel construction;
+it has no repository write or proof-authority lease and may not replace the
+original domain or laws with a blanket soundness assumption.
