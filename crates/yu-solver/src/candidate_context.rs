@@ -4360,3 +4360,7 @@ impl InferenceSession {
 #[cfg(test)]
 #[path = "candidate_context_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "candidate_native_inventory_tests.rs"]
+mod native_inventory_tests;

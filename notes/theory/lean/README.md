@@ -1,5 +1,18 @@
 # Yulang closure: Lean root composition and control
 
+## 2026-10-26 continuation: actual native inference correspondence
+
+The [native inventory](../2026-10-26-native-bound-inventory-construction.md)
+constructs a read-only test adapter for all eight physical bound lanes,
+including nonrepresentative rows. Raw slots and provenance remain separate
+from canonical comparisons; Function ports, retained Replay dependencies and
+actual use/group/reuse identities are preserved. One focused native test passes
+and rejects missing-slot, changed-port and missing-Replay mutants. The packet
+has independent nonauthor acceptance after a paper-only cost correction.
+This inventory is not a Lean semantic model or a whole-source soundness result.
+Subsequent constructed proof components and their exact native/source boundaries
+are tracked in the [new continuation record](../../progress/2026-10-26-native-inference-correspondence.md).
+
 ## 2026-10-26 continuation: construct terminal inference evidence
 
 The final connection is
