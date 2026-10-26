@@ -22,10 +22,17 @@ type/axiom audit; the full 131-job default build succeeded. Fresh independent
 reviews and exact remaining premises are recorded in
 [the continuation ledger](../notes/progress/2026-10-27-original-full-proof-status.md).
 
-Active follow-up: the actual identity Lambda Name supplier and the actual
-ordinary/restoration Replay queue machine. Complete Call interpretation, the
-original principal ordering, global source/native scoped correspondence and
-the whole growing inference transition relation remain uninstantiated.
+The next accepted execution slice derives the identity Lambda's actual Name
+readback and same-call carrier identity, constructs the ordinary/restoration
+Replay control machine, and derives processing of its exact children at the
+same frame's first empty boundary. All four new modules have a complete
+378-theorem audit and fresh nonauthor acceptance. The combined default build
+passed 137 jobs without warnings/errors; both censuses total 701 theorems.
+
+Active follow-up: actual carrier Force prefixes, extrusion Work producers,
+physical bound-fiber cursors, and exact native drain stages. Complete Call
+interpretation, the original principal ordering, global source/native scoped
+correspondence and the whole growing inference relation remain uninstantiated.
 Existing no-normal-drain evidence is not a Lean divergence proof. The separate
 statement-preserving cleanup of nine older modules resolves all 668 lint
 warnings; its independently reviewed 131-job full build has zero warnings

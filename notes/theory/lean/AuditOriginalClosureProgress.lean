@@ -1,6 +1,11 @@
 import Lean.Elab.Command
 import Lean.Util.CollectAxioms
-import YulangClosure.OriginalProofProgress
+import YulangClosure.OriginalFormalAdmission
+import YulangClosure.OriginalForcedParameter
+import YulangClosure.OriginalSourceClosure
+import YulangClosure.OriginalReturnWorld
+import YulangClosure.OriginalPrincipalityResolution
+import YulangClosure.OriginalInferenceTerminationResolution
 
 /-! Origin-based census of the six 2026-10-27 proof modules. This prints all
 theorem types and transitive axioms, including private/generated theorems.

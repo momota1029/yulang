@@ -16,6 +16,10 @@ to a concrete original `SourceProblem` instance.
 | `OriginalReturnWorld` | Computes the actual native Return bind at the decoded source Event; the real entry consumer obtains the same witness, original checked body and own-event installed-map equality. | Authentic packet/readout correspondence and the installed-map invariant through all preceding Force effects. |
 | `OriginalPrincipalityResolution` | Inverts the actual original App at site 16 and proves that incomplete interfaces leave its certificate and the principal order undetermined. | Interface countermodels are not original-source counterexamples. Original whole scoped order and Call interpretation remain missing. |
 | `OriginalInferenceTerminationResolution` | Derives allocated-prefix chronology and excludes a fresh-row-bearing complete Request from an older Replay's actual raw RelationId readback. | Native producer formation, actual Replay/queue/extrusion composition, full NQ and original whole inference machine. |
+| `OriginalIdentityRealization` | Actual Lambda Build selects the descriptor before all invocations; the same admitted Call and real forced formal supply native Name lookup, current world/value membership and the original body consumer at its exact ports. | Same-call whole-carrier Meaning, authentic native Force/Name readouts and the other Function-introduction cases remain open. |
+| `OriginalReplayDrain` | The ordinary loop computes every enqueue without fuel; synchronous Ready delivery obtains an actual return receipt; physical Function consumers retain all four ports and raw relation IDs. | Whole Rust trace extraction, dispatch bodies, Some-loop termination and complete fiber/Replay publication. |
+| `OriginalDrainBoundary` | Every unchanged common control step preserves a working owner before its own empty boundary; any later loss/removal has an actual prior boundary in that run. | Ghost birth-to-native lifetime extraction, precise native stage cut, abort/rollback behavior. |
+| `OriginalReplayBoundary` | Derives the old stack-depth premise from the same first-boundary history, then proves processing of exact ordinary Replay children and all four physically admitted Function ports. | Does not assert boundary existence or semantic subtyping; full native stage/history and NQ successor construction remain open. |
 
 The first two modules, their reusable audit and fresh review were pushed as
 [`a209a9d46b4707d29d60b210e490d13f49efa263`](https://github.com/momota1029/yulang/commit/a209a9d46b4707d29d60b210e490d13f49efa263).
@@ -23,6 +27,7 @@ The remaining four were pushed with the default integration as
 [`6a4933e06ecceee2cc2a00a635925f55cfc14adc`](https://github.com/momota1029/yulang/commit/6a4933e06ecceee2cc2a00a635925f55cfc14adc).
 No Rust/compiler semantics, source restrictions, dependency versions,
 resource cap in the algorithm, or original instance order changed.
+The four later execution modules form the next independently accepted slice.
 
 ## Verification
 
@@ -65,6 +70,43 @@ is `/tmp/yulang-original-progress-audit-04.log`.
 No `sorry`, `admit`, project axiom, `native_decide` trust step, or skipped
 kernel check is added. These checks establish the stated Lean theorems with
 their actual hypotheses; they do not discharge those hypotheses.
+
+### Actual execution suppliers and first-boundary integration
+
+`OriginalProofProgress` now includes the four additional modules as ordinary
+default dependencies. The complete default build passed **137 jobs with zero
+warnings/errors**. Its explicit exit was 0; the log is
+`/tmp/yulang-execution-full-integration.log`. All proof modules keep the
+project's unchanged 1 GiB check limit.
+
+`AuditOriginalExecutionProgress.lean` checks required application roots and
+every originating theorem, including private/generated declarations. Its
+first full run exited 0 with a local 2 GiB inspection limit:
+
+| Origin module | All declarations | Theorem constants audited |
+| --- | ---: | ---: |
+| `OriginalIdentityRealization` | 213 | 129 |
+| `OriginalReplayDrain` | 515 | 224 |
+| `OriginalDrainBoundary` | 51 | 17 |
+| `OriginalReplayBoundary` | 8 | 8 |
+| **New census** | **787** | **378** |
+
+There are 378 matched begin/end records, no diagnostics or elided type terms,
+and only `propext`, `Classical.choice`, and `Quot.sound`. The log is
+`/tmp/yulang-original-execution-audit-01.log`, SHA-256
+`87c09c3694569c4e57053f04951cd1916d887bfad223323a739a3f9723763821`.
+Together the two complete censuses cover **701 theorem constants** in the
+ten new modules. The old audit now imports its exact six targets directly,
+so future aggregate imports cannot silently enlarge its memory scope; its
+changed import path passed the same 323-theorem audit again, log
+`/tmp/yulang-original-progress-explicit-import-audit.log`.
+
+The independent Replay source-plus-census inspection exceeded 1 GiB, then
+passed at 2 GiB. That inspection failure and its explicit successful exit
+are retained in the review receipt. It was not a failure of the proof's
+standalone 1 GiB check. Other repaired local source/audit diagnostics are
+likewise retained in each handoff and review, not reported as first-pass
+successes. No failed result was converted into a kernel success claim.
 
 ### Full-build warning follow-up
 
@@ -111,6 +153,12 @@ Every production author is separate from its reviewer:
   [allocation review](2026-10-27-inference-allocation-review.md).
 - Return/world/source join: `/root/soundness_hygiene`,
   [Return review](2026-10-27-return-world-review.md).
+- Identity formal/Name realization: `/root/termination`,
+  [identity review](2026-10-27-identity-realization-review.md).
+- Ordinary and synchronous Replay: `/root/soundness_hygiene`,
+  [Replay review](2026-10-27-replay-drain-review.md).
+- Working owner and first-boundary applications: `/root/principality`,
+  [boundary review](2026-10-27-replay-boundary-review.md).
 
 The review receipts bind exact source hashes, report independent checker
 outcomes and retain the local interpretation/source-correspondence limits.
@@ -140,11 +188,13 @@ fixture; it is not a Lean infinite execution or a refutation of the original
 possibilities. A finite successful-drain premise or a machine-size cap is
 not substituted for this target.
 
-Current continuing work targets two actual missing suppliers: the identity
-Lambda's real formal Name readback under the selected contract, and the
-ordinary/restoration Replay loops that enqueue and consume exact child
-RelationIds in the same native worklist. Their unfinished files are excluded
-from this checkpoint until checked and independently reviewed.
+The identity Name readback and ordinary/restoration Replay suppliers are now
+checked, independently accepted and integrated with their exact remaining
+premises. Current construction targets the same-call carrier's actual native
+Delay/Name prefixes, the extrusion Work stack and selected copied-bound
+producer, the physical linked fiber cursor, and the exact native drain stage
+discipline. These unfinished successors are excluded from this checkpoint.
+None is being treated as a completed source/native or original goal instance.
 
 ## Ownership and recovery
 
