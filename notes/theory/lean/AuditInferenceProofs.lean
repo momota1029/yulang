@@ -21,7 +21,8 @@ run_cmd do
     `YulangClosure.SimpleSubRegularSolutions,
     `YulangClosure.SimpleSubRegularConstraintSoundness,
     `YulangClosure.SimpleSubScopedPublication,
-    `YulangClosure.SimpleSubRegularPublication
+    `YulangClosure.SimpleSubRegularPublication,
+    `YulangClosure.SimpleSubRegularDecision
   ]
   let roots : Array Name := #[
     `YulangClosure.BirthLevelSCC.finiteReach_iff,
@@ -68,7 +69,11 @@ run_cmd do
     `YulangClosure.SimpleSub.RegularPublication.decode_function_exact,
     `YulangClosure.SimpleSub.RegularPublication.publication_history_with_clients,
     `YulangClosure.SimpleSub.RegularPublication.checked_publication_with_clients,
-    `YulangClosure.SimpleSub.RegularPublication.cyclic_two_uses_and_client
+    `YulangClosure.SimpleSub.RegularPublication.cyclic_two_uses_and_client,
+    `YulangClosure.SimpleSub.RegularDecision.prune_checked,
+    `YulangClosure.SimpleSub.RegularDecision.constructed_exact,
+    `YulangClosure.SimpleSub.RegularDecision.decideDemands_exact,
+    `YulangClosure.SimpleSub.RegularDecision.decided_publication_with_clients
   ]
   let env ← getEnv
   let mut targets : Array Name := #[]

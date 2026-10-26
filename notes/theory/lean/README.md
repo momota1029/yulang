@@ -1,5 +1,20 @@
 # Yulang closure: Lean root composition and control
 
+## 2026-10-26 continuation: construct terminal inference evidence
+
+`SimpleSubRegularDecision` constructs a finite certificate directly from the
+existing regular graph. `constructed_exact` proves that its members are exactly
+the independent all-depth `RegularSub` comparisons; `decideDemands_exact`
+includes full graph validity even for empty demands. The history/publication
+application uses this computed certificate instead of an externally supplied
+pair table. This proof-side reference construction does not replace native
+Simple-sub inference or introduce a production checking pass.
+
+The independently reviewed checkpoint passes the default build (68 jobs) and
+all 884 originating theorem audits across nine inference modules. See the
+[continuation record](../../progress/2026-10-26-inference-evidence-construction.md)
+for original scope, remaining native/source premises and subsequent construction.
+
 ## 2026-10-26: inference constraint soundness and scoped publication
 
 `YulangClosure.InferenceProofs` is included in the default library build.

@@ -1,5 +1,16 @@
 # Current task: complete type inference and replace F5
 
+2026-10-26 continued inference evidence construction on `yulang3`:
+`SimpleSubRegularDecision` now constructs terminal finite certificates and
+proves exact agreement with the independent all-depth regular relation. Its
+history/publication consumer no longer needs an externally supplied certificate.
+The frozen module received a clean independent review; default integration
+passes 68 jobs and all 884 originating theorem audits across nine modules.
+Native graph/history/row realization, broader constructors, source Call/effect
+construction and full original inference soundness remain OPEN. Further graph
+completion and profile-transport work is recorded in the
+[continuation record](../notes/progress/2026-10-26-inference-evidence-construction.md).
+
 2026-10-26 inference-soundness checkpoint on `yulang3`: immutable-birth induced
 SCC qualification is proved and its native filter corrected (44 focused Rust
 tests). Concrete extrusion/quotient reflection, shared finite-use transport,
