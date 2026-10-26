@@ -78,6 +78,29 @@ across 23 modules; the inference target passes 26 jobs. This still requires the
 original source query-to-adaptation equation, general child contracts, native
 currentness/context meaning and complete Call evidence.
 
+`NativeReplayAcknowledgement` constructs the native cursor and terminal-frame
+projections: exact ordered acknowledgement indices, prepared-call provenance,
+retirement/waiting distinctions, saved-tuple rollback and erased birth identities
+for reused numeric operation IDs. Its joint Ready/pop theorem keeps the exact
+return guard and the obligation to authenticate both projected histories against
+the same actual native maps. It is not the complete native lifecycle theorem.
+The [lifecycle construction frontier](../2026-10-26-native-replay-lifecycle.md)
+records actual third-owner transport carriers and the still-open
+`MERGE-EXPANSION-COVER-1` induction for discharged Effect expansions.
+
+The seven new components pass the ordinary default build (**83 jobs**) and
+the exact audit of **2,515 distinct originating theorem constants across 24
+inference modules**, including private/generated helpers. Fresh independent
+reviews accept every component at its stated boundary; the joint lifecycle
+review also identifies working-stage acknowledgement re-preparation as a
+concrete missing transition before full native readback can be claimed.
+Only the standard `propext`, `Quot.sound` and `Classical.choice` axioms occur;
+choice is used by six canonical-row example results/helpers and sixteen
+acknowledgement-projection theorems, including generic roots. The unchanged
+original `SourceProblem.InferenceSoundness` remains **OPEN**. The continuation
+record contains the complete theorem census, reviewed hashes, native/source
+obligations and exact publication checkpoints.
+
 ## 2026-10-26 continuation: construct terminal inference evidence
 
 The final connection is

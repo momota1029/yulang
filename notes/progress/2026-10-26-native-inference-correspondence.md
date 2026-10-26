@@ -487,3 +487,162 @@ fresh nonauthor M3 reviewer. Full dispatch cases and original source scope stay
 fixed; exact semantic record-boundary attachment and complete Call remain later
 obligations, not adopted definitions. Completed record-plan integration proceeds
 independently of this next proof attempt.
+
+Checkpoint 7 is now published and locally synchronized as
+`b1a769800c609db77ed7ee5614af9906fd57ed0d`, with exact staged-tree, parent and
+remote expected-head verification. All six new Lean components are accepted;
+the source/readback and complete original inference obligations remain open.
+
+During the native lifecycle attempt, the source lane establishes a concrete
+third-owner compensation: an earlier replay stores a directed bound that the
+later merge copies and replays at its new owner. Absence of a direct third-owner
+enqueue alone is not a defect. The harder equation concerns a discharged Effect
+node: transport uses its post-check residual while new Replay builds a context
+from the attached bound fibers. A literal relation-key equality is too strong;
+the exact retained allowance obligations and expansion graph must be preserved.
+
+With the main producer's explicit confirmation that no acknowledgement source
+or proof had been written, the primary grants a disjoint constructive leaf
+`native_replay_acknowledgement` for the same lifecycle outcome. Exact writes:
+new `NativeReplayAcknowledgement.lean`,
+`2026-10-26-native-replay-acknowledgement.md`, inbox
+`20261026-inference-native-replay-acknowledgement.md` and its isolated scratch.
+Budget: 1,200 seconds, at most 14 focused 120-second/1-GiB/single-thread Lean
+calls, no native tests or existing source edits. It derives actual cursor,
+waiting-owner, acknowledgement, return/retirement and rollback accounting from
+the transcribed native guards. It must not equate cursor completion, memo
+marking or retirement with semantic completion. The main producer keeps the
+discharge/transport graph square. Both are contributors and require a different
+fresh nonauthor review of the coherent frozen result.
+
+## Frozen lifecycle construction frontier and acknowledgement review
+
+The main lifecycle producer stops at the first unconstructed equation,
+`MERGE-EXPANSION-COVER-1`. Its new source calculations establish actual merge
+timing, full scoped-flow preservation for merge witnesses, and the concrete
+old Function-port followed by equality-transport carrier at a third owner.
+The original source contributor independently verifies those bodies and the
+compensating materialized bounds. Neither establishes an unowned native
+obligation, generated-source counterexample or impossibility theorem.
+
+The remaining induction must transport an old discharged Effect expansion's
+actual allowance fibers and residual together, then construct current closed
+dispositions for every newly combined or suppressed product. The existing R181
+unchanged-representation factorization is reused, not claimed as new generation
+transport. No `NativeReplayLifecycle.lean` or assumed coverage ledger was added.
+This frontier packet used zero Lean/Cargo/probe calls; it does not discharge the
+full native application of `NativeReplayCoverage`.
+
+Frozen lifecycle paper SHA-256:
+`3ebc78dacc8d3aa68a42094016ff291a3320375f5daf403cc15f3f7f60c7e55b`;
+producer handoff `8c9658f48501e701742afb89e08b1169eb00c32f8d951bee667733323f18bca5`;
+source contribution `90367a823a99dd891ea7e5053508017384b9f3d787571821a60076934971d780`.
+All these writers have stopped. The separate acknowledgement producer continues
+only its exact projection lease.
+
+Fresh `native_lifecycle_review` owns only inbox
+`20261026-inference-native-lifecycle-review.md` and its isolated scratch,
+with a 1,200-second M3 budget and zero optional checker/native reruns. It first
+reviews the frozen source/frontier evidence, then receives the acknowledgement
+freeze and complete type/axiom evidence. Its joint verdict must distinguish the
+checked cursor/terminal projection from full cross-map native readback and the
+still-open recursive expansion transport. It did not contribute to any reviewed
+construction and cannot alter producer files or shared records.
+
+The acknowledgement producer freezes its final module at
+`fd39f67d2a170b5d603238d48ea4facce2d9a085f4c302155b3aa1b10026cb52`,
+paper `2989aa7ce9dd9bf37cfd847acb3cc21135c9b9a87664041bed2343dae2911dc3`,
+and revision-1 handoff
+`7da48200ed465f3f48b313ac14858e7ad069e5d4262278756b6fdd23a781a480`.
+The final 628-declaration audit includes 245 theorem constants and all 35 named
+roots. Its distribution across all declarations is 539 with no axioms, 51 with
+propext, 22 with propext/Quot.sound and 16 with the standard
+propext/Classical.choice/Quot.sound set. The latter includes generic cursor and
+joint-return roots; it is not confined to examples. No project axiom or hole.
+
+An earlier provisional module/audit freeze was explicitly withdrawn before
+primary integration when the producer found the missing Dispatch transition-
+count write. The reviewer had not opened those provisional bytes. The final
+module includes the actual count-write projection; check11/audit12 both pass,
+and the older source/logs remain historical evidence. Final build log SHA-256
+`f807f70ff51a59a16011822afb9088deb4b2c867cdf86d45a07a1411c50f3e6c`;
+audit log `7b65ca327b8bf2a2cefbff1c9f2c9c3011d52b1db5acb54ea5170c5b0ef920b7`;
+manifest `54162df68fe238d64f32bb656aad07c43256435dfd3702104b6d70df77a74619`.
+Twelve focused calls of fourteen were used. All producer writes have stopped.
+The primary now checks the full default build and exact full inference audit
+on these final source bytes while the fresh reviewer completes the joint packet.
+
+## Full default integration and exact axiom census
+
+Pinned Lean 4.35.0 passes the ordinary `lake build` with **83 jobs**.
+`lake env lean -j1 -M1024 AuditInferenceProofs.lean` passes every required root
+and all **2,515 distinct originating theorem constants across 24 inference
+modules**, including private/generated proofs. Seven new modules contribute
+876 theorem constants beyond the turn's 1,639-theorem baseline. These inventory
+counts include generated declarations; they are not a count of independently
+established original-language obligations.
+
+Exact theorem-only axiom distribution:
+
+| Axioms | Theorem constants |
+| --- | ---: |
+| None | 1,216 |
+| `propext` | 769 |
+| `Quot.sound` | 2 |
+| `propext`, `Quot.sound` | 506 |
+| `propext`, `Classical.choice`, `Quot.sound` | 22 |
+
+The 22 choice-dependent theorems comprise six canonical-row recursive-example
+helpers/results and sixteen acknowledgement-projection theorems, including
+generic cursor/joint consumers. No project axiom, proof hole or unapproved
+axiom occurs. Acceptance of these theorem types does not establish their
+unprovided native/source premises.
+
+Final default build SHA-256:
+`22dc74f89704cca61bb940c460c8aee7599c25bd9e8099e567ef2c70d611bd12`;
+final complete inference audit:
+`4086fb6a72001f7b4569482e9b72dca296de2d51c315b599dd73d18a68948a50`;
+final validation/29-input source manifest:
+`7aacfd75460b91a8ebf6de327300eb3909d161d3baaafadbc0aa9204a30c5422`.
+All 29 source/configuration entries were rehashed and match. Evidence is in
+`/workspace/scratch/f98087c7ac1a/native-final-{build,audit}.log` and
+`native-final-validation.json`; the committed audit program reproduces the
+full type/axiom census with the pinned toolchain.
+
+The full build replays 668 existing unused-argument/variable lint warnings in
+nine original modules. Every warning-owning source is byte-identical to the
+turn baseline; zero warnings originate in changed files. No unrelated warning
+cleanup or linter suppression was performed. The frozen original root and
+foreign central scheduling record remain byte-identical to the baseline.
+No Lean source or dependency changes are planned after this integration check;
+publication waits only for the final joint nonauthor verdict and record update.
+
+## Joint review acceptance and checkpoint 8
+
+Fresh nonauthor `native_lifecycle_review` accepts the bounded acknowledgement
+projection and the accurately stated lifecycle frontier, with no mandatory
+findings. Receipt `20261026-inference-native-lifecycle-review.md` has SHA-256
+`282c71236c79ea848e9e87e4e489640f3f09c7564cdbaed306389a6b75c197c7`.
+The reviewer independently verifies all 52 inspected file hashes, all 33 final
+acknowledgement-manifest entries, complete audit blocks and named-root types,
+and the actual native source equations. It ran zero additional checker/native
+calls and stopped all writes. The primary accepts this precise verdict; no
+complete native-history or source theorem is promoted.
+
+One nonblocking source observation sharpens the remaining readback work:
+`prepare_nonterminal_drain` (`lib.rs:14273–14278`) can re-prepare retained acks
+while working after commit resets their prepared frontier. The frozen
+`FrameStep.preflight` covers only the Acknowledgements stage. Thus a full native
+frame simulation needs that transition as well as authentic shared map and
+stack identities. Snapshot equality alone cannot supply the missing execution.
+The other open obligations include exact restoration/journal readback and
+`MERGE-EXPANSION-COVER-1`, followed by original source/record/Call consumers.
+
+The accepted acknowledgement module, papers and receipts retain their reviewed
+bytes; their original review-pending labels describe their freeze time and are
+superseded by this review receipt. No code repair or checker rerun is required
+for checkpoint 8. Before this publication, the primary grants its original
+acknowledgement producer a separate 300-second read-only investigation of the
+specific working-stage re-preparation extension: zero file writes, checks,
+native probes or children. Any constructive delta requires a new exact lease
+after the accepted checkpoint is safely published.
