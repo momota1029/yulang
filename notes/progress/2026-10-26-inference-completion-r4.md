@@ -345,3 +345,75 @@ review. Its concrete Context example was corrected to begin with an actually
 formed Context arena; the new general formation lemma retains the native earlier-ID
 condition. The shared Context/drain readback producer is still active in its own
 unchanged lease and budget.
+
+
+Published checkpoint 5: `97788357754a57562607dd8ff41ac55ffcb3c9b8`;
+the expected-parent update, fetched parent and staged/local tree agree.
+
+## Value-port freeze and original semantic interpretation
+
+The primary's Value-port packet stopped its three output writes at
+2026-10-26T11:54:23.588939Z. `NativeValuePorts.lean` has SHA-256
+`f49bf12537633c65b4dbdcb4e739df5de5eee76cfb5ad845c8dba50cef4101fa`.
+Checks 12 and 13 pass without diagnostics. The complete 891-declaration census
+includes 348 theorem constants and all 56 authored roots: 235 theorem constants
+use no axioms, 88 only `propext`, and 25 also `Quot.sound`. Thirteen of twenty
+focused checks were consumed; failed repairs and the census-parser repair are
+retained, not counted as accepted evidence. Full Context formation and exact
+interner reuse were added after replacing an invalid concrete post-context ID
+with an actually allocated parent context.
+
+Fresh independent reviewer `/root/dictionary_denotation_review_r4` now owns only
+`20261026-native-value-ports-review-r4.md` and `value-ports-review-r4/**`, with
+900 wall seconds and at most two risk-driven checks under the existing ordinary
+bounds. The primary cannot self-certify the new proof. This is actual child
+admission/queue construction over decoded keys, not complete Value dispatch,
+physical flow-table refinement or original full Function membership.
+
+The original-source producer received a new, disjoint 3,600-second packet with
+at most 20 focused checks, pinned to checkpoint 5. Its exact outputs are
+`OriginalSourceInterpretation.lean`, `2026-10-26-original-source-interpretation.md`
+and `20261026-original-source-interpretation-r4.md`; all cache/scratch belongs to
+`source-interpretation-r4/**`. The previously accepted Syntax/Generation files
+remain immutable. The target is the adopted simultaneous immutable `V/W/T/Car`
+operator, same-provider Function realization, every installed world certificate
+and original shared event tuple, followed by exact source-constructor applications.
+This does not authorize filling the seven semantic Kernel fields with assumed
+whole-source typing or reducing the independent challenge domain. Fresh review
+is required. The semantic source deliberately keeps independent descriptor and
+context domains; the selected immutable clauses must still be constructed.
+
+The Context/drain worker has constructed a joint committed-history projection
+and identified a concrete native table-lifetime distinction: cancellation can
+reuse one numeric Context ID for another constructor. Its current fixed-table
+interpretation is not promoted to whole native history. The next source-level
+bridge must authenticate table constructor extensions and cancellation in the
+same history, preserving allocation versions and the complete observations.
+
+
+## Checkpoint 6: accepted native Value child construction
+
+The primary accepts the independent NativeValuePorts review by
+`/root/dictionary_denotation_review_r4`. Its receipt SHA-256 is
+`183e2fcb80635ea58315967f2751e52fc5a6911339b63e5a7aa649aebbd741a1`.
+There are no blocking, major or required minor findings. All 406 independent
+hash comparisons, 891 originating declarations, 348 theorem constants and 56
+named roots reconcile. Review consumed zero additional Lean calls; the initial
+review-parser rejection of two valid hygienic-name renderings was repaired
+without altering the frozen Lean evidence and remains separately recorded.
+The reviewer stopped at 2026-10-26T12:06:48.402229Z.
+
+This closes construction of the represented complete child payloads and their
+actual two-phase ordered dispatch over decoded keys. It does not close every
+Value branch, authentic parent/table/term readback, physical FlowId allocation,
+committed child completion or original whole-call semantic realization. Those
+remaining premises stay attached to the original inference gate.
+
+The Context/drain readback author also froze its disjoint packet. A fresh
+independent review is now assigned to `/root/context_expansion_review_r4` with
+sole receipt `20261026-native-context-readback-review-r4.md`, owned
+`context-readback-review-r4/**`, 900 wall seconds and at most two focused checks.
+The producer's complete final census contains 652 declarations, 228 theorem
+constants and 78 named roots. It remains pending acceptance. The seven Kernel
+meanings and the versioned native table construction are not supplied by this
+review assignment or by the number of checked declarations.
