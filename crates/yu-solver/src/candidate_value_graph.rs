@@ -13,6 +13,9 @@ pub(super) struct Graph {
     values_by_ordinal: HashMap<usize, Value>,
     edges: Vec<Vec<usize>>,
     reverse: Vec<Vec<usize>>,
+    // Semantic vertices retain immutable source birth. Helpers retain the
+    // actual planning level of their expression, not a guessed Value birth.
+    planning_levels: Vec<Option<u32>>,
     pub events: Vec<Association>,
     pub checking: HashMap<ConstraintOccurrenceId, usize>,
     checking_by_event: Vec<ConstraintOccurrenceId>,
@@ -48,6 +51,10 @@ impl Graph {
         self.values_by_ordinal.try_reserve(1).map_err(|_| unavailable())?;
         self.edges.try_reserve(1).map_err(|_| unavailable())?;
         self.reverse.try_reserve(1).map_err(|_| unavailable())?;
+        self.planning_levels.try_reserve(1).map_err(|_| unavailable())?;
+        // Every module source body is planned at level 1. Forward Names may
+        // intern this identity before its body is visited.
+        let birth = matches!(&value, Value::Module(_)).then_some(1);
         let module_payload_bytes = match &value {
             Value::Module(id) => id.hash_eq_payload_bytes(),
             _ => 0,
@@ -61,7 +68,30 @@ impl Graph {
         let reverse_value = value.clone();
         self.vertices.insert(value, id);
         self.values_by_ordinal.insert(id, reverse_value);
-        self.edges.push(Vec::new()); self.reverse.push(Vec::new()); Ok(id)
+        self.edges.push(Vec::new()); self.reverse.push(Vec::new());
+        self.planning_levels.push(birth);
+        Ok(id)
+    }
+    fn record_level(&mut self, vertex: usize, level: u32) -> Result<(), CollectionAvailabilityError> {
+        let stored = self.planning_levels.get_mut(vertex).ok_or_else(unavailable)?;
+        match *stored {
+            Some(previous) if previous != level => Err(unavailable()),
+            Some(_) => Ok(()),
+            None => { *stored = Some(level); Ok(()) }
+        }
+    }
+    pub(super) fn record_birth(&mut self, value: &Value, level: u32) -> Result<(), CollectionAvailabilityError> {
+        // Unused declarations need not add an isolated graph vertex. Every
+        // actual Name/receiver was interned by retain_source before this walk.
+        if let Some(&vertex) = self.vertices.get(value) { self.record_level(vertex, level)?; }
+        Ok(())
+    }
+    pub(super) fn record_expression_level(&mut self, occurrence: &HirOccurrenceId,
+        fragment: Option<usize>, level: u32) -> Result<(), CollectionAvailabilityError>
+    {
+        self.record_birth(&Value::Expression(occurrence.clone()), level)?;
+        if let Some(fragment) = fragment { self.record_level(fragment, level)?; }
+        Ok(())
     }
     fn edge(&mut self, from: usize, to: usize) -> Result<(), CollectionAvailabilityError> {
         let previous = self.edges[from].capacity() + self.reverse[to].capacity();
@@ -84,7 +114,7 @@ impl Graph {
             _ => return Value::Expression(expr.occurrence.clone()),
         }}
     }
-    pub fn retain_source(&mut self, source: &LocalSource) -> Result<(), CollectionAvailabilityError> {
+    pub fn retain_source(&mut self, source: &LocalSource) -> Result<Vec<Option<usize>>, CollectionAvailabilityError> {
         let value = match source.source_root() {
             SourceRootId::Definition(definition) => Value::Module(self.modules.get(definition).ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?.clone()),
             SourceRootId::Expression(root) => Value::Expression(root.occurrence().clone()),
@@ -95,6 +125,7 @@ impl Graph {
             }
         };
         let root = self.intern(value)?;
+        self.record_level(root, 1)?;
         let mut owners = Vec::new(); owners.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;
         owners.resize(source.expressions().len(), root);
         let mut work = Vec::new(); work.try_reserve(1).map_err(|_| unavailable())?; work.push((source.body().ordinal() as usize, root));
@@ -161,6 +192,7 @@ impl Graph {
                     for item in items { work.push((item.ordinal() as usize, owner)); }
                 },
                 LocalSourceForm::InterpolatedString { lowered: Some(inner), .. }
+                | LocalSourceForm::FieldTail { receiver: inner, .. }
                 | LocalSourceForm::GeneratedFormatSelection { receiver: inner, .. } => {
                     work.try_reserve(1).map_err(|_| unavailable())?;
                     work.push((inner.ordinal() as usize, owner));
@@ -182,6 +214,11 @@ impl Graph {
                 LocalSourceForm::Apply { callee, argument, .. } => {
                     work.try_reserve(2).map_err(|_| unavailable())?;
                     work.push((callee.ordinal() as usize, owner)); work.push((argument.ordinal() as usize, owner));
+                },
+                LocalSourceForm::OperatorApplication { left, right, .. } => {
+                    work.try_reserve(1 + usize::from(right.is_some())).map_err(|_| unavailable())?;
+                    work.push((left.ordinal() as usize, owner));
+                    if let Some(right) = right { work.push((right.ordinal() as usize, owner)); }
                 },
                 LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => { work.try_reserve(1).map_err(|_| unavailable())?; work.push((inner.ordinal() as usize, owner)); },
                 LocalSourceForm::Lambda { parameter, body } => {
@@ -225,8 +262,10 @@ impl Graph {
             if matches!(expr.form, LocalSourceForm::Name { .. } | LocalSourceForm::Apply { .. } | LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::StatementBlock { .. } | LocalSourceForm::Tuple { .. } | LocalSourceForm::Record { .. } | LocalSourceForm::Variant { .. }) {
                 self.edges.try_reserve(1).map_err(|_| unavailable())?;
                 self.reverse.try_reserve(1).map_err(|_| unavailable())?;
+                self.planning_levels.try_reserve(1).map_err(|_| unavailable())?;
                 fragments.push(Some(self.edges.len()));
                 self.edges.push(Vec::new()); self.reverse.push(Vec::new());
+                self.planning_levels.push(None);
             } else { fragments.push(None); }
         }
         for (index, expr) in source.expressions().iter().enumerate() {
@@ -310,11 +349,22 @@ impl Graph {
             checked_capacity_bytes::<Option<usize>>(fragments.capacity(), "Value fragments"),
         ], "Value construction scratch");
         self.construction_scratch_peak = self.construction_scratch_peak.max(scratch);
-        Ok(())
+        Ok(fragments)
     }
     pub fn seal(&mut self) -> Result<(), SolveAvailabilityError> {
         if self.components.len() == self.edges.len() { return Ok(()); }
         let fail = || SolveAvailabilityError::IdentityExhausted;
+        if self.planning_levels.len() != self.edges.len()
+            || self.planning_levels.iter().any(Option::is_none) { return Err(fail()); }
+        // This is the native premise of BirthLevelSCC's helper projection:
+        // every edge into a helper preserves the actual source planning level.
+        // Edges into semantic Values may cross levels and remain in raw Ref.
+        for (source, targets) in self.edges.iter().enumerate() {
+            for &target in targets {
+                if !self.values_by_ordinal.contains_key(&target)
+                    && self.planning_levels[source] != self.planning_levels[target] { return Err(fail()); }
+            }
+        }
         let mut seen = Vec::new(); seen.try_reserve_exact(self.edges.len()).map_err(|_| fail())?; seen.resize(self.edges.len(), false);
         let mut finish = Vec::new(); finish.try_reserve_exact(self.edges.len()).map_err(|_| fail())?;
         let mut stack = Vec::new(); stack.try_reserve_exact(self.edges.len()).map_err(|_| fail())?;
@@ -322,7 +372,11 @@ impl Graph {
             if seen[start] { continue; } seen[start] = true; stack.push((start, 0));
             while let Some((node, next)) = stack.last_mut() {
                 if *next == self.edges[*node].len() { finish.push(*node); stack.pop(); }
-                else { let child = self.edges[*node][*next]; *next += 1; if !seen[child] { seen[child] = true; stack.push((child, 0)); } }
+                else { let child = self.edges[*node][*next]; *next += 1;
+                    if self.planning_levels[*node] == self.planning_levels[child] && !seen[child] {
+                        seen[child] = true; stack.push((child, 0));
+                    }
+                }
             }
         }
         self.seal_scratch_peak = checked_usize_sum([checked_capacity_bytes::<bool>(seen.capacity(), "SCC seen"), checked_capacity_bytes::<usize>(finish.capacity(), "SCC finish"), checked_capacity_bytes::<(usize, usize)>(stack.capacity(), "SCC stack")], "SCC scratch");
@@ -332,7 +386,8 @@ impl Graph {
             if self.components[start] != usize::MAX { continue; }
             self.components[start] = start; stack.push((start, 0));
             while let Some((node, _)) = stack.pop() { for &child in &self.reverse[node] {
-                if self.components[child] == usize::MAX { self.components[child] = start; stack.push((child, 0)); }
+                if self.planning_levels[node] == self.planning_levels[child]
+                    && self.components[child] == usize::MAX { self.components[child] = start; stack.push((child, 0)); }
             }}
         }
         Ok(())
@@ -353,6 +408,7 @@ impl Graph {
             checked_capacity_bytes::<(ConstraintOccurrenceId, usize)>(self.checking.capacity(), "source associations"),
             checked_capacity_bytes::<ConstraintOccurrenceId>(self.checking_by_event.capacity(), "source checking event index"),
             checked_capacity_bytes::<usize>(self.components.capacity(), "Value SCCs"),
+            checked_capacity_bytes::<Option<u32>>(self.planning_levels.capacity(), "Value birth and helper planning levels"),
         ], "source Value graph")
     }
 }
@@ -370,15 +426,13 @@ mod conditional_reference_tests {
         let hir = yu_hir::shadow::lower_module_with_local_source(
             yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("conditional-references", "source.yu"))),
             &parsed, yu_hir::SemanticImports::empty()).unwrap();
-        let mut graph = Graph::default();
-        for item in hir.items() {
-            if let yu_hir::HirItem::Binding(binding) = item {
-                graph.register_module(binding.definition_root().clone(), binding.id().clone()).unwrap();
-            }
-        }
         let yu_hir::HirItem::Binding(binding) = hir.items().last().unwrap() else { panic!("binding"); };
         let source = hir.local_source(binding.definition_root()).unwrap().unwrap().clone();
-        graph.retain_source(&source).unwrap();
+        // Exercise the actual planner's declaration/initializer birth census;
+        // the graph-only tests then reseal the same unchanged raw incidence.
+        let batch = ConstraintBatch::collect_candidate_mode(Arc::new(hir), true, true).unwrap();
+        let mut graph = batch.candidate_source.references.clone();
+        graph.components.clear();
         (graph, source)
     }
 
@@ -695,16 +749,13 @@ mod conditional_reference_tests {
             yu_hir::HirItem::Binding(binding) => Some(binding),
             _ => None,
         }).collect();
-        let mut graph = Graph::default();
-        for binding in &bindings {
-            graph.register_module(binding.definition_root().clone(), binding.id().clone()).unwrap();
-        }
         let mut sources = HashMap::new();
         for binding in &bindings {
             let source = hir.local_source(binding.definition_root()).unwrap().unwrap().clone();
-            graph.retain_source(&source).unwrap();
             sources.insert(binding.name().spelling().to_owned(), source);
         }
+        let batch = ConstraintBatch::collect_candidate_mode(Arc::new(hir), true, true).unwrap();
+        let mut graph = batch.candidate_source.references.clone();
         let f_to_g = named(&sources["f"], "g");
         let g_to_f = named(&sources["g"], "f");
         graph.seal().unwrap();
@@ -724,6 +775,96 @@ mod conditional_reference_tests {
         assert_eq!(references(&graph, &conditional(&source)), names);
         let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
         assert_eq!(references(&graph, &root), [inner].into_iter().collect::<HashSet<_>>());
+    }
+
+    #[test]
+    fn source_births_remain_at_declarations_across_deeper_name_uses() {
+        let (mut graph, source) = fixture("my loop outer = { my helper inner = loop outer; helper outer }");
+        let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
+        let helper = Value::Local(source.bindings()[0].id.clone());
+        let outer = named(&source, "outer");
+        assert_eq!(graph.planning_levels[graph.vertices[&root]], Some(1));
+        assert_eq!(graph.planning_levels[graph.vertices[&helper]], Some(2));
+        assert_eq!(graph.planning_levels[graph.vertices[&outer]], Some(1));
+        assert!(graph.record_birth(&outer, 2).is_err());
+        assert_eq!(graph.planning_levels[graph.vertices[&outer]], Some(1));
+        assert!(references(&graph, &root).contains(&helper));
+        assert!(references(&graph, &helper).contains(&root));
+        graph.seal().unwrap();
+        assert_eq!(graph.events.len(), 2);
+        assert!((0..2).all(|event| !graph.qualifies(event)));
+    }
+
+    #[test]
+    fn case_binder_birth_precedes_its_deeper_initializer_use() {
+        let (mut graph, source) = fixture("my choose x = case x:\n  :some bound -> { my local = bound; local }\n");
+        let binder = named(&source, "bound");
+        assert!(matches!(binder, Value::CatchBinder(_)));
+        let local = Value::Local(source.bindings()[0].id.clone());
+        assert_eq!(graph.planning_levels[graph.vertices[&binder]], Some(1));
+        assert_eq!(graph.planning_levels[graph.vertices[&local]], Some(2));
+        graph.seal().unwrap();
+        assert!(references(&graph, &local).contains(&binder));
+    }
+
+    #[test]
+    fn field_tail_receiver_keeps_nested_call_definition_owner() {
+        let (mut graph, source) = fixture("my loop x = { my helper y = (loop y).field; helper x }");
+        let helper = Value::Local(source.bindings()[0].id.clone());
+        let root = named(&source, "loop");
+        let event = graph.events.iter().position(|event| event.receiver == graph.vertices[&root]).unwrap();
+        assert_eq!(graph.events[event].origin, graph.vertices[&helper]);
+        assert_eq!(graph.planning_levels[graph.vertices[&helper]], Some(2));
+        assert!(references(&graph, &helper).contains(&root));
+        graph.seal().unwrap();
+        assert!(!graph.qualifies(event));
+    }
+
+    #[test]
+    fn induced_scc_rejects_same_birth_endpoints_with_cross_birth_detour() {
+        let (_, source) = fixture("my seed a b c = a");
+        let parameters: Vec<_> = source.expressions().iter().filter_map(|expr| match &expr.form {
+            LocalSourceForm::Lambda { parameter, .. } => Some(parameter.id.clone()),
+            _ => None,
+        }).collect();
+        assert_eq!(parameters.len(), 3);
+        let mut graph = Graph::default();
+        for (parameter, level) in parameters.into_iter().zip([1, 2, 1]) {
+            let value = Value::Parameter(parameter);
+            graph.intern(value.clone()).unwrap();
+            graph.record_birth(&value, level).unwrap();
+        }
+        for (from, to) in [(0, 1), (1, 2), (2, 0)] { graph.edge(from, to).unwrap(); }
+        graph.events.extend([Association { origin: 0, receiver: 2 }, Association { origin: 0, receiver: 0 }]);
+        let raw_edges = graph.edges.clone();
+        graph.seal().unwrap();
+        assert!(!graph.qualifies(0), "global SCC plus equal endpoint birth is insufficient");
+        assert!(graph.qualifies(1), "the same actual Value qualifies reflexively");
+        assert_eq!(graph.edges, raw_edges, "cross-level source references remain immutable");
+    }
+
+    #[test]
+    fn seal_requires_complete_births_and_level_preserving_helper_entries() {
+        let (_, source) = fixture("my seed a b = a");
+        let parameters: Vec<_> = source.expressions().iter().filter_map(|expr| match &expr.form {
+            LocalSourceForm::Lambda { parameter, .. } => Some(parameter.id.clone()),
+            _ => None,
+        }).collect();
+        let mut graph = Graph::default();
+        for parameter in parameters {
+            let value = Value::Parameter(parameter);
+            graph.intern(value.clone()).unwrap();
+            graph.record_birth(&value, 1).unwrap();
+        }
+        graph.edges.push(Vec::new()); graph.reverse.push(Vec::new()); graph.planning_levels.push(None);
+        for (from, to) in [(0, 2), (2, 1), (1, 0)] { graph.edge(from, to).unwrap(); }
+        assert!(graph.seal().is_err(), "missing helper census must not default to a level");
+        let mut wrong = graph.clone();
+        wrong.record_level(2, 2).unwrap();
+        assert!(wrong.seal().is_err(), "an arbitrary helper level cannot alter projected incidence");
+        graph.record_level(2, 1).unwrap();
+        graph.seal().unwrap();
+        assert_eq!(graph.components[0], graph.components[1]);
     }
 
     #[test]
@@ -766,6 +907,7 @@ mod scc_tests {
         let mut graph = Graph::default();
         graph.edges.resize_with(8, Vec::new);
         graph.reverse.resize_with(8, Vec::new);
+        graph.planning_levels.resize(8, Some(1));
 
         for (from, to) in [
             (0, 1),

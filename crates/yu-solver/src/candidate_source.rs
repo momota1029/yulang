@@ -1068,7 +1068,9 @@ impl ConstraintBatch {
                 return Err(invalid());
             }
         }
-        self.candidate_source.references.retain_source(source)?;
+        // Reuse the graph's existing fragment index. The actual source walk
+        // below supplies immutable birth/planning levels before SCC sealing.
+        let reference_fragments = self.candidate_source.references.retain_source(source)?;
         let mut positions = Vec::new();
         positions.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;
         let mut parameters = HashMap::new();
@@ -1084,6 +1086,8 @@ impl ConstraintBatch {
             parameters.insert(parameter.id.clone(), position);
             self.candidate_source.parameter_levels.try_reserve(1).map_err(|_| unavailable())?;
             self.candidate_source.parameter_levels.insert(position, 1);
+            self.candidate_source.references.record_birth(
+                &candidate_value_graph::Value::Parameter(parameter.id.clone()), 1)?;
         }
         for binding in source.bindings() {
             parameter_scopes.try_reserve(binding.parameters.len()).map_err(|_| unavailable())?;
@@ -1207,6 +1211,8 @@ impl ConstraintBatch {
                 Work::Visit(index, level, region) => {
                     self.candidate_source.computation_scope(&source.expressions()[index].occurrence, region)?;
                     let expr = source.expressions().get(index).ok_or_else(invalid)?;
+                    self.candidate_source.references.record_expression_level(
+                        &expr.occurrence, reference_fragments[index], level)?;
                     if let LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(binder), .. } = &expr.form {
                         endpoints[index] = *catch_binders.get(binder).ok_or_else(invalid)?;
                     }
@@ -1276,6 +1282,8 @@ impl ConstraintBatch {
                             let position = *parameters.get(&parameter.id).ok_or_else(invalid)?;
                             self.candidate_source.parameter_levels.try_reserve(1).map_err(|_| unavailable())?;
                             self.candidate_source.parameter_levels.insert(position, level);
+                            self.candidate_source.references.record_birth(
+                                &candidate_value_graph::Value::Parameter(parameter.id.clone()), level)?;
                             lambdas.try_reserve(1).map_err(|_| unavailable())?;
                             lambdas.insert(index, position);
                             if parameter.annotation.is_none() && !parameter.unit_pattern && parameter.record_pattern.is_none() {
@@ -1294,6 +1302,8 @@ impl ConstraintBatch {
                                 for field in fields {
                                     let field_position = *parameters.get(&field.binder).ok_or_else(invalid)?;
                                     self.candidate_source.parameter_levels.insert(field_position, level);
+                                    self.candidate_source.references.record_birth(
+                                        &candidate_value_graph::Value::Parameter(field.binder.clone()), level)?;
                                     if field.default.is_some() { count = count.checked_add(2).ok_or_else(unavailable)?; }
                                     recipe_fields.push(RecordParameterField { label: field.label.clone(), parameter: field_position,
                                         default: field.default.as_ref().map(|default| endpoints[default.ordinal() as usize]) });
@@ -1374,6 +1384,22 @@ impl ConstraintBatch {
                     let LocalSourceForm::Catch { scrutinee, arms } = &source.expressions()[index].form else { return Err(invalid()); };
                     for arm in arms {
                         use yu_hir::shadow::{LocalSourceCatchPattern as Pattern, LocalSourceCatchPayloadPattern as Payload, LocalSourceCatchValuePattern as Value};
+                        // Declaration birth is retained even when a binder's
+                        // first Name occurs in a deeper local initializer.
+                        let mut birth = |pattern: &Value| -> Result<(), CollectionAvailabilityError> {
+                            if let Value::Binder(binder) = pattern {
+                                self.candidate_source.references.record_birth(
+                                    &candidate_value_graph::Value::CatchBinder(binder.id.clone()), level)?;
+                            }
+                            Ok(())
+                        };
+                        match &arm.pattern {
+                            Pattern::Value(pattern) => birth(pattern)?,
+                            Pattern::Operation { payloads, continuation, .. } => {
+                                for payload in payloads { if let Payload::Value(pattern) = payload { birth(pattern)?; } }
+                                birth(continuation)?;
+                            }
+                        }
                         match &arm.pattern {
                             Pattern::Value(Value::Binder(binder)) => {
                                 catch_binders.try_reserve(1).map_err(|_| unavailable())?;
@@ -1421,6 +1447,8 @@ impl ConstraintBatch {
                     for (arm_index, arm) in arms.iter().enumerate() {
                         match &arm.pattern {
                             yu_hir::shadow::LocalSourceCasePattern::Binder(binder) => {
+                                self.candidate_source.references.record_birth(
+                                    &candidate_value_graph::Value::CatchBinder(binder.id.clone()), level)?;
                                 case_binders.try_reserve(1).map_err(|_| unavailable())?;
                                 case_binders.insert(binder.id.clone(), endpoints[scrutinee.ordinal() as usize]);
                                 if let Some(position) = case_positions.get(&binder.id).copied() {
@@ -1434,6 +1462,8 @@ impl ConstraintBatch {
                                 for element in elements {
                                     match element {
                                         yu_hir::shadow::LocalSourceCasePatternElement::Binder(binder) => {
+                                            self.candidate_source.references.record_birth(
+                                                &candidate_value_graph::Value::CatchBinder(binder.id.clone()), level)?;
                                             let component = case_positions.get(&binder.id).copied();
                                             if let Some(position) = component {
                                                 self.candidate_source.component_levels.try_reserve(1).map_err(|_| unavailable())?;
@@ -1464,6 +1494,8 @@ impl ConstraintBatch {
                                 for element in elements {
                                     let component = match element {
                                         yu_hir::shadow::LocalSourceCasePatternElement::Binder(binder) => {
+                                            self.candidate_source.references.record_birth(
+                                                &candidate_value_graph::Value::CatchBinder(binder.id.clone()), level)?;
                                             let component = case_positions.get(&binder.id).copied();
                                             if let Some(position) = component {
                                                 self.candidate_source.component_levels.try_reserve(1).map_err(|_| unavailable())?;
@@ -1519,6 +1551,8 @@ impl ConstraintBatch {
                         self.candidate_source.local_regions.insert(source.bindings()[binding].id.clone(), region);
                     }
                     let binding = &source.bindings()[binding];
+                    self.candidate_source.references.record_birth(
+                        &candidate_value_graph::Value::Local(binding.id.clone()), level)?;
                     push(&mut actions, Action::BeginLocal { slot: local_slots[&binding.id] })?;
                     if !binding.parameters.is_empty() {
                         active_initializers.insert(binding.id.clone(), endpoints[binding.initializer.ordinal() as usize]);

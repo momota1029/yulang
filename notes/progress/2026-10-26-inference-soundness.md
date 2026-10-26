@@ -86,3 +86,50 @@ and shared witnesses. Complete source/Call/effect interpretation, recursive
 solution existence, actual occurrence attribution and general native trace
 correspondence are still OPEN; this checkpoint supplies none of them by
 assumption or reclassification.
+
+## Native correction checkpoint
+
+The four-file Rust correction now supplies immutable births from the existing
+source planning walk, never from a later Name occurrence or mutable row level.
+The existing fragment-index allocation is handed to that walk; semantic/helper
+levels are retained once, and inconsistent or missing assignments fail safely.
+Before SCC construction, seal checks every actual edge entering a helper against
+the local invariant consumed by `BirthLevelSCC`. Both Kosaraju traversals filter
+cross-level edges without deleting them from raw adjacency. Work/storage added
+by the census, validation and edge filtering is O(V + E), without per-level scans.
+
+The source-owner traversal also includes the actual FieldTail receiver and
+OperatorApplication operands, fixing the corresponding nested initializer
+ownership omissions. The original nested loop/helper source remains intact.
+Its superseded cross-birth qualification/equality assertions were corrected
+only after fresh pre-write specification review against the adopted October 24
+rule. Independent equalities are still permitted; no blanket parent/copy
+inequality assertion was substituted.
+
+Exactly three focused, serial `cargo test --locked` invocations passed:
+
+| Gate | Tests passed | Wall time |
+| --- | ---: | ---: |
+| `--lib candidate_value_graph::` | 24 | 110.70 s, cold build |
+| `--lib candidate_intrusion::tests::` | 17 | 0.42 s |
+| `--test candidate_intrusion_observation` | 3 | 20.28 s |
+
+All use `-p yu-solver --features shadow-apply-candidate`, one build job and
+`-- --test-threads=1`. The approved process limit was 6 GiB, with a 600-second
+cold-build bound and 120 seconds for each subsequent gate. Official Rust 1.99.1
+components were installed only in task scratch after SHA-256 verification
+against the official 2026-10-15 manifest. CI selects stable; the repository has
+no Rust pin, and no manifest, lockfile or dependency was changed. No full
+workspace suite or repeated performance experiment was run.
+
+Frozen implementation hashes and complete command/exit evidence are in the
+[native handoff](../../tasks/agent-loop/inbox/20261026-inference-birth-native.md).
+The [fresh non-author review](../../tasks/agent-loop/inbox/20261026-inference-birth-native-review.md)
+found no blocking, major or minor issue in this correction and inspected the
+linear resource behavior. The prior [source map](../../tasks/agent-loop/inbox/20261026-inference-native-map.md)
+records the actual construction/consumer seam.
+
+This supplies the implemented birth/filter criterion on the represented graph.
+It does not prove complete source graph coverage, Imported identity resolution,
+`any`-support receiving attribution, native Kosaraju correctness in Lean,
+BL-JOINT, or full inference soundness. Those are separate original obligations.

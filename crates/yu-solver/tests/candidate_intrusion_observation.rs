@@ -28,24 +28,26 @@ fn module(text: &str) -> Arc<HirModule> {
 }
 
 #[test]
-fn retained_nested_calls_observe_actual_value_scc_and_equated_pairs() {
+fn retained_nested_calls_preserve_cross_birth_occurrences_and_pairs() {
     let candidate =
         CandidateInference::solve(module("my loop x = { my helper y = loop y; helper x }"))
             .unwrap();
     let observation = candidate.intrusion_observation().unwrap();
     let events: Vec<_> = observation.events().collect();
     assert_eq!(events.len(), 2);
-    assert!(events.iter().all(|event| event.same_scc));
+    // The immutable source births are loop=1 and nested helper=2. Oct24's
+    // induced graphs retain their raw references without qualifying either.
+    assert!(events.iter().all(|event| !event.same_scc));
     assert_ne!(events[0].origin.ordinal, events[1].origin.ordinal);
     assert_eq!(events[0].origin.ordinal, events[1].receiver.ordinal);
     assert_eq!(events[1].origin.ordinal, events[0].receiver.ordinal);
     let parents: Vec<_> = observation.parents().collect();
     assert!(!parents.is_empty());
     for parent in &parents {
-        if parent.source_events.iter().any(|&id| events[id].same_scc) {
-            assert_eq!(parent.copy.kind, parent.parent.kind);
-            assert_eq!(parent.copy.representative, parent.parent.representative);
-        }
+        assert_eq!(parent.copy.kind, parent.parent.kind);
+        assert!(parent.source_events.iter().all(|&id| id < events.len() && !events[id].same_scc));
+        // Independent legitimate constraints can still equate rows; this
+        // fixture asserts absence of SCC qualification, not universal inequality.
     }
     let groups: Vec<_> = observation.groups().collect();
     for group in &groups {

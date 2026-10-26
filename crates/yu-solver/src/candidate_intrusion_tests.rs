@@ -317,16 +317,22 @@ fn nested_definition_source_owns_real_call_demand_extrusion() {
     assert_ne!(a.origin, b.origin, "nested initializer has its own source Value root");
     assert_eq!(a.origin, b.receiver);
     assert_eq!(b.origin, a.receiver);
-    assert!(references.qualifies(0) && references.qualifies(1));
+    // Oct24: loop is born at 1; the nested helper initializer is born at 2.
+    // Their raw reciprocal references remain, but neither event qualifies.
+    assert!(!references.qualifies(0) && !references.qualifies(1));
     let solved = session.run_candidate().unwrap();
     assert!(solved.data.errors.is_empty());
     let state = &solved.data.candidate_graph.as_ref().unwrap().intrusion;
     assert!(!state.parents.is_empty(), "native call-demand propagation actually extrudes younger coordinates");
     assert!(state.parents.iter().any(|parent| parent.sources.is_some_and(|sources|
-        state.effect_algebra.context.source_events(sources).iter().any(|&event| references.qualifies(event)))));
+        !state.effect_algebra.context.source_events(sources).is_empty())));
     for parent in &state.parents {
-        if parent.sources.is_some_and(|sources| state.effect_algebra.context.source_events(sources).iter().any(|&event| references.qualifies(event))) {
-            assert_eq!(state.rep(parent.copy), state.rep(parent.parent));
+        assert_eq!(parent.copy.kind(), parent.parent.kind());
+        if let Some(sources) = parent.sources {
+            for &event in state.effect_algebra.context.source_events(sources) {
+                assert!(event < references.events.len());
+                assert!(!references.qualifies(event));
+            }
         }
     }
 }
