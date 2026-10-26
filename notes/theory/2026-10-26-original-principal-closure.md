@@ -19,6 +19,10 @@ The original full source judgment is **not declared complete**: the actual
 complete Call certificate must be introduced at the seven original Apps,
 with every original arm and target-check field retained. The original
 principality theorem and approved occurrence/SCC algorithm remain OPEN.
+The later integration in §15 supplies the missing additive native
+certificate rule; the actual Q/ArmDecl validity and original root-map
+instances remain to be constructed. Section 11 preserves the revision-2
+pre-adoption seam analysis as historical context.
 The source guard construction is a source-constructor proof in the selected
 original interpretation, preserving its genuine independent kernel/primitive
 inputs; it is not an arbitrary reassignment of opaque `Inputs` predicates.
@@ -669,6 +673,11 @@ nested-App program or a claim that its inference history is the same.
 
 ## 11. Exact remaining complete Call introduction
 
+**Revision-2 checkpoint.** The missing-rule analysis below predates the
+reviewed selection recorded in §15. The current residual is the actual
+complete declaration and its genuine arm/root accessors, not the absence
+of a native introduction rule.
+
 No concrete independent guard falsifying this source contract was found.
 There is nevertheless a genuine remaining original construction boundary:
 the actual original complete Call certificate and its full preserved
@@ -861,3 +870,39 @@ All repository writes stop with this revision's frozen handoff. Root owns
 independent review, any legitimate certificate-definition proposal, semantic
 selection, exact staging and pushes. No self-certification or production
 promotion is asserted.
+
+## 15. Primary integration: native introduction selected
+
+The independently reviewed
+[native Call-certificate introduction](../design/2026-10-26-native-call-certificate-introduction.md)
+now supplies the missing additive native case. It preserves old certificates
+injectively and constructs the ten complete fields at the original joint
+tuple. Its bounded extension handles the exact Name, Record, literal and
+computed-callee sites in this source. The native boundary map is an explicit
+actual-entry/IF construction, with inherited boundaries and all future keys
+retained; it is not a blanket identity interpretation.
+
+The dependency order is explicit: first construct the uniform local laws
+on genuine typed operands and independent original phase inputs; compose
+the genuine arm/root maps to obtain C0_schema; construct the corresponding
+licenses and native boundary packets; realize the actual source family by
+the direct NIgnore/NF/NG/NTop proof; then apply those schemas to the actual
+operands. The proof does not use its own completed Call certificate or new
+upper license to establish the premise of that same law.
+
+This resolves the missing native rule in the historical §11 checkpoint.
+It does not instantiate an unavailable declaration. The first remaining
+actual source leaf is Q_16 for h x: its authentic complete arm interface,
+declaration validity and original arm-to-root/result/future maps, including
+any target checking actually consumed by Q. Once that owning declaration
+constructor is supplied, the same accessor construction applies at the
+other six listed sites. An existing opaque typed declaration suffices; no
+enumeration is needed. Neither an empty-arm assumption nor a substituted
+production abstraction is justified.
+
+The native rejection therefore remains a reproduced acceptance-completeness
+candidate, with source qualification still open. The separate generated-store
+and approved signed-occurrence correspondences in §14 are unchanged. This
+integration updates the exact remaining obligation, not the whole-parent
+proof status. The 30 authored Lean theorem statements and their checked
+module bytes are unchanged.
