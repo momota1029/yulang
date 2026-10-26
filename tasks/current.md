@@ -29,10 +29,20 @@ same frame's first empty boundary. All four new modules have a complete
 378-theorem audit and fresh nonauthor acceptance. The combined default build
 passed 137 jobs without warnings/errors; both censuses total 701 theorems.
 
-Active follow-up: actual carrier Force prefixes, extrusion Work producers,
-physical bound-fiber cursors, and exact native drain stages. Complete Call
-interpretation, the original principal ordering, global source/native scoped
-correspondence and the whole growing inference relation remain uninstantiated.
+The next reviewed constructor/storage slice derives the original full carrier
+criterion for an initialized Name Delay under explicit native/history inputs,
+and computes physical linked bound attachments and same-ID/key publication.
+Its two complete audits cover 675 originating declarations and 270 theorem
+constants; all twelve new modules total 971 theorem constants. Independent
+nonauthor reviews accept the exact conditional scopes. The default 139-job
+build passed without warnings/errors; reusable audits and the ledger retain
+all remaining premises and local failure/repair evidence.
+
+Active follow-up: extrusion Work producers, complete transported keys and the
+actual captured-fiber loop, exact native drain stages, and the authoritative
+original principal-order formulation. Complete Call interpretation, global
+source/native scoped correspondence and the whole growing inference relation
+remain uninstantiated.
 Existing no-normal-drain evidence is not a Lean divergence proof. The separate
 statement-preserving cleanup of nine older modules resolves all 668 lint
 warnings; its independently reviewed 131-job full build has zero warnings

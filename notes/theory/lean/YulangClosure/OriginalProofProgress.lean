@@ -6,6 +6,8 @@ import YulangClosure.OriginalPrincipalityResolution
 import YulangClosure.OriginalInferenceTerminationResolution
 import YulangClosure.OriginalIdentityRealization
 import YulangClosure.OriginalReplayBoundary
+import YulangClosure.OriginalIdentityCarrier
+import YulangClosure.OriginalBoundFibers
 
 /-!
 Explicit default-build entry for the 2026-10-27 original-source proof work.
@@ -24,10 +26,18 @@ derive processing of every exact child and all four Function ports at the
 same owner's first empty boundary. Boundary existence and full native trace
 extraction are not assumed to have been proved by this conditional result.
 
+The initialized Name Delay supplier now derives its complete original carrier
+Meaning from computed execution plus explicit independent history/extraction
+inputs. The bound-fiber module computes actual linked attachments, preserves
+captured cursors, and publishes the same native interner result and complete
+key. Its cursor accessibility is local to the represented linked control.
+
 No original SourceProblem instance is synthesized by these imports. The
 remaining original source/primitive interpretation, recursive callable
 realization, whole scoped instance order and native inference machine remain
 explicit obligations. AuditOriginalClosureProgress.lean checks the first six
 modules; AuditOriginalExecutionProgress.lean checks the next four. Both include
 every originating theorem, including generated and private declarations.
+AuditOriginalIdentityCarrier.lean and AuditOriginalBoundFibers.lean also audit
+every originating declaration of their respective new modules.
 -/

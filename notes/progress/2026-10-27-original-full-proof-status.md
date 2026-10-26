@@ -20,6 +20,8 @@ to a concrete original `SourceProblem` instance.
 | `OriginalReplayDrain` | The ordinary loop computes every enqueue without fuel; synchronous Ready delivery obtains an actual return receipt; physical Function consumers retain all four ports and raw relation IDs. | Whole Rust trace extraction, dispatch bodies, Some-loop termination and complete fiber/Replay publication. |
 | `OriginalDrainBoundary` | Every unchanged common control step preserves a working owner before its own empty boundary; any later loss/removal has an actual prior boundary in that run. | Ghost birth-to-native lifetime extraction, precise native stage cut, abort/rollback behavior. |
 | `OriginalReplayBoundary` | Derives the old stack-depth premise from the same first-boundary history, then proves processing of exact ordinary Replay children and all four physically admitted Function ports. | Does not assert boundary existence or semantic subtyping; full native stage/history and NQ successor construction remain open. |
+| `OriginalIdentityCarrier` | Computes a fresh initialized-Name Delay and every finite prefix, derives its original hereditary carrier Meaning, and supplies `ForceCut.whole` at the same actual receipt-origin carrier. | Native Force/dispatch/readout extraction, independent lawful world histories and guards, actual entry facts and arbitrary admitted carrier cases remain open. |
+| `OriginalBoundFibers` | Computes the actual linked head/vector attachment, preserves captured source cursors, derives local cursor accessibility, and publishes the exact raw interner result and complete key into the target fiber. | Authentic transported-key construction and snapshot, evidence/dependency/sample internals, native trace extraction and whole growing inference termination remain open. |
 
 The first two modules, their reusable audit and fresh review were pushed as
 [`a209a9d46b4707d29d60b210e490d13f49efa263`](https://github.com/momota1029/yulang/commit/a209a9d46b4707d29d60b210e490d13f49efa263).
@@ -27,7 +29,9 @@ The remaining four were pushed with the default integration as
 [`6a4933e06ecceee2cc2a00a635925f55cfc14adc`](https://github.com/momota1029/yulang/commit/6a4933e06ecceee2cc2a00a635925f55cfc14adc).
 No Rust/compiler semantics, source restrictions, dependency versions,
 resource cap in the algorithm, or original instance order changed.
-The four later execution modules form the next independently accepted slice.
+The four later execution modules were pushed as
+[`f8442e8e618940e0575897e373b2e3faa55e3d30`](https://github.com/momota1029/yulang/commit/f8442e8e618940e0575897e373b2e3faa55e3d30).
+The carrier and bound-fiber modules form the next independently accepted slice.
 
 ## Verification
 
@@ -35,7 +39,8 @@ Pinned tools were Lean 4.35.0, commit
 `eb6cafb7290e8bd5f2937522d8d804f58f02bafc`, and Lake
 5.0.0-src+eb6cafb. The default project remains `-j1 -M1024`.
 `OriginalProofProgress` is an additional ordinary build entry; it avoids the
-historically reserved `YulangClosure.lean` root and imports all six modules.
+historically reserved `YulangClosure.lean` root. At the first integration it
+imported all six modules; subsequent reviewed suppliers extend that entry.
 
 The focused 37-job integration and the complete **131-job default build**
 both completed successfully. Exact logs:
@@ -70,6 +75,61 @@ is `/tmp/yulang-original-progress-audit-04.log`.
 No `sorry`, `admit`, project axiom, `native_decide` trust step, or skipped
 kernel check is added. These checks establish the stated Lean theorems with
 their actual hypotheses; they do not discharge those hypotheses.
+
+### Initialized Name carrier and physical bound-fiber integration
+
+The next two modules have independent nonauthor acceptance in
+[the carrier review](2026-10-27-identity-carrier-review.md) and
+[the bound-fiber review](2026-10-27-bound-fibers-review.md). Their default
+integration passed **139 jobs**, exit 0, with zero warnings/errors; the log is
+`/tmp/yulang-carrier-fiber-full-integration.log`. The ordinary default entry
+now reaches twelve new proof modules.
+
+| Origin module | All declarations | Theorem constants |
+| --- | ---: | ---: |
+| `OriginalIdentityCarrier` | 346 | 127 |
+| `OriginalBoundFibers` | 329 | 143 |
+| **New census** | **675** | **270** |
+
+Each reusable audit enumerates all originating declarations, including every
+private/generated theorem, and prints complete types and transitive axiom
+sets. `AuditOriginalIdentityCarrier.lean` retains the independent reviewer's
+successfully checked Lean commands, with one final blank line removed; its
+SHA-256 is
+`880241ae7519b2a4f408618917cdb9b0a1c22e94ade984ab91c1a3191d0755a1`.
+`AuditOriginalBoundFibers.lean` is SHA-256
+`bb9e11273eaa015bf56b8bdc8ec220bbef7e3e10ba83fc3545064f8124ffed23`.
+The prior 701 and new 270 censuses therefore cover **971 theorem constants**
+in these twelve modules. Counts are coverage evidence, not whole-language
+closure evidence.
+
+The carrier independent audit exited 0 at the local 2 GiB inspection limit:
+`/tmp/yulang-carrier-root-review/audit-01.log`, SHA-256
+`f9c385751bc9ac525f952c35e7c3268249c728b8e12e5807165bab65bdc2c257`.
+The bound-fiber producer and independent audit both exited 0 at 1 GiB, with
+byte-identical output SHA-256
+`05235808e8bd738e2f196cfd543938be1ba5360bacf75f687bbb64e68f639ca7`.
+Every record is matched and unelided. Only `propext`, `Classical.choice` and
+`Quot.sound` occur; all proof/project settings remain unchanged.
+
+The Name supplier eliminates the old explicit whole-carrier premise for
+this constructed initialized lexical argument. It retains all original
+Force observations and compatible futures. Its surrounding-world histories
+and exact native readout remain independent inputs; using the new carrier
+to supply those worlds would be circular. Other admitted effectful,
+suspended, divergent and non-source carriers remain in the original domain.
+The bound-table invariant proves physical formation, not semantic validity
+of every old fiber. The publication theorem derives complete readback for
+its own same returned raw child, including partial-error ordering. Its local
+cursor `Acc` contains a finite represented body `Run`; it does not establish
+termination of the original inference relation.
+
+Active construction now computes the authentic transported key and entire
+captured-fiber loop from extrusion Work, and connects all fourteen native
+drain stages to the already checked first boundary. The original complete
+Call interpretation, principal instance order and full source/native
+extraction remain open. The existing no-normal-boundary obstruction is not
+silently promoted to Lean divergence.
 
 ### Actual execution suppliers and first-boundary integration
 
