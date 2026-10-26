@@ -31,6 +31,13 @@ license grammar and applies it to fresh ValueBind/Name Call. The separate
 original native grammar induction is a paper proof; the companion does not
 claim to formalize that grammar or construct a full original Call certificate.
 
+`SimpleSubGrowingInference.completed_growing_publication_with_clients` connects
+completion and computed terminal evidence while allowing exact constraint steps
+to interleave with literal graph allocation. Earlier steps and decoder results
+are transported into one final graph, preserving all original numeric references
+and one shared pullback for every use and client. Actual native mutable-row,
+activation and source evidence remain separate correspondence obligations.
+
 ## 2026-10-26: inference constraint soundness and scoped publication
 
 `YulangClosure.InferenceProofs` is included in the default library build.

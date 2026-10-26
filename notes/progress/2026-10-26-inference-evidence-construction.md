@@ -133,3 +133,33 @@ exit 0. Audit SHA256:
 After review, the primary changed only the paper's status line to link the
 accepted receipt; its mathematical body and Lean source remain unchanged.
 The graph-completion checkpoint is published as `2eced4d`.
+
+## Connect construction through interleaved graph allocation
+
+`SimpleSubGrowingInference.GrowingHistory` interleaves original concrete
+constraint steps and literal table-prefix allocations. Its flattening theorem
+derives a single original `ConstraintHistory` in the final graph. Combined
+with completion and the constructed terminal certificate, the main
+`completed_growing_publication_with_clients` theorem needs no externally
+supplied decoder equation, pair-table certificate or already flattened final
+history. All original uses and clients share the same final graph and refs.
+
+The example decomposes an existing cyclic Function, allocates a fresh tuple,
+adds and discharges a constraint on that new reference, and derives the original
+comparison from computed terminal evidence. Final validity comes from the
+actual decision; flattening makes no unsupported claim that every intermediate
+graph is valid or that arbitrary old-node mutation preserves meaning.
+
+The [construction receipt](../../tasks/agent-loop/inbox/20261026-inference-growing-history.md)
+records the two focused successful calls and all **11 originating theorem**
+types/axioms (10 authored plus one generated), with 7 `propext` and 4
+`propext, Quot.sound`. The
+[independent review](../../tasks/agent-loop/inbox/20261026-inference-growing-history-review.md)
+accepted the frozen integration without findings and revalidated the unchanged
+accepted dependencies. Native trace/interpretation, metadata coverage and full
+original source/Call correspondence remain explicit OPEN owners.
+
+Default integration passed **72 jobs** and **1,089 originating theorem audits**,
+exit 0. Audit SHA256:
+`e1229aae54b0264f5744913d61d7409bdc0c54c6e538d7a1d971144ea39675cf`.
+The native-profile checkpoint is published as `df7b991`.

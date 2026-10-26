@@ -8,6 +8,7 @@ import YulangClosure.SimpleSubRegularPublication
 import YulangClosure.SimpleSubRegularDecision
 import YulangClosure.SimpleSubRegularCompletion
 import YulangClosure.NativeProfileRestriction
+import YulangClosure.SimpleSubGrowingInference
 
 /-!
 Checked inference proof components, integrated incrementally.
