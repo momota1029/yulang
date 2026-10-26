@@ -151,3 +151,36 @@ and 1 GiB. It targets a constructed untouched-prefix/first-snapshot suffix
 invariant and actual no-gap stack rollback, preserving exceptional-path and
 source-authentication limitations. The same leaf/review/ownership rules apply.
 This is a related native-history continuation, not a production change.
+## First published checkpoint and source-world acceptance
+
+The shared owner-journal checkpoint is published as
+`9589fe3cea1632ab095df549aa7254514dba044f`, parent `60e868422`.
+GitHub's created tree matches the locally staged tree; expected-parent,
+non-force publication succeeded, and fetched parent/tree match. Local branch
+and index were synchronized without resetting another worker's files.
+
+`SourceIdentityWorld` constructs the actual projected post-Force identity
+suffix: immutable parameter binding, successful Name lookup, the new receiving
+receipt and owned invocation return. It preserves old aliases, all old receipt
+records and the same-event binding certificates; the five exposed world fields
+are derived from their independent old-world/guard facts. Native Name changes
+the receipt world, and dictionary dispatch remains explicit. Earlier carrier
+phases, the full original history/descriptor/world envelope and full Function
+membership are not assumed away or claimed closed.
+
+The module has 26 authored roots and 91 originating theorem constants. Its
+complete audit passes: 53 axiom-free, 35 using only `propext`, 3 additionally
+`Quot.sound`; no choice, project axiom, hole or bypass. Eight bounded producer
+calls are retained (17.257313349 measured seconds in total); all failures and
+source snapshots are preserved. Final logs contain no warnings.
+
+Fresh nonauthor `/root/source_world_review_r3` accepts the exact frozen packet
+without findings. Its receipt SHA-256 is
+`c2aed0f5c1b92613e5f3bca70b8c4bc28a92ed3ac6b0cfaaab46c019477796c4`.
+It reconciled all 22 pinned inputs, all 91 printed type/axiom blocks, all 26
+roots and the eight receipts, and inspected the actual native owners. It ran
+no redundant Lean check and stopped all writes. This second standalone
+checkpoint carries the accepted module, paper, producer handoff and independent
+review receipt. Original `PhiW`/`P_F`, full declared-hole interpretation,
+annotation realization, `ValueMem`, `SourceT`, full native correspondence and
+`SourceProblem.InferenceSoundness` remain OPEN.
