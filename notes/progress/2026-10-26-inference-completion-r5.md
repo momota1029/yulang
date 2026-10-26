@@ -123,3 +123,41 @@ The next worker packet owns only `NativeContextCallbackConstruction.lean`
 and its paired note/handoff, with a 1,500-second/12-check bound, to derive the
 emitted-list correspondence from actual collect/admit computations while
 leaving this accepted stage immutable.
+
+## Checkpoint 3: native Value structural dispatch
+
+Checkpoint 2 was pushed as `6a1cdf3635b339ca851c1db7d089a6f8d2190468`
+with an expected-head non-force update and exact-byte verification after
+fetch/fast-forward. The producer confirmed that the early failed stage-1
+raw outputs exist only in the tool transcript; no filesystem log is claimed.
+
+`NativeValueStructure.lean` constructs outer native dispatch on the reviewed
+r4 Value-port loop: current/canonical/retained precedence, exact structural
+failure/availability distinctions, Bottom/Top, Function variance and all
+Tuple/Record/Variant child selections. Variant domain coverage includes
+zero-payload alternatives and all duplicate negative entries. Fallback
+selection reads the canonical bound after extrusion. Diagnostics retain
+direct witness metadata and selected child-edge calls. The main computed
+Context-to-Value-to-port readback retains the complete parent key and actual
+ordered child admissions in one output arena.
+
+The frozen module SHA256 is
+`81060e17ad37f2e4a47edb7ed2829bea6820438bf3d4db0e4de8d113fd9497fc`.
+Pinned Lean accepts all 33 authored roots. The complete origin census has
+1,007 declarations / 514 theorem constants: 395 use no axioms, 108 only
+`propext`, 11 only `propext` and `Quot.sound`. Check10 had successful Lean
+execution but truncated persisted output; accepted check11 uses complete
+hashed chunks, reconstructed and reconciled to 806,291 bytes and all markers.
+Fresh nonauthor `/root/value_review_r5` independently reconciled the source,
+all census chunks and theorem blocks, and returned **ACCEPT** with no
+correctness finding. No redundant Lean rerun was used by that reviewer.
+
+Raw `Routing.current`/table/scope/processing observations still require native
+history authentication. Actual extrusion and bound/replay operations,
+committed combined-history and original semantic bodies remain OPEN.
+This does not close MERGE-EXPANSION-COVER-1 or full InferenceSoundness.
+
+The primary additionally owns a 1,200-second/10-check packet on the new
+`NativeRepresentativeReadback.lean` and its paired note/handoff, applying the
+constructed raw forest laws to the existing shared driver's two merge-map
+premises. Reviewed checkpoint files remain immutable during this work.
