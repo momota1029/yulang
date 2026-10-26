@@ -10,6 +10,7 @@ import YulangClosure.PaperPerformLetExecution
 import YulangClosure.PaperResumeExecution
 import YulangClosure.PaperExtendedExecution
 import YulangClosure.PaperHeapExecution
+import YulangClosure.PaperViewExecution
 import YulangClosure.PaperEliminationExamples
 import YulangClosure.PaperTypeBetaExecution
 

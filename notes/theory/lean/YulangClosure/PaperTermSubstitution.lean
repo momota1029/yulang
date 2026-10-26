@@ -67,6 +67,7 @@ mutual
     | .perform op ts v => .perform op ts (renameTermValue f v)
     | .template n ts vs => .template n ts (vs.attach.map fun ⟨v,hv⟩ => renameTermValue f v)
     | .request op p k => .request op (renameTermValue f p) (renameTermValue f k)
+    | .expose metadata body => .expose metadata (renameTermComputation f body)
     | .fail r => .fail r
     | c => c
   termination_by c => sizeOf c
@@ -223,6 +224,9 @@ theorem PaperValueTyped.termRename {declarations : DeclarationTable} {graphTypes
     (by intro declarations graphTypes environment value resultType hvalue ihValue target f h
         simpa only [renameTermComputation] using
           PaperComputationTyped.absurd (resultType := resultType) (ihValue target f h))
+    (by intro declarations graphTypes environment metadata body resultType hbody ihBody target f h
+        simpa only [renameTermComputation] using
+          (PaperComputationTyped.expose (metadata := metadata) (ihBody target f h)))
     (by intro declarations graphTypes environment reason ty target f h
         simpa only [renameTermValue_record_eq, renameTermValue, renameTermComputation, List.attach_map_val, List.map_nil, List.map_cons] using PaperComputationTyped.fail)
     (by intro declarations graphTypes environment owners binder body responseType resultType hbody ihBody target f h
@@ -292,6 +296,7 @@ mutual
     | .perform op ts v => .perform op ts (replaceTermValue rho v)
     | .template n ts vs => .template n ts (vs.attach.map fun ⟨v,hv⟩ => replaceTermValue rho v)
     | .request op p k => .request op (replaceTermValue rho p) (replaceTermValue rho k)
+    | .expose metadata body => .expose metadata (replaceTermComputation rho body)
     | .fail r => .fail r
     | c => c
   termination_by c => sizeOf c
@@ -461,6 +466,9 @@ theorem PaperValueTyped.termReplace {declarations : DeclarationTable} {graphType
     (by intro declarations graphTypes environment value resultType hvalue ihValue target rho h
         simpa only [replaceTermComputation] using
           PaperComputationTyped.absurd (resultType := resultType) (ihValue target rho h))
+    (by intro declarations graphTypes environment metadata body resultType hbody ihBody target rho h
+        simpa only [replaceTermComputation] using
+          (PaperComputationTyped.expose (metadata := metadata) (ihBody target rho h)))
     (by intro declarations graphTypes environment reason ty target rho h
         simpa only [replaceTermValue_record_eq, replaceTermValue, replaceTermComputation, List.attach_map_val, List.map_nil, List.map_cons] using PaperComputationTyped.fail)
     (by intro declarations graphTypes environment owners binder body responseType resultType hbody ihBody target rho h
@@ -496,6 +504,7 @@ mutual
     | .split v _ b => supportedTermValue v && supportedTermComputation b
     | .unionCase v _ l _ r => supportedTermValue v && supportedTermComputation l && supportedTermComputation r
     | .template _ _ vs => vs.attach.all fun ⟨v,hv⟩ => supportedTermValue v
+    | .expose _ body => supportedTermComputation body
     | .fail _ => true
     | _ => false
   termination_by c => sizeOf c
@@ -636,6 +645,8 @@ theorem PaperValueTyped.termSupported {declarations graphTypes environment value
         simpa only [supportedTermComputation] using ihValue)
     (by intro declarations graphTypes environment value resultType hvalue ihValue
         simpa only [supportedTermComputation] using ihValue)
+    (by intro declarations graphTypes environment metadata body resultType hbody ihBody
+        simpa only [supportedTermComputation] using ihBody)
     (by intro declarations graphTypes environment reason ty
         simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
         all_goals assumption)

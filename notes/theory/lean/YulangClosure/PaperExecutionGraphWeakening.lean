@@ -89,6 +89,8 @@ theorem PaperValueTyped.graphWeaken {declarations : DeclarationTable}
         exact PaperComputationTyped.chooseRight (ihValue new hpres))
     (by intro declarations graphTypes environment value resultType hvalue ihValue new hpres
         exact PaperComputationTyped.absurd (ihValue new hpres))
+    (by intro declarations graphTypes environment metadata body resultType hbody ihBody new hpres
+        exact PaperComputationTyped.expose (ihBody new hpres))
     (by intro declarations graphTypes environment reason ty new hpres; exact PaperComputationTyped.fail)
     (by intro declarations graphTypes environment owners binder body responseType resultType hbody ihBody new hpres; exact PaperContinuationTyped.continuation (ihBody new hpres))
     derivation new hpres

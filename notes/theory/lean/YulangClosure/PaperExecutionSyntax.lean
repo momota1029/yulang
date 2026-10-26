@@ -831,6 +831,10 @@ mutual
     | absurd {value resultType} :
         PaperValueTyped declarations graphTypes environment value .bottom →
         PaperComputationTyped declarations graphTypes environment (.absurd value) resultType
+    /-- Exposure preserves the body type under the same shared contexts. -/
+    | expose {metadata body resultType} :
+        PaperComputationTyped declarations graphTypes environment body resultType →
+        PaperComputationTyped declarations graphTypes environment (.expose metadata body) resultType
     | fail {reason ty} :
         PaperComputationTyped declarations graphTypes environment (.fail reason) ty
 

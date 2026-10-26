@@ -456,6 +456,9 @@ theorem PaperValueTyped.subst_explicit (σ : Nat → Ty) {declarations : Declara
     (by intro declarations graphTypes environment value resultType hvalue ihValue σ
         simpa only [mapPaperComputation, subst] using
           PaperComputationTyped.absurd (resultType := subst σ resultType) (ihValue σ))
+    (by intro declarations graphTypes environment metadata body resultType hbody ihBody σ
+        simpa only [mapPaperComputation] using
+          (PaperComputationTyped.expose (metadata := mapViewMetadata σ metadata) (ihBody σ)))
     (by intro declarations graphTypes environment reason ty σ; simpa [mapPaperComputation, subst] using PaperComputationTyped.fail)
     (by intro declarations graphTypes environment owners binder body responseType resultType hbody ihBody σ
         have ihBody := ihBody σ
