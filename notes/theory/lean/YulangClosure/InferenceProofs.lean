@@ -9,6 +9,7 @@ import YulangClosure.SimpleSubRegularDecision
 import YulangClosure.SimpleSubRegularCompletion
 import YulangClosure.NativeProfileRestriction
 import YulangClosure.SimpleSubGrowingInference
+import YulangClosure.SimpleSubLatticeCertificates
 
 /-!
 Checked inference proof components, integrated incrementally.

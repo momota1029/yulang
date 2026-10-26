@@ -38,6 +38,20 @@ are transported into one final graph, preserving all original numeric references
 and one shared pullback for every use and client. Actual native mutable-row,
 activation and source evidence remain separate correspondence obligations.
 
+`SimpleSubLatticeCertificates` extends that structural graph with actual
+union/intersection nodes and finite derivations of the existing lattice rules.
+Only structural ports may consult the shared recursive relation; lattice and
+transitivity premises are finite same-depth derivations. Checked certificates
+therefore construct an independent all-depth interpretation for guarded graphs,
+including structural cycles through both lattice constructors and both effect
+ports. The unchanged regular interpretation embeds one way. `Layer.toSub`
+separately proves each finite rule's correspondence under explicit finite
+readback equations; no finite readback is asserted for cyclic graphs. Original
+unguarded syntax, native extraction, ordinary coalescing and full source/Call
+soundness remain outside this component. The accepted
+[independent review](../../../tasks/agent-loop/inbox/20261026-inference-lattice-review.md)
+covers every originating declaration and the original rule comparison.
+
 ## 2026-10-26: inference constraint soundness and scoped publication
 
 `YulangClosure.InferenceProofs` is included in the default library build.

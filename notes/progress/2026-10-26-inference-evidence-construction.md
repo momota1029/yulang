@@ -163,3 +163,62 @@ Default integration passed **72 jobs** and **1,089 originating theorem audits**,
 exit 0. Audit SHA256:
 `e1229aae54b0264f5744913d61d7409bdc0c54c6e538d7a1d971144ea39675cf`.
 The native-profile checkpoint is published as `df7b991`.
+
+## Guarded recursive lattice certificates
+
+`SimpleSubLatticeCertificates` adds real union/intersection nodes and finite
+derivations of the existing `Sub` lattice rules. Only structural expansion can
+consult the shared recursive relation; same-depth lattice/transitivity premises
+are inductive finite proofs. `accepts_sound` and `accepted_joint_relation`
+construct the independent all-depth interpretation and one common postfixed
+relation from graph validity, guardedness and finite witness checking.
+
+The unchanged structural regular relation embeds via `ofRegular_sub`.
+`Layer.toSub` separately relates finite layers to the original finite `Sub`
+judgment under its explicit exact readback/structural-child premises; neither
+premise occurs in accepted certificate soundness. The genuine cyclic example
+crosses union/intersection, returns through a Function and checks both effects;
+missing effect evidence and unguarded immediate hypotheses are rejected.
+
+The [producer handoff](../../tasks/agent-loop/inbox/20261026-inference-lattice-certificates.md)
+records the pinned primary sources, full theorem types and **153 originating
+theorem audits**: 63 without axioms, 65 with `propext`, 25 with `propext` and
+`Quot.sound`. The
+[independent review](../../tasks/agent-loop/inbox/20261026-inference-lattice-review.md)
+accepted the frozen 821-line module without findings and with zero checker
+reruns. Its exact source hash is
+`55533eee35ed7058abd125ac0e01d8f29b8c0534800018d254c1bd9f9c0bb79b`.
+
+This guarded fragment does not restrict original source syntax or establish
+the entire reference recursive judgment. Lattice certificates still contain
+explicit finite rule witnesses. Decoder/history/publication consumers are a
+separate active packet, and no new native, coalescing or full Call claim is made.
+The growing-history checkpoint is published as `79fcb7e`.
+
+Default integration passed **73 jobs** and **1,242 originating theorem audits**
+across 14 modules, including all private/generated declarations, exit 0.
+The complete audit has matching 1,242 distinct begin/end records. Audit SHA256:
+`4f7467b50d75c784bb8828a1f2ded45d9836088c13c81fc421a843bcfc97cc8b`.
+
+## Follow-on construction leases
+
+The existing lattice producer owns only the new `SimpleSubLatticeInference.lean`,
+its `20261026-inference-lattice-inference.md` handoff and isolated
+`inference-lattice-inference` scratch. Its accepted certificate dependency stays
+frozen. The original Call construction producer owns only
+`2026-10-26-original-call-evidence-construction.md`, an optional faithful
+`OriginalCallEvidence.lean`, its dedicated handoff and `inference-original-call`
+scratch. Any exhaustive replacement telescope remains an unadopted candidate;
+the original semantic interface cannot be silently replaced.
+
+A separate finite lattice-decision producer may own only
+`SimpleSubLatticeDecision.lean`, its `20261026-inference-lattice-decision.md`
+handoff and `inference-lattice-decision` scratch. Its task is proof-side bounded
+finite certificate construction for the already accepted graph/rule semantics,
+without changing native inference or assuming a supplied terminal model.
+Budget: 1,800 seconds and at most 18 focused checker calls, each at most 120
+seconds, one thread and 1 GiB. If exact construction is not established, its
+partial results must be distinguished from sound executable evidence generation.
+All packets retain the original parent and require a nonauthor review before
+integration; none may edit frozen dependencies, shared status, Git or source
+semantics.
