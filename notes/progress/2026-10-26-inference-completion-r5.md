@@ -284,3 +284,98 @@ license/attachment grammars, original C0/admission/world inputs and native
 accepted-success-to-original-Kernel satisfaction are not assumed discharged.
 The separate follow-on contribution construction addresses the adopted
 composite grammar while this independently accepted packet remains immutable.
+
+## Integration evidence before the final contribution packet
+
+Checkpoint 6 was pushed as `6b26127636b988614c676270c37a428464948f37`,
+again using an expected-head non-force update and exact-byte reconciliation.
+
+The primary's draft import surface includes 15 reviewed/pinned additional
+modules and retains the existing imports. The cold inference dependency build
+also reached its 120-second limit (check03). Check04 then completed the actual
+combined `InferenceProofs` build (73 jobs); its subsequent broad named-root
+audit failed at the helper's 1-GiB memory cap. That audit is not recorded as a
+pass. The repository's existing full-origin inference audit already specifies
+a separate 1.5-GiB bound; final wide audit will use that existing bounded route,
+with full proof-valued type indices printed. Proof builds retain `-M1024`.
+
+Check05 fills the two Context packets' explicit all-origin evidence gap. It
+audits every declaration, including private/generated names, not just authored
+roots, with balanced unique blocks and complete type/axiom/EOF validation:
+
+| Module | Declarations | Theorem constants | Theorem axiom counts |
+| --- | ---: | ---: | --- |
+| NativeContextCompletion | 187 | 68 | 23 none; 7 propext; 37 propext+Quot.sound; 1 also Classical.choice |
+| NativeContextCallbackConstruction | 42 | 31 | 3 none; 6 propext; 14 propext+Quot.sound; 8 also Classical.choice |
+
+The complete 178,795-byte log SHA256 is
+`7f30e8d013a579d814c5588da63f43bc4ef333f649a85e192df87c5e4c14d0d6`.
+No unapproved axiom occurs. Code hashes are unchanged from the accepted
+producer/reviewer snapshots. Their notes now clarify that work serials,
+`Control.nextWork` and issued/returned occurrence lists are ghost annotations
+of the modeled queue events, not stored Rust fields or native task allocation.
+The final integration review includes these documentation-only clarifications;
+historical producer/reviewer hashes remain the historical frozen receipts.
+
+Primary budget decision: extend this integration packet from 1,200 to 2,700
+wall seconds, and from eight to ten checks. The concrete reasons are the two
+preserved cold-build timeouts, the wide-audit memory failure, and the separately
+authorized constructive contribution follow-on with its source-fidelity repair.
+This retains a finite deadline/check cap and introduces no global toolchain,
+compiler, proof-checker or axiom-whitelist change. Five checks are consumed at
+this decision. The once-only final default build is still pending the final
+intended imports.
+
+## Checkpoint 7: composite contribution and declared-port attachments
+
+Fetched/fast-forwarded the independently reviewed shared-branch checkpoints
+`77d0a7b3972986090e9329eaa5cb56734b2f1e1d` (Value child/control pipeline)
+and `80d4ace` (Context table lifetime and committed readback). Their exact
+module hashes match their final ACCEPT receipts:
+`826fa025241835aad606434b3d0fee2406b694d72ca1dbf03a618f3e61d1b095`
+and `eaf2b037af40af01ad116e1ae413a6c7d5a0023d49c8b9f1b92d29c319d2df81`.
+They construct the outer Value-to-drain connection and the actual combined
+store/Context history, respectively. They are predecessor authorship, not r5
+new author claims. Their native/source acceptance boundaries remain intact.
+
+`SourceContributionConstruction.lean` constructs the selected result/phase
+contribution grammar and an independent compiler grammar, with exact inverse
+maps on whole proof records. Alternatives retain actual selection and original
+branch/result evidence; conjunction keeps both child derivations at one whole
+row. Image and Call results retain their genuine complete local operator/C0
+evidence. The globally governed field family and selector are constructed
+recursively from that contribution tree. Full dependent packets, Type-valued
+license evidence, source routes and origin partitions survive.
+
+Independent declared-port License/Attachment/compiler rules now consume the
+whole composite contribution. Their actual insertion diagram is constructed
+for every governed field, and inverse maps recover the same original proof
+record, receiver, owner and inherited classification.
+
+A material source-fidelity repair was made before freeze: an intermediate
+generic operand forwarding rule could confuse a contextual operand port with
+an image result/phase port, bypassing the latter's whole operator law. That
+rule was removed from BOTH source and compiler grammars. Every final image
+or Call result/phase rule requires its actual local evidence. The genuinely
+separate operand-port injection remains an explicit authentic-schema residual;
+its omission is not a source rejection policy or an exhaustive-grammar claim.
+
+Frozen module SHA256:
+`9755a65a2b3e6b97f7da5bf21c844fb7f5292c12925de9f9081fccaa322380a1`.
+All 23 authored roots pass pinned Lean. The complete origin census has
+417 declarations / 174 theorem constants, including 18 private: four theorem
+constants use no axioms, 128 only `propext`, 42 `propext` plus `Quot.sound`.
+Seven of 16 focused checks were used, with all failures and the superseded
+operand-rule source retained. Fresh independent nonauthor
+`/root/source_signature_review_r5` verified all 16 inputs, full root/census
+outputs and the substantive source repair, then returned **ACCEPT**.
+Receipt SHA256:
+`a662503e5ad5f335575f604834ed9e8d25a9cb3fee8f226e20f5f74753ca0f94`.
+
+The local relation/operator interfaces still require authentic original laws
+and complete governed-field inventories. Standalone operand-port injection,
+outer L/A Reference/Annotation/UpperCall/Whole/joint-hiding constructors and
+original schema/registration/world/phase/admission meanings remain OPEN.
+No arbitrary interface inhabitant is silently promoted into Yulang meaning.
+The original native-success-to-all-Kernel-clauses and same-scoped source
+witness obligations remain unchanged.
