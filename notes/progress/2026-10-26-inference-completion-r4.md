@@ -903,3 +903,46 @@ physical preparation/failure extraction, Dependency/lifecycle/sampling/enqueue
 cuts, global rollback and full original semantic/source witness owners remain
 OPEN. Environment R1 delta review and finite Checking construction are separate
 active packets and are not included in this publication.
+
+## Checkpoint 12 publication and checkpoint 13 Environment acceptance
+
+Checkpoint12 was published as `0e1fb99abc8a94a888889e20c2614a68a749461b`,
+parent5030137eb and tree61fdaccb57eccb1f12cb3834c623d44e7e9fc705.
+Expected-parent nonforce update, exact fetched parent/tree and clean tracked
+worktree/index were verified at 2026-10-26T13:48:36.127268+00:00.
+Concurrent `fb6f2905a75aff0a91876e3051a708e4279d2896` was then fast-forwarded,
+preserving its separately reviewed WholeMetatheory imports/audit, four modules,
+README/task history and sole lakefile-glob addition. This r4 packet did not
+write that integration. Its242-origin-theorem audit and original OPEN limits
+remain the other packet's evidence. Our current producers/reviewers retain
+and identify the older configuration they actually checked; final combined
+verification will use the current extended configuration.
+
+Fresh R1 delta review ACCEPTs Environment source
+`971f67a932a663981bc7f72eaeb818d558c4ab65ed7580057c2f0b2cfeb11f07`.
+Receipt `ea975d750030f150050af8948c8b3e46403e3637ae37f5aea527fa34aa1c1a56`
+retains the earlier MAJOR R1 finding verbatim. The actual source App callable
+is its callee.returnedValue; Lambda retains its closure finalRoot. Both are
+registered from raw source incidence, retain immutable owner/subject identity,
+and use the same admission/observation capture. Arbitrary intermediate checked
+descriptors do not change that subject. Shared witnesses, all fixed readouts,
+initializer entry restoration, completed replay and aliases are retained.
+
+All71 final manifest entries,753 declarations/289 theorem constants/76 roots
+and13 author probes reconcile. Independent recompile of all9 mathematical
+modules passes with empty diagnostics. The reviewer's first Lake startup
+failure, optional fixture audit failure, and subsequent optional expanded
+source reduction exceeding-M1024 remain rejected/preserved; they are not
+reported as independent census/probe PASS. Static source review plus the
+complete author census and independent module rebuild establish this bounded
+acceptance. No project axioms/sorryAx/bypass are accepted. All reviewer writes
+stopped at 13:55:52.807 UTC.
+
+The accepted Function theorem still exposes targetReadback because source
+Kernel.admitted has no CheckGoal. An initial descriptor and an intermediate
+target can have different independent D domains. Goal-indexed checker admission
+is the next formal-interface repair, justified by original SG§3.2 item4;
+source execution admission and raw event keys must remain unchanged. Full
+original Kernel/source registrations, recursive L4 and native success-to-one-
+same-scoped-witness closure remain OPEN. The separately frozen finite Checking
+module ed011e4 is under fresh nonauthor review and is not in this checkpoint.
