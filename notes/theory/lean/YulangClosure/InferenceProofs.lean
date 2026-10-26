@@ -15,6 +15,7 @@ import YulangClosure.SimpleSubLatticeDecision
 import YulangClosure.SimpleSubLatticeGrowingInference
 import YulangClosure.NativeRowModel
 import YulangClosure.RecordBoundaryPreservation
+import YulangClosure.NativeReplayCoverage
 
 /-!
 Checked inference proof components, integrated incrementally.

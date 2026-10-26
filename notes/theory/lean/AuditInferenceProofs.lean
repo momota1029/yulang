@@ -32,7 +32,8 @@ run_cmd do
     `YulangClosure.SimpleSubLatticeDecision,
     `YulangClosure.SimpleSubLatticeGrowingInference,
     `YulangClosure.NativeRowModel,
-    `YulangClosure.RecordBoundaryPreservation
+    `YulangClosure.RecordBoundaryPreservation,
+    `YulangClosure.NativeReplayCoverage
   ]
   let roots : Array Name := #[
     `YulangClosure.BirthLevelSCC.finiteReach_iff,
@@ -140,7 +141,21 @@ run_cmd do
     `YulangClosure.RecordBoundary.composed_survivors,
     `YulangClosure.RecordBoundary.execute_runs,
     `YulangClosure.RecordBoundary.Witness.direct_comparison_nontransitive,
-    `YulangClosure.RecordBoundary.Witness.accepted_paths_have_different_views
+    `YulangClosure.RecordBoundary.Witness.accepted_paths_have_different_views,
+    `YulangClosure.NativeReplayCoverage.mem_product,
+    `YulangClosure.NativeReplayCoverage.replay_quadrants_cover,
+    `YulangClosure.NativeReplayCoverage.incoming_replay_covers_all,
+    `YulangClosure.NativeReplayCoverage.empty_covered,
+    `YulangClosure.NativeReplayCoverage.step_covered,
+    `YulangClosure.NativeReplayCoverage.run_covered,
+    `YulangClosure.NativeReplayCoverage.committed_routes_covered,
+    `YulangClosure.NativeReplayCoverage.completed_routes_cover,
+    `YulangClosure.NativeReplayCoverage.scan_direct,
+    `YulangClosure.NativeReplayCoverage.scan_exact_without_direct_growth,
+    `YulangClosure.NativeReplayCoverage.temporal_three_case_coverage,
+    `YulangClosure.NativeReplayCoverage.equal_level_row_bound_is_upper,
+    `YulangClosure.NativeReplayCoverage.function_children_exact,
+    `YulangClosure.NativeReplayCoverage.live_concat_saved_count_misses_atom
   ]
   let env ← getEnv
   let mut targets : Array Name := #[]

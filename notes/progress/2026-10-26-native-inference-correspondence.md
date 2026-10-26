@@ -252,3 +252,36 @@ EOF-normalized source was rebuilt in this check. Build log SHA-256:
 audit log SHA-256:
 `2386b4867bd86925b4ca6aecab1bf6835257d555185ac614c35b9173fea9c3b8`.
 Only this accepted record packet and primary integration records are staged.
+
+
+## Checkpoint 4: replay products and complete-block temporal coverage
+
+Checkpoint 3 is published and synchronized as
+`dbdaf7934cb1629ed5baf9cc3aa43d8264f71f35` with exact tree/index/parent checks.
+Fresh `native_replay_review` accepted the finite replay lemmas and bounded
+plain-local-Effect paper extension after one paper-only correction. Merge
+visits every physical pair, but recorded heads and dependency reuse can avoid
+new child generation; the corrected note explicitly retains disposition and
+currentness transport as a missing bridge to the abstract full-product merge.
+No native semantic change or new shifted-index bug claim was made.
+
+Accepted paper SHA-256:
+`548777c8e252acbf94f8d6c084b8d366ba9e18aca874ee26d6fc03eafdd81fbc`;
+review SHA-256:
+`01606d6571933c882a89abfdb6ad1f18543c3afd3281accb9f7d1722d15baac1`;
+Lean source SHA-256:
+`e65d925ab5222fd6bbc4bf63e756701aaba1273fff677ceb052d7f66e6450b7e`.
+The producer checked all 14 named roots and all 276 originating declarations
+(the latter number includes definitions and generated constants, not only
+proofs). No Classical.choice or nonstandard axiom occurs in this component.
+Full mixed/shared/merge/contextual native histories remain an application
+obligation; the original scope is unchanged.
+
+Checkpoint 4 integration passes the inference import target (23 jobs). The
+exact theorem-only audit finds 87 originating theorem constants in the new
+replay module and 1,940 across all 20 inference modules. The producer's broader
+276-declaration census is not reported as a theorem count. Build log SHA-256:
+`bc21005022d4801d213221c8e962552a94769a6cade823d7d2ea00905931dcce`;
+audit log SHA-256:
+`47ee04ef6e8ba067d94b34ca8c1ec02e81301411019a42805f6dd8f417122fb0`.
+Only the accepted replay packet and primary integration records are staged.

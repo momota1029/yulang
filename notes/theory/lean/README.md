@@ -37,6 +37,15 @@ remain separate. Integration now audits 1,853 theorem constants across 19
 inference modules; all 77 new record-module constants use only standard
 `propext`/`Quot.sound` or no axioms.
 
+`NativeReplayCoverage` checks incremental replay products, committed finite
+scheduling and the saved-count scan lemmas used by complete-block restoration.
+The reviewed source derivation includes a bounded plain-local-Effect extension;
+it preserves the existing live-index behavior. Actual merge visits physical
+pairs but can reuse old work, so disposition/currentness transport remains an
+explicit bridge to the abstract full-product merge. The component contributes
+87 theorem constants; the full inference audit now covers 1,940 across 20
+modules. Arbitrary native histories and full source soundness remain OPEN.
+
 ## 2026-10-26 continuation: construct terminal inference evidence
 
 The final connection is
