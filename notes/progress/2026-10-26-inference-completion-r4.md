@@ -230,3 +230,49 @@ The dictionary freeze is now under fresh independent review by
 `20261026-native-dictionary-denotation-review-r4.md`, owned scratch, 900 wall
 seconds and at most two focused checks only for concrete risks. Original source
 scope/anchor repair continues under its already recorded bounded extension.
+
+
+Published checkpoint 3: `820ed79a8891e72c85280a5e0313e57fb05f3b73`;
+the remote expected-parent update and fetched/local tree comparison agree.
+
+## Checkpoint 4: accepted ordered dictionary denotation
+
+The primary accepts the fresh independent review by
+`/root/dictionary_denotation_review_r4` at its exact stated mathematical/runtime
+comparison boundary. Review receipt hash:
+`194f7d1f4486f39bba3cf33332cfdc3ef0b26c1e91dbd3e9e3f57fb90ad5d259`.
+All three frozen outputs, 32 producer inputs and 120 review hash comparisons
+agree. The complete originating census contains 131 theorem constants and all
+37 authored roots: 90 use no axioms, 24 only `propext`, and 17 also `Quot.sound`.
+Producer calls are 11/12, including four retained failed repairs; review uses
+0/2 further Lean calls. Both writers stopped with no live checker.
+
+This supplies the chronological raw Word/Substitution DAG interpretation and
+actual ordered Name action while preserving the same raw defaults, dictionary,
+site and arbitrary supplied witness. It does not identify the source manuscript's
+typed whole-instance `Dict_R` packet with the runtime word/site-to-label table.
+That full capture/evidence/adapter/current-event construction, original Function
+membership, the native combined work counter and error-state correspondence
+remain explicit original-parent obligations.
+
+## Further source-domain repair and committed Context continuation
+
+During final source scope review the primary found a second material defect:
+normalizing an independently admitted challenge's payload through a fixed anchor
+before both admission and environment extension can collapse distinct values.
+The independent reviewer confirmed that this changes the original universal
+challenge domain. The producer agreed and is repairing the actual representation
+and builder, preserving each original candidate payload and its full event key.
+A total anchor strategy alone is not sufficient. No superseded source proof is
+accepted or published as original source correspondence.
+
+The Context producer has a new disjoint constructive packet for
+`NativeContextReadback.lean`, `2026-10-26-native-context-readback.md` and
+`20261026-native-context-readback-r4.md`, with owned `context-readback-r4/**`
+scratch/cache. Budget: 2,700 wall seconds, at most 20 focused checks under the
+existing single-thread/1-GiB/120-second bounds. The target is the actual shared
+history connecting early Context publication, duplicate and already-discharged
+readback, Transport/Derived canonicalization and completed bodies at settlement.
+Previously accepted Context and drain files are immutable inputs. Pending owner
+coverage or an assumed completed-body callback cannot close this seam. The
+primary retains integration, review assignment and all Git authority.
