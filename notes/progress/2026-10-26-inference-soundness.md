@@ -234,3 +234,65 @@ passed **448** records, exit 0: 262 empty axiom sets, 119 `propext`, one
 `Quot.sound`, and 66 `propext, Quot.sound`. Audit log SHA256:
 `1a34e88d035a077387fa4c0f88867ef0e924147a5171ccd34e51a283700c42c2`.
 All five inference modules were frozen at their independently reviewed hashes.
+
+## Applying regular solutions to original demands and scoped publication
+
+`SimpleSubRegularConstraintSoundness` now directly applies finite certificate
+acceptance to a concrete graph-indexed constraint history. Regular reflexivity
+and transitivity are proved from the existing all-depth interpretation.
+Structural decomposition, retained opposite-bound replay, extrusion from exact
+signed copy links and equality insertion for actual retained occurrences then
+reflect the accepted final comparisons back to **every original demand**.
+`accepted_original_joint` uses one common graph/relation for all original and
+final comparisons. No final model, valuation, subtype-preservation law or
+original-demand solution is an input.
+
+The original Function comparison is absent from the entire final certificate
+in one checked example, so this result does reconstruct a removed obligation.
+Other examples cover genuine cycles with both Function effect ports and a
+non-injective structural quotient. The latter uses a concrete exact lookup
+equation; arbitrary native union-find merging is not asserted to satisfy it.
+All **169 module theorem constants** passed audit (43 empty, 83 `propext`,
+43 `propext, Quot.sound`). Independent review accepted the module. Its only
+minor finding was the handoff phrase "forward preservation" for added equality;
+the primary corrected it to the actual backward solution-reflection direction,
+without changing any Lean source or theorem.
+
+- [Regular history construction](../../tasks/agent-loop/inbox/20261026-inference-regular-constraint-soundness.md).
+- [Independent review](../../tasks/agent-loop/inbox/20261026-inference-regular-constraint-review.md).
+
+`SimpleSubScopedPublication` removes the earlier requirement to copy every
+clause for every use. It retains the complete base and copies only bounds of
+reached local owners. Capture traversal and allocation have separate predicates,
+matching native stored-local versus current-level/non-generic checks.
+`publication_clause_image` derives forward clause inclusion by reachability
+induction. When a mapped owner becomes inactive, dependency closure proves
+that its whole copied clause is fixed and already occurs in the retained base.
+This direction needs neither reverse coverage nor quotient-class saturation.
+`metadata_publication_with_clients` then pulls one solution back for all uses
+and arbitrary clients from concrete level/non-generic conditions.
+
+The **82 theorem constants** passed audit (51 empty, 13 `propext`,
+18 `propext, Quot.sound`). Fresh independent review accepted the stated scope.
+Two checked finite counterexamples show that numeric level closure alone does
+not justify non-generic stopping, and exact canonical class minima alone do not
+preserve dependency closure. They are not source-qualified intrusion examples
+or claims of an accepted ill-typed native program.
+
+- [Scoped construction and actual guard mapping](../../tasks/agent-loop/inbox/20261026-inference-scoped-publication.md).
+- [Independent review](../../tasks/agent-loop/inbox/20261026-inference-scoped-publication-review.md).
+
+The remaining native owners must establish metadata/dependency closure through
+all actual merging/replay paths, canonical first-image coherence, complete effect
+incidence and faithful shared-graph/history/certificate extraction. The regular
+history fragment still excludes lattice/alias cycles and complete native open
+row/width/presence/variant matching. Scoped publication currently transports a
+supplied finite-Term solution; connecting its exact syntactic clause inclusion
+to the constructed regular interpretation is the next bounded proof packet.
+No whole-source inference, principality or termination gate is promoted.
+
+Default integration passed **66 jobs**, exit 0. The seven-module audit passed
+**699** matched records, exit 0: 356 empty axiom sets, 215 `propext`, one
+`Quot.sound`, and 127 `propext, Quot.sound` (including wrapped reports).
+Log SHA256: `7a95262052fa057b077ee51dee7b3cf036d9000da646d048dadedd9f144e5c78`.
+Reviewed proof source bytes were unchanged at integration.

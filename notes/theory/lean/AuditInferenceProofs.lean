@@ -18,7 +18,9 @@ run_cmd do
     `YulangClosure.SimpleSubConstraintSyntax,
     `YulangClosure.SimpleSubConstraintSoundness,
     `YulangClosure.SimpleSubGeneralizationSoundness,
-    `YulangClosure.SimpleSubRegularSolutions
+    `YulangClosure.SimpleSubRegularSolutions,
+    `YulangClosure.SimpleSubRegularConstraintSoundness,
+    `YulangClosure.SimpleSubScopedPublication
   ]
   let roots : Array Name := #[
     `YulangClosure.BirthLevelSCC.finiteReach_iff,
@@ -43,7 +45,20 @@ run_cmd do
     `YulangClosure.SimpleSub.Regular.coinduction,
     `YulangClosure.SimpleSub.Regular.regular_unfold,
     `YulangClosure.SimpleSub.Regular.accepted_demands_sound,
-    `YulangClosure.SimpleSub.Regular.accepted_joint_relation
+    `YulangClosure.SimpleSub.Regular.accepted_joint_relation,
+    `YulangClosure.SimpleSub.Regular.regular_trans,
+    `YulangClosure.SimpleSub.Regular.regular_refl,
+    `YulangClosure.SimpleSub.Regular.Extrusion.sound,
+    `YulangClosure.SimpleSub.Regular.accepted_original_demands,
+    `YulangClosure.SimpleSub.Regular.accepted_original_joint,
+    `YulangClosure.SimpleSub.Regular.accepted_renamed_original,
+    `YulangClosure.SimpleSub.Regular.acyclic_original_reconstructed,
+    `YulangClosure.SimpleSub.ScopedPublication.reachable_active_image,
+    `YulangClosure.SimpleSub.ScopedPublication.publication_clause_image,
+    `YulangClosure.SimpleSub.ScopedPublication.publication_with_clients,
+    `YulangClosure.SimpleSub.ScopedPublication.metadata_publication_with_clients,
+    `YulangClosure.SimpleSub.ScopedPublication.numeric_closure_does_not_imply_guard_closure,
+    `YulangClosure.SimpleSub.ScopedPublication.minimum_does_not_imply_guard_closure
   ]
   let env ← getEnv
   let mut targets : Array Name := #[]

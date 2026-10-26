@@ -2,6 +2,8 @@ import YulangClosure.BirthLevelSCC
 import YulangClosure.SimpleSubConstraintSoundness
 import YulangClosure.SimpleSubGeneralizationSoundness
 import YulangClosure.SimpleSubRegularSolutions
+import YulangClosure.SimpleSubRegularConstraintSoundness
+import YulangClosure.SimpleSubScopedPublication
 
 /-!
 Checked inference proof components, integrated incrementally.
