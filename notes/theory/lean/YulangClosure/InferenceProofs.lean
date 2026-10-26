@@ -23,6 +23,10 @@ import YulangClosure.NativeReplayAcknowledgement
 import YulangClosure.RecordBoundaryExecution
 import YulangClosure.SourceIdentityLambda
 import YulangClosure.NativeMergeExpansion
+import YulangClosure.NativeExecutionHistory
+import YulangClosure.SourceIdentityWorld
+import YulangClosure.NativeReplayCurrent
+import YulangClosure.NativeFrameRollback
 
 /-!
 Checked inference proof components, integrated incrementally.

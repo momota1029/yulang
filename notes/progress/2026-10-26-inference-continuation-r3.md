@@ -260,3 +260,98 @@ not cover an arbitrary checkpoint within older undo storage or prove accepted
 drain, original source/Call meaning or full inference soundness. All four local
 components are now independently accepted; global import/audit integration is
 the next primary-owned gate.
+
+## Final integration gate
+
+The frame checkpoint is published as
+`a02aa0d13a9dbbba848f120ac5d1a6a5efdaee22`, parent `97163d3`.
+Expected-parent non-force publication and fetched tree/parent are verified.
+All assigned producers and independent reviewers have stopped writes.
+
+The primary registers all four accepted modules and all 136 new authored roots
+in the existing inference import surface and originating-module audit. The
+original reserved public root, project configuration and dependency versions
+remain unchanged. The 136 baseline Lean/config inputs differ only at the two
+explicit integration targets; the validation snapshot now has 140 entries.
+
+One ordinary default build and one complete originating-module census are
+planned, separately, to avoid the known fixed-1-GiB helper audit exhaustion from
+r2. Direct default builds keep `-j1 -M1024`; the complete census uses the already
+established local `-j1 -M1536`. No audited module/root is omitted. Each command
+runs with `LEAN_NUM_THREADS=1`, a 240-second build or 120-second census deadline,
+and a sampled 6-GiB aggregate process-group RSS stop inside the 8-GiB environment.
+This last limit is a monitor, not a claim of continuous kernel-enforced RSS.
+No other checker or worker runs concurrently. Commands/logs/resource receipts
+are retained in `final-validation-r3`; results are recorded after completion.
+
+### Integrated verification results
+
+The direct ordinary default build succeeds: **92 jobs**, exit 0, measured
+10.256219 seconds. It imports all four new modules through `InferenceProofs`
+while retaining the original public root. Its sampled aggregate RSS maximum is
+966,459,392 bytes, with at most two process-group members observed. Build log
+SHA-256: `40a937a447963ee289f23346221ea1d4a1ffe630ac8cc6a12a8265225622a011`.
+
+The complete originating-module audit succeeds: **3,417 distinct theorem
+constants across 31 modules**, including all **474 required authored roots**,
+private declarations and generated helpers. It exits 0 in 11.186010 measured
+seconds; sampled aggregate RSS maximum 1,244,246,016 bytes, child maximum RSS
+1,107,032 KiB. The local 1.5-GiB Lean census bound was sufficient. No verification
+retry, cache deletion, dependency change or project-limit increase was needed.
+
+```sh
+LEAN_NUM_THREADS=1 /workspace/scratch/f98087c7ac1a/toolchains/lean-4.35.0-linux/bin/lake --no-cache build
+LEAN_NUM_THREADS=1 /workspace/scratch/f98087c7ac1a/toolchains/lean-4.35.0-linux/bin/lake --no-cache env lean -j1 -M1536 AuditInferenceProofs.lean
+```
+
+Complete audit log SHA-256:
+`ae54efd909a1f98fef218c0d6b60c9622d4b555ef25788898f285d266f3e40b7`.
+The retained complete block/name/axiom parser verifies unique BEGIN/END pairs,
+all required roots, every module count and the exact four producer distributions.
+All 140 checked source/configuration hashes still match the input snapshot,
+SHA-256 `2df6cc3e468c513d95fd5ef6df04ef118274ac99743640c17be140ce476387ea`.
+
+| New accepted component | Authored roots | Originating theorem constants | Standard choice users |
+| --- | ---: | ---: | ---: |
+| `NativeExecutionHistory` | 48 | 123 | 0 |
+| `SourceIdentityWorld` | 26 | 91 | 0 |
+| `NativeReplayCurrent` | 38 | 143 | 2 |
+| `NativeFrameRollback` | 24 | 110 | 11 |
+| Total new | 136 | 467 | 13 |
+
+The aggregate census has 1,729 axiom-free constants, 967 using only `propext`,
+2 using only `Quot.sound`, 672 using `propext` plus `Quot.sound`, and 47 also
+using `Classical.choice`. The four main frame rollback roots use those three
+standard axioms. No project axiom, `sorryAx`, unchecked native evaluation or
+kernel bypass appears. Source search of the four new modules has no matching
+proof hole, axiom declaration or bypass. These checks do not discharge their
+explicit native/source application premises.
+
+The new modules and integration targets have zero warnings. The build replays
+**668 existing warnings in nine unchanged frozen dependencies**. Every owner's
+byte hash and warning count matches r2 and the intake commit:
+
+| Unchanged warning owner | Count |
+| --- | ---: |
+| `PaperExecutionSyntax` | 23 |
+| `PaperExecutionBinderLaws` | 235 |
+| `ControlComposition` | 3 |
+| `PaperTermSubstitution` | 96 |
+| `PaperCoreStep` | 4 |
+| `PaperTypeBetaExecution` | 276 |
+| `PaperTupleSplitExecution` | 22 |
+| `PaperPerformLetExecution` | 2 |
+| `NativeIntegerComparison` | 7 |
+
+Their existing separate repair boundary is retained; no unrelated frozen proof
+is changed to hide warnings. No Rust/compiler code changed, and no new Cargo
+result is claimed. The only transient untracked repository item was a generated
+checker bytecode file: its code object exactly equals compilation of the
+unchanged tracked helper. Its exact bytes and hash receipt were copied into
+owned final-validation scratch before that one generated file was removed
+after all writers stopped. No broad cleanup or unknown-file removal occurred.
+
+All command/resource/log receipts, complete census records, per-owner warning
+hashes and the checked-input manifest are retained under `final-validation-r3`.
+The proof input snapshot remains the integration authority; the final navigation
+update is record-only and does not require another broad build.
