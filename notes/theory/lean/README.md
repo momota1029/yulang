@@ -15,6 +15,15 @@ all 884 originating theorem audits across nine inference modules. See the
 [continuation record](../../progress/2026-10-26-inference-evidence-construction.md)
 for original scope, remaining native/source premises and subsequent construction.
 
+`SimpleSubRegularGraphExtension` and `SimpleSubRegularCompletion` now construct
+missing finite nodes and derive actual decoder success. Existing graph tables
+remain literal prefixes, so old cyclic references and first exact-node matches
+are preserved. Completion includes all four Function ports, nil/suffix nodes,
+record optional bits, and complete tuple/variant payloads. Its explicit inputs
+are graph validity and actual variable lookup/row-shape/uniqueness facts, not a
+model or decoding equation. The completed publication theorem retains one graph
+and one reference assignment for the whole inventory and all clients.
+
 ## 2026-10-26: inference constraint soundness and scoped publication
 
 `YulangClosure.InferenceProofs` is included in the default library build.

@@ -76,3 +76,33 @@ The reserved original root and prior source semantics were not edited.
 
 Other construction remains in progress. Original full inference soundness
 remains OPEN.
+
+## Construct missing nodes instead of assuming decoder success
+
+The next accepted component consists of `SimpleSubRegularGraphExtension` and
+`SimpleSubRegularCompletion`. Literal per-kind table-prefix extension preserves
+old nodes, cyclic references, first exact matches, expansion, extrusion,
+constraint steps/histories, certificate closure and successful decoding.
+The actual recursive completion algorithm reuses or appends every finite
+constructor, nil, suffix and tuple-payload node required by the original decoder.
+
+`completedStore_correct` derives successful original decoding from initial
+graph validity and independent variable lookup, row shape and unique label/tag
+conditions. `completed_publication_with_clients` uses the constructed graph and
+decoded demands jointly, retaining the original publication metadata/coverage,
+history and terminal acceptance obligations. No native implementation or full
+source coverage is asserted.
+
+The [producer receipt](../../tasks/agent-loop/inbox/20261026-inference-regular-completion.md)
+records every theorem and all failed/repaired checks. The
+[fresh review](../../tasks/agent-loop/inbox/20261026-inference-regular-completion-review.md)
+accepted the frozen modules without findings. The producer's complete audit
+inspected 291 originating declarations, including **173 theorem constants**
+(36 extension, 137 completion), all with no axiom or only standard `propext`
+and `Quot.sound`. Union/intersection completion and actual native row realization
+remain separate; the lattice construction is under independent review.
+
+Default integration passed **70 jobs** and the exact originating-theorem audit
+passed **1,057 records**, exit 0. Audit SHA256:
+`32072b6e8124830b136ceecc43d6763201c3425a6d506e113bc52ba5e2df3dba`.
+The preceding decision checkpoint is published as `458f5e2`.
