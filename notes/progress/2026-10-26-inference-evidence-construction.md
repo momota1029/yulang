@@ -222,3 +222,53 @@ partial results must be distinguished from sound executable evidence generation.
 All packets retain the original parent and require a nonauthor review before
 integration; none may edit frozen dependencies, shared status, Git or source
 semantics.
+
+The primary additionally owns the new
+`SimpleSubLatticeGrowingInference.lean`, its dedicated
+`20261026-inference-lattice-growing.md` handoff and `inference-lattice-growing`
+scratch. This packet lifts actual lattice constraint steps through literal
+graph-prefix growth, without inferring target validity/guardedness or using an
+unproved reverse unfolding rule. It connects the already frozen lawful
+completion/decoder to interleaved allocations in one final graph. Budget:
+900 seconds, at most 12 focused checker calls under the same 120-second,
+single-thread, 1 GiB policy. Its final proof needs a nonauthor review.
+
+## Connect lattice constructors to the original inventory
+
+`SimpleSubLatticeInference` decodes every existing `SimpleSub.Term` constructor,
+including union/intersection, all four Function ports, exact optional bits,
+finite row tails and complete tuple/variant payloads. The executable completion
+derives actual decoder success from independent lookup/shape/fresh-label
+legality; successful execution and a semantic model are not inputs.
+
+Its new graph-indexed histories cover structural/lattice decomposition,
+directed extrusion, replay and retained occurrence-qualified equalities. Old
+graph histories and decoder results are translated by proved constructor cases,
+without casting incompatible graph types. The existing original publication
+image theorem retains all guard/coverage premises and yields one shared graph
+and reference pullback for every original use and client.
+
+`Completion.completed_publication_with_clients` obtains final `Valid` and
+`Guarded` from explicit accepted finite lattice evidence. Completion itself
+proves only prefix retention, decoding and shape. The unguarded empty-inventory
+counterexample documents this distinction. Explicit lattice witnesses,
+interleaved growth, actual native extraction and the full original source/Call
+bridge remain separate at this checkpoint.
+
+The [producer handoff](../../tasks/agent-loop/inbox/20261026-inference-lattice-inference.md)
+records the frozen 1,461-line source, nine unchanged dependencies, all failed
+checks and the final warning-free build. Its complete audit covers **275 theorem
+constants**, including generated/private: 109 without axioms, 124 `propext`,
+42 `propext, Quot.sound`. Source SHA256:
+`c534c060dfde84f2817fbaa53222f430b59d9b6377cfacedabeca7b9b4b8ffa3`.
+The preceding guarded-certificate checkpoint is published as `e87556f`.
+
+The [independent review](../../tasks/agent-loop/inbox/20261026-inference-lattice-inference-review.md)
+accepted the complete source and all 275 isolated audit records without
+findings or checker reruns. Default integration passed **74 jobs** and **1,514
+distinct originating theorem audits** across 15 modules, exit 0. All 275
+producer-audited names are present. Three lazily generated decoder equations
+(`RegularPublication.decodeStore.eq_1`, `.eq_2`, `.eq_def`) were already in the
+preceding audit, so the integrated inventory adds 272 distinct names, not 275.
+Audit SHA256:
+`9f0308f28b6a6b08f6abfab165f58ca88c0c5dd8807f3e8eab2f9732cd5b0073`.

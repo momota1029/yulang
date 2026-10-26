@@ -52,6 +52,16 @@ soundness remain outside this component. The accepted
 [independent review](../../../tasks/agent-loop/inbox/20261026-inference-lattice-review.md)
 covers every originating declaration and the original rule comparison.
 
+`SimpleSubLatticeInference` connects those certificates to every existing
+`SimpleSub.Term` constructor, actual graph-indexed extrusion/constraint histories
+and the unchanged original scoped-publication theorem. Lawful constructor
+completion now creates missing union/intersection, Function, finite row and
+payload nodes and derives the joint decoder equation. Final graph validity and
+guardedness come from acceptance; prefix retention alone does not establish
+them. Old histories and decoder results have proved translations into the
+extended graph. Native row formation/width, inventory and metadata coverage,
+coalescing and the original jointly scoped source/Call evidence remain open.
+
 ## 2026-10-26: inference constraint soundness and scoped publication
 
 `YulangClosure.InferenceProofs` is included in the default library build.
@@ -87,10 +97,11 @@ Native graph/trace/certificate extraction, all-history publication metadata
 closure, complete constructor/coalescing coverage and the original contextual
 Call/effect/source witness still need their actual proofs. A full original
 `G_call` solution already contains its decorated certificate; the existing fixed
-decorated-rule reconstruction may consume it. The new decoder requires exact
-existing constructor and finite suffix/payload nodes, and explicitly rejects
-union/intersection; graph completion and full native coverage remain open.
-Producing that full solution
+decorated-rule reconstruction may consume it. The initial structural decoder
+requires exact existing constructor and finite suffix/payload nodes and rejects
+union/intersection. The follow-on construction above supplies lawful completion
+and an extended lattice decoder; actual native coverage remains open.
+Producing the full original solution
 from actual native success and covering all original source constructors are
 distinct remaining obligations.
 
