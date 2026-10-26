@@ -272,3 +272,59 @@ producer-audited names are present. Three lazily generated decoder equations
 preceding audit, so the integrated inventory adds 272 distinct names, not 275.
 Audit SHA256:
 `9f0308f28b6a6b08f6abfab165f58ca88c0c5dd8807f3e8eab2f9732cd5b0073`.
+
+## Construct the original Call consumer telescope explicitly
+
+The [Call construction](../theory/2026-10-26-original-call-evidence-construction.md)
+replaces the previously unspecified remaining-field list with a concrete
+ten-field **unadopted declaration candidate**. It retains actual formation/IF
+frames, original primitive and independent-arm inputs, staged source protocol,
+licensed native packets and their NPR action, current routing, complete
+accounting and target-interpretation binding. Each field is linked to the
+original consumer that reads it, with all challenge/world/provider/future and
+independent-arm quantifiers retained.
+
+F1–F9 have a paper construction from genuine typed Return/fresh ValueBind and
+immutable Name/NameDelay, GC1–GC4, PF1/PF2, accepted NPR/VB-NP, and the named
+independent original leaves. F10 distinguishes identity at literally selected
+meanings from the actual `profile_M`, `phase_M`, `j_C`, `j_I` maps needed by
+separately fixed consumers. The original active-existential discriminator
+refutes the unsupported inference from unchanged execution/profile transport
+to those maps. It is explicitly not a full lawful-source counterexample.
+
+The independent local reconstruction consumes a full solution of the unchanged
+original `G_call`: that solution already contains its original certificate.
+It reuses the same scoped witness with genuine reconstructed children; no
+certificate-reconstruction premise is inserted into this conditional proof.
+The five-rule envelope is not identified with the entire original source.
+
+The [producer handoff](../../tasks/agent-loop/inbox/20261026-inference-original-call-evidence.md)
+and [independent review](../../tasks/agent-loop/inbox/20261026-inference-original-call-evidence-review.md)
+record all 29 matching dependency hashes, the actual eleven CallTerm and
+thirteen LocalLaws fields, and ACCEPT with no findings. No new Lean model,
+compiler change or checker rerun is claimed. The primary changed only the
+paper's status paragraph after acceptance; the reviewed mathematical body is
+unchanged. The candidate is not adopted as `TypedCallCert_Dec`; full original
+source reconstruction and actual native success remain OPEN.
+
+## Actual native evidence probe and exact remaining producer
+
+The [native-source receipt](../../tasks/agent-loop/inbox/20261026-inference-native-evidence.md)
+records two bounded successful runs over seven distinct real source fixtures.
+Some exercise actual extrusion copies, but the recorded qualification predicate
+misses later recapture/reuse activation. Its empty qualified-owner test therefore
+establishes neither all-history metadata closure nor a source counterexample.
+No further fixture search was substituted for that missing proof. The temporary
+test was removed and `lib.rs` restored byte-for-byte; the primary revalidated
+that absence and the recorded `ac3c0701…` source hash. No Rust change remains.
+
+The concrete native producer must consume physical bound slots/emission IDs,
+ordered opposite-side replay and completion, all original and later activation
+qualifications, canonical representatives and actual fresh-use maps. Scheme
+capture alone omits stopped owners' mutable bounds. A raw native row ID is not
+yet the required regular/lattice semantic node. No-error native completion
+does not construct the complete source `G_call` witness or eliminate this
+row/inventory/history correspondence obligation. This factual receipt claims
+no new theorem, invariant, completeness result or implementation bug.
+
+The lattice-consumer checkpoint is published as `a90516d`.

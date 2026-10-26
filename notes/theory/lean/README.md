@@ -62,6 +62,15 @@ them. Old histories and decoder results have proved translations into the
 extended graph. Native row formation/width, inventory and metadata coverage,
 coalescing and the original jointly scoped source/Call evidence remain open.
 
+The [original Call evidence construction](../2026-10-26-original-call-evidence-construction.md)
+now gives a reviewed ten-field **unadopted** candidate, tied to the actual
+source/phase, independent-arm, native-profile, routing and accounting consumers.
+It separates constructor-selected meanings from separately fixed host
+interpretations and names their exact required maps. Its local reconstruction
+uses the unchanged full `G_call` solution's already supplied original
+certificate and the same scoped witness. This is a paper result; it neither
+redefines the original certificate nor supplies an all-source Lean instance.
+
 ## 2026-10-26: inference constraint soundness and scoped publication
 
 `YulangClosure.InferenceProofs` is included in the default library build.
