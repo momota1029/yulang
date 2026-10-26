@@ -1,0 +1,4 @@
+my top h (s:'t -> 't) = {
+    my f x y (b:'b -> 'b) = { b b; b (y (b b)); h x; f {a: y}; y }
+    f {a: (s s)} (s s) s
+}
