@@ -1,5 +1,24 @@
 # Current task: complete type inference and replace F5
 
+2026-10-26 inference-soundness checkpoint on `yulang3`: immutable-birth induced
+SCC qualification is proved and its native filter corrected (44 focused Rust
+tests). Concrete extrusion/quotient reflection, shared finite-use transport,
+finite certificate construction of guarded regular solutions, reconstruction
+of all original regular demands, and reached-owner bound publication are
+connected by an executable term-to-graph decoder to one shared regular
+interpretation for original uses and clients. All components are checked and
+independently reviewed. The default build passed 67 jobs; all
+847 originating theorem constants in eight new inference modules passed exact
+type/axiom audit, including private/generated helpers. Native trace/certificate
+production, actual all-history metadata closure, complete original Call/effect
+constraints, full source reconstruction and inference A/B remain OPEN. A full
+original G_call solution already supplies its decorated certificate; producing
+such a solution from scalar native success is a distinct missing bridge. The
+[inference proof record](../notes/progress/2026-10-26-inference-soundness.md)
+contains exact theorem boundaries, reviews, counterexamples, commands and
+published checkpoints. The reserved original root and foreign scheduling
+snapshot remain preserved.
+
 2026-10-26 further `yulang3` proof advancement: capture-avoiding term
 substitution algebra, constructive same-owner call entry, actual fresh
 allocation/execution with reusable saved responses, and exact arbitrary-width

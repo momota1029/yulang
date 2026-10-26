@@ -4,6 +4,7 @@ import YulangClosure.SimpleSubGeneralizationSoundness
 import YulangClosure.SimpleSubRegularSolutions
 import YulangClosure.SimpleSubRegularConstraintSoundness
 import YulangClosure.SimpleSubScopedPublication
+import YulangClosure.SimpleSubRegularPublication
 
 /-!
 Checked inference proof components, integrated incrementally.

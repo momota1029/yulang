@@ -1,5 +1,47 @@
 # Yulang closure: Lean root composition and control
 
+## 2026-10-26: inference constraint soundness and scoped publication
+
+`YulangClosure.InferenceProofs` is included in the default library build.
+Its independently reviewed components address the original inference goal:
+
+| Component | Constructed result |
+| --- | --- |
+| `BirthLevelSCC` | Executable finite/helper graph qualification agrees with the original immutable-birth induced-path predicate. |
+| `SimpleSubConstraintSyntax`, `SimpleSubConstraintSoundness` | Directed extrusion links, concrete constraint histories, retained occurrence equalities, and one-valuation quotient reflection. |
+| `SimpleSubGeneralizationSoundness` | One transport across finite uses, shared anchors and clients, with exact canonical minima and fresh-coordinate bounds. |
+| `SimpleSubRegularSolutions` | A finite graph/certificate check constructs an independent all-depth regular interpretation, including genuine structural cycles. |
+| `SimpleSubRegularConstraintSoundness` | Final acceptance reconstructs every original demand through concrete regular histories, with no supplied terminal model. |
+| `SimpleSubScopedPublication` | Transported original clauses occur in the retained base or copies of reached local owners; actual capture/current/non-generic guards are distinguished. |
+| `SimpleSubRegularPublication` | Executable finite term decoding connects the regular history and scoped-publication results, constructing one regular interpretation for all original uses and clients from terminal certificate acceptance. |
+
+From this directory:
+
+```sh
+lake build
+lake env lean -j1 -M1024 AuditInferenceProofs.lean
+```
+
+The integrated default build passed 67 jobs with pinned Lean 4.35.0. The complete
+eight-module audit checked all 847 originating theorem constants, including
+private/generated helpers, with only standard `propext` and/or `Quot.sound`,
+or no axioms. Independent reviews and their resolved minor findings, exact
+source hashes, actual theorem premises, native correspondence and verification
+receipts are in the [inference proof record](../../progress/2026-10-26-inference-soundness.md).
+
+The same work corrects the implemented birth-level SCC filter and passes 44
+focused Rust tests. **Original whole-source inference soundness remains OPEN.**
+Native graph/trace/certificate extraction, all-history publication metadata
+closure, complete constructor/coalescing coverage and the original contextual
+Call/effect/source witness still need their actual proofs. A full original
+`G_call` solution already contains its decorated certificate; the existing fixed
+decorated-rule reconstruction may consume it. The new decoder requires exact
+existing constructor and finite suffix/payload nodes, and explicitly rejects
+union/intersection; graph completion and full native coverage remain open.
+Producing that full solution
+from actual native success and covering all original source constructors are
+distinct remaining obligations.
+
 ## 2026-10-26: substitution, call entry, allocation and integer arithmetic
 
 Four additional modules advance the original obligations without changing

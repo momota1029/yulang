@@ -11,6 +11,13 @@ The original full source theorem remains the one in
 The inference top-level principles and the authoritative 2026-10-24 immutable
 Value-birth/induced-SCC correction govern the work.
 
+Latest checked result: eight integrated modules connect concrete structural
+constraint histories and owner-local finite publication to one regular graph
+interpretation obtained from executable decoding and terminal finite certificate
+acceptance. The default build passes 67 jobs and the complete audit covers 847
+theorem constants. The original full-source/native inference theorem remains
+OPEN at the explicit implementation and source-meaning bridges below.
+
 This is an isolated primary-owned checkout. Foreign R63/UNKNOWN leases,
 `tasks/agent-loop/current.json` and the reserved `YulangClosure.lean` remain
 untouched. Only the primary stages, commits and pushes exact reviewed paths.
@@ -67,7 +74,7 @@ An initial audit elaboration failure from an unannotated mutable counter was
 repaired by giving it the intended `Nat` type; both logs remain in task scratch.
 No proof source changed for that audit-script repair.
 
-## Current critical path
+## Initial critical path
 
 The native graph still used global SCC qualification at the initial baseline;
 the existing nested loop/helper fixture encoded that superseded expectation.
@@ -296,3 +303,131 @@ Default integration passed **66 jobs**, exit 0. The seven-module audit passed
 `Quot.sound`, and 127 `propext, Quot.sound` (including wrapped reports).
 Log SHA256: `7a95262052fa057b077ee51dee7b3cf036d9000da646d048dadedd9f144e5c78`.
 Reviewed proof source bytes were unchanged at integration.
+
+## Original source reconstruction and actual native evidence
+
+The source investigation inspected both actual native owners
+(`candidate_source.rs`, `candidate_call.rs`) and the governing original Call,
+source-contract, signature, ValueBind and profile constructions. Native
+`PendingCallConstruction::suppliers` still requests original GenCall0,
+argument reification/whole-carrier evidence and complete receiver/result/future
+interfaces. Its scalar inputs are not completed original certificates.
+
+For the selected immutable Name-call route, the existing VB1, GC3/HC-RESULT and
+PF1/PF2 constructions jointly supply the named binding, whole argument, phase,
+result and native local-profile components from genuine child and independent
+arm evidence. Support/default policy alone supplies no license. These components
+do not exhaust the full original decorated Call certificate, whose complete
+introduction telescope is expressly unenumerated in the inspected source notes.
+No source program is shown unsound by this absence.
+
+The independent review caught and the primary repaired an important distinction:
+an **already supplied solution of original full `G_call` includes its Call
+certificate**. Original generation §5 already reconstructs its fixed
+representation-preserving decorated Call/Name/Result/Lambda/Bind rule envelope
+by extracting the same witness and all conjuncts. This legitimate conditional
+reconstruction does not need to construct that certificate again. The missing
+native producer and all-source constructor coverage are separate obligations.
+Both revised assessments passed narrow independent delta review; the original
+finding and source hashes are preserved.
+
+- [Actual source/native constructor map](../../tasks/agent-loop/inbox/20261026-inference-source-reconstruction-map.md).
+- [Selected original construction and exact remaining introduction](../../tasks/agent-loop/inbox/20261026-inference-original-certificate-construction.md).
+- [Independent review](../../tasks/agent-loop/inbox/20261026-inference-original-certificate-review.md).
+- [Accepted scope correction](../../tasks/agent-loop/inbox/20261026-inference-original-certificate-delta-review.md).
+
+The whole claim therefore remains **OPEN**. Actual native inference must supply
+the faithful graph, complete demanded clauses, concrete history and certificate
+checks, including all native constructors and metadata invariants. Those facts
+must then realize the original full Call/effect constraints and source-scoped
+joint witness; the fixed decorated-rule reconstruction alone does not cover
+every original source constructor. Conditional premises remain visible at their
+actual owners. Neither a finite structural decoder nor an empty final error
+list can stand in for these missing original obligations.
+
+No further production change is inferred from these papers. Inspection of
+`candidate_call.rs` finds explicit pending semantic suppliers; inspection of
+`candidate_scheme.rs`/`candidate_intrusion.rs` finds actual stopped traversal and
+metadata merges but no proved all-history dependency closure. Those dependent
+implementation slices remain blocked on their named source/native evidence.
+The independently approved birth-induced qualification correction is complete.
+
+## Published checkpoints
+
+Each update used an expected-head check and an ordinary fast-forward on
+`yulang3`. The GitHub-created full tree was checked against the exact local
+staged tree before the ref update; local HEAD was then fast-forwarded to the
+same commit. Unrelated active work stayed outside each staged scope.
+
+| Commit | Reviewed checkpoint |
+| --- | --- |
+| `5fa234946e5052129f3cfcdd99e041b1607dcd98` | Birth-induced finite/helper SCC qualification |
+| `7f7cc930d970400f5a3f17afb733f9b8baf8a35c` | Native immutable birth/filter implementation and 44 focused Rust tests |
+| `bd4178c286c547b73e9a3265e175d99c011e1982` | Directed extrusion and concrete retained-constraint reflection |
+| `dce3d2f28a6fc13e7dd09e839e7ee287b67574a8` | Shared finite-use transport and constructed guarded regular solutions |
+| `e172e3b9dadd833e173cf2591a23657d0607721e` | Original regular demand reconstruction and scoped bound publication |
+
+## Final connection: executable decoding and one regular publication solution
+
+`SimpleSubRegularPublication.publication_history_with_clients` connects the
+previous components without supplying a final semantic solution. The inputs
+are concrete bounded owner clauses and guard conditions, syntax-only coverage
+of a finite target inventory, successful executable term decoding, a concrete
+regular constraint history, and final finite certificate acceptance.
+The proof derives original clause images through `publication_clause_image`,
+reconstructs the decoded inventory through `accepted_original_demands`, and
+uses the decoder's proved renaming equation for one reference assignment shared
+by every original published clause and every later client clause.
+
+`decodeTerm` validates references in the correct kind table and searches exact
+existing constructors. Function preserves all four ports. Record, Tuple and
+Variant decoding preserves full finite tails/payloads, labels, optional bits,
+tags and order. Successful lookup and renaming/freshening correspondence are
+proved from the actual recursive decoder. `ClauseSatisfied` uses the independent
+all-depth regular relation, not the finite acceptance predicate. The direct
+`checked_publication_with_clients` corollary uses executable `checkStore`.
+
+The checked cyclic example combines a self-referential Function, both effect
+ports, actual structural decomposition, two distinct original uses (coordinates
+3 and 5), shared anchor 0, a quotient that removes target copies, and a later
+cross-use client. One accepted terminal certificate supplies both original
+fresh clauses and that client together. Separate finite-carrier examples check
+record/tuple/variant decoding and reject wrong optional metadata, absent
+references and wrong-kind lookups.
+
+The exact-existing-node requirement is substantive: the graph must also contain
+each required nil, intermediate finite suffix and tuple-payload node. A graph
+containing only a semantically equivalent full record is insufficient. No graph
+completion/augmentation preservation is proved. Union/intersection decoding
+returns `none`; unguarded aliases, full native row/width/presence matching,
+ordinary coalescing and contextual Call/effect interpretation remain open.
+These are limits of this intermediate proof, not changes to the supported
+source language or the original theorem.
+
+- [Final decoder/publication construction, exact premises and audit](../../tasks/agent-loop/inbox/20261026-inference-regular-publication.md).
+- [Fresh independent review: ACCEPT, no findings](../../tasks/agent-loop/inbox/20261026-inference-regular-publication-review.md).
+
+The new module's isolated full audit checks 148 originating theorem constants
+(42 authored, 106 generated): 89 empty axiom sets, 42 `propext`, and 17
+`propext, Quot.sound`. Source SHA256:
+`18fc6f138204e1529dcd0bb9c01a20de7444a26e4dadc87677460ccd8ac9fc99`.
+All dependency hashes match the earlier frozen reviewed modules. The reviewer
+read the full source, final handoff, and complete type/axiom audit and accepted
+the theorem together with its explicit finite-inventory/native boundaries.
+
+Final default integration passed **67 jobs**, exit 0. The complete eight-module
+audit passed **847 matching records**, exit 0: **445 empty**, **257 `propext`**,
+**one `Quot.sound`**, and **144 `propext, Quot.sound`**. No new module uses
+`sorryAx`, a project axiom or a checker bypass. All eight source hashes were
+rechecked against the independent-review targets and the source scan was clean.
+Final audit log SHA256:
+`e85ec057ed7ff5ec3bbc8a583746c60aa6d376ed26ee444e49c3cc7441df9e8d`.
+No Rust source changed after the previously accepted 44-test native checkpoint,
+so those unchanged tests were not rerun for later Lean/documentation changes.
+
+This final checkpoint contains the decoder connection, source/native assessment
+and accepted wording correction, plus README/current-task navigation. Every
+assigned producer and reviewer reported write cessation and all owned checker
+processes exited. The remaining original inference/native obligations retain
+their owners and OPEN status; this checkpoint claims no background continuation
+or production cutover.
