@@ -193,3 +193,54 @@ from the same whole native execution. The actual driver does not store the
 parent vectors in this projection. Metadata/bound/replay operations, checked
 arithmetic and allocation failures, rollback, combined table epochs and
 original semantic source reconstruction remain OPEN at their owners.
+
+## Checkpoint 5: constructor-derived Context child issuance
+
+Checkpoint 4 was pushed as `62bdf0357a22f40543949adcc26d177c277e5678`.
+Fetched/fast-forwarded the separate reviewed positive semantic construction
+`8622f29d2c1b8934f8b257574c4b6b0e3db5ca42`; its exact module hash
+`feddd8155e6130279c202453e4562019fde5c0ad0f3a0a491dcbc0cb4ef572ef`
+matches its frozen independent review. This predecessor is not new r5 authorship.
+
+`NativeContextCallbackConstruction.lean` computes every inline-check child
+and continuation child in order from actual `decompose`/`collect`/`admit`.
+It derives the whole body-child equality required by stage 1. It checks plan
+length before zipping, derives successful callback traversal from raw
+caller/table/resource guards, and proves exact consecutive distinct serials
+even when relation IDs repeat. `guarded_finished_children_settled` uses the
+constructed list and guard-derived traversal to connect an actual completed
+owner seal to the same later history's resolved child receipts and diagnosed
+Replay acknowledgements. Neither a supplied body-child equality nor an
+independent batch-completion certificate is a premise.
+
+The module is frozen at
+`b90e44fbbf4c268e1b3dc73c32dfb0de542b640207e2feda6c8acf68d89cbb98`.
+All 21 authored roots pass exact type/kind/axiom audits: two use only
+`propext`, eleven `propext` plus `Quot.sound`, eight also `Classical.choice`.
+Five focused checks were used; the initial syntax/elaboration failure and
+all later raw outputs were retained separately. Fresh independent nonauthor
+`/root/proof_review_r5` returned **ACCEPT**. This is the authored-root audit;
+it is not mislabeled an all-private/generated-origin census. The final
+integration audit will include those originating declarations.
+
+The discharged seam concerns the fresh staged prepare/finish case at one
+map. Chronological native inline-callback extraction, cached/transported
+prefixes' earlier emitted occurrences, actual Derived admission, bound/Replay
+operations, cancellation and existence of the later settled history remain
+explicit original obligations. The constructed list cannot by itself justify
+moving native callback effects across prefix publication.
+
+The first source-signature packet is frozen for fresh independent review.
+Its producer now owns a separate 1,500-second/16-check follow-on only on
+`SourceContributionConstruction.lean` and its paired note/handoff, to
+construct the adopted composite DeclContribution/license/attachment grammar
+using that frozen support/provenance construction. No unadopted descriptor,
+State or exhaustive Call-certificate proposal is authorized by this packet.
+
+The primary's integration packet owns the safe `InferenceProofs.lean` import
+surface and `AuditInferenceProofs.lean`, with a separate isolated cache and
+an initial 1,200-second/eight-check bound. The existing baseline cold build
+hit its 120-second bound after compiled dependencies; this preserved timeout
+is a real check failure. The narrower remaining ProofAdvancement target then
+built successfully (52 jobs). The default target will be checked once after
+all intended new imports are final. No reserved root/configuration is edited.
