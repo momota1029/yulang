@@ -1,5 +1,61 @@
 # Yulang closure: Lean root composition and control
 
+## 2026-10-26 continuation after the local View/relay work
+
+The checked continuation from `b26e7de1aada0e15ac5147feb8654ec34ac90275`
+passes the ordinary default build (**87 jobs**) and the complete inference
+audit (**2,950 distinct originating theorem constants across 27 modules**,
+including private/generated helpers and all **338 required roots**). Three
+independently reviewed components add 81 authored roots and 374 originating
+theorem constants. The user's View/relay changes remain intact.
+
+- [`RecordBoundaryExecution`](YulangClosure/RecordBoundaryExecution.lean)
+  constructs record execution safety for every finite prefix, including requests,
+  every typed response and repeated use of a saved continuation. It derives
+  required-field presence and exact normal-result visibility from the existing
+  compiled/native-filled plan and independent child contracts. It does not
+  assume termination. Original source-boundary and world/guard realization
+  remain application obligations.
+- [`SourceIdentityLambda`](YulangClosure/SourceIdentityLambda.lean) constructs
+  identity typing, actual capture-avoiding substitution into an independently
+  typed callable-hole computation and preservation through every represented
+  finite interaction. It also constructs the existing relay fixture's distinct
+  Computation/Value entry behavior and retained result typing. The paper's
+  original interface calculation retains the missing full contextual/world
+  interpretation and descriptor/annotation bridge.
+- [`NativeMergeExpansion`](YulangClosure/NativeMergeExpansion.lean) constructs
+  exact Allowance carriers, both residual storage branches and original-parent
+  dependency paths across canonicalization. It proves complete local Effect
+  expansion transport and indexed historical origins for fired or skipped
+  Replay products. Actual shared native-history authentication and recursive
+  current/returned dispositions remain OPEN; historical creation is not a
+  completion certificate.
+
+**The complete original `SourceProblem.InferenceSoundness` remains OPEN.**
+The next native frontier combines the new merge/expansion/origin constructions
+with one actual operation/worklist/frame/journal history, including cycles,
+pending acknowledgements, earlier queued work, rollback and operation epochs.
+Authentic original record-boundary execution, full source introduction and Call
+evidence, and one same-scoped original source witness remain separate obligations.
+No supported-source restriction or production inference change is introduced.
+
+The complete census passed with
+`lake --no-cache env lean -j1 -M1536 AuditInferenceProofs.lean` after the integrated
+helper's separate two-root audit exhausted its 1-GiB limit. That helper returned
+exit 1 despite successful 53-job inference and 87-job default builds; the failed
+audit is retained and not counted as a success. The complete census includes
+both named roots. Ordinary proof builds retain the project settings. Only
+standard `propext`, `Quot.sound` and `Classical.choice` occur; the 374 new constants
+use no choice. The 34 existing choice-dependent constants include generic
+acknowledgement/re-preparation results. New files have zero warnings; 668 existing
+warnings belong to nine unchanged proof dependencies. All 136 checked Lean/config
+inputs were rehashed unchanged after validation.
+
+Exact theorem premises, independent review receipts, warning owners, failed and
+successful checks, and the three proof commits are recorded in the
+[continuation ledger](../../progress/2026-10-26-inference-continuation-r2.md).
+The earlier milestone counts below are preserved as history.
+
 ## 2026-10-26 continuation: actual native inference correspondence
 
 Final checked state, including retained-acknowledgement re-preparation:

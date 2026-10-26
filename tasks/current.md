@@ -1,5 +1,51 @@
 # Current task: complete type inference and replace F5
 
+2026-10-26 continuation after the user's local View/relay work, starting at
+`b26e7de1aada0e15ac5147feb8654ec34ac90275`: three independently reviewed proof
+components are committed and pushed to `yulang3`:
+
+- `b8902f756408012b8da3c48f29d9575d75689bc0`: record execution safety for all finite
+  prefixes, requests, typed and repeated resumptions, required-field presence,
+  exact surviving labels and the existing native-filled plan.
+- `316d84a51aa0efa41d9a8ba3a3e6f761bba73684`: constructed identity typing, actual
+  capture-avoiding callable-hole substitution, finite-interaction preservation,
+  and distinct Computation/Value entry and retained-result typing for relay.
+- `78ec2ebd6c98acc7a924f8f132663e20f6bb4ea3`: exact installed Allowance/residual
+  carriers and dependency paths across merge, full local Effect expansion
+  transport, and indexed historical Replay origins for fired and skipped work.
+
+Final ordinary Lean build: **87 jobs**. Complete inference census: **2,950
+distinct originating theorem constants across 27 modules**, including all
+**338 required roots** and private/generated proofs. The three new modules
+contribute 81 authored roots and 374 originating theorem constants. All 136
+checked source/config inputs match the validation snapshot. Only standard
+`propext`, `Quot.sound` and `Classical.choice` occur; no new theorem uses choice.
+The integrated helper's two-root 1-GiB audit failed on its memory limit after
+successful builds; the complete audit then passed at the established local
+1.5-GiB bound. The failed helper is retained as exit 1. No project configuration
+change, hole, project axiom or bypass. New files have no warnings; the 668
+existing warnings in nine unchanged frozen dependencies remain separately
+accounted. No Rust/compiler code changed, so no new Cargo result is claimed.
+
+**Complete original `SourceProblem.InferenceSoundness` remains OPEN.**
+`MERGE-EXPANSION-COVER-1` now has constructive local transport and historical
+origin results, but still needs one authenticated committed native history and
+recursive current/returned dispositions through cycles, pending acknowledgements,
+earlier merge work, rollback and epoch-qualified identity reuse. Original source
+identity/context/world realization and descriptor/annotation matching, authentic
+record-boundary execution with independently produced child contracts, complete
+native Call evidence and the same original scoped source witness also remain
+OPEN. Admission and historical creation do not certify returned completion.
+
+The source review's sole minor receipt-coverage finding is corrected with its
+former text/hash retained; all three mathematical reviews accept their exact
+frozen boundaries. All assigned workers stopped writes. The user's baseline,
+reserved root, foreign scheduling state and entire prior task history remain
+intact. Final checks, exact warning owners, theorem boundaries and publication
+receipts are in the
+[continuation ledger](../notes/progress/2026-10-26-inference-continuation-r2.md).
+The previous status entries below are historical.
+
 2026-10-26 actual native inference correspondence on `yulang3`: seven new
 Lean components now construct a shared regular row model, finite clause
 saturation, optional-record plans and normal preservation, exact query routing,

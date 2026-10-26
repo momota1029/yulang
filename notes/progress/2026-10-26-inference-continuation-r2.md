@@ -232,3 +232,151 @@ allowance is task-local and does not alter project configuration or packages.
 The integrated inference target has already passed **53 jobs**, exit zero;
 the subsequent ordinary default build is still in progress at this checkpoint.
 Only that observed focused result and the frozen local audit are claimed here.
+
+Publication 3 succeeded as `78ec2ebd6c98acc7a924f8f132663e20f6bb4ea3`,
+`proof: transport native effect expansions and replay origins`. Its seven-file
+tree matched the local index and the expected-parent non-forced update passed;
+fetched remote/local HEAD and the index were reconciled.
+
+The final ordinary default build now passes **87 jobs**, exit zero. The helper's
+subsequent two-root audit at its fixed `-M1024` limit failed with Lean's
+`excessive memory consumption` diagnostic after importing the larger combined
+inference/paper environment. Thus the enclosing helper returns exit 1 despite
+the successful focused and default builds. The entire failed log is preserved;
+the named audit is not reported as a success. The next verification uses the
+already planned `AuditInferenceProofs.lean -M1536` census, which includes both
+required roots and every originating theorem. No build is repeated and no
+project configuration or theorem statement is changed for this resource failure.
+
+## Final integrated verification
+
+The complete census subsequently passed, exit zero in **22.828532 seconds**,
+using the established local 1.5-GiB audit bound. From `notes/theory/lean`:
+
+```sh
+LEAN_NUM_THREADS=1 /workspace/scratch/f98087c7ac1a/toolchains/lean-4.35.0-linux/bin/lake --no-cache env lean -j1 -M1536 AuditInferenceProofs.lean
+```
+
+The one final build helper invocation was:
+
+```sh
+python3 .agents/skills/yulang-lean-proofs/scripts/check_lean.py \
+  --lake /workspace/scratch/f98087c7ac1a/toolchains/lean-4.35.0-linux/bin/lake \
+  --module YulangClosure.InferenceProofs \
+  --theorem YulangClosure.NativeMergeExpansion.Effect.operand_expansion_transport \
+  --theorem YulangClosure.NativeMergeExpansion.Replay.dependency_skip_has_origin \
+  --full --timeout 240
+```
+
+Its focused inference build passes **53 jobs**, and its ordinary default build
+passes **87 jobs**. Its subsequent fixed-1-GiB named audit fails on memory, so
+the helper's overall status is **exit 1**, after 81.424180 seconds. The later
+complete audit includes both requested roots and succeeds; it does not erase
+or reclassify the earlier failure. No build was repeated for that audit failure.
+The project resource settings, dependencies and toolchain pin are unchanged.
+
+The complete log contains **2,950 distinct matching BEGIN/END theorem blocks**
+across **27 originating modules**, all **338 required roots**, complete printed
+types and transitive axiom lists. The audit rejects any originating project
+axiom or dependency outside the three standard allowed axioms. Its actual
+theorem-only distribution is:
+
+| Axiom dependencies | Theorem constants |
+| --- | ---: |
+| None | 1,474 |
+| `propext` | 867 |
+| `Quot.sound` | 2 |
+| `propext`, `Quot.sound` | 573 |
+| `propext`, `Classical.choice`, `Quot.sound` | 34 |
+
+The new originating modules contribute **90 + 14 + 270 = 374** constants and
+**33 + 12 + 36 = 81** authored required roots. All 374 new constants, including
+private/generated proofs, use no `Classical.choice`. The 34 existing
+choice-dependent constants include generic acknowledgement/re-preparation
+theorems; they are not all example-only. No project axiom, proof hole or
+native-evaluation bypass occurs in the checked theorem dependency closure.
+This is an audit of the declared inference modules, not a claim that every
+repository module or the complete original source theorem has been proved.
+
+Exact retained evidence under primary scratch `final-validation-r2`:
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Full build/helper log, including the failed 1-GiB audit | `e98177db665fff92f6449edb8bdd1ad44fe382d449667bda022f52c3414691d3` |
+| Successful complete inference audit log | `538aabcfdd4c7498d6b947cb1f4c07c5609e7a40bfdb104a0ff3aa049290aa61` |
+| Manifest of all 136 checked Lean/config inputs | `c12b7e2adacad05f4f7f5400a2ead561651e5d7c4deae067b1b0b52ee7807b22` |
+
+All 136 manifest entries were rehashed after the checks and match. The
+independently accepted new proof/paper bytes and review receipts remain frozen.
+Only status/navigation records are edited after this verification; no additional
+proof build is needed for those prose-only additions. No Rust/compiler code
+changed and no Cargo/native test was run in this continuation.
+
+### Exact warning ownership
+
+The final ordinary build reports **668 existing lint warnings in nine unchanged
+proof dependencies**. The three new modules have zero warnings. Each owner below
+was byte-compared with intake `b26e7de1aada0e15ac5147feb8654ec34ac90275` and rehashed.
+
+| File under `notes/theory/lean/YulangClosure/` | Warnings | SHA-256 |
+| --- | ---: | --- |
+| `PaperExecutionSyntax.lean` | 23 | `d3a10c0891b0518fef7ed6e02c899b996d3ac6de618e07bddde11c89ef616bfe` |
+| `PaperExecutionBinderLaws.lean` | 235 | `568a9a5a1991bb605d85e9b58f33638fb445b1325516e10eed0f076f72346d7a` |
+| `ControlComposition.lean` | 3 | `4e8e4cb4fdf106bbffa11e21cd9f7030bda1f296f14e1a554560ea802f02dc5e` |
+| `PaperTermSubstitution.lean` | 96 | `d2dde517343a18b03a8fb0fe113b1d0fceeef2751f53792ef39886d8ed5e9c94` |
+| `PaperCoreStep.lean` | 4 | `6357b14217e82421eed87da981cef8e94014dcaea634d746ad0b4bb39bff6144` |
+| `PaperTypeBetaExecution.lean` | 276 | `0a1834040a0201c0c472f66138f6501094f7138dd3614f2bc4439a8be0cda1c8` |
+| `PaperTupleSplitExecution.lean` | 22 | `7bc13a41a0333d885b91291a7fbb1ef18302a94c79a34f21469dbae19d76f84d` |
+| `PaperPerformLetExecution.lean` | 2 | `2f0026049554cb870158115b4bab8d42f7cbee8b030ee3f84a904763c328cac0` |
+| `NativeIntegerComparison.lean` | 7 | `2352602b7047611e9f9722d788ed1acdf9f4960d178c48f6a08b1a7054f93e79` |
+
+These frozen dependency proof repairs remain a separate owned packet, as in the
+previous continuation. They were not silently suppressed, attributed to the new
+modules, or changed after independent review. The final build is not described
+as warning-free.
+
+## Remaining original proof obligations
+
+The unchanged parent retains its original quantifiers:
+
+```text
+forall s x d a, p.supported s -> p.generates s x d -> p.solves d a ->
+  exists e, p.sourceJudgment s x e /\ p.sameScoped s x e a
+```
+
+No concrete full original `SourceProblem.InferenceSoundness` instance is
+constructed by this continuation. The remaining frontiers are:
+
+| Frontier | Constructed here | Still required for the original parent |
+| --- | --- | --- |
+| `MERGE-EXPANSION-COVER-1` | Exact installed carriers, residual storage, parent paths, local expansion transport, historical Replay origins | Authentication against one committed operation/worklist/frame/journal history and recursive current/returned dispositions, including cycles, earlier queued merge work, pending acknowledgements, rollback and operation epochs |
+| Original identity/source introduction | Actual paper typing and callable-hole substitution, represented finite interactions, retained relay typing; selected original interface inlet calculation | Original declared-hole background and carrier interpretation, current-world/guard and full phase-envelope actions, descriptor/annotation realization, original contextual Function membership and source T |
+| Original record boundary | Compiled/native-filled driver preservation for all finite prefixes and typed/repeated responses under independent payload contracts | Authentic source `RecMap_j`/viewport elaboration and execution, production of the child contracts and their original world/context meaning |
+| Complete source witness and Call | Existing component results remain available with their exact premises | Native success must construct complete original Call evidence and one same-scoped source witness covering the original source constructors, sharing, generalization and all uses |
+
+Native admission-time `completed` entries and historical child creation do not
+prove semantic completion or accepted outer return. Existing generic source
+lifting and native formation policies are retained; no new restriction or
+semantic adoption is used to close a gap. Principality/natural inference remain
+separate open goals.
+
+## Final ownership and publication boundary
+
+All assigned producers and independent reviewers stopped writes; the source
+review's only MINOR receipt finding is closed by the documented M0 correction.
+The preserved scheduling file has SHA-256
+`fcf344c8eee94b8b6c2e6188275ac90d1e2a0f22b1274317f43024df8dce125d`;
+the user's reserved `YulangClosure.lean` root has SHA-256
+`3c38da4bb2e017249fa973e0ee28f243d44ba6d52b6f173ac617b605f1fce9e8`.
+Both are byte-identical to intake. The four user commits between the prior
+checkpoint and `b26e7de1` are preserved as ancestors of all three proof commits.
+
+The final record-only checkpoint contains this ledger plus prepended updates to
+`notes/theory/lean/README.md` and `tasks/current.md`; all earlier navigation/task
+text is retained byte-for-byte. Before this append, the respective complete-file
+hashes were `9c083c47df5d5507e951757c2e37d736904b5fe90a8f11403ab35e2fdb88e3dd`
+and `cee58f3aee8af3449fd4743b3f370acb7f2a0611afa31461ddb2aa682de94272`.
+Its publication uses the same exact-tree comparison, expected-parent non-forced
+ref update and fetched remote/local/index reconciliation as the three proof
+checkpoints above. The resulting fourth commit identifier is supplied in the
+final user-facing report rather than introducing a self-referential file edit.
