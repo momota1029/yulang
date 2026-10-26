@@ -355,3 +355,61 @@ All command/resource/log receipts, complete census records, per-owner warning
 hashes and the checked-input manifest are retained under `final-validation-r3`.
 The proof input snapshot remains the integration authority; the final navigation
 update is record-only and does not require another broad build.
+
+## Published checkpoints and final original frontier
+
+| Published commit | Accepted result |
+| --- | --- |
+| `9589fe3cea1632ab095df549aa7254514dba044f` | Shared owner journal and cancellation |
+| `736b40be3af60e0824ac93db9f2f901d49e2f2fc` | Identity binding, receipt, owned return and exposed world fields |
+| `97163d357ad273e3e46e6e50914fa6c1f53b553c` | Recursive current Replay operand graph |
+| `a02aa0d13a9dbbba848f120ac5d1a6a5efdaee22` | First-snapshot frame rollback |
+| `839cb97801159ee7b4e76a6addea19d4fb1e5119` | All four imports and complete integrated census |
+
+For each checkpoint, the GitHub-created tree equals the exact explicitly staged
+local tree. Commit parent and expected-ref checks are exact; no force update was
+used. After publication, fetch verifies remote SHA, parent and tree before the
+local branch is advanced with its old-value guard. No reset/stash/blanket stage
+or unrelated file mutation was used. After the fifth checkpoint, local HEAD
+and `origin/yulang3` agree and the worktree/index are clean.
+
+This final record-only checkpoint prepends the new status below the existing
+headings in `notes/theory/lean/README.md` and `tasks/current.md`. Removing exactly
+those inserted blocks recovers the entire previous bytes. Before-update SHA-256:
+README `002d5cfd54fc2b83d7180be12a65842949f1e5228f58d0ecc371cc5b2159037c`;
+task history `75c040f7b19521929ee6e4b4abe3462ca3cf45072181dee6fde30ec5e9ef39bd`.
+`navigation-preservation.json` records both sides. Proof inputs are unchanged,
+so no redundant full build follows the navigation-only edit.
+
+The unchanged original goal still requires, for every supported source,
+generated scoped constraints and accepted solution, one original source
+judgment and the same scoped witness. No concrete complete original
+`SourceProblem.InferenceSoundness` instance has been established. In particular:
+
+| Original owner | New reduction | First remaining original application |
+| --- | --- | --- |
+| Native recursive expansion | Current Effect operand roots, complete emitted child lists, exact retained carriers/paths and finite failure paths | Entire actual Context factoring, all Value/record ports, successful admission guards and semantic row/fiber closure |
+| Shared committed execution | Joint owner-journal cancellation, distinct allocation births, constructive frame no-gap/exact rollback at every prefix | One actual operation/restoration/worklist/frame history, native payload readbacks, route-journal boundary, old-write/pop protection, occurrence identities and real diagnostics/ack/ReturnReady |
+| Original identity/source world | Immutable bind, Name receipt, owned return, old aliases/receipts and five exposed world fields | Whole original declared-hole background and compatible history, carrier/phase envelopes, actual dictionary action, descriptor/annotation realization, original `PhiW`/`P_F`, `ValueMem` and `SourceT` |
+| Original record and Call source evidence | The previous record all-prefix/request/resumption and identity callable-hole constructions remain available | Authentic source boundary map/execution and independently produced child contracts, complete native Call evidence and one same-scoped original witness through every supported constructor/use |
+
+`CurrentAt`/`ClosedAt` are extensional operand predicates; a later consumer must
+not infer an installed status body, child provenance or an acknowledgement from
+`ClosedAt` alone. The frontier implication is one-way. The first-snapshot theorem
+requires the successful legal-history computation and empty initial route undo;
+its native instantiation is not silently assumed. The source suffix retains the
+actual new receipt and explicit dictionary dispatch; it is not full unchanged
+world equality or full contextual Function membership. RP5 and the existing
+full native protection policy remain available, not newly missing obligations.
+
+All original A/B claims, full supported source domain, same-source/shared
+witness, effects/hygiene, original Call requirements and separate principal/
+natural-inference obligations retain their scope. No source restriction,
+semantic redesign, production promotion or counterexample to the original
+soundness statement is claimed. This turn closes four reviewed construction
+components and their integration; the original whole-source goal remains OPEN.
+
+The foreign scheduling file and reserved original public root retain their
+intake hashes. All assigned producer/reviewer runtimes report WRITES STOPPED;
+there is no continuing checker or unowned live worker from these packets.
+Git publication and final fetch/status verification remain primary-owned.

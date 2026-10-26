@@ -1,5 +1,62 @@
 # Yulang closure: Lean root composition and control
 
+## 2026-10-26 continuation: shared histories, current Replay and identity world
+
+Four independently reviewed proof components continue the unchanged original
+inference goal from `60e8684224a8a911a5627b845312750a192be777` on `yulang3`.
+The ordinary default build passes **92 jobs**. The complete originating-module
+audit passes **3,417 theorem constants across 31 modules**, including private
+and generated helpers and all **474 required roots**. The new components add
+136 authored roots and 467 originating theorem constants.
+
+- [`NativeExecutionHistory`](YulangClosure/NativeExecutionHistory.lean) computes
+  one chronological mutable-owner journal, separate preflight preparation and
+  mutation, commit and cancellation. It derives joint restoration of old owners,
+  deletion of new owners, equivalence with partitioned undo vectors and distinct
+  birth identities when a cancelled numeric ID is reused.
+- [`SourceIdentityWorld`](YulangClosure/SourceIdentityWorld.lean) constructs the
+  post-Force identity suffix: immutable binding, successful Name lookup, the
+  actual new receipt and owned invocation return. It preserves old bindings,
+  receipts and the exposed joint world fields from independent guards. Name's
+  receipt changes the world; dictionary dispatch remains explicit.
+- [`NativeReplayCurrent`](YulangClosure/NativeReplayCurrent.lean) constructs a
+  recursively current Effect-operand/retained-bound graph from empty events.
+  Both Replay skips reach current graph roots, and merge preserves child edges,
+  exact carriers, paths and queued/active work. Failed closed depth yields an
+  installed-edge walk to a concrete unfinished owner. `ClosedAt` is extensional
+  and supplies neither installed-status identity nor a native return certificate.
+- [`NativeFrameRollback`](YulangClosure/NativeFrameRollback.lean) derives first
+  original snapshots, the untouched old portion, contiguous restoration order,
+  every intermediate no-gap guard and exact checkpoint rollback from computed
+  top-frame events. Every successful prefix is covered, including old-slot pop
+  and reuse; an empty route-start journal and legal old writes/pops remain
+  actual-native authentication duties.
+
+**Complete original `SourceProblem.InferenceSoundness` remains OPEN.**
+Remaining work includes full Context factoring and Value/record port coverage;
+one authenticated committed native operation/worklist/frame/restoration history
+and accepted-drain evidence; the original declared-hole/current-world/phase
+interpretation and descriptor/annotation bridge; original record child contracts,
+complete Call evidence and the same original scoped source witness. The four
+new constructions reduce those premises without restricting supported source
+programs or changing production inference behavior.
+
+All 140 checked source/configuration inputs match the final validation snapshot.
+Ordinary proof builds retain `-j1 -M1024`; the complete census uses the established
+local `-j1 -M1536` bound and succeeds without a retry. Only standard `propext`,
+`Quot.sound` and `Classical.choice` occur. The new modules have 13 choice-dependent
+constants (two frontier results and eleven frame results, including its four
+principal roots); the whole census has 47. No proof hole, project axiom, native
+evaluation assumption or kernel bypass. New modules have no warnings; 668
+existing warnings belong to nine unchanged frozen proof dependencies.
+
+All four components have fresh independent nonauthor acceptance. Proof commits
+are `9589fe3`, `736b40b`, `97163d3`, `a02aa0d`; integration and full audit are
+published as `839cb978`. Exact premises, review receipts, retained failures,
+warning owners and publication evidence are in the
+[continuation ledger](../../progress/2026-10-26-inference-continuation-r3.md).
+The previous milestone entries below are preserved as history.
+
 ## 2026-10-26 continuation after the local View/relay work
 
 The checked continuation from `b26e7de1aada0e15ac5147feb8654ec34ac90275`

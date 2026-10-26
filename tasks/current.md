@@ -1,5 +1,53 @@
 # Current task: complete type inference and replace F5
 
+2026-10-26 continued proof construction from `60e868422` on `yulang3`:
+four independently reviewed proof components and their full integration are
+committed and pushed:
+
+- `9589fe3cea1632ab095df549aa7254514dba044f`: computed shared mutable-owner
+  history, separated preparation/mutation, joint cancellation restoration,
+  partitioned undo equivalence and birth identity across numeric reuse.
+- `736b40be3af60e0824ac93db9f2f901d49e2f2fc`: constructed identity binding,
+  successful Name/receipt, owned return, old-binding/receipt preservation,
+  exposed world fields and every represented post-Force suffix prefix.
+- `97163d357ad273e3e46e6e50914fa6c1f53b553c`: recursively current Replay operand
+  graph from empty events, both skip cases, exact carriers/paths through merge,
+  concrete child-key construction and finite unfinished-owner path extraction.
+- `a02aa0d13a9dbbba848f120ac5d1a6a5efdaee22`: constructed first-snapshot stack
+  invariant and every-prefix no-gap/exact rollback, including old-slot pop/reuse.
+- `839cb97801159ee7b4e76a6addea19d4fb1e5119`: imports and complete integrated
+  theorem/type/axiom audit of all four independently accepted components.
+
+Final ordinary default build: **92 jobs**, exit 0. Complete inference census:
+**3,417 distinct originating theorem constants across 31 modules**, all **474
+required roots**, including private/generated proofs. New totals: 136 authored
+roots and 467 originating theorem constants. All 140 checked source/config
+inputs match the validation snapshot. Only standard `propext`, `Quot.sound`
+and `Classical.choice` occur; the new modules have 13 choice-dependent constants.
+No hole, project axiom, unchecked native evaluation or kernel bypass. The
+established local 1.5-GiB complete census passes without retry; ordinary project
+builds keep their 1-GiB setting. New modules have zero warnings; the 668 existing
+warnings in nine byte-identical dependencies remain separately accounted.
+No Rust/compiler behavior changed, and no new Cargo result is claimed.
+
+**Complete original `SourceProblem.InferenceSoundness` remains OPEN.**
+The current graph covers the Effect operand/retained-bound fragment; entire
+Context factoring, Value/record ports and successful native child admission
+still need construction. `ClosedAt` is extensional, its failure-path theorem is
+one-way, and it is not a returned acknowledgement. One actual shared committed
+native operation/worklist/frame/restoration history must authenticate the local
+projections and accepted-drain evidence. Original declared-hole/world/phase
+interpretation, descriptor/annotation realization, authentic record child
+contracts, complete Call and one same-scoped source witness remain required.
+Admission, historical creation, graph labels and Rust `Ok` do not close them.
+
+All producers and independent reviewers stopped writes. The user's ancestry,
+reserved public root, foreign scheduling state and entire prior task history
+remain intact. Exact theorem premises, acceptance receipts, failed/successful
+checks and published checkpoints are in the
+[continuation ledger](../notes/progress/2026-10-26-inference-continuation-r3.md).
+The previous status entries below are historical.
+
 2026-10-26 continuation after the user's local View/relay work, starting at
 `b26e7de1aada0e15ac5147feb8654ec34ac90275`: three independently reviewed proof
 components are committed and pushed to `yulang3`:
