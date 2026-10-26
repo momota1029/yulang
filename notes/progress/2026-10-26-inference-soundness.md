@@ -133,3 +133,44 @@ This supplies the implemented birth/filter criterion on the represented graph.
 It does not prove complete source graph coverage, Imported identity resolution,
 `any`-support receiving attribution, native Kosaraju correctness in Lean,
 BL-JOINT, or full inference soundness. Those are separate original obligations.
+
+## Constraint reflection checkpoint
+
+`SimpleSubConstraintSyntax` gives an independent kind-indexed structural
+derivability relation. `SimpleSubConstraintSoundness` derives the directed
+extrusion approximation from the links actually emitted by its structural
+traversal, with the two contravariant Function input ports and two covariant
+result ports. Positive/negative demand reflection reconstructs the removed
+original comparison from the copied comparison and its links. Actual bound
+replay preserves the entire solution set.
+
+Concrete `Step` and `History` constructors cover structural decomposition,
+bound insertion/replay, extrusion and equality insertion for copies belonging
+to an actual retained qualified occurrence. `History.quotient_sound` pulls
+one terminal valuation back through the exact renaming of every retained
+clause, then reflects it through the whole history. It does not choose
+independent witnesses for separate fields or occurrences. The backward
+implication for added equality does not imply preservation of all solutions
+or model existence.
+
+The frozen modules received a CLEAN independent review against both the
+governing source-preservation argument and actual candidate extrusion lanes.
+Isolated Lean checking accepted all **186 originating-module theorem constants**
+(90 Syntax, 96 Soundness), including generated/private helpers: 145 have no
+axioms, 26 use only `propext`, and 15 use `propext, Quot.sound`.
+
+- [Construction, exact scope and audit](../../tasks/agent-loop/inbox/20261026-inference-constraint-soundness.md).
+- [Independent semantic and implementation correspondence review](../../tasks/agent-loop/inbox/20261026-inference-constraint-review.md).
+
+Finite-Term valuations remain a premise of this reflection theorem. Native
+success is not identified with an empty retained store or with an existing
+valuation. General recursive solutions, actual selected-bound/memo/worklist
+simulation, full native optional/width/tag matching, original source generation,
+generalization and complete contextual Call/effect meaning remain OPEN. The
+regular-solution and original-source lanes attack those explicit next bridges.
+
+Default integration passed **62 jobs**, exit 0. The expanded complete audit
+passed **243** records (57 birth + 90 syntax + 96 constraint soundness), exit 0,
+log SHA256 `e3d407a980f6fdec73d9a68d390ab801196a07d632829807364c0844e985834e`.
+No proof source was changed after independent review; only the exact import and
+audit inventories were extended. Existing foundation warnings are unchanged.

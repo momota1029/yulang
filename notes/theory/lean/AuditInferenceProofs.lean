@@ -13,12 +13,26 @@ set_option pp.universes false
 open Lean Elab Command
 
 run_cmd do
-  let modules : Array Name := #[`YulangClosure.BirthLevelSCC]
+  let modules : Array Name := #[
+    `YulangClosure.BirthLevelSCC,
+    `YulangClosure.SimpleSubConstraintSyntax,
+    `YulangClosure.SimpleSubConstraintSoundness
+  ]
   let roots : Array Name := #[
     `YulangClosure.BirthLevelSCC.finiteReach_iff,
     `YulangClosure.BirthLevelSCC.projection_filter_iff,
     `YulangClosure.BirthLevelSCC.filtered_compression_iff,
-    `YulangClosure.BirthLevelSCC.finite_helper_qualifies_iff
+    `YulangClosure.BirthLevelSCC.finite_helper_qualifies_iff,
+    `YulangClosure.SimpleSub.Sub.subst,
+    `YulangClosure.SimpleSub.Store.quotient_pullback,
+    `YulangClosure.SimpleSub.extrusion_directed,
+    `YulangClosure.SimpleSub.negative_demand_reflection,
+    `YulangClosure.SimpleSub.positive_demand_reflection,
+    `YulangClosure.SimpleSub.replay_solution_iff,
+    `YulangClosure.SimpleSub.Step.sound,
+    `YulangClosure.SimpleSub.History.sound,
+    `YulangClosure.SimpleSub.History.quotient_sound,
+    `YulangClosure.SimpleSub.History.empty_sound
   ]
   let env ← getEnv
   let mut targets : Array Name := #[]
