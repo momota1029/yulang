@@ -1766,3 +1766,143 @@ principality refutation nor an inference-soundness failure follows merely
 from the native rejection and this algebraic result. These five foreign paths
 are preserved, outside the accepted 67-origin and isolated stage1 audit sets.
 The nonforced retry changes only the parent/tree and primary progress record.
+
+
+Checkpoint 23 retry published as
+`1e6d1cfcca1a653d3bfd16193adc2e7e70aaa648`, parent
+`e593657727fc019ee540cca3a098f7989bc919f0`, tree
+`e83078eaa1ecf8e05540396e7e3b63a9e25f8a24`. Exact remote equality, correct
+parent/tree, clean tracked worktree and index were verified at
+16:38:19.410798 UTC. The active new Semantics source remained untracked. The
+failed first expected-parent attempt remains unpublished and separately recorded.
+
+## Checkpoint 24: computed native parameter-world semantics accepted
+
+OriginalParameterSemantics source `733c5b05...` constructs a genuinely missing
+native presentation and computes its complete installed/capture/alias/Shared
+world readout. Actual native cells and saved environments remain raw data;
+every Some is interpreted even if an arbitrary malformed store's nominal count
+is smaller. Dangling captures remain visible instead of being filtered out.
+The original world guards, Force, trace form, complete observation fields and
+checking domains remain unchanged. One Inputs definition is fixed before bind.
+No WorldRegistry or desired world proposition is stored inside the new records.
+
+`bind_phiW` derives the complete post-bind world clause from actual native
+append, fresh-contract interpretation, old world/certificate restriction and
+the supplied fresh-value certificate. No post-registry equation remains.
+`bind_meaning_world` and `bind_background_world` derive restriction from their
+own hereditary clauses and fold the resulting world. The Background theorem
+does not cast completed Checking soundness into arbitrary hole-relative checking.
+Complete captured-object readout preservation handles the changed fresh-address
+assignment, nonlatest saved environments and same-name shadowing. Native alias
+construction uses one actual address, rather than equality of payloads or views.
+
+The selected formal endpoint equality is constructed from the same complete
+replayed typed frames. The root Lambda's actual Description binder and its
+original decodeFrame application are proved. Product pack/unpack and a newly
+constructed native initialRoot compute initial readout. These are local data
+and original-decoder constructions, not an authenticated arbitrary enclosing
+source history. NativeWitness's base-sort SharedPosition domain still needs its
+full dependent correspondence to the new native Configuration/Assignment/witness
+sorts. Event product roundtrips do not supply that map. The real Force-to-formal
+returned-field certificate, full source/native interpretation, original legacy
+Shared delivery and all-source inference soundness remain OPEN.
+
+Author stage2 used six checks, 11–16, within the original combined 24-check
+packet. Check11's actual failed source and generated sorry diagnostics are
+retained; checks12–16 pass. Final module14, full origin15 and actual compiled/
+current audit16 check the unchanged source frozen at16:45:04.468840 UTC.
+All stage2 writes stopped at16:51:26.183746 UTC; combined stage1+2 usage is16.
+The exact complete 356-artifact author manifest is `cb6c6a77...`, freeze
+`379e71ce...`, stopped `16482041...`. Its 19 source/config dependencies remain
+fixed. The source has267 originating constants,86 theorem constants and38
+actual authored roots; current/compiled/closure audit-module inventories are0.
+Full types and actual standard axiom dependencies are retained for every constant.
+
+Fresh nonauthor review ACCEPT receipt
+`ff2a05ed11a703511cc7b5a533b342c0702070320df0c9a8e4441acae64c4d9e`,
+606-artifact manifest `0324f5ef...`, freeze `16c82e57...` and stopped
+`29a22df4...` are immutable. All review writes, checkers and metadata helpers
+stopped at16:58:55.130448 UTC. Two of three bounded bundles were used, both
+passing. A genuinely empty-cache build passed18 jobs in76.200 aggregate
+seconds, peak1,049,858,048 bytes. The independent probes/full-origin/compiled
+census bundle passed in4.789 seconds, peak1,171,759,104 bytes.
+
+All267 full type/axiom records exactly match the author's inventory. The nine
+private constants and foreign-namespace captureAddress.congr_simp origin are
+included; isolated theorem counts are not blindly added to global totals.
+Three independent negative/obligation probes prove that a dangling capture
+prevents PhiW, every Some remains required beyond an invalid store's nominal
+count, and the fresh-value certificate is necessary for post-bind PhiW. Only
+propext, Classical.choice and Quot.sound occur transitively. No final sorryAx,
+project axiom or kernel bypass occurs. Metadata-parser errors and its slow
+regex termination are retained separately from the clean Lean checks.
+
+Primary read the complete final code, note, producer and review and independently
+rehashed all356 author artifacts,606 review artifacts and19 pinned inputs.
+One primary verification attempt incorrectly rooted review manifest paths at
+final-freeze instead of the manifest's explicit root; it failed before mutation.
+The exact failure and corrected full reconciliation are retained in
+checkpoint24-intake. Accepted note is `805a7320...`, producer `bee3774c...`.
+No source/prose repair or extra primary Lean check was needed.
+
+## Next original consumers: actual source emission and retained entry
+
+The completed independent read-only consultation/preflight identified the real
+sourceRules omission and its precise operational boundary. SG3.3 and Call-input
+3.2–3.3 authorize formal Shared below an actual designated Value Return, or
+below receipt for retained Computation. Complete carrier interpretation still
+retains pending/no-result prefixes. An arbitrary LocalAdmissions.returnRebind
+predicate does not establish authentic Return incidence; result.isSome and a
+Return-shaped record are insufficient. The selected Pair route supplies a real
+operational relation through Carrier.returned, InvocationMove and suffixStep.
+
+A scratch-only migration packet began16:39 UTC, deadline17:24, at most18
+immutable-input checker bundles,120seconds each,oneCPU/thread and1280MiB group
+RSS. It owns isolated draft Generation,Events,ParameterWorld and a new
+OriginalFormalShared module/note/handoff. Live core inputs remain unchanged.
+The actual Parameter consumer keeps the actual sourceRules tree and proves its
+existing delivery occurrence, avoiding a second additive Shared insertion.
+The direct consumer starts from actual Build/Satisfies, extracts its existing
+anchor, computes retained data from that exact Return's fields and reuses the
+anchor's witness. It never assumes an inverse for a noninjective ReturnReadout.
+
+The affected32-module cone compiled after two expected foreign census repairs:
+DirectReturn.shared_binder_census gains the real formal owners3,9,12,63, and
+formal_shared_evidence_absent is retired for the corrected builder in favor of
+formal_shared_evidence_present. Only those two declarations/comments and the
+foreign audit's required-root name received an additional scratch lease; original
+bytes/types/evidence remain historical snapshots. No native expected output is
+changed. All source-semantic changes still require exact fresh review before
+live integration. Stage2's accepted immutable source is now released as a pinned
+dependency for the migration's actual world application.
+
+The independent preflight also records genuine remaining global representation
+limits. AnchorKey lacks constructor route; sibling Shared occurrences can share
+origin/eventPath/binder at the general rule interface. Logical frames do not
+alter that legacy anchor key, so arbitrary preceding-typed-field-dependent
+Shared strategies require a separate faithful representation. A local consumer
+of the actual anchor does not assert global injectivity or all-strategy coverage.
+Those limits remain source-construction obligations, not source counterexamples.
+
+After the closed16-check first packet, a distinct retained-Computation packet
+was explicitly granted at16:52 UTC, deadline17:37, at most18 bounded bundles.
+It owns only new OriginalRetainedParameter source/note/handoff and its private
+cache. The actual runtime branch retains {delay,Computation,selected view,None}
+after receipt and performs no Force. Existing bindValue cannot implement it
+because it changes the mode to Value. The new construction computes that actual
+plain bind, selected formal Interface, same retained Shared decoder and full
+world update. Its whole-carrier certificate supplies the old world directly
+through PhiCar. Actual receipt/inlet/body and full original scope correspondence
+remain explicit until constructed. Old stage1/2 bytes are immutable inputs.
+
+Before checkpoint24 publication, fresh fetch found disjoint commits1b54c3757
+and807b905a9. Their nine paths contain an exact rejecting-input observation
+artifact and an authoritative additive native Call-certificate introduction,
+plus reviews/documentation. They change no Lean or production compiler input
+of this packet. Fast-forward preserved all nine. Both review receipts and the
+new definition's declared scope were read: native exact trace evidence does
+not establish source validity, and the new native Call introduction retains
+its genuine Q/ArmDecl, domain/provider/future and target premises. Neither
+packet closes original soundness or principality merely from the rejection.
+All19 stage2 dependencies and four accepted outputs still match their freezes.
