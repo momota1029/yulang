@@ -26,9 +26,10 @@ Active follow-up: the actual identity Lambda Name supplier and the actual
 ordinary/restoration Replay queue machine. Complete Call interpretation, the
 original principal ordering, global source/native scoped correspondence and
 the whole growing inference transition relation remain uninstantiated.
-Existing no-normal-drain evidence is not a Lean divergence proof. Primary also
-owns the statement-preserving follow-up for the nine older modules' lint
-warnings enumerated in the ledger; no lint option has been disabled.
+Existing no-normal-drain evidence is not a Lean divergence proof. The separate
+statement-preserving cleanup of nine older modules resolves all 668 lint
+warnings; its independently reviewed 131-job full build has zero warnings
+and errors. No lint option or theorem interface has been weakened.
 The historical foreign scheduling snapshot is preserved; this isolated checkout
 has no authority to reclaim those recorded foreign workers or leases.
 

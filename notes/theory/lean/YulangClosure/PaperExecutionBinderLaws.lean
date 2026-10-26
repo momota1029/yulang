@@ -64,7 +64,7 @@ theorem liftSubN_add (outerDepth innerDepth : Nat) (σ : Nat → Ty) :
   | succ outerDepth ih =>
       simp only [liftSubN]
       rw [ih]
-      simp [liftSubN, Nat.add_assoc]
+      simp []
 
 theorem mapTypeEnvironment_shift_substitution_commutes
     (σ : Nat → Ty) (environment : TypeEnvironment) :
@@ -198,14 +198,9 @@ private theorem shiftAt_all (n : Nat) : ShiftAt n := by
         all_goals
           simp +arith at hn
           simp (config := { contextual := true }) (disch := omega)
-            [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-              mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-              mapTypeArguments, mapAdapterMetadata_shift, mapViewMetadata_shift,
-              mapOperationInstance_shift, List.attach_map_val, List.attach_map,
-              List.map_map, List.map_inj_left, liftSubN_add, h_value, h_computation,
-              h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-              h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-              mapPaperComputation_recursive_eq]
+            [mapPaperValue, mapTypeArguments, mapAdapterMetadata_shift, mapViewMetadata_shift,
+              List.attach_map_val, List.attach_map, List.map_map, List.map_inj_left, h_value,
+              h_computation, mapPaperValue_record_eq]
         all_goals
           repeat' apply And.intro
         all_goals
@@ -220,21 +215,15 @@ private theorem shiftAt_all (n : Nat) : ShiftAt n := by
              exact h_value value (by omega) depth σ)
           | (intro child hmem
              have hsmall := List.sizeOf_lt_of_mem hmem
-             simp (disch := omega) [h_value, h_computation, h_pattern, h_constructorBranch,
-               h_guardedBranch, h_valueArm, h_operationArm, h_handler, h_mapper])
+             simp (disch := omega) [h_value])
     · intro x hn depth σ
       cases x
       all_goals
         simp +arith at hn
         simp (config := { contextual := true }) (disch := omega)
-          [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-            mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-            mapTypeArguments, mapAdapterMetadata_shift, mapViewMetadata_shift,
-            mapOperationInstance_shift, List.attach_map_val, List.attach_map,
-            List.map_map, List.map_inj_left, liftSubN_add, h_value, h_computation,
-            h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-            h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-            mapPaperComputation_recursive_eq]
+          [mapPaperComputation, mapTypeArguments, mapViewMetadata_shift, mapOperationInstance_shift,
+            List.attach_map_val, List.attach_map, List.map_map, List.map_inj_left, h_value, h_computation,
+            h_operationArm, h_handler, h_mapper, mapPaperComputation_recursive_eq]
       all_goals
         repeat' apply And.intro
       all_goals
@@ -249,21 +238,14 @@ private theorem shiftAt_all (n : Nat) : ShiftAt n := by
            exact h_value value (by omega) depth σ)
         | (intro child hmem
            have hsmall := List.sizeOf_lt_of_mem hmem
-           simp (disch := omega) [h_value, h_computation, h_pattern, h_constructorBranch,
-             h_guardedBranch, h_valueArm, h_operationArm, h_handler, h_mapper])
+           simp (disch := omega) [h_value, h_constructorBranch, h_operationArm])
     · intro x hn depth σ
       cases x
       all_goals
         simp +arith at hn
         simp (config := { contextual := true }) (disch := omega)
-          [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-            mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-            mapTypeArguments, mapAdapterMetadata_shift, mapViewMetadata_shift,
-            mapOperationInstance_shift, List.attach_map_val, List.attach_map,
-            List.map_map, List.map_inj_left, liftSubN_add, h_value, h_computation,
-            h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-            h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-            mapPaperComputation_recursive_eq]
+          [mapPaperPattern, mapTypeArguments, List.attach_map_val, List.attach_map, List.map_map,
+            List.map_inj_left, h_value, h_computation, h_pattern]
       all_goals
         repeat' apply And.intro
       all_goals
@@ -280,14 +262,7 @@ private theorem shiftAt_all (n : Nat) : ShiftAt n := by
       all_goals
         simp +arith at hn
         simp (config := { contextual := true }) (disch := omega)
-          [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-            mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-            mapTypeArguments, mapAdapterMetadata_shift, mapViewMetadata_shift,
-            mapOperationInstance_shift, List.attach_map_val, List.attach_map,
-            List.map_map, List.map_inj_left, liftSubN_add, h_value, h_computation,
-            h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-            h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-            mapPaperComputation_recursive_eq]
+          [mapConstructorBranch, h_computation]
       all_goals
         repeat' apply And.intro
       all_goals
@@ -311,27 +286,13 @@ private theorem shiftAt_all (n : Nat) : ShiftAt n := by
         all_goals
           simp +arith at hn
           simp (config := { contextual := true }) (disch := omega)
-            [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-              mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-              mapTypeArguments, mapAdapterMetadata_shift, mapViewMetadata_shift,
-              mapOperationInstance_shift, List.attach_map_val, List.attach_map,
-              List.map_map, List.map_inj_left, liftSubN_add, h_value, h_computation,
-              h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-              h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-              mapPaperComputation_recursive_eq]
+            [mapGuardedBranch, h_computation, h_pattern]
     · intro x hn depth σ
       cases x
       all_goals
         simp +arith at hn
         simp (config := { contextual := true }) (disch := omega)
-          [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-            mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-            mapTypeArguments, mapAdapterMetadata_shift, mapViewMetadata_shift,
-            mapOperationInstance_shift, List.attach_map_val, List.attach_map,
-            List.map_map, List.map_inj_left, liftSubN_add, h_value, h_computation,
-            h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-            h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-            mapPaperComputation_recursive_eq]
+          [mapValueArm, h_guardedBranch]
       all_goals
         repeat' apply And.intro
       all_goals
@@ -355,27 +316,13 @@ private theorem shiftAt_all (n : Nat) : ShiftAt n := by
         all_goals
           simp +arith at hn
           simp (config := { contextual := true }) (disch := omega)
-            [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-              mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-              mapTypeArguments, mapAdapterMetadata_shift, mapViewMetadata_shift,
-              mapOperationInstance_shift, List.attach_map_val, List.attach_map,
-              List.map_map, List.map_inj_left, liftSubN_add, h_value, h_computation,
-              h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-              h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-              mapPaperComputation_recursive_eq]
+            [mapOperationArm, liftSubN_add, h_computation, h_pattern]
     · intro x hn depth σ
       cases x
       all_goals
         simp +arith at hn
         simp (config := { contextual := true }) (disch := omega)
-          [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-            mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-            mapTypeArguments, mapAdapterMetadata_shift, mapViewMetadata_shift,
-            mapOperationInstance_shift, List.attach_map_val, List.attach_map,
-            List.map_map, List.map_inj_left, liftSubN_add, h_value, h_computation,
-            h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-            h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-            mapPaperComputation_recursive_eq]
+          [mapHandlerPlan, List.attach_map_val, List.attach_map, List.map_map, List.map_inj_left]
       all_goals
         repeat' apply And.intro
       all_goals
@@ -390,21 +337,13 @@ private theorem shiftAt_all (n : Nat) : ShiftAt n := by
            exact h_value value (by omega) depth σ)
         | (intro child hmem
            have hsmall := List.sizeOf_lt_of_mem hmem
-           simp (disch := omega) [h_value, h_computation, h_pattern, h_constructorBranch,
-             h_guardedBranch, h_valueArm, h_operationArm, h_handler, h_mapper])
+           simp (disch := omega) [h_valueArm, h_operationArm])
     · intro x hn depth σ
       cases x
       all_goals
         simp +arith at hn
         simp (config := { contextual := true }) (disch := omega)
-          [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-            mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-            mapTypeArguments, mapAdapterMetadata_shift, mapViewMetadata_shift,
-            mapOperationInstance_shift, List.attach_map_val, List.attach_map,
-            List.map_map, List.map_inj_left, liftSubN_add, h_value, h_computation,
-            h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-            h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-            mapPaperComputation_recursive_eq]
+          [mapMapperPlan, mapOperationInstance_shift, h_computation]
       all_goals
         repeat' apply And.intro
       all_goals
@@ -478,19 +417,19 @@ theorem mapOperationDeclaration_shift_substitution_commutes (depth : Nat) (σ : 
     OperationDeclaration.substAmbient (liftSubN depth (liftSub σ)) (OperationDeclaration.substAmbient (liftSubN depth shiftTypeSubstitution) (x)) =
       OperationDeclaration.substAmbient (liftSubN depth shiftTypeSubstitution) (OperationDeclaration.substAmbient (liftSubN depth σ) (x)) := by
   cases x
-  simp [OperationDeclaration.substAmbient, liftSubN_add, List.map_map, mapPaperComputation_shift_substitution_commutes]
+  simp [OperationDeclaration.substAmbient, liftSubN_add]
 
 theorem mapNominalConstructor_shift_substitution_commutes (depth : Nat) (σ : Nat → Ty) (x : NominalConstructor) :
     mapNominalConstructor (liftSubN depth (liftSub σ)) (mapNominalConstructor (liftSubN depth shiftTypeSubstitution) (x)) =
       mapNominalConstructor (liftSubN depth shiftTypeSubstitution) (mapNominalConstructor (liftSubN depth σ) (x)) := by
   cases x
-  simp [mapNominalConstructor, liftSubN_add, List.map_map, mapPaperComputation_shift_substitution_commutes]
+  simp [mapNominalConstructor, liftSubN_add, List.map_map]
 
 theorem mapPrimitiveSignature_shift_substitution_commutes (depth : Nat) (σ : Nat → Ty) (x : PrimitiveSignature) :
     mapPrimitiveSignature (liftSubN depth (liftSub σ)) (mapPrimitiveSignature (liftSubN depth shiftTypeSubstitution) (x)) =
       mapPrimitiveSignature (liftSubN depth shiftTypeSubstitution) (mapPrimitiveSignature (liftSubN depth σ) (x)) := by
   cases x
-  simp [mapPrimitiveSignature, liftSubN_add, List.map_map, mapPaperComputation_shift_substitution_commutes]
+  simp [mapPrimitiveSignature, liftSubN_add, List.map_map]
 
 theorem mapDeclarationTable_shift_substitution_commutes
     (depth : Nat) (σ : Nat → Ty) (declarations : DeclarationTable) :

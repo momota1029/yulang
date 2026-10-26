@@ -19,8 +19,9 @@ to a concrete original `SourceProblem` instance.
 
 The first two modules, their reusable audit and fresh review were pushed as
 [`a209a9d46b4707d29d60b210e490d13f49efa263`](https://github.com/momota1029/yulang/commit/a209a9d46b4707d29d60b210e490d13f49efa263).
-The remaining four form the next coherent reviewed construction/integration
-slice. No Rust/compiler semantics, source restrictions, dependency versions,
+The remaining four were pushed with the default integration as
+[`6a4933e06ecceee2cc2a00a635925f55cfc14adc`](https://github.com/momota1029/yulang/commit/6a4933e06ecceee2cc2a00a635925f55cfc14adc).
+No Rust/compiler semantics, source restrictions, dependency versions,
 resource cap in the algorithm, or original instance order changed.
 
 ## Verification
@@ -82,12 +83,19 @@ build also exposed existing lint warnings in nine older modules:
 | `PaperPerformLetExecution` | 2 |
 | `NativeIntegerComparison` | 7 |
 
-These are retained in the full build log, not suppressed or called a clean
-global lint run. Primary owns a separate, statement-preserving cleanup after
-the current frozen proof slice. Broad simplifier lists used across many
-induction branches require checking the affected proofs rather than blindly
-deleting every reported argument. This follow-up is separate from proof
-closure and does not change the successful build result.
+These initial warnings remain in the original full build log. A separate
+statement-preserving cleanup now removes all **668**. It retains every
+authored and non-helper interface type, allowing alpha-equivalent local
+proof-variable names; changed compiler-generated helper declarations are
+enumerated separately. No linter option was disabled. The full post-cleanup
+default build completed **131 jobs with zero warnings/errors** at the same
+pinned settings. The log is `/tmp/yulang-lint-full-integration.log`.
+
+The exact before/after declaration census and hashes are in
+[the cleanup receipt](2026-10-27-lean-lint-cleanup.md), and the primary's
+independent diff, type-comparison and integration adjudication is in
+[the cleanup review](2026-10-27-lean-lint-review.md).
+This resolved maintenance item does not advance a whole-language proof gate.
 
 ## Independent review
 

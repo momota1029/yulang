@@ -23,9 +23,9 @@ mutual
     | .variable n => .variable (f n)
     | .graphReference n => .graphReference n
     | .literal l => .literal l
-    | .tuple vs => .tuple (vs.attach.map fun ⟨v, hv⟩ => renameTermValue f v)
-    | .sequence vs => .sequence (vs.attach.map fun ⟨v, hv⟩ => renameTermValue f v)
-    | .record fs => .record (fs.attach.map fun ⟨x,hv⟩ => (x.1,x.2.1,renameTermValue f x.2.2))
+    | .tuple vs => .tuple (vs.attach.map fun ⟨v, _hv⟩ => renameTermValue f v)
+    | .sequence vs => .sequence (vs.attach.map fun ⟨v, _hv⟩ => renameTermValue f v)
+    | .record fs => .record (fs.attach.map fun ⟨x,_hv⟩ => (x.1,x.2.1,renameTermValue f x.2.2))
     | .lambda m p n b => .lambda m p n (renameTermComputation (liftTermRenaming f) b)
     | .delay b => .delay (renameTermComputation f b)
     | .wrap v a r => .wrap (renameTermValue f v)
@@ -43,10 +43,10 @@ mutual
   termination_by v => sizeOf v
   decreasing_by all_goals
     first
-    | have hs := List.sizeOf_lt_of_mem hv
+    | have hs := List.sizeOf_lt_of_mem _hv
       have hp := recordValueSize x
       simp +arith at hs hp ⊢ <;> omega
-    | have hs := List.sizeOf_lt_of_mem hv
+    | have hs := List.sizeOf_lt_of_mem _hv
       simp +arith at hs ⊢ <;> omega
     | with_reducible decreasing_trivial
 
@@ -65,7 +65,7 @@ mutual
     | .unionCase v ln l rn r => .unionCase (renameTermValue f v) ln
         (renameTermComputation (liftTermRenaming f) l) rn (renameTermComputation (liftTermRenaming f) r)
     | .perform op ts v => .perform op ts (renameTermValue f v)
-    | .template n ts vs => .template n ts (vs.attach.map fun ⟨v,hv⟩ => renameTermValue f v)
+    | .template n ts vs => .template n ts (vs.attach.map fun ⟨v,_hv⟩ => renameTermValue f v)
     | .request op p k => .request op (renameTermValue f p) (renameTermValue f k)
     | .expose metadata body => .expose metadata (renameTermComputation f body)
     | .fail r => .fail r
@@ -73,7 +73,7 @@ mutual
   termination_by c => sizeOf c
   decreasing_by all_goals
     first
-    | have hs := List.sizeOf_lt_of_mem hv
+    | have hs := List.sizeOf_lt_of_mem _hv
       simp +arith at hs ⊢ <;> omega
     | with_reducible decreasing_trivial
 end
@@ -252,9 +252,9 @@ mutual
     | .variable n => rho n
     | .graphReference n => .graphReference n
     | .literal l => .literal l
-    | .tuple vs => .tuple (vs.attach.map fun ⟨v, hv⟩ => replaceTermValue rho v)
-    | .sequence vs => .sequence (vs.attach.map fun ⟨v, hv⟩ => replaceTermValue rho v)
-    | .record fs => .record (fs.attach.map fun ⟨x,hv⟩ => (x.1,x.2.1,replaceTermValue rho x.2.2))
+    | .tuple vs => .tuple (vs.attach.map fun ⟨v, _hv⟩ => replaceTermValue rho v)
+    | .sequence vs => .sequence (vs.attach.map fun ⟨v, _hv⟩ => replaceTermValue rho v)
+    | .record fs => .record (fs.attach.map fun ⟨x,_hv⟩ => (x.1,x.2.1,replaceTermValue rho x.2.2))
     | .lambda m p n b => .lambda m p n (replaceTermComputation (liftTermSubstitution rho) b)
     | .delay b => .delay (replaceTermComputation rho b)
     | .wrap v a r => .wrap (replaceTermValue rho v)
@@ -272,10 +272,10 @@ mutual
   termination_by v => sizeOf v
   decreasing_by all_goals
     first
-    | have hs := List.sizeOf_lt_of_mem hv
+    | have hs := List.sizeOf_lt_of_mem _hv
       have hp := recordValueSize x
       simp +arith at hs hp ⊢ <;> omega
-    | have hs := List.sizeOf_lt_of_mem hv
+    | have hs := List.sizeOf_lt_of_mem _hv
       simp +arith at hs ⊢ <;> omega
     | with_reducible decreasing_trivial
 
@@ -294,7 +294,7 @@ mutual
     | .unionCase v ln l rn r => .unionCase (replaceTermValue rho v) ln
         (replaceTermComputation (liftTermSubstitution rho) l) rn (replaceTermComputation (liftTermSubstitution rho) r)
     | .perform op ts v => .perform op ts (replaceTermValue rho v)
-    | .template n ts vs => .template n ts (vs.attach.map fun ⟨v,hv⟩ => replaceTermValue rho v)
+    | .template n ts vs => .template n ts (vs.attach.map fun ⟨v,_hv⟩ => replaceTermValue rho v)
     | .request op p k => .request op (replaceTermValue rho p) (replaceTermValue rho k)
     | .expose metadata body => .expose metadata (replaceTermComputation rho body)
     | .fail r => .fail r
@@ -302,7 +302,7 @@ mutual
   termination_by c => sizeOf c
   decreasing_by all_goals
     first
-    | have hs := List.sizeOf_lt_of_mem hv
+    | have hs := List.sizeOf_lt_of_mem _hv
       simp +arith at hs ⊢ <;> omega
     | with_reducible decreasing_trivial
 end
@@ -479,8 +479,8 @@ theorem PaperValueTyped.termReplace {declarations : DeclarationTable} {graphType
 mutual
   def supportedTermValue : Value → Bool
     | .variable _ | .graphReference _ | .literal _ => true
-    | .tuple vs | .sequence vs => vs.attach.all fun ⟨v,hv⟩ => supportedTermValue v
-    | .record fs => fs.attach.all fun ⟨x,hv⟩ => supportedTermValue x.2.2
+    | .tuple vs | .sequence vs => vs.attach.all fun ⟨v,_hv⟩ => supportedTermValue v
+    | .record fs => fs.attach.all fun ⟨x,_hv⟩ => supportedTermValue x.2.2
     | .lambda _ _ _ b | .delay b | .continuation _ _ b => supportedTermComputation b
     | .wrap v a r => supportedTermValue v && supportedTermComputation a && supportedTermComputation r
     | .typeAbstraction v | .typeApplication v _ | .injectLeft v | .injectRight v
@@ -489,10 +489,10 @@ mutual
   termination_by v => sizeOf v
   decreasing_by all_goals
     first
-    | have hs := List.sizeOf_lt_of_mem hv
+    | have hs := List.sizeOf_lt_of_mem _hv
       have hp := recordValueSize x
       simp +arith at hs hp ⊢ <;> omega
-    | have hs := List.sizeOf_lt_of_mem hv
+    | have hs := List.sizeOf_lt_of_mem _hv
       simp +arith at hs ⊢ <;> omega
     | with_reducible decreasing_trivial
 
@@ -503,14 +503,14 @@ mutual
     | .letE a b => supportedTermComputation a && supportedTermComputation b
     | .split v _ b => supportedTermValue v && supportedTermComputation b
     | .unionCase v _ l _ r => supportedTermValue v && supportedTermComputation l && supportedTermComputation r
-    | .template _ _ vs => vs.attach.all fun ⟨v,hv⟩ => supportedTermValue v
+    | .template _ _ vs => vs.attach.all fun ⟨v,_hv⟩ => supportedTermValue v
     | .expose _ body => supportedTermComputation body
     | .fail _ => true
     | _ => false
   termination_by c => sizeOf c
   decreasing_by all_goals
     first
-    | have hs := List.sizeOf_lt_of_mem hv
+    | have hs := List.sizeOf_lt_of_mem _hv
       simp +arith at hs ⊢ <;> omega
     | with_reducible decreasing_trivial
 end
@@ -526,118 +526,118 @@ theorem PaperValueTyped.termSupported {declarations graphTypes environment value
     (motive_5 := fun _ _ _ computation _ _ => supportedTermComputation computation = true)
     (motive_6 := fun _ _ _ continuation _ _ _ => supportedTermValue continuation = true)
     (by intro declarations graphTypes environment
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all []
         all_goals assumption)
     (by intro declarations graphTypes environment value values ty types hvalue hvalues ihValue ihValues
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [List.all_eq_true]
         all_goals assumption)
     (by intro declarations graphTypes environment ty
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all []
         all_goals assumption)
     (by intro declarations graphTypes environment value values ty hvalue hvalues ihValue ihValues
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [List.all_eq_true]
         all_goals assumption)
     (by intro declarations graphTypes environment recordType
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all []
         all_goals assumption)
     (by intro declarations graphTypes label tag value fields recordType presence fieldType environment hfield hvalue hfields ihValue ihFields
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [List.all_eq_true]
         all_goals assumption)
     (by intro declarations graphTypes environment index ty lookup
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment identity ty lookup
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment literal
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment values types hvalues ihValues
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue, List.all_eq_true]
         all_goals assumption)
     (by intro declarations graphTypes environment values elementType hvalues ihValues
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue, List.all_eq_true]
         all_goals assumption)
     (by intro declarations graphTypes environment fields recordType labels required shape unique allRequired hfields ihFields
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue, List.all_eq_true]
         all_goals assumption)
     (by intro declarations graphTypes environment body resultType hbody ihBody
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment profile parameter body inputType outputType hbody ihBody
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment profile parameter body inputType outputType hbody ihBody
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment function argumentAdapter resultAdapter inputType outputType adaptedInputType adaptedOutputType hfunction hargument hresult ihFunction ihArgument ihResult
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment value left right hvalue ihValue
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment value left right hvalue ihValue
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment value left right hleft hright ihLeft ihRight
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment value ty hvalue ihValue
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment metadata value ty hvalue ihValue
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment owners binder body responseType resultType hcontinuation ihContinuation
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment body bodyType hbody ihBody
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment function body argument hfunction ihFunction
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment value body hvalue ihValue
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     (by intro declarations graphTypes environment value ty hvalue ihValue
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation]
         all_goals assumption)
     (by intro declarations graphTypes environment first body firstType resultType hfirst hbody ihFirst ihBody
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation]
         all_goals assumption)
     (by intro declarations graphTypes environment thunk resultType hthunk ihThunk
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation]
         all_goals assumption)
     (by intro declarations graphTypes environment function thunk argumentType resultType hfunction hthunk ihFunction ihThunk
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation]
         all_goals assumption)
     (by intro declarations graphTypes environment tuple binders body types resultType arity htuple hbody ihTuple ihBody
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation]
         all_goals assumption)
     (by intro declarations graphTypes environment value leftBinder left rightBinder right leftType rightType resultType hvalue hleft hright ihValue ihLeft ihRight
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation]
         all_goals assumption)
     (by intro declarations graphTypes environment value recordType label fieldType hvalue hfield ihValue
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation]
         all_goals assumption)
     (by intro declarations graphTypes environment value recordType label presence fieldType hvalue hfield ihValue
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation]
         all_goals assumption)
     (by intro declarations graphTypes environment operation arguments payload declaration resolved arity payloadTyping ihPayload
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation]
         all_goals assumption)
     (by intro declarations graphTypes environment opInstance payload continuation declaration arguments resultType resolved arity instanceEq payloadTyping continuationTyping ihPayload ihContinuation
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation]
         all_goals assumption)
     (by intro declarations graphTypes environment continuation response responseType resultType hcontinuation hresponse ihContinuation ihResponse
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation]
         all_goals assumption)
     (by intro declarations graphTypes environment value body hvalue ihValue
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation]
         all_goals assumption)
     (by intro declarations graphTypes environment identity typeArguments arguments typeArity formals result body resolved arity argumentsTyping ihArguments
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation, List.all_eq_true]
         all_goals assumption)
     (by intro declarations graphTypes environment value left right hvalue ihValue
         simpa only [supportedTermComputation] using ihValue)
@@ -648,10 +648,10 @@ theorem PaperValueTyped.termSupported {declarations graphTypes environment value
     (by intro declarations graphTypes environment metadata body resultType hbody ihBody
         simpa only [supportedTermComputation] using ihBody)
     (by intro declarations graphTypes environment reason ty
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermComputation]
         all_goals assumption)
     (by intro declarations graphTypes environment owners binder body responseType resultType hbody ihBody
-        simp_all [supportedTermValue, supportedTermComputation, List.all_eq_true]
+        simp_all [supportedTermValue]
         all_goals assumption)
     derivation
 
@@ -744,37 +744,37 @@ theorem PaperValueTyped.termSubstitute {d g e t v a rho}
     (h : TermSubstitutionTyped d g e t rho) (hv : PaperValueTyped d g e v a) :
     ∃ result, termSubstituteValue rho v = some result ∧ PaperValueTyped d g t result a := by
   refine ⟨_, ?_, hv.termReplace h⟩
-  simp only [termSubstituteValue, hv.termSupported, Bool.true_eq, ↓reduceIte]
+  simp only [termSubstituteValue, hv.termSupported, ↓reduceIte]
 
 theorem ValuesTyped.termSubstitute {d g e t vs ts rho}
     (h : TermSubstitutionTyped d g e t rho) (hv : ValuesTyped d g e vs ts) :
     ∃ result, termSubstituteValues rho vs = some result ∧ ValuesTyped d g t result ts := by
   refine ⟨_, ?_, hv.termReplace h⟩
-  simp only [termSubstituteValues, hv.termSupported, Bool.true_eq, ↓reduceIte]
+  simp only [termSubstituteValues, hv.termSupported, ↓reduceIte]
 
 theorem ValuesAllTyped.termSubstitute {d g e t vs a rho}
     (h : TermSubstitutionTyped d g e t rho) (hv : ValuesAllTyped d g e vs a) :
     ∃ result, termSubstituteValues rho vs = some result ∧ ValuesAllTyped d g t result a := by
   refine ⟨_, ?_, hv.termReplace h⟩
-  simp only [termSubstituteValues, hv.termSupported, Bool.true_eq, ↓reduceIte]
+  simp only [termSubstituteValues, hv.termSupported, ↓reduceIte]
 
 theorem RecordPayloadsTyped.termSubstitute {d g e t fs a rho}
     (h : TermSubstitutionTyped d g e t rho) (hv : RecordPayloadsTyped d g e fs a) :
     ∃ result, termSubstituteFields rho fs = some result ∧ RecordPayloadsTyped d g t result a := by
   refine ⟨_, ?_, hv.termReplace h⟩
-  simp only [termSubstituteFields, hv.termSupported, Bool.true_eq, ↓reduceIte]
+  simp only [termSubstituteFields, hv.termSupported, ↓reduceIte]
 
 theorem PaperComputationTyped.termSubstitute {d g e t c a rho}
     (h : TermSubstitutionTyped d g e t rho) (hv : PaperComputationTyped d g e c a) :
     ∃ result, termSubstituteComputation rho c = some result ∧ PaperComputationTyped d g t result a := by
   refine ⟨_, ?_, hv.termReplace h⟩
-  simp only [termSubstituteComputation, hv.termSupported, Bool.true_eq, ↓reduceIte]
+  simp only [termSubstituteComputation, hv.termSupported, ↓reduceIte]
 
 theorem PaperContinuationTyped.termSubstitute {d g e t v a b rho}
     (h : TermSubstitutionTyped d g e t rho) (hv : PaperContinuationTyped d g e v a b) :
     ∃ result, termSubstituteValue rho v = some result ∧ PaperContinuationTyped d g t result a b := by
   refine ⟨_, ?_, hv.termReplace h⟩
-  simp only [termSubstituteValue, hv.termSupported, Bool.true_eq, ↓reduceIte]
+  simp only [termSubstituteValue, hv.termSupported, ↓reduceIte]
 
 theorem termSubstituteValue_success {rho v} (h : supportedTermValue v = true) :
     termSubstituteValue rho v = some (replaceTermValue rho v) := by

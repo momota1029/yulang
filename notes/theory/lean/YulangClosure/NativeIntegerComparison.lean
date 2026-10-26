@@ -22,8 +22,7 @@ theorem fold_expansion (ds : List UInt8) (acc : Nat) :
   | nil => simp [decimalFold, value]
   | cons c cs ih =>
       rw [decimalFold_cons, ih]
-      simp [value, Nat.pow_succ, Nat.add_mul, Nat.mul_add,
-        Nat.mul_assoc, Nat.mul_comm, Nat.mul_left_comm, Nat.add_assoc]
+      simp [value, Nat.pow_succ, Nat.mul_add, Nat.mul_assoc, Nat.mul_comm, Nat.add_assoc]
 
 theorem fold_zero (ds : List UInt8) : decimalFold 0 ds = value ds := by
   simp [fold_expansion]
@@ -115,7 +114,7 @@ theorem normalize_spec (negative : Bool) {ds : List UInt8} (hd : Digits ds) :
         simp only [value]
         omega
       have hv' : value (c :: cs) = value ds := by simpa [he] using hv
-      simp only [normalize, he, Prod.fst, Prod.snd]
+      simp only [normalize, he]
       exact ⟨by simpa [he] using ht, Or.inr ⟨c, cs, rfl, hcpos⟩,
         congrArg (signedValue negative) hv', fun _ => hp⟩
 
@@ -210,13 +209,13 @@ theorem lex_value {left right : List UInt8}
               simp only [value, he]
               apply block_lt (Nat.sub_lt_sub_right ha0 hab)
               simpa [he] using hva
-            rw [lexCompare, if_pos hab]
+            rw [lexCompare, ite_eq_left hab]
             exact (Nat.compare_eq_lt.mpr hv).symm
           · by_cases hba : b.toNat < a.toNat
             · have hv : value (b :: bs) < value (a :: as) := by
                 simp only [value, he]
                 exact block_lt (Nat.sub_lt_sub_right hb0 hba) hvb
-              rw [lexCompare, if_neg hab, if_pos hba]
+              rw [lexCompare, ite_eq_right hab, ite_eq_left hba]
               exact (Nat.compare_eq_gt.mpr hv).symm
             · have heq : a.toNat = b.toNat :=
                 Nat.le_antisymm (Nat.le_of_not_lt hba) (Nat.le_of_not_lt hab)

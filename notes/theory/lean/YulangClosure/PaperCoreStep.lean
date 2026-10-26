@@ -83,7 +83,7 @@ theorem field_declaredType {r label presence a}
         intro he
         subst other
         exact hnodup.1 (field_label_mem hf)
-      simp only [declaredType, if_neg hne]
+      simp only [declaredType, ite_eq_right hne]
       exact ih hnodup.2
 
 theorem field_type_unique {r labels required label p q a b}
@@ -117,13 +117,13 @@ theorem lookupRecord_typed {d g e fields r labels required label presence a v}
       | cons declared typed tail =>
           by_cases he : key = label
           · subst key
-            simp only [lookupRecord, if_pos rfl] at hl
+            simp only [lookupRecord] at hl
             have hv : value = v := Option.some.inj hl
             subst v
             have ht := field_type_unique hs declared hf
             cases ht
             exact typed
-          · simp only [lookupRecord, if_neg he] at hl
+          · simp only [lookupRecord, ite_eq_right he] at hl
             exact ih tail hl
 
 def step : Computation → Option Computation

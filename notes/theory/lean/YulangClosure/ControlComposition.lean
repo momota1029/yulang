@@ -301,19 +301,19 @@ theorem segment_progress {sig : Signature} {md : Metadata W}
       cases source with
       | mk current frames =>
         cases hstate
-        simp [sourceStackEmbedding, sourceFramesControl, sourceFrameControl]
+        simp [sourceStackEmbedding, sourceFramesControl]
         exact ⟨_, .originalExit⟩
     | inr sourceStep =>
       obtain ⟨next, hstep⟩ := sourceStep
       cases hstep with
       | enter =>
-        simp [sourceStackEmbedding, sourceFramesControl, sourceFrameControl]
+        simp [sourceStackEmbedding, sourceFramesControl]
         exact ⟨_, .originalEnter⟩
       | returnBind =>
         simp [sourceStackEmbedding, sourceFramesControl, sourceFrameControl]
         exact ⟨_, .originalReturnBind⟩
       | principal hp =>
-        simp [sourceStackEmbedding, sourceFramesControl, sourceFrameControl]
+        simp [sourceStackEmbedding, sourceFramesControl]
         exact ⟨_, .originalPrincipal hp⟩
 
 /-- Concrete root adapter. No Analysis or permissive dummy certificate is supplied. -/

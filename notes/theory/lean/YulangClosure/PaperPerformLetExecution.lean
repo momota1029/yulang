@@ -66,7 +66,7 @@ theorem resolveOperation_iff {operations operation declaration} :
     have hall : operations.all
         (fun other => decide (other.identity = operation → other = declaration)) = true := by
       simpa only [List.all_eq_true, decide_eq_true_eq] using h.2.2
-    simp only [resolveOperation, find_resolved h, if_pos hall]
+    simp only [resolveOperation, find_resolved h, ite_eq_left hall]
 
 /-- A single declaration instance supplies identity, arguments, payload and response. -/
 def performStep (d : DeclarationTable) (responseBinder : TermName) :
@@ -309,7 +309,7 @@ theorem perform_empty_owner {d binder c next} (hs : performStep d binder c = som
             change (if arguments.length = declaration.typeArity then
               some (.request (declaration.instantiate arguments) payload
                 (.continuation [] binder (.ret (.variable 0)))) else none) = some next at hs
-            rw [if_pos ha] at hs
+            rw [ite_eq_left ha] at hs
             exact ⟨_, _, (Option.some.inj hs).symm⟩
           · simp [performStep, hr, ha] at hs
   | _ => simp [performStep] at hs

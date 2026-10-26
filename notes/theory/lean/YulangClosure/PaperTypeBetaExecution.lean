@@ -55,7 +55,7 @@ private theorem mapViewMetadata_cancel (depth : Nat) (argument : Ty) (x : ViewMe
     mapViewMetadata (liftSubN depth (instantiateSubstitution [argument]))
       (mapViewMetadata (liftSubN depth shiftTypeSubstitution) x) = x := by
   cases x
-  simp [mapViewMetadata, mapTypeArguments, List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff]
+  simp [mapViewMetadata, mapTypeArguments, List.map_map, Function.comp_def]
 
 private theorem mapOperationInstance_cancel (depth : Nat) (argument : Ty) (x : OperationInstance) :
     (x.subst (liftSubN depth shiftTypeSubstitution)).subst
@@ -139,14 +139,10 @@ private theorem cancelAt_all (n : Nat) : CancelAt n := by
         all_goals
           simp +arith at hn
           simp (config := { contextual := true }) (disch := omega)
-            [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-              mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-              mapTypeArguments, subst_liftSubN_cancel, mapAdapterMetadata_cancel, mapViewMetadata_cancel,
-              mapOperationInstance_cancel, List.attach_map_val, List.attach_map,
-              List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, List.map_inj_left, liftSubN_add, h_value, h_computation,
-              h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-              h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-              mapPaperComputation_recursive_eq]
+            [mapPaperValue, mapTypeArguments, subst_liftSubN_cancel, mapAdapterMetadata_cancel,
+              mapViewMetadata_cancel, List.attach_map_val, List.attach_map, List.map_map,
+              Function.comp_def, map_eq_self_iff, map_attach_eq_iff, h_value, h_computation,
+              mapPaperValue_record_eq]
         all_goals
           repeat' apply And.intro
         all_goals
@@ -161,21 +157,16 @@ private theorem cancelAt_all (n : Nat) : CancelAt n := by
              exact h_value value (by omega) depth argument)
           | (intro child hmem
              have hsmall := List.sizeOf_lt_of_mem hmem
-             simp (disch := omega) [h_value, h_computation, h_pattern, h_constructorBranch,
-               h_guardedBranch, h_valueArm, h_operationArm, h_handler, h_mapper])
+             simp (disch := omega) [h_value])
     · intro x hn depth argument
       cases x
       all_goals
         simp +arith at hn
         simp (config := { contextual := true }) (disch := omega)
-          [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-            mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-            mapTypeArguments, subst_liftSubN_cancel, mapAdapterMetadata_cancel, mapViewMetadata_cancel,
-            mapOperationInstance_cancel, List.attach_map_val, List.attach_map,
-            List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, List.map_inj_left, liftSubN_add, h_value, h_computation,
-            h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-            h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-            mapPaperComputation_recursive_eq]
+          [mapPaperComputation, mapTypeArguments, subst_liftSubN_cancel, mapViewMetadata_cancel,
+            mapOperationInstance_cancel, List.attach_map_val, List.attach_map, List.map_map,
+            Function.comp_def, map_eq_self_iff, map_attach_eq_iff, h_value, h_computation, h_operationArm,
+            h_handler, h_mapper, mapPaperComputation_recursive_eq]
       all_goals
         repeat' apply And.intro
       all_goals
@@ -190,8 +181,7 @@ private theorem cancelAt_all (n : Nat) : CancelAt n := by
            exact h_value value (by omega) depth argument)
         | (intro child hmem
            have hsmall := List.sizeOf_lt_of_mem hmem
-           simp (disch := omega) [h_value, h_computation, h_pattern, h_constructorBranch,
-             h_guardedBranch, h_valueArm, h_operationArm, h_handler, h_mapper])
+           simp (disch := omega) [h_value, h_constructorBranch, h_operationArm])
     · intro x hn depth argument
       cases x with
       | record fields spread =>
@@ -210,20 +200,15 @@ private theorem cancelAt_all (n : Nat) : CancelAt n := by
           | some computation =>
             simp +arith at hsmall
             simp (disch := omega) [h_pattern, h_computation]
-        · simp only [List.attach_map_val, List.map_id]
+        · simp only [List.attach_map_val]
           exact List.attach_map_subtype_val fields
       | _ =>
         all_goals
           simp +arith at hn
           simp (config := { contextual := true }) (disch := omega)
-            [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-              mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-              mapTypeArguments, subst_liftSubN_cancel, mapAdapterMetadata_cancel, mapViewMetadata_cancel,
-              mapOperationInstance_cancel, List.attach_map_val, List.attach_map,
-              List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, List.map_inj_left, liftSubN_add, h_value, h_computation,
-              h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-              h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-              mapPaperComputation_recursive_eq]
+            [mapPaperPattern, mapTypeArguments, subst_liftSubN_cancel, List.attach_map_val,
+              List.attach_map, List.map_map, Function.comp_def, map_attach_eq_iff, h_value, h_computation,
+              h_pattern]
         all_goals
           repeat' apply And.intro
         all_goals
@@ -240,14 +225,7 @@ private theorem cancelAt_all (n : Nat) : CancelAt n := by
       all_goals
         simp +arith at hn
         simp (config := { contextual := true }) (disch := omega)
-          [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-            mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-            mapTypeArguments, subst_liftSubN_cancel, mapAdapterMetadata_cancel, mapViewMetadata_cancel,
-            mapOperationInstance_cancel, List.attach_map_val, List.attach_map,
-            List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, List.map_inj_left, liftSubN_add, h_value, h_computation,
-            h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-            h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-            mapPaperComputation_recursive_eq]
+          [mapConstructorBranch, h_computation]
       all_goals
         repeat' apply And.intro
       all_goals
@@ -271,27 +249,13 @@ private theorem cancelAt_all (n : Nat) : CancelAt n := by
         all_goals
           simp +arith at hn
           simp (config := { contextual := true }) (disch := omega)
-            [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-              mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-              mapTypeArguments, subst_liftSubN_cancel, mapAdapterMetadata_cancel, mapViewMetadata_cancel,
-              mapOperationInstance_cancel, List.attach_map_val, List.attach_map,
-              List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, List.map_inj_left, liftSubN_add, h_value, h_computation,
-              h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-              h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-              mapPaperComputation_recursive_eq]
+            [mapGuardedBranch, h_computation, h_pattern]
     · intro x hn depth argument
       cases x
       all_goals
         simp +arith at hn
         simp (config := { contextual := true }) (disch := omega)
-          [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-            mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-            mapTypeArguments, subst_liftSubN_cancel, mapAdapterMetadata_cancel, mapViewMetadata_cancel,
-            mapOperationInstance_cancel, List.attach_map_val, List.attach_map,
-            List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, List.map_inj_left, liftSubN_add, h_value, h_computation,
-            h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-            h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-            mapPaperComputation_recursive_eq]
+          [mapValueArm, h_guardedBranch]
       all_goals
         repeat' apply And.intro
       all_goals
@@ -315,27 +279,14 @@ private theorem cancelAt_all (n : Nat) : CancelAt n := by
         all_goals
           simp +arith at hn
           simp (config := { contextual := true }) (disch := omega)
-            [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-              mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-              mapTypeArguments, subst_liftSubN_cancel, mapAdapterMetadata_cancel, mapViewMetadata_cancel,
-              mapOperationInstance_cancel, List.attach_map_val, List.attach_map,
-              List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, List.map_inj_left, liftSubN_add, h_value, h_computation,
-              h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-              h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-              mapPaperComputation_recursive_eq]
+            [mapOperationArm, liftSubN_add, h_computation, h_pattern]
     · intro x hn depth argument
       cases x
       all_goals
         simp +arith at hn
         simp (config := { contextual := true }) (disch := omega)
-          [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-            mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-            mapTypeArguments, subst_liftSubN_cancel, mapAdapterMetadata_cancel, mapViewMetadata_cancel,
-            mapOperationInstance_cancel, List.attach_map_val, List.attach_map,
-            List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, List.map_inj_left, liftSubN_add, h_value, h_computation,
-            h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-            h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-            mapPaperComputation_recursive_eq]
+          [mapHandlerPlan, subst_liftSubN_cancel, List.attach_map_val, List.attach_map, List.map_map,
+            Function.comp_def, map_attach_eq_iff]
       all_goals
         repeat' apply And.intro
       all_goals
@@ -350,21 +301,13 @@ private theorem cancelAt_all (n : Nat) : CancelAt n := by
            exact h_value value (by omega) depth argument)
         | (intro child hmem
            have hsmall := List.sizeOf_lt_of_mem hmem
-           simp (disch := omega) [h_value, h_computation, h_pattern, h_constructorBranch,
-             h_guardedBranch, h_valueArm, h_operationArm, h_handler, h_mapper])
+           simp (disch := omega) [h_valueArm, h_operationArm])
     · intro x hn depth argument
       cases x
       all_goals
         simp +arith at hn
         simp (config := { contextual := true }) (disch := omega)
-          [mapPaperValue, mapPaperComputation, mapPaperPattern, mapConstructorBranch,
-            mapGuardedBranch, mapValueArm, mapOperationArm, mapHandlerPlan, mapMapperPlan,
-            mapTypeArguments, subst_liftSubN_cancel, mapAdapterMetadata_cancel, mapViewMetadata_cancel,
-            mapOperationInstance_cancel, List.attach_map_val, List.attach_map,
-            List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, List.map_inj_left, liftSubN_add, h_value, h_computation,
-            h_pattern, h_constructorBranch, h_guardedBranch, h_valueArm,
-            h_operationArm, h_handler, h_mapper, mapPaperValue_record_eq,
-            mapPaperComputation_recursive_eq]
+          [mapMapperPlan, mapOperationInstance_cancel, h_computation]
       all_goals
         repeat' apply And.intro
       all_goals
@@ -431,31 +374,31 @@ theorem mapTemplateBody_cancel (depth : Nat) (argument : Ty) (x : TemplateBody) 
     mapTemplateBody (liftSubN depth (instantiateSubstitution [argument]))
       (mapTemplateBody (liftSubN depth shiftTypeSubstitution) x) = x := by
   cases x
-  simp [mapTemplateBody, liftSubN_add, List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, mapPaperComputation_cancel]
+  simp [mapTemplateBody, liftSubN_add, List.map_map, Function.comp_def, mapPaperComputation_cancel]
 
 theorem OperationDeclaration_substAmbient_cancel (depth : Nat) (argument : Ty) (x : OperationDeclaration) :
     OperationDeclaration.substAmbient (liftSubN depth (instantiateSubstitution [argument]))
       (OperationDeclaration.substAmbient (liftSubN depth shiftTypeSubstitution) x) = x := by
   cases x
-  simp [OperationDeclaration.substAmbient, liftSubN_add, List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, mapPaperComputation_cancel]
+  simp [OperationDeclaration.substAmbient, liftSubN_add]
 
 theorem mapNominalConstructor_cancel (depth : Nat) (argument : Ty) (x : NominalConstructor) :
     mapNominalConstructor (liftSubN depth (instantiateSubstitution [argument]))
       (mapNominalConstructor (liftSubN depth shiftTypeSubstitution) x) = x := by
   cases x
-  simp [mapNominalConstructor, liftSubN_add, List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, mapPaperComputation_cancel]
+  simp [mapNominalConstructor, liftSubN_add, List.map_map, Function.comp_def]
 
 theorem mapPrimitiveSignature_cancel (depth : Nat) (argument : Ty) (x : PrimitiveSignature) :
     mapPrimitiveSignature (liftSubN depth (instantiateSubstitution [argument]))
       (mapPrimitiveSignature (liftSubN depth shiftTypeSubstitution) x) = x := by
   cases x
-  simp [mapPrimitiveSignature, liftSubN_add, List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, mapPaperComputation_cancel]
+  simp [mapPrimitiveSignature, liftSubN_add, List.map_map, Function.comp_def]
 
 theorem mapDeclarationTable_cancel (depth : Nat) (argument : Ty) (d : DeclarationTable) :
     mapDeclarationTable (liftSubN depth (instantiateSubstitution [argument]))
       (mapDeclarationTable (liftSubN depth shiftTypeSubstitution) d) = d := by
   cases d
-  simp [mapDeclarationTable, List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, OperationDeclaration_substAmbient_cancel,
+  simp [mapDeclarationTable, List.map_map, Function.comp_def, OperationDeclaration_substAmbient_cancel,
     mapNominalConstructor_cancel, mapPrimitiveSignature_cancel, mapTemplateBody_cancel]
 
 theorem mapTypeEnvironment_cancel (argument : Ty) (e : TypeEnvironment) :
@@ -463,12 +406,12 @@ theorem mapTypeEnvironment_cancel (argument : Ty) (e : TypeEnvironment) :
       (mapTypeEnvironment shiftTypeSubstitution e) = e := by
   have h := subst_liftSubN_cancel 0 argument
   simp only [liftSubN] at h
-  simp [mapTypeEnvironment, List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff, h]
+  simp [mapTypeEnvironment, List.map_map, Function.comp_def, h]
 
 theorem mapGraphEnvironment_cancel (argument : Ty) (g : GraphEnvironment) :
     mapGraphEnvironment (instantiateSubstitution [argument])
       (mapGraphEnvironment shiftTypeSubstitution g) = g := by
-  simp only [mapGraphEnvironment, List.map_map, Function.comp_def, map_eq_self_iff, map_attach_eq_iff]
+  simp only [mapGraphEnvironment, List.map_map, Function.comp_def, map_eq_self_iff]
   intro entry _
   rcases entry with ⟨identity, ty⟩
   exact congrArg (fun t => (identity, t)) (subst_liftSubN_cancel 0 argument ty)

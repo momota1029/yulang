@@ -122,12 +122,12 @@ theorem splitStep_eq (values : List Value) (binders : List TermName)
     (body : Computation) (arity : binders.length = values.length) :
     splitStep (.split (.tuple values) binders body) =
       termSubstituteComputation (tupleReplacement values Value.variable) body := by
-  simp only [splitStep, if_pos arity]
+  simp only [splitStep, ite_eq_left arity]
 
 theorem splitStep_arity_mismatch (values : List Value) (binders : List TermName)
     (body : Computation) (arity : binders.length ≠ values.length) :
     splitStep (.split (.tuple values) binders body) = none := by
-  simp only [splitStep, if_neg arity]
+  simp only [splitStep, ite_eq_right arity]
 
 /-- Explicit component and binder arities remain the original typing premises. -/
 theorem split_applicable_of_components {d g e values types binders body result}
@@ -289,17 +289,13 @@ theorem example_order :
       (.ret (.tuple [.variable 1, .variable 0]))) =
       some (.ret (.tuple [.literal (.integer 7), .literal (.boolean true)])) := by
   simp [splitStep, tupleReplacement, prefixReplacement, termSubstituteComputation,
-    supportedTermComputation, supportedTermValue, replaceTermComputation,
-    replaceTermValue, liftTermSubstitution, renameTermValue,
-    PaperCoreStep.singleReplacement]
+    supportedTermComputation, supportedTermValue, replaceTermComputation, replaceTermValue]
 
 theorem example_empty :
     splitStep (.split (.tuple []) [] (.ret (.variable 0))) =
       some (.ret (.variable 0)) := by
   simp [splitStep, tupleReplacement, prefixReplacement, termSubstituteComputation,
-    supportedTermComputation, supportedTermValue, replaceTermComputation,
-    replaceTermValue, liftTermSubstitution, renameTermValue,
-    PaperCoreStep.singleReplacement]
+    supportedTermComputation, supportedTermValue, replaceTermComputation, replaceTermValue]
 
 /-- The replacement is an external variable, transported beneath a let binder. -/
 theorem example_external_under_binder :
@@ -308,16 +304,12 @@ theorem example_external_under_binder :
       some (.letE (.ret (.literal .unit))
         (.ret (.tuple [.variable 0, .variable 1, .variable 1]))) := by
   simp [splitStep, tupleReplacement, prefixReplacement, termSubstituteComputation,
-    supportedTermComputation, supportedTermValue, replaceTermComputation,
-    replaceTermValue, liftTermSubstitution, renameTermValue,
-    PaperCoreStep.singleReplacement]
+    supportedTermComputation, supportedTermValue, replaceTermComputation, replaceTermValue,
+    liftTermSubstitution, renameTermValue]
 
 theorem example_arity_mismatch :
     splitStep (.split (.tuple [.literal .unit]) [] (.ret (.variable 0))) = none := by
-  simp [splitStep, tupleReplacement, prefixReplacement, termSubstituteComputation,
-    supportedTermComputation, supportedTermValue, replaceTermComputation,
-    replaceTermValue, liftTermSubstitution, renameTermValue,
-    PaperCoreStep.singleReplacement]
+  simp [splitStep]
 
 /-- A later substitution must never rewrite an earlier inserted external variable. -/
 theorem example_not_sequential :
@@ -329,9 +321,7 @@ theorem example_not_sequential :
     (termSubstituteComputation (PaperCoreStep.singleReplacement last) body).bind
       (termSubstituteComputation (PaperCoreStep.singleReplacement first)) =
       some (.ret (.literal (.integer 7))) := by
-  simp [splitStep, tupleReplacement, prefixReplacement, termSubstituteComputation,
-    supportedTermComputation, supportedTermValue, replaceTermComputation,
-    replaceTermValue, liftTermSubstitution, renameTermValue,
-    PaperCoreStep.singleReplacement]
+  simp [tupleReplacement, prefixReplacement, termSubstituteComputation, supportedTermComputation,
+    supportedTermValue, replaceTermComputation, replaceTermValue, PaperCoreStep.singleReplacement]
 
 end YulangClosure.PaperTypes.PaperTupleSplitExecution
