@@ -353,3 +353,52 @@ checker attempt existed at transfer. Its additional exact handoff lease is
 `tasks/agent-loop/inbox/20261026-inference-native-record-plan.md`. The completed
 native record paper is frozen for its read-only use and later fresh joint
 review. Primary retains Git, integration, shared records and adjudication.
+
+## Checkpoint 6: exact finite boundary-query routing
+
+Checkpoint 5 is published and synchronized as
+`dd7d881ff58ff20cbfbea8db72126dbbecbc3a1a`, with exact index/tree/parent and
+expected-head checks. The finite boundary routing producer is frozen:
+Lean SHA-256 `7dad22c1b94e404be5dc4aaa51203e8d3882fd4c61006eb8b0c5f6f87a30f727`;
+paper `9b529696fe010630b2c07755bc1d0cd642459e9472d612a5c5ddcdd73273895a`;
+handoff `360d954e711a45af663c0a141635fd374919a266e6a82ae6d26a2b89a525a20c`.
+The exact completed query set preserves the whole producer and consumer,
+including origin, semantic-boundary payload, context, occurrence and query tag.
+The strict-decrease execution receipt and a separate finite event fold are
+constructed; the latter re-computes after each event in one global finite port
+universe. It is not an arbitrary generator/native-history termination theorem.
+
+Fresh `boundary_query_review` owns only
+`tasks/agent-loop/inbox/20261026-inference-boundary-query-review.md` and its
+isolated scratch, with a 600-second M3 review budget and zero optional checker
+reruns. Fresh `native_record_query_review` independently owns only
+`tasks/agent-loop/inbox/20261026-inference-native-record-query-review.md` and its
+isolated scratch under the same 600-second read-only budget, without native
+tests. Neither reviewer authored its packet. The exact native record paper
+and construction will be integrated after their own acceptance; they do not
+supply original semantic boundary identity merely by naming an operational
+event. Producers and reviewers have no shared source, Git or scheduling rights.
+
+Checkpoint 6 integration passes 25 inference-target jobs and all 2,148
+originating theorem constants across 22 modules, including all 127 from the new
+routing module and all 18 required roots. Build log SHA-256:
+`21406bcfb0703148240b612514dae8877b028f7cef7bab7ae9f9b7f5890e71b9`;
+audit log SHA-256:
+`af45102d44b5a2bd6b45916b7f31170b7b5e27a057cbf431d11094647598e5dc`.
+The focused integration produced no warning. Publication still waits for the
+fresh review verdict on the frozen packet.
+
+Fresh `boundary_query_review` accepts the exact frozen routing packet with no
+mandatory finding. Review SHA-256:
+`252e31b8faf39671477b4826210a4d6553ed8a99ce18033f7a6fe42b1c9a7d16`.
+The reviewer independently checked all source/dependency hashes, 332 originating
+declaration records including 127 theorem constants and all required roots,
+and the unchanged original source boundary. It performed no additional checker
+run. This acceptance completes checkpoint 6's publication gate.
+
+Fresh `native_record_query_review` also accepts its frozen paper, separately
+from the not-yet-reviewed Lean plan bridge. The primary corrects its two minor
+wording points in one paper-only delta: the already-typed raw query is passed
+directly to canonical context conversion, and a local annotation's fresh row is
+allocated before checking but exposed/returned afterward. No source/native or
+Lean bytes change. The reviewer receives that exact delta for acknowledgement.

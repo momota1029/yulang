@@ -57,6 +57,16 @@ the full original source witness. Independent review accepts all 81 new theorem
 constants; the inference build passes 24 jobs and the audit covers 2,021 theorem
 constants across 21 modules.
 
+`BoundaryQueryClosure` constructs the exact finite unchanged-view route closure
+and retains whole producer/consumer records in every resulting query. It proves
+strict insertion progress, exact lower/upper meeting coverage and a separate
+finite event fold for growing wiring. The original optional-record
+nontransitivity witnesses distinguish unchanged flow from two concrete
+adaptations with distinct view ports. The inference integration passes 25 jobs
+and audits 2,148 theorem constants across 22 modules. Actual source/context edge
+eligibility, native scheduling correspondence and the semantic meaning of each
+boundary remain independent application obligations.
+
 ## 2026-10-26 continuation: construct terminal inference evidence
 
 The final connection is
