@@ -106,3 +106,30 @@ Default integration passed **70 jobs** and the exact originating-theorem audit
 passed **1,057 records**, exit 0. Audit SHA256:
 `32072b6e8124830b136ceecc43d6763201c3425a6d506e113bc52ba5e2df3dba`.
 The preceding decision checkpoint is published as `458f5e2`.
+
+## Generated native profiles through actual hereditary restriction
+
+The [NPR paper theorem](../theory/2026-10-26-native-profile-hereditary-restriction.md)
+proves the selected native `NP` construction commutes with original lawful
+restriction, by the actual finite `L/DeclContribution` cases. It includes
+Annotation, UpperCall, all six Whole certificates and the single hidden joint
+package. VB-NP applies it to actual typed Return/fresh ValueBind and the
+selected Name/ReadInvoke route, removing the separate generated-profile
+transport premise while retaining genuine independent leaf licenses/actions.
+
+The [producer handoff](../../tasks/agent-loop/inbox/20261026-inference-profile-restriction.md)
+separates this original-constructor paper proof from its Lean companion.
+`NativeProfileRestriction.lean` checks the concrete dependent-record equations,
+not a replacement native grammar. Its complete audit checks 33 declarations,
+including 21 theorem constants, all without axioms. The
+[fresh independent review](../../tasks/agent-loop/inbox/20261026-inference-profile-restriction-review.md)
+accepted the frozen source/grammar correspondence and all recorded types and
+axioms without findings. Actual typed children, independent arms, full original
+certificate construction and native/source correspondence remain OPEN.
+
+Default integration passed **71 jobs** and **1,078 originating theorem audits**,
+exit 0. Audit SHA256:
+`a011ec87945dd677cab45653a18e2809cca6329f343cce61c4f89a03994f2975`.
+After review, the primary changed only the paper's status line to link the
+accepted receipt; its mathematical body and Lean source remain unchanged.
+The graph-completion checkpoint is published as `2eced4d`.

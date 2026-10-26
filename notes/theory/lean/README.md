@@ -24,6 +24,13 @@ are graph validity and actual variable lookup/row-shape/uniqueness facts, not a
 model or decoding equation. The completed publication theorem retains one graph
 and one reference assignment for the whole inventory and all clients.
 
+The independently reviewed [native profile restriction proof](../2026-10-26-native-profile-hereditary-restriction.md)
+constructs the generated-profile hereditary transport through the actual native
+license grammar and applies it to fresh ValueBind/Name Call. The separate
+`NativeProfileRestriction` module checks its dependent-record equations. The
+original native grammar induction is a paper proof; the companion does not
+claim to formalize that grammar or construct a full original Call certificate.
+
 ## 2026-10-26: inference constraint soundness and scoped publication
 
 `YulangClosure.InferenceProofs` is included in the default library build.

@@ -24,7 +24,8 @@ run_cmd do
     `YulangClosure.SimpleSubRegularPublication,
     `YulangClosure.SimpleSubRegularDecision,
     `YulangClosure.SimpleSubRegularGraphExtension,
-    `YulangClosure.SimpleSubRegularCompletion
+    `YulangClosure.SimpleSubRegularCompletion,
+    `YulangClosure.NativeProfileRestriction
   ]
   let roots : Array Name := #[
     `YulangClosure.BirthLevelSCC.finiteReach_iff,
@@ -79,7 +80,9 @@ run_cmd do
     `YulangClosure.SimpleSub.RegularExtension.Extends.history,
     `YulangClosure.SimpleSub.RegularCompletion.completeTerm_correct,
     `YulangClosure.SimpleSub.RegularCompletion.completedStore_correct,
-    `YulangClosure.SimpleSub.RegularCompletion.completed_publication_with_clients
+    `YulangClosure.SimpleSub.RegularCompletion.completed_publication_with_clients,
+    `YulangClosure.NativeProfileRestriction.dependentBind_restriction,
+    `YulangClosure.NativeProfileRestriction.valueBind_profile_restriction
   ]
   let env ← getEnv
   let mut targets : Array Name := #[]
