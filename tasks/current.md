@@ -38,9 +38,21 @@ nonauthor reviews accept the exact conditional scopes. The default 139-job
 build passed without warnings/errors; reusable audits and the ledger retain
 all remaining premises and local failure/repair evidence.
 
-Active follow-up: extrusion Work producers, complete transported keys and the
-actual captured-fiber loop, exact native drain stages, and the authoritative
-original principal-order formulation. Complete Call interpretation, global
+The next reviewed slice computes the local extrusion Work producers, full
+transported keys and actual captured-fiber loop, all fourteen drain stages and
+the first same-owner boundary after an initialized active Dispatch cut. It
+also constructs the complete original source-scoped presentation and actual
+outer-annotation export. Seven new modules have exhaustive independent audits:
+2677 originating declarations, 1114 theorem constants and 153 authored roots.
+The cumulative nineteen-module census is 2085 theorem constants. The default
+146-job build passed with zero warnings/errors; every frozen source hash still
+matches its review input. These counts do not close an original proof goal.
+
+The principal operation is already specified in the original documents; its
+complete semantic interpretation and all-valid-view E_V remain to be proved.
+Active follow-up constructs Name-owned Force observations, the same-state
+selected Work/insertion/fiber-loop join, and the original semantic dependency
+inventory/eligible-Desc owner. Complete Call interpretation, global
 source/native scoped correspondence and the whole growing inference relation
 remain uninstantiated.
 Existing no-normal-drain evidence is not a Lean divergence proof. The separate

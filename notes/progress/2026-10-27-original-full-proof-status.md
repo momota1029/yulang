@@ -14,7 +14,7 @@ to a concrete original `SourceProblem` instance.
 | `OriginalForcedParameter` | An actual Force/Return of the same whole carrier supplies both pre-bind world and returned-value membership, in Meaning and Background separately. | Genuine Force/demand/Return interpretation, native formation and independent world guards. |
 | `OriginalSourceClosure` | The source-owned body EventProof preserves the selected contract, and actual Build-to-body consumers apply finite Checking at the original body endpoints. | Canonical proof-packet interpretation; the stricter empty-write predicate has no automatic all-raw-payload conservativity theorem. |
 | `OriginalReturnWorld` | Computes the actual native Return bind at the decoded source Event; the real entry consumer obtains the same witness, original checked body and own-event installed-map equality. | Authentic packet/readout correspondence and the installed-map invariant through all preceding Force effects. |
-| `OriginalPrincipalityResolution` | Inverts the actual original App at site 16 and proves that incomplete interfaces leave its certificate and the principal order undetermined. | Interface countermodels are not original-source counterexamples. Original whole scoped order and Call interpretation remain missing. |
+| `OriginalPrincipalityResolution` | Inverts the actual original App at site 16 and proves that incomplete interfaces leave its certificate and the principal order undetermined. | Interface countermodels are not original-source counterexamples. The original specified scoped instance operation still needs a concrete full Lean interpretation and Call meaning. |
 | `OriginalInferenceTerminationResolution` | Derives allocated-prefix chronology and excludes a fresh-row-bearing complete Request from an older Replay's actual raw RelationId readback. | Native producer formation, actual Replay/queue/extrusion composition, full NQ and original whole inference machine. |
 | `OriginalIdentityRealization` | Actual Lambda Build selects the descriptor before all invocations; the same admitted Call and real forced formal supply native Name lookup, current world/value membership and the original body consumer at its exact ports. | Same-call whole-carrier Meaning, authentic native Force/Name readouts and the other Function-introduction cases remain open. |
 | `OriginalReplayDrain` | The ordinary loop computes every enqueue without fuel; synchronous Ready delivery obtains an actual return receipt; physical Function consumers retain all four ports and raw relation IDs. | Whole Rust trace extraction, dispatch bodies, Some-loop termination and complete fiber/Replay publication. |
@@ -22,6 +22,13 @@ to a concrete original `SourceProblem` instance.
 | `OriginalReplayBoundary` | Derives the old stack-depth premise from the same first-boundary history, then proves processing of exact ordinary Replay children and all four physically admitted Function ports. | Does not assert boundary existence or semantic subtyping; full native stage/history and NQ successor construction remain open. |
 | `OriginalIdentityCarrier` | Computes a fresh initialized-Name Delay and every finite prefix, derives its original hereditary carrier Meaning, and supplies `ForceCut.whole` at the same actual receipt-origin carrier. | Native Force/dispatch/readout extraction, independent lawful world histories and guards, actual entry facts and arbitrary admitted carrier cases remain open. |
 | `OriginalBoundFibers` | Computes the actual linked head/vector attachment, preserves captured source cursors, derives local cursor accessibility, and publishes the exact raw interner result and complete key into the target fiber. | Authentic transported-key construction and snapshot, evidence/dependency/sample internals, native trace extraction and whole growing inference termination remain open. |
+| `OriginalExtrusionWork` | Computes all eight local Work variants, row memo-before-link and selected old bounds, the full four-port Function rebuild, and a complete three-step row-to-Bound request producer. | External insertion/aggregate/capture/postlude owners and authentic branded arena/source extraction; the Function witness starts from an explicit in-progress frame. |
+| `OriginalExtrusionFibers` | Computes the complete transported pair/context/source/flow key, owner-first scoped-root remapping, and same raw native child publication into the requested target fiber. | Authentic representative/discharge readouts, native evidence/snapshot extraction and exact prior physical insertion. |
+| `OriginalFiberTransfer` | Executes the captured-once linked source head, saves each next pointer before the body, derives all full child deliveries and exact original-entry coverage on normal completion, and retains partial error states. | First executable-fiber loop only; copied-bound insertion/capture before it, later origin metadata and full Rust extraction remain separate. |
+| `OriginalDrainStages` | Computes all fourteen stages and derives initialized stage/current/owner validity, exact Transport identification and survival of the same suspended frame through a completed finite nested prefix. | Readback events are not an extracted complete native run; arbitrary bookkeeping does not certify a coarse control Run. |
+| `OriginalFirstDrainBoundary` | Constructs a first empty field cut from the supplied finite event list and derives its entry program counter and exact settlement update. | Global initialization has a pre-seed empty field cut; the separate active-cut supplier below is required for the post-tau application. |
+| `OriginalDrainFrontier` | Derives the poll invariant from initialization, then constructs a nonempty first same-owner boundary after the actual active/Dispatch cut with no supplied poll invariant. | Authentic tau/event extraction and exclusion of other-owner settlement where NQ requires it; no boundary existence or full NQ conclusion. |
+| `OriginalScopedClosure` | Constructs the full original Source/Client scoped presentation, proves all-constructor erasure, retains Shared/Event routing, and opens the actual outer-annotation export through original publication restoration. | Semantic fixed-dependency eligibility, endpoint grafts, originalNewInstance interpretation, all-valid-view E_V and complete source/native publication extraction. |
 
 The first two modules, their reusable audit and fresh review were pushed as
 [`a209a9d46b4707d29d60b210e490d13f49efa263`](https://github.com/momota1029/yulang/commit/a209a9d46b4707d29d60b210e490d13f49efa263).
@@ -31,7 +38,10 @@ No Rust/compiler semantics, source restrictions, dependency versions,
 resource cap in the algorithm, or original instance order changed.
 The four later execution modules were pushed as
 [`f8442e8e618940e0575897e373b2e3faa55e3d30`](https://github.com/momota1029/yulang/commit/f8442e8e618940e0575897e373b2e3faa55e3d30).
-The carrier and bound-fiber modules form the next independently accepted slice.
+The carrier and bound-fiber modules were pushed as
+[`e7551b943fa5dcd8205e2f5ec82380c9688a9cb3`](https://github.com/momota1029/yulang/commit/e7551b943fa5dcd8205e2f5ec82380c9688a9cb3).
+The seven Work/fiber/stage/scoped modules form the next independently accepted
+and default-built slice.
 
 ## Verification
 
@@ -83,7 +93,7 @@ The next two modules have independent nonauthor acceptance in
 [the bound-fiber review](2026-10-27-bound-fibers-review.md). Their default
 integration passed **139 jobs**, exit 0, with zero warnings/errors; the log is
 `/tmp/yulang-carrier-fiber-full-integration.log`. The ordinary default entry
-now reaches twelve new proof modules.
+at that checkpoint reached twelve new proof modules.
 
 | Origin module | All declarations | Theorem constants |
 | --- | ---: | ---: |
@@ -124,12 +134,77 @@ its own same returned raw child, including partial-error ordering. Its local
 cursor `Acc` contains a finite represented body `Run`; it does not establish
 termination of the original inference relation.
 
-Active construction now computes the authentic transported key and entire
-captured-fiber loop from extrusion Work, and connects all fourteen native
-drain stages to the already checked first boundary. The original complete
-Call interpretation, principal instance order and full source/native
-extraction remain open. The existing no-normal-boundary obstruction is not
-silently promoted to Lean divergence.
+The subsequent Work/fiber/stage construction is recorded below. The original
+complete Call interpretation, concrete scoped instance interpretation and full
+source/native extraction remain open. The existing no-normal-boundary
+obstruction is not silently promoted to Lean divergence.
+
+### Native Work, active drain frontier and full source presentation
+
+The next seven proof modules have fresh nonauthor acceptance and are imported
+by the ordinary `OriginalProofProgress` default entry. The full default build
+passed **146 jobs**, exit 0, with **zero warnings/errors**. Exact receipt:
+`/tmp/yulang-work-stage-scoped-full-integration.log`. Every frozen proof hash
+was compared again after this build and matches the independent review input.
+
+| Origin module | All declarations | Theorem constants | Authored roots |
+| --- | ---: | ---: | ---: |
+| `OriginalExtrusionWork` | 950 | 363 | 41 |
+| `OriginalExtrusionFibers` | 113 | 35 | 10 |
+| `OriginalFiberTransfer` | 240 | 101 | 15 |
+| `OriginalDrainStages` | 706 | 292 | 28 |
+| `OriginalFirstDrainBoundary` | 57 | 35 | 13 |
+| `OriginalDrainFrontier` | 33 | 26 | 16 |
+| `OriginalScopedClosure` | 578 | 262 | 30 |
+| **New census** | **2677** | **1114** | **153** |
+
+The cumulative censuses now cover **2085 theorem constants in nineteen new
+modules**. Counts measure the declared audit surface, not progress percentages
+or closure of any original whole-language theorem. Every new originating
+declaration, including private/generated constants, has a complete printed
+type and transitive axiom inventory. All independent checks exited 0 with
+no elision or extra axiom; only `propext`, `Classical.choice` and `Quot.sound`
+occur. Proof builds remain at 1 GiB; selected complete inspection commands
+use a local 2 GiB limit without changing project settings.
+
+The reusable `AuditOriginalExtrusionWork`, `AuditOriginalExtrusionFibers`,
+`AuditOriginalDrainStages`, `AuditOriginalFirstDrainBoundary`,
+`AuditOriginalDrainFrontier`, and `AuditOriginalScopedClosure` files retain
+the exact successfully checked audit source bytes. The fiber audit includes
+both the key and loop modules. No EOF normalization changed these copies.
+Independent logs and SHA-256 values are recorded in the six review receipts.
+
+Three source-sensitive distinctions were resolved or retained explicitly:
+
+1. Native Term labels are branded/page-based identities, separate from a
+   dense allocation counter. The Work producer now stores actual raw labels;
+   native collected-prefix lookup versus branch-local interning remains an
+   extraction obligation. Post-publication sampling failure retains all
+   committed cells and does not invent a memoized success.
+2. The exact Bound order is origin/evidence admission, physical append,
+   capture registration and emission/sampling, then the captured executable
+   fiber loop, then origin metadata. A documentation sentence and its review
+   receipt originally placed capture after the fiber loop; both were corrected
+   against the native body. Neither accepted Lean client encoded that wrong
+   order, so proof hashes and checker evidence are unchanged. The direct
+   computed insertion/loop composition is the next separate constructor.
+3. Fresh drain initialization is already an empty field cut before seed
+   enqueue. `OriginalDrainFrontier` supplies the actual post-active-cut
+   application by deriving poll coherence and current/owner entry from the
+   initialized history. Its first boundary is strictly later and concerns the
+   same owner; authentic native extraction and other-owner exclusion remain.
+
+The independent principal-order review also corrected the task formulation:
+the original source operation and allocation rules already exist. The missing
+work is their concrete complete interpretation and all-valid-view extension
+`E_V`, not choosing a replacement preorder. ScopedClosure retains the whole
+original residual and actual exported outer-annotation endpoint, while making
+no claim that address copying performs semantic endpoint grafting.
+
+Failed producer/provisional checks remain in the paired notes and scratch
+receipts. The final frozen checks, rather than earlier partial interfaces,
+are the evidence used for integration. No compiler or original source semantics
+changed in this slice.
 
 ### Actual execution suppliers and first-boundary integration
 
@@ -219,6 +294,18 @@ Every production author is separate from its reviewer:
   [Replay review](2026-10-27-replay-drain-review.md).
 - Working owner and first-boundary applications: `/root/principality`,
   [boundary review](2026-10-27-replay-boundary-review.md).
+- Native Work producer: `/root/soundness_hygiene`,
+  [Work review](2026-10-27-extrusion-work-review.md).
+- Full transported key and captured-fiber loop: `/root/soundness_hygiene`,
+  [fiber-loop review](2026-10-27-extrusion-fibers-review.md).
+- Exact native stages and first field boundary: `/root/termination`,
+  [stage/boundary review](2026-10-27-drain-stage-boundary-review.md).
+- Active-cut frontier: `/root`,
+  [frontier review](2026-10-27-drain-frontier-review.md).
+- Original source-scoped presentation and export: `/root`,
+  [scoped-closure review](2026-10-27-scoped-closure-review.md).
+- Original instance-operation formulation: `/root`,
+  [principal-order review](2026-10-27-principal-order-review.md).
 
 The review receipts bind exact source hashes, report independent checker
 outcomes and retain the local interpretation/source-correspondence limits.
@@ -234,10 +321,15 @@ events, actual native Call/Force and the original generated-solution bridge
 remain. In particular EventProof may change logical eta/witness fields;
 its event cannot simply be identified with the preceding runtime event.
 
-**Principality.** The required instance relation compares one complete
-source-scoped package, including rigid imports, one hidden witness and all
-lawful uses/futures. The diagnostic order models do not define that relation.
-Neither all-model preservation nor separate per-use choices supply it.
+**Principality.** The original source documents already define the ordinary
+copy/graft/direct-at-export operation and joint scoped allocation. Its Lean
+interpretation must compare one complete source-scoped package, including rigid
+imports, one hidden witness strategy and all lawful uses/futures. ScopedClosure
+now constructs the full source presentation and actual publication-root
+readout. Full semantic dependency/eligible-Desc construction, symbolic endpoint
+action, originalNewInstance and all-valid-view E_V remain. The diagnostic order
+models do not supply these facts; neither all-model preservation nor separately
+chosen per-use witnesses proves the original joint extension theorem.
 
 **Inference termination.** The original target remains
 `Acc (fun next prev => p.inferStep prev next) n` at every original supported
@@ -248,13 +340,13 @@ fixture; it is not a Lean infinite execution or a refutation of the original
 possibilities. A finite successful-drain premise or a machine-size cap is
 not substituted for this target.
 
-The identity Name readback and ordinary/restoration Replay suppliers are now
-checked, independently accepted and integrated with their exact remaining
-premises. Current construction targets the same-call carrier's actual native
-Delay/Name prefixes, the extrusion Work stack and selected copied-bound
-producer, the physical linked fiber cursor, and the exact native drain stage
-discipline. These unfinished successors are excluded from this checkpoint.
-None is being treated as a completed source/native or original goal instance.
+Current construction targets the actual Name-owned Force observation/extraction
+supplier, the same-state selected Work-to-physical-insertion/fiber-loop join,
+and the original semantic dependency inventory/eligible-Desc owner. These
+successors are excluded from this checkpoint until they pass their own
+construction, source-correspondence, checker and independent-review gates.
+None of the integrated local suppliers is treated as a completed original
+source/native or whole-language goal instance.
 
 ## Ownership and recovery
 

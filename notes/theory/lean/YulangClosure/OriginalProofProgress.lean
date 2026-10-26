@@ -8,6 +8,10 @@ import YulangClosure.OriginalIdentityRealization
 import YulangClosure.OriginalReplayBoundary
 import YulangClosure.OriginalIdentityCarrier
 import YulangClosure.OriginalBoundFibers
+import YulangClosure.OriginalExtrusionWork
+import YulangClosure.OriginalFiberTransfer
+import YulangClosure.OriginalDrainFrontier
+import YulangClosure.OriginalScopedClosure
 
 /-!
 Explicit default-build entry for the 2026-10-27 original-source proof work.
@@ -32,12 +36,28 @@ inputs. The bound-fiber module computes actual linked attachments, preserves
 captured cursors, and publishes the same native interner result and complete
 key. Its cursor accessibility is local to the represented linked control.
 
+The extrusion producers now compute the native local Work branches and exact
+selected Bound requests. Separate full-key and captured-fiber computations
+derive same-raw-child publication and preserved source cursors; the physical
+insertion/first-loop composition is still a separate native owner. The exact
+fourteen-stage projection derives a first same-owner settlement boundary
+after an initialized active Dispatch cut, including its entry program counter.
+It does not prove that the candidate boundary exists or extract the Rust run.
+
+The scoped source presentation preserves the complete original Build residual,
+source/event/Shared owners and actual annotation export. Its address-copy
+theorems do not interpret SG endpoint grafts or establish all-valid-view E_V.
+
 No original SourceProblem instance is synthesized by these imports. The
 remaining original source/primitive interpretation, recursive callable
-realization, whole scoped instance order and native inference machine remain
+realization, concrete interpretation of the specified scoped instance
+operation and native inference machine remain
 explicit obligations. AuditOriginalClosureProgress.lean checks the first six
 modules; AuditOriginalExecutionProgress.lean checks the next four. Both include
 every originating theorem, including generated and private declarations.
 AuditOriginalIdentityCarrier.lean and AuditOriginalBoundFibers.lean also audit
 every originating declaration of their respective new modules.
+The ExtrusionWork, ExtrusionFibers, DrainStages, FirstDrainBoundary,
+DrainFrontier and ScopedClosure audits likewise cover all originating
+declarations, including every generated/private constant.
 -/
