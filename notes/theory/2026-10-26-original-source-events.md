@@ -1,5 +1,15 @@
 # Original source event owners and retained formal evidence
 
+> **Source-generation update (2026-10-26).** The
+> [formal Shared migration](2026-10-26-original-formal-shared.md) supersedes
+> the statements below that the current Lambda builder lacks formal Shared
+> or that the standard Parameter consumer inserts it into a separate tree.
+> The current builder emits the original formal Shared and the Parameter
+> consumer uses that exact tree. Earlier theorem inventories, hashes and
+> missing-generation claims below describe their recorded baseline. The
+> actual Build-description tie, complete decoded-event correspondence and
+> whole original inference-soundness obligations remain separate.
+
 Repaired author construction packet, 2026-10-26. **Frozen for a fresh independent review; not an acceptance receipt.**
 
 The earlier `b5a4b389` packet was rejected for a generic route collision and an

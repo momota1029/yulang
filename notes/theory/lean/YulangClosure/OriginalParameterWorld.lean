@@ -5,11 +5,11 @@ import YulangClosure.OriginalCheckingAdmission
 /-!
 Owned parameter contracts and actual formal Shared delivery.
 
-SG §3.3 fixes the ordinary formal descriptor before invocation. The new
-annotated generation surface below retains original source coordinates while
-recording the distinct physical position of the inserted Shared delivery.
-Raw history identity retains the whole independent record; typed assignments
-and description proofs are separate. No existing source API is reinterpreted.
+SG §3.3 fixes the ordinary formal descriptor before invocation. The original
+source builder now emits the formal Shared delivery. Parameter.generate
+retains that exact source tree and records its existing physical occurrence.
+The older additive transformer remains a separate helper and is not applied
+by Parameter.generate. Raw history and typed assignments remain separate.
 -/
 namespace YulangClosure.OriginalParameterWorld
 
@@ -190,8 +190,31 @@ def Annotated.generate (program : Annotated) (delivery : Delivery) : Generated :
 def Parameter.annotated (parameter : Parameter) : Annotated :=
   ⟨[], sourceRules parameter.context parameter.source⟩
 
+/-- The original source builder now emits formal Shared itself. This
+consumer retains that exact tree; it never applies the additive transformer. -/
 def Parameter.generate (parameter : Parameter) : Generated :=
-  parameter.annotated.generate (entryDelivery parameter.registration)
+  ⟨sourceRules parameter.context parameter.source, [entryDelivery parameter.registration]⟩
+
+theorem generated_parameter_is_original (parameter : Parameter) :
+    parameter.generate.tree = sourceRules parameter.context parameter.source := rfl
+
+/-- Existing delivery occurrence in the actual source tree, not metadata
+for a separately transformed program. -/
+theorem generated_parameter_existing_owner (parameter : Parameter) :
+    ((sourceOwners parameter.context parameter.source).drop
+      (match parameter.formal.entry with | .value => 3 | .computation => 2)).head? =
+      some parameter.registration.physicalRetainedOwner := by
+  cases mode : parameter.formal.entry
+  · exact source_lambda_value_shared parameter.context parameter.lambdaSite parameter.formal
+      parameter.pattern parameter.body mode
+  · exact source_lambda_computation_shared parameter.context parameter.lambdaSite parameter.formal
+      parameter.pattern parameter.body mode
+
+theorem generated_parameter_delivery_matches_owner (parameter : Parameter) :
+    (entryDelivery parameter.registration).physical = parameter.registration.physicalRetainedOwner.route ∧
+    (entryDelivery parameter.registration).original.binder = parameter.registration.physicalRetainedOwner.binder ∧
+    (entryDelivery parameter.registration).original.telescope = parameter.registration.physicalRetainedOwner.telescope :=
+  ⟨rfl, rfl, rfl⟩
 
 theorem insertion_uses_original_node (route : Route) (delivery : Delivery) (tree : RuleTree)
     (same : route = delivery.physical) :
@@ -201,26 +224,7 @@ theorem insertion_uses_original_node (route : Route) (delivery : Delivery) (tree
 /-- Actual original Lambda generation supplies exactly one formal delivery.
 Body/pattern source trees remain arbitrary and are not executed by generation. -/
 theorem generated_parameter_delivery (parameter : Parameter) :
-    parameter.generate.deliveries = [entryDelivery parameter.registration] := by
-  cases parameter with
-  | mk declaration ambient context site formal pattern body =>
-      cases mode : formal.entry
-      all_goals
-        simp only [Parameter.generate, Parameter.annotated, Parameter.source,
-          Parameter.registration, Annotated.generate, sourceRules, entryDelivery,
-          deliveryPosition, lambdaEntry, mode, EntryRegistration.retainedOwner]
-      case value =>
-        change Generated.deliveries (generateAt [] _ (RuleTree.existsE _ <|
-          RuleTree.existsE _ <| RuleTree.rule _ _ _ _ <| RuleForest.one <|
-          RuleTree.forallE _ <| RuleTree.existsE _ <| RuleTree.rule _ _ _ _ <|
-          RuleForest.one <| RuleTree.executionE _ _)) = _
-        simp [generateAt, generateForest, owner, RuleForest.one]
-      case computation =>
-        change Generated.deliveries (generateAt [] _ (RuleTree.existsE _ <|
-          RuleTree.existsE _ <| RuleTree.rule _ _ _ _ <| RuleForest.one <|
-          RuleTree.forallE _ <| RuleTree.existsE _ <| RuleTree.rule _ _ _ _ <|
-          RuleForest.one <| RuleTree.rule _ _ _ _ _)) = _
-        simp [generateAt, generateForest, owner, RuleForest.one]
+    parameter.generate.deliveries = [entryDelivery parameter.registration] := rfl
 
 /-- Full independent history-record keys are used directly. The old Runtime
 projection remains an execution projection and cannot select assignments. -/
@@ -527,9 +531,9 @@ theorem same_actual_shared_across_descriptions (assignment : SharedAssignment s 
 /-- First complete producer-to-decoder checkpoint. It selects the contract
 from the original pre-invocation assignment, computes the real allocation
 address, uses one owned Shared strategy application, and consumes exactly
-that generated payload in the original decoder. No post-bind readout law is
-an input. This is the new annotated surface, not a claim that the unchanged
-legacy sourceRules already emits formal Shared. -/
+that payload in the original decoder. No post-bind readout law is an input.
+The delivery metadata now refers to the actual original builder. The direct
+Build/anchor consumer is supplied separately by OriginalFormalShared. -/
 theorem source_assigned_native_delivery
     (formalAssignment : FormalAssignment s View) (sharedAssignment : SharedAssignment s View)
     (parameter : Parameter) (outerRoute : Route)

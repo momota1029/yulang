@@ -7,11 +7,11 @@ Authority: SG §3.3/§5.2 and Call semantic input realization §§2–4. The act
 source builder supplies owner occurrences; no complete registry, source
 judgment, semantic membership or event-readback law is an input.
 
-This is a separate constructor packet. It neither modifies the reviewed core
-nor identifies a newly chosen history grammar with every original admitted
-context. Primitive field interpretations and semantic admission remain their
-original independent inputs. In particular retained formal evidence is a real
-missing core output, not a reason to freeze the entire current witness.
+This constructor packet does not identify its history data grammar with
+every independently admitted original context. Primitive interpretations and
+semantic admission remain independent inputs. The source builder now emits
+formal Shared; its distinct virtual and physical coordinates are related below.
+Complete semantic/native delivery remains a separate local application.
 -/
 namespace YulangClosure.OriginalSourceEvents
 
@@ -170,13 +170,42 @@ theorem source_lambda_receipt (context : Context) (site : Site) (formal : Formal
   rfl
 
 /-- New retained evidence belongs after the actual receipt and, for Value
-entry, after the actual Return/rebind. This is required metadata; the old
-core does not yet insert this Shared owner into its rule program. -/
+entry, after the actual Return/rebind. The reserved route names original
+retained ownership; physicalRetainedOwner records its emitted position. -/
 def EntryRegistration.retainedOwner (entry : EntryRegistration) : Owner :=
   let scope := match entry.entry with
     | .value => extendScope entry.telescope (entry.route ++ [0]) ⟨entry.site, .returnRebind, 0⟩
     | .computation => entry.telescope
   owner (entry.route ++ [2]) scope ⟨entry.site, .shared, 0⟩ .retainedShared
+
+/-- The emitted Shared node has a physical tree coordinate distinct from
+its reserved original retained-field coordinate. Its binder and dependencies
+are exactly the original retained owner's. -/
+def EntryRegistration.physicalRetainedOwner (entry : EntryRegistration) : Owner :=
+  {entry.retainedOwner with route := entry.route ++ match entry.entry with
+    | .value => [0, 0]
+    | .computation => [0]}
+
+theorem physical_retained_keeps_owner (entry : EntryRegistration) :
+    entry.physicalRetainedOwner.binder = entry.retainedOwner.binder ∧
+    entry.physicalRetainedOwner.telescope = entry.retainedOwner.telescope ∧
+    entry.physicalRetainedOwner.lifetime = entry.retainedOwner.lifetime := ⟨rfl, rfl, rfl⟩
+
+theorem source_lambda_value_shared (context : Context) (site : Site) (formal : Formal)
+    (pattern : Source .pattern) (body : Source .expression) (mode : formal.entry = .value) :
+    ((sourceOwners context (.lambda ⟨site, none⟩ formal pattern body)).drop 3).head? =
+      some (lambdaEntry context site formal pattern body).physicalRetainedOwner := by
+  simp only [sourceOwners, sourceRules, mode, lambdaEntry, lambdaScope, formalContext,
+    EntryRegistration.physicalRetainedOwner, EntryRegistration.retainedOwner]
+  rfl
+
+theorem source_lambda_computation_shared (context : Context) (site : Site) (formal : Formal)
+    (pattern : Source .pattern) (body : Source .expression) (mode : formal.entry = .computation) :
+    ((sourceOwners context (.lambda ⟨site, none⟩ formal pattern body)).drop 2).head? =
+      some (lambdaEntry context site formal pattern body).physicalRetainedOwner := by
+  simp only [sourceOwners, sourceRules, mode, lambdaEntry, lambdaScope, formalContext,
+    EntryRegistration.physicalRetainedOwner, EntryRegistration.retainedOwner]
+  rfl
 
 theorem value_retained_below_return (entry : EntryRegistration) (mode : entry.entry = .value) :
     entry.retainedOwner.telescope = entry.telescope ++

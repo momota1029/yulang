@@ -354,12 +354,13 @@ theorem direct_receivers_after_all_frames (readout : RuntimeReadout s View)
   simp only [Decoded.callSubject, owners.1, owners.2, Option.map_some, Option.getD_some]
   exact ⟨rfl, rfl⟩
 
-/-- The exact current program introduces Shared at its six real binding
-initializers. This does not supply the distinct formal-rebind evidence. -/
+/-- The original source builder introduces six initializer Shared binders
+and four distinct formal-rebind Shared binders at their actual Return scopes. -/
 theorem shared_binder_census :
     SourceRetainedEvidence.sharedOwners (sourceRules [] program) =
-      [⟨7, .shared, 0⟩, ⟨33, .shared, 0⟩, ⟨43, .shared, 0⟩,
-       ⟨1, .shared, 0⟩, ⟨61, .shared, 0⟩, ⟨71, .shared, 0⟩] := by
+      [⟨3, .shared, 0⟩, ⟨9, .shared, 0⟩, ⟨12, .shared, 0⟩,
+       ⟨7, .shared, 0⟩, ⟨33, .shared, 0⟩, ⟨43, .shared, 0⟩,
+       ⟨1, .shared, 0⟩, ⟨63, .shared, 0⟩, ⟨61, .shared, 0⟩, ⟨71, .shared, 0⟩] := by
   simp only [program, topInitializer, topBody, fBindings,
     fInitializer, body, statements, result, iBindings, bBindings, clients,
     firstCall, secondCall, ObservedReplay.firstCall, ObservedReplay.secondCall,
@@ -369,12 +370,11 @@ theorem shared_binder_census :
     SourceRetainedEvidence.sharedOwners]
   rfl
 
-/-- None of the four actual formal owners has the needed retained Shared
-binder in this frozen builder. This is a representation gap, not permission
-to drop that original source evidence or a refutation of source typing. -/
-theorem formal_shared_evidence_absent :
+/-- All four original formal owners now retain their Shared binder. This
+is source-generation coverage, not a completed semantic or native admission. -/
+theorem formal_shared_evidence_present :
     ∀ formal ∈ [3, 9, 12, 63],
-      (⟨formal, .shared, 0⟩ : Binder) ∉
+      (⟨formal, .shared, 0⟩ : Binder) ∈
         SourceRetainedEvidence.sharedOwners (sourceRules [] program) := by
   rw [shared_binder_census]
   decide

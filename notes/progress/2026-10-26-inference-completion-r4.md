@@ -2022,3 +2022,119 @@ correspondence. The native first-empty-drain obstruction allows resource/error/
 cancel exits and is neither a kernel-checked Rust result nor a refutation of
 the unchanged original Acc inferStep contract. Both remain separate from this
 constructor and the whole inference-soundness target.
+
+Checkpoint 25 published as `e91ac71ce73eaed5b790787ae9aefc890fd7a71c`,
+parent `e2613c58f5bc2a2da90a2b3148c4de3cda5c2c9e`, tree
+`f02444afc28f5f2f57776c0d693bd2bf47435ec5`. Exact remote, parent, tree,
+tracked worktree and index were verified at17:25:07.997786 UTC. No retry or
+force was used. The local and remote trees were clean before the next intake.
+
+## Checkpoint 26: original Lambda formal Shared generation and consumer
+
+The primary accepts the exact six-code-file formal Shared migration and its
+separate eight-file documentation-only supersession. Independent review froze
+at17:32:27.112640 UTC; receipt
+`tasks/agent-loop/inbox/20261026-original-formal-shared-review-r4.md`, SHA-256
+`30e7a57c5905d4f37a8bd8a2eca61fa63a444a0bf1e44b3b21dda065e6f2c25f`.
+Primary read the complete new code, five existing-file diffs, final note,
+producer handoff and independent receipt, and verified every one of the1049
+author and1518 reviewer artifacts. The latter total232355133 bytes. All45
+review inputs,14 authorities, actual eight prose before/after images and exact
+six candidate code hashes were reconciled. Root's final review intake passed
+at17:32:54.957776 UTC; exact reviewed files were applied at17:33:05.870571.
+
+The actual Lambda sourceRules now emits the original formal Shared: after
+Return/rebind for Value, directly below receipt for Computation. Original
+annotations, formal role, independent invocation, pattern/body contexts,
+EventProof and body checking premises remain. Parameter.generate now consumes
+this exact source tree instead of inserting another Shared into a separate
+tree. The source traversal computes both actual Shared positions and retains
+the original typed owner/dependencies. The independent older generic additive
+transformer remains available; no theorem claims it is idempotent on the new
+tree or that root-Parameter metadata enumerates every nested formal.
+
+The actual Build consumer exposes its own existential Description/ViewLogic,
+admitted invocation, receipt, Return continuation and SAME selected Shared
+anchor. Its Pair return admission uses an actual InvocationMove prefix,
+carrier.returned, current live delimiter and matching call/provider. It does
+not merely recognize Return-shaped data or assume body/Checking success.
+The installed Value/root/address come from that same raw packet and native
+allocation, without inverting a potentially noninjective semantic projection.
+Pending and all raw prefix alternatives remain represented. A complete native
+PhiW event is constructed with the earlier world/returned certificate and
+original guard/coherence/restriction premises still explicit.
+
+Fresh isolated review began with an empty cache and compiled35 proof modules;
+all35 .olean outputs match the author's outputs. Bundles1 and2 passed in
+63.448552s and109.504185s. Bundle3's first eleven commands passed, covering
+the six origins, current declarations, original foreign audit and87 complete
+type reprints; its final union import of all seven compiled audits hit the
+fixed Lean -M1024 limit, exit134. This failure is retained. One explicit narrow
+supplemental bundle4 reimported only compiled AuditMigrationFormal and passed
+in3.737904s under unchanged limits. Its12 actual compiled-origin constants,
+seven theorem roots and zero extra current constants were audited. There is
+no successful union-import or default/global-target claim.
+
+All2578 canonical type/axiom records match the author's complete records:
+2566 proof-origin constants/990 theorems/231 required roots, plus12 scratch
+constants/seven theorems/seven probe roots. Full names, proofs and deep terms
+remove all87 prior display elisions. Private/generated and foreign-namespace
+origins are included. Only propext, Classical.choice and Quot.sound occur;
+no project axiom, sorryAx or unchecked evaluation dependency is accepted.
+These local inventories do not update the historical67-origin global census.
+
+The migration's origin deltas are explicit. Generation retains355 theorem
+names and axiom arrays, with its deliberately changed Lambda definition.
+Events785/268 becomes790/272 by physical-owner construction and three public
+roots. Parameter357/120 becomes349/113: three public roots replace reliance
+on the additive transformer, and eleven generated auxiliaries disappear from
+that origin. Unchanged Semantics267/86 becomes268/87 because generated
+Parameter.source.eq_1 moves there. Common full types agree after whitespace
+normalization with unchanged axioms. Principal remains217/111; only its now-
+false formal_shared_evidence_absent root becomes formal_shared_evidence_present.
+The original foreign proof/audit/census/receipt are archived unchanged.
+
+Author attempts2/3/5/7/8/10/14/15/18 remain failures in their recorded scopes.
+The eighteenth attempt's private numeric Name printing failure was repaired
+only in an explicitly granted nineteenth print-only bundle. No twentieth run
+occurred. Author code and immutable review evidence were not rewritten to
+erase this history. The author did not serialize its audit-probe module; the
+independent review supplies that separate compiled-audit evidence.
+
+Seven historical notes receive only a dated supersession block stating that
+the current Lambda builder now emits formal Shared and the Parameter consumer
+uses the exact original tree. All earlier contents and inventories remain.
+OriginalRecursiveClosure changes only its first module comment: imports and
+every byte after that comment are identical. No Lean checker was run for
+this prose-only change. All eight after hashes have separate static review;
+no frozen historical review/handoff is edited. Root prose manifest
+`36d69623bd65f474d5c1b9e8b146f4a989a8126d43a6419bf90e92ada2cfa2cd`
+and exact diff `4a98222829531409414e80cc93a7f24085fcd9aa4654dc4dfe0a2d3456eec21f`
+are archived by both primary and reviewer.
+
+The review manifest is
+`c28cb7aa6b4946cc1e3ee95dab17764c532fb6f74a72a8ccbe89657cb7dd873c`;
+its stopped receipt is
+`1a89db943e6c5eb9e0f015ba0a169d8bc7d90fa340b33dd3b5e7dbc0ed13a04e`.
+All author/reviewer writers and checker groups stopped before primary intake.
+Fresh fetch before application found no remote movement beyond checkpoint25.
+
+Two exact source-semantic obligations remain. Selected is not yet derived
+from Build's existential Desc and ViewLogic; preserving an existing descriptor
+over Return does not establish that initial ownership. Installed-map agreement
+also does not identify the decoded Event with the computed native bindEvent.
+For retained Computation entry, the actual primitive receipt precedes plain
+bind, while Shared preserves its input Event. The missing operational phase
+must be constructed without overwriting the fixed receipt-only snapshot.
+
+The distinct read-only dispatcher consultation completed before this intake,
+with no writes/checks/children. It recommends two bounded constructive lanes:
+source-owned Desc/ViewLogic admission from the one complete prior telescope,
+and an actual retained-bind OneShot phase followed by same-event decoded
+world realization. Root will grant exact scratch-only core scopes for the
+latter after this checkpoint is published. No global Site freshness,
+independently chosen post-event equality, ordinary-Checking-to-Background
+conversion, arbitrary old/new Satisfies equivalence, or whole-language
+soundness claim is authorized. Complete Call/entry certificates, general
+recursive introduction, all source admissions, complete scoped strategies
+and native success correspondence still remain at the original parent.

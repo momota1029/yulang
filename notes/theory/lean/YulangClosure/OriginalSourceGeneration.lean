@@ -151,9 +151,12 @@ def sourceRules (context : Context) : {category : Category} → Source category 
                [check .computation body.site bodyContext (endpoint body.site)
                   (endpoint mark.site .bodyConsumer)])
               (.one (sourceRules bodyContext body))))
+      -- SG §3.3: the formal's retained evidence is introduced at its
+      -- actual receipt/Return scope, before the pattern and body.
+      let retainedBody := .sharedE ⟨formal.site, .shared, 0⟩ checkedBody
       let enteredBody := match formal.entry with
-        | .value => suffix formal.site checkedBody
-        | .computation => checkedBody
+        | .value => suffix formal.site retainedBody
+        | .computation => retainedBody
       annotated mark context <|
         .existsE ⟨formal.site, .description, 0⟩ <|
           .existsE ⟨mark.site, .viewLogic, 0⟩ <|

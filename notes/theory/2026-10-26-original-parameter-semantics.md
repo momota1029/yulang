@@ -1,5 +1,15 @@
 # Computed native parameter-world semantics
 
+> **Source-generation update (2026-10-26).** The
+> [formal Shared migration](2026-10-26-original-formal-shared.md) supersedes
+> the statements below that the current Lambda builder lacks formal Shared
+> or that the standard Parameter consumer inserts it into a separate tree.
+> The current builder emits the original formal Shared and the Parameter
+> consumer uses that exact tree. Earlier theorem inventories, hashes and
+> missing-generation claims below describe their recorded baseline. The
+> actual Build-description tie, complete decoded-event correspondence and
+> whole original inference-soundness obligations remain separate.
+
 This checkpoint constructs a missing native world presentation and proves its
 complete parameter-bind `PhiW` update. The installed map, aliases and captures
 are computed from native cells and saved references. The proof no longer needs

@@ -1,5 +1,15 @@
 # Original principality: direct-return constructor witness and exact Call-certificate seam
 
+> **Source-generation update (2026-10-26).** The
+> [formal Shared migration](2026-10-26-original-formal-shared.md) supersedes
+> the statements below that the current Lambda builder lacks formal Shared
+> or that the standard Parameter consumer inserts it into a separate tree.
+> The current builder emits the original formal Shared and the Parameter
+> consumer uses that exact tree. Earlier theorem inventories, hashes and
+> missing-generation claims below describe their recorded baseline. The
+> actual Build-description tie, complete decoded-event correspondence and
+> whole original inference-soundness obligations remain separate.
+
 2026-10-26, ORIGINAL-PRINCIPAL-CLOSURE-R3 revision 2. Producer
 `/root/original_principal_closure_r3`; canonical Shared/world construction
 contributed by `/root/original_recursive_closure_r3`; complementary source

@@ -26,7 +26,7 @@ run_cmd do
     `YulangClosure.OriginalPrincipalClosure.DirectReturn.written_boundary_telescope,
     `YulangClosure.OriginalPrincipalClosure.DirectReturn.direct_receivers_after_all_frames,
     `YulangClosure.OriginalPrincipalClosure.DirectReturn.shared_binder_census,
-    `YulangClosure.OriginalPrincipalClosure.DirectReturn.formal_shared_evidence_absent,
+    `YulangClosure.OriginalPrincipalClosure.DirectReturn.formal_shared_evidence_present,
     `YulangClosure.OriginalPrincipalClosure.DirectReturnInterfaces.recursive_call,
     `YulangClosure.OriginalPrincipalClosure.DirectReturnInterfaces.integer_instance,
     `YulangClosure.OriginalPrincipalClosure.DirectReturnInterfaces.boolean_instance,

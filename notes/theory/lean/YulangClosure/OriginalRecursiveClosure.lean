@@ -7,9 +7,9 @@ the original declaration, actual event path, source formal and raw Outcome.
 It retains the entire completed outcome and never reads a future frame or a
 later description choice. Pending outcomes do not materialize this output.
 
-This supplies a lawful data constructor for a canonical assignment. The old
-Lambda builder does not yet install this formal Shared output, and original
-returnRebind admission/full Function correspondence remain open. No recursive
+This supplies a lawful data constructor for a canonical assignment. The
+formal Shared migration now supplies Lambda generation; see OriginalFormalShared.
+General returnRebind/full Function correspondence remain open. No recursive
 L4 or whole-source counterexample is claimed.
 -/
 namespace YulangClosure.OriginalRecursiveClosure
