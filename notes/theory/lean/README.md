@@ -26,6 +26,17 @@ example helpers use standard `Classical.choice`; generic canonical roots use
 only `propext` and `Quot.sound`. Full native saturation, original optional-record
 adaptation, contextual effects and source/Call reconstruction remain OPEN.
 
+`RecordBoundaryPreservation` separately constructs the original manuscript's
+finite record plan, checks every common optional payload, derives required
+input presence and proves normal-result visible-record typing. Its survivor
+equalities retain intermediate labels across sequential casts. Both the
+nontransitive direct-comparison witness and two accepted paths with different
+visible results are checked. Independent review accepts this normal-execution
+component; actual boundary elaboration and child request/resumption contracts
+remain separate. Integration now audits 1,853 theorem constants across 19
+inference modules; all 77 new record-module constants use only standard
+`propext`/`Quot.sound` or no axioms.
+
 ## 2026-10-26 continuation: construct terminal inference evidence
 
 The final connection is

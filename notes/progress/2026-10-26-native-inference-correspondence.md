@@ -228,3 +228,27 @@ updated review SHA-256 is
 The original paper/receipt retain the historical producer hashes. The dependent
 saturation worker refreshed its isolated source before its first build. Final
 integration will rebuild the exact committed bytes.
+
+
+## Checkpoint 3: original record-boundary normal preservation
+
+Checkpoint 2 is published and locally synchronized as
+`dda3b84686fe71ae358e096bd77ea69f2474dd4f` after exact tree/index/parent checks.
+Fresh `record_boundary_review` accepted the frozen source and manuscript
+component without mandatory repair. Review SHA-256:
+`304cdcc8a98802235a1d2c86ec57d40063512ae791ff6ad79464e98dc95b78ce`.
+The concrete plan compiler retains every optional payload query and authentic
+required-presence obligation. Normal execution preserves independently defined
+visible-record typing; composed plans retain exactly the intersection with
+intermediate and final target labels. Both original nontransitivity and distinct
+accepted-path results are kernel-checked. No full request/resumption contract,
+actual source/native boundary elaboration, open-row/default/spread coverage or
+whole-source inference conclusion is inferred from this component.
+
+Checkpoint 3 integration passes the inference target (22 jobs) and all 1,853
+originating theorem constants across 19 modules. The model's exact committed
+EOF-normalized source was rebuilt in this check. Build log SHA-256:
+`ee4f7be0a98e1085d1e9720a3c7dfa4893c85730fc28ec0210504a2d5e5bbc75`;
+audit log SHA-256:
+`2386b4867bd86925b4ca6aecab1bf6835257d555185ac614c35b9173fea9c3b8`.
+Only this accepted record packet and primary integration records are staged.

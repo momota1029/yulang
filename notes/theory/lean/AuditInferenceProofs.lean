@@ -31,7 +31,8 @@ run_cmd do
     `YulangClosure.SimpleSubLatticeInference,
     `YulangClosure.SimpleSubLatticeDecision,
     `YulangClosure.SimpleSubLatticeGrowingInference,
-    `YulangClosure.NativeRowModel
+    `YulangClosure.NativeRowModel,
+    `YulangClosure.RecordBoundaryPreservation
   ]
   let roots : Array Name := #[
     `YulangClosure.BirthLevelSCC.finiteReach_iff,
@@ -125,7 +126,21 @@ run_cmd do
     `YulangClosure.SimpleSub.NativeRowModel.recursive_store_constructed,
     `YulangClosure.SimpleSub.NativeRowModel.recursive_decision_constructed,
     `YulangClosure.SimpleSub.NativeRowModel.alias_cycle_constructed,
-    `YulangClosure.SimpleSub.NativeRowModel.lower_join_upper_meet_need_not_equal
+    `YulangClosure.SimpleSub.NativeRowModel.lower_join_upper_meet_need_not_equal,
+    `YulangClosure.RecordBoundary.compileField_sound,
+    `YulangClosure.RecordBoundary.compile_sound,
+    `YulangClosure.RecordBoundary.common_field_resolved,
+    `YulangClosure.RecordBoundary.required_input_present,
+    `YulangClosure.RecordBoundary.fieldRun_preserves,
+    `YulangClosure.RecordBoundary.run_preserves,
+    `YulangClosure.RecordBoundary.outputTyped_visible,
+    `YulangClosure.RecordBoundary.compiled_run_preserves,
+    `YulangClosure.RecordBoundary.fieldRun_presence,
+    `YulangClosure.RecordBoundary.run_survivors,
+    `YulangClosure.RecordBoundary.composed_survivors,
+    `YulangClosure.RecordBoundary.execute_runs,
+    `YulangClosure.RecordBoundary.Witness.direct_comparison_nontransitive,
+    `YulangClosure.RecordBoundary.Witness.accepted_paths_have_different_views
   ]
   let env ← getEnv
   let mut targets : Array Name := #[]
