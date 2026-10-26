@@ -184,3 +184,39 @@ checkpoint carries the accepted module, paper, producer handoff and independent
 review receipt. Original `PhiW`/`P_F`, full declared-hole interpretation,
 annotation realization, `ValueMem`, `SourceT`, full native correspondence and
 `SourceProblem.InferenceSoundness` remain OPEN.
+
+## Source-world publication and recursive Replay acceptance
+
+The source-world checkpoint is published as
+`736b40be3af60e0824ac93db9f2f901d49e2f2fc`, parent `9589fe3`.
+Expected-parent non-force publication, fetched parent/tree and staged-tree
+identity are verified. No unrelated writer file was reset or staged.
+
+`NativeReplayCurrent` constructs the Effect-operand/retained-bound expansion
+graph from empty abstract event histories. Actual Replay generation registers
+roots, both suppression cases reach all finite current depths, child expansion
+registers all children, and representative changes preserve exact bound carriers,
+paths, queued work and active back-references. A failed closed depth yields an
+installed-edge walk to a concrete unfinished owner. There is no assumed
+recursive child closure, global coverage invariant or acyclicity premise.
+
+Fresh nonauthor `/root/native_current_review_r3` accepts the frozen packet.
+Receipt SHA-256:
+`19c1a984804b5e0465f16c9b0e8b79fa3819ed17b66e4b01b57c8d938564b317`.
+The review reconciles all 117 pinned files, full 143-theorem/333-declaration
+census, all 38 authored roots and eleven retained call receipts. Axiom sets:
+72 none, 35 only `propext`, 34 `propext` plus `Quot.sound`, and 2 additionally
+`Classical.choice` for finite-frontier extraction. No project axiom, hole,
+unchecked native evaluation or kernel bypass. Final changed-module checks
+have no warnings. Reviewer checks consumed 0/2; all writes stopped.
+
+The primary accepts these specific integration qualifications: `CurrentAt`
+and `ClosedAt` are extensional operand predicates; neither recovers an exact
+installed status body or native acknowledgement by itself. The frontier
+implication is one-way, not a biconditional failure test. Common native
+authentication must prove successful child admission, including the nonzero
+transformer self-relation guard; computed child endpoints alone do not prove
+successful enqueue. Entire Context factoring, Value/record ports, one shared
+native execution, accepted-drain exclusion of unfinished owners and semantic
+fiber/source closure remain OPEN. This checkpoint does not close
+`MERGE-EXPANSION-COVER-1` or the original inference theorem.
