@@ -588,3 +588,100 @@ A second expected-head retry encountered concurrent checkpoint
 application). Its changes were again disjoint from all staged r4 paths and were
 fast-forwarded intact. The superseded second candidate was
 `e56307ba5482a0a5796e95d87a48603ee1f9d986`; no forced update was used.
+
+Published checkpoint 8: `8622f29d2c1b8934f8b257574c4b6b0e3db5ca42`,
+parent `62bdf0357a22f40543949adcc26d177c277e5678`, tree
+`d827ac270f3d55c87da47ffa70e11ca7a53a95ab`. The third expected-parent
+non-force update succeeded and fetched/local tree and index checks agree.
+
+## Further additive publication and division of integration work
+
+The separately reviewed r5 Context callback-construction and source-signature
+packets arrived as `c6e06af06b702030dec6028ca66dd5ab4a7a94b1` and
+`6b26127636b988614c676270c37a428464948f37`. Both were fetched and
+fast-forwarded after confirming disjoint paths. Frozen r4 Value-drain bytes
+and both other live workers' paths were preserved. The r5 primary has an active
+integration packet for the shared safe imports/audit in its isolated checkout;
+this primary will consume that published result and add any remaining accepted
+r4 components without overwriting it. No current foreign worker lease is
+reclaimed or written.
+
+## Frozen Value and Context lifetime constructions
+
+The primary froze `NativeValueDrain.lean` at
+`826fa025241835aad606434b3d0fee2406b694d72ca1dbf03a618f3e61d1b095`.
+It computes actual prepare_nonterminal_drain, actual admitted child enqueue and
+immutable occurrence annotation in one common control history. It directly
+consumes the accepted outer Context/Value branch's computed children. The
+result derives every generated child's diagnosed ReturnReady coverage at any
+matching later quiescent cut. The exact full key/raw task, old arbitrary queue
+and immutable admitted versus current processing relation are retained.
+
+Final checks11/12 pass without diagnostics: 204 originating declarations,
+85 theorem constants and34 authored roots; complete census hash
+`edcc8b2417987283fdfdf2a1f588f9ccc189cdc8aba88706c082309ab778d2cf`.
+Twelve of18 allowed bounded checks were used. A fresh nonauthor reviewer is
+checking the exact final artifact. Its minor prose finding was corrected:
+Control.nextWork and issued/returned occurrence history are ghost annotations
+of real events, not stored Rust fields. No proof bytes or compilation changed.
+
+The table producer separately froze `NativeContextTables.lean` at
+`fdb227b46a0029d5338c152a67700488bf9dbb161ae30e73ec09995a168a7740`.
+It derives all five-lane Context table lifetimes, expression cache insertion
+and removal, View draft/publication order, versioned successful/missing
+observations, frontier rollback/retry and complete Readback migration from one
+combined history. The final census has1125 declarations,521 theorem constants,
+145 roots; all failures retained,18 of24 checks used. A different fresh
+nonauthor is reviewing this frozen bundle. Neither local construction claims
+whole original semantic soundness or authenticates every native event by itself.
+
+## Checkpoint 9: accepted Value issuance and returned-child coverage
+
+Fresh nonauthor `/root/value_drain_review_r4` returned ACCEPT for the exact
+computed structural-child/control-history component. Receipt SHA-256:
+`e3ed60cd652377135527feb391a0f692cea35b2f2386efc37ea8a3d670ffee26`.
+The one documentation correction distinguishing ghost history from native
+stored fields is independently accepted. The final source remains unchanged;
+the note is `0f1ea3a6d0c57f3ac3f2a4d4ca552f0fa01fe45354132c52f401434f55304949`
+and producer is `e3d599597e797630854330f0e088eae3651d54951a9f8d56ff9430eaab4f69b6`.
+
+The independent reviewer verified all167 distinct inputs,154 project entries,
+the actual10-module cone and complete204-declaration/85-theorem/34-root census.
+One4.454-second bounded bundle recompiled the target and checked eight distinct
+boundary probes, including arbitrary old queues, duplicate task issuance,
+invalid preparation guards and a reachable processing/admitted-relation split.
+All commands exit zero without diagnostics; the unused second bundle was not
+run. All author/reviewer writes and processes have stopped.
+
+The table review separately found21 warnings replayed from its new module's
+successful build (not the clean census). The original producer has its exact
+lease back solely for a batched local warning repair, preserved old freeze and
+new final build/census within its original24-call/deadline envelope. No linter
+suppression, statement change or semantic repair is requested. That component
+is not included in checkpoint9 or treated as accepted yet.
+
+Checkpoint9 publication hygiene exposed one extra trailing LF in the producer
+handoff. The primary retained the accepted previous bytes and removed exactly
+that LF. Fresh reviewer comparison confirmed byte equality everywhere else,
+with zero Lean invocations. Final publication handoff hash:
+`e2d663181cb5faee2ec0a37df8a88fb7f683d91ec0ab48f37577e4e60ff2cccf`;
+updated ACCEPT receipt hash:
+`39f97d1b0aa14bd9b7ee3f470e188e0dc520c7d381fae37d3e3170ff6d4e78de`.
+The source, note, census and all mathematical claims are unchanged.
+
+## Physical relation/Flow identity continuation
+
+After finishing the frozen table warning repair, the same native producer owns
+a new disjoint packet on `NativeRelationInterner.lean`, its paired note and
+`20261026-native-relation-interner-r4.md`, with isolated `relation-interner-r4/**`.
+The prepared input baseline is `6b26127636b988614c676270c37a428464948f37`.
+The bound is2,700 wall seconds and20 ordinary focused checks from actual start.
+This packet constructs physical ScopedFlowId and RelationKey decoding and its
+application to the accepted decoded Value arena. Existing-key reuse precedes
+scoped-enabled/capacity guards, and a new Flow may survive a later relation
+failure. The inspected native relation rollback truncates relations and restores
+pair heads, while its Flow tables remain allocated; this distinction must not
+be replaced with a guessed whole-state rollback. Complete original raw keys,
+source/demand identity, guarded error cuts and same-ID meanings are required.
+No accepted prior module, native code, shared import/configuration or Git write
+is delegated. The separately active original source Environment packet continues.
