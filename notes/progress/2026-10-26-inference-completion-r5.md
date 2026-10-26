@@ -161,3 +161,35 @@ The primary additionally owns a 1,200-second/10-check packet on the new
 `NativeRepresentativeReadback.lean` and its paired note/handoff, applying the
 constructed raw forest laws to the existing shared driver's two merge-map
 premises. Reviewed checkpoint files remain immutable during this work.
+
+## Checkpoint 4: representative maps in the same shared history
+
+Checkpoint 3 was pushed as `e5d2b7b7a6ec340743668075780e95e8a98c8ef5`
+with expected-head non-force update and exact-byte verification after fetch.
+
+`NativeRepresentativeReadback.lean` discharges both map-law premises of the
+existing `NativeContextReadback.Step.merge`. Its inputs are actual raw lookup
+readbacks and generated birth/link/compression histories, with no absorption
+or idempotence input. It constructs final maps, the existing event, and an
+extension of the same reachable Context/drain history with its invariant and
+actual settlement cut. The single Effect/Value link specializations keep the
+other map fixed, retain the unequal-root/inside guards and native direction.
+Compression produces the same representative readback without a generation
+event. The general interval theorem is explicitly only a coarse-driver
+premise discharge, not a count of physical native generation increments.
+
+Frozen module SHA256:
+`a2e9d1bc26220c0502e7c92f67b153c066716440a57e4cc4bec3cb110b07128e`.
+All ten authored roots and every originating declaration pass pinned Lean.
+The complete 32-declaration/16-theorem census contains only the standard
+axioms: four theorem constants use none, one only `propext`, one only
+`Quot.sound`, eight both, two additionally `Classical.choice`. Four focused
+checks were used, all successful. Fresh nonauthor `/root/proof_review_r5`
+independently verified exact bytes, all root blocks and the complete census,
+then returned **ACCEPT** without an unnecessary checker rerun.
+
+The before-map lookup observations and raw histories still must be extracted
+from the same whole native execution. The actual driver does not store the
+parent vectors in this projection. Metadata/bound/replay operations, checked
+arithmetic and allocation failures, rollback, combined table epochs and
+original semantic source reconstruction remain OPEN at their owners.
