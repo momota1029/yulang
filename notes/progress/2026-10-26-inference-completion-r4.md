@@ -990,3 +990,81 @@ with opaque execute. Canonical missing input constructors may be built where the
 selected embedding authorizes them; fixed original predicates still need their
 actual evidence. Final cone verification must consume the explicitly released
 Generation revision. General L4 and whole original inference soundness stay OPEN.
+
+## Checkpoint 14 publication and goal-indexed admission construction
+
+Checkpoint14 published as `ff12ce5049cb7f26c7d873467c9a761ed49fc3e1`,
+parent45d307a0 and treeba721c3ac291684a109673c56e1dd3f53358d9d3.
+Nonforce expected-parent update, fetched exact tree/parent, remote equality and
+clean tracked worktree/index were verified at14:07:39.466433 UTC.
+
+The new admission packet began14:08:15 UTC, hard deadline15:08:15 UTC,
+3600 seconds/max28 focused120-second checks. Author owns only Generation,
+Environment and Checking core modules, new OriginalCheckingAdmission, its new
+note/handoff, the additional core-interface handoff, and checking-admission-r4
+scratch. No Rust/config/shared status/Git/children rights. All check snapshots
+and failures start at check1. A coherent three-core-file freeze may be reviewed
+and published separately while only the new concrete module remains active.
+
+Independent read-only design review found no conceptual blocker and identified
+three exact acceptance constraints: target readbacks quantify over goalRow and
+its actual checkedIncidences (retargeting preserves raw input, not arbitrary
+incidence predicates); test BOTH narrow→broad and broad→narrow domains on the
+same raw subject; and verify final wrapper order because legacy adapters reset
+checkingAdmitted. Source quantifier admissions/formulas are preserved; no blanket
+old/new Judgment equivalence is claimed for intentionally corrected local checks.
+Current-event FunctionAt is not general future-event registration or L4.
+
+Generation froze at14:10:05 UTC as
+`0f25e53350edf9c452fd3c0f461602437ca2adf979859fda5e2492bcc403ae55`.
+The only source delta appends the backward-compatible default checkingAdmitted
+field and changes the Function observation premise to use its enclosing goal.
+Check1 passes; all source builders/formulas/source-only admission expressions
+remain byte-identical. Primary verified the exact diff/hash and explicitly
+released it to PairK. No later Generation edit is permitted without a dependency
+HOLD. The original ab37 source/check receipts remain preserved as historical
+snapshots. New generic core/source-local applications are not yet accepted.
+
+## Checkpoint 15: goal-indexed generic checking interface accepted
+
+The coherent three-core-file interface is independently ACCEPTed, receipt
+`0ec90fae5502c9d1b215250c5667df2bd8593af7c1c1a00ddc0fa8aefdbb85e1`.
+Source hashes: Generation0f25e533… (unchanged since PairK release),
+Environment0e12d33d… and Checkinga0ba215e…. All three and their separate
+interface handoff froze at14:13:57 UTC. The author continues only the new
+concrete admission module and its separate note/handoff; those are excluded.
+
+The new eighth Kernel field identifies the current Function checking goal's
+admission telescope. All seven original fields retain their types. Source
+forall/exists/execution/Shared admissions, generation/formulas, raw event keys,
+source operands and publication/shared witnesses remain unchanged. Legacy
+wrappers explicitly reset both admissions; the registered proof kernel and its
+mutual induction preserve/use the same enclosing-goal checking predicate.
+The old targetReadback theorem is still explicitly legacy and conditional.
+
+The independent reviewer reproduced the exact patch from all three historical
+hashes, reconciled16 frozen entries and32 check snapshots, and parsed every
+2399 declaration/type/axiom pair and943 theorem constants. All152 earlier
+authored theorem names remain present. Author checks1–3 pass, including the
+core+OriginalEffectHygiene cone; standard axioms only, no holes or bypass.
+No redundant independent checker was needed for the small reviewed diff.
+Reviewer writes stopped at14:21:41.114 UTC. Concrete goal-domain construction,
+final wrapper projections, input roundtrip, no-targetReadback applications,
+domain discriminators, future-event registration and general L4 are outside
+this core acceptance and remain with the active successor packet.
+
+Primary has prepared a separate InferenceConstruction import/audit draft so
+that the still-unpublished foreign InferenceProofs/AuditInferenceProofs leases
+are not overwritten. It currently inventories the published reviewed components
+and the separate WholeMetatheory components; no final build/audit or acceptance
+is claimed for that draft. The final snapshot will include independently accepted
+successors and verify the exact current dependency/configuration cone.
+
+
+Before publishing this interface, fresh fetch found two disjoint concurrent
+commits: b8115116f (SourcePrincipalTransport) and ecde5039c
+(NativeFreshScopeTransport). Both were preserved by fast-forward to ecde5039c;
+all six staged own paths and every accepted core hash remained unchanged.
+Those commits supply reviewed source-receiver and successful fresh-ID transport
+components, not full original principality or Effect/inference soundness.
+The interface publication is based on that exact new parent.

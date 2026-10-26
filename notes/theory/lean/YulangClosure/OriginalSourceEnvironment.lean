@@ -723,7 +723,10 @@ theorem admission_ignores_stored_maps (inputs : Inputs s) (readout : RuntimeRead
 
 def admissionKernel (inputs : Inputs s) (readout : RuntimeReadout s View)
     (admissions : LocalAdmissions s View) (original : Kernel (Payload s View)) : Kernel (Payload s View) :=
-  {original with admitted := Admitted inputs readout admissions}
+  {original with
+    admitted := Admitted inputs readout admissions
+    checkingAdmitted := fun environment _ binder candidate =>
+      Admitted inputs readout admissions environment binder candidate}
 
 /-- The actual native view token is retained independently of its semantic
 readout. Other native receipt fields remain in the original receipt object. -/
@@ -1098,6 +1101,8 @@ def functionKernel (inputs : Inputs s) (readout : RuntimeReadout s View)
     (admissions : LocalAdmissions s View) (original : Kernel (Payload s View)) : Kernel (Payload s View) :=
   {original with
     admitted := Admitted inputs readout admissions
+    checkingAdmitted := fun environment _ binder candidate =>
+      Admitted inputs readout admissions environment binder candidate
     functionShape := FunctionShape inputs readout}
 
 def inputChallenge (input : CallInput s) (descriptor : s.Descriptor) :
@@ -1197,7 +1202,7 @@ theorem observation_child_transport (inputs : Inputs s) (Z : Family s)
   rw [target] at observed
   exact observed
 
-/-- A genuine finite Function constructor and its same-provider semantic
+/-- The legacy source-admitted finite Function constructor and its same-provider semantic
 step. Both recursive Checking children are retained in the resulting proof.
 Their semantic induction hypotheses are explicit; this theorem does not
 claim the primitive/structural cases of the full Checking induction. -/

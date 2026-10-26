@@ -804,13 +804,14 @@ structure StructuralShape (inputs : Inputs s) (registry : GuardRegistry inputs)
   schema : ∀ probe, Schema inputs registry (ChildLeaves reading environment children) rule
     (lower reading environment goal probe) (upper reading environment goal probe)
 
-inductive FunctionLeaves (reading : Reading s Value) (admitted : Environment Value → Binder → ScopedValue Value → Prop)
-    (environment : Environment Value) (domain : CheckGoal) (binder : Binder) (observation : CheckGoal) :
+inductive FunctionLeaves (reading : Reading s Value)
+    (admitted : Environment Value → CheckGoal → Binder → ScopedValue Value → Prop)
+    (environment : Environment Value) (goal domain : CheckGoal) (binder : Binder) (observation : CheckGoal) :
     Positive s → Positive s → Prop where
-  | domain (probe : Probe s) : FunctionLeaves reading admitted environment domain binder observation
+  | domain (probe : Probe s) : FunctionLeaves reading admitted environment goal domain binder observation
       (lower reading environment domain probe) (upper reading environment domain probe)
-  | observation (candidate : ScopedValue Value) (valid : admitted environment binder candidate) (probe : Probe s) :
-      FunctionLeaves reading admitted environment domain binder observation
+  | observation (candidate : ScopedValue Value) (valid : admitted environment goal binder candidate) (probe : Probe s) :
+      FunctionLeaves reading admitted environment goal domain binder observation
         (lower reading (environment.extend binder candidate) observation probe)
         (upper reading (environment.extend binder candidate) observation probe)
 
@@ -820,7 +821,8 @@ Its code must be constructed from actual descriptor/guard/capture/readback
 registrations. Supplying this syntax is a remaining source application task
 where those registrations have not yet been constructed. -/
 structure FunctionShape (inputs : Inputs s) (registry : GuardRegistry inputs)
-    (reading : Reading s Value) (admitted : Environment Value → Binder → ScopedValue Value → Prop)
+    (reading : Reading s Value)
+    (admitted : Environment Value → CheckGoal → Binder → ScopedValue Value → Prop)
     (environment : Environment Value) (goal domain : CheckGoal) (binder : Binder)
     (observation : CheckGoal) : Prop where
   valueMode : goal.mode = .value
@@ -831,7 +833,7 @@ structure FunctionShape (inputs : Inputs s) (registry : GuardRegistry inputs)
   observationUpper : observation.upper = goal.upper
   domainContext : domain.context = goal.context
   observationContext : observation.context = goal.context
-  proof : ∀ probe, Proof inputs registry (FunctionLeaves reading admitted environment domain binder observation)
+  proof : ∀ probe, Proof inputs registry (FunctionLeaves reading admitted environment goal domain binder observation)
     (lower reading environment goal probe) (upper reading environment goal probe)
 
 /-- All seven original Kernel fields remain present. Atom/admission/tag and
@@ -845,7 +847,7 @@ def kernel (inputs : Inputs s) (registry : GuardRegistry inputs)
       Nonempty (PrimitiveShape inputs registry declarations reading environment declaration goal)
     structuralShape := fun environment rule goal children =>
       Nonempty (StructuralShape inputs registry reading environment rule goal children)
-    functionShape := FunctionShape inputs registry reading original.admitted}
+    functionShape := FunctionShape inputs registry reading original.checkingAdmitted}
 
 theorem primitive_sound (inputs : Inputs s) (registry : GuardRegistry inputs)
     (declarations : Declarations inputs registry) (reading : Reading s Value)
@@ -872,9 +874,9 @@ theorem structural_sound (inputs : Inputs s) (registry : GuardRegistry inputs)
 theorem function_sound (inputs : Inputs s) (registry : GuardRegistry inputs)
     (reading : Reading s Value) (original : Kernel Value)
     (environment : Environment Value) (goal domain : CheckGoal) (binder : Binder) (observation : CheckGoal)
-    (shape : FunctionShape inputs registry reading original.admitted environment goal domain binder observation)
+    (shape : FunctionShape inputs registry reading original.checkingAdmitted environment goal domain binder observation)
     (domainMeaning : GoalMeaning inputs reading environment domain)
-    (observationMeaning : ∀ candidate, original.admitted environment binder candidate →
+    (observationMeaning : ∀ candidate, original.checkingAdmitted environment goal binder candidate →
       GoalMeaning inputs reading (environment.extend binder candidate) observation) :
     GoalMeaning inputs reading environment goal := by
   intro probe

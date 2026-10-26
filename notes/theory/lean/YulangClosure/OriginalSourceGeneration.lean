@@ -674,6 +674,12 @@ structure Kernel (Value : Type) where
   never from a solved endpoint's latent shape. -/
   boundaryTag : Environment Value → Site → Context → Endpoint → Endpoint → CheckMode → Prop
   conversion : Environment Value → Site → Context → Endpoint → Endpoint → Declaration → Prop
+  /-- A Function observation child uses its current checked target's domain.
+  Source binders keep `admitted`. The default preserves legacy kernels;
+  changing `admitted` by a record update must explicitly update this field
+  when legacy checking admission is intended. -/
+  checkingAdmitted : Environment Value → CheckGoal → Binder → ScopedValue Value → Prop :=
+    fun environment _ binder candidate => admitted environment binder candidate
 
 mutual
 /-- Finite original checking derivations; no arbitrary inclusion-oracle
@@ -699,7 +705,7 @@ inductive Checking {Value : Type} (kernel : Kernel Value) :
       (challengeKind : challenge.kind = .invocation)
       (shape : kernel.functionShape environment goal domain challenge observation)
       (domainProof : Checking kernel environment domain)
-      (observationProof : ∀ value, kernel.admitted environment challenge value →
+      (observationProof : ∀ value, kernel.checkingAdmitted environment goal challenge value →
         Checking kernel (environment.extend challenge value) observation) :
       Checking kernel environment goal
 inductive Checkings {Value : Type} (kernel : Kernel Value) :
