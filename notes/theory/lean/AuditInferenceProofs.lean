@@ -16,7 +16,9 @@ run_cmd do
   let modules : Array Name := #[
     `YulangClosure.BirthLevelSCC,
     `YulangClosure.SimpleSubConstraintSyntax,
-    `YulangClosure.SimpleSubConstraintSoundness
+    `YulangClosure.SimpleSubConstraintSoundness,
+    `YulangClosure.SimpleSubGeneralizationSoundness,
+    `YulangClosure.SimpleSubRegularSolutions
   ]
   let roots : Array Name := #[
     `YulangClosure.BirthLevelSCC.finiteReach_iff,
@@ -32,7 +34,16 @@ run_cmd do
     `YulangClosure.SimpleSub.Step.sound,
     `YulangClosure.SimpleSub.History.sound,
     `YulangClosure.SimpleSub.History.quotient_sound,
-    `YulangClosure.SimpleSub.History.empty_sound
+    `YulangClosure.SimpleSub.History.empty_sound,
+    `YulangClosure.SimpleSub.Generalization.transport_freshen,
+    `YulangClosure.SimpleSub.Generalization.quotient_uses_with_clients,
+    `YulangClosure.SimpleSub.Generalization.canonical_quotient_minimum,
+    `YulangClosure.SimpleSub.Generalization.canonical_post_uses_disjoint,
+    `YulangClosure.SimpleSub.Generalization.minimum_quotient_uses_with_clients,
+    `YulangClosure.SimpleSub.Regular.coinduction,
+    `YulangClosure.SimpleSub.Regular.regular_unfold,
+    `YulangClosure.SimpleSub.Regular.accepted_demands_sound,
+    `YulangClosure.SimpleSub.Regular.accepted_joint_relation
   ]
   let env ← getEnv
   let mut targets : Array Name := #[]

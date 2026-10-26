@@ -174,3 +174,63 @@ passed **243** records (57 birth + 90 syntax + 96 constraint soundness), exit 0,
 log SHA256 `e3d407a980f6fdec73d9a68d390ab801196a07d632829807364c0844e985834e`.
 No proof source was changed after independent review; only the exact import and
 audit inventories were extended. Existing foundation warnings are unchanged.
+
+## Generalization and constructive regular solutions
+
+`SimpleSubGeneralizationSoundness` constructs one finite row transport for the
+base store, every requested fresh use, shared low anchors, and arbitrary later
+client constraints. The substitution/renaming square is proved for every
+existing structural Term constructor, not supplied as a preservation premise.
+The canonical specialization proves exact finite class minima and separation
+of allocated use coordinates from the later client region.
+
+Independent review found a minor interpretation error in the first version:
+an arbitrary row map need not have an in-range fixed representative, so its
+seeded level fold need not be an exact class minimum. The literal broad
+pullback was sound. The correction preserves that broad theorem, adds the
+precise finite-range/idempotence conditions, and proves their minimum/allocation
+consequences. The original finding and a narrow independent delta review remain
+separate receipts. This is a proof clarification, not a compiler semantics change.
+
+The model copies every clause of a supplied finite store for each use. Actual
+reachable-high native publication, non-generic/captured-local metadata and
+bound/scope correspondence are still required before applying it to Rust
+freshening. A complete-store premise is not silently ascribed to native success.
+All **71 originating-module theorem constants** passed Lean and axiom audit:
+35 empty, 10 `propext`, 26 `propext, Quot.sound`.
+
+- [Generalization construction and repair](../../tasks/agent-loop/inbox/20261026-inference-generalization.md).
+- [Initial independent review](../../tasks/agent-loop/inbox/20261026-inference-generalization-review.md).
+- [Narrow repair review](../../tasks/agent-loop/inbox/20261026-inference-generalization-delta-review.md).
+
+`SimpleSubRegularSolutions` independently defines structural subtyping by all
+finite unfoldings of a finite guarded graph. Its executable checker validates
+all graph references and metadata, all child comparisons of a finite table,
+and coverage of every demanded root. From acceptance,
+`accepted_joint_relation` constructs one postfixed relation covering all roots;
+`accepted_demands_sound` proves their regular subtyping without any supplied
+terminal valuation or solution. Cycles genuinely run through Function, Record,
+Tuple and Variant nodes. Both Function effect ports and their variance remain.
+
+The independent review accepted this stated model and all **134 theorem
+constants**: 45 empty, 64 `propext`, 25 `propext, Quot.sound`. Rejection examples
+cover missing effect evidence, reversed comparison, optional metadata mismatch
+and dangling graph references even under an immediate bottom comparison.
+
+- [Regular construction and exact native boundary](../../tasks/agent-loop/inbox/20261026-inference-regular-solutions.md).
+- [Independent review](../../tasks/agent-loop/inbox/20261026-inference-regular-review.md).
+
+The graph language has no alias-only or lattice cycles. This regular relation
+is not the finite-Term valuation used by the earlier history theorem. A new
+graph-indexed reflection construction attacks that connection explicitly.
+Faithful native graph/demand decoding, successful-certificate extraction,
+ordinary coalescing and full source Call/effect interpretation remain OPEN.
+`SolvedModule::solve` returning `Ok` is availability completion; the actual
+export/fresh-use consumer additionally rejects final errors. No native theorem
+uses the weaker availability result as its semantic-success premise.
+
+The integrated default build passed **64 jobs**, exit 0. The complete audit
+passed **448** records, exit 0: 262 empty axiom sets, 119 `propext`, one
+`Quot.sound`, and 66 `propext, Quot.sound`. Audit log SHA256:
+`1a34e88d035a077387fa4c0f88867ef0e924147a5171ccd34e51a283700c42c2`.
+All five inference modules were frozen at their independently reviewed hashes.
