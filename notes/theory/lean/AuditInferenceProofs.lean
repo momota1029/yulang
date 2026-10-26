@@ -28,7 +28,8 @@ run_cmd do
     `YulangClosure.NativeProfileRestriction,
     `YulangClosure.SimpleSubGrowingInference,
     `YulangClosure.SimpleSubLatticeCertificates,
-    `YulangClosure.SimpleSubLatticeInference
+    `YulangClosure.SimpleSubLatticeInference,
+    `YulangClosure.SimpleSubLatticeDecision
   ]
   let roots : Array Name := #[
     `YulangClosure.BirthLevelSCC.finiteReach_iff,
@@ -99,7 +100,12 @@ run_cmd do
     `YulangClosure.SimpleSub.LatticeInference.ofRegular_history,
     `YulangClosure.SimpleSub.LatticeInference.decodeTerm_ofRegular,
     `YulangClosure.SimpleSub.LatticeInference.Completion.completedStore_correct,
-    `YulangClosure.SimpleSub.LatticeInference.Completion.completed_publication_with_clients
+    `YulangClosure.SimpleSub.LatticeInference.Completion.completed_publication_with_clients,
+    `YulangClosure.SimpleSub.LatticeDecision.constructed_checked,
+    `YulangClosure.SimpleSub.LatticeDecision.constructed_exact,
+    `YulangClosure.SimpleSub.LatticeDecision.regular_unfold,
+    `YulangClosure.SimpleSub.LatticeDecision.decideDemands_exact,
+    `YulangClosure.SimpleSub.LatticeDecision.decided_joint_relation
   ]
   let env ← getEnv
   let mut targets : Array Name := #[]

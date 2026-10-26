@@ -328,3 +328,41 @@ row/inventory/history correspondence obligation. This factual receipt claims
 no new theorem, invariant, completeness result or implementation bug.
 
 The lattice-consumer checkpoint is published as `a90516d`.
+
+## Compute exact finite lattice evidence
+
+`SimpleSubLatticeDecision.constructCertificate` constructs actual finite
+derivation witnesses from the graph alone. Inner saturation enumerates every
+finite Layer rule, including all in-range transitivity middles, and terminates
+by strict decrease of the pending pair list. Graph validity bounds every
+Layer endpoint; a constructor induction proves saturation complete.
+
+Outer deletion has its own strict-decrease bound. A constructed `FiniteCover`
+tracks one uniform finite approximation depth for all pairs through pruning.
+Thus `constructed_exact` proves certificate-table membership equivalent to the
+independent all-depth `RegularSub` under graph validity, without assuming a
+common derivation across depths. Only afterward is `regular_unfold` derived.
+`constructed_checked` holds for every graph. `decideDemands_exact` retains
+actual `checkGuarded = true`; guard-checker completeness and coverage of all
+original unguarded source syntax are not claimed.
+
+The [producer handoff](../../tasks/agent-loop/inbox/20261026-inference-lattice-decision.md)
+records the frozen 711-line proof, all finite executable examples and failed
+checks, plus 141 originating declarations and **95 theorem constants**.
+The theorem axiom sets are 25 empty, 32 `propext`, 38 `propext, Quot.sound`.
+The [independent review](../../tasks/agent-loop/inbox/20261026-inference-lattice-decision-review.md)
+accepted all construction, exactness, full types and axiom results without
+findings or checker reruns. Source SHA256:
+`a9c184512bf6e23d15cc8a3a2ed230652fb168f707155e779be18c562d8e57c9`.
+
+This is proof-side evidence construction, not a replacement native inference
+or coalescing pass. Actual native success, row interpretation, history,
+inventory/metadata formation and the complete original source/Call witness
+remain separate. The original Call construction checkpoint is published as
+`6545873`.
+
+Default integration passed **75 jobs** and **1,609 distinct originating theorem
+audits** across 16 modules, exit 0. The producer's 95 theorem names equal
+exactly the integrated inventory's new-name set, including generated equation
+lemmas whose names use older namespaces. Audit SHA256:
+`3eb7052321b6a3b1b170f96bf103fc74b425c75193098f58fb6bc8445481cb04`.

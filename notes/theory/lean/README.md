@@ -62,6 +62,15 @@ them. Old histories and decoder results have proved translations into the
 extended graph. Native row formation/width, inventory and metadata coverage,
 coalescing and the original jointly scoped source/Call evidence remain open.
 
+`SimpleSubLatticeDecision` now computes the full finite rule-witness certificate
+from the graph alone. Both inner saturation and outer pruning have proved
+strict-decrease bounds. On valid graphs, `constructed_exact` identifies table
+membership with the independent all-depth lattice relation; `regular_unfold`
+is derived afterward using the finite shared table. Demand acceptance is
+equivalent to validity, the actual guard check and every demanded relation.
+This is an exact proof-side reference construction, with no assumed model or
+external witness table and no production inference algorithm change.
+
 The [original Call evidence construction](../2026-10-26-original-call-evidence-construction.md)
 now gives a reviewed ten-field **unadopted** candidate, tied to the actual
 source/phase, independent-arm, native-profile, routing and accounting consumers.
