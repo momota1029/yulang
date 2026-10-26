@@ -1906,3 +1906,119 @@ not establish source validity, and the new native Call introduction retains
 its genuine Q/ArmDecl, domain/provider/future and target premises. Neither
 packet closes original soundness or principality merely from the rejection.
 All19 stage2 dependencies and four accepted outputs still match their freezes.
+
+Checkpoint 24 published as `ea7aaae4fb02e69e0b132cc843358b05e19acae5`,
+parent `807b905a95fc056390ca9379bfe564de66b5f9a9`, tree
+`243feae485502e13d7eb63b861897db7adaced62`. The exact remote, parent,
+tree and clean tracked worktree/index were verified at
+17:05:01.605342 UTC. The active RetainedParameter source stayed untracked.
+The original expected-parent update succeeded; there was no retry or force.
+
+## Original entry consumers: review and next exact seam
+
+The retained-Computation source froze at17:07:07.192712 UTC with SHA-256
+`ae8915cf002019541d0658895f0604e98700ac23f47aac479fc8382cf65ef799`.
+The producer reports13 of18 bounded checker bundles used, with all final
+source, complete origin/current and compiled-audit checks passing. Primary
+read the entire frozen source. It computes the exact raw carrier record,
+selected-parent plain bind, every old cell and capture readout, and complete
+PhiW. Meaning and Background consumers obtain the old world from the same
+whole-carrier certificate; neither assumes Force or an actual Return. A new
+independent review remains required before acceptance/publication.
+
+The formal-Shared migration's six code outputs and checker artifacts are
+frozen after17 of18 bundles. Its actual new source consumer is
+`OriginalFormalShared.lean`, SHA-256
+`abb9d69546e284fcb5fe6be9bb3c18269227e91da94e09eebf1a62e0b56e67f7`.
+Primary read the entire new module and the narrow existing-file diffs.
+The generic inherited reviewer activated at actual17:07:31 UTC, with
+deadline17:39 and at most three bounded120-second bundles. An initial
+packet's estimated17:09 start was corrected before evidence accounting;
+the actual activation time governs. The reviewer may build the exact frozen
+code while the producer finishes its prose/manifests. Live core files have
+not been replaced. The frozen retained module is compatibility-only input
+to the migration, not independently certified by that rebuild.
+
+Two remaining equations are deliberately not inferred from these local
+results. First, the actual Build's existential Description/ViewLogic must
+be connected to the independently supplied pre-invocation Selected contract;
+preserving a descriptor across Return does not establish that initial tie.
+Second, a Shared decoder action changes installed bindings while keeping
+its Event. Agreement with the computed native post-bind installed map and
+PhiW of a separately constructed Event do not prove equality of those
+Events or their six semantic readout fields.
+
+The current RuntimeReadout interface can support a computed native entry
+readout using the real pre-event and Runtime.after. However, the primitive
+runtime receipt precedes the plain retained bind. A future producer must
+derive the original source-owned retained-entry boundary, including its
+intermediate receipt and final bind, rather than overwrite an already fixed
+receipt.after with a desired post-world. Call-input section3.2's actual
+Receive;Receipt;Retain order and SG3.3's original field owners remain binding.
+This is a concrete correspondence construction still to be supplied, not
+an accepted post-event equation or a whole-source soundness theorem.
+
+## Checkpoint 25: retained Computation native world accepted
+
+Primary accepts the exact OriginalRetainedParameter constructor after fresh
+independent review. Source `ae8915cf...`, note `eeeb07c2...`, producer
+`87a4446f...`, and review `5356e3b24b96511a9bff776be80d6019ca1a3c7a2a24108bf9e19f6bca34a845`
+remain unchanged. Author stopped17:12:29.105271 UTC; reviewer stopped
+17:21:48.777245 UTC. No active writer remains for the four publication paths.
+Root read their complete contents and verified all719 author artifacts,
+all1009 review artifacts, the thirteen author snapshots and all20 pinned
+old-core inputs. Root's first read-only author-manifest attempt used
+final-freeze rather than the packet root; it failed before mutation with zero
+entries verified. The exact error and corrected full reconciliation remain in
+retained-parameter-intake-r4. No submitted code or prose repair was required.
+
+The final local result stores exactly the delayed carrier, Computation mode,
+selected view and no dispatch. It derives the complete installed-map extension
+and preserves old cells, selected-parent dispatch, actual saved captures and
+aliases. Complete PhiW is constructed. Meaning and Background derive their
+old-world premise from the same whole-carrier certificate and apply their own
+hereditary action. No Force, Return, eventual termination or desired post-world
+equation is added to those consumers.
+
+The independent project began with an empty cache and pinned18 modules plus
+three configuration files. Bundle1 hit its configured120-second aggregate
+cap (measured120.041s from polling). Bundle2 completed the remaining build
+(19 jobs in42.241s), then the review-only probe counter failed because it
+lacked an explicit Nat annotation. After that single scratch repair, bundle3
+passed in7.129s, peak1,173,430,272 bytes. All three attempts and immutable inputs
+remain preserved; a later success does not relabel either earlier failure.
+
+All130 complete origin type/axiom records match the author, including the
+foreign-namespace generated Parameter.coordinate.eq_1. There are68 theorem
+constants and48 authored roots. Current, actual compiled-audit and closure-
+current inventories are zero. Actual standard closures contain propext40,
+Quot.sound16 and Classical.choice3 across all constants; no project or
+unapproved axiom occurs. These are isolated component counts, not a new global
+integration census.
+
+Six independent falsifiers/obligation probes passed: Computation versus Value;
+all Some cells beyond an invalid nominal count; necessity of vector support;
+Value holes cannot supply a missing carrier world; native post-bind Event
+differs from before by allocator size; receipt insertion precedes plain bind.
+The exact decoded-Event transition, actual inlet/formal-interface certificate,
+receiving.enter/HIR mapping, full dependent native/base witness correspondence
+and whole original inference soundness remain open. These boundaries are
+explicit in both source and independent receipt.
+
+Author manifest `b2b235fa...`, freeze `2a8a43a1...`, stop `ed553d32...` and
+review manifest `84c4a73e...`, freeze `4b011164...`, stop `68de1a0d...` are
+immutable. This checkpoint precedes the separately reviewed core migration,
+so its exact old-core acceptance is preserved rather than retrospectively
+claimed to cover another source generator.
+
+Before publication, fresh fetch found disjoint foreign commits4aa0d91e,
+ce6e2ff8 ande2613c58. Their ten paths are proof/observer notes, fixtures and
+review receipts; none changes Lean or production native code. Root inspected
+the path delta, read all three independent review receipts and the native
+quiescence note's precise conclusion, then fast-forwarded to
+e2613c58f5bc2a2da90a2b3148c4de3cda5c2c9e without overwriting local work.
+The signed receiving map still requires its authoritative original occurrence
+correspondence. The native first-empty-drain obstruction allows resource/error/
+cancel exits and is neither a kernel-checked Rust result nor a refutation of
+the unchanged original Acc inferStep contract. Both remain separate from this
+constructor and the whole inference-soundness target.
