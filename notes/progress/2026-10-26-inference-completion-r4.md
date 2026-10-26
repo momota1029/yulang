@@ -1465,3 +1465,134 @@ now owns only its new source-events review receipt/cache,1200seconds/max3
 focused120second bundles. It must distinguish source record construction from
 original semantic challenge-domain completeness and preserve all raw operands,
 owner routes, dependency telescopes and description/runtime separation.
+
+Checkpoint 20 published as `2675a685ca633739ad6971cdbabd59fb0a76f774`,
+parent `efa0e4453df7021144efc253699cce88cdfb8b85`, tree
+`5c0db6100fd5064caff74cb0a27851bd15ba4e44`. Verification at
+15:42:07.390602 UTC confirmed the exact parent, tree, staged contents and
+ancestry on the remote branch. A concurrent disjoint commit, `9a34b280d`,
+was already the remote tip. The receipt therefore records remote containment,
+not exact tip equality. The first verification ran before its fetch process
+finished and failed before mutation; that failure is retained separately.
+The local branch then fast-forwarded through the concurrent native-rejection
+fixtures and their reviewed evidence without changing any proof input.
+
+## SourceEvents review rejection and bounded repair
+
+The original SourceEvents freeze above was **REJECTED**, not accepted.
+Independent review found an actual collision in the generic constructor walk:
+both a forest's next sibling and a choice's right branch used route tag 1.
+A choice followed by another copy of its right event therefore produced two
+identical complete owners; the analogous parameter-entry forest also produced
+identical registrations. Matching remaining raw fields then gave equal
+ActualKey and RecordKey values. The current source builder's lack of choice
+constructors does not establish the exported arbitrary-tree identity claim.
+
+The review also corrected the preceding scratch census. Its namespace filter
+reported 49 constants / 17 theorems, but the complete current-module-origin
+inventory has **52 constants / 19 theorems**. Three private generated source
+match declarations were omitted. All three were independently kernel-checked
+and have no axiom dependencies. This is an evidence-completeness defect;
+the original incorrect count and output remain in the rejected snapshot.
+
+The frozen REPAIR REQUIRED receipt has SHA-256
+`5efbe584a8f39949a87bf0d3cd5767fcc463a5213a3577014be2a9707010a80f`.
+Its manifest `766e6aba...` covers 183 verified private artifacts. The independent
+collision log is `a2d2a7e3...`; the full module/current-module audit log is
+`8981f720...`. All 678 module constants and the 49 previously reported scratch
+records matched the author reports. Three review bundles were used; all owned
+writes and processes stopped at 15:47:32.665818 UTC, within 558.48 seconds.
+Neither a passing build nor this complete census accepts the rejected code.
+
+The original author has a separate 1500-second, at-most-14-check repair packet
+on the same three new output paths and its isolated cache only. Before editing,
+it preserved the rejected 274-artifact freeze, freeze record and three outputs
+in a 278-file immutable snapshot (`6680d008...`). The repair uses tag 3 for
+choice-right in both walks, retains tag 1 for forest siblings and reserves tag
+2 for retained evidence. Required closure includes complete arbitrary-tree/
+forest route inventories, generic ordered-sublist and no-duplicate proofs for
+owners and entries, reserved-slot separation, the original collision regression
+and a complete current-module-origin probe audit. Source-generated Lambda
+routes remain unchanged. Fresh independent acceptance is required before this
+new module is imported or published.
+
+The next-action consultation is read-only and bounded to 600 seconds, with
+zero checks or writes. It selects the smallest original formal-rebind delivery
+path joining the accepted raw bind/capture equations and source-owned retained
+evidence. The original formal contract and one scoped assignment must select
+the installed descriptor and witness; a convenient replacement interpretation
+of already fixed Inputs or a desired registry equation is not a solution.
+All original whole-language obligations remain open during this construction.
+
+## Checkpoint 21: repaired original source events accepted
+
+The repaired module `df3469e9...`, note `96108ef0...` and producer
+`8d57fcf0...` froze at 15:57:21 UTC. The repair changes both choice-right
+edges to tag 3 and proves generic tree/forest route inventories, ordered
+owner/entry sublists, four actual traversal Nodup results, sibling separation
+and exclusion of retained tag 2 at every depth. All 40 earlier public root
+type/axiom blocks remain byte-identical. There are 32 added public roots.
+
+The new complete-origin audit has 785 module constants / 268 theorems /
+72 roots and 97 current-audit constants / 34 theorems / 24 named probes.
+Six of 14 repair checks were used; final module check 4 and audit check 6
+passed. The three failed provisional module checks and all earlier failures
+remain retained. Repair freeze `b6fca2f3...` covers 163 artifacts; the old
+274-artifact freeze and 278-file before-repair snapshot remain immutable.
+
+Fresh nonauthor review ACCEPTs this exact partial scope. Receipt
+`f3c29265...`, manifest `fc549601...` and stopped record `a56e3df2...` are
+fixed; all owned writes/checkers stopped at 16:07:10.992060 UTC. One of three
+review bundles was used, taking 72.473194 seconds from an empty cache with
+peak aggregate RSS 1,183,502,336 bytes. The complete audit log is byte-identical
+to the author log `b7beda0c...`. Independent probes check arbitrary-prefix/
+scope collisions, both keys, actual collected retained owners, source inventory
+uniqueness, wrong-kind Response rejection and empty Value sorts. All 139 new
+review artifacts, 183 old review artifacts and both original author snapshots
+were independently reverified. Primary intake rehashed the 139-artifact review
+and 163-artifact repair, read the complete receipt and accepted F1/F2 closure.
+
+The accepted scope is source-derived owner/telescope metadata, independent
+raw/decorated records, local six-field readout and the existing local Shared
+decoder application. Full semantic-domain coverage, actual retained emission,
+global readout/Frame linkage, PhiW, Checking/L4 and native correspondence remain
+OPEN. Neither the rejected packet nor its review is promoted retroactively.
+
+The successor integration also froze at 16:07:50.298964 UTC, manifest
+`9fdc6bfd...`, with four primary-owned outputs and 287 artifacts. Its exact
+132-input graph built 130 jobs and audited 67 origins / 9,954 unique theorems /
+1,763 roots. Every previous 9,595 full type/axiom/module record is unchanged;
+all 668 legacy warning first-lines match. The isolated 268 Events theorems add
+267 globally because put.eq_1 already originates in SourcePrincipalTransport.
+The new independent integration reviewer owns a separate receipt/cache with
+1200 seconds and at most two focused bundles if a concrete risk requires one.
+This checkpoint publishes the component, not those pending integration outputs.
+
+The read-only next-action and implementation preflights completed without
+writes or checks. They identified a narrower genuine parent construction:
+fix a missing-native world presentation before Force, use a source-derived
+formal coordinate rather than Site-first lookup, generate one original Shared
+delivery, prove actual native/decoder agreement, then construct full post-bind
+PhiW and B_H.W from the actual Return and original independent guards. The
+formal descriptor is fixed before invocation; converting payload B to formal A
+requires the authentic Entry check/incidence. Already fixed original Inputs
+are not replaced, and virtual retained-owner routes are not silently identified
+with physical delivery positions.
+
+The new OriginalParameterWorld author activated at 16:07:10 UTC with 3600
+seconds, at most 24 bounded checks, and only one new module, note, handoff and
+private cache. All existing core/import/config/native files remain unleased to
+that author. The accepted SourceEvents dependency gate was explicitly released
+after primary adjudication. Independently useful stages must freeze for fresh
+review and small publication before further author changes. Full original
+inference soundness remains the unchanged goal, not a claimed result.
+
+Checkpoint 21's first expected-parent ref update returned UNKNOWN at
+16:08:59 UTC. A fresh fetch found the disjoint concurrent `f9a008d2e`
+FiniteCopyClosure commit adding four new paths. The unpublished attempted
+commit `034e738c...`, original payload/tree and API error are preserved.
+Fast-forward retained those four files and all staged component bytes. The
+132 frozen integration inputs and four reviewed integration outputs remain
+unchanged; the new foreign module is outside that explicitly selected audit
+snapshot. The nonforced retry changes only the parent/tree and this primary
+publication record, not any reviewed proof or component review.
