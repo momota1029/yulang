@@ -113,3 +113,67 @@ Five bounded checker calls have been used for this component, including failures
 The large `tasks/current.md` and README navigation will be synchronized at the
 final phase boundary; this exact progress/review record accompanies the first
 coherent proof commit. Other producers' disjoint unfinished paths are excluded.
+
+Publication 1 succeeded as `b8902f756408012b8da3c48f29d9575d75689bc0`,
+`proof: preserve record requests and reusable resumptions`. GitHub's created
+tree equaled local `git write-tree`; the non-forced expected-parent ref update
+succeeded, and fetched remote/local HEAD and the index were reconciled exactly.
+
+### Accepted identity/context and retained-relay component
+
+`SourceIdentityLambda.identity_context_interactions` constructs the identity's
+existing paper typing, actual successful substitution into any independently
+typed callable-hole computation, the filled computation's typing and preservation
+through every represented finite interaction. It assumes neither identity/body
+typing nor original source T. Companion results preserve the Value-entry suffix,
+the relay's distinct Computation-entry/body consumption, receipt View and actual
+returned raw value. The fixture's C and W are distinct; no later Call is invented.
+
+The source paper instantiates the selected generic Strict/PureReturn constructor
+and derives ActualAdm for independently admitted challenges of that constructed
+interface. It retains the missing original background/world/phase-envelope and
+descriptor/annotation realization. Existing RP5 and native formation policy are
+reused. The original contextual Function leaf and full source T remain OPEN.
+
+Frozen Lean SHA-256:
+`831b297998509eb261f7a0596792c826c56078661d5a3ab66fc9afd67238d7a4`.
+Frozen paper SHA-256:
+`bc3423f0d6d66daf449501ffb11028e2f29b846955bb3f34a628b7844bf39aa5`.
+Fresh nonauthor `/root/source_lambda_review` accepts this precise boundary.
+Review receipt `tasks/agent-loop/inbox/20261026-source-identity-lambda-review-r2.md`
+has SHA-256 `f73571edd976f312260d74cf06cd902057121fb26d2dc9388d2a3a574358f50f`.
+It verified all 72 dependency pins and the 24-module local import cone, inspected
+all theorem types and audits, ran no checker, and stopped writes.
+
+The sole MINOR finding, `ID-LAMBDA-REVIEW-R1`, concerned attempt coverage in the
+producer receipt. Revision 1 SHA-256 was
+`ecd0ec8d69c2efc6c126be3fec6523778a5d45ef1a0427f71b1ae2a87bdb44bb`.
+Its former paragraph, preserved here as historical text, was:
+
+```text
+Calls 1–2 use the repository `check_lean.py` with the isolated project, exact
+native Lake, `--module YulangClosure.SourceIdentityLambda`, all twelve authored
+`--theorem` roots printed below, and `--timeout 120`. It checks both version
+strings, performs `lake --no-cache build +YulangClosure.SourceIdentityLambda`,
+and audits declaration kind, exact types and complete transitive axiom lists.
+```
+
+After the producer and reviewer stopped writes, the primary corrected only that
+paragraph and the handoff revision heading. Call 1 requested 11 roots and failed
+during compilation before any root audit; call 2 successfully audited all 12;
+call 3 audited all 14 originating theorem constants. The former full receipt is
+also retained in primary scratch. The reviewer explicitly permits this M0
+correction to carry forward mathematical acceptance over unchanged proof, paper
+and dependency bytes; no extra checker or proof-review round is required.
+Corrected handoff revision 2 SHA-256:
+`ebfbe7a66d887afae0b59ccf7f1cc98611fcf2cea04786162f56ce1723e41da1`.
+
+The complete census covers **14 theorem constants / 12 authored roots**: four
+without axioms, ten with `propext` and `Quot.sound`. No choice, new axiom or hole.
+Three producer calls consumed 99.060434 seconds; the first genuine substitution
+elaboration failures remain preserved. Census SHA-256:
+`f08bc001b37a8bb85b5fbe74fdc486a567ac643d5cb0d83560311a436c6b83e4`.
+Primary integration passes **52 jobs** and the exact contextual theorem audit,
+exit zero in 80.801 seconds. New files have no warnings. The 658 lint warnings
+in seven unchanged direct proof dependencies are retained for the final owner
+accounting; this result does not claim a warning-free whole project.

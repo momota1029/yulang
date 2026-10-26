@@ -40,9 +40,22 @@ run_cmd do
     `YulangClosure.BoundaryQueryClosure,
     `YulangClosure.NativeRecordPlan,
     `YulangClosure.NativeReplayAcknowledgement,
-    `YulangClosure.RecordBoundaryExecution
+    `YulangClosure.RecordBoundaryExecution,
+    `YulangClosure.SourceIdentityLambda
   ]
   let roots : Array Name := #[
+    `YulangClosure.PaperTypes.SourceIdentityLambda.identity_body_typed,
+    `YulangClosure.PaperTypes.SourceIdentityLambda.identity_typed,
+    `YulangClosure.PaperTypes.SourceIdentityLambda.identity_entry_formation,
+    `YulangClosure.PaperTypes.SourceIdentityLambda.identity_result_substitution,
+    `YulangClosure.PaperTypes.SourceIdentityLambda.identity_result_step,
+    `YulangClosure.PaperTypes.SourceIdentityLambda.identity_argument_interactions,
+    `YulangClosure.PaperTypes.SourceIdentityLambda.identity_context_interactions,
+    `YulangClosure.PaperTypes.SourceIdentityLambda.identity_argument_exposure,
+    `YulangClosure.PaperTypes.SourceIdentityLambda.relay_typed,
+    `YulangClosure.PaperTypes.SourceIdentityLambda.relay_entry_formation,
+    `YulangClosure.PaperTypes.SourceIdentityLambda.relay_identity_call_typed,
+    `YulangClosure.PaperTypes.SourceIdentityLambda.carrier_ne_identity,
     `YulangClosure.RecordBoundaryExecution.safeAll_unfold,
     `YulangClosure.RecordBoundaryExecution.accepted_mono,
     `YulangClosure.RecordBoundaryExecution.invariant_safe,
