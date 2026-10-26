@@ -1299,3 +1299,105 @@ that actual rebind evidence needs no new Shared ownership. Both constructor
 and all-future consultation owners must reconcile that source/IR boundary.
 Old Shared preservation is distinct from complete new EventField/Shared
 registration. No missing evidence is silently removed from the original goal.
+
+Checkpoint18 published as `5428c5e62e31b20f261c76128cf426fdd137cca5`,
+parent3be95e44e and treeb0df6f0a06e76fee5c8ece1759bf897781c6fa98.
+Exact remote equality, parent/tree and clean tracked worktree/index were
+verified at15:08:57.124587 UTC without a forced update.
+
+## Combined construction surface and source-owner continuation
+
+The explicit InferenceConstruction surface and its complete audit now include
+all accepted components through checkpoint18, plus the preserved foreign
+metatheory additions. Build04 passed the new surface together with the actual
+unchanged configured default:127jobs,19.572692s,peakRSS1,019,449,344bytes.
+Audit06 passed in40.909217s,peakRSS1,387,986,944bytes. The checked result is64
+selected origins,9595unique theorem constants and1640 required fully qualified
+roots, with129exact source/configuration inputs. This is component coverage,
+not completion of the original SourceProblem instance.
+
+All668 existing warning first-lines match both earlier accepted logs across
+nine unchanged source files. The initial warning JSON's over-escaped regex
+produced empty counters; the explicit corrected receipt retains that failure
+and verifies the exact multiset/hashes. Audit05 correctly rejected69 relative
+Pair root names; Audit06 qualifies those names only. Every original snapshot,
+failure and origin-deduplication record remains immutable. Pair's240 isolated
+theorems remain present globally;237 originate newly here and3 statementRulesK
+helpers already originate in PrincipalTransport. All307 Record names remain,
+with256 new and51 earlier source-rule helpers. No count repair removes a name.
+
+The four new integration artifacts froze15:11:56.181470 UTC, freezea16a06ef…,
+431evidence artifacts. A documentation-only namespace correction then froze
+15:16:06.735747 UTC, supplement1623ee7d…,432artifacts: the parent is exactly
+YulangClosure.SourceProblem.InferenceSoundness. Lean/audit/configuration/input
+bytes are unchanged by that correction; the original note/freezes are retained.
+Fresh nonauthor function_future_review_r4 has only the new integration-review
+receipt and its isolated scratch lease,1200seconds/max2 focused120second
+bundles if a concrete checker gap appears. Its earlier component review is
+not mathematical authorship of this aggregate surface.
+
+Read-only all-future consultation identified genuine representation gaps:
+Runtime Outcome retains raw endpoints/bindings but no retained installed
+evidence; Decoded.runtime does not update installed; RuntimeReadout's six
+dynamic semantic projections remain supplied maps. EventFields must be kept
+separate from raw EventStep identity and from per-description EventProof.
+The accepted Signature/Contribution metadata carries owners and dependent
+packets, but does not already construct these original event assignments.
+
+OriginalSourceEvents was therefore assigned as a new1800second/max16check
+leaf, with only its new module/note/producer and source-events-r4 scratch.
+No core edit is authorized. Its source-directed catalogue must derive actual
+Lambda/formal receipt/rebind owners, preserving complete occurrence routes
+and dependent scopes rather than assuming Site uniqueness. Independent
+Initial/Response/rawResume/FutureUse records retain their original context
+data and one scoped assignment. Record grammar coverage must not be confused
+with the still-independent original semantic challenge-domain coverage.
+
+The concurrent WorldReadout author now constructs only the genuine raw native
+bind/capture suppliers at the discovered owner boundary. One joint logical
+assignment indexes actual cell address plus view, so equal raw view handles
+do not collapse distinct installed binding contracts. The active partial
+constructor can supply exact native equations and recursive binding fields;
+it cannot claim full source-owned PhiW before retained Shared/EventField
+emission and current installed-evidence decoding are linked. Its code froze
+edb82b9e… at15:20:18.986380 UTC with40 authored roots; final origin audit has
+120constants/67theorems. Fresh review remains required before publication.
+
+## Checkpoint 19: integration independently accepted
+
+Fresh nonauthor review ACCEPTs the exact four-artifact integration, review
+b48d261859490292d76213fe9ca0680e26a29bc74a20887359033b96be20b526,
+manifest6b1191e8…, stopped2ab2ce4e…. The reviewer independently reconstructed
+every9595full type/axiom record and1640roots, including1052private theorem
+names, exact129input closure and all432producer artifacts. All1475isolated
+theorem names/normalized axioms across eight deduplicated component inventories
+are preserved. Actual SourceProblem/NativeCorrespondence and conditional
+composition theorem types were read; no original parent closure is inferred.
+
+All668 warning first-lines and nine unchanged files match the three historical
+logs. The Pair audit repair is exactly69namespace insertions, with every other
+byte unchanged. Historical cache verification means111hashes match that frozen
+historical project, not all later current inputs: InferenceProofs, Generation
+and lakefile differ; Build02 explicitly rebuilt the two changed Lean modules.
+The current129inputs are verified independently. The review retains its four
+parser/schema/historical-assumption failures and repairs. No additional Lean
+run was needed because complete existing kernel evidence resolved the actual
+integration risks. Review took828.14seconds within1200, then all writes stopped.
+
+WorldReadout separately froze15:24:07 UTC, note6171f750…, producer6c098190…,
+codeedb82b9e…. Its40roots/67theorems/120originconstants and all9attempts are
+retained; only standard3axioms occur. The first review-dispatch attempt hit the
+four-active-thread cap while the author's final was still completing; no
+review started from that failed dispatch. After the author completed, the
+fresh original_source_review_r4 packet activated15:27:09 UTC with1200seconds,
+max3focused120second bundles and only its new receipt/scratch leases. The
+integration checkpoint excludes this pending component and SourceEvents.
+
+The first checkpoint19 expected-parent update returned GitHub UNKNOWN. Fresh
+fetch showed a concurrent nonoverlapping commit11b0bf084 adding five
+OriginalTerminationClosure paths; the attempted d7cdddcb commit had not landed.
+Its payload/tree/commit and API error remain preserved. Fast-forward retained
+the concurrent five paths and every staged own path. All five reviewed files
+and all129checked inputs remain byte-identical. Only this primary publication
+record and the commit parent/tree change for the nonforced retry; no proof
+or integration revalidation is implied by the branch race itself.
