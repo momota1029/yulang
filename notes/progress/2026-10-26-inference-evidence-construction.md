@@ -1,5 +1,31 @@
 # Constructing inference evidence, continued
 
+## Outcome of this continuation
+
+The strongest new connection is
+`LatticeGrowingInference.completed_decided_growing_publication_with_clients`:
+lawful completion, locally indexed allocation/constraint histories, computed
+exact finite lattice certificates and original scoped publication now produce
+one shared interpretation for all original uses and clients. The external
+certificate, successful-decoder equation, terminal model and already-flattened
+history premises have been removed. Generated native profiles also have the
+reviewed original-constructor hereditary-restriction paper proof and separate
+Lean record-algebra companion.
+
+All new coherent proof packets received independent nonauthor acceptance. The
+final default build passes **76 jobs**; the complete originating-module audit
+checks **1,639 distinct theorem constants across 17 inference modules**, including
+all private/generated declarations. Actual axiom sets are 736 empty, 587 only
+`propext`, 1 only `Quot.sound`, and 315 both. There are no project axioms,
+`sorryAx`, `Classical.choice` or native-evaluation assumptions in this inventory.
+
+**The full original `SourceProblem.InferenceSoundness` remains OPEN.** Actual
+native/source representation, all-history inventory/metadata formation,
+complete native constructor/coalescing coverage and the original complete
+Call/source witness still require their owning bridges. The ten-field Call
+candidate is independently reviewed but remains unadopted; it does not replace
+the original predicate. See the exact final boundary below.
+
 ## Original goal and starting point
 
 The user's renewed instruction is to continue through the remaining inference
@@ -366,3 +392,77 @@ audits** across 16 modules, exit 0. The producer's 95 theorem names equal
 exactly the integrated inventory's new-name set, including generated equation
 lemmas whose names use older namespaces. Audit SHA256:
 `3eb7052321b6a3b1b170f96bf103fc74b425c75193098f58fb6bc8445481cb04`.
+
+## Final connection: computed evidence after growing lattice histories
+
+`SimpleSubLatticeGrowingInference` proves literal graph-prefix preservation of
+every finite Layer rule, then every approximation by depth induction. It
+transports concrete lattice extrusion/constraint steps and successful decoder
+equations without using reverse unfolding or assuming intermediate graph
+validity/guardedness. `GrowingHistory.flatten` derives the final fixed-graph
+history from actual steps at their local graph indices.
+
+The main
+`completed_decided_growing_publication_with_clients` theorem combines the
+computed complete constructor inventory, graph growth, exact finite certificate
+generation and the unchanged original publication image theorem. No external
+finite witness, terminal model, successful-decoder equation or already-flattened
+history remains among its premises. Final acceptance supplies `Valid` and
+`Guarded`; every original use/client shares one final graph and reference map.
+The original lookup/shape, actual local history, inventory coverage and metadata
+formation obligations remain explicit and are not inferred from native `Ok`.
+
+The [primary producer handoff](../../tasks/agent-loop/inbox/20261026-inference-lattice-growing.md)
+records the frozen 336-line proof, complete 12-file input manifest, exact
+statements, all eight focused checks and **30 originating theorem audits**:
+1 empty axiom list, 12 `propext`, 17 `propext, Quot.sound`. An intermediate
+artifact audit correctly rejected three missing new constants despite a build
+success report. Direct regeneration of the exact hashed source resolved the
+stale artifact; the final audit includes all required roots. Its cause is not
+asserted, and no failed audit is counted as acceptance. Source SHA256:
+`1270e3407ddeef881020610b094709ebba07b62a97e54712bcc4b139ef8e78d0`.
+
+The exact lattice decision checkpoint is published as `cf4e172`.
+
+The [fresh nonauthor review](../../tasks/agent-loop/inbox/20261026-inference-lattice-growing-review.md)
+accepted all 336 source lines, all 30 final theorem types/axioms, the exact
+12-file manifest and the resolved stale-artifact evidence, with no findings
+and zero checker reruns. Final default integration passed **76 jobs** and
+**1,639 distinct originating theorem audits** across 17 modules, exit 0. The
+30 newly integrated names equal exactly the producer's final audited set.
+Final audit SHA256:
+`54980099a036000ab184bcce653ec27afa7a64196d71d2147f38b5e27fb676b0`.
+Final build-log SHA256:
+`10b942e339bc8043f2b04efba72c09b153896107a795de08587c0bbf0a59ceb3`.
+
+## Exact remaining original-root obligations
+
+1. **Actual native interpretation and history.** Construct one faithful graph
+   and canonical-row assignment from the complete physical bound store,
+   preserving ordered replay, copied-bound transport and original plus later
+   activation identities. Prove actual native no-error success supplies the
+   required local history and makes the computed decision true. Literal graph
+   append in the new theorem does not stand for arbitrary native row mutation.
+2. **All-history source publication.** Derive the actual lawful constructor
+   inventory, complete clause coverage, allocation maps, capture/live stopping,
+   non-generic and level dependency conditions at their original source scopes.
+   Numerical minima/OR alone do not establish these obligations. The bounded
+   native experiment establishes neither their invariant nor a counterexample.
+3. **Complete native/source domain.** Establish the representation and semantic
+   correspondence for native open rows, width/presence, casts, remaining variant
+   behavior, ordinary coalescing and original unguarded recursive syntax. The
+   proved graph fragment is not a newly restricted source language.
+4. **Original complete Call and source reconstruction.** Supply genuine child,
+   primitive and independent-arm packets, the actual original certificate
+   telescope/interpretation binding, all original generation/reconstruction
+   cases, and the single shared scoped witness. Full original `G_call` already
+   contains its certificate, so conditional reconstruction consumes it; producing
+   that full solution from native success is a separate missing result. The
+   reviewed explicit candidate exposes the definition/equivalence decision but
+   does not silently adopt new semantics.
+
+All delegated producers/reviewers have frozen and stopped their writes. No
+proof worker or checker is left running. Final publication is primary-owned;
+every committed proof is the exact independently reviewed source. Original
+coverage/principality, progress/termination and production gates are not promoted
+by these component soundness results.

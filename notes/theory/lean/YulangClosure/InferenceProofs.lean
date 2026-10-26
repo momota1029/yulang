@@ -12,6 +12,7 @@ import YulangClosure.SimpleSubGrowingInference
 import YulangClosure.SimpleSubLatticeCertificates
 import YulangClosure.SimpleSubLatticeInference
 import YulangClosure.SimpleSubLatticeDecision
+import YulangClosure.SimpleSubLatticeGrowingInference
 
 /-!
 Checked inference proof components, integrated incrementally.

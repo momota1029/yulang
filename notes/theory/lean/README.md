@@ -2,6 +2,24 @@
 
 ## 2026-10-26 continuation: construct terminal inference evidence
 
+The final connection is
+`SimpleSubLatticeGrowingInference.completed_decided_growing_publication_with_clients`.
+It composes lawful constructor completion, locally indexed interleaved graph
+growth/constraint steps, computed exact finite lattice evidence and the unchanged
+original scoped-publication theorem. Its conclusion interprets every original
+use and client in one final graph with one shared reference pullback. No external
+certificate, supplied successful-decoder equation, terminal model or pre-flattened
+history is required. Actual native/source representation and the original
+inventory/metadata/Call obligations remain explicit; the whole original
+`SourceProblem.InferenceSoundness` is **OPEN**.
+
+Final validation: pinned Lean 4.35.0, default build **76 jobs**, all **1,639
+distinct originating theorem constants across 17 inference modules** audited,
+including private/generated helpers. Only standard `propext`/`Quot.sound` or no
+axioms occur. Every new proof packet has independent nonauthor acceptance;
+exact hashes, checks, review receipts and retained original-source obligations
+are in the [continuation record](../../progress/2026-10-26-inference-evidence-construction.md).
+
 `SimpleSubRegularDecision` constructs a finite certificate directly from the
 existing regular graph. `constructed_exact` proves that its members are exactly
 the independent all-depth `RegularSub` comparisons; `decideDemands_exact`

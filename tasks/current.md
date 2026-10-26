@@ -1,14 +1,19 @@
 # Current task: complete type inference and replace F5
 
 2026-10-26 continued inference evidence construction on `yulang3`:
-`SimpleSubRegularDecision` now constructs terminal finite certificates and
-proves exact agreement with the independent all-depth regular relation. Its
-history/publication consumer no longer needs an externally supplied certificate.
-The frozen module received a clean independent review; default integration
-passes 68 jobs and all 884 originating theorem audits across nine modules.
-Native graph/history/row realization, broader constructors, source Call/effect
-construction and full original inference soundness remain OPEN. Further graph
-completion and profile-transport work is recorded in the
+lawful constructor completion, interleaved graph allocation/constraint histories,
+computed exact finite union/intersection certificates and the unchanged original
+scoped-publication theorem now produce one interpretation for all uses/clients.
+The main `LatticeGrowingInference.completed_decided_growing_publication_with_clients`
+needs no external certificate, successful-decoder equation, terminal model or
+pre-flattened history. Native profile restriction has a reviewed paper proof;
+the explicit original Call telescope is reviewed but remains unadopted.
+All coherent new proof packets have independent nonauthor acceptance. Final
+default integration passes 76 jobs and all 1,639 distinct originating theorem
+audits across 17 modules. Actual native graph/row/history and source inventory/
+metadata formation, full constructor/coalescing coverage, complete original
+Call/source witnesses and full original inference soundness remain OPEN. Exact
+construction, review receipts, validation and remaining obligations are in the
 [continuation record](../notes/progress/2026-10-26-inference-evidence-construction.md).
 
 2026-10-26 inference-soundness checkpoint on `yulang3`: immutable-birth induced
