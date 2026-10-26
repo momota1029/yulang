@@ -869,3 +869,37 @@ attempted `3e961d884700d51101d32682398db48ee727ce94` was not its ancestor.
 Its three disjoint paths were preserved by fast-forward without rewriting
 any worktree/index content. The first tree/commit/payload remain retained;
 the next publication uses the freshly observed parent, with force disabled.
+
+## Checkpoint 11 publication and checkpoint 12 acceptance
+
+Checkpoint11 was published as `5030137eb5a0e3eaa49dc28bb590223505a44731`
+from the freshly fetched `df30b46027c89a07241d5549921016578855aaa0`.
+Tree `9fb97f2d5d3a20769f6206a3dc7cb15550ab858d` matched the staged content.
+The nonforce expected-parent update succeeded; fetch, exact parent/tree,
+remote equality, clean tracked worktree/index and protected hashes were verified
+at 2026-10-26T13:44:56.001955+00:00. All concurrent updates are retained.
+
+Fresh nonauthor review accepted NativeValueRelationExecution at
+`118138bd45cef3db837a0742010944cdd0c513e9d352302d23889e497a89c4ea`.
+The review receipt is
+`8e35cc72289e6f2fcb87b09f7ee0d625add5bc248a1ff274f6d152c00b180f50`.
+All152 artifact hashes,14 dependency/configuration entries,10 original native
+and authority inputs, and all180 declarations/63 theorem constants/29 roots
+were reconciled. Independent target recompile and nine focused probes pass,
+including arbitrary old queues, repeated raw IDs with distinct occurrences,
+actual Context frontier, work-bound failures, preserved preparation charges,
+outer four-port Function computation and its constructed shared control Run.
+A reviewer-only tuple-Decidable synthesis failure remains preserved; scratch
+repair to rfl passed. No producer source or proof repair was needed. All three
+standard axioms only; no project axiom/sorryAx/bypass. Reviewer stopped all
+writers and checker processes at 13:47:12.219175 UTC.
+
+This checkpoint constructs physical allocation -> exact decoded port admission
+-> actual computed child loop -> shared control history and conditional later
+quiescent diagnosed readback. It does not identify a diagnosed return with
+semantic acceptance, assume a terminating continuation, or erase retained
+capacity-derived resource work. Authentic initial from_plan/control history,
+physical preparation/failure extraction, Dependency/lifecycle/sampling/enqueue
+cuts, global rollback and full original semantic/source witness owners remain
+OPEN. Environment R1 delta review and finite Checking construction are separate
+active packets and are not included in this publication.
