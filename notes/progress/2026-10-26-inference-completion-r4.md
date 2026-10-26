@@ -276,3 +276,72 @@ readback, Transport/Derived canonicalization and completed bodies at settlement.
 Previously accepted Context and drain files are immutable inputs. Pending owner
 coverage or an assumed completed-body callback cannot close this seam. The
 primary retains integration, review assignment and all Git authority.
+
+
+Published checkpoint 4: `8472a1ca49da055a1ea298ccfa87745c2a6f5ce4`;
+the expected-parent remote update and fetched/local tree comparison agree.
+
+## Disjoint native Value-port construction
+
+The primary opens `NativeValuePorts.lean`,
+`2026-10-26-native-value-ports.md` and
+`20261026-native-value-ports-r4.md`, with owned `value-ports-r4/**`
+scratch/cache pinned to checkpoint 4. This packet constructs actual
+Function/Tuple/Record/Variant child admission, full ScopedDemand preservation,
+post-check Context operation order, the precise Function effect transformers,
+and the two-phase reverse-admission/front-enqueue sequence. It does not assume
+Value semantic checking or a completed native owner, and does not edit the
+Context readback worker's files. Budget: 2,700 wall seconds, at most 20 focused
+checks, one thread, Lean 1 GiB and ordinary check bounds below 120 seconds.
+Independent review is required; this primary cannot self-certify its proof.
+The original whole inference goal remains unchanged.
+
+At 11:33 UTC the source reviewer received a further 1,200-second extension
+solely for the final anchor/publication/execution and independent challenge
+repair, with one focused checker call remaining. Exact frozen code may be
+reviewed before final prose, then rechecked against the final packet; no mutable
+source or superseded narrowing is accepted.
+
+
+## Checkpoint 5: reviewed raw-source reconstruction
+
+The primary accepts the independent original-source review at its explicit
+conditional construction boundary. The total raw grammar covers 13 expressions,
+11 patterns, 3 statements and 19 containers. The builder constructs its own
+local rule tree and every source/client child; independent finite Judgment and
+Checking/Boundary derivations are reconstructed from the compiled formula under
+one supplied local interpretation. No whole-original SourceProblem instance or
+native success theorem is claimed.
+
+All material scope defects were repaired before publication: ordered Block
+continuations, Shared anchors independent of description frames, unchanged raw
+challenge payloads, and exact initializer entry snapshots. The final replay
+repair separates original entry names/fixed frames from completed captures and
+execution history. It reproduces the exact original inner publication instead
+of duplicating its frames or leaking later names. The reviewer also proved this
+from a nonempty creation environment through a different later caller.
+
+The producer used 32/33 checks, after a concrete replay repair authorized four
+additional calls and a 900-second wall extension. Both code modules and the final
+census pass; prior semantically rejected freezes and failed audit-only check31
+remain retained. The fresh reviewer used its original two calls and one explicitly
+authorized audit-only <=60-second repair call, preserving both failed specimens.
+The accepted reviewer audit exits zero with no diagnostics. It distinguishes raw
+source-path evaluations from kernel-checked proofs.
+
+Final source hashes are Syntax `3184d156d661ace7da0345f5fa63f8a4396d9f52c745d265239c8d3db1e7d0d1`
+and Generation `ab37f3739d89dff9e7918fb745f5a308a3e597ab4aaa9e5a172fcacaeddabf0b`.
+Census32 has 2,394 originating declarations, 916 theorem constants and 22 authored
+public roots. All 2,394 complete axiom reports were independently reconciled;
+the union is exactly `propext`, `Classical.choice`, `Quot.sound`. Review receipt
+hash: `5544a4960e46f006961248cacbcfbe2ea85523f92f1dae7ddeab7bc2df345f8c`.
+Both author and reviewer are stopped. Original decorated meanings of the seven
+Kernel fields, authentic source/event metadata and native success implying full
+semantic satisfaction remain OPEN; these are not supplied by naming the predicates.
+
+The separate native Value-port packet now has a checked 56-root construction and
+complete 891-declaration/348-theorem census. Its primary-authored bytes await fresh
+review. Its concrete Context example was corrected to begin with an actually
+formed Context arena; the new general formation lemma retains the native earlier-ID
+condition. The shared Context/drain readback producer is still active in its own
+unchanged lease and budget.
