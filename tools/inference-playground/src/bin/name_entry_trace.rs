@@ -8,7 +8,7 @@ const SCRATCH_OUTPUT: &str = "/tmp/yulang-name-entry-correspondence-20261028/sou
 const CASES: &[(&str, &str)] = &[
     ("direct_positive", "my main = (\\x -> (\\y -> y) x) 41"),
     ("condition_local_z", "my main = (\\x -> { my z = x; (\\y -> y) (if x: z else: z) }) true"),
-    ("sequence_local_z", "my main = (\\x -> { my z = x; (\\y -> y) {x; z} }) true"),
+    ("sequence_local_z", "my main = (\\x -> { my z = x; (\\y -> y) (if true {\n  x\n  z\n} else {\n  z\n}) }) 41"),
 ];
 
 fn run_case(label: &str, input: &str) -> Result<String, Box<dyn std::error::Error>> {
