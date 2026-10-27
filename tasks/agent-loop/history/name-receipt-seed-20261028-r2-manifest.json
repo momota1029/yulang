@@ -1,0 +1,2523 @@
+{
+  "generated_and_scratch_files": [
+    {
+      "path": "NameReceiptSeedAudit.lean",
+      "bytes": 9521,
+      "sha256": "8bc6275512a280e0730d9ec783e3aa33fe6dd8eef02b394cbe91fe13bbf54fb1"
+    },
+    {
+      "path": "NameReceiptSeedAuditR3.lean",
+      "bytes": 9497,
+      "sha256": "49320f7009af478e4b63df8873c925dca94aaba974a7ea2dc4ec5d41ab0c4ada"
+    },
+    {
+      "path": "OriginalNameReceiptSeed-r1-failed.lean",
+      "bytes": 10932,
+      "sha256": "14a5fc3d69c827ba246942353b1adec22316461b51068fd82e1861494b5f0d9a"
+    },
+    {
+      "path": "audit-r2-receipt.json",
+      "bytes": 506,
+      "sha256": "45a7cb55f1f87cfd46988a88cb81042eec8c58e867e17360645dae59847ab294"
+    },
+    {
+      "path": "audit-r2.log",
+      "bytes": 15856,
+      "sha256": "f638dff4350d3945a70dcb66dcbca168898c2de528db823a845426b8ecd90180"
+    },
+    {
+      "path": "audit-r3-receipt.json",
+      "bytes": 506,
+      "sha256": "abce79880ecd60756396ad4239933054903b2cae9e14a2e4711541923493f39b"
+    },
+    {
+      "path": "audit-r3.log",
+      "bytes": 15740,
+      "sha256": "400a9de52cc78d049a32f97ec16363a9e35b3f675cab95dc5e937f0765dc2d74"
+    },
+    {
+      "path": "checker-r1-receipt.json",
+      "bytes": 2343,
+      "sha256": "e04617d3a0abda2b84242b352babf4088ba3b12e7fc3a323fec817baec2d86f9"
+    },
+    {
+      "path": "checker-r1.log",
+      "bytes": 5372,
+      "sha256": "a9dfaa2a2e6616beba4b984b74bf65bf82dbe56dddf1c96351fea900017cddc3"
+    },
+    {
+      "path": "dependency-manifest.json",
+      "bytes": 41952,
+      "sha256": "d98652dda1f2b3c22379ef7c5eb145bec51f54cbbe71aabb8cfd0692210beaf7"
+    },
+    {
+      "path": "direct-check-r2-receipt.json",
+      "bytes": 646,
+      "sha256": "7fb8c75ac9f063da0ae4864018fab2b32b4a4822b9cb28e1041bcb1578bd3303"
+    },
+    {
+      "path": "direct-check-r2.log",
+      "bytes": 464,
+      "sha256": "122631211ce4c630d949f9d9ae0cf702f1bf120dd791b85763a148a62708a621"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/Contracts.c",
+      "bytes": 1345,
+      "sha256": "e93e24602725292d60f6a79437f3145313129f8248eff9e5c6d5f3b313415612"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/Contracts.c.hash",
+      "bytes": 16,
+      "sha256": "c791c0ad02f7d93eb0e1ecd34f6deb7bc13177a107c3d49371a0882ad9cd653b"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/Contracts.setup.json",
+      "bytes": 151,
+      "sha256": "07ec03d6b24455d890e3df47c31ac3d98d2695febee6221da0f3dda379935e76"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/NativeClosureEnvironment.c",
+      "bytes": 56467,
+      "sha256": "12915ad2976ac4505ba68fcd213931aa8c1f49c39c0872ed0b3a92bf9e1283a6"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/NativeClosureEnvironment.c.hash",
+      "bytes": 16,
+      "sha256": "ef2f971315bdc0c6bfd648ab392ea953afedd3f6fe9af78af8b57f26dbb9ad23"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/NativeClosureEnvironment.setup.json",
+      "bytes": 166,
+      "sha256": "4d576b22a7c6f126c4873a7e8cc642c6c0c9fd8c42af0ed64aed0a4dc7d63c32"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/NativeDictionaryDenotation.c",
+      "bytes": 127943,
+      "sha256": "861c330e4eb2c77336dcae42be1386c9932e6c9cb4c14cf0951e6ac1281130fd"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/NativeDictionaryDenotation.c.hash",
+      "bytes": 16,
+      "sha256": "408f06762595673f16d639f277bb2db2d1b72212aae04bfdd540e4ac722849c3"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/NativeDictionaryDenotation.setup.json",
+      "bytes": 168,
+      "sha256": "2b48d8084c154cc5a515b4d3e9a4b8e39c18368f1c4835a4eaaad86b084e4586"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalCheckingAdmission.c",
+      "bytes": 85850,
+      "sha256": "7946f855fcb3c284dfad63e34ba59b78a01eb1f1ef2c156caebefa9bcd258ea6"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalCheckingAdmission.c.hash",
+      "bytes": 16,
+      "sha256": "64dcc8670bc79a75d4a404a92a1a9b45a8bcba7a55b883a61df3e31ea95821c3"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalCheckingAdmission.setup.json",
+      "bytes": 1936,
+      "sha256": "73e82c24e23628d224fad2b07673b53227a985fc8e50160b9ab281c3fbabb1d0"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalForcedParameter.c",
+      "bytes": 1509,
+      "sha256": "8ebfcd86003100ab52d44875adaba0bd7f121f4b06134ec4cde7a2115ab16562"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalForcedParameter.c.hash",
+      "bytes": 16,
+      "sha256": "95000d76d694d78b57d45ad4d5c0ad6a0c8df9324e4882f9bf95c56b53696b67"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalForcedParameter.setup.json",
+      "bytes": 3187,
+      "sha256": "8b8d52af507a2f9a823739f8317b43d90211feef10fa17924dd8a359c1613c6e"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalFormalAdmission.c",
+      "bytes": 46113,
+      "sha256": "56f8d5dbf95f9d0353c263c67a65568f00e9b6a5d89b6a39c0299560ff42b01e"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalFormalAdmission.c.hash",
+      "bytes": 16,
+      "sha256": "aa14c8935e40e9e8d2ab3367aa98aab33e88e056d12b59153255e29ce8664a92"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalFormalAdmission.setup.json",
+      "bytes": 3543,
+      "sha256": "bfa7030b6c3262c303c6af64840b6cd3e0dbe257739cc0f32db7ed61856d9e15"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalFormalShared.c",
+      "bytes": 104350,
+      "sha256": "c4f17761488e6bd4040772d25c25b77027d8730a2e96ac36d7dc2b8d2ed3dd1e"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalFormalShared.c.hash",
+      "bytes": 16,
+      "sha256": "57130e5c896e12e414c68a8f1ad7764c0b883e8bab86a3883cfb85ee910baed0"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalFormalShared.setup.json",
+      "bytes": 3184,
+      "sha256": "74647544010b4610409c63d18133722ebd1fa0dc9637e0b788bcd6c90847ef4a"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalIdentityCarrier.c",
+      "bytes": 65791,
+      "sha256": "850aea15ec45b366c344d0978b660c8f06dd638c88633370ef668500072483c5"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalIdentityCarrier.c.hash",
+      "bytes": 16,
+      "sha256": "51ba47ac4adc48b74ed9657152bf4c0387d7d386a453eea26451f2719e118395"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalIdentityCarrier.setup.json",
+      "bytes": 4434,
+      "sha256": "84f5048e95154eef0cd650f8bba14a6d8e75a03a66a61c15ae87f6ffabbf1a18"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalIdentityRealization.c",
+      "bytes": 140513,
+      "sha256": "acfd931eca9bf430fa12cfb1fb3c43ad6aa3fa3fb50a2dcb94f2ba7e10175880"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalIdentityRealization.c.hash",
+      "bytes": 16,
+      "sha256": "7d1b5d4338cca2a4b0ab34ae42dd4ae269d6c7fd62cf0b3d56e332df5688b671"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalIdentityRealization.setup.json",
+      "bytes": 4251,
+      "sha256": "c1ffb2da19c943b003920be2f74a78a62827bf12609054c550186155100e0bd3"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalNameEntryCorrespondence.c",
+      "bytes": 393575,
+      "sha256": "533520eec5e27356751e865aab0739fd8c197d8d42056d4c381353e0e372137c"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalNameEntryCorrespondence.c.hash",
+      "bytes": 16,
+      "sha256": "31ff2f6df41fb844bd41696f6209d622a606c787372850f0a9cd9620a7533293"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalNameEntryCorrespondence.setup.json",
+      "bytes": 4808,
+      "sha256": "1b8f7effd68e046aa59c7f4436d836475a9398c744f461e6f65b82a1e35cc633"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalNameForceExtraction.c",
+      "bytes": 169556,
+      "sha256": "883bcbc558717fbee3fa78817f23b4dfde9d5356529ab4c047e1ceeecf30cb67"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalNameForceExtraction.c.hash",
+      "bytes": 16,
+      "sha256": "ce4d1f98d66a32e20817915a5b5d7a4243b333024e8e209df17f6be4a534bd65"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalNameForceExtraction.setup.json",
+      "bytes": 4617,
+      "sha256": "7f2e05f66e1bc624ae26fcff49799574907ed155bea761361cebba766a2c3fa1"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalNameReceiptSeed.setup.json",
+      "bytes": 4995,
+      "sha256": "046b1cd6d4502b943137bf41ea4abef01573c9f36b271eef960c66b278989d75"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalParameterSemantics.c",
+      "bytes": 93081,
+      "sha256": "37fef9c227ff2f8781fe224c0338c811b3a78df7193709f54e80411d76f461b7"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalParameterSemantics.c.hash",
+      "bytes": 16,
+      "sha256": "f1c13280165e898a00dc9dc3c83658e60c9a8572fb32c1178abca5893301ae9b"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalParameterSemantics.setup.json",
+      "bytes": 3005,
+      "sha256": "ea7316180b50da7d870afad38e04e9b53810fc06a5df6f537ebac1f75e48f015"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalParameterWorld.c",
+      "bytes": 160398,
+      "sha256": "b546d0ccd75feeba6cd5f1c35bbb2e85ff4db6f24d298a45d1cd0c0b68cfc668"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalParameterWorld.c.hash",
+      "bytes": 16,
+      "sha256": "5ec30af93833cea3d9d28ddae7c8884a1eb38b029be2ab88ce770c6b53a61e94"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalParameterWorld.setup.json",
+      "bytes": 2824,
+      "sha256": "5335c425c55b6fb6ea220734a053487a692ce225f6f0945d27b21fe71730359c"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalRecursivePair.c",
+      "bytes": 261577,
+      "sha256": "ee7c8e89c4e1ca4a310c033f077c217299d96936dec2907500880db73219d107"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalRecursivePair.c.hash",
+      "bytes": 16,
+      "sha256": "c7ff481fc594f3410514622ee5ab392865d64d6f6f11842a545b6353c4f96951"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalRecursivePair.setup.json",
+      "bytes": 1572,
+      "sha256": "c9ba3633d9f25c8aca0734ad9f1593753bc72e2430426b26cd0e0491ca0def03"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalRetainedParameter.c",
+      "bytes": 81346,
+      "sha256": "15a521d4cbbed2e90f4bb7e8c6293613f194e43dc740df87d5d2fc9527e5f336"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalRetainedParameter.c.hash",
+      "bytes": 16,
+      "sha256": "8a49ae1d5b029d430bd4423f0843864af114125d08ba55c1a940149091a78649"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalRetainedParameter.setup.json",
+      "bytes": 3189,
+      "sha256": "88fb4fd61a57b6b0cb171c98335b8817f518d2a9ca4d83bbb8cc698a64d43b6c"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalReturnWorld.c",
+      "bytes": 66756,
+      "sha256": "474b61c9252246418acc6603d7a92e604406256cac883cf68d6ffdb7e66e89a7"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalReturnWorld.c.hash",
+      "bytes": 16,
+      "sha256": "eb9aa96f1e70252ef8141e14665aec934345f99230f60c9e94f23c2574c37f8c"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalReturnWorld.setup.json",
+      "bytes": 3535,
+      "sha256": "9e6bb56e80258c3acbfe2b15b4392947910bd2fee2450374bb2b066d5af16336"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceChecking.c",
+      "bytes": 141373,
+      "sha256": "734f362d9ff4aebb8c6bc4f2229bb5bb08c41825bc7181c6a286833d3a745ecd"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceChecking.c.hash",
+      "bytes": 16,
+      "sha256": "007a1220f19862dfdcfafcc7047d2d4b52eeb585448b7d4e2301e1c110e78d70"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceChecking.setup.json",
+      "bytes": 1756,
+      "sha256": "1a585364cd427c87e49e125c9c372fd2a2c09044be875f375ee33cb286e0e99b"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceClosure.c",
+      "bytes": 36516,
+      "sha256": "6f382017f31a26c57fca6b047a3e8ccecd7af91edcce40243ea972ab0761b0fa"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceClosure.c.hash",
+      "bytes": 16,
+      "sha256": "1dd7f12d928aa53957d7c78dbe466815c96b20cdfa000340ff8ba6c9ea391d37"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceClosure.setup.json",
+      "bytes": 3720,
+      "sha256": "c9ade06d81df3a5f459686f404bf7022c987411b46a823cf2045f77d78a76c53"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceEnvironment.c",
+      "bytes": 332425,
+      "sha256": "334d7f4b7b91293fc358d44592a1369b0f9b8fd6074d361e76d1611d8bc127f8"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceEnvironment.c.hash",
+      "bytes": 16,
+      "sha256": "7d8b69431eca4a3579ddb854722ca4ee70aca207e0d02be95517b46f5b1bfda1"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceEnvironment.setup.json",
+      "bytes": 1576,
+      "sha256": "8df768ceb14ec086e4d38fa143c0b3bfda9ae3f53df8ccb99f77294f61671007"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceEvents.c",
+      "bytes": 411052,
+      "sha256": "55eb80ed08a8abf3f109280be069fcfeac68473d3954b222f619dec2387c57a7"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceEvents.c.hash",
+      "bytes": 16,
+      "sha256": "f2c6998d103905c948bf19ec3c2a7e13ff1f1c0f870c0923ddeb999ce89bf8bb"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceEvents.setup.json",
+      "bytes": 1941,
+      "sha256": "9f442f164950a87d768e16570d5fc1200ae2322ca92d419e797cb64e031e2f9c"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceGeneration.c",
+      "bytes": 818827,
+      "sha256": "2a576e09e04332e9ba16b6efbc1f5cad1e3c7f7422ec23ed0ec905854a3cb5cc"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceGeneration.c.hash",
+      "bytes": 16,
+      "sha256": "2646db4b84b0460d3a06195644ebdca1ccf3f1a3f5a364ad2a707fbed6c77e42"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceGeneration.setup.json",
+      "bytes": 336,
+      "sha256": "70fe34434c797826144a420f3a815b7b8b5937d85a14003a8900c57e9d28b67b"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceInterpretation.c",
+      "bytes": 253182,
+      "sha256": "537ee3f1ec4240513b4c956d20a2e5c98344bcc6af2307bc3667ea5117a95783"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceInterpretation.c.hash",
+      "bytes": 16,
+      "sha256": "d359090e171416f00cc864e009cbbae9ce4e6e45cd9689c41830e453a03e472c"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceInterpretation.setup.json",
+      "bytes": 1390,
+      "sha256": "577f6386d693d0c7bed581e4a38f396b0506b3fb519f5a056c4508cb71c46c28"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceSyntax.c",
+      "bytes": 1372968,
+      "sha256": "0fed2395774e957ef81c5084e7086e71516aec534235fbda9009a13281168391"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceSyntax.c.hash",
+      "bytes": 16,
+      "sha256": "607267e0789b4534643e42652ee65e1527ab3b3ad7cab2d52b1e3aaafe2d3bbc"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalSourceSyntax.setup.json",
+      "bytes": 162,
+      "sha256": "665e0b4fc11cab40838186369eb50813c0700f7da0cd4762a03ff5096b02bf29"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalWorldReadout.c",
+      "bytes": 75949,
+      "sha256": "41ba2e8383804f4034cec51b9be3135e7b36f7ddd27b7a148e9adeb93d6cfccf"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalWorldReadout.c.hash",
+      "bytes": 16,
+      "sha256": "8fafa26d75b5aa682af9b93f08a5b4e3488b27481a95c20ef733f9f108a5a4ca"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/OriginalWorldReadout.setup.json",
+      "bytes": 1929,
+      "sha256": "6768232bc2b0fc3d9d5446247bcd28dd875b19be6aa3e50148855f774cbac8db"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/SourceFunctionMembership.c",
+      "bytes": 10784,
+      "sha256": "9962ff4a5869e58184939fdb6d8daee2a68bff2789544b397ddf0cf59e19bb1f"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/SourceFunctionMembership.c.hash",
+      "bytes": 16,
+      "sha256": "adf9c9fc02baee0cc7578d9ec6bda62a6d8acf209a69cf039df9f382bb4e8488"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/SourceFunctionMembership.setup.json",
+      "bytes": 666,
+      "sha256": "6d0c0febdfbcc1aa7f8f33305457ae9add772b0baa860bd29365873989f03afe"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/SourceIdentityWorld.c",
+      "bytes": 86237,
+      "sha256": "4d00bca4668185a08fe1f79d637136942c38152e0d1c95cc0b0aa06bf16841ea"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/SourceIdentityWorld.c.hash",
+      "bytes": 16,
+      "sha256": "6aab582b3a75d00f006a316d1eab0fc7317cec2d39e57c115c80f24ccaf31095"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/SourceIdentityWorld.setup.json",
+      "bytes": 490,
+      "sha256": "bfd774c9651ab3afb880d98556e34a57e70616e2cc6ea38481f43e669cef2c19"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/SourceSignatureConstruction.c",
+      "bytes": 305012,
+      "sha256": "f7413cca3504e9fc53f37427588f8856a50c93a39ee9a0d1cb6ef27d6cd75a62"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/SourceSignatureConstruction.c.hash",
+      "bytes": 16,
+      "sha256": "c0f6864fbec1259b88956251ef026bb0f556fe22cc971d7ef0fcffe34457be25"
+    },
+    {
+      "path": "project/.lake/build/ir/YulangClosure/SourceSignatureConstruction.setup.json",
+      "bytes": 339,
+      "sha256": "31d370faa79bf098ad55cc17edd6acdaefee7065b00c7cf7e5e44893fd775915"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/Contracts.ilean",
+      "bytes": 18963,
+      "sha256": "6d24c9e7dd4fe9442150d30b927d2f93b58b592cffd643a96a5078cd3c4a91e8"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/Contracts.ilean.hash",
+      "bytes": 16,
+      "sha256": "129ebf1e866763d096ea853c2dedbfa2621ed019a8d25fe4629394e135161c0b"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/Contracts.olean",
+      "bytes": 828608,
+      "sha256": "7debe0321100a247e4a5c048997e57df48ca3e81d77143ab145681a17883e4da"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/Contracts.olean.hash",
+      "bytes": 16,
+      "sha256": "0b0f6e20d4c32ab928b93522fe53ffae50be59384040ebef3bdbcd9245797240"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/Contracts.trace",
+      "bytes": 1832,
+      "sha256": "4deba19fb694a4f39439b39a8d16558b7a303030f71aa03fafa669257a28e4d3"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/NativeClosureEnvironment.ilean",
+      "bytes": 44568,
+      "sha256": "df061c70bbdb74ce649d28dde08d0e7630e89ec6c18007b669e8e4e5642693e3"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/NativeClosureEnvironment.ilean.hash",
+      "bytes": 16,
+      "sha256": "9fbba4ab7db431629abd58a20a35c4f520b6c7f47fbd7ccf3060983f45fcb979"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/NativeClosureEnvironment.olean",
+      "bytes": 741208,
+      "sha256": "aac5024f29db897bc55248750755f190da9ab2f2730aa85d4ad48d07ace59913"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/NativeClosureEnvironment.olean.hash",
+      "bytes": 16,
+      "sha256": "e380b17bf52310a5b88f6c16ba762086908cacb8b6b41781d654c729d0be24dc"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/NativeClosureEnvironment.trace",
+      "bytes": 1937,
+      "sha256": "834313964f182602c72575646ec03fa7d023b1a5b1dfb6ccbc5fde89683637d3"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/NativeDictionaryDenotation.ilean",
+      "bytes": 118922,
+      "sha256": "ef32a9528f8589753a07e57b674e77e7f8ed03fcdc2bf210278cd194fe5a190b"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/NativeDictionaryDenotation.ilean.hash",
+      "bytes": 16,
+      "sha256": "3e037529bdafee33bfae981d8d1b16c46e72bd39dac7eeed91ee9e7b34c6d661"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/NativeDictionaryDenotation.olean",
+      "bytes": 1466056,
+      "sha256": "88f3a316963120ba5254c27409ee9134918255b8ab25c4ac89a1f5aff5b16000"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/NativeDictionaryDenotation.olean.hash",
+      "bytes": 16,
+      "sha256": "be4eb6c0519c475ab162e424072be2fb755abfc5b200fa5dd52d5fd5f7cc8334"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/NativeDictionaryDenotation.trace",
+      "bytes": 1951,
+      "sha256": "5397299bd1f4432ed5fcb40c0d5b25ced44c1a8cd1222d34b2c345a658e9596d"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalCheckingAdmission.ilean",
+      "bytes": 224244,
+      "sha256": "6d263c1049d15290ac1a49e24f296e84b96f584ccc38be3fd904a9c6ca5595b5"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalCheckingAdmission.ilean.hash",
+      "bytes": 16,
+      "sha256": "ba3d5956a7cca246595ec7d0fdfcaffffc65ef02cc6d37f378b90b9e441d790b"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalCheckingAdmission.olean",
+      "bytes": 816696,
+      "sha256": "0bfe6c65b431f282b500e1d1d835a023ac8c8d1270fefd0089df6ddd99586897"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalCheckingAdmission.olean.hash",
+      "bytes": 16,
+      "sha256": "0f3057775bfcde39e3d881be1bd2f8dcef0e54a6acc8878af8986d00eba2040a"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalCheckingAdmission.trace",
+      "bytes": 2117,
+      "sha256": "6265ea3d8ed720cd315a69d2718a0f07b9ad12b3bec3a66affaf639d9c35e3d9"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalForcedParameter.ilean",
+      "bytes": 38557,
+      "sha256": "8bef8ee22e3f32ce2416a6a2ac7942d772ba2d771dbb4d7f2308d533a2ac877e"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalForcedParameter.ilean.hash",
+      "bytes": 16,
+      "sha256": "616c72287c250a60b4acf093fcb8af49cd158880c5a38d2508653f3babf4b4eb"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalForcedParameter.olean",
+      "bytes": 105952,
+      "sha256": "9ad00812a968f6176ff4f04dd8e4da69cbc660d997bf6657c4d19b895f1081e0"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalForcedParameter.olean.hash",
+      "bytes": 16,
+      "sha256": "2b7aeba9d02cd67d3b112ec4ccce6973bef98299b425c259a8bb6f9cd99f3f37"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalForcedParameter.trace",
+      "bytes": 2111,
+      "sha256": "d74481ab6c4e63150dee36fbbbb867a7c4e67efab8b6aac50e6073e4fda719c2"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalFormalAdmission.ilean",
+      "bytes": 136268,
+      "sha256": "f0898079cd38bac231f6b1492dcad2955e85cd6488fd5da979386fddbb0413cd"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalFormalAdmission.ilean.hash",
+      "bytes": 16,
+      "sha256": "c2e667d849a5ac60ac58a90b07028ae96def1d3a96a0f309b9537d10d2974c79"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalFormalAdmission.olean",
+      "bytes": 883944,
+      "sha256": "5b0e812cc0db7a0e2276089ea5f8b514e904aef29e83dfba56546ad2002f1432"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalFormalAdmission.olean.hash",
+      "bytes": 16,
+      "sha256": "87c6145da2b5143ede65b2dd889471fcdd51d811616a0a731b18a2867a265fe8"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalFormalAdmission.trace",
+      "bytes": 2290,
+      "sha256": "a22f3538a6a275e4ca1edb043333524e6331129d5faaa48d17db85be1c103573"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalFormalShared.ilean",
+      "bytes": 208368,
+      "sha256": "7be769bac873a3b6ec372feeef050c86bc66bd5d805d01c47bf19a2eb944eff9"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalFormalShared.ilean.hash",
+      "bytes": 16,
+      "sha256": "5ec56f514cb2b59f95d97a7c779389163aded54613c8131d67ce353b8c2c9378"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalFormalShared.olean",
+      "bytes": 2112552,
+      "sha256": "8ec3fcdddbeb039e2c986263abd8973e4f5c3d76772ca69232d01484ff1acd6d"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalFormalShared.olean.hash",
+      "bytes": 16,
+      "sha256": "109c6e8ea90e8af04d663598e54d27f51a5855bee4c1374606a4bd5ba3b9ce6f"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalFormalShared.trace",
+      "bytes": 2282,
+      "sha256": "22841a34fcde7d6c4228ca4919874ff6661366f5533e5aaa3b6daa8e86d89239"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalIdentityCarrier.ilean",
+      "bytes": 177765,
+      "sha256": "2606219d4c382fb0c32d08622ef01c8d923c4401f2f865f671e7ed10c909bf96"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalIdentityCarrier.ilean.hash",
+      "bytes": 16,
+      "sha256": "24bd30af9663d23fa4c8b76477e7bca3046e77f5aee63a1d5bb3bc3c78bc827e"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalIdentityCarrier.olean",
+      "bytes": 2420592,
+      "sha256": "89d2d73cdc7e3b31d102bb52583a806a93b48e8ff736c8bdd704338f3de39cea"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalIdentityCarrier.olean.hash",
+      "bytes": 16,
+      "sha256": "9ccdb24f3ac0b96d166d203e6f005474965fb64799d0a99dd595b915368c86f7"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalIdentityCarrier.trace",
+      "bytes": 2113,
+      "sha256": "a4070a2d7b176ee896ac12fe78667163dd1d4a44cc70bec74b3cece539d5efd3"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalIdentityRealization.ilean",
+      "bytes": 171943,
+      "sha256": "0f5bbae8c2bc6b6da9a37c064da3288bdc9f672b9614f468d06e8d6a722a4ab1"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalIdentityRealization.ilean.hash",
+      "bytes": 16,
+      "sha256": "c7c694b57042916cbdb7313292458b8a87a9ea6958c6dff1d5a0de40f58e1dcf"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalIdentityRealization.olean",
+      "bytes": 6603624,
+      "sha256": "151f062e5f9283c3b6519d99ce96ee94fa8cac476119aa0fa0623d4ed7cc5481"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalIdentityRealization.olean.hash",
+      "bytes": 16,
+      "sha256": "692c7ae543cfa03615c8ca6171caadeb50a906736f4c1a1b16c8276dadf15dab"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalIdentityRealization.trace",
+      "bytes": 2311,
+      "sha256": "3ee352933e7edc19a00940f8e94b62fa975b470ecf5c37b6530169195aecf1fa"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalNameEntryCorrespondence.ilean",
+      "bytes": 88140,
+      "sha256": "9c54f8dbebdb36e824a1456a8b404928df59075d01900481c1c1514de63be884"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalNameEntryCorrespondence.ilean.hash",
+      "bytes": 16,
+      "sha256": "b5b8e771d288e2fdce84770da0893f5b7b7fdf59167b082a52554ded50ad1d01"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalNameEntryCorrespondence.olean",
+      "bytes": 1096024,
+      "sha256": "403a6927e7cd2680d12dd85405b7735e49a66096d1917cdb749312ceb2debfe3"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalNameEntryCorrespondence.olean.hash",
+      "bytes": 16,
+      "sha256": "d27d6aa9ef6ddaa894831dcc537811a5c22794d16f2dd0fcbf6c9738759b65b0"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalNameEntryCorrespondence.trace",
+      "bytes": 2172,
+      "sha256": "2a1a499c0f685fb9292c391e0f0c67ecf91f8fab65640c7dad96ec1849551bb9"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalNameForceExtraction.ilean",
+      "bytes": 190221,
+      "sha256": "885d5fc17b24a86bfd986d06b42e807125c5b59c63259108f49fe69622f74637"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalNameForceExtraction.ilean.hash",
+      "bytes": 16,
+      "sha256": "b050a808a57e71b1daba55c58b3a98b6fc4862c2cd1a2e62e6fbd3a85864ca67"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalNameForceExtraction.olean",
+      "bytes": 2128704,
+      "sha256": "1816966f5ccfc8d6a0f89f36c39dc3728d36650683fa1026d0e644cc70f92049"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalNameForceExtraction.olean.hash",
+      "bytes": 16,
+      "sha256": "037d7764a73bce043a326cabc3ea27d8acce40bdbc13cbadd02f71e0c7c9f06b"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalNameForceExtraction.trace",
+      "bytes": 2136,
+      "sha256": "f237e2e2dc3db9d8929dada8aa424b1d533420db219171d8bfd70aeef2630560"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalNameReceiptSeed.olean",
+      "bytes": 161744,
+      "sha256": "0a8c3215fc79174aca366d221c3c7e2673b09f4a5d98b36c8fce139862681002"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalParameterSemantics.ilean",
+      "bytes": 184032,
+      "sha256": "f79194c13f293d20fa9e81eae0e1034db03c1571d5c25dcb87696a00dc997371"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalParameterSemantics.ilean.hash",
+      "bytes": 16,
+      "sha256": "3126732eb67fee5e13a801ffcb5d202a722b64cc9c79813dac091a79d0bb23ec"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalParameterSemantics.olean",
+      "bytes": 1404056,
+      "sha256": "6e29c8818b747c053ee123848b4389f73926f2d73177dd68d5d10530b5c5517b"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalParameterSemantics.olean.hash",
+      "bytes": 16,
+      "sha256": "5ef74e969d6a44745998d3cc196a32c145cae0a04e38ce3b15559a18c4bdd821"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalParameterSemantics.trace",
+      "bytes": 2124,
+      "sha256": "398e21269521f1c54f8c8cb080ccd299b65b73d0280dd63d625c0ee18f0cf342"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalParameterWorld.ilean",
+      "bytes": 134811,
+      "sha256": "686714d42493f23cc9b9cb3f0c455a504b9e2e42a926040f2ac2f426afd5e049"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalParameterWorld.ilean.hash",
+      "bytes": 16,
+      "sha256": "2f4268382b0aaca46af407692cf02a5185731aa4db23a12969b70d2cae489a71"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalParameterWorld.olean",
+      "bytes": 1276096,
+      "sha256": "b8965ff20173c3b3b2f94b133970593735023ae26a33faa36f66c9d684706afd"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalParameterWorld.olean.hash",
+      "bytes": 16,
+      "sha256": "b38b32e20ad1151c7b66583c81f85b5109a501168fcadbd0fc60323ec0c20d49"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalParameterWorld.trace",
+      "bytes": 2464,
+      "sha256": "23c2804692a62c488f48543c3517b7c91323c5d041d31122c2fd4fac94251a35"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalRecursivePair.ilean",
+      "bytes": 294613,
+      "sha256": "8d156ec22272fc2240786e3bf80c7fca0a6cfc6814b9633a248c4d7c6d6fb155"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalRecursivePair.ilean.hash",
+      "bytes": 16,
+      "sha256": "c4343cadc3335fa9632cf3c415ff6e951526b554fa5affb7b7d5970ffeae1638"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalRecursivePair.olean",
+      "bytes": 4319072,
+      "sha256": "2ff3bf5c93064c8ad0de75652b3cacdd08136db1d8f1a84c46d17c96578f0aba"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalRecursivePair.olean.hash",
+      "bytes": 16,
+      "sha256": "f3496d94f1b4533f554142880dc2d2ab5a6299f50478803231852f674c531678"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalRecursivePair.trace",
+      "bytes": 2101,
+      "sha256": "dca5613a2cf4645297c08dc4aea83021669e7841eb0b8966ee0f08fe9e75f5a5"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalRetainedParameter.ilean",
+      "bytes": 224829,
+      "sha256": "e8337eaaccf8966705aa80c70703d40201f493265fbef39fcdef10469d6a6235"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalRetainedParameter.ilean.hash",
+      "bytes": 16,
+      "sha256": "3efe1d1f385bbadd03db4642194350a18f9c4fad72d5bbac3a12deefd47777df"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalRetainedParameter.olean",
+      "bytes": 953384,
+      "sha256": "bf40f7211ee167c4d5b7b48e92ac57ae48fb236a63542dc7846dffbbcfe07899"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalRetainedParameter.olean.hash",
+      "bytes": 16,
+      "sha256": "0f21aff9f22a5a20cc63f77b800bff7feaba17fef1c3f4f3b2589050798088d0"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalRetainedParameter.trace",
+      "bytes": 2125,
+      "sha256": "f0efa6e994eec2002c31bb74b39080d40a33f7fd29293eb7ec6bbe6389923c6b"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalReturnWorld.ilean",
+      "bytes": 121909,
+      "sha256": "f568af2478e601f39c645e1f86151f2aacba66a18b2fe83ceb6e5246cac38157"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalReturnWorld.ilean.hash",
+      "bytes": 16,
+      "sha256": "efbef28f439d831bba8bce7ce296b2679ac900e4983ecf6b98dc48139409d951"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalReturnWorld.olean",
+      "bytes": 985208,
+      "sha256": "33afbe14a1d501df900fef64f29270e261624b21b220a3157ab9f4ae5bfc7a21"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalReturnWorld.olean.hash",
+      "bytes": 16,
+      "sha256": "7cfc39a4f5c7d5a1294facbfaecad4b092111f5c66dcd63f81a33f40f878dad3"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalReturnWorld.trace",
+      "bytes": 2258,
+      "sha256": "77d849ef772512a7b83f55b26e46f6a83e787b3450be9a39b4ab768c0365dc70"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceChecking.ilean",
+      "bytes": 352384,
+      "sha256": "fbf31885b61f9f0bfad850f44bfca906e15b5fb6470e2c1c30396bbd1a7a9cfc"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceChecking.ilean.hash",
+      "bytes": 16,
+      "sha256": "0d1b1712ac1416bb00fda0478023778db9c2bc6d504770c6cdae2ef98d0ae5a0"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceChecking.olean",
+      "bytes": 3964128,
+      "sha256": "e6d5f3b28dd641d69f30fd2d2941a7af9587a82f12096fe18cf72f6b90892b4c"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceChecking.olean.hash",
+      "bytes": 16,
+      "sha256": "6adce7294e069eb6a8306f8b41922830ccaa482798eca33755a45a87354d4155"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceChecking.trace",
+      "bytes": 2102,
+      "sha256": "312d3adeadd0672563963ed2aa06ce2cf35734be626879c11e5abe9f69c24518"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceClosure.ilean",
+      "bytes": 117643,
+      "sha256": "32ef8303399c9553943777d8a63df74f28cfbed80ee26de124fef791a3084f06"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceClosure.ilean.hash",
+      "bytes": 16,
+      "sha256": "bdb273b3aad98d48e42791b1a1601a54f5f211620c85594c30ac2a28004cc5a6"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceClosure.olean",
+      "bytes": 1574800,
+      "sha256": "5966757f52228eb41ae118ce0fe3cbdb852b07698af7c7424561def986b94706"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceClosure.olean.hash",
+      "bytes": 16,
+      "sha256": "ed772a30cb71d1e6b6248fda0befea22c1cf548f25b62526426a2bfa16dd23c9"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceClosure.trace",
+      "bytes": 2091,
+      "sha256": "78551b3733218d79c017bbfd0032c28337ce8ee3c02dce396085891323f4c86f"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceEnvironment.ilean",
+      "bytes": 353685,
+      "sha256": "7824db3de74fecb391f3a73d0d7a77d59ea4178d7caa6ebad07a4b52464964ec"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceEnvironment.ilean.hash",
+      "bytes": 16,
+      "sha256": "a499c7f6eb4db1ef3c61c474d943dea5db905b2520099235784c4b4c9a78ee86"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceEnvironment.olean",
+      "bytes": 3657704,
+      "sha256": "5af78547b8b3abe9a0180bd00f830a245779566b65eb7e44e96b6518defdf2e4"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceEnvironment.olean.hash",
+      "bytes": 16,
+      "sha256": "9ead19d75c2ed26b7e7c264ea2f56b7408ac0b3518c5acd34e346387a1cfab57"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceEnvironment.trace",
+      "bytes": 2129,
+      "sha256": "8ba736cedc1ed805f0273e574720b208ddf7887807d6028e6d8f70784aef4ce0"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceEvents.ilean",
+      "bytes": 243623,
+      "sha256": "d33cd9e5efdf5a33cdde203dddd82279da8d4af0e0ca8713c462dff160711236"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceEvents.ilean.hash",
+      "bytes": 16,
+      "sha256": "b9067b941d7d58ee875fe1c00511b920649e5bdb8d432e8275c9cbf26309b0f4"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceEvents.olean",
+      "bytes": 3042328,
+      "sha256": "5fe9ae5bc2e12e4abd088e7ccd96b5886e57b1a1c660e427e9984722467f6ec5"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceEvents.olean.hash",
+      "bytes": 16,
+      "sha256": "71af0a31dd49774599149f4fbf323e802e853264fb6ffe72ebc9a949b67f5d0a"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceEvents.trace",
+      "bytes": 2290,
+      "sha256": "87519c93e362aec5e7355477703df1a436cbd60d123b22d336441aea5eae9821"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceGeneration.ilean",
+      "bytes": 228974,
+      "sha256": "b5824a56c65c281336a64dad7dc25724751cdb4d551cf94e76a2542ce06947e6"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceGeneration.ilean.hash",
+      "bytes": 16,
+      "sha256": "4fd72c7fe3bf3a6dc2d4d5589ed93f217ce6b7fa66cdd7844deb4204bc5757fa"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceGeneration.olean",
+      "bytes": 7496912,
+      "sha256": "6e369f48ac21ef90876ba499cd19280d002ec977df7b9fa733908b8afc8a8fa2"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceGeneration.olean.hash",
+      "bytes": 16,
+      "sha256": "a99b41229a53e77c059411be2670447f43be8c325967a48ccadbddada28d8d51"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceGeneration.trace",
+      "bytes": 2106,
+      "sha256": "6af6558d5114428999ca9bef4ac5a7ed5bb2b1eef9e3e9bc1284bca29d4873fa"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceInterpretation.ilean",
+      "bytes": 212416,
+      "sha256": "0678b2a7432ff63dab626885a2aed143a930bbffcd2ced509e95c9b4ec7819d1"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceInterpretation.ilean.hash",
+      "bytes": 16,
+      "sha256": "75dd418242d2f8f3bddc4e0b6aa0190255f8f93e90d30b8637a35a101ce9289e"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceInterpretation.olean",
+      "bytes": 3662040,
+      "sha256": "f52f64b31814e08cd52aad2910bd285817cfe1c765b59a1018a050f2aaed9070"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceInterpretation.olean.hash",
+      "bytes": 16,
+      "sha256": "af527be2d83057d916cc49f0e22c2296431999b34e10047496a352d210c8098c"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceInterpretation.trace",
+      "bytes": 2541,
+      "sha256": "4088a00c2a894b16fb9b5a7a574c2f2f91382cf6d82e2aac468fa86881acd258"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceSyntax.ilean",
+      "bytes": 106253,
+      "sha256": "f63ec8f1d6103f6b0af42b9a7a5f713944699f4be5cfb1c4770c724b457ec119"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceSyntax.ilean.hash",
+      "bytes": 16,
+      "sha256": "df182805044f8cd0c00a5009ae67f156ddfd9a1a682e86bba3ecc727b448ff95"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceSyntax.olean",
+      "bytes": 6104776,
+      "sha256": "4ade6945edfabc7cfb9e1804dacb473ff3a9e40a86ec0d1e3d6eabf6785b5dac"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceSyntax.olean.hash",
+      "bytes": 16,
+      "sha256": "5444d1312673d7fd60ee815bb7558f8a97de3762625686b37dcbc8ed7d75fac6"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalSourceSyntax.trace",
+      "bytes": 1909,
+      "sha256": "c42669b8d2c6dd21d9213013a84e4455cfbe6661c94199edeb599e47dfaa22e7"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalWorldReadout.ilean",
+      "bytes": 129319,
+      "sha256": "0ee95e449a24fa0a1c79be534fb4afe889543ed3ff62e0b1a9ead3a2a8ca6a80"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalWorldReadout.ilean.hash",
+      "bytes": 16,
+      "sha256": "019cff39db22c05ed2863cdd1d79b8f18a65db139bf0bba6a700d3a5d2eaef08"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalWorldReadout.olean",
+      "bytes": 788920,
+      "sha256": "a6c7b9d69d5f7c9f8bcda05b87959bc2696fef7915a1b9c0c42e083dcd2fa87b"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalWorldReadout.olean.hash",
+      "bytes": 16,
+      "sha256": "be1e581e5ec390ecd506d211c898aed95dc35dada1c90e5d47337ccb4e36440a"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/OriginalWorldReadout.trace",
+      "bytes": 2271,
+      "sha256": "5f7e0ba2f8b4de74c82894bdd591e0c3faf0039475c45ad2e53b4b00159d432e"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceFunctionMembership.ilean",
+      "bytes": 22304,
+      "sha256": "e10c9650c9879e1fee8b59dcfbe729c1051b9499cb8b6611c59b12f54ef56112"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceFunctionMembership.ilean.hash",
+      "bytes": 16,
+      "sha256": "b29719d4e93c7f3d10d383462dc37b57a28c455257c83c66aba1d8e1b0a167b8"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceFunctionMembership.olean",
+      "bytes": 215280,
+      "sha256": "f5d556d568508df3839a1366686de0c420554a06ef4d190cb99134482088a487"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceFunctionMembership.olean.hash",
+      "bytes": 16,
+      "sha256": "e29195f50b0b25b672eb423ac7deb30777aeb41d2e97d7a3952420c5273ca7d1"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceFunctionMembership.trace",
+      "bytes": 2104,
+      "sha256": "2e829f6c1ac8029c45b1a19c5babbb0d8acd13aaa45ddfd9f78484f0b8c6b9d6"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceIdentityWorld.ilean",
+      "bytes": 85196,
+      "sha256": "d36ec372f120af759365a37cfe6299aa5a0e6abee03d2b6de076fcccb88b26dc"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceIdentityWorld.ilean.hash",
+      "bytes": 16,
+      "sha256": "97b814c96744fa4f4b0df0d06c9f36a0dda44d6a5a584fd97f5bb40c3e80ba80"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceIdentityWorld.olean",
+      "bytes": 1146744,
+      "sha256": "44dad5dc94ed97dd7a0b558b9339f90992e589d723e0d9255df63d91e81808ca"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceIdentityWorld.olean.hash",
+      "bytes": 16,
+      "sha256": "991755b649621a9fa22c6e7ae5360bdec0f990ceb1d5173643d012d4fee04dc6"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceIdentityWorld.trace",
+      "bytes": 2238,
+      "sha256": "858c59c618c3d1d5c7540cc80afbda0881433193ac8adfe733b844ed8175ae1b"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceSignatureConstruction.ilean",
+      "bytes": 145391,
+      "sha256": "7a6965f3fa5fb036d8422559fc3399916e37f15a6e4c7b15b6b5857b6393bce9"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceSignatureConstruction.ilean.hash",
+      "bytes": 16,
+      "sha256": "be192bf7140b803f31618f5e24d442193780b614e95f38754ec0f82c6e5813a7"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceSignatureConstruction.olean",
+      "bytes": 3020856,
+      "sha256": "97df730148ffdc4316fefe6a6f30f61a6f0c6350262a26406609d1b7d3e300b9"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceSignatureConstruction.olean.hash",
+      "bytes": 16,
+      "sha256": "15429d236c92b73e6e930bda14524600269b6ddc9b7cafec41fd667bfb149293"
+    },
+    {
+      "path": "project/.lake/build/lib/lean/YulangClosure/SourceSignatureConstruction.trace",
+      "bytes": 2130,
+      "sha256": "bab722d73c7b5ad143a133e513a476cf2d1dc5818cd8a04fb242058aa084d21e"
+    },
+    {
+      "path": "project/AuditExecutionProofs.lean",
+      "bytes": 5093,
+      "sha256": "aa16f7e520fc56b6694e04d42e81a6f58c0ffe64b4db30c432fb2bd77692052f"
+    },
+    {
+      "path": "project/AuditFiniteCopyClosure.lean",
+      "bytes": 2028,
+      "sha256": "54622861bf6cc33ad8b907f9ed1bee7c21fd564bb65f9e402418b60ec777b64c"
+    },
+    {
+      "path": "project/AuditFreshScopeTransport.lean",
+      "bytes": 2449,
+      "sha256": "44e6618a59bba54411d4f5b9c75bca5458ae364914c410d5bd357315da3d9e80"
+    },
+    {
+      "path": "project/AuditInferenceConstruction.lean",
+      "bytes": 122846,
+      "sha256": "65c72b50c0ca3476025d8977b7fbc760774ea09254b6171c6d85482e3f29017b"
+    },
+    {
+      "path": "project/AuditInferenceProofs.lean",
+      "bytes": 34953,
+      "sha256": "b6c5e8dac8fa9d0f01f558cb82d9eb492d1112f7382038b3ff1ff62d3ff085e1"
+    },
+    {
+      "path": "project/AuditNativeInferenceProgress.lean",
+      "bytes": 3447,
+      "sha256": "9f4be3dc13b375998aa9d41b6eee5413e99254bd835eae11afa9371b05b8df38"
+    },
+    {
+      "path": "project/AuditOriginalAuthenticInlineExtractionR2.lean",
+      "bytes": 2128,
+      "sha256": "85e0dd8adcef88c9e10c6aebde526dcb2340a1f58e03a67a5dd4e903f08ad089"
+    },
+    {
+      "path": "project/AuditOriginalBoundFibers.lean",
+      "bytes": 2066,
+      "sha256": "bb9e11273eaa015bf56b8bdc8ec220bbef7e3e10ba83fc3545064f8124ffed23"
+    },
+    {
+      "path": "project/AuditOriginalBoundWorkExecution.lean",
+      "bytes": 7064,
+      "sha256": "744c28aa71dceec8524cccd39b2fa6986580ef377fbf440030a471e7d07baeec"
+    },
+    {
+      "path": "project/AuditOriginalCalleeDelayProvenance.lean",
+      "bytes": 1444,
+      "sha256": "18516d704c6d884505a59343083c023ed583c7213fb6ca858dfbf12c3c23eba6"
+    },
+    {
+      "path": "project/AuditOriginalClosureProgress.lean",
+      "bytes": 3496,
+      "sha256": "fe42ea2f89d510b17e5577f60df67c28e14e94373c23f3a5df3d4fdb96ac52da"
+    },
+    {
+      "path": "project/AuditOriginalDrainFrontier.lean",
+      "bytes": 2830,
+      "sha256": "b5afb170cf1db35c49fbf28cda786d2730db4bdce575a2a882725b45fee53bce"
+    },
+    {
+      "path": "project/AuditOriginalDrainStages.lean",
+      "bytes": 5316,
+      "sha256": "5fc2c4930740d2b0cb23610b36be2b1ad668ba82db65155e8b2a01ed74a752a1"
+    },
+    {
+      "path": "project/AuditOriginalExecutionProgress.lean",
+      "bytes": 3224,
+      "sha256": "ca7d90f79f2960778f3dbca3b65c98399c33a8a6e7a0fe167795f432567f7fba"
+    },
+    {
+      "path": "project/AuditOriginalExtrusionFibers.lean",
+      "bytes": 6973,
+      "sha256": "f3e39aabd32ff32da141fa86283760a96240717c7a795bbb16c07abc19eb8bd3"
+    },
+    {
+      "path": "project/AuditOriginalExtrusionWork.lean",
+      "bytes": 10622,
+      "sha256": "022c633e962be3e6bc67e30c63c6cc252ba865f06a2b6e80f3596eb7f8ce55d0"
+    },
+    {
+      "path": "project/AuditOriginalFirstDrainBoundary.lean",
+      "bytes": 2629,
+      "sha256": "5184571689be9e5c58c80e4b29025b35d88480ea9e5ea44cc50ae8850215fbc6"
+    },
+    {
+      "path": "project/AuditOriginalFormalEntry.lean",
+      "bytes": 2329,
+      "sha256": "a81a87171e94a0f93f37e70aa41c1c372f497026a2e68dfc7d0d3d0b7884da15"
+    },
+    {
+      "path": "project/AuditOriginalIdentityCarrier.lean",
+      "bytes": 2214,
+      "sha256": "880241ae7519b2a4f408618917cdb9b0a1c22e94ade984ab91c1a3191d0755a1"
+    },
+    {
+      "path": "project/AuditOriginalIdentityEntryOrigin.lean",
+      "bytes": 5747,
+      "sha256": "dc2eaa3f53d9b841c108040fd2a4d7bb6f05d8eac52bd4b37e4957d1a79583b2"
+    },
+    {
+      "path": "project/AuditOriginalIdentityFrontendJoin.lean",
+      "bytes": 6661,
+      "sha256": "c1cac30f2801d7c2ef89ee06eea95a63afe22bd25515749fe7a89b1c7440f3c9"
+    },
+    {
+      "path": "project/AuditOriginalInlineIdentityInterpretation.lean",
+      "bytes": 14123,
+      "sha256": "6cdee91fb3afc311453618eba2df6a21cd84cbaf7ba1f16119df7695243a2c0c"
+    },
+    {
+      "path": "project/AuditOriginalMemberEntryFields.lean",
+      "bytes": 2994,
+      "sha256": "00bc79e88e728c74eb4efab0b399588c6e16eba88cb33a5914df04b317d3ace8"
+    },
+    {
+      "path": "project/AuditOriginalNameForceExtraction.lean",
+      "bytes": 3920,
+      "sha256": "13912003fb2a84b0d9fd4b7181a08c356657e485b6c44aaf56122c6b602d18b3"
+    },
+    {
+      "path": "project/AuditOriginalNameReceiverEntry.lean",
+      "bytes": 1424,
+      "sha256": "45ca7da088e55779d850176d2759a220c910f86255cffd2e0059809acb305c36"
+    },
+    {
+      "path": "project/AuditOriginalPrincipalClosure.lean",
+      "bytes": 4427,
+      "sha256": "bb47a6c22d0e7219859e41afb9937bdee51135034dc6a7d97ef31d4e6c33954a"
+    },
+    {
+      "path": "project/AuditOriginalProviderPublicationCoverage.lean",
+      "bytes": 2285,
+      "sha256": "0efb9acdef8be952d59c7faccc0b8dff21ad8ec813a8417c0742d2f4985fa2c4"
+    },
+    {
+      "path": "project/AuditOriginalProviderSourceSolution.lean",
+      "bytes": 14343,
+      "sha256": "693e0451a4bdf44512935020805f419f44cfa2858dff7d473766d3aabd84015c"
+    },
+    {
+      "path": "project/AuditOriginalRecursiveClosure.lean",
+      "bytes": 3184,
+      "sha256": "fc196ad95f6875257575b3d1055a378a8b5e9d72cebc71dc478e0b158f84475e"
+    },
+    {
+      "path": "project/AuditOriginalScopedClosure.lean",
+      "bytes": 3741,
+      "sha256": "a67ba37219e2c189d6aeb3d415191b51374d2625c3284e3e617ffd109a98dccf"
+    },
+    {
+      "path": "project/AuditOriginalSourceOwnerReification.lean",
+      "bytes": 11728,
+      "sha256": "4e8b039e4baca4ce71381cbc959603e96ab07acf291efb6a4e52a321ca334e0d"
+    },
+    {
+      "path": "project/AuditOriginalSourceOwnerReificationInstance.lean",
+      "bytes": 26509,
+      "sha256": "0553220072c8291bf8b297bcf13f2e93b279692da2f25f9e22f9daf1677e719b"
+    },
+    {
+      "path": "project/AuditOriginalSourceValueEntryAdmission.lean",
+      "bytes": 1319,
+      "sha256": "3ff85445dcaae8c9a36132abcab9d673c8279688a184208b4308ba49eb0e3913"
+    },
+    {
+      "path": "project/AuditOriginalStageWorkConservation.lean",
+      "bytes": 4184,
+      "sha256": "716b43b275272a96209c8b8c59e4237c88cef484d4dfd2953e66ec7c42a8da8e"
+    },
+    {
+      "path": "project/AuditOriginalTerminationClosure.lean",
+      "bytes": 2562,
+      "sha256": "a0f4a702a0bd6cda16fe9da52a3a4242a2cbdf6a83020bae068dcdb28a8b025d"
+    },
+    {
+      "path": "project/AuditOriginalValueEntryDemand.lean",
+      "bytes": 1431,
+      "sha256": "efceba608e3942710c4f53d8bfc1516ba3f18c5470b7fae64810e04020d04772"
+    },
+    {
+      "path": "project/AuditProofAdvancement.lean",
+      "bytes": 3827,
+      "sha256": "95a10406b14ad9e073e17857b012c9a3c2940bac84c32e21a5fca268562a52dd"
+    },
+    {
+      "path": "project/AuditSourcePrincipalTransport.lean",
+      "bytes": 2470,
+      "sha256": "57bcdf0639d70ca182c0b0467a5f492928afae3023300a456380a77a4f1d6df0"
+    },
+    {
+      "path": "project/AuditSourceRecordBoundary.lean",
+      "bytes": 3324,
+      "sha256": "16c2d9bd8a731af9c2befec3fca3fe54485a40a047a8d8a3a4509f63acf97bde"
+    },
+    {
+      "path": "project/AuditWholeMetatheory.lean",
+      "bytes": 9547,
+      "sha256": "9d9769783707b647793deb3578805261aea70fa73d1d04678784ab1fe3d6b358"
+    },
+    {
+      "path": "project/YulangClosure/BirthLevelSCC.lean",
+      "bytes": 17756,
+      "sha256": "2c76b82d4dc85a4bf4c122731ba014b07df4c863ad679e9a795a57e6546243f0"
+    },
+    {
+      "path": "project/YulangClosure/BoundaryQueryClosure.lean",
+      "bytes": 21574,
+      "sha256": "7dad22c1b94e404be5dc4aaa51203e8d3882fd4c61006eb8b0c5f6f87a30f727"
+    },
+    {
+      "path": "project/YulangClosure/CallCaptureResponse.lean",
+      "bytes": 3478,
+      "sha256": "a310f3da1091a2dd7ed1d751aea67c44aefe06ce89fc9bb16cc0d19b530eb1c6"
+    },
+    {
+      "path": "project/YulangClosure/CallCaptureTyping.lean",
+      "bytes": 2637,
+      "sha256": "906e8204aa155efd3f4e45d9c2a2a9fbe010858206ef3dd0acfd3d0d607a0de9"
+    },
+    {
+      "path": "project/YulangClosure/CallContextTyping.lean",
+      "bytes": 3514,
+      "sha256": "09bc05fc8561ee81186dd6eae3667a77b0360a8dd27a6236548dfb01d33a5125"
+    },
+    {
+      "path": "project/YulangClosure/CallDeclaredLiteralResponse.lean",
+      "bytes": 2793,
+      "sha256": "f9c7f3b8b0c2ad0552df531a6a13ad1fb4863340bb0ea837319bf144a2bae255"
+    },
+    {
+      "path": "project/YulangClosure/CallEntrySpine.lean",
+      "bytes": 2551,
+      "sha256": "6c6bd7b4c912e86196434465a94a1ada02fe1d28cc8c0e5343b247a2dd7961b6"
+    },
+    {
+      "path": "project/YulangClosure/CallEntrySpineComposition.lean",
+      "bytes": 2563,
+      "sha256": "a296a5ae738cb3ca8f88a6009495e0fe84a2a394976aafeb4630d6cdd25a11bf"
+    },
+    {
+      "path": "project/YulangClosure/CallEntrySpineRepair.lean",
+      "bytes": 2557,
+      "sha256": "ad4a2e1b49b13dc71b77b079b80b0c6c6355327915a4be343276b9b9497f7d89"
+    },
+    {
+      "path": "project/YulangClosure/CallEntryTyping.lean",
+      "bytes": 1973,
+      "sha256": "21850ac899060ade9f9db5139b20e5e1779b4f18b67d6d1127501827ec146ba2"
+    },
+    {
+      "path": "project/YulangClosure/CallEntryTypingRepair.lean",
+      "bytes": 2255,
+      "sha256": "f90c2192422e35cc7f85716e29199c9587976e230e12543aff0609eedcc49c39"
+    },
+    {
+      "path": "project/YulangClosure/CallEnvironmentRealization.lean",
+      "bytes": 8145,
+      "sha256": "8b9e4c38224f103557c5f6a036c6d4d06ba7799264947f4843fa7029195f66b6"
+    },
+    {
+      "path": "project/YulangClosure/CallFailureUnwind.lean",
+      "bytes": 2928,
+      "sha256": "2d7422bc4c83310a1a1d0a2bcaa5528bb6a8801520c42db2f2ada6b12224b89c"
+    },
+    {
+      "path": "project/YulangClosure/CallFiniteTyping.lean",
+      "bytes": 1984,
+      "sha256": "555e6ee61fad15c93df70bbec13781716d83292a86110a6eb6670018e9b70588"
+    },
+    {
+      "path": "project/YulangClosure/CallLiteralResponse.lean",
+      "bytes": 7958,
+      "sha256": "62cffcd2bcf5ce879c3c7b75ff6908b19470a27e5ca73e5973ec1affbeaac3fb"
+    },
+    {
+      "path": "project/YulangClosure/CallNativeLiteralResponse.lean",
+      "bytes": 2845,
+      "sha256": "7b0c27ba851f982d3e13fa3e27c258fe907a56585a92123af14f9ad4d765d2cd"
+    },
+    {
+      "path": "project/YulangClosure/CallPeelingTyping.lean",
+      "bytes": 4740,
+      "sha256": "f89e31759657f602ba69b41a31c9f63ba61f003aa1ebe560323d65dda2b33c44"
+    },
+    {
+      "path": "project/YulangClosure/CallPrefixTyping.lean",
+      "bytes": 1064,
+      "sha256": "95c49daec0417c8130a498b44783c546b9464b96380731182fedde5665e8b5bc"
+    },
+    {
+      "path": "project/YulangClosure/CallProgressObstruction.lean",
+      "bytes": 1637,
+      "sha256": "8dc8b1b72c952dc45c431fb965a438b700dc86902a68b8d77a3de0b7d47858b7"
+    },
+    {
+      "path": "project/YulangClosure/CallRequestBoundary.lean",
+      "bytes": 16273,
+      "sha256": "28ffc2943c18d324c35dacf18b4dd70921d4cc462ffd6ffdce989475ef46cce6"
+    },
+    {
+      "path": "project/YulangClosure/CallRequestBoundaryComposition.lean",
+      "bytes": 5564,
+      "sha256": "fed00f06cdbf2a5bdc1b3c18957acc33c7b281e890f277ca5bd1d20ece53ee76"
+    },
+    {
+      "path": "project/YulangClosure/CallRequestUnwind.lean",
+      "bytes": 4583,
+      "sha256": "e4835bd2c2487b14d658b02373e0507ea6c201b81a1fb81d396b0f05a1850fc9"
+    },
+    {
+      "path": "project/YulangClosure/CallResponseCancellation.lean",
+      "bytes": 4056,
+      "sha256": "ab9083bab971acd4e72cb8db95d567b309a240e1773b3fc4544fa6968ffe9488"
+    },
+    {
+      "path": "project/YulangClosure/CallStepTyping.lean",
+      "bytes": 10024,
+      "sha256": "4b3b40ae3c295666470c1cda73ac38f0abdc62ea86626be58f10249092d3c3ab"
+    },
+    {
+      "path": "project/YulangClosure/CallStepTypingRepair.lean",
+      "bytes": 10437,
+      "sha256": "2ef522c022a0708be670f1ab44b57c8f558d4736f123e14ceb5f6ff259a3c586"
+    },
+    {
+      "path": "project/YulangClosure/CallTerminalTyping.lean",
+      "bytes": 1558,
+      "sha256": "319466c8276a638166733a28694881e3d980befd5798006ebc984907a8820a6d"
+    },
+    {
+      "path": "project/YulangClosure/CallUnwindTyping.lean",
+      "bytes": 5507,
+      "sha256": "57afc331d735c7b9680c8b1391ced1f86b72a0ab10ca37e9f620cf0388af1cc1"
+    },
+    {
+      "path": "project/YulangClosure/CallUnwindTypingRepair.lean",
+      "bytes": 5839,
+      "sha256": "1eaea1938f6ee2341352afcc597847fc2ade5b8ce8d3be84dda19926fe217cc3"
+    },
+    {
+      "path": "project/YulangClosure/CallViewedForceReachability.lean",
+      "bytes": 5597,
+      "sha256": "ce6e45da496ceb3f5d7e1150f57ebdf5f62dd0495ee3a8deb1b61035b39cee8c"
+    },
+    {
+      "path": "project/YulangClosure/CallViewedForceStuck.lean",
+      "bytes": 587,
+      "sha256": "71164cef48ca86866ef4aae9661ea2e9388e9741062e159a97f3c26b42614ae9"
+    },
+    {
+      "path": "project/YulangClosure/Contracts.lean",
+      "bytes": 7467,
+      "sha256": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e"
+    },
+    {
+      "path": "project/YulangClosure/ControlComposition.lean",
+      "bytes": 23260,
+      "sha256": "10e3801e00fa279b16d1cc98e50775b9372d114fbcc648d3cd052f35ba4da7b2"
+    },
+    {
+      "path": "project/YulangClosure/ControlSyntax.lean",
+      "bytes": 30895,
+      "sha256": "1f937e4c51b79d1a2dc4a2291a1e3f5797403eae5975a53a42d574867a1690f0"
+    },
+    {
+      "path": "project/YulangClosure/ControlTyping.lean",
+      "bytes": 10666,
+      "sha256": "e52aaca8baa5c3312a200952ef07fa7e304686d2642c154831de0365646a497f"
+    },
+    {
+      "path": "project/YulangClosure/CoreComposition.lean",
+      "bytes": 4893,
+      "sha256": "1527cd3c5961b413ec2b97495744b218aba6247956881318485364d15065294c"
+    },
+    {
+      "path": "project/YulangClosure/CoreControlBridge.lean",
+      "bytes": 17952,
+      "sha256": "30a0007aea313eccc42531bf346891c010dbed7b4b34cea1aebe7043a9a6d99a"
+    },
+    {
+      "path": "project/YulangClosure/CoreExecution.lean",
+      "bytes": 17067,
+      "sha256": "86b4bdbf605046d7648fba803aa31eb9e96264627f123f8d14bf937813b4ef7e"
+    },
+    {
+      "path": "project/YulangClosure/CoreSubstitution.lean",
+      "bytes": 29529,
+      "sha256": "ae1dfd4947d9e87c05dfa893b93067175d860ed3b5da000d61257d7789208b55"
+    },
+    {
+      "path": "project/YulangClosure/CoreSyntax.lean",
+      "bytes": 20970,
+      "sha256": "c5a25cb7d935159b62f377b7fa88b3e92e4cdf429118d566e53f7859f6ea5375"
+    },
+    {
+      "path": "project/YulangClosure/DeclSubst.lean",
+      "bytes": 6468,
+      "sha256": "f1463d4dceeab7251b2a65508b23a7ef4ab3a575b2792793be04a858e9191258"
+    },
+    {
+      "path": "project/YulangClosure/FiniteCopyClosure.lean",
+      "bytes": 7911,
+      "sha256": "eaa4af374dfff21e74a9e8a89d681932404f7a8c4e97850fe0cae544dcf9e10b"
+    },
+    {
+      "path": "project/YulangClosure/FiniteGuardDecision.lean",
+      "bytes": 18160,
+      "sha256": "a9924ab2c8d96a173c886ddfbb2580a7719fbf08064d9f85d0644784778de9fa"
+    },
+    {
+      "path": "project/YulangClosure/ForceAdmin.lean",
+      "bytes": 10696,
+      "sha256": "620994e5e7383c267a19d5bea93f35d8d82d2db76a03893449bd821250669c97"
+    },
+    {
+      "path": "project/YulangClosure/ForceCompletion.lean",
+      "bytes": 2817,
+      "sha256": "6baeb9a786e916d0f7b60bd4d5c8286657da2adba4acdab36f2e45e0921aeb22"
+    },
+    {
+      "path": "project/YulangClosure/GraphContinuationExtension.lean",
+      "bytes": 26714,
+      "sha256": "cae749a64bb641131aa6fdc19a71fe0c635dbe007433556f3dc9efe4388105ec"
+    },
+    {
+      "path": "project/YulangClosure/GraphExtensionTransport.lean",
+      "bytes": 15942,
+      "sha256": "a41bbdb417d3a5f9c1784b690520d5a973d1178c5a1ab47b6b5b80cdd629dac1"
+    },
+    {
+      "path": "project/YulangClosure/GuardedValueGraph.lean",
+      "bytes": 17378,
+      "sha256": "4d2c3b17d0ab8d12606c875638426167ce596492167cecf042eb222436229f55"
+    },
+    {
+      "path": "project/YulangClosure/HandlerGraphCorrespondence.lean",
+      "bytes": 33302,
+      "sha256": "94a6c2d24045bf9959121f4b31efea2f0630abc53c5bb776ab356d3ff108f964"
+    },
+    {
+      "path": "project/YulangClosure/HandlerGraphEmbedding.lean",
+      "bytes": 36409,
+      "sha256": "36b616d809554feb585f32203fa72c1a084c7136beb4141a46d3a27a5145f656"
+    },
+    {
+      "path": "project/YulangClosure/HandlerGraphInteraction.lean",
+      "bytes": 29769,
+      "sha256": "a5094f70dc2ec2843a431cfb24f0111166fbc9172b7e6df08d0d8c800a8ce018"
+    },
+    {
+      "path": "project/YulangClosure/HandlerGraphRecAllocation.lean",
+      "bytes": 66319,
+      "sha256": "5563163a5fe2741dc4cb1968329e5ec417a170099448978b653dc487cd136dfd"
+    },
+    {
+      "path": "project/YulangClosure/HandlerGraphRecInteraction.lean",
+      "bytes": 22828,
+      "sha256": "dc1f89a1e1b8b0b4a9e2e95fdcc47334b1b7578a8fef3f947574678ce8dfdba7"
+    },
+    {
+      "path": "project/YulangClosure/HandlerGraphRecursiveTrace.lean",
+      "bytes": 8139,
+      "sha256": "bd07ea464ba42b1073b69b2af0bc5d26c1ca148a58598d6d10973ba54dc29909"
+    },
+    {
+      "path": "project/YulangClosure/HandlerGraphSafety.lean",
+      "bytes": 43221,
+      "sha256": "554c5a1a003f27c3b8657d77455aa4f5eda7852338254034e3dd63a6db42a558"
+    },
+    {
+      "path": "project/YulangClosure/HandlerGraphSyntax.lean",
+      "bytes": 31206,
+      "sha256": "2a6b3f455e408336290bbe28616d7db8ee928f1b342b4c80f975bbacb419c24c"
+    },
+    {
+      "path": "project/YulangClosure/HandlerGraphTransport.lean",
+      "bytes": 24103,
+      "sha256": "a869e61005910dba00cf9cfa57065a45afeac08413974e343d9bcc16821f629d"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderEmbedding.lean",
+      "bytes": 14462,
+      "sha256": "2b773edf831d04cd4319e1fb980865dff0fb9a38f7d64b21f3d228ea2a0e1457"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderEntry.lean",
+      "bytes": 7181,
+      "sha256": "c9cb839ff6b34ed97c5d72f9e020437d32175cf517a5841a3a024764747c213b"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderEnvironment.lean",
+      "bytes": 10295,
+      "sha256": "84a461fdff85e7321cf090ba2bb72a7d90415515a2da1eb15e1287ef0361ab83"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderGraphObservation.lean",
+      "bytes": 18354,
+      "sha256": "8817db7bc5181481745f49696d7b7d2e4dc927a715353ab83bc36f4ed53420cc"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderGraphSafety.lean",
+      "bytes": 33188,
+      "sha256": "de67122c098579b5ba088ff832ef8ca36e233537faf064ab8e36520cf2532533"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderGraphSyntax.lean",
+      "bytes": 24052,
+      "sha256": "2dca03ee408f7f35545c02847d03fae47ab1887c2761c82e8b59cc9ad6001886"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderHandlerInteraction.lean",
+      "bytes": 32660,
+      "sha256": "a0920fc7214055fd213bc66729e865b571698f95bd42ae289c432b6cf5730d3f"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderHandlerSafety.lean",
+      "bytes": 36404,
+      "sha256": "f74c35666d8f4f5ab1af52009c005d5cb0be9958f7f8d64185c31750b2dd38ef"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderHandlerSyntax.lean",
+      "bytes": 26484,
+      "sha256": "4578e2d3c8b06a57937dd652e06eabb8c9271113a7eb3388dc718856d64b249d"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderInteraction.lean",
+      "bytes": 25030,
+      "sha256": "45f2b8c74e2837e503db84aed3c9f55767a32d19e4008546e25a01cef1202875"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderRecAllocation.lean",
+      "bytes": 23527,
+      "sha256": "30a6e1855fb8bb4950ad2bdfad238e000554563cb0d1d4b1ec311e3c0cf4f0dd"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderSafety.lean",
+      "bytes": 15977,
+      "sha256": "16a38dbb649677ed5e6b6371a61228a1724b9e899136eeb2119b755ecab30336"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderSubstitution.lean",
+      "bytes": 10417,
+      "sha256": "19910452c45b20761ec06dc7e15f94c94b95014ff00f3f5296af005b9adf6f30"
+    },
+    {
+      "path": "project/YulangClosure/HigherOrderSyntax.lean",
+      "bytes": 6272,
+      "sha256": "ea727d33692bdcbe6b40245b960d01225b556b5334ffab649eea2699930d5972"
+    },
+    {
+      "path": "project/YulangClosure/InferenceConstruction.lean",
+      "bytes": 2352,
+      "sha256": "576d69266da62c0f75fa9748ff0f0691a9f0bc3aca5148be9d25cef82d2010f0"
+    },
+    {
+      "path": "project/YulangClosure/InferenceProofs.lean",
+      "bytes": 1551,
+      "sha256": "dff8f66fb20d1a75cd1ff72ab72babecf30cfb8ad816b5e758c540c1b166afea"
+    },
+    {
+      "path": "project/YulangClosure/NativeClosureEnvironment.lean",
+      "bytes": 12152,
+      "sha256": "39aa5cefa078dd423e54f0d9790f9a48e136326742e01f65149f317c907be957"
+    },
+    {
+      "path": "project/YulangClosure/NativeContextCallbackConstruction.lean",
+      "bytes": 26231,
+      "sha256": "b90e44fbbf4c268e1b3dc73c32dfb0de542b640207e2feda6c8acf68d89cbb98"
+    },
+    {
+      "path": "project/YulangClosure/NativeContextCompletion.lean",
+      "bytes": 24699,
+      "sha256": "5bc4bb4151087462cfbede6f0d6accece70c41ea5061f1ef100ad081e28344b4"
+    },
+    {
+      "path": "project/YulangClosure/NativeContextExpansion.lean",
+      "bytes": 50665,
+      "sha256": "9887bef34e51678cead77eaf84a2f9b47916987ea9cffaad5d4ef74d53de2ea8"
+    },
+    {
+      "path": "project/YulangClosure/NativeContextReadback.lean",
+      "bytes": 77781,
+      "sha256": "321d087c8d2df5099f67beb75e4316d44114806bbfae2aa64ebda22a34bd83f2"
+    },
+    {
+      "path": "project/YulangClosure/NativeContextTables.lean",
+      "bytes": 98751,
+      "sha256": "eaf2b037af40af01ad116e1ae413a6c7d5a0023d49c8b9f1b92d29c319d2df81"
+    },
+    {
+      "path": "project/YulangClosure/NativeDictionaryDenotation.lean",
+      "bytes": 33584,
+      "sha256": "d44a78f08970a09ca4c3e99a1d8dea846286a299d1a2bc91ec3b5e0eabea9070"
+    },
+    {
+      "path": "project/YulangClosure/NativeDrainOwnership.lean",
+      "bytes": 25035,
+      "sha256": "d37edac29dcecc19dd90b91c3095e5385a0657310dcf08d805a8f20672872d18"
+    },
+    {
+      "path": "project/YulangClosure/NativeExecutionHistory.lean",
+      "bytes": 26915,
+      "sha256": "44ad2a6d5b9ac0526ea36adc9180e0ed66e3892e48fa39aa40b20999dc7a1da6"
+    },
+    {
+      "path": "project/YulangClosure/NativeFrameRollback.lean",
+      "bytes": 20100,
+      "sha256": "274e9a9ac1c43bc81d3b962edb6846dd5e4fa2adb2b645ebd92d6d5f38bd9964"
+    },
+    {
+      "path": "project/YulangClosure/NativeFreshScopeTransport.lean",
+      "bytes": 17028,
+      "sha256": "1827358830b331ea6c4eafccf83279a1294a3df5b889405cf27ee2f95ff49df5"
+    },
+    {
+      "path": "project/YulangClosure/NativeInferenceProgress.lean",
+      "bytes": 27602,
+      "sha256": "d22167d330ce1bb000677e2915a85beddb0e7a483600ac8c6a92cfdf37c79b12"
+    },
+    {
+      "path": "project/YulangClosure/NativeIntegerArithmetic.lean",
+      "bytes": 40425,
+      "sha256": "5adb30eb53f64fa4ccad80e83ed78c27f442436f20a8eceb8bc4fb59aac33ad1"
+    },
+    {
+      "path": "project/YulangClosure/NativeIntegerComparison.lean",
+      "bytes": 17748,
+      "sha256": "fbd98d89898d58b529add810787538df8b69d9172bdc86206418fb2dd74c588b"
+    },
+    {
+      "path": "project/YulangClosure/NativeLiteralReadback.lean",
+      "bytes": 6520,
+      "sha256": "53a745397fed4b319225541b8e764a32cdc72032ca4e8be48d9d4a23d3901c54"
+    },
+    {
+      "path": "project/YulangClosure/NativeMergeExpansion.lean",
+      "bytes": 35635,
+      "sha256": "f14bd35e8f7a6b9f326dadf003797c63f4a48fd0d0c0c9d68891c579560baf6e"
+    },
+    {
+      "path": "project/YulangClosure/NativeProfileRestriction.lean",
+      "bytes": 10190,
+      "sha256": "527d89b982b962e423cfaa15ecf76a2d778603102bfc9e8d12b22af2eb1c7fb2"
+    },
+    {
+      "path": "project/YulangClosure/NativeRecordPlan.lean",
+      "bytes": 19424,
+      "sha256": "3cf43fdb754748b83a6816791d640752dda491b87f7e2513a27548a950b27d43"
+    },
+    {
+      "path": "project/YulangClosure/NativeRelationInterner.lean",
+      "bytes": 63106,
+      "sha256": "1fd7ece6c6a7c6df7159efaebaec585b78a9e8513e9b10e6a3fb4d472b577d3a"
+    },
+    {
+      "path": "project/YulangClosure/NativeReplayAcknowledgement.lean",
+      "bytes": 50324,
+      "sha256": "5264c6b6d9904a43ec0b50c3ac0100a05612b724f52a8601e3a93c771f8204df"
+    },
+    {
+      "path": "project/YulangClosure/NativeReplayCoverage.lean",
+      "bytes": 12808,
+      "sha256": "e65d925ab5222fd6bbc4bf63e756701aaba1273fff677ceb052d7f66e6450b7e"
+    },
+    {
+      "path": "project/YulangClosure/NativeReplayCurrent.lean",
+      "bytes": 38876,
+      "sha256": "fdd7dfa32f944f09b2cfc7440caeff95edcfad1fd5c839094f186d27168d9088"
+    },
+    {
+      "path": "project/YulangClosure/NativeRepresentativeReadback.lean",
+      "bytes": 11010,
+      "sha256": "a2e9d1bc26220c0502e7c92f67b153c066716440a57e4cc4bec3cb110b07128e"
+    },
+    {
+      "path": "project/YulangClosure/NativeRowModel.lean",
+      "bytes": 30077,
+      "sha256": "30016f40295a803df2ed3d9b46efd256d1427400f55bda1810e22a00f89d7780"
+    },
+    {
+      "path": "project/YulangClosure/NativeRowRepresentative.lean",
+      "bytes": 20129,
+      "sha256": "91b29ddd33db8b8b67308dff14b655619763d5ecb153b715f03b02c031371ee2"
+    },
+    {
+      "path": "project/YulangClosure/NativeRowSaturation.lean",
+      "bytes": 24911,
+      "sha256": "9f8e2cf43ade40c17a09387d5888833002ee42791eff0d2d608f83d6ca39e974"
+    },
+    {
+      "path": "project/YulangClosure/NativeScopeTransformer.lean",
+      "bytes": 21633,
+      "sha256": "68f37763bcaab831ec6248a28144e7b76ede42b7813681850f7c67b0d8df10f6"
+    },
+    {
+      "path": "project/YulangClosure/NativeTemplateReplay.lean",
+      "bytes": 18705,
+      "sha256": "cae76713a1756a5d15d13232a094437003931b33b6cc2e5a44ca946d83175d32"
+    },
+    {
+      "path": "project/YulangClosure/NativeValueDrain.lean",
+      "bytes": 37272,
+      "sha256": "826fa025241835aad606434b3d0fee2406b694d72ca1dbf03a618f3e61d1b095"
+    },
+    {
+      "path": "project/YulangClosure/NativeValuePorts.lean",
+      "bytes": 50584,
+      "sha256": "f49bf12537633c65b4dbdcb4e739df5de5eee76cfb5ad845c8dba50cef4101fa"
+    },
+    {
+      "path": "project/YulangClosure/NativeValueRelationExecution.lean",
+      "bytes": 33531,
+      "sha256": "118138bd45cef3db837a0742010944cdd0c513e9d352302d23889e497a89c4ea"
+    },
+    {
+      "path": "project/YulangClosure/NativeValueStructure.lean",
+      "bytes": 32345,
+      "sha256": "81060e17ad37f2e4a47edb7ed2829bea6820438bf3d4db0e4de8d113fd9497fc"
+    },
+    {
+      "path": "project/YulangClosure/OriginalAuthenticInlineExtractionR2.lean",
+      "bytes": 5805,
+      "sha256": "ed25ec65c5760e4a523fabe75f392c67476a710d3af60e345c07e5bf5eaeeb09"
+    },
+    {
+      "path": "project/YulangClosure/OriginalAuthenticInlineExtractionTraceR2.lean",
+      "bytes": 7027,
+      "sha256": "73a4a8aa65e5d7d44611a70e52b9d2b6ac5940c2292a7c06e01e69834f2ac5e3"
+    },
+    {
+      "path": "project/YulangClosure/OriginalBoundFibers.lean",
+      "bytes": 26763,
+      "sha256": "1a512b23a55936e30088763d46d3f71458cec953b58edbf794e28bb13eaf0ca5"
+    },
+    {
+      "path": "project/YulangClosure/OriginalBoundWorkExecution.lean",
+      "bytes": 38706,
+      "sha256": "b6d3d2e7c9f14b87cce55f69e2cb8fd87269e282732bdefa685fb1bfeaf099f0"
+    },
+    {
+      "path": "project/YulangClosure/OriginalCalleeDelayProvenance.lean",
+      "bytes": 21334,
+      "sha256": "3acb041c530b19e78703b3f3030edd1b304ab7c20329974f0afc2d387428dbfe"
+    },
+    {
+      "path": "project/YulangClosure/OriginalCheckingAdmission.lean",
+      "bytes": 52370,
+      "sha256": "77a8dd74f5913814d3628f0aed189be24b4aafc4780839eaa57237676a157da7"
+    },
+    {
+      "path": "project/YulangClosure/OriginalDrainBoundary.lean",
+      "bytes": 9498,
+      "sha256": "d11f5c4e5550702c0796c45076408b0c038e4bc204ec05354b83db8ad7b04ab9"
+    },
+    {
+      "path": "project/YulangClosure/OriginalDrainFrontier.lean",
+      "bytes": 13157,
+      "sha256": "ec7d4ab463858b73cd09295588833fa095a749c529d40a03cd4f5b8406fb9682"
+    },
+    {
+      "path": "project/YulangClosure/OriginalDrainStages.lean",
+      "bytes": 37071,
+      "sha256": "9e116f95b8ed001485b2f6b699478c847a53420adb11c70b577b1c0f4e07d61d"
+    },
+    {
+      "path": "project/YulangClosure/OriginalEffectHygiene.lean",
+      "bytes": 20767,
+      "sha256": "926613078f1f3f2e197bff29793b120128f18d3676657af25db72eca47f2c89f"
+    },
+    {
+      "path": "project/YulangClosure/OriginalExtrusionFibers.lean",
+      "bytes": 13380,
+      "sha256": "15bb4ebc67a22f4bd3af584e8377dec210963f7cbba43e6072c82b5f2d5a8800"
+    },
+    {
+      "path": "project/YulangClosure/OriginalExtrusionWork.lean",
+      "bytes": 54842,
+      "sha256": "c419675d75a2cdf03fe5b1ba8d2eef106fea0c4f5187f9f5c06999fa734edd58"
+    },
+    {
+      "path": "project/YulangClosure/OriginalFiberTransfer.lean",
+      "bytes": 21957,
+      "sha256": "2d368cfe99240d7c4a5cb7618acd7bedd3a569978735b27a1b3b23a1626566ba"
+    },
+    {
+      "path": "project/YulangClosure/OriginalFirstDrainBoundary.lean",
+      "bytes": 12393,
+      "sha256": "d2c7096ff19b072fea0646b2ed12a4096e26ee03b31eb71997c64e9af43f0a1a"
+    },
+    {
+      "path": "project/YulangClosure/OriginalForcedParameter.lean",
+      "bytes": 9329,
+      "sha256": "d16a45c459ea78b0f583ebd34d7a442d7247b55358ff6d990e3416c3d841aedf"
+    },
+    {
+      "path": "project/YulangClosure/OriginalFormalAdmission.lean",
+      "bytes": 34188,
+      "sha256": "77230ab7984ee544db16fe4d9663b73f98b9afa9c5d2610fad59c26753d5ac7c"
+    },
+    {
+      "path": "project/YulangClosure/OriginalFormalShared.lean",
+      "bytes": 58542,
+      "sha256": "abb9d69546e284fcb5fe6be9bb3c18269227e91da94e09eebf1a62e0b56e67f7"
+    },
+    {
+      "path": "project/YulangClosure/OriginalFunctionFuture.lean",
+      "bytes": 20701,
+      "sha256": "e90f98aa00597cf46089f2152b492ab98b21b0ab5350276410b622931439c99f"
+    },
+    {
+      "path": "project/YulangClosure/OriginalIdentityCarrier.lean",
+      "bytes": 40085,
+      "sha256": "f26878514518f14a4a99e799dad2ca28e4513c467a8dd24d86e6329b9e640616"
+    },
+    {
+      "path": "project/YulangClosure/OriginalIdentityEntryOrigin.lean",
+      "bytes": 5880,
+      "sha256": "9df7fccfe03becec491665a28a7fb65760e1245d76e68330fc9626da5533163e"
+    },
+    {
+      "path": "project/YulangClosure/OriginalIdentityFrontendJoin.lean",
+      "bytes": 1960,
+      "sha256": "cc89fcd3d541b6f9f789a7e2a89a7568545bb9f6a6883d0fa043fb1669e7fd1f"
+    },
+    {
+      "path": "project/YulangClosure/OriginalIdentityRealization.lean",
+      "bytes": 37856,
+      "sha256": "30b0676f4af22dc7da2c75596a338db57a24b17662a4057801cfdff7ab4a2f42"
+    },
+    {
+      "path": "project/YulangClosure/OriginalInferenceTermination.lean",
+      "bytes": 19557,
+      "sha256": "26aca31b41897e297e516bf98b6e11d63dab50482a69f5b8a1f98a739696f946"
+    },
+    {
+      "path": "project/YulangClosure/OriginalInferenceTerminationResolution.lean",
+      "bytes": 27884,
+      "sha256": "a89a316ea72e472b0e2c09effc144730dc4c683228008caf42a433d0a969a6dd"
+    },
+    {
+      "path": "project/YulangClosure/OriginalInlineIdentityInterpretation.lean",
+      "bytes": 15917,
+      "sha256": "3aca1be7523880d0fef1cc8b2991ade174fda2c79445e9e9014982eccccb352a"
+    },
+    {
+      "path": "project/YulangClosure/OriginalMemberEntryFields.lean",
+      "bytes": 14033,
+      "sha256": "9c4833e323a649bc46bc5c18caa77115de86ddba2660a021a52f4aaf2ba57b9f"
+    },
+    {
+      "path": "project/YulangClosure/OriginalNameEntryCorrespondence.lean",
+      "bytes": 16267,
+      "sha256": "3b362e91b66ae106259875bc49644545f1f107ed644c74393791fc2dca2a0f20"
+    },
+    {
+      "path": "project/YulangClosure/OriginalNameEntryTrace.lean",
+      "bytes": 740,
+      "sha256": "a6d1ec061b5d3bcd9bf85a56405e16ff0d8f02037a870f2c6ab139d82efb9115"
+    },
+    {
+      "path": "project/YulangClosure/OriginalNameForceExtraction.lean",
+      "bytes": 43781,
+      "sha256": "10ff6a2d4ac8a4a2c386396c495e0edfecc9bd4bb3ae40c8e0ab07e4cb0c7531"
+    },
+    {
+      "path": "project/YulangClosure/OriginalNameReceiptSeed.lean",
+      "bytes": 10909,
+      "sha256": "a71178de1c5622352cd1d7e82ded3739525ca36a7029ff79de3859f57e661bf8"
+    },
+    {
+      "path": "project/YulangClosure/OriginalNameReceiverEntry.lean",
+      "bytes": 11690,
+      "sha256": "650d4e3509e32a62ffa9e847f8dbbc1751989026daf964a51f5026542a669a5c"
+    },
+    {
+      "path": "project/YulangClosure/OriginalParameterSemantics.lean",
+      "bytes": 45481,
+      "sha256": "733c5b05e0db226f95d14ff2161c46e9a389b43d86b365b000a9656ec4fd0bd2"
+    },
+    {
+      "path": "project/YulangClosure/OriginalParameterWorld.lean",
+      "bytes": 33616,
+      "sha256": "7b5f849f744dbe56f374d8be6b11a5a218176abf6eeda2fb9da8180c7b1ff802"
+    },
+    {
+      "path": "project/YulangClosure/OriginalPrincipalClosure.lean",
+      "bytes": 34577,
+      "sha256": "673bfcc4c1f03b4ffbed92643f15251d211b50053ef5f73e1fda0b2df20f0306"
+    },
+    {
+      "path": "project/YulangClosure/OriginalPrincipality.lean",
+      "bytes": 15068,
+      "sha256": "c9d214cd086aa1fbdf8f471e7b52c8cccddaa971fc68a8bb0956c9539d098dc7"
+    },
+    {
+      "path": "project/YulangClosure/OriginalPrincipalityResolution.lean",
+      "bytes": 10187,
+      "sha256": "006cf46593e608d73ff5618b35f85623d984f4401852864911e7b9443cb351c3"
+    },
+    {
+      "path": "project/YulangClosure/OriginalProofProgress.lean",
+      "bytes": 5008,
+      "sha256": "21e361962538d5e2738041b58186682a4a9fb3ad10c75f4c39dc97e32a443f39"
+    },
+    {
+      "path": "project/YulangClosure/OriginalProviderLexicalOwner.lean",
+      "bytes": 5898,
+      "sha256": "bf4e6572e5f1bf9b97a4d0274488b8d20f4487528d5bf8346ad262d3c75bd2f7"
+    },
+    {
+      "path": "project/YulangClosure/OriginalProviderLexicalOwnerTrace.lean",
+      "bytes": 4249,
+      "sha256": "4719fe129bee3a04fc321589d2c765413ec81cf309d7ad88d118c99b49ed57a0"
+    },
+    {
+      "path": "project/YulangClosure/OriginalProviderOwnerBridgeTrace.lean",
+      "bytes": 5850,
+      "sha256": "0e8a51907d7712d12af0eeeb32559b53d9c4403b7da54579de968a4029d32d6b"
+    },
+    {
+      "path": "project/YulangClosure/OriginalProviderPublicationCoverage.lean",
+      "bytes": 20170,
+      "sha256": "62257d276004f6caf07872142e4a4369266d5205d992f4f3d56f36657ae69783"
+    },
+    {
+      "path": "project/YulangClosure/OriginalProviderPublicationCoverageTrace.lean",
+      "bytes": 3062,
+      "sha256": "9e2578c3e96f95d335263d1c0ed874af36ed411676fbb4977676314a28af56e1"
+    },
+    {
+      "path": "project/YulangClosure/OriginalProviderRootContext.lean",
+      "bytes": 2116,
+      "sha256": "bde05d470435f0184a9203fb30a4612126aab3540b9889f57a0a087bf7b553f3"
+    },
+    {
+      "path": "project/YulangClosure/OriginalProviderRootContextTrace.lean",
+      "bytes": 2573,
+      "sha256": "c04a8017041f332a1a30f3179291925c83f31a995bacb12af574354a8c4c26f6"
+    },
+    {
+      "path": "project/YulangClosure/OriginalProviderSourceSolution.lean",
+      "bytes": 20871,
+      "sha256": "3bf66649fdf4baacb3140de7786165db0d2b138087ca582bd32008b87a95a21a"
+    },
+    {
+      "path": "project/YulangClosure/OriginalRecursiveClosure.lean",
+      "bytes": 22983,
+      "sha256": "393171b2dcbaaddf4d2328b3fb69fa68375795e4c289b93e7190f6126f7cda8f"
+    },
+    {
+      "path": "project/YulangClosure/OriginalRecursivePair.lean",
+      "bytes": 78256,
+      "sha256": "1069c185c6fa190c2a0dd776ebf4efc7bfab8ece7e36f2f4049d480e50fa65e7"
+    },
+    {
+      "path": "project/YulangClosure/OriginalReplayBoundary.lean",
+      "bytes": 13083,
+      "sha256": "894f0008c7cf62a43a80c82eb75c5ae08c2a0aa84c0fbadae4dcec07529544c8"
+    },
+    {
+      "path": "project/YulangClosure/OriginalReplayDrain.lean",
+      "bytes": 51990,
+      "sha256": "ab8900724f0a5ae41c3c1342e1f8024aff465fbabefcf6e68ecde8d8952ed878"
+    },
+    {
+      "path": "project/YulangClosure/OriginalRetainedParameter.lean",
+      "bytes": 55668,
+      "sha256": "ae8915cf002019541d0658895f0604e98700ac23f47aac479fc8382cf65ef799"
+    },
+    {
+      "path": "project/YulangClosure/OriginalReturnWorld.lean",
+      "bytes": 32932,
+      "sha256": "0710f5d969af927c8f42b42f4972ba4f53ddce4ddb082e9d3d360e90c9ccf12b"
+    },
+    {
+      "path": "project/YulangClosure/OriginalScopedClosure.lean",
+      "bytes": 31986,
+      "sha256": "b316a5e18a14b4c9750cc97f294aea824ce6b0a704fc67929fa4a016e94ebeab"
+    },
+    {
+      "path": "project/YulangClosure/OriginalSourceCallerSchema.lean",
+      "bytes": 2682,
+      "sha256": "9bb15c7f383a997c4e7d63efd521704c925e62c95072f81ad18ad2aec9ba30b9"
+    },
+    {
+      "path": "project/YulangClosure/OriginalSourceChecking.lean",
+      "bytes": 103542,
+      "sha256": "a0ba215e28fe0152e3c66024da86ab9a63219b7950e741bf260cbc4c2897ffd6"
+    },
+    {
+      "path": "project/YulangClosure/OriginalSourceClosure.lean",
+      "bytes": 31884,
+      "sha256": "e39f165848c512830e6f92893c61e2d9f07cec66b729e8878c5f7d3491ab429a"
+    },
+    {
+      "path": "project/YulangClosure/OriginalSourceEnvironment.lean",
+      "bytes": 81021,
+      "sha256": "0e12d33d1b912820324f5140fbe3f16983d0b7ef33137642aaef07faa573f132"
+    },
+    {
+      "path": "project/YulangClosure/OriginalSourceEvents.lean",
+      "bytes": 66574,
+      "sha256": "cfd5f502a1e68a97e27e11a75400fae8789f167c92596aedb08ef7dfbb724342"
+    },
+    {
+      "path": "project/YulangClosure/OriginalSourceGeneration.lean",
+      "bytes": 66485,
+      "sha256": "126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef"
+    },
+    {
+      "path": "project/YulangClosure/OriginalSourceInterpretation.lean",
+      "bytes": 56341,
+      "sha256": "feddd8155e6130279c202453e4562019fde5c0ad0f3a0a491dcbc0cb4ef572ef"
+    },
+    {
+      "path": "project/YulangClosure/OriginalSourceOwnerReification.lean",
+      "bytes": 29080,
+      "sha256": "95d9749ce93ecfc82d6423ba193a261f2725178a7e62cea469b57ae316af3d7e"
+    },
+    {
+      "path": "project/YulangClosure/OriginalSourceOwnerReificationInstance.lean",
+      "bytes": 12218,
+      "sha256": "3aab685323e00b69cb9c21d847582e442590e0ff5e810fab50662b7d9127f887"
+    },
+    {
+      "path": "project/YulangClosure/OriginalSourceOwnerReificationTrace.lean",
+      "bytes": 4244,
+      "sha256": "b9a15df005c730db27fc385c58ca07b433f1095f017e0969155106da7478fb0a"
+    },
+    {
+      "path": "project/YulangClosure/OriginalSourceRecordBoundary.lean",
+      "bytes": 30622,
+      "sha256": "c7889284745ebd23ec300cf3e4de0a8f7ffc4546a9af2eccf5df76d071a0dd1a"
+    },
+    {
+      "path": "project/YulangClosure/OriginalSourceSyntax.lean",
+      "bytes": 22040,
+      "sha256": "3184d156d661ace7da0345f5fa63f8a4396d9f52c745d265239c8d3db1e7d0d1"
+    },
+    {
+      "path": "project/YulangClosure/OriginalSourceValueEntryAdmission.lean",
+      "bytes": 5907,
+      "sha256": "3dc218f9d6623192d7d85c6f5be14f0fddbe833b19ede467c75647a5833205dd"
+    },
+    {
+      "path": "project/YulangClosure/OriginalStageWorkConservation.lean",
+      "bytes": 37146,
+      "sha256": "819d0e1f4659c9027e80ba03d583f81e59dd9015b8a493e4e599d90eeb759d53"
+    },
+    {
+      "path": "project/YulangClosure/OriginalTerminationClosure.lean",
+      "bytes": 10839,
+      "sha256": "f3b1373effdd99b5ef610f30ce3903ce119d66a4e16f9cf71ce09dee80ee00a6"
+    },
+    {
+      "path": "project/YulangClosure/OriginalValueEntryDemand.lean",
+      "bytes": 16344,
+      "sha256": "9a171ecfbad7d632b2a15ef1f57d2d2dd46444aa36452de9158f1d1c7cfdae63"
+    },
+    {
+      "path": "project/YulangClosure/OriginalWorldReadout.lean",
+      "bytes": 31012,
+      "sha256": "edb82b9ecc62be486e057ee50152e30dad709f9a90196f78cab803838f08fb00"
+    },
+    {
+      "path": "project/YulangClosure/PaperAllocationExecution.lean",
+      "bytes": 28643,
+      "sha256": "d5cd9f4499ec0c6e67e73a9444634671e43b507368c418b1d9ecec7fd57f0aa4"
+    },
+    {
+      "path": "project/YulangClosure/PaperCallEntryFormation.lean",
+      "bytes": 12482,
+      "sha256": "2465c5620b0b66f6029ab294134d9860cd8bf810ac25c5f30763cb709c7da31e"
+    },
+    {
+      "path": "project/YulangClosure/PaperCombinedExecution.lean",
+      "bytes": 29622,
+      "sha256": "58661ddec13e1fe4abb6a9b6627597fa824dedbf36f952e56dc15906141314d1"
+    },
+    {
+      "path": "project/YulangClosure/PaperCoreControl.lean",
+      "bytes": 8182,
+      "sha256": "71594dfb24af402f7b4835dc54b5383a46106faba959b687295cc0431361530e"
+    },
+    {
+      "path": "project/YulangClosure/PaperCoreStep.lean",
+      "bytes": 12030,
+      "sha256": "e1ccb094a8aa7a08a16f9da565240c62c79b7094aa5f2e6f27ab604aee49f662"
+    },
+    {
+      "path": "project/YulangClosure/PaperEliminationExamples.lean",
+      "bytes": 6007,
+      "sha256": "d7b412df9bf7cfe47c538b48e1fb6ebfd8fc6c177d484cc3912573608d53071d"
+    },
+    {
+      "path": "project/YulangClosure/PaperExecutionBinderLaws.lean",
+      "bytes": 23046,
+      "sha256": "5f7c9058bafdf7ac083709714b5f978942bbe0442b4b289fe93e0df92dd2e8a8"
+    },
+    {
+      "path": "project/YulangClosure/PaperExecutionGraphWeakening.lean",
+      "bytes": 17829,
+      "sha256": "5fcb0334dfa77c3385f5f460669e36578a01642a54d17e357c072fd012fc73fe"
+    },
+    {
+      "path": "project/YulangClosure/PaperExecutionSyntax.lean",
+      "bytes": 44761,
+      "sha256": "d0dc9871c382ca945059167b8b9e05f8f672170208a994f081e29760a207b87d"
+    },
+    {
+      "path": "project/YulangClosure/PaperExecutionTypingSubstitution.lean",
+      "bytes": 43631,
+      "sha256": "cb0941ef8842551da53fbf2b14cca181c10849178288de29cef1145f1d575cc7"
+    },
+    {
+      "path": "project/YulangClosure/PaperExtendedExecution.lean",
+      "bytes": 25343,
+      "sha256": "a29c5cc15748e8a91338f2a068e94ff7dc58c2a19adad564ba3f5a6fea337ea7"
+    },
+    {
+      "path": "project/YulangClosure/PaperFreshHeapAllocation.lean",
+      "bytes": 15151,
+      "sha256": "7cd87b8e5fd43eea0206401de6ed91e817755f3d1ad2c5aeee1caf0dd1732925"
+    },
+    {
+      "path": "project/YulangClosure/PaperHeapExecution.lean",
+      "bytes": 4261,
+      "sha256": "46a9e8e76f5745cbaffc40b7bb95ff37064941a84532fa5edc07672ddad3d59f"
+    },
+    {
+      "path": "project/YulangClosure/PaperHeapObservation.lean",
+      "bytes": 7315,
+      "sha256": "19b54b87b63cdc4175b1b641ca83d0c1e9454e2439c58a0936bf31fa5bc4725f"
+    },
+    {
+      "path": "project/YulangClosure/PaperOperationMapperTyping.lean",
+      "bytes": 7836,
+      "sha256": "175c307e00bea7ba6ec44ff153f50a7d9d943de8bdc3d4dccb02a41bc53dde77"
+    },
+    {
+      "path": "project/YulangClosure/PaperPerformLetExecution.lean",
+      "bytes": 27547,
+      "sha256": "6a2bae07df66483bbd1cef5d761c29ab3cc7f89a0b043ed03ad3907b04ddc928"
+    },
+    {
+      "path": "project/YulangClosure/PaperResumeExecution.lean",
+      "bytes": 13114,
+      "sha256": "5ab59033b0cea347144c50a5323e4dd6cb59cc6bfbdc0bffd063a4808e741935"
+    },
+    {
+      "path": "project/YulangClosure/PaperTemplateExecution.lean",
+      "bytes": 10881,
+      "sha256": "3ead9cf7d0f57d02d5fd8b44da24f133d7859e76dff8ee1d1b17cb233920d792"
+    },
+    {
+      "path": "project/YulangClosure/PaperTermSubstitution.lean",
+      "bytes": 71171,
+      "sha256": "baeae84bc7d063152b6c0cb6a3f9ec650f291010edbe065e044099daa94b4495"
+    },
+    {
+      "path": "project/YulangClosure/PaperTermSubstitutionAlgebra.lean",
+      "bytes": 32411,
+      "sha256": "b35a14e1872cec5284a68cb38e9ea6fd0c9dc23cbd6d8017c82a550ec60a379d"
+    },
+    {
+      "path": "project/YulangClosure/PaperTupleSplitExecution.lean",
+      "bytes": 14593,
+      "sha256": "1a3424f10108f1c563f7c44888255e9f30fb9895fcfd433b1664701eb36b7e5d"
+    },
+    {
+      "path": "project/YulangClosure/PaperTypeApplicationPreservation.lean",
+      "bytes": 28887,
+      "sha256": "60e095545530bc784487a4bfcc1c7acfc1160b3adf8c1c8dc03ab98806154556"
+    },
+    {
+      "path": "project/YulangClosure/PaperTypeBetaExecution.lean",
+      "bytes": 25766,
+      "sha256": "a4f471ec1d3f02ebd1fb3efb0597e0df33c49280a3b3aefc4772d68d2328f352"
+    },
+    {
+      "path": "project/YulangClosure/PaperTypeFormation.lean",
+      "bytes": 17632,
+      "sha256": "29c1a85b4d2588224bf1847f78a7b4d94db095488f3bba4937888a3815f39d13"
+    },
+    {
+      "path": "project/YulangClosure/PaperTypeSubstitution.lean",
+      "bytes": 10022,
+      "sha256": "02834720f622642dd4c7a27ea51451deb7386877b091fbccc828a66eaa8e4861"
+    },
+    {
+      "path": "project/YulangClosure/PaperViewExecution.lean",
+      "bytes": 8421,
+      "sha256": "e7c6c959d2bcc780ca7198aae09a0368f4d98625001bdfe5b8f8c259c9cb3f85"
+    },
+    {
+      "path": "project/YulangClosure/PrimitiveOperationInstance.lean",
+      "bytes": 9586,
+      "sha256": "c3b0f2ad86fd49f9ebcf22c80388b996951ff0704695e18afa546863ddcf8773"
+    },
+    {
+      "path": "project/YulangClosure/ProofAdvancement.lean",
+      "bytes": 644,
+      "sha256": "db2f2f3a548b0b20b15b2435f08a362e903c3e52a035c7eca5580925f08dd598"
+    },
+    {
+      "path": "project/YulangClosure/RecordBoundaryExecution.lean",
+      "bytes": 26833,
+      "sha256": "865c4db37b3eed02d8cc376cf07b469c85ef364aeed7914823b207d14730cda2"
+    },
+    {
+      "path": "project/YulangClosure/RecordBoundaryPreservation.lean",
+      "bytes": 17037,
+      "sha256": "1bde9224c1b0d568d5cc73d84a5ccc5f1157452c87ea2ff428096c1dbd50d056"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubConstraintSoundness.lean",
+      "bytes": 18766,
+      "sha256": "33709d3978e8071708c10bba23d85b1b025c11dfd988220501acb7c6e3220293"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubConstraintSyntax.lean",
+      "bytes": 8694,
+      "sha256": "a9ec574d31223e0484fd827838b45cd019fc858eece9f326c95ebc2e1e77a1f6"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubGeneralizationSoundness.lean",
+      "bytes": 19748,
+      "sha256": "3f6114e4173d6cade6ad135ed83ad543116e28e87845b0f6a834cb8f727f6246"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubGrowingInference.lean",
+      "bytes": 7727,
+      "sha256": "865b9eb4a64962182a22a9e507b98b1e7ab92ac143e4cbfea0b8570e39bb58ce"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubLatticeCertificates.lean",
+      "bytes": 38066,
+      "sha256": "55533eee35ed7058abd125ac0e01d8f29b8c0534800018d254c1bd9f9c0bb79b"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubLatticeDecision.lean",
+      "bytes": 33879,
+      "sha256": "a9c184512bf6e23d15cc8a3a2ed230652fb168f707155e779be18c562d8e57c9"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubLatticeGrowingInference.lean",
+      "bytes": 19035,
+      "sha256": "1270e3407ddeef881020610b094709ebba07b62a97e54712bcc4b139ef8e78d0"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubLatticeInference.lean",
+      "bytes": 80170,
+      "sha256": "c534c060dfde84f2817fbaa53222f430b59d9b6377cfacedabeca7b9b4b8ffa3"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubRegularCompletion.lean",
+      "bytes": 25243,
+      "sha256": "d7231d0a3695dba7f3102e5fe235d4d26e34cad78870dbdbae9b7633c42787aa"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubRegularConstraintSoundness.lean",
+      "bytes": 33613,
+      "sha256": "1d2266867115fc27afe39dbb80a3ca0e8f75247a2e16b739145137e83999de33"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubRegularDecision.lean",
+      "bytes": 11334,
+      "sha256": "6b6e5e6f1c45140d935e1aa29fba4c1303ae89cd91fd6e1cde0d37387148db8d"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubRegularGraphExtension.lean",
+      "bytes": 12848,
+      "sha256": "0b45d0e6d58701cba9f7df00d2a63897327e357ed3047b36e96d8fb6c49893d8"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubRegularPublication.lean",
+      "bytes": 28136,
+      "sha256": "18fc6f138204e1529dcd0bb9c01a20de7444a26e4dadc87677460ccd8ac9fc99"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubRegularSolutions.lean",
+      "bytes": 19512,
+      "sha256": "755d267714bd23bcfc17ec37d43d258392567b7d1356afc4897f541ae9855b29"
+    },
+    {
+      "path": "project/YulangClosure/SimpleSubScopedPublication.lean",
+      "bytes": 21384,
+      "sha256": "d64e9bffca5d513985237a9ff78dcf3d9e43baae1594edbc93dff4b5410d428f"
+    },
+    {
+      "path": "project/YulangClosure/SourceContributionConstruction.lean",
+      "bytes": 34602,
+      "sha256": "9755a65a2b3e6b97f7da5bf21c844fb7f5292c12925de9f9081fccaa322380a1"
+    },
+    {
+      "path": "project/YulangClosure/SourceFunctionMembership.lean",
+      "bytes": 7744,
+      "sha256": "8d370ee57e486ae48607d1bab493ae5135f28bf8a5a7ff1b0ef240fc0247e424"
+    },
+    {
+      "path": "project/YulangClosure/SourceGeneratedInteraction.lean",
+      "bytes": 14479,
+      "sha256": "16952fef6ea505cce0d7f8afa6bf39cd3609119626f7857d6beaa88737c5b003"
+    },
+    {
+      "path": "project/YulangClosure/SourceIdentityLambda.lean",
+      "bytes": 10708,
+      "sha256": "831b297998509eb261f7a0596792c826c56078661d5a3ab66fc9afd67238d7a4"
+    },
+    {
+      "path": "project/YulangClosure/SourceIdentityWorld.lean",
+      "bytes": 25976,
+      "sha256": "6019fd9d57cde50183e016bd0c72de2c6eee72009065d85119fb0348dbcf0168"
+    },
+    {
+      "path": "project/YulangClosure/SourcePrincipalTransport.lean",
+      "bytes": 13152,
+      "sha256": "ab86c4448dcddcb5e20ef1495e317c4d0fc04ad0ff52c4323779d12f5fde33ee"
+    },
+    {
+      "path": "project/YulangClosure/SourceSignatureConstruction.lean",
+      "bytes": 37437,
+      "sha256": "ed07890e29b4dcb38cabd18ec0e196efde9e95c64902942a9906a470b38c3311"
+    },
+    {
+      "path": "project/YulangClosure/WholeMetatheory.lean",
+      "bytes": 1989,
+      "sha256": "65777d3da4fb2a28b25e961049afb88f3ed750c30d04ae73bdc907ef5f93de26"
+    },
+    {
+      "path": "project/YulangClosure.lean",
+      "bytes": 1911,
+      "sha256": "3c38da4bb2e017249fa973e0ee28f243d44ba6d52b6f173ac617b605f1fce9e8"
+    },
+    {
+      "path": "project/lake-manifest.json",
+      "bytes": 145,
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3"
+    },
+    {
+      "path": "project/lakefile.toml",
+      "bytes": 311,
+      "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4"
+    },
+    {
+      "path": "project/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "repair-r2.json",
+      "bytes": 410,
+      "sha256": "0a9b1ee8afff2c7a101aa0875d378bbd24b5ab7fcf164ae76fbb4b93dfe4c18c"
+    },
+    {
+      "path": "source-cone-scan.txt",
+      "bytes": 3524,
+      "sha256": "cfd62f00fcc1ea8b71d256a15bfbfc025f9f05f4c990a34f60834f90e6809252"
+    },
+    {
+      "path": "verification-summary.json",
+      "bytes": 1937,
+      "sha256": "c75ea83e83d267da636ebdcfb57b17ef9102a23dc31fe4a98fea8df548277a80"
+    }
+  ],
+  "excludes": [
+    "frozen-artifact-manifest.json",
+    "external handoff"
+  ]
+}

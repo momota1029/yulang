@@ -1,0 +1,214 @@
+cwd: /tmp/yulang-name-receipt-seed-isolated-20261028/proof/project
+$ /home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean -j1 -M1024 --root=/tmp/yulang-name-receipt-seed-isolated-20261028/proof /tmp/yulang-name-receipt-seed-isolated-20261028/proof/NameReceiptSeedAuditR3.lean
+YULANG_AUDIT_BEGIN YulangClosure.OriginalNameReceiptSeed.invocation_owns_active
+@YulangClosure.OriginalNameReceiptSeed.invocation_owns_active : ∀ {s : YulangClosure.OriginalSourceInterpretation.Sorts}
+  {View : Type} (readout : YulangClosure.OriginalSourceEnvironment.RuntimeReadout s View)
+  (before : YulangClosure.OriginalSourceEnvironment.Decoded s View) (binder : YulangClosure.OriginalSource.Binder)
+  (invocation : YulangClosure.OriginalSourceEnvironment.Invocation s View),
+  (YulangClosure.OriginalSourceEnvironment.Decoded.runtime readout before binder
+        (YulangClosure.OriginalSourceEnvironment.Runtime.invocation invocation)).active =
+    Option.some
+      (invocation.challenge
+          (readout.event before.fixedFrames before.assignment.event binder
+            (YulangClosure.OriginalSourceEnvironment.Runtime.invocation invocation))
+          (before.assignment.descriptor { site := binder.site, port := YulangClosure.OriginalSource.Port.descriptor })
+          before.viewMeaning).input
+'YulangClosure.OriginalNameReceiptSeed.invocation_owns_active' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.OriginalNameReceiptSeed.invocation_owns_active
+YULANG_AUDIT_BEGIN YulangClosure.OriginalNameReceiptSeed.receipt_constructor_fields
+@YulangClosure.OriginalNameReceiptSeed.receipt_constructor_fields : ∀
+  {s : YulangClosure.OriginalSourceInterpretation.Sorts} {View : Type}
+  (readout : YulangClosure.OriginalSourceEnvironment.RuntimeReadout s View)
+  (before : YulangClosure.OriginalSourceEnvironment.Decoded s View) (binder : YulangClosure.OriginalSource.Binder)
+  (receipt : YulangClosure.OriginalSourceEnvironment.ReceiptData s View),
+  (YulangClosure.OriginalSourceEnvironment.Decoded.runtime readout before binder
+          (YulangClosure.OriginalSourceEnvironment.Runtime.receipt receipt)).active =
+      before.active ∧
+    (YulangClosure.OriginalSourceEnvironment.Decoded.runtime readout before binder
+                (YulangClosure.OriginalSourceEnvironment.Runtime.receipt receipt)).assignment.event.fiber =
+        before.assignment.event.fiber ∧
+      (YulangClosure.OriginalSourceEnvironment.Decoded.runtime readout before binder
+                  (YulangClosure.OriginalSourceEnvironment.Runtime.receipt receipt)).assignment.event.eta0 =
+          before.assignment.event.eta0 ∧
+        (YulangClosure.OriginalSourceEnvironment.Decoded.runtime readout before binder
+                    (YulangClosure.OriginalSourceEnvironment.Runtime.receipt receipt)).assignment.event.current =
+            receipt.after.configuration ∧
+          (YulangClosure.OriginalSourceEnvironment.Decoded.runtime readout before binder
+                      (YulangClosure.OriginalSourceEnvironment.Runtime.receipt receipt)).assignment.event.eta =
+              readout.eta before.fixedFrames before.assignment.event binder
+                (YulangClosure.OriginalSourceEnvironment.Runtime.receipt receipt) ∧
+            (YulangClosure.OriginalSourceEnvironment.Decoded.runtime readout before binder
+                      (YulangClosure.OriginalSourceEnvironment.Runtime.receipt receipt)).assignment.event.witness =
+              readout.witness before.fixedFrames before.assignment.event binder
+                (YulangClosure.OriginalSourceEnvironment.Runtime.receipt receipt)
+'YulangClosure.OriginalNameReceiptSeed.receipt_constructor_fields' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.OriginalNameReceiptSeed.receipt_constructor_fields
+YULANG_AUDIT_BEGIN YulangClosure.OriginalNameReceiptSeed.prefix_preserves_indices
+@YulangClosure.OriginalNameReceiptSeed.prefix_preserves_indices : ∀
+  {b : YulangClosure.OriginalSourceInterpretation.Sorts} {D ViewData Rest Body View : Type}
+  (native : YulangClosure.OriginalNameForceExtraction.Native b D ViewData Rest Body View)
+  (delay : YulangClosure.OriginalIdentityCarrier.NameDelay)
+  (demand :
+    YulangClosure.OriginalSourceInterpretation.Event
+      (YulangClosure.OriginalNameForceExtraction.S b D ViewData Rest Body View))
+  (fuel : Nat),
+  (YulangClosure.OriginalNameForceExtraction.eventAt native delay demand fuel).fiber = demand.fiber ∧
+    (YulangClosure.OriginalNameForceExtraction.eventAt native delay demand fuel).eta0 = demand.eta0 ∧
+      (YulangClosure.OriginalNameForceExtraction.eventAt native delay demand fuel).eta.views = demand.eta.views ∧
+        (YulangClosure.OriginalNameForceExtraction.eventAt native delay demand fuel).witness.shared =
+          demand.witness.shared
+'YulangClosure.OriginalNameReceiptSeed.prefix_preserves_indices' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalNameReceiptSeed.prefix_preserves_indices
+YULANG_AUDIT_BEGIN YulangClosure.OriginalNameReceiptSeed.return_readback_iff
+@YulangClosure.OriginalNameReceiptSeed.return_readback_iff : ∀ {b : YulangClosure.OriginalSourceInterpretation.Sorts}
+  {D ViewData Rest Body View : Type}
+  (readout :
+    YulangClosure.OriginalSourceEnvironment.RuntimeReadout
+      (YulangClosure.OriginalNameForceExtraction.S b D ViewData Rest Body View) View)
+  (frames :
+    List
+      (YulangClosure.OriginalSource.Frame
+        (YulangClosure.OriginalSourceEnvironment.Payload
+          (YulangClosure.OriginalNameForceExtraction.S b D ViewData Rest Body View) View)))
+  (before :
+    YulangClosure.OriginalSourceInterpretation.Event
+      (YulangClosure.OriginalNameForceExtraction.S b D ViewData Rest Body View))
+  (parameter : YulangClosure.OriginalParameterWorld.Parameter)
+  (views : YulangClosure.OriginalWorldReadout.ViewAssignment (YulangClosure.OriginalNameForceExtraction.Base b) Nat)
+  (packet :
+    YulangClosure.OriginalReturnWorld.Packet (YulangClosure.OriginalNameForceExtraction.Base b) D ViewData Rest Body
+      View)
+  (event :
+    YulangClosure.OriginalSourceInterpretation.Event
+      (YulangClosure.OriginalNameForceExtraction.S b D ViewData Rest Body View)),
+  YulangClosure.OriginalReturnWorld.fields readout frames before parameter views packet =
+      YulangClosure.OriginalNameEntryCorrespondence.eventFields event ↔
+    packet.history = event.history ∧
+      (readout.eta frames before (YulangClosure.OriginalFormalShared.returnBinder parameter)
+              (YulangClosure.OriginalSourceEnvironment.Runtime.returnRebind
+                (packet.outcome views parameter))).original =
+          event.eta.original ∧
+        (readout.witness frames before (YulangClosure.OriginalFormalShared.returnBinder parameter)
+                (YulangClosure.OriginalSourceEnvironment.Runtime.returnRebind
+                  (packet.outcome views parameter))).current =
+            event.witness.current ∧
+          readout.scope frames before (YulangClosure.OriginalFormalShared.returnBinder parameter)
+                (YulangClosure.OriginalSourceEnvironment.Runtime.returnRebind (packet.outcome views parameter)) =
+              event.scope ∧
+            readout.authority frames before (YulangClosure.OriginalFormalShared.returnBinder parameter)
+                  (YulangClosure.OriginalSourceEnvironment.Runtime.returnRebind (packet.outcome views parameter)) =
+                event.authority ∧
+              readout.incidence frames before (YulangClosure.OriginalFormalShared.returnBinder parameter)
+                    (YulangClosure.OriginalSourceEnvironment.Runtime.returnRebind (packet.outcome views parameter)) =
+                  event.incidence ∧
+                readout.dictionary frames before (YulangClosure.OriginalFormalShared.returnBinder parameter)
+                    (YulangClosure.OriginalSourceEnvironment.Runtime.returnRebind (packet.outcome views parameter)) =
+                  event.dictionary
+'YulangClosure.OriginalNameReceiptSeed.return_readback_iff' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.OriginalNameReceiptSeed.return_readback_iff
+YULANG_AUDIT_BEGIN YulangClosure.OriginalNameReceiptSeed.runtime_preserves_static
+@YulangClosure.OriginalNameReceiptSeed.runtime_preserves_static : ∀
+  {s : YulangClosure.OriginalSourceInterpretation.Sorts} {View : Type}
+  (readout : YulangClosure.OriginalSourceEnvironment.RuntimeReadout s View)
+  (state : YulangClosure.OriginalSourceEnvironment.Decoded s View) (binder : YulangClosure.OriginalSource.Binder)
+  (data : YulangClosure.OriginalSourceEnvironment.Runtime s View),
+  (YulangClosure.OriginalSourceEnvironment.Decoded.runtime readout state binder data).assignment.event.fiber =
+      state.assignment.event.fiber ∧
+    (YulangClosure.OriginalSourceEnvironment.Decoded.runtime readout state binder data).assignment.event.eta0 =
+      state.assignment.event.eta0
+'YulangClosure.OriginalNameReceiptSeed.runtime_preserves_static' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.OriginalNameReceiptSeed.runtime_preserves_static
+YULANG_AUDIT_BEGIN YulangClosure.OriginalNameReceiptSeed.frame_preserves_static
+@YulangClosure.OriginalNameReceiptSeed.frame_preserves_static : ∀ {s : YulangClosure.OriginalSourceInterpretation.Sorts}
+  {View : Type} (readout : YulangClosure.OriginalSourceEnvironment.RuntimeReadout s View)
+  (state : YulangClosure.OriginalSourceEnvironment.Decoded s View)
+  (frame : YulangClosure.OriginalSource.Frame (YulangClosure.OriginalSourceEnvironment.Payload s View)),
+  (YulangClosure.OriginalSourceEnvironment.decodeFrame readout state frame).assignment.event.fiber =
+      state.assignment.event.fiber ∧
+    (YulangClosure.OriginalSourceEnvironment.decodeFrame readout state frame).assignment.event.eta0 =
+      state.assignment.event.eta0
+'YulangClosure.OriginalNameReceiptSeed.frame_preserves_static' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.OriginalNameReceiptSeed.frame_preserves_static
+YULANG_AUDIT_BEGIN YulangClosure.OriginalNameReceiptSeed.frames_preserve_static
+@YulangClosure.OriginalNameReceiptSeed.frames_preserve_static : ∀ {s : YulangClosure.OriginalSourceInterpretation.Sorts}
+  {View : Type} (readout : YulangClosure.OriginalSourceEnvironment.RuntimeReadout s View)
+  (initial : YulangClosure.OriginalSourceEnvironment.Decoded s View)
+  (frames : List (YulangClosure.OriginalSource.Frame (YulangClosure.OriginalSourceEnvironment.Payload s View))),
+  (List.foldl (YulangClosure.OriginalSourceEnvironment.decodeFrame readout) initial frames).assignment.event.fiber =
+      initial.assignment.event.fiber ∧
+    (List.foldl (YulangClosure.OriginalSourceEnvironment.decodeFrame readout) initial frames).assignment.event.eta0 =
+      initial.assignment.event.eta0
+'YulangClosure.OriginalNameReceiptSeed.frames_preserve_static' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.OriginalNameReceiptSeed.frames_preserve_static
+YULANG_AUDIT_BEGIN YulangClosure.OriginalNameReceiptSeed.telescope_preserves_static
+@YulangClosure.OriginalNameReceiptSeed.telescope_preserves_static : ∀
+  {s : YulangClosure.OriginalSourceInterpretation.Sorts} {View : Type}
+  (readout : YulangClosure.OriginalSourceEnvironment.RuntimeReadout s View)
+  (initial : YulangClosure.OriginalSourceEnvironment.Decoded s View)
+  (scope : List YulangClosure.OriginalSourceEvents.ScopeEntry)
+  (telescope : YulangClosure.OriginalParameterSemantics.Telescope s View scope),
+  (YulangClosure.OriginalParameterSemantics.replayTelescope readout initial telescope).assignment.event.fiber =
+      initial.assignment.event.fiber ∧
+    (YulangClosure.OriginalParameterSemantics.replayTelescope readout initial telescope).assignment.event.eta0 =
+      initial.assignment.event.eta0
+'YulangClosure.OriginalNameReceiptSeed.telescope_preserves_static' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.OriginalNameReceiptSeed.telescope_preserves_static
+YULANG_AUDIT_BEGIN YulangClosure.OriginalNameReceiptSeed.preparations_preserve_static
+@YulangClosure.OriginalNameReceiptSeed.preparations_preserve_static : ∀
+  {b : YulangClosure.OriginalSourceInterpretation.Sorts} {D ViewData Rest Body View : Type}
+  (native : YulangClosure.OriginalNameForceExtraction.Native b D ViewData Rest Body View)
+  (readout :
+    YulangClosure.OriginalSourceEnvironment.RuntimeReadout
+      (YulangClosure.OriginalNameForceExtraction.S b D ViewData Rest Body View) View)
+  (initial :
+    YulangClosure.OriginalSourceEnvironment.Decoded
+      (YulangClosure.OriginalNameForceExtraction.S b D ViewData Rest Body View) View)
+  (receiptFrames demandFrames :
+    List
+      (YulangClosure.OriginalSource.Frame
+        (YulangClosure.OriginalSourceEnvironment.Payload
+          (YulangClosure.OriginalNameForceExtraction.S b D ViewData Rest Body View) View)))
+  (delay : YulangClosure.OriginalIdentityCarrier.NameDelay) (fuel : Nat),
+  (List.foldl (YulangClosure.OriginalSourceEnvironment.decodeFrame readout) initial
+              receiptFrames).assignment.event.fiber =
+      (YulangClosure.OriginalNameForceExtraction.eventAt native delay
+          (List.foldl (YulangClosure.OriginalSourceEnvironment.decodeFrame readout) initial
+                demandFrames).assignment.event
+          fuel).fiber ∧
+    (List.foldl (YulangClosure.OriginalSourceEnvironment.decodeFrame readout) initial
+              receiptFrames).assignment.event.eta0 =
+      (YulangClosure.OriginalNameForceExtraction.eventAt native delay
+          (List.foldl (YulangClosure.OriginalSourceEnvironment.decodeFrame readout) initial
+                demandFrames).assignment.event
+          fuel).eta0
+'YulangClosure.OriginalNameReceiptSeed.preparations_preserve_static' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.OriginalNameReceiptSeed.preparations_preserve_static
+YULANG_AUDIT_BEGIN YulangClosure.OriginalNameReceiptSeed.force_view_equation_iff
+@YulangClosure.OriginalNameReceiptSeed.force_view_equation_iff : ∀
+  {b : YulangClosure.OriginalSourceInterpretation.Sorts} {D ViewData Rest Body View : Type}
+  (native : YulangClosure.OriginalNameForceExtraction.Native b D ViewData Rest Body View)
+  (delay : YulangClosure.OriginalIdentityCarrier.NameDelay)
+  (demand :
+    YulangClosure.OriginalSourceInterpretation.Event
+      (YulangClosure.OriginalNameForceExtraction.S b D ViewData Rest Body View))
+  (fuel : Nat)
+  (sourceViews :
+    YulangClosure.OriginalWorldReadout.ViewAssignment (YulangClosure.OriginalNameForceExtraction.Base b) Nat),
+  sourceViews = (YulangClosure.OriginalNameForceExtraction.eventAt native delay demand fuel).eta.views ↔
+    sourceViews = demand.eta.views
+'YulangClosure.OriginalNameReceiptSeed.force_view_equation_iff' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalNameReceiptSeed.force_view_equation_iff
+YULANG_AUDIT_BEGIN YulangClosure.OriginalNameReceiptSeed.force_shared_equation_iff
+@YulangClosure.OriginalNameReceiptSeed.force_shared_equation_iff : ∀
+  {b : YulangClosure.OriginalSourceInterpretation.Sorts} {D ViewData Rest Body View : Type}
+  (native : YulangClosure.OriginalNameForceExtraction.Native b D ViewData Rest Body View)
+  (delay : YulangClosure.OriginalIdentityCarrier.NameDelay)
+  (receipt demand :
+    YulangClosure.OriginalSourceInterpretation.Event
+      (YulangClosure.OriginalNameForceExtraction.S b D ViewData Rest Body View))
+  (fuel : Nat),
+  receipt.witness.shared = (YulangClosure.OriginalNameForceExtraction.eventAt native delay demand fuel).witness.shared ↔
+    receipt.witness.shared = demand.witness.shared
+'YulangClosure.OriginalNameReceiptSeed.force_shared_equation_iff' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.OriginalNameReceiptSeed.force_shared_equation_iff
+[exit 0]
