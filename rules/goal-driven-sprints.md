@@ -16,6 +16,11 @@ results, synchronize records and checkpoint coherent intended work without
 asking again at each step. A routine result, sprint boundary or next safe
 in-scope action is not by itself a reason to pause for confirmation.
 
+An explicit continuing Rust/Lean research goal authorizes eligible subagents in
+the proof and implementation lanes and primary-owned integration and pushes of
+coherent checkpoints. The primary keeps exact worker leases and owns all Git
+operations; the user need not repeat this authorization at each packet.
+
 This authority does not change the objective, accepted semantics, source domain,
 production permissions, budgets, leases or stop conditions. The primary still
 asks the user when progress requires a material choice outside the granted
