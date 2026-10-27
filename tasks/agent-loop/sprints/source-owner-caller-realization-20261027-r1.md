@@ -134,6 +134,28 @@ missing execution-envelope receipt; resource exhaustion; or overlapping
 writer. Preserve the exact first obstruction. A bounded obstruction is useful
 evidence and closes no parent claim.
 
+## Luna bounded retry authorization after Cargo call 1
+
+Luna records that Cargo call 1/2 exited 101 in 24 seconds inside the required
+envelope; the wall timeout did not fire. Its compiler diagnostics were seven
+`E0277` conversions from `HirAvailabilityError` and one `E0599` reference to
+nonexistent `SyntaxKind::UseStatement`. Luna explicitly replaces the earlier
+direct instruction to stop at the first failure for **one final call only**.
+
+The sole authorized source repair is adapter-local: route each affected
+`HirAvailabilityError` result through the existing `availability(...)` helper
+and replace `UseStatement` with the owner-defined `SyntaxKind::UseDeclaration`.
+Preserve the exact fixture, data schema, provider/alias joins, selected nested-
+shadow subtree, foreign-owner checks and their pre-publication order. No other
+source/schema change, compile-only call, binary rerun, test, dependency edit,
+compiler/API change, or semantic claim is authorized. Rehash the amended
+adapter and unchanged governing pins before execution. One final locked offline
+Cargo call remains (call 2/2; at most 120 seconds; same explicit CPU/memory/
+timeout envelope); after it, stop and freeze regardless of outcome. The proof
+lane remains blocked from Lean/Lake until Luna ACKs a successful frozen trace
+hash. Failure leaves the exact import-to-Context/root elaboration equation
+OPEN and authorizes no further retry.
+
 Consult the dispatcher at material obstruction, authority/dependency/lease or
 resource change, frozen review seam and END. Current user scope continues to
 govern. Capacity-only releases remain released, and all UNKNOWN worker
