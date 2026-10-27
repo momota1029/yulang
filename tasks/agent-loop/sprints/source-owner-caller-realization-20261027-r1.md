@@ -61,6 +61,7 @@ and the prior proof handoff. The following direct inputs must also match:
 | `notes/theory/lean/YulangClosure/OriginalSourceOwnerReification.lean` | `95d9749ce93ecfc82d6423ba193a261f2725178a7e62cea469b57ae316af3d7e` |
 | `notes/theory/lean/YulangClosure/OriginalSourceOwnerReificationInstance.lean` | `3aab685323e00b69cb9c21d847582e442590e0ff5e810fab50662b7d9127f887` |
 | `notes/theory/lean/YulangClosure/OriginalSourceOwnerReificationTrace.lean` | `b9a15df005c730db27fc385c58ca07b433f1095f017e0969155106da7478fb0a` |
+| `tools/inline-authentic-extraction/src/bin/original_owner_reify.rs` | `4921d14f813e931cb064ecc87d8120734b69d1eedaf48fe0bd36deb014e862e9` |
 | `crates/yu-hir/src/module/source_exports.rs` | `03727fd3918738a48afde7f7a875de60b63b43ac2cc620896a4ed73d8b0a9179` |
 | `crates/yu-hir/src/module.rs` | `6bf92c93fa37f425a7380248c12c50c0d04ea6eb282e76edb6df54e628260646` |
 | `tools/inline-authentic-extraction/Cargo.toml` | `21c64b4a22318a1ae89c346357161812a6ac313b6f0c4999853272cf73e2832b` |
