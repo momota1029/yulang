@@ -1,5 +1,19 @@
 # Current task: original whole-Yulang Lean metatheory, 2026-10-27
 
+## 2026-10-28 reviewed research boundary
+
+The root-context preparation packet produced a `REVIEWED_DRAFT` for the
+inspected `pub id x = x` provider path. Its field/ordering map and future Lean
+obligations are recorded in
+[the candidate design](../notes/design/2026-10-28-provider-root-context-preparation.md),
+[proof obligations](../notes/theory/2026-10-28-provider-root-context-preparation-obligations.md),
+and [sprint outcome](agent-loop/sprints/provider-root-context-definition-20261028-r1-outcome.md).
+The inspected Rust owners do not supply an approved ordered root `Context`
+equation. The candidate leaves inclusion, field classification, shadowing,
+module recursion and entry linkage unresolved. No semantics were adopted or
+implemented; the original whole-language goals and every parent gate remain
+**OPEN**. The next step is an explicit user decision after independent review.
+
 The user renewed the full original soundness, Effect hygiene, principality and
 inference-termination request on `yulang3`, with frequent coherent pushes.
 All four original whole-language goals remain **OPEN**. The current work uses
