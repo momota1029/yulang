@@ -89,11 +89,13 @@ without write-cessation evidence record UNKNOWN and quarantine leases, not
 STOPPED. Preserve actual worker IDs, model observations, pending reviews,
 authorship, spent budget and exact resumption conditions.
 
-The current user may explicitly release capacity reservations for named UNKNOWN
-assignments after live-roster synchronization. Record the directive and roster
-result; notify affected RUNNING/WAITING children. Keep their worker state UNKNOWN
-and exact paths quarantined unless separately authorized for release. This
-override releases capacity only and never claims that a writer stopped.
+The current user may explicitly release capacity reservations for UNKNOWN
+assignments, naming individual workers or clearly targeting the full
+UNKNOWN-assignment set in `current.json`, after live-roster synchronization.
+Record the directive, exact identities and roster result; notify affected
+RUNNING/WAITING children. Keep their worker state UNKNOWN and exact paths
+quarantined unless separately authorized for release. This override releases
+capacity only and never claims that a writer stopped.
 
 Resume with fresh session/active-work receipts and revalidated dependencies.
 Do not reset spent sprint/Astra budgets, resurrect old RUNNING states or take

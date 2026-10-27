@@ -114,9 +114,11 @@ at every completed lemma, test, result, review receipt or internal next step.
 Use the compact current state, never a historical RUNNING row, to prepare live
 reconciliation. Unknown writers retain quarantined leases. STOP/session end
 cannot leave a worker recorded RUNNING without current runtime evidence.
-When the user explicitly releases named UNKNOWN assignments, first synchronize
-against the live agent roster and notify every affected RUNNING/WAITING child.
-Record the directive and roster result. This releases capacity accounting only:
+When the user explicitly releases UNKNOWN assignment reservations, the scope may
+name individual workers or clearly target the full UNKNOWN-assignment set in
+`current.json`. First synchronize against the live agent roster and notify every
+affected RUNNING/WAITING child. Record the directive, exact identities and roster
+result. This releases capacity accounting only:
 keep worker observations UNKNOWN and their paths quarantined unless the user
 separately directs path-lease release. Never report the override as cessation.
 Maintenance alone starts no workers, changes no compiler semantics, and does
