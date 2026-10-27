@@ -93,7 +93,9 @@ The current user may explicitly release capacity reservations for UNKNOWN
 assignments, naming individual workers or clearly targeting the full
 UNKNOWN-assignment set in `current.json`, after live-roster synchronization.
 Record the directive, exact identities and roster result; notify affected
-RUNNING/WAITING children. Keep their worker state UNKNOWN and exact paths
+RUNNING/WAITING children and active agents coordinating the same work whose
+decisions use this state. Record notifications and acknowledgements, or any
+pending acknowledgement. Keep their worker state UNKNOWN and exact paths
 quarantined unless separately authorized for release. This override releases
 capacity only and never claims that a writer stopped.
 If those reservations were already released, record the directive as idempotent

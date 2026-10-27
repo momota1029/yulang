@@ -5,7 +5,9 @@ Authority: explicit user directive to release the UNKNOWN assignment reservation
 
 ## Live roster
 
-The collaboration roster was checked before applying this directive. `/root` was the only RUNNING agent. Every child was `completed`; no non-primary agent was RUNNING or WAITING, so no child required notification or a cessation wait. The active r2 implementation and proof workers had both returned terminal handoffs and are recorded STOPPED in `current.json`.
+The initial collaboration roster was checked before applying this directive. `/root` was the only RUNNING agent. Every child was `completed`; no non-primary agent was RUNNING or WAITING, so no child required notification or a cessation wait. The active r2 implementation and proof workers had both returned terminal handoffs and are recorded STOPPED in `current.json`.
+
+When the user reiterated the directive and specifically required live-agent synchronization, the current roster showed `/root/r2_start_selector` RUNNING. The selector is not one of the nine UNKNOWN capacity reservations, but it is the only active child and its current work is affected by the capacity decision. It was notified that the nine slots are already released idempotently, UNKNOWN observations and path quarantines remain, and the user directs this rule and disposition. It acknowledged through its final response and returned the r2 END proposal. No assignment or path lease was changed for the selector.
 
 ## Capacity result
 

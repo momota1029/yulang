@@ -223,9 +223,10 @@ The current user may explicitly release the capacity reservations of UNKNOWN
 assignments, naming individual workers or clearly targeting the full
 UNKNOWN-assignment set in `current.json`. Before applying the override, inspect
 the live agent roster and notify every affected non-primary agent that is
-RUNNING or WAITING; record the directive, exact identities, roster result and
-acknowledgements in `current.json`. If no affected child is live, record that
-none was found. Keep
+RUNNING or WAITING, plus any active agent coordinating the same work whose
+decisions use this state. Record the directive, exact identities, roster result
+and notifications/acknowledgements (or pending acknowledgements) in
+`current.json`. If no affected child is live, record that none was found. Keep
 each worker's observed state UNKNOWN: a capacity override is not cancellation,
 write-cessation evidence or a STOPPED receipt. Keep its exact paths quarantined
 and unavailable for reassignment unless the user separately authorizes those
