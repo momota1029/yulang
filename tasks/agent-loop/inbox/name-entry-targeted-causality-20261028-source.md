@@ -1,0 +1,27 @@
+# Targeted Name-entry causality source receipt
+
+Sprint/contract: `NAME-ENTRY-TARGETED-CAUSALITY-20261028/r1`, SHA-256 `8e9fd3c3c07a7771537e68265db5587ec63520516c2170e086688c51da3b7cd3`; baseline `yulang3` / `36a4867038a7d44e866e841c6194cf6223b98960`. Source ACK/start: `2026-10-27 16:05:18 UTC`; stop receipt prepared before the 16:11:58 UTC hard stop. Preflight contract and all five admitted source hashes matched.
+
+## Instrumentation and command
+
+Changed only the leased `machine.rs` and `name_entry_trace.rs`, plus this new handoff and the existing scratch trace output. The runtime now emits per-ordinary-ValueEntry attempt evidence independent of the sticky historical correspondence trace. Each attempt records invocation, entry-parameter ordinal, value/view, pre-bind and fresh bound cell, receipt/source/site token data, and whether the token was accepted. Return observations record the actual immediate consumer frame; Name/Observe observations distinguish Parameter from Local, source occurrence and cell, value/view, receipt index, cell count, and immediate return frame. These are passive observations; runtime decisions are not derived from them. The binary selects the actual target attempt by entry-parameter ordinal 1 and prints historical trace presence separately.
+
+The sole command ran once: `CARGO_BUILD_JOBS=1 CARGO_TARGET_DIR=/tmp/yulang-name-entry-correspondence-20261028/source/target RUSTC_WRAPPER= cargo run --locked --manifest-path tools/inference-playground/Cargo.toml --bin name_entry_trace`. Cargo arguments: `run --locked --manifest-path tools/inference-playground/Cargo.toml --bin name_entry_trace`. Start `2026-10-27 16:09:44 UTC`; tool completion approximately `16:09:48 UTC` (tool-reported wall time 3.850s); exit 0. Cargo reported a successful dev build in 3.91s and ran the binary. One Cargo job; actual CPU/RSS UNKNOWN, 1 GiB was a target only. Tests=0, Lean/Lake=0; no retry/fallback. `git diff --check -- tools/inference-playground/src/runtime/machine.rs tools/inference-playground/src/bin/name_entry_trace.rs` exited 0. Existing compiler warnings appeared on stderr (yu-hir dead-code warnings and yu-solver dead-code/private-interface warnings); stdout case evidence is retained in the existing scratch trace below. No Lean file was written.
+
+## Executed case evidence
+
+Direct positive input `my main = (\\x -> (\\y -> y) x) 41` completed. The target query found exactly one actual ValueEntry attempt for parameter ordinal 1: invocation 1, value 2/view 2, cells before bind 2, fresh bound cell 2, cells after bind 3; receipt 0 from source parameter ordinal 0, Name occurrence 8; `token_accepted=true`. Historical trace presence is true. Result: `POSITIVE`.
+
+Condition stale-Local input `my main = (\\x -> { my z = x; (\\y -> y) (if x: z else: z) }) true` completed with exactly one target attempt (parameter ordinal 1), invocation 1, value 2/view 2, cells before bind 3, fresh bound cell 3, cells after bind 4; no token/receipt was accepted. Historical trace presence is false. The Parameter `x` condition observation (site 12, receipt 1) returned through `Condition` with token value 2/view 2 and pre-bind cell count 3. The selected Local `z` observation (site 13, receipt 2) returned directly to `ValueEntry` with the same value 2/view 2 and cell count 3. Result: target-specific no-token evidence for the reviewed Local `z` path; condition case executed.
+
+Sequence stale-Local variant `my main = (\\x -> { my z = x; (\\y -> y) {x; z} }) true` completed with exactly one target attempt (parameter ordinal 1), invocation 1, value 2/view 2, cells before bind 3, fresh bound cell 3, cells after bind 4; no token/receipt was accepted. Historical trace presence is false. The Parameter `x` observation (site 11, receipt 1) returned through `BlockExpression` with token value 2/view 2 and pre-bind cell count 3. The Local `z` observation (site 12, receipt 2) returned directly to `ValueEntry` with the same value 2/view 2 and cell count 3. Result: target-specific no-token evidence for the equivalent Sequence variant; sequence case executed.
+
+## Frozen hashes and boundary
+
+`machine.rs`: `4fe3de685650761767be313285321e548964b41900c3aae7f5f434d48034395d`; `name_entry_trace.rs`: `1bdc20af3157a8df34d93a2872607e282927eb9ab851c3d505b135d6f5c1598e`; unchanged admitted `receiving.rs`: `e6b22598a0d11a21fba260cdbc5b4ace3690cf9b21e51beb61d8cc967511fffd`; unchanged `runtime/mod.rs`: `b7184e3869b4790cb0e2e72704e4a1b2f12df7772b441144b8ef63ab33e2fe4f`; unchanged Lean data `OriginalNameEntryTrace.lean`: `a6d1ec061b5d3bcd9bf85a56405e16ff0d8f02037a870f2c6ab139d82efb9115`.
+
+Existing scratch output `source/name-entry-trace.txt`: `ff8a8d88e29533f2d207206f492f7ed811ce9d705692ede5e99f5d388080b51c`; built executable `source/target/debug/name_entry_trace`: `ea3b32e2e0dd654a77cb74ddd29563e451db6f10771045e16862d2ea66048da2`. Full line-oriented target evidence is in that trace file. No new path, dependency, test, fixture, expectation, or Lean artifact was created or changed.
+
+These finite observations support only the bounded runtime instrumentation seam. They do not establish native semantic seed/readback, ReturnAlignment, the original theorem or any parent/A-B/effect/principality/termination/production gate. Independent review is still required.
+
+Worker/write cessation ACK: source work stopped within the 400-second envelope. No further writes will be made to source, trace, Lean or scratch paths; all leased paths remain held pending Luna's disposition.

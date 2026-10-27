@@ -4,102 +4,72 @@ use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports, shadow::lower_mod
 use yu_playground::runtime::{RuntimeEvidence, RuntimeOutcome, RuntimeProgram};
 use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
-const INPUT: &str = "my main = (\\x -> (\\y -> y) x) 41";
-const LEAN_OUTPUT: &str = "notes/theory/lean/YulangClosure/OriginalNameEntryTrace.lean";
 const SCRATCH_OUTPUT: &str = "/tmp/yulang-name-entry-correspondence-20261028/source/name-entry-trace.txt";
+const CASES: &[(&str, &str)] = &[
+    ("direct_positive", "my main = (\\x -> (\\y -> y) x) 41"),
+    ("condition_local_z", "my main = (\\x -> { my z = x; (\\y -> y) (if x: z else: z) }) true"),
+    ("sequence_local_z", "my main = (\\x -> { my z = x; (\\y -> y) {x; z} }) true"),
+];
 
-fn probe(input: &str) -> String {
+fn run_case(label: &str, input: &str) -> Result<String, Box<dyn std::error::Error>> {
     let text: Arc<SourceText> = Arc::from(input);
     let parsed = parse_file(text.clone(), Arc::new(scan_header(text)), Arc::new(SyntaxEnvironment::empty()));
-    if parsed.syntax_diagnostics().map_err(|e| format!("syntax diagnostics: {e:?}"))
-        .map(|d| !d.is_empty()).unwrap_or(true) { return "unsupported: syntax diagnostics".into(); }
-    let result = (|| -> Result<bool, String> {
-        let hir = Arc::new(lower_module_with_local_source(ModuleIdentity::source_root(FileId::new(
-            FileKey::new("name-entry-probe", "probe.yu"))), &parsed, SemanticImports::empty())
-            .map_err(|e| format!("lowering: {e:?}"))?);
-        let program = RuntimeProgram::from_hir(hir, RuntimeEvidence::default()).map_err(|e| format!("program: {e:?}"))?;
-        let selected = program.definition_named("main").map_err(|e| format!("main: {e:?}"))?;
-        let roots = program.execution_roots().map_err(|e| format!("roots: {e:?}"))?;
-        let mut machine = program.start(selected, &roots).map_err(|e| format!("start: {e:?}"))?;
-        let outcome = machine.run(10_000);
-        if !matches!(outcome, RuntimeOutcome::Completed(_)) { return Err(format!("runtime: {outcome:?}")); }
-        Ok(machine.name_entry_correspondence().is_some())
-    })();
-    match result { Ok(true) => "completed: trace-present".into(), Ok(false) => "completed: no-trace".into(), Err(e) => format!("unsupported: {e}") }
+    if !parsed.syntax_diagnostics().map_err(|e| std::io::Error::other(format!("{e:?}")))?.is_empty() {
+        return Ok(format!("case={label}\ninput={input:?}\nstatus=UNRESOLVED unsupported-syntax\n"));
+    }
+    let hir = match lower_module_with_local_source(
+        ModuleIdentity::source_root(FileId::new(FileKey::new("name-entry-target", format!("{label}.yu")))),
+        &parsed,
+        SemanticImports::empty(),
+    ) {
+        Ok(hir) => Arc::new(hir),
+        Err(error) => return Ok(format!("case={label}\ninput={input:?}\nstatus=UNRESOLVED lowering-{error:?}\n")),
+    };
+    let program = RuntimeProgram::from_hir(hir, RuntimeEvidence::default())
+        .map_err(|e| std::io::Error::other(format!("{e:?}")))?;
+    let selected = program.definition_named("main").map_err(|e| std::io::Error::other(format!("{e:?}")))?;
+    let roots = program.execution_roots().map_err(|e| std::io::Error::other(format!("{e:?}")))?;
+    let mut machine = program.start(selected, &roots).map_err(|e| std::io::Error::other(format!("{e:?}")))?;
+    let outcome = machine.run(10_000);
+    let mut out = String::new();
+    writeln!(out, "case={label}")?;
+    writeln!(out, "input={input:?}")?;
+    writeln!(out, "outcome={outcome:?}")?;
+    if !matches!(outcome, RuntimeOutcome::Completed(_)) {
+        writeln!(out, "status=UNRESOLVED runtime-outcome")?;
+        return Ok(out);
+    }
+    writeln!(out, "historical_trace_present={}", machine.name_entry_correspondence().is_some())?;
+    let attempts = machine.name_entry_value_entry_attempts();
+    let target: Vec<_> = attempts.iter().filter(|event| event.contains("entry_parameter=1 ")).collect();
+    writeln!(out, "target_query=actual_ValueEntry_entry_parameter_ordinal_1")?;
+    writeln!(out, "target_attempt_count={}", target.len())?;
+    for event in &target { writeln!(out, "target_attempt={event}")?; }
+    writeln!(out, "target_token_accepted={}", target.iter().any(|event| event.contains("token_accepted=true")))?;
+    writeln!(out, "return_observations:")?;
+    for event in machine.name_entry_return_observations() { writeln!(out, "  {event}")?; }
+    writeln!(out, "name_return_observations:")?;
+    for event in machine.name_entry_name_return_observations() { writeln!(out, "  {event}")?; }
+    let status = if target.len() != 1 {
+        "UNRESOLVED target-not-uniquely-executed"
+    } else if label == "direct_positive" {
+        if target[0].contains("token_accepted=true") { "POSITIVE target-token-accepted" }
+        else { "INCOMPLETE positive-token-not-accepted" }
+    } else if target[0].contains("token_accepted=false") && !target[0].contains("token_receipt=Some") {
+        "NO-TOKEN at actual target ValueEntry; inspect source/return observations for equivalence"
+    } else {
+        "INCOMPLETE unexpected-target-token"
+    };
+    writeln!(out, "status={status}")?;
+    Ok(out)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let text: Arc<SourceText> = Arc::from(INPUT);
-    let parsed = parse_file(
-        text.clone(),
-        Arc::new(scan_header(text)),
-        Arc::new(SyntaxEnvironment::empty()),
-    );
-    if !parsed.syntax_diagnostics().map_err(|error| std::io::Error::other(format!("{error:?}")))?.is_empty() {
-        return Err("trace fixture has syntax diagnostics".into());
+    let mut out = String::from("targeted Name-entry causality observations; research only\n");
+    for (label, input) in CASES {
+        out.push_str(&run_case(label, input)?);
     }
-    let hir = Arc::new(lower_module_with_local_source(
-        ModuleIdentity::source_root(FileId::new(FileKey::new(
-            "name-entry-trace",
-            "name_entry_trace.yu",
-        ))),
-        &parsed,
-        SemanticImports::empty(),
-    ).map_err(|error| std::io::Error::other(format!("{error:?}")))?);
-    let program = RuntimeProgram::from_hir(hir, RuntimeEvidence::default())
-        .map_err(|error| std::io::Error::other(format!("{error:?}")))?;
-    let selected = program.definition_named("main")
-        .map_err(|error| std::io::Error::other(format!("{error:?}")))?;
-    let roots = program.execution_roots()
-        .map_err(|error| std::io::Error::other(format!("{error:?}")))?;
-    let mut machine = program.start(selected, &roots)
-        .map_err(|error| std::io::Error::other(format!("{error:?}")))?;
-    let outcome = machine.run(10_000);
-    if !matches!(outcome, RuntimeOutcome::Completed(_)) {
-        return Err(format!("ordinary source invocation did not complete: {outcome:?}").into());
-    }
-    let trace = machine.name_entry_correspondence()
-        .ok_or("ordinary invocation did not join Name receipt to fresh ValueEntry bind")?;
-    let mut out = String::new();
-    writeln!(out, "fixture={INPUT:?}")?;
-    writeln!(out, "outcome={outcome:?}")?;
-    writeln!(out, "invocation_owner={}", trace.invocation)?;
-    writeln!(out, "name_site_root={:?}", trace.name_site.source_root)?;
-    writeln!(out, "name_site_occurrence={:?}", trace.name_site.occurrence)?;
-    writeln!(out, "returned_value_origin_site_root={:?}", trace.returned_value_origin_site.source_root)?;
-    writeln!(out, "returned_value_origin_site_occurrence={:?}", trace.returned_value_origin_site.occurrence)?;
-    writeln!(out, "source_parameter={:?}", trace.source_parameter)?;
-    writeln!(out, "entry_parameter={:?}", trace.entry_parameter)?;
-    writeln!(out, "source_cell={}", trace.source_cell)?;
-    writeln!(out, "value_handle={}", trace.value)?;
-    writeln!(out, "view_handle={}", trace.view)?;
-    writeln!(out, "receipt_index={}", trace.receipt_index)?;
-    writeln!(out, "cells_before_bind={}", trace.cells_before_bind)?;
-    writeln!(out, "fresh_bound_cell={}", trace.bound_cell)?;
-    writeln!(out, "cells_after_bind={}", trace.cells_after_bind)?;
-    writeln!(out, "receipt_is_observation_only=true")?;
-    writeln!(out, "sequence_probe={}", probe("my main = (\\x -> (\\y -> y) {x; x}) 41"))?;
-    writeln!(out, "condition_probe={}", probe("my main = (\\x -> (\\y -> y) (if x then x else x)) true"))?;
     fs::write(SCRATCH_OUTPUT, &out)?;
-
-    let mut lean = String::new();
-    writeln!(lean, "-- Generated by tools/inference-playground/src/bin/name_entry_trace.rs.")?;
-    writeln!(lean, "-- Finite provisional runtime observation; it proves no semantic or parent theorem.")?;
-    writeln!(lean, "namespace YulangClosure.OriginalNameEntryTrace")?;
-    writeln!(lean, "def fixture : String := {INPUT:?}")?;
-    writeln!(lean, "def invocationOwner : Nat := {}", trace.invocation)?;
-    writeln!(lean, "def nameSiteOccurrence : String := {:?}", format!("{:?}", trace.name_site.occurrence))?;
-    writeln!(lean, "def returnedValueOriginSiteOccurrence : String := {:?}", format!("{:?}", trace.returned_value_origin_site.occurrence))?;
-    writeln!(lean, "def sourceCell : Nat := {}", trace.source_cell)?;
-    writeln!(lean, "def valueHandle : Nat := {}", trace.value)?;
-    writeln!(lean, "def viewHandle : Nat := {}", trace.view)?;
-    writeln!(lean, "def consumeReceiptIndex : Nat := {}", trace.receipt_index)?;
-    writeln!(lean, "def cellsBeforeBind : Nat := {}", trace.cells_before_bind)?;
-    writeln!(lean, "def freshBoundCell : Nat := {}", trace.bound_cell)?;
-    writeln!(lean, "def cellsAfterBind : Nat := {}", trace.cells_after_bind)?;
-    writeln!(lean, "def receiptIsPermission : Bool := false")?;
-    writeln!(lean, "end YulangClosure.OriginalNameEntryTrace")?;
-    fs::write(LEAN_OUTPUT, lean)?;
     print!("{out}");
     Ok(())
 }

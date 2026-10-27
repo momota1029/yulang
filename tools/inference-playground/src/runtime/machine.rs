@@ -52,8 +52,13 @@ pub struct Machine {
     tuple_prefixes: Vec<TuplePrefix>,
     dispatch: dispatch::Machine,
     name_entry_trace: Option<NameEntryCorrespondenceTrace>,
+    name_entry_value_entry_attempts: Vec<NameEntryValueEntryAttempt>,
     pending_name_entry: Option<PendingNameEntry>,
     name_entry_return_token: Option<PendingNameEntry>,
+    name_entry_return_observations: Vec<NameEntryReturnObservation>,
+    pending_name_observation: Option<PendingNameObservation>,
+    pending_name_return_observation: Option<CompletedNameObservation>,
+    name_entry_name_return_observations: Vec<NameEntryNameReturnObservation>,
 }
 
 /// Provisional research observation joining an actual lexical Name receipt to
@@ -73,6 +78,65 @@ pub struct NameEntryCorrespondenceTrace {
     pub cells_before_bind: usize,
     pub bound_cell: usize,
     pub cells_after_bind: usize,
+}
+
+/// Per-attempt target evidence, independent of the sticky correspondence trace.
+#[derive(Clone, Debug)]
+pub struct NameEntryValueEntryAttempt {
+    pub invocation: usize,
+    pub entry_parameter_ordinal: u32,
+    pub value: usize,
+    pub view: usize,
+    pub cells_before_bind: usize,
+    pub bound_cell: usize,
+    pub cells_after_bind: usize,
+    pub token_receipt_index: Option<usize>,
+    pub token_source_parameter_ordinal: Option<u32>,
+    pub token_name_site_ordinal: Option<u32>,
+    pub token_accepted: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct NameEntryReturnObservation {
+    pub frame: &'static str,
+    pub invocation: Option<usize>,
+    pub token_receipt_index: Option<usize>,
+    pub token_source_parameter_ordinal: Option<u32>,
+    pub token_name_site_ordinal: Option<u32>,
+    pub token_value: Option<usize>,
+    pub token_view: Option<usize>,
+    pub token_cells_before_bind: Option<usize>,
+    pub returned_value: usize,
+    pub returned_view: usize,
+    pub cells_at_return: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct NameEntryNameReturnObservation {
+    pub resolution: &'static str,
+    pub name_site_ordinal: u32,
+    pub source_cell: usize,
+    pub value: usize,
+    pub view: usize,
+    pub receipt_index: usize,
+    pub cells_before_observe: usize,
+    pub return_frame: &'static str,
+}
+
+struct PendingNameObservation {
+    resolution: &'static str,
+    site: SourceSite,
+    cell: usize,
+}
+
+struct CompletedNameObservation {
+    resolution: &'static str,
+    site: SourceSite,
+    cell: usize,
+    value: ValueHandle,
+    view: ViewHandle,
+    receipt_index: usize,
+    cells_before_observe: usize,
 }
 
 struct PendingNameEntry {
@@ -501,8 +565,13 @@ impl RuntimeProgram {
             tuple_prefixes: Vec::new(),
             dispatch: dispatch::Machine::default(),
             name_entry_trace: None,
+            name_entry_value_entry_attempts: Vec::new(),
             pending_name_entry: None,
             name_entry_return_token: None,
+            name_entry_return_observations: Vec::new(),
+            pending_name_observation: None,
+            pending_name_return_observation: None,
+            name_entry_name_return_observations: Vec::new(),
         };
         machine.begin_root(0);
         Ok(machine)
@@ -514,6 +583,34 @@ impl Machine {
     /// lexical Name/Observe receipt to a fresh ValueEntry parameter bind.
     pub fn name_entry_correspondence(&self) -> Option<&NameEntryCorrespondenceTrace> {
         self.name_entry_trace.as_ref()
+    }
+
+    pub fn name_entry_value_entry_attempts(&self) -> Vec<String> {
+        self.name_entry_value_entry_attempts.iter().map(|event| format!(
+            "invocation={} entry_parameter={} value={} view={} cells_before_bind={} bound_cell={} cells_after_bind={} token_receipt={:?} token_source_parameter={:?} token_name_site={:?} token_accepted={}",
+            event.invocation, event.entry_parameter_ordinal, event.value, event.view,
+            event.cells_before_bind, event.bound_cell, event.cells_after_bind,
+            event.token_receipt_index, event.token_source_parameter_ordinal,
+            event.token_name_site_ordinal, event.token_accepted
+        )).collect()
+    }
+
+    pub fn name_entry_return_observations(&self) -> Vec<String> {
+        self.name_entry_return_observations.iter().map(|event| format!(
+            "frame={} invocation={:?} token_receipt={:?} token_source_parameter={:?} token_name_site={:?} token_value={:?} token_view={:?} token_cells_before_bind={:?} returned_value={} returned_view={} cells_at_return={}",
+            event.frame, event.invocation, event.token_receipt_index,
+            event.token_source_parameter_ordinal, event.token_name_site_ordinal,
+            event.token_value, event.token_view, event.token_cells_before_bind,
+            event.returned_value, event.returned_view, event.cells_at_return
+        )).collect()
+    }
+
+    pub fn name_entry_name_return_observations(&self) -> Vec<String> {
+        self.name_entry_name_return_observations.iter().map(|event| format!(
+            "resolution={} name_site={} source_cell={} value={} view={} receipt={} cells_before_observe={} return_frame={}",
+            event.resolution, event.name_site_ordinal, event.source_cell, event.value,
+            event.view, event.receipt_index, event.cells_before_observe, event.return_frame
+        )).collect()
     }
 
     /// Mint the dynamic receipt after an actual completed run, never from a
@@ -719,6 +816,8 @@ impl Machine {
         if let Err(error) = result {
             self.pending_name_entry = None;
             self.name_entry_return_token = None;
+            self.pending_name_observation = None;
+            self.pending_name_return_observation = None;
             self.state = State::Stopped(RuntimeOutcome::Unavailable(error));
         }
         match &self.state {
@@ -858,6 +957,16 @@ impl Machine {
                 if let Some(received) = self.cells[cell] {
                     let execution_owner = self.current_execution_owner();
                     if *consumption == NameConsumption::Observe {
+                        let resolution_kind = match resolution {
+                            LocalSourceResolution::Parameter(_) => "Parameter",
+                            LocalSourceResolution::Local(_) => "Local",
+                            _ => "Other",
+                        };
+                        self.pending_name_observation = Some(PendingNameObservation {
+                            resolution: resolution_kind,
+                            site: site.clone(),
+                            cell,
+                        });
                         if let (LocalSourceResolution::Parameter(parameter),
                             ExecutionOwner::Invocation(invocation)) = (resolution, execution_owner)
                         {
@@ -1061,10 +1170,43 @@ impl Machine {
         // The token belongs only to this one return consumer. Taking it before
         // inspecting the frame prevents it crossing Sequence/Condition/etc.
         let return_token = self.name_entry_return_token.take();
+        let returned_name = self.pending_name_return_observation.take();
         let Some(frame) = self.frames.pop() else {
             self.state = State::Stopped(RuntimeOutcome::Completed(received.value));
             return Ok(());
         };
+        let (frame_kind, frame_invocation) = match &frame {
+            Frame::ValueEntry { entry_receiver, .. } => ("ValueEntry", Some(*entry_receiver)),
+            Frame::Sequence { .. } => ("Sequence", None),
+            Frame::Condition { .. } => ("Condition", None),
+            Frame::BlockExpression { .. } => ("BlockExpression", None),
+            _ => ("Other", None),
+        };
+        self.name_entry_return_observations.push(NameEntryReturnObservation {
+            frame: frame_kind,
+            invocation: frame_invocation,
+            token_receipt_index: return_token.as_ref().and_then(|p| p.receipt_index),
+            token_source_parameter_ordinal: return_token.as_ref().map(|p| p.source_parameter.ordinal()),
+            token_name_site_ordinal: return_token.as_ref().map(|p| p.site.occurrence.ordinal()),
+            token_value: return_token.as_ref().map(|p| p.value.0),
+            token_view: return_token.as_ref().map(|p| p.view.index()),
+            token_cells_before_bind: return_token.as_ref().map(|p| p.cells_before_bind),
+            returned_value: received.value.0,
+            returned_view: received.view.index(),
+            cells_at_return: self.cells.len(),
+        });
+        if let Some(observed) = returned_name {
+            self.name_entry_name_return_observations.push(NameEntryNameReturnObservation {
+                resolution: observed.resolution,
+                name_site_ordinal: observed.site.occurrence.ordinal(),
+                source_cell: observed.cell,
+                value: observed.value.0,
+                view: observed.view.index(),
+                receipt_index: observed.receipt_index,
+                cells_before_observe: observed.cells_before_observe,
+                return_frame: frame_kind,
+            });
+        }
         match frame {
             Frame::ResumeArgument { template, source } => {
                 if let (Some(plan), Some(trace)) =
@@ -1554,34 +1696,46 @@ impl Machine {
                 if ordinary_entry {
                     let owner_matches = self.current_execution_owner()
                         == ExecutionOwner::Invocation(entry_receiver);
-                    if owner_matches
-                        && self.cells.get(bound_cell).is_some_and(|cell|
-                            cell.is_some_and(|bound| bound.value == received.value
-                                && bound.view == received.view
-                                && bound.interface == ParameterRole::Value))
-                    {
-                        if let Some(pending) = return_token {
-                            if pending.invocation == entry_receiver
+                    let bound_matches = self.cells.get(bound_cell).is_some_and(|cell|
+                        cell.is_some_and(|bound| bound.value == received.value
+                            && bound.view == received.view
+                            && bound.interface == ParameterRole::Value));
+                    let token_accepted = owner_matches && bound_matches
+                        && return_token.as_ref().is_some_and(|pending|
+                            pending.invocation == entry_receiver
                                 && pending.cells_before_bind == bound_cell
                                 && pending.value == received.value
                                 && pending.view == received.view
-                                && pending.receipt_index.is_some()
-                            {
-                                self.name_entry_trace = Some(NameEntryCorrespondenceTrace {
-                                    invocation: entry_receiver,
-                                    name_site: pending.site,
-                                    returned_value_origin_site,
-                                    source_parameter: pending.source_parameter,
-                                    entry_parameter: parameter,
-                                    source_cell: pending.source_cell,
-                                    value: received.value.0,
-                                    view: received.view.index(),
-                                    receipt_index: pending.receipt_index.unwrap(),
-                                    cells_before_bind: pending.cells_before_bind,
-                                    bound_cell,
-                                    cells_after_bind: self.cells.len(),
-                                });
-                            }
+                                && pending.receipt_index.is_some());
+                    self.name_entry_value_entry_attempts.push(NameEntryValueEntryAttempt {
+                        invocation: entry_receiver,
+                        entry_parameter_ordinal: parameter.ordinal(),
+                        value: received.value.0,
+                        view: received.view.index(),
+                        cells_before_bind: bound_cell,
+                        bound_cell,
+                        cells_after_bind: self.cells.len(),
+                        token_receipt_index: return_token.as_ref().and_then(|p| p.receipt_index),
+                        token_source_parameter_ordinal: return_token.as_ref().map(|p| p.source_parameter.ordinal()),
+                        token_name_site_ordinal: return_token.as_ref().map(|p| p.site.occurrence.ordinal()),
+                        token_accepted,
+                    });
+                    if token_accepted {
+                        if let Some(pending) = return_token {
+                            self.name_entry_trace = Some(NameEntryCorrespondenceTrace {
+                                invocation: entry_receiver,
+                                name_site: pending.site,
+                                returned_value_origin_site,
+                                source_parameter: pending.source_parameter,
+                                entry_parameter: parameter,
+                                source_cell: pending.source_cell,
+                                value: received.value.0,
+                                view: received.view.index(),
+                                receipt_index: pending.receipt_index.unwrap(),
+                                cells_before_bind: pending.cells_before_bind,
+                                bound_cell,
+                                cells_after_bind: self.cells.len(),
+                            });
                         }
                     }
                 }
@@ -2577,7 +2731,9 @@ impl Machine {
         // A candidate is single-use and belongs to this Name consume only.
         // Any prior return token is likewise expired before a new consume.
         let candidate = self.pending_name_entry.take();
+        let observed_name = self.pending_name_observation.take();
         self.name_entry_return_token = None;
+        self.pending_name_return_observation = None;
         if !self.receiving.matches_value(received.view, received.value) {
             return Err(RuntimeUnavailable::InvalidSourceReference);
         }
@@ -2586,6 +2742,22 @@ impl Machine {
         let receipt =
             self.receiving
                 .receipt(owner, received.view, site, None);
+        if consumption == NameConsumption::Observe {
+            if let Some(observed) = observed_name.filter(|observed|
+                observed.site.source_root == site.source_root
+                    && observed.site.occurrence == site.occurrence)
+            {
+                self.pending_name_return_observation = Some(CompletedNameObservation {
+                    resolution: observed.resolution,
+                    site: observed.site,
+                    cell: observed.cell,
+                    value: received.value,
+                    view: received.view,
+                    receipt_index,
+                    cells_before_observe: self.cells.len(),
+                });
+            }
+        }
         if consumption == NameConsumption::Observe {
             if let Some(mut pending) = candidate {
             if pending.site.source_root == site.source_root
