@@ -79,6 +79,26 @@ fn lower(parsed: &ParsedFile) -> Result<HirModule, HirAvailabilityError> {
     )
 }
 
+fn availability<T>(
+    operation: &'static str,
+    result: Result<T, HirAvailabilityError>,
+) -> Result<T, Box<dyn std::error::Error>> {
+    result.map_err(|error| {
+        Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("{operation}: {error:?}"),
+        )) as Box<dyn std::error::Error>
+    })
+}
+
+fn position_table_index(artifact: &ShadowArtifact, position: &yu_hir::shadow::Position) -> usize {
+    artifact
+        .positions()
+        .iter()
+        .position(|candidate| std::ptr::eq(candidate, position))
+        .expect("resolved position must be an entry in this ShadowArtifact position table")
+}
+
 fn expression<'a>(source: &'a LocalSource, root: &SourceRootId, index: &LocalSourceIndex)
     -> &'a LocalSourceExpr
 {
@@ -99,7 +119,7 @@ fn position_for_key(
     SourcePositionEvidence {
         label: label.into(),
         position_kind: if value.is_node() { "node" } else { "token" },
-        position: position.ordinal(),
+        position: position_table_index(artifact, value),
         range: value.range().clone(),
     }
 }
@@ -170,7 +190,7 @@ fn inline_parameter_positions(
     let binder_evidence = SourcePositionEvidence {
         label: format!("{label}-binder-token"),
         position_kind: "token",
-        position: binder.ordinal(),
+        position: position_table_index(artifact, binder_value),
         range: binder_range,
     };
     assert_eq!(lambda_key.range, lambda_value.range().clone());
@@ -351,7 +371,7 @@ fn name_use(
         spelling: spelling.to_string(),
         parameter: parameter.ordinal(),
         range: expr.range.clone(),
-        source_position: position.ordinal(),
+        source_position: position_table_index(artifact, source_position),
     }
 }
 
@@ -535,7 +555,7 @@ fn authenticate_foreign_rejection(
     assert!(!parsed.owns_source_key(&foreign_key), "equal bytes must not authenticate a foreign SourceNodeKey");
     assert!(matches!(artifact.source_position(&foreign_key), Err(SourceIdentityError::ForeignParse)));
 
-    let foreign_hir = lower(&foreign_parse)?;
+    let foreign_hir = availability("lower foreign HIR", lower(&foreign_parse))?;
     let foreign_artifact = ShadowArtifact::from_parsed(foreign_parse.clone()).expect("foreign parse artifact");
     let foreign_binding = foreign_hir.items().iter().find_map(|item| match item {
         HirItem::Binding(binding) if binding.name().spelling() == "value" => Some(binding),
@@ -544,11 +564,18 @@ fn authenticate_foreign_rejection(
     let foreign_root = SourceRootId::Definition(foreign_binding.definition_root().clone());
     assert!(!hir.owns_source_root(&foreign_root), "foreign definition root must be rejected by selected HIR");
     assert!(foreign_hir.owns_source_root(&foreign_root));
-    let foreign_definition_key = foreign_hir.definition_source_key(foreign_binding.definition_root())?
+    let foreign_definition_key = availability(
+        "resolve foreign definition source key",
+        foreign_hir.definition_source_key(foreign_binding.definition_root()),
+    )?
         .expect("foreign definition retains its own SourceNodeKey");
     assert!(!parsed.owns_source_key(foreign_definition_key), "foreign HIR definition key must be rejected by selected parse");
     assert!(matches!(artifact.source_position(foreign_definition_key), Err(SourceIdentityError::ForeignParse)));
-    let foreign_source = foreign_hir.local_source_for(&foreign_root)?.expect("foreign LocalSource");
+    let foreign_source = availability(
+        "resolve foreign LocalSource",
+        foreign_hir.local_source_for(&foreign_root),
+    )?
+    .expect("foreign LocalSource");
     let foreign_inner_parameters: Vec<_> = foreign_source.expressions().iter().filter_map(|expr| match &expr.form {
         LocalSourceForm::Lambda { parameter, .. }
             if parameter.spelling.as_ref() == "x" && matches!(&parameter.scope, LocalSourceScope::Expression(_)) => Some(parameter),
@@ -566,7 +593,11 @@ fn authenticate_foreign_rejection(
     ), "foreign parse artifact must reject selected HIR source identity");
 
     assert!(hir.owns_occurrence(selected_inner_occurrence));
-    assert!(hir.occurrence_source_key(selected_inner_occurrence)?.is_some());
+    assert!(availability(
+        "resolve selected inner occurrence source key",
+        hir.occurrence_source_key(selected_inner_occurrence),
+    )?
+    .is_some());
     let foreign_occurrence = foreign_source.expressions().iter().find_map(|expr| match &expr.form {
         LocalSourceForm::Lambda { parameter, .. } if parameter.id == foreign_inner.id => Some(&expr.occurrence),
         _ => None,
@@ -579,7 +610,7 @@ fn authenticate_foreign_rejection(
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let parsed = parse(INPUT);
-    let hir = lower(&parsed)?;
+    let hir = availability("lower selected HIR", lower(&parsed))?;
     let artifact = ShadowArtifact::from_parsed(parsed.clone()).expect("selected ShadowArtifact");
     let binding = hir.items().iter().find_map(|item| match item {
         HirItem::Binding(binding) if binding.name().spelling() == "value" => Some(binding),
@@ -587,11 +618,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }).expect("fixture binding");
     let root = SourceRootId::Definition(binding.definition_root().clone());
     assert!(hir.owns_source_root(&root));
-    let definition_key = hir.definition_source_key(binding.definition_root())?
+    let definition_key = availability(
+        "resolve selected definition source key",
+        hir.definition_source_key(binding.definition_root()),
+    )?
         .expect("definition root retains its exact parsed source key");
     let definition_position = position_for_key(&parsed, &artifact, definition_key, "definition");
     assert_eq!(definition_position.range, *binding.range(), "definition key range must equal admitted binding range");
-    let source = hir.local_source_for(&root)?.expect("supported LocalSource carrier");
+    let source = availability("resolve selected LocalSource", hir.local_source_for(&root))?
+        .expect("supported LocalSource carrier");
     let mut source_positions = authenticate_expressions(&parsed, &artifact, &hir, &root, source);
     source_positions.insert(0, definition_position.clone());
 
