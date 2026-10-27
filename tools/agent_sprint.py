@@ -428,13 +428,43 @@ class SprintModel:
                               "refuted_gates": sorted(self.refuted_gates)})
 
 
-def validate_current(data: dict[str, Any]) -> None:
+def _released_capacity_ids(data: dict[str, Any], repo_root: Path | None) -> set[str]:
+    legacy = data.get("legacy_reconciliation", {})
+    override = legacy.get("capacity_override") if isinstance(legacy, dict) else None
+    if override is None:
+        return set()
+    require(isinstance(override, dict) and override.get("state") == "RELEASED_BY_USER",
+            "invalid user capacity override")
+    require(repo_root is not None,
+            "capacity override requires repository receipt authentication")
+    record = override.get("record")
+    require(exact_path(record), "capacity override needs an exact receipt path")
+    try:
+        raw = (repo_root / record).read_bytes()
+    except OSError as exc:
+        raise ProtocolError("capacity override receipt is unavailable") from exc
+    require(hashlib.sha256(raw).hexdigest() == override.get("sha256"),
+            "capacity override receipt hash mismatch")
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ProtocolError("capacity override receipt is not UTF-8") from exc
+    match = re.search(r"(?ms)^## Capacity disposition\s*\n(.*?)(?=^## |\Z)", text)
+    require(match is not None, "capacity override receipt lacks identity section")
+    released = {line[2:].strip().strip("`") for line in match.group(1).splitlines()
+                if line.startswith("- ")}
+    require(released and len(released) == override.get("slots"),
+            "capacity override count does not match exact receipt identities")
+    return released
+
+
+def validate_current(data: dict[str, Any], *, repo_root: Path | None = None) -> None:
     require(len(json.dumps(data).encode()) <= LIMIT_BYTES, "current state exceeds 16 KiB")
     require(data.get("schema_version") == 1, "unsupported current-state schema")
     require(data.get("mode") in {"UNAVAILABLE", "LIVE", "SIMULATION"}, "explicit runtime mode required")
     require(data.get("phase") in {"NOT_STARTED", "ACTIVE", "PAUSED", "ENDED", "RECONCILE"}, "invalid session phase")
     workers = data.get("workers", [])
-    require(isinstance(workers, list) and len(workers) <= 12, "invalid worker inventory")
+    require(isinstance(workers, list), "invalid worker inventory")
     require(len(data.get("pending", [])) <= 32, "archive resolved history, never active leases")
     ids: set[str] = set()
     for worker in workers:
@@ -451,6 +481,16 @@ def validate_current(data: dict[str, Any]) -> None:
             require(data["mode"] == "LIVE" and data["phase"] == "ACTIVE" and
                     bool(data.get("session")) and worker.get("session") == data.get("session") and bool(worker.get("receipt")),
                     "RUNNING requires current live session and actual receipt")
+    released_ids = _released_capacity_ids(data, repo_root)
+    require(released_ids <= ids, "released capacity identity missing from worker inventory")
+    for worker in workers:
+        if worker["id"] in released_ids:
+            require(worker["state"] == "UNKNOWN",
+                    "capacity release cannot alter UNKNOWN worker observation")
+    capacity_ids = {worker["id"] for worker in workers
+                    if worker["state"] != "STOPPED"}
+    require(len(capacity_ids - released_ids) <= 12,
+            "active/reserved worker assignments exceed global capacity")
     owners: set[str] = set()
     for lease in data.get("leases", []):
         require(exact_path(lease["path"]) and lease["path"] not in owners, "duplicate/invalid lease")
@@ -520,7 +560,7 @@ def check_repository(root: Path, *, inventory: dict[str, str] | None = None) -> 
                 f"skill UI routing missing: {name}")
         require("every action boundary" not in ui, f"legacy UI cadence: {name}")
     state = json.loads((root / "tasks/agent-loop/current.json").read_text())
-    validate_current(state)
+    validate_current(state, repo_root=root)
     require(len((root / "tasks/agent-loop/board.md").read_bytes()) <= 4096, "navigation board grew into history")
     seed = json.loads((root / "tasks/agent-loop/sprints/call-contextual-effects.json").read_text())
     require(seed["status"] == "CANDIDATE" and bool(seed["unresolved_before_activation"]), "seed must not pretend to be executable")

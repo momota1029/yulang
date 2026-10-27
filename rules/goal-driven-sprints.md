@@ -235,6 +235,11 @@ explicitly released capacity as available, and use disjoint paths for new work.
 If the requested reservations were already released, record the directive as
 idempotent and do not count those slots twice.
 
+The current-state checker must authenticate the linked release receipt and
+exclude only its exact listed UNKNOWN identities from assignment-capacity
+accounting. It must retain those worker rows and quarantined leases; a numeric
+slot total alone cannot release unnamed assignments.
+
 On resume/restart, revalidate authority and dependency hashes, reconcile actual
 worker identities and outstanding leases, and require fresh active-work receipts.
 Do not copy RUNNING, reset spent sprint budgets, resurrect a cancelled assignment

@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -492,6 +495,66 @@ class SnapshotValidation(unittest.TestCase):
         self.s["workers"][0]["state"] = "UNKNOWN"
         self.s["leases"][0]["state"] = "QUARANTINED"
         validate_current(self.s)
+
+    def test_authenticated_user_capacity_release_frees_only_listed_slots(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            released = [f"legacy-{i}" for i in range(9)]
+            receipt = ("## Capacity disposition\n\n" +
+                       "\n".join(f"- {ident}" for ident in released) + "\n")
+            receipt_path = root / "tasks/agent-loop/history/release.md"
+            receipt_path.parent.mkdir(parents=True)
+            raw = receipt.encode()
+            receipt_path.write_bytes(raw)
+            state = copy.deepcopy(self.s)
+            state["phase"] = "ENDED"
+            state["session"] = None
+            state["workers"] = [
+                {"id": ident, "state": "UNKNOWN", "requested_model": SOL,
+                 "observed_model": "UNKNOWN", "requested_effort": "high",
+                 "observed_effort": "UNKNOWN"}
+                for ident in released + [f"current-{i}" for i in range(12)]
+            ]
+            state["leases"] = []
+            state["legacy_reconciliation"] = {
+                "required": False,
+                "capacity_override": {
+                    "record": "tasks/agent-loop/history/release.md",
+                    "sha256": hashlib.sha256(raw).hexdigest(),
+                    "state": "RELEASED_BY_USER", "slots": len(released),
+                },
+            }
+            validate_current(state, repo_root=root)
+
+            state["legacy_reconciliation"]["capacity_override"]["slots"] -= 1
+            with self.assertRaises(ProtocolError):
+                validate_current(state, repo_root=root)
+
+    def test_capacity_release_requires_authenticated_receipt(self) -> None:
+        state = copy.deepcopy(self.s)
+        state["legacy_reconciliation"]["capacity_override"] = {
+            "record": "tasks/agent-loop/history/missing.md",
+            "sha256": "0" * 64, "state": "RELEASED_BY_USER", "slots": 1,
+        }
+        with self.assertRaises(ProtocolError):
+            validate_current(state)
+
+    def test_capacity_release_hash_must_match_receipt(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            receipt_path = root / "tasks/agent-loop/history/release.md"
+            receipt_path.parent.mkdir(parents=True)
+            receipt_path.write_text("## Capacity disposition\n\n- actual-worker\n")
+            state = copy.deepcopy(self.s)
+            state["phase"] = "ENDED"
+            state["workers"][0]["state"] = "UNKNOWN"
+            state["leases"][0]["state"] = "QUARANTINED"
+            state["legacy_reconciliation"]["capacity_override"] = {
+                "record": "tasks/agent-loop/history/release.md",
+                "sha256": "0" * 64, "state": "RELEASED_BY_USER", "slots": 1,
+            }
+            with self.assertRaises(ProtocolError):
+                validate_current(state, repo_root=root)
 
     def test_lease_conflicts_and_omitted_owner_rejected(self) -> None:
         s = copy.deepcopy(self.s)

@@ -101,6 +101,10 @@ capacity only and never claims that a writer stopped.
 If those reservations were already released, record the directive as idempotent
 and do not count the slots twice.
 
+The static checker authenticates the linked receipt and excludes only those
+exact UNKNOWN identities from its capacity count. Worker rows and quarantined
+leases remain in `current.json`.
+
 Resume with fresh session/active-work receipts and revalidated dependencies.
 Do not reset spent sprint/Astra budgets, resurrect old RUNNING states or take
 unknown leases. Reconcile legacy writers before path reuse; a user-directed

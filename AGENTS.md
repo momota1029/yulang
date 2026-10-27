@@ -124,6 +124,9 @@ keep worker observations UNKNOWN and their paths quarantined unless the user
 separately directs path-lease release. Never report the override as cessation.
 If the requested reservations were already released, record an idempotent
 disposition and do not count those slots twice.
+The sprint checker must authenticate the release receipt and exclude only its
+exact UNKNOWN identities from capacity accounting while retaining their rows
+and quarantined leases.
 Maintenance alone starts no workers, changes no compiler semantics, and does
 not authorize a background service. Children never start their own sprint team.
 
