@@ -187,3 +187,310 @@ source-cone receipt. All hashes were computed directly with Python SHA-256.
 | `notes/theory/lean/lean-toolchain` | `ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c` |
 | `notes/theory/lean/lakefile.toml` | `212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4` |
 | `notes/theory/lean/lake-manifest.json` | `058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3` |
+
+
+## Final proof handoff — executed trace consumer, frozen revision 3
+
+This section supersedes the phase-1 WAITING/writes/checker status above;
+phase-1 source investigation and its original frontier remain preserved.
+Same identity `/root/inline_authentic_extraction_proof_r2`; actual session UUID,
+model/effort and total active-time meter remain UNKNOWN. No descendants.
+Authority is the primary's explicit rev6 resume plus
+`tasks/agent-loop/sprints/inline-authentic-extraction-20261027-r2-rev6.md`
+SHA-256 `a650bdbd86b3b88fe18d7b1200e4303b7237e3db4863411d075b11891529fbde`.
+Acknowledged repaired Rust source hash
+`fc22f1ab490e815a800a6b1e91eb4ea978006d6956ac838329cddf7b09ad1472`,
+implementation handoff rev5 hash
+`976fc2b754263b3afb534dfcc32e1e00895269036f0378fc3c732cce0de345b9`,
+and generated trace hash
+`73a4a8aa65e5d7d44611a70e52b9d2b6ac5940c2292a7c06e01e69834f2ac5e3`
+were computed directly and all matched before construction. The trace was never
+edited by this lane. Source producer owns the successful Cargo execution
+receipt (call 6/6, exit 0, 1.46 seconds); this lane did not run Cargo.
+
+### Result, scope and exact parent application
+
+`YulangClosure.OriginalAuthenticInlineExtractionR2` contains twelve checked
+finite-data theorems, whose full originating types and complete transitive axiom
+results appear below. No theorem takes additional hypotheses. All twelve
+printed axiom sets are empty. They establish facts about the actual generated
+trace: UTF-8 length; bounds of every serialized position; exact binder bytes and
+token rows; the full six-field Group edge and distinct raw/projected indices;
+Group range nesting; actual Apply tail-range convention; all seven fields of
+both ordered direct StatementBlock children; all eight fields of all three Name
+rows; Name/position joins; and the outer/inner/outer ordinal snapshot.
+`foreign_report_inventory` proves only the exact emitted four-string list.
+No literal Bool flag is used to derive a Rust execution fact.
+
+The authentic fixture is one unannotated outer Lambda with a StatementBlock,
+one statement-expression Apply, one raw Group edge to a nested same-spelling
+Lambda, one inner body Name, an outer-parameter argument and one restored final
+Name. Its outer/inner parameter ordinals are 0/1; arena indices and published
+occurrence ordinals are retained separately. There are no binding-statement
+initializers, Sequence instances, annotated/computation/record/unit formals,
+multiple Group edges or arbitrary source forms represented by this one trace.
+Those cases remain in the unchanged parent domain; this result omits them from
+its finite claim rather than assuming them away from a universal theorem.
+
+A material actual source convention is preserved: `applySourceForm` is
+`MlArgument` and `applyRange = rawApplyArgumentRange = (29,30)`; the raw callee
+range is `(19,28)`. Thus a purported whole-Apply containment fact would be
+false for this authentic trace. `apply_tail_range` checks the actual convention;
+it does not alter any source owner. Inner-body Name range `(25,27)` retains
+trailing whitespace, so only the actual binder-token ranges are equated to the
+single byte `x`.
+
+Application to the original parent reaches precisely the previously identified
+allocation seam. These checked finite coordinates/lookup rows are now available
+as concrete input facts. They still do not construct
+`OriginalIdentityRealization.Identity` from this Rust owner. No inspected owner
+supplies the original declaration, ambient telescope, containing Context,
+Lambda/formal/admin-wild/name Sites, Name, Apply Site, original whole argument or
+its Group projection equation. Therefore no application of
+`OriginalIdentityEntryOrigin` to this trace is justified or claimed. Supplying
+an arbitrary Identity or a candidate Nat convention would assume this very
+missing premise; no conditional replacement lemma was added.
+Next owner remains the primary's original-source/frontend interpretation lane,
+which must construct the full tuple and prove the original source/lexical/scope
+incidence equations from the authenticated surrounding graph. The finite trace
+is neither a proof of universal frontend refinement nor a counterexample to the
+possibility of that bridge.
+
+Independent foreign parse/HIR rejection is the external executed assertion
+path in the frozen Rust source/run, not the serialized strings. Registered
+binder-range equality likewise relies on that executed path; Lean independently
+checks byte slices and the token-position rows but the registered parameter
+ranges are not separate fields in the trace. Pointer/root brands are not
+serialized or reconstructed. The bound source-schema inspection also found
+that hypothetical binding rows omit initializer incidence; the actual trace has
+no such row. All original A/B, soundness, effect hygiene, principality,
+progress/termination, full Call, source/native, receipt/readout/admission,
+whole-language and production parents remain OPEN. No independent review or
+production authority is claimed.
+
+### Pinned environment, actual commands and failure retention
+
+Read-only `elan which lake` returned
+`/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake`
+(exit 0). The skill checker actually printed:
+
+```text
+Lake version 5.0.0-src+eb6cafb (Lean version 4.35.0)
+Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+```
+
+Native binary SHA-256: Lake
+`8ba83c98f76562d03b8dbc33f1057151ba6cbb121679dde76b2260ccc90495e1`,
+Lean `bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38`.
+No installation, dependency update, root-import edit, test or global-default
+change occurred.
+
+Verification used one exclusively owned minimal project copy under
+`/tmp/yulang-inline-authentic-extraction-20261027-r2/proof/project`.
+Its pin/lakefile/manifest are byte copies of the unchanged project inputs;
+only the actual generated trace and this consumer/audit were copied. It has no
+root import/default-target build. Explicit module build refreshed the actual
+trace and consumer imports before checking. Shared repository `.lake` was not
+written. The checker sets `LEAN_NUM_THREADS=1`; project and manual audit use
+`-j1 -M1024`. No overlapping verifier was started by this lane.
+
+Checker wrapper calls 1/2 used the following exact argv (also stored as JSON):
+
+```text
+python3 /home/momota1029/rust/yulang/.agents/skills/yulang-lean-proofs/scripts/check_lean.py --project /tmp/yulang-inline-authentic-extraction-20261027-r2/proof/project --lake /home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake --module YulangClosure.OriginalAuthenticInlineExtractionR2 --timeout 120 --theorem YulangClosure.OriginalAuthenticInlineExtractionR2.input_byte_length --theorem YulangClosure.OriginalAuthenticInlineExtractionR2.all_position_ranges --theorem YulangClosure.OriginalAuthenticInlineExtractionR2.exact_binder_bytes --theorem YulangClosure.OriginalAuthenticInlineExtractionR2.binder_position_rows --theorem YulangClosure.OriginalAuthenticInlineExtractionR2.group_projection_incidence --theorem YulangClosure.OriginalAuthenticInlineExtractionR2.group_range_contains_projected_lambda --theorem YulangClosure.OriginalAuthenticInlineExtractionR2.apply_tail_range --theorem YulangClosure.OriginalAuthenticInlineExtractionR2.complete_direct_body_incidence --theorem YulangClosure.OriginalAuthenticInlineExtractionR2.exact_name_resolution_rows --theorem YulangClosure.OriginalAuthenticInlineExtractionR2.names_have_source_positions --theorem YulangClosure.OriginalAuthenticInlineExtractionR2.shadow_and_restoration_snapshot --theorem YulangClosure.OriginalAuthenticInlineExtractionR2.foreign_report_inventory
+```
+
+Call 1 failed: exit 1, 3.164 seconds. Its log preserves actual goals/diagnostics:
+missing `Decidable` synthesis for the opaque `ValidRange` bounded forall and
+large tuple equalities, plus UTF-8 `ByteArray.toList` reduction stuck in
+`exact_binder_bytes`. Repairs were proof-local: unfold `ValidRange`, use
+explicit constructor/reflexivity terms for definitionally equal tuple rows, and
+inspect UTF-8 array data directly via `.data.toList`. No trace or theorem claim
+was weakened. Call 2 passed: exit 0, 2.676 seconds; it built the consumer and
+printed/audited all twelve declarations. The first failing log is retained.
+
+Call 3 checked the delivered audit file with this exact command, cwd the
+isolated project and `LEAN_NUM_THREADS=1`, outer timeout 60 seconds:
+
+```text
+/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake --no-cache env lean -j1 -M1024 AuditOriginalAuthenticInlineExtractionR2.lean
+```
+
+Call 3 passed: exit 0, 2.519 seconds. Total bounded wrapper elapsed time is
+8.359 seconds across 3 calls. The wrappers caused 5 actual Lean source-checking
+executions: initial trace build + failed consumer, repaired consumer + helper
+audit, and delivered audit. Thus both counts are within the <=6-call budget;
+version queries are not source checks. No further checker work is pending for
+these final bytes. No default whole-project build or root integration check was
+run, because the exact import/root path is outside this leaf lease.
+
+Source scan of the three-module project cone found no `sorry`, `admit`, project
+axiom, native-evaluation assumption or kernel bypass. The only `axiom` matches
+are the audit file's twelve `#print axioms` commands. Kernel dependency output,
+not that text scan, establishes the reported empty axiom sets.
+
+### Frozen outputs and full source-cone inventory
+
+| Path | SHA-256 |
+| --- | --- |
+| `notes/theory/lean/YulangClosure/OriginalAuthenticInlineExtractionR2.lean` | `ed25ec65c5760e4a523fabe75f392c67476a710d3af60e345c07e5bf5eaeeb09` |
+| `notes/theory/lean/AuditOriginalAuthenticInlineExtractionR2.lean` | `85e0dd8adcef88c9e10c6aebde526dcb2340a1f58e03a67a5dd4e903f08ad089` |
+| `notes/theory/lean/YulangClosure/OriginalAuthenticInlineExtractionTraceR2.lean` | `73a4a8aa65e5d7d44611a70e52b9d2b6ac5940c2292a7c06e01e69834f2ac5e3` |
+
+`full-source-cone.json` recursively inventories all project imports plus implicit
+`Init` and the installed standard-library import closure: 656 modules = the
+three project modules above and 653 pinned toolchain source files. Every entry
+retains source path, SHA-256 and direct imports. The inventory is a source-file
+hash manifest; it is not an independent review or additional compiler receipt.
+No OriginalIdentityEntryOrigin cone is imported, since no concrete original
+application was available. Its source and prior review remain the exact
+phase-1 original frontier, not a newly checked dependency of these theorems.
+
+Scratch receipt paths below are relative to
+`/tmp/yulang-inline-authentic-extraction-20261027-r2/proof`:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `check1.command.json` | `9784c7680852658156c091e41258579696f8a3fa68d54b99484abacef47ba015` |
+| `check1.receipt.json` | `f9aadd25029fea4a563b3fa228c63367af1040dd4547e77615914a5995e45d47` |
+| `check1.log` | `58c5df986c4e7da0ba54fe4329ae82ea313231f6366cae4e2eb985c36dcf0b10` |
+| `check2.command.json` | `9784c7680852658156c091e41258579696f8a3fa68d54b99484abacef47ba015` |
+| `check2.receipt.json` | `498b8fd7362626cdf08ce5ca22486f168419297ee7e3ea6a85475b500d156deb` |
+| `check2.log` | `d122b73b8e19046b507f4a18e64ca53d8d91b0edb642a966c473e193779cd0a9` |
+| `check3.command.json` | `4af26e35a2833c1a8e8724f7c679e509cac933714ca71fe05ff44f8c5d77a3bb` |
+| `check3.receipt.json` | `870c888ec332c4c7920793e849c139b399af7b4b1b3392e5dc62544cdff59612` |
+| `check3.log` | `3d0573de29b83b9b3e2744c26343bf1e7c7399787d913cc4401a65e9255ee12b` |
+| `full-source-cone.json` | `243f41ff5b9ff1f3110c34d74c09bb5e6691a7d7a8e31e2b7dd97ddfd68eb396` |
+
+Other writes under that scratch root: isolated `project/` copies and its
+`.lake` build/cache/generated IR/olean/ilean/setup outputs. The skill checker
+also created and automatically removed its temporary
+`/tmp/yulang-lean-audit-c6rxwpsp/YulangProofAudit.lean`; its complete printed
+receipt is in `check2.log`. All generated outputs are accounted for by this
+lane. Prior implementation scratch remains outside this lane's ownership.
+
+Repository writes are exactly the consumer Lean file, delivered audit Lean
+file and this sequential handoff. The generated trace is read-only input.
+All execution has completed; no child/build/Cargo/Lean/Lake process remains
+owned by this lane. **Writes stopped** after final handoff freeze. Fresh
+non-author review, primary adjudication and Git integration remain with Luna.
+No budget reset/refund or theorem-parent promotion is requested.
+
+### Complete delivered theorem-type and axiom receipt
+
+The following is the unabridged stdout of the successfully checked delivered
+audit file, not a manually reconstructed type listing:
+
+```text
+YulangClosure.OriginalAuthenticInlineExtractionR2.input_byte_length : YulangClosure.OriginalAuthenticInlineExtractionTraceR2.inputUtf8.toUTF8.size =
+  YulangClosure.OriginalAuthenticInlineExtractionTraceR2.inputByteLength
+'YulangClosure.OriginalAuthenticInlineExtractionR2.input_byte_length' does not depend on any axioms
+YulangClosure.OriginalAuthenticInlineExtractionR2.all_position_ranges : ∀
+  (row : YulangClosure.OriginalAuthenticInlineExtractionTraceR2.TraceSourcePosition),
+  row ∈ YulangClosure.OriginalAuthenticInlineExtractionTraceR2.sourcePositions →
+    YulangClosure.OriginalAuthenticInlineExtractionR2.ValidRange row.byteRange
+'YulangClosure.OriginalAuthenticInlineExtractionR2.all_position_ranges' does not depend on any axioms
+YulangClosure.OriginalAuthenticInlineExtractionR2.exact_binder_bytes : YulangClosure.OriginalAuthenticInlineExtractionR2.bytesAt
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerBinderTokenRange =
+    "x".toUTF8.data.toList ∧
+  YulangClosure.OriginalAuthenticInlineExtractionR2.bytesAt
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.innerBinderTokenRange =
+    "x".toUTF8.data.toList
+'YulangClosure.OriginalAuthenticInlineExtractionR2.exact_binder_bytes' does not depend on any axioms
+YulangClosure.OriginalAuthenticInlineExtractionR2.binder_position_rows : List.map
+    (fun row => (row.label, row.byteRange))
+    (List.filter (fun row => row.kind == "token")
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.sourcePositions) =
+  [("outer-binder-token", YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerBinderTokenRange),
+    ("inner-binder-token", YulangClosure.OriginalAuthenticInlineExtractionTraceR2.innerBinderTokenRange)]
+'YulangClosure.OriginalAuthenticInlineExtractionR2.binder_position_rows' does not depend on any axioms
+YulangClosure.OriginalAuthenticInlineExtractionR2.group_projection_incidence : List.map
+      (fun edge =>
+        (edge.groupIndex, edge.innerIndex, edge.groupOccurrence, edge.innerOccurrence, edge.groupRange,
+          edge.innerRange))
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.groupProjectionPath =
+    [(YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyCalleeIndexOrdinal,
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.projectedInnerLambdaIndexOrdinal,
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyCalleeOccurrenceOrdinal,
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.innerLambdaOccurrenceOrdinal,
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyCalleeRange,
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.innerLambdaRange)] ∧
+  YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyCalleeIndexOrdinal ≠
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.projectedInnerLambdaIndexOrdinal ∧
+    YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyCalleeForm = "Group" ∧
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.projectedCalleeForm = "Lambda"
+'YulangClosure.OriginalAuthenticInlineExtractionR2.group_projection_incidence' does not depend on any axioms
+YulangClosure.OriginalAuthenticInlineExtractionR2.group_range_contains_projected_lambda : YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyCalleeRange.fst <
+    YulangClosure.OriginalAuthenticInlineExtractionTraceR2.innerLambdaRange.fst ∧
+  YulangClosure.OriginalAuthenticInlineExtractionTraceR2.innerLambdaRange.snd <
+    YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyCalleeRange.snd
+'YulangClosure.OriginalAuthenticInlineExtractionR2.group_range_contains_projected_lambda' does not depend on any axioms
+YulangClosure.OriginalAuthenticInlineExtractionR2.apply_tail_range : YulangClosure.OriginalAuthenticInlineExtractionTraceR2.applySourceForm =
+    "MlArgument" ∧
+  YulangClosure.OriginalAuthenticInlineExtractionTraceR2.applyRange =
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyArgumentRange ∧
+    YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyCalleeRange.snd <
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.applyRange.fst ∧
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyCalleeIndexOrdinal ≠
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyArgumentIndexOrdinal
+'YulangClosure.OriginalAuthenticInlineExtractionR2.apply_tail_range' does not depend on any axioms
+YulangClosure.OriginalAuthenticInlineExtractionR2.complete_direct_body_incidence : YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerBodyForm =
+    "StatementBlock" ∧
+  List.map
+      (fun row =>
+        (row.kind, row.sourceOrder, row.localSourceIndex, row.bindingOrdinal, row.occurrenceOrdinal, row.byteRange,
+          row.sourcePositionOrdinal))
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerBodyIncidence =
+    [("statement-expression", 0, some YulangClosure.OriginalAuthenticInlineExtractionTraceR2.applyIndexOrdinal, none,
+        some YulangClosure.OriginalAuthenticInlineExtractionTraceR2.applyOccurrenceOrdinal,
+        some YulangClosure.OriginalAuthenticInlineExtractionTraceR2.applyRange, some 39),
+      ("final-expression", 1, some 2, none, some 8, some (32, 33), some 48)]
+'YulangClosure.OriginalAuthenticInlineExtractionR2.complete_direct_body_incidence' does not depend on any axioms
+YulangClosure.OriginalAuthenticInlineExtractionR2.exact_name_resolution_rows : List.map
+      (fun row =>
+        (row.label, row.sourceIndex, row.occurrenceOrdinal, row.spelling, row.resolutionKind, row.parameterOrdinal,
+          row.sourcePositionOrdinal, row.byteRange))
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.nameResolutions =
+    [("apply-argument", YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyArgumentIndexOrdinal,
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyArgumentOccurrenceOrdinal,
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerParameterSpelling, "Parameter",
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerParameterOrdinal, 41,
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.rawApplyArgumentRange),
+      ("inner-body", YulangClosure.OriginalAuthenticInlineExtractionTraceR2.innerBodyIndexOrdinal,
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.innerBodyOccurrenceOrdinal,
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.innerParameterSpelling, "Parameter",
+        YulangClosure.OriginalAuthenticInlineExtractionTraceR2.innerParameterOrdinal, 34, 25, 27),
+      ("restored-sibling", 2, 8, YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerParameterSpelling,
+        "Parameter", YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerParameterOrdinal, 48, 32, 33)] ∧
+  YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerParameterSpelling =
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.innerParameterSpelling ∧
+    YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerParameterOrdinal ≠
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.innerParameterOrdinal
+'YulangClosure.OriginalAuthenticInlineExtractionR2.exact_name_resolution_rows' does not depend on any axioms
+YulangClosure.OriginalAuthenticInlineExtractionR2.names_have_source_positions : ∀
+  (name : YulangClosure.OriginalAuthenticInlineExtractionTraceR2.TraceNameResolution),
+  name ∈ YulangClosure.OriginalAuthenticInlineExtractionTraceR2.nameResolutions →
+    ∃ position,
+      position ∈ YulangClosure.OriginalAuthenticInlineExtractionTraceR2.sourcePositions ∧
+        position.kind = "node" ∧
+          position.positionOrdinal = name.sourcePositionOrdinal ∧ position.byteRange = name.byteRange
+'YulangClosure.OriginalAuthenticInlineExtractionR2.names_have_source_positions' does not depend on any axioms
+YulangClosure.OriginalAuthenticInlineExtractionR2.shadow_and_restoration_snapshot : List.map
+      (fun row => row.parameterOrdinal) YulangClosure.OriginalAuthenticInlineExtractionTraceR2.nameResolutions =
+    [YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerParameterOrdinal,
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.innerParameterOrdinal,
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerParameterOrdinal] ∧
+  List.map (fun row => row.sourceOrder) YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerBodyIncidence =
+      [0, 1] ∧
+    List.map (fun row => row.localSourceIndex)
+          YulangClosure.OriginalAuthenticInlineExtractionTraceR2.outerBodyIncidence =
+        [some YulangClosure.OriginalAuthenticInlineExtractionTraceR2.applyIndexOrdinal, some 2] ∧
+      YulangClosure.OriginalAuthenticInlineExtractionTraceR2.applyRange.snd < 32
+'YulangClosure.OriginalAuthenticInlineExtractionR2.shadow_and_restoration_snapshot' does not depend on any axioms
+YulangClosure.OriginalAuthenticInlineExtractionR2.foreign_report_inventory : YulangClosure.OriginalAuthenticInlineExtractionTraceR2.foreignOwnerChecks =
+  ["equal-text foreign SourceNodeKey rejected as ForeignParse",
+    "foreign parameter identity rejected as ForeignHirArtifact",
+    "foreign parse artifact rejected selected parameter origin as ForeignParse",
+    "foreign HIR occurrence rejected by selected HIR"]
+'YulangClosure.OriginalAuthenticInlineExtractionR2.foreign_report_inventory' does not depend on any axioms
+```
