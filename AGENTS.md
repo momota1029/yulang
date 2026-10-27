@@ -114,21 +114,20 @@ at every completed lemma, test, result, review receipt or internal next step.
 Use the compact current state, never a historical RUNNING row, to prepare live
 reconciliation. Unknown writers retain quarantined leases. STOP/session end
 cannot leave a worker recorded RUNNING without current runtime evidence.
-When the user explicitly releases UNKNOWN assignment reservations, the scope may
-name individual workers or clearly target the full UNKNOWN-assignment set in
-`current.json`. An explicit live-user release overrides stale reservation
-accounting in that snapshot; it changes capacity accounting only. First
-synchronize against the live agent roster and notify every affected RUNNING/WAITING
-child, plus any active agent coordinating the same work
-whose decisions use this state. Record the directive, exact identities, roster
-result and notifications/acknowledgements (or pending acknowledgements). This releases capacity accounting only:
-keep worker observations UNKNOWN and their paths quarantined unless the user
-separately directs path-lease release. Never report the override as cessation.
-If the requested reservations were already released, record an idempotent
-disposition and do not count those slots twice.
-The sprint checker must authenticate the release receipt and exclude only its
-exact UNKNOWN identities from capacity accounting while retaining their rows
-and quarantined leases.
+The user has granted standing authority for the primary to release capacity
+reservations for the full UNKNOWN-assignment set in `current.json` without a
+fresh prompt when stale reservations prevent useful bounded work or consume
+needed assignment capacity. The primary may also honor narrower explicit user
+releases. Before each application, synchronize the live agent roster and notify
+every affected RUNNING/WAITING child, plus any active agent coordinating the
+same work whose decisions use this state. Record the authority, exact identities,
+roster result and notifications/acknowledgements (or pending acknowledgements)
+in an authenticated receipt. This changes capacity accounting only: keep worker
+observations UNKNOWN and paths quarantined unless the user separately directs
+path-lease release. Never report the override as cessation. If reservations were
+already released, record an idempotent disposition and do not count those slots
+twice. The checker must exclude only the exact receipt identities while retaining
+their worker rows and quarantined leases.
 Maintenance alone starts no workers, changes no compiler semantics, and does
 not authorize a background service. Children never start their own sprint team.
 
@@ -161,8 +160,9 @@ Search historical task/proof records by gate and owner when needed; do not load
 all of `tasks/current.md`, `tasks/research-lab.md` or the archived board at startup.
 A current-state row never establishes a live worker, a released lease, a proof,
 or production authority. Reconcile live identities and unknown old leases first.
-An explicit user capacity override may release assignment slots after live-roster
-synchronization; it does not reconcile or release unknown path leases.
+The standing capacity override may release assignment slots after live-roster
+synchronization when stale reservations impede authorized bounded work; it does
+not reconcile or release unknown path leases.
 
 A workflow-maintenance, plan-only, status-only or question-answering request
 neither starts research workers nor authorizes compiler work. Do not launch a

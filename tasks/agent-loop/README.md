@@ -89,18 +89,19 @@ without write-cessation evidence record UNKNOWN and quarantine leases, not
 STOPPED. Preserve actual worker IDs, model observations, pending reviews,
 authorship, spent budget and exact resumption conditions.
 
-The current user may explicitly release capacity reservations for UNKNOWN
-assignments, naming individual workers or clearly targeting the full
-UNKNOWN-assignment set in `current.json`, after live-roster synchronization.
-An explicit live-user release overrides stale reservation accounting in that
-snapshot; it changes capacity accounting only. Record the directive, exact
-identities and roster result; notify affected RUNNING/WAITING children and active agents coordinating the same work whose
-decisions use this state. Record notifications and acknowledgements, or any
-pending acknowledgement. Keep their worker state UNKNOWN and exact paths
-quarantined unless separately authorized for release. This override releases
-capacity only and never claims that a writer stopped.
-If those reservations were already released, record the directive as idempotent
-and do not count the slots twice.
+The user has granted the primary standing authority to release capacity
+reservations for the full UNKNOWN-assignment set in `current.json` without a
+fresh prompt when stale reservations prevent useful bounded work or consume
+needed assignment capacity. The primary may also honor narrower explicit user
+releases. Before each application, synchronize the live roster and notify
+affected RUNNING/WAITING children and active agents coordinating the same work
+whose decisions use this state. Record the authority, exact identities, roster
+result, notifications and acknowledgements (or pending acknowledgements) in an
+authenticated receipt linked from `current.json`. Keep worker observations
+UNKNOWN and exact paths quarantined unless the user separately authorizes path
+release. Capacity release never claims that a writer stopped. If reservations
+were already released, record an idempotent disposition and do not count slots
+twice.
 
 The static checker authenticates the linked receipt and excludes only those
 exact UNKNOWN identities from its capacity count. Worker rows and quarantined
