@@ -231,6 +231,8 @@ write-cessation evidence or a STOPPED receipt. Keep its exact paths quarantined
 and unavailable for reassignment unless the user separately authorizes those
 path releases and affected live writers have been synchronized. Count only the
 explicitly released capacity as available, and use disjoint paths for new work.
+If the requested reservations were already released, record the directive as
+idempotent and do not count those slots twice.
 
 On resume/restart, revalidate authority and dependency hashes, reconcile actual
 worker identities and outstanding leases, and require fresh active-work receipts.

@@ -96,6 +96,8 @@ Record the directive, exact identities and roster result; notify affected
 RUNNING/WAITING children. Keep their worker state UNKNOWN and exact paths
 quarantined unless separately authorized for release. This override releases
 capacity only and never claims that a writer stopped.
+If those reservations were already released, record the directive as idempotent
+and do not count the slots twice.
 
 Resume with fresh session/active-work receipts and revalidated dependencies.
 Do not reset spent sprint/Astra budgets, resurrect old RUNNING states or take

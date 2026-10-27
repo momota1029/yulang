@@ -121,6 +121,8 @@ affected RUNNING/WAITING child. Record the directive, exact identities and roste
 result. This releases capacity accounting only:
 keep worker observations UNKNOWN and their paths quarantined unless the user
 separately directs path-lease release. Never report the override as cessation.
+If the requested reservations were already released, record an idempotent
+disposition and do not count those slots twice.
 Maintenance alone starts no workers, changes no compiler semantics, and does
 not authorize a background service. Children never start their own sprint team.
 
