@@ -459,7 +459,8 @@ def _released_capacity_ids(data: dict[str, Any], repo_root: Path | None) -> set[
 
 
 def validate_current(data: dict[str, Any], *, repo_root: Path | None = None) -> None:
-    require(len(json.dumps(data).encode()) <= LIMIT_BYTES, "current state exceeds 16 KiB")
+    compact = json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    require(len(compact) + 1 <= LIMIT_BYTES, "compact current state exceeds 16 KiB")
     require(data.get("schema_version") == 1, "unsupported current-state schema")
     require(data.get("mode") in {"UNAVAILABLE", "LIVE", "SIMULATION"}, "explicit runtime mode required")
     require(data.get("phase") in {"NOT_STARTED", "ACTIVE", "PAUSED", "ENDED", "RECONCILE"}, "invalid session phase")
@@ -559,7 +560,10 @@ def check_repository(root: Path, *, inventory: dict[str, str] | None = None) -> 
         require("allow_implicit_invocation: true" in ui and f"${name}" in ui,
                 f"skill UI routing missing: {name}")
         require("every action boundary" not in ui, f"legacy UI cadence: {name}")
-    state = json.loads((root / "tasks/agent-loop/current.json").read_text())
+    current_path = root / "tasks/agent-loop/current.json"
+    require(len(current_path.read_bytes()) <= LIMIT_BYTES,
+            "current.json file exceeds 16 KiB")
+    state = json.loads(current_path.read_text())
     validate_current(state, repo_root=root)
     require(len((root / "tasks/agent-loop/board.md").read_bytes()) <= 4096, "navigation board grew into history")
     seed = json.loads((root / "tasks/agent-loop/sprints/call-contextual-effects.json").read_text())
