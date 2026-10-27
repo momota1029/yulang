@@ -151,6 +151,14 @@ they cannot enlarge authority, leases, budgets or the source domain.
 Astra may own a multi-stage core proof packet from sprint start; Sol supplies
 complementary attacks and fresh independent review, never self-certification.
 
+Once the user starts or resumes an objective, that authorization covers the
+primary's bounded, in-scope continuation: selecting the next admitted step,
+dispatching and reviewing its packet, synchronizing records, and checkpointing
+coherent intended work. Do not ask for permission again at routine sprint
+boundaries or after each result. Keep the objective, semantics, production
+authority, budgets and leases fixed; ask only when a required user decision
+would materially change one of them, or when the user pauses or cancels work.
+
 ## Startup and present state
 
 Read `tasks/agent-loop/current.json`, `tasks/agent-loop/README.md`, the selected

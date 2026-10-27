@@ -6,6 +6,23 @@ semantic, proof, review, Git, question-board and testing rules remain binding.
 This file is the single current scheduling contract; legacy cadence never wins
 by being read later. Maintenance/status/plan-only requests do not activate work.
 
+## Standing continuation authorization
+
+When the user starts or resumes an objective, treat that as standing authority
+for the primary to continue bounded work toward that same objective. Within its
+existing scope, the primary may consult the dispatcher at required boundaries,
+admit the next exact packet, dispatch eligible workers, adjudicate their frozen
+results, synchronize records and checkpoint coherent intended work without
+asking again at each step. A routine result, sprint boundary or next safe
+in-scope action is not by itself a reason to pause for confirmation.
+
+This authority does not change the objective, accepted semantics, source domain,
+production permissions, budgets, leases or stop conditions. The primary still
+asks the user when progress requires a material choice outside the granted
+scope or the user has directed a pause/cancellation. Maintenance, plan-only and
+status-only requests remain non-activating; this rule does not turn them into
+authorization to start research or compiler work.
+
 ## 1. Fix a meaningful outcome before splitting work
 
 Luna and `next_action_selector` agree one sprint ID and freeze its contract:
