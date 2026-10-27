@@ -3,8 +3,11 @@
 Primary receipt for sprint `EFFECT-PERMISSION-CAPTURE-20261028/r1` under
 amendment 01, SHA-256
 `35e1a4e9f9859886fd7324abca59089da7f5e2c7d71c0fe12b544c396d4d13d9`.
-This file records the single permitted corrected invocation. It does not
-replace or erase the earlier failed command recorded in the Rust lane handoff.
+This file records the single permitted corrected invocation. The frozen Rust
+lane handoff predates both attempts and says no build/test was run at that time.
+Amendment 01 records the first invocation, exit 101, omitted feature and zero
+executed tests. No raw first-attempt compiler log was retained; do not treat the
+handoff as its evidence source.
 
 ## Frozen inputs
 
