@@ -74,3 +74,19 @@ Timing/check receipts: source assignment ACK/start `2026-10-27 15:50:56 UTC`; St
 Requested/observed model and effort: Luna/high requested; observed UNKNOWN. CPU/RSS UNKNOWN. Stage-1 stop prevents the gated Cargo command; no claim is made that the revised code compiles or that positive/counterexample behavior is preserved. The stale-join repair therefore remains unverified and incomplete as a reusable source claim. Parent and production gates remain OPEN.
 
 Write-cessation acknowledgement: no further code, Lean-data, or scratch writes will be made. The only write after Stage-1 freeze is this leased handoff receipt. All six path leases remain held until Luna records disposition.
+
+## Handoff revision 6 — bounded verification run
+
+Contract: `NAME-FORCE-ENTRY-CAUSALITY-VERIFY-20261028/r1`, SHA-256 `09bffa6a699efbcc9a4e54faf0d2ec2287d98bc88bf021c53475d36f40408d2d`. Frozen r5 handoff and all five candidate code/data hashes matched at preflight; no code edits were made.
+
+The sole authorized command ran once: `CARGO_BUILD_JOBS=1 CARGO_TARGET_DIR=/tmp/yulang-name-entry-correspondence-20261028/source/target RUSTC_WRAPPER= cargo run --locked --manifest-path tools/inference-playground/Cargo.toml --bin name_entry_trace`. Exact Cargo arguments: `run --locked --manifest-path tools/inference-playground/Cargo.toml --bin name_entry_trace`. Exit 0; tool-reported wall time 1.552s; Cargo reported build finished in 1.61s, then ran the existing binary. Clock preflight/start was `2026-10-27 15:56:31 UTC`; completion was approximately `15:56:33 UTC`, inferred from tool-reported wall time because a second clock read was not taken immediately at process completion. One Cargo job; actual CPU and RSS UNKNOWN (1 GiB was a target, not an observed measurement). Tests=0, Lean/Lake=0; no retry or fallback.
+
+Observed direct positive remained: `Completed(ValueHandle(2))`, invocation owner 1, Name occurrence ordinal 8, returned-value origin ordinal 9, source/entry parameter ordinals 0/1, source cell 1, value/view handle 2, receipt index 0, cells-before-bind 2, fresh bound cell 2, cells-after-bind 3. `receipt_is_observation_only=true`.
+
+Probe outcomes: Sequence candidate `my main = (\\x -> (\\y -> y) {x; x}) 41` completed with `trace-present`. This is not the reviewer’s stale-Local example and does not establish whether the one-use rule rejects the intended equal-value/view/cell-count false join; mark Sequence causality UNRESOLVED. Condition candidate `my main = (\\x -> (\\y -> y) (if x then x else x)) true` was unsupported due syntax diagnostics; mark Condition UNRESOLVED. Neither result is negative evidence for all intervening-frame cases.
+
+Output hashes: raw trace `/tmp/yulang-name-entry-correspondence-20261028/source/name-entry-trace.txt` `70257b440c0d65e8a2171ec3702d5f6aef98bb320387aa58801d64f426d89b4c`; executable `source/target/debug/name_entry_trace` `8332bc3ac1b362ad26396958cf19e924e58acfbcca87331742c7586cfd0ab17b`; generated Lean data remains unchanged at `a6d1ec061b5d3bcd9bf85a56405e16ff0d8f02037a870f2c6ab139d82efb9115`. Frozen candidate code hashes remain those in revision 5. Compiler emitted existing warnings; captured command output included the direct and probe results above. The tool returned truncated output, and no separate stdout/stderr log was written.
+
+Outcome remains INCOMPLETE for stale-join causality: direct positive and compilation are observed, but Sequence is non-equivalent and trace-present, Condition is unsupported, and no independent reviewer receipt is included here. Parent/A-B and all production gates remain OPEN.
+
+Write-cessation acknowledgement: after this handoff append, no further writes will be made to source, Lean-data, trace, executable, or scratch paths. All six leases remain held pending Luna disposition.

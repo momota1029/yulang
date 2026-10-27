@@ -83,9 +83,13 @@ The r3 one-use-token repair and probes were not started; r3 stopped before
 Cargo4 because the remaining review allowance could not be established. A
 separately funded source-only sprint froze a one-use immediate-return-token
 candidate and inline Sequence/Condition probes, but Stage 1 exceeded its
-90-second cap by 4 seconds. Cargo and independent review did not run, so the
-candidate is unverified and the reusable source join remains rejected. See the
-r3 and causality-r1 outcome records for exact receipts. The Name interpretation
+90-second cap by 4 seconds. A separate verification-only sprint compiled the
+frozen candidate and preserved the direct positive trace. Fresh independent
+review accepted the token's static immediate-return lifetime and drop paths,
+but the driver reports only sticky trace presence; Sequence was not equivalent
+to the stale-Local case, Condition syntax was unsupported, and BlockExpression
+was not executed. Dynamic causal evidence therefore remains unresolved. See
+the r3, causality-r1 and causality-verify-r1 outcome records for receipts. The Name interpretation
 does not identify arbitrary opaque Force relations; the Bound result stops
 before origin metadata; MemberEntry does not certify opaque contract
 dependencies; stage completion is ghost tracking with native extraction still
