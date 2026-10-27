@@ -15,6 +15,11 @@ admitted for `IMPORT-SOURCE-AUTHORITY-AUDIT-20261027/r1` remain NOT_STARTED in
 primary and current-state owner. No agent was represented as stopped by this
 roster check.
 
+After admission, the source and proof lanes were started on their disjoint
+leases. Both were notified of the already-released capacity, retained UNKNOWN
+observations/quarantines, and unchanged leases; both acknowledged. Their
+source-only authority is unchanged.
+
 ## Capacity disposition
 
 The complete nine-identity UNKNOWN reservation set listed in
