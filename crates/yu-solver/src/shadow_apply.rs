@@ -2598,6 +2598,48 @@ impl<'a> CandidateGraphFormalEffectPermission<'a> {
     pub fn permitted(&self) -> &'a [yu_hir::shadow::SourceEffectId] { self.permitted }
     pub fn open_tail(&self) -> CandidateGraphNode<'a> { self.port }
 }
+
+/// Follow a source-owned formal permission path through its captured negative
+/// Function/Tuple root and return the terminal effect port. The caller keeps
+/// responsibility for source ownership, root lookup, metadata and row-kind
+/// validation.
+fn captured_formal_permission_port(
+    graph: &crate::candidate_scheme::Graph,
+    root: usize,
+    source_path: &[crate::candidate_effect::FormalPortStep],
+) -> Result<(Vec<CandidateGraphFormalPortStep>, usize), ArtifactMismatch> {
+    if source_path.is_empty() { return Err(ArtifactMismatch); }
+    let mut current = root;
+    let mut path = Vec::new();
+    path.try_reserve_exact(source_path.len()).map_err(|_| ArtifactMismatch)?;
+    let mut port_index = None;
+    for (index, step) in source_path.iter().enumerate() {
+        let node = *graph.nodes.get(current).ok_or(ArtifactMismatch)?;
+        if let crate::candidate_effect::FormalPortStep::Element(element) = step {
+            let crate::candidate_scheme::Node::Tuple { start, len, .. } = node else { return Err(ArtifactMismatch); };
+            if *element >= len || index + 1 == source_path.len() { return Err(ArtifactMismatch); }
+            current = *graph.tuple_children.get(start.checked_add(*element).ok_or(ArtifactMismatch)?).ok_or(ArtifactMismatch)?;
+            path.push(CandidateGraphFormalPortStep::Element(*element));
+            continue;
+        }
+        let crate::candidate_scheme::Node::Function { children, .. } = node else { return Err(ArtifactMismatch); };
+        let (child, effect, public_step) = match step {
+            crate::candidate_effect::FormalPortStep::Argument =>
+                (children[0], children[1], CandidateGraphFormalPortStep::Argument),
+            crate::candidate_effect::FormalPortStep::Result =>
+                (children[3], children[2], CandidateGraphFormalPortStep::Result),
+            crate::candidate_effect::FormalPortStep::Element(_) => unreachable!(),
+        };
+        path.push(public_step);
+        if index + 1 == source_path.len() {
+            port_index = Some(effect);
+        } else {
+            current = child;
+        }
+    }
+    Ok((path, port_index.ok_or(ArtifactMismatch)?))
+}
+
 impl<'a> CandidateGraphExport<'a> {
     pub fn root(&self) -> CandidateGraphNode<'a> {
         CandidateGraphNode {
@@ -2649,35 +2691,8 @@ impl<'a> CandidateGraphExport<'a> {
         ) {
             if permission.path.is_empty() { return Err(ArtifactMismatch); }
             let domain = *algebra.formal_domains.get(&permission.parameter).ok_or(ArtifactMismatch)?;
-            let mut current = *self.graph.negative_formal_roots.get(&domain).ok_or(ArtifactMismatch)?;
-            let mut path = Vec::new();
-            path.try_reserve_exact(permission.path.len()).map_err(|_| ArtifactMismatch)?;
-            let mut port_index = None;
-            for (index, step) in permission.path.iter().enumerate() {
-                let node = *self.graph.nodes.get(current).ok_or(ArtifactMismatch)?;
-                if let crate::candidate_effect::FormalPortStep::Element(element) = step {
-                    let crate::candidate_scheme::Node::Tuple { start, len, .. } = node else { return Err(ArtifactMismatch); };
-                    if *element >= len || index + 1 == permission.path.len() { return Err(ArtifactMismatch); }
-                    current = *self.graph.tuple_children.get(start.checked_add(*element).ok_or(ArtifactMismatch)?).ok_or(ArtifactMismatch)?;
-                    path.push(CandidateGraphFormalPortStep::Element(*element));
-                    continue;
-                }
-                let crate::candidate_scheme::Node::Function { children, .. } = node else { return Err(ArtifactMismatch); };
-                let (child, effect, public_step) = match step {
-                    crate::candidate_effect::FormalPortStep::Argument =>
-                        (children[0], children[1], CandidateGraphFormalPortStep::Argument),
-                    crate::candidate_effect::FormalPortStep::Result =>
-                        (children[3], children[2], CandidateGraphFormalPortStep::Result),
-                    crate::candidate_effect::FormalPortStep::Element(_) => unreachable!(),
-                };
-                path.push(public_step);
-                if index + 1 == permission.path.len() {
-                    port_index = Some(effect);
-                } else {
-                    current = child;
-                }
-            }
-            let port_index = port_index.ok_or(ArtifactMismatch)?;
+            let root = *self.graph.negative_formal_roots.get(&domain).ok_or(ArtifactMismatch)?;
+            let (path, port_index) = captured_formal_permission_port(self.graph, root, &permission.path)?;
             let port = *self.graph.nodes.get(port_index).ok_or(ArtifactMismatch)?;
             let crate::candidate_scheme::Node::Row { row, .. } = port else {
                 return Err(ArtifactMismatch);
