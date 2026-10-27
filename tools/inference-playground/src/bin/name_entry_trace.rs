@@ -8,6 +8,26 @@ const INPUT: &str = "my main = (\\x -> (\\y -> y) x) 41";
 const LEAN_OUTPUT: &str = "notes/theory/lean/YulangClosure/OriginalNameEntryTrace.lean";
 const SCRATCH_OUTPUT: &str = "/tmp/yulang-name-entry-correspondence-20261028/source/name-entry-trace.txt";
 
+fn probe(input: &str) -> String {
+    let text: Arc<SourceText> = Arc::from(input);
+    let parsed = parse_file(text.clone(), Arc::new(scan_header(text)), Arc::new(SyntaxEnvironment::empty()));
+    if parsed.syntax_diagnostics().map_err(|e| format!("syntax diagnostics: {e:?}"))
+        .map(|d| !d.is_empty()).unwrap_or(true) { return "unsupported: syntax diagnostics".into(); }
+    let result = (|| -> Result<bool, String> {
+        let hir = Arc::new(lower_module_with_local_source(ModuleIdentity::source_root(FileId::new(
+            FileKey::new("name-entry-probe", "probe.yu"))), &parsed, SemanticImports::empty())
+            .map_err(|e| format!("lowering: {e:?}"))?);
+        let program = RuntimeProgram::from_hir(hir, RuntimeEvidence::default()).map_err(|e| format!("program: {e:?}"))?;
+        let selected = program.definition_named("main").map_err(|e| format!("main: {e:?}"))?;
+        let roots = program.execution_roots().map_err(|e| format!("roots: {e:?}"))?;
+        let mut machine = program.start(selected, &roots).map_err(|e| format!("start: {e:?}"))?;
+        let outcome = machine.run(10_000);
+        if !matches!(outcome, RuntimeOutcome::Completed(_)) { return Err(format!("runtime: {outcome:?}")); }
+        Ok(machine.name_entry_correspondence().is_some())
+    })();
+    match result { Ok(true) => "completed: trace-present".into(), Ok(false) => "completed: no-trace".into(), Err(e) => format!("unsupported: {e}") }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let text: Arc<SourceText> = Arc::from(INPUT);
     let parsed = parse_file(
@@ -58,6 +78,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     writeln!(out, "fresh_bound_cell={}", trace.bound_cell)?;
     writeln!(out, "cells_after_bind={}", trace.cells_after_bind)?;
     writeln!(out, "receipt_is_observation_only=true")?;
+    writeln!(out, "sequence_probe={}", probe("my main = (\\x -> (\\y -> y) {x; x}) 41"))?;
+    writeln!(out, "condition_probe={}", probe("my main = (\\x -> (\\y -> y) (if x then x else x)) true"))?;
     fs::write(SCRATCH_OUTPUT, &out)?;
 
     let mut lean = String::new();

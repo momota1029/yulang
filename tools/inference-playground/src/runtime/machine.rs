@@ -53,6 +53,7 @@ pub struct Machine {
     dispatch: dispatch::Machine,
     name_entry_trace: Option<NameEntryCorrespondenceTrace>,
     pending_name_entry: Option<PendingNameEntry>,
+    name_entry_return_token: Option<PendingNameEntry>,
 }
 
 /// Provisional research observation joining an actual lexical Name receipt to
@@ -501,6 +502,7 @@ impl RuntimeProgram {
             dispatch: dispatch::Machine::default(),
             name_entry_trace: None,
             pending_name_entry: None,
+            name_entry_return_token: None,
         };
         machine.begin_root(0);
         Ok(machine)
@@ -715,6 +717,8 @@ impl Machine {
             State::Stopped(_) => unreachable!(),
         };
         if let Err(error) = result {
+            self.pending_name_entry = None;
+            self.name_entry_return_token = None;
             self.state = State::Stopped(RuntimeOutcome::Unavailable(error));
         }
         match &self.state {
@@ -1054,6 +1058,9 @@ impl Machine {
     }
 
     fn return_value(&mut self, received: ReceivedValue) -> Result<(), RuntimeUnavailable> {
+        // The token belongs only to this one return consumer. Taking it before
+        // inspecting the frame prevents it crossing Sequence/Condition/etc.
+        let return_token = self.name_entry_return_token.take();
         let Some(frame) = self.frames.pop() else {
             self.state = State::Stopped(RuntimeOutcome::Completed(received.value));
             return Ok(());
@@ -1500,6 +1507,9 @@ impl Machine {
                 body,
                 environment,
             } => {
+                let ordinary_entry = callback_schema.is_none()
+                    && !unit_pattern
+                    && record_pattern.is_none();
                 let received = if let Some(schema) = callback_schema {
                     let owner = ExecutionOwner::Invocation(entry_receiver);
                     if unit_pattern
@@ -1541,7 +1551,7 @@ impl Machine {
                         view: received.view,
                     },
                 ) };
-                if !unit_pattern {
+                if ordinary_entry {
                     let owner_matches = self.current_execution_owner()
                         == ExecutionOwner::Invocation(entry_receiver);
                     if owner_matches
@@ -1550,7 +1560,7 @@ impl Machine {
                                 && bound.view == received.view
                                 && bound.interface == ParameterRole::Value))
                     {
-                        if let Some(pending) = self.pending_name_entry.take() {
+                        if let Some(pending) = return_token {
                             if pending.invocation == entry_receiver
                                 && pending.cells_before_bind == bound_cell
                                 && pending.value == received.value
@@ -2564,6 +2574,10 @@ impl Machine {
         consumption: NameConsumption,
         site: &SourceSite,
     ) -> Result<(), RuntimeUnavailable> {
+        // A candidate is single-use and belongs to this Name consume only.
+        // Any prior return token is likewise expired before a new consume.
+        let candidate = self.pending_name_entry.take();
+        self.name_entry_return_token = None;
         if !self.receiving.matches_value(received.view, received.value) {
             return Err(RuntimeUnavailable::InvalidSourceReference);
         }
@@ -2572,7 +2586,8 @@ impl Machine {
         let receipt =
             self.receiving
                 .receipt(owner, received.view, site, None);
-        if let Some(pending) = &mut self.pending_name_entry {
+        if consumption == NameConsumption::Observe {
+            if let Some(mut pending) = candidate {
             if pending.site.source_root == site.source_root
                 && pending.site.occurrence == site.occurrence
                 && pending.value == received.value
@@ -2580,6 +2595,8 @@ impl Machine {
                 && owner == ExecutionOwner::Invocation(pending.invocation)
             {
                 pending.receipt_index = Some(receipt_index);
+                self.name_entry_return_token = Some(pending);
+            }
             }
         }
         match consumption {

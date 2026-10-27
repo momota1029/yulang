@@ -1,0 +1,9 @@
+# NAME-FORCE-ENTRY-CAUSALITY-20261028/r1 — primary outcome
+
+Disposition: **STOPPED_RESOURCE / INCOMPLETE**. The source patch and driver probes were frozen, but Stage 1 exceeded its 90-second slice by 4 seconds (start 2026-10-27 15:50:56 UTC; freeze 15:52:30 UTC; elapsed 94s). The contract stop condition therefore applied; Luna did not authorize Cargo. The overall source envelope was 240 seconds with a hard stop at 15:54:34 UTC.
+
+Frozen candidate hashes: `machine.rs` `ba3d054be3988df00dd7025948ff50eccc0ce80f268b8dfb5f6268d490698fd8`; `name_entry_trace.rs` `0a27356a8cfb5cb2096203017c38aaf9c0052bff746986a4f067bec7bcc43876`. Other leased code/data hashes stayed at their admitted r2 values: `receiving.rs` `e6b22598a0d11a21fba260cdbc5b4ace3690cf9b21e51beb61d8cc967511fffd`; `runtime/mod.rs` `b7184e3869b4790cb0e2e72704e4a1b2f12df7772b441144b8ef63ab33e2fe4f`; `OriginalNameEntryTrace.lean` `a6d1ec061b5d3bcd9bf85a56405e16ff0d8f02037a870f2c6ab139d82efb9115`. Source handoff revision 5 SHA-256 `751ae04350ba6124ef691756069b4dcd85f7cad85c2e851dec1ad553e8103a25`.
+
+`git diff --check` passed. No Cargo/probes/tests/Lean ran. The candidate implements a one-use immediate-return token and adds inline Sequence/Condition driver candidates, but compilation and false-join behavior are **unverified**. The source acknowledged write cessation; all six leases remain held pending primary disposition. No independent review was assigned or claimed.
+
+The earlier r2 **MAJOR** stale-attribution finding remains in force. The conditional Lean theorem is unchanged. All parent/A-B, complete Call, source/native correspondence, effect hygiene, principality, termination and production gates remain **OPEN**. Any next step requires an explicit dispatcher recommendation and a new bounded contract; it must preserve the Stage-1 overrun and must not silently renew this sprint's budget.

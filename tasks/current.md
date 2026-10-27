@@ -80,14 +80,17 @@ trace is fixture evidence only: independent review found that global pending
 observation state can survive intervening Sequence/Condition/BlockExpression
 frames and misattribute a later Local result to an earlier Parameter receipt.
 The r3 one-use-token repair and probes were not started; r3 stopped before
-Cargo4 because the remaining review allowance could not be established. Keep
-the reusable source join rejected pending a newly funded, independently
-reviewed repair. The Name interpretation does not identify arbitrary opaque
-Force relations; the Bound result stops before origin metadata; MemberEntry
-does not certify opaque contract dependencies; stage completion is ghost
-tracking with native extraction still open. Complete Call interpretation,
-global source/native scoped correspondence and the whole growing inference
-relation remain uninstantiated. See the r3 outcome record for exact receipts.
+Cargo4 because the remaining review allowance could not be established. A
+separately funded source-only sprint froze a one-use immediate-return-token
+candidate and inline Sequence/Condition probes, but Stage 1 exceeded its
+90-second cap by 4 seconds. Cargo and independent review did not run, so the
+candidate is unverified and the reusable source join remains rejected. See the
+r3 and causality-r1 outcome records for exact receipts. The Name interpretation
+does not identify arbitrary opaque Force relations; the Bound result stops
+before origin metadata; MemberEntry does not certify opaque contract
+dependencies; stage completion is ghost tracking with native extraction still
+open. Complete Call interpretation, global source/native scoped correspondence
+and the whole growing inference relation remain uninstantiated.
 Existing no-normal-drain evidence is not a Lean divergence proof. The separate
 statement-preserving cleanup of nine older modules resolves all 668 lint
 warnings; its independently reviewed 131-job full build has zero warnings
