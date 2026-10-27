@@ -1,0 +1,23 @@
+{
+  "command": [
+    "taskset",
+    "-c",
+    "0",
+    "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+    "--no-cache",
+    "env",
+    "lean",
+    "-j1",
+    "-M1024",
+    "--root=/tmp/yulang-eventproof-lifetime-20261028/proof",
+    "/tmp/yulang-eventproof-lifetime-20261028/proof/AuditEventProofCut.lean"
+  ],
+  "start_utc": "2026-10-27T17:07:41.678145+00:00",
+  "stop_utc": "2026-10-27T17:07:42.302225+00:00",
+  "elapsed_seconds": 0.6240767580020474,
+  "exit": 1,
+  "peak_children_rss_kib": 1009656,
+  "cpu_affinity": [
+    0
+  ]
+}

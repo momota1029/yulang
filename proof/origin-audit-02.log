@@ -1,0 +1,193 @@
+def YulangClosure.OriginalEventProofCut.ActualFieldsPreserved : {s : YulangClosure.OriginalSourceInterpretation.Sorts} →
+  {View : Type} →
+    YulangClosure.OriginalSourceEnvironment.Decoded s View →
+      YulangClosure.OriginalSourceEnvironment.Decoded s View → Prop :=
+fun {s} {View} before after =>
+  after.assignment.descriptor = before.assignment.descriptor ∧
+    after.interfaces = before.interfaces ∧
+      after.installed = before.installed ∧
+        after.assignment.value = before.assignment.value ∧
+          after.assignment.root = before.assignment.root ∧
+            after.assignment.binding = before.assignment.binding ∧
+              after.assignment.event.fiber = before.assignment.event.fiber ∧
+                after.assignment.event.eta0 = before.assignment.event.eta0 ∧
+                  after.assignment.event.history = before.assignment.event.history ∧
+                    after.assignment.event.current = before.assignment.event.current ∧
+                      after.assignment.event.scope = before.assignment.event.scope ∧
+                        after.assignment.event.authority = before.assignment.event.authority ∧
+                          after.assignment.event.incidence = before.assignment.event.incidence ∧
+                            after.assignment.event.dictionary = before.assignment.event.dictionary ∧
+                              after.fixedFrames = before.fixedFrames ∧
+                                after.callOwners = before.callOwners ∧
+                                  after.active = before.active ∧ after.activeRaw = before.activeRaw
+def YulangClosure.OriginalEventProofCut.BodyConsumerAtCut : {s : YulangClosure.OriginalSourceInterpretation.Sorts} →
+  {View : Type} →
+    YulangClosure.OriginalFormalAdmission.Introduction s View →
+      YulangClosure.OriginalParameterWorld.FormalAssignment s View →
+        (inputs : YulangClosure.OriginalSourceInterpretation.Inputs s) →
+          (registry : YulangClosure.OriginalSourceChecking.GuardRegistry inputs) →
+            YulangClosure.OriginalSourceChecking.Declarations inputs registry →
+              YulangClosure.OriginalSourceEnvironment.RuntimeReadout s View →
+                YulangClosure.OriginalSourceEnvironment.LocalAdmissions s View →
+                  YulangClosure.OriginalSourceChecking.PortReadout s View →
+                    YulangClosure.OriginalSource.Kernel (YulangClosure.OriginalSourceEnvironment.Payload s View) →
+                      YulangClosure.OriginalSource.Environment
+                          (YulangClosure.OriginalSourceEnvironment.Payload s View) →
+                        Prop :=
+fun {s} {View} intro assignment inputs registry declarations readout base ports original environment =>
+  ∃ state candidate packet,
+    YulangClosure.OriginalSourceEnvironment.decode readout environment = Option.some state ∧
+      candidate.data =
+          YulangClosure.OriginalSourceEnvironment.Payload.logical
+            YulangClosure.OriginalSourceEnvironment.LogicalKind.eventProof packet.encode ∧
+        YulangClosure.OriginalSourceEnvironment.decode readout
+              (environment.extend (YulangClosure.OriginalSourceClosure.bodyProofBinder intro.parameter) candidate) =
+            Option.some (state.logical packet.encode) ∧
+          YulangClosure.OriginalFormalAdmission.formalContract (state.logical packet.encode) intro.parameter =
+              (intro.selection assignment).contract ∧
+            YulangClosure.OriginalSource.SourceJudgment
+                (YulangClosure.OriginalSourceClosure.closureKernel intro assignment inputs registry declarations readout
+                  base ports original)
+                environment (YulangClosure.OriginalFormalShared.formalContext intro.parameter) intro.parameter.pattern ∧
+              YulangClosure.OriginalSource.Checking
+                  (YulangClosure.OriginalSourceClosure.closureKernel intro assignment inputs registry declarations
+                    readout base ports original)
+                  (environment.extend (YulangClosure.OriginalSourceClosure.bodyProofBinder intro.parameter) candidate)
+                  (YulangClosure.OriginalSourceClosure.bodyGoal intro.parameter) ∧
+                YulangClosure.OriginalSource.SourceJudgment
+                    (YulangClosure.OriginalSourceClosure.closureKernel intro assignment inputs registry declarations
+                      readout base ports original)
+                    (environment.extend (YulangClosure.OriginalSourceClosure.bodyProofBinder intro.parameter) candidate)
+                    (YulangClosure.OriginalFormalShared.bodyContext intro.parameter) intro.parameter.body ∧
+                  (∀ (raw : YulangClosure.OriginalSourceInterpretation.RawObservation s),
+                      YulangClosure.OriginalSourceInterpretation.Meaning inputs
+                          (YulangClosure.OriginalSourceInterpretation.Query.trace
+                            (raw.atInterface
+                              (state.interfaces
+                                { site := intro.parameter.body.site,
+                                  port := YulangClosure.OriginalSource.Port.finalRoot }))) →
+                        YulangClosure.OriginalSourceInterpretation.Meaning inputs
+                          (YulangClosure.OriginalSourceInterpretation.Query.trace
+                            (raw.atInterface
+                              (state.interfaces
+                                { site := intro.parameter.lambdaSite,
+                                  port := YulangClosure.OriginalSource.Port.bodyConsumer })))) ∧
+                    ∀ (after : YulangClosure.OriginalSourceEnvironment.Decoded s View),
+                      YulangClosure.OriginalSourceEnvironment.decode readout
+                            (environment.extend (YulangClosure.OriginalSourceClosure.bodyProofBinder intro.parameter)
+                              candidate) =
+                          Option.some after →
+                        YulangClosure.OriginalEventProofCut.ActualFieldsPreserved state after ∧
+                          after.assignment.event.eta = packet.eta ∧
+                            after.assignment.event.witness = packet.witness ∧ after.viewMeaning = packet.viewMeaning
+ORIGIN_AUDIT_BEGIN YulangClosure.OriginalEventProofCut.BodyConsumerAtCut
+@YulangClosure.OriginalEventProofCut.BodyConsumerAtCut : {s : YulangClosure.OriginalSourceInterpretation.Sorts} →
+  {View : Type} →
+    YulangClosure.OriginalFormalAdmission.Introduction s View →
+      YulangClosure.OriginalParameterWorld.FormalAssignment s View →
+        (inputs : YulangClosure.OriginalSourceInterpretation.Inputs s) →
+          (registry : YulangClosure.OriginalSourceChecking.GuardRegistry inputs) →
+            YulangClosure.OriginalSourceChecking.Declarations inputs registry →
+              YulangClosure.OriginalSourceEnvironment.RuntimeReadout s View →
+                YulangClosure.OriginalSourceEnvironment.LocalAdmissions s View →
+                  YulangClosure.OriginalSourceChecking.PortReadout s View →
+                    YulangClosure.OriginalSource.Kernel (YulangClosure.OriginalSourceEnvironment.Payload s View) →
+                      YulangClosure.OriginalSource.Environment
+                          (YulangClosure.OriginalSourceEnvironment.Payload s View) →
+                        Prop
+'YulangClosure.OriginalEventProofCut.BodyConsumerAtCut' depends on axioms: [propext, Classical.choice, Quot.sound]
+ORIGIN_AUDIT_END YulangClosure.OriginalEventProofCut.BodyConsumerAtCut
+ORIGIN_AUDIT_BEGIN YulangClosure.OriginalEventProofCut.ActualFieldsPreserved
+@YulangClosure.OriginalEventProofCut.ActualFieldsPreserved : {s : YulangClosure.OriginalSourceInterpretation.Sorts} →
+  {View : Type} →
+    YulangClosure.OriginalSourceEnvironment.Decoded s View →
+      YulangClosure.OriginalSourceEnvironment.Decoded s View → Prop
+'YulangClosure.OriginalEventProofCut.ActualFieldsPreserved' does not depend on any axioms
+ORIGIN_AUDIT_END YulangClosure.OriginalEventProofCut.ActualFieldsPreserved
+ORIGIN_AUDIT_BEGIN YulangClosure.OriginalEventProofCut.generated_value_body_actual_fields
+@YulangClosure.OriginalEventProofCut.generated_value_body_actual_fields : ∀
+  {s : YulangClosure.OriginalSourceInterpretation.Sorts} {View : Type}
+  (intro : YulangClosure.OriginalFormalAdmission.Introduction s View)
+  (assignment : YulangClosure.OriginalParameterWorld.FormalAssignment s View)
+  (inputs : YulangClosure.OriginalSourceInterpretation.Inputs s)
+  (registry : YulangClosure.OriginalSourceChecking.GuardRegistry inputs)
+  (declarations : YulangClosure.OriginalSourceChecking.Declarations inputs registry)
+  (readout : YulangClosure.OriginalSourceEnvironment.RuntimeReadout s View)
+  (base : YulangClosure.OriginalSourceEnvironment.LocalAdmissions s View)
+  (ports : YulangClosure.OriginalSourceChecking.PortReadout s View)
+  (original : YulangClosure.OriginalSource.Kernel (YulangClosure.OriginalSourceEnvironment.Payload s View))
+  (prior : YulangClosure.OriginalFormalAdmission.Prior s View)
+  (annotation : Option YulangClosure.OriginalSource.Declaration),
+  intro.parameter.formal.entry = YulangClosure.OriginalSource.Entry.value →
+    YulangClosure.OriginalSource.Satisfies
+        (YulangClosure.OriginalSourceClosure.closureKernel intro assignment inputs registry declarations readout base
+          ports original)
+        (YulangClosure.OriginalFormalAdmission.priorEnvironment intro prior)
+        (YulangClosure.OriginalSource.Build intro.parameter.context
+          (YulangClosure.OriginalSource.Source.lambda { site := intro.parameter.lambdaSite, annotation := annotation }
+            intro.parameter.formal intro.parameter.pattern intro.parameter.body)) →
+      have kernel :=
+        YulangClosure.OriginalSourceClosure.closureKernel intro assignment inputs registry declarations readout base
+          ports original;
+      have environment := YulangClosure.OriginalFormalAdmission.priorEnvironment intro prior;
+      ∃ description view,
+        kernel.admitted environment (YulangClosure.OriginalFormalShared.descriptionBinder intro.parameter) description ∧
+          kernel.admitted
+              (environment.extend (YulangClosure.OriginalFormalShared.descriptionBinder intro.parameter) description)
+              (YulangClosure.OriginalFormalShared.viewBinder intro.parameter) view ∧
+            ∀
+              (invocation :
+                YulangClosure.OriginalSource.ScopedValue (YulangClosure.OriginalSourceEnvironment.Payload s View)),
+              kernel.admitted
+                  ((environment.extend (YulangClosure.OriginalFormalShared.descriptionBinder intro.parameter)
+                        description).extend
+                    (YulangClosure.OriginalFormalShared.viewBinder intro.parameter) view)
+                  (YulangClosure.OriginalFormalShared.invocationBinder intro.parameter) invocation →
+                ∃ receipt,
+                  kernel.admitted
+                      (((environment.extend (YulangClosure.OriginalFormalShared.descriptionBinder intro.parameter)
+                                description).extend
+                            (YulangClosure.OriginalFormalShared.viewBinder intro.parameter) view).extend
+                        (YulangClosure.OriginalFormalShared.invocationBinder intro.parameter) invocation)
+                      (YulangClosure.OriginalFormalShared.receiptBinder intro.parameter) receipt ∧
+                    ∀
+                      (returned :
+                        YulangClosure.OriginalSource.ScopedValue
+                          (YulangClosure.OriginalSourceEnvironment.Payload s View)),
+                      kernel.admitted
+                          (YulangClosure.OriginalSourceClosure.receivedEnvironment environment intro.parameter
+                            description view invocation receipt)
+                          (YulangClosure.OriginalFormalShared.returnBinder intro.parameter) returned →
+                        YulangClosure.OriginalEventProofCut.BodyConsumerAtCut intro assignment inputs registry
+                          declarations readout base ports original
+                          (YulangClosure.OriginalSourceClosure.retainedEnvironment
+                            ((YulangClosure.OriginalSourceClosure.receivedEnvironment environment intro.parameter
+                                  description view invocation receipt).extend
+                              (YulangClosure.OriginalFormalShared.returnBinder intro.parameter) returned)
+                            intro.parameter)
+'YulangClosure.OriginalEventProofCut.generated_value_body_actual_fields' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ORIGIN_AUDIT_END YulangClosure.OriginalEventProofCut.generated_value_body_actual_fields
+ORIGIN_AUDIT_BEGIN YulangClosure.OriginalEventProofCut.body_consumer_actual_fields
+@YulangClosure.OriginalEventProofCut.body_consumer_actual_fields : ∀
+  {s : YulangClosure.OriginalSourceInterpretation.Sorts} {View : Type}
+  (intro : YulangClosure.OriginalFormalAdmission.Introduction s View)
+  (assignment : YulangClosure.OriginalParameterWorld.FormalAssignment s View)
+  (inputs : YulangClosure.OriginalSourceInterpretation.Inputs s)
+  (registry : YulangClosure.OriginalSourceChecking.GuardRegistry inputs)
+  (declarations : YulangClosure.OriginalSourceChecking.Declarations inputs registry)
+  (readout : YulangClosure.OriginalSourceEnvironment.RuntimeReadout s View)
+  (base : YulangClosure.OriginalSourceEnvironment.LocalAdmissions s View)
+  (ports : YulangClosure.OriginalSourceChecking.PortReadout s View)
+  (original : YulangClosure.OriginalSource.Kernel (YulangClosure.OriginalSourceEnvironment.Payload s View))
+  (environment : YulangClosure.OriginalSource.Environment (YulangClosure.OriginalSourceEnvironment.Payload s View)),
+  YulangClosure.OriginalSourceClosure.BodyConsumer intro assignment inputs registry declarations readout base ports
+      original environment →
+    YulangClosure.OriginalEventProofCut.BodyConsumerAtCut intro assignment inputs registry declarations readout base
+      ports original environment
+'YulangClosure.OriginalEventProofCut.body_consumer_actual_fields' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ORIGIN_AUDIT_END YulangClosure.OriginalEventProofCut.body_consumer_actual_fields
+ORIGIN_DECLARATIONS 4; THEOREMS 2

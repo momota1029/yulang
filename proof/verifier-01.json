@@ -1,0 +1,29 @@
+{
+  "command": [
+    "taskset",
+    "-c",
+    "0",
+    "python3",
+    "/tmp/yulang-eventproof-lifetime-20261028/.agents/skills/yulang-lean-proofs/scripts/check_lean.py",
+    "--project",
+    "/tmp/yulang-eventproof-lifetime-20261028/proof/project",
+    "--lake",
+    "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+    "--module",
+    "YulangClosure.OriginalEventProofCut",
+    "--theorem",
+    "YulangClosure.OriginalEventProofCut.body_consumer_actual_fields",
+    "--theorem",
+    "YulangClosure.OriginalEventProofCut.generated_value_body_actual_fields",
+    "--timeout",
+    "240"
+  ],
+  "start_utc": "2026-10-27T17:06:30.580293+00:00",
+  "stop_utc": "2026-10-27T17:07:09.521324+00:00",
+  "elapsed_seconds": 38.94105540900637,
+  "exit": 0,
+  "peak_children_rss_kib": 996676,
+  "cpu_affinity": [
+    0
+  ]
+}

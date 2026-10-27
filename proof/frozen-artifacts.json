@@ -1,0 +1,1782 @@
+{
+  "launch_head": "8b93abb3ad45fa01daf7b6080095209f683bccb4",
+  "contract_sha256": "c77ecb91ee40abc6d49c77a5b956df146a41277834a5a326ad18f1854737d300",
+  "dependencies": [
+    {
+      "path": "notes/theory/lean/YulangClosure/Contracts.lean",
+      "sha256": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeClosureEnvironment.lean",
+      "sha256": "39aa5cefa078dd423e54f0d9790f9a48e136326742e01f65149f317c907be957"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeDictionaryDenotation.lean",
+      "sha256": "d44a78f08970a09ca4c3e99a1d8dea846286a299d1a2bc91ec3b5e0eabea9070"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalCheckingAdmission.lean",
+      "sha256": "77a8dd74f5913814d3628f0aed189be24b4aafc4780839eaa57237676a157da7"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalFormalAdmission.lean",
+      "sha256": "77230ab7984ee544db16fe4d9663b73f98b9afa9c5d2610fad59c26753d5ac7c"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalFormalShared.lean",
+      "sha256": "abb9d69546e284fcb5fe6be9bb3c18269227e91da94e09eebf1a62e0b56e67f7"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalParameterSemantics.lean",
+      "sha256": "733c5b05e0db226f95d14ff2161c46e9a389b43d86b365b000a9656ec4fd0bd2"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalParameterWorld.lean",
+      "sha256": "7b5f849f744dbe56f374d8be6b11a5a218176abf6eeda2fb9da8180c7b1ff802"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalRecursivePair.lean",
+      "sha256": "1069c185c6fa190c2a0dd776ebf4efc7bfab8ece7e36f2f4049d480e50fa65e7"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalRetainedParameter.lean",
+      "sha256": "ae8915cf002019541d0658895f0604e98700ac23f47aac479fc8382cf65ef799"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceChecking.lean",
+      "sha256": "a0ba215e28fe0152e3c66024da86ab9a63219b7950e741bf260cbc4c2897ffd6"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceClosure.lean",
+      "sha256": "e39f165848c512830e6f92893c61e2d9f07cec66b729e8878c5f7d3491ab429a"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceEnvironment.lean",
+      "sha256": "0e12d33d1b912820324f5140fbe3f16983d0b7ef33137642aaef07faa573f132"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceEvents.lean",
+      "sha256": "cfd5f502a1e68a97e27e11a75400fae8789f167c92596aedb08ef7dfbb724342"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceGeneration.lean",
+      "sha256": "126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceInterpretation.lean",
+      "sha256": "feddd8155e6130279c202453e4562019fde5c0ad0f3a0a491dcbc0cb4ef572ef"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceSyntax.lean",
+      "sha256": "3184d156d661ace7da0345f5fa63f8a4396d9f52c745d265239c8d3db1e7d0d1"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalWorldReadout.lean",
+      "sha256": "edb82b9ecc62be486e057ee50152e30dad709f9a90196f78cab803838f08fb00"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceFunctionMembership.lean",
+      "sha256": "8d370ee57e486ae48607d1bab493ae5135f28bf8a5a7ff1b0ef240fc0247e424"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceIdentityWorld.lean",
+      "sha256": "6019fd9d57cde50183e016bd0c72de2c6eee72009065d85119fb0348dbcf0168"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceSignatureConstruction.lean",
+      "sha256": "ed07890e29b4dcb38cabd18ec0e196efde9e95c64902942a9906a470b38c3311"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalEffectHygiene.lean",
+      "sha256": "926613078f1f3f2e197bff29793b120128f18d3676657af25db72eca47f2c89f"
+    },
+    {
+      "path": "notes/theory/lean/lakefile.toml",
+      "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4"
+    },
+    {
+      "path": "notes/theory/lean/lake-manifest.json",
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3"
+    }
+  ],
+  "source_hashes": {
+    "notes/theory/2026-10-08-source-generalize-definition-and-proof.md": "e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240",
+    "notes/theory/2026-10-27-original-source-closure.md": "5676be4efea28af30096b9d05a05e57252b8a422393f29da90a3076bc434c112",
+    "docs/yulang-whole-proof-closure-ja.md": "17f7518e72f5977b17ce085523adc788ba72a472041555fd18a24da96b4c79a5",
+    "docs/yulang-operational-type-safety-ja.tex": "a003b56a2f32eed06a2c604ef8aed043d43752cbed0b09028eff7f6efac4886b",
+    "docs/yulang-source-type-safety-ja.tex": "2c77bbd6f2679ac91ece3bb670152a9dfd16e033aa68545bff6c6dc509d24166",
+    "notes/theory/lean/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  "files": [
+    {
+      "path": "proof/AuditEventProofCut.lean",
+      "sha256": "f23395f58caad8a8909885046e88a3e40f7b6c2423161603e4f51b9a4edd73b7"
+    },
+    {
+      "path": "proof/AuditEventProofCut02.lean",
+      "sha256": "c968bfbf337ac67bbb28f65d968aa9275902a468c128ff1c1b1e900f78459244"
+    },
+    {
+      "path": "proof/origin-audit-01.json",
+      "sha256": "7618e73f92e88238da19f5b489dfc78d69dd2dd65d968a50a4168aaad1ed4b8e"
+    },
+    {
+      "path": "proof/origin-audit-01.log",
+      "sha256": "90ec1232817611b51fbf75cf5e3fb8353863ad0f92ca25a00cf0187051e7816d"
+    },
+    {
+      "path": "proof/origin-audit-02.json",
+      "sha256": "e322d36e89870807bdb58474fc998ab14e4163a72ae32130fb6c0b2a20130d1c"
+    },
+    {
+      "path": "proof/origin-audit-02.log",
+      "sha256": "32494a631abcb57ea74ea71f9fa421a0b9e9736f8556709c615fc96d0d35b5e5"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/Contracts.c",
+      "sha256": "e93e24602725292d60f6a79437f3145313129f8248eff9e5c6d5f3b313415612"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/Contracts.c.hash",
+      "sha256": "c791c0ad02f7d93eb0e1ecd34f6deb7bc13177a107c3d49371a0882ad9cd653b"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/Contracts.setup.json",
+      "sha256": "07ec03d6b24455d890e3df47c31ac3d98d2695febee6221da0f3dda379935e76"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/NativeClosureEnvironment.c",
+      "sha256": "12915ad2976ac4505ba68fcd213931aa8c1f49c39c0872ed0b3a92bf9e1283a6"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/NativeClosureEnvironment.c.hash",
+      "sha256": "ef2f971315bdc0c6bfd648ab392ea953afedd3f6fe9af78af8b57f26dbb9ad23"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/NativeClosureEnvironment.setup.json",
+      "sha256": "4d576b22a7c6f126c4873a7e8cc642c6c0c9fd8c42af0ed64aed0a4dc7d63c32"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/NativeDictionaryDenotation.c",
+      "sha256": "861c330e4eb2c77336dcae42be1386c9932e6c9cb4c14cf0951e6ac1281130fd"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/NativeDictionaryDenotation.c.hash",
+      "sha256": "408f06762595673f16d639f277bb2db2d1b72212aae04bfdd540e4ac722849c3"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/NativeDictionaryDenotation.setup.json",
+      "sha256": "2b48d8084c154cc5a515b4d3e9a4b8e39c18368f1c4835a4eaaad86b084e4586"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalCheckingAdmission.c",
+      "sha256": "7946f855fcb3c284dfad63e34ba59b78a01eb1f1ef2c156caebefa9bcd258ea6"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalCheckingAdmission.c.hash",
+      "sha256": "64dcc8670bc79a75d4a404a92a1a9b45a8bcba7a55b883a61df3e31ea95821c3"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalCheckingAdmission.setup.json",
+      "sha256": "4ebf33db28acc802cba47d702734056cef9d9c74eee6caf3c6ed877e5aba47b5"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalEventProofCut.c",
+      "sha256": "ccf7c55988b3466391baa7c764e22ca0afa3006e75d25ecab7f96a789249c6b7"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalEventProofCut.c.hash",
+      "sha256": "239f93647dc3618622837cea3bbfbc4e0f79666a7f9983824530465646143236"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalEventProofCut.setup.json",
+      "sha256": "e21687a34c8ec7c7dd81b79ae0efac8b29ca10b2186bdb0aa6d413e3962a233d"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalFormalAdmission.c",
+      "sha256": "56f8d5dbf95f9d0353c263c67a65568f00e9b6a5d89b6a39c0299560ff42b01e"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalFormalAdmission.c.hash",
+      "sha256": "aa14c8935e40e9e8d2ab3367aa98aab33e88e056d12b59153255e29ce8664a92"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalFormalAdmission.setup.json",
+      "sha256": "a1848be05238647e9299a2a042f5ad34c24dbfd72f576b32d692663858d935b8"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalFormalShared.c",
+      "sha256": "c4f17761488e6bd4040772d25c25b77027d8730a2e96ac36d7dc2b8d2ed3dd1e"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalFormalShared.c.hash",
+      "sha256": "57130e5c896e12e414c68a8f1ad7764c0b883e8bab86a3883cfb85ee910baed0"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalFormalShared.setup.json",
+      "sha256": "d6376c55b5b6d709933c4547cbc398354c6b18589a6ccc2b4713d8ec33b24f13"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalParameterSemantics.c",
+      "sha256": "37fef9c227ff2f8781fe224c0338c811b3a78df7193709f54e80411d76f461b7"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalParameterSemantics.c.hash",
+      "sha256": "f1c13280165e898a00dc9dc3c83658e60c9a8572fb32c1178abca5893301ae9b"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalParameterSemantics.setup.json",
+      "sha256": "621e35769ecb7051bb51b1b112ae617ed6d6403b75e005673b0a507253dc1eb5"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalParameterWorld.c",
+      "sha256": "b546d0ccd75feeba6cd5f1c35bbb2e85ff4db6f24d298a45d1cd0c0b68cfc668"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalParameterWorld.c.hash",
+      "sha256": "5ec30af93833cea3d9d28ddae7c8884a1eb38b029be2ab88ce770c6b53a61e94"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalParameterWorld.setup.json",
+      "sha256": "fb54c60b1d4a4a01ade5daa3bcbe01d4d8b103f1e510bd2e20eeb9a4054d80d9"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalRecursivePair.c",
+      "sha256": "ee7c8e89c4e1ca4a310c033f077c217299d96936dec2907500880db73219d107"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalRecursivePair.c.hash",
+      "sha256": "c7ff481fc594f3410514622ee5ab392865d64d6f6f11842a545b6353c4f96951"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalRecursivePair.setup.json",
+      "sha256": "e22697cb4877b586f581582b7550e530173687cd7b5cf08fb05dfc89847615b9"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalRetainedParameter.c",
+      "sha256": "15a521d4cbbed2e90f4bb7e8c6293613f194e43dc740df87d5d2fc9527e5f336"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalRetainedParameter.c.hash",
+      "sha256": "8a49ae1d5b029d430bd4423f0843864af114125d08ba55c1a940149091a78649"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalRetainedParameter.setup.json",
+      "sha256": "efd95d2894d7dc65dee2fcdbef27d1230e4579ec442b261b2b823794366066d5"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceChecking.c",
+      "sha256": "734f362d9ff4aebb8c6bc4f2229bb5bb08c41825bc7181c6a286833d3a745ecd"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceChecking.c.hash",
+      "sha256": "007a1220f19862dfdcfafcc7047d2d4b52eeb585448b7d4e2301e1c110e78d70"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceChecking.setup.json",
+      "sha256": "7dcf2f649eab2b598177d6e7bfe18434cbb6c9f48a3907f2c88351d8f6601b60"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceClosure.c",
+      "sha256": "6f382017f31a26c57fca6b047a3e8ccecd7af91edcce40243ea972ab0761b0fa"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceClosure.c.hash",
+      "sha256": "1dd7f12d928aa53957d7c78dbe466815c96b20cdfa000340ff8ba6c9ea391d37"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceClosure.setup.json",
+      "sha256": "ee3168057dcb75531101322841edc1e6f7ebe06bea364e69466057ee018c27d3"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceEnvironment.c",
+      "sha256": "334d7f4b7b91293fc358d44592a1369b0f9b8fd6074d361e76d1611d8bc127f8"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceEnvironment.c.hash",
+      "sha256": "7d8b69431eca4a3579ddb854722ca4ee70aca207e0d02be95517b46f5b1bfda1"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceEnvironment.setup.json",
+      "sha256": "fe04b8dcbfdb8c117fcff40e8bd863d5c8e03bf77e831f9cd5fb0aab1bf8d8af"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceEvents.c",
+      "sha256": "55eb80ed08a8abf3f109280be069fcfeac68473d3954b222f619dec2387c57a7"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceEvents.c.hash",
+      "sha256": "f2c6998d103905c948bf19ec3c2a7e13ff1f1c0f870c0923ddeb999ce89bf8bb"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceEvents.setup.json",
+      "sha256": "ce7a769f1d9d8b8c5ff66ad685234f3fb7d0305fbffc8067ed0eb5cf06645fcd"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceGeneration.c",
+      "sha256": "2a576e09e04332e9ba16b6efbc1f5cad1e3c7f7422ec23ed0ec905854a3cb5cc"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceGeneration.c.hash",
+      "sha256": "2646db4b84b0460d3a06195644ebdca1ccf3f1a3f5a364ad2a707fbed6c77e42"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceGeneration.setup.json",
+      "sha256": "1c5dff8778653221cb66c8c00e7039a2c76ee58ab66d4d73cb733cfad1039df2"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceInterpretation.c",
+      "sha256": "537ee3f1ec4240513b4c956d20a2e5c98344bcc6af2307bc3667ea5117a95783"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceInterpretation.c.hash",
+      "sha256": "d359090e171416f00cc864e009cbbae9ce4e6e45cd9689c41830e453a03e472c"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceInterpretation.setup.json",
+      "sha256": "f850114d117f7b4b0a1f1568cb327aac2cdf0ec81fb7b336a2b8ef33a59408fe"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceSyntax.c",
+      "sha256": "0fed2395774e957ef81c5084e7086e71516aec534235fbda9009a13281168391"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceSyntax.c.hash",
+      "sha256": "607267e0789b4534643e42652ee65e1527ab3b3ad7cab2d52b1e3aaafe2d3bbc"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalSourceSyntax.setup.json",
+      "sha256": "665e0b4fc11cab40838186369eb50813c0700f7da0cd4762a03ff5096b02bf29"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalWorldReadout.c",
+      "sha256": "41ba2e8383804f4034cec51b9be3135e7b36f7ddd27b7a148e9adeb93d6cfccf"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalWorldReadout.c.hash",
+      "sha256": "8fafa26d75b5aa682af9b93f08a5b4e3488b27481a95c20ef733f9f108a5a4ca"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/OriginalWorldReadout.setup.json",
+      "sha256": "1f39e7eb3aab773fcdd05083ae59b9c4ca8e76dad6ff1cdbf7ae16ebb239632d"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/SourceFunctionMembership.c",
+      "sha256": "9962ff4a5869e58184939fdb6d8daee2a68bff2789544b397ddf0cf59e19bb1f"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/SourceFunctionMembership.c.hash",
+      "sha256": "adf9c9fc02baee0cc7578d9ec6bda62a6d8acf209a69cf039df9f382bb4e8488"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/SourceFunctionMembership.setup.json",
+      "sha256": "8999ff3f52a0d21f487604f0015c74eba7cd12709c5ad5bd0ac66dd97879ffda"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/SourceIdentityWorld.c",
+      "sha256": "4d00bca4668185a08fe1f79d637136942c38152e0d1c95cc0b0aa06bf16841ea"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/SourceIdentityWorld.c.hash",
+      "sha256": "6aab582b3a75d00f006a316d1eab0fc7317cec2d39e57c115c80f24ccaf31095"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/SourceIdentityWorld.setup.json",
+      "sha256": "c5727fd1995aa71fd9aaee7466325557abd35ec7886eba593dd9a667fef80117"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/SourceSignatureConstruction.c",
+      "sha256": "f7413cca3504e9fc53f37427588f8856a50c93a39ee9a0d1cb6ef27d6cd75a62"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/SourceSignatureConstruction.c.hash",
+      "sha256": "c0f6864fbec1259b88956251ef026bb0f556fe22cc971d7ef0fcffe34457be25"
+    },
+    {
+      "path": "proof/project/.lake/build/ir/YulangClosure/SourceSignatureConstruction.setup.json",
+      "sha256": "de96d9c9b27a940d1d57df20b3e89448f99540934b9c05ce8a0919f3b35c0867"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/Contracts.ilean",
+      "sha256": "6d24c9e7dd4fe9442150d30b927d2f93b58b592cffd643a96a5078cd3c4a91e8"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/Contracts.ilean.hash",
+      "sha256": "129ebf1e866763d096ea853c2dedbfa2621ed019a8d25fe4629394e135161c0b"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/Contracts.olean",
+      "sha256": "7debe0321100a247e4a5c048997e57df48ca3e81d77143ab145681a17883e4da"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/Contracts.olean.hash",
+      "sha256": "0b0f6e20d4c32ab928b93522fe53ffae50be59384040ebef3bdbcd9245797240"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/Contracts.trace",
+      "sha256": "540a6372dc8b4761a614162b17f5afef01b1b51f59b09937cdaa6850dfb74ac3"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/NativeClosureEnvironment.ilean",
+      "sha256": "df061c70bbdb74ce649d28dde08d0e7630e89ec6c18007b669e8e4e5642693e3"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/NativeClosureEnvironment.ilean.hash",
+      "sha256": "9fbba4ab7db431629abd58a20a35c4f520b6c7f47fbd7ccf3060983f45fcb979"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/NativeClosureEnvironment.olean",
+      "sha256": "aac5024f29db897bc55248750755f190da9ab2f2730aa85d4ad48d07ace59913"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/NativeClosureEnvironment.olean.hash",
+      "sha256": "e380b17bf52310a5b88f6c16ba762086908cacb8b6b41781d654c729d0be24dc"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/NativeClosureEnvironment.trace",
+      "sha256": "74fdbe0ba129ace61f4399dde16ae27db5c0d06e036597c0eeed09da482ff1d2"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/NativeDictionaryDenotation.ilean",
+      "sha256": "ef32a9528f8589753a07e57b674e77e7f8ed03fcdc2bf210278cd194fe5a190b"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/NativeDictionaryDenotation.ilean.hash",
+      "sha256": "3e037529bdafee33bfae981d8d1b16c46e72bd39dac7eeed91ee9e7b34c6d661"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/NativeDictionaryDenotation.olean",
+      "sha256": "88f3a316963120ba5254c27409ee9134918255b8ab25c4ac89a1f5aff5b16000"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/NativeDictionaryDenotation.olean.hash",
+      "sha256": "be4eb6c0519c475ab162e424072be2fb755abfc5b200fa5dd52d5fd5f7cc8334"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/NativeDictionaryDenotation.trace",
+      "sha256": "5b30a62fe2b81ff864534ff5752c890f048f50c73013112b73664353d68f0b85"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalCheckingAdmission.ilean",
+      "sha256": "6d263c1049d15290ac1a49e24f296e84b96f584ccc38be3fd904a9c6ca5595b5"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalCheckingAdmission.ilean.hash",
+      "sha256": "ba3d5956a7cca246595ec7d0fdfcaffffc65ef02cc6d37f378b90b9e441d790b"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalCheckingAdmission.olean",
+      "sha256": "0bfe6c65b431f282b500e1d1d835a023ac8c8d1270fefd0089df6ddd99586897"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalCheckingAdmission.olean.hash",
+      "sha256": "0f3057775bfcde39e3d881be1bd2f8dcef0e54a6acc8878af8986d00eba2040a"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalCheckingAdmission.trace",
+      "sha256": "97c5499e39c0e162338a4791f64487de6329dcbe49e657ff99476c00fc9961d4"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalEventProofCut.ilean",
+      "sha256": "b4f8237db483939327c02b7861b70a818f5db390fe33eff5d51dba575b551d40"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalEventProofCut.ilean.hash",
+      "sha256": "aa8b0fac8d17bbe41fb641a9687e32e03abd0e41c1630e44224a68862a8a7f51"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalEventProofCut.olean",
+      "sha256": "6ddc8b364dc7bd1e73a5701f6b63db839e311400ab9fc81d2e77d349740ff10e"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalEventProofCut.olean.hash",
+      "sha256": "55f1f88458fbd3c11e30be9cc8beed34a5d071507010e9f95c6b8fa97fae9849"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalEventProofCut.trace",
+      "sha256": "3e32ba2963392c11a50aab3ca39f6e9acdc9f8866a6612dce7895aa083975583"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalFormalAdmission.ilean",
+      "sha256": "f0898079cd38bac231f6b1492dcad2955e85cd6488fd5da979386fddbb0413cd"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalFormalAdmission.ilean.hash",
+      "sha256": "c2e667d849a5ac60ac58a90b07028ae96def1d3a96a0f309b9537d10d2974c79"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalFormalAdmission.olean",
+      "sha256": "5b0e812cc0db7a0e2276089ea5f8b514e904aef29e83dfba56546ad2002f1432"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalFormalAdmission.olean.hash",
+      "sha256": "87c6145da2b5143ede65b2dd889471fcdd51d811616a0a731b18a2867a265fe8"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalFormalAdmission.trace",
+      "sha256": "5416be87036d80c3238bce45976e9be1d78c6f934bc141f7f908821d815d7813"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalFormalShared.ilean",
+      "sha256": "7be769bac873a3b6ec372feeef050c86bc66bd5d805d01c47bf19a2eb944eff9"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalFormalShared.ilean.hash",
+      "sha256": "5ec56f514cb2b59f95d97a7c779389163aded54613c8131d67ce353b8c2c9378"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalFormalShared.olean",
+      "sha256": "8ec3fcdddbeb039e2c986263abd8973e4f5c3d76772ca69232d01484ff1acd6d"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalFormalShared.olean.hash",
+      "sha256": "109c6e8ea90e8af04d663598e54d27f51a5855bee4c1374606a4bd5ba3b9ce6f"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalFormalShared.trace",
+      "sha256": "bad5678713de10787fd49cefd4b0e4a2a4a6fdb98b1a9d6bf3976fea52859ae9"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalParameterSemantics.ilean",
+      "sha256": "f79194c13f293d20fa9e81eae0e1034db03c1571d5c25dcb87696a00dc997371"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalParameterSemantics.ilean.hash",
+      "sha256": "3126732eb67fee5e13a801ffcb5d202a722b64cc9c79813dac091a79d0bb23ec"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalParameterSemantics.olean",
+      "sha256": "6e29c8818b747c053ee123848b4389f73926f2d73177dd68d5d10530b5c5517b"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalParameterSemantics.olean.hash",
+      "sha256": "5ef74e969d6a44745998d3cc196a32c145cae0a04e38ce3b15559a18c4bdd821"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalParameterSemantics.trace",
+      "sha256": "0bf4e1ebfa160d74d4c82a90005f4ab978a0eb7332e4f9c527e2b0f91dec66ad"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalParameterWorld.ilean",
+      "sha256": "686714d42493f23cc9b9cb3f0c455a504b9e2e42a926040f2ac2f426afd5e049"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalParameterWorld.ilean.hash",
+      "sha256": "2f4268382b0aaca46af407692cf02a5185731aa4db23a12969b70d2cae489a71"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalParameterWorld.olean",
+      "sha256": "b8965ff20173c3b3b2f94b133970593735023ae26a33faa36f66c9d684706afd"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalParameterWorld.olean.hash",
+      "sha256": "b38b32e20ad1151c7b66583c81f85b5109a501168fcadbd0fc60323ec0c20d49"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalParameterWorld.trace",
+      "sha256": "4a1134f58502057afad3a5ded68fca5082c578ea9d3d2ccbda672a0f8ca26e35"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalRecursivePair.ilean",
+      "sha256": "8d156ec22272fc2240786e3bf80c7fca0a6cfc6814b9633a248c4d7c6d6fb155"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalRecursivePair.ilean.hash",
+      "sha256": "c4343cadc3335fa9632cf3c415ff6e951526b554fa5affb7b7d5970ffeae1638"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalRecursivePair.olean",
+      "sha256": "2ff3bf5c93064c8ad0de75652b3cacdd08136db1d8f1a84c46d17c96578f0aba"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalRecursivePair.olean.hash",
+      "sha256": "f3496d94f1b4533f554142880dc2d2ab5a6299f50478803231852f674c531678"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalRecursivePair.trace",
+      "sha256": "b73eb0696470c9266e9ffb715061385dcb436a209b339e34d6d84c2dfba4e153"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalRetainedParameter.ilean",
+      "sha256": "e8337eaaccf8966705aa80c70703d40201f493265fbef39fcdef10469d6a6235"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalRetainedParameter.ilean.hash",
+      "sha256": "3efe1d1f385bbadd03db4642194350a18f9c4fad72d5bbac3a12deefd47777df"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalRetainedParameter.olean",
+      "sha256": "bf40f7211ee167c4d5b7b48e92ac57ae48fb236a63542dc7846dffbbcfe07899"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalRetainedParameter.olean.hash",
+      "sha256": "0f21aff9f22a5a20cc63f77b800bff7feaba17fef1c3f4f3b2589050798088d0"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalRetainedParameter.trace",
+      "sha256": "6e21a78b95aee009ec56046a33ff8306e7e3b7953109c87640e596a7a3641754"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceChecking.ilean",
+      "sha256": "fbf31885b61f9f0bfad850f44bfca906e15b5fb6470e2c1c30396bbd1a7a9cfc"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceChecking.ilean.hash",
+      "sha256": "0d1b1712ac1416bb00fda0478023778db9c2bc6d504770c6cdae2ef98d0ae5a0"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceChecking.olean",
+      "sha256": "e6d5f3b28dd641d69f30fd2d2941a7af9587a82f12096fe18cf72f6b90892b4c"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceChecking.olean.hash",
+      "sha256": "6adce7294e069eb6a8306f8b41922830ccaa482798eca33755a45a87354d4155"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceChecking.trace",
+      "sha256": "60cb6267cdfe39c1549615690e467bac23161c3d0a2f7fcef55b1b30ca17a3f3"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceClosure.ilean",
+      "sha256": "32ef8303399c9553943777d8a63df74f28cfbed80ee26de124fef791a3084f06"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceClosure.ilean.hash",
+      "sha256": "bdb273b3aad98d48e42791b1a1601a54f5f211620c85594c30ac2a28004cc5a6"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceClosure.olean",
+      "sha256": "5966757f52228eb41ae118ce0fe3cbdb852b07698af7c7424561def986b94706"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceClosure.olean.hash",
+      "sha256": "ed772a30cb71d1e6b6248fda0befea22c1cf548f25b62526426a2bfa16dd23c9"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceClosure.trace",
+      "sha256": "6391efd9e12117d90bc2af8fceee8ea9ea5fe8afa20c0f56ec10c5182dbf54cd"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceEnvironment.ilean",
+      "sha256": "7824db3de74fecb391f3a73d0d7a77d59ea4178d7caa6ebad07a4b52464964ec"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceEnvironment.ilean.hash",
+      "sha256": "a499c7f6eb4db1ef3c61c474d943dea5db905b2520099235784c4b4c9a78ee86"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceEnvironment.olean",
+      "sha256": "5af78547b8b3abe9a0180bd00f830a245779566b65eb7e44e96b6518defdf2e4"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceEnvironment.olean.hash",
+      "sha256": "9ead19d75c2ed26b7e7c264ea2f56b7408ac0b3518c5acd34e346387a1cfab57"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceEnvironment.trace",
+      "sha256": "e627e64ae428d8850353dcefa897824071b8b51610dfe6b4b91f82bda71b8516"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceEvents.ilean",
+      "sha256": "d33cd9e5efdf5a33cdde203dddd82279da8d4af0e0ca8713c462dff160711236"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceEvents.ilean.hash",
+      "sha256": "b9067b941d7d58ee875fe1c00511b920649e5bdb8d432e8275c9cbf26309b0f4"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceEvents.olean",
+      "sha256": "5fe9ae5bc2e12e4abd088e7ccd96b5886e57b1a1c660e427e9984722467f6ec5"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceEvents.olean.hash",
+      "sha256": "71af0a31dd49774599149f4fbf323e802e853264fb6ffe72ebc9a949b67f5d0a"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceEvents.trace",
+      "sha256": "2c561cff9fa3e06d980add56d9fcb3ec047dd7cd4e6be36cee2798688081226a"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceGeneration.ilean",
+      "sha256": "b5824a56c65c281336a64dad7dc25724751cdb4d551cf94e76a2542ce06947e6"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceGeneration.ilean.hash",
+      "sha256": "4fd72c7fe3bf3a6dc2d4d5589ed93f217ce6b7fa66cdd7844deb4204bc5757fa"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceGeneration.olean",
+      "sha256": "6e369f48ac21ef90876ba499cd19280d002ec977df7b9fa733908b8afc8a8fa2"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceGeneration.olean.hash",
+      "sha256": "a99b41229a53e77c059411be2670447f43be8c325967a48ccadbddada28d8d51"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceGeneration.trace",
+      "sha256": "e69dca7658312f1b24ef44223194252b41a965bd1a9348fade4f28a31312caa7"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceInterpretation.ilean",
+      "sha256": "0678b2a7432ff63dab626885a2aed143a930bbffcd2ced509e95c9b4ec7819d1"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceInterpretation.ilean.hash",
+      "sha256": "75dd418242d2f8f3bddc4e0b6aa0190255f8f93e90d30b8637a35a101ce9289e"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceInterpretation.olean",
+      "sha256": "f52f64b31814e08cd52aad2910bd285817cfe1c765b59a1018a050f2aaed9070"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceInterpretation.olean.hash",
+      "sha256": "af527be2d83057d916cc49f0e22c2296431999b34e10047496a352d210c8098c"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceInterpretation.trace",
+      "sha256": "a0b2234eacad74a41d9b82e18fc85f5e99d55ed24b2b83e0a29ef0db7794b8ee"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceSyntax.ilean",
+      "sha256": "f63ec8f1d6103f6b0af42b9a7a5f713944699f4be5cfb1c4770c724b457ec119"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceSyntax.ilean.hash",
+      "sha256": "df182805044f8cd0c00a5009ae67f156ddfd9a1a682e86bba3ecc727b448ff95"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceSyntax.olean",
+      "sha256": "4ade6945edfabc7cfb9e1804dacb473ff3a9e40a86ec0d1e3d6eabf6785b5dac"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceSyntax.olean.hash",
+      "sha256": "5444d1312673d7fd60ee815bb7558f8a97de3762625686b37dcbc8ed7d75fac6"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalSourceSyntax.trace",
+      "sha256": "0f8f26b131ef61a4a8e74647c67d0b184b376a0c7830bfa8a0f3959700ec7fa1"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalWorldReadout.ilean",
+      "sha256": "0ee95e449a24fa0a1c79be534fb4afe889543ed3ff62e0b1a9ead3a2a8ca6a80"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalWorldReadout.ilean.hash",
+      "sha256": "019cff39db22c05ed2863cdd1d79b8f18a65db139bf0bba6a700d3a5d2eaef08"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalWorldReadout.olean",
+      "sha256": "a6c7b9d69d5f7c9f8bcda05b87959bc2696fef7915a1b9c0c42e083dcd2fa87b"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalWorldReadout.olean.hash",
+      "sha256": "be1e581e5ec390ecd506d211c898aed95dc35dada1c90e5d47337ccb4e36440a"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/OriginalWorldReadout.trace",
+      "sha256": "02c51b52c85f168c8075a4159e12b84d347a6cc254684e9cc5c5cdf56583a714"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceFunctionMembership.ilean",
+      "sha256": "e10c9650c9879e1fee8b59dcfbe729c1051b9499cb8b6611c59b12f54ef56112"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceFunctionMembership.ilean.hash",
+      "sha256": "b29719d4e93c7f3d10d383462dc37b57a28c455257c83c66aba1d8e1b0a167b8"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceFunctionMembership.olean",
+      "sha256": "f5d556d568508df3839a1366686de0c420554a06ef4d190cb99134482088a487"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceFunctionMembership.olean.hash",
+      "sha256": "e29195f50b0b25b672eb423ac7deb30777aeb41d2e97d7a3952420c5273ca7d1"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceFunctionMembership.trace",
+      "sha256": "1fb962f4f7ddaaeb1ed17fa04017b834712773594d1459f782088709f6a3b439"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceIdentityWorld.ilean",
+      "sha256": "d36ec372f120af759365a37cfe6299aa5a0e6abee03d2b6de076fcccb88b26dc"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceIdentityWorld.ilean.hash",
+      "sha256": "97b814c96744fa4f4b0df0d06c9f36a0dda44d6a5a584fd97f5bb40c3e80ba80"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceIdentityWorld.olean",
+      "sha256": "44dad5dc94ed97dd7a0b558b9339f90992e589d723e0d9255df63d91e81808ca"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceIdentityWorld.olean.hash",
+      "sha256": "991755b649621a9fa22c6e7ae5360bdec0f990ceb1d5173643d012d4fee04dc6"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceIdentityWorld.trace",
+      "sha256": "be76247cbfd362eafd353f524c221ad1c202dbd11d68ec357c6dcf71752ace4e"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceSignatureConstruction.ilean",
+      "sha256": "7a6965f3fa5fb036d8422559fc3399916e37f15a6e4c7b15b6b5857b6393bce9"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceSignatureConstruction.ilean.hash",
+      "sha256": "be192bf7140b803f31618f5e24d442193780b614e95f38754ec0f82c6e5813a7"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceSignatureConstruction.olean",
+      "sha256": "97df730148ffdc4316fefe6a6f30f61a6f0c6350262a26406609d1b7d3e300b9"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceSignatureConstruction.olean.hash",
+      "sha256": "15429d236c92b73e6e930bda14524600269b6ddc9b7cafec41fd667bfb149293"
+    },
+    {
+      "path": "proof/project/.lake/build/lib/lean/YulangClosure/SourceSignatureConstruction.trace",
+      "sha256": "3f331f7d86f40020bf33a41c9bc1ab6dd8b1f569c2f36a580fe097d0f80f660f"
+    },
+    {
+      "path": "proof/project/YulangClosure/BirthLevelSCC.lean",
+      "sha256": "2c76b82d4dc85a4bf4c122731ba014b07df4c863ad679e9a795a57e6546243f0"
+    },
+    {
+      "path": "proof/project/YulangClosure/BoundaryQueryClosure.lean",
+      "sha256": "7dad22c1b94e404be5dc4aaa51203e8d3882fd4c61006eb8b0c5f6f87a30f727"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallCaptureResponse.lean",
+      "sha256": "a310f3da1091a2dd7ed1d751aea67c44aefe06ce89fc9bb16cc0d19b530eb1c6"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallCaptureTyping.lean",
+      "sha256": "906e8204aa155efd3f4e45d9c2a2a9fbe010858206ef3dd0acfd3d0d607a0de9"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallContextTyping.lean",
+      "sha256": "09bc05fc8561ee81186dd6eae3667a77b0360a8dd27a6236548dfb01d33a5125"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallDeclaredLiteralResponse.lean",
+      "sha256": "f9c7f3b8b0c2ad0552df531a6a13ad1fb4863340bb0ea837319bf144a2bae255"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallEntrySpine.lean",
+      "sha256": "6c6bd7b4c912e86196434465a94a1ada02fe1d28cc8c0e5343b247a2dd7961b6"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallEntrySpineComposition.lean",
+      "sha256": "a296a5ae738cb3ca8f88a6009495e0fe84a2a394976aafeb4630d6cdd25a11bf"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallEntrySpineRepair.lean",
+      "sha256": "ad4a2e1b49b13dc71b77b079b80b0c6c6355327915a4be343276b9b9497f7d89"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallEntryTyping.lean",
+      "sha256": "21850ac899060ade9f9db5139b20e5e1779b4f18b67d6d1127501827ec146ba2"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallEntryTypingRepair.lean",
+      "sha256": "f90c2192422e35cc7f85716e29199c9587976e230e12543aff0609eedcc49c39"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallEnvironmentRealization.lean",
+      "sha256": "8b9e4c38224f103557c5f6a036c6d4d06ba7799264947f4843fa7029195f66b6"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallFailureUnwind.lean",
+      "sha256": "2d7422bc4c83310a1a1d0a2bcaa5528bb6a8801520c42db2f2ada6b12224b89c"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallFiniteTyping.lean",
+      "sha256": "555e6ee61fad15c93df70bbec13781716d83292a86110a6eb6670018e9b70588"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallLiteralResponse.lean",
+      "sha256": "62cffcd2bcf5ce879c3c7b75ff6908b19470a27e5ca73e5973ec1affbeaac3fb"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallNativeLiteralResponse.lean",
+      "sha256": "7b0c27ba851f982d3e13fa3e27c258fe907a56585a92123af14f9ad4d765d2cd"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallPeelingTyping.lean",
+      "sha256": "f89e31759657f602ba69b41a31c9f63ba61f003aa1ebe560323d65dda2b33c44"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallPrefixTyping.lean",
+      "sha256": "95c49daec0417c8130a498b44783c546b9464b96380731182fedde5665e8b5bc"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallProgressObstruction.lean",
+      "sha256": "8dc8b1b72c952dc45c431fb965a438b700dc86902a68b8d77a3de0b7d47858b7"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallRequestBoundary.lean",
+      "sha256": "28ffc2943c18d324c35dacf18b4dd70921d4cc462ffd6ffdce989475ef46cce6"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallRequestBoundaryComposition.lean",
+      "sha256": "fed00f06cdbf2a5bdc1b3c18957acc33c7b281e890f277ca5bd1d20ece53ee76"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallRequestUnwind.lean",
+      "sha256": "e4835bd2c2487b14d658b02373e0507ea6c201b81a1fb81d396b0f05a1850fc9"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallResponseCancellation.lean",
+      "sha256": "ab9083bab971acd4e72cb8db95d567b309a240e1773b3fc4544fa6968ffe9488"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallStepTyping.lean",
+      "sha256": "4b3b40ae3c295666470c1cda73ac38f0abdc62ea86626be58f10249092d3c3ab"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallStepTypingRepair.lean",
+      "sha256": "2ef522c022a0708be670f1ab44b57c8f558d4736f123e14ceb5f6ff259a3c586"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallTerminalTyping.lean",
+      "sha256": "319466c8276a638166733a28694881e3d980befd5798006ebc984907a8820a6d"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallUnwindTyping.lean",
+      "sha256": "57afc331d735c7b9680c8b1391ced1f86b72a0ab10ca37e9f620cf0388af1cc1"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallUnwindTypingRepair.lean",
+      "sha256": "1eaea1938f6ee2341352afcc597847fc2ade5b8ce8d3be84dda19926fe217cc3"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallViewedForceReachability.lean",
+      "sha256": "ce6e45da496ceb3f5d7e1150f57ebdf5f62dd0495ee3a8deb1b61035b39cee8c"
+    },
+    {
+      "path": "proof/project/YulangClosure/CallViewedForceStuck.lean",
+      "sha256": "71164cef48ca86866ef4aae9661ea2e9388e9741062e159a97f3c26b42614ae9"
+    },
+    {
+      "path": "proof/project/YulangClosure/Contracts.lean",
+      "sha256": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e"
+    },
+    {
+      "path": "proof/project/YulangClosure/ControlComposition.lean",
+      "sha256": "10e3801e00fa279b16d1cc98e50775b9372d114fbcc648d3cd052f35ba4da7b2"
+    },
+    {
+      "path": "proof/project/YulangClosure/ControlSyntax.lean",
+      "sha256": "1f937e4c51b79d1a2dc4a2291a1e3f5797403eae5975a53a42d574867a1690f0"
+    },
+    {
+      "path": "proof/project/YulangClosure/ControlTyping.lean",
+      "sha256": "e52aaca8baa5c3312a200952ef07fa7e304686d2642c154831de0365646a497f"
+    },
+    {
+      "path": "proof/project/YulangClosure/CoreComposition.lean",
+      "sha256": "1527cd3c5961b413ec2b97495744b218aba6247956881318485364d15065294c"
+    },
+    {
+      "path": "proof/project/YulangClosure/CoreControlBridge.lean",
+      "sha256": "30a0007aea313eccc42531bf346891c010dbed7b4b34cea1aebe7043a9a6d99a"
+    },
+    {
+      "path": "proof/project/YulangClosure/CoreExecution.lean",
+      "sha256": "86b4bdbf605046d7648fba803aa31eb9e96264627f123f8d14bf937813b4ef7e"
+    },
+    {
+      "path": "proof/project/YulangClosure/CoreSubstitution.lean",
+      "sha256": "ae1dfd4947d9e87c05dfa893b93067175d860ed3b5da000d61257d7789208b55"
+    },
+    {
+      "path": "proof/project/YulangClosure/CoreSyntax.lean",
+      "sha256": "c5a25cb7d935159b62f377b7fa88b3e92e4cdf429118d566e53f7859f6ea5375"
+    },
+    {
+      "path": "proof/project/YulangClosure/DeclSubst.lean",
+      "sha256": "f1463d4dceeab7251b2a65508b23a7ef4ab3a575b2792793be04a858e9191258"
+    },
+    {
+      "path": "proof/project/YulangClosure/FiniteCopyClosure.lean",
+      "sha256": "eaa4af374dfff21e74a9e8a89d681932404f7a8c4e97850fe0cae544dcf9e10b"
+    },
+    {
+      "path": "proof/project/YulangClosure/FiniteGuardDecision.lean",
+      "sha256": "a9924ab2c8d96a173c886ddfbb2580a7719fbf08064d9f85d0644784778de9fa"
+    },
+    {
+      "path": "proof/project/YulangClosure/ForceAdmin.lean",
+      "sha256": "620994e5e7383c267a19d5bea93f35d8d82d2db76a03893449bd821250669c97"
+    },
+    {
+      "path": "proof/project/YulangClosure/ForceCompletion.lean",
+      "sha256": "6baeb9a786e916d0f7b60bd4d5c8286657da2adba4acdab36f2e45e0921aeb22"
+    },
+    {
+      "path": "proof/project/YulangClosure/GraphContinuationExtension.lean",
+      "sha256": "cae749a64bb641131aa6fdc19a71fe0c635dbe007433556f3dc9efe4388105ec"
+    },
+    {
+      "path": "proof/project/YulangClosure/GraphExtensionTransport.lean",
+      "sha256": "a41bbdb417d3a5f9c1784b690520d5a973d1178c5a1ab47b6b5b80cdd629dac1"
+    },
+    {
+      "path": "proof/project/YulangClosure/GuardedValueGraph.lean",
+      "sha256": "4d2c3b17d0ab8d12606c875638426167ce596492167cecf042eb222436229f55"
+    },
+    {
+      "path": "proof/project/YulangClosure/HandlerGraphCorrespondence.lean",
+      "sha256": "94a6c2d24045bf9959121f4b31efea2f0630abc53c5bb776ab356d3ff108f964"
+    },
+    {
+      "path": "proof/project/YulangClosure/HandlerGraphEmbedding.lean",
+      "sha256": "36b616d809554feb585f32203fa72c1a084c7136beb4141a46d3a27a5145f656"
+    },
+    {
+      "path": "proof/project/YulangClosure/HandlerGraphInteraction.lean",
+      "sha256": "a5094f70dc2ec2843a431cfb24f0111166fbc9172b7e6df08d0d8c800a8ce018"
+    },
+    {
+      "path": "proof/project/YulangClosure/HandlerGraphRecAllocation.lean",
+      "sha256": "5563163a5fe2741dc4cb1968329e5ec417a170099448978b653dc487cd136dfd"
+    },
+    {
+      "path": "proof/project/YulangClosure/HandlerGraphRecInteraction.lean",
+      "sha256": "dc1f89a1e1b8b0b4a9e2e95fdcc47334b1b7578a8fef3f947574678ce8dfdba7"
+    },
+    {
+      "path": "proof/project/YulangClosure/HandlerGraphRecursiveTrace.lean",
+      "sha256": "bd07ea464ba42b1073b69b2af0bc5d26c1ca148a58598d6d10973ba54dc29909"
+    },
+    {
+      "path": "proof/project/YulangClosure/HandlerGraphSafety.lean",
+      "sha256": "554c5a1a003f27c3b8657d77455aa4f5eda7852338254034e3dd63a6db42a558"
+    },
+    {
+      "path": "proof/project/YulangClosure/HandlerGraphSyntax.lean",
+      "sha256": "2a6b3f455e408336290bbe28616d7db8ee928f1b342b4c80f975bbacb419c24c"
+    },
+    {
+      "path": "proof/project/YulangClosure/HandlerGraphTransport.lean",
+      "sha256": "a869e61005910dba00cf9cfa57065a45afeac08413974e343d9bcc16821f629d"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderEmbedding.lean",
+      "sha256": "2b773edf831d04cd4319e1fb980865dff0fb9a38f7d64b21f3d228ea2a0e1457"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderEntry.lean",
+      "sha256": "c9cb839ff6b34ed97c5d72f9e020437d32175cf517a5841a3a024764747c213b"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderEnvironment.lean",
+      "sha256": "84a461fdff85e7321cf090ba2bb72a7d90415515a2da1eb15e1287ef0361ab83"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderGraphObservation.lean",
+      "sha256": "8817db7bc5181481745f49696d7b7d2e4dc927a715353ab83bc36f4ed53420cc"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderGraphSafety.lean",
+      "sha256": "de67122c098579b5ba088ff832ef8ca36e233537faf064ab8e36520cf2532533"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderGraphSyntax.lean",
+      "sha256": "2dca03ee408f7f35545c02847d03fae47ab1887c2761c82e8b59cc9ad6001886"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderHandlerInteraction.lean",
+      "sha256": "a0920fc7214055fd213bc66729e865b571698f95bd42ae289c432b6cf5730d3f"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderHandlerSafety.lean",
+      "sha256": "f74c35666d8f4f5ab1af52009c005d5cb0be9958f7f8d64185c31750b2dd38ef"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderHandlerSyntax.lean",
+      "sha256": "4578e2d3c8b06a57937dd652e06eabb8c9271113a7eb3388dc718856d64b249d"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderInteraction.lean",
+      "sha256": "45f2b8c74e2837e503db84aed3c9f55767a32d19e4008546e25a01cef1202875"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderRecAllocation.lean",
+      "sha256": "30a6e1855fb8bb4950ad2bdfad238e000554563cb0d1d4b1ec311e3c0cf4f0dd"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderSafety.lean",
+      "sha256": "16a38dbb649677ed5e6b6371a61228a1724b9e899136eeb2119b755ecab30336"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderSubstitution.lean",
+      "sha256": "19910452c45b20761ec06dc7e15f94c94b95014ff00f3f5296af005b9adf6f30"
+    },
+    {
+      "path": "proof/project/YulangClosure/HigherOrderSyntax.lean",
+      "sha256": "ea727d33692bdcbe6b40245b960d01225b556b5334ffab649eea2699930d5972"
+    },
+    {
+      "path": "proof/project/YulangClosure/InferenceConstruction.lean",
+      "sha256": "576d69266da62c0f75fa9748ff0f0691a9f0bc3aca5148be9d25cef82d2010f0"
+    },
+    {
+      "path": "proof/project/YulangClosure/InferenceProofs.lean",
+      "sha256": "dff8f66fb20d1a75cd1ff72ab72babecf30cfb8ad816b5e758c540c1b166afea"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeClosureEnvironment.lean",
+      "sha256": "39aa5cefa078dd423e54f0d9790f9a48e136326742e01f65149f317c907be957"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeContextCallbackConstruction.lean",
+      "sha256": "b90e44fbbf4c268e1b3dc73c32dfb0de542b640207e2feda6c8acf68d89cbb98"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeContextCompletion.lean",
+      "sha256": "5bc4bb4151087462cfbede6f0d6accece70c41ea5061f1ef100ad081e28344b4"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeContextExpansion.lean",
+      "sha256": "9887bef34e51678cead77eaf84a2f9b47916987ea9cffaad5d4ef74d53de2ea8"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeContextReadback.lean",
+      "sha256": "321d087c8d2df5099f67beb75e4316d44114806bbfae2aa64ebda22a34bd83f2"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeContextTables.lean",
+      "sha256": "eaf2b037af40af01ad116e1ae413a6c7d5a0023d49c8b9f1b92d29c319d2df81"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeDictionaryDenotation.lean",
+      "sha256": "d44a78f08970a09ca4c3e99a1d8dea846286a299d1a2bc91ec3b5e0eabea9070"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeDrainOwnership.lean",
+      "sha256": "d37edac29dcecc19dd90b91c3095e5385a0657310dcf08d805a8f20672872d18"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeExecutionHistory.lean",
+      "sha256": "44ad2a6d5b9ac0526ea36adc9180e0ed66e3892e48fa39aa40b20999dc7a1da6"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeFrameRollback.lean",
+      "sha256": "274e9a9ac1c43bc81d3b962edb6846dd5e4fa2adb2b645ebd92d6d5f38bd9964"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeFreshScopeTransport.lean",
+      "sha256": "1827358830b331ea6c4eafccf83279a1294a3df5b889405cf27ee2f95ff49df5"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeInferenceProgress.lean",
+      "sha256": "d22167d330ce1bb000677e2915a85beddb0e7a483600ac8c6a92cfdf37c79b12"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeIntegerArithmetic.lean",
+      "sha256": "5adb30eb53f64fa4ccad80e83ed78c27f442436f20a8eceb8bc4fb59aac33ad1"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeIntegerComparison.lean",
+      "sha256": "fbd98d89898d58b529add810787538df8b69d9172bdc86206418fb2dd74c588b"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeLiteralReadback.lean",
+      "sha256": "53a745397fed4b319225541b8e764a32cdc72032ca4e8be48d9d4a23d3901c54"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeMergeExpansion.lean",
+      "sha256": "f14bd35e8f7a6b9f326dadf003797c63f4a48fd0d0c0c9d68891c579560baf6e"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeProfileRestriction.lean",
+      "sha256": "527d89b982b962e423cfaa15ecf76a2d778603102bfc9e8d12b22af2eb1c7fb2"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeRecordPlan.lean",
+      "sha256": "3cf43fdb754748b83a6816791d640752dda491b87f7e2513a27548a950b27d43"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeRelationInterner.lean",
+      "sha256": "1fd7ece6c6a7c6df7159efaebaec585b78a9e8513e9b10e6a3fb4d472b577d3a"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeReplayAcknowledgement.lean",
+      "sha256": "5264c6b6d9904a43ec0b50c3ac0100a05612b724f52a8601e3a93c771f8204df"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeReplayCoverage.lean",
+      "sha256": "e65d925ab5222fd6bbc4bf63e756701aaba1273fff677ceb052d7f66e6450b7e"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeReplayCurrent.lean",
+      "sha256": "fdd7dfa32f944f09b2cfc7440caeff95edcfad1fd5c839094f186d27168d9088"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeRepresentativeReadback.lean",
+      "sha256": "a2e9d1bc26220c0502e7c92f67b153c066716440a57e4cc4bec3cb110b07128e"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeRowModel.lean",
+      "sha256": "30016f40295a803df2ed3d9b46efd256d1427400f55bda1810e22a00f89d7780"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeRowRepresentative.lean",
+      "sha256": "91b29ddd33db8b8b67308dff14b655619763d5ecb153b715f03b02c031371ee2"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeRowSaturation.lean",
+      "sha256": "9f8e2cf43ade40c17a09387d5888833002ee42791eff0d2d608f83d6ca39e974"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeScopeTransformer.lean",
+      "sha256": "68f37763bcaab831ec6248a28144e7b76ede42b7813681850f7c67b0d8df10f6"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeTemplateReplay.lean",
+      "sha256": "cae76713a1756a5d15d13232a094437003931b33b6cc2e5a44ca946d83175d32"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeValueDrain.lean",
+      "sha256": "826fa025241835aad606434b3d0fee2406b694d72ca1dbf03a618f3e61d1b095"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeValuePorts.lean",
+      "sha256": "f49bf12537633c65b4dbdcb4e739df5de5eee76cfb5ad845c8dba50cef4101fa"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeValueRelationExecution.lean",
+      "sha256": "118138bd45cef3db837a0742010944cdd0c513e9d352302d23889e497a89c4ea"
+    },
+    {
+      "path": "proof/project/YulangClosure/NativeValueStructure.lean",
+      "sha256": "81060e17ad37f2e4a47edb7ed2829bea6820438bf3d4db0e4de8d113fd9497fc"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalAuthenticInlineExtractionR2.lean",
+      "sha256": "ed25ec65c5760e4a523fabe75f392c67476a710d3af60e345c07e5bf5eaeeb09"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalAuthenticInlineExtractionTraceR2.lean",
+      "sha256": "73a4a8aa65e5d7d44611a70e52b9d2b6ac5940c2292a7c06e01e69834f2ac5e3"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalBoundFibers.lean",
+      "sha256": "1a512b23a55936e30088763d46d3f71458cec953b58edbf794e28bb13eaf0ca5"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalBoundWorkExecution.lean",
+      "sha256": "b6d3d2e7c9f14b87cce55f69e2cb8fd87269e282732bdefa685fb1bfeaf099f0"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalCalleeDelayProvenance.lean",
+      "sha256": "3acb041c530b19e78703b3f3030edd1b304ab7c20329974f0afc2d387428dbfe"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalCheckingAdmission.lean",
+      "sha256": "77a8dd74f5913814d3628f0aed189be24b4aafc4780839eaa57237676a157da7"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalDrainBoundary.lean",
+      "sha256": "d11f5c4e5550702c0796c45076408b0c038e4bc204ec05354b83db8ad7b04ab9"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalDrainFrontier.lean",
+      "sha256": "ec7d4ab463858b73cd09295588833fa095a749c529d40a03cd4f5b8406fb9682"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalDrainStages.lean",
+      "sha256": "9e116f95b8ed001485b2f6b699478c847a53420adb11c70b577b1c0f4e07d61d"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalEffectHygiene.lean",
+      "sha256": "926613078f1f3f2e197bff29793b120128f18d3676657af25db72eca47f2c89f"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalEventProofCut.lean",
+      "sha256": "a89e00cffcdb4172688807636a871a47e47ee25b2be197cdf6f4d1be99b1a448"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalExtrusionFibers.lean",
+      "sha256": "15bb4ebc67a22f4bd3af584e8377dec210963f7cbba43e6072c82b5f2d5a8800"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalExtrusionWork.lean",
+      "sha256": "c419675d75a2cdf03fe5b1ba8d2eef106fea0c4f5187f9f5c06999fa734edd58"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalFiberTransfer.lean",
+      "sha256": "2d368cfe99240d7c4a5cb7618acd7bedd3a569978735b27a1b3b23a1626566ba"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalFirstDrainBoundary.lean",
+      "sha256": "d2c7096ff19b072fea0646b2ed12a4096e26ee03b31eb71997c64e9af43f0a1a"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalForcedParameter.lean",
+      "sha256": "d16a45c459ea78b0f583ebd34d7a442d7247b55358ff6d990e3416c3d841aedf"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalFormalAdmission.lean",
+      "sha256": "77230ab7984ee544db16fe4d9663b73f98b9afa9c5d2610fad59c26753d5ac7c"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalFormalShared.lean",
+      "sha256": "abb9d69546e284fcb5fe6be9bb3c18269227e91da94e09eebf1a62e0b56e67f7"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalFunctionFuture.lean",
+      "sha256": "e90f98aa00597cf46089f2152b492ab98b21b0ab5350276410b622931439c99f"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalIdentityCarrier.lean",
+      "sha256": "f26878514518f14a4a99e799dad2ca28e4513c467a8dd24d86e6329b9e640616"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalIdentityEntryOrigin.lean",
+      "sha256": "9df7fccfe03becec491665a28a7fb65760e1245d76e68330fc9626da5533163e"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalIdentityFrontendJoin.lean",
+      "sha256": "cc89fcd3d541b6f9f789a7e2a89a7568545bb9f6a6883d0fa043fb1669e7fd1f"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalIdentityRealization.lean",
+      "sha256": "30b0676f4af22dc7da2c75596a338db57a24b17662a4057801cfdff7ab4a2f42"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalInferenceTermination.lean",
+      "sha256": "26aca31b41897e297e516bf98b6e11d63dab50482a69f5b8a1f98a739696f946"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalInferenceTerminationResolution.lean",
+      "sha256": "a89a316ea72e472b0e2c09effc144730dc4c683228008caf42a433d0a969a6dd"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalInlineIdentityInterpretation.lean",
+      "sha256": "3aca1be7523880d0fef1cc8b2991ade174fda2c79445e9e9014982eccccb352a"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalMemberEntryFields.lean",
+      "sha256": "9c4833e323a649bc46bc5c18caa77115de86ddba2660a021a52f4aaf2ba57b9f"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalNameEntryCorrespondence.lean",
+      "sha256": "3b362e91b66ae106259875bc49644545f1f107ed644c74393791fc2dca2a0f20"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalNameEntryTrace.lean",
+      "sha256": "a6d1ec061b5d3bcd9bf85a56405e16ff0d8f02037a870f2c6ab139d82efb9115"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalNameForceExtraction.lean",
+      "sha256": "10ff6a2d4ac8a4a2c386396c495e0edfecc9bd4bb3ae40c8e0ab07e4cb0c7531"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalNameReceiptSeed.lean",
+      "sha256": "14a5fc3d69c827ba246942353b1adec22316461b51068fd82e1861494b5f0d9a"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalNameReceiptSeedR2.lean",
+      "sha256": "a71178de1c5622352cd1d7e82ded3739525ca36a7029ff79de3859f57e661bf8"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalNameReceiverEntry.lean",
+      "sha256": "650d4e3509e32a62ffa9e847f8dbbc1751989026daf964a51f5026542a669a5c"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalParameterSemantics.lean",
+      "sha256": "733c5b05e0db226f95d14ff2161c46e9a389b43d86b365b000a9656ec4fd0bd2"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalParameterWorld.lean",
+      "sha256": "7b5f849f744dbe56f374d8be6b11a5a218176abf6eeda2fb9da8180c7b1ff802"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalPrincipalClosure.lean",
+      "sha256": "673bfcc4c1f03b4ffbed92643f15251d211b50053ef5f73e1fda0b2df20f0306"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalPrincipality.lean",
+      "sha256": "c9d214cd086aa1fbdf8f471e7b52c8cccddaa971fc68a8bb0956c9539d098dc7"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalPrincipalityResolution.lean",
+      "sha256": "006cf46593e608d73ff5618b35f85623d984f4401852864911e7b9443cb351c3"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalProofProgress.lean",
+      "sha256": "21e361962538d5e2738041b58186682a4a9fb3ad10c75f4c39dc97e32a443f39"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalProviderLexicalOwner.lean",
+      "sha256": "bf4e6572e5f1bf9b97a4d0274488b8d20f4487528d5bf8346ad262d3c75bd2f7"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalProviderLexicalOwnerTrace.lean",
+      "sha256": "4719fe129bee3a04fc321589d2c765413ec81cf309d7ad88d118c99b49ed57a0"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalProviderOwnerBridgeTrace.lean",
+      "sha256": "0e8a51907d7712d12af0eeeb32559b53d9c4403b7da54579de968a4029d32d6b"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalProviderPublicationCoverage.lean",
+      "sha256": "62257d276004f6caf07872142e4a4369266d5205d992f4f3d56f36657ae69783"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalProviderPublicationCoverageTrace.lean",
+      "sha256": "9e2578c3e96f95d335263d1c0ed874af36ed411676fbb4977676314a28af56e1"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalProviderRootContext.lean",
+      "sha256": "bde05d470435f0184a9203fb30a4612126aab3540b9889f57a0a087bf7b553f3"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalProviderRootContextTrace.lean",
+      "sha256": "c04a8017041f332a1a30f3179291925c83f31a995bacb12af574354a8c4c26f6"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalProviderSourceSolution.lean",
+      "sha256": "3bf66649fdf4baacb3140de7786165db0d2b138087ca582bd32008b87a95a21a"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalRecursiveClosure.lean",
+      "sha256": "393171b2dcbaaddf4d2328b3fb69fa68375795e4c289b93e7190f6126f7cda8f"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalRecursivePair.lean",
+      "sha256": "1069c185c6fa190c2a0dd776ebf4efc7bfab8ece7e36f2f4049d480e50fa65e7"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalReplayBoundary.lean",
+      "sha256": "894f0008c7cf62a43a80c82eb75c5ae08c2a0aa84c0fbadae4dcec07529544c8"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalReplayDrain.lean",
+      "sha256": "ab8900724f0a5ae41c3c1342e1f8024aff465fbabefcf6e68ecde8d8952ed878"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalRetainedParameter.lean",
+      "sha256": "ae8915cf002019541d0658895f0604e98700ac23f47aac479fc8382cf65ef799"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalReturnWorld.lean",
+      "sha256": "0710f5d969af927c8f42b42f4972ba4f53ddce4ddb082e9d3d360e90c9ccf12b"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalScopedClosure.lean",
+      "sha256": "b316a5e18a14b4c9750cc97f294aea824ce6b0a704fc67929fa4a016e94ebeab"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalSourceCallerSchema.lean",
+      "sha256": "9bb15c7f383a997c4e7d63efd521704c925e62c95072f81ad18ad2aec9ba30b9"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalSourceChecking.lean",
+      "sha256": "a0ba215e28fe0152e3c66024da86ab9a63219b7950e741bf260cbc4c2897ffd6"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalSourceClosure.lean",
+      "sha256": "e39f165848c512830e6f92893c61e2d9f07cec66b729e8878c5f7d3491ab429a"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalSourceEnvironment.lean",
+      "sha256": "0e12d33d1b912820324f5140fbe3f16983d0b7ef33137642aaef07faa573f132"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalSourceEvents.lean",
+      "sha256": "cfd5f502a1e68a97e27e11a75400fae8789f167c92596aedb08ef7dfbb724342"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalSourceGeneration.lean",
+      "sha256": "126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalSourceInterpretation.lean",
+      "sha256": "feddd8155e6130279c202453e4562019fde5c0ad0f3a0a491dcbc0cb4ef572ef"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalSourceOwnerReification.lean",
+      "sha256": "95d9749ce93ecfc82d6423ba193a261f2725178a7e62cea469b57ae316af3d7e"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalSourceOwnerReificationInstance.lean",
+      "sha256": "3aab685323e00b69cb9c21d847582e442590e0ff5e810fab50662b7d9127f887"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalSourceOwnerReificationTrace.lean",
+      "sha256": "b9a15df005c730db27fc385c58ca07b433f1095f017e0969155106da7478fb0a"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalSourceRecordBoundary.lean",
+      "sha256": "c7889284745ebd23ec300cf3e4de0a8f7ffc4546a9af2eccf5df76d071a0dd1a"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalSourceSyntax.lean",
+      "sha256": "3184d156d661ace7da0345f5fa63f8a4396d9f52c745d265239c8d3db1e7d0d1"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalSourceValueEntryAdmission.lean",
+      "sha256": "3dc218f9d6623192d7d85c6f5be14f0fddbe833b19ede467c75647a5833205dd"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalStageWorkConservation.lean",
+      "sha256": "819d0e1f4659c9027e80ba03d583f81e59dd9015b8a493e4e599d90eeb759d53"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalTerminationClosure.lean",
+      "sha256": "f3b1373effdd99b5ef610f30ce3903ce119d66a4e16f9cf71ce09dee80ee00a6"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalValueEntryDemand.lean",
+      "sha256": "9a171ecfbad7d632b2a15ef1f57d2d2dd46444aa36452de9158f1d1c7cfdae63"
+    },
+    {
+      "path": "proof/project/YulangClosure/OriginalWorldReadout.lean",
+      "sha256": "edb82b9ecc62be486e057ee50152e30dad709f9a90196f78cab803838f08fb00"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperAllocationExecution.lean",
+      "sha256": "d5cd9f4499ec0c6e67e73a9444634671e43b507368c418b1d9ecec7fd57f0aa4"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperCallEntryFormation.lean",
+      "sha256": "2465c5620b0b66f6029ab294134d9860cd8bf810ac25c5f30763cb709c7da31e"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperCombinedExecution.lean",
+      "sha256": "58661ddec13e1fe4abb6a9b6627597fa824dedbf36f952e56dc15906141314d1"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperCoreControl.lean",
+      "sha256": "71594dfb24af402f7b4835dc54b5383a46106faba959b687295cc0431361530e"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperCoreStep.lean",
+      "sha256": "e1ccb094a8aa7a08a16f9da565240c62c79b7094aa5f2e6f27ab604aee49f662"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperEliminationExamples.lean",
+      "sha256": "d7b412df9bf7cfe47c538b48e1fb6ebfd8fc6c177d484cc3912573608d53071d"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperExecutionBinderLaws.lean",
+      "sha256": "5f7c9058bafdf7ac083709714b5f978942bbe0442b4b289fe93e0df92dd2e8a8"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperExecutionGraphWeakening.lean",
+      "sha256": "5fcb0334dfa77c3385f5f460669e36578a01642a54d17e357c072fd012fc73fe"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperExecutionSyntax.lean",
+      "sha256": "d0dc9871c382ca945059167b8b9e05f8f672170208a994f081e29760a207b87d"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperExecutionTypingSubstitution.lean",
+      "sha256": "cb0941ef8842551da53fbf2b14cca181c10849178288de29cef1145f1d575cc7"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperExtendedExecution.lean",
+      "sha256": "a29c5cc15748e8a91338f2a068e94ff7dc58c2a19adad564ba3f5a6fea337ea7"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperFreshHeapAllocation.lean",
+      "sha256": "7cd87b8e5fd43eea0206401de6ed91e817755f3d1ad2c5aeee1caf0dd1732925"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperHeapExecution.lean",
+      "sha256": "46a9e8e76f5745cbaffc40b7bb95ff37064941a84532fa5edc07672ddad3d59f"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperHeapObservation.lean",
+      "sha256": "19b54b87b63cdc4175b1b641ca83d0c1e9454e2439c58a0936bf31fa5bc4725f"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperOperationMapperTyping.lean",
+      "sha256": "175c307e00bea7ba6ec44ff153f50a7d9d943de8bdc3d4dccb02a41bc53dde77"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperPerformLetExecution.lean",
+      "sha256": "6a2bae07df66483bbd1cef5d761c29ab3cc7f89a0b043ed03ad3907b04ddc928"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperResumeExecution.lean",
+      "sha256": "5ab59033b0cea347144c50a5323e4dd6cb59cc6bfbdc0bffd063a4808e741935"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperTemplateExecution.lean",
+      "sha256": "3ead9cf7d0f57d02d5fd8b44da24f133d7859e76dff8ee1d1b17cb233920d792"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperTermSubstitution.lean",
+      "sha256": "baeae84bc7d063152b6c0cb6a3f9ec650f291010edbe065e044099daa94b4495"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperTermSubstitutionAlgebra.lean",
+      "sha256": "b35a14e1872cec5284a68cb38e9ea6fd0c9dc23cbd6d8017c82a550ec60a379d"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperTupleSplitExecution.lean",
+      "sha256": "1a3424f10108f1c563f7c44888255e9f30fb9895fcfd433b1664701eb36b7e5d"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperTypeApplicationPreservation.lean",
+      "sha256": "60e095545530bc784487a4bfcc1c7acfc1160b3adf8c1c8dc03ab98806154556"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperTypeBetaExecution.lean",
+      "sha256": "a4f471ec1d3f02ebd1fb3efb0597e0df33c49280a3b3aefc4772d68d2328f352"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperTypeFormation.lean",
+      "sha256": "29c1a85b4d2588224bf1847f78a7b4d94db095488f3bba4937888a3815f39d13"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperTypeSubstitution.lean",
+      "sha256": "02834720f622642dd4c7a27ea51451deb7386877b091fbccc828a66eaa8e4861"
+    },
+    {
+      "path": "proof/project/YulangClosure/PaperViewExecution.lean",
+      "sha256": "e7c6c959d2bcc780ca7198aae09a0368f4d98625001bdfe5b8f8c259c9cb3f85"
+    },
+    {
+      "path": "proof/project/YulangClosure/PrimitiveOperationInstance.lean",
+      "sha256": "c3b0f2ad86fd49f9ebcf22c80388b996951ff0704695e18afa546863ddcf8773"
+    },
+    {
+      "path": "proof/project/YulangClosure/ProofAdvancement.lean",
+      "sha256": "db2f2f3a548b0b20b15b2435f08a362e903c3e52a035c7eca5580925f08dd598"
+    },
+    {
+      "path": "proof/project/YulangClosure/RecordBoundaryExecution.lean",
+      "sha256": "865c4db37b3eed02d8cc376cf07b469c85ef364aeed7914823b207d14730cda2"
+    },
+    {
+      "path": "proof/project/YulangClosure/RecordBoundaryPreservation.lean",
+      "sha256": "1bde9224c1b0d568d5cc73d84a5ccc5f1157452c87ea2ff428096c1dbd50d056"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubConstraintSoundness.lean",
+      "sha256": "33709d3978e8071708c10bba23d85b1b025c11dfd988220501acb7c6e3220293"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubConstraintSyntax.lean",
+      "sha256": "a9ec574d31223e0484fd827838b45cd019fc858eece9f326c95ebc2e1e77a1f6"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubGeneralizationSoundness.lean",
+      "sha256": "3f6114e4173d6cade6ad135ed83ad543116e28e87845b0f6a834cb8f727f6246"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubGrowingInference.lean",
+      "sha256": "865b9eb4a64962182a22a9e507b98b1e7ab92ac143e4cbfea0b8570e39bb58ce"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubLatticeCertificates.lean",
+      "sha256": "55533eee35ed7058abd125ac0e01d8f29b8c0534800018d254c1bd9f9c0bb79b"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubLatticeDecision.lean",
+      "sha256": "a9c184512bf6e23d15cc8a3a2ed230652fb168f707155e779be18c562d8e57c9"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubLatticeGrowingInference.lean",
+      "sha256": "1270e3407ddeef881020610b094709ebba07b62a97e54712bcc4b139ef8e78d0"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubLatticeInference.lean",
+      "sha256": "c534c060dfde84f2817fbaa53222f430b59d9b6377cfacedabeca7b9b4b8ffa3"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubRegularCompletion.lean",
+      "sha256": "d7231d0a3695dba7f3102e5fe235d4d26e34cad78870dbdbae9b7633c42787aa"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubRegularConstraintSoundness.lean",
+      "sha256": "1d2266867115fc27afe39dbb80a3ca0e8f75247a2e16b739145137e83999de33"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubRegularDecision.lean",
+      "sha256": "6b6e5e6f1c45140d935e1aa29fba4c1303ae89cd91fd6e1cde0d37387148db8d"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubRegularGraphExtension.lean",
+      "sha256": "0b45d0e6d58701cba9f7df00d2a63897327e357ed3047b36e96d8fb6c49893d8"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubRegularPublication.lean",
+      "sha256": "18fc6f138204e1529dcd0bb9c01a20de7444a26e4dadc87677460ccd8ac9fc99"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubRegularSolutions.lean",
+      "sha256": "755d267714bd23bcfc17ec37d43d258392567b7d1356afc4897f541ae9855b29"
+    },
+    {
+      "path": "proof/project/YulangClosure/SimpleSubScopedPublication.lean",
+      "sha256": "d64e9bffca5d513985237a9ff78dcf3d9e43baae1594edbc93dff4b5410d428f"
+    },
+    {
+      "path": "proof/project/YulangClosure/SourceContributionConstruction.lean",
+      "sha256": "9755a65a2b3e6b97f7da5bf21c844fb7f5292c12925de9f9081fccaa322380a1"
+    },
+    {
+      "path": "proof/project/YulangClosure/SourceFunctionMembership.lean",
+      "sha256": "8d370ee57e486ae48607d1bab493ae5135f28bf8a5a7ff1b0ef240fc0247e424"
+    },
+    {
+      "path": "proof/project/YulangClosure/SourceGeneratedInteraction.lean",
+      "sha256": "16952fef6ea505cce0d7f8afa6bf39cd3609119626f7857d6beaa88737c5b003"
+    },
+    {
+      "path": "proof/project/YulangClosure/SourceIdentityLambda.lean",
+      "sha256": "831b297998509eb261f7a0596792c826c56078661d5a3ab66fc9afd67238d7a4"
+    },
+    {
+      "path": "proof/project/YulangClosure/SourceIdentityWorld.lean",
+      "sha256": "6019fd9d57cde50183e016bd0c72de2c6eee72009065d85119fb0348dbcf0168"
+    },
+    {
+      "path": "proof/project/YulangClosure/SourcePrincipalTransport.lean",
+      "sha256": "ab86c4448dcddcb5e20ef1495e317c4d0fc04ad0ff52c4323779d12f5fde33ee"
+    },
+    {
+      "path": "proof/project/YulangClosure/SourceSignatureConstruction.lean",
+      "sha256": "ed07890e29b4dcb38cabd18ec0e196efde9e95c64902942a9906a470b38c3311"
+    },
+    {
+      "path": "proof/project/YulangClosure/WholeMetatheory.lean",
+      "sha256": "65777d3da4fb2a28b25e961049afb88f3ed750c30d04ae73bdc907ef5f93de26"
+    },
+    {
+      "path": "proof/project/lake-manifest.json",
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3"
+    },
+    {
+      "path": "proof/project/lakefile.toml",
+      "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4"
+    },
+    {
+      "path": "proof/project/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "proof/verifier-01.json",
+      "sha256": "4006d3320a8ac2d90137ec99057f48ed26a77bb06e0443d8c419f2b2f4a79c27"
+    },
+    {
+      "path": "proof/verifier-01.log",
+      "sha256": "c22e830fe031841f14fe316dba4caa4ac00e82706c9e409c00e8b1c5cabf5ae5"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalEventProofCut.lean",
+      "sha256": "a89e00cffcdb4172688807636a871a47e47ee25b2be197cdf6f4d1be99b1a448"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/eventproof-cut-20261028-proof.md",
+      "sha256": "8928bf2b58a7607c1ae4d6dae8a95fe5e3364f7b456f0a80d584a82af0546ea0"
+    }
+  ],
+  "frozen_utc": "2026-10-27T17:09:27.358932+00:00",
+  "excludes_self": true
+}
