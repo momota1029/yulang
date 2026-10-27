@@ -51,6 +51,38 @@ pub struct Machine {
     operation_v1_trace: Option<OperationV1Trace>,
     tuple_prefixes: Vec<TuplePrefix>,
     dispatch: dispatch::Machine,
+    name_entry_trace: Option<NameEntryCorrespondenceTrace>,
+    pending_name_entry: Option<PendingNameEntry>,
+}
+
+/// Provisional research observation joining an actual lexical Name receipt to
+/// the subsequent fresh ValueEntry parameter cell. This record grants no
+/// runtime permission and is never read by execution decisions.
+#[derive(Clone, Debug)]
+pub struct NameEntryCorrespondenceTrace {
+    pub invocation: usize,
+    pub name_site: SourceSite,
+    pub returned_value_origin_site: SourceSite,
+    pub source_parameter: HirParameterId,
+    pub entry_parameter: HirParameterId,
+    pub source_cell: usize,
+    pub value: usize,
+    pub view: usize,
+    pub receipt_index: usize,
+    pub cells_before_bind: usize,
+    pub bound_cell: usize,
+    pub cells_after_bind: usize,
+}
+
+struct PendingNameEntry {
+    invocation: usize,
+    site: SourceSite,
+    source_parameter: HirParameterId,
+    source_cell: usize,
+    value: ValueHandle,
+    view: ViewHandle,
+    cells_before_bind: usize,
+    receipt_index: Option<usize>,
 }
 #[derive(Default)]
 struct OperationV1Trace {
@@ -467,6 +499,8 @@ impl RuntimeProgram {
             operation_v1_trace: self.operation_v1.as_ref().map(|_| OperationV1Trace::default()),
             tuple_prefixes: Vec::new(),
             dispatch: dispatch::Machine::default(),
+            name_entry_trace: None,
+            pending_name_entry: None,
         };
         machine.begin_root(0);
         Ok(machine)
@@ -474,6 +508,12 @@ impl RuntimeProgram {
 }
 
 impl Machine {
+    /// Return the provisional source trace, if this run actually joined one
+    /// lexical Name/Observe receipt to a fresh ValueEntry parameter bind.
+    pub fn name_entry_correspondence(&self) -> Option<&NameEntryCorrespondenceTrace> {
+        self.name_entry_trace.as_ref()
+    }
+
     /// Mint the dynamic receipt after an actual completed run, never from a
     /// partial, exhausted, unhandled, unavailable, or mismatched execution.
     pub fn operation_v1_runtime_receipt(
@@ -813,6 +853,22 @@ impl Machine {
                 .ok_or_else(|| RuntimeUnavailable::MissingBinding(site.clone()))?;
                 if let Some(received) = self.cells[cell] {
                     let execution_owner = self.current_execution_owner();
+                    if *consumption == NameConsumption::Observe {
+                        if let (LocalSourceResolution::Parameter(parameter),
+                            ExecutionOwner::Invocation(invocation)) = (resolution, execution_owner)
+                        {
+                            self.pending_name_entry = Some(PendingNameEntry {
+                                invocation,
+                                site: site.clone(),
+                                source_parameter: parameter.clone(),
+                                source_cell: cell,
+                                value: received.value,
+                                view: received.view,
+                                cells_before_bind: self.cells.len(),
+                                receipt_index: None,
+                            });
+                        }
+                    }
                     if let (Some(plan), Some(trace)) =
                         (&self.program.operation_v1, &mut self.operation_v1_trace)
                     {
@@ -1468,6 +1524,8 @@ impl Machine {
                 if let Some(fields) = record_pattern {
                     return self.bind_record_parameter(fields, 0, received, body, environment);
                 }
+                let bound_cell = self.cells.len();
+                let returned_value_origin_site = self.values[received.value.0].source.clone();
                 let environment = if unit_pattern {
                     if !self.value(received.value).is_some_and(|value| matches!(value.kind, RuntimeValueKind::Unit)) {
                         return Err(RuntimeUnavailable::InvalidSourceReference);
@@ -1475,7 +1533,7 @@ impl Machine {
                     environment
                 } else { self.bind(
                     environment,
-                    Binder::Parameter(parameter),
+                    Binder::Parameter(parameter.clone()),
                     ReceivedValue {
                         dispatch: received.dispatch,
                         value: received.value,
@@ -1483,6 +1541,40 @@ impl Machine {
                         view: received.view,
                     },
                 ) };
+                if !unit_pattern {
+                    let owner_matches = self.current_execution_owner()
+                        == ExecutionOwner::Invocation(entry_receiver);
+                    if owner_matches
+                        && self.cells.get(bound_cell).is_some_and(|cell|
+                            cell.is_some_and(|bound| bound.value == received.value
+                                && bound.view == received.view
+                                && bound.interface == ParameterRole::Value))
+                    {
+                        if let Some(pending) = self.pending_name_entry.take() {
+                            if pending.invocation == entry_receiver
+                                && pending.cells_before_bind == bound_cell
+                                && pending.value == received.value
+                                && pending.view == received.view
+                                && pending.receipt_index.is_some()
+                            {
+                                self.name_entry_trace = Some(NameEntryCorrespondenceTrace {
+                                    invocation: entry_receiver,
+                                    name_site: pending.site,
+                                    returned_value_origin_site,
+                                    source_parameter: pending.source_parameter,
+                                    entry_parameter: parameter,
+                                    source_cell: pending.source_cell,
+                                    value: received.value.0,
+                                    view: received.view.index(),
+                                    receipt_index: pending.receipt_index.unwrap(),
+                                    cells_before_bind: pending.cells_before_bind,
+                                    bound_cell,
+                                    cells_after_bind: self.cells.len(),
+                                });
+                            }
+                        }
+                    }
+                }
                 self.state = State::Evaluate {
                     code: body,
                     environment,
@@ -2475,9 +2567,21 @@ impl Machine {
         if !self.receiving.matches_value(received.view, received.value) {
             return Err(RuntimeUnavailable::InvalidSourceReference);
         }
+        let owner = self.current_execution_owner();
+        let receipt_index = self.receiving.next_receipt_index();
         let receipt =
             self.receiving
-                .receipt(self.current_execution_owner(), received.view, site, None);
+                .receipt(owner, received.view, site, None);
+        if let Some(pending) = &mut self.pending_name_entry {
+            if pending.site.source_root == site.source_root
+                && pending.site.occurrence == site.occurrence
+                && pending.value == received.value
+                && pending.view == received.view
+                && owner == ExecutionOwner::Invocation(pending.invocation)
+            {
+                pending.receipt_index = Some(receipt_index);
+            }
+        }
         match consumption {
             NameConsumption::Observe => self.state = State::Return(received),
             NameConsumption::Execute => {

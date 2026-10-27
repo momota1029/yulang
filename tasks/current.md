@@ -74,15 +74,20 @@ these counts do not close an original whole-language goal.
 
 The principal operation is already specified in the original documents; its
 complete semantic interpretation and all-valid-view E_V remain to be proved.
-Active follow-up constructs the Name observation's actual same-event receiver
-entry packet, structural admission/enqueue before the first boundary, and the
-complete typed semantic dependency inventory required by eligible Desc.
-The Name interpretation does not identify arbitrary opaque Force relations;
-the Bound result stops before origin metadata; MemberEntry does not certify
-opaque contract dependencies; stage completion is ghost tracking with native
-extraction still open. Complete Call interpretation, global source/native
-scoped correspondence and the whole growing inference relation remain
-uninstantiated.
+The latest Name/Force leaf has a checked conditional same-event `EntryFacts`
+packet, with all seven theorem types and axiom sets audited. Its ordinary r2
+trace is fixture evidence only: independent review found that global pending
+observation state can survive intervening Sequence/Condition/BlockExpression
+frames and misattribute a later Local result to an earlier Parameter receipt.
+The r3 one-use-token repair and probes were not started; r3 stopped before
+Cargo4 because the remaining review allowance could not be established. Keep
+the reusable source join rejected pending a newly funded, independently
+reviewed repair. The Name interpretation does not identify arbitrary opaque
+Force relations; the Bound result stops before origin metadata; MemberEntry
+does not certify opaque contract dependencies; stage completion is ghost
+tracking with native extraction still open. Complete Call interpretation,
+global source/native scoped correspondence and the whole growing inference
+relation remain uninstantiated. See the r3 outcome record for exact receipts.
 Existing no-normal-drain evidence is not a Lean divergence proof. The separate
 statement-preserving cleanup of nine older modules resolves all 668 lint
 warnings; its independently reviewed 131-job full build has zero warnings

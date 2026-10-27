@@ -103,6 +103,9 @@ impl CallbackResultSchema {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub(super) struct ViewHandle(usize);
+impl ViewHandle {
+    pub(super) fn index(self) -> usize { self.0 }
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct ReceiptHandle(usize);
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -183,6 +186,10 @@ pub(super) struct Receiving {
     query_visits: std::cell::RefCell<Vec<usize>>,
 }
 impl Receiving {
+    pub(super) fn next_receipt_index(&self) -> usize {
+        self.receipts.len()
+    }
+
     pub fn opaque(&mut self, value: ValueHandle) -> ViewHandle {
         let handle = ViewHandle(self.views.len());
         self.views.push(View {

@@ -11,7 +11,7 @@ mod receiving;
 
 pub use machine::{
     ContinuationHandle, Machine, RuntimeOutcome, RuntimeValue, RuntimeValueKind, TupleElement,
-    ValueHandle,
+    ValueHandle, NameEntryCorrespondenceTrace,
 };
 pub use program::{
     ExecutionRoot, ExpressionExecutionRoot, NameConsumption, RuntimeEvidence, RuntimeProgram,
