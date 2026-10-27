@@ -1,0 +1,37 @@
+# Independent review: formal permission projection r8-r4
+
+Disposition: accept the bounded context-core frame and corrected conditional composition as conditional producer evidence. No source-to-reachable-state preservation theorem, r7 premise removal, or production promotion follows. No BLOCKING or major correctness finding established in this review.
+
+## Identity and authentication
+
+Actual reviewer: `/root/formal_permission_projection_r8_r4_review`, received by runtime NEW_TASK; separate session UUID UNKNOWN. ACK and active-work receipt sent before inspection. Requested and effective model/effort unavailable to this session (UNKNOWN). Independent non-author; no descendants.
+
+Target SHA-256 independently MATCHED `3171fdaec7fe72fa02fd467785a3b4506af0e2c54fbfea34e4e3c7a503d71b94`. Every one of the 25 input rows in its authentication table independently MATCHED, including amendment03 `d8c9ef2120ee2f25396c4dbb54b26370a116f917848dbe316cff06533ab5c03a` and candidate_context `57114491a4b1333f30e3ad68cb6e1c8a5c735e2d142c1456745eaef8ed56f30e`: 26 byte checks including the target. Baseline `3cc8a897fe08980576b1582952a95acab55f09d2` is a primary pin, not independently resolved through Git. Hashes authenticate current bytes, not producer execution history.
+
+Read root/base instructions, design authority, the proof skill's source/conditional distinction, governing amendment03, original r8 contract, r8-r2 local lemmas, r8-r3 review, r7 outcome, selected annotation/inference policy, and actual admitted source bodies. The submission's explanation was treated as claims to verify against those bodies, not independent evidence. Some combined governance output was truncated; no exhaustive governance or transitive audit is claimed. No test body outside the admitted source union was opened, and no executable verification ran.
+
+## Cause, responsibility and effect check
+
+The r8-r3 defect was a missing whole-forest premise, not missing inverse bookkeeping. At source-r8-r4:160–172, H0 assumes entry closure and live in-range rows; H1 assumes preservation of the COMPLETE whole parent function and vector identity/lifetime up to the final link. Their conjunction now implies closure of every class immediately before candidate_intrusion.rs:679/:691. The previous countermodel F=[0,1,2,3], with a helper creating 2↔3 while selected roots 0 and 1 stay fixed, violates H1. It can no longer satisfy the repaired premises. H2 is separately used for inverse replay and still explicitly requires r8-r2's prefix/lifetime hypotheses. The repair addresses the logical cause and does not pretend to establish those hypotheses from source.
+
+The context-core frame agrees with the inspected bodies. candidate_effect.rs:697 reaches candidate_context.rs:4318. The latter canonicalizes through candidate_context_pair (:3349), canonical_value/effect (lib.rs:11839/:13491), and noncompressing intrusion representative reads (:119–127/:165–175). Its subsequent state borrow reaches owned context metadata. snapshot/intern_snapshot (:753/:766), transported_scoped (:2867), relation_with_scoped (:3062), Transport dependency (:3153), evidence.transform (:861), and attach (:3283) neither receive a forest-vector reference nor call a session callback. ScopeInventory::charge (candidate_source.rs:217) only checks/updates work_used. Transport does not take the solver edge branch. Its sparse bundle path uses BundleTransports::insert (:495), bundle_edge/link/incidence insertion and activation (:2677–2741), all on owned context records. Thus the nested metadata induction supports preservation of both complete parent vectors and the outer intrusion Undo identity/sequence, under ordinary safe sequential Rust/std execution and successful return. This conclusion comes from actual callees and fields, not merely the receiver signature.
+
+Copied evidence wrappers (:1835–1841/:2032–2043) delegate to owned evidence containers; admission/emission save old group heads in group_log. Evidence rollback restores reverse/child/group logs. These context-local facts establish neither complete outer checkpoint ownership nor forest reachability. Errors can leave context metadata changed; the report correctly avoids upgrading this frame into a general restoration guarantee.
+
+The outer merge logs the prospective forest inverse before journal/copy/transport/splice calls (candidate_intrusion.rs:624–668). Resource sampling is a real session call, including the terminal sample in context transport. journal_value/effect_row (lib.rs:9548/:9597) calls observe_typed_route_capacity (:9253); sampling enters :10774/:10821, and sample_f4_resource_parts (:11017) receives shared storage and mutable counters. These inspected facts support only the stated partial resource frame. record_incoming_bound_capacity_growth (:16669 onward) and complete transitive reservation/accounting/history composition remain outside the completed induction. The explicit unsupported equation at source-r8-r4:144–148 retains that responsibility. It cannot be replaced by context-core purity or by the ordering of one inverse entry.
+
+The rollback description is read as call nesting: lib.rs:9664 takes the journal and calls intrusion.rollback; intrusion.rollback first invokes effect_algebra.rollback (:202), which owns context rollback, then replays forest inverses (:203–215), then truncates (:222–223). The report's statement that forest replay precedes forest truncation is correct. Neither this ordering nor no-Undo operation proves same-checkpoint completeness, original row lifetime, or a successful wrong-image export.
+
+## Finding
+
+### minor — the source receipt requests an incomplete elapsed-time charge
+
+Location: source-r8-r4:189–191 and :204. The report requests a full 200-second charge, while the primary's independent assignment receipt states that actual source execution exceeded that cap by 45 seconds and is now stopped. Using only the requested charge would understate the observed source expenditure by 45 seconds and could authorize later work against an overstated remainder. This concerns resource accounting, not the conditional proof.
+
+Violated requirement: amendment03 fixes a 200-second source cap and says not to reclaim unobserved time or reset earlier charges. Minimum closure: primary records the observed 245-second source duration and cap overrun in the authoritative ledger/receipt, preserving the frozen source bytes and prior charges, and recalculates the remaining budget. No continuation or retrospective authorization of the producer is implied.
+
+## Limits and handoff
+
+No reachable cycle, invalid successful capture, or wrong-image export is established. H0, full H1 and H2 remain unclosed; no r7 premise is removed. B, D, reachable forest/lifetime preservation, r1 Lean verification, original parent A/B, source/native, full inference/executor and production remain OPEN. Acceptance here is limited to authenticated bounded static evidence and the repaired conditional implication.
+
+Only short static reads, targeted searches, SHA-256 checks and a clock ran; no tests/builds/probes, Cargo/Lean/Lake, Git, network, compiler edits, quarantine access, descendants or other writes. One observed review clock: 2026-10-27 22:59:01 UTC. Exact CPU/RSS and launch-to-stop duration UNKNOWN; charge the full independent 120-second review grant once. Sole write is this review artifact. Reviewer STOP on submission; writes ceased. Primary owns adjudication, resource-ledger correction, scheduling and all shared-state synchronization.
