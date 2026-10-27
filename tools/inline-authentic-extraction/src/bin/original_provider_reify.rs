@@ -18,8 +18,8 @@ const PROVIDER_TEXT: &str = "pub id x = x\n";
 const PROVIDER_SHA256: &str = "9b830a0650483a3387ced1724463b5fb18434366fb5a082f8cf7597ca8e7519e";
 const PROVIDER_MODULE: &str = "std::core";
 const PROVIDER_FILE: &str = "lib/std/core.yu";
-const LEAN_MODULE: &str = "OriginalProviderSourceSolutionTrace";
-const OUTPUT_RELATIVE: &str = "notes/theory/lean/YulangClosure/OriginalProviderSourceSolutionTrace.lean";
+const LEAN_MODULE: &str = "OriginalProviderPublicationCoverageTrace";
+const OUTPUT_RELATIVE: &str = "notes/theory/lean/YulangClosure/OriginalProviderPublicationCoverageTrace.lean";
 
 fn parse(text: &str) -> ParsedFile {
     let source: Arc<SourceText> = Arc::from(text);
@@ -73,7 +73,7 @@ fn checked_definition<'a>(
     if !source_key_owned(parsed, key) {
         return Err("selected HIR definition source key is foreign to provider parse".into());
     }
-    if &parsed.source().as_ref()[binding.range().clone()] != PROVIDER_TEXT.trim_end() {
+    if &parsed.source()[binding.range().clone()] != PROVIDER_TEXT.trim_end() {
         return Err("HIR declaration range is not the exact provider declaration".into());
     }
     Ok(binding)
@@ -130,8 +130,8 @@ fn owner_rows(
     if !parsed.owns_source_key(&parameter.source) || !parsed.owns_source_key(&body_expr.source) {
         return Err("formal or body SourceNodeKey is foreign to exact provider parse".into());
     }
-    if &parsed.source().as_ref()[parameter.range.clone()] != "x"
-        || &parsed.source().as_ref()[body_expr.range.clone()] != "x"
+    if &parsed.source()[parameter.range.clone()] != "x"
+        || &parsed.source()[body_expr.range.clone()] != "x"
     {
         return Err("formal/body byte ranges do not select exact source spelling".into());
     }
@@ -256,6 +256,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         range: provider_export.range.clone(),
         kind: provider_export.kind,
     };
+    let provider_export_source = provider_export.source.clone();
 
     let foreign_parse = parse(PROVIDER_TEXT);
     let foreign_parse_key = foreign_parse.source_root().key();
@@ -331,7 +332,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         &exposure_rows,
         explicit_identity_matches,
         prelude_id_matches,
-        provider.owns_source_key(&provider_export.source)
+        provider.owns_source_key(&provider_export_source)
             && provider_hir
                 .definition_source_key(binding.definition_root())
                 .map_err(|error| format!("provider definition source owner query failed: {error:?}"))?
