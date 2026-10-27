@@ -89,9 +89,17 @@ without write-cessation evidence record UNKNOWN and quarantine leases, not
 STOPPED. Preserve actual worker IDs, model observations, pending reviews,
 authorship, spent budget and exact resumption conditions.
 
+The current user may explicitly release capacity reservations for named UNKNOWN
+assignments after live-roster synchronization. Record the directive and roster
+result; notify affected RUNNING/WAITING children. Keep their worker state UNKNOWN
+and exact paths quarantined unless separately authorized for release. This
+override releases capacity only and never claims that a writer stopped.
+
 Resume with fresh session/active-work receipts and revalidated dependencies.
 Do not reset spent sprint/Astra budgets, resurrect old RUNNING states or take
-unknown leases. Reconcile legacy workers before activating this migration seed.
+unknown leases. Reconcile legacy writers before path reuse; a user-directed
+capacity override may free slots after live-roster synchronization without
+unquarantining their paths.
 No live tool support means explicit degraded serial work, not a fictional team.
 
 Keep current.json <=16 KiB with at most 32 pending items. At a substantial

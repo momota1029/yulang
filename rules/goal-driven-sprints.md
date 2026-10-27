@@ -217,6 +217,19 @@ STOPPED or release capacity. Confirmed stopped workers become STOPPED. Reconcile
 all descendants before reclaiming a coordinator's subtree. A lease never expires
 into safe ownership just because time passed, the board changed or a session ended.
 
+### Explicit user release of stale assignment capacity
+
+The current user may explicitly release the capacity reservations of named
+UNKNOWN assignments. Before applying the override, inspect the live agent roster
+and notify every affected non-primary agent that is RUNNING or WAITING; record
+the directive, exact identities, roster result and acknowledgements in
+`current.json`. If no affected child is live, record that none was found. Keep
+each worker's observed state UNKNOWN: a capacity override is not cancellation,
+write-cessation evidence or a STOPPED receipt. Keep its exact paths quarantined
+and unavailable for reassignment unless the user separately authorizes those
+path releases and affected live writers have been synchronized. Count only the
+explicitly released capacity as available, and use disjoint paths for new work.
+
 On resume/restart, revalidate authority and dependency hashes, reconcile actual
 worker identities and outstanding leases, and require fresh active-work receipts.
 Do not copy RUNNING, reset spent sprint budgets, resurrect a cancelled assignment

@@ -114,6 +114,11 @@ at every completed lemma, test, result, review receipt or internal next step.
 Use the compact current state, never a historical RUNNING row, to prepare live
 reconciliation. Unknown writers retain quarantined leases. STOP/session end
 cannot leave a worker recorded RUNNING without current runtime evidence.
+When the user explicitly releases named UNKNOWN assignments, first synchronize
+against the live agent roster and notify every affected RUNNING/WAITING child.
+Record the directive and roster result. This releases capacity accounting only:
+keep worker observations UNKNOWN and their paths quarantined unless the user
+separately directs path-lease release. Never report the override as cessation.
 Maintenance alone starts no workers, changes no compiler semantics, and does
 not authorize a background service. Children never start their own sprint team.
 
@@ -146,6 +151,8 @@ Search historical task/proof records by gate and owner when needed; do not load
 all of `tasks/current.md`, `tasks/research-lab.md` or the archived board at startup.
 A current-state row never establishes a live worker, a released lease, a proof,
 or production authority. Reconcile live identities and unknown old leases first.
+An explicit user capacity override may release assignment slots after live-roster
+synchronization; it does not reconcile or release unknown path leases.
 
 A workflow-maintenance, plan-only, status-only or question-answering request
 neither starts research workers nor authorizes compiler work. Do not launch a
@@ -170,9 +177,11 @@ A conditional lemma, provisional instrument, green test or checkpoint is not
 parent-theorem closure. Apply useful lemmas back to the original obligation.
 Only the primary grants exact leases, assigns independent reviewers, adjudicates,
 synchronizes records, stages explicit paths and pushes the intended range.
-Never overlap writers, reclaim unknown writers, stage pending questions, blanket
-clean/stash/reset, alter frozen main, or force-push. Keep whole approved question
-bundles atomic under the existing questioner-only validation contract.
+Never overlap writers, reclaim unknown writer paths, stage pending questions,
+blanket clean/stash/reset, alter frozen main, or force-push. A user-directed
+capacity override does not reclaim a path or establish that its writer stopped.
+Keep whole approved question bundles atomic under the existing questioner-only
+validation contract.
 
 Use `python tools/agent_sprint.py check` and
 `python -m unittest discover -s tools -p 'test_agent_sprint.py'` for this tooling.
