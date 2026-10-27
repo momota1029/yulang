@@ -221,8 +221,9 @@ into safe ownership just because time passed, the board changed or a session end
 
 The current user may explicitly release the capacity reservations of UNKNOWN
 assignments, naming individual workers or clearly targeting the full
-UNKNOWN-assignment set in `current.json`. Before applying the override, inspect
-the live agent roster and notify every affected non-primary agent that is
+UNKNOWN-assignment set in `current.json`. An explicit live-user release overrides
+stale reservation accounting in that snapshot; it changes capacity accounting
+only. Before applying the override, inspect the live agent roster and notify every affected non-primary agent that is
 RUNNING or WAITING, plus any active agent coordinating the same work whose
 decisions use this state. Record the directive, exact identities, roster result
 and notifications/acknowledgements (or pending acknowledgements) in

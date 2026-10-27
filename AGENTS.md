@@ -116,8 +116,10 @@ reconciliation. Unknown writers retain quarantined leases. STOP/session end
 cannot leave a worker recorded RUNNING without current runtime evidence.
 When the user explicitly releases UNKNOWN assignment reservations, the scope may
 name individual workers or clearly target the full UNKNOWN-assignment set in
-`current.json`. First synchronize against the live agent roster and notify every
-affected RUNNING/WAITING child, plus any active agent coordinating the same work
+`current.json`. An explicit live-user release overrides stale reservation
+accounting in that snapshot; it changes capacity accounting only. First
+synchronize against the live agent roster and notify every affected RUNNING/WAITING
+child, plus any active agent coordinating the same work
 whose decisions use this state. Record the directive, exact identities, roster
 result and notifications/acknowledgements (or pending acknowledgements). This releases capacity accounting only:
 keep worker observations UNKNOWN and their paths quarantined unless the user
