@@ -227,23 +227,6 @@
       "sha256": "c328e08662256b57ed9a31a4edd91e0832e9482cabb89952f204a89a78cf72ff"
     },
     {
-      "path": "tasks/agent-loop/sprints/native-launch-projection-20261028-r6.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/history/native-launch-projection-20261028-r6-outcome.md",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/native-launch-projection-20261028-r6-amendment-01.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "0db2b4f8a675c3b3c3411bc1fc110970887be4b5fb59f493dbd4aef30f5242fa",
-      "access": "READ_ONLY"
-    },
-    {
       "path": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md",
       "owner": "/root",
       "state": "FROZEN",
@@ -479,8 +462,8 @@
   },
   "history_archive": {
     "record": "tasks/agent-loop/history/20261028-current-history-archive-r5.json",
-    "sha256": "892a722ec20d483aa684b319eae645cf50538a4d6d26dc03fa148a0d4ed475a5",
+    "sha256": "c7bd908b26afc5b46137c9e2e3ddbf62f37c0b25dc7b91f43511a30f22b8f1a9",
     "entries": 22
   },
-  "next_action": "R6 closed incomplete after review rejection; consult dispatcher for the next bounded packet. No conditional checks authorized."
+  "next_action": "Dispatcher recommends NATIVE-READBACK-AND-CALLBACK/r7: repair the bounded test-only physical-slot observer and prove exact resource callback prefixes; preserve all R6 rejection findings and parent gates OPEN."
 }

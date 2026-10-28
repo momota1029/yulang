@@ -230,7 +230,26 @@
       "state": "FROZEN",
       "sha256": "80f126e9c77d1b3d8486c01b4f35a6852f4d466f99daed45ea4e19a598d59d61",
       "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-launch-projection-20261028-r6.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "01236acb3ef9134788e58aa888ec7d498ddd24fa9f64250c4f1fc2837f03034a"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-launch-projection-20261028-r6-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "4fc13d56c2ce12d13e94f467545bc94ea00983de57c509e83e532f216f5348b5"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-launch-projection-20261028-r6-amendment-01.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "770332723483bb646936c71eb4bf7e83e9dfaf5ee6cf9898ff0bbefe98ff5296",
+      "access": "READ_ONLY"
     }
   ],
-  "preservation_note": "R6 producers, core lane and reviewer are STOPPED and archived with exact receipts. Only resolved R6 frozen leases are removed from current.json; all UNKNOWN/QUARANTINED workers and paths remain current and unchanged. The amendment hash was corrected to authenticated bytes during primary synchronization."
+  "preservation_note": "R6 producers, core lane and reviewer are STOPPED and archived with exact receipts. Only resolved R6 frozen leases are removed from current.json; all UNKNOWN/QUARANTINED workers and paths remain current and unchanged. The amendment hash was corrected to authenticated bytes during primary synchronization. The R6 contract, amendment and outcome lease rows were also archived during final hash reconciliation; amendment SHA now matches frozen bytes."
 }
