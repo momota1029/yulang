@@ -1,0 +1,516 @@
+{
+  "schema_version": 1,
+  "archive": "20261028-current-history-archive-r7",
+  "previous_archive": {
+    "record": "tasks/agent-loop/history/20261028-current-history-archive-r6.json",
+    "sha256": "eb5e0e024b8a69b05b258b7568818432997973c3242d6e9948e63bb479b7c344",
+    "entries": 23
+  },
+  "closed_outcomes": [
+    {
+      "path": "tasks/agent-loop/history/native-fresh-use-context-coverage-20261028-r4-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "244a6faecfab19e1c9b8958ccbb0406b3e7b6d03b0225da2acf980161d42c84a"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-use-context-coverage-20261028-r5-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "48f8b049d9d9120cc8e68306074ef5249673f6772bc236c845d64f466b5c1075"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-bound-attachment-20261028-r1-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "fe52daae6f64d959ef8e0aa1a58bcfc476075954207d77d5b7105de06084e701"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-bound-admission-20261028-r2-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "be7203c8d00c7f7c4984eeaac82a6acc0ff7a467f435cea5bf495269bd1ddf52"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-launch-projection-20261028-r6-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "4fc13d56c2ce12d13e94f467545bc94ea00983de57c509e83e532f216f5348b5",
+      "review": "tasks/agent-loop/inbox/native-launch-projection-r6-review.md",
+      "review_sha256": "4323f806ad9767f9da111dfca187b3866bb9bc54a203d6825ad85ea96007ebe3"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-readback-and-callback-20261028-r7-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "bcf096e52e764697ac1110bf6757d6f27eccfc239add52965eca67e7e8e6f736"
+    },
+    {
+      "path": "tasks/agent-loop/history/latent-demand-transport-classification-20261028-r18-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "39eedc5fe3bc53ee430adc0c0d7b42169345daaed452b6ecd709247c195f1525"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-witness-frame-repair-20261028-r9-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "260153b7ed59e1ea9d9f5922d7ac1a05390e9d1f6435bc176e573b0fdc77909d"
+    },
+    {
+      "path": "tasks/agent-loop/history/latent-demand-root-validation-20261028-r16-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "1ec8efe2ce597501d632bc7c864b1646d1b4fd44718cf142ce3b679576551ed5"
+    },
+    {
+      "path": "tasks/agent-loop/history/latent-demand-transport-classification-20261028-r17-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "cf2d66e0cec5fa3511eba529fd1c3b7383ffd90d716b77e4a6c4994c6b4f3a13"
+    }
+  ],
+  "removed_resolved_workers": [
+    {
+      "id": "/root/native_launch_projection_r6_proof",
+      "role": "lean_prover",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 1000,
+      "session": "NATIVE-LAUNCH-PROJECTION-20261028/r6",
+      "receipt": "Frozen Lean candidate eb4c5c99; handoff 2a4cb3c9; seven terms unchecked, no composed launch theorem; first unmodeled owner clear_diagnostic_scratch; no execution; duration/resources UNKNOWN."
+    },
+    {
+      "id": "/root/native_launch_projection_r6_rust",
+      "role": "implementer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 1100,
+      "session": "NATIVE-LAUNCH-PROJECTION-20261028/r6",
+      "receipt": "Frozen Rust outputs; source hashes c79b136d/19726ef8/e532e722; handoff ab4fc227; no checks; duration/resources UNKNOWN."
+    },
+    {
+      "id": "/root/native_launch_projection_r6_astra",
+      "role": "astra_prover",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 300,
+      "session": "NATIVE-LAUNCH-PROJECTION-20261028/r6",
+      "receipt": "STOPPED after 3 stages; source hash changed during read; no checks."
+    },
+    {
+      "id": "/root/native_launch_projection_r6_review",
+      "role": "compiler_referee",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 600,
+      "session": "NATIVE-LAUNCH-PROJECTION-20261028/r6",
+      "receipt": "Fresh source-first review started after both producer freezes; exact lease only inbox/native-launch-projection-r6-review.md; no checks authorized."
+    },
+    {
+      "id": "/root/native_readback_callback_r7_rust",
+      "role": "implementer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 900,
+      "session": "NATIVE-READBACK-AND-CALLBACK-20261028/r7",
+      "receipt": "Frozen rev 1; active work acknowledged 09:52:52 UTC, writes stopped 09:53:34 UTC; runtime launch/CPU/RSS UNKNOWN. Rust source-only artifact and handoff hashes independently checked by Luna; handoff records disclosed accidental read-only git diff."
+    },
+    {
+      "id": "/root/native_readback_callback_r7_proof",
+      "role": "lean_prover",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 900,
+      "session": "NATIVE-READBACK-AND-CALLBACK-20261028/r7",
+      "receipt": "Frozen obstruction handoff rev1 882671cc…11ea; no Lean output/theorem; 19/19 amendment pins matched. Stopped 10:00:30Z; active time/CPU/RSS and exact grant remainder UNKNOWN."
+    },
+    {
+      "id": "/root/native_readback_callback_r7_review",
+      "role": "compiler_referee",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 600,
+      "session": "NATIVE-READBACK-AND-CALLBACK-20261028/r7",
+      "receipt": "Frozen verdict REJECT; review receipt 41a934eb…2f2a5 persisted by Luna. ACK 10:01:36, STOP/final authentication 10:03:36 UTC; CPU/RSS and active compute UNKNOWN."
+    },
+    {
+      "id": "/root/latent_demand_transport_classification_r18_implementation",
+      "role": "implementer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 300,
+      "session": "LATENT-DEMAND-TRANSPORT-CLASSIFICATION-20261028/r18",
+      "receipt": "STOPPED; ~125s used; handoff frozen."
+    },
+    {
+      "id": "/root/latent_demand_transport_classification_r18_source",
+      "role": "prover/source",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 300,
+      "session": "LATENT-DEMAND-TRANSPORT-CLASSIFICATION-20261028/r18",
+      "receipt": "STOPPED ~237s; four rows mapped; gates OPEN."
+    },
+    {
+      "id": "/root/latent_demand_transport_classification_r18_review",
+      "role": "independent compiler_referee",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 300,
+      "session": "LATENT-DEMAND-TRANSPORT-CLASSIFICATION-20261028/r18",
+      "receipt": "STOPPED 13:12:53Z; post-run ACCEPT."
+    }
+  ],
+  "removed_resolved_frozen_leases": [
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-use-context-coverage-20261028-r4.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "a7ed1ad46c45c9a69e4db807f874b709716a7265dbe9d00eaa88275c7fbda11c"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_extrusion.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "80f126e9c77d1b3d8486c01b4f35a6852f4d466f99daed45ea4e19a598d59d61",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-use-context-coverage-20261028-r4-amendment-01.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "d8f5695ff461270e52d6a27bf0f09593a48a65e5fa2f4c5f5c6b77043730d02f"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-use-context-coverage-20261028-r4-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "244a6faecfab19e1c9b8958ccbb0406b3e7b6d03b0225da2acf980161d42c84a"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-use-context-coverage-20261028-r5.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "6f488e11f0d1e7eb8d86fec5fc30e7fbca454faca6691255d11a71120ddab6fa"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-bound-attachment-20261028-r1.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "fd040b8a5a1702b54c06c44fa88a8316433dc950a62d453de48db3f73e2e6e2c"
+    },
+    {
+      "path": "isolated/native-fresh-use-context-coverage-r5/crates/yu-solver/src/candidate_scheme.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "7fd3e16f2a6f856b925e2675d8a485fc25b90775a4b5a81f39d027c71874ef4a",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-bound-attachment-20261028-r1-amendment-01.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "51f0867e885940a163a5f9c31bd751593911830da9edfefb54788c321f17f0d1"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-bound-admission-20261028-r2.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "415195c283db4b9c03dc9cac17e636507b9810261fa987dfc4ab36e514e900f0"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-bound-attachment-20261028-r1-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "fe52daae6f64d959ef8e0aa1a58bcfc476075954207d77d5b7105de06084e701",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-fresh-bound-attachment-r1-review.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "a18c4c255b116435a9a51b34fa76deb0a09121a3199307063b64df033cad905b",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-fresh-bound-admission-r2-review.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "f857c64b05d89c34115410e73497f7b03ca608bff20f6e8942ae583dc236c812"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6/crates/yu-solver/src/candidate_scheme.rs",
+      "owner": "/root/native_launch_projection_r6_rust",
+      "state": "FROZEN",
+      "sha256": "c79b136dd033a4d0e3f1664be670fda0c538866baa05a20c273d69a1927ead0d"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6/crates/yu-solver/src/candidate_context.rs",
+      "owner": "/root/native_launch_projection_r6_rust",
+      "state": "FROZEN",
+      "sha256": "19726ef8a6034a1b99f629021b6b7e97ec638f3c1d683206de3c6eac8025a2ec"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6/crates/yu-solver/src/candidate_extrusion.rs",
+      "owner": "/root/native_launch_projection_r6_rust",
+      "state": "FROZEN",
+      "sha256": "e532e7228487e125a73576cb76b8bf17c065862b049bd8d6f8fa185bb77c54af"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-launch-projection-r6-rust.md",
+      "owner": "/root/native_launch_projection_r6_rust",
+      "state": "FROZEN",
+      "sha256": "ab4fc227328d2ad8e9081d3379778f5d99f10177462e4df616a9d8ba776b694d"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6/notes/theory/lean/YulangClosure/NativeLaunchProjectionR6.lean",
+      "owner": "/root/native_launch_projection_r6_proof",
+      "state": "FROZEN",
+      "sha256": "eb4c5c99fee13689b4c7ee4b9cf7668ec39416e3259ed826c44204c78fc7ea13"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-launch-projection-r6-proof.md",
+      "owner": "/root/native_launch_projection_r6_proof",
+      "state": "FROZEN",
+      "sha256": "2a4cb3c9e0af0fa354ce89b6b8305d9ff54f55889407f9001d1018bad4bdc4c4"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-launch-projection-r6-core.md",
+      "owner": "/root/native_launch_projection_r6_astra",
+      "state": "FROZEN",
+      "sha256": "c8ca2b528fcaf4b62c578535cfbe570db92dfa47cae5d1c025c0fd4b0072482d"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-launch-projection-r6-review.md",
+      "owner": "/root/native_launch_projection_r6_review",
+      "state": "FROZEN",
+      "sha256": "4323f806ad9767f9da111dfca187b3866bb9bc54a203d6825ad85ea96007ebe3"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6-proof-input/crates/yu-solver/src/candidate_scheme.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "35c58dca3748595e273cd53bfba07da2be3fd340ec63c56f6a18adea5e514fb1",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6-proof-input/crates/yu-solver/src/candidate_context.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "57114491a4b1333f30e3ad68cb6e1c8a5c735e2d142c1456745eaef8ed56f30e",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6-proof-input/crates/yu-solver/src/candidate_extrusion.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "80f126e9c77d1b3d8486c01b4f35a6852f4d466f99daed45ea4e19a598d59d61",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-launch-projection-20261028-r6.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "01236acb3ef9134788e58aa888ec7d498ddd24fa9f64250c4f1fc2837f03034a"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-launch-projection-20261028-r6-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "4fc13d56c2ce12d13e94f467545bc94ea00983de57c509e83e532f216f5348b5"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-launch-projection-20261028-r6-amendment-01.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "770332723483bb646936c71eb4bf7e83e9dfaf5ee6cf9898ff0bbefe98ff5296",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-readback-and-callback-20261028-r7.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "35b3b0b23eeeb842acddc47ce4685bb8bd1ad6152825c9d1cbba4ba6bce0840a",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "isolated/native-readback-and-callback-r7/crates/yu-solver/src/candidate_scheme.rs",
+      "owner": "/root/native_readback_callback_r7_rust",
+      "state": "FROZEN",
+      "sha256": "c79b136dd033a4d0e3f1664be670fda0c538866baa05a20c273d69a1927ead0d"
+    },
+    {
+      "path": "isolated/native-readback-and-callback-r7/crates/yu-solver/src/candidate_context.rs",
+      "owner": "/root/native_readback_callback_r7_rust",
+      "state": "FROZEN",
+      "sha256": "19726ef8a6034a1b99f629021b6b7e97ec638f3c1d683206de3c6eac8025a2ec"
+    },
+    {
+      "path": "isolated/native-readback-and-callback-r7/crates/yu-solver/src/candidate_extrusion.rs",
+      "owner": "/root/native_readback_callback_r7_rust",
+      "state": "FROZEN",
+      "sha256": "2fa4cdf965785fc43ff9792af36c1dd86a01d50cf863229de2ddb721878d2477"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-readback-and-callback-r7-rust.md",
+      "owner": "/root/native_readback_callback_r7_rust",
+      "state": "FROZEN",
+      "sha256": "d17d9992854beade042b12653393d6838ca073c617220ac7103f164048d2206e"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-readback-and-callback-r7-proof.md",
+      "owner": "/root/native_readback_callback_r7_proof",
+      "state": "FROZEN",
+      "sha256": "882671cc4df8241d33e423e4570154b12a1797b9a6e9880e622fc0579d6e11ea"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-readback-and-callback-r7-review.md",
+      "owner": "/root/native_readback_callback_r7_review",
+      "state": "FROZEN",
+      "sha256": "41a934ebfc622d0b9bfed902e501b99722940385d54548b6b2ac00818c42f2a5"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-readback-and-callback-20261028-r7-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "bcf096e52e764697ac1110bf6757d6f27eccfc239add52965eca67e7e8e6f736"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-readback-and-callback-20261028-r7-proof-inputs.json",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "72cd5bb14ddc4f203d0f4ce8a311b0b4204376a9e1139add990105530184e200",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-readback-and-callback-20261028-r7-amendment-01.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "ad7c7c365cfc6e559df2ec7444c0d851073d40e85db6bfaeeab1cfe3a8bcbef8",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-readback-and-callback-20261028-r7-proof-inputs-r2.json",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "e49700a9c8e446633de567c3cafe6ce6eb71d77ca42a393b0c6164c5b93d1aec",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "isolated/latent-demand-transport-classification-r18",
+      "state": "FROZEN",
+      "owner": "/root"
+    },
+    {
+      "path": "isolated/latent-demand-transport-classification-r18/crates/yu-solver/src/candidate_scheme.rs",
+      "state": "FROZEN",
+      "owner": "/root",
+      "sha256": "3eb9ba3b414dd0e40f49957e0ee2b9de1ba21fd86dff718111d1b5030ccac6b7"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/latent-demand-transport-classification-r18-impl.md",
+      "state": "FROZEN",
+      "owner": "/root",
+      "sha256": "2a81d84ddd55dcabb97ef2c7f91280c35dac83d8c06530a5e9154cd1fc7c9f2b"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/latent-demand-transport-classification-r18-source.md",
+      "state": "FROZEN",
+      "owner": "/root",
+      "sha256": "9878f83cd1410da9c83305b711bc234b7424617776b46844602ebbd692d8c383"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/latent-demand-transport-classification-r18-review.md",
+      "state": "FROZEN",
+      "owner": "/root",
+      "sha256": "d34c0ba0d2edd6afcdaf279183e3a45a69a12e186449de96d4d81ba4dfc9d7ed"
+    },
+    {
+      "path": "isolated/latent-demand-transport-classification-r18/logs",
+      "state": "FROZEN",
+      "owner": "/root"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-witness-frame-repair-20261028-r9-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "260153b7ed59e1ea9d9f5922d7ac1a05390e9d1f6435bc176e573b0fdc77909d"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/latent-demand-root-validation-20261028-r16.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "d711f402f97681aa7e30a32b0e45e4f03c955297fef9b3216495d1140ce77d87"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/latent-demand-root-validation-20261028-r16-inputs.json",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "8d399b67170dee03f72f451ffd49ba07e9cbb01649581ca5ac96bf0919fd06cd"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/latent-demand-transport-classification-20261028-r17.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "19896d719176b6ffb84a4a1d51b03672246398c07539d4ffc8f80c14b879f53d"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/latent-demand-transport-classification-20261028-r17-inputs.json",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "5ff66c9237154d5d15161d68871c06b94d1de3e935edc838f4781f5758a3c121"
+    },
+    {
+      "path": "tasks/agent-loop/history/latent-demand-transport-classification-20261028-r17-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "cf2d66e0cec5fa3511eba529fd1c3b7383ffd90d716b77e4a6c4994c6b4f3a13"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/latent-demand-transport-classification-20261028-r17-amendment-01.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "5ba5a71828bb31ab4090f9ac307a6c8b935c3ea032227b9c5f78b7dc51759e46"
+    }
+  ],
+  "resolved_empty_leases": [
+    {
+      "path": "isolated/native-readback-and-callback-r7/notes/theory/lean/YulangClosure/NativeResourceCallbackR7.lean",
+      "owner": "/root/native_readback_callback_r7_proof",
+      "disposition": "No file created; proof stopped before output."
+    },
+    {
+      "path": "isolated/native-readback-and-callback-r7/build-target",
+      "owner": "/root",
+      "disposition": "No checks ran; build output not created by R7."
+    },
+    {
+      "path": "isolated/native-readback-and-callback-r7/notes/theory/lean/.lake",
+      "owner": "/root",
+      "disposition": "No Lean/Lake check ran under R7."
+    }
+  ],
+  "preservation_note": "R7 closed incomplete/rejected after all three workers STOPPED. Frozen Rust candidate and all receipts are retained; no Lean artifact was produced. The exact Rust lease hash is rev1; R7 proof was blocked at external sidecar I/O. No checks/revisions are permitted under R7. UNKNOWN/quarantined identities and paths are preserved in current.json. R18 closed incomplete; its stopped workers and exact frozen artifacts are archived here. Its held build target, every UNKNOWN worker, quarantined path, open pending item and existing shared source lease remain in current.json. R9, R16 and R17 are resolved and archived with exact outcome and frozen-lease pins; their open parent obligations remain in pending.",
+  "entries": 27
+}
