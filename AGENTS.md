@@ -169,9 +169,12 @@ coherent checkpoint steps. Do not stop after the first substep to ask whether
 to continue; pause only for a material decision or an explicit stop.
 An explicitly continuing Rust/Lean research goal also authorizes the primary to
 use eligible subagents for its proof and implementation lanes and to integrate
-and push coherent checkpoints. Keep worker scopes and leases exact; Git remains
-primary-only. Do not interrupt that ongoing goal to ask again whether to use
-subagents or continue to the next in-scope packet.
+and push coherent checkpoints. This includes making frequent small commits and
+pushes when each checkpoint is coherent, reviewed to the required gate, and
+safe as a complete outbound range; do not ask again for routine checkpoint
+pushes. Keep worker scopes and leases exact; Git remains primary-only. Do not
+interrupt that ongoing goal to ask again whether to use subagents, push a safe
+checkpoint, or continue to the next in-scope packet.
 In particular, completing one bounded sprint does not end an explicitly ongoing
 Rust/Lean goal: the primary may prepare and admit its next bounded sprint under
 the same objective without asking the user to re-authorize continuation. Ask
