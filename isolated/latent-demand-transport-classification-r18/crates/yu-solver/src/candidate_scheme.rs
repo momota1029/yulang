@@ -8415,17 +8415,61 @@ my outer (q:[io] int) = {
         // Rust test scopes.
         let mut emission_cases = Vec::new();
         for replay_row in replay_rows.iter().copied() {
+            eprintln!(
+                "ReplayRowStart call={} use={} child_relation={:?} lower_relation={:?} upper_relation={:?} root={:?}",
+                replay_row.call, replay_row.demand.use_instance,
+                replay_row.child, replay_row.lower, replay_row.upper,
+                replay_row.demand.root,
+            );
             let Some(native) = session.batch.candidate_calls.calls.get(replay_row.call)
-                .and_then(|call| call.native) else { continue; };
-            let Some(copied_ports) = ports(replay_row.demand.root) else { continue; };
-            let evidence = state.authenticate_demand_transport_observed(
-                context, replay_row, native.demand, ports, None,
-                |owner, route, stage| eprintln!(
-                    "ReplayAuthenticationClassification call={} use={} child_relation={:?} lower_relation={:?} upper_relation={:?} root={:?} owner={owner:?} route={route} stage={stage:?}",
+                .and_then(|call| call.native) else {
+                    eprintln!(
+                        "ReplayRowSkip call={} use={} child_relation={:?} lower_relation={:?} upper_relation={:?} root={:?} reason=NO_NATIVE_CALL",
+                        replay_row.call, replay_row.demand.use_instance,
+                        replay_row.child, replay_row.lower, replay_row.upper,
+                        replay_row.demand.root,
+                    );
+                    eprintln!(
+                        "ReplayRowEnd call={} use={} child_relation={:?} lower_relation={:?} upper_relation={:?} root={:?} observer_callbacks=0 returned_evidence=false",
+                        replay_row.call, replay_row.demand.use_instance,
+                        replay_row.child, replay_row.lower, replay_row.upper,
+                        replay_row.demand.root,
+                    );
+                    continue;
+                };
+            let Some(copied_ports) = ports(replay_row.demand.root) else {
+                eprintln!(
+                    "ReplayRowSkip call={} use={} child_relation={:?} lower_relation={:?} upper_relation={:?} root={:?} reason=NO_COPIED_PORTS",
                     replay_row.call, replay_row.demand.use_instance,
                     replay_row.child, replay_row.lower, replay_row.upper,
                     replay_row.demand.root,
-                ),
+                );
+                eprintln!(
+                    "ReplayRowEnd call={} use={} child_relation={:?} lower_relation={:?} upper_relation={:?} root={:?} observer_callbacks=0 returned_evidence=false",
+                    replay_row.call, replay_row.demand.use_instance,
+                    replay_row.child, replay_row.lower, replay_row.upper,
+                    replay_row.demand.root,
+                );
+                continue;
+            };
+            let mut observer_callbacks = 0usize;
+            let evidence = state.authenticate_demand_transport_observed(
+                context, replay_row, native.demand, ports, None,
+                |owner, route, stage| {
+                    observer_callbacks += 1;
+                    eprintln!(
+                        "ReplayAuthenticationClassification call={} use={} child_relation={:?} lower_relation={:?} upper_relation={:?} root={:?} owner={owner:?} route={route} stage={stage:?}",
+                        replay_row.call, replay_row.demand.use_instance,
+                        replay_row.child, replay_row.lower, replay_row.upper,
+                        replay_row.demand.root,
+                    );
+                },
+            );
+            eprintln!(
+                "ReplayRowEnd call={} use={} child_relation={:?} lower_relation={:?} upper_relation={:?} root={:?} observer_callbacks={observer_callbacks} returned_evidence={}",
+                replay_row.call, replay_row.demand.use_instance,
+                replay_row.child, replay_row.lower, replay_row.upper,
+                replay_row.demand.root, evidence.is_some(),
             );
             if let Some(evidence) = evidence {
                 emission_cases.push((replay_row, native.demand, copied_ports, evidence));

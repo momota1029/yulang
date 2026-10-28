@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "isolated/latent-demand-transport-classification-r18/crates/yu-solver/Cargo.toml",
+    "--locked",
+    "--features",
+    "shadow-apply-candidate",
+    "replay_constructor_lineage_observes_rejected_cross_route_authentication"
+  ],
+  "cwd": "/home/momota1029/rust/yulang",
+  "environment_overrides": {
+    "CARGO_TARGET_DIR": "isolated/latent-demand-transport-classification-r18/build-target"
+  },
+  "start_utc": "2026-10-28T13:09:11.082970Z",
+  "wall_limit_seconds": 180,
+  "cpu_affinity": [
+    0
+  ],
+  "process_group_rss_limit_bytes": 2147483648,
+  "cargo_version": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+  "rustc_version": "rustc 1.95.0 (59807616e 2026-04-14)"
+}
