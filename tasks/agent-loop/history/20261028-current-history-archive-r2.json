@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "purpose": "Resolved sprint outcomes and exact worker/lease rows removed from current.json after archival.",
+  "source_current_sha256": "6eb68852191dce7700cc7bbbc0c9e5fcd970bcd22d4590197820adddc66ef0c4",
+  "parent_archive": "tasks/agent-loop/history/20261028-current-history-archive-r1.json",
+  "parent_archive_sha256": "fe9ddd712c6838ef82105769f8c0d307ba99a218ff37978dd7fd6c5febfe98ab",
+  "entries": [
+    {
+      "id": "EFFECT-PERMISSION-IDENTITY-REPAIR-20261028/r1",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-identity-repair-20261028-r1-outcome.md",
+      "sha256": "b48182e1f612ccd87c13c22ec6d3c622c15a0c03e44902adb55293af075c611c"
+    },
+    {
+      "id": "EFFECT-PERMISSION-EXPORT-WITNESS-20261028/r1",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-export-witness-20261028-r1-outcome.md",
+      "sha256": "0abb4a4eecb4a0b02e04cc1c7180793e4f66a470df25f80a548e034cc302d657"
+    },
+    {
+      "id": "EFFECT-PERMISSION-SOURCE-TRANSPORT-20261028/r1",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-source-transport-20261028-r1-outcome.md",
+      "sha256": "20d1e42b0e88ea1c4695ea34d31168596b944a41f0d282050266d8812396bfca"
+    },
+    {
+      "id": "EFFECT-PERMISSION-SITE-EXPORT-20261028/r1",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-site-export-20261028-r1-outcome.md",
+      "sha256": "ef3a2e1908397186a8a0fa9b5c90e11cb040188711731ea2c08caebf63bf3bd4"
+    },
+    {
+      "id": "EFFECT-PERMISSION-AUTHENTICATED-SITE-EXPORT-20261028/r1",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-authenticated-site-export-20261028-r1-outcome.md",
+      "sha256": "4fb2347292530461bb959ecb21b3283bb750314bb1cfb68c1de90f0d3877fa24"
+    },
+    {
+      "id": "EFFECT-PERMISSION-CONSUMER-RESIDUAL-20261028/r1",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-consumer-residual-20261028-r1-outcome.md",
+      "sha256": "570f6df0b10886d248a4214a3671e8a23e143a7e6270e4d19cb43b457b1ba9d2"
+    },
+    {
+      "id": "EFFECT-PERMISSION-DEFINITION-CALL-BRIDGE/r1",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-definition-call-bridge-20261028-r1-outcome.md",
+      "sha256": "8bedc048eb57b63801d06acc360b4d002ba993a18c954af773f3426b67eb7beb"
+    },
+    {
+      "id": "EFFECT-PERMISSION-MODULE-CALL-AUTHORITY/r1",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-module-call-authority-20261028-r1-outcome.md",
+      "sha256": "49ed16fa178e1bcbf2fcca10058931f392361ee19caae9b593166b5803c64b89"
+    },
+    {
+      "id": "EFFECT-PERMISSION-MODULE-ENVIRONMENT-AUDIT/r1",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-module-environment-audit-20261028-r1-outcome.md",
+      "sha256": "66b450532a6809589e8e8b1df467b5b48c9365cce939fab9c610f109db0b753a"
+    },
+    {
+      "id": "EFFECT-PERMISSION-MODULE-MATERIALIZATION/r1",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-module-materialization-20261028-r1-outcome.md",
+      "sha256": "02023a50e96db1362ce5ded2eb1a4aa8f3b49a1a467186d5cd30e5ab586231e8"
+    },
+    {
+      "id": "EFFECT-PERMISSION-MODULE-MATERIALIZATION/r2",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-module-materialization-20261028-r2-outcome.md",
+      "sha256": "1d2437559be941d6fae64c475568a6f4ea1e30834685d62b897c15af49de5efa"
+    },
+    {
+      "id": "EFFECT-PERMISSION-MODULE-MATERIALIZATION/r3",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-module-materialization-20261028-r3-outcome.md",
+      "sha256": "d5cbc467384922c6048efeb44999c1283ba89c6a3c81353cc385020d07e5efd9"
+    },
+    {
+      "id": "EFFECT-PERMISSION-MODULE-MATERIALIZATION/r4",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-module-materialization-20261028-r4-outcome.md",
+      "sha256": "6b83a52a610a33ff67e1ba3328ee1c8c652b1d17569f0f41b4e420a0715df3fb"
+    },
+    {
+      "id": "EFFECT-PERMISSION-MODULE-MATERIALIZATION/r4-amendments",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/effect-permission-module-materialization-20261028-r4a2-outcome.md",
+      "sha256": "e9ffa93b51c84be579f9653e094835a454d2b6ffcd9b7a79abad527dde2ae252"
+    },
+    {
+      "id": "NATIVE-COMPLETED-EMISSION-READBACK/r3",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/native-completed-emission-readback-20261028-r3-outcome.md",
+      "sha256": "32ad18a9a0358cca686192bc226dc9c03c5c4bb060dae471d5e785681f7ca040"
+    },
+    {
+      "id": "NATIVE-RESTORATION-FRAME/r4",
+      "state": "CLOSED_INCOMPLETE",
+      "record": "tasks/agent-loop/history/native-restoration-frame-20261028-r4-outcome.md",
+      "sha256": "84be4d221ef3277d95cb139cc1ee4ec1f773690a27f462fef8ed87823c9b1206"
+    }
+  ],
+  "removed_current_rows": {
+    "workers": [
+      {
+        "id": "/root/native_restoration_frame_r4_rust",
+        "role": "implementer",
+        "state": "STOPPED",
+        "requested_model": "gpt-6-luna",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "budget_seconds": 1000,
+        "receipt": "Frozen Rust handoff 342bfb04825a1443fb6383cd18d44b215d8ecf956190043a69209d03ca1df7bd; source review REJECT; no checks.",
+        "session": "NATIVE-RESTORATION-FRAME-20261028/r4"
+      },
+      {
+        "id": "/root/native_restoration_frame_r4_proof",
+        "role": "lean_prover",
+        "state": "STOPPED",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "budget_seconds": 1200,
+        "session": "NATIVE-RESTORATION-FRAME-20261028/r4",
+        "receipt": "Frozen Lean b2c185413cf537b22a91c04c97bdd5c30ce0f44afe83c91cbbc2eff1e32708f0; proof handoff a33d0cccf7bff422e5f8ad050f30e0243f6d86ebf7eeba642e1b2be0bf9b7334; unchecked; no Lean."
+      },
+      {
+        "id": "/root/native_restoration_frame_r4_review",
+        "role": "compiler_referee",
+        "state": "STOPPED",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "budget_seconds": 700,
+        "session": "NATIVE-RESTORATION-FRAME-20261028/r4",
+        "receipt": "Terminal Rust REJECT; Lean delta review not performed because >=120s remaining could not be authenticated; no checks or Lean artifact reads."
+      }
+    ],
+    "leases": [
+      {
+        "path": "isolated/native-restoration-frame-r4/crates/yu-solver/src/candidate_scheme.rs",
+        "owner": "/root/native_restoration_frame_r4_rust",
+        "state": "FROZEN"
+      },
+      {
+        "path": "isolated/native-restoration-frame-r4/crates/yu-solver/src/candidate_extrusion.rs",
+        "owner": "/root/native_restoration_frame_r4_rust",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/native-restoration-frame-r4-rust.md",
+        "owner": "/root/native_restoration_frame_r4_rust",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/NativeRestorationFrameR4.lean",
+        "owner": "/root/native_restoration_frame_r4_proof",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/native-restoration-frame-r4-proof.md",
+        "owner": "/root/native_restoration_frame_r4_proof",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/native-restoration-frame-r4-review.md",
+        "owner": "/root/native_restoration_frame_r4_review",
+        "state": "FROZEN"
+      }
+    ]
+  }
+}
