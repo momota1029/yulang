@@ -5,6 +5,9 @@ Scope: authorized ongoing research/simple-sub-intrusion work only. Unchanged
 semantic, proof, review, Git, question-board and testing rules remain binding.
 This file is the single current scheduling contract; legacy cadence never wins
 by being read later. Maintenance/status/plan-only requests do not activate work.
+For an active authorized objective, carry out the next bounded in-scope step
+without waiting for another confirmation; routine sprint transitions and
+already-authorized executions are included.
 
 ## Standing continuation authorization
 
