@@ -1666,6 +1666,48 @@
       "lane": "r14_handoff_initial",
       "path": "tasks/agent-loop/inbox/latent-demand-root-reconstruction-r14-proof.md",
       "sha256": "5871dce547c354a826f4b6ef7df389f9a0f46b6480425eb26a2b0153b2ebe0dc"
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/design/2026-10-11-yulang-inference-top-level-principles.md",
+      "sha256": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81"
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/design/2026-10-08-source-generalize-definition.md",
+      "sha256": "46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38"
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/theory/2026-10-08-source-generalize-definition-and-proof.md",
+      "sha256": "e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240"
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/theory/2026-10-16-first-call-fresh-use-semantic-application.md",
+      "sha256": "9d5ec6a410c2b358187c1fcf105ba9efe5b2f5f9f4ede37ea2bb5364801ff46b"
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/theory/2026-10-11-value-generalize-source-emission-law-proof.md",
+      "sha256": "51bcc74ea5edaaf3d0782197133e614746227c3a76c683961cdecdb76f2f4738"
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/theory/lean/YulangClosure.lean",
+      "sha256": "3c38da4bb2e017249fa973e0ee28f243d44ba6d52b6f173ac617b605f1fce9e8"
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/theory/lean/YulangClosure/Contracts.lean",
+      "sha256": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e"
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/theory/lean/YulangClosure/CoreComposition.lean",
+      "sha256": "1527cd3c5961b413ec2b97495744b218aba6247956881318485364d15065294c"
     }
-  ]
+  ],
+  "revision": 2,
+  "supersedes_manifest_sha256": "7a8dc90b9b70e9cc380ebfb959d69814de2f321776b926131bd4da14945c061d"
 }
