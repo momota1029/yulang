@@ -1,0 +1,770 @@
+use crate::tests::type_expr::record_field_recovery::field_record;
+use crate::tests::type_expr::*;
+
+#[test]
+fn record_sequence_cst_occurrences_distinguish_field_separator_and_close() {
+    use SyntaxKind::{
+        Error, Missing, NamedRecordType as Field, NamedRecordTypeClose as Close,
+        NamedRecordTypeSeparator as Separator,
+    };
+    for (source, expected) in [
+        ("{,a:A}", vec![(Field, Missing, 1..1)]),
+        ("{a:A b:B}", vec![(Separator, Missing, 5..5)]),
+        ("{;}", vec![(Separator, Error, 1..2)]),
+        ("{@;}", vec![(Field, Error, 1..3)]),
+        ("{([)]:A}", vec![(Field, Error, 1..3), (Close, Error, 3..7)]),
+        (
+            "{a:A,",
+            vec![(Field, Missing, 5..5), (Close, Missing, 5..5)],
+        ),
+        (
+            "{a:{b:B",
+            vec![(Close, Missing, 7..7), (Close, Missing, 7..7)],
+        ),
+        ("{a:A]}", vec![(Close, Error, 4..5)]),
+        ("{a:A]", vec![(Close, Error, 4..5), (Close, Missing, 5..5)]),
+    ] {
+        let (green, _, _) = run_type_with_context_and_structural_diagnostics(
+            source,
+            crate::type_expr::TypeMlContext::INACTIVE,
+        );
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.text(), source);
+        // Use direct Rowan occurrences, never the temporary record's role or
+        // range, to identify a slot. Stable source order retains equal offsets.
+        let mut actual: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .map(|node| {
+                (
+                    node.parent().unwrap().kind(),
+                    Missing,
+                    usize::from(node.text_range().start())..usize::from(node.text_range().end()),
+                )
+            })
+            .chain(recovery_groups(&root).into_iter().map(|group| {
+                (
+                    group.parent().unwrap().kind(),
+                    Error,
+                    usize::from(group.text_range().start())..usize::from(group.text_range().end()),
+                )
+            }))
+            .collect();
+        actual.sort_by_key(|(_, _, range)| range.start);
+        assert_eq!(actual, expected, "{source:?}");
+        for record in root.descendants().filter(|node| node.kind() == Field) {
+            let closes: Vec<_> = record
+                .children()
+                .filter(|node| node.kind() == Close)
+                .collect();
+            assert_eq!(closes.len(), 1, "{source:?}");
+            assert_eq!(record.last_child_or_token(), Some(closes[0].clone().into()));
+            assert!(matches!(
+                closes[0].last_child_or_token().unwrap().kind(),
+                SyntaxKind::RBrace | Missing
+            ));
+        }
+        if source == "{a:{b:B" {
+            let missing: Vec<_> = root
+                .descendants()
+                .filter(|node| node.kind() == Missing)
+                .collect();
+            assert_eq!(missing.len(), 2);
+            // Equal green nodes at the same offset can compare equal in Rowan;
+            // the enclosing record occurrences still have different paths.
+            let record_depths: Vec<_> = missing
+                .iter()
+                .map(|node| {
+                    node.ancestors()
+                        .filter(|ancestor| ancestor.kind() == Field)
+                        .count()
+                })
+                .collect();
+            assert_eq!(record_depths, [2, 1]);
+            assert_eq!(missing[0].text_range(), missing[1].text_range());
+        }
+    }
+}
+
+pub(super) fn close(_: u32, range: Range<usize>, error: bool) -> ExpectedStructural {
+    (
+        if error {
+            StructuralKind::ErrorGroup
+        } else {
+            StructuralKind::Missing
+        },
+        range,
+    )
+}
+
+fn assert_typed_nodes(root: &SyntaxNode, expected: &[ExpectedStructural]) {
+    for record in root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::NamedRecordType)
+    {
+        let closes: Vec<_> = record
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::NamedRecordTypeClose)
+            .collect();
+        assert_eq!(closes.len(), 1, "{}", root.text());
+        assert!(matches!(
+            closes[0].last_child_or_token().unwrap().kind(),
+            SyntaxKind::RBrace | SyntaxKind::Missing
+        ));
+    }
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        expected
+            .iter()
+            .filter(|(kind, _)| *kind == StructuralKind::Missing)
+            .count(),
+        "{}",
+        root.text(),
+    );
+    assert_eq!(
+        recovery_groups(root).len(),
+        expected
+            .iter()
+            .filter(|(kind, _)| {
+                matches!(kind, StructuralKind::ErrorGroup | StructuralKind::Invalid)
+            })
+            .count(),
+        "{}",
+        root.text(),
+    );
+}
+
+#[test]
+fn record_accepted_closes_have_one_slot_and_commas_remain_native() {
+    for source in ["{}", "{ }", "{a:A, b:B,}", "{a:A\nb:B}", "{a:{b:B}}"] {
+        let root = assert_complete_type_recovery(source, 0, &[]);
+        assert_typed_nodes(&root, &[]);
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::NamedRecordTypeSeparator)
+        );
+        for token in root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+        {
+            if token.kind() == SyntaxKind::Comma {
+                assert_eq!(token.parent().unwrap().kind(), SyntaxKind::NamedRecordType);
+            }
+            if token.kind() == SyntaxKind::RBrace {
+                assert_eq!(
+                    token.parent().unwrap().kind(),
+                    SyntaxKind::NamedRecordTypeClose
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn record_separator_error_slots_preserve_initial_leading_and_field_errors() {
+    for (source, expected, separator) in [
+        ("{;}", vec![field_record(0, 1..2, true)], ";"),
+        ("{ ;}", vec![field_record(0, 2..3, true)], ";"),
+        ("{a:A,;}", vec![field_record(0, 5..6, true)], ";"),
+        ("{a:A ; b:B}", vec![field_record(0, 5..6, true)], ";"),
+    ] {
+        let root = assert_complete_type_recovery(source, 0, &expected);
+        assert_typed_nodes(&root, &expected);
+        let slots: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::NamedRecordTypeSeparator)
+            .collect();
+        assert_eq!(slots.len(), 1);
+        assert_eq!(slots[0].text(), separator);
+        assert!(
+            slots[0]
+                .children_with_tokens()
+                .all(|element| element.kind() == SyntaxKind::Error)
+        );
+        if source.contains(" ;") {
+            assert_eq!(
+                slots[0].prev_sibling_or_token().unwrap().kind(),
+                SyntaxKind::Whitespace
+            );
+        }
+    }
+    // A semicolon inside an already committed Field run stays in that run.
+    let expected = [field_record(0, 1..3, true)];
+    let root = assert_complete_type_recovery("{@;}", 0, &expected);
+    assert_typed_nodes(&root, &expected);
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::NamedRecordTypeSeparator)
+    );
+    let groups = recovery_groups(&root);
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0].text(), "@;");
+    assert_eq!(
+        groups[0].parent().unwrap().kind(),
+        SyntaxKind::NamedRecordType
+    );
+}
+
+#[test]
+fn record_close_slot_distinguishes_fresh_and_committed_eof_leading() {
+    for (source, expected, close_text, direct_missing) in [
+        ("{", vec![close(0, 1..1, false)], "", false),
+        ("{  ", vec![close(0, 3..3, false)], "", false),
+        (
+            "{a:A,  ",
+            vec![field_record(0, 7..7, false), close(1, 7..7, false)],
+            "",
+            true,
+        ),
+        (
+            "{a:A]  ",
+            vec![close(0, 4..5, true), close(1, 7..7, false)],
+            "]  ",
+            false,
+        ),
+        (
+            "{a:A,]  ",
+            vec![
+                field_record(0, 5..5, false),
+                close(1, 5..6, true),
+                close(2, 8..8, false),
+            ],
+            "]  ",
+            true,
+        ),
+    ] {
+        let root = assert_complete_type_recovery(source, 0, &expected);
+        assert_typed_nodes(&root, &expected);
+        let slot = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::NamedRecordTypeClose)
+            .unwrap();
+        assert_eq!(slot.text(), close_text, "{source:?}");
+        assert_eq!(
+            slot.prev_sibling_or_token()
+                .is_some_and(|element| element.kind() == SyntaxKind::Missing),
+            direct_missing,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn record_sequence_missing_slots_are_typed_and_nested_closes_are_not_deduplicated() {
+    for origin in [0, 41] {
+        for (source, expected) in [
+            (
+                "{,a:A}",
+                vec![field_record(0, origin + 1..origin + 1, false)],
+            ),
+            (
+                "{a:A,,b:B}",
+                vec![field_record(0, origin + 5..origin + 5, false)],
+            ),
+            (
+                "{a:A b:B}",
+                vec![field_record(0, origin + 5..origin + 5, false)],
+            ),
+            (
+                "{a:A b:{c:C}}",
+                vec![field_record(0, origin + 5..origin + 5, false)],
+            ),
+            ("{", vec![close(0, origin + 1..origin + 1, false)]),
+            ("{a:A", vec![close(0, origin + 4..origin + 4, false)]),
+            (
+                "{a:A,",
+                vec![
+                    field_record(0, origin + 5..origin + 5, false),
+                    close(1, origin + 5..origin + 5, false),
+                ],
+            ),
+            (
+                "{a:{b:B",
+                vec![
+                    close(0, origin + 7..origin + 7, false),
+                    close(1, origin + 7..origin + 7, false),
+                ],
+            ),
+        ] {
+            let root = assert_complete_type_recovery(source, origin, &expected);
+            assert_typed_nodes(&root, &expected);
+            if source.starts_with("{a:A b:") {
+                let separator = root
+                    .descendants()
+                    .find(|node| node.kind() == SyntaxKind::NamedRecordTypeSeparator)
+                    .unwrap();
+                assert_eq!(
+                    separator
+                        .children()
+                        .map(|node| node.kind())
+                        .collect::<Vec<_>>(),
+                    [SyntaxKind::Missing]
+                );
+                assert_eq!(
+                    separator.prev_sibling_or_token().unwrap().kind(),
+                    SyntaxKind::Whitespace
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn record_sequence_and_name_errors_keep_their_cut_and_native_nested_items() {
+    for (source, range, text, parent) in [
+        ("{@ a:A}", 1..2, "@", SyntaxKind::NamedRecordType),
+        ("{..A,b:B}", 1..4, "..A", SyntaxKind::NamedRecordType),
+        ("{@\nb:B}", 1..2, "@", SyntaxKind::NamedRecordType),
+        ("{@ (\nb:B}", 1..4, "@ (", SyntaxKind::NamedRecordType),
+        ("{@:A}", 1..2, "@", SyntaxKind::TypeRecordField),
+        ("{():A}", 1..3, "()", SyntaxKind::TypeRecordField),
+        ("{(:):A}", 1..4, "(:)", SyntaxKind::TypeRecordField),
+        (
+            "{a:A; b:B}",
+            4..5,
+            ";",
+            SyntaxKind::NamedRecordTypeSeparator,
+        ),
+        (
+            "{a:A; (\n) b:B}",
+            4..9,
+            "; (\n)",
+            SyntaxKind::NamedRecordTypeSeparator,
+        ),
+        (
+            "{a:A; /*é*/ b:B}",
+            4..5,
+            ";",
+            SyntaxKind::NamedRecordTypeSeparator,
+        ),
+    ] {
+        let expected = [field_record(0, range, true)];
+        let root = assert_complete_type_recovery(source, 0, &expected);
+        assert_typed_nodes(&root, &expected);
+        let error = recovery_groups(&root).into_iter().next().unwrap();
+        assert_eq!(error.text(), text, "{source:?}");
+        assert_eq!(error.parent().unwrap().kind(), parent);
+        if text.contains('(') {
+            assert!(
+                error
+                    .children_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .any(|token| token.kind() == SyntaxKind::Error && token.text() == "(")
+            );
+        }
+    }
+    // A ')' cannot discharge the '[' in a malformed name authority probe.
+    let expected = [field_record(0, 1..3, true), close(1, 3..7, true)];
+    let root = assert_complete_type_recovery("{([)]:A}", 0, &expected);
+    // The approved close slot preserves the Field/Close record boundary.
+    let groups = recovery_groups(&root);
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[0].text(), "([");
+    assert_eq!(groups[1].text(), ")]:A");
+    assert_eq!(
+        groups[1].parent().unwrap().kind(),
+        SyntaxKind::NamedRecordTypeClose
+    );
+    assert_eq!(
+        groups[1].text_range(),
+        rowan::TextRange::new(11.into(), 15.into())
+    );
+    assert_eq!(
+        groups[0].parent().unwrap().kind(),
+        SyntaxKind::NamedRecordType
+    );
+    assert_eq!(
+        groups[0].text_range(),
+        rowan::TextRange::new(9.into(), 11.into())
+    );
+    assert!(matches!(
+        groups[0],
+        crate::tests::recovery_output::RecoveryGroup::Raw(_)
+    ));
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::TypeRecordField)
+    );
+}
+
+#[test]
+fn record_unclaimed_closes_use_one_native_close_only_run_and_preserve_outer_tails() {
+    for origin in [0, 41] {
+        for (source, expected) in [
+            ("{a:A]}", vec![close(0, origin + 4..origin + 5, true)]),
+            ("{a:A]}::Next", vec![close(0, origin + 4..origin + 5, true)]),
+            (
+                "{a:A]",
+                vec![
+                    close(0, origin + 4..origin + 5, true),
+                    close(1, origin + 5..origin + 5, false),
+                ],
+            ),
+            ("{a:A] junk}", vec![close(0, origin + 4..origin + 10, true)]),
+            (
+                "F({a:A])",
+                vec![
+                    close(0, origin + 6..origin + 7, true),
+                    close(1, origin + 7..origin + 7, false),
+                ],
+            ),
+            (
+                "{a:A,]",
+                vec![
+                    field_record(0, origin + 5..origin + 5, false),
+                    close(1, origin + 5..origin + 6, true),
+                    close(2, origin + 6..origin + 6, false),
+                ],
+            ),
+        ] {
+            let root = assert_complete_type_recovery(source, origin, &expected);
+            assert_typed_nodes(&root, &expected);
+            let error = recovery_groups(&root).into_iter().next().unwrap();
+            assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::Error);
+            assert_eq!(error.first_token().unwrap().text(), "]");
+            assert_eq!(
+                error.parent().unwrap().kind(),
+                SyntaxKind::NamedRecordTypeClose
+            );
+            assert!(
+                !error
+                    .descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .any(|token| token.text() == "}")
+            );
+            if source.ends_with("::Next") {
+                let tail = root
+                    .descendants()
+                    .find(|node| node.kind() == SyntaxKind::TypePathTail)
+                    .unwrap();
+                assert_eq!(tail.text(), "::Next");
+                assert!(
+                    !tail
+                        .ancestors()
+                        .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
+                );
+            }
+            if source.starts_with("F(") {
+                let close = root
+                    .descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .find(|token| token.kind() == SyntaxKind::RParen)
+                    .unwrap();
+                assert_eq!(close.parent().unwrap().kind(), SyntaxKind::TypeCallClose);
+                assert_eq!(
+                    close.parent().unwrap().parent().unwrap().kind(),
+                    SyntaxKind::TypeCallTail
+                );
+            }
+        }
+    }
+}
+
+fn assert_pending_record(
+    prefix: &str,
+    suffix: &str,
+    stops: Stops,
+    outer_closes: u8,
+    expected: &[ExpectedStructural],
+) {
+    let source = format!("{prefix}{suffix}");
+    let run = run_contextual_type_snapshot(
+        &source,
+        crate::type_expr::TypeMlContext::INACTIVE,
+        stops,
+        outer_closes,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(
+        run.green.to_string(),
+        format!("sentinel{prefix}"),
+        "{source:?}"
+    );
+    let expected = expected
+        .iter()
+        .map(|(kind, range)| {
+            (
+                *kind,
+                "sentinel".len() + range.start.."sentinel".len() + range.end,
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(run.facts, expected, "{source:?}");
+    assert_typed_nodes(&SyntaxNode::new_root(run.green), &expected);
+    let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
+        panic!("complete caller Item must remain pending: {source:?}")
+    };
+    let (control, origin, control_line, remainder, _, _) =
+        scan_type_item_control(suffix, prefix.len(), &OperatorTable::empty());
+    assert_eq!(pending, control, "{source:?}");
+    assert_eq!(run.successor_origin, origin);
+    assert_eq!(run.remainder, remainder);
+    assert_eq!(line, control_line);
+    assert_eq!(run.mark, ());
+    assert!(run.same_operators);
+}
+
+#[test]
+fn record_caller_and_inherited_close_boundaries_keep_the_complete_pending_item() {
+    for (prefix, expected) in [
+        ("{", vec![close(0, 1..1, false)]),
+        ("{a:A", vec![close(0, 4..4, false)]),
+        (
+            "{a:A,",
+            vec![field_record(0, 5..5, false), close(1, 5..5, false)],
+        ),
+        (
+            "{@",
+            vec![field_record(0, 1..2, true), close(1, 2..2, false)],
+        ),
+        (
+            "{a:A;",
+            vec![field_record(0, 4..5, true), close(1, 5..5, false)],
+        ),
+        ("{a:A]", vec![close(0, 4..5, true), close(1, 5..5, false)]),
+    ] {
+        assert_pending_record(
+            prefix,
+            " /*é*/with tail",
+            crate::lexical::stops::STOP_WITH,
+            0,
+            &expected,
+        );
+        let inherited = crate::type_expr::with_type_outer_close(0, TokenKind::RParen);
+        assert_pending_record(prefix, " /*é*/) tail", 0, inherited, &expected);
+    }
+    let inherited = crate::type_expr::with_type_outer_close(0, TokenKind::RBracket);
+    assert_pending_record("{a:A", " ] tail", 0, inherited, &[close(0, 4..4, false)]);
+    assert_pending_record(
+        "{a:A,",
+        "] tail",
+        0,
+        inherited,
+        &[field_record(0, 5..5, false), close(1, 5..5, false)],
+    );
+    assert_pending_record(
+        "{a:A",
+        "\nwith tail",
+        crate::lexical::stops::STOP_WITH,
+        0,
+        &[field_record(0, 4..4, false), close(1, 4..4, false)],
+    );
+}
+
+#[test]
+fn record_name_authority_and_nested_recovery_do_not_cross_caller_stops() {
+    for (suffix, stops) in [
+        (":):A}", STOP_COLON),
+        ("with):A}", crate::lexical::stops::STOP_WITH),
+        ("with:A)}", crate::lexical::stops::STOP_WITH),
+        (",b:B)}", crate::lexical::stops::STOP_COMMA),
+    ] {
+        assert_pending_record(
+            "{@ (",
+            suffix,
+            stops,
+            0,
+            &[field_record(0, 1..4, true), close(1, 4..4, false)],
+        );
+    }
+    assert_pending_record(
+        "{@ {",
+        "} tail",
+        stops_for(TokenKind::RBrace),
+        0,
+        &[field_record(0, 1..4, true), close(1, 4..4, false)],
+    );
+    assert_pending_record(
+        "{a:A",
+        "; tail",
+        crate::lexical::stops::STOP_SEMICOLON,
+        0,
+        &[close(0, 4..4, false)],
+    );
+    assert_pending_record(
+        "{a:A; (",
+        "\nwith tail",
+        crate::lexical::stops::STOP_WITH,
+        0,
+        &[
+            field_record(0, 4..7, true),
+            field_record(1, 7..7, false),
+            close(2, 7..7, false),
+        ],
+    );
+}
+
+#[test]
+fn record_sequence_fence_handoff_records_each_slot_without_consuming_leading() {
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for (prefix, expected) in [
+        ("> > {", vec![close(0, 5..5, false)]),
+        (
+            "> > {a:A,",
+            vec![field_record(0, 9..9, false), close(1, 9..9, false)],
+        ),
+        (
+            "> > {@",
+            vec![field_record(0, 5..6, true), close(1, 6..6, false)],
+        ),
+        (
+            "> > {a:A;",
+            vec![field_record(0, 8..9, true), close(1, 9..9, false)],
+        ),
+        (
+            "> > {a:A]",
+            vec![close(0, 8..9, true), close(1, 9..9, false)],
+        ),
+        (
+            "> > {a:A,]",
+            vec![
+                field_record(0, 9..9, false),
+                close(1, 9..10, true),
+                close(2, 10..10, false),
+            ],
+        ),
+    ] {
+        let source = format!("{prefix}\n> > ```\nouter");
+        let (green, exit, remainder, facts) = run_type_normalized_with_structural_diagnostics(
+            &source,
+            0,
+            LineEntry::PhysicalStart,
+            Some(&fence),
+        );
+        assert_eq!(green.to_string(), prefix);
+        assert_eq!(facts, expected, "{prefix:?}");
+        let root = SyntaxNode::new_root(green);
+        assert_typed_nodes(&root, &expected);
+        if prefix.ends_with(']') {
+            let slot = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::NamedRecordTypeClose)
+                .unwrap();
+            assert_eq!(slot.text(), "]");
+            assert_eq!(
+                slot.children_with_tokens()
+                    .map(|element| element.kind())
+                    .collect::<Vec<_>>(),
+                [SyntaxKind::Error, SyntaxKind::Missing]
+            );
+            assert_eq!(
+                slot.prev_sibling_or_token()
+                    .is_some_and(|element| element.kind() == SyntaxKind::Missing),
+                prefix.ends_with(",]")
+            );
+        }
+        assert_eq!(remainder, "> > ```\nouter");
+        let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) =
+            exit
+        else {
+            panic!("record must preserve the fence Item")
+        };
+        assert!(item.payload_view().is_boundary());
+        assert!(item.leading_view().has_ordinary_newline());
+        assert_eq!(
+            item.payload_view().pending_boundary().unwrap().coordinate(),
+            prefix.len() + 1
+        );
+    }
+}
+
+#[test]
+fn record_eof_newline_opens_a_distinct_field_slot_and_stays_outside_the_record() {
+    for (source, at) in [("{a:A\n", 4), ("{a:A,\n", 5)] {
+        let raw_at = "sentinel".len() + at;
+        let expected = [
+            field_record(0, raw_at..raw_at, false),
+            close(1, raw_at..raw_at, false),
+        ];
+        let run = run_contextual_type_snapshot(
+            source,
+            crate::type_expr::TypeMlContext::INACTIVE,
+            0,
+            0,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(run.green.to_string(), format!("sentinel{source}"));
+        assert_eq!(run.facts, expected);
+        assert_eq!(run.successor_origin, source.len());
+        assert_eq!(run.remainder, "");
+        let NormalizedExit::Complete(Err(Either::Right(_)), line) = run.exit else {
+            panic!("record must return the EOF Item")
+        };
+        let (_, _, control_line, _, _, _) =
+            scan_type_item_control("\n", at, &OperatorTable::empty());
+        assert_eq!(line, control_line);
+        let root = SyntaxNode::new_root(run.green);
+        assert_typed_nodes(&root, &expected);
+        let newline = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::Newline)
+            .unwrap();
+        assert_eq!(newline.parent().unwrap().kind(), SyntaxKind::Root);
+    }
+}
+
+#[test]
+fn record_sequence_records_remain_inside_ordered_structured_pv_reservations() {
+    for (source, extent, nested) in [
+        (":{{@}}", 2..5, field_record(1, 3..4, true)),
+        (":{{a:A; b:B}}", 2..12, field_record(1, 6..7, true)),
+        (":{{a:A]}}", 2..8, close(1, 6..7, true)),
+    ] {
+        let expected = [(StructuralKind::Invalid, extent), nested];
+        let root = assert_complete_type_recovery(source, 0, &expected);
+        assert_typed_nodes(&root, &expected);
+    }
+}
+
+#[test]
+fn record_local_skeletons_and_punctuation_keep_accepted_caller_contexts() {
+    let stops = crate::lexical::stops::STOP_WITH | STOP_COLON | stops_for(TokenKind::RBrace);
+    for source in [
+        "{}",
+        "{a:A, b:B,}",
+        "{with:A}",
+        "{\nwith:A\n}",
+        "{a:A\nwith:B}",
+        "{a:{b:B}}",
+    ] {
+        let run = run_contextual_type_snapshot(
+            source,
+            crate::type_expr::TypeMlContext::INACTIVE,
+            stops,
+            0,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(run.green.to_string(), format!("sentinel{source}"));
+        assert_eq!(run.facts, [], "{source:?}");
+        assert!(matches!(
+            run.exit,
+            NormalizedExit::Complete(Err(Either::Right(_)), _)
+        ));
+        assert_typed_nodes(&SyntaxNode::new_root(run.green), &[]);
+    }
+}

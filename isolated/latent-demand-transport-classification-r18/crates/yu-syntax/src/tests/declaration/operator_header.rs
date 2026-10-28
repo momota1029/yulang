@@ -1,0 +1,476 @@
+use crate::declaration::operator_header::{next_item, operator_header_normalized};
+use crate::tests::support::*;
+use crate::{OperatorFixity, Visibility};
+
+#[test]
+fn complete_operator_header_projects_without_reading_its_body() {
+    let operators = OperatorTable::empty();
+    for (source, fixity, lazy, visibility, end) in [
+        (
+            "infix (<+>) 50 51 = \"body\"",
+            OperatorFixity::Infix,
+            false,
+            Visibility::Private,
+            19,
+        ),
+        (
+            "pub lazy prefix (!) 70.2 = body",
+            OperatorFixity::Prefix,
+            true,
+            Visibility::Public,
+            26,
+        ),
+        (
+            "nullfix (?) = body",
+            OperatorFixity::Nullfix,
+            false,
+            Visibility::Private,
+            13,
+        ),
+    ] {
+        let mut input = source;
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
+        let (item, origin, line) = i
+            .token(|lex| Some(next_item(lex, 0, LineEntry::InLine, None)))
+            .unwrap();
+        let (pending, origin, _, fact) = operator_header_normalized(i, item, origin, line, None);
+        assert!(pending.is_none());
+        let fact = fact.unwrap();
+        assert_eq!(fact.fixity(), fixity);
+        assert_eq!(fact.is_lazy(), lazy);
+        assert_eq!(fact.visibility(), visibility);
+        assert_eq!(fact.range(), &(0..end));
+        assert_eq!(origin, end);
+        assert_eq!(input, &source[end..]);
+        output.finish_node();
+        let green = finish_with_discarded_recoveries(output, recover);
+        assert_eq!(green.to_string(), source[..end]);
+        assert!(structural_facts(&green).is_empty());
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| token.text() == "=")
+                .unwrap()
+                .kind(),
+            SyntaxKind::Equals
+        );
+    }
+}
+
+#[test]
+fn structural_safe_points_and_equals_keep_exact_cst_facts_and_body_suffix() {
+    use crate::structural_diagnostic::StructuralKind::{ErrorGroup, Missing};
+    for (source, owned, pending_text, pending_range, rest, expected) in [
+        (
+            "prefix (!) 128 = body",
+            "prefix (!) 128 =",
+            None,
+            None,
+            " body",
+            vec![(ErrorGroup, 11..14)],
+        ),
+        (
+            "suffix (!) 128 body + tail",
+            "suffix (!) 128",
+            Some("body"),
+            Some(114..119),
+            " + tail",
+            vec![(ErrorGroup, 11..14), (Missing, 14..14)],
+        ),
+        (
+            "suffix (!) body + tail",
+            "suffix (!)",
+            Some("body"),
+            Some(110..115),
+            " + tail",
+            vec![(Missing, 10..10), (Missing, 10..10)],
+        ),
+        (
+            "prefix (!) (body) + tail",
+            "prefix (!)",
+            Some("("),
+            Some(110..112),
+            "body) + tail",
+            vec![(Missing, 10..10), (Missing, 10..10)],
+        ),
+        (
+            "prefix (!) @ \"body\" + tail",
+            "prefix (!) @",
+            Some("\""),
+            Some(112..114),
+            "body\" + tail",
+            vec![(ErrorGroup, 11..12), (Missing, 12..12)],
+        ),
+        (
+            "prefix 70 = body",
+            "prefix 70 =",
+            None,
+            None,
+            " body",
+            vec![(Missing, 6..6)],
+        ),
+        (
+            "prefix = body",
+            "prefix =",
+            None,
+            None,
+            " body",
+            vec![(Missing, 6..6), (Missing, 6..6)],
+        ),
+        (
+            "prefix (!) body + tail",
+            "prefix (!)",
+            Some("body"),
+            Some(110..115),
+            " + tail",
+            vec![(Missing, 10..10), (Missing, 10..10)],
+        ),
+        (
+            "prefix (!)70 = body",
+            "prefix (!)70 =",
+            None,
+            None,
+            " body",
+            vec![(ErrorGroup, 10..12)],
+        ),
+        (
+            "nullfix (?) == body + tail",
+            "nullfix (?) ==",
+            Some("body"),
+            Some(114..119),
+            " + tail",
+            vec![(ErrorGroup, 12..14)],
+        ),
+        (
+            "prefix (⊕) 70 身体 + tail",
+            "prefix (⊕) 70",
+            Some("身体"),
+            Some(115..122),
+            " + tail",
+            vec![(Missing, 15..15)],
+        ),
+        (
+            "prefix (!)\r\nbody + tail",
+            "prefix (!)",
+            Some("body"),
+            Some(110..116),
+            " + tail",
+            vec![(Missing, 10..10), (Missing, 10..10)],
+        ),
+    ] {
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut input = source;
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
+        let (item, origin, line) = i
+            .token(|lex| Some(next_item(lex, 100, LineEntry::InLine, None)))
+            .unwrap();
+        let (pending, origin, line, fact) = operator_header_normalized(i, item, origin, line, None);
+        assert!(fact.is_none(), "{source}");
+        assert_eq!(
+            pending
+                .as_ref()
+                .and_then(|item| item.payload_view().spelling()),
+            pending_text,
+            "{source}"
+        );
+        assert_eq!(
+            pending
+                .as_ref()
+                .map(|item| item.extent(origin).recovery_range()),
+            pending_range,
+            "{source}"
+        );
+        assert_eq!(line, LineEntry::InLine);
+        assert_eq!(input, rest, "{source}");
+        output.finish_node();
+        let green = finish_with_discarded_recoveries(output, recover);
+        assert_eq!(green.to_string(), owned, "{source}");
+        assert_eq!(structural_facts(&green), expected, "{source}");
+    }
+}
+
+#[test]
+fn malformed_fixity_retry_keeps_its_structural_fact() {
+    let source = "lazy @ infix (<+>) 50 51 = body";
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
+    let (item, origin, line) = i
+        .token(|lex| Some(next_item(lex, 0, LineEntry::InLine, None)))
+        .unwrap();
+    let (_, _, _, fact) = operator_header_normalized(i, item, origin, line, None);
+    assert!(fact.is_some());
+    assert_eq!(input, " body");
+    output.finish_node();
+    let green = finish_with_discarded_recoveries(output, recover);
+    assert_eq!(green.to_string(), "lazy @ infix (<+>) 50 51 =");
+    assert_eq!(
+        structural_facts(&green),
+        [(
+            crate::structural_diagnostic::StructuralKind::ErrorGroup,
+            5..6
+        )]
+    );
+}
+
+#[test]
+fn missing_header_slots_preserve_the_next_crlf_statement() {
+    let operators = OperatorTable::empty();
+    let source = "prefix (!)\r\nuse std::io";
+    let mut input = source;
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
+    let (item, origin, line) = i
+        .token(|lex| Some(next_item(lex, 0, LineEntry::InLine, None)))
+        .unwrap();
+    let (pending, origin, _, fact) = operator_header_normalized(i, item, origin, line, None);
+    assert!(fact.is_none());
+    let pending = pending.unwrap();
+    assert_eq!(pending.payload_view().spelling(), Some("use"));
+    assert_eq!(pending.extent(origin).recovery_range(), 10..15);
+    assert_eq!(input, " std::io");
+    output.finish_node();
+    let green = finish_with_discarded_recoveries(output, recover);
+    assert_eq!(green.to_string(), "prefix (!)");
+    assert_eq!(
+        structural_facts(&green),
+        [
+            (
+                crate::structural_diagnostic::StructuralKind::Missing,
+                10..10
+            ),
+            (
+                crate::structural_diagnostic::StructuralKind::Missing,
+                10..10
+            ),
+        ]
+    );
+}
+
+#[test]
+fn operator_header_slots_are_direct_ordered_rowan_children() {
+    let parse = |source| {
+        let operators = OperatorTable::empty();
+        let mut input = source;
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
+        let (item, origin, line) = i
+            .token(|lex| Some(next_item(lex, 0, LineEntry::InLine, None)))
+            .unwrap();
+        let (pending, _, _, _) = operator_header_normalized(i, item, origin, line, None);
+        output.finish_node();
+        (
+            SyntaxNode::new_root(output.finish()),
+            pending,
+            input.to_owned(),
+        )
+    };
+    let direct = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|element| {
+                (
+                    element.kind(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let assert_direct_errors = |header: &SyntaxNode, ranges: &[std::ops::Range<usize>]| {
+        let errors = header
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            errors
+                .iter()
+                .map(|token| {
+                    usize::from(token.text_range().start())..usize::from(token.text_range().end())
+                })
+                .collect::<Vec<_>>(),
+            ranges
+        );
+        assert!(
+            errors
+                .iter()
+                .all(|token| token.parent() == Some(header.clone()))
+        );
+        assert!(
+            header
+                .descendants()
+                .all(|node| node.kind() != SyntaxKind::Invalid),
+            "{header:#?}"
+        );
+    };
+
+    let (root, pending, input) = parse("lazy @ infix (<+>) 50 51 = body");
+    assert_eq!(root.to_string(), "lazy @ infix (<+>) 50 51 =");
+    assert!(pending.is_none());
+    assert_eq!(input, " body");
+    let header = root.children().next().unwrap();
+    assert_eq!(header.kind(), SyntaxKind::OperatorHeader);
+    assert_eq!(
+        direct(&header),
+        [
+            (SyntaxKind::LazyKw, 0..4),
+            (SyntaxKind::Whitespace, 4..5),
+            (SyntaxKind::Error, 5..6),
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::InfixKw, 7..12),
+            (SyntaxKind::Whitespace, 12..13),
+            (SyntaxKind::OperatorName, 13..18),
+            (SyntaxKind::Whitespace, 18..19),
+            (SyntaxKind::BindingPower, 19..21),
+            (SyntaxKind::Whitespace, 21..22),
+            (SyntaxKind::BindingPower, 22..24),
+            (SyntaxKind::Whitespace, 24..25),
+            (SyntaxKind::Equals, 25..26),
+        ]
+    );
+    assert_direct_errors(&header, &[5..6]);
+
+    let (root, pending, input) = parse("prefix 70 = body");
+    assert_eq!(root.to_string(), "prefix 70 =");
+    assert!(pending.is_none());
+    assert_eq!(input, " body");
+    let header = root.children().next().unwrap();
+    assert_eq!(
+        direct(&header),
+        [
+            (SyntaxKind::PrefixKw, 0..6),
+            (SyntaxKind::Missing, 6..6),
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::BindingPower, 7..9),
+            (SyntaxKind::Whitespace, 9..10),
+            (SyntaxKind::Equals, 10..11),
+        ]
+    );
+    let missing = header
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Missing)
+        .unwrap();
+    assert_eq!(missing.parent(), Some(header.clone()));
+    assert_direct_errors(&header, &[]);
+
+    let (root, pending, input) = parse("prefix (!)70 = body");
+    assert_eq!(root.to_string(), "prefix (!)70 =");
+    assert!(pending.is_none());
+    assert_eq!(input, " body");
+    let header = root.children().next().unwrap();
+    assert_eq!(
+        direct(&header),
+        [
+            (SyntaxKind::PrefixKw, 0..6),
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::OperatorName, 7..10),
+            (SyntaxKind::Error, 10..12),
+            (SyntaxKind::Whitespace, 12..13),
+            (SyntaxKind::Equals, 13..14),
+        ]
+    );
+    assert_direct_errors(&header, &[10..12]);
+
+    let (root, pending, input) = parse("prefix (!) 128 = body");
+    assert_eq!(root.to_string(), "prefix (!) 128 =");
+    assert!(pending.is_none());
+    assert_eq!(input, " body");
+    let header = root.children().next().unwrap();
+    assert_eq!(
+        direct(&header),
+        [
+            (SyntaxKind::PrefixKw, 0..6),
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::OperatorName, 7..10),
+            (SyntaxKind::Whitespace, 10..11),
+            (SyntaxKind::Error, 11..14),
+            (SyntaxKind::Whitespace, 14..15),
+            (SyntaxKind::Equals, 15..16),
+        ]
+    );
+    assert_direct_errors(&header, &[11..14]);
+
+    let (root, pending, input) = parse("suffix (!) 128 body + tail");
+    assert_eq!(root.to_string(), "suffix (!) 128");
+    assert_eq!(input, " + tail");
+    let mut pending = pending.unwrap();
+    assert_eq!(emit_pending_leading_text(&mut pending), " ");
+    assert_eq!(pending.payload_view().spelling(), Some("body"));
+    let header = root.children().next().unwrap();
+    assert_eq!(
+        direct(&header),
+        [
+            (SyntaxKind::SuffixKw, 0..6),
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::OperatorName, 7..10),
+            (SyntaxKind::Whitespace, 10..11),
+            (SyntaxKind::Error, 11..14),
+            (SyntaxKind::Missing, 14..14),
+        ]
+    );
+    let missing = header
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Missing)
+        .unwrap();
+    assert_eq!(missing.parent(), Some(header.clone()));
+    assert_direct_errors(&header, &[11..14]);
+}
+
+#[test]
+fn quoted_fence_keeps_pending_crlf_and_anchors_at_abstract_coordinate() {
+    use crate::lexical::yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy};
+    use crate::structural_diagnostic::StructuralKind::{ErrorGroup, Missing};
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for (owned, expected) in [
+        ("prefix (!)", vec![(Missing, 10..10), (Missing, 10..10)]),
+        (
+            "prefix (!) @",
+            vec![(ErrorGroup, 11..12), (Missing, 12..12)],
+        ),
+    ] {
+        let source = format!("{owned}\r\n> > ```\r\nouter");
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut input = source.as_str();
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
+        let (item, origin, line) = i
+            .token(|lex| Some(next_item(lex, 100, LineEntry::InLine, Some(&fence))))
+            .unwrap();
+        let (pending, _, line, fact) =
+            operator_header_normalized(i, item, origin, line, Some(&fence));
+        assert!(fact.is_none());
+        assert_eq!(line, LineEntry::PhysicalStart);
+        assert_eq!(input, "> > ```\r\nouter");
+        let (leading, boundary) = emit_terminal_leading_text(pending.unwrap());
+        assert_eq!(leading, "\r\n");
+        assert_eq!(boundary.coordinate(), 100 + owned.len() + 2);
+        output.finish_node();
+        let green = finish_with_discarded_recoveries(output, recover);
+        assert_eq!(green.to_string(), owned);
+        assert_eq!(structural_facts(&green), expected);
+    }
+}

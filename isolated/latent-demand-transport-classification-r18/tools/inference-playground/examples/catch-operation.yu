@@ -1,0 +1,8 @@
+act signal:
+    our exchange: int -> str
+
+my handled = catch signal::exchange(1):
+    signal::exchange(payload), resume ->
+        my checked: int = payload
+        resume "resumed"
+    value -> value

@@ -1,0 +1,12 @@
+// A handler removes one effect and leaves the rest.
+
+act console:
+    our read: () -> int
+
+our ask() = console::read()
+
+our run_console(action: [console] _) =
+    catch action:
+        console::read(), k -> run_console: k 42
+
+say:run_console:ask()

@@ -1,0 +1,9 @@
+// one generalized function used at three types
+my identity x = x
+our int_identity = identity 7
+our bool_identity = identity true
+our string_identity = identity "ok"
+int_identity
+bool_identity
+string_identity
+
