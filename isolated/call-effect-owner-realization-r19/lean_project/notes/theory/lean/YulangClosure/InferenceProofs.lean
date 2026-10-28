@@ -1,0 +1,35 @@
+import YulangClosure.BirthLevelSCC
+import YulangClosure.SimpleSubConstraintSoundness
+import YulangClosure.SimpleSubGeneralizationSoundness
+import YulangClosure.SimpleSubRegularSolutions
+import YulangClosure.SimpleSubRegularConstraintSoundness
+import YulangClosure.SimpleSubScopedPublication
+import YulangClosure.SimpleSubRegularPublication
+import YulangClosure.SimpleSubRegularDecision
+import YulangClosure.SimpleSubRegularCompletion
+import YulangClosure.NativeProfileRestriction
+import YulangClosure.SimpleSubGrowingInference
+import YulangClosure.SimpleSubLatticeCertificates
+import YulangClosure.SimpleSubLatticeInference
+import YulangClosure.SimpleSubLatticeDecision
+import YulangClosure.SimpleSubLatticeGrowingInference
+import YulangClosure.NativeRowModel
+import YulangClosure.RecordBoundaryPreservation
+import YulangClosure.NativeReplayCoverage
+import YulangClosure.NativeRowSaturation
+import YulangClosure.BoundaryQueryClosure
+import YulangClosure.NativeRecordPlan
+import YulangClosure.NativeReplayAcknowledgement
+import YulangClosure.RecordBoundaryExecution
+import YulangClosure.SourceIdentityLambda
+import YulangClosure.NativeMergeExpansion
+import YulangClosure.NativeExecutionHistory
+import YulangClosure.SourceIdentityWorld
+import YulangClosure.NativeReplayCurrent
+import YulangClosure.NativeFrameRollback
+
+/-!
+Checked inference proof components, integrated incrementally.
+This import surface does not assert the original SourceProblem.InferenceSoundness
+root. Each component records its exact source/native and model-existence boundary.
+-/

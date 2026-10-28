@@ -1,0 +1,8 @@
+act signal:
+    our ping: int -> int
+
+my compose f g x = f (g x)
+my id y = y
+my g z = signal::ping z
+my first = compose id g 1
+my second = compose id g 2

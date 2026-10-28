@@ -1,0 +1,3 @@
+my mixed = if true: 1 else: "str"
+my consume (x:int) = x
+my wrong = consume mixed

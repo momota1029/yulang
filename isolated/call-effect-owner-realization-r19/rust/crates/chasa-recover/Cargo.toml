@@ -1,0 +1,11 @@
+[package]
+name = "chasa-recover"
+version = "0.2.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+description = "Experimental recoverable parser combinators (procedural parsers)."
+publish = false
+
+[dependencies]
+reborrow-generic = { version = "0.1.2", features = ["derive"] }
