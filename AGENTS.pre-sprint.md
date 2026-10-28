@@ -209,6 +209,16 @@ branch. Push by default only when that whole range is intended and coherent;
 otherwise defer with the concrete safety blocker. Never force-push without
 explicit user instruction.
 
+An explicit user request authorizes the primary to complete its bounded,
+in-scope outcome and the ordinary steps needed to make it reviewable, including
+delegation where the operating rules call for it, required review, record
+synchronization, and safe coherent checkpoints. Do not stop after a routine
+substep to ask whether to continue or repeat a permission request already
+covered by the user's instruction. Ask only when a genuine user decision would
+materially change scope, semantics, production authority, resources, or another
+binding constraint; continue independent authorized work while that decision
+is pending.
+
 Keep long-running work backed up at frequent, meaningful checkpoints; do not
 wait for the entire multi-gate task to finish before committing and pushing.
 After each completed coherent gate or substantial verified natural slice,
