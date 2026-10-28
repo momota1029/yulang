@@ -1,0 +1,48 @@
+{
+  "argv": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "isolated/native-external-effect-frame-r8/crates/yu-solver/Cargo.toml",
+    "--locked",
+    "--features",
+    "shadow-apply-candidate",
+    "replay_constructor_lineage_observes_rejected_cross_route_authentication"
+  ],
+  "cwd": "/home/momota1029/rust/yulang",
+  "env": {
+    "CARGO_TARGET_DIR": "isolated/native-external-effect-frame-r8/build-target"
+  },
+  "versions": {
+    "cargo": {
+      "argv": [
+        "cargo",
+        "--version"
+      ],
+      "exit": 0,
+      "output": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)"
+    },
+    "rustc": {
+      "argv": [
+        "rustc",
+        "--version"
+      ],
+      "exit": 0,
+      "output": "rustc 1.95.0 (59807616e 2026-04-14)"
+    }
+  },
+  "cpu_affinity_single_cpu": 0,
+  "start_utc": "2026-10-28T10:26:27.570060+00:00",
+  "end_utc": "2026-10-28T10:27:43.996799+00:00",
+  "wall_seconds": 76.42670380699565,
+  "user_cpu_seconds": 56.12168,
+  "system_cpu_seconds": 6.877532,
+  "max_rss_kib": 1156504,
+  "exit_code": 101,
+  "timed_out": false,
+  "limits": {
+    "wall_seconds": 90,
+    "cpu_count": 1,
+    "rss_bytes": 2147483648
+  }
+}
