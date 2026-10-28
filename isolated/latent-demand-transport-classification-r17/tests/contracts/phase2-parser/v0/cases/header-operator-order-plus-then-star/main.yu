@@ -1,0 +1,3 @@
+infix (<+>) 40 41 = left
+infix (<*>) 60 61 = right
+my value = a <+> b <*> c

@@ -1,0 +1,7 @@
+act signal:
+    our ping: () -> int
+
+my result = catch signal::ping() {
+    signal::ping(), _ -> signal::ping(),
+    v -> v
+}

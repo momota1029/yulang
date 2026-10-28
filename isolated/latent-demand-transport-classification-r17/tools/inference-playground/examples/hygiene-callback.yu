@@ -1,0 +1,8 @@
+act signal:
+    our ping: () -> int
+
+my relay cb = catch cb() {
+    signal::ping(), _ -> 1,
+    v -> v
+}
+my answer = relay signal::ping

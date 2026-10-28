@@ -1,0 +1,898 @@
+use crate::tests::support::*;
+
+#[test]
+fn enum_header_slots_have_direct_rowan_evidence() {
+    use SyntaxKind::{Error, Identifier, Missing, Semicolon, Whitespace};
+
+    // BodyIntroducer has no Missing publisher: a clean boundary is Bodyless.
+    // These rows select Name before Identifier and BodyIntroducer after it.
+    for (tail, expected) in [
+        (
+            " ;",
+            vec![(Whitespace, 0..1), (Missing, 1..1), (Semicolon, 1..2)],
+        ),
+        (
+            " @ ",
+            vec![(Whitespace, 0..1), (Error, 1..2), (Whitespace, 2..3)],
+        ),
+        (
+            " $hidden ",
+            vec![(Whitespace, 0..1), (Error, 1..8), (Whitespace, 8..9)],
+        ),
+        (
+            " @ 名;",
+            vec![
+                (Whitespace, 0..1),
+                (Error, 1..2),
+                (Whitespace, 2..3),
+                (Identifier, 3..6),
+                (Semicolon, 6..7),
+            ],
+        ),
+        (" 名", vec![(Whitespace, 0..1), (Identifier, 1..4)]),
+        (
+            " 名 @ ",
+            vec![
+                (Whitespace, 0..1),
+                (Identifier, 1..4),
+                (Whitespace, 4..5),
+                (Error, 5..6),
+                (Whitespace, 6..7),
+            ],
+        ),
+        (
+            " 名 @ ;",
+            vec![
+                (Whitespace, 0..1),
+                (Identifier, 1..4),
+                (Whitespace, 4..5),
+                (Error, 5..6),
+                (Whitespace, 6..7),
+                (Semicolon, 7..8),
+            ],
+        ),
+        (
+            " 名 't @ ;",
+            vec![
+                (Whitespace, 0..1),
+                (Identifier, 1..4),
+                (SyntaxKind::DeclarationTypeParameterList, 4..7),
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (Semicolon, 10..11),
+            ],
+        ),
+    ] {
+        let source = format!("enum{tail}");
+        let (green, _, _) = run_enum_declaration(&source, 0, 0, LineEntry::InLine, None);
+        let root = SyntaxNode::new_root(green);
+        let node = root.children().next().expect("direct declaration");
+        assert_eq!(node.kind(), SyntaxKind::EnumDeclaration);
+        assert_eq!(node.parent(), Some(root.clone()));
+        let children = node.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children[0].kind(), SyntaxKind::EnumKw);
+        let offset = 4;
+        assert_eq!(
+            children
+                .iter()
+                .skip(1)
+                .map(|child| (
+                    child.kind(),
+                    usize::from(child.text_range().start()) - offset
+                        ..usize::from(child.text_range().end()) - offset,
+                ))
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}",
+        );
+        for child in &children {
+            assert_eq!(child.parent(), Some(node.clone()));
+            if child.kind() == Missing {
+                assert!(child.as_node().is_some());
+                assert!(child.text_range().is_empty());
+            } else if child.kind() == Error {
+                assert!(child.as_token().is_some());
+                assert!(!child.text_range().is_empty());
+            }
+        }
+        assert!(
+            !root
+                .descendants()
+                .any(|child| child.kind() == SyntaxKind::Invalid)
+        );
+    }
+}
+
+#[test]
+fn enum_header_starters_are_outside_name_and_introducer_recovery() {
+    use SyntaxKind::{Colon, Equals, Error, Identifier, LBrace, Missing, Semicolon};
+
+    for (body, starter) in [
+        (";", Semicolon),
+        ("{}", LBrace),
+        (":\n  A", Colon),
+        ("= A", Equals),
+    ] {
+        for (header, header_kinds) in [
+            (" ", vec![Missing]),
+            (" 名 ", vec![Identifier]),
+            (" 名 @ ", vec![Identifier, Error]),
+        ] {
+            let source = format!("enum{header}{body}");
+            let (green, _, _) = run_enum_declaration(&source, 0, 0, LineEntry::InLine, None);
+            let root = SyntaxNode::new_root(green);
+            let node = root.children().next().expect("direct declaration");
+            assert_eq!(node.kind(), SyntaxKind::EnumDeclaration);
+            assert_eq!(node.parent(), Some(root.clone()));
+            let children = node.children_with_tokens().collect::<Vec<_>>();
+            let at = children
+                .iter()
+                .position(|child| child.kind() == starter)
+                .expect("actual direct starter");
+            assert_eq!(
+                children
+                    .iter()
+                    .filter(|child| child.kind() == starter)
+                    .count(),
+                1,
+                "{source:?}",
+            );
+            assert_eq!(children[at].parent(), Some(node.clone()));
+            assert!(children[at].as_token().is_some());
+            assert_eq!(
+                usize::from(children[at].text_range().start()),
+                4 + header.len()
+            );
+            assert_eq!(
+                usize::from(children[at].text_range().end()),
+                4 + header.len() + 1
+            );
+            assert_eq!(
+                children[1..at]
+                    .iter()
+                    .filter(|child| child.kind() != SyntaxKind::Whitespace)
+                    .map(|child| child.kind())
+                    .collect::<Vec<_>>(),
+                header_kinds,
+                "{source:?}",
+            );
+            let expected_recovery = children[1..at]
+                .iter()
+                .filter(|child| matches!(child.kind(), Missing | Error))
+                .cloned()
+                .collect::<Vec<_>>();
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter(|child| matches!(child.kind(), Missing | Error))
+                    .collect::<Vec<_>>(),
+                expected_recovery,
+                "{source:?}",
+            );
+            assert!(
+                !root
+                    .descendants()
+                    .any(|child| child.kind() == SyntaxKind::Invalid)
+            );
+        }
+    }
+}
+
+#[test]
+fn enum_braced_variant_outer_close_preserves_protected_boundaries() {
+    use crate::lexical::item::{BorrowedTarget, Boundary};
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    use SyntaxKind::{
+        Comma, EnumVariant, Error, Invalid, LBrace, Missing, StructFieldForeignClose,
+    };
+
+    let origin = 100;
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for (accepted, fenced) in [
+        ("enum E{A", false),
+        ("> > enum E{A", true),
+        ("> > enum E{A,", true),
+    ] {
+        let suffix = if fenced {
+            "\r\n> > ```\r\nouter"
+        } else {
+            " \r\n : next"
+        };
+        let source = format!("{accepted}{suffix}");
+        let (green, exit, remainder) = run_enum_declaration(
+            &source,
+            if fenced { 0 } else { STOP_COLON },
+            origin,
+            if fenced {
+                LineEntry::PhysicalStart
+            } else {
+                LineEntry::InLine
+            },
+            fenced.then_some(&fence),
+        );
+        assert_eq!(green.to_string(), accepted, "{source:?}");
+        if fenced {
+            let Some(NormalizedExit::Complete(
+                Err(Either::Left(boundary)),
+                LineEntry::PhysicalStart,
+            )) = exit
+            else {
+                panic!("outer close must return the exact fence boundary: {source:?}");
+            };
+            assert_eq!(remainder, "> > ```\r\nouter");
+            let (leading, pending) = emit_terminal_leading_text(boundary);
+            assert_eq!(leading, "\r\n");
+            assert_eq!(pending.coordinate(), origin + accepted.len() + 2);
+            assert!(matches!(
+                pending.into_kind(),
+                Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+            ));
+        } else {
+            let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), _)) = exit else {
+                panic!("active stop must remain pending: {source:?}");
+            };
+            assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Colon));
+            assert_eq!(emit_pending_leading_text(&mut item), " \r\n ");
+            assert_eq!(remainder, " next");
+        }
+
+        let root = SyntaxNode::new_root(green.clone());
+        let node = declaration(&green);
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(node.parent(), Some(root.clone()));
+        let brace = 6 + if fenced { 4 } else { 0 };
+        let mut expected = vec![
+            (LBrace, false, brace..brace + 1, "{".to_owned()),
+            (EnumVariant, true, brace + 1..brace + 2, "A".to_owned()),
+        ];
+        if accepted.ends_with(',') {
+            expected.push((Comma, false, brace + 2..brace + 3, ",".to_owned()));
+        }
+        let at = accepted.len();
+        expected.push((Missing, true, at..at, String::new()));
+        assert_eq!(
+            node.children_with_tokens()
+                .skip_while(|element| element.kind() != LBrace)
+                .map(|element| (
+                    element.kind(),
+                    element.as_node().is_some(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.to_string(),
+                ))
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}"
+        );
+        let missing = root
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(missing.len(), 1, "{source:?}");
+        assert_eq!(missing[0].parent(), Some(node.clone()));
+        assert_eq!(missing[0].children_with_tokens().count(), 0);
+        assert_eq!(count(&root, EnumVariant), 1);
+        assert!(
+            root.descendants_with_tokens().all(|element| !matches!(
+                element.kind(),
+                Error | Invalid | StructFieldForeignClose
+            )),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn enum_braced_variant_outer_close_has_direct_missing_cst_slot() {
+    use SyntaxKind::{
+        EnumVariant, Error, Invalid, LBrace, Missing, RBrace, StructFieldForeignClose,
+    };
+
+    for (source, accepted, has_variant, closed, foreign) in [
+        ("enum E{", "enum E{", false, false, false),
+        ("enum E{A", "enum E{A", true, false, false),
+        ("enum E{A}", "enum E{A}", true, true, false),
+        ("enum E{A \r\n )", "enum E{A", true, false, true),
+    ] {
+        let (green, exit, remainder) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), accepted, "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        if foreign {
+            let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), _)) = exit else {
+                panic!("foreign close must remain pending: {source:?}");
+            };
+            assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RParen));
+            assert_eq!(emit_pending_leading_text(&mut item), " \r\n ");
+        } else {
+            let Some(NormalizedExit::Complete(Err(Either::Right(end)), _)) = exit else {
+                panic!("declaration must complete at EOF: {source:?}");
+            };
+            assert!(end.item.payload_view().is_eof(), "{source:?}");
+        }
+
+        let root = SyntaxNode::new_root(green.clone());
+        let node = declaration(&green);
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(node.parent(), Some(root.clone()), "{source:?}");
+        let mut expected = vec![(LBrace, false, 6..7, "{".to_owned())];
+        if has_variant {
+            expected.push((EnumVariant, true, 7..8, "A".to_owned()));
+        }
+        let at = 7 + usize::from(has_variant);
+        if closed {
+            expected.push((RBrace, false, at..at + 1, "}".to_owned()));
+        } else {
+            expected.push((Missing, true, at..at, String::new()));
+        }
+        assert_eq!(
+            node.children_with_tokens()
+                .skip_while(|element| element.kind() != LBrace)
+                .map(|element| (
+                    element.kind(),
+                    element.as_node().is_some(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.to_string(),
+                ))
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}"
+        );
+        let missing = root
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(missing.len(), usize::from(!closed), "{source:?}");
+        for missing in missing {
+            assert_eq!(missing.parent(), Some(node.clone()), "{source:?}");
+            assert_eq!(missing.children_with_tokens().count(), 0, "{source:?}");
+        }
+        assert_eq!(count(&root, EnumVariant), usize::from(has_variant));
+        assert!(
+            root.descendants_with_tokens().all(|element| !matches!(
+                element.kind(),
+                Error | Invalid | StructFieldForeignClose
+            )),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn header_structural_facts_are_exact_and_preserve_boundaries() {
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::structural_diagnostic::StructuralKind;
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for (tail, kind, relative) in [
+        ("\r\n> foreign", StructuralKind::Missing, 0..0),
+        (" @\r\n> foreign", StructuralKind::ErrorGroup, 1..2),
+        (" E @\r\n> foreign", StructuralKind::ErrorGroup, 3..4),
+        (" @ \t@  名;", StructuralKind::ErrorGroup, 1..5),
+        (" E @ \t@  ;", StructuralKind::ErrorGroup, 3..7),
+        (" @ \t@\r\n> foreign", StructuralKind::ErrorGroup, 1..5),
+        (" E @ \t@\r\n> foreign", StructuralKind::ErrorGroup, 3..7),
+        ("\r\n> > ```\r\nouter", StructuralKind::Missing, 0..0),
+        (" @\r\n> > ```\r\nouter", StructuralKind::ErrorGroup, 1..2),
+        (" E @\r\n> > ```\r\nouter", StructuralKind::ErrorGroup, 3..4),
+        ("  ]", StructuralKind::Missing, 0..0),
+        ("  ", StructuralKind::Missing, 2..2),
+        (" @ ", StructuralKind::ErrorGroup, 1..2),
+        (" @  ]", StructuralKind::ErrorGroup, 1..2),
+        (" @ 名;", StructuralKind::ErrorGroup, 1..2),
+        (" ;", StructuralKind::Missing, 1..1),
+        (" {}", StructuralKind::Missing, 1..1),
+        (" = A", StructuralKind::Missing, 1..1),
+        (" :\n  A", StructuralKind::Missing, 1..1),
+        (" E @ ", StructuralKind::ErrorGroup, 3..4),
+        (" E @  ]", StructuralKind::ErrorGroup, 3..4),
+        (" E @ ;", StructuralKind::ErrorGroup, 3..4),
+        (" E @ {}", StructuralKind::ErrorGroup, 3..4),
+        (" E @ = A", StructuralKind::ErrorGroup, 3..4),
+        (" E @ :\n  A", StructuralKind::ErrorGroup, 3..4),
+    ] {
+        let source = format!("enum{tail}");
+        for origin in [0, 1700] {
+            let (green, exit, input) = run_enum_declaration(
+                &source,
+                if source.ends_with(']') {
+                    stops_for(TokenKind::RBracket)
+                } else {
+                    0
+                },
+                origin,
+                LineEntry::InLine,
+                source.contains("\r\n>").then_some(&fence),
+            );
+            assert_eq!(
+                structural_facts(&green),
+                [(kind, 4 + relative.start..4 + relative.end)],
+                "{source:?}"
+            );
+            if source.contains("@ \t@") {
+                let node = declaration(&green);
+                let errors: Vec<_> = crate::tests::recovery_output::recovery_groups(&node)
+                    .into_iter()
+                    .collect();
+                assert_eq!(errors.len(), 1);
+                assert_eq!(errors[0].to_string(), "@ \t@");
+                assert_eq!(
+                    errors[0]
+                        .children_with_tokens()
+                        .map(|leaf| (leaf.kind(), leaf.to_string()))
+                        .collect::<Vec<_>>(),
+                    [
+                        (SyntaxKind::Error, "@".into()),
+                        (SyntaxKind::Error, " \t".into()),
+                        (SyntaxKind::Error, "@".into())
+                    ]
+                );
+                assert_eq!(count(&node, SyntaxKind::Missing), 0);
+            }
+            if let Some((head, tail)) = source.split_once("\r\n>") {
+                let Some(NormalizedExit::Complete(
+                    Err(Either::Left(boundary)),
+                    LineEntry::PhysicalStart,
+                )) = exit
+                else {
+                    panic!("fence boundary")
+                };
+                assert_eq!(green.to_string(), head);
+                assert_eq!(input, format!(">{tail}"));
+                let (leading, boundary) = emit_terminal_leading_text(boundary);
+                assert_eq!(leading, "\r\n");
+                assert_eq!(boundary.coordinate(), origin + head.len() + 2);
+            } else if source.ends_with(']') {
+                pending_token(exit, TokenKind::RBracket, "  ");
+            } else {
+                assert_eq!(green.to_string(), source, "{source:?}");
+            }
+        }
+    }
+}
+
+fn declaration(green: &GreenNode) -> SyntaxNode {
+    SyntaxNode::new_root(green.clone())
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::EnumDeclaration)
+        .expect("EnumDeclaration")
+}
+
+#[test]
+fn clean_header_keeps_foreign_prefix_without_structural_fact() {
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for origin in [0, 1700] {
+        let source = "enum 名\r\n> foreign";
+        let (green, exit, input) =
+            run_enum_declaration(source, 0, origin, LineEntry::InLine, Some(&fence));
+        assert!(structural_facts(&green).is_empty());
+        assert_eq!(green.to_string(), "enum 名");
+        assert_eq!(input, "> foreign");
+        let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) =
+            exit
+        else {
+            panic!("foreign prefix remains pending");
+        };
+        let (leading, boundary) = emit_terminal_leading_text(item);
+        assert_eq!(leading, "\r\n");
+        assert_eq!(boundary.coordinate(), origin + "enum 名\r\n".len());
+    }
+}
+
+fn count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(node).len();
+    }
+    node.descendants()
+        .filter(|node| node.kind() == kind)
+        .count()
+}
+
+fn token_count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    node.descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == kind)
+        .count()
+}
+
+fn pending_token(exit: Option<NormalizedExit>, kind: TokenKind, leading: &str) {
+    let mut item = match exit {
+        Some(NormalizedExit::Complete(Err(Either::Left(item)), _)) => item,
+        Some(NormalizedExit::Complete(Err(Either::Right(end)), _)) => end.item,
+        _ => panic!("{kind:?} must remain pending"),
+    };
+    assert_eq!(item.payload_view().token_kind(), Some(kind));
+    assert_eq!(emit_pending_leading_text(&mut item), leading);
+}
+
+fn pending_word(exit: Option<NormalizedExit>, word: &str, leading: &str) {
+    let mut item = match exit {
+        Some(NormalizedExit::Complete(Err(Either::Left(item)), _)) => item,
+        Some(NormalizedExit::Complete(Err(Either::Right(end)), _)) => end.item,
+        _ => panic!("{word:?} must remain pending"),
+    };
+    assert_eq!(item.payload_view().spelling(), Some(word));
+    assert_eq!(emit_pending_leading_text(&mut item), leading);
+}
+
+#[test]
+fn enum_private_shell_builds_header_and_all_body_forms() {
+    for (source, variants) in [
+        ("enum E", 0),
+        ("my enum E 't;", 0),
+        ("our enum E{A, B from T, C{x: U}, D(V), P X Y}", 5),
+        ("pub enum E:\n  A\n  B", 2),
+        ("enum E = A | B T", 2),
+        ("enum E =\n  A\n  | B", 2),
+    ] {
+        let (green, exit, _) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert!(exit.is_some(), "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let node = declaration(&green);
+        assert_eq!(
+            count(&node, SyntaxKind::EnumVariant),
+            variants,
+            "{source:?}"
+        );
+        assert_eq!(count(&node, SyntaxKind::Error), 0, "{source:?}\n{node:#?}");
+    }
+}
+
+#[test]
+fn enum_sigil_head_evidence_recovers_one_maximal_raw_name_and_stops() {
+    for (source, accepted, malformed) in [
+        ("my enum $hidden = A", "my enum $hidden", "$hidden"),
+        ("my enum 'hidden = A", "my enum 'hidden", "'hidden"),
+    ] {
+        let (green, exit, remainder) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), accepted, "{source:?}");
+        assert_eq!(remainder, " A", "{source:?}");
+        pending_token(exit, TokenKind::Equals, " ");
+        let node = declaration(&green);
+        assert_eq!(count(&node, SyntaxKind::Error), 1, "{source:?}\n{node:#?}");
+        assert_eq!(
+            count(&node, SyntaxKind::Missing),
+            0,
+            "{source:?}\n{node:#?}"
+        );
+        assert_eq!(count(&node, SyntaxKind::EnumVariant), 0, "{source:?}");
+        assert_eq!(count(&node, SyntaxKind::DerivesClause), 0, "{source:?}");
+        assert_eq!(token_count(&node, SyntaxKind::Identifier), 0, "{source:?}");
+        assert_eq!(token_count(&node, SyntaxKind::Equals), 0, "{source:?}");
+        let error = crate::tests::recovery_output::recovery_groups(&node)
+            .into_iter()
+            .next()
+            .expect("one declaration-local Name Error");
+        assert_eq!(error.text().to_string(), malformed, "{source:?}");
+    }
+}
+
+#[test]
+fn enum_sigil_name_error_retries_one_raw_identifier() {
+    let source = "my enum $hidden E = A";
+    let (green, exit, remainder) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert!(exit.is_some());
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    let node = declaration(&green);
+    assert_eq!(count(&node, SyntaxKind::Error), 1, "{node:#?}");
+    assert_eq!(count(&node, SyntaxKind::Missing), 0, "{node:#?}");
+    assert_eq!(count(&node, SyntaxKind::EnumVariant), 1, "{node:#?}");
+    assert_eq!(token_count(&node, SyntaxKind::Identifier), 2, "{node:#?}");
+}
+
+#[test]
+fn enum_header_and_actual_brace_close_attach_in_source_order() {
+    for source in [
+        "enum E with {}",
+        "enum E derives Eq with {}",
+        "enum E{} derives Eq with {}",
+        "enum E{@, A} derives Eq with {}",
+        "enum E{A from } derives Eq with {}",
+    ] {
+        let (green, _, _) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let node = declaration(&green);
+        assert_eq!(
+            count(&node, SyntaxKind::DeclarationCompanion),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(token_count(&node, SyntaxKind::WithKw), 1, "{source:?}");
+    }
+}
+
+#[test]
+fn enum_rejects_trailing_companion_without_an_actual_brace_close() {
+    for (source, accepted, pending, leading) in [
+        ("enum E; with {}", "enum E;", Some("with"), " "),
+        ("enum E:\n  A\nwith {}", "enum E:\n  A", Some("with"), "\n"),
+        (
+            "enum E =\n  A\nwith {}",
+            "enum E =\n  A",
+            Some("with"),
+            "\n",
+        ),
+        ("enum E{A with {}", "enum E{A with {}", None, ""),
+        ("enum E{A] with {}", "enum E{A", Some("]"), ""),
+    ] {
+        let (green, exit, _) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), accepted, "{source:?}");
+        let node = declaration(&green);
+        assert_eq!(
+            count(&node, SyntaxKind::DeclarationCompanion),
+            0,
+            "{source:?}"
+        );
+        if let Some(pending) = pending {
+            pending_word(exit, pending, leading);
+        }
+    }
+}
+
+#[test]
+fn enum_equals_inline_maps_the_exact_shared_with_yield_to_companion() {
+    for (source, missing) in [
+        ("enum E = A with {}", 0),
+        ("enum E = with {}", 1),
+        ("enum E = A | with {}", 0),
+        ("enum E = A from with {}", 1),
+        ("enum E = A from @ with {}", 0),
+    ] {
+        let (green, _, _) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let node = declaration(&green);
+        assert_eq!(
+            count(&node, SyntaxKind::DeclarationCompanion),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&node, SyntaxKind::Missing),
+            missing,
+            "{source:?}\n{node:#?}"
+        );
+    }
+
+    let source = "enum E = A from (T with U) with {}";
+    let (green, _, _) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), source);
+    let node = declaration(&green);
+    assert_eq!(count(&node, SyntaxKind::DeclarationCompanion), 1);
+    assert_eq!(token_count(&node, SyntaxKind::WithKw), 1);
+}
+
+#[test]
+fn enum_equals_inline_yields_with_only_after_a_qualifying_gap() {
+    let source = "enum E=with";
+    let (green, exit, remainder) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    assert!(exit.is_some());
+    let node = declaration(&green);
+    assert_eq!(count(&node, SyntaxKind::EnumVariant), 1);
+    assert_eq!(count(&node, SyntaxKind::DeclarationCompanion), 0);
+    assert_eq!(count(&node, SyntaxKind::Missing), 0, "{node:#?}");
+    assert_eq!(count(&node, SyntaxKind::Error), 0, "{node:#?}");
+
+    let source = "enum E = A\n  with {}";
+    let (green, _, _) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), source);
+    assert_eq!(
+        count(&declaration(&green), SyntaxKind::DeclarationCompanion),
+        1
+    );
+}
+
+#[test]
+fn enum_equals_inline_caller_stop_wins_before_the_shared_with_yield() {
+    let source = "enum E = A |  with {}";
+    let (green, exit, remainder) = run_enum_declaration(
+        source,
+        crate::lexical::stops::STOP_WITH,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "enum E = A |");
+    assert_eq!(remainder, " {}");
+    let node = declaration(&green);
+    assert_eq!(count(&node, SyntaxKind::DeclarationCompanion), 0);
+    assert_eq!(count(&node, SyntaxKind::Missing), 0, "{node:#?}");
+    pending_word(exit, "with", "  ");
+}
+
+#[test]
+fn enum_caller_stop_and_rejected_gap_keep_with_pending() {
+    let (green, exit, _) = run_enum_declaration(
+        "enum E = A with {}",
+        crate::lexical::stops::STOP_WITH,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(
+        count(&declaration(&green), SyntaxKind::DeclarationCompanion),
+        0
+    );
+    pending_word(exit, "with", " ");
+
+    for (source, leading) in [("enum E\nwith {}", "\n"), ("enum E{}\nwith {}", "\n")] {
+        let (green, exit, _) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert_eq!(
+            count(&declaration(&green), SyntaxKind::DeclarationCompanion),
+            0
+        );
+        pending_word(exit, "with", leading);
+    }
+}
+
+#[test]
+fn enum_header_derives_returns_variant_body_starters_by_outer_phase() {
+    for (source, variants) in [
+        ("enum E derives {}", 0),
+        ("enum E derives :\n  A", 1),
+        ("enum E derives = A", 1),
+        ("enum E derives ;", 0),
+        ("enum E derives Eq{}", 0),
+        ("enum E derives Eq:\n  A", 1),
+        ("enum E derives Eq = A", 1),
+        ("enum E derives Eq;", 0),
+    ] {
+        let (green, _, _) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let node = declaration(&green);
+        assert_eq!(count(&node, SyntaxKind::DerivesClause), 1, "{source:?}");
+        assert_eq!(
+            count(&node, SyntaxKind::EnumVariant),
+            variants,
+            "{source:?}"
+        );
+    }
+
+    let source = "enum E derives (Eq with T) with {}";
+    let (green, _, _) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), source);
+    let node = declaration(&green);
+    assert_eq!(count(&node, SyntaxKind::DeclarationCompanion), 1);
+    assert_eq!(token_count(&node, SyntaxKind::WithKw), 1);
+}
+
+#[test]
+fn enum_header_derives_recovery_hands_the_exact_with_to_companion() {
+    for (source, missing, errors) in [
+        ("enum E derives with {}", 1, 0),
+        ("enum E derives @ Eq with {}", 0, 1),
+    ] {
+        let (green, _, remainder) = run_enum_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        let node = declaration(&green);
+        assert_eq!(count(&node, SyntaxKind::DerivesClause), 1, "{source:?}");
+        assert_eq!(
+            count(&node, SyntaxKind::Missing),
+            missing,
+            "{source:?}\n{node:#?}"
+        );
+        assert_eq!(
+            count(&node, SyntaxKind::Error),
+            errors,
+            "{source:?}\n{node:#?}"
+        );
+        assert_eq!(
+            count(&node, SyntaxKind::DeclarationCompanion),
+            1,
+            "{source:?}\n{node:#?}",
+        );
+        assert_eq!(token_count(&node, SyntaxKind::WithKw), 1, "{source:?}");
+    }
+}
+
+#[test]
+fn enum_companion_keeps_exact_outer_remainder_and_fence_boundary() {
+    let origin = 9100;
+    let declaration_text = "enum E = A with {}";
+    let source = format!("{declaration_text} outer tail");
+    let (green, exit, remainder) =
+        run_enum_declaration(&source, 0, origin, LineEntry::InLine, None);
+    assert!(matches!(
+        exit,
+        Some(NormalizedExit::Complete(Ok(()), LineEntry::InLine))
+    ));
+    assert_eq!(green.to_string(), declaration_text);
+    assert_eq!(remainder, " outer tail");
+
+    use crate::lexical::item::{BorrowedTarget, Boundary};
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let accepted = "> > enum E{} with: our x = y";
+    let source = format!("{accepted}\r\n> > ```\r\nouter");
+    let (green, exit, remainder) =
+        run_enum_declaration(&source, 0, origin, LineEntry::PhysicalStart, Some(&fence));
+    let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
+        exit
+    else {
+        panic!("Enum companion must return the exact fence boundary")
+    };
+    assert_eq!(green.to_string(), accepted);
+    assert_eq!(remainder, "> > ```\r\nouter");
+    let (leading, pending) = emit_terminal_leading_text(boundary);
+    assert_eq!(leading, "\r\n");
+    assert_eq!(pending.coordinate(), origin + accepted.len() + 2);
+    assert!(matches!(
+        pending.into_kind(),
+        Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+    ));
+}
+
+#[test]
+fn enum_equals_inline_companion_preserves_crlf_fence_origin_and_line_entry() {
+    use crate::lexical::item::{BorrowedTarget, Boundary};
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let origin = 9400;
+    let accepted = "> > enum E = A\r\n> >   with: our x = y";
+    let source = format!("{accepted}\r\n> > ```\r\nouter");
+    let (green, exit, remainder) =
+        run_enum_declaration(&source, 0, origin, LineEntry::PhysicalStart, Some(&fence));
+    let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
+        exit
+    else {
+        panic!("Enum equals-inline companion must return the exact fence boundary")
+    };
+    assert_eq!(green.to_string(), accepted);
+    assert_eq!(remainder, "> > ```\r\nouter");
+    assert_eq!(
+        count(&declaration(&green), SyntaxKind::DeclarationCompanion),
+        1
+    );
+    let (leading, pending) = emit_terminal_leading_text(boundary);
+    assert_eq!(leading, "\r\n");
+    assert_eq!(pending.coordinate(), origin + accepted.len() + 2);
+    assert!(matches!(
+        pending.into_kind(),
+        Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+    ));
+}
