@@ -1,0 +1,1 @@
+my mixed = if true: 1 else: "str"

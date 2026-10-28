@@ -1,0 +1,924 @@
+//! Direct owners for Pattern's comma-or-layout delimited primaries and calls.
+
+use crate::ambient_claim::AmbientClaimContext;
+use crate::{lexical::operator_scan::OperatorSite, syntax_kind::SyntaxKind};
+
+use crate::{
+    cursor::recovery::{
+        emit::{
+            emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing,
+            emit_token_item,
+        },
+        emit_structured_recovery_error_from_item,
+    },
+    expression::is_nud_item,
+    handoff::{Either, MlMode, NormalizedExit, complete, handoff},
+    lexical::{
+        current_item::LineEntry,
+        expression_item::expression_item,
+        item::{Item, LeadingTrivia, LeadingView, TokenKind},
+        observation::{delimited_baseline, implicit_delimited_newline, token_kind},
+        position::{advanced_origin, suffix_marker},
+        stops::stops_for,
+        yumark::FenceBoundary,
+    },
+    pattern::{
+        PATTERN_STOP_COMMA, PATTERN_STOP_EQUALS, PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET,
+        PATTERN_STOP_RPAREN, PatternCallerCloses, PatternCompletion, PatternMandatorySlotPolicy,
+        PatternPrecedence, PatternScan, PatternState, PatternStops, SyntaxIn, emit_pattern_missing,
+        is_pattern_nud, pattern_from_item_recording_with_policy_normalized,
+        pattern_item_normalized, pattern_nud_item_normalized, pattern_primary_stop_token,
+        pattern_tail_normalized, scan_pattern_item_lexical, scan_pattern_tail_normalized,
+    },
+    statement::StatementLineHandoff,
+};
+
+#[derive(Clone, Copy)]
+enum Owner {
+    Parenthesized,
+    Call,
+    List,
+    Record,
+}
+
+impl Owner {
+    fn node(self) -> SyntaxKind {
+        match self {
+            Self::Parenthesized => SyntaxKind::ParenthesizedPattern,
+            Self::Call => SyntaxKind::PatternCallTail,
+            Self::List => SyntaxKind::ListPattern,
+            Self::Record => SyntaxKind::RecordPattern,
+        }
+    }
+
+    fn close(self) -> TokenKind {
+        match self {
+            Self::Parenthesized | Self::Call => TokenKind::RParen,
+            Self::List => TokenKind::RBracket,
+            Self::Record => TokenKind::RBrace,
+        }
+    }
+
+    fn local_stops(self, caller_closes: PatternCallerCloses) -> PatternStops {
+        PATTERN_STOP_COMMA
+            | match self {
+                Self::Parenthesized | Self::Call => PATTERN_STOP_RPAREN,
+                Self::List => PATTERN_STOP_RBRACKET,
+                Self::Record => PATTERN_STOP_RBRACE,
+            }
+            | caller_closes.pattern_stops()
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn parenthesized_pattern(
+    i: SyntaxIn,
+    open: Item,
+    minimum: PatternPrecedence,
+    incoming_baseline: usize,
+    outer_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    recovered_primary_tail_stops: PatternStops,
+    caller_closes: PatternCallerCloses,
+    completion: &mut PatternState,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    pattern_delimited(
+        i,
+        open,
+        Owner::Parenthesized,
+        minimum,
+        incoming_baseline,
+        outer_stops,
+        line_handoff,
+        recovered_primary_tail_stops,
+        caller_closes,
+        completion,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn call_pattern(
+    i: SyntaxIn,
+    open: Item,
+    minimum: PatternPrecedence,
+    incoming_baseline: usize,
+    outer_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
+    completion: &mut PatternState,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    pattern_delimited(
+        i,
+        open,
+        Owner::Call,
+        minimum,
+        incoming_baseline,
+        outer_stops,
+        line_handoff,
+        0,
+        caller_closes,
+        completion,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn list_pattern(
+    i: SyntaxIn,
+    open: Item,
+    minimum: PatternPrecedence,
+    incoming_baseline: usize,
+    outer_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
+    completion: &mut PatternState,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    pattern_delimited(
+        i,
+        open,
+        Owner::List,
+        minimum,
+        incoming_baseline,
+        outer_stops,
+        line_handoff,
+        0,
+        caller_closes,
+        completion,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn record_pattern(
+    i: SyntaxIn,
+    open: Item,
+    minimum: PatternPrecedence,
+    incoming_baseline: usize,
+    outer_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
+    completion: &mut PatternState,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    pattern_delimited(
+        i,
+        open,
+        Owner::Record,
+        minimum,
+        incoming_baseline,
+        outer_stops,
+        line_handoff,
+        0,
+        caller_closes,
+        completion,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn pattern_delimited(
+    mut i: SyntaxIn,
+    open: Item,
+    owner: Owner,
+    minimum: PatternPrecedence,
+    incoming_baseline: usize,
+    outer_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    recovered_primary_tail_stops: PatternStops,
+    caller_closes: PatternCallerCloses,
+    completion: &mut PatternState,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    i.state.start_node(owner.node().into());
+    emit_token_item(&mut i, open);
+    let local_stops = owner.local_stops(caller_closes);
+    let descendant_caller_closes = caller_closes.with_close(owner.close());
+    let (mut item, mut item_origin, mut line_entry) =
+        pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
+    let baseline = delimited_baseline(incoming_baseline, item.leading_view());
+    if !item.payload_view().is_boundary()
+        && (token_kind(&item) == Some(owner.close())
+            || !is_carried_caller_close(caller_closes, &item))
+    {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
+    let mut expect_item = true;
+    let mut contents_completion = PatternState::new(PatternCompletion::Complete);
+    let mut own_recovery_consumed_error = false;
+
+    loop {
+        if item.payload_view().is_boundary() {
+            completion.native = PatternCompletion::Incomplete;
+            return missing_close(i, item, caller_closes, item_origin, line_entry);
+        }
+
+        if token_kind(&item) == Some(owner.close()) {
+            emit_token_item(&mut i, item);
+            i.state.finish_node();
+            return finish_delimited_pattern(
+                i,
+                minimum,
+                incoming_baseline,
+                outer_stops,
+                contents_completion,
+                own_recovery_consumed_error,
+                recovered_primary_tail_stops,
+                line_handoff,
+                caller_closes,
+                completion,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            );
+        }
+        if is_carried_caller_close(caller_closes, &item) {
+            completion.native = PatternCompletion::Incomplete;
+            return missing_close(i, item, caller_closes, item_origin, line_entry);
+        }
+        if token_kind(&item) == Some(TokenKind::Comma)
+            && (!expect_item || matches!(owner, Owner::Record))
+        {
+            if expect_item {
+                item.emit_all_remaining_leading(&mut *i.state);
+                emit_pattern_missing(&mut i, &item, item_origin);
+                contents_completion.native = PatternCompletion::Incomplete;
+            }
+            emit_token_item(&mut i, item);
+            (item, item_origin, line_entry) =
+                pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
+            expect_item = true;
+            continue;
+        }
+        if token_kind(&item).is_none() {
+            completion.native = PatternCompletion::Incomplete;
+            return missing_close(i, item, caller_closes, item_origin, line_entry);
+        }
+        if is_other_close(owner, &item) {
+            own_recovery_consumed_error = true;
+            emit_wrong_close(i.rb(), item, owner, item_origin);
+            (item, item_origin, line_entry) =
+                pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
+            continue;
+        }
+        if !expect_item && is_item_start(owner, &item) {
+            let separated_by_layout = implicit_delimited_newline(baseline, item.leading_view());
+            item.emit_all_remaining_leading(&mut *i.state);
+            if !separated_by_layout {
+                emit_pattern_missing(&mut i, &item, item_origin);
+            }
+            expect_item = true;
+            continue;
+        }
+        let error_slot = if !expect_item {
+            Some(matches!(owner, Owner::Record))
+        } else if matches!(owner, Owner::Record) && !is_item_start(owner, &item) {
+            Some(false)
+        } else {
+            None
+        };
+        let item_baseline = delimited_baseline(baseline, item.leading_view());
+        item.emit_all_remaining_leading(&mut *i.state);
+        let mut item_completion = PatternState::new(PatternCompletion::Incomplete);
+        let entry = suffix_marker(i.rb());
+        let exit = if let Some(record_separator) = error_slot {
+            own_recovery_consumed_error = true;
+            if matches!(owner, Owner::Record) && is_pattern_nud(&item, local_stops) {
+                recover_record_pattern(
+                    i.rb(),
+                    item,
+                    record_separator,
+                    item_baseline,
+                    local_stops,
+                    line_handoff,
+                    descendant_caller_closes,
+                    &mut item_completion,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    ambient,
+                )
+            } else {
+                let (next, _, next_line) = recover_sequence_run(
+                    i.rb(),
+                    item,
+                    owner,
+                    local_stops,
+                    item_origin,
+                    line_entry,
+                    fence,
+                );
+                item_completion.native = PatternCompletion::Complete;
+                complete(handoff(next), next_line)
+            }
+        } else {
+            match owner {
+                Owner::Parenthesized | Owner::Call => {
+                    pattern_from_item_recording_with_policy_normalized(
+                        i.rb(),
+                        item,
+                        PatternPrecedence::Lowest,
+                        item_baseline,
+                        local_stops,
+                        line_handoff,
+                        PatternMandatorySlotPolicy::default(),
+                        descendant_caller_closes,
+                        &mut item_completion,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        ambient,
+                    )
+                }
+                Owner::List => list_item(
+                    i.rb(),
+                    item,
+                    item_baseline,
+                    local_stops,
+                    line_handoff,
+                    descendant_caller_closes,
+                    &mut item_completion,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    ambient,
+                ),
+                Owner::Record => record_item(
+                    i.rb(),
+                    item,
+                    item_baseline,
+                    local_stops,
+                    line_handoff,
+                    descendant_caller_closes,
+                    &mut item_completion,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    ambient,
+                ),
+            }
+        };
+        item_origin = advanced_origin(item_origin, entry, i.rb());
+        merge_completion(&mut contents_completion, item_completion);
+        completion.unresolved_path_member |= contents_completion.unresolved_path_member;
+        match exit {
+            NormalizedExit::Complete(Ok(()), next_line_entry) => {
+                (item, item_origin, line_entry) = pattern_nud_item_normalized(
+                    i.rb(),
+                    item_origin,
+                    next_line_entry,
+                    fence,
+                    local_stops,
+                );
+            }
+            NormalizedExit::Complete(Err(Either::Left(next)), next_line_entry) => {
+                item = next;
+                line_entry = next_line_entry;
+            }
+            NormalizedExit::Complete(Err(Either::Right(end)), next_line_entry) => {
+                completion.native = PatternCompletion::Incomplete;
+                return missing_close(i, end.item, caller_closes, item_origin, next_line_entry);
+            }
+            deferred @ NormalizedExit::Deferred(_, _) => {
+                i.state.finish_node();
+                return deferred;
+            }
+        }
+        // An Error already supplied this slot's recovery. Retry an item, or
+        // let its comma close the slot; neither route adds a same-slot Missing.
+        expect_item = error_slot.is_some()
+            && !item.payload_view().is_boundary()
+            && token_kind(&item) != Some(TokenKind::Comma);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn recover_sequence_run(
+    i: SyntaxIn,
+    mut item: Item,
+    owner: Owner,
+    stops: PatternStops,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_pattern_item_lexical(
+                    lex,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    stops,
+                    PatternScan::Nud,
+                )
+            });
+            if item.payload_view().is_boundary()
+                || token_kind(&item).is_none_or(|kind| {
+                    matches!(
+                        kind,
+                        TokenKind::Comma
+                            | TokenKind::RParen
+                            | TokenKind::RBracket
+                            | TokenKind::RBrace
+                    )
+                })
+                || is_item_start(owner, &item)
+                || (matches!(owner, Owner::Record) && is_pattern_nud(&item, stops))
+            {
+                return (item, item_origin, line_entry);
+            }
+        }
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn recover_record_pattern(
+    mut i: SyntaxIn,
+    item: Item,
+    record_separator: bool,
+    baseline: usize,
+    stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
+    completion: &mut PatternState,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    if record_separator {
+        i.state
+            .start_node(SyntaxKind::RecordPatternSeparator.into());
+    }
+    let exit = emit_structured_recovery_error_from_item(i.rb(), item, |mut nested, item| {
+        let entry = suffix_marker(nested.rb());
+        let exit = pattern_from_item_recording_with_policy_normalized(
+            nested.rb(),
+            item,
+            PatternPrecedence::Lowest,
+            baseline,
+            stops,
+            line_handoff,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+        let post_origin = advanced_origin(item_origin, entry, nested.rb());
+        let pending = match &exit {
+            NormalizedExit::Complete(Ok(()), _) => None,
+            NormalizedExit::Complete(Err(Either::Left(item)), _)
+            | NormalizedExit::Deferred(item, _) => Some(item),
+            NormalizedExit::Complete(Err(Either::Right(end)), _) => Some(&end.item),
+        };
+        let end = pending.map_or(post_origin, |item| {
+            let range = item.extent(post_origin).recovery_range();
+            if range.start < range.end {
+                range.start
+            } else {
+                post_origin
+            }
+        });
+        (exit, end)
+    });
+    if record_separator {
+        i.state.finish_node();
+    }
+    exit
+}
+
+fn emit_wrong_close(mut i: SyntaxIn, item: Item, owner: Owner, item_origin: usize) {
+    if matches!(owner, Owner::Record) {
+        i.state
+            .start_node(SyntaxKind::RecordPatternForeignClose.into());
+    }
+    emit_recovery_error_item(i.rb(), item, item_origin);
+    if matches!(owner, Owner::Record) {
+        i.state.finish_node();
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finish_delimited_pattern(
+    i: SyntaxIn,
+    minimum: PatternPrecedence,
+    incoming_baseline: usize,
+    outer_stops: PatternStops,
+    contents_completion: PatternState,
+    own_recovery_consumed_error: bool,
+    recovered_primary_tail_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
+    completion: &mut PatternState,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    let mut tail_completion = PatternState::new(PatternCompletion::Complete);
+    let exit = if own_recovery_consumed_error && recovered_primary_tail_stops != 0 {
+        let mut i = i;
+        let (item, item_origin, line_entry) =
+            pattern_item_normalized(i.rb(), item_origin, line_entry, fence, outer_stops);
+        if token_kind(&item)
+            .is_some_and(|kind| pattern_primary_stop_token(kind, recovered_primary_tail_stops))
+        {
+            complete(handoff(item), line_entry)
+        } else {
+            pattern_tail_normalized(
+                i,
+                item,
+                minimum,
+                incoming_baseline,
+                outer_stops,
+                line_handoff,
+                caller_closes,
+                &mut tail_completion,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            )
+        }
+    } else {
+        scan_pattern_tail_normalized(
+            i,
+            minimum,
+            incoming_baseline,
+            outer_stops,
+            line_handoff,
+            caller_closes,
+            &mut tail_completion,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        )
+    };
+    completion.native = contents_completion.native;
+    completion.unresolved_path_member |= contents_completion.unresolved_path_member;
+    merge_completion(completion, tail_completion);
+    exit
+}
+
+fn merge_completion(completion: &mut PatternState, nested: PatternState) {
+    completion.unresolved_path_member |= nested.unresolved_path_member;
+    if nested.native == PatternCompletion::Incomplete {
+        completion.native = PatternCompletion::Incomplete;
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn list_item(
+    mut i: SyntaxIn,
+    item: Item,
+    baseline: usize,
+    local_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
+    completion: &mut PatternState,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    if token_kind(&item) != Some(TokenKind::DotDot) {
+        return pattern_from_item_recording_with_policy_normalized(
+            i,
+            item,
+            PatternPrecedence::Lowest,
+            baseline,
+            local_stops,
+            line_handoff,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+    }
+    i.state.start_node(SyntaxKind::ListPatternSpreadItem.into());
+    emit_token_item(&mut i, item);
+    let (mut rhs, item_origin, line_entry) =
+        pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
+    let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
+    if !rhs.payload_view().is_boundary() && !is_carried_caller_close(caller_closes, &rhs) {
+        rhs.emit_all_remaining_leading(&mut *i.state);
+    }
+    let exit = pattern_from_item_recording_with_policy_normalized(
+        i.rb(),
+        rhs,
+        PatternPrecedence::Lowest,
+        rhs_baseline,
+        local_stops,
+        line_handoff,
+        PatternMandatorySlotPolicy::default(),
+        caller_closes,
+        completion,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    );
+    i.state.finish_node();
+    exit
+}
+
+#[allow(clippy::too_many_arguments)]
+fn record_item(
+    mut i: SyntaxIn,
+    item: Item,
+    baseline: usize,
+    local_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
+    completion: &mut PatternState,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    if token_kind(&item) == Some(TokenKind::DotDot) {
+        i.state
+            .start_node(SyntaxKind::RecordPatternSpreadItem.into());
+        emit_token_item(&mut i, item);
+        let (mut rhs, item_origin, line_entry) =
+            pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, local_stops);
+        let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
+        if !rhs.payload_view().is_boundary() && !is_carried_caller_close(caller_closes, &rhs) {
+            rhs.emit_all_remaining_leading(&mut *i.state);
+        }
+        let exit = pattern_from_item_recording_with_policy_normalized(
+            i.rb(),
+            rhs,
+            PatternPrecedence::Lowest,
+            rhs_baseline,
+            local_stops,
+            line_handoff,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+        i.state.finish_node();
+        return exit;
+    }
+    // The sequence admits only a name or DotDot; the spread branch returned.
+    debug_assert!(is_pattern_name(&item));
+
+    completion.native = PatternCompletion::Complete;
+    i.state.start_node(SyntaxKind::RecordPatternField.into());
+    emit_token_item(&mut i, item);
+    let record_stops = local_stops | PATTERN_STOP_EQUALS;
+    let (item, mut item_origin, line_entry) =
+        pattern_item_normalized(i.rb(), item_origin, line_entry, fence, record_stops);
+    let exit = if !item.payload_view().is_boundary()
+        && !has_newline(item.leading_view())
+        && token_kind(&item) == Some(TokenKind::Colon)
+    {
+        emit_token_item(&mut i, item);
+        let (mut nested, nested_origin, nested_line_entry) =
+            pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, record_stops);
+        let nested_baseline = delimited_baseline(baseline, nested.leading_view());
+        if !nested.payload_view().is_boundary() && !is_carried_caller_close(caller_closes, &nested)
+        {
+            nested.emit_all_remaining_leading(&mut *i.state);
+        }
+        let entry = suffix_marker(i.rb());
+        let exit = pattern_from_item_recording_with_policy_normalized(
+            i.rb(),
+            nested,
+            PatternPrecedence::Lowest,
+            nested_baseline,
+            record_stops,
+            line_handoff,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
+            completion,
+            nested_origin,
+            nested_line_entry,
+            fence,
+            ambient,
+        );
+        item_origin = advanced_origin(nested_origin, entry, i.rb());
+        record_default_after_pattern(
+            i.rb(),
+            exit,
+            baseline,
+            record_stops,
+            line_handoff,
+            caller_closes,
+            item_origin,
+            fence,
+            ambient,
+        )
+    } else if !item.payload_view().is_boundary()
+        && !has_newline(item.leading_view())
+        && token_kind(&item) == Some(TokenKind::Equals)
+    {
+        record_default_after_equals(
+            i.rb(),
+            item,
+            baseline,
+            line_handoff,
+            caller_closes,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        )
+    } else {
+        complete(handoff(item), line_entry)
+    };
+    i.state.finish_node();
+    exit
+}
+
+#[allow(clippy::too_many_arguments)]
+fn record_default_after_pattern(
+    mut i: SyntaxIn,
+    exit: NormalizedExit,
+    baseline: usize,
+    record_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    let (item, item_origin, line_entry) = match exit {
+        NormalizedExit::Complete(Ok(()), line_entry) => {
+            pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, record_stops)
+        }
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => {
+            (item, item_origin, line_entry)
+        }
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
+            return complete(Err(Either::Right(end)), line_entry);
+        }
+        deferred @ NormalizedExit::Deferred(_, _) => return deferred,
+    };
+    if !item.payload_view().is_boundary()
+        && !has_newline(item.leading_view())
+        && token_kind(&item) == Some(TokenKind::Equals)
+    {
+        record_default_after_equals(
+            i,
+            item,
+            baseline,
+            line_handoff,
+            caller_closes,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        )
+    } else {
+        complete(handoff(item), line_entry)
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn record_default_after_equals(
+    mut i: SyntaxIn,
+    equals: Item,
+    baseline: usize,
+    line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    emit_token_item(&mut i, equals);
+    let sequence = Some(crate::sequence::SequenceOwner::RecordPattern);
+    let expression_stops = stops_for(TokenKind::RBrace);
+    let (mut rhs, item_origin, line_entry) = expression_item(
+        i.rb(),
+        OperatorSite::Nud,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        expression_stops,
+    );
+    let protected = rhs.payload_view().is_boundary()
+        || (token_kind(&rhs) != Some(TokenKind::RBrace)
+            && is_carried_caller_close(caller_closes, &rhs));
+    if !protected && is_nud_item(&rhs) {
+        let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
+        rhs.emit_all_remaining_leading(&mut *i.state);
+        return crate::expression::expr_from_nud_normalized(
+            i,
+            rhs,
+            None,
+            rhs_baseline,
+            expression_stops,
+            MlMode::All,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+            sequence,
+        );
+    }
+    if !protected {
+        rhs.emit_all_remaining_leading(&mut *i.state);
+    }
+    i.state.start_node(SyntaxKind::OperatorChain.into());
+    emit_pattern_missing(&mut i, &rhs, item_origin);
+    i.state.finish_node();
+    complete(handoff(rhs), line_entry)
+}
+
+fn missing_close(
+    mut i: SyntaxIn,
+    mut item: Item,
+    caller_closes: PatternCallerCloses,
+    item_origin: usize,
+    line_entry: LineEntry,
+) -> NormalizedExit {
+    if !item.payload_view().is_boundary() && !is_carried_caller_close(caller_closes, &item) {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(item_origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
+    i.state.finish_node();
+    complete(handoff(item), line_entry)
+}
+
+fn is_carried_caller_close(caller_closes: PatternCallerCloses, item: &Item) -> bool {
+    token_kind(item).is_some_and(|kind| caller_closes.contains(kind))
+}
+
+fn is_item_start(owner: Owner, item: &Item) -> bool {
+    match owner {
+        Owner::Parenthesized | Owner::Call => is_pattern_nud(item, 0),
+        Owner::List => token_kind(item) == Some(TokenKind::DotDot) || is_pattern_nud(item, 0),
+        Owner::Record => token_kind(item) == Some(TokenKind::DotDot) || is_pattern_name(item),
+    }
+}
+
+fn is_pattern_name(item: &Item) -> bool {
+    matches!(
+        token_kind(item),
+        Some(TokenKind::Identifier | TokenKind::SigilIdentifier)
+    )
+}
+
+fn is_other_close(owner: Owner, item: &Item) -> bool {
+    matches!(
+        token_kind(item),
+        Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+    ) && token_kind(item) != Some(owner.close())
+}
+
+fn has_newline(leading: LeadingView<'_>) -> bool {
+    leading.has_ordinary_newline()
+}

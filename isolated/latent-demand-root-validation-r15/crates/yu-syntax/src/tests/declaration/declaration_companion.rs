@@ -1,0 +1,1945 @@
+use crate::structural_diagnostic::StructuralKind;
+use crate::tests::support::*;
+
+fn typed_companion<'a>(
+    source: &'a str,
+    origin: usize,
+    stops: Stops,
+    fence: Option<&FenceBoundary>,
+    caller: bool,
+) -> (GreenNode, NormalizedExit, &'a str, Vec<StructuralFact>) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    let i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
+    let exit = if caller {
+        statement_normalized(
+            i,
+            0,
+            stops,
+            origin,
+            LineEntry::InLine,
+            fence,
+            Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
+            Some(crate::sequence::SequenceOwner::RootStatement),
+        )
+    } else {
+        crate::declaration::declaration_companion::declaration_companion_witness(
+            i,
+            0,
+            stops,
+            origin,
+            LineEntry::InLine,
+            fence,
+        )
+        .expect("selected companion")
+    };
+    output.finish_node();
+    let green = finish_with_discarded_recoveries(output, recover);
+    let facts = structural_facts(&green);
+    (green, exit, input, facts)
+}
+
+fn structural_fact(kind: StructuralKind, range: std::ops::Range<usize>) -> StructuralFact {
+    (kind, range)
+}
+
+#[test]
+fn companion_structural_facts_have_exact_shifted_ranges() {
+    for (source, kind, range) in [
+        ("with  ", StructuralKind::Missing, 6..6),
+        ("with item", StructuralKind::Missing, 5..5),
+        ("with :: item", StructuralKind::ErrorGroup, 5..6),
+        ("with:  ", StructuralKind::Missing, 7..7),
+        ("with: @ @ item", StructuralKind::ErrorGroup, 6..9),
+        ("with { @ @ item }", StructuralKind::ErrorGroup, 7..10),
+        ("with:\r\n  @ @ item", StructuralKind::ErrorGroup, 9..12),
+        ("with {,}", StructuralKind::Missing, 6..6),
+        (
+            "with { struct S{} type T = Int }",
+            StructuralKind::Missing,
+            17..17,
+        ),
+    ] {
+        let (green, _, _, facts) = typed_companion(source, 100, 0, None, false);
+        assert_eq!(facts, [structural_fact(kind, range)], "{source:?}");
+        let (again, _, _, repeated_facts) = typed_companion(source, 100, 0, None, false);
+        assert_eq!(again, green);
+        assert_eq!(repeated_facts, facts);
+    }
+}
+
+#[test]
+fn companion_errors_keep_retry_and_boundary_leading_outside_the_run() {
+    for (source, text, kind, range, leading) in [
+        ("with  ]tail", "with", StructuralKind::Missing, 4..4, "  "),
+        (
+            "with @  ]tail",
+            "with @",
+            StructuralKind::ErrorGroup,
+            5..6,
+            "  ",
+        ),
+        (
+            "with @// 日本語\r\n: tail",
+            "with @",
+            StructuralKind::ErrorGroup,
+            5..6,
+            "// 日本語\r\n",
+        ),
+    ] {
+        let (green, exit, _, facts) = typed_companion(source, 100, 0, None, false);
+        assert_eq!(green.to_string(), text);
+        assert_eq!(facts, [structural_fact(kind, range)]);
+        assert_eq!(emit_pending_leading_text(&mut pending(exit)), leading);
+    }
+    let (green, _, _, facts) =
+        typed_companion("with: @ // 日本語\r\n  derives Role", 100, 0, None, false);
+    let root = syntax_root(green);
+    assert_eq!(
+        crate::tests::recovery_output::recovery_groups(&root)
+            .into_iter()
+            .next()
+            .unwrap()
+            .text()
+            .to_string(),
+        "@"
+    );
+    assert_eq!(facts, [structural_fact(StructuralKind::ErrorGroup, 6..7)]);
+}
+
+#[test]
+fn companion_close_facts_distinguish_local_error_and_protected_missing() {
+    for (source, stops, kind, range) in [
+        ("with {  ", 0, StructuralKind::Missing, 8..8),
+        (
+            "with {  ]tail",
+            stops_for(TokenKind::RBracket),
+            StructuralKind::Missing,
+            6..6,
+        ),
+        ("with { ]}", 0, StructuralKind::ErrorGroup, 7..8),
+    ] {
+        let (green, _, _, facts) = typed_companion(source, 100, stops, None, false);
+        assert_eq!(facts, [structural_fact(kind, range)], "{source:?}");
+        let (again, _, _, repeated_facts) = typed_companion(source, 100, stops, None, false);
+        assert_eq!(again, green);
+        assert_eq!(repeated_facts, facts);
+    }
+    let fence = active_fence();
+    for (source, kind, range) in [
+        ("with\r\n>> ```", StructuralKind::Missing, 4..4),
+        ("with: @\r\n>> ```", StructuralKind::ErrorGroup, 6..7),
+        ("with {\r\n>> ```", StructuralKind::Missing, 6..6),
+    ] {
+        let (green, exit, _, facts) = typed_companion(source, 100, 0, Some(&fence), false);
+        assert!(pending(exit).payload_view().is_boundary());
+        assert_eq!(facts, [structural_fact(kind, range)]);
+        let (again, _, _, repeated_facts) = typed_companion(source, 100, 0, Some(&fence), false);
+        assert_eq!(again, green);
+        assert_eq!(repeated_facts, facts);
+    }
+}
+
+#[test]
+fn companion_facts_reach_all_five_declaration_callers() {
+    let (green, _, _, facts) = typed_companion("error E = A with:", 100, 0, None, true);
+    assert_eq!(green.to_string(), "error E = A");
+    assert!(facts.is_empty());
+    for source in [
+        "struct S{} with:",
+        "type T = Int with:",
+        "enum E = A with:",
+        "error E with:",
+        "act A() with:",
+    ] {
+        let (green, _, _, facts) = typed_companion(source, 100, 0, None, true);
+        let at = source.len();
+        assert_eq!(
+            facts,
+            [structural_fact(StructuralKind::Missing, at..at)],
+            "{source:?}"
+        );
+        let (again, _, _, repeated_facts) = typed_companion(source, 100, 0, None, true);
+        assert_eq!(again, green);
+        assert_eq!(repeated_facts, facts);
+    }
+}
+
+#[test]
+fn companion_nested_structural_facts_follow_cst_order() {
+    let source = "with: @ derives";
+    let (green, _, _, facts) = typed_companion(source, 100, 0, None, false);
+    assert_eq!(green.to_string(), source);
+    assert_eq!(
+        facts,
+        [
+            structural_fact(StructuralKind::ErrorGroup, 6..7),
+            structural_fact(StructuralKind::Missing, 15..15),
+        ]
+    );
+    let (again, _, _, repeated_facts) = typed_companion(source, 100, 0, None, false);
+    assert_eq!(again, green);
+    assert_eq!(repeated_facts, facts);
+}
+
+#[test]
+fn companion_separator_keeps_protected_close_leading_and_valid_trailing_slots() {
+    for source in [
+        "with {item,}",
+        "with {item;} ",
+        "with {item\r\n}",
+        "with:\r\n  item;\r\nouter",
+    ] {
+        let (_, _, _, facts) = typed_companion(source, 100, 0, None, false);
+        assert!(facts.is_empty(), "{source:?}");
+    }
+    let source = "with {item,  ]tail";
+    let (green, exit, remainder, facts) =
+        typed_companion(source, 100, stops_for(TokenKind::RBracket), None, false);
+    assert_eq!(green.to_string(), "with {item,");
+    assert_eq!(remainder, "tail");
+    assert_eq!(emit_pending_leading_text(&mut pending(exit)), "  ");
+    assert_eq!(facts, [structural_fact(StructuralKind::Missing, 11..11)]);
+}
+
+use crate::{
+    handoff::Either,
+    lexical::{
+        item::{BorrowedTarget, Boundary},
+        stops::{STOP_LBRACE, stops_for},
+        yumark::{FenceOpener, FencePrefixPolicy},
+    },
+};
+
+fn syntax_root(green: GreenNode) -> SyntaxNode {
+    SyntaxNode::new_root(green)
+}
+
+#[test]
+fn equals_inline_companion_composes_header_variant_and_companion_slots() {
+    use SyntaxKind::*;
+
+    // The two concrete entrypoints share the predecessor but own different
+    // continuations. Statement-internal recovery is not a Companion Body slot.
+    for (keyword, declaration) in [("enum", EnumDeclaration), ("error", ErrorDeclaration)] {
+        for (header, header_error) in [(" E ", None), (" @ 名 ", Some(1)), (" 名 @ ", Some(5))] {
+            for (body, predecessor) in [
+                (" A", vec![]),
+                ("", vec![(Missing, EnumVariant, 0..0)]),
+                (" @", vec![(Error, EnumVariant, 1..2)]),
+                (" @ A", vec![(Error, EnumVariant, 1..2)]),
+                (" A |", vec![]),
+                ("A| |B", vec![(Missing, EnumVariant, 3..3)]),
+                (" A from", vec![(Missing, TypeExpression, 7..7)]),
+            ] {
+                for (tail, children, nested) in [
+                    ("with", vec![(WithKw, 0..4), (Missing, 4..4)], vec![]),
+                    (
+                        "with item",
+                        vec![(WithKw, 0..4), (Missing, 5..5), (Statement, 5..9)],
+                        vec![],
+                    ),
+                    ("with @", vec![(WithKw, 0..4), (Error, 5..6)], vec![]),
+                    (
+                        "with @ {}",
+                        vec![
+                            (WithKw, 0..4),
+                            (Error, 5..6),
+                            (LBrace, 7..8),
+                            (RBrace, 8..9),
+                        ],
+                        vec![],
+                    ),
+                    (
+                        "with:",
+                        vec![(WithKw, 0..4), (Colon, 4..5), (Missing, 5..5)],
+                        vec![],
+                    ),
+                    (
+                        "with {}",
+                        vec![(WithKw, 0..4), (LBrace, 5..6), (RBrace, 6..7)],
+                        vec![],
+                    ),
+                    (
+                        "with {,}",
+                        vec![
+                            (WithKw, 0..4),
+                            (LBrace, 5..6),
+                            (Statement, 6..6),
+                            (BlockStatementSeparator, 6..7),
+                            (RBrace, 7..8),
+                        ],
+                        vec![(Missing, Statement, 6..6)],
+                    ),
+                    (
+                        "with {@}",
+                        vec![
+                            (WithKw, 0..4),
+                            (LBrace, 5..6),
+                            (Statement, 6..7),
+                            (RBrace, 7..8),
+                        ],
+                        vec![(Error, Statement, 6..7)],
+                    ),
+                    (
+                        "with {@ item}",
+                        vec![
+                            (WithKw, 0..4),
+                            (LBrace, 5..6),
+                            (Statement, 6..12),
+                            (RBrace, 12..13),
+                        ],
+                        vec![(Error, Statement, 6..7)],
+                    ),
+                    (
+                        "with {struct S{} type T = Int}",
+                        vec![
+                            (WithKw, 0..4),
+                            (LBrace, 5..6),
+                            (Statement, 6..16),
+                            (Missing, 16..16),
+                            (Statement, 16..29),
+                            (RBrace, 29..30),
+                        ],
+                        vec![],
+                    ),
+                    (
+                        "with {",
+                        vec![(WithKw, 0..4), (LBrace, 5..6), (Missing, 6..6)],
+                        vec![],
+                    ),
+                    (
+                        "with {)}",
+                        vec![
+                            (WithKw, 0..4),
+                            (LBrace, 5..6),
+                            (Error, 6..7),
+                            (RBrace, 7..8),
+                        ],
+                        vec![],
+                    ),
+                ] {
+                    let accepted = format!("{keyword}{header}={body}");
+                    let source = format!("{accepted} {tail}");
+                    let origin = 100;
+                    let (green, exit, remainder) = if keyword == "enum" {
+                        run_enum_declaration(&source, 0, origin, LineEntry::InLine, None)
+                    } else {
+                        run_error_declaration(&source, 0, origin, LineEntry::InLine, None)
+                    };
+                    let root = syntax_root(green);
+                    let shell = root.children().next().unwrap();
+                    assert_eq!(root.children_with_tokens().count(), 1, "{source:?}");
+                    assert_eq!(shell.kind(), declaration);
+                    assert_eq!(shell.parent().as_ref(), Some(&root));
+                    let mut expected = Vec::new();
+                    if let Some(offset) = header_error {
+                        let at = keyword.len() + offset;
+                        expected.push((Error, declaration, at..at + 1));
+                    }
+                    let body_start = keyword.len() + header.len() + 1;
+                    expected.extend(predecessor.iter().map(|(kind, parent, range)| {
+                        (
+                            *kind,
+                            *parent,
+                            body_start + range.start..body_start + range.end,
+                        )
+                    }));
+                    assert_eq!(
+                        shell
+                            .descendants_with_tokens()
+                            .filter(|child| !child
+                                .ancestors()
+                                .any(|node| node.kind() == DeclarationCompanion))
+                            .filter(|child| matches!(child.kind(), Error | Missing | Invalid))
+                            .map(|child| (
+                                child.kind(),
+                                child.parent().unwrap().kind(),
+                                usize::from(child.text_range().start())
+                                    ..usize::from(child.text_range().end())
+                            ))
+                            .collect::<Vec<_>>(),
+                        expected,
+                        "{source:?}"
+                    );
+                    if keyword == "error" {
+                        assert_eq!(root.to_string(), accepted, "{source:?}");
+                        assert_eq!(count(&root, DeclarationCompanion), 0);
+                        assert_eq!(token_count(&root, WithKw), 0);
+                        let Some(NormalizedExit::Complete(
+                            Err(Either::Left(mut item)),
+                            LineEntry::InLine,
+                        )) = exit
+                        else {
+                            panic!("pending with: {source:?}")
+                        };
+                        let extent = item.extent(origin + source.len() - remainder.len());
+                        assert_eq!(
+                            extent.payload(),
+                            origin + accepted.len() + 1..origin + accepted.len() + 5
+                        );
+                        assert_eq!(
+                            extent.leading(),
+                            origin + accepted.len()..origin + accepted.len() + 1
+                        );
+                        assert_eq!(item.payload_view().spelling(), Some("with"));
+                        assert_eq!(emit_pending_leading_text(&mut item), " ");
+                        assert_eq!(remainder, &tail[4..]);
+                        assert_eq!(format!("{root} with{remainder}"), source);
+                        continue;
+                    }
+                    assert_eq!(root.to_string(), source, "{source:?}");
+                    assert_eq!(remainder, "", "{source:?}");
+                    let companion = shell.children().last().unwrap();
+                    assert_eq!(companion.kind(), DeclarationCompanion);
+                    assert_eq!(companion.parent().as_ref(), Some(&shell));
+                    assert_eq!(count(&root, DeclarationCompanion), 1);
+                    let start = accepted.len() + 1;
+                    assert_eq!(usize::from(companion.text_range().start()), accepted.len());
+                    assert_eq!(usize::from(companion.text_range().end()), source.len());
+                    assert_eq!(
+                        companion_rowan_children(&companion, start),
+                        children,
+                        "{source:?}"
+                    );
+                    let leading = companion.first_child_or_token().unwrap();
+                    assert_eq!(leading.kind(), Whitespace);
+                    assert_eq!(leading.to_string(), " ");
+                    assert_eq!(leading.parent().as_ref(), Some(&companion));
+                    for child in companion.children_with_tokens() {
+                        assert_eq!(child.parent().as_ref(), Some(&companion));
+                        assert_eq!(
+                            child.as_node().is_some(),
+                            matches!(child.kind(), Missing | Statement | BlockStatementSeparator),
+                            "{source:?}: {:?}",
+                            child.kind()
+                        );
+                    }
+                    let mut expected = children
+                        .iter()
+                        .filter(|(kind, _)| matches!(kind, Error | Missing | Invalid))
+                        .map(|(kind, range)| (*kind, DeclarationCompanion, range.clone()))
+                        .collect::<Vec<_>>();
+                    expected.extend(nested);
+                    expected.sort_by_key(|(_, _, range)| range.start);
+                    assert_eq!(
+                        companion
+                            .descendants_with_tokens()
+                            .filter(|child| matches!(child.kind(), Error | Missing | Invalid))
+                            .map(|child| (
+                                child.kind(),
+                                child.parent().unwrap().kind(),
+                                usize::from(child.text_range().start()) - start
+                                    ..usize::from(child.text_range().end()) - start
+                            ))
+                            .collect::<Vec<_>>(),
+                        expected,
+                        "{source:?}"
+                    );
+                    // Every leaf retains its native range and trivia bytes,
+                    // including the owner-leading space before contextual with.
+                    for token in companion
+                        .descendants_with_tokens()
+                        .filter_map(|child| child.into_token())
+                    {
+                        let range = usize::from(token.text_range().start())
+                            ..usize::from(token.text_range().end());
+                        assert_eq!(token.text(), &source[range], "{source:?}");
+                        assert!(!matches!(token.kind(), Missing | Invalid));
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn equals_inline_companion_preserves_protected_close_after_admission() {
+    use SyntaxKind::*;
+
+    for keyword in ["enum", "error"] {
+        for header in [" E ", " @ 名 ", " 名 @ "] {
+            for (tail, children) in [
+                ("with", vec![(WithKw, 0..4), (Missing, 4..4)]),
+                (
+                    "with:",
+                    vec![(WithKw, 0..4), (Colon, 4..5), (Missing, 5..5)],
+                ),
+                (
+                    "with {",
+                    vec![(WithKw, 0..4), (LBrace, 5..6), (Missing, 6..6)],
+                ),
+                ("with @", vec![(WithKw, 0..4), (Error, 5..6)]),
+            ] {
+                let accepted = format!("{keyword}{header}= A");
+                let source = format!("{accepted} {tail}]tail");
+                let (green, exit, remainder) = if keyword == "enum" {
+                    run_enum_declaration(
+                        &source,
+                        stops_for(TokenKind::RBracket),
+                        100,
+                        LineEntry::InLine,
+                        None,
+                    )
+                } else {
+                    run_error_declaration(
+                        &source,
+                        stops_for(TokenKind::RBracket),
+                        100,
+                        LineEntry::InLine,
+                        None,
+                    )
+                };
+                let root = syntax_root(green);
+                let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine)) =
+                    exit
+                else {
+                    panic!("protected successor: {source:?}")
+                };
+                let extent = item.extent(100 + source.len() - remainder.len());
+                if keyword == "enum" {
+                    assert_eq!(root.to_string(), format!("{accepted} {tail}"));
+                    let shell = root.children().next().unwrap();
+                    let companion = shell.children().last().unwrap();
+                    assert_eq!(companion.kind(), DeclarationCompanion);
+                    assert_eq!(companion.parent().as_ref(), Some(&shell));
+                    assert_eq!(
+                        companion_rowan_children(&companion, accepted.len() + 1),
+                        children,
+                        "{source:?}"
+                    );
+                    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RBracket));
+                    assert_eq!(
+                        extent.payload(),
+                        100 + source.len() - 5..100 + source.len() - 4
+                    );
+                    assert_eq!(emit_pending_leading_text(&mut item), "");
+                    assert_eq!(remainder, "tail");
+                    assert_eq!(format!("{root}]{remainder}"), source);
+                } else {
+                    assert_eq!(root.to_string(), accepted);
+                    assert_eq!(count(&root, DeclarationCompanion), 0);
+                    assert_eq!(token_count(&root, WithKw), 0);
+                    assert_eq!(item.payload_view().spelling(), Some("with"));
+                    assert_eq!(
+                        extent.payload(),
+                        100 + accepted.len() + 1..100 + accepted.len() + 5
+                    );
+                    assert_eq!(
+                        extent.leading(),
+                        100 + accepted.len()..100 + accepted.len() + 1
+                    );
+                    assert_eq!(emit_pending_leading_text(&mut item), " ");
+                    assert_eq!(remainder, format!("{}]tail", &tail[4..]));
+                    assert_eq!(format!("{root} with{remainder}"), source);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn declaration_companion_rowan_direct_phase_matrix() {
+    use SyntaxKind::*;
+
+    // Ranges are relative to `with`; punctuation is native, recovery is not
+    // interpreted from token spelling or the parser's recovery records.
+    for (shell, declaration) in [
+        ("struct S{} ", StructDeclaration),
+        ("type T = Int ", TypeDeclaration),
+        ("enum E = A ", EnumDeclaration),
+        ("error E ", ErrorDeclaration),
+        ("act A() ", ActDeclaration),
+    ] {
+        for (body, expected) in [
+            ("with", vec![(WithKw, 0..4), (Missing, 4..4)]),
+            ("with @", vec![(WithKw, 0..4), (Error, 5..6)]),
+            (
+                "with:",
+                vec![(WithKw, 0..4), (Colon, 4..5), (Missing, 5..5)],
+            ),
+            (
+                "with {",
+                vec![(WithKw, 0..4), (LBrace, 5..6), (Missing, 6..6)],
+            ),
+            (
+                "with {)}",
+                vec![
+                    (WithKw, 0..4),
+                    (LBrace, 5..6),
+                    (Error, 6..7),
+                    (RBrace, 7..8),
+                ],
+            ),
+            (
+                "with {}",
+                vec![(WithKw, 0..4), (LBrace, 5..6), (RBrace, 6..7)],
+            ),
+        ] {
+            let source = format!("{shell}{body}");
+            let (green, _, _) = run_statement_normalized(&source, 0, LineEntry::InLine, None);
+            let root = syntax_root(green);
+            assert_eq!(count(&root, DeclarationCompanion), 1, "{source:?}");
+            let companion = root
+                .descendants()
+                .find(|node| node.kind() == DeclarationCompanion)
+                .unwrap();
+            assert_eq!(
+                companion.parent().unwrap().kind(),
+                declaration,
+                "{source:?}"
+            );
+            assert_eq!(
+                companion_rowan_children(&companion, shell.len()),
+                expected,
+                "{source:?}"
+            );
+            assert!(
+                !root.descendants().any(|node| node.kind() == Invalid),
+                "{source:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn declaration_companion_rowan_remaining_attachment_paths() {
+    use SyntaxKind::*;
+
+    // The phase matrix uses one attachment per family. These controls cover
+    // the other accepted positions with the same direct braced-child layout.
+    for (shell, declaration) in [
+        ("type T ", TypeDeclaration),
+        ("struct S ", StructDeclaration),
+        ("struct S(T) ", StructDeclaration),
+        ("enum E ", EnumDeclaration),
+        ("enum E{} ", EnumDeclaration),
+        ("error E{} ", ErrorDeclaration),
+        ("act A = B ", ActDeclaration),
+    ] {
+        let source = format!("{shell}with {{}}");
+        let (green, _, remainder) = run_statement_normalized(&source, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), source);
+        assert_eq!(remainder, "", "{source:?}");
+        let root = syntax_root(green);
+        assert_eq!(count(&root, DeclarationCompanion), 1, "{source:?}");
+        let companion = root
+            .descendants()
+            .find(|node| node.kind() == DeclarationCompanion)
+            .unwrap();
+        assert_eq!(
+            companion.parent().unwrap().kind(),
+            declaration,
+            "{source:?}"
+        );
+        assert_eq!(
+            companion_rowan_children(&companion, shell.len()),
+            [(WithKw, 0..4), (LBrace, 5..6), (RBrace, 6..7)],
+            "{source:?}",
+        );
+    }
+}
+
+fn companion_rowan_children(
+    node: &SyntaxNode,
+    origin: usize,
+) -> Vec<(SyntaxKind, std::ops::Range<usize>)> {
+    node.children_with_tokens()
+        .filter(|child| {
+            !matches!(
+                child.kind(),
+                SyntaxKind::Whitespace
+                    | SyntaxKind::Newline
+                    | SyntaxKind::LineComment
+                    | SyntaxKind::BlockComment
+            )
+        })
+        .map(|child| {
+            let range = child.text_range();
+            (
+                child.kind(),
+                usize::from(range.start()) - origin..usize::from(range.end()) - origin,
+            )
+        })
+        .collect()
+}
+
+fn assert_companion_rowan_full_children(
+    node: &SyntaxNode,
+    source: &str,
+    expected: &[(SyntaxKind, std::ops::Range<usize>)],
+) {
+    use SyntaxKind::*;
+    let actual: Vec<_> = node
+        .children_with_tokens()
+        .map(|child| {
+            assert_eq!(child.parent().as_ref(), Some(node));
+            let range =
+                usize::from(child.text_range().start())..usize::from(child.text_range().end());
+            assert_eq!(
+                child.as_node().is_some(),
+                matches!(
+                    child.kind(),
+                    Missing
+                        | Statement
+                        | DeclarationCompanionIndentedBody
+                        | BlockStatementSeparator
+                        | OperatorChain
+                        | StructDeclaration
+                        | TypeDeclaration
+                )
+            );
+            if child.kind() == Missing {
+                assert!(range.is_empty());
+                assert!(child.as_node().unwrap().first_child_or_token().is_none());
+            } else if let Some(token) = child.as_token() {
+                assert!(!range.is_empty());
+                // Error is opaque: only native token/trivia spelling is inspected.
+                if token.kind() != Error {
+                    assert_eq!(token.text(), &source[range.clone()]);
+                }
+            }
+            (child.kind(), range)
+        })
+        .collect();
+    assert_eq!(actual, expected, "{source:?}");
+    assert!(
+        !node
+            .descendants()
+            .any(|child| matches!(child.kind(), Invalid | Error))
+    );
+}
+
+#[test]
+fn declaration_companion_rowan_full_children_keep_error_runs_and_retry_trivia() {
+    use SyntaxKind::*;
+    for (source, direct, statement, error_in_companion) in [
+        (
+            "with @ @: item",
+            vec![
+                (WithKw, 0..4),
+                (Whitespace, 4..5),
+                (Error, 5..6),
+                (Error, 6..7),
+                (Error, 7..8),
+                (Colon, 8..9),
+                (Statement, 9..14),
+            ],
+            vec![(OperatorChain, 9..14)],
+            true,
+        ),
+        (
+            "with: @ @ item",
+            vec![(WithKw, 0..4), (Colon, 4..5), (Statement, 5..14)],
+            vec![
+                (Whitespace, 5..6),
+                (Error, 6..7),
+                (Error, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (OperatorChain, 10..14),
+            ],
+            false,
+        ),
+        (
+            "with { @ @ item }",
+            vec![
+                (WithKw, 0..4),
+                (Whitespace, 4..5),
+                (LBrace, 5..6),
+                (Whitespace, 6..7),
+                (Statement, 7..15),
+                (Whitespace, 15..16),
+                (RBrace, 16..17),
+            ],
+            vec![
+                (Error, 7..8),
+                (Error, 8..9),
+                (Error, 9..10),
+                (Whitespace, 10..11),
+                (OperatorChain, 11..15),
+            ],
+            false,
+        ),
+        (
+            "with { item ) }",
+            vec![
+                (WithKw, 0..4),
+                (Whitespace, 4..5),
+                (LBrace, 5..6),
+                (Whitespace, 6..7),
+                (Statement, 7..11),
+                (Whitespace, 11..12),
+                (Error, 12..13),
+                (Whitespace, 13..14),
+                (RBrace, 14..15),
+            ],
+            vec![(OperatorChain, 7..11)],
+            true,
+        ),
+    ] {
+        let (green, _, _) = run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), source);
+        let root = syntax_root(green);
+        let companion = root.children().next().unwrap();
+        assert_companion_rowan_full_children(&companion, source, &direct);
+        let item = companion
+            .children()
+            .find(|child| child.kind() == Statement)
+            .unwrap();
+        assert_companion_rowan_full_children(&item, source, &statement);
+        if statement == [(OperatorChain, 9..14)] {
+            let expression = item.children().next().unwrap();
+            let leading = expression.first_token().unwrap();
+            assert_eq!(leading.kind(), Whitespace);
+            assert_eq!(leading.text(), " ");
+            assert_eq!(usize::from(leading.text_range().start()), 9);
+            assert_eq!(usize::from(leading.text_range().end()), 10);
+            assert!(
+                leading
+                    .parent()
+                    .unwrap()
+                    .ancestors()
+                    .any(|node| node == expression)
+            );
+        }
+        // Adjacent Error fragments have one immediate parent and uninterrupted
+        // ranges. Native trivia or punctuation seals the maximal group.
+        let error_parent = if error_in_companion {
+            &companion
+        } else {
+            &item
+        };
+        let children: Vec<_> = error_parent.children_with_tokens().collect();
+        let start = children
+            .iter()
+            .position(|child| child.kind() == Error)
+            .unwrap();
+        let end = children
+            .iter()
+            .rposition(|child| child.kind() == Error)
+            .unwrap();
+        assert!(
+            children[start..=end]
+                .iter()
+                .all(|child| child.kind() == Error && child.as_token().is_some())
+        );
+        for pair in children[start..=end].windows(2) {
+            assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+        }
+        assert!(start == 0 || children[start - 1].kind() != Error);
+        assert!(end + 1 == children.len() || children[end + 1].kind() != Error);
+    }
+}
+
+#[test]
+fn declaration_companion_rowan_full_children_keep_boundary_leading_pending() {
+    use SyntaxKind::*;
+    for (source, expected, leading) in [
+        ("with  ]tail", vec![(WithKw, 0..4), (Missing, 4..4)], "  "),
+        (
+            "with @  ]tail",
+            vec![(WithKw, 0..4), (Whitespace, 4..5), (Error, 5..6)],
+            "  ",
+        ),
+        (
+            "with:  ]tail",
+            vec![(WithKw, 0..4), (Colon, 4..5), (Missing, 5..5)],
+            "  ",
+        ),
+        (
+            "with { item  ]tail",
+            vec![
+                (WithKw, 0..4),
+                (Whitespace, 4..5),
+                (LBrace, 5..6),
+                (Whitespace, 6..7),
+                (Statement, 7..11),
+                (Missing, 11..11),
+            ],
+            "  ",
+        ),
+        (
+            "with:\r\n  item // 日本語\r\n]tail",
+            vec![
+                (WithKw, 0..4),
+                (Colon, 4..5),
+                (DeclarationCompanionIndentedBody, 5..13),
+            ],
+            " // 日本語\r\n",
+        ),
+    ] {
+        let (green, exit, remainder) = run_declaration_companion(
+            source,
+            0,
+            stops_for(TokenKind::RBracket),
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        let root = syntax_root(green);
+        let companion = root.children().next().unwrap();
+        assert_companion_rowan_full_children(&companion, source, &expected);
+        if let Some(body) = companion
+            .children()
+            .find(|child| child.kind() == DeclarationCompanionIndentedBody)
+        {
+            assert_companion_rowan_full_children(
+                &body,
+                source,
+                &[(Newline, 5..7), (Whitespace, 7..9), (Statement, 9..13)],
+            );
+        }
+        let mut boundary = pending(exit.unwrap());
+        let extent = boundary.extent(source.len() - remainder.len());
+        assert_eq!(
+            extent.leading(),
+            root.text().len().into()..source.len() - remainder.len() - 1
+        );
+        assert_eq!(
+            extent.payload(),
+            source.len() - remainder.len() - 1..source.len() - remainder.len()
+        );
+        if companion
+            .children()
+            .any(|child| child.kind() == DeclarationCompanionIndentedBody)
+        {
+            assert_eq!(extent.leading(), 13..28);
+            assert_eq!(extent.payload(), 28..29);
+        }
+        assert_eq!(
+            boundary.payload_view().token_kind(),
+            Some(TokenKind::RBracket)
+        );
+        let payload = boundary.payload_view().spelling().unwrap().to_owned();
+        let pending_leading = emit_pending_leading_text(&mut boundary);
+        assert_eq!(pending_leading, leading);
+        assert_eq!(remainder, "tail");
+        assert_eq!(
+            format!("{root}{pending_leading}{payload}{remainder}"),
+            source
+        );
+    }
+    let source = "with {struct S{} type T = Int}";
+    let (green, _, _) = run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), source);
+    let root = syntax_root(green);
+    let companion = root.children().next().unwrap();
+    assert_companion_rowan_full_children(
+        &companion,
+        source,
+        &[
+            (WithKw, 0..4),
+            (Whitespace, 4..5),
+            (LBrace, 5..6),
+            (Statement, 6..16),
+            (Missing, 16..16),
+            (Statement, 16..29),
+            (RBrace, 29..30),
+        ],
+    );
+    let retry = companion
+        .children()
+        .filter(|child| child.kind() == Statement)
+        .nth(1)
+        .unwrap();
+    assert_companion_rowan_full_children(&retry, source, &[(TypeDeclaration, 16..29)]);
+}
+
+#[test]
+fn declaration_companion_rowan_statement_and_sequence_matrix() {
+    use SyntaxKind::*;
+
+    for (body, indented, expected, statement_children) in [
+        (
+            "with: @",
+            false,
+            vec![(WithKw, 0..4), (Colon, 4..5), (Statement, 5..7)],
+            vec![vec![(Error, 6..7)]],
+        ),
+        (
+            "with {,}",
+            false,
+            vec![
+                (WithKw, 0..4),
+                (LBrace, 5..6),
+                (Statement, 6..6),
+                (BlockStatementSeparator, 6..7),
+                (RBrace, 7..8),
+            ],
+            vec![vec![(Missing, 6..6)]],
+        ),
+        (
+            "with {@}",
+            false,
+            vec![
+                (WithKw, 0..4),
+                (LBrace, 5..6),
+                (Statement, 6..7),
+                (RBrace, 7..8),
+            ],
+            vec![vec![(Error, 6..7)]],
+        ),
+        (
+            "with:\n  @",
+            true,
+            vec![(Statement, 8..9)],
+            vec![vec![(Error, 8..9)]],
+        ),
+        (
+            "with:\n  x;;",
+            true,
+            vec![
+                (Statement, 8..9),
+                (BlockStatementSeparator, 9..10),
+                (Statement, 10..10),
+                (BlockStatementSeparator, 10..11),
+            ],
+            vec![vec![(OperatorChain, 8..9)], vec![(Missing, 10..10)]],
+        ),
+    ] {
+        let shell = "struct S{} ";
+        let source = format!("{shell}{body}");
+        let (green, _, _) = run_statement_normalized(&source, 0, LineEntry::InLine, None);
+        let root = syntax_root(green);
+        let companion = root
+            .descendants()
+            .find(|node| node.kind() == DeclarationCompanion)
+            .unwrap();
+        assert_eq!(companion.parent().unwrap().kind(), StructDeclaration);
+        let sequence = if indented {
+            assert_eq!(
+                companion_rowan_children(&companion, shell.len()),
+                [
+                    (WithKw, 0..4),
+                    (Colon, 4..5),
+                    (DeclarationCompanionIndentedBody, 5..body.len())
+                ]
+            );
+            companion
+                .children()
+                .find(|node| node.kind() == DeclarationCompanionIndentedBody)
+                .unwrap()
+        } else {
+            companion
+        };
+        assert_eq!(
+            companion_rowan_children(&sequence, shell.len()),
+            expected,
+            "{source:?}"
+        );
+        let actual: Vec<_> = sequence
+            .children()
+            .filter(|node| node.kind() == Statement)
+            .map(|node| companion_rowan_children(&node, shell.len()))
+            .collect();
+        assert_eq!(actual, statement_children, "{source:?}");
+        assert!(
+            !root.descendants().any(|node| node.kind() == Invalid),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn declaration_companion_rowan_separator_and_delegated_owners() {
+    use SyntaxKind::*;
+
+    let source = "with {struct S{} type T = Int}";
+    let (green, _, _) = run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    let root = syntax_root(green);
+    let companion = root.children().next().unwrap();
+    assert_eq!(companion.kind(), DeclarationCompanion);
+    assert_eq!(
+        companion_rowan_children(&companion, 0),
+        [
+            (WithKw, 0..4),
+            (LBrace, 5..6),
+            (Statement, 6..16),
+            (Missing, 16..16),
+            (Statement, 16..29),
+            (RBrace, 29..30)
+        ]
+    );
+    assert!(!root.descendants().any(|node| node.kind() == Invalid));
+
+    for (source, nested_owner) in [
+        ("with {f(@a)}", Statement),
+        ("with {derives}", DerivesClause),
+    ] {
+        let (green, _, _) = run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        let root = syntax_root(green);
+        let companion = root.children().next().unwrap();
+        assert_eq!(
+            companion_rowan_children(&companion, 0),
+            [
+                (WithKw, 0..4),
+                (LBrace, 5..6),
+                (nested_owner, 6..source.len() - 1),
+                (RBrace, source.len() - 1..source.len())
+            ]
+        );
+        let nested = companion
+            .children()
+            .find(|node| node.kind() == nested_owner)
+            .unwrap();
+        assert!(
+            nested
+                .descendants_with_tokens()
+                .any(|child| matches!(child.kind(), Missing | Error))
+        );
+        assert!(!root.descendants().any(|node| node.kind() == Invalid));
+    }
+
+    let source = "with {first]tail";
+    let (green, exit, remainder) = run_declaration_companion(
+        source,
+        0,
+        stops_for(TokenKind::RBracket),
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    let root = syntax_root(green);
+    let companion = root.children().next().unwrap();
+    assert_eq!(
+        companion_rowan_children(&companion, 0),
+        [
+            (WithKw, 0..4),
+            (LBrace, 5..6),
+            (Statement, 6..11),
+            (Missing, 11..11)
+        ]
+    );
+    assert_eq!(
+        pending(exit.unwrap()).payload_view().token_kind(),
+        Some(TokenKind::RBracket)
+    );
+    assert_eq!(remainder, "tail");
+    assert!(!root.descendants().any(|node| node.kind() == Invalid));
+}
+
+fn count(root: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(root).len();
+    }
+    root.descendants()
+        .filter(|node| node.kind() == kind)
+        .count()
+}
+
+fn token_count(root: &SyntaxNode, kind: SyntaxKind) -> usize {
+    root.descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == kind)
+        .count()
+}
+
+fn direct_node_kinds(node: &SyntaxNode) -> Vec<SyntaxKind> {
+    node.children().map(|child| child.kind()).collect()
+}
+
+fn pending(exit: NormalizedExit) -> Item {
+    match exit {
+        NormalizedExit::Complete(Err(Either::Left(item)), _) => item,
+        NormalizedExit::Complete(Err(Either::Right(end)), _) => end.item,
+        _ => panic!("expected one pending companion Item"),
+    }
+}
+
+fn active_fence() -> FenceBoundary {
+    FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    }
+}
+
+#[test]
+fn declaration_companion_witness_requires_the_exact_maximal_word() {
+    for source in ["withx: item", "within {item}", "item"] {
+        let (green, exit, remainder) =
+            run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        assert!(exit.is_none(), "{source:?}");
+        assert_eq!(green.to_string(), "", "{source:?}");
+        assert_eq!(remainder, source, "{source:?}");
+    }
+
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "with",
+        OperatorFixities::new().with_infix(BindingPower::scalar(40), BindingPower::scalar(40)),
+    )])
+    .expect("dynamic contextual-with table");
+    let (green, exit, remainder) =
+        run_declaration_companion_with("with: item", &operators, 0, 0, 0, LineEntry::InLine, None);
+    assert!(exit.is_some());
+    assert_eq!(green.to_string(), "with: item");
+    assert_eq!(remainder, "");
+    let root = syntax_root(green);
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::WithKw)
+            .count(),
+        1,
+    );
+
+    let (green, exit, remainder) =
+        run_declaration_companion_with("with?: item", &operators, 0, 0, 0, LineEntry::InLine, None);
+    assert!(exit.is_none());
+    assert_eq!(green.to_string(), "");
+    assert_eq!(remainder, "with?: item");
+}
+
+#[test]
+fn declaration_companion_builds_each_statement_only_form() {
+    for (source, accepted, remainder, statements, indented) in [
+        ("with: item;tail", "with: item;", "tail", 1, false),
+        (
+            "with:\n  first\n  second\nouter",
+            "with:\n  first\n  second",
+            "",
+            2,
+            true,
+        ),
+        (
+            "with { first, second }tail",
+            "with { first, second }",
+            "tail",
+            2,
+            false,
+        ),
+        ("with {}tail", "with {}", "tail", 0, false),
+    ] {
+        let (green, exit, actual_remainder) =
+            run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        assert!(exit.is_some(), "{source:?}");
+        assert_eq!(green.to_string(), accepted, "{source:?}");
+        assert_eq!(actual_remainder, remainder, "{source:?}");
+        let root = syntax_root(green);
+        assert_eq!(
+            count(&root, SyntaxKind::DeclarationCompanion),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&root, SyntaxKind::Statement),
+            statements,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&root, SyntaxKind::DeclarationCompanionIndentedBody),
+            usize::from(indented),
+            "{source:?}",
+        );
+        assert_eq!(count(&root, SyntaxKind::DerivesClause), 0, "{source:?}");
+        assert_eq!(count(&root, SyntaxKind::WithBodyTail), 0, "{source:?}");
+        assert_eq!(
+            count(&root, SyntaxKind::IndentedStatementBlock),
+            0,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&root, SyntaxKind::BracedStatementBlockExpression),
+            0,
+            "{source:?}",
+        );
+        let companion = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+            .expect("the isolated owner emits one companion");
+        let direct = direct_node_kinds(&companion);
+        if indented {
+            assert_eq!(direct, [SyntaxKind::DeclarationCompanionIndentedBody]);
+        } else if statements == 0 {
+            assert!(direct.is_empty(), "{source:?}: {direct:?}");
+        } else {
+            assert_eq!(
+                direct
+                    .iter()
+                    .filter(|&&kind| kind == SyntaxKind::Statement)
+                    .count(),
+                statements,
+                "{source:?}: {direct:?}",
+            );
+        }
+    }
+
+    for source in ["with: derivesx", "with: derives?"] {
+        let (green, _, _) = run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        let root = syntax_root(green);
+        assert_eq!(count(&root, SyntaxKind::Statement), 1, "{source:?}");
+        assert_eq!(count(&root, SyntaxKind::DerivesClause), 0, "{source:?}");
+    }
+}
+
+#[test]
+fn declaration_companion_derives_run_is_direct_and_precedes_statements() {
+    let source = "with: derives Eq derives Ord;tail";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(green.to_string(), "with: derives Eq derives Ord;");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 2, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 0, "{root:#?}");
+    let companion = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+        .expect("one declaration companion");
+    assert_eq!(
+        direct_node_kinds(&companion),
+        [SyntaxKind::DerivesClause, SyntaxKind::DerivesClause],
+    );
+    assert_eq!(count(&root, SyntaxKind::WithBodyTail), 0);
+    assert_eq!(count(&root, SyntaxKind::IndentedStatementBlock), 0);
+    assert_eq!(count(&root, SyntaxKind::BracedStatementBlockExpression), 0);
+}
+
+#[test]
+fn declaration_companion_derives_runs_share_indented_and_braced_sequences() {
+    let source = "with:\n  derives Eq derives Ord\n  item\nouter";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "with:\n  derives Eq derives Ord\n  item");
+    assert_eq!(remainder, "");
+    let mut outer = pending(exit.expect("indented companion returns its dedent Item"));
+    assert_eq!(outer.payload_view().spelling(), Some("outer"));
+    assert_eq!(emit_pending_leading_text(&mut outer), "\n");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 2, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 1, "{root:#?}");
+    let body = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanionIndentedBody)
+        .expect("one indented companion body");
+    assert_eq!(
+        direct_node_kinds(&body),
+        [
+            SyntaxKind::DerivesClause,
+            SyntaxKind::DerivesClause,
+            SyntaxKind::BlockStatementSeparator,
+            SyntaxKind::Statement,
+        ],
+    );
+
+    let source = "with { derives Eq derives Ord; item }tail";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(green.to_string(), "with { derives Eq derives Ord; item }");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 2, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::BlockStatementSeparator), 1);
+    let companion = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+        .expect("one declaration companion");
+    assert_eq!(
+        direct_node_kinds(&companion),
+        [
+            SyntaxKind::DerivesClause,
+            SyntaxKind::DerivesClause,
+            SyntaxKind::BlockStatementSeparator,
+            SyntaxKind::Statement,
+        ],
+    );
+}
+
+#[test]
+fn declaration_companion_derives_runs_remain_distinct_across_outer_separators() {
+    let source = "with:\n  derives Eq\n  derives Ord\nouter";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "with:\n  derives Eq\n  derives Ord");
+    assert_eq!(remainder, "");
+    let mut outer = pending(exit.expect("indented companion returns its dedent Item"));
+    assert_eq!(outer.payload_view().spelling(), Some("outer"));
+    assert_eq!(emit_pending_leading_text(&mut outer), "\n");
+    let root = syntax_root(green);
+    let body = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanionIndentedBody)
+        .expect("one indented companion body");
+    assert_eq!(
+        direct_node_kinds(&body),
+        [
+            SyntaxKind::DerivesClause,
+            SyntaxKind::BlockStatementSeparator,
+            SyntaxKind::DerivesClause,
+        ],
+    );
+    assert_eq!(count(&root, SyntaxKind::Statement), 0, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+
+    let source = "with { derives Eq; derives Ord }tail";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(green.to_string(), "with { derives Eq; derives Ord }");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    let companion = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+        .expect("one declaration companion");
+    assert_eq!(
+        direct_node_kinds(&companion),
+        [
+            SyntaxKind::DerivesClause,
+            SyntaxKind::BlockStatementSeparator,
+            SyntaxKind::DerivesClause,
+        ],
+    );
+    assert_eq!(count(&root, SyntaxKind::Statement), 0, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+}
+
+#[test]
+fn declaration_companion_derives_deeper_successor_has_one_sequence_owner() {
+    let source = "with:\n  derives Eq via key\n    my enum E = A\nouter";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(
+        green.to_string(),
+        "with:\n  derives Eq via key\n    my enum E = A"
+    );
+    assert_eq!(remainder, "");
+    let mut outer = pending(exit.expect("indented companion returns its dedent Item"));
+    assert_eq!(outer.payload_view().spelling(), Some("outer"));
+    assert_eq!(emit_pending_leading_text(&mut outer), "\n");
+    let root = syntax_root(green);
+    let body = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanionIndentedBody)
+        .expect("one indented companion body");
+    assert_eq!(
+        direct_node_kinds(&body),
+        [
+            SyntaxKind::DerivesClause,
+            SyntaxKind::Missing,
+            SyntaxKind::Statement,
+        ],
+        "{root:#?}",
+    );
+    assert_eq!(count(&root, SyntaxKind::Missing), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Error), 0, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::EnumDeclaration), 1, "{root:#?}");
+
+    let source = "with:\n  derives Eq via key\n    @ item\nouter";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "with:\n  derives Eq via key\n    @ item");
+    assert_eq!(remainder, "");
+    let mut outer = pending(exit.expect("malformed item still returns its dedent Item"));
+    assert_eq!(outer.payload_view().spelling(), Some("outer"));
+    assert_eq!(emit_pending_leading_text(&mut outer), "\n");
+    let root = syntax_root(green);
+    let body = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::DeclarationCompanionIndentedBody)
+        .expect("one indented companion body");
+    assert_eq!(
+        direct_node_kinds(&body),
+        [SyntaxKind::DerivesClause, SyntaxKind::Statement],
+        "{root:#?}",
+    );
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Error), 1, "{root:#?}");
+}
+
+#[test]
+fn declaration_companion_derives_deeper_caller_stops_remain_pending() {
+    let origin = 7000;
+    let accepted = "with:\n  derives Eq via key";
+    for (source, stops, spelling, kind) in [
+        (
+            "with:\n  derives Eq via key\n    else tail",
+            STOP_ELSE,
+            "else",
+            TokenKind::Identifier,
+        ),
+        (
+            "with:\n  derives Eq via key\n    { tail",
+            STOP_LBRACE,
+            "{",
+            TokenKind::LBrace,
+        ),
+    ] {
+        let (green, exit, remainder) =
+            run_declaration_companion(source, 0, stops, origin, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), accepted, "{source:?}");
+        assert_eq!(remainder, " tail", "{source:?}");
+        let Some(NormalizedExit::Complete(Err(Either::Left(mut pending)), LineEntry::InLine)) =
+            exit
+        else {
+            panic!("the exact caller stop Item must remain pending: {source:?}")
+        };
+        assert_eq!(
+            pending.payload_view().spelling(),
+            Some(spelling),
+            "{source:?}"
+        );
+        assert_eq!(
+            pending.payload_view().token_kind(),
+            Some(kind),
+            "{source:?}"
+        );
+        assert_eq!(
+            emit_pending_leading_text(&mut pending),
+            "\n    ",
+            "{source:?}"
+        );
+        let root = syntax_root(green);
+        assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Statement), 0, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Error), 0, "{root:#?}");
+    }
+}
+
+#[test]
+fn declaration_companion_derives_owns_role_commas_and_inner_recovery() {
+    let source = "with { derives Eq, Debug; item }tail";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(green.to_string(), "with { derives Eq, Debug; item }");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::TypeExpression), 2, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::BlockStatementSeparator), 1);
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+
+    let source = "with { derives Eq via key, item }tail";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(green.to_string(), "with { derives Eq via key, item }");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::BlockStatementSeparator), 1);
+
+    for (source, missing, errors) in [
+        ("with: derives Eq, via;tail", 2, 0),
+        ("with: derives @ Role via @ target;tail", 0, 2),
+    ] {
+        let (green, _, remainder) =
+            run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        assert_eq!(remainder, "tail", "{source:?}");
+        let root = syntax_root(green);
+        assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Statement), 0, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Missing), missing, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Error), errors, "{root:#?}");
+    }
+}
+
+#[test]
+fn declaration_companion_derives_is_retried_in_every_committed_item_slot() {
+    for (source, missing, errors) in [
+        ("with derives Eq;tail", 1, 0),
+        ("with :: derives Eq;tail", 0, 1),
+        ("with { @ derives Eq }tail", 0, 1),
+    ] {
+        let (green, _, remainder) =
+            run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        assert_eq!(remainder, "tail", "{source:?}");
+        let root = syntax_root(green);
+        assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Missing), missing, "{root:#?}");
+        assert_eq!(count(&root, SyntaxKind::Error), errors, "{root:#?}");
+        let derives = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::DerivesClause)
+            .expect("one direct companion DerivesClause");
+        assert!(
+            derives
+                .ancestors()
+                .all(|ancestor| ancestor.kind() != SyntaxKind::Statement),
+            "{root:#?}",
+        );
+    }
+}
+
+#[test]
+fn declaration_companion_derives_preserves_close_and_caller_handoffs() {
+    let (green, exit, remainder) = run_declaration_companion(
+        "with { derives Eq]tail",
+        0,
+        stops_for(TokenKind::RBracket),
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "with { derives Eq");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 1, "{root:#?}");
+    assert_eq!(
+        pending(exit.expect("caller close remains pending"))
+            .payload_view()
+            .token_kind(),
+        Some(TokenKind::RBracket),
+    );
+
+    let (green, exit, remainder) = run_declaration_companion(
+        "with { derives Eq : outer",
+        0,
+        STOP_COLON,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "with { derives Eq");
+    assert_eq!(remainder, " outer");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 1, "{root:#?}");
+    assert_eq!(
+        pending(exit.expect("caller stop remains pending"))
+            .payload_view()
+            .token_kind(),
+        Some(TokenKind::Colon),
+    );
+
+    let (green, exit, remainder) =
+        run_declaration_companion("with { derives Eq) }tail", 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Error), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+}
+
+#[test]
+fn declaration_companion_derives_is_identifier_only_and_gate5_stays_closed() {
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "derives",
+        OperatorFixities::new().with_nullfix(),
+    )])
+    .expect("dynamic derives operator table");
+    let (green, _, remainder) = run_declaration_companion_with(
+        "with: derives;tail",
+        &operators,
+        0,
+        0,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 0, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 1, "{root:#?}");
+
+    let (green, _, _) = run_declaration_companion(
+        "with: derives Eq with Role",
+        0,
+        0,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1, "{root:#?}");
+    assert_eq!(token_count(&root, SyntaxKind::WithKw), 1, "{root:#?}");
+}
+
+#[test]
+fn declaration_companion_introducer_and_body_recovery_retries_once() {
+    let (green, exit, remainder) =
+        run_declaration_companion("with]tail", 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "with");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::Missing), 1);
+    assert_eq!(count(&root, SyntaxKind::Statement), 0);
+    assert_eq!(
+        pending(exit.expect("committed companion"))
+            .payload_view()
+            .token_kind(),
+        Some(TokenKind::RBracket),
+    );
+
+    for (source, errors) in [("with item", 0), ("with :: item", 1)] {
+        let (green, exit, _) = run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        assert!(exit.is_some(), "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let root = syntax_root(green);
+        assert_eq!(count(&root, SyntaxKind::Statement), 1, "{source:?}");
+        assert_eq!(count(&root, SyntaxKind::Error), errors, "{source:?}");
+        assert_eq!(
+            count(&root, SyntaxKind::Missing),
+            usize::from(errors == 0),
+            "{source:?}",
+        );
+    }
+
+    let source = "with:\nouter";
+    let (green, exit, _) = run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "with:");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::Missing), 1);
+    assert_eq!(count(&root, SyntaxKind::Statement), 0);
+    let mut item = pending(exit.expect("committed companion"));
+    assert_eq!(item.payload_view().spelling(), Some("outer"));
+    assert_eq!(emit_pending_leading_text(&mut item), "\n");
+
+    for (source, kind) in [
+        ("with: ,tail", TokenKind::Comma),
+        ("with: ;tail", TokenKind::Semicolon),
+        ("with:\n  ]tail", TokenKind::RBracket),
+    ] {
+        let (green, exit, remainder) =
+            run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        let root = syntax_root(green);
+        assert_eq!(
+            count(&root, SyntaxKind::Missing),
+            1,
+            "{source:?}\n{root:#?}"
+        );
+        assert_eq!(
+            count(&root, SyntaxKind::Statement),
+            0,
+            "{source:?}\n{root:#?}"
+        );
+        assert_eq!(
+            pending(exit.expect("committed companion"))
+                .payload_view()
+                .token_kind(),
+            Some(kind),
+            "{source:?}",
+        );
+        assert_eq!(remainder, "tail", "{source:?}");
+    }
+
+    let (green, exit, remainder) =
+        run_declaration_companion("with @ {}tail", 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(green.to_string(), "with @ {}");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::Error), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+
+    let source = "with @// : { item\n: item";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "with @");
+    assert_eq!(remainder, " item");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::Error), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Statement), 0, "{root:#?}");
+    let mut item = pending(exit.expect("committed companion"));
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Colon));
+    assert_eq!(emit_pending_leading_text(&mut item), "// : { item\n");
+}
+
+#[test]
+fn declaration_companion_braced_sequence_owns_only_real_local_slots() {
+    let source = "with {,first,,second,}tail";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(green.to_string(), "with {,first,,second,}");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::Statement), 4, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 2, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::BlockStatementSeparator), 4);
+
+    let source = "with { struct S{} type T = Int }tail";
+    let (green, _, remainder) = run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), "with { struct S{} type T = Int }");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::Statement), 2, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 1, "{root:#?}");
+
+    for source in ["with { @ first }tail", "with { @ }tail"] {
+        let (green, _, remainder) =
+            run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        assert_eq!(remainder, "tail", "{source:?}");
+        let root = syntax_root(green);
+        assert_eq!(
+            count(&root, SyntaxKind::Statement),
+            1,
+            "{source:?}\n{root:#?}"
+        );
+        assert_eq!(count(&root, SyntaxKind::Error), 1, "{source:?}\n{root:#?}");
+        assert_eq!(
+            count(&root, SyntaxKind::Missing),
+            0,
+            "{source:?}\n{root:#?}"
+        );
+    }
+}
+
+#[test]
+fn declaration_companion_close_and_nested_recovery_keep_their_owner() {
+    let (green, exit, _) =
+        run_declaration_companion("with { first", 0, 0, 0, LineEntry::InLine, None);
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::Missing), 1, "{root:#?}");
+    assert!(matches!(
+        exit,
+        Some(NormalizedExit::Complete(Err(Either::Right(_)), _))
+    ));
+
+    let (green, exit, remainder) =
+        run_declaration_companion("with { first)}tail", 0, 0, 0, LineEntry::InLine, None);
+    assert!(matches!(exit, Some(NormalizedExit::Complete(Ok(()), _))));
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::Error), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+
+    let (green, exit, remainder) = run_declaration_companion(
+        "with { first]tail",
+        0,
+        stops_for(TokenKind::RBracket),
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "with { first");
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::Missing), 1, "{root:#?}");
+    assert_eq!(
+        pending(exit.expect("committed companion"))
+            .payload_view()
+            .token_kind(),
+        Some(TokenKind::RBracket),
+    );
+
+    let (green, _, remainder) =
+        run_declaration_companion("with { f(@a) }tail", 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(remainder, "tail");
+    let root = syntax_root(green);
+    assert_eq!(count(&root, SyntaxKind::Statement), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Error), 1, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Missing), 0, "{root:#?}");
+}
+
+#[test]
+fn declaration_companion_braced_body_returns_caller_stops_unchanged() {
+    for (source, stops, spelling) in [
+        ("with { first : outer", STOP_COLON, ":"),
+        ("with { first else outer", STOP_ELSE, "else"),
+    ] {
+        let (green, exit, remainder) =
+            run_declaration_companion(source, 0, stops, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), "with { first", "{source:?}");
+        assert_eq!(remainder, " outer", "{source:?}");
+        let root = syntax_root(green);
+        assert_eq!(
+            count(&root, SyntaxKind::Statement),
+            1,
+            "{source:?}\n{root:#?}"
+        );
+        assert_eq!(
+            count(&root, SyntaxKind::Missing),
+            1,
+            "{source:?}\n{root:#?}"
+        );
+        assert_eq!(count(&root, SyntaxKind::Error), 0, "{source:?}\n{root:#?}");
+        let companion = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::DeclarationCompanion)
+            .expect("the committed owner emits one companion");
+        assert_eq!(
+            direct_node_kinds(&companion),
+            [SyntaxKind::Statement, SyntaxKind::Missing],
+            "{source:?}\n{root:#?}",
+        );
+        let mut item = pending(exit.expect("committed companion"));
+        assert_eq!(item.payload_view().spelling(), Some(spelling), "{source:?}");
+        assert_eq!(emit_pending_leading_text(&mut item), " ", "{source:?}");
+    }
+}
+
+#[test]
+fn declaration_companion_returns_one_crlf_fence_boundary_item() {
+    let fence = active_fence();
+    let source = "> > with:\r\n> >   derives Eq\r\n> >   item\r\n> > ```\r\nouter";
+    let accepted = "> > with:\r\n> >   derives Eq\r\n> >   item";
+    let (green, exit, remainder) =
+        run_declaration_companion(source, 0, 0, 900, LineEntry::PhysicalStart, Some(&fence));
+    assert_eq!(green.to_string(), accepted);
+    assert_eq!(remainder, "> > ```\r\nouter");
+    let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) = exit
+    else {
+        panic!("the companion must return its exact fence Item")
+    };
+    let (leading, pending) = emit_terminal_leading_text(item);
+    assert_eq!(leading, "\r\n");
+    assert!(matches!(
+        pending.into_kind(),
+        Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+    ));
+    let root = syntax_root(green);
+    assert_eq!(
+        count(&root, SyntaxKind::DeclarationCompanionIndentedBody),
+        1
+    );
+    assert_eq!(count(&root, SyntaxKind::Statement), 1);
+    assert_eq!(count(&root, SyntaxKind::Missing), 0);
+    assert_eq!(count(&root, SyntaxKind::DerivesClause), 1);
+}
+
+#[test]
+fn declaration_companion_inline_returns_one_crlf_fence_boundary_item() {
+    let fence = active_fence();
+    let origin = 1200;
+    let accepted = "> > with: item";
+    let source = format!("{accepted}\r\n> > ```\r\nouter");
+    let (green, exit, remainder) = run_declaration_companion(
+        &source,
+        0,
+        0,
+        origin,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+    );
+    assert_eq!(green.to_string(), accepted);
+    assert_eq!(remainder, "> > ```\r\nouter");
+    let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) = exit
+    else {
+        panic!("the inline companion must return its exact fence Item")
+    };
+    let (leading, pending) = emit_terminal_leading_text(item);
+    assert_eq!(leading, "\r\n");
+    assert_eq!(pending.coordinate(), origin + accepted.len() + 2);
+    assert!(matches!(
+        pending.into_kind(),
+        Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+    ));
+    let root = syntax_root(green);
+    assert_eq!(
+        count(&root, SyntaxKind::DeclarationCompanionIndentedBody),
+        0
+    );
+    assert_eq!(count(&root, SyntaxKind::Statement), 1);
+    assert_eq!(count(&root, SyntaxKind::Missing), 0);
+    assert_eq!(count(&root, SyntaxKind::Error), 0);
+}

@@ -1,0 +1,2713 @@
+{
+  "schema_version": 1,
+  "sprint": "LATENT-DEMAND-ROOT-VALIDATION/r15",
+  "snapshot": "isolated/latent-demand-root-validation-r15",
+  "baseline": {
+    "r14_workspace_manifest": {
+      "path": "tasks/agent-loop/sprints/latent-demand-root-reconstruction-20261028-r14-inputs.json",
+      "sha256": "a07d873f38e1abf3be5eb86700d2942c156bff2f09a83dc62ec88f450ef0e395"
+    },
+    "r14_workspace_file_count": 324,
+    "added_complete_member_files": 94,
+    "added_member_source_commit": "31aa3451dff76185ccb642191f25e0dc97116342",
+    "approved_candidate_sha256": "f489868d88e6f56724bdd2c83d2979edc8a9a0c077dd4e81ff6c9f3ef374d4f0",
+    "no_manifest_or_lock_edits": true
+  },
+  "parent_artifacts": [
+    {
+      "path": "tasks/agent-loop/sprints/latent-demand-root-reconstruction-20261028-r14.md",
+      "sha256": "caf7474b5c34046bad8ff8599915dc2e1bc6d6aaf2cc28dbaff27509d9a06d91"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/latent-demand-root-reconstruction-20261028-r14-amendment-01.md",
+      "sha256": "b164d7e216715e9a89e2a09f78e863afc5536b76833bae58a50536545396b5cf"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/latent-demand-root-reconstruction-20261028-r14-inputs.json",
+      "sha256": "a07d873f38e1abf3be5eb86700d2942c156bff2f09a83dc62ec88f450ef0e395"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/latent-demand-root-reconstruction-r14-proof.md",
+      "sha256": "b1e1253dbbb3ea918e8782619ba2a8bddfeba2842a2d84d80790eba0130ac17c"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/latent-demand-root-reconstruction-r14-implementation.md",
+      "sha256": "919451075e40c90a060fdd29473cbc228057e1b71eb4176e367fcc42911f29ce"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/latent-demand-root-reconstruction-r14-review.md",
+      "sha256": "e28a8b3eca0846096c33444f35623b416d709d2a968e1b5dec07595158dd8e10"
+    },
+    {
+      "path": "tasks/agent-loop/history/latent-demand-root-reconstruction-20261028-r14-outcome.md",
+      "sha256": "4b70c321c5f97396e305448bd539a69083e3af216805a8f45d63841341189cd3"
+    },
+    {
+      "path": "tasks/agent-loop/history/demand-trace-compile-20261028-r13-outcome.md",
+      "sha256": "f9e3ef8f1e41be12a9e39d5c07e1ac792f8957b66171cac1b43671dbeb6d76d6"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/demand-trace-compile-r13-review.md",
+      "sha256": "6b26d0789920abdc4c48a3a9c1f05f24d6e8019a9b456c67617113a8d3955e65"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/demand-trace-compile-20261028-r13-inputs.json",
+      "sha256": "475b5eaaea90d7a5f66b52ebf6b3cf45969b9c4c1953dd00c5593c75332763ee"
+    }
+  ],
+  "workspace_closure": {
+    "members": [
+      "crates/chasa-recover",
+      "crates/yu-syntax",
+      "crates/yu-hir",
+      "crates/yu-types",
+      "crates/yu-solver",
+      "crates/yu-core",
+      "crates/yu-backend-vm",
+      "crates/yu-backend-native",
+      "apps/yulang-wasm",
+      "tools/bench-runner",
+      "tools/inference-playground",
+      "tools/xtask"
+    ],
+    "member_count": 12,
+    "missing_member_manifests": [],
+    "path_references": [
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/Cargo.toml",
+        "path": "../chasa-recover",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/crates/yu-hir/Cargo.toml",
+        "path": "../yu-syntax",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/crates/yu-types/Cargo.toml",
+        "path": "../yu-hir",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/crates/yu-solver/Cargo.toml",
+        "path": "../yu-hir",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/crates/yu-solver/Cargo.toml",
+        "path": "../yu-syntax",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/crates/yu-solver/Cargo.toml",
+        "path": "../yu-types",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/crates/yu-solver/Cargo.toml",
+        "path": "../yu-core",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/crates/yu-core/Cargo.toml",
+        "path": "../yu-hir",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/crates/yu-core/Cargo.toml",
+        "path": "../yu-syntax",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/crates/yu-backend-vm/Cargo.toml",
+        "path": "../yu-core",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/crates/yu-backend-native/Cargo.toml",
+        "path": "../yu-core",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/apps/yulang-wasm/Cargo.toml",
+        "path": "../../tools/inference-playground",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/tools/inference-playground/Cargo.toml",
+        "path": "../../crates/yu-hir",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/tools/inference-playground/Cargo.toml",
+        "path": "../../crates/yu-solver",
+        "exists": true
+      },
+      {
+        "manifest": "isolated/latent-demand-root-validation-r15/tools/inference-playground/Cargo.toml",
+        "path": "../../crates/yu-syntax",
+        "exists": true
+      }
+    ],
+    "path_reference_count": 15,
+    "all_path_references_exist": true
+  },
+  "files": [
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/.cargo/config.toml",
+      "sha256": "c185a2b859850d94af015a9672c1568e1ef73b12612d820f596ef967b835f637",
+      "size": 34
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/Cargo.lock",
+      "sha256": "de2c030452a0764cbeb459e2545585a880edc6683a8acceaea45276e24b67ca5",
+      "size": 21265
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/Cargo.toml",
+      "sha256": "a8852982d5a3ff4d159aa546767b217000d50c9ff8617ac139700885bf5b090a",
+      "size": 346
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/apps/yulang-wasm/Cargo.toml",
+      "sha256": "c00101fa1b063622a9826a7971add7396e0f73b614d408f2e962a006799966f6",
+      "size": 220
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/apps/yulang-wasm/src/lib.rs",
+      "sha256": "c19f43a0b0307f30d7cdfda773e1c11e5f9d30a5b0c5610cb66e35567d15592e",
+      "size": 2824
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/chasa-recover/Cargo.toml",
+      "sha256": "ff7ef8af10850ac4b1de7822f4897ed483810b61e9a118bd1db3d296cb2ec903",
+      "size": 297
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/chasa-recover/src/input.rs",
+      "sha256": "303d4dbcad1030b2a3f270a677b0cbfe697bf703c6cd39f159f88348da69bffe",
+      "size": 9309
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/chasa-recover/src/lib.rs",
+      "sha256": "c88c816920daf1b3af9f35b05cf4a256b499e77c78eb02890f62339a1aceff72",
+      "size": 419
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/chasa-recover/src/parser.rs",
+      "sha256": "1fdc8ba6be46b8f34a6224f7687d1f192b086273180d5b7f593397b98df09bbf",
+      "size": 26035
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-backend-native/Cargo.toml",
+      "sha256": "3af540acd4280c758ff9d188ce520782536b89b2abc325157169e01f6ff8ec9e",
+      "size": 138
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-backend-native/src/lib.rs",
+      "sha256": "bcce4178d7d5d197f506cc9d9c2e1f974c575e43ca308d4879376f35104f7320",
+      "size": 41
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-backend-vm/Cargo.toml",
+      "sha256": "5f979d013d74982a3b3cfa32b275ac9e25615c6b278882ef473f3d560169b0e9",
+      "size": 134
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-backend-vm/src/lib.rs",
+      "sha256": "7a52b6e5f77b6f1c8ba9f590c4327a151381cfe254fc52c843a6421189666ad5",
+      "size": 47
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/Cargo.toml",
+      "sha256": "2be9f92dbb92013436311b696b4020d10bc99a965a82a25181d8957fc5e1b08d",
+      "size": 307
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/src/lib.rs",
+      "sha256": "3a2c2befd0dd38df3c06458a7fd918b8f32124a75d264ed51d859ec036c4ab5e",
+      "size": 585
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/src/shadow.rs",
+      "sha256": "f9d44ae357b0af86db2c17b93bc56d33dd150cb460fab612876f16909f3d9f43",
+      "size": 585
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/src/shadow_annotation_boundaries.rs",
+      "sha256": "6d990ab6da2d43cbd7e822db8abada0f6fe300e2ffb716ede8834d6ac20f47aa",
+      "size": 2476
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/src/shadow_atom_orbits.rs",
+      "sha256": "ccc0f2e165b37a679f4a37a57678a91a95e36fa5905dc852edaedc0799472215",
+      "size": 6876
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/src/shadow_call_formation.rs",
+      "sha256": "394c763e5b4e2de6ae692ffacf22c07db8958f00129a47f1332f238c9a8eb5eb",
+      "size": 12598
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/src/shadow_derivation.rs",
+      "sha256": "714fa4f53ee14f7a4d4e1d38ff0820157838de9c4b70a266bee1998eb2851dc2",
+      "size": 33233
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/src/shadow_directional_protection.rs",
+      "sha256": "9bb4fa098d275874dc0349b115dcc9031648b788fedefd1466af60889e460493",
+      "size": 5238
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/src/shadow_interface_alpha.rs",
+      "sha256": "8e7a0333323bf7401120888768812f2b2fae5d98a71f82323ac8344cbac4c23c",
+      "size": 10283
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/src/shadow_source_annotation_crosswalk.rs",
+      "sha256": "9a13b7b46d4d239d00d8f54ed93e6bc58064410bd556ab8f797242f2e87f6d5d",
+      "size": 6788
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/src/shadow_typed_evidence.rs",
+      "sha256": "dabcbd07b2d1baace0227cb94164db871fdadc1089b1854b396dfb464d26ce95",
+      "size": 8554
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_annotation_boundaries.rs",
+      "sha256": "c23a1c6b1a73f62aa089ed18fabd95eefd75c3a278d9c67a0a443aed7d6777af",
+      "size": 4635
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_annotation_header_membership.rs",
+      "sha256": "2dd240e5240a17f4be2872ee7924f704b3867a7178287bddaa0020a9855898e0",
+      "size": 6228
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_apply_endpoint_skeleton.rs",
+      "sha256": "81d2749a062a2e059f4c6e297c2c01359d0193ea748ff17f63e56cd947e8e0df",
+      "size": 6820
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_atom_orbits.rs",
+      "sha256": "1750fb22e2ce31ea1831832cb481b41026c51a50987ac244420957aea02bf0d0",
+      "size": 7842
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_binder_source_uses.rs",
+      "sha256": "c21d85fa2e0d18812341911ba5788a53786583ba2d4886c79217ee5be702918e",
+      "size": 5683
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_binder_use_groups.rs",
+      "sha256": "0c81f3a1eaad792c7522693bfe291e417d33ef5407e1352f9c261f0b6c290c78",
+      "size": 6823
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_call_clause_model.rs",
+      "sha256": "2c49f673dbfb6d7cf16eeae57ed06c53baaa4c9c9449627a26006a233f0ec43f",
+      "size": 15263
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_call_formation.rs",
+      "sha256": "1897d6bbd4e9b7e6ef6b839abdfc1943bd515c2c7cab8cb71277e8aa2925b0e2",
+      "size": 11085
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_current_inference_correspondence.rs",
+      "sha256": "d8c9f26bdc88869c1a4138e2fd8d60e13cf8772280b4e41ab3c026990cd57a00",
+      "size": 24356
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_derivation.rs",
+      "sha256": "2ad754d9b1bab2f6e13e1d1db7f84ba37916d8614ac3b9d8ccac42c542d937ff",
+      "size": 23446
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_directional_incidence_join.rs",
+      "sha256": "edba6eb7d9c4603363260cf3e1429941525103b4d6361e6c7718b215ee064a1b",
+      "size": 8944
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_directional_protection.rs",
+      "sha256": "9e3eaf22779f4dfc215d89d3ffc5632f520ad32cc8cb3cd786179b7b8cddf0f0",
+      "size": 4509
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_feature.rs",
+      "sha256": "bc5f0ccb75e8924cbbcc1ed8fab483a2ef0463757770dce62c4902a0d0e0a18c",
+      "size": 6529
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_interface_alpha.rs",
+      "sha256": "f79fd5693d4b3e7bf5600564bab3277d1dfb6d827a212ceb7d5e5c8ce0867587",
+      "size": 9594
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_legacy_application_provenance.rs",
+      "sha256": "6ef1669016e87d45d73fa43a70a4555b74781f84feb006c706f05f5a3ddc8549",
+      "size": 10942
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_raw_structural_inventory.rs",
+      "sha256": "27e6dacd922af29f8b88c2852be3109951e72fb6da88fa6d9ac9c89e930944f6",
+      "size": 30856
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_source_annotation_crosswalk.rs",
+      "sha256": "c429d8e7348914e40932d6eb0b3d766316202b82eaf97a50aa50049d77c9ac06",
+      "size": 10003
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-core/tests/shadow_typed_evidence.rs",
+      "sha256": "c61b82d8c58bd27081b58c7810ae2429d3495ed51919f095dac0580ec91e15ff",
+      "size": 10408
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/Cargo.toml",
+      "sha256": "a97f52fc6b9e577f23be4160ecdda9693bec8fe48c626d0e9b7c0e3b0c6fe8d1",
+      "size": 200
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/lib.rs",
+      "sha256": "4daa2b1753fcf2984c5c27bacb968541c51115ca9f7619d36f8c0e6c7972ef5b",
+      "size": 105867
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/module/local_source/string.rs",
+      "sha256": "f0fe4d7146a4c6c36779a36e352e02f3844303f80a41d79abd07cd47ab19f717",
+      "size": 11057
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/module/local_source.rs",
+      "sha256": "7055975d582dfb198836c2aa659f8b8033c29dff419d522feea4fea4c42523d1",
+      "size": 204319
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/module/source_annotation.rs",
+      "sha256": "409ce491bc216c6963bf76d20810790aa2756edf260ecc35e76d5cfc05d24b3f",
+      "size": 35724
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/module/source_exports.rs",
+      "sha256": "03727fd3918738a48afde7f7a875de60b63b43ac2cc620896a4ed73d8b0a9179",
+      "size": 63497
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/module/source_impl.rs",
+      "sha256": "558ec50c83040d21fa05e768dffdc46b8a328435b56fc828822a6190ba56a2d5",
+      "size": 23593
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/module/source_role.rs",
+      "sha256": "d16945ae153d25cdadea9e9071cdfc2ab73925b46d92e598a0e18e5d60f4d3e3",
+      "size": 12524
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/module.rs",
+      "sha256": "6bf92c93fa37f425a7380248c12c50c0d04ea6eb282e76edb6df54e628260646",
+      "size": 222888
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/shadow.rs",
+      "sha256": "b964bab6dcdb7ebeca9f964c134ac8fb041c928c20ce0a895fea6b6af0fbb93e",
+      "size": 219930
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/source_identity.rs",
+      "sha256": "4bd5fa4066a1fd445a9757374c44d602decd1d791a394cd81c6066efa063fb23",
+      "size": 7192
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/annotated_primitive_formals.rs",
+      "sha256": "a8f87ab4a50eab2608c13dde3d0e0e95afdb15c884bf8294c0c254a4180b8149",
+      "size": 3981
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/local_self_recursive_binding.rs",
+      "sha256": "4e2b9bc5210358059533cbe3b7fc2202daf64123b77e7333f198eb707eb7b59c",
+      "size": 3681
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/named_function_groups.rs",
+      "sha256": "d3ec65c69a2e4fa9013d51b28cc788d098f55f35498c2bbacf5467f2bbac12ef",
+      "size": 8438
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/shadow_annotation_positions.rs",
+      "sha256": "c276dee5f8e15c7b62294b476688383f3bfeac7f0cc7a356a23375fb87c89ccd",
+      "size": 13431
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/shadow_call_source_occurrences.rs",
+      "sha256": "5c638b25427846e8cbe920839c1af6965e3e38134b2deb3a06006b6df0b699a4",
+      "size": 7533
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/shadow_call_use_source_inputs.rs",
+      "sha256": "0f0fbdbcb3ee69af3f0b6e5ad0924f81c83dad73b61166150d08ebda7eb57048",
+      "size": 6913
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/shadow_captured_call_input.rs",
+      "sha256": "cb119df6b3755cdaca74825520301134003a39d7540c7ea13162d591b8421765",
+      "size": 4433
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/shadow_colon_application.rs",
+      "sha256": "dd6d771675439296c74c309d7b1272657d57486bd6c8e77bff0089967ea8c31b",
+      "size": 8114
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/shadow_legacy_apply_structure.rs",
+      "sha256": "4524bb210b27004cfed38219fa030aab55953805a52d471e9d511ec1e6594d2c",
+      "size": 10900
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/shadow_method_role_source.rs",
+      "sha256": "42e1c07364fd742459c705717fe9d829883bd9964013070d8ceebf03050bea8b",
+      "size": 35712
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/shadow_raw_source_inventory.rs",
+      "sha256": "fba09f095deac7383078eda795302b6ea290c886fbd812adc5745ee164c3aa3d",
+      "size": 3746
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/shadow_resolved_application_identity.rs",
+      "sha256": "74159ee07a2e7151c4f5cdb0478a210008b28d74a49db759bedc566845ad7f0a",
+      "size": 6806
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/shadow_resolved_call_incidence.rs",
+      "sha256": "241320b2c4409ca35d1b738ca9b1c757f1a24fe9ab0e519ec772183edb61c501",
+      "size": 5510
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/shadow_retained_expression_inventory.rs",
+      "sha256": "aee4e0593efd321aeb522d89d3782ed5377da9ec28ff130c8295627d7dd7e494",
+      "size": 1606
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/shadow_source_core.rs",
+      "sha256": "d2a0c4464e46cd697efae9b4e374a152069fd1226cc8624742880d7e72d83ebd",
+      "size": 44519
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/src/tests/shadow_source_view_premise_locator.rs",
+      "sha256": "c72a89a46cc9e99bb631b7c7ee2155767c196ae944b9f5badae23a9eb414ef61",
+      "size": 2800
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/tests/catch_local_source.rs",
+      "sha256": "16b7f71882b0d63bee36183490b08fcd20536e55281ed97cfdb65c5d4e474db3",
+      "size": 7904
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/tests/conditional_local_source.rs",
+      "sha256": "5e8e66511cebfa90189656e9a209e88d6b9ada83cd9ba8fb2fe8e4212f4fbf0f",
+      "size": 11268
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/tests/direct_root_expression.rs",
+      "sha256": "07075c822e670de3ff02d81518148146a42809494ef09cc258736fc3bbf49008",
+      "size": 9488
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/tests/inline_lambda_local_source.rs",
+      "sha256": "1fe9cc2e03ffb4d633dab22d2d9c8f6a9682d8013feded572fb2251a77442899",
+      "size": 11592
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/tests/operation_source.rs",
+      "sha256": "e6fe60c6e4c9b56ecc5164ef4ecb1b044a4cd58484941e09e27efcfc5ccb8af3",
+      "size": 4893
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/tests/ordinary_application_admission.rs",
+      "sha256": "46402bb4fe7a8e41eed3590c9788248e2fc4f769ccbdafcd8d98b1c57e891d79",
+      "size": 15980
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/tests/ordinary_expression_source_carrier.rs",
+      "sha256": "8951d106428de8ce2c6e98d5ce1b07d4e565a5204a934d3d4710197c09e0aea9",
+      "size": 10061
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/tests/semantic_import_binding.rs",
+      "sha256": "b9b3aa5f0d1a3e6783d2e8b53e2d4edd13b5c4ac43538d71216662bcd19399d1",
+      "size": 4057
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/tests/shadow_application_resolution.rs",
+      "sha256": "8eabac1fdccca56ff9811e92802c2e3f8eaab32845f7228344f02d092686e3ca",
+      "size": 18865
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/tests/shadow_resolved_call_inventory.rs",
+      "sha256": "661191cca3d12ddf806ebdee986b66eee3f1b92825d1090b0756363354698f47",
+      "size": 5249
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/tests/shadow_state_slot_identity.rs",
+      "sha256": "ac09142b114416245dac401966072f371eb2ee29b66f517245511a5a59e7538e",
+      "size": 7254
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-hir/tests/simple_module_resolution.rs",
+      "sha256": "56fe683018fe1d9854eb78233abe973cc7b8d9b9c8a414cda219b753f85b2afe",
+      "size": 20873
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/Cargo.toml",
+      "sha256": "aaf341e14643b73668552a3bf499f6410bdd0e9ad6ebeea1a5d6ef454d9494ed",
+      "size": 453
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/examples/research_accepted_call_vertical.rs",
+      "sha256": "3df38a5cf3074f8d7b002661d38abef0c2fcd4ff9fac495423768901a19f8309",
+      "size": 2838
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/examples/research_catch_source_export.rs",
+      "sha256": "4ae13f891655a8afebc25890d10cf512c4dd7365436f9f3cd24380f22e20e50e",
+      "size": 24759
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/examples/research_scoped_formal_replay.rs",
+      "sha256": "cf5dfe8d2c9f2257913e585345336e94825dd7827e49c63a0d6bb5afc692e44b",
+      "size": 9282
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/examples/research_source_registration.rs",
+      "sha256": "eb7e5aae0f29d9277ba191dc965918a6110eca8f054417aa44bbb0cec1f414e6",
+      "size": 19138
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_call.rs",
+      "sha256": "fdc39e01fa3665b4dc14e167973de63b275eb0280b831e340b6cdcee5ed0fc3f",
+      "size": 32230
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_context.rs",
+      "sha256": "be1be2277d54288ba4ae542e003dabc294031c29cb26b2b5d0454b0d1c102bd0",
+      "size": 253873
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_context_tests.rs",
+      "sha256": "0aec86b787796e4024e3d0d04fd755c7160d0cd76811ed49395230ea1fb64422",
+      "size": 425658
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_effect.rs",
+      "sha256": "7c8e4fe5270fd45cecece80dfbbdff81aa8f294546687938bf89212325fc146b",
+      "size": 289769
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_extrusion.rs",
+      "sha256": "a6538ab3deae503fd2c002c88fb673a51848a350b226b8a38c3b43496cdd03ee",
+      "size": 80405
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_intrusion.rs",
+      "sha256": "475edf15acbb5d986b5aebd1cb22b9c5fad61c50811690a763b39ff003cccd97",
+      "size": 31786
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_intrusion_tests.rs",
+      "sha256": "12bf5b890f04a577f8fe633724d7c6ea526e4b5da744bb26aa3797d1fb444668",
+      "size": 41647
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_native_inventory_tests.rs",
+      "sha256": "6b3670e5548ad0000c4717949476a3a3038b2e06490f7f58ed4c6a1ac522d638",
+      "size": 21440
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_receiver.rs",
+      "sha256": "620b09011ec4dc4bfa71998e2b6fc1498b9299b3056662fdaa80b17376ba23c3",
+      "size": 25383
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_scheme.rs",
+      "sha256": "f489868d88e6f56724bdd2c83d2979edc8a9a0c077dd4e81ff6c9f3ef374d4f0",
+      "size": 509809
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_scope.rs",
+      "sha256": "9fdb36b4bbd66d702fbd3fcfaf593bfbc5dce0c52ff3252442aeb998bbb52c2a",
+      "size": 11060
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_source.rs",
+      "sha256": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a",
+      "size": 212009
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_unit_tests.rs",
+      "sha256": "27a2089d28b127020ac1b6c1bbc07b82337a666ef5107813c5f59bff331917ec",
+      "size": 8366
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/candidate_value_graph.rs",
+      "sha256": "aaaa88a374083f898188cd390b8cf0244855d8c09c8939b9e68ee2831bc692cf",
+      "size": 54389
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/f5c_binder_substitution.rs",
+      "sha256": "6b2d9d53546fc2218132dad65fac8619ec125c65817af5fe42239ebc85ffee80",
+      "size": 26649
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/f5c_draft.rs",
+      "sha256": "cb67684c633214878c1795d896aca02b525ebf8de4e5cbd3aaf8de7a8e6c433d",
+      "size": 29434
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/f5c_draft_heap.rs",
+      "sha256": "b973ec0667e6f80de54d9a1de55df112361859982ea2617dae3fe8d34903b1cb",
+      "size": 128162
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/f5c_generalization/flat_source_arena.rs",
+      "sha256": "0abc91b90303818bd372bc33d1e391e24a2bb747df70984cad8f54f5d60f3af7",
+      "size": 23373
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/f5c_generalization/flat_walk_sink.rs",
+      "sha256": "ff8b117e7578d93f1d441faec132df4859b7118c5a0d56d1044dbb3f2ab913b1",
+      "size": 95893
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/f5c_generalization.rs",
+      "sha256": "928607961bff9ab747fd759aed1dacd3aa13abc9e20bf3bb8a957a4c7bd12ffb",
+      "size": 530037
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/f5c_materialization.rs",
+      "sha256": "a342860980dc14dd6dc10996adf992946e1b420b6d3d8ee176a77937d0c6a93b",
+      "size": 119441
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/f5c_normalization.rs",
+      "sha256": "da57ee8fc3dd3a604ef5bf65457cf0c4d38fb976eb9e080e8520ea6a1e97728a",
+      "size": 218699
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/f5c_replay.rs",
+      "sha256": "71fb166c38dbd93571abcbc3ff290b3b79fe2a4ecba8159edd5f60933c8b3b2a",
+      "size": 46859
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/f5c_tree_analysis.rs",
+      "sha256": "f69fb7938dd22ba6cc65b8a1474e9e3f05c30af106c3ca110778b4a225807173",
+      "size": 36456
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/incoming_sample_trace.rs",
+      "sha256": "b3b10bed1b41b138a83e37346969f946deeac43192ae0e551f8c343fd44f12c5",
+      "size": 8735
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/intrusion_transport.rs",
+      "sha256": "22015507c307e9dffcd1ad25fec3c8d4184545106110fbfd71ba11472ba95458",
+      "size": 14215
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/lib.rs",
+      "sha256": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07",
+      "size": 1649811
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/scc.rs",
+      "sha256": "8f3709ec9d52dc79767b6822eb4f671118a3f83814d2e9a9c748dfeac51e1f72",
+      "size": 47740
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/shadow_apply/local_source_observation.rs",
+      "sha256": "fa7e5a1288eae3ed9093a733645adcac4bd88011802d4fe95fdd10acab2fe66b",
+      "size": 126363
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/shadow_apply.rs",
+      "sha256": "8db4bae1b79959161b6b0dc4d516164b0e756eb8cbc73896bb4a4545a0b0ebf8",
+      "size": 275948
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/shadow_candidate_source_crosswalk.rs",
+      "sha256": "392d665579a74810134846e1274c0c9ce975a7eb0e2cfb9ad79a07af2cd2eeb0",
+      "size": 25192
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/shadow_f5.rs",
+      "sha256": "b6a6c70da75329ff66cd9e6c0a2598a54cc8f0de7ba956f6f28b24616ca3a994",
+      "size": 16413
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/shadow_initialization.rs",
+      "sha256": "6ea0914a11a4a05d6dde8d63c413cfd42fb887596b3315d998848d502a91715a",
+      "size": 9041
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/shadow_scc.rs",
+      "sha256": "79e8ff5f459b6fc1389ecacb1da594814f9d9235297d62bc0501c2b3795b39c9",
+      "size": 20493
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/term.rs",
+      "sha256": "d253cd9a77ad91c523b413b25a503ef0c6bef47ee4b1f5b8492766531fe493a1",
+      "size": 82419
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/candidate_graph_call.rs",
+      "sha256": "7ff60ecb30e3815ba703463c87f053d66bf2d0c1833784dc64f993203fcdf5ef",
+      "size": 28339
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/complete_bound_constraints.rs",
+      "sha256": "d53bd6ff1c4d30300d18201b3b3155210b8b5bc3a15944dba52ba3c56885bbfb",
+      "size": 13496
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/deferred_call_constraints.rs",
+      "sha256": "ff3a879f375763f6310b0a7d1e7509ae9e66386d42fd39cc18beb5adddca6327",
+      "size": 22902
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/f5c_binder_substitution.rs",
+      "sha256": "46fc8d9c30b4e67aee468569f84fce863cd8bdc6a2c00fcb605fa41c8fd5257b",
+      "size": 28171
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/f5c_depth_limit.rs",
+      "sha256": "594466b93c22157ccb24530dbb9a24c7a48a93c5fb13212f4ef5c8595f0cab71",
+      "size": 2002
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/f5c_flat_walk_sink.rs",
+      "sha256": "c3fdc5956db2d83f1b699d6e45598cdebe41a76ab140949f0dacd9ba22c2fd78",
+      "size": 190557
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/f5c_generalization_transactions.rs",
+      "sha256": "17a5bff4f15fce9b6958e074475f5c1e807e9a082e521e69d6594d0ffdd26b91",
+      "size": 35164
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/f5c_materialization.rs",
+      "sha256": "76f53414fabb255fa2887963306e1889503b0f3e802ddf0510ef314b7e841147",
+      "size": 31454
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/f5c_replay.rs",
+      "sha256": "3e1ecf411142961fbf27a90eadb704683384a5505afd15008d0d3072c7b11cd1",
+      "size": 27200
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/f5c_resource_probe.rs",
+      "sha256": "90a13965f97ce6d917c21a7375907f1c6d14926da579a76af4f28ae5b9792860",
+      "size": 116909
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/f5c_scratch_reserve.rs",
+      "sha256": "c133c13940c4fe891fb858c7389a7b11f8c2c97f9c63b85d0eceba7ca222a568",
+      "size": 5008
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/f5c_tree_analysis.rs",
+      "sha256": "b24f9c6c56bbc439608152ac6550be41ae806d2cddf194ea622cdb260abb0f85",
+      "size": 21391
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/f5c_value_exact_upper_route.rs",
+      "sha256": "3ae2f8b298c286a475dff8b264dab744be5a46d87e35822c7cfbbb86840adcdc",
+      "size": 167264
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/f5c_work_meter.rs",
+      "sha256": "ed2e041a68cd1a6cf63ac02a3ac5d83c0f8eae0a487e7ee384ff03d450f03b52",
+      "size": 24579
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/intrusion_transport.rs",
+      "sha256": "ef703d10e9e5c45f009968e46d7c6bb7dbac09faabb12d3a1b45a36f94c3d0dd",
+      "size": 46773
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/kind_qualified_graph.rs",
+      "sha256": "30f07c3bcf24d0818ba1b178b50e96aa230fb555ca92fd18b76b6449653d6c12",
+      "size": 42546
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/legacy_identity_differential.rs",
+      "sha256": "cf39a78b41ed1b524dddb14b583f80d3c6c9f35c1f801bdb9b3459f1c50eb20d",
+      "size": 5515
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/research_function_realization.rs",
+      "sha256": "953c38ecf58326655711015ce5a7b340ed1ce23a7866c501738ae038644d9163",
+      "size": 65256
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/shadow_f5.rs",
+      "sha256": "1bcb1006b14c30fe4c79f5d4ee81ebce5a5fd8d47154b10868458ad30fbc534a",
+      "size": 23666
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/src/tests/shadow_scc_observer.rs",
+      "sha256": "ba84ff9edfd38aac6e7392159746523750cf7e9ce0c9e9be8a0ee89cef5f4c8d",
+      "size": 49474
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_annotated_function_formals.rs",
+      "sha256": "ced364cdbca6c19752e0aa2e36b1516f9337484a8c10323fd632fb81a04163d0",
+      "size": 15944
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_annotated_primitive_formals.rs",
+      "sha256": "137b51c32f14ada552954648171c091526d8b26e786f3c36cddf3c134830281d",
+      "size": 23566
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_catch_value_source.rs",
+      "sha256": "449e254d4ea61a14e2713c2434734cb317f4da34dff0515b65090e37d0d3f60f",
+      "size": 8252
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_computation_laziness.rs",
+      "sha256": "df5d567dca1b8d0569e1afacfda0992baf11b848205a0c7c38c449609270e5b2",
+      "size": 4147
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_computation_source_plan.rs",
+      "sha256": "d685b44e43a1bca796a0299b2b19117d562245788206ede229b879801f94f6b5",
+      "size": 4817
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_conditionals.rs",
+      "sha256": "b404eacf20e30a59affb2ac49afab2d489d50ce25510bfd93b90352e4379ed3c",
+      "size": 13950
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_effect_annotation.rs",
+      "sha256": "2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d",
+      "size": 26596
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_formal_effect_polarity.rs",
+      "sha256": "18df634f80d8bf7febe529f61d2af960f5c64dbf2226664976a7ba907629fa32",
+      "size": 4534
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_intrusion_observation.rs",
+      "sha256": "9aec9745908177e2e2ebef67634444fb0d5f703732735951121db9d74e1ffc23",
+      "size": 4477
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_lifecycle_retirement.rs",
+      "sha256": "7b40929ee90485137a529e67c37b10f82f8e4a1c35f8238b704e3f69c486a822",
+      "size": 3159
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_local_self_recursion.rs",
+      "sha256": "33912833281b73fc53fd0de3a34741fc778ac46f4eeb5d9064c6ca3a9193f020",
+      "size": 7964
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_operation_catch.rs",
+      "sha256": "7c3e163c5ad710f1eb7f44ab21018fe2788f7334390f1afe6f432d8212f3f34a",
+      "size": 11862
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_operation_source.rs",
+      "sha256": "ee95a08bcb7da80c17bdba60034377c4d230d3469f261838205cb8af3f39d8bc",
+      "size": 8093
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_receiver_boundary_release.rs",
+      "sha256": "b33d67be5bf51e33f379c6dcf177c48b0d5e3d71dffc6f0d6931b7f1f38a9f90",
+      "size": 16868
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_unit_source.rs",
+      "sha256": "dbdf314acf58e23405e5ac7a9ee349f2434d10a6a45705151bc63d1a6030357e",
+      "size": 5763
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/candidate_value_entry_effect.rs",
+      "sha256": "c846a4311c89847d96ad825038d0a7bdb5bbd3c48f3af0c83e5e6678086bbf17",
+      "size": 3769
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/ordinary_expression_source.rs",
+      "sha256": "c223c913fcf8a9101fbc527979bbd104db68c1191ab53bf2f3c47dcd2fa53918",
+      "size": 45520
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/ordinary_source_carrier.rs",
+      "sha256": "4f6bf884bd18b9bc842140c23881953aefee62c987d00f450e3fc6a090d92df3",
+      "size": 9598
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/research_accepted_call_vertical.rs",
+      "sha256": "dfc0a48087772f78e404e6f1daa6770bf5d6b4c23d88bd3f61fe967a78736162",
+      "size": 9242
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/shadow_apply_candidate.rs",
+      "sha256": "93506b15b5b0371570255a89642dca04d6fc7c54f0a78b4ab9ba4e77d5499b0c",
+      "size": 50324
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/shadow_candidate_call_formation_crosswalk.rs",
+      "sha256": "08ecb92d2aebc15a4ae2102b977d24acc34889cea59d1fb6ed16cd7c3c82af7d",
+      "size": 32199
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/shadow_candidate_multiroot_source_crosswalk.rs",
+      "sha256": "eb0c86fa1cc10015c43465de6c1cf661264da9b0808eb467ced9611ff09cfb2c",
+      "size": 10227
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/shadow_candidate_source_crosswalk.rs",
+      "sha256": "5269e52d498df893e6c922cfa7c50a04a3907e05518a0766684ac91c2d3a1d82",
+      "size": 5881
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/shadow_captured_source_retention.rs",
+      "sha256": "ffb344127cc051f50d632c6f229c23112f890ed45e1a4c65482ac6581f3fb199",
+      "size": 28901
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/shadow_f5_differential.rs",
+      "sha256": "c71d0bc4e3f14531222a193dbc9e237842a2a33919951830c01e442c3922bb90",
+      "size": 51135
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/shadow_initialization.rs",
+      "sha256": "5cd9fa3e7e63b24430a36c421f3aa0d7441c9926d953a16e4880bcbe48f579a0",
+      "size": 8202
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/shadow_legacy_local_application_provenance.rs",
+      "sha256": "5a419b8ad67783fe2811cd7ecde861c2d317666a255c6bf82a834d752dcd4556",
+      "size": 14531
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/shadow_parameter_row_identity.rs",
+      "sha256": "7210a616a7ef49791d97aa94c4314336de2f898de62597f680978c58107a0583",
+      "size": 5586
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/shadow_receiving_root_scheme_crosswalk.rs",
+      "sha256": "7d1e3e1bb67c2065a13e4cfbb20893dcc26b217ddab6f46aa94fbcf41cca20f6",
+      "size": 33293
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-solver/tests/simple_sub_local_source_retirement.rs",
+      "sha256": "2349dcd2098ecaaa43ac3a19c8172a97dcab68a20853ae22cd3da75efa8b3a5e",
+      "size": 10568
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/Cargo.toml",
+      "sha256": "567b705fabf7558250dbfa59e833d4ff04cb3041db8ed742311865d8cf3081d3",
+      "size": 242
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/ambient_claim.rs",
+      "sha256": "e46fdf1858094fde5535364ebc78f6f0a4997e15ac968a4edf06da9b434bce9f",
+      "size": 9436
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/cursor/recovery/emit.rs",
+      "sha256": "d9866a13f28e1acb1e80f927b64baa4d97f51a5e7934ab5c1d870ea757e497a5",
+      "size": 12600
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/cursor/recovery.rs",
+      "sha256": "1e216cf585e5548abc178fab0ebc90b6aef409b22c507dda3e08a52399a45f6e",
+      "size": 672
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/cursor.rs",
+      "sha256": "f08aae49fcf048ad11890def7ef9cadab56825a63b8d87db44821a792fe9b142",
+      "size": 3830
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/act_decl.rs",
+      "sha256": "a8582ecc71c37ec4f531ca0441901053e132ec9a2325681496b88e5f695dd9fd",
+      "size": 35741
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/binding.rs",
+      "sha256": "a9b0602fccc90d49f294706092c85b373b06869b678cdd4c25efd429d0374387",
+      "size": 16360
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/cast_decl.rs",
+      "sha256": "c4907b91f0cbe72606597fb6ef1918c757e9f78621a2c4c68bf0632fe629a0ed",
+      "size": 54832
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/declaration_companion.rs",
+      "sha256": "ea033e30aaa9e8f2ae5ecb5264debd7d51ec532ba9f7ec9c7fedd476bfc78681",
+      "size": 38410
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/declaration_variant.rs",
+      "sha256": "204a44d42cdf7706d58e7849050683610e270049c49a079e8af2d5af541e2220",
+      "size": 23455
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/derives.rs",
+      "sha256": "13de94bad098dc312e1a30bac45a82ed2de5f5bc7046353a65ea15dd4411ebf0",
+      "size": 11629
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/enum_decl.rs",
+      "sha256": "9c717571426927a3619330b372ec721d1f660377ecd45c6f0ab7f6cf9ed3ec31",
+      "size": 31070
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/error_decl.rs",
+      "sha256": "56eace59a91d156f59d27a348e98ea353e9cc96595a49fc0f7e58d36dcd7a028",
+      "size": 30021
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/fields.rs",
+      "sha256": "cd92297422bc49a3574e07f3c81e240bff456d135f0c4ba194296e36fcf5ca93",
+      "size": 36618
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/impl_decl.rs",
+      "sha256": "026edcb3e6d3c9f2214be8b9fa9fd510378b64152de55673c18cb93373f62066",
+      "size": 8858
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/impl_tail.rs",
+      "sha256": "9f3e60f47542919aa713efae44ad9396fff43ba464064b3e5c093b7a6cb83e61",
+      "size": 24213
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/mod.rs",
+      "sha256": "cf1067280be3974a5702b18f47ac02cf824c9d8cf971c1bdbc1b143676fc5c71",
+      "size": 2236
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/mod_decl.rs",
+      "sha256": "6adf9945e096ee027886a05857f6c187134a5331e4ab37493d95304255760741",
+      "size": 25706
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/operator_header.rs",
+      "sha256": "021e79529445054e5d54bfccf93d2287e94221a99e1554fbd7c715cb0706edbd",
+      "size": 13904
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/role_decl.rs",
+      "sha256": "0ec972a3acc036764a9d1407e292a4c676a24beb4cd0b5c3348c093cf3cf8634",
+      "size": 25185
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/struct_decl.rs",
+      "sha256": "7b36b18fc6ef3e149e756a37b0f74719a5ae40be195c6986efe2c44d57fa3de4",
+      "size": 22625
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/type_decl.rs",
+      "sha256": "e01d1f30c1dca051fb590a9fddac1686621fc789444f9cb053dcc269e746c134",
+      "size": 31082
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/declaration/use_decl.rs",
+      "sha256": "1f7df7e6101cc398056b610536c723271ed108aeecafe38eb09b8dc62cc45fc0",
+      "size": 55968
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/diagnostics_schema.rs",
+      "sha256": "22967edb1f0819e3cef46b4727601f25bfbb2a8c9a5aa19524833f02efdc10c8",
+      "size": 2324
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/case_like.rs",
+      "sha256": "6e306bc420e4084832008b64cf39c790648fc1510ba3f1de2876590f79ebe961",
+      "size": 44999
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/delimited.rs",
+      "sha256": "e65c4d500ce0878faf13f1a8d31da816e5db9b6af4690b505c8875d27b700f95",
+      "size": 15416
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/for_decl.rs",
+      "sha256": "fd50ab8b049addc3c366a0eda5519fd38bda31a2b518ba139d90ad24949714ec",
+      "size": 25058
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/if_expr.rs",
+      "sha256": "b04aa84e530947ee92ba98451c0b366b05450681d54d78b00dadaa4f8e308282",
+      "size": 20577
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/lambda.rs",
+      "sha256": "56357346a0f59330a202936f88337af1490b1839f339dc113b0b35f2d8c777b0",
+      "size": 2897
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/mod.rs",
+      "sha256": "05d874dd4c2874eb7b24038467c8a74b22fa6f7821a3980f3348683ad02743f1",
+      "size": 649
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/operator_chain.rs",
+      "sha256": "0929f43e65682766543be6aeb0db2dded40b85fdd470240188da66d89757700b",
+      "size": 29498
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/required_operand.rs",
+      "sha256": "9dc7455b0e97e3d57194126d33d330bd85aaba123d43015894728598d6337714",
+      "size": 8291
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/tails/assignment.rs",
+      "sha256": "8d5229ac9778d1bd5d84c739b2eeff582bb2807ab794c63aa49555ba28c62026",
+      "size": 4995
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/tails/colon.rs",
+      "sha256": "df37d747f396e8b27c53b6785e4a26f5210162b14e65b4648d449495bf8f5982",
+      "size": 10419
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/tails/delimited_tail.rs",
+      "sha256": "349fe2335e04a68da7d07803f2dd2eb185887d07bf8c9475ba09af089a76a2cf",
+      "size": 4323
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/tails/fixed_access.rs",
+      "sha256": "9e88d7ce18d8bd2d3c3bfa6fbdd6cac7e37032a21fedc35774c71597ff7a21bd",
+      "size": 11128
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/tails/inline_slot.rs",
+      "sha256": "de8da369638545727b83fffaadbd487209275f8af9a5c00beb48d1695fbcf5ba",
+      "size": 1784
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/tails/mod.rs",
+      "sha256": "a3ee107c996e028765570c7ba89b12857cd072eddc988b5b4c8eb66ffc753b8c",
+      "size": 580
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/tails/type_annotation.rs",
+      "sha256": "edf609d719ffb7698b565e41cd6b76a0eae489703f017e70efd90f290e4c9c4a",
+      "size": 1438
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/expression/tails/with_body.rs",
+      "sha256": "4fdf57e9a19b8897871d666ab5ec8adaa7c9219fc775d6c54cddc4555f61c058",
+      "size": 10539
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/full_parse.rs",
+      "sha256": "dd92603f8f5549b8b3f6e45ab6cb39b6598480b7f1cda7897e27b5113107db93",
+      "size": 36778
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/handoff.rs",
+      "sha256": "8ca2c50ae263986423eaf0f43e1a94de9fdf432366698118d6de75feb854d762",
+      "size": 1366
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/header.rs",
+      "sha256": "cd3791144704226f67a05ae3d39aff9b42f4380073b3e9f9817951a493bce5ad",
+      "size": 14424
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/lexical/current_item.rs",
+      "sha256": "41efcce2b737a0362484e854a8549bda5f7bf0d2b911499553f1e449c6782a84",
+      "size": 8513
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/lexical/expression_item.rs",
+      "sha256": "aa291aaab95b633d4b6f61aac237846281d69fa1a9c88b4029a21b5c0de8d350",
+      "size": 3598
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/lexical/item.rs",
+      "sha256": "b264b63e84fc73a3ef7dba355864be84d756fab287fa3734eaf37992e3655db7",
+      "size": 40842
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/lexical/lexer.rs",
+      "sha256": "620f91d99cd4b0bd320315398466cbbec2ed625b8a8ebc6ba07f84d0c97524d1",
+      "size": 37926
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/lexical/mod.rs",
+      "sha256": "0f3109a348c48747bd75d46de8afcbf40863c94c10a5bef8c768b6a0a8661c07",
+      "size": 464
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/lexical/observation.rs",
+      "sha256": "730e65947f889ef07014aa003eb846012d5cec6ae1434f77edf1cbd0e7096641",
+      "size": 3575
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/lexical/opaque_region.rs",
+      "sha256": "ef905c9d5301e3cbea0634efc9c2ab9844b7de0b2862cfd47c0b22413ec00e4a",
+      "size": 11040
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/lexical/operator_scan.rs",
+      "sha256": "610d3996a5bf173633de24e6a4b205340125f6e1c24bbafc292dfa15cbd076ba",
+      "size": 10773
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/lexical/position.rs",
+      "sha256": "0ca1b4acb27904c28e62b950ae04ee114d992cdffa27accf6098793e73cbb766",
+      "size": 926
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/lexical/stops.rs",
+      "sha256": "edcf37bbe061c0966ba786d9090361c6c3befdbe3f99aa79f29271bd5230bf5b",
+      "size": 3115
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/lexical/trivia.rs",
+      "sha256": "887f1499fe63d870a70777626f0357c502a356d106c623d9a79e3596a17aba19",
+      "size": 15859
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/lexical/yumark.rs",
+      "sha256": "21738dda1f64d27273983246f0f5d22b0a6da0025209132238a91154c38fcf75",
+      "size": 9844
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/lib.rs",
+      "sha256": "770a4af4a5832b3210050b4fc5513545569b0ca4718597f67434a714f76f301d",
+      "size": 8456
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/literal/mod.rs",
+      "sha256": "7cca1bf63c176809621b5b8e6c011faaf038bf9d2aad05f77e2f7234fb4b01c9",
+      "size": 36070
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/literal/rule_literal.rs",
+      "sha256": "d21f7e27eb89dfa3c6717b895726e827974728be962faefcb08c9ce9092753ee",
+      "size": 12545
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/operator_compilation.rs",
+      "sha256": "5a13e0b62979ec02c265f9e7f427b772035b395eb661e37f16de6a4f5b04de87",
+      "size": 18204
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/operator_table.rs",
+      "sha256": "18a5e54ba38df0c9f923f136cb16652fb910dafbecc6fdc6c146d034fcb43014",
+      "size": 26342
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/pattern/delimited.rs",
+      "sha256": "9da9ec948775b438a85ca3f27c2805254a4f4171caddb54cabe44e563d017029",
+      "size": 30376
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/pattern/mod.rs",
+      "sha256": "f86fb57da7412376defd7ad15a3cd5671c0708bed55016223a7a038d8c7d303f",
+      "size": 67345
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/root_statement.rs",
+      "sha256": "c6d1dc49625d1687ff0dae8f6808f4c97c3f78398aae3bc061c44b6fc9661626",
+      "size": 63163
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/rule/expression_list.rs",
+      "sha256": "e30e915dca56c9609709280e9f053c151e16e1f9619340a56abd470241b545f5",
+      "size": 6576
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/rule/mod.rs",
+      "sha256": "ed5fd98986375025b0e37c9378ad9fbd2a0e35c1e4d5761a55148b578f888707",
+      "size": 29417
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/sequence.rs",
+      "sha256": "1a68331e5d16d46471545e673226541dc848123d1c3e286260359cecf41adcd2",
+      "size": 525
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/statement.rs",
+      "sha256": "2370423ffef9869032da275a12e6d4a96deb9b1bf43ea098320d78ca6fc45bfd",
+      "size": 44346
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/structural_diagnostic.rs",
+      "sha256": "6cabb3482d24c8a68a65864d6171c09bebcec4d25a305e90a60909d3dce37036",
+      "size": 18258
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/syntax_diagnostic.rs",
+      "sha256": "b3c5e959e646ad3d557c4f60c367d80731bf6a8e616a08326827f687e9077714",
+      "size": 2785
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/syntax_environment.rs",
+      "sha256": "fdafdb177c8e2db7a44d66a8d9bc0c1905cc0a22da6457e470a165ca2501c5d7",
+      "size": 20286
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/syntax_kind.rs",
+      "sha256": "fc0cde7e3347b65d7641a589ee02cdc1da6b7fba3fed07cc7d378df20a7bb6a3",
+      "size": 40026
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/ambient_claim.rs",
+      "sha256": "9334e70cbeb923d4ac9fda697b453d5e4863217dd8f3aeed342c8a9eb2d2ae5c",
+      "size": 8647
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/braced_statement_recovery.rs",
+      "sha256": "4bb110be9f307dd98fba277e35069b9d9ead051406fccce384dd47c081b7fca8",
+      "size": 53223
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/case_like.rs",
+      "sha256": "9aace2c01cda0efceaa1ad87be48131052cbf88fa4f18bd5b08e601d11997621",
+      "size": 82786
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/colon_sequence.rs",
+      "sha256": "126c1617a94d7d28c6efb5151d3e4d19d741de24cada0fac1c87aff8264bd0e6",
+      "size": 11810
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/colon_with_recovery.rs",
+      "sha256": "df48f9a2c244ac0c197153203fef60e109309d777400c75094dc362ee1065051",
+      "size": 21942
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/act_decl.rs",
+      "sha256": "657bd6c67fb8049096a59a84497a5acc7f1132e7fae18e748dac3eae5e4c7dd5",
+      "size": 64140
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/binding.rs",
+      "sha256": "b65b2aa89f3c568a3aa7f1a6a47e8fbd073e90ecf0348090f05eb9731e9d68d6",
+      "size": 34247
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/cast_decl.rs",
+      "sha256": "e43c9157f47dfddc844babda18a1b6837d611afcb374220981170b83fbc78983",
+      "size": 118675
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/declaration_companion.rs",
+      "sha256": "c7e20a425a5a6c25efd5a918a320dbfd07ca8261c0bd232dd109e8da404a50a6",
+      "size": 73701
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/declaration_variant.rs",
+      "sha256": "294f1907ce6a04a0c1216a8269effc0748ca95274f2ea3137ebb5e006fcdb58f",
+      "size": 128076
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/derives.rs",
+      "sha256": "2cde2e7ba263957c999abfcf617b716e7ee0d6917fb0d5ecf278cc843238fa1f",
+      "size": 53780
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/enum_decl.rs",
+      "sha256": "ed201d027d0374d8019058f7621157e3f50dea73a588b700a6244ea2117b5b8c",
+      "size": 33719
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/error_decl.rs",
+      "sha256": "8d0bca5e23be03f694998e976d51df5eff4fcc00c3272bdbea10032350f13de5",
+      "size": 30487
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/impl_decl.rs",
+      "sha256": "d697cf450e2a8b18f162676b7a3533e0ad72dbc84f9896b9f4cc8c7abfae31ce",
+      "size": 74229
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/mod.rs",
+      "sha256": "482ab95d041f200ccb9b9602c9edb366030502cdd6db1583abc07cfd9db2ae91",
+      "size": 289
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/mod_decl.rs",
+      "sha256": "c011859143c4346e8158f12c8c4786575109d854a4950e0e9370fb9633452ca5",
+      "size": 43274
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/operator_header.rs",
+      "sha256": "3082661bf2cf8c900af0a6b69d0f57d40a984750f6ad8f4a0173453e348e0bbb",
+      "size": 16575
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/role_decl.rs",
+      "sha256": "4b8f60f48668e900379e137da6fc8b5db9eac350efe9a202c87f20632e1e722b",
+      "size": 57794
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/struct_decl.rs",
+      "sha256": "0103a8b0cb05f9fc33b842b22c78a446a047dfe4758aca2e6877fbdba43e7562",
+      "size": 119954
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/type_decl.rs",
+      "sha256": "13982ce77050bec67e8ccacadbad4acf4f9459e5e703b084b62314738d47462f",
+      "size": 117323
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/declaration/use_decl.rs",
+      "sha256": "4bf0671e2c5c9c6669a08ec43a11f32106753862be3cc0fc74eb2d116e2e8cf2",
+      "size": 266829
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/delimited_recovery.rs",
+      "sha256": "8e80d66b36ae390a803edf27dbe9485bb4797f8a48dfb639dd31c64fcad082ce",
+      "size": 38887
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/expression_recovery.rs",
+      "sha256": "e744ebbbd07c7ccfb53c452e0db13d0bf5f984567cc4df7dc768dc2a23567a1a",
+      "size": 26367
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/expression_structural_tails.rs",
+      "sha256": "4f20bedcd9463802dd0a06755f09660e9c66e148f5d603e8d9cbd03cff74cb1d",
+      "size": 30879
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/fixed_tail_recovery.rs",
+      "sha256": "08dec6fcc4b29fd4f47d0d9cabcd9fe2532b3df2706ec156a63531ca9126e8e0",
+      "size": 11854
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/for_statement.rs",
+      "sha256": "07d086c973e8babe5f9e714376ee525d2f992c4c847ff564a4e9d9e562cc5524",
+      "size": 29005
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/header.rs",
+      "sha256": "5a849b179a144acccdd35b587ecb55408a95ea432aece8a6b3857bc7b3dd54e4",
+      "size": 6830
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/if_expr.rs",
+      "sha256": "5cd5670bcc36abad6aeffbb6f3f4e26bbf0a333671915ded75903761fd1045bd",
+      "size": 43559
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/indented_recovery.rs",
+      "sha256": "7ac53e736661a98d338d746201a757ed9e72435eb92c187efca4b7fedd23e45f",
+      "size": 72168
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/lexical.rs",
+      "sha256": "2e9e627f10e189176f2b4f1a7413f48d923eb578c190143b9628e91c7821e973",
+      "size": 53323
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/literal/rule_literal.rs",
+      "sha256": "2b765c770dd4b4bfcc14fe753e995f6e0f0dc30beefbf71b080fead05160529a",
+      "size": 37144
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/literal.rs",
+      "sha256": "6e2226386a4f504dbf35f947d5fa1edd56a09b7b59fb7433da5854551ef14b12",
+      "size": 55063
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/mod.rs",
+      "sha256": "f4da3a3cd64bb5d7d13b317ffbb6a54150ac7a1a917ac4e503d1c7cf9e47dff6",
+      "size": 825
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/normalized.rs",
+      "sha256": "8c8c2ed261b8780487400584b6717f009217ab40c44f078e3baf73a2e9dab256",
+      "size": 133705
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/operators.rs",
+      "sha256": "5eb7f895c5c2f39582db32fdde2dbcb20661204a9d8bbb78e3a68e27484e8d29",
+      "size": 18447
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/output.rs",
+      "sha256": "db41254d3bf4ac1acddfd9607cd4ef38f57ed345a3702b1d0471257d7f8d3ae3",
+      "size": 11631
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/owners.rs",
+      "sha256": "50d5e417a4f73616b1e415d468a7527bfd94468a87c9e6d8a26d0df581cc1dfc",
+      "size": 54490
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/pattern/recovery/default_expression.rs",
+      "sha256": "c8e425ac59a5da46ccb107f330f53048bf1f7293a1dc15eb31abdb01592d74d4",
+      "size": 16229
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/pattern/recovery/delimited.rs",
+      "sha256": "4879bbf3c22e6e1eaa663e74fb7ea9bb44780e5b7957a0ac3784f480cb81e778",
+      "size": 18360
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/pattern/recovery/sequence.rs",
+      "sha256": "799477372e1a919a41f82096f78c401b1f4de3c17d044017cc0f81d03ec1a668",
+      "size": 44011
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/pattern/recovery.rs",
+      "sha256": "40de9c43ac3d5aa9883bf302f4ac95b0dc61b1f9d5751fd2f1bde5f12a5ed387",
+      "size": 23366
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/pattern.rs",
+      "sha256": "08a35704724865e2cbc4854082d21aaf53ab6b3cd2a4008b98a37366c5a3e687",
+      "size": 122617
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/public_boundary.rs",
+      "sha256": "9ae43a53ed1ac0662e9744ec013a97362f5b4fa6ee3db17f0c06dc20f2cd48dd",
+      "size": 17359
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/recovery_output.rs",
+      "sha256": "4cd42655ee641b0de40a74d552d006198624eea205d63b82fb44f78f12007c7d",
+      "size": 7653
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/root.rs",
+      "sha256": "fd7c62ab8c3a1536bbe8ed4e210c46c8b3c6fa818fa4f7d003e0cc18e036edde",
+      "size": 32826
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/rule.rs",
+      "sha256": "1438178b2cde2e2348fa57d1d0621132e8010f98689cc1970fad50a4f3028dbc",
+      "size": 40626
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/rule_expression.rs",
+      "sha256": "95b097bf4797c60f545baa8631385772e559fb160c24ba53e84c76a787c20fb8",
+      "size": 9920
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/rule_expression_list_recovery.rs",
+      "sha256": "3c3f03de751af147232096c74bd2034495300df4a0d93633321e9000dd98a367",
+      "size": 36792
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/rule_literal_recovery.rs",
+      "sha256": "f07078aee1f7281e977441176630d50630ae979bd09e15918801e8745ddc5aa7",
+      "size": 89499
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/statement.rs",
+      "sha256": "caf4833b4df424327ab0f54126944a64f3e2beb3fe275f13c209d07782c44382",
+      "size": 10443
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/string_literal_recovery.rs",
+      "sha256": "5ddb57d48514d52b8531b653d411deedc5a7c8726bc4121750cd2e8c21b099db",
+      "size": 29687
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/structural_diagnostic.rs",
+      "sha256": "dc88b396adc17716a0add4e445a0ffd4c9cd94e91340787df84a99111a2edb73",
+      "size": 12965
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/support.rs",
+      "sha256": "588b80c82846ab517c6edf56ab304a9f4e5d0169466df97a2f1b8cccba0cc5f6",
+      "size": 23138
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/tails.rs",
+      "sha256": "c01c048e52aaf4973c3f808d4eb5978fff0f743fddc35546796178627f45d516",
+      "size": 65497
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/arrow_rhs_cst.rs",
+      "sha256": "65aa9d6b49bff9bff07df47205f3848b21be3a5243979fc6248bdb0273970a69",
+      "size": 17877
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/bracket_arrow_cst.rs",
+      "sha256": "aa85c14898b984cc0932a573d09b25158068da619963557957f1a4209a43b1ac",
+      "size": 14837
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/bracket_arrow_recovery.rs",
+      "sha256": "ab8909f95fcf07f6dd5ec44be4e5bd0e266c949702a81f7f7db965812b161075",
+      "size": 6850
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/bracket_recovery.rs",
+      "sha256": "a9fbf6a13ce5eeb45343c5d0fbc19a3c73d918018ffe48b2cc8e98a05ad92e81",
+      "size": 28450
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/equals_recovery.rs",
+      "sha256": "2fb9b70ec5bc6735d4930c069f87d2c9955eaa8d0fa2078dac94e11186bab97b",
+      "size": 12160
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/forall_recovery.rs",
+      "sha256": "faa7f8fddae6273f019e06e5e762a5a2c833bbf881b7b035180cb65dda906a5e",
+      "size": 37857
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/leading_row_cst.rs",
+      "sha256": "ebd81bb49e1b112df3a02d13b4cb360c1cf80306b212648acc8b72c4fda96b6e",
+      "size": 21893
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/leading_row_recovery.rs",
+      "sha256": "43c28c90c3a29bf3c4b75983ba47aca8851cee0c1b6d7fccd383d501a3f2f159",
+      "size": 9258
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/pe_recovery.rs",
+      "sha256": "0ebdd8679eb208213620b3543cfb32f55ba7b663ad35846d299c754b17b40de5",
+      "size": 16232
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/pv_recovery.rs",
+      "sha256": "474c39ec1b74a51be96f99f4ca7a301b8191a48429469e258119ad483a003ad2",
+      "size": 23009
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/record_field_recovery.rs",
+      "sha256": "3b9d038f679a992b76de46fa687e4f537db0222bfbaffdf5874c874e0482fa79",
+      "size": 21925
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/record_sequence_recovery.rs",
+      "sha256": "645a38d8b604445f7c1498aee26db1e34432e81625bb7af7a5b7a3d2cf4ebd0b",
+      "size": 26369
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/required_recovery.rs",
+      "sha256": "9a68f830d408831a32abcc6100e1afbf59409e24013d07db6432ace7ab8b354d",
+      "size": 41680
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/type_call_fallback.rs",
+      "sha256": "baa0d06124edd774e4dee4a6f5ef5f97055b8fe1148576500a41a050fb431aba",
+      "size": 27299
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr/type_path_tail_cst.rs",
+      "sha256": "6f92a063b57687544ac525ed4c1d0dbfeed1bc060ff305aff1627bcc63d0dcc0",
+      "size": 18257
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/type_expr.rs",
+      "sha256": "1868cdca42a61e6d06847f8593a093c7be9040e6470d5e0a27758a0cedc72547",
+      "size": 167572
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/unary_lambda.rs",
+      "sha256": "b2d9073a2deb19af0db7368169df08ee73a796cc6aedecab32c2890c58c581fe",
+      "size": 21970
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/virtual_statement_block.rs",
+      "sha256": "ef47c4dfb0704ad2a22f950303e8aba87b83ecc8d91cfe66c00a3c01187c0db2",
+      "size": 28367
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/yumark.rs",
+      "sha256": "f989dbbe2b269bafd556720c22f8d1eed56fd379f57d0d5cdb364a9cd1b8ec56",
+      "size": 18099
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/yumark_cell.rs",
+      "sha256": "c319051ce5e4ded5989abc022cf437700f9873ae0240f5c06cd5a19a03a3788a",
+      "size": 7725
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/tests/yumark_cell_witness.rs",
+      "sha256": "d1b4167ed5823959b1203d32c69a3cf471f10074d230a1cbb9fbfdc1b4021463",
+      "size": 3987
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/type_expr/delimited.rs",
+      "sha256": "db6335a8f6c95bafb72d096fe241201202938c5869fb89a5e3c43758021651b6",
+      "size": 44237
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/type_expr/forall.rs",
+      "sha256": "987f9f923bff80b8476ffa64b1e8b53d4784e84c07dbc1472c7bf305469fe71f",
+      "size": 14076
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/type_expr/mod.rs",
+      "sha256": "2e08a49960cd4010ba39641ae509afb7cf59711c1464d3349f5f6db590ebf01f",
+      "size": 78785
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/type_expr/record.rs",
+      "sha256": "98d93b9795f4a33fe4a43e0368921e4ab698278fd8895eb1214b792a9a1fda57",
+      "size": 33201
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/type_expr/variants.rs",
+      "sha256": "8ccf273de0d475b999207f216822f35354cdee51a2b00aba3a8be5bafd2bc16e",
+      "size": 30119
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/src/virtual_statement_block.rs",
+      "sha256": "dd1534640c8bd5e9497272ff1ff8e0c63be17176a0dbbcd67799eec673057b82",
+      "size": 11395
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-syntax/tests/operation_pattern_tails.rs",
+      "sha256": "cb88acd51329f2bcc20ea1035d44a2e292e363ef3570c7037df42465cc572bda",
+      "size": 8169
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-types/Cargo.toml",
+      "sha256": "1fae5cab6325fc575ff586f665460592c3c66d9fb03310d060d5d018cb251a9c",
+      "size": 163
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/crates/yu-types/src/lib.rs",
+      "sha256": "fb3d53cdcce6a2d7149508ba0bdc9dad643cfc795fefdb9914afcb461e4aa6d8",
+      "size": 232453
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/bench-runner/Cargo.toml",
+      "sha256": "c266b7bb06e133d3f287386ff99fb52c510684023d0e080e09a8a12211bf16dc",
+      "size": 338
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/bench-runner/src/cli.rs",
+      "sha256": "ad6f9cd7b9bf97f4dca62e3431ad274f8873f3add55f4e075b0292dd50d48651",
+      "size": 1433
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/bench-runner/src/corpus.rs",
+      "sha256": "513604c607496a6a8b69a879575277299e96102b602d729689b7025c0c5dea29",
+      "size": 10890
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/bench-runner/src/digest.rs",
+      "sha256": "513c344a75b371bcb268abe52b249d2272f6637c80fea53cef42eae3bcfd928e",
+      "size": 4903
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/bench-runner/src/identity.rs",
+      "sha256": "905ea5936a558ba98c3613c48f656cc3830ae486267e44dda74cc924963f013d",
+      "size": 6272
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/bench-runner/src/main.rs",
+      "sha256": "8faa0cd644251bb65f2ddcd4b79530972a82192b00611fd79a34af7c4834d0df",
+      "size": 1204
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/bench-runner/src/measurement.rs",
+      "sha256": "86b4afbcbaae0bd43fcec8eeb6a95780800b890589d46e5c422fb359abb6dd3b",
+      "size": 6842
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/bench-runner/src/report.rs",
+      "sha256": "deb1dbf7df2949e33e8fbfaf6e8636fe64341818e11401139223c8e52b2aeafd",
+      "size": 5777
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/bench-runner/src/runner.rs",
+      "sha256": "5a46f22094cc0cc3856b78f4a42f4e6b01a83b396379bcb62ea638d462da8fd9",
+      "size": 10266
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/bench-runner/src/statistics.rs",
+      "sha256": "0ae9633261749e364d4cb7659680181beb37be7c4cc912c0395cc939b1dbbc91",
+      "size": 3996
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/Cargo.toml",
+      "sha256": "87e77de221b023c1c9f07e90f1ce6a692a56e8bb398eca4725f4910254be0a56",
+      "size": 300
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/README.md",
+      "sha256": "681af715b51d236cabd2aaf481eea43abd36f114a841d49d3bcd520ef2c85f8c",
+      "size": 14283
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/catch-operation.yu",
+      "sha256": "af360172c74483e4ce009c8ad853d0398bfff3e9b5f0f3f481641f1731c86ed7",
+      "size": 201
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/catch-value.yu",
+      "sha256": "22ce73770e713566c92f5f25789874a50d94edfcabf30ed03395e0362344f2d1",
+      "size": 61
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/compose-scoped-identity.yu",
+      "sha256": "4b650028cb4e75fc629b016d106d6595af216c37554152285e16033f42103ce0",
+      "size": 128
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/compose-scoped-independent.yu",
+      "sha256": "e7cb5b27a81860516486ae7b0c25f64e9e7a44dae921715c30e5d0af5e813da0",
+      "size": 157
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/compose-scoped-two-uses.yu",
+      "sha256": "7d35837117aae45e7880c1dc23333eae3ce879aa42dacd082a3471b928baa656",
+      "size": 154
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/conditional-conflict.yu",
+      "sha256": "58ad3b0c08c39440b60c0d02d5c527fff78b6bf53a803e094fcbae55f76555dc",
+      "size": 82
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/conditional-union.yu",
+      "sha256": "50a99ca1068882a4e341000e8b40194536efc1671381dc8c329c7550f95c887c",
+      "size": 34
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/effects.yu",
+      "sha256": "f59e39558bb486549858867119f545e48a94eb80d77e226f14f48882719b3f48",
+      "size": 113
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/entry-computation-argument.yu",
+      "sha256": "a81a52d582067e9d76ca41bfb946cd539cd98cc369b9b2c2a01fb0b3e0e239fd",
+      "size": 95
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/entry-unmatched-request.yu",
+      "sha256": "5f0be9e24fc1aa885edd707da38aaa44057a0466960fbb76784cb28e622c1954",
+      "size": 86
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/hygiene-argument.yu",
+      "sha256": "39435890cd778003bb70508793bc88d95448d981872f9b8629caeb1ed9948173",
+      "size": 152
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/hygiene-callback-block.yu",
+      "sha256": "a33749fa92d51fdbd1bdfac77a215dc8f8934ab7a7b0cdb5c32346373be87fef",
+      "size": 179
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/hygiene-callback.yu",
+      "sha256": "f8da42591836828cd2689415d6a02f2680f7debf2186b08ca71a7451976153b1",
+      "size": 136
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/hygiene-direct.yu",
+      "sha256": "3b8e08b972ebc5df289cc33b7380601077234b65138cebcb1b46c85141d9542f",
+      "size": 113
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/hygiene-outside-arm.yu",
+      "sha256": "e0bb0ca5a2f3fd35e8b643c50866730d2760c67bad2faba1ee3262e0b5f25046",
+      "size": 126
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/identity.yu",
+      "sha256": "57dffa91941d8e8cd740586bb9ef209bcb6629204d8399142e6ddf0b39f09862",
+      "size": 18
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/nested-recursion.yu",
+      "sha256": "51aac3016d9000a1cc0e34e2050ca73f4aa44112f461ec6237195b0d65d89906",
+      "size": 47
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+      "sha256": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7",
+      "size": 312
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/r170_provider_incidence.rs",
+      "sha256": "d6392dde7fc2aedd4e5c860e75f89df0217bb621598558bf99817d9cc1d5d3a4",
+      "size": 3428
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/r171-formal-name-forwarding.yu",
+      "sha256": "cb2fff33a1ab983a932064cc1699d9f4f4a8d5e00d52986525884d42bc58234f",
+      "size": 144
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/r171_provider_incidence.rs",
+      "sha256": "b8d9afd91154c7b0df1d1192ad1567a0e25fac7ef4ff4b698d989acd1c205e75",
+      "size": 3260
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/r172_source_capture.rs",
+      "sha256": "47dfac50d9417eae8d802b06780acf3f0338a84b638beb1e3491b5f6484d0fcf",
+      "size": 6607
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/r173_source_drain_attribution.rs",
+      "sha256": "2de3081110043fab128bb2372a76bc68767d933f162b55adbed05d910cb9ba6e",
+      "size": 7006
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/r174_forwarding_bridge.rs",
+      "sha256": "63947b84f0f11ecd3107f3772aa1506d584cd06737ac5b91abe8c4e93ed9592b",
+      "size": 7006
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/source_generated_interaction_20261025.rs",
+      "sha256": "aea1caf0b88bbce6479050ebff4989cbc3afb784e50dad228a4af70bfa3df005",
+      "size": 11012
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/examples/type-error.yu",
+      "sha256": "c9b2937691a865042d7275d3a0b0b9a326ac460d18d15bb7b3ddbaefab4d440f",
+      "size": 69
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/oracle/callback-hygiene-identity.yu",
+      "sha256": "1152f84a824bf13fca4c2aa1e10a3d788c8049ad162fcf2be7eb7ebb9da9190f",
+      "size": 298
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/oracle/callback-hygiene.yu",
+      "sha256": "9f6b445a2dc87e86448cf6e8cdba45a7af3ef9e6a76eec430df41f90e49e8385",
+      "size": 280
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/pinned_stdlib.bin",
+      "sha256": "9eb726f179fa407122f1c31f4cd4cf98484bce3052d2486d7d7be84d4ec22b66",
+      "size": 89288
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/bin/inline_authentic_extraction.rs",
+      "sha256": "1ab6f3ed86d6bfc6d8f73baa40e5e46d5e3d451922af06fc1092a93ca29a39c0",
+      "size": 17704
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/bin/name_entry_trace.rs",
+      "sha256": "63e82792b8a4923f0ef7609abb5932a13acaf3c6e19105e0539170ce0ff3a85c",
+      "size": 4128
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/lib.rs",
+      "sha256": "45bf78af436efa50e02ca97ba3b639c11f7dd88272d87c47f2822643786653d4",
+      "size": 224659
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/main.rs",
+      "sha256": "39b0dc40148fa87468b44e7406ea0b9a08269043fe2379c553c486930b63cece",
+      "size": 6274
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/output.rs",
+      "sha256": "04e99c5bdb562a8edb8a7e17bdcc03f7b46eaca9d8e13b20216b4dcf3032a88a",
+      "size": 3315
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/pinned_stdlib.rs",
+      "sha256": "3d1a32946e764effd354271653e68edd1b2edaf980f51ea5178ad21adb633d4e",
+      "size": 20324
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/render.rs",
+      "sha256": "cfdfdbc031ccc672c7eaa5b73355ec5f6bf5b1a97081e2ff9c9bb0060ab16568",
+      "size": 17618
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/runtime/continuation.rs",
+      "sha256": "194e925c2e19816e05e8d0cdf773123f205dce47d36d83a70385daa07a77e2b3",
+      "size": 4637
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/runtime/decimal.rs",
+      "sha256": "83ba443036c7da05f9d72d4bbba98b05c4cab2135062743ffe8e3f05250d1cae",
+      "size": 5476
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/runtime/dispatch.rs",
+      "sha256": "f45057373f2ed3a7b6ce915611db093015fb93cdb05984a5e3b23cfd44720873",
+      "size": 14030
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/runtime/literal.rs",
+      "sha256": "2fff177a7ba0cabb4930251e1facc8f9be701ff3ec7baa695ce4c182fa1da35f",
+      "size": 2726
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/runtime/machine.rs",
+      "sha256": "4fe3de685650761767be313285321e548964b41900c3aae7f5f434d48034395d",
+      "size": 180354
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/runtime/mod.rs",
+      "sha256": "b7184e3869b4790cb0e2e72704e4a1b2f12df7772b441144b8ef63ab33e2fe4f",
+      "size": 590
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/runtime/primitive.rs",
+      "sha256": "eb0a53bfec8ce2854adbe6342c984d5140fd1585d91da5a8a9739d2ac96e8a85",
+      "size": 14506
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/runtime/program.rs",
+      "sha256": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907",
+      "size": 100635
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/runtime/receiving.rs",
+      "sha256": "e6b22598a0d11a21fba260cdbc5b4ace3690cf9b21e51beb61d8cc967511fffd",
+      "size": 40177
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/src/scheme.rs",
+      "sha256": "82019fd22ad565c753461d8962934fcfe8e6663f8a7971b4fcbc5f5067026be0",
+      "size": 36714
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli.rs",
+      "sha256": "23905c103c94dbb646ade4541144feb22b0e0fd189683d87fd200f53d2bb1306",
+      "size": 60594
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_approved_surface.rs",
+      "sha256": "43fc3670b80e931a0865f3790a9a39b5755e09a6c591e89b2cbf9b18213ba43a",
+      "size": 1380
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_case_resumption.rs",
+      "sha256": "53657cd7a3bf57549fcad9f411a5ccd80e9315fcedbd0e86052f6cefb3fd944f",
+      "size": 1820
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_case_source_progress.rs",
+      "sha256": "8e539e98c56b1b74fce0805deb5b63d710843cc1e4f3cd18613f1d34ea7c892c",
+      "size": 3194
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_demo_identity.rs",
+      "sha256": "09fecc7c8b8a152ec49d939517d3dcd4951fad48a2909c1faee15bf95cc7a773",
+      "size": 1188
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_entry_demand.rs",
+      "sha256": "283e3518f8d28efedd171cacfe97fc7246225339b1c160d06b3c58944f86c8bc",
+      "size": 1824
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_entry_publication.rs",
+      "sha256": "ac2ba1cb201f35c79dbc67d140012b2c5db4b43c2395efe804be7e9a11f9535e",
+      "size": 1115
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_higher_order_effect_mismatch.rs",
+      "sha256": "ea1198418a2c8580ebe9006150ca6ce89ff8ac48e41e1aa75ff6e063c2ab9ead",
+      "size": 3564
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_local_resume.rs",
+      "sha256": "c315daccfd28279192b0052f55c5558fa11133509291855129f744037633e747",
+      "size": 1065
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_native_payload_entry.rs",
+      "sha256": "a373e44d5a629affd9ef070dcec74266bfc05c82e3c7944c4596ec1d8939c1bd",
+      "size": 6929
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_nested_handler_selection.rs",
+      "sha256": "cc56cb82c363c13b34d09bb28b6b12372451334e2d24e2412106ea1611fc91b6",
+      "size": 1078
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_ordinary_islands.rs",
+      "sha256": "f07aeaddae49dfc8557cb8432a3f798a37d853f681dc7472f2c252ee4fc6818a",
+      "size": 3328
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_outward_root_suffix.rs",
+      "sha256": "c56e1a2a58900728e87069f3e467ceabaa4e91886dc6befd8e79268d8b630f06",
+      "size": 6708
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_permission_boundary.rs",
+      "sha256": "2f6cda6d85054a313d3f810dcbe5595494e57135b71b82e47d9235199d7fa48a",
+      "size": 1087
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_polymorphic_escaping_closure.rs",
+      "sha256": "901b4b598c1a20f2db7276b06f403966262d4d461809a55aaa55535f68ceb79d",
+      "size": 1317
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_raw_resume.rs",
+      "sha256": "90964834684dd91dbf4adee90c83548deee91f37239d994bef5abc076e196436",
+      "size": 1320
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_receiver_permission.rs",
+      "sha256": "543271f4bea2f488c8997d82178fdf9cfdbcc6e85441bee58f8e5aa25cf0bb67",
+      "size": 3631
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_repeated_choice.rs",
+      "sha256": "1e5e91ebe5171379650067503759ee4cf5ab3ef6a34ca126a5b06a8edb6c0c09",
+      "size": 903
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_response_entry.rs",
+      "sha256": "32e663e7ca11538e14456ba5d8b54d65267fc04b59ab141074de6a849278d6bf",
+      "size": 1155
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_resumed_receiver_permission.rs",
+      "sha256": "9a5fd48d1f89ae064960554d8ece36d6b9b437ae6cc91504a1e7c035aec9257a",
+      "size": 1565
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_returned_closure.rs",
+      "sha256": "fc58331f2a444dd5cb85b3e3bdd8f7cd4bd6bbb11b1ff95bf2794f6e66c5278c",
+      "size": 961
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_value_arm_outside.rs",
+      "sha256": "86d63b45b4ee9df84efce69210b574f09882f07a5c8e5b1c7dd18e10e1953791",
+      "size": 6040
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/cli_yulang2_diagnostic_examples.rs",
+      "sha256": "d02940523b529149fa7c507cf50ecbee2bf4a18147452a37774b52b8d526439f",
+      "size": 1461
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/inline_lambda.rs",
+      "sha256": "71c82e98b0a4c4dd0ed60e3b7f86c892d3e8f4ceadaf131251097a7a8aa6fefc",
+      "size": 2026
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/runtime.rs",
+      "sha256": "f8bebfd4eb4571e2814b83ea8473c035b429fe1eed4e07d26942a096143306ec",
+      "size": 6602
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/runtime_control.rs",
+      "sha256": "2619e4c8bb006e2d98cf81887091ae372cb1ae3731de76e7b707a97db577009c",
+      "size": 7462
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/runtime_handler_priority.rs",
+      "sha256": "cdcb06ceebcca48cd3ff6fbc1a429243e9013a148c5fc895d9926e5dc2ce07db",
+      "size": 4221
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/runtime_module_expressions.rs",
+      "sha256": "375e6823adfcb29852f4154ff3b918ec7dada6601eac51f3c4cf9fea2f3b05a5",
+      "size": 17941
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/runtime_primitive.rs",
+      "sha256": "2b6a99690e43442c9553786c420c7108bcc8d8d9974391b4f677b73572bac3db",
+      "size": 5388
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/runtime_receiving.rs",
+      "sha256": "6ff65fc977c88837ec279b84088a6c2d89ebfc7f78915e7ac985904fcaa26bf2",
+      "size": 13764
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/runtime_resume.rs",
+      "sha256": "07ff510f3d29fb831e1767ea42f8f91b591caa6a4d2b1dbff34600cdc7128f91",
+      "size": 32376
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/inference-playground/tests/runtime_unmatched.rs",
+      "sha256": "406a3f9bb8b8a92bde98b94ed3a89683e1e3e0ac472faf57f25eb424f66a0372",
+      "size": 3677
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/xtask/Cargo.toml",
+      "sha256": "cbfb0a52f3324dda81c90e1825f73a7aa9b6038f862c923f6e30bc5e562769b8",
+      "size": 122
+    },
+    {
+      "lane": "complete_cargo_workspace",
+      "path": "isolated/latent-demand-root-validation-r15/tools/xtask/src/main.rs",
+      "sha256": "4bd57a0888e22de659ac191425859e1eab4f494c7d1e035cb6e0f0b2ea974d0c",
+      "size": 11501
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/design/2026-10-11-yulang-inference-top-level-principles.md",
+      "sha256": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81",
+      "size": 7582
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/design/2026-10-08-source-generalize-definition.md",
+      "sha256": "46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38",
+      "size": 9952
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/theory/2026-10-08-source-generalize-definition-and-proof.md",
+      "sha256": "e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240",
+      "size": 70420
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/theory/2026-10-16-first-call-fresh-use-semantic-application.md",
+      "sha256": "9d5ec6a410c2b358187c1fcf105ba9efe5b2f5f9f4ede37ea2bb5364801ff46b",
+      "size": 20745
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/theory/2026-10-11-value-generalize-source-emission-law-proof.md",
+      "sha256": "51bcc74ea5edaaf3d0782197133e614746227c3a76c683961cdecdb76f2f4738",
+      "size": 23348
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/theory/lean/YulangClosure.lean",
+      "sha256": "3c38da4bb2e017249fa973e0ee28f243d44ba6d52b6f173ac617b605f1fce9e8",
+      "size": 1911
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/theory/lean/YulangClosure/Contracts.lean",
+      "sha256": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e",
+      "size": 7467
+    },
+    {
+      "lane": "governing_semantics_and_parent_theorem",
+      "path": "notes/theory/lean/YulangClosure/CoreComposition.lean",
+      "sha256": "1527cd3c5961b413ec2b97495744b218aba6247956881318485364d15065294c",
+      "size": 4893
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+act signal:
+    our ping: () -> int
+
+my relay cb = catch cb() {
+    signal::ping(), _ -> 1,
+    v -> v
+}
+my program = {
+    my answer = relay signal::ping;
+    answer as [] int
+}
