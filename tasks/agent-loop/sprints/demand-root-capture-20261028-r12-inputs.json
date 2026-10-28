@@ -1,0 +1,537 @@
+{
+  "schema_version": 1,
+  "sprint": "DEMAND-ROOT-CAPTURE-CORRESPONDENCE/r12",
+  "baseline": "7b3ad7074",
+  "snapshot": "isolated/demand-root-capture-r12",
+  "parent_manifest": {
+    "path": "tasks/agent-loop/sprints/source-receipt-origin-20261028-r11-inputs.json",
+    "sha256": "a3b10055f0fb497bd341bdbd6ff7dc80d9ec40d15f564c6339d34e95539790b4",
+    "entries": 90
+  },
+  "parent_outcome": {
+    "path": "tasks/agent-loop/history/source-receipt-origin-20261028-r11-outcome.md",
+    "sha256": "838204e0451b52eda3a7b23baa01710f65af587992008ada168e8c1c7eb756a9"
+  },
+  "files": [
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/demand-root-capture-r12/Cargo.lock",
+      "sha256": "de2c030452a0764cbeb459e2545585a880edc6683a8acceaea45276e24b67ca5"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/demand-root-capture-r12/Cargo.toml",
+      "sha256": "a8852982d5a3ff4d159aa546767b217000d50c9ff8617ac139700885bf5b090a"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/demand-root-capture-r12/crates/yu-solver/Cargo.toml",
+      "sha256": "aaf341e14643b73668552a3bf499f6410bdd0e9ad6ebeea1a5d6ef454d9494ed"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/demand-root-capture-r12/crates/yu-solver/src/candidate_context.rs",
+      "sha256": "be1be2277d54288ba4ae542e003dabc294031c29cb26b2b5d0454b0d1c102bd0"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/demand-root-capture-r12/crates/yu-solver/src/candidate_extrusion.rs",
+      "sha256": "a6538ab3deae503fd2c002c88fb673a51848a350b226b8a38c3b43496cdd03ee"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/demand-root-capture-r12/crates/yu-solver/src/candidate_scheme.rs",
+      "sha256": "784b3087c875cc3bc05d16c50201d5efdb0da0425b7464ce8ff3744e1e93dfff"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/demand-root-capture-r12/logs/lean-1.argv",
+      "sha256": "f5b1eb40f3e9f98de9355192b556f384e248c6f9d51e0be7ea885b3b0c0d5b45"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/demand-root-capture-r12/logs/lean-1.resources.json",
+      "sha256": "e7da42cf792fb6e409cf96c29c8c380dd2b9c81baa65646955c63d68090696a0"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/demand-root-capture-r12/logs/lean-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/demand-root-capture-r12/logs/lean-1.stdout",
+      "sha256": "8f5bb3dd27efeae958ccd58cf5eba6179f675347ee3ff0c4dbc4fa15494f4875"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/demand-root-capture-r12/notes/theory/lean/YulangClosure/NativeExternalEffectFrameR8.lean",
+      "sha256": "747150d9627b84830389ff1b088f43b78da64c3b1f432dbc868a7466b51d1ad9"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/.cargo/config.toml",
+      "sha256": "c185a2b859850d94af015a9672c1568e1ef73b12612d820f596ef967b835f637"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/Cargo.lock",
+      "sha256": "de2c030452a0764cbeb459e2545585a880edc6683a8acceaea45276e24b67ca5"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/Cargo.toml",
+      "sha256": "a8852982d5a3ff4d159aa546767b217000d50c9ff8617ac139700885bf5b090a"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/crates/yu-solver/Cargo.toml",
+      "sha256": "aaf341e14643b73668552a3bf499f6410bdd0e9ad6ebeea1a5d6ef454d9494ed"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/crates/yu-solver/src/candidate_context.rs",
+      "sha256": "19726ef8a6034a1b99f629021b6b7e97ec638f3c1d683206de3c6eac8025a2ec"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/crates/yu-solver/src/candidate_effect.rs",
+      "sha256": "7c8e4fe5270fd45cecece80dfbbdff81aa8f294546687938bf89212325fc146b"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/crates/yu-solver/src/candidate_extrusion.rs",
+      "sha256": "2fa4cdf965785fc43ff9792af36c1dd86a01d50cf863229de2ddb721878d2477"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/crates/yu-solver/src/candidate_intrusion.rs",
+      "sha256": "475edf15acbb5d986b5aebd1cb22b9c5fad61c50811690a763b39ff003cccd97"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/crates/yu-solver/src/candidate_scheme.rs",
+      "sha256": "c79b136dd033a4d0e3f1664be670fda0c538866baa05a20c273d69a1927ead0d"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/crates/yu-solver/src/candidate_scope.rs",
+      "sha256": "9fdb36b4bbd66d702fbd3fcfaf593bfbc5dce0c52ff3252442aeb998bbb52c2a"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/crates/yu-solver/src/candidate_source.rs",
+      "sha256": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/crates/yu-solver/src/lib.rs",
+      "sha256": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/logs/cargo.argv",
+      "sha256": "332106c2ce0220e8168412bc8a1b374059a25824df746afb2a2182511b266dfe"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/logs/cargo.resources.json",
+      "sha256": "f8e4499b2ac6459ade73689cc937ea9099ddb2f1a04429d6d7aef4da37a890f8"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/logs/cargo.stderr",
+      "sha256": "b54b6258943bca7ee5a26cff742d1286034df84c475627b1f081afd65ab6859e"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/logs/cargo.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/logs/lean.argv",
+      "sha256": "e9b54e82969a2071748b7cd248f5e06fc732571f27f533d76babe6b4867d581f"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/logs/lean.resources.json",
+      "sha256": "ac7f291cec6a652e6e46804c689396a8031b96ec578abcf6257f3f80c2454ba4"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/logs/lean.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/logs/lean.stdout",
+      "sha256": "0b5f13235b7c95719ce80a7ce209ceed08882e4d0236f78f86538cde3dc9c689"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-external-effect-frame-r8/notes/theory/lean/YulangClosure/NativeExternalEffectFrameR8.lean",
+      "sha256": "0a89a8090650a985c4dd277a4c3c6a2398039ddd7987a2460938b88e0a07a3cc"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/crates/yu-solver/src/candidate_context.rs",
+      "sha256": "57114491a4b1333f30e3ad68cb6e1c8a5c735e2d142c1456745eaef8ed56f30e"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/crates/yu-solver/src/candidate_effect.rs",
+      "sha256": "7c8e4fe5270fd45cecece80dfbbdff81aa8f294546687938bf89212325fc146b"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/crates/yu-solver/src/candidate_extrusion.rs",
+      "sha256": "80f126e9c77d1b3d8486c01b4f35a6852f4d466f99daed45ea4e19a598d59d61"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/crates/yu-solver/src/candidate_scheme.rs",
+      "sha256": "35c58dca3748595e273cd53bfba07da2be3fd340ec63c56f6a18adea5e514fb1"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/crates/yu-solver/src/f5c_draft_heap.rs",
+      "sha256": "b973ec0667e6f80de54d9a1de55df112361859982ea2617dae3fe8d34903b1cb"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/crates/yu-solver/src/incoming_sample_trace.rs",
+      "sha256": "b3b10bed1b41b138a83e37346969f946deeac43192ae0e551f8c343fd44f12c5"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/crates/yu-solver/src/lib.rs",
+      "sha256": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/crates/yu-solver/src/term.rs",
+      "sha256": "d253cd9a77ad91c523b413b25a503ef0c6bef47ee4b1f5b8492766531fe493a1"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/crates/yu-types/src/lib.rs",
+      "sha256": "fb3d53cdcce6a2d7149508ba0bdc9dad643cfc795fefdb9914afcb461e4aa6d8"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/notes/design/2026-10-10-annotation-effect-hygiene-integration.md",
+      "sha256": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/notes/design/2026-10-24-birth-level-scc-intrusion.md",
+      "sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/notes/theory/2026-10-13-intrusion-source-preservation-proof.md",
+      "sha256": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/notes/theory/lean/README.md",
+      "sha256": "8d27e0b90fc04eb8a0a30606a857e564e5269e8e33e72fddbf1190cb6a7072e3"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/notes/theory/lean/YulangClosure/Contracts.lean",
+      "sha256": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/notes/theory/lean/YulangClosure/NativeDrainOwnership.lean",
+      "sha256": "d37edac29dcecc19dd90b91c3095e5385a0657310dcf08d805a8f20672872d18"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/notes/theory/lean/YulangClosure/NativeLaunchProjectionR6.lean",
+      "sha256": "eb4c5c99fee13689b4c7ee4b9cf7668ec39416e3259ed826c44204c78fc7ea13"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/notes/theory/lean/lake-manifest.json",
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/notes/theory/lean/lakefile.toml",
+      "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-readback-and-callback-r7-proof-input-r2/notes/theory/lean/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-witness-validation-r10/NativeExternalEffectFrameR8.lean",
+      "sha256": "5e44687e7d59f1ccac2da6361befe66bc7a19ed3744d0dc4bc029ea9c48e61f6"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-witness-validation-r10/logs/cargo-1.argv",
+      "sha256": "1d725e88295d77a1b1e09e1239c5e8b5757213c1280ffaa0b522b86297f75323"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-witness-validation-r10/logs/cargo-1.resources.json",
+      "sha256": "df8a65c59a99b58be11b5db71efa67a1701c7e7dec33934eeb03d6f357b0e7af"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-witness-validation-r10/logs/cargo-1.stderr",
+      "sha256": "e17f45a7937f532b09d69333dfae19034860877ba641915b063410326431e0f1"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-witness-validation-r10/logs/cargo-1.stdout",
+      "sha256": "ebcbe9f7785ee57246f8b823e3a1a947e7753d8e8d9fafa5275ea277e7e925b4"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-witness-validation-r10/logs/lean-1.argv",
+      "sha256": "42755b03f6b47fb8ea492d2e09476070e9bc74da4065a10e405c53c7c130f5c5"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-witness-validation-r10/logs/lean-1.resources.json",
+      "sha256": "58cfb3d92406f5c6b5b62d369f05c846ff06592bb030aa02e28943e5fc804c15"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-witness-validation-r10/logs/lean-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-witness-validation-r10/logs/lean-1.stdout",
+      "sha256": "d1944c8ee03f2f78f5549a89a6845b87c822a9eb5fc4703b9f044d199a53c7fe"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-witness-validation-r10/logs/lean-2.argv",
+      "sha256": "42755b03f6b47fb8ea492d2e09476070e9bc74da4065a10e405c53c7c130f5c5"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-witness-validation-r10/logs/lean-2.resources.json",
+      "sha256": "dc45330381b349acbb4cc72e4a30948a65e468489ef5567fb5ad090ae721746f"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-witness-validation-r10/logs/lean-2.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "isolated/native-witness-validation-r10/logs/lean-2.stdout",
+      "sha256": "96cbd69b6e1e866a150a271025a5501542b1792b112bfa30cee6d0a7e9ad6fc7"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/history/native-external-effect-frame-20261028-r8-outcome.md",
+      "sha256": "b9f578f32fb1abd2b010c6b8edb23ff1dbd58e36e1f2ae5ea0fcdc0632b49ce4"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/history/native-readback-and-callback-20261028-r7-outcome.md",
+      "sha256": "bcf096e52e764697ac1110bf6757d6f27eccfc239add52965eca67e7e8e6f736"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/history/native-witness-frame-repair-20261028-r9-outcome.md",
+      "sha256": "260153b7ed59e1ea9d9f5922d7ac1a05390e9d1f6435bc176e573b0fdc77909d"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/history/native-witness-validation-20261028-r10-outcome.md",
+      "sha256": "e151f1a31c4a9396fa9b52a265b0515cc00d073ea628a966d0b46b029de0cc84"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/inbox/native-external-effect-frame-r8-proof.md",
+      "sha256": "50665ee827876d9a6cc020d8df863b5411e0b7ef3cc76d8c3433a118edc2384f"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/inbox/native-external-effect-frame-r8-review.md",
+      "sha256": "f3416cd5eaa106e7de07e6c400fd21dacf33e470de5b0f6fd0cf3ceba98cadeb"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/inbox/native-readback-and-callback-r7-proof.md",
+      "sha256": "882671cc4df8241d33e423e4570154b12a1797b9a6e9880e622fc0579d6e11ea"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/inbox/native-readback-and-callback-r7-review.md",
+      "sha256": "41a934ebfc622d0b9bfed902e501b99722940385d54548b6b2ac00818c42f2a5"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/inbox/native-readback-and-callback-r7-rust.md",
+      "sha256": "d17d9992854beade042b12653393d6838ca073c617220ac7103f164048d2206e"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/inbox/native-witness-frame-repair-r9-proof.md",
+      "sha256": "47828798f2fd77a03c330dd0821426828bca634007a2d982848fe8fcb862095f"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/inbox/native-witness-frame-repair-r9-review.md",
+      "sha256": "0571d8feb4f52f882d3dd1f8eb8b4aa6f68fa6fbc0c00f06334708a65073b981"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/inbox/native-witness-validation-r10-proof.md",
+      "sha256": "4f4523ee1ba2b2f1919c8b4cf6dd877410705d77efa7f60f35523799aadb6b4f"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/inbox/native-witness-validation-r10-review.md",
+      "sha256": "240242d7af551e7a4c322d8e5a862b48cabc8a9e5cff5993fb837527fb5dca56"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/sprints/native-external-effect-frame-20261028-r8-inputs.json",
+      "sha256": "076b26e9fd35fb60cdc3ce4ca0cab926a424ca3b64cd22aa45b28ae49ecda577"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/sprints/native-external-effect-frame-20261028-r8.md",
+      "sha256": "125f46e39e973d67f7831355cfe9bac1df1c583788b6f03601f9d3d973a72740"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/sprints/native-readback-and-callback-20261028-r7-amendment-01.md",
+      "sha256": "ad7c7c365cfc6e559df2ec7444c0d851073d40e85db6bfaeeab1cfe3a8bcbef8"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/sprints/native-readback-and-callback-20261028-r7-proof-inputs-r2.json",
+      "sha256": "e49700a9c8e446633de567c3cafe6ce6eb71d77ca42a393b0c6164c5b93d1aec"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/sprints/native-readback-and-callback-20261028-r7.md",
+      "sha256": "35b3b0b23eeeb842acddc47ce4685bb8bd1ad6152825c9d1cbba4ba6bce0840a"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/sprints/native-witness-frame-repair-20261028-r9-inputs.json",
+      "sha256": "9268a0d7cd0eb3a674ba10fd2ec4dba63a25007c2f32fd513510ce44f47cc544"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/sprints/native-witness-frame-repair-20261028-r9.md",
+      "sha256": "d57ddde8ea97eff2f6641370b2d58d34c06c51398d16941b26a8244893e9783a"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/sprints/native-witness-validation-20261028-r10-inputs.json",
+      "sha256": "36e54c93c486fb15ba1a01af15104216031335f5bd6c39d6b62c624e1513e9bd"
+    },
+    {
+      "lane": "inherited_r11_cone",
+      "path": "tasks/agent-loop/sprints/native-witness-validation-20261028-r10.md",
+      "sha256": "280fb2e5c37c18e55ae139a449994791605fd20a83442a88b6a91676f5bc9e65"
+    },
+    {
+      "lane": "r11_final_evidence",
+      "path": "isolated/source-receipt-origin-r11/logs/cargo-1.argv",
+      "sha256": "42022bbc16c6264b372f8b640c90488bfd19595571f623c650f5ff2121d06266"
+    },
+    {
+      "lane": "r11_final_evidence",
+      "path": "isolated/source-receipt-origin-r11/logs/cargo-1.resources.json",
+      "sha256": "1c66c6edcf99edc6df1b177cd3117b41ebf67cea2b243b27e26c4f80c5a16443"
+    },
+    {
+      "lane": "r11_final_evidence",
+      "path": "isolated/source-receipt-origin-r11/logs/cargo-1.stderr",
+      "sha256": "34964b8c82e3ce9ec770a1c0e18d08ad2234ee3327064c36f3edb13530450fbf"
+    },
+    {
+      "lane": "r11_final_evidence",
+      "path": "isolated/source-receipt-origin-r11/logs/cargo-1.stdout",
+      "sha256": "3b05d5cc50b8ea3649a0b43f98ef1aeaa47026f936a90c3eaf251e40c3be3928"
+    },
+    {
+      "lane": "r11_final_evidence",
+      "path": "tasks/agent-loop/history/source-receipt-origin-20261028-r11-outcome.md",
+      "sha256": "838204e0451b52eda3a7b23baa01710f65af587992008ada168e8c1c7eb756a9"
+    },
+    {
+      "lane": "r11_final_evidence",
+      "path": "tasks/agent-loop/inbox/source-receipt-origin-r11-proof.md",
+      "sha256": "32bf2a5c6bb6ceab4fee82d7b53276c069e0a57e83f1d57132d64954606833be"
+    },
+    {
+      "lane": "r11_final_evidence",
+      "path": "tasks/agent-loop/inbox/source-receipt-origin-r11-review.md",
+      "sha256": "0f55499d141b85e4b3abc74b2e362a1cf9ce0f75f7b663a6faa26d8421c8242a"
+    },
+    {
+      "lane": "r11_final_evidence",
+      "path": "tasks/agent-loop/inbox/source-receipt-origin-r11-rust.md",
+      "sha256": "3cb334f2c151fea76072bb8789a88584e9009e248c03d4c7a180d818043f1f07"
+    },
+    {
+      "lane": "r11_final_evidence",
+      "path": "tasks/agent-loop/sprints/source-receipt-origin-20261028-r11-inputs.json",
+      "sha256": "a3b10055f0fb497bd341bdbd6ff7dc80d9ec40d15f564c6339d34e95539790b4"
+    },
+    {
+      "lane": "r11_final_evidence",
+      "path": "tasks/agent-loop/sprints/source-receipt-origin-20261028-r11.md",
+      "sha256": "3d7c9f3362f34277b446e0c3f52d05640a4afd3b866987501746a788e4c05aed"
+    },
+    {
+      "lane": "r11_final_trace_output",
+      "path": "isolated/demand-root-capture-r12/logs/cargo-1.argv",
+      "sha256": "42022bbc16c6264b372f8b640c90488bfd19595571f623c650f5ff2121d06266"
+    },
+    {
+      "lane": "r11_final_trace_output",
+      "path": "isolated/demand-root-capture-r12/logs/cargo-1.resources.json",
+      "sha256": "1c66c6edcf99edc6df1b177cd3117b41ebf67cea2b243b27e26c4f80c5a16443"
+    },
+    {
+      "lane": "r11_final_trace_output",
+      "path": "isolated/demand-root-capture-r12/logs/cargo-1.stderr",
+      "sha256": "34964b8c82e3ce9ec770a1c0e18d08ad2234ee3327064c36f3edb13530450fbf"
+    },
+    {
+      "lane": "r11_final_trace_output",
+      "path": "isolated/demand-root-capture-r12/logs/cargo-1.stdout",
+      "sha256": "3b05d5cc50b8ea3649a0b43f98ef1aeaa47026f936a90c3eaf251e40c3be3928"
+    },
+    {
+      "lane": "r9_preserved_original_failure",
+      "path": "isolated/native-witness-frame-repair-r9/logs/cargo-1.argv",
+      "sha256": "e82890aea77224a0ddb15b2fbdaccc9f46dbd008a21688d94cb22019e2543812"
+    },
+    {
+      "lane": "r9_preserved_original_failure",
+      "path": "isolated/native-witness-frame-repair-r9/logs/cargo-1.resources.json",
+      "sha256": "5e40846ca46b23f32c4962a1e8c780fc9e127e228097e7615dccb4b919dc0f4a"
+    },
+    {
+      "lane": "r9_preserved_original_failure",
+      "path": "isolated/native-witness-frame-repair-r9/logs/cargo-1.stderr",
+      "sha256": "366e96526ba521a700cdc13f30b837aeeff47c02e43e59327676f64915a78b25"
+    },
+    {
+      "lane": "r9_preserved_original_failure",
+      "path": "isolated/native-witness-frame-repair-r9/logs/cargo-1.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}
