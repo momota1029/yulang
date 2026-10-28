@@ -1099,7 +1099,7 @@ pub(super) struct LocalScriptObservation {
     pub facts: usize,
     pub typed_drains: usize,
 }
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum Endpoint {
     Value(ValueEndpointKey, Polarity),
     Effect(EffectEndpointKey, Polarity),
@@ -1712,7 +1712,11 @@ impl<'a> Capture<'a> {
     }
     fn intern(&mut self, endpoint: Endpoint) -> Result<usize, SolveAvailabilityError> {
         let endpoint = match endpoint { Endpoint::Value(v, p) => Endpoint::Value(self.session.canonical_value(v), p), Endpoint::Effect(e, p) => Endpoint::Effect(self.session.canonical_effect(e), p) };
+        #[cfg(test)]
+        let canonical_identity = format!("{endpoint:?}");
         if let Some(&index) = self.endpoints.get(&endpoint) {
+            #[cfg(test)]
+            candidate_effect::formal_live_capture_trace_event(|| format!("intern-hit endpoint={canonical_identity} node={index}"));
             return Ok(index);
         }
         self.endpoints.try_reserve(1).map_err(|_| exhausted())?;
@@ -1720,6 +1724,8 @@ impl<'a> Capture<'a> {
         push(&mut self.graph.nodes, Node::Leaf(Atom::Bottom))?;
         push(&mut self.pending, endpoint)?;
         self.endpoints.insert(endpoint, index);
+        #[cfg(test)]
+        candidate_effect::formal_live_capture_trace_event(|| format!("intern-new endpoint={canonical_identity} node={index}; pending-push"));
         Ok(index)
     }
     fn intern_shape(&mut self, endpoint: Endpoint) -> Result<usize, SolveAvailabilityError> {
@@ -1740,6 +1746,8 @@ impl<'a> Capture<'a> {
         #[cfg(test)]
         let requested = key;
         let key = self.session.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.rep(key);
+        #[cfg(test)]
+        candidate_effect::formal_live_capture_trace_event(|| format!("row-intern requested={requested:?} representative={key:?}"));
         if let Some(&index) = self.rows.get(&key) {
             return Ok(index);
         }
@@ -1931,6 +1939,8 @@ impl<'a> Capture<'a> {
         use EffectEndpointKey as E;
         use ValueEndpointKey as V;
         let index = self.endpoints[&endpoint];
+        #[cfg(test)]
+        candidate_effect::formal_live_capture_trace_event(|| format!("node-expand endpoint={endpoint:?} node={index}"));
         let node = match endpoint {
             Endpoint::Value(V::ValueRow(i), p) => Node::Row {
                 row: self.row(RowKey::Value(i))?,
@@ -2130,12 +2140,16 @@ impl<'a> Capture<'a> {
                 evidence
             };
             push(&mut self.graph.bounds, Bound { evidence, relation, source_bound, kind, side, lower, upper })?;
+            #[cfg(test)]
+            candidate_effect::formal_live_capture_trace_event(|| format!("bound relation={relation:?} kind={kind:?} side={side:?} lower={lower} upper={upper} evidence={evidence:?}"));
             self.bound_keys.insert(key);
         }
         Ok(())
     }
     fn expand_row(&mut self, index: usize) -> Result<(), SolveAvailabilityError> {
         let Row { key, local } = self.graph.rows[index];
+        #[cfg(test)]
+        candidate_effect::formal_live_capture_trace_event(|| format!("row-expand index={index} key={key:?} local={local}"));
         let session = self.session;
         // freshenAbove stops at older identities. Their mutable bounds stay
         // in the session, so later constraints reach every shared anchor use.
@@ -2669,7 +2683,11 @@ impl InferenceSession {
         let mut payloads = Vec::new();
         loop {
             while !capture.pending.is_empty() || row_cursor < capture.graph.rows.len() {
-                while let Some(endpoint) = capture.pending.pop() { capture.expand_node(endpoint)?; }
+                while let Some(endpoint) = capture.pending.pop() {
+                    #[cfg(test)]
+                    candidate_effect::formal_live_capture_trace_event(|| format!("pending-pop endpoint={endpoint:?}"));
+                    capture.expand_node(endpoint)?;
+                }
                 if row_cursor < capture.graph.rows.len() {
                     capture.expand_row(row_cursor)?;
                     row_cursor += 1;
@@ -2679,6 +2697,8 @@ impl InferenceSession {
                 let bound = capture.graph.bounds[bound_cursor];
                 bound_cursor += 1;
                 if let Some(relation) = bound.relation {
+                    #[cfg(test)]
+                    candidate_effect::formal_live_capture_trace_event(|| format!("context-discover relation={relation:?}"));
                     let context = &capture.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
                     context.context_payloads(context.relation_context(relation)?, &mut context_seen, &mut context_pending, &mut payloads)?;
                     // A deferred original demand is a retained latent payload,
@@ -2696,6 +2716,8 @@ impl InferenceSession {
                 let id = algebra.context.payload_view(weight)?;
                 let view = algebra.views.get(id as usize).ok_or_else(exhausted)?;
                 algebra.context.validate_payload_view(weight, id, view)?;
+                #[cfg(test)]
+                candidate_effect::formal_live_capture_trace_event(|| format!("evidence-payload weight={weight:?} view={id} tail={:?}", view.tail));
                 let tail = view.tail;
                 let tail = tail.map(|tail| capture.intern_shape(Endpoint::Effect(EffectEndpointKey::EffectRow(tail), Polarity::Positive))).transpose()?;
                 push(&mut capture.graph.context_views, (weight, id, tail))?;
@@ -2796,6 +2818,8 @@ impl InferenceSession {
             let endpoint = Endpoint::Value(value, Polarity::Negative);
             if let Some(&index) = capture.endpoints.get(&endpoint) {
                 capture.graph.negative_formal_roots.insert(term, index);
+                #[cfg(test)]
+                candidate_effect::formal_live_capture_trace_event(|| format!("negative-root-publish term={term:?} node={index} endpoint={endpoint:?}"));
             }
         }
         let graph_bytes = capture.graph.bytes()?;
@@ -2824,6 +2848,8 @@ impl InferenceSession {
         sampled?;
         #[cfg(test)]
         self.candidate_evidence_failure(candidate_context::EvidenceFailurePoint::CaptureScratch)?;
+        #[cfg(test)]
+        candidate_effect::formal_live_capture_trace_event(|| format!("capture-return graph_root={} live_root={:?} node_count={} rows={} negative_formal_roots={}", graph.root, graph.live_root, graph.nodes.len(), graph.rows.len(), graph.negative_formal_roots.len()));
         Ok(graph)
     }
     pub(super) fn execute_candidate_graph_plan(&mut self) -> Result<(), SolveAvailabilityError> {

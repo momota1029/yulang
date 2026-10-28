@@ -113,6 +113,27 @@ struct CaptureProbe {
     fail_at_full_new: bool,
     failed: bool,
 }
+// Temporary source-evidence recorder. It is dormant unless a focused test
+// explicitly enables it and has no effect on solver decisions or allocation
+// paths outside that test.
+#[cfg(test)]
+thread_local! {
+    static FORMAL_LIVE_CAPTURE_TRACE: std::cell::RefCell<Option<Vec<String>>> = const { std::cell::RefCell::new(None) };
+}
+#[cfg(test)]
+pub(super) fn formal_live_capture_trace_begin() {
+    FORMAL_LIVE_CAPTURE_TRACE.with(|trace| assert!(trace.borrow_mut().replace(Vec::new()).is_none()));
+}
+#[cfg(test)]
+pub(super) fn formal_live_capture_trace_event(event: impl FnOnce() -> String) {
+    FORMAL_LIVE_CAPTURE_TRACE.with(|trace| {
+        if let Some(events) = trace.borrow_mut().as_mut() { events.push(event()); }
+    });
+}
+#[cfg(test)]
+pub(super) fn formal_live_capture_trace_finish() -> Vec<String> {
+    FORMAL_LIVE_CAPTURE_TRACE.with(|trace| trace.borrow_mut().take().expect("trace was enabled"))
+}
 #[derive(Debug, Default)]
 pub(super) struct State {
     pub context: candidate_context::State,
@@ -1511,6 +1532,10 @@ impl InferenceSession {
                 let mut concrete = Vec::new();
                 concrete.try_reserve_exact(row.concrete.len()).map_err(|_| exhausted())?;
                 concrete.extend(row.concrete.iter().cloned());
+                #[cfg(test)]
+                formal_live_capture_trace_event(|| format!(
+                    "origin occurrence={occurrence:?} parameter={parameter} owner={:?} scope={scope:?} path={path:?} source_row={:?} concrete={:?} allocated_effect_row={port}",
+                    annotation.owner, row.position, concrete));
                 let backing = bytes::<FormalPortStep>(retained_path.capacity())?
                     .checked_add(bytes::<SourceEffectId>(concrete.capacity())?).ok_or_else(exhausted)?;
                 let new_nested = permission_nested_bytes.checked_add(backing).ok_or_else(exhausted)?;
@@ -1687,6 +1712,10 @@ impl InferenceSession {
                 let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
                 state.formal_permission_bytes = state.formal_permission_bytes.checked_add(retained_permission_bytes).ok_or_else(exhausted)?;
                 state.formal_permissions.extend(permissions.drain(..));
+                #[cfg(test)]
+                formal_live_capture_trace_event(|| format!(
+                    "constructor-formal-domain-publish parameter={parameter} negative_term={negative:?} published_permissions={}",
+                    state.formal_permissions.len()));
                 if state.formal_domains.insert(parameter, negative).is_none() {
                     if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) { undo.effect_algebra.formal_domains.push(parameter); }
                 }
@@ -3580,6 +3609,29 @@ mod tests {
             assert!(state.formal_domains.is_empty());
             assert_eq!(failing.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
         }
+    }
+
+    #[test]
+    fn formal_live_capture_source_observation_trace() {
+        // This deliberately exercises the internal producer hook used by the
+        // neighboring regression above; source preflight acceptance is not
+        // established by this fixture.
+        let mut session = make_session(
+            "act io\nmy bridge (consume: ((int -> [io] ()) -> ()) -> (() -> (int -> [io] ()))) = consume",
+        );
+        let action = session.batch.candidate_source.schedules.values().next().unwrap().iter()
+            .find(|action| matches!(action, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone();
+        let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = action else { unreachable!() };
+
+        formal_live_capture_trace_begin();
+        session.with_route_transaction(|session| {
+            session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)
+        }).unwrap();
+        let graph = session.capture_candidate_graph(parameter as u32, 0).unwrap();
+        let trace = formal_live_capture_trace_finish();
+        assert!(trace.iter().any(|event| event.starts_with("origin occurrence=")), "constructor origin: {trace:#?}");
+        assert!(trace.iter().any(|event| event.starts_with("capture-return ")), "captured return port: {trace:#?}");
+        println!("FORMAL_LIVE_CAPTURE_TRACE graph_root={} live_root={:?}\n{}", graph.root, graph.live_root, trace.join("\n"));
     }
 
     #[test]
