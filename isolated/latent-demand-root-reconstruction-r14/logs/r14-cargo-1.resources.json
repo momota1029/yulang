@@ -1,0 +1,15 @@
+{
+  "start_utc": "2026-10-28T12:12:57.876656+00:00",
+  "end_utc": "2026-10-28T12:12:57.986761+00:00",
+  "wall_seconds": 0.11012220801785588,
+  "exit_code": 101,
+  "limit_termination": null,
+  "cpu_affinity": [
+    0
+  ],
+  "sampled_process_group_cpu_seconds": 0.0,
+  "sampled_process_group_peak_rss_bytes": 12210176,
+  "sampled_peak_process_group_members": 1,
+  "wall_limit_seconds": 120,
+  "rss_limit_bytes": 2147483648
+}

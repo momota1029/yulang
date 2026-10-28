@@ -2883,10 +2883,11 @@ impl InferenceSession {
             bytes::<u32>(capture.shape_effect_rows.capacity())?,
             bytes::<candidate_context::RelationId>(capture.completed_lambda_effect_origins.capacity())?,
         ])?;
-        // Retain only negative composite roots needed to connect source-owned
-        // formal permissions. Keeping every negative constructor here made the
-        // public graph's memory scale with all captured endpoints even when
-        // no formal effect annotation used them.
+        // Retain negative composite roots needed by source-owned formal
+        // permissions and by deferred scoped demands on captured bounds.
+        // Keeping every negative constructor here made the public graph's
+        // memory scale with all captured endpoints even when no consumer used
+        // them.
         let formal_domains = &capture.session.candidate_graph.as_ref()
             .ok_or_else(exhausted)?.intrusion.effect_algebra.formal_domains;
         capture.graph.negative_formal_roots.try_reserve(formal_domains.len()).map_err(|_| exhausted())?;
@@ -2909,6 +2910,40 @@ impl InferenceSession {
                     format!("stage=negative-formal-map-publish graph_id={:?} term={term:?} endpoint={endpoint:?} endpoint_owner_index={index} map_insert_replaced={replaced:?} formal_domains_len={} exact_formal_domain_membership={formal_domain_membership:?}",
                         capture.graph.r12_trace_graph_id, formal_domains.len())
                 });
+            }
+        }
+        // A latent demand is discovered and interned while its captured bound
+        // relation is traversed. Retain exactly that same-graph endpoint
+        // index so FreshUse reconstructs the captured node rather than looking
+        // for a formal-domain owner or synthesizing an equal-looking node.
+        let context = &capture.session.candidate_graph.as_ref()
+            .ok_or_else(exhausted)?.intrusion.effect_algebra.context;
+        for bound in &capture.graph.bounds {
+            let Some(relation) = bound.relation else { continue; };
+            let Some(demand) = context.scoped_flow(relation)?.demand else { continue; };
+            if !matches!(capture.session.store.term_view(demand.root).map_err(|_| exhausted())?,
+                TermView::NegativeFunction { .. })
+            {
+                return Err(receipt_mismatch!());
+            }
+            let endpoint = Endpoint::Value(
+                ValueEndpointKey::NegativeFunction(demand.root), Polarity::Negative,
+            );
+            let Some(&index) = capture.endpoints.get(&endpoint) else {
+                return Err(receipt_mismatch!());
+            };
+            if !matches!(capture.graph.nodes.get(index), Some(Node::Function {
+                polarity: Polarity::Negative, ..
+            })) {
+                return Err(receipt_mismatch!());
+            }
+            if let Some(&existing) = capture.graph.negative_formal_roots.get(&demand.root) {
+                if existing != index { return Err(receipt_mismatch!()); }
+                continue;
+            }
+            capture.graph.negative_formal_roots.try_reserve(1).map_err(|_| exhausted())?;
+            if capture.graph.negative_formal_roots.insert(demand.root, index).is_some() {
+                return Err(receipt_mismatch!());
             }
         }
         let graph_bytes = capture.graph.bytes()?;

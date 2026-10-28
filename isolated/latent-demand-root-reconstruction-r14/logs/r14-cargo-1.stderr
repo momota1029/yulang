@@ -1,0 +1,8 @@
+error: failed to load manifest for workspace member `/home/momota1029/rust/yulang/isolated/latent-demand-root-reconstruction-r14/apps/yulang-wasm`
+referenced by workspace at `/home/momota1029/rust/yulang/isolated/latent-demand-root-reconstruction-r14/Cargo.toml`
+
+Caused by:
+  failed to read `/home/momota1029/rust/yulang/isolated/latent-demand-root-reconstruction-r14/apps/yulang-wasm/Cargo.toml`
+
+Caused by:
+  No such file or directory (os error 2)

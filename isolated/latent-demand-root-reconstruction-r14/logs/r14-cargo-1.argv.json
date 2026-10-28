@@ -1,0 +1,16 @@
+{
+  "cwd": "/home/momota1029/rust/yulang",
+  "env": {
+    "CARGO_TARGET_DIR": "isolated/native-witness-frame-repair-r9/build-target"
+  },
+  "argv": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "isolated/latent-demand-root-reconstruction-r14/crates/yu-solver/Cargo.toml",
+    "--locked",
+    "--features",
+    "shadow-apply-candidate",
+    "replay_constructor_lineage_observes_rejected_cross_route_authentication"
+  ]
+}
