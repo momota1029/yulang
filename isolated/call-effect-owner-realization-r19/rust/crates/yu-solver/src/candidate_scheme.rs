@@ -1080,19 +1080,34 @@ impl GraphState {
             // supported zero-step case explicitly; do not identify p1, h, q,
             // and C in the evidence record.
             if copied_root != replay_upper_root { rejected!("replay-upper-root-mismatch"); }
-            let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(positive_root)) = row.lower_input.2 else { rejected!("replay-lower-endpoint-mismatch"); };
-            let ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(negative_root)) = row.upper_input.2 else { rejected!("replay-upper-endpoint-mismatch"); };
-            let find_function = |term: Term, polarity: Polarity| {
-                let mut found = None;
-                for (index, node) in graph.nodes.iter().enumerate() {
+            let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(_)) = row.lower_input.2 else { rejected!("replay-lower-endpoint-mismatch"); };
+            let ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(_)) = row.upper_input.2 else { rejected!("replay-upper-endpoint-mismatch"); };
+            // Count route-local Function producers through the retained typed
+            // endpoint map. A bare term match can conflate a producer with a
+            // consumer or with duplicate graph nodes that happen to retain the
+            // same term. Keep zero and multiple matches distinct in the trace.
+            let find_function_nodes = |expected: ExtrusionEndpoint, polarity: Polarity| {
+                graph.nodes.iter().enumerate().filter_map(|(index, node)| {
                     if !matches!(node, Node::Function { polarity: actual, .. } if *actual == polarity)
-                        || retained.terms.get(index).copied().flatten() != Some(term) { continue; }
-                    if found.replace(index).is_some() { return None; }
-                }
-                found
+                        || mapped_endpoint_at(graph, mapped_rows, retained, index) != Some(expected)
+                    {
+                        return None;
+                    }
+                    Some(index)
+                }).collect::<Vec<_>>()
             };
-            let Some(positive_node) = find_function(positive_root, Polarity::Positive) else { rejected!("positive-function-node-absent"); };
-            let Some(negative_node) = find_function(negative_root, Polarity::Negative) else { rejected!("negative-function-node-absent"); };
+            let positive_nodes = find_function_nodes(row.lower_input.2, Polarity::Positive);
+            let positive_node = match positive_nodes.as_slice() {
+                [] => rejected!("positive-function-node-zero-matches"),
+                [node] => *node,
+                _ => rejected!("positive-function-node-multiple-matches"),
+            };
+            let negative_nodes = find_function_nodes(row.upper_input.2, Polarity::Negative);
+            let negative_node = match negative_nodes.as_slice() {
+                [] => rejected!("negative-function-node-zero-matches"),
+                [node] => *node,
+                _ => rejected!("negative-function-node-multiple-matches"),
+            };
             let Some(positive_node) = graph.nodes.get(positive_node) else { rejected!("positive-function-absent"); };
             let Node::Function { children: positive_children, .. } = *positive_node else { rejected!("positive-function-wrong-node"); };
             let Some(negative_node) = graph.nodes.get(negative_node) else { rejected!("negative-function-absent"); };
