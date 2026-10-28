@@ -163,6 +163,11 @@ use eligible subagents for its proof and implementation lanes and to integrate
 and push coherent checkpoints. Keep worker scopes and leases exact; Git remains
 primary-only. Do not interrupt that ongoing goal to ask again whether to use
 subagents or continue to the next in-scope packet.
+In particular, completing one bounded sprint does not end an explicitly ongoing
+Rust/Lean goal: the primary may prepare and admit its next bounded sprint under
+the same objective without asking the user to re-authorize continuation. Ask
+only for a decision that changes the objective, semantics, production authority,
+resource envelope or other material constraint.
 
 ## Startup and present state
 
