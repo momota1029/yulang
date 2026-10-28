@@ -1714,7 +1714,7 @@ impl InferenceSession {
                 state.formal_permissions.extend(permissions.drain(..));
                 #[cfg(test)]
                 formal_live_capture_trace_event(|| format!(
-                    "constructor-formal-domain-publish parameter={parameter} negative_term={negative:?} published_permissions={}",
+                    "constructor-formal-domain-publish parameter={parameter} parameter_row={row} negative_term={negative:?} published_permissions={}",
                     state.formal_permissions.len()));
                 if state.formal_domains.insert(parameter, negative).is_none() {
                     if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) { undo.effect_algebra.formal_domains.push(parameter); }
@@ -2881,10 +2881,12 @@ mod tests {
         let answer = hir.items().iter().find_map(|item| match item {
             yu_hir::HirItem::Binding(binding) if binding.name().spelling() == "answer" => Some(binding.definition_root().clone()), _ => None,
         }).unwrap();
+        formal_live_capture_trace_begin();
         let candidate = crate::shadow_apply::CandidateInference::solve(Arc::new(hir)).unwrap();
         assert!(candidate.candidate_conflicts().is_empty());
         let graph = candidate.export(&owner).unwrap();
         let permissions = graph.formal_effect_permissions().unwrap();
+        let source_trace = formal_live_capture_trace_finish();
         assert_eq!(permissions.len(), 2);
         assert_eq!(permissions[0].path(), &[Element(0), ResultPort]);
         assert_eq!(permissions[1].path(), &[Element(1), Element(1), ResultPort]);
@@ -2893,6 +2895,17 @@ mod tests {
         assert!(!permissions[0].open_tail().same_identity(permissions[1].open_tail()));
         assert!(permissions.iter().all(|permission| permission.open_tail().row()
             .is_some_and(|row| row.kind() == ComponentKind::Effect)));
+        let domain_event = source_trace.iter().find(|event|
+            event.starts_with("constructor-formal-domain-publish "))
+            .expect("ordinary source solve constructed a retained formal domain");
+        assert!(domain_event.contains("parameter_row="), "constructor row mapping: {domain_event}");
+        let domain_term = domain_event.split("negative_term=").nth(1).unwrap()
+            .split(" published_permissions=").next().unwrap();
+        let root_publication = format!("negative-root-publish term={domain_term} node=");
+        assert!(source_trace.iter().any(|event| event.starts_with(&root_publication)),
+            "the same constructed domain term reached capture: {source_trace:#?}");
+        assert!(source_trace.iter().any(|event| event.starts_with("capture-return ")),
+            "ordinary source capture completed: {source_trace:#?}");
         let io = &permissions[0].permitted()[0];
         let answer = candidate.export(&answer).unwrap();
         let state_node = answer.nodes().find(|node| matches!(node.effect_operand(),
@@ -3612,7 +3625,7 @@ mod tests {
     }
 
     #[test]
-    fn formal_live_capture_source_observation_trace() {
+    fn formal_permission_live_capture_source_observation_trace() {
         // This deliberately exercises the internal producer hook used by the
         // neighboring regression above; source preflight acceptance is not
         // established by this fixture.
@@ -3627,7 +3640,13 @@ mod tests {
         session.with_route_transaction(|session| {
             session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)
         }).unwrap();
-        let graph = session.capture_candidate_graph(parameter as u32, 0).unwrap();
+        let parameter_row = session.parameter_live_base
+            .checked_add(u32::try_from(parameter).unwrap()).unwrap();
+        let negative_root = session.candidate_graph.as_ref().unwrap()
+            .intrusion.effect_algebra.formal_domains[&parameter];
+        let graph = session.capture_candidate_graph(parameter_row, 0).unwrap();
+        assert!(graph.negative_formal_roots.contains_key(&negative_root),
+            "capture uses the constructor's parameter row and retains its exact negative domain root");
         let trace = formal_live_capture_trace_finish();
         assert!(trace.iter().any(|event| event.starts_with("origin occurrence=")), "constructor origin: {trace:#?}");
         assert!(trace.iter().any(|event| event.starts_with("capture-return ")), "captured return port: {trace:#?}");

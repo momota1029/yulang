@@ -1712,20 +1712,18 @@ impl<'a> Capture<'a> {
     }
     fn intern(&mut self, endpoint: Endpoint) -> Result<usize, SolveAvailabilityError> {
         let endpoint = match endpoint { Endpoint::Value(v, p) => Endpoint::Value(self.session.canonical_value(v), p), Endpoint::Effect(e, p) => Endpoint::Effect(self.session.canonical_effect(e), p) };
-        #[cfg(test)]
-        let canonical_identity = format!("{endpoint:?}");
         if let Some(&index) = self.endpoints.get(&endpoint) {
             #[cfg(test)]
-            candidate_effect::formal_live_capture_trace_event(|| format!("intern-hit endpoint={canonical_identity} node={index}"));
+            candidate_effect::formal_live_capture_trace_event(|| format!("intern-hit endpoint={endpoint:?} node={index}"));
             return Ok(index);
         }
         self.endpoints.try_reserve(1).map_err(|_| exhausted())?;
         let index = self.graph.nodes.len();
         push(&mut self.graph.nodes, Node::Leaf(Atom::Bottom))?;
         push(&mut self.pending, endpoint)?;
-        self.endpoints.insert(endpoint, index);
         #[cfg(test)]
-        candidate_effect::formal_live_capture_trace_event(|| format!("intern-new endpoint={canonical_identity} node={index}; pending-push"));
+        candidate_effect::formal_live_capture_trace_event(|| format!("intern-new endpoint={endpoint:?} node={index}; pending-push"));
+        self.endpoints.insert(endpoint, index);
         Ok(index)
     }
     fn intern_shape(&mut self, endpoint: Endpoint) -> Result<usize, SolveAvailabilityError> {
