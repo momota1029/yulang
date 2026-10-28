@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "taskset",
+    "-c",
+    "0",
+    "lake",
+    "env",
+    "lean",
+    "-j1",
+    "-M1024",
+    "YulangClosure/NativeExternalEffectFrameR8.lean"
+  ],
+  "cwd": "/home/momota1029/rust/yulang/isolated/native-witness-frame-repair-r9/notes/theory/lean",
+  "tool_versions": {
+    "lake": "Lake version 5.0.0-src+eb6cafb (Lean version 4.35.0)",
+    "lean": "Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)"
+  }
+}
