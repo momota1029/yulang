@@ -1,0 +1,236 @@
+{
+  "schema_version": 1,
+  "archive": "20261028-current-history-archive-r5",
+  "previous_archive": {
+    "record": "tasks/agent-loop/history/20261028-current-history-archive-r4.json",
+    "sha256": "c083de421f05a2b9cceb25f75af13cf3a4aeecb25c96d8d9eca52872c60c0a42",
+    "entries": 21
+  },
+  "closed_outcomes": [
+    {
+      "path": "tasks/agent-loop/history/native-fresh-use-context-coverage-20261028-r4-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "244a6faecfab19e1c9b8958ccbb0406b3e7b6d03b0225da2acf980161d42c84a"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-use-context-coverage-20261028-r5-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "48f8b049d9d9120cc8e68306074ef5249673f6772bc236c845d64f466b5c1075"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-bound-attachment-20261028-r1-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "fe52daae6f64d959ef8e0aa1a58bcfc476075954207d77d5b7105de06084e701"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-bound-admission-20261028-r2-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "be7203c8d00c7f7c4984eeaac82a6acc0ff7a467f435cea5bf495269bd1ddf52"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-launch-projection-20261028-r6-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "4fc13d56c2ce12d13e94f467545bc94ea00983de57c509e83e532f216f5348b5",
+      "review": "tasks/agent-loop/inbox/native-launch-projection-r6-review.md",
+      "review_sha256": "4323f806ad9767f9da111dfca187b3866bb9bc54a203d6825ad85ea96007ebe3"
+    }
+  ],
+  "removed_resolved_workers": [
+    {
+      "id": "/root/native_launch_projection_r6_proof",
+      "role": "lean_prover",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 1000,
+      "session": "NATIVE-LAUNCH-PROJECTION-20261028/r6",
+      "receipt": "Frozen Lean candidate eb4c5c99; handoff 2a4cb3c9; seven terms unchecked, no composed launch theorem; first unmodeled owner clear_diagnostic_scratch; no execution; duration/resources UNKNOWN."
+    },
+    {
+      "id": "/root/native_launch_projection_r6_rust",
+      "role": "implementer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 1100,
+      "session": "NATIVE-LAUNCH-PROJECTION-20261028/r6",
+      "receipt": "Frozen Rust outputs; source hashes c79b136d/19726ef8/e532e722; handoff ab4fc227; no checks; duration/resources UNKNOWN."
+    },
+    {
+      "id": "/root/native_launch_projection_r6_astra",
+      "role": "astra_prover",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 300,
+      "session": "NATIVE-LAUNCH-PROJECTION-20261028/r6",
+      "receipt": "STOPPED after 3 stages; source hash changed during read; no checks."
+    },
+    {
+      "id": "/root/native_launch_projection_r6_review",
+      "role": "compiler_referee",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 600,
+      "session": "NATIVE-LAUNCH-PROJECTION-20261028/r6",
+      "receipt": "Fresh source-first review started after both producer freezes; exact lease only inbox/native-launch-projection-r6-review.md; no checks authorized."
+    }
+  ],
+  "removed_resolved_frozen_leases": [
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-use-context-coverage-20261028-r4.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "a7ed1ad46c45c9a69e4db807f874b709716a7265dbe9d00eaa88275c7fbda11c"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_extrusion.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "80f126e9c77d1b3d8486c01b4f35a6852f4d466f99daed45ea4e19a598d59d61",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-use-context-coverage-20261028-r4-amendment-01.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "d8f5695ff461270e52d6a27bf0f09593a48a65e5fa2f4c5f5c6b77043730d02f"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-use-context-coverage-20261028-r4-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "244a6faecfab19e1c9b8958ccbb0406b3e7b6d03b0225da2acf980161d42c84a"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-use-context-coverage-20261028-r5.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "6f488e11f0d1e7eb8d86fec5fc30e7fbca454faca6691255d11a71120ddab6fa"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-bound-attachment-20261028-r1.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "fd040b8a5a1702b54c06c44fa88a8316433dc950a62d453de48db3f73e2e6e2c"
+    },
+    {
+      "path": "isolated/native-fresh-use-context-coverage-r5/crates/yu-solver/src/candidate_scheme.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "7fd3e16f2a6f856b925e2675d8a485fc25b90775a4b5a81f39d027c71874ef4a",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-bound-attachment-20261028-r1-amendment-01.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "51f0867e885940a163a5f9c31bd751593911830da9edfefb54788c321f17f0d1"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-bound-admission-20261028-r2.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "415195c283db4b9c03dc9cac17e636507b9810261fa987dfc4ab36e514e900f0"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-bound-attachment-20261028-r1-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "fe52daae6f64d959ef8e0aa1a58bcfc476075954207d77d5b7105de06084e701",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-fresh-bound-attachment-r1-review.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "a18c4c255b116435a9a51b34fa76deb0a09121a3199307063b64df033cad905b",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-fresh-bound-admission-r2-review.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "f857c64b05d89c34115410e73497f7b03ca608bff20f6e8942ae583dc236c812"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6/crates/yu-solver/src/candidate_scheme.rs",
+      "owner": "/root/native_launch_projection_r6_rust",
+      "state": "FROZEN",
+      "sha256": "c79b136dd033a4d0e3f1664be670fda0c538866baa05a20c273d69a1927ead0d"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6/crates/yu-solver/src/candidate_context.rs",
+      "owner": "/root/native_launch_projection_r6_rust",
+      "state": "FROZEN",
+      "sha256": "19726ef8a6034a1b99f629021b6b7e97ec638f3c1d683206de3c6eac8025a2ec"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6/crates/yu-solver/src/candidate_extrusion.rs",
+      "owner": "/root/native_launch_projection_r6_rust",
+      "state": "FROZEN",
+      "sha256": "e532e7228487e125a73576cb76b8bf17c065862b049bd8d6f8fa185bb77c54af"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-launch-projection-r6-rust.md",
+      "owner": "/root/native_launch_projection_r6_rust",
+      "state": "FROZEN",
+      "sha256": "ab4fc227328d2ad8e9081d3379778f5d99f10177462e4df616a9d8ba776b694d"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6/notes/theory/lean/YulangClosure/NativeLaunchProjectionR6.lean",
+      "owner": "/root/native_launch_projection_r6_proof",
+      "state": "FROZEN",
+      "sha256": "eb4c5c99fee13689b4c7ee4b9cf7668ec39416e3259ed826c44204c78fc7ea13"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-launch-projection-r6-proof.md",
+      "owner": "/root/native_launch_projection_r6_proof",
+      "state": "FROZEN",
+      "sha256": "2a4cb3c9e0af0fa354ce89b6b8305d9ff54f55889407f9001d1018bad4bdc4c4"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-launch-projection-r6-core.md",
+      "owner": "/root/native_launch_projection_r6_astra",
+      "state": "FROZEN",
+      "sha256": "c8ca2b528fcaf4b62c578535cfbe570db92dfa47cae5d1c025c0fd4b0072482d"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-launch-projection-r6-review.md",
+      "owner": "/root/native_launch_projection_r6_review",
+      "state": "FROZEN",
+      "sha256": "4323f806ad9767f9da111dfca187b3866bb9bc54a203d6825ad85ea96007ebe3"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6-proof-input/crates/yu-solver/src/candidate_scheme.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "35c58dca3748595e273cd53bfba07da2be3fd340ec63c56f6a18adea5e514fb1",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6-proof-input/crates/yu-solver/src/candidate_context.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "57114491a4b1333f30e3ad68cb6e1c8a5c735e2d142c1456745eaef8ed56f30e",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "isolated/native-launch-projection-r6-proof-input/crates/yu-solver/src/candidate_extrusion.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "80f126e9c77d1b3d8486c01b4f35a6852f4d466f99daed45ea4e19a598d59d61",
+      "access": "READ_ONLY"
+    }
+  ],
+  "preservation_note": "R6 producers, core lane and reviewer are STOPPED and archived with exact receipts. Only resolved R6 frozen leases are removed from current.json; all UNKNOWN/QUARANTINED workers and paths remain current and unchanged. The amendment hash was corrected to authenticated bytes during primary synchronization."
+}
