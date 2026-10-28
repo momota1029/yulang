@@ -196,7 +196,7 @@ def progressRun (s : Sink) : List Progress → SinkRun
   | p :: ps =>
     let next := progressSink s p
     let rest := progressRun next ps
-    ⟨rest.sink, ⟨.sink next :: rest.segment.effects, rest.segment.exit⟩⟩
+    ⟨rest.sink, ⟨Effect.sink next :: rest.segment.effects, rest.segment.exit⟩⟩
 
 /-- Partial writer effects happen before is_err and wrapping checksum.
 A panic/abort leaves every preceding buffer/file change visible, and does not
@@ -205,16 +205,16 @@ def writeWord (io : WriteAll) (s : Sink) (word : Nat) : SinkRun :=
   let reply := io s.writer (littleEndian word)
   let called := { s with writer := { s.writer with calls := s.writer.calls + 1 } }
   let advanced := progressRun called reply.progress
-  let «partial» := { advanced with segment := ⟨[.sink called] ++ advanced.segment.effects, advanced.segment.exit⟩ }
+  let «partial» := { advanced with segment := ⟨[Effect.sink called] ++ advanced.segment.effects, advanced.segment.exit⟩ }
   match reply.exit with
   | .panic => ⟨«partial».sink, ⟨«partial».segment.effects, .panic⟩⟩
   | .abort => ⟨«partial».sink, ⟨«partial».segment.effects, .abort⟩⟩
   | returned =>
     let failed := if returned == .error then
       { «partial».sink with failed := true } else «partial».sink
-    let failureEffects := if returned == .error then [.sink failed] else []
+    let failureEffects := if returned == .error then [Effect.sink failed] else []
     let summed := { failed with checksum := (failed.checksum + word) % modulus }
-    ⟨summed, ⟨«partial».segment.effects ++ failureEffects ++ [.sink summed], .ok⟩⟩
+    ⟨summed, ⟨«partial».segment.effects ++ failureEffects ++ [Effect.sink summed], .ok⟩⟩
 
 /-- The loop continues after every returned write_all Err. count is checked only
 after all eight words; overflow preserves writer/checksum/failure effects. -/
@@ -222,7 +222,7 @@ def writeLoop (io : WriteAll) (s : Sink) : List Nat → SinkRun
   | [] =>
     if s.count + 1 < modulus then
       let next := { s with count := s.count + 1 }
-      ⟨next, emit [.sink next]⟩
+      ⟨next, emit [Effect.sink next]⟩
     else ⟨s, done .panic⟩
   | w :: ws =>
     let first := writeWord io s w
@@ -258,7 +258,7 @@ def flushExcluded (io : WriteAll) (s : Sink) : SinkRun :=
       let cap := { record.sink with excludedIntervalCapacity := record.sink.excludedCapacity }
       let bytes := { cap with excludedIntervalBytes := cap.excludedBytes }
       let clean := { bytes with excludedDirty := false }
-      ⟨clean, andThen record.segment (emit [.sink cap,.sink bytes,.sink clean])⟩
+      ⟨clean, andThen record.segment (emit [Effect.sink cap,Effect.sink bytes,Effect.sink clean])⟩
     | _ => record
   else ⟨s, done⟩
 
