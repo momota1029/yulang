@@ -163,6 +163,10 @@ coherent intended work. Do not ask for permission again at routine sprint
 boundaries or after each result. Keep the objective, semantics, production
 authority, budgets and leases fixed; ask only when a required user decision
 would materially change one of them, or when the user pauses or cancels work.
+When the user says to proceed with an in-scope action, treat that as authority
+to complete the requested outcome and its necessary review, record updates and
+coherent checkpoint steps. Do not stop after the first substep to ask whether
+to continue; pause only for a material decision or an explicit stop.
 An explicitly continuing Rust/Lean research goal also authorizes the primary to
 use eligible subagents for its proof and implementation lanes and to integrate
 and push coherent checkpoints. Keep worker scopes and leases exact; Git remains

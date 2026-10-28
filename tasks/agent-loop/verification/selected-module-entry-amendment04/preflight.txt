@@ -1,0 +1,8 @@
+UTC: 2026-10-28T05:52:16Z
+MemAvailable: 20,551,456 kB (>= 4 GiB required)
+Allowed CPUs: 0-19 (CPU 0 available)
+Active `cargo` process: none
+Active `rustc` process: none
+Unique target directory `isolated/selected-module-entry-freshening-repair-r1/target-amendment04`: absent
+User systemd scope resource-limit preflight (`MemoryMax=2G`, `MemorySwapMax=0`, `CPUQuota=100%`, `TasksMax=64`): succeeded with `/bin/true`.
+Decision: proceed under the frozen command in `plan.md`; 180-second aggregate timeout; stop on first failed test.
