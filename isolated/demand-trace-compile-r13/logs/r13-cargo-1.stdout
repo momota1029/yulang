@@ -1,0 +1,27 @@
+
+running 1 test
+test candidate_scheme::authentic_demand_capture_tests::replay_constructor_lineage_observes_rejected_cross_route_authentication ... FAILED
+
+failures:
+
+---- candidate_scheme::authentic_demand_capture_tests::replay_constructor_lineage_observes_rejected_cross_route_authentication stdout ----
+
+thread 'candidate_scheme::authentic_demand_capture_tests::replay_constructor_lineage_observes_rejected_cross_route_authentication' (466327) panicked at crates/yu-solver/src/candidate_scheme.rs:8150:19:
+called `Result::unwrap()` on an `Err` value: ReceiptMismatch
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+R12DemandTrace invocation=1 stage=latent-demand-capture graph_id=Some(1) graph_root=0 live_root=0 boundary=0 relation=RelationId(8) demand=ScopedDemand { original_call: 0, use_instance: 0, root: Term { brand: TermArenaBrand(1), index: 264 }, output_scope: EffectScopeId(1), input: InputRouteId(0) } source_call_index=0 source=Some("owner=Definition(DefinitionRootId { .. }) expression=1 occurrence=Some(HirOccurrenceId { ordinal: 2, .. })") intern_shape_returned_node=11 polarity=Negative scope_frontier=[SourceRegionId(0)]
+R12DemandTrace invocation=1 stage=latent-demand-capture graph_id=Some(3) graph_root=0 live_root=0 boundary=0 relation=RelationId(8) demand=ScopedDemand { original_call: 0, use_instance: 0, root: Term { brand: TermArenaBrand(1), index: 264 }, output_scope: EffectScopeId(1), input: InputRouteId(0) } source_call_index=0 source=Some("owner=Definition(DefinitionRootId { .. }) expression=1 occurrence=Some(HirOccurrenceId { ordinal: 2, .. })") intern_shape_returned_node=11 polarity=Negative scope_frontier=[SourceRegionId(0)]
+R12DemandTrace invocation=1 stage=fresh-use-demand-before-root-lookup graph_id=Some(3) graph_root=0 live_root=0 boundary=0 graph_root_node=Some(Row { row: 0, polarity: Positive }) root_polarity=Positive bound_ordinal=3 bound=Bound { evidence: CapturedEvidenceRef(3), relation: Some(RelationId(8)), source_bound: BoundKey(Value(ValueRow(38)), Negative, Value(NegativeFunction(Term { brand: TermArenaBrand(1), index: 264 }))), kind: Value, side: Negative, lower: 10, upper: 11 } relation=RelationId(8) scoped_demand=ScopedDemand { original_call: 0, use_instance: 0, root: Term { brand: TermArenaBrand(1), index: 264 }, output_scope: EffectScopeId(1), input: InputRouteId(0) } source_call_index=0 source=Some("owner=Definition(DefinitionRootId { .. }) expression=1 occurrence=Some(HirOccurrenceId { ordinal: 2, .. })") context_use=1 capture_antecedent=Some(EvidenceSnapshot { source_bound: BoundKey(Value(ValueRow(38)), Negative, Value(NegativeFunction(Term { brand: TermArenaBrand(1), index: 264 }))), relation: Some(RelationId(8)), admission_head: Some(BoundAdmissionId(6)), emission_head: Some(BoundEmissionId(6)), coverage: EvidenceCoverage { gaps: 56 } }) imported_antecedent=not-reached-before-root-lookup formal_map_contains_root=false formal_map_len=0
+R12DemandTrace invocation=1 stage=fresh-use-root-lookup graph_id=Some(3) bound_ordinal=3 relation=RelationId(8) root=Term { brand: TermArenaBrand(1), index: 264 } polarity=Negative owner_returned_index=None node_at_owner_index=None
+R12DemandTrace invocation=1 stage=consumer-result site=candidate_scheme.rs:replay_constructor_lineage_observes_rejected_cross_route_authentication/session.execute result=Err(ReceiptMismatch)
+R12DemandTrace invocation=1 stage=scope-end
+R11ReceiptTrace invocation=1 stage=producer site=crates/yu-solver/src/candidate_scheme.rs:4658 error=ReceiptMismatch
+R11ReceiptTrace invocation=1 stage=consumer site=candidate_scheme.rs:replay_constructor_lineage_observes_rejected_cross_route_authentication/session.execute result=Err(ReceiptMismatch)
+R11ReceiptTrace invocation=1 stage=scope-end consumer=candidate_scheme.rs:replay_constructor_lineage_observes_rejected_cross_route_authentication/session.execute
+
+
+failures:
+    candidate_scheme::authentic_demand_capture_tests::replay_constructor_lineage_observes_rejected_cross_route_authentication
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 816 filtered out; finished in 0.01s
+

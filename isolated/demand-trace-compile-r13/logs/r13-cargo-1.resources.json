@@ -1,0 +1,15 @@
+{
+  "exit_code": 101,
+  "terminated_by_limit": null,
+  "wall_seconds": 88.4893,
+  "cpu_seconds_peak_sampled": 45.84,
+  "peak_process_group_rss_bytes_sampled": 1839558656,
+  "rss_limit_bytes": 2147483648,
+  "wall_limit_seconds": 120.0,
+  "affinity": "CPU 0 via sched_setaffinity before exec",
+  "monitor_interval_seconds": 0.1,
+  "tool_versions": {
+    "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)"
+  }
+}

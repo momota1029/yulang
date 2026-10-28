@@ -1,0 +1,5479 @@
+use std::cmp::Ordering;
+
+#[cfg(test)]
+use super::F5cRecursiveBound;
+use super::f5c_draft::{
+    ChildSpan, FlatDraft, NegativeId, NegativeNode, NodeRef, PositiveId, PositiveNode,
+    RecursiveBound,
+};
+use super::{
+    DraftHeapMeter, F5cNegative, F5cPositive, GeneralizationDraft, PhysicalOwnerKind,
+    SolveAvailabilityError,
+    TrackedOne, TrackedVec,
+};
+#[cfg(test)]
+use super::{test_tracked, test_tracked_one};
+
+type NodeId = usize;
+const SOURCE_UNSELECTED: NodeId = NodeId::MAX;
+const SOURCE_SELECTED: NodeId = NodeId::MAX - 1;
+
+pub(super) const LANE_COUNT: usize = 13;
+const RADIX_ALPHABET: usize = 257;
+const RADIX_WORKSPACE_SLOTS: usize = RADIX_ALPHABET * 3;
+const RADIX_INSERTION_LIMIT: usize = 8;
+
+#[derive(Clone, Copy)]
+#[repr(usize)]
+enum Lane {
+    Nodes,
+    Children,
+    Walk,
+    Values,
+    Roots,
+    HeightCounts,
+    HeightOffsets,
+    HeightNodes,
+    SortScratch,
+    DescriptorWords,
+    Output,
+    RadixFrames,
+    RadixWorkspace,
+}
+
+#[derive(Clone, Copy)]
+struct RadixFrame {
+    start: usize,
+    end: usize,
+    byte: usize,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct NormalizationLaneStats {
+    pub(super) requested_slots: usize,
+    pub(super) actual_capacity: usize,
+    pub(super) peak_capacity: usize,
+    pub(super) slot_size: usize,
+    pub(super) retained_bytes: usize,
+    pub(super) peak_bytes: usize,
+    pub(super) capacity_growths: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct NormalizedKeyId {
+    height: u32,
+    rank: u32,
+}
+
+#[derive(Clone, Copy)]
+enum NodeKind {
+    PositiveBottom,
+    PositiveInt,
+    PositiveUnit,
+    PositiveBool,
+    PositiveStr,
+    PositiveQuantified(u32),
+    PositiveRecursive(u32),
+    PositiveUnion { start: usize, len: usize },
+    PositiveFunction { start: usize },
+    NegativeTop,
+    NegativeBottom,
+    NegativeInt,
+    NegativeUnit,
+    NegativeBool,
+    NegativeStr,
+    NegativeQuantified(u32),
+    NegativeRecursive(u32),
+    NegativeIntersection { start: usize, len: usize },
+    NegativeFunction { start: usize },
+}
+
+#[derive(Clone, Copy)]
+struct Node {
+    kind: NodeKind,
+    height: u32,
+    rank: u32,
+    descriptor: Option<(usize, usize)>,
+}
+
+enum Walk<'meter> {
+    Positive(F5cPositive<'meter>),
+    Negative(F5cNegative<'meter>),
+    FinishPositiveUnion(usize),
+    FinishPositiveFunction,
+    FinishNegativeIntersection(usize),
+    FinishNegativeFunction,
+}
+
+#[derive(Clone, Copy)]
+enum BuiltRef {
+    Positive(NodeId),
+    Negative(NodeId),
+}
+
+enum BuiltValue<'meter> {
+    Positive(F5cPositive<'meter>),
+    Negative(F5cNegative<'meter>),
+}
+
+#[derive(Clone, Copy)]
+enum RootLocation {
+    Predicate(usize),
+    Lower(usize, usize),
+    Upper(usize, usize),
+}
+
+#[derive(Clone, Copy)]
+struct Root {
+    node: NodeId,
+    location: RootLocation,
+}
+
+fn next_root_count(count: usize) -> Result<usize, SolveAvailabilityError> {
+    count
+        .checked_add(1)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(super) struct NormalizationStats {
+    pub(super) key_writes: usize,
+    pub(super) child_comparisons: usize,
+    pub(super) descriptor_words: usize,
+    pub(super) word_comparisons: usize,
+    pub(super) duplicates: usize,
+    pub(super) index_requested_slots: usize,
+    pub(super) index_actual_capacity: usize,
+    pub(super) index_retained_bytes: usize,
+    pub(super) index_peak_bytes: usize,
+    pub(super) source_bytes_at_start: usize,
+    pub(super) source_index_joint_peak_bytes: usize,
+    pub(super) index_capacity_growths: usize,
+    pub(super) index_lanes: [NormalizationLaneStats; LANE_COUNT],
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    event_owners: [super::f5c_draft_heap::NormalizationOwner; LANE_COUNT],
+    candidate_observer: Option<Box<FlatCandidateObserver>>,
+    #[cfg(test)]
+    pub(super) physical_lane_capacities: [usize; LANE_COUNT],
+    #[cfg(test)]
+    pub(super) physical_lane_slot_sizes: [usize; LANE_COUNT],
+}
+
+// Candidate-only logical counters; not the production normalization/resource ledger.
+#[derive(Debug, Eq, PartialEq)]
+pub(super) struct FlatNormalizationStats {
+    pub(super) key_writes: usize,
+    pub(super) child_comparisons: usize,
+    pub(super) descriptor_words: usize,
+    pub(super) word_comparisons: usize,
+    pub(super) duplicates: usize,
+    pub(super) resource: Option<FlatNormalizationResource>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct FlatNormalizationResource {
+    pub(super) lanes: [FlatCandidateLane; FLAT_CANDIDATE_LANE_COUNT],
+    pub(super) index_peak_bytes: usize,
+    #[cfg(test)]
+    pub(super) index_peak_capacities: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    #[cfg(test)]
+    pub(super) index_peak_sizes: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    #[cfg(test)]
+    pub(super) physical_index: FlatPhysicalIndexLedger,
+    pub(super) joint_peak_bytes: usize,
+}
+
+#[cfg(test)]
+thread_local! {
+    static FAILED_FLAT_PHYSICAL_RESOURCE: std::cell::RefCell<Option<FlatNormalizationResource>> =
+        const { std::cell::RefCell::new(None) };
+    static OBSERVED_FLAT_GRAPH_SIZE: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(super) fn observed_flat_graph_size() -> usize {
+    OBSERVED_FLAT_GRAPH_SIZE.with(std::cell::Cell::get)
+}
+
+#[cfg(test)]
+pub(super) fn take_failed_flat_physical_resource() -> Option<FlatNormalizationResource> {
+    FAILED_FLAT_PHYSICAL_RESOURCE.with(|slot| slot.borrow_mut().take())
+}
+
+#[cfg(test)]
+pub(super) fn output_sample_capacity_bytes(resource: &FlatNormalizationResource) -> usize {
+    resource.physical_index.output_member_samples.capacity() * std::mem::size_of::<[usize; 6]>()
+}
+
+#[cfg(test)]
+pub(super) fn output_member_samples(resource: &FlatNormalizationResource) -> &[[usize; 6]] {
+    &resource.physical_index.output_member_samples
+}
+
+#[cfg(test)]
+pub(super) fn failed_reserve_retry_probe() -> (Vec<(NormalizationLaneStats, usize, usize)>, usize) {
+    let mut records = Vec::new();
+    records
+        .try_reserve_exact(2)
+        .expect("reserve probe history allocation");
+    let capacity_bytes =
+        records.capacity() * std::mem::size_of::<(NormalizationLaneStats, usize, usize)>();
+    let mut items = Vec::new();
+    let mut stats = NormalizationStats::default();
+    Normalizer::reserve(&mut items, 1, Lane::Nodes, &mut stats, None)
+        .expect("initial tracked reserve");
+    items.push(1u8);
+    let baseline_capacity = items.capacity();
+    let baseline_bytes = baseline_capacity * std::mem::size_of::<u8>();
+    let baseline_lane = stats.index_lanes[Lane::Nodes as usize];
+    assert_eq!(baseline_lane.actual_capacity, baseline_capacity);
+    assert_eq!(baseline_lane.retained_bytes, baseline_bytes);
+    assert_eq!(stats.index_actual_capacity, baseline_capacity);
+    assert_eq!(stats.index_retained_bytes, baseline_bytes);
+    assert_eq!(stats.index_requested_slots, baseline_lane.requested_slots);
+    let baseline_growths = stats.index_capacity_growths;
+    let failed = Normalizer::reserve(
+        &mut items,
+        isize::MAX as usize,
+        Lane::Nodes,
+        &mut stats,
+        None,
+    );
+    assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
+    assert!(records.len() < 2 && records.len() < records.capacity());
+    let failed_capacity = items.capacity();
+    let failed_bytes = failed_capacity * std::mem::size_of::<u8>();
+    let failed_lane = stats.index_lanes[Lane::Nodes as usize];
+    assert_eq!(failed_capacity, baseline_capacity);
+    assert_eq!(failed_bytes, baseline_bytes);
+    assert_eq!(failed_lane.actual_capacity, failed_capacity);
+    assert_eq!(failed_lane.retained_bytes, failed_bytes);
+    assert_eq!(stats.index_actual_capacity, failed_capacity);
+    assert_eq!(stats.index_retained_bytes, failed_bytes);
+    assert_eq!(
+        failed_lane.requested_slots,
+        baseline_lane.requested_slots + isize::MAX as usize
+    );
+    assert_eq!(stats.index_requested_slots, failed_lane.requested_slots);
+    assert_eq!(failed_lane.capacity_growths, baseline_lane.capacity_growths);
+    assert_eq!(stats.index_capacity_growths, baseline_growths);
+    records.push((failed_lane, failed_capacity, failed_bytes));
+    let before = items.capacity();
+    assert!(before < 1024);
+    Normalizer::reserve(&mut items, before + 1, Lane::Nodes, &mut stats, None)
+        .expect("bounded reserve retry");
+    assert!(items.capacity() > before);
+    assert!(records.len() < 2 && records.len() < records.capacity());
+    let retry_capacity = items.capacity();
+    let retry_bytes = retry_capacity * std::mem::size_of::<u8>();
+    let retry_lane = stats.index_lanes[Lane::Nodes as usize];
+    assert_eq!(retry_lane.actual_capacity, retry_capacity);
+    assert_eq!(retry_lane.retained_bytes, retry_bytes);
+    assert_eq!(stats.index_actual_capacity, retry_capacity);
+    assert_eq!(stats.index_retained_bytes, retry_bytes);
+    assert!(retry_lane.capacity_growths > failed_lane.capacity_growths);
+    assert!(stats.index_capacity_growths > baseline_growths);
+    records.push((retry_lane, retry_capacity, retry_bytes));
+    (records, capacity_bytes)
+}
+
+#[cfg(test)]
+impl FlatNormalizationResource {
+    pub(super) fn totals(&self) -> Result<(usize, usize), SolveAvailabilityError> {
+        self.lanes
+            .iter()
+            .try_fold((0usize, 0usize), |(requests, growths), lane| {
+                Ok((
+                    requests
+                        .checked_add(lane.requested_slots)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                    growths
+                        .checked_add(lane.growths)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                ))
+            })
+    }
+}
+
+#[derive(Clone)]
+struct FlatCandidateObserver(FlatCandidateCapacity);
+
+#[derive(Clone)]
+struct FlatCandidateCapacity {
+    work: super::f5c_generalization::F5cDraftWorkMeter,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    index_family: bool,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    event_component: usize,
+    base_memo_bytes: usize,
+    base_walker_bytes: usize,
+    #[cfg(test)]
+    physical_base_memo_bytes: usize,
+    #[cfg(test)]
+    physical_base_walker_bytes: usize,
+    #[cfg(test)]
+    physical_memo_capacities: [usize; 20],
+    #[cfg(test)]
+    physical_walker_capacities: [usize; 98],
+    #[cfg(test)]
+    physical_walker_value_slot_size: usize,
+    source_bytes: usize,
+    #[cfg(test)]
+    physical_source_bytes: usize,
+    capacities: [usize; LANE_COUNT + 15],
+    sizes: [usize; LANE_COUNT + 15],
+    lane_observations: [usize; LANE_COUNT + 15],
+    lane_requested_slots: [usize; LANE_COUNT + 15],
+    member_output_lengths: [usize; 6],
+    lane_growths: [usize; LANE_COUNT + 15],
+    lane_peaks: [usize; LANE_COUNT + 15],
+    index_peak_bytes: usize,
+    #[cfg(test)]
+    index_peak_capacities: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    #[cfg(test)]
+    index_peak_sizes: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    peak_walker_bytes: usize,
+    peak_total_bytes: usize,
+    #[cfg(test)]
+    physical_peak: Option<FlatCandidatePhysicalPeak>,
+    #[cfg(test)]
+    physical_index: FlatPhysicalIndexLedger,
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(super) struct FlatPhysicalIndexLedger {
+    pub(super) capacities: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    sizes: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    requests: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    member_output_lengths: [usize; 6],
+    output_member_samples: Vec<[usize; 6]>,
+    output_member_totals: [usize; 6],
+    #[cfg(feature = "f5c_resource_probe")]
+    matrix_active: bool,
+    growths: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    lane_peaks: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    peak_capacities: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    peak_sizes: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    peak_bytes: usize,
+    joint_peak_bytes: usize,
+    joint_observations: usize,
+    #[cfg(feature = "f5c_resource_probe")]
+    event_owners: [super::f5c_draft_heap::NormalizationOwner; FLAT_CANDIDATE_LANE_COUNT],
+}
+
+#[cfg(test)]
+impl FlatPhysicalIndexLedger {
+    fn record_output(
+        &mut self,
+        offset: usize,
+        capacity: usize,
+        size: usize,
+        length: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let delta = length
+            .checked_sub(self.member_output_lengths[offset])
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.record(LANE_COUNT + 8 + offset, capacity, size, delta)?;
+        self.member_output_lengths[offset] = length;
+        Ok(())
+    }
+
+    fn handoff_member(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.release_member_rebuild_scratch();
+        self.finish_member_sample()?;
+        self.member_output_lengths = [0; 6];
+        self.clear(LANE_COUNT + 5..LANE_COUNT + 14)
+    }
+
+    fn release_member_rebuild_scratch(&mut self) {
+        #[cfg(feature = "f5c_resource_probe")]
+        for lane in LANE_COUNT + 5..LANE_COUNT + 8 {
+            self.event_owners[lane].release();
+        }
+    }
+
+    fn release_after_normalizer_drop(&mut self) -> Result<(), SolveAvailabilityError> {
+        #[cfg(feature = "f5c_resource_probe")]
+        for owner in &mut self.event_owners { owner.release(); }
+        self.finish_member_sample()?;
+        self.member_output_lengths = [0; 6];
+        self.clear(0..FLAT_CANDIDATE_LANE_COUNT)
+    }
+
+    fn finish_member_sample(&mut self) -> Result<(), SolveAvailabilityError> {
+        for (total, length) in self.output_member_totals.iter_mut().zip(self.member_output_lengths) {
+            *total = total.checked_add(length)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        #[cfg(feature = "f5c_resource_probe")]
+        if self.matrix_active { return Ok(()); }
+        self.output_member_samples.push(self.member_output_lengths);
+        Ok(())
+    }
+
+    fn record(
+        &mut self,
+        lane: usize,
+        capacity: usize,
+        size: usize,
+        request: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.requests[lane] = self.requests[lane]
+            .checked_add(request)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if self.capacities[lane] != capacity {
+            self.growths[lane] = self.growths[lane]
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        self.capacities[lane] = capacity;
+        self.sizes[lane] = size;
+        self.lane_peaks[lane] = self.lane_peaks[lane].max(capacity);
+        let current = self.capacities.iter().zip(self.sizes.iter()).try_fold(
+            0usize,
+            |sum, (capacity, size)| {
+                sum.checked_add(
+                    capacity
+                        .checked_mul(*size)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                )
+                .ok_or(SolveAvailabilityError::IdentityExhausted)
+            },
+        )?;
+        if current > self.peak_bytes {
+            self.peak_bytes = current;
+            self.peak_capacities = self.capacities;
+            self.peak_sizes = self.sizes;
+        }
+        Ok(())
+    }
+
+    fn clear(&mut self, lanes: std::ops::Range<usize>) -> Result<(), SolveAvailabilityError> {
+        for lane in lanes {
+            self.capacities[lane] = 0;
+        }
+        Ok(())
+    }
+
+    fn observe_joint(
+        &mut self,
+        source: usize,
+        memo: usize,
+        walker: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let current_index =
+            self.capacities
+                .iter()
+                .zip(self.sizes)
+                .try_fold(0usize, |sum, (capacity, size)| {
+                    capacity
+                        .checked_mul(size)
+                        .and_then(|bytes| sum.checked_add(bytes))
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)
+                })?;
+        let joint = source
+            .checked_add(memo)
+            .and_then(|bytes| bytes.checked_add(walker))
+            .and_then(|bytes| bytes.checked_add(current_index))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.joint_peak_bytes = self.joint_peak_bytes.max(joint);
+        self.joint_observations = self
+            .joint_observations
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        Ok(())
+    }
+
+    fn independently_derived_peak(&self) -> Result<usize, SolveAvailabilityError> {
+        self.peak_capacities
+            .iter()
+            .zip(self.peak_sizes.iter())
+            .try_fold(0usize, |sum, (capacity, size)| {
+                sum.checked_add(
+                    capacity
+                        .checked_mul(*size)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                )
+                .ok_or(SolveAvailabilityError::IdentityExhausted)
+            })
+    }
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct FlatCandidatePhysicalPeak {
+    pub(super) source_bytes: usize,
+    pub(super) physical_source_bytes: usize,
+    pub(super) memo_bytes: usize,
+    pub(super) base_walker_bytes: usize,
+    pub(super) physical_memo_bytes: usize,
+    pub(super) physical_base_walker_bytes: usize,
+    pub(super) physical_memo_capacities: [usize; 20],
+    pub(super) physical_walker_capacities: [usize; 98],
+    pub(super) physical_walker_value_slot_size: usize,
+    pub(super) capacities: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    pub(super) sizes: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    pub(super) observed_total_bytes: usize,
+}
+
+pub(super) const FLAT_CANDIDATE_LANE_COUNT: usize = LANE_COUNT + 15;
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct FlatCandidateLane {
+    pub(super) observations: usize,
+    /// Additional slots requested by reserves, or emitted slots for an output lane.
+    pub(super) requested_slots: usize,
+    pub(super) growths: usize,
+    pub(super) peak_capacity: usize,
+    pub(super) slot_size: usize,
+}
+
+impl FlatCandidateCapacity {
+    fn refresh_peak(&mut self) -> Result<(), SolveAvailabilityError> {
+        let scratch = self.capacities.iter().zip(self.sizes.iter()).try_fold(
+            0usize,
+            |bytes, (capacity, size)| {
+                bytes
+                    .checked_add(
+                        capacity
+                            .checked_mul(*size)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                    )
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)
+            },
+        )?;
+        if scratch > self.index_peak_bytes {
+            self.index_peak_bytes = scratch;
+            #[cfg(test)]
+            {
+                self.index_peak_capacities = self.capacities;
+                self.index_peak_sizes = self.sizes;
+            }
+        }
+        let walker = self
+            .base_walker_bytes
+            .checked_add(scratch)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.peak_walker_bytes = self.peak_walker_bytes.max(walker);
+        #[cfg(test)]
+        let prior_peak = self.peak_total_bytes;
+        self.peak_total_bytes = self.peak_total_bytes.max(
+            self.source_bytes
+                .checked_add(self.base_memo_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
+                .checked_add(walker)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        );
+        #[cfg(test)]
+        self.physical_index.observe_joint(
+            self.physical_source_bytes,
+            super::IndependentResourceLedger::flat_memo_snapshot_bytes(
+                &self.physical_memo_capacities,
+            )?,
+            super::IndependentResourceLedger::flat_walker_snapshot_bytes(
+                &self.physical_walker_capacities,
+                self.physical_walker_value_slot_size,
+            )?,
+        )?;
+        #[cfg(test)]
+        if self.peak_total_bytes > prior_peak {
+            self.physical_peak = Some(FlatCandidatePhysicalPeak {
+                source_bytes: self.source_bytes,
+                physical_source_bytes: self.physical_source_bytes,
+                memo_bytes: self.base_memo_bytes,
+                base_walker_bytes: self.base_walker_bytes,
+                physical_memo_bytes: self.physical_base_memo_bytes,
+                physical_base_walker_bytes: self.physical_base_walker_bytes,
+                physical_memo_capacities: self.physical_memo_capacities,
+                physical_walker_capacities: self.physical_walker_capacities,
+                physical_walker_value_slot_size: self.physical_walker_value_slot_size,
+                capacities: self.capacities,
+                sizes: self.sizes,
+                observed_total_bytes: self.peak_total_bytes,
+            });
+        }
+        Ok(())
+    }
+}
+
+impl std::fmt::Debug for FlatCandidateObserver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("FlatCandidateObserver")
+    }
+}
+
+impl PartialEq for FlatCandidateObserver {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.capacities == other.0.capacities
+            && self.0.sizes == other.0.sizes
+            && self.0.lane_observations == other.0.lane_observations
+            && self.0.lane_requested_slots == other.0.lane_requested_slots
+            && self.0.lane_growths == other.0.lane_growths
+            && self.0.lane_peaks == other.0.lane_peaks
+            && self.0.index_peak_bytes == other.0.index_peak_bytes
+            && self.0.peak_walker_bytes == other.0.peak_walker_bytes
+            && self.0.peak_total_bytes == other.0.peak_total_bytes
+            && self.0.source_bytes == other.0.source_bytes
+            && self.0.work.get() == other.0.work.get()
+    }
+}
+
+impl Eq for FlatCandidateObserver {}
+
+impl FlatCandidateObserver {
+    fn index_resource(&self) -> Result<FlatNormalizationResource, SolveAvailabilityError> {
+        let state = &self.0;
+        let mut lanes = [FlatCandidateLane::default(); FLAT_CANDIDATE_LANE_COUNT];
+        for index in 0..FLAT_CANDIDATE_LANE_COUNT {
+            let lane = FlatCandidateLane {
+                observations: state.lane_observations[index],
+                requested_slots: state.lane_requested_slots[index],
+                growths: state.lane_growths[index],
+                peak_capacity: state.lane_peaks[index],
+                slot_size: state.sizes[index],
+            };
+            lanes[index] = lane;
+        }
+        Ok(FlatNormalizationResource {
+            lanes,
+            index_peak_bytes: state.index_peak_bytes,
+            #[cfg(test)]
+            index_peak_capacities: state.index_peak_capacities,
+            #[cfg(test)]
+            index_peak_sizes: state.index_peak_sizes,
+            #[cfg(test)]
+            physical_index: state.physical_index.clone(),
+            joint_peak_bytes: state.peak_total_bytes,
+        })
+    }
+
+    fn release_collect_scratch(&mut self) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        self.0.physical_index.clear(LANE_COUNT..LANE_COUNT + 3)?;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        for lane in LANE_COUNT..LANE_COUNT + 3 {
+            self.0.physical_index.event_owners[lane].release();
+        }
+        for lane in LANE_COUNT..LANE_COUNT + 3 {
+            self.0.capacities[lane] = 0;
+        }
+        self.0.refresh_peak()
+    }
+
+    #[allow(dead_code)] // The private batch path is selected only by test orchestration.
+    fn handoff_member(
+        &mut self,
+        memo: &super::F5cComponentExpansionMemo,
+        source_meter: &DraftHeapMeter,
+        old_member_bytes: usize,
+        new_member_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        self.0.physical_index.handoff_member()?;
+        for lane in LANE_COUNT + 5..LANE_COUNT + 14 {
+            self.0.capacities[lane] = 0;
+        }
+        self.0.member_output_lengths = [0; 6];
+        self.0.source_bytes = source_meter
+            .current_bytes()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        {
+            self.0.physical_source_bytes = self
+                .0
+                .physical_source_bytes
+                .checked_sub(old_member_bytes)
+                .and_then(|bytes| bytes.checked_add(new_member_bytes))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        #[cfg(not(test))]
+        let _ = (old_member_bytes, new_member_bytes);
+        self.0.base_memo_bytes = memo.retained_bytes()?;
+        self.0.base_walker_bytes = memo.walker_resources.retained_bytes()?;
+        #[cfg(test)]
+        {
+            self.0.physical_base_memo_bytes = memo.retained_bytes()?;
+            self.0.physical_base_walker_bytes =
+                usize::try_from(memo.walker_resources.physical_walker_bytes())
+                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            self.0.physical_memo_capacities = memo.live_capacity_snapshot();
+            self.0.physical_walker_capacities = memo
+                .walker_resources
+                .independent_lanes
+                .map(|lane| lane.actual_capacity);
+            self.0.physical_walker_value_slot_size = memo.walker_resources.value_slot_size;
+        }
+        self.0.refresh_peak()
+    }
+
+    fn preflight_requested(
+        &self,
+        lane: usize,
+        additional: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.0.lane_requested_slots[lane]
+            .checked_add(additional)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        Ok(())
+    }
+
+    fn charge(&self, work: usize) -> Result<(), SolveAvailabilityError> {
+        self.0.work.charge(work)
+    }
+
+    fn observe(
+        &mut self,
+        lane: usize,
+        capacity: usize,
+        slot_size: usize,
+        work: usize,
+        _length: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.0.index_family &&
+            (((LANE_COUNT..LANE_COUNT + 8).contains(&lane) && lane != LANE_COUNT + 3)
+                || lane == LANE_COUNT + 14) {
+            self.0.physical_index.event_owners[lane].observe(
+                self.0.event_component, lane, _length, capacity, slot_size);
+        }
+        #[cfg(test)]
+        self.0
+            .physical_index
+            .record(lane, capacity, slot_size, work)?;
+        let state = &mut self.0;
+        let requested = state.lane_requested_slots[lane]
+            .checked_add(work)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let old = state.capacities[lane];
+        state.capacities[lane] = capacity;
+        state.sizes[lane] = slot_size;
+        state.lane_requested_slots[lane] = requested;
+        state.lane_observations[lane] = state.lane_observations[lane]
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if old != capacity {
+            state.lane_growths[lane] = state.lane_growths[lane]
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        state.lane_peaks[lane] = state.lane_peaks[lane].max(capacity);
+        state.refresh_peak()?;
+        state.work.charge(work)?;
+        Ok(())
+    }
+
+    fn observe_output(&mut self, output: &FlatDraft) -> Result<(), SolveAvailabilityError> {
+        let state = &mut self.0;
+        let previous = state.capacities;
+        // Output methods reserve internally; their retained logical lengths are the request.
+        for (offset, capacity, size, requested) in [
+            (
+                0,
+                output.positive_nodes.capacity(),
+                std::mem::size_of::<PositiveNode>(),
+                output.positive_nodes.len(),
+            ),
+            (
+                1,
+                output.negative_nodes.capacity(),
+                std::mem::size_of::<NegativeNode>(),
+                output.negative_nodes.len(),
+            ),
+            (
+                2,
+                output.positive_children.capacity(),
+                std::mem::size_of::<PositiveId>(),
+                output.positive_children.len(),
+            ),
+            (
+                3,
+                output.negative_children.capacity(),
+                std::mem::size_of::<NegativeId>(),
+                output.negative_children.len(),
+            ),
+            (
+                4,
+                output.recursive_bounds.capacity(),
+                std::mem::size_of::<RecursiveBound>(),
+                output.recursive_bounds.len(),
+            ),
+            (
+                5,
+                output.insertion_order.capacity(),
+                std::mem::size_of::<NodeRef>(),
+                output.insertion_order.len(),
+            ),
+        ] {
+            let lane = LANE_COUNT + 8 + offset;
+            let delta = requested
+                .checked_sub(state.member_output_lengths[offset])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            state.lane_requested_slots[lane] = state.lane_requested_slots[lane]
+                .checked_add(delta)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            state.member_output_lengths[offset] = requested;
+            #[cfg(test)]
+            state
+                .physical_index
+                .record_output(offset, capacity, size, requested)?;
+            state.capacities[lane] = capacity;
+            state.sizes[lane] = size;
+        }
+        state.refresh_peak()?;
+        for lane in LANE_COUNT + 8..LANE_COUNT + 14 {
+            state.lane_observations[lane] = state.lane_observations[lane]
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            if previous[lane] != state.capacities[lane] {
+                state.lane_growths[lane] = state.lane_growths[lane]
+                    .checked_add(1)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            }
+            state.lane_peaks[lane] = state.lane_peaks[lane].max(state.capacities[lane]);
+        }
+        Ok(())
+    }
+}
+
+impl From<&NormalizationStats> for FlatNormalizationStats {
+    fn from(stats: &NormalizationStats) -> Self {
+        Self {
+            key_writes: stats.key_writes,
+            child_comparisons: stats.child_comparisons,
+            descriptor_words: stats.descriptor_words,
+            word_comparisons: stats.word_comparisons,
+            duplicates: stats.duplicates,
+            resource: None,
+        }
+    }
+}
+
+struct Normalizer<'meter> {
+    source_meter: Option<&'meter DraftHeapMeter>,
+    nodes: Vec<Node>,
+    children: Vec<NodeId>,
+    walk: Vec<Walk<'meter>>,
+    values: Vec<BuiltRef>,
+    roots: Vec<Root>,
+    height_counts: Vec<usize>,
+    height_offsets: Vec<usize>,
+    height_nodes: Vec<NodeId>,
+    sort_scratch: Vec<NodeId>,
+    descriptor_words: Vec<u32>,
+    output: Vec<Option<BuiltValue<'meter>>>,
+    radix_frames: Vec<RadixFrame>,
+    radix_workspace: Vec<usize>,
+    stats: NormalizationStats,
+}
+
+impl<'meter> Normalizer<'meter> {
+    fn projected_graph_size(
+        node_count: usize,
+        child_count: usize,
+        added_nodes: usize,
+        added_children: usize,
+    ) -> Result<usize, SolveAvailabilityError> {
+        node_count
+            .checked_add(child_count)
+            .and_then(|count| count.checked_add(added_nodes))
+            .and_then(|count| count.checked_add(added_children))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn preflight_graph_growth(
+        &self,
+        added_nodes: usize,
+        added_children: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        Self::projected_graph_size(
+            self.nodes.len(),
+            self.children.len(),
+            added_nodes,
+            added_children,
+        )?;
+        Ok(())
+    }
+
+    fn new() -> Self {
+        Self {
+            source_meter: None,
+            nodes: Vec::new(),
+            children: Vec::new(),
+            walk: Vec::new(),
+            values: Vec::new(),
+            roots: Vec::new(),
+            height_counts: Vec::new(),
+            height_offsets: Vec::new(),
+            height_nodes: Vec::new(),
+            sort_scratch: Vec::new(),
+            descriptor_words: Vec::new(),
+            output: Vec::new(),
+            radix_frames: Vec::new(),
+            radix_workspace: Vec::new(),
+            stats: NormalizationStats::default(),
+        }
+    }
+
+    #[cfg(test)]
+    fn physical_lane_snapshot(&self) -> ([usize; LANE_COUNT], [usize; LANE_COUNT]) {
+        (
+            [
+                self.nodes.capacity(),
+                self.children.capacity(),
+                self.walk.capacity(),
+                self.values.capacity(),
+                self.roots.capacity(),
+                self.height_counts.capacity(),
+                self.height_offsets.capacity(),
+                self.height_nodes.capacity(),
+                self.sort_scratch.capacity(),
+                self.descriptor_words.capacity(),
+                self.output.capacity(),
+                self.radix_frames.capacity(),
+                self.radix_workspace.capacity(),
+            ],
+            [
+                std::mem::size_of::<Node>(),
+                std::mem::size_of::<NodeId>(),
+                std::mem::size_of::<Walk>(),
+                std::mem::size_of::<BuiltRef>(),
+                std::mem::size_of::<Root>(),
+                std::mem::size_of::<usize>(),
+                std::mem::size_of::<usize>(),
+                std::mem::size_of::<NodeId>(),
+                std::mem::size_of::<NodeId>(),
+                std::mem::size_of::<u32>(),
+                std::mem::size_of::<Option<BuiltValue>>(),
+                if self.radix_frames.capacity() == 0 {
+                    0
+                } else {
+                    std::mem::size_of::<RadixFrame>()
+                },
+                if self.radix_workspace.capacity() == 0 {
+                    0
+                } else {
+                    std::mem::size_of::<usize>()
+                },
+            ],
+        )
+    }
+
+    fn reserve<T>(
+        items: &mut Vec<T>,
+        additional: usize,
+        lane: Lane,
+        stats: &mut NormalizationStats,
+        meter: Option<&DraftHeapMeter>,
+    ) -> Result<(), SolveAvailabilityError> {
+        let old_capacity = items.capacity();
+        let requested_slots = stats.index_lanes[lane as usize]
+            .requested_slots
+            .checked_add(additional)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let index_requested_slots = stats
+            .index_requested_slots
+            .checked_add(additional)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        if let Some(observer) = &stats.candidate_observer {
+            observer.preflight_requested(lane as usize, additional)?;
+        }
+        let reserve_result = items.try_reserve(additional);
+        let capacity = items.capacity();
+        let slot_size = std::mem::size_of::<T>();
+        let old_bytes = old_capacity.checked_mul(slot_size);
+        let retained_bytes = capacity.checked_mul(slot_size);
+        let mut accounting_exhausted = old_bytes.is_none() || retained_bytes.is_none();
+        let lane_stats = &mut stats.index_lanes[lane as usize];
+        lane_stats.requested_slots = requested_slots;
+        lane_stats.actual_capacity = capacity;
+        lane_stats.peak_capacity = lane_stats.peak_capacity.max(capacity);
+        lane_stats.slot_size = slot_size;
+        if let Some(retained_bytes) = retained_bytes {
+            lane_stats.retained_bytes = retained_bytes;
+            lane_stats.peak_bytes = lane_stats.peak_bytes.max(retained_bytes);
+        }
+        if capacity != old_capacity {
+            if let Some(growths) = lane_stats.capacity_growths.checked_add(1) {
+                lane_stats.capacity_growths = growths;
+            } else {
+                accounting_exhausted = true;
+            }
+        }
+        stats.index_requested_slots = index_requested_slots;
+        if let Some(total) = stats
+            .index_actual_capacity
+            .checked_sub(old_capacity)
+            .and_then(|total| total.checked_add(capacity))
+        {
+            stats.index_actual_capacity = total;
+        } else {
+            accounting_exhausted = true;
+        }
+        if let (Some(old_bytes), Some(retained_bytes)) = (old_bytes, retained_bytes) {
+            if let Some(total) = stats
+                .index_retained_bytes
+                .checked_sub(old_bytes)
+                .and_then(|total| total.checked_add(retained_bytes))
+            {
+                stats.index_retained_bytes = total;
+                stats.index_peak_bytes = stats.index_peak_bytes.max(total);
+            } else {
+                accounting_exhausted = true;
+            }
+        }
+        if capacity != old_capacity {
+            if let Some(growths) = stats.index_capacity_growths.checked_add(1) {
+                stats.index_capacity_growths = growths;
+            } else {
+                accounting_exhausted = true;
+            }
+            if let Some(meter) = meter {
+                if meter
+                    .observe_normalization_scratch(stats.index_retained_bytes)
+                    .is_err()
+                {
+                    accounting_exhausted = true;
+                }
+            }
+        }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            let component = stats.candidate_observer.as_ref()
+                .map(|observer| observer.0.event_component)
+                .or_else(|| meter.map(DraftHeapMeter::event_component))
+                .unwrap_or(0);
+            if meter.is_some() || stats.candidate_observer.as_ref()
+                .is_some_and(|observer| observer.0.index_family) {
+                stats.event_owners[lane as usize].observe(component, lane as usize,
+                    items.len(), capacity, slot_size);
+            }
+        }
+        #[cfg(test)]
+        let observer_result = stats
+            .candidate_observer
+            .as_mut()
+            .map(|observer| observer.observe(lane as usize, capacity, slot_size,
+                additional, items.len()));
+        #[cfg(test)]
+        observer_result.transpose()?;
+        if accounting_exhausted {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        reserve_result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn push<T>(
+        items: &mut Vec<T>,
+        item: T,
+        lane: Lane,
+        stats: &mut NormalizationStats,
+        meter: Option<&DraftHeapMeter>,
+    ) -> Result<(), SolveAvailabilityError> {
+        Self::reserve(items, 1, lane, stats, meter)?;
+        items.push(item);
+        Ok(())
+    }
+
+    fn push_word(&mut self, word: u32) -> Result<(), SolveAvailabilityError> {
+        let next = self
+            .stats
+            .descriptor_words
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        Self::push(
+            &mut self.descriptor_words,
+            word,
+            Lane::DescriptorWords,
+            &mut self.stats,
+            self.source_meter,
+        )?;
+        self.stats.descriptor_words = next;
+        Ok(())
+    }
+
+    fn push_node(
+        &mut self,
+        kind: NodeKind,
+        children: &[NodeId],
+    ) -> Result<NodeId, SolveAvailabilityError> {
+        self.preflight_graph_growth(1, children.len())?;
+        let start = self.children.len();
+        Self::reserve(
+            &mut self.children,
+            children.len(),
+            Lane::Children,
+            &mut self.stats,
+            self.source_meter,
+        )?;
+        self.children.extend_from_slice(children);
+        self.push_node_at(kind, start, children.len())
+    }
+
+    fn push_node_at(
+        &mut self,
+        kind: NodeKind,
+        start: usize,
+        child_count: usize,
+    ) -> Result<NodeId, SolveAvailabilityError> {
+        self.preflight_graph_growth(1, 0)?;
+        let end = start
+            .checked_add(child_count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let mut height = 0u32;
+        for child in self
+            .children
+            .get(start..end)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?
+        {
+            let child_height = self
+                .nodes
+                .get(*child)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
+                .height;
+            height = height.max(child_height);
+        }
+        if child_count != 0 {
+            height = height
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        let node = Node {
+            kind,
+            height,
+            rank: 0,
+            descriptor: None,
+        };
+        let id = self.nodes.len();
+        Self::push(
+            &mut self.nodes,
+            node,
+            Lane::Nodes,
+            &mut self.stats,
+            self.source_meter,
+        )?;
+        Ok(match kind {
+            NodeKind::PositiveUnion { .. } => {
+                self.nodes[id].kind = NodeKind::PositiveUnion {
+                    start,
+                    len: child_count,
+                };
+                id
+            }
+            NodeKind::PositiveFunction { .. } => {
+                self.nodes[id].kind = NodeKind::PositiveFunction { start };
+                id
+            }
+            NodeKind::NegativeIntersection { .. } => {
+                self.nodes[id].kind = NodeKind::NegativeIntersection {
+                    start,
+                    len: child_count,
+                };
+                id
+            }
+            NodeKind::NegativeFunction { .. } => {
+                self.nodes[id].kind = NodeKind::NegativeFunction { start };
+                id
+            }
+            _ => id,
+        })
+    }
+
+    fn flatten_positive(
+        &mut self,
+        value: F5cPositive<'meter>,
+    ) -> Result<NodeId, SolveAvailabilityError> {
+        Self::push(
+            &mut self.walk,
+            Walk::Positive(value),
+            Lane::Walk,
+            &mut self.stats,
+            self.source_meter,
+        )?;
+        self.flatten()
+    }
+
+    fn flatten_negative(
+        &mut self,
+        value: F5cNegative<'meter>,
+    ) -> Result<NodeId, SolveAvailabilityError> {
+        Self::push(
+            &mut self.walk,
+            Walk::Negative(value),
+            Lane::Walk,
+            &mut self.stats,
+            self.source_meter,
+        )?;
+        self.flatten()
+    }
+
+    fn flatten(&mut self) -> Result<NodeId, SolveAvailabilityError> {
+        self.values.clear();
+        while let Some(work) = self.walk.pop() {
+            match work {
+                Walk::Positive(value) => match value {
+                    F5cPositive::Bottom => self.push_leaf(NodeKind::PositiveBottom)?,
+                    F5cPositive::Int => self.push_leaf(NodeKind::PositiveInt)?,
+                    F5cPositive::Unit => self.push_leaf(NodeKind::PositiveUnit)?,
+                    F5cPositive::Bool => self.push_leaf(NodeKind::PositiveBool)?,
+                    F5cPositive::Str => self.push_leaf(NodeKind::PositiveStr)?,
+                    F5cPositive::Variable(_) | F5cPositive::Shared(_) => {
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    }
+                    F5cPositive::Quantified(ordinal) => {
+                        self.push_leaf(NodeKind::PositiveQuantified(ordinal))?;
+                    }
+                    F5cPositive::Recursive(ordinal) => {
+                        self.push_leaf(NodeKind::PositiveRecursive(ordinal))?;
+                    }
+                    F5cPositive::Union(children) => {
+                        let len = children.len();
+                        Self::push(
+                            &mut self.walk,
+                            Walk::FinishPositiveUnion(len),
+                            Lane::Walk,
+                            &mut self.stats,
+                            self.source_meter,
+                        )?;
+                        for child in children.into_iter().rev() {
+                            Self::push(
+                                &mut self.walk,
+                                Walk::Positive(child),
+                                Lane::Walk,
+                                &mut self.stats,
+                                self.source_meter,
+                            )?;
+                        }
+                    }
+                    F5cPositive::Function {
+                        argument, result, ..
+                    } => {
+                        Self::push(
+                            &mut self.walk,
+                            Walk::FinishPositiveFunction,
+                            Lane::Walk,
+                            &mut self.stats,
+                            self.source_meter,
+                        )?;
+                        Self::push(
+                            &mut self.walk,
+                            Walk::Positive(result.into_inner()),
+                            Lane::Walk,
+                            &mut self.stats,
+                            self.source_meter,
+                        )?;
+                        Self::push(
+                            &mut self.walk,
+                            Walk::Negative(argument.into_inner()),
+                            Lane::Walk,
+                            &mut self.stats,
+                            self.source_meter,
+                        )?;
+                    }
+                },
+                Walk::Negative(value) => match value {
+                    F5cNegative::Top => self.push_leaf(NodeKind::NegativeTop)?,
+                    F5cNegative::Bottom => self.push_leaf(NodeKind::NegativeBottom)?,
+                    F5cNegative::Int => self.push_leaf(NodeKind::NegativeInt)?,
+                    F5cNegative::Unit => self.push_leaf(NodeKind::NegativeUnit)?,
+                    F5cNegative::Bool => self.push_leaf(NodeKind::NegativeBool)?,
+                    F5cNegative::Str => self.push_leaf(NodeKind::NegativeStr)?,
+                    F5cNegative::Variable(_) | F5cNegative::Shared(_) => {
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    }
+                    F5cNegative::Quantified(ordinal) => {
+                        self.push_leaf(NodeKind::NegativeQuantified(ordinal))?;
+                    }
+                    F5cNegative::Recursive(ordinal) => {
+                        self.push_leaf(NodeKind::NegativeRecursive(ordinal))?;
+                    }
+                    F5cNegative::Intersection(children) => {
+                        let len = children.len();
+                        Self::push(
+                            &mut self.walk,
+                            Walk::FinishNegativeIntersection(len),
+                            Lane::Walk,
+                            &mut self.stats,
+                            self.source_meter,
+                        )?;
+                        for child in children.into_iter().rev() {
+                            Self::push(
+                                &mut self.walk,
+                                Walk::Negative(child),
+                                Lane::Walk,
+                                &mut self.stats,
+                                self.source_meter,
+                            )?;
+                        }
+                    }
+                    F5cNegative::Function {
+                        argument, result, ..
+                    } => {
+                        Self::push(
+                            &mut self.walk,
+                            Walk::FinishNegativeFunction,
+                            Lane::Walk,
+                            &mut self.stats,
+                            self.source_meter,
+                        )?;
+                        Self::push(
+                            &mut self.walk,
+                            Walk::Negative(result.into_inner()),
+                            Lane::Walk,
+                            &mut self.stats,
+                            self.source_meter,
+                        )?;
+                        Self::push(
+                            &mut self.walk,
+                            Walk::Positive(argument.into_inner()),
+                            Lane::Walk,
+                            &mut self.stats,
+                            self.source_meter,
+                        )?;
+                    }
+                },
+                Walk::FinishPositiveUnion(len) => {
+                    let (start, count) = self.take_values_into_children(len, true)?;
+                    let id = self.push_node_at(
+                        NodeKind::PositiveUnion { start: 0, len: 0 },
+                        start,
+                        count,
+                    )?;
+                    Self::push(
+                        &mut self.values,
+                        BuiltRef::Positive(id),
+                        Lane::Values,
+                        &mut self.stats,
+                        self.source_meter,
+                    )?;
+                }
+                Walk::FinishPositiveFunction => {
+                    let result = self.take_value()?;
+                    let argument = self.take_value()?;
+                    let (BuiltRef::Negative(argument), BuiltRef::Positive(result)) =
+                        (argument, result)
+                    else {
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    };
+                    let id = self
+                        .push_node(NodeKind::PositiveFunction { start: 0 }, &[argument, result])?;
+                    Self::push(
+                        &mut self.values,
+                        BuiltRef::Positive(id),
+                        Lane::Values,
+                        &mut self.stats,
+                        self.source_meter,
+                    )?;
+                }
+                Walk::FinishNegativeIntersection(len) => {
+                    let (start, count) = self.take_values_into_children(len, false)?;
+                    let id = self.push_node_at(
+                        NodeKind::NegativeIntersection { start: 0, len: 0 },
+                        start,
+                        count,
+                    )?;
+                    Self::push(
+                        &mut self.values,
+                        BuiltRef::Negative(id),
+                        Lane::Values,
+                        &mut self.stats,
+                        self.source_meter,
+                    )?;
+                }
+                Walk::FinishNegativeFunction => {
+                    let result = self.take_value()?;
+                    let argument = self.take_value()?;
+                    let (BuiltRef::Positive(argument), BuiltRef::Negative(result)) =
+                        (argument, result)
+                    else {
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    };
+                    let id = self
+                        .push_node(NodeKind::NegativeFunction { start: 0 }, &[argument, result])?;
+                    Self::push(
+                        &mut self.values,
+                        BuiltRef::Negative(id),
+                        Lane::Values,
+                        &mut self.stats,
+                        self.source_meter,
+                    )?;
+                }
+            }
+        }
+        let [value] = self.values.as_slice() else {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        };
+        match value {
+            BuiltRef::Positive(id) | BuiltRef::Negative(id) => Ok(*id),
+        }
+    }
+
+    fn push_leaf(&mut self, kind: NodeKind) -> Result<(), SolveAvailabilityError> {
+        let id = self.push_node(kind, &[])?;
+        let reference = match kind {
+            NodeKind::NegativeTop
+            | NodeKind::NegativeBottom
+            | NodeKind::NegativeInt
+            | NodeKind::NegativeUnit
+            | NodeKind::NegativeBool
+            | NodeKind::NegativeStr
+            | NodeKind::NegativeQuantified(_)
+            | NodeKind::NegativeRecursive(_) => BuiltRef::Negative(id),
+            _ => BuiltRef::Positive(id),
+        };
+        Self::push(
+            &mut self.values,
+            reference,
+            Lane::Values,
+            &mut self.stats,
+            self.source_meter,
+        )
+    }
+
+    fn take_values_into_children(
+        &mut self,
+        len: usize,
+        positive: bool,
+    ) -> Result<(usize, usize), SolveAvailabilityError> {
+        self.preflight_graph_growth(1, len)?;
+        let start = self
+            .values
+            .len()
+            .checked_sub(len)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let children_start = self.children.len();
+        Self::reserve(
+            &mut self.children,
+            len,
+            Lane::Children,
+            &mut self.stats,
+            self.source_meter,
+        )?;
+        for value in &self.values[start..] {
+            let id = match (positive, value) {
+                (true, BuiltRef::Positive(id)) | (false, BuiltRef::Negative(id)) => *id,
+                _ => return Err(SolveAvailabilityError::IdentityExhausted),
+            };
+            self.children.push(id);
+        }
+        self.values.truncate(start);
+        Ok((children_start, len))
+    }
+
+    fn take_value(&mut self) -> Result<BuiltRef, SolveAvailabilityError> {
+        self.values
+            .pop()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn add_root(
+        &mut self,
+        value: BuiltRef,
+        location: RootLocation,
+    ) -> Result<(), SolveAvailabilityError> {
+        next_root_count(self.roots.len())?;
+        let node = match value {
+            BuiltRef::Positive(node) | BuiltRef::Negative(node) => node,
+        };
+        Self::push(
+            &mut self.roots,
+            Root { node, location },
+            Lane::Roots,
+            &mut self.stats,
+            self.source_meter,
+        )
+    }
+
+    fn collect_drafts(
+        &mut self,
+        drafts: &mut [GeneralizationDraft<'meter>],
+    ) -> Result<(), SolveAvailabilityError> {
+        for (draft_index, draft) in drafts.iter_mut().enumerate() {
+            let predicate = std::mem::replace(&mut draft.predicate, F5cPositive::Bottom);
+            let predicate = self.flatten_positive(predicate)?;
+            self.add_root(
+                BuiltRef::Positive(predicate),
+                RootLocation::Predicate(draft_index),
+            )?;
+            for (bound_index, bound) in draft.recursive_bounds.iter_mut().enumerate() {
+                let lower = std::mem::replace(&mut bound.lower, F5cPositive::Bottom);
+                let upper = std::mem::replace(&mut bound.upper, F5cNegative::Top);
+                let lower = self.flatten_positive(lower)?;
+                self.add_root(
+                    BuiltRef::Positive(lower),
+                    RootLocation::Lower(draft_index, bound_index),
+                )?;
+                let upper = self.flatten_negative(upper)?;
+                self.add_root(
+                    BuiltRef::Negative(upper),
+                    RootLocation::Upper(draft_index, bound_index),
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn prepare_height_groups(&mut self) -> Result<(), SolveAvailabilityError> {
+        let max_height = self.nodes.iter().map(|node| node.height).max().unwrap_or(0);
+        let height_count = usize::try_from(max_height)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        Self::reserve(
+            &mut self.height_counts,
+            height_count,
+            Lane::HeightCounts,
+            &mut self.stats,
+            self.source_meter,
+        )?;
+        self.height_counts.resize(height_count, 0);
+        for node in &self.nodes {
+            let index = usize::try_from(node.height)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            self.height_counts[index] = self.height_counts[index]
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        let offsets_len = height_count
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        Self::reserve(
+            &mut self.height_offsets,
+            offsets_len,
+            Lane::HeightOffsets,
+            &mut self.stats,
+            self.source_meter,
+        )?;
+        self.height_offsets.resize(offsets_len, 0);
+        for index in 0..height_count {
+            self.height_offsets[index + 1] = self.height_offsets[index]
+                .checked_add(self.height_counts[index])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        Self::reserve(
+            &mut self.height_nodes,
+            self.nodes.len(),
+            Lane::HeightNodes,
+            &mut self.stats,
+            self.source_meter,
+        )?;
+        self.height_nodes.resize(self.nodes.len(), 0);
+        self.height_counts
+            .copy_from_slice(&self.height_offsets[..height_count]);
+        for (id, node) in self.nodes.iter().enumerate() {
+            let height = usize::try_from(node.height)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            let slot = self.height_counts[height];
+            self.height_nodes[slot] = id;
+            self.height_counts[height] = slot
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        Self::reserve(
+            &mut self.sort_scratch,
+            self.nodes.len(),
+            Lane::SortScratch,
+            &mut self.stats,
+            self.source_meter,
+        )?;
+        self.sort_scratch.resize(self.nodes.len(), 0);
+        Ok(())
+    }
+
+    fn rank_all(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.prepare_height_groups()?;
+        for height in 0..self.height_offsets.len() - 1 {
+            let start = self.height_offsets[height];
+            let end = self.height_offsets[height + 1];
+            for index in start..end {
+                #[cfg(test)]
+                if let Some(observer) = &mut self.stats.candidate_observer {
+                    observer.charge(1)?;
+                }
+                let node_id = self.height_nodes[index];
+                self.sort_node_children(node_id)?;
+                self.write_descriptor(node_id)?;
+            }
+            self.radix_sort_descriptor_words(start, end)?;
+            {
+                let nodes = &self.nodes;
+                let words = &self.descriptor_words;
+                let stats = &mut self.stats;
+                let (height_nodes, scratch) = (
+                    &mut self.height_nodes[start..end],
+                    &mut self.sort_scratch[start..end],
+                );
+                stable_merge_sort(height_nodes, scratch, &mut |left, right| {
+                    compare_descriptors(nodes, words, stats, left, right)
+                })?;
+            }
+            let mut rank = 0u32;
+            let mut previous = None;
+            for index in start..end {
+                #[cfg(test)]
+                if let Some(observer) = &mut self.stats.candidate_observer {
+                    observer.charge(1)?;
+                }
+                let node_id = self.height_nodes[index];
+                if let Some(previous_id) = previous {
+                    if !self.descriptors_equal(previous_id, node_id)? {
+                        rank = rank
+                            .checked_add(1)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    }
+                }
+                self.nodes[node_id].rank = rank;
+                previous = Some(node_id);
+                self.stats.key_writes = self
+                    .stats
+                    .key_writes
+                    .checked_add(1)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn prepare_radix_workspaces(&mut self) -> Result<(), SolveAvailabilityError> {
+        let workspace_additional = RADIX_WORKSPACE_SLOTS
+            .checked_sub(self.radix_workspace.len())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        Self::reserve(
+            &mut self.radix_workspace,
+            workspace_additional,
+            Lane::RadixWorkspace,
+            &mut self.stats,
+            self.source_meter,
+        )?;
+        self.radix_workspace.resize(RADIX_WORKSPACE_SLOTS, 0);
+        Ok(())
+    }
+
+    fn radix_sort_descriptor_words(
+        &mut self,
+        start: usize,
+        end: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let len = end
+            .checked_sub(start)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if len < 3 {
+            return Ok(());
+        }
+        let workspace = if len > RADIX_INSERTION_LIMIT {
+            self.prepare_radix_workspaces()?;
+            Some(self.radix_workspace.as_mut_slice())
+        } else {
+            None
+        };
+        let nodes = &self.nodes;
+        let words = &self.descriptor_words;
+        let values = &mut self.height_nodes[start..end];
+        radix_sort_node_ids(
+            values,
+            None,
+            workspace,
+            &mut self.radix_frames,
+            &mut self.stats,
+            self.source_meter,
+            |node_id, byte| descriptor_radix_symbol(nodes, words, node_id, byte),
+        )
+    }
+
+    fn radix_sort_key_ids(
+        &mut self,
+        start: usize,
+        len: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        if len < 3 {
+            return Ok(());
+        }
+        let workspace = if len > RADIX_INSERTION_LIMIT {
+            self.prepare_radix_workspaces()?;
+            Some(self.radix_workspace.as_mut_slice())
+        } else {
+            None
+        };
+        let end = start
+            .checked_add(len)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let nodes = &self.nodes;
+        let values = &mut self.children[start..end];
+        radix_sort_node_ids(
+            values,
+            Some(2 * std::mem::size_of::<u32>()),
+            workspace,
+            &mut self.radix_frames,
+            &mut self.stats,
+            self.source_meter,
+            |node_id, byte| key_id_radix_symbol(nodes, node_id, byte),
+        )
+    }
+
+    fn sort_node_children(&mut self, node_id: NodeId) -> Result<(), SolveAvailabilityError> {
+        let (start, len) = match self.nodes[node_id].kind {
+            NodeKind::PositiveUnion { start, len }
+            | NodeKind::NegativeIntersection { start, len } => (Some(start), len),
+            _ => (None, 0),
+        };
+        let Some(start) = start else {
+            return Ok(());
+        };
+        if len < 2 {
+            return Ok(());
+        }
+        let end = start
+            .checked_add(len)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.radix_sort_key_ids(start, len)?;
+        {
+            let nodes = &self.nodes;
+            let stats = &mut self.stats;
+            let (children, scratch) = (
+                &mut self.children[start..end],
+                &mut self.sort_scratch[..len],
+            );
+            stable_merge_sort(children, scratch, &mut |left, right| {
+                stats.child_comparisons = stats
+                    .child_comparisons
+                    .checked_add(1)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                compare_key_ids(nodes, stats, left, right)
+            })?;
+        }
+        let nodes = &self.nodes;
+        let stats = &mut self.stats;
+        let children = &mut self.children[start..end];
+        let mut write = 0usize;
+        for read in 0..len {
+            let child = children[read];
+            let duplicate = if write > 0 {
+                stats.child_comparisons = stats
+                    .child_comparisons
+                    .checked_add(1)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                compare_key_ids(nodes, stats, children[write - 1], child)? == Ordering::Equal
+            } else {
+                false
+            };
+            if duplicate {
+                stats.duplicates = stats
+                    .duplicates
+                    .checked_add(1)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                continue;
+            }
+            children[write] = child;
+            write += 1;
+        }
+        match &mut self.nodes[node_id].kind {
+            NodeKind::PositiveUnion { len, .. } | NodeKind::NegativeIntersection { len, .. } => {
+                *len = write
+            }
+            _ => return Err(SolveAvailabilityError::IdentityExhausted),
+        }
+        Ok(())
+    }
+
+    fn write_descriptor(&mut self, node_id: NodeId) -> Result<(), SolveAvailabilityError> {
+        let start = self.descriptor_words.len();
+        let kind = self.nodes[node_id].kind;
+        let word_count = match kind {
+            NodeKind::PositiveQuantified(_)
+            | NodeKind::PositiveRecursive(_)
+            | NodeKind::NegativeQuantified(_)
+            | NodeKind::NegativeRecursive(_) => 2,
+            NodeKind::PositiveUnion { len, .. } | NodeKind::NegativeIntersection { len, .. } => {
+                u32::try_from(len).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                len.checked_mul(2)
+                    .and_then(|words| words.checked_add(2))
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?
+            }
+            NodeKind::PositiveFunction { .. } | NodeKind::NegativeFunction { .. } => 5,
+            _ => 1,
+        };
+        start
+            .checked_add(word_count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.stats
+            .descriptor_words
+            .checked_add(word_count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.stats.index_lanes[Lane::DescriptorWords as usize]
+            .requested_slots
+            .checked_add(word_count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.stats
+            .index_requested_slots
+            .checked_add(word_count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        word_count
+            .checked_mul(std::mem::size_of::<u32>())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        if let Some(observer) = &self.stats.candidate_observer {
+            observer.preflight_requested(Lane::DescriptorWords as usize, word_count)?;
+        }
+        self.push_word(discriminator(kind))?;
+        match kind {
+            NodeKind::PositiveQuantified(ordinal)
+            | NodeKind::PositiveRecursive(ordinal)
+            | NodeKind::NegativeQuantified(ordinal)
+            | NodeKind::NegativeRecursive(ordinal) => self.push_word(ordinal)?,
+            NodeKind::PositiveUnion { start, len }
+            | NodeKind::NegativeIntersection { start, len } => {
+                self.push_word(
+                    u32::try_from(len).map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                )?;
+                self.push_child_keys(start, len)?;
+            }
+            NodeKind::PositiveFunction { start } | NodeKind::NegativeFunction { start } => {
+                self.push_child_keys(start, 2)?;
+            }
+            _ => {}
+        }
+        self.nodes[node_id].descriptor = Some((start, word_count));
+        Ok(())
+    }
+
+    fn push_child_keys(&mut self, start: usize, len: usize) -> Result<(), SolveAvailabilityError> {
+        let end = start
+            .checked_add(len)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        for index in start..end {
+            let child = self.children[index];
+            let node = self
+                .nodes
+                .get(child)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let key = NormalizedKeyId {
+                height: node.height,
+                rank: node.rank,
+            };
+            self.push_word(key.height)?;
+            self.push_word(key.rank)?;
+        }
+        Ok(())
+    }
+
+    fn descriptors_equal(
+        &mut self,
+        left: NodeId,
+        right: NodeId,
+    ) -> Result<bool, SolveAvailabilityError> {
+        let nodes = &self.nodes;
+        let words = &self.descriptor_words;
+        let stats = &mut self.stats;
+        Ok(compare_descriptors(nodes, words, stats, left, right)? == Ordering::Equal)
+    }
+
+    fn rebuild(
+        &mut self,
+        drafts: &mut [GeneralizationDraft<'meter>],
+    ) -> Result<(), SolveAvailabilityError> {
+        let source_meter = self
+            .source_meter
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        Self::reserve(
+            &mut self.output,
+            self.nodes.len(),
+            Lane::Output,
+            &mut self.stats,
+            self.source_meter,
+        )?;
+        self.output.resize_with(self.nodes.len(), || None);
+        for id in 0..self.nodes.len() {
+            let kind = self.nodes[id].kind;
+            let built = match kind {
+                NodeKind::PositiveBottom => BuiltValue::Positive(F5cPositive::Bottom),
+                NodeKind::PositiveInt => BuiltValue::Positive(F5cPositive::Int),
+                NodeKind::PositiveUnit => BuiltValue::Positive(F5cPositive::Unit),
+                NodeKind::PositiveBool => BuiltValue::Positive(F5cPositive::Bool),
+                NodeKind::PositiveStr => BuiltValue::Positive(F5cPositive::Str),
+                NodeKind::PositiveQuantified(ordinal) => {
+                    BuiltValue::Positive(F5cPositive::Quantified(ordinal))
+                }
+                NodeKind::PositiveRecursive(ordinal) => {
+                    BuiltValue::Positive(F5cPositive::Recursive(ordinal))
+                }
+                NodeKind::PositiveUnion { start, len } => {
+                    let end = start
+                        .checked_add(len)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    let mut values = TrackedVec::new_with_kind(
+                        source_meter, PhysicalOwnerKind::UnionChildren);
+                    values
+                        .try_reserve_exact(len)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    for child in self.children[start..end].iter().copied() {
+                        let Some(BuiltValue::Positive(value)) = self.output[child].take() else {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        };
+                        values.push_reserved(value);
+                    }
+                    BuiltValue::Positive(F5cPositive::Union(values))
+                }
+                NodeKind::PositiveFunction { start } => {
+                    let argument_id = self.children[start];
+                    let result_id = self.children[start + 1];
+                    let Some(BuiltValue::Negative(argument)) = self.output[argument_id].take()
+                    else {
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    };
+                    let Some(BuiltValue::Positive(result)) = self.output[result_id].take() else {
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    };
+                    BuiltValue::Positive(F5cPositive::Function {
+                        argument: TrackedOne::try_new_with_kind(source_meter, argument,
+                            PhysicalOwnerKind::PositiveFunctionArgument)
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                        argument_effect: super::F5cNegativeEffect::Empty,
+                        result_effect: super::F5cPositiveEffect::Bottom,
+                        result: TrackedOne::try_new_with_kind(source_meter, result,
+                            PhysicalOwnerKind::PositiveFunctionResult)
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                    })
+                }
+                NodeKind::NegativeTop => BuiltValue::Negative(F5cNegative::Top),
+                NodeKind::NegativeBottom => BuiltValue::Negative(F5cNegative::Bottom),
+                NodeKind::NegativeInt => BuiltValue::Negative(F5cNegative::Int),
+                NodeKind::NegativeUnit => BuiltValue::Negative(F5cNegative::Unit),
+                NodeKind::NegativeBool => BuiltValue::Negative(F5cNegative::Bool),
+                NodeKind::NegativeStr => BuiltValue::Negative(F5cNegative::Str),
+                NodeKind::NegativeQuantified(ordinal) => {
+                    BuiltValue::Negative(F5cNegative::Quantified(ordinal))
+                }
+                NodeKind::NegativeRecursive(ordinal) => {
+                    BuiltValue::Negative(F5cNegative::Recursive(ordinal))
+                }
+                NodeKind::NegativeIntersection { start, len } => {
+                    let end = start
+                        .checked_add(len)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    let mut values = TrackedVec::new_with_kind(
+                        source_meter, PhysicalOwnerKind::IntersectionChildren);
+                    values
+                        .try_reserve_exact(len)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    for child in self.children[start..end].iter().copied() {
+                        let Some(BuiltValue::Negative(value)) = self.output[child].take() else {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        };
+                        values.push_reserved(value);
+                    }
+                    BuiltValue::Negative(F5cNegative::Intersection(values))
+                }
+                NodeKind::NegativeFunction { start } => {
+                    let argument_id = self.children[start];
+                    let result_id = self.children[start + 1];
+                    let Some(BuiltValue::Positive(argument)) = self.output[argument_id].take()
+                    else {
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    };
+                    let Some(BuiltValue::Negative(result)) = self.output[result_id].take() else {
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    };
+                    BuiltValue::Negative(F5cNegative::Function {
+                        argument: TrackedOne::try_new_with_kind(source_meter, argument,
+                            PhysicalOwnerKind::NegativeFunctionArgument)
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                        argument_effect: super::F5cPositiveEffect::Bottom,
+                        result_effect: super::F5cNegativeEffect::Empty,
+                        result: TrackedOne::try_new_with_kind(source_meter, result,
+                            PhysicalOwnerKind::NegativeFunctionResult)
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                    })
+                }
+            };
+            self.output[id] = Some(built);
+        }
+        for root in &self.roots {
+            let Some(value) = self.output[root.node].take() else {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            };
+            match (root.location, value) {
+                (RootLocation::Predicate(draft), BuiltValue::Positive(value)) => {
+                    drafts[draft].predicate = value;
+                }
+                (RootLocation::Lower(draft, bound), BuiltValue::Positive(value)) => {
+                    drafts[draft].recursive_bounds[bound].lower = value;
+                }
+                (RootLocation::Upper(draft, bound), BuiltValue::Negative(value)) => {
+                    drafts[draft].recursive_bounds[bound].upper = value;
+                }
+                _ => return Err(SolveAvailabilityError::IdentityExhausted),
+            }
+        }
+        Ok(())
+    }
+}
+
+fn discriminator(kind: NodeKind) -> u32 {
+    match kind {
+        NodeKind::PositiveBottom => 0,
+        NodeKind::PositiveInt => 1,
+        NodeKind::PositiveUnit => 13,
+        NodeKind::PositiveBool => 15,
+        NodeKind::PositiveStr => 17,
+        NodeKind::PositiveQuantified(_) => 2,
+        NodeKind::PositiveRecursive(_) => 3,
+        NodeKind::PositiveUnion { .. } => 4,
+        NodeKind::PositiveFunction { .. } => 5,
+        NodeKind::NegativeTop => 6,
+        NodeKind::NegativeBottom => 7,
+        NodeKind::NegativeInt => 8,
+        NodeKind::NegativeUnit => 14,
+        NodeKind::NegativeBool => 16,
+        NodeKind::NegativeStr => 18,
+        NodeKind::NegativeQuantified(_) => 9,
+        NodeKind::NegativeRecursive(_) => 10,
+        NodeKind::NegativeIntersection { .. } => 11,
+        NodeKind::NegativeFunction { .. } => 12,
+    }
+}
+
+fn compare_words(
+    left: &[u32],
+    right: &[u32],
+    comparisons: &mut usize,
+    #[cfg(test)] mut observer: Option<&mut FlatCandidateObserver>,
+) -> Result<Ordering, SolveAvailabilityError> {
+    for (left, right) in left.iter().zip(right) {
+        #[cfg(test)]
+        if let Some(observer) = observer.as_deref_mut() {
+            observer.charge(1)?;
+        }
+        *comparisons = comparisons
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        match left.cmp(right) {
+            Ordering::Equal => {}
+            order => return Ok(order),
+        }
+    }
+    Ok(left.len().cmp(&right.len()))
+}
+
+fn compare_key_ids(
+    nodes: &[Node],
+    stats: &mut NormalizationStats,
+    left: NodeId,
+    right: NodeId,
+) -> Result<Ordering, SolveAvailabilityError> {
+    #[cfg(test)]
+    if let Some(observer) = &mut stats.candidate_observer {
+        observer.charge(1)?;
+    }
+    let left = nodes
+        .get(left)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let right = nodes
+        .get(right)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    stats.word_comparisons = stats
+        .word_comparisons
+        .checked_add(1)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    match left.height.cmp(&right.height) {
+        Ordering::Equal => {
+            stats.word_comparisons = stats
+                .word_comparisons
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            Ok(left.rank.cmp(&right.rank))
+        }
+        ordering => Ok(ordering),
+    }
+}
+
+fn compare_descriptors(
+    nodes: &[Node],
+    words: &[u32],
+    stats: &mut NormalizationStats,
+    left: NodeId,
+    right: NodeId,
+) -> Result<Ordering, SolveAvailabilityError> {
+    #[cfg(test)]
+    if let Some(observer) = &mut stats.candidate_observer {
+        observer.charge(1)?;
+    }
+    let left = nodes
+        .get(left)
+        .and_then(|node| node.descriptor)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let right = nodes
+        .get(right)
+        .and_then(|node| node.descriptor)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let left_end = left
+        .0
+        .checked_add(left.1)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let right_end = right
+        .0
+        .checked_add(right.1)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    compare_words(
+        words
+            .get(left.0..left_end)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        words
+            .get(right.0..right_end)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        &mut stats.word_comparisons,
+        #[cfg(test)]
+        stats.candidate_observer.as_deref_mut(),
+    )
+}
+
+fn descriptor_radix_symbol(
+    nodes: &[Node],
+    words: &[u32],
+    node_id: NodeId,
+    byte: usize,
+) -> Result<usize, SolveAvailabilityError> {
+    let (start, len) = nodes
+        .get(node_id)
+        .and_then(|node| node.descriptor)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let byte_len = len
+        .checked_mul(std::mem::size_of::<u32>())
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    if byte >= byte_len {
+        return Ok(0);
+    }
+    let word_offset = byte / std::mem::size_of::<u32>();
+    let byte_in_word = byte % std::mem::size_of::<u32>();
+    let word_index = start
+        .checked_add(word_offset)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let word = *words
+        .get(word_index)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let shift = (std::mem::size_of::<u32>() - byte_in_word - 1)
+        .checked_mul(u8::BITS as usize)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let byte_value = usize::try_from((word >> shift) & u32::from(u8::MAX))
+        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+    byte_value
+        .checked_add(1)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+}
+
+fn key_id_radix_symbol(
+    nodes: &[Node],
+    node_id: NodeId,
+    byte: usize,
+) -> Result<usize, SolveAvailabilityError> {
+    let node = nodes
+        .get(node_id)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let word = match byte / std::mem::size_of::<u32>() {
+        0 => node.height,
+        1 => node.rank,
+        _ => return Err(SolveAvailabilityError::IdentityExhausted),
+    };
+    let byte_in_word = byte % std::mem::size_of::<u32>();
+    let shift = (std::mem::size_of::<u32>() - byte_in_word - 1)
+        .checked_mul(u8::BITS as usize)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let byte_value = usize::try_from((word >> shift) & u32::from(u8::MAX))
+        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+    byte_value
+        .checked_add(1)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+}
+
+fn compare_radix_keys(
+    left: NodeId,
+    right: NodeId,
+    fixed_byte_len: Option<usize>,
+    symbol_for: &mut impl FnMut(NodeId, usize) -> Result<usize, SolveAvailabilityError>,
+) -> Result<Ordering, SolveAvailabilityError> {
+    let mut byte = 0usize;
+    loop {
+        let left_symbol = symbol_for(left, byte)?;
+        let right_symbol = symbol_for(right, byte)?;
+        match left_symbol.cmp(&right_symbol) {
+            Ordering::Equal => {}
+            ordering => return Ok(ordering),
+        }
+        if left_symbol == 0
+            || fixed_byte_len
+                .is_some_and(|limit| byte.checked_add(1).is_some_and(|next| next >= limit))
+        {
+            return Ok(Ordering::Equal);
+        }
+        byte = byte
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    }
+}
+
+fn radix_sort_node_ids(
+    values: &mut [NodeId],
+    fixed_byte_len: Option<usize>,
+    workspace: Option<&mut [usize]>,
+    frames: &mut Vec<RadixFrame>,
+    stats: &mut NormalizationStats,
+    meter: Option<&DraftHeapMeter>,
+    mut symbol_for: impl FnMut(NodeId, usize) -> Result<usize, SolveAvailabilityError>,
+) -> Result<(), SolveAvailabilityError> {
+    if values.len() < 2 {
+        return Err(SolveAvailabilityError::IdentityExhausted);
+    }
+    if values.len() <= RADIX_INSERTION_LIMIT {
+        for index in 1..values.len() {
+            let value = values[index];
+            let mut destination = index;
+            while destination > 0
+                && compare_radix_keys(
+                    value,
+                    values[destination - 1],
+                    fixed_byte_len,
+                    &mut symbol_for,
+                )? == Ordering::Less
+            {
+                values[destination] = values[destination - 1];
+                destination -= 1;
+            }
+            values[destination] = value;
+        }
+        return Ok(());
+    }
+    let workspace = workspace.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    if workspace.len() != RADIX_WORKSPACE_SLOTS {
+        return Err(SolveAvailabilityError::IdentityExhausted);
+    }
+    let (counts, rest) = workspace.split_at_mut(RADIX_ALPHABET);
+    let (starts, cursors) = rest.split_at_mut(RADIX_ALPHABET);
+    frames.clear();
+    Normalizer::push(
+        frames,
+        RadixFrame {
+            start: 0,
+            end: values.len(),
+            byte: 0,
+        },
+        Lane::RadixFrames,
+        stats,
+        meter,
+    )?;
+
+    while let Some(frame) = frames.pop() {
+        let frame_len = frame
+            .end
+            .checked_sub(frame.start)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if frame.end > values.len() {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        if frame_len < 2 {
+            continue;
+        }
+        counts.fill(0);
+        for node_id in &values[frame.start..frame.end] {
+            let symbol = symbol_for(*node_id, frame.byte)?;
+            let count = counts
+                .get_mut(symbol)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            *count = count
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        let mut next_start = frame.start;
+        for symbol in 0..RADIX_ALPHABET {
+            starts[symbol] = next_start;
+            cursors[symbol] = next_start;
+            next_start = next_start
+                .checked_add(counts[symbol])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        if next_start != frame.end {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        for symbol in 0..RADIX_ALPHABET {
+            let bucket_end = starts[symbol]
+                .checked_add(counts[symbol])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            while cursors[symbol] < bucket_end {
+                let position = cursors[symbol];
+                let node_id = *values
+                    .get(position)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                let destination = symbol_for(node_id, frame.byte)?;
+                if destination >= RADIX_ALPHABET {
+                    return Err(SolveAvailabilityError::IdentityExhausted);
+                }
+                if destination == symbol {
+                    cursors[symbol] = position
+                        .checked_add(1)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                } else {
+                    let destination_end = starts[destination]
+                        .checked_add(counts[destination])
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    let destination_cursor = cursors[destination];
+                    if destination_cursor >= destination_end {
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    }
+                    values.swap(position, destination_cursor);
+                    cursors[destination] = destination_cursor
+                        .checked_add(1)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                }
+            }
+        }
+
+        let next_byte = frame
+            .byte
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if fixed_byte_len.is_some_and(|limit| next_byte >= limit) {
+            continue;
+        }
+        for symbol in (1..RADIX_ALPHABET).rev() {
+            let bucket_len = counts[symbol];
+            if bucket_len < 2 {
+                continue;
+            }
+            Normalizer::push(
+                frames,
+                RadixFrame {
+                    start: starts[symbol],
+                    end: starts[symbol]
+                        .checked_add(bucket_len)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                    byte: next_byte,
+                },
+                Lane::RadixFrames,
+                stats,
+                meter,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn stable_merge_sort<T: Copy>(
+    values: &mut [T],
+    scratch: &mut [T],
+    compare: &mut impl FnMut(T, T) -> Result<Ordering, SolveAvailabilityError>,
+) -> Result<(), SolveAvailabilityError> {
+    if values.len() != scratch.len() {
+        return Err(SolveAvailabilityError::IdentityExhausted);
+    }
+    if values.len() < 2 {
+        return Ok(());
+    }
+    let middle = values.len() / 2;
+    let (left, right) = values.split_at_mut(middle);
+    let (left_scratch, right_scratch) = scratch.split_at_mut(middle);
+    stable_merge_sort(left, left_scratch, compare)?;
+    stable_merge_sort(right, right_scratch, compare)?;
+    let (left, right) = values.split_at(middle);
+    let mut left_index = 0;
+    let mut right_index = 0;
+    let mut output_index = 0;
+    while left_index < left.len() && right_index < right.len() {
+        if compare(left[left_index], right[right_index])? != Ordering::Greater {
+            scratch[output_index] = left[left_index];
+            left_index += 1;
+        } else {
+            scratch[output_index] = right[right_index];
+            right_index += 1;
+        }
+        output_index += 1;
+    }
+    while left_index < left.len() {
+        scratch[output_index] = left[left_index];
+        left_index += 1;
+        output_index += 1;
+    }
+    while right_index < right.len() {
+        scratch[output_index] = right[right_index];
+        right_index += 1;
+        output_index += 1;
+    }
+    values.copy_from_slice(scratch);
+    Ok(())
+}
+
+fn source_id(reference: NodeRef) -> u32 {
+    match reference {
+        NodeRef::Positive(id) => id.0,
+        NodeRef::Negative(id) => id.0,
+    }
+}
+
+fn visit_source_edges(
+    input: &FlatDraft,
+    reference: NodeRef,
+    mut visit: impl FnMut(NodeRef) -> Result<(), SolveAvailabilityError>,
+) -> Result<(), SolveAvailabilityError> {
+    let bad = SolveAvailabilityError::IdentityExhausted;
+    match reference {
+        NodeRef::Positive(id) => {
+            let node = *input
+                .positive_nodes
+                .get(usize::try_from(id.0).map_err(|_| bad)?)
+                .ok_or(bad)?;
+            match node {
+                PositiveNode::Union(span) => {
+                    let (start, end) = checked_child_range(span, input.positive_children.len())?;
+                    for &child in input.positive_children.get(start..end).ok_or(bad)? {
+                        visit(NodeRef::Positive(child))?;
+                    }
+                }
+                PositiveNode::Function { argument, result } => {
+                    visit(NodeRef::Negative(argument))?;
+                    visit(NodeRef::Positive(result))?;
+                }
+                _ => {}
+            }
+        }
+        NodeRef::Negative(id) => {
+            let node = *input
+                .negative_nodes
+                .get(usize::try_from(id.0).map_err(|_| bad)?)
+                .ok_or(bad)?;
+            match node {
+                NegativeNode::Intersection(span) => {
+                    let (start, end) = checked_child_range(span, input.negative_children.len())?;
+                    for &child in input.negative_children.get(start..end).ok_or(bad)? {
+                        visit(NodeRef::Negative(child))?;
+                    }
+                }
+                NegativeNode::Function { argument, result } => {
+                    visit(NodeRef::Positive(argument))?;
+                    visit(NodeRef::Negative(result))?;
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
+fn select_source_node(
+    reference: NodeRef,
+    positives: &mut [NodeId],
+    negatives: &mut [NodeId],
+) -> Result<(), SolveAvailabilityError> {
+    let index = usize::try_from(source_id(reference))
+        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+    let mapping = match reference {
+        NodeRef::Positive(_) => positives.get_mut(index),
+        NodeRef::Negative(_) => negatives.get_mut(index),
+    }
+    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    if *mapping == SOURCE_UNSELECTED {
+        *mapping = SOURCE_SELECTED;
+    }
+    Ok(())
+}
+
+fn select_root_nodes(
+    input: &FlatDraft,
+    positives: &mut [NodeId],
+    negatives: &mut [NodeId],
+) -> Result<(), SolveAvailabilityError> {
+    let bad = SolveAvailabilityError::IdentityExhausted;
+    select_source_node(
+        NodeRef::Positive(input.predicate.ok_or(bad)?),
+        positives,
+        negatives,
+    )?;
+    for bound in &input.recursive_bounds {
+        select_source_node(NodeRef::Positive(bound.lower), positives, negatives)?;
+        select_source_node(NodeRef::Negative(bound.upper), positives, negatives)?;
+    }
+    // Topological insertion order makes one reverse pass sufficient.
+    for reference in input.insertion_order.iter().rev().copied() {
+        let mapping = match reference {
+            NodeRef::Positive(_) => {
+                positives.get(usize::try_from(source_id(reference)).map_err(|_| bad)?)
+            }
+            NodeRef::Negative(_) => {
+                negatives.get(usize::try_from(source_id(reference)).map_err(|_| bad)?)
+            }
+        }
+        .copied()
+        .ok_or(bad)?;
+        if mapping == SOURCE_SELECTED {
+            visit_source_edges(input, reference, |child| {
+                select_source_node(child, positives, negatives)
+            })?;
+        }
+    }
+    Ok(())
+}
+
+fn mapped_source_node(nodes: &[NodeId], source_id: u32) -> Result<NodeId, SolveAvailabilityError> {
+    nodes
+        .get(usize::try_from(source_id).map_err(|_| SolveAvailabilityError::IdentityExhausted)?)
+        .copied()
+        .filter(|&node| node < SOURCE_SELECTED)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+}
+
+fn checked_child_range(
+    span: ChildSpan,
+    child_count: usize,
+) -> Result<(usize, usize), SolveAvailabilityError> {
+    let start =
+        usize::try_from(span.start).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+    let end = start
+        .checked_add(
+            usize::try_from(span.len).map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+        )
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    if end > child_count {
+        return Err(SolveAvailabilityError::IdentityExhausted);
+    }
+    Ok((start, end))
+}
+
+fn require_prior_source_id(id: u32, inserted_count: usize) -> Result<(), SolveAvailabilityError> {
+    if usize::try_from(id).map_err(|_| SolveAvailabilityError::IdentityExhausted)? < inserted_count
+    {
+        Ok(())
+    } else {
+        Err(SolveAvailabilityError::IdentityExhausted)
+    }
+}
+
+fn validate_prior_links(
+    input: &FlatDraft,
+    reference: NodeRef,
+    positive_count: usize,
+    negative_count: usize,
+) -> Result<(), SolveAvailabilityError> {
+    visit_source_edges(input, reference, |child| {
+        let inserted_count = match child {
+            NodeRef::Positive(_) => positive_count,
+            NodeRef::Negative(_) => negative_count,
+        };
+        require_prior_source_id(source_id(child), inserted_count)
+    })
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+pub(super) fn normalize_component<'meter>(
+    source_meter: &'meter DraftHeapMeter,
+    drafts: &mut [GeneralizationDraft<'meter>],
+) -> Result<NormalizationStats, SolveAvailabilityError> {
+    let mut stats = NormalizationStats::default();
+    normalize_component_with_stats(source_meter, drafts, &mut stats)?;
+    Ok(stats)
+}
+
+pub(super) fn normalize_component_with_stats<'meter>(
+    source_meter: &'meter DraftHeapMeter,
+    drafts: &mut [GeneralizationDraft<'meter>],
+    observed_stats: &mut NormalizationStats,
+) -> Result<(), SolveAvailabilityError> {
+    normalize_component_inner(source_meter, drafts, observed_stats, false)
+}
+
+fn normalize_component_inner<'meter>(
+    source_meter: &'meter DraftHeapMeter,
+    drafts: &mut [GeneralizationDraft<'meter>],
+    observed_stats: &mut NormalizationStats,
+    fail_after_collect: bool,
+) -> Result<(), SolveAvailabilityError> {
+    let mut normalizer = Normalizer::new();
+    normalizer.source_meter = Some(source_meter);
+    let source_bytes_at_start = source_meter
+        .current_bytes()
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    source_meter
+        .begin_normalization()
+        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+    let result = normalizer
+        .collect_drafts(drafts)
+        .and_then(|()| {
+            if fail_after_collect {
+                Err(SolveAvailabilityError::IdentityExhausted)
+            } else {
+                normalizer.rank_all()
+            }
+        })
+        .and_then(|()| normalizer.rebuild(drafts));
+    #[cfg(test)]
+    let (physical_lane_capacities, physical_lane_slot_sizes) = normalizer.physical_lane_snapshot();
+    let mut stats = std::mem::take(&mut normalizer.stats);
+    stats.source_bytes_at_start = source_bytes_at_start;
+    let joint_peak = source_meter.end_normalization();
+    #[cfg(test)]
+    {
+        stats.physical_lane_capacities = physical_lane_capacities;
+        stats.physical_lane_slot_sizes = physical_lane_slot_sizes;
+        for (lane, slot_size) in stats.index_lanes.iter_mut().zip(physical_lane_slot_sizes) {
+            lane.slot_size = slot_size;
+        }
+    }
+    stats.index_actual_capacity = 0;
+    stats.index_retained_bytes = 0;
+    for lane in &mut stats.index_lanes {
+        lane.actual_capacity = 0;
+        lane.retained_bytes = 0;
+    }
+    drop(normalizer);
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    for owner in &mut stats.event_owners { owner.release(); }
+    stats.source_index_joint_peak_bytes =
+        joint_peak.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    *observed_stats = stats;
+    result
+}
+
+/// Normalize the selected root forest without creating boxed values.
+/// Validate every source edge, but rank only nodes reachable from scheme roots;
+/// unreachable draft scratch is not part of the boxed selected-root counter schedule.
+fn reserve_flat_candidate<T>(
+    items: &mut Vec<T>,
+    additional: usize,
+    lane: usize,
+    observer: &mut Option<Box<FlatCandidateObserver>>,
+) -> Result<(), SolveAvailabilityError> {
+    if let Some(observer) = observer.as_ref() {
+        observer.preflight_requested(lane, additional)?;
+    }
+    let result = items.try_reserve(additional);
+    if let Some(observer) = observer.as_mut() {
+        observer.observe(lane, items.capacity(), std::mem::size_of::<T>(), additional,
+            items.len())?;
+    }
+    result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
+}
+
+fn observe_flat_output(
+    output: &FlatDraft,
+    observer: &mut Option<Box<FlatCandidateObserver>>,
+) -> Result<(), SolveAvailabilityError> {
+    if let Some(observer) = observer.as_mut() {
+        observer.observe_output(output)?;
+    }
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub(super) fn normalize_flat(
+    input: &FlatDraft,
+) -> Result<(FlatDraft, FlatNormalizationStats), SolveAvailabilityError> {
+    normalize_flat_inner(input, None).0
+}
+
+pub(super) fn normalize_flat_metered(
+    memo: &mut super::F5cComponentExpansionMemo,
+    source_meter: &DraftHeapMeter,
+    input: &FlatDraft,
+    #[cfg(test)] fail_after_selection_work: bool,
+) -> Result<(FlatDraft, FlatNormalizationStats), SolveAvailabilityError> {
+    let observer = new_flat_candidate_observer(memo, source_meter, None)?;
+    let selection_work = input
+        .positive_nodes
+        .len()
+        .checked_add(input.negative_nodes.len())
+        .and_then(|n| n.checked_add(input.positive_children.len()))
+        .and_then(|n| n.checked_add(input.negative_children.len()))
+        .and_then(|n| n.checked_add(input.recursive_bounds.len()))
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    observer.charge(selection_work)?;
+    #[cfg(test)]
+    if fail_after_selection_work {
+        memo.work_meter.set(usize::MAX);
+    }
+    #[allow(unused_mut)]
+    let (result, mut observer) = normalize_flat_inner(input, Some(observer));
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    if let Some(observer) = observer.as_mut() {
+        for owner in &mut observer.0.physical_index.event_owners { owner.release(); }
+    }
+    complete_flat_candidate_observer(memo, observer, false)?;
+    result
+}
+
+/// Rank every staged member in one descriptor universe, then hand off each
+/// projected flat output before allocating the next one.
+#[allow(dead_code)]
+pub(super) fn normalize_flat_batch_metered<'meter>(
+    memo: &mut super::F5cComponentExpansionMemo,
+    source_meter: &'meter DraftHeapMeter,
+    staged: &mut TrackedVec<'meter, super::f5c_generalization::F5cStagedCandidate<'meter>>,
+    #[cfg(test)] fail_after_output: Option<usize>,
+) -> Result<FlatNormalizationStats, SolveAvailabilityError> {
+    #[cfg(test)]
+    FAILED_FLAT_PHYSICAL_RESOURCE.with(|slot| *slot.borrow_mut() = None);
+    let mut normalizer = Normalizer::new();
+    normalizer.stats.candidate_observer = Some(Box::new(new_flat_candidate_observer(
+        memo,
+        source_meter,
+        Some(staged),
+    )?));
+    let result = (|| {
+        for member in staged.iter() {
+            let input = &member.candidate.draft;
+            let work = input
+                .positive_nodes
+                .len()
+                .checked_add(input.negative_nodes.len())
+                .and_then(|n| n.checked_add(input.positive_children.len()))
+                .and_then(|n| n.checked_add(input.negative_children.len()))
+                .and_then(|n| n.checked_add(input.recursive_bounds.len()))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            if let Some(observer) = &normalizer.stats.candidate_observer {
+                observer.charge(work)?;
+            }
+            collect_flat_member(input, &mut normalizer)?;
+        }
+        #[cfg(test)]
+        OBSERVED_FLAT_GRAPH_SIZE.with(|size| {
+            size.set(normalizer.nodes.len() + normalizer.children.len());
+        });
+        normalizer.rank_all()?;
+        prepare_flat_representatives(&mut normalizer)?;
+        let roots = std::mem::take(&mut normalizer.roots);
+        let mut start = 0;
+        let mut mapped = Vec::new();
+        reserve_flat_candidate(
+            &mut mapped,
+            normalizer.nodes.len(),
+            LANE_COUNT + 4,
+            &mut normalizer.stats.candidate_observer,
+        )?;
+        mapped.resize(normalizer.nodes.len(), None::<BuiltRef>);
+        let mut touched = Vec::new();
+        for index in 0..staged.len() {
+            let Some(Root {
+                location: RootLocation::Predicate(q),
+                ..
+            }) = roots.get(start)
+            else {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            };
+            let q = u32::try_from(*q).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            let mut end = start + 1;
+            while end < roots.len() && !matches!(roots[end].location, RootLocation::Predicate(_)) {
+                end += 1;
+            }
+            if (end - start - 1) % 2 != 0 {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            let output_result = rebuild_flat_member_with_map(
+                &mut normalizer,
+                &roots[start..end],
+                q,
+                &mut mapped,
+                &mut touched,
+            );
+            #[cfg(test)]
+            if let Some(observer) = &mut normalizer.stats.candidate_observer {
+                observer.0.physical_index.release_member_rebuild_scratch();
+            }
+            let output = output_result?;
+            #[cfg(test)]
+            let old_member_bytes = physical_member_bytes(&staged[index].candidate.draft)?;
+            memo.replace_flat_batch_member(
+                source_meter,
+                &mut staged.as_mut_slice()[index],
+                output,
+            )?;
+            if let Some(observer) = &mut normalizer.stats.candidate_observer {
+                #[cfg(test)]
+                let new_member_bytes = physical_member_bytes(&staged[index].candidate.draft)?;
+                observer.handoff_member(
+                    memo,
+                    source_meter,
+                    #[cfg(test)]
+                    old_member_bytes,
+                    #[cfg(test)]
+                    new_member_bytes,
+                    #[cfg(not(test))]
+                    0,
+                    #[cfg(not(test))]
+                    0,
+                )?;
+            }
+            #[cfg(test)]
+            if fail_after_output == Some(index) {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            for &id in &touched {
+                mapped[id] = None;
+            }
+            touched.clear();
+            start = end;
+        }
+        if start != roots.len() {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        Ok(FlatNormalizationStats::from(&normalizer.stats))
+    })();
+    let observer = normalizer.stats.candidate_observer.take();
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut base_event_owners = std::mem::take(&mut normalizer.stats.event_owners);
+    drop(normalizer);
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    for owner in &mut base_event_owners { owner.release(); }
+    let observer = *observer.expect("batch normalizer retains its observer");
+    #[cfg(test)]
+    let mut observer = observer;
+    #[cfg(test)]
+    observer.0.physical_index.release_after_normalizer_drop()?;
+    let resource = observer.index_resource()?;
+    complete_flat_candidate_observer(memo, Some(observer), true)?;
+    #[cfg(test)]
+    match result {
+        Ok(mut stats) => {
+            stats.resource = Some(resource);
+            Ok(stats)
+        }
+        Err(error) => {
+            FAILED_FLAT_PHYSICAL_RESOURCE.with(|slot| *slot.borrow_mut() = Some(resource));
+            Err(error)
+        }
+    }
+    #[cfg(not(test))]
+    result.map(|mut stats| {
+        stats.resource = Some(resource);
+        stats
+    })
+}
+
+#[cfg(test)]
+fn physical_staged_bytes(
+    staged: &TrackedVec<'_, super::f5c_generalization::F5cStagedCandidate<'_>>,
+) -> Result<usize, SolveAvailabilityError> {
+    let mut total = staged
+        .capacity()
+        .checked_mul(std::mem::size_of::<
+            super::f5c_generalization::F5cStagedCandidate<'_>,
+        >())
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    for member in staged.iter() {
+        total = total
+            .checked_add(physical_member_bytes(&member.candidate.draft)?)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    }
+    Ok(total)
+}
+
+#[cfg(test)]
+fn physical_member_bytes(draft: &FlatDraft) -> Result<usize, SolveAvailabilityError> {
+    let mut total = 0usize;
+    for (capacity, size) in [
+        (
+            draft.positive_nodes.capacity(),
+            std::mem::size_of::<super::f5c_draft::PositiveNode>(),
+        ),
+        (
+            draft.negative_nodes.capacity(),
+            std::mem::size_of::<super::f5c_draft::NegativeNode>(),
+        ),
+        (
+            draft.positive_children.capacity(),
+            std::mem::size_of::<super::f5c_draft::PositiveId>(),
+        ),
+        (
+            draft.negative_children.capacity(),
+            std::mem::size_of::<super::f5c_draft::NegativeId>(),
+        ),
+        (
+            draft.recursive_bounds.capacity(),
+            std::mem::size_of::<super::f5c_draft::RecursiveBound>(),
+        ),
+        (
+            draft.insertion_order.capacity(),
+            std::mem::size_of::<super::f5c_draft::NodeRef>(),
+        ),
+    ] {
+        total = total
+            .checked_add(
+                capacity
+                    .checked_mul(size)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            )
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    }
+    Ok(total)
+}
+
+fn new_flat_candidate_observer(
+    memo: &super::F5cComponentExpansionMemo,
+    source_meter: &DraftHeapMeter,
+    staged: Option<&TrackedVec<'_, super::f5c_generalization::F5cStagedCandidate<'_>>>,
+) -> Result<FlatCandidateObserver, SolveAvailabilityError> {
+    #[cfg(not(test))]
+    let _ = staged;
+    Ok(FlatCandidateObserver(FlatCandidateCapacity {
+        work: memo.work_meter.clone(),
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        index_family: staged.is_some(),
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        event_component: source_meter.event_component(),
+        base_memo_bytes: memo.retained_bytes()?,
+        base_walker_bytes: memo.walker_resources.retained_bytes()?,
+        #[cfg(test)]
+        physical_base_memo_bytes: memo.retained_bytes()?,
+        #[cfg(test)]
+        physical_base_walker_bytes: usize::try_from(memo.walker_resources.physical_walker_bytes())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+        #[cfg(test)]
+        physical_memo_capacities: memo.live_capacity_snapshot(),
+        #[cfg(test)]
+        physical_walker_capacities: memo
+            .walker_resources
+            .independent_lanes
+            .map(|lane| lane.actual_capacity),
+        #[cfg(test)]
+        physical_walker_value_slot_size: memo.walker_resources.value_slot_size,
+        #[cfg(test)]
+        physical_source_bytes: if let Some(staged) = staged {
+            physical_staged_bytes(staged)?
+        } else {
+            source_meter
+                .current_bytes()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
+        },
+        source_bytes: source_meter
+            .current_bytes()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        capacities: [0; LANE_COUNT + 15],
+        sizes: [0; LANE_COUNT + 15],
+        lane_observations: [0; LANE_COUNT + 15],
+        lane_requested_slots: [0; LANE_COUNT + 15],
+        member_output_lengths: [0; 6],
+        lane_growths: [0; LANE_COUNT + 15],
+        lane_peaks: [0; LANE_COUNT + 15],
+        index_peak_bytes: 0,
+        #[cfg(test)]
+        index_peak_capacities: [0; FLAT_CANDIDATE_LANE_COUNT],
+        #[cfg(test)]
+        index_peak_sizes: [0; FLAT_CANDIDATE_LANE_COUNT],
+        peak_walker_bytes: 0,
+        peak_total_bytes: 0,
+        #[cfg(test)]
+        physical_peak: None,
+        #[cfg(test)]
+        physical_index: {
+            #[allow(unused_mut)]
+            let mut index = FlatPhysicalIndexLedger::default();
+            #[cfg(feature = "f5c_resource_probe")]
+            { index.matrix_active = memo.matrix_active; }
+            index
+        },
+    }))
+}
+
+fn complete_flat_candidate_observer(
+    memo: &mut super::F5cComponentExpansionMemo,
+    observer: Option<FlatCandidateObserver>,
+    index_family: bool,
+) -> Result<(), SolveAvailabilityError> {
+    let state = observer
+        .expect("candidate observer remains owned by normalizer")
+        .0;
+    if index_family {
+        let requests = state
+            .lane_requested_slots
+            .iter()
+            .try_fold(0usize, |sum, count| {
+                sum.checked_add(*count)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)
+            })?;
+        memo.walker_resources.flat_batch_excluded_requests = memo
+            .walker_resources
+            .flat_batch_excluded_requests
+            .checked_add(requests)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    }
+    #[cfg(test)]
+    if let Some(physical) = state.physical_peak.clone() {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if memo.matrix_active {
+            let scratch = physical.capacities.iter().zip(physical.sizes)
+                .try_fold(0usize, |sum, (capacity, size)|
+                    capacity.checked_mul(size).and_then(|bytes| sum.checked_add(bytes)))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let old_scratch = memo.matrix_flat_candidate_peaks[1].as_ref()
+                .and_then(|sample| sample.capacities.iter().zip(sample.sizes)
+                    .try_fold(0usize, |sum, (capacity, size)|
+                        capacity.checked_mul(size).and_then(|bytes| sum.checked_add(bytes))))
+                .unwrap_or(0);
+            if memo.matrix_flat_candidate_peaks[0].as_ref()
+                .is_none_or(|sample| physical.observed_total_bytes > sample.observed_total_bytes) {
+                memo.matrix_flat_candidate_peaks[0] = Some(physical.clone());
+            }
+            if scratch > old_scratch {
+                memo.matrix_flat_candidate_peaks[1] = Some(physical);
+            }
+        } else {
+            memo.flat_candidate_physical_peaks.push(physical);
+        }
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+        memo.flat_candidate_physical_peaks.push(physical);
+    }
+    let mut merged_lanes = [FlatCandidateLane::default(); FLAT_CANDIDATE_LANE_COUNT];
+    for lane in 0..FLAT_CANDIDATE_LANE_COUNT {
+        let retained = memo.walker_resources.flat_candidate_lanes[lane];
+        merged_lanes[lane].observations = retained
+            .observations
+            .checked_add(state.lane_observations[lane])
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        merged_lanes[lane].requested_slots = retained
+            .requested_slots
+            .checked_add(state.lane_requested_slots[lane])
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        merged_lanes[lane].growths = retained
+            .growths
+            .checked_add(state.lane_growths[lane])
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        merged_lanes[lane].peak_capacity = retained.peak_capacity.max(state.lane_peaks[lane]);
+        merged_lanes[lane].slot_size = if state.sizes[lane] != 0 {
+            state.sizes[lane]
+        } else {
+            retained.slot_size
+        };
+    }
+    memo.walker_resources.simultaneous_memo_peak_bytes = memo
+        .walker_resources
+        .simultaneous_memo_peak_bytes
+        .max(state.peak_total_bytes.saturating_sub(state.source_bytes));
+    memo.walker_resources.simultaneous_source_memo_peak_bytes = memo
+        .walker_resources
+        .simultaneous_source_memo_peak_bytes
+        .max(state.peak_total_bytes);
+    memo.walker_resources.flat_candidate_lanes = merged_lanes;
+    Ok(())
+}
+
+fn normalize_flat_inner(
+    input: &FlatDraft,
+    observer: Option<FlatCandidateObserver>,
+) -> (
+    Result<(FlatDraft, FlatNormalizationStats), SolveAvailabilityError>,
+    Option<FlatCandidateObserver>,
+) {
+    let mut normalizer = Normalizer::new();
+    normalizer.stats.candidate_observer = observer.map(Box::new);
+    let result = normalize_flat_inner_work(input, &mut normalizer);
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut base_event_owners = std::mem::take(&mut normalizer.stats.event_owners);
+    let observer = normalizer.stats.candidate_observer.take().map(|observer| *observer);
+    drop(normalizer);
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    for owner in &mut base_event_owners { owner.release(); }
+    (
+        result,
+        observer,
+    )
+}
+
+fn normalize_flat_inner_work(
+    input: &FlatDraft,
+    normalizer: &mut Normalizer,
+) -> Result<(FlatDraft, FlatNormalizationStats), SolveAvailabilityError> {
+    collect_flat_member(input, normalizer)?;
+    #[cfg(test)]
+    OBSERVED_FLAT_GRAPH_SIZE.with(|size| {
+        size.set(normalizer.nodes.len() + normalizer.children.len());
+    });
+    normalizer.rank_all()?;
+    prepare_flat_representatives(normalizer)?;
+    let roots = std::mem::take(&mut normalizer.roots);
+    let result = rebuild_flat_member(normalizer, &roots, input.quantifier_count);
+    result.map(|output| (output, FlatNormalizationStats::from(&normalizer.stats)))
+}
+
+fn collect_flat_member(
+    input: &FlatDraft,
+    normalizer: &mut Normalizer,
+) -> Result<(), SolveAvailabilityError> {
+    let bad = SolveAvailabilityError::IdentityExhausted;
+    let mut positives = Vec::new();
+    let mut negatives = Vec::new();
+    let mut children = Vec::new();
+    // Keep every early return inside this scope so the event release follows Vec drop.
+    let result = (|| {
+    reserve_flat_candidate(
+        &mut positives,
+        input.positive_nodes.len(),
+        LANE_COUNT,
+        &mut normalizer.stats.candidate_observer,
+    )?;
+    reserve_flat_candidate(
+        &mut negatives,
+        input.negative_nodes.len(),
+        LANE_COUNT + 1,
+        &mut normalizer.stats.candidate_observer,
+    )?;
+    positives.resize(input.positive_nodes.len(), SOURCE_UNSELECTED);
+    negatives.resize(input.negative_nodes.len(), SOURCE_UNSELECTED);
+    select_root_nodes(input, &mut positives, &mut negatives)?;
+    let mut positive_source_count = 0usize;
+    let mut negative_source_count = 0usize;
+    for reference in &input.insertion_order {
+        if let Some(observer) = &mut normalizer.stats.candidate_observer {
+            observer.charge(1)?;
+        }
+        children.clear();
+        match *reference {
+            NodeRef::Positive(source_id) => {
+                let source_index = usize::try_from(source_id.0).map_err(|_| bad)?;
+                if source_index != positive_source_count {
+                    return Err(bad);
+                }
+                let node = input.positive_nodes.get(source_index).ok_or(bad)?;
+                validate_prior_links(
+                    input,
+                    *reference,
+                    positive_source_count,
+                    negative_source_count,
+                )?;
+                positive_source_count = positive_source_count.checked_add(1).ok_or(bad)?;
+                if positives[source_index] == SOURCE_UNSELECTED {
+                    continue;
+                }
+                let kind = match *node {
+                    PositiveNode::Bottom => NodeKind::PositiveBottom,
+                    PositiveNode::Int => NodeKind::PositiveInt,
+                    PositiveNode::Unit => NodeKind::PositiveUnit,
+                    PositiveNode::Bool => NodeKind::PositiveBool,
+                    PositiveNode::Str => NodeKind::PositiveStr,
+                    PositiveNode::Variable(_) => return Err(bad),
+                    PositiveNode::Quantified(n) => NodeKind::PositiveQuantified(n),
+                    PositiveNode::Recursive(n) => NodeKind::PositiveRecursive(n),
+                    PositiveNode::Union(span) => {
+                        let start = usize::try_from(span.start).map_err(|_| bad)?;
+                        let end = start
+                            .checked_add(usize::try_from(span.len).map_err(|_| bad)?)
+                            .ok_or(bad)?;
+                        let slice = input.positive_children.get(start..end).ok_or(bad)?;
+                        reserve_flat_candidate(
+                            &mut children,
+                            slice.len(),
+                            LANE_COUNT + 2,
+                            &mut normalizer.stats.candidate_observer,
+                        )?;
+                        for id in slice {
+                            children.push(mapped_source_node(&positives, id.0)?);
+                        }
+                        NodeKind::PositiveUnion { start: 0, len: 0 }
+                    }
+                    PositiveNode::Function { argument, result } => {
+                        let a = mapped_source_node(&negatives, argument.0)?;
+                        let r = mapped_source_node(&positives, result.0)?;
+                        reserve_flat_candidate(
+                            &mut children,
+                            2,
+                            LANE_COUNT + 2,
+                            &mut normalizer.stats.candidate_observer,
+                        )?;
+                        children.extend_from_slice(&[a, r]);
+                        NodeKind::PositiveFunction { start: 0 }
+                    }
+                };
+                positives[source_index] = normalizer.push_node(kind, &children)?;
+            }
+            NodeRef::Negative(source_id) => {
+                let source_index = usize::try_from(source_id.0).map_err(|_| bad)?;
+                if source_index != negative_source_count {
+                    return Err(bad);
+                }
+                let node = input.negative_nodes.get(source_index).ok_or(bad)?;
+                validate_prior_links(
+                    input,
+                    *reference,
+                    positive_source_count,
+                    negative_source_count,
+                )?;
+                negative_source_count = negative_source_count.checked_add(1).ok_or(bad)?;
+                if negatives[source_index] == SOURCE_UNSELECTED {
+                    continue;
+                }
+                let kind = match *node {
+                    NegativeNode::Top => NodeKind::NegativeTop,
+                    NegativeNode::Bottom => NodeKind::NegativeBottom,
+                    NegativeNode::Int => NodeKind::NegativeInt,
+                    NegativeNode::Unit => NodeKind::NegativeUnit,
+                    NegativeNode::Bool => NodeKind::NegativeBool,
+                    NegativeNode::Str => NodeKind::NegativeStr,
+                    NegativeNode::Variable(_) => return Err(bad),
+                    NegativeNode::Quantified(n) => NodeKind::NegativeQuantified(n),
+                    NegativeNode::Recursive(n) => NodeKind::NegativeRecursive(n),
+                    NegativeNode::Intersection(span) => {
+                        let start = usize::try_from(span.start).map_err(|_| bad)?;
+                        let end = start
+                            .checked_add(usize::try_from(span.len).map_err(|_| bad)?)
+                            .ok_or(bad)?;
+                        let slice = input.negative_children.get(start..end).ok_or(bad)?;
+                        reserve_flat_candidate(
+                            &mut children,
+                            slice.len(),
+                            LANE_COUNT + 2,
+                            &mut normalizer.stats.candidate_observer,
+                        )?;
+                        for id in slice {
+                            children.push(mapped_source_node(&negatives, id.0)?);
+                        }
+                        NodeKind::NegativeIntersection { start: 0, len: 0 }
+                    }
+                    NegativeNode::Function { argument, result } => {
+                        let a = mapped_source_node(&positives, argument.0)?;
+                        let r = mapped_source_node(&negatives, result.0)?;
+                        reserve_flat_candidate(
+                            &mut children,
+                            2,
+                            LANE_COUNT + 2,
+                            &mut normalizer.stats.candidate_observer,
+                        )?;
+                        children.extend_from_slice(&[a, r]);
+                        NodeKind::NegativeFunction { start: 0 }
+                    }
+                };
+                negatives[source_index] = normalizer.push_node(kind, &children)?;
+            }
+        }
+    }
+    if positive_source_count != input.positive_nodes.len()
+        || negative_source_count != input.negative_nodes.len()
+    {
+        return Err(bad);
+    }
+    let predicate = mapped_source_node(&positives, input.predicate.ok_or(bad)?.0)?;
+    normalizer.add_root(
+        BuiltRef::Positive(predicate),
+        RootLocation::Predicate(input.quantifier_count as usize),
+    )?;
+    for (index, bound) in input.recursive_bounds.iter().enumerate() {
+        normalizer.add_root(
+            BuiltRef::Positive(mapped_source_node(&positives, bound.lower.0)?),
+            RootLocation::Lower(0, index),
+        )?;
+        normalizer.add_root(
+            BuiltRef::Negative(mapped_source_node(&negatives, bound.upper.0)?),
+            RootLocation::Upper(0, index),
+        )?;
+    }
+    Ok(())
+    })();
+    drop(children);
+    drop(negatives);
+    drop(positives);
+    let cleanup = if let Some(observer) = &mut normalizer.stats.candidate_observer {
+        observer.release_collect_scratch()
+    } else {
+        Ok(())
+    };
+    result.and(cleanup)
+}
+
+fn prepare_flat_representatives(normalizer: &mut Normalizer) -> Result<(), SolveAvailabilityError> {
+    let bad = SolveAvailabilityError::IdentityExhausted;
+    // Reuse the normalizer's sort scratch as a canonical NodeId -> representative
+    // map. `rank_all` leaves `height_nodes` ordered by height and descriptor,
+    // with equal normalized keys adjacent within each height group.
+    for height in 0..normalizer.height_offsets.len().checked_sub(1).ok_or(bad)? {
+        let start = normalizer.height_offsets[height];
+        let end = normalizer.height_offsets[height + 1];
+        let mut previous_rank = None;
+        let mut representative = None;
+        for position in start..end {
+            let id = normalizer.height_nodes[position];
+            let rank = normalizer.nodes[id].rank;
+            if previous_rank != Some(rank) {
+                previous_rank = Some(rank);
+                representative = Some(id);
+            }
+            normalizer.sort_scratch[id] = representative.ok_or(bad)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn rebuild_flat_member(
+    normalizer: &mut Normalizer,
+    roots: &[Root],
+    q_count: u32,
+) -> Result<FlatDraft, SolveAvailabilityError> {
+    let mut mapped = Vec::new();
+    reserve_flat_candidate(
+        &mut mapped,
+        normalizer.nodes.len(),
+        LANE_COUNT + 4,
+        &mut normalizer.stats.candidate_observer,
+    )?;
+    mapped.resize(normalizer.nodes.len(), None::<BuiltRef>);
+    let mut touched = Vec::new();
+    rebuild_flat_member_with_map(normalizer, roots, q_count, &mut mapped, &mut touched)
+}
+
+fn rebuild_flat_member_with_map(
+    normalizer: &mut Normalizer,
+    roots: &[Root],
+    q_count: u32,
+    mapped: &mut Vec<Option<BuiltRef>>,
+    touched: &mut Vec<usize>,
+) -> Result<FlatDraft, SolveAvailabilityError> {
+    let bad = SolveAvailabilityError::IdentityExhausted;
+    let mut output = FlatDraft {
+        quantifier_count: q_count,
+        ..FlatDraft::default()
+    };
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    if let Some(observer) = normalizer.stats.candidate_observer.as_ref() {
+        if observer.0.index_family {
+            output.attach_normalization_owners(observer.0.event_component);
+        } else {
+            output.attach_owners_component(observer.0.event_component, [
+                super::F5cWalkerLaneKind::NormalizedPositiveNodes as usize,
+                super::F5cWalkerLaneKind::NormalizedNegativeNodes as usize,
+                super::F5cWalkerLaneKind::NormalizedPositiveChildren as usize,
+                super::F5cWalkerLaneKind::NormalizedNegativeChildren as usize,
+                super::F5cWalkerLaneKind::NormalizedRecursiveBounds as usize,
+                super::F5cWalkerLaneKind::NormalizedInsertionOrder as usize,
+            ]);
+        }
+    }
+    let mut work = Vec::new();
+    let mut positive_scratch = Vec::new();
+    let mut negative_scratch = Vec::new();
+    for root in roots {
+        let root = root.node;
+        reserve_flat_candidate(
+            &mut work,
+            1,
+            LANE_COUNT + 5,
+            &mut normalizer.stats.candidate_observer,
+        )?;
+        work.push((root, false));
+        while let Some((id, ready)) = work.pop() {
+            if let Some(observer) = &mut normalizer.stats.candidate_observer {
+                observer.charge(1)?;
+            }
+            if mapped[id].is_some() {
+                continue;
+            }
+            let representative = normalizer.sort_scratch[id];
+            if let Some(shared) = mapped[representative] {
+                reserve_flat_candidate(
+                    touched,
+                    1,
+                    LANE_COUNT + 14,
+                    &mut normalizer.stats.candidate_observer,
+                )?;
+                touched.push(id);
+                mapped[id] = Some(shared);
+                continue;
+            }
+            let kind = normalizer.nodes[id].kind;
+            if !ready {
+                reserve_flat_candidate(
+                    &mut work,
+                    1,
+                    LANE_COUNT + 5,
+                    &mut normalizer.stats.candidate_observer,
+                )?;
+                work.push((id, true));
+                let (start, len) = match kind {
+                    NodeKind::PositiveUnion { start, len }
+                    | NodeKind::NegativeIntersection { start, len } => (start, len),
+                    NodeKind::PositiveFunction { start } | NodeKind::NegativeFunction { start } => {
+                        (start, 2)
+                    }
+                    _ => (0, 0),
+                };
+                let end = start.checked_add(len).ok_or(bad)?;
+                for &child in normalizer.children.get(start..end).ok_or(bad)?.iter().rev() {
+                    if mapped[child].is_none() {
+                        reserve_flat_candidate(
+                            &mut work,
+                            1,
+                            LANE_COUNT + 5,
+                            &mut normalizer.stats.candidate_observer,
+                        )?;
+                        work.push((child, false));
+                    }
+                }
+                continue;
+            }
+            let positive = |id: usize| match mapped.get(id).copied().flatten() {
+                Some(BuiltRef::Positive(n)) => u32::try_from(n).ok().map(PositiveId),
+                _ => None,
+            };
+            let negative = |id: usize| match mapped.get(id).copied().flatten() {
+                Some(BuiltRef::Negative(n)) => u32::try_from(n).ok().map(NegativeId),
+                _ => None,
+            };
+            let built_result: Result<BuiltRef, SolveAvailabilityError> = (|| {
+                Ok(match kind {
+                    NodeKind::PositiveBottom => BuiltRef::Positive(
+                        usize::try_from(output.positive(PositiveNode::Bottom)?.0)
+                            .map_err(|_| bad)?,
+                    ),
+                    NodeKind::PositiveInt => BuiltRef::Positive(
+                        usize::try_from(output.positive(PositiveNode::Int)?.0).map_err(|_| bad)?,
+                    ),
+                    NodeKind::PositiveUnit => BuiltRef::Positive(
+                        usize::try_from(output.positive(PositiveNode::Unit)?.0).map_err(|_| bad)?,
+                    ),
+                    NodeKind::PositiveBool => BuiltRef::Positive(
+                        usize::try_from(output.positive(PositiveNode::Bool)?.0).map_err(|_| bad)?,
+                    ),
+                    NodeKind::PositiveStr => BuiltRef::Positive(
+                        usize::try_from(output.positive(PositiveNode::Str)?.0).map_err(|_| bad)?,
+                    ),
+                    NodeKind::PositiveQuantified(n) => BuiltRef::Positive(
+                        usize::try_from(output.positive(PositiveNode::Quantified(n))?.0)
+                            .map_err(|_| bad)?,
+                    ),
+                    NodeKind::PositiveRecursive(n) => BuiltRef::Positive(
+                        usize::try_from(output.positive(PositiveNode::Recursive(n))?.0)
+                            .map_err(|_| bad)?,
+                    ),
+                    NodeKind::NegativeTop => BuiltRef::Negative(
+                        usize::try_from(output.negative(NegativeNode::Top)?.0).map_err(|_| bad)?,
+                    ),
+                    NodeKind::NegativeBottom => BuiltRef::Negative(
+                        usize::try_from(output.negative(NegativeNode::Bottom)?.0)
+                            .map_err(|_| bad)?,
+                    ),
+                    NodeKind::NegativeInt => BuiltRef::Negative(
+                        usize::try_from(output.negative(NegativeNode::Int)?.0).map_err(|_| bad)?,
+                    ),
+                    NodeKind::NegativeUnit => BuiltRef::Negative(
+                        usize::try_from(output.negative(NegativeNode::Unit)?.0).map_err(|_| bad)?,
+                    ),
+                    NodeKind::NegativeBool => BuiltRef::Negative(
+                        usize::try_from(output.negative(NegativeNode::Bool)?.0).map_err(|_| bad)?,
+                    ),
+                    NodeKind::NegativeStr => BuiltRef::Negative(
+                        usize::try_from(output.negative(NegativeNode::Str)?.0).map_err(|_| bad)?,
+                    ),
+                    NodeKind::NegativeQuantified(n) => BuiltRef::Negative(
+                        usize::try_from(output.negative(NegativeNode::Quantified(n))?.0)
+                            .map_err(|_| bad)?,
+                    ),
+                    NodeKind::NegativeRecursive(n) => BuiltRef::Negative(
+                        usize::try_from(output.negative(NegativeNode::Recursive(n))?.0)
+                            .map_err(|_| bad)?,
+                    ),
+                    NodeKind::PositiveUnion { start, len } => {
+                        let end = start.checked_add(len).ok_or(bad)?;
+                        positive_scratch.clear();
+                        reserve_flat_candidate(
+                            &mut positive_scratch,
+                            len,
+                            LANE_COUNT + 6,
+                            &mut normalizer.stats.candidate_observer,
+                        )?;
+                        for &child in normalizer.children.get(start..end).ok_or(bad)? {
+                            positive_scratch.push(positive(child).ok_or(bad)?);
+                        }
+                        let span = output.positive_span(&positive_scratch)?;
+                        BuiltRef::Positive(
+                            usize::try_from(output.positive(PositiveNode::Union(span))?.0)
+                                .map_err(|_| bad)?,
+                        )
+                    }
+                    NodeKind::NegativeIntersection { start, len } => {
+                        let end = start.checked_add(len).ok_or(bad)?;
+                        negative_scratch.clear();
+                        reserve_flat_candidate(
+                            &mut negative_scratch,
+                            len,
+                            LANE_COUNT + 7,
+                            &mut normalizer.stats.candidate_observer,
+                        )?;
+                        for &child in normalizer.children.get(start..end).ok_or(bad)? {
+                            negative_scratch.push(negative(child).ok_or(bad)?);
+                        }
+                        let span = output.negative_span(&negative_scratch)?;
+                        BuiltRef::Negative(
+                            usize::try_from(output.negative(NegativeNode::Intersection(span))?.0)
+                                .map_err(|_| bad)?,
+                        )
+                    }
+                    NodeKind::PositiveFunction { start } => {
+                        let argument =
+                            negative(*normalizer.children.get(start).ok_or(bad)?).ok_or(bad)?;
+                        let result = positive(
+                            *normalizer
+                                .children
+                                .get(start.checked_add(1).ok_or(bad)?)
+                                .ok_or(bad)?,
+                        )
+                        .ok_or(bad)?;
+                        BuiltRef::Positive(
+                            usize::try_from(
+                                output
+                                    .positive(PositiveNode::Function { argument, result })?
+                                    .0,
+                            )
+                            .map_err(|_| bad)?,
+                        )
+                    }
+                    NodeKind::NegativeFunction { start } => {
+                        let argument =
+                            positive(*normalizer.children.get(start).ok_or(bad)?).ok_or(bad)?;
+                        let result = negative(
+                            *normalizer
+                                .children
+                                .get(start.checked_add(1).ok_or(bad)?)
+                                .ok_or(bad)?,
+                        )
+                        .ok_or(bad)?;
+                        BuiltRef::Negative(
+                            usize::try_from(
+                                output
+                                    .negative(NegativeNode::Function { argument, result })?
+                                    .0,
+                            )
+                            .map_err(|_| bad)?,
+                        )
+                    }
+                })
+            })();
+            observe_flat_output(&output, &mut normalizer.stats.candidate_observer)?;
+            if let Some(observer) = &mut normalizer.stats.candidate_observer {
+                observer.charge(1)?;
+            }
+            let built = built_result?;
+            reserve_flat_candidate(
+                touched,
+                2,
+                LANE_COUNT + 14,
+                &mut normalizer.stats.candidate_observer,
+            )?;
+            touched.push(id);
+            touched.push(representative);
+            mapped[id] = Some(built);
+            mapped[representative] = Some(built);
+        }
+    }
+    let map_positive = |id: usize| match mapped[id] {
+        Some(BuiltRef::Positive(n)) => u32::try_from(n).ok().map(PositiveId),
+        _ => None,
+    };
+    let map_negative = |id: usize| match mapped[id] {
+        Some(BuiltRef::Negative(n)) => u32::try_from(n).ok().map(NegativeId),
+        _ => None,
+    };
+    output.predicate = Some(map_positive(roots[0].node).ok_or(bad)?);
+    for (index, endpoints) in roots[1..].chunks_exact(2).enumerate() {
+        let ordinal = q_count
+            .checked_add(u32::try_from(index).map_err(|_| bad)?)
+            .ok_or(bad)?;
+        let bound_result = output.bound(RecursiveBound {
+            ordinal,
+            lower: map_positive(endpoints[0].node).ok_or(bad)?,
+            upper: map_negative(endpoints[1].node).ok_or(bad)?,
+        });
+        observe_flat_output(&output, &mut normalizer.stats.candidate_observer)?;
+        bound_result?;
+    }
+    Ok(output)
+}
+
+#[cfg(test)]
+mod flat_variable_tests {
+    use super::*;
+
+    #[test]
+    fn closed_normalizer_rejects_reachable_variables_in_both_polarities() {
+        let mut positive = FlatDraft::default();
+        positive.predicate = Some(positive.positive(PositiveNode::Variable(4)).unwrap());
+        assert!(matches!(
+            normalize_flat(&positive),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+
+        let mut negative = FlatDraft::default();
+        let argument = negative.negative(NegativeNode::Variable(4)).unwrap();
+        let result = negative.positive(PositiveNode::Bottom).unwrap();
+        negative.predicate = Some(
+            negative
+                .positive(PositiveNode::Function { argument, result })
+                .unwrap(),
+        );
+        assert!(matches!(
+            normalize_flat(&negative),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+    }
+}
+
+#[cfg(test)]
+mod flat_tests {
+    use super::*;
+
+    #[test]
+    fn repeated_summary_occurrences_match_boxed_normalization() {
+        let test_source_meter = DraftHeapMeter::default();
+        use super::super::f5c_materialization::materialize_summary_flat;
+        use super::super::{
+            F5cComponentExpansionMemo, F5cNegativeEffect, F5cPositiveEffect, F5cSummaryNode,
+            F5cSummaryNodeId, F5cSummaryNodeKind, Polarity,
+        };
+
+        let ids = (0..5).map(F5cSummaryNodeId).collect::<Vec<_>>();
+        let kinds = [
+            F5cSummaryNodeKind::PositiveInt,
+            F5cSummaryNodeKind::NegativeInt,
+            F5cSummaryNodeKind::NegativeIntersection { start: 0, len: 2 },
+            F5cSummaryNodeKind::PositiveFunction {
+                argument: ids[2],
+                result: ids[0],
+            },
+            F5cSummaryNodeKind::PositiveUnion { start: 2, len: 2 },
+        ];
+        let mut memo = F5cComponentExpansionMemo::default();
+        memo.nodes = kinds
+            .into_iter()
+            .map(|kind| F5cSummaryNode {
+                incidence: None,
+                transitive_incidence_count: 0,
+                kind,
+            })
+            .collect();
+        memo.children = vec![ids[1], ids[1], ids[3], ids[3]];
+
+        let mut flat = FlatDraft::default();
+        let NodeRef::Positive(root) =
+            materialize_summary_flat(&memo, &mut flat, ids[4], Polarity::Positive, |_, _| {})
+                .unwrap()
+        else {
+            panic!("wrong root polarity");
+        };
+        flat.predicate = Some(root);
+        let mut boxed = [GeneralizationDraft {
+            quantifier_count: 0,
+            predicate: memo.positive_value(&test_source_meter, ids[4]).unwrap(),
+            recursive_bounds: vec![],
+        }];
+        let (normalized, flat_stats) = normalize_flat(&flat).unwrap();
+        let boxed_stats = normalize_component(&test_source_meter, &mut boxed).unwrap();
+        let expected = F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![F5cPositive::Function {
+                argument: test_tracked_one(
+                    &test_source_meter,
+                    F5cNegative::Intersection(test_tracked(
+                        &test_source_meter,
+                        vec![F5cNegative::Int],
+                    )),
+                ),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: test_tracked_one(&test_source_meter, F5cPositive::Int),
+            }],
+        ));
+        assert_eq!(boxed[0].predicate, expected);
+        assert_eq!(
+            normalized.positive_nodes,
+            [
+                PositiveNode::Int,
+                PositiveNode::Function {
+                    argument: NegativeId(1),
+                    result: PositiveId(0)
+                },
+                PositiveNode::Union(super::super::f5c_draft::ChildSpan { start: 0, len: 1 }),
+            ]
+        );
+        assert_eq!(
+            normalized.negative_nodes,
+            [
+                NegativeNode::Int,
+                NegativeNode::Intersection(super::super::f5c_draft::ChildSpan { start: 0, len: 1 }),
+            ]
+        );
+        assert_eq!(normalized.positive_children, [PositiveId(1)]);
+        assert_eq!(normalized.negative_children, [NegativeId(0)]);
+        assert_eq!(normalized.predicate, Some(PositiveId(2)));
+        assert_eq!(flat_stats.key_writes, boxed_stats.key_writes);
+        assert_eq!(flat_stats.child_comparisons, boxed_stats.child_comparisons);
+        assert_eq!(flat_stats.descriptor_words, boxed_stats.descriptor_words);
+        assert_eq!(flat_stats.word_comparisons, boxed_stats.word_comparisons);
+        assert_eq!(flat_stats.duplicates, boxed_stats.duplicates);
+    }
+
+    #[test]
+    fn flat_compound_tree_matches_boxed_normalization_counters() {
+        let test_source_meter = DraftHeapMeter::default();
+        let mut flat = FlatDraft::default();
+        let negative_function_argument = flat.positive(PositiveNode::Int).unwrap();
+        let negative_function_result = flat.negative(NegativeNode::Int).unwrap();
+        let negative_function = flat
+            .negative(NegativeNode::Function {
+                argument: negative_function_argument,
+                result: negative_function_result,
+            })
+            .unwrap();
+        let top = flat.negative(NegativeNode::Top).unwrap();
+        let duplicate_int_a = flat.negative(NegativeNode::Int).unwrap();
+        let duplicate_int_b = flat.negative(NegativeNode::Int).unwrap();
+        let argument_children = flat
+            .negative_span(&[negative_function, top, duplicate_int_a, duplicate_int_b])
+            .unwrap();
+        let argument = flat
+            .negative(NegativeNode::Intersection(argument_children))
+            .unwrap();
+        let result = flat.positive(PositiveNode::Bottom).unwrap();
+        let function = flat
+            .positive(PositiveNode::Function { argument, result })
+            .unwrap();
+        let union_int = flat.positive(PositiveNode::Int).unwrap();
+        let union_bottom = flat.positive(PositiveNode::Bottom).unwrap();
+        let union_children = flat
+            .positive_span(&[function, union_int, union_bottom])
+            .unwrap();
+        let predicate = flat.positive(PositiveNode::Union(union_children)).unwrap();
+        flat.predicate = Some(predicate);
+        let (_, flat_stats) = normalize_flat(&flat).unwrap();
+        let mut old = [GeneralizationDraft {
+            quantifier_count: 0,
+            predicate: F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Function {
+                        argument: test_tracked_one(
+                            &test_source_meter,
+                            F5cNegative::Intersection(test_tracked(
+                                &test_source_meter,
+                                vec![
+                                    F5cNegative::Function {
+                                        argument: test_tracked_one(
+                                            &test_source_meter,
+                                            F5cPositive::Int,
+                                        ),
+                                        argument_effect: super::super::F5cPositiveEffect::Bottom,
+                                        result_effect: super::super::F5cNegativeEffect::Empty,
+                                        result: test_tracked_one(
+                                            &test_source_meter,
+                                            F5cNegative::Int,
+                                        ),
+                                    },
+                                    F5cNegative::Top,
+                                    F5cNegative::Int,
+                                    F5cNegative::Int,
+                                ],
+                            )),
+                        ),
+                        argument_effect: super::super::F5cNegativeEffect::Empty,
+                        result_effect: super::super::F5cPositiveEffect::Bottom,
+                        result: test_tracked_one(&test_source_meter, F5cPositive::Bottom),
+                    },
+                    F5cPositive::Int,
+                    F5cPositive::Bottom,
+                ],
+            )),
+            recursive_bounds: vec![],
+        }];
+        let boxed_stats = normalize_component(&test_source_meter, &mut old).unwrap();
+        assert_eq!(flat_stats.key_writes, boxed_stats.key_writes);
+        assert_eq!(flat_stats.child_comparisons, boxed_stats.child_comparisons);
+        assert_eq!(flat_stats.descriptor_words, boxed_stats.descriptor_words);
+        assert_eq!(flat_stats.word_comparisons, boxed_stats.word_comparisons);
+        assert_eq!(flat_stats.duplicates, boxed_stats.duplicates);
+    }
+
+    #[test]
+    fn flat_normalization_preserves_order_counters_sharing_and_bound_roots() {
+        let mut flat = FlatDraft::default();
+        let int = flat.positive(PositiveNode::Int).unwrap();
+        let bottom = flat.positive(PositiveNode::Bottom).unwrap();
+        let top = flat.negative(NegativeNode::Top).unwrap();
+        let nint = flat.negative(NegativeNode::Int).unwrap();
+        let nfunction = flat
+            .negative(NegativeNode::Function {
+                argument: int,
+                result: nint,
+            })
+            .unwrap();
+        let nspan = flat.negative_span(&[nfunction, nint, top, nint]).unwrap();
+        let intersection = flat.negative(NegativeNode::Intersection(nspan)).unwrap();
+        let function = flat
+            .positive(PositiveNode::Function {
+                argument: intersection,
+                result: int,
+            })
+            .unwrap();
+        let duplicate_function = flat
+            .positive(PositiveNode::Function {
+                argument: intersection,
+                result: int,
+            })
+            .unwrap();
+        let input_union_span = flat
+            .positive_span(&[function, bottom, int, duplicate_function])
+            .unwrap();
+        let predicate = flat
+            .positive(PositiveNode::Union(input_union_span))
+            .unwrap();
+        flat.predicate = Some(predicate);
+        flat.bound(RecursiveBound {
+            ordinal: 0,
+            lower: function,
+            upper: intersection,
+        })
+        .unwrap();
+        flat.bound(RecursiveBound {
+            ordinal: 1,
+            lower: int,
+            upper: nfunction,
+        })
+        .unwrap();
+        let (normalized, stats) = normalize_flat(&flat).unwrap();
+        assert_eq!(normalized.predicate, Some(PositiveId(3)));
+        assert_eq!(
+            normalized.positive_nodes,
+            [
+                PositiveNode::Bottom,
+                PositiveNode::Int,
+                PositiveNode::Function {
+                    argument: NegativeId(3),
+                    result: PositiveId(1)
+                },
+                PositiveNode::Union(super::super::f5c_draft::ChildSpan { start: 0, len: 3 }),
+            ]
+        );
+        assert_eq!(
+            normalized.negative_nodes,
+            [
+                NegativeNode::Top,
+                NegativeNode::Int,
+                NegativeNode::Function {
+                    argument: PositiveId(1),
+                    result: NegativeId(1)
+                },
+                NegativeNode::Intersection(super::super::f5c_draft::ChildSpan { start: 0, len: 3 }),
+            ]
+        );
+        assert_eq!(
+            normalized.positive_children,
+            [PositiveId(0), PositiveId(1), PositiveId(2)]
+        );
+        assert_eq!(
+            normalized.negative_children,
+            [NegativeId(0), NegativeId(1), NegativeId(2)]
+        );
+        assert_eq!(
+            normalized.recursive_bounds,
+            [
+                RecursiveBound {
+                    ordinal: 0,
+                    lower: PositiveId(2),
+                    upper: NegativeId(3)
+                },
+                RecursiveBound {
+                    ordinal: 1,
+                    lower: PositiveId(1),
+                    upper: NegativeId(2)
+                },
+            ]
+        );
+        assert_eq!(stats.duplicates, 2);
+        assert_eq!(normalized.positive_nodes.len(), 4);
+        assert_eq!(normalized.negative_nodes.len(), 4);
+        assert!(flat.positive_nodes.len() > normalized.positive_nodes.len());
+        let PositiveNode::Union(span) =
+            normalized.positive_nodes[normalized.predicate.unwrap().0 as usize]
+        else {
+            panic!("union root")
+        };
+        assert_eq!(span.len, 3);
+        let first = normalized.positive_children[span.start as usize];
+        let second = normalized.positive_children[span.start as usize + 2];
+        assert_eq!(
+            normalized.positive_nodes[first.0 as usize],
+            PositiveNode::Bottom
+        );
+        assert_eq!(second, normalized.recursive_bounds[0].lower);
+        let PositiveNode::Function { argument, .. } = normalized.positive_nodes[second.0 as usize]
+        else {
+            panic!("shared function")
+        };
+        assert_eq!(argument, normalized.recursive_bounds[0].upper);
+        assert_eq!(normalized.recursive_bounds[0].ordinal, 0);
+
+        let start = usize::try_from(input_union_span.start).unwrap();
+        let end = start + usize::try_from(input_union_span.len).unwrap();
+        flat.positive_children[start..end].reverse();
+        flat.recursive_bounds.reverse();
+        let (_, permuted_stats) = normalize_flat(&flat).unwrap();
+        assert_eq!(stats, permuted_stats);
+    }
+
+    #[test]
+    fn flat_rejects_swapped_and_duplicate_source_ids() {
+        let mut flat = FlatDraft::default();
+        let int = flat.positive(PositiveNode::Int).unwrap();
+        let bottom = flat.positive(PositiveNode::Bottom).unwrap();
+        let span = flat.positive_span(&[int, bottom]).unwrap();
+        let predicate = flat.positive(PositiveNode::Union(span)).unwrap();
+        flat.predicate = Some(predicate);
+        let (valid, _) = normalize_flat(&flat).unwrap();
+        assert_eq!(
+            valid.positive_nodes[valid.predicate.unwrap().0 as usize],
+            PositiveNode::Union(super::super::f5c_draft::ChildSpan { start: 0, len: 2 })
+        );
+
+        flat.insertion_order.swap(0, 1);
+        assert!(matches!(
+            normalize_flat(&flat),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        flat.insertion_order[0] = NodeRef::Positive(int);
+        flat.insertion_order[1] = NodeRef::Positive(int);
+        assert!(matches!(
+            normalize_flat(&flat),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert_eq!(bottom, PositiveId(1));
+    }
+
+    #[test]
+    fn flat_rejects_malformed_selected_and_orphan_edges() {
+        let rejects = |flat: &FlatDraft| {
+            matches!(
+                normalize_flat(flat),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            )
+        };
+
+        // An orphan positive Union may not point forward to itself.
+        let mut flat = FlatDraft::default();
+        flat.positive(PositiveNode::Bottom).unwrap();
+        let self_edge = flat.positive_span(&[PositiveId(1)]).unwrap();
+        flat.positive(PositiveNode::Union(self_edge)).unwrap();
+        flat.predicate = Some(flat.positive(PositiveNode::Int).unwrap());
+        assert!(rejects(&flat));
+
+        // An orphan negative Intersection still has to carry an in-range span.
+        let mut flat = FlatDraft::default();
+        flat.negative(NegativeNode::Intersection(
+            super::super::f5c_draft::ChildSpan {
+                start: u32::MAX,
+                len: 1,
+            },
+        ))
+        .unwrap();
+        flat.predicate = Some(flat.positive(PositiveNode::Int).unwrap());
+        assert!(rejects(&flat));
+
+        // A selected positive Union may not name a child outside its array.
+        let mut flat = FlatDraft::default();
+        let span = flat.positive_span(&[PositiveId(u32::MAX)]).unwrap();
+        flat.predicate = Some(flat.positive(PositiveNode::Union(span)).unwrap());
+        assert!(rejects(&flat));
+
+        // Selection crosses Function polarity; the referenced Intersection is invalid.
+        let mut flat = FlatDraft::default();
+        let argument = flat
+            .negative(NegativeNode::Intersection(
+                super::super::f5c_draft::ChildSpan { start: 0, len: 1 },
+            ))
+            .unwrap();
+        let result = flat.positive(PositiveNode::Bottom).unwrap();
+        flat.predicate = Some(
+            flat.positive(PositiveNode::Function { argument, result })
+                .unwrap(),
+        );
+        assert!(rejects(&flat));
+
+        // Both Function polarities reject references to later source nodes.
+        let mut flat = FlatDraft::default();
+        flat.positive(PositiveNode::Function {
+            argument: NegativeId(0),
+            result: PositiveId(1),
+        })
+        .unwrap();
+        flat.negative(NegativeNode::Top).unwrap();
+        flat.positive(PositiveNode::Int).unwrap();
+        flat.predicate = Some(flat.positive(PositiveNode::Int).unwrap());
+        assert!(rejects(&flat));
+
+        let mut flat = FlatDraft::default();
+        let invalid = flat
+            .negative(NegativeNode::Function {
+                argument: PositiveId(0),
+                result: NegativeId(1),
+            })
+            .unwrap();
+        flat.positive(PositiveNode::Bottom).unwrap();
+        flat.negative(NegativeNode::Top).unwrap();
+        let result = flat.positive(PositiveNode::Bottom).unwrap();
+        flat.predicate = Some(
+            flat.positive(PositiveNode::Function {
+                argument: invalid,
+                result,
+            })
+            .unwrap(),
+        );
+        assert!(rejects(&flat));
+    }
+}
+
+pub(super) fn record_production_counters(
+    stats: &NormalizationStats,
+    sampled_source_bytes: usize,
+    counters: &mut super::ProductionCounters,
+) -> Result<(), SolveAvailabilityError> {
+    let mut next = counters.clone();
+    next.closed_normalized_key_writes = next
+        .closed_normalized_key_writes
+        .checked_add(stats.key_writes)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    next.closed_normalization_child_comparisons = next
+        .closed_normalization_child_comparisons
+        .checked_add(stats.child_comparisons)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    next.closed_normalization_descriptor_words = next
+        .closed_normalization_descriptor_words
+        .checked_add(stats.descriptor_words)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    next.closed_normalization_word_comparisons = next
+        .closed_normalization_word_comparisons
+        .checked_add(stats.word_comparisons)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    next.closed_normalization_index_requested_slots = next
+        .closed_normalization_index_requested_slots
+        .checked_add(stats.index_requested_slots)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    next.closed_normalization_index_actual_capacity = stats.index_actual_capacity;
+    next.closed_normalization_index_retained_bytes = stats.index_retained_bytes;
+    next.closed_normalization_index_peak_bytes = next
+        .closed_normalization_index_peak_bytes
+        .max(stats.index_peak_bytes);
+    next.closed_normalization_index_capacity_growths = next
+        .closed_normalization_index_capacity_growths
+        .checked_add(stats.index_capacity_growths)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let semantic_peak = next
+        .semantic_arena_retained_bytes
+        .checked_sub(sampled_source_bytes)
+        .and_then(|bytes| bytes.checked_add(stats.source_index_joint_peak_bytes))
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let session_peak = next
+        .inference_session_retained_bytes
+        .checked_sub(sampled_source_bytes)
+        .and_then(|bytes| bytes.checked_add(stats.source_index_joint_peak_bytes))
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    next.semantic_arena_peak_bytes = next.semantic_arena_peak_bytes.max(semantic_peak);
+    next.inference_session_peak_bytes = next.inference_session_peak_bytes.max(session_peak);
+    *counters = next;
+    Ok(())
+}
+
+#[cfg(test)]
+impl super::IndependentResourceLedger {
+    pub(super) fn record_flat_normalization_index(
+        &mut self,
+        resource: &FlatNormalizationResource,
+        sampled_source_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let physical = &resource.physical_index;
+        if physical.joint_observations == 0 {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        if physical.capacities.iter().any(|capacity| *capacity != 0) {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let mut independent_output_requests = [0usize; 6];
+        for member in &physical.output_member_samples {
+            for (total, length) in independent_output_requests.iter_mut().zip(member) {
+                *total = total.checked_add(*length)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            }
+        }
+        #[cfg(feature = "f5c_resource_probe")]
+        if physical.matrix_active {
+            independent_output_requests = physical.output_member_totals;
+        } else {
+            if independent_output_requests != physical.output_member_totals {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+        }
+        #[cfg(not(feature = "f5c_resource_probe"))]
+        if independent_output_requests != physical.output_member_totals {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        for (offset, total) in independent_output_requests.iter().enumerate() {
+            if *total != physical.requests[LANE_COUNT + 8 + offset] {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+        }
+        let mut requested = 0usize;
+        let mut growths = 0usize;
+        let physical_peak = resource.physical_index.independently_derived_peak()?;
+        if physical_peak != resource.physical_index.peak_bytes {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        for (index, measured) in resource.lanes.iter().enumerate() {
+            let capacity = physical.lane_peaks[index];
+            let size = physical.sizes[index];
+            let bytes = capacity
+                .checked_mul(size)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            if physical.requests[index] != measured.requested_slots
+                || physical.growths[index] != measured.growths
+                || capacity != measured.peak_capacity
+                || size != measured.slot_size
+            {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            requested = requested
+                .checked_add(physical.requests[index])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            growths = growths
+                .checked_add(physical.growths[index])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let independent = &mut self.closed_normalization_index_lanes[index];
+            independent.requested_slots = independent
+                .requested_slots
+                .checked_add(physical.requests[index])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            independent.capacity_growths = independent
+                .capacity_growths
+                .checked_add(physical.growths[index])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            independent.peak_capacity = independent.peak_capacity.max(capacity);
+            independent.peak_bytes = independent.peak_bytes.max(bytes);
+            independent.slot_size = size.max(independent.slot_size);
+            independent.actual_capacity = 0;
+            independent.retained_bytes = 0;
+        }
+        if physical_peak != resource.index_peak_bytes
+            || physical.joint_peak_bytes != resource.joint_peak_bytes
+        {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        self.closed_normalization_index_requested_slots = self
+            .closed_normalization_index_requested_slots
+            .checked_add(requested)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.closed_normalization_index_capacity_growths = self
+            .closed_normalization_index_capacity_growths
+            .checked_add(growths)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.closed_normalization_index_actual_capacity = 0;
+        self.closed_normalization_index_retained_bytes = 0;
+        self.closed_normalization_index_peak_bytes = self
+            .closed_normalization_index_peak_bytes
+            .max(physical_peak);
+        let semantic_joint = self
+            .semantic_arena_retained_bytes
+            .checked_sub(sampled_source_bytes)
+            .and_then(|bytes| bytes.checked_add(physical.joint_peak_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let session_joint = self
+            .inference_session_retained_bytes
+            .checked_sub(sampled_source_bytes)
+            .and_then(|bytes| bytes.checked_add(physical.joint_peak_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.semantic_arena_peak_bytes = self.semantic_arena_peak_bytes.max(semantic_joint);
+        self.inference_session_peak_bytes = self.inference_session_peak_bytes.max(session_joint);
+        Ok(())
+    }
+
+    pub(super) fn record_closed_normalization_index(
+        &mut self,
+        stats: &NormalizationStats,
+        sampled_source_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let mut requested_slots = 0usize;
+        let mut actual_capacity = 0usize;
+        let mut retained_bytes = 0usize;
+        let mut capacity_growths = 0usize;
+        let mut physical_peak_bytes = 0usize;
+        let mut next = self.clone();
+        for index in 0..stats.index_lanes.len() {
+            let independent = &mut next.closed_normalization_index_lanes[index];
+            let measured = stats.index_lanes[index];
+            let capacity = stats.physical_lane_capacities[index];
+            let slot_size = stats.physical_lane_slot_sizes[index];
+            let physical_lane_bytes = capacity
+                .checked_mul(slot_size)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            if capacity != measured.peak_capacity
+                || slot_size != measured.slot_size
+                || physical_lane_bytes != measured.peak_bytes
+                || measured.actual_capacity != 0
+                || measured.retained_bytes != 0
+            {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            independent.requested_slots = independent
+                .requested_slots
+                .checked_add(measured.requested_slots)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            independent.capacity_growths = independent
+                .capacity_growths
+                .checked_add(measured.capacity_growths)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            independent.actual_capacity = measured.actual_capacity;
+            independent.peak_capacity = independent.peak_capacity.max(capacity);
+            independent.slot_size = slot_size;
+            independent.retained_bytes = measured.retained_bytes;
+            independent.peak_bytes = independent.peak_bytes.max(physical_lane_bytes);
+            requested_slots = requested_slots
+                .checked_add(measured.requested_slots)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            actual_capacity = actual_capacity
+                .checked_add(measured.actual_capacity)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            retained_bytes = retained_bytes
+                .checked_add(measured.retained_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            capacity_growths = capacity_growths
+                .checked_add(measured.capacity_growths)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            physical_peak_bytes = physical_peak_bytes
+                .checked_add(physical_lane_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        if requested_slots != stats.index_requested_slots
+            || actual_capacity != stats.index_actual_capacity
+            || retained_bytes != stats.index_retained_bytes
+            || capacity_growths != stats.index_capacity_growths
+            || physical_peak_bytes != stats.index_peak_bytes
+        {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        next.closed_normalization_index_requested_slots = next
+            .closed_normalization_index_requested_slots
+            .checked_add(requested_slots)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        next.closed_normalization_index_actual_capacity = actual_capacity;
+        next.closed_normalization_index_retained_bytes = retained_bytes;
+        next.closed_normalization_index_peak_bytes = next
+            .closed_normalization_index_peak_bytes
+            .max(stats.index_peak_bytes);
+        next.closed_normalization_index_capacity_growths = next
+            .closed_normalization_index_capacity_growths
+            .checked_add(capacity_growths)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let semantic_peak = next
+            .semantic_arena_retained_bytes
+            .checked_sub(sampled_source_bytes)
+            .and_then(|bytes| bytes.checked_add(stats.source_index_joint_peak_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let session_peak = next
+            .inference_session_retained_bytes
+            .checked_sub(sampled_source_bytes)
+            .and_then(|bytes| bytes.checked_add(stats.source_index_joint_peak_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        next.semantic_arena_peak_bytes = next.semantic_arena_peak_bytes.max(semantic_peak);
+        next.inference_session_peak_bytes = next.inference_session_peak_bytes.max(session_peak);
+        *self = next;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+pub(super) fn normalize_positive<'meter>(
+    source_meter: &'meter DraftHeapMeter,
+    value: F5cPositive<'meter>,
+) -> Result<F5cPositive<'meter>, SolveAvailabilityError> {
+    let mut drafts = [GeneralizationDraft {
+        quantifier_count: 0,
+        recursive_bounds: Vec::<F5cRecursiveBound>::new(),
+        predicate: value,
+    }];
+    normalize_component(source_meter, &mut drafts)?;
+    Ok(std::mem::replace(
+        &mut drafts[0].predicate,
+        F5cPositive::Bottom,
+    ))
+}
+
+#[cfg(test)]
+pub(super) fn normalize_negative<'meter>(
+    source_meter: &'meter DraftHeapMeter,
+    value: F5cNegative<'meter>,
+) -> Result<F5cNegative<'meter>, SolveAvailabilityError> {
+    let mut drafts = [GeneralizationDraft {
+        quantifier_count: 0,
+        recursive_bounds: vec![F5cRecursiveBound {
+            ordinal: 0,
+            lower: F5cPositive::Bottom,
+            upper: F5cNegative::Top,
+        }],
+        predicate: F5cPositive::Bottom,
+    }];
+    let mut normalizer = Normalizer::new();
+    normalizer.source_meter = Some(source_meter);
+    let root = normalizer.flatten_negative(value)?;
+    normalizer.add_root(BuiltRef::Negative(root), RootLocation::Upper(0, 0))?;
+    normalizer.rank_all()?;
+    normalizer.rebuild(&mut drafts)?;
+    Ok(std::mem::replace(
+        &mut drafts[0].recursive_bounds[0].upper,
+        F5cNegative::Top,
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{F5cNegativeEffect, F5cPositiveEffect};
+
+    #[test]
+    fn graph_projection_counts_both_function_children_and_checks_overflow() {
+        assert_eq!(Normalizer::projected_graph_size(3, 4, 1, 2), Ok(10));
+        assert_eq!(
+            Normalizer::projected_graph_size(usize::MAX - 3, 0, 1, 2),
+            Ok(usize::MAX)
+        );
+        assert_eq!(
+            Normalizer::projected_graph_size(usize::MAX - 2, 0, 1, 2),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            Normalizer::projected_graph_size(usize::MAX, 1, 0, 0),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
+
+    #[test]
+    fn graph_growth_preflight_fails_before_lane_reserve() {
+        let mut normalizer = Normalizer::new();
+        normalizer.nodes.push(Node {
+            kind: NodeKind::PositiveInt,
+            height: 0,
+            rank: 0,
+            descriptor: None,
+        });
+        let stats_before = normalizer.stats.clone();
+        let capacities_before = (normalizer.nodes.capacity(), normalizer.children.capacity());
+        assert_eq!(
+            normalizer.take_values_into_children(usize::MAX, true),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(normalizer.stats, stats_before);
+        assert_eq!(
+            (normalizer.nodes.capacity(), normalizer.children.capacity()),
+            capacities_before
+        );
+        assert!(normalizer.children.is_empty());
+    }
+
+    #[test]
+    fn graph_projection_accumulates_across_members_in_one_normalizer() {
+        let mut normalizer = Normalizer::new();
+        for _member in 0..2 {
+            let argument = normalizer.push_node(NodeKind::NegativeTop, &[]).unwrap();
+            let result = normalizer.push_node(NodeKind::PositiveInt, &[]).unwrap();
+            normalizer
+                .push_node(NodeKind::PositiveFunction { start: 0 }, &[argument, result])
+                .unwrap();
+        }
+        assert_eq!(normalizer.nodes.len(), 6);
+        assert_eq!(normalizer.children.len(), 4);
+        assert_eq!(normalizer.preflight_graph_growth(1, 2), Ok(()));
+        assert_eq!(
+            Normalizer::projected_graph_size(
+                normalizer.nodes.len(),
+                normalizer.children.len(),
+                1,
+                2,
+            ),
+            Ok(13)
+        );
+    }
+
+    #[test]
+    fn failed_node_reserve_after_child_growth_drops_cleanly_and_fresh_owner_retries() {
+        let mut normalizer = Normalizer::new();
+        let leaf = normalizer.push_node(NodeKind::PositiveInt, &[]).unwrap();
+        let prior_children = normalizer.children.capacity();
+        normalizer.stats.index_lanes[Lane::Nodes as usize].requested_slots = usize::MAX;
+        assert_eq!(
+            normalizer.push_node(NodeKind::PositiveUnion { start: 0, len: 0 }, &[leaf]),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(normalizer.nodes.len(), 1);
+        assert_eq!(normalizer.children, [leaf]);
+        assert!(normalizer.children.capacity() > prior_children);
+        drop(normalizer);
+
+        let mut fresh = Normalizer::new();
+        let leaf = fresh.push_node(NodeKind::PositiveInt, &[]).unwrap();
+        fresh
+            .push_node(NodeKind::PositiveUnion { start: 0, len: 0 }, &[leaf])
+            .unwrap();
+        assert_eq!(fresh.nodes.len(), 2);
+        assert_eq!(fresh.children.len(), 1);
+    }
+
+    #[test]
+    fn root_count_rejects_usize_overflow() {
+        assert_eq!(next_root_count(0), Ok(1));
+        assert_eq!(next_root_count(usize::MAX - 1), Ok(usize::MAX));
+        assert_eq!(
+            next_root_count(usize::MAX),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
+
+    #[test]
+    fn emitted_output_requests_sum_each_members_final_length() {
+        let memo = super::super::F5cComponentExpansionMemo::default();
+        let meter = DraftHeapMeter::default();
+        let mut observer = new_flat_candidate_observer(&memo, &meter, None).unwrap();
+        let mut first = FlatDraft::default();
+        first.insertion_order.push(NodeRef::Positive(PositiveId(0)));
+        observer.observe_output(&first).unwrap();
+        first.insertion_order.push(NodeRef::Positive(PositiveId(1)));
+        observer.observe_output(&first).unwrap();
+        observer.handoff_member(&memo, &meter, 0, 0).unwrap();
+        let mut second = FlatDraft::default();
+        second.insertion_order.extend([
+            NodeRef::Positive(PositiveId(0)),
+            NodeRef::Positive(PositiveId(1)),
+            NodeRef::Positive(PositiveId(2)),
+        ]);
+        observer.observe_output(&second).unwrap();
+        observer
+            .0
+            .physical_index
+            .release_after_normalizer_drop()
+            .unwrap();
+        let resource = observer.index_resource().unwrap();
+        let lane = LANE_COUNT + 13;
+        assert_eq!(resource.lanes[lane].requested_slots, 5);
+        assert_eq!(resource.physical_index.requests[lane], 5);
+        assert_eq!(resource.physical_index.output_member_samples.len(), 2);
+        let mut ledger = super::super::IndependentResourceLedger::default();
+        ledger
+            .record_flat_normalization_index(&resource, 0)
+            .unwrap();
+        assert_eq!(
+            ledger.closed_normalization_index_lanes[lane].requested_slots,
+            5
+        );
+        let mut stale = resource.clone();
+        stale.physical_index.capacities[lane] = 1;
+        assert_eq!(
+            super::super::IndependentResourceLedger::default()
+                .record_flat_normalization_index(&stale, 0),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
+
+    #[test]
+    fn transferred_member_outputs_have_a_simultaneous_index_peak() {
+        let memo = super::super::F5cComponentExpansionMemo::default();
+        let meter = DraftHeapMeter::default();
+        let mut observer = new_flat_candidate_observer(&memo, &meter, None).unwrap();
+        let first = LANE_COUNT + 8;
+        let second = LANE_COUNT + 9;
+        observer.observe(first, 32, 1, 32, 0).unwrap();
+        observer.observe(second, 4, 1, 4, 0).unwrap();
+        observer.0.capacities[first] = 0;
+        observer.0.physical_index.capacities[first] = 0;
+        observer.0.capacities[second] = 0;
+        observer.0.physical_index.capacities[second] = 0;
+        observer.0.refresh_peak().unwrap();
+        observer.observe(first, 2, 1, 2, 0).unwrap();
+        observer.observe(second, 24, 1, 24, 0).unwrap();
+        observer.0.capacities[first] = 0;
+        observer.0.physical_index.capacities[first] = 0;
+        observer.0.capacities[second] = 0;
+        observer.0.physical_index.capacities[second] = 0;
+        observer.0.refresh_peak().unwrap();
+        observer.0.physical_index.output_member_samples = vec![[34, 28, 0, 0, 0, 0]];
+        let resource = observer.index_resource().unwrap();
+        assert_eq!(resource.index_peak_bytes, 36);
+        assert_eq!(resource.lanes[first].peak_capacity, 32);
+        assert_eq!(resource.lanes[second].peak_capacity, 24);
+        let mut ledger = super::super::IndependentResourceLedger::default();
+        ledger
+            .record_flat_normalization_index(&resource, 0)
+            .unwrap();
+        assert_eq!(ledger.closed_normalization_index_peak_bytes, 36);
+        assert_eq!(ledger.closed_normalization_index_actual_capacity, 0);
+        assert_eq!(ledger.closed_normalization_index_retained_bytes, 0);
+    }
+
+    #[test]
+    fn failed_reserve_reconciles_physical_and_candidate_lanes() {
+        let lane = Lane::DescriptorWords as usize;
+        let mut items = vec![1u8];
+        let mut stats = NormalizationStats::default();
+        stats.index_lanes[lane].actual_capacity = items.capacity();
+        stats.index_lanes[lane].retained_bytes = items.capacity();
+        stats.index_actual_capacity = items.capacity();
+        stats.index_retained_bytes = items.capacity();
+        stats.candidate_observer = Some(Box::new(FlatCandidateObserver(FlatCandidateCapacity {
+            work: Default::default(),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            index_family: false,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            event_component: 0,
+            base_memo_bytes: 0,
+            base_walker_bytes: 0,
+            physical_base_memo_bytes: 0,
+            physical_source_bytes: 0,
+            physical_base_walker_bytes: 0,
+            physical_memo_capacities: [0; 20],
+            physical_walker_capacities: [0; 98],
+            physical_walker_value_slot_size: 0,
+            source_bytes: 0,
+            capacities: std::array::from_fn(
+                |index| if index == lane { items.capacity() } else { 0 },
+            ),
+            sizes: [0; LANE_COUNT + 15],
+            lane_observations: [0; LANE_COUNT + 15],
+            lane_requested_slots: [0; LANE_COUNT + 15],
+            member_output_lengths: [0; 6],
+            lane_growths: [0; LANE_COUNT + 15],
+            lane_peaks: [0; LANE_COUNT + 15],
+            index_peak_bytes: 0,
+            index_peak_capacities: [0; FLAT_CANDIDATE_LANE_COUNT],
+            index_peak_sizes: [0; FLAT_CANDIDATE_LANE_COUNT],
+            peak_walker_bytes: 0,
+            peak_total_bytes: 0,
+            physical_peak: None,
+            physical_index: FlatPhysicalIndexLedger::default(),
+        })));
+
+        assert_eq!(
+            Normalizer::reserve(
+                &mut items,
+                usize::MAX,
+                Lane::DescriptorWords,
+                &mut stats,
+                None
+            ),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        let actual_capacity = items.capacity();
+        assert!(actual_capacity > 0);
+        assert_eq!(stats.index_lanes[lane].requested_slots, usize::MAX);
+        assert_eq!(stats.index_lanes[lane].actual_capacity, actual_capacity);
+        assert_eq!(stats.index_lanes[lane].retained_bytes, actual_capacity);
+        assert_eq!(stats.index_requested_slots, usize::MAX);
+        assert_eq!(stats.index_actual_capacity, actual_capacity);
+        assert_eq!(stats.index_retained_bytes, actual_capacity);
+        let observed = &stats.candidate_observer.as_ref().unwrap().0;
+        assert_eq!(observed.lane_observations[lane], 1);
+        assert_eq!(observed.lane_requested_slots[lane], usize::MAX);
+        assert_eq!(observed.capacities[lane], actual_capacity);
+        assert_eq!(observed.sizes[lane], 1);
+        assert_eq!(observed.lane_peaks[lane], actual_capacity);
+        assert_eq!(observed.peak_walker_bytes, actual_capacity);
+        assert_eq!(observed.peak_total_bytes, actual_capacity);
+    }
+
+    #[test]
+    fn successful_growth_reconciles_before_growth_counter_overflow() {
+        for overflow_lane in [true, false] {
+            let lane = Lane::DescriptorWords as usize;
+            let mut items = vec![1u8];
+            let old_capacity = items.capacity();
+            let mut stats = NormalizationStats::default();
+            stats.index_lanes[lane].actual_capacity = old_capacity;
+            stats.index_lanes[lane].retained_bytes = old_capacity;
+            stats.index_actual_capacity = old_capacity;
+            stats.index_retained_bytes = old_capacity;
+            if overflow_lane {
+                stats.index_lanes[lane].capacity_growths = usize::MAX;
+            } else {
+                stats.index_capacity_growths = usize::MAX;
+            }
+            stats.candidate_observer =
+                Some(Box::new(FlatCandidateObserver(FlatCandidateCapacity {
+                    work: Default::default(),
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    index_family: false,
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    event_component: 0,
+                    base_memo_bytes: 0,
+                    base_walker_bytes: 0,
+                    physical_base_memo_bytes: 0,
+                    physical_source_bytes: 0,
+                    physical_base_walker_bytes: 0,
+                    physical_memo_capacities: [0; 20],
+                    physical_walker_capacities: [0; 98],
+                    physical_walker_value_slot_size: 0,
+                    source_bytes: 0,
+                    capacities: std::array::from_fn(
+                        |index| {
+                            if index == lane { old_capacity } else { 0 }
+                        },
+                    ),
+                    sizes: [0; LANE_COUNT + 15],
+                    lane_observations: [0; LANE_COUNT + 15],
+                    lane_requested_slots: [0; LANE_COUNT + 15],
+                    member_output_lengths: [0; 6],
+                    lane_growths: [0; LANE_COUNT + 15],
+                    lane_peaks: [0; LANE_COUNT + 15],
+                    index_peak_bytes: 0,
+                    index_peak_capacities: [0; FLAT_CANDIDATE_LANE_COUNT],
+                    index_peak_sizes: [0; FLAT_CANDIDATE_LANE_COUNT],
+                    peak_walker_bytes: 0,
+                    peak_total_bytes: 0,
+                    physical_peak: None,
+                    physical_index: FlatPhysicalIndexLedger::default(),
+                })));
+
+            assert_eq!(
+                Normalizer::reserve(&mut items, 2, Lane::DescriptorWords, &mut stats, None),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+            let capacity = items.capacity();
+            assert!(capacity > old_capacity);
+            assert_eq!(stats.index_lanes[lane].actual_capacity, capacity);
+            assert_eq!(stats.index_lanes[lane].retained_bytes, capacity);
+            assert_eq!(stats.index_actual_capacity, capacity);
+            assert_eq!(stats.index_retained_bytes, capacity);
+            let observed = &stats.candidate_observer.as_ref().unwrap().0;
+            assert_eq!(observed.capacities[lane], capacity);
+            assert_eq!(observed.sizes[lane], 1);
+            assert_eq!(observed.lane_observations[lane], 1);
+            assert_eq!(observed.lane_growths[lane], 1);
+            assert_eq!(observed.lane_peaks[lane], capacity);
+            assert_eq!(observed.peak_walker_bytes, capacity);
+            assert_eq!(observed.peak_total_bytes, capacity);
+        }
+    }
+
+    fn positive_function<'meter>(
+        meter: &'meter DraftHeapMeter,
+        argument: F5cNegative<'meter>,
+        result: F5cPositive<'meter>,
+    ) -> F5cPositive<'meter> {
+        F5cPositive::Function {
+            argument: test_tracked_one(meter, argument),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: test_tracked_one(meter, result),
+        }
+    }
+
+    fn negative_function<'meter>(
+        meter: &'meter DraftHeapMeter,
+        argument: F5cPositive<'meter>,
+        result: F5cNegative<'meter>,
+    ) -> F5cNegative<'meter> {
+        F5cNegative::Function {
+            argument: test_tracked_one(meter, argument),
+            argument_effect: F5cPositiveEffect::Bottom,
+            result_effect: F5cNegativeEffect::Empty,
+            result: test_tracked_one(meter, result),
+        }
+    }
+
+    fn draft<'meter>(predicate: F5cPositive<'meter>) -> GeneralizationDraft<'meter> {
+        GeneralizationDraft {
+            quantifier_count: 0,
+            recursive_bounds: Vec::new(),
+            predicate,
+        }
+    }
+
+    fn oracle_compare_words(left: &[u32], right: &[u32], comparisons: &mut usize) -> Ordering {
+        for (left_word, right_word) in left.iter().zip(right) {
+            *comparisons += 1;
+            match left_word.cmp(right_word) {
+                Ordering::Equal => {}
+                ordering => return ordering,
+            }
+        }
+        left.len().cmp(&right.len())
+    }
+
+    fn oracle_merge_sort_words(values: &mut [Vec<u32>], comparisons: &mut usize) {
+        if values.len() < 2 {
+            return;
+        }
+        let middle = values.len() / 2;
+        oracle_merge_sort_words(&mut values[..middle], comparisons);
+        oracle_merge_sort_words(&mut values[middle..], comparisons);
+
+        let mut left = 0;
+        let mut right = middle;
+        let mut sorted = Vec::with_capacity(values.len());
+        while left < middle && right < values.len() {
+            if oracle_compare_words(&values[left], &values[right], comparisons) != Ordering::Greater
+            {
+                sorted.push(values[left].clone());
+                left += 1;
+            } else {
+                sorted.push(values[right].clone());
+                right += 1;
+            }
+        }
+        sorted.extend_from_slice(&values[left..middle]);
+        sorted.extend_from_slice(&values[right..]);
+        values.clone_from_slice(&sorted);
+    }
+
+    fn oracle_component_word_comparisons(mut words: Vec<Vec<u32>>) -> usize {
+        words.sort();
+        let mut comparisons = 0;
+        oracle_merge_sort_words(&mut words, &mut comparisons);
+        for pair in words.windows(2) {
+            oracle_compare_words(&pair[0], &pair[1], &mut comparisons);
+        }
+        comparisons
+    }
+
+    #[test]
+    fn positive_mixed_height_members_use_height_before_discriminator() {
+        let test_source_meter = DraftHeapMeter::default();
+        let shallow = || positive_function(&test_source_meter, F5cNegative::Top, F5cPositive::Int);
+        let deep = || {
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![positive_function(
+                    &test_source_meter,
+                    F5cNegative::Bottom,
+                    F5cPositive::Int,
+                )],
+            ))
+        };
+        let mut drafts = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![deep(), shallow()],
+        )))];
+
+        normalize_component(&test_source_meter, &mut drafts).unwrap();
+
+        let F5cPositive::Union(members) = &drafts[0].predicate else {
+            panic!("the normalized root remains a Union");
+        };
+        assert_eq!(&members[..], &[shallow(), deep()]);
+    }
+
+    #[test]
+    fn negative_mixed_height_members_use_height_before_discriminator() {
+        let test_source_meter = DraftHeapMeter::default();
+        let shallow =
+            || negative_function(&test_source_meter, F5cPositive::Bottom, F5cNegative::Top);
+        let deep = || {
+            F5cNegative::Intersection(test_tracked(
+                &test_source_meter,
+                vec![negative_function(
+                    &test_source_meter,
+                    F5cPositive::Int,
+                    F5cNegative::Bottom,
+                )],
+            ))
+        };
+        let mut normalizer = Normalizer::new();
+        normalizer.source_meter = Some(&test_source_meter);
+        let root = normalizer
+            .flatten_negative(F5cNegative::Intersection(test_tracked(
+                &test_source_meter,
+                vec![deep(), shallow()],
+            )))
+            .unwrap();
+        let mut draft = GeneralizationDraft {
+            quantifier_count: 0,
+            recursive_bounds: vec![F5cRecursiveBound {
+                ordinal: 0,
+                lower: F5cPositive::Bottom,
+                upper: F5cNegative::Top,
+            }],
+            predicate: F5cPositive::Bottom,
+        };
+        normalizer
+            .add_root(BuiltRef::Negative(root), RootLocation::Upper(0, 0))
+            .unwrap();
+
+        normalizer.rank_all().unwrap();
+        normalizer
+            .rebuild(std::slice::from_mut(&mut draft))
+            .unwrap();
+
+        let F5cNegative::Intersection(members) = &draft.recursive_bounds[0].upper else {
+            panic!("the normalized root remains an Intersection");
+        };
+        assert_eq!(&members[..], &[shallow(), deep()]);
+    }
+
+    #[test]
+    fn oversized_descriptor_child_count_fails_before_any_word_is_written() {
+        for kind in [
+            NodeKind::PositiveUnion {
+                start: 0,
+                len: usize::MAX,
+            },
+            NodeKind::NegativeIntersection {
+                start: 0,
+                len: usize::MAX,
+            },
+        ] {
+            let mut normalizer = Normalizer::new();
+            normalizer.nodes.push(Node {
+                kind,
+                height: 0,
+                rank: 0,
+                descriptor: None,
+            });
+            let before_capacity = normalizer.descriptor_words.capacity();
+            assert!(matches!(
+                normalizer.write_descriptor(0),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            ));
+            assert!(normalizer.descriptor_words.is_empty());
+            assert_eq!(normalizer.descriptor_words.capacity(), before_capacity);
+            assert_eq!(normalizer.stats.descriptor_words, 0);
+            assert_eq!(
+                normalizer.stats.index_lanes[Lane::DescriptorWords as usize].requested_slots,
+                0
+            );
+            assert_eq!(normalizer.stats.index_requested_slots, 0);
+            assert!(normalizer.nodes[0].descriptor.is_none());
+        }
+    }
+
+    #[test]
+    fn exact_duplicate_members_share_rank_and_are_removed() {
+        let test_source_meter = DraftHeapMeter::default();
+        let shallow = || positive_function(&test_source_meter, F5cNegative::Top, F5cPositive::Int);
+        let deep = || {
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![positive_function(
+                    &test_source_meter,
+                    F5cNegative::Bottom,
+                    F5cPositive::Int,
+                )],
+            ))
+        };
+        let mut drafts = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![deep(), shallow(), shallow()],
+        )))];
+
+        let stats = normalize_component(&test_source_meter, &mut drafts).unwrap();
+
+        let F5cPositive::Union(members) = &drafts[0].predicate else {
+            panic!("the normalized root remains a Union");
+        };
+        assert_eq!(&members[..], &[shallow(), deep()]);
+        assert_eq!(stats.duplicates, 1);
+        assert_eq!(stats.key_writes, 11);
+        assert_eq!(stats.descriptor_words, 31);
+        assert!(stats.word_comparisons > 0);
+        assert!(stats.child_comparisons > 0);
+    }
+
+    #[test]
+    fn height_major_ranks_follow_height_then_descriptor_and_share_equal_keys() {
+        let test_source_meter = DraftHeapMeter::default();
+        let shallow = || positive_function(&test_source_meter, F5cNegative::Top, F5cPositive::Int);
+        let deep = || {
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![positive_function(
+                    &test_source_meter,
+                    F5cNegative::Bottom,
+                    F5cPositive::Int,
+                )],
+            ))
+        };
+        let mut normalizer = Normalizer::new();
+        let root = normalizer
+            .flatten_positive(F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![deep(), shallow(), shallow()],
+            )))
+            .unwrap();
+
+        normalizer.rank_all().unwrap();
+
+        let NodeKind::PositiveUnion { start, len } = normalizer.nodes[root].kind else {
+            panic!("test root remains a positive Union node");
+        };
+        assert_eq!(len, 2);
+        let ordered = &normalizer.children[start..start + len];
+        let first = normalizer.nodes[ordered[0]];
+        let second = normalizer.nodes[ordered[1]];
+        assert!(first.height < second.height);
+
+        let first_descriptor = first.descriptor.unwrap();
+        let first_words = &normalizer.descriptor_words
+            [first_descriptor.0..first_descriptor.0 + first_descriptor.1];
+        let equal_function_ranks = normalizer
+            .nodes
+            .iter()
+            .filter(|node| matches!(node.kind, NodeKind::PositiveFunction { .. }))
+            .filter(|node| {
+                let (start, len) = node.descriptor.unwrap();
+                &normalizer.descriptor_words[start..start + len] == first_words
+            })
+            .map(|node| (node.height, node.rank))
+            .collect::<Vec<_>>();
+        assert_eq!(equal_function_ranks.len(), 2);
+        assert_eq!(equal_function_ranks[0], equal_function_ranks[1]);
+    }
+
+    #[test]
+    fn normalization_index_lanes_reconcile_after_transient_release() {
+        let test_source_meter = DraftHeapMeter::default();
+        let mut drafts = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            (0..12).map(F5cPositive::Quantified).collect::<Vec<_>>(),
+        )))];
+        let stats = normalize_component(&test_source_meter, &mut drafts).unwrap();
+        let mut independent = crate::IndependentResourceLedger::default();
+        independent.semantic_arena_retained_bytes = stats.source_bytes_at_start;
+        independent.inference_session_retained_bytes = stats.source_bytes_at_start;
+
+        independent
+            .record_closed_normalization_index(&stats, stats.source_bytes_at_start)
+            .unwrap();
+
+        assert!(stats.index_requested_slots > 0);
+        assert!(stats.index_capacity_growths > 0);
+        assert!(stats.index_peak_bytes > 0);
+        assert!(stats.index_lanes[Lane::RadixWorkspace as usize].peak_capacity > 0);
+        assert!(stats.index_lanes[Lane::RadixFrames as usize].peak_capacity > 0);
+        assert_eq!(stats.index_actual_capacity, 0);
+        assert_eq!(stats.index_retained_bytes, 0);
+        assert_eq!(
+            independent.closed_normalization_index_requested_slots,
+            stats.index_requested_slots
+        );
+        assert_eq!(
+            independent.closed_normalization_index_capacity_growths,
+            stats.index_capacity_growths
+        );
+        assert_eq!(
+            independent.closed_normalization_index_peak_bytes,
+            stats.index_peak_bytes
+        );
+        assert_eq!(independent.closed_normalization_index_actual_capacity, 0);
+        assert_eq!(independent.closed_normalization_index_retained_bytes, 0);
+        for lane in &independent.closed_normalization_index_lanes {
+            assert_eq!(lane.actual_capacity, 0);
+            assert_eq!(lane.retained_bytes, 0);
+            assert_eq!(lane.peak_capacity * lane.slot_size, lane.peak_bytes);
+        }
+    }
+
+    #[test]
+    fn normalization_peak_includes_live_source_slots() {
+        let test_source_meter = DraftHeapMeter::default();
+        let mut drafts = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            (0..12).map(F5cPositive::Quantified).collect::<Vec<_>>(),
+        )))];
+        let stats = normalize_component(&test_source_meter, &mut drafts).unwrap();
+        let source_meter = crate::DraftHeapMeter::default();
+        let mut source =
+            crate::f5c_draft_heap::TrackedVec::<crate::GeneralizationDraft>::new(&source_meter);
+        source.try_reserve_exact(3).unwrap();
+        let source_bytes = source.capacity() * std::mem::size_of::<crate::GeneralizationDraft>()
+            + crate::DraftHeapMeter::fixed_payload_bytes();
+        assert_eq!(
+            source_meter.current_bytes().unwrap() + crate::DraftHeapMeter::fixed_payload_bytes(),
+            source_bytes
+        );
+        let mut counters = crate::ProductionCounters::default();
+        counters.semantic_arena_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        counters.inference_session_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        record_production_counters(&stats, stats.source_bytes_at_start, &mut counters).unwrap();
+        let mut independent = crate::IndependentResourceLedger::default();
+        independent.semantic_arena_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        independent.inference_session_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        independent
+            .record_closed_normalization_index(&stats, stats.source_bytes_at_start)
+            .unwrap();
+        assert_eq!(
+            counters.semantic_arena_peak_bytes,
+            source_bytes + stats.source_index_joint_peak_bytes
+        );
+        assert_eq!(
+            independent.semantic_arena_peak_bytes,
+            source_bytes + stats.source_index_joint_peak_bytes
+        );
+        assert_eq!(
+            independent.inference_session_peak_bytes,
+            source_bytes + stats.source_index_joint_peak_bytes
+        );
+    }
+
+    #[test]
+    fn normalization_peak_replaces_early_sampled_source_after_nested_growth() {
+        let meter = DraftHeapMeter::default();
+        let mut source = TrackedVec::<GeneralizationDraft>::new(&meter);
+        source.try_reserve_exact(1).unwrap();
+        let sampled_source_bytes = meter.current_bytes().unwrap();
+        source.push_reserved(draft(F5cPositive::Union(test_tracked(
+            &meter,
+            (0..12).map(F5cPositive::Quantified).collect::<Vec<_>>(),
+        ))));
+        let current_source_bytes = meter.current_bytes().unwrap();
+        assert!(current_source_bytes > sampled_source_bytes);
+        // The component memo has been released before normalization; its
+        // transient capacity was never included in the F4 retained sample.
+        let stats = normalize_component(&meter, source.as_mut_slice()).unwrap();
+        assert_eq!(stats.source_bytes_at_start, current_source_bytes);
+
+        let unrelated_retained_bytes = 37;
+        let sampled_retained_bytes = unrelated_retained_bytes + sampled_source_bytes;
+        let expected_peak = unrelated_retained_bytes + stats.source_index_joint_peak_bytes;
+        let mut counters = crate::ProductionCounters::default();
+        counters.semantic_arena_retained_bytes = sampled_retained_bytes;
+        counters.inference_session_retained_bytes = sampled_retained_bytes;
+        record_production_counters(&stats, sampled_source_bytes, &mut counters).unwrap();
+        let mut independent = crate::IndependentResourceLedger::default();
+        independent.semantic_arena_retained_bytes = sampled_retained_bytes;
+        independent.inference_session_retained_bytes = sampled_retained_bytes;
+        independent
+            .record_closed_normalization_index(&stats, sampled_source_bytes)
+            .unwrap();
+        assert_eq!(counters.semantic_arena_peak_bytes, expected_peak);
+        assert_eq!(counters.inference_session_peak_bytes, expected_peak);
+        assert_eq!(independent.semantic_arena_peak_bytes, expected_peak);
+        assert_eq!(independent.inference_session_peak_bytes, expected_peak);
+    }
+
+    #[test]
+    fn failed_normalization_reports_live_source_and_scratch_peak() {
+        let test_source_meter = DraftHeapMeter::default();
+        let meter = crate::DraftHeapMeter::default();
+        let mut source =
+            crate::f5c_draft_heap::TrackedVec::<crate::GeneralizationDraft>::new(&meter);
+        source.try_reserve_exact(1).unwrap();
+        source.push_reserved(draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            (0..12).map(F5cPositive::Quantified).collect::<Vec<_>>(),
+        ))));
+        let source_bytes = source.capacity() * std::mem::size_of::<crate::GeneralizationDraft>()
+            + crate::DraftHeapMeter::fixed_payload_bytes();
+        let mut stats = NormalizationStats::default();
+        assert_eq!(
+            normalize_component_inner(&test_source_meter, source.as_mut_slice(), &mut stats, true),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(stats.index_peak_bytes > 0);
+        assert_eq!(
+            meter.current_bytes().unwrap() + crate::DraftHeapMeter::fixed_payload_bytes(),
+            source_bytes
+        );
+        let physical_bytes: usize = stats
+            .physical_lane_capacities
+            .iter()
+            .zip(stats.physical_lane_slot_sizes)
+            .map(|(capacity, slot_size)| capacity * slot_size)
+            .sum();
+        assert_eq!(stats.index_peak_bytes, physical_bytes);
+        assert_eq!(stats.index_retained_bytes, 0);
+        assert!(
+            stats
+                .index_lanes
+                .iter()
+                .all(|lane| lane.retained_bytes == 0)
+        );
+        let mut counters = crate::ProductionCounters::default();
+        counters.semantic_arena_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        counters.inference_session_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        record_production_counters(&stats, stats.source_bytes_at_start, &mut counters).unwrap();
+        let mut independent = crate::IndependentResourceLedger::default();
+        independent.semantic_arena_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        independent.inference_session_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        independent
+            .record_closed_normalization_index(&stats, stats.source_bytes_at_start)
+            .unwrap();
+        assert_eq!(
+            counters.semantic_arena_peak_bytes,
+            source_bytes + stats.source_index_joint_peak_bytes
+        );
+        assert_eq!(
+            independent.semantic_arena_peak_bytes,
+            source_bytes + stats.source_index_joint_peak_bytes
+        );
+        drop(source);
+        assert_eq!(meter.current_bytes(), Some(0));
+    }
+
+    #[test]
+    fn joint_peak_tracks_co_resident_positive_negative_and_index_growth() {
+        let meter = DraftHeapMeter::default();
+        let mut positive = TrackedVec::<F5cPositive>::new(&meter);
+        let mut negative = TrackedVec::<F5cNegative>::new(&meter);
+        positive.try_reserve_exact(120).unwrap();
+        negative.try_reserve_exact(7).unwrap();
+        let initial_source = positive.capacity() * std::mem::size_of::<F5cPositive>()
+            + negative.capacity() * std::mem::size_of::<F5cNegative>();
+        assert_eq!(meter.current_bytes(), Some(initial_source));
+        meter.begin_normalization().unwrap();
+        let mut scratch = Vec::<Node>::new();
+        let mut stats = NormalizationStats::default();
+        Normalizer::reserve(&mut scratch, 10, Lane::Nodes, &mut stats, Some(&meter)).unwrap();
+        let scratch_bytes = scratch.capacity() * std::mem::size_of::<Node>();
+        let during_collect = initial_source + scratch_bytes;
+        assert_eq!(stats.index_retained_bytes, scratch_bytes);
+        drop(positive);
+        let remaining_source = negative.capacity() * std::mem::size_of::<F5cNegative>();
+        assert_eq!(meter.current_bytes(), Some(remaining_source));
+        Normalizer::reserve(&mut scratch, 100, Lane::Nodes, &mut stats, Some(&meter)).unwrap();
+        let larger_scratch_bytes = scratch.capacity() * std::mem::size_of::<Node>();
+        let after_scratch_growth = remaining_source + larger_scratch_bytes;
+        negative.try_reserve_exact(25).unwrap();
+        let rebuilt_source = negative.capacity() * std::mem::size_of::<F5cNegative>();
+        let during_rebuild = rebuilt_source + larger_scratch_bytes;
+        assert_eq!(meter.current_bytes(), Some(rebuilt_source));
+        assert_eq!(
+            meter.end_normalization(),
+            Some(during_collect.max(after_scratch_growth).max(during_rebuild))
+        );
+        assert!(during_collect.max(during_rebuild) < initial_source + larger_scratch_bytes);
+    }
+
+    #[test]
+    fn checked_counter_overflow_does_not_publish_a_partial_normalization_sample() {
+        let mut stats = NormalizationStats::default();
+        stats.key_writes = 1;
+        stats.child_comparisons = 1;
+        let mut counters = crate::ProductionCounters::default();
+        counters.closed_normalized_key_writes = 7;
+        counters.closed_normalization_child_comparisons = usize::MAX;
+        let before = counters.clone();
+
+        assert_eq!(
+            record_production_counters(&stats, stats.source_bytes_at_start, &mut counters),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(counters, before);
+    }
+
+    #[test]
+    fn child_key_word_counter_counts_only_lexicographic_fields_examined() {
+        let nodes = [
+            Node {
+                kind: NodeKind::PositiveInt,
+                height: 0,
+                rank: 1,
+                descriptor: None,
+            },
+            Node {
+                kind: NodeKind::PositiveInt,
+                height: 1,
+                rank: 0,
+                descriptor: None,
+            },
+            Node {
+                kind: NodeKind::PositiveInt,
+                height: 0,
+                rank: 2,
+                descriptor: None,
+            },
+        ];
+        let mut stats = NormalizationStats::default();
+
+        assert_eq!(
+            compare_key_ids(&nodes, &mut stats, 0, 1).unwrap(),
+            Ordering::Less
+        );
+        assert_eq!(stats.word_comparisons, 1);
+        assert_eq!(
+            compare_key_ids(&nodes, &mut stats, 0, 2).unwrap(),
+            Ordering::Less
+        );
+        assert_eq!(stats.word_comparisons, 3);
+    }
+
+    #[test]
+    fn radix_scratch_counter_overflow_fails_before_allocation_or_partition() {
+        let mut normalizer = Normalizer::new();
+        normalizer.stats.index_lanes[Lane::RadixWorkspace as usize].requested_slots = usize::MAX;
+        let workspace_stats_before = normalizer.stats.clone();
+
+        assert_eq!(
+            normalizer.prepare_radix_workspaces(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(normalizer.stats, workspace_stats_before);
+        assert_eq!(normalizer.radix_workspace.capacity(), 0);
+
+        let mut values = (0..9).rev().collect::<Vec<_>>();
+        let values_before = values.clone();
+        let mut frames = Vec::new();
+        let mut workspace = vec![0; RADIX_WORKSPACE_SLOTS];
+        let mut stats = NormalizationStats::default();
+        stats.index_lanes[Lane::RadixFrames as usize].requested_slots = usize::MAX;
+        let stats_before = stats.clone();
+
+        assert_eq!(
+            radix_sort_node_ids(
+                &mut values,
+                None,
+                Some(&mut workspace),
+                &mut frames,
+                &mut stats,
+                None,
+                |_, _| Ok(1),
+            ),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(values, values_before);
+        assert!(frames.is_empty());
+        assert_eq!(stats, stats_before);
+    }
+
+    #[test]
+    fn descriptor_order_is_independent_of_union_input_order() {
+        let test_source_meter = DraftHeapMeter::default();
+        let shallow = || positive_function(&test_source_meter, F5cNegative::Top, F5cPositive::Int);
+        let deep = || {
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![positive_function(
+                    &test_source_meter,
+                    F5cNegative::Bottom,
+                    F5cPositive::Int,
+                )],
+            ))
+        };
+        let mut forward = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![shallow(), deep()],
+        )))];
+        let mut reverse = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![deep(), shallow()],
+        )))];
+
+        let forward_stats = normalize_component(&test_source_meter, &mut forward).unwrap();
+        let reverse_stats = normalize_component(&test_source_meter, &mut reverse).unwrap();
+
+        assert_eq!(forward[0].predicate, reverse[0].predicate);
+        assert_eq!(
+            forward_stats, reverse_stats,
+            "logical and physical counters are source-order independent"
+        );
+    }
+
+    #[test]
+    fn exact_word_comparison_counts_match_an_independent_mergesort_oracle() {
+        let test_source_meter = DraftHeapMeter::default();
+        let run = |ordinals: &[u32]| {
+            let mut drafts = ordinals
+                .iter()
+                .copied()
+                .map(|ordinal| draft(F5cPositive::Quantified(ordinal)))
+                .collect::<Vec<_>>();
+            let stats = normalize_component(&test_source_meter, &mut drafts).unwrap();
+            let mut schemes = drafts
+                .into_iter()
+                .map(|draft| match draft.predicate {
+                    F5cPositive::Quantified(ordinal) => ordinal,
+                    _ => panic!("quantified leaf remains quantified"),
+                })
+                .collect::<Vec<_>>();
+            schemes.sort_unstable();
+            let oracle = oracle_component_word_comparisons(
+                ordinals.iter().map(|ordinal| vec![2, *ordinal]).collect(),
+            );
+            (schemes, stats, oracle)
+        };
+        let forward = run(&[0, 1, 2, 3, 4]);
+        let rotated = run(&[2, 3, 4, 0, 1]);
+
+        assert_eq!(forward.0, rotated.0);
+        assert_eq!(forward.1, rotated.1);
+        assert_eq!(forward.1.word_comparisons, forward.2);
+        assert_eq!(rotated.1.word_comparisons, rotated.2);
+        assert_eq!(forward.1.word_comparisons, rotated.1.word_comparisons);
+        assert_eq!(
+            (forward.1.word_comparisons, rotated.1.word_comparisons),
+            (18, 18)
+        );
+    }
+
+    #[test]
+    fn union_member_permutations_preserve_all_normalization_counters() {
+        let test_source_meter = DraftHeapMeter::default();
+        let mut forward = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            (0..5).map(F5cPositive::Quantified).collect::<Vec<_>>(),
+        )))];
+        let mut reverse = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            (0..5)
+                .rev()
+                .map(F5cPositive::Quantified)
+                .collect::<Vec<_>>(),
+        )))];
+
+        let forward_stats = normalize_component(&test_source_meter, &mut forward).unwrap();
+        let reverse_stats = normalize_component(&test_source_meter, &mut reverse).unwrap();
+
+        assert_eq!(forward[0].predicate, reverse[0].predicate);
+        assert_eq!(forward_stats, reverse_stats);
+        assert_eq!(forward_stats.child_comparisons, 9);
+    }
+
+    #[test]
+    fn descriptor_radix_order_matches_unsigned_word_lexicographic_order() {
+        let test_source_meter = DraftHeapMeter::default();
+        let ordinals = [
+            u32::MAX,
+            0x0001_0000,
+            0x0000_0100,
+            0xFF,
+            0,
+            0x0100_0001,
+            0x0000_0101,
+            0x0000_FF00,
+            0xFFFF_FF00,
+            0x0001_00FF,
+            0x8000_0000,
+            u32::MAX,
+        ];
+        let build = |items: &[u32]| {
+            [draft(F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                items
+                    .iter()
+                    .copied()
+                    .map(F5cPositive::Quantified)
+                    .collect::<Vec<_>>(),
+            )))]
+        };
+        let mut forward = build(&ordinals);
+        let mut reverse = build(&ordinals.iter().rev().copied().collect::<Vec<_>>());
+        let forward_stats = normalize_component(&test_source_meter, &mut forward).unwrap();
+        let reverse_stats = normalize_component(&test_source_meter, &mut reverse).unwrap();
+
+        let F5cPositive::Union(members) = &forward[0].predicate else {
+            panic!("the normalized root remains a Union");
+        };
+        assert_eq!(
+            &members[..],
+            &[
+                F5cPositive::Quantified(0),
+                F5cPositive::Quantified(0xFF),
+                F5cPositive::Quantified(0x0000_0100),
+                F5cPositive::Quantified(0x0000_0101),
+                F5cPositive::Quantified(0x0000_FF00),
+                F5cPositive::Quantified(0x0001_0000),
+                F5cPositive::Quantified(0x0001_00FF),
+                F5cPositive::Quantified(0x0100_0001),
+                F5cPositive::Quantified(0x8000_0000),
+                F5cPositive::Quantified(0xFFFF_FF00),
+                F5cPositive::Quantified(u32::MAX),
+            ]
+        );
+        assert_eq!(forward[0].predicate, reverse[0].predicate);
+        let mut forward_index_stats = forward_stats.clone();
+        let mut reverse_index_stats = reverse_stats.clone();
+        forward_index_stats.source_bytes_at_start = 0;
+        reverse_index_stats.source_bytes_at_start = 0;
+        forward_index_stats.source_index_joint_peak_bytes = 0;
+        reverse_index_stats.source_index_joint_peak_bytes = 0;
+        assert_eq!(forward_index_stats, reverse_index_stats);
+        assert!(forward_stats.index_lanes[Lane::RadixWorkspace as usize].peak_capacity > 0);
+        assert!(forward_stats.index_lanes[Lane::RadixFrames as usize].peak_capacity > 0);
+    }
+
+    #[test]
+    fn radix_sort_orders_variable_length_descriptor_word_sequences() {
+        let keys = vec![
+            vec![],
+            vec![0],
+            vec![0, 0],
+            vec![0, 1],
+            vec![0, 0, 0],
+            vec![1],
+            vec![u32::MAX],
+            vec![0x100],
+            vec![0, u32::MAX],
+            vec![0, 1],
+        ];
+        let mut words = Vec::new();
+        let mut nodes = Vec::new();
+        for key in &keys {
+            let start = words.len();
+            words.extend_from_slice(key);
+            nodes.push(Node {
+                kind: NodeKind::PositiveInt,
+                height: 0,
+                rank: 0,
+                descriptor: Some((start, key.len())),
+            });
+        }
+        let mut values = (0..nodes.len()).rev().collect::<Vec<_>>();
+        let mut expected = keys.clone();
+        expected.sort();
+        let mut frames = Vec::new();
+        let mut workspace = vec![0; RADIX_WORKSPACE_SLOTS];
+        let mut stats = NormalizationStats::default();
+
+        radix_sort_node_ids(
+            &mut values,
+            None,
+            Some(&mut workspace),
+            &mut frames,
+            &mut stats,
+            None,
+            |node_id, byte| descriptor_radix_symbol(&nodes, &words, node_id, byte),
+        )
+        .unwrap();
+
+        let actual = values
+            .iter()
+            .map(|node_id| &keys[*node_id])
+            .collect::<Vec<_>>();
+        let expected = expected.iter().collect::<Vec<_>>();
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn normalization_walk_handles_deep_boxed_function_chains_iteratively() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024)
+            .spawn(|| {
+                let test_source_meter = DraftHeapMeter::default();
+                let mut value = F5cPositive::Int;
+                for _ in 0..4096 {
+                    value = positive_function(&test_source_meter, F5cNegative::Top, value);
+                }
+                let mut value = normalize_positive(&test_source_meter, value).unwrap();
+                for _ in 0..4096 {
+                    let F5cPositive::Function { result, .. } = value else {
+                        panic!("the chain retains each Function node");
+                    };
+                    value = result.into_inner();
+                }
+                assert_eq!(value, F5cPositive::Int);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn normalization_rejects_unclassified_live_nodes() {
+        let test_source_meter = DraftHeapMeter::default();
+        for value in [
+            F5cPositive::Variable(0),
+            F5cPositive::Shared(super::super::F5cSummaryNodeId(0)),
+        ] {
+            assert_eq!(
+                normalize_positive(&test_source_meter, value),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+        }
+        for value in [
+            F5cNegative::Variable(0),
+            F5cNegative::Shared(super::super::F5cSummaryNodeId(0)),
+        ] {
+            assert_eq!(
+                normalize_negative(&test_source_meter, value),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+        }
+    }
+}
