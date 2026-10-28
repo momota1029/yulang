@@ -160,7 +160,7 @@ theorem port_origin {c : Context} {p : Bool} {source : SourcePort} {s : State}
   | explicit position concrete symbolVar =>
       by_cases symbolic : concrete = [] ∧ symbolVar ≠ none
       · cases symbolVar with
-        | none => simp [constructPort, symbolic] at built
+        | none => exact False.elim (symbolic.2 rfl)
         | some name =>
             simp [constructPort, symbolic] at built
             cases built
