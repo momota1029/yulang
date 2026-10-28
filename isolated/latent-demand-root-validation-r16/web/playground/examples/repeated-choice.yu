@@ -1,0 +1,4 @@
+act signal:
+    our choose: () -> bool
+my relay (thunk:[signal] int) = catch thunk { signal::choose(), k -> { my first = k true; case first: 11 -> k false, _ -> first } }
+my main = relay { my choice = signal::choose(); if choice: 11 else: 23 }
