@@ -34,3 +34,7 @@ Frozen pre-edit R3 snapshot: `tasks/agent-loop/history/ep-owner-cert-r27-r3-comp
 Sequential source lease: R3 rejected candidate is already archived at the pinned path. Luna now reopens only `isolated/ep-owner-certificate-r27/project/tools/inference-playground/src/runtime/machine.rs` to the existing Rust author for the first <=20-second half of the <=45-second accessor repair. `receiving.rs` remains FROZEN; no edits to other paths, no command execution, runtime, JSON, or Git. Refreeze and record the first path before reopening receiving.rs.
 
 Machine-only repair launch receipt: Rust author acknowledged start at 2026-10-29T22:06:26Z. Only the reopened machine.rs path is active; receiving.rs remains frozen. No Cargo/check/test/runtime or other command.
+
+Machine repair slice froze at 2026-10-29T22:06:56Z (30s from 22:06:26Z, exceeding its 20s sub-bound by 10s). Exact machine.rs SHA-256 `bf5a2819d256658ef3d93cc73a0adee467113e83f3126ebaa9247f54f8378241`. Delta: three ViewHandle `.0` reads use existing `index()`; added `#[cfg(test)] pub(super)` ValueHandle index accessor. ReceiptHandle uses untouched. No build/runtime; STOP and no Cargo/rustc. Charge 30s: Rust remaining 217s; only 15s of the <=45s source-repair bound remains.
+
+Sequential lease: machine.rs is frozen at the above hash. Luna now reopens only `isolated/ep-owner-certificate-r27/project/tools/inference-playground/src/runtime/receiving.rs` for a <=15-second final repair slice; machine.rs remains frozen.
