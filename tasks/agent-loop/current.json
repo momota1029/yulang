@@ -75,7 +75,7 @@
     "record": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-state-archive.json",
     "sha256": "8fcfd28653b67e9dde4c78da39c651eaee5790fd93b23ced16877c4cd2a33785"
   },
-  "next_action": "R23 correction running under <=700s; freeze ordinal plus exact-source harness, then fresh exact-hash review; no Cargo yet."
+  "next_action": "R23 closed incomplete; successor repair needs a new resource envelope and exact leases."
 ,
   "prior_sprint": {"id":"CALLBACK-RESULT-OWNER-CONSUMER/20261030-R22","status":"CLOSED_INCOMPLETE — PREFLIGHT_REJECTED","outcome":"tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-outcome.md","git_commit":"9a74a70a32ebda716a00c7203d8e606343cf442a"}
 }
