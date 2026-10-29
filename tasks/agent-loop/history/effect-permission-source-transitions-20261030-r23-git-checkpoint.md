@@ -27,3 +27,9 @@
 - Outbound range: `7fbd621fdec12513d04dfad16fdab579504b5400..45b926034bf6b75e2f60c91419337e2ed0f6e7d1`, 2 files (`current.json` and this receipt).
 - `git push origin yulang3` succeeded; `git ls-remote origin refs/heads/yulang3` returned the same commit.
 - This checkpoint records the frozen preflight-1 risk and the selector-authorized bounded correction admission before any reviewer or correction worker launch.
+
+## R23 Rust correction session launch
+
+- Same Rust identity resumed with `collaboration.followup_task` at 2026-10-29 17:31:18 UTC under fresh session `CALLBACK-SOURCE-TRANSITIONS/20261030-R23/RUST-CORRECTION-1`.
+- Current correction envelope is <=700 seconds; cumulative Rust remaining cap is <=945 seconds. Cargo remains prohibited until exact-hash preflight ACCEPT plus a separate fresh-session resume.
+- Lease set is unchanged. The current worker has only the existing isolated machine/receiving/program, receipt, handoff and build-target paths. No other child assignment is active.
