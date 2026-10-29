@@ -69,3 +69,10 @@
 - Rust remains in its disjoint source-edit phase and has not run Cargo. Lean/Lake heavy work and any future Cargo process remain serialized.
 
 - Lean-resumption checkpoint commit: `99c24719e193758f24cc1a4029526b2ba49810d6` (`research: resume R24 Lean proof lane`); outbound range `6666c846f..99c24719e`, exactly `current.json` and this receipt. Push succeeded; remote verification returned `99c24719e193758f24cc1a4029526b2ba49810d6`.
+
+
+## Rust instrumentation construction progress
+
+- Rust author `/root/effect_permission_hygiene_r24_rust` reports 393 seconds spent in the resumed interval, following the previously charged 390-second dispatch-to-pause upper bound. Cumulative charge is 783 seconds of 2,400; remaining cap is 1,617 seconds.
+- Latest worker-reported live hashes: `machine.rs` `4c1ce26f4053e97351811cdd3fe42b3a116a6253a3826bbfe9e898eea1e18ed9`; `receiving.rs` `a7878778b87b2857b7a3bf5204319bfaa65adbec2436c0bf95b296937f19ae45`; `program.rs` baseline `6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907`; schema receipt R1 `e455690d6873880567ddadbe7cd5273da424f1e0fbffc2c80ebee59676b98b1e`; handoff revision 1 `09a64680304c3a860b828c027f102d8c6d14d8b467a1094925d43f6798ef2ad5`.
+- Author reports owner records at ValueEntry, direct Name receipt, callback Apply/use, result consumer, Request creation, exact Catch candidate/commit, and separate shallow-discard; pure callback and companion validators reject required identity/order/missing/lifetime mutations and lost-write/outer-consumer omissions. Source-route harness construction continues. No Cargo/compiler/test/formatter process ran. These are worker-reported, live intermediate hashes, not final Luna-authenticated evidence.
