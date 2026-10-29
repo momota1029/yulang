@@ -7,17 +7,7 @@
 ,
   "session": "CALLBACK-SOURCE-TRANSITIONS/20261030-R23"
 ,
-  "active_sprint": {
-    "id": "CALLBACK-SOURCE-TRANSITIONS/20261030-R23",
-    "status": "ADMITTED_RUST_SERIAL",
-    "baseline_commit": "9a74a70a32ebda716a00c7203d8e606343cf442a",
-    "contract": "tasks/agent-loop/sprints/effect-permission-source-transitions-20261030-r23.md",
-    "contract_sha256": "a2da16deb4475a7e602505d2fd6f44ce823b7ef8088d72d83299d3cf86106443",
-    "inputs_manifest": "tasks/agent-loop/sprints/effect-permission-source-transitions-20261030-r23-inputs.json",
-    "input_manifest_sha256": "53834c90872ec05adc761b5dd0aba9c5c2bc91dd5c63249fbd954626ec06d639",
-    "evidence": "tasks/agent-loop/evidence/effect-permission-source-transitions-20261030-r23.json",
-    "outcome": "tasks/agent-loop/history/effect-permission-source-transitions-20261030-r23-outcome.md"
-  },
+  "active_sprint": {"id":"CALLBACK-SOURCE-TRANSITIONS/20261030-R23","status":"ADMITTED_RUST_SERIAL","baseline_commit":"9a74a70a32ebda716a00c7203d8e606343cf442a","contract":"tasks/agent-loop/sprints/effect-permission-source-transitions-20261030-r23.md","contract_sha256":"a2da16deb4475a7e602505d2fd6f44ce823b7ef8088d72d83299d3cf86106443","inputs_manifest":"tasks/agent-loop/sprints/effect-permission-source-transitions-20261030-r23-inputs.json","input_manifest_sha256":"53834c90872ec05adc761b5dd0aba9c5c2bc91dd5c63249fbd954626ec06d639","evidence":"tasks/agent-loop/evidence/effect-permission-source-transitions-20261030-r23.json","outcome":"tasks/agent-loop/history/effect-permission-source-transitions-20261030-r23-outcome.md","git_checkpoint":{"record":"tasks/agent-loop/history/effect-permission-source-transitions-20261030-r23-git-checkpoint.md","receipt_sha256":"1ceb1164e5ddaf5c8aa64b2e4f548f4e6d7da5472b5e0a447923832926569356","commit":"11ac5128b66cbaa9e57a473af35502922979fb18","pushed":true}},
   "workers": [
     {"id":"/root/resident_dispatcher_loop_a","role":"legacy","state":"UNKNOWN","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","requested_model":"UNKNOWN","requested_effort":"UNKNOWN"},
     {"id":"/root/resident_implementer_idle","role":"legacy","state":"UNKNOWN","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","requested_model":"UNKNOWN","requested_effort":"UNKNOWN"},
@@ -66,7 +56,8 @@
     {"path":"isolated/ep-source-transitions-r23/project/tools/inference-playground/src/runtime/program.rs","owner":"/root/effect_permission_source_transitions_r23_rust","state":"HELD"},
     {"path":"isolated/ep-source-transitions-r23/project/receipts/source-transitions.json","owner":"/root/effect_permission_source_transitions_r23_rust","state":"HELD"},
     {"path":"tasks/agent-loop/inbox/effect-permission-source-transitions-r23-rust.md","owner":"/root/effect_permission_source_transitions_r23_rust","state":"HELD"},
-    {"path":"isolated/ep-source-transitions-r23/project/build-target","owner":"/root/effect_permission_source_transitions_r23_rust","state":"HELD"}
+    {"path":"isolated/ep-source-transitions-r23/project/build-target","owner":"/root/effect_permission_source_transitions_r23_rust","state":"HELD"},
+    {"path":"tasks/agent-loop/history/effect-permission-source-transitions-20261030-r23-git-checkpoint.md","owner":"/root","state":"HELD"}
   ],
   "pending": [
     {"id":"R61-SOURCE-ASCRIPTION-FORMATION-1","state":"OPEN","owner":"Luna"},
@@ -104,74 +95,19 @@
   ],
   "closure": "Original parent, native correspondence, effect hygiene, principality, termination and production remain OPEN."
 ,
-  "legacy_reconciliation": {
-    "required": false,
-    "reservations": [
-      {
-        "id": "/root/resident_dispatcher_loop_a",
-        "path": "tasks/agent-loop/board.md",
-        "state": "UNKNOWN_QUARANTINED"
-      },
-      {
-        "id": "/root/resident_implementer_idle",
-        "path": "UNKNOWN historical implementation lease",
-        "state": "UNKNOWN_QUARANTINED"
-      },
-      {
-        "id": "/root/runtime_source_supplier_proof",
-        "path": "UNKNOWN historical proof lease",
-        "state": "UNKNOWN_QUARANTINED",
-        "historical_paths": [
-          "notes/theory/2026-10-16-owner-completion-positive-frame-presentation-r2.md",
-          "tasks/agent-loop/inbox/20261016-loop-a-proof-owner-frame-repair-005.md"
-        ]
-      }
-    ],
-    "capacity_override": {
-      "record": "tasks/agent-loop/history/20261028-user-capacity-release-all-unknown.md",
-      "sha256": "a91dba2e89157a7ef1712cea785990192b8910c026bae15699f9e6dc3ee71a46",
-      "state": "RELEASED_BY_USER",
-      "slots": 11
-    }
-  },
+  "legacy_reconciliation": {"required":false,"reservations":[{"id":"/root/resident_dispatcher_loop_a","path":"tasks/agent-loop/board.md","state":"UNKNOWN_QUARANTINED"},{"id":"/root/resident_implementer_idle","path":"UNKNOWN historical implementation lease","state":"UNKNOWN_QUARANTINED"},{"id":"/root/runtime_source_supplier_proof","path":"UNKNOWN historical proof lease","state":"UNKNOWN_QUARANTINED","historical_paths":["notes/theory/2026-10-16-owner-completion-positive-frame-presentation-r2.md","tasks/agent-loop/inbox/20261016-loop-a-proof-owner-frame-repair-005.md"]}],"capacity_override":{"record":"tasks/agent-loop/history/20261028-user-capacity-release-all-unknown.md","sha256":"a91dba2e89157a7ef1712cea785990192b8910c026bae15699f9e6dc3ee71a46","state":"RELEASED_BY_USER","slots":11}},
   "user_goal": "Yulang inference/executor soundness, effects, principality, termination."
 ,
-  "native_bridge": {
-    "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
-    "state": "OPEN; NAIVE_RELATION_BLOCKED",
-    "owner": "primary source/proof intake",
-    "record": "tasks/agent-loop/sprints/source-generated-interaction-20261025-r1-outcome.md",
-    "sha256": "2c1332214def6b63ac2323d75ebd644d4d07ddce12647a93d39c6c2c1041d3cd"
-  },
-  "r18_authority_proposal": {
-    "id": "R18-VARIANT-TYPEARG-CORRESPONDENCE-1",
-    "state": "OPEN_UNADOPTED_PROPOSAL",
-    "sha256": "03df404d39135274df50d2b80b76f24ff5709683a15706ceeb9dcd499cd72e07"
-  },
+  "native_bridge": {"id":"SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1","state":"OPEN; NAIVE_RELATION_BLOCKED","owner":"primary source/proof intake","record":"tasks/agent-loop/sprints/source-generated-interaction-20261025-r1-outcome.md","sha256":"2c1332214def6b63ac2323d75ebd644d4d07ddce12647a93d39c6c2c1041d3cd"},
+  "r18_authority_proposal": {"id":"R18-VARIANT-TYPEARG-CORRESPONDENCE-1","state":"OPEN_UNADOPTED_PROPOSAL","sha256":"03df404d39135274df50d2b80b76f24ff5709683a15706ceeb9dcd499cd72e07"},
   "question_status": []
 ,
-  "external_path_incident": {
-    "path": "/tmp/yulang-name-entry-correspondence-20261028/source/name-entry-trace.txt",
-    "state": "QUARANTINED_NO_WRITES",
-    "prior_sha256": "ff8a8d88e29533f2d207206f492f7ed811ce9d705692ede5e99f5d388080b51c",
-    "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
-  },
-  "migration_review": {
-    "state": "REVIEW_PASS; legacy reconciliation OPEN",
-    "record": "tasks/agent-loop/history/20261028-capacity-rule-independent-review.md",
-    "sha256": "a9abe1fb6a28164ee79a21442bc64d8f935cfc659f249de382b3c85f2247b5b6",
-    "reviewer": "/root/capacity_override_review"
-  },
+  "external_path_incident": {"path":"/tmp/yulang-name-entry-correspondence-20261028/source/name-entry-trace.txt","state":"QUARANTINED_NO_WRITES","prior_sha256":"ff8a8d88e29533f2d207206f492f7ed811ce9d705692ede5e99f5d388080b51c","current_sha256":"41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"},
   "history_archive": {
     "record": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-state-archive.json",
     "sha256": "8fcfd28653b67e9dde4c78da39c651eaee5790fd93b23ced16877c4cd2a33785"
   },
   "next_action": "R23 admitted; authenticate isolated baseline, then start the single serial Rust source-transition lane"
 ,
-  "prior_sprint": {
-    "id": "CALLBACK-RESULT-OWNER-CONSUMER/20261030-R22",
-    "status": "CLOSED_INCOMPLETE — PREFLIGHT_REJECTED",
-    "outcome": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-outcome.md",
-    "git_commit": "9a74a70a32ebda716a00c7203d8e606343cf442a"
-  }
+  "prior_sprint": {"id":"CALLBACK-RESULT-OWNER-CONSUMER/20261030-R22","status":"CLOSED_INCOMPLETE — PREFLIGHT_REJECTED","outcome":"tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-outcome.md","git_commit":"9a74a70a32ebda716a00c7203d8e606343cf442a"}
 }
