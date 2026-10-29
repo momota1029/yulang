@@ -110,3 +110,12 @@
 - Lean candidate `faf2cd3e3057e9caca18a33bc2cc38b3518a3be2e37e3fbeac029544d2602644`, 22 theorem names; checker/archive/inventory identities remain pinned in the review report. At `18:46:42 UTC`, Lean charge is `1,266/1,800s`, `534s` remaining. Current and quarantined root paths unchanged.
 - Review upper-bound charge is 168 seconds from the state at `18:42:24 UTC` (review reserved) through `18:45:12 UTC` (final STOP), leaving 732 seconds in the initial 900-second slice and reserving 700 seconds for later runtime review.
 - Static current-state check passed; `python3 -m unittest discover -s tools -p 'test_agent_sprint.py'` passed 62 tests. Checkpoint commit `9ec9b660889fd413441451a77838f5d86bbde697` (`research: record R24 Rust review rejection`), outbound range `fd4fd68cb..9ec9b6608`, exactly `current.json` and the review report. Push succeeded; `git ls-remote origin refs/heads/yulang3` matched `9ec9b660889fd413441451a77838f5d86bbde697`.
+
+
+## R24 Lean audit stop checkpoint
+
+- Frozen Lean result is **constructed but unchecked**: no selected build, theorem type, transitive axiom report or `.olean` succeeded. Audit 1 and 2 both exited 1; combined 11.789497476 seconds, maximum sampled process-tree RSS 929,808,384 bytes. No third audit or Cargo is authorized.
+- Final proof handoff SHA `e4725fd5cb9c22fce20a53da82443da5dc0b2f9aaab34157c0f624f32a59f101`; module rev3 SHA `4bb9eafe2c0f7123c4d43722083190b9f7c78c2e0f6661160c5ccc56da1f7083`; full failure/resource receipt `tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-lean-audit.md`, SHA `6a79da852c1cf0bef4593ba7e7bda54497430d9dd0187f252ac4d55bb4a7beb7`.
+- Luna authenticated the syntax-only repair by whitespace-normalized equality to the exact audit-1 input. Audit2 diagnosed nine redundant constructor-alternative State binders. Both raw logs and resource samples remain frozen under the exact Lean scratch lease.
+- Proof author stopped writes/processes/descendants at `2026-10-29T18:53:29.419105Z`; charge `1,674/1,800s`, remaining `126s`, with audit cap exhausted. Exact module/handoff and generated/scratch leases are FROZEN. Rust R2 remains rejected/frozen; selector did not authorize Rust resumption or lease changes.
+- Current state, static checker and 62 tooling unit tests passed before this link. Checkpoint commit `cb21235fa83849b8d3d17d4de22eafe19084b98f` (`research: record R24 unchecked Lean audit`), range `6def1b538..cb21235fa`, exact files `current.json` and the Lean audit receipt. Push and remote `origin/yulang3` verification succeeded.
