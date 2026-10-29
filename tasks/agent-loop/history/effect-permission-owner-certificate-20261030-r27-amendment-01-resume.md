@@ -1,0 +1,11 @@
+# R27 amendment 01 resume receipt
+
+Sprint: EFFECT-PERMISSION-OWNER-CERTIFICATE/20261030-R27
+Session: R27-20261030
+At 2026-10-29T20:50:34TUTC, live roster synchronization showed both exact R27 author identities running: /root/effect_permission_owner_certificate_r27_rust and /root/effect_permission_owner_certificate_r27_proof. Neither has children. Both acknowledged the pushed amendment 01 SHA-256 a4a21111570cb70bfaefdef034accd84bc969b33c4edf4835749a546fdc93edb, schema r2 SHA-256 84187379d1a81b1965c34c027e7532198bebc4c4110eaa1c05808bada6bf6d8c, and inputs r2 SHA-256 0ea399f056c95861277ed5dc4717dc678a8e0b4cc3d0782f6875dfa789d8ac99. Base contract remains SHA-256 2cc9c8ae08a6fcbf98f237e6a1640ceb042a456a6beaadc448fa0a0308b431f0. Amendment commit 4d45555c13eadd2938e4054f6e920556bc25c141 is present at origin/yulang3.
+
+Rust resumes on the same exact leases with the corrected --bin yu-playground baseline commands. The two original status-101 CLI-selection failures remain preserved and are not source execution results. Candidate compile/runtime remain gated on independent exact-hash ACCEPT and separate Luna authorization. Lean construction may resume under the corrected capture-root invariant; the proof author must wait for Luna's explicit serialized Lean audit window after both Cargo baselines end.
+
+The proof author reported a constructed-but-unchecked module at the pause boundary, SHA-256 9bd808fb66cc4af85a604773dc05287285d82daa41b6a8495b64b5b6bd600f80. It models all five TemplateNode and 23 Frame alternatives, pop-order outer-stack projection, and connected endpoints. It has not been Lean/Lake checked, independently reviewed, or applied to authenticated native snapshots. The R2 amendment now requires the capture-time final Owner coordinate: node_index equals immutable template.root and nodes.len()-1, with the final appended Owner's preceding-root inner edge.
+
+Observed model/effort and opaque child session IDs remain UNKNOWN. Conservative budget remainder: Rust 1,190/1,550s (Cargo aggregate cap 360s; initial failed commands used 0.140s), Lean 470/800s, reviewer 1,000/1,000s, Luna 3,490/3,850s. R26 budgets are not transferred. Root quarantines and the existing 13-slot capacity override are unchanged.
