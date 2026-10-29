@@ -1,0 +1,71 @@
+{
+  "id": "EFFECT-PERMISSION-NATIVE-CALLBACK-GRANT/20261030-R28-EVIDENCE-MAP-R2",
+  "kind": "primary-owned additive evidence refinement and repair authorization",
+  "status": "FROZEN_BEFORE_WRITER_RESUME",
+  "base": {
+    "contract": "tasks/agent-loop/sprints/effect-permission-native-callback-grant-20261030-r28.md",
+    "contract_sha256": "fa1a6f2e450169748e0696fb607963147a46cc4e6c464087cdefcacec383d89a",
+    "schema_r1": "tasks/agent-loop/sprints/effect-permission-native-callback-grant-20261030-r28-schema-r1.json",
+    "schema_r1_sha256": "fb46c1c031ee9132385c2170c22cbf8ea5eb27a8dc176ce0ba6356b7cf4a71ea",
+    "inputs_r1_sha256": "ca55123ef61014258f9d60d327cf0a3b0db069231bcdfa3563b812913ff901f1",
+    "r1_archive": "tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r28-r1-rejected.tar.gz",
+    "r1_archive_sha256": "b0d653c93772451b8868a34a0aee149cfaf1cfe3491f213b39bdf9e97fc85669",
+    "r1_review": "tasks/agent-loop/inbox/effect-permission-owner-certificate-r28-review.md",
+    "r1_review_sha256": "7dcddff76100a98f31df92a436b828b7ad74554be1075d69e616907993ecddcf"
+  },
+  "compatibility": {
+    "schema_r1_unchanged": true,
+    "additive_fields_only": true,
+    "language_or_solver_semantics_change": false,
+    "required_r1_fields_remain_required": true,
+    "scope": "test-only native evidence, validators, and the already authorized bounded Lean projection"
+  },
+  "frozen_r1_source": {
+    "worktree": "isolated/ep-owner-certificate-r28/project",
+    "base_commit": "c9e315208cb04bcc4fe8c3595d929fb76538f1cd",
+    "machine.rs_sha256": "015db9d7adf57b2c9ca628b5908c7c58f50c279b26b19cafb2f082ba33cec86a",
+    "receiving.rs_sha256": "632e9a23951d2791d4638400a5f93815bbb1c9831f388ddae4a8a0e806470ddb",
+    "rust_handoff_sha256": "29e5dc84d04d92a64801b50c2cb748a666ac6d0078a078f0beae8c128dbb9616"
+  },
+  "field_map": [
+    {
+      "json_path": "callback_use.use_id",
+      "native_owner": "Receiving::callback_route_for_request; the actual ViewKind::CallbackResult(CallbackUseHandle) read from the observed execution view",
+      "type": "CallbackUseHandle identity encoded as its owning callback_uses index",
+      "joins": ["callback_use.entry_id = CallbackUse.entry", "observed execution view = CallbackUse.result_view", "result receipt = CallbackUse.receipt", "parameter_name_read.entry_id = CallbackUse.entry"],
+      "validation": "Pass the actual CallbackUseHandle to callback_grant and validators. Keep CallbackEntryHandle distinct; never cast or reuse its ordinal as a use identity."
+    },
+    {
+      "json_path": "catch_consumer.installation_occurrence and catch_consumer.installation_owner",
+      "native_owner": "Machine::propagate_request, from the selected live Frame::CatchReturn HandlerInstallation",
+      "type": "usize occurrence plus ExecutionOwner identity",
+      "joins": ["selected request event", "selected handler source site", "selected arm source key", "consumer owner", "actual current execution owner"],
+      "validation": "Retain the actual installation.occurrence separately from the Catch source-site occurrence; require validate_handler_installation success, installation.occurrence < Machine.next_handler, installation.owner = current_execution_owner, and owner active. The Lean InstalledCatch handle denotes this dynamic occurrence; preserve source site separately."
+    },
+    {
+      "json_path": "local_grant.observation.observer, observer_bound, event_id, execution_occurrence, view_id, receipt_id, execution_table",
+      "native_owner": "Receiving::observe and the exact Observation consumed by local_grant; Receiving.executions and Receiving.next_observer",
+      "type": "usize observer and bound; event identity; execution occurrence; view/receipt identities; ordered list of (view, receipt) table rows",
+      "joins": ["observation.event_id = request event", "execution_table[execution_occurrence] = (view_id, receipt_id)", "observation execution = callback-use result view/receipt", "local_grant query uses this same observation", "observer < observer_bound <= current next_observer"],
+      "validation": "Carry a constructor-owned bound on each Observation, set by observe after assigning its observer. Validate evidence against the actual Observation supplied to the request and the owning execution table; do not synthesize a table row or infer the observed occurrence using first-match position. Emit the ordered table projection from Receiving.executions."
+    }
+  ],
+  "repair_packet": {
+    "writer": "/root/r28_rust",
+    "resume_requires": "This frozen map and R1 archive committed and pushed first",
+    "leased_paths_only": [
+      "isolated/ep-owner-certificate-r28/project/tools/inference-playground/src/runtime/machine.rs",
+      "isolated/ep-owner-certificate-r28/project/tools/inference-playground/src/runtime/receiving.rs",
+      "tasks/agent-loop/inbox/effect-permission-owner-certificate-r28-rust.md"
+    ],
+    "findings_to_close_together": ["wrong CallbackEntryHandle passed where CallbackUseHandle is required", "dynamic Catch installation identity omitted", "observer/bound/execution-table observation omitted or unvalidated"],
+    "repair_limit_seconds": 150,
+    "minimum_reported_rust_remaining_seconds": 450,
+    "retained_compile_seconds": 90,
+    "retained_focused_run_seconds": 60,
+    "retained_handoff_seconds": 30,
+    "stop_on": ["first repair failure", "required schema meaning change", "unavailable authentication", "new required source path", "semantic or solver change"],
+    "after_repair": "Freeze exact source hashes and updated handoff; STOP for fresh independent exact-hash pre-compile review. Compilation and runtime each require a separate primary authorization after the preceding gate."
+  },
+  "open_gates": ["compile", "runtime JSON", "Lean execution and axiom audits", "source/native correspondence", "full History", "source soundness", "principality", "termination", "production"]
+}
