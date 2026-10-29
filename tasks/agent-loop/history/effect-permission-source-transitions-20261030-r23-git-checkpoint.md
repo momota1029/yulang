@@ -52,3 +52,11 @@
 - Outbound range from the preceding checkpoint: `f344e0b64..dce4064b9`, 2 files (`current.json` and this receipt).
 - Push to `origin/yulang3` succeeded; `git ls-remote` verified `dce4064b984d95689c0fe77418c48b6cc35156ef`.
 - This commit synchronized the pointer to the prior correction-launch checkpoint. R23's rejection/closeout record follows as its own exact-path checkpoint.
+
+
+## R23 preflight-rejected closeout checkpoint
+
+- Commit: `15f166266190e0a81472db5bf4ab02c2e5ef54c7` (`research: close R23 preflight rejected`).
+- Outbound range: `dce4064b9..15f166266`, 5 files: compact current state, R23 evidence JSON, R23 outcome, this checkpoint receipt, and frozen Rust handoff revision 2.
+- `git push origin yulang3` succeeded; `git ls-remote origin refs/heads/yulang3` returned `15f166266190e0a81472db5bf4ab02c2e5ef54c7`.
+- This is a failure-only research closeout. The test-only source snapshot remains in its separate frozen isolated worktree; no production runtime source was staged.
