@@ -36,3 +36,11 @@
 
 - R23 correction launch commit: `4914eca7e` (`research: record R23 correction session launch`), pushed to `origin/yulang3`; push succeeded.
 - The commit records the bounded fresh-session resumption and unchanged exact leases before the implementer resumed writes.
+
+
+## R23 correction-launch checkpoint
+
+- Commit: `f344e0b6404a758635a7ac7729b493e3a1502534` (`research: link R23 correction launch checkpoint`).
+- Outbound range: `4914eca7e..f344e0b64`, 2 files (`current.json` and this receipt).
+- `git push origin yulang3` succeeded; `git ls-remote origin refs/heads/yulang3` returned `f344e0b6404a758635a7ac7729b493e3a1502534`.
+- This checkpoint links the correction-session launch receipt before the resumed Rust worker's source/harness writes.
