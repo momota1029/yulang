@@ -1,0 +1,58 @@
+{
+  "schema": "effect-permission-native-callback-grant-r29",
+  "revision": "r1",
+  "sprint": "EFFECT-PERMISSION-NATIVE-CALLBACK-GRANT/20261030-R29",
+  "authority": "test-only source evidence and a bounded Lean projection; no production, solver, source-language, fixture, dependency, or expected-output change",
+  "callback": {
+    "source_identity": ["sha256", "entry_point", "selected_main_value", "stdout", "exit_status"],
+    "annotation_permission": ["resolved_effect_identity", "lambda_source_site", "formal_id", "annotation_owner", "composed_polarity", "typed_port", "invocation_owner"],
+    "actual_inflow": ["incoming_view_id", "entry_view_id", "incoming_coverage_unknown", "entry_coverage_unknown", "permission_added_to_inflow"],
+    "callback_entry": ["entry_id", "invocation_owner", "callback_value_id", "formal_receipt_id", "formal_receipt_owner", "formal_receipt_source_slot"],
+    "parameter_name_read": ["source_site", "entry_id", "owner", "value_id", "view_id", "receipt_id", "receipt_formal_absent"],
+    "callback_use": ["typed_use_id", "entry_id", "invocation_owner", "source_view_id", "callee_site", "apply_site", "result_view_id", "result_receipt_id"],
+    "result_execution": ["typed_use_id", "view_id", "receipt_id", "execution_occurrence", "owner", "authentic_in_execution_table"],
+    "request_event": ["event_id", "resolved_effect_identity", "resolved_operation_identity", "payload_id", "source_site", "request_owner", "lineage_owner", "origin_execution_id", "emitted_and_pending"],
+    "local_grant": {
+      "query": ["request_event_id", "query_owner", "active_invocation_id", "requested_effect_identity"],
+      "request_observation_snapshot": {
+        "source": "the exact observation vector stored on this native request and passed to this local_grant call; retained independently in test-only RequestConsumerEvidence",
+        "selected_callback_observation_index": "index of the exact member whose CallbackResult handle and callback_grant guard succeeds",
+        "each_observation": ["observer_ordinal", "observer_bound_at_construction", "event_id", "execution_occurrence", "view_id", "receipt_id"],
+        "execution_table": "ordered projection copied from the owning Receiving.executions store",
+        "validation": "compare candidate observation to the independent request-owned snapshot field-for-field; do not compare duplicated candidate fields to each other"
+      },
+      "callback_grant_guard": ["typed_use_id", "same_result_view_and_receipt", "same_entry_owner", "callback_entry_kind_and_handle", "formal_receipt_owner_view_slot_formal", "result_receipt_owner_view_slot_no_formal", "resolved_family_membership"],
+      "callback_grant_result": "computed result of the actual callback_grant call; never an unexplained theorem premise",
+      "local_grant_result": "computed result of the actual local_grant call over the request-owned observation vector"
+    },
+    "catch_consumer": {
+      "request_event_id": "same emitted request event",
+      "handler_id": "dynamic HandlerInstallation.occurrence of the selected installation, not source-site occurrence",
+      "handler_source_site": "separate original Catch source site",
+      "installation_owner": "actual owner of the selected dynamic installation",
+      "installation_authenticated": "selected installation is read from the owning installed-handler table",
+      "arm": ["arm_id", "arm_source_site", "resolved_operation_identity"],
+      "selected_result": ["runtime_value_id", "integer"]
+    },
+    "expected_selected_main_value": 1
+  },
+  "companion": {
+    "source": "tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+    "expected_selected_main_value": 23,
+    "required": ["captured_template", "owner_replay", "complete_frame_projection_in_pop_order", "distinct_write_request_consumer", "surviving_write_contribution"],
+    "rule": "companion frame/template evidence is never used as callback-entry, callback-use, request-observation, or Grant evidence"
+  },
+  "mutations": {
+    "callback_required": ["wrong_dynamic_installation_identity", "mutate_request_snapshot_observer_bound", "wrong_invocation_owner", "wrong_formal_or_receipt", "wrong_typed_use_or_result_view", "wrong_event_or_origin", "wrong_resolved_effect_identity"],
+    "companion_required": ["wrong_positive_node_index", "delete_required_boundary", "alter_borrowed_fresh_disposition", "disconnect_write_lineage", "no_op_target_guard"],
+    "per_mutation": ["target_present", "before_value", "after_value", "applicable_record_changed", "validator_rejected"],
+    "rule": "a mutation counts only when the intended present field changes and the independent validator rejects it; absent/no-op targets are not passes"
+  },
+  "lean_projection": {
+    "frozen_model": "YulangClosure.CallbackHygieneCorrespondence at its pinned R26 SHA",
+    "required_targets": ["PortReady.callbackResult", "CatchReady when all source-owned premises are present"],
+    "required_source_to_model_joins": ["annotation/formal/invocation", "entry/formal receipt", "direct Name receipt", "typed Use", "result receipt/execution/table", "exact request observation/Grant", "dynamic installation/arm/request consumer"],
+    "prohibited_unexplained_inputs": ["UseReady", "PortReady", "CatchReady", "native Grant success", "authenticated History", "desired selected result"],
+    "history": "construct only if actual source transitions justify every Step; otherwise explicitly OPEN"
+  }
+}

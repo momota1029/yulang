@@ -1,0 +1,114 @@
+{
+  "schema": "effect-permission-native-callback-grant-r29-inputs-v1",
+  "revision": "r1",
+  "sprint": "EFFECT-PERMISSION-NATIVE-CALLBACK-GRANT/20261030-R29",
+  "branch": "yulang3",
+  "admission_base": "dd3d5ee22b8622f22e8db87382edaec0a466e7fd",
+  "baseline_tree": "554c82b13d9186e197a460128330c4bb0dcd53ab",
+  "project_copy": {
+    "method": "git archive --format=tar dd3d5ee22 | tar --no-same-owner; then overlay only the two exact R2 Rust seed files, the R26 model and the R28 unchecked Lean bridge from the rejected R2 snapshot",
+    "baseline_file_count": 10411,
+    "baseline_content_verification_digest": "1aa7ba512c55fd91d10eec15036f7b4b1d73110e2c8d9a5492165f0163a61ef0",
+    "unexpected_mismatches": 0,
+    "overlays": {
+      "machine.rs": "c66d325fd14cf5d94094c9e09568950949405bf67b6924a513a2cceab3c90975",
+      "receiving.rs": "fbc664f166e2500208ba8e8598a078bbbcf2a3a72f620a5d40576750bca5bf81",
+      "CallbackHygieneCorrespondence.lean": "0621f43739c12ce1e7919a50de129414a4748d8359bf46740babd69f4854011e",
+      "NativeCallbackGrantBridge.lean": "7089b047821ed82e715b4230c47e36f5fec231bf431ec6d26501137f8a358c18"
+    }
+  },
+  "sha256": {
+    "rust.machine_r2_seed": "c66d325fd14cf5d94094c9e09568950949405bf67b6924a513a2cceab3c90975",
+    "rust.receiving_r2_seed": "fbc664f166e2500208ba8e8598a078bbbcf2a3a72f620a5d40576750bca5bf81",
+    "lean.r26_model": "0621f43739c12ce1e7919a50de129414a4748d8359bf46740babd69f4854011e",
+    "lean.r28_bridge_seed_unchecked": "7089b047821ed82e715b4230c47e36f5fec231bf431ec6d26501137f8a358c18",
+    "rust.continuation": "194e925c2e19816e05e8d0cdf773123f205dce47d36d83a70385daa07a77e2b3",
+    "rust.program": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907",
+    "rust.package_manifest": "87e77de221b023c1c9f07e90f1ce6a692a56e8bb398eca4725f4910254be0a56",
+    "rust.lockfile": "de2c030452a0764cbeb459e2545585a880edc6683a8acceaea45276e24b67ca5",
+    "rust.companion_fixture": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7",
+    "lean.toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "lean.lakefile": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4",
+    "lean.lake_manifest": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+    "lean.checker": "a4f10b70297cbf4d8b5bc0c7526bc29783eaf417f1f70e53eeea341d1150dde6",
+    "authority.effect_policy": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18",
+    "authority.original_parent": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271",
+    "authority.birth_level_correction": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae",
+    "lean.parent_contracts": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e",
+    "r28.contract": "fa1a6f2e450169748e0696fb607963147a46cc4e6c464087cdefcacec383d89a",
+    "r28.schema_r1": "fb46c1c031ee9132385c2170c22cbf8ea5eb27a8dc176ce0ba6356b7cf4a71ea",
+    "r28.evidence_map_r2": "37d36c35fce7988bc0387422f992f0dae81a1f97815fa768cb904a0d1801eacb",
+    "r28.r2_rejected_archive": "cf27d5733ec2679f780125c0761435c9290ef0fb792642a1bd14eb30b0f9acde",
+    "r28.r2_review": "ca7966c1c3db0c75450c32653b380ad358ce54f3169a0f3aa9a695670beecdd0",
+    "r28.closeout_archive": "310fdc7e1be9638321bbd25e1dcc684b09d523c6cf605f7f42fe40f334c9ca79",
+    "r27.callback_manifest": "06fcdb4292b3364b9a40b75dcb9b57419ff0bfb50628d422cd5ec69ad0e5c6bc",
+    "r29.contract": "8c9784de8a3e33f7e17c2747fcc7e452bda02bb8f4a4a7358c14290642c1457f",
+    "r29.schema_r1": "b2d03bbba4ae78f8e2f9b0517c4b25c176372a158d77a1baa0e3c6d601294379"
+  },
+  "fixed_sources": {
+    "callback": {
+      "text": "act signal:\n    our ping: () -> int\n\nmy relay(cb: () -> [signal] int) = catch cb() {\n    signal::ping(), _ -> 1,\n    v -> v\n}\nmy answer = relay signal::ping\n",
+      "sha256": "163fb480ec7ecaed2c341253066a7c6cc3af1a0cf5499c384f0cad4952c64e18",
+      "expected_selected_main": 1,
+      "source_manifest": "tasks/agent-loop/sprints/effect-permission-owner-certificate-20261030-r27-inputs-r3.json",
+      "source_manifest_sha256": "06fcdb4292b3364b9a40b75dcb9b57419ff0bfb50628d422cd5ec69ad0e5c6bc"
+    },
+    "companion": {
+      "path": "tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+      "sha256": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7",
+      "expected_selected_main": 23
+    }
+  },
+  "baseline_receipts": {
+    "callback": {
+      "source_record": "R28 R1 handoff preserved in r28-closeout archive",
+      "prior_command": "cargo run -q -p yu-playground --bin yu-playground -- --run answer -",
+      "status": 0,
+      "stdout": "1",
+      "source_unchanged": true
+    },
+    "companion": {
+      "source_record": "R28 R1 handoff preserved in r28-closeout archive",
+      "prior_command": "cargo run -q -p yu-playground --bin yu-playground -- --run main tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+      "status": 0,
+      "stdout": "23\\n",
+      "source_unchanged": true
+    }
+  },
+  "governing_authority": {
+    "effect_policy": "authority.effect_policy",
+    "original_parent": "authority.original_parent",
+    "birth_level_scc": "authority.birth_level_correction",
+    "source_contracts": "lean.parent_contracts",
+    "R28_rejected_seed_only": [
+      "r28.contract",
+      "r28.schema_r1",
+      "r28.evidence_map_r2",
+      "r28.r2_rejected_archive",
+      "r28.r2_review",
+      "r28.closeout_archive"
+    ],
+    "R26_model": "lean.r26_model",
+    "R28_unchecked_bridge": "lean.r28_bridge_seed_unchecked"
+  },
+  "verification_commands": {
+    "compile": "timeout 120s env CARGO_TARGET_DIR=build-target CARGO_BUILD_JOBS=1 cargo test --locked --offline -p yu-playground --lib --no-run",
+    "focused_test": "timeout 120s env CARGO_TARGET_DIR=build-target CARGO_BUILD_JOBS=1 cargo test --locked --offline -p yu-playground --lib r29_native_callback_grant_certificate_authenticates_request_observation_dynamic_installation_and_mutations -- --nocapture",
+    "callback_main": "cargo run -q --locked --offline -p yu-playground --bin yu-playground -- --run answer -",
+    "companion_main": "cargo run -q --locked --offline -p yu-playground --bin yu-playground -- --run main tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+    "lean_toolchain": "leanprover/lean4:v4.35.0",
+    "lean_max_audits": 2,
+    "lean_max_total_audit_seconds": 120,
+    "heavy_process_concurrency": 1
+  },
+  "resource_envelope_seconds": {
+    "total": 7200,
+    "rust": 1800,
+    "lean": 1400,
+    "independent_review": 1400,
+    "luna_primary": 2600,
+    "luna_closeout_reserve": 500,
+    "astra": 0
+  },
+  "parent_status": "OPEN; this packet establishes one bounded callback-route projection only if independently accepted; no original A/B, whole-language hygiene, source/native parent theorem, principality, termination or production gate closes"
+}
