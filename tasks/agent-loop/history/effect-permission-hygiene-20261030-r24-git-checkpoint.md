@@ -18,3 +18,13 @@
 - Checkpoint commit: `f95e87fd84f9c131ed4ea01636adcfce01c981e1` (`research: record R24 Rust launch`). Outbound range: `c930b2c75..f95e87fd8`; exactly `tasks/agent-loop/current.json`.
 - Push to `origin/yulang3` succeeded; `git ls-remote origin refs/heads/yulang3` returned `f95e87fd84f9c131ed4ea01636adcfce01c981e1`.
 - Static current-state checker passed before commit. This checkpoint records launch only; the worker remained paused until the linked receipt and ACK.
+
+
+## Authenticated R24 schema revision 1
+
+- Schema receipt: `isolated/ep-hygiene-r24/project/receipts/hygiene.json`; exact SHA-256 `e455690d6873880567ddadbe7cd5273da424f1e0fbffc2c80ebee59676b98b1e`. Handoff revision 1: exact SHA-256 `09a64680304c3a860b828c027f102d8c6d14d8b467a1094925d43f6798ef2ad5`. Canonical schema digest: `686c96c8f8b5417b075a18954f773ad4071996e51e809d65040a87441c342c3c`, recomputed from canonical JSON (`sort_keys=true`, separators `,` and `:`, UTF-8/`ensure_ascii=false`) after excluding the top-level `schema_sha256` field.
+- The receipt and handoff claims match their current bytes. Contract and input-manifest hashes match current; the isolated worktree HEAD is `9a74a70a32ebda716a00c7203d8e606343cf442a`. All eight `rust_baseline` and all listed `lean_baseline` manifest entries match. The four runtime owner pins, exact §1.1 callback code block (including final newline), and separate companion source match their recorded hashes.
+- Source inspection matched schema owners to `program.rs` lowering; `machine.rs` invocation, ValueEntry, Apply, OperationPayload, OperationResultConsumer, request minting, Catch commit, normal return and suffix abandonment; and `receiving.rs` entry/use/receipt/execution transitions. T1–T14 remain a construction map, not a linear execution trace. No runtime source changed; no Cargo, formatter, test, Lean/Lake or runtime process ran.
+- Rust worker `/root/effect_permission_hygiene_r24_rust` acknowledged a safe pause at `2026-10-29 18:10:55 UTC`; no source edits, processes or scratch. Dispatch-to-pause upper-bound charge: 390 seconds; Rust cap remaining: 2,010 seconds. Schema revision 1 is authenticated; any change to its meaning needs a sequential revision.
+- Selector delta: keep T1–T14 as a branching owner map, preserve immutable schema and baseline sources before Rust resumes, and admit Lean only with exact leases and budget/capacity accounting. Compile-only review, full pre-execution review, serialized Cargo/Lean, runtime execution and production gates remain unchanged.
+- Luna reserved the contract's four exact Lean outputs and `isolated/ep-hygiene-r24/lean-inputs-r1.tar.gz` as a primary-owned frozen-input archive. The archive is being prepared from the immutable baseline commit before either writer resumes.
