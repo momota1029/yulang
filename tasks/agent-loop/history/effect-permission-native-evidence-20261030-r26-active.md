@@ -110,3 +110,8 @@ The live roster was synchronized immediately before dispatch: the R26 Rust autho
 Luna resource ledger update at 2026-10-29 20:14 UTC: charged wall upper bound 2,350/3,600 seconds; 1,250 seconds remain, including the 500-second closeout reserve.
 
 Luna resource ledger update at 2026-10-29 20:17 UTC: charged wall upper bound 2,550/3,600 seconds; 1,050 seconds remain, including the 500-second closeout reserve.
+
+
+## R2 candidate frozen; primary hash authentication complete
+
+The author stopped at 2026-10-29 20:18:10 UTC after 311 seconds of the 400-second cap (the handoff's first timestamp was corrected from the earlier 20:17:46 progress update). No descendants/processes; no compiler or tests. Luna independently verified and froze the exact candidate: `machine.rs` `c232c15d5260f68e50bf45493a15f99ce053267c895e8a382e1065963d3b3a3c`; `receiving.rs` `dffb3fa5ce3d9437b347840e56fe5da80a143b358745f251838f66fa3065a23f`; `program.rs` `6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907`; `hygiene.json` `2b8be967abbd33eb45846b3a26c4616bf58b7d60539499962f53b19a0c369577`; corrected Rust handoff `tasks/agent-loop/inbox/effect-permission-native-evidence-r26-rust.md` `5c8ad4181105873492b50c943d972c962ad171f3a869dcd046e40cde20c4fb9f`. `build-target` is absent. R1 archive remains unchanged. All six Rust leases are FROZEN pending fresh independent exact-hash review; no compile authorization. Rust cumulative charge is 774/1,500 seconds; Luna upper-bound charge is 2,600/3,600 seconds, 1,000 remaining with 500 reserved for closeout.
