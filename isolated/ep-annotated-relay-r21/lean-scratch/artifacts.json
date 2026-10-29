@@ -1,0 +1,11 @@
+{
+  "notes/theory/lean/YulangClosure/FormalPermissionAnnotatedRelay.lean": "0ef1272595c766206d8d9c7232f8799937706dbf292b94483621ceabe2159c2e",
+  "isolated/ep-annotated-relay-r21/lean-scratch/audit-1.log": "04b7a30517879ebab90f4149ac65974a3ec987a6f009986c15a2fe1c29c9f17d",
+  "isolated/ep-annotated-relay-r21/lean-scratch/audit-1.json": "e7a0e41c6dae9b9d650d10e320a81eca0f286d979e03b69661682d77d6d11304",
+  "isolated/ep-annotated-relay-r21/lean-scratch/audit-2.log": "78f7b8464d709ee2df3742f796f7b179febc69b5b87f86f5a36a21266902d254",
+  "isolated/ep-annotated-relay-r21/lean-scratch/audit-2.json": "135efca50da878880d73404ce96dd52e325a081386283919142b821dd8225773",
+  "isolated/ep-annotated-relay-r21/lean-scratch/input-verification.json": "6079217b2be4bc9d28264e3de170dd265ba7e8df89a2a7e32ff192972b6396dc",
+  "isolated/ep-annotated-relay-r21/lean-scratch/extra-source-hashes.json": "ce5d4cbbd22434c8c37132cc210aedd520594194e90357225def42b162f833fd",
+  "isolated/ep-annotated-relay-r21/lean-scratch/source-scan.json": "1ca8d2af6899c669eb7025c03abca5542d96d203f5acee0d44b73b6590f1a37f",
+  "isolated/ep-annotated-relay-r21/lean-scratch/run-audit.py": "5210e173c68df3e2928518975ed0d00d2c0ddddb49d275e9805ddd16095c76f6"
+}

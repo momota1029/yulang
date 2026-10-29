@@ -1,0 +1,134 @@
+{
+  "schema": "effect-permission-annotated-relay-r21-evidence-v1",
+  "sprint": "EFFECT-PERMISSION-ANNOTATED-RELAY/20261030-r21",
+  "status": "CLOSED_INCOMPLETE",
+  "classification": "COMPILE_BLOCKED_BEFORE_RUNTIME; LEAN_AUDIT_BLOCKED_BEFORE_NEW_MODULE",
+  "baseline": "4bb23ea31e5bb434313e073df1d68f477b54326f",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-annotated-relay-20261030-r21.md",
+    "sha256": "ee69548873e5f9d288676a5e8f9ac45b2c1962507cd339eba12e0c149111638c"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-annotated-relay-20261030-r21-inputs.json",
+    "sha256": "b70ac05c738f29ecd7c233f137f56dd9b333ff5a36f95ac9a99510344b00ab46"
+  },
+  "rust": {
+    "worker": "/root/effect_permission_annotated_relay_r21_rust",
+    "requested_model": "gpt-6-luna",
+    "requested_effort": "high",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "receipt": {
+      "path": "isolated/ep-annotated-relay-r21/project/receipts/annotated-relay-receipt.json",
+      "sha256": "bc22d7eec58ae1a1c430e9892a431e8cbc713aaaf1e566b993a2e9eb1b51acea"
+    },
+    "source_snapshot": {
+      "path": "tasks/agent-loop/history/effect-permission-annotated-relay-20261030-r21-rust-snapshot",
+      "readme_sha256": "e62208f2fca06a0179a3910bc2e32f68e7950eb2e70fecfb8f7195aa6c1720f7"
+    },
+    "handoff": {
+      "path": "tasks/agent-loop/inbox/effect-permission-annotated-relay-r21-rust.md",
+      "sha256": "0ed9b077c0c47f46e1b71f694f7730047501d903c7a332a89a489142c95627b7"
+    },
+    "invocation_count": 1,
+    "argv": [
+      "cargo", "test", "--locked", "--offline", "-p", "yu-solver",
+      "--features", "shadow-apply-candidate", "--lib",
+      "r21_annotated_relay_trace::r21_annotated_relay_two_source_occurrences_keep_identity_separate",
+      "--", "--nocapture"
+    ],
+    "exit_status": 101,
+    "elapsed_cargo_seconds": 40.491725894011324,
+    "total_lane_active_seconds": "UNKNOWN",
+    "trace_execution": "NOT_RUN; test compilation failed before body",
+    "post_invocation_correction": "uncompiled and unverified; no retry",
+    "resources": {
+      "cpu_affinity_count": 1,
+      "process_tree_peak_rss_sampled_bytes": 53575680,
+      "memory_available_before_bytes": 28663705600,
+      "wall_limit_seconds": 180,
+      "rss_limit_bytes": 2147483648
+    },
+    "runtime_correspondence": "OPEN; no source occurrence, invocation, permission/contribution event, Catch selection, result, or residual consumer observed"
+  },
+  "lean": {
+    "worker": "/root/effect_permission_annotated_relay_r21_lean",
+    "requested_model": "gpt-6.1-sol",
+    "requested_effort": "high",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "artifact": {
+      "path": "notes/theory/lean/YulangClosure/FormalPermissionAnnotatedRelay.lean",
+      "sha256": "0ef1272595c766206d8d9c7232f8799937706dbf292b94483621ceabe2159c2e"
+    },
+    "handoff": {
+      "path": "tasks/agent-loop/inbox/effect-permission-annotated-relay-r21-proof.md",
+      "sha256": "f8c79f011e673cd2dafcaa7c94ef8198c6e2efb4b2af77764897d01ce8030d46"
+    },
+    "audit_artifact_index": {
+      "path": "isolated/ep-annotated-relay-r21/lean-scratch/artifacts.json",
+      "sha256": "410e440a5fa2f7369905ff8176f2f8f68c792aa4d8820be6d2cb3240799655ed"
+    },
+    "audits_allowed": 2,
+    "audits_spent": 2,
+    "audit1": {
+      "exit": -6,
+      "elapsed_seconds": 1.597810386,
+      "failure": "lake --version failed to create thread under added 1 GiB virtual-address cap",
+      "new_module_loaded": false
+    },
+    "audit2": {
+      "exit": 1,
+      "elapsed_seconds": 11.427658083,
+      "lean_version": "4.35.0",
+      "lake_version": "5.0.0-src+eb6cafb",
+      "failure": "unchanged unleased FormalPermissionSourceTransport.lean failed before new module",
+      "diagnostics": [
+        "unknown tactic by_contra",
+        "unsolved changed_walk_hits_copy goal",
+        "unsolved successor case of copy_reaches_parent"
+      ],
+      "sampled_process_tree_peak_rss_bytes": 934830080,
+      "new_module_loaded": false
+    },
+    "combined_measured_audit_seconds": 13.025468469,
+    "declared_roots": 8,
+    "elaborated_roots": 0,
+    "printed_theorem_types": "NONE",
+    "axiom_reports": "NONE",
+    "theorem_or_parent_closure": "NONE"
+  },
+  "review": {
+    "worker": "/root/effect_permission_annotated_relay_r21_review",
+    "role": "compiler_referee",
+    "verdict": "ACCEPT_PRESERVATION_ONLY",
+    "status": "CLOSED_INCOMPLETE",
+    "authentication": "contract, manifest, frozen IDs, Lean scratch artifacts and isolated Rust source snapshot authenticated",
+    "major_findings": [
+      {
+        "location": "isolated/ep-annotated-relay-r21/project/crates/yu-solver/src/lib.rs:35879,35888,35917-35920",
+        "finding": "debug-name substring owner selection and caller-supplied repeated invocation labels cannot establish exact owner or reject sibling invocation"
+      },
+      {
+        "location": "isolated/ep-annotated-relay-r21/project/crates/yu-solver/src/lib.rs:35887,35903-35920",
+        "finding": "export failures are skipped and CandidateGraphSolved permits assertions to pass with empty permission/contribution evidence"
+      }
+    ],
+    "minor_findings": [
+      "40.492 seconds is measured Cargo elapsed time only; total Rust lane active time is UNKNOWN"
+    ],
+    "scope_limit": "no theorem, source/native correspondence, parent closure, semantic approval, or production promotion"
+  },
+  "source_native": "OPEN",
+  "effect_hygiene": "OPEN",
+  "original_parent": "OPEN",
+  "soundness": "OPEN",
+  "principality": "OPEN",
+  "termination": "OPEN",
+  "production": "OPEN",
+  "selector": {
+    "disposition": "CLOSE_R21_INCOMPLETE",
+    "proposal": "R22 existing callback-result constructor through actual request consumer and local Catch, with runtime-owned identities"
+  },
+  "git_checkpoint": "tasks/agent-loop/history/effect-permission-annotated-relay-20261030-r21-git-checkpoint.md (primary receipt to be added after push)"
+}

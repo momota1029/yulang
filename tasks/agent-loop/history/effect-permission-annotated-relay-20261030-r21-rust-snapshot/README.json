@@ -1,0 +1,17 @@
+{
+  "snapshot": "R21 frozen provisional source snapshot; not production compiler source.",
+  "origin": "isolated/ep-annotated-relay-r21/project/crates/yu-solver/src/",
+  "baseline": "4bb23ea31e5bb434313e073df1d68f477b54326f",
+  "receipt": "annotated-relay-receipt.json",
+  "receipt_sha256": "bc22d7eec58ae1a1c430e9892a431e8cbc713aaaf1e566b993a2e9eb1b51acea",
+  "files": {
+    "candidate_effect.rs": "1f64d4fec8f2abceb11a48a51f5b615aa2cf605c9586ba742f15f9024a6a2717",
+    "candidate_scheme.rs": "31ae5b9466a0f7bbd501c81e4401049ad9782636ba57ed89e8232e9149e8b707",
+    "candidate_source.rs": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a",
+    "lib.rs": "3b51520c2dadb6ab929e0bf750cb6cf332c952f1b983e7aab16859808beb3270",
+    "shadow_apply.rs": "c328e08662256b57ed9a31a4edd91e0832e9482cabb89952f204a89a78cf72ff",
+    "term.rs": "d253cd9a77ad91c523b413b25a503ef0c6bef47ee4b1f5b8492766531fe493a1"
+  },
+  "execution": "The sole Cargo invocation exited 101 during test compilation before runtime. The post-invocation lib.rs correction is uncompiled; no retry occurred.",
+  "review_boundary": "Independent review accepted preservation only and found two major successor-use blockers in owner/invocation identity and empty permission/contribution acceptance. No source/native correspondence is established."
+}

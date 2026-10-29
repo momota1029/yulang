@@ -1,0 +1,9 @@
+{
+  "docs/yulang-source-type-safety-ja.tex": "2c77bbd6f2679ac91ece3bb670152a9dfd16e033aa68545bff6c6dc509d24166",
+  "notes/theory/2026-10-13-intrusion-source-preservation-proof.md": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271",
+  "notes/design/2026-10-24-birth-level-scc-intrusion.md": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae",
+  "notes/theory/lean/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+  "notes/theory/lean/lakefile.toml": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4",
+  "notes/theory/lean/lake-manifest.json": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+  ".agents/skills/yulang-lean-proofs/scripts/check_lean.py": "a4f10b70297cbf4d8b5bc0c7526bc29783eaf417f1f70e53eeea341d1150dde6"
+}

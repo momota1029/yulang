@@ -1,0 +1,108 @@
+{
+  "schema": "effect-permission-annotated-relay-r21-rust-receipt-v1",
+  "sprint": "EFFECT-PERMISSION-ANNOTATED-RELAY/20261030-r21",
+  "contract_sha256": "ee69548873e5f9d288676a5e8f9ac45b2c1962507cd339eba12e0c149111638c",
+  "input_manifest_sha256": "b70ac05c738f29ecd7c233f137f56dd9b333ff5a36f95ac9a99510344b00ab46",
+  "requested_model": "gpt-6-luna",
+  "requested_effort": "high",
+  "observed_model": "UNKNOWN",
+  "observed_effort": "UNKNOWN",
+  "worker_id": "/root/effect_permission_annotated_relay_r21_rust",
+  "session": "EFFECT-PERMISSION-ANNOTATED-RELAY/20261030-R21",
+  "cwd": "/home/momota1029/rust/yulang/isolated/ep-annotated-relay-r21/project",
+  "argv": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "-p",
+    "yu-solver",
+    "--features",
+    "shadow-apply-candidate",
+    "--lib",
+    "r21_annotated_relay_trace::r21_annotated_relay_two_source_occurrences_keep_identity_separate",
+    "--",
+    "--nocapture"
+  ],
+  "environment": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_TARGET_DIR": "/home/momota1029/rust/yulang/isolated/ep-annotated-relay-r21/project/build-target",
+    "locked": true,
+    "offline": true,
+    "cpu_affinity": [
+      0
+    ]
+  },
+  "invocation_count": 1,
+  "timed_out": false,
+  "exit_status": 101,
+  "elapsed_seconds": 40.491725894011324,
+  "resources": {
+    "cpu_count_affinity": 1,
+    "cpu_id": 0,
+    "memory_available_before_bytes": 28663705600,
+    "process_tree_peak_rss_bytes_sampled": 53575680,
+    "rss_limit_bytes": 2147483648,
+    "wall_limit_seconds": 180
+  },
+  "stdout_raw": "",
+  "stderr_raw": "   Compiling proc-macro2 v1.0.107\n   Compiling quote v1.0.47\n   Compiling unicode-ident v1.0.24\n   Compiling syn v2.0.119\n   Compiling strsim v0.11.1\n   Compiling fnv v1.0.7\n   Compiling ident_case v1.0.1\n   Compiling darling_core v0.21.3\n   Compiling darling_macro v0.21.3\n   Compiling darling v0.21.3\n   Compiling autocfg v1.5.1\n   Compiling memoffset v0.9.1\n   Compiling reborrow-generic-derive v0.1.1\n   Compiling seq-macro v0.3.6\n   Compiling reborrow-generic v0.1.2\n   Compiling copy-range v0.1.1\n   Compiling hashbrown v0.14.5\n   Compiling rustc-hash v1.1.0\n   Compiling countme v3.0.1\n   Compiling text-size v1.1.1\n   Compiling rowan v0.15.17\n   Compiling chasa v0.5.0\n   Compiling chasa-recover v0.2.0 (/home/momota1029/rust/yulang/isolated/ep-annotated-relay-r21/project/crates/chasa-recover)\n   Compiling yu-syntax v0.1.0 (/home/momota1029/rust/yulang/isolated/ep-annotated-relay-r21/project/crates/yu-syntax)\n   Compiling yu-hir v0.1.0 (/home/momota1029/rust/yulang/isolated/ep-annotated-relay-r21/project/crates/yu-hir)\nwarning: field `0` is never read\n   --> crates/yu-hir/src/lib.rs:205:11\n    |\n205 |     Token(SyntaxToken),\n    |     ----- ^^^^^^^^^^^\n    |     |\n    |     field in this variant\n    |\n    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis\n    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default\nhelp: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field\n    |\n205 -     Token(SyntaxToken),\n205 +     Token(()),\n    |\n\nwarning: field `0` is never read\n   --> crates/yu-hir/src/lib.rs:206:15\n    |\n206 |     Synthetic(Vec<AssociationProvenance>),\n    |     --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^\n    |     |\n    |     field in this variant\n    |\n    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis\nhelp: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field\n    |\n206 -     Synthetic(Vec<AssociationProvenance>),\n206 +     Synthetic(()),\n    |\n\nwarning: struct `AssociatedFieldTailSource` is never constructed\n    --> crates/yu-hir/src/shadow.rs:1505:19\n     |\n1505 | pub(crate) struct AssociatedFieldTailSource<'a> {\n     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^\n\nwarning: methods `source`, `receiver`, and `receiver_provenance` are never used\n    --> crates/yu-hir/src/shadow.rs:1512:19\n     |\n1511 | impl<'a> AssociatedFieldTailSource<'a> {\n     | -------------------------------------- methods in this implementation\n1512 |     pub(crate) fn source(&self) -> &'a PendingFieldTailSource { self.source }\n     |                   ^^^^^^\n1513 |     pub(crate) fn receiver(&self) -> &'a HirExpr { self.receiver }\n     |                   ^^^^^^^^\n1514 |     pub(crate) fn receiver_provenance(&self) -> &'a AssociationProvenance { self.receiver_provenance }\n     |                   ^^^^^^^^^^^^^^^^^^^\n\nwarning: struct `AssociatedRoleImplSource` is never constructed\n    --> crates/yu-hir/src/shadow.rs:1518:19\n     |\n1518 | pub(crate) struct AssociatedRoleImplSource<'a> {\n     |                   ^^^^^^^^^^^^^^^^^^^^^^^^\n\nwarning: methods `source` and `node` are never used\n    --> crates/yu-hir/src/shadow.rs:1524:19\n     |\n1523 | impl<'a> AssociatedRoleImplSource<'a> {\n     | ------------------------------------- methods in this implementation\n1524 |     pub(crate) fn source(&self) -> &'a PendingRoleImplSource { self.source }\n     |                   ^^^^^^\n1525 |     pub(crate) fn node(&self) -> &'a SyntaxNode { self.node }\n     |                   ^^^^\n\nwarning: method `with_associated_method_role_sources` is never used\n    --> crates/yu-hir/src/shadow.rs:1977:19\n     |\n1611 | impl ShadowArtifact {\n     | ------------------- method in this implementation\n...\n1977 |     pub(crate) fn with_associated_method_role_sources<R>(\n     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nwarning: function `walk_associated_pairs` is never used\n    --> crates/yu-hir/src/shadow.rs:2831:4\n     |\n2831 | fn walk_associated_pairs<'a>(\n     |    ^^^^^^^^^^^^^^^^^^^^^\n\nwarning: `yu-hir` (lib) generated 8 warnings\n   Compiling yu-types v0.1.0 (/home/momota1029/rust/yulang/isolated/ep-annotated-relay-r21/project/crates/yu-types)\n   Compiling yu-core v0.1.0 (/home/momota1029/rust/yulang/isolated/ep-annotated-relay-r21/project/crates/yu-core)\n   Compiling yu-solver v0.1.0 (/home/momota1029/rust/yulang/isolated/ep-annotated-relay-r21/project/crates/yu-solver)\nerror[E0609]: no field `value` on type `CandidateGraphExport<'_>`\n     --> crates/yu-solver/src/lib.rs:35904:96\n      |\n35904 | ...   format!(\"candidate_value={:?}; unresolved={:?}; exported_nodes={}\", export.value, export.unresolved, graph.node_count()));\n      |                                                                                  ^^^^^ unknown field\n\nerror[E0615]: attempted to take value of method `unresolved` on type `CandidateGraphExport<'_>`\n     --> crates/yu-solver/src/lib.rs:35904:110\n      |\n35904 | ...   format!(\"candidate_value={:?}; unresolved={:?}; exported_nodes={}\", export.value, export.unresolved, graph.node_count()));\n      |                                                                                                ^^^^^^^^^^ method, not a field\n      |\nhelp: use parentheses to call the method\n      |\n35904 |                     format!(\"candidate_value={:?}; unresolved={:?}; exported_nodes={}\", export.value, export.unresolved(), graph.node_count()));\n      |                                                                                                                        ++\n\nwarning: variable does not need to be mutable\n    --> crates/yu-solver/src/candidate_effect.rs:3627:13\n     |\n3627 |         let mut delegated_ports = typed_trace.iter().filter_map(|event| match event {\n     |             ----^^^^^^^^^^^^^^^\n     |             |\n     |             help: remove this `mut`\n     |\n     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default\n\nwarning: unused variable: `group_occurrence`\n   --> crates/yu-solver/src/shadow_apply/local_source_observation.rs:579:25\n    |\n579 |             for (group, group_occurrence, start, end, active) in solved.intrusion.observed_groups()\n    |                         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_group_occurrence`\n    |\n    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default\n\nwarning: unused variable: `group_occurrence`\n    --> crates/yu-solver/src/shadow_apply/local_source_observation.rs:1317:25\n     |\n1317 |                 for (_, group_occurrence, start, end, _) in solved.intrusion.observed_groups()\n     |                         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_group_occurrence`\n\nSome errors have detailed explanations: E0609, E0615.\nFor more information about an error, try `rustc --explain E0609`.\nwarning: `yu-solver` (lib test) generated 3 warnings\nerror: could not compile `yu-solver` (lib test) due to 2 previous errors; 3 warnings emitted\n",
+  "claim_class": "provisional source-native probe; candidate graph evidence only",
+  "first_missing_edge": "Candidate source/captured effect evidence -> authenticated same-invocation execution event -> exact Catch selection; companion computation -> same-invocation outer receive consumption. The candidate graph exposes no execution-event/Catch-selection identity.",
+  "trace_schema": "Typed ordered records are emitted as R21_TYPED_TRACE JSON lines; probe/source hash/source occurrence/invocation grouping/owner/event IDs are explicit. Invocation labels are caller-supplied probe group IDs and do not authenticate runtime calls.",
+  "writes_stopped": true,
+  "outcome": "probe_compile_blocked_before_runtime",
+  "stop_receipt": {
+    "active_cargo_processes": 0,
+    "descendants": 0,
+    "source_writes_stopped": true,
+    "receipt_and_handoff_frozen_after_final_update": true
+  },
+  "source_hashes_final": {
+    "crates/yu-solver/src/lib.rs": "3b51520c2dadb6ab929e0bf750cb6cf332c952f1b983e7aab16859808beb3270",
+    "crates/yu-solver/src/candidate_effect.rs": "1f64d4fec8f2abceb11a48a51f5b615aa2cf605c9586ba742f15f9024a6a2717",
+    "crates/yu-solver/src/candidate_scheme.rs": "31ae5b9466a0f7bbd501c81e4401049ad9782636ba57ed89e8232e9149e8b707",
+    "crates/yu-solver/src/candidate_source.rs": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a",
+    "crates/yu-solver/src/shadow_apply.rs": "c328e08662256b57ed9a31a4edd91e0832e9482cabb89952f204a89a78cf72ff",
+    "crates/yu-solver/src/term.rs": "d253cd9a77ad91c523b413b25a503ef0c6bef47ee4b1f5b8492766531fe493a1"
+  },
+  "lib_rs_sha256_at_invocation": "7a3b96ff378ee79661ce6c79d2bbf5524557ca7777805be4bfcd109dffa0134f",
+  "diagnostics": [
+    {
+      "code": "E0609",
+      "detail": "no field `value` on type `CandidateGraphExport`",
+      "line": 35904
+    },
+    {
+      "code": "E0615",
+      "detail": "attempted to take value of method `unresolved` on type `CandidateGraphExport`",
+      "line": 35904
+    }
+  ],
+  "post_invocation_correction": {
+    "path": "crates/yu-solver/src/lib.rs",
+    "change": "use graph.unresolved() and graph.node_count(); remove nonexistent CandidateGraphExport.value access",
+    "compiled": false,
+    "verified": false
+  },
+  "trace_execution": "not_run; compiler failed before test body; stdout contains no trace records",
+  "source_occurrence_observations": null,
+  "candidate_permission_or_contribution_observations": null,
+  "runtime_catch_or_residual_observations": null,
+  "mutual_todo": {
+    "id": "R21-RUST-COMPILE-TRACE-01",
+    "owner": "Luna",
+    "request": "Grant a fresh isolated check after handoff freeze; compile corrected probe before making trace claims. Then separately authenticate call-entry/return, exact event, local Catch selection and companion outer receive consumption.",
+    "falsifier": "Compile failure or trace records missing unique actual source-occurrence and owner binding."
+  },
+  "spent_seconds": 40.491725894011324,
+  "budget_seconds": 900,
+  "astra_spent_seconds": 0,
+  "writes": [
+    "isolated/ep-annotated-relay-r21/project/crates/yu-solver/src/lib.rs",
+    "isolated/ep-annotated-relay-r21/project/receipts/annotated-relay-receipt.json",
+    "tasks/agent-loop/inbox/effect-permission-annotated-relay-r21-rust.md",
+    "isolated/ep-annotated-relay-r21/project/build-target/** generated Cargo artifacts"
+  ],
+  "disposable_scratch_paths": []
+}
