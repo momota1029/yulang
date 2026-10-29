@@ -11,3 +11,12 @@
 - Exact files: `tasks/agent-loop/current.json`, the R23 contract, and the R23 input manifest.
 - `git diff --cached --check` and `python3 tools/agent_sprint.py check` passed before commit. The latter is static consistency evidence, not live execution or independent review.
 - No worker had launched and no compiler or test ran at this checkpoint.
+
+## R23 Rust preflight-1 freeze and correction admission
+
+- Frozen preflight-1 sources: `machine.rs` SHA-256 `5df5b9ab6471eb3853b94e584ad02ae9888c130da187112582f9f48e8f5eca5a`; `receiving.rs` `cfac5fcbc875f24172cc9027ace1169a2901614f25d1822f5f922e206ac7dd2e`; `program.rs` unchanged `6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907`; transition receipt `02cc1a2f08bcdda61fd851d35d754258c33cdb422c289cfa03f3e0aa0bec9b13`; Rust handoff `271ab0ad73156ca9faa0b6441b0a7a06ae3e0e504f81c53d32f05fafbad26706`.
+- Rust reported active elapsed `UNKNOWN` and confirmed STOPPED with no process/descendant by 2026-10-29 17:28:20 UTC. Authenticated primary launch receipt was 2026-10-29 17:20:45 UTC. Conservative wall-time charge: **455 seconds upper bound**; initial Rust allocation 1,400 seconds; remaining cap **945 seconds**. This is a bound within the existing grant, not a renewal.
+- Material risk: Consumer and Request observations use the same `Machine::step` counter. Strict `consumer_step < request_step` is not justified and may reject the real transition. The frozen operation-v1 harness is also not connected to either approved source; it lacks an observed normal return `1` and companion write-to-outer-receiver trace. No Cargo ran.
+- Selector disposition: keep the R23 goal and semantics; correct within the existing three-file lease before review. Mint a monotonically increasing observation ordinal at the owning hooks and retain machine step separately. Drive a test-only ordinary-runtime harness from both exact source texts; record arm return `1` and the companion's same-source `write` request plus outer consumer. If either ordinary source route rejects, freeze that first failure without changing semantic guards.
+- Bounded continuation: same Rust identity, fresh correction session, <=700 seconds for correction/refreeze, <=240 seconds Cargo only after exact-hash ACCEPT, <=5 seconds handoff reserve. Stop on the cap; no implicit extension. The same fresh referee receives the new frozen revision; reviewer budget remains unspent.
+- No reviewer has launched. Rust source, receipt and handoff are frozen pending the explicit correction-session resume.
