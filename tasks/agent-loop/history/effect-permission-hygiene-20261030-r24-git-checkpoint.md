@@ -60,3 +60,10 @@
 - Rust later reported updated live worker hashes: `machine.rs` `b193ee4acb12af5b2a749c83717ca08133ab9282390d512e223a7a5ff07177f`; `receiving.rs` `4e61377f2ad7687c3573577bf369432e43e540b006288b42469ec51d44143d01`; `program.rs` remains baseline `6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907`; schema receipt remains `e455690d6873880567ddadbe7cd5273da424f1e0fbffc2c80ebee59676b98b1e`. Worker reports cfg(test) owner records through Name/Apply/use, consumer, Request, exact Catch and shallow-discard, with pure callback/companion validators; mutation coverage and route harness remain in progress. No Cargo/test/Lean process was invoked. Hashes remain worker-reported, not Luna-final-authenticated.
 
 - Supplement freeze checkpoint commit: `ef000629a83136a1c17f2f5c722df1a083c12f1a` (`research: freeze R24 Lean authority supplement`); outbound range `41561ae60..ef000629a`, exactly current state, this receipt, and the supplement archive. Push succeeded and remote verification returned `ef000629a83136a1c17f2f5c722df1a083c12f1a`.
+
+
+## R24 Lean continuation acknowledged
+
+- Worker `/root/r24_lean` read-only verified the frozen authority supplement at SHA-256 `dc622dedc31252abaec131f4e39efcd2366956d0bfd897d424b8227cb84f69fd`; inventory SHA `7f9ea22819f1a6f9cc982e76770b624daf1b8061ee8aea21b0cb94a0b11996d6`; all 18 member hashes match. Skill and execution/source references are present. No writes, extraction or Lean/Lake/Cargo executions occurred during this verification.
+- Fresh continuation acknowledgement received for the same four exact Lean outputs after the initial 180-second conservative charge; remaining original Lean cap is 1,620 seconds. The supplement and first archive stay frozen; schema R1 is unchanged. This records readiness only; actual Lean start follows the pushed current-state ACK.
+- Rust remains in its disjoint source-edit phase and has not run Cargo. Lean/Lake heavy work and any future Cargo process remain serialized.
