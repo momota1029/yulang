@@ -1,0 +1,250 @@
+{
+  "schema": "effect-permission-hygiene-r24-inputs-v1",
+  "sprint": "ANNOTATION-HYGIENE-TRANSITIONS/20261030-R24",
+  "branch_admission_commit": "dd1e13cdaa97a124f26eda9a19da5fa769fc8cc0",
+  "isolated_source_base_commit": "9a74a70a32ebda716a00c7203d8e606343cf442a",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-hygiene-20261030-r24.md",
+    "sha256": "4fc63b868a8e61f8b4a5c1c59e6dccc4e8b6aa4e8e9afa24985c0408654ac39b"
+  },
+  "inherited_r23_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-transitions-20261030-r23-inputs.json",
+    "sha256": "53834c90872ec05adc761b5dd0aba9c5c2bc91dd5c63249fbd954626ec06d639"
+  },
+  "prior_failure_evidence": [
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-source-transitions-20261030-r23.md",
+      "sha256": "a2da16deb4475a7e602505d2fd6f44ce823b7ef8088d72d83299d3cf86106443"
+    },
+    {
+      "path": "tasks/agent-loop/evidence/effect-permission-source-transitions-20261030-r23.json",
+      "sha256": "d89ba2290f641b13bd3ffff6d2496aeddf5b0ed8aa1f2b3b97c65e1fa01127c3"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-source-transitions-20261030-r23-outcome.md",
+      "sha256": "95f397c7fb2019767444ab5fe1e827799d986d03bb916f23a16b1c1f29a5b69b"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-transitions-r23-rust.md",
+      "sha256": "a7ae2e7eed07e4c4c17fbbd5e705c996fa206fd62fd1851134dfb3729e090af1"
+    },
+    {
+      "path": "isolated/ep-source-transitions-r23/project/tools/inference-playground/src/runtime/machine.rs",
+      "sha256": "0116f875bc5df81f1321c4f13ca49e7745b67d02c52976fc216dabbfc7c7aab6"
+    },
+    {
+      "path": "isolated/ep-source-transitions-r23/project/tools/inference-playground/src/runtime/receiving.rs",
+      "sha256": "cfac5fcbc875f24172cc9027ace1169a2901614f25d1822f5f922e206ac7dd2e"
+    },
+    {
+      "path": "isolated/ep-source-transitions-r23/project/tools/inference-playground/src/runtime/program.rs",
+      "sha256": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907"
+    },
+    {
+      "path": "isolated/ep-source-transitions-r23/project/receipts/source-transitions.json",
+      "sha256": "bc1bdb6f4c840c1cf2cc602adf8de5ccaf92d121a0c89b2c700fce54140303fb"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-outcome.md",
+      "sha256": "1d808d581856cd1581c6c6753d071f5c28ffcf5ed8612253bccfe4793b5b63b8"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-owner-consumer-r22-proof.md",
+      "sha256": "33e7d229fd136be5db96c498f7e4d175712f2ddcc8d80d5ff9d02cba4e456bcb"
+    }
+  ],
+  "authority_and_parent": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "4a6c910e12adb8f5ccc07b0921f2cc781ea7044994f99425d3c54c4e75837d3c",
+      "origin": "live authority snapshot"
+    },
+    {
+      "path": "AGENTS.pre-sprint.md",
+      "sha256": "99ae7bbda0a8907a48f762420d996e145e9870ad9794ea0dc608770131182882",
+      "origin": "live authority snapshot"
+    },
+    {
+      "path": "rules/goal-driven-sprints.md",
+      "sha256": "f2e01e3c33dc13d6c5cb77a66e7c5f0de15f08669f5a47fef0d6cb5c914da3a5",
+      "origin": "live authority snapshot"
+    },
+    {
+      "path": ".agents/skills/yulang-sprint/SKILL.md",
+      "sha256": "b6f4a50703928020607edebe1c8b138fb98a0378220f00b7c190dba9fc068515"
+    },
+    {
+      "path": ".agents/skills/yulang-lean-proofs/SKILL.md",
+      "sha256": "05346b8c6e3d9cdd1715da1774bb26cf7bce313233782240b3493bd9ee8754a7"
+    },
+    {
+      "path": "notes/design/2026-10-10-annotation-effect-hygiene-integration.md",
+      "sha256": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18"
+    },
+    {
+      "path": "notes/design/2026-10-24-birth-level-scc-intrusion.md",
+      "sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae"
+    },
+    {
+      "path": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md",
+      "sha256": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271"
+    },
+    {
+      "path": "tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+      "sha256": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7"
+    }
+  ],
+  "rust_baseline": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "a8852982d5a3ff4d159aa546767b217000d50c9ff8617ac139700885bf5b090a"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "de2c030452a0764cbeb459e2545585a880edc6683a8acceaea45276e24b67ca5"
+    },
+    {
+      "path": "tools/inference-playground/Cargo.toml",
+      "sha256": "87e77de221b023c1c9f07e90f1ce6a692a56e8bb398eca4725f4910254be0a56"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/mod.rs",
+      "sha256": "b7184e3869b4790cb0e2e72704e4a1b2f12df7772b441144b8ef63ab33e2fe4f"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/machine.rs",
+      "sha256": "4fe3de685650761767be313285321e548964b41900c3aae7f5f434d48034395d"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/receiving.rs",
+      "sha256": "e6b22598a0d11a21fba260cdbc5b4ace3690cf9b21e51beb61d8cc967511fffd"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/program.rs",
+      "sha256": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907"
+    },
+    {
+      "path": "tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+      "sha256": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7"
+    }
+  ],
+  "lean_baseline": [
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "notes/theory/lean/lakefile.toml",
+      "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4"
+    },
+    {
+      "path": "notes/theory/lean/lake-manifest.json",
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalEffectHygiene.lean",
+      "sha256": "926613078f1f3f2e197bff29793b120128f18d3676657af25db72eca47f2c89f"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceGeneratedInteraction.lean",
+      "sha256": "16952fef6ea505cce0d7f8afa6bf39cd3609119626f7857d6beaa88737c5b003"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceGeneration.lean",
+      "sha256": "126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceFunctionMembership.lean",
+      "sha256": "8d370ee57e486ae48607d1bab493ae5135f28bf8a5a7ff1b0ef240fc0247e424"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/PaperTypeSubstitution.lean",
+      "sha256": "02834720f622642dd4c7a27ea51451deb7386877b091fbccc828a66eaa8e4861"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/HandlerGraphRecursiveTrace.lean",
+      "sha256": "bd07ea464ba42b1073b69b2af0bc5d26c1ca148a58598d6d10973ba54dc29909"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CallbackResultOwnerConsumer.lean",
+      "sha256": "8b76265d486786844bb1e649ac676fe49988b903e742532d40b86104c8783f27",
+      "claim_class": "unchecked candidate; no audit under R22"
+    },
+    {
+      "path": "notes/theory/2026-10-24-permission-implementation-bridge.md",
+      "sha256": "f9c40e49dd8c4e9ec1c4ef01a0391940ad5c7fd21b27da1c0635501721b6aeed"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/concrete-callback-permission-20261024-outcome.md",
+      "sha256": "a119e74dee26caf99769dc827d7c73431766fe0286089a1ec83ecf2b6a7f0032"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/cb-permission-transport-20261024-outcome.md",
+      "sha256": "373e95500c122de631b51de9554778528c95219480a79239bdfe0a943bd821eb"
+    }
+  ],
+  "output_paths": {
+    "rust": [
+      "isolated/ep-hygiene-r24/project/tools/inference-playground/src/runtime/machine.rs",
+      "isolated/ep-hygiene-r24/project/tools/inference-playground/src/runtime/receiving.rs",
+      "isolated/ep-hygiene-r24/project/tools/inference-playground/src/runtime/program.rs",
+      "isolated/ep-hygiene-r24/project/receipts/hygiene.json",
+      "isolated/ep-hygiene-r24/project/build-target",
+      "tasks/agent-loop/inbox/effect-permission-hygiene-r24-rust.md"
+    ],
+    "lean": [
+      "isolated/ep-hygiene-r24/project/notes/theory/lean/YulangClosure/CallbackHygieneCorrespondence.lean",
+      "isolated/ep-hygiene-r24/project/notes/theory/lean/.lake",
+      "isolated/ep-hygiene-r24/lean-scratch",
+      "tasks/agent-loop/inbox/effect-permission-hygiene-r24-proof.md"
+    ],
+    "primary": [
+      "tasks/agent-loop/current.json",
+      "tasks/agent-loop/evidence/effect-permission-hygiene-20261030-r24.json",
+      "tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-outcome.md",
+      "tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-state-archive.json",
+      "tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-git-checkpoint.md"
+    ]
+  },
+  "resource_envelope_seconds": {
+    "total": 6400,
+    "rust": 2400,
+    "lean": 1800,
+    "independent_review": 1600,
+    "luna_primary": 600,
+    "astra": 0
+  },
+  "cargo_policy": {
+    "compile_only_command": "cargo check --tests --locked --offline -p yu-playground",
+    "compile_only_max_seconds": 120,
+    "test_command": "cargo test --locked --offline -p yu-playground",
+    "test_max_invocations": 2,
+    "test_combined_seconds": 240,
+    "each_seconds": 120,
+    "cpus": 1,
+    "max_rss_bytes": 2147483648,
+    "min_available_ram_bytes": 4294967296,
+    "requires_fresh_exact_hash_accept": true,
+    "one_heavy_process_at_a_time": true
+  },
+  "lean_policy": {
+    "version": "4.35.0",
+    "max_audits": 2,
+    "combined_seconds": 120,
+    "cpus": 1,
+    "max_rss_bytes": 1073741824,
+    "requires_exact_source_schema_hash": true
+  },
+  "review_policy": {
+    "role": "compiler_referee",
+    "fresh_nonauthor": true,
+    "total_seconds": 1600,
+    "stages_seconds": {
+      "compile_only": 200,
+      "full_rust_preflight": 500,
+      "runtime_and_lean_evidence": 200,
+      "lean_proof_audit": 700
+    },
+    "same_referee_may_review_revisions": true
+  }
+}

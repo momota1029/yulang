@@ -1,13 +1,9 @@
 {
-  "schema_version": 1
-,
-  "mode": "LIVE"
-,
-  "phase": "ACTIVE"
-,
-  "session": null
-,
-  "active_sprint": {"id":"CALLBACK-SOURCE-TRANSITIONS/20261030-R23","status":"CLOSED_INCOMPLETE","baseline_commit":"9a74a70a32ebda716a00c7203d8e606343cf442a","contract":"tasks/agent-loop/sprints/effect-permission-source-transitions-20261030-r23.md","contract_sha256":"a2da16deb4475a7e602505d2fd6f44ce823b7ef8088d72d83299d3cf86106443","inputs_manifest":"tasks/agent-loop/sprints/effect-permission-source-transitions-20261030-r23-inputs.json","input_manifest_sha256":"53834c90872ec05adc761b5dd0aba9c5c2bc91dd5c63249fbd954626ec06d639","evidence":"tasks/agent-loop/evidence/effect-permission-source-transitions-20261030-r23.json","outcome":"tasks/agent-loop/history/effect-permission-source-transitions-20261030-r23-outcome.md","git_checkpoint":{"record":"tasks/agent-loop/history/effect-permission-source-transitions-20261030-r23-git-checkpoint.md","receipt_sha256":"445300557b705ef351fd1bf606fb09a62b409a29ef6c5cdccf96970a874d5382","commit":"b0bd40644818ccf4e0b56092fdc68c6b22182a07","pushed":true,"remote":"origin/yulang3","range":"2191dd60a..b0bd40644"},"rust_time":{"reported_elapsed":"UNKNOWN","charged_wall_upper_bound_seconds":1155,"remaining_cap_seconds":245,"basis":"launch 17:20:45Z; stops 17:28:20Z, 17:37:49Z; correction2 charged full 309s, stopped 17:43:10Z"},"correction_caps":{"source_harness_and_refreeze_seconds":0,"Cargo_after_ACCEPT_seconds":240,"handoff_reserve_seconds":5,"no_renewal":true}},
+  "schema_version": 1,
+  "mode": "LIVE",
+  "phase": "ACTIVE",
+  "session": null,
+  "active_sprint": {"id":"ANNOTATION-HYGIENE-TRANSITIONS/20261030-R24","status":"ADMITTED","baseline_commit":"9a74a70a32ebda716a00c7203d8e606343cf442a","branch_admission_commit":"dd1e13cdaa97a124f26eda9a19da5fa769fc8cc0","contract":"tasks/agent-loop/sprints/effect-permission-hygiene-20261030-r24.md","contract_sha256":"4fc63b868a8e61f8b4a5c1c59e6dccc4e8b6aa4e8e9afa24985c0408654ac39b","inputs_manifest":"tasks/agent-loop/sprints/effect-permission-hygiene-20261030-r24-inputs.json","input_manifest_sha256":"0e6898e96d8191e87f4afee43a96f5bc0fa973bfbeb996316298e954188ae5f9","evidence":"tasks/agent-loop/evidence/effect-permission-hygiene-20261030-r24.json","outcome":"tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-outcome.md","resource_envelope_seconds":{"total":6400,"rust":2400,"lean":1800,"independent_review":1600,"luna_primary":600,"astra":0},"rust_time":{"reported_elapsed":"NOT_STARTED","charged_wall_upper_bound_seconds":0,"remaining_cap_seconds":2400},"source_base_commit":"9a74a70a32ebda716a00c7203d8e606343cf442a","source_table_sha256":"NOT_FROZEN","lanes":{"rust":"NOT_STARTED","lean":"WAITING_FOR_SOURCE_SCHEMA_AND_SELECTOR","review":"RESERVED_NOT_STARTED"}},
   "workers": [
     {"id":"/root/resident_dispatcher_loop_a","role":"legacy","state":"UNKNOWN","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","requested_model":"UNKNOWN","requested_effort":"UNKNOWN"},
     {"id":"/root/resident_implementer_idle","role":"legacy","state":"UNKNOWN","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","requested_model":"UNKNOWN","requested_effort":"UNKNOWN"},
@@ -24,8 +20,7 @@
     {"id":"/root/effect_permission_module_environment_source","role":"read-only authority audit","state":"UNKNOWN","requested_model":"gpt-6-luna","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"UNKNOWN; path quarantined."},
     {"id":"/root/latent_demand_transport_classification_r17_source","role":"R17 source handoff; waiting on Luna ACK and frozen Cargo-1 logs","state":"WAITING","requested_model":"gpt-6-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","session":"LATENT-DEMAND-TRANSPORT-CLASSIFICATION-20261028/r17","receipt":"R17 waiting; writes stopped; no resume."},
     {"id":"/root/call_constructor_application_r21_review","role":"fresh independent compiler_referee review","state":"UNKNOWN","requested_model":"gpt-6.1-sol","requested_effort":"medium","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","budget_seconds":300,"session":"CALL-CONSTRUCTOR-APPLICATION-20261028-R21","receipt":"Historical UNKNOWN; no artifact; paths stay quarantined."},
-    {"id":"/root/effect_permission_source_transitions_r23_rust","role":"implementer","state":"STOPPED","requested_model":"gpt-6-luna","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","session":"R23/CORRECTION-2","receipt":"STOP 17:43:10Z; actual elapsed UNKNOWN, charged full 309s cap; no changes, rev2 hashes stand; no process/descendant."},
-    {"id":"/root/effect_permission_owner_consumer_r22_review","role":"compiler_referee","state":"STOPPED","requested_model":"gpt-6.1-sol","requested_effort":"medium","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","session":"R23/PREFLIGHT-1","receipt":"STOP; REJECT; see R23 outcome; no Cargo."}
+    {"id":"/root/effect_permission_hygiene_r24_rust","role":"implementer","state":"NOT_STARTED","requested_model":"gpt-6-luna","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","budget_seconds":2400,"receipt":"ADMITTED; launch acknowledgement required before writes."}
   ],
   "leases": [
     {"path":"tasks/agent-loop/current.json","owner":"/root","state":"HELD"},
@@ -52,30 +47,55 @@
     {"path":"crates/yu-solver/src/lib.rs","owner":"/root","state":"FROZEN","sha256":"ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07"},
     {"path":"notes/theory/lean/YulangClosure/FormalPermissionStructuralBufferBound.lean","owner":"/root","state":"FROZEN","sha256":"f9bfd9ea556128b27e850b5ca66934d46fd86d73a77bdfdbb3846142ad37abd7"},
     {"path":"tasks/agent-loop/inbox/effect-permission-structural-buffer-bound-r18-proof.md","owner":"/root","state":"FROZEN","sha256":"09792fb4ea8870145021e95d47faf1325f3554b98e3a49c24751c4033c06f4ed"},
-    {"path":"isolated/ep-source-transitions-r23/project/tools/inference-playground/src/runtime/machine.rs","owner":"/root/effect_permission_source_transitions_r23_rust","state":"FROZEN"},
-    {"path":"isolated/ep-source-transitions-r23/project/tools/inference-playground/src/runtime/receiving.rs","owner":"/root/effect_permission_source_transitions_r23_rust","state":"FROZEN"},
-    {"path":"isolated/ep-source-transitions-r23/project/tools/inference-playground/src/runtime/program.rs","owner":"/root/effect_permission_source_transitions_r23_rust","state":"FROZEN"},
-    {"path":"isolated/ep-source-transitions-r23/project/receipts/source-transitions.json","owner":"/root/effect_permission_source_transitions_r23_rust","state":"FROZEN"},
-    {"path":"tasks/agent-loop/inbox/effect-permission-source-transitions-r23-rust.md","owner":"/root/effect_permission_source_transitions_r23_rust","state":"FROZEN"},
-    {"path":"isolated/ep-source-transitions-r23/project/build-target","owner":"/root/effect_permission_source_transitions_r23_rust","state":"HELD"},
-    {"path":"tasks/agent-loop/history/effect-permission-source-transitions-20261030-r23-git-checkpoint.md","owner":"/root","state":"HELD"}
+    {"path":"isolated/ep-hygiene-r24/project/tools/inference-playground/src/runtime/machine.rs","owner":"/root/effect_permission_hygiene_r24_rust","state":"HELD"},
+    {"path":"isolated/ep-hygiene-r24/project/tools/inference-playground/src/runtime/receiving.rs","owner":"/root/effect_permission_hygiene_r24_rust","state":"HELD"},
+    {"path":"isolated/ep-hygiene-r24/project/tools/inference-playground/src/runtime/program.rs","owner":"/root/effect_permission_hygiene_r24_rust","state":"HELD"},
+    {"path":"isolated/ep-hygiene-r24/project/receipts/hygiene.json","owner":"/root/effect_permission_hygiene_r24_rust","state":"HELD"},
+    {"path":"isolated/ep-hygiene-r24/project/build-target","owner":"/root/effect_permission_hygiene_r24_rust","state":"HELD"},
+    {"path":"tasks/agent-loop/inbox/effect-permission-hygiene-r24-rust.md","owner":"/root/effect_permission_hygiene_r24_rust","state":"HELD"}
   ],
-  "pending": [{"id":"R61-SOURCE-ASCRIPTION-FORMATION-1","state":"OPEN","owner":"Luna"},{"id":"R64-SRC-ANN-ARG-1","state":"OPEN","owner":"Luna"},{"id":"R65-CURRENT-OPERAND-1","state":"OPEN","owner":"Luna"},{"id":"R66-LAMBDA-RESULT-STAGE-1","state":"OPEN","owner":"Luna"},{"id":"R67-DIRECT-BODY-CHECK-1","state":"OPEN","owner":"Luna"},{"id":"R68-OWNER-CONSUMER-1","state":"OPEN","owner":"Luna"},{"id":"R69-CONSUMER-ORIGIN-SOURCE-LAW-1","state":"OPEN_UNADOPTED_PROPOSAL","owner":"Luna"},{"id":"R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1","state":"OPEN","owner":"Luna"},{"id":"R71-RAW-CANONICAL-FIBER-COVERAGE-1","state":"OPEN","owner":"Luna"},{"id":"R72-LATER-OCCURRENCE-1","state":"OPEN","owner":"Luna"},{"id":"R149-SOURCE-OWNER-CLOSURE-1","state":"OPEN_SOURCE_TO_CST","owner":"Luna"},{"id":"R339-D2-WHOLE-FRAME-RETIREMENT","state":"OPEN_REMAINDER","owner":"Luna"},{"id":"R340-D3-AUTHENTIC-APPLY-CONTINUATION","state":"OPEN_REMAINDER","owner":"Luna"},{"id":"R345-N-REMAINDER","state":"OPEN_REMAINDER","owner":"Luna"},{"id":"OP-SEMANTICS-FULL-EFFECT","state":"OPEN_REVIEW","owner":"primary"},{"id":"DOT-SELECTION-EVIDENCE-BRIDGE","state":"OPEN_REVIEW","owner":"primary"},{"id":"CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE","state":"OPEN_REVIEW","owner":"primary"},{"id":"SOURCE-SAFETY-BRIDGE","state":"OPEN_REVIEW","owner":"primary"},{"id":"CALL-CONTEXT-PLUG-PRESERVATION","state":"OPEN","owner":"Luna; after r9 adequacy"},{"id":"BOUNDED-CALL-FINITE-PREFIX-SAFETY","state":"OPEN","owner":"Luna; after exact A/hash"},{"id":"CALL-STEP-ERASURE","state":"OPEN","owner":"r9 S/Luna; after implementation seam"},{"id":"CALL-RAW-SUCCESSOR-COVERAGE","state":"OPEN","owner":"r9 C/Luna; after implementation seam"},{"id":"FORCE-SOURCE-REALIZATION-20261025","state":"OPEN_SOURCE_EQUATIONS","owner":"Luna"},{"id":"RESPONSE-ENCODING-1","state":"OPEN","owner":"primary proof","details":"Layout/value/dispatch bridge OPEN."},{"id":"RESPONSE-INSTANCE-1","state":"OPEN","owner":"primary source","details":"Native trace and polymorphic/effectful cases OPEN."},{"id":"RESPONSE-TEMPLATE-1","state":"OPEN","owner":"primary native","details":"Native frames/errors/full Call OPEN."},{"id":"GVG-FORMS-1","state":"OPEN","owner":"Luna graph proof"},{"id":"GVG-REC-RHS-1","state":"OPEN","owner":"Luna binder proof","details":"Full-paper omitted forms OPEN."},{"id":"HO-METADATA-ADEQUACY-1","state":"OPEN","owner":"primary semantics/source"},{"id":"HO-SHALLOW-HANDLER-1","state":"OPEN","owner":"higher-order handler lane","details":"HO-HANDLER-VALUE-EMPTY-1 mismatch OPEN."},{"id":"HO-HANDLER-GRAPH-COMPOSITION-1","state":"OPEN","owner":"primary integration","details":"Full-paper source/native application OPEN."},{"id":"GRAPH-CONTINUATION-EXTENSION-1","state":"OPEN","owner":"graph continuation lane","details":"Native bridge and naive-relation blocker OPEN."}],
-  "closure": "Original parent, native correspondence, effect hygiene, principality, termination and production remain OPEN."
-,
-  "legacy_reconciliation": {"required":false,"reservations":[{"id":"/root/resident_dispatcher_loop_a","path":"tasks/agent-loop/board.md","state":"UNKNOWN_QUARANTINED"},{"id":"/root/resident_implementer_idle","path":"UNKNOWN historical implementation lease","state":"UNKNOWN_QUARANTINED"},{"id":"/root/runtime_source_supplier_proof","path":"UNKNOWN historical proof lease","state":"UNKNOWN_QUARANTINED","historical_paths":["notes/theory/2026-10-16-owner-completion-positive-frame-presentation-r2.md","tasks/agent-loop/inbox/20261016-loop-a-proof-owner-frame-repair-005.md"]}],"capacity_override":{"record":"tasks/agent-loop/history/20261028-user-capacity-release-all-unknown.md","sha256":"a91dba2e89157a7ef1712cea785990192b8910c026bae15699f9e6dc3ee71a46","state":"RELEASED_BY_USER","slots":11}},
-  "user_goal": "Yulang inference/executor soundness, effects, principality, termination."
-,
+  "pending": [
+    {"id":"R61-SOURCE-ASCRIPTION-FORMATION-1","state":"OPEN","owner":"Luna"},
+    {"id":"R64-SRC-ANN-ARG-1","state":"OPEN","owner":"Luna"},
+    {"id":"R65-CURRENT-OPERAND-1","state":"OPEN","owner":"Luna"},
+    {"id":"R66-LAMBDA-RESULT-STAGE-1","state":"OPEN","owner":"Luna"},
+    {"id":"R67-DIRECT-BODY-CHECK-1","state":"OPEN","owner":"Luna"},
+    {"id":"R68-OWNER-CONSUMER-1","state":"OPEN","owner":"Luna"},
+    {"id":"R69-CONSUMER-ORIGIN-SOURCE-LAW-1","state":"OPEN_UNADOPTED_PROPOSAL","owner":"Luna"},
+    {"id":"R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1","state":"OPEN","owner":"Luna"},
+    {"id":"R71-RAW-CANONICAL-FIBER-COVERAGE-1","state":"OPEN","owner":"Luna"},
+    {"id":"R72-LATER-OCCURRENCE-1","state":"OPEN","owner":"Luna"},
+    {"id":"R149-SOURCE-OWNER-CLOSURE-1","state":"OPEN_SOURCE_TO_CST","owner":"Luna"},
+    {"id":"R339-D2-WHOLE-FRAME-RETIREMENT","state":"OPEN_REMAINDER","owner":"Luna"},
+    {"id":"R340-D3-AUTHENTIC-APPLY-CONTINUATION","state":"OPEN_REMAINDER","owner":"Luna"},
+    {"id":"R345-N-REMAINDER","state":"OPEN_REMAINDER","owner":"Luna"},
+    {"id":"OP-SEMANTICS-FULL-EFFECT","state":"OPEN_REVIEW","owner":"primary"},
+    {"id":"DOT-SELECTION-EVIDENCE-BRIDGE","state":"OPEN_REVIEW","owner":"primary"},
+    {"id":"CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE","state":"OPEN_REVIEW","owner":"primary"},
+    {"id":"SOURCE-SAFETY-BRIDGE","state":"OPEN_REVIEW","owner":"primary"},
+    {"id":"CALL-CONTEXT-PLUG-PRESERVATION","state":"OPEN","owner":"Luna; after r9 adequacy"},
+    {"id":"BOUNDED-CALL-FINITE-PREFIX-SAFETY","state":"OPEN","owner":"Luna; after exact A/hash"},
+    {"id":"CALL-STEP-ERASURE","state":"OPEN","owner":"r9 S/Luna; after implementation seam"},
+    {"id":"CALL-RAW-SUCCESSOR-COVERAGE","state":"OPEN","owner":"r9 C/Luna; after implementation seam"},
+    {"id":"FORCE-SOURCE-REALIZATION-20261025","state":"OPEN_SOURCE_EQUATIONS","owner":"Luna"},
+    {"id":"RESPONSE-ENCODING-1","state":"OPEN","owner":"primary proof","details":"Layout/value/dispatch bridge OPEN."},
+    {"id":"RESPONSE-INSTANCE-1","state":"OPEN","owner":"primary source","details":"Native trace and polymorphic/effectful cases OPEN."},
+    {"id":"RESPONSE-TEMPLATE-1","state":"OPEN","owner":"primary native","details":"Native frames/errors/full Call OPEN."},
+    {"id":"GVG-FORMS-1","state":"OPEN","owner":"Luna graph proof"},
+    {"id":"GVG-REC-RHS-1","state":"OPEN","owner":"Luna binder proof","details":"Full-paper omitted forms OPEN."},
+    {"id":"HO-METADATA-ADEQUACY-1","state":"OPEN","owner":"primary semantics/source"},
+    {"id":"HO-SHALLOW-HANDLER-1","state":"OPEN","owner":"higher-order handler lane","details":"HO-HANDLER-VALUE-EMPTY-1 mismatch OPEN."},
+    {"id":"HO-HANDLER-GRAPH-COMPOSITION-1","state":"OPEN","owner":"primary integration","details":"Full-paper source/native application OPEN."},
+    {"id":"GRAPH-CONTINUATION-EXTENSION-1","state":"OPEN","owner":"graph continuation lane","details":"Native bridge and naive-relation blocker OPEN."}
+  ],
+  "closure": "Original parent, native correspondence, effect hygiene, principality, termination and production remain OPEN.",
+  "legacy_reconciliation": {"required":false,"reservations":[{"id":"/root/resident_dispatcher_loop_a","path":"tasks/agent-loop/board.md","state":"UNKNOWN_QUARANTINED"},{"id":"/root/resident_implementer_idle","path":"UNKNOWN historical implementation lease","state":"UNKNOWN_QUARANTINED"},{"id":"/root/runtime_source_supplier_proof","path":"UNKNOWN historical proof lease","state":"UNKNOWN_QUARANTINED","historical_paths":["notes/theory/2026-10-16-owner-completion-positive-frame-presentation-r2.md","tasks/agent-loop/inbox/20261016-loop-a-proof-owner-frame-repair-005.md"]}],"capacity_override":{"record":"tasks/agent-loop/history/20261030-r24-capacity-release-supplement.md","sha256":"37301a1c7aa006c59c2ec2d11ab26672ffbcfc8b8eff73610e2afad20c668414","state":"RELEASED_BY_USER","slots":13}},
+  "user_goal": "Yulang inference/executor soundness, effects, principality, termination.",
   "native_bridge": {"id":"SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1","state":"OPEN; NAIVE_RELATION_BLOCKED","owner":"primary source/proof intake","record":"tasks/agent-loop/sprints/source-generated-interaction-20261025-r1-outcome.md","sha256":"2c1332214def6b63ac2323d75ebd644d4d07ddce12647a93d39c6c2c1041d3cd"},
   "r18_authority_proposal": {"id":"R18-VARIANT-TYPEARG-CORRESPONDENCE-1","state":"OPEN_UNADOPTED_PROPOSAL","sha256":"03df404d39135274df50d2b80b76f24ff5709683a15706ceeb9dcd499cd72e07"},
-  "question_status": []
-,
+  "question_status": [],
   "external_path_incident": {"path":"/tmp/yulang-name-entry-correspondence-20261028/source/name-entry-trace.txt","state":"QUARANTINED_NO_WRITES","prior_sha256":"ff8a8d88e29533f2d207206f492f7ed811ce9d705692ede5e99f5d388080b51c","current_sha256":"41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"},
-  "history_archive": {
-    "record": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-state-archive.json",
-    "sha256": "8fcfd28653b67e9dde4c78da39c651eaee5790fd93b23ced16877c4cd2a33785"
-  },
-  "next_action": "R23 closed incomplete; successor repair needs a new resource envelope and exact leases."
-,
-  "prior_sprint": {"id":"CALLBACK-RESULT-OWNER-CONSUMER/20261030-R22","status":"CLOSED_INCOMPLETE — PREFLIGHT_REJECTED","outcome":"tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-outcome.md","git_commit":"9a74a70a32ebda716a00c7203d8e606343cf442a"}
+  "history_archive": {"record":"tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-state-archive.json","sha256":"8fcfd28653b67e9dde4c78da39c651eaee5790fd93b23ced16877c4cd2a33785"},
+  "next_action": "Launch Rust from clean detached 9a74a70 baseline; freeze owner-derived source table. At that seam consult selector and grant exact Lean/review leases. No Cargo before fresh exact-hash ACCEPT.",
+  "prior_sprint": {"id":"CALLBACK-SOURCE-TRANSITIONS/20261030-R23","status":"CLOSED_INCOMPLETE — PREFLIGHT_REJECTED / CORRECTION_BUDGET_EXHAUSTED","outcome":"tasks/agent-loop/history/effect-permission-source-transitions-20261030-r23-outcome.md","git_commit":"dd1e13cdaa97a124f26eda9a19da5fa769fc8cc0"}
 }
