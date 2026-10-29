@@ -60,3 +60,10 @@
 - Outbound range: `dce4064b9..15f166266`, 5 files: compact current state, R23 evidence JSON, R23 outcome, this checkpoint receipt, and frozen Rust handoff revision 2.
 - `git push origin yulang3` succeeded; `git ls-remote origin refs/heads/yulang3` returned `15f166266190e0a81472db5bf4ab02c2e5ef54c7`.
 - This is a failure-only research closeout. The test-only source snapshot remains in its separate frozen isolated worktree; no production runtime source was staged.
+
+## R23 next-action checkpoint
+
+- Commit: `b0bd40644818ccf4e0b56092fdc68c6b22182a07` (`research: sync R23 next action`).
+- Outbound range: `2191dd60a..b0bd40644`, 1 file (`current.json`).
+- The stale running-correction next action now records R23's incomplete closeout and the need for a new resource envelope and exact leases before successor repair.
+- Push to `origin/yulang3` succeeded; `git ls-remote` verified `b0bd40644818ccf4e0b56092fdc68c6b22182a07`.
