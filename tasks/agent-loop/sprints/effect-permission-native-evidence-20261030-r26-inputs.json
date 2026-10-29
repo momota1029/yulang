@@ -1,0 +1,245 @@
+{
+  "schema": "effect-permission-native-evidence-r26-inputs-v1",
+  "sprint": "ANNOTATION-HYGIENE-NATIVE-EVIDENCE/20261030-R26",
+  "branch_admission_commit": "fa2c3dcafbe412d4dd0c627b5f955f8e1429e83a",
+  "isolated_source_base_commit": "9a74a70a32ebda716a00c7203d8e606343cf442a",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-native-evidence-20261030-r26.md",
+    "sha256": "8b2fcc72995472465b23fc397f257d07a035b0b1ba15f8f62ee31ae705dc11e5"
+  },
+  "prior_sprint": {
+    "id": "ANNOTATION-HYGIENE-NATIVE-EVIDENCE/20261030-R25",
+    "status": "CLOSED_INCOMPLETE",
+    "path": "tasks/agent-loop/history/effect-permission-native-evidence-20261030-r25-outcome.md",
+    "sha256": "81ff25f3ee7d2d34f9facf7ea961c12e9630ea24b70934e235037d32ca3e6dab"
+  },
+  "fixed_dependencies": [
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-native-evidence-20261030-r25.md",
+      "sha256": "6bcc5d6bb5b2482564af254a6efdd7da1d3c95f162c91f9ba0d58d6e3861d3ba",
+      "role": "R25 frozen contract"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-native-evidence-20261030-r25-inputs.json",
+      "sha256": "ba35b35d6ebbe8a6925827fb3bca1f645acbe62a661ed95e8cde50998508cb05",
+      "role": "R25 authenticated inputs"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-native-evidence-20261030-r25-outcome.md",
+      "sha256": "81ff25f3ee7d2d34f9facf7ea961c12e9630ea24b70934e235037d32ca3e6dab",
+      "role": "R25 closeout and post-stop hashes"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-hygiene-20261030-r24.md",
+      "sha256": "4fc63b868a8e61f8b4a5c1c59e6dccc4e8b6aa4e8e9afa24985c0408654ac39b",
+      "role": "R24 contract"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-outcome.md",
+      "sha256": "d2dd2d91d9bed9efb8f85e05997dfe4f7053512061f72dd6cd377fef3dd08b74",
+      "role": "R24 closeout"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-review-r2.md",
+      "sha256": "e9f8fd15d2013cd2552bd5b4010095a2a44c6732a850abda26a85e83d901b10c",
+      "role": "R24 independent Rust review findings"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-lean-audit.md",
+      "sha256": "6a79da852c1cf0bef4593ba7e7bda54497430d9dd0187f252ac4d55bb4a7beb7",
+      "role": "R24 Lean audit failure classification"
+    },
+    {
+      "path": "notes/design/2026-10-10-annotation-effect-hygiene-integration.md",
+      "sha256": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18",
+      "role": "governing effect-hygiene meaning"
+    },
+    {
+      "path": "notes/design/2026-10-24-birth-level-scc-intrusion.md",
+      "sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae",
+      "role": "approved SCC design"
+    },
+    {
+      "path": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md",
+      "sha256": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271",
+      "role": "original parent claim"
+    },
+    {
+      "path": "isolated/ep-hygiene-r24/project/receipts/hygiene.json",
+      "sha256": "e455690d6873880567ddadbe7cd5273da424f1e0fbffc2c80ebee59676b98b1e",
+      "role": "R1 schema and R24 source receipt"
+    },
+    {
+      "path": "isolated/ep-hygiene-r24/project/notes/theory/lean/YulangClosure/CallbackHygieneCorrespondence.lean",
+      "sha256": "4bb9eafe2c0f7123c4d43722083190b9f7c78c2e0f6661160c5ccc56da1f7083",
+      "role": "frozen unchecked Lean candidate"
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+      "role": "Lean pin"
+    },
+    {
+      "path": "notes/theory/lean/lakefile.toml",
+      "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4",
+      "role": "Lean project"
+    },
+    {
+      "path": "notes/theory/lean/lake-manifest.json",
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+      "role": "Lean dependency manifest"
+    },
+    {
+      "path": "notes/theory/lean/README.md",
+      "sha256": "8d27e0b90fc04eb8a0a30606a857e564e5269e8e33e72fddbf1190cb6a7072e3",
+      "role": "Lean project guidance"
+    },
+    {
+      "path": ".agents/skills/yulang-lean-proofs/references/sources.md",
+      "sha256": "cb3f1009e80f0f9f7a1bf2575b4144e002a72f21e474c66b441e1f626a1e4d4a",
+      "role": "Lean source map"
+    },
+    {
+      "path": ".agents/skills/yulang-lean-proofs/references/execution.md",
+      "sha256": "a1d8c47550e8925220623e0401410556d92719aff5590c459ac4c2e88306800b",
+      "role": "Lean execution guidance"
+    }
+  ],
+  "r25_candidate": [
+    {
+      "path": "isolated/ep-hygiene-r25/project/tools/inference-playground/src/runtime/machine.rs",
+      "sha256": "1d8ec9ac5ce4cb4a25e24dd81a2d15b901efd27107e047140676f27fd070ea40",
+      "status": "frozen unreviewed; read-only input"
+    },
+    {
+      "path": "isolated/ep-hygiene-r25/project/tools/inference-playground/src/runtime/receiving.rs",
+      "sha256": "dffb3fa5ce3d9437b347840e56fe5da80a143b358745f251838f66fa3065a23f",
+      "status": "frozen unreviewed; read-only input"
+    },
+    {
+      "path": "isolated/ep-hygiene-r25/project/tools/inference-playground/src/runtime/program.rs",
+      "sha256": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907",
+      "status": "frozen unreviewed; read-only input"
+    }
+  ],
+  "r24_lean_candidate": {
+    "path": "isolated/ep-hygiene-r24/project/notes/theory/lean/YulangClosure/CallbackHygieneCorrespondence.lean",
+    "sha256": "4bb9eafe2c0f7123c4d43722083190b9f7c78c2e0f6661160c5ccc56da1f7083",
+    "status": "frozen constructed but unchecked; read-only input"
+  },
+  "r1_schema_sha256": "686c96c8f8b5417b075a18954f773ad4071996e51e809d65040a87441c342c3c",
+  "rust_baseline": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "a8852982d5a3ff4d159aa546767b217000d50c9ff8617ac139700885bf5b090a"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "de2c030452a0764cbeb459e2545585a880edc6683a8acceaea45276e24b67ca5"
+    },
+    {
+      "path": "tools/inference-playground/Cargo.toml",
+      "sha256": "87e77de221b023c1c9f07e90f1ce6a692a56e8bb398eca4725f4910254be0a56"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/mod.rs",
+      "sha256": "b7184e3869b4790cb0e2e72704e4a1b2f12df7772b441144b8ef63ab33e2fe4f"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/machine.rs",
+      "sha256": "4fe3de685650761767be313285321e548964b41900c3aae7f5f434d48034395d"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/receiving.rs",
+      "sha256": "e6b22598a0d11a21fba260cdbc5b4ace3690cf9b21e51beb61d8cc967511fffd"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/program.rs",
+      "sha256": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907"
+    },
+    {
+      "path": "tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+      "sha256": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7"
+    }
+  ],
+  "lean_baseline": [
+    {
+      "path": "isolated/ep-hygiene-r26/project/notes/theory/lean/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+      "role": "R26 baseline toolchain/project pin"
+    },
+    {
+      "path": "isolated/ep-hygiene-r26/project/notes/theory/lean/lakefile.toml",
+      "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4",
+      "role": "R26 baseline toolchain/project pin"
+    },
+    {
+      "path": "isolated/ep-hygiene-r26/project/notes/theory/lean/lake-manifest.json",
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+      "role": "R26 baseline toolchain/project pin"
+    },
+    {
+      "path": "isolated/ep-hygiene-r26/project/notes/theory/lean/README.md",
+      "sha256": "8d27e0b90fc04eb8a0a30606a857e564e5269e8e33e72fddbf1190cb6a7072e3",
+      "role": "R26 baseline toolchain/project pin"
+    }
+  ],
+  "worktree_authentication": {
+    "path": "isolated/ep-hygiene-r26/project",
+    "head": "9a74a70a32ebda716a00c7203d8e606343cf442a",
+    "status": "clean at intake; all eight Rust baseline entries matched Git blobs and worktree"
+  },
+  "resource_envelope_seconds": {
+    "total": 6700,
+    "rust": 1500,
+    "lean": 600,
+    "independent_review": 1000,
+    "luna_primary": 3600,
+    "astra": 0
+  },
+  "cargo_policy": {
+    "compile_only": "cargo check --tests --locked --offline -p yu-playground",
+    "compile_max_seconds": 120,
+    "runtime": "cargo test --locked --offline -p yu-playground",
+    "runtime_max_invocations": 2,
+    "runtime_each_seconds": 120,
+    "runtime_combined_seconds": 240,
+    "cpus": 1,
+    "max_rss_bytes": 2147483648,
+    "min_available_ram_bytes": 4294967296,
+    "requires_independent_exact_hash_accept_each_gate": true,
+    "one_heavy_process_at_a_time": true
+  },
+  "lean_policy": {
+    "max_audits": 2,
+    "combined_audit_seconds": 120,
+    "preserve_definitions_and_theorem_statements": true,
+    "pinned_toolchain_required": true,
+    "complete_axiom_reports_required": true
+  },
+  "review_policy": {
+    "identity": "/root/r24_rust_compile_review",
+    "role": "compiler_referee",
+    "fresh_nonauthor": true,
+    "total_seconds": 1000,
+    "stage_seconds": {
+      "frozen_r25_candidate": 200,
+      "compile_only_gate": 300,
+      "runtime_gate": 300,
+      "lean_rust_applicability_and_final_evidence": 200
+    },
+    "each_accept_tied_to_exact_hashes": true
+  },
+  "output_paths": [
+    "isolated/ep-hygiene-r26/project/tools/inference-playground/src/runtime/machine.rs",
+    "isolated/ep-hygiene-r26/project/tools/inference-playground/src/runtime/receiving.rs",
+    "isolated/ep-hygiene-r26/project/tools/inference-playground/src/runtime/program.rs",
+    "isolated/ep-hygiene-r26/project/receipts/hygiene.json",
+    "isolated/ep-hygiene-r26/project/build-target",
+    "tasks/agent-loop/inbox/effect-permission-hygiene-r26-rust.md",
+    "isolated/ep-hygiene-r26/project/notes/theory/lean/YulangClosure/CallbackHygieneCorrespondence.lean",
+    "isolated/ep-hygiene-r26/project/notes/theory/lean/.lake",
+    "isolated/ep-hygiene-r26/lean-scratch",
+    "tasks/agent-loop/inbox/effect-permission-hygiene-r26-proof.md"
+  ]
+}
