@@ -1,0 +1,28 @@
+{
+  "record": "R27 rejected Rust source preflight r1",
+  "review": "review.md",
+  "review_sha256": "189e7ca15991397dbd8fa696b275f976a92012b0b3d82af6db78083375b04b6c",
+  "frozen_sources": {
+    "machine.rs": {
+      "path": "machine.rs",
+      "sha256": "24d68fa0f54e9f338188da49a96e72f413238dd70f72537da8040b6c1ee73078"
+    },
+    "receiving.rs": {
+      "path": "receiving.rs",
+      "sha256": "7a8eeab787f127064d5689b1ee5fbbfc409b4a307905d0f42d538f5d3d628f25"
+    }
+  },
+  "reviewed_hashes": {
+    "machine.rs": "24d68fa0f54e9f338188da49a96e72f413238dd70f72537da8040b6c1ee73078",
+    "receiving.rs": "7a8eeab787f127064d5689b1ee5fbbfc409b4a307905d0f42d538f5d3d628f25",
+    "schema_r2": "84187379d1a81b1965c34c027e7532198bebc4c4110eaa1c05808bada6bf6d8c",
+    "inputs_r3": "06fcdb4292b3364b9a40b75dcb9b57419ff0bfb50628d422cd5ec69ad0e5c6bc",
+    "contract_r1": "2cc9c8ae08a6fcbf98f237e6a1640ceb042a456a6beaadc448fa0a0308b431f0",
+    "amendment_02": "b625cb42fc9f7e365c0df738bb8b7a269775acdd34f9cc4e1d6e8155a6400bad",
+    "rust_handoff": "dedc38b32eb43e51edac968f27aaf7fa02b89f2a70b425b9d4a83fe164e910d3"
+  },
+  "verdict": "REJECT",
+  "reviewer": "/root/effect_permission_owner_certificate_r27_rust_preflight",
+  "review_seconds_charged": 130,
+  "candidate_execution_authorized": false
+}
