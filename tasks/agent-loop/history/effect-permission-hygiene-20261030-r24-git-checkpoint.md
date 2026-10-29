@@ -42,3 +42,11 @@
 
 - Rust author `/root/effect_permission_hygiene_r24_rust` and Lean author `/root/r24_lean` acknowledged the frozen schema/snapshot and exact leases after checkpoint `23798f70e` was pushed. Both reported no writes or processes and waited for this pushed launch ACK.
 - Recorded live R24 sessions, requested/observed settings as known (unknown observations remain `UNKNOWN`), and the existing budgets: Rust 2,010 seconds remaining after the earlier 390-second charge; Lean 1,800 seconds. No capacity override or path-lease change was made.
+
+
+## Lean authority-input supplement required
+
+- The Lean author authenticated the initial archive SHA and schema, then found its 25-member inventory omitted the governing-control files and original parent/policy documents required by the contract and skill. No Lean source was written and no Lean/Lake/Cargo command ran. The author is WAITING for the supplement.
+- Selector `/root/next_action_selector` recommends preserving the first archive and schema R1, creating one primary-owned supplement at `tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-lean-authority-r1.tar.gz`, verifying each member against its manifest pin or immutable source-base commit, and continuing the same proof assignment after a fresh pushed ACK. No extra worker, capacity reservation, output lease or budget renewal.
+- Charged a conservative 180-second wall upper bound to the original Lean 1,800-second allocation for initial archive inspection and coordination; 1,620 seconds remain. No waiting-time refund.
+- Rust author separately reports cfg(test)-only transition types/trace and ValueEntry hook in `machine.rs` (SHA-256 `f9899717e7d22ff57ffcff17bf59a24bc596138c2bed4ae9bb4ac6b41476f1a3`) and callback entry/use/receipt accessors in `receiving.rs` (SHA-256 `bbf5b587f3e9f9e039443cd5901fb2dd810666c758200dde34d15da9def104fb`). Schema R1, contract and fixtures remain unchanged; no Cargo has run. These are worker-reported live hashes, not Luna-authenticated final source hashes.
