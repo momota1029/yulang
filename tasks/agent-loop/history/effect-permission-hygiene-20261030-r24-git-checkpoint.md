@@ -37,3 +37,8 @@
 - Lean may begin from this archive after its launch acknowledgement is recorded and Luna's pushed current-state ACK arrives. Rust resumes only after its separate Luna ACK; schema revision 1 remains immutable.
 
 - Frozen-input checkpoint commit: `23798f70ec07e3f35f4f02235ca69460610dd9b0` (`research: freeze R24 hygiene inputs`); outbound range `d8ab0693c..23798f70e`, exactly `current.json`, this checkpoint receipt, and the archive. Push succeeded; remote verification returned `23798f70ec07e3f35f4f02235ca69460610dd9b0`.
+
+## R24 lane launch acknowledgements
+
+- Rust author `/root/effect_permission_hygiene_r24_rust` and Lean author `/root/r24_lean` acknowledged the frozen schema/snapshot and exact leases after checkpoint `23798f70e` was pushed. Both reported no writes or processes and waited for this pushed launch ACK.
+- Recorded live R24 sessions, requested/observed settings as known (unknown observations remain `UNKNOWN`), and the existing budgets: Rust 2,010 seconds remaining after the earlier 390-second charge; Lean 1,800 seconds. No capacity override or path-lease change was made.
