@@ -28,3 +28,10 @@
 - Rust worker `/root/effect_permission_hygiene_r24_rust` acknowledged a safe pause at `2026-10-29 18:10:55 UTC`; no source edits, processes or scratch. Dispatch-to-pause upper-bound charge: 390 seconds; Rust cap remaining: 2,010 seconds. Schema revision 1 is authenticated; any change to its meaning needs a sequential revision.
 - Selector delta: keep T1–T14 as a branching owner map, preserve immutable schema and baseline sources before Rust resumes, and admit Lean only with exact leases and budget/capacity accounting. Compile-only review, full pre-execution review, serialized Cargo/Lean, runtime execution and production gates remain unchanged.
 - Luna reserved the contract's four exact Lean outputs and `isolated/ep-hygiene-r24/lean-inputs-r1.tar.gz` as a primary-owned frozen-input archive. The archive is being prepared from the immutable baseline commit before either writer resumes.
+
+## Frozen R24 Lean input archive
+
+- Deterministic archive: `isolated/ep-hygiene-r24/lean-inputs-r1.tar.gz`, SHA-256 `89e5d0cb86df053e23d42ee90d2b9dd497bb1d90b54a7afcb801d887353ab6d0`, 116,705 bytes. It contains 25 pinned members: baseline Rust/Lean sources and toolchain at `9a74a70a32ebda716a00c7203d8e606343cf442a`, the exact R24 contract and manifest, schema revision 1, and the selected callback block.
+- Every manifest member was SHA-256 checked against its pinned baseline or receipt. The archive was reopened; extracted bytes matched all member hashes. The schema canonical digest is `686c96c8f8b5417b075a18954f773ad4071996e51e809d65040a87441c342c3c`; the callback block hash is `163fb480ec7ecaed2c341253066a7c6cc3af1a0cf5499c384f0cad4952c64e18`.
+- No Rust runtime file changed and no Cargo, Lean/Lake, formatter, test, or runtime process ran. Rust remains paused. The archive lease is frozen to the recorded SHA; the four exact Lean output leases remain held for `/root/r24_lean`.
+- Lean may begin from this archive after its launch acknowledgement is recorded and Luna's pushed current-state ACK arrives. Rust resumes only after its separate Luna ACK; schema revision 1 remains immutable.
