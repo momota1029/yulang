@@ -38,3 +38,5 @@ Machine-only repair launch receipt: Rust author acknowledged start at 2026-10-29
 Machine repair slice froze at 2026-10-29T22:06:56Z (30s from 22:06:26Z, exceeding its 20s sub-bound by 10s). Exact machine.rs SHA-256 `bf5a2819d256658ef3d93cc73a0adee467113e83f3126ebaa9247f54f8378241`. Delta: three ViewHandle `.0` reads use existing `index()`; added `#[cfg(test)] pub(super)` ValueHandle index accessor. ReceiptHandle uses untouched. No build/runtime; STOP and no Cargo/rustc. Charge 30s: Rust remaining 217s; only 15s of the <=45s source-repair bound remains.
 
 Sequential lease: machine.rs is frozen at the above hash. Luna now reopens only `isolated/ep-owner-certificate-r27/project/tools/inference-playground/src/runtime/receiving.rs` for a <=15-second final repair slice; machine.rs remains frozen.
+
+Receiving-only repair launch receipt: Rust author acknowledged start at 2026-10-29T22:07:51Z. Only reopened receiving.rs active; machine.rs remains frozen at bf5a2819d256658ef3d93cc73a0adee467113e83f3126ebaa9247f54f8378241. <=15s remaining source bound; no commands.
