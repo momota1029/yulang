@@ -1,0 +1,109 @@
+{
+  "schema": "effect-permission-owner-certificate-r27-v1",
+  "purpose": "test-only certificate for immutable template/node lookup, owner replay and complete retained outer-frame projection",
+  "source_domain": [
+    "approved callback source returns 1",
+    "original-suffix-outer-receiver.yu returns 23"
+  ],
+  "required_top_level": [
+    "schema",
+    "route",
+    "run_id",
+    "captured_template",
+    "owner_replay",
+    "frame_projection",
+    "request_consumer",
+    "mutations"
+  ],
+  "captured_template": {
+    "required": [
+      "handle",
+      "root",
+      "declaration",
+      "original_event",
+      "nodes"
+    ],
+    "node_variants": [
+      "Hole",
+      "Bind(inner, frame)",
+      "Owner(inner, original)",
+      "ForwardHandler(inner, handler, environment, owner)",
+      "View(inner, original)"
+    ],
+    "lookup_rule": "resolve the exact pair (handle,node_index) against the immutable ResumeTemplate stored by the owning machine; require the resolved node to be TemplateNode::Owner and preserve every traversed root/inner edge",
+    "prohibitions": [
+      "caller-supplied node labels",
+      "positive-index-only checks",
+      "substring owner matching",
+      "arbitrary caller-supplied invocation identity"
+    ]
+  },
+  "owner_replay": {
+    "required": [
+      "template_handle",
+      "node_index",
+      "resolved_control",
+      "control_before",
+      "chosen_owner",
+      "disposition",
+      "previous_owner",
+      "owner_return_frame"
+    ],
+    "disposition": [
+      "borrowed_active_owner",
+      "fresh_invocation"
+    ],
+    "rule": "the actual immutable node lookup, control-map resolution, branch disposition, chosen owner and pushed OwnerReturn must form one ordered source-derived replay"
+  },
+  "frame_projection": {
+    "required": [
+      "origin",
+      "frames",
+      "start_endpoint",
+      "end_endpoint",
+      "complete"
+    ],
+    "origin": [
+      "saved_template_suffix",
+      "retained_outer_stack"
+    ],
+    "each_frame": [
+      "absolute_index",
+      "kind",
+      "owner_or_event_identity",
+      "predecessor",
+      "successor"
+    ],
+    "rule": "retain complete ordered projection with explicit source-derived endpoints and mandatory connected boundaries; saved suffix and retained outer frames are distinct projections"
+  },
+  "request_consumer": {
+    "required": [
+      "request_id",
+      "operation",
+      "source_owner",
+      "request_owner",
+      "catch_or_receiver_consumer",
+      "lineage_from_capture",
+      "lineage_to_consumer"
+    ],
+    "rule": "link the captured template through replay and the complete outer projection to the distinct write operation's actual receiving consumer; permission, request creation, consumer handling and residual flow remain distinct"
+  },
+  "mutations": {
+    "required_cases": [
+      "wrong_positive_node_index",
+      "delete_required_boundary",
+      "alter_borrowed_fresh_disposition",
+      "disconnect_write_lineage",
+      "no_op_target_guard"
+    ],
+    "each_case_requires": [
+      "target_present",
+      "before_value",
+      "after_value",
+      "applicable_record_changed",
+      "validator_rejected"
+    ],
+    "rule": "a mutation is invalid evidence unless it proves that the intended target existed and the applicable certificate record changed before rejection is asserted"
+  },
+  "authority": "test-only observations and validators; no runtime semantics, source fixture, expected output, production implementation, source-domain, dependency or theorem-scope change"
+}
