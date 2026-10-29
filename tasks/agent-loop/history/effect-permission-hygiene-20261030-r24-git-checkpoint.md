@@ -35,3 +35,5 @@
 - Every manifest member was SHA-256 checked against its pinned baseline or receipt. The archive was reopened; extracted bytes matched all member hashes. The schema canonical digest is `686c96c8f8b5417b075a18954f773ad4071996e51e809d65040a87441c342c3c`; the callback block hash is `163fb480ec7ecaed2c341253066a7c6cc3af1a0cf5499c384f0cad4952c64e18`.
 - No Rust runtime file changed and no Cargo, Lean/Lake, formatter, test, or runtime process ran. Rust remains paused. The archive lease is frozen to the recorded SHA; the four exact Lean output leases remain held for `/root/r24_lean`.
 - Lean may begin from this archive after its launch acknowledgement is recorded and Luna's pushed current-state ACK arrives. Rust resumes only after its separate Luna ACK; schema revision 1 remains immutable.
+
+- Frozen-input checkpoint commit: `23798f70ec07e3f35f4f02235ca69460610dd9b0` (`research: freeze R24 hygiene inputs`); outbound range `d8ab0693c..23798f70e`, exactly `current.json`, this checkpoint receipt, and the archive. Push succeeded; remote verification returned `23798f70ec07e3f35f4f02235ca69460610dd9b0`.
