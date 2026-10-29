@@ -1,0 +1,45 @@
+{
+  "schema": "yulang-r23-closeout-v1",
+  "sprint": "CALLBACK-SOURCE-TRANSITIONS/20261030-R23",
+  "status": "CLOSED_INCOMPLETE — PREFLIGHT_REJECTED / CORRECTION_BUDGET_EXHAUSTED",
+  "contract_sha256": "a2da16deb4475a7e602505d2fd6f44ce823b7ef8088d72d83299d3cf86106443",
+  "input_manifest_sha256": "53834c90872ec05adc761b5dd0aba9c5c2bc91dd5c63249fbd954626ec06d639",
+  "review": {
+    "reviewer": "/root/effect_permission_owner_consumer_r22_review",
+    "disposition": "REJECT / STOP; no Cargo cleared",
+    "frozen_hashes": {
+      "machine.rs": "0116f875bc5df81f1321c4f13ca49e7745b67d02c52976fc216dabbfc7c7aab6",
+      "receiving.rs": "cfac5fcbc875f24172cc9027ace1169a2901614f25d1822f5f922e206ac7dd2e",
+      "program.rs": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907",
+      "source-transitions.json": "bc1bdb6f4c840c1cf2cc602adf8de5ccaf92d121a0c89b2c700fce54140303fb",
+      "handoff-rev2": "a7ae2e7eed07e4c4c17fbbd5e705c996fa206fd62fd1851134dfb3729e090af1"
+    },
+    "blockers": [
+      "machine.rs:1738,1773: Result ? used in Option::and_then closures",
+      "machine.rs:4259,4279: usize invocation IDs compared to ExecutionOwner",
+      "machine.rs:4198 onward: required identity/missing-record/order/lost-write mutation rejection absent",
+      "machine.rs:4233,4246,4310,4318-4343: substring-selected Catch data, unused exact arm, and missing companion inner-signal/retained-write owner join"
+    ],
+    "ordinal_correction": "ACCEPTED as a repair to the earlier same-step ordering defect only"
+  },
+  "correction_session_2": {
+    "state": "STOPPED; no revision; rev2 hashes unchanged",
+    "elapsed": "UNKNOWN; worker reported conservative over-cap stop",
+    "charged_wall_upper_bound_seconds": 309,
+    "cumulative_rust_charged_seconds": 1155,
+    "cumulative_rust_remaining_seconds": 245,
+    "cargo_and_handoff_reserve_seconds": 245,
+    "cargo_ran": false
+  },
+  "lean_lane": "NOT_STARTED",
+  "runtime_behavior": "UNOBSERVED",
+  "open_gates": [
+    "original parent theorem",
+    "source/native correspondence",
+    "effect hygiene",
+    "soundness",
+    "principality",
+    "termination",
+    "production"
+  ]
+}

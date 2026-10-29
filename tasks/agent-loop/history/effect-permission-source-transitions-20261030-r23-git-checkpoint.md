@@ -44,3 +44,11 @@
 - Outbound range: `4914eca7e..f344e0b64`, 2 files (`current.json` and this receipt).
 - `git push origin yulang3` succeeded; `git ls-remote origin refs/heads/yulang3` returned `f344e0b6404a758635a7ac7729b493e3a1502534`.
 - This checkpoint links the correction-session launch receipt before the resumed Rust worker's source/harness writes.
+
+
+## R23 preflight-rejection closeout base
+
+- Prior pushed commit: `dce4064b984d95689c0fe77418c48b6cc35156ef` (`research: sync R23 pushed checkpoint pointer`).
+- Outbound range from the preceding checkpoint: `f344e0b64..dce4064b9`, 2 files (`current.json` and this receipt).
+- Push to `origin/yulang3` succeeded; `git ls-remote` verified `dce4064b984d95689c0fe77418c48b6cc35156ef`.
+- This commit synchronized the pointer to the prior correction-launch checkpoint. R23's rejection/closeout record follows as its own exact-path checkpoint.
