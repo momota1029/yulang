@@ -1,0 +1,125 @@
+{
+  "schema": "effect-permission-native-evidence-r25-inputs-v1",
+  "sprint": "ANNOTATION-HYGIENE-NATIVE-EVIDENCE/20261030-R25",
+  "branch_admission_commit": "32f93ca422f2986b85b235864f6d576b3ed78794",
+  "isolated_source_base_commit": "9a74a70a32ebda716a00c7203d8e606343cf442a",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-native-evidence-20261030-r25.md",
+    "sha256": "6bcc5d6bb5b2482564af254a6efdd7da1d3c95f162c91f9ba0d58d6e3861d3ba"
+  },
+  "prior_sprint": {
+    "path": "tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-outcome.md",
+    "sha256": "d2dd2d91d9bed9efb8f85e05997dfe4f7053512061f72dd6cd377fef3dd08b74",
+    "status": "CLOSED_INCOMPLETE"
+  },
+  "fixed_dependencies": [
+    {
+      "path": "tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-preclose-current.json",
+      "sha256": "e1080a08f13e8331be89f9c790b65ca135767dcd28f26ceaceda09a210498510"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-hygiene-20261030-r24.md",
+      "sha256": "4fc63b868a8e61f8b4a5c1c59e6dccc4e8b6aa4e8e9afa24985c0408654ac39b"
+    },
+    {
+      "name": "schema R1",
+      "sha256": "686c96c8f8b5417b075a18954f773ad4071996e51e809d65040a87441c342c3c"
+    },
+    {
+      "path": "isolated/ep-hygiene-r24/project/receipts/hygiene.json",
+      "sha256": "e455690d6873880567ddadbe7cd5273da424f1e0fbffc2c80ebee59676b98b1e"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-review-r2.md",
+      "sha256": "e9f8fd15d2013cd2552bd5b4010095a2a44c6732a850abda26a85e83d901b10c",
+      "verdict": "REJECT; diagnostic evidence only"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-hygiene-r24-rust.md",
+      "sha256": "4ea000db4daa12c12dd4de965213d1005bc88e1ec4d36cc08d651aa9f5301d28"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-lean-audit.md",
+      "sha256": "6a79da852c1cf0bef4593ba7e7bda54497430d9dd0187f252ac4d55bb4a7beb7",
+      "claim": "two failed audits; candidate unchecked"
+    },
+    {
+      "path": "isolated/ep-hygiene-r24/project/notes/theory/lean/YulangClosure/CallbackHygieneCorrespondence.lean",
+      "sha256": "4bb9eafe2c0f7123c4d43722083190b9f7c78c2e0f6661160c5ccc56da1f7083",
+      "claim": "constructed but unchecked; not a proof prerequisite"
+    }
+  ],
+  "authority_and_parent": [
+    {
+      "path": "notes/design/2026-10-10-annotation-effect-hygiene-integration.md",
+      "sha256": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18"
+    },
+    {
+      "path": "notes/design/2026-10-24-birth-level-scc-intrusion.md",
+      "sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae"
+    },
+    {
+      "path": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md",
+      "sha256": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-hygiene-20261030-r24-git-checkpoint.md",
+      "sha256": "4365f45a3401ddec8b4ea2823e108bdb87a203c3760a4439dcc5038095ec6e64"
+    }
+  ],
+  "rust_baseline": [
+    {"path": "Cargo.toml", "sha256": "a8852982d5a3ff4d159aa546767b217000d50c9ff8617ac139700885bf5b090a"},
+    {"path": "Cargo.lock", "sha256": "de2c030452a0764cbeb459e2545585a880edc6683a8acceaea45276e24b67ca5"},
+    {"path": "tools/inference-playground/Cargo.toml", "sha256": "87e77de221b023c1c9f07e90f1ce6a692a56e8bb398eca4725f4910254be0a56"},
+    {"path": "tools/inference-playground/src/runtime/mod.rs", "sha256": "b7184e3869b4790cb0e2e72704e4a1b2f12df7772b441144b8ef63ab33e2fe4f"},
+    {"path": "tools/inference-playground/src/runtime/machine.rs", "sha256": "4fe3de685650761767be313285321e548964b41900c3aae7f5f434d48034395d"},
+    {"path": "tools/inference-playground/src/runtime/receiving.rs", "sha256": "e6b22598a0d11a21fba260cdbc5b4ace3690cf9b21e51beb61d8cc967511fffd"},
+    {"path": "tools/inference-playground/src/runtime/program.rs", "sha256": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907"},
+    {"path": "tools/inference-playground/examples/original-suffix-outer-receiver.yu", "sha256": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7"}
+  ],
+  "worktree_authentication": {
+    "path": "isolated/ep-hygiene-r25/project",
+    "head": "9a74a70a32ebda716a00c7203d8e606343cf442a",
+    "status": "clean at intake; all rust_baseline entries independently matched"
+  },
+  "output_paths": [
+    "isolated/ep-hygiene-r25/project/tools/inference-playground/src/runtime/machine.rs",
+    "isolated/ep-hygiene-r25/project/tools/inference-playground/src/runtime/receiving.rs",
+    "isolated/ep-hygiene-r25/project/tools/inference-playground/src/runtime/program.rs",
+    "isolated/ep-hygiene-r25/project/receipts/hygiene.json",
+    "isolated/ep-hygiene-r25/project/build-target",
+    "tasks/agent-loop/inbox/effect-permission-hygiene-r25-rust.md"
+  ],
+  "resource_envelope_seconds": {
+    "total": 5600,
+    "rust": 2600,
+    "independent_review": 1800,
+    "luna_primary": 1200,
+    "astra": 0
+  },
+  "cargo_policy": {
+    "compile_only_command": "cargo check --tests --locked --offline -p yu-playground",
+    "compile_only_max_seconds": 120,
+    "test_command": "cargo test --locked --offline -p yu-playground",
+    "test_max_invocations": 2,
+    "test_combined_seconds": 240,
+    "each_seconds": 120,
+    "cpus": 1,
+    "max_rss_bytes": 2147483648,
+    "min_available_ram_bytes": 4294967296,
+    "requires_fresh_exact_hash_accept": true,
+    "one_heavy_process_at_a_time": true
+  },
+  "review_policy": {
+    "role": "compiler_referee",
+    "identity": "/root/r24_rust_compile_review",
+    "fresh_nonauthor": true,
+    "total_seconds": 1800,
+    "stages_seconds": {
+      "compile_only_gate": 300,
+      "source_and_runtime_preflight": 600,
+      "final_native_evidence": 900
+    },
+    "same_referee_may_review_revisions": true
+  }
+}
