@@ -1,0 +1,68 @@
+{
+  "schema": "effect-permission-native-evidence-r26-inputs-r2-v1",
+  "sprint": "ANNOTATION-HYGIENE-NATIVE-EVIDENCE/20261030-R26",
+  "branch_admission_commit": "fa2c3dcafbe412d4dd0c627b5f955f8e1429e83a",
+  "isolated_source_base_commit": "9a74a70a32ebda716a00c7203d8e606343cf442a",
+  "supersedes": {
+    "contract_r1": {
+      "path": "tasks/agent-loop/sprints/effect-permission-native-evidence-20261030-r26.md",
+      "sha256": "8b2fcc72995472465b23fc397f257d07a035b0b1ba15f8f62ee31ae705dc11e5"
+    },
+    "inputs_r1": {
+      "path": "tasks/agent-loop/sprints/effect-permission-native-evidence-20261030-r26-inputs.json",
+      "sha256": "ec31c06563e6835101647272ce46930be55230481862621d8757b1193387e97d"
+    },
+    "schema_r1_canonical_sha256": "686c96c8f8b5417b075a18954f773ad4071996e51e809d65040a87441c342c3c",
+    "resource_amendment_01": {
+      "path": "tasks/agent-loop/sprints/effect-permission-native-evidence-20261030-r26-amendment-01.md",
+      "sha256": "e5a0b0b90843c71eca1a87ac43a155e007c05b4bf79b6ad0ba3b6fc9122f752a"
+    }
+  },
+  "amendment_r2": {
+    "path": "tasks/agent-loop/sprints/effect-permission-native-evidence-20261030-r26-amendment-02.md",
+    "sha256": "72c9bb96cf5e651dcb8a551bbffb8ad5b2477def0d0a1ab354469cc051acdd7b",
+    "authority": "Luna primary; sequential additive test-only observation schema"
+  },
+  "observation_schema_r2": {
+    "path": "tasks/agent-loop/sprints/effect-permission-native-evidence-20261030-r26-schema-r2.json",
+    "canonical_sha256": "118319c84980812e0a2bf5f5f4c968ddd4fba2fd08cdac0a65ca841510c0f9e7",
+    "raw_sha256": "e767fb0c71752691c4ca953621105a1c7a1f4b3f5809423a71c30588d2d1a5ee"
+  },
+  "r1_rejected_candidate": [
+    {
+      "path": "isolated/ep-hygiene-r26/project/tools/inference-playground/src/runtime/machine.rs",
+      "sha256": "f171392e1a9b68711c27f04e1f934221eac60d67a45ede1ad16624effb910c5a"
+    },
+    {
+      "path": "isolated/ep-hygiene-r26/project/tools/inference-playground/src/runtime/receiving.rs",
+      "sha256": "dffb3fa5ce3d9437b347840e56fe5da80a143b358745f251838f66fa3065a23f"
+    },
+    {
+      "path": "isolated/ep-hygiene-r26/project/tools/inference-playground/src/runtime/program.rs",
+      "sha256": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907"
+    },
+    {
+      "path": "isolated/ep-hygiene-r26/project/receipts/hygiene.json",
+      "sha256": "ddf902f94f3aef547b8d55780db71e51119e33bb03a5ba6de5edfb2d06c5c496"
+    }
+  ],
+  "r2_authority": {
+    "exact_rust_paths": [
+      "isolated/ep-hygiene-r26/project/tools/inference-playground/src/runtime/machine.rs",
+      "isolated/ep-hygiene-r26/project/tools/inference-playground/src/runtime/receiving.rs",
+      "isolated/ep-hygiene-r26/project/tools/inference-playground/src/runtime/program.rs",
+      "isolated/ep-hygiene-r26/project/receipts/hygiene.json",
+      "isolated/ep-hygiene-r26/project/build-target",
+      "tasks/agent-loop/inbox/effect-permission-hygiene-r26-rust.md"
+    ],
+    "scope": "test-only observations at existing owner resolution and continuation capture sites; no runtime or language semantic change",
+    "resource_caps_seconds": {
+      "repair_and_freeze": 400,
+      "compile_only_after_fresh_accept": 120,
+      "runtime_total_after_separate_accept": 240,
+      "handoff": 40
+    },
+    "compile_runtime_authority": "not granted by this amendment; fresh exact-hash review and separate ACK required",
+    "lean": "frozen conditional projection; no further audit"
+  }
+}

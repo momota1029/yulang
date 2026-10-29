@@ -1,0 +1,73 @@
+{
+  "additions": {
+    "ContinuationCapture.outer_control_chain": {
+      "frame_variants": {
+        "CatchReturn": [
+          "frame_index",
+          "handler_occurrence",
+          "handler_owner",
+          "handler_site"
+        ],
+        "OwnerReturn": [
+          "frame_index",
+          "owner",
+          "owned",
+          "previous_owner",
+          "invocation_call",
+          "invocation_provider"
+        ],
+        "ReceiverReturn": [
+          "frame_index",
+          "activation",
+          "previous_owner",
+          "invocation_call",
+          "invocation_provider"
+        ]
+      },
+      "observation_site": "Machine::capture_template at the existing ContinuationCapture record.",
+      "observation_time": "Snapshot the actual retained machine frame stack at capture; preserve frame indices and original stack order.",
+      "scope": "Record every listed owner/control boundary actually present in the retained frame stack, in stack order. Keep the inner signal Catch identity joinable by exact event, handler occurrence, source site and owner; keep surrounding outer receiver/control entries distinct.",
+      "separate_from": "PendingRequest.suffix and HygieneSuffixEvidence. The outer chain must not be appended to suffix or reported as captured suffix membership."
+    },
+    "TemplateOwnerResolution": {
+      "fields": {
+        "control_resolved_owner": "resolve_control(original_owner, active control map).",
+        "disposition": "BorrowedActive when the resolved owner is reused; FreshInvocation when the existing code creates a fresh invocation.",
+        "node_index": "Exact node index within that template.",
+        "original_owner": "Owner stored in TemplateNode::Owner.original.",
+        "previous_owner": "current_owner immediately before this Owner node.",
+        "selected_owner": "Actual owner selected by the existing active-owner or fresh-invocation branch.",
+        "template": "Exact TemplateHandle being entered."
+      },
+      "fresh_link": "When FreshInvocation is selected, preserve the exact invocation identity and link it to the existing OwnerOpen call/provider record; do not mint or alter an owner for observation.",
+      "observation_site": "Machine::enter_template, TemplateNode::Owner arm",
+      "observation_time": "After resolve_control and borrowed/fresh owner selection, before assigning current_owner and entering inner node.",
+      "ordering": "The record follows the matching ContinuationApply and precedes execution of the resumed inner node and any retained write Request."
+    }
+  },
+  "extends_revision": "R1",
+  "extends_schema_sha256": "686c96c8f8b5417b075a18954f773ad4071996e51e809d65040a87441c342c3c",
+  "non_goals_and_open_premises": [
+    "No runtime or language semantic change, no new grant authority, no fixture or expected-output change.",
+    "R2 observations alone do not establish native Grant, RootComp image/receipt reachability, History construction, original A/B closure, whole-language effect hygiene, soundness, principality, termination or production approval.",
+    "The R1 Lean module stays frozen with its reviewed conditional interpretation; any R2-to-Lean applicability requires separate final review and does not trigger another Lean audit."
+  ],
+  "preserved_r1_invariants": [
+    "Every R1 transition and field keeps its original meaning and observation time.",
+    "ContinuationApply records invocation of the continuation; it is not a later owner-resolution event.",
+    "ContinuationCapture.suffix records only frames actually saved in PendingRequest.suffix.",
+    "Runtime owner selection, activity checks, control-map resolution, freshening, receiver behavior, RootComp behavior and grants are unchanged."
+  ],
+  "revision": "R2",
+  "schema": "effect-permission-native-evidence-observation-schema",
+  "schema_sha256": "118319c84980812e0a2bf5f5f4c968ddd4fba2fd08cdac0a65ca841510c0f9e7",
+  "semantic_changes": false,
+  "test_only": true,
+  "validator_obligations": [
+    "Join ContinuationApply to the exact template, then to the actual TemplateOwnerResolution event; never equate application owner with retained Request.owner absent an observed transition.",
+    "Join retained write Request and CatchCandidate/CatchCommit to the exact outer CatchReturn installation/control chain and its actual resolved owner.",
+    "Check event order and reject substitutions/removals of template, node, original/resolved/selected/previous owner, disposition, outer boundary, handler occurrence/site, request event and chain ordering.",
+    "Keep ContinuationResponse value and view joins independent from control-owner joins, then link both to the exact retained write request.",
+    "Preserve and exercise all earlier callback/companion mutation families and exact source/result checks (1 and 23)."
+  ]
+}
