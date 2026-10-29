@@ -120,7 +120,14 @@
   },
   "review_verdict": "ACCEPT conditional failed-execution checkpoint; two major future instrumentation limitations recorded",
   "remaining": "No runtime trace, selected-call application, native correspondence, original parent closure or production conformance",
-  "git_checkpoint": "pending primary integration receipt",
+  "git_checkpoint": {
+    "receipt": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-git-checkpoint.md",
+    "receipt_sha256": "0d7721504d48230420d4c7c8266ae307b76163cad92b8ef36df1ac2927f8e9d5",
+    "commit": "23703cfe4ac48da7faed0e1bc17dee22a3aa7e91",
+    "remote": "origin/yulang3",
+    "pushed": true,
+    "range": "871de7c6dca9c2645ad10bad231f05c46392b244..23703cfe4ac48da7faed0e1bc17dee22a3aa7e91"
+  },
   "rust_source_snapshot": {
     "record": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-rust-snapshot/README.json",
     "sha256": "37b36a46e95f43211633d581ea8207673ccb04e3ef32e91b35b8ec71bc21d2ef"

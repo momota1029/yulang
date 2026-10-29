@@ -62,15 +62,23 @@
     "termination",
     "production conformance"
   ],
-  "git_checkpoint": "pending primary integration receipt",
+  "git_checkpoint": {
+    "receipt": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-git-checkpoint.md",
+    "receipt_sha256": "0d7721504d48230420d4c7c8266ae307b76163cad92b8ef36df1ac2927f8e9d5",
+    "commit": "23703cfe4ac48da7faed0e1bc17dee22a3aa7e91",
+    "remote": "origin/yulang3",
+    "pushed": true,
+    "from": "871de7c6dca9c2645ad10bad231f05c46392b244",
+    "to": "23703cfe4ac48da7faed0e1bc17dee22a3aa7e91"
+  },
   "outcome_record": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-outcome.md",
   "review_record": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-review.md",
   "review_findings": [
     "same-call invocation/arena identity is not enforced by the frozen test hooks",
     "session journal .take() lacks a direct owning-transition before/after observation"
   ],
-  "outcome_sha256": "27c6480fc5026057fd6ccc3f12a3385f2a5fef355b4ffab2504877db1ca874cf",
+  "outcome_sha256": "ea603658b1a843ff340595247bfa18b1fe42fc844e797ec60fd3b9240a69a169",
   "review_sha256": "4d5f54ffd2da9d64bf216733c8eda6d1cb6578eb3539e1c63155ef5ead82da3d",
   "state_archive": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-state-archive.json",
-  "state_archive_sha256": "99f117b97ed1c55f4441528836a8865f105374b0f8bcd2bf981a326aac23a860"
+  "state_archive_sha256": "158a41160a3177a579f03746c211cc3d4d781990965bcd10281b10828a8bc722"
 }

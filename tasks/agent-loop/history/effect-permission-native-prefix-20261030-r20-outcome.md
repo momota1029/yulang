@@ -34,4 +34,4 @@ R18's native active-journal premise, R19 native-call exclusion, the original sou
 
 The selector's sprint-end recommendation is to pursue the approved annotated-relay permission-to-consumer path next. A successor probe must preserve the original source domain and quantifiers, include the build dependency in its explicit isolated leases, and fix same-call identity plus owner-transition observation before accepting any trace. It must keep every prior OPEN gate open unless its own evidence closes that exact obligation.
 
-The two producers froze all writes and had no descendants. Independent review is accepted for this exact failure checkpoint. The primary's separate Git receipt records the coherent checkpoint and push disposition.
+The two producers froze all writes and had no descendants. Independent review is accepted for this exact failure checkpoint. The primary's [Git receipt](effect-permission-native-prefix-20261030-r20-git-checkpoint.md) records the coherent checkpoint and push disposition.
