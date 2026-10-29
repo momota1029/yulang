@@ -1,0 +1,114 @@
+{
+  "schema": "effect-permission-owner-certificate-r27-schema-r2-v1",
+  "supersedes_schema_r1_sha256": "15eeaa3fdb4243dfbbea19fd752f30d1cb858d75f38352144b34d42c59bd2bf8",
+  "purpose": "test-only certificate for capture-time outer Owner identity, immutable template/node lookup, owner replay and complete retained outer-frame projection",
+  "source_domain": [
+    "approved callback source returns 1",
+    "original-suffix-outer-receiver.yu returns 23"
+  ],
+  "required_top_level": [
+    "schema",
+    "route",
+    "run_id",
+    "captured_template",
+    "owner_replay",
+    "frame_projection",
+    "request_consumer",
+    "mutations"
+  ],
+  "captured_template": {
+    "required": [
+      "handle",
+      "root",
+      "declaration",
+      "original_event",
+      "nodes"
+    ],
+    "node_variants": [
+      "Hole",
+      "Bind(inner, frame)",
+      "Owner(inner, original)",
+      "ForwardHandler(inner, handler, environment, owner)",
+      "View(inner, original)"
+    ],
+    "capture_shape": "capture_template appends the capture-time outer TemplateNode::Owner after the saved-suffix nodes, sets its inner edge to the preceding root, then sets ResumeTemplate.root to the appended node index.",
+    "lookup_rule": "resolve exact (handle,node_index) from the owning immutable ResumeTemplate; require node_index == captured_template.root == captured_template.nodes.len()-1; require nodes[node_index] == TemplateNode::Owner { inner: prior_root, original: containing }; validate the root/inner edge against the source-derived captured layout.",
+    "prohibitions": [
+      "caller-supplied node labels",
+      "positive-index-only checks",
+      "substring owner matching",
+      "arbitrary caller-supplied invocation identity",
+      "accepting another Owner at a different valid index as the capture-time outer Owner"
+    ]
+  },
+  "owner_replay": {
+    "required": [
+      "template_handle",
+      "capture_root_index",
+      "node_index",
+      "resolved_control",
+      "control_before",
+      "chosen_owner",
+      "disposition",
+      "previous_owner",
+      "owner_return_frame"
+    ],
+    "disposition": [
+      "borrowed_active_owner",
+      "fresh_invocation"
+    ],
+    "rule": "capture_root_index must be read from the immutable template; node_index must equal capture_root_index and the final appended Owner coordinate; actual node lookup, control-map resolution, branch disposition, chosen owner and pushed OwnerReturn form one ordered source-derived replay."
+  },
+  "frame_projection": {
+    "required": [
+      "origin",
+      "frames",
+      "start_endpoint",
+      "end_endpoint",
+      "complete"
+    ],
+    "origin": [
+      "saved_template_suffix",
+      "retained_outer_stack"
+    ],
+    "each_frame": [
+      "absolute_index",
+      "kind",
+      "owner_or_event_identity",
+      "predecessor",
+      "successor"
+    ],
+    "rule": "retain complete ordered projection with source-derived endpoints and mandatory connected boundaries; saved suffix and retained outer frames are distinct projections."
+  },
+  "request_consumer": {
+    "required": [
+      "request_id",
+      "operation",
+      "source_owner",
+      "request_owner",
+      "catch_or_receiver_consumer",
+      "lineage_from_capture",
+      "lineage_to_consumer"
+    ],
+    "rule": "link captured template through replay and complete outer projection to the distinct write operation actual receiving consumer; permission, request creation, consumer handling and residual flow remain distinct."
+  },
+  "mutations": {
+    "required_cases": [
+      "wrong_positive_node_index",
+      "delete_required_boundary",
+      "alter_borrowed_fresh_disposition",
+      "disconnect_write_lineage",
+      "no_op_target_guard"
+    ],
+    "wrong_positive_node_index": "prefer an alternate valid Owner coordinate if one exists; reject because it is not captured_template.root, even though it is an Owner; otherwise use a wrong in-bounds coordinate and reject exact coordinate mismatch.",
+    "each_case_requires": [
+      "target_present",
+      "before_value",
+      "after_value",
+      "applicable_record_changed",
+      "validator_rejected"
+    ],
+    "rule": "a mutation is invalid evidence unless the intended target exists and the applicable certificate record changed before rejection is asserted."
+  },
+  "authority": "test-only observations and validators; no runtime semantics, source fixture, expected output, production implementation, source-domain, dependency or theorem-scope change"
+}

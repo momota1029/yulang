@@ -1,0 +1,131 @@
+{
+  "schema": "effect-permission-owner-certificate-r27-inputs-v1",
+  "sprint": "EFFECT-PERMISSION-OWNER-CERTIFICATE/20261030-R27",
+  "branch": "yulang3",
+  "branch_admission_base": "68dd3616e6b3b31cae67bd855c14d919beedde0b",
+  "clean_source_baseline": "9a74a70a32ebda716a00c7203d8e606343cf442a",
+  "worktree_commit": "68dd3616e6b3b31cae67bd855c14d919beedde0b",
+  "runtime_identity_check": {
+    "method": "SHA-256 of each clean Git blob at source baseline and branch admission base",
+    "result": "equal for machine.rs, receiving.rs, continuation.rs, program.rs, and the companion fixture"
+  },
+  "source_hashes_sha256_at_worktree_commit": {
+    "tools/inference-playground/src/runtime/machine.rs": "4fe3de685650761767be313285321e548964b41900c3aae7f5f434d48034395d",
+    "tools/inference-playground/src/runtime/receiving.rs": "e6b22598a0d11a21fba260cdbc5b4ace3690cf9b21e51beb61d8cc967511fffd",
+    "tools/inference-playground/src/runtime/continuation.rs": "194e925c2e19816e05e8d0cdf773123f205dce47d36d83a70385daa07a77e2b3",
+    "tools/inference-playground/src/runtime/program.rs": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907",
+    "tools/inference-playground/src/main.rs": "39b0dc40148fa87468b44e7406ea0b9a08269043fe2379c553c486930b63cece",
+    "tools/inference-playground/Cargo.toml": "87e77de221b023c1c9f07e90f1ce6a692a56e8bb398eca4725f4910254be0a56",
+    "tools/inference-playground/README.md": "681af715b51d236cabd2aaf481eea43abd36f114a841d49d3bcd520ef2c85f8c",
+    "tools/inference-playground/examples/original-suffix-outer-receiver.yu": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7",
+    "Cargo.lock": "de2c030452a0764cbeb459e2545585a880edc6683a8acceaea45276e24b67ca5",
+    "notes/theory/lean/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "notes/theory/lean/lakefile.toml": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4",
+    ".agents/skills/yulang-lean-proofs/SKILL.md": "05346b8c6e3d9cdd1715da1774bb26cf7bce313233782240b3493bd9ee8754a7",
+    ".agents/skills/yulang-lean-proofs/scripts/check_lean.py": "a4f10b70297cbf4d8b5bc0c7526bc29783eaf417f1f70e53eeea341d1150dde6"
+  },
+  "approved_callback_source": {
+    "sha256": "163fb480ec7ecaed2c341253066a7c6cc3af1a0cf5499c384f0cad4952c64e18",
+    "expected_result": 1,
+    "text": "act signal:\n    our ping: () -> int\n\nmy relay(cb: () -> [signal] int) = catch cb() {\n    signal::ping(), _ -> 1,\n    v -> v\n}\nmy answer = relay signal::ping\n"
+  },
+  "companion_fixture": {
+    "path": "tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+    "sha256": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7",
+    "expected_result": 23
+  },
+  "governing_inputs": {
+    "effect_policy": {
+      "path": "notes/design/2026-10-10-annotation-effect-hygiene-integration.md",
+      "sha256": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18"
+    },
+    "original_parent_source_preservation": {
+      "path": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md",
+      "sha256": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271"
+    },
+    "birth_level_scc_correction": {
+      "path": "notes/design/2026-10-24-birth-level-scc-intrusion.md",
+      "sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae"
+    },
+    "lean_parent_contracts": {
+      "path": "notes/theory/lean/YulangClosure/Contracts.lean",
+      "sha256": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e"
+    },
+    "r26_rejected_candidate_archive": {
+      "path": "tasks/agent-loop/history/effect-permission-native-evidence-20261030-r26-r2-rejected-candidate-snapshot.tar.gz",
+      "sha256": "9de55a878ad07a3488e43d59a2f0d9984baf884d786bca4f53a2b290c40ef75a"
+    },
+    "r26_accepted_conditional_lean_overlay": {
+      "source_path": "isolated/ep-hygiene-r26/project/notes/theory/lean/YulangClosure/CallbackHygieneCorrespondence.lean",
+      "sha256": "0621f43739c12ce1e7919a50de129414a4748d8359bf46740babd69f4854011e",
+      "authority": "read-only overlay; 22 abstract conditional declarations; not source/native closure"
+    },
+    "r26_outcome": {
+      "path": "tasks/agent-loop/history/effect-permission-native-evidence-20261030-r26-outcome.md",
+      "sha256": "60b3bbf722a97961ae8f821487e82d060de9024342b7762a91b1c053ced8366a"
+    },
+    "schema": {
+      "path": "tasks/agent-loop/sprints/effect-permission-owner-certificate-20261030-r27-schema-r2.json",
+      "sha256": "84187379d1a81b1965c34c027e7532198bebc4c4110eaa1c05808bada6bf6d8c"
+    }
+  },
+  "authority": {
+    "exact_rust_paths": [
+      "isolated/ep-owner-certificate-r27/project/tools/inference-playground/src/runtime/machine.rs",
+      "isolated/ep-owner-certificate-r27/project/tools/inference-playground/src/runtime/receiving.rs",
+      "isolated/ep-owner-certificate-r27/project/receipts/owner-certificate.json",
+      "isolated/ep-owner-certificate-r27/project/build-target",
+      "tasks/agent-loop/inbox/effect-permission-owner-certificate-r27-rust.md"
+    ],
+    "exact_lean_paths": [
+      "isolated/ep-owner-certificate-r27/project/notes/theory/lean/YulangClosure/TemplateOwnerReplay.lean",
+      "isolated/ep-owner-certificate-r27/project/notes/theory/lean/.lake",
+      "isolated/ep-owner-certificate-r27/lean-scratch",
+      "tasks/agent-loop/inbox/effect-permission-owner-certificate-r27-proof.md"
+    ],
+    "review": "one fresh read-only compiler_referee; no author self-review",
+    "candidate_compile_and_runtime": "prohibited until frozen exact-hash review ACCEPT and a separate Luna stage authorization"
+  },
+  "commands": {
+    "callback_baseline": "cargo run -q -p yu-playground --bin yu-playground -- --run answer -",
+    "companion_baseline": "cargo run -q -p yu-playground --bin yu-playground -- --run-module tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+    "cargo_budget_seconds_total": 360,
+    "lean_toolchain": "leanprover/lean4:v4.35.0",
+    "lean_audits_max": 2,
+    "lean_audit_seconds_total": 120,
+    "heavy_process_concurrency": 1
+  },
+  "resource_envelope_seconds": {
+    "total": 7200,
+    "rust": 1550,
+    "lean": 800,
+    "independent_review": 1000,
+    "luna_primary": 3850,
+    "luna_closeout_reserve": 500,
+    "astra": 0
+  },
+  "parent_status": "OPEN; no original quantifier, source-domain, effect-hygiene, soundness, principality, termination, native/source, or production gate closes in this sprint",
+  "revision": "r2",
+  "supersedes": {
+    "inputs_r1": {
+      "path": "tasks/agent-loop/sprints/effect-permission-owner-certificate-20261030-r27-inputs.json",
+      "sha256": "4a7f4f5e2f9892d2a4f9f2cf6721be4e7b975b823d9798914819a8eb3062a878"
+    },
+    "schema_r1": {
+      "path": "tasks/agent-loop/sprints/effect-permission-owner-certificate-20261030-r27-schema.json",
+      "sha256": "15eeaa3fdb4243dfbbea19fd752f30d1cb858d75f38352144b34d42c59bd2bf8"
+    }
+  },
+  "baseline_command_revision": {
+    "revision": "r2",
+    "reason": "r1 Cargo invocation was ambiguous among three binaries and exited 101 before source entry; add the exact yu-playground binary selector.",
+    "r1_reported_results": {
+      "callback_status": 101,
+      "callback_elapsed_seconds": 0.121,
+      "companion_status": 101,
+      "companion_elapsed_seconds": 0.019,
+      "reported_cause": "Cargo could not select among inline_authentic_extraction, name_entry_trace, and yu-playground"
+    },
+    "source_execution_attempted": false
+  }
+}
