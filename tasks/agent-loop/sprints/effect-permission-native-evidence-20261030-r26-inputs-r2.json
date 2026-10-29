@@ -64,5 +64,12 @@
     },
     "compile_runtime_authority": "not granted by this amendment; fresh exact-hash review and separate ACK required",
     "lean": "frozen conditional projection; no further audit"
+  },
+  "r1_preserved_snapshot": {
+    "path": "tasks/agent-loop/history/effect-permission-native-evidence-20261030-r26-r1-candidate-snapshot.tar.gz",
+    "sha256": "94a81f34e37b7418809cf1b4f618e8d060f7afbd52231388649b80df938b85ef",
+    "contents": "Three runtime sources, R1 hygiene receipt, Rust handoff, and embedded exact-hash inventory; build-target was absent.",
+    "inventory_member": "inventory.json",
+    "inventory_sha256": "19e3da6112f6b24ff54a33fd84836287212fcccd2e2a9606de0855c86b271f76"
   }
 }
