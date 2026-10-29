@@ -20,3 +20,10 @@
 - Selector disposition: keep the R23 goal and semantics; correct within the existing three-file lease before review. Mint a monotonically increasing observation ordinal at the owning hooks and retain machine step separately. Drive a test-only ordinary-runtime harness from both exact source texts; record arm return `1` and the companion's same-source `write` request plus outer consumer. If either ordinary source route rejects, freeze that first failure without changing semantic guards.
 - Bounded continuation: same Rust identity, fresh correction session, <=700 seconds for correction/refreeze, <=240 seconds Cargo only after exact-hash ACCEPT, <=5 seconds handoff reserve. Stop on the cap; no implicit extension. The same fresh referee receives the new frozen revision; reviewer budget remains unspent.
 - No reviewer has launched. Rust source, receipt and handoff are frozen pending the explicit correction-session resume.
+
+## R23 correction-boundary checkpoint
+
+- Commit: `45b926034bf6b75e2f60c91419337e2ed0f6e7d1` (`research: record R23 preflight correction boundary`).
+- Outbound range: `7fbd621fdec12513d04dfad16fdab579504b5400..45b926034bf6b75e2f60c91419337e2ed0f6e7d1`, 2 files (`current.json` and this receipt).
+- `git push origin yulang3` succeeded; `git ls-remote origin refs/heads/yulang3` returned the same commit.
+- This checkpoint records the frozen preflight-1 risk and the selector-authorized bounded correction admission before any reviewer or correction worker launch.
