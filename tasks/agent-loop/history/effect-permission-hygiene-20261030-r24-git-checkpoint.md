@@ -67,3 +67,5 @@
 - Worker `/root/r24_lean` read-only verified the frozen authority supplement at SHA-256 `dc622dedc31252abaec131f4e39efcd2366956d0bfd897d424b8227cb84f69fd`; inventory SHA `7f9ea22819f1a6f9cc982e76770b624daf1b8061ee8aea21b0cb94a0b11996d6`; all 18 member hashes match. Skill and execution/source references are present. No writes, extraction or Lean/Lake/Cargo executions occurred during this verification.
 - Fresh continuation acknowledgement received for the same four exact Lean outputs after the initial 180-second conservative charge; remaining original Lean cap is 1,620 seconds. The supplement and first archive stay frozen; schema R1 is unchanged. This records readiness only; actual Lean start follows the pushed current-state ACK.
 - Rust remains in its disjoint source-edit phase and has not run Cargo. Lean/Lake heavy work and any future Cargo process remain serialized.
+
+- Lean-resumption checkpoint commit: `99c24719e193758f24cc1a4029526b2ba49810d6` (`research: resume R24 Lean proof lane`); outbound range `6666c846f..99c24719e`, exactly `current.json` and this receipt. Push succeeded; remote verification returned `99c24719e193758f24cc1a4029526b2ba49810d6`.
