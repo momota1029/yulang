@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "sprint": "EFFECT-PERMISSION-CANDIDATE-CALL-JOURNAL/20261030-r19",
+  "status": "CLOSED_INCOMPLETE_CONDITIONAL; SOURCE_PREFIX_OPEN",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-candidate-call-journal-20261030-r19.md",
+    "sha256": "626bde02d87b7205530e5fb4c90598f4f7d2aad7c4e442fcce1d7d9b332be565"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-candidate-call-journal-20261030-r19-inputs.json",
+    "sha256": "3ba699f81d0a6f9f88cc63e3df744194cd758ace5ae636098b80870a020013c3",
+    "entries": 200,
+    "mismatches": 0,
+    "authenticated_entries": 200
+  },
+  "source_handoff": {
+    "path": "tasks/agent-loop/inbox/effect-permission-candidate-call-journal-r19-source.md",
+    "sha256": "e3cc387457f6362a650376cbbb093d5600e1ad3eb7f838f76fa488144d3ccd4c",
+    "author": "/root"
+  },
+  "proof": {
+    "state": "STOPPED_FROZEN",
+    "worker": "/root/effect_permission_candidate_call_journal_r19_lean",
+    "requested_model": "gpt-6.1-sol",
+    "observed_model": "UNKNOWN",
+    "budget_seconds": 600,
+    "artifact": "notes/theory/lean/YulangClosure/FormalPermissionCandidateCallJournal.lean",
+    "handoff": "tasks/agent-loop/inbox/effect-permission-candidate-call-journal-r19-proof.md",
+    "artifact_sha256": "7796394c7cc312f2a403d82fe938c31b7d3c2dc4092ad1c53ef6729496f4f83a",
+    "handoff_sha256": "bd09cd149957ac91f0c56905de0e7457e337e6f5cdb826816dc6b8972152c6b2",
+    "worker_audit": {
+      "lean": "4.35.0",
+      "exit_code": 0,
+      "seconds": 2.35,
+      "max_rss_kib": 975388
+    }
+  },
+  "review": {
+    "state": "ACCEPT_CONDITIONAL",
+    "reviewer": "/root/effect_permission_candidate_call_journal_r19_review",
+    "findings": {
+      "blocking": 0,
+      "major": 0,
+      "minor": 0
+    },
+    "verdict": "Conditional presence-projection artifact accepted; actual native selected-call exclusion remains OPEN.",
+    "report": "authenticated read-only message receipt; no file writes"
+  },
+  "limits": {
+    "active_seconds": 1200,
+    "lean_audits": 2,
+    "audit_each_seconds": 90,
+    "audit_combined_seconds": 120,
+    "astra_assignments": 0
+  },
+  "gate_status": {
+    "selected_call_journal_exclusion": "CONDITIONAL_MODEL_ONLY; actual graph-plan prefix/native input correspondence OPEN",
+    "native_reachability": "OPEN",
+    "original_parent": "OPEN",
+    "production": "OPEN"
+  },
+  "source_addendum": {
+    "path": "tasks/agent-loop/inbox/effect-permission-candidate-call-journal-r19-source-addendum.md",
+    "sha256": "52e188ffa8874091ba57fb1938bc168f68154f079e0cf6cd44e3ed53f734e4a3",
+    "author": "/root",
+    "purpose": "map Session route transactions to R18 BranchTermArena journal"
+  },
+  "primary_audit": {
+    "lean": "4.35.0",
+    "command": "check_lean.py against isolated fresh project; 12 roots (8 R19 + 4 inherited R18)",
+    "exit_code": 0,
+    "seconds": 19.4,
+    "max_rss_kib": 975488,
+    "stdout_sha256": "dcd66aad0832a4a582a00f2d9442e7235b2948d2108af7a5deede55b1bd46858",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "resources_sha256": "0b8aee233cf5f49daae67dcbae394f111ff458bf9ed548d0b0471defc385f351",
+    "axioms": "Eight new roots: propext only except failed_preparation_clears: none. Four inherited R18 reports match."
+  },
+  "review_boundary": "The reviewer found the local model valid but did not authenticate every graph-plan member/provider prefix or identify a native TupleInput with computed atCallInput. No native exclusion or five-event bound.",
+  "git_checkpoint": {
+    "state": "COMMITTED_AND_PUSHED",
+    "commit": "5bab984a0d57cf8d2f1fe9636751128fccdb9897",
+    "remote": "origin/yulang3",
+    "receipt": "tasks/agent-loop/history/effect-permission-candidate-call-journal-20261030-r19-git-checkpoint.md",
+    "receipt_sha256": "34ba299ab9af1a4069d56b6d5f5bc1c897b24cca530cb6c1e51271ea92f33ac7",
+    "outcome": "tasks/agent-loop/history/effect-permission-candidate-call-journal-20261030-r19-outcome.md",
+    "outcome_sha256": "179f5dc8ab849b8ef9e7df9bff2262617dd2fcb62fde6ecdbc0a55e80d23a60e"
+  }
+}
