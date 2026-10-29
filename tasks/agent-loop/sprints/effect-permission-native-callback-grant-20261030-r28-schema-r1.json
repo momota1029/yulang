@@ -1,0 +1,239 @@
+{
+  "schema": "effect-permission-native-callback-grant-r28-v1",
+  "purpose": "test-only source-owned callback Grant certificate plus separate companion owner/request-consumer evidence",
+  "source_domain": {
+    "callback": {
+      "sha256": "163fb480ec7ecaed2c341253066a7c6cc3af1a0cf5499c384f0cad4952c64e18",
+      "expected_result": 1,
+      "annotation_policy": "contravariant concrete signal permission at the resolved callback formal/port; permission does not add signal to actual inflow"
+    },
+    "companion": {
+      "path": "tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+      "sha256": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7",
+      "selected_main_expected_result": 23
+    }
+  },
+  "required_top_level": [
+    "schema",
+    "callback_route",
+    "companion_route",
+    "mutations"
+  ],
+  "callback_route": {
+    "required": [
+      "source_identity",
+      "annotation_permission",
+      "callback_entry",
+      "parameter_name_read",
+      "callback_use",
+      "result_execution",
+      "request_event",
+      "local_grant",
+      "catch_consumer",
+      "result"
+    ],
+    "annotation_permission": {
+      "required": [
+        "source_root",
+        "lambda_occurrence",
+        "formal_id",
+        "composed_polarity",
+        "typed_port",
+        "resolved_effect_identity"
+      ],
+      "rule": "permission is source-owned by the resolved annotation/formal/port and current invocation; retain the resolved effect identity, not a display-name match"
+    },
+    "callback_entry": {
+      "required": [
+        "invocation_owner",
+        "callback_value_id",
+        "incoming_view_id",
+        "entry_view_id",
+        "formal_receipt_id",
+        "formal_receipt_owner",
+        "formal_receipt_source_slot"
+      ],
+      "rule": "read entry and receipt from their owning stores; link the entry to the same invocation and resolved formal"
+    },
+    "parameter_name_read": {
+      "required": [
+        "source_site",
+        "entry_id",
+        "owner",
+        "view_id",
+        "receipt_id",
+        "receipt_formal_absent"
+      ],
+      "rule": "the source Name read is the actual direct parameter-name Apply callee; no identifier spelling substitutes for the receipt/site join"
+    },
+    "callback_use": {
+      "required": [
+        "entry_id",
+        "invocation_owner",
+        "source_view_id",
+        "callee_site",
+        "apply_site",
+        "result_view_id",
+        "result_receipt_id"
+      ],
+      "rule": "use joins to the exact entry, Name receipt, source view, Apply occurrence and result receipt"
+    },
+    "result_execution": {
+      "required": [
+        "use_id",
+        "result_view_id",
+        "result_receipt_id",
+        "execution_occurrence",
+        "owner",
+        "authenticated_execution"
+      ],
+      "rule": "execution is minted by the result view/receipt constructor and is live in the owning execution table"
+    },
+    "request_event": {
+      "required": [
+        "event_id",
+        "resolved_effect_identity",
+        "payload_id",
+        "source_site",
+        "request_owner",
+        "lineage_owner",
+        "origin_execution_id",
+        "emitted_and_pending"
+      ],
+      "rule": "request/event is an actual emitted contribution with the callback execution as origin; permission and request are separate records"
+    },
+    "local_grant": {
+      "required": [
+        "query_event",
+        "query_owner",
+        "active_invocation",
+        "observed_execution_id",
+        "observed_event",
+        "requested_effect_identity",
+        "callback_grant_result"
+      ],
+      "rule": "the reported true result comes from the owning local_grant/callback_grant constructors and the authenticated observation; preserve each exact owner/view/formal/receipt/event/effect join"
+    },
+    "catch_consumer": {
+      "required": [
+        "request_event_id",
+        "handler_id",
+        "handler_source_site",
+        "owner",
+        "arm_id",
+        "arm_source_site",
+        "resolved_operation_identity",
+        "selected_result"
+      ],
+      "rule": "the selected handler and arm consume this actual request; result value alone is not an identity witness"
+    },
+    "result": {
+      "required": [
+        "selected_main_value",
+        "stdout",
+        "exit_status"
+      ],
+      "expected_selected_main_value": 1
+    },
+    "lean_projection": {
+      "requires": [
+        "Entry",
+        "NameRead",
+        "CallbackUse",
+        "Execution",
+        "Request",
+        "Permission",
+        "Consumer"
+      ],
+      "target": "YulangClosure.CallbackHygieneCorrespondence.PortReady and CatchReady",
+      "rule": "derive projected constructors from source-owned records; do not supply a target predicate, History, or Grant result as an unexplained premise"
+    }
+  },
+  "companion_route": {
+    "required": [
+      "selected_main_value",
+      "stdout",
+      "exit_status",
+      "captured_template",
+      "owner_replay",
+      "complete_frame_projection",
+      "write_request_consumer",
+      "surviving_write_evidence"
+    ],
+    "expected_selected_main_value": 23,
+    "captured_template": [
+      "handle",
+      "root",
+      "declaration",
+      "original_event",
+      "nodes"
+    ],
+    "owner_replay": [
+      "template_handle",
+      "capture_root_index",
+      "node_index",
+      "resolved_control",
+      "control_before",
+      "chosen_owner",
+      "borrowed_or_fresh_disposition",
+      "previous_owner",
+      "owner_return_frame"
+    ],
+    "complete_frame_projection": {
+      "required": [
+        "origin",
+        "frames_in_pop_order",
+        "start_endpoint",
+        "end_endpoint",
+        "complete"
+      ],
+      "frame_fields": [
+        "absolute_index",
+        "kind",
+        "owner_or_event_identity",
+        "predecessor",
+        "successor"
+      ],
+      "rule": "saved template suffix and retained outer stack are separate; every mandatory owner/receiver/handler boundary is present and endpoint-connected"
+    },
+    "write_request_consumer": {
+      "required": [
+        "request_id",
+        "resolved_operation_identity",
+        "source_owner",
+        "request_owner",
+        "consumer_identity",
+        "lineage_from_capture",
+        "lineage_to_consumer"
+      ]
+    },
+    "surviving_write_evidence": {
+      "rule": "record the actual write contribution that remains after the signal handler; do not infer whole-support deletion or treat callback permission as unconditional removal"
+    }
+  },
+  "mutations": {
+    "callback_required_cases": [
+      "wrong_invocation_owner",
+      "wrong_formal_or_receipt",
+      "wrong_result_view_or_use",
+      "wrong_event_or_request_origin",
+      "wrong_resolved_effect_identity"
+    ],
+    "companion_required_cases": [
+      "wrong_positive_node_index",
+      "delete_required_boundary",
+      "alter_borrowed_fresh_disposition",
+      "disconnect_write_lineage",
+      "no_op_target_guard"
+    ],
+    "each_case_requires": [
+      "target_present",
+      "before_value",
+      "after_value",
+      "applicable_record_changed",
+      "validator_rejected"
+    ],
+    "rule": "absent targets are reported as inapplicable and cannot be counted as successful rejection mutations"
+  },
+  "authority": "test-only observations and validators plus a bounded Lean source projection; no compiler behavior, source fixtures, expected output, dependencies, parent quantifiers, or production authority change"
+}
