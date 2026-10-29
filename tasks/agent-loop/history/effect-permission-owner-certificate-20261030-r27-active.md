@@ -1,0 +1,19 @@
+# R27 active-work launch receipt
+
+Sprint: EFFECT-PERMISSION-OWNER-CERTIFICATE/20261030-R27
+Session: R27-20261030
+Admission commit: 8dec716d4f44e9d17b2f3add629ffb730dceea4f (pushed and verified at origin/yulang3).
+Worktree intake commit: fa930ad4e912df7edfd7b015f3888c5a0551c65f (pushed); detached source worktree remains at 68dd3616e6b3b31cae67bd855c14d919beedde0b.
+
+At 2026-10-29T20:46:26TUTC, the primary synchronized the live roster. The Rust author /root/effect_permission_owner_certificate_r27_rust and proof author /root/effect_permission_owner_certificate_r27_proof are both RUNNING in this session. The live tool returned both exact task identities; opaque child session IDs and observed model/effort are unavailable and remain UNKNOWN. Rust requested implementer / gpt-6-luna-high. Proof requested lean_prover; configured observed model/effort remain UNKNOWN. Neither author may launch descendants.
+
+Exact Rust leases: isolated worktree machine.rs, receiving.rs, receipts/owner-certificate.json, build-target, and the Rust handoff. Exact Lean leases: isolated TemplateOwnerReplay.lean, project .lake, lean-scratch, and proof handoff. The copied CallbackHygieneCorrespondence.lean is a verified read-only overlay at SHA-256 0621f43739c12ce1e7919a50de129414a4748d8359bf46740babd69f4854011e. The worktree's production inputs are clean committed Git bytes; no root runtime bytes were imported.
+
+Rust may now run the two bounded ordinary-entry baseline commands from the input manifest, serially. Candidate compilation/runtime still require fresh independent exact-hash ACCEPT and a separate Luna authorization. The proof author may inspect/construct while baseline Cargo runs but must not invoke Lean/Lake until Luna confirms Cargo is stopped and grants the serialized audit window. No worker Git operation is authorized. Budgets start from this receipt: Rust 1,550s (Cargo aggregate <=360s), Lean 800s (<=2 audits/120s), reviewer 1,000s, Luna 3,850s including 500s closeout; no prior budget transfer.
+
+
+## Bounded candidate compile result
+
+At 2026-10-29T21:56:19Z, Rust author /root/effect_permission_owner_certificate_r27_rust started the separately authorized compile-only command `timeout 120s env CARGO_TARGET_DIR=build-target CARGO_BUILD_JOBS=1 cargo check --locked --offline --tests -p yu-playground` in the isolated R27 project. It exited 101 at 21:56:40Z after 21.046 seconds. The captured output was truncated (365 lines/4,337 tokens); full stdout/stderr were not persisted. Recovered diagnostics show four E0277 errors in unrelated `tools/inference-playground/src/bin/inline_authentic_extraction.rs` at 191:29, 199:78, 205:45 and 262:44: `?` cannot convert `HirAvailabilityError` into `Box<dyn Error>`. No diagnostic pointed to frozen candidate `machine.rs`. CPU/RSS were unavailable. At exit, machine.rs SHA-256 remained `e52b66361c19741c14f11e635dad728793fb27e2b1f9673a596093d5057daf0d`; receiving.rs remained `7a8eeab787f127064d5689b1ee5fbbfc409b4a307905d0f42d538f5d3d628f25`. No retry, runtime, JSON generation or source write occurred; no cargo/rustc process remained at 21:56:55Z. Conservatively charge 22 seconds, leaving 250 Rust seconds. Runtime remains gated pending a new bounded next action and separate authorization.
+
+Dispatcher boundary recommendation: inspect an exact target/argv delta for `cargo test --locked --offline -p yu-playground --lib --no-run` under a fresh <=90-second grant. This targets library test compilation without executing tests or selecting the unrelated bin; obtain the exact-hash referee verdict and a new Luna compile authorization first. Runtime remains separately gated.
