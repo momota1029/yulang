@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "sprint": "EFFECT-PERMISSION-NATIVE-PREFIX/20261030-r20",
+  "status": "CLOSED_INCOMPLETE",
+  "outcome_class": "COMPILE_BLOCKED_BEFORE_RUNTIME",
+  "contract": "tasks/agent-loop/sprints/effect-permission-native-prefix-20261030-r20.md",
+  "contract_sha256": "49dc3bacbff9a536deaee6a45c0fe808ee7010c3eef4a73bb4b1a7d3019b822e",
+  "amendment": "tasks/agent-loop/sprints/effect-permission-native-prefix-20261030-r20-amendment-01.md",
+  "amendment_sha256": "203152e8f91f13091d02ed08558c479e9ac09cb7f655d7949828e11331a8cc72",
+  "inputs_manifest": "tasks/agent-loop/sprints/effect-permission-native-prefix-20261030-r20-inputs-r2.json",
+  "inputs_manifest_sha256": "ef67605cf9ed126de83d1cd434bee8afe2d86b43c38d6d2dcb31538fcb5150f4",
+  "baseline": "871de7c6dca9c2645ad10bad231f05c46392b244",
+  "rust": {
+    "receipt": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-rust-snapshot/native-prefix-receipt.json",
+    "receipt_sha256": "fa0b472bd0ce7477f8d082872439da3158e7f2d2c0fe92e9a46cc40a598e4e27",
+    "handoff": "tasks/agent-loop/inbox/effect-permission-native-prefix-r20-rust.md",
+    "handoff_sha256": "3007d3e1fb98364910ecf5c8a5837cfdfb5f1ccf001ef93d9d1f4167762af3c0",
+    "exit_status": 101,
+    "duration_seconds": 40.613,
+    "runtime_trace": null,
+    "native_input_fields": 21,
+    "native_input_fields_status": "all unavailable; test did not execute",
+    "retry": false,
+    "source_hashes_after_handoff": {
+      "candidate_effect.rs": "8d1603f91ec0f582fb0b4616f42d11eb51e87b1524bd58d3a4cb6b88eee37230",
+      "candidate_scheme.rs": "3fda40d2f6403022c9c49546e27599b87c0c9aaee0f0e5f70dd3e86e96e9f199",
+      "candidate_source.rs": "28a988aed00d2c203c287553cd71c77a5f4cf3a90c79ee63aa0439238351fc12",
+      "lib.rs": "c5b4fbde290dd36c5fa3818df7bffeea9dece1dc8370c50298a6651049420dc4",
+      "term.rs": "59282832b5972b919f0c790193732f8be2a6a464dcf742d6e07ba084e469d32c"
+    },
+    "source_snapshot": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-rust-snapshot/README.json",
+    "source_snapshot_sha256": "37b36a46e95f43211633d581ea8207673ccb04e3ef32e91b35b8ec71bc21d2ef",
+    "original_receipt": "isolated/ep-native-r20/project/receipts/native-prefix-receipt.json"
+  },
+  "lean": {
+    "artifact": "notes/theory/lean/YulangClosure/FormalPermissionNativePrefix.lean",
+    "artifact_sha256": "7129aae721bf07eeb9330540c833a3b7d6d225dea8dc9e722b6e207e2bbef0f1",
+    "handoff": "tasks/agent-loop/inbox/effect-permission-native-prefix-r20-proof.md",
+    "handoff_sha256": "886a0f5a9dceb7eda7aa11e9ea19dd919985ec72597facc3daa5f06834db743e",
+    "audited_roots": 4,
+    "audit1_seconds": 20.98,
+    "audit1_peak_rss_kib": 971900,
+    "audit2": "NOT_RUN",
+    "call_specific_application": "NOT_CONSTRUCTED",
+    "audit_log": "isolated/ep-native-r20/lean-scratch/audit-1.log",
+    "audit_log_sha256": "8bc0156cae58e97b777b8150c50ea8fdd720c89b802c3e119003233b60133966"
+  },
+  "independent_review": {
+    "reviewer": "/root/effect_permission_native_prefix_r20_review",
+    "role": "compiler_referee",
+    "verdict": "ACCEPT failed checkpoint as CLOSED_INCOMPLETE; two major successor instrumentation limitations",
+    "record": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-review.md"
+  },
+  "open_gates": [
+    "R18 native active-journal premise",
+    "R19 native selected-call exclusion",
+    "source/native correspondence",
+    "original parent theorem",
+    "effect hygiene and consumer correspondence",
+    "soundness",
+    "principality",
+    "termination",
+    "production conformance"
+  ],
+  "git_checkpoint": "pending primary integration receipt",
+  "outcome_record": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-outcome.md",
+  "review_record": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-review.md",
+  "review_findings": [
+    "same-call invocation/arena identity is not enforced by the frozen test hooks",
+    "session journal .take() lacks a direct owning-transition before/after observation"
+  ],
+  "outcome_sha256": "27c6480fc5026057fd6ccc3f12a3385f2a5fef355b4ffab2504877db1ca874cf",
+  "review_sha256": "4d5f54ffd2da9d64bf216733c8eda6d1cb6578eb3539e1c63155ef5ead82da3d",
+  "state_archive": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-state-archive.json",
+  "state_archive_sha256": "99f117b97ed1c55f4441528836a8865f105374b0f8bcd2bf981a326aac23a860"
+}

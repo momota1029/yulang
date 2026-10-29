@@ -1,0 +1,132 @@
+[
+  {
+    "path": "/home/momota1029/rust/yulang/tasks/agent-loop/sprints/effect-permission-candidate-call-journal-20261030-r19-inputs.json",
+    "sha256": "3ba699f81d0a6f9f88cc63e3df744194cd758ace5ae636098b80870a020013c3",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/tasks/agent-loop/history/effect-permission-candidate-call-journal-20261030-r19-outcome.md",
+    "sha256": "179f5dc8ab849b8ef9e7df9bff2262617dd2fcb62fde6ecdbc0a55e80d23a60e",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/tasks/agent-loop/sprints/effect-permission-candidate-call-journal-20261030-r19.md",
+    "sha256": "626bde02d87b7205530e5fb4c90598f4f7d2aad7c4e442fcce1d7d9b332be565",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/tasks/agent-loop/inbox/effect-permission-candidate-call-journal-r19-source.md",
+    "sha256": "e3cc387457f6362a650376cbbb093d5600e1ad3eb7f838f76fa488144d3ccd4c",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/tasks/agent-loop/inbox/effect-permission-candidate-call-journal-r19-source-addendum.md",
+    "sha256": "52e188ffa8874091ba57fb1938bc168f68154f079e0cf6cd44e3ed53f734e4a3",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/tasks/agent-loop/inbox/effect-permission-candidate-call-journal-r19-proof.md",
+    "sha256": "bd09cd149957ac91f0c56905de0e7457e337e6f5cdb826816dc6b8972152c6b2",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/notes/theory/lean/YulangClosure/FormalPermissionCandidateCallJournal.lean",
+    "sha256": "7796394c7cc312f2a403d82fe938c31b7d3c2dc4092ad1c53ef6729496f4f83a",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/tasks/agent-loop/sprints/effect-permission-structural-buffer-bound-20261029-r18-inputs.json",
+    "sha256": "4a7f3a8e1e75ba0b761b7c927a7b6eaaf87b559df041a6d52915cd360ce63439",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/notes/theory/lean/YulangClosure/FormalPermissionStructuralBufferBound.lean",
+    "sha256": "f9bfd9ea556128b27e850b5ca66934d46fd86d73a77bdfdbb3846142ad37abd7",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/tasks/agent-loop/history/effect-permission-structural-buffer-bound-20261029-r18-outcome.md",
+    "sha256": "1ea7eafd23ee38829f24a9c6f790538412f97998b7bc4a49207b999fa162ebb5",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/Cargo.toml",
+    "sha256": "a8852982d5a3ff4d159aa546767b217000d50c9ff8617ac139700885bf5b090a",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/Cargo.lock",
+    "sha256": "de2c030452a0764cbeb459e2545585a880edc6683a8acceaea45276e24b67ca5",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/crates/yu-solver/Cargo.toml",
+    "sha256": "aaf341e14643b73668552a3bf499f6410bdd0e9ad6ebeea1a5d6ef454d9494ed",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/notes/design/2026-10-10-annotation-effect-hygiene-integration.md",
+    "sha256": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/notes/design/2026-10-11-yulang-inference-top-level-principles.md",
+    "sha256": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/rules/goal-driven-sprints.md",
+    "sha256": "f2e01e3c33dc13d6c5cb77a66e7c5f0de15f08669f5a47fef0d6cb5c914da3a5",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/notes/theory/lean/lean-toolchain",
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/notes/theory/lean/lakefile.toml",
+    "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/notes/theory/lean/lake-manifest.json",
+    "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/notes/theory/lean/YulangClosure/OriginalEffectHygiene.lean",
+    "sha256": "926613078f1f3f2e197bff29793b120128f18d3676657af25db72eca47f2c89f",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/.agents/skills/yulang-lean-proofs/scripts/check_lean.py",
+    "sha256": "a4f10b70297cbf4d8b5bc0c7526bc29783eaf417f1f70e53eeea341d1150dde6",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/crates/yu-solver/src/candidate_effect.rs",
+    "sha256": "1f64d4fec8f2abceb11a48a51f5b615aa2cf605c9586ba742f15f9024a6a2717",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/crates/yu-solver/src/candidate_scheme.rs",
+    "sha256": "31ae5b9466a0f7bbd501c81e4401049ad9782636ba57ed89e8232e9149e8b707",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/crates/yu-solver/src/candidate_source.rs",
+    "sha256": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/crates/yu-solver/src/lib.rs",
+    "sha256": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07",
+    "matches": true
+  },
+  {
+    "path": "/home/momota1029/rust/yulang/crates/yu-solver/src/term.rs",
+    "sha256": "d253cd9a77ad91c523b413b25a503ef0c6bef47ee4b1f5b8492766531fe493a1",
+    "matches": true
+  }
+]

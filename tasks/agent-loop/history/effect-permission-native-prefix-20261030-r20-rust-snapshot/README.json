@@ -1,0 +1,16 @@
+{
+  "snapshot": "R20 frozen test-only instrumentation source snapshot; this is not production compiler source.",
+  "origin": "isolated/ep-native-r20/project/crates/yu-solver/src/",
+  "baseline": "871de7c6dca9c2645ad10bad231f05c46392b244",
+  "receipt": "native-prefix-receipt.json",
+  "receipt_sha256": "fa0b472bd0ce7477f8d082872439da3158e7f2d2c0fe92e9a46cc40a598e4e27",
+  "files": {
+    "candidate_effect.rs": "8d1603f91ec0f582fb0b4616f42d11eb51e87b1524bd58d3a4cb6b88eee37230",
+    "candidate_scheme.rs": "3fda40d2f6403022c9c49546e27599b87c0c9aaee0f0e5f70dd3e86e96e9f199",
+    "candidate_source.rs": "28a988aed00d2c203c287553cd71c77a5f4cf3a90c79ee63aa0439238351fc12",
+    "lib.rs": "c5b4fbde290dd36c5fa3818df7bffeea9dece1dc8370c50298a6651049420dc4",
+    "term.rs": "59282832b5972b919f0c790193732f8be2a6a464dcf742d6e07ba084e469d32c"
+  },
+  "execution": "The sole Cargo test-binary compilation exited 101 before runtime. Two local instrumentation fixes were applied after that command and remain uncompiled. No retry was made.",
+  "review_boundary": "Independent review found same-call identity is not enforced and session journal .take() lacks a direct owner-transition observation. This snapshot is preserved for that failed probe only; it establishes no source/native correspondence."
+}

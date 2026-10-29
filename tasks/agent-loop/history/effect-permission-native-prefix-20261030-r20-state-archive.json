@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "sprint": "EFFECT-PERMISSION-NATIVE-PREFIX/20261030-r20",
+  "closed_at_utc": "2026-10-29T16:02:43Z",
+  "status": "CLOSED_INCOMPLETE",
+  "outcome_class": "COMPILE_BLOCKED_BEFORE_RUNTIME",
+  "contract": "tasks/agent-loop/sprints/effect-permission-native-prefix-20261030-r20.md",
+  "contract_sha256": "49dc3bacbff9a536deaee6a45c0fe808ee7010c3eef4a73bb4b1a7d3019b822e",
+  "amendment": "tasks/agent-loop/sprints/effect-permission-native-prefix-20261030-r20-amendment-01.md",
+  "amendment_sha256": "203152e8f91f13091d02ed08558c479e9ac09cb7f655d7949828e11331a8cc72",
+  "inputs_manifest": "tasks/agent-loop/sprints/effect-permission-native-prefix-20261030-r20-inputs-r2.json",
+  "inputs_manifest_sha256": "ef67605cf9ed126de83d1cd434bee8afe2d86b43c38d6d2dcb31538fcb5150f4",
+  "baseline": "871de7c6dca9c2645ad10bad231f05c46392b244",
+  "previous_archive": {
+    "record": "tasks/agent-loop/history/effect-permission-candidate-call-journal-20261030-r19-state-archive.json",
+    "sha256": "88a49ab6c5ffa0c8f6e4388df250943c31dc93c099cfc56c0fd0e4d69cd8158c"
+  },
+  "outcome": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-outcome.md",
+  "evidence": "tasks/agent-loop/evidence/effect-permission-native-prefix-20261030-r20.json",
+  "review": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-review.md",
+  "workers": [
+    {
+      "id": "/root/effect_permission_native_prefix_r20_rust",
+      "role": "implementer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 900,
+      "session": "EFFECT-PERMISSION-NATIVE-PREFIX/20261030-R20",
+      "receipt": "STOPPED; frozen rev1; writes ceased; no descendants"
+    },
+    {
+      "id": "/root/effect_permission_native_prefix_r20_lean",
+      "role": "lean_prover",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 900,
+      "session": "EFFECT-PERMISSION-NATIVE-PREFIX/20261030-R20",
+      "receipt": "STOPPED; frozen rev1; writes ceased; no descendants"
+    },
+    {
+      "id": "/root/effect_permission_native_prefix_r20_review",
+      "role": "compiler_referee",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 300,
+      "receipt": "STOPPED; independent review complete",
+      "session": "EFFECT-PERMISSION-NATIVE-PREFIX/20261030-R20"
+    }
+  ],
+  "leases": [
+    {
+      "path": "isolated/ep-native-r20/project/crates/yu-solver/src/candidate_effect.rs",
+      "owner": "/root/effect_permission_native_prefix_r20_rust",
+      "state": "FROZEN"
+    },
+    {
+      "path": "isolated/ep-native-r20/project/crates/yu-solver/src/candidate_scheme.rs",
+      "owner": "/root/effect_permission_native_prefix_r20_rust",
+      "state": "FROZEN"
+    },
+    {
+      "path": "isolated/ep-native-r20/project/crates/yu-solver/src/candidate_source.rs",
+      "owner": "/root/effect_permission_native_prefix_r20_rust",
+      "state": "FROZEN"
+    },
+    {
+      "path": "isolated/ep-native-r20/project/crates/yu-solver/src/lib.rs",
+      "owner": "/root/effect_permission_native_prefix_r20_rust",
+      "state": "FROZEN"
+    },
+    {
+      "path": "isolated/ep-native-r20/project/crates/yu-solver/src/term.rs",
+      "owner": "/root/effect_permission_native_prefix_r20_rust",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-native-prefix-r20-rust.md",
+      "owner": "/root/effect_permission_native_prefix_r20_rust",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-native-prefix-r20-proof.md",
+      "owner": "/root/effect_permission_native_prefix_r20_lean",
+      "state": "FROZEN"
+    },
+    {
+      "path": "isolated/ep-native-r20/project/receipts/native-prefix-receipt.json",
+      "owner": "/root/effect_permission_native_prefix_r20_rust",
+      "state": "FROZEN"
+    },
+    {
+      "path": "isolated/ep-native-r20/lean-scratch",
+      "owner": "/root/effect_permission_native_prefix_r20_lean",
+      "state": "FROZEN"
+    },
+    {
+      "path": "isolated/ep-native-r20/project/build-target",
+      "owner": "/root/effect_permission_native_prefix_r20_rust",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/FormalPermissionNativePrefix.lean",
+      "owner": "/root/effect_permission_native_prefix_r20_lean",
+      "state": "FROZEN"
+    }
+  ],
+  "roster_sync": {
+    "method": "collaboration.list_agents",
+    "result": "R20 Rust, Lean and review identities completed; no active R20 descendants",
+    "notifications": "Rust and Lean lanes acknowledged final writes stopped; all handoffs frozen"
+  },
+  "review_verdict": "ACCEPT conditional failed-execution checkpoint; two major future instrumentation limitations recorded",
+  "remaining": "No runtime trace, selected-call application, native correspondence, original parent closure or production conformance",
+  "git_checkpoint": "pending primary integration receipt",
+  "rust_source_snapshot": {
+    "record": "tasks/agent-loop/history/effect-permission-native-prefix-20261030-r20-rust-snapshot/README.json",
+    "sha256": "37b36a46e95f43211633d581ea8207673ccb04e3ef32e91b35b8ec71bc21d2ef"
+  }
+}

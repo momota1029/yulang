@@ -1,0 +1,20 @@
+{
+  "YulangClosure.FormalPermissionArenaEvents": "02ef97716d882073ccb2e53c53bbf8046c80e82a517253898db5d1c02cd1b8b3",
+  "YulangClosure.FormalPermissionAuthenticatedNativeDecode": "ea97baf7c98becef27df9e0c416d8d5fb00e9e1b5b63f37021b01598231936dc",
+  "YulangClosure.FormalPermissionAuthenticatedSiteExport": "d6fc3e11f26350f6cf03d7afc248500778e3bf4a8ee816582630aa5f5feeeb84",
+  "YulangClosure.FormalPermissionCandidateCallJournal": "7796394c7cc312f2a403d82fe938c31b7d3c2dc4092ad1c53ef6729496f4f83a",
+  "YulangClosure.FormalPermissionCaptureConstruction": "181d5075e2fa3ed5f4adfe4029b368461638b6ac6f62341ec165e6e3980ee13c",
+  "YulangClosure.FormalPermissionConnectedCuts": "6427eed5f0c3b84f80a3a37c31797fc782960c725fb77f6bef46cebcc993b023",
+  "YulangClosure.FormalPermissionConstructorRealization": "70a89e7ea4589951e5f5e9323b4b2b415003c5868dc3f53ce16129fa67eafdd9",
+  "YulangClosure.FormalPermissionEventBuffer": "1886b763ebd493721cd6cb7d03f32ff3c43555587a53ccf4e0ee3c351c450b57",
+  "YulangClosure.FormalPermissionExportWitness": "7c01a80c8d8e868d9349a3d02ec2d465ca976edfb515e04b57161b5c9744a67f",
+  "YulangClosure.FormalPermissionExportWitnessNative": "a5ccf179ef6e5396adb46c18ced108052cba4022119efd0daa0d026b4c368de1",
+  "YulangClosure.FormalPermissionHelperFrames": "92531e0849a08a03a37bbb35315f01b831d31bdffb108712c5b0a4a7eaaa75dd",
+  "YulangClosure.FormalPermissionLiveCapture": "0e1bd4f2ae95e798561e014595e66ec9b6d9b342dbd2b15d0d5c9d346838c53e",
+  "YulangClosure.FormalPermissionSiteTraversal": "ac079ecc4c480adb4222723815b3f476469ed13b933c3994d090db0fae909207",
+  "YulangClosure.FormalPermissionSourceAllocation": "795e63e850f73d75f18f721224d3e0723c187a57c7437ffe3ef08a4dbd80648a",
+  "YulangClosure.FormalPermissionSourceInstance": "828eef57d8caaa538c8feb91ad023dc45eb41e421b4eb430532e383ee1c75e91",
+  "YulangClosure.FormalPermissionSourceOrigin": "db37f9d83e450a450d689b9eed46311108e635eb846d268b7a3a567dcee624fd",
+  "YulangClosure.FormalPermissionStructuralBufferBound": "f9bfd9ea556128b27e850b5ca66934d46fd86d73a77bdfdbb3846142ad37abd7",
+  "YulangClosure.FormalPermissionTermCallControl": "73bface0963c65eb76933ff8116594b161e78f1733b66e6be25cc174d1eb2dd7"
+}

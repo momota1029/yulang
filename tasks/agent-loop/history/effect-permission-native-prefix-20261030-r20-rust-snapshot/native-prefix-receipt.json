@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "sprint": "EFFECT-PERMISSION-NATIVE-PREFIX/20261030-r20",
+  "amendment": "tasks/agent-loop/sprints/effect-permission-native-prefix-20261030-r20-amendment-01.md",
+  "inputs_manifest": "tasks/agent-loop/sprints/effect-permission-native-prefix-20261030-r20-inputs-r2.json",
+  "assignment": "/root/effect_permission_native_prefix_r20_rust",
+  "requested_model": "gpt-6-luna",
+  "requested_effort": "high",
+  "observed_model": "UNKNOWN",
+  "observed_effort": "UNKNOWN",
+  "argv": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "-p",
+    "yu-solver",
+    "--features",
+    "shadow-apply-candidate",
+    "--lib",
+    "r20_native_prefix_selected_ordinary_candidate_trace",
+    "--",
+    "--nocapture"
+  ],
+  "cwd": "/home/momota1029/rust/yulang/isolated/ep-native-r20/project",
+  "started_utc": "2026-10-29T15:54:43Z",
+  "duration_seconds": 40.613,
+  "exit_status": 101,
+  "timed_out": false,
+  "resources": {
+    "available_ram_before_bytes": 28694102016,
+    "total_ram_bytes": 33503223808,
+    "cpu_affinity": [
+      0
+    ],
+    "address_space_limit_bytes": 2147483648,
+    "peak_process_tree_rss_sampled_bytes": 45875200,
+    "rss_sample_interval_seconds": 0.1,
+    "timeout_seconds": 180,
+    "cargo_target_dir": "/home/momota1029/rust/yulang/isolated/ep-native-r20/project/build-target"
+  },
+  "stdout": "",
+  "stderr": "   Compiling proc-macro2 v1.0.107\n   Compiling unicode-ident v1.0.24\n   Compiling quote v1.0.47\n   Compiling syn v2.0.119\n   Compiling strsim v0.11.1\n   Compiling fnv v1.0.7\n   Compiling ident_case v1.0.1\n   Compiling darling_core v0.21.3\n   Compiling darling_macro v0.21.3\n   Compiling darling v0.21.3\n   Compiling autocfg v1.5.1\n   Compiling memoffset v0.9.1\n   Compiling reborrow-generic-derive v0.1.1\n   Compiling seq-macro v0.3.6\n   Compiling reborrow-generic v0.1.2\n   Compiling hashbrown v0.14.5\n   Compiling countme v3.0.1\n   Compiling text-size v1.1.1\n   Compiling copy-range v0.1.1\n   Compiling rustc-hash v1.1.0\n   Compiling rowan v0.15.17\n   Compiling chasa v0.5.0\n   Compiling chasa-recover v0.2.0 (/home/momota1029/rust/yulang/isolated/ep-native-r20/project/crates/chasa-recover)\n   Compiling yu-syntax v0.1.0 (/home/momota1029/rust/yulang/isolated/ep-native-r20/project/crates/yu-syntax)\n   Compiling yu-hir v0.1.0 (/home/momota1029/rust/yulang/isolated/ep-native-r20/project/crates/yu-hir)\nwarning: field `0` is never read\n   --> crates/yu-hir/src/lib.rs:205:11\n    |\n205 |     Token(SyntaxToken),\n    |     ----- ^^^^^^^^^^^\n    |     |\n    |     field in this variant\n    |\n    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis\n    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default\nhelp: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field\n    |\n205 -     Token(SyntaxToken),\n205 +     Token(()),\n    |\n\nwarning: field `0` is never read\n   --> crates/yu-hir/src/lib.rs:206:15\n    |\n206 |     Synthetic(Vec<AssociationProvenance>),\n    |     --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^\n    |     |\n    |     field in this variant\n    |\n    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis\nhelp: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field\n    |\n206 -     Synthetic(Vec<AssociationProvenance>),\n206 +     Synthetic(()),\n    |\n\nwarning: struct `AssociatedFieldTailSource` is never constructed\n    --> crates/yu-hir/src/shadow.rs:1505:19\n     |\n1505 | pub(crate) struct AssociatedFieldTailSource<'a> {\n     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^\n\nwarning: methods `source`, `receiver`, and `receiver_provenance` are never used\n    --> crates/yu-hir/src/shadow.rs:1512:19\n     |\n1511 | impl<'a> AssociatedFieldTailSource<'a> {\n     | -------------------------------------- methods in this implementation\n1512 |     pub(crate) fn source(&self) -> &'a PendingFieldTailSource { self.source }\n     |                   ^^^^^^\n1513 |     pub(crate) fn receiver(&self) -> &'a HirExpr { self.receiver }\n     |                   ^^^^^^^^\n1514 |     pub(crate) fn receiver_provenance(&self) -> &'a AssociationProvenance { self.receiver_provenance }\n     |                   ^^^^^^^^^^^^^^^^^^^\n\nwarning: struct `AssociatedRoleImplSource` is never constructed\n    --> crates/yu-hir/src/shadow.rs:1518:19\n     |\n1518 | pub(crate) struct AssociatedRoleImplSource<'a> {\n     |                   ^^^^^^^^^^^^^^^^^^^^^^^^\n\nwarning: methods `source` and `node` are never used\n    --> crates/yu-hir/src/shadow.rs:1524:19\n     |\n1523 | impl<'a> AssociatedRoleImplSource<'a> {\n     | ------------------------------------- methods in this implementation\n1524 |     pub(crate) fn source(&self) -> &'a PendingRoleImplSource { self.source }\n     |                   ^^^^^^\n1525 |     pub(crate) fn node(&self) -> &'a SyntaxNode { self.node }\n     |                   ^^^^\n\nwarning: method `with_associated_method_role_sources` is never used\n    --> crates/yu-hir/src/shadow.rs:1977:19\n     |\n1611 | impl ShadowArtifact {\n     | ------------------- method in this implementation\n...\n1977 |     pub(crate) fn with_associated_method_role_sources<R>(\n     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nwarning: function `walk_associated_pairs` is never used\n    --> crates/yu-hir/src/shadow.rs:2831:4\n     |\n2831 | fn walk_associated_pairs<'a>(\n     |    ^^^^^^^^^^^^^^^^^^^^^\n\nwarning: `yu-hir` (lib) generated 8 warnings\n   Compiling yu-types v0.1.0 (/home/momota1029/rust/yulang/isolated/ep-native-r20/project/crates/yu-types)\n   Compiling yu-core v0.1.0 (/home/momota1029/rust/yulang/isolated/ep-native-r20/project/crates/yu-core)\n   Compiling yu-solver v0.1.0 (/home/momota1029/rust/yulang/isolated/ep-native-r20/project/crates/yu-solver)\nerror[E0609]: no field `text` on type `&yu_hir::SourceAnnotation`\n    --> crates/yu-solver/src/candidate_effect.rs:1887:67\n     |\n1887 |                 crate::native_prefix_r20_trace::quote(&annotation.text),\n     |                                                                   ^^^^ unknown field\n     |\n     = note: available fields are: `owner`, `position`, `ty`\n\nerror[E0063]: missing field `formal_capture_trace_id` in initializer of `candidate_scheme::Graph`\n    --> crates/yu-solver/src/shadow_apply.rs:4951:21\n     |\n4951 |         let graph = Graph {\n     |                     ^^^^^ missing `formal_capture_trace_id`\n\nerror[E0063]: missing field `formal_capture_trace_id` in initializer of `candidate_scheme::Graph`\n    --> crates/yu-solver/src/shadow_apply.rs:5064:21\n     |\n5064 |         let graph = Graph {\n     |                     ^^^^^ missing `formal_capture_trace_id`\n\nerror[E0277]: `RoutePurpose` doesn't implement `std::fmt::Debug`\n    --> crates/yu-solver/src/lib.rs:9345:95\n     |\n9345 |                 r20_transaction.unwrap_or(0), native_prefix_r20_trace::quote(&format!(\"{:?}\", purpose))\n     |                                                                                        ----   ^^^^^^^ `RoutePurpose` cannot be formatted using `{:?}` because it doesn't implement `std::fmt::Debug`\n     |                                                                                        |\n     |                                                                                        required by this formatting parameter\n     |\n     = help: the trait `std::fmt::Debug` is not implemented for `RoutePurpose`\n     = note: add `#[derive(Debug)]` to `RoutePurpose` or manually `impl std::fmt::Debug for RoutePurpose`\nhelp: consider annotating `RoutePurpose` with `#[derive(Debug)]`\n     |\n8454 + #[derive(Debug)]\n8455 | enum RoutePurpose { Fresh, RetainedResume }\n     |\n\nwarning: variable does not need to be mutable\n    --> crates/yu-solver/src/candidate_effect.rs:3639:13\n     |\n3639 |         let mut delegated_ports = typed_trace.iter().filter_map(|event| match event {\n     |             ----^^^^^^^^^^^^^^^\n     |             |\n     |             help: remove this `mut`\n     |\n     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default\n\nwarning: unused variable: `group_occurrence`\n   --> crates/yu-solver/src/shadow_apply/local_source_observation.rs:579:25\n    |\n579 |             for (group, group_occurrence, start, end, active) in solved.intrusion.observed_groups()\n    |                         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_group_occurrence`\n    |\n    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default\n\nwarning: unused variable: `group_occurrence`\n    --> crates/yu-solver/src/shadow_apply/local_source_observation.rs:1317:25\n     |\n1317 |                 for (_, group_occurrence, start, end, _) in solved.intrusion.observed_groups()\n     |                         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_group_occurrence`\n\nSome errors have detailed explanations: E0063, E0277, E0609.\nFor more information about an error, try `rustc --explain E0063`.\nwarning: `yu-solver` (lib test) generated 3 warnings\nerror: could not compile `yu-solver` (lib test) due to 4 previous errors; 3 warnings emitted\n",
+  "source_module": {
+    "identity": "r20-native-prefix-selected/source.yu",
+    "source_text": "my provider x = x\nmy selected (x: (int, bool)) = provider x\n",
+    "sha256": "dd54abda1087252a2e97023b7c279f33ac5ad8c27e81b97909b9919fbdef889e"
+  },
+  "machine_trace": null,
+  "trace_completeness": {
+    "status": "cargo_test_compile_blocked_before_runtime",
+    "first_missing_source_edge": "crate test binary compilation did not reach the R20 test; after the two R20-local diagnostics are corrected, the remaining unleased dependency edge is detached crates/yu-solver/src/candidate_scheme.rs::Graph.formal_capture_trace_id -> two Graph initializers in shadow_apply.rs (E0063). No source module, plan event, journal event, selected occurrence, or native call was executed.",
+    "compile_diagnostics_before_local_correction": [
+      "candidate_effect.rs referenced nonexistent SourceAnnotation.text",
+      "RoutePurpose lacked Debug"
+    ],
+    "unleased_dependency": {
+      "path": "crates/yu-solver/src/shadow_apply.rs",
+      "sha256": "2e0aba4d172e97dd60ba909a7aca873c109785f3d38cce46ddd033c70f64613d",
+      "main_tree_sha256": "c328e08662256b57ed9a31a4edd91e0832e9482cabb89952f204a89a78cf72ff",
+      "error": "two Graph initializers omit formal_capture_trace_id; this path is outside the Rust lease and was not modified"
+    },
+    "r18_tuple_input_fields": {
+      "children": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "lookup": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "positiveValueEndpoint": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "tupleCopyReserve": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "arcBacking": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "backingIdentity": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "payloadBytes": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "structuralReserve": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "cacheLookup": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "journalPresent": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "pageNeeded": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "interner": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "internedJournal": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "pageDescriptors": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "pagePositions": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "claimedPagesJournal": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "pageAllocation": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "pageClaim": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "internResult": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "pageSnapshot": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      },
+      "structuralSnapshot": {
+        "status": "unavailable_test_never_executed",
+        "first_missing_edge": "Cargo test compilation failed before source-to-native runtime"
+      }
+    }
+  },
+  "limitations": [
+    "test-only reversible observation instrumentation; runtime behavior not exercised",
+    "one authorized Cargo invocation consumed; no retry",
+    "no production semantic changes",
+    "actual parent theorem and production remain OPEN",
+    "source/native correspondence not established because the test binary did not compile"
+  ],
+  "source_files_sha256_after_command": {
+    "crates/yu-solver/src/candidate_effect.rs": "3584c2d42a34654aa47b99e1d483b3b83ccf90e03068ec9a69406dec279d7e3e",
+    "crates/yu-solver/src/candidate_scheme.rs": "3fda40d2f6403022c9c49546e27599b87c0c9aaee0f0e5f70dd3e86e96e9f199",
+    "crates/yu-solver/src/candidate_source.rs": "28a988aed00d2c203c287553cd71c77a5f4cf3a90c79ee63aa0439238351fc12",
+    "crates/yu-solver/src/lib.rs": "9d13e9c1d112417a1933c69bd00cdc4cf558f6e17211c449a3b96fd53659e3cc",
+    "crates/yu-solver/src/term.rs": "59282832b5972b919f0c790193732f8be2a6a464dcf742d6e07ba084e469d32c"
+  },
+  "source_files_sha256_after_handoff": {
+    "candidate_effect.rs": "8d1603f91ec0f582fb0b4616f42d11eb51e87b1524bd58d3a4cb6b88eee37230",
+    "candidate_scheme.rs": "3fda40d2f6403022c9c49546e27599b87c0c9aaee0f0e5f70dd3e86e96e9f199",
+    "candidate_source.rs": "28a988aed00d2c203c287553cd71c77a5f4cf3a90c79ee63aa0439238351fc12",
+    "lib.rs": "c5b4fbde290dd36c5fa3818df7bffeea9dece1dc8370c50298a6651049420dc4",
+    "term.rs": "59282832b5972b919f0c790193732f8be2a6a464dcf742d6e07ba084e469d32c"
+  }
+}

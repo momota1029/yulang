@@ -1,0 +1,178 @@
+cwd: /tmp/ep-native-r20-lean-20261030/project
+$ /home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake --version
+Lake version 5.0.0-src+eb6cafb (Lean version 4.35.0)
+[exit 0]
+cwd: /tmp/ep-native-r20-lean-20261030/project
+$ /home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake --no-cache env lean --version
+Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+[exit 0]
+cwd: /tmp/ep-native-r20-lean-20261030/project
+$ /home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake --no-cache build +YulangClosure.FormalPermissionNativePrefix
+✔ [2/20] Built YulangClosure.FormalPermissionCaptureConstruction (6.3s)
+✔ [3/20] Built YulangClosure.FormalPermissionLiveCapture (849ms)
+⚠ [4/20] Built YulangClosure.FormalPermissionSourceOrigin (1.0s)
+warning: YulangClosure/FormalPermissionSourceOrigin.lean:172:35: This simp argument is unused:
+  symbolic
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [constructPort, allowed] at built
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+✔ [5/20] Built YulangClosure.FormalPermissionConstructorRealization (638ms)
+✔ [6/20] Built YulangClosure.FormalPermissionExportWitness (963ms)
+✔ [7/20] Built YulangClosure.FormalPermissionExportWitnessNative (401ms)
+✔ [8/20] Built YulangClosure.FormalPermissionSiteTraversal (692ms)
+✔ [9/20] Built YulangClosure.FormalPermissionAuthenticatedSiteExport (353ms)
+✔ [10/20] Built YulangClosure.FormalPermissionAuthenticatedNativeDecode (1.0s)
+✔ [11/20] Built YulangClosure.FormalPermissionSourceAllocation (739ms)
+⚠ [12/20] Built YulangClosure.FormalPermissionSourceInstance (628ms)
+warning: YulangClosure/FormalPermissionSourceInstance.lean:64:6: This simp argument is unused:
+  Nat.add_assoc
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [afterOne, afterTwo, afterThree, afterFour, appendPermission, Allocator.push,
+    FormalPermissionAuthenticatedNativeDecode.retained, firstEntry, secondEntry, List.append_assoc]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+warning: YulangClosure/FormalPermissionSourceInstance.lean:187:52: This simp argument is unused:
+  FormalPermissionAuthenticatedNativeDecode.intLeaf
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [NoElementEffects, Annotation.effects]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+warning: YulangClosure/FormalPermissionSourceInstance.lean:210:54: This simp argument is unused:
+  FormalPermissionAuthenticatedNativeDecode.firstFunction
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [NoElementEffects, Annotation.effects]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+⚠ [13/20] Built YulangClosure.FormalPermissionHelperFrames (724ms)
+warning: YulangClosure/FormalPermissionHelperFrames.lean:266:0: Definition `functionFrames` is a proposition; use `theorem` instead of `def`
+
+Note: This linter can be disabled with `set_option linter.defProp false`
+⚠ [14/20] Built YulangClosure.FormalPermissionConnectedCuts (871ms)
+warning: YulangClosure/FormalPermissionConnectedCuts.lean:35:30: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: YulangClosure/FormalPermissionConnectedCuts.lean:35:30: This simp argument is unused:
+  if_pos rfl
+
+Hint: Omit it from the simp argument list.
+  [apply] simp only [stripPath] at h
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+warning: YulangClosure/FormalPermissionConnectedCuts.lean:232:6: This simp argument is unused:
+  List.drop_left
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [t, k, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13, afterOne, afterTwo, afterThree, afterFour,
+    appendPermission, Allocator.push, firstEntry, secondEntry, localEntryView, localEntry,
+    FormalPermissionAuthenticatedNativeDecode.firstPath, FormalPermissionAuthenticatedNativeDecode.secondPath,
+    FormalPermissionAuthenticatedNativeDecode.firstRow, FormalPermissionAuthenticatedNativeDecode.secondRow,
+    FormalPermissionAuthenticatedNativeDecode.retained, List.drop_length_add_append, List.append_assoc, length,
+    Nat.add_assoc]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+⚠ [15/20] Built YulangClosure.FormalPermissionTermCallControl (729ms)
+warning: YulangClosure/FormalPermissionTermCallControl.lean:162:28: `if_true` has been deprecated: Use `ite_true` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵t̵r̵u̵e̵i̲t̲e̲_̲t̲r̲u̲e̲
+warning: YulangClosure/FormalPermissionTermCallControl.lean:225:11: Local variable 'unit' resembles constructor 'PUnit.unit' - write '.unit' (with a dot) or 'PUnit.unit' to use the constructor.
+
+Note: This linter can be disabled with `set_option linter.constructorNameAsVariable false`
+warning: YulangClosure/FormalPermissionTermCallControl.lean:233:33: This simp argument is unused:
+  loop_test_fields
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [controlState, drained, applyOp, testFields]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+⚠ [16/20] Built YulangClosure.FormalPermissionArenaEvents (676ms)
+warning: YulangClosure/FormalPermissionArenaEvents.lean:101:8: `simp` already closes the goal
+
+Hint: Use `simp` instead of `simpa`:
+  [apply] simp [run, emitted, hc, hs]
+
+Note: This linter can be disabled with `set_option linter.unnecessarySimpa false`
+warning: YulangClosure/FormalPermissionArenaEvents.lean:103:8: `simp` already closes the goal
+
+Hint: Use `simp` instead of `simpa`:
+  [apply] simp [run, emitted, hc, hs]
+
+Note: This linter can be disabled with `set_option linter.unnecessarySimpa false`
+warning: YulangClosure/FormalPermissionArenaEvents.lean:143:46: `if_true` has been deprecated: Use `ite_true` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵t̵r̵u̵e̵i̲t̲e̲_̲t̲r̲u̲e̲
+⚠ [17/20] Built YulangClosure.FormalPermissionEventBuffer (573ms)
+warning: YulangClosure/FormalPermissionEventBuffer.lean:38:20: `simp` already closes the goal
+
+Hint: Use `simp` instead of `simpa`:
+  [apply] simp
+
+Note: This linter can be disabled with `set_option linter.unnecessarySimpa false`
+warning: YulangClosure/FormalPermissionEventBuffer.lean:51:4: `simp` already closes the goal
+
+Hint: Use `simp` instead of `simpa`:
+  [apply] simp
+
+Note: This linter can be disabled with `set_option linter.unnecessarySimpa false`
+warning: YulangClosure/FormalPermissionEventBuffer.lean:67:20: `simp` already closes the goal
+
+Hint: Use `simp` instead of `simpa`:
+  [apply] simp
+
+Note: This linter can be disabled with `set_option linter.unnecessarySimpa false`
+✔ [18/20] Built YulangClosure.FormalPermissionStructuralBufferBound (464ms)
+✔ [19/20] Built YulangClosure.FormalPermissionCandidateCallJournal (788ms)
+✔ [20/20] Built YulangClosure.FormalPermissionNativePrefix (491ms)
+Build completed successfully (20 jobs).
+[exit 0]
+cwd: /tmp/ep-native-r20-lean-20261030/project
+$ /home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake --no-cache env lean -j1 -M1024 --root=/tmp/yulang-lean-audit-v_s0xq2e /tmp/yulang-lean-audit-v_s0xq2e/YulangProofAudit.lean
+YULANG_AUDIT_BEGIN YulangClosure.FormalPermissionNativePrefix.transition_projection
+YulangClosure.FormalPermissionNativePrefix.transition_projection : ∀
+  (s : YulangClosure.FormalPermissionNativePrefix.State) (a : YulangClosure.FormalPermissionNativePrefix.Action),
+  YulangClosure.FormalPermissionNativePrefix.project (YulangClosure.FormalPermissionNativePrefix.transition s a) =
+    YulangClosure.FormalPermissionCandidateCallJournal.step (YulangClosure.FormalPermissionNativePrefix.project s)
+      (YulangClosure.FormalPermissionNativePrefix.microstep a)
+'YulangClosure.FormalPermissionNativePrefix.transition_projection' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.FormalPermissionNativePrefix.transition_projection
+YULANG_AUDIT_BEGIN YulangClosure.FormalPermissionNativePrefix.run_projection
+YulangClosure.FormalPermissionNativePrefix.run_projection : ∀ (s : YulangClosure.FormalPermissionNativePrefix.State)
+  (events : List YulangClosure.FormalPermissionNativePrefix.Event),
+  YulangClosure.FormalPermissionNativePrefix.project (YulangClosure.FormalPermissionNativePrefix.run s events) =
+    YulangClosure.FormalPermissionCandidateCallJournal.run (YulangClosure.FormalPermissionNativePrefix.project s)
+      (List.map (fun e => YulangClosure.FormalPermissionNativePrefix.microstep e.action) events)
+'YulangClosure.FormalPermissionNativePrefix.run_projection' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.FormalPermissionNativePrefix.run_projection
+YULANG_AUDIT_BEGIN YulangClosure.FormalPermissionNativePrefix.initial_projection
+YulangClosure.FormalPermissionNativePrefix.initial_projection : YulangClosure.FormalPermissionNativePrefix.project
+    YulangClosure.FormalPermissionNativePrefix.initial =
+  YulangClosure.FormalPermissionCandidateCallJournal.initial
+'YulangClosure.FormalPermissionNativePrefix.initial_projection' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.FormalPermissionNativePrefix.initial_projection
+YULANG_AUDIT_BEGIN YulangClosure.FormalPermissionNativePrefix.validates_cons
+YulangClosure.FormalPermissionNativePrefix.validates_cons : ∀ (s : YulangClosure.FormalPermissionNativePrefix.State)
+  (e : YulangClosure.FormalPermissionNativePrefix.Event) (es : List YulangClosure.FormalPermissionNativePrefix.Event),
+  YulangClosure.FormalPermissionNativePrefix.validates s (e :: es) = Bool.true ↔
+    YulangClosure.FormalPermissionNativePrefix.enabled s e.action = Bool.true ∧
+      e.before = YulangClosure.FormalPermissionNativePrefix.observe s ∧
+        e.after =
+            YulangClosure.FormalPermissionNativePrefix.observe
+              (YulangClosure.FormalPermissionNativePrefix.transition s e.action) ∧
+          YulangClosure.FormalPermissionNativePrefix.validates
+              (YulangClosure.FormalPermissionNativePrefix.transition s e.action) es =
+            Bool.true
+'YulangClosure.FormalPermissionNativePrefix.validates_cons' depends on axioms: [propext]
+YULANG_AUDIT_END YulangClosure.FormalPermissionNativePrefix.validates_cons
+[exit 0]
+PASS: YulangClosure.FormalPermissionNativePrefix.transition_projection, under its printed hypotheses; axiom whitelist satisfied.
+PASS: YulangClosure.FormalPermissionNativePrefix.run_projection, under its printed hypotheses; axiom whitelist satisfied.
+PASS: YulangClosure.FormalPermissionNativePrefix.initial_projection, under its printed hypotheses; axiom whitelist satisfied.
+PASS: YulangClosure.FormalPermissionNativePrefix.validates_cons, under its printed hypotheses; axiom whitelist satisfied.
+Named declarations only; ordinary-mistake check, not independent review or source correspondence.
