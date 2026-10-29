@@ -1,0 +1,252 @@
+{
+  "schema": "effect-permission-owner-consumer-r22-inputs-v1",
+  "sprint": "CALLBACK-RESULT-OWNER-CONSUMER/20261030-R22",
+  "baseline_commit": "fcd38f02a33cb28b2c5c56dc6f1a48b8838e1dc4",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-owner-consumer-20261030-r22.md",
+    "sha256": "cd656fba688ee8c6ffc0dd16fe9d8a0925bb52692f44521615c331fbf0767afb"
+  },
+  "approved_callback_source": {
+    "description": "exact §1.1 callback text embedded in R22 contract",
+    "sha256": "163fb480ec7ecaed2c341253066a7c6cc3af1a0cf5499c384f0cad4952c64e18",
+    "policy_recorded_sha256": "163fb480ec7ecaed2c341253066a7c6cc3af1a0cf5499c384f0cad4952c64e18"
+  },
+  "frozen_inputs": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "a8852982d5a3ff4d159aa546767b217000d50c9ff8617ac139700885bf5b090a",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "de2c030452a0764cbeb459e2545585a880edc6683a8acceaea45276e24b67ca5",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tools/inference-playground/Cargo.toml",
+      "sha256": "87e77de221b023c1c9f07e90f1ce6a692a56e8bb398eca4725f4910254be0a56",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/mod.rs",
+      "sha256": "b7184e3869b4790cb0e2e72704e4a1b2f12df7772b441144b8ef63ab33e2fe4f",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/machine.rs",
+      "sha256": "4fe3de685650761767be313285321e548964b41900c3aae7f5f434d48034395d",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/receiving.rs",
+      "sha256": "e6b22598a0d11a21fba260cdbc5b4ace3690cf9b21e51beb61d8cc967511fffd",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/program.rs",
+      "sha256": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+      "sha256": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/design/2026-10-10-annotation-effect-hygiene-integration.md",
+      "sha256": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/design/2026-10-24-birth-level-scc-intrusion.md",
+      "sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md",
+      "sha256": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/theory/lean/lakefile.toml",
+      "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/theory/lean/lake-manifest.json",
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalEffectHygiene.lean",
+      "sha256": "926613078f1f3f2e197bff29793b120128f18d3676657af25db72eca47f2c89f",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceGeneratedInteraction.lean",
+      "sha256": "16952fef6ea505cce0d7f8afa6bf39cd3609119626f7857d6beaa88737c5b003",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceGeneration.lean",
+      "sha256": "126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceFunctionMembership.lean",
+      "sha256": "8d370ee57e486ae48607d1bab493ae5135f28bf8a5a7ff1b0ef240fc0247e424",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/PaperTypeSubstitution.lean",
+      "sha256": "02834720f622642dd4c7a27ea51451deb7386877b091fbccc828a66eaa8e4861",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/HandlerGraphRecursiveTrace.lean",
+      "sha256": "bd07ea464ba42b1073b69b2af0bc5d26c1ca148a58598d6d10973ba54dc29909",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/theory/2026-10-24-permission-implementation-bridge.md",
+      "sha256": "f9c40e49dd8c4e9ec1c4ef01a0391940ad5c7fd21b27da1c0635501721b6aeed",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/concrete-callback-permission-20261024-outcome.md",
+      "sha256": "a119e74dee26caf99769dc827d7c73431766fe0286089a1ec83ecf2b6a7f0032",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/cb-permission-transport-20261024-outcome.md",
+      "sha256": "373e95500c122de631b51de9554778528c95219480a79239bdfe0a943bd821eb",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-annotated-relay-20261030-r21.md",
+      "sha256": "ee69548873e5f9d288676a5e8f9ac45b2c1962507cd339eba12e0c149111638c",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-annotated-relay-20261030-r21-inputs.json",
+      "sha256": "b70ac05c738f29ecd7c233f137f56dd9b333ff5a36f95ac9a99510344b00ab46",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tasks/agent-loop/evidence/effect-permission-annotated-relay-20261030-r21.json",
+      "sha256": "7bab87b252a648ac38ad3cb5ae9a284be1f20c4e3c1268873abf33901abc20cb",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-annotated-relay-20261030-r21-outcome.md",
+      "sha256": "b9b6830fdd363da3cbdde4e90b72252cc833921d9aff8a52cb018f1ecf3a7376",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-annotated-relay-20261030-r21-state-archive.json",
+      "sha256": "19e7ec9d2dde10540a3adec5edd75603174a0ca8ef184641dcdd3b9fd90f2ddf",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-annotated-relay-20261030-r21-git-checkpoint.md",
+      "sha256": "dce8900cf0ae995191be979b657168aa58dcc704bb982e22ec4f403f7f095d3d",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-annotated-relay-20261030-r21-rust-snapshot/README.json",
+      "sha256": "e62208f2fca06a0179a3910bc2e32f68e7950eb2e70fecfb8f7195aa6c1720f7",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-annotated-relay-20261030-r21-rust-snapshot/annotated-relay-receipt.json",
+      "sha256": "bc22d7eec58ae1a1c430e9892a431e8cbc713aaaf1e566b993a2e9eb1b51acea",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/FormalPermissionAnnotatedRelay.lean",
+      "sha256": "0ef1272595c766206d8d9c7232f8799937706dbf292b94483621ceabe2159c2e",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-annotated-relay-r21-proof.md",
+      "sha256": "f8c79f011e673cd2dafcaa7c94ef8198c6e2efb4b2af77764897d01ce8030d46",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-annotated-relay-r21-rust.md",
+      "sha256": "0ed9b077c0c47f46e1b71f694f7730047501d903c7a332a89a489142c95627b7",
+      "origin": "git blob at R22 baseline"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "4a6c910e12adb8f5ccc07b0921f2cc781ea7044994f99425d3c54c4e75837d3c",
+      "origin": "live workspace authority snapshot",
+      "baseline_sha256": "701b6748df60b29846809bb4aa81530475c8add71ddada33d6f2ade9f769ffc3"
+    },
+    {
+      "path": "AGENTS.pre-sprint.md",
+      "sha256": "99ae7bbda0a8907a48f762420d996e145e9870ad9794ea0dc608770131182882",
+      "origin": "live workspace authority snapshot",
+      "baseline_sha256": "99ae7bbda0a8907a48f762420d996e145e9870ad9794ea0dc608770131182882"
+    },
+    {
+      "path": "rules/goal-driven-sprints.md",
+      "sha256": "f2e01e3c33dc13d6c5cb77a66e7c5f0de15f08669f5a47fef0d6cb5c914da3a5",
+      "origin": "live workspace authority snapshot",
+      "baseline_sha256": "5723c87d2ac7061da031e78f35d9947794c1acd4dcfab2b275dbf75045755d73"
+    },
+    {
+      "path": "notes/design/2026-10-16-goal-driven-sprints.md",
+      "sha256": "2dfeb555c913d3142078de535ee4b7f68e9a27f2b91a5f0bb82d4d867db4fc4e",
+      "origin": "live workspace authority snapshot",
+      "baseline_sha256": "2dfeb555c913d3142078de535ee4b7f68e9a27f2b91a5f0bb82d4d867db4fc4e"
+    },
+    {
+      "path": ".agents/skills/yulang-sprint/SKILL.md",
+      "sha256": "b6f4a50703928020607edebe1c8b138fb98a0378220f00b7c190dba9fc068515",
+      "origin": "live workspace authority snapshot",
+      "baseline_sha256": "b6f4a50703928020607edebe1c8b138fb98a0378220f00b7c190dba9fc068515"
+    },
+    {
+      "path": ".agents/skills/yulang-lean-proofs/SKILL.md",
+      "sha256": "05346b8c6e3d9cdd1715da1774bb26cf7bce313233782240b3493bd9ee8754a7",
+      "origin": "live workspace authority snapshot",
+      "baseline_sha256": "05346b8c6e3d9cdd1715da1774bb26cf7bce313233782240b3493bd9ee8754a7"
+    }
+  ],
+  "proposed_exact_leases": [
+    "isolated/ep-owner-consumer-r22/project/tools/inference-playground/src/runtime/machine.rs",
+    "isolated/ep-owner-consumer-r22/project/tools/inference-playground/src/runtime/receiving.rs",
+    "isolated/ep-owner-consumer-r22/project/tools/inference-playground/src/runtime/program.rs",
+    "isolated/ep-owner-consumer-r22/project/receipts/owner-consumer-receipt.json",
+    "tasks/agent-loop/inbox/effect-permission-owner-consumer-r22-rust.md",
+    "isolated/ep-owner-consumer-r22/project/build-target",
+    "notes/theory/lean/YulangClosure/CallbackResultOwnerConsumer.lean",
+    "tasks/agent-loop/inbox/effect-permission-owner-consumer-r22-proof.md",
+    "isolated/ep-owner-consumer-r22/lean-scratch"
+  ],
+  "resource_envelope": {
+    "active_seconds": 2400,
+    "rust_seconds": 900,
+    "lean_seconds": 900,
+    "review_seconds": 300,
+    "primary_seconds": 300,
+    "astra_seconds": 0,
+    "max_concurrent_producers": 2,
+    "cargo_invocations": 1,
+    "cargo_wall_seconds_max": 180,
+    "cargo_cpu_count": 1,
+    "cargo_process_tree_rss_bytes_max": 2147483648,
+    "available_ram_bytes_min": 4294967296,
+    "lean_audits_max": 2,
+    "lean_audit_combined_seconds_max": 120,
+    "lean_audit_each_seconds_max": 90,
+    "lean_rss_bytes_max": 1073741824,
+    "lean_cpu_count": 1
+  }
+}
