@@ -1,0 +1,255 @@
+{
+  "schema": "effect-permission-source-transitions-r23-inputs-v1",
+  "sprint": "CALLBACK-SOURCE-TRANSITIONS/20261030-R23",
+  "baseline_commit": "9a74a70a32ebda716a00c7203d8e606343cf442a",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-transitions-20261030-r23.md",
+    "sha256": "a2da16deb4475a7e602505d2fd6f44ce823b7ef8088d72d83299d3cf86106443"
+  },
+  "approved_callback_source": {
+    "description": "exact §1.1 callback source in governing hygiene document; same approved occurrence as R22",
+    "sha256": "163fb480ec7ecaed2c341253066a7c6cc3af1a0cf5499c384f0cad4952c64e18"
+  },
+  "frozen_inputs": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "a8852982d5a3ff4d159aa546767b217000d50c9ff8617ac139700885bf5b090a",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "de2c030452a0764cbeb459e2545585a880edc6683a8acceaea45276e24b67ca5",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tools/inference-playground/Cargo.toml",
+      "sha256": "87e77de221b023c1c9f07e90f1ce6a692a56e8bb398eca4725f4910254be0a56",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/mod.rs",
+      "sha256": "b7184e3869b4790cb0e2e72704e4a1b2f12df7772b441144b8ef63ab33e2fe4f",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/machine.rs",
+      "sha256": "4fe3de685650761767be313285321e548964b41900c3aae7f5f434d48034395d",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/receiving.rs",
+      "sha256": "e6b22598a0d11a21fba260cdbc5b4ace3690cf9b21e51beb61d8cc967511fffd",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/program.rs",
+      "sha256": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+      "sha256": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/design/2026-10-10-annotation-effect-hygiene-integration.md",
+      "sha256": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/design/2026-10-24-birth-level-scc-intrusion.md",
+      "sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md",
+      "sha256": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/theory/lean/lakefile.toml",
+      "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/theory/lean/lake-manifest.json",
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalEffectHygiene.lean",
+      "sha256": "926613078f1f3f2e197bff29793b120128f18d3676657af25db72eca47f2c89f",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceGeneratedInteraction.lean",
+      "sha256": "16952fef6ea505cce0d7f8afa6bf39cd3609119626f7857d6beaa88737c5b003",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceGeneration.lean",
+      "sha256": "126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceFunctionMembership.lean",
+      "sha256": "8d370ee57e486ae48607d1bab493ae5135f28bf8a5a7ff1b0ef240fc0247e424",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/PaperTypeSubstitution.lean",
+      "sha256": "02834720f622642dd4c7a27ea51451deb7386877b091fbccc828a66eaa8e4861",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/HandlerGraphRecursiveTrace.lean",
+      "sha256": "bd07ea464ba42b1073b69b2af0bc5d26c1ca148a58598d6d10973ba54dc29909",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CallbackResultOwnerConsumer.lean",
+      "sha256": "8b76265d486786844bb1e649ac676fe49988b903e742532d40b86104c8783f27",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "notes/theory/2026-10-24-permission-implementation-bridge.md",
+      "sha256": "f9c40e49dd8c4e9ec1c4ef01a0391940ad5c7fd21b27da1c0635501721b6aeed",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/concrete-callback-permission-20261024-outcome.md",
+      "sha256": "a119e74dee26caf99769dc827d7c73431766fe0286089a1ec83ecf2b6a7f0032",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/cb-permission-transport-20261024-outcome.md",
+      "sha256": "373e95500c122de631b51de9554778528c95219480a79239bdfe0a943bd821eb",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-owner-consumer-20261030-r22.md",
+      "sha256": "cd656fba688ee8c6ffc0dd16fe9d8a0925bb52692f44521615c331fbf0767afb",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-owner-consumer-20261030-r22-inputs.json",
+      "sha256": "dd6f0b9d11e9076e1c1089ce9af1eb692a71c9e699c1f612c91a953d2cc221be",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tasks/agent-loop/evidence/effect-permission-owner-consumer-20261030-r22.json",
+      "sha256": "71e7df22ae24b3ab76b6981786aaef96ed707e4878dd5f8986e6fcff48650734",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-outcome.md",
+      "sha256": "1d808d581856cd1581c6c6753d071f5c28ffcf5ed8612253bccfe4793b5b63b8",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-state-archive.json",
+      "sha256": "8fcfd28653b67e9dde4c78da39c651eaee5790fd93b23ced16877c4cd2a33785",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-rust-snapshot/README.json",
+      "sha256": "bfb1e3c05f4d8c3b15b191ea90111e89da96d0c9be8f469bc34c6646c5a0980d",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-rust-snapshot/tools/inference-playground/src/runtime/machine.rs",
+      "sha256": "2e118422c44e8849529e6bfe9bb4dd31fdd565aa6a121c6d4d18295dc5f36d1a",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-rust-snapshot/tools/inference-playground/src/runtime/receiving.rs",
+      "sha256": "8b507eef8dde72a0cd277e4bdbf8df8005b989745054c45b73ef78adbc1a076a",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-rust-snapshot/tools/inference-playground/src/runtime/program.rs",
+      "sha256": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-owner-consumer-r22-proof.md",
+      "sha256": "33e7d229fd136be5db96c498f7e4d175712f2ddcc8d80d5ff9d02cba4e456bcb",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-owner-consumer-r22-rust.md",
+      "sha256": "fb78d8722f76532d3d3f5bcc9e227e6d2ff396ba78330e0b2774e81583caea20",
+      "origin": "git blob at admitted baseline"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "4a6c910e12adb8f5ccc07b0921f2cc781ea7044994f99425d3c54c4e75837d3c",
+      "origin": "live authority snapshot",
+      "baseline_sha256": "701b6748df60b29846809bb4aa81530475c8add71ddada33d6f2ade9f769ffc3"
+    },
+    {
+      "path": "AGENTS.pre-sprint.md",
+      "sha256": "99ae7bbda0a8907a48f762420d996e145e9870ad9794ea0dc608770131182882",
+      "origin": "live authority snapshot"
+    },
+    {
+      "path": "rules/goal-driven-sprints.md",
+      "sha256": "f2e01e3c33dc13d6c5cb77a66e7c5f0de15f08669f5a47fef0d6cb5c914da3a5",
+      "origin": "live authority snapshot",
+      "baseline_sha256": "5723c87d2ac7061da031e78f35d9947794c1acd4dcfab2b275dbf75045755d73"
+    },
+    {
+      "path": ".agents/skills/yulang-sprint/SKILL.md",
+      "sha256": "b6f4a50703928020607edebe1c8b138fb98a0378220f00b7c190dba9fc068515",
+      "origin": "live authority snapshot"
+    },
+    {
+      "path": ".agents/skills/yulang-lean-proofs/SKILL.md",
+      "sha256": "05346b8c6e3d9cdd1715da1774bb26cf7bce313233782240b3493bd9ee8754a7",
+      "origin": "live authority snapshot"
+    }
+  ],
+  "output_paths": {
+    "rust": [
+      "isolated/ep-source-transitions-r23/project/tools/inference-playground/src/runtime/machine.rs",
+      "isolated/ep-source-transitions-r23/project/tools/inference-playground/src/runtime/receiving.rs",
+      "isolated/ep-source-transitions-r23/project/tools/inference-playground/src/runtime/program.rs",
+      "isolated/ep-source-transitions-r23/project/receipts/source-transitions.json",
+      "tasks/agent-loop/inbox/effect-permission-source-transitions-r23-rust.md",
+      "isolated/ep-source-transitions-r23/project/build-target"
+    ],
+    "lean": [
+      "notes/theory/lean/YulangClosure/CallbackSourceTransitions.lean",
+      "tasks/agent-loop/inbox/effect-permission-source-transitions-r23-proof.md",
+      "isolated/ep-source-transitions-r23/lean-scratch"
+    ],
+    "primary": [
+      "tasks/agent-loop/evidence/effect-permission-source-transitions-20261030-r23.json",
+      "tasks/agent-loop/history/effect-permission-source-transitions-20261030-r23-outcome.md",
+      "tasks/agent-loop/history/effect-permission-source-transitions-20261030-r23-state-archive.json",
+      "tasks/agent-loop/history/effect-permission-source-transitions-20261030-r23-git-checkpoint.md"
+    ]
+  },
+  "inherited_r22_manifest_sha256": "dd6f0b9d11e9076e1c1089ce9af1eb692a71c9e699c1f612c91a953d2cc221be",
+  "cargo_policy": {
+    "max_attempts": 2,
+    "combined_seconds": 240,
+    "each_seconds": 120,
+    "cpus": 1,
+    "max_rss_bytes": 2147483648,
+    "min_available_ram_bytes": 4294967296,
+    "requires_fresh_exact_hash_accept": true
+  },
+  "lean_policy": {
+    "version": "4.35.0",
+    "max_audits": 2,
+    "combined_seconds": 120,
+    "cpus": 1,
+    "max_rss_bytes": 1073741824
+  }
+}
