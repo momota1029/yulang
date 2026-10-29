@@ -1,0 +1,147 @@
+{
+  "schema": "effect-permission-owner-consumer-r22-evidence-v1",
+  "sprint": "CALLBACK-RESULT-OWNER-CONSUMER/20261030-R22",
+  "status": "CLOSED_INCOMPLETE",
+  "classification": "PREFLIGHT_REJECTED; CARGO_NOT_RUN; LEAN_AUDIT_NOT_RUN",
+  "baseline": "fcd38f02a33cb28b2c5c56dc6f1a48b8838e1dc4",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-owner-consumer-20261030-r22.md",
+    "sha256": "cd656fba688ee8c6ffc0dd16fe9d8a0925bb52692f44521615c331fbf0767afb"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-owner-consumer-20261030-r22-inputs.json",
+    "sha256": "dd6f0b9d11e9076e1c1089ce9af1eb692a71c9e699c1f612c91a953d2cc221be"
+  },
+  "rust": {
+    "worker": "/root/effect_permission_owner_consumer_r22_rust",
+    "requested_model": "gpt-6-luna",
+    "requested_effort": "high",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "handoff": {
+      "path": "tasks/agent-loop/inbox/effect-permission-owner-consumer-r22-rust.md",
+      "sha256": "fb78d8722f76532d3d3f5bcc9e227e6d2ff396ba78330e0b2774e81583caea20"
+    },
+    "source_snapshot": {
+      "path": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-rust-snapshot",
+      "readme_sha256": "bfb1e3c05f4d8c3b15b191ea90111e89da96d0c9be8f469bc34c6646c5a0980d",
+      "files": [
+        {
+          "isolated_source": "isolated/ep-owner-consumer-r22/project/tools/inference-playground/src/runtime/machine.rs",
+          "snapshot_path": "tools/inference-playground/src/runtime/machine.rs",
+          "sha256": "2e118422c44e8849529e6bfe9bb4dd31fdd565aa6a121c6d4d18295dc5f36d1a",
+          "disposition": "frozen rejected R22 source; not accepted observation evidence"
+        },
+        {
+          "isolated_source": "isolated/ep-owner-consumer-r22/project/tools/inference-playground/src/runtime/receiving.rs",
+          "snapshot_path": "tools/inference-playground/src/runtime/receiving.rs",
+          "sha256": "8b507eef8dde72a0cd277e4bdbf8df8005b989745054c45b73ef78adbc1a076a",
+          "disposition": "frozen rejected R22 source; not accepted observation evidence"
+        },
+        {
+          "isolated_source": "isolated/ep-owner-consumer-r22/project/tools/inference-playground/src/runtime/program.rs",
+          "snapshot_path": "tools/inference-playground/src/runtime/program.rs",
+          "sha256": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907",
+          "disposition": "frozen rejected R22 source; not accepted observation evidence"
+        }
+      ]
+    },
+    "preflight": {
+      "attempts": 2,
+      "first": "REJECTED: stale baseline/hash set; no Cargo invocation",
+      "second": "REJECTED: final exact hashes authenticated; four blocking observer findings recorded in the Rust handoff and outcome",
+      "accept_for_frozen_hashes": false,
+      "reviewer": "/root/effect_permission_owner_consumer_r22_review",
+      "role": "compiler_referee",
+      "consumed_seconds_approx": 190,
+      "remaining_seconds_approx": 110,
+      "timing": "unmeasured estimates; no fabricated exact timing",
+      "final_frozen_evidence_review": "NOT_RUN; execution gate was not cleared"
+    },
+    "blocking_findings": [
+      {
+        "location": "machine.rs:2552; constructor near 1656",
+        "finding": "callback_use observation is out of scope and after request; test configuration cannot compile"
+      },
+      {
+        "location": "machine.rs:3540",
+        "finding": "same_source(lambda, apply) equates distinct occurrences instead of joining actual enclosing lambda/formal ownership"
+      },
+      {
+        "location": "machine.rs:3604; OperationResultConsumer near 1400-1417; Request near 3000",
+        "finding": "validated event order contradicts actual consumer/execution/request transition order and omits shallow-handler lifetime/discard path"
+      },
+      {
+        "location": "machine.rs:3523-3605, 3699-3766",
+        "finding": "request/selection payload IDs, selected arm, entry formal receipt are ignored; Name-receipt/schema mismatch rejection absent"
+      }
+    ],
+    "cargo": {
+      "invocation_count": 0,
+      "status": "NOT_RUN; required pre-execution ACCEPT absent",
+      "argv": null,
+      "exit_status": null,
+      "elapsed_seconds": null,
+      "raw_stdout": null,
+      "raw_stderr": null,
+      "resources": null,
+      "receipt": "NOT_CREATED",
+      "runtime_trace": null
+    },
+    "main_tree_source": "dirty/quarantined root machine.rs and receiving.rs were not R22 inputs and were not edited by this closeout",
+    "active_time": "UNKNOWN"
+  },
+  "lean": {
+    "worker": "/root/effect_permission_owner_consumer_r22_lean",
+    "requested_model": "gpt-6.1-sol",
+    "requested_effort": "high",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "artifact": {
+      "path": "notes/theory/lean/YulangClosure/CallbackResultOwnerConsumer.lean",
+      "sha256": "8b76265d486786844bb1e649ac676fe49988b903e742532d40b86104c8783f27"
+    },
+    "handoff": {
+      "path": "tasks/agent-loop/inbox/effect-permission-owner-consumer-r22-proof.md",
+      "sha256": "33e7d229fd136be5db96c498f7e4d175712f2ddcc8d80d5ff9d02cba4e456bcb"
+    },
+    "scratch_manifest": {
+      "path": "isolated/ep-owner-consumer-r22/lean-scratch/frozen-manifest.json",
+      "sha256": "75c5136a851fdefb16ab45b25ae0958a5d86b25f06e42beb70efc0c6f5e96ef0"
+    },
+    "declared_candidate_theorem_count": 15,
+    "lean_version_check": "NOT_RUN",
+    "lake_version_check": "NOT_RUN",
+    "audits": "NOT_RUN; blocked by contract sequencing because Cargo never became terminal",
+    "printed_theorem_types": "NONE",
+    "per_root_axiom_reports": "NONE",
+    "rust_application": "NOT_ESTABLISHED",
+    "construction_cpu_and_peak_rss": "UNKNOWN"
+  },
+  "source_occurrences": {
+    "approved_callback_sha256": "163fb480ec7ecaed2c341253066a7c6cc3af1a0cf5499c384f0cad4952c64e18",
+    "companion_path": "tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+    "companion_sha256": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7",
+    "cross_source_join": "PROHIBITED; occurrences remain independent"
+  },
+  "review_and_selector": {
+    "review_verdict": "REJECT_PREFLIGHT; no ACCEPT; no final-evidence review",
+    "selector": "CLOSE_R22_INCOMPLETE; PREFLIGHT_REJECTED; do not run Cargo",
+    "selector_next": "source-derived callback observer and validator with adequate preflight and final-review reservation"
+  },
+  "open_gates": [
+    "original parent A/B",
+    "source/native correspondence",
+    "effect hygiene",
+    "soundness",
+    "principality",
+    "termination",
+    "production"
+  ],
+  "semantic_or_expected_output_changes": false,
+  "git_checkpoint": {
+    "path": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-git-checkpoint.md",
+    "status": "to be recorded by primary after push"
+  },
+  "outcome_record": "tasks/agent-loop/history/effect-permission-owner-consumer-20261030-r22-outcome.md"
+}

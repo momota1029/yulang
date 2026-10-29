@@ -1,0 +1,4490 @@
+use super::program::{BlockStatement, RecordParameterField};
+use super::{
+    dispatch,
+    continuation::{ResumeTemplate, TemplateHandle, TemplateNode},
+    literal,
+    program::{
+        Binder, CasePattern, Code, ExecutionRoot, Instruction, Label, NameConsumption, ParameterRole,
+        RuntimeProgram, RuntimeUnavailable, SourceSite,
+    },
+    receiving::{
+        CallbackResultSchema, CallbackUseHandle, ExecutionView,
+        Observation, Receiving, RootCompSchema, ViewHandle,
+    },
+};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
+use yu_hir::shadow::{
+    LocalSourceCatchPattern, LocalSourceCatchPayloadPattern, LocalSourceCatchValuePattern,
+    LocalSourceResolution, SourceAnnotationValue, SourceOperationDeclaration, SourceOperationId,
+    SourceOperationResolution,
+};
+use yu_hir::{DefId, ExpressionRootId, HirParameterId};
+
+/// Explicit source small-step state. Source recursion grows arenas/frames, never
+/// the Rust call stack. Environments and cells contain integer arena references,
+/// so recursive closures do not construct reference-counted ownership cycles.
+pub struct Machine {
+    program: Arc<RuntimeProgram>,
+    state: State,
+    frames: Vec<Frame>,
+    values: Vec<RuntimeValue>,
+    executables: HashMap<usize, ExecutableValue>,
+    environments: Vec<Environment>,
+    cells: Vec<Option<ReceivedValue>>,
+    execution_roots: Vec<ScheduledRoot>,
+    initializing_globals: HashSet<usize>,
+    selected: Option<usize>,
+    steps: usize,
+    next_receiver: usize,
+    current_owner: ExecutionOwner,
+    invocations: Vec<InvocationDescriptor>,
+    resume_templates: Vec<ResumeTemplate>,
+    next_handler: usize,
+    next_request: usize,
+    active_receivers: Vec<usize>,
+    continuations: Vec<SavedContinuation>,
+    receiving: Receiving,
+    executing_views: Vec<ExecutionView>,
+    operation_v1_trace: Option<OperationV1Trace>,
+    tuple_prefixes: Vec<TuplePrefix>,
+    dispatch: dispatch::Machine,
+    name_entry_trace: Option<NameEntryCorrespondenceTrace>,
+    name_entry_value_entry_attempts: Vec<NameEntryValueEntryAttempt>,
+    pending_name_entry: Option<PendingNameEntry>,
+    name_entry_return_token: Option<PendingNameEntry>,
+    name_entry_return_observations: Vec<NameEntryReturnObservation>,
+    pending_name_observation: Option<PendingNameObservation>,
+    pending_name_return_observation: Option<CompletedNameObservation>,
+    name_entry_name_return_observations: Vec<NameEntryNameReturnObservation>,
+    #[cfg(test)]
+    owner_consumer_events: Vec<OwnerConsumerEvent>,
+}
+
+/// Test-only, provisional observations of the concrete callback permission path.
+/// These records do not participate in runtime decisions.
+#[cfg(test)]
+#[derive(Clone, Debug)]
+enum OwnerConsumerEvent {
+    Invocation { id: usize, call: SourceSite, provider: SourceSite },
+    CallbackEntry { id: usize, invocation: usize, formal: HirParameterId, value: usize,
+        incoming_view: usize, view: usize, receipt: usize, lambda: SourceSite,
+        permission_families: Vec<yu_hir::shadow::SourceEffectId> },
+    RootCompEntry { invocation: usize, formal: HirParameterId, value: usize,
+        view: usize, receipt: usize, lambda: SourceSite,
+        permission_families: Vec<yu_hir::shadow::SourceEffectId> },
+    CallbackUse { id: usize, invocation: usize, entry: usize, formal: HirParameterId,
+        value: usize, source_view: usize, result_view: usize, receipt: usize, apply: SourceSite },
+    Request { invocation: Option<usize>, event: usize, operation: SourceOperationId,
+        source: SourceSite, payload: usize, observed: Vec<(usize, usize)> },
+    ResultConsumer { invocation: Option<usize>, callback_use: Option<usize>, source: SourceSite },
+    CallbackExecutionReturned { invocation: Option<usize>, callback_use: usize, view: usize, receipt: usize, source: SourceSite },
+    CatchInstalled { installation: HandlerInstallation, handler: SourceSite },
+    CatchSelected { event: usize, installation: HandlerInstallation, handler: SourceSite,
+        arm: yu_hir::shadow::SourceNodeKey, arm_body: SourceSite, operation: SourceOperationId,
+        grant: bool, payload: usize },
+    IntegerValue { value: usize, site: SourceSite, text: String },
+}
+
+/// Provisional research observation joining an actual lexical Name receipt to
+/// the subsequent fresh ValueEntry parameter cell. This record grants no
+/// runtime permission and is never read by execution decisions.
+#[derive(Clone, Debug)]
+pub struct NameEntryCorrespondenceTrace {
+    pub invocation: usize,
+    pub name_site: SourceSite,
+    pub returned_value_origin_site: SourceSite,
+    pub source_parameter: HirParameterId,
+    pub entry_parameter: HirParameterId,
+    pub source_cell: usize,
+    pub value: usize,
+    pub view: usize,
+    pub receipt_index: usize,
+    pub cells_before_bind: usize,
+    pub bound_cell: usize,
+    pub cells_after_bind: usize,
+}
+
+/// Per-attempt target evidence, independent of the sticky correspondence trace.
+#[derive(Clone, Debug)]
+pub struct NameEntryValueEntryAttempt {
+    pub invocation: usize,
+    pub entry_parameter_ordinal: u32,
+    pub value: usize,
+    pub view: usize,
+    pub cells_before_bind: usize,
+    pub bound_cell: usize,
+    pub cells_after_bind: usize,
+    pub token_receipt_index: Option<usize>,
+    pub token_source_parameter_ordinal: Option<u32>,
+    pub token_name_site_ordinal: Option<u32>,
+    pub token_accepted: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct NameEntryReturnObservation {
+    pub frame: &'static str,
+    pub invocation: Option<usize>,
+    pub token_receipt_index: Option<usize>,
+    pub token_source_parameter_ordinal: Option<u32>,
+    pub token_name_site_ordinal: Option<u32>,
+    pub token_value: Option<usize>,
+    pub token_view: Option<usize>,
+    pub token_cells_before_bind: Option<usize>,
+    pub returned_value: usize,
+    pub returned_view: usize,
+    pub cells_at_return: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct NameEntryNameReturnObservation {
+    pub resolution: &'static str,
+    pub name_site_ordinal: u32,
+    pub source_cell: usize,
+    pub value: usize,
+    pub view: usize,
+    pub receipt_index: usize,
+    pub cells_before_observe: usize,
+    pub return_frame: &'static str,
+}
+
+struct PendingNameObservation {
+    resolution: &'static str,
+    site: SourceSite,
+    cell: usize,
+}
+
+struct CompletedNameObservation {
+    resolution: &'static str,
+    site: SourceSite,
+    cell: usize,
+    value: ValueHandle,
+    view: ViewHandle,
+    receipt_index: usize,
+    cells_before_observe: usize,
+}
+
+struct PendingNameEntry {
+    invocation: usize,
+    site: SourceSite,
+    source_parameter: HirParameterId,
+    source_cell: usize,
+    value: ValueHandle,
+    view: ViewHandle,
+    cells_before_bind: usize,
+    receipt_index: Option<usize>,
+}
+#[derive(Default)]
+struct OperationV1Trace {
+    initializer_catch_owner: Option<ExecutionOwner>,
+    installed_local_cell: Option<(usize, ValueHandle, usize, ExecutionOwner)>,
+    read_local_cell: Option<(usize, ValueHandle, ExecutionOwner)>,
+    local_invocation_owner: Option<ExecutionOwner>,
+    response_definition_read: Option<(ValueHandle, usize, SourceSite)>,
+    selected_closure: Option<(ValueHandle, usize)>,
+    applied_response_invocation: Option<(SourceSite, ExecutionOwner)>,
+    request_operation_seen: bool,
+    callback_operation_seen: bool,
+    callback_operation_owner: Option<ExecutionOwner>,
+    callback_request_event: Option<usize>,
+    callback_request: Option<(usize, SourceSite)>,
+    live_handler: Option<(SourceSite, yu_hir::shadow::SourceNodeKey, usize, SourceSite)>,
+}
+/// Resolved machine plan: only definitions index cache cells.
+#[derive(Clone)]
+enum ScheduledRoot {
+    Definition(usize),
+    Expression { root: ExpressionRootId, code: Label },
+}
+// Execution ownership is distinct from receiving-boundary authority. The
+// ambient module span never aliases invocation ordinal zero or grants a profile.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub(super) enum ExecutionOwner {
+    ModuleRun,
+    Invocation(usize),
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct HandlerInstallation {
+    occurrence: usize,
+    owner: ExecutionOwner,
+}
+#[derive(Clone)]
+pub(super) struct InvocationDescriptor {
+    call: SourceSite,
+    provider: SourceSite,
+    active: bool,
+}
+impl InvocationDescriptor {
+    pub(super) fn is_active(&self) -> bool {
+        self.active
+    }
+    #[cfg(test)]
+    pub(super) fn active_for_test(site: SourceSite) -> Self {
+        Self {
+            call: site.clone(),
+            provider: site,
+            active: true,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ValueHandle(usize);
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ContinuationHandle(usize);
+#[derive(Clone, Debug)]
+pub struct RuntimeValue {
+    pub source: SourceSite,
+    pub kind: RuntimeValueKind,
+}
+#[derive(Clone, Debug)]
+pub enum RuntimeValueKind {
+    Unit,
+    Integer(Box<str>),
+    Boolean(bool),
+    String(Box<str>),
+    Primitive(yu_hir::shadow::PinnedPrimitiveOp),
+    Tuple(Vec<TupleElement>),
+    Variant { tag: Box<str>, payloads: Vec<TupleElement> },
+    Record(Vec<(Box<str>, TupleElement)>),
+    Closure,
+    Computation,
+    Operation(SourceOperationResolution),
+}
+/// One evaluated structural element, including the exact source receiving view.
+/// The view remains private so callers cannot forge runtime evidence.
+#[derive(Clone, Copy, Debug)]
+pub struct TupleElement {
+    received: ReceivedValue,
+}
+impl TupleElement {
+    pub fn value(&self) -> ValueHandle {
+        self.received.value
+    }
+}
+#[derive(Clone, Debug)]
+pub enum RuntimeOutcome {
+    /// A whole-module schedule with no executable source completes without
+    /// manufacturing a value or a source occurrence for an import statement.
+    EmptyModuleCompleted,
+    Running,
+    Completed(ValueHandle),
+    UnhandledRequest {
+        source: SourceSite,
+        operation: SourceOperationId,
+        event: usize,
+        payload: ValueHandle,
+        continuation: ContinuationHandle,
+    },
+    Unavailable(RuntimeUnavailable),
+    ResourceExhausted {
+        steps: usize,
+    },
+}
+// The actual value remains distinct from the source interface under which a
+// receiver holds it. Later complete-view evidence belongs on ReceivedValue,
+// rather than mutating a shared closure or inferring protection from its tag.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct ReceivedValue {
+    value: ValueHandle,
+    interface: ParameterRole,
+    view: ViewHandle,
+    dispatch: Option<usize>,
+}
+struct TuplePrefix {
+    previous: Option<usize>,
+    received: ReceivedValue,
+}
+struct Environment {
+    parent: Option<usize>,
+    binder: Option<(Binder, usize)>,
+    dispatch: dispatch::State,
+}
+#[derive(Clone)]
+enum ExecutableValue {
+    Continuation(TemplateHandle),
+    Closure {
+        parameter: HirParameterId,
+        unit_pattern: bool,
+        record_pattern: Option<Arc<[RecordParameterField]>>,
+        role: ParameterRole,
+        root_schema: Option<Arc<RootCompSchema>>,
+        callback_schema: Option<Arc<CallbackResultSchema>>,
+        body: Label,
+        environment: usize,
+    },
+    Delay {
+        code: Label,
+        environment: usize,
+    },
+    Request {
+        declaration: Arc<SourceOperationDeclaration>,
+        payload: ReceivedValue,
+        source: SourceSite,
+    },
+    Primitive {
+        operation: yu_hir::shadow::PinnedPrimitiveOp,
+        arguments: Vec<ValueHandle>,
+    },
+}
+enum State {
+    Evaluate {
+        code: Label,
+        environment: usize,
+    },
+    Return(ReceivedValue),
+    EnterTemplate {
+        template: TemplateHandle,
+        node: usize,
+        control: HashMap<usize, usize>,
+        response: ReceivedValue,
+    },
+    Request(PendingRequest),
+    IntegerProduct {
+        product: super::decimal::Product,
+        site: SourceSite,
+    },
+    Stopped(RuntimeOutcome),
+}
+#[derive(Clone)]
+pub(super) enum Frame {
+    ResumeArgument {
+        template: TemplateHandle,
+        source: SourceSite,
+    },
+    ResumeReturn,
+    OwnerReturn {
+        owner: ExecutionOwner,
+        owned: bool,
+        previous: ExecutionOwner,
+    },
+    RootCompReturn {
+        execution: ExecutionView,
+    },
+    CatchReturn {
+        handler: Arc<Code>,
+        environment: usize,
+        installation: HandlerInstallation,
+    },
+    OperationPayload {
+        declaration: Arc<SourceOperationDeclaration>,
+        source: SourceSite,
+    },
+    OperationResultConsumer {
+        source: SourceSite,
+        callback_use: Option<CallbackUseHandle>,
+    },
+    DiscardToUnit {
+        site: SourceSite,
+    },
+    Callee {
+        callee: Option<Label>,
+        argument: Label,
+        environment: usize,
+        site: SourceSite,
+    },
+    PrimitiveArgument {
+        operation: yu_hir::shadow::PinnedPrimitiveOp,
+        arguments: Vec<ValueHandle>,
+        site: SourceSite,
+    },
+    ReceiverReturn {
+        activation: usize,
+        previous: ExecutionOwner,
+    },
+    ValueEntry {
+        parameter: HirParameterId,
+        callback_schema: Option<Arc<CallbackResultSchema>>,
+        entry_receiver: usize,
+        unit_pattern: bool,
+        record_pattern: Option<Arc<[RecordParameterField]>>,
+        body: Label,
+        environment: usize,
+    },
+    RecordDefault {
+        fields: Arc<[RecordParameterField]>,
+        index: usize,
+        argument: ReceivedValue,
+        body: Label,
+        environment: usize,
+    },
+    Local {
+        block: Arc<Code>,
+        next: usize,
+        environment: usize,
+        cell: usize,
+        recursive: bool,
+    },
+    Condition {
+        conditional: Arc<Code>,
+        arm: usize,
+        environment: usize,
+    },
+    BlockExpression {
+        block: Arc<Code>,
+        next: usize,
+        environment: usize,
+    },
+    Sequence {
+        sequence: Arc<Code>,
+        next: usize,
+        environment: usize,
+    },
+    Record {
+        record: Arc<Code>,
+        next: usize,
+        environment: usize,
+        prefix: Option<usize>,
+    },
+    Tuple {
+        tuple: Arc<Code>,
+        next: usize,
+        environment: usize,
+        prefix: Option<usize>,
+    },
+    Case {
+        case: Arc<Code>,
+        environment: usize,
+    },
+    Root {
+        next: usize,
+        cell: usize,
+    },
+    ExpressionReturn {
+        root: ExpressionRootId,
+        next: usize,
+    },
+    GlobalRead {
+        cell: usize,
+        consumption: NameConsumption,
+        site: SourceSite,
+        environment: usize,
+    },
+}
+
+struct PendingRequest {
+    declaration: Arc<SourceOperationDeclaration>,
+    payload: ReceivedValue,
+    source: SourceSite,
+    event: usize,
+    observations: Vec<Observation>,
+    suffix: Vec<SavedFrame>,
+}
+struct SavedContinuation {
+    frames: Vec<SavedFrame>,
+    template: Option<TemplateHandle>,
+    resumed: bool,
+    #[allow(
+        dead_code,
+        reason = "unhandled request observations retained for a future external response consumer"
+    )]
+    observations: Vec<Observation>,
+}
+// Capture retains original lineage; template entry resolves a live occurrence
+// afresh and never reactivates a historical ID.
+enum SavedFrame {
+    AmbientBoundary,
+    ReceiverBoundary {
+        original_activation: usize,
+    },
+    HandlerBoundary {
+        handler: Arc<Code>,
+        environment: usize,
+        installation: HandlerInstallation,
+    },
+    Ordinary(Frame),
+}
+
+impl RuntimeProgram {
+    /// Starts from the original source-order schedule retained by this program.
+    pub(crate) fn start_source_schedule(
+        self: &Arc<Self>,
+        definition: &DefId,
+    ) -> Result<Machine, RuntimeUnavailable> {
+        self.start(definition, &self.source_schedule)
+    }
+
+    pub(crate) fn start_module_schedule(self: &Arc<Self>) -> Result<Machine, RuntimeUnavailable> {
+        self.start_with_schedule(None, &self.source_schedule)
+    }
+
+    /// The source interface owner supplies computation roots in source order.
+    /// Value definitions materialize at first access. Successful definition
+    /// materialization is cached; executing a delayed argument is never cached.
+    pub fn start(
+        self: &Arc<Self>,
+        definition: &DefId,
+        execution_roots: &[ExecutionRoot],
+    ) -> Result<Machine, RuntimeUnavailable> {
+        let selected = *self
+            .definition_indices
+            .get(definition)
+            .ok_or(RuntimeUnavailable::MissingDefinition)?;
+        self.start_with_schedule(Some(selected), execution_roots)
+    }
+
+    fn start_with_schedule(
+        self: &Arc<Self>,
+        selected: Option<usize>,
+        execution_roots: &[ExecutionRoot],
+    ) -> Result<Machine, RuntimeUnavailable> {
+        let mut seen_definitions = HashSet::new();
+        let mut seen_expressions = HashSet::new();
+        let mut roots = Vec::new();
+        for root in execution_roots {
+            match root {
+                ExecutionRoot::Definition(id) => {
+                    let index = *self
+                        .definition_indices
+                        .get(id)
+                        .ok_or(RuntimeUnavailable::MissingDefinition)?;
+                    if !seen_definitions.insert(index) {
+                        return Err(RuntimeUnavailable::ModuleInitializationOrder);
+                    }
+                    roots.push(ScheduledRoot::Definition(index));
+                }
+                ExecutionRoot::Expression(expression) => {
+                    let root = &expression.root;
+                    let Some(code) = self.expression_roots.get(root) else {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    };
+                    if code.0 != expression.code || !self._hir.owns_expression_root(root) {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    }
+                    if !seen_expressions.insert(root.clone()) {
+                        return Err(RuntimeUnavailable::ModuleInitializationOrder);
+                    }
+                    roots.push(ScheduledRoot::Expression {
+                        root: root.clone(),
+                        code: *code,
+                    });
+                }
+            }
+        }
+        let mut machine = Machine {
+            program: self.clone(),
+            state: State::Stopped(RuntimeOutcome::Running),
+            frames: Vec::new(),
+            values: Vec::new(),
+            executables: HashMap::new(),
+            environments: vec![Environment {
+                parent: None,
+                binder: None,
+                dispatch: dispatch::State::default(),
+            }],
+            cells: vec![None; self.definitions.len()],
+            execution_roots: roots,
+            initializing_globals: HashSet::new(),
+            selected,
+            steps: 0,
+            next_receiver: 0,
+            current_owner: ExecutionOwner::ModuleRun,
+            invocations: Vec::new(),
+            resume_templates: Vec::new(),
+            next_handler: 0,
+            next_request: 0,
+            active_receivers: Vec::new(),
+            continuations: Vec::new(),
+            receiving: Receiving::default(),
+            executing_views: Vec::new(),
+            operation_v1_trace: self.operation_v1.as_ref().map(|_| OperationV1Trace::default()),
+            tuple_prefixes: Vec::new(),
+            dispatch: dispatch::Machine::default(),
+            name_entry_trace: None,
+            name_entry_value_entry_attempts: Vec::new(),
+            pending_name_entry: None,
+            name_entry_return_token: None,
+            name_entry_return_observations: Vec::new(),
+            pending_name_observation: None,
+            pending_name_return_observation: None,
+            name_entry_name_return_observations: Vec::new(),
+            #[cfg(test)]
+            owner_consumer_events: Vec::new(),
+        };
+        machine.begin_root(0);
+        Ok(machine)
+    }
+}
+
+impl Machine {
+    #[cfg(test)]
+    fn owner_consumer_events(&self) -> &[OwnerConsumerEvent] {
+        &self.owner_consumer_events
+    }
+
+    /// Return the provisional source trace, if this run actually joined one
+    /// lexical Name/Observe receipt to a fresh ValueEntry parameter bind.
+    pub fn name_entry_correspondence(&self) -> Option<&NameEntryCorrespondenceTrace> {
+        self.name_entry_trace.as_ref()
+    }
+
+    pub fn name_entry_value_entry_attempts(&self) -> Vec<String> {
+        self.name_entry_value_entry_attempts.iter().map(|event| format!(
+            "invocation={} entry_parameter={} value={} view={} cells_before_bind={} bound_cell={} cells_after_bind={} token_receipt={:?} token_source_parameter={:?} token_name_site={:?} token_accepted={}",
+            event.invocation, event.entry_parameter_ordinal, event.value, event.view,
+            event.cells_before_bind, event.bound_cell, event.cells_after_bind,
+            event.token_receipt_index, event.token_source_parameter_ordinal,
+            event.token_name_site_ordinal, event.token_accepted
+        )).collect()
+    }
+
+    pub fn name_entry_return_observations(&self) -> Vec<String> {
+        self.name_entry_return_observations.iter().map(|event| format!(
+            "frame={} invocation={:?} token_receipt={:?} token_source_parameter={:?} token_name_site={:?} token_value={:?} token_view={:?} token_cells_before_bind={:?} returned_value={} returned_view={} cells_at_return={}",
+            event.frame, event.invocation, event.token_receipt_index,
+            event.token_source_parameter_ordinal, event.token_name_site_ordinal,
+            event.token_value, event.token_view, event.token_cells_before_bind,
+            event.returned_value, event.returned_view, event.cells_at_return
+        )).collect()
+    }
+
+    pub fn name_entry_name_return_observations(&self) -> Vec<String> {
+        self.name_entry_name_return_observations.iter().map(|event| format!(
+            "resolution={} name_site={} source_cell={} value={} view={} receipt={} cells_before_observe={} return_frame={}",
+            event.resolution, event.name_site_ordinal, event.source_cell, event.value,
+            event.view, event.receipt_index, event.cells_before_observe, event.return_frame
+        )).collect()
+    }
+
+    /// Mint the dynamic receipt after an actual completed run, never from a
+    /// partial, exhausted, unhandled, unavailable, or mismatched execution.
+    pub fn operation_v1_runtime_receipt(
+        &self,
+        completed: ValueHandle,
+    ) -> Option<crate::OperationV1RuntimeReceipt> {
+        let RuntimeOutcome::Completed(handle) = self.state_outcome()? else { return None; };
+        if *handle != completed { return None; }
+        let value = self.value(completed)?;
+        if !matches!(&value.kind, RuntimeValueKind::Integer(text) if text.as_ref() == "42") {
+            return None;
+        }
+        let plan = self.program.operation_v1.as_ref()?;
+        let trace = self.operation_v1_trace.as_ref()?;
+        if let Some(lineage) = &plan.local_lineage {
+            let (local_cell, local_value, local_environment, install_owner) =
+                trace.installed_local_cell?;
+            let (read_cell, read_value, read_owner) = trace.read_local_cell?;
+            let local_invocation_owner = trace.local_invocation_owner?;
+            if trace.initializer_catch_owner != Some(install_owner)
+                || local_cell != read_cell
+                || local_value != read_value
+                || install_owner != read_owner
+                || !matches!(local_invocation_owner,
+                    ExecutionOwner::Invocation(id)
+                        if self.invocations.get(id).is_some_and(|invocation|
+                            invocation.call.occurrence == lineage.apply.occurrence
+                                && !invocation.active))
+                || trace.callback_operation_owner != Some(local_invocation_owner)
+                || self.executables.get(&local_value.0).is_none_or(|executable| {
+                    !matches!(executable,
+                        ExecutableValue::Closure { environment, .. }
+                            if *environment == local_environment)
+                })
+            {
+                return None;
+            }
+        }
+        let (response_argument_value, response_argument_environment, response_argument_read_source) =
+            trace.response_definition_read.clone()?;
+        let (response_handle, captured_environment) = trace.selected_closure?;
+        if response_argument_value != response_handle
+            || response_argument_read_source.occurrence != plan.response_argument.occurrence
+            || trace.applied_response_invocation.as_ref().is_none_or(|(site, owner)| {
+                site.occurrence != plan.response_invocation_apply.occurrence
+                    || site.source_root != plan.response_invocation_apply.source_root
+                    || Some(*owner) != trace.callback_operation_owner
+            })
+            || !trace.callback_operation_seen
+        {
+            return None;
+        }
+        let (live_handler_source, selected_arm, callback_request_event, callback_request_source) =
+            trace.live_handler.clone()?;
+        if trace.callback_request_event != Some(callback_request_event)
+            || callback_request_source.occurrence != plan.link.callback_apply
+        {
+            return None;
+        }
+        let expected_handler = plan.expected_outer_handler.as_ref()?;
+        let expected_arm = plan.expected_outer_arm.as_ref()?;
+        if live_handler_source.occurrence != expected_handler.occurrence
+            || &selected_arm != expected_arm
+            || self.value(response_handle)?.source.occurrence != plan.response_lambda.occurrence
+        {
+            return None;
+        }
+        Some(crate::OperationV1RuntimeReceipt {
+            field_bound_id: plan.link.field_bound_id,
+            request: plan.link.request.clone(),
+            callback_apply: plan.link.callback_apply.clone(),
+            callback_operation: plan.link.callback_operation.clone(),
+            callback_operation_use: plan.link.callback_operation_use.clone(),
+            response_definition: plan.link.response_definition.clone(),
+            continuation_apply_source: plan.continuation_apply.clone(),
+            response_argument_source: plan.response_argument.clone(),
+            response_argument_read_source,
+            response_argument_environment,
+            response_closure_source: self.value(response_handle)?.source.clone(),
+            response_closure_handle: response_handle.0,
+            captured_environment,
+            callback_request_event,
+            callback_request_source,
+            live_handler_source,
+            selected_arm,
+            result: "42".into(),
+        })
+    }
+
+    fn state_outcome(&self) -> Option<&RuntimeOutcome> {
+        match &self.state {
+            State::Stopped(outcome) => Some(outcome),
+            _ => None,
+        }
+    }
+    pub fn value(&self, handle: ValueHandle) -> Option<&RuntimeValue> {
+        self.values.get(handle.0)
+    }
+    pub fn continuation_depth(&self, handle: ContinuationHandle) -> Option<usize> {
+        self.continuations
+            .get(handle.0)
+            .map(|saved| saved.frames.len())
+    }
+    pub fn steps(&self) -> usize {
+        self.steps
+    }
+
+    /// A depleted caller budget pauses the live private machine. It never
+    /// publishes a partial value as a completed evaluation and can be resumed.
+    pub fn run(&mut self, step_budget: usize) -> RuntimeOutcome {
+        for _ in 0..step_budget {
+            let outcome = self.step();
+            if !matches!(outcome, RuntimeOutcome::Running) {
+                return outcome;
+            }
+        }
+        match &self.state {
+            State::Stopped(outcome) => outcome.clone(),
+            _ => RuntimeOutcome::ResourceExhausted { steps: self.steps },
+        }
+    }
+
+    pub(crate) fn resume_host_write(
+        &mut self,
+        continuation: ContinuationHandle,
+        operation: &SourceOperationId,
+    ) -> Result<Box<str>, RuntimeUnavailable> {
+        let (current_continuation, current_operation, payload, source) = match &self.state {
+            State::Stopped(RuntimeOutcome::UnhandledRequest {
+                source,
+                operation,
+                payload,
+                continuation,
+                ..
+            }) => (*continuation, operation, *payload, source.clone()),
+            _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+        };
+        if current_continuation != continuation
+            || current_operation != operation
+            || self.program.host_write_operation() != Some(operation)
+        {
+            return Err(RuntimeUnavailable::HostWriteResponse(source));
+        }
+        let saved = self.continuations.get(continuation.0)
+            .ok_or(RuntimeUnavailable::HostWriteResponse(source.clone()))?;
+        if saved.resumed {
+            return Err(RuntimeUnavailable::HostWriteResponse(source));
+        }
+        let template = saved.template
+            .ok_or(RuntimeUnavailable::HostWriteResponse(source.clone()))?;
+        let resume = self.resume_templates.get(template.0)
+            .ok_or(RuntimeUnavailable::HostWriteResponse(source.clone()))?;
+        if !self.program.host_write_declaration_matches(&resume.declaration)
+            || !matches!(self.values.get(payload.0).map(|value| &value.kind),
+                Some(RuntimeValueKind::String(_)))
+        {
+            return Err(RuntimeUnavailable::HostWriteResponse(source));
+        }
+        let captured = match &self.values[payload.0].kind {
+            RuntimeValueKind::String(text) => text.clone(),
+            _ => unreachable!("the payload kind was checked above"),
+        };
+        let template_root = resume.root;
+        self.continuations[continuation.0].resumed = true;
+        let response_value = self.allocate(&source, RuntimeValueKind::Unit, None);
+        let response = ReceivedValue {
+            dispatch: None,
+            value: response_value,
+            interface: ParameterRole::Value,
+            view: self.receiving.ground(response_value),
+        };
+        self.frames.push(Frame::ResumeReturn);
+        self.state = State::EnterTemplate {
+            template,
+            node: template_root,
+            control: HashMap::new(),
+            response,
+        };
+        Ok(captured)
+    }
+
+    pub fn step(&mut self) -> RuntimeOutcome {
+        if let State::Stopped(outcome) = &self.state {
+            return outcome.clone();
+        }
+        self.steps = self.steps.saturating_add(1);
+        let state = std::mem::replace(&mut self.state, State::Stopped(RuntimeOutcome::Running));
+        let result = match state {
+            State::Evaluate { code, environment } => self.evaluate(code, environment),
+            State::Return(value) => self.return_value(value),
+            State::EnterTemplate {
+                template,
+                node,
+                control,
+                response,
+            } => self.enter_template(template, node, control, response),
+            State::Request(request) => self.propagate_request(request),
+            State::IntegerProduct { product, site } => self.advance_integer_product(product, site),
+            State::Stopped(_) => unreachable!(),
+        };
+        if let Err(error) = result {
+            self.pending_name_entry = None;
+            self.name_entry_return_token = None;
+            self.pending_name_observation = None;
+            self.pending_name_return_observation = None;
+            self.state = State::Stopped(RuntimeOutcome::Unavailable(error));
+        }
+        match &self.state {
+            State::Stopped(outcome) => outcome.clone(),
+            _ => RuntimeOutcome::Running,
+        }
+    }
+
+    fn evaluate(&mut self, label: Label, environment: usize) -> Result<(), RuntimeUnavailable> {
+        let code = self
+            .program
+            .code
+            .get(label.0)
+            .cloned()
+            .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+        let site = &code.site;
+        match &code.instruction {
+            Instruction::Unit => self.ground_data(site, RuntimeValueKind::Unit, None),
+            Instruction::Integer(text) => self.ground_data(
+                site,
+                RuntimeValueKind::Integer(
+                    literal::integer(text)
+                        .ok_or_else(|| RuntimeUnavailable::LiteralDecoding(site.clone()))?,
+                ),
+                None,
+            ),
+            Instruction::Boolean(value) => {
+                self.ground_data(site, RuntimeValueKind::Boolean(*value), None)
+            }
+            Instruction::String(text) => self.ground_data(
+                site,
+                RuntimeValueKind::String(
+                    literal::string(text)
+                        .ok_or_else(|| RuntimeUnavailable::LiteralDecoding(site.clone()))?,
+                ),
+                None,
+            ),
+            Instruction::DecodedString(text) => self.ground_data(site, RuntimeValueKind::String(text.clone()), None),
+            Instruction::Primitive(operation) => self.data(
+                site,
+                RuntimeValueKind::Primitive(operation.clone()),
+                Some(ExecutableValue::Primitive { operation: operation.clone(), arguments: Vec::new() }),
+            ),
+            Instruction::Record { fields } => {
+                if let Some((_, first)) = fields.first() {
+                    let first = *first;
+                    self.frames.push(Frame::Record { record: code, next: 1, environment, prefix: None });
+                    self.state = State::Evaluate { code: first, environment };
+                } else {
+                    self.data(site, RuntimeValueKind::Record(Vec::new()), None);
+                }
+            }
+            Instruction::Tuple { elements } | Instruction::Variant { payloads: elements, .. } => {
+                if let Some(first) = elements.first().copied() {
+                    self.frames.push(Frame::Tuple {
+                        tuple: code,
+                        next: 1,
+                        environment,
+                        prefix: None,
+                    });
+                    self.state = State::Evaluate { code: first, environment };
+                } else {
+                    let value = match &code.instruction {
+                        Instruction::Variant { tag, .. } => RuntimeValueKind::Variant { tag: tag.clone(), payloads: Vec::new() },
+                        _ => RuntimeValueKind::Tuple(Vec::new()),
+                    };
+                    self.data(site, value, None);
+                }
+            }
+            Instruction::FieldTail { receiver, .. } if self.program.dictionaries.is_some() => {
+                let word = self.dispatch.word(self.environments[environment].dispatch)?;
+                let key = dispatch::Site { owner: site.source_root.clone(), occurrence: site.occurrence.clone() };
+                let callee = *self.program.dictionaries.as_ref().unwrap().get(&(word, key.clone()))
+                    .ok_or_else(|| RuntimeUnavailable::UnsupportedFieldTail(site.clone()))?;
+                let entered = self.dispatch_environment(environment, dispatch::Step { kind: dispatch::Kind::Member, site: key })?;
+                self.frames.push(Frame::Callee { callee: None, argument: *receiver, environment, site: site.clone() });
+                self.state = State::Evaluate { code: callee, environment: entered };
+            }
+            Instruction::FieldTail { .. } => {
+                // Only exact candidate-retained abstract constraints survive
+                // construction. Execution requires a concrete selection; no
+                // runtime value tag supplies a missing dictionary.
+                return Err(RuntimeUnavailable::UnsupportedFieldTail(site.clone()));
+            }
+            Instruction::OperatorApplication { left, right, key } if self.program.dictionaries.is_some() => {
+                let callee = *self.program.operator_bodies.get(key).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                let entered = self.dispatch_environment(environment, dispatch::Step {
+                    kind: dispatch::Kind::Operator,
+                    site: dispatch::Site { owner: site.source_root.clone(), occurrence: site.occurrence.clone() },
+                })?;
+                if let Some(right) = right { self.frames.push(Frame::Callee { callee: None, argument: *right, environment, site: site.clone() }); }
+                self.frames.push(Frame::Callee { callee: None, argument: *left, environment, site: site.clone() });
+                self.state = State::Evaluate { code: callee, environment: entered };
+            }
+            Instruction::OperatorApplication { .. } => {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            Instruction::Forward(inner) => {
+                self.state = State::Evaluate {
+                    code: *inner,
+                    environment,
+                }
+            }
+            Instruction::Name {
+                resolution,
+                consumption,
+            } => {
+                let cell = match resolution {
+                    LocalSourceResolution::ModuleDef(id) => {
+                        self.program.definition_indices.get(id).copied()
+                    }
+                    LocalSourceResolution::Parameter(id) => {
+                        self.lookup(environment, |binder| {
+                            matches!(binder, Binder::Parameter(candidate) if candidate == id)
+                        })
+                    }
+                    LocalSourceResolution::Local(id) => {
+                        self.lookup(environment, |binder| {
+                            matches!(binder, Binder::Local(candidate) if candidate == id)
+                        })
+                    }
+                    LocalSourceResolution::CatchBinder(id) => {
+                        self.lookup(environment, |binder| {
+                            matches!(binder, Binder::Catch(candidate) if candidate == id)
+                        })
+                    }
+                    LocalSourceResolution::CaseBinder(id) => {
+                        self.lookup(environment, |binder| {
+                            matches!(binder, Binder::Catch(candidate) if candidate == id)
+                        })
+                    }
+                    LocalSourceResolution::Imported(_)
+                    | LocalSourceResolution::Unresolved
+                    | LocalSourceResolution::Ambiguous => None,
+                }
+                .ok_or_else(|| RuntimeUnavailable::MissingBinding(site.clone()))?;
+                if let Some(received) = self.cells[cell] {
+                    let execution_owner = self.current_execution_owner();
+                    if *consumption == NameConsumption::Observe {
+                        let resolution_kind = match resolution {
+                            LocalSourceResolution::Parameter(_) => "Parameter",
+                            LocalSourceResolution::Local(_) => "Local",
+                            _ => "Other",
+                        };
+                        self.pending_name_observation = Some(PendingNameObservation {
+                            resolution: resolution_kind,
+                            site: site.clone(),
+                            cell,
+                        });
+                        if let (LocalSourceResolution::Parameter(parameter),
+                            ExecutionOwner::Invocation(invocation)) = (resolution, execution_owner)
+                        {
+                            self.pending_name_entry = Some(PendingNameEntry {
+                                invocation,
+                                site: site.clone(),
+                                source_parameter: parameter.clone(),
+                                source_cell: cell,
+                                value: received.value,
+                                view: received.view,
+                                cells_before_bind: self.cells.len(),
+                                receipt_index: None,
+                            });
+                        }
+                    }
+                    if let (Some(plan), Some(trace)) =
+                        (&self.program.operation_v1, &mut self.operation_v1_trace)
+                    {
+                        if plan.local_lineage.as_ref().is_some_and(|lineage|
+                            site.occurrence == lineage.name_use.occurrence)
+                            && matches!(resolution,
+                                LocalSourceResolution::Local(id)
+                                    if plan.local_lineage.as_ref().is_some_and(|lineage|
+                                        id == &lineage.binding))
+                        {
+                            trace.read_local_cell = Some((
+                                cell,
+                                received.value,
+                                execution_owner,
+                            ));
+                        }
+                        if site.occurrence == plan.response_argument.occurrence
+                            && matches!(resolution,
+                                LocalSourceResolution::Local(id)
+                                    if id == &plan.link.response_definition)
+                        {
+                            trace.response_definition_read =
+                                Some((received.value, environment, site.clone()));
+                        }
+                    }
+                    let received = self.dispatch_name(received, cell, environment, site)?;
+                    self.consume(received, *consumption, site)?;
+                } else if matches!(resolution, LocalSourceResolution::ModuleDef(_)) {
+                    if !self.initializing_globals.insert(cell) {
+                        return Err(RuntimeUnavailable::RecursiveDefinitionInitialization(
+                            site.clone(),
+                        ));
+                    }
+                    self.frames.push(Frame::GlobalRead {
+                        cell,
+                        consumption: *consumption,
+                        site: site.clone(),
+                        environment,
+                    });
+                    let environment = self.initializer_environment(cell, 0)?;
+                    self.state = State::Evaluate {
+                        code: self.program.definitions[cell].body,
+                        environment,
+                    };
+                } else {
+                    return Err(RuntimeUnavailable::UninitializedBinding(site.clone()));
+                }
+            }
+            Instruction::Lambda {
+                parameter,
+                unit_pattern,
+                record_pattern,
+                role,
+                root_schema,
+                callback_schema,
+                body,
+            } => {
+                self.data(
+                    site,
+                    RuntimeValueKind::Closure,
+                    Some(ExecutableValue::Closure {
+                        parameter: parameter.clone(),
+                        unit_pattern: *unit_pattern,
+                        record_pattern: record_pattern.clone(),
+                        role: *role,
+                        root_schema: root_schema.clone(),
+                        callback_schema: callback_schema.clone(),
+                        body: *body,
+                        environment,
+                    }),
+                );
+            }
+            Instruction::Apply { callee, argument } => {
+                self.frames.push(Frame::Callee {
+                    callee: Some(*callee),
+                    argument: *argument,
+                    environment,
+                    site: site.clone(),
+                });
+                self.state = State::Evaluate {
+                    code: *callee,
+                    environment,
+                };
+            }
+            Instruction::Block { .. } | Instruction::StatementBlock { .. } => self.begin_local(code, 0, environment)?,
+            Instruction::Sequence { items } => {
+                let Some(first) = items.first().copied() else {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                };
+                self.frames.push(Frame::Sequence { sequence: code, next: 1, environment });
+                self.state = State::Evaluate { code: first, environment };
+            }
+            Instruction::If { arms, else_branch } => {
+                if let Some((test, _)) = arms.first() {
+                    let test = *test;
+                    self.frames.push(Frame::Condition {
+                        conditional: code,
+                        arm: 0,
+                        environment,
+                    });
+                    self.state = State::Evaluate {
+                        code: test,
+                        environment,
+                    };
+                } else if let Some(branch) = else_branch {
+                    self.state = State::Evaluate {
+                        code: *branch,
+                        environment,
+                    };
+                } else {
+                    self.ground_data(site, RuntimeValueKind::Unit, None);
+                }
+            }
+            Instruction::Case { scrutinee, .. } => {
+                self.frames.push(Frame::Case {
+                    case: code.clone(),
+                    environment,
+                });
+                self.state = State::Evaluate {
+                    code: *scrutinee,
+                    environment,
+                };
+            }
+            Instruction::Operation(resolution) => {
+                let execution_owner = self.current_execution_owner();
+                if let (Some(plan), Some(trace)) =
+                    (&self.program.operation_v1, &mut self.operation_v1_trace)
+                {
+                    if site.occurrence == plan.request.occurrence
+                        && matches!(resolution, SourceOperationResolution::Resolved(declaration)
+                            if declaration.id == plan.request_operation)
+                    {
+                        trace.request_operation_seen = true;
+                    }
+                    if site.occurrence == plan.callback_operation.occurrence
+                        && trace.applied_response_invocation.as_ref().is_some_and(|(apply, owner)| {
+                            apply.occurrence == plan.response_invocation_apply.occurrence
+                                && apply.source_root == plan.response_invocation_apply.source_root
+                                && *owner == execution_owner
+                        })
+                        && matches!(resolution, SourceOperationResolution::Resolved(declaration)
+                            if declaration.id == plan.link.callback_operation)
+                    {
+                        trace.callback_operation_seen = true;
+                        trace.callback_operation_owner = Some(execution_owner);
+                    }
+                }
+                self.data(site, RuntimeValueKind::Operation(resolution.clone()), None)
+            }
+            Instruction::Catch { scrutinee, .. } => {
+                let scrutinee = *scrutinee;
+                let execution_owner = self.current_execution_owner();
+                if let (Some(plan), Some(trace)) =
+                    (&self.program.operation_v1, &mut self.operation_v1_trace)
+                {
+                    if plan.local_lineage.as_ref().is_some_and(|lineage|
+                        site.occurrence == lineage.initializer_catch.occurrence
+                            && site.source_root == lineage.initializer_catch.source_root)
+                    {
+                        trace.initializer_catch_owner = Some(execution_owner);
+                    }
+                }
+                let occurrence = self.next_handler;
+                self.next_handler = occurrence
+                    .checked_add(1)
+                    .ok_or(RuntimeUnavailable::IdentityExhausted)?;
+                let installation = HandlerInstallation {
+                    occurrence,
+                    owner: self.current_execution_owner(),
+                };
+                #[cfg(test)]
+                self.owner_consumer_events.push(OwnerConsumerEvent::CatchInstalled {
+                    installation,
+                    handler: code.site.clone(),
+                });
+                self.frames.push(Frame::CatchReturn {
+                    handler: code,
+                    environment,
+                    installation,
+                });
+                self.state = State::Evaluate {
+                    code: scrutinee,
+                    environment,
+                };
+            }
+        }
+        Ok(())
+    }
+
+    fn return_value(&mut self, received: ReceivedValue) -> Result<(), RuntimeUnavailable> {
+        // The token belongs only to this one return consumer. Taking it before
+        // inspecting the frame prevents it crossing Sequence/Condition/etc.
+        let return_token = self.name_entry_return_token.take();
+        let returned_name = self.pending_name_return_observation.take();
+        let Some(frame) = self.frames.pop() else {
+            self.state = State::Stopped(RuntimeOutcome::Completed(received.value));
+            return Ok(());
+        };
+        let (frame_kind, frame_invocation) = match &frame {
+            Frame::ValueEntry { entry_receiver, .. } => ("ValueEntry", Some(*entry_receiver)),
+            Frame::Sequence { .. } => ("Sequence", None),
+            Frame::Condition { .. } => ("Condition", None),
+            Frame::BlockExpression { .. } => ("BlockExpression", None),
+            _ => ("Other", None),
+        };
+        self.name_entry_return_observations.push(NameEntryReturnObservation {
+            frame: frame_kind,
+            invocation: frame_invocation,
+            token_receipt_index: return_token.as_ref().and_then(|p| p.receipt_index),
+            token_source_parameter_ordinal: return_token.as_ref().map(|p| p.source_parameter.ordinal()),
+            token_name_site_ordinal: return_token.as_ref().map(|p| p.site.occurrence.ordinal()),
+            token_value: return_token.as_ref().map(|p| p.value.0),
+            token_view: return_token.as_ref().map(|p| p.view.index()),
+            token_cells_before_bind: return_token.as_ref().map(|p| p.cells_before_bind),
+            returned_value: received.value.0,
+            returned_view: received.view.index(),
+            cells_at_return: self.cells.len(),
+        });
+        if let Some(observed) = returned_name {
+            self.name_entry_name_return_observations.push(NameEntryNameReturnObservation {
+                resolution: observed.resolution,
+                name_site_ordinal: observed.site.occurrence.ordinal(),
+                source_cell: observed.cell,
+                value: observed.value.0,
+                view: observed.view.index(),
+                receipt_index: observed.receipt_index,
+                cells_before_observe: observed.cells_before_observe,
+                return_frame: frame_kind,
+            });
+        }
+        match frame {
+            Frame::ResumeArgument { template, source } => {
+                if let (Some(plan), Some(trace)) =
+                    (&self.program.operation_v1, &mut self.operation_v1_trace)
+                {
+                    let exact_definition_read = trace.response_definition_read.as_ref()
+                        .is_some_and(|(value, _, read_site)| {
+                            *value == received.value
+                                && read_site.occurrence == plan.response_argument.occurrence
+                        });
+                    if received.value.0 < self.values.len()
+                        && self.values[received.value.0].source.occurrence
+                            == plan.response_lambda.occurrence
+                        && source.occurrence == plan.continuation_apply.occurrence
+                        && exact_definition_read
+                    {
+                        if let Some(ExecutableValue::Closure { environment, .. }) =
+                            self.executables.get(&received.value.0)
+                        {
+                            trace.selected_closure = Some((received.value, *environment));
+                        }
+                    }
+                }
+                let SourceAnnotationValue::Function { result, .. } = &self
+                    .resume_templates
+                    .get(template.0)
+                    .ok_or(RuntimeUnavailable::InvalidSourceReference)?
+                    .declaration
+                    .signature
+                    .value
+                else {
+                    return Err(RuntimeUnavailable::ContinuationResponse(source));
+                };
+                let exact_v1_function_response = matches!(
+                    &result.value,
+                    SourceAnnotationValue::Function { .. }
+                ) && self.program.operation_v1.as_ref().is_some_and(|plan| {
+                    received.interface == ParameterRole::Value
+                        && self.receiving.matches_value(received.view, received.value)
+                        && source.occurrence == plan.continuation_apply.occurrence
+                        && self.operation_v1_trace.as_ref().is_some_and(|trace| {
+                            trace.response_definition_read.as_ref().is_some_and(
+                                |(value, _, read_site)| {
+                                    *value == received.value
+                                        && read_site.occurrence == plan.response_argument.occurrence
+                                },
+                            )
+                        })
+                        && self.values.get(received.value.0).is_some_and(|value| {
+                            value.source.occurrence == plan.response_lambda.occurrence
+                                && value.source.source_root == plan.response_lambda.source_root
+                        })
+                        && matches!(self.executables.get(&received.value.0),
+                            Some(ExecutableValue::Closure { .. }))
+                });
+                if !self.primitive_matches(&result.value, received)
+                    && !exact_v1_function_response
+                {
+                    return Err(RuntimeUnavailable::ContinuationResponse(source));
+                }
+                self.frames.push(Frame::ResumeReturn);
+                let node = self
+                    .resume_templates
+                    .get(template.0)
+                    .ok_or(RuntimeUnavailable::InvalidSourceReference)?
+                    .root;
+                self.state = State::EnterTemplate {
+                    template,
+                    node,
+                    control: HashMap::new(),
+                    response: received,
+                };
+            }
+            Frame::ResumeReturn => self.state = State::Return(received),
+            Frame::OwnerReturn {
+                owner,
+                owned,
+                previous,
+            } => {
+                self.leave_owner(owner, owned, previous)?;
+                self.state = State::Return(received);
+            }
+            Frame::RootCompReturn { execution } => {
+                if !self.receiving.matches_value(received.view, received.value) {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                }
+                #[cfg(test)]
+                if let Some(callback_use) = self.receiving.callback_use_for_execution(&execution) {
+                    let source = self.receiving.callback_use_observation(CallbackUseHandle(callback_use))
+                        .ok_or(RuntimeUnavailable::InvalidSourceReference)?.7;
+                    self.owner_consumer_events.push(OwnerConsumerEvent::CallbackExecutionReturned {
+                        invocation: match self.current_execution_owner() {
+                            ExecutionOwner::Invocation(id) => Some(id),
+                            ExecutionOwner::ModuleRun => None,
+                        },
+                        callback_use,
+                        view: execution.view.0,
+                        receipt: execution.receipt.0,
+                        source,
+                    });
+                }
+                self.end_execution_view(execution)?;
+                // The consumed computation root has no result-path image.
+                // Its actual result retains its own view, unknown coverage,
+                // private captures and dictionary; no groundness is assumed.
+                self.state = State::Return(received);
+            }
+            Frame::CatchReturn {
+                handler,
+                environment,
+                installation,
+            } => {
+                self.validate_handler_installation(installation)?;
+                // Popping this delimiter leaves the shallow handler before any
+                // value pattern binding or arm code executes.
+                let Instruction::Catch { arms, .. } = &handler.instruction else {
+                    unreachable!()
+                };
+                if let Some(arm) = arms
+                    .iter()
+                    .find(|arm| matches!(arm.pattern, LocalSourceCatchPattern::Value(_)))
+                {
+                    let LocalSourceCatchPattern::Value(pattern) = &arm.pattern else {
+                        unreachable!()
+                    };
+                    let environment = match pattern {
+                        LocalSourceCatchValuePattern::Binder(binder) => self.bind(
+                            environment,
+                            Binder::Catch(binder.id.clone()),
+                            ReceivedValue {
+                                dispatch: received.dispatch,
+                                value: received.value,
+                                interface: ParameterRole::Value,
+                                view: received.view,
+                            },
+                        ),
+                        LocalSourceCatchValuePattern::Wildcard => environment,
+                    };
+                    let _ = (&arm.source, &arm.range);
+                    self.state = State::Evaluate {
+                        code: arm.body,
+                        environment,
+                    };
+                } else {
+                    self.state = State::Return(received);
+                }
+            }
+            Frame::OperationPayload {
+                declaration,
+                source,
+            } => self.make_request_carrier(declaration, received, &source),
+            Frame::OperationResultConsumer { source, callback_use } => {
+                #[cfg(test)]
+                self.owner_consumer_events.push(OwnerConsumerEvent::ResultConsumer {
+                    invocation: match self.current_execution_owner() {
+                        ExecutionOwner::Invocation(id) => Some(id),
+                        ExecutionOwner::ModuleRun => None,
+                    },
+                    callback_use: callback_use.map(CallbackUseHandle::index),
+                    source: source.clone(),
+                });
+                if let Some(callback_use) = callback_use {
+                    let execution = self.receiving.callback_execution(callback_use)
+                        .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                    self.executing_views.push(execution);
+                    self.frames.push(Frame::RootCompReturn { execution });
+                }
+                self.execute_with_substitution(received.value, &source, received.dispatch)?;
+            }
+            Frame::DiscardToUnit { site } => self.ground_data(&site, RuntimeValueKind::Unit, None),
+            Frame::PrimitiveArgument { operation, mut arguments, site } => {
+                arguments.try_reserve(1).map_err(|_| RuntimeUnavailable::InvalidSourceReference)?;
+                arguments.push(received.value);
+                let arity = pinned_primitive_arity(&operation).ok_or_else(|| RuntimeUnavailable::InvalidSourceReference)?;
+                if arguments.len() < arity {
+                    self.data(
+                        &site,
+                        RuntimeValueKind::Primitive(operation.clone()),
+                        Some(ExecutableValue::Primitive { operation, arguments }),
+                    );
+                } else if arguments.len() == arity {
+                    if matches!(operation, yu_hir::shadow::PinnedPrimitiveOp::IntMul) {
+                        let Some(RuntimeValueKind::Integer(left)) = self.values.get(arguments[0].0).map(|value| &value.kind) else {
+                            return Err(RuntimeUnavailable::InvalidSourceReference);
+                        };
+                        let Some(RuntimeValueKind::Integer(right)) = self.values.get(arguments[1].0).map(|value| &value.kind) else {
+                            return Err(RuntimeUnavailable::InvalidSourceReference);
+                        };
+                        let product = super::decimal::Product::new(left, right)
+                            .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                        self.state = State::IntegerProduct { product, site };
+                    } else {
+                        let result = pinned_primitive_apply(&operation, &arguments, &self.values)
+                            .ok_or_else(|| RuntimeUnavailable::InvalidSourceReference)?;
+                        self.ground_data(&site, result, None);
+                    }
+                } else {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                }
+            }
+            Frame::Callee {
+                callee,
+                argument,
+                environment,
+                site,
+            } => {
+                // This allocates only inert code plus lexical references. No
+                // argument prefix runs before the receiver entry is selected.
+                let delay = self.allocate(
+                    &site,
+                    RuntimeValueKind::Computation,
+                    Some(ExecutableValue::Delay {
+                        code: argument,
+                        environment,
+                    }),
+                );
+                let inherited = self.direct_formal_root(argument, environment);
+                let delay_view = self.receiving.delay(delay, inherited);
+                let executable = self.executables.get(&received.value.0).cloned();
+                match executable {
+                    Some(ExecutableValue::Primitive { operation, arguments }) => {
+                        // This actual primitive receives a Value argument. Its
+                        // invocation owns the force, including a suspended raw
+                        // suffix, just like an ordinary Value-entry closure.
+                        let provider = self.values[received.value.0].source.clone();
+                        let (activation, previous) = self.new_invocation(site.clone(), provider)?;
+                        self.frames.push(Frame::ReceiverReturn { activation, previous });
+                        self.frames.push(Frame::PrimitiveArgument { operation, arguments, site: site.clone() });
+                        self.execute(delay, &site)?;
+                    }
+                    Some(ExecutableValue::Continuation(template)) => {
+                        let provider = self.values[received.value.0].source.clone();
+                        let (activation, previous) = self.new_invocation(site.clone(), provider)?;
+                        self.frames.push(Frame::ReceiverReturn {
+                            activation,
+                            previous,
+                        });
+                        self.frames.push(Frame::ResumeArgument {
+                            template,
+                            source: site.clone(),
+                        });
+                        self.execute(delay, &site)?;
+                    }
+                    Some(ExecutableValue::Closure {
+                        parameter,
+                        unit_pattern,
+                        record_pattern,
+                        role,
+                        root_schema,
+                        callback_schema,
+                        body,
+                        environment,
+                    }) => {
+                        let exact_response_invocation = self
+                            .program
+                            .operation_v1
+                            .as_ref()
+                            .is_some_and(|plan| {
+                                site.occurrence == plan.response_invocation_apply.occurrence
+                                    && site.source_root == plan.response_invocation_apply.source_root
+                            })
+                            && self.operation_v1_trace.as_ref().is_some_and(|trace| {
+                                trace.selected_closure.is_some_and(|(value, saved_environment)| {
+                                    value == received.value && saved_environment == environment
+                                })
+                            });
+                        let provider = self.values[received.value.0].source.clone();
+                        let (activation, previous) = self.new_invocation(site.clone(), provider)?;
+                        if let (Some(plan), Some(trace)) =
+                            (&self.program.operation_v1, &mut self.operation_v1_trace)
+                        {
+                            if plan.local_lineage.as_ref().is_some_and(|lineage|
+                                site.occurrence == lineage.apply.occurrence)
+                                && trace.installed_local_cell.is_some_and(
+                                    |(cell, value, saved_environment, install_owner)| {
+                                        value == received.value
+                                            && saved_environment == environment
+                                            && trace.read_local_cell.is_some_and(
+                                                |(read_cell, read_value, read_owner)| {
+                                                    read_cell == cell
+                                                        && read_value == value
+                                                        && read_owner == install_owner
+                                                },
+                                            )
+                                    },
+                                )
+                            {
+                                trace.local_invocation_owner =
+                                    Some(ExecutionOwner::Invocation(activation));
+                            }
+                        }
+                        if exact_response_invocation {
+                            if let Some(trace) = &mut self.operation_v1_trace {
+                                trace.applied_response_invocation = Some((
+                                    site.clone(),
+                                    ExecutionOwner::Invocation(activation),
+                                ));
+                            }
+                        }
+                        let environment = self.substitute_environment(environment, received.dispatch)?;
+                        self.frames.push(Frame::ReceiverReturn {
+                            activation,
+                            previous,
+                        });
+                        match role {
+                            ParameterRole::Value => {
+                                self.frames.push(Frame::ValueEntry {
+                                    parameter,
+                                    callback_schema,
+                                    entry_receiver: activation,
+                                    unit_pattern,
+                                    record_pattern,
+                                    body,
+                                    environment,
+                                });
+                                self.execute(delay, &site)?;
+                            }
+                            ParameterRole::Computation => {
+                                let view = if let Some(schema) = root_schema {
+                                    let view = self.receiving.enter(
+                                        delay,
+                                        delay_view,
+                                        activation,
+                                        schema.clone(),
+                                    );
+                                    self.receiving.receipt(
+                                        ExecutionOwner::Invocation(activation),
+                                        view,
+                                        &schema.lambda,
+                                        Some(parameter.clone()),
+                                    );
+                                    #[cfg(test)]
+                                    if let Some((invocation, formal, value, root_view, receipt, lambda, permission_families)) =
+                                        self.receiving.root_entry_observation(view)
+                                    {
+                                        self.owner_consumer_events.push(OwnerConsumerEvent::RootCompEntry {
+                                            invocation, formal, value, view: root_view, receipt,
+                                            lambda, permission_families,
+                                        });
+                                    }
+                                    view
+                                } else {
+                                    delay_view
+                                };
+                                let environment = self.bind(
+                                    environment,
+                                    Binder::Parameter(parameter),
+                                    ReceivedValue {
+                                        dispatch: None,
+                                        value: delay,
+                                        interface: ParameterRole::Computation,
+                                        view,
+                                    },
+                                );
+                                self.state = State::Evaluate {
+                                    code: body,
+                                    environment,
+                                };
+                            }
+                        }
+                    }
+                    _ if matches!(
+                        &self.values[received.value.0].kind,
+                        RuntimeValueKind::Operation(_)
+                    ) =>
+                    {
+                        let RuntimeValueKind::Operation(SourceOperationResolution::Resolved(
+                            declaration,
+                        )) = &self.values[received.value.0].kind
+                        else {
+                            return Err(RuntimeUnavailable::UnresolvedOperation(site));
+                        };
+                        let declaration = declaration.clone();
+                        if declaration.signature.effects.is_some() {
+                            return Err(RuntimeUnavailable::OperationConsumer(site));
+                        }
+                        let SourceAnnotationValue::Function { argument, result } =
+                            &declaration.signature.value
+                        else {
+                            return Err(RuntimeUnavailable::OperationConsumer(site));
+                        };
+                        let role = if argument.effects.is_some() {
+                            ParameterRole::Computation
+                        } else {
+                            ParameterRole::Value
+                        };
+                        let callback_use = if role == ParameterRole::Value
+                            && argument.effects.is_none()
+                            && matches!(argument.value, SourceAnnotationValue::Unit)
+                            && result.effects.is_none()
+                            && matches!(result.value, SourceAnnotationValue::Int)
+                        {
+                            let source_formal = callee.and_then(|callee| {
+                                let code = self.program.code.get(callee.0)?;
+                                let Instruction::Name {
+                                    resolution: LocalSourceResolution::Parameter(formal),
+                                    consumption: NameConsumption::Observe,
+                                } = &code.instruction else { return None; };
+                                self.receiving.callback_entry_for_apply(
+                                    received.value,
+                                    received.view,
+                                    formal,
+                                    self.current_execution_owner(),
+                                    &code.site,
+                                )
+                            });
+                            source_formal.and_then(|entry| {
+                                self.receiving.callback_use(
+                                    entry,
+                                    received.value,
+                                    received.view,
+                                    &site,
+                                    self.current_execution_owner(),
+                                )
+                            })
+                        } else {
+                            None
+                        };
+                        let provider = self.values[received.value.0].source.clone();
+                        let (activation, previous) = self.new_invocation(site.clone(), provider)?;
+                        // The declared source consumer runs after native return.
+                        // Its authority comes from the operation declaration,
+                        // including when the written result effect row is absent.
+                        self.frames.push(Frame::OperationResultConsumer {
+                            source: site.clone(),
+                            callback_use,
+                        });
+                        self.frames.push(Frame::ReceiverReturn {
+                            activation,
+                            previous,
+                        });
+                        match role {
+                            ParameterRole::Value => {
+                                self.frames.push(Frame::OperationPayload {
+                                    declaration,
+                                    source: site.clone(),
+                                });
+                                self.execute(delay, &site)?;
+                            }
+                            ParameterRole::Computation => self.make_request_carrier(
+                                declaration,
+                                ReceivedValue {
+                                    dispatch: None,
+                                    value: delay,
+                                    interface: ParameterRole::Computation,
+                                    view: delay_view,
+                                },
+                                &site,
+                            ),
+                        }
+                    }
+                    _ => return Err(RuntimeUnavailable::ExpectedCallable(site)),
+                }
+            }
+            Frame::ReceiverReturn {
+                activation,
+                previous,
+            } => {
+                self.leave_owner(ExecutionOwner::Invocation(activation), true, previous)?;
+                self.state = State::Return(ReceivedValue {
+                    dispatch: received.dispatch,
+                    value: received.value,
+                    interface: ParameterRole::Value,
+                    view: received.view,
+                });
+            }
+            Frame::ValueEntry {
+                parameter,
+                callback_schema,
+                entry_receiver,
+                unit_pattern,
+                record_pattern,
+                body,
+                environment,
+            } => {
+                let ordinary_entry = callback_schema.is_none()
+                    && !unit_pattern
+                    && record_pattern.is_none();
+                let received = if let Some(schema) = callback_schema {
+                    let owner = ExecutionOwner::Invocation(entry_receiver);
+                    if unit_pattern
+                        || record_pattern.is_some()
+                        || self.current_execution_owner() != owner
+                        || schema.formal.id != parameter
+                        || schema.formal.id.source_root() != &schema.lambda.source_root
+                        || received.interface != ParameterRole::Value
+                    {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    }
+                    let (view, entry) = self.receiving.callback_entry(
+                        schema,
+                        owner,
+                        received.value,
+                        received.view,
+                    ).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                    #[cfg(test)]
+                    if let Some((invocation, formal, value, incoming_view, entry_view, receipt, lambda, permission_families)) =
+                        self.receiving.callback_entry_observation(entry)
+                    {
+                        self.owner_consumer_events.push(OwnerConsumerEvent::CallbackEntry {
+                            id: entry.index(), invocation, formal, value, incoming_view, view: entry_view, receipt,
+                            lambda, permission_families,
+                        });
+                    }
+                    ReceivedValue { interface: ParameterRole::Value, view, ..received }
+                } else {
+                    received
+                };
+                if let Some(fields) = record_pattern {
+                    return self.bind_record_parameter(fields, 0, received, body, environment);
+                }
+                let bound_cell = self.cells.len();
+                let returned_value_origin_site = self.values[received.value.0].source.clone();
+                let environment = if unit_pattern {
+                    if !self.value(received.value).is_some_and(|value| matches!(value.kind, RuntimeValueKind::Unit)) {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    }
+                    environment
+                } else { self.bind(
+                    environment,
+                    Binder::Parameter(parameter.clone()),
+                    ReceivedValue {
+                        dispatch: received.dispatch,
+                        value: received.value,
+                        interface: ParameterRole::Value,
+                        view: received.view,
+                    },
+                ) };
+                if ordinary_entry {
+                    let owner_matches = self.current_execution_owner()
+                        == ExecutionOwner::Invocation(entry_receiver);
+                    let bound_matches = self.cells.get(bound_cell).is_some_and(|cell|
+                        cell.is_some_and(|bound| bound.value == received.value
+                            && bound.view == received.view
+                            && bound.interface == ParameterRole::Value));
+                    let token_accepted = owner_matches && bound_matches
+                        && return_token.as_ref().is_some_and(|pending|
+                            pending.invocation == entry_receiver
+                                && pending.cells_before_bind == bound_cell
+                                && pending.value == received.value
+                                && pending.view == received.view
+                                && pending.receipt_index.is_some());
+                    self.name_entry_value_entry_attempts.push(NameEntryValueEntryAttempt {
+                        invocation: entry_receiver,
+                        entry_parameter_ordinal: parameter.ordinal(),
+                        value: received.value.0,
+                        view: received.view.index(),
+                        cells_before_bind: bound_cell,
+                        bound_cell,
+                        cells_after_bind: self.cells.len(),
+                        token_receipt_index: return_token.as_ref().and_then(|p| p.receipt_index),
+                        token_source_parameter_ordinal: return_token.as_ref().map(|p| p.source_parameter.ordinal()),
+                        token_name_site_ordinal: return_token.as_ref().map(|p| p.site.occurrence.ordinal()),
+                        token_accepted,
+                    });
+                    if token_accepted {
+                        if let Some(pending) = return_token {
+                            self.name_entry_trace = Some(NameEntryCorrespondenceTrace {
+                                invocation: entry_receiver,
+                                name_site: pending.site,
+                                returned_value_origin_site,
+                                source_parameter: pending.source_parameter,
+                                entry_parameter: parameter,
+                                source_cell: pending.source_cell,
+                                value: received.value.0,
+                                view: received.view.index(),
+                                receipt_index: pending.receipt_index.unwrap(),
+                                cells_before_bind: pending.cells_before_bind,
+                                bound_cell,
+                                cells_after_bind: self.cells.len(),
+                            });
+                        }
+                    }
+                }
+                self.state = State::Evaluate {
+                    code: body,
+                    environment,
+                };
+            }
+            Frame::RecordDefault { fields, index, argument, body, environment } => {
+                let view = self.receiving.project_record(argument.view, received.view, received.value)
+                    .ok_or_else(|| RuntimeUnavailable::UnsupportedRecordPattern(self.values[argument.value.0].source.clone()))?;
+                let environment = self.bind(environment, Binder::Parameter(fields[index].binder.clone()),
+                    ReceivedValue { view, interface: ParameterRole::Value, ..received });
+                self.bind_record_parameter(fields, index + 1, argument, body, environment)?;
+            }
+            Frame::Local {
+                block,
+                next,
+                environment,
+                cell,
+                recursive,
+            } => {
+                let execution_owner = self.current_execution_owner();
+                let binding = match &block.instruction {
+                    Instruction::Block { bindings, .. } => bindings
+                        .get(next - 1)
+                        .ok_or(RuntimeUnavailable::InvalidSourceReference)?,
+                    Instruction::StatementBlock { statements, .. } => match statements.get(next - 1) {
+                        Some(BlockStatement::Binding(binding)) => binding,
+                        _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+                    },
+                    _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+                };
+                if let (Some(plan), Some(trace)) =
+                    (&self.program.operation_v1, &mut self.operation_v1_trace)
+                {
+                    if plan.local_lineage.as_ref().is_some_and(|lineage|
+                        binding.id == lineage.binding)
+                    {
+                        let lineage = plan.local_lineage.as_ref()
+                            .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                        let initializer_site = self.program.code.get(binding.initializer.0)
+                            .ok_or(RuntimeUnavailable::InvalidSourceReference)?
+                            .site.clone();
+                        let closure_environment = match self.executables.get(&received.value.0) {
+                            Some(ExecutableValue::Closure { environment, .. }) => *environment,
+                            _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+                        };
+                        if initializer_site.occurrence == lineage.initializer_catch.occurrence
+                            && trace.initializer_catch_owner == Some(execution_owner)
+                        {
+                            trace.installed_local_cell = Some((
+                                cell,
+                                received.value,
+                                closure_environment,
+                                execution_owner,
+                            ));
+                        }
+                    }
+                }
+                self.cells[cell] = Some(ReceivedValue {
+                    dispatch: received.dispatch,
+                    value: received.value,
+                    interface: ParameterRole::Value,
+                    view: received.view,
+                });
+                let local = binding.id.clone();
+                let environment = if recursive {
+                    environment
+                } else {
+                    self.extend(
+                        environment,
+                        Binder::Local(local),
+                        cell,
+                    )
+                };
+                self.begin_local(block, next, environment)?;
+            }
+            Frame::Condition {
+                conditional,
+                arm,
+                environment,
+            } => {
+                let RuntimeValueKind::Boolean(condition) = &self.values[received.value.0].kind
+                else {
+                    return Err(RuntimeUnavailable::ExpectedBoolean(
+                        conditional.site.clone(),
+                    ));
+                };
+                let Instruction::If { arms, else_branch } = &conditional.instruction else {
+                    unreachable!()
+                };
+                if *condition {
+                    if else_branch.is_none() {
+                        self.frames.push(Frame::DiscardToUnit {
+                            site: conditional.site.clone(),
+                        });
+                    }
+                    self.state = State::Evaluate {
+                        code: arms[arm].1,
+                        environment,
+                    };
+                } else if let Some((test, _)) = arms.get(arm + 1) {
+                    let test = *test;
+                    self.state = State::Evaluate {
+                        code: test,
+                        environment,
+                    };
+                    self.frames.push(Frame::Condition {
+                        conditional,
+                        arm: arm + 1,
+                        environment,
+                    });
+                } else if let Some(branch) = else_branch {
+                    self.state = State::Evaluate {
+                        code: *branch,
+                        environment,
+                    };
+                } else {
+                    self.ground_data(&conditional.site, RuntimeValueKind::Unit, None);
+                }
+            }
+            Frame::BlockExpression { block, next, environment } => {
+                self.begin_local(block, next, environment)?;
+            }
+            Frame::Sequence { sequence, next, environment } => {
+                let Instruction::Sequence { items } = &sequence.instruction else {
+                    unreachable!()
+                };
+                if let Some(item) = items.get(next).copied() {
+                    self.frames.push(Frame::Sequence { sequence, next: next + 1, environment });
+                    self.state = State::Evaluate { code: item, environment };
+                } else {
+                    self.state = State::Return(received);
+                }
+            }
+            Frame::Record { record, next, environment, prefix: previous } => {
+                let prefix = self.tuple_prefixes.len();
+                self.tuple_prefixes.push(TuplePrefix { previous, received });
+                let Instruction::Record { fields } = &record.instruction else { unreachable!() };
+                if let Some((_, element)) = fields.get(next) {
+                    let element = *element;
+                    self.frames.push(Frame::Record { record, next: next + 1, environment, prefix: Some(prefix) });
+                    self.state = State::Evaluate { code: element, environment };
+                } else {
+                    let mut reversed = Vec::with_capacity(fields.len());
+                    let mut cursor = Some(prefix);
+                    while let Some(index) = cursor {
+                        let node = self.tuple_prefixes.get(index).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                        reversed.push(TupleElement { received: node.received });
+                        cursor = node.previous;
+                    }
+                    if reversed.len() != fields.len() { return Err(RuntimeUnavailable::InvalidSourceReference); }
+                    reversed.reverse();
+                    let value = fields.iter().map(|(label, _)| label.clone()).zip(reversed).collect();
+                    self.data(&record.site, RuntimeValueKind::Record(value), None);
+                }
+            }
+            Frame::Tuple { tuple, next, environment, prefix: previous } => {
+                let prefix = self.tuple_prefixes.len();
+                self.tuple_prefixes.push(TuplePrefix {
+                    previous,
+                    received,
+                });
+                let elements = match &tuple.instruction {
+                    Instruction::Tuple { elements } | Instruction::Variant { payloads: elements, .. } => elements,
+                    _ => unreachable!(),
+                };
+                if let Some(element) = elements.get(next).copied() {
+                    self.frames.push(Frame::Tuple {
+                        tuple,
+                        next: next + 1,
+                        environment,
+                        prefix: Some(prefix),
+                    });
+                    self.state = State::Evaluate { code: element, environment };
+                } else {
+                    let mut reversed = Vec::with_capacity(elements.len());
+                    let mut cursor = Some(prefix);
+                    while let Some(index) = cursor {
+                        let node = self.tuple_prefixes.get(index)
+                            .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                        reversed.push(TupleElement { received: node.received });
+                        cursor = node.previous;
+                    }
+                    if reversed.len() != elements.len() { return Err(RuntimeUnavailable::InvalidSourceReference); }
+                    reversed.reverse();
+                    let value = match &tuple.instruction {
+                        Instruction::Variant { tag, .. } => RuntimeValueKind::Variant { tag: tag.clone(), payloads: reversed },
+                        _ => RuntimeValueKind::Tuple(reversed),
+                    };
+                    self.data(&tuple.site, value, None);
+                }
+            }
+            Frame::Case { case, environment } => {
+                let Instruction::Case { arms, .. } = &case.instruction else {
+                    unreachable!()
+                };
+                let selected = {
+                    let value = &self.values[received.value.0].kind;
+                    arms.iter().position(|arm| match (&arm.pattern, value) {
+                        (CasePattern::Integer(expected), RuntimeValueKind::Integer(actual)) => expected == actual,
+                        (CasePattern::Binder(_), _) => true,
+                        (CasePattern::Tuple(patterns), RuntimeValueKind::Tuple(elements)) => {
+                            patterns.len() == elements.len()
+                        }
+                        (CasePattern::Variant { tag, payloads }, RuntimeValueKind::Variant { tag: actual, payloads: elements }) => {
+                            tag == actual && payloads.len() == elements.len()
+                        }
+                        (CasePattern::Wildcard, _) => true,
+                        _ => false,
+                    })
+                };
+                if let Some(selected) = selected {
+                    let arm = &arms[selected];
+                    let environment = match &arm.pattern {
+                        CasePattern::Binder(id) => self.bind(
+                            environment,
+                            Binder::Catch(id.clone()),
+                            ReceivedValue { dispatch: received.dispatch, value: received.value, interface: ParameterRole::Value, view: received.view },
+                        ),
+                        CasePattern::Tuple(patterns) | CasePattern::Variant { payloads: patterns, .. } => {
+                            let bindings = {
+                                let elements = match &self.values[received.value.0].kind {
+                                    RuntimeValueKind::Tuple(elements) | RuntimeValueKind::Variant { payloads: elements, .. } => elements,
+                                    _ => unreachable!("the selected structural pattern matched its value"),
+                                };
+                                patterns.iter().zip(elements).filter_map(|(pattern, element)| {
+                                    pattern.as_ref().map(|id| (id.clone(), element.received))
+                                }).collect::<Vec<_>>()
+                            };
+                            let mut environment = environment;
+                            for (id, mut value) in bindings {
+                                value.dispatch = self.dispatch.then(value.dispatch, received.dispatch)?;
+                                environment = self.bind(environment, Binder::Catch(id), value);
+                            }
+                            environment
+                        }
+                        CasePattern::Integer(_) => environment,
+                        CasePattern::Wildcard => environment,
+                    };
+                    self.state = State::Evaluate {
+                        code: arm.body,
+                        environment,
+                    };
+                } else {
+                    return Err(RuntimeUnavailable::NonExhaustiveCase(case.site.clone()));
+                }
+            }
+            Frame::ExpressionReturn { root, next } => {
+                if !self.program.expression_roots.contains_key(&root) {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                }
+                self.begin_root(next);
+            }
+            Frame::Root { next, cell } => {
+                self.cells[cell] = Some(ReceivedValue {
+                    dispatch: received.dispatch,
+                    value: received.value,
+                    interface: ParameterRole::Value,
+                    view: received.view,
+                });
+                self.initializing_globals.remove(&cell);
+                self.begin_root(next);
+            }
+            Frame::GlobalRead {
+                cell,
+                consumption,
+                site,
+                environment,
+            } => {
+                let received = ReceivedValue {
+                    dispatch: received.dispatch,
+                    value: received.value,
+                    interface: ParameterRole::Value,
+                    view: received.view,
+                };
+                self.cells[cell] = Some(received);
+                self.initializing_globals.remove(&cell);
+                let received = self.dispatch_name(received, cell, environment, &site)?;
+                self.consume(received, consumption, &site)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn primitive_matches(&self, ty: &SourceAnnotationValue, received: ReceivedValue) -> bool {
+        received.interface == ParameterRole::Value
+            && self.receiving.matches_value(received.view, received.value)
+            && matches!(
+                (ty, &self.values[received.value.0].kind),
+                (SourceAnnotationValue::Unit, RuntimeValueKind::Unit)
+                    | (SourceAnnotationValue::Int, RuntimeValueKind::Integer(_))
+                    | (SourceAnnotationValue::Bool, RuntimeValueKind::Boolean(_))
+                    | (SourceAnnotationValue::Str, RuntimeValueKind::String(_))
+            )
+    }
+    fn new_invocation(
+        &mut self,
+        call: SourceSite,
+        provider: SourceSite,
+    ) -> Result<(usize, ExecutionOwner), RuntimeUnavailable> {
+        let activation = self.next_receiver;
+        self.next_receiver = activation
+            .checked_add(1)
+            .ok_or(RuntimeUnavailable::IdentityExhausted)?;
+        debug_assert_eq!(self.invocations.len(), activation);
+        #[cfg(test)]
+        {
+            self.invocations.push(InvocationDescriptor {
+                call: call.clone(),
+                provider: provider.clone(),
+                active: true,
+            });
+            self.owner_consumer_events.push(OwnerConsumerEvent::Invocation {
+                id: activation,
+                call,
+                provider,
+            });
+        }
+        #[cfg(not(test))]
+        self.invocations.push(InvocationDescriptor { call, provider, active: true });
+        self.active_receivers.push(activation);
+        let previous = self.current_owner;
+        self.current_owner = ExecutionOwner::Invocation(activation);
+        Ok((activation, previous))
+    }
+    fn leave_owner(
+        &mut self,
+        owner: ExecutionOwner,
+        owned: bool,
+        previous: ExecutionOwner,
+    ) -> Result<(), RuntimeUnavailable> {
+        if self.current_owner != owner {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        if owned {
+            let ExecutionOwner::Invocation(id) = owner else {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            };
+            if self.active_receivers.pop() != Some(id) {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            let invocation = self
+                .invocations
+                .get_mut(id)
+                .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+            if !invocation.active {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            invocation.active = false;
+        } else if !self.owner_active(owner) {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        self.current_owner = previous;
+        Ok(())
+    }
+    fn resolve_control(
+        original: ExecutionOwner,
+        control: &HashMap<usize, usize>,
+    ) -> ExecutionOwner {
+        match original {
+            ExecutionOwner::ModuleRun => ExecutionOwner::ModuleRun,
+            ExecutionOwner::Invocation(id) => {
+                ExecutionOwner::Invocation(control.get(&id).copied().unwrap_or(id))
+            }
+        }
+    }
+    fn capture_template(
+        &mut self,
+        request: &PendingRequest,
+        containing: ExecutionOwner,
+    ) -> Result<TemplateHandle, RuntimeUnavailable> {
+        let mut nodes = vec![TemplateNode::Hole];
+        let mut root = 0;
+        for frame in &request.suffix {
+            let node = match frame {
+                SavedFrame::Ordinary(Frame::GlobalRead { .. } | Frame::Root { .. }) => {
+                    return Err(RuntimeUnavailable::ContinuationMaterialization(
+                        request.source.clone(),
+                    ));
+                }
+                SavedFrame::Ordinary(Frame::RootCompReturn { execution }) => TemplateNode::View {
+                    inner: root,
+                    original: *execution,
+                },
+                SavedFrame::Ordinary(frame) => {
+                    if let Frame::ResumeArgument { template, .. } = frame {
+                        self.resume_templates
+                            .get(template.0)
+                            .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                    }
+                    TemplateNode::Bind {
+                        inner: root,
+                        frame: frame.clone(),
+                    }
+                }
+                SavedFrame::ReceiverBoundary {
+                    original_activation,
+                } => TemplateNode::Owner {
+                    inner: root,
+                    original: ExecutionOwner::Invocation(*original_activation),
+                },
+                SavedFrame::AmbientBoundary => TemplateNode::Owner {
+                    inner: root,
+                    original: ExecutionOwner::ModuleRun,
+                },
+                SavedFrame::HandlerBoundary {
+                    handler,
+                    environment,
+                    installation,
+                } => TemplateNode::ForwardHandler {
+                    inner: root,
+                    handler: handler.clone(),
+                    environment: *environment,
+                    owner: installation.owner,
+                },
+            };
+            nodes.push(node);
+            root = nodes.len() - 1;
+        }
+        // The installing source span still contains the capture bound, even
+        // when its ordinary ReceiverReturn lies below it and was not captured.
+        nodes.push(TemplateNode::Owner {
+            inner: root,
+            original: containing,
+        });
+        root = nodes.len() - 1;
+        // Publish only after the whole cache-free template has validated. Nodes
+        // and saved Bind frames retain handles, never owning template pointers.
+        let handle = TemplateHandle(self.resume_templates.len());
+        self.resume_templates.push(ResumeTemplate {
+            nodes,
+            root,
+            declaration: request.declaration.clone(),
+            original_event: request.event,
+        });
+        Ok(handle)
+    }
+    fn enter_template(
+        &mut self,
+        template: TemplateHandle,
+        node: usize,
+        mut control: HashMap<usize, usize>,
+        response: ReceivedValue,
+    ) -> Result<(), RuntimeUnavailable> {
+        let inner = match self
+            .resume_templates
+            .get(template.0)
+            .ok_or(RuntimeUnavailable::InvalidSourceReference)?
+            .nodes
+            .get(node)
+            .cloned()
+            .ok_or(RuntimeUnavailable::InvalidSourceReference)?
+        {
+            TemplateNode::Hole => {
+                self.state = State::Return(response);
+                return Ok(());
+            }
+            TemplateNode::Bind { inner, mut frame } => {
+                // Pending callback entries are executable frames, so their
+                // owner follows this replay's control map. Existing callback
+                // entries/uses/receipts remain immutable historical evidence.
+                if let Frame::ValueEntry {
+                    callback_schema: Some(_),
+                    entry_receiver,
+                    ..
+                } = &mut frame
+                {
+                    let resolved = Self::resolve_control(
+                        ExecutionOwner::Invocation(*entry_receiver),
+                        &control,
+                    );
+                    let ExecutionOwner::Invocation(receiver) = resolved else {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    };
+                    *entry_receiver = receiver;
+                }
+                self.frames.push(frame);
+                inner
+            }
+            TemplateNode::Owner { inner, original } => {
+                let previous = self.current_owner;
+                let resolved = Self::resolve_control(original, &control);
+                let (owner, owned) = if self.owner_active(resolved) {
+                    self.current_owner = resolved;
+                    (resolved, false)
+                } else {
+                    let ExecutionOwner::Invocation(original_id) = original else {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    };
+                    let descriptor = self
+                        .invocations
+                        .get(original_id)
+                        .cloned()
+                        .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                    let (fresh, _) = self.new_invocation(descriptor.call, descriptor.provider)?;
+                    (ExecutionOwner::Invocation(fresh), true)
+                };
+                if let (
+                    ExecutionOwner::Invocation(original),
+                    ExecutionOwner::Invocation(resolved),
+                ) = (original, owner)
+                {
+                    // Entry follows one inward path before Hole. Moving this
+                    // fresh per-use map and shadowing here equals the nearest
+                    // parent binding; no later completion consults this map.
+                    control.insert(original, resolved);
+                }
+                self.frames.push(Frame::OwnerReturn {
+                    owner,
+                    owned,
+                    previous,
+                });
+                inner
+            }
+            TemplateNode::ForwardHandler {
+                inner,
+                handler,
+                environment,
+                owner,
+            } => {
+                let owner = Self::resolve_control(owner, &control);
+                if !self.owner_active(owner) || self.current_owner != owner {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                }
+                let occurrence = self.next_handler;
+                self.next_handler = occurrence
+                    .checked_add(1)
+                    .ok_or(RuntimeUnavailable::IdentityExhausted)?;
+                let installation = HandlerInstallation { occurrence, owner };
+                #[cfg(test)]
+                self.owner_consumer_events.push(OwnerConsumerEvent::CatchInstalled {
+                    installation,
+                    handler: handler.site.clone(),
+                });
+                self.frames.push(Frame::CatchReturn {
+                    handler,
+                    environment,
+                    installation,
+                });
+                inner
+            }
+            TemplateNode::View { inner, original } => {
+                let execution = self
+                    .receiving
+                    .execution(original.view, original.receipt)
+                    .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                self.executing_views.push(execution);
+                self.frames.push(Frame::RootCompReturn { execution });
+                inner
+            }
+        };
+        self.state = State::EnterTemplate {
+            template,
+            node: inner,
+            control,
+            response,
+        };
+        Ok(())
+    }
+    fn direct_formal_root(&self, label: Label, environment: usize) -> Option<ViewHandle> {
+        let Instruction::Name {
+            resolution: LocalSourceResolution::Parameter(parameter),
+            consumption: NameConsumption::Execute,
+        } = &self.program.code.get(label.0)?.instruction
+        else {
+            return None;
+        };
+        let cell = self.lookup(environment, |binder| {
+            matches!(binder, Binder::Parameter(candidate) if candidate == parameter)
+        })?;
+        let received = self.cells.get(cell).copied().flatten()?;
+        (received.interface == ParameterRole::Computation).then_some(received.view)
+    }
+    fn end_execution_view(&mut self, execution: ExecutionView) -> Result<(), RuntimeUnavailable> {
+        let Some(current) = self.executing_views.pop() else {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        };
+        if current.view != execution.view
+            || current.receipt != execution.receipt
+            || current.occurrence != execution.occurrence
+        {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        Ok(())
+    }
+    fn current_execution_owner(&self) -> ExecutionOwner {
+        self.current_owner
+    }
+    fn owner_active(&self, owner: ExecutionOwner) -> bool {
+        match owner {
+            ExecutionOwner::ModuleRun => true,
+            ExecutionOwner::Invocation(id) => self
+                .invocations
+                .get(id)
+                .is_some_and(InvocationDescriptor::is_active),
+        }
+    }
+    fn validate_handler_installation(
+        &self,
+        installation: HandlerInstallation,
+    ) -> Result<(), RuntimeUnavailable> {
+        // The retained installer must be both executable here and actually live.
+        // A borrowed resumed owner can be below the resumer in active order;
+        // ModuleRun is the distinct ambient case, never an invocation ordinal.
+        if installation.occurrence >= self.next_handler
+            || installation.owner != self.current_execution_owner()
+            || !self.owner_active(installation.owner)
+        {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        Ok(())
+    }
+    fn propagate_request(&mut self, mut request: PendingRequest) -> Result<(), RuntimeUnavailable> {
+        let request_owner = self.current_execution_owner();
+        if let (Some(plan), Some(trace)) =
+            (&self.program.operation_v1, &mut self.operation_v1_trace)
+        {
+            if trace.callback_operation_seen
+                && trace.callback_operation_owner == Some(request_owner)
+                && trace.applied_response_invocation.as_ref().is_some_and(|(_, owner)| {
+                    *owner == request_owner
+                })
+                && request.declaration.id == plan.link.callback_operation
+                && request.source.occurrence == plan.link.callback_apply
+            {
+                trace.callback_request_event = Some(request.event);
+                trace.callback_request = Some((request.event, request.source.clone()));
+            }
+        }
+        // Inspect the actual installed candidate while its delimiter is still
+        // active. Only a committed forwarding transition removes that occurrence.
+        if let Some(Frame::CatchReturn {
+            handler,
+            installation,
+            environment,
+        }) = self.frames.last().cloned()
+        {
+            self.validate_handler_installation(installation)?;
+            let Instruction::Catch { arms, .. } = &handler.instruction else {
+                unreachable!()
+            };
+            for arm in arms {
+                let LocalSourceCatchPattern::Operation {
+                    resolution,
+                    payloads,
+                    continuation,
+                    ..
+                } = &arm.pattern
+                else {
+                    continue;
+                };
+                let declaration = match resolution {
+                    SourceOperationResolution::Resolved(declaration)
+                        if declaration.id != request.declaration.id =>
+                    {
+                        continue;
+                    }
+                    SourceOperationResolution::Resolved(declaration) => declaration,
+                    _ => return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone())),
+                };
+                // The closed primitive ModuleRun certificate proves unprotected
+                // events for this whole universe. Otherwise require a positive
+                // local Grant; missing Grant alone supplies no negative fact.
+                #[cfg(test)]
+                let grant = self.program.closed_primitive
+                    || self.receiving.local_grant(
+                        &request.observations,
+                        request.event,
+                        installation.owner,
+                        &self.invocations,
+                        &request.declaration.id.family,
+                    );
+                #[cfg(not(test))]
+                if !self.program.closed_primitive
+                    && !self.receiving.local_grant(
+                        &request.observations,
+                        request.event,
+                        installation.owner,
+                        &self.invocations,
+                        &request.declaration.id.family,
+                    )
+                {
+                    return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
+                }
+                #[cfg(test)]
+                if !grant {
+                    return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
+                }
+                let SourceAnnotationValue::Function { argument, result } =
+                    &declaration.signature.value
+                else {
+                    return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
+                };
+                if declaration.signature.effects.is_some() || argument.effects.is_some() {
+                    return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
+                }
+                let [payload_pattern] = payloads.as_slice() else {
+                    return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
+                };
+                if !self.primitive_matches(&argument.value, request.payload) {
+                    return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
+                }
+                let captured = if matches!(continuation, LocalSourceCatchValuePattern::Binder(_)) {
+                    let primitive_response = matches!(
+                        result.value,
+                        SourceAnnotationValue::Unit
+                            | SourceAnnotationValue::Int
+                            | SourceAnnotationValue::Bool
+                            | SourceAnnotationValue::Str
+                    );
+                    let exact_v1_function_response = matches!(
+                        &result.value,
+                        SourceAnnotationValue::Function { .. }
+                    ) && self.program.operation_v1.as_ref().is_some_and(|plan| {
+                        request.source.occurrence == plan.request_apply.occurrence
+                            && request.declaration.id == plan.request_operation
+                            && handler.site.occurrence == plan.request_handler.occurrence
+                            && arm.source == plan.request_arm
+                            && self.operation_v1_trace.as_ref().is_some_and(|trace| {
+                                trace.request_operation_seen
+                            })
+                    });
+                    if !primitive_response && !exact_v1_function_response {
+                        return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
+                    }
+                    Some(self.capture_template(&request, self.current_owner)?)
+                        } else {
+                            None
+                        };
+                        #[cfg(test)]
+                        if let Some(use_handle) = callback_use {
+                            if let Some((entry, invocation, formal, value, source_view, result_view, receipt, apply)) =
+                                self.receiving.callback_use_observation(use_handle)
+                            {
+                                self.owner_consumer_events.push(OwnerConsumerEvent::CallbackUse {
+                                    id: use_handle.index(), invocation, entry, formal, value, source_view, result_view, receipt, apply,
+                                });
+                            }
+                        }
+                // Commit shallow selection only after every ordered candidate
+                // premise succeeds. Discarding its raw suffix is source control;
+                // the arm executes outside this exact handler occurrence.
+                self.frames.pop();
+                #[cfg(test)]
+                self.owner_consumer_events.push(OwnerConsumerEvent::CatchSelected {
+                    event: request.event,
+                    installation,
+                    handler: handler.site.clone(),
+                    arm: arm.source.clone(),
+                    arm_body: self.program.code.get(arm.body.0)
+                        .ok_or(RuntimeUnavailable::InvalidSourceReference)?.site.clone(),
+                    operation: request.declaration.id.clone(),
+                    grant,
+                    payload: request.payload.value.0,
+                });
+                if captured.is_none() {
+                    self.abandon_suffix(&request.suffix);
+                }
+                let environment = match payload_pattern {
+                    LocalSourceCatchPayloadPattern::Value(
+                        LocalSourceCatchValuePattern::Binder(binder),
+                    ) => self.bind(
+                        environment,
+                        Binder::Catch(binder.id.clone()),
+                        request.payload,
+                    ),
+                    LocalSourceCatchPayloadPattern::Value(
+                        LocalSourceCatchValuePattern::Wildcard,
+                    )
+                    // Empty-call pattern syntax lowers to a wildcard; payload
+                    // compatibility is established above by the declaration.
+                    | LocalSourceCatchPayloadPattern::Unit { .. } => environment,
+                };
+                let environment =
+                    if let (LocalSourceCatchValuePattern::Binder(binder), Some(template)) =
+                        (continuation, captured)
+                    {
+                        let value = self.allocate(
+                            &handler.site,
+                            RuntimeValueKind::Closure,
+                            Some(ExecutableValue::Continuation(template)),
+                        );
+                        let view = self.receiving.opaque(value);
+                        self.bind(
+                            environment,
+                            Binder::Catch(binder.id.clone()),
+                            ReceivedValue {
+                                dispatch: None,
+                                value,
+                                interface: ParameterRole::Value,
+                                view,
+                            },
+                        )
+                    } else {
+                        environment
+                    };
+                self.state = State::Evaluate {
+                    code: arm.body,
+                    environment,
+                };
+                if let Some(trace) = &mut self.operation_v1_trace {
+                    if let Some(plan) = &self.program.operation_v1 {
+                        if trace.callback_request_event == Some(request.event)
+                            && request.declaration.id == plan.link.callback_operation
+                            && request.source.occurrence == plan.link.callback_apply
+                            && plan.expected_outer_handler.as_ref().is_some_and(|expected|
+                                handler.site.occurrence == expected.occurrence)
+                            && plan.expected_outer_arm.as_ref().is_some_and(|expected|
+                                &arm.source == expected)
+                            && trace.callback_request.as_ref().is_some_and(|(event, source)| {
+                                *event == request.event
+                                    && source.occurrence == request.source.occurrence
+                            })
+                        {
+                            trace.live_handler = Some((
+                                handler.site.clone(),
+                                arm.source.clone(),
+                                request.event,
+                                request.source.clone(),
+                            ));
+                        }
+                    }
+                }
+                return Ok(());
+            }
+        }
+        // An initializer's escaping request cannot search handlers installed
+        // around the Name that demanded its value. Scheduled initializers have
+        // the same cut for the authenticated resumable host consumer. Keep its
+        // cache write and module cursor live; resume must drain owner frames
+        // before another root starts. Other escaping operations remain terminal
+        // and retain their existing opaque suffix observation.
+        let resumable_host = self.program.host_write_operation()
+            .is_some_and(|operation| operation == &request.declaration.id);
+        if matches!(self.frames.last(), Some(Frame::GlobalRead { .. }))
+            || (resumable_host && matches!(self.frames.last(),
+                Some(Frame::Root { .. } | Frame::ExpressionReturn { .. }))) {
+            self.stop_unhandled_request(request, request_owner)?;
+            return Ok(());
+        }
+        let Some(frame) = self.frames.pop() else {
+            self.stop_unhandled_request(request, request_owner)?;
+            return Ok(());
+        };
+        let template = match frame {
+            Frame::RootCompReturn { execution } => {
+                self.end_execution_view(execution)?;
+                SavedFrame::Ordinary(Frame::RootCompReturn { execution })
+            }
+            Frame::ReceiverReturn {
+                activation,
+                previous,
+            } => {
+                self.leave_owner(ExecutionOwner::Invocation(activation), true, previous)?;
+                SavedFrame::ReceiverBoundary {
+                    original_activation: activation,
+                }
+            }
+            Frame::OwnerReturn {
+                owner,
+                owned,
+                previous,
+            } => {
+                self.leave_owner(owner, owned, previous)?;
+                match owner {
+                    ExecutionOwner::Invocation(original_activation) => {
+                        SavedFrame::ReceiverBoundary {
+                            original_activation,
+                        }
+                    }
+                    ExecutionOwner::ModuleRun => SavedFrame::AmbientBoundary,
+                }
+            }
+            Frame::CatchReturn {
+                handler,
+                environment,
+                installation,
+            } => SavedFrame::HandlerBoundary {
+                handler,
+                environment,
+                installation,
+            },
+            ordinary => SavedFrame::Ordinary(ordinary),
+        };
+        request.suffix.push(template);
+        self.state = State::Request(request);
+        Ok(())
+    }
+    fn stop_unhandled_request(
+        &mut self,
+        request: PendingRequest,
+        containing: ExecutionOwner,
+    ) -> Result<(), RuntimeUnavailable> {
+        let template = if self.program.host_write_operation()
+            .is_some_and(|operation| operation == &request.declaration.id)
+        {
+            Some(self.capture_template(&request, containing)?)
+        } else {
+            None
+        };
+        let continuation = ContinuationHandle(self.continuations.len());
+        self.continuations.push(SavedContinuation {
+            frames: request.suffix,
+            template,
+            resumed: false,
+            observations: request.observations,
+        });
+        self.state = State::Stopped(RuntimeOutcome::UnhandledRequest {
+            source: request.source,
+            operation: request.declaration.id.clone(),
+            payload: request.payload.value,
+            event: request.event,
+            continuation,
+        });
+        Ok(())
+    }
+    fn abandon_suffix(&mut self, suffix: &[SavedFrame]) {
+        // These writes will never run: release only their pending materialization
+        // markers. Live outer cache owners and retained/forwarded suffixes remain
+        // untouched, and the selected arm is not their initializer result.
+        for frame in suffix {
+            if let SavedFrame::Ordinary(Frame::GlobalRead { cell, .. } | Frame::Root { cell, .. }) =
+                frame
+            {
+                self.initializing_globals.remove(cell);
+            }
+        }
+    }
+    fn make_request_carrier(
+        &mut self,
+        declaration: Arc<SourceOperationDeclaration>,
+        payload: ReceivedValue,
+        source: &SourceSite,
+    ) {
+        self.data(
+            source,
+            RuntimeValueKind::Computation,
+            Some(ExecutableValue::Request {
+                declaration,
+                payload,
+                source: source.clone(),
+            }),
+        );
+    }
+    fn begin_root(&mut self, mut ordinal: usize) {
+        // Completion is reached only after the root's handlers and real
+        // invocation owners have returned. Never overwrite a mismatched owner.
+        if self.current_owner != ExecutionOwner::ModuleRun {
+            self.state = State::Stopped(RuntimeOutcome::Unavailable(
+                RuntimeUnavailable::InvalidSourceReference,
+            ));
+            return;
+        }
+        // A slot is visited once; dependency-materialized definitions skip their
+        // cache, while expression values have no publication cell or marker.
+        while let Some(root) = self.execution_roots.get(ordinal).cloned() {
+            ordinal += 1;
+            let mut environment = 0;
+            let code = match root {
+                ScheduledRoot::Definition(index) => {
+                    if self.cells[index].is_some() {
+                        continue;
+                    }
+                    self.initializing_globals.insert(index);
+                    self.frames.push(Frame::Root {
+                        next: ordinal,
+                        cell: index,
+                    });
+                    environment = match self.initializer_environment(index, 0) {
+                        Ok(environment) => environment,
+                        Err(error) => { self.state = State::Stopped(RuntimeOutcome::Unavailable(error)); return; }
+                    };
+                    self.program.definitions[index].body
+                }
+                ScheduledRoot::Expression { root, code } => {
+                    self.frames.push(Frame::ExpressionReturn {
+                        root,
+                        next: ordinal,
+                    });
+                    code
+                }
+            };
+            self.state = State::Evaluate {
+                code,
+                environment,
+            };
+            return;
+        }
+        if let Some(selected) = self.selected {
+            self.complete_selected_definition(ordinal, selected);
+        } else {
+            self.complete_module();
+        }
+    }
+    fn complete_selected_definition(&mut self, next_ordinal: usize, selected: usize) {
+        // Schedule exhaustion retains the selected-definition entry contract:
+        // use its cached cell, or evaluate its initializer as the final root.
+        if let Some(value) = self.cells[selected] {
+            self.state = State::Stopped(RuntimeOutcome::Completed(value.value));
+        } else {
+            self.initializing_globals.insert(selected);
+            self.frames.push(Frame::Root {
+                next: next_ordinal,
+                cell: selected,
+            });
+            let environment = match self.initializer_environment(selected, 0) {
+                Ok(environment) => environment,
+                Err(error) => { self.state = State::Stopped(RuntimeOutcome::Unavailable(error)); return; }
+            };
+            self.state = State::Evaluate {
+                code: self.program.definitions[selected].body,
+                environment,
+            };
+        }
+    }
+    fn complete_module(&mut self) {
+        if self.current_owner != ExecutionOwner::ModuleRun {
+            self.state = State::Stopped(RuntimeOutcome::Unavailable(
+                RuntimeUnavailable::InvalidSourceReference,
+            ));
+            return;
+        }
+        let site = match self.program.module_completion_site() {
+            Ok(Some(site)) => site,
+            Ok(None) => {
+                self.state = State::Stopped(RuntimeOutcome::EmptyModuleCompleted);
+                return;
+            }
+            Err(error) => {
+                self.state = State::Stopped(RuntimeOutcome::Unavailable(error));
+                return;
+            }
+        };
+        let value = self.allocate(&site, RuntimeValueKind::Unit, None);
+        self.state = State::Stopped(RuntimeOutcome::Completed(value));
+    }
+    fn consume(
+        &mut self,
+        received: ReceivedValue,
+        consumption: NameConsumption,
+        site: &SourceSite,
+    ) -> Result<(), RuntimeUnavailable> {
+        // A candidate is single-use and belongs to this Name consume only.
+        // Any prior return token is likewise expired before a new consume.
+        let candidate = self.pending_name_entry.take();
+        let observed_name = self.pending_name_observation.take();
+        self.name_entry_return_token = None;
+        self.pending_name_return_observation = None;
+        if !self.receiving.matches_value(received.view, received.value) {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        let owner = self.current_execution_owner();
+        let receipt_index = self.receiving.next_receipt_index();
+        let receipt =
+            self.receiving
+                .receipt(owner, received.view, site, None);
+        if consumption == NameConsumption::Observe {
+            if let Some(observed) = observed_name.filter(|observed|
+                observed.site.source_root == site.source_root
+                    && observed.site.occurrence == site.occurrence)
+            {
+                self.pending_name_return_observation = Some(CompletedNameObservation {
+                    resolution: observed.resolution,
+                    site: observed.site,
+                    cell: observed.cell,
+                    value: received.value,
+                    view: received.view,
+                    receipt_index,
+                    cells_before_observe: self.cells.len(),
+                });
+            }
+        }
+        if consumption == NameConsumption::Observe {
+            if let Some(mut pending) = candidate {
+            if pending.site.source_root == site.source_root
+                && pending.site.occurrence == site.occurrence
+                && pending.value == received.value
+                && pending.view == received.view
+                && owner == ExecutionOwner::Invocation(pending.invocation)
+            {
+                pending.receipt_index = Some(receipt_index);
+                self.name_entry_return_token = Some(pending);
+            }
+            }
+        }
+        match consumption {
+            NameConsumption::Observe => self.state = State::Return(received),
+            NameConsumption::Execute => {
+                if received.interface != ParameterRole::Computation {
+                    return Err(RuntimeUnavailable::MissingConsumptionEvidence(site.clone()));
+                }
+                if self.receiving.has_root(received.view) {
+                    let execution = self
+                        .receiving
+                        .execution(received.view, receipt)
+                        .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                    self.executing_views.push(execution);
+                    self.frames.push(Frame::RootCompReturn { execution });
+                }
+                self.execute_with_substitution(received.value, site, received.dispatch)?;
+            }
+        }
+        Ok(())
+    }
+    fn begin_local(
+        &mut self,
+        block: Arc<Code>,
+        ordinal: usize,
+        mut environment: usize,
+    ) -> Result<(), RuntimeUnavailable> {
+        let (binding, final_expression) = match &block.instruction {
+            Instruction::Block { bindings, final_expression } => (bindings.get(ordinal).cloned(), *final_expression),
+            Instruction::StatementBlock { statements, final_expression } => match statements.get(ordinal) {
+                Some(BlockStatement::Expression(expression)) => {
+                    let code = *expression;
+                    self.frames.push(Frame::BlockExpression { block, next: ordinal + 1, environment });
+                    self.state = State::Evaluate { code, environment };
+                    return Ok(());
+                }
+                Some(BlockStatement::Binding(binding)) => (Some(binding.clone()), *final_expression),
+                None => (None, *final_expression),
+            },
+            _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+        };
+        if let Some(binding) = binding {
+            let initializer = binding.initializer;
+            let recursive = binding.recursive;
+            let cell = self.cells.len();
+            self.cells.push(None);
+            if recursive {
+                environment = self.extend(environment, Binder::Local(binding.id.clone()), cell);
+            }
+            self.frames.push(Frame::Local {
+                block,
+                next: ordinal + 1,
+                environment,
+                cell,
+                recursive,
+            });
+            let environment = self.initializer_environment(cell, environment)?;
+            self.state = State::Evaluate {
+                code: initializer,
+                environment,
+            };
+        } else {
+            self.state = State::Evaluate {
+                code: final_expression,
+                environment,
+            };
+        }
+        Ok(())
+    }
+    fn execute(&mut self, value: ValueHandle, site: &SourceSite) -> Result<(), RuntimeUnavailable> {
+        self.execute_with_substitution(value, site, None)
+    }
+    fn execute_with_substitution(&mut self, value: ValueHandle, site: &SourceSite,
+        substitution: Option<usize>) -> Result<(), RuntimeUnavailable> {
+        match self.executables.get(&value.0).cloned() {
+            Some(ExecutableValue::Delay { code, environment }) => {
+                let environment = self.substitute_environment(environment, substitution)?;
+                self.state = State::Evaluate { code, environment };
+                Ok(())
+            }
+            Some(ExecutableValue::Request {
+                declaration,
+                mut payload,
+                source,
+            }) => {
+                payload.dispatch = self.dispatch.then(payload.dispatch, substitution)?;
+                let event = self.next_request;
+                self.next_request = event
+                    .checked_add(1)
+                    .ok_or(RuntimeUnavailable::IdentityExhausted)?;
+                let observations = self
+                    .receiving
+                    .observe(event, &self.executing_views)
+                    .ok_or(RuntimeUnavailable::IdentityExhausted)?;
+                #[cfg(test)]
+                self.owner_consumer_events.push(OwnerConsumerEvent::Request {
+                    invocation: match self.current_execution_owner() {
+                        ExecutionOwner::Invocation(id) => Some(id),
+                        ExecutionOwner::ModuleRun => None,
+                    },
+                    event,
+                    operation: declaration.id.clone(),
+                    source: source.clone(),
+                    payload: payload.value.0,
+                    observed: observations.iter().map(|observation|
+                        (observation.execution.view.index(), observation.execution.receipt.index())
+                    ).collect(),
+                });
+                self.state = State::Request(PendingRequest {
+                    declaration,
+                    payload,
+                    source,
+                    event,
+                    observations,
+                    suffix: Vec::new(),
+                });
+                Ok(())
+            }
+            _ => Err(RuntimeUnavailable::ExpectedComputation(site.clone())),
+        }
+    }
+    fn lookup(&self, mut environment: usize, matches: impl Fn(&Binder) -> bool) -> Option<usize> {
+        loop {
+            let frame = self.environments.get(environment)?;
+            if let Some((candidate, cell)) = &frame.binder {
+                if matches(candidate) {
+                    return Some(*cell);
+                }
+            }
+            environment = frame.parent?;
+        }
+    }
+    fn with_dispatch(&mut self, parent: usize, dispatch: dispatch::State) -> usize {
+        let environment = self.environments.len();
+        self.environments.push(Environment { parent: Some(parent), binder: None, dispatch });
+        environment
+    }
+    fn initializer_environment(&mut self, cell: usize, parent: usize) -> Result<usize, RuntimeUnavailable> {
+        if self.program.dictionaries.is_none() { return Ok(parent); }
+        let dispatch = self.dispatch.initializer(cell, self.environments[parent].dispatch)?;
+        Ok(self.with_dispatch(parent, dispatch))
+    }
+    fn substitute_environment(&mut self, environment: usize, substitution: Option<usize>) -> Result<usize, RuntimeUnavailable> {
+        if self.program.dictionaries.is_none() || substitution.is_none() { return Ok(environment); }
+        let mut dispatch = self.environments[environment].dispatch;
+        dispatch.substitution = self.dispatch.then(dispatch.substitution, substitution)?;
+        Ok(self.with_dispatch(environment, dispatch))
+    }
+    fn dispatch_environment(&mut self, environment: usize, step: dispatch::Step) -> Result<usize, RuntimeUnavailable> {
+        let mut dispatch = self.environments[environment].dispatch;
+        dispatch.context = self.dispatch.append(dispatch.context, step)?;
+        Ok(self.with_dispatch(environment, dispatch))
+    }
+    fn dispatch_name(&mut self, mut value: ReceivedValue, cell: usize, environment: usize,
+        site: &SourceSite) -> Result<ReceivedValue, RuntimeUnavailable> {
+        if self.program.dictionaries.is_none() { return Ok(value); }
+        let key = dispatch::Site { owner: site.source_root.clone(), occurrence: site.occurrence.clone() };
+        let instantiate = self.program.dictionary_names.contains(&key)
+            .then_some(dispatch::Step { kind: dispatch::Kind::Name, site: key });
+        value.dispatch = self.dispatch.name(value.dispatch, self.environments[environment].dispatch, cell, instantiate)?;
+        Ok(value)
+    }
+    fn extend(&mut self, parent: usize, binder: Binder, cell: usize) -> usize {
+        let index = self.environments.len();
+        self.environments.push(Environment {
+            parent: Some(parent),
+            binder: Some((binder, cell)),
+            dispatch: self.environments[parent].dispatch,
+        });
+        index
+    }
+    fn bind(&mut self, environment: usize, binder: Binder, value: ReceivedValue) -> usize {
+        let cell = self.cells.len();
+        self.cells.push(Some(value));
+        self.extend(environment, binder, cell)
+    }
+    fn ground_data(
+        &mut self,
+        site: &SourceSite,
+        kind: RuntimeValueKind,
+        executable: Option<ExecutableValue>,
+    ) {
+        let value = self.allocate(site, kind, executable);
+        #[cfg(test)]
+        if let RuntimeValueKind::Integer(text) = &self.values[value.0].kind {
+            self.owner_consumer_events.push(OwnerConsumerEvent::IntegerValue {
+                value: value.0,
+                site: site.clone(),
+                text: text.to_string(),
+            });
+        }
+        let view = self.receiving.ground(value);
+        self.state = State::Return(ReceivedValue {
+            dispatch: None,
+            value,
+            interface: ParameterRole::Value,
+            view,
+        });
+    }
+    fn bind_record_parameter(&mut self, fields: Arc<[RecordParameterField]>, mut index: usize,
+        argument: ReceivedValue, body: Label, mut environment: usize) -> Result<(), RuntimeUnavailable> {
+        if !self.receiving.matches_value(argument.view, argument.value) {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        while index < fields.len() {
+            let RuntimeValueKind::Record(actual) = &self.values[argument.value.0].kind else {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            };
+            let field = &fields[index];
+            if let Some((_, actual)) = actual.iter().find(|(name, _)| name == &field.label) {
+                let mut received = actual.received;
+                received.view = self.receiving.project_record(argument.view, received.view, received.value)
+                    .ok_or_else(|| RuntimeUnavailable::UnsupportedRecordPattern(self.values[argument.value.0].source.clone()))?;
+                received.dispatch = self.dispatch.then(received.dispatch, argument.dispatch)?;
+                received.interface = ParameterRole::Value;
+                environment = self.bind(environment, Binder::Parameter(field.binder.clone()), received);
+                index += 1;
+            } else if let Some(default) = field.default {
+                self.frames.push(Frame::RecordDefault { fields, index, argument, body, environment });
+                self.state = State::Evaluate { code: default, environment };
+                return Ok(());
+            } else { return Err(RuntimeUnavailable::InvalidSourceReference); }
+        }
+        // Even an empty pattern requires an actual record.
+        if !matches!(self.values[argument.value.0].kind, RuntimeValueKind::Record(_)) {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        self.state = State::Evaluate { code: body, environment };
+        Ok(())
+    }
+    fn data(
+        &mut self,
+        site: &SourceSite,
+        kind: RuntimeValueKind,
+        executable: Option<ExecutableValue>,
+    ) {
+        let value = self.allocate(site, kind, executable);
+        let view = self.receiving.opaque(value);
+        self.state = State::Return(ReceivedValue {
+            dispatch: None,
+            value,
+            interface: ParameterRole::Value,
+            view,
+        });
+    }
+    fn allocate(
+        &mut self,
+        site: &SourceSite,
+        kind: RuntimeValueKind,
+        executable: Option<ExecutableValue>,
+    ) -> ValueHandle {
+        let handle = ValueHandle(self.values.len());
+        self.values.push(RuntimeValue {
+            source: site.clone(),
+            kind,
+        });
+        if let Some(executable) = executable {
+            self.executables.insert(handle.0, executable);
+        }
+        handle
+    }
+}
+
+impl Machine {
+    fn advance_integer_product(&mut self, mut product: super::decimal::Product, site: SourceSite) -> Result<(), RuntimeUnavailable> {
+        if product.advance() {
+            let value = product.finish().ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+            self.ground_data(&site, RuntimeValueKind::Integer(value.into_boxed_str()), None);
+        } else {
+            self.state = State::IntegerProduct { product, site };
+        }
+        Ok(())
+    }
+}
+
+fn pinned_primitive_arity(operation: &yu_hir::shadow::PinnedPrimitiveOp) -> Option<usize> {
+    match operation {
+        yu_hir::shadow::PinnedPrimitiveOp::IntToString
+        | yu_hir::shadow::PinnedPrimitiveOp::BoolNot
+        | yu_hir::shadow::PinnedPrimitiveOp::BoolToString => Some(1),
+        yu_hir::shadow::PinnedPrimitiveOp::IntAdd
+        | yu_hir::shadow::PinnedPrimitiveOp::IntSub
+        | yu_hir::shadow::PinnedPrimitiveOp::IntMul
+        | yu_hir::shadow::PinnedPrimitiveOp::IntEq
+        | yu_hir::shadow::PinnedPrimitiveOp::IntLt
+        | yu_hir::shadow::PinnedPrimitiveOp::IntLe
+        | yu_hir::shadow::PinnedPrimitiveOp::IntGt
+        | yu_hir::shadow::PinnedPrimitiveOp::IntGe
+        | yu_hir::shadow::PinnedPrimitiveOp::BoolEq
+        | yu_hir::shadow::PinnedPrimitiveOp::StringConcat => Some(2),
+        yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => None,
+    }
+}
+
+fn pinned_primitive_apply(
+    operation: &yu_hir::shadow::PinnedPrimitiveOp,
+    arguments: &[ValueHandle],
+    values: &[RuntimeValue],
+) -> Option<RuntimeValueKind> {
+    let argument = |index: usize| values.get(arguments.get(index)?.0).map(|value| &value.kind);
+    match operation {
+        yu_hir::shadow::PinnedPrimitiveOp::BoolNot => {
+            let RuntimeValueKind::Boolean(value) = argument(0)? else { return None; };
+            Some(RuntimeValueKind::Boolean(!*value))
+        }
+        yu_hir::shadow::PinnedPrimitiveOp::BoolEq => {
+            let RuntimeValueKind::Boolean(left) = argument(0)? else { return None; };
+            let RuntimeValueKind::Boolean(right) = argument(1)? else { return None; };
+            Some(RuntimeValueKind::Boolean(*left == *right))
+        }
+        yu_hir::shadow::PinnedPrimitiveOp::BoolToString => {
+            let RuntimeValueKind::Boolean(value) = argument(0)? else { return None; };
+            let text = if *value { "true" } else { "false" };
+            let mut result = String::new();
+            result.try_reserve(text.len()).ok()?;
+            result.push_str(text);
+            Some(RuntimeValueKind::String(result.into_boxed_str()))
+        }
+        yu_hir::shadow::PinnedPrimitiveOp::IntAdd => {
+            let RuntimeValueKind::Integer(left) = argument(0)? else { return None; };
+            let RuntimeValueKind::Integer(right) = argument(1)? else { return None; };
+            Some(RuntimeValueKind::Integer(decimal_add(left, right)?.into_boxed_str()))
+        }
+        yu_hir::shadow::PinnedPrimitiveOp::IntSub => {
+            let RuntimeValueKind::Integer(left) = argument(0)? else { return None; };
+            let RuntimeValueKind::Integer(right) = argument(1)? else { return None; };
+            let negative = super::decimal::negate(right)?;
+            Some(RuntimeValueKind::Integer(decimal_add(left, &negative)?.into_boxed_str()))
+        }
+        yu_hir::shadow::PinnedPrimitiveOp::IntEq
+        | yu_hir::shadow::PinnedPrimitiveOp::IntLt
+        | yu_hir::shadow::PinnedPrimitiveOp::IntLe
+        | yu_hir::shadow::PinnedPrimitiveOp::IntGt
+        | yu_hir::shadow::PinnedPrimitiveOp::IntGe => {
+            let RuntimeValueKind::Integer(left) = argument(0)? else { return None; };
+            let RuntimeValueKind::Integer(right) = argument(1)? else { return None; };
+            let ordering = super::decimal::compare(left, right)?;
+            let result = match operation {
+                yu_hir::shadow::PinnedPrimitiveOp::IntEq => ordering.is_eq(),
+                yu_hir::shadow::PinnedPrimitiveOp::IntLt => ordering.is_lt(),
+                yu_hir::shadow::PinnedPrimitiveOp::IntLe => !ordering.is_gt(),
+                yu_hir::shadow::PinnedPrimitiveOp::IntGt => ordering.is_gt(),
+                yu_hir::shadow::PinnedPrimitiveOp::IntGe => !ordering.is_lt(),
+                _ => return None,
+            };
+            Some(RuntimeValueKind::Boolean(result))
+        }
+        // Multiplication uses the resumable Machine state above.
+        yu_hir::shadow::PinnedPrimitiveOp::IntMul => None,
+        yu_hir::shadow::PinnedPrimitiveOp::IntToString => {
+            let RuntimeValueKind::Integer(value) = argument(0)? else { return None; };
+            Some(RuntimeValueKind::String(value.clone()))
+        }
+        yu_hir::shadow::PinnedPrimitiveOp::StringConcat => {
+            let RuntimeValueKind::String(left) = argument(0)? else { return None; };
+            let RuntimeValueKind::String(right) = argument(1)? else { return None; };
+            let mut result = String::new();
+            result.try_reserve(left.len().checked_add(right.len())?).ok()?;
+            result.push_str(left);
+            result.push_str(right);
+            Some(RuntimeValueKind::String(result.into_boxed_str()))
+        }
+        yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => None,
+    }
+}
+
+fn decimal_add(left: &str, right: &str) -> Option<String> {
+    fn signed(negative: bool, digits: String) -> Option<String> {
+        if !negative || digits == "0" { return Some(digits); }
+        let mut output = String::new();
+        output.try_reserve(digits.len().checked_add(1)?).ok()?;
+        output.push('-');
+        output.push_str(&digits);
+        Some(output)
+    }
+    fn split(value: &str) -> Option<(bool, &str)> {
+        let (negative, digits) = value.strip_prefix('-').map_or((false, value), |digits| (true, digits));
+        if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) { return None; }
+        let digits = digits.trim_start_matches('0');
+        Some((negative, if digits.is_empty() { "0" } else { digits }))
+    }
+    fn add_magnitude(left: &str, right: &str) -> Option<String> {
+        let width = left.len().max(right.len());
+        let mut output = Vec::new();
+        output.try_reserve(width.checked_add(1)?).ok()?;
+        let (mut carry, mut index) = (0u8, 0usize);
+        while index < width || carry != 0 {
+            let a = left.len().checked_sub(index + 1).and_then(|at| left.as_bytes().get(at)).copied().map_or(0, |b| b - b'0');
+            let b = right.len().checked_sub(index + 1).and_then(|at| right.as_bytes().get(at)).copied().map_or(0, |b| b - b'0');
+            let sum = a + b + carry;
+            output.push(b'0' + sum % 10);
+            carry = sum / 10;
+            index += 1;
+        }
+        output.reverse();
+        String::from_utf8(output).ok()
+    }
+    fn compare_magnitude(left: &str, right: &str) -> std::cmp::Ordering {
+        left.len().cmp(&right.len()).then_with(|| left.cmp(right))
+    }
+    fn subtract_magnitude(larger: &str, smaller: &str) -> Option<String> {
+        let mut output = Vec::new();
+        output.try_reserve(larger.len()).ok()?;
+        let (mut borrow, mut index) = (0i16, 0usize);
+        while index < larger.len() {
+            let a = i16::from(*larger.as_bytes().get(larger.len() - index - 1)? - b'0');
+            let b = i16::from(smaller.len().checked_sub(index + 1).and_then(|at| smaller.as_bytes().get(at)).copied().map_or(0, |digit| digit - b'0'));
+            let mut digit = a - borrow - b;
+            borrow = i16::from(digit < 0);
+            if borrow != 0 { digit += 10; }
+            output.push(b'0' + digit as u8);
+            index += 1;
+        }
+        while output.len() > 1 && output.last() == Some(&b'0') { output.pop(); }
+        output.reverse();
+        String::from_utf8(output).ok()
+    }
+    let (left_negative, left) = split(left)?;
+    let (right_negative, right) = split(right)?;
+    if left_negative == right_negative {
+        let sum = add_magnitude(left, right)?;
+        signed(left_negative, sum)
+    } else {
+        match compare_magnitude(left, right) {
+            std::cmp::Ordering::Equal => Some("0".to_owned()),
+            std::cmp::Ordering::Greater => {
+                let difference = subtract_magnitude(left, right)?;
+                signed(left_negative, difference)
+            }
+            std::cmp::Ordering::Less => {
+                let difference = subtract_magnitude(right, left)?;
+                signed(right_negative, difference)
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod module_expression_tests {
+    use super::*;
+    use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports, lower_module};
+    use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
+
+    fn runtime_program(source: &str, opt_in_source: bool) -> Arc<RuntimeProgram> {
+        runtime_program_for_probe(source, opt_in_source, "test.yu")
+    }
+
+    fn runtime_program_for_probe(source: &str, opt_in_source: bool, file_key: &str) -> Arc<RuntimeProgram> {
+        let source: Arc<SourceText> = Arc::from(source);
+        let parsed = parse_file(
+            source.clone(),
+            Arc::new(scan_header(source)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let lower = if opt_in_source {
+            yu_hir::shadow::lower_module_with_local_source
+        } else {
+            lower_module
+        };
+        let hir = Arc::new(
+            lower(
+                ModuleIdentity::source_root(FileId::new(FileKey::new("r22-owner-consumer", file_key))),
+                &parsed,
+                SemanticImports::empty(),
+            )
+            .unwrap(),
+        );
+        RuntimeProgram::from_hir(hir, super::super::RuntimeEvidence::default()).unwrap()
+    }
+
+    fn start(program: &Arc<RuntimeProgram>) -> Machine {
+        start_named(program, "main")
+    }
+
+    fn start_named(program: &Arc<RuntimeProgram>, name: &str) -> Machine {
+        let definition = program.definition_named(name).unwrap().clone();
+        let roots = program.execution_roots().unwrap();
+        program.start(&definition, &roots).unwrap()
+    }
+
+    fn machine(source: &str, opt_in_source: bool) -> Machine {
+        start(&runtime_program(source, opt_in_source))
+    }
+
+    fn cache_snapshot(
+        machine: &Machine,
+    ) -> Vec<Option<(ValueHandle, ParameterRole, ViewHandle)>> {
+        machine
+            .cells
+            .iter()
+            .map(|cell| {
+                cell.as_ref().map(|received| {
+                    (received.value, received.interface, received.view)
+                })
+            })
+            .collect()
+    }
+
+    fn integer_count(machine: &Machine, expected: &str) -> usize {
+        machine
+            .values
+            .iter()
+            .filter(|value| {
+                matches!(
+                    &value.kind,
+                    RuntimeValueKind::Integer(text) if text.as_ref() == expected
+                )
+            })
+            .count()
+    }
+
+    fn same_source(left: &SourceSite, right: &SourceSite) -> bool {
+        left.source_root == right.source_root && left.occurrence == right.occurrence
+    }
+
+    fn owner_json(owner: ExecutionOwner) -> String {
+        match owner {
+            ExecutionOwner::ModuleRun => "{\"kind\":\"module\"}".to_owned(),
+            ExecutionOwner::Invocation(id) => format!("{{\"kind\":\"invocation\",\"id\":{id}}}"),
+        }
+    }
+
+    fn json_string(value: &str) -> String {
+        let mut output = String::from("\"");
+        for ch in value.chars() {
+            match ch {
+                '"' => output.push_str("\\\""),
+                '\\' => output.push_str("\\\\"),
+                '\n' => output.push_str("\\n"),
+                '\r' => output.push_str("\\r"),
+                '\t' => output.push_str("\\t"),
+                ch if ch < ' ' => output.push_str(&format!("\\u{:04x}", ch as u32)),
+                ch => output.push(ch),
+            }
+        }
+        output.push('"');
+        output
+    }
+
+    fn site_fields(site: &SourceSite) -> String {
+        format!("\"source_root\":{},\"occurrence\":{},\"range\":[{},{}]",
+            json_string(&format!("{:?}", site.source_root)),
+            json_string(&format!("{:?}", site.occurrence)),
+            site.range.start, site.range.end)
+    }
+
+    fn event_site(event: &OwnerConsumerEvent) -> &SourceSite {
+        match event {
+            OwnerConsumerEvent::Invocation { call, .. } => call,
+            OwnerConsumerEvent::CallbackEntry { lambda, .. }
+            | OwnerConsumerEvent::RootCompEntry { lambda, .. } => lambda,
+            OwnerConsumerEvent::CallbackUse { apply, .. } => apply,
+            OwnerConsumerEvent::Request { source, .. } => source,
+            OwnerConsumerEvent::ResultConsumer { source, .. } => source,
+            OwnerConsumerEvent::CallbackExecutionReturned { source, .. } => source,
+            OwnerConsumerEvent::CatchInstalled { handler, .. } => handler,
+            OwnerConsumerEvent::CatchSelected { handler, .. } => handler,
+            OwnerConsumerEvent::IntegerValue { site, .. } => site,
+        }
+    }
+
+    fn event_json(probe_id: &str, source_hash: &str, sequence: usize, event: &OwnerConsumerEvent) -> String {
+        let common = format!("\"probe_id\":{},\"source_sha256\":{},\"sequence\":{},{}",
+            json_string(probe_id), json_string(source_hash), sequence, site_fields(event_site(event)));
+        let body = match event {
+            OwnerConsumerEvent::Invocation { id, call, provider } => format!(
+                "\"kind\":\"invocation_minted\",{common},\"invocation_id\":{id},\"provider_root\":{},\"provider_occurrence\":{}",
+                json_string(&format!("{:?}", provider.source_root)),
+                json_string(&format!("{:?}", provider.occurrence))),
+            OwnerConsumerEvent::CallbackEntry { id, invocation, formal, value, incoming_view, view, receipt, lambda, permission_families } => format!(
+                "\"kind\":\"callback_entry\",{common},\"entry_id\":{id},\"invocation_id\":{invocation},\"formal\":{},\"value_id\":{value},\"incoming_view_id\":{incoming_view},\"entry_view_id\":{view},\"formal_receipt_id\":{receipt},\"permission_families\":{}",
+                json_string(&format!("{:?}", formal)),
+                families_json(permission_families)),
+            OwnerConsumerEvent::RootCompEntry { invocation, formal, value, view, receipt, lambda: _, permission_families } => format!(
+                "\"kind\":\"root_comp_entry\",{common},\"invocation_id\":{invocation},\"formal\":{},\"value_id\":{value},\"view_id\":{view},\"formal_receipt_id\":{receipt},\"permission_families\":{}",
+                json_string(&format!("{:?}", formal)), families_json(permission_families)),
+            OwnerConsumerEvent::CallbackUse { id, invocation, entry, formal, value, source_view, result_view, receipt, apply } => format!(
+                "\"kind\":\"callback_use\",{common},\"use_id\":{id},\"invocation_id\":{invocation},\"entry_id\":{entry},\"formal\":{},\"value_id\":{value},\"source_view_id\":{source_view},\"result_view_id\":{result_view},\"result_receipt_id\":{receipt},\"apply_occurrence\":{}",
+                json_string(&format!("{:?}", formal)), json_string(&format!("{:?}", apply.occurrence))),
+            OwnerConsumerEvent::Request { invocation, event, operation, source, payload, observed } => format!(
+                "\"kind\":\"operation_request\",{common},\"invocation_id\":{},\"request_event_id\":{event},\"operation_id\":{},\"operation_family_id\":{},\"payload_value_id\":{payload},\"observed_executions\":{}",
+                invocation.map_or("null".to_owned(), |id| id.to_string()),
+                json_string(&format!("{:?}", operation)),
+                json_string(&format!("{:?}", operation.family)), observed_json(observed)),
+            OwnerConsumerEvent::ResultConsumer { invocation, callback_use, source: _ } => format!(
+                "\"kind\":\"operation_result_consumer\",{common},\"invocation_id\":{},\"callback_use_id\":{}",
+                invocation.map_or("null".to_owned(), |id| id.to_string()),
+                callback_use.map_or("null".to_owned(), |id| id.to_string())),
+            OwnerConsumerEvent::CallbackExecutionReturned { invocation, callback_use, view, receipt, source: _ } => format!(
+                "\"kind\":\"callback_execution_returned\",{common},\"invocation_id\":{},\"callback_use_id\":{callback_use},\"result_view_id\":{view},\"result_receipt_id\":{receipt}",
+                invocation.map_or("null".to_owned(), |id| id.to_string())),
+            OwnerConsumerEvent::CatchInstalled { installation, handler: _ } => format!(
+                "\"kind\":\"catch_installed\",{common},\"installation_id\":{},\"installation_owner\":{}",
+                installation.occurrence, owner_json(installation.owner)),
+            OwnerConsumerEvent::CatchSelected { event, installation, handler: _, arm, arm_body, operation, grant, payload } => format!(
+                "\"kind\":\"catch_committed\",{common},\"request_event_id\":{event},\"installation_id\":{},\"installation_owner\":{},\"arm_id\":{},\"arm_body_root\":{},\"arm_body_occurrence\":{},\"operation_id\":{},\"grant_validated\":{grant},\"payload_value_id\":{payload}",
+                installation.occurrence, owner_json(installation.owner),
+                json_string(&format!("{:?}", arm)),
+                json_string(&format!("{:?}", arm_body.source_root)),
+                json_string(&format!("{:?}", arm_body.occurrence)),
+                json_string(&format!("{:?}", operation))),
+            OwnerConsumerEvent::IntegerValue { value, site: _, text } => format!(
+                "\"kind\":\"integer_value_minted\",{common},\"value_id\":{value},\"integer\":{}",
+                json_string(text)),
+        };
+        format!("{{{body}}}")
+    }
+
+    fn families_json(families: &[yu_hir::shadow::SourceEffectId]) -> String {
+        format!("[{}]", families.iter().map(|family|
+            json_string(&format!("{:?}", family))).collect::<Vec<_>>().join(","))
+    }
+
+    fn observed_json(observed: &[(usize, usize)]) -> String {
+        format!("[{}]", observed.iter().map(|(view, receipt)|
+            format!("{{\"view_id\":{view},\"receipt_id\":{receipt}}}")).collect::<Vec<_>>().join(","))
+    }
+
+    fn callback_trace_valid(events: &[OwnerConsumerEvent]) -> bool {
+        let Some(entry) = events.iter().find_map(|event| match event {
+            OwnerConsumerEvent::CallbackEntry { id, invocation, formal, value, view, receipt, lambda, permission_families, .. }
+                => Some((*id, *invocation, formal, *value, *view, *receipt, lambda, permission_families)),
+            _ => None,
+        }) else { return false; };
+        let Some(use_record) = events.iter().find_map(|event| match event {
+            OwnerConsumerEvent::CallbackUse { id, invocation, entry: entry_id, formal, value, source_view, result_view, receipt, apply }
+                if *entry_id == entry.0 => Some((*id, *invocation, formal, *value, *source_view, *result_view, *receipt, apply)),
+            _ => None,
+        }) else { return false; };
+        let (_entry_id, invocation, formal, value, entry_view, _, lambda, families) = entry;
+        let (use_id, use_invocation, use_formal, use_value, source_view, result_view, result_receipt, apply) = use_record;
+        if invocation != use_invocation || formal != use_formal || value != use_value
+            || entry_view != source_view || !same_source(lambda, apply) || families.is_empty()
+            || !events.iter().any(|event| matches!(event,
+                OwnerConsumerEvent::Invocation { id, provider, .. }
+                    if *id == invocation && same_source(provider, lambda)))
+        { return false; }
+        let Some(request) = events.iter().find_map(|event| match event {
+            OwnerConsumerEvent::Request { invocation: Some(request_invocation), event, operation, source, observed, .. }
+                if families.contains(&operation.family)
+                    && observed.contains(&(result_view, result_receipt))
+                    && same_source(source, apply)
+                    => Some((*event, operation, *request_invocation, source)),
+            _ => None,
+        }) else { return false; };
+        let Some(invocation_position) = events.iter().position(|event| matches!(event,
+            OwnerConsumerEvent::Invocation { id, .. } if *id == invocation)) else { return false; };
+        let Some(entry_position) = events.iter().position(|event| matches!(event,
+            OwnerConsumerEvent::CallbackEntry { id, .. } if *id == entry.0)) else { return false; };
+        let Some(use_position) = events.iter().position(|event| matches!(event,
+            OwnerConsumerEvent::CallbackUse { id, .. } if *id == use_id)) else { return false; };
+        let Some(request_position) = events.iter().position(|event| matches!(event,
+            OwnerConsumerEvent::Request { event, .. } if *event == request.0)) else { return false; };
+        if !(invocation_position < entry_position && entry_position < use_position && use_position < request_position) {
+            return false;
+        }
+        if !events.iter().any(|event| matches!(event,
+            OwnerConsumerEvent::Invocation { id, call, .. }
+                if *id == request.2 && same_source(call, request.3)))
+            || !events.iter().any(|event| matches!(event,
+                OwnerConsumerEvent::CatchInstalled { installation, handler }
+                    if installation.owner == ExecutionOwner::Invocation(invocation)
+                        && handler.source_root == lambda.source_root))
+        { return false; }
+        if !events.iter().any(|event| matches!(event,
+            OwnerConsumerEvent::ResultConsumer { invocation: Some(owner), callback_use: Some(use_handle), source }
+                if *owner == invocation && *use_handle == use_id && same_source(source, apply)))
+        { return false; }
+        let Some(selection) = events.iter().find_map(|event| match event {
+            OwnerConsumerEvent::CatchSelected { event, installation, handler, operation, grant, arm_body, .. }
+                if *event == request.0 && operation == request.1
+                    && installation.owner == ExecutionOwner::Invocation(invocation)
+                    && handler.source_root == lambda.source_root && *grant
+                    => Some(arm_body),
+            _ => None,
+        }) else { return false; };
+        let Some(selection_position) = events.iter().position(|event| matches!(event,
+            OwnerConsumerEvent::CatchSelected { event, installation, operation, grant: true, .. }
+                if *event == request.0 && operation == request.1
+                    && installation.owner == ExecutionOwner::Invocation(invocation))) else { return false; };
+        if !events.iter().any(|event| matches!(event,
+            OwnerConsumerEvent::CatchInstalled { installation, handler }
+                if installation.owner == ExecutionOwner::Invocation(invocation)
+                    && handler.source_root == lambda.source_root
+                    && events.iter().any(|selected| matches!(selected,
+                        OwnerConsumerEvent::CatchSelected { installation: chosen, handler: chosen_handler, arm_body, .. }
+                            if chosen == installation && same_source(chosen_handler, handler)
+                                && same_source(arm_body, selection)))))
+        { return false; }
+        let Some(integer_position) = events.iter().position(|event| matches!(event,
+            OwnerConsumerEvent::IntegerValue { site, text, .. }
+                if text == "1" && same_source(site, selection))) else { return false; };
+        let Some(return_position) = events.iter().position(|event| matches!(event,
+            OwnerConsumerEvent::CallbackExecutionReturned { invocation: Some(owner), callback_use, view, receipt, .. }
+                if *owner == invocation && *callback_use == use_id && *view == result_view && *receipt == result_receipt)) else { return false; };
+        let Some(consumer_position) = events.iter().position(|event| matches!(event,
+            OwnerConsumerEvent::ResultConsumer { invocation: Some(owner), callback_use: Some(use_handle), source }
+                if *owner == invocation && *use_handle == use_id && same_source(source, apply))) else { return false; };
+        request_position < selection_position && selection_position < integer_position
+            && integer_position < consumer_position && consumer_position < return_position
+    }
+
+    fn companion_trace_valid(machine: &Machine) -> bool {
+        companion_events_valid(machine.owner_consumer_events(), machine)
+    }
+
+    fn companion_events_valid(events: &[OwnerConsumerEvent], machine: &Machine) -> bool {
+        let mut requests = Vec::new();
+        for event in events {
+            if let OwnerConsumerEvent::Request { invocation, event, operation, observed, source, .. } = event {
+                let family = machine.program._hir.source_effect_declarations().iter()
+                    .find(|declaration| declaration.id == operation.family)
+                    .map(|declaration| declaration.spelling.as_ref());
+                requests.push((*event, family.unwrap_or(""), operation, observed, source, invocation));
+            }
+        }
+        let Some((signal_event, _, signal_operation, _, signal_source, _)) = requests.iter()
+            .find(|(_, family, _, _, _, _)| *family == "signal") else { return false; };
+        let Some((write_event, _, write_operation, write_observed, write_source, _)) = requests.iter()
+            .find(|(_, family, _, _, _, _)| *family == "write") else { return false; };
+        if signal_event >= write_event || signal_operation.family == write_operation.family
+            || signal_source.source_root != write_source.source_root
+        { return false; }
+        for (_, _, _, _, source, invocation) in [*requests.iter().find(|request| request.0 == *signal_event).unwrap(),
+            *requests.iter().find(|request| request.0 == *write_event).unwrap()] {
+            let Some(invocation) = invocation else { return false; };
+            if !events.iter().any(|event| matches!(event,
+                OwnerConsumerEvent::Invocation { id, call, .. }
+                    if id == invocation && same_source(call, source)))
+            { return false; }
+        }
+        let entries = events.iter().filter_map(|event| match event {
+            OwnerConsumerEvent::RootCompEntry { invocation, view, receipt, lambda, permission_families, .. }
+                => Some((*invocation, *view, *receipt, lambda, permission_families)),
+            _ => None,
+        }).collect::<Vec<_>>();
+        let Some(signal_entry) = entries.iter().find(|(_, _, _, _, families)| families.contains(&signal_operation.family)) else { return false; };
+        let Some(write_entry) = entries.iter().find(|(_, _, _, _, families)| families.contains(&write_operation.family)) else { return false; };
+        if signal_entry.0 == write_entry.0
+            || !signal_source_observed(events, *signal_event, signal_entry.1, signal_entry.2)
+            || !write_observed.contains(&(write_entry.1, write_entry.2))
+        { return false; }
+        let signal_selected = events.iter().any(|event| matches!(event,
+            OwnerConsumerEvent::CatchSelected { event, installation, operation, grant: true, .. }
+                if event == signal_event && operation == signal_operation
+                    && installation.owner == ExecutionOwner::Invocation(signal_entry.0)
+                    && events.iter().any(|installed| matches!(installed,
+                        OwnerConsumerEvent::CatchInstalled { installation: candidate, .. }
+                            if candidate == installation))));
+        let write_selection = events.iter().find_map(|event| match event {
+            OwnerConsumerEvent::CatchSelected { event, installation, handler, operation, grant: true, arm_body, .. }
+                if event == write_event && operation == write_operation
+                    && installation.owner == ExecutionOwner::Invocation(write_entry.0)
+                    => Some((handler, arm_body)),
+            _ => None,
+        });
+        let Some(signal_position) = events.iter().position(|event| matches!(event,
+            OwnerConsumerEvent::Request { event, .. } if event == signal_event)) else { return false; };
+        let Some(write_position) = events.iter().position(|event| matches!(event,
+            OwnerConsumerEvent::Request { event, .. } if event == write_event)) else { return false; };
+        let Some(outer_catch_position) = events.iter().position(|event| matches!(event,
+            OwnerConsumerEvent::CatchSelected { event, operation, installation, .. }
+                if event == write_event && operation == write_operation
+                    && installation.owner == ExecutionOwner::Invocation(write_entry.0))) else { return false; };
+        signal_selected && write_selection.is_some_and(|(handler, arm_body)| {
+            signal_position < write_position && write_position < outer_catch_position
+                &&
+            handler.source_root == write_entry.3.source_root
+                && events.iter().any(|installed| matches!(installed,
+                    OwnerConsumerEvent::CatchInstalled { installation, handler: installed_handler }
+                        if installed_handler.source_root == handler.source_root
+                            && events.iter().any(|selected| matches!(selected,
+                                OwnerConsumerEvent::CatchSelected { installation: chosen, handler: selected_handler, arm_body: selected_body, .. }
+                                    if chosen == installation && same_source(selected_handler, handler)
+                                        && same_source(selected_body, arm_body)))))
+                && events.iter().any(|event| matches!(event,
+                    OwnerConsumerEvent::IntegerValue { site, text, .. }
+                        if text == "23" && same_source(site, arm_body)))
+        })
+    }
+
+    fn signal_source_observed(events: &[OwnerConsumerEvent], event_id: usize, view: usize, receipt: usize) -> bool {
+        events.iter().any(|event| matches!(event,
+            OwnerConsumerEvent::Request { event, observed, .. }
+                if *event == event_id && observed.contains(&(view, receipt))))
+    }
+
+    fn trace_probe_json(probe_id: &str, source_hash: &str, outcome: &str, events: &[OwnerConsumerEvent]) -> String {
+        format!("{{\"probe_id\":{},\"source_sha256\":{},\"runtime_outcome\":{},\"events\":[{}]}}",
+            json_string(probe_id), json_string(source_hash), json_string(outcome), events.iter().enumerate()
+                .map(|(index, event)| event_json(probe_id, source_hash, index, event))
+                .collect::<Vec<_>>().join(","))
+    }
+
+    fn source_effect_name(machine: &Machine, family: &yu_hir::shadow::SourceEffectId) -> Option<String> {
+        machine.program._hir.source_effect_declarations().iter()
+            .find(|declaration| &declaration.id == family)
+            .map(|declaration| declaration.spelling.to_string())
+    }
+
+    fn callback_rejections(events: &[OwnerConsumerEvent]) -> Vec<(&'static str, bool)> {
+        let mut checks = Vec::new();
+        let mut sibling = events.to_vec();
+        if let Some(OwnerConsumerEvent::CallbackUse { invocation, .. }) = sibling.iter_mut()
+            .find(|event| matches!(event, OwnerConsumerEvent::CallbackUse { .. }))
+        { *invocation = (*invocation).saturating_add(10_000); }
+        checks.push(("sibling_invocation", !callback_trace_valid(&sibling)));
+
+        let mut no_permission = events.to_vec();
+        if let Some(OwnerConsumerEvent::CallbackEntry { permission_families, .. }) = no_permission.iter_mut()
+            .find(|event| matches!(event, OwnerConsumerEvent::CallbackEntry { .. }))
+        { permission_families.clear(); }
+        checks.push(("missing_permission", !callback_trace_valid(&no_permission)));
+
+        let mut no_contribution = events.to_vec();
+        no_contribution.retain(|event| !matches!(event, OwnerConsumerEvent::Request { .. }));
+        checks.push(("missing_actual_contribution", !callback_trace_valid(&no_contribution)));
+
+        let mut failed_export = events.to_vec();
+        failed_export.retain(|event| !matches!(event, OwnerConsumerEvent::CallbackUse { .. }));
+        checks.push(("failed_export_or_direct_selection", !callback_trace_valid(&failed_export)));
+
+        let mut no_selection = events.to_vec();
+        no_selection.retain(|event| !matches!(event, OwnerConsumerEvent::CatchSelected { .. }));
+        checks.push(("failed_selection", !callback_trace_valid(&no_selection)));
+
+        let mut wrong_owner = events.to_vec();
+        if let Some(OwnerConsumerEvent::CatchSelected { installation, .. }) = wrong_owner.iter_mut()
+            .find(|event| matches!(event, OwnerConsumerEvent::CatchSelected { .. }))
+        { installation.owner = ExecutionOwner::ModuleRun; }
+        checks.push(("wrong_handler_owner", !callback_trace_valid(&wrong_owner)));
+
+        let mut retired_view = events.to_vec();
+        if let Some(OwnerConsumerEvent::Request { observed, .. }) = retired_view.iter_mut()
+            .find(|event| matches!(event, OwnerConsumerEvent::Request { .. }))
+        { observed.iter_mut().for_each(|(view, _)| *view = (*view).saturating_add(10_000)); }
+        checks.push(("wrong_result_view", !callback_trace_valid(&retired_view)));
+
+        let mut retired_receipt = events.to_vec();
+        if let Some(OwnerConsumerEvent::Request { observed, .. }) = retired_receipt.iter_mut()
+            .find(|event| matches!(event, OwnerConsumerEvent::Request { .. }))
+        { observed.iter_mut().for_each(|(_, receipt)| *receipt = (*receipt).saturating_add(10_000)); }
+        checks.push(("premature_result_receipt_retirement", !callback_trace_valid(&retired_receipt)));
+        checks
+    }
+
+    fn companion_rejections(machine: &Machine) -> Vec<(&'static str, bool)> {
+        let events = machine.owner_consumer_events();
+        let mut checks = Vec::new();
+        let mut lost_write = events.to_vec();
+        lost_write.retain(|event| !matches!(event,
+            OwnerConsumerEvent::Request { operation, .. }
+                if source_effect_name(machine, &operation.family).as_deref() == Some("write")));
+        checks.push(("lost_write_residual", !companion_events_valid(&lost_write, machine)));
+
+        let mut wrong_outer = events.to_vec();
+        if let Some(OwnerConsumerEvent::CatchSelected { installation, .. }) = wrong_outer.iter_mut()
+            .find(|event| matches!(event, OwnerConsumerEvent::CatchSelected { .. }))
+        { installation.owner = ExecutionOwner::ModuleRun; }
+        checks.push(("wrong_outer_receiver_owner", !companion_events_valid(&wrong_outer, machine)));
+        checks
+    }
+
+    #[test]
+    fn r22_callback_owner_consumer_trace() {
+        const CALLBACK_SOURCE: &str = "act signal:\n    our ping: () -> int\n\nmy relay(cb: () -> [signal] int) = catch cb() {\n    signal::ping(), _ -> 1,\n    v -> v\n}\nmy answer = relay signal::ping\n";
+        const CALLBACK_HASH: &str = "163fb480ec7ecaed2c341253066a7c6cc3af1a0cf5499c384f0cad4952c64e18";
+        const COMPANION_SOURCE: &str = include_str!("../../examples/original-suffix-outer-receiver.yu");
+        const COMPANION_HASH: &str = "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7";
+
+        let callback_program = runtime_program_for_probe(CALLBACK_SOURCE, true, "callback-owner-consumer.yu");
+        let mut callback = start_named(&callback_program, "answer");
+        let callback_outcome = callback.run(100_000);
+        let callback_result_ok = matches!(&callback_outcome,
+            RuntimeOutcome::Completed(value) if matches!(&callback.value(*value).unwrap().kind,
+                RuntimeValueKind::Integer(text) if text.as_ref() == "1"));
+        let callback_trace_ok = callback_trace_valid(callback.owner_consumer_events());
+        let callback_rejections = callback_rejections(callback.owner_consumer_events());
+
+        let companion_program = runtime_program_for_probe(COMPANION_SOURCE, true, "suffix-outer-receiver.yu");
+        let mut companion = start(&companion_program);
+        let companion_outcome = companion.run(100_000);
+        let companion_result_ok = matches!(&companion_outcome,
+            RuntimeOutcome::Completed(value) if matches!(&companion.value(*value).unwrap().kind,
+                RuntimeValueKind::Integer(text) if text.as_ref() == "23"));
+        let companion_trace_ok = companion_trace_valid(&companion);
+        let companion_rejections = companion_rejections(&companion);
+
+        let callback_json = trace_probe_json("r22-callback-approved-source", CALLBACK_HASH,
+            &format!("{callback_outcome:?}"), callback.owner_consumer_events());
+        let companion_json = trace_probe_json("r22-suffix-outer-receiver", COMPANION_HASH,
+            &format!("{companion_outcome:?}"), companion.owner_consumer_events());
+        let rejection_json = |checks: &[(&str, bool)]| format!("[{}]", checks.iter().map(|(name, rejected)|
+            format!("{{\"case\":{},\"rejected\":{rejected}}}", json_string(name))
+        ).collect::<Vec<_>>().join(","));
+        println!("R22_TRACE_JSON:{{\"probes\":[{callback_json},{companion_json}],\"validated\":{{\"callback_result\":{callback_result_ok},\"callback_trace\":{callback_trace_ok},\"companion_result\":{companion_result_ok},\"companion_trace\":{companion_trace_ok}}},\"explicit_rejections\":{{\"callback\":{},\"companion\":{}}}}}",
+            rejection_json(&callback_rejections), rejection_json(&companion_rejections));
+        assert!(callback_result_ok, "callback runtime outcome: {callback_outcome:?}");
+        assert!(callback_trace_ok, "callback identity/permission/contribution/selection join rejected: {:?}", callback.owner_consumer_events());
+        assert!(callback_rejections.iter().all(|(_, rejected)| *rejected), "callback validator accepted an invalid trace: {callback_rejections:?}");
+        assert!(companion_result_ok, "companion runtime outcome: {companion_outcome:?}");
+        assert!(companion_trace_ok, "companion signal/write owner/residual join rejected: {:?}", companion.owner_consumer_events());
+        assert!(companion_rejections.iter().all(|(_, rejected)| *rejected), "companion validator accepted an invalid trace: {companion_rejections:?}");
+        if !callback.owner_consumer_events().is_empty() && !companion.owner_consumer_events().is_empty() {
+            assert_ne!(event_site(callback.owner_consumer_events().first().unwrap()).source_root,
+                event_site(companion.owner_consumer_events().first().unwrap()).source_root,
+                "the two source occurrences must not share a source-root identity");
+        }
+    }
+
+
+    #[test]
+    fn variant_native_matching_checks_tag_arity_order_and_original_binders() {
+        for (source, expected) in [
+            ("my main = case :disabled: :disabled -> 7, _ -> 0", "7"),
+            ("my main = case :pair(1,2): :other(x,y) -> 99, :pair(x) -> 98, :pair(left,right) -> right", "2"),
+            ("my main = case :pair(1,2): :pair(_,right) -> right, :pair(left,_) -> left", "2"),
+            ("my main = case :wrap (\\x -> x): :wrap f -> f 7", "7"),
+            ("my main = case :disabled(): :disabled -> 99, :disabled _ -> 7", "7"),
+            ("my main = case :other 3: :pair x -> x, _ -> 7", "7"),
+        ] {
+            let mut machine = machine(source, true);
+            assert!(!machine.program.closed_primitive, "new shapes confer no old negative-visibility certificate");
+            let RuntimeOutcome::Completed(value) = machine.run(10_000) else { panic!("variant native source: {source}"); };
+            assert!(matches!(&machine.value(value).unwrap().kind,
+                RuntimeValueKind::Integer(value) if value.as_ref() == expected), "{source}");
+        }
+        for source in [
+            "my main = case :some 1: :none -> 0",
+            "my main = case :pair(1,2): :pair x -> x",
+        ] {
+            assert!(matches!(machine(source, true).run(10_000),
+                RuntimeOutcome::Unavailable(RuntimeUnavailable::NonExhaustiveCase(_))), "{source}");
+        }
+    }
+
+    #[test]
+    fn variant_result_rendering_keeps_tag_and_payload_arity() {
+        for (expression, expected) in [
+            (":disabled", ":disabled"),
+            (":disabled()", ":disabled(())"),
+            (":pair(41,23)", ":pair(41, 23)"),
+        ] {
+            let mut machine = machine(&format!("my main = {expression}"), true);
+            let RuntimeOutcome::Completed(value) = machine.run(10_000) else { panic!("variant result"); };
+            let mut output = crate::Output::new();
+            crate::render_runtime_value(&machine, value, &mut output).unwrap();
+            assert_eq!(output.finish().unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn variant_payload_projection_preserves_the_received_values_and_views() {
+        let mut machine = machine("my main = case :pair(1,2): :pair(left,right) -> (right,left)", true);
+        let RuntimeOutcome::Completed(value) = machine.run(10_000) else { panic!("variant projection"); };
+        let RuntimeValueKind::Tuple(result) = &machine.value(value).unwrap().kind else { panic!("projected tuple"); };
+        let payloads = machine.values.iter().find_map(|value| match &value.kind {
+            RuntimeValueKind::Variant { tag, payloads } if tag.as_ref() == "pair" => Some(payloads), _ => None,
+        }).unwrap();
+        for (output, input) in result.iter().zip(payloads.iter().rev()) {
+            assert_eq!(output.received.value, input.received.value);
+            assert_eq!(output.received.view, input.received.view);
+            assert_eq!(output.received.interface, input.received.interface);
+            assert!(machine.receiving.matches_value(output.received.view, output.received.value));
+        }
+    }
+
+    #[test]
+    fn variant_prefix_survives_repeated_raw_resumption_without_replaying_children() {
+        let source = "act io:\n    our tick: int -> int\nmy relay (thunk:[io] 'a) = catch thunk { io::tick(p), k -> { k 11; k 23 } }\nmy main = relay (:pair(41, io::tick 0))";
+        let mut machine = machine(source, true);
+        let mut completed = None;
+        for _ in 0..10_000 {
+            match machine.run(1) {
+                RuntimeOutcome::Running | RuntimeOutcome::ResourceExhausted { .. } => {},
+                RuntimeOutcome::Completed(value) => { completed = Some(value); break; },
+                other => panic!("variant resume: {other:?}"),
+            }
+        }
+        let RuntimeValueKind::Variant { tag, payloads } = &machine.value(completed.expect("variant completion")).unwrap().kind else { panic!("tagged result"); };
+        assert_eq!(tag.as_ref(), "pair");
+        assert_eq!(payloads.len(), 2);
+        for (payload, expected) in payloads.iter().zip(["41", "23"]) {
+            assert!(matches!(&machine.value(payload.value()).unwrap().kind,
+                RuntimeValueKind::Integer(value) if value.as_ref() == expected));
+            assert!(machine.receiving.matches_value(payload.received.view, payload.received.value));
+        }
+        assert_eq!(integer_count(&machine, "41"), 1, "the captured prefix is reused by both resumes");
+    }
+
+    #[test]
+    fn primitive_value_entry_creates_each_invocation_before_forcing_the_argument() {
+        let mut machine = machine("my main = builtin_op::int_add 1 2", true);
+        let mut entries = Vec::new();
+        let mut completed = None;
+        for _ in 0..200 {
+            if let Some(Frame::PrimitiveArgument { site, .. }) = machine.frames.last() {
+                let Frame::ReceiverReturn { activation, previous } = &machine.frames[machine.frames.len() - 2] else { panic!("primitive invocation return"); };
+                assert_eq!(machine.current_owner, ExecutionOwner::Invocation(*activation));
+                assert_eq!(*previous, ExecutionOwner::ModuleRun);
+                let invocation = &machine.invocations[*activation];
+                assert!(invocation.active);
+                assert_eq!(invocation.call.source_root, site.source_root);
+                assert_eq!(invocation.call.occurrence, site.occurrence);
+                if !entries.contains(activation) {
+                    assert!(matches!(machine.state, State::Evaluate { .. }), "whole argument enters only after the receiver is live");
+                    entries.push(*activation);
+                }
+            }
+            match machine.run(1) {
+                RuntimeOutcome::Running | RuntimeOutcome::ResourceExhausted { .. } => {},
+                RuntimeOutcome::Completed(value) => { completed = Some(value); break; },
+                other => panic!("primitive entry: {other:?}"),
+            }
+        }
+        assert_eq!(entries, [0, 1], "curried calls have separate actual owners");
+        assert!(machine.invocations.iter().all(|invocation| !invocation.active));
+        assert!(machine.active_receivers.is_empty());
+        assert_eq!(machine.current_owner, ExecutionOwner::ModuleRun);
+        assert!(matches!(&machine.value(completed.expect("completion")).unwrap().kind,
+            RuntimeValueKind::Integer(value) if value.as_ref() == "3"));
+    }
+
+    #[test]
+    fn integer_product_budget_pause_preserves_the_live_machine() {
+        let mut machine = machine("my main = builtin_op::int_mul 12345678901234567890 12345678901234567890", true);
+        for _ in 0..100 {
+            if matches!(machine.state, State::IntegerProduct { .. }) { break; }
+            assert!(matches!(machine.run(1), RuntimeOutcome::ResourceExhausted { .. }));
+        }
+        assert!(matches!(machine.state, State::IntegerProduct { .. }));
+        let before_steps = machine.steps();
+        let before_values = machine.values.len();
+        let before_frames = machine.frames.len();
+        let before_cells = cache_snapshot(&machine);
+        assert!(matches!(machine.run(7), RuntimeOutcome::ResourceExhausted { .. }));
+        assert_eq!(machine.steps(), before_steps + 7);
+        assert_eq!(machine.values.len(), before_values, "no partial product becomes a value");
+        assert_eq!(machine.frames.len(), before_frames);
+        assert_eq!(cache_snapshot(&machine), before_cells);
+        assert!(matches!(machine.state, State::IntegerProduct { .. }));
+        let RuntimeOutcome::Completed(value) = machine.run(1000) else { panic!("resumed product"); };
+        assert!(matches!(&machine.value(value).unwrap().kind,
+            RuntimeValueKind::Integer(value) if value.as_ref() == "152415787532388367501905199875019052100"));
+    }
+
+    #[test]
+    fn tuple_elements_retain_their_received_views() {
+        let mut machine = machine("my main = (1, 2)", true);
+        let RuntimeOutcome::Completed(tuple) = machine.run(100) else {
+            panic!("expected tuple completion")
+        };
+        let RuntimeValueKind::Tuple(elements) = &machine.value(tuple).unwrap().kind else {
+            panic!("expected tuple value")
+        };
+        assert_eq!(elements.len(), 2);
+        for element in elements {
+            assert_eq!(element.received.interface, ParameterRole::Value);
+            assert!(machine.receiving.matches_value(
+                element.received.view,
+                element.received.value
+            ));
+        }
+    }
+
+    #[test]
+    fn computation_completion_preserves_the_actual_result_record() {
+        for (source, minimum_returns) in [
+            ("my relay (thunk:[] 'a) = thunk\nmy main = relay (7, \\x -> x)\n", 1),
+            ("my relay (thunk:[] (int -> int)) = thunk\nmy main = relay (\\x -> x)\n", 1),
+            ("my relay (thunk:[] 'a) = thunk\nmy forward (input:[] 'b) = relay input\nmy main = forward (\\x -> x)\n", 2),
+            ("act io:\n    our tick: int -> int\nmy relay (thunk:[io] 'a) = catch thunk { io::tick(p), k -> { my first = k 11; k 23 } }\nmy main = relay { my x = io::tick 0; (x, \\u -> u) }\n", 2),
+        ] {
+            let mut machine = machine(source, true);
+            let mut returns = 0;
+            let mut executions = HashSet::new();
+            let mut completed = false;
+            for _ in 0..2000 {
+                let before = match (&machine.state, machine.frames.last()) {
+                    (State::Return(value), Some(Frame::RootCompReturn { execution })) =>
+                        Some((*value, *execution, machine.executing_views.len())),
+                    _ => None,
+                };
+                let outcome = machine.step();
+                if let Some((before, execution, depth)) = before {
+                    assert!(matches!(outcome, RuntimeOutcome::Running), "{source}: {outcome:?}");
+                    let State::Return(after) = machine.state else { panic!("completion returns the actual record"); };
+                    assert_eq!((after.value, after.interface, after.view, after.dispatch),
+                        (before.value, before.interface, before.view, before.dispatch),
+                        "completion cannot replace unknown/result evidence with a ground view");
+                    assert!(machine.receiving.matches_value(after.view, after.value));
+                    assert_eq!(machine.executing_views.len() + 1, depth);
+                    assert!(executions.insert(execution.occurrence), "each execution closes once");
+                    returns += 1;
+                }
+                match outcome {
+                    RuntimeOutcome::Running => {},
+                    RuntimeOutcome::Completed(_) => { completed = true; break; },
+                    other => panic!("{source}: {other:?}"),
+                }
+            }
+            assert!(completed, "{source}");
+            assert!(returns >= minimum_returns, "{source}: {returns}");
+            assert!(machine.executing_views.is_empty());
+            assert!(machine.initializing_globals.is_empty());
+        }
+    }
+
+    #[test]
+    fn pinned_primitive_values_execute_with_currying_and_arbitrary_precision() {
+        let mut add = machine("my main = builtin_op::int_add 999999999999999999999999999999 1", true);
+        let outcome = add.run(100);
+        assert_completed_integer(&add, outcome, "1000000000000000000000000000000");
+
+        let mut format = machine(
+            "my main = builtin_op::string_concat (builtin_op::int_to_string 42) \"!\"",
+            true,
+        );
+        let RuntimeOutcome::Completed(value) = format.run(100) else { panic!("expected primitive string result") };
+        assert!(matches!(format.value(value).map(|value| &value.kind), Some(RuntimeValueKind::String(text)) if text.as_ref() == "42!"));
+        assert_eq!(decimal_add("-1000", "1").as_deref(), Some("-999"));
+        assert_eq!(decimal_add("001", "-1").as_deref(), Some("0"));
+    }
+
+    fn assert_completed_integer(machine: &Machine, outcome: RuntimeOutcome, expected: &str) {
+        let RuntimeOutcome::Completed(handle) = outcome else {
+            panic!("expected completion with integer {expected}, got {outcome:?}");
+        };
+        assert!(matches!(
+            machine.value(handle).map(|value| &value.kind),
+            Some(RuntimeValueKind::Integer(text)) if text.as_ref() == expected
+        ));
+    }
+
+    #[test]
+    fn expression_roots_allocate_no_global_cells_or_initialization_markers() {
+        let mut machine = machine(
+            "later; 99; my later = { my value = 11; value }; later; my main = 7",
+            false,
+        );
+        assert_eq!(machine.cells.len(), 2);
+        assert_eq!(machine.program.definition_indices.len(), 2);
+        assert!(machine.initializing_globals.is_empty());
+        assert!(matches!(
+            machine.frames.last(),
+            Some(Frame::ExpressionReturn { .. })
+        ));
+        assert!(matches!(machine.run(10_000), RuntimeOutcome::Completed(_)));
+        // One local initializer value, despite a forward Name demand and the
+        // definition's later scheduled slot. Expressions publish no cells.
+        assert_eq!(
+            machine
+                .values
+                .iter()
+                .filter(|value| matches!(
+                    &value.kind, RuntimeValueKind::Integer(text) if text.as_ref() == "11"
+                ))
+                .count(),
+            1
+        );
+        assert_eq!(machine.cells.len(), 3); // Two globals and the actual local.
+        assert!(machine.initializing_globals.is_empty());
+    }
+
+    #[test]
+    fn shared_program_machines_keep_module_root_caches_and_progress_private() {
+        let program = runtime_program(
+            "later; 99; my later = { my value = 11; value }; later; my main = 7",
+            false,
+        );
+        let mut first = start(&program);
+        let mut second = start(&program);
+        assert!(Arc::ptr_eq(&first.program, &second.program));
+
+        assert!(matches!(first.step(), RuntimeOutcome::Running));
+        let first_steps = first.steps();
+        let first_cells = cache_snapshot(&first);
+        let first_frame_depth = first.frames.len();
+
+        let second_outcome = second.run(10_000);
+        assert_completed_integer(&second, second_outcome, "7");
+        assert_eq!(first.steps(), first_steps);
+        assert_eq!(cache_snapshot(&first), first_cells);
+        assert_eq!(first.frames.len(), first_frame_depth);
+
+        let first_outcome = first.run(10_000);
+        assert_completed_integer(&first, first_outcome, "7");
+        assert_eq!(first.steps(), second.steps());
+        assert_eq!(integer_count(&first, "11"), 1);
+        assert_eq!(integer_count(&second, "11"), 1);
+
+        let third = start(&program);
+        assert!(Arc::ptr_eq(&first.program, &third.program));
+        assert!(third.cells.iter().all(Option::is_none));
+        assert_eq!(third.steps(), 0);
+    }
+
+    #[test]
+    fn initializer_stop_retains_the_cache_write_and_live_caller_prefix() {
+        // A low-level boundary reproduction, without a claim about source
+        // initialization order or resumed cache publication.
+        let mut machine = machine(
+            "act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), k -> k p }\nmy main = relay later\nmy later = io::tick 7",
+            true,
+        );
+        for _ in 0..10_000 {
+            if matches!(machine.state, State::Request(_))
+                && matches!(machine.frames.last(), Some(Frame::GlobalRead { .. }))
+            {
+                break;
+            }
+            assert!(matches!(machine.step(), RuntimeOutcome::Running));
+        }
+        let State::Request(request) = &machine.state else {
+            panic!("pending request");
+        };
+        let expected_source = request.source.clone();
+        let expected_operation = request.declaration.id.clone();
+        let expected_event = request.event;
+        let expected_payload = request.payload.value;
+        let suffix_len = request.suffix.len();
+        let observations_len = request.observations.len();
+        let Frame::GlobalRead { cell, .. } = machine.frames.last().unwrap() else {
+            panic!("cache write");
+        };
+        let cell = *cell;
+        assert!(machine.cells[cell].is_none());
+        assert!(machine.initializing_globals.contains(&cell));
+        assert!(
+            machine
+                .frames
+                .iter()
+                .any(|frame| matches!(frame, Frame::CatchReturn { .. }))
+        );
+        let frames_len = machine.frames.len();
+        let caller_handlers: Vec<_> = machine
+            .frames
+            .iter()
+            .enumerate()
+            .filter_map(|(index, frame)| {
+                if let Frame::CatchReturn { installation, .. } = frame {
+                    Some((index, *installation))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let markers = machine.initializing_globals.clone();
+        let owner = machine.current_owner;
+        let active = machine.active_receivers.clone();
+        let invocation_activity: Vec<_> = machine
+            .invocations
+            .iter()
+            .map(|invocation| invocation.active)
+            .collect();
+        let views: Vec<_> = machine
+            .executing_views
+            .iter()
+            .map(|view| (view.view, view.receipt, view.occurrence))
+            .collect();
+        let templates_len = machine.resume_templates.len();
+        let values_len = machine.values.len();
+        let RuntimeOutcome::UnhandledRequest {
+            source,
+            operation,
+            event,
+            payload,
+            continuation,
+        } = machine.step()
+        else {
+            panic!("initializer boundary must stop before caller selection");
+        };
+        assert_eq!(source.source_root, expected_source.source_root);
+        assert_eq!(source.occurrence, expected_source.occurrence);
+        assert_eq!(source.range, expected_source.range);
+        assert_eq!(operation, expected_operation);
+        assert_eq!(event, expected_event);
+        assert_eq!(payload, expected_payload);
+        assert_eq!(machine.frames.len(), frames_len);
+        assert!(
+            matches!(machine.frames.last(), Some(Frame::GlobalRead { cell: retained, .. }) if *retained == cell)
+        );
+        assert!(
+            machine
+                .frames
+                .iter()
+                .any(|frame| matches!(frame, Frame::CatchReturn { .. }))
+        );
+        assert_eq!(
+            machine
+                .frames
+                .iter()
+                .enumerate()
+                .filter_map(|(index, frame)| {
+                    if let Frame::CatchReturn { installation, .. } = frame {
+                        Some((index, *installation))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>(),
+            caller_handlers
+        );
+        assert_eq!(machine.initializing_globals, markers);
+        assert!(machine.cells[cell].is_none());
+        assert_eq!(machine.current_owner, owner);
+        assert_eq!(machine.active_receivers, active);
+        assert_eq!(
+            machine
+                .invocations
+                .iter()
+                .map(|invocation| invocation.active)
+                .collect::<Vec<_>>(),
+            invocation_activity
+        );
+        assert_eq!(
+            machine
+                .executing_views
+                .iter()
+                .map(|view| (view.view, view.receipt, view.occurrence))
+                .collect::<Vec<_>>(),
+            views
+        );
+        assert_eq!(
+            machine.resume_templates.len(),
+            templates_len,
+            "caller raw binder is never captured"
+        );
+        assert_eq!(
+            machine.values.len(),
+            values_len,
+            "no continuation value is published"
+        );
+        let saved = &machine.continuations[continuation.0];
+        assert_eq!(saved.frames.len(), suffix_len);
+        assert_eq!(saved.observations.len(), observations_len);
+        assert!(
+            !saved
+                .frames
+                .iter()
+                .any(|frame| matches!(frame, SavedFrame::Ordinary(Frame::GlobalRead { .. })))
+        );
+    }
+
+    #[test]
+    fn scheduled_initializer_host_writes_keep_one_live_publication_frame() {
+        let source = "my main = { my emit x = say x; my first = emit (3, \"text\"); my second = println \"second\"; 7 }\nprintln \"after\"\n";
+        let (hir, candidate, world, indexes) = crate::prepare_with_world(
+            source, "scheduled-host-write.yu", false,
+        ).unwrap();
+        let program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate).unwrap();
+        let definition = program.definition_named("main").unwrap();
+        let cell = program.definition_indices[definition];
+        let mut machine = program.start_source_schedule(definition).unwrap();
+        for (ordinal, expected) in ["(3, text)\n", "second\n", "after\n"].into_iter().enumerate() {
+            let outcome = machine.run(100_000);
+            let RuntimeOutcome::UnhandledRequest { operation, continuation, .. } = outcome else {
+                panic!("expected authenticated host write {ordinal}, got {outcome:?}");
+            };
+            assert_eq!(program.host_write_operation(), Some(&operation));
+            if ordinal < 2 {
+                assert!(machine.cells[cell].is_none());
+                assert!(machine.initializing_globals.contains(&cell));
+                assert_eq!(machine.frames.iter().filter(|frame|
+                    matches!(frame, Frame::Root { cell: actual, .. } if *actual == cell)).count(), 1);
+            } else {
+                assert!(machine.cells[cell].is_some());
+                assert!(!machine.initializing_globals.contains(&cell));
+            }
+            let saved = &machine.continuations[continuation.0];
+            assert!(!saved.frames.iter().any(|frame|
+                matches!(frame, SavedFrame::Ordinary(Frame::Root { .. } | Frame::GlobalRead { .. }
+                    | Frame::ExpressionReturn { .. }))));
+            let template = &machine.resume_templates[saved.template.unwrap().0];
+            assert!(!template.nodes.iter().any(|node| matches!(node,
+                TemplateNode::Bind { frame: Frame::Root { .. } | Frame::GlobalRead { .. }
+                    | Frame::ExpressionReturn { .. }, .. })));
+            assert_eq!(machine.resume_host_write(continuation, &operation).unwrap().as_ref(), expected);
+            assert!(machine.resume_host_write(continuation, &operation).is_err(),
+                "the external handle cannot publish a second response");
+        }
+        let outcome = machine.run(100_000);
+        assert_completed_integer(&machine, outcome, "7");
+        let cached = machine.cells[cell].unwrap().value;
+        assert!(matches!(machine.state_outcome(), Some(RuntimeOutcome::Completed(value)) if *value == cached));
+        assert_eq!(integer_count(&machine, "7"), 1);
+        assert!(machine.initializing_globals.is_empty());
+        assert!(machine.frames.is_empty());
+    }
+
+    #[test]
+    fn mixed_statement_host_writes_preserve_one_initializer_publication() {
+        let source = "my main = { println \"first\"; my ignored = println \"second\"; 7 }\nprintln \"after\"\n";
+        let (hir, candidate, world, indexes) = crate::prepare_with_world(source, "mixed-host.yu", false).unwrap();
+        let program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate).unwrap();
+        let definition = program.definition_named("main").unwrap();
+        let cell = program.definition_indices[definition];
+        let mut machine = program.start_source_schedule(definition).unwrap();
+        for (ordinal, expected) in ["first\n", "second\n", "after\n"].into_iter().enumerate() {
+            let outcome = machine.run(100_000);
+            let RuntimeOutcome::UnhandledRequest { operation, continuation, .. } = outcome else { panic!("{outcome:?}"); };
+            assert_eq!(machine.cells[cell].is_some(), ordinal == 2);
+            assert_eq!(machine.initializing_globals.contains(&cell), ordinal != 2);
+            if ordinal < 2 {
+                assert_eq!(machine.frames.iter().filter(|frame|
+                    matches!(frame, Frame::Root { cell: actual, .. } if *actual == cell)).count(), 1);
+            }
+            assert_eq!(machine.resume_host_write(continuation, &operation).unwrap().as_ref(), expected);
+        }
+        let outcome = machine.run(100_000);
+        assert_completed_integer(&machine, outcome, "7");
+        assert_eq!(integer_count(&machine, "7"), 1);
+        assert!(machine.frames.is_empty());
+        assert!(machine.initializing_globals.is_empty());
+    }
+
+    #[test]
+    fn mixed_statement_resumption_keeps_completed_prefix_outside_template() {
+        let source = "act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), k -> { k 11; k 23 } }\nmy main = relay { 99; io::tick 0; my x = 7; x }\n";
+        let mut machine = machine(source, true);
+        let outcome = machine.run(100_000);
+        assert_completed_integer(&machine, outcome, "7");
+        assert_eq!(integer_count(&machine, "99"), 1, "completed prefix is not in either resumed suffix");
+        assert_eq!(integer_count(&machine, "7"), 2, "the suffix initializer runs separately for each continuation invocation");
+        assert_eq!(machine.cells.iter().flatten().filter(|value|
+            matches!(&machine.values[value.value.0].kind, RuntimeValueKind::Integer(n) if n.as_ref() == "7")).count(), 3,
+            "two distinct local publications and the final module result");
+        assert!(machine.frames.is_empty());
+        assert!(machine.initializing_globals.is_empty());
+    }
+
+    #[test]
+    fn polymorphic_dictionary_reads_preserve_identity_and_initialize_once() {
+        for source in [
+            "my add = { my once = println \"init\"; \\x -> x + x }\nmy main = (add 3, add \"a\")\n",
+            "my main = { my add = { my once = println \"init\"; \\x -> x + x }; (add 3, add \"a\") }\n",
+        ] {
+            let (hir, candidate, world, indexes) = crate::prepare_with_world(
+                source, "dictionary-initializer.yu", false,
+            ).unwrap();
+            let program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate).unwrap();
+            assert!(program.dictionaries.is_some());
+            let definition = program.definition_named("main").unwrap();
+            let mut machine = program.start_source_schedule(definition).unwrap();
+            let mut writes = 0;
+            let mut identity_checks = 0;
+            let mut steps = 0;
+            let result = loop {
+                steps += 1;
+                assert!(steps <= 100_000, "source run must stay within its step budget");
+                // Observe actual source Name transitions at already published
+                // polymorphic cells, including their receiving view identity.
+                if let State::Evaluate { code, environment } = &machine.state {
+                    let code = &program.code[code.0];
+                    let site = &code.site;
+                    let key = dispatch::Site { owner: site.source_root.clone(), occurrence: site.occurrence.clone() };
+                    if program.dictionary_names.contains(&key) {
+                        if let Instruction::Name { resolution, consumption: NameConsumption::Observe } = &code.instruction {
+                            let cell = match resolution {
+                                LocalSourceResolution::ModuleDef(id) => program.definition_indices.get(id).copied(),
+                                LocalSourceResolution::Local(id) => machine.lookup(*environment, |binder|
+                                    matches!(binder, Binder::Local(candidate) if candidate == id)),
+                                _ => panic!("dictionary Name must refer to an initialized binding"),
+                            }.unwrap();
+                            if let Some(before) = machine.cells[cell] {
+                                assert!(matches!(machine.step(), RuntimeOutcome::Running));
+                                let State::Return(after) = machine.state else { panic!("Name must return its cached value"); };
+                                assert_eq!(before.value, after.value);
+                                assert_eq!(before.view, after.view);
+                                assert_eq!(before.interface, after.interface);
+                                assert_eq!(machine.cells[cell].unwrap().dispatch, before.dispatch);
+                                assert!(after.dispatch.is_some());
+                                identity_checks += 1;
+                                continue;
+                            }
+                        }
+                    }
+                }
+                match machine.step() {
+                    RuntimeOutcome::Running => {}
+                    RuntimeOutcome::UnhandledRequest { operation, continuation, .. } => {
+                        writes += 1;
+                        assert_eq!(program.host_write_operation(), Some(&operation));
+                        assert_eq!(machine.resume_host_write(continuation, &operation).unwrap().as_ref(), "init\n");
+                    }
+                    RuntimeOutcome::Completed(result) => break result,
+                    other => panic!("source={source:?}: {other:?}"),
+                }
+            };
+            assert_eq!(writes, 1, "initializer is never repeated by dictionary instantiation");
+            assert!(identity_checks >= 2);
+            let RuntimeValueKind::Tuple(elements) = &machine.value(result).unwrap().kind else { panic!("tuple result"); };
+            assert!(matches!(&machine.value(elements[0].received.value).unwrap().kind, RuntimeValueKind::Integer(n) if n.as_ref() == "6"));
+            assert!(matches!(&machine.value(elements[1].received.value).unwrap().kind, RuntimeValueKind::String(s) if s.as_ref() == "aa"));
+            assert!(machine.frames.is_empty());
+            assert!(machine.initializing_globals.is_empty());
+        }
+    }
+
+    #[test]
+    fn missing_contextual_dictionary_never_uses_runtime_value_shapes() {
+        let source = "my add x = x + x\nmy main = (add 3, add \"a\")\n";
+        let (hir, candidate, world, indexes) = crate::prepare_with_world(
+            source, "missing-dictionary.yu", false,
+        ).unwrap();
+        let mut program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate).unwrap();
+        Arc::get_mut(&mut program).unwrap().dictionaries.as_mut().unwrap().clear();
+        let definition = program.definition_named("main").unwrap();
+        let mut machine = program.start_source_schedule(definition).unwrap();
+        assert!(matches!(machine.run(100_000), RuntimeOutcome::Unavailable(RuntimeUnavailable::UnsupportedFieldTail(_))));
+    }
+
+    #[test]
+    fn retained_abstract_member_instruction_cannot_dispatch_without_evidence() {
+        let source = "my main = { my unused x = x.show; 7 }\n";
+        let (hir, candidate, world, indexes) = crate::prepare_with_world(
+            source, "abstract-member.yu", false,
+        ).unwrap();
+        assert!(matches!(RuntimeProgram::from_hir(hir.clone(), super::super::RuntimeEvidence::default()),
+            Err(RuntimeUnavailable::UnsupportedFieldTail(_))),
+            "missing arbitrary evidence still rejects program construction");
+        let templates: Vec<_> = candidate.retained_field_tail_templates().unwrap().collect();
+        let program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate).unwrap();
+        let (label, instruction) = program.code.iter().enumerate().find(|(_, code)|
+            matches!(code.instruction, Instruction::FieldTail { .. })).unwrap();
+        let site = instruction.site.clone();
+        assert!(templates.iter().any(|template|
+            template.source_owner == &site.source_root && template.occurrence == &site.occurrence));
+        let definition = program.definition_named("main").unwrap();
+        let mut machine = program.start_source_schedule(definition).unwrap();
+        // Adversarial private-state probe, not a claimed source execution:
+        // force entry into the retained abstract body without a dictionary.
+        machine.state = State::Evaluate { code: Label(label), environment: 0 };
+        assert!(matches!(machine.step(), RuntimeOutcome::Unavailable(RuntimeUnavailable::UnsupportedFieldTail(actual))
+            if actual.source_root == site.source_root && actual.occurrence == site.occurrence));
+        assert!(machine.continuations.is_empty());
+        assert!(machine.values.is_empty());
+    }
+
+    #[test]
+    fn expression_handle_must_match_its_original_code_join() {
+        let machine = machine("99; my main = 7", false);
+        let program = &machine.program;
+        let mut roots = program.execution_roots().unwrap();
+        let ExecutionRoot::Expression(expression) = &mut roots[0] else {
+            panic!("expression")
+        };
+        expression.code = program.definitions[0].body.0;
+        assert!(matches!(
+            program.start(program.definition_named("main").unwrap(), &roots),
+            Err(RuntimeUnavailable::InvalidSourceReference)
+        ));
+    }
+
+    #[test]
+    fn internal_raw_templates_exclude_the_module_scheduler() {
+        let mut machine = machine(
+            "act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), k -> { my first = k 11; k 23 } }; relay (io::tick 7); relay (io::tick 9); my main = 5",
+            true,
+        );
+        assert!(matches!(machine.run(30_000), RuntimeOutcome::Completed(_)));
+        assert_eq!(machine.resume_templates.len(), 2);
+        for template in &machine.resume_templates {
+            assert!(!template.nodes.iter().any(|node| matches!(
+                node,
+                TemplateNode::Bind {
+                    frame: Frame::ExpressionReturn { .. } | Frame::Root { .. },
+                    ..
+                }
+            )));
+        }
+        assert_eq!(
+            machine
+                .values
+                .iter()
+                .filter(|value| matches!(
+                    &value.kind, RuntimeValueKind::Integer(text) if text.as_ref() == "9"
+                ))
+                .count(),
+            1
+        );
+        assert!(machine.frames.is_empty());
+        assert_eq!(machine.current_owner, ExecutionOwner::ModuleRun);
+    }
+}

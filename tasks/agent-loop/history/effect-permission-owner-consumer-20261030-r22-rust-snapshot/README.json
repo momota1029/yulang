@@ -1,0 +1,36 @@
+{
+  "schema": "effect-permission-owner-consumer-r22-rust-source-snapshot-v1",
+  "sprint": "CALLBACK-RESULT-OWNER-CONSUMER/20261030-R22",
+  "disposition": "CLOSED_INCOMPLETE — PREFLIGHT_REJECTED; Cargo NOT_RUN",
+  "baseline_commit": "fcd38f02a33cb28b2c5c56dc6f1a48b8838e1dc4",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-owner-consumer-20261030-r22.md",
+    "sha256": "cd656fba688ee8c6ffc0dd16fe9d8a0925bb52692f44521615c331fbf0767afb"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-owner-consumer-20261030-r22-inputs.json",
+    "sha256": "dd6f0b9d11e9076e1c1089ce9af1eb692a71c9e699c1f612c91a953d2cc221be"
+  },
+  "sources": [
+    {
+      "isolated_source": "isolated/ep-owner-consumer-r22/project/tools/inference-playground/src/runtime/machine.rs",
+      "snapshot_path": "tools/inference-playground/src/runtime/machine.rs",
+      "sha256": "2e118422c44e8849529e6bfe9bb4dd31fdd565aa6a121c6d4d18295dc5f36d1a",
+      "disposition": "frozen rejected R22 source; not accepted observation evidence"
+    },
+    {
+      "isolated_source": "isolated/ep-owner-consumer-r22/project/tools/inference-playground/src/runtime/receiving.rs",
+      "snapshot_path": "tools/inference-playground/src/runtime/receiving.rs",
+      "sha256": "8b507eef8dde72a0cd277e4bdbf8df8005b989745054c45b73ef78adbc1a076a",
+      "disposition": "frozen rejected R22 source; not accepted observation evidence"
+    },
+    {
+      "isolated_source": "isolated/ep-owner-consumer-r22/project/tools/inference-playground/src/runtime/program.rs",
+      "snapshot_path": "tools/inference-playground/src/runtime/program.rs",
+      "sha256": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907",
+      "disposition": "frozen rejected R22 source; not accepted observation evidence"
+    }
+  ],
+  "diff_disposition": "Only the two isolated files machine.rs and receiving.rs differ from the pinned baseline; program.rs is byte-identical to baseline. No main-tree compiler source, fixture, expected output, manifest, or lockfile is included. The complete rejected byte set is retained for failure evidence only.",
+  "verification": "Primary measured each isolated source hash against the frozen Rust handoff; source hashes matched. The isolated git diff contains only machine.rs and receiving.rs; program.rs is byte-identical to the pinned baseline. git diff --check passed. No Cargo/compiler/test invocation occurred."
+}
