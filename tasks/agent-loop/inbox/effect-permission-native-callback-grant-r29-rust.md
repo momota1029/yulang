@@ -65,3 +65,20 @@ These are applicable source-level mutation constructions, not executed receipts.
 R1's review text is preserved unchanged. The three repaired findings and positive baseline route were inspected by source read only. No Cargo, rustc, test, runtime, compiler or source-checker command ran; no mutation or selected-main result is claimed. R1 author time remains conservatively charged as 600/1200 seconds; R2 used part of the remaining 600-second repair cap, but exact active seconds were not instrumented. Cargo remains 0/360 seconds. Requested role/model/effort: Luna/high; observed runtime model/effort: UNKNOWN. No new path beyond the already leased source mutation design receipt was created, no build-target content was written, and no scratch output was created.
 
 Outcome: source candidate and this single sequential handoff are frozen; writing is stopped. Compilation remains blocked until a fresh independent exact-hash source ACCEPT and a separate Luna stage receipt. The author stops here and does not self-certify the repairs.
+
+---
+
+# Sequential trait repair addendum — revision 3
+
+This is a narrow source-only repair to R2, preserving all earlier handoff text. R2 is archived at `tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r29-rust-handoff-r2.md`; its independent review is archived at `tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r29-review-r2.md` and rejected the candidate because test-only `RequestConsumerEvidence` derived `Debug` while containing `Vec<InvocationDescriptor>`, and `InvocationDescriptor` only implements `Clone`.
+
+Source inspection found no consumer that formats or requires `RequestConsumerEvidence: Debug`; all debug formatting selects individual fields. Removed only `Debug` from that type's `#[cfg(test)]` derive, retaining `Clone`. This is type-safe by source inspection and does not add a trait implementation or alter production layout/behavior. `receiving.rs` and the design receipt were not changed.
+
+Frozen R3 hashes:
+
+- `isolated/ep-native-callback-grant-r29/project/tools/inference-playground/src/runtime/machine.rs` — SHA-256 `b74c8345e6e07155f482440bb9299b5fc12763accb666ca8f543156dd4a87425`.
+- `isolated/ep-native-callback-grant-r29/project/tools/inference-playground/src/runtime/receiving.rs` — unchanged SHA-256 `55b468cda3c3cf8180647a6429da28fc70badf7a371bf1b327539c8556b9b0f2`.
+- `isolated/ep-native-callback-grant-r29/project/receipts/r29-source-mutation-design.md` — unchanged SHA-256 `75a408c3cd4f0a8b95a156fb5687cf577d9a927e0a9667c3dd704d154c18c5c2`.
+- This handoff's final SHA-256 is reported by the parent receipt after append; embedding the file's own digest would change that digest.
+
+No Cargo, rustc, tests, runtime/compiler, source checker, Lean/Lake or Git command ran. Time charge: one narrow R3 source-only pass, within the explicit 60-second hard cap and remaining author budget; no execution budget used. STOP: source and handoff writes are frozen; independent review is still required, and this repair is not self-certified.

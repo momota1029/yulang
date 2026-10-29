@@ -137,7 +137,7 @@ struct SelectedCatchInstallationEvidence {
 }
 
 #[cfg(test)]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 struct RequestConsumerEvidence {
     request_event: usize,
     request_payload: usize,
