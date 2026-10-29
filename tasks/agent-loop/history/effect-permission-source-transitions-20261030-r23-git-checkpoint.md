@@ -33,3 +33,6 @@
 - Same Rust identity resumed with `collaboration.followup_task` at 2026-10-29 17:31:18 UTC under fresh session `CALLBACK-SOURCE-TRANSITIONS/20261030-R23/RUST-CORRECTION-1`.
 - Current correction envelope is <=700 seconds; cumulative Rust remaining cap is <=945 seconds. Cargo remains prohibited until exact-hash preflight ACCEPT plus a separate fresh-session resume.
 - Lease set is unchanged. The current worker has only the existing isolated machine/receiving/program, receipt, handoff and build-target paths. No other child assignment is active.
+
+- R23 correction launch commit: `4914eca7e` (`research: record R23 correction session launch`), pushed to `origin/yulang3`; push succeeded.
+- The commit records the bounded fresh-session resumption and unchanged exact leases before the implementer resumed writes.
