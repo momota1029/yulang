@@ -1,5 +1,0 @@
-cwd: /home/momota1029/rust/yulang/isolated/ep-annotated-relay-r21/lean-scratch/project
-$ /home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake --version
-libc++abi: terminating due to uncaught exception of type lean::exception: failed to create thread: Resource temporarily unavailable
-[exit -6]
-FAIL: command failed with exit -6

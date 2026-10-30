@@ -1,2 +1,0 @@
-notes/theory/lean/YulangClosure/FormalPermissionLiveCapture.lean:13:transitions admit row/bound/evidence/context-produced endpoint requests, but
-notes/theory/lean/YulangClosure/FormalPermissionSiteTraversal.lean:7:No generic child/effectPosition oracle, native authenticity axiom, or unequal

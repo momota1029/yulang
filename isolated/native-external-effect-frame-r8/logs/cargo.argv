@@ -1,1 +1,0 @@
-CARGO_TARGET_DIR=isolated/native-external-effect-frame-r8/build-target cargo test --manifest-path isolated/native-external-effect-frame-r8/crates/yu-solver/Cargo.toml --locked --features shadow-apply-candidate replay_constructor_lineage_observes_rejected_cross_route_authentication

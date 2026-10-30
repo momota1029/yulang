@@ -1,2 +1,0 @@
-// A type annotation makes the expected type explicit.
-my answer: int = true

@@ -1,3 +1,0 @@
-my integer (x:int) = x
-my identity x = x
-my wrong = integer identity

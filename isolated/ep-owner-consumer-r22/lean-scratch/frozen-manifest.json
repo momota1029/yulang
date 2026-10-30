@@ -1,9 +1,0 @@
-{
-  "notes/theory/lean/YulangClosure/CallbackResultOwnerConsumer.lean": "8b76265d486786844bb1e649ac676fe49988b903e742532d40b86104c8783f27",
-  "tasks/agent-loop/inbox/effect-permission-owner-consumer-r22-proof.md": "33e7d229fd136be5db96c498f7e4d175712f2ddcc8d80d5ff9d02cba4e456bcb",
-  "isolated/ep-owner-consumer-r22/lean-scratch/run_audit.py": "19039ddb026e8ac81c3c37ea56effda0e9664313aaef105fff2f281ed7f7e40e",
-  "isolated/ep-owner-consumer-r22/lean-scratch/project/YulangClosure/CallbackResultOwnerConsumer.lean": "8b76265d486786844bb1e649ac676fe49988b903e742532d40b86104c8783f27",
-  "isolated/ep-owner-consumer-r22/lean-scratch/project/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
-  "isolated/ep-owner-consumer-r22/lean-scratch/project/lakefile.toml": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4",
-  "isolated/ep-owner-consumer-r22/lean-scratch/project/lake-manifest.json": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3"
-}

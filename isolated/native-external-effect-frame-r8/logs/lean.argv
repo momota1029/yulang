@@ -1,1 +1,0 @@
-lake env lean -j1 -M1024 YulangClosure/NativeExternalEffectFrameR8.lean

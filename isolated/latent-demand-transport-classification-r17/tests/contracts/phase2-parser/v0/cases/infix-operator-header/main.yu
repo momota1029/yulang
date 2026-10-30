@@ -1,2 +1,0 @@
-infix (<+>) 50 51 = left
-my value = 1
