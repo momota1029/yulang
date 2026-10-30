@@ -3365,6 +3365,21 @@ impl SemanticFact {
     }
 }
 
+/// Borrowed source/native evidence for one already-admitted Internal use.
+/// This is deliberately disjoint from candidate_scheme::FreshRoute evidence.
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Debug)]
+pub(crate) struct InternalFormalPermissionIncidence<'a> {
+    use_record: &'a DefinitionUse,
+    target_owner: &'a DefinitionRootId,
+    receiving_owner: &'a DefinitionRootId,
+    lambda_origin: &'a candidate_context::LambdaArgumentEffectOrigin,
+    permission: candidate_effect::InternalFormalEntryPermission<'a>,
+    lambda_fact: &'a SemanticFact,
+    internal_route: &'a RoutedUseProvenance,
+    internal_fact: &'a SemanticFact,
+}
+
 /// The artifact-bound semantic authority. The transaction emits receipts;
 /// only `record_provenance` consumes them into the separate provenance log.
 #[derive(Debug)]
@@ -18248,6 +18263,165 @@ impl InferenceSession {
             ),
         };
         self.route(id, &use_record, root, value, key, RoutedUseKind::Internal)
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "Internal permission incidence is evidence only; no consumer is connected")]
+    pub(crate) fn internal_formal_permission_incidence(
+        &self,
+        id: &DefinitionUseId,
+    ) -> Option<InternalFormalPermissionIncidence<'_>> {
+        let use_record = self.batch.definition_use(id).ok()?;
+        if use_record.id != *id
+            || use_record.cause.id() != id
+            || use_record.occurrence != *id.occurrence()
+        {
+            return None;
+        }
+        let (receiving_owner, target_owner) = match &use_record.parent {
+            SourceReceiver::Definition(parent) => {
+                let parent = self.batch.definitions.get(parent.ordinal() as usize)?;
+                (parent, self.batch.definitions.get(use_record.target.ordinal() as usize)?)
+            }
+            SourceReceiver::Expression(_) | SourceReceiver::Member(_) => return None,
+        };
+        if &receiving_owner.definition != use_record.parent.definition()?
+            || target_owner.definition != use_record.target
+        {
+            return None;
+        }
+
+        if !self.routed_use_positions.contains(id) {
+            return None;
+        }
+        let mut routes = self.routed_uses.iter().filter(|route| route.use_id == *id);
+        let internal_route = routes.next()?;
+        if routes.next().is_some() || internal_route.kind != RoutedUseKind::Internal {
+            return None;
+        }
+        let internal_fact_id = internal_route.fact?;
+        let internal_fact = self.admitted_source_fact(&use_record.occurrence, 0)?;
+        if internal_fact.id() != internal_fact_id
+            || internal_fact.lower() != self.batch.component_term_at(use_record.target_root_component)
+            || internal_fact.upper() != self.batch.component_term_at(use_record.use_value_component)
+        {
+            return None;
+        }
+
+        let effect_state = &self.candidate_graph.as_ref()?.intrusion.effect_algebra;
+        let registered_formals = &self.batch.candidate_calls.formals;
+        let mut registrations = effect_state.context.lambda_argument_effects.iter()
+            .filter(|origin| origin.registration < registered_formals.len());
+        // The registration label and source recipe/root coordinate select the
+        // constructor. Do not select by its shared Function Term or row image.
+        let mut selected = None;
+        for origin in registrations.by_ref() {
+            let registered = registered_formals.get(origin.registration)?;
+            if registered.role == candidate_call::FormalRole::Computation
+                && matches!(&registered.owner,
+                    candidate_source::SourceRootId::Definition(root) if root == &target_owner.root)
+            {
+                let mut recipes = self.batch.lambda_recipes.iter()
+                    .filter(|recipe| recipe.formal_registration == Some(origin.registration));
+                let recipe = recipes.next()?;
+                if recipes.next().is_some() {
+                    return None;
+                }
+                if recipe.root_component != use_record.target_root_component {
+                    continue;
+                }
+                if selected.replace((origin.registration, origin)).is_some() {
+                    return None;
+                }
+            }
+        }
+        let (registration, lambda_origin) = selected?;
+        let registered = registered_formals.get(registration)?;
+        let mut recipes = self.batch.lambda_recipes.iter()
+            .filter(|recipe| recipe.formal_registration == Some(registration));
+        let recipe = recipes.next()?;
+        if recipes.next().is_some()
+            || recipe.occurrence != lambda_origin.lambda
+            || recipe.root_component != use_record.target_root_component
+            || self.batch.parameter_recipes.get(registered.recipe_position)
+                != Some(&registered.parameter)
+        {
+            return None;
+        }
+        let exact_source_lambda = self.batch.hir_for_source_root(&registered.owner)
+            .and_then(|hir| hir.local_source_for(&registered.owner).ok().flatten())
+            .and_then(|source| source.expressions().get(registered.lambda))
+            .is_some_and(|expression| expression.occurrence == lambda_origin.lambda
+                && matches!(&expression.form,
+                    yu_hir::shadow::LocalSourceForm::Lambda { parameter, .. }
+                        if parameter.id == registered.parameter));
+        if !exact_source_lambda {
+            return None;
+        }
+
+        let mut origins = effect_state.context.lambda_argument_effects.iter()
+            .filter(|origin| origin.registration == registration);
+        let exact_origin = origins.next()?;
+        if origins.next().is_some()
+            || !std::ptr::eq(exact_origin, lambda_origin)
+            || exact_origin.lambda != recipe.occurrence
+        {
+            return None;
+        }
+        let EffectEndpointKey::EffectRow(entry_effect) = exact_origin.entry else {
+            return None;
+        };
+        let TermView::PositiveFunction { argument_effect, .. } =
+            self.store.term_view(exact_origin.function).ok()? else { return None; };
+        let TermView::LiveVariable(entry) = self.store.term_view(argument_effect).ok()? else {
+            return None;
+        };
+        if entry.kind() != ComponentKind::Effect
+            || entry.polarity() != Polarity::Negative
+            || entry.ordinal() != entry_effect
+        {
+            return None;
+        }
+        let lambda_fact = self.admitted_source_fact(&exact_origin.lambda, 2)?;
+        if lambda_fact.lower() != exact_origin.function
+            || lambda_fact.upper() != self.batch.component_term_at(recipe.root_component)
+        {
+            return None;
+        }
+        let permission = effect_state.internal_formal_entry_permission(
+            registration,
+            registered_formals,
+            &exact_origin.lambda,
+            &target_owner.root,
+            entry_effect,
+        )?;
+        Some(InternalFormalPermissionIncidence {
+            use_record,
+            target_owner: &target_owner.root,
+            receiving_owner: &receiving_owner.root,
+            lambda_origin: exact_origin,
+            permission,
+            lambda_fact,
+            internal_route,
+            internal_fact,
+        })
+    }
+
+    fn admitted_source_fact(
+        &self,
+        occurrence: &HirOccurrenceId,
+        slot: u8,
+    ) -> Option<&SemanticFact> {
+        let mut edges = self.store.provenance().iter().filter(|edge| {
+            edge.cause().occurrence().occurrence() == occurrence
+                && edge.cause().occurrence().local_slot() == u32::from(slot)
+        });
+        let edge = edges.next()?;
+        if edges.next().is_some() {
+            return None;
+        }
+        let fact = self.store.facts().get(edge.fact().index() as usize)?;
+        (fact.id() == edge.fact()).then_some(fact)
     }
 
     #[cfg(test)]

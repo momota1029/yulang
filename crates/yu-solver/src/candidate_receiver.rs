@@ -26,6 +26,23 @@ impl ReceivingResidualExperiment {
     pub fn outcomes(&self) -> impl Iterator<Item = ReceivingResidualOutcome> + '_ {
         self.outcomes.iter().map(|(_, outcome)| *outcome)
     }
+    /// Reconstruct the private Internal-specific permission incidence from
+    /// this experiment's already-admitted complete use. This does not borrow
+    /// or substitute any candidate_scheme FreshRoute.
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "source evidence remains provisional and has no permission consumer")]
+    pub(super) fn internal_formal_permission_incidence(
+        &self,
+    ) -> Option<InternalFormalPermissionIncidence<'_>> {
+        let [use_record] = self.session.batch.definition_uses() else {
+            return None;
+        };
+        let incidence = self.session
+            .internal_formal_permission_incidence(use_record.id())?;
+        (incidence.target_owner == &self.schema.relay
+            && incidence.receiving_owner == &self.schema.answer)
+            .then_some(incidence)
+    }
     pub fn catch_occurrence(&self) -> &HirOccurrenceId {
         &self.schema.catch
     }

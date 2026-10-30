@@ -283,6 +283,41 @@ struct FormalEntryPermission {
     entry_effect: u32,
     concrete: Vec<SourceEffectId>,
 }
+/// Ephemeral identity binding over one retained permission and one exact
+/// module FreshUse route. The concrete payload remains borrowed in source
+/// order, including duplicates; this record is not solver state or a consumer.
+#[derive(Debug)]
+pub(super) struct FormalEntryPermissionUse<'a> {
+    pub registration: usize,
+    pub parameter: usize,
+    pub formal: &'a yu_hir::HirParameterId,
+    pub source_owner: &'a SourceRootId,
+    pub occurrence: &'a HirOccurrenceId,
+    pub scope: &'a AnnotationScope,
+    pub annotation_position: &'a SourceNodeKey,
+    pub source_row: &'a SourceNodeKey,
+    pub entry_effect: u32,
+    pub concrete: &'a [SourceEffectId],
+    pub mapped_row: RowKey,
+    pub definition_use: &'a DefinitionUseId,
+    pub context_use: usize,
+}
+/// Internal-route counterpart to the R43 FreshRoute binding. It contains only
+/// the actual source permission view; route and constructor receipts are
+/// joined by the caller and never manufactured here.
+#[derive(Debug)]
+pub(super) struct InternalFormalEntryPermission<'a> {
+    pub registration: usize,
+    pub parameter: usize,
+    pub formal: &'a yu_hir::HirParameterId,
+    pub source_owner: &'a SourceRootId,
+    pub occurrence: &'a HirOccurrenceId,
+    pub scope: &'a AnnotationScope,
+    pub annotation_position: &'a SourceNodeKey,
+    pub source_row: &'a SourceNodeKey,
+    pub entry_effect: u32,
+    pub concrete: &'a [SourceEffectId],
+}
 pub(super) struct Checkpoint {
     context: candidate_context::Checkpoint,
     contributions: usize,
@@ -348,6 +383,105 @@ fn formal_entry_permission_backing_bytes(permissions: &[FormalEntryPermission]) 
     })
 }
 impl State {
+    /// Read the unique source-owned entry permission for the same registered
+    /// computation Lambda, then bind it to this already-authenticated native
+    /// incidence and its owning FreshUse identity. No row or Term equality is
+    /// used to discover the permission, and no permission payload is copied.
+    pub(super) fn bind_formal_entry_permission_use<'a>(
+        &'a self,
+        registration: usize,
+        registered: &'a candidate_call::FormalRegistrationInput,
+        occurrence: &'a HirOccurrenceId,
+        entry_effect: u32,
+        mapped_row: RowKey,
+        definition_use: &'a DefinitionUseId,
+        context_use: usize,
+    ) -> Option<FormalEntryPermissionUse<'a>> {
+        if registered.role != candidate_call::FormalRole::Computation
+            || registered.entry_effect != Some(entry_effect)
+            || !matches!(mapped_row, RowKey::Effect(_))
+        {
+            return None;
+        }
+        let mut matching = self.formal_entry_permissions.iter()
+            .filter(|permission| permission.registration == registration);
+        let permission = matching.next()?;
+        if matching.next().is_some()
+            || permission.parameter != registered.recipe_position
+            || permission.formal != registered.parameter
+            || permission.source_owner != registered.owner
+            || permission.scope != registered.scope
+            || permission.occurrence != *occurrence
+            || permission.entry_effect != entry_effect
+            || permission.concrete.is_empty()
+        {
+            return None;
+        }
+        Some(FormalEntryPermissionUse {
+            registration,
+            parameter: permission.parameter,
+            formal: &permission.formal,
+            source_owner: &permission.source_owner,
+            occurrence: &permission.occurrence,
+            scope: &permission.scope,
+            annotation_position: &permission.annotation_position,
+            source_row: &permission.source_row,
+            entry_effect: permission.entry_effect,
+            concrete: &permission.concrete,
+            mapped_row,
+            definition_use,
+            context_use,
+        })
+    }
+
+    /// Select the actual retained permission for the same registered source
+    /// Lambda. The caller independently authenticates its Internal route and
+    /// constructor-to-target owner link; this lookup never infers identity
+    /// from a row, native Term, or provider value.
+    pub(super) fn internal_formal_entry_permission<'a>(
+        &'a self,
+        registration: usize,
+        registered_formals: &'a [candidate_call::FormalRegistrationInput],
+        occurrence: &'a HirOccurrenceId,
+        target_root: &yu_hir::DefinitionRootId,
+        entry_effect: u32,
+    ) -> Option<InternalFormalEntryPermission<'a>> {
+        let registered = registered_formals.get(registration)?;
+        if registered.role != candidate_call::FormalRole::Computation
+            || registered.entry_effect != Some(entry_effect)
+            || !matches!(&registered.owner, SourceRootId::Definition(root) if root == target_root)
+        {
+            return None;
+        }
+        let mut matching = self.formal_entry_permissions.iter()
+            .filter(|permission| permission.registration == registration);
+        let permission = matching.next()?;
+        if matching.next().is_some()
+            || permission.parameter != registered.recipe_position
+            || permission.formal != registered.parameter
+            || permission.source_owner != registered.owner
+            || !matches!(&permission.source_owner, SourceRootId::Definition(root) if root == target_root)
+            || permission.scope != registered.scope
+            || permission.occurrence != *occurrence
+            || permission.entry_effect != entry_effect
+            || permission.concrete.is_empty()
+        {
+            return None;
+        }
+        Some(InternalFormalEntryPermission {
+            registration,
+            parameter: permission.parameter,
+            formal: &permission.formal,
+            source_owner: &permission.source_owner,
+            occurrence: &permission.occurrence,
+            scope: &permission.scope,
+            annotation_position: &permission.annotation_position,
+            source_row: &permission.source_row,
+            entry_effect: permission.entry_effect,
+            concrete: &permission.concrete,
+        })
+    }
+
     pub fn initialize(&mut self) -> Result<(), SolveAvailabilityError> {
         self.brand = NEXT_BRAND
             .fetch_update(
