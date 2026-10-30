@@ -14,7 +14,7 @@ The finite checker builds a path from local provider/admission/emission/dependen
 
 Rust made no source edits. Its frozen handoff (`5874c13e7332037c1884e63c35966d5f237a9fa1bb09d4696084eb2a32b44831`) records the concrete join from provider, emission/admission and relation ancestry to R45's exact entry as **UNRESOLVED**. The scoped relation-less `BoundTransport` path is not a blanket blocker for this experiment because the admitted receiver collection is `scoped_experiment=false` and copied-bound initialization takes the OwnerEmission branch. Do not infer a global obstruction from coverage bits or a scoped-only branch.
 
-Independent review (`tasks/agent-loop/inbox/effect-permission-entry-arrival-r46-review.md`, SHA-256 `7fbaed174bee5cae7a92874ddd795b9b80ec1bc8cd7f18acc30e6dedfde7c56e`) found no correctness issue in the conditional artifact or frozen handoffs, but confirmed the source result remains UNRESOLVED. The exact `candidate_extrusion.rs` owner hash is preserved in the review. No source arrival or decisive no-safe-certificate closure was reviewed.
+Independent review (`tasks/agent-loop/inbox/effect-permission-entry-arrival-r46-review.md`, SHA-256 `6e4080fe9a7b35a23e93bfebc793f15e8652403df98279fec36fd299e8312090`) found no correctness issue in the conditional artifact or frozen handoffs, but confirmed the source result remains UNRESOLVED. The exact `candidate_extrusion.rs` owner hash is preserved in the review. No source arrival or decisive no-safe-certificate closure was reviewed.
 
 ## Preserved boundaries and next step
 

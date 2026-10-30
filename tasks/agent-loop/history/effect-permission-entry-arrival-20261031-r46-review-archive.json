@@ -18,9 +18,9 @@
     "path": "tasks/agent-loop/inbox/effect-permission-entry-arrival-r46-review.md",
     "owner": "/root",
     "state": "FROZEN",
-    "sha256": "7fbaed174bee5cae7a92874ddd795b9b80ec1bc8cd7f18acc30e6dedfde7c56e"
+    "sha256": "6e4080fe9a7b35a23e93bfebc793f15e8652403df98279fec36fd299e8312090"
   },
-  "review_sha256": "7fbaed174bee5cae7a92874ddd795b9b80ec1bc8cd7f18acc30e6dedfde7c56e",
+  "review_sha256": "6e4080fe9a7b35a23e93bfebc793f15e8652403df98279fec36fd299e8312090",
   "pending_count_preserved": 32,
   "pending_sha256_preserved": "bef094abbf707576147d5a9b5b9cdec9f2b2e313540f53b7f158e417c51ea510",
   "unknown_quarantine_sha256_preserved": "3f5a79f3284da56d544dcfe43308c088493cf8a1e86f8a267b0cddc0e1cae058",

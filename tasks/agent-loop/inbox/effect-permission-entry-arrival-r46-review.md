@@ -44,7 +44,7 @@ Final receipts contain exactly these twelve declarations in source order, with m
 All nineteen proof-table identities independently matched:
 
 - candidate_receiver.rs: f5bff0d8aa7a20551fb2c5ad60b7b2b41907f471a55068a9ec1ae61ceba02911
-- candidate_context.rs: 030fcb4b6571c0db8a670d12a8d67fe8fcf465484502fe5b11b6d057e8026c38
+- candidate_context.rs: 030fcb4b6571c0db8a670d12d8a67fe8fcf465484502fe5b11b6d057e8026c38
 - candidate_effect.rs: 2a86befde95581decef8fe01698961062bd22388cff2459e9611570a20b9fba3
 - candidate_scheme.rs: bf8f5c80ce2761dc2a1235d2e02e348a91bc9e8965653db26b9abd4c8d6ca631
 - lib.rs: 25498cc1be404b12d060cbd47f77e78c23ad27b2b99113e15823bc8b6fa92ca4
