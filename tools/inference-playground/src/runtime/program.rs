@@ -45,6 +45,207 @@ impl HirSnapshotToken {
     }
 }
 
+/// Exact source provenance for one effect row attached to one Lambda formal.
+/// This copies only the bounded row payload and keeps the annotation, row,
+/// formal, Lambda, source root, and retained HIR owner identities together.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum SourceAnnotationTypePathStep {
+    Argument,
+    Result,
+    TupleElement(usize),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum SourceTypePolarity {
+    Positive,
+    Negative,
+}
+
+impl SourceTypePolarity {
+    fn flipped(self) -> Self {
+        match self {
+            Self::Positive => Self::Negative,
+            Self::Negative => Self::Positive,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub(super) struct SourcePermissionEffectRow {
+    pub(super) path: Vec<SourceAnnotationTypePathStep>,
+    pub(super) polarity: SourceTypePolarity,
+    pub(super) position: yu_syntax::SourceNodeKey,
+    pub(super) concrete: Vec<yu_hir::shadow::SourceEffectId>,
+    pub(super) variables: Vec<Box<str>>,
+}
+
+#[derive(Clone)]
+pub(super) struct SourcePermissionRowWitness {
+    pub(super) snapshot: HirSnapshotToken,
+    pub(super) source_root: SourceRootId,
+    pub(super) lambda: SourceSite,
+    pub(super) parameter: HirParameterId,
+    pub(super) parameter_source: yu_syntax::SourceNodeKey,
+    pub(super) parameter_range: Range<usize>,
+    pub(super) annotation_owner: SourceRootId,
+    pub(super) annotation_position: yu_syntax::SourceNodeKey,
+    pub(super) effect_rows: Vec<SourcePermissionEffectRow>,
+}
+
+impl SourcePermissionRowWitness {
+    fn from_lambda(
+        snapshot: &HirSnapshotToken,
+        hir: &Arc<HirModule>,
+        source_root: &SourceRootId,
+        occurrence: &HirOccurrenceId,
+    ) -> Option<Self> {
+        let source = hir.local_source_for(source_root).ok().flatten()?;
+        if source.source_root() != source_root {
+            return None;
+        }
+        let expression = source.expressions().iter()
+            .find(|expression| &expression.occurrence == occurrence)?;
+        if !Arc::ptr_eq(&snapshot.0, hir)
+            || !hir.owns_source_root(source_root)
+            || !hir.owns_occurrence(occurrence)
+            || hir.occurrence_source_key(occurrence).ok().flatten()
+                != Some(&expression.source)
+        {
+            return None;
+        }
+        let LocalSourceForm::Lambda { parameter, .. } = &expression.form else {
+            return None;
+        };
+        if parameter.id.source_root() != source_root {
+            return None;
+        }
+        let annotation = parameter.annotation.as_ref()?;
+        if &annotation.owner != source_root {
+            return None;
+        }
+        let mut effect_rows = Vec::new();
+        let mut path = Vec::new();
+        Self::collect_effect_rows(
+            &annotation.ty,
+            &mut path,
+            SourceTypePolarity::Negative,
+            &mut effect_rows,
+        )?;
+        if effect_rows.is_empty() {
+            return None;
+        }
+
+        Some(Self {
+            snapshot: snapshot.clone(),
+            source_root: source_root.clone(),
+            lambda: SourceSite {
+                source_root: source_root.clone(),
+                occurrence: expression.occurrence.clone(),
+                range: expression.range.clone(),
+            },
+            parameter: parameter.id.clone(),
+            parameter_source: parameter.source.clone(),
+            parameter_range: parameter.range.clone(),
+            annotation_owner: annotation.owner.clone(),
+            annotation_position: annotation.position.clone(),
+            effect_rows,
+        })
+    }
+
+    fn collect_effect_rows(
+        ty: &yu_hir::shadow::SourceAnnotationType,
+        path: &mut Vec<SourceAnnotationTypePathStep>,
+        polarity: SourceTypePolarity,
+        rows: &mut Vec<SourcePermissionEffectRow>,
+    ) -> Option<()> {
+        if let Some(row) = &ty.effects {
+            let mut path_copy = Vec::new();
+            path_copy.try_reserve_exact(path.len()).ok()?;
+            path_copy.extend(path.iter().cloned());
+
+            let mut concrete = Vec::new();
+            concrete.try_reserve_exact(row.concrete.len()).ok()?;
+            concrete.extend(row.concrete.iter().cloned());
+
+            let mut variables = Vec::new();
+            variables.try_reserve_exact(row.variables.len()).ok()?;
+            for variable in &row.variables {
+                let mut copy = String::new();
+                copy.try_reserve_exact(variable.len()).ok()?;
+                copy.push_str(variable);
+                variables.push(copy.into_boxed_str());
+            }
+
+            rows.try_reserve(1).ok()?;
+            rows.push(SourcePermissionEffectRow {
+                path: path_copy,
+                polarity,
+                position: row.position.clone(),
+                concrete,
+                variables,
+            });
+        }
+
+        match &ty.value {
+            yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => {
+                path.try_reserve(1).ok()?;
+                path.push(SourceAnnotationTypePathStep::Argument);
+                Self::collect_effect_rows(argument, path, polarity.flipped(), rows)?;
+                path.pop();
+
+                path.push(SourceAnnotationTypePathStep::Result);
+                Self::collect_effect_rows(result, path, polarity, rows)?;
+                path.pop();
+            }
+            yu_hir::shadow::SourceAnnotationValue::Tuple(elements) => {
+                path.try_reserve(1).ok()?;
+                for (index, element) in elements.iter().enumerate() {
+                    path.push(SourceAnnotationTypePathStep::TupleElement(index));
+                    Self::collect_effect_rows(element, path, polarity, rows)?;
+                    path.pop();
+                }
+            }
+            yu_hir::shadow::SourceAnnotationValue::Unit
+            | yu_hir::shadow::SourceAnnotationValue::Int
+            | yu_hir::shadow::SourceAnnotationValue::Bool
+            | yu_hir::shadow::SourceAnnotationValue::Str
+            | yu_hir::shadow::SourceAnnotationValue::Variable(_)
+            | yu_hir::shadow::SourceAnnotationValue::Hole(_) => {}
+        }
+        Some(())
+    }
+
+    pub(super) fn authenticates(
+        &self,
+        snapshot: &HirSnapshotToken,
+        hir: &Arc<HirModule>,
+        source_root: &SourceRootId,
+        occurrence: &HirOccurrenceId,
+    ) -> bool {
+        let Some(expected) = Self::from_lambda(snapshot, hir, source_root, occurrence) else {
+            return false;
+        };
+        self.snapshot.identifies_same_snapshot(&expected.snapshot)
+            && self.source_root == expected.source_root
+            && self.lambda.source_root == expected.lambda.source_root
+            && self.lambda.occurrence == expected.lambda.occurrence
+            && self.lambda.range == expected.lambda.range
+            && self.parameter == expected.parameter
+            && self.parameter_source == expected.parameter_source
+            && self.parameter_range == expected.parameter_range
+            && self.annotation_owner == expected.annotation_owner
+            && self.annotation_position == expected.annotation_position
+            && self.effect_rows.len() == expected.effect_rows.len()
+            && self.effect_rows.iter().zip(&expected.effect_rows).all(|(left, right)| {
+                left.path == right.path
+                    && left.polarity == right.polarity
+                    && left.position == right.position
+                    && left.concrete == right.concrete
+                    && left.variables == right.variables
+            })
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub(super) struct RuntimeFieldTailKey {
     active_owner: SourceRootId,
@@ -293,6 +494,7 @@ pub(super) enum Instruction {
         unit_pattern: bool,
         record_pattern: Option<Arc<[RecordParameterField]>>,
         role: ParameterRole,
+        source_permission_row: Option<SourcePermissionRowWitness>,
         root_schema: Option<Arc<super::receiving::RootCompSchema>>,
         callback_schema: Option<Arc<super::receiving::CallbackResultSchema>>,
         body: Label,
@@ -571,6 +773,7 @@ impl RuntimeProgram {
         }) {
             return Err(RuntimeUnavailable::InvalidSourceReference);
         }
+        let hir_snapshot_token = HirSnapshotToken(Arc::clone(&hir));
         let mut code = Vec::new();
         let mut definitions = Vec::new();
         let mut definition_indices = HashMap::new();
@@ -850,6 +1053,12 @@ impl RuntimeProgram {
                         } else {
                             ParameterRole::Value
                         },
+                        source_permission_row: SourcePermissionRowWitness::from_lambda(
+                            &hir_snapshot_token,
+                            &hir,
+                            &source_root,
+                            &expression.occurrence,
+                        ),
                         root_schema: super::receiving::RootCompSchema::from_parameter_with_result_view(
                             &SourceSite {
                                 source_root: source_root.clone(),
@@ -1271,7 +1480,7 @@ impl RuntimeProgram {
         } else { None };
         let mut program = Self {
             _hir: Arc::clone(&hir),
-            hir_snapshot_token: HirSnapshotToken(Arc::clone(&hir)),
+            hir_snapshot_token,
             code,
             definitions,
             definition_indices,
