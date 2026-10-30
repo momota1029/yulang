@@ -1,0 +1,67 @@
+{
+  "authority": "No contract, source scope, production authority, budget, or lease change; no lease transfer from R29.",
+  "baseline": {
+    "commit": "dd3d5ee22b8622f22e8db87382edaec0a466e7fd",
+    "content_verification_digest": "1aa7ba512c55fd91d10eec15036f7b4b1d73110e2c8d9a5492165f0163a61ef0",
+    "digest_algorithm": "sha256(concat(member_name_utf8 + NUL + sha256(file_bytes).digest())) over regular baseline files, excluding the four overlay paths",
+    "mismatches": 0,
+    "missing": 0,
+    "regular_file_count": 10411,
+    "tree": "554c82b13d9186e197a460128330c4bb0dcd53ab"
+  },
+  "bridge_status": "recovered exact bytes; unchecked candidate; no proof or audit closure",
+  "execution": {
+    "compiler_or_cargo": false,
+    "lean_or_lake": false,
+    "r30_workers_started": false,
+    "runtime_or_test": false
+  },
+  "incident_record": {
+    "path": "tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r30-intake-incident-r1.md",
+    "sha256": "bc92edc6787b4f37a0da26506e753613e50cc3f16dd24f742c1ce10c776ae76f"
+  },
+  "inherited_r29_evidence": {
+    "compile_outcome": {
+      "applicability": "unchanged R29 Rust compile inputs only",
+      "path": "tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r29-compile-r1-outcome.md",
+      "sha256": "d126dec270a9912f0185f97fc3c88fa8e91101924e1cfa292177cacaa7c34977"
+    },
+    "rust_review": {
+      "applicability": "unchanged R29 Rust source bytes only",
+      "path": "tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r29-review-r3.md",
+      "sha256": "8645fcc1adb9fe0beb82ca29d1bd7c9a8ae654006efa403d57b3688ba56a78da"
+    }
+  },
+  "overlays": {
+    "notes/theory/lean/YulangClosure/CallbackHygieneCorrespondence.lean": {
+      "sha256": "0621f43739c12ce1e7919a50de129414a4748d8359bf46740babd69f4854011e",
+      "source": "exact R26/R29 recovered candidate; see frozen archive provenance"
+    },
+    "notes/theory/lean/YulangClosure/NativeCallbackGrantBridge.lean": {
+      "sha256": "e49a320fbb148712b59e27a57cde57072e2192cdcdd84c936b10175f3a6ce6e0",
+      "source": "exact R26/R29 recovered candidate; see frozen archive provenance"
+    },
+    "tools/inference-playground/src/runtime/machine.rs": {
+      "sha256": "b74c8345e6e07155f482440bb9299b5fc12763accb666ca8f543156dd4a87425",
+      "source": "R29 source commit a1d53b374fbbbc8ce376bb2bf3116c35fa22d4e0"
+    },
+    "tools/inference-playground/src/runtime/receiving.rs": {
+      "sha256": "55b468cda3c3cf8180647a6429da28fc70badf7a371bf1b327539c8556b9b0f2",
+      "source": "R29 source commit a1d53b374fbbbc8ce376bb2bf3116c35fa22d4e0"
+    }
+  },
+  "project": {
+    "bytes": 251089718,
+    "path": "isolated/ep-native-callback-grant-r30/project"
+  },
+  "recovery_archive": {
+    "bytes": 70149,
+    "path": "tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r30-recovered-overlays-r1.tar.gz",
+    "sha256": "5c3c991dec9e54ad3e2665a1c722a0abf2d80a9efe719664606824558351a790"
+  },
+  "revision": "r1",
+  "schema": "effect-permission-native-callback-grant-r30-project-copy-v1",
+  "sprint": "EFFECT-PERMISSION-NATIVE-CALLBACK-GRANT/20261030-R30",
+  "status": "VERIFIED",
+  "verified_at_utc": "2026-10-30T00:44:02+00:00"
+}
