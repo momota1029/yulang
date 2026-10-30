@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "EFFECT-PERMISSION-RESIDUAL-JOIN/20261031-R38",
+  "contract": "tasks/agent-loop/sprints/effect-permission-residual-join-20261031-r38.md",
+  "contract_sha256": "6f8420b3c4b3f5ebed311f58bcfbcc1de851d10b7cc47073b8775cd2047fc6e2",
+  "baseline": {
+    "branch": "yulang3",
+    "commit": "c6e37750f8b454da95afe0f712710e38b4c94b85"
+  },
+  "resources_seconds": {
+    "total": 6000,
+    "rust": 1600,
+    "lean": 1600,
+    "review": 1200,
+    "luna_primary": 1600,
+    "luna_closeout_included": 500,
+    "astra": 0
+  },
+  "inputs": [
+    {"path":"crates/yu-solver/src/candidate_receiver.rs","sha256":"620b09011ec4dc4bfa71998e2b6fc1498b9299b3056662fdaa80b17376ba23c3"},
+    {"path":"crates/yu-solver/src/candidate_effect.rs","sha256":"1f64d4fec8f2abceb11a48a51f5b615aa2cf605c9586ba742f15f9024a6a2717","state":"pre-existing working-tree modification; read-only dependency"},
+    {"path":"crates/yu-solver/src/candidate_call.rs","sha256":"fdc39e01fa3665b4dc14e167973de63b275eb0280b831e340b6cdcee5ed0fc3f"},
+    {"path":"crates/yu-solver/src/candidate_source.rs","sha256":"96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a"},
+    {"path":"notes/design/2026-10-10-annotation-effect-hygiene-integration.md","sha256":"a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18"},
+    {"path":"notes/design/INDEX.md","sha256":"98f464f421f07459a15c60fc51fc7bc94efbdfe45d6cbc8f519a19cd50307e0a"},
+    {"path":"notes/theory/lean/YulangClosure/SourceCallbackPermissionR35.lean","sha256":"f4d6c85dc12d9e5b9f58a6635c76ee49fba85ff732b5538f9924e1ab052dbcc9"},
+    {"path":"notes/theory/lean/YulangClosure/SourceCallbackUseR36.lean","sha256":"9e15cb4982248cf90d7a11ef0c66ee7ee95ec0abe99c217d8187c31c488731de"},
+    {"path":"tasks/agent-loop/inbox/effect-permission-source-use-r36-review.md","sha256":"2b2f8bb23727c82fc572046e36d2aba64b63ac2020cbb491151b871ee3779afe"},
+    {"path":"notes/theory/lean/YulangClosure/SourceUseInventoryR37.lean","sha256":"4981f8c20dc5d9c932d9f4a843f2245c034daaa015e7fc7b97aa7a343bb7ea30"},
+    {"path":"tasks/agent-loop/inbox/effect-permission-source-inventory-r37-review.md","sha256":"a82a806fd419224285ffa19f42d043360379598966081636eeb1c22849fc6937"},
+    {"path":"notes/theory/lean/lean-toolchain","sha256":"ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"}
+  ],
+  "outputs": {
+    "rust": ["crates/yu-solver/src/candidate_receiver.rs","tasks/agent-loop/inbox/effect-permission-residual-join-r38-rust.md"],
+    "proof": ["notes/theory/lean/YulangClosure/EffectPermissionResidualR38.lean","tasks/agent-loop/inbox/effect-permission-residual-join-r38-proof.md"],
+    "review": ["tasks/agent-loop/inbox/effect-permission-residual-join-r38-review.md"],
+    "primary": ["tasks/agent-loop/sprints/effect-permission-residual-join-20261031-r38.md","tasks/agent-loop/sprints/effect-permission-residual-join-20261031-r38-inputs-r1.json","tasks/agent-loop/history/effect-permission-residual-join-20261031-r38-admission.md","tasks/agent-loop/history/effect-permission-residual-join-20261031-r38-stage-ledger.md","tasks/agent-loop/history/effect-permission-residual-join-20261031-r38-outcome.md","tasks/agent-loop/current.json"]
+  },
+  "constraints": [
+    "same checkout only; no worktree, copy or environment",
+    "no build, test, Cargo, Lake, formatter, target, cache, extraction or scratch",
+    "read-only dependency candidate_effect.rs has pre-existing uncommitted bytes; do not alter or stage it",
+    "quarantined machine.rs and receiving.rs excluded from reads and writes",
+    "no ordinary compiler, runtime, whole-language or production closure claim"
+  ]
+}
