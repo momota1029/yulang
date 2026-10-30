@@ -19,3 +19,9 @@ Gate 0 state: VERIFIED. The copy receipt is `isolated/ep-native-callback-grant-r
 The exact recovered overlays and provenance are frozen in `tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r30-recovered-overlays-r1.tar.gz`, SHA-256 `5c3c991dec9e54ad3e2665a1c722a0abf2d80a9efe719664606824558351a790`. The R29 bridge is an exact recovered candidate and remains unchecked; no proof or audit closure follows from recovery. Existing R29 Rust review/compile evidence applies only to the unchanged R29 Rust bytes, not to future R30 edits.
 
 No R30 worker, compiler, Cargo, runtime, test, Lean, or Lake process was started. The three R30 worker assignments remain WAITING. No budget, source authority, or historical lease changed or transferred. Gate 1 is the next authorized stage after this receipt and current-state checkpoint are pushed. The primary will continue in this one R30 project copy and create no additional full project copy for this sprint.
+
+## User-directed storage reclamation — revision 3
+
+Previous ledger SHA-256: `49c6baa4a0bade27ca65c0a92a4245e1987b2505d2734f92809d46afcbc2993d`. In response to the user's explicit storage instruction, the primary deleted only `isolated/ep-native-callback-grant-r30/project` (about 265 MiB). The small copy receipt and recovered-overlay archive remain as historical evidence. No other isolated path, quarantined lease, or workspace deletion was touched.
+
+Gate 0 was verified before removal; that historical receipt remains accurate for the verification event. The project is now absent, so Gate 1 cannot use that copy and no current R30 source edit may start from it. No R30 worker was launched. Rust, proof, and review assignments are BLOCKED pending a storage-constrained replan. This action does not recreate a project, change the contract, transfer a lease, reset a resource allowance, or claim compiler/test/proof progress.
