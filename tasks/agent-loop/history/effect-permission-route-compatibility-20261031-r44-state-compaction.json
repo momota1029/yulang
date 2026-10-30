@@ -1,0 +1,106 @@
+{
+  "id": "R44-STATE-COMPACTION-20261031",
+  "before_current_sha256": "06d3c34e118ce0779ef7b663011fd7ff09224d3711eff6214b312ad81cf3a2d1",
+  "session": "EFFECT-PERMISSION-ROUTE-COMPATIBILITY/20261031-R44",
+  "active_sprint": {
+    "id": "EFFECT-PERMISSION-ROUTE-COMPATIBILITY/20261031-R44",
+    "status": "CLOSED_BOUNDED_PASS",
+    "contract": "tasks/agent-loop/sprints/effect-permission-route-compatibility-20261031-r44.md",
+    "contract_sha256": "07cee599c23258ee9266cc8b523f92246ee13df0783555a785e1f4ff281fa29c",
+    "admission_receipt": "tasks/agent-loop/history/effect-permission-route-compatibility-20261031-r44-admission.md",
+    "admission_receipt_sha256": "d598c421c04d9077065a5fb5bd3b6511ab84e0718afab4eeb482db112e61b1b5",
+    "budget_seconds": 2600,
+    "pushed": true,
+    "review_receipt": "tasks/agent-loop/inbox/effect-permission-route-compatibility-r44-review.md",
+    "outcome": "tasks/agent-loop/history/effect-permission-route-compatibility-20261031-r44-outcome.md"
+  },
+  "workers": [
+    {
+      "id": "/root/r40_join_preflight",
+      "role": "researcher",
+      "state": "STOPPED",
+      "requested_model": "configured",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R44 NO_SAFE_CONSUMER_SLICE; STOPPED; handoff 34a9f5d2."
+    },
+    {
+      "id": "/root/r43_proof",
+      "role": "lean_prover",
+      "state": "STOPPED",
+      "requested_model": "configured",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R44 Lean frozen; STOPPED; module 98674f03; handoff 5294b138; 11 theorem audits PASS."
+    },
+    {
+      "id": "/root/r40_read2_review",
+      "role": "independent reviewer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R44 bounded PASS; reviewer STOPPED; source/proof hashes checked; handoff primary-integrated."
+    }
+  ],
+  "leases": [
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-route-compatibility-r44-source.md",
+      "owner": "/root/r40_join_preflight",
+      "state": "FROZEN",
+      "sha256": "34a9f5d2d62284abfd83ea30d0bcd3aa95ea18aa27a8280ef3453da29e54f840"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/RouteCompatibilityR44.lean",
+      "owner": "/root/r43_proof",
+      "state": "FROZEN",
+      "sha256": "98674f033a0e16e7a5cccb8df8cb97c29495b326a5896c1cfcdcc82913a4816d"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-route-compatibility-r44-proof.md",
+      "owner": "/root/r43_proof",
+      "state": "FROZEN",
+      "sha256": "5294b138e2b56d5c2c5421d7c5abb3d92718ba0c3afb7ad3b9c3b02ff1dffe36"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-route-compatibility-r44-review.md",
+      "owner": "/root/r40_read2_review",
+      "state": "FROZEN",
+      "sha256": "c00296bd6b695c535e15cb7e322d61a727afa065cd4d673bf806e02eaa86b18b"
+    }
+  ],
+  "pending_count_preserved": 32,
+  "unknown_quarantine_sha256_preserved": "3f5a79f3284da56d544dcfe43308c088493cf8a1e86f8a267b0cddc0e1cae058",
+  "roster_sync": {
+    "result": "R44 source, Lean and reviewer agents all STOPPED; /root/next_action_selector completed. No R44 child active or waiting.",
+    "worktree_count": 1,
+    "worktree": "/home/momota1029/rust/yulang",
+    "notifications": "No affected RUNNING/WAITING R44 child at compaction."
+  },
+  "checkpoint_commits": [
+    "20a5b265c88c529179ad0d377aa772ebff0b5e30",
+    "f1a4d987d",
+    "1bbb0459f8f98e0803469c6942900f047c5edebe"
+  ],
+  "disposition": "Archived only resolved terminal R44 workers and frozen leases. Pending items, UNKNOWN assignments, quarantined paths and their hashes remain unchanged. The terminal /root/r29_proof row had no active or quarantined lease and was also moved to history.",
+  "additional_resolved_rows_archived": [
+    {
+      "id": "/root/r29_proof",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_effort": "UNKNOWN"
+    }
+  ],
+  "additional_resolved_leases_archived": [
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-native-callback-grant-r29-proof.md",
+      "owner": "/root/r29_proof",
+      "state": "HELD"
+    }
+  ]
+}
