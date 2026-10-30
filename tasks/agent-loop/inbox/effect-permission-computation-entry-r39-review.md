@@ -37,3 +37,11 @@ The repaired guard follows `registered.owner` through `batch.hir_for_source_root
 Independent static review confirmed ordered concrete vector and identity-coordinate retention, no concrete inflow/subtraction, unchanged symbolic links at slots 45/46, reservation and symbolic handling before publication, accurate post-publication sampling boundary, byte/checkpoint accounting, and unchanged nested Function handling. Provider arrival, propagation, Catch/residual, parent theorem and production promotion remain OPEN. The reviewer relied on the producer’s reported Lean 4.35.0 18-theorem/axiom audit and did not rerun Lean.
 
 Dirty-base isolation was reproduced in memory exactly: removing R39 changes and restoring the pre-R39 14-line constructor yields the admitted baseline SHA-256 `1f64d4fec8f2abceb11a48a51f5b615aa2cf605c9586ba742f15f9024a6a2717`. R39 is separable as 98 net lines across 12 narrow hunks. The mixed accounting expression at source line 665 requires applying only its trailing R39 term. No unrelated dirty base change is authorized for staging. Static/read-only review; no build/test/Cargo/Lake/Git/scratch/cache/worktree.
+
+## R39 corrective commit review — 2026-10-31
+
+The primary found that the staged R39 source blob had misplaced several additions even though the reviewed working source was correct. The first staged correction moved the 19-line publication/cleanup closure, but a subsequent independent blob review found other misplaced spans. No compiler or test claim was made from those commits.
+
+The reviewer reconstructed the exact parent-plus-reviewed-R39 source in memory, excluding the admitted dirty baseline. Correct target SHA-256: `477b7fe56beb9eb08a2ff46ecee93785aee25b1d929d19578ea29f4c37a2bf26`.
+
+The reviewer independently checked both the index candidate and committed `HEAD` `1f5835c276143537ec58ed81db96c7c108cea8e7`. The committed `candidate_effect.rs` hash matches the reconstructed target exactly. All State, Checkpoint, helper, accounting and constructor spans are at their intended owners. Only this source path was staged; the 57 insertions/57 deletions restore R39 placement without including pre-existing dirty source changes. Verdict: **CLEAN** for the corrective source delta. Static review only; no builds/tests/writes.

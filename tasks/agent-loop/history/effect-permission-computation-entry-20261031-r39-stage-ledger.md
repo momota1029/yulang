@@ -57,8 +57,20 @@ Baseline: `06f1ce59eac7a953af18f27558ad0dd8b2a97237`.
 - Reviewer confirmed the owner-local source lookup, exact formal and action identities, complete ordered permission retention, no inflow/subtraction, symbolic-link identity, state accounting/checkpoints, and accurate local publication boundary. Parent/runtime/provider/Catch/residual obligations remain OPEN.
 - Dirty-base reconstruction exactly matches admitted SHA `1f64d4fec8f2abceb11a48a51f5b615aa2cf605c9586ba742f15f9024a6a2717`. R39 is separately stageable as 98 net lines across 12 narrow hunks; one accounting-expression hunk must retain only its R39 suffix. No pre-existing change may be staged.
 
-## Stage 8 — commit and push receipt
+## Stage 8 — initial commit and integration defect
 
-- R39 bounded source-retention gate adjudicated CLOSED_PASS after the revision-2 CLEAN independent review and the pinned Lean audit. Outcome: `tasks/agent-loop/history/effect-permission-computation-entry-20261031-r39-outcome.md`, SHA-256 `f1a278f2373ab70a051e9e39007a0d59e4d1c5bb86fbf5c0a46a9baff1847258`. Parent effect-hygiene/soundness and provider/propagation/Catch/residual gates remain OPEN.
-- Exact reviewed R39 patch and records committed in `ff5d4d5002abafc31aa4604de7d59835393d9ceb` (`feat: retain computation entry permissions with source identity`). Outbound range was one commit, eight R39-owned paths; prior dirty source changes were excluded.
-- Non-forced push succeeded: `origin/yulang3` advanced `196beb2cdf76aa7250bb8a8d40bd114117290cdd..ff5d4d5002abafc31aa4604de7d59835393d9ceb`.
+- R39 bounded source-retention gate had a CLEAN revision-2 review and pinned Lean audit. The reviewed working source was correct, but the staged commit blob was not: the zero-context cached patch applied multiple additions at the wrong locations. The record that the exact reviewed patch had been committed was inaccurate and is corrected below.
+- `ff5d4d5002abafc31aa4604de7d59835393d9ceb` and receipt commit `bea6b4868012da46adf52d5080c2cfad4543d707` were pushed before this blob mismatch was detected. No build or test was used to certify them.
+- Once detected, the primary stopped further sprint admission and reconstructed the exact parent-plus-reviewed-R39 source, excluding the admitted dirty baseline. The review record now preserves this integration defect and its repair.
+
+## Stage 9 — corrective reconstruction and review
+
+- `/root/r39_delta_review` reconstructed the exact source target from parent `196beb2cdf76aa7250bb8a8d40bd114117290cdd` plus the reviewed R39 delta. Target SHA-256: `477b7fe56beb9eb08a2ff46ecee93785aee25b1d929d19578ea29f4c37a2bf26`.
+- The corrected index blob matched that target exactly. Independent review confirmed all State, Checkpoint, helper, accounting and constructor additions at their owning locations; no pre-existing dirty baseline changes or other paths were staged.
+- Corrective source commit: `1f5835c276143537ec58ed81db96c7c108cea8e7` (`fix: restore R39 source placement`). It changes only `candidate_effect.rs` with 57 insertions and 57 deletions. Post-commit review confirmed its blob is byte-identical to the CLEAN candidate.
+
+## Stage 10 — corrective push receipt
+
+- Outbound range was exactly the single corrective source commit and one path: `bea6b4868012da46adf52d5080c2cfad4543d707..1f5835c276143537ec58ed81db96c7c108cea8e7`.
+- Non-forced push succeeded to `origin/yulang3`; local `HEAD` and remote now both resolve to `1f5835c276143537ec58ed81db96c7c108cea8e7`.
+- R39 remains CLOSED_PASS for bounded source retention with the corrected reviewed source. Parent effect-hygiene/soundness and provider/propagation/Catch/residual gates remain OPEN. Rust compilation/execution remains unobserved.
