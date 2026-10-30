@@ -1,0 +1,102 @@
+{
+  "schema": "effect-permission-native-callback-grant-r30",
+  "revision": "r1",
+  "sprint": "EFFECT-PERMISSION-NATIVE-CALLBACK-GRANT/20261030-R30",
+  "authority": "test-only source-evidence representation and a bounded Lean projection; no production behavior, solver, HIR, syntax, fixture, dependency, lockfile, expected-output, or semantic change",
+  "identity_projection": {
+    "operation_identity": "compare SourceOperationId values directly with typed Eq in memory; do not use Debug, spelling, range, family label, or serialized text as identity",
+    "operation_ref": {
+      "store": "the exact owning HIR module's source_effect_declarations vector and nested operations vectors",
+      "coordinate": [
+        "run_id",
+        "effect_index",
+        "operation_index"
+      ],
+      "validation": "resolve each coordinate through that store, compare to the original typed ID, and check the finite mapping is injective over all referenced IDs"
+    },
+    "source_node_ref": {
+      "store": "the exact run-owned ParsedFile tree reached from its existing source owner",
+      "coordinate": [
+        "run_id",
+        "child_index_path_from_source_root"
+      ],
+      "validation": "resolve the path using parse-owned SourceNode descent and compare the resulting key with the original SourceNodeKey; check uniqueness and ownership"
+    },
+    "rule": "if the exact owning store or a faithful, injective reference cannot be established for any serialized operation, arm, or source coordinate without a new source path/dependency, stop before execution"
+  },
+  "callback": {
+    "positive_result": 1,
+    "required_typed_join": [
+      "captured operation equals captured ResumeTemplate declaration by typed identity",
+      "consumer operation equals emitted request declaration by typed identity",
+      "consumer operation differs from captured operation by typed identity in this fixture",
+      "consumer operation_family is write",
+      "consumer operation_spelling is ping"
+    ],
+    "external_identity_fields": [
+      "captured operation ref",
+      "consumer operation ref",
+      "selected Catch arm ref",
+      "source coordinates and source owners"
+    ],
+    "preserve": [
+      "all R29 callback joins, request-owned observation snapshot, selected dynamic installation and actual callback/local Grant results",
+      "no Debug-formatted identity token appears in identity-sensitive JSON or mutation checks"
+    ]
+  },
+  "companion": {
+    "source": "tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+    "positive_result": 23,
+    "required": [
+      "captured template",
+      "owner replay",
+      "complete frame projection in pop order",
+      "typed distinct write request consumer",
+      "surviving write contribution"
+    ],
+    "rule": "companion evidence cannot supply callback-entry, callback-use, request-observation, or Grant evidence"
+  },
+  "mutations": {
+    "callback_required": [
+      "wrong dynamic installation identity",
+      "mutate request-snapshot observer bound",
+      "wrong invocation owner",
+      "wrong formal or receipt",
+      "wrong typed use or result view",
+      "wrong event or origin",
+      "wrong resolved effect identity"
+    ],
+    "companion_required": [
+      "wrong positive node index",
+      "delete required boundary",
+      "alter borrowed/fresh disposition",
+      "disconnect write lineage",
+      "no-op target guard"
+    ],
+    "per_mutation": [
+      "target present",
+      "before",
+      "after",
+      "applicable field changed",
+      "independent validator rejected"
+    ],
+    "rule": "absent or unchanged targets do not pass; preserve every applicable R29/R28 required mutation"
+  },
+  "lean_projection": {
+    "model": "unchanged R26 CallbackHygieneCorrespondence at pinned SHA in the input manifest",
+    "target": [
+      "callback branch of PortReady",
+      "only CatchReady premises justified by authenticated source records",
+      "actual callback/local Grant decision projected from same request-owned observation and source guard"
+    ],
+    "forbidden_unexplained_inputs": [
+      "UseReady",
+      "PortReady",
+      "CatchReady",
+      "native Grant success",
+      "authenticated History",
+      "desired result"
+    ],
+    "history": "derive only when every Step is justified by actual source transitions; otherwise leave open"
+  }
+}

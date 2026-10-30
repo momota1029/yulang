@@ -1,0 +1,96 @@
+{
+  "schema": "effect-permission-native-callback-grant-r30-inputs-v1",
+  "revision": "r1",
+  "sprint": "EFFECT-PERMISSION-NATIVE-CALLBACK-GRANT/20261030-R30",
+  "branch": "yulang3",
+  "admission_head": "cf382d2a8a401de74a6d2ed355240bee7827b440",
+  "baseline_commit": "dd3d5ee22b8622f22e8db87382edaec0a466e7fd",
+  "baseline_tree": "554c82b13d9186e197a460128330c4bb0dcd53ab",
+  "r29_closeout": {
+    "path": "tasks/agent-loop/history/r29-closeout-runtime-incomplete.md",
+    "sha256": "ec90cd97870a87dec8b89efa45a322c47ae9b1cae19ca6c6f7618d743b0518bc",
+    "classification": "CLOSED_INCOMPLETE / RUNTIME_FAILED / SOURCE_ALLOWANCE_EXHAUSTED"
+  },
+  "project_copy": {
+    "method": "git archive --format=tar baseline_commit, extract without owner changes, then overlay only the two frozen R29 R3 Rust sources, the frozen R26 model and the frozen R29 unchecked bridge",
+    "baseline_file_count": 10411,
+    "baseline_content_verification_digest": "1aa7ba512c55fd91d10eec15036f7b4b1d73110e2c8d9a5492165f0163a61ef0",
+    "overlays": {
+      "tools/inference-playground/src/runtime/machine.rs": "b74c8345e6e07155f482440bb9299b5fc12763accb666ca8f543156dd4a87425",
+      "tools/inference-playground/src/runtime/receiving.rs": "55b468cda3c3cf8180647a6429da28fc70badf7a371bf1b327539c8556b9b0f2",
+      "notes/theory/lean/YulangClosure/CallbackHygieneCorrespondence.lean": "0621f43739c12ce1e7919a50de129414a4748d8359bf46740babd69f4854011e",
+      "notes/theory/lean/YulangClosure/NativeCallbackGrantBridge.lean": "e49a320fbb148712b59e27a57cde57072e2192cdcdd84c936b10175f3a6ce6e0"
+    },
+    "overlay_sources": {
+      "tools/inference-playground/src/runtime/machine.rs": "isolated/ep-native-callback-grant-r29/project/tools/inference-playground/src/runtime/machine.rs",
+      "tools/inference-playground/src/runtime/receiving.rs": "isolated/ep-native-callback-grant-r29/project/tools/inference-playground/src/runtime/receiving.rs",
+      "notes/theory/lean/YulangClosure/CallbackHygieneCorrespondence.lean": "isolated/ep-owner-certificate-r27/project/notes/theory/lean/YulangClosure/CallbackHygieneCorrespondence.lean",
+      "notes/theory/lean/YulangClosure/NativeCallbackGrantBridge.lean": "isolated/ep-native-callback-grant-r29/project/notes/theory/lean/YulangClosure/NativeCallbackGrantBridge.lean"
+    }
+  },
+  "frozen_evidence": {
+    "r29_contract_sha256": "8c9784de8a3e33f7e17c2747fcc7e452bda02bb8f4a4a7358c14290642c1457f",
+    "r29_schema_sha256": "b2d03bbba4ae78f8e2f9b0517c4b25c176372a158d77a1baa0e3c6d601294379",
+    "r29_inputs_sha256": "8022d3e6462012f4a8bbf3124d6c286683976f259fe8b5bd084dfaf8ac4cf83f",
+    "r29_r3_review_sha256": "8645fcc1adb9fe0beb82ca29d1bd7c9a8ae654006efa403d57b3688ba56a78da",
+    "r29_runtime_outcome_sha256": "eef034225eb0bf1165d4dfbe5176b74c52974a23a7a0a21b85bd76ce601f40de",
+    "r29_runtime_receipt_sha256": "6d55fcb41e6ba3e37e1d842d60f0d76eb16e72fc9869dea92b0af0157bdcb4ad",
+    "r26_model_sha256": "0621f43739c12ce1e7919a50de129414a4748d8359bf46740babd69f4854011e",
+    "r29_bridge_sha256": "e49a320fbb148712b59e27a57cde57072e2192cdcdd84c936b10175f3a6ce6e0",
+    "r26_outcome": {
+      "path": "tasks/agent-loop/history/effect-permission-native-evidence-20261030-r26-outcome.md",
+      "sha256": "60b3bbf722a97961ae8f821487e82d060de9024342b7762a91b1c053ced8366a"
+    },
+    "r26_rejected_snapshot_sha256": "9de55a878ad07a3488e43d59a2f0d9984baf884d786bca4f53a2b290c40ef75a",
+    "r26_model_source": "isolated/ep-owner-certificate-r27/project/notes/theory/lean/YulangClosure/CallbackHygieneCorrespondence.lean"
+  },
+  "source_inputs": {
+    "callback": {
+      "source_manifest": "tasks/agent-loop/sprints/effect-permission-owner-certificate-20261030-r27-inputs-r3.json",
+      "source_manifest_sha256": "06fcdb4292b3364b9a40b75dcb9b57419ff0bfb50628d422cd5ec69ad0e5c6bc",
+      "text": "act signal:\n    our ping: () -> int\n\nmy relay(cb: () -> [signal] int) = catch cb() {\n    signal::ping(), _ -> 1,\n    v -> v\n}\nmy answer = relay signal::ping\n",
+      "sha256": "163fb480ec7ecaed2c341253066a7c6cc3af1a0cf5499c384f0cad4952c64e18",
+      "expected_selected_main": 1
+    },
+    "companion": {
+      "path": "tools/inference-playground/examples/original-suffix-outer-receiver.yu",
+      "sha256": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7",
+      "expected_selected_main": 23
+    }
+  },
+  "authorities": {
+    "effect_policy_sha256": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18",
+    "original_parent_sha256": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271",
+    "birth_level_correction_sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae",
+    "parent_contracts_sha256": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e"
+  },
+  "paths": {
+    "project": "isolated/ep-native-callback-grant-r30/project",
+    "copy_receipt": "isolated/ep-native-callback-grant-r30/project-copy-r1.json",
+    "rust_handoff": "tasks/agent-loop/inbox/effect-permission-native-callback-grant-r30-rust.md",
+    "proof_handoff": "tasks/agent-loop/inbox/effect-permission-native-callback-grant-r30-proof.md",
+    "review_handoff": "tasks/agent-loop/inbox/effect-permission-native-callback-grant-r30-review.md"
+  },
+  "commands": {
+    "compile": "timeout 120s env CARGO_TARGET_DIR=build-target CARGO_BUILD_JOBS=1 cargo test --locked --offline -p yu-playground --lib --no-run",
+    "focused_test": "timeout 120s env CARGO_TARGET_DIR=build-target CARGO_BUILD_JOBS=1 cargo test --locked --offline -p yu-playground --lib r30_native_callback_grant_identity_projection_authenticates_request_and_mutations -- --nocapture",
+    "lean_toolchain": "leanprover/lean4:v4.35.0",
+    "lean_max_audits": 2,
+    "lean_max_total_audit_seconds": 120,
+    "heavy_process_concurrency": 1
+  },
+  "resource_envelope_seconds": {
+    "total": 6000,
+    "rust": 1600,
+    "rust_source_max": 1000,
+    "cargo_max": 360,
+    "lean": 1200,
+    "lean_audits_max": 2,
+    "lean_audit_seconds_max": 120,
+    "independent_review": 1200,
+    "luna_primary": 2000,
+    "luna_closeout_reserve_included_in_primary": 500,
+    "astra": 0
+  },
+  "claim_boundary": "One bounded native callback identity-projection and R26 application only if all gates pass. Original A/B, History/RootComp, whole-language source/native correspondence, effect hygiene, soundness, principality, termination, and production remain OPEN. No R29 budget or lease transfers."
+}
