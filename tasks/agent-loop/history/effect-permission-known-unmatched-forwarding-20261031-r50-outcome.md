@@ -42,3 +42,10 @@ does not close the parent goal.
 Only admitted R50 paths and receipts are included in the checkpoint; unrelated
 dirty workspace files remain unstaged. No worktree, environment, cache, target,
 or scratch path was created.
+
+## Git checkpoint
+
+- Commit: `7ee664e6d` (`research: preserve unmatched residual effects`).
+- Pushed to `origin/yulang3` without force.
+- `python3 tools/agent_sprint.py check`: PASS (static state/entrypoint validation only).
+- No Rust build, tests, Cargo, Lake or compiler run.
