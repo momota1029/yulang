@@ -150,32 +150,32 @@
     {
       "id": "/root/r43_rust",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R45 followup accepted; rehashing exact lease and frozen inputs, then isolating R45 Rust patch. Candidate_scheme remains read-only."
+      "receipt": "R45 source frozen; handoff SHA 5ca8058e79015b4896260c19aa2b389449324e223c169419fd873177910c4341; no build/tests; exact source hashes and isolated R45 patch recorded."
     },
     {
       "id": "/root/r43_proof",
       "role": "lean_prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "configured",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R45 followup accepted; all 18 pinned inputs plus contract rehash MATCH before source edits. Building the finite Internal-incidence model; source-field details pending Rust lane."
+      "receipt": "R45 Lean frozen; 15 theorems accepted in pinned Lean stdin batches; handoff SHA 4b1f54f1c4fa915d694c1a15068f93333f25f12f9073fa461b975638db7cde27; complete type/axiom audits recorded."
     },
     {
       "id": "/root/r37_inventory_review",
       "role": "independent reviewer",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R45 review starts after both authors STOP and hashes freeze."
+      "receipt": "First R45 review frozen at tasks/agent-loop/inbox/effect-permission-internal-incidence-r45-review.md; B1-B3 repaired by primary in lib.rs only (hash 25498cc1be404b12d060cbd47f77e78c23ad27b2b99113e15823bc8b6fa92ca4); focused independent re-review launched."
     }
   ],
   "leases": [
@@ -610,7 +610,7 @@
   "intake_incident": "tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r30-intake-incident-r1.md#bc92edc6787b4f37a0da26506e753613e50cc3f16dd24f742c1ce10c776ae76f",
   "active_sprint": {
     "id": "EFFECT-PERMISSION-INTERNAL-INCIDENCE/20261031-R45",
-    "status": "SOURCE_AND_LEAN_RUNNING",
+    "status": "FOCUSED_REVIEW_AFTER_PRIMARY_REPAIR",
     "contract": "tasks/agent-loop/sprints/effect-permission-internal-incidence-20261031-r45.md",
     "contract_sha256": "c866a7ecc4c80df8b1345a89e6733650ddb334f35b7d3a79f4e825e134d2847a",
     "admission_receipt": "tasks/agent-loop/history/effect-permission-internal-incidence-20261031-r45-admission.md",
