@@ -300,6 +300,8 @@ impl Checkpoint {
         self.context
     }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
+    formal_entry_permissions: Vec<FormalEntryPermission>,
+    formal_entry_permission_bytes: usize,
         bytes::<(BoundKey, TypedPairKey, bool)>(self.origins.capacity())?
             .checked_add(bytes::<(u32, Option<CaptureBucket>)>(self.capture_incidence.capacity())?)
             .and_then(|n| n.checked_add(bytes::<(usize, Option<usize>)>(self.capture_links.capacity()).ok()?))
@@ -424,6 +426,23 @@ impl State {
             bytes::<((AnnotationScope, Box<str>), u32)>(self.annotation_values.capacity())?,
             bytes::<((AnnotationScope, SourceNodeKey), u32)>(self.annotation_holes.capacity())?,
             bytes::<((AnnotationScope, Box<str>), u32)>(self.annotation_effects.capacity())?,
+// Concrete permission declared on a computation formal's outer entry row.
+// Kept separate from nested Function-port permissions because those records
+// require a nonempty structural path through a captured Function type.
+#[allow(dead_code, reason = "entry permission retention is source evidence; provider and Catch consumption remain open")]
+#[derive(Debug)]
+struct FormalEntryPermission {
+    registration: usize,
+    parameter: usize,
+    formal: yu_hir::HirParameterId,
+    occurrence: HirOccurrenceId,
+    source_owner: SourceRootId,
+    scope: AnnotationScope,
+    annotation_position: SourceNodeKey,
+    source_row: SourceNodeKey,
+    entry_effect: u32,
+    concrete: Vec<SourceEffectId>,
+}
             self.nested_bytes,
             self.formal_permission_bytes,
             self.evidence_bytes,
@@ -442,6 +461,8 @@ impl State {
             .map(|entries| entries.capacity() * std::mem::size_of::<TypedPairKey>())
             .sum::<usize>();
         assert_eq!(state.evidence_bytes, evidence_bytes);
+    formal_entry_permissions: usize,
+    formal_entry_permission_bytes: usize,
         let retained_names = state.annotation_values.keys().chain(state.annotation_effects.keys()).map(|(_, name)| name.len()).sum::<usize>();
         let retained_views = state.views.iter().map(|view| view.allowed.capacity() * std::mem::size_of::<SourceEffectId>()).sum::<usize>();
         let retained_permissions = state.formal_permissions.iter().map(|permission| {
@@ -464,7 +485,7 @@ impl State {
             + state.annotation_values.capacity() * std::mem::size_of::<((AnnotationScope, Box<str>), u32)>()
             + state.annotation_holes.capacity() * std::mem::size_of::<((AnnotationScope, SourceNodeKey), u32)>()
             + state.annotation_effects.capacity() * std::mem::size_of::<((AnnotationScope, Box<str>), u32)>()
-            + retained_names + retained_views + evidence_bytes + retained_permissions
+            + retained_names + retained_views + evidence_bytes + retained_permissions + retained_entry_permissions
     }
     pub fn observe(
         &self,
@@ -480,6 +501,12 @@ impl State {
             OperandIdentity::Contribution(index) => {
                 ObservedOperand::Contribution(self.contributions.get(index as usize)?)
             }
+fn formal_entry_permission_backing_bytes(permissions: &[FormalEntryPermission]) -> Result<usize, SolveAvailabilityError> {
+    permissions.iter().try_fold(0usize, |total, permission| {
+        let concrete = bytes::<SourceEffectId>(permission.concrete.capacity())?;
+        total.checked_add(concrete).ok_or_else(exhausted)
+    })
+}
             OperandIdentity::AnnotationMember(index, member) => {
                 let view = self.views.get(index as usize)?;
                 ObservedOperand::AnnotationMember {
@@ -510,6 +537,8 @@ fn bound_pair(bound: BoundKey) -> TypedPairKey {
         (owner, item)
     };
     match (lower, upper) {
+            formal_entry_permissions: self.formal_entry_permissions.len(),
+            formal_entry_permission_bytes: self.formal_entry_permission_bytes,
         (ExtrusionEndpoint::Value(lower), ExtrusionEndpoint::Value(upper)) => {
             TypedPairKey::Value(CanonicalValuePairKey { lower, upper })
         }
@@ -521,6 +550,8 @@ fn bound_pair(bound: BoundKey) -> TypedPairKey {
 }
 impl InferenceSession {
     pub(super) fn candidate_processing(
+        self.formal_entry_permissions.truncate(checkpoint.formal_entry_permissions);
+        self.formal_entry_permission_bytes = checkpoint.formal_entry_permission_bytes;
         &mut self,
         pair: Option<TypedPairKey>,
     ) -> Option<TypedPairKey> {
@@ -581,11 +612,13 @@ impl InferenceSession {
         }
         let mut undo = self
             .route_journal
+            bytes::<FormalEntryPermission>(self.formal_entry_permissions.capacity())?,
             .as_mut()
             .and_then(|journal| journal.intrusion.as_mut())
             .map(|undo| &mut undo.effect_algebra);
         if let Some(undo) = &mut undo {
             undo.origins.try_reserve(1).map_err(|_| exhausted())?;
+            self.formal_entry_permission_bytes,
         }
         state.origin_keys.try_reserve(1).map_err(|_| exhausted())?;
         state.origins.try_reserve(1).map_err(|_| exhausted())?;
@@ -608,8 +641,12 @@ impl InferenceSession {
         }
         state.origin_keys.insert((bound, origin));
         if let Some(undo) = undo {
+        let retained_entry_permissions = state.formal_entry_permissions.iter().map(|permission| {
+            permission.concrete.capacity() * std::mem::size_of::<SourceEffectId>()
+        }).sum::<usize>();
             undo.origins.push((bound, origin, new));
         }
+        assert_eq!(state.formal_entry_permission_bytes, retained_entry_permissions);
         let id = state.context.evidence_admit(bound, origin, relation, cause, false)?;
         state.context.evidence_admission_sample();
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
@@ -621,6 +658,7 @@ impl InferenceSession {
         &mut self, tail: u32, source: u32, view: u32,
     ) -> Result<(), SolveAvailabilityError> {
         #[cfg(test)]
+            + state.formal_entry_permissions.capacity() * std::mem::size_of::<FormalEntryPermission>()
         let probe_local_frame = self.candidate_graph.as_ref().is_some_and(|state| !state.local_use.is_empty());
         let state = &mut self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra;
         if state.capture_incidence_keys.contains(&(source, view)) { return Ok(()); }
@@ -1584,11 +1622,52 @@ impl InferenceSession {
     pub(super) fn candidate_formal_entry_annotation(&mut self, registration: usize, annotation: &SourceAnnotation, occurrence: &HirOccurrenceId, scope: &AnnotationScope) -> Result<(), SolveAvailabilityError> {
         let row = annotation.ty.effects.as_ref().ok_or_else(exhausted)?;
         if row.variables.len() > 1 { return Err(exhausted()); }
-        let entry = self.batch.candidate_calls.formals[registration].entry_effect.ok_or_else(exhausted)?;
-        if let Some(name) = row.variables.first() {
-            let level = self.effect_levels[entry as usize];
-            let tail = self.candidate_formal_effect_variable(scope, name, level)?;
-            self.candidate_formal_effect_equal(occurrence, 45, entry, tail)?;
+        let registered = self.batch.candidate_calls.formals.get(registration).ok_or_else(exhausted)?.clone();
+        let parameter = registered.recipe_position;
+        let exact_lambda_formal = self.batch.hir_for_source_root(&registered.owner)
+            .and_then(|hir| hir.local_source_for(&registered.owner).ok().flatten())
+            .and_then(|source| source.expressions().get(registered.lambda))
+            .is_some_and(|expression| expression.occurrence == *occurrence
+                && matches!(&expression.form, yu_hir::shadow::LocalSourceForm::Lambda { parameter, .. }
+                    if parameter.id == registered.parameter));
+        if registered.role != candidate_call::FormalRole::Computation
+            || registered.owner != annotation.owner
+            || registered.scope != *scope
+            || self.batch.parameter_recipes.get(parameter) != Some(&registered.parameter)
+            || self.batch.candidate_source.source_owners.get(occurrence) != Some(&annotation.owner)
+            || !exact_lambda_formal
+            || self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.formal_domains.contains_key(&parameter)
+            || self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.formal_entry_permissions.iter()
+                .any(|permission| permission.registration == registration)
+        { return Err(exhausted()); }
+        let entry = registered.entry_effect.ok_or_else(exhausted)?;
+        let mut prepared = None;
+        let mut temporary_bytes = 0usize;
+        if !row.concrete.is_empty() {
+            let mut concrete = Vec::new();
+            concrete.try_reserve_exact(row.concrete.len()).map_err(|_| exhausted())?;
+            temporary_bytes = bytes::<SourceEffectId>(concrete.capacity())?;
+            concrete.extend(row.concrete.iter().cloned());
+            let permission = FormalEntryPermission {
+                registration,
+                parameter,
+                formal: registered.parameter.clone(),
+                occurrence: occurrence.clone(),
+                source_owner: annotation.owner.clone(),
+                scope: scope.clone(),
+                annotation_position: annotation.position.clone(),
+                source_row: row.position.clone(),
+                entry_effect: entry,
+                concrete,
+            };
+            let retained_bytes = formal_entry_permission_backing_bytes(std::slice::from_ref(&permission))?;
+            if retained_bytes != temporary_bytes { return Err(exhausted()); }
+            let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
+            state.formal_entry_permissions.try_reserve(1).map_err(|_| exhausted())?;
+            state.formal_entry_permission_bytes.checked_add(retained_bytes).ok_or_else(exhausted)?;
+            let graph = self.candidate_graph.as_mut().unwrap();
+            graph.scratch_bytes = graph.scratch_bytes.checked_add(temporary_bytes).ok_or_else(exhausted)?;
+            prepared = Some((permission, retained_bytes));
         }
         // Concrete atoms grant local handling permission; they are not a
         // closed upper bound on the supplied computation. The source-owned
@@ -1809,6 +1888,25 @@ impl InferenceSession {
         &mut self,
         clause: &yu_hir::shadow::LocalSourceWhereClause,
         scope: &AnnotationScope,
+        let result = (|| -> Result<(), SolveAvailabilityError> {
+            if let Some(name) = row.variables.first() {
+                let level = *self.effect_levels.get(entry as usize).ok_or_else(exhausted)?;
+                let tail = self.candidate_formal_effect_variable(scope, name, level)?;
+                self.candidate_formal_effect_equal(occurrence, 45, entry, tail)?;
+            }
+            if let Some((permission, retained_bytes)) = prepared.take() {
+                let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
+                state.formal_entry_permission_bytes = state.formal_entry_permission_bytes.checked_add(retained_bytes).ok_or_else(exhausted)?;
+                state.formal_entry_permissions.push(permission);
+            }
+            Ok(())
+        })();
+        if temporary_bytes != 0 {
+            let graph = self.candidate_graph.as_mut().unwrap();
+            graph.scratch_bytes = graph.scratch_bytes.checked_sub(temporary_bytes).ok_or_else(exhausted)?;
+        }
+        result?;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
     ) -> Result<(), SolveAvailabilityError> {
         let AnnotationScope::Definition(provider) = scope else { return Err(exhausted()); };
         let subject = clause.subject.text.trim();
