@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "id": "EFFECT-PERMISSION-SOURCE-INVENTORY/20261031-R37",
+  "contract": "tasks/agent-loop/sprints/effect-permission-source-inventory-20261031-r37.md",
+  "contract_sha256": "33c4c4f1d60e69c11a1a082cbe10a91728888bcdcbf2e11b8f735aa5d14dc756",
+  "baseline": {
+    "branch": "yulang3",
+    "commit": "ce922eed506e1471abe9a0f6823674da7ba55039"
+  },
+  "resources_seconds": {
+    "total": 6000,
+    "rust": 1600,
+    "lean": 1600,
+    "review": 1200,
+    "luna_primary": 1600,
+    "luna_closeout_included": 500,
+    "astra": 0
+  },
+  "toolchain": {
+    "lean": "Lean 4.35.0",
+    "audit": "pinned stdin under read-only bwrap; no build"
+  },
+  "inputs": [
+    {
+      "path": "tools/inference-playground/src/runtime/program.rs",
+      "sha256": "b3fc1daacdba9fa9618b9b741e4f85d8e9ea0dcd5e859540204d09200d23a65d"
+    },
+    {
+      "path": "crates/yu-hir/src/module/local_source.rs",
+      "sha256": "7055975d582dfb198836c2aa659f8b8033c29dff419d522feea4fea4c42523d1"
+    },
+    {
+      "path": "crates/yu-hir/src/module.rs",
+      "sha256": "6bf92c93fa37f425a7380248c12c50c0d04ea6eb282e76edb6df54e628260646"
+    },
+    {
+      "path": "crates/yu-hir/src/module/source_annotation.rs",
+      "sha256": "409ce491bc216c6963bf76d20810790aa2756edf260ecc35e76d5cfc05d24b3f"
+    },
+    {
+      "path": "crates/yu-syntax/src/full_parse.rs",
+      "sha256": "dd92603f8f5549b8b3f6e45ab6cb39b6598480b7f1cda7897e27b5113107db93"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceCallbackUseR36.lean",
+      "sha256": "9e15cb4982248cf90d7a11ef0c66ee7ee95ec0abe99c217d8187c31c488731de"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-use-r36-review.md",
+      "sha256": "2b2f8bb23727c82fc572046e36d2aba64b63ac2020cbb491151b871ee3779afe"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceCallbackPermissionR35.lean",
+      "sha256": "f4d6c85dc12d9e5b9f58a6635c76ee49fba85ff732b5538f9924e1ab052dbcc9"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeSnapshotOwnerR34.lean",
+      "sha256": "24ca25828e1a58f9c3246e5f50f2c73ba8ead6d2d003d05c8c2a8a3d2e85795a"
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    }
+  ],
+  "outputs": {
+    "rust": [
+      "tools/inference-playground/src/runtime/program.rs",
+      "tasks/agent-loop/inbox/effect-permission-source-inventory-r37-rust.md"
+    ],
+    "proof": [
+      "notes/theory/lean/YulangClosure/SourceUseInventoryR37.lean",
+      "tasks/agent-loop/inbox/effect-permission-source-inventory-r37-proof.md"
+    ],
+    "review": [
+      "tasks/agent-loop/inbox/effect-permission-source-inventory-r37-review.md"
+    ],
+    "primary": [
+      "tasks/agent-loop/sprints/effect-permission-source-inventory-20261031-r37.md",
+      "tasks/agent-loop/sprints/effect-permission-source-inventory-20261031-r37-inputs-r1.json",
+      "tasks/agent-loop/history/effect-permission-source-inventory-20261031-r37-admission.md",
+      "tasks/agent-loop/history/effect-permission-source-inventory-20261031-r37-stage-ledger.md",
+      "tasks/agent-loop/history/effect-permission-source-inventory-20261031-r37-outcome.md",
+      "tasks/agent-loop/current.json"
+    ]
+  },
+  "constraints": [
+    "existing checkout only",
+    "no worktree/copy/environment/build/test/target/cache/extraction/scratch",
+    "quarantined tools/inference-playground/src/runtime/machine.rs and receiving.rs excluded from reads and writes",
+    "no Instruction::Apply shape change",
+    "no runtime/whole-language closure claim"
+  ]
+}
