@@ -5,7 +5,7 @@ use yu_hir::shadow::{
     LocalSourceCatchPayloadPattern as PayloadPattern, LocalSourceCatchValuePattern as ValuePattern,
     LocalSourceForm as Form, LocalSourceIndex, LocalSourceResolution as Resolution,
     SourceAnnotationValue as AnnotationValue, SourceOperationDeclaration,
-    SourceOperationResolution,
+    SourceOperationResolution, SourceNodeKey,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -23,30 +23,52 @@ pub struct ReceivingResidualExperiment {
     result_row: u32,
 }
 #[cfg(feature = "shadow-apply-candidate")]
+struct PendingResidualFold {
+    fact: ConstraintOccurrence,
+    upper: EffectEndpointKey,
+    terminals: Vec<EffectEndpointKey>,
+    result_row: u32,
+}
+#[cfg(feature = "shadow-apply-candidate")]
 struct LowerPathSearch<'a> {
     endpoint: EffectEndpointKey,
-    edges: Vec<candidate_context::CheckedPhysicalLowerEdge<'a>>,
+    steps: Vec<LowerPathStep<'a>>,
     seen: HashSet<EffectEndpointKey>,
     use_root: Option<candidate_context::RelationId>,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Debug)]
+pub(super) enum LowerPathStep<'a> {
+    Physical(candidate_context::CheckedPhysicalLowerEdge<'a>),
+    SupportMember {
+        support: EffectEndpointKey,
+        member: EffectEndpointKey,
+        view_index: u32,
+        member_index: u32,
+        view: &'a candidate_effect::View,
+        family: &'a yu_hir::shadow::SourceEffectId,
+        closed_tail: bool,
+    },
 }
 #[cfg(feature = "shadow-apply-candidate")]
 fn certified_lower_paths<'a>(
     bounds: &'a [EffectBounds],
     context: &'a candidate_context::State,
+    views: &'a [candidate_effect::View],
     root: EffectEndpointKey,
     target: EffectEndpointKey,
     entry: Option<&'a ReceivingResidualExperiment>,
-) -> Result<Vec<Vec<candidate_context::CheckedPhysicalLowerEdge<'a>>>, candidate_context::CurrentEmissionGap> {
+) -> Result<Vec<Vec<LowerPathStep<'a>>>, candidate_context::CurrentEmissionGap> {
     let mut initial_seen = HashSet::new();
     initial_seen.try_reserve(1).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
     initial_seen.insert(root);
     let mut pending = Vec::new();
     pending.try_reserve(1).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
-    pending.push(LowerPathSearch { endpoint: root, edges: Vec::new(), seen: initial_seen, use_root: None });
+    pending.push(LowerPathSearch { endpoint: root, steps: Vec::new(), seen: initial_seen, use_root: None });
     let mut results = Vec::new();
     let mut work = 0usize;
     while let Some(path) = pending.pop() {
-        work = work.checked_add(path.edges.len().checked_add(path.seen.len()).and_then(|n| n.checked_add(1))
+        work = work.checked_add(path.steps.len().checked_add(path.seen.len()).and_then(|n| n.checked_add(1))
             .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?)
             .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
         if work > candidate_source::SCOPED_WORK_LIMIT {
@@ -54,9 +76,51 @@ fn certified_lower_paths<'a>(
         }
         if path.endpoint == target {
             results.try_reserve(1).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
-            results.push(path.edges);
+            results.push(path.steps);
             if results.len() > 1 {
                 return Err(candidate_context::CurrentEmissionGap::AmbiguousPath);
+            }
+            continue;
+        }
+        if let EffectEndpointKey::Support(view_index) = path.endpoint {
+            let view = views.get(view_index as usize)
+                .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
+            if view.tail.is_some() {
+                return Err(candidate_context::CurrentEmissionGap::MissingCommonEndpoint);
+            }
+            for (member_index, family) in view.allowed.iter().enumerate() {
+                work = work.checked_add(1).ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
+                if work > candidate_source::SCOPED_WORK_LIMIT {
+                    return Err(candidate_context::CurrentEmissionGap::SearchLimit);
+                }
+                let member = EffectEndpointKey::AnnotationMember(
+                    view_index,
+                    u32::try_from(member_index).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?,
+                );
+                if path.seen.contains(&member) { continue; }
+                let mut steps = Vec::new();
+                steps.try_reserve(path.steps.len().checked_add(1)
+                    .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?)
+                    .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+                steps.extend_from_slice(&path.steps);
+                steps.push(LowerPathStep::SupportMember {
+                    support: path.endpoint,
+                    member,
+                    view_index,
+                    member_index: u32::try_from(member_index)
+                        .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?,
+                    view,
+                    family,
+                    closed_tail: view.tail.is_none(),
+                });
+                let mut seen = HashSet::new();
+                seen.try_reserve(path.seen.len().checked_add(1)
+                    .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?)
+                    .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+                seen.extend(path.seen.iter().copied());
+                seen.insert(member);
+                pending.try_reserve(1).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+                pending.push(LowerPathSearch { endpoint: member, steps, seen, use_root: path.use_root });
             }
             continue;
         }
@@ -91,7 +155,7 @@ fn certified_lower_paths<'a>(
                     ExtrusionEndpoint::Effect(target_endpoint),
                 );
                 let edge = context.checked_physical_lower_edge(slot, bound)?;
-                let use_root = match (entry, path.use_root, path.edges.is_empty()) {
+                let use_root = match (entry, path.use_root, path.steps.is_empty()) {
                     (Some(experiment), None, true) => {
                         let internal = experiment.current_internal_emission(edge.id.0)?;
                         if internal.emission.id != edge.id
@@ -109,12 +173,12 @@ fn certified_lower_paths<'a>(
                     (None, _, _) => None,
                     _ => return Err(candidate_context::CurrentEmissionGap::MissingUseAncestry),
                 };
-                let mut edges = Vec::new();
-                edges.try_reserve(path.edges.len().checked_add(1)
+                let mut steps = Vec::new();
+                steps.try_reserve(path.steps.len().checked_add(1)
                     .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?)
                     .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
-                edges.extend_from_slice(&path.edges);
-                edges.push(edge);
+                steps.extend_from_slice(&path.steps);
+                steps.push(LowerPathStep::Physical(edge));
                 let mut seen = HashSet::new();
                 seen.try_reserve(path.seen.len().checked_add(1)
                     .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?)
@@ -122,7 +186,7 @@ fn certified_lower_paths<'a>(
                 seen.extend(path.seen.iter().copied());
                 seen.insert(target_endpoint);
                 pending.try_reserve(1).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
-                pending.push(LowerPathSearch { endpoint: target_endpoint, edges, seen, use_root });
+                pending.push(LowerPathSearch { endpoint: target_endpoint, steps, seen, use_root });
             }
         }
     }
@@ -141,8 +205,131 @@ pub(super) struct ProviderEntryCertificate<'a> {
     pub catch_fact: &'a ConstraintOccurrence,
     pub endpoint: EffectEndpointKey,
     pub operation_view: &'a candidate_effect::View,
-    pub entry_path: Vec<candidate_context::CheckedPhysicalLowerEdge<'a>>,
-    pub catch_path: Vec<candidate_context::CheckedPhysicalLowerEdge<'a>>,
+    pub entry_path: Vec<LowerPathStep<'a>>,
+    pub catch_path: Vec<LowerPathStep<'a>>,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Debug)]
+struct SelectedCatchArmEvidence {
+    catch: HirOccurrenceId,
+    arm_ordinal: u32,
+    arm_source: SourceNodeKey,
+    arm_range: (usize, usize),
+    operation_source: SourceNodeKey,
+    operation: Arc<SourceOperationDeclaration>,
+    operation_identity: yu_hir::shadow::SourceOperationId,
+    unit_payload_source: SourceNodeKey,
+    unit_payload_range: (usize, usize),
+    continuation_is_wildcard: bool,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+impl SelectedCatchArmEvidence {
+    fn is_authenticated_source(&self, schema: &Assembly) -> bool {
+        self.catch == schema.catch
+            && self.continuation_is_wildcard
+            && self.arm_ordinal == 0
+            && self.operation_identity == self.operation.id
+            && self.arm_range.0 < self.arm_range.1
+            && self.unit_payload_range.0 < self.unit_payload_range.1
+    }
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SourceOperationMatch {
+    Match,
+    KnownUnmatched,
+    Unavailable,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Debug)]
+enum LowerPathSnapshot {
+    Physical {
+        emission: candidate_context::BoundEmissionId,
+        admission: candidate_context::BoundAdmissionId,
+        slot: candidate_context::PhysicalBoundSlot,
+        bound: candidate_effect::BoundKey,
+        relation: candidate_context::RelationId,
+    },
+    SupportMember {
+        view_index: u32,
+        member_index: u32,
+        family: yu_hir::shadow::SourceEffectId,
+        closed_tail: bool,
+    },
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Debug)]
+struct AuthenticatedSuppression {
+    endpoint: EffectEndpointKey,
+    provider_occurrence: HirOccurrenceId,
+    provider_source: SourceNodeKey,
+    provider_source_range: (usize, usize),
+    provider_identity: yu_hir::shadow::SourceOperationId,
+    entry_effect: u32,
+    emission: candidate_context::BoundEmissionId,
+    admission: candidate_context::BoundAdmissionId,
+    catch_fact: ConstraintOccurrenceId,
+    catch_occurrence: HirOccurrenceId,
+    arm_ordinal: u32,
+    arm_source: SourceNodeKey,
+    arm_range: (usize, usize),
+    operation_source: SourceNodeKey,
+    operation: yu_hir::shadow::SourceOperationId,
+    unit_payload_source: SourceNodeKey,
+    unit_payload_range: (usize, usize),
+    continuation_is_wildcard: bool,
+    entry_path: Vec<LowerPathSnapshot>,
+    catch_path: Vec<LowerPathSnapshot>,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Debug)]
+struct ResidualDecision {
+    endpoint: EffectEndpointKey,
+    outcome: ReceivingResidualOutcome,
+    suppression: Option<AuthenticatedSuppression>,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+fn snapshot_path(
+    path: &[LowerPathStep<'_>],
+    terminal: EffectEndpointKey,
+) -> Result<Vec<LowerPathSnapshot>, candidate_context::CurrentEmissionGap> {
+    let mut snapshot = Vec::new();
+    snapshot.try_reserve(path.len()).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+    let mut terminal_member = false;
+    for step in path {
+        match step {
+            LowerPathStep::Physical(edge) => snapshot.push(LowerPathSnapshot::Physical {
+                emission: edge.id,
+                admission: edge.admission_id,
+                slot: edge.slot,
+                bound: edge.bound,
+                relation: edge.relation,
+            }),
+            LowerPathStep::SupportMember {
+                support, member, view_index, member_index, view, family, closed_tail,
+            } => {
+                let exact = *support == EffectEndpointKey::Support(*view_index)
+                    && *member == EffectEndpointKey::AnnotationMember(*view_index, *member_index)
+                    && view.tail.is_none()
+                    && *closed_tail
+                    && view.allowed.get(*member_index as usize) == Some(*family);
+                if !exact {
+                    return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+                }
+                terminal_member |= *member == terminal;
+                snapshot.push(LowerPathSnapshot::SupportMember {
+                    view_index: *view_index,
+                    member_index: *member_index,
+                    family: (*family).clone(),
+                    closed_tail: *closed_tail,
+                });
+            }
+        }
+    }
+    if !terminal_member {
+        return Err(candidate_context::CurrentEmissionGap::MissingCommonEndpoint);
+    }
+    Ok(snapshot)
 }
 impl ReceivingResidualExperiment {
     pub fn outcomes(&self) -> impl Iterator<Item = ReceivingResidualOutcome> + '_ {
@@ -301,10 +488,10 @@ impl ReceivingResidualExperiment {
         let root_entry = EffectEndpointKey::EffectRow(incidence.permission.entry_effect);
         let root_catch = self.session.effect_endpoint(catch_fact.lower(), Polarity::Positive);
         let catch_paths = certified_lower_paths(
-            &self.session.effect_bounds, context, root_catch, endpoint, None,
+            &self.session.effect_bounds, context, &algebra.views, root_catch, endpoint, None,
         )?;
         let entry_paths = certified_lower_paths(
-            &self.session.effect_bounds, context, root_entry, endpoint, Some(self),
+            &self.session.effect_bounds, context, &algebra.views, root_entry, endpoint, Some(self),
         )?;
         let [catch_path] = catch_paths.as_slice() else {
             return Err(if catch_paths.is_empty() {
@@ -316,7 +503,10 @@ impl ReceivingResidualExperiment {
                 candidate_context::CurrentEmissionGap::MissingCommonEndpoint
             } else { candidate_context::CurrentEmissionGap::AmbiguousPath });
         };
-        let first = entry_path.first().ok_or(candidate_context::CurrentEmissionGap::MissingCommonEndpoint)?;
+        let first = entry_path.iter().find_map(|step| match step {
+            LowerPathStep::Physical(edge) => Some(edge),
+            LowerPathStep::SupportMember { .. } => None,
+        }).ok_or(candidate_context::CurrentEmissionGap::MissingCommonEndpoint)?;
         let internal = self.current_internal_emission(first.id.0)?;
         if internal.emission.id != first.id || internal.emission.admission_id != first.admission_id
             || internal.emission.emission.physical != first.slot
@@ -434,8 +624,28 @@ struct Assembly {
     scrutinee: HirOccurrenceId,
     edge_scrutinee: HirOccurrenceId,
     provider: HirOccurrenceId,
+    provider_source: SourceNodeKey,
+    provider_source_range: (usize, usize),
     operation: Arc<SourceOperationDeclaration>,
-    selected: bool,
+    provider_identity: yu_hir::shadow::SourceOperationId,
+    selected_arm: SelectedCatchArmEvidence,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+fn source_operation_match(schema: &Assembly) -> SourceOperationMatch {
+    // Both IDs are captured only from resolved LocalSource operations. Keep
+    // their source occurrence/key and declaration identity together; pointer
+    // inequality, spelling, or family inequality alone cannot mean mismatch.
+    let provider_authenticated = schema.provider_identity == schema.operation.id
+        && schema.provider_source_range.0 < schema.provider_source_range.1;
+    let handler_authenticated = schema.selected_arm.is_authenticated_source(schema);
+    if !provider_authenticated || !handler_authenticated {
+        return SourceOperationMatch::Unavailable;
+    }
+    if schema.selected_arm.operation_identity == schema.provider_identity {
+        SourceOperationMatch::Match
+    } else {
+        SourceOperationMatch::KnownUnmatched
+    }
 }
 fn unavailable() -> shadow_apply::CandidateError {
     shadow_apply::CandidateError::Unsupported
@@ -583,9 +793,9 @@ fn assemble(
     }
     let Pattern::Operation {
         resolution: SourceOperationResolution::Resolved(handled),
+        operation_source,
         payloads,
         continuation,
-        ..
     } = &arms[0].pattern
     else {
         return Err(unavailable());
@@ -611,6 +821,20 @@ fn assemble(
     {
         return Err(unavailable());
     }
+    let PayloadPattern::Unit { source: unit_payload_source, range: unit_payload_range } = &payloads[0]
+    else { return Err(unavailable()); };
+    let selected_arm = SelectedCatchArmEvidence {
+        catch: catch.occurrence.clone(),
+        arm_ordinal: 0,
+        arm_source: arms[0].source.clone(),
+        arm_range: (arms[0].range.start, arms[0].range.end),
+        operation_source: operation_source.clone(),
+        operation: Arc::clone(handled),
+        operation_identity: handled.id.clone(),
+        unit_payload_source: unit_payload_source.clone(),
+        unit_payload_range: (unit_payload_range.start, unit_payload_range.end),
+        continuation_is_wildcard: matches!(continuation, ValuePattern::Wildcard),
+    };
     Ok(Assembly {
         relay: relay.definition_root().ok_or_else(unavailable)?.clone(),
         answer: answer.clone(),
@@ -618,8 +842,11 @@ fn assemble(
         scrutinee: scrutinee.occurrence.clone(),
         edge_scrutinee,
         provider: provider.occurrence.clone(),
+        provider_source: provider.source.clone(),
+        provider_source_range: (provider.range.start, provider.range.end),
         operation: Arc::clone(operation),
-        selected: handled.id == operation.id,
+        provider_identity: operation.id.clone(),
+        selected_arm,
     })
 }
 
@@ -634,22 +861,115 @@ pub fn solve_receiving_residual_experiment(
         .map_err(shadow_apply::CandidateError::Collection)?;
     let mut session =
         InferenceSession::try_new_candidate(batch).map_err(shadow_apply::CandidateError::Solve)?;
-    let (outcomes, result_row) = session
+    let pending = session
         .execute_receiving_assembly(&schema)
         .map_err(shadow_apply::CandidateError::Solve)?;
-    Ok(ReceivingResidualExperiment {
+    let mut experiment = ReceivingResidualExperiment {
         session,
         schema,
-        outcomes,
-        result_row,
-    })
+        outcomes: Vec::new(),
+        result_row: pending.result_row,
+    };
+    experiment.publish_authenticated_residual(pending)
+        .map_err(shadow_apply::CandidateError::Solve)?;
+    Ok(experiment)
+}
+
+impl ReceivingResidualExperiment {
+    fn publish_authenticated_residual(
+        &mut self,
+        pending: PendingResidualFold,
+    ) -> Result<(), SolveAvailabilityError> {
+        let plan = self.complete_residual_plan(&pending)?;
+        let mut outcomes = Vec::new();
+        outcomes.try_reserve(plan.len()).map_err(|_| native_unavailable())?;
+        for decision in &plan {
+            let _validated_suppression = &decision.suppression;
+            if decision.outcome == ReceivingResidualOutcome::Forward {
+                self.session.constrain_live_effect(
+                    decision.endpoint,
+                    pending.upper,
+                    &pending.fact.id,
+                    &pending.fact.cause,
+                )?;
+            }
+            outcomes.push((decision.endpoint, decision.outcome));
+        }
+        self.outcomes = outcomes;
+        Ok(())
+    }
+
+    fn complete_residual_plan(
+        &self,
+        pending: &PendingResidualFold,
+    ) -> Result<Vec<ResidualDecision>, SolveAvailabilityError> {
+        let algebra = &self.session.candidate_graph.as_ref()
+            .ok_or_else(native_unavailable)?.intrusion.effect_algebra;
+        let operation_match = source_operation_match(&self.schema);
+        if operation_match == SourceOperationMatch::Unavailable {
+            return Err(native_unavailable());
+        }
+        let mut plan = Vec::new();
+        plan.try_reserve(pending.terminals.len()).map_err(|_| native_unavailable())?;
+        for &endpoint in &pending.terminals {
+            let suppression = match operation_match {
+                SourceOperationMatch::KnownUnmatched => None,
+                SourceOperationMatch::Unavailable => return Err(native_unavailable()),
+                SourceOperationMatch::Match => {
+                    if let EffectEndpointKey::AnnotationMember(view_index, member_index) = endpoint {
+                        let view = algebra.views.get(view_index as usize).ok_or_else(native_unavailable)?;
+                        let member = view.allowed.get(member_index as usize).ok_or_else(native_unavailable)?;
+                        let provider_origin = match &view.provenance {
+                            candidate_effect::ViewOrigin::Operation(origin)
+                                if origin.occurrence == self.schema.provider => {
+                                    if origin.declaration.id != self.schema.provider_identity {
+                                        return Err(native_unavailable());
+                                    }
+                                    true
+                                }
+                            _ => false,
+                        };
+                        let provider_member = provider_origin
+                            && view.tail.is_none()
+                            && member == &self.schema.provider_identity.family;
+                        if provider_member {
+                            let certificate = self.provider_entry_certificate()
+                                .map_err(|_| native_unavailable())?;
+                            if certificate.endpoint != endpoint
+                                || !std::ptr::eq(certificate.operation_view, view)
+                                || certificate.catch_fact.id != pending.fact.id
+                                || certificate.operation_view.allowed.get(member_index as usize) != Some(member)
+                            {
+                                return Err(native_unavailable());
+                            }
+                            Some(snapshot_suppression(&certificate, &self.schema)?)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+            };
+            let outcome = if suppression.is_some() {
+                ReceivingResidualOutcome::Suppress
+            } else {
+                ReceivingResidualOutcome::Forward
+            };
+            plan.push(ResidualDecision { endpoint, outcome, suppression });
+        }
+        if plan.is_empty() {
+            return Err(native_unavailable());
+        }
+        Ok(plan)
+    }
 }
 
 impl InferenceSession {
     fn execute_receiving_assembly(
         &mut self,
         schema: &Assembly,
-    ) -> Result<(Vec<(EffectEndpointKey, ReceivingResidualOutcome)>, u32), SolveAvailabilityError>
+    ) -> Result<PendingResidualFold, SolveAvailabilityError>
     {
         // Route the unique original module use directly. This is an assembly
         // inventory, not an SCC: do not populate intrusion active_roots/uses.
@@ -703,8 +1023,11 @@ impl InferenceSession {
         let EffectEndpointKey::EffectRow(result_row) = self.canonical_effect(upper) else {
             return Err(native_unavailable());
         };
-        let mut pending = vec![lower];
+        let mut pending = Vec::new();
+        pending.try_reserve(1).map_err(|_| native_unavailable())?;
+        pending.push(lower);
         let mut seen = HashSet::new();
+        seen.try_reserve(1).map_err(|_| native_unavailable())?;
         let mut terminals = Vec::new();
         let mut work = 0usize;
         while let Some(endpoint) = pending.pop() {
@@ -713,6 +1036,7 @@ impl InferenceSession {
                 return Err(native_unavailable());
             }
             let endpoint = self.canonical_effect(endpoint);
+            seen.try_reserve(1).map_err(|_| native_unavailable())?;
             if !seen.insert(endpoint) {
                 continue;
             }
@@ -727,28 +1051,29 @@ impl InferenceSession {
                     {
                         return Err(native_unavailable());
                     }
-                    pending.extend(
-                        bounds
-                            .direct_lower_rows
-                            .iter()
-                            .copied()
-                            .map(EffectEndpointKey::EffectRow),
-                    );
+                    let lower_count = bounds.direct_lower_rows.len()
+                        .checked_add(bounds.exact_non_variable_lowers.len())
+                        .ok_or_else(native_unavailable)?;
+                    pending.try_reserve(lower_count).map_err(|_| native_unavailable())?;
+                    pending.extend(bounds.direct_lower_rows.iter().copied().map(EffectEndpointKey::EffectRow));
                     pending.extend(bounds.exact_non_variable_lowers.iter().copied());
                 }
                 EffectEndpointKey::Support(view) => {
-                    let view_data = &self
+                    let view_data = self
                         .candidate_graph
                         .as_ref()
-                        .unwrap()
+                        .ok_or_else(native_unavailable)?
                         .intrusion
                         .effect_algebra
-                        .views[view as usize];
+                        .views
+                        .get(view as usize)
+                        .ok_or_else(native_unavailable)?;
                     // An unresolved tail is Pending; never publish a partial
                     // certificate from the concrete members beside that tail.
                     if view_data.tail.is_some() {
                         return Err(native_unavailable());
                     }
+                    pending.try_reserve(view_data.allowed.len()).map_err(|_| native_unavailable())?;
                     for member in 0..view_data.allowed.len() {
                         pending.push(EffectEndpointKey::AnnotationMember(
                             view,
@@ -756,42 +1081,50 @@ impl InferenceSession {
                         ));
                     }
                 }
-                _ => terminals.push(endpoint),
+                _ => {
+                    terminals.try_reserve(1).map_err(|_| native_unavailable())?;
+                    terminals.push(endpoint);
+                }
             }
         }
         if terminals.is_empty() {
             return Err(native_unavailable());
         }
-        let mut outcomes = Vec::new();
-        for endpoint in terminals {
-            let suppress = if let EffectEndpointKey::AnnotationMember(view, member) = endpoint {
-                let view = &self
-                    .candidate_graph
-                    .as_ref()
-                    .unwrap()
-                    .intrusion
-                    .effect_algebra
-                    .views[view as usize];
-                schema.selected
-                    && view.tail.is_none()
-                    && view.allowed.get(member as usize) == Some(&schema.operation.id.family)
-                    && matches!(&view.provenance, candidate_effect::ViewOrigin::Operation(origin)
-                        if origin.occurrence == schema.provider && origin.declaration.id == schema.operation.id)
-            } else {
-                false
-            };
-            let outcome = if suppress {
-                ReceivingResidualOutcome::Suppress
-            } else {
-                // Unknown original terminal evidence forwards unchanged. The
-                // original row, arms and raw continuation are never rewritten.
-                self.constrain_live_effect(endpoint, upper, &fact.id, &fact.cause)?;
-                ReceivingResidualOutcome::Forward
-            };
-            outcomes.push((endpoint, outcome));
-        }
-        Ok((outcomes, result_row))
+        Ok(PendingResidualFold { fact, upper, terminals, result_row })
     }
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+fn snapshot_suppression(
+    certificate: &ProviderEntryCertificate<'_>,
+    schema: &Assembly,
+) -> Result<AuthenticatedSuppression, SolveAvailabilityError> {
+    let entry_path = snapshot_path(&certificate.entry_path, certificate.endpoint)
+        .map_err(|_| native_unavailable())?;
+    let catch_path = snapshot_path(&certificate.catch_path, certificate.endpoint)
+        .map_err(|_| native_unavailable())?;
+    Ok(AuthenticatedSuppression {
+        endpoint: certificate.endpoint,
+        provider_occurrence: schema.provider.clone(),
+        provider_source: schema.provider_source.clone(),
+        provider_source_range: schema.provider_source_range,
+        provider_identity: schema.provider_identity.clone(),
+        entry_effect: certificate.internal.incidence.permission.entry_effect,
+        emission: certificate.internal.emission.id,
+        admission: certificate.internal.emission.admission_id,
+        catch_fact: certificate.catch_fact.id.clone(),
+        catch_occurrence: schema.selected_arm.catch.clone(),
+        arm_ordinal: schema.selected_arm.arm_ordinal,
+        arm_source: schema.selected_arm.arm_source.clone(),
+        arm_range: schema.selected_arm.arm_range,
+        operation_source: schema.selected_arm.operation_source.clone(),
+        operation: schema.selected_arm.operation.id.clone(),
+        unit_payload_source: schema.selected_arm.unit_payload_source.clone(),
+        unit_payload_range: schema.selected_arm.unit_payload_range,
+        continuation_is_wildcard: schema.selected_arm.continuation_is_wildcard,
+        entry_path,
+        catch_path,
+    })
 }
 
 #[cfg(test)]
