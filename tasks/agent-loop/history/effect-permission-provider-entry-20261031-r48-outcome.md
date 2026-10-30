@@ -29,4 +29,4 @@ Rust extraction completeness and concrete runtime success remain unproved. The R
 
 The required static `python3 tools/agent_sprint.py check` passed after author STOP and reviewer assignment updates. Lean's final theorem-by-theorem audit receipts passed as recorded by the proof lane; reviewer inspected receipts without rerunning Lean. No Rust builds, tests, Cargo, formatter, Lake, cache, target, scratch directory, new worktree, or environment were created or used. Unrelated dirty paths were excluded from the checkpoint.
 
-Checkpoint disposition: reviewed and ready for primary-only exact-path Git integration; remote push remains pending until the coherent commit is created.
+Checkpoint disposition: committed as `ae3c42143` and pushed to `origin/yulang3` from baseline `559932b20` by a normal non-forced push.
