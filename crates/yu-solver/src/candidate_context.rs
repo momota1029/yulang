@@ -601,6 +601,12 @@ pub(super) enum CurrentEmissionGap {
     WrongEntrySlot,
     InvalidRelationReference,
     SearchLimit,
+    MissingCatchFact,
+    AmbiguousCatchFact,
+    MissingProviderOrigin,
+    AmbiguousProviderOrigin,
+    MissingCommonEndpoint,
+    AmbiguousPath,
 }
 #[derive(Clone, Copy, Debug)]
 pub(super) struct CheckedBoundEmission<'a> {
@@ -609,6 +615,16 @@ pub(super) struct CheckedBoundEmission<'a> {
     pub emission: &'a BoundEmission,
     pub admission: &'a BoundAdmission,
     pub use_root: RelationId,
+}
+#[derive(Clone, Copy, Debug)]
+pub(super) struct CheckedPhysicalLowerEdge<'a> {
+    pub id: BoundEmissionId,
+    pub admission_id: BoundAdmissionId,
+    pub slot: PhysicalBoundSlot,
+    pub bound: BoundKey,
+    pub relation: RelationId,
+    pub emission: &'a BoundEmission,
+    pub admission: &'a BoundAdmission,
 }
 #[derive(Clone, Copy, Debug)]
 struct BoundEvidenceGroup {
@@ -2898,6 +2914,50 @@ impl State {
     ) -> Option<(BoundEmissionId, &BoundEmission)> {
         self.evidence.emissions.get(index).map(|emission| (BoundEmissionId(index), emission))
     }
+    pub(super) fn observed_bound_emissions_for_slot(
+        &self, slot: PhysicalBoundSlot,
+    ) -> impl Iterator<Item = (BoundEmissionId, &BoundEmission)> {
+        self.evidence.emissions.iter().enumerate().filter_map(move |(index, emission)| {
+            (emission.physical == slot).then_some((BoundEmissionId(index), emission))
+        })
+    }
+    /// Authenticate one positive effect lower edge from its exact current slot.
+    /// This does not infer an edge from matching contents or a canonical row.
+    pub(super) fn checked_physical_lower_edge(
+        &self,
+        slot: PhysicalBoundSlot,
+        current: BoundKey,
+    ) -> Result<CheckedPhysicalLowerEdge<'_>, CurrentEmissionGap> {
+        if !matches!(slot.owner, candidate_scheme::RowKey::Effect(_))
+            || !matches!(slot.lane, BoundLane::EffectLowerRow | BoundLane::EffectLowerAtom)
+            || current.1 != Polarity::Positive
+        {
+            return Err(CurrentEmissionGap::WrongEntrySlot);
+        }
+        let mut matching = self.observed_bound_emissions_for_slot(slot);
+        let (id, emission) = matching.next().ok_or(CurrentEmissionGap::MissingEmission)?;
+        if matching.next().is_some() {
+            return Err(CurrentEmissionGap::AmbiguousPhysicalSlot);
+        }
+        if emission.bound != current || emission.bound != emission.readback.bound
+            || emission.physical != emission.readback.slot
+        {
+            return Err(CurrentEmissionGap::BoundMismatch);
+        }
+        let admission_id = emission.admission;
+        let admission = self.evidence.admissions.get(admission_id.0)
+            .ok_or(CurrentEmissionGap::MissingAdmission)?;
+        if admission.bound != current {
+            return Err(CurrentEmissionGap::BoundMismatch);
+        }
+        let relation = admission.relation.ok_or(CurrentEmissionGap::MissingRelation)?;
+        if self.relation_pair(relation) != Some(bound_pair(current)) {
+            return Err(CurrentEmissionGap::ForeignRelationPair);
+        }
+        Ok(CheckedPhysicalLowerEdge {
+            id, admission_id, slot, bound: current, relation, emission, admission,
+        })
+    }
     /// Verify one indexed emission against its unique admission and a caller's
     /// fresh physical read. The caller must read the slot from the live row;
     /// this method never treats the constructor-time readback as current.
@@ -2959,7 +3019,7 @@ impl State {
         self.require_relation_ancestry(relation, use_root)?;
         Ok(CheckedBoundEmission { id, admission_id, emission, admission, use_root })
     }
-    fn require_relation_ancestry(
+    pub(super) fn require_relation_ancestry(
         &self, descendant: RelationId, ancestor: RelationId,
     ) -> Result<(), CurrentEmissionGap> {
         if self.relations.get(descendant.0 as usize).is_none()

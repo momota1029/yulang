@@ -23,10 +23,126 @@ pub struct ReceivingResidualExperiment {
     result_row: u32,
 }
 #[cfg(feature = "shadow-apply-candidate")]
+struct LowerPathSearch<'a> {
+    endpoint: EffectEndpointKey,
+    edges: Vec<candidate_context::CheckedPhysicalLowerEdge<'a>>,
+    seen: HashSet<EffectEndpointKey>,
+    use_root: Option<candidate_context::RelationId>,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+fn certified_lower_paths<'a>(
+    bounds: &'a [EffectBounds],
+    context: &'a candidate_context::State,
+    root: EffectEndpointKey,
+    target: EffectEndpointKey,
+    entry: Option<&'a ReceivingResidualExperiment>,
+) -> Result<Vec<Vec<candidate_context::CheckedPhysicalLowerEdge<'a>>>, candidate_context::CurrentEmissionGap> {
+    let mut initial_seen = HashSet::new();
+    initial_seen.try_reserve(1).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+    initial_seen.insert(root);
+    let mut pending = Vec::new();
+    pending.try_reserve(1).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+    pending.push(LowerPathSearch { endpoint: root, edges: Vec::new(), seen: initial_seen, use_root: None });
+    let mut results = Vec::new();
+    let mut work = 0usize;
+    while let Some(path) = pending.pop() {
+        work = work.checked_add(path.edges.len().checked_add(path.seen.len()).and_then(|n| n.checked_add(1))
+            .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?)
+            .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
+        if work > candidate_source::SCOPED_WORK_LIMIT {
+            return Err(candidate_context::CurrentEmissionGap::SearchLimit);
+        }
+        if path.endpoint == target {
+            results.try_reserve(1).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+            results.push(path.edges);
+            if results.len() > 1 {
+                return Err(candidate_context::CurrentEmissionGap::AmbiguousPath);
+            }
+            continue;
+        }
+        let EffectEndpointKey::EffectRow(row) = path.endpoint else { continue; };
+        let row_bounds = bounds.get(row as usize).ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
+        for (lane, length) in [
+            (candidate_context::BoundLane::EffectLowerRow, row_bounds.direct_lower_rows.len()),
+            (candidate_context::BoundLane::EffectLowerAtom, row_bounds.exact_non_variable_lowers.len()),
+        ] {
+            for index in 0..length {
+                work = work.checked_add(1).ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
+                if work > candidate_source::SCOPED_WORK_LIMIT {
+                    return Err(candidate_context::CurrentEmissionGap::SearchLimit);
+                }
+                let target_endpoint = match lane {
+                    candidate_context::BoundLane::EffectLowerRow => EffectEndpointKey::EffectRow(
+                        *row_bounds.direct_lower_rows.get(index).ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?,
+                    ),
+                    candidate_context::BoundLane::EffectLowerAtom => *row_bounds.exact_non_variable_lowers
+                        .get(index).ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?,
+                    _ => unreachable!(),
+                };
+                if path.seen.contains(&target_endpoint) {
+                    continue;
+                }
+                let slot = candidate_context::PhysicalBoundSlot {
+                    owner: candidate_scheme::RowKey::Effect(row), lane, index,
+                };
+                let bound = crate::candidate_effect::BoundKey(
+                    ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(row)),
+                    Polarity::Positive,
+                    ExtrusionEndpoint::Effect(target_endpoint),
+                );
+                let edge = context.checked_physical_lower_edge(slot, bound)?;
+                let use_root = match (entry, path.use_root, path.edges.is_empty()) {
+                    (Some(experiment), None, true) => {
+                        let internal = experiment.current_internal_emission(edge.id.0)?;
+                        if internal.emission.id != edge.id
+                            || internal.emission.admission_id != edge.admission_id
+                            || internal.emission.emission.physical != slot
+                            || internal.emission.emission.bound != bound {
+                            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+                        }
+                        Some(internal.emission.use_root)
+                    }
+                    (Some(_), Some(root), false) => {
+                        context.require_relation_ancestry(edge.relation, root)?;
+                        Some(root)
+                    }
+                    (None, _, _) => None,
+                    _ => return Err(candidate_context::CurrentEmissionGap::MissingUseAncestry),
+                };
+                let mut edges = Vec::new();
+                edges.try_reserve(path.edges.len().checked_add(1)
+                    .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?)
+                    .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+                edges.extend_from_slice(&path.edges);
+                edges.push(edge);
+                let mut seen = HashSet::new();
+                seen.try_reserve(path.seen.len().checked_add(1)
+                    .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?)
+                    .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+                seen.extend(path.seen.iter().copied());
+                seen.insert(target_endpoint);
+                pending.try_reserve(1).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+                pending.push(LowerPathSearch { endpoint: target_endpoint, edges, seen, use_root });
+            }
+        }
+    }
+    Ok(results)
+}
+#[cfg(feature = "shadow-apply-candidate")]
 #[derive(Debug)]
 pub(super) struct CurrentInternalEmission<'a> {
     pub incidence: InternalFormalPermissionIncidence<'a>,
     pub emission: candidate_context::CheckedBoundEmission<'a>,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Debug)]
+pub(super) struct ProviderEntryCertificate<'a> {
+    pub internal: CurrentInternalEmission<'a>,
+    pub catch_fact: &'a ConstraintOccurrence,
+    pub endpoint: EffectEndpointKey,
+    pub operation_view: &'a candidate_effect::View,
+    pub entry_path: Vec<candidate_context::CheckedPhysicalLowerEdge<'a>>,
+    pub catch_path: Vec<candidate_context::CheckedPhysicalLowerEdge<'a>>,
 }
 impl ReceivingResidualExperiment {
     pub fn outcomes(&self) -> impl Iterator<Item = ReceivingResidualOutcome> + '_ {
@@ -114,6 +230,107 @@ impl ReceivingResidualExperiment {
             index, current, entry_effect, &occurrence, root_pair,
         )?;
         Ok(CurrentInternalEmission { incidence, emission })
+    }
+    /// Build a read-only common-endpoint certificate from the exact Internal
+    /// entry and the original Catch input fact. Every traversed lower edge is
+    /// read at its physical slot and carries its own retained producer record.
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "provider arrival evidence is provisional and has no consumer")]
+    pub(super) fn provider_entry_certificate(
+        &self,
+    ) -> Result<ProviderEntryCertificate<'_>, candidate_context::CurrentEmissionGap> {
+        let [use_record] = self.session.batch.definition_uses() else {
+            return Err(candidate_context::CurrentEmissionGap::MissingInternalCertificate);
+        };
+        let incidence = self.session.internal_formal_permission_incidence(use_record.id())
+            .ok_or(candidate_context::CurrentEmissionGap::MissingInternalCertificate)?;
+        if incidence.target_owner != &self.schema.relay
+            || incidence.receiving_owner != &self.schema.answer {
+            return Err(candidate_context::CurrentEmissionGap::MissingInternalCertificate);
+        }
+        let facts = self.session.batch.occurrences.iter().filter(|fact|
+            fact.id().occurrence() == &self.schema.edge_scrutinee
+                && fact.id().local_slot() == 51);
+        let mut facts = facts;
+        let catch_fact = facts.next().ok_or(candidate_context::CurrentEmissionGap::MissingCatchFact)?;
+        if facts.next().is_some() {
+            return Err(candidate_context::CurrentEmissionGap::AmbiguousCatchFact);
+        }
+        let context = &self.session.candidate_graph.as_ref()
+            .ok_or(candidate_context::CurrentEmissionGap::MissingInternalCertificate)?
+            .intrusion.effect_algebra.context;
+        let algebra = &self.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        let mut terminals = Vec::new();
+        let mut provider_scan_work = 0usize;
+        for (view_index, view) in algebra.views.iter().enumerate() {
+            provider_scan_work = provider_scan_work.checked_add(view.allowed.len().checked_add(1)
+                .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?)
+                .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
+            if provider_scan_work > candidate_source::SCOPED_WORK_LIMIT {
+                return Err(candidate_context::CurrentEmissionGap::SearchLimit);
+            }
+            let candidate_effect::ViewOrigin::Operation(origin) = &view.provenance else { continue; };
+            if origin.occurrence != self.schema.provider
+                || !Arc::ptr_eq(&origin.declaration, &self.schema.operation) {
+                continue;
+            }
+            for (member, family) in view.allowed.iter().enumerate() {
+                if family == &self.schema.operation.id.family {
+                    terminals.try_reserve(1)
+                        .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+                    terminals.push((
+                        EffectEndpointKey::AnnotationMember(
+                            u32::try_from(view_index).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?,
+                            u32::try_from(member).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?,
+                        ),
+                        view,
+                    ));
+                    if terminals.len() > 1 {
+                        return Err(candidate_context::CurrentEmissionGap::AmbiguousProviderOrigin);
+                    }
+                }
+            }
+        }
+        if terminals.is_empty() {
+            return Err(candidate_context::CurrentEmissionGap::MissingProviderOrigin);
+        }
+        if terminals.len() != 1 {
+            return Err(candidate_context::CurrentEmissionGap::AmbiguousProviderOrigin);
+        }
+        let (endpoint, operation_view) = terminals[0];
+        let root_entry = EffectEndpointKey::EffectRow(incidence.permission.entry_effect);
+        let root_catch = self.session.effect_endpoint(catch_fact.lower(), Polarity::Positive);
+        let catch_paths = certified_lower_paths(
+            &self.session.effect_bounds, context, root_catch, endpoint, None,
+        )?;
+        let entry_paths = certified_lower_paths(
+            &self.session.effect_bounds, context, root_entry, endpoint, Some(self),
+        )?;
+        let [catch_path] = catch_paths.as_slice() else {
+            return Err(if catch_paths.is_empty() {
+                candidate_context::CurrentEmissionGap::MissingCommonEndpoint
+            } else { candidate_context::CurrentEmissionGap::AmbiguousPath });
+        };
+        let [entry_path] = entry_paths.as_slice() else {
+            return Err(if entry_paths.is_empty() {
+                candidate_context::CurrentEmissionGap::MissingCommonEndpoint
+            } else { candidate_context::CurrentEmissionGap::AmbiguousPath });
+        };
+        let first = entry_path.first().ok_or(candidate_context::CurrentEmissionGap::MissingCommonEndpoint)?;
+        let internal = self.current_internal_emission(first.id.0)?;
+        if internal.emission.id != first.id || internal.emission.admission_id != first.admission_id
+            || internal.emission.emission.physical != first.slot
+            || internal.emission.emission.bound != first.bound {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+        Ok(ProviderEntryCertificate {
+            internal,
+            catch_fact,
+            endpoint,
+            operation_view,
+            entry_path: entry_path.clone(),
+            catch_path: catch_path.clone(),
+        })
     }
     pub fn catch_occurrence(&self) -> &HirOccurrenceId {
         &self.schema.catch
