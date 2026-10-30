@@ -586,6 +586,30 @@ pub(super) struct BoundEmission {
     pub readback: PhysicalBoundReadback,
     previous_on_group: Option<BoundEmissionId>,
 }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum CurrentEmissionGap {
+    MissingInternalCertificate,
+    MissingEmission,
+    MissingAdmission,
+    AmbiguousPhysicalSlot,
+    BoundMismatch,
+    MissingRelation,
+    ForeignRelationPair,
+    MissingUseRoot,
+    AmbiguousUseRoot,
+    MissingUseAncestry,
+    WrongEntrySlot,
+    InvalidRelationReference,
+    SearchLimit,
+}
+#[derive(Clone, Copy, Debug)]
+pub(super) struct CheckedBoundEmission<'a> {
+    pub id: BoundEmissionId,
+    pub admission_id: BoundAdmissionId,
+    pub emission: &'a BoundEmission,
+    pub admission: &'a BoundAdmission,
+    pub use_root: RelationId,
+}
 #[derive(Clone, Copy, Debug)]
 struct BoundEvidenceGroup {
     admission_head: Option<BoundAdmissionId>, emission_head: Option<BoundEmissionId>,
@@ -2868,6 +2892,129 @@ impl State {
     // physical-emission rows separate.
     pub(super) fn observed_bound_admissions(&self) -> impl Iterator<Item = (usize, &BoundAdmission)> {
         self.evidence.admissions.iter().enumerate()
+    }
+    pub(super) fn observed_bound_emission(
+        &self, index: usize,
+    ) -> Option<(BoundEmissionId, &BoundEmission)> {
+        self.evidence.emissions.get(index).map(|emission| (BoundEmissionId(index), emission))
+    }
+    /// Verify one indexed emission against its unique admission and a caller's
+    /// fresh physical read. The caller must read the slot from the live row;
+    /// this method never treats the constructor-time readback as current.
+    pub(super) fn checked_emission_for_internal_use(
+        &self,
+        index: usize,
+        current: BoundKey,
+        entry_effect: u32,
+        use_occurrence: &ConstraintOccurrenceId,
+        use_pair: TypedPairKey,
+    ) -> Result<CheckedBoundEmission<'_>, CurrentEmissionGap> {
+        let (id, emission) = self.observed_bound_emission(index)
+            .ok_or(CurrentEmissionGap::MissingEmission)?;
+        let admission_id = emission.admission;
+        let admission = self.evidence.admissions.get(admission_id.0)
+            .ok_or(CurrentEmissionGap::MissingAdmission)?;
+        if emission.bound != admission.bound || emission.bound != emission.readback.bound
+            || emission.physical != emission.readback.slot || emission.bound != current {
+            return Err(CurrentEmissionGap::BoundMismatch);
+        }
+        if emission.physical.owner != candidate_scheme::RowKey::Effect(entry_effect)
+            || !matches!(emission.physical.lane,
+                BoundLane::EffectLowerRow | BoundLane::EffectLowerAtom)
+        {
+            return Err(CurrentEmissionGap::WrongEntrySlot);
+        }
+        if self.evidence.emissions.iter().filter(|candidate|
+            candidate.physical == emission.physical).count() != 1 {
+            return Err(CurrentEmissionGap::AmbiguousPhysicalSlot);
+        }
+        let relation = admission.relation.ok_or(CurrentEmissionGap::MissingRelation)?;
+        if self.relation_pair(relation) != Some(bound_pair(admission.bound)) {
+            return Err(CurrentEmissionGap::ForeignRelationPair);
+        }
+        let mut root_candidate = None;
+        for (origin_index, origin) in self.origins.iter().enumerate() {
+            if &origin.occurrence != use_occurrence
+                || self.relation_pair(origin.relation) != Some(use_pair) {
+                continue;
+            }
+            if root_candidate.replace((origin_index, origin)).is_some() {
+                return Err(CurrentEmissionGap::AmbiguousUseRoot);
+            }
+        }
+        let (origin_index, origin) = root_candidate.ok_or(CurrentEmissionGap::MissingUseRoot)?;
+        let receipt = origin.source_drain_receipt.as_ref()
+            .ok_or(CurrentEmissionGap::MissingUseRoot)?;
+        if !receipt.completed
+            || receipt.origin_index != origin_index
+            || receipt.created_seed != origin.relation
+            || receipt.selected_relation != origin.relation
+            || receipt.incoming_relation.is_some()
+            || receipt.replay_ack.is_some()
+            || receipt.cause.occurrence() != use_occurrence
+            || task_pair(receipt.task) != use_pair {
+            return Err(CurrentEmissionGap::MissingUseRoot);
+        }
+        let use_root = origin.relation;
+        self.require_relation_ancestry(relation, use_root)?;
+        Ok(CheckedBoundEmission { id, admission_id, emission, admission, use_root })
+    }
+    fn require_relation_ancestry(
+        &self, descendant: RelationId, ancestor: RelationId,
+    ) -> Result<(), CurrentEmissionGap> {
+        if self.relations.get(descendant.0 as usize).is_none()
+            || self.relations.get(ancestor.0 as usize).is_none() {
+            return Err(CurrentEmissionGap::InvalidRelationReference);
+        }
+        let limit = self.relations.len().min(candidate_source::SCOPED_WORK_LIMIT);
+        if self.relations.len() > candidate_source::SCOPED_WORK_LIMIT {
+            return Err(CurrentEmissionGap::SearchLimit);
+        }
+        let mut pending = Vec::new();
+        let mut seen = HashSet::new();
+        pending.try_reserve(limit).map_err(|_| CurrentEmissionGap::SearchLimit)?;
+        seen.try_reserve(limit).map_err(|_| CurrentEmissionGap::SearchLimit)?;
+        pending.push(descendant);
+        let mut visits = 0usize;
+        while let Some(child) = pending.pop() {
+            visits = visits.checked_add(1).ok_or(CurrentEmissionGap::SearchLimit)?;
+            if visits > candidate_source::SCOPED_WORK_LIMIT {
+                return Err(CurrentEmissionGap::SearchLimit);
+            }
+            if child == ancestor { return Ok(()); }
+            if !seen.insert(child) { continue; }
+            if self.relations.get(child.0 as usize).is_none() {
+                return Err(CurrentEmissionGap::InvalidRelationReference);
+            }
+            for dependency in &self.dependencies {
+                visits = visits.checked_add(1).ok_or(CurrentEmissionGap::SearchLimit)?;
+                if visits > candidate_source::SCOPED_WORK_LIMIT {
+                    return Err(CurrentEmissionGap::SearchLimit);
+                }
+                let parents: [Option<RelationId>; 2] = match *dependency {
+                    Dependency::Derived { child: edge_child, parent }
+                    | Dependency::FunctionPort { child: edge_child, parent, .. }
+                    | Dependency::TuplePort { child: edge_child, parent, .. }
+                    | Dependency::RecordPort { child: edge_child, parent, .. }
+                    | Dependency::VariantPort { child: edge_child, parent, .. }
+                    | Dependency::Transport { child: edge_child, parent, .. }
+                        if edge_child == child => [Some(parent), None],
+                    Dependency::Replay { child: edge_child, lower, upper, .. }
+                        if edge_child == child => [Some(lower), Some(upper)],
+                    _ => [None, None],
+                };
+                for parent in parents.into_iter().flatten() {
+                    if self.relations.get(parent.0 as usize).is_none() {
+                        return Err(CurrentEmissionGap::InvalidRelationReference);
+                    }
+                    if !seen.contains(&parent) {
+                        pending.try_reserve(1).map_err(|_| CurrentEmissionGap::SearchLimit)?;
+                        pending.push(parent);
+                    }
+                }
+            }
+        }
+        Err(CurrentEmissionGap::MissingUseAncestry)
     }
     pub(super) fn observed_bound_emissions_for_relation(
         &self, relation: RelationId,

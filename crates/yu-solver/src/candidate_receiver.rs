@@ -22,6 +22,12 @@ pub struct ReceivingResidualExperiment {
     outcomes: Vec<(EffectEndpointKey, ReceivingResidualOutcome)>,
     result_row: u32,
 }
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Debug)]
+pub(super) struct CurrentInternalEmission<'a> {
+    pub incidence: InternalFormalPermissionIncidence<'a>,
+    pub emission: candidate_context::CheckedBoundEmission<'a>,
+}
 impl ReceivingResidualExperiment {
     pub fn outcomes(&self) -> impl Iterator<Item = ReceivingResidualOutcome> + '_ {
         self.outcomes.iter().map(|(_, outcome)| *outcome)
@@ -42,6 +48,72 @@ impl ReceivingResidualExperiment {
         (incidence.target_owner == &self.schema.relay
             && incidence.receiving_owner == &self.schema.answer)
             .then_some(incidence)
+    }
+    /// Authenticate one retained emission against the same Internal use's
+    /// raw entry row and a fresh read of its addressed physical slot.
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "current emission evidence is provisional and has no consumer")]
+    pub(super) fn current_internal_emission(
+        &self,
+        index: usize,
+    ) -> Result<CurrentInternalEmission<'_>, candidate_context::CurrentEmissionGap> {
+        let [use_record] = self.session.batch.definition_uses() else {
+            return Err(candidate_context::CurrentEmissionGap::MissingInternalCertificate);
+        };
+        let incidence = self.session
+            .internal_formal_permission_incidence(use_record.id())
+            .ok_or(candidate_context::CurrentEmissionGap::MissingInternalCertificate)?;
+        if incidence.target_owner != &self.schema.relay
+            || incidence.receiving_owner != &self.schema.answer {
+            return Err(candidate_context::CurrentEmissionGap::MissingInternalCertificate);
+        }
+        let entry_effect = incidence.permission.entry_effect;
+        let state = &self.session.candidate_graph.as_ref()
+            .ok_or(candidate_context::CurrentEmissionGap::MissingInternalCertificate)?
+            .intrusion.effect_algebra.context;
+        let (_, emission) = state.observed_bound_emission(index)
+            .ok_or(candidate_context::CurrentEmissionGap::MissingEmission)?;
+        let physical = emission.physical;
+        if physical.owner != candidate_scheme::RowKey::Effect(entry_effect)
+            || !matches!(physical.lane,
+                candidate_context::BoundLane::EffectLowerRow
+                    | candidate_context::BoundLane::EffectLowerAtom)
+        {
+            return Err(candidate_context::CurrentEmissionGap::WrongEntrySlot);
+        }
+        let current = match (physical.owner, physical.lane) {
+            (candidate_scheme::RowKey::Effect(row), candidate_context::BoundLane::EffectLowerRow) => {
+                let item = *self.session.effect_bounds.get(row as usize)
+                    .and_then(|bounds| bounds.direct_lower_rows.get(physical.index))
+                    .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
+                crate::candidate_effect::BoundKey(
+                    ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(row)),
+                    Polarity::Positive,
+                    ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(item)),
+                )
+            }
+            (candidate_scheme::RowKey::Effect(row), candidate_context::BoundLane::EffectLowerAtom) => {
+                let item = *self.session.effect_bounds.get(row as usize)
+                    .and_then(|bounds| bounds.exact_non_variable_lowers.get(physical.index))
+                    .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
+                crate::candidate_effect::BoundKey(
+                    ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(row)),
+                    Polarity::Positive,
+                    ExtrusionEndpoint::Effect(item),
+                )
+            }
+            _ => return Err(candidate_context::CurrentEmissionGap::WrongEntrySlot),
+        };
+        let occurrence = ConstraintOccurrenceId::new(use_record.occurrence.clone(), 0);
+        let fact = incidence.internal_fact;
+        let root_pair = TypedPairKey::Value(CanonicalValuePairKey {
+            lower: self.session.value_endpoint(fact.lower(), Polarity::Positive),
+            upper: self.session.value_endpoint(fact.upper(), Polarity::Negative),
+        });
+        let emission = state.checked_emission_for_internal_use(
+            index, current, entry_effect, &occurrence, root_pair,
+        )?;
+        Ok(CurrentInternalEmission { incidence, emission })
     }
     pub fn catch_occurrence(&self) -> &HirOccurrenceId {
         &self.schema.catch
