@@ -246,6 +246,181 @@ impl SourcePermissionRowWitness {
     }
 }
 
+/// One source-owned direct use of an annotated callback formal. This is a
+/// planned source edge only: it records a resolved Name in callee position and
+/// the exact Apply which owns that edge. The R35 row witness is retained so
+/// the selected result row cannot be detached from its Lambda/formal owner.
+#[derive(Clone)]
+pub(super) struct SourceCallbackUseWitness {
+    pub(super) permission_rows: SourcePermissionRowWitness,
+    pub(super) selected_result_row: SourcePermissionEffectRow,
+    pub(super) lambda: SourceSite,
+    pub(super) formal: HirParameterId,
+    pub(super) formal_source: yu_syntax::SourceNodeKey,
+    pub(super) formal_range: Range<usize>,
+    pub(super) name: SourceSite,
+    pub(super) name_source: yu_syntax::SourceNodeKey,
+    pub(super) resolved_formal: HirParameterId,
+    pub(super) consumption: NameConsumption,
+    pub(super) apply: SourceSite,
+    pub(super) apply_source: yu_syntax::SourceNodeKey,
+}
+
+impl RuntimeProgram {
+    /// Derive every supported direct Name-as-callee Apply use for one selected
+/// Lambda. Only the root and Lambda occurrence are lookup keys; the formal,
+/// Name, Apply, source coordinates, classification, and R35 result row are
+/// reconstructed from this program's retained HIR snapshot. The callback's
+/// argument type remains general; compositional polarity selects the direct
+/// Function.result row without restricting the example's argument domain.
+    pub(super) fn source_callback_uses(
+        &self,
+        source_root: &SourceRootId,
+        lambda_occurrence: &HirOccurrenceId,
+    ) -> Option<Vec<SourceCallbackUseWitness>> {
+        let hir = &self._hir;
+        if !Arc::ptr_eq(&self.hir_snapshot_token.0, hir)
+            || !hir.owns_source_root(source_root)
+            || !hir.owns_occurrence(lambda_occurrence)
+        {
+            return None;
+        }
+        let source = hir.local_source_for(source_root).ok().flatten()?;
+        if source.source_root() != source_root {
+            return None;
+        }
+        let lambda_expression = source.expressions().iter()
+            .find(|expression| &expression.occurrence == lambda_occurrence)?;
+        if hir.occurrence_source_key(lambda_occurrence).ok().flatten()
+            != Some(&lambda_expression.source)
+        {
+            return None;
+        }
+        let LocalSourceForm::Lambda { parameter, .. } = &lambda_expression.form else {
+            return None;
+        };
+        if parameter.id.source_root() != source_root {
+            return None;
+        }
+        let annotation = parameter.annotation.as_ref()?;
+        if &annotation.owner != source_root
+            || annotation.ty.effects.is_some()
+            || !matches!(
+                &annotation.ty.value,
+                yu_hir::shadow::SourceAnnotationValue::Function { result, .. }
+                    if result.effects.is_some()
+            )
+        {
+            // An outer effect annotation is classified Execute by the existing
+            // source interface. R36 preserves Observe and does not reinterpret
+            // that classification as permission consumption.
+            return None;
+        }
+
+        let permission_rows = SourcePermissionRowWitness::from_lambda(
+            &self.hir_snapshot_token,
+            hir,
+            source_root,
+            lambda_occurrence,
+        )?;
+        if !permission_rows.authenticates(
+            &self.hir_snapshot_token,
+            hir,
+            source_root,
+            lambda_occurrence,
+        ) {
+            return None;
+        }
+        let mut selected_rows = permission_rows.effect_rows.iter().filter(|row| {
+            matches!(row.path.as_slice(), [SourceAnnotationTypePathStep::Result])
+                && row.polarity == SourceTypePolarity::Negative
+        });
+        let selected_result_row = selected_rows.next()?;
+        if selected_rows.next().is_some() {
+            return None;
+        }
+        let yu_hir::shadow::SourceAnnotationValue::Function { result, .. } = &annotation.ty.value else {
+            return None;
+        };
+        let source_row = result.effects.as_ref()?;
+        if selected_result_row.position != source_row.position
+            || selected_result_row.concrete != source_row.concrete
+            || selected_result_row.variables != source_row.variables
+        {
+            return None;
+        }
+
+        let mut apply_parent_counts = HashMap::<HirOccurrenceId, usize>::new();
+        for expression in source.expressions() {
+            let LocalSourceForm::Apply { callee, .. } = &expression.form else {
+                continue;
+            };
+            let callee_expression = source.expression(callee)?;
+            let count = apply_parent_counts.entry(callee_expression.occurrence.clone()).or_insert(0);
+            *count = count.checked_add(1)?;
+        }
+
+        let mut uses = Vec::new();
+        for apply_expression in source.expressions() {
+            let LocalSourceForm::Apply { callee, .. } = &apply_expression.form else {
+                continue;
+            };
+            let callee_expression = source.expression(callee)?;
+            let LocalSourceForm::Name {
+                resolution: LocalSourceResolution::Parameter(resolved_formal),
+                ..
+            } = &callee_expression.form else {
+                continue;
+            };
+            if resolved_formal != &parameter.id {
+                continue;
+            }
+
+            // A shared source Name index with multiple Apply parents has no
+            // unique source-use coordinate. Withhold the whole lookup instead
+            // of selecting whichever parent happens to appear first.
+            if apply_parent_counts.get(&callee_expression.occurrence) != Some(&1)
+                || !hir.owns_occurrence(&callee_expression.occurrence)
+                || !hir.owns_occurrence(&apply_expression.occurrence)
+                || hir.occurrence_source_key(&callee_expression.occurrence).ok().flatten()
+                    != Some(&callee_expression.source)
+                || hir.occurrence_source_key(&apply_expression.occurrence).ok().flatten()
+                    != Some(&apply_expression.source)
+            {
+                return None;
+            }
+            uses.try_reserve(1).ok()?;
+            uses.push(SourceCallbackUseWitness {
+                permission_rows: permission_rows.clone(),
+                selected_result_row: (*selected_result_row).clone(),
+                lambda: SourceSite {
+                    source_root: source_root.clone(),
+                    occurrence: lambda_expression.occurrence.clone(),
+                    range: lambda_expression.range.clone(),
+                },
+                formal: parameter.id.clone(),
+                formal_source: parameter.source.clone(),
+                formal_range: parameter.range.clone(),
+                name: SourceSite {
+                    source_root: source_root.clone(),
+                    occurrence: callee_expression.occurrence.clone(),
+                    range: callee_expression.range.clone(),
+                },
+                name_source: callee_expression.source.clone(),
+                resolved_formal: resolved_formal.clone(),
+                consumption: NameConsumption::Observe,
+                apply: SourceSite {
+                    source_root: source_root.clone(),
+                    occurrence: apply_expression.occurrence.clone(),
+                    range: apply_expression.range.clone(),
+                },
+                apply_source: apply_expression.source.clone(),
+            });
+        }
+        Some(uses)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub(super) struct RuntimeFieldTailKey {
     active_owner: SourceRootId,
