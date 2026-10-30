@@ -1,0 +1,76 @@
+{
+  "id": "R46-AUTHORS-TERMINAL-ARCHIVE-20261031",
+  "before_current_sha256": "3e26c9add4339c9695c67d6a153d644e23a45c21cead0153a324b152bb0a07e1",
+  "session": "EFFECT-PERMISSION-ENTRY-ARRIVAL/20261031-R46",
+  "workers": [
+    {
+      "id": "/root/r43_rust",
+      "role": "implementer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "EFFECT-PERMISSION-ENTRY-ARRIVAL/20261031-R46",
+      "budget_seconds": 1500,
+      "receipt": "R46 Rust frozen; no source edits; path necessity UNRESOLVED; handoff 5874c13e."
+    },
+    {
+      "id": "/root/r43_proof",
+      "role": "lean_prover",
+      "state": "RUNNING",
+      "requested_model": "configured",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "EFFECT-PERMISSION-ENTRY-ARRIVAL/20261031-R46",
+      "budget_seconds": 1400,
+      "receipt": "R46 constructive Lean lane launched after admission; exact handoff pending STOP."
+    }
+  ],
+  "leases": [
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "owner": "/root/r43_rust",
+      "state": "FROZEN",
+      "sha256": "f5bff0d8aa7a20551fb2c5ad60b7b2b41907f471a55068a9ec1ae61ceba02911"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_context.rs",
+      "owner": "/root/r43_rust",
+      "state": "FROZEN",
+      "sha256": "030fcb4b6571c0db8a670d12d8a67fe8fcf465484502fe5b11b6d057e8026c38"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-entry-arrival-r46-rust.md",
+      "owner": "/root/r43_rust",
+      "state": "FROZEN",
+      "sha256": "5874c13e7332037c1884e63c35966d5f237a9fa1bb09d4696084eb2a32b44831"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/InternalEntryArrivalR46.lean",
+      "owner": "/root/r43_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-entry-arrival-r46-proof.md",
+      "owner": "/root/r43_proof",
+      "state": "HELD"
+    }
+  ],
+  "frozen_artifacts": {
+    "rust_handoff": "5874c13e7332037c1884e63c35966d5f237a9fa1bb09d4696084eb2a32b44831",
+    "lean": "3429aef705d2c059c23c8ec0a33dd1e4a6dcb75c9461e90f4380df679146f3c3",
+    "proof_handoff": "f88845dfc5f7e62683e820546f3467c9ce598e786107f5ceee608025bcbf8bf7"
+  },
+  "pending_count_preserved": 32,
+  "pending_sha256_preserved": "bef094abbf707576147d5a9b5b9cdec9f2b2e313540f53b7f158e417c51ea510",
+  "unknown_quarantine_sha256_preserved": "3f5a79f3284da56d544dcfe43308c088493cf8a1e86f8a267b0cddc0e1cae058",
+  "roster_sync": {
+    "result": "Both R46 authors STOPPED; no author RUNNING/WAITING. R46 review now eligible.",
+    "worktree_count": 1,
+    "worktree": "/home/momota1029/rust/yulang",
+    "notifications": "No active R46 author remained to notify."
+  },
+  "disposition": "Archived only the two resolved terminal R46 author rows and their five frozen leases. All pending, UNKNOWN assignments, quarantined paths and their identities remain intact. No lease outside these two stopped R46 authors was removed."
+}
