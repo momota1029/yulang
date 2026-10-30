@@ -606,11 +606,11 @@
     "prior_sha256": "ff8a8d88e29533f2d207206f492f7ed811ce9d705692ede5e99f5d388080b51c",
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
-  "next_action": "R45 admitted; launch the exact Rust Internal-incidence and Lean proof lanes, then review frozen outputs.",
+  "next_action": "R45 bounded PASS and exact source/proof checkpoints pushed; consult dispatcher for next admitted type-theory step. Provider arrival, arrivalAtEntry meaning, Catch/residual and parent closure remain OPEN.",
   "intake_incident": "tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r30-intake-incident-r1.md#bc92edc6787b4f37a0da26506e753613e50cc3f16dd24f742c1ce10c776ae76f",
   "active_sprint": {
     "id": "EFFECT-PERMISSION-INTERNAL-INCIDENCE/20261031-R45",
-    "status": "REVIEWED_PASS_PENDING_SOURCE_CHECKPOINT",
+    "status": "REVIEWED_BOUNDED_PASS_PUSHED",
     "contract": "tasks/agent-loop/sprints/effect-permission-internal-incidence-20261031-r45.md",
     "contract_sha256": "c866a7ecc4c80df8b1345a89e6733650ddb334f35b7d3a79f4e825e134d2847a",
     "admission_receipt": "tasks/agent-loop/history/effect-permission-internal-incidence-20261031-r45-admission.md",
