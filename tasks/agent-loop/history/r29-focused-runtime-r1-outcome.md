@@ -1,7 +1,7 @@
 # R29 focused runtime R1 outcome
 
-Date: 2026-10-30 (JST)  
-Repository session: `R29-20261030`  
+Date: 2026-10-30 (JST)
+Repository session: `R29-20261030`
 Task alias: `R29-RUNTIME-FOCUSED-R1`
 
 ## Decision
