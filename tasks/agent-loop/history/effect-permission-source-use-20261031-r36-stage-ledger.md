@@ -7,7 +7,7 @@ Admission SHA-256: `c28d9b493d7a6e00bfd9d4f99ac46990e1bf246a70bd3ace9225021afa36
 
 | Stage | State | Evidence / boundary |
 | --- | --- | --- |
-| Contract and dependencies | ADMITTED | R36 contract and 15-file manifest pinned at baseline `1388bdc476e5dc0c0bb96532715c7280aa95b10e`. |
+| Contract and dependencies | ADMITTED; committed and pushed | Commit `177960fc8` (`docs: admit R36 callback source-use sprint`), parent `1388bdc476e5dc0c0bb96532715c7280aa95b10e`, pushed to `origin/yulang3`. R36 contract and 15-file manifest pinned at baseline. |
 | Rust construction | NOT_STARTED | Exact leases: `program.rs` and Rust handoff. No consumer-file access. |
 | Lean construction and audit | NOT_STARTED | Exact leases: `SourceCallbackUseR36.lean` and proof handoff; pinned Lean 4.35.0 stdin audit. |
 | Independent review | NOT_STARTED | Wait for both producer freezes; reviewer may write only review handoff. |
