@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "sprint": "EFFECT-PERMISSION-NATIVE-SNAPSHOT-OWNER/20261031-R34",
+  "revision": 1,
+  "baseline_head": "afd05a2aaec63890629d97a663a7aff54574075b",
+  "outcome_boundary": {
+    "r33": "CLOSED_INCOMPLETE / NATIVE_SNAPSHOT_OWNER_MISSING",
+    "r33_outcome_sha256": "e08958ea2dc101948c2632fde7ce68ba90ba87fe50008971d184034297865f7b",
+    "r33_stage_ledger_sha256": "f3328330ce98cfd5cf809837b78bca49141cc9affe15eb8be81470671db43663",
+    "r33_review_sha256": "6413a347f4593ed61d9154331a54e5a3186b91161598c09152ec652e9d6044a8"
+  },
+  "r33_conditional_translation": {
+    "module_sha256": "9d138f84ede8c38161195fad4a324d9f164a72632dcfa575b5a5197d2685a436",
+    "proof_handoff_sha256": "b2837f9f2b7aa7dbb5e735103d8d9c8234be290c1dcdeaa8c74f0407604b0884",
+    "rust_proposal_sha256": "1d31e7888974eceed85ef65439e48d98bda531a5153477ba77ac184ef22e83d1",
+    "rust_handoff_sha256": "2225b717a0a9dc2607cd9380b9273ba516d3354cd683091cdb5811e88d96a391",
+    "review_intake_sha256": "6413a347f4593ed61d9154331a54e5a3186b91161598c09152ec652e9d6044a8",
+    "contract_sha256": "77ea1171f71415e889d7391bfac042d3e44f6bd5b1bc1b5e094a5186f0c3aaca",
+    "manifest_sha256": "85d4b904897d911a9b6bc379d1369747a79698756a148573867e7eb72c2a8cc0",
+    "r32_prefix_sha256": "bf2908ae347814c71ddc32ffae0f64a62103b855d96655a47aa1b9db0dc9690c",
+    "r32_prefix_bytes": 48478
+  },
+  "source_owner_baseline": {
+    "path": "tools/inference-playground/src/runtime/program.rs",
+    "sha256": "6607c4371366739c0e593b29a5da96becbb0bd743b2618a3755653f1b0ac3907",
+    "hir_module_path": "crates/yu-hir/src/module.rs",
+    "hir_module_sha256": "6bf92c93fa37f425a7380248c12c50c0d04ea6eb282e76edb6df54e628260646",
+    "observed_owner": "RuntimeProgram::_hir: Arc<HirModule>; from_hir_with_roots receives and stores the same Arc before returning Arc<RuntimeProgram>"
+  },
+  "lean_environment": {
+    "toolchain_sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "lakefile_sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4",
+    "lake_manifest_sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+    "pinned_version": "Lean 4.35.0",
+    "execution": "stdin, read-only bwrap; no Lake/build/cache"
+  },
+  "authority_sha256": {
+    "AGENTS.md": "4a6c910e12adb8f5ccc07b0921f2cc781ea7044994f99425d3c54c4e75837d3c",
+    "rules/goal-driven-sprints.md": "f2e01e3c33dc13d6c5cb77a66e7c5f0de15f08669f5a47fef0d6cb5c914da3a5",
+    "notes/design/2026-10-16-goal-driven-sprints.md": "2dfeb555c913d3142078de535ee4b7f68e9a27f2b91a5f0bb82d4d867db4fc4e",
+    ".agents/skills/yulang-sprint/SKILL.md": "b6f4a50703928020607edebe1c8b138fb98a0378220f00b7c190dba9fc068515",
+    ".agents/skills/yulang-lean-proofs/SKILL.md": "05346b8c6e3d9cdd1715da1774bb26cf7bce313233782240b3493bd9ee8754a7"
+  },
+  "source_quarantine": {
+    "tools/inference-playground/src/runtime/machine.rs": "UNKNOWN_WRITER; QUARANTINED; no access",
+    "tools/inference-playground/src/runtime/receiving.rs": "UNKNOWN_WRITER; QUARANTINED; no access"
+  },
+  "resource_envelope_seconds": {
+    "total": 6000,
+    "rust": 1600,
+    "lean": 1600,
+    "review": 1200,
+    "luna_including_closeout_reserve": 1600,
+    "astra": 0
+  },
+  "storage_constraints": [
+    "existing checkout only",
+    "no worktree/project copy/environment",
+    "no Cargo/Lake/build/test/target/cache/scratch/extraction",
+    "no writes or reads under quarantined runtime paths"
+  ],
+  "r30_archive": {
+    "archive_sha256": "5c3c991dec9e54ad3e2665a1c722a0abf2d80a9efe719664606824558351a790",
+    "members": {
+      "machine.rs": "b74c8345e6e07155f482440bb9299b5fc12763accb666ca8f543156dd4a87425",
+      "receiving.rs": "55b468cda3c3cf8180647a6429da28fc70badf7a371bf1b327539c8556b9b0f2"
+    },
+    "usage": "Only pinned archive, streamed; no extraction. Owner definition is absent there; quarantined live files remain inaccessible."
+  }
+}

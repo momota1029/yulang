@@ -18,6 +18,7 @@ use super::dispatch;
 /// expression and reference once; recursive references remain binder references.
 pub struct RuntimeProgram {
     pub(super) _hir: Arc<HirModule>,
+    hir_snapshot_token: HirSnapshotToken,
     pub(super) code: Vec<Arc<Code>>,
     pub(super) definitions: Vec<Definition>,
     pub(super) definition_indices: HashMap<DefId, usize>,
@@ -30,6 +31,18 @@ pub struct RuntimeProgram {
     pub(super) dictionaries: Option<HashMap<(Vec<dispatch::Step>, dispatch::Site), Label>>,
     pub(super) dictionary_names: HashSet<dispatch::Site>,
     pub(super) operator_bodies: HashMap<RuntimeOperatorUseKey, Label>,
+}
+
+/// Opaque capability for the exact immutable HIR allocation retained by a
+/// RuntimeProgram. Clones keep the owner alive; equality never inspects HIR
+/// structure or derives identity from source presentation.
+#[derive(Clone)]
+pub(super) struct HirSnapshotToken(Arc<HirModule>);
+
+impl HirSnapshotToken {
+    pub(super) fn identifies_same_snapshot(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -314,6 +327,12 @@ pub(super) enum Instruction {
 }
 
 impl RuntimeProgram {
+    /// Return an owner-issued capability for binding source-relative
+    /// coordinates to this program's exact retained HIR allocation.
+    pub(super) fn hir_snapshot_token(&self) -> HirSnapshotToken {
+        self.hir_snapshot_token.clone()
+    }
+
     /// Build runtime member/operator roots from the same successful candidate
     /// world that selected their source identities. Runtime value shapes and
     /// member spellings are never implementation-selection inputs.
@@ -1251,7 +1270,8 @@ impl RuntimeProgram {
             Some(dictionaries)
         } else { None };
         let mut program = Self {
-            _hir: hir,
+            _hir: Arc::clone(&hir),
+            hir_snapshot_token: HirSnapshotToken(Arc::clone(&hir)),
             code,
             definitions,
             definition_indices,

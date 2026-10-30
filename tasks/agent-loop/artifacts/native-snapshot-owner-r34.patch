@@ -1,0 +1,92 @@
+# R34 source change applied only to program.rs; this section is the exact
+# owner-token diff. No quarantined source file was read, modified, or applied.
+diff --git a/tools/inference-playground/src/runtime/program.rs b/tools/inference-playground/src/runtime/program.rs
+index f709194b6..40d8025ca 100644
+--- a/tools/inference-playground/src/runtime/program.rs
++++ b/tools/inference-playground/src/runtime/program.rs
+@@ -18,6 +18,7 @@ use super::dispatch;
+ /// expression and reference once; recursive references remain binder references.
+ pub struct RuntimeProgram {
+     pub(super) _hir: Arc<HirModule>,
++    hir_snapshot_token: HirSnapshotToken,
+     pub(super) code: Vec<Arc<Code>>,
+     pub(super) definitions: Vec<Definition>,
+     pub(super) definition_indices: HashMap<DefId, usize>,
+@@ -32,6 +33,18 @@ pub struct RuntimeProgram {
+     pub(super) operator_bodies: HashMap<RuntimeOperatorUseKey, Label>,
+ }
+ 
++/// Opaque capability for the exact immutable HIR allocation retained by a
++/// RuntimeProgram. Clones keep the owner alive; equality never inspects HIR
++/// structure or derives identity from source presentation.
++#[derive(Clone)]
++pub(super) struct HirSnapshotToken(Arc<HirModule>);
++
++impl HirSnapshotToken {
++    pub(super) fn identifies_same_snapshot(&self, other: &Self) -> bool {
++        Arc::ptr_eq(&self.0, &other.0)
++    }
++}
++
+ #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+ pub(super) struct RuntimeFieldTailKey {
+     active_owner: SourceRootId,
+@@ -314,6 +327,12 @@ pub(super) enum Instruction {
+ }
+ 
+ impl RuntimeProgram {
++    /// Return an owner-issued capability for binding source-relative
++    /// coordinates to this program's exact retained HIR allocation.
++    pub(super) fn hir_snapshot_token(&self) -> HirSnapshotToken {
++        self.hir_snapshot_token.clone()
++    }
++
+     /// Build runtime member/operator roots from the same successful candidate
+     /// world that selected their source identities. Runtime value shapes and
+     /// member spellings are never implementation-selection inputs.
+@@ -1251,7 +1270,8 @@ impl RuntimeProgram {
+             Some(dictionaries)
+         } else { None };
+         let mut program = Self {
+-            _hir: hir,
++            _hir: Arc::clone(&hir),
++            hir_snapshot_token: HirSnapshotToken(Arc::clone(&hir)),
+             code,
+             definitions,
+             definition_indices,
+
+# FUTURE QUARANTINED-CONSUMER INTEGRATION PROPOSAL — DO NOT APPLY
+#
+# The following is a design seam only, based on the R30 archive members pinned
+# by R34. `machine.rs` and `receiving.rs` are UNKNOWN_WRITER/quarantined and
+# were not read from the live checkout. The archive is streamed source evidence,
+# not permission to edit those paths.
+#
+# Add `snapshot: HirSnapshotToken` to the test-only request-consumer,
+# selected-installation, and callback-route evidence records. In
+# `Machine::propagate_request`, obtain one token from
+# `self.program.hir_snapshot_token()`, clone it into both selected-installation
+# and request-consumer records, and pass a clone into
+# `Receiving::callback_route_for_request`. Store that received token on each
+# `CallbackRouteEvidence` produced for the request. Immediately before
+# `callback_route_json` translates any HIR-relative coordinate, require
+# `machine.program.hir_snapshot_token().identifies_same_snapshot(&consumer.snapshot)`,
+# and require the selected-installation and callback-route tokens to match the
+# same owner token. A mismatch returns a typed foreign-snapshot error before
+# indexing the HIR declaration list.
+#
+# Replace the existing `expect`-based family/operation lookup in the future
+# serializer integration with checked lookups: absent effect family,
+# out-of-range effect index, absent operation, and out-of-range operation index
+# all fail closed. Decode the entire permission-family vector with a fallible
+# traversal that preserves order and length; any failed member rejects the
+# whole row. Compare the decoded operations/families structurally with their
+# R32 keys before applying coverage/round-trip facts.
+#
+# The opaque Rust capability intentionally has no Debug, numeric, spelling,
+# or JSON representation here. This proposal shows owner attachment/checking
+# at the Rust evidence boundary; transporting an authenticated owner capability
+# to an offline certificate/Lean consumer requires a separately reviewed
+# representation and remains OPEN. `selected_arm` remains a typed
+# SourceNodeKey internally, while its existing Debug serialization is lossy and
+# must not be treated as an arm identity.
