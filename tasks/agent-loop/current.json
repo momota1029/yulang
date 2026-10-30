@@ -611,8 +611,9 @@
     "id": "EFFECT-PERMISSION-NATIVE-INCIDENCE/20261031-R42",
     "status": "CLOSED_BOUNDED_PASS",
     "outcome": "tasks/agent-loop/history/effect-permission-native-incidence-20261031-r42-outcome.md",
-    "outcome_sha256": "dd59a16c20a7dd409a9901b763c2c76cf25b6031f2c0b039dd4ca687a1596927",
-    "checkpoint_commit": "pending exact reviewed-path commit and push"
+    "outcome_sha256": "784b45b73da9dbf0aff4e23d9b190b4f263070d9efeb56e037846eb453bf9a9f",
+    "checkpoint_commit": "2182b07fbc7aa92c725634a78e0b2db3252e49e5",
+    "push": "origin/yulang3; outbound range one commit; push succeeded"
   },
   "active_sprint": {
     "id": "EFFECT-PERMISSION-NATIVE-INCIDENCE/20261031-R42",
@@ -622,10 +623,12 @@
     "admission_receipt": "tasks/agent-loop/history/effect-permission-native-incidence-20261031-r42-admission.md",
     "admission_receipt_sha256": "85c15900ca324ad41fc8430a3fe101b6fc4883e6df6f3c4ed67c2f9a17a8c213",
     "budget_seconds": 4200,
-    "pushed": false,
+    "pushed": true,
     "outcome": "tasks/agent-loop/history/effect-permission-native-incidence-20261031-r42-outcome.md",
-    "outcome_sha256": "dd59a16c20a7dd409a9901b763c2c76cf25b6031f2c0b039dd4ca687a1596927",
+    "outcome_sha256": "784b45b73da9dbf0aff4e23d9b190b4f263070d9efeb56e037846eb453bf9a9f",
     "review": "tasks/agent-loop/inbox/effect-permission-native-incidence-r42-review.md",
-    "review_sha256": "2bd380bc54c00674ca693d2058d11bddb471862d625215771aa444246aeec146"
+    "review_sha256": "2bd380bc54c00674ca693d2058d11bddb471862d625215771aa444246aeec146",
+    "checkpoint_commit": "2182b07fbc7aa92c725634a78e0b2db3252e49e5",
+    "push": "origin/yulang3; outbound range one commit; push succeeded"
   }
 }
