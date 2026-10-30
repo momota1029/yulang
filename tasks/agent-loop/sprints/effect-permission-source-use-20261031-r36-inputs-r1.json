@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "id": "EFFECT-PERMISSION-SOURCE-USE/20261031-R36",
+  "contract": "tasks/agent-loop/sprints/effect-permission-source-use-20261031-r36.md",
+  "contract_sha256": "c471c7dd5d8ef2515022f4665f1ef2151577141a3f0942ea107489ecd86c5ac0",
+  "baseline": {
+    "branch": "yulang3",
+    "commit": "1388bdc476e5dc0c0bb96532715c7280aa95b10e"
+  },
+  "resources_seconds": {
+    "total": 6000,
+    "rust": 1600,
+    "lean": 1600,
+    "review": 1200,
+    "luna_primary": 1600,
+    "luna_closeout_included": 500,
+    "astra": 0
+  },
+  "toolchain": {
+    "lean": "Lean 4.35.0",
+    "audit": "pinned stdin under read-only bwrap; no build"
+  },
+  "constraints": [
+    "existing checkout only",
+    "no worktree/copy/environment/build/test/target/cache/extraction/scratch",
+    "quarantined machine.rs and receiving.rs excluded from reads and writes",
+    "no change to Instruction::Apply; source-side planned-use witness only",
+    "no source-to-Grant/runtime/whole-language closure claim"
+  ],
+  "inputs": [
+    {
+      "path": "notes/design/2026-10-10-annotation-effect-hygiene-integration.md",
+      "sha256": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/program.rs",
+      "sha256": "9565c6e3cd8abfdb6386a7a224e5ea31acd2e9dd5ce4b8891ded04e451f4c436"
+    },
+    {
+      "path": "crates/yu-hir/src/module/local_source.rs",
+      "sha256": "7055975d582dfb198836c2aa659f8b8033c29dff419d522feea4fea4c42523d1"
+    },
+    {
+      "path": "crates/yu-hir/src/module.rs",
+      "sha256": "6bf92c93fa37f425a7380248c12c50c0d04ea6eb282e76edb6df54e628260646"
+    },
+    {
+      "path": "crates/yu-hir/src/module/source_annotation.rs",
+      "sha256": "409ce491bc216c6963bf76d20810790aa2756edf260ecc35e76d5cfc05d24b3f"
+    },
+    {
+      "path": "crates/yu-syntax/src/full_parse.rs",
+      "sha256": "dd92603f8f5549b8b3f6e45ab6cb39b6598480b7f1cda7897e27b5113107db93"
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "notes/theory/lean/lakefile.toml",
+      "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceCallbackPermissionR35.lean",
+      "sha256": "f4d6c85dc12d9e5b9f58a6635c76ee49fba85ff732b5538f9924e1ab052dbcc9"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeSnapshotOwnerR34.lean",
+      "sha256": "24ca25828e1a58f9c3246e5f50f2c73ba8ead6d2d003d05c8c2a8a3d2e85795a"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeCallbackGrantBridgeR32.lean",
+      "sha256": "bf2908ae347814c71ddc32ffae0f64a62103b855d96655a47aa1b9db0dc9690c"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeCallbackGrantBridgeR31.lean",
+      "sha256": "a0a8b53e1f73ed44e92ee01b3e87531d310775af0804999d30d6fbb0a68e378d"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeCallbackCoordinatesR33.lean",
+      "sha256": "9d138f84ede8c38161195fad4a324d9f164a72632dcfa575b5a5197d2685a436"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-row-r35-review.md",
+      "sha256": "be35e52cc70cb62fd8860d0429418c910421025081feaf761ad21b5dd28331ae"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-source-row-20261031-r35-outcome.md",
+      "sha256": "c27dab6505a2dfdeebe7c140b0c836affc884ebe56f9850505270338533781ab"
+    }
+  ],
+  "outputs": {
+    "rust": [
+      "tools/inference-playground/src/runtime/program.rs",
+      "tasks/agent-loop/inbox/effect-permission-source-use-r36-rust.md"
+    ],
+    "proof": [
+      "notes/theory/lean/YulangClosure/SourceCallbackUseR36.lean",
+      "tasks/agent-loop/inbox/effect-permission-source-use-r36-proof.md"
+    ],
+    "review": [
+      "tasks/agent-loop/inbox/effect-permission-source-use-r36-review.md"
+    ],
+    "primary": [
+      "tasks/agent-loop/sprints/effect-permission-source-use-20261031-r36-inputs-r1.json",
+      "tasks/agent-loop/history/effect-permission-source-use-20261031-r36-admission.md",
+      "tasks/agent-loop/history/effect-permission-source-use-20261031-r36-stage-ledger.md",
+      "tasks/agent-loop/history/effect-permission-source-use-20261031-r36-outcome.md",
+      "tasks/agent-loop/current.json"
+    ]
+  }
+}
