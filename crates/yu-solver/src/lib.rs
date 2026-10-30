@@ -11588,6 +11588,12 @@ impl InferenceSession {
             Polarity::Positive,
             self.live_components[recipe.body_effect_component].ordinal,
         )?;
+        #[cfg(feature = "shadow-apply-candidate")]
+        let registration = recipe.formal_registration.filter(|index| {
+            self.candidate_graph_enabled()
+                && self.batch.candidate_calls.formals.get(*index)
+                    .is_some_and(|formal| formal.role == candidate_call::FormalRole::Computation)
+        });
         let (argument_effect, return_effect) = if self.candidate_graph_enabled() {
             let level = self.value_levels[parameter as usize];
             #[cfg(feature = "shadow-apply-candidate")]
@@ -11687,6 +11693,21 @@ impl InferenceSession {
             (empty, body_effect)
         };
         let function = self.positive_function_term(argument, argument_effect, return_effect, result)?;
+        #[cfg(feature = "shadow-apply-candidate")]
+        if let Some(registration) = registration {
+            let entry = match self.store.term_view(argument_effect).map_err(|_| exhausted())? {
+                TermView::LiveVariable(view) if view.kind() == ComponentKind::Effect
+                    && view.polarity() == Polarity::Negative => view.ordinal(),
+                _ => return Err(SolveAvailabilityError::ReceiptMismatch),
+            };
+            self.candidate_graph
+                .as_mut()
+                .ok_or_else(exhausted)?
+                .intrusion
+                .effect_algebra
+                .context
+                .retain_lambda_argument_effect(registration, &recipe.occurrence, function, entry)?;
+        }
         let root = self.batch.component_term_at(recipe.root_component);
         let id = ConstraintOccurrenceId::new(recipe.occurrence.clone(), 2);
         let occurrence = ConstraintOccurrence {

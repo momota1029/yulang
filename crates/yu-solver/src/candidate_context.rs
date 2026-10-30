@@ -232,6 +232,16 @@ pub(super) struct InferredEntryOrigin {
     pub occurrence: ConstraintOccurrenceId,
     pub cause: CauseId,
 }
+/// Passive constructor provenance for a computation formal. Registration is
+/// the original source vector index; the Function term is the exact value
+/// built by its Lambda before capture or canonical-row comparison.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct LambdaArgumentEffectOrigin {
+    pub registration: usize,
+    pub lambda: HirOccurrenceId,
+    pub function: Term,
+    pub entry: EffectEndpointKey,
+}
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) struct EntryCertificateId(u32);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -935,6 +945,7 @@ pub(super) struct State {
     source_support_failure: Option<SourceSupportFailure>,
     evidence: BoundEvidence,
     pub inferred_entries: Vec<InferredEntryOrigin>,
+    pub lambda_argument_effects: Vec<LambdaArgumentEffectOrigin>,
     pub bundles: Vec<AttachmentBundle>,
     bundle_bytes: usize,
     source_bundles: HashMap<ConstraintOccurrenceId, AttachmentBundleId>,
@@ -1003,6 +1014,7 @@ pub(super) struct Checkpoint {
     source_support_undo: usize,
     evidence: EvidenceCheckpoint,
     inferred_entries: usize,
+    lambda_argument_effects: usize,
     bundles: usize,
     source_bundles: usize,
     bundle_incidence: usize,
@@ -1547,6 +1559,17 @@ impl State {
         Ok(id)
     }
 
+    pub(super) fn retain_lambda_argument_effect(
+        &mut self, registration: usize, lambda: &HirOccurrenceId, function: Term, entry: u32,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.lambda_argument_effects.try_reserve(1).map_err(|_| exhausted())?;
+        self.lambda_argument_effects.push(LambdaArgumentEffectOrigin {
+            registration, lambda: lambda.clone(), function,
+            entry: EffectEndpointKey::EffectRow(entry),
+        });
+        Ok(())
+    }
+
     // Detached per-use construction rename. Substitutions and the reusable map
     // belong to the caller's scratch lease; only traversal/journal storage is
     // charged here. Reuse the map only with unchanged substitutions and retained
@@ -2049,6 +2072,7 @@ impl State {
             source_support_undo: self.source_support_undo.len(),
             evidence: self.evidence.checkpoint(),
             inferred_entries: self.inferred_entries.len(),
+            lambda_argument_effects: self.lambda_argument_effects.len(),
             bundles: self.bundles.len(),
             source_bundles: self.source_bundle_log.len(),
             bundle_incidence: self.bundle_incidence_log.len(),
@@ -2115,6 +2139,7 @@ impl State {
         self.next_replay_operation = checkpoint.next_replay_operation;
         self.evidence.rollback(checkpoint.evidence);
         self.inferred_entries.truncate(checkpoint.inferred_entries);
+        self.lambda_argument_effects.truncate(checkpoint.lambda_argument_effects);
         for bundle in self.bundles.drain(checkpoint.bundles..) {
             self.bundle_bytes -= bundle.sets.capacity() * std::mem::size_of::<EmptyAttachmentSet>();
         }
@@ -2470,6 +2495,7 @@ impl State {
             Some(self.replay_operation_bytes()?),
             Some(self.evidence.bytes()?),
             self.inferred_entries.capacity().checked_mul(std::mem::size_of::<InferredEntryOrigin>()),
+            self.lambda_argument_effects.capacity().checked_mul(std::mem::size_of::<LambdaArgumentEffectOrigin>()),
             Some(self.bundle_bytes),
             self.bundles.capacity().checked_mul(std::mem::size_of::<AttachmentBundle>()),
             self.source_bundles.capacity().checked_mul(std::mem::size_of::<(ConstraintOccurrenceId, AttachmentBundleId)>()),
@@ -2586,6 +2612,7 @@ impl State {
                     + frame.variant.as_ref().map_or(0, |variant| variant.children.capacity() * std::mem::size_of::<(usize, usize, usize, TypedPairKey)>())
                     + frame.record.as_ref().map_or(0, |record| record.children.capacity() * std::mem::size_of::<(usize, usize, TypedPairKey)>())).sum::<usize>()
             + self.inferred_entries.capacity() * std::mem::size_of::<InferredEntryOrigin>()
+            + self.lambda_argument_effects.capacity() * std::mem::size_of::<LambdaArgumentEffectOrigin>()
             + self.bundles.capacity() * std::mem::size_of::<AttachmentBundle>()
             + self.bundles.iter().map(|bundle| bundle.sets.capacity() * std::mem::size_of::<EmptyAttachmentSet>()).sum::<usize>()
             + self.source_bundles.capacity() * std::mem::size_of::<(ConstraintOccurrenceId, AttachmentBundleId)>()

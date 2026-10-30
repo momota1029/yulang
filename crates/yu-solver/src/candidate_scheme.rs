@@ -195,6 +195,10 @@ pub(super) struct Graph {
     pub record_fields: Vec<RecordField<usize>>,
     pub variant_alternatives: Vec<VariantAlternative<usize>>,
     pub rows: Vec<Row>,
+    /// Exact computation-formal registration labels attached to the Function
+    /// node constructed for their Lambda. The child coordinates are structural
+    /// graph indexes; no row identity is inferred from canonical equality.
+    pub lambda_argument_effects: Vec<LambdaArgumentEffectCapture>,
     /// Each prerequisite points at a row already present in this provider graph.
     pub source_role_obligations: Vec<SourceRoleObligation>,
     pub source_field_tail_obligations: Vec<SourceFieldTailObligation>,
@@ -212,6 +216,27 @@ pub(super) struct Graph {
     pub capture_effect_frontiers: Vec<CaptureEffectFrontierObservation>,
     #[cfg(test)]
     pub capture_forest: candidate_intrusion::ForestSnapshot,
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct LambdaArgumentEffectCapture {
+    pub registration: usize,
+    pub lambda: HirOccurrenceId,
+    pub function_node: usize,
+    pub argument_effect_child_index: usize,
+    pub argument_effect_child_node: usize,
+    pub argument_effect_row: usize,
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct LambdaArgumentEffectFreshUse {
+    pub registration: usize,
+    pub lambda: HirOccurrenceId,
+    pub function_node: usize,
+    pub argument_effect_child_index: usize,
+    pub argument_effect_child_node: usize,
+    pub argument_effect_graph_row: usize,
+    pub mapped_argument_effect_row: RowKey,
 }
 
 #[derive(Clone, Debug)]
@@ -464,6 +489,7 @@ pub(super) struct RetainedFreshUseMaps {
     evidence_remap: Vec<candidate_context::EvidenceSnapshotId>,
     source_role_obligation_rows: Vec<(usize, usize)>,
     source_field_tail_obligation_rows: Vec<(usize, [usize; 4])>,
+    lambda_argument_effects: Vec<LambdaArgumentEffectFreshUse>,
     #[cfg(test)]
     row_observations: Vec<ReconstructedRowObservation>,
 }
@@ -479,6 +505,7 @@ impl RetainedFreshUseMaps {
         observe("evidence_remap", &self.evidence_remap);
         observe("source_role_obligation_rows", &self.source_role_obligation_rows);
         observe("source_field_tail_obligation_rows", &self.source_field_tail_obligation_rows);
+        observe("lambda_argument_effects", &self.lambda_argument_effects);
     }
     pub(super) fn observe_map_entries(
         &self,
@@ -557,6 +584,7 @@ impl RetainedFreshUseMaps {
             bytes::<candidate_context::EvidenceSnapshotId>(self.evidence_remap.capacity())?,
             bytes::<(usize, usize)>(self.source_role_obligation_rows.capacity())?,
             bytes::<(usize, [usize; 4])>(self.source_field_tail_obligation_rows.capacity())?,
+            bytes::<LambdaArgumentEffectFreshUse>(self.lambda_argument_effects.capacity())?,
             #[cfg(test)]
             bytes::<ReconstructedRowObservation>(self.row_observations.capacity())?,
         ])
@@ -598,6 +626,7 @@ pub(super) struct FreshUse {
     source_role_obligation_rows: Vec<(usize, usize)>,
     /// (FieldTail obligation ordinal, receiver/value-effect and result/value-effect graph rows).
     pub(super) source_field_tail_obligation_rows: Vec<(usize, [usize; 4])>,
+    lambda_argument_effects: Vec<LambdaArgumentEffectFreshUse>,
     terms: Vec<Option<Term>>,
     effect_operands: HashMap<usize, EffectEndpointKey>,
     bundle_remap: HashMap<candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId>,
@@ -613,6 +642,7 @@ impl FreshUse {
         sum(&[self.scope_remap.bytes()?, bytes::<(candidate_context::RelationId, candidate_context::ScopedFlow)>(self.scoped_relations.capacity())?, bytes::<RowKey>(self.rows.capacity())?, bytes::<Option<Term>>(self.terms.capacity())?,
             bytes::<(usize, usize)>(self.source_role_obligation_rows.capacity())?,
             bytes::<(usize, [usize; 4])>(self.source_field_tail_obligation_rows.capacity())?,
+            bytes::<LambdaArgumentEffectFreshUse>(self.lambda_argument_effects.capacity())?,
             bytes::<(usize, EffectEndpointKey)>(self.effect_operands.capacity())?,
             bytes::<(candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId)>(self.bundle_remap.capacity())?,
             bytes::<(candidate_context::ContextId, candidate_context::ContextId)>(self.context_remap.capacity())?,
@@ -624,6 +654,7 @@ impl FreshUse {
         let FreshUse { scope_remap, scoped_relations, context_use, rows, terms,
             source_role_obligation_rows,
             source_field_tail_obligation_rows,
+            lambda_argument_effects,
             effect_operands, bundle_remap, context_remap, evidence_remap,
             #[cfg(test)] row_observations,
         } = self;
@@ -631,6 +662,7 @@ impl FreshUse {
             terms, effect_operands, bundle_remap, context_remap, evidence_remap,
             source_role_obligation_rows,
             source_field_tail_obligation_rows,
+            lambda_argument_effects,
             #[cfg(test)] row_observations,
         })
     }
@@ -1157,6 +1189,7 @@ impl Graph {
                     alternative.payloads.len().checked_mul(std::mem::size_of::<usize>())?)).ok_or_else(exhausted))?,
             self.record_fields.iter().try_fold(0usize, |n, field| n.checked_add(field.name.len()).ok_or_else(exhausted))?,
             bytes::<Row>(self.rows.capacity())?,
+            bytes::<LambdaArgumentEffectCapture>(self.lambda_argument_effects.capacity())?,
             bytes::<SourceRoleObligation>(self.source_role_obligations.capacity())?,
             bytes::<SourceFieldTailObligation>(self.source_field_tail_obligations.capacity())?,
             self.source_role_obligations.iter().try_fold(0usize, |total, obligation| sum(&[
@@ -2602,6 +2635,7 @@ impl InferenceSession {
                 source_frontier, owned_regions, negative_formal_roots: HashMap::new(),
                 nodes: Vec::new(), tuple_children: Vec::new(), record_fields: Vec::new(), variant_alternatives: Vec::new(),
                 rows: Vec::new(),
+                lambda_argument_effects: Vec::new(),
                 source_role_obligations: retained_obligations,
                 source_field_tail_obligations: retained_field_tails,
                 bounds: Vec::new(),
@@ -2766,6 +2800,40 @@ impl InferenceSession {
         }
         if extra_roots.iter().any(|key| !capture.graph.rows.iter().any(|row| row.key == *key)) {
             return Err(SolveAvailabilityError::ReceiptMismatch);
+        }
+        // Registration labels enter the captured graph only through the exact
+        // positive Function term retained by the Lambda constructor, including
+        // computation formals whose entry is not separately forced. Its
+        // argument-effect edge is then read structurally at child index 1.
+        let entry_origins = &capture.session.candidate_graph.as_ref().ok_or_else(exhausted)?
+            .intrusion.effect_algebra.context.lambda_argument_effects;
+        for origin in entry_origins {
+            let registration = origin.registration;
+            let function = origin.function;
+            let Some(&function_node) = capture.endpoints.get(&Endpoint::Value(
+                ValueEndpointKey::PositiveFunction(function), Polarity::Positive)) else { continue; };
+            let Some(Node::Function { children, .. }) = capture.graph.nodes.get(function_node) else {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            };
+            let argument_effect_child = children[1];
+            let Some(Node::Row { row: argument_effect_row, .. }) = capture.graph.nodes.get(argument_effect_child) else {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            };
+            let Some(RowKey::Effect(entry_row)) = (match origin.entry {
+                EffectEndpointKey::EffectRow(row) => Some(RowKey::Effect(row)),
+                _ => None,
+            }) else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+            let expected = capture.session.candidate_graph.as_ref().ok_or_else(exhausted)?
+                .intrusion.rep(RowKey::Effect(entry_row));
+            if capture.graph.rows.get(*argument_effect_row).map(|row| row.key) != Some(expected) {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            }
+            push(&mut capture.graph.lambda_argument_effects, LambdaArgumentEffectCapture {
+                registration, lambda: origin.lambda.clone(), function_node,
+                argument_effect_child_index: 1,
+                argument_effect_child_node: argument_effect_child,
+                argument_effect_row: *argument_effect_row,
+            })?;
         }
         let context = &capture.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
         let mut attachment_resolved = HashSet::new();
@@ -4241,6 +4309,8 @@ impl InferenceSession {
             source_role_obligation_rows.push((obligation_index, row_index));
         }
         let source_field_tail_obligation_rows = field_tail_freshuse_row_indexes(graph)?;
+        let mut lambda_argument_effects = Vec::new();
+        lambda_argument_effects.try_reserve_exact(graph.lambda_argument_effects.len()).map_err(|_| exhausted())?;
         #[cfg(test)]
         let mut row_observations = {
             let mut observations = Vec::new();
@@ -4259,6 +4329,7 @@ impl InferenceSession {
             bytes::<RowKey>(rows.capacity())?,
             bytes::<(usize, usize)>(source_role_obligation_rows.capacity())?,
             bytes::<(usize, [usize; 4])>(source_field_tail_obligation_rows.capacity())?,
+            bytes::<LambdaArgumentEffectFreshUse>(lambda_argument_effects.capacity())?,
             bytes::<(RowKey, RowKey)>(canonical_rows.capacity())?,
             #[cfg(test)]
             bytes::<ReconstructedRowObservation>(row_observations.capacity())?,
@@ -4301,6 +4372,32 @@ impl InferenceSession {
                 });
             }
             rows.push(key);
+        }
+        for incidence in &graph.lambda_argument_effects {
+            let Some(Node::Function { children, .. }) = graph.nodes.get(incidence.function_node) else {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            };
+            if children.get(incidence.argument_effect_child_index).copied()
+                != Some(incidence.argument_effect_child_node) {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            }
+            let Some(Node::Row { row: graph_row, .. }) = graph.nodes.get(incidence.argument_effect_child_node) else {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            };
+            if *graph_row != incidence.argument_effect_row {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            }
+            let mapped_argument_effect_row = *rows.get(incidence.argument_effect_row)
+                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            lambda_argument_effects.push(LambdaArgumentEffectFreshUse {
+                registration: incidence.registration,
+                lambda: incidence.lambda.clone(),
+                function_node: incidence.function_node,
+                argument_effect_child_index: incidence.argument_effect_child_index,
+                argument_effect_child_node: incidence.argument_effect_child_node,
+                argument_effect_graph_row: incidence.argument_effect_row,
+                mapped_argument_effect_row,
+            });
         }
         let mut bundle_remap = HashMap::new();
         bundle_remap.try_reserve(graph.attachment_bundles.len()).map_err(|_| exhausted())?;
@@ -4604,7 +4701,7 @@ impl InferenceSession {
             return Err(error);
         }
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-        Ok(FreshUse { scope_remap, scoped_relations, context_use, rows, source_role_obligation_rows, source_field_tail_obligation_rows, terms, effect_operands, bundle_remap, context_remap, evidence_remap,
+        Ok(FreshUse { scope_remap, scoped_relations, context_use, rows, source_role_obligation_rows, source_field_tail_obligation_rows, lambda_argument_effects, terms, effect_operands, bundle_remap, context_remap, evidence_remap,
             #[cfg(test)] row_observations,
         })
     }
