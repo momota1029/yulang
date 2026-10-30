@@ -1,3 +1,0 @@
-// This function accepts a pair, not a three-item tuple.
-my pair(value: (int, int)) = value
-pair (1, 2, 3)

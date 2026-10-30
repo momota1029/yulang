@@ -1,8 +1,0 @@
-// Symbol variants are lightweight choices with payloads.
-
-my button option = case option:
-    :label text -> "<button>%{text}</button>"
-    :disabled -> "<button disabled></button>"
-
-say: button: :label "send"
-say: button: :disabled
