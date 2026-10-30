@@ -1,0 +1,90 @@
+{
+  "id": "R45-TERMINAL-ARCHIVE-20261031",
+  "before_current_sha256": "0551e35ea70c54972fdd97c73802298fa5a1a97c4bc1dfac417b80def962c186",
+  "session": "EFFECT-PERMISSION-INTERNAL-INCIDENCE/20261031-R45",
+  "archived_workers": [
+    {
+      "id": "/root/r43_rust",
+      "role": "implementer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "STOPPED; R45 source frozen; handoff 5ca8058e; no build/tests."
+    },
+    {
+      "id": "/root/r43_proof",
+      "role": "lean_prover",
+      "state": "STOPPED",
+      "requested_model": "configured",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "STOPPED; 15 pinned Lean theorem audits PASS; handoff 4b1f54f1."
+    },
+    {
+      "id": "/root/r37_inventory_review",
+      "role": "independent reviewer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "STOPPED; focused PASS, B1-B3 CLOSED; full receipts in R45 review handoff."
+    }
+  ],
+  "archived_leases": [
+    {
+      "path": "crates/yu-solver/src/candidate_effect.rs",
+      "owner": "/root/r43_rust",
+      "state": "HELD",
+      "sha256": "73ad01324356672f1e45e56ea18d6f5bf0ded8628cce56e884960eb29bd5786d"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "owner": "/root/r43_rust",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_context.rs",
+      "owner": "/root/r43_rust",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/src/lib.rs",
+      "owner": "/root/r43_rust",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-internal-incidence-r45-rust.md",
+      "owner": "/root/r43_rust",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/InternalPermissionIncidenceR45.lean",
+      "owner": "/root/r43_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-internal-incidence-r45-proof.md",
+      "owner": "/root/r43_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-internal-incidence-r45-review.md",
+      "owner": "/root/r37_inventory_review",
+      "state": "HELD"
+    }
+  ],
+  "pending_count_preserved": 32,
+  "pending_sha256_preserved": "bef094abbf707576147d5a9b5b9cdec9f2b2e313540f53b7f158e417c51ea510",
+  "unknown_quarantine_sha256_preserved": "3f5a79f3284da56d544dcfe43308c088493cf8a1e86f8a267b0cddc0e1cae058",
+  "roster_sync": {
+    "result": "Live agent roster synchronized; R45 rust, Lean and reviewer STOPPED; no RUNNING/WAITING child.",
+    "worktree_count": 1,
+    "worktree": "/home/momota1029/rust/yulang",
+    "notifications": "No affected RUNNING/WAITING R45 child."
+  },
+  "disposition": "Archived only resolved terminal R45 worker rows and their HELD leases. Pending entries, UNKNOWN assignments and QUARANTINED path leases were preserved byte-semantically."
+}
