@@ -426,6 +426,72 @@ pub(super) struct FreshRoute {
     pub rows: Vec<RowKey>,
     pub(super) retained: RetainedFreshUseMaps,
 }
+
+/// Ephemeral source/native incidence evidence reconstructed from one retained
+/// module route. This is deliberately not solver state and has no consumer yet.
+#[derive(Debug)]
+#[allow(dead_code, reason = "native incidence extraction is retained pending a separately approved consumer")]
+struct NativeLambdaArgumentEffectIncidence {
+    registration: usize,
+    lambda: HirOccurrenceId,
+    function_node: usize,
+    argument_effect_child_node: usize,
+    argument_effect_graph_row: usize,
+    function: Term,
+    argument_effect: Term,
+    mapped_argument_effect_row: RowKey,
+    definition_use: DefinitionUseId,
+    context_use: usize,
+}
+
+/// Reconstruct one incidence from the exact terms and row maps owned by a
+/// completed module FreshUse, then compare it with the actual native positive
+/// Function. Missing or inconsistent evidence produces no certificate.
+#[allow(dead_code, reason = "native incidence extraction is an approved interface with no permission consumer")]
+fn extract_native_lambda_argument_effect_incidence(
+    route: &FreshRoute,
+    incidence_index: usize,
+    store: &BranchTermArena,
+) -> Option<NativeLambdaArgumentEffectIncidence> {
+    let incidence = route.retained.lambda_argument_effects.get(incidence_index)?;
+    let Node::Function { polarity: Polarity::Positive, children, .. } =
+        *route.graph.nodes.get(incidence.function_node)? else { return None; };
+    if incidence.argument_effect_child_index != 1
+        || children.get(1).copied()
+        != Some(incidence.argument_effect_child_node) {
+        return None;
+    }
+    let Node::Row { row: graph_row, .. } =
+        *route.graph.nodes.get(incidence.argument_effect_child_node)? else { return None; };
+    if graph_row != incidence.argument_effect_graph_row
+        || route.rows.get(graph_row).copied() != Some(incidence.mapped_argument_effect_row) {
+        return None;
+    }
+    if !matches!(incidence.mapped_argument_effect_row, RowKey::Effect(_)) {
+        return None;
+    }
+    let function = route.retained.terms.get(incidence.function_node).copied().flatten()?;
+    let argument_effect = route.retained.terms
+        .get(incidence.argument_effect_child_node).copied().flatten()?;
+    let TermView::PositiveFunction { argument_effect: native_argument_effect, .. } =
+        store.term_view(function).ok()? else { return None; };
+    if native_argument_effect != argument_effect {
+        return None;
+    }
+    Some(NativeLambdaArgumentEffectIncidence {
+        registration: incidence.registration,
+        lambda: incidence.lambda.clone(),
+        function_node: incidence.function_node,
+        argument_effect_child_node: incidence.argument_effect_child_node,
+        argument_effect_graph_row: incidence.argument_effect_graph_row,
+        function,
+        argument_effect,
+        mapped_argument_effect_row: incidence.mapped_argument_effect_row,
+        definition_use: route.use_id.clone(),
+        context_use: route.retained.context_use,
+    })
+}
+
 #[derive(Debug)]
 pub(super) struct LocalScheme {
     pub capture_region: Option<candidate_source::SourceRegionId>,
