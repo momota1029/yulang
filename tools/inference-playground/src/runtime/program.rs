@@ -79,6 +79,35 @@ pub(super) struct SourcePermissionEffectRow {
     pub(super) variables: Vec<Box<str>>,
 }
 
+impl SourcePermissionEffectRow {
+    fn try_clone(&self) -> Result<Self, std::collections::TryReserveError> {
+        let mut path = Vec::new();
+        path.try_reserve_exact(self.path.len())?;
+        path.extend(self.path.iter().cloned());
+
+        let mut concrete = Vec::new();
+        concrete.try_reserve_exact(self.concrete.len())?;
+        concrete.extend(self.concrete.iter().cloned());
+
+        let mut variables = Vec::new();
+        variables.try_reserve_exact(self.variables.len())?;
+        for variable in &self.variables {
+            let mut copy = String::new();
+            copy.try_reserve_exact(variable.len())?;
+            copy.push_str(variable);
+            variables.push(copy.into_boxed_str());
+        }
+
+        Ok(Self {
+            path,
+            polarity: self.polarity,
+            position: self.position.clone(),
+            concrete,
+            variables,
+        })
+    }
+}
+
 #[derive(Clone)]
 pub(super) struct SourcePermissionRowWitness {
     pub(super) snapshot: HirSnapshotToken,
@@ -93,35 +122,72 @@ pub(super) struct SourcePermissionRowWitness {
 }
 
 impl SourcePermissionRowWitness {
+    fn try_clone(&self) -> Result<Self, std::collections::TryReserveError> {
+        let mut effect_rows = Vec::new();
+        effect_rows.try_reserve_exact(self.effect_rows.len())?;
+        for row in &self.effect_rows {
+            effect_rows.push(row.try_clone()?);
+        }
+        Ok(Self {
+            snapshot: self.snapshot.clone(),
+            source_root: self.source_root.clone(),
+            lambda: self.lambda.clone(),
+            parameter: self.parameter.clone(),
+            parameter_source: self.parameter_source.clone(),
+            parameter_range: self.parameter_range.clone(),
+            annotation_owner: self.annotation_owner.clone(),
+            annotation_position: self.annotation_position.clone(),
+            effect_rows,
+        })
+    }
+
     fn from_lambda(
         snapshot: &HirSnapshotToken,
         hir: &Arc<HirModule>,
         source_root: &SourceRootId,
         occurrence: &HirOccurrenceId,
     ) -> Option<Self> {
-        let source = hir.local_source_for(source_root).ok().flatten()?;
+        Self::try_from_lambda(snapshot, hir, source_root, occurrence)
+            .ok()
+            .flatten()
+    }
+
+    fn try_from_lambda(
+        snapshot: &HirSnapshotToken,
+        hir: &Arc<HirModule>,
+        source_root: &SourceRootId,
+        occurrence: &HirOccurrenceId,
+    ) -> Result<Option<Self>, std::collections::TryReserveError> {
+        let Some(source) = hir.local_source_for(source_root).ok().flatten() else {
+            return Ok(None);
+        };
         if source.source_root() != source_root {
-            return None;
+            return Ok(None);
         }
-        let expression = source.expressions().iter()
-            .find(|expression| &expression.occurrence == occurrence)?;
+        let Some(expression) = source.expressions().iter()
+            .find(|expression| &expression.occurrence == occurrence)
+        else {
+            return Ok(None);
+        };
         if !Arc::ptr_eq(&snapshot.0, hir)
             || !hir.owns_source_root(source_root)
             || !hir.owns_occurrence(occurrence)
             || hir.occurrence_source_key(occurrence).ok().flatten()
                 != Some(&expression.source)
         {
-            return None;
+            return Ok(None);
         }
         let LocalSourceForm::Lambda { parameter, .. } = &expression.form else {
-            return None;
+            return Ok(None);
         };
         if parameter.id.source_root() != source_root {
-            return None;
+            return Ok(None);
         }
-        let annotation = parameter.annotation.as_ref()?;
+        let Some(annotation) = parameter.annotation.as_ref() else {
+            return Ok(None);
+        };
         if &annotation.owner != source_root {
-            return None;
+            return Ok(None);
         }
         let mut effect_rows = Vec::new();
         let mut path = Vec::new();
@@ -132,10 +198,10 @@ impl SourcePermissionRowWitness {
             &mut effect_rows,
         )?;
         if effect_rows.is_empty() {
-            return None;
+            return Ok(None);
         }
 
-        Some(Self {
+        Ok(Some(Self {
             snapshot: snapshot.clone(),
             source_root: source_root.clone(),
             lambda: SourceSite {
@@ -149,7 +215,7 @@ impl SourcePermissionRowWitness {
             annotation_owner: annotation.owner.clone(),
             annotation_position: annotation.position.clone(),
             effect_rows,
-        })
+        }))
     }
 
     fn collect_effect_rows(
@@ -157,26 +223,26 @@ impl SourcePermissionRowWitness {
         path: &mut Vec<SourceAnnotationTypePathStep>,
         polarity: SourceTypePolarity,
         rows: &mut Vec<SourcePermissionEffectRow>,
-    ) -> Option<()> {
+    ) -> Result<(), std::collections::TryReserveError> {
         if let Some(row) = &ty.effects {
             let mut path_copy = Vec::new();
-            path_copy.try_reserve_exact(path.len()).ok()?;
+            path_copy.try_reserve_exact(path.len())?;
             path_copy.extend(path.iter().cloned());
 
             let mut concrete = Vec::new();
-            concrete.try_reserve_exact(row.concrete.len()).ok()?;
+            concrete.try_reserve_exact(row.concrete.len())?;
             concrete.extend(row.concrete.iter().cloned());
 
             let mut variables = Vec::new();
-            variables.try_reserve_exact(row.variables.len()).ok()?;
+            variables.try_reserve(row.variables.len())?;
             for variable in &row.variables {
                 let mut copy = String::new();
-                copy.try_reserve_exact(variable.len()).ok()?;
+                copy.try_reserve_exact(variable.len())?;
                 copy.push_str(variable);
                 variables.push(copy.into_boxed_str());
             }
 
-            rows.try_reserve(1).ok()?;
+            rows.try_reserve(1)?;
             rows.push(SourcePermissionEffectRow {
                 path: path_copy,
                 polarity,
@@ -188,7 +254,7 @@ impl SourcePermissionRowWitness {
 
         match &ty.value {
             yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => {
-                path.try_reserve(1).ok()?;
+                path.try_reserve(1)?;
                 path.push(SourceAnnotationTypePathStep::Argument);
                 Self::collect_effect_rows(argument, path, polarity.flipped(), rows)?;
                 path.pop();
@@ -198,7 +264,7 @@ impl SourcePermissionRowWitness {
                 path.pop();
             }
             yu_hir::shadow::SourceAnnotationValue::Tuple(elements) => {
-                path.try_reserve(1).ok()?;
+                path.try_reserve(1)?;
                 for (index, element) in elements.iter().enumerate() {
                     path.push(SourceAnnotationTypePathStep::TupleElement(index));
                     Self::collect_effect_rows(element, path, polarity, rows)?;
@@ -212,7 +278,7 @@ impl SourcePermissionRowWitness {
             | yu_hir::shadow::SourceAnnotationValue::Variable(_)
             | yu_hir::shadow::SourceAnnotationValue::Hole(_) => {}
         }
-        Some(())
+        Ok(())
     }
 
     pub(super) fn authenticates(
@@ -222,10 +288,20 @@ impl SourcePermissionRowWitness {
         source_root: &SourceRootId,
         occurrence: &HirOccurrenceId,
     ) -> bool {
-        let Some(expected) = Self::from_lambda(snapshot, hir, source_root, occurrence) else {
-            return false;
+        self.try_authenticates(snapshot, hir, source_root, occurrence).unwrap_or(false)
+    }
+
+    fn try_authenticates(
+        &self,
+        snapshot: &HirSnapshotToken,
+        hir: &Arc<HirModule>,
+        source_root: &SourceRootId,
+        occurrence: &HirOccurrenceId,
+    ) -> Result<bool, std::collections::TryReserveError> {
+        let Some(expected) = Self::try_from_lambda(snapshot, hir, source_root, occurrence)? else {
+            return Ok(false);
         };
-        self.snapshot.identifies_same_snapshot(&expected.snapshot)
+        Ok(self.snapshot.identifies_same_snapshot(&expected.snapshot)
             && self.source_root == expected.source_root
             && self.lambda.source_root == expected.lambda.source_root
             && self.lambda.occurrence == expected.lambda.occurrence
@@ -242,7 +318,7 @@ impl SourcePermissionRowWitness {
                     && left.position == right.position
                     && left.concrete == right.concrete
                     && left.variables == right.variables
-            })
+            }))
     }
 }
 
@@ -277,32 +353,57 @@ impl RuntimeProgram {
         &self,
         source_root: &SourceRootId,
         lambda_occurrence: &HirOccurrenceId,
-    ) -> Option<Vec<SourceCallbackUseWitness>> {
+    ) -> Result<Option<Vec<SourceCallbackUseWitness>>, std::collections::TryReserveError> {
         let hir = &self._hir;
         if !Arc::ptr_eq(&self.hir_snapshot_token.0, hir)
             || !hir.owns_source_root(source_root)
             || !hir.owns_occurrence(lambda_occurrence)
         {
-            return None;
+            return Ok(None);
         }
-        let source = hir.local_source_for(source_root).ok().flatten()?;
+        let Some(source) = hir.local_source_for(source_root).ok().flatten() else {
+            return Ok(None);
+        };
         if source.source_root() != source_root {
-            return None;
+            return Ok(None);
         }
-        let lambda_expression = source.expressions().iter()
-            .find(|expression| &expression.occurrence == lambda_occurrence)?;
-        if hir.occurrence_source_key(lambda_occurrence).ok().flatten()
-            != Some(&lambda_expression.source)
-        {
-            return None;
+
+        // Build an identity-preserving index over the complete retained source
+        // vector. Duplicate occurrence IDs make every occurrence lookup
+        // ambiguous, so reject the source instead of keeping a first/last hit.
+        let expressions = source.expressions();
+        let mut occurrence_indices = HashMap::<HirOccurrenceId, usize>::new();
+        occurrence_indices.try_reserve(expressions.len())?;
+        for (index, expression) in expressions.iter().enumerate() {
+            if !hir.owns_occurrence(&expression.occurrence)
+                || hir.occurrence_source_key(&expression.occurrence).ok().flatten()
+                    != Some(&expression.source)
+                || occurrence_indices
+                    .insert(expression.occurrence.clone(), index)
+                    .is_some()
+            {
+                return Ok(None);
+            }
+        }
+
+        let Some(&lambda_index) = occurrence_indices.get(lambda_occurrence) else {
+            return Ok(None);
+        };
+        let Some(lambda_expression) = expressions.get(lambda_index) else {
+            return Ok(None);
+        };
+        if &lambda_expression.occurrence != lambda_occurrence {
+            return Ok(None);
         }
         let LocalSourceForm::Lambda { parameter, .. } = &lambda_expression.form else {
-            return None;
+            return Ok(None);
         };
         if parameter.id.source_root() != source_root {
-            return None;
+            return Ok(None);
         }
-        let annotation = parameter.annotation.as_ref()?;
+        let Some(annotation) = parameter.annotation.as_ref() else {
+            return Ok(None);
+        };
         if &annotation.owner != source_root
             || annotation.ty.effects.is_some()
             || !matches!(
@@ -314,58 +415,81 @@ impl RuntimeProgram {
             // An outer effect annotation is classified Execute by the existing
             // source interface. R36 preserves Observe and does not reinterpret
             // that classification as permission consumption.
-            return None;
+            return Ok(None);
         }
 
-        let permission_rows = SourcePermissionRowWitness::from_lambda(
+        let Some(permission_rows) = SourcePermissionRowWitness::try_from_lambda(
             &self.hir_snapshot_token,
             hir,
             source_root,
             lambda_occurrence,
-        )?;
-        if !permission_rows.authenticates(
+        )? else {
+            return Ok(None);
+        };
+        if !permission_rows.try_authenticates(
             &self.hir_snapshot_token,
             hir,
             source_root,
             lambda_occurrence,
-        ) {
-            return None;
+        )? {
+            return Ok(None);
         }
         let mut selected_rows = permission_rows.effect_rows.iter().filter(|row| {
             matches!(row.path.as_slice(), [SourceAnnotationTypePathStep::Result])
                 && row.polarity == SourceTypePolarity::Negative
         });
-        let selected_result_row = selected_rows.next()?;
+        let Some(selected_result_row) = selected_rows.next() else {
+            return Ok(None);
+        };
         if selected_rows.next().is_some() {
-            return None;
+            return Ok(None);
         }
         let yu_hir::shadow::SourceAnnotationValue::Function { result, .. } = &annotation.ty.value else {
-            return None;
+            return Ok(None);
         };
-        let source_row = result.effects.as_ref()?;
+        let Some(source_row) = result.effects.as_ref() else {
+            return Ok(None);
+        };
         if selected_result_row.position != source_row.position
             || selected_result_row.concrete != source_row.concrete
             || selected_result_row.variables != source_row.variables
         {
-            return None;
+            return Ok(None);
         }
 
+        // Validate every retained Apply edge, including edges unrelated to the
+        // selected formal. A malformed callee index must not be hidden by the
+        // later Name/formal filter.
         let mut apply_parent_counts = HashMap::<HirOccurrenceId, usize>::new();
-        for expression in source.expressions() {
+        apply_parent_counts.try_reserve(expressions.len())?;
+        for expression in expressions {
             let LocalSourceForm::Apply { callee, .. } = &expression.form else {
                 continue;
             };
-            let callee_expression = source.expression(callee)?;
+            let Some(callee_expression) = source.expression(callee) else {
+                return Ok(None);
+            };
+            let Some(&callee_index) = occurrence_indices.get(&callee_expression.occurrence) else {
+                return Ok(None);
+            };
+            if !std::ptr::eq(&expressions[callee_index], callee_expression) {
+                return Ok(None);
+            }
             let count = apply_parent_counts.entry(callee_expression.occurrence.clone()).or_insert(0);
-            *count = count.checked_add(1)?;
+            let Some(next_count) = count.checked_add(1) else {
+                return Ok(None);
+            };
+            *count = next_count;
         }
 
         let mut uses = Vec::new();
-        for apply_expression in source.expressions() {
+        for apply_expression in expressions {
             let LocalSourceForm::Apply { callee, .. } = &apply_expression.form else {
                 continue;
             };
-            let callee_expression = source.expression(callee)?;
+            let Some(callee_expression) = source.expression(callee) else {
+                return Ok(None);
+            };
             let LocalSourceForm::Name {
                 resolution: LocalSourceResolution::Parameter(resolved_formal),
                 ..
@@ -379,20 +503,13 @@ impl RuntimeProgram {
             // A shared source Name index with multiple Apply parents has no
             // unique source-use coordinate. Withhold the whole lookup instead
             // of selecting whichever parent happens to appear first.
-            if apply_parent_counts.get(&callee_expression.occurrence) != Some(&1)
-                || !hir.owns_occurrence(&callee_expression.occurrence)
-                || !hir.owns_occurrence(&apply_expression.occurrence)
-                || hir.occurrence_source_key(&callee_expression.occurrence).ok().flatten()
-                    != Some(&callee_expression.source)
-                || hir.occurrence_source_key(&apply_expression.occurrence).ok().flatten()
-                    != Some(&apply_expression.source)
-            {
-                return None;
+            if apply_parent_counts.get(&callee_expression.occurrence) != Some(&1) {
+                return Ok(None);
             }
-            uses.try_reserve(1).ok()?;
+            uses.try_reserve(1)?;
             uses.push(SourceCallbackUseWitness {
-                permission_rows: permission_rows.clone(),
-                selected_result_row: (*selected_result_row).clone(),
+                permission_rows: permission_rows.try_clone()?,
+                selected_result_row: selected_result_row.try_clone()?,
                 lambda: SourceSite {
                     source_root: source_root.clone(),
                     occurrence: lambda_expression.occurrence.clone(),
@@ -417,7 +534,7 @@ impl RuntimeProgram {
                 apply_source: apply_expression.source.clone(),
             });
         }
-        Some(uses)
+        Ok(Some(uses))
     }
 }
 
