@@ -1,6 +1,6 @@
 # R35 outcome — source-owned effect-row inventory
 
-Status: **bounded source/model gate PASS; Git checkpoint blocked**. Sprint `EFFECT-PERMISSION-SOURCE-ROW/20261031-R35`; baseline `90fd99073` on `yulang3`. Existing checkout only; no additional environments or worktrees were created.
+Status: **bounded source/model gate PASS; committed and pushed**. Sprint `EFFECT-PERMISSION-SOURCE-ROW/20261031-R35`; baseline `90fd99073` on `yulang3`. Existing checkout only; no additional environments or worktrees were created.
 
 ## Achieved
 
@@ -28,4 +28,4 @@ This gate does not establish Lean-to-Rust vector traversal simulation, Rust exec
 
 ## Git receipt
 
-R34's coherent checkpoint `90fd99073fa03da2cc1ba6aed3bff8e578b34020` was committed and pushed to `origin/yulang3`; that action is recorded in current state and the R34 outcome. R35 exact output paths and receipts are complete locally, but no R35 commit/push is claimed. The repository `.git` write route became read-only after the prior successful push; creation of `.git/index.lock` failed with `Read-only file system`, and the agent-sprint selector directed no retry through alternate routes. R35 remains ready for primary-only exact staging and a safe fast-forward push once Git index writes are available. No unrelated or quarantined paths were staged.
+R34's coherent checkpoint `90fd99073fa03da2cc1ba6aed3bff8e578b34020` was committed and pushed to `origin/yulang3`; that action is recorded in current state and the R34 outcome. R35 exact output paths were staged explicitly in one reviewed 13-path range and committed as `62009f45cd6178201803d49a3929410161c5ea3d` (`feat: retain source-owned callback effect rows`), parent `90fd99073fa03da2cc1ba6aed3bff8e578b34020`. The inspected outbound range contained only that commit. Push to `origin/yulang3` succeeded, advancing `90fd99073..62009f45c`. No unrelated or quarantined paths were staged.

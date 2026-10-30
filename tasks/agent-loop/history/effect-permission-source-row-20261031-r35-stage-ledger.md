@@ -65,3 +65,8 @@ Independent reviewer `/root/effect_permission_r31_review` STOPPED; full review h
 ## End-of-sprint selector disposition
 
 Selector: retain R35 technical PASS with `CHECKPOINT_BLOCKED — GIT_READ_ONLY`. Exact reviewed R35 checkpoint remains primary-owned and pending against successful R34 baseline `90fd99073` for `origin/yulang3`; `.git/index.lock` failure is recorded and no alternate route is permitted. Do not dispatch R36 or substitute another abstract theorem before that checkpoint is available. Parent goal remains ACTIVE; next decisive seam is the actual callback entry/Name/Apply-to-permission consumer join, whose quarantined owners remain an integration prerequisite. No new environment/build/test/cache or deletion action.
+
+
+## R35 checkpoint committed and pushed
+
+Primary Luna explicitly staged the 13 reviewed R35/R34-receipt paths; no unrelated paths were staged. Commit `62009f45cd6178201803d49a3929410161c5ea3d` (`feat: retain source-owned callback effect rows`) has parent `90fd99073fa03da2cc1ba6aed3bff8e578b34020`. The full inspected outbound range was one intended commit. Push succeeded to `origin/yulang3`, advancing `90fd99073..62009f45c`. Earlier `.git/index.lock` read-only failure was resolved through approved Git write capability; no alternate repository/environment or force push was used.
