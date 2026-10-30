@@ -66,3 +66,34 @@ The read-only `lib.rs`, R50 model/review/outcome and six source files in Audit 8
 B1 blocks acceptance of the frozen Rust artifact under the unchanged R51 contract. Source-correspondence limits are separate from this concrete failure-isolation defect. Rust compilation/execution, complete extraction, per-call observation correspondence, Catch authorization, full subtraction/hygiene, original A/B, soundness, principality, termination and production remain OPEN.
 
 Reviewer **STOPPED**. No files written by reviewer, commits, source edits, checker/compiler/build/test reruns, Cargo/Lake/formatter, scratch/cache/target/environment/worktree creation, descendants or persistent processes. No quarantined path was accessed or released. Primary owns placement and hashing of this report.
+
+---
+
+# R51 B1 delta review — PASS
+
+Reviewer: `/root/r37_inventory_review`. Repair author explicitly STOPPED.
+
+**B1 is CLOSED. No remaining blocker was identified in this focused delta.**
+
+At `candidate_receiver.rs:941`, authenticated decision planning remains fallible and fail-closed. Its source classification and suppression checks remain at lines 1167–1229.
+
+Observation preparation is separate:
+
+- Lines 942–943 call `prepare_native_publication` without propagating an error.
+- Lines 1233–1267 return `Option`; snapshot reservations, metadata allocation, missing identities and overflow disable observation with `None`.
+- Lines 1271–1329 likewise return `None` for unavailable publication evidence.
+- Lines 959–962 capture observations after forwarding through `and_then`. Capture failure cannot change the method's `Ok(())`.
+
+The Forward loop at lines 946–956 retains decision order and exact endpoint, `pending.upper`, original fact ID and cause. Only authenticated-plan failures, inherited outcomes allocation, and actual forwarding failures remain on its error path. The outcomes reservation at line 945 is inherited core publication behavior, not an added observation reservation.
+
+Verified hashes:
+
+| Artifact | SHA-256 |
+|---|---|
+| Repaired receiver | `41272bf276761cdfe847264b4aaf0093d9feab361ca8d80881fd69ca86d449e0` |
+| Rust handoff revision 2 | `c34b93de832899ad5e6f4a9a34ef1b50d7414adedcddd087a511caf3aa3bf7e3` |
+| Unchanged context | `c26a152e957980fcc844b7ff7145f712c4fd218b03415c50263e3dd81156c71f` |
+
+This PASS closes B1's direct error-propagation defect. Earlier source-correspondence limits, raw audit-stdout checksum authentication, execution, extraction completeness, parent A/B and production boundaries remain unchanged.
+
+Reviewer **STOPPED**. Read-only inspection and hashing only; no writes, builds, tests, checker/compiler reruns, Cargo/Lake, descendants or persistent processes.

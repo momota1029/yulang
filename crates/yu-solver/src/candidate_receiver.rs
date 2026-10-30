@@ -20,6 +20,8 @@ pub struct ReceivingResidualExperiment {
     session: InferenceSession,
     schema: Assembly,
     outcomes: Vec<(EffectEndpointKey, ReceivingResidualOutcome)>,
+    #[cfg(feature = "shadow-apply-candidate")]
+    publication_observation: Option<Vec<ResidualPublicationObservation>>,
     result_row: u32,
 }
 #[cfg(feature = "shadow-apply-candidate")]
@@ -289,6 +291,55 @@ struct ResidualDecision {
     suppression: Option<AuthenticatedSuppression>,
 }
 #[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Copy, Debug)]
+struct ResidualPublicationPlan {
+    endpoint: EffectEndpointKey,
+    bound: candidate_effect::BoundKey,
+    slot: candidate_context::PhysicalBoundSlot,
+    already_present: bool,
+    emission_frontier: usize,
+    prior_slot_emissions: usize,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+struct CompleteResidualPlan {
+    decisions: Vec<ResidualDecision>,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+struct PreparedNativePublicationPlan {
+    decisions: Vec<ResidualPublicationPlan>,
+    initial_lower_rows: Vec<u32>,
+    initial_lower_atoms: Vec<EffectEndpointKey>,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Debug)]
+#[allow(dead_code, reason = "retained private source/native publication observation")]
+enum NativeResidualBoundEvidence {
+    AlreadyPresent {
+        slot: candidate_context::PhysicalBoundSlot,
+        prior_emission_count: usize,
+    },
+    NewlyEmitted {
+        slot: candidate_context::PhysicalBoundSlot,
+        emission: candidate_context::BoundEmissionId,
+        admission: candidate_context::BoundAdmissionId,
+        relation: candidate_context::RelationId,
+        readback: candidate_context::PhysicalBoundReadback,
+    },
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Debug)]
+#[allow(dead_code, reason = "retained private source/native publication observation")]
+struct ResidualPublicationObservation {
+        endpoint: EffectEndpointKey,
+        upper: EffectEndpointKey,
+        occurrence: ConstraintOccurrenceId,
+        cause: CauseId,
+        source_origin_index: usize,
+        source_relation: candidate_context::RelationId,
+        source_drain: candidate_context::SourceDrainReceipt,
+        native_bound: NativeResidualBoundEvidence,
+}
+#[cfg(feature = "shadow-apply-candidate")]
 fn snapshot_path(
     path: &[LowerPathStep<'_>],
     terminal: EffectEndpointKey,
@@ -334,6 +385,11 @@ fn snapshot_path(
 impl ReceivingResidualExperiment {
     pub fn outcomes(&self) -> impl Iterator<Item = ReceivingResidualOutcome> + '_ {
         self.outcomes.iter().map(|(_, outcome)| *outcome)
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "source/native publication evidence is a private observation query")]
+    pub(super) fn native_publication_observations(&self) -> Option<&[ResidualPublicationObservation]> {
+        self.publication_observation.as_deref()
     }
     /// Reconstruct the private Internal-specific permission incidence from
     /// this experiment's already-admitted complete use. This does not borrow
@@ -868,6 +924,8 @@ pub fn solve_receiving_residual_experiment(
         session,
         schema,
         outcomes: Vec::new(),
+        #[cfg(feature = "shadow-apply-candidate")]
+        publication_observation: None,
         result_row: pending.result_row,
     };
     experiment.publish_authenticated_residual(pending)
@@ -881,9 +939,11 @@ impl ReceivingResidualExperiment {
         pending: PendingResidualFold,
     ) -> Result<(), SolveAvailabilityError> {
         let plan = self.complete_residual_plan(&pending)?;
+        #[cfg(feature = "shadow-apply-candidate")]
+        let publication_plan = self.prepare_native_publication(&pending, &plan);
         let mut outcomes = Vec::new();
-        outcomes.try_reserve(plan.len()).map_err(|_| native_unavailable())?;
-        for decision in &plan {
+        outcomes.try_reserve(plan.decisions.len()).map_err(|_| native_unavailable())?;
+        for decision in &plan.decisions {
             let _validated_suppression = &decision.suppression;
             if decision.outcome == ReceivingResidualOutcome::Forward {
                 self.session.constrain_live_effect(
@@ -896,21 +956,226 @@ impl ReceivingResidualExperiment {
             outcomes.push((decision.endpoint, decision.outcome));
         }
         self.outcomes = outcomes;
+        #[cfg(feature = "shadow-apply-candidate")]
+        {
+            self.publication_observation = publication_plan.as_ref()
+                .and_then(|publication| self.capture_native_publication(&pending, &plan, publication));
+        }
         Ok(())
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn capture_native_publication(
+        &self,
+        pending: &PendingResidualFold,
+        plan: &CompleteResidualPlan,
+        publication_plan: &PreparedNativePublicationPlan,
+    ) -> Option<Vec<ResidualPublicationObservation>> {
+        let graph = self.session.candidate_graph.as_ref()?;
+        let context = &graph.intrusion.effect_algebra.context;
+        let mut observations = Vec::new();
+        observations.try_reserve(publication_plan.decisions.len()).ok()?;
+        let row = self.session.effect_bounds.get(self.result_row as usize)?;
+        if row.direct_lower_rows.as_slice().get(..publication_plan.initial_lower_rows.len())?
+                != publication_plan.initial_lower_rows.as_slice()
+            || row.exact_non_variable_lowers.as_slice().get(..publication_plan.initial_lower_atoms.len())?
+                != publication_plan.initial_lower_atoms.as_slice()
+        {
+            return None;
+        }
+        let expected_new_rows = publication_plan.decisions.iter().filter(|publication| {
+            !publication.already_present
+                && publication.slot.lane == candidate_context::BoundLane::EffectLowerRow
+        }).count();
+        let expected_new_atoms = publication_plan.decisions.iter().filter(|publication| {
+            !publication.already_present
+                && publication.slot.lane == candidate_context::BoundLane::EffectLowerAtom
+        }).count();
+        if row.direct_lower_rows.len() != publication_plan.initial_lower_rows.len().checked_add(expected_new_rows)?
+            || row.exact_non_variable_lowers.len()
+                != publication_plan.initial_lower_atoms.len().checked_add(expected_new_atoms)?
+        {
+            return None;
+        }
+        let mut row_cursor = publication_plan.initial_lower_rows.len();
+        let mut atom_cursor = publication_plan.initial_lower_atoms.len();
+        let mut publication_cursor = publication_plan.decisions.iter();
+        for decision in plan.decisions.iter()
+            .filter(|decision| decision.outcome == ReceivingResidualOutcome::Forward)
+        {
+            let publication = publication_cursor.next()?;
+            if publication.endpoint != decision.endpoint { return None; }
+            if !publication.already_present {
+                match publication.slot.lane {
+                    candidate_context::BoundLane::EffectLowerRow => {
+                        if publication.slot.index != row_cursor
+                            || row.direct_lower_rows.get(row_cursor).copied()
+                                != Some(match decision.endpoint {
+                                    EffectEndpointKey::EffectRow(lower) => lower,
+                                    _ => return None,
+                                })
+                        { return None; }
+                        row_cursor = row_cursor.checked_add(1)?;
+                    }
+                    candidate_context::BoundLane::EffectLowerAtom => {
+                        if publication.slot.index != atom_cursor
+                            || row.exact_non_variable_lowers.get(atom_cursor).copied()
+                                != Some(decision.endpoint)
+                        { return None; }
+                        atom_cursor = atom_cursor.checked_add(1)?;
+                    }
+                    _ => return None,
+                }
+            }
+            let source = context.checked_source_drain(
+                &pending.fact.id,
+                &pending.fact.cause,
+                LiveConstraintTask::Effect(decision.endpoint, pending.upper),
+            )?;
+            let exact_physical_slot = match publication.slot.lane {
+                candidate_context::BoundLane::EffectLowerRow => {
+                    self.session.effect_bounds.get(match publication.slot.owner {
+                        candidate_scheme::RowKey::Effect(row) => row as usize,
+                        _ => return None,
+                    })?.direct_lower_rows.get(publication.slot.index).copied()
+                        == Some(match decision.endpoint {
+                            EffectEndpointKey::EffectRow(row) => row,
+                            _ => return None,
+                        })
+                }
+                candidate_context::BoundLane::EffectLowerAtom => {
+                    self.session.effect_bounds.get(match publication.slot.owner {
+                        candidate_scheme::RowKey::Effect(row) => row as usize,
+                        _ => return None,
+                    })?.exact_non_variable_lowers.get(publication.slot.index).copied()
+                        == Some(decision.endpoint)
+                }
+                _ => return None,
+            };
+            let physical_occurrences = match publication.slot.lane {
+                candidate_context::BoundLane::EffectLowerRow => {
+                    let row = match publication.slot.owner {
+                        candidate_scheme::RowKey::Effect(row) => self.session.effect_bounds.get(row as usize)?,
+                        _ => return None,
+                    };
+                    match decision.endpoint {
+                        EffectEndpointKey::EffectRow(lower) => row.direct_lower_rows.iter()
+                            .filter(|candidate| **candidate == lower).count(),
+                        _ => return None,
+                    }
+                }
+                candidate_context::BoundLane::EffectLowerAtom => {
+                    let row = match publication.slot.owner {
+                        candidate_scheme::RowKey::Effect(row) => self.session.effect_bounds.get(row as usize)?,
+                        _ => return None,
+                    };
+                    row.exact_non_variable_lowers.iter()
+                        .filter(|candidate| **candidate == decision.endpoint).count()
+                }
+                _ => return None,
+            };
+            if !exact_physical_slot
+                || physical_occurrences != 1
+                || match publication.slot.owner {
+                    candidate_scheme::RowKey::Effect(row) => row != self.result_row,
+                    _ => true,
+                }
+            {
+                return None;
+            }
+            let mut slot_emissions = context.observed_bound_emissions_for_slot(publication.slot);
+            let native_bound = if publication.already_present {
+                let mut count = 0usize;
+                for (_, emission) in &mut slot_emissions {
+                    count = count.checked_add(1)?;
+                    if emission.bound != publication.bound
+                        || emission.physical != publication.slot
+                        || emission.readback.bound != publication.bound
+                        || emission.readback.slot != publication.slot
+                        || emission.readback.phase
+                            != candidate_context::PhysicalReadbackPhase::ConstructorAfterAppend
+                    { return None; }
+                    let (_, admission) = context.observed_bound_admissions()
+                        .find(|(index, _)| *index == emission.admission.0)?;
+                    let relation = admission.relation?;
+                    if admission.bound != publication.bound
+                        || context.relation_pair(relation)
+                            != Some(candidate_context::bound_pair(publication.bound))
+                    { return None; }
+                }
+                if count != publication.prior_slot_emissions {
+                    return None;
+                }
+                NativeResidualBoundEvidence::AlreadyPresent {
+                    slot: publication.slot,
+                    prior_emission_count: publication.prior_slot_emissions,
+                }
+            } else {
+                if publication.prior_slot_emissions != 0 {
+                    return None;
+                }
+                let (emission_id, emission) = slot_emissions.next()?;
+                if slot_emissions.next().is_some() {
+                    return None;
+                }
+                if emission_id.0 < publication.emission_frontier
+                    || emission.bound != publication.bound
+                    || emission.physical != publication.slot
+                    || emission.readback.bound != publication.bound
+                    || emission.readback.slot != publication.slot
+                    || emission.readback.phase
+                        != candidate_context::PhysicalReadbackPhase::ConstructorAfterAppend
+                {
+                    return None;
+                }
+                let mut admissions = context.observed_bound_admissions()
+                    .filter(|(index, _)| *index == emission.admission.0);
+                let (_, admission) = admissions.next()?;
+                if admissions.next().is_some() || admission.bound != publication.bound {
+                    return None;
+                }
+                let relation = admission.relation?;
+                if admission.bound != publication.bound
+                    || context.relation_pair(relation)
+                        != Some(candidate_context::bound_pair(publication.bound))
+                    || context.require_relation_ancestry(relation, source.relation).is_err()
+                {
+                    return None;
+                }
+                NativeResidualBoundEvidence::NewlyEmitted {
+                    slot: publication.slot,
+                    emission: emission_id,
+                    admission: emission.admission,
+                    relation,
+                    readback: emission.readback,
+                }
+            };
+            observations.push(ResidualPublicationObservation {
+                endpoint: decision.endpoint,
+                upper: pending.upper,
+                occurrence: pending.fact.id.clone(),
+                cause: pending.fact.cause.clone(),
+                source_origin_index: source.origin_index,
+                source_relation: source.relation,
+                source_drain: source.receipt.clone(),
+                native_bound,
+            });
+        }
+        Some(observations)
     }
 
     fn complete_residual_plan(
         &self,
         pending: &PendingResidualFold,
-    ) -> Result<Vec<ResidualDecision>, SolveAvailabilityError> {
+    ) -> Result<CompleteResidualPlan, SolveAvailabilityError> {
         let algebra = &self.session.candidate_graph.as_ref()
             .ok_or_else(native_unavailable)?.intrusion.effect_algebra;
         let operation_match = source_operation_match(&self.schema);
         if operation_match == SourceOperationMatch::Unavailable {
             return Err(native_unavailable());
         }
-        let mut plan = Vec::new();
-        plan.try_reserve(pending.terminals.len()).map_err(|_| native_unavailable())?;
+        let mut decisions = Vec::new();
+        decisions.try_reserve(pending.terminals.len()).map_err(|_| native_unavailable())?;
         for &endpoint in &pending.terminals {
             let suppression = match operation_match {
                 SourceOperationMatch::KnownUnmatched => None,
@@ -956,12 +1221,112 @@ impl ReceivingResidualExperiment {
             } else {
                 ReceivingResidualOutcome::Forward
             };
-            plan.push(ResidualDecision { endpoint, outcome, suppression });
+            decisions.push(ResidualDecision { endpoint, outcome, suppression });
         }
-        if plan.is_empty() {
+        if decisions.is_empty() {
             return Err(native_unavailable());
         }
-        Ok(plan)
+        Ok(CompleteResidualPlan { decisions })
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn prepare_native_publication(
+        &self,
+        pending: &PendingResidualFold,
+        plan: &CompleteResidualPlan,
+    ) -> Option<PreparedNativePublicationPlan> {
+        let row = self.session.effect_bounds.get(pending.result_row as usize)?;
+        let mut initial_lower_rows = Vec::new();
+        initial_lower_rows.try_reserve_exact(row.direct_lower_rows.len()).ok()?;
+        initial_lower_rows.extend_from_slice(&row.direct_lower_rows);
+        let mut initial_lower_atoms = Vec::new();
+        initial_lower_atoms.try_reserve_exact(row.exact_non_variable_lowers.len()).ok()?;
+        initial_lower_atoms.extend_from_slice(&row.exact_non_variable_lowers);
+        let mut decisions = Vec::new();
+        decisions.try_reserve(plan.decisions.len()).ok()?;
+        let mut planned_row_appends = 0usize;
+        let mut planned_atom_appends = 0usize;
+        for decision in &plan.decisions {
+            if decision.outcome != ReceivingResidualOutcome::Forward { continue; }
+            let publication = self.residual_publication_plan(
+                decision.endpoint, pending, planned_row_appends, planned_atom_appends,
+            )?;
+            if !publication.already_present {
+                match publication.slot.lane {
+                    candidate_context::BoundLane::EffectLowerRow => {
+                        planned_row_appends = planned_row_appends.checked_add(1)?;
+                    }
+                    candidate_context::BoundLane::EffectLowerAtom => {
+                        planned_atom_appends = planned_atom_appends.checked_add(1)?;
+                    }
+                    _ => return None,
+                }
+            }
+            decisions.push(publication);
+        }
+        Some(PreparedNativePublicationPlan { decisions, initial_lower_rows, initial_lower_atoms })
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn residual_publication_plan(
+        &self,
+        endpoint: EffectEndpointKey,
+        pending: &PendingResidualFold,
+        planned_row_appends: usize,
+        planned_atom_appends: usize,
+    ) -> Option<ResidualPublicationPlan> {
+        let EffectEndpointKey::EffectRow(upper_row) = pending.upper else {
+            return None;
+        };
+        if upper_row != pending.result_row {
+            return None;
+        }
+        let row = self.session.effect_bounds.get(upper_row as usize)?;
+        let (lane, index, occurrences) = if let EffectEndpointKey::EffectRow(lower_row) = endpoint {
+            let mut first = None;
+            let mut count = 0usize;
+            for (index, candidate) in row.direct_lower_rows.iter().enumerate() {
+                if *candidate == lower_row { first.get_or_insert(index); count += 1; }
+            }
+            (candidate_context::BoundLane::EffectLowerRow,
+                first.unwrap_or(row.direct_lower_rows.len().checked_add(planned_row_appends)
+                    ?), count)
+        } else {
+            let mut first = None;
+            let mut count = 0usize;
+            for (index, candidate) in row.exact_non_variable_lowers.iter().enumerate() {
+                if *candidate == endpoint { first.get_or_insert(index); count += 1; }
+            }
+            (candidate_context::BoundLane::EffectLowerAtom,
+                first.unwrap_or(row.exact_non_variable_lowers.len().checked_add(planned_atom_appends)
+                    ?), count)
+        };
+        if occurrences > 1 {
+            return None;
+        }
+        let bound = candidate_effect::BoundKey(
+            ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(upper_row)),
+            Polarity::Positive,
+            ExtrusionEndpoint::Effect(endpoint),
+        );
+        let slot = candidate_context::PhysicalBoundSlot {
+            owner: candidate_scheme::RowKey::Effect(upper_row), lane, index,
+        };
+        let context = &self.session.candidate_graph.as_ref()?.intrusion.effect_algebra.context;
+        let prior_slot_emissions = context.observed_bound_emissions_for_slot(slot).count();
+        if (occurrences == 0 && prior_slot_emissions != 0)
+            || (occurrences == 1 && prior_slot_emissions > 1)
+        {
+            return None;
+        }
+        Some(ResidualPublicationPlan {
+            endpoint,
+            bound,
+            slot,
+            already_present: occurrences == 1,
+            emission_frontier: context.observed_bound_emission_count(),
+            prior_slot_emissions,
+        })
     }
 }
 
