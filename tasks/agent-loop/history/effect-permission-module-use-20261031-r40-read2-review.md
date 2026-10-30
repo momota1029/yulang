@@ -10,3 +10,4 @@ Primary closeout for `EFFECT-PERMISSION-MODULE-USE/20261031-R40-READ2`.
 - The shared-tail falsifier is conditional on a hypothetical permission consumer keyed only by the image tail. The inspected bodies do not demonstrate actual permission interchange.
 - No compiler changes, proof construction, builds, tests, environments, caches, or Git mutations occurred in this packet.
 - Sprint disposition: closed incomplete at this bounded read-only gate. Continue the fixed research goal by selecting a bounded source/proof step for the registration-to-child provenance constructor. No implementation or production authority was granted.
+- Checkpoint: commit `07bb0d4ed891a8af8c739c9f23e27c6f0037c1b8`, pushed to `origin/yulang3`; unrelated pre-existing dirty paths were excluded.
