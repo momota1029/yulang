@@ -56,3 +56,9 @@ Baseline: `06f1ce59eac7a953af18f27558ad0dd8b2a97237`.
 - Fresh `/root/r39_delta_review` returned CLEAN for the exact revision-2 Rust/Lean delta; reviewer STOPPED. Full revision-1 BLOCKING and revision-2 CLEAN reports are preserved in `tasks/agent-loop/inbox/effect-permission-computation-entry-r39-review.md`, SHA-256 `63e681a488d2d812d9d321bc69d80062d0fbebc5fe62614b7d74e5712699696f`.
 - Reviewer confirmed the owner-local source lookup, exact formal and action identities, complete ordered permission retention, no inflow/subtraction, symbolic-link identity, state accounting/checkpoints, and accurate local publication boundary. Parent/runtime/provider/Catch/residual obligations remain OPEN.
 - Dirty-base reconstruction exactly matches admitted SHA `1f64d4fec8f2abceb11a48a51f5b615aa2cf605c9586ba742f15f9024a6a2717`. R39 is separately stageable as 98 net lines across 12 narrow hunks; one accounting-expression hunk must retain only its R39 suffix. No pre-existing change may be staged.
+
+## Stage 8 — commit and push receipt
+
+- R39 bounded source-retention gate adjudicated CLOSED_PASS after the revision-2 CLEAN independent review and the pinned Lean audit. Outcome: `tasks/agent-loop/history/effect-permission-computation-entry-20261031-r39-outcome.md`, SHA-256 `f1a278f2373ab70a051e9e39007a0d59e4d1c5bb86fbf5c0a46a9baff1847258`. Parent effect-hygiene/soundness and provider/propagation/Catch/residual gates remain OPEN.
+- Exact reviewed R39 patch and records committed in `ff5d4d5002abafc31aa4604de7d59835393d9ceb` (`feat: retain computation entry permissions with source identity`). Outbound range was one commit, eight R39-owned paths; prior dirty source changes were excluded.
+- Non-forced push succeeded: `origin/yulang3` advanced `196beb2cdf76aa7250bb8a8d40bd114117290cdd..ff5d4d5002abafc31aa4604de7d59835393d9ceb`.
