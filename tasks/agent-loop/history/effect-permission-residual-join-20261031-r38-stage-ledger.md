@@ -49,3 +49,8 @@ Subsequent material stages append only after their frozen worker result, source 
 - Source/proof/review handoffs and Lean module are frozen at the hashes recorded in the outcome. The exact R38 records are ready for a path-limited checkpoint; pre-existing dirty/untracked workspace changes are excluded.
 - `python3 tools/agent_sprint.py check` passed after current-state synchronization. No build, tests, Cargo, Lake, environment, worktree or new cache/target/scratch was created.
 - All R38 workers STOPPED; no descendants remain in the synchronized live roster. Unknown historical identities and quarantined leases remain unchanged. Commit/push receipts will be appended after the exact-path checkpoint and outbound-range inspection.
+
+## Push receipt
+
+- Exact outbound range from the R37 pushed baseline contained one commit only: `bc83ada2a` (`docs: close R38 permission residual audit`). The range comprised the ten R38 contract, evidence, outcome, current-state, and Lean paths listed by the commit; no pre-existing dirty or untracked paths were included.
+- Normal push succeeded: `c6e37750f8b454da95afe0f712710e38b4c94b85..bc83ada2a` to `origin/yulang3`. No force push.
