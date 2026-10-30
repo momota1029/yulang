@@ -1,0 +1,34 @@
+{
+  "id": "R46-REVIEW-TERMINAL-ARCHIVE-20261031",
+  "before_current_sha256": "1ecc0de17abac8f16bc704391eb2e88477a5de764033c96ad398088dd3218ed9",
+  "session": "EFFECT-PERMISSION-ENTRY-ARRIVAL/20261031-R46",
+  "worker": {
+    "id": "/root/r37_inventory_review",
+    "role": "independent reviewer",
+    "state": "STOPPED",
+    "requested_model": "gpt-6.1-sol",
+    "requested_effort": "medium",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "session": "EFFECT-PERMISSION-ENTRY-ARRIVAL/20261031-R46",
+    "budget_seconds": 900,
+    "receipt": "R46 review returned: conditional Lean artifact PASS; concrete source arrival and decisive obstruction UNRESOLVED; full review for primary placement."
+  },
+  "lease": {
+    "path": "tasks/agent-loop/inbox/effect-permission-entry-arrival-r46-review.md",
+    "owner": "/root",
+    "state": "FROZEN",
+    "sha256": "7fbaed174bee5cae7a92874ddd795b9b80ec1bc8cd7f18acc30e6dedfde7c56e"
+  },
+  "review_sha256": "7fbaed174bee5cae7a92874ddd795b9b80ec1bc8cd7f18acc30e6dedfde7c56e",
+  "pending_count_preserved": 32,
+  "pending_sha256_preserved": "bef094abbf707576147d5a9b5b9cdec9f2b2e313540f53b7f158e417c51ea510",
+  "unknown_quarantine_sha256_preserved": "3f5a79f3284da56d544dcfe43308c088493cf8a1e86f8a267b0cddc0e1cae058",
+  "roster_sync": {
+    "result": "Independent reviewer STOPPED; all R46 authors/reviewer STOPPED.",
+    "worktree_count": 1,
+    "worktree": "/home/momota1029/rust/yulang",
+    "notifications": "No R46 RUNNING/WAITING child."
+  },
+  "disposition": "Archived only the terminal R46 reviewer row and frozen review lease. Pending entries, UNKNOWN assignments, quarantined paths and all other leases remain unchanged."
+}
