@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "sprint_id": "EFFECT-PERMISSION-SOURCE-ROOT/20261031-R75",
+  "baseline_commit": "6cd31c3043f142a8500eb9ea8d8095a1296f4f8d",
+  "contract": "tasks/agent-loop/sprints/effect-permission-source-root-20261031-r75.md",
+  "contract_sha256": "bbeb3cc4bf26a8fe29b2144dc086e6e0efa6bd7c0f9d2ec5ab8aeab8401db3fb",
+  "inputs": [
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "sha256": "6452e18c32bd55e49b31a2dcd474d39140ca97b73ce71a0f4fede07d32b4840e"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_context.rs",
+      "sha256": "962af7c44b2e57ba50b7738e82785bd68b517e881ba08ea41c544c9314d60021"
+    },
+    {
+      "path": "crates/yu-solver/src/lib.rs",
+      "sha256": "15e7b131a65f8476eec575d978dc629d15d49e72149325ef35a8c08acc8fc745"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CurrentEmissionOwnershipR47.lean",
+      "sha256": "d64c54f7c977e110305a76e6437fc87c8ff14201a4d69eb0bbcb5ee0e1cd8b9c"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedConsumerR66.lean",
+      "sha256": "5db5ad3f3f5e5803e2bc564fc8922d5eb8a72182c7ba11de3904eebd7b5950e1"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+      "sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/RustInventoryRequestR63.lean",
+      "sha256": "74381ebd183fa7d26f626fe166f848e1312377fca855cd08beb92d9256edfacc"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/InternalPermissionIncidenceR45.lean",
+      "sha256": "9ff4fd544375a3d4a46100647cba93ddde6f34bebd767ba402f3bd3d35a84b1f"
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    }
+  ],
+  "lean_executable": {
+    "path": "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean",
+    "sha256": "bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38"
+  },
+  "limitations": [
+    "No compiler, Cargo, tests, Lake, build, environment, cache, target, scratch, or worktree.",
+    "At most one direct Lean stdin audit under the contract; no generated output files.",
+    "Pinned source files are frozen to baseline commit; the private path is not called by ordinary inference."
+  ]
+}
