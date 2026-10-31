@@ -1,3 +1,21 @@
+## 2026-10-31 R64 checkpoint — incomplete Owner carrier
+
+R64 closed **CLOSED_INCOMPLETE**. Lean checked 18 structural theorem roots
+with only `propext` and `Quot.sound`; independent review authenticated the
+audit and found the actual Rust-to-Lean Owner/Call bridge absent. The review
+also identified a source-coordinate versus semantic-FactId reader mismatch
+and two Rust type errors. Luna corrected those two source expressions, but
+the candidate remains unreviewed and uncompiled, so it is excluded from the
+checkpoint. R64 does not close its fixed gate or any original parent. See the
+[R64 outcome](agent-loop/history/effect-permission-owner-carrier-20261031-r64-outcome.md),
+[review](agent-loop/inbox/effect-permission-owner-carrier-r64-review.md), and
+[closeout note](../notes/progress/2026-10-31-r64-closeout.md).
+
+The next bounded step is the occurrence-qualified fact-reader model seam:
+preserve all source occurrences, select by exact occurrence/slot, and resolve
+semantic FactIds separately. Effects, full hygiene, soundness, principality,
+termination, original A/B and production remain OPEN.
+
 ## 2026-10-31 R63 checkpoint — owner-derived inventory and request package
 
 R63 closed as **BOUNDED PASS, research only**. The private Rust extractor constructs the owner-derived R55/R57 inventory and Internal/Entry/Catch request package. Lean applies R62 to those constructed values; all 33 theorem types and transitive axiom reports were audited with pinned Lean 4.35.0 stdin. Fresh independent review authenticated the frozen source and proof receipts. The exact boundary, including truncated mathematical Owner values and the still-open Rust-carrier correspondence, is recorded in the [R63 outcome](agent-loop/history/effect-permission-inventory-request-20261031-r63-outcome.md) and [review](agent-loop/inbox/effect-permission-inventory-request-r63-review.md).
