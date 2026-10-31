@@ -39,3 +39,9 @@ No Cargo, Rust compiler, tests, Lake, project build, formatter, target, `.olean`
 No compiler semantic changes, no source restriction, no production promotion, no claim that a finite/conditional bridge closes original A/B, no alteration of R84’s accepted Root candidate. Standalone R84 module/import closure, authenticated Rust extraction/execution, full native ancestry, original A/B, whole-language soundness/principality/termination and production remain separate OPEN gates.
 
 Stop for source hash drift, unavailable/overlapping writer ownership, an ungrounded premise, counterexample, unsupported model/routing, any relaxed claim, checker/time/memory cap, exhausted invocation cap, user STOP or session end. Preserve 32 pending questions, 14 UNKNOWN worker rows and 12 QUARANTINED leases. Keep `current.json` at or below 16 KiB.
+
+## Amendment 01 — original obligation and completed-receipt owner
+
+Admit the original source-preservation statement §§1,3 and exact source-completeness discussion §§5–7 in `notes/theory/2026-10-13-intrusion-source-preservation-proof.md`, plus all of `notes/design/2026-10-24-birth-level-scc-intrusion.md`, at the hashes and ranges in the updated input manifest. The proof/review lane may read these governing sources. This restores the original A/B context and the birth-level correction; it does not change either claim or close the parent.
+
+Expand the pinned Rust read ranges to include `candidate_context.rs` completion indexing/receipt queries (2265–2335, 2990–3095) and `candidate_context_seed_with_formal` origin construction (3850–3895), and `lib.rs` drain receipt attachment (14272–14320). The observed question is whether the completed copy in `source_drain_completions` can satisfy a selector that reads `Origin.source_drain_receipt`, which was attached at drain start. Derive or falsify this from the exact producer path; do not infer mutability or completion synchronization.
