@@ -2636,6 +2636,170 @@ impl<'a> ProviderNativeContextProjection<'a> {
         };
         fact_is_unique(incidence.lambda_fact) && fact_is_unique(incidence.internal_fact)
     }
+
+    /// Build the concrete borrowed readers used by the R60 local-decoding
+    /// correspondence. This deliberately keeps the same session and live
+    /// State references as the R55/R57 projection; it does not snapshot,
+    /// canonicalize, or assign a new owner identity.
+    #[allow(dead_code, reason = "source-side construction for the R60 LocalDecode bridge")]
+    fn local_decode_reader(&self) -> Option<LocalDecodeReader<'_, 'a>> {
+        let native = &self.source_internal.native;
+        let graph = native.owner.session.candidate_graph.as_ref()?;
+        let effect_state = &graph.intrusion.effect_algebra;
+        if !std::ptr::eq(&effect_state.context, native.live_state)
+            || !self.source_internal.verify_owner_round_trips()
+            || !borrowed_inventory_matches(
+                native.owner.session.effect_bounds.iter().enumerate(), &native.rows,
+            )
+            || !borrowed_inventory_matches(effect_state.views.iter().enumerate(), &self.views)
+            || !self.verify_path_owners(&self.provider.entry_path)
+            || !self.verify_path_owners(&self.provider.catch_path)
+        {
+            return None;
+        }
+        Some(LocalDecodeReader { projection: self })
+    }
+}
+
+/// The row and checked edge remain borrowed from one sealed projection. The
+/// row borrow records which exact current vector supplied the lane/index;
+/// `edge` records the matching native emission, admission and live relation.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "source-side R60 reader result; consumed by the Lean-facing correspondence")]
+pub(super) struct BorrowedPhysicalLowerRead<'a> {
+    pub(super) row_index: usize,
+    pub(super) owner_state: &'a candidate_context::State,
+    pub(super) row: BorrowedEffectRowRead<'a>,
+    pub(super) edge: candidate_context::CheckedPhysicalLowerEdge<'a>,
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "source-side R60 row read retains raw bounds and their canonical representative")]
+pub(super) struct BorrowedEffectRowRead<'a> {
+    pub(super) index: usize,
+    pub(super) owner_state: &'a candidate_context::State,
+    pub(super) canonical: EffectEndpointKey,
+    pub(super) bounds: &'a EffectBounds,
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "source-side R60 view read retains the exact indexed owner view")]
+pub(super) struct BorrowedEffectViewRead<'a> {
+    pub(super) index: usize,
+    pub(super) owner_state: &'a candidate_context::State,
+    pub(super) view: &'a candidate_effect::View,
+}
+
+/// Read-only owner-local rows, views and physical positive effect-lower edges.
+/// The constructor is private and rechecks the complete borrowed inventories;
+/// callers cannot supply alternate State, row, view, admission or emission
+/// tables.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "sealed R60 source-side local decoder")]
+struct LocalDecodeReader<'p, 'a> {
+    projection: &'p ProviderNativeContextProjection<'a>,
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+impl<'p, 'a> LocalDecodeReader<'p, 'a> {
+    fn rows(&self) -> &'p [(usize, &'a EffectBounds)] {
+        &self.projection.source_internal.native.rows
+    }
+
+    fn row(&self, index: usize) -> Option<BorrowedEffectRowRead<'a>> {
+        let (owner_index, bounds) = self.rows().get(index)?;
+        let (representative_index, canonical) = self.projection.source_internal.native
+            .effect_row_representatives.get(index)?;
+        let row_id = u32::try_from(index).ok()?;
+        let native = &self.projection.source_internal.native;
+        if *owner_index != index
+            || *representative_index != index
+            || !std::ptr::eq(*bounds, native.session.effect_bounds.get(index)?)
+            || *canonical != native.session.canonical_effect(EffectEndpointKey::EffectRow(row_id))
+        {
+            return None;
+        }
+        Some(BorrowedEffectRowRead {
+            index,
+            owner_state: native.live_state,
+            canonical: *canonical,
+            bounds: *bounds,
+        })
+    }
+
+    fn views(&self) -> &'p [(usize, &'a candidate_effect::View)] {
+        &self.projection.views
+    }
+
+    fn view(&self, index: usize) -> Option<BorrowedEffectViewRead<'a>> {
+        let (owner_index, view) = self.views().get(index)?;
+        let graph = self.projection.source_internal.native.owner.session.candidate_graph.as_ref()?;
+        let effect_state = &graph.intrusion.effect_algebra;
+        if *owner_index != index
+            || !std::ptr::eq(&effect_state.context, self.projection.source_internal.native.live_state)
+            || !std::ptr::eq(*view, effect_state.views.get(index)?)
+        {
+            return None;
+        }
+        Some(BorrowedEffectViewRead {
+            index,
+            owner_state: self.projection.source_internal.native.live_state,
+            view: *view,
+        })
+    }
+
+    /// Read exactly one current lower slot and authenticate its existing
+    /// admission/emission/relation with State's checked helper. Atom lanes
+    /// reject row endpoints because R47's atom-vector interpretation preserves
+    /// them as atoms, while the native current-bound read interprets a row
+    /// constructor as an effect-row key.
+    fn physical_lower(
+        &self,
+        row_index: usize,
+        lane: candidate_context::BoundLane,
+        index: usize,
+    ) -> Result<BorrowedPhysicalLowerRead<'a>, candidate_context::CurrentEmissionGap> {
+        let row = self.row(row_index)
+            .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
+        let row_id = u32::try_from(row_index)
+            .map_err(|_| candidate_context::CurrentEmissionGap::BoundMismatch)?;
+        let endpoint = match lane {
+            candidate_context::BoundLane::EffectLowerRow => EffectEndpointKey::EffectRow(
+                *row.bounds.direct_lower_rows.get(index)
+                    .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?,
+            ),
+            candidate_context::BoundLane::EffectLowerAtom => {
+                let endpoint = *row.bounds.exact_non_variable_lowers.get(index)
+                    .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
+                if matches!(endpoint, EffectEndpointKey::EffectRow(_)) {
+                    return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+                }
+                endpoint
+            }
+            _ => return Err(candidate_context::CurrentEmissionGap::WrongEntrySlot),
+        };
+        let slot = candidate_context::PhysicalBoundSlot {
+            owner: candidate_scheme::RowKey::Effect(row_id),
+            lane,
+            index,
+        };
+        let bound = candidate_effect::BoundKey(
+            ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(row_id)),
+            Polarity::Positive,
+            ExtrusionEndpoint::Effect(endpoint),
+        );
+        let edge = self.projection.source_internal.native.live_state
+            .checked_physical_lower_edge(slot, bound)?;
+        if edge.slot != slot || edge.bound != bound {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+        Ok(BorrowedPhysicalLowerRead {
+            row_index,
+            owner_state: row.owner_state,
+            row,
+            edge,
+        })
+    }
 }
 
 #[cfg(feature = "shadow-apply-candidate")]
