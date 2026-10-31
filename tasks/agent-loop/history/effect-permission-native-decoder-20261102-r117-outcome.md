@@ -25,7 +25,7 @@ Open: Rust type/borrow checking and application; executable unequal-index and re
 
 The contract prohibited patch application, Rust source edits, Cargo/compiler/build/test, Lean/Lake/checker, formatter, scratch paths, caches, worktrees and environment/resource experiments. None were run or created. The static patch count check and repository agent-state consistency check are not compiler evidence. Existing dirty source and quarantined paths were not staged or included.
 
-This bounded research result is ready for a primary-owned checkpoint containing only the R117 contract, admission/outcome, current state, patch artifact, Rust/proof handoffs and the two review receipts. Production integration remains gated on an authorized execution envelope and the open source/proof obligations above.
+This bounded research result was committed as `c15c2beb3bfc6baa24dda34b439b673c9cfc9b4a` and pushed to `origin/yulang3`. The outbound range contained only the nine listed R117 checkpoint files; dirty Rust/Lean and quarantined paths were excluded. Production integration remains gated on an authorized execution envelope and the open source/proof obligations above.
 
 ## Next bounded step
 
