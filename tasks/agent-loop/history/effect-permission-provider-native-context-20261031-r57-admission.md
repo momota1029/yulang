@@ -10,3 +10,10 @@ Luna admits `EFFECT-PERMISSION-PROVIDER-NATIVE-CONTEXT/20261031-R57`, contract r
 - Existing UNKNOWN identities, quarantined leases, all 32 pending items, and R63 review quarantine are preserved. Completed STOPPED rows were archived in their linked frozen outcomes and removed from the compact current snapshot; no UNKNOWN lease was released.
 - No builds, tests, type-checks, environment/cache/scratch/worktree creation are authorized.
 - Current state transitions to R57 ADMITTED.
+
+
+## Revision 2 — bounded Lean audit correction
+
+The originally frozen revision 1 (`c6b995fe4437547e2aa3bae75933febb36b3621b06018ff17dcde13a8e52c5b6`) accidentally prohibited every type-check while assigning a constructive Lean proof. Before proof writes began, Luna amended only the proof verification method: existing Lean 4.35.0 stdin audits are permitted under the exact 1 CPU / `-j1 -M1024` / 120-second per invocation limit in revision 2. No Lake/Cargo/build/test, cache, scratch, environment or worktree is permitted. This satisfies the repository proof-check requirement without expanding source or semantics scope. Rust remains source-only.
+
+Revision 2 contract SHA-256: `8f4d18e5954588ebd9cf9524e5bf5af56abc688aaac333d183de9a9e94a24576`.

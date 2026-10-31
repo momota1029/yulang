@@ -2,7 +2,7 @@
 
 Status: ADMITTED by Luna; fixed 6,000-second envelope.
 Branch / baseline: yulang3 / `41a6bb84c` (`41a6bb84c` full object in Git).
-Contract revision / SHA-256: revision 1; recorded in admission receipt after freeze.
+Contract revision / SHA-256: revision 2; revision 1 SHA-256 `c6b995fe4437547e2aa3bae75933febb36b3621b06018ff17dcde13a8e52c5b6`; revision 2 SHA-256 recorded in current state.
 
 ## Original outcome and success evidence
 
@@ -27,6 +27,6 @@ Read-only dependencies: `lib.rs`, source constructors, and current `candidate_ef
 
 ## Resources, boundaries and closeout
 
-Aggregate budget 6,000 seconds: Rust 1,800; proof 1,800; fresh review 1,200; primary 1,200 including 500 closeout; Astra 0. Workers may continue related steps only within these paths, hashes and outcome. Stop and return to Luna on missing producer identity, necessary lease expansion, changed dependency, semantic change or source-domain restriction. No build, test, type-check, environment, cache, scratch, worktree or other environment creation.
+Aggregate budget 6,000 seconds: Rust 1,800; proof 1,800; fresh review 1,200; primary 1,200 including 500 closeout; Astra 0. Workers may continue related steps only within these paths, hashes and outcome. Stop and return to Luna on missing producer identity, necessary lease expansion, changed dependency, semantic change or source-domain restriction. Rust lane: no build, tests or type-check. Proof lane may perform only the pinned Lean 4.35.0 stdin audit from `notes/theory/lean`, using the existing executable, `-j1 -M1024`, one CPU, and a 120-second limit per invocation; audit exact frozen module bytes and preserve complete theorem types/axiom reports in the handoff. Do not run Lake/Cargo, create or modify environment/cache/scratch/worktree, install tools or use an alternate Lean. This narrow audit is required to establish the Lean proof claim and is charged to the 1,800-second proof budget.
 
 One coherent review follows frozen author outputs. Keep original question bundles atomic. Only Luna stages explicit intended paths and commits/pushes after review and outbound-range inspection. Current state preserves all pending entries and UNKNOWN/quarantined identities.
