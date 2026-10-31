@@ -92,6 +92,11 @@ def RowChecks (b : Batch) (loc : LocatedBinding) (position : Nat)
   record.definition = ⟨b.artifact, position⟩ ∧
   assoc record.definition b.definitionPositions = some position
 
+instance (b : Batch) (loc : LocatedBinding) (position : Nat) (record : DefinitionRecord) :
+    Decidable (RowChecks b loc position record) := by
+  unfold RowChecks
+  infer_instance
+
 def checkRow (b : Batch) (loc : LocatedBinding) : Option CollectedDef := do
   let position ← assoc loc.binding.root b.rootPositions
   let record ← b.definitions[position]?

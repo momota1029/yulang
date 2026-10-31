@@ -210,3 +210,164 @@ Verbatim stderr base64:
 ```text
 
 ```
+
+
+## Revision 2 — repair after rejected audit 1; final audit proposal only
+
+Primary acknowledged revision 1 and preserved its failed audit receipt in pushed commit `4379f62e1`. The complete prior handoff bytes (including audit 1 stdout/stderr base64) remain the exact prefix of this file: 59485 bytes, SHA-256 `4c62df6850663e6015a25ac14a58c74f0b33bb5b4ec88a3de80149eb45c93a88`. Historical revision-1 statements above remain historical; this section is the current sequential revision-2 disposition.
+
+Actual audit 1 failed: exit 1, no timeout, 8.171 seconds; stdout 32,198 bytes SHA-256 `f2e57f6f80490c48350c6c2517f83ae898129c8760503f1535e3387035d3a624`; stderr empty. The initial diagnostic is `<stdin>:1247:2: error(lean.synthInstanceFailed): failed to synthesize Decidable (RowChecks b loc position record)`. Recovery inserted a hole into `checkRow`; this caused the downstream unsolved goal at line 1273 and the three stuck `decide` failures at lines 1438, 1451 and 1455. The retained audit's recovery `sorryAx` is rejected evidence. No theorem is claimed checked on this basis.
+
+The sole source change adds an explicit computable Decidable instance for `RowChecks`, proved by unfolding its finite conjunction and `infer_instance`. Reversing exactly this inserted instance recovers the original module SHA-256 `9860e461fb844505fbf10baa1102fc48d9cf136fdf2d0e493d8282214af9cf1b`. All 15 theorem statements, definitions of the bridge, source scope, quantifiers, collection-order premise and R78 application remain byte-identical. No new semantic premise, project axiom or bypass is introduced. The repair has not been executed.
+
+Repaired module: 15624 bytes, SHA-256 `6dff2ab5f1a5f2403822c180c21074cc1a063ed84b697bd484017705d53222ac`. Final proposed stdin: 74343 bytes, SHA-256 `9ea072b736885d3bdc7818e149915a42641a253527aa507719ff20ab1570696a`. Same 15 unchanged theorem type/axiom queries and first 14 frozen dependency slices; updated final R79 slice only. The reconstruction algorithm is exactly the revision-1 algorithm above, using this revision-2 JSON. No implicit separators, files or invocation.
+
+```json
+{
+  "segments": [
+    {
+      "path": "notes/theory/lean/YulangClosure/ComputationPermissionEntryR39.lean",
+      "source_sha256": "748cd52ff7962962940a3767ffa6a0b2d8def16d80e65e682282d1fa2b79560e",
+      "first_line": 12,
+      "last_line": 75,
+      "slice_sha256": "62f6622e56aee18a37b9ae8c0772de82154b5a2db5d6808cc7743b6545671b98",
+      "slice_bytes": 1444
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/InternalPermissionIncidenceR45.lean",
+      "source_sha256": "9ff4fd544375a3d4a46100647cba93ddde6f34bebd767ba402f3bd3d35a84b1f",
+      "first_line": 12,
+      "last_line": 88,
+      "slice_sha256": "9c82d93bc87236e7aa9bea822fd75cbe4f296ee02d81c5ac83e4ae0f11f65eeb",
+      "slice_bytes": 2298
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceInternalContextR55.lean",
+      "source_sha256": "7aaecdd3d358d769123f00acb4b19b4d7d61ccfef98fee4eb53179da4a105123",
+      "first_line": 10,
+      "last_line": 154,
+      "slice_sha256": "cdbc3c9afbe6bc9fadd5543bdb400343440c6582fbf108e9b2f92c3bf2aa0c82",
+      "slice_bytes": 6344
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ProviderNativeContextR57.lean",
+      "source_sha256": "804b3431c2e585370b8adc28f59b36c26a36e1524f42278a860823c9bd7eaa63",
+      "first_line": 6,
+      "last_line": 34,
+      "slice_sha256": "8af4d69ded66f267115ae7622e7fe663b2ef33cd6e0cee5d5cbdc0cfe331db05",
+      "slice_bytes": 1356
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ProviderNativeContextR57.lean",
+      "source_sha256": "804b3431c2e585370b8adc28f59b36c26a36e1524f42278a860823c9bd7eaa63",
+      "first_line": 785,
+      "last_line": 801,
+      "slice_sha256": "8d268cf72a44da0ca6c28ea413986883a2c5a618fcb071c4e588da36dff14c34",
+      "slice_bytes": 1417
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+      "source_sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+      "first_line": 10,
+      "last_line": 41,
+      "slice_sha256": "3fd09684a169ff331579d7e0faf4ba045e590e3c62ecc3c1c9a0dd96c94d717d",
+      "slice_bytes": 669
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+      "source_sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+      "first_line": 43,
+      "last_line": 45,
+      "slice_sha256": "73a909efee11b7b5ed8c763a3d4ac22bff169f24a081eaf7946d3e291a9b527b",
+      "slice_bytes": 175
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+      "source_sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+      "first_line": 52,
+      "last_line": 66,
+      "slice_sha256": "342ca11b82022512e1af286984dd3e34b5b5f640e60032a981080224bd22f0b8",
+      "slice_bytes": 648
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+      "source_sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+      "first_line": 215,
+      "last_line": 226,
+      "slice_sha256": "c6ba0292d1900c6d344014640f60c76015327025e70c1a1cafc0cb0aed5874a0",
+      "slice_bytes": 539
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+      "source_sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+      "first_line": 246,
+      "last_line": 251,
+      "slice_sha256": "cd6b69b54ba338acfeaff738f60ab81ce7d118ea3d2b8d9910c83d1a0e1c19da",
+      "slice_bytes": 330
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+      "source_sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+      "first_line": 417,
+      "last_line": 419,
+      "slice_sha256": "d03134598123298a949bc59da11760329d19b9582160f3581ccec39099f77945",
+      "slice_bytes": 230
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedConsumerR66.lean",
+      "source_sha256": "5db5ad3f3f5e5803e2bc564fc8922d5eb8a72182c7ba11de3904eebd7b5950e1",
+      "first_line": 14,
+      "last_line": 33,
+      "slice_sha256": "c13495d0114d9499fc076b956dce9b5d9cdf6489123387f98b5886d4f0c0c106",
+      "slice_bytes": 1047
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceInternalChoiceR77.lean",
+      "source_sha256": "0aa1185675cc92ac97a20f4163bd2b2486f34cfb5ca725a3fcb3c1861efdf682",
+      "first_line": 3,
+      "last_line": 548,
+      "slice_sha256": "1b5aead5f58864f47bc038147199dbaeabf8906ec31033b1b9c03d532600ec2b",
+      "slice_bytes": 28682
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/IntegratedSourceAlignmentR78.lean",
+      "source_sha256": "bfe304c33e6018910739d58d37c2122a4a475fac57e00091e1a700a965510029",
+      "first_line": 3,
+      "last_line": 175,
+      "slice_sha256": "3d9cc5038f232329b00811dd74c77ad52708ebae491edda74dc059dc4af784b0",
+      "slice_bytes": 10680
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CollectedDefinitionBridgeR79.lean",
+      "source_sha256": "6dff2ab5f1a5f2403822c180c21074cc1a063ed84b697bd484017705d53222ac",
+      "first_line": 3,
+      "last_line": 313,
+      "slice_sha256": "c29d67b3651f70c90492f7ee1ae81569410ee984af7dad56305277f4d3db8aaa",
+      "slice_bytes": 15573
+    }
+  ],
+  "theorems": [
+    "YulangClosure.CollectedDefinitionBridgeR79.singleton_eq_some",
+    "YulangClosure.CollectedDefinitionBridgeR79.check_row_sound",
+    "YulangClosure.CollectedDefinitionBridgeR79.lookup_sound_and_unique",
+    "YulangClosure.CollectedDefinitionBridgeR79.located_provenance",
+    "YulangClosure.CollectedDefinitionBridgeR79.lookup_preserves_exact_coordinates",
+    "YulangClosure.CollectedDefinitionBridgeR79.lookup_agrees_with_collection_map",
+    "YulangClosure.CollectedDefinitionBridgeR79.collection_map_target_unique",
+    "YulangClosure.CollectedDefinitionBridgeR79.duplicate_exact_bindings_reject",
+    "YulangClosure.CollectedDefinitionBridgeR79.absent_exact_identity_rejects",
+    "YulangClosure.CollectedDefinitionBridgeR79.wrong_collection_artifact_rejects",
+    "YulangClosure.CollectedDefinitionBridgeR79.bridged_capture_applies_r78",
+    "YulangClosure.CollectedDefinitionBridgeR79.fixture_ordered_roots",
+    "YulangClosure.CollectedDefinitionBridgeR79.finite_constructed_bridge",
+    "YulangClosure.CollectedDefinitionBridgeR79.finite_rejects_corrupt_coordinates",
+    "YulangClosure.CollectedDefinitionBridgeR79.finite_unrelated_malformed_binding_retained"
+  ],
+  "stdin_bytes": 74343,
+  "stdin_sha256": "9ea072b736885d3bdc7818e149915a42641a253527aa507719ff20ab1570696a"
+}
+```
+
+One permitted invocation remains. It requires primary's separate committed/pushed authorization of these exact bytes before execution. This worker ran no Lean, Lake, compiler, tests, builds or version commands; wrote only the original two leased files; created no scratch/cache/environment/generated outputs; performed no Git mutation and has no descendants. Pinned executable/args/cwd/resource limits remain those recorded above. Complete output and axiom results from the final authorized audit must be retained verbatim. Authenticated OrderedRoots extraction, source/native equivalence, genuine R66 Incidence/Root and original whole-language A/B remain OPEN.
+
+Submission R79-PROOF / revision 2. **STOPPED / WRITES STOPPED** after this append. Constructed-but-unchecked repair; no self-certification or independent-review claim.
