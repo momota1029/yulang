@@ -626,6 +626,24 @@ struct InventoryReifiedFact<'a> {
     canonical_upper: InventorySemanticEndpoint,
 }
 
+/// Finite owner table used by endpoint interpretation. Every source row is
+/// borrowed from one package/session; ordered rows are authoritative and the
+/// private hash maps only accelerate exact lookup of their branded Terms.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "R69 source-owned endpoint observation constructor")]
+struct InventoryEndpointObservations<'p, 'a> {
+    session: &'a InferenceSession,
+    facts: &'p [(usize, &'a SemanticFact)],
+    views: &'p [InventoryTermView<'a>],
+    view_positions: HashMap<Term, usize>,
+    components: &'p [(usize, &'a ComponentId, Term)],
+    component_positions: Vec<(Term, usize)>,
+    component_position_lookup: HashMap<Term, usize>,
+    live_components: Vec<(usize, ComponentKind, u32)>,
+    value_representatives: &'p [(usize, ValueEndpointKey)],
+    effect_representatives: &'p [(usize, EffectEndpointKey)],
+}
+
 /// Private finite reification of the actual borrowed package tables. The
 /// tables stay in owner order; this adds checked per-fact endpoint mappings,
 /// exact-occurrence coordinates, and one resolved row for every provenance
@@ -773,20 +791,162 @@ struct InventoryPackage<'a> {
 
 #[cfg(feature = "shadow-apply-candidate")]
 impl<'a> InventoryPackage<'a> {
+    /// Construct a complete finite endpoint-observation view from this exact
+    /// package session. The semantic-fact roots and every recursive child are
+    /// required to occur in the ordered TermView closure before any decoding.
+    fn endpoint_observations<'p>(
+        &'p self,
+    ) -> Result<InventoryEndpointObservations<'p, 'a>, candidate_context::CurrentEmissionGap> {
+        use candidate_context::CurrentEmissionGap as Gap;
+
+        if !std::ptr::eq(self.session, &self.owner.session)
+            || self.components.len() != self.session.batch.component_terms.len()
+            || self.components.len() != self.session.batch.components.len()
+            || self.semantic_facts.len() != self.session.store.facts().len()
+            || self.session.live_components.len() != self.components.len()
+            || self.value_row_representatives.len() != self.session.bounds.len()
+            || self.effect_row_representatives.len() != self.session.effect_bounds.len()
+        {
+            return Err(Gap::BoundMismatch);
+        }
+
+        let mut view_positions = HashMap::new();
+        view_positions.try_reserve(self.term_views.len()).map_err(|_| Gap::SearchLimit)?;
+        for (position, row) in self.term_views.iter().enumerate() {
+            if view_positions.insert(row.term, position).is_some() {
+                return Err(Gap::BoundMismatch);
+            }
+        }
+        let view_index = |term: Term| -> Result<usize, Gap> {
+            view_positions.get(&term).copied().ok_or(Gap::BoundMismatch)
+        };
+        for (position, (fact_index, fact)) in self.semantic_facts.iter().enumerate() {
+            if *fact_index != position
+                || self.session.store.facts().get(position).is_none_or(|actual| !std::ptr::eq(actual, *fact))
+            {
+                return Err(Gap::BoundMismatch);
+            }
+            view_index(fact.lower())?;
+            view_index(fact.upper())?;
+        }
+
+        for (position, row) in self.term_views.iter().enumerate() {
+            let view = self.session.store.term_view(row.term).map_err(|_| Gap::BoundMismatch)?;
+            if view_index(row.term)? != position || view != row.view {
+                return Err(Gap::BoundMismatch);
+            }
+            let expected_children = inventory_term_children(&row.view)?;
+            if expected_children.len() != row.children.len() {
+                return Err(Gap::BoundMismatch);
+            }
+            for (child_position, child) in expected_children.iter().enumerate() {
+                let (index, retained_child) = row.children.get(child_position)
+                    .ok_or(Gap::BoundMismatch)?;
+                if retained_child != child
+                    || self.term_views.get(*index).is_none_or(|candidate| candidate.term != *child)
+                {
+                    return Err(Gap::BoundMismatch);
+                }
+            }
+        }
+
+        let mut component_positions = Vec::new();
+        component_positions.try_reserve_exact(self.components.len()).map_err(|_| Gap::SearchLimit)?;
+        let mut component_position_lookup = HashMap::new();
+        component_position_lookup.try_reserve(self.components.len()).map_err(|_| Gap::SearchLimit)?;
+        let mut live_components = Vec::new();
+        live_components.try_reserve_exact(self.session.live_components.len()).map_err(|_| Gap::SearchLimit)?;
+        for (position, (owner_position, component, term)) in self.components.iter().enumerate() {
+            if *owner_position != position
+                || self.session.batch.component_terms.get(position) != Some(term)
+                || self.session.batch.components.get(position) != Some(*component)
+                || self.session.batch.component_term_positions.get(term) != Some(&position)
+            {
+                return Err(Gap::BoundMismatch);
+            }
+            let term_view = self.term_views.get(view_index(*term)?)
+                .ok_or(Gap::BoundMismatch)?;
+            if !matches!(&term_view.view, TermView::Component(found) if **found == **component) {
+                return Err(Gap::BoundMismatch);
+            }
+            component_positions.push((*term, position));
+            if component_position_lookup.insert(*term, position).is_some() {
+                return Err(Gap::BoundMismatch);
+            }
+            let live = self.session.live_components.get(position).ok_or(Gap::BoundMismatch)?;
+            if live.kind != component.kind() {
+                return Err(Gap::BoundMismatch);
+            }
+            match live.kind {
+                ComponentKind::Value if self.session.bounds.get(usize::try_from(live.ordinal).map_err(|_| Gap::SearchLimit)?).is_none() => return Err(Gap::BoundMismatch),
+                ComponentKind::Effect if self.session.effect_bounds.get(usize::try_from(live.ordinal).map_err(|_| Gap::SearchLimit)?).is_none() => return Err(Gap::BoundMismatch),
+                _ => {}
+            }
+            live_components.push((position, live.kind, live.ordinal));
+        }
+
+        for (position, representative) in self.value_representatives.iter().enumerate() {
+            let row = u32::try_from(position).map_err(|_| Gap::SearchLimit)?;
+            let (owner_position, actual) = representative;
+            let canonical = self.session.canonical_value(ValueEndpointKey::ValueRow(row));
+            if *owner_position != position || *actual != canonical
+                || !matches!(actual, ValueEndpointKey::ValueRow(index)
+                    if self.session.bounds.get(usize::try_from(*index).map_err(|_| Gap::SearchLimit)?).is_some())
+            {
+                return Err(Gap::BoundMismatch);
+            }
+        }
+        for (position, representative) in self.effect_representatives.iter().enumerate() {
+            let row = u32::try_from(position).map_err(|_| Gap::SearchLimit)?;
+            let (owner_position, actual) = representative;
+            let canonical = self.session.canonical_effect(EffectEndpointKey::EffectRow(row));
+            if *owner_position != position || *actual != canonical
+                || !matches!(actual, EffectEndpointKey::EffectRow(index)
+                    if self.session.effect_bounds.get(usize::try_from(*index).map_err(|_| Gap::SearchLimit)?).is_some())
+            {
+                return Err(Gap::BoundMismatch);
+            }
+        }
+
+        Ok(InventoryEndpointObservations {
+            session: self.session,
+            facts: &self.semantic_facts,
+            views: &self.term_views,
+            view_positions,
+            components: &self.components,
+            component_positions,
+            component_position_lookup,
+            live_components,
+            value_representatives: &self.value_row_representatives,
+            effect_representatives: &self.effect_row_representatives,
+        })
+    }
+
     /// Interpret a borrowed Term through the exact session that owns this
     /// package. Every row-bearing branch validates both its source coordinate
     /// and current live row before invoking the session canonicalizer.
     fn checked_semantic_endpoint(
-        session: &InferenceSession,
+        observations: &InventoryEndpointObservations<'_, '_>,
+        fact_index: usize,
+        fact: &SemanticFact,
         term: Term,
         polarity: Polarity,
     ) -> Result<(InventorySemanticEndpoint, InventorySemanticEndpoint), candidate_context::CurrentEmissionGap> {
         use candidate_context::CurrentEmissionGap as Gap;
+        let session = observations.session;
         let checked_index = |row: u32| {
             usize::try_from(row).map_err(|_| Gap::SearchLimit)
         };
 
-        let view = session.store.term_view(term).map_err(|_| Gap::BoundMismatch)?;
+        if observations.facts.get(fact_index).is_none_or(|(owner_index, owner_fact)| {
+            *owner_index != fact_index || !std::ptr::eq(*owner_fact, fact)
+                || (fact.lower() != term && fact.upper() != term)
+        }) {
+            return Err(Gap::BoundMismatch);
+        }
+
+        let view_position = observations.view_positions.get(&term).copied().ok_or(Gap::BoundMismatch)?;
+        let view = observations.views.get(view_position).ok_or(Gap::BoundMismatch)?.view.clone();
         let endpoint = match view {
             TermView::Leaf(Leaf::IntPositive) => InventorySemanticEndpoint::Value(ValueEndpointKey::IntPositive),
             TermView::Leaf(Leaf::IntNegative) => InventorySemanticEndpoint::Value(ValueEndpointKey::IntNegative),
@@ -802,30 +962,34 @@ impl<'a> InventoryPackage<'a> {
             TermView::NegativeTop => InventorySemanticEndpoint::Value(ValueEndpointKey::TopNegative),
             TermView::NegativeBottom => InventorySemanticEndpoint::Value(ValueEndpointKey::BottomNegative),
             TermView::Component(component) => {
-                let position = *session.batch.component_term_positions.get(&term)
-                    .ok_or(Gap::BoundMismatch)?;
-                if session.batch.component_terms.get(position) != Some(&term)
-                    || session.batch.components.get(position) != Some(component)
+                let position = observations.component_position_lookup.get(&term).ok_or(Gap::BoundMismatch)?;
+                let (position_term, retained_position) = observations.component_positions
+                    .get(*position).ok_or(Gap::BoundMismatch)?;
+                let (owner_position, owner_component, owner_term) = observations.components
+                    .get(*position).ok_or(Gap::BoundMismatch)?;
+                if *position_term != term || *retained_position != *position
+                    || *owner_position != *position || *owner_term != term
+                    || **owner_component != *component
                 {
                     return Err(Gap::BoundMismatch);
                 }
-                let live = *session.live_components.get(position)
-                    .ok_or(Gap::BoundMismatch)?;
-                if live.kind != component.kind() {
+                let (live_position, live_kind, live_ordinal) = observations.live_components
+                    .get(*position).ok_or(Gap::BoundMismatch)?;
+                if *live_position != *position || *live_kind != component.kind() {
                     return Err(Gap::BoundMismatch);
                 }
-                match live.kind {
+                match *live_kind {
                     ComponentKind::Value => {
-                        if session.bounds.get(checked_index(live.ordinal)?).is_none() {
+                        if session.bounds.get(checked_index(*live_ordinal)?).is_none() {
                             return Err(Gap::BoundMismatch);
                         }
-                        InventorySemanticEndpoint::Value(ValueEndpointKey::ValueRow(live.ordinal))
+                        InventorySemanticEndpoint::Value(ValueEndpointKey::ValueRow(*live_ordinal))
                     }
                     ComponentKind::Effect => {
-                        if session.effect_bounds.get(checked_index(live.ordinal)?).is_none() {
+                        if session.effect_bounds.get(checked_index(*live_ordinal)?).is_none() {
                             return Err(Gap::BoundMismatch);
                         }
-                        InventorySemanticEndpoint::Effect(EffectEndpointKey::EffectRow(live.ordinal))
+                        InventorySemanticEndpoint::Effect(EffectEndpointKey::EffectRow(*live_ordinal))
                     }
                 }
             }
@@ -876,6 +1040,11 @@ impl<'a> InventoryPackage<'a> {
                 if session.bounds.get(checked_index(canonical_row)?).is_none() {
                     return Err(Gap::BoundMismatch);
                 }
+                let (representative_index, representative) = observations.value_representatives
+                    .get(checked_index(row)?).ok_or(Gap::BoundMismatch)?;
+                if *representative_index != checked_index(row)? || *representative != canonical {
+                    return Err(Gap::BoundMismatch);
+                }
                 InventorySemanticEndpoint::Value(canonical)
             }
             InventorySemanticEndpoint::Effect(EffectEndpointKey::EffectRow(row)) => {
@@ -884,6 +1053,11 @@ impl<'a> InventoryPackage<'a> {
                     return Err(Gap::BoundMismatch);
                 };
                 if session.effect_bounds.get(checked_index(canonical_row)?).is_none() {
+                    return Err(Gap::BoundMismatch);
+                }
+                let (representative_index, representative) = observations.effect_representatives
+                    .get(checked_index(row)?).ok_or(Gap::BoundMismatch)?;
+                if *representative_index != checked_index(row)? || *representative != canonical {
                     return Err(Gap::BoundMismatch);
                 }
                 InventorySemanticEndpoint::Effect(canonical)
@@ -901,6 +1075,7 @@ impl<'a> InventoryPackage<'a> {
         &'p self,
     ) -> Result<InventoryQualifiedReification<'p, 'a>, candidate_context::CurrentEmissionGap> {
         let store = &self.session.store;
+        let observations = self.endpoint_observations()?;
         let mut interpreted_facts = Vec::<InventoryReifiedFact<'a>>::new();
         let mut occurrences = Vec::<InventoryReifiedOccurrence<'a>>::new();
         let mut edges = Vec::<InventoryReifiedEdge<'a>>::new();
@@ -918,10 +1093,10 @@ impl<'a> InventoryPackage<'a> {
                 return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
             }
             let (raw_lower, canonical_lower) = Self::checked_semantic_endpoint(
-                self.session, fact.lower(), Polarity::Positive,
+                &observations, *fact_index, fact, fact.lower(), Polarity::Positive,
             )?;
             let (raw_upper, canonical_upper) = Self::checked_semantic_endpoint(
-                self.session, fact.upper(), Polarity::Negative,
+                &observations, *fact_index, fact, fact.upper(), Polarity::Negative,
             )?;
             interpreted_facts.push(InventoryReifiedFact {
                 fact_index: *fact_index,
