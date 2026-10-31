@@ -545,6 +545,67 @@ struct InventoryCatchRequest<'a> {
     canonical_output: EffectEndpointKey,
 }
 
+/// One admitted source occurrence for a semantic-store fact.  The edge index
+/// is its original store coordinate; repeated occurrences are retained even
+/// when they point at the same interned fact.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "private R64 source-fact/provenance carrier")]
+struct InventoryAdmittedFact<'a> {
+    edge_index: usize,
+    fact_index: usize,
+    occurrence: &'a HirOccurrenceId,
+    slot: u32,
+    edge: &'a ProvenanceEdge,
+    fact: &'a SemanticFact,
+}
+
+/// A borrowed source-coordinate view of one occurrence-qualified fact row.
+/// The coordinate is kept beside the original edge and owner-table fact.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "private R65 occurrence-qualified fact reader")]
+struct InventoryOccurrenceFact<'p, 'a> {
+    row: &'p InventoryAdmittedFact<'a>,
+    occurrence: &'a HirOccurrenceId,
+    slot: u32,
+}
+
+/// A TermView retained at a private package-local coordinate. Child indices
+/// point back into this same complete, owner-derived closure.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "private R64 TermView ownership and lookup carrier")]
+struct InventoryTermView<'a> {
+    term: Term,
+    view: TermView<'a>,
+    children: Vec<(usize, Term)>,
+}
+
+/// Call and schema coordinates are kept together so a reifier cannot combine
+/// one source use with another Catch or provider occurrence from the owner.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "private R64 owner/call/schema carrier")]
+struct InventoryOwnerCall<'a> {
+    source_call: usize,
+    source_owner: &'a SourceRootId,
+    target_owner: &'a SourceRootId,
+    use_occurrence: &'a HirOccurrenceId,
+    relay: &'a DefinitionRootId,
+    answer: &'a DefinitionRootId,
+    catch_occurrence: &'a HirOccurrenceId,
+    edge_scrutinee: &'a HirOccurrenceId,
+    provider_occurrence: &'a HirOccurrenceId,
+    provider_source: &'a SourceNodeKey,
+    provider_source_range: (usize, usize),
+    provider_identity: &'a yu_hir::shadow::SourceOperationId,
+    selected_arm_index: usize,
+    arm_source: &'a SourceNodeKey,
+    arm_range: (usize, usize),
+    operation_source: &'a SourceNodeKey,
+    operation_identity: &'a yu_hir::shadow::SourceOperationId,
+    unit_payload_source: &'a SourceNodeKey,
+    unit_payload_range: (usize, usize),
+    continuation_is_wildcard: bool,
+}
+
 /// An explicit, borrowed projection of the R55/R57 owner tables plus the
 /// source-derived requests consumed by the finite Lean model.  Each table
 /// retains its owner-local index and original record reference; this is not a
@@ -578,6 +639,9 @@ struct InventoryPackage<'a> {
     lambda_origins: Vec<(usize, &'a candidate_context::LambdaArgumentEffectOrigin)>,
     components: Vec<(usize, &'a ComponentId, Term)>,
     semantic_facts: Vec<(usize, &'a SemanticFact)>,
+    provenance: Vec<(usize, &'a ProvenanceEdge)>,
+    admitted_fact_occurrences: Vec<InventoryAdmittedFact<'a>>,
+    term_views: Vec<InventoryTermView<'a>>,
     native_facts: Vec<(usize, &'a ConstraintOccurrence)>,
     source_drains: Vec<Option<&'a candidate_context::SourceDrainReceipt>>,
     value_rows: Vec<(usize, &'a VariableBounds)>,
@@ -596,6 +660,7 @@ struct InventoryPackage<'a> {
     provider_endpoint: EffectEndpointKey,
     provider_view_index: usize,
     internal: InventoryInternalRequest<'a>,
+    owner_call: InventoryOwnerCall<'a>,
     internal_plan: InventoryInternalPlan<'a>,
     root_join: InternalRegisteredRootJoin,
     function_witness: InternalFunctionWitness,
@@ -607,6 +672,135 @@ struct InventoryPackage<'a> {
     catch: InventoryCatchRequest<'a>,
     entry_path: Vec<LowerPathSnapshot>,
     catch_path: Vec<LowerPathSnapshot>,
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+impl InventoryPackage<'_> {
+    /// Read the unique fact admitted at a source occurrence and local slot.
+    /// The selected native fact must be the same owner-table entry, with its
+    /// FactId and endpoints preserved by the selected provenance edge.
+    fn source_fact_at(
+        &self,
+        occurrence: &HirOccurrenceId,
+        slot: u32,
+        selected_native_fact: &SemanticFact,
+    ) -> Option<InventoryOccurrenceFact<'_, '_>> {
+        let mut candidates = self.admitted_fact_occurrences.iter().filter(|row| {
+            row.occurrence == occurrence && row.slot == slot
+        });
+        let row = candidates.next()?;
+        if candidates.next().is_some() {
+            return None;
+        }
+
+        let (fact_index, owned_fact) = self.semantic_facts.get(row.fact_index)?;
+        let (edge_index, owned_edge) = self.provenance.get(row.edge_index)?;
+        if *fact_index != row.fact_index
+            || !std::ptr::eq(*owned_fact, row.fact)
+            || *edge_index != row.edge_index
+            || !std::ptr::eq(*owned_edge, row.edge)
+            || !std::ptr::eq(row.fact, selected_native_fact)
+            || row.edge.cause().occurrence().occurrence() != occurrence
+            || row.edge.cause().occurrence().local_slot() != slot
+            || row.edge.fact() != row.fact.id()
+            || u32::try_from(row.fact_index).ok() != Some(row.fact.id().index())
+            || row.fact.id() != selected_native_fact.id()
+            || row.fact.lower() != selected_native_fact.lower()
+            || row.fact.upper() != selected_native_fact.upper()
+        {
+            return None;
+        }
+        Some(InventoryOccurrenceFact { row, occurrence: row.occurrence, slot })
+    }
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+fn inventory_term_children(
+    view: &TermView<'_>,
+) -> Result<Vec<Term>, candidate_context::CurrentEmissionGap> {
+    let count = match view {
+        TermView::PositiveFunction { .. } | TermView::NegativeFunction { .. } => 4,
+        TermView::PositiveVariant { alternatives } | TermView::NegativeVariant { alternatives } => {
+            alternatives.iter().try_fold(0usize, |n, alt| n.checked_add(alt.payloads.len()))
+                .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?
+        }
+        TermView::PositiveRecord { fields } | TermView::NegativeRecord { fields } => fields.len(),
+        TermView::PositiveTuple { elements } | TermView::NegativeTuple { elements } => elements.len(),
+        TermView::Leaf(_) | TermView::Component(_) | TermView::LiveVariable(_)
+        | TermView::PositiveBottom | TermView::NegativeTop | TermView::NegativeBottom => 0,
+    };
+    let mut children = Vec::new();
+    children.try_reserve_exact(count)
+        .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+    match view {
+        TermView::PositiveFunction { argument, argument_effect, result_effect, result }
+        | TermView::NegativeFunction { argument, argument_effect, result_effect, result } => {
+            children.extend([*argument, *argument_effect, *result_effect, *result]);
+        }
+        TermView::PositiveVariant { alternatives } | TermView::NegativeVariant { alternatives } => {
+            for alternative in *alternatives {
+                children.extend(alternative.payloads.iter().copied());
+            }
+        }
+        TermView::PositiveRecord { fields } | TermView::NegativeRecord { fields } => {
+            children.extend(fields.iter().map(|field| field.value));
+        }
+        TermView::PositiveTuple { elements } | TermView::NegativeTuple { elements } => {
+            children.extend(elements.iter().copied());
+        }
+        TermView::Leaf(_) | TermView::Component(_) | TermView::LiveVariable(_)
+        | TermView::PositiveBottom | TermView::NegativeTop | TermView::NegativeBottom => {}
+    }
+    Ok(children)
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+fn inventory_term_views<'a>(
+    session: &'a InferenceSession,
+    seeds: impl IntoIterator<Item = Term>,
+) -> Result<Vec<InventoryTermView<'a>>, candidate_context::CurrentEmissionGap> {
+    let mut terms = Vec::new();
+    let mut coordinates = HashMap::new();
+    for term in seeds {
+        if !coordinates.contains_key(&term) {
+            terms.try_reserve(1).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+            coordinates.try_reserve(1).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+            coordinates.insert(term, terms.len());
+            terms.push(term);
+        }
+    }
+    let mut cursor = 0usize;
+    while cursor < terms.len() {
+        let view = session.store.term_view(terms[cursor])
+            .map_err(|_| candidate_context::CurrentEmissionGap::BoundMismatch)?;
+        for child in inventory_term_children(&view)? {
+            if !coordinates.contains_key(&child) {
+                terms.try_reserve(1).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+                coordinates.try_reserve(1).map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+                coordinates.insert(child, terms.len());
+                terms.push(child);
+            }
+        }
+        cursor = cursor.checked_add(1).ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
+    }
+    let mut result = Vec::new();
+    result.try_reserve_exact(terms.len())
+        .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+    for term in &terms {
+        let view = session.store.term_view(*term)
+            .map_err(|_| candidate_context::CurrentEmissionGap::BoundMismatch)?;
+        let child_terms = inventory_term_children(&view)?;
+        let mut children = Vec::new();
+        children.try_reserve_exact(child_terms.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        for child in child_terms {
+            let index = coordinates.get(&child).copied()
+                .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
+            children.push((index, child));
+        }
+        result.push(InventoryTermView { term: *term, view, children });
+    }
+    Ok(result)
 }
 #[cfg(feature = "shadow-apply-candidate")]
 #[allow(dead_code, reason = "keeps parameter-root and Internal registered-root coordinates distinct")]
@@ -2767,6 +2961,29 @@ impl<'a> InventoryPackage<'a> {
             semantic_lambda_fact: incidence.lambda_fact,
             semantic_internal_fact: incidence.internal_fact,
         };
+        let owner_call = InventoryOwnerCall {
+            source_call: source_call.call_index,
+            source_owner: source_call.owner,
+            target_owner: permission.source_owner,
+            use_occurrence: use_record.occurrence(),
+            relay: &owner.schema.relay,
+            answer: &owner.schema.answer,
+            catch_occurrence: &owner.schema.catch,
+            edge_scrutinee: &owner.schema.edge_scrutinee,
+            provider_occurrence: &owner.schema.provider,
+            provider_source: &owner.schema.provider_source,
+            provider_source_range: owner.schema.provider_source_range,
+            provider_identity: &owner.schema.provider_identity,
+            selected_arm_index: usize::try_from(owner.schema.selected_arm.arm_ordinal)
+                .map_err(|_| candidate_context::CurrentEmissionGap::BoundMismatch)?,
+            arm_source: &owner.schema.selected_arm.arm_source,
+            arm_range: owner.schema.selected_arm.arm_range,
+            operation_source: &owner.schema.selected_arm.operation_source,
+            operation_identity: &owner.schema.selected_arm.operation_identity,
+            unit_payload_source: &owner.schema.selected_arm.unit_payload_source,
+            unit_payload_range: owner.schema.selected_arm.unit_payload_range,
+            continuation_is_wildcard: owner.schema.selected_arm.continuation_is_wildcard,
+        };
         let target_root_component = use_record.target_root_component;
         let use_value_component = use_record.use_value_component;
         if target_root_component >= source.component_terms.len()
@@ -2852,6 +3069,69 @@ impl<'a> InventoryPackage<'a> {
             Some(output)
         }).ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
         let semantic_facts = copy_owned_borrowed_inventory(&source.semantic_facts)?;
+        let provenance = collect_owned_borrowed_inventory(
+            native.session.store.provenance().iter().enumerate(),
+        ).ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
+        let mut admitted_fact_occurrences = Vec::new();
+        admitted_fact_occurrences.try_reserve_exact(provenance.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        let mut provenance_counts = Vec::new();
+        provenance_counts.try_reserve_exact(semantic_facts.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        provenance_counts.resize(semantic_facts.len(), 0usize);
+        for (edge_index, edge) in &provenance {
+            let mut matching_fact = None;
+            for (fact_index, fact) in &semantic_facts {
+                if fact.id() == edge.fact() {
+                    if matching_fact.replace((*fact_index, *fact)).is_some() {
+                        return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+                    }
+                }
+            }
+            let (fact_index, fact) = matching_fact
+                .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
+            let count = provenance_counts.get_mut(fact_index)
+                .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
+            *count = count.checked_add(1)
+                .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
+            let occurrence = edge.cause().occurrence();
+            admitted_fact_occurrences.push(InventoryAdmittedFact {
+                edge_index: *edge_index,
+                fact_index,
+                occurrence: occurrence.occurrence(),
+                slot: occurrence.local_slot(),
+                edge,
+                fact,
+            });
+        }
+        if provenance_counts.iter().any(|count| *count == 0) {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+        let term_seed_capacity = source.component_terms.len()
+            .checked_add(source.semantic_facts.len().checked_mul(2)
+                .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?)
+            .and_then(|n| n.checked_add(native.facts.len().checked_mul(2)?))
+            .and_then(|n| n.checked_add(6))
+            .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
+        let mut term_seeds = Vec::new();
+        term_seeds.try_reserve_exact(term_seed_capacity)
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        term_seeds.extend(source.component_terms.iter().map(|(_, _, term)| *term));
+        for (_, fact) in &semantic_facts {
+            term_seeds.extend([fact.lower(), fact.upper()]);
+        }
+        for (_, fact) in &native.facts {
+            term_seeds.extend([fact.lower(), fact.upper()]);
+        }
+        term_seeds.extend([
+            source.internal_function_witness.function,
+            source.internal_function_witness.argument_effect,
+            source.internal_incidence.lambda_fact.lower(),
+            source.internal_incidence.lambda_fact.upper(),
+            source.internal_incidence.internal_fact.lower(),
+            source.internal_incidence.internal_fact.upper(),
+        ]);
+        let term_views = inventory_term_views(native.session, term_seeds)?;
         let native_facts = copy_owned_borrowed_inventory(&native.facts)?;
         let mut schedules = Vec::new();
         schedules.try_reserve_exact(source.schedules.len())
@@ -2897,7 +3177,7 @@ impl<'a> InventoryPackage<'a> {
             hir: record.hir,
             source: record.source,
         }));
-        Ok(Self {
+        let package = Self {
             owner,
             batch: native.batch,
             session: native.session,
@@ -2924,6 +3204,9 @@ impl<'a> InventoryPackage<'a> {
             lambda_origins,
             components,
             semantic_facts,
+            provenance,
+            admitted_fact_occurrences,
+            term_views,
             native_facts,
             source_drains,
             value_rows,
@@ -2942,6 +3225,7 @@ impl<'a> InventoryPackage<'a> {
             provider_endpoint: provider.provider.endpoint,
             provider_view_index: provider.provider_view_index,
             internal,
+            owner_call,
             internal_plan,
             root_join,
             function_witness,
@@ -2953,7 +3237,15 @@ impl<'a> InventoryPackage<'a> {
             catch,
             entry_path,
             catch_path,
-        })
+        };
+        if package.source_fact_at(
+            package.internal.occurrence,
+            0,
+            package.internal.semantic_internal_fact,
+        ).is_none() {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+        Ok(package)
     }
 }
 

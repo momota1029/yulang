@@ -1,3 +1,18 @@
+## 2026-10-31 R65 checkpoint — occurrence-qualified fact readers
+
+R65 closed **BOUNDED PASS, research only** after fresh review and a reviewed
+one-line Rust lifetime repair. The Rust package now retains every provenance
+edge and selects a source fact by exact occurrence/slot before checking its
+FactId and endpoints. Lean checked 25 theorem types and complete transitive
+axiom reports, including same-FactId facts at distinct source keys and shared
+Internal/root permission evidence; collected Catch slot 51 remains unchanged.
+R55/R57 stay frozen. No Rust build ran, so feature compilation remains OPEN.
+Native pointer/table authenticity, runtime multiplicity, R62/R63 integration,
+outer Run and all original A/B/effect-hygiene/production gates remain OPEN. See
+the [R65 outcome](agent-loop/history/effect-permission-occurrence-facts-20261031-r65-outcome.md),
+[review](agent-loop/inbox/effect-permission-occurrence-facts-r65-review.md), and
+[closeout note](../notes/progress/2026-10-31-r65-closeout.md).
+
 ## 2026-10-31 R64 checkpoint — incomplete Owner carrier
 
 R64 closed **CLOSED_INCOMPLETE**. Lean checked 18 structural theorem roots
