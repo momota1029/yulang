@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "revision": 1,
+  "sprint_id": "EFFECT-PERMISSION-INTEGRATED-ALIGNMENT/20261031-R78",
+  "baseline_commit": "68976bad8d44fd5586ac9b06ee2389743bfa4c8f",
+  "contract": "tasks/agent-loop/sprints/effect-permission-integrated-alignment-20261031-r78.md",
+  "contract_sha256": "42455496150e76635d364fb72d20142583d30ac0cedec239d17520609be95148",
+  "inputs": [
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "sha256": "9113485e919f41581049a065bef5a533505fc46e71e5d3ae18a4ceec97cdaca7",
+      "note": "R77 baseline receiver: new alignment builder and both old consumers"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_source.rs",
+      "sha256": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a",
+      "note": "complete source call and DefinitionUse collectors"
+    },
+    {
+      "path": "crates/yu-solver/src/lib.rs",
+      "sha256": "15e7b131a65f8476eec575d978dc629d15d49e72149325ef35a8c08acc8fc745",
+      "note": "native incidence and owner identities"
+    },
+    {
+      "path": "crates/yu-hir/src/module/local_source.rs",
+      "sha256": "7055975d582dfb198836c2aa659f8b8033c29dff419d522feea4fea4c42523d1",
+      "note": "owner-local HIR source access and occurrence ownership"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceInternalChoiceR77.lean",
+      "sha256": "0aa1185675cc92ac97a20f4163bd2b2486f34cfb5ca725a3fcb3c1861efdf682",
+      "note": "reviewed source alignment and R66 choice declarations"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceInternalContextR55.lean",
+      "sha256": "7aaecdd3d358d769123f00acb4b19b4d7d61ccfef98fee4eb53179da4a105123",
+      "note": "same-use plan and internal inventory definitions"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ProviderNativeContextR57.lean",
+      "sha256": "804b3431c2e585370b8adc28f59b36c26a36e1524f42278a860823c9bd7eaa63",
+      "note": "source keys and endpoint definitions"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+      "sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+      "note": "actual inventory projection and occurrence-qualified readers"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedConsumerR66.lean",
+      "sha256": "5db5ad3f3f5e5803e2bc564fc8922d5eb8a72182c7ba11de3904eebd7b5950e1",
+      "note": "actual owner selection and consumer"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ComputationPermissionEntryR39.lean",
+      "sha256": "748cd52ff7962962940a3767ffa6a0b2d8def16d80e65e682282d1fa2b79560e",
+      "note": "source declaration dependency"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/InternalPermissionIncidenceR45.lean",
+      "sha256": "9ff4fd544375a3d4a46100647cba93ddde6f34bebd767ba402f3bd3d35a84b1f",
+      "note": "source incidence parent declaration"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceInternalChoiceR76.lean",
+      "sha256": "28f5c2fc3679e3af4ef2f14bb984307fe036b4c979a3cb91f39ba0c9ebf565c3",
+      "note": "rejected predecessor retained read-only"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-alignment-r77-rust.md",
+      "sha256": "e3f7944c322ac2c909c97d95f0df3e814dea670c2e9c7a9d718f3061fb0eab68",
+      "note": "R77 Rust handoff and coordinates"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-alignment-r77-proof.md",
+      "sha256": "d6b2c7004daef188fd927bb77d9dfea85849bebc8df303743656023012e78dad",
+      "note": "R77 proof and full audit receipts"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-alignment-r77-review.md",
+      "sha256": "913a4f7bef50e6c7a0513615cf9b01bd471f5bf2850bca35709eafeb30aabe8d",
+      "note": "independent R77 bounded acceptance"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-source-alignment-20261031-r77-outcome.md",
+      "sha256": "8d6d69222ad21e4a0085ee3003381e89ed07346d3accbe3770b2b57ccf9613b4",
+      "note": "R77 closeout and clarified open consumer seam"
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+      "note": "pinned Lean toolchain"
+    }
+  ],
+  "lean_executable": {
+    "path": "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean",
+    "sha256": "bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38"
+  },
+  "lean_audit_policy": {
+    "max_invocations": 2,
+    "per_invocation_timeout_seconds": 120,
+    "args": [
+      "-j1",
+      "-M1024",
+      "--stdin"
+    ],
+    "env": {
+      "LEAN_NUM_THREADS": "1"
+    },
+    "cwd": "notes/theory/lean",
+    "destination": "stdin only; stdout/stderr retained verbatim in proof handoff",
+    "explicit_primary_authorization_before_each": true,
+    "no_third_invocation": true
+  },
+  "prior_boundary": "R77 accepted bounded construction; InventoryPackage consumers still conflate Apply and Name coordinates; R78 owns only their integration."
+}
