@@ -1,0 +1,255 @@
+{
+  "schema_version": 1,
+  "sprint_id": "EFFECT-PERMISSION-SOURCE-CHOICE/20261031-R76",
+  "baseline_commit": "9b523f587cf1e8cf2142ede750fa85121876d415",
+  "contract": "tasks/agent-loop/sprints/effect-permission-source-choice-20261031-r76.md",
+  "contract_sha256": "87325ab223af0e98a6ca8c78162ead6ba1d72403b318342d155ee5dd55069936",
+  "inputs": [
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "sha256": "29fccb4808106f13e761f97c9bda1201f175944dccb916e437edaf1b694609fd"
+    },
+    {
+      "path": "crates/yu-solver/src/lib.rs",
+      "sha256": "15e7b131a65f8476eec575d978dc629d15d49e72149325ef35a8c08acc8fc745"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ComputationPermissionEntryR39.lean",
+      "sha256": "748cd52ff7962962940a3767ffa6a0b2d8def16d80e65e682282d1fa2b79560e"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/InternalPermissionIncidenceR45.lean",
+      "sha256": "9ff4fd544375a3d4a46100647cba93ddde6f34bebd767ba402f3bd3d35a84b1f"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/AuthenticatedResidualConsumerR49.lean",
+      "sha256": "4fc4380f3ad1827ecf155f982e5186b32d6d66d91909039fb118063d8f1e2df2"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceInternalContextR55.lean",
+      "sha256": "7aaecdd3d358d769123f00acb4b19b4d7d61ccfef98fee4eb53179da4a105123"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ProviderNativeContextR57.lean",
+      "sha256": "804b3431c2e585370b8adc28f59b36c26a36e1524f42278a860823c9bd7eaa63"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/InternalRootPolicyR62.lean",
+      "sha256": "e76e41a853673e75555cc5e603f1f84c456332794980613c554a2d69af8d976e"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/RustInventoryRequestR63.lean",
+      "sha256": "74381ebd183fa7d26f626fe166f848e1312377fca855cd08beb92d9256edfacc"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CurrentEmissionOwnershipR47.lean",
+      "sha256": "d64c54f7c977e110305a76e6437fc87c8ff14201a4d69eb0bbcb5ee0e1cd8b9c"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+      "sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedConsumerR66.lean",
+      "sha256": "5db5ad3f3f5e5803e2bc564fc8922d5eb8a72182c7ba11de3904eebd7b5950e1"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/DistinctSourceEmissionRootR75.lean",
+      "sha256": "e868eb6bc6cba74af4f3096cc7fb2e48503c8183e064071b84022923c2bc6821"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-root-r75-review.md",
+      "sha256": "a1c36e691f09c0c28242fa3b5261263673be577497a887e438232f00d1e3dae0"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-source-root-20261031-r75-outcome.md",
+      "sha256": "d78ef9c2f6fc52c075062674e2dbd24cb938a2ddfd4effb7645d011b84b7fadb"
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ProviderEntryArrivalR48.lean",
+      "sha256": "b85dfad5c0e80f7fbc2480e7f38421cc6c50107144d9abb160e688208b192575"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ReachedSlotSearchR58.lean",
+      "sha256": "431d3b4cb031fd86ad4a0537c1c8a42adecb8433f3ef775b3371eb37611b3079"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ReachedSlotCompletenessR59.lean",
+      "sha256": "d0d1a33e416a13ed29e5ba018f5adf1e0a71b6b5886d2d04f74956522836bfab"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeLocalDecodeR60.lean",
+      "sha256": "3eccc41902a8a8768a55cac020efd4936517da3feb2d91a7ec158994a133ca20"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/BoundedAncestryR61.lean",
+      "sha256": "9e1c783016bc14487dd0a4ebc2839dfab0dc3daf911ee88fa02f3624e2ad60a4"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceInternalChoiceR76.lean",
+      "sha256": "28f5c2fc3679e3af4ef2f14bb984307fe036b4c979a3cb91f39ba0c9ebf565c3"
+    }
+  ],
+  "lean_executable": {
+    "path": "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean",
+    "sha256": "bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38"
+  },
+  "limitations": [
+    "No compiler, Cargo, tests, Lake, build, formatter, environment, cache, target, scratch, generated output, or worktree.",
+    "At most two direct Lean stdin audits, each explicitly frozen and authorized before execution; each at most 120 seconds with -j1 -M1024.",
+    "Rust native loop in lib.rs is read-only and pinned at baseline; only candidate_receiver.rs is leased to Rust writer.",
+    "R75 actual source/native extraction and genuine R66 Root remain OPEN."
+  ],
+  "revision": 3,
+  "supersedes_manifest": "tasks/agent-loop/sprints/effect-permission-source-choice-20261031-r76-inputs-r2.json",
+  "supersedes_sha256": "6c386e096fea70fa22a3b73fa237d08ee57f263aff994ac35eb54106575a909d",
+  "dependency_note": "R3 corrects the frozen R76 module pin and binds the second bounded declaration-slice audit; R2 whole-import closure was pinned but audit 1 exhausted memory in upstream R60 before R76.",
+  "audit_2": {
+    "status": "FROZEN_NOT_AUTHORIZED",
+    "claim_scope": "exact source declaration slice only; not full project import closure or Rust extraction",
+    "stdin_bytes": 35050,
+    "stdin_sha256": "bbe5b3a4f36dfc81c9ac40d696b447cbdb4c4b7170af4a00f92258baf3ecd033",
+    "segments": [
+      {
+        "path": "notes/theory/lean/YulangClosure/ComputationPermissionEntryR39.lean",
+        "source_sha256": "748cd52ff7962962940a3767ffa6a0b2d8def16d80e65e682282d1fa2b79560e",
+        "first_line": 12,
+        "last_line": 75,
+        "slice_sha256": "62f6622e56aee18a37b9ae8c0772de82154b5a2db5d6808cc7743b6545671b98",
+        "slice_bytes": 1444
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/InternalPermissionIncidenceR45.lean",
+        "source_sha256": "9ff4fd544375a3d4a46100647cba93ddde6f34bebd767ba402f3bd3d35a84b1f",
+        "first_line": 12,
+        "last_line": 88,
+        "slice_sha256": "9c82d93bc87236e7aa9bea822fd75cbe4f296ee02d81c5ac83e4ae0f11f65eeb",
+        "slice_bytes": 2298
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/SourceInternalContextR55.lean",
+        "source_sha256": "7aaecdd3d358d769123f00acb4b19b4d7d61ccfef98fee4eb53179da4a105123",
+        "first_line": 10,
+        "last_line": 154,
+        "slice_sha256": "cdbc3c9afbe6bc9fadd5543bdb400343440c6582fbf108e9b2f92c3bf2aa0c82",
+        "slice_bytes": 6344
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/ProviderNativeContextR57.lean",
+        "source_sha256": "804b3431c2e585370b8adc28f59b36c26a36e1524f42278a860823c9bd7eaa63",
+        "first_line": 6,
+        "last_line": 34,
+        "slice_sha256": "8af4d69ded66f267115ae7622e7fe663b2ef33cd6e0cee5d5cbdc0cfe331db05",
+        "slice_bytes": 1356
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/ProviderNativeContextR57.lean",
+        "source_sha256": "804b3431c2e585370b8adc28f59b36c26a36e1524f42278a860823c9bd7eaa63",
+        "first_line": 785,
+        "last_line": 801,
+        "slice_sha256": "8d268cf72a44da0ca6c28ea413986883a2c5a618fcb071c4e588da36dff14c34",
+        "slice_bytes": 1417
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+        "source_sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+        "first_line": 10,
+        "last_line": 41,
+        "slice_sha256": "3fd09684a169ff331579d7e0faf4ba045e590e3c62ecc3c1c9a0dd96c94d717d",
+        "slice_bytes": 669
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+        "source_sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+        "first_line": 43,
+        "last_line": 45,
+        "slice_sha256": "73a909efee11b7b5ed8c763a3d4ac22bff169f24a081eaf7946d3e291a9b527b",
+        "slice_bytes": 175
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+        "source_sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+        "first_line": 52,
+        "last_line": 66,
+        "slice_sha256": "342ca11b82022512e1af286984dd3e34b5b5f640e60032a981080224bd22f0b8",
+        "slice_bytes": 648
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+        "source_sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+        "first_line": 215,
+        "last_line": 226,
+        "slice_sha256": "c6ba0292d1900c6d344014640f60c76015327025e70c1a1cafc0cb0aed5874a0",
+        "slice_bytes": 539
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+        "source_sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+        "first_line": 246,
+        "last_line": 251,
+        "slice_sha256": "cd6b69b54ba338acfeaff738f60ab81ce7d118ea3d2b8d9910c83d1a0e1c19da",
+        "slice_bytes": 330
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+        "source_sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+        "first_line": 417,
+        "last_line": 419,
+        "slice_sha256": "d03134598123298a949bc59da11760329d19b9582160f3581ccec39099f77945",
+        "slice_bytes": 230
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedConsumerR66.lean",
+        "source_sha256": "5db5ad3f3f5e5803e2bc564fc8922d5eb8a72182c7ba11de3904eebd7b5950e1",
+        "first_line": 14,
+        "last_line": 33,
+        "slice_sha256": "c13495d0114d9499fc076b956dce9b5d9cdf6489123387f98b5886d4f0c0c106",
+        "slice_bytes": 1047
+      },
+      {
+        "path": "notes/theory/lean/YulangClosure/SourceInternalChoiceR76.lean",
+        "source_sha256": "28f5c2fc3679e3af4ef2f14bb984307fe036b4c979a3cb91f39ba0c9ebf565c3",
+        "first_line": 3,
+        "last_line": 300,
+        "slice_sha256": "cc8b96ad0f5cb0a2f7342605a18d371a608fdbd970aa545c9e80abbfa0722250",
+        "slice_bytes": 16087
+      }
+    ],
+    "theorems": [
+      "visit_agrees",
+      "walk_accounts_for_all",
+      "ordered_selection_agrees",
+      "malformed_recipe_first",
+      "second_origin_first",
+      "choice_three_premises",
+      "choice_applies_r66",
+      "exact_use_unique",
+      "construction_certifies",
+      "finite_constructs_choice",
+      "finite_bad_inventories_reject",
+      "finite_foreign_shared_images_rejected",
+      "finite_native_failure_order",
+      "duplicate_plans_rejected"
+    ],
+    "assembly": "Exact byte assembly code in the frozen R76 proof handoff; source slices verified against full pinned source SHA-256 and per-slice SHA-256.",
+    "command": {
+      "executable": "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean",
+      "executable_sha256": "bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38",
+      "args": [
+        "-j1",
+        "-M1024",
+        "--stdin"
+      ],
+      "env": {
+        "LEAN_NUM_THREADS": "1"
+      },
+      "timeout_seconds": 120,
+      "cwd": "notes/theory/lean",
+      "destination": "stdin only; stdout/stderr retained in proof handoff; no file output"
+    }
+  }
+}
