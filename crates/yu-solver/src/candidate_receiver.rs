@@ -201,6 +201,8 @@ fn certified_lower_paths<'a>(
 pub(super) struct CurrentInternalEmission<'a> {
     pub incidence: InternalFormalPermissionIncidence<'a>,
     pub emission: candidate_context::CheckedBoundEmission<'a>,
+    /// Exact source Value pair used when the owner-checked use root was read.
+    pub source_root_pair: TypedPairKey,
 }
 #[cfg(feature = "shadow-apply-candidate")]
 #[derive(Debug)]
@@ -525,7 +527,9 @@ struct InventoryEntryRequest<'a> {
     use_occurrence: &'a HirOccurrenceId,
     semantic_fact: &'a SemanticFact,
     raw_entry: u32,
-    root_relation: candidate_context::RelationId,
+    source_root_relation: candidate_context::RelationId,
+    source_root_pair: TypedPairKey,
+    emission_relation: candidate_context::RelationId,
     emission_index: usize,
     admission_index: usize,
 }
@@ -1110,7 +1114,8 @@ struct InventoryInternalRootView<'p, 'a> {
     internal_plan: &'p InventoryInternalPlan<'a>,
     root_emission: &'a candidate_context::BoundEmission,
     root_admission: &'a candidate_context::BoundAdmission,
-    root_relation: candidate_context::RelationId,
+    source_root_relation: candidate_context::RelationId,
+    emission_relation: candidate_context::RelationId,
     raw_entry: u32,
 }
 
@@ -1813,6 +1818,21 @@ impl<'a> InventoryPackage<'a> {
         }
         let emission = self.emissions.get(self.entry.emission_index)?;
         let admission = self.admissions.get(self.entry.admission_index)?;
+        let source_root_relation = self.relations
+            .get(self.entry.source_root_relation.0 as usize)
+            .filter(|(index, relation)| {
+                *index == self.entry.source_root_relation.0 as usize
+                    && matches!(self.entry.source_root_pair, TypedPairKey::Value(_))
+                    && relation.key.pair == self.entry.source_root_pair
+            });
+        let emission_relation = self.relations
+            .get(self.entry.emission_relation.0 as usize)
+            .filter(|(index, relation)| {
+                *index == self.entry.emission_relation.0 as usize
+                    && admission.1.relation == Some(self.entry.emission_relation)
+                    && matches!(candidate_context::bound_pair(admission.1.bound), TypedPairKey::Effect { .. })
+                    && relation.key.pair == candidate_context::bound_pair(admission.1.bound)
+            });
         if emission.0 != self.entry.emission_index
             || admission.0 != self.entry.admission_index
             || self.entry.source_call != request.source_call
@@ -1821,9 +1841,9 @@ impl<'a> InventoryPackage<'a> {
             || self.entry.raw_entry != request.raw_entry
             || emission.1.physical.owner != candidate_scheme::RowKey::Effect(request.raw_entry)
             || admission.1.bound != emission.1.bound
-            || admission.1.relation != Some(self.entry.root_relation)
+            || source_root_relation.is_none()
+            || emission_relation.is_none()
             || emission.1.admission.0 != self.entry.admission_index
-            || !self.relations.iter().any(|(index, _)| *index == self.entry.root_relation.0 as usize)
             || self.internal_plan.source_owner != request.source_owner
             || self.internal_plan.target_owner != request.target_owner
             || self.internal_plan.target_root != self.root_join.registered_root
@@ -1848,7 +1868,8 @@ impl<'a> InventoryPackage<'a> {
             internal_plan: &self.internal_plan,
             root_emission: emission.1,
             root_admission: admission.1,
-            root_relation: self.entry.root_relation,
+            source_root_relation: self.entry.source_root_relation,
+            emission_relation: self.entry.emission_relation,
             raw_entry: request.raw_entry,
         })
     }
@@ -2329,7 +2350,7 @@ impl ReceivingResidualExperiment {
         let emission = state.checked_emission_for_internal_use(
             index, current, entry_effect, &occurrence, root_pair,
         )?;
-        Ok(CurrentInternalEmission { incidence, emission })
+        Ok(CurrentInternalEmission { incidence, emission, source_root_pair: root_pair })
     }
     /// Build a read-only common-endpoint certificate from the exact Internal
     /// entry and the original Catch input fact. Every traversed lower edge is
@@ -4321,13 +4342,18 @@ impl<'a> InventoryPackage<'a> {
             argument_effect: source.internal_function_witness.argument_effect,
             entry_effect: source.internal_function_witness.entry_effect,
         };
-        let emission = &provider.provider.internal.emission;
+        let internal_emission = &provider.provider.internal;
+        let emission = &internal_emission.emission;
+        let emission_relation = emission.admission.relation
+            .ok_or(candidate_context::CurrentEmissionGap::MissingRelation)?;
         let entry = InventoryEntryRequest {
             source_call: source_call.call_index,
             use_occurrence: use_record.occurrence(),
             semantic_fact: incidence.internal_fact,
             raw_entry: permission.entry_effect,
-            root_relation: emission.use_root,
+            source_root_relation: emission.use_root,
+            source_root_pair: internal_emission.source_root_pair,
+            emission_relation,
             emission_index: emission.id.0,
             admission_index: emission.admission_id.0,
         };
