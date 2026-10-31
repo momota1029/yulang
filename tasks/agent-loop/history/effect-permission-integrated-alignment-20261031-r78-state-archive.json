@@ -1,0 +1,352 @@
+{
+  "schema_version": 1,
+  "sprint_id": "EFFECT-PERMISSION-INTEGRATED-ALIGNMENT/20261031-R78",
+  "status": "CLOSED_INTEGRATION_REJECTED_BOUNDED_LEAN_PASS",
+  "outcome": "tasks/agent-loop/history/effect-permission-integrated-alignment-20261031-r78-outcome.md",
+  "outcome_sha256": "ad010af4fb62cc998b5df56d1caf7a1d2457f33875d4fc2f0590b7e97cd8623c",
+  "contract_sha256": "42455496150e76635d364fb72d20142583d30ac0cedec239d17520609be95148",
+  "input_manifest_sha256": "66c5307d5c796765a6557784d30935554fcc4d4ebf444dd8cc3983f980a81803",
+  "baseline_commit": "68976bad8d44fd5586ac9b06ee2389743bfa4c8f",
+  "review": "tasks/agent-loop/inbox/effect-permission-integrated-alignment-r78-review.md",
+  "review_sha256": "cf12884f7540b9638db870eb2989e11d24cdf927560a42c635bb8d2760d0cdef",
+  "rust_sha256": "5e99035a94e1d3f618e03e932e59933fb3d5eb9f501455779bcb52e65e7c7a3a",
+  "lean_module_sha256": "bfe304c33e6018910739d58d37c2122a4a475fac57e00091e1a700a965510029",
+  "proof_handoff_sha256": "2a271605d7ec6942fec80f2288a6da615f013167616321140806894ce3d13dd5",
+  "rust_handoff_sha256": "e5a69c815a3c3e744c0a2cdc726f994c696bcc96e0f1ad6097ba365dd683ff0f",
+  "workers": [
+    {
+      "id": "/root/r78_rust",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 900,
+      "session": "EFFECT-PERMISSION-INTEGRATED-ALIGNMENT/20261031-R78",
+      "receipt": "tasks/agent-loop/inbox/effect-permission-integrated-alignment-r78-rust.md"
+    },
+    {
+      "id": "/root/r78_proof",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 1000,
+      "session": "EFFECT-PERMISSION-INTEGRATED-ALIGNMENT/20261031-R78",
+      "receipt": "tasks/agent-loop/inbox/effect-permission-integrated-alignment-r78-proof.md"
+    },
+    {
+      "id": "/root/r78_review",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "gpt-6.1-sol",
+      "observed_effort": "medium",
+      "budget_seconds": 900,
+      "session": "EFFECT-PERMISSION-INTEGRATED-ALIGNMENT/20261031-R78",
+      "receipt": "tasks/agent-loop/inbox/effect-permission-integrated-alignment-r78-review.md"
+    }
+  ],
+  "leases": [
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "owner": "/root/r78_rust",
+      "state": "FROZEN",
+      "sha256": "5e99035a94e1d3f618e03e932e59933fb3d5eb9f501455779bcb52e65e7c7a3a"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-integrated-alignment-r78-rust.md",
+      "owner": "/root/r78_rust",
+      "state": "FROZEN",
+      "sha256": "e5a69c815a3c3e744c0a2cdc726f994c696bcc96e0f1ad6097ba365dd683ff0f"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/IntegratedSourceAlignmentR78.lean",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "bfe304c33e6018910739d58d37c2122a4a475fac57e00091e1a700a965510029"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-integrated-alignment-r78-proof.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "2a271605d7ec6942fec80f2288a6da615f013167616321140806894ce3d13dd5"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-integrated-alignment-r78-review.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "cf12884f7540b9638db870eb2989e11d24cdf927560a42c635bb8d2760d0cdef"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-integrated-alignment-20261031-r78-live-receipt.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-integrated-alignment-20261031-r78-lean-audit1-authorization.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-integrated-alignment-20261031-r78-lean-audit2-authorization.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-integrated-alignment-20261031-r78-review-live-receipt.md",
+      "owner": "/root",
+      "state": "HELD"
+    }
+  ],
+  "audit1": {
+    "status": "FAILED_NO_ACCEPTED_THEOREMS",
+    "stdin_bytes": 57409,
+    "stdin_sha256": "fe4816df474cf33882c161966d54c24303e34f75e5fb7a4e30212b0d9dffcfb3",
+    "exit": 1,
+    "stdout_bytes": 23812,
+    "stdout_sha256": "1a6fc002799a0c3b33424f15038a25643eafc93b4092b68094e5497984272285",
+    "stderr_bytes": 0
+  },
+  "audit2": {
+    "status": "PASS_BOUNDED_SLICE",
+    "stdin_bytes": 57790,
+    "stdin_sha256": "0c61742191ea55c18c68ef6ef4e30e1c34cf48bb24275ca310481629602ed0c7",
+    "exit": 0,
+    "stdout_bytes": 19841,
+    "stdout_sha256": "306d1c05ebb3bcddbae50f5338b2ce59d4157f5ab17182e87d6a8fedada60f51",
+    "stderr_bytes": 0,
+    "theorems": 9,
+    "axioms": [
+      "propext",
+      "Quot.sound"
+    ],
+    "sorryAx": false
+  },
+  "review_verdict": "REJECT Rust integration; ACCEPT bounded Lean slice; one blocking nominal identity bridge",
+  "pending_count": 32,
+  "pending_ids": [
+    "R61-SOURCE-ASCRIPTION-FORMATION-1",
+    "R64-SRC-ANN-ARG-1",
+    "R65-CURRENT-OPERAND-1",
+    "R66-LAMBDA-RESULT-STAGE-1",
+    "R67-DIRECT-BODY-CHECK-1",
+    "R68-OWNER-CONSUMER-1",
+    "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+    "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+    "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+    "R72-LATER-OCCURRENCE-1",
+    "R149-SOURCE-OWNER-CLOSURE-1",
+    "R339-D2-WHOLE-FRAME-RETIREMENT",
+    "R340-D3-AUTHENTIC-APPLY-CONTINUATION",
+    "R345-N-REMAINDER",
+    "OP-SEMANTICS-FULL-EFFECT",
+    "DOT-SELECTION-EVIDENCE-BRIDGE",
+    "CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE",
+    "SOURCE-SAFETY-BRIDGE",
+    "CALL-CONTEXT-PLUG-PRESERVATION",
+    "BOUNDED-CALL-FINITE-PREFIX-SAFETY",
+    "CALL-STEP-ERASURE",
+    "CALL-RAW-SUCCESSOR-COVERAGE",
+    "FORCE-SOURCE-REALIZATION-20261025",
+    "RESPONSE-ENCODING-1",
+    "RESPONSE-INSTANCE-1",
+    "RESPONSE-TEMPLATE-1",
+    "GVG-FORMS-1",
+    "GVG-REC-RHS-1",
+    "HO-METADATA-ADEQUACY-1",
+    "HO-SHALLOW-HANDLER-1",
+    "HO-HANDLER-GRAPH-COMPOSITION-1",
+    "GRAPH-CONTINUATION-EXTENSION-1"
+  ],
+  "unknown_workers_preserved": [
+    {
+      "id": "/root/resident_dispatcher_loop_a",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root/resident_implementer_idle",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root/runtime_source_supplier_proof",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root/handler_graph_recursive_trace_review_astra_r2",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root/handler_recursive_trace_review2_astra_r2",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "foreign/01a17150-2005-7562-81fd-359b3e7a268c",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "foreign/01a17251-405f-7c81-8d75-ce784095f7c8",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "foreign/01a17251-2e11-78d0-8779-8219addb6b37",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root/r63_view_coverage_review",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "UNKNOWN_WRITER",
+      "role": "quarantined writer",
+      "state": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Quarantine."
+    },
+    {
+      "id": "/root/effect_permission_module_environment_source",
+      "state": "UNKNOWN",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "UNKNOWN; quarantine."
+    },
+    {
+      "id": "/root/latent_demand_transport_classification_r17_source",
+      "state": "UNKNOWN",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "LATENT-DEMAND-TRANSPORT-CLASSIFICATION-20261028/r17",
+      "receipt": "R36 roster absent; cessation unconfirmed."
+    },
+    {
+      "id": "/root/call_constructor_application_r21_review",
+      "state": "UNKNOWN",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 300,
+      "session": "CALL-CONSTRUCTOR-APPLICATION-20261028-R21",
+      "receipt": "UNKNOWN; quarantine."
+    }
+  ],
+  "quarantined_paths_preserved": [
+    {
+      "path": "tasks/agent-loop/inbox/paper-observation-coverage-r63-review.md",
+      "owner": "/root/r63_view_coverage_review",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/machine.rs",
+      "owner": "UNKNOWN_WRITER",
+      "state": "QUARANTINED",
+      "sha256": "fd7383cc1a96ae5601a3ccf563b19ef4f6381d798d3ce1c72b94929aa7c193f0"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/receiving.rs",
+      "owner": "UNKNOWN_WRITER",
+      "state": "QUARANTINED",
+      "sha256": "3b79ad0bb1722f363c671f14eae104dceeb3face69b124a4393e2fab5bae50f4"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tools/inference-playground/src/runtime/machine.rs",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tools/inference-playground/src/runtime/receiving.rs",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tools/inference-playground/src/runtime/mod.rs",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tools/inference-playground/src/bin/name_receipt_seed.rs",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/notes/theory/lean/YulangClosure/OriginalNameReceiptSeedTrace.lean",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tasks/agent-loop/inbox/name-receipt-seed-20261028-r2-source.md",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/source",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-module-environment-source.md",
+      "owner": "/root/effect_permission_module_environment_source",
+      "state": "QUARANTINED",
+      "sha256": "7e91e6cbee8a78f8d960a3b0ef87916fd0b229f54858173f959ed8b7b84b1805"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/latent-demand-transport-classification-r17-source.md",
+      "owner": "/root/latent_demand_transport_classification_r17_source",
+      "state": "QUARANTINED",
+      "sha256": "ecd1c05c20f6888e6148109157d8bdc460999df3a9cf3767bc331f76841f2797"
+    }
+  ],
+  "git_head_at_closeout": "df135ee97bdc7b8c5b0ca138e63a6bdead4177c3"
+}
