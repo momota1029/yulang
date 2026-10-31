@@ -364,5 +364,13 @@
     "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "peak_rss_kib": 862772,
     "receipt_retention": "INCOMPLETE; complete stdout not retained; no theorem acceptance or slot-3 authorization"
+  },
+  "slot3_exact_input": {
+    "bytes": 103791,
+    "sha256": "5c35dd49b71508fea4755abf680327932099249de1d1f4f5f250ca2d949651f2",
+    "recipe": "accepted slot1 normalized prefix body + import-stripped frozen R84 candidate + newline + full_queries",
+    "reviewed_by": "/root/r83_review",
+    "review_verdict": "PASS for exact assembly, unchanged thirteen theorem statements, source/normalization mapping",
+    "gate": "slot1 exact prefix process exited 0; slot3 requires its own committed/pushed authorization"
   }
 }
