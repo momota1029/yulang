@@ -2800,6 +2800,95 @@ impl<'p, 'a> LocalDecodeReader<'p, 'a> {
             edge,
         })
     }
+
+    fn ancestry_reader(&self) -> OrderedAncestryReader<'_, 'a> {
+        OrderedAncestryReader { projection: self.projection }
+    }
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "ordered source reader for the R61 bounded ancestry bridge")]
+pub(super) struct BorrowedDependencyParent<'a> {
+    pub(super) dependency_index: usize,
+    pub(super) parent_ordinal: usize,
+    pub(super) dependency: &'a candidate_context::Dependency,
+    pub(super) parent: candidate_context::RelationId,
+}
+
+/// A successful native query plus the exact full ordered tables from its
+/// R60 owner. The result is produced only after the existing bounded visitor
+/// returns `Ok`; allocation/work/error behavior is not reconstructed here.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "successful-call refinement input for the R61 source/model bridge")]
+pub(super) struct SuccessfulAncestryCall<'p, 'a> {
+    pub(super) descendant: candidate_context::RelationId,
+    pub(super) ancestor: candidate_context::RelationId,
+    pub(super) owner_state: &'a candidate_context::State,
+    pub(super) relations: &'p [(usize, &'a candidate_context::Relation)],
+    pub(super) dependencies: &'p [(usize, &'a candidate_context::Dependency)],
+}
+
+/// Borrowed reader for the complete owner-local relation and dependency
+/// vectors. Dependency order and Replay's lower/upper parent ordinals are
+/// observable; the reader never copies or filters the stored tables.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "sealed R61 ordered ancestry reader")]
+struct OrderedAncestryReader<'p, 'a> {
+    projection: &'p ProviderNativeContextProjection<'a>,
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+impl<'p, 'a> OrderedAncestryReader<'p, 'a> {
+    fn relations(&self) -> &'p [(usize, &'a candidate_context::Relation)] {
+        &self.projection.source_internal.native.relations
+    }
+
+    fn dependencies(&self) -> &'p [(usize, &'a candidate_context::Dependency)] {
+        &self.projection.source_internal.native.dependencies
+    }
+
+    /// Return every retained parent candidate for `child` in stored
+    /// dependency order, keeping each dependency's parent ordinal. Invalid
+    /// parent IDs are retained here; the native visitor validates a parent
+    /// only when that dependency is actually reached.
+    fn ordered_parents(
+        &self,
+        child: candidate_context::RelationId,
+    ) -> impl Iterator<Item = BorrowedDependencyParent<'a>> + '_ {
+        self.dependencies().iter().flat_map(move |(dependency_index, dependency)| {
+            candidate_context::relation_ancestry_dependency_parents(**dependency, child)
+                .into_iter()
+                .enumerate()
+                .filter_map(move |(parent_ordinal, parent)| parent.map(|parent| {
+                    BorrowedDependencyParent {
+                        dependency_index: *dependency_index,
+                        parent_ordinal,
+                        dependency: *dependency,
+                        parent,
+                    }
+                }))
+        })
+    }
+
+    /// Run the existing visitor exactly once. Only its successful return
+    /// yields ancestry evidence; failures preserve its native error and no
+    /// path is reconstructed from a second potentially differently-allocated
+    /// call.
+    fn successful_call(
+        &self,
+        descendant: candidate_context::RelationId,
+        ancestor: candidate_context::RelationId,
+    ) -> Result<SuccessfulAncestryCall<'p, 'a>, candidate_context::CurrentEmissionGap> {
+        let native = &self.projection.source_internal.native;
+        native.live_state.require_relation_ancestry(descendant, ancestor)?;
+        Ok(SuccessfulAncestryCall {
+            descendant,
+            ancestor,
+            owner_state: native.live_state,
+            relations: self.relations(),
+            dependencies: self.dependencies(),
+        })
+    }
 }
 
 #[cfg(feature = "shadow-apply-candidate")]

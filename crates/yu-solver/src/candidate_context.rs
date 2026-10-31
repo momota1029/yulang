@@ -375,6 +375,27 @@ pub(super) enum Dependency {
         witness: Option<TransportWitness>,
     },
 }
+
+/// Return the retained, directed parent candidates in exactly the order used
+/// by `require_relation_ancestry`. Replay keeps lower before upper; the caller
+/// still owns validation, work charging, visited suppression and LIFO pushes.
+pub(super) fn relation_ancestry_dependency_parents(
+    dependency: Dependency,
+    child: RelationId,
+) -> [Option<RelationId>; 2] {
+    match dependency {
+        Dependency::Derived { child: edge_child, parent }
+        | Dependency::FunctionPort { child: edge_child, parent, .. }
+        | Dependency::TuplePort { child: edge_child, parent, .. }
+        | Dependency::RecordPort { child: edge_child, parent, .. }
+        | Dependency::VariantPort { child: edge_child, parent, .. }
+        | Dependency::Transport { child: edge_child, parent, .. }
+            if edge_child == child => [Some(parent), None],
+        Dependency::Replay { child: edge_child, lower, upper, .. }
+            if edge_child == child => [Some(lower), Some(upper)],
+        _ => [None, None],
+    }
+}
 #[derive(Debug)]
 #[cfg_attr(
     not(test),
@@ -3194,18 +3215,7 @@ impl State {
                 if visits > candidate_source::SCOPED_WORK_LIMIT {
                     return Err(CurrentEmissionGap::SearchLimit);
                 }
-                let parents: [Option<RelationId>; 2] = match *dependency {
-                    Dependency::Derived { child: edge_child, parent }
-                    | Dependency::FunctionPort { child: edge_child, parent, .. }
-                    | Dependency::TuplePort { child: edge_child, parent, .. }
-                    | Dependency::RecordPort { child: edge_child, parent, .. }
-                    | Dependency::VariantPort { child: edge_child, parent, .. }
-                    | Dependency::Transport { child: edge_child, parent, .. }
-                        if edge_child == child => [Some(parent), None],
-                    Dependency::Replay { child: edge_child, lower, upper, .. }
-                        if edge_child == child => [Some(lower), Some(upper)],
-                    _ => [None, None],
-                };
+                let parents = relation_ancestry_dependency_parents(*dependency, child);
                 for parent in parents.into_iter().flatten() {
                     if self.relations.get(parent.0 as usize).is_none() {
                         return Err(CurrentEmissionGap::InvalidRelationReference);
