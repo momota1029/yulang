@@ -27,4 +27,4 @@ The result is conditional source-level evidence. Faithful same-State Rust extrac
 
 The R52 revision-2 contract governs this outcome. Its opening base is `ccdb3e6bb`; the frozen-dependencies section retains historical `b8564a10...` text. The proof handoff records this mismatch, the integration/restart commits (`35eed59f8`, `e9c85710f`) and verified dependency hashes. No dependency drift was found.
 
-Only the exact reviewed R52 source, Lean module, handoffs, review, this outcome and current-state record are intended for staging. Push state is pending primary Git integration.
+Only the exact reviewed R52 source, Lean module, handoffs, review, this outcome and current-state record were staged. Commit `a622cd62d` was pushed by fast-forward to `origin/yulang3` (`e9c85710f..a622cd62d`).
