@@ -36,7 +36,11 @@
     "tasks/agent-loop/inbox/effect-permission-successful-reification-r71-rust.md": "ef07354c4c7ba3ba4fa196a29eb81572f7a2846dca2e89602c958c8ce47c937b",
     "tasks/agent-loop/inbox/effect-permission-successful-reification-r71-proof.md": "e1c5cad735c4ebc97f5a69d5819b1d3d7fc761105839614d1ed9970608672953",
     "tasks/agent-loop/inbox/effect-permission-successful-reification-r71-review.md": "addfbc0dca5cfe437b2b5dafb43121e38e98b60406fd616e80a883bc2359a04c",
-    "notes/theory/lean/YulangClosure/SuccessfulReificationDecodeR71.lean": "428ce6d7c93f37266111db8b0a4568069d6fb63f56c9ad1d856d6b107773f215"
+    "notes/theory/lean/YulangClosure/SuccessfulReificationDecodeR71.lean": "428ce6d7c93f37266111db8b0a4568069d6fb63f56c9ad1d856d6b107773f215",
+    "notes/theory/lean/README.md": "8d27e0b90fc04eb8a0a30606a857e564e5269e8e33e72fddbf1190cb6a7072e3",
+    "notes/theory/lean/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "notes/theory/lean/lakefile.toml": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4",
+    "notes/theory/lean/lake-manifest.json": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3"
   },
   "proof_method": "Construct the Lean Package by executable decoding/checking of owner-bound primitive rows projected only from InventoryCompletedReificationView. Prove exact decode and successful R71 replay; apply R67/R65 qualified reads to unchanged R66 witnesses and premises.",
   "verification": "Pinned Lean 4.35.0 -j1 -M1024 --stdin, in-memory only. No Rust build/Cargo/tests/formatter/Lake/cache/target/scratch/worktree/environment. Fresh independent review traces all Package fields to Rust owners.",
