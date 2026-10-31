@@ -22,3 +22,21 @@ The handoff preserves all 16 Gen-Call-0 input coordinates, the actual returned c
 Bounded source-to-native registration incidence, with the first original registration/Call supplier still open. No complete supplier, joint lift, A/B closure, or implementation authority follows.
 
 No tests, builds, Lean, Git operations, or writes were performed by the reviewer. The review was returned as a read-only receipt; Luna recorded it here without changing the findings.
+
+## Primary exact-input authorization — call 1 of at most 2
+
+Pre-execution review: **PASS** by `/root/r86_independent_review`, who is neither the proof author nor primary. The reviewer independently matched all 48/48 manifest pins, all four unchanged theorem statement texts, the candidate body and the flattened stdin bytes. This authorization is for call 1 only; no elaboration result is claimed yet.
+
+The primary independently reconstructed the in-memory input using the same recipe: dependency-first read of `OriginalSourceSyntax.lean`, `OriginalSourceGeneration.lean`, `SourceSignatureConstruction.lean`, and the frozen R90 candidate; for each file, split into text lines, remove only lines beginning exactly `import YulangClosure.`, and rejoin retained lines with LF; join the four resulting bodies with two LF bytes and append one final LF. No source or scratch output file is created.
+
+- `OriginalSourceSyntax.lean`: 22,040 bytes, SHA-256 `3184d156d661ace7da0345f5fa63f8a4396d9f52c745d265239c8d3db1e7d0d1`.
+- `OriginalSourceGeneration.lean`: 66,485 bytes, SHA-256 `126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef`.
+- `SourceSignatureConstruction.lean`: 37,437 bytes, SHA-256 `ed07890e29b4dcb38cabd18ec0e196efde9e95c64902942a9906a470b38c3311`.
+- R90 candidate `SourceRegistrationAppBridgeR90.lean`: 11,964 bytes, SHA-256 `cd836e6b12a4deff0e5acf83523faedfb883240b6d019f17ec5a7d294b8c205a`.
+- Exact flattened stdin: **137,750 bytes**, SHA-256 `c43394385c4bec30c0ca35077d2ae7f0308ece6a7a26305ed2665d9f3a46fe1b`.
+- Lean executable: `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean`, SHA-256 `bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38`; Lean **4.35.0**, commit `eb6cafb7290e8bd5f2937522d8d804f58f02bafc`.
+- Direct invocation: `lean -j1 -M1024 --stdin`, cwd `notes/theory/lean`, `LEAN_NUM_THREADS=1`, hard timeout 120 seconds.
+- Six declarations have complete `#check` / `#print axioms` pairs: `app_rule`, `app_witness_scope_fields`, `app_core_iff`, `app_derivation_iff`, `installed_call_app_atom`, and `reference_insertion_whole_action`.
+- No Lake command, build, test, cache generation, scratch file, worktree, project copy, or environment creation is authorized for this call.
+
+The reviewed candidate and handoff are committed and pushed before execution. This exact-input authorization is pushed separately before the primary invokes Lean. The complete exit, stdout, stderr, printed types and axiom reports will be appended here as the call-1 audit receipt.
