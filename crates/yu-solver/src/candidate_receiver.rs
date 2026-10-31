@@ -565,6 +565,9 @@ struct InventoryAdmittedFact<'a> {
 #[allow(dead_code, reason = "private R65 occurrence-qualified fact reader")]
 struct InventoryOccurrenceFact<'p, 'a> {
     row: &'p InventoryAdmittedFact<'a>,
+    /// Copied owner-scoped interpretation. It must not borrow the temporary
+    /// reification vector built by `internal_root_view`.
+    interpretation: InventoryReifiedFact<'a>,
     occurrence: &'a HirOccurrenceId,
     slot: u32,
 }
@@ -581,8 +584,8 @@ struct InventoryReifiedOccurrence<'a> {
 
 /// One provenance row resolved against the complete borrowed semantic-fact
 /// table. Every provenance row remains a distinct row, even when FactIds
-/// repeat; the original Term endpoints are retained without inventing the
-/// separate raw/canonical endpoint projection required by the Lean record.
+/// repeat; its fact index links to the owner-session raw/canonical endpoint
+/// interpretation in the complete semantic-fact table.
 #[cfg(feature = "shadow-apply-candidate")]
 #[allow(dead_code, reason = "finite owner-scoped fact/provenance reification for R67")]
 struct InventoryReifiedEdge<'a> {
@@ -597,15 +600,43 @@ struct InventoryReifiedEdge<'a> {
     upper: Term,
 }
 
+/// The owner-session interpretation of one side of one SemanticFact. The
+/// sort tag keeps equal numeric value/effect rows in separate namespaces.
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum InventorySemanticEndpoint {
+    Value(ValueEndpointKey),
+    Effect(EffectEndpointKey),
+}
+
+/// Checked raw and current-state canonical endpoint coordinates for one
+/// borrowed SemanticFact. These rows remain in the semantic-fact table order.
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Copy, Debug)]
+#[allow(dead_code, reason = "source-owned R68 interpretation of complete SemanticFact rows")]
+struct InventoryReifiedFact<'a> {
+    fact_index: usize,
+    fact: &'a SemanticFact,
+    identity: FactId,
+    lower: Term,
+    upper: Term,
+    raw_lower: InventorySemanticEndpoint,
+    canonical_lower: InventorySemanticEndpoint,
+    raw_upper: InventorySemanticEndpoint,
+    canonical_upper: InventorySemanticEndpoint,
+}
+
 /// Private finite reification of the actual borrowed package tables. The
-/// tables stay in owner order; this adds checked exact-occurrence coordinates
-/// and one independently resolved row for every provenance edge.
+/// tables stay in owner order; this adds checked per-fact endpoint mappings,
+/// exact-occurrence coordinates, and one resolved row for every provenance
+/// edge.
 #[cfg(feature = "shadow-apply-candidate")]
 #[allow(dead_code, reason = "finite owner-scoped fact/provenance reification for R67")]
 struct InventoryQualifiedReification<'p, 'a> {
     owner: &'a ReceivingResidualExperiment,
     facts: &'p [(usize, &'a SemanticFact)],
     provenance: &'p [(usize, &'a ProvenanceEdge)],
+    interpreted_facts: Vec<InventoryReifiedFact<'a>>,
     occurrences: Vec<InventoryReifiedOccurrence<'a>>,
     edges: Vec<InventoryReifiedEdge<'a>>,
 }
@@ -742,6 +773,126 @@ struct InventoryPackage<'a> {
 
 #[cfg(feature = "shadow-apply-candidate")]
 impl<'a> InventoryPackage<'a> {
+    /// Interpret a borrowed Term through the exact session that owns this
+    /// package. Every row-bearing branch validates both its source coordinate
+    /// and current live row before invoking the session canonicalizer.
+    fn checked_semantic_endpoint(
+        session: &InferenceSession,
+        term: Term,
+        polarity: Polarity,
+    ) -> Result<(InventorySemanticEndpoint, InventorySemanticEndpoint), candidate_context::CurrentEmissionGap> {
+        use candidate_context::CurrentEmissionGap as Gap;
+        let checked_index = |row: u32| {
+            usize::try_from(row).map_err(|_| Gap::SearchLimit)
+        };
+
+        let view = session.store.term_view(term).map_err(|_| Gap::BoundMismatch)?;
+        let endpoint = match view {
+            TermView::Leaf(Leaf::IntPositive) => InventorySemanticEndpoint::Value(ValueEndpointKey::IntPositive),
+            TermView::Leaf(Leaf::IntNegative) => InventorySemanticEndpoint::Value(ValueEndpointKey::IntNegative),
+            TermView::Leaf(Leaf::UnitPositive) => InventorySemanticEndpoint::Value(ValueEndpointKey::UnitPositive),
+            TermView::Leaf(Leaf::UnitNegative) => InventorySemanticEndpoint::Value(ValueEndpointKey::UnitNegative),
+            TermView::Leaf(Leaf::BoolPositive) => InventorySemanticEndpoint::Value(ValueEndpointKey::BoolPositive),
+            TermView::Leaf(Leaf::BoolNegative) => InventorySemanticEndpoint::Value(ValueEndpointKey::BoolNegative),
+            TermView::Leaf(Leaf::StrPositive) => InventorySemanticEndpoint::Value(ValueEndpointKey::StrPositive),
+            TermView::Leaf(Leaf::StrNegative) => InventorySemanticEndpoint::Value(ValueEndpointKey::StrNegative),
+            TermView::Leaf(Leaf::EffectBottomPositive) => InventorySemanticEndpoint::Effect(EffectEndpointKey::BottomPositive),
+            TermView::Leaf(Leaf::EmptyEffectNegative) => InventorySemanticEndpoint::Effect(EffectEndpointKey::EmptyNegative),
+            TermView::PositiveBottom => InventorySemanticEndpoint::Value(ValueEndpointKey::BottomPositive),
+            TermView::NegativeTop => InventorySemanticEndpoint::Value(ValueEndpointKey::TopNegative),
+            TermView::NegativeBottom => InventorySemanticEndpoint::Value(ValueEndpointKey::BottomNegative),
+            TermView::Component(component) => {
+                let position = *session.batch.component_term_positions.get(&term)
+                    .ok_or(Gap::BoundMismatch)?;
+                if session.batch.component_terms.get(position) != Some(&term)
+                    || session.batch.components.get(position) != Some(component)
+                {
+                    return Err(Gap::BoundMismatch);
+                }
+                let live = *session.live_components.get(position)
+                    .ok_or(Gap::BoundMismatch)?;
+                if live.kind != component.kind() {
+                    return Err(Gap::BoundMismatch);
+                }
+                match live.kind {
+                    ComponentKind::Value => {
+                        if session.bounds.get(checked_index(live.ordinal)?).is_none() {
+                            return Err(Gap::BoundMismatch);
+                        }
+                        InventorySemanticEndpoint::Value(ValueEndpointKey::ValueRow(live.ordinal))
+                    }
+                    ComponentKind::Effect => {
+                        if session.effect_bounds.get(checked_index(live.ordinal)?).is_none() {
+                            return Err(Gap::BoundMismatch);
+                        }
+                        InventorySemanticEndpoint::Effect(EffectEndpointKey::EffectRow(live.ordinal))
+                    }
+                }
+            }
+            TermView::LiveVariable(variable) => {
+                if variable.polarity() != polarity {
+                    return Err(Gap::BoundMismatch);
+                }
+                match variable.kind() {
+                    ComponentKind::Value => {
+                        if session.bounds.get(checked_index(variable.ordinal())?).is_none() {
+                            return Err(Gap::BoundMismatch);
+                        }
+                        InventorySemanticEndpoint::Value(ValueEndpointKey::ValueRow(variable.ordinal()))
+                    }
+                    ComponentKind::Effect => {
+                        if session.effect_bounds.get(checked_index(variable.ordinal())?).is_none() {
+                            return Err(Gap::BoundMismatch);
+                        }
+                        InventorySemanticEndpoint::Effect(EffectEndpointKey::EffectRow(variable.ordinal()))
+                    }
+                }
+            }
+            TermView::PositiveFunction { .. } if polarity == Polarity::Positive =>
+                InventorySemanticEndpoint::Value(ValueEndpointKey::PositiveFunction(term)),
+            TermView::NegativeFunction { .. } if polarity == Polarity::Negative =>
+                InventorySemanticEndpoint::Value(ValueEndpointKey::NegativeFunction(term)),
+            TermView::PositiveVariant { .. } if polarity == Polarity::Positive =>
+                InventorySemanticEndpoint::Value(ValueEndpointKey::PositiveVariant(term)),
+            TermView::NegativeVariant { .. } if polarity == Polarity::Negative =>
+                InventorySemanticEndpoint::Value(ValueEndpointKey::NegativeVariant(term)),
+            TermView::PositiveRecord { .. } if polarity == Polarity::Positive =>
+                InventorySemanticEndpoint::Value(ValueEndpointKey::PositiveRecord(term)),
+            TermView::NegativeRecord { .. } if polarity == Polarity::Negative =>
+                InventorySemanticEndpoint::Value(ValueEndpointKey::NegativeRecord(term)),
+            TermView::PositiveTuple { elements } if polarity == Polarity::Positive =>
+                InventorySemanticEndpoint::Value(ValueEndpointKey::PositiveTuple(term, elements.len())),
+            TermView::NegativeTuple { elements } if polarity == Polarity::Negative =>
+                InventorySemanticEndpoint::Value(ValueEndpointKey::NegativeTuple(term, elements.len())),
+            _ => return Err(Gap::BoundMismatch),
+        };
+
+        let canonical = match endpoint {
+            InventorySemanticEndpoint::Value(ValueEndpointKey::ValueRow(row)) => {
+                let canonical = session.canonical_value(ValueEndpointKey::ValueRow(row));
+                let ValueEndpointKey::ValueRow(canonical_row) = canonical else {
+                    return Err(Gap::BoundMismatch);
+                };
+                if session.bounds.get(checked_index(canonical_row)?).is_none() {
+                    return Err(Gap::BoundMismatch);
+                }
+                InventorySemanticEndpoint::Value(canonical)
+            }
+            InventorySemanticEndpoint::Effect(EffectEndpointKey::EffectRow(row)) => {
+                let canonical = session.canonical_effect(EffectEndpointKey::EffectRow(row));
+                let EffectEndpointKey::EffectRow(canonical_row) = canonical else {
+                    return Err(Gap::BoundMismatch);
+                };
+                if session.effect_bounds.get(checked_index(canonical_row)?).is_none() {
+                    return Err(Gap::BoundMismatch);
+                }
+                InventorySemanticEndpoint::Effect(canonical)
+            }
+            constant => constant,
+        };
+        Ok((endpoint, canonical))
+    }
+
     /// Reify every borrowed fact and provenance row without quotienting
     /// repeated FactIds. The owner check precedes all occurrence-coordinate
     /// comparisons so equal local ordinals from distinct HIR artifacts never
@@ -750,8 +901,11 @@ impl<'a> InventoryPackage<'a> {
         &'p self,
     ) -> Result<InventoryQualifiedReification<'p, 'a>, candidate_context::CurrentEmissionGap> {
         let store = &self.session.store;
+        let mut interpreted_facts = Vec::<InventoryReifiedFact<'a>>::new();
         let mut occurrences = Vec::<InventoryReifiedOccurrence<'a>>::new();
         let mut edges = Vec::<InventoryReifiedEdge<'a>>::new();
+        interpreted_facts.try_reserve_exact(self.semantic_facts.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
         occurrences.try_reserve_exact(self.provenance.len())
             .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
         edges.try_reserve_exact(self.provenance.len())
@@ -763,6 +917,23 @@ impl<'a> InventoryPackage<'a> {
             if *fact_index != position || fact.id().index() != expected_index {
                 return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
             }
+            let (raw_lower, canonical_lower) = Self::checked_semantic_endpoint(
+                self.session, fact.lower(), Polarity::Positive,
+            )?;
+            let (raw_upper, canonical_upper) = Self::checked_semantic_endpoint(
+                self.session, fact.upper(), Polarity::Negative,
+            )?;
+            interpreted_facts.push(InventoryReifiedFact {
+                fact_index: *fact_index,
+                fact,
+                identity: fact.id(),
+                lower: fact.lower(),
+                upper: fact.upper(),
+                raw_lower,
+                canonical_lower,
+                raw_upper,
+                canonical_upper,
+            });
         }
 
         for (position, (edge_index, edge)) in self.provenance.iter().enumerate() {
@@ -801,6 +972,14 @@ impl<'a> InventoryPackage<'a> {
             if *owned_index != fact_index || fact.id() != edge.fact() {
                 return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
             }
+            let interpreted = interpreted_facts.get(fact_index)
+                .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
+            if interpreted.fact_index != fact_index
+                || interpreted.identity != edge.fact()
+                || !std::ptr::eq(interpreted.fact, *fact)
+            {
+                return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+            }
             edges.push(InventoryReifiedEdge {
                 edge_index: *edge_index,
                 fact_index,
@@ -818,6 +997,7 @@ impl<'a> InventoryPackage<'a> {
             owner: self.owner,
             facts: &self.semantic_facts,
             provenance: &self.provenance,
+            interpreted_facts,
             occurrences,
             edges,
         })
@@ -836,6 +1016,7 @@ impl<'a> InventoryPackage<'a> {
         if !std::ptr::eq(reification.owner, self.owner)
             || reification.facts.as_ptr() != self.semantic_facts.as_ptr()
             || reification.facts.len() != self.semantic_facts.len()
+            || reification.interpreted_facts.len() != self.semantic_facts.len()
             || reification.provenance.as_ptr() != self.provenance.as_ptr()
             || reification.provenance.len() != self.provenance.len()
             || self.session.store.require_owned(occurrence).is_err()
@@ -855,6 +1036,7 @@ impl<'a> InventoryPackage<'a> {
         }
 
         let (fact_index, owned_fact) = self.semantic_facts.get(selected.fact_index)?;
+        let interpretation = *reification.interpreted_facts.get(selected.fact_index)?;
         let (edge_index, owned_edge) = self.provenance.get(selected.edge_index)?;
         if *fact_index != selected.fact_index
             || !std::ptr::eq(*owned_fact, selected.fact)
@@ -866,6 +1048,11 @@ impl<'a> InventoryPackage<'a> {
             || selected.edge.fact() != selected.identity
             || selected.identity != selected.fact.id()
             || selected.fact.id() != selected_native_fact.id()
+            || interpretation.fact_index != selected.fact_index
+            || interpretation.identity != selected.identity
+            || !std::ptr::eq(interpretation.fact, selected.fact)
+            || interpretation.lower != selected.lower
+            || interpretation.upper != selected.upper
             || selected.lower != selected_native_fact.lower()
             || selected.upper != selected_native_fact.upper()
         {
@@ -881,7 +1068,12 @@ impl<'a> InventoryPackage<'a> {
         {
             return None;
         }
-        Some(InventoryOccurrenceFact { row, occurrence: row.occurrence, slot })
+        Some(InventoryOccurrenceFact {
+            row,
+            interpretation,
+            occurrence: row.occurrence,
+            slot,
+        })
     }
 
     /// Tie the selected source-call request, slot-0 Internal fact, slot-2
