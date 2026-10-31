@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "revision": 1,
+  "sprint_id": "EFFECT-PERMISSION-DEFINITION-BRIDGE/20261031-R79",
+  "baseline_commit": "7b9573c98cb29c594ece49f4268c887998176f76",
+  "contract": "tasks/agent-loop/sprints/effect-permission-definition-bridge-20261031-r79.md",
+  "contract_sha256": "38f6b80a6466f51cc68b7c7e155313730d353357ec47ad2464680babe9656189",
+  "inputs": [
+    {
+      "path": "crates/yu-solver/src/lib.rs",
+      "sha256": "15e7b131a65f8476eec575d978dc629d15d49e72149325ef35a8c08acc8fc745",
+      "note": "retained ConstraintBatch definitions, root and HIR-position inventories"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "sha256": "5e99035a94e1d3f618e03e932e59933fb3d5eb9f501455779bcb52e65e7c7a3a",
+      "note": "R77/R78 target consumers to translate through the checked bridge"
+    },
+    {
+      "path": "crates/yu-hir/src/module.rs",
+      "sha256": "6bf92c93fa37f425a7380248c12c50c0d04ea6eb282e76edb6df54e628260646",
+      "note": "HirBinding identity/root accessors and HIR module ownership"
+    },
+    {
+      "path": "crates/yu-hir/src/module/local_source.rs",
+      "sha256": "7055975d582dfb198836c2aa659f8b8033c29dff419d522feea4fea4c42523d1",
+      "note": "nominal DefId and local source resolution definitions"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceInternalChoiceR77.lean",
+      "sha256": "0aa1185675cc92ac97a20f4163bd2b2486f34cfb5ca725a3fcb3c1861efdf682",
+      "note": "reviewed source alignment and R66 choice declarations"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/IntegratedSourceAlignmentR78.lean",
+      "sha256": "bfe304c33e6018910739d58d37c2122a4a475fac57e00091e1a700a965510029",
+      "note": "bounded Name/Apply alignment claims consuming target identity"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-alignment-r77-review.md",
+      "sha256": "913a4f7bef50e6c7a0513615cf9b01bd471f5bf2850bca35709eafeb30aabe8d",
+      "note": "independent R77 source-path review and open limits"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-integrated-alignment-r78-review.md",
+      "sha256": "cf12884f7540b9638db870eb2989e11d24cdf927560a42c635bb8d2760d0cdef",
+      "note": "blocking identity mismatch and accepted bounded Lean review"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-integrated-alignment-20261031-r78-outcome.md",
+      "sha256": "ad010af4fb62cc998b5df56d1caf7a1d2457f33875d4fc2f0590b7e97cd8623c",
+      "note": "R78 exact closeout and parent status"
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+      "note": "pinned Lean toolchain"
+    }
+  ],
+  "lean_executable": {
+    "path": "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean",
+    "sha256": "bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38"
+  },
+  "lean_audit_policy": {
+    "max_invocations": 2,
+    "per_invocation_timeout_seconds": 120,
+    "args": [
+      "-j1",
+      "-M1024",
+      "--stdin"
+    ],
+    "env": {
+      "LEAN_NUM_THREADS": "1"
+    },
+    "cwd": "notes/theory/lean",
+    "destination": "stdin only; stdout/stderr retained verbatim in proof handoff",
+    "explicit_primary_authorization_before_each": true,
+    "no_third_invocation": true
+  },
+  "prior_boundary": "R78 integration rejected because DefId and DefinitionOrderId have no checked bridge; R79 owns this typed translation using existing retained inventories only."
+}
