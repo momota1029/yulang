@@ -328,20 +328,20 @@
   "admission_sha256": "057db44d1cff606b6b439493773b69145fbbd6e4d3e3e72c2bbb37e8e40caa0b",
   "frozen_candidate": {
     "path": "notes/theory/lean/YulangClosure/ConstructedPhysicalRootR84.lean",
-    "bytes": 22748,
-    "sha256": "1681d78a8ec4b103dac7fb808bc4cdd02e0a46cba196ad5a64db6c10601f1839"
+    "bytes": 22427,
+    "sha256": "5d8ad6429906cdf971dbb9ee44841223c1fcc28e6591e1a75d1f453ea4eac13d"
   },
   "proof_handoff": {
     "path": "tasks/agent-loop/inbox/effect-permission-root-elaboration-r84-proof.md",
-    "bytes": 331759,
-    "sha256": "c9ba9b410094cea83309b2df18e64f42fe4308ef7b158c708fb737d41ead618a"
+    "bytes": 339182,
+    "sha256": "8241f3b7ab3a656c15d114a987159fd33c66f04ae48fc3d82dbda0e4972ed17b"
   },
   "independent_review": {
     "path": "tasks/agent-loop/inbox/effect-permission-root-elaboration-r84-review.md",
     "bytes": 5216,
     "sha256": "600a4f336029a9abd9ea0b3b311555767705879a8cdf20657a4aad6c8f8ccfa0",
     "reviewer": "/root/r83_review",
-    "verdict": "Source/assembly PASS; slot3 audit FAIL. Primary corrected diagnostic count to ten after rereading complete stdout; slot4 repair pending review."
+    "verdict": "Slot3 failure confirmed; revision 2 frozen and awaiting fresh independent review."
   },
   "slot1_exact_input": {
     "bytes": 93368,
@@ -389,7 +389,19 @@
     "status": "FAILED; complete streams retained; no theorem accepted; reviewer diagnosis required"
   },
   "slot4_repair": {
-    "status": "ADMITTED_BOUNDED_SOURCE_ONLY_REPAIR",
-    "gate": "single diagnostic-directed candidate revision; all nine diagnostics and all sorryAx-producing dependencies must be addressed; preserve all thirteen statements and semantic constructors; fresh review and separate authorization required; no fifth invocation"
+    "status": "FROZEN_REVISION_2_PENDING_INDEPENDENT_REVIEW",
+    "candidate_sha256": "5d8ad6429906cdf971dbb9ee44841223c1fcc28e6591e1a75d1f453ea4eac13d",
+    "proof_handoff_sha256": "8241f3b7ab3a656c15d114a987159fd33c66f04ae48fc3d82dbda0e4972ed17b",
+    "exact_input_bytes": 103470,
+    "exact_input_sha256": "93b365ddf908e223558d166efe7f76a1f5c370a5b1c9080716d0fb0ce92b3df0",
+    "checker_executed": false,
+    "gate": "all ten slot3 diagnostics addressed in one source-only repair; unchanged thirteen claims; fresh independent review and separately committed/pushed authorization required; no fifth invocation"
+  },
+  "slot4_exact_input": {
+    "bytes": 103470,
+    "sha256": "93b365ddf908e223558d166efe7f76a1f5c370a5b1c9080716d0fb0ce92b3df0",
+    "recipe": "accepted normalized_prefix_body + import_stripped revision-2 candidate + newline + unchanged full_queries",
+    "reviewed": false,
+    "authorization": "pending independent review and separate primary commit/push"
   }
 }

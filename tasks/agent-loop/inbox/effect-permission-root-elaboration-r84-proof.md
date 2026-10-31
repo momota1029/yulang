@@ -7125,3 +7125,111 @@ without a new explicit primary handoff; no descendants, scratch or generated
 outputs. Handoff final byte hash is sent in the freeze message (not self-embedded).
 
 Freeze clock UTC: `2026-10-31T12:34:12.095191+00:00`.
+
+
+# R84 handoff revision 2 — single slot-4 candidate repair (FROZEN)
+
+Revision 1 and its exact assembly/failed evidence above remain immutable history.
+This revision supersedes only the R84 candidate bytes and slot-4 input. The
+accepted 220-declaration normalized prefix and thirteen query strings are unchanged.
+Primary explicitly resumed the two exact R84 leases for this one repair. No
+Lean execution, scratch/generated outputs, other-path writes, Git or descendants.
+Original R66/A-B/source domain and all semantic witnesses remain unchanged.
+
+## Ten slot-3 error headers, including all nine reviewed sites
+
+The pinned raw result is retained at the JSON path/hash below. It records exit 1,
+no timeout, 11.605 s and child peak RSS 883,340 KiB; these are PRIMARY observations,
+not execution performed here. Its stdout has ten error headers, not nine:
+
+- Source 126 / stdin1833: Decidable Primitive synthesis lacked DecidableEq
+  (ProviderNativeContextR57.Relation T). Primitive compares both relationRead
+  results as Option (Relation T); Relation has state/index/Endpoint T fields but
+  no source deriving. A local candidate `deriving instance DecidableEq for
+  ProviderNativeContextR57.Relation` provides exactly structural equality using
+  existing Endpoint equality. No selected source declaration or existing instance
+  overlaps this type; this adds no proposition hypothesis or semantic branch.
+- Source144 / stdin1850: originRead proof's broad simp normalized decide(A ∧ B)
+  to decide A && decide B before horigins could rewrite the full filter. `simp
+  only` unfolds just the two unique definitions/originRead and uses horigins
+  before Boolean normalization. This addresses the actual displayed goal.
+- Source149 / stdin1857: reversed simp-unfold of declaration originCandidates is
+  invalid. Source151 / stdin1855 is the actual candidate singleton/map goal.
+  Both are addressed by explicit rootCandidates unfolding with hocc/hread,
+  rewriting its positive guard from hstore/hu/hid, then congrArg List.map on the
+  exact original hcandidates singleton. No candidate inventory is filtered away.
+- Source186 / stdin1892: hpair's bound differs syntactically from the projected
+  `(admission d.admission).bound`. Add admission to the same simpa unfolding list;
+  its unchanged definition projects exactly bound d.admission.state d.admission.bound.
+- Source297 / stdin2003: finite_primitive's decide reduced to sorry because its
+  missing structural decider was error-recovered. The new Relation instance
+  directly repairs that prerequisite, and `decide +kernel` requests genuine
+  kernel reduction. No proof hole or native-evaluation axiom is used.
+- Source311 / stdin2017: dependent rw could not see R81.fixtureResult and its
+  rewritten Constructed.sameIncidence proof failed under implicit transparency.
+  The entire theorem is now direct `rfl` on the unchanged finite constructor and
+  fixture; this avoids substituting into dependent generated proof fields.
+  It must still pass the slot-4 kernel check; no success is presumed here.
+- Source342 / stdin2048 and source351 / stdin2057: two independent finite
+  runNative reductions stopped on the semireducible construct application,
+  even after listed decidable instances unfolded. These are not dismissed as
+  Root cascades. Each unchanged rejection formula now uses `decide +kernel`,
+  which reduces the whole closed term in the kernel, including construct and
+  its repaired finite Primitive instance, rather than the elaborator's restricted
+  whnf path. The third rejection uses the same exact checked reduction mode.
+- Source355 / stdin2061: independent parser failure in the relations record-field
+  map. Parenthesize the complete `.map (...)` expression (and the following
+  origins map expression). Constructor values, list mapping, predicate, endpoints,
+  numeric IDs and all three rejection conjuncts remain exactly the intended
+  original source formula; the failed parser-recovered proposition is not reused.
+
+Pinned Lean source `Lean/Elab/Tactic/Decide.lean` was read: evalDecideCore routes
+cfg.kernel to doKernel separately from cfg.native; doKernel checks the proof
+using the kernel (lines96–135), with no native computation axiom. `decide +kernel`
+is not a checker bypass or a resource increase. It remains constrained by the
+primary's -j1/-M1024 and 120-second final invocation. No option disables checking.
+
+Every original theorem source signature matches revision1 byte-for-byte, except
+necessary parentheses grouping the two already-intended map field expressions
+in the final statement. Reversing those grouping parentheses recovers that exact
+original signature. All thirteen statements, quantifiers, generic premises,
+Primitive checks, definitions/constructors, mixed witness and rejection cases
+remain. The new instance and proof terms are candidate code, not accepted proof.
+
+The bound is unchanged: earliest launch 12:24:55 UTC, 1600-second hard envelope,
+no renewal; primary supplied this authenticated accounting. Slot4 is the sole
+remaining invocation and is NOT executed here. Any remaining elaboration/reduction
+error closes incomplete, with no further retry or weakened hypothesis.
+
+```json
+{
+  "revision": 2,
+  "scope": "single R84 slot-4 candidate repair",
+  "previous_candidate_sha256": "1681d78a8ec4b103dac7fb808bc4cdd02e0a46cba196ad5a64db6c10601f1839",
+  "previous_handoff_sha256": "c9ba9b410094cea83309b2df18e64f42fe4308ef7b158c708fb737d41ead618a",
+  "candidate_bytes": 22427,
+  "candidate_sha256": "5d8ad6429906cdf971dbb9ee44841223c1fcc28e6591e1a75d1f453ea4eac13d",
+  "unchanged_prefix_body_bytes": 78934,
+  "unchanged_prefix_body_sha256": "ee4abd52c66c46bf714ca196be6de1fbb46ee2f2f31e17dd882a9c367b14ab49",
+  "slot4_input_bytes": 103470,
+  "slot4_input_sha256": "93b365ddf908e223558d166efe7f76a1f5c370a5b1c9080716d0fb0ce92b3df0",
+  "slot4_recipe": "identical accepted normalized_prefix_body + import_stripped_r2_candidate + \"\\n\" + identical full_queries from revision-1 JSON",
+  "raw_slot3_result_path": "tasks/agent-loop/history/effect-permission-root-elaboration-20261031-r84-slot3-raw-result.json",
+  "raw_slot3_result_sha256": "db6ceb58d4fa88755d1b2136cef45ae46af0374e1a870919df361ba8b9ee7d91",
+  "raw_slot3_stdout_sha256": "6b7e874b4ff08b5675505d4c2d685fc34d5a320b1eef1fc59f2abf9f254458d4",
+  "source_changes": {
+    "new_structural_instance": "deriving instance DecidableEq for ProviderNativeContextR57.Relation",
+    "origin_read_proof": "simp only [originRead, R57.unique, R55.unique, horigins]",
+    "root_candidates_proof": "unfold rootCandidates only, rewrite hocc/hread and positive guard, use congrArg (List.map Origin.relation) hcandidates",
+    "pair_proof": "unfold admission in existing simpa",
+    "finite_construction": "replace dependent rw chain by direct rfl, using exact same finite constructor/fixture; unexecuted",
+    "finite_deciders": "decide +kernel for finite_primitive and all three rejection proofs",
+    "parser_grouping": "parenthesize the complete relations.map and origins.map record-field values; exact intended formulas unchanged"
+  },
+  "theorem_count": 13,
+  "kernel_status": "CONSTRUCTED_UNCHECKED; no slot-4 execution",
+  "writes_stopped": true
+}
+```
+
+STOPPED / WRITES STOPPED at `2026-10-31T12:49:08.913732+00:00`. No descendants or scratch/generated paths. Slot4 audit, fresh review and primary adjudication remain pending; R66/A-B/runtime/production remain OPEN.

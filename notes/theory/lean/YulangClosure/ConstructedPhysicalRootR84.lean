@@ -16,6 +16,7 @@ variable {S T : Type} [DecidableEq S] [DecidableEq T]
 
 deriving instance DecidableEq for ProviderNativeContextR57.Drain
 deriving instance DecidableEq for ProviderNativeContextR57.Origin
+deriving instance DecidableEq for ProviderNativeContextR57.Relation
 
 def valueEndpoint : Endpoint T → Bool
   | .value _ => true
@@ -142,13 +143,16 @@ theorem primitive_derive_root_matches
     hdstate, hseed, hselected, hincoming, hreplay, hcause, hdslot, hdone,
     hlower, hupper, hsource, hslower, hsupper, hv1, hv2⟩
   have origin : originRead n d.origin.relation = some d.origin := by
-    simp [originRead, YulangClosure.ProviderNativeContextR57.unique, SourceInternalContextR55.unique, horigins]
+    simp only [originRead, YulangClosure.ProviderNativeContextR57.unique,
+      SourceInternalContextR55.unique, horigins]
   have drain : rootDrain n d.origin.relation = some d.drain := by
     simp [rootDrain, origin, hdrain]
   refine ⟨hu, ?_, ?_, ?_, ?_, ?_, ?_⟩
-  · simp [OccurrenceQualifiedConsumerR66.rootQuery, OccurrenceQualifiedFactReadersR65.current,
-      OccurrenceQualifiedFactReadersR65.rootCandidates, hocc, hread, hstore, hu, hid,
-      ← originCandidates, hcandidates]
+  · change OccurrenceQualifiedFactReadersR65.rootCandidates n inventory q.use i.probe.fact = [d.origin.relation]
+    simp only [OccurrenceQualifiedFactReadersR65.rootCandidates, hocc, hread]
+    rw [if_pos ⟨hstore, hu, hid⟩]
+    change (originCandidates n d.occurrence d.route).map ProviderNativeContextR57.Origin.relation = [d.origin.relation]
+    exact congrArg (List.map ProviderNativeContextR57.Origin.relation) hcandidates
   · simp [OccurrenceQualifiedConsumerR66.rootQuery, OccurrenceQualifiedFactReadersR65.current,
       ProviderNativeContextR57.current, origin, hocc, hoocc, hoslot]
   · simp [OccurrenceQualifiedConsumerR66.rootQuery, OccurrenceQualifiedFactReadersR65.current,
@@ -184,7 +188,7 @@ theorem primitive_derive_before_ancestry
   · simp [physicalValue, physical, emission, hslot]
   · simp [physicalValue, physical, emission, admission, hback, hstate]
   · simpa [OccurrenceQualifiedFactReadersR65.current, ProviderNativeContextR57.current,
-      physicalValue, physical, her] using hpair
+      physicalValue, physical, admission, her] using hpair
   · simp [physicalValue, physical, emission, slot, row, heowner, hestate,
       OccurrenceQualifiedConsumerR66.rootQuery, he]
   · simp [physicalValue, physical, admission, bound, row, haowner, hastate,
@@ -294,7 +298,7 @@ def fixtureRecords : Records Nat Nat :=
 
 theorem finite_reads : readRecords fixtureNative fixtureInventory fixtureQuery 0 = some fixtureRecords := by rfl
 
-theorem finite_primitive : Primitive fixtureSource fixtureInventory fixtureNative fixtureQuery fixtureIncidence 0 fixtureRecords := by decide
+theorem finite_primitive : Primitive fixtureSource fixtureInventory fixtureNative fixtureQuery fixtureIncidence 0 fixtureRecords := by decide +kernel
 
 def fixtureRoot := assemble fixtureSource fixtureInventory fixtureNative fixtureQuery fixtureIncidence 0 fixtureRecords finite_primitive
 
@@ -307,17 +311,7 @@ def fixtureResult := construct fixtureSource fixtureInventory fixtureNative fixt
   fixtureUse (.source 10) (.source 1) (.source 6) (.source 5) 0
 
 theorem finite_constructs_root : fixtureResult = some fixtureOutput := by
-  unfold fixtureResult construct
-  rw [ConstructedSourceIncidenceR81.finite_constructs_output]
-  change (do
-    let d ← readRecords fixtureNative fixtureInventory fixtureQuery 0
-    if h : Primitive fixtureSource fixtureInventory fixtureNative fixtureQuery fixtureIncidence 0 d then
-      pure ⟨ConstructedSourceIncidenceR81.fixtureOutput,
-        assemble fixtureSource fixtureInventory fixtureNative fixtureQuery fixtureIncidence 0 d h, rfl,
-        primitive_distinct_relation_roles fixtureSource fixtureInventory fixtureNative fixtureQuery fixtureIncidence 0 d h⟩
-    else none) = some fixtureOutput
-  rw [finite_reads]
-  exact dif_pos finite_primitive
+  rfl
 
 theorem finite_nonempty_mixed_witness :
     fixtureResult.isSome = true ∧ fixtureRoot.root = 2 ∧ fixtureRoot.value.relation = 0 ∧
@@ -339,7 +333,7 @@ theorem duplicate_stale_and_substituted_rejected :
     runNative {fixtureNative with emissions := fixtureNative.emissions ++ [fixtureEmission 4 0]} = false ∧
     runNative {fixtureNative with effectRows := []} = false ∧
     runNative {fixtureNative with admissions := [fixtureAdmission 6 0, fixtureAdmission 6 1]} = false ∧
-    runNative {fixtureNative with emissions := [{fixtureEmission 4 0 with readbackSlot := fixtureSlot 6}]} = false := by decide
+    runNative {fixtureNative with emissions := [{fixtureEmission 4 0 with readbackSlot := fixtureSlot 6}]} = false := by decide +kernel
 
 theorem incomplete_foreign_and_wrong_task_rejected :
     runNative (mapDrain (fun d => {d with completed := false}) fixtureNative) = false ∧
@@ -348,12 +342,12 @@ theorem incomplete_foreign_and_wrong_task_rejected :
     runNative (mapDrain (fun d => {d with taskUpper := .value (.negativeFunction 999)}) fixtureNative) = false ∧
     runNative (mapDrain (fun d => {d with selectedRelation := 0}) fixtureNative) = false ∧
     runNative (mapDrain (fun d => {d with incoming := some 2}) fixtureNative) = false ∧
-    runNative (mapDrain (fun d => {d with replay := true}) fixtureNative) = false := by decide
+    runNative (mapDrain (fun d => {d with replay := true}) fixtureNative) = false := by decide +kernel
 
 theorem collapsed_roles_and_parameter_substitution_rejected :
     runNative {fixtureNative with admissions := [fixtureAdmission 4 2, fixtureAdmission 6 1]} = false ∧
-    runNative {fixtureNative with relations := fixtureNative.relations.map
-      (fun r => if r.index = 2 then {r with lower := .value (.positiveFunction 700)} else r)} = false ∧
-    runNative {fixtureNative with origins := fixtureNative.origins.map (fun o => {o with occurrence := 101})} = false := by decide
+    runNative {fixtureNative with relations := (fixtureNative.relations.map
+      (fun r => if r.index = 2 then {r with lower := .value (.positiveFunction 700)} else r))} = false ∧
+    runNative {fixtureNative with origins := (fixtureNative.origins.map (fun o => {o with occurrence := 101}))} = false := by decide +kernel
 
 end YulangClosure.ConstructedPhysicalRootR84
