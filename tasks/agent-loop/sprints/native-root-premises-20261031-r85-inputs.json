@@ -246,20 +246,20 @@
     "parent_application": "derive exact R84 originCandidates/originRead premise from same native records or formalize a producer-reachable countermodel",
     "candidate": {
       "path": "notes/theory/lean/YulangClosure/NativeRootPremisesR85.lean",
-      "bytes": 10795,
-      "sha256": "a3027fb0c80bc6314be61d39a943be278b6320bc54a9a2b1b88ee14bfce3f1db",
-      "status": "FROZEN_UNCHECKED"
+      "bytes": 10834,
+      "sha256": "1677d965ba2afa01ff07951325d1026f2da2fef97b19cc37cc8ef1490fecedcc",
+      "status": "CHECKED_FLATTENED_STDIN"
     },
     "handoff": {
       "path": "tasks/agent-loop/inbox/effect-permission-native-root-premises-r85-proof.md",
-      "bytes": 13578,
-      "sha256": "e9e42530183f0637492b038af361eb9c288c620452ae7f03367c91bd7417aab2",
-      "status": "FROZEN_UNCHECKED"
+      "bytes": 20848,
+      "sha256": "5f19a33238eb35ac553e9e32425308ed66997dbf07e3f12c8426414bceba28fc",
+      "status": "AUDITED_SLOT_2"
     },
     "proposed_exact_stdin": {
-      "bytes": 115845,
-      "sha256": "2f001a9673e79313db2b57c456c9e0875d43d3b86d225944e33ee198a10759ac",
-      "checker_executed": false
+      "bytes": 115884,
+      "sha256": "bac29ad18bd16e9a5af0422ea4d3416e049a61951d6b1545c8ba35a0548cbc79",
+      "checker_executed": true
     }
   },
   "review_path": "tasks/agent-loop/inbox/effect-permission-native-root-premises-r85-review.md",
@@ -286,5 +286,20 @@
     "source restriction or semantics changes",
     "production promotion",
     "claiming original A/B or standalone module closure"
-  ]
+  ],
+  "slot2_execution": {
+    "status": "EXIT_0",
+    "receipt": "tasks/agent-loop/inbox/effect-permission-native-root-premises-r85-review.md",
+    "authorization_commit": "0bebbdf7d1f64460d9235b4e096af3086d597e42",
+    "stdin_bytes": 115884,
+    "stdin_sha256": "bac29ad18bd16e9a5af0422ea4d3416e049a61951d6b1545c8ba35a0548cbc79",
+    "stdout_bytes": 63692,
+    "stdout_sha256": "686bf27a6570b2c9f7009b4622cc1593c50bc64bec0b58992429030bec804918",
+    "stderr_bytes": 0,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "timeout": false,
+    "theorem_reports": 11,
+    "sorryAx": false,
+    "accepted_scope": "exact flattened conditional input only"
+  }
 }

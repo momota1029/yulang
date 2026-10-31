@@ -179,7 +179,7 @@ theorem pending_rejects_checkedRootGate (n : Native S T) (h : Pending n.origins)
             simp
           have retained : o ∈ n.origins := (List.mem_filter.mp member).1
           cases attached : o.drain with
-          | none => rfl
+          | none => simp [checkedRootGate, selected, attached]
           | some d =>
               have pending := h o retained d attached
               simp [attached, pending]

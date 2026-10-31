@@ -208,3 +208,150 @@ The 1,800-second leaf envelope was not renewed.
 STOPPED / WRITES STOPPED at 2026-10-31 13:17 UTC, after final handoff write.
 No unresolved descendant or generated-output lease. Frozen revision 1 awaits
 primary intake, fresh independent review and separate execution authorization.
+
+---
+
+# R85 diagnostic-directed repair — handoff revision 2 (FROZEN)
+
+The complete revision-1 handoff above remains a byte-preserved prefix. Its
+NOT_RUN claims describe that earlier leaf submission. Luna subsequently ran
+slot 1; this revision records that actual failure and the sole authorized
+repair. Amendment 03 was read in the R85 contract, committed/pushed by the
+primary at `6f82ca5d5`. Exact two-file leases were reopened; no other output
+lease or execution authority was granted.
+
+Current contract: 8,254 bytes, SHA-256
+`fceae58853a9a5ec185add9c8f7af9e45b2b0cc3db2c18c24a119ebcd4d8303d`.
+Current input manifest: 7,657 bytes, SHA-256
+`cb795bfaa76dac16726739897fca0d69033ab037b1b5e231ca20c8ea8928b1a8`.
+The actual diagnostic was available in the shared primary review file;
+Amendment 03 is appended to the contract rather than a separate file.
+An initial read of a guessed separate amendment path returned missing-file;
+no source or diagnostic evidence was inferred from that failure.
+
+## Actual slot-1 failure and complete axiom disposition
+
+Primary-owned receipt:
+`tasks/agent-loop/inbox/effect-permission-native-root-premises-r85-review.md`,
+75,058 bytes, SHA-256
+`4c6979604f6ad44b59445a143f54a293a149f43a6b2e9b16035571edddba8dee`,
+section `Slot-1 raw result`, contains the full printed types, diagnostics and
+axiom reports for all thirteen R84 and eleven R85 queries. The receipt records
+authorization commit `2bf9fe51e`; actual executable
+`/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean`,
+SHA-256 `bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38`;
+argv `-j1 -M1024 --stdin`; cwd `notes/theory/lean`;
+`LEAN_NUM_THREADS=1`; timeout 120 seconds. This leaf did not execute that call.
+
+Slot 1 used exactly 115,845 bytes, SHA-256
+`2f001a9673e79313db2b57c456c9e0875d43d3b86d225944e33ee198a10759ac`.
+Exit **1**, no timeout, elapsed **12.041374322987394 seconds**, child peak RSS
+**906,208 KiB**. Stdout 67,602 bytes, SHA-256
+`83069989068a471dcedea93baa7bb88f70356a0cd2cfaa33f7547419ce98f0d1`;
+stderr empty, SHA-256
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+The retained UTF-8 stdout/stderr were rehashed and match those receipt fields.
+No new version command was run; the pinned executable identity is reported,
+not an invented `--version` receipt.
+
+There is exactly one recorded error, `<stdin>:2271:20`, candidate source line
+181, in `pending_rejects_checkedRootGate`, case `cons.nil.none`:
+
+```text
+error: Tactic `rfl` failed: The left-hand side
+  @YulangClosure.NativeRootPremisesR85.checkedRootGate.match_3 ... [o] ...
+is not definitionally equal to the right-hand side
+  @Option.none ...
+```
+
+The actual goal retains the compiled outer singleton matcher and its inner
+`Origin.drain` match. The context includes `selected : nativeCandidates ... =
+[o]` and `attached : o.drain = none`; reflexivity does not rewrite that
+propositional drain equation. The successful `some d` sibling already uses
+simplification with its attached equation and pending flag. The full expanded
+goal and all warning/error evidence remain in the primary receipt above.
+
+Actual R85 axiom reports (fully qualified prefix
+`YulangClosure.NativeRootPremisesR85.`):
+
+| Theorem | Complete slot-1 reported axiom list |
+| --- | --- |
+| `pending_nil` | none |
+| `pending_cons` | `propext` |
+| `pending_append_seed` | `propext` |
+| `pending_attachAt` | `propext` |
+| `pending_take` | `propext` |
+| `reachable_pending` | `propext` |
+| `reachable_no_completed_attachment` | `propext` |
+| `pending_rejects_checkedRootGate` | `propext`, `sorryAx.{u}` — rejected |
+| `reachable_rejects_checkedRootGate` | `propext`, `sorryAx.{u}` — rejected |
+| `pending_blocks_R84_primitive` | `propext` |
+| `reachable_blocks_R84_primitive` | `propext` |
+
+All eleven complete printed theorem types are present in the same retained
+stdout. The source signatures remain unchanged by this repair; their exact
+quantifiers and scope are the revision-1 signatures. This leaf assigns no
+independent acceptance status to the unaffected reports. The slot-1 input as
+a whole failed; the two error-recovered constants are unusable proof evidence.
+
+## Sole candidate repair and exact final input
+
+Only this branch proof term changes:
+
+```diff
+-          | none => rfl
++          | none => simp [checkedRootGate, selected, attached]
+```
+
+The simplifier can reduce the compiled singleton matcher and rewrite the
+attached-none equation before reducing the inner match. This is a proposed
+repair grounded in the actual goal, still unexecuted. No definition, theorem
+signature, quantifier, conclusion, constructor, competitor, source premise or
+R84 parent changed. Reversing this exact one-line replacement reproduces the
+original candidate SHA-256
+`a3027fb0c80bc6314be61d39a943be278b6320bc54a9a2b1b88ee14bfce3f1db`.
+That byte-level assertion was checked successfully.
+
+Repaired candidate: **10,834 bytes**, SHA-256
+`1677d965ba2afa01ff07951325d1026f2da2fef97b19cc37cc8ef1490fecedcc`.
+Proposed slot-2 stdin: **115,884 bytes**, SHA-256
+`bac29ad18bd16e9a5af0422ea4d3416e049a61951d6b1545c8ba35a0548cbc79`.
+The exact recipe remains:
+
+`accepted_R84_slot4_stdin + "\n" + strip(repaired_R85_candidate_utf8) + "\n" + queries`
+
+Here `strip`, the 103,470-byte accepted R84 stdin and the 1,626-byte query
+string are exactly as specified in revision 1. Reconstruction rechecked every
+prefix module/declaration/normalization hash and the accepted R84 stdin hash.
+No bytes were written to scratch. Query string SHA remains
+`f55f6aeb5717bb22b7949797db45c6d09f8a5713bf3d547182ed58bc377d8fba`.
+The eleven new fully qualified query names, each with both `#check @name` and
+`#print axioms name`, remain:
+
+```text
+YulangClosure.NativeRootPremisesR85.pending_nil
+YulangClosure.NativeRootPremisesR85.pending_cons
+YulangClosure.NativeRootPremisesR85.pending_append_seed
+YulangClosure.NativeRootPremisesR85.pending_attachAt
+YulangClosure.NativeRootPremisesR85.pending_take
+YulangClosure.NativeRootPremisesR85.reachable_pending
+YulangClosure.NativeRootPremisesR85.reachable_no_completed_attachment
+YulangClosure.NativeRootPremisesR85.pending_rejects_checkedRootGate
+YulangClosure.NativeRootPremisesR85.reachable_rejects_checkedRootGate
+YulangClosure.NativeRootPremisesR85.pending_blocks_R84_primitive
+YulangClosure.NativeRootPremisesR85.reachable_blocks_R84_primitive
+```
+
+The thirteen earlier R84 query pairs are retained verbatim. No slot-2 result
+exists in this leaf. Fresh independent review, separate committed/pushed exact
+authorization, actual exit 0, complete printed types and all axiom reports
+without forbidden dependencies are required. There is no third invocation.
+Source/native exhaustiveness, actual checked-root success, origin selector
+correspondence, original A/B and production remain OPEN as in revision 1.
+
+This repair used only read-only text/JSON/hash operations, one candidate
+apply_patch and this handoff append; no Lean/checker/build/test/compiler,
+scratch/cache/generated output, environment mutation, descendant or Git.
+R85 actual invocations consumed: **1/2**, primary-executed. Leaf calls: **0**.
+The repair took less than ten minutes of wall time; no resource envelope was
+renewed. STOPPED / WRITES STOPPED at **2026-10-31 13:26 UTC**, after this append.
