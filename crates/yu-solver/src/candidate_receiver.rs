@@ -692,9 +692,51 @@ struct InventoryQualifiedReification<'p, 'a> {
     owner: &'a ReceivingResidualExperiment,
     facts: &'p [(usize, &'a SemanticFact)],
     provenance: &'p [(usize, &'a ProvenanceEdge)],
+    encoded_observations: EncodedInventoryEndpointObservations<'p, 'a>,
     interpreted_facts: Vec<InventoryReifiedFact<'a>>,
     occurrences: Vec<InventoryReifiedOccurrence<'a>>,
     edges: Vec<InventoryReifiedEdge<'a>>,
+}
+
+/// A completed, owner-borrowed result of the qualified reifier. This wrapper
+/// can only be made from the `Ok` result of `reify_qualified_facts`, so none
+/// of the locally accumulated rows or encoding are observable on failure.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "R71 successful-return evidence over R65-R70 owner rows")]
+struct InventoryCompletedReificationView<'p, 'a> {
+    completed: InventoryQualifiedReification<'p, 'a>,
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "R71 borrowed projections of a successful reifier return")]
+impl<'p, 'a> InventoryCompletedReificationView<'p, 'a> {
+    fn owner(&self) -> &'a ReceivingResidualExperiment {
+        self.completed.owner
+    }
+
+    fn encoded_observations(&self) -> &EncodedInventoryEndpointObservations<'p, 'a> {
+        &self.completed.encoded_observations
+    }
+
+    fn facts(&self) -> &'p [(usize, &'a SemanticFact)] {
+        self.completed.facts
+    }
+
+    fn provenance(&self) -> &'p [(usize, &'a ProvenanceEdge)] {
+        self.completed.provenance
+    }
+
+    fn interpreted_facts(&self) -> &[InventoryReifiedFact<'a>] {
+        &self.completed.interpreted_facts
+    }
+
+    fn occurrences(&self) -> &[InventoryReifiedOccurrence<'a>] {
+        &self.completed.occurrences
+    }
+
+    fn edges(&self) -> &[InventoryReifiedEdge<'a>] {
+        &self.completed.edges
+    }
 }
 
 /// The owner-derived Internal request and root evidence consumed by the
@@ -1222,14 +1264,29 @@ impl<'a> InventoryPackage<'a> {
             });
         }
 
+        // The encoding was constructed and consumed by endpoint validation
+        // above. Move that exact value into the successful result rather than
+        // rebuilding a snapshot after reification.
+        let encoded_observations = observations.encoded
+            .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
         Ok(InventoryQualifiedReification {
             owner: self.owner,
             facts: &self.semantic_facts,
             provenance: &self.provenance,
+            encoded_observations,
             interpreted_facts,
             occurrences,
             edges,
         })
+    }
+
+    /// Form an owner-borrowed view only after all fact, endpoint, provenance,
+    /// and edge checks have completed successfully.
+    fn completed_reification_view<'p>(
+        &'p self,
+    ) -> Result<InventoryCompletedReificationView<'p, 'a>, candidate_context::CurrentEmissionGap> {
+        let completed = self.reify_qualified_facts()?;
+        Ok(InventoryCompletedReificationView { completed })
     }
 
     /// Read the unique fact admitted at a source occurrence and local slot.
@@ -1312,8 +1369,8 @@ impl<'a> InventoryPackage<'a> {
     fn internal_root_view(
         &self,
     ) -> Result<InventoryInternalRootView<'_, 'a>, candidate_context::CurrentEmissionGap> {
-        let reification = self.reify_qualified_facts()?;
-        self.internal_root_view_from(&reification)
+        let reification = self.completed_reification_view()?;
+        self.internal_root_view_from(&reification.completed)
             .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)
     }
 
