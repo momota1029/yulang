@@ -338,10 +338,10 @@
   },
   "independent_review": {
     "path": "tasks/agent-loop/inbox/effect-permission-root-elaboration-r84-review.md",
-    "bytes": 5216,
-    "sha256": "600a4f336029a9abd9ea0b3b311555767705879a8cdf20657a4aad6c8f8ccfa0",
+    "bytes": 7508,
+    "sha256": "923f32c698d92d5e06d50258d73a5a3a2150884b1c86815bf129988e5e900214",
     "reviewer": "/root/r83_review",
-    "verdict": "Slot3 failure confirmed; revision 2 frozen and awaiting fresh independent review."
+    "verdict": "PASS for frozen revision-2 source and exact slot4 input; no remaining blocking source finding; kernel acceptance pending."
   },
   "slot1_exact_input": {
     "bytes": 93368,
@@ -389,7 +389,7 @@
     "status": "FAILED; complete streams retained; no theorem accepted; reviewer diagnosis required"
   },
   "slot4_repair": {
-    "status": "FROZEN_REVISION_2_PENDING_INDEPENDENT_REVIEW",
+    "status": "REVIEW_PASS_AWAITING_SLOT4_AUTHORIZATION",
     "candidate_sha256": "5d8ad6429906cdf971dbb9ee44841223c1fcc28e6591e1a75d1f453ea4eac13d",
     "proof_handoff_sha256": "8241f3b7ab3a656c15d114a987159fd33c66f04ae48fc3d82dbda0e4972ed17b",
     "exact_input_bytes": 103470,
@@ -401,7 +401,9 @@
     "bytes": 103470,
     "sha256": "93b365ddf908e223558d166efe7f76a1f5c370a5b1c9080716d0fb0ce92b3df0",
     "recipe": "accepted normalized_prefix_body + import_stripped revision-2 candidate + newline + unchanged full_queries",
-    "reviewed": false,
-    "authorization": "pending independent review and separate primary commit/push"
+    "reviewed": true,
+    "authorization": "separate primary authorization required",
+    "reviewed_by": "/root/r83_review",
+    "review_verdict": "PASS; exact 103470-byte input reconstructed and hash matched."
   }
 }

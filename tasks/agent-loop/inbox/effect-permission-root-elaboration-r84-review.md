@@ -91,3 +91,18 @@ error headers, not nine. The proof worker traced the missing instance to
 `Relation` has no `DecidableEq` deriving clause. The slot-4 source review must
 verify the proposed local derived instance and still audit the dependent
 finite reductions independently.
+
+
+## Fresh revision-2 review — 2026-10-31
+
+**PASS for frozen candidate source review and exact slot-4 input. No remaining blocking source finding.** This permits a separate primary authorization; it does not establish kernel acceptance.
+
+Authenticated candidate r2 (22,427 bytes, SHA-256 `5d8ad6429906cdf971dbb9ee44841223c1fcc28e6591e1a75d1f453ea4eac13d`), handoff r2 (339,182 bytes, `8241f3b7ab3a656c15d114a987159fd33c66f04ae48fc3d82dbda0e4972ed17b`), and independently reconstructed slot-4 stdin (103,470 bytes, `93b365ddf908e223558d166efe7f76a1f5c370a5b1c9080716d0fb0ce92b3df0`). The original handoff remains an exact 331,759-byte prefix. All 220 dependency slices, six normalizations, accepted prefix body, and thirteen query pairs are unchanged.
+
+All ten prior diagnostic targets have owning repairs. The tenth tagged `error(lean.synthInstanceFailed)` was omitted by the prior `error:` regex; the structural `DecidableEq` for the local `Relation` addresses the `Option (Relation T)` comparison. Origin filtering is preserved until the pinned equation rewrites it; root-candidate unfolding, guard evidence and `congrArg List.map hcandidates` discharge the actual singleton obligation; admission unfolding addresses the bound mismatch; direct `rfl` replaces the dependent rewrite chain while preserving the constructor/output equality. Closed finite reductions use `decide +kernel`; pinned `Lean/Elab/Tactic/Decide.lean:83–135` distinguishes this from native evaluation and adds no native-evaluation assumption. Parentheses group full relation/origin map expressions without changing intended values or rejection conjuncts.
+
+Twelve theorem signatures are byte-identical. The thirteenth differs only by the grouping parentheses; reversing them recovers the previous source signature. Definitions, primitive checks, inventories, coordinates, witnesses and quantifiers remain unchanged. No proof hole, project axiom or checker bypass appears.
+
+**Gate:** slot 4 must exit 0 and provide all thirteen complete types and axiom reports without error recovery or forbidden axioms. This is the last permitted invocation; any remaining failure closes R84 incomplete.
+
+Reviewer `/root/r83_review` STOPPED / WRITES STOPPED. Read-only review; no Lean/checker/compiler/tests, writes, scratch or Git.
