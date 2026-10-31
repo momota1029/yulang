@@ -21,3 +21,7 @@ Six declarations construct membership from ordered first-equality search and an 
 No patch was applied. No Cargo/rustc/compiler, build/test, Lean/Lake/checker, environment/storage probe, scratch/cache/worktree or temporary path was used. R111's compile-only source gate remains BLOCKED by its aggregate-storage cap and no configured remote verification. Therefore no Rust source was staged or pushed; only the reviewed research candidate and records are pushable.
 
 Original soundness, complete effect hygiene, native/source correspondence, R114 transport and production remain OPEN. R119 closes only this bounded research checkpoint.
+
+## Git receipt
+
+Contract start pushed in `53914028d`; corrected R117 artifact locator pushed in `08dc827f3`; the reviewed R119 research checkpoint was pushed as `0e7cda016` (`08dc827f3..0e7cda016`). Only the explicit contract-authorized research paths were included. The Rust source and all unrelated dirty/quarantined paths were excluded. `HEAD` and `origin/yulang3` matched at checkpoint close.
