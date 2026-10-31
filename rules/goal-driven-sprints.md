@@ -18,6 +18,9 @@ admit the next exact packet, dispatch eligible workers, adjudicate their frozen
 results, synchronize records and checkpoint coherent intended work without
 asking again at each step. A routine result, sprint boundary or next safe
 in-scope action is not by itself a reason to pause for confirmation.
+Do not interpret a missing reply or ordinary time passing as a pause or revocation;
+continue the already-authorized work until a material decision is required or
+the user explicitly pauses or cancels the objective.
 
 An explicit continuing Rust/Lean research goal authorizes eligible subagents in
 the proof and implementation lanes and primary-owned integration and pushes of

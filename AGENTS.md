@@ -106,7 +106,8 @@ An explicitly ongoing Rust/Lean goal is standing authorization to continue
 bounded in-scope work, including selecting and admitting the next sprint and
 using eligible subagents for proof, implementation, and review. Do not ask the
 user to re-authorize these routine steps at sprint boundaries; ask only when a
-material user decision is needed or the user pauses or cancels the goal.
+material user decision is needed or the user pauses or cancels the goal. A
+missing reply or ordinary time passing does not pause or revoke this authority.
 
 Luna owns authority, actual dispatch, exact leases, review and Git. The existing
 `next_action_selector` is the lightweight sprint dispatcher. Keep the Luna/high
