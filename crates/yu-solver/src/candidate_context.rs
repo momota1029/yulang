@@ -656,6 +656,10 @@ pub(super) struct CheckedPhysicalLowerEdge<'a> {
     pub admission: &'a BoundAdmission,
 }
 #[derive(Clone, Copy, Debug)]
+struct InternalUseRootEvidence {
+    relation: RelationId,
+}
+#[derive(Clone, Copy, Debug)]
 struct BoundEvidenceGroup {
     admission_head: Option<BoundAdmissionId>, emission_head: Option<BoundEmissionId>,
     coverage: EvidenceCoverage,
@@ -3156,6 +3160,17 @@ impl State {
         if self.relation_pair(relation) != Some(bound_pair(admission.bound)) {
             return Err(CurrentEmissionGap::ForeignRelationPair);
         }
+        let root = self.checked_internal_use_root(use_occurrence, use_pair)?;
+        self.require_relation_ancestry(relation, root.relation)?;
+        Ok(CheckedBoundEmission { id, admission_id, emission, admission, use_root: root.relation })
+    }
+    /// Read the unique completed source-drain root for an Internal use before
+    /// the caller performs the existing final ancestry check.
+    fn checked_internal_use_root(
+        &self,
+        use_occurrence: &ConstraintOccurrenceId,
+        use_pair: TypedPairKey,
+    ) -> Result<InternalUseRootEvidence, CurrentEmissionGap> {
         let mut root_candidate = None;
         for (origin_index, origin) in self.origins.iter().enumerate() {
             if &origin.occurrence != use_occurrence
@@ -3179,9 +3194,7 @@ impl State {
             || task_pair(receipt.task) != use_pair {
             return Err(CurrentEmissionGap::MissingUseRoot);
         }
-        let use_root = origin.relation;
-        self.require_relation_ancestry(relation, use_root)?;
-        Ok(CheckedBoundEmission { id, admission_id, emission, admission, use_root })
+        Ok(InternalUseRootEvidence { relation: origin.relation })
     }
     pub(super) fn require_relation_ancestry(
         &self, descendant: RelationId, ancestor: RelationId,
