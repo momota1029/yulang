@@ -261,3 +261,123 @@ to this leaf. Source lane and this leaf do not independently certify each other.
 no live process or generated-output lease remains. Primary owns fresh review,
 audit execution, shared state, adjudication and Git. All unfinished bridges
 above remain open.
+
+---
+
+# R87 diagnostic-directed repair — revision 2, FROZEN
+
+Revision 1 above remains a byte-preserved prefix. Amendment 02, supplied by
+primary as committed/pushed at `73174bbe3`, reopened only these same two paths
+for four normalization proof-body repairs. No definition, theorem statement,
+source/semantic claim, dependency, lease or budget was enlarged or reset.
+
+## Actual slot-1 failure retained
+
+Read Amendment 02 and the actual raw result
+`tasks/agent-loop/history/native-drain-reader-correspondence-20261031-r87-raw-result.json`.
+Verified raw SHA `31c8a9d4d86468975d3680e60d83fd4ff508c50949ff25830923f17a5c38f8aa`
+and decoded stdout SHA. Primary executed the exact revision-1 input, 150,997
+bytes, SHA `e277bb3673cde7f44ee4bc4aa9e1145de2c6e15187a72d34091a1878e0862358`.
+Actual command: pinned native Lean executable with `-j1 -M1024 --stdin`, cwd
+notes/theory/lean, LEAN_NUM_THREADS=1, 120-second limit. Executable SHA
+`bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38`.
+No new leaf or primary version command is inferred from that executable pin.
+
+Exit **1**, no timeout, **10.30472108500544 seconds**, peak child RSS
+**954,112 KiB**. Stdout **159,444 bytes**, SHA
+`45fb8854635d6861106643df46724a04e2105cda217dc72d719bed6bcf75bd33`;
+stderr empty. All 35 R87, 13 R84 and 11 R85 type/axiom pairs are preserved
+in the raw receipt. These are actual primary results, not leaf executions.
+
+Four actual unsolved goals:
+
+- publicationData_iff, stdin 2502: generic `Bind.bind` remains on the Option
+  side, while the existential field equations are expanded on the other side.
+- cuts_sound_complete, stdin 2651: the positive case still contains `if True`
+  around publicationData; restricted simplification rewrote the proposition
+  before the provided `if_pos valid` rule could reduce the conditional.
+- internal_sound_complete, stdin 2722: the candidate singleton is expanded,
+  but the attached-record read still uses generic `Bind.bind`.
+- saved_sound_complete, stdin 2768: indexed Origin/attachment reads retain
+  generic `Bind.bind` against the expanded existential specification.
+
+The pinned library at
+`.../leanprover--lean4---v4.35.0/src/lean/Init/Data/Option/Lemmas.lean:200`
+defines `[simp] theorem bind_eq_bind : bind = @Option.bind α β := rfl`.
+Its bind_eq_some_iff at :209 expects the specialized Option bind. The actual
+goals therefore support normalization rather than changing any relation.
+
+Complete slot-1 R87 axiom disposition, fully qualified prefix
+`YulangClosure.NativeDrainReaderCorrespondenceR87.`:
+
+- No axioms: clone_pending_distinct, clone_fields,
+  uncut_guards_ignore_completed_bit, cut_receipt_pending,
+  internal_receipt_completed, cut_and_internal_cannot_share_attachment.
+- `[propext, Quot.sound]`: checkedCandidates_ok_iff.
+- `[propext, sorryAx]`, rejected: publicationData_iff,
+  uncut_sound_complete, cuts_sound_complete, saved_sound_complete.
+- `[propext, sorryAx, Quot.sound]`, rejected: internal_sound_complete.
+- `[propext]`: the other 23 revision-1 theorems.
+
+uncut_sound_complete inherits the failed publicationData_iff dependency; its
+statement/proof was not itself changed. Error-recovered constants are unusable.
+The other 30 results are declaration-level reports under their original scope;
+the failed slot as a whole is not accepted. No native counterexample or source
+statement mismatch was supplied by these diagnostics.
+
+## Exact proof-only delta
+
+In publicationData_iff, internal_sound_complete and saved_sound_complete,
+insert only `Option.bind_eq_bind` immediately before Option.bind_eq_some_iff
+in the existing `simp only` lists. This specializes the generic monadic bind
+before applying the existing existential equation lemma. No function changes.
+
+Replace only the positive proof branch of cuts_sound_complete:
+
+```diff
+-  · simp only [readCuts, if_pos valid, CutRel, valid, true_and, publicationData_iff]
++  · rw [readCuts, if_pos valid]
++    simp only [CutRel, valid, true_and, publicationData_iff]
+```
+
+This reduces the original conditional before simplifying the validity
+proposition in the remaining relation. The negative branch is unchanged.
+No helper declaration or additional hypothesis was introduced.
+
+Read-only reverse-diff reconstruction replaced exactly these four proof-body
+deltas and reproduced the complete revision-1 candidate hash
+`5439e697535c6d3f153db7f75e3b2a58c7b6755e41a93420c479b7a36a0c6d23`.
+Thus all definitions, all 35 theorem names/statements/hypotheses, all other
+proofs, source guards, candidate lists/windows, shared witnesses and R57/R84
+applications are byte-identical. The four repairs remain constructed and
+unchecked; no successful normalization or final axiom result is invented.
+
+Repaired candidate: **29,021 bytes**, SHA
+`1ac359eba68583441808be1e55c110071a3bd207b567adfe73381c35366148e8`.
+
+## Exact proposed slot 2 and stop
+
+Reconstructed the normalized R84 prefix and accepted R84/R85 stdin in memory,
+rechecking every original/normalized slice and source-file hash. The accepted
+R85 prefix remains exactly 115,884 bytes,
+`bac29ad18bd16e9a5af0422ea4d3416e049a61951d6b1545c8ba35a0548cbc79`.
+Use the identical revision-1 recipe with this repaired candidate. All 35 new
+query pairs and earlier R84/R85 pairs are unchanged. New query string remains
+6,204 bytes, SHA `48030ee348c82ab1787b25f1f20679def5cab1076982ac4d565e907f4126c8f0`.
+
+Exact proposed slot-2 stdin: **151,068 bytes**, SHA
+`f41122e303840b53eb364a76542f263a2554f6174fa9e14187e1f2b912e6812a`.
+No flattened input/temp source/output was written to disk. Fresh independent
+review and a separately committed/pushed exact-input authorization remain
+mandatory before primary's final call. No third call or fallback is admitted.
+
+Actual repair commands: read-only cat/rg/sed; Python JSON/base64/SHA and
+accepted-input/reverse-diff reconstruction; apply_patch on the two reopened
+leases. All reconstruction/hash assertions exited 0. No leaf Lean/checker,
+build/test/Lake/compiler/formatter, dependency change, scratch/cache/target/
+environment/worktree, Git, descendant or external contact. Primary calls
+already charged: 1/2; leaf calls 0. CPU/RSS for this repair unmeasured; no
+budget reset. All semantic/native/parent omissions in revision 1 remain open.
+
+**STOPPED / WRITES STOPPED**, immediately after this revision-2 append.
+Candidate/handoff frozen; no running process or generated-output lease remains.

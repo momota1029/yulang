@@ -158,7 +158,7 @@ theorem publicationData_iff (origins : List (Nat × NativeOrigin))
     [∀ io p, Decidable (guards io p)] (out : Publication Cause Task Ack Ref) :
     publicationData origins completions guards = some out ↔
       PublicationRel origins completions guards out := by
-  simp only [publicationData, PublicationRel, Option.bind_eq_some_iff,
+  simp only [publicationData, PublicationRel, Option.bind_eq_bind, Option.bind_eq_some_iff,
     singleton_some_iff, gate_some_iff]
 
 theorem publication_origin_index_unique (origins : List (Nat × NativeOrigin))
@@ -306,7 +306,8 @@ theorem cuts_sound_complete (e : Env) (w : Cuts) (occurrence : Occ)
     (cause : Cause) (task : Task) (out : Publication Cause Task Ack Ref) :
     readCuts e w occurrence cause task = some out ↔ CutRel e w occurrence cause task out := by
   by_cases valid : validCuts e w
-  · simp only [readCuts, if_pos valid, CutRel, valid, true_and, publicationData_iff]
+  · rw [readCuts, if_pos valid]
+    simp only [CutRel, valid, true_and, publicationData_iff]
   · simp [readCuts, valid, CutRel]
 
 /-- The Internal reader has a distinct bit and incoming/replay policy. -/
@@ -379,7 +380,7 @@ theorem internal_sound_complete (e : Env) (occurrence : Occ) (pair : Pair)
     (out : Internal Occ Cause Task Ack Ref Meta) :
     readInternal e occurrence pair = .ok out ↔ InternalRel e occurrence pair out := by
   simp only [readInternal, checkedCandidates_ok_iff, internalAt,
-    Option.bind_eq_some_iff, gate_some_iff, InternalRel]
+    Option.bind_eq_bind, Option.bind_eq_some_iff, gate_some_iff, InternalRel]
 
 /-- Saved consumption supplies an original index, Origin reference and receipt
 reference. It does not scan or establish a unique completion. Non-receipt
@@ -424,7 +425,7 @@ def SavedRel (e : Env) (saved : Saved Occ Cause Task Ack Ref Meta Hir)
 theorem saved_sound_complete (e : Env) (saved : Saved Occ Cause Task Ack Ref Meta Hir)
     (out : Internal Occ Cause Task Ack Ref Meta) :
     readSaved e saved = some out ↔ SavedRel e saved out := by
-  simp only [readSaved, SavedRel, Option.bind_eq_some_iff, gate_some_iff]
+  simp only [readSaved, SavedRel, Option.bind_eq_bind, Option.bind_eq_some_iff, gate_some_iff]
 
 theorem saved_identity_and_checked_bit (e : Env) (saved : Saved Occ Cause Task Ack Ref Meta Hir)
     (out : Internal Occ Cause Task Ack Ref Meta) (lawful : SavedRel e saved out) :
