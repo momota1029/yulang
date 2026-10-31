@@ -1,8 +1,8 @@
-# R76 Lean handoff — audit 1 FAILED; audit 2 proposed, NOT EXECUTED
+# R76 Lean handoff — both permitted audits FAILED; no R76 theorem accepted
 
 Worker: `/root/r76_proof`. Contract SHA-256 `87325ab223af0e98a6ca8c78162ead6ba1d72403b318342d155ee5dd55069936`; input manifest R2 SHA-256 `6c386e096fea70fa22a3b73fa237d08ee57f263aff994ac35eb54106575a909d` (R1 omitted transitive inputs; corrected by primary amendment before this execution). Claim class: finite source-inventory constructor and successful native-order scan agreement, not native extraction or parent closure.
 
-Owned paths: `notes/theory/lean/YulangClosure/SourceInternalChoiceR76.lean` and this handoff only. No scratch/generated/cache/build paths. Audit 1 executed under authorization and FAILED before reaching R76; audit 2 is frozen and NOT EXECUTED pending fresh authorization.
+Owned paths: `notes/theory/lean/YulangClosure/SourceInternalChoiceR76.lean` and this handoff only. No scratch/generated/cache/build paths. Audit 1 failed before reaching R76; audit 2 ran once under primary authorization and failed on R76 declarations. Both permitted invocations are consumed; no theorem is accepted.
 
 ## Original claim and correspondence
 
@@ -677,7 +677,7 @@ Verbatim stderr:
 
 Audit 1 FAILED with upstream whole-flattened closure memory exhaustion at the fixed 1024 MiB per-process limit, before R76 declarations. No R76 theorem was accepted and no axiom report was obtained. Upstream Lean recovery generated `sorry`-dependent failed declarations and compiler panics; those diagnostics are preserved verbatim above and are not accepted evidence. No source `sorry`/axiom/bypass was introduced. No second invocation has run.
 
-## Audit 2 exact declaration-slice proposal — NOT EXECUTED
+## Audit 2 frozen declaration-slice input — executed once; failed
 
 The previous full closure elaborated unrelated R58–R62 proofs and exhausted memory. This input instead contains exact necessary primitive declaration bodies from pinned R39/R45/R55/R57/R65/R66, full R76 source, and all R76 #check/#print axioms commands. It omits upstream theorems, physical ownership/policy/search definitions and unused source declarations; none is replaced by a stub or axiom. This verifies the exact choice declaration dependency slice only, not the original project import closure.
 
@@ -816,7 +816,7 @@ Proposed command/environment/destination: unchanged exact pinned Lean binary `-j
 }
 ```
 
-Status: audit 1 FAILED; revised construction UNCHECKED; audit 2 NOT EXECUTED. WRITES PAUSED pending primary authorization.
+Status: audit 1 FAILED before R76; audit 2 FAILED on R76 declarations; no theorem accepted; both permitted invocations consumed. Primary has frozen this handoff; no third audit is permitted under R76.
 
 ## Exact audit 2 byte assembly (authoritative joining code)
 
