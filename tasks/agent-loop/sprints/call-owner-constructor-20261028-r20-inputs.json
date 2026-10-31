@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "sprint": "CALL-OWNER-CONSTRUCTOR/20261028-r20",
+  "baseline_commit": "d33805eb5",
+  "source_snapshot": "isolated/latent-demand-transport-classification-r18",
+  "r18_manifest_sha256": "d07167958cdb5f93a5370d48568a7a0ab4afc8b8ec31a02ffbdb359848a5b455",
+  "entries": [
+    {
+      "path": "tasks/agent-loop/sprints/call-effect-owner-realization-20261028-r19.md",
+      "sha256": "9400d07a47cb48043983fa4ae43c41962a581a97a732d181c92cdd2a090e6bd7",
+      "size": 8496,
+      "lane": "governing_contract"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/call-effect-owner-realization-20261028-r19-amendment-02.md",
+      "sha256": "e40b7ec782dc9010e496e5293f916105c541ff50b4b30c2c818678a771a410bf",
+      "size": 3758,
+      "lane": "governing_amendment"
+    },
+    {
+      "path": "tasks/agent-loop/history/call-effect-owner-realization-20261028-r19-outcome.md",
+      "sha256": "ab36822c765db905c6f8036be63dcc0136eb444fe1f8ff25a1b054bbbb967573",
+      "size": 3609,
+      "lane": "prior_outcome"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/call-effect-owner-realization-r19-review.md",
+      "sha256": "ad6db617c2cc8d0ae958b71b0d1c2a9ac443fcfe3fdb8a3543d456001f7b1a8f",
+      "size": 5101,
+      "lane": "prior_review"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/latent-demand-transport-classification-20261028-r18.md",
+      "sha256": "fedd227744b66af19d5544315130233c4fb666667c996fcafa92dbb8ebf99e9a",
+      "size": 6769,
+      "lane": "baseline_contract"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/latent-demand-transport-classification-20261028-r18-inputs.json",
+      "sha256": "d07167958cdb5f93a5370d48568a7a0ab4afc8b8ec31a02ffbdb359848a5b455",
+      "size": 133544,
+      "lane": "baseline_manifest"
+    },
+    {
+      "path": "tasks/agent-loop/history/latent-demand-transport-classification-20261028-r18-outcome.md",
+      "sha256": "39eedc5fe3bc53ee430adc0c0d7b42169345daaed452b6ecd709247c195f1525",
+      "size": 5246,
+      "lane": "baseline_outcome"
+    },
+    {
+      "path": "isolated/latent-demand-transport-classification-r18/crates/yu-solver/src/candidate_effect.rs",
+      "sha256": "7c8e4fe5270fd45cecece80dfbbdff81aa8f294546687938bf89212325fc146b",
+      "size": 289769,
+      "lane": "baseline_source"
+    },
+    {
+      "path": "isolated/latent-demand-transport-classification-r18/crates/yu-solver/src/candidate_context.rs",
+      "sha256": "be1be2277d54288ba4ae542e003dabc294031c29cb26b2b5d0454b0d1c102bd0",
+      "size": 253873,
+      "lane": "baseline_source"
+    },
+    {
+      "path": "isolated/latent-demand-transport-classification-r18/crates/yu-solver/src/candidate_scheme.rs",
+      "sha256": "3eb9ba3b414dd0e40f49957e0ee2b9de1ba21fd86dff718111d1b5030ccac6b7",
+      "size": 512862,
+      "lane": "baseline_source"
+    },
+    {
+      "path": "isolated/latent-demand-transport-classification-r18/crates/yu-solver/src/candidate_call.rs",
+      "sha256": "fdc39e01fa3665b4dc14e167973de63b275eb0280b831e340b6cdcee5ed0fc3f",
+      "size": 32230,
+      "lane": "baseline_source"
+    },
+    {
+      "path": "isolated/latent-demand-transport-classification-r18/crates/yu-solver/src/shadow_apply.rs",
+      "sha256": "8db4bae1b79959161b6b0dc4d516164b0e756eb8cbc73896bb4a4545a0b0ebf8",
+      "size": 275948,
+      "lane": "baseline_source"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/Contracts.lean",
+      "sha256": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e",
+      "size": 7467,
+      "lane": "original_parent"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceSyntax.lean",
+      "sha256": "3184d156d661ace7da0345f5fa63f8a4396d9f52c745d265239c8d3db1e7d0d1",
+      "size": 22040,
+      "lane": "original_source"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceGeneration.lean",
+      "sha256": "126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef",
+      "size": 66485,
+      "lane": "original_source"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceInterpretation.lean",
+      "sha256": "feddd8155e6130279c202453e4562019fde5c0ad0f3a0a491dcbc0cb4ef572ef",
+      "size": 56341,
+      "lane": "original_source"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceEnvironment.lean",
+      "sha256": "0e12d33d1b912820324f5140fbe3f16983d0b7ef33137642aaef07faa573f132",
+      "size": 81021,
+      "lane": "original_source"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceChecking.lean",
+      "sha256": "a0ba215e28fe0152e3c66024da86ab9a63219b7950e741bf260cbc4c2897ffd6",
+      "size": 103542,
+      "lane": "original_source"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceSignatureConstruction.lean",
+      "sha256": "ed07890e29b4dcb38cabd18ec0e196efde9e95c64902942a9906a470b38c3311",
+      "size": 37437,
+      "lane": "original_source"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceIdentityWorld.lean",
+      "sha256": "6019fd9d57cde50183e016bd0c72de2c6eee72009065d85119fb0348dbcf0168",
+      "size": 25976,
+      "lane": "original_source_dependency"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceFunctionMembership.lean",
+      "sha256": "8d370ee57e486ae48607d1bab493ae5135f28bf8a5a7ff1b0ef240fc0247e424",
+      "size": 7744,
+      "lane": "original_source_dependency"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeDictionaryDenotation.lean",
+      "sha256": "d44a78f08970a09ca4c3e99a1d8dea846286a299d1a2bc91ec3b5e0eabea9070",
+      "size": 33584,
+      "lane": "original_source_dependency"
+    },
+    {
+      "path": "docs/yulang-source-type-safety-ja.tex",
+      "sha256": "2c77bbd6f2679ac91ece3bb670152a9dfd16e033aa68545bff6c6dc509d24166",
+      "size": 184349,
+      "lane": "governing_source_spec"
+    },
+    {
+      "path": "notes/design/2026-10-07-original-call-owner-definition.md",
+      "sha256": "0b86e367cf8170f4f9d095f0afe8e9f6003209189dc358e294941727962ff110",
+      "size": 13196,
+      "lane": "governing_owner_definition"
+    },
+    {
+      "path": "notes/theory/2026-10-26-original-source-generation-construction.md",
+      "sha256": "e9027e317deb5cd5c34cc3892f332a06910a6ff93f1890a82e59faf31d643283",
+      "size": 47881,
+      "lane": "source_constructor_audit"
+    }
+  ],
+  "candidate_scheme_r18_result_sha256": "3eb9ba3b414dd0e40f49957e0ee2b9de1ba21fd86dff718111d1b5030ccac6b7",
+  "notes": "R18 final candidate bytes are pinned separately from the R18 input manifest baseline. R19 selector overlay is excluded."
+}

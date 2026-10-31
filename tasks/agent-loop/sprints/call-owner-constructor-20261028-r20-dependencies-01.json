@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "sprint": "CALL-OWNER-CONSTRUCTOR/20261028-r20",
+  "revision": 1,
+  "base_contract_sha256": "0b19ec601ee40765fdd1f74235d0b6f35e0c6e195a4a032672f40c7358c410f1",
+  "base_manifest_sha256": "ebd5164460314d7b6a940e9a9caf2bbbe385c105bc8f4ff15f13e7daa9eec57d",
+  "supplement": [
+    {
+      "path": "notes/progress/2026-10-06-source-call-generation-construction.md",
+      "sha256": "6bd7773326ccdd3101eaeb60a7e0f5d98a6c7a80b68467f6bf06a6466ffc4073",
+      "size": 28018,
+      "use": "call_template"
+    },
+    {
+      "path": "notes/design/2026-10-07-complete-call-contribution-definition.md",
+      "sha256": "4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e",
+      "size": 18576,
+      "use": "selected_C-Call_J-Owned"
+    },
+    {
+      "path": "notes/design/2026-10-08-call-source-interface-definition.md",
+      "sha256": "20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c",
+      "size": 7537,
+      "use": "selected_source_call_interface"
+    }
+  ],
+  "scope": "These exact source dependencies are added for comparison of the original Call template and selected C-Call/J-Owned/source-call constructors. No linked construction proof files are admitted by this supplement."
+}
