@@ -1,0 +1,59 @@
+{
+  "schema": "effect-permission-native-callback-table-coverage-r32-inputs-v1",
+  "revision": "r1",
+  "sprint": "EFFECT-PERMISSION-NATIVE-CALLBACK-TABLE-COVERAGE/20261031-R32",
+  "branch": "yulang3",
+  "admission_head": "afd05a2aaec63890629d97a663a7aff54574075b",
+  "r31_outcome": {
+    "path": "tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r31-outcome.md",
+    "sha256": "dfbf28eb028fb3f74e2634cafd90ae914a07bdea1934356be591237259eb2369"
+  },
+  "r31_review": {
+    "path": "tasks/agent-loop/inbox/effect-permission-native-callback-grant-r31-review.md",
+    "sha256": "d8e095ba4e9731478549912079ac60023556a6f89801bbd6e36915a67e6bd7f5",
+    "disposition": "MAJOR: projection coverage gap"
+  },
+  "r31_artifacts": {
+    "rust_patch": "4eb744c6aec78d15c98724d6559440de3a477c1e67ec1116b6eee89ce38a6f85",
+    "rust_handoff": "3e1fbe2fabc5869feaad573453fa7bff8b463fa04cddd95e7ff2d27f8703596d",
+    "lean_module": "a0a8b53e1f73ed44e92ee01b3e87531d310775af0804999d30d6fbb0a68e378d",
+    "lean_handoff": "8c8864cfcd5a93deb66caf6c6c62c5d4078d469c136b75bc559f2ed1ee767732"
+  },
+  "archive": {
+    "path": "tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r30-recovered-overlays-r1.tar.gz",
+    "sha256": "5c3c991dec9e54ad3e2665a1c722a0abf2d80a9efe719664606824558351a790"
+  },
+  "authorities": {
+    "parent": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md",
+    "sha256": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271",
+    "birth_level_correction_sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae",
+    "effect_policy_sha256": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18"
+  },
+  "counterexample": {
+    "table": {
+      "operations": [],
+      "families": []
+    },
+    "distinct_operations_encode_equal": true,
+    "decoder_returns_none": true,
+    "source": "R31 independent review, exact frozen theorem and archive inputs"
+  },
+  "scope": {
+    "source_edits": false,
+    "cargo_or_lake": false,
+    "worktree_or_copy": false,
+    "build_target_cache_scratch": false,
+    "lean": "v4.35.0 stdin under read-only bwrap"
+  },
+  "resource_envelope_seconds": {
+    "total": 6000,
+    "rust": 1600,
+    "lean": 1600,
+    "independent_review": 1200,
+    "luna_primary_including_closeout": 1600,
+    "closeout_reserve": 500,
+    "astra": 0,
+    "r31_transfer": 0
+  },
+  "claim_boundary": "Covered finite snapshot projection only. Native extraction, original A/B, whole-language hygiene, soundness, principality, termination and production remain OPEN."
+}

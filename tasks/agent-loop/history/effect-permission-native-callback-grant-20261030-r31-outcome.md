@@ -1,0 +1,7 @@
+# R31 outcome — CLOSED_INCOMPLETE / PROJECTION_COVERAGE_GAP
+
+R31 delivered a reviewed source-only Rust patch proposal and a Lean 4.35.0 checked finite model. Independent review accepted both within their limits but found that `callback_checked_catch` did not require table coverage or operation-table membership. With empty identity tables, distinct structural operations both map to ordinal 0/family 0 while decoding to none; the theorem can still succeed from its unconstrained coordinate premises. This violates the faithful-projection gate, not Lean kernel correctness and not a native typed-ID collision.
+
+Exact evidence and review: `tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r31-stage-ledger.md` and `tasks/agent-loop/inbox/effect-permission-native-callback-grant-r31-review.md`. The Rust proposal remains uncompiled and unapplied; typed inequality/runtime behavior unverified. The Lean finite theorems remain accepted, but not the claimed covered callback projection. Original source-preservation A/B and all broader goals remain OPEN.
+
+No R31 resource allocation transfers to a successor because active Rust, Lean and Luna preparation durations were unmeasured. The next admitted action is R32 coverage-by-construction with fresh budget; no runtime source write is authorized because the root runtime files remain UNKNOWN/quarantined. Git checkpoint remains unpublished under the read-only `.git` restriction.

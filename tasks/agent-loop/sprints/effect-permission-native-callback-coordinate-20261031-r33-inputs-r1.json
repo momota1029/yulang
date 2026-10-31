@@ -1,0 +1,91 @@
+{
+  "schema": "effect-permission-native-callback-coordinate-r33-inputs-v1",
+  "revision": "r1",
+  "sprint": "EFFECT-PERMISSION-NATIVE-CALLBACK-COORDINATE/20261031-R33",
+  "branch": "yulang3",
+  "admission_head": "afd05a2aaec63890629d97a663a7aff54574075b",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-native-callback-coordinate-20261031-r33.md",
+    "sha256": "77ea1171f71415e889d7391bfac042d3e44f6bd5b1bc1b5e094a5186f0c3aaca"
+  },
+  "r32_outcome": {
+    "path": "tasks/agent-loop/history/effect-permission-native-callback-table-coverage-20261031-r32-outcome.md",
+    "sha256": "f0964d57f401148111c3cc8805e1ec4b8817e79ed45adebddbfc887245a5efba",
+    "disposition": "CLOSED_PASS / COVERED_FINITE_PROJECTION"
+  },
+  "r32_contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-native-callback-table-coverage-20261031-r32.md",
+    "sha256": "85f1bd3d6350be8c501b0859230389d288901cceb9aa4982e57784842dcb5817"
+  },
+  "r32_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-native-callback-table-coverage-20261031-r32-inputs-r1.json",
+    "sha256": "91495c9955c39ce6988421d1913803788c26aca3d8d8ea47c224d837dcb0ef66"
+  },
+  "r32_stage_ledger": {
+    "path": "tasks/agent-loop/history/effect-permission-native-callback-table-coverage-20261031-r32-stage-ledger.md",
+    "sha256": "092d581c04967291badd7573536657999618f3f650237247391a69e1319e8aae"
+  },
+  "r32_artifacts": {
+    "lean_module": {
+      "path": "notes/theory/lean/YulangClosure/NativeCallbackGrantBridgeR32.lean",
+      "sha256": "bf2908ae347814c71ddc32ffae0f64a62103b855d96655a47aa1b9db0dc9690c"
+    },
+    "proof_handoff": {
+      "path": "tasks/agent-loop/inbox/effect-permission-native-callback-grant-r32-proof.md",
+      "sha256": "be7b68b1682f709bad5c624ca57e27a806df63848f7eafe938710ca84438a0a0"
+    },
+    "rust_source_mapping": {
+      "path": "tasks/agent-loop/inbox/effect-permission-native-callback-table-coverage-r32-rust.md",
+      "sha256": "288c5b448e4fd7e2531e52d6689037700cfd7c1aca6ae07c653c3129cbd1dcb7"
+    },
+    "independent_review_intake": {
+      "path": "tasks/agent-loop/inbox/effect-permission-native-callback-grant-r32-review.md",
+      "sha256": "114d5456a3ab902835b3fa2f781ad49b84a359e857b540dd2c44d21beb4e0547"
+    },
+    "r31_module_prefix": "a0a8b53e1f73ed44e92ee01b3e87531d310775af0804999d30d6fbb0a68e378d",
+    "r26_module_prefix": "0621f43739c12ce1e7919a50de129414a4748d8359bf46740babd69f4854011e"
+  },
+  "pinned_source": {
+    "archive": {
+      "path": "tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r30-recovered-overlays-r1.tar.gz",
+      "sha256": "5c3c991dec9e54ad3e2665a1c722a0abf2d80a9efe719664606824558351a790"
+    },
+    "machine_rs": "b74c8345e6e07155f482440bb9299b5fc12763accb666ca8f543156dd4a87425",
+    "receiving_rs": "55b468cda3c3cf8180647a6429da28fc70badf7a371bf1b327539c8556b9b0f2"
+  },
+  "authorities": {
+    "parent": {
+      "path": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md",
+      "sha256": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271"
+    },
+    "birth_level_correction_sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae",
+    "effect_policy_sha256": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18"
+  },
+  "resource_envelope_seconds": {
+    "total": 6000,
+    "rust": 1600,
+    "lean": 1600,
+    "independent_review": 1200,
+    "luna_primary_including_closeout": 1600,
+    "closeout_reserve": 500,
+    "astra": 0,
+    "r32_transfer": 0
+  },
+  "scope": {
+    "source_edits": false,
+    "cargo_or_lake": false,
+    "worktree_or_copy": false,
+    "target_cache_log_scratch": false,
+    "external_directories": false,
+    "lean": "v4.35.0 stdin under read-only bwrap"
+  },
+  "falsifiers": [
+    "foreign HIR snapshot token accepted",
+    "out-of-range family or operation coordinate decoded",
+    "successful decode changes a typed identity",
+    "any permission-row family omitted",
+    "translation fails an R32 round-trip",
+    "snapshot token lacks a source-grounded owner"
+  ],
+  "claim_boundary": "Checked coordinate translation only. Authenticated source AST provenance, actual request/Grant/History, original A/B, whole-language hygiene/soundness, principality, termination and production remain OPEN."
+}

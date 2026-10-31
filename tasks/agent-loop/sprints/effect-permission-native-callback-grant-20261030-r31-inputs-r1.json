@@ -1,0 +1,72 @@
+{
+  "schema": "effect-permission-native-callback-grant-r31-inputs-v1",
+  "revision": "r1",
+  "sprint": "EFFECT-PERMISSION-NATIVE-CALLBACK-GRANT/20261030-R31",
+  "branch": "yulang3",
+  "admission_head": "afd05a2aaec63890629d97a663a7aff54574075b",
+  "admission_tree": "5c4f64a12cb49ab290ee3f6d193c60b1468bd1d7",
+  "parent_baseline_commit": "dd3d5ee22b8622f22e8db87382edaec0a466e7fd",
+  "parent_baseline_tree": "554c82b13d9186e197a460128330c4bb0dcd53ab",
+  "r30_closeout": {
+    "path": "tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r30-outcome.md",
+    "sha256": "147a447798d10092cdc8ed713d77f58a29f851ce6c8d776eb01acc1e5e1d4236",
+    "classification": "CLOSED_INCOMPLETE; no Rust change, runtime certificate, Lean application, or independent review"
+  },
+  "r30_recovered_archive": {
+    "path": "tasks/agent-loop/history/effect-permission-native-callback-grant-20261030-r30-recovered-overlays-r1.tar.gz",
+    "sha256": "5c3c991dec9e54ad3e2665a1c722a0abf2d80a9efe719664606824558351a790",
+    "members": {
+      "overlays/notes/theory/lean/YulangClosure/CallbackHygieneCorrespondence.lean": "0621f43739c12ce1e7919a50de129414a4748d8359bf46740babd69f4854011e",
+      "overlays/notes/theory/lean/YulangClosure/NativeCallbackGrantBridge.lean": "e49a320fbb148712b59e27a57cde57072e2192cdcdd84c936b10175f3a6ce6e0",
+      "overlays/tools/inference-playground/src/runtime/machine.rs": "b74c8345e6e07155f482440bb9299b5fc12763accb666ca8f543156dd4a87425",
+      "overlays/tools/inference-playground/src/runtime/receiving.rs": "55b468cda3c3cf8180647a6429da28fc70badf7a371bf1b327539c8556b9b0f2"
+    },
+    "consumption": "stream archive members only; no extraction"
+  },
+  "authority": {
+    "original_source_preservation_claim_sha256": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271",
+    "effect_policy_sha256": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18",
+    "birth_level_correction_sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae",
+    "r26_model_sha256": "0621f43739c12ce1e7919a50de129414a4748d8359bf46740babd69f4854011e",
+    "r29_bridge_sha256": "e49a320fbb148712b59e27a57cde57072e2192cdcdd84c936b10175f3a6ce6e0",
+    "r29_runtime_result": "lossy Debug-string comparison failed; typed SourceOperationId equality was not asserted"
+  },
+  "typed_identity_source": {
+    "operation_path": "crates/yu-hir/src/module/source_annotation.rs",
+    "operation_baseline_sha256": "409ce491bc216c6963bf76d20810790aa2756edf260ecc35e76d5cfc05d24b3f",
+    "SourceEffectId": "module: Arc<ModuleId> + declaration: SourceNodeKey",
+    "SourceOperationId": "family: SourceEffectId + declaration: SourceNodeKey",
+    "node_path": "crates/yu-syntax/src/full_parse.rs",
+    "node_baseline_sha256": "dd92603f8f5549b8b3f6e45ab6cb39b6598480b7f1cda7897e27b5113107db93",
+    "SourceNodeKey": "parse: Arc<()> + green: GreenNode + start: TextSize; equality compares parse and green allocation identity plus start",
+    "evidence_boundary": "SourceNodeKey Debug omits its identity fields; a Debug-string collision proves neither typed equality nor a typed collision"
+  },
+  "scope": {
+    "output_paths": [
+      "tasks/agent-loop/artifacts/native-callback-grant-r31.patch",
+      "tasks/agent-loop/inbox/effect-permission-native-callback-grant-r31-rust.md",
+      "notes/theory/lean/YulangClosure/NativeCallbackGrantBridgeR31.lean",
+      "tasks/agent-loop/inbox/effect-permission-native-callback-grant-r31-proof.md",
+      "tasks/agent-loop/inbox/effect-permission-native-callback-grant-r31-review.md"
+    ],
+    "source_edits": false,
+    "project_copy": false,
+    "worktree_or_checkout": false,
+    "cargo_or_lake": false,
+    "build_target_or_cache": false
+  },
+  "toolchain": {
+    "lean": "leanprover/lean4:v4.35.0",
+    "audit": "standalone source on stdin; check declarations and print complete axioms; capture filesystem writes"
+  },
+  "resource_envelope_seconds": {
+    "total": 6000,
+    "rust": 1600,
+    "lean": 1600,
+    "independent_review": 1200,
+    "luna_primary_including_closeout": 1600,
+    "closeout_reserve": 500,
+    "astra": 0
+  },
+  "claim_boundary": "One finite-coordinate source/native correspondence step only; original A/B, whole-language effect hygiene, soundness, principality, termination and production remain OPEN"
+}

@@ -1,0 +1,6 @@
+diff --git a/tools/inference-playground/src/runtime/machine.rs b/tools/inference-playground/src/runtime/machine.rs
+--- a/tools/inference-playground/src/runtime/machine.rs
++++ b/tools/inference-playground/src/runtime/machine.rs
+@@ -4418 +4418 @@
+-        assert_ne!(consumer.operation, capture.operation, "the consuming write request is distinct from the captured request");
++        assert_ne!(consumer.operation_identity, template.declaration.id, "the consuming write request is distinct from the captured request");

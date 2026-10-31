@@ -1,0 +1,56 @@
+R33 Rust patch proposal — BLOCKED at the snapshot-token owner
+
+No applicable source diff is emitted from the pinned archive. The archive has
+no source-grounded, serializable HIR snapshot token and does not include the
+`super::program::RuntimeProgram` definition/construction owner. Inserting a
+guessed accessor or a made-up token into `machine.rs` would fabricate the
+missing premise. The exact prerequisite and bounded decoder proposal follow.
+
+Required owner addition before this proposal can become an applicable diff:
+
+1. At the constructor that binds the immutable HIR to
+   `super::program::RuntimeProgram`, mint one opaque `HirSnapshotToken` for
+   that HIR snapshot and retain it on that owner. Its creation/equality must
+   distinguish separate HIR owners even when their declaration indices and
+   source text match. It must not be reconstructed from Debug output,
+   `SourceNodeKey` Debug, module spelling, a declaration index, or source
+   spans. The constructor is not present in either pinned archive member, so
+   its API and available source identity cannot be safely specified here.
+2. Have `Machine::callback_route_json` obtain that token from its held
+   `Arc<RuntimeProgram>` and put the same token beside every effect-family and
+   operation coordinate, including the full permission-family row. The
+   request, consumer, selected resolved operation, and row must all be emitted
+   from the same immutable owner. Keep the selected arm's `SourceNodeKey`
+   Debug field explicitly presentation-only; it is not made into an operation
+   or snapshot identity.
+3. Decode against the `RuntimeProgram`/HIR owner carrying the expected token:
+
+   ```text
+   decode_family(owner, (token, family_index)):
+       require token == owner.hir_snapshot_token else ForeignSnapshot
+       return owner.hir.source_effect_declarations().get(family_index)
+           .map(clone typed SourceEffectId) or FamilyOutOfRange
+
+   decode_operation(owner, (token, family_index, operation_index)):
+       require token == owner.hir_snapshot_token else ForeignSnapshot
+       family = owner.hir.source_effect_declarations().get(family_index)
+           or FamilyOutOfRange
+       return family.operations.get(operation_index)
+           .map(clone typed SourceOperationId) or OperationOutOfRange
+
+   decode_permission_row(owner, coordinates):
+       decode every coordinate in order and collect Result<Vec<_>, Error>
+       (never filter, default, truncate, or silently deduplicate)
+   ```
+
+   Check the returned `SourceOperationId` values against the R32 covered table
+   using structural equality. Check every returned `SourceEffectId` row member
+   against the R32 family table and require the decoded row to equal the full
+   source row in order and length. Token validation precedes every lookup, and
+   all absent/out-of-range family and operation coordinates are errors.
+
+The candidate's existing HIR-relative coordinates are useful only after the
+owner adds and serializes the token. Today the archive provides no way to
+distinguish coordinates copied from another HIR snapshot. Cross-snapshot
+decoding therefore remains OPEN. This is a proposal artifact, not an applied
+patch, compile result, or runtime claim.
