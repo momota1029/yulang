@@ -481,9 +481,28 @@ struct InventorySourceCall<'a> {
     call_index: usize,
     owner: &'a SourceRootId,
     expression_index: usize,
+    expression: &'a yu_hir::shadow::LocalSourceExpr,
+    /// The enclosing Apply coordinate retained from the owner's expression
+    /// table. `checking` is checked against this coordinate independently of
+    /// any DefinitionUse, which belongs to the optional callee Name below.
     occurrence: &'a HirOccurrenceId,
     checking: &'a ConstraintOccurrenceId,
     input: &'a candidate_call::ApplySourceInput,
+    /// Present only when this call's owner-local callee peels through Groups
+    /// to a module-definition Name. All calls remain in `source_calls`, even
+    /// when this source alignment is absent.
+    alignment: Option<InventorySourceAlignment<'a>>,
+}
+
+/// Checked Name-to-target projection for one exact retained source call.
+/// The call index/input pointer and receiving owner are carried by the parent
+/// `InventorySourceCall`; the Name coordinate and definition identity live
+/// here so they cannot be confused with its enclosing Apply coordinate.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "private R78 checked Name/Apply consumer alignment")]
+struct InventorySourceAlignment<'a> {
+    callee_name_occurrence: &'a HirOccurrenceId,
+    target: &'a DefinitionOrderId,
 }
 
 /// The source-call request selected for the R55 Internal query.  This keeps
@@ -1786,12 +1805,25 @@ impl<'a> InventoryPackage<'a> {
         let source_call = source_calls.next()?;
         if source_calls.next().is_some() { return None; }
         let (use_index, use_record) = self.uses.get(request.definition_use)?;
+        let alignment = source_call.alignment.as_ref()?;
+        let Form::Apply { callee, argument, .. } = &source_call.expression.form else {
+            return None;
+        };
         if *use_index != request.definition_use
             || source_call.call_index != request.source_call
-            || source_call.occurrence != request.occurrence
-            || source_call.checking.occurrence() != request.occurrence
+            || source_call.expression_index != source_call.input.expression
+            || source_call.input.owner != *source_call.owner
+            || !std::ptr::eq(source_call.checking, &source_call.input.checking)
+            || source_call.occurrence != &source_call.expression.occurrence
+            || source_call.checking.occurrence() != source_call.occurrence
+            || source_call.occurrence != source_call.input.checking.occurrence()
+            || callee != &source_call.input.callee
+            || argument != &source_call.input.argument
             || source_call.owner != request.source_owner
             || !std::ptr::eq(source_call.input, self.calls.get(request.source_call)?.1)
+            || alignment.callee_name_occurrence != request.occurrence
+            || alignment.callee_name_occurrence != use_record.occurrence()
+            || alignment.target != use_record.target()
             || use_record.occurrence() != request.occurrence
             || self.owner_call.source_call != request.source_call
             || self.owner_call.source_owner != request.source_owner
@@ -4467,13 +4499,35 @@ impl<'a> InventoryPackage<'a> {
             {
                 return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
             }
+            let Form::Apply { callee, argument, .. } = &expression.form else {
+                return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+            };
+            if callee != &call.callee || argument != &call.argument
+                || call.cause.occurrence() != &call.checking
+            {
+                return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+            }
+            let alignment = peel(local, callee, &mut HashSet::new()).ok().and_then(|name| {
+                let Form::Name {
+                    resolution: yu_hir::shadow::LocalSourceResolution::ModuleDef(target),
+                    ..
+                } = &name.form else {
+                    return None;
+                };
+                hir.owns_occurrence(&name.occurrence).then_some(InventorySourceAlignment {
+                    callee_name_occurrence: &name.occurrence,
+                    target,
+                })
+            });
             source_calls.push(InventorySourceCall {
                 call_index: *call_index,
                 owner: &call.owner,
                 expression_index: call.expression,
+                expression,
                 occurrence: &expression.occurrence,
                 checking: &call.checking,
                 input: call,
+                alignment,
             });
         }
         if source_calls.len() != source.calls.len()
@@ -4503,7 +4557,10 @@ impl<'a> InventoryPackage<'a> {
         }
         let mut matching_call = None;
         for call in &source_calls {
-            if call.occurrence == use_record.occurrence()
+            if call.alignment.as_ref().is_some_and(|alignment| {
+                alignment.callee_name_occurrence == use_record.occurrence()
+                    && alignment.target == use_record.target()
+            })
                 && matches!(call.owner, SourceRootId::Definition(root) if root == incidence.receiving_owner)
                 && matching_call.replace(call).is_some()
             {
