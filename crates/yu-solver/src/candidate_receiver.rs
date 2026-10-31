@@ -586,6 +586,9 @@ struct InventoryEntryRequest<'a> {
     raw_entry: u32,
     source_root_relation: candidate_context::RelationId,
     source_root_pair: TypedPairKey,
+    source_origin_index: usize,
+    source_origin: &'a candidate_context::Origin,
+    source_drain: &'a candidate_context::SourceDrainReceipt,
     emission_relation: candidate_context::RelationId,
     emission_index: usize,
     admission_index: usize,
@@ -1172,6 +1175,9 @@ struct InventoryInternalRootView<'p, 'a> {
     root_emission: &'a candidate_context::BoundEmission,
     root_admission: &'a candidate_context::BoundAdmission,
     source_root_relation: candidate_context::RelationId,
+    source_origin_index: usize,
+    source_origin: &'a candidate_context::Origin,
+    source_drain: &'a candidate_context::SourceDrainReceipt,
     emission_relation: candidate_context::RelationId,
     raw_entry: u32,
 }
@@ -1888,6 +1894,8 @@ impl<'a> InventoryPackage<'a> {
         }
         let emission = self.emissions.get(self.entry.emission_index)?;
         let admission = self.admissions.get(self.entry.admission_index)?;
+        let (source_origin_index, source_origin) = self.origins.get(self.entry.source_origin_index)?;
+        let source_drain = source_origin.source_drain_receipt.as_ref()?;
         let source_root_relation = self.relations
             .get(self.entry.source_root_relation.0 as usize)
             .filter(|(index, relation)| {
@@ -1909,6 +1917,16 @@ impl<'a> InventoryPackage<'a> {
             || self.entry.use_occurrence != request.occurrence
             || !std::ptr::eq(self.entry.semantic_fact, request.semantic_internal_fact)
             || self.entry.raw_entry != request.raw_entry
+            || *source_origin_index != self.entry.source_origin_index
+            || !std::ptr::eq(*source_origin, self.entry.source_origin)
+            || source_origin.relation != self.entry.source_root_relation
+            || source_origin.occurrence.occurrence() != self.entry.use_occurrence
+            || !std::ptr::eq(source_drain, self.entry.source_drain)
+            || self.entry.source_drain.origin_index != self.entry.source_origin_index
+            || self.entry.source_drain.created_seed != self.entry.source_root_relation
+            || self.entry.source_drain.selected_relation != self.entry.source_root_relation
+            || self.entry.source_drain.cause.occurrence().occurrence() != self.entry.use_occurrence
+            || !self.entry.source_drain.completed
             || emission.1.physical.owner != candidate_scheme::RowKey::Effect(request.raw_entry)
             || admission.1.bound != emission.1.bound
             || source_root_relation.is_none()
@@ -1939,6 +1957,9 @@ impl<'a> InventoryPackage<'a> {
             root_emission: emission.1,
             root_admission: admission.1,
             source_root_relation: self.entry.source_root_relation,
+            source_origin_index: self.entry.source_origin_index,
+            source_origin: self.entry.source_origin,
+            source_drain: self.entry.source_drain,
             emission_relation: self.entry.emission_relation,
             raw_entry: request.raw_entry,
         })
@@ -4790,6 +4811,9 @@ impl<'a> InventoryPackage<'a> {
             raw_entry: permission.entry_effect,
             source_root_relation: emission.use_root,
             source_root_pair: internal_emission.source_root_pair,
+            source_origin_index: emission.use_origin_index,
+            source_origin: emission.use_origin,
+            source_drain: emission.use_source_drain,
             emission_relation,
             emission_index: emission.id.0,
             admission_index: emission.admission_id.0,
