@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "sprint": "EFFECT-PERMISSION-ROOT-CLOSURE/20261031-R83",
+  "status": "CLOSED_INCOMPLETE",
+  "active_sprint": {
+    "id": "EFFECT-PERMISSION-ROOT-CLOSURE/20261031-R83",
+    "status": "CLOSED_INCOMPLETE",
+    "contract": "tasks/agent-loop/sprints/effect-permission-root-closure-20261031-r83.md",
+    "contract_sha256": "7ab6a7a7ddce1e78d439e97a836608de0b1393a7f6fef2b3610c0adc9bc41fa8",
+    "input_manifest": "tasks/agent-loop/sprints/effect-permission-root-closure-20261031-r83-inputs.json",
+    "input_manifest_sha256": "7e7b9a4d934f6e7a1b9ecb616390331e06cd48b4d446ba198bee10e509ba51ab",
+    "admission": "tasks/agent-loop/history/effect-permission-root-closure-20261031-r83-admission.md",
+    "admission_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "budget_seconds": 3600,
+    "open": "Audit2 failed; no theorem accepted.",
+    "audit_cap": 3,
+    "audit_seconds_each": 120,
+    "audit_total_seconds": 360,
+    "audit_1_status": "FAILED_PREFIX",
+    "audit_1_result": "tasks/agent-loop/history/effect-permission-root-closure-20261031-r83-audit1-result.md",
+    "amendment": "tasks/agent-loop/sprints/effect-permission-root-closure-20261031-r83-amendment-01.md",
+    "amendment_sha256": "1ffd187469878a292a6b07e862892ff3bbc30053c8f3814627fa8e0e482608c2",
+    "audit_2_status": "FAILED_PREFIX",
+    "audit_2_auth": "tasks/agent-loop/history/effect-permission-root-closure-20261031-r83-audit2-authorization.md",
+    "audit_2_result": "tasks/agent-loop/history/effect-permission-root-closure-20261031-r83-audit2-result.md",
+    "audit_3_status": "BLOCKED",
+    "outcome": "tasks/agent-loop/history/effect-permission-root-closure-20261031-r83-outcome.md",
+    "outcome_sha256": "405ef6f3e70ef5eeafc6399fc29e78d283019b64029fb46f6d768ad6354390a3"
+  },
+  "resolved_workers": [
+    {
+      "id": "/root/r83_proof",
+      "role": "registered lean_prover; constructive proof",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "EFFECT-PERMISSION-ROOT-CLOSURE/20261031-R83",
+      "receipt": "R83 revision 1 frozen; candidate and handoff hashes verified; writes stopped."
+    },
+    {
+      "id": "/root/r83_review",
+      "role": "compiler_referee; independent read-only R83 review",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "EFFECT-PERMISSION-ROOT-CLOSURE/20261031-R83",
+      "receipt": "Audit2 review STOPPED."
+    }
+  ],
+  "resolved_leases": [
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-root-closure-20261031-r83.md",
+      "owner": "/root",
+      "state": "HELD",
+      "sha256": "7ab6a7a7ddce1e78d439e97a836608de0b1393a7f6fef2b3610c0adc9bc41fa8"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-root-closure-20261031-r83-inputs.json",
+      "owner": "/root",
+      "state": "HELD",
+      "sha256": "7e7b9a4d934f6e7a1b9ecb616390331e06cd48b4d446ba198bee10e509ba51ab"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-root-closure-20261031-r83-admission.md",
+      "owner": "/root",
+      "state": "HELD",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ConstructedPhysicalRootR83.lean",
+      "owner": "/root",
+      "state": "HELD",
+      "sha256": "c96eaa40e4457f78c254bd15f65674a72c653618fcf3381477247a5b833317e6"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-root-closure-r83-proof.md",
+      "owner": "/root",
+      "state": "HELD",
+      "sha256": "c623f7a999572cc32cadf2e48a0b7b2f7640178319973a70f64379084ebd26b7"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-root-closure-r83-review.md",
+      "owner": "/root",
+      "state": "HELD"
+    }
+  ],
+  "outcome": {
+    "id": "EFFECT-PERMISSION-ROOT-CLOSURE/20261031-R83",
+    "status": "CLOSED_INCOMPLETE",
+    "outcome": "tasks/agent-loop/history/effect-permission-root-closure-20261031-r83-outcome.md",
+    "outcome_sha256": "405ef6f3e70ef5eeafc6399fc29e78d283019b64029fb46f6d768ad6354390a3",
+    "audit2_result": "tasks/agent-loop/history/effect-permission-root-closure-20261031-r83-audit2-result.md",
+    "audit2_result_sha256": "11b5a272fe8194b71b8baf1310f5a304001ce0cbc3409c9930c4f2dd7b2015e5"
+  },
+  "commit": "1de71c14a",
+  "preserved_current_invariants": {
+    "pending_count": 32,
+    "unknown_worker_count": 14,
+    "quarantined_lease_count": 12
+  }
+}
