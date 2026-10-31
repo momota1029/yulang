@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "session": "EFFECT-PERMISSION-COMPLETED-INSTANCE/20261031-R72",
+  "baseline_commit": "ce5842b0823e6febcc64b496c18e71d4438ad915",
+  "branch": "yulang3",
+  "contract": "tasks/agent-loop/sprints/effect-permission-completed-instance-20261031-r72.md",
+  "contract_sha256": "15c19d0acc062f47909b6a14f72742da9a5e4babf6e1cde1106e91fe455f7f06",
+  "r71_inputs_manifest": "tasks/agent-loop/sprints/effect-permission-successful-reification-20261031-r71-inputs.json",
+  "r71_inputs_manifest_sha256": "f354089d8e24c971a1776b16f7d75874a58cfcb11e0cf6a8102aa60a5295ce57",
+  "r71_baseline_receiver_sha256": "ef2f163baf66b87fe461525be2c991c4791ff516253e2f7d621d49b2bcb31624",
+  "inputs": {
+    "crates/yu-solver/src/candidate_receiver.rs": "eb16e965e13a969760eeda00068edfa80e8ca37020dc16cb9c330de74f432c2f",
+    "crates/yu-solver/src/term.rs": "d253cd9a77ad91c523b413b25a503ef0c6bef47ee4b1f5b8492766531fe493a1",
+    "crates/yu-solver/src/candidate_context.rs": "962af7c44b2e57ba50b7738e82785bd68b517e881ba08ea41c544c9314d60021",
+    "crates/yu-solver/src/lib.rs": "25498cc1be404b12d060cbd47f77e78c23ad27b2b99113e15823bc8b6fa92ca4",
+    "crates/yu-hir/src/module.rs": "6bf92c93fa37f425a7380248c12c50c0d04ea6eb282e76edb6df54e628260646",
+    "notes/theory/lean/YulangClosure/EncodedOwnerObservationsR70.lean": "8da5cbf20e12efea18a2c0c7582d39494c09b9b5b403201c114cf61930d21c9d",
+    "tasks/agent-loop/inbox/effect-permission-encoded-observations-r70-proof.md": "8193ac7bdb80bb3535b1dcca67da1e8431e8ca1b51f19d5ea970103c4a245cf9",
+    "tasks/agent-loop/inbox/effect-permission-encoded-observations-r70-review.md": "804254a341394731e3aa4687f5fd0a9f57b0a0795ead7b6a594db862693a8774",
+    "tasks/agent-loop/history/effect-permission-encoded-observations-20261031-r70-outcome.md": "03e0d8e05b361703f7fecbdc966256ed69bd6f59941f044c8038dcdd13a9724c",
+    "tasks/agent-loop/history/effect-permission-encoded-observations-20261031-r70-state-archive.json": "dd9d4762878e7bc682bdd5c76471da412382ab8f6780c7103c397d8df42a3448",
+    "notes/theory/lean/YulangClosure/OwnerEndpointObservationsR69.lean": "b87c56c59bea747462bba771c57b0000cc6aed283fbb43d36e6b60417c63c70d",
+    "tasks/agent-loop/inbox/effect-permission-owner-observations-r69-proof.md": "7f32dc076bdcfd3e25bc75b3e919fee57a8d29b3bef81b657b50d81d66cb4c49",
+    "tasks/agent-loop/inbox/effect-permission-owner-observations-r69-review.md": "4b2909d81216182522e91f77737f9a613f6fb42423f3eb03d2de647e25800ba8",
+    "tasks/agent-loop/inbox/effect-permission-owner-observations-r69-source-fix-review.md": "fb7c28bbff06074aec1ce61e37a9f0903de199c9b8801e43d4409d77aa9cb7d1",
+    "notes/theory/lean/YulangClosure/SemanticFactEndpointInterpretationR68.lean": "4359d461015d61851ba3951c028eaca8607abe00cac52ffcaba3ba2f3fee5693",
+    "notes/theory/lean/YulangClosure/BorrowedQualifiedReadReificationR67.lean": "4b40cc5f1e832eaac226235d7c9c8a974bd3c6b895fa2d9fab7051d3271ee4e1",
+    "notes/theory/lean/YulangClosure/OccurrenceQualifiedConsumerR66.lean": "5db5ad3f3f5e5803e2bc564fc8922d5eb8a72182c7ba11de3904eebd7b5950e1",
+    "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+    "tasks/agent-loop/sprints/effect-permission-successful-reification-20261031-r71.md": "de172cbc7bf8886c06da31fcba0a48ccf55492bff1dc6050f246c04737ac4553",
+    "tasks/agent-loop/sprints/effect-permission-successful-reification-20261031-r71-inputs.json": "f354089d8e24c971a1776b16f7d75874a58cfcb11e0cf6a8102aa60a5295ce57",
+    "tasks/agent-loop/history/effect-permission-successful-reification-20261031-r71-admission.md": "6e971b1c5df1593e19ad65443f2f0a9724d01f8d06e3c405ebfb35dae0e49cd5",
+    "tasks/agent-loop/history/effect-permission-successful-reification-20261031-r71-lane-launch.md": "633021d0a5ec2aae3b903d3e3c243e10a630fdba3ed7cdd8769c992059887221",
+    "tasks/agent-loop/history/effect-permission-successful-reification-20261031-r71-outcome.md": "25802de6f03e6d850c0f80eb8555ee9aa4bff78860ad4ca7b17aba22f0f1ee38",
+    "tasks/agent-loop/history/effect-permission-successful-reification-20261031-r71-state-archive.json": "7b9a9f74098ba462291ed9ce02efb482189881f0ac0271bc4285bf551dacf014",
+    "tasks/agent-loop/inbox/effect-permission-successful-reification-r71-rust.md": "ef07354c4c7ba3ba4fa196a29eb81572f7a2846dca2e89602c958c8ce47c937b",
+    "tasks/agent-loop/inbox/effect-permission-successful-reification-r71-proof.md": "e1c5cad735c4ebc97f5a69d5819b1d3d7fc761105839614d1ed9970608672953",
+    "tasks/agent-loop/inbox/effect-permission-successful-reification-r71-review.md": "addfbc0dca5cfe437b2b5dafb43121e38e98b60406fd616e80a883bc2359a04c",
+    "notes/theory/lean/YulangClosure/SuccessfulReificationDecodeR71.lean": "428ce6d7c93f37266111db8b0a4568069d6fb63f56c9ad1d856d6b107773f215"
+  },
+  "proof_method": "Construct the Lean Package by executable decoding/checking of owner-bound primitive rows projected only from InventoryCompletedReificationView. Prove exact decode and successful R71 replay; apply R67/R65 qualified reads to unchanged R66 witnesses and premises.",
+  "verification": "Pinned Lean 4.35.0 -j1 -M1024 --stdin, in-memory only. No Rust build/Cargo/tests/formatter/Lake/cache/target/scratch/worktree/environment. Fresh independent review traces all Package fields to Rust owners.",
+  "budget_seconds": 6000,
+  "allocations": {
+    "rust": 1400,
+    "proof": 2200,
+    "review": 1200,
+    "primary_including_closeout": 1200,
+    "primary_closeout_minimum": 500,
+    "astra": 0
+  },
+  "leases": {
+    "/root/r72_rust": [
+      "crates/yu-solver/src/candidate_receiver.rs",
+      "tasks/agent-loop/inbox/effect-permission-completed-instance-r72-rust.md"
+    ],
+    "/root/r72_proof": [
+      "notes/theory/lean/YulangClosure/CompletedNativeInstanceR72.lean",
+      "tasks/agent-loop/inbox/effect-permission-completed-instance-r72-proof.md"
+    ],
+    "/root/r72_review": [
+      "tasks/agent-loop/inbox/effect-permission-completed-instance-r72-review.md"
+    ]
+  },
+  "capacity": "Existing R24 authenticated release applies to exactly 13 identities; no new release. Preserve remaining UNKNOWN assignment and every UNKNOWN/quarantined path. Preserve 32 pending items."
+}
