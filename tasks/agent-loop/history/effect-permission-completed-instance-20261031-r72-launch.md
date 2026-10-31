@@ -16,3 +16,9 @@ At 2026-10-31 08:15 UTC, the primary synchronized the live collaboration roster.
 No capacity override was applied. The residual UNKNOWN worker rows, quarantined paths, exact 13-identity R24 capacity receipt, and 32 pending items remain unchanged. Launch confirmation establishes active authors only; it does not establish proof completion, Rust compilation/runtime, source/native correspondence, or reviewer approval.
 
 Primary: `/root`. Runtime roster evidence: `collaboration.list_agents` at 2026-10-31 08:15 UTC. Worker elapsed time and effective model metadata are not exposed and remain UNKNOWN. The 6000-second sprint envelope and lane caps remain fixed.
+
+## Independent review launch
+
+At 2026-10-31 08:27 UTC, the primary synchronized the live roster after both authors had returned STOPPED / WRITES STOPPED receipts. Fresh reviewer `/root/r72_review` is live as `compiler_referee` under the exact review lease `tasks/agent-loop/inbox/effect-permission-completed-instance-r72-review.md`. Requested model/effort: gpt-6.1-sol / medium; observed model/effort UNKNOWN. The reviewer is source-only and will not launch Lean or build processes. It reports inline because its runtime instructions prohibit file writes; Luna retains responsibility for persisting the adjudicated report. No descendants.
+
+The Lean proof author's four-probe bound is exhausted; its exact Lean paths remain held pending this review and a separately admitted verification packet. Attempt 1 completion is still UNKNOWN and is not represented as stopped.
