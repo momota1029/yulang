@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "session": "EFFECT-PERMISSION-STORE-HIR-LOOKUP/20261031-R74",
+  "branch": "yulang3",
+  "baseline_commit": "21cf99c051dbca3450ef184396e43a01f8dae323",
+  "contract": "tasks/agent-loop/sprints/effect-permission-store-hir-lookup-20261031-r74.md",
+  "contract_sha256": "e20477f1fea775ca9bd2cadc32dfff883d03833a0a68d8d08974486c1d63c1c1",
+  "baseline_lib_rs_git_blob": "3233c1e5b28f8fedf132b188ebc89d0aefc4daae",
+  "inputs": {
+    "crates/yu-solver/src/lib.rs": "25498cc1be404b12d060cbd47f77e78c23ad27b2b99113e15823bc8b6fa92ca4",
+    "crates/yu-solver/src/candidate_receiver.rs": "eb35c73ead829ed439a347d3cb665d52d3aa4b45b242c1155cfd4377a68d6415",
+    "crates/yu-hir/src/module.rs": "6bf92c93fa37f425a7380248c12c50c0d04ea6eb282e76edb6df54e628260646",
+    "notes/theory/lean/YulangClosure/OwnerExactCompletedInstanceR73.lean": "afed53ee5ebb82bbe87c171c6ac2808919976046df4cb2e0fdeb774f618a6e87",
+    "tasks/agent-loop/inbox/effect-permission-owner-exact-instance-r73-rust.md": "6e2e7e1961ed4f0a22e8615bbdf48e932e05d163b72ce304ef0b3adb5eca40f1",
+    "tasks/agent-loop/inbox/effect-permission-owner-exact-instance-r73-proof.md": "44bb2f9cbaea9a641f01cc9402d9383da2fd703a5d5e39dd653b5f94c9081a53",
+    "tasks/agent-loop/inbox/effect-permission-owner-exact-instance-r73-review.md": "696f49242fa2163987043073db915ba3bebfa3135f285a66a1c1546907d31a36",
+    "tasks/agent-loop/history/effect-permission-owner-exact-instance-20261031-r73-outcome.md": "2546c38e5dd8cd60426a27709e9a3e643f714b17932e3a92bde81d45a1eb80d2"
+  },
+  "boundary": "R73 is closed rejected. The receiver/Lean files are frozen uncommitted outputs from that sprint and are pinned here as inputs; R74 may change only its two receiver call sites and exact lookup-coordinate checks. No tests/builds/compiler are authorized.",
+  "baseline_current_sha256": "8d49a4597414c182d720472ddf27e0ff5589f1f7f2369018bf1f2fed9703d9f5"
+}
