@@ -71,6 +71,7 @@
     "admission_receipt_sha256": "2e93af2a694d02214c6c53c1493b9bd6fd0a0472d7ec232101ffff9013bedebe",
     "budget_seconds": 4800,
     "pushed": true,
+    "closeout_commit": "7a365d141",
     "baseline_commit": "05729971678af86f7e0cc5d426d838e6c52dde02",
     "outcome": "tasks/agent-loop/history/effect-permission-local-decoding-20261031-r60-outcome.md",
     "outcome_sha256": "d172514ed1c743a9f697b1444f2c4414ab1c7d616be16cb8f51a93597f29cce1",
