@@ -26,4 +26,4 @@ Reviewer-reconstructed receipt: dependency prefix `2dcd466b386c50ef9773b450ce7a4
 
 Actual Rust-instance construction/decode success, Rust compilation/runtime, native identity authentication, Rust-to-Lean execution correspondence, original R66 Root establishment, native resource/failure equivalence, original A/B, whole-language effect hygiene, soundness, principality, termination, and production remain OPEN. This is a bounded research checkpoint only; no semantic or production promotion follows.
 
-All three R70 lanes are STOPPED / WRITES STOPPED. Git checkpoint and push disposition are recorded in the state/archive after the reviewed paths are committed and pushed.
+All three R70 lanes are STOPPED / WRITES STOPPED. The reviewed R70 paths were committed as `3d1cbf991` and pushed to `origin/yulang3`. This is a research checkpoint only.
