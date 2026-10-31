@@ -221,3 +221,113 @@ profiled. Exact observed model/effort is UNKNOWN to the leaf.
 bytes are frozen; further work requires primary intake/reopening. No running
 process or generated/scratch-output lease remains. Per primary request, no
 further construction is performed after freeze.
+
+---
+
+# R86 diagnostic-directed repair — revision 2, FROZEN
+
+The revision-1 handoff above remains a byte-preserved prefix and describes
+the original submission. Primary reopened these same two leases under
+Amendment 02, committed/pushed at `5dce3ff33`. Its hard limit is 300 seconds
+and the actual remainder of the original 1,400-second grant, whichever is
+smaller; no budget reset or execution authority was granted.
+
+## Preserved actual slot-1 failure
+
+Read and independently rehashed the primary raw receipt
+`tasks/agent-loop/history/native-receipt-join-20261031-r86-slot1-raw-result.json`,
+SHA `dbcdcba9347eba214f39970641aabf06064d399b68da5b1fc65ba2d7d45e7138`,
+and the fresh output audit
+`tasks/agent-loop/inbox/effect-permission-native-receipt-join-r86-slot1-review.md`.
+The actual primary command was
+`/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean -j1 -M1024 --stdin`.
+Reported version: `Lean 4.35.0 (commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)`.
+Exit 1, no timeout, 16.585908746012137 seconds, peak child RSS 931,540 KiB.
+Authorized input was revision 1's 145,333 bytes/hash. Complete stdout is
+191,721 bytes, SHA `8646f5e3ea4677ade6c2398807f36dd2e61aa401056fdb2252b05ffd1e790edb`;
+stderr is empty, SHA `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+These are primary-executed receipts, not leaf executions.
+
+Seven unsolved goals retain the dependent singleton selector matcher and its
+subtype proof. In the first actual goal, after broad simplification the
+remaining context universally quantifies a selected `a : Nat`, an equation
+`i=a`, and the dependent selector's `some ⟨a,...⟩` equation; the following
+monadic indexed read still uses a. Thus the supplied n.origins[i]? equation
+has not been applied to the selected index. There is no source counterexample.
+
+All 36 complete types and axiom reports remain in the raw receipt. Complete
+slot-1 axiom disposition (fully qualified prefix NativeReceiptJoinR86):
+
+- No axioms: completeClone_fields, fields_and_completed_determine_clone,
+  singletonIndex_unique.
+- `[propext, Quot.sound]`: readJoin_missing_origin,
+  readJoin_ambiguous_origin, joined_R57_completed_false,
+  readJoinInCuts_ambiguous_origin.
+- `[propext, sorryAx, Quot.sound]`, rejected: readJoin_missing_attachment,
+  readJoin_missing_completion, readJoin_ambiguous_completion, readJoin_bad_guards.
+- `[propext, sorryAx]`, rejected: readJoin_accepts,
+  readJoinInCuts_ambiguous_completion, readJoinInCuts_accepts.
+- `[propext]`: all other 22 revision-1 R86 theorems.
+
+The slot failed as a whole. Error-recovered declarations are not proof evidence.
+The independent output audit retains the other 29 declaration-level results;
+this leaf does not self-certify them or infer native/parent closure.
+
+## Exact repair and unchanged surface
+
+One minimal helper was added:
+
+```lean
+theorem singletonIndex_of_eq (indices : List Nat) (i : Nat)
+    (h : indices = [i]) : singletonIndex indices = some ⟨i, h⟩ := by
+  subst indices
+  rfl
+```
+
+The helper exposes the existing selector result at its original dependent
+Option type before the reader uses its subtype value. It changes no selector
+definition or premise. In exactly the seven failed proofs, first derive
+`originSelect := singletonIndex_of_eq _ i selected`; where a completion is
+selected, also derive `completionSelect := singletonIndex_of_eq _ j completed`.
+For missing/ambiguous completions derive the original-typed selector=none
+equation separately using the given empty/multiple equation. Then simplify
+the reader with those selector equations and original indexed reads. The
+cut-window ambiguous proof retains its ValidCuts case split. No original
+singleton equation is rewritten directly inside the dependent monadic matcher.
+
+The exact reverse diff was checked in memory: delete only the helper/comment,
+replace only those seven proof bodies with their original broad-simp bodies,
+and the whole candidate hashes to revision 1's
+`ecad50df44c8db31d8836212a220eacba564aec22c59a3ee3cdcb6e7e96688d6`.
+This verifies every original theorem signature/name/hypothesis, every definition,
+guard, competitor, window/list, R57/R84 application and all other proof bodies
+are byte-identical. No semantic change or extra source premise was introduced.
+
+Repaired candidate: **25,330 bytes**, SHA
+`bb0640d6b704ec89602655ad64bb403e6c08a5c15c1c168d4da157be7a1a59ec`.
+The seven repairs and new helper are **CONSTRUCTED_UNCHECKED**. Their new
+printed types and axiom audits are NOT_RUN; no claim of final acceptance.
+
+## Exact proposed final input and stop
+
+The revision-1 in-memory reconstruction recipe is unchanged. It freshly
+revalidated all normalized prefix source/declaration hashes and reproduced
+the accepted R84 and R85 stdin hashes. The theorem-name regex now includes
+37 names because it adds singletonIndex_of_eq in source order; every prior
+query remains. Queries: **5,494 bytes**, SHA
+`dc9fa4cc679a18fff361acdb554297a4a788e0b1fc3de663609c598edc073304`.
+Proposed slot-2 stdin: **146,667 bytes**, SHA
+`2676ee6501c9b7ef3a19003658ee19a2c4f1cdd5c08d3d7a80bd9ba57ee68ab0`.
+No input/scratch output was written. Primary owns fresh review, separate
+committed/pushed exact-input authorization, final slot 2/2, complete result
+capture and independent result audit. There is no third call.
+
+Actual repair operations: read-only cat/rg and Python JSON/base64/hash/slice
+operations, plus apply_patch only on the two reopened leases. Reverse-diff,
+dependency, accepted-input and stdout hash assertions exited 0. No leaf Lean,
+checker, compiler, build, test, cache, scratch, environment, Git, descendant or
+other write. CPU/RSS for the repair were not measured. No resource grant was
+renewed. Scope omissions and native/parent gaps remain exactly as in revision 1.
+
+**STOPPED / WRITES STOPPED**, immediately after this revision-2 append.
+Candidate and handoff frozen; no further work or live process remains.

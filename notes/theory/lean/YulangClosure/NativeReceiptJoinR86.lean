@@ -89,6 +89,13 @@ theorem singletonIndex_unique (indices : List Nat) (i j : Nat)
     (left : indices = [i]) (right : indices = [j]) : i = j :=
   (List.cons.inj (left.symm.trans right)).1
 
+/-- Reduce selection at its original dependent Option type, before the
+reader uses the selected subtype's value. Proof irrelevance retains h. -/
+theorem singletonIndex_of_eq (indices : List Nat) (i : Nat)
+    (h : indices = [i]) : singletonIndex indices = some ⟨i, h⟩ := by
+  subst indices
+  rfl
+
 theorem completionIndices_single_clone (p : Drain S T) :
     completionIndices [completeClone p] p = [0] := by
   simp [completionIndices, List.range_succ]
@@ -180,7 +187,8 @@ theorem readJoin_missing_attachment (n : Native S T) (cs : List (Drain S T))
     (selected : originIndices n occurrence lower upper = [i])
     (indexed : n.origins[i]? = some o) (missing : o.drain = none) :
     readJoin n cs occurrence lower upper = none := by
-  simp [readJoin, selected, singletonIndex, indexed, missing]
+  have originSelect := singletonIndex_of_eq _ i selected
+  simp [readJoin, originSelect, indexed, missing]
 
 theorem readJoin_missing_completion (n : Native S T) (cs : List (Drain S T))
     (occurrence : S) (lower upper : Endpoint T) (i : Nat)
@@ -189,7 +197,10 @@ theorem readJoin_missing_completion (n : Native S T) (cs : List (Drain S T))
     (indexed : n.origins[i]? = some o) (attached : o.drain = some p)
     (missing : completionIndices cs p = []) :
     readJoin n cs occurrence lower upper = none := by
-  simp [readJoin, selected, singletonIndex, indexed, attached, missing]
+  have originSelect := singletonIndex_of_eq _ i selected
+  have completionSelect : singletonIndex (completionIndices cs p) = none := by
+    simp [singletonIndex, missing]
+  simp [readJoin, originSelect, indexed, attached, completionSelect]
 
 theorem readJoin_ambiguous_completion (n : Native S T) (cs : List (Drain S T))
     (occurrence : S) (lower upper : Endpoint T) (i j k : Nat) (rest : List Nat)
@@ -198,7 +209,10 @@ theorem readJoin_ambiguous_completion (n : Native S T) (cs : List (Drain S T))
     (indexed : n.origins[i]? = some o) (attached : o.drain = some p)
     (ambiguous : completionIndices cs p = j :: k :: rest) :
     readJoin n cs occurrence lower upper = none := by
-  simp [readJoin, selected, singletonIndex, indexed, attached, ambiguous]
+  have originSelect := singletonIndex_of_eq _ i selected
+  have completionSelect : singletonIndex (completionIndices cs p) = none := by
+    simp [singletonIndex, ambiguous]
+  simp [readJoin, originSelect, indexed, attached, completionSelect]
 
 theorem readJoin_bad_guards (n : Native S T) (cs : List (Drain S T))
     (occurrence : S) (lower upper : Endpoint T) (i j : Nat)
@@ -208,7 +222,9 @@ theorem readJoin_bad_guards (n : Native S T) (cs : List (Drain S T))
     (completed : completionIndices cs p = [j]) (read : cs[j]? = some c)
     (bad : ¬ Guards o p i occurrence lower upper) :
     readJoin n cs occurrence lower upper = none := by
-  simp [readJoin, selected, singletonIndex, indexed, attached, completed, read, bad]
+  have originSelect := singletonIndex_of_eq _ i selected
+  have completionSelect := singletonIndex_of_eq _ j completed
+  simp [readJoin, originSelect, indexed, attached, completionSelect, read, bad]
 
 theorem readJoin_accepts (n : Native S T) (cs : List (Drain S T))
     (occurrence : S) (lower upper : Endpoint T) (i j : Nat)
@@ -219,7 +235,9 @@ theorem readJoin_accepts (n : Native S T) (cs : List (Drain S T))
     (read : cs[j]? = some (completeClone p))
     (good : Guards o p i occurrence lower upper) :
     (readJoin n cs occurrence lower upper).isSome = true := by
-  simp [readJoin, selected, singletonIndex, indexed, attached, completed, read, good]
+  have originSelect := singletonIndex_of_eq _ i selected
+  have completionSelect := singletonIndex_of_eq _ j completed
+  simp [readJoin, originSelect, indexed, attached, completionSelect, read, good]
 
 theorem joined_fields (n : Native S T) (cs : List (Drain S T))
     (occurrence : S) (lower upper : Endpoint T)
@@ -411,8 +429,11 @@ theorem readJoinInCuts_ambiguous_completion (n : Native S T) (cs : List (Drain S
     (indexed : n.origins[i]? = some o) (attached : o.drain = some p)
     (ambiguous : completionIndicesInCuts cs w p = j :: k :: rest) :
     readJoinInCuts n cs w occurrence lower upper = none := by
+  have originSelect := singletonIndex_of_eq _ i selected
+  have completionSelect : singletonIndex (completionIndicesInCuts cs w p) = none := by
+    simp [singletonIndex, ambiguous]
   by_cases valid : ValidCuts n cs w
-  · simp [readJoinInCuts, valid, selected, singletonIndex, indexed, attached, ambiguous]
+  · simp [readJoinInCuts, valid, originSelect, indexed, attached, completionSelect]
   · simp [readJoinInCuts, valid]
 
 theorem readJoinInCuts_accepts (n : Native S T) (cs : List (Drain S T))
@@ -424,7 +445,9 @@ theorem readJoinInCuts_accepts (n : Native S T) (cs : List (Drain S T))
     (read : cs[j]? = some (completeClone p))
     (good : Guards o p i occurrence lower upper) :
     (readJoinInCuts n cs w occurrence lower upper).isSome = true := by
-  simp [readJoinInCuts, valid, selected, singletonIndex, indexed, attached, completed, read, good]
+  have originSelect := singletonIndex_of_eq _ i selected
+  have completionSelect := singletonIndex_of_eq _ j completed
+  simp [readJoinInCuts, valid, originSelect, indexed, attached, completionSelect, read, good]
 
 theorem window_join_fields (n : Native S T) (cs : List (Drain S T))
     (w : Cuts) (occurrence : S) (lower upper : Endpoint T)
