@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "session": "EFFECT-PERMISSION-COMPLETED-INSTANCE/20261031-R72",
+  "status": "CLOSED_INCOMPLETE / FIXED_GATE_REJECTED",
+  "contract": "tasks/agent-loop/sprints/effect-permission-completed-instance-20261031-r72.md",
+  "contract_sha256": "15c19d0acc062f47909b6a14f72742da9a5e4babf6e1cde1106e91fe455f7f06",
+  "inputs": "tasks/agent-loop/sprints/effect-permission-completed-instance-20261031-r72-inputs.json",
+  "inputs_sha256": "163dd9272c2c91d8d9054a7c1ec10f3bf149b7e05e0d049b0af8cf9b5581c815",
+  "admission_receipt": "tasks/agent-loop/history/effect-permission-completed-instance-20261031-r72-admission.md",
+  "baseline_commit": "ce5842b0823e6febcc64b496c18e71d4438ad915",
+  "checkpoint_commit": "3bb429d39274b1d71ee8ac182ffef335492302dd",
+  "outcome": "tasks/agent-loop/history/effect-permission-completed-instance-20261031-r72-outcome.md",
+  "outcome_sha256": "a62bad1383bb803e76e60fa290fde7e3119344c3cc921753b576d6e46665733a",
+  "review": "tasks/agent-loop/inbox/effect-permission-completed-instance-r72-review.md",
+  "review_sha256": "f5ae8c9fd71a29dc7f1879f6cde5e09b39afae04c94300b47b7c0d052c13cff2",
+  "launch_receipt": "tasks/agent-loop/history/effect-permission-completed-instance-20261031-r72-launch.md",
+  "launch_receipt_sha256": "257a529694cbf0b4ee612c49323147e5f315162431d960cda223e2bfe313625a",
+  "workers": [
+    {
+      "id": "/root/r72_rust",
+      "role": "implementer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "EFFECT-PERMISSION-COMPLETED-INSTANCE/20261031-R72",
+      "receipt": "STOPPED / WRITES STOPPED; roster 2026-10-31 08:16 UTC; handoff tasks/agent-loop/inbox/effect-permission-completed-instance-r72-rust.md sha256 e6284d0d; source sha256 9dfac06c."
+    },
+    {
+      "id": "/root/r72_proof",
+      "role": "lean_prover",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "EFFECT-PERMISSION-COMPLETED-INSTANCE/20261031-R72",
+      "receipt": "STOPPED / WRITES STOPPED; artifact f06912dd; handoff fefef3e3. Four probes used; retained final exit 1; final repairs unchecked. Attempt 1 completion UNKNOWN. Exact Lean paths remain HELD pending audit."
+    },
+    {
+      "id": "/root/r72_review",
+      "role": "independent reviewer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "EFFECT-PERMISSION-COMPLETED-INSTANCE/20261031-R72",
+      "receipt": "STOPPED / WRITES STOPPED; report tasks/agent-loop/inbox/effect-permission-completed-instance-r72-review.md. Gate BLOCKED: Lean unchecked; componentPositions and owner identity gaps."
+    }
+  ],
+  "leases": [
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "owner": "/root/r72_rust",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-completed-instance-r72-rust.md",
+      "owner": "/root/r72_rust",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CompletedNativeInstanceR72.lean",
+      "owner": "/root/r72_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-completed-instance-r72-proof.md",
+      "owner": "/root/r72_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-completed-instance-r72-review.md",
+      "owner": "/root/r72_review",
+      "state": "HELD"
+    }
+  ],
+  "probe_reconciliation": {
+    "attempts": 4,
+    "attempt1_completion": "UNKNOWN; no success or elapsed-time refund claimed",
+    "attempts_2_to_4": "completed; final retained Lean exit 1; two final edits unchecked",
+    "process_audit": "2026-10-31 08:31 UTC read-only process table found no active pinned Lean process",
+    "accounting": "charge the full assigned proof cap; do not refund unknown runtime"
+  },
+  "lease_closeout": {
+    "released_exact_paths": [
+      "crates/yu-solver/src/candidate_receiver.rs",
+      "tasks/agent-loop/inbox/effect-permission-completed-instance-r72-rust.md",
+      "notes/theory/lean/YulangClosure/CompletedNativeInstanceR72.lean",
+      "tasks/agent-loop/inbox/effect-permission-completed-instance-r72-proof.md",
+      "tasks/agent-loop/inbox/effect-permission-completed-instance-r72-review.md"
+    ],
+    "authority": "Primary closeout after all three R72 workers reported STOPPED / WRITES STOPPED, frozen artifacts were reviewed, and no active pinned Lean process was observed. This releases R72 path reservations only; it does not assert attempt-1 completion or success.",
+    "sequential_handoff": "crates/yu-solver/src/candidate_receiver.rs may be leased only by a separately admitted R73 Rust assignment. R73 uses a new Lean module path; R72 Lean artifact remains immutable input."
+  },
+  "pending_count": 32,
+  "unknown_quarantine_policy": "All unrelated UNKNOWN worker observations and quarantined paths remain unchanged; no capacity override or semantic approval."
+}
