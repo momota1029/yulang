@@ -1,0 +1,48 @@
+{
+  "sprint": "EFFECT-PERMISSION-LOGICAL-OCCURRENCES/20261101-R93",
+  "revision": 1,
+  "baseline_commit": "21777269598c0629d31e1b6684c87b0c1eebe724",
+  "baseline_branch": "yulang3",
+  "baseline_remote": "origin/yulang3",
+  "authority": "continuing explicit user goal for Yulang Rust/Lean soundness research; dispatcher selected a bounded source-constructor occurrence theorem after R92 closed blocked",
+  "parent": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md §§1,3,5,7; original source domain and quantifiers unchanged",
+  "dispatcher": "/root/r85_boundary_dispatch (completed; R93 selection)",
+  "inputs": [
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceSyntax.lean",
+      "bytes": 22040,
+      "sha256": "3184d156d661ace7da0345f5fa63f8a4396d9f52c745d265239c8d3db1e7d0d1"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceGeneration.lean",
+      "bytes": 66485,
+      "sha256": "126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-formal-admission-r92-source.md",
+      "bytes": 6554,
+      "sha256": "20dba2bbbc87ea93f0f4d131561aa6cca8a1ed013b756dcdd3ad45c1981973bc"
+    }
+  ],
+  "outputs": [
+    "notes/theory/lean/YulangClosure/SourceLogicalOccurrencesR93.lean",
+    "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r93-proof.md",
+    "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r93-source.md",
+    "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r93-review.md"
+  ],
+  "limits": {
+    "aggregate_seconds": 2400,
+    "proof_seconds": 1000,
+    "source_seconds": 600,
+    "review_seconds": 500,
+    "primary_seconds": 300,
+    "astra_seconds": 0,
+    "lean_calls": 2,
+    "lean_call_seconds": 120,
+    "processes": 1,
+    "memory_mb": 1024,
+    "new_environment_worktree_copy_cache_scratch": false,
+    "lake_build_or_tests": false
+  },
+  "scope_boundary": "Occurrence provenance only; no semantic admission, contract preservation, joint lift, native correspondence, A/B closure, production authority, Rust edits, or source restriction."
+}
