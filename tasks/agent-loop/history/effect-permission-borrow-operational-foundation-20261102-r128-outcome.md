@@ -91,3 +91,19 @@ separately reviewed evidence checkpoint; dirty solver files, quarantined
 `machine.rs`/`receiving.rs`, other untracked work and all unrelated changes are
 excluded. Primary must inspect the explicit stage list and complete outbound
 range before committing/pushing. No force push.
+
+## Evidence checkpoint Git receipt
+
+After independent review and explicit path staging, Luna committed the exact
+12-path R128 evidence range as
+`6f8fd21a359390b1e95f7b97f6ba30a253babf77` (`research: accept R128 local
+permission borrow model`). The inspected range was one commit ahead of the
+observed `origin/yulang3` base `3f90fa0b741e1365afb3a4108184cec6f487d4da`; its
+name-status contained only the R128 Lean module, contracts/manifests, frozen
+author/review handoffs, admission/outcome and `current.json`. The range passed
+`git diff --check`. It was pushed without force to
+`origin/yulang3:refs/heads/yulang3`, which advanced from `3f90fa0b7` to
+`6f8fd21a3`; local `origin/yulang3` now matches that full commit. Dirty solver
+sources, quarantined runtime sources, and unrelated untracked artifacts were
+not staged. This is a pushed evidence checkpoint, not the requested Rust source
+integration.
