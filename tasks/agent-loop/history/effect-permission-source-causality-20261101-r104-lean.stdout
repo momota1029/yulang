@@ -1,0 +1,139 @@
+<stdin>:1791:70: warning: This simp argument is unused:
+  Prod.exists
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [inventory, lookup, List.mem_map, eq_comm]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+YulangClosure.OriginalSource.LogicalOccurrencesR104.inventory_iff_lookup : ∀
+  (index : YulangClosure.OriginalSource.LogicalOccurrencesR104.Index)
+  (route : YulangClosure.OriginalSource.LogicalOccurrencesR104.Route)
+  (occurrence : YulangClosure.OriginalSource.LogicalOccurrencesR104.Occurrence),
+  (route, occurrence) ∈ YulangClosure.OriginalSource.LogicalOccurrencesR104.inventory index ↔
+    YulangClosure.OriginalSource.LogicalOccurrencesR104.lookup index route = some occurrence
+'YulangClosure.OriginalSource.LogicalOccurrencesR104.inventory_iff_lookup' depends on axioms: [propext, Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR104.encode_lookup : ∀
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR104.ScopeFrame)
+  (cursor : YulangClosure.OriginalSource.LogicalOccurrencesR104.Cursor)
+  (route : YulangClosure.OriginalSource.LogicalOccurrencesR104.Route),
+  YulangClosure.OriginalSource.LogicalOccurrencesR104.lookup
+      (YulangClosure.OriginalSource.LogicalOccurrencesR104.encode scope cursor) route =
+    YulangClosure.OriginalSource.LogicalOccurrencesR104.observe scope cursor route
+'YulangClosure.OriginalSource.LogicalOccurrencesR104.encode_lookup' depends on axioms: [propext]
+YulangClosure.OriginalSource.LogicalOccurrencesR104.observe_eq_follow : ∀
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR104.ScopeFrame)
+  (cursor : YulangClosure.OriginalSource.LogicalOccurrencesR104.Cursor)
+  (route : YulangClosure.OriginalSource.LogicalOccurrencesR104.Route),
+  YulangClosure.OriginalSource.LogicalOccurrencesR104.observe scope cursor route =
+    (YulangClosure.OriginalSource.LogicalOccurrencesR104.follow scope cursor route).bind fun position =>
+      YulangClosure.OriginalSource.LogicalOccurrencesR104.payload position.enclosing position.cursor
+'YulangClosure.OriginalSource.LogicalOccurrencesR104.observe_eq_follow' depends on axioms: [propext]
+YulangClosure.OriginalSource.LogicalOccurrencesR104.source_membership_iff : ∀
+  (context : YulangClosure.OriginalSource.Context) {category : YulangClosure.OriginalSource.Category}
+  (source : YulangClosure.OriginalSource.Source category)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR104.ScopeFrame)
+  (route : YulangClosure.OriginalSource.LogicalOccurrencesR104.Route)
+  (occurrence : YulangClosure.OriginalSource.LogicalOccurrencesR104.Occurrence),
+  (route, occurrence) ∈ YulangClosure.OriginalSource.LogicalOccurrencesR104.sourceInventory context source scope ↔
+    YulangClosure.OriginalSource.LogicalOccurrencesR104.observe scope
+        (YulangClosure.OriginalSource.LogicalOccurrencesR104.Cursor.tree
+          (YulangClosure.OriginalSource.sourceRules context source))
+        route =
+      some occurrence
+'YulangClosure.OriginalSource.LogicalOccurrencesR104.source_membership_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR104.full_route_unique : ∀
+  (context : YulangClosure.OriginalSource.Context) {category : YulangClosure.OriginalSource.Category}
+  (source : YulangClosure.OriginalSource.Source category)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR104.ScopeFrame)
+  (route : YulangClosure.OriginalSource.LogicalOccurrencesR104.Route)
+  (first second : YulangClosure.OriginalSource.LogicalOccurrencesR104.Occurrence),
+  (route, first) ∈ YulangClosure.OriginalSource.LogicalOccurrencesR104.sourceInventory context source scope →
+    (route, second) ∈ YulangClosure.OriginalSource.LogicalOccurrencesR104.sourceInventory context source scope →
+      first = second
+'YulangClosure.OriginalSource.LogicalOccurrencesR104.full_route_unique' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR104.source_provenance : ∀
+  (context : YulangClosure.OriginalSource.Context) {category : YulangClosure.OriginalSource.Category}
+  (source : YulangClosure.OriginalSource.Source category)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR104.ScopeFrame)
+  (route : YulangClosure.OriginalSource.LogicalOccurrencesR104.Route)
+  (occurrence : YulangClosure.OriginalSource.LogicalOccurrencesR104.Occurrence),
+  (route, occurrence) ∈ YulangClosure.OriginalSource.LogicalOccurrencesR104.sourceInventory context source scope →
+    ∃ binder body,
+      YulangClosure.OriginalSource.LogicalOccurrencesR104.follow scope
+            (YulangClosure.OriginalSource.LogicalOccurrencesR104.Cursor.tree
+              (YulangClosure.OriginalSource.sourceRules context source))
+            route =
+          some
+            { enclosing := occurrence.enclosing,
+              cursor :=
+                YulangClosure.OriginalSource.LogicalOccurrencesR104.Cursor.tree
+                  (YulangClosure.OriginalSource.RuleTree.existsE binder body) } ∧
+        YulangClosure.OriginalSource.LogicalOccurrencesR104.logicalKind binder.kind = true ∧
+          occurrence.binder = binder ∧ occurrence.subtree = body
+'YulangClosure.OriginalSource.LogicalOccurrencesR104.source_provenance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR104.app_exact : ∀ (context : YulangClosure.OriginalSource.Context)
+  (mark : YulangClosure.OriginalSource.Mark)
+  (callee argument : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR104.ScopeFrame),
+  YulangClosure.OriginalSource.LogicalOccurrencesR104.observe scope
+      (YulangClosure.OriginalSource.LogicalOccurrencesR104.Cursor.tree
+        (YulangClosure.OriginalSource.sourceRules context
+          (YulangClosure.OriginalSource.Source.app mark callee argument)))
+      (YulangClosure.OriginalSource.LogicalOccurrencesR104.annotationRoute mark) =
+    some
+      { binder := { site := mark.site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic }, enclosing := scope,
+        subtree := YulangClosure.OriginalSource.LogicalOccurrencesR104.appRule context mark callee argument }
+'YulangClosure.OriginalSource.LogicalOccurrencesR104.app_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR104.lambda_body_exact : ∀
+  (context : YulangClosure.OriginalSource.Context) (mark : YulangClosure.OriginalSource.Mark)
+  (formal : YulangClosure.OriginalSource.Formal)
+  (pattern : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.pattern)
+  (body : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR104.ScopeFrame),
+  YulangClosure.OriginalSource.LogicalOccurrencesR104.observe scope
+      (YulangClosure.OriginalSource.LogicalOccurrencesR104.Cursor.tree
+        (YulangClosure.OriginalSource.sourceRules context
+          (YulangClosure.OriginalSource.Source.lambda mark formal pattern body)))
+      (YulangClosure.OriginalSource.LogicalOccurrencesR104.bodyRoute mark formal) =
+    some
+      { binder := { site := body.site, kind := YulangClosure.OriginalSource.BinderKind.eventProof },
+        enclosing := YulangClosure.OriginalSource.LogicalOccurrencesR104.bodyScope scope mark formal,
+        subtree := YulangClosure.OriginalSource.LogicalOccurrencesR104.bodyRule context mark formal pattern body }
+'YulangClosure.OriginalSource.LogicalOccurrencesR104.lambda_body_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR104.app_inventory : ∀ (context : YulangClosure.OriginalSource.Context)
+  (mark : YulangClosure.OriginalSource.Mark)
+  (callee argument : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR104.ScopeFrame),
+  (YulangClosure.OriginalSource.LogicalOccurrencesR104.annotationRoute mark,
+      { binder := { site := mark.site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic }, enclosing := scope,
+        subtree := YulangClosure.OriginalSource.LogicalOccurrencesR104.appRule context mark callee argument }) ∈
+    YulangClosure.OriginalSource.LogicalOccurrencesR104.sourceInventory context
+      (YulangClosure.OriginalSource.Source.app mark callee argument) scope
+'YulangClosure.OriginalSource.LogicalOccurrencesR104.app_inventory' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR104.lambda_body_inventory : ∀
+  (context : YulangClosure.OriginalSource.Context) (mark : YulangClosure.OriginalSource.Mark)
+  (formal : YulangClosure.OriginalSource.Formal)
+  (pattern : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.pattern)
+  (body : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR104.ScopeFrame),
+  (YulangClosure.OriginalSource.LogicalOccurrencesR104.bodyRoute mark formal,
+      { binder := { site := body.site, kind := YulangClosure.OriginalSource.BinderKind.eventProof },
+        enclosing := YulangClosure.OriginalSource.LogicalOccurrencesR104.bodyScope scope mark formal,
+        subtree := YulangClosure.OriginalSource.LogicalOccurrencesR104.bodyRule context mark formal pattern body }) ∈
+    YulangClosure.OriginalSource.LogicalOccurrencesR104.sourceInventory context
+      (YulangClosure.OriginalSource.Source.lambda mark formal pattern body) scope
+'YulangClosure.OriginalSource.LogicalOccurrencesR104.lambda_body_inventory' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
