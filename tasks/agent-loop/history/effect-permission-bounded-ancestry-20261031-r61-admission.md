@@ -4,7 +4,7 @@ Status: ADMITTED under the continuing authorized Yulang research goal. Primary: 
 
 ## R60 gate and dispatcher decision
 
-R60 closed `CLOSED_BOUNDED_PASS_RESEARCH_ONLY` at pushed closeout `b423819c5`. Its concrete same-input `rows`, `views`, and physical readers prove both `LocalDecode` fields and apply R59 candidate completeness to the existing consumer. Fresh independent review returned BOUNDED PASS, report SHA `8d80bf7049829d0d713d2a67d072cf2cf8be9f415538100d847ab7e815f08d5d`.
+R60 closed `CLOSED_BOUNDED_PASS_RESEARCH_ONLY` at pushed closeout `b423819c5`. Its concrete same-input `rows`, `views`, and physical readers prove both `LocalDecode` fields and apply R59 candidate completeness to the existing consumer. Fresh independent review returned BOUNDED PASS, report SHA `8d80bf7049829d0d713d2a67d072cf2cf8be9f415538100d847ab7e815f08d5d`. The primary's summary/placement file is `tasks/agent-loop/inbox/effect-permission-local-decoding-r60-review.md`, SHA `e360556fbb37cc98f53ad0b82bd0daaafa7454bac275401a8c3c097dd155541f`; it is distinct from the returned full report bytes.
 
 At the required sprint boundary, the dispatcher recommended R61 to model the existing relation-ancestry visitor and derive successful ancestry evidence from ordered native dependency records. It explicitly warns that identical calls can encounter different allocation outcomes; this sprint claims successful-call refinement only, not arbitrary failure-trace equivalence.
 

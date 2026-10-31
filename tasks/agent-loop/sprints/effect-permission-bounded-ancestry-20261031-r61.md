@@ -17,7 +17,8 @@ Falsifiers: reversed edge, omitted Replay parent, invalid parent/index, cycles, 
 ## Pinned inputs
 
 - R60 reviewed closeout: `b423819c5`.
-- R60 review returned SHA: `8d80bf7049829d0d713d2a67d072cf2cf8be9f415538100d847ab7e815f08d5d`.
+- R60 reviewer-returned report SHA: `8d80bf7049829d0d713d2a67d072cf2cf8be9f415538100d847ab7e815f08d5d`.
+- Primary's bounded review placement file SHA: `e360556fbb37cc98f53ad0b82bd0daaafa7454bac275401a8c3c097dd155541f`. This file is a summary/placement, not the byte-identical reviewer-returned report; the original report SHA above remains authenticated in the R60 outcome and R60 current-state receipt.
 - R60 accepted Lean module: `3eccc41902a8a8768a55cac020efd4936517da3feb2d91a7ec158994a133ca20`.
 - R60 receiver: `0b25ddde51ee77cfdc558ad4384ce827e9f48880bd598f1640f5323a102672de`.
 - R60 Rust handoff: `744014a3ec186e16e82cca0ba3497f53a08d2eb5bd5f60fe7f41ae8461b46730`.
