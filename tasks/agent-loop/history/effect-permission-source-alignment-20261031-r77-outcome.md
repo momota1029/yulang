@@ -15,7 +15,7 @@ No Cargo, compiler, build, tests, formatter, Lake, scratch directory, cache, env
 
 Still OPEN: authentic Rust-to-Lean inventory extraction and branded identities, genuine R66 incidence/Root and physical root joins, whole-language coverage, original A/B, effect hygiene, soundness, principality, termination, and production. This checkpoint does not establish universal construction success or full Rust/Lean behavioral equivalence. Pending question count remains 32; unrelated UNKNOWN workers and quarantined paths are preserved.
 
-Frozen hashes: contract `371b2df095300dfdf942c37530505b53d49fbb114edddb97721e7d54598f8c12`; input manifest `0ba636d48ef608bec56ec51771c71d14fe4fc945605a75582f5da5f92152f22d`; Rust receiver `9113485e919f41581049a065bef5a533505fc46e71e5d3ae18a4ceec97cdaca7`; Lean module `0aa1185675cc92ac97a20f4163bd2b2486f34cfb5ca725a3fcb3c1861efdf682`; proof handoff `6496091585891785188d8dae10605fc9e965c9b81ba5c7b48863b5ec2beed3f9`.
+Frozen hashes: contract `371b2df095300dfdf942c37530505b53d49fbb114edddb97721e7d54598f8c12`; input manifest `0ba636d48ef608bec56ec51771c71d14fe4fc945605a75582f5da5f92152f22d`; Rust receiver `9113485e919f41581049a065bef5a533505fc46e71e5d3ae18a4ceec97cdaca7`; Lean module `0aa1185675cc92ac97a20f4163bd2b2486f34cfb5ca725a3fcb3c1861efdf682`; proof handoff `d6b2c7004daef188fd927bb77d9dfea85849bebc8df303743656023012e78dad`.
 
 Checkpoint commits: `9ed80a829`, `cd1d3acb3`, `f98279071`, `2f726aae5`, `68ba29d55`, `940c35ff3`, `cb90f47e4`, `e94cde484`.
 
