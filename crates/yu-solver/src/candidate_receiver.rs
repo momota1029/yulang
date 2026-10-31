@@ -642,6 +642,44 @@ struct InventoryEndpointObservations<'p, 'a> {
     live_components: Vec<(usize, ComponentKind, u32)>,
     value_representatives: &'p [(usize, ValueEndpointKey)],
     effect_representatives: &'p [(usize, EffectEndpointKey)],
+    encoded: Option<EncodedInventoryEndpointObservations<'p, 'a>>,
+}
+
+/// A source TermView whose Term references are positions in the owner's exact
+/// ordered Term table and whose component references use a separate identity
+/// namespace. Structural metadata and payload order are retained verbatim.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "R70 finite encoding of owner-bound endpoint observations")]
+enum EncodedInventoryTermView<'a> {
+    Leaf(Leaf),
+    Component(u32),
+    LiveVariable(crate::LiveVariableView),
+    PositiveBottom,
+    NegativeTop,
+    NegativeBottom,
+    PositiveFunction { argument: u32, argument_effect: u32, result_effect: u32, result: u32 },
+    NegativeFunction { argument: u32, argument_effect: u32, result_effect: u32, result: u32 },
+    PositiveVariant(Vec<(&'a str, Vec<u32>)>),
+    NegativeVariant(Vec<(&'a str, Vec<u32>)>),
+    PositiveRecord(Vec<(&'a str, bool, u32)>),
+    NegativeRecord(Vec<(&'a str, bool, u32)>),
+    PositiveTuple(Vec<u32>),
+    NegativeTuple(Vec<u32>),
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "R70 owner-scoped finite identity tables")]
+struct EncodedInventoryEndpointObservations<'p, 'a> {
+    /// Entries are exactly `InventoryEndpointObservations::views` order.
+    terms: Vec<Term>,
+    views: Vec<EncodedInventoryTermView<'a>>,
+    /// First-occurrence order from the checked component rows.
+    components: Vec<&'p ComponentId>,
+    component_positions: Vec<(u32, u32)>,
+    component_rows: Vec<(u32, u32, ComponentKind, u32)>,
+    live_components: Vec<(u32, ComponentKind, u32)>,
+    value_representatives: Vec<ValueEndpointKey>,
+    effect_representatives: Vec<EffectEndpointKey>,
 }
 
 /// Private finite reification of the actual borrowed package tables. The
@@ -908,7 +946,7 @@ impl<'a> InventoryPackage<'a> {
             }
         }
 
-        Ok(InventoryEndpointObservations {
+        let mut observations = InventoryEndpointObservations {
             session: self.session,
             facts: &self.semantic_facts,
             views: &self.term_views,
@@ -919,7 +957,10 @@ impl<'a> InventoryPackage<'a> {
             live_components,
             value_representatives: &self.value_row_representatives,
             effect_representatives: &self.effect_row_representatives,
-        })
+            encoded: None,
+        };
+        observations.encoded = Some(encode_inventory_endpoint_observations(&observations)?);
+        Ok(observations)
     }
 
     /// Interpret a borrowed Term through the exact session that owns this
@@ -946,6 +987,10 @@ impl<'a> InventoryPackage<'a> {
         }
 
         let view_position = observations.view_positions.get(&term).copied().ok_or(Gap::BoundMismatch)?;
+        let encoded = observations.encoded.as_ref().ok_or(Gap::BoundMismatch)?;
+        if encoded.terms.get(view_position) != Some(&term) || encoded.views.get(view_position).is_none() {
+            return Err(Gap::BoundMismatch);
+        }
         let view = observations.views.get(view_position).ok_or(Gap::BoundMismatch)?.view.clone();
         let endpoint = match view {
             TermView::Leaf(Leaf::IntPositive) => InventorySemanticEndpoint::Value(ValueEndpointKey::IntPositive),
@@ -976,6 +1021,15 @@ impl<'a> InventoryPackage<'a> {
                 let (live_position, live_kind, live_ordinal) = observations.live_components
                     .get(*position).ok_or(Gap::BoundMismatch)?;
                 if *live_position != *position || *live_kind != component.kind() {
+                    return Err(Gap::BoundMismatch);
+                }
+                let encoded_row = encoded.component_rows.get(*position).ok_or(Gap::BoundMismatch)?;
+                let encoded_component = encoded.components.get(
+                    usize::try_from(encoded_row.1).map_err(|_| Gap::SearchLimit)?,
+                ).ok_or(Gap::BoundMismatch)?;
+                if encoded_row.0 != u32::try_from(view_position).map_err(|_| Gap::SearchLimit)?
+                    || **encoded_component != *component
+                    || encoded_row.2 != *live_kind || encoded_row.3 != *live_ordinal {
                     return Err(Gap::BoundMismatch);
                 }
                 match *live_kind {
@@ -1422,6 +1476,171 @@ fn inventory_term_children(
         | TermView::PositiveBottom | TermView::NegativeTop | TermView::NegativeBottom => {}
     }
     Ok(children)
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+fn encode_inventory_endpoint_observations<'p, 'a>(
+    observations: &InventoryEndpointObservations<'p, 'a>,
+) -> Result<EncodedInventoryEndpointObservations<'p, 'a>, candidate_context::CurrentEmissionGap> {
+    use candidate_context::CurrentEmissionGap as Gap;
+
+    // The already-validated TermView rows are the Term table. Their positions
+    // are stable tokens, and `view_positions` uses full Term equality (brand
+    // and arena-local index), never the index alone.
+    let term_token = |term: Term| -> Result<u32, Gap> {
+        let position = observations.view_positions.get(&term).copied().ok_or(Gap::BoundMismatch)?;
+        if observations.views.get(position).is_none_or(|row| row.term != term) {
+            return Err(Gap::BoundMismatch);
+        }
+        u32::try_from(position).map_err(|_| Gap::SearchLimit)
+    };
+
+    // Keep exact ComponentId equality in a separate namespace. Linear lookup
+    // avoids making a hash or ordinal part of the identity relation.
+    let mut component_ids: Vec<&ComponentId> = Vec::new();
+    component_ids.try_reserve_exact(observations.components.len()).map_err(|_| Gap::SearchLimit)?;
+    for (_, component, _) in observations.components {
+        if !component_ids.iter().any(|known| **known == **component) {
+            component_ids.push(component);
+        }
+    }
+    let component_token = |component: &ComponentId| -> Result<u32, Gap> {
+        let position = component_ids.iter().position(|known| **known == *component)
+            .ok_or(Gap::BoundMismatch)?;
+        u32::try_from(position).map_err(|_| Gap::SearchLimit)
+    };
+
+    let mut views = Vec::new();
+    views.try_reserve_exact(observations.views.len()).map_err(|_| Gap::SearchLimit)?;
+    for row in observations.views {
+        let child = |term: Term| term_token(term);
+        let encoded = match &row.view {
+            TermView::Leaf(leaf) => EncodedInventoryTermView::Leaf(*leaf),
+            TermView::Component(component) =>
+                EncodedInventoryTermView::Component(component_token(component)?),
+            TermView::LiveVariable(view) => EncodedInventoryTermView::LiveVariable(*view),
+            TermView::PositiveBottom => EncodedInventoryTermView::PositiveBottom,
+            TermView::NegativeTop => EncodedInventoryTermView::NegativeTop,
+            TermView::NegativeBottom => EncodedInventoryTermView::NegativeBottom,
+            TermView::PositiveFunction { argument, argument_effect, result_effect, result } =>
+                EncodedInventoryTermView::PositiveFunction {
+                    argument: child(*argument)?, argument_effect: child(*argument_effect)?,
+                    result_effect: child(*result_effect)?, result: child(*result)?,
+                },
+            TermView::NegativeFunction { argument, argument_effect, result_effect, result } =>
+                EncodedInventoryTermView::NegativeFunction {
+                    argument: child(*argument)?, argument_effect: child(*argument_effect)?,
+                    result_effect: child(*result_effect)?, result: child(*result)?,
+                },
+            TermView::PositiveVariant { alternatives } => {
+                let mut encoded = Vec::new();
+                encoded.try_reserve_exact(alternatives.len()).map_err(|_| Gap::SearchLimit)?;
+                for alternative in *alternatives {
+                    let mut payloads = Vec::new();
+                    payloads.try_reserve_exact(alternative.payloads.len()).map_err(|_| Gap::SearchLimit)?;
+                    for term in alternative.payloads.iter().copied() { payloads.push(child(term)?); }
+                    encoded.push((alternative.tag.as_ref(), payloads));
+                }
+                EncodedInventoryTermView::PositiveVariant(encoded)
+            }
+            TermView::NegativeVariant { alternatives } => {
+                let mut encoded = Vec::new();
+                encoded.try_reserve_exact(alternatives.len()).map_err(|_| Gap::SearchLimit)?;
+                for alternative in *alternatives {
+                    let mut payloads = Vec::new();
+                    payloads.try_reserve_exact(alternative.payloads.len()).map_err(|_| Gap::SearchLimit)?;
+                    for term in alternative.payloads.iter().copied() { payloads.push(child(term)?); }
+                    encoded.push((alternative.tag.as_ref(), payloads));
+                }
+                EncodedInventoryTermView::NegativeVariant(encoded)
+            }
+            TermView::PositiveRecord { fields } => {
+                let mut encoded = Vec::new();
+                encoded.try_reserve_exact(fields.len()).map_err(|_| Gap::SearchLimit)?;
+                for field in *fields { encoded.push((field.name.as_ref(), field.optional, child(field.value)?)); }
+                EncodedInventoryTermView::PositiveRecord(encoded)
+            }
+            TermView::NegativeRecord { fields } => {
+                let mut encoded = Vec::new();
+                encoded.try_reserve_exact(fields.len()).map_err(|_| Gap::SearchLimit)?;
+                for field in *fields { encoded.push((field.name.as_ref(), field.optional, child(field.value)?)); }
+                EncodedInventoryTermView::NegativeRecord(encoded)
+            }
+            TermView::PositiveTuple { elements } => {
+                let mut encoded = Vec::new();
+                encoded.try_reserve_exact(elements.len()).map_err(|_| Gap::SearchLimit)?;
+                for term in elements.iter().copied() { encoded.push(child(term)?); }
+                EncodedInventoryTermView::PositiveTuple(encoded)
+            }
+            TermView::NegativeTuple { elements } => {
+                let mut encoded = Vec::new();
+                encoded.try_reserve_exact(elements.len()).map_err(|_| Gap::SearchLimit)?;
+                for term in elements.iter().copied() { encoded.push(child(term)?); }
+                EncodedInventoryTermView::NegativeTuple(encoded)
+            }
+        };
+        views.push(encoded);
+    }
+
+    let mut component_positions = Vec::new();
+    let mut component_rows = Vec::new();
+    let mut live_components = Vec::new();
+    component_positions.try_reserve_exact(observations.component_positions.len()).map_err(|_| Gap::SearchLimit)?;
+    component_rows.try_reserve_exact(observations.components.len()).map_err(|_| Gap::SearchLimit)?;
+    live_components.try_reserve_exact(observations.live_components.len()).map_err(|_| Gap::SearchLimit)?;
+    for (position, (owner_position, component, term)) in observations.components.iter().enumerate() {
+        if *owner_position != position { return Err(Gap::BoundMismatch); }
+        let term_id = term_token(*term)?;
+        let component_id = component_token(component)?;
+        let row = u32::try_from(position).map_err(|_| Gap::SearchLimit)?;
+        let (live_position, kind, ordinal) = observations.live_components.get(position).ok_or(Gap::BoundMismatch)?;
+        if *live_position != position || *kind != component.kind() { return Err(Gap::BoundMismatch); }
+        for (prior_position, (_, prior_component, prior_term)) in observations.components[..position].iter().enumerate() {
+            if **prior_component == **component {
+                let (_, prior_kind, prior_ordinal) = observations.live_components.get(prior_position).ok_or(Gap::BoundMismatch)?;
+                if *prior_term != *term || *prior_kind != *kind || *prior_ordinal != *ordinal {
+                    return Err(Gap::BoundMismatch);
+                }
+            }
+        }
+        component_positions.push((term_id, row));
+        component_rows.push((term_id, component_id, *kind, *ordinal));
+        live_components.push((row, *kind, *ordinal));
+    }
+    for (term, position) in &observations.component_positions {
+        let term_id = term_token(*term)?;
+        let row_id = u32::try_from(*position).map_err(|_| Gap::SearchLimit)?;
+        if component_positions.get(*position) != Some(&(term_id, row_id)) {
+            return Err(Gap::BoundMismatch);
+        }
+    }
+
+    let mut value_representatives = Vec::new();
+    value_representatives.try_reserve_exact(observations.value_representatives.len()).map_err(|_| Gap::SearchLimit)?;
+    for (position, (owner_position, representative)) in observations.value_representatives.iter().enumerate() {
+        if *owner_position != position { return Err(Gap::BoundMismatch); }
+        value_representatives.push(*representative);
+    }
+    let mut effect_representatives = Vec::new();
+    effect_representatives.try_reserve_exact(observations.effect_representatives.len()).map_err(|_| Gap::SearchLimit)?;
+    for (position, (owner_position, representative)) in observations.effect_representatives.iter().enumerate() {
+        if *owner_position != position { return Err(Gap::BoundMismatch); }
+        effect_representatives.push(*representative);
+    }
+
+    let mut terms = Vec::new();
+    terms.try_reserve_exact(observations.views.len()).map_err(|_| Gap::SearchLimit)?;
+    terms.extend(observations.views.iter().map(|row| row.term));
+    Ok(EncodedInventoryEndpointObservations {
+        terms,
+        views,
+        components: component_ids,
+        component_positions,
+        component_rows,
+        live_components,
+        value_representatives,
+        effect_representatives,
+    })
 }
 
 #[cfg(feature = "shadow-apply-candidate")]
