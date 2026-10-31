@@ -79,3 +79,15 @@ semantics, but requires the single slot-4 repair to address every blocker,
 including the unresolved finite-decider and dependent reduction causes. No
 further invocation is authorized by this review. Reviewer STOPPED / WRITES
 STOPPED; no edits or execution.
+
+### Primary diagnostic-count correction
+
+Primary rereading of the authenticated complete stdout found an additional
+independent diagnostic omitted from the reviewer table: `<stdin>:1833:0`,
+candidate source line 126, `lean.synthInstanceFailed` while elaborating the
+`Decidable (Primitive ...)` instance. The slot-3 output therefore has **ten**
+error headers, not nine. The proof worker traced the missing instance to
+`Option (Relation T)` equality in the two `relationRead` equations; pinned R57
+`Relation` has no `DecidableEq` deriving clause. The slot-4 source review must
+verify the proposed local derived instance and still audit the dependent
+finite reductions independently.
