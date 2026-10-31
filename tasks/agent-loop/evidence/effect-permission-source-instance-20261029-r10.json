@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "revision": 15,
+  "sprint": "EFFECT-PERMISSION-SOURCE-INSTANCE/20261029-r10",
+  "stage": "CLOSED_INCOMPLETE",
+  "selector": "/root/r21_closeout_selector: construct missing exact-tree SourcePair supplier with connected four-step allocator state, permission-prefix retention, and application to R9.",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-instance-20261029-r10.md",
+    "sha256": "17198cecb75b2ab1500fb9da60c78028bae87e45b28a790d99e2797d9405a2ca"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-instance-20261029-r10-inputs.json",
+    "sha256": "48c9dacbb54d9be48930bde5656cfd13b8b9b55070719f9662fc043ea1aebadf",
+    "entries": 108,
+    "mismatches": 0
+  },
+  "prior_r9": {
+    "outcome_sha256": "f6343e8108c2759a5f1af9c3ec3a7af62a9ebca88da24d9fc79294bb5448d3ef",
+    "review_sha256": "3a2d323da06276df597e6c9ba9edf4592efc692817d31010ff37603fa6581034",
+    "artifact_sha256": "795e63e850f73d75f18f721224d3e0723c187a57c7437ffe3ef08a4dbd80648a"
+  },
+  "lanes": {
+    "proof": {
+      "role": "registered lean_prover",
+      "budget_seconds": 600,
+      "state": "FROZEN",
+      "artifact": "notes/theory/lean/YulangClosure/FormalPermissionSourceInstance.lean",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-source-instance-r10-proof.md",
+      "audit_limit": {
+        "max_invocations": 2,
+        "per_attempt_timeout_seconds": 90,
+        "combined_wall_seconds": 120,
+        "released": 2,
+        "remaining_invocations": 0
+      },
+      "launched_by_primary": "/root",
+      "worker": "/root/effect_permission_source_instance_r10_lean",
+      "worker_state": "STOPPED",
+      "audit_release_count": 2,
+      "audit_wall_seconds": 26.72,
+      "continuation_seconds": 90,
+      "repair_limit_seconds": 30,
+      "audit2_timeout_seconds": 60
+    },
+    "source": {
+      "owner": "primary Luna",
+      "budget_seconds": 200,
+      "state": "FROZEN",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-source-instance-r10-source.md"
+    },
+    "review": {
+      "state": "DONE_READ_ONLY",
+      "role": "fresh nonauthor compiler_referee",
+      "budget_seconds": 250,
+      "output": "tasks/agent-loop/inbox/effect-permission-source-instance-r10-review.md",
+      "worker": "/root/effect_permission_source_instance_r10_review",
+      "amendment_sha256": "1aad663842bbe6a38480dcccc8aeca067cb606febd81f9b4eed194a33b73dfb7",
+      "review_type": "failure receipt provenance only",
+      "verdict": "FAILURE_RECEIPTS_AUTHENTICATED_WITH_MINOR_PROVENANCE_LIMITATION",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-source-instance-r10-review.md",
+      "handoff_sha256": "c73ff1974459a2d77797c6b045a52c6b4e69a655bcec43667626607e86798173",
+      "manifest_entries_verified": 108,
+      "copy_files_verified": 30,
+      "theorem_types_printed": 0
+    },
+    "primary": {
+      "budget_seconds": 150
+    },
+    "primary_audit_seconds": 60
+  },
+  "gates": {
+    "connected_allocator_trace": "PARTIAL_CONSTRUCTION; AUDIT_FAILED",
+    "permission_prefix": "PARTIAL_CONSTRUCTION; AUDIT_FAILED",
+    "exact_tree_SourcePair": "AUDIT_2_FAILED_FINAL",
+    "primitive_rust_correspondence": "OPEN",
+    "native_authenticity": "OPEN",
+    "original_parent": "OPEN",
+    "effect_hygiene": "OPEN",
+    "consumer_residual": "OPEN",
+    "unequal_transport": "OPEN",
+    "soundness": "OPEN",
+    "principality": "OPEN",
+    "termination": "OPEN",
+    "production": "OPEN"
+  },
+  "source_handoff": {
+    "path": "tasks/agent-loop/inbox/effect-permission-source-instance-r10-source.md",
+    "sha256": "3832ecde2cb0d2812bc74550ca6e0e9ee938a7ed526dd1712d00c69026379c37",
+    "state": "FROZEN",
+    "owner": "/root"
+  },
+  "progress": {
+    "worker_message": "R9 HelperFrames cannot encode reserve/copy/accounting/term success. Proof construction will expose 13 named per-helper frame witnesses (5 atomic, 4 port, 2 function, 2 tuple) and four FreshReady witnesses; permission-copy/accounting/term success to these local witnesses remains the first execution bridge, with no fabricated capacity or success predicate.",
+    "received_from": "/root/effect_permission_source_instance_r10_lean",
+    "audit_release_count": 2
+  },
+  "proof_artifact": {
+    "path": "notes/theory/lean/YulangClosure/FormalPermissionSourceInstance.lean",
+    "bytes": 14073,
+    "sha256": "4a25b24d251494ca6c05fcc696306cedf3d9cfa36d4a90a2a3437b68a04ff977",
+    "revision": 3
+  },
+  "proof_handoff": {
+    "path": "tasks/agent-loop/inbox/effect-permission-source-instance-r10-proof.md",
+    "bytes": 11480,
+    "sha256": "d14297763ab477c2776aea78e79c263823f0364a39f00f8c0c406e48ed46f3ca",
+    "revision": 3
+  },
+  "copy_receipt": {
+    "path": "/tmp/yulang-effect-permission-source-instance-20261029-r10/copy-receipt.json",
+    "sha256": "1e2f260644d3eba21ea11f7810606789797d2023398996cd7eeb58bba936df85",
+    "file_count": 15,
+    "lake_absent_before_audit": true
+  },
+  "audit_attempt_1": {
+    "plan": "/tmp/yulang-effect-permission-source-instance-20261029-r10/audit-inputs-1.json",
+    "plan_sha256": "4a14c7674159c1de85f62159e87779b79343303a6dcad4e8650632b82440a4e2",
+    "state": "FAILED",
+    "theorem_roots": [
+      "YulangClosure.FormalPermissionSourceInstance.push_aligned",
+      "YulangClosure.FormalPermissionSourceInstance.four_allocations_and_prefix",
+      "YulangClosure.FormalPermissionSourceInstance.exact_tree_supplier",
+      "YulangClosure.FormalPermissionSourceInstance.exact_tree_r9_application"
+    ],
+    "timeout_seconds": 90,
+    "artifact_sha256": "6638d59a39423c78e37052932a5b421932719fdeee939f94c7eec2e528467c8d",
+    "project_files": 15,
+    "released_by": "/root",
+    "exit_status": 1,
+    "wall_time": "13.51 seconds",
+    "maximum_rss_kib": 798448,
+    "receipts": {
+      "stdout.txt": {
+        "bytes": 164187,
+        "sha256": "e5a2afbd2976a470c74d3261f96167959055ea019c2da06f302b07d70c919e8d"
+      },
+      "stderr.txt": {
+        "bytes": 33,
+        "sha256": "0edf2d238840b65a26de68075c964d099167cf4cae51705f162bcfa4e7addc60"
+      },
+      "status.txt": {
+        "bytes": 2,
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+      },
+      "time.txt": {
+        "bytes": 1647,
+        "sha256": "f784a46651ba226ed8c393fbc26d6c35a17e300bdd0541ba2b09917a05d99e48"
+      }
+    },
+    "diagnostics": [
+      "FormalPermissionSourceInstance.lean:98 and :116: HelperFrames local shape mismatch after simplification",
+      "FormalPermissionSourceInstance.lean:175: innerInt frame mismatch",
+      "FormalPermissionSourceInstance.lean:159: exact_tree_supplier leaves SourcePair construction unsolved"
+    ]
+  },
+  "amendment": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-instance-20261029-r10-amendment-01.md",
+    "sha256": "9ebf619ca87730d0cb2b3f02ea947b6a6e7277a2dfe6e43a5ba98a05e407ac11",
+    "selector": "/root/r21_closeout_selector",
+    "continuation_seconds": 90,
+    "repair_seconds": 30,
+    "audit2_timeout_seconds": 60,
+    "primary_remaining_seconds": 60,
+    "independent_review_budget_seconds": 250
+  },
+  "continuation": {
+    "state": "FROZEN",
+    "worker": "/root/effect_permission_source_instance_r10_lean",
+    "exact_paths": [
+      "notes/theory/lean/YulangClosure/FormalPermissionSourceInstance.lean",
+      "tasks/agent-loop/inbox/effect-permission-source-instance-r10-proof.md"
+    ],
+    "scope": "unfold Frame alias at audit1 sites 98,116,175 only",
+    "lease_seconds": 90,
+    "artifact_revision": 3,
+    "artifact_sha256": "4a25b24d251494ca6c05fcc696306cedf3d9cfa36d4a90a2a3437b68a04ff977",
+    "handoff_sha256": "d14297763ab477c2776aea78e79c263823f0364a39f00f8c0c406e48ed46f3ca"
+  },
+  "audit_attempt_2": {
+    "plan": "/tmp/yulang-effect-permission-source-instance-20261029-r10/attempt-2/audit-inputs-2.json",
+    "plan_sha256": "30ae6c7a1be4872de650927dfc40589cd0ed0448e42b04d97f525371e2daf510",
+    "state": "FAILED_FINAL",
+    "timeout_seconds": 60,
+    "theorem_roots": [
+      "YulangClosure.FormalPermissionSourceInstance.push_aligned",
+      "YulangClosure.FormalPermissionSourceInstance.four_allocations_and_prefix",
+      "YulangClosure.FormalPermissionSourceInstance.exact_tree_supplier",
+      "YulangClosure.FormalPermissionSourceInstance.exact_tree_r9_application"
+    ],
+    "project_files": 15,
+    "copy_receipt_sha256": "a3156365534a0f2ef27c020443c7d59578d0101b74ba1857fb18c0d8d040cc3a",
+    "artifact_sha256": "4a25b24d251494ca6c05fcc696306cedf3d9cfa36d4a90a2a3437b68a04ff977",
+    "released_by": "/root",
+    "exit_status": 1,
+    "wall_time": "13.21 seconds",
+    "maximum_rss_kib": 788828,
+    "receipts": {
+      "stdout.txt": {
+        "bytes": 321901,
+        "sha256": "4fb15b5f0cd7d35c10db2dba47c53ebf0a801eef199c44171153dbcd1c7a0b5c"
+      },
+      "stderr.txt": {
+        "bytes": 33,
+        "sha256": "0edf2d238840b65a26de68075c964d099167cf4cae51705f162bcfa4e7addc60"
+      },
+      "status.txt": {
+        "bytes": 2,
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+      },
+      "time.txt": {
+        "bytes": 1667,
+        "sha256": "760aaea0b6f393b9972acbec886b1101f0893b0b0d5aa154aba733ddd9c6a64e"
+      }
+    },
+    "diagnostics": [
+      "all three Frame conversion mismatches from attempt1 resolved",
+      "FormalPermissionSourceInstance.lean:192:10 cannot synthesize implicit argument w",
+      "FormalPermissionSourceInstance.lean:159:182 exact_tree_supplier remains unsolved",
+      "no theorem types or axiom audits emitted"
+    ]
+  },
+  "amendment_02": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-instance-20261029-r10-amendment-02.md",
+    "sha256": "1aad663842bbe6a38480dcccc8aeca067cb606febd81f9b4eed194a33b73dfb7",
+    "selector": "/root/r21_closeout_selector",
+    "review_budget_seconds": 250,
+    "scope": "read-only authentication of frozen failed audit plans, tools, raw receipts, diagnostic fidelity and R2\u2192R3 authorized delta"
+  },
+  "closeout": {
+    "status": "CLOSED_INCOMPLETE",
+    "review_handoff": "tasks/agent-loop/inbox/effect-permission-source-instance-r10-review.md",
+    "review_sha256": "c73ff1974459a2d77797c6b045a52c6b4e69a655bcec43667626607e86798173",
+    "provenance_limitation": "R2 handoff bytes missing; frozen audit1 plan records hash/size only; R2 artifact and raw receipts preserved",
+    "selector_next": "EFFECT-PERMISSION-SOURCE-INSTANCE/20261029-r11"
+  },
+  "outcome": {
+    "path": "tasks/agent-loop/history/effect-permission-source-instance-20261029-r10-outcome.md",
+    "sha256": "ed7029a2fb3e3c67903088ad10ce12fd5bff4bcdcd84028337a5ffa4b432ca52",
+    "status": "CLOSED_INCOMPLETE"
+  }
+}

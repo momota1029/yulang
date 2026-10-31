@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "revision": 8,
+  "sprint": "EFFECT-PERMISSION-NATIVE-DECODE/20261029-r5",
+  "stage": "CLOSED_COMPLETE",
+  "baseline_commit": "d33805eb589ac89925bacab57e362df093456fe0",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-native-decode-20261029-r5.md",
+    "sha256": "fa241c7dfc9bdd471f9d2b19238e516cedba801f9c1c9574f4a9b0137920efcb"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-native-decode-20261029-r5-inputs.json",
+    "sha256": "79112990c69fd83f10b71d25b3ea5cdb4cbde68a3abddfb2e00dc9675159f595",
+    "entries": 58
+  },
+  "prior_sprint": {
+    "id": "EFFECT-PERMISSION-NATIVE-DECODE/20261029-r4",
+    "status": "CLOSED_INCOMPLETE",
+    "outcome": "tasks/agent-loop/history/effect-permission-native-decode-20261029-r4-outcome.md",
+    "outcome_sha256": "9b30d8f64643bb505ba8e0442355e974dea1db7af7930871014ee21431ade8da"
+  },
+  "selector": "/root/r21_closeout_selector recommends R5 parser repair and complete 13 theorem audit; 300s Lean / 50s source / 150s review / 100s primary; 600s total; two focused audits max 120s combined; zero Astra.",
+  "lean_lane": {
+    "state": "STOPPED_AUDITED_HANDOFF_FROZEN",
+    "budget_seconds": 300,
+    "scratch_root": "/tmp/yulang-effect-permission-native-decode-20261029-r5/lean-project/",
+    "receipt_root": "/tmp/yulang-effect-permission-native-decode-20261029-r5/lean-receipts/",
+    "copy_inventory_sha256": "8cd77989273a183e633b704cca40e4deb5444d328536431fac4163d42d628bf6",
+    "copied_inputs": 13,
+    "audit_allowance": {
+      "max_invocations": 2,
+      "max_combined_wall_seconds": 120,
+      "per_attempt_timeout_seconds": 90,
+      "released": 1,
+      "used_wall_seconds": 13.52,
+      "attempt2": "NOT_NEEDED"
+    },
+    "artifact": {
+      "path": "notes/theory/lean/YulangClosure/FormalPermissionAuthenticatedNativeDecode.lean",
+      "bytes": 11292,
+      "sha256": "ea97baf7c98becef27df9e0c416d8d5fb00e9e1b5b63f37021b01598231936dc",
+      "delta_from_r4": "only two /-- to /- delimiter changes"
+    },
+    "audit_plan": {
+      "path": "/tmp/yulang-effect-permission-native-decode-20261029-r5/audit-inputs-1.json",
+      "sha256": "c7a1bf0d10ee878bee83a17b14d8f8b1a38ebed74adce92c988f97c9d732ecd8",
+      "theorems": 13
+    },
+    "copy_receipt": {
+      "path": "/tmp/yulang-effect-permission-native-decode-20261029-r5/copy-receipt.json",
+      "sha256": "08046e7dde20b6120b84a6e550f6247e6b07915bb50047681df5543c6cc59478",
+      "files": 13
+    },
+    "tools": {
+      "lake": "8ba83c98f76562d03b8dbc33f1057151ba6cbb121679dde76b2260ccc90495e1",
+      "lean": "bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38",
+      "checker": "a4f10b70297cbf4d8b5bc0c7526bc29783eaf417f1f70e53eeea341d1150dde6",
+      "time": "3b11dec50514a8473e9f6efa7a34d584d0657538c09988f61b72d38ad4991a10",
+      "taskset": "a431738fadddc2e2326c8ab81843e72f4011658379381aef1502a6ddb1c1115b",
+      "env": "886e5fa8be716b03eeda48856e0f04493f2969fc148fb7812594ffac647fa050",
+      "python3": "e50d468e8b0adfb05733f5b87b3cff34829c4a8c1aea50c865aa8bdfe4bb150f"
+    },
+    "audit_attempts": [
+      {
+        "attempt": 1,
+        "plan_sha256": "c7a1bf0d10ee878bee83a17b14d8f8b1a38ebed74adce92c988f97c9d732ecd8",
+        "artifact_sha256": "ea97baf7c98becef27df9e0c416d8d5fb00e9e1b5b63f37021b01598231936dc",
+        "exit_status": 0,
+        "raw": {
+          "stdout": {
+            "path": "/tmp/yulang-effect-permission-native-decode-20261029-r5/lean-receipts/attempt-1/stdout.txt",
+            "bytes": 18906,
+            "sha256": "7f6e3111345674c59f4df464ba9a039a1c6dccd41d525619727e8bb8496f6568"
+          },
+          "stderr": {
+            "path": "/tmp/yulang-effect-permission-native-decode-20261029-r5/lean-receipts/attempt-1/stderr.txt",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "status": {
+            "path": "/tmp/yulang-effect-permission-native-decode-20261029-r5/lean-receipts/attempt-1/status.txt",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          },
+          "time": {
+            "path": "/tmp/yulang-effect-permission-native-decode-20261029-r5/lean-receipts/attempt-1/time.txt",
+            "bytes": 2457,
+            "sha256": "fc98ac02539ab7d8ed0630f03e3cc079be0a1e8c43a99348cbc42e91b8e14fe5"
+          }
+        },
+        "theorems": {
+          "source_constructor_injective": [
+            "propext"
+          ],
+          "complete_source_inventory": [],
+          "complete_ordered_ports": [],
+          "code_from_exact_source": [
+            "propext"
+          ],
+          "allocation_and_decode": [
+            "propext",
+            "Quot.sound"
+          ],
+          "output_equations": [
+            "propext",
+            "Classical.choice",
+            "Quot.sound"
+          ],
+          "base_from_forward_allocation": [
+            "propext"
+          ],
+          "expected_observations": [],
+          "tags_and_unread_state_irrelevant": [
+            "propext",
+            "Classical.choice",
+            "Quot.sound"
+          ],
+          "first_source_port": [],
+          "second_source_port": [],
+          "extracted_instance": [
+            "propext",
+            "Classical.choice",
+            "Quot.sound"
+          ],
+          "source_coded_instance": [
+            "propext",
+            "Classical.choice",
+            "Quot.sound"
+          ]
+        },
+        "resources": {
+          "wall_seconds": 13.52,
+          "user_seconds": 7.18,
+          "system_seconds": 1.93,
+          "max_rss_kib": 973172,
+          "swaps": 0,
+          "signals": 0
+        },
+        "toolchain": {
+          "lake": "5.0.0-src+eb6cafb",
+          "lean": "4.35.0",
+          "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+        }
+      }
+    ],
+    "proof_handoff": {
+      "path": "tasks/agent-loop/inbox/effect-permission-native-decode-r5-proof.md",
+      "bytes": 20711,
+      "sha256": "82416817dbb3dacab46e616f42ca56bbcadd1d3680d0ceaa1a4f70bf1a846322",
+      "revision": 1
+    },
+    "post_audit_integrity": {
+      "path": "/tmp/yulang-effect-permission-native-decode-20261029-r5/post-audit-integrity.json",
+      "sha256": "f40258a7512ca3841d90dbbd8205501e3c5f3721a172a19e6333ee7e329815a2"
+    }
+  },
+  "source_lane": {
+    "owner": "/root",
+    "state": "DONE_READ_ONLY",
+    "budget_cap_seconds": 50,
+    "elapsed_exact": "NOT_MEASURED",
+    "handoff": "tasks/agent-loop/inbox/effect-permission-native-decode-r5-rust.md",
+    "handoff_sha256": "2f35be05e47a58e1106cbac2f36258039028cf7045b569fccb8019aaa2e3b82e",
+    "findings": [
+      "R4 source-to-observation crosswalk remains unchanged",
+      "Definition scope and four-port forward allocation recurrence match pinned source",
+      "No Rust/compiler/test command or source change"
+    ]
+  },
+  "review_lane": {
+    "state": "ACCEPTED_READ_ONLY",
+    "reviewer": "/root/effect_permission_native_decode_r5_review",
+    "role": "fresh compiler_referee",
+    "budget_seconds": 150,
+    "verdict": "ACCEPT; no blocking, major, or minor correctness findings",
+    "review": "tasks/agent-loop/inbox/effect-permission-native-decode-r5-review.md",
+    "review_sha256": "c33cb6436f76ccd43022aed52e146270d3a58f09b9a9ea048a82ae26f16189c7",
+    "checks": [
+      "58 manifest entries",
+      "12 copied dependencies",
+      "target and scratch bytes",
+      "four raw audit receipt hashes",
+      "all 13 theorem types and transitive axiom sets",
+      "bounded source/R3 observation correspondence",
+      "no native-State identity assumption"
+    ],
+    "commands": "No Lean/Lake/checker/build/test command; read-only review; no files changed by reviewer"
+  },
+  "closeout_budget_seconds": 100,
+  "gates": {
+    "decoder_instance": "OPEN",
+    "parent": "OPEN",
+    "source_native": "OPEN",
+    "effect_hygiene": "OPEN",
+    "consumer_residual": "OPEN",
+    "unequal_transport": "OPEN",
+    "soundness": "OPEN",
+    "principality": "OPEN",
+    "termination": "OPEN",
+    "production": "OPEN"
+  },
+  "closeout": {
+    "status": "CLOSED_COMPLETE_FOR_BOUNDED_PACKET",
+    "outcome": "tasks/agent-loop/history/effect-permission-native-decode-20261029-r5-outcome.md",
+    "outcome_sha256": "0af6220a21756e3676816816d934aefec212b42d6e08a8a75de1bf790bcee09d",
+    "parent_and_production_gates": "OPEN"
+  }
+}

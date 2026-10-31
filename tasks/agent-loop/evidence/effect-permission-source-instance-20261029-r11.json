@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "revision": 7,
+  "sprint": "EFFECT-PERMISSION-SOURCE-INSTANCE/20261029-r11",
+  "stage": "INDEPENDENT_REVIEW_PASS_PENDING_SPRINT_CLOSEOUT",
+  "selector": "/root/r21_closeout_selector: explicit typed root TupleDecoded and ValueDecoded records before constructing SourcePair and R9 application.",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-instance-20261029-r11.md",
+    "sha256": "13866ae5b51fac68500f7b6ac452e3cb0f55ef4789882784d0326fdb26423908"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-instance-20261029-r11-inputs.json",
+    "sha256": "1534065c8bc96872cfa3dc34120f7e5fc690c8a6023ced3ac0262d67832b8088",
+    "entries": 127,
+    "mismatches": 0
+  },
+  "prior_r10": {
+    "status": "CLOSED_INCOMPLETE",
+    "outcome": "tasks/agent-loop/history/effect-permission-source-instance-20261029-r10-outcome.md",
+    "outcome_sha256": "ed7029a2fb3e3c67903088ad10ce12fd5bff4bcdcd84028337a5ffa4b432ca52",
+    "review": "tasks/agent-loop/inbox/effect-permission-source-instance-r10-review.md",
+    "review_sha256": "c73ff1974459a2d77797c6b045a52c6b4e69a655bcec43667626607e86798173",
+    "artifact_sha256": "4a25b24d251494ca6c05fcc696306cedf3d9cfa36d4a90a2a3437b68a04ff977"
+  },
+  "source_handoff": {
+    "path": "tasks/agent-loop/inbox/effect-permission-source-instance-r11-source.md",
+    "sha256": "abe2289150f5c31523a01649b34317a602991ea36b5a8dc730ff370092a0a206",
+    "state": "FROZEN",
+    "owner": "/root"
+  },
+  "budget_seconds": 600,
+  "lanes": {
+    "proof": {
+      "role": "registered lean_prover",
+      "worker": "/root/effect_permission_source_instance_r11_lean",
+      "budget_seconds": 300,
+      "state": "AUDIT_PASS_PENDING_INDEPENDENT_REVIEW",
+      "artifact": "notes/theory/lean/YulangClosure/FormalPermissionSourceInstance.lean",
+      "artifact_baseline_sha256": "4a25b24d251494ca6c05fcc696306cedf3d9cfa36d4a90a2a3437b68a04ff977",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-source-instance-r11-proof.md",
+      "audit_limit": {
+        "max_invocations": 2,
+        "per_attempt_timeout_seconds": 90,
+        "combined_wall_seconds": 120,
+        "released": 1
+      },
+      "launched_by": "/root",
+      "worker_state": "STOPPED"
+    },
+    "source": {
+      "owner": "primary Luna",
+      "budget_seconds": 50,
+      "state": "COMPLETE_READ_ONLY",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-source-instance-r11-source.md",
+      "sha256": "abe2289150f5c31523a01649b34317a602991ea36b5a8dc730ff370092a0a206"
+    },
+    "review": {
+      "role": "fresh nonauthor compiler_referee",
+      "worker": "/root/effect_permission_source_instance_r11_review",
+      "budget_seconds": 150,
+      "state": "PASS_READ_ONLY_RETURN",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-source-instance-r11-review.md",
+      "handoff_sha256": "379cc6eab5dd55917cbd4232072f835854d4a0ed759d878d02aebfaeb2dd57c1",
+      "materialized_by": "primary from returned review"
+    },
+    "primary": {
+      "budget_seconds": 100
+    }
+  },
+  "scratch_lease": "/tmp/yulang-effect-permission-source-instance-20261029-r11/",
+  "gates": {
+    "explicit_root_tuple_output": "ACCEPTED_CONDITIONAL_FORMAL",
+    "exact_tree_SourcePair": "ACCEPTED_CONDITIONAL_FORMAL",
+    "connected_allocator_trace": "ACCEPTED_CONDITIONAL_FORMAL",
+    "permission_prefix": "ACCEPTED_CONDITIONAL_FORMAL",
+    "R9_same_witness_application": "ACCEPTED_CONDITIONAL_FORMAL",
+    "primitive_rust_correspondence": "OPEN",
+    "native_authenticity": "OPEN",
+    "original_parent": "OPEN",
+    "effect_hygiene": "OPEN",
+    "consumer_residual": "OPEN",
+    "soundness": "OPEN",
+    "principality": "OPEN",
+    "termination": "OPEN",
+    "production": "OPEN"
+  },
+  "proof": {
+    "worker_state": "STOPPED",
+    "artifact_bytes": 15285,
+    "artifact_sha256": "828eef57d8caaa538c8feb91ad023dc45eb41e421b4eb430532e383ee1c75e91",
+    "handoff_bytes": 10529,
+    "handoff_sha256": "b83c53027ca78ed03177a3bffce4dd8378d106117f83f19eb1e5cdca754efab9",
+    "delta": "typed root TupleDecoded/ValueDecoded and explicit SourcePair tuple; 4 public statements identical; constructed unchecked"
+  },
+  "audit_state": "AUDIT_1_PASS_COMPLETE_TYPES_AXIOMS",
+  "audit1_plan": {
+    "path": "/tmp/yulang-effect-permission-source-instance-20261029-r11/audit-inputs-1.json",
+    "sha256": "abe94625fd74d5b07a045c02b9329bb86ad4c0d1936303ba499c359b33ee0733",
+    "copy_receipt_sha256": "d21b3f3bc37e93ab28b45735be84a7714e746dea6c3821031f5ccfae6dc9eb23",
+    "released_invocation": 1
+  },
+  "audit1": {
+    "receipt_path": "/tmp/yulang-effect-permission-source-instance-20261029-r11/attempt-1/audit-receipt.json",
+    "receipt_sha256": "b5172be0f8e4eaad04aafa395ff2e04b35df98bb5be36d556e96e6569af54f5d",
+    "plan_sha256": "abe94625fd74d5b07a045c02b9329bb86ad4c0d1936303ba499c359b33ee0733",
+    "exit_status": 0,
+    "wall_seconds": 14.78,
+    "max_rss_kib": 965952,
+    "roots": 4,
+    "theorem_types": 4,
+    "axiom_audits": 4,
+    "stdout_sha256": "9b7e215d071f30063712fa6cb09457e5ae45659d891fe91b17468f88c9bf17c7",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "resource_sha256": "8cd68f4e1651c4d39c2c0a015f7d63af2b21f3abe6a17fbe5ca5e0f6b4ce0137"
+  },
+  "review": {
+    "path": "tasks/agent-loop/inbox/effect-permission-source-instance-r11-review.md",
+    "sha256": "379cc6eab5dd55917cbd4232072f835854d4a0ed759d878d02aebfaeb2dd57c1",
+    "verdict": "PASS_CONDITIONAL_SOURCE_SUPPLIER",
+    "findings": {
+      "blocking": 0,
+      "major": 0,
+      "minor": 0
+    },
+    "reviewer_writes": "NONE",
+    "primary_materialized_return": true
+  }
+}

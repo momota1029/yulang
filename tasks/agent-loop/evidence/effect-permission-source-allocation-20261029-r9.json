@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "revision": 5,
+  "sprint": "EFFECT-PERMISSION-SOURCE-ALLOCATION/20261029-r9",
+  "stage": "CLOSED_COMPLETE_CONDITIONAL_REVIEWED",
+  "selector": "/root/r21_closeout_selector: admit direct same-transcription construction using the R8 method adjustment; 600s Lean, 50s source, 200s review, 150s primary; total 1000s, zero Astra.",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-allocation-20261029-r9.md",
+    "sha256": "edbdb9062b7cd78066a29ef917e2d46ae93f5bef8873fb3e285e53ef8565550c"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-allocation-20261029-r9-inputs.json",
+    "sha256": "878348a8d51362170895f1032cac42f213251c7e209971e517c0e083f02a6c17",
+    "entries": 104,
+    "mismatches": 0
+  },
+  "prior_sprints": {
+    "r7_outcome_sha256": "e573a8359cd439bf17c358b2b5249b729f0fe6e3c98bdf42aba341eedc4b926e",
+    "r8_diagnosis_sha256": "2f6d22c337b804b8e30c49ce2dfc11501397c245d34dc5495e0435abd0b9dd2a"
+  },
+  "scope": "Same 13 conditional theorem declarations; no native/source or production promotion.",
+  "lanes": {
+    "lean": {
+      "role": "registered lean_prover",
+      "budget_seconds": 600,
+      "state": "STOPPED_FROZEN",
+      "artifact": "notes/theory/lean/YulangClosure/FormalPermissionSourceAllocation.lean",
+      "artifact_baseline_sha256": "5f11254fe698905a4d1a24ccb9cfe799058a55a27c9bc01dd66033548d49e6b4",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-source-allocation-r9-proof.md",
+      "audit_limit": {
+        "max_invocations": 2,
+        "per_attempt_timeout_seconds": 90,
+        "combined_wall_seconds": 120,
+        "released": 0
+      },
+      "artifact_sha256": "795e63e850f73d75f18f721224d3e0723c187a57c7437ffe3ef08a4dbd80648a",
+      "artifact_bytes": 19391,
+      "handoff_sha256": "abad2cde5603cb1e6270abb61d949b7aea9c94c51534a21ec8ad9c4ef7360ed0",
+      "handoff_bytes": 8727,
+      "copy_receipt_attempt1_sha256": "d2e1ad698171148f671218985c82fe61f58db73693124e2d068117a16606d625",
+      "audit1_plan": "/tmp/yulang-effect-permission-source-allocation-20261029-r9/audit-inputs-1.json",
+      "audit1_plan_sha256": "f58eaff94a5b4a5d3c8c5010cc238980e0588077331aaa6a3823266a33a1e367",
+      "released_invocations": 1,
+      "remaining_invocations": 1,
+      "audit1_status": "PASSED_NO_SECOND_RELEASE",
+      "audit1": {
+        "exit": 0,
+        "wall_seconds": 14.04,
+        "max_rss_kib": 973804,
+        "theorem_types_printed": 13,
+        "axiom_audits_printed": 13,
+        "checker_pass_lines": 13,
+        "stdout_sha256": "b6ae3e8d5fabfa47a289c023859945121fb270b085e4c12b92241bf4c8672697",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "resources_sha256": "a57de41070fdd60d4e13d756be80da5e6826b95d0b7f7f9f42498766918791c7",
+        "raw_receipts": {
+          "stdout": "/tmp/yulang-effect-permission-source-allocation-20261029-r9/lean-receipts/attempt-1/stdout.txt",
+          "stderr": "/tmp/yulang-effect-permission-source-allocation-20261029-r9/lean-receipts/attempt-1/stderr.txt",
+          "status": "/tmp/yulang-effect-permission-source-allocation-20261029-r9/lean-receipts/attempt-1/status.txt",
+          "time": "/tmp/yulang-effect-permission-source-allocation-20261029-r9/lean-receipts/attempt-1/time.txt"
+        },
+        "copy_receipt_sha256": "d2e1ad698171148f671218985c82fe61f58db73693124e2d068117a16606d625",
+        "audit_plan": "/tmp/yulang-effect-permission-source-allocation-20261029-r9/audit-inputs-1.json",
+        "audit_plan_sha256": "f58eaff94a5b4a5d3c8c5010cc238980e0588077331aaa6a3823266a33a1e367"
+      }
+    },
+    "source": {
+      "owner": "primary Luna",
+      "budget_seconds": 50,
+      "state": "DONE_READ_ONLY",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-source-allocation-r9-source.md",
+      "handoff_sha256": "1e6a25d1c6d596a0d4de1924ac85895d0b9b0083a93fa817407365dcf3b1f559"
+    },
+    "review": {
+      "state": "DONE_READ_ONLY",
+      "role": "fresh nonauthor compiler_referee",
+      "budget_seconds": 200,
+      "verdict": "ACCEPT_CONDITIONAL_TRANSCRIPTION",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-source-allocation-r9-review.md",
+      "handoff_sha256": "3a2d323da06276df597e6c9ba9edf4592efc692817d31010ff37603fa6581034",
+      "manifest_entries_verified": 104,
+      "copy_files_verified": 14,
+      "theorem_statements_preserved": 13
+    },
+    "primary": {
+      "budget_seconds": 150
+    }
+  },
+  "theorem_roots": [
+    "YulangClosure.FormalPermissionSourceAllocation.fresh_success_ordinal",
+    "YulangClosure.FormalPermissionSourceAllocation.nonallocating_helpers_frame",
+    "YulangClosure.FormalPermissionSourceAllocation.AllocationTrace.append",
+    "YulangClosure.FormalPermissionSourceAllocation.fresh_step_equations",
+    "YulangClosure.FormalPermissionSourceAllocation.source_port_event",
+    "YulangClosure.FormalPermissionSourceAllocation.port_decoder",
+    "YulangClosure.FormalPermissionSourceAllocation.source_pair_decoder_correspondence",
+    "YulangClosure.FormalPermissionSourceAllocation.source_tuples_decoder",
+    "YulangClosure.FormalPermissionSourceAllocation.source_port_allocation",
+    "YulangClosure.FormalPermissionSourceAllocation.successful_pair_allocation_footprint",
+    "YulangClosure.FormalPermissionSourceAllocation.successful_tuples_allocation",
+    "YulangClosure.FormalPermissionSourceAllocation.successful_pair_permission_entries",
+    "YulangClosure.FormalPermissionSourceAllocation.r5_source_allocation_instance"
+  ],
+  "gates": {
+    "conditional_transcription": "OPEN",
+    "rust_execution_correspondence": "OPEN",
+    "exact_tree_SourcePair": "OPEN",
+    "permission_prefix": "OPEN",
+    "original_parent": "OPEN",
+    "effect_hygiene": "OPEN",
+    "consumer_residual": "OPEN",
+    "unequal_transport": "OPEN",
+    "soundness": "OPEN",
+    "principality": "OPEN",
+    "termination": "OPEN",
+    "production": "OPEN"
+  },
+  "plan_provenance_supplement": {
+    "path": "/tmp/yulang-effect-permission-source-allocation-20261029-r9/audit-inputs-1-provenance-supplement.json",
+    "sha256": "cbf1cc5a3d56e9aab0476ec04a292320c57119f99335bb076ec2805eca80111d",
+    "finding": "Frozen plan descriptive fields inherited R7 path/pins; corrected by append-only supplement; plan preserved."
+  },
+  "closeout": {
+    "status": "CLOSED_COMPLETE_CONDITIONAL",
+    "outcome": "tasks/agent-loop/history/effect-permission-source-allocation-20261029-r9-outcome.md",
+    "outcome_sha256": "f6343e8108c2759a5f1af9c3ec3a7af62a9ebca88da24d9fc79294bb5448d3ef",
+    "review_sha256": "3a2d323da06276df597e6c9ba9edf4592efc692817d31010ff37603fa6581034",
+    "parent_goal": "ACTIVE; all original/native/production gates OPEN"
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "revision": 9,
+  "sprint": "EFFECT-PERMISSION-SOURCE-ALLOCATION/20261029-r7",
+  "stage": "CLOSED_INCOMPLETE_REVIEWED",
+  "baseline_commit": "d33805eb589ac89925bacab57e362df093456fe0",
+  "selector": "/root/r21_closeout_selector: confirm R7 bounded repair, 300s Lean, 50s read-only source boundary, 150s independent review, 100s primary; total 600s; zero Astra.",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-allocation-20261029-r7.md",
+    "sha256": "eeeca49694bf07518c8277f1d791ca907cc56d5ccdbbc886eab4ed16368942f2"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-allocation-20261029-r7-inputs.json",
+    "sha256": "76c23bef7ffccd76740ad65cf06899bbcc0bbd9a63e995406240825af9c69983",
+    "entries": 91,
+    "mismatches": 0
+  },
+  "prior_sprint": {
+    "id": "EFFECT-PERMISSION-SOURCE-ALLOCATION/20261029-r6",
+    "status": "CLOSED_INCOMPLETE",
+    "outcome": "tasks/agent-loop/history/effect-permission-source-allocation-20261029-r6-outcome.md",
+    "outcome_sha256": "777204d21fb37a9bd9e35dd160d45fbb7f9db78b3a64ba06a6c623cebd1e18f1",
+    "review_sha256": "8703a48e25f818e165eabee55d5cbe275658995fa658e163577d6916d2ba1b75",
+    "failed_artifact_sha256": "08a45daffede0bbc126d1f6da087c70a6c6abcd22be9ed9bdb7f8d1400c68b10",
+    "failed_audit_plan_sha256": "9009e3b12b187044c077bd27ebf95a85ef35cd8da82f55216cc55cbf3f7d3aa0"
+  },
+  "scope": {
+    "cut": "successful return from candidate_formal_value_pair",
+    "fragment": "Int/Unit atoms, ordered nonempty Tuple guard, Function recursion with composed variance, omitted and negative nonempty concrete ports without variables",
+    "fixed_outcome": "repair same conditional Lean transcription; complete type/axiom audit of all 13 theorem declarations",
+    "no_native_claim": "No SourcePair exact-tree instance, concrete Rust helper frames, full permission prefix, or native State 21 established."
+  },
+  "lanes": {
+    "lean": {
+      "role": "registered lean_prover",
+      "budget_seconds": 300,
+      "state": "FROZEN_REVISION2",
+      "artifact": "notes/theory/lean/YulangClosure/FormalPermissionSourceAllocation.lean",
+      "baseline_sha256": "08a45daffede0bbc126d1f6da087c70a6c6abcd22be9ed9bdb7f8d1400c68b10",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-source-allocation-r7-proof.md",
+      "audit_limit": {
+        "max_invocations": 2,
+        "per_attempt_timeout_seconds": 90,
+        "combined_wall_seconds": 120,
+        "released": 2
+      },
+      "dispatch_receipt": "Live collaboration roster queried; R7 lean_prover running on exact two-path lease.",
+      "artifact_sha256": "5f11254fe698905a4d1a24ccb9cfe799058a55a27c9bc01dd66033548d49e6b4",
+      "artifact_bytes": 17822,
+      "handoff_sha256": "4fe401821801e658f00a51a4e0b0c21ac5f58b1dcc294faf3708710c2f261215",
+      "copy_receipt_attempt1_sha256": "26c7a9ad765b58c4098b8fad4b0e6adb3dabdbcae881b52a471cc2b0358711bb",
+      "audit1_plan": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/audit-inputs-1.json",
+      "audit1_plan_sha256": "9ff359adf1cd9fc1d9fae8c8315f02e414f674bae0c2d013ef6d5e6c7547e599",
+      "released_invocations": 2,
+      "audit1_status": "FAILED_BUILD",
+      "audit1": {
+        "exit": 1,
+        "wall_seconds": 12.22,
+        "max_rss_kib": 788160,
+        "theorem_types_printed": 0,
+        "axiom_audits_printed": 0,
+        "stdout_sha256": "ef27fd4840a97fa397e7a5f60f010338c6da2a6a099a855066e756ae300374ba",
+        "stderr_sha256": "0edf2d238840b65a26de68075c964d099167cf4cae51705f162bcfa4e7addc60",
+        "status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "resources_sha256": "fb732fcbba7024087de9e98ff4938e0272ede130f48e11f6fb7fc9899575a64b",
+        "diagnostics": [
+          "line 250: simp made no progress",
+          "line 238: structural recursion failed for mutually recursive source_pair_decoder_correspondence/source_tuples_decoder",
+          "line 283: structural recursion failed for successful_pair_allocation_footprint/successful_tuples_allocation"
+        ]
+      },
+      "remaining_invocations": 0,
+      "handoff_bytes": 12775,
+      "copy_receipt_attempt2_sha256": "a105bbac7cbde2b8187fec684da3b82f861b37347adfd22c22ba59c89b157cb3",
+      "audit2_plan": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/audit-inputs-2.json",
+      "audit2_plan_sha256": "0a72e7bc44c45248d04e5e20f397a449ab374e4f9c2dd81ffb07ff29b8b48d4f",
+      "audit2_status": "FAILED_BUILD",
+      "audit2": {
+        "exit": 1,
+        "wall_seconds": 21.72,
+        "max_rss_kib": 798444,
+        "theorem_types_printed": 0,
+        "axiom_audits_printed": 0,
+        "stdout_sha256": "bbac3d71f0061f02f6d7b2090ec65140127a77a3572daf336f07776bbf512de5",
+        "stderr_sha256": "0edf2d238840b65a26de68075c964d099167cf4cae51705f162bcfa4e7addc60",
+        "status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "resources_sha256": "b89c6f708ac016a3c6b95d11557cde8c21ae7cdc0308472ce7a3797432bb785f",
+        "diagnostics": [
+          "line 249:12 rewrite motive is not type correct",
+          "line 255:48 omega could not prove goal",
+          "line 264:48 omega could not prove goal",
+          "line 239:10 kernel application type mismatch",
+          "line 299:48 omega could not prove goal",
+          "line 309:48 omega could not prove goal"
+        ],
+        "raw_receipts": {
+          "stdout": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/lean-receipts/attempt-2/stdout.txt",
+          "stderr": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/lean-receipts/attempt-2/stderr.txt",
+          "status": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/lean-receipts/attempt-2/status.txt",
+          "time": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/lean-receipts/attempt-2/time.txt"
+        }
+      },
+      "audit2_plan_successor_supplement": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/audit-inputs-2-provenance-supplement.json",
+      "audit2_plan_successor_supplement_sha256": "fc7a09913ea40a463d02e6892bac2897f36589c90aaf48b0e0443cf8ad9a9e3a",
+      "provenance_review_finding": "Frozen audit2 plan retained revision1 successor transition; top-level artifact/project inventory and copy receipt pin revision2. Supplemental receipt authenticates corrected revision2 transition; plan was not altered."
+    },
+    "source": {
+      "owner": "primary Luna",
+      "state": "DONE_READ_ONLY",
+      "budget_seconds": 50,
+      "handoff": "tasks/agent-loop/inbox/effect-permission-source-allocation-r7-source.md",
+      "handoff_sha256": "c37ca301fd0d5b01287983192ab1c71425f1a1b828ed15017bd6350269bb27f8"
+    },
+    "review": {
+      "state": "DONE_READ_ONLY",
+      "role": "fresh nonauthor compiler_referee",
+      "budget_seconds": 150,
+      "verdict": "CLOSE_INCOMPLETE",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-source-allocation-r7-review.md",
+      "handoff_sha256": "484353e753a790e9584514ba30412017ff043f751f88c3c7427bfa461d195702"
+    },
+    "primary_budget_seconds": 100
+  },
+  "theorem_roots": [
+    "YulangClosure.FormalPermissionSourceAllocation.fresh_success_ordinal",
+    "YulangClosure.FormalPermissionSourceAllocation.nonallocating_helpers_frame",
+    "YulangClosure.FormalPermissionSourceAllocation.AllocationTrace.append",
+    "YulangClosure.FormalPermissionSourceAllocation.fresh_step_equations",
+    "YulangClosure.FormalPermissionSourceAllocation.source_port_event",
+    "YulangClosure.FormalPermissionSourceAllocation.port_decoder",
+    "YulangClosure.FormalPermissionSourceAllocation.source_pair_decoder_correspondence",
+    "YulangClosure.FormalPermissionSourceAllocation.source_tuples_decoder",
+    "YulangClosure.FormalPermissionSourceAllocation.source_port_allocation",
+    "YulangClosure.FormalPermissionSourceAllocation.successful_pair_allocation_footprint",
+    "YulangClosure.FormalPermissionSourceAllocation.successful_tuples_allocation",
+    "YulangClosure.FormalPermissionSourceAllocation.successful_pair_permission_entries",
+    "YulangClosure.FormalPermissionSourceAllocation.r5_source_allocation_instance"
+  ],
+  "gates": {
+    "conditional_transcription": "OPEN_UNCHECKED",
+    "rust_execution_correspondence": "OPEN",
+    "exact_tree_SourcePair": "OPEN",
+    "permission_prefix": "OPEN",
+    "original_parent": "OPEN",
+    "effect_hygiene": "OPEN",
+    "consumer_residual": "OPEN",
+    "unequal_transport": "OPEN",
+    "soundness": "OPEN",
+    "principality": "OPEN",
+    "termination": "OPEN",
+    "production": "OPEN"
+  },
+  "scratch": {
+    "root": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/",
+    "policy": "fresh isolated project per released attempt; do not copy .lake or share cache; primary owns generated outputs and receipts"
+  },
+  "closeout": {
+    "status": "CLOSED_INCOMPLETE",
+    "outcome": "tasks/agent-loop/history/effect-permission-source-allocation-20261029-r7-outcome.md",
+    "outcome_sha256": "e573a8359cd439bf17c358b2b5249b729f0fe6e3c98bdf42aba341eedc4b926e",
+    "review": "tasks/agent-loop/inbox/effect-permission-source-allocation-r7-review.md",
+    "review_sha256": "484353e753a790e9584514ba30412017ff043f751f88c3c7427bfa461d195702",
+    "selector": "/root/r21_closeout_selector: close INCOMPLETE; do not auto-admit equivalent repair; use adjudicated first remaining diagnostic to shape next packet."
+  }
+}

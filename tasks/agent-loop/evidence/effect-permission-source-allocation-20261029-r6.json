@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "revision": 8,
+  "sprint": "EFFECT-PERMISSION-SOURCE-ALLOCATION/20261029-r6",
+  "stage": "CLOSED_INCOMPLETE",
+  "baseline_commit": "d33805eb589ac89925bacab57e362df093456fe0",
+  "selector": "/root/r21_closeout_selector: R6 source-allocation transcription plus checked Lean proof; no tests/Cargo/instrumentation; 1200s total; zero Astra.",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-allocation-20261029-r6.md",
+    "sha256": "812beaeb74094d99019450616deee57de2656cdf531a2b039400134d96bde58a"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-source-allocation-20261029-r6-inputs.json",
+    "sha256": "2c46fa74983fe5324750a9ab85301b0c4a70ae72188362d734d7657de2842c69",
+    "entries": 75
+  },
+  "prior_sprint": {
+    "id": "EFFECT-PERMISSION-NATIVE-DECODE/20261029-r5",
+    "status": "CLOSED_COMPLETE",
+    "outcome": "tasks/agent-loop/history/effect-permission-native-decode-20261029-r5-outcome.md",
+    "artifact_sha256": "ea97baf7c98becef27df9e0c416d8d5fb00e9e1b5b63f37021b01598231936dc"
+  },
+  "scope": {
+    "cut": "candidate_formal_value_pair successful return",
+    "fragment": "Int/Unit atoms, actual nonempty ordered Tuple guard, Function recursion with composed variance, omitted and negative nonempty concrete ports without variables",
+    "source_lane_no_commands": "read-only; no Cargo, tests, instrumentation, or source writes",
+    "native_observation": "NOT ESTABLISHED; transcription/helper correspondence remains OPEN"
+  },
+  "lean_lane": {
+    "state": "STOPPED_UNCHECKED",
+    "role": "registered lean_prover",
+    "budget_seconds": 600,
+    "artifact": "notes/theory/lean/YulangClosure/FormalPermissionSourceAllocation.lean",
+    "handoff": "tasks/agent-loop/inbox/effect-permission-source-allocation-r6-proof.md",
+    "scratch": "/tmp/yulang-effect-permission-source-allocation-20261029-r6/lean-project/",
+    "receipt_root": "/tmp/yulang-effect-permission-source-allocation-20261029-r6/lean-receipts/",
+    "copy_receipt_sha256": "42ff47f29e1c11a56e6ab26c57f519c8dd3803fb3f3846bbd94f30d74863047e",
+    "audit_limit": {
+      "max_invocations": 2,
+      "per_attempt_timeout_seconds": 90,
+      "combined_wall_seconds": 120,
+      "released": 1
+    },
+    "required_roots": [
+      "fresh_success_ordinal",
+      "nonallocating_helpers_frame",
+      "successful_pair_allocation_footprint",
+      "successful_pair_permission_entries",
+      "source_pair_decoder_correspondence",
+      "r5_source_allocation_instance"
+    ],
+    "artifact_sha256": "08a45daffede0bbc126d1f6da087c70a6c6abcd22be9ed9bdb7f8d1400c68b10",
+    "handoff_sha256": "db10cc9ecbbf6ddb2c6471bee177a54e507f58e4311062f8bc4bd0b952f561ea",
+    "worker_stop_receipt": "Live roster queried; /root/effect_permission_source_allocation_r6_lean is completed. Final proof handoff frozen; no checker invocation.",
+    "audit_roots": [
+      "YulangClosure.FormalPermissionSourceAllocation.fresh_success_ordinal",
+      "YulangClosure.FormalPermissionSourceAllocation.nonallocating_helpers_frame",
+      "YulangClosure.FormalPermissionSourceAllocation.AllocationTrace.append",
+      "YulangClosure.FormalPermissionSourceAllocation.fresh_step_equations",
+      "YulangClosure.FormalPermissionSourceAllocation.source_port_event",
+      "YulangClosure.FormalPermissionSourceAllocation.port_decoder",
+      "YulangClosure.FormalPermissionSourceAllocation.source_pair_decoder_correspondence",
+      "YulangClosure.FormalPermissionSourceAllocation.source_tuples_decoder",
+      "YulangClosure.FormalPermissionSourceAllocation.source_port_allocation",
+      "YulangClosure.FormalPermissionSourceAllocation.successful_pair_allocation_footprint",
+      "YulangClosure.FormalPermissionSourceAllocation.successful_tuples_allocation",
+      "YulangClosure.FormalPermissionSourceAllocation.successful_pair_permission_entries",
+      "YulangClosure.FormalPermissionSourceAllocation.r5_source_allocation_instance"
+    ],
+    "audit_note": "Audits all 13 theorem declarations in the frozen module, including mutually recursive pair/tuple decoder and allocation roots. The proof remains conditional on SourcePair/helper-frame premises; type/axiom acceptance does not establish a Rust execution bridge.",
+    "audit_plan": "/tmp/yulang-effect-permission-source-allocation-20261029-r6/audit-inputs-1.json",
+    "audit_plan_sha256": "9009e3b12b187044c077bd27ebf95a85ef35cd8da82f55216cc55cbf3f7d3aa0",
+    "copy_receipt_recheck": {
+      "sha256": "42ff47f29e1c11a56e6ab26c57f519c8dd3803fb3f3846bbd94f30d74863047e",
+      "files": 14,
+      "mismatches": 0,
+      "manifest_transition": "one expected copy-receipt successor; see frozen audit plan"
+    },
+    "released_invocations": 1,
+    "audit_status": "ATTEMPT_1_FAILED_MODULE_BUILD",
+    "audit_failure": {
+      "first_error": "unexpected identifier; expected } at FormalPermissionSourceAllocation.lean:96:68",
+      "exit": 1,
+      "wall_seconds": 12.21,
+      "max_rss_kib": 798448,
+      "stdout_sha256": "047a92062f3bf6e71f4df8f661edc276af42913f2f46c35c27b1b5e6dbd71e5a",
+      "stderr_sha256": "0edf2d238840b65a26de68075c964d099167cf4cae51705f162bcfa4e7addc60",
+      "status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "resources_sha256": "cd6e6f67b96e753ecd67f9e5f733664d75cda5ec0d247b4b76e23a364affbc5b",
+      "plan_sha256": "9009e3b12b187044c077bd27ebf95a85ef35cd8da82f55216cc55cbf3f7d3aa0",
+      "theorem_types_printed": 0,
+      "axiom_audits_printed": 0,
+      "released_invocations": 1,
+      "remaining_contract_invocations": 1,
+      "all_diagnostics_note": "Subsequent diagnostics are listed in proof handoff revision 3; causal status is unclassified. Earlier rev5 handoff/evidence draft incorrectly named line 279 first; corrected after ordered raw stdout scan."
+    }
+  },
+  "source_lane": {
+    "state": "DONE_READ_ONLY",
+    "budget_seconds": 200,
+    "handoff": "tasks/agent-loop/inbox/effect-permission-source-allocation-r6-source.md",
+    "handoff_sha256": "f2a0b85bd67027f62c0e7ecd77793e88ecf0cd47e0e7f9c5cea05850f859efa9",
+    "finding": "selected successful cut ends at candidate_formal_value_pair return; the enclosing annotation path is excluded; helper execution correspondence remains open"
+  },
+  "review_lane": {
+    "state": "ACCEPTED_FAILURE_RECEIPT",
+    "budget_seconds": 250,
+    "fresh_nonauthor": true,
+    "commands": "no compiler, tests, or checker",
+    "role": "fresh compiler_referee",
+    "assignment": "Authenticate attempt-1 failure receipt and assess whether closeout preserves proof/native limitations; no compiler, Lean, checker, tests or writes.",
+    "reviewer": "/root/effect_permission_source_allocation_r6_review",
+    "review_sha256": "8703a48e25f818e165eabee55d5cbe275658995fa658e163577d6916d2ba1b75"
+  },
+  "gates": {
+    "source_transcription": "OPEN",
+    "native_execution_correspondence": "OPEN",
+    "original_parent": "OPEN",
+    "source_native": "OPEN",
+    "effect_hygiene": "OPEN",
+    "consumer_residual": "OPEN",
+    "unequal_transport": "OPEN",
+    "soundness": "OPEN",
+    "principality": "OPEN",
+    "termination": "OPEN",
+    "production": "OPEN"
+  },
+  "selector_disposition": {
+    "agent": "/root/r21_closeout_selector",
+    "recommendation": "close R6 INCOMPLETE after bounded failure-receipt review; propose R7 repair packet",
+    "reason": "Lean proof worker 600s allocation exhausted; no repair allocation remains; unused audit slot does not carry to R7"
+  },
+  "outcome": "tasks/agent-loop/history/effect-permission-source-allocation-20261029-r6-outcome.md",
+  "outcome_sha256": "777204d21fb37a9bd9e35dd160d45fbb7f9db78b3a64ba06a6c623cebd1e18f1",
+  "closeout": "R6 CLOSED_INCOMPLETE; failure receipts accepted, no proof acceptance; unused audit and other allowances expire."
+}
