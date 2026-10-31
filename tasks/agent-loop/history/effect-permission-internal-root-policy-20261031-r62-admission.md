@@ -22,3 +22,7 @@ The current scheduling snapshot retains all 32 pending items, every UNKNOWN obse
 Frozen exact dependency hashes are in the contract. Both dirty source dependencies (`candidate_effect.rs`, `candidate_scheme.rs`) are pinned read-only and are not leases. Any input drift stops the affected lane before writes and returns to Luna. Authors must acknowledge their exact outputs and hashes before freeze; reviewer receives only the frozen snapshot. Luna alone stages/commits/pushes the exact reviewed outbound range.
 
 Primary approval: admitted as an in-scope bounded research sprint, not as theorem-parent closure or production authorization. General Rust-to-Run, pointer/Nat, arbitrary resource/failure correspondence, original A/B and production remain OPEN.
+
+## Hash-only revision 2 correction
+
+After admission and before Lean writes, the prover identified that R39/R48/R49/R55/R57 were named in the imported dependency cone but five exact hashes were omitted. The primary recursively enumerated and pinned the complete 11-module existing import closure in contract revision 2 (SHA-256 `22dadec356ec91d6d575f771aadb5f9f82104b528dd7992500775b48fe8662da`). This adds no semantic/premise/lease/budget change. Proof author confirmed no writes had occurred; Rust author reported only a write in its exact leased `candidate_context.rs` and confirmed the frozen inputs still match. Primary instructed both lanes to acknowledge revision 2 before proceeding with dependency-sensitive work.
