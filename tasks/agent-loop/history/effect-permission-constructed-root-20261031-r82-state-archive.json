@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "action": "compact_terminal_frozen_r82_leases_and_workers",
+  "sprint": "EFFECT-PERMISSION-CONSTRUCTED-ROOT/20261031-R82",
+  "authority": "Primary milestone closeout after both authors and independent reviewer STOPPED; only terminal R82 paths compacted. UNKNOWN observations and quarantined paths preserved.",
+  "outcome": "tasks/agent-loop/history/effect-permission-constructed-root-20261031-r82-outcome.md",
+  "outcome_sha256": "479a56ba32f3ac60170e763c4567fafefb67808e32c11239f4fb489f0c1083a7",
+  "review": "tasks/agent-loop/inbox/effect-permission-constructed-root-r82-review.md",
+  "review_sha256": "edb3004afed9a41dad9250f2226129e2d87e8f2d4d48c473094c4ec294945ad6",
+  "removed_leases": [
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-constructed-root-20261031-r82.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "1b88775ff04ea1e22991d7e89b39463325fd8d8de190a9f5217c667417eede1f"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-constructed-root-20261031-r82-inputs-r1.json",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "79d65e60ea81318b0a6ba21383651c0d1912b7396abdbba32fcdf0361b41f1e0"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-constructed-root-20261031-r82-state-compaction.json",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "a59f90dd099daf92f54ffc90d6b3cdb8da587bc30d76047e33f957ab2a973230"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-constructed-root-20261031-r82-admission.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "54ee74b81c0541c896b4d0c3713495304edc8d0ab1a91668ce6e93afafe03a43"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-constructed-root-r82-rust.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "c104762db9a3f01cd56acdca189b7b9306398891daa9bf398e083766b220fa52"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ConstructedPhysicalRootR82.lean",
+      "owner": "/root/r82_proof",
+      "state": "FROZEN",
+      "sha256": "9c1bd4d8f6c22f7bd79acd661c76255c3ba86d52ba9afd3b15fb4e8761c3fdc4"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-constructed-root-r82-proof.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "2516c8f7bc23c133d4a3cbf8d9e804fb9cfacbb6c407d45a43efef4c00611623"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-constructed-root-r82-review.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "edb3004afed9a41dad9250f2226129e2d87e8f2d4d48c473094c4ec294945ad6"
+    }
+  ],
+  "removed_workers": [
+    {
+      "id": "/root/r82_rust",
+      "role": "implementer",
+      "state": "STOPPED",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "EFFECT-PERMISSION-CONSTRUCTED-ROOT/20261031-R82",
+      "receipt": "R2 frozen by primary; completion-table side check removed; independent review pending."
+    },
+    {
+      "id": "/root/r82_proof",
+      "role": "lean_prover",
+      "state": "STOPPED",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "EFFECT-PERMISSION-CONSTRUCTED-ROOT/20261031-R82",
+      "receipt": "STOPPED; both audits failed; R82 theorem gate open."
+    },
+    {
+      "id": "/root/r82_review",
+      "role": "independent read-only review",
+      "state": "STOPPED",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "EFFECT-PERMISSION-CONSTRUCTED-ROOT/20261031-R82",
+      "receipt": "Final audit review STOPPED; both inputs match; no R82 theorem accepted."
+    }
+  ],
+  "preserved": {
+    "pending": 32,
+    "quarantined_leases": 12,
+    "unknown_workers": 14
+  },
+  "previous_sprint_before_closeout": {
+    "id": "EFFECT-PERMISSION-INCIDENCE-REPAIR/20261031-R81",
+    "status": "CLOSED_BOUNDED_PASS",
+    "outcome": "tasks/agent-loop/history/effect-permission-incidence-repair-20261031-r81-outcome.md",
+    "outcome_sha256": "6b689d3adf16ea354f4a32493e0bfe85332e7125dcdf3243cd6d4ec1f2d08025",
+    "review": "tasks/agent-loop/inbox/effect-permission-incidence-repair-r81-review.md",
+    "review_sha256": "60f732b4421dd9faddb272dd63cd7fe77ecafeed0bc52b44a8e74fdc19c70762",
+    "state_archive": "tasks/agent-loop/history/effect-permission-incidence-repair-20261031-r81-state-archive.json",
+    "state_archive_sha256": "29b3d390d01799a6b7a9657422a52c8dc01e3413f92aa471733b00fa34957c32"
+  }
+}
