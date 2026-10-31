@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "sprint": "EFFECT-PERMISSION-INTEGRATION-CANDIDATE/20261102-R127",
+  "baseline": {
+    "branch": "yulang3",
+    "commit": "b5f4df2509ad9c8dba311a6139354bc3f7d33404"
+  },
+  "sources": [
+    {
+      "path": "crates/yu-solver/src/lib.rs",
+      "commit": "d177c46ec61fcadd70a3d587c2f8934f6bc91f46",
+      "sha256": "c43fcc4f39e4ba8bfea10aa39879c37973100d9f4b8bdef71fa5b3dc3fae01df"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "commit": "d177c46ec61fcadd70a3d587c2f8934f6bc91f46",
+      "sha256": "6004fd4252d15d8c99ac0e9f97582347a0de94946f497c0e29520d872e77dae2"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_effect.rs",
+      "commit": "d177c46ec61fcadd70a3d587c2f8934f6bc91f46",
+      "sha256": "1c80c55c62b724b9d2080bd2ddcdabfa35a5ba641c1bf45d9735dfd7fd05be41"
+    }
+  ],
+  "prior_evidence": [
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-baseline-compile-repair-20261101-r111.md",
+      "sha256": "d1461c3204bacf59783d918e2c6ebc6ec1776693ecf814ed5d31dda938597976"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-baseline-compile-repair-r111.md",
+      "sha256": "54a79a1b4f49d75b78bd3c3e96ff2c317941c57e24dfbad6e2c441309f131d9d"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-baseline-compile-repair-20261101-r111-outcome.md",
+      "sha256": "a0ed59f783f4b1b06504a66aa3c6e7bf55039a8038352860434de760d75e26a0"
+    },
+    {
+      "path": "tasks/agent-loop/artifacts/effect-permission-native-decoder-r117.patch",
+      "sha256": "c3858b35433433806e7f8a01f27c12ab5491a8116e6e88c2b1e32a6ccf5beab1"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-native-decoder-r117-rust.md",
+      "sha256": "6557b368fb1f092d5c4151cb54d74c7dd61c92153105e8720b17189c1efd128e"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-native-decoder-r117-review2.md",
+      "sha256": "a47cfe5a54cc2d22b3fcd2834bed3f3c959ba85cfcb28cf38ed095db06488664"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-member-witness-20261102-r119.md",
+      "sha256": "c499fe513f2c6915049775affe5b159ae0ecdc971b172962b85dc3aaa95fc40a"
+    },
+    {
+      "path": "tasks/agent-loop/artifacts/effect-permission-member-witness-r119.patch",
+      "sha256": "5bc02af31d3c80ecae3848760b8723195dd568a7bf924cfc8b3b614b1227a18a"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-member-witness-r119-rust.md",
+      "sha256": "731cc66eacc5f271bdf1d70054b8430ac0641ac55ac07281123f9fe5645e8e98"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-member-witness-r119-review.md",
+      "sha256": "e4b9a3bf3d6b28ef2d1b5d77bbbc6345826f1a96d868efe10994dfac83fb230b"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-member-witness-20261102-r119-outcome.md",
+      "sha256": "0b95c325dd91c2d6ee3b793abcf93cadeae0fb0012ded1fef81160589526fb53"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-member-trace-20261102-r120.md",
+      "sha256": "85246d529c175e7a2c765d575d500948d34e05d44647aa8309cdebe49484c2dc"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-member-trace-r120-source.md",
+      "sha256": "0c503338c144eab1feb2fce128227a7409f312b947876cd504f5b1af9fd1050e"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-member-trace-r120-proof.md",
+      "sha256": "2ce7eaba1483c4f9d5c190977421717125aa55b37c5764ee75b7b834d2da9415"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-member-trace-r120-review.md",
+      "sha256": "ab6b4daa848196610986f62eebb7b5bbc3a32ba8bbdee0973954785b51ccc50b"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-member-trace-20261102-r120-outcome.md",
+      "sha256": "eb8b27bbd79098a9de5b946db617efbc722bb8cd66c5cc75fe99ef39e895fe97"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-symbolic-publication-20261102-r126-outcome.md",
+      "sha256": "6d278bdbcf864d87a99f0b2f502754ea045f3ba4e2c197197166bd732499f1a9"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-symbolic-publication-r126-source.md",
+      "sha256": "a6bd6db65a2d3a2c92a8adad0d501e176b9a35bd646deb4e241c31faf66f7e27"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-symbolic-publication-r126-proof.md",
+      "sha256": "36f18bb7b09e73451dce28497a83d8bb3b5ec5a951fcb4fec6a08e14b7fdca18"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-native-decoder-20261102-r117-outcome.md",
+      "sha256": "95e6206a28f909a4cfffc303248ccf99602140b1ebc3ad0661eba772c2242a46"
+    }
+  ],
+  "limits": {
+    "source_seconds": 300,
+    "proof_seconds": 300,
+    "review_seconds": 180,
+    "primary_seconds": 240,
+    "total_seconds": 1020,
+    "astra_seconds": 0,
+    "source_edits": false,
+    "builds_tests_lean_checker": false,
+    "filesystem_patch_application": false,
+    "scratch_cache_copy_worktree": false,
+    "storage_probes": false,
+    "dirty_or_quarantined_source_reads": false
+  }
+}
