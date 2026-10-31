@@ -405,5 +405,14 @@
     "authorization": "separate primary authorization required",
     "reviewed_by": "/root/r83_review",
     "review_verdict": "PASS; exact 103470-byte input reconstructed and hash matched."
+  },
+  "slot4_authorization": {
+    "path": "tasks/agent-loop/history/effect-permission-root-elaboration-20261031-r84-slot4-authorization.md",
+    "sha256": "c7241e62feb68ecf7d49354f1503450c392963a43d961dea64b0e4cff024052f",
+    "authorized_invocation": 4,
+    "exact_input_bytes": 103470,
+    "exact_input_sha256": "93b365ddf908e223558d166efe7f76a1f5c370a5b1c9080716d0fb0ce92b3df0",
+    "review_receipt_sha256": "923f32c698d92d5e06d50258d73a5a3a2150884b1c86815bf129988e5e900214",
+    "status": "COMMITTED_BEFORE_EXECUTION"
   }
 }
