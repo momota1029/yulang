@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "sprint": "NATIVE-ROOT-PREMISES/20261031-R85",
+  "baseline_commit": "c4e594fc64d72dba30a73c64fcbf258eaebdfc32",
+  "parent_gate": "original Simple-sub A/B soundness at R66 Root",
+  "contract": "tasks/agent-loop/sprints/native-root-premises-20261031-r85.md",
+  "contract_sha256": "d12c5cf57d89b043677cb43f4122898ab17f5cb843c9e9dd648d3731a4ab3420",
+  "inputs": [
+    {
+      "path": "crates/yu-solver/src/candidate_context.rs",
+      "bytes": 265778,
+      "sha256": "a6e8bde3a187369ddf847a31f2ae6eb443434a34d819e44a7fc72c9788809905",
+      "ranges": [
+        [
+          90,
+          125
+        ],
+        [
+          295,
+          325
+        ],
+        [
+          400,
+          420
+        ],
+        [
+          3172,
+          3225
+        ],
+        [
+          3481,
+          3520
+        ]
+      ]
+    },
+    {
+      "path": "crates/yu-solver/src/lib.rs",
+      "bytes": 1660759,
+      "sha256": "c43fcc4f39e4ba8bfea10aa39879c37973100d9f4b8bdef71fa5b3dc3fae01df",
+      "ranges": [
+        [
+          14272,
+          14325
+        ],
+        [
+          14960,
+          15025
+        ]
+      ]
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "bytes": 292001,
+      "sha256": "6004fd4252d15d8c99ac0e9f97582347a0de94946f497c0e29520d872e77dae2",
+      "ranges": [
+        [
+          1870,
+          1945
+        ],
+        [
+          3980,
+          4020
+        ],
+        [
+          5135,
+          5165
+        ]
+      ]
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ProviderNativeContextR57.lean",
+      "bytes": 55971,
+      "sha256": "804b3431c2e585370b8adc28f59b36c26a36e1524f42278a860823c9bd7eaa63",
+      "ranges": [
+        [
+          180,
+          220
+        ]
+      ]
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+      "bytes": 24268,
+      "sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+      "ranges": [
+        [
+          1,
+          220
+        ]
+      ]
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedConsumerR66.lean",
+      "bytes": 39823,
+      "sha256": "5db5ad3f3f5e5803e2bc564fc8922d5eb8a72182c7ba11de3904eebd7b5950e1",
+      "ranges": [
+        [
+          1,
+          260
+        ]
+      ]
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ConstructedPhysicalRootR84.lean",
+      "bytes": 22427,
+      "sha256": "5d8ad6429906cdf971dbb9ee44841223c1fcc28e6591e1a75d1f453ea4eac13d",
+      "ranges": [
+        [
+          45,
+          235
+        ]
+      ]
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-root-elaboration-20261031-r84-inputs.json",
+      "bytes": 19337,
+      "sha256": "fa70cfc3362a4b201545301b6673aafe6a75a61de2e97d26019f844c445904f0",
+      "ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-root-elaboration-20261031-r84-outcome.md",
+      "bytes": 2940,
+      "sha256": "f93bc59e955b1b682676233b1953e7f10c3ba8c8643a9333cce22d9727b75f8e",
+      "ranges": [
+        [
+          1,
+          38
+        ]
+      ]
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-root-elaboration-r84-review.md",
+      "bytes": 9977,
+      "sha256": "c686ce5e4d18ed3ad75810e79462db5df93745b450e093f5fbcbd0fec8d9a047",
+      "ranges": [
+        [
+          1,
+          100
+        ]
+      ]
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-root-elaboration-20261031-r84-slot4-raw-result.json",
+      "bytes": 54593,
+      "sha256": "e6dd42b23bc89faffb28dd52057487f0c460967085331bf8675ef08e93b3ccaa",
+      "ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    }
+  ],
+  "goal": "prove or source-falsify that the native checked-emission/source-drain construction establishes the exact R84/R57 origin-selection premises on the same retained records",
+  "accepted_R84": {
+    "candidate_sha256": "5d8ad6429906cdf971dbb9ee44841223c1fcc28e6591e1a75d1f453ea4eac13d",
+    "slot4_stdin_sha256": "93b365ddf908e223558d166efe7f76a1f5c370a5b1c9080716d0fb0ce92b3df0",
+    "slot4_stdout_sha256": "cdef7a87ed88369f0b4cddb5c308430b4d44884d0f9f65fc8acf3faa3d71dcab",
+    "R84_outcome_sha256": "f93bc59e955b1b682676233b1953e7f10c3ba8c8643a9333cce22d9727b75f8e"
+  },
+  "source_lane": {
+    "role": "researcher read-only",
+    "output": "tasks/agent-loop/inbox/effect-permission-native-root-premises-r85-source.md",
+    "reads": [
+      "crates/yu-solver/src/candidate_context.rs",
+      "crates/yu-solver/src/lib.rs",
+      "crates/yu-solver/src/candidate_receiver.rs"
+    ]
+  },
+  "proof_lane": {
+    "role": "lean_prover",
+    "outputs": [
+      "notes/theory/lean/YulangClosure/NativeRootPremisesR85.lean",
+      "tasks/agent-loop/inbox/effect-permission-native-root-premises-r85-proof.md"
+    ],
+    "parent_application": "derive exact R84 originCandidates/originRead premise from same native records or formalize a producer-reachable countermodel"
+  },
+  "review_path": "tasks/agent-loop/inbox/effect-permission-native-root-premises-r85-review.md",
+  "resources_seconds": {
+    "total": 4800,
+    "source": 1000,
+    "proof": 1800,
+    "review": 1000,
+    "primary": 1000,
+    "primary_closeout": 500,
+    "astra": 0
+  },
+  "lean_audit_cap": {
+    "calls": 2,
+    "each_seconds": 120,
+    "total_seconds": 240,
+    "memory": "-M1024",
+    "threads": "-j1",
+    "env": "LEAN_NUM_THREADS=1"
+  },
+  "non_goals": [
+    "Rust/source changes",
+    "builds/tests/Lake/Cargo/compiler",
+    "source restriction or semantics changes",
+    "production promotion",
+    "claiming original A/B or standalone module closure"
+  ]
+}
