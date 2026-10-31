@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "sprint_id": "EFFECT-PERMISSION-SOURCE-ALIGNMENT/20261031-R77",
+  "status": "CLOSED_BOUNDED_PASS",
+  "outcome": "tasks/agent-loop/history/effect-permission-source-alignment-20261031-r77-outcome.md",
+  "review": "tasks/agent-loop/inbox/effect-permission-source-alignment-r77-review.md",
+  "review_sha256": "913a4f7bef50e6c7a0513615cf9b01bd471f5bf2850bca35709eafeb30aabe8d",
+  "contract_sha256": "371b2df095300dfdf942c37530505b53d49fbb114edddb97721e7d54598f8c12",
+  "input_manifest_sha256": "0ba636d48ef608bec56ec51771c71d14fe4fc945605a75582f5da5f92152f22d",
+  "rust_sha256": "9113485e919f41581049a065bef5a533505fc46e71e5d3ae18a4ceec97cdaca7",
+  "rust_handoff_sha256": "e3f7944c322ac2c909c97d95f0df3e814dea670c2e9c7a9d718f3061fb0eab68",
+  "lean_module_sha256": "0aa1185675cc92ac97a20f4163bd2b2486f34cfb5ca725a3fcb3c1861efdf682",
+  "proof_handoff_sha256": "6496091585891785188d8dae10605fc9e965c9b81ba5c7b48863b5ec2beed3f9",
+  "audit1": {
+    "status": "FAILED_NO_ACCEPTED_THEOREMS",
+    "stdin_bytes": 48394,
+    "stdin_sha256": "5dc494e3c7a8092e039f13b58dbcd354089537fa3621d9d6b53aa7818f32284d",
+    "exit": 1,
+    "elapsed_seconds": 7.016,
+    "stdout_bytes": 40749,
+    "stdout_sha256": "50c7bd701b8527d0263dc01391dc851931aeb5305458fe579813d98063b9a65c",
+    "stderr_bytes": 0,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sorryAx": true
+  },
+  "audit2": {
+    "status": "PASS",
+    "stdin_bytes": 48816,
+    "stdin_sha256": "892da354ef83454c7639036e5910836cae704a9f93861eaa900c45fae34d1244",
+    "exit": 0,
+    "elapsed_seconds": 3.127,
+    "stdout_bytes": 35838,
+    "stdout_sha256": "815713955fb200025ff4c3b52fb0937ebc4ba278d643f8a0fee273eb3f429a69",
+    "stderr_bytes": 0,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "theorems": 21,
+    "sorryAx": false
+  },
+  "review_verdict": "ACCEPT_BOUNDED; 0 blocking, 0 major, 0 minor",
+  "workers": [
+    {
+      "id": "/root/r77_rust",
+      "role": "R77 Rust writer",
+      "state": "STOPPED",
+      "receipt": "STOPPED; Name/Apply aligned; receiver 9113485e; handoff e3f7944c; uncompiled."
+    },
+    {
+      "id": "/root/r77_proof",
+      "role": "R77 Lean writer",
+      "state": "STOPPED",
+      "receipt": "STOPPED; audit2 PASS exit0; stdin 892da354; stdout 81571395; no sorryAx; full receipt in proof handoff."
+    },
+    {
+      "id": "/root/r77_review",
+      "role": "R77 independent reviewer",
+      "state": "STOPPED",
+      "receipt": "STOPPED; bounded ACCEPT; report 913a4f7b; audit2 and source coordinates reconciled."
+    }
+  ],
+  "pending_count": 32,
+  "pending_ids": [
+    "R61-SOURCE-ASCRIPTION-FORMATION-1",
+    "R64-SRC-ANN-ARG-1",
+    "R65-CURRENT-OPERAND-1",
+    "R66-LAMBDA-RESULT-STAGE-1",
+    "R67-DIRECT-BODY-CHECK-1",
+    "R68-OWNER-CONSUMER-1",
+    "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+    "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+    "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+    "R72-LATER-OCCURRENCE-1",
+    "R149-SOURCE-OWNER-CLOSURE-1",
+    "R339-D2-WHOLE-FRAME-RETIREMENT",
+    "R340-D3-AUTHENTIC-APPLY-CONTINUATION",
+    "R345-N-REMAINDER",
+    "OP-SEMANTICS-FULL-EFFECT",
+    "DOT-SELECTION-EVIDENCE-BRIDGE",
+    "CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE",
+    "SOURCE-SAFETY-BRIDGE",
+    "CALL-CONTEXT-PLUG-PRESERVATION",
+    "BOUNDED-CALL-FINITE-PREFIX-SAFETY",
+    "CALL-STEP-ERASURE",
+    "CALL-RAW-SUCCESSOR-COVERAGE",
+    "FORCE-SOURCE-REALIZATION-20261025",
+    "RESPONSE-ENCODING-1",
+    "RESPONSE-INSTANCE-1",
+    "RESPONSE-TEMPLATE-1",
+    "GVG-FORMS-1",
+    "GVG-REC-RHS-1",
+    "HO-METADATA-ADEQUACY-1",
+    "HO-SHALLOW-HANDLER-1",
+    "HO-HANDLER-GRAPH-COMPOSITION-1",
+    "GRAPH-CONTINUATION-EXTENSION-1"
+  ],
+  "unknown_workers_preserved": [
+    {
+      "id": "/root/resident_dispatcher_loop_a",
+      "receipt": "UNKNOWN"
+    },
+    {
+      "id": "/root/resident_implementer_idle",
+      "receipt": "UNKNOWN"
+    },
+    {
+      "id": "/root/runtime_source_supplier_proof",
+      "receipt": "UNKNOWN"
+    },
+    {
+      "id": "/root/handler_graph_recursive_trace_review_astra_r2",
+      "receipt": "UNKNOWN"
+    },
+    {
+      "id": "/root/handler_recursive_trace_review2_astra_r2",
+      "receipt": "UNKNOWN"
+    },
+    {
+      "id": "foreign/01a17150-2005-7562-81fd-359b3e7a268c",
+      "receipt": "UNKNOWN"
+    },
+    {
+      "id": "foreign/01a17251-405f-7c81-8d75-ce784095f7c8",
+      "receipt": "UNKNOWN"
+    },
+    {
+      "id": "foreign/01a17251-2e11-78d0-8779-8219addb6b37",
+      "receipt": "UNKNOWN"
+    },
+    {
+      "id": "/root",
+      "receipt": "UNKNOWN"
+    },
+    {
+      "id": "/root/r63_view_coverage_review",
+      "receipt": "UNKNOWN"
+    },
+    {
+      "id": "UNKNOWN_WRITER",
+      "receipt": "Quarantine."
+    },
+    {
+      "id": "/root/effect_permission_module_environment_source",
+      "receipt": "UNKNOWN; quarantine."
+    },
+    {
+      "id": "/root/latent_demand_transport_classification_r17_source",
+      "receipt": "R36 roster absent; cessation unconfirmed."
+    },
+    {
+      "id": "/root/call_constructor_application_r21_review",
+      "receipt": "UNKNOWN; quarantine."
+    }
+  ],
+  "quarantined_paths_preserved": [
+    {
+      "path": "tasks/agent-loop/inbox/paper-observation-coverage-r63-review.md",
+      "owner": "/root/r63_view_coverage_review",
+      "sha256": null
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/machine.rs",
+      "owner": "UNKNOWN_WRITER",
+      "sha256": "fd7383cc1a96ae5601a3ccf563b19ef4f6381d798d3ce1c72b94929aa7c193f0"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/receiving.rs",
+      "owner": "UNKNOWN_WRITER",
+      "sha256": "3b79ad0bb1722f363c671f14eae104dceeb3face69b124a4393e2fab5bae50f4"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tools/inference-playground/src/runtime/machine.rs",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "sha256": null
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tools/inference-playground/src/runtime/receiving.rs",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "sha256": null
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tools/inference-playground/src/runtime/mod.rs",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "sha256": null
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tools/inference-playground/src/bin/name_receipt_seed.rs",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "sha256": null
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/notes/theory/lean/YulangClosure/OriginalNameReceiptSeedTrace.lean",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "sha256": null
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tasks/agent-loop/inbox/name-receipt-seed-20261028-r2-source.md",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "sha256": null
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/source",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "sha256": null
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-module-environment-source.md",
+      "owner": "/root/effect_permission_module_environment_source",
+      "sha256": "7e91e6cbee8a78f8d960a3b0ef87916fd0b229f54858173f959ed8b7b84b1805"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/latent-demand-transport-classification-r17-source.md",
+      "owner": "/root/latent_demand_transport_classification_r17_source",
+      "sha256": "ecd1c05c20f6888e6148109157d8bdc460999df3a9cf3767bc331f76841f2797"
+    }
+  ],
+  "commits": [
+    "9ed80a829",
+    "cd1d3acb3",
+    "f98279071",
+    "2f726aae5",
+    "68ba29d55",
+    "940c35ff3",
+    "cb90f47e4",
+    "e94cde484"
+  ]
+}
