@@ -68,7 +68,7 @@ theorem visit_agrees (s : Source S T) (target : Key S T) (component : Nat) (c : 
   | none => rfl
   | some f =>
     by_cases eligible : f.role = .computation ∧ f.owner = target
-    · simp only [eligible, ite_true]
+    · simp only [eligible]
       cases hr : unique (fun r => decide (r.formalRegistration = some c.registration)) s.recipes <;> rfl
     · simp [eligible, Except.toOption]
 
@@ -93,7 +93,10 @@ theorem walk_accounts_for_all (s : Source S T) (target : Key S T) (component : N
           simpa [walk, hv] using accepted
         obtain ⟨rows, read, equal⟩ := ih selected tail
         refine ⟨none :: rows, ?_, ?_⟩
-        · simp [List.mapM_cons, hv, read, Except.toOption]
+        · rw [List.mapM_cons, hv]
+          change (rest.mapM (fun c => (visit s target component c).toOption)).bind
+            (fun tail => some (none :: tail)) = some (none :: rows)
+          rw [read] <;> rfl
         · simpa using equal
       | some chosen =>
         cases selected with
@@ -102,7 +105,10 @@ theorem walk_accounts_for_all (s : Source S T) (target : Key S T) (component : N
             simpa [walk, hv] using accepted
           obtain ⟨rows, read, equal⟩ := ih [chosen] tail
           refine ⟨some chosen :: rows, ?_, ?_⟩
-          · simp [List.mapM_cons, hv, read, Except.toOption]
+          · rw [List.mapM_cons, hv]
+            change (rest.mapM (fun c => (visit s target component c).toOption)).bind
+              (fun tail => some (some chosen :: tail)) = some (some chosen :: rows)
+            rw [read] <;> rfl
           · simpa using equal
         | cons previous others => simp [walk, hv] at accepted
 
@@ -133,8 +139,12 @@ theorem ordered_selection_agrees (s : Source S T) (target : Key S T) (component 
                 some (if recipe.rootComponent = component then some c else none)
               else some none) = some rows := by
           simpa only [visit_agrees] using read
-        simp only [OccurrenceQualifiedConsumerR66.ownerSelection, nativeRead,
-          Option.bind_some, rowMatches]
+        unfold OccurrenceQualifiedConsumerR66.ownerSelection
+        rw [nativeRead]
+        change (match rows.filterMap id with
+          | [chosen] => some chosen
+          | _ => none) = some c
+        rw [rowMatches]
 
 /-- These equations expose the first native failure without evaluating rest. -/
 theorem malformed_recipe_first (s : Source S T) (target : Key S T) (component : Nat)
