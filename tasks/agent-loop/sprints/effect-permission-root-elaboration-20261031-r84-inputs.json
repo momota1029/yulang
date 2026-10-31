@@ -349,5 +349,20 @@
     "recipe": "normalized_prefix_body + prefix_queries",
     "reviewed": true,
     "authorization": "pending separate primary commit and push"
+  },
+  "slot1_execution": {
+    "result": "tasks/agent-loop/history/effect-permission-root-elaboration-20261031-r84-slot1-result.md",
+    "result_sha256": "4cb8d67812a751b0254b42f613573d6df8b4f605ca5923128437c23f7161722c",
+    "stdin_bytes": 93368,
+    "stdin_sha256": "e031132b1a5a42f22c5faba355a1af3d8639d0d577de9051e81f403bf465ebb3",
+    "exit": 0,
+    "timeout": false,
+    "elapsed_seconds": 9.034,
+    "stdout_bytes": 82453,
+    "stdout_sha256": "8d605c1e2ae9b534cf25607dc314512b617a08bf0ecf07463730590bd720e4a9",
+    "stderr_bytes": 0,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "peak_rss_kib": 862772,
+    "receipt_retention": "INCOMPLETE; complete stdout not retained; no theorem acceptance or slot-3 authorization"
   }
 }
