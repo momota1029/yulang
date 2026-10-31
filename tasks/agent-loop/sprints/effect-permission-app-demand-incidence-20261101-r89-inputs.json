@@ -1,0 +1,175 @@
+{
+  "sprint": "EFFECT-PERMISSION-APP-DEMAND-INCIDENCE/20261101-R89",
+  "revision": 1,
+  "baseline_commit": "e56d1b618c2025859f5ab912d7ba3168634aaaed",
+  "baseline_branch": "yulang3",
+  "baseline_remote": "origin/yulang3",
+  "authority": "continuing user goal; R88 reviewed bounded source-incidence obstruction; immutable source laws",
+  "inputs": [
+    {
+      "path": "AGENTS.md",
+      "bytes": 11939,
+      "sha256": "4a6c910e12adb8f5ccc07b0921f2cc781ea7044994f99425d3c54c4e75837d3c"
+    },
+    {
+      "path": "AGENTS.pre-sprint.md",
+      "bytes": 24393,
+      "sha256": "99ae7bbda0a8907a48f762420d996e145e9870ad9794ea0dc608770131182882"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_call.rs",
+      "bytes": 32230,
+      "sha256": "fdc39e01fa3665b4dc14e167973de63b275eb0280b831e340b6cdcee5ed0fc3f"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_context.rs",
+      "bytes": 265778,
+      "sha256": "a6e8bde3a187369ddf847a31f2ae6eb443434a34d819e44a7fc72c9788809905"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "bytes": 292001,
+      "sha256": "6004fd4252d15d8c99ac0e9f97582347a0de94946f497c0e29520d872e77dae2"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_source.rs",
+      "bytes": 212009,
+      "sha256": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a"
+    },
+    {
+      "path": "crates/yu-solver/src/shadow_apply.rs",
+      "bytes": 276524,
+      "sha256": "c328e08662256b57ed9a31a4edd91e0832e9482cabb89952f204a89a78cf72ff"
+    },
+    {
+      "path": "notes/design/2026-10-08-source-generalize-definition.md",
+      "bytes": 9952,
+      "sha256": "46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38"
+    },
+    {
+      "path": "notes/design/2026-10-11-yulang-inference-top-level-principles.md",
+      "bytes": 7582,
+      "sha256": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81"
+    },
+    {
+      "path": "notes/design/2026-10-24-birth-level-scc-intrusion.md",
+      "bytes": 7812,
+      "sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae"
+    },
+    {
+      "path": "notes/theory/2026-10-08-source-generalize-definition-and-proof.md",
+      "bytes": 70420,
+      "sha256": "e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240"
+    },
+    {
+      "path": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md",
+      "bytes": 34671,
+      "sha256": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271"
+    },
+    {
+      "path": "notes/theory/lean/README.md",
+      "bytes": 53784,
+      "sha256": "8d27e0b90fc04eb8a0a30606a857e564e5269e8e33e72fddbf1190cb6a7072e3"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalExtrusionFibers.lean",
+      "bytes": 13380,
+      "sha256": "15bb4ebc67a22f4bd3af584e8377dec210963f7cbba43e6072c82b5f2d5a8800"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalExtrusionWork.lean",
+      "bytes": 54842,
+      "sha256": "c419675d75a2cdf03fe5b1ba8d2eef106fea0c4f5187f9f5c06999fa734edd58"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalPrincipality.lean",
+      "bytes": 15068,
+      "sha256": "c9d214cd086aa1fbdf8f471e7b52c8cccddaa971fc68a8bb0956c9539d098dc7"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalScopedClosure.lean",
+      "bytes": 31986,
+      "sha256": "b316a5e18a14b4c9750cc97f294aea824ce6b0a704fc67929fa4a016e94ebeab"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceGeneration.lean",
+      "bytes": 66485,
+      "sha256": "126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceInterpretation.lean",
+      "bytes": 56341,
+      "sha256": "feddd8155e6130279c202453e4562019fde5c0ad0f3a0a491dcbc0cb4ef572ef"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceSyntax.lean",
+      "bytes": 22040,
+      "sha256": "3184d156d661ace7da0345f5fa63f8a4396d9f52c745d265239c8d3db1e7d0d1"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceValueEntryAdmission.lean",
+      "bytes": 5907,
+      "sha256": "3dc218f9d6623192d7d85c6f5be14f0fddbe833b19ede467c75647a5833205dd"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourcePrincipalTransport.lean",
+      "bytes": 13152,
+      "sha256": "ab86c4448dcddcb5e20ef1495e317c4d0fc04ad0ff52c4323779d12f5fde33ee"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceScopedJointLiftR88.lean",
+      "bytes": 9755,
+      "sha256": "1421c7924fb93b957612b366942adefeaeca44a1b51daad9266d43016916facd"
+    },
+    {
+      "path": "notes/theory/lean/lake-manifest.json",
+      "bytes": 145,
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3"
+    },
+    {
+      "path": "notes/theory/lean/lakefile.toml",
+      "bytes": 311,
+      "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4"
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "rules/design-authority.md",
+      "bytes": 10512,
+      "sha256": "e4055100f6e75b9c8a6294ec6c68643d8677d7b35b45e430450f7e2c2ad97eb1"
+    },
+    {
+      "path": "rules/goal-driven-sprints.md",
+      "bytes": 20222,
+      "sha256": "f2e01e3c33dc13d6c5cb77a66e7c5f0de15f08669f5a47fef0d6cb5c914da3a5"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-drain-reader-correspondence-20261031-r87-outcome.md",
+      "bytes": 3554,
+      "sha256": "72e2fc795a8d7e10c104ad2fc902f884165d1355dccb37476da264267c582816"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-joint-lift-r88-proof.md",
+      "bytes": 14182,
+      "sha256": "f3018d03e04e4ac65e82e44329ee2a74d4e046a47f1e52726f3cc41cce6defe2"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-joint-lift-r88-review.md",
+      "bytes": 10768,
+      "sha256": "41dde35dcea564d100d06d941f0ae6779028f6f0b610847e648d49d2578379e1"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-joint-lift-r88-source.md",
+      "bytes": 20401,
+      "sha256": "c2fbe9cc375beefae6cbdd78cb085ad87789c888107ac8884122a25d37d6e382"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/source-scoped-joint-lift-20261031-r88.md",
+      "bytes": 9159,
+      "sha256": "e6adf9efbcea3d07aa3b419c52c5ec878d3852afa3231047cb1e7f2a0fa8304d"
+    }
+  ]
+}
