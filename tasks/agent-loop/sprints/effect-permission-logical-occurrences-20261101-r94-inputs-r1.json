@@ -1,0 +1,92 @@
+{
+  "sprint": "EFFECT-PERMISSION-LOGICAL-OCCURRENCES/20261101-R94",
+  "revision": 1,
+  "baseline_commit": "120db95f8f4ad9505ae245884f3c3ab7e8d18c71",
+  "baseline_branch": "yulang3",
+  "baseline_remote": "origin/yulang3",
+  "authority": "continuing explicit user goal for Yulang Rust/Lean soundness research; R93 left one exact-input verification gate pending because reviewer elapsed resource use was UNKNOWN",
+  "parent": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md §§1,3,5,7; original source domain and quantifiers unchanged",
+  "dispatcher": "/root/r85_boundary_dispatch; R94 bounded exact-input review and verification recommendation",
+  "inputs": [
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceSyntax.lean",
+      "bytes": 22040,
+      "sha256": "3184d156d661ace7da0345f5fa63f8a4396d9f52c745d265239c8d3db1e7d0d1"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceGeneration.lean",
+      "bytes": 66485,
+      "sha256": "126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-formal-admission-r92-source.md",
+      "bytes": 6554,
+      "sha256": "20dba2bbbc87ea93f0f4d131561aa6cca8a1ed013b756dcdd3ad45c1981973bc"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceLogicalOccurrencesR93.lean",
+      "bytes": 18460,
+      "sha256": "3c3ac12f0e652b361925ff0d80db78b4bae96f4bd2cc83f3f8346d6e5db54192"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r93-proof.md",
+      "bytes": 10913,
+      "sha256": "b8124915768462011bd4fe74a0a0b92cfc9ae3b140a88cde4c8708b06fb7b164"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r93-source.md",
+      "bytes": 4886,
+      "sha256": "4f1688000679f03c24a04ca84708b755f706399990b5c003291d7d19dce3ada6"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r93-review.md",
+      "bytes": 7997,
+      "sha256": "f794b77dda99bc970d81feb707b171b1836b1ff0657fed312a2da2cb96f737fa"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-logical-occurrences-20261101-r93-outcome.md",
+      "bytes": 4450,
+      "sha256": "0babe8a0bfb93a1b7fb6da347709a4fd123211b2b8631ca49d19f2e6b65e8b29"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-logical-occurrences-20261101-r93.md",
+      "bytes": 4263,
+      "sha256": "e762c73cfd33c60428bb632ef4441bac8f4df2f579a6e0a9c394c5e6ac9b0c77"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-logical-occurrences-20261101-r93-inputs-r1.json",
+      "bytes": 2138,
+      "sha256": "f78e8b13001b4c7dacd21f0e664d345fcd5d4e1639635d846d9f5df1b5a3762f"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-logical-occurrences-20261101-r93-admission.md",
+      "bytes": 3040,
+      "sha256": "0e4f87929b3c8aa0b2a1d525d0eb0e1dbc8d1c527e7874a2f2ae81a4983c725c"
+    }
+  ],
+  "flattened_input": {
+    "bytes": 106897,
+    "sha256": "8bd62910afba8530f2140bd5b0db0d5fb5281c4651b87a88f78c51dc53d0d7",
+    "recipe": "byte-concatenate the first two source modules and R93 candidate with no separators; preserve import Std; remove only the generation import of OriginalSourceSyntax and the candidate import of OriginalSourceGeneration"
+  },
+  "outputs": [
+    "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r94-input-review.md",
+    "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r94-verification.md",
+    "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r94-result-review.md"
+  ],
+  "limits": {
+    "aggregate_seconds": 800,
+    "review_seconds": 300,
+    "primary_seconds": 300,
+    "result_review_seconds": 200,
+    "astra_seconds": 0,
+    "lean_calls": 1,
+    "lean_call_seconds": 120,
+    "processes": 1,
+    "cpus": 1,
+    "memory_mb": 1024,
+    "new_environment_worktree_copy_cache_scratch": false,
+    "lake_build_or_tests": false
+  },
+  "scope_boundary": "exact-input review and one bounded check of the unchanged R93 candidate only; no repair, semantic admission, Rust edits, source restriction, A/B closure, or production authority"
+}
