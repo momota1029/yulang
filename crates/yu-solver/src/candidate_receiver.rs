@@ -213,6 +213,24 @@ pub(super) struct ProviderEntryCertificate<'a> {
     pub catch_path: Vec<LowerPathStep<'a>>,
 }
 #[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ProviderFactOwner {
+    BatchOccurrence(usize),
+    SemanticStore(usize),
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "composes the actual R47/R48 readers with the exact R55 source/Internal owner")]
+pub(super) struct ProviderNativeContextProjection<'a> {
+    pub(super) source_internal: SourceInternalProjection<'a>,
+    pub(super) provider: ProviderEntryCertificate<'a>,
+    /// Complete owner inventory used by provider candidate enumeration.
+    pub(super) views: Vec<(usize, &'a candidate_effect::View)>,
+    /// Tagged separately from SemanticStore indexes: the numeric namespaces
+    /// can collide while naming different fact owners.
+    pub(super) catch_fact_owner: ProviderFactOwner,
+    pub(super) provider_view_index: usize,
+}
+#[cfg(feature = "shadow-apply-candidate")]
 #[derive(Clone, Debug)]
 struct SelectedCatchArmEvidence {
     catch: HirOccurrenceId,
@@ -401,8 +419,12 @@ pub(super) struct OwnedResidualProjection<'a> {
     pub(super) publications: Vec<(usize, &'a WholePublicationObservation)>,
     pub(super) calls: Vec<(usize, &'a ResidualPublicationObservation)>,
     pub(super) facts: Vec<(usize, &'a ConstraintOccurrence)>,
+    pub(super) value_rows: Vec<(usize, &'a VariableBounds)>,
+    pub(super) value_row_representatives: Vec<(usize, ValueEndpointKey)>,
     pub(super) rows: Vec<(usize, &'a EffectBounds)>,
+    pub(super) effect_row_representatives: Vec<(usize, EffectEndpointKey)>,
     pub(super) relations: Vec<(usize, &'a candidate_context::Relation)>,
+    pub(super) dependencies: Vec<(usize, &'a candidate_context::Dependency)>,
     pub(super) origins: Vec<(usize, &'a candidate_context::Origin)>,
     pub(super) source_drains: Vec<Option<&'a candidate_context::SourceDrainReceipt>>,
     pub(super) completions: Vec<(usize, &'a candidate_context::SourceDrainReceipt)>,
@@ -550,6 +572,13 @@ impl ReceivingResidualExperiment {
     #[allow(dead_code, reason = "private R55 source/Internal owner projection")]
     pub(super) fn source_internal_projection(&self) -> Option<SourceInternalProjection<'_>> {
         SourceInternalProjection::capture(self)
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "private R57 composition of owner-derived R47/R48/R49 evidence")]
+    pub(super) fn provider_native_context_projection(
+        &self,
+    ) -> Result<ProviderNativeContextProjection<'_>, candidate_context::CurrentEmissionGap> {
+        ProviderNativeContextProjection::capture(self)
     }
     #[cfg(feature = "shadow-apply-candidate")]
     #[allow(dead_code, reason = "selected by the private proof correspondence query")]
@@ -743,13 +772,21 @@ impl ReceivingResidualExperiment {
             || internal.emission.emission.bound != first.bound {
             return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
         }
+        let mut retained_entry_path = Vec::new();
+        retained_entry_path.try_reserve_exact(entry_path.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        retained_entry_path.extend_from_slice(entry_path);
+        let mut retained_catch_path = Vec::new();
+        retained_catch_path.try_reserve_exact(catch_path.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        retained_catch_path.extend_from_slice(catch_path);
         Ok(ProviderEntryCertificate {
             internal,
             catch_fact,
             endpoint,
             operation_view,
-            entry_path: entry_path.clone(),
-            catch_path: catch_path.clone(),
+            entry_path: retained_entry_path,
+            catch_path: retained_catch_path,
         })
     }
     pub fn catch_occurrence(&self) -> &HirOccurrenceId {
@@ -1713,6 +1750,24 @@ impl<'a> OwnedResidualProjection<'a> {
         let mut source_drains = Vec::new();
         source_drains.try_reserve_exact(origins.len()).ok()?;
         source_drains.extend(origins.iter().map(|(_, origin)| origin.source_drain_receipt.as_ref()));
+        let mut value_row_representatives = Vec::new();
+        value_row_representatives.try_reserve_exact(owner.session.bounds.len()).ok()?;
+        for index in 0..owner.session.bounds.len() {
+            let row = u32::try_from(index).ok()?;
+            value_row_representatives.push((
+                index,
+                owner.session.canonical_value(ValueEndpointKey::ValueRow(row)),
+            ));
+        }
+        let mut effect_row_representatives = Vec::new();
+        effect_row_representatives.try_reserve_exact(owner.session.effect_bounds.len()).ok()?;
+        for index in 0..owner.session.effect_bounds.len() {
+            let row = u32::try_from(index).ok()?;
+            effect_row_representatives.push((
+                index,
+                owner.session.canonical_effect(EffectEndpointKey::EffectRow(row)),
+            ));
+        }
         let projection = Self {
             owner,
             schema: &owner.schema,
@@ -1727,8 +1782,12 @@ impl<'a> OwnedResidualProjection<'a> {
             publications,
             calls: collect_owned_borrowed_inventory(whole.calls.iter().enumerate())?,
             facts: collect_owned_borrowed_inventory(owner.session.batch.occurrences.iter().enumerate())?,
+            value_rows: collect_owned_borrowed_inventory(owner.session.bounds.iter().enumerate())?,
+            value_row_representatives,
             rows: collect_owned_borrowed_inventory(owner.session.effect_bounds.iter().enumerate())?,
+            effect_row_representatives,
             relations: collect_owned_borrowed_inventory(live_state.owned_projection_relations())?,
+            dependencies: collect_owned_borrowed_inventory(live_state.observed_dependencies().enumerate())?,
             origins,
             source_drains,
             completions: collect_owned_borrowed_inventory(
@@ -1747,6 +1806,27 @@ impl<'a> OwnedResidualProjection<'a> {
         let Some(owner_whole) = self.owner.publication_observation.as_ref() else { return false; };
         let Some(graph) = self.owner.session.candidate_graph.as_ref() else { return false; };
         let owner_state = &graph.intrusion.effect_algebra.context;
+        if self.value_row_representatives.len() != self.value_rows.len()
+            || self.effect_row_representatives.len() != self.rows.len()
+        {
+            return false;
+        }
+        for (index, (row, endpoint)) in self.value_row_representatives.iter().enumerate() {
+            let Ok(row_id) = u32::try_from(index) else { return false; };
+            if *row != index
+                || *endpoint != self.owner.session.canonical_value(ValueEndpointKey::ValueRow(row_id))
+            {
+                return false;
+            }
+        }
+        for (index, (row, endpoint)) in self.effect_row_representatives.iter().enumerate() {
+            let Ok(row_id) = u32::try_from(index) else { return false; };
+            if *row != index
+                || *endpoint != self.owner.session.canonical_effect(EffectEndpointKey::EffectRow(row_id))
+            {
+                return false;
+            }
+        }
         if !std::ptr::eq(owner_whole, self.whole)
             || !std::ptr::eq(&self.owner.schema, self.schema)
             || !std::ptr::eq(&self.owner.session.batch, self.batch)
@@ -1779,8 +1859,10 @@ impl<'a> OwnedResidualProjection<'a> {
         }
         if !borrowed_inventory_matches(self.whole.calls.iter().enumerate(), &self.calls)
             || !borrowed_inventory_matches(self.batch.occurrences.iter().enumerate(), &self.facts)
+            || !borrowed_inventory_matches(self.owner.session.bounds.iter().enumerate(), &self.value_rows)
             || !borrowed_inventory_matches(self.owner.session.effect_bounds.iter().enumerate(), &self.rows)
             || !borrowed_inventory_matches(self.live_state.owned_projection_relations(), &self.relations)
+            || !borrowed_inventory_matches(self.live_state.observed_dependencies().enumerate(), &self.dependencies)
             || !borrowed_inventory_matches(self.live_state.origins.iter().enumerate(), &self.origins)
             || !borrowed_inventory_matches(
                 self.live_state.owned_projection_source_drain_completions(), &self.completions,
@@ -2413,6 +2495,146 @@ impl<'a> SourceInternalProjection<'a> {
             return false;
         }
         true
+    }
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+impl<'a> ProviderNativeContextProjection<'a> {
+    fn capture(
+        owner: &'a ReceivingResidualExperiment,
+    ) -> Result<Self, candidate_context::CurrentEmissionGap> {
+        let source_internal = owner.source_internal_projection()
+            .ok_or(candidate_context::CurrentEmissionGap::MissingInternalCertificate)?;
+        let provider = owner.provider_entry_certificate()?;
+        let Some(graph) = owner.session.candidate_graph.as_ref() else {
+            return Err(candidate_context::CurrentEmissionGap::MissingInternalCertificate);
+        };
+        let effect_state = &graph.intrusion.effect_algebra;
+        let views = collect_owned_borrowed_inventory(effect_state.views.iter().enumerate())
+            .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
+        let Some((emission_index, owner_emission)) = source_internal.native.emissions
+            .get(provider.internal.emission.id.0)
+        else { return Err(candidate_context::CurrentEmissionGap::MissingEmission); };
+        let Some((admission_index, owner_admission)) = source_internal.native.admissions
+            .get(provider.internal.emission.admission_id.0)
+        else { return Err(candidate_context::CurrentEmissionGap::MissingAdmission); };
+        if !borrowed_inventory_matches(effect_state.views.iter().enumerate(), &views)
+            || !std::ptr::eq(source_internal.native.owner, owner)
+            || !std::ptr::eq(provider.internal.incidence.use_record, source_internal.internal_incidence.use_record)
+            || !std::ptr::eq(provider.internal.incidence.lambda_origin, source_internal.internal_incidence.lambda_origin)
+            || !std::ptr::eq(provider.internal.incidence.lambda_fact, source_internal.internal_incidence.lambda_fact)
+            || !std::ptr::eq(provider.internal.incidence.internal_fact, source_internal.internal_incidence.internal_fact)
+            || !std::ptr::eq(provider.internal.incidence.internal_route, source_internal.internal_incidence.internal_route)
+            || *emission_index != provider.internal.emission.id.0
+            || !std::ptr::eq(*owner_emission, provider.internal.emission.emission)
+            || *admission_index != provider.internal.emission.admission_id.0
+            || !std::ptr::eq(*owner_admission, provider.internal.emission.admission)
+        {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+
+        let mut catch_fact_index = None;
+        for (index, fact) in &source_internal.native.facts {
+            if std::ptr::eq(*fact, provider.catch_fact) {
+                if catch_fact_index.replace(*index).is_some() {
+                    return Err(candidate_context::CurrentEmissionGap::AmbiguousCatchFact);
+                }
+            }
+        }
+        let Some(catch_fact_index) = catch_fact_index else {
+            return Err(candidate_context::CurrentEmissionGap::MissingCatchFact);
+        };
+        if provider.catch_fact.id().occurrence() != &owner.schema.edge_scrutinee
+            || provider.catch_fact.id().local_slot() != 51
+        {
+            return Err(candidate_context::CurrentEmissionGap::MissingCatchFact);
+        }
+        let EffectEndpointKey::AnnotationMember(view_index, member_index) = provider.endpoint else {
+            return Err(candidate_context::CurrentEmissionGap::MissingCommonEndpoint);
+        };
+        let Some((owner_view_index, owner_view)) = views.get(view_index as usize) else {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        };
+        if *owner_view_index != view_index as usize
+            || !std::ptr::eq(*owner_view, provider.operation_view)
+            || provider.operation_view.tail.is_some()
+            || provider.operation_view.allowed.get(member_index as usize)
+                != Some(&owner.schema.operation.id.family)
+        {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+        let candidate_effect::ViewOrigin::Operation(origin) = &provider.operation_view.provenance else {
+            return Err(candidate_context::CurrentEmissionGap::MissingProviderOrigin);
+        };
+        if origin.occurrence != owner.schema.provider
+            || !Arc::ptr_eq(&origin.declaration, &owner.schema.operation)
+        {
+            return Err(candidate_context::CurrentEmissionGap::MissingProviderOrigin);
+        }
+        let result = Self {
+            source_internal,
+            provider,
+            views,
+            catch_fact_owner: ProviderFactOwner::BatchOccurrence(catch_fact_index),
+            provider_view_index: view_index as usize,
+        };
+        if !result.verify_path_owners(&result.provider.entry_path)
+            || !result.verify_path_owners(&result.provider.catch_path)
+            || !result.verify_semantic_fact_owners()
+        {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+        Ok(result)
+    }
+
+    fn verify_path_owners(&self, path: &[LowerPathStep<'_>]) -> bool {
+        for step in path {
+            match step {
+                LowerPathStep::SupportMember { view_index, member_index, view, family, closed_tail, .. } => {
+                    let Some((index, owner_view)) = self.views.get(*view_index as usize) else { return false; };
+                    if *index != *view_index as usize
+                        || !std::ptr::eq(*owner_view, *view)
+                        || !*closed_tail
+                        || view.tail.is_some()
+                        || !std::ptr::eq(*family, match view.allowed.get(*member_index as usize) {
+                            Some(family) => family,
+                            None => return false,
+                        })
+                    {
+                        return false;
+                    }
+                }
+                LowerPathStep::Physical(edge) => {
+                    let Some((emission_index, emission)) = self.source_internal.native.emissions.get(edge.id.0) else { return false; };
+                    let Some((admission_index, admission)) = self.source_internal.native.admissions.get(edge.admission_id.0) else { return false; };
+                    let Some((relation_index, relation)) = self.source_internal.native.relations.get(edge.relation.0 as usize) else { return false; };
+                    if *emission_index != edge.id.0
+                        || !std::ptr::eq(*emission, edge.emission)
+                        || *admission_index != edge.admission_id.0
+                        || !std::ptr::eq(*admission, edge.admission)
+                        || *relation_index != edge.relation.0 as usize
+                        || relation.key.pair != admission.origin
+                        || admission.relation != Some(edge.relation)
+                        || emission.admission != edge.admission_id
+                        || emission.physical != edge.slot
+                        || emission.bound != edge.bound
+                        || admission.bound != edge.bound
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
+    }
+
+    fn verify_semantic_fact_owners(&self) -> bool {
+        let facts = &self.source_internal.semantic_facts;
+        let incidence = &self.source_internal.internal_incidence;
+        let fact_is_unique = |fact: &SemanticFact| {
+            facts.iter().filter(|(_, owner_fact)| std::ptr::eq(*owner_fact, fact)).count() == 1
+        };
+        fact_is_unique(incidence.lambda_fact) && fact_is_unique(incidence.internal_fact)
     }
 }
 
