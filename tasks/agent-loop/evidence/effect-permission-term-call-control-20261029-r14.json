@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "revision": 5,
+  "sprint": "EFFECT-PERMISSION-TERM-CALL-CONTROL/20261029-r14",
+  "stage": "CLOSED_INCOMPLETE",
+  "status": "CLOSED_INCOMPLETE",
+  "selector": "/root/r21_closeout_selector",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-term-call-control-20261029-r14.md",
+    "sha256": "8a1fec9211b0962f3f2233f0dc35d097eadfe5c42267df51a7f0ad0b9e1e1a90"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-term-call-control-20261029-r14-inputs.json",
+    "sha256": "ec157c6b0a0fca8416873b2bd8c3e44f8bd679a4015f19279368a3d12aa0e584",
+    "entries": 153,
+    "mismatches": 0
+  },
+  "prior_sprint": {
+    "id": "EFFECT-PERMISSION-CONNECTED-CUTS/20261029-r13",
+    "status": "CLOSED_COMPLETE_CONDITIONAL",
+    "outcome": "tasks/agent-loop/history/effect-permission-connected-cuts-20261029-r13-outcome.md",
+    "outcome_sha256": "157d604ccbe01adab9b42dbb6d9b7da83ad452535fe082f8a16d294e666f8b61",
+    "artifact_sha256": "6427eed5f0c3b84f80a3a37c31797fc782960c725fb77f6bef46cebcc993b023",
+    "review_sha256": "fb1f43e3c486237b9f93d6955f4bf4cf96b5b3827a40c42044838e099734c394"
+  },
+  "budget_seconds": 1200,
+  "lanes": {
+    "source": {
+      "owner": "primary Luna",
+      "budget_seconds": 200,
+      "state": "COMPLETE_READ_ONLY_FROZEN",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-term-call-control-r14-source.md",
+      "sha256": "744c3244b919758360c3e0f966278ebbc3881d2cd1120de19410e345340c65ce"
+    },
+    "proof": {
+      "role": "registered lean_prover",
+      "budget_seconds": 600,
+      "state": "STOPPED_REV1_FROZEN",
+      "artifact": "notes/theory/lean/YulangClosure/FormalPermissionTermCallControl.lean",
+      "baseline_state": "ABSENT",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-term-call-control-r14-proof.md",
+      "audit_limit": {
+        "max_invocations": 2,
+        "per_attempt_timeout_seconds": 90,
+        "combined_wall_seconds": 120,
+        "released": 1
+      },
+      "worker": "/root/effect_permission_term_call_control_r14_lean",
+      "session": "EFFECT-PERMISSION-TERM-CALL-CONTROL/20261029-R14",
+      "requested_model": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "spawn_receipt": "spawn_agent returned worker; no Lean probes; exact two proof paths",
+      "artifact_sha256": "fde5e86c3540646b778856dda985b51db201a20ab7a38ca3e34485257c2dbfdc",
+      "handoff_sha256": "0ac4030c1fdbcfe9947876cdc8eee2d5403adfca00d95588759552e83a080c77"
+    },
+    "review": {
+      "role": "fresh nonauthor compiler_referee",
+      "budget_seconds": 250,
+      "state": "WAITING_FOR_PRIMARY_AUDIT",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-term-call-control-r14-review.md"
+    },
+    "primary": {
+      "owner": "Luna",
+      "budget_seconds": 150
+    }
+  },
+  "source_pins": {
+    "lib.rs": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07",
+    "candidate_effect.rs": "1f64d4fec8f2abceb11a48a51f5b615aa2cf605c9586ba742f15f9024a6a2717",
+    "term.rs": "d253cd9a77ad91c523b413b25a503ef0c6bef47ee4b1f5b8492766531fe493a1",
+    "R13 artifact": "6427eed5f0c3b84f80a3a37c31797fc782960c725fb77f6bef46cebcc993b023",
+    "R13 review": "fb1f43e3c486237b9f93d6955f4bf4cf96b5b3827a40c42044838e099734c394",
+    "R12 artifact": "92531e0849a08a03a37bbb35315f01b831d31bdffb108712c5b0a4a7eaaa75dd",
+    "R11 artifact": "828eef57d8caaa538c8feb91ad023dc45eb41e421b4eb430532e383ee1c75e91",
+    "R9 allocation": "795e63e850f73d75f18f721224d3e0723c187a57c7437ffe3ef08a4dbd80648a"
+  },
+  "gates": {
+    "source_directed_handling": "OPEN",
+    "constructor_success": "EXPLICIT_INPUT",
+    "ordered_event_drain": "OPEN",
+    "conditional_accounting_branch": "OPEN",
+    "sample_order_and_early_error": "OPEN",
+    "successful_term_call": "OPEN",
+    "R13_application_same_cuts": "OPEN",
+    "sampler_availability": "OPEN",
+    "actual_rust_execution_linkage": "OPEN",
+    "primitive_alias_authenticity": "OPEN",
+    "native_publication": "OPEN",
+    "original_parent": "OPEN",
+    "effect_hygiene": "OPEN",
+    "consumer_residual": "OPEN",
+    "soundness": "OPEN",
+    "principality": "OPEN",
+    "termination": "OPEN",
+    "production": "OPEN"
+  },
+  "scratch_lease": "/tmp/yulang-effect-permission-term-call-control-20261029-r14/",
+  "audit_state": "AUDIT_1_BUILD_FAILED_NO_THEOREM_ROOTS",
+  "review_state": "NOT_STARTED",
+  "selector_recommendation": "derive with_term_events successful transcript from source-directed constructor/events/accounting/sample outcomes; preserve first sample error and constructor error order",
+  "audit1": {
+    "plan": "/tmp/yulang-effect-permission-term-call-control-20261029-r14/audit-inputs-1-corrected.json",
+    "plan_sha256": "11dae13aba5d3a486df5763984bee71fd6171cd50f495387e8612e83818bace6",
+    "original_plan_sha256": "33d3aa8297e784180b6ad06030fab59ac3bd8ae5c1747dc74c1f70e584e2c3bb",
+    "copy_receipt_sha256": "741e5f464d48d53a55b70a9e0343739ddacc31cc406faee90dd18b80a9a1881e",
+    "artifact_sha256": "fde5e86c3540646b778856dda985b51db201a20ab7a38ca3e34485257c2dbfdc",
+    "exit_status": 1,
+    "wall_seconds": 14.67,
+    "max_rss_kib": 798108,
+    "printed_theorem_types": 0,
+    "printed_axiom_audits": 0,
+    "stdout_sha256": "db5b41b1d0ccb427dd42672d3ebe1e55c780a020533e504d54e3902adf7473ff",
+    "stderr_sha256": "0edf2d238840b65a26de68075c964d099167cf4cae51705f162bcfa4e7addc60",
+    "status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "resource_sha256": "1b1967665160c53cdf2330a3192a13f2d5b85f04bbbfba8b602e482af0085ea9",
+    "diagnostic": "control_test_fields true branch unsolved goal at FormalPermissionTermCallControl.lean:231:80; not a mathematical counterexample",
+    "preflight": {
+      "exit_status": 2,
+      "checker_started": false,
+      "lean_or_lake_started": false,
+      "receipt_sha256": "bfc1d61c17259c6a149e8193c61a66c51d6ee1fff1edb3eecb9c6a869b592ded",
+      "interpretation": "relative checker script path failed before any checker/Lean/Lake invocation"
+    }
+  },
+  "next_step": "selector consultation required; proof writer STOPPED and 600s lane exhausted; no repair authority remains in R14",
+  "closeout": {
+    "outcome": "tasks/agent-loop/history/effect-permission-term-call-control-20261029-r14-outcome.md",
+    "outcome_sha256": "71b596a80565241140dc835b8ef676c6126127d1cc85db467e2598735557fa37",
+    "state_archive": "tasks/agent-loop/history/effect-permission-term-call-control-20261029-r14-state-archive.json",
+    "state_archive_sha256": "2a363b4e16480e72b9e13b749fe0685af6e44710d31c58afeced1f2918291f16",
+    "artifact_archive": "tasks/agent-loop/history/artifacts/FormalPermissionTermCallControl-r14.lean",
+    "artifact_archive_sha256": "fde5e86c3540646b778856dda985b51db201a20ab7a38ca3e34485257c2dbfdc",
+    "selector": "/root/r21_closeout_selector",
+    "selector_recommendation": "close R14 incomplete; route proof-only control_test_fields repair to R15; no reviewer before full audit"
+  }
+}
