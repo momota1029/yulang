@@ -999,3 +999,508 @@ Current module bytes: 28735; SHA-256 `0aa1185675cc92ac97a20f4163bd2b2486f34cfb5c
 ```
 
 Command/environment/resource/destination policy remains the exact pinned Lean executable `-j1 -M1024 --stdin`, `LEAN_NUM_THREADS=1`, cwd `notes/theory/lean`, timeout 120 seconds; all I/O in memory and full stdout/stderr retained here. Explicit primary pinning, independent reconstruction, committed/pushed separate authorization still must precede audit 2. No third invocation, build, Lake, cache, scratch, tests, environment or Git work. Module and handoff WRITES STOPPED awaiting that authorization.
+
+
+## Primary audit 2 receipt
+
+Authorization checkpoint: `cb90f47e4`; exact stdin SHA-256 `892da354ef83454c7639036e5910836cae704a9f93861eaa900c45fae34d1244` (48816 bytes).
+Executable SHA-256: `bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38`; command `lean -j1 -M1024 --stdin`; `LEAN_NUM_THREADS=1`; cwd `notes/theory/lean`; timeout 120s; elapsed 3.127s; timeout=False; exit=0.
+stdout: 35838 bytes, SHA-256 `815713955fb200025ff4c3b52fb0937ebc4ba278d643f8a0fee273eb3f429a69`; stderr: 0 bytes, SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+
+### stdout verbatim
+
+```text
+<stdin>:814:30: warning: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+<stdin>:819:30: warning: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+<stdin>:797:0: warning: automatically included section variable(s) unused in theorem `YulangClosure.SourceInternalChoiceR77.peel_sound`:
+  [DecidableEq S]
+  [DecidableEq T]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq S] [DecidableEq T] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+@YulangClosure.SourceInternalChoiceR77.visit_agrees : ∀ {S T : Type} [inst : DecidableEq.{1} S]
+  [inst_1 : DecidableEq.{1} T] (s : YulangClosure.SourceInternalChoiceR77.Source S T)
+  (target : YulangClosure.ProviderNativeContextR57.Key S T) (component : Nat)
+  (c : YulangClosure.SourceInternalChoiceR77.Origin S T),
+  Eq.{1} (Except.toOption.{0, 0} (YulangClosure.SourceInternalChoiceR77.visit s target component c))
+    (match GetElem?.getElem?.{0, 0, 0} s.formals c.registration with
+    | Option.none.{0} => Option.some.{0} Option.none.{0}
+    | Option.some.{0} f =>
+      ite.{1} (Eq.{1} f.role YulangClosure.SourceInternalContextR55.NativeRole.computation ∧ Eq.{1} f.owner target)
+        (do
+          let recipe ←
+            YulangClosure.SourceInternalContextR55.unique
+                (fun r => Decidable.decide (Eq.{1} r.formalRegistration (Option.some.{0} c.registration))) s.recipes
+          Option.some.{0} (ite.{1} (Eq.{1} recipe.rootComponent component) (Option.some.{0} c) Option.none.{0}))
+        (Option.some.{0} Option.none.{0}))
+'YulangClosure.SourceInternalChoiceR77.visit_agrees' depends on axioms: [propext]
+@YulangClosure.SourceInternalChoiceR77.walk_accounts_for_all : ∀ {S T : Type} [inst : DecidableEq.{1} S]
+  [inst_1 : DecidableEq.{1} T] (s : YulangClosure.SourceInternalChoiceR77.Source S T)
+  (target : YulangClosure.ProviderNativeContextR57.Key S T) (component : Nat)
+  (origins selected out : List.{0} (YulangClosure.SourceInternalChoiceR77.Origin S T)),
+  Eq.{1} (YulangClosure.SourceInternalChoiceR77.walk s target component origins selected) (Except.ok.{0, 0} out) →
+    Exists.{1} fun rows =>
+      Eq.{1}
+          (List.mapM.{0, 0, 0}
+            (fun c => Except.toOption.{0, 0} (YulangClosure.SourceInternalChoiceR77.visit s target component c))
+            origins)
+          (Option.some.{0} rows) ∧
+        Eq.{1} (HAppend.hAppend.{0, 0, 0} selected (List.filterMap.{0, 0} id.{1} rows)) out
+'YulangClosure.SourceInternalChoiceR77.walk_accounts_for_all' depends on axioms: [propext, Quot.sound.{u}]
+@YulangClosure.SourceInternalChoiceR77.ordered_selection_agrees : ∀ {S T : Type} [inst : DecidableEq.{1} S]
+  [inst_1 : DecidableEq.{1} T] (s : YulangClosure.SourceInternalChoiceR77.Source S T)
+  (target : YulangClosure.ProviderNativeContextR57.Key S T) (component : Nat)
+  (c : YulangClosure.SourceInternalChoiceR77.Origin S T),
+  Eq.{1} (YulangClosure.SourceInternalChoiceR77.orderedSelection s target component) (Except.ok.{0, 0} c) →
+    Eq.{1} (YulangClosure.OccurrenceQualifiedConsumerR66.ownerSelection s target component) (Option.some.{0} c)
+'YulangClosure.SourceInternalChoiceR77.ordered_selection_agrees' depends on axioms: [propext, Quot.sound.{u}]
+@YulangClosure.SourceInternalChoiceR77.malformed_recipe_first : ∀ {S T : Type} [inst : DecidableEq.{1} S]
+  [inst_1 : DecidableEq.{1} T] (s : YulangClosure.SourceInternalChoiceR77.Source S T)
+  (target : YulangClosure.ProviderNativeContextR57.Key S T) (component : Nat)
+  (c : YulangClosure.SourceInternalChoiceR77.Origin S T)
+  (rest selected : List.{0} (YulangClosure.SourceInternalChoiceR77.Origin S T)),
+  Eq.{1} (YulangClosure.SourceInternalChoiceR77.visit s target component c)
+      (Except.error.{0, 0} (YulangClosure.SourceInternalChoiceR77.Failure.recipe c.registration)) →
+    Eq.{1} (YulangClosure.SourceInternalChoiceR77.walk s target component (List.cons.{0} c rest) selected)
+      (Except.error.{0, 0} (YulangClosure.SourceInternalChoiceR77.Failure.recipe c.registration))
+'YulangClosure.SourceInternalChoiceR77.malformed_recipe_first' depends on axioms: [propext]
+@YulangClosure.SourceInternalChoiceR77.second_origin_first : ∀ {S T : Type} [inst : DecidableEq.{1} S]
+  [inst_1 : DecidableEq.{1} T] (s : YulangClosure.SourceInternalChoiceR77.Source S T)
+  (target : YulangClosure.ProviderNativeContextR57.Key S T) (component : Nat)
+  (c chosen previous : YulangClosure.SourceInternalChoiceR77.Origin S T)
+  (rest others : List.{0} (YulangClosure.SourceInternalChoiceR77.Origin S T)),
+  Eq.{1} (YulangClosure.SourceInternalChoiceR77.visit s target component c)
+      (Except.ok.{0, 0} (Option.some.{0} chosen)) →
+    Eq.{1}
+      (YulangClosure.SourceInternalChoiceR77.walk s target component (List.cons.{0} c rest)
+        (List.cons.{0} previous others))
+      (Except.error.{0, 0} (YulangClosure.SourceInternalChoiceR77.Failure.secondOrigin c.registration))
+'YulangClosure.SourceInternalChoiceR77.second_origin_first' depends on axioms: [propext]
+@YulangClosure.SourceInternalChoiceR77.choice_three_premises : ∀ {S T : Type} [inst : DecidableEq.{1} S]
+  [inst_1 : DecidableEq.{1} T] (s : YulangClosure.SourceInternalChoiceR77.Source S T)
+  (u : YulangClosure.SourceInternalContextR55.Use Nat (YulangClosure.ProviderNativeContextR57.Key S T))
+  (receiving target : YulangClosure.ProviderNativeContextR57.Key S T)
+  (c : YulangClosure.SourceInternalChoiceR77.Choice s u receiving target),
+  Eq.{1} ((YulangClosure.SourceInternalContextR55.internalInputs s).plan (YulangClosure.SourceInternalContextR55.use u))
+      (Option.some.{0} (YulangClosure.SourceInternalContextR55.plan c.plan)) ∧
+    Eq.{1} (YulangClosure.OccurrenceQualifiedConsumerR66.ownerSelection s target c.plan.targetRootComponent)
+        (Option.some.{0} c.origin) ∧
+      Eq.{1} (GetElem?.getElem?.{0, 0, 0} s.parameterRecipes c.formal.recipePosition)
+        (Option.some.{0} c.formal.parameter)
+'YulangClosure.SourceInternalChoiceR77.choice_three_premises' depends on axioms: [propext, Quot.sound.{u}]
+@YulangClosure.SourceInternalChoiceR77.choice_applies_r66 : ∀ {S T : Type} [inst : DecidableEq.{1} S]
+  [inst_1 : DecidableEq.{1} T] (s : YulangClosure.SourceInternalChoiceR77.Source S T)
+  (inventory : YulangClosure.OccurrenceQualifiedFactReadersR65.Inventory S T)
+  (u : YulangClosure.SourceInternalContextR55.Use Nat (YulangClosure.ProviderNativeContextR57.Key S T))
+  (receiving target : YulangClosure.ProviderNativeContextR57.Key S T)
+  (c : YulangClosure.SourceInternalChoiceR77.Choice s u receiving target),
+  Eq.{1}
+      ((YulangClosure.OccurrenceQualifiedFactReadersR65.internalInputs s inventory u.occurrence).plan
+        (YulangClosure.SourceInternalContextR55.use u))
+      (Option.some.{0} (YulangClosure.SourceInternalContextR55.plan c.plan)) ∧
+    Eq.{1} (YulangClosure.OccurrenceQualifiedConsumerR66.ownerSelection s target c.plan.targetRootComponent)
+        (Option.some.{0} c.origin) ∧
+      Eq.{1}
+        (GetElem?.getElem?.{0, 0, 0} s.parameterRecipes (YulangClosure.SourceInternalContextR55.formal c.formal).recipe)
+        (Option.some.{0} (YulangClosure.SourceInternalContextR55.formal c.formal).parameter)
+'YulangClosure.SourceInternalChoiceR77.choice_applies_r66' depends on axioms: [propext, Quot.sound.{u}]
+@YulangClosure.SourceInternalChoiceR77.exact_use_unique : ∀ {S T : Type} [inst : DecidableEq.{1} S]
+  [inst_1 : DecidableEq.{1} T] (s : YulangClosure.SourceInternalChoiceR77.Source S T)
+  (u : YulangClosure.SourceInternalContextR55.Use Nat (YulangClosure.ProviderNativeContextR57.Key S T))
+  (receiving target : YulangClosure.ProviderNativeContextR57.Key S T)
+  (c : YulangClosure.SourceInternalChoiceR77.Choice s u receiving target)
+  (p : YulangClosure.SourceInternalContextR55.Plan Nat (YulangClosure.ProviderNativeContextR57.Key S T) T),
+  Membership.mem.{0, 0} s.plans p →
+    Eq.{1} (YulangClosure.SourceInternalContextR55.use p.use) (YulangClosure.SourceInternalContextR55.use u) →
+      Eq.{1} p c.plan
+'YulangClosure.SourceInternalChoiceR77.exact_use_unique' depends on axioms: [propext]
+@YulangClosure.SourceInternalChoiceR77.construction_certifies : ∀ {S T : Type} [inst : DecidableEq.{1} S]
+  [inst_1 : DecidableEq.{1} T] (s : YulangClosure.SourceInternalChoiceR77.Source S T)
+  (inventory : YulangClosure.OccurrenceQualifiedFactReadersR65.Inventory S T)
+  (u : YulangClosure.SourceInternalContextR55.Use Nat (YulangClosure.ProviderNativeContextR57.Key S T))
+  (receiving target : YulangClosure.ProviderNativeContextR57.Key S T),
+  match YulangClosure.SourceInternalChoiceR77.construct s u receiving target with
+  | Option.none.{0} => True
+  | Option.some.{0} c =>
+    Eq.{1}
+        ((YulangClosure.OccurrenceQualifiedFactReadersR65.internalInputs s inventory u.occurrence).plan
+          (YulangClosure.SourceInternalContextR55.use u))
+        (Option.some.{0} (YulangClosure.SourceInternalContextR55.plan c.plan)) ∧
+      Eq.{1} (YulangClosure.OccurrenceQualifiedConsumerR66.ownerSelection s target c.plan.targetRootComponent)
+          (Option.some.{0} c.origin) ∧
+        Eq.{1}
+          (GetElem?.getElem?.{0, 0, 0} s.parameterRecipes
+            (YulangClosure.SourceInternalContextR55.formal c.formal).recipe)
+          (Option.some.{0} (YulangClosure.SourceInternalContextR55.formal c.formal).parameter)
+'YulangClosure.SourceInternalChoiceR77.construction_certifies' depends on axioms: [propext, Quot.sound.{u}]
+YulangClosure.SourceInternalChoiceR77.finite_constructs_choice : Eq.{1}
+  (Option.isSome.{0} YulangClosure.SourceInternalChoiceR77.fixtureChoice) Bool.true
+'YulangClosure.SourceInternalChoiceR77.finite_constructs_choice' depends on axioms: [propext]
+YulangClosure.SourceInternalChoiceR77.finite_bad_inventories_reject : Eq.{1}
+    (Option.isSome.{0}
+      (YulangClosure.SourceInternalChoiceR77.construct
+        (have __src := YulangClosure.SourceInternalChoiceR77.fixture;
+        { artifact := __src.artifact, formals := __src.formals, parameterRecipes := __src.parameterRecipes,
+          schedules := __src.schedules, sources := __src.sources, sourceOwners := __src.sourceOwners,
+          occupiedDomains := __src.occupiedDomains, retainedRegistrations := __src.retainedRegistrations,
+          constructions := __src.constructions, permissions := __src.permissions, receipts := __src.receipts,
+          plans :=
+            HAppend.hAppend.{0, 0, 0} YulangClosure.SourceInternalChoiceR77.fixture.plans
+              YulangClosure.SourceInternalChoiceR77.fixture.plans,
+          recipes := __src.recipes, admittedFacts := __src.admittedFacts, componentTerms := __src.componentTerms,
+          termViews := __src.termViews })
+        YulangClosure.SourceInternalChoiceR77.fixtureUse (YulangClosure.ProviderNativeContextR57.Key.source 10)
+        (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+    Bool.false ∧
+  Eq.{1}
+      (Option.isSome.{0}
+        (YulangClosure.SourceInternalChoiceR77.construct
+          (have __src := YulangClosure.SourceInternalChoiceR77.fixture;
+          { artifact := __src.artifact, formals := __src.formals, parameterRecipes := List.nil.{0},
+            schedules := __src.schedules, sources := __src.sources, sourceOwners := __src.sourceOwners,
+            occupiedDomains := __src.occupiedDomains, retainedRegistrations := __src.retainedRegistrations,
+            constructions := __src.constructions, permissions := __src.permissions, receipts := __src.receipts,
+            plans := __src.plans, recipes := __src.recipes, admittedFacts := __src.admittedFacts,
+            componentTerms := __src.componentTerms, termViews := __src.termViews })
+          YulangClosure.SourceInternalChoiceR77.fixtureUse (YulangClosure.ProviderNativeContextR57.Key.source 10)
+          (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+      Bool.false ∧
+    Eq.{1}
+        (Option.isSome.{0}
+          (YulangClosure.SourceInternalChoiceR77.construct
+            (have __src := YulangClosure.SourceInternalChoiceR77.fixture;
+            { artifact := __src.artifact, formals := __src.formals, parameterRecipes := __src.parameterRecipes,
+              schedules := __src.schedules, sources := __src.sources, sourceOwners := __src.sourceOwners,
+              occupiedDomains := __src.occupiedDomains, retainedRegistrations := __src.retainedRegistrations,
+              constructions := __src.constructions, permissions := __src.permissions, receipts := __src.receipts,
+              plans := __src.plans, recipes := List.nil.{0}, admittedFacts := __src.admittedFacts,
+              componentTerms := __src.componentTerms, termViews := __src.termViews })
+            YulangClosure.SourceInternalChoiceR77.fixtureUse (YulangClosure.ProviderNativeContextR57.Key.source 10)
+            (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+        Bool.false ∧
+      Eq.{1}
+          (Option.isSome.{0}
+            (YulangClosure.SourceInternalChoiceR77.construct
+              (have __src := YulangClosure.SourceInternalChoiceR77.fixture;
+              { artifact := __src.artifact, formals := __src.formals, parameterRecipes := __src.parameterRecipes,
+                schedules := __src.schedules, sources := __src.sources, sourceOwners := __src.sourceOwners,
+                occupiedDomains := __src.occupiedDomains, retainedRegistrations := __src.retainedRegistrations,
+                constructions := __src.constructions, permissions := __src.permissions, receipts := __src.receipts,
+                plans := __src.plans,
+                recipes :=
+                  HAppend.hAppend.{0, 0, 0} YulangClosure.SourceInternalChoiceR77.fixture.recipes
+                    YulangClosure.SourceInternalChoiceR77.fixture.recipes,
+                admittedFacts := __src.admittedFacts, componentTerms := __src.componentTerms,
+                termViews := __src.termViews })
+              YulangClosure.SourceInternalChoiceR77.fixtureUse (YulangClosure.ProviderNativeContextR57.Key.source 10)
+              (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+          Bool.false ∧
+        Eq.{1}
+            (Option.isSome.{0}
+              (YulangClosure.SourceInternalChoiceR77.construct
+                (have __src := YulangClosure.SourceInternalChoiceR77.fixture;
+                { artifact := __src.artifact, formals := __src.formals, parameterRecipes := __src.parameterRecipes,
+                  schedules := __src.schedules, sources := __src.sources, sourceOwners := __src.sourceOwners,
+                  occupiedDomains := __src.occupiedDomains, retainedRegistrations := __src.retainedRegistrations,
+                  constructions :=
+                    HAppend.hAppend.{0, 0, 0} YulangClosure.SourceInternalChoiceR77.fixture.constructions
+                      YulangClosure.SourceInternalChoiceR77.fixture.constructions,
+                  permissions := __src.permissions, receipts := __src.receipts, plans := __src.plans,
+                  recipes := __src.recipes, admittedFacts := __src.admittedFacts,
+                  componentTerms := __src.componentTerms, termViews := __src.termViews })
+                YulangClosure.SourceInternalChoiceR77.fixtureUse (YulangClosure.ProviderNativeContextR57.Key.source 10)
+                (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+            Bool.false ∧
+          Eq.{1}
+              (Option.isSome.{0}
+                (YulangClosure.SourceInternalChoiceR77.construct
+                  (have __src := YulangClosure.SourceInternalChoiceR77.fixture;
+                  { artifact := __src.artifact, formals := __src.formals, parameterRecipes := __src.parameterRecipes,
+                    schedules := __src.schedules, sources := __src.sources, sourceOwners := __src.sourceOwners,
+                    occupiedDomains := __src.occupiedDomains, retainedRegistrations := __src.retainedRegistrations,
+                    constructions := __src.constructions, permissions := __src.permissions, receipts := __src.receipts,
+                    plans :=
+                      List.map.{0, 0}
+                        (fun p =>
+                          { use := p.use, sourceOwner := p.sourceOwner, targetOwner := p.targetOwner,
+                            targetRootComponent := 900, useValueComponent := p.useValueComponent,
+                            targetRoot := p.targetRoot, useValue := p.useValue })
+                        YulangClosure.SourceInternalChoiceR77.fixture.plans,
+                    recipes := __src.recipes, admittedFacts := __src.admittedFacts,
+                    componentTerms := __src.componentTerms, termViews := __src.termViews })
+                  YulangClosure.SourceInternalChoiceR77.fixtureUse
+                  (YulangClosure.ProviderNativeContextR57.Key.source 10)
+                  (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+              Bool.false ∧
+            Eq.{1}
+              (Option.isSome.{0}
+                (YulangClosure.SourceInternalChoiceR77.construct
+                  (have __src := YulangClosure.SourceInternalChoiceR77.fixture;
+                  { artifact := __src.artifact, formals := __src.formals,
+                    parameterRecipes :=
+                      List.cons.{0} (YulangClosure.ProviderNativeContextR57.Key.source 999) List.nil.{0},
+                    schedules := __src.schedules, sources := __src.sources, sourceOwners := __src.sourceOwners,
+                    occupiedDomains := __src.occupiedDomains, retainedRegistrations := __src.retainedRegistrations,
+                    constructions := __src.constructions, permissions := __src.permissions, receipts := __src.receipts,
+                    plans := __src.plans, recipes := __src.recipes, admittedFacts := __src.admittedFacts,
+                    componentTerms := __src.componentTerms, termViews := __src.termViews })
+                  YulangClosure.SourceInternalChoiceR77.fixtureUse
+                  (YulangClosure.ProviderNativeContextR57.Key.source 10)
+                  (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+              Bool.false
+'YulangClosure.SourceInternalChoiceR77.finite_bad_inventories_reject' depends on axioms: [propext]
+YulangClosure.SourceInternalChoiceR77.finite_foreign_shared_images_rejected : Eq.{1}
+    YulangClosure.SourceInternalChoiceR77.foreignOrigin.function
+    YulangClosure.ProviderNativeContextR57.fixtureConstruction.function ∧
+  Eq.{1} YulangClosure.SourceInternalChoiceR77.foreignOrigin.entryEffect
+      YulangClosure.ProviderNativeContextR57.fixtureConstruction.entryEffect ∧
+    Eq.{1}
+      (YulangClosure.SourceInternalChoiceR77.orderedSelection YulangClosure.SourceInternalChoiceR77.foreignSource
+        (YulangClosure.ProviderNativeContextR57.Key.source 1) 20)
+      (Except.error.{0, 0} YulangClosure.SourceInternalChoiceR77.Failure.noOrigin)
+'YulangClosure.SourceInternalChoiceR77.finite_foreign_shared_images_rejected' depends on axioms: [propext]
+YulangClosure.SourceInternalChoiceR77.finite_native_failure_order : Eq.{1}
+    (YulangClosure.SourceInternalChoiceR77.orderedSelection YulangClosure.SourceInternalChoiceR77.earlierBadSource
+      (YulangClosure.ProviderNativeContextR57.Key.source 1) 20)
+    (Except.error.{0, 0} (YulangClosure.SourceInternalChoiceR77.Failure.recipe 1)) ∧
+  Eq.{1}
+    (YulangClosure.SourceInternalChoiceR77.orderedSelection
+      (have __src := YulangClosure.SourceInternalChoiceR77.earlierBadSource;
+      { artifact := __src.artifact, formals := __src.formals, parameterRecipes := __src.parameterRecipes,
+        schedules := __src.schedules, sources := __src.sources, sourceOwners := __src.sourceOwners,
+        occupiedDomains := __src.occupiedDomains, retainedRegistrations := __src.retainedRegistrations,
+        constructions :=
+          List.cons.{0} YulangClosure.ProviderNativeContextR57.fixtureConstruction
+            (List.cons.{0} YulangClosure.ProviderNativeContextR57.fixtureConstruction
+              (List.cons.{0} YulangClosure.SourceInternalChoiceR77.foreignOrigin List.nil.{0})),
+        permissions := __src.permissions, receipts := __src.receipts, plans := __src.plans, recipes := __src.recipes,
+        admittedFacts := __src.admittedFacts, componentTerms := __src.componentTerms, termViews := __src.termViews })
+      (YulangClosure.ProviderNativeContextR57.Key.source 1) 20)
+    (Except.error.{0, 0} (YulangClosure.SourceInternalChoiceR77.Failure.secondOrigin 0))
+'YulangClosure.SourceInternalChoiceR77.finite_native_failure_order' depends on axioms: [propext]
+@YulangClosure.SourceInternalChoiceR77.duplicate_plans_rejected : ∀ {S T : Type} [inst : DecidableEq.{1} S]
+  [inst_1 : DecidableEq.{1} T] (s : YulangClosure.SourceInternalChoiceR77.Source S T)
+  (u : YulangClosure.SourceInternalContextR55.Use Nat (YulangClosure.ProviderNativeContextR57.Key S T))
+  (receiving target : YulangClosure.ProviderNativeContextR57.Key S T)
+  (first second : YulangClosure.SourceInternalContextR55.Plan Nat (YulangClosure.ProviderNativeContextR57.Key S T) T)
+  (rest :
+    List.{0} (YulangClosure.SourceInternalContextR55.Plan Nat (YulangClosure.ProviderNativeContextR57.Key S T) T)),
+  Eq.{1}
+      (List.filter.{0}
+        (fun p =>
+          Decidable.decide
+            (Eq.{1} (YulangClosure.SourceInternalContextR55.use p.use) (YulangClosure.SourceInternalContextR55.use u)))
+        s.plans)
+      (List.cons.{0} first (List.cons.{0} second rest)) →
+    Eq.{1} (YulangClosure.SourceInternalChoiceR77.construct s u receiving target) Option.none.{0}
+'YulangClosure.SourceInternalChoiceR77.duplicate_plans_rejected' depends on axioms: [propext, Quot.sound.{u}]
+@YulangClosure.SourceInternalChoiceR77.peel_sound : ∀ {S T : Type} [DecidableEq.{1} S] [DecidableEq.{1} T]
+  (nodes : List.{0} (YulangClosure.SourceInternalChoiceR77.HirNode (YulangClosure.ProviderNativeContextR57.Key S T)))
+  (fuel : Nat) (seen : List.{0} Nat) (index : Nat)
+  (result :
+    Prod.{0, 0} (YulangClosure.ProviderNativeContextR57.Key S T) (YulangClosure.ProviderNativeContextR57.Key S T)),
+  Eq.{1} (YulangClosure.SourceInternalChoiceR77.peel nodes fuel seen index) (Option.some.{0} result) →
+    YulangClosure.SourceInternalChoiceR77.PeelsTo nodes index (Prod.fst.{0, 0} result) (Prod.snd.{0, 0} result)
+'YulangClosure.SourceInternalChoiceR77.peel_sound' depends on axioms: [propext, Quot.sound.{u}]
+@YulangClosure.SourceInternalChoiceR77.alignment_has_name : ∀ {S T : Type} [inst : DecidableEq.{1} S]
+  [inst_1 : DecidableEq.{1} T]
+  (source : YulangClosure.SourceInternalChoiceR77.OwnerSource (YulangClosure.ProviderNativeContextR57.Key S T))
+  (calls : List.{0} (YulangClosure.SourceInternalChoiceR77.SourceCall (YulangClosure.ProviderNativeContextR57.Key S T)))
+  (u : YulangClosure.SourceInternalContextR55.Use Nat (YulangClosure.ProviderNativeContextR57.Key S T))
+  (receiving target : YulangClosure.ProviderNativeContextR57.Key S T)
+  (a : YulangClosure.SourceInternalChoiceR77.Alignment source calls u receiving target),
+  Eq.{1} source.owner receiving ∧
+    Eq.{1} a.call.owner receiving ∧
+      YulangClosure.SourceInternalChoiceR77.PeelsTo source.expressions a.call.callee u.occurrence target
+'YulangClosure.SourceInternalChoiceR77.alignment_has_name' depends on axioms: [propext, Quot.sound.{u}]
+@YulangClosure.SourceInternalChoiceR77.aligned_construction_certifies : ∀ {S T : Type} [inst : DecidableEq.{1} S]
+  [inst_1 : DecidableEq.{1} T] (s : YulangClosure.SourceInternalChoiceR77.Source S T)
+  (inventory : YulangClosure.OccurrenceQualifiedFactReadersR65.Inventory S T)
+  (source : YulangClosure.SourceInternalChoiceR77.OwnerSource (YulangClosure.ProviderNativeContextR57.Key S T))
+  (calls : List.{0} (YulangClosure.SourceInternalChoiceR77.SourceCall (YulangClosure.ProviderNativeContextR57.Key S T)))
+  (u : YulangClosure.SourceInternalContextR55.Use Nat (YulangClosure.ProviderNativeContextR57.Key S T))
+  (receiving target : YulangClosure.ProviderNativeContextR57.Key S T),
+  match YulangClosure.SourceInternalChoiceR77.constructAligned s source calls u receiving target with
+  | Option.none.{0} => True
+  | Option.some.{0} c =>
+    YulangClosure.SourceInternalChoiceR77.PeelsTo source.expressions c.alignment.call.callee u.occurrence target ∧
+      Eq.{1}
+          ((YulangClosure.OccurrenceQualifiedFactReadersR65.internalInputs s inventory u.occurrence).plan
+            (YulangClosure.SourceInternalContextR55.use u))
+          (Option.some.{0} (YulangClosure.SourceInternalContextR55.plan c.choice.plan)) ∧
+        Eq.{1} (YulangClosure.OccurrenceQualifiedConsumerR66.ownerSelection s target c.choice.plan.targetRootComponent)
+            (Option.some.{0} c.choice.origin) ∧
+          Eq.{1} (GetElem?.getElem?.{0, 0, 0} s.parameterRecipes c.choice.formal.recipePosition)
+            (Option.some.{0} c.choice.formal.parameter)
+'YulangClosure.SourceInternalChoiceR77.aligned_construction_certifies' depends on axioms: [propext, Quot.sound.{u}]
+YulangClosure.SourceInternalChoiceR77.admitted_shape_constructs_distinct_coordinates : Ne.{1}
+    YulangClosure.SourceInternalChoiceR77.fixtureUse.occurrence
+    YulangClosure.SourceInternalChoiceR77.fixtureCall.checking ∧
+  Eq.{1}
+      (YulangClosure.SourceInternalChoiceR77.peel YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource.expressions
+        (HAdd.hAdd.{0, 0, 0} (List.length.{0} YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource.expressions) 1)
+        List.nil.{0} YulangClosure.SourceInternalChoiceR77.fixtureCall.callee)
+      (Option.some.{0}
+        (Prod.mk.{0, 0} YulangClosure.SourceInternalChoiceR77.fixtureUse.occurrence
+          (YulangClosure.ProviderNativeContextR57.Key.source 1))) ∧
+    Eq.{1} (Option.isSome.{0} YulangClosure.SourceInternalChoiceR77.fixtureAligned) Bool.true
+'YulangClosure.SourceInternalChoiceR77.admitted_shape_constructs_distinct_coordinates' depends on axioms: [propext,
+ Quot.sound.{u}]
+YulangClosure.SourceInternalChoiceR77.finite_alignment_rejects_duplicates_and_foreign_owners : Eq.{1}
+    (Option.isSome.{0}
+      (YulangClosure.SourceInternalChoiceR77.constructAligned
+        (have __src := YulangClosure.SourceInternalChoiceR77.fixture;
+        { artifact := __src.artifact, formals := __src.formals, parameterRecipes := __src.parameterRecipes,
+          schedules := __src.schedules, sources := __src.sources, sourceOwners := __src.sourceOwners,
+          occupiedDomains := __src.occupiedDomains, retainedRegistrations := __src.retainedRegistrations,
+          constructions := __src.constructions, permissions := __src.permissions, receipts := __src.receipts,
+          plans :=
+            HAppend.hAppend.{0, 0, 0} YulangClosure.SourceInternalChoiceR77.fixture.plans
+              YulangClosure.SourceInternalChoiceR77.fixture.plans,
+          recipes := __src.recipes, admittedFacts := __src.admittedFacts, componentTerms := __src.componentTerms,
+          termViews := __src.termViews })
+        YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource
+        (List.cons.{0} YulangClosure.SourceInternalChoiceR77.fixtureCall List.nil.{0})
+        YulangClosure.SourceInternalChoiceR77.fixtureUse (YulangClosure.ProviderNativeContextR57.Key.source 10)
+        (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+    Bool.false ∧
+  Eq.{1}
+      (Option.isSome.{0}
+        (YulangClosure.SourceInternalChoiceR77.constructAligned YulangClosure.SourceInternalChoiceR77.fixture
+          YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource
+          (List.cons.{0} YulangClosure.SourceInternalChoiceR77.fixtureCall
+            (List.cons.{0} YulangClosure.SourceInternalChoiceR77.fixtureCall List.nil.{0}))
+          YulangClosure.SourceInternalChoiceR77.fixtureUse (YulangClosure.ProviderNativeContextR57.Key.source 10)
+          (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+      Bool.false ∧
+    Eq.{1}
+        (Option.isSome.{0}
+          (YulangClosure.SourceInternalChoiceR77.constructAligned YulangClosure.SourceInternalChoiceR77.fixture
+            (have __src := YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource;
+            { owner := YulangClosure.ProviderNativeContextR57.Key.source 999, expressions := __src.expressions })
+            (List.cons.{0} YulangClosure.SourceInternalChoiceR77.fixtureCall List.nil.{0})
+            YulangClosure.SourceInternalChoiceR77.fixtureUse (YulangClosure.ProviderNativeContextR57.Key.source 10)
+            (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+        Bool.false ∧
+      Eq.{1}
+          (Option.isSome.{0}
+            (YulangClosure.SourceInternalChoiceR77.constructAligned YulangClosure.SourceInternalChoiceR77.fixture
+              YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource
+              (List.cons.{0}
+                (have __src := YulangClosure.SourceInternalChoiceR77.fixtureCall;
+                { owner := YulangClosure.ProviderNativeContextR57.Key.source 999, checking := __src.checking,
+                  expression := __src.expression, callee := __src.callee, argument := __src.argument })
+                List.nil.{0})
+              YulangClosure.SourceInternalChoiceR77.fixtureUse (YulangClosure.ProviderNativeContextR57.Key.source 10)
+              (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+          Bool.false ∧
+        Eq.{1}
+            (Option.isSome.{0}
+              (YulangClosure.SourceInternalChoiceR77.constructAligned YulangClosure.SourceInternalChoiceR77.fixture
+                YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource
+                (List.cons.{0} YulangClosure.SourceInternalChoiceR77.fixtureCall List.nil.{0})
+                YulangClosure.SourceInternalChoiceR77.fixtureUse (YulangClosure.ProviderNativeContextR57.Key.source 10)
+                (YulangClosure.ProviderNativeContextR57.Key.source 999)))
+            Bool.false ∧
+          Eq.{1}
+              (Option.isSome.{0}
+                (YulangClosure.SourceInternalChoiceR77.constructAligned YulangClosure.SourceInternalChoiceR77.fixture
+                  YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource
+                  (List.cons.{0} YulangClosure.SourceInternalChoiceR77.fixtureCall List.nil.{0})
+                  (have __src := YulangClosure.SourceInternalChoiceR77.fixtureUse;
+                  { artifact := __src.artifact, occurrence := YulangClosure.ProviderNativeContextR57.Key.source 102 })
+                  (YulangClosure.ProviderNativeContextR57.Key.source 10)
+                  (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+              Bool.false ∧
+            Eq.{1}
+                (Option.isSome.{0}
+                  (YulangClosure.SourceInternalChoiceR77.constructAligned YulangClosure.SourceInternalChoiceR77.fixture
+                    YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource
+                    (List.cons.{0}
+                      (have __src := YulangClosure.SourceInternalChoiceR77.fixtureCall;
+                      { owner := __src.owner, checking := YulangClosure.ProviderNativeContextR57.Key.source 100,
+                        expression := __src.expression, callee := __src.callee, argument := __src.argument })
+                      List.nil.{0})
+                    YulangClosure.SourceInternalChoiceR77.fixtureUse
+                    (YulangClosure.ProviderNativeContextR57.Key.source 10)
+                    (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+                Bool.false ∧
+              Eq.{1}
+                  (Option.isSome.{0}
+                    (YulangClosure.SourceInternalChoiceR77.constructAligned
+                      YulangClosure.SourceInternalChoiceR77.fixture
+                      YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource
+                      (List.cons.{0}
+                        (have __src := YulangClosure.SourceInternalChoiceR77.fixtureCall;
+                        { owner := __src.owner, checking := __src.checking, expression := 0, callee := __src.callee,
+                          argument := __src.argument })
+                        List.nil.{0})
+                      YulangClosure.SourceInternalChoiceR77.fixtureUse
+                      (YulangClosure.ProviderNativeContextR57.Key.source 10)
+                      (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+                  Bool.false ∧
+                Eq.{1}
+                  (Option.isSome.{0}
+                    (YulangClosure.SourceInternalChoiceR77.constructAligned
+                      YulangClosure.SourceInternalChoiceR77.fixture
+                      YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource
+                      (List.cons.{0}
+                        (have __src := YulangClosure.SourceInternalChoiceR77.fixtureCall;
+                        { owner := __src.owner, checking := __src.checking, expression := __src.expression,
+                          callee := __src.callee, argument := 99 })
+                        List.nil.{0})
+                      YulangClosure.SourceInternalChoiceR77.fixtureUse
+                      (YulangClosure.ProviderNativeContextR57.Key.source 10)
+                      (YulangClosure.ProviderNativeContextR57.Key.source 1)))
+                  Bool.false
+'YulangClosure.SourceInternalChoiceR77.finite_alignment_rejects_duplicates_and_foreign_owners' depends on axioms: [propext,
+ Quot.sound.{u}]
+YulangClosure.SourceInternalChoiceR77.finite_peel_rejects_cycles_missing_and_other : Eq.{1}
+    (YulangClosure.SourceInternalChoiceR77.peel
+      (List.cons.{0}
+        { occurrence := YulangClosure.ProviderNativeContextR57.Key.source 101,
+          form := YulangClosure.SourceInternalChoiceR77.HirForm.group 0 }
+        List.nil.{0})
+      2 List.nil.{0} 0)
+    Option.none.{0} ∧
+  Eq.{1}
+      (YulangClosure.SourceInternalChoiceR77.peel YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource.expressions 4
+        List.nil.{0} 99)
+      Option.none.{0} ∧
+    Eq.{1}
+        (YulangClosure.SourceInternalChoiceR77.peel YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource.expressions
+          5 List.nil.{0} 2)
+        Option.none.{0} ∧
+      Eq.{1}
+        (YulangClosure.SourceInternalChoiceR77.peel YulangClosure.SourceInternalChoiceR77.fixtureOwnerSource.expressions
+          5 List.nil.{0} 3)
+        Option.none.{0}
+'YulangClosure.SourceInternalChoiceR77.finite_peel_rejects_cycles_missing_and_other' depends on axioms: [propext,
+ Quot.sound.{u}]
+@YulangClosure.SourceInternalChoiceR77.duplicate_aligned_uses_rejected : ∀ {S T : Type} [inst : DecidableEq.{1} S]
+  [inst_1 : DecidableEq.{1} T] (s : YulangClosure.SourceInternalChoiceR77.Source S T)
+  (source : YulangClosure.SourceInternalChoiceR77.OwnerSource (YulangClosure.ProviderNativeContextR57.Key S T))
+  (calls : List.{0} (YulangClosure.SourceInternalChoiceR77.SourceCall (YulangClosure.ProviderNativeContextR57.Key S T)))
+  (u : YulangClosure.SourceInternalContextR55.Use Nat (YulangClosure.ProviderNativeContextR57.Key S T))
+  (receiving target : YulangClosure.ProviderNativeContextR57.Key S T)
+  (first second : YulangClosure.SourceInternalContextR55.Plan Nat (YulangClosure.ProviderNativeContextR57.Key S T) T)
+  (rest :
+    List.{0} (YulangClosure.SourceInternalContextR55.Plan Nat (YulangClosure.ProviderNativeContextR57.Key S T) T)),
+  Eq.{1} (YulangClosure.SourceInternalChoiceR77.alignedUses s source calls receiving target)
+      (List.cons.{0} first (List.cons.{0} second rest)) →
+    Eq.{1} (YulangClosure.SourceInternalChoiceR77.constructAligned s source calls u receiving target) Option.none.{0}
+'YulangClosure.SourceInternalChoiceR77.duplicate_aligned_uses_rejected' depends on axioms: [propext, Quot.sound.{u}]
+```
+
+### stderr verbatim
+
+```text
+
+```
