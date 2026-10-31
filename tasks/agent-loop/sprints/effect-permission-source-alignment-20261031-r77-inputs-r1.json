@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "revision": 1,
+  "sprint_id": "EFFECT-PERMISSION-SOURCE-ALIGNMENT/20261031-R77",
+  "baseline_commit": "d86ae69b04515e969a0334a50cd2dc2299dcd67e",
+  "contract": "tasks/agent-loop/sprints/effect-permission-source-alignment-20261031-r77.md",
+  "contract_sha256": "371b2df095300dfdf942c37530505b53d49fbb114edddb97721e7d54598f8c12",
+  "inputs": [
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "sha256": "a5e9f3cd641f40415a6f2aa1f92fdd2cff9c031c5e64c066f8fde1f792770968",
+      "note": "R76 rejected source overlay; preserved patch is in history"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_source.rs",
+      "sha256": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a",
+      "note": "Name and Apply occurrence collection"
+    },
+    {
+      "path": "crates/yu-solver/src/lib.rs",
+      "sha256": "15e7b131a65f8476eec575d978dc629d15d49e72149325ef35a8c08acc8fc745",
+      "note": "native internal_formal_permission_incidence and DefinitionUse owners"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ComputationPermissionEntryR39.lean",
+      "sha256": "748cd52ff7962962940a3767ffa6a0b2d8def16d80e65e682282d1fa2b79560e",
+      "note": "pinned source declaration"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/InternalPermissionIncidenceR45.lean",
+      "sha256": "9ff4fd544375a3d4a46100647cba93ddde6f34bebd767ba402f3bd3d35a84b1f",
+      "note": "pinned source declaration"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceInternalContextR55.lean",
+      "sha256": "7aaecdd3d358d769123f00acb4b19b4d7d61ccfef98fee4eb53179da4a105123",
+      "note": "complete use/plan/inventory definitions"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ProviderNativeContextR57.lean",
+      "sha256": "804b3431c2e585370b8adc28f59b36c26a36e1524f42278a860823c9bd7eaa63",
+      "note": "branded source fixture and endpoints"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean",
+      "sha256": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+      "note": "actual inventory and reader declarations"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OccurrenceQualifiedConsumerR66.lean",
+      "sha256": "5db5ad3f3f5e5803e2bc564fc8922d5eb8a72182c7ba11de3904eebd7b5950e1",
+      "note": "actual ownerSelection and consumer definitions"
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+      "note": "Lean toolchain pin"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceInternalChoiceR76.lean",
+      "sha256": "28f5c2fc3679e3af4ef2f14bb984307fe036b4c979a3cb91f39ba0c9ebf565c3",
+      "note": "rejected predecessor; read-only"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-choice-r76-proof.md",
+      "sha256": "26a0f7ce400c18a3ee1c31046d76738f9edecaa437a35b7f3f39bb174aa9f1b1",
+      "note": "both failed audit receipts and full stdout"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-choice-r76-review.md",
+      "sha256": "e30bf21454cf4957f39e06d253680beafcc09442a87338c386fe828de653f70a",
+      "note": "independent rejection"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-source-choice-20261031-r76-outcome.md",
+      "sha256": "b4b388853983ebd669b2ad04bccd738b14bcf0fe8435c0a5b9864e253fda9375",
+      "note": "failed closeout"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-source-choice-20261031-r76-rejected-source.patch.base64",
+      "sha256": "a48251d427132e213e64ec7474512af3ff3ffcaa9651b89ac2aaa3fe91ccd63b",
+      "note": "base64-encoded exact rejected R76 receiver overlay patch; decoded patch SHA-256 837b2d8d82efbe9d110d17fd51f4e54e85b2397d1f8b3480264110bdcdf549d4"
+    }
+  ],
+  "lean_executable": {
+    "path": "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean",
+    "sha256": "bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38"
+  },
+  "lean_audit_policy": {
+    "max_invocations": 2,
+    "per_invocation_timeout_seconds": 120,
+    "args": [
+      "-j1",
+      "-M1024",
+      "--stdin"
+    ],
+    "env": {
+      "LEAN_NUM_THREADS": "1"
+    },
+    "cwd": "notes/theory/lean",
+    "destination": "stdin only; stdout/stderr retained in proof handoff",
+    "explicit_primary_authorization_before_each": true,
+    "no_third_invocation": true
+  },
+  "r76_findings": [
+    "Name occurrence and enclosing Apply occurrence are distinct; R76 compared them as equal and returned None before owner selection.",
+    "R76 Lean audit 2 failed; sorryAx appears in 10/14 theorem axiom reports. Both R76 invocations consumed; R77 uses a new packet and new frozen input."
+  ],
+  "revision_note": "The new R77 Lean artifact is not yet authored; its exact hash and audit source-slice manifest must be added by amendment before any Lean execution."
+}
