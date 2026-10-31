@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "sprint": "EFFECT-PERMISSION-DEPENDENT-COMPOSITION/20261029-r8-diagnosis",
+  "baseline_commit": "d33805eb589ac89925bacab57e362df093456fe0",
+  "prior_sprint": "EFFECT-PERMISSION-SOURCE-ALLOCATION/20261029-r7",
+  "entries": [
+    {
+      "path": "notes/theory/lean/YulangClosure/FormalPermissionSourceAllocation.lean",
+      "bytes": 17822,
+      "sha256": "5f11254fe698905a4d1a24ccb9cfe799058a55a27c9bc01dd66033548d49e6b4",
+      "kind": "frozen_r7_revision2"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-allocation-r7-review.md",
+      "bytes": 2831,
+      "sha256": "484353e753a790e9584514ba30412017ff043f751f88c3c7427bfa461d195702",
+      "kind": "adjudicated_r7_review"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-allocation-r7-proof.md",
+      "bytes": 12775,
+      "sha256": "4fe401821801e658f00a51a4e0b0c21ac5f58b1dcc294faf3708710c2f261215",
+      "kind": "r7_proof_handoff"
+    },
+    {
+      "path": "tasks/agent-loop/evidence/effect-permission-source-allocation-20261029-r7.json",
+      "bytes": 9468,
+      "sha256": "5f30f49d42abffde9f6c5707637d06c1796499c662cced53bf455483cafafc45",
+      "kind": "r7_evidence"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-source-allocation-20261029-r7.md",
+      "bytes": 4747,
+      "sha256": "eeeca49694bf07518c8277f1d791ca907cc56d5ccdbbc886eab4ed16368942f2",
+      "kind": "r7_contract"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-source-allocation-20261029-r7-inputs.json",
+      "bytes": 22131,
+      "sha256": "76c23bef7ffccd76740ad65cf06899bbcc0bbd9a63e995406240825af9c69983",
+      "kind": "r7_manifest"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/FormalPermissionConstructorRealization.lean",
+      "bytes": 14959,
+      "sha256": "70a89e7ea4589951e5f5e9323b4b2b415003c5868dc3f53ce16129fa67eafdd9",
+      "kind": "formal_dependency"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/FormalPermissionExportWitness.lean",
+      "bytes": 15149,
+      "sha256": "7c01a80c8d8e868d9349a3d02ec2d465ca976edfb515e04b57161b5c9744a67f",
+      "kind": "formal_dependency"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/FormalPermissionAuthenticatedNativeDecode.lean",
+      "bytes": 11292,
+      "sha256": "ea97baf7c98becef27df9e0c416d8d5fb00e9e1b5b63f37021b01598231936dc",
+      "kind": "accepted_r5_dependency"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/FormalPermissionSourceOrigin.lean",
+      "bytes": 17918,
+      "sha256": "db37f9d83e450a450d689b9eed46311108e635eb846d268b7a3a567dcee624fd",
+      "kind": "formal_dependency"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/FormalPermissionSiteTraversal.lean",
+      "bytes": 8761,
+      "sha256": "ac079ecc4c480adb4222723815b3f476469ed13b933c3994d090db0fae909207",
+      "kind": "formal_dependency"
+    },
+    {
+      "path": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/audit-inputs-2.json",
+      "bytes": 10269,
+      "sha256": "0a72e7bc44c45248d04e5e20f397a449ab374e4f9c2dd81ffb07ff29b8b48d4f",
+      "kind": "frozen_failed_audit_plan"
+    },
+    {
+      "path": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/audit-inputs-2-provenance-supplement.json",
+      "bytes": 1960,
+      "sha256": "fc7a09913ea40a463d02e6892bac2897f36589c90aaf48b0e0443cf8ad9a9e3a",
+      "kind": "provenance_supplement"
+    },
+    {
+      "path": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/lean-receipts/attempt-2/stdout.txt",
+      "bytes": 9993,
+      "sha256": "bbac3d71f0061f02f6d7b2090ec65140127a77a3572daf336f07776bbf512de5",
+      "kind": "raw_failed_audit_diagnostics"
+    },
+    {
+      "path": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/lean-receipts/attempt-2/stderr.txt",
+      "bytes": 33,
+      "sha256": "0edf2d238840b65a26de68075c964d099167cf4cae51705f162bcfa4e7addc60",
+      "kind": "raw_failed_audit_diagnostics"
+    },
+    {
+      "path": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/lean-receipts/attempt-2/status.txt",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "kind": "raw_failed_audit_receipt"
+    },
+    {
+      "path": "/tmp/yulang-effect-permission-source-allocation-20261029-r7/lean-receipts/attempt-2/time.txt",
+      "bytes": 2432,
+      "sha256": "b89c6f708ac016a3c6b95d11557cde8c21ae7cdc0308472ce7a3797432bb785f",
+      "kind": "raw_failed_audit_receipt"
+    }
+  ]
+}

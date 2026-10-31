@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "revision": 2,
+  "sprint": "EFFECT-PERMISSION-DEPENDENT-COMPOSITION/20261029-r8-diagnosis",
+  "stage": "CLOSED_DIAGNOSIS_COMPLETE",
+  "selector": "/root/r21_closeout_selector: bounded read-only diagnosis before another repair; no equivalent repair packet admitted automatically.",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-dependent-composition-20261029-r8-diagnosis.md",
+    "sha256": "98a7bc71b892421f9273ea0ea36310878dcdaea0b5b38a07533ba2be23c5f00f"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-dependent-composition-20261029-r8-inputs.json",
+    "sha256": "e50251c3e15db4113dc7cd4ec2409ed3191badf2e272578a254d41efde943ef6",
+    "entries": 17
+  },
+  "prior_sprint": {
+    "id": "EFFECT-PERMISSION-SOURCE-ALLOCATION/20261029-r7",
+    "status": "CLOSED_INCOMPLETE",
+    "outcome": "tasks/agent-loop/history/effect-permission-source-allocation-20261029-r7-outcome.md",
+    "outcome_sha256": "e573a8359cd439bf17c358b2b5249b729f0fe6e3c98bdf42aba341eedc4b926e"
+  },
+  "scope": "Read-only diagnosis of dependent Function composition, mutual recursion induction, and line239 kernel mismatch. No edits or compiler/audit execution.",
+  "lanes": {
+    "proof": {
+      "role": "registered lean_prover",
+      "budget_seconds": 180,
+      "state": "NOT_STARTED",
+      "output": "primary materializes combined diagnosis handoff"
+    },
+    "source": {
+      "owner": "primary Luna",
+      "budget_seconds": 40,
+      "state": "PENDING_DIAGNOSIS"
+    },
+    "primary": {
+      "budget_seconds": 20
+    }
+  },
+  "gates": {
+    "conditional_transcription": "OPEN",
+    "rust_execution_correspondence": "OPEN",
+    "exact_tree_SourcePair": "OPEN",
+    "permission_prefix": "OPEN",
+    "original_parent": "OPEN",
+    "effect_hygiene": "OPEN",
+    "consumer_residual": "OPEN",
+    "unequal_transport": "OPEN",
+    "soundness": "OPEN",
+    "principality": "OPEN",
+    "termination": "OPEN",
+    "production": "OPEN"
+  },
+  "proof_agent": {
+    "id": "/root/effect_permission_dependent_composition_r8_diagnosis",
+    "role": "registered lean_prover",
+    "state": "STOPPED",
+    "budget_seconds": 180,
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "receipt": "Read-only diagnosis returned; no edits, compiler commands, generated outputs or descendants."
+  },
+  "source_boundary": {
+    "owner": "primary Luna",
+    "budget_seconds": 40,
+    "state": "DONE_READ_ONLY",
+    "finding": "Pinned source order argument value \u2192 result value \u2192 argument port \u2192 result port matches proposed motives and AllocationTrace composition; FreshReady/FreshStep, HelperFrames and tuple guard premises preserved."
+  },
+  "input_manifest_matches": 17,
+  "input_manifest_mismatches": 0,
+  "handoff": {
+    "path": "tasks/agent-loop/inbox/effect-permission-dependent-composition-r8-diagnosis.md",
+    "sha256": "2f6d22c337b804b8e30c49ce2dfc11501397c245d34dc5495e0435abd0b9dd2a"
+  },
+  "outcome": {
+    "path": "tasks/agent-loop/history/effect-permission-dependent-composition-20261029-r8-diagnosis-outcome.md",
+    "sha256": "9bea4bcee56fcac92ebe8e8d56c8cc58cc444174f8f649231dd6e32bd9fb54d0"
+  },
+  "next_boundary": "Concrete proof construction requires separate exact admission; no theorem or parent gate closed."
+}
