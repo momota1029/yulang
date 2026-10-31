@@ -243,7 +243,24 @@
       "notes/theory/lean/YulangClosure/NativeRootPremisesR85.lean",
       "tasks/agent-loop/inbox/effect-permission-native-root-premises-r85-proof.md"
     ],
-    "parent_application": "derive exact R84 originCandidates/originRead premise from same native records or formalize a producer-reachable countermodel"
+    "parent_application": "derive exact R84 originCandidates/originRead premise from same native records or formalize a producer-reachable countermodel",
+    "candidate": {
+      "path": "notes/theory/lean/YulangClosure/NativeRootPremisesR85.lean",
+      "bytes": 10795,
+      "sha256": "a3027fb0c80bc6314be61d39a943be278b6320bc54a9a2b1b88ee14bfce3f1db",
+      "status": "FROZEN_UNCHECKED"
+    },
+    "handoff": {
+      "path": "tasks/agent-loop/inbox/effect-permission-native-root-premises-r85-proof.md",
+      "bytes": 13578,
+      "sha256": "e9e42530183f0637492b038af361eb9c288c620452ae7f03367c91bd7417aab2",
+      "status": "FROZEN_UNCHECKED"
+    },
+    "proposed_exact_stdin": {
+      "bytes": 115845,
+      "sha256": "2f001a9673e79313db2b57c456c9e0875d43d3b86d225944e33ee198a10759ac",
+      "checker_executed": false
+    }
   },
   "review_path": "tasks/agent-loop/inbox/effect-permission-native-root-premises-r85-review.md",
   "resources_seconds": {
