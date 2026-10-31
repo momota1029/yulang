@@ -2426,8 +2426,12 @@ impl ReceivingResidualExperiment {
                 } = &callee_name.form else {
                     continue;
                 };
+                let Some(collected_definition) = batch.definition_order_for_hir_id(definition)
+                else {
+                    return None;
+                };
                 if callee_name.occurrence != *use_record.occurrence()
-                    || definition != use_record.target()
+                    || collected_definition != use_record.target()
                     || !hir.owns_occurrence(&callee_name.occurrence)
                 {
                     continue;
@@ -4514,6 +4518,7 @@ impl<'a> InventoryPackage<'a> {
                 } = &name.form else {
                     return None;
                 };
+                let target = native.batch.definition_order_for_hir_id(target)?;
                 hir.owns_occurrence(&name.occurrence).then_some(InventorySourceAlignment {
                     callee_name_occurrence: &name.occurrence,
                     target,

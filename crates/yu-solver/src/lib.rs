@@ -1591,6 +1591,45 @@ impl ConstraintBatch {
             SourceRootId::Member(_) => self.hirs.iter().find(|hir| hir.owns_source_root(root)),
         }
     }
+
+    /// Resolve an exact HIR definition identity through this batch's retained
+    /// ordered HIR/root inventory. This deliberately scans the borrowed
+    /// inventory instead of retaining a second spelling-bearing index.
+    pub(crate) fn definition_order_for_hir_id(
+        &self,
+        target: &DefId,
+    ) -> Option<&DefinitionOrderId> {
+        let mut found = None;
+        for (hir_position, hir) in self.hirs.iter().enumerate() {
+            for item in hir.items() {
+                let HirItem::Binding(binding) = item else { continue; };
+                if binding.id() != target { continue; }
+
+                let root = binding.definition_root();
+                if !hir.owns_definition_root(root) { return None; }
+                let definition_position = *self.root_definition_positions.get(root)?;
+                if self.root_hir_positions.get(definition_position) != Some(&hir_position) {
+                    return None;
+                }
+                let record = self.definitions.get(definition_position)?;
+                if &record.root != root
+                    || record.definition.ordinal() as usize != definition_position
+                    || !Arc::ptr_eq(&record.definition.artifact, &self.collection_artifact)
+                    || self.definition_positions.get(&record.definition) != Some(&definition_position)
+                {
+                    return None;
+                }
+
+                // The exact HIR ID must identify one retained binding/root
+                // pair. A duplicate in this or another HIR fails closed.
+                if found.replace(&record.definition).is_some() {
+                    return None;
+                }
+            }
+        }
+        found
+    }
+
     pub fn occurrences(&self) -> &[ConstraintOccurrence] {
         &self.occurrences
     }
