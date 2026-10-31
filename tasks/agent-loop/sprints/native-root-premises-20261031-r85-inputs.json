@@ -4,7 +4,7 @@
   "baseline_commit": "c4e594fc64d72dba30a73c64fcbf258eaebdfc32",
   "parent_gate": "original Simple-sub A/B soundness at R66 Root",
   "contract": "tasks/agent-loop/sprints/native-root-premises-20261031-r85.md",
-  "contract_sha256": "f37be4e21146b31ad2cf1a43edb7821bb35bf40b230b24f0ddd90688bad530fe",
+  "contract_sha256": "fceae58853a9a5ec185add9c8f7af9e45b2b0cc3db2c18c24a119ebcd4d8303d",
   "inputs": [
     {
       "path": "crates/yu-solver/src/candidate_context.rs",

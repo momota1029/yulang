@@ -49,3 +49,7 @@ Expand the pinned Rust read ranges to include `candidate_context.rs` completion 
 ## Amendment 02 — accepted R84 stdin recipe
 
 Admit the hash-pinned R84 proof handoff `tasks/agent-loop/inbox/effect-permission-root-elaboration-r84-proof.md` as a proof/review read, per the updated R85 input manifest. Its §§ “Assembly and invocation gates” and its source inventory establish the accepted normalized prefix body and exact slot-4 recipe; do not reconstruct the prefix from an unpinned approximation. This grants read access only and does not authorize a Lean invocation.
+
+## Amendment 03 — one diagnostic-directed theorem repair
+
+Slot-1 execution was rejected with one reduction error at `pending_rejects_checkedRootGate` (flattened line 2271:20), recorded in the primary review receipt; `pending_rejects_checkedRootGate` and its dependent theorem currently carry `sorryAx`. Reopen the exact candidate and proof-handoff leases for one repair of that theorem's branch reduction only. Keep the lifecycle definitions, source model, quantifiers, conclusions, every competitor and the exact R84 parent unchanged. No source/compiler changes. Do not execute Lean. Freeze the repaired candidate, handoff, proposed stdin bytes/hash and diagnostic explanation. A fresh read-only reviewer must approve the exact second input before Luna separately commits/pushes its authorization. This is the sole second and final R85 invocation.
