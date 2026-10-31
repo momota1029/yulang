@@ -1,0 +1,542 @@
+{
+  "sprint": "EFFECT-PERMISSION-FORMAL-ADMISSION/20261101-R92",
+  "revision": 1,
+  "baseline_commit": "0bdac5f73",
+  "baseline_branch": "yulang3",
+  "baseline_remote": "origin/yulang3",
+  "authority": "continuing explicit user goal for Yulang Rust/Lean soundness research; R91 closed blocked; dispatcher selected source-owned logical admission/readout plus exact candidate recovery",
+  "parent": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md §§1,3,5,7; preserve original source domain, quantifiers, Value/Computation modes, dependent telescope and shared witnesses",
+  "upstream_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-formal-registration-supplier-20261101-r91-inputs-r1.json",
+    "sha256": "2f2c024aae812057364e880238be072a1e63398fe31fde94d4c269e19a048844",
+    "entries": 93
+  },
+  "inputs": [
+    {
+      "path": "AGENTS.md",
+      "bytes": 11939,
+      "sha256": "4a6c910e12adb8f5ccc07b0921f2cc781ea7044994f99425d3c54c4e75837d3c"
+    },
+    {
+      "path": "AGENTS.pre-sprint.md",
+      "bytes": 24393,
+      "sha256": "99ae7bbda0a8907a48f762420d996e145e9870ad9794ea0dc608770131182882"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_call.rs",
+      "bytes": 32230,
+      "sha256": "fdc39e01fa3665b4dc14e167973de63b275eb0280b831e340b6cdcee5ed0fc3f"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_context.rs",
+      "bytes": 265778,
+      "sha256": "a6e8bde3a187369ddf847a31f2ae6eb443434a34d819e44a7fc72c9788809905"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "bytes": 292001,
+      "sha256": "6004fd4252d15d8c99ac0e9f97582347a0de94946f497c0e29520d872e77dae2"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_scheme.rs",
+      "bytes": 509269,
+      "sha256": "bf8f5c80ce2761dc2a1235d2e02e348a91bc9e8965653db26b9abd4c8d6ca631"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_source.rs",
+      "bytes": 212009,
+      "sha256": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_value_graph.rs",
+      "bytes": 54389,
+      "sha256": "aaaa88a374083f898188cd390b8cf0244855d8c09c8939b9e68ee2831bc692cf"
+    },
+    {
+      "path": "crates/yu-solver/src/shadow_apply.rs",
+      "bytes": 276524,
+      "sha256": "c328e08662256b57ed9a31a4edd91e0832e9482cabb89952f204a89a78cf72ff"
+    },
+    {
+      "path": "notes/design/2026-10-07-complete-call-contribution-definition.md",
+      "bytes": 18576,
+      "sha256": "4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e"
+    },
+    {
+      "path": "notes/design/2026-10-08-call-source-interface-definition.md",
+      "bytes": 7537,
+      "sha256": "20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c"
+    },
+    {
+      "path": "notes/design/2026-10-08-source-generalize-definition.md",
+      "bytes": 9952,
+      "sha256": "46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38"
+    },
+    {
+      "path": "notes/design/2026-10-11-yulang-inference-top-level-principles.md",
+      "bytes": 7582,
+      "sha256": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81"
+    },
+    {
+      "path": "notes/design/2026-10-24-birth-level-scc-intrusion.md",
+      "bytes": 7812,
+      "sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae"
+    },
+    {
+      "path": "notes/progress/2026-10-20-sprint-adoption-reconciliation.md",
+      "bytes": 2287,
+      "sha256": "6c195a6f079d9a17040a5c585723d14a20951f2ed844f5053f6a751fc9634bc7"
+    },
+    {
+      "path": "notes/theory/2026-10-08-call-source-interface-construction.md",
+      "bytes": 47846,
+      "sha256": "278034197a90eab6e62a073545c09dd14415a0353f58aa3b3cc122a6af945d98"
+    },
+    {
+      "path": "notes/theory/2026-10-08-source-generalize-definition-and-proof.md",
+      "bytes": 70420,
+      "sha256": "e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240"
+    },
+    {
+      "path": "notes/theory/2026-10-08-source-signature-incidence-construction.md",
+      "bytes": 74720,
+      "sha256": "7367ce8eb69376583386c6d675d067712ec6fa173e96f458ee34ce390dc8901a"
+    },
+    {
+      "path": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md",
+      "bytes": 34671,
+      "sha256": "3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271"
+    },
+    {
+      "path": "notes/theory/lean/README.md",
+      "bytes": 53784,
+      "sha256": "8d27e0b90fc04eb8a0a30606a857e564e5269e8e33e72fddbf1190cb6a7072e3"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/Contracts.lean",
+      "bytes": 7467,
+      "sha256": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeClosureEnvironment.lean",
+      "bytes": 12152,
+      "sha256": "39aa5cefa078dd423e54f0d9790f9a48e136326742e01f65149f317c907be957"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeContextExpansion.lean",
+      "bytes": 50665,
+      "sha256": "9887bef34e51678cead77eaf84a2f9b47916987ea9cffaad5d4ef74d53de2ea8"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeDictionaryDenotation.lean",
+      "bytes": 33584,
+      "sha256": "d44a78f08970a09ca4c3e99a1d8dea846286a299d1a2bc91ec3b5e0eabea9070"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeMergeExpansion.lean",
+      "bytes": 35635,
+      "sha256": "f14bd35e8f7a6b9f326dadf003797c63f4a48fd0d0c0c9d68891c579560baf6e"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeRecordPlan.lean",
+      "bytes": 19424,
+      "sha256": "3cf43fdb754748b83a6816791d640752dda491b87f7e2513a27548a950b27d43"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeRelationInterner.lean",
+      "bytes": 63106,
+      "sha256": "1fd7ece6c6a7c6df7159efaebaec585b78a9e8513e9b10e6a3fb4d472b577d3a"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeReplayCoverage.lean",
+      "bytes": 12808,
+      "sha256": "e65d925ab5222fd6bbc4bf63e756701aaba1273fff677ceb052d7f66e6450b7e"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeReplayCurrent.lean",
+      "bytes": 38876,
+      "sha256": "fdd7dfa32f944f09b2cfc7440caeff95edcfad1fd5c839094f186d27168d9088"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeValuePorts.lean",
+      "bytes": 50584,
+      "sha256": "f49bf12537633c65b4dbdcb4e739df5de5eee76cfb5ad845c8dba50cef4101fa"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/NativeValueStructure.lean",
+      "bytes": 32345,
+      "sha256": "81060e17ad37f2e4a47edb7ed2829bea6820438bf3d4db0e4de8d113fd9497fc"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalBoundFibers.lean",
+      "bytes": 26763,
+      "sha256": "1a512b23a55936e30088763d46d3f71458cec953b58edbf794e28bb13eaf0ca5"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalCalleeDelayProvenance.lean",
+      "bytes": 21334,
+      "sha256": "3acb041c530b19e78703b3f3030edd1b304ab7c20329974f0afc2d387428dbfe"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalCheckingAdmission.lean",
+      "bytes": 52370,
+      "sha256": "77a8dd74f5913814d3628f0aed189be24b4aafc4780839eaa57237676a157da7"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalExtrusionFibers.lean",
+      "bytes": 13380,
+      "sha256": "15bb4ebc67a22f4bd3af584e8377dec210963f7cbba43e6072c82b5f2d5a8800"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalExtrusionWork.lean",
+      "bytes": 54842,
+      "sha256": "c419675d75a2cdf03fe5b1ba8d2eef106fea0c4f5187f9f5c06999fa734edd58"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalForcedParameter.lean",
+      "bytes": 9329,
+      "sha256": "d16a45c459ea78b0f583ebd34d7a442d7247b55358ff6d990e3416c3d841aedf"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalFormalAdmission.lean",
+      "bytes": 34188,
+      "sha256": "77230ab7984ee544db16fe4d9663b73f98b9afa9c5d2610fad59c26753d5ac7c"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalFormalRegistrationSupplierR91.lean",
+      "bytes": 14816,
+      "sha256": "d5187d6dce15a3c6a8979c5e6e88a097fcd7815a53fc81ed4770fd137750de2b"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalFormalShared.lean",
+      "bytes": 58542,
+      "sha256": "abb9d69546e284fcb5fe6be9bb3c18269227e91da94e09eebf1a62e0b56e67f7"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalIdentityCarrier.lean",
+      "bytes": 40085,
+      "sha256": "f26878514518f14a4a99e799dad2ca28e4513c467a8dd24d86e6329b9e640616"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalIdentityRealization.lean",
+      "bytes": 37856,
+      "sha256": "30b0676f4af22dc7da2c75596a338db57a24b17662a4057801cfdff7ab4a2f42"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalInferenceTerminationResolution.lean",
+      "bytes": 27884,
+      "sha256": "a89a316ea72e472b0e2c09effc144730dc4c683228008caf42a433d0a969a6dd"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalNameForceExtraction.lean",
+      "bytes": 43781,
+      "sha256": "10ff6a2d4ac8a4a2c386396c495e0edfecc9bd4bb3ae40c8e0ab07e4cb0c7531"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalParameterSemantics.lean",
+      "bytes": 45481,
+      "sha256": "733c5b05e0db226f95d14ff2161c46e9a389b43d86b365b000a9656ec4fd0bd2"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalParameterWorld.lean",
+      "bytes": 33616,
+      "sha256": "7b5f849f744dbe56f374d8be6b11a5a218176abf6eeda2fb9da8180c7b1ff802"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalPrincipality.lean",
+      "bytes": 15068,
+      "sha256": "c9d214cd086aa1fbdf8f471e7b52c8cccddaa971fc68a8bb0956c9539d098dc7"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalRecursivePair.lean",
+      "bytes": 78256,
+      "sha256": "1069c185c6fa190c2a0dd776ebf4efc7bfab8ece7e36f2f4049d480e50fa65e7"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalRetainedParameter.lean",
+      "bytes": 55668,
+      "sha256": "ae8915cf002019541d0658895f0604e98700ac23f47aac479fc8382cf65ef799"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalReturnWorld.lean",
+      "bytes": 32932,
+      "sha256": "0710f5d969af927c8f42b42f4972ba4f53ddce4ddb082e9d3d360e90c9ccf12b"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalScopedClosure.lean",
+      "bytes": 31986,
+      "sha256": "b316a5e18a14b4c9750cc97f294aea824ce6b0a704fc67929fa4a016e94ebeab"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceChecking.lean",
+      "bytes": 103542,
+      "sha256": "a0ba215e28fe0152e3c66024da86ab9a63219b7950e741bf260cbc4c2897ffd6"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceClosure.lean",
+      "bytes": 31884,
+      "sha256": "e39f165848c512830e6f92893c61e2d9f07cec66b729e8878c5f7d3491ab429a"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceEnvironment.lean",
+      "bytes": 81021,
+      "sha256": "0e12d33d1b912820324f5140fbe3f16983d0b7ef33137642aaef07faa573f132"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceEvents.lean",
+      "bytes": 66574,
+      "sha256": "cfd5f502a1e68a97e27e11a75400fae8789f167c92596aedb08ef7dfbb724342"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceGeneration.lean",
+      "bytes": 66485,
+      "sha256": "126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceInterpretation.lean",
+      "bytes": 56341,
+      "sha256": "feddd8155e6130279c202453e4562019fde5c0ad0f3a0a491dcbc0cb4ef572ef"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceRecordBoundary.lean",
+      "bytes": 30622,
+      "sha256": "c7889284745ebd23ec300cf3e4de0a8f7ffc4546a9af2eccf5df76d071a0dd1a"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceSyntax.lean",
+      "bytes": 22040,
+      "sha256": "3184d156d661ace7da0345f5fa63f8a4396d9f52c745d265239c8d3db1e7d0d1"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceValueEntryAdmission.lean",
+      "bytes": 5907,
+      "sha256": "3dc218f9d6623192d7d85c6f5be14f0fddbe833b19ede467c75647a5833205dd"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalValueEntryDemand.lean",
+      "bytes": 16344,
+      "sha256": "9a171ecfbad7d632b2a15ef1f57d2d2dd46444aa36452de9158f1d1c7cfdae63"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalWorldReadout.lean",
+      "bytes": 31012,
+      "sha256": "edb82b9ecc62be486e057ee50152e30dad709f9a90196f78cab803838f08fb00"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/RecordBoundaryExecution.lean",
+      "bytes": 26833,
+      "sha256": "865c4db37b3eed02d8cc376cf07b469c85ef364aeed7914823b207d14730cda2"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/RecordBoundaryPreservation.lean",
+      "bytes": 17037,
+      "sha256": "1bde9224c1b0d568d5cc73d84a5ccc5f1157452c87ea2ff428096c1dbd50d056"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SimpleSubConstraintSyntax.lean",
+      "bytes": 8694,
+      "sha256": "a9ec574d31223e0484fd827838b45cd019fc858eece9f326c95ebc2e1e77a1f6"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SimpleSubGeneralizationSoundness.lean",
+      "bytes": 19748,
+      "sha256": "3f6114e4173d6cade6ad135ed83ad543116e28e87845b0f6a834cb8f727f6246"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceAppDemandIncidenceR89.lean",
+      "bytes": 8973,
+      "sha256": "27facf01f86f7a0c86e1ef5160667b1e1b283b909a7b0535857abb182c20aeb5"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceFunctionMembership.lean",
+      "bytes": 7744,
+      "sha256": "8d370ee57e486ae48607d1bab493ae5135f28bf8a5a7ff1b0ef240fc0247e424"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceIdentityWorld.lean",
+      "bytes": 25976,
+      "sha256": "6019fd9d57cde50183e016bd0c72de2c6eee72009065d85119fb0348dbcf0168"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourcePrincipalTransport.lean",
+      "bytes": 13152,
+      "sha256": "ab86c4448dcddcb5e20ef1495e317c4d0fc04ad0ff52c4323779d12f5fde33ee"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceRegistrationAppBridgeR90.lean",
+      "bytes": 11964,
+      "sha256": "cd836e6b12a4deff0e5acf83523faedfb883240b6d019f17ec5a7d294b8c205a"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceScopedJointLiftR88.lean",
+      "bytes": 9755,
+      "sha256": "1421c7924fb93b957612b366942adefeaeca44a1b51daad9266d43016916facd"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceSignatureConstruction.lean",
+      "bytes": 37437,
+      "sha256": "ed07890e29b4dcb38cabd18ec0e196efde9e95c64902942a9906a470b38c3311"
+    },
+    {
+      "path": "notes/theory/lean/lake-manifest.json",
+      "bytes": 145,
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3"
+    },
+    {
+      "path": "notes/theory/lean/lakefile.toml",
+      "bytes": 311,
+      "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4"
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "rules/design-authority.md",
+      "bytes": 10512,
+      "sha256": "e4055100f6e75b9c8a6294ec6c68643d8677d7b35b45e430450f7e2c2ad97eb1"
+    },
+    {
+      "path": "rules/goal-driven-sprints.md",
+      "bytes": 20222,
+      "sha256": "f2e01e3c33dc13d6c5cb77a66e7c5f0de15f08669f5a47fef0d6cb5c914da3a5"
+    },
+    {
+      "path": "tasks/agent-loop/README.md",
+      "bytes": 8747,
+      "sha256": "0f829876325565f3c42fbf1950d01deef8c6fda4e92989f668ce1adada41efd6"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-app-demand-incidence-20261101-r89-admission-01.md",
+      "bytes": 4413,
+      "sha256": "bacec1bd863680452bc6f6a0ae74f9b3b8ce07287ac79c6bcf29b83bd1b518f0"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-app-demand-incidence-20261101-r89-amendment-01.md",
+      "bytes": 2484,
+      "sha256": "1ea4840118c7ce0a2f6d8ca96b528d7a833f639fa2e694a35c7705fc64dcda20"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-formal-registration-supplier-20261101-r91-admission-01.md",
+      "bytes": 2027,
+      "sha256": "4c9da793a1449acfea12adae7eccbb518d5e9522d1ce5873eadde7ae8298b6e7"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-formal-registration-supplier-20261101-r91-outcome.md",
+      "bytes": 3722,
+      "sha256": "19e5c3588e5321b66200dd4c872a20849c04777d02a3789177ae368d9e068f83"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-registration-app-20261101-r90-admission-01.md",
+      "bytes": 2444,
+      "sha256": "772b79d615434e80c14d11a21aed80877f58696f1357d1c39ea5e35679c72676"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-drain-reader-correspondence-20261031-r87-outcome.md",
+      "bytes": 3554,
+      "sha256": "72e2fc795a8d7e10c104ad2fc902f884165d1355dccb37476da264267c582816"
+    },
+    {
+      "path": "tasks/agent-loop/history/r91-lean-call-authorization-01.md",
+      "bytes": 3277,
+      "sha256": "a3bbd01e195baf50bf681b43482e2c70c7ed3c671b28dd6957932e1681db9e7f"
+    },
+    {
+      "path": "tasks/agent-loop/history/r91-lean-call-authorization-02.md",
+      "bytes": 3244,
+      "sha256": "c7520504d8b46105a57f6a5190e6eeb52a19ce646163c16ae52f506cabf0ff8c"
+    },
+    {
+      "path": "tasks/agent-loop/history/r91-lean-input-flatten-correction-01.md",
+      "bytes": 2311,
+      "sha256": "6469c015d0f02ce82bfcc656ece3aa8e01cdf98f1e5aca275376a2a7d9dec211"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-app-demand-incidence-r89-proof.md",
+      "bytes": 28001,
+      "sha256": "409d1c7960464a9676d49894c9389c14206f6800b7d29d9b99f89dd1f7a1ffc7"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-app-demand-incidence-r89-review.md",
+      "bytes": 38958,
+      "sha256": "da9cafb58bf89f6bdb3ebc7cb12b0f62d975539ab40a45b37c2f064c660fc700"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-app-demand-incidence-r89-source.md",
+      "bytes": 30426,
+      "sha256": "74d5815c3d502ed2da2b1b50bf7edb6378f6d773fe2e6190efc6e2e335db5539"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-formal-registration-r91-proof.md",
+      "bytes": 15452,
+      "sha256": "6c0b39ceb12527d2d336238b846a1171d8288b3bddafd84a724ec9a1afc6bd26"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-formal-registration-r91-review.md",
+      "bytes": 3939,
+      "sha256": "abd3134f8db87e8810f59dccc3eb4e807dac0a37ad11c1fe59002691addaf4d3"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-formal-registration-r91-source.md",
+      "bytes": 11961,
+      "sha256": "9b100a252fcaf14852ea13b7b85ffc7fe4e7456674b57be700eff67e8879b0ed"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-registration-app-r90-proof.md",
+      "bytes": 18298,
+      "sha256": "63b6d862192b050f8d1facbd196f4db2b95d3d95c50dc165de6654d22de899c1"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-registration-app-r90-review.md",
+      "bytes": 27615,
+      "sha256": "c42f034d7976645bcb7e935d4be46ed3f21ddae34645bb95672e5b9b58a5a7f6"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-registration-app-r90-source.md",
+      "bytes": 10636,
+      "sha256": "afd6d07429915af55a47938bce8917e34469e88e17900525a409413f789e8a99"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-joint-lift-r88-proof.md",
+      "bytes": 14182,
+      "sha256": "f3018d03e04e4ac65e82e44329ee2a74d4e046a47f1e52726f3cc41cce6defe2"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-joint-lift-r88-review.md",
+      "bytes": 10768,
+      "sha256": "41dde35dcea564d100d06d941f0ae6779028f6f0b610847e648d49d2578379e1"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-joint-lift-r88-source.md",
+      "bytes": 20401,
+      "sha256": "c2fbe9cc375beefae6cbdd78cb085ad87789c888107ac8884122a25d37d6e382"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-app-demand-incidence-20261101-r89-inputs-r2.json",
+      "bytes": 7013,
+      "sha256": "6fe8973a6b5e1aa55d73bb47c85cf4bb11b9a57e1a8b034a167197e7f8697dfa"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-app-demand-incidence-20261101-r89.md",
+      "bytes": 5382,
+      "sha256": "c036d191f2748d971862aab638ac92bd7147ac8ff27289a68e35ed1d7c23e45b"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-formal-registration-supplier-20261101-r91.md",
+      "bytes": 3934,
+      "sha256": "4f64c5905cd03a2f377a152259d57a846f58834a9ab4669584ccd67e16fefdad"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-registration-app-20261101-r90.md",
+      "bytes": 6007,
+      "sha256": "6d02d47f3f3f09313ddf1ce12b92212aba968bfe502494c97e8414ba23fb2c6d"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/source-scoped-joint-lift-20261031-r88.md",
+      "bytes": 9159,
+      "sha256": "e6adf9efbcea3d07aa3b419c52c5ec878d3852afa3231047cb1e7f2a0fa8304d"
+    }
+  ],
+  "verification_boundary": "No generated output, cache, scratch, project copy, worktree, build or environment. R92 authorizes at most two primary-owned in-memory Lean stdin checks; each exact input requires independent review and a pushed authorization before execution. No Lake or tests."
+}
