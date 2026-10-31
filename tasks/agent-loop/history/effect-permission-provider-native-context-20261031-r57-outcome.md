@@ -31,4 +31,4 @@ No semantic authority or production gate changed. No environment, cache, scratch
 
 ## Git disposition
 
-Pending primary review of the exact staged path set and outbound range. This receipt is finalized with commit/push disposition after integration.
+R57 code/proof/review checkpoint `cb2623325` was committed on `yulang3` and pushed to `origin/yulang3`. The checkpoint contains exactly seven paths: receiver, Lean module, compact current state, Rust/proof/review handoffs, and this outcome. Unrelated pre-existing worktree changes remained unstaged. The following primary-owned state receipt records the confirmed push.
