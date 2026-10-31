@@ -338,10 +338,10 @@
   },
   "independent_review": {
     "path": "tasks/agent-loop/inbox/effect-permission-root-elaboration-r84-review.md",
-    "bytes": 2500,
-    "sha256": "ac3373ee1cc4cf7b4f619ee16425d90fa938914a675a340fceebcefd1ae39825",
+    "bytes": 4534,
+    "sha256": "5ebb950b0d4a2839ab26e69b6fa35d4a6965ddb5e876d43e986b678941cad10f",
     "reviewer": "/root/r83_review",
-    "verdict": "PASS; source/normalization/exact recipes reviewed; Lean not executed"
+    "verdict": "PASS for slot1 candidate/source/assembly; slot3 audit FAIL with nine blockers; one slot4 repair allowed"
   },
   "slot1_exact_input": {
     "bytes": 93368,
@@ -387,5 +387,9 @@
     "result": "tasks/agent-loop/history/effect-permission-root-elaboration-20261031-r84-slot3-raw-result.json",
     "result_sha256": "db6ceb58d4fa88755d1b2136cef45ae46af0374e1a870919df361ba8b9ee7d91",
     "status": "FAILED; complete streams retained; no theorem accepted; reviewer diagnosis required"
+  },
+  "slot4_repair": {
+    "status": "ADMITTED_BOUNDED_SOURCE_ONLY_REPAIR",
+    "gate": "single diagnostic-directed candidate revision; all nine diagnostics and all sorryAx-producing dependencies must be addressed; preserve all thirteen statements and semantic constructors; fresh review and separate authorization required; no fifth invocation"
   }
 }

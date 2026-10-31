@@ -43,3 +43,39 @@ original A/B, and production remain open.
 **Disposition:** slot 1 is eligible for Luna's separate exact-input
 authorization. This review does not authorize or execute Lean. Reviewer
 STOPPED / WRITES STOPPED.
+
+## Slot 3 retained audit review
+
+After slot 3, reviewer `/root/r83_review` independently authenticated the
+complete retained result at
+`tasks/agent-loop/history/effect-permission-root-elaboration-20261031-r84-slot3-raw-result.json`.
+The exact input is 103,791 bytes, SHA-256
+`5c35dd49b71508fea4755abf680327932099249de1d1f4f5f250ca2d949651f2`; Lean
+exited 1 without timeout in 11.605 seconds. The retained 79,844-byte stdout
+hash is `6b7e874b4ff08b5675505d4c2d685fc34d5a320b1eef1fc59f2abf9f254458d4`;
+stderr is empty. Raw-result SHA-256 is
+`db6ceb58d4fa88755d1b2136cef45ae46af0374e1a870919df361ba8b9ee7d91`.
+
+Nine diagnostics are real blockers: R84 source lines 144, 149, 151, 186, 297,
+311, 342, 351, and 355. They include unresolved Origin and candidate-list
+proofs; a rejected reverse simp-unfold; an `admission` definitional mismatch;
+unresolved `Decidable Primitive` computation at `sorry`; dependent constructor
+rewrite/transparency mismatch; two unresolved constructor reductions in
+finite rejection computations; and an independent relation-list parser
+failure. The reviewer explicitly did not attribute the latter computation
+failures to cascading Root errors.
+
+All thirteen type/axiom reports appear. `value_endpoint_typed`,
+`effect_endpoint_typed`, `primitive_distinct_relation_roles`,
+`constructed_applies_parent`, and `finite_reads` report only `propext` or
+`propext, Quot.sound`. Eight reports contain `sorryAx`: both primitive Root
+derivations, `finite_primitive`, `finite_constructs_root`,
+`finite_nonempty_mixed_witness`, all three rejection theorems. The final
+rejection theorem's proposition itself contains `sorryAx` because of parser
+recovery. No theorem is accepted from slot 3.
+
+The reviewer found source-only repair targets that preserve all claims and
+semantics, but requires the single slot-4 repair to address every blocker,
+including the unresolved finite-decider and dependent reduction causes. No
+further invocation is authorized by this review. Reviewer STOPPED / WRITES
+STOPPED; no edits or execution.
