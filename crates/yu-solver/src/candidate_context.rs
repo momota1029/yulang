@@ -121,6 +121,7 @@ pub(super) struct SourceDrainReceipt {
 #[cfg_attr(not(test), allow(dead_code, reason = "native residual publication observation is a private query"))]
 pub(super) struct CheckedSourceDrain<'a> {
     pub origin_index: usize,
+    pub completion_index: usize,
     pub relation: RelationId,
     pub receipt: &'a SourceDrainReceipt,
 }
@@ -2284,7 +2285,20 @@ impl State {
             {
                 return None;
             }
-            let checked = CheckedSourceDrain { origin_index, relation: origin.relation, receipt };
+            let mut expected = receipt.clone();
+            expected.completed = true;
+            let mut completion_index = None;
+            for (index, completed) in self.source_drain_completions.iter().enumerate() {
+                if completed == &expected {
+                    if completion_index.replace(index).is_some() { return None; }
+                }
+            }
+            let checked = CheckedSourceDrain {
+                origin_index,
+                completion_index: completion_index?,
+                relation: origin.relation,
+                receipt,
+            };
             if found.replace(checked).is_some() {
                 return None;
             }
@@ -2957,6 +2971,69 @@ impl State {
     #[allow(dead_code, reason = "queried only by the private native residual observation")]
     pub(super) fn observed_bound_emission_count(&self) -> usize {
         self.evidence.emissions.len()
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "queried only by the private per-call publication observation")]
+    pub(super) fn observed_source_drain_completion_count(&self) -> usize {
+        self.source_drain_completions.len()
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "queried only by the private per-call publication observation")]
+    pub(super) fn checked_source_drain_in_cuts(
+        &self,
+        origin_cut: usize,
+        origin_end: usize,
+        completion_cut: usize,
+        completion_end: usize,
+        occurrence: &ConstraintOccurrenceId,
+        cause: &CauseId,
+        task: LiveConstraintTask,
+    ) -> Option<CheckedSourceDrain<'_>> {
+        if origin_cut > origin_end || origin_end > self.origins.len()
+            || completion_cut > completion_end
+            || completion_end > self.source_drain_completions.len()
+        {
+            return None;
+        }
+        let expected_pair = task_pair(task);
+        let mut found = None;
+        for (origin_index, origin) in self.origins.iter().enumerate().take(origin_end).skip(origin_cut) {
+            if &origin.occurrence != occurrence
+                || self.relation_pair(origin.relation) != Some(expected_pair)
+            {
+                continue;
+            }
+            let receipt = origin.source_drain_receipt.as_ref()?;
+            if receipt.origin_index != origin_index
+                || receipt.created_seed != origin.relation
+                || receipt.selected_relation != origin.relation
+                || receipt.task != task
+                || &receipt.cause != cause
+                || cause.occurrence() != occurrence
+                || receipt.completed
+            {
+                return None;
+            }
+            let mut expected_completion = receipt.clone();
+            expected_completion.completed = true;
+            let mut completions = self.source_drain_completions
+                .iter()
+                .enumerate()
+                .take(completion_end)
+                .skip(completion_cut)
+                .filter(|(_, completed)| {
+                    *completed == &expected_completion
+                });
+            let Some((completion_index, _)) = completions.next() else { return None; };
+            if completions.next().is_some() {
+                return None;
+            }
+            let checked = CheckedSourceDrain { origin_index, completion_index, relation: origin.relation, receipt };
+            if found.replace(checked).is_some() {
+                return None;
+            }
+        }
+        found
     }
     pub(super) fn observed_bound_emissions_for_slot(
         &self, slot: PhysicalBoundSlot,
