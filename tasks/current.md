@@ -1,5 +1,21 @@
 # Current task: original whole-Yulang Lean metatheory, 2026-10-27
 
+## 2026-10-31 R62 checkpoint — constructed Internal-root policy
+
+R62 closed as **BOUNDED PASS, research only**. The Lean policy now computes
+the Internal-root receipt from the R45/R47 owner inventories and applies the
+R60/R61 consumer to the same `Native` and `Inputs`. The Rust extraction retains
+the existing source-drain root checks before the existing directed ancestry
+call. A fresh independent review found no in-scope correctness issue and
+reconciled all 19 theorem roots and their full axiom reports. The reviewed
+checkpoint is commit `82fb18c52`, pushed to `origin/yulang3`; see the [R62
+outcome](agent-loop/history/effect-permission-internal-root-policy-20261031-r62-outcome.md)
+and [closeout note](../notes/progress/2026-10-31-r62-closeout.md).
+
+Rust-to-inventory/request correspondence, the actual outer successful `Run`,
+the original A/B and whole-program soundness remain **OPEN**. The bounded
+Lean construction is not parent-theorem or production closure.
+
 ## 2026-10-28 reviewed research boundary
 
 The root-context preparation packet produced a `REVIEWED_DRAFT` for the
