@@ -1,0 +1,7 @@
+peak_target_bytes=4415128655
+final_bytes_before_cleanup=4103505019
+cleanup_complete=True
+killed_for_target_cap=False
+outer_exit=101
+elapsed_wrapper_seconds=99.02
+command=timeout -k 5s 180s taskset -c 0 /usr/bin/time -v env CARGO_TARGET_DIR=/dev/shm/yulang-effect-permission-source-causality-20261101-r104-target cargo test --locked --offline -p yu-solver --features shadow-apply-candidate candidate_effect::tests:: -- --test-threads=1 --show-output
