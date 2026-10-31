@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "sprint": "NATIVE-DRAIN-READER-CORRESPONDENCE/20261031-R87",
+  "contract": "tasks/agent-loop/sprints/native-drain-reader-correspondence-20261031-r87.md",
+  "baseline_commit": "9931800b1aed04402049a0e7685630f24b9e5e56",
+  "proof_base": {
+    "accepted_sprint": "NATIVE-ROOT-PREMISES/20261031-R85",
+    "accepted_stdin_bytes": 115884,
+    "accepted_stdin_sha256": "bac29ad18bd16e9a5af0422ea4d3416e049a61951d6b1545c8ba35a0548cbc79",
+    "failed_r86_declarations_permitted_as_imports": false,
+    "notes": "Construct exact flattened input in memory; retain unchanged R57 and R84 definitions and complete theorem/axiom queries."
+  },
+  "source_inputs": [
+    {
+      "path": "crates/yu-solver/src/candidate_context.rs",
+      "bytes": 265778,
+      "sha256": "a6e8bde3a187369ddf847a31f2ae6eb443434a34d819e44a7fc72c9788809905"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "bytes": 292001,
+      "sha256": "6004fd4252d15d8c99ac0e9f97582347a0de94946f497c0e29520d872e77dae2"
+    }
+  ],
+  "execution": {
+    "max_calls": 2,
+    "max_seconds_each": 120,
+    "max_total_seconds": 240,
+    "lean_jobs": 1,
+    "lean_memory_mib": 1024,
+    "lean_threads": 1,
+    "input_storage": "in-memory only",
+    "target_cache_build_or_scratch": false,
+    "pre_execution_independent_review_required": true,
+    "result_review_required": true
+  },
+  "leases": {
+    "proof": [
+      "notes/theory/lean/YulangClosure/NativeDrainReaderCorrespondenceR87.lean",
+      "tasks/agent-loop/inbox/effect-permission-native-drain-reader-r87-proof.md"
+    ],
+    "source": [
+      "tasks/agent-loop/inbox/effect-permission-native-drain-reader-r87-source.md"
+    ],
+    "review": [
+      "tasks/agent-loop/inbox/effect-permission-native-drain-reader-r87-review.md"
+    ],
+    "primary": [
+      "tasks/agent-loop/current.json",
+      "tasks/agent-loop/sprints/native-drain-reader-correspondence-20261031-r87.md",
+      "tasks/agent-loop/sprints/native-drain-reader-correspondence-20261031-r87-inputs.json",
+      "tasks/agent-loop/history/native-drain-reader-correspondence-20261031-r87-admission.md",
+      "tasks/agent-loop/history/native-drain-reader-correspondence-20261031-r87-outcome.md",
+      "tasks/agent-loop/history/native-drain-reader-correspondence-20261031-r87-raw-result.json"
+    ]
+  },
+  "prohibited": [
+    "Rust/CST edits",
+    "Cargo/Lake/build/test/compiler/formatter execution except the separately authorized in-memory Lean stdin calls",
+    "target/.olean/cache/scratch/environment/worktree/nested CLI/background service creation",
+    "semantic or production-authority changes",
+    "writes outside exact leases"
+  ],
+  "contract_sha256": "2ec7f33760b4ef8cdb3ac434dcf415f473a2019f4acf87c25786f77e0fc81261"
+}
