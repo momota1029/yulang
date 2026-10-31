@@ -18,3 +18,8 @@ Still OPEN: authentic Rust-to-Lean inventory extraction and branded identities, 
 Frozen hashes: contract `371b2df095300dfdf942c37530505b53d49fbb114edddb97721e7d54598f8c12`; input manifest `0ba636d48ef608bec56ec51771c71d14fe4fc945605a75582f5da5f92152f22d`; Rust receiver `9113485e919f41581049a065bef5a533505fc46e71e5d3ae18a4ceec97cdaca7`; Lean module `0aa1185675cc92ac97a20f4163bd2b2486f34cfb5ca725a3fcb3c1861efdf682`; proof handoff `6496091585891785188d8dae10605fc9e965c9b81ba5c7b48863b5ec2beed3f9`.
 
 Checkpoint commits: `9ed80a829`, `cd1d3acb3`, `f98279071`, `2f726aae5`, `68ba29d55`, `940c35ff3`, `cb90f47e4`, `e94cde484`.
+
+
+## Post-review integration clarification
+
+After bounded R77 acceptance, the sprint dispatcher inspected the older consumers and found the source-coordinate integration still OPEN. `InventoryPackage::capture` at `crates/yu-solver/src/candidate_receiver.rs:4504–4514` still joins `call.occurrence` directly to `use_record.occurrence()`. `internal_root_view_from` at `:1791–1795` still requires the call checking occurrence and the use-record occurrence to equal the same request occurrence. R77's new `internal_owner_choice` is retained as a provisional source-derived result and is still marked `allow(dead_code)`; it is not yet authoritative for those consumers. R77 therefore closes its bounded constructor/proof result only. R78 owns the integration repair; no integrated consumer or production claim is made here. The independent R77 review above is unchanged and remains a review of its frozen R77 scope.
