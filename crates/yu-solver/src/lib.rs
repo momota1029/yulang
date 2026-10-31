@@ -3894,6 +3894,17 @@ impl ConstraintStore {
             Err(ConstraintError::ArtifactMismatch)
         }
     }
+    fn hir_position_for_occurrence(
+        &self,
+        occurrence: &HirOccurrenceId,
+    ) -> Option<(usize, &Arc<HirModule>)> {
+        self.occurrence_hir_positions.get(occurrence)
+            .and_then(|index| self.hirs.get(*index)
+                .filter(|hir| hir.owns_occurrence(occurrence))
+                .map(|hir| (*index, hir)))
+            .or_else(|| self.hirs.iter().enumerate()
+                .find(|(_, hir)| hir.owns_occurrence(occurrence)))
+    }
     fn finish_accounting(&mut self) {
         self.counters.fact_retained_bytes =
             checked_capacity_bytes::<SemanticFact>(self.facts.capacity(), "constraint-store facts");

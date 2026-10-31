@@ -579,6 +579,10 @@ struct InventoryOccurrenceFact<'p, 'a> {
 #[allow(dead_code, reason = "finite owner-scoped occurrence reification for R67")]
 struct InventoryReifiedOccurrence<'a> {
     index: u32,
+    /// Position of the exact owning HIR module in the constraint store's
+    /// admitted artifact inventory. The occurrence below remains the full
+    /// branded native identity; this coordinate does not replace it.
+    artifact_index: usize,
     occurrence: &'a HirOccurrenceId,
 }
 
@@ -748,18 +752,37 @@ impl<'p, 'a> InventoryCompletedReificationView<'p, 'a> {
     /// inventory into a second set of vectors.
     fn primitive_projection(
         &self,
+        selected_owner: &'a ReceivingResidualExperiment,
     ) -> Result<InventoryCompletedInstancePrimitiveProjection<'_, 'p, 'a>, candidate_context::CurrentEmissionGap> {
+        use candidate_context::CurrentEmissionGap as Gap;
+
+        // Select and authenticate the experiment/view pair before accessing
+        // any completed table. Equal HIR artifacts do not identify experiments.
+        let source_view = self;
+        let owner = source_view.owner();
+        if !std::ptr::eq(owner, selected_owner) {
+            return Err(Gap::BoundMismatch);
+        }
+        let completed = &source_view.completed;
+        let encoded = source_view.encoded_observations();
+        let facts = source_view.facts();
+        let provenance = source_view.provenance();
+        let interpreted_facts = source_view.interpreted_facts();
+        let occurrences = source_view.occurrences();
+        let edges = source_view.edges();
+        let admitted_artifacts = &owner.session.store.hirs;
         let projection = InventoryCompletedInstancePrimitiveProjection {
-            owner: self.owner(),
-            source_view: self,
-            encoded: self.encoded_observations(),
-            facts: self.facts(),
-            provenance: self.provenance(),
-            interpreted_facts: self.interpreted_facts(),
-            occurrences: self.occurrences(),
-            edges: self.edges(),
-            value_bounds: &self.completed.owner.session.bounds,
-            effect_bounds: &self.completed.owner.session.effect_bounds,
+            experiment_owner: owner,
+            completed_source_view: source_view,
+            admitted_artifacts,
+            encoded,
+            facts,
+            provenance,
+            interpreted_facts,
+            occurrences,
+            edges,
+            value_bounds: &completed.owner.session.bounds,
+            effect_bounds: &completed.owner.session.effect_bounds,
         };
         projection.validate()?;
         Ok(projection)
@@ -772,8 +795,14 @@ impl<'p, 'a> InventoryCompletedReificationView<'p, 'a> {
 #[cfg(feature = "shadow-apply-candidate")]
 #[allow(dead_code, reason = "R72 source projection for the completed-instance decode bridge")]
 struct InventoryCompletedInstancePrimitiveProjection<'v, 'p, 'a> {
-    owner: &'a ReceivingResidualExperiment,
-    source_view: &'v InventoryCompletedReificationView<'p, 'a>,
+    /// The ReceivingResidualExperiment identity, kept distinct from both the
+    /// completed source view and the HIR artifact inventory.
+    experiment_owner: &'a ReceivingResidualExperiment,
+    /// Identity of this exact successful completed-view value.
+    completed_source_view: &'v InventoryCompletedReificationView<'p, 'a>,
+    /// Borrow the actual require_owned inventory; do not rebuild a parallel
+    /// artifact list or infer artifact identity from occurrence ordinals.
+    admitted_artifacts: &'a [Arc<HirModule>],
     encoded: &'v EncodedInventoryEndpointObservations<'p, 'a>,
     facts: &'v [(usize, &'a SemanticFact)],
     provenance: &'v [(usize, &'a ProvenanceEdge)],
@@ -903,8 +932,11 @@ impl<'v, 'p, 'a> InventoryCompletedInstancePrimitiveProjection<'v, 'p, 'a> {
     fn validate(&self) -> Result<(), candidate_context::CurrentEmissionGap> {
         use candidate_context::CurrentEmissionGap as Gap;
 
-        let session = &self.owner.session;
-        if !std::ptr::eq(self.source_view.owner(), self.owner) {
+        let session = &self.experiment_owner.session;
+        if !std::ptr::eq(self.completed_source_view.owner(), self.experiment_owner)
+            || !std::ptr::eq(self.admitted_artifacts, session.store.hirs.as_slice())
+            || self.admitted_artifacts.len() != session.store.hirs.len()
+        {
             return Err(Gap::BoundMismatch);
         }
         let encoded = self.encoded;
@@ -1018,7 +1050,16 @@ impl<'v, 'p, 'a> InventoryCompletedInstancePrimitiveProjection<'v, 'p, 'a> {
         }
 
         for (position, occurrence) in self.occurrences.iter().enumerate() {
+            let artifact = self.admitted_artifacts.get(occurrence.artifact_index)
+                .ok_or(Gap::BoundMismatch)?;
+            let (selected_artifact_index, selected_artifact) = session.store
+                .hir_position_for_occurrence(occurrence.occurrence)
+                .ok_or(Gap::BoundMismatch)?;
             if usize::try_from(occurrence.index).map_err(|_| Gap::SearchLimit)? != position
+                || occurrence.artifact_index != selected_artifact_index
+                || !artifact.owns_occurrence(occurrence.occurrence)
+                || !std::ptr::eq(selected_artifact, artifact)
+                || session.store.require_owned(occurrence.occurrence).is_err()
             {
                 return Err(Gap::BoundMismatch);
             }
@@ -1529,10 +1570,14 @@ impl<'a> InventoryPackage<'a> {
             }) {
                 Some(entry) => entry.index,
                 None => {
+                    let (artifact_index, _selected_artifact) = store
+                        .hir_position_for_occurrence(cause_occurrence)
+                        .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
                     let index = u32::try_from(occurrences.len())
                         .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
                     occurrences.push(InventoryReifiedOccurrence {
                         index,
+                        artifact_index,
                         occurrence: cause_occurrence,
                     });
                     index
@@ -1684,7 +1729,7 @@ impl<'a> InventoryPackage<'a> {
         &self,
     ) -> Result<InventoryInternalRootView<'_, 'a>, candidate_context::CurrentEmissionGap> {
         let reification = self.completed_reification_view()?;
-        let _primitive_projection = reification.primitive_projection()?;
+        let _primitive_projection = reification.primitive_projection(self.owner)?;
         self.internal_root_view_from(&reification.completed)
             .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)
     }
