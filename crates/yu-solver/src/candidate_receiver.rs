@@ -469,6 +469,145 @@ pub(super) struct SourceInternalProjection<'a> {
     pub(super) semantic_facts: Vec<(usize, &'a SemanticFact)>,
     pub(super) internal_incidence: InternalFormalPermissionIncidence<'a>,
 }
+
+/// A checked owner-local coordinate for one collected source call.  The
+/// expression index is meaningful only together with its source root; the
+/// retained occurrence and checking identity make that join explicit.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "private R63 source/native request construction")]
+struct InventorySourceCall<'a> {
+    call_index: usize,
+    owner: &'a SourceRootId,
+    expression_index: usize,
+    occurrence: &'a HirOccurrenceId,
+    checking: &'a ConstraintOccurrenceId,
+    input: &'a candidate_call::ApplySourceInput,
+}
+
+/// The source-call request selected for the R55 Internal query.  This keeps
+/// source identity, registration identity and raw annotation coordinates
+/// separate instead of substituting a canonical native row for either one.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "private R63 source/native request construction")]
+struct InventoryInternalRequest<'a> {
+    source_call: usize,
+    definition_use: usize,
+    occurrence: &'a HirOccurrenceId,
+    source_owner: &'a SourceRootId,
+    target_owner: &'a SourceRootId,
+    registration: usize,
+    lambda_index: usize,
+    lambda_occurrence: &'a HirOccurrenceId,
+    annotation_position: &'a SourceNodeKey,
+    source_row: &'a SourceNodeKey,
+    raw_entry: u32,
+    semantic_lambda_fact: &'a SemanticFact,
+    semantic_internal_fact: &'a SemanticFact,
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "private R63 owner-derived R55 plan record")]
+struct InventoryInternalPlan<'a> {
+    source_owner: &'a SourceRootId,
+    target_owner: &'a SourceRootId,
+    target_root_component: usize,
+    use_value_component: usize,
+    target_root: Term,
+    use_value: Term,
+}
+
+/// Entry and Catch requests retain their distinct source coordinates and fact
+/// namespaces.  Indices refer only to the complete tables in `InventoryPackage`.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "private R63 source/native request construction")]
+struct InventoryEntryRequest<'a> {
+    source_call: usize,
+    use_occurrence: &'a HirOccurrenceId,
+    semantic_fact: &'a SemanticFact,
+    raw_entry: u32,
+    root_relation: candidate_context::RelationId,
+    emission_index: usize,
+    admission_index: usize,
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "private R63 source/native request construction")]
+struct InventoryCatchRequest<'a> {
+    source_call: usize,
+    catch_occurrence: &'a HirOccurrenceId,
+    scrutinee_occurrence: &'a HirOccurrenceId,
+    collected_fact_index: usize,
+    provider_view_index: usize,
+    selected_arm_index: usize,
+    raw_input: EffectEndpointKey,
+    canonical_input: EffectEndpointKey,
+    raw_output: EffectEndpointKey,
+    canonical_output: EffectEndpointKey,
+}
+
+/// An explicit, borrowed projection of the R55/R57 owner tables plus the
+/// source-derived requests consumed by the finite Lean model.  Each table
+/// retains its owner-local index and original record reference; this is not a
+/// serialized snapshot or an alternate inference input.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "private R63 owner-derived in-memory package")]
+struct InventoryPackage<'a> {
+    owner: &'a ReceivingResidualExperiment,
+    batch: &'a ConstraintBatch,
+    session: &'a InferenceSession,
+    live_state: &'a candidate_context::State,
+    raw_lower: EffectEndpointKey,
+    canonical_lower: EffectEndpointKey,
+    raw_upper: EffectEndpointKey,
+    canonical_upper: EffectEndpointKey,
+    source_calls: Vec<InventorySourceCall<'a>>,
+    formals: Vec<(usize, &'a candidate_call::FormalRegistrationInput)>,
+    formal_names: Vec<(usize, &'a candidate_call::FormalNameInput)>,
+    calls: Vec<(usize, &'a candidate_call::ApplySourceInput)>,
+    local_sources: Vec<OwnedLocalSource<'a>>,
+    parameter_recipes: Vec<(usize, &'a HirParameterId)>,
+    schedules: Vec<(&'a DefinitionRootId, &'a Vec<candidate_source::Action>)>,
+    source_owners: Vec<(&'a HirOccurrenceId, &'a SourceRootId)>,
+    resolved_operations: Vec<(usize, &'a SourceNodeKey, &'a Arc<SourceOperationDeclaration>)>,
+    provider_source: &'a SourceNodeKey,
+    provider_operation: &'a Arc<SourceOperationDeclaration>,
+    permissions: Vec<(usize, &'a candidate_effect::FormalEntryPermission)>,
+    uses: Vec<(usize, &'a DefinitionUse)>,
+    routes: Vec<(usize, &'a RoutedUseProvenance)>,
+    recipes: Vec<(usize, &'a LambdaRecipe)>,
+    lambda_origins: Vec<(usize, &'a candidate_context::LambdaArgumentEffectOrigin)>,
+    components: Vec<(usize, &'a ComponentId, Term)>,
+    semantic_facts: Vec<(usize, &'a SemanticFact)>,
+    native_facts: Vec<(usize, &'a ConstraintOccurrence)>,
+    source_drains: Vec<Option<&'a candidate_context::SourceDrainReceipt>>,
+    value_rows: Vec<(usize, &'a VariableBounds)>,
+    value_row_representatives: Vec<(usize, ValueEndpointKey)>,
+    effect_rows: Vec<(usize, &'a EffectBounds)>,
+    effect_row_representatives: Vec<(usize, EffectEndpointKey)>,
+    publications: Vec<(usize, &'a WholePublicationObservation)>,
+    publication_calls: Vec<(usize, &'a ResidualPublicationObservation)>,
+    relations: Vec<(usize, &'a candidate_context::Relation)>,
+    dependencies: Vec<(usize, &'a candidate_context::Dependency)>,
+    origins: Vec<(usize, &'a candidate_context::Origin)>,
+    completions: Vec<(usize, &'a candidate_context::SourceDrainReceipt)>,
+    admissions: Vec<(usize, &'a candidate_context::BoundAdmission)>,
+    emissions: Vec<(usize, &'a candidate_context::BoundEmission)>,
+    views: Vec<(usize, &'a candidate_effect::View)>,
+    provider_endpoint: EffectEndpointKey,
+    provider_view_index: usize,
+    internal: InventoryInternalRequest<'a>,
+    internal_plan: InventoryInternalPlan<'a>,
+    root_join: InternalRegisteredRootJoin,
+    function_witness: InternalFunctionWitness,
+    catch_source: &'a LocalSource,
+    catch_expression: &'a yu_hir::shadow::LocalSourceExpr,
+    catch_scrutinee: &'a yu_hir::shadow::LocalSourceExpr,
+    catch_arms: &'a [yu_hir::shadow::LocalSourceCatchArm],
+    entry: InventoryEntryRequest<'a>,
+    catch: InventoryCatchRequest<'a>,
+    entry_path: Vec<LowerPathSnapshot>,
+    catch_path: Vec<LowerPathSnapshot>,
+}
 #[cfg(feature = "shadow-apply-candidate")]
 #[allow(dead_code, reason = "keeps parameter-root and Internal registered-root coordinates distinct")]
 pub(super) struct InternalRegisteredRootJoin {
@@ -500,6 +639,13 @@ fn collect_owned_borrowed_inventory<'a, T>(
         inventory.push((owner_index, item));
     }
     Some(inventory)
+}
+#[cfg(feature = "shadow-apply-candidate")]
+fn copy_owned_borrowed_inventory<'a, T>(
+    items: &[(usize, &'a T)],
+) -> Result<Vec<(usize, &'a T)>, candidate_context::CurrentEmissionGap> {
+    collect_owned_borrowed_inventory(items.iter().copied())
+        .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)
 }
 #[cfg(feature = "shadow-apply-candidate")]
 fn snapshot_path(
@@ -579,6 +725,12 @@ impl ReceivingResidualExperiment {
         &self,
     ) -> Result<ProviderNativeContextProjection<'_>, candidate_context::CurrentEmissionGap> {
         ProviderNativeContextProjection::capture(self)
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "private R63 owner-derived inventory observation")]
+    fn inventory_package(&self) -> Result<InventoryPackage<'_>, candidate_context::CurrentEmissionGap> {
+        InventoryPackage::capture(self)
     }
     #[cfg(feature = "shadow-apply-candidate")]
     #[allow(dead_code, reason = "selected by the private proof correspondence query")]
@@ -2495,6 +2647,313 @@ impl<'a> SourceInternalProjection<'a> {
             return false;
         }
         true
+    }
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+impl<'a> InventoryPackage<'a> {
+    /// Build the complete private R55/R57 package from the existing owner
+    /// projections.  Every allocation and owner-local lookup is checked; this
+    /// function is observation-only and is not called by inference or routing.
+    fn capture(owner: &'a ReceivingResidualExperiment) -> Result<Self, candidate_context::CurrentEmissionGap> {
+        let provider = owner.provider_native_context_projection()?;
+        let source = &provider.source_internal;
+        let native = &source.native;
+
+        let mut source_calls = Vec::new();
+        source_calls.try_reserve_exact(source.calls.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        for (call_index, call) in &source.calls {
+            let hir = native.batch.hir_for_source_root(&call.owner)
+                .ok_or(candidate_context::CurrentEmissionGap::MissingInternalCertificate)?;
+            let local = hir.local_source_for(&call.owner).ok().flatten()
+                .ok_or(candidate_context::CurrentEmissionGap::MissingInternalCertificate)?;
+            let expression = local.expressions().get(call.expression)
+                .ok_or(candidate_context::CurrentEmissionGap::MissingInternalCertificate)?;
+            if expression.occurrence != call.checking.occurrence()
+                || !hir.owns_occurrence(&expression.occurrence)
+                || local.source_root() != &call.owner
+            {
+                return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+            }
+            source_calls.push(InventorySourceCall {
+                call_index: *call_index,
+                owner: &call.owner,
+                expression_index: call.expression,
+                occurrence: &expression.occurrence,
+                checking: &call.checking,
+                input: call,
+            });
+        }
+        if source_calls.len() != source.calls.len()
+            || source_calls.iter().enumerate().any(|(index, call)| {
+                call.call_index != source.calls[index].0
+                    || !std::ptr::eq(call.input, source.calls[index].1)
+            })
+        {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+
+        let incidence = &source.internal_incidence;
+        let mut definition_use = None;
+        for (index, record) in &source.definition_uses {
+            if std::ptr::eq(*record, incidence.use_record)
+                && definition_use.replace((*index, *record)).is_some()
+            {
+                return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+            }
+        }
+        let (definition_use_index, use_record) = definition_use
+            .ok_or(candidate_context::CurrentEmissionGap::MissingInternalCertificate)?;
+        if definition_use_index >= source.definition_uses.len()
+            || !std::ptr::eq(use_record, incidence.use_record)
+        {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+        let mut matching_call = None;
+        for call in &source_calls {
+            if call.occurrence == use_record.occurrence()
+                && matches!(call.owner, SourceRootId::Definition(root) if root == incidence.receiving_owner)
+                && matching_call.replace(call).is_some()
+            {
+                return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+            }
+        }
+        let source_call = matching_call
+            .ok_or(candidate_context::CurrentEmissionGap::MissingInternalCertificate)?;
+        let permission = &incidence.permission;
+        if permission.registration >= source.formal_registrations.len()
+            || !source.formal_registrations.get(permission.registration).is_some_and(|(index, formal)| {
+                *index == permission.registration
+                    && formal.owner == *permission.source_owner
+                    && formal.parameter == *permission.formal
+                    && formal.entry_effect == Some(permission.entry_effect)
+            })
+        {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+        let registration = source.formal_registrations[permission.registration].1;
+        let semantic_fact_index = |fact: &SemanticFact| -> Result<usize, candidate_context::CurrentEmissionGap> {
+            let mut found = None;
+            for (index, retained) in &source.semantic_facts {
+                if std::ptr::eq(*retained, fact) {
+                    if found.replace(*index).is_some() {
+                        return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+                    }
+                }
+            }
+            found.ok_or(candidate_context::CurrentEmissionGap::MissingInternalCertificate)
+        };
+        let lambda_fact_index = semantic_fact_index(incidence.lambda_fact)?;
+        let internal_fact_index = semantic_fact_index(incidence.internal_fact)?;
+        if lambda_fact_index == internal_fact_index
+            || !std::ptr::eq(source.semantic_facts[lambda_fact_index].1, incidence.lambda_fact)
+            || !std::ptr::eq(source.semantic_facts[internal_fact_index].1, incidence.internal_fact)
+        {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+        let internal = InventoryInternalRequest {
+            source_call: source_call.call_index,
+            definition_use: definition_use_index,
+            occurrence: use_record.occurrence(),
+            source_owner: source_call.owner,
+            target_owner: permission.source_owner,
+            registration: permission.registration,
+            lambda_index: registration.lambda,
+            lambda_occurrence: &incidence.lambda_origin.lambda,
+            annotation_position: permission.annotation_position,
+            source_row: permission.source_row,
+            raw_entry: permission.entry_effect,
+            semantic_lambda_fact: incidence.lambda_fact,
+            semantic_internal_fact: incidence.internal_fact,
+        };
+        let target_root_component = use_record.target_root_component;
+        let use_value_component = use_record.use_value_component;
+        if target_root_component >= source.component_terms.len()
+            || use_value_component >= source.component_terms.len()
+            || source.component_terms[target_root_component].0 != target_root_component
+            || source.component_terms[use_value_component].0 != use_value_component
+        {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+        let internal_plan = InventoryInternalPlan {
+            source_owner: source_call.owner,
+            target_owner: permission.source_owner,
+            target_root_component,
+            use_value_component,
+            target_root: source.component_terms[target_root_component].2,
+            use_value: source.component_terms[use_value_component].2,
+        };
+        let root_join = InternalRegisteredRootJoin {
+            registration: source.internal_root_join.registration,
+            recipe_index: source.internal_root_join.recipe_index,
+            root_component: source.internal_root_join.root_component,
+            parameter_native_root: source.internal_root_join.parameter_native_root,
+            registered_root: source.internal_root_join.registered_root,
+        };
+        let function_witness = InternalFunctionWitness {
+            function: source.internal_function_witness.function,
+            argument_effect: source.internal_function_witness.argument_effect,
+            entry_effect: source.internal_function_witness.entry_effect,
+        };
+        let emission = &provider.provider.internal.emission;
+        let entry = InventoryEntryRequest {
+            source_call: source_call.call_index,
+            use_occurrence: use_record.occurrence(),
+            semantic_fact: incidence.internal_fact,
+            raw_entry: permission.entry_effect,
+            root_relation: emission.use_root,
+            emission_index: emission.id.0,
+            admission_index: emission.admission_id.0,
+        };
+
+        let catch_fact_index = match provider.catch_fact_owner {
+            ProviderFactOwner::BatchOccurrence(index) => index,
+            ProviderFactOwner::SemanticStore(_) => {
+                return Err(candidate_context::CurrentEmissionGap::MissingCatchFact);
+            }
+        };
+        let catch_fact = native.facts.get(catch_fact_index)
+            .ok_or(candidate_context::CurrentEmissionGap::MissingCatchFact)?;
+        if catch_fact.0 != catch_fact_index
+            || !std::ptr::eq(catch_fact.1, provider.provider.catch_fact)
+            || catch_fact.1.id().occurrence() != &owner.schema.edge_scrutinee
+            || catch_fact.1.id().local_slot() != 51
+        {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+        let selected_arm_index = usize::try_from(owner.schema.selected_arm.arm_ordinal)
+            .map_err(|_| candidate_context::CurrentEmissionGap::BoundMismatch)?;
+        let catch = InventoryCatchRequest {
+            source_call: source_call.call_index,
+            catch_occurrence: &owner.schema.catch,
+            scrutinee_occurrence: &owner.schema.edge_scrutinee,
+            collected_fact_index: catch_fact_index,
+            provider_view_index: provider.provider_view_index,
+            selected_arm_index,
+            raw_input: native.raw_lower_endpoint,
+            canonical_input: native.canonical_lower_endpoint,
+            raw_output: native.raw_upper_endpoint,
+            canonical_output: native.canonical_upper_endpoint,
+        };
+
+        let formals = copy_owned_borrowed_inventory(&source.formal_registrations)?;
+        let formal_names = copy_owned_borrowed_inventory(&source.formal_names)?;
+        let calls = copy_owned_borrowed_inventory(&source.calls)?;
+        let parameter_recipes = copy_owned_borrowed_inventory(&source.parameter_recipes)?;
+        let permissions = copy_owned_borrowed_inventory(&source.formal_entry_permissions)?;
+        let uses = copy_owned_borrowed_inventory(&source.definition_uses)?;
+        let routes = copy_owned_borrowed_inventory(&source.routed_uses)?;
+        let recipes = copy_owned_borrowed_inventory(&source.lambda_recipes)?;
+        let lambda_origins = copy_owned_borrowed_inventory(&source.lambda_origins)?;
+        let components = source.component_terms.iter().try_fold(Vec::new(), |mut output, item| {
+            output.try_reserve(1).ok()?;
+            output.push(*item);
+            Some(output)
+        }).ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
+        let semantic_facts = copy_owned_borrowed_inventory(&source.semantic_facts)?;
+        let native_facts = copy_owned_borrowed_inventory(&native.facts)?;
+        let mut schedules = Vec::new();
+        schedules.try_reserve_exact(source.schedules.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        schedules.extend(source.schedules.iter().copied());
+        let mut source_owners = Vec::new();
+        source_owners.try_reserve_exact(source.source_owners.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        source_owners.extend(source.source_owners.iter().copied());
+        let mut resolved_operations = Vec::new();
+        resolved_operations.try_reserve_exact(source.resolved_operations.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        resolved_operations.extend(source.resolved_operations.iter().copied());
+        let mut source_drains = Vec::new();
+        source_drains.try_reserve_exact(native.source_drains.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        source_drains.extend(native.source_drains.iter().copied());
+        let value_rows = copy_owned_borrowed_inventory(&native.value_rows)?;
+        let mut value_row_representatives = Vec::new();
+        value_row_representatives.try_reserve_exact(native.value_row_representatives.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        value_row_representatives.extend(native.value_row_representatives.iter().copied());
+        let effect_rows = copy_owned_borrowed_inventory(&native.rows)?;
+        let mut effect_row_representatives = Vec::new();
+        effect_row_representatives.try_reserve_exact(native.effect_row_representatives.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        effect_row_representatives.extend(native.effect_row_representatives.iter().copied());
+        let publications = copy_owned_borrowed_inventory(&native.publications)?;
+        let publication_calls = copy_owned_borrowed_inventory(&native.calls)?;
+        let relations = copy_owned_borrowed_inventory(&native.relations)?;
+        let dependencies = copy_owned_borrowed_inventory(&native.dependencies)?;
+        let origins = copy_owned_borrowed_inventory(&native.origins)?;
+        let completions = copy_owned_borrowed_inventory(&native.completions)?;
+        let admissions = copy_owned_borrowed_inventory(&native.admissions)?;
+        let emissions = copy_owned_borrowed_inventory(&native.emissions)?;
+        let entry_path = snapshot_path(&provider.provider.entry_path, provider.provider.endpoint)?;
+        let catch_path = snapshot_path(&provider.provider.catch_path, provider.provider.endpoint)?;
+        let mut local_sources = Vec::new();
+        local_sources.try_reserve_exact(source.local_sources.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        local_sources.extend(source.local_sources.iter().map(|record| OwnedLocalSource {
+            registration_owner: record.registration_owner,
+            hir: record.hir,
+            source: record.source,
+        }));
+        Ok(Self {
+            owner,
+            batch: native.batch,
+            session: native.session,
+            live_state: native.live_state,
+            raw_lower: native.raw_lower_endpoint,
+            canonical_lower: native.canonical_lower_endpoint,
+            raw_upper: native.raw_upper_endpoint,
+            canonical_upper: native.canonical_upper_endpoint,
+            source_calls,
+            formals,
+            formal_names,
+            calls,
+            local_sources,
+            parameter_recipes,
+            schedules,
+            source_owners,
+            resolved_operations,
+            provider_source: &owner.schema.provider_source,
+            provider_operation: &owner.schema.operation,
+            permissions,
+            uses,
+            routes,
+            recipes,
+            lambda_origins,
+            components,
+            semantic_facts,
+            native_facts,
+            source_drains,
+            value_rows,
+            value_row_representatives,
+            effect_rows,
+            effect_row_representatives,
+            publications,
+            publication_calls,
+            relations,
+            dependencies,
+            origins,
+            completions,
+            admissions,
+            emissions,
+            views: provider.views,
+            provider_endpoint: provider.provider.endpoint,
+            provider_view_index: provider.provider_view_index,
+            internal,
+            internal_plan,
+            root_join,
+            function_witness,
+            catch_source: source.catch_source,
+            catch_expression: source.catch_expression,
+            catch_scrutinee: source.catch_scrutinee,
+            catch_arms: source.catch_arms,
+            entry,
+            catch,
+            entry_path,
+            catch_path,
+        })
     }
 }
 

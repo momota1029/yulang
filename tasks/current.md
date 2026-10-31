@@ -1,3 +1,9 @@
+## 2026-10-31 R63 checkpoint — owner-derived inventory and request package
+
+R63 closed as **BOUNDED PASS, research only**. The private Rust extractor constructs the owner-derived R55/R57 inventory and Internal/Entry/Catch request package. Lean applies R62 to those constructed values; all 33 theorem types and transitive axiom reports were audited with pinned Lean 4.35.0 stdin. Fresh independent review authenticated the frozen source and proof receipts. The exact boundary, including truncated mathematical Owner values and the still-open Rust-carrier correspondence, is recorded in the [R63 outcome](agent-loop/history/effect-permission-inventory-request-20261031-r63-outcome.md) and [review](agent-loop/inbox/effect-permission-inventory-request-r63-review.md).
+
+Actual branded Rust `InventoryPackage` to typed Owner/Call correspondence, outer successful `Run`, and resource/failure correspondence remain OPEN. Original A/B, soundness, effects, principality, termination, full hygiene, and production remain OPEN. No Rust build/tests/Cargo/formatter or Lean project build ran. The [R63 closeout](../notes/progress/2026-10-31-r63-closeout.md) records the review and resource limits.
+
 # Current task: original whole-Yulang Lean metatheory, 2026-10-27
 
 ## 2026-10-31 R62 checkpoint — constructed Internal-root policy
