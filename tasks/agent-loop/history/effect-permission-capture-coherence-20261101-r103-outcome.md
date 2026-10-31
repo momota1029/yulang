@@ -1,6 +1,6 @@
 # R103 outcome
 
-Status: `ADMITTED`; implementation, proof, independent review, and exact gates pending.
+Status: `RUST_REVIEWED_BLOCKED; LEAN_EXECUTION_AUTHORIZED` under the fixed R103 contract.
 
 Contract: `tasks/agent-loop/sprints/effect-permission-capture-coherence-20261101-r103.md`.
 Admission: `tasks/agent-loop/history/effect-permission-capture-coherence-20261101-r103-admission.md`.
@@ -18,3 +18,13 @@ Four protected R102 failures remain unresolved: shared-tail error source/action 
 Review corrected two handoff claims: the shared-tail assertion follows the late `E` contribution and `constrain_live_effect`, so logs do not distinguish an earlier root error from rejection of that contribution; and a failed `.all(...)` proves at least one route lacks Support, not that every route does. The original r1 handoff remains frozen as reviewed evidence; these corrections and the exact next source owners belong in a successor packet.
 
 No Cargo invocation, Rust integration, theorem closure, source/native correspondence, semantic approval, or production gate is claimed. The Lean proof lane remains active under R103.
+
+## Lean pre-execution gate
+
+Fresh independent `lean_prover` review: **PASS** for the frozen construction; this is not kernel acceptance. It verified all ten theorem headers against R93 modulo namespace, all original tree/forest constructors, App and four Lambda branches, full-route provenance, and one adjacent fully qualified `#check`/`#print axioms` pair per root. The reviewer independently reconstructed the flattened input. Its receipt is summarized here; reviewer STOPPED with zero writes/builds/checks/descendants.
+
+Pinned environment was resolved read-only: Lake 5.0.0-src+eb6cafb and Lean 4.35.0, matching `lean-toolchain`; `lake env lean --version` also returned 4.35.0. No Lake build or dependency setup occurred. The existing Lean binary SHA-256 is `bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38`.
+
+Primary authorization: exactly one `lean --stdin -j1 -M1024` invocation, with a 120-second timeout and one CPU, on the independently reviewed in-memory concatenation of `OriginalSourceSyntax.lean`, `OriginalSourceGeneration.lean`, and R103; remove only the Generation→Syntax and R103→Generation leading import lines and add no separators. Frozen stdin is 111,624 bytes, SHA-256 `b0194148fb82d5a7c4b9af2bf8934764ec356cf2989b6cccd1cc9df1c69b7dcf`. Complete output and ten printed types/axiom lists will be preserved before independent receipt review. No cache, Lake build, retry, second invocation, or environment change is authorized. This gate covers the flattened ten-declaration candidate only; it does not establish module import integration, source semantic admission, the original A/B, native correspondence or production readiness.
+
+Execution status at this authorization: **NOT RUN**.
