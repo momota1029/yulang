@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "revision": 7,
+  "sprint": "EFFECT-PERMISSION-TERM-CALL-CONTROL/20261029-r15",
+  "stage": "CLOSED_COMPLETE_CONDITIONAL",
+  "status": "CLOSED_COMPLETE_CONDITIONAL",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-term-call-control-20261029-r15.md",
+    "sha256": "eff6b4718b194b07e807db84872926565448b4baa86ae2fd02d3b052fcfcfc50"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-term-call-control-20261029-r15-inputs.json",
+    "sha256": "a57e78421e678f86c7c8aa225bb48970930a2984eb2198f5d5f0630482a30f96",
+    "entries": 168,
+    "mismatches": 0
+  },
+  "prior_sprint": {
+    "id": "EFFECT-PERMISSION-TERM-CALL-CONTROL/20261029-r14",
+    "status": "CLOSED_INCOMPLETE",
+    "outcome": "tasks/agent-loop/history/effect-permission-term-call-control-20261029-r14-outcome.md",
+    "outcome_sha256": "71b596a80565241140dc835b8ef676c6126127d1cc85db467e2598735557fa37",
+    "artifact_sha256": "fde5e86c3540646b778856dda985b51db201a20ab7a38ca3e34485257c2dbfdc",
+    "audit_receipt_sha256": "19a8aacc9932ea3003103b71b5b728340bc3ed8b46bc4497aaa5e110a65bf86b"
+  },
+  "budget_seconds": 800,
+  "lanes": {
+    "source": {
+      "owner": "primary Luna",
+      "budget_seconds": 100,
+      "state": "COMPLETE_READ_ONLY_FROZEN",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-term-call-control-r15-source.md",
+      "sha256": "7500b0fe883f354387ed9298e2f7aa5b125bb8b89256769b5da3f9f9bb64a7ed"
+    },
+    "proof": {
+      "role": "registered lean_prover",
+      "budget_seconds": 300,
+      "state": "STOPPED_REV1_FROZEN",
+      "artifact": "notes/theory/lean/YulangClosure/FormalPermissionTermCallControl.lean",
+      "baseline_sha256": "fde5e86c3540646b778856dda985b51db201a20ab7a38ca3e34485257c2dbfdc",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-term-call-control-r15-proof.md",
+      "audit_limit": {
+        "max_invocations": 2,
+        "per_attempt_timeout_seconds": 90,
+        "combined_wall_seconds": 120
+      },
+      "requested_model": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "artifact_sha256": "73bface0963c65eb76933ff8116594b161e78f1733b66e6be25cc174d1eb2dd7",
+      "handoff_sha256": "1526bc3f0e426f3f08401a5190b494d6097d784599fbe8dc0ad61b305354f634",
+      "worker": "/root/effect_permission_term_call_control_r15_lean",
+      "session": "EFFECT-PERMISSION-TERM-CALL-CONTROL/20261029-R15",
+      "worker_receipt": "writes stopped; no descendants; only control_test_fields proof changed; statement/model unchanged",
+      "budget_spent": "within 300s; exact elapsed/RSS uninstrumented"
+    },
+    "review": {
+      "role": "fresh nonauthor compiler_referee",
+      "budget_seconds": 250,
+      "state": "PASS_CONDITIONAL",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-term-call-control-r15-review.md",
+      "worker": "/root/effect_permission_term_call_control_r15_review",
+      "session": "EFFECT-PERMISSION-TERM-CALL-CONTROL/20261029-R15",
+      "spawn_receipt": "spawn_agent returned fresh nonauthor compiler_referee",
+      "handoff_sha256": "cb95407ad46dade0f011c30abb45b67788d96863f8e5e51becfbff51793ebb79"
+    },
+    "primary": {
+      "owner": "Luna",
+      "budget_seconds": 150
+    }
+  },
+  "source_pins": {
+    "lib.rs": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07",
+    "candidate_effect.rs": "1f64d4fec8f2abceb11a48a51f5b615aa2cf605c9586ba742f15f9024a6a2717",
+    "term.rs": "d253cd9a77ad91c523b413b25a503ef0c6bef47ee4b1f5b8492766531fe493a1",
+    "R14 artifact": "fde5e86c3540646b778856dda985b51db201a20ab7a38ca3e34485257c2dbfdc"
+  },
+  "roots": {
+    "R12": 9,
+    "R13": 10,
+    "R14": 19,
+    "total": 38
+  },
+  "gates": {
+    "R14_control_test_fields": "OPEN_REPAIR",
+    "source_directed_handling": "OPEN",
+    "ordered_event_drain": "OPEN",
+    "conditional_accounting_branch": "OPEN",
+    "sample_order_and_early_error": "OPEN",
+    "successful_term_call": "OPEN",
+    "R13_application_same_cuts": "OPEN",
+    "sampler_availability": "OPEN",
+    "actual_rust_execution_linkage": "OPEN",
+    "primitive_alias_authenticity": "OPEN",
+    "native_publication": "OPEN",
+    "original_parent": "OPEN",
+    "effect_hygiene": "OPEN",
+    "consumer_residual": "OPEN",
+    "soundness": "OPEN",
+    "principality": "OPEN",
+    "termination": "OPEN",
+    "production": "OPEN"
+  },
+  "scratch_lease": "/tmp/yulang-effect-permission-term-call-control-20261029-r15/",
+  "audit_state": "AUDIT_1_PASS_38_ROOTS",
+  "review_state": "PASS_CONDITIONAL",
+  "selector_recommendation": "repair the true branch only by applying loop_test_fields and simplifying drained instrumentation; full 38-root audit then fresh review",
+  "r14_failure": {
+    "artifact_sha256": "fde5e86c3540646b778856dda985b51db201a20ab7a38ca3e34485257c2dbfdc",
+    "proof_handoff_sha256": "0ac4030c1fdbcfe9947876cdc8eee2d5403adfca00d95588759552e83a080c77",
+    "audit_receipt_sha256": "19a8aacc9932ea3003103b71b5b728340bc3ed8b46bc4497aaa5e110a65bf86b",
+    "diagnostic": "control_test_fields true branch unsolved; proof construction failure, no counterexample"
+  },
+  "audit1": {
+    "plan": "/tmp/yulang-effect-permission-term-call-control-20261029-r15/attempt-1/audit-plan.json",
+    "plan_sha256": "0abc9f90133b334351092d2f3f8c54993af8f63a6f47254759a5c26cad9f6e87",
+    "copy_receipt_sha256": "d75bd8f4846c94a73975165a42b783a49728e50d20ec889de396a7c30bea3e3d",
+    "receipt": "/tmp/yulang-effect-permission-term-call-control-20261029-r15/attempt-1/audit-receipt.json",
+    "receipt_sha256": "02eca0b48d30dd438a696cab015975bdcc89cc997e6e41df1108b453cb28378b",
+    "exit_status": 0,
+    "wall_seconds": 17.235,
+    "max_rss_kib": 990096,
+    "root_count": 38,
+    "pass_lines": 38,
+    "stdout_sha256": "3d5e511301e821af6a1c6a79f19f0ed515315fa341466e6d555ba5849b1a5eeb",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "resource_sha256": "d3b7481dc5ee0f54b7e0be93348805c67356303d24cd87149e12237a67d6d498",
+    "artifact_sha256": "73bface0963c65eb76933ff8116594b161e78f1733b66e6be25cc174d1eb2dd7",
+    "all_axiom_reports": "authenticated; full inventory in audit-receipt.json and raw stdout"
+  },
+  "review": {
+    "verdict": "PASS conditional for proof-repair scope",
+    "findings": {
+      "blocking": 0,
+      "major": 0,
+      "minor": 0
+    },
+    "handoff": "tasks/agent-loop/inbox/effect-permission-term-call-control-r15-review.md",
+    "sha256": "cb95407ad46dade0f011c30abb45b67788d96863f8e5e51becfbff51793ebb79",
+    "worker": "/root/effect_permission_term_call_control_r15_review",
+    "session": "EFFECT-PERMISSION-TERM-CALL-CONTROL/20261029-R15",
+    "receipt": "reviewer message; writes stopped; no descendants",
+    "manifest_entries_authenticated": 168,
+    "roots_authenticated": 38,
+    "axiom_categories": {
+      "empty": 14,
+      "propext_only": 21,
+      "propext_classical_choice_quot_sound": 3
+    }
+  },
+  "closeout": {
+    "outcome": "tasks/agent-loop/history/effect-permission-term-call-control-20261029-r15-outcome.md",
+    "outcome_sha256": "0d4ca51349e5e6b4b1429f269ea33bf82a96f72229983e10976002bf8ee6a63e",
+    "state_archive": "tasks/agent-loop/history/effect-permission-term-call-control-20261029-r15-state-archive.json",
+    "state_archive_sha256": "b538f8f8281b0b189cfe812e33aeb1ccfe3bfa5211a110f12a7bf00baa673dbb",
+    "review_sha256": "cb95407ad46dade0f011c30abb45b67788d96863f8e5e51becfbff51793ebb79",
+    "artifact_sha256": "73bface0963c65eb76933ff8116594b161e78f1733b66e6be25cc174d1eb2dd7",
+    "parent": "Inference/executor OPEN; conditional model only"
+  },
+  "git_checkpoint": {
+    "state": "DEFERRED_NO_STAGE_COMMIT_OR_PUSH",
+    "record": "tasks/agent-loop/history/effect-permission-term-call-control-20261029-r15-git-disposition.md",
+    "sha256": "20979dbc4d846fe91e9cc5cd16862b7048330ca95bd0c8cb1b8aaeaa4e2751fc",
+    "reason": "four tracked R15 manifest inputs differ from outbound HEAD and are outside R15 scope"
+  }
+}

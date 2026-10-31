@@ -1,0 +1,619 @@
+{
+  "schema_version": 1,
+  "sprint": "EFFECT-PERMISSION-STRUCTURAL-BUFFER-BOUND/20261029-r18",
+  "status": "CLOSED_COMPLETE_CONDITIONAL",
+  "authority": "Unchanged inference/executor soundness goal; bounded structural tuple buffer trace only.",
+  "contract_sha256": "e81f4bf967fd39d300712a9438277c9d9ba05b7c9a89e75358997c7d284bd3b6",
+  "input_manifest_sha256": "4a7f3a8e1e75ba0b761b7c927a7b6eaaf87b559df041a6d52915cd360ce63439",
+  "input_manifest_entries": 197,
+  "source_handoff_sha256": "2deb722afa72c76aeb09e5768de9803123ca1178e991c52e488f14e5ac8cd62c",
+  "proof_handoff_sha256": "09792fb4ea8870145021e95d47faf1325f3554b98e3a49c24751c4033c06f4ed",
+  "artifact": {
+    "path": "notes/theory/lean/YulangClosure/FormalPermissionStructuralBufferBound.lean",
+    "bytes": 8034,
+    "sha256": "f9bfd9ea556128b27e850b5ca66934d46fd86d73a77bdfdbb3846142ad37abd7",
+    "public_roots": 4
+  },
+  "primary_audit": {
+    "toolchain": "Lean 4.35.0",
+    "module_roots": [
+      "YulangClosure.FormalPermissionArenaEvents",
+      "YulangClosure.FormalPermissionConnectedCuts",
+      "YulangClosure.FormalPermissionEventBuffer",
+      "YulangClosure.FormalPermissionHelperFrames",
+      "YulangClosure.FormalPermissionStructuralBufferBound",
+      "YulangClosure.FormalPermissionTermCallControl"
+    ],
+    "root_count": 77,
+    "inherited_roots": 73,
+    "new_roots": 4,
+    "exit_status": 0,
+    "wall_seconds": 16.793,
+    "max_rss_kib": 1016240,
+    "stderr_empty": true,
+    "stdout_sha256": "9bd4ae6759442818dca49a9170cd092539f5c40ea288260a15994812bd0cf0e8",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "resource_sha256": "5b23f63c9bfccb07a6b9cca7ec0172578c53a9c4d03ce3660cab9b48495b81ac",
+    "plan_sha256": "3e60dc72dff92f234fbd16768c056cc013618b3238e25b0715c78060cfdfa811",
+    "marker_count": 154,
+    "pass_count": 77,
+    "manifest_entries": 197,
+    "manifest_missing": [],
+    "manifest_mismatch": [],
+    "project_copy_entries": 261,
+    "root_audits": [
+      {
+        "theorem": "YulangClosure.FormalPermissionHelperFrames.operation_preserves_allocator",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "b2214de3d281e0f891056c37a704593ef70b05b373a87232bf22730917c80fd0"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionHelperFrames.operations_preserve_allocator",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "c5617441918764e6ea582f380cb2065786268153de05aee4caed6d91a83fe5a1"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionHelperFrames.nonempty_operations_frame",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "a628c8c783b7618b3198f02698f8b31a2335cc45577687c122a24e8fcd815350"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionHelperFrames.reservation_projection",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "03c44f3a8c5db34c81f0ce828a703f6271d1501a71245774bacf2c69c1e11559"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionHelperFrames.permission_append_delta",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "1deb1eac5bdc086d6d82cbac84625787a0ef41328281aa40ca7d4494f7f793e6"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionHelperFrames.concrete_port_prefix_delta",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "936751dbb8a5c766f85fc68e1b9dcf9674b95ef3c8ecff97c13fee4832c4c3b2"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionHelperFrames.ordered_concrete_port_delta",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "530793703cf563d3b988cb63a04dbb9441bdd78c77296cb745fe6ca25d6bdd86"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionHelperFrames.tree_frames_from_operations",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "16638eb9bd5b7d3350b77998d6b135d86f3cb46876b9866f414b9b0e81eda23b"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionHelperFrames.exact_tree_r9_from_operations",
+        "axioms": [
+          "propext",
+          "Classical.choice",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "1dad139a5a676007c553d6b16d0a53bfaba2ba9a98df721abd2226d719b191dd"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionConnectedCuts.strip_recompose",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "614bd269262f7c2d1e76597069173597731a4f2cca91471696de67db5353240d"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionConnectedCuts.recompose_strip",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "0934a80c6d4da65122c0dfccc0347d4bbf817e561b8135ba548d7e89bcd7fe87"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionConnectedCuts.rebase_extend",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "3c2b1bac1051fe296ee75f20d9a8c70069915af0930c0f9873d518e0c765454a"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionConnectedCuts.extend_rebase",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "9852dc7f94dd22dd66bbb92c9fef656ef147138aa51ebc50135564fecc1e9bd3"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionConnectedCuts.rebase_identity",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "fff9d3aee852c34c8a713b6dd326338aad106d63f68584933fa3c4b843d72231"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionConnectedCuts.sibling_distinction",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "96b611828c66ccef3ca71461bc9d74f86f70cc26787abc9583b7a71d112d2328"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionConnectedCuts.local_view_exact",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "f3eb5892b8c5052b3a6eb97ff7e858ed5c20636df66221672115efd9fa84db20"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionConnectedCuts.connected_allocators",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "b70622001b2966c1b7b288112911495b9cb3175473fda469bca68945c2394504"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionConnectedCuts.exact_path_factors",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "f0eccbf64899ee8e656677a903a0ee248c1a6ce116020f7d08622a6f4c9bcffe"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionConnectedCuts.exact_tree_r9_from_connected",
+        "axioms": [
+          "propext",
+          "Classical.choice",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "9eccb94a31b63e650240e02d47f8b0b733547c0978a2fe9c91d9f44ff5c1c186"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.sample_ops_refine",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "8b69380d6958c905079664baca3ebe032f286c9424703187805072aaa99c010a"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.run_ops_append",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "684094580bd8c200d67cf18a65d19da2585ab6988ecc34b9fbb82fb708b04b6a"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.loop_ops_refine",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "98726085f79a9f2913ca3c4cf9f342ab5e294933546ac6835011b89377642e3a"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.control_ops_refine",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "a71c258ecba5b9125857ed2ad82caf47c63acbd532f8e960c037b52081287ccb"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.no_accounting",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "369a52595cd7e0c01a2adaf824ed40885e299761371e04dd72fd57fd4a99a59c"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.loop_error_none",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "edc2c0f6bd351cee566d0bf952464352e6e3679ec545ceea5b3849ccef3ada70"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.constructor_error_preserved",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "4177d3b14c7b8b1dab159eb14ca3b9407223b466f1bdd8949b88d1b849a15389"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.loop_first_error",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "a9fcd98ef173ec0573667c38a7a837ff0ddeeec3530d903225d271b932e19967"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.sample_error_precedence",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "5af029b2fb13b23c1a7401ea56468147423243f8706430e1add89f7a41752a6b"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.first_failure_stops",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "aebe04f93c1996fd6eaba28feb92e1278afff5c7027b65d2bc9d0dabd83fc011"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.successful_event_order",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "65e72783c18d25eee9513218430ec25ea6685c03722214e787cbd1b50c86d7b0"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.successful_term_call",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "26808c44222ca1773c4232704b11c2fd086d1351aa5616207b12bac2f8dacb4f"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.loop_path",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "8f5784043cd08fba536d6d112c297a49e86f6faf0b151e65d56cec05ea33bb3f"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.loop_test_fields",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "b109ca78248497f36b1127b2d37a8a8fc407ab743366f4a22d31e644e1ddd6c9"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.control_test_fields",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "5734e3ab7c2d21177080761195a68cd91589b2be5d3477d26170bd41eb35d712"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.control_preserves_allocator_path",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "479808390cbe5f352f037f0300cd9356c1fb2b297b1d4a7a162533fa14b9dafe"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.successful_pair_refines",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "943b20c06055e08db14c06bb6c2fb9c49f426697e0d4f8c4c5e61e7f12ccc2be"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.source_calls_at_cuts",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "6b3e4c0586c0d72d2c0ea10cee08924c0162313d3193e840ef4a2c6c4fb94e61"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionTermCallControl.exact_tree_r9_from_term_control",
+        "axioms": [
+          "propext",
+          "Classical.choice",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "7a940c2807aad005dada977663c752e1d30bddb0fec9de75798e994df0ed00f9"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.run_order",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "324ac7fff4c8df9ce25f9bf39c38c55e123e13e0b8b7e4d9752d2faf91c6eff8"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.appended_order",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "ea64951fbc68f967fa940270795c89945aa7f5c3156f697e5f3b1bc5f6806941"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.appended_bound",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "d2b008547a20b3b03963cf024f97e6dde57fb587963b0d67b2bdc27433798349"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.disabled_reserve",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "2191341c9a6bb5872e83d1a8776b0d4ffdb0744fadb67a2195d2e931d0162436"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.failed_reserve_growth_retained",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "c2e91af9bacda08918f024fa73b7c92977b3523c16593ab124d88b0ec761fee0"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.unchanged_reserve_emits_nothing",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "5f26878fda3da502d8800f9964b4c3073f5f4a1e4de9289c1a604e14f53ee299"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.run_append_success",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "3fcfe320e0b3aa305d6b8f843a7ccefcfbe4971dc205464848abf4a6b4b05248"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.failure_preserves_prefix",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "c7d5a60d6b2e08fbf598f6c6d345b43b6a5ea9a2544e29024e4b1b459ff0bcd1"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.cache_hit_no_events",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "077cb8198b610315c0681ce8fd331d05a8130d2a0d4e6a25b73b114b7bd563f6"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.invalid_function_no_events",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "133c05613f09e0cd71f858f9ca1df28fadcdf660c68b03da6970107a723e8e72"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.publication_stage",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "54ea0b57e88b7a1bdb8df82e41538376c9d7d73e54e57dcc2bdd59dcfd1568d6"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.publication_failure_no_backing_stage",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "64817cc33486ff621f7f8bf2100cad446862652ba75c8f80072bb50da3b3e004"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.backing_requires_publication",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "7a52f97fc4278299a8338a27da0ab9db1296d3afa1262c4cf715c8b25a0b3528"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.combined_prefix_bound",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "70c8968c3e7f699e7ac49c60c532648402b3fb641210c6cdee67ec9f74c9566b"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.each_append_has_slot",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "31e6d4a8936aa7a70878182b0e0a33ba653501be124c39503cb9194c330d6158"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.preexisting_prefix_preserved",
+        "axioms": [],
+        "type_and_axiom_report_sha256": "176a9549a5c7e6a34252ad279272179e6f2943967e012558d6d73f5ece653c05"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.derived_control_refines",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "6a304c591094319d4d961f60acdb0a8e8d8593c4987977d28da4e2ca0b6a866c"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionArenaEvents.derived_constructor_error_preserved",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "72b8d617550da1628a3378b850484677ee09c7ec6bd09971017d00cf12d93735"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.empty_layout",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "14315db7252b00f855bc117131def6ccce3e3b82c4b9cad80cfea99bb608a5ba"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.push_layout",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "94106cff93ebda47b0e05a382571fde656a41a7feeeb77d89191498fb5499afb"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.push_writes_next",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "9c4d99e9d28e26f5b8c7625cfe973f9bd145ac78044135eb332739a8e4c921d3"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.flatten_exact",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "57be36d38ca40986a95a681d5d5c102768364d15754da7273fbe3917423708fc"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.take_exact_reset",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "03dfdbf9ddabdb03f3f8df7b4985cf639494bd9766a839972b0d41b3108ed569"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.take_events_exact",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "f85ee430d6cadf853e9f155595f582694c712d35d6cdd55c656ccfba62a35ebd"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.appends_layout",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "ab295648733793aa370797a8bcde2fa7f27a2b8734146e3efbec2847bcc9bb5d"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.appends_exists",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "2ef3390ea9196e9823add9f9a29387e5292f9ef9981651f828f984dad985be94"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.appended_empty_fits",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "fce5d9fb7e3486d2ecc446971190e48947c000d8a574be3290d841a6a4055285"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.selected_empty_execution",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "13b1f113b3f104ea1a00da6e04bb9b02dcced6e34e0e78f3501a7e832ef119af"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.finish_exact",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "d578aae2aebb3c9a041e9c2c92dea948decac3b7ad190ca6ccbe085fe28e5b1f"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.finish_empty",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "a64dc5f70997cc489c24d01b0f9945456761f290ec465a194c7b08ddcc9f20b6"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.finish_constructor_error",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "d11ce681ae8b1161495fd6c722bbc50ceaf062bf1e622b64df1fff3c2203191a"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.finish_sampler_error",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "9b0da398c919451d266a5c205abf4fe22a09225fe26b0acffcd1cecb7e1c5e4b"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.selected_prefix_finish",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "b2b654bdc5f23756bf46764ce115041c05e0d0f76abeaa5d5c1537665c0e5887"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.consecutive_selected_entry",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "695ee4dab98f6b3319a7e53fd02ccc0f67fd7ada5752ac3f0bca8154b6665b2b"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionEventBuffer.selected_control_refines",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "47629ea9c8b39c87947c7a9f3caa74632ff9f8fc2fd1ddf08a6c8c59edf1a960"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionStructuralBufferBound.intern_events_exact",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "a271b553e552393bf5498bd499c750edaeb6df09b86ca74ef9b4084fd2772036"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionStructuralBufferBound.intern_length",
+        "axioms": [
+          "propext"
+        ],
+        "type_and_axiom_report_sha256": "28db4ed93d06c42ebd26fbbb09b924bb15f9356bde0bd7cad2664d26264ae3fc"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionStructuralBufferBound.conditional_seventh_assertion",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "035930edea2d1b75b4ec4e8cdd2a02038f8917c02f33580b59863f0877294925"
+      },
+      {
+        "theorem": "YulangClosure.FormalPermissionStructuralBufferBound.no_normal_seven_pushes",
+        "axioms": [
+          "propext",
+          "Quot.sound"
+        ],
+        "type_and_axiom_report_sha256": "6896ff0840d33d03eb803cb2994c18bbff2af99e3baee8a083a787fba535ceec"
+      }
+    ]
+  },
+  "primary_audit_receipt_path": "/tmp/yulang-effect-permission-structural-buffer-bound-20261029-r18/attempt-1/primary-audit-receipt.json",
+  "primary_audit_receipt_sha256": "bed4f775fe81db19d1f31257667c012f379a20c89275be38857f263c11a1c951",
+  "review": {
+    "state": "PASS_CONDITIONAL",
+    "reviewer": "/root/effect_permission_structural_buffer_bound_r18_review",
+    "findings": {
+      "blocking": 0,
+      "major": 0,
+      "minor": 0
+    },
+    "receipt": "read-only final message; no review file written or claimed",
+    "checks": {
+      "source_and_artifact_hashes_reconciled": true,
+      "saved_77_root_audit_reconciled": true,
+      "native_reachability_claim": "OPEN"
+    },
+    "writes_stopped": true,
+    "subprocesses_running": false,
+    "descendants": 0
+  },
+  "source_result": "Conditional six intern events plus seventh assertion attempt identified; native candidate-call reachability OPEN.",
+  "open_gates": [
+    "actual candidate caller and same-state five reserve growth",
+    "primitive allocation/reserve/page-claim authenticity",
+    "original parent",
+    "hygiene",
+    "consumer",
+    "soundness",
+    "principality",
+    "termination",
+    "production"
+  ],
+  "prohibited": {
+    "tests": true,
+    "cargo": true,
+    "source_edits": true,
+    "instrumentation": true,
+    "git": true
+  },
+  "outcome": {
+    "path": "tasks/agent-loop/history/effect-permission-structural-buffer-bound-20261029-r18-outcome.md",
+    "sha256": "1ea7eafd23ee38829f24a9c6f790538412f97998b7bc4a49207b999fa162ebb5"
+  }
+}

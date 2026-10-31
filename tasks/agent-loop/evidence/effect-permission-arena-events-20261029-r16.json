@@ -1,0 +1,587 @@
+{
+  "schema_version": 1,
+  "sprint": "EFFECT-PERMISSION-ARENA-EVENTS/20261029-r16",
+  "status": "CLOSED_COMPLETE_CONDITIONAL",
+  "authority": "Unchanged Simple-sub inference/executor research goal; conditional source-directed event protocol only.",
+  "contract_sha256": "14460523753f897f75724d244bf612cc94d4ce96f07928cebc0037524dddffc7",
+  "input_manifest_sha256": "f4174b99fe8f4c9935740cd3d0a5183cdaab601818d834a6df02370d5668aa18",
+  "input_manifest_entries": 174,
+  "input_manifest_missing": [],
+  "input_manifest_mismatch": [],
+  "source_handoff_sha256": "812a2b7b75f2c52171accad8640affbd800523b74fd85bf48776d8a94fcef814",
+  "artifact": {
+    "path": "notes/theory/lean/YulangClosure/FormalPermissionArenaEvents.lean",
+    "bytes": 10043,
+    "sha256": "02ef97716d882073ccb2e53c53bbf8046c80e82a517253898db5d1c02cd1b8b3",
+    "public_roots": 18
+  },
+  "proof_handoff_sha256": "e138820b2bd603768f8acbd2f0ab5f1d41815cc5379f52f0dce8239dd5eba8d1",
+  "review_handoff_sha256": "f30295751cd5cfae2534b4f72ee55997ad751a8b235e7efa56437964e112f939",
+  "r15_dependency_sha256": "73bface0963c65eb76933ff8116594b161e78f1733b66e6be25cc174d1eb2dd7",
+  "audit": {
+    "toolchain": "Lean 4.35.0",
+    "module": "YulangClosure.FormalPermissionArenaEvents",
+    "root_count": 56,
+    "inherited_roots": 38,
+    "new_roots": 18,
+    "combined_wall_seconds": 9.247,
+    "attempts": [
+      {
+        "attempt": 1,
+        "plan": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-1/audit-plan.json",
+        "plan_sha256": "9cc1887933e72a63cc5be079333d1b380bc3ea9c0f3107a586abaf693d72c67f",
+        "copy_receipt": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-1/copy-receipt.json",
+        "copy_receipt_sha256": "1bc462b2028c5db22b0bfea8b2c880de47e9bdb263b4bdc6618377f1d2d4e863",
+        "stdout": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-1/stdout.raw",
+        "stdout_sha256": "3d02fc0bf162a948b60126c770edd55bfd8641859050ea2f91ae6924b1eb6ec3",
+        "stderr": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-1/stderr.raw",
+        "stderr_sha256": "0edf2d238840b65a26de68075c964d099167cf4cae51705f162bcfa4e7addc60",
+        "status": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-1/status.raw",
+        "status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "resource": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-1/resource.json",
+        "resource_sha256": "3cbeca820c62b889dedbccbe208453d09e521e19ae935de4c59e3b48f908b468",
+        "audit_receipt": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-1/audit-receipt.json",
+        "audit_receipt_sha256": "2f4ef0df715409ab2b7702a413387dbd8107bc97391be5e43c31e1cff7fe53f9",
+        "exit_status": 1,
+        "wall_seconds": 4.694,
+        "max_rss_kib": 754648,
+        "planned_roots": 56,
+        "result": "FAIL_PARSE_OR_BUILD",
+        "reported_pass_lines": 0,
+        "actual_pass_lines": 0,
+        "begin_markers": 0,
+        "end_markers": 0,
+        "roots": [
+          "YulangClosure.FormalPermissionHelperFrames.operation_preserves_allocator",
+          "YulangClosure.FormalPermissionHelperFrames.operations_preserve_allocator",
+          "YulangClosure.FormalPermissionHelperFrames.nonempty_operations_frame",
+          "YulangClosure.FormalPermissionHelperFrames.reservation_projection",
+          "YulangClosure.FormalPermissionHelperFrames.permission_append_delta",
+          "YulangClosure.FormalPermissionHelperFrames.concrete_port_prefix_delta",
+          "YulangClosure.FormalPermissionHelperFrames.ordered_concrete_port_delta",
+          "YulangClosure.FormalPermissionHelperFrames.tree_frames_from_operations",
+          "YulangClosure.FormalPermissionHelperFrames.exact_tree_r9_from_operations",
+          "YulangClosure.FormalPermissionConnectedCuts.strip_recompose",
+          "YulangClosure.FormalPermissionConnectedCuts.recompose_strip",
+          "YulangClosure.FormalPermissionConnectedCuts.rebase_extend",
+          "YulangClosure.FormalPermissionConnectedCuts.extend_rebase",
+          "YulangClosure.FormalPermissionConnectedCuts.rebase_identity",
+          "YulangClosure.FormalPermissionConnectedCuts.sibling_distinction",
+          "YulangClosure.FormalPermissionConnectedCuts.local_view_exact",
+          "YulangClosure.FormalPermissionConnectedCuts.connected_allocators",
+          "YulangClosure.FormalPermissionConnectedCuts.exact_path_factors",
+          "YulangClosure.FormalPermissionConnectedCuts.exact_tree_r9_from_connected",
+          "YulangClosure.FormalPermissionTermCallControl.sample_ops_refine",
+          "YulangClosure.FormalPermissionTermCallControl.run_ops_append",
+          "YulangClosure.FormalPermissionTermCallControl.loop_ops_refine",
+          "YulangClosure.FormalPermissionTermCallControl.control_ops_refine",
+          "YulangClosure.FormalPermissionTermCallControl.no_accounting",
+          "YulangClosure.FormalPermissionTermCallControl.loop_error_none",
+          "YulangClosure.FormalPermissionTermCallControl.constructor_error_preserved",
+          "YulangClosure.FormalPermissionTermCallControl.loop_first_error",
+          "YulangClosure.FormalPermissionTermCallControl.sample_error_precedence",
+          "YulangClosure.FormalPermissionTermCallControl.first_failure_stops",
+          "YulangClosure.FormalPermissionTermCallControl.successful_event_order",
+          "YulangClosure.FormalPermissionTermCallControl.successful_term_call",
+          "YulangClosure.FormalPermissionTermCallControl.loop_path",
+          "YulangClosure.FormalPermissionTermCallControl.loop_test_fields",
+          "YulangClosure.FormalPermissionTermCallControl.control_test_fields",
+          "YulangClosure.FormalPermissionTermCallControl.control_preserves_allocator_path",
+          "YulangClosure.FormalPermissionTermCallControl.successful_pair_refines",
+          "YulangClosure.FormalPermissionTermCallControl.source_calls_at_cuts",
+          "YulangClosure.FormalPermissionTermCallControl.exact_tree_r9_from_term_control",
+          "YulangClosure.FormalPermissionArenaEvents.run_order",
+          "YulangClosure.FormalPermissionArenaEvents.appended_order",
+          "YulangClosure.FormalPermissionArenaEvents.appended_bound",
+          "YulangClosure.FormalPermissionArenaEvents.disabled_reserve",
+          "YulangClosure.FormalPermissionArenaEvents.failed_reserve_growth_retained",
+          "YulangClosure.FormalPermissionArenaEvents.unchanged_reserve_emits_nothing",
+          "YulangClosure.FormalPermissionArenaEvents.run_append_success",
+          "YulangClosure.FormalPermissionArenaEvents.failure_preserves_prefix",
+          "YulangClosure.FormalPermissionArenaEvents.cache_hit_no_events",
+          "YulangClosure.FormalPermissionArenaEvents.invalid_function_no_events",
+          "YulangClosure.FormalPermissionArenaEvents.publication_stage",
+          "YulangClosure.FormalPermissionArenaEvents.publication_failure_no_backing_stage",
+          "YulangClosure.FormalPermissionArenaEvents.backing_requires_publication",
+          "YulangClosure.FormalPermissionArenaEvents.combined_prefix_bound",
+          "YulangClosure.FormalPermissionArenaEvents.each_append_has_slot",
+          "YulangClosure.FormalPermissionArenaEvents.preexisting_prefix_preserved",
+          "YulangClosure.FormalPermissionArenaEvents.derived_control_refines",
+          "YulangClosure.FormalPermissionArenaEvents.derived_constructor_error_preserved"
+        ]
+      },
+      {
+        "attempt": 2,
+        "plan": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-2/audit-plan.json",
+        "plan_sha256": "8749b47a1af90547206f54fd1746cb875151ebf5b0f1b1180829562c2d429d92",
+        "copy_receipt": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-2/copy-receipt.json",
+        "copy_receipt_sha256": "16196bc00d8a4387f011dcc336d48a0e6d9266ef99c235f8e74e33ca02bd9d73",
+        "stdout": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-2/stdout.raw",
+        "stdout_sha256": "f8797d9ab4a79b46abda7a8fcd4c9b39d223c1f0794c956d7aac74900380489b",
+        "stderr": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-2/stderr.raw",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "status": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-2/status.raw",
+        "status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "resource": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-2/resource.json",
+        "resource_sha256": "aa7622f391e08cbd1e4d59da7d663d207eef09147fe0fbeea2671608bb39a0fb",
+        "audit_receipt": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-2/audit-receipt.json",
+        "audit_receipt_sha256": "2f843707436cd4d8374758d670dfff88e02c725a33d89e45f668062c9a1a24ee",
+        "exit_status": 0,
+        "wall_seconds": 4.553,
+        "max_rss_kib": 1003004,
+        "planned_roots": 56,
+        "result": "PASS",
+        "reported_pass_lines": 0,
+        "actual_pass_lines": 56,
+        "begin_markers": 56,
+        "end_markers": 56,
+        "roots": [
+          {
+            "theorem": "YulangClosure.FormalPermissionHelperFrames.operation_preserves_allocator",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionHelperFrames.operations_preserve_allocator",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionHelperFrames.nonempty_operations_frame",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionHelperFrames.reservation_projection",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionHelperFrames.permission_append_delta",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionHelperFrames.concrete_port_prefix_delta",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionHelperFrames.ordered_concrete_port_delta",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionHelperFrames.tree_frames_from_operations",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionHelperFrames.exact_tree_r9_from_operations",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionConnectedCuts.strip_recompose",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionConnectedCuts.recompose_strip",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionConnectedCuts.rebase_extend",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionConnectedCuts.extend_rebase",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionConnectedCuts.rebase_identity",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionConnectedCuts.sibling_distinction",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionConnectedCuts.local_view_exact",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionConnectedCuts.connected_allocators",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionConnectedCuts.exact_path_factors",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionConnectedCuts.exact_tree_r9_from_connected",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.sample_ops_refine",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.run_ops_append",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.loop_ops_refine",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.control_ops_refine",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.no_accounting",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.loop_error_none",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.constructor_error_preserved",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.loop_first_error",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.sample_error_precedence",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.first_failure_stops",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.successful_event_order",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.successful_term_call",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.loop_path",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.loop_test_fields",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.control_test_fields",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.control_preserves_allocator_path",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.successful_pair_refines",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.source_calls_at_cuts",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionTermCallControl.exact_tree_r9_from_term_control",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.run_order",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.appended_order",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.appended_bound",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.disabled_reserve",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.failed_reserve_growth_retained",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.unchanged_reserve_emits_nothing",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.run_append_success",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.failure_preserves_prefix",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.cache_hit_no_events",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.invalid_function_no_events",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.publication_stage",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.publication_failure_no_backing_stage",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.backing_requires_publication",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.combined_prefix_bound",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.each_append_has_slot",
+            "axioms": [
+              "propext",
+              "Quot.sound"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.preexisting_prefix_preserved",
+            "axioms": [],
+            "no_axioms": true,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.derived_control_refines",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          },
+          {
+            "theorem": "YulangClosure.FormalPermissionArenaEvents.derived_constructor_error_preserved",
+            "axioms": [
+              "propext"
+            ],
+            "no_axioms": false,
+            "full_type_and_axiom_report_in_stdout": true
+          }
+        ]
+      }
+    ],
+    "supplemental_pass_count_correction": {
+      "path": "/tmp/yulang-effect-permission-arena-events-20261029-r16/attempt-2/audit-receipt-correction.json",
+      "sha256": "731a2df530d90d7b34c4ce58bc0f9e510383b50f64e711958c7dfba502008497",
+      "original_receipt_sha256": "2f843707436cd4d8374758d670dfff88e02c725a33d89e45f668062c9a1a24ee",
+      "actual_pass_lines": 56
+    }
+  },
+  "axiom_counts_new_roots": {
+    "none": 2,
+    "propext_only": 15,
+    "propext_Quot.sound": 1
+  },
+  "review": {
+    "verdict": "PASS_CONDITIONAL",
+    "blocking": 0,
+    "major": 0,
+    "minor": 1,
+    "minor_finding": "Audit 2 aggregate receipt pass_lines field was 0; supplemental correction authenticates 56 PASS lines in unchanged raw output."
+  },
+  "scope_limits": [
+    "Reserve/allocation semantics and truthful capacity observations remain explicit premises.",
+    "Initial event-buffer provenance and Fits for a concrete native run remain OPEN.",
+    "Page identity authenticity, sampler availability/execution, actual Rust execution and returned constructor correspondence remain OPEN.",
+    "Only live-variable and positive/negative function constructor families are represented; tuple/structural-backed siblings are outside scope.",
+    "Original parent, effect hygiene, consumer residual, soundness, principality, termination and production remain OPEN."
+  ],
+  "git_checkpoint": "DEFERRED; no Git operations authorized; prior source-hash mismatch disposition remains in force. No paths were staged.",
+  "tests_or_cargo": "NONE; no tests or Cargo commands run."
+}

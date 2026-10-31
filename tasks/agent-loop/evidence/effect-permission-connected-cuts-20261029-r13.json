@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "revision": 4,
+  "sprint": "EFFECT-PERMISSION-CONNECTED-CUTS/20261029-r13",
+  "stage": "CLOSED_COMPLETE_CONDITIONAL",
+  "status": "CLOSED_COMPLETE_CONDITIONAL",
+  "selector": {
+    "worker": "/root/r21_closeout_selector",
+    "recommendation": "CLOSE R13 conditional; propose EFFECT-PERMISSION-TERM-CALL-CONTROL/20261029-r14",
+    "next_fixed_outcome": "derive with_term_events successful call transcript from source inputs and apply to R13 term cuts",
+    "state": "CONSULTED"
+  },
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-connected-cuts-20261029-r13.md",
+    "sha256": "3b723f1a4153af9217717bedcdb5ff1c06da569014219b00feef976057723a19"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-connected-cuts-20261029-r13-inputs.json",
+    "sha256": "911ea88407dc079f56ee19914a2ab3be49654cc2182ee6a2adb0302cc5d8c880",
+    "entries": 145
+  },
+  "prior_sprint": {
+    "id": "EFFECT-PERMISSION-HELPER-FRAMES/20261029-r12",
+    "outcome": "tasks/agent-loop/history/effect-permission-helper-frames-20261029-r12-outcome.md",
+    "outcome_sha256": "870b14c3432b57e7648b64f860875f1f024deab56d3caed6485f5c503916aa06",
+    "artifact_sha256": "92531e0849a08a03a37bbb35315f01b831d31bdffb108712c5b0a4a7eaaa75dd",
+    "review_sha256": "2d3c0d6f4176757ee38c26ecf4efc8dfb6e453775b7760a26c0aa03f347c0dde"
+  },
+  "budget_seconds": 1200,
+  "lanes": {
+    "source": {
+      "owner": "primary Luna",
+      "budget_seconds": 200,
+      "state": "COMPLETE_READ_ONLY_FROZEN",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-connected-cuts-r13-source.md",
+      "sha256": "99614e24f70946b929bf6ec539244d58e111739e0dbc20ec9e7651fef7d144d7"
+    },
+    "proof": {
+      "role": "registered lean_prover",
+      "budget_seconds": 600,
+      "state": "STOPPED_REV2_FROZEN_AUDIT_2_PASS",
+      "artifact": "notes/theory/lean/YulangClosure/FormalPermissionConnectedCuts.lean",
+      "baseline_state": "ABSENT",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-connected-cuts-r13-proof.md",
+      "audit_limit": {
+        "max_invocations": 2,
+        "per_attempt_timeout_seconds": 90,
+        "combined_wall_seconds": 29.41,
+        "released": 2
+      },
+      "artifact_sha256": "6427eed5f0c3b84f80a3a37c31797fc782960c725fb77f6bef46cebcc993b023",
+      "handoff_sha256": "c677e958bb6ef11af36f3a77e1b4f95c6980b9d762eba27a4bf1e1a504d31fb0"
+    },
+    "review": {
+      "role": "fresh nonauthor compiler_referee",
+      "budget_seconds": 250,
+      "state": "NOT_STARTED",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-connected-cuts-r13-review.md"
+    },
+    "primary": {
+      "owner": "Luna",
+      "budget_seconds": 150
+    }
+  },
+  "source_pins": {
+    "candidate_effect.rs": "1f64d4fec8f2abceb11a48a51f5b615aa2cf605c9586ba742f15f9024a6a2717",
+    "lib.rs": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07",
+    "R12 artifact": "92531e0849a08a03a37bbb35315f01b831d31bdffb108712c5b0a4a7eaaa75dd",
+    "R11 artifact": "828eef57d8caaa538c8feb91ad023dc45eb41e421b4eb430532e383ee1c75e91",
+    "R9 allocation": "795e63e850f73d75f18f721224d3e0723c187a57c7437ffe3ef08a4dbd80648a"
+  },
+  "gates": {
+    "connected_cut_chain": "CONDITIONAL_ACCEPTED",
+    "full_to_relative_path_map": "CONDITIONAL_ACCEPTED",
+    "owner_occurrence_row_operand_identity": "CONDITIONAL_ACCEPTED",
+    "sibling_distinction": "CONDITIONAL_ACCEPTED",
+    "four_effect_allocations": "CONDITIONAL_ACCEPTED",
+    "two_ordered_permission_appends": "CONDITIONAL_ACCEPTED",
+    "actual_rust_execution_linkage": "OPEN",
+    "primitive_alias_authenticity": "OPEN",
+    "reservation_availability": "OPEN",
+    "publication_native_authenticity": "OPEN",
+    "original_parent": "OPEN",
+    "effect_hygiene": "OPEN",
+    "consumer_residual": "OPEN",
+    "soundness": "OPEN",
+    "principality": "OPEN",
+    "termination": "OPEN",
+    "production": "OPEN"
+  },
+  "scratch_lease": "/tmp/yulang-effect-permission-connected-cuts-20261029-r13/",
+  "audit_state": "AUDIT_2_PASS_ALL_19_TYPE_AND_AXIOM_AUDITS",
+  "review_state": "PASS_CONDITIONAL_STOPPED",
+  "selector_recommendation": "CLOSED R12 conditionally; propose R13 connected cuts from one threaded state and explicit full-to-relative path map.",
+  "audit1": {
+    "plan": "/tmp/yulang-effect-permission-connected-cuts-20261029-r13/audit-inputs-1.json",
+    "plan_sha256": "00045303ee5ce1b23f37ce395a6879411252ae8d9aa0f2bf56e50ede02b71367",
+    "copy_receipt_sha256": "fd4c8be7b35f2ad2e686b367cd96acccd92b4baac365a11e37192df565527b61",
+    "artifact_sha256": "cc3cb443e6cb5e53c0cbfcdff4c03e71a52db065bb88e3358c872e683e47ee0a",
+    "exit_status": 1,
+    "wall_seconds": 13.08,
+    "max_rss_kib": 798084,
+    "printed_theorem_types": 0,
+    "printed_axiom_audits": 0,
+    "stdout_sha256": "082506bdc8b7467abdedcec3adbb5513004ecc8e081a51779dcdf4c83e3001be",
+    "stderr_sha256": "0edf2d238840b65a26de68075c964d099167cf4cae51705f162bcfa4e7addc60",
+    "status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "resource_sha256": "9f142b743fb4e1ad9cbdb59b55bf1b66c710e15c012168fa653a7865bbf68918",
+    "interpretation": "Reserved-word parser cascade and redundant proof term; build failure, not mathematical counterexample."
+  },
+  "audit2": {
+    "plan": "/tmp/yulang-effect-permission-connected-cuts-20261029-r13/audit-inputs-2.json",
+    "plan_sha256": "82632d098b1296e1cbe9d485d430be1b3ba01f66a855030eb3f33ddb1e80f526",
+    "copy_receipt_sha256": "19afbeaf96bde8c893c88abdc7066098a02fd8246cbeed12a8d3ffec9af528d6",
+    "artifact_sha256": "6427eed5f0c3b84f80a3a37c31797fc782960c725fb77f6bef46cebcc993b023",
+    "proof_handoff_sha256": "c677e958bb6ef11af36f3a77e1b4f95c6980b9d762eba27a4bf1e1a504d31fb0",
+    "exit_status": 0,
+    "wall_seconds": 16.33,
+    "max_rss_kib": 977212,
+    "printed_theorem_types": 19,
+    "printed_axiom_audits": 19,
+    "stdout_sha256": "be93a61cfcfa490c8f28289fe7f2c7accd172b59f0830380440be7346685c80d",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "resource_sha256": "2d003cba807550c39f1214003926eea9b4785a39a3dd07ffd4bc8f708fc4c776",
+    "axioms": {
+      "YulangClosure.FormalPermissionHelperFrames.operation_preserves_allocator": [],
+      "YulangClosure.FormalPermissionHelperFrames.operations_preserve_allocator": [],
+      "YulangClosure.FormalPermissionHelperFrames.nonempty_operations_frame": [],
+      "YulangClosure.FormalPermissionHelperFrames.reservation_projection": [
+        "propext"
+      ],
+      "YulangClosure.FormalPermissionHelperFrames.permission_append_delta": [],
+      "YulangClosure.FormalPermissionHelperFrames.concrete_port_prefix_delta": [],
+      "YulangClosure.FormalPermissionHelperFrames.ordered_concrete_port_delta": [],
+      "YulangClosure.FormalPermissionHelperFrames.tree_frames_from_operations": [
+        "propext"
+      ],
+      "YulangClosure.FormalPermissionHelperFrames.exact_tree_r9_from_operations": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "YulangClosure.FormalPermissionConnectedCuts.strip_recompose": [
+        "propext"
+      ],
+      "YulangClosure.FormalPermissionConnectedCuts.recompose_strip": [
+        "propext"
+      ],
+      "YulangClosure.FormalPermissionConnectedCuts.rebase_extend": [
+        "propext"
+      ],
+      "YulangClosure.FormalPermissionConnectedCuts.extend_rebase": [
+        "propext"
+      ],
+      "YulangClosure.FormalPermissionConnectedCuts.rebase_identity": [],
+      "YulangClosure.FormalPermissionConnectedCuts.sibling_distinction": [],
+      "YulangClosure.FormalPermissionConnectedCuts.local_view_exact": [
+        "propext"
+      ],
+      "YulangClosure.FormalPermissionConnectedCuts.connected_allocators": [
+        "propext"
+      ],
+      "YulangClosure.FormalPermissionConnectedCuts.exact_path_factors": [],
+      "YulangClosure.FormalPermissionConnectedCuts.exact_tree_r9_from_connected": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    }
+  },
+  "review": {
+    "role": "fresh nonauthor compiler_referee",
+    "worker": "/root/effect_permission_connected_cuts_r13_review",
+    "budget_seconds": 250,
+    "state": "PASS_CONDITIONAL_STOPPED",
+    "handoff": "tasks/agent-loop/inbox/effect-permission-connected-cuts-r13-review.md",
+    "audit_execution_by_reviewer": false,
+    "sha256": "fb1f43e3c486237b9f93d6955f4bf4cf96b5b3827a40c42044838e099734c394",
+    "verdict": "PASS_CONDITIONAL_CONNECTED_OPERATION_MODEL",
+    "blocking": 0,
+    "major": 0,
+    "minor": 0,
+    "writer_stopped": true,
+    "limitations": [
+      "actual Rust successful execution linkage",
+      "reservation availability and machine arithmetic",
+      "primitive/alias authenticity",
+      "native identity/publication",
+      "original parent",
+      "consumer residual/effect hygiene",
+      "soundness",
+      "principality",
+      "progress",
+      "termination",
+      "production"
+    ]
+  },
+  "outcome": {
+    "path": "tasks/agent-loop/history/effect-permission-connected-cuts-20261029-r13-outcome.md",
+    "sha256": "157d604ccbe01adab9b42dbb6d9b7da83ad452535fe082f8a16d294e666f8b61",
+    "state_archive": "tasks/agent-loop/history/effect-permission-connected-cuts-20261029-r13-state-archive.json",
+    "state_archive_sha256": "9736f4ecebac757f6006f3069007583b0127fbb709d766379749f5ab3c522353"
+  }
+}
