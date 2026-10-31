@@ -1,0 +1,744 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling syn v2.0.119
+   Compiling fnv v1.0.7
+   Compiling ident_case v1.0.1
+   Compiling strsim v0.11.1
+   Compiling darling_core v0.21.3
+   Compiling darling_macro v0.21.3
+   Compiling darling v0.21.3
+   Compiling autocfg v1.5.1
+   Compiling memoffset v0.9.1
+   Compiling reborrow-generic-derive v0.1.1
+   Compiling seq-macro v0.3.6
+   Compiling reborrow-generic v0.1.2
+   Compiling countme v3.0.1
+   Compiling text-size v1.1.1
+   Compiling copy-range v0.1.1
+   Compiling rustc-hash v1.1.0
+   Compiling hashbrown v0.14.5
+   Compiling rowan v0.15.17
+   Compiling chasa v0.5.0
+   Compiling chasa-recover v0.2.0 (/home/momota1029/rust/yulang/crates/chasa-recover)
+   Compiling yu-syntax v0.1.0 (/home/momota1029/rust/yulang/crates/yu-syntax)
+   Compiling yu-hir v0.1.0 (/home/momota1029/rust/yulang/crates/yu-hir)
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:205:11
+    |
+205 |     Token(SyntaxToken),
+    |     ----- ^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+205 -     Token(SyntaxToken),
+205 +     Token(()),
+    |
+
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:206:15
+    |
+206 |     Synthetic(Vec<AssociationProvenance>),
+    |     --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+206 -     Synthetic(Vec<AssociationProvenance>),
+206 +     Synthetic(()),
+    |
+
+warning: struct `AssociatedFieldTailSource` is never constructed
+    --> crates/yu-hir/src/shadow.rs:1505:19
+     |
+1505 | pub(crate) struct AssociatedFieldTailSource<'a> {
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `source`, `receiver`, and `receiver_provenance` are never used
+    --> crates/yu-hir/src/shadow.rs:1512:19
+     |
+1511 | impl<'a> AssociatedFieldTailSource<'a> {
+     | -------------------------------------- methods in this implementation
+1512 |     pub(crate) fn source(&self) -> &'a PendingFieldTailSource { self.source }
+     |                   ^^^^^^
+1513 |     pub(crate) fn receiver(&self) -> &'a HirExpr { self.receiver }
+     |                   ^^^^^^^^
+1514 |     pub(crate) fn receiver_provenance(&self) -> &'a AssociationProvenance { self.receiver_provenance }
+     |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AssociatedRoleImplSource` is never constructed
+    --> crates/yu-hir/src/shadow.rs:1518:19
+     |
+1518 | pub(crate) struct AssociatedRoleImplSource<'a> {
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `source` and `node` are never used
+    --> crates/yu-hir/src/shadow.rs:1524:19
+     |
+1523 | impl<'a> AssociatedRoleImplSource<'a> {
+     | ------------------------------------- methods in this implementation
+1524 |     pub(crate) fn source(&self) -> &'a PendingRoleImplSource { self.source }
+     |                   ^^^^^^
+1525 |     pub(crate) fn node(&self) -> &'a SyntaxNode { self.node }
+     |                   ^^^^
+
+warning: method `with_associated_method_role_sources` is never used
+    --> crates/yu-hir/src/shadow.rs:1977:19
+     |
+1611 | impl ShadowArtifact {
+     | ------------------- method in this implementation
+...
+1977 |     pub(crate) fn with_associated_method_role_sources<R>(
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `walk_associated_pairs` is never used
+    --> crates/yu-hir/src/shadow.rs:2831:4
+     |
+2831 | fn walk_associated_pairs<'a>(
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `yu-hir` (lib) generated 8 warnings
+   Compiling yu-types v0.1.0 (/home/momota1029/rust/yulang/crates/yu-types)
+   Compiling yu-core v0.1.0 (/home/momota1029/rust/yulang/crates/yu-core)
+   Compiling yu-solver v0.1.0 (/home/momota1029/rust/yulang/crates/yu-solver)
+warning: unused variable: `effect_state`
+    --> crates/yu-solver/src/candidate_receiver.rs:4126:13
+     |
+4126 |         let effect_state = &owner.session.candidate_graph.as_ref()?.intrusion.effect_algebra;
+     |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_effect_state`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: type `ResidualPublicationObservation` is more private than the item `OwnedResidualProjection::calls`
+   --> crates/yu-solver/src/candidate_receiver.rs:422:5
+    |
+422 |     pub(super) calls: Vec<(usize, &'a ResidualPublicationObservation)>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `OwnedResidualProjection::calls` is reachable at visibility `pub(crate)`
+    |
+note: but type `ResidualPublicationObservation` is only usable at visibility `pub(self)`
+   --> crates/yu-solver/src/candidate_receiver.rs:368:1
+    |
+368 | struct ResidualPublicationObservation {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: type `InventoryInternalOwnerChoice<'a>` is more private than the item `SourceInternalProjection::internal_owner_choice`
+   --> crates/yu-solver/src/candidate_receiver.rs:476:5
+    |
+476 |     pub(super) internal_owner_choice: InventoryInternalOwnerChoice<'a>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `SourceInternalProjection::internal_owner_choice` is reachable at visibility `pub(crate)`
+    |
+note: but type `InventoryInternalOwnerChoice<'a>` is only usable at visibility `pub(self)`
+   --> crates/yu-solver/src/candidate_receiver.rs:550:1
+    |
+550 | struct InventoryInternalOwnerChoice<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `ResidualPublicationObservation` is more private than the item `ReceivingResidualExperiment::native_publication_observations`
+    --> crates/yu-solver/src/candidate_receiver.rs:2313:5
+     |
+2313 |     pub(super) fn native_publication_observations(&self) -> Option<&[ResidualPublicationObservation]> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method `ReceivingResidualExperiment::native_publication_observations` is reachable at visibility `pub(crate)`
+     |
+note: but type `ResidualPublicationObservation` is only usable at visibility `pub(self)`
+    --> crates/yu-solver/src/candidate_receiver.rs:368:1
+     |
+ 368 | struct ResidualPublicationObservation {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `ResidualPublicationObservation` is more private than the item `ReceivingResidualExperiment::native_publication_call`
+    --> crates/yu-solver/src/candidate_receiver.rs:2351:5
+     |
+2351 | /     pub(super) fn native_publication_call(
+2352 | |         &self,
+2353 | |         identity: ResidualPublicationIdentity,
+2354 | |         plan_index: usize,
+2355 | |     ) -> Option<&ResidualPublicationObservation> {
+     | |________________________________________________^ method `ReceivingResidualExperiment::native_publication_call` is reachable at visibility `pub(crate)`
+     |
+note: but type `ResidualPublicationObservation` is only usable at visibility `pub(self)`
+    --> crates/yu-solver/src/candidate_receiver.rs:368:1
+     |
+ 368 | struct ResidualPublicationObservation {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `InventoryInternalOwnerChoice<'_>` is more private than the item `ReceivingResidualExperiment::internal_owner_choice`
+    --> crates/yu-solver/src/candidate_receiver.rs:2389:5
+     |
+2389 | /     pub(super) fn internal_owner_choice(
+2390 | |         &self,
+2391 | |     ) -> Option<InventoryInternalOwnerChoice<'_>> {
+     | |_________________________________________________^ method `ReceivingResidualExperiment::internal_owner_choice` is reachable at visibility `pub(crate)`
+     |
+note: but type `InventoryInternalOwnerChoice<'_>` is only usable at visibility `pub(self)`
+    --> crates/yu-solver/src/candidate_receiver.rs:550:1
+     |
+ 550 | struct InventoryInternalOwnerChoice<'a> {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `FunctionField` is more private than the item `CandidateSourceDependencyRecord::function_port`
+    --> crates/yu-solver/src/shadow_apply.rs:993:5
+     |
+ 993 |     pub function_port: Option<(FunctionField, crate::candidate_context::FunctionPortOperation)>,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `CandidateSourceDependencyRecord::function_port` is reachable at visibility `pub`
+     |
+note: but type `FunctionField` is only usable at visibility `pub(crate)`
+    --> crates/yu-solver/src/lib.rs:4462:1
+     |
+4462 | enum FunctionField {
+     | ^^^^^^^^^^^^^^^^^^
+
+warning: type `FunctionPortOperation` is more private than the item `CandidateSourceDependencyRecord::function_port`
+   --> crates/yu-solver/src/shadow_apply.rs:993:5
+    |
+993 |     pub function_port: Option<(FunctionField, crate::candidate_context::FunctionPortOperation)>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `CandidateSourceDependencyRecord::function_port` is reachable at visibility `pub`
+    |
+note: but type `FunctionPortOperation` is only usable at visibility `pub(crate)`
+   --> crates/yu-solver/src/candidate_context.rs:331:1
+    |
+331 | pub(super) enum FunctionPortOperation {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `TransportWitness` is more private than the item `CandidateSourceDependencyRecord::transport`
+   --> crates/yu-solver/src/shadow_apply.rs:995:5
+    |
+995 |     pub transport: Option<(usize, Option<crate::candidate_context::TransportWitness>)>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `CandidateSourceDependencyRecord::transport` is reachable at visibility `pub`
+    |
+note: but type `TransportWitness` is only usable at visibility `pub(crate)`
+   --> crates/yu-solver/src/candidate_context.rs:343:1
+    |
+343 | pub(super) struct TransportWitness {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `BoundKey` is more private than the item `CandidateSourceReplayInputs::lower`
+    --> crates/yu-solver/src/shadow_apply.rs:1009:5
+     |
+1009 |     pub lower: crate::candidate_effect::BoundKey,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `CandidateSourceReplayInputs::lower` is reachable at visibility `pub`
+     |
+note: but type `BoundKey` is only usable at visibility `pub(crate)`
+    --> crates/yu-solver/src/candidate_effect.rs:35:1
+     |
+  35 | pub(super) struct BoundKey(pub ExtrusionEndpoint, pub Polarity, pub ExtrusionEndpoint);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `BoundKey` is more private than the item `CandidateSourceReplayInputs::upper`
+    --> crates/yu-solver/src/shadow_apply.rs:1010:5
+     |
+1010 |     pub upper: crate::candidate_effect::BoundKey,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `CandidateSourceReplayInputs::upper` is reachable at visibility `pub`
+     |
+note: but type `BoundKey` is only usable at visibility `pub(crate)`
+    --> crates/yu-solver/src/candidate_effect.rs:35:1
+     |
+  35 | pub(super) struct BoundKey(pub ExtrusionEndpoint, pub Polarity, pub ExtrusionEndpoint);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `hir` is never read
+    --> crates/yu-solver/src/lib.rs:3426:5
+     |
+3425 | pub struct ConstraintStore {
+     |            --------------- field in this struct
+3426 |     hir: Arc<HirModule>,
+     |     ^^^
+     |
+     = note: `ConstraintStore` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `with_capacity` is never used
+    --> crates/yu-solver/src/lib.rs:3490:8
+     |
+3483 | impl ConstraintStore {
+     | -------------------- associated function in this implementation
+...
+3490 |     fn with_capacity(
+     |        ^^^^^^^^^^^^^
+
+warning: method `run_candidate` is never used
+     --> crates/yu-solver/src/lib.rs:10738:8
+      |
+ 9273 | impl InferenceSession {
+      | --------------------- method in this implementation
+...
+10738 |     fn run_candidate(mut self) -> Result<CandidateSolvedResult, SolveAvailabilityError> {
+      |        ^^^^^^^^^^^^^
+
+warning: fields `owner` and `root` are never read
+  --> crates/yu-solver/src/candidate_scheme.rs:68:9
+   |
+66 | pub(super) struct OperatorFreshUse {
+   |                   ---------------- fields in this struct
+67 |     pub occurrence: HirOccurrenceId,
+68 |     pub owner: yu_hir::SourceOperatorOwner,
+   |         ^^^^^
+...
+71 |     pub root: Term,
+   |         ^^^^
+   |
+   = note: `OperatorFreshUse` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: method `has_pending_field_tail_selection` is never used
+   --> crates/yu-solver/src/candidate_scheme.rs:936:19
+    |
+908 | impl GraphState {
+    | --------------- method in this implementation
+...
+936 |     pub(super) fn has_pending_field_tail_selection(&self) -> bool {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `capture_candidate_graph` is never used
+    --> crates/yu-solver/src/candidate_scheme.rs:2713:19
+     |
+2455 | impl InferenceSession {
+     | --------------------- method in this implementation
+...
+2713 |     pub(super) fn capture_candidate_graph(&mut self, row: u32, boundary: u32) -> Result<Graph, SolveAvailabilityError> {
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `operator_source` is never read
+  --> crates/yu-solver/src/candidate_source.rs:79:9
+   |
+75 | pub(super) struct OperatorUse {
+   |                   ----------- field in this struct
+...
+79 |     pub operator_source: yu_hir::shadow::SourceNodeKey,
+   |         ^^^^^^^^^^^^^^^
+   |
+   = note: `OperatorUse` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `declaration`, `field_position`, `negative_port`, and `handler_argument` are never read
+   --> crates/yu-solver/src/candidate_source.rs:427:9
+    |
+425 | pub(super) struct LicensedOperationFieldV1 {
+    |                   ------------------------ fields in this struct
+426 |     pub owner_request: HirOccurrenceId,
+427 |     pub declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>,
+    |         ^^^^^^^^^^^
+428 |     pub field_position: yu_hir::shadow::SourceNodeKey,
+    |         ^^^^^^^^^^^^^^
+429 |     pub family: yu_hir::shadow::SourceEffectId,
+430 |     pub negative_port: u32,
+    |         ^^^^^^^^^^^^^
+431 |     pub handler_argument: HandlerContinuationArgumentV1,
+    |         ^^^^^^^^^^^^^^^^
+    |
+    = note: `LicensedOperationFieldV1` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `response_annotation` and `handler_argument` are never read
+   --> crates/yu-solver/src/candidate_source.rs:436:9
+    |
+434 | pub(super) struct CallbackFieldRealizationV1 {
+    |                   -------------------------- fields in this struct
+435 |     pub response_definition: HirLocalId,
+436 |     pub response_annotation: Arc<yu_hir::shadow::SourceAnnotation>,
+    |         ^^^^^^^^^^^^^^^^^^^
+...
+440 |     pub handler_argument: HandlerContinuationArgumentV1,
+    |         ^^^^^^^^^^^^^^^^
+    |
+    = note: `CallbackFieldRealizationV1` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: function `preflight` is never used
+   --> crates/yu-solver/src/candidate_source.rs:565:15
+    |
+565 | pub(super) fn preflight(source: &LocalSource, operation_v1: bool) -> Result<(), shadow_apply::CandidateError> {
+    |               ^^^^^^^^^
+
+warning: function `preflight_with_imports` is never used
+   --> crates/yu-solver/src/candidate_source.rs:569:15
+    |
+569 | pub(super) fn preflight_with_imports(
+    |               ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variant `SemanticStore` is never constructed
+   --> crates/yu-solver/src/candidate_receiver.rs:221:5
+    |
+219 | pub(super) enum ProviderFactOwner {
+    |                 ----------------- variant in this enum
+220 |     BatchOccurrence(usize),
+221 |     SemanticStore(usize),
+    |     ^^^^^^^^^^^^^
+    |
+    = note: `ProviderFactOwner` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `emission`, `admission`, `slot`, `bound`, and `relation` are never read
+   --> crates/yu-solver/src/candidate_receiver.rs:271:9
+    |
+270 |     Physical {
+    |     -------- fields in this variant
+271 |         emission: candidate_context::BoundEmissionId,
+    |         ^^^^^^^^
+272 |         admission: candidate_context::BoundAdmissionId,
+    |         ^^^^^^^^^
+273 |         slot: candidate_context::PhysicalBoundSlot,
+    |         ^^^^
+274 |         bound: candidate_effect::BoundKey,
+    |         ^^^^^
+275 |         relation: candidate_context::RelationId,
+    |         ^^^^^^^^
+    |
+    = note: `LowerPathSnapshot` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `view_index`, `member_index`, `family`, and `closed_tail` are never read
+   --> crates/yu-solver/src/candidate_receiver.rs:278:9
+    |
+277 |     SupportMember {
+    |     ------------- fields in this variant
+278 |         view_index: u32,
+    |         ^^^^^^^^^^
+279 |         member_index: u32,
+    |         ^^^^^^^^^^^^
+280 |         family: yu_hir::shadow::SourceEffectId,
+    |         ^^^^^^
+281 |         closed_tail: bool,
+    |         ^^^^^^^^^^^
+    |
+    = note: `LowerPathSnapshot` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: multiple fields are never read
+   --> crates/yu-solver/src/candidate_receiver.rs:288:5
+    |
+286 | struct AuthenticatedSuppression {
+    |        ------------------------ fields in this struct
+287 |     endpoint: EffectEndpointKey,
+288 |     provider_occurrence: HirOccurrenceId,
+    |     ^^^^^^^^^^^^^^^^^^^
+289 |     provider_source: SourceNodeKey,
+    |     ^^^^^^^^^^^^^^^
+290 |     provider_source_range: (usize, usize),
+    |     ^^^^^^^^^^^^^^^^^^^^^
+291 |     provider_identity: yu_hir::shadow::SourceOperationId,
+    |     ^^^^^^^^^^^^^^^^^
+292 |     entry_effect: u32,
+    |     ^^^^^^^^^^^^
+293 |     emission: candidate_context::BoundEmissionId,
+    |     ^^^^^^^^
+294 |     admission: candidate_context::BoundAdmissionId,
+    |     ^^^^^^^^^
+...
+297 |     arm_ordinal: u32,
+    |     ^^^^^^^^^^^
+298 |     arm_source: SourceNodeKey,
+    |     ^^^^^^^^^^
+299 |     arm_range: (usize, usize),
+    |     ^^^^^^^^^
+300 |     operation_source: SourceNodeKey,
+    |     ^^^^^^^^^^^^^^^^
+301 |     operation: yu_hir::shadow::SourceOperationId,
+    |     ^^^^^^^^^
+302 |     unit_payload_source: SourceNodeKey,
+    |     ^^^^^^^^^^^^^^^^^^^
+303 |     unit_payload_range: (usize, usize),
+    |     ^^^^^^^^^^^^^^^^^^
+304 |     continuation_is_wildcard: bool,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+305 |     entry_path: Vec<LowerPathSnapshot>,
+    |     ^^^^^^^^^^
+306 |     catch_path: Vec<LowerPathSnapshot>,
+    |     ^^^^^^^^^^
+    |
+    = note: `AuthenticatedSuppression` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: methods `rows`, `row`, `views`, `view`, `physical_lower`, and `ancestry_reader` are never used
+    --> crates/yu-solver/src/candidate_receiver.rs:5242:8
+     |
+5241 | impl<'p, 'a> LocalDecodeReader<'p, 'a> {
+     | -------------------------------------- methods in this implementation
+5242 |     fn rows(&self) -> &'p [(usize, &'a EffectBounds)] {
+     |        ^^^^
+...
+5246 |     fn row(&self, index: usize) -> Option<BorrowedEffectRowRead<'a>> {
+     |        ^^^
+...
+5267 |     fn views(&self) -> &'p [(usize, &'a candidate_effect::View)] {
+     |        ^^^^^
+...
+5271 |     fn view(&self, index: usize) -> Option<BorrowedEffectViewRead<'a>> {
+     |        ^^^^
+...
+5293 |     fn physical_lower(
+     |        ^^^^^^^^^^^^^^
+...
+5341 |     fn ancestry_reader(&self) -> OrderedAncestryReader<'_, 'a> {
+     |        ^^^^^^^^^^^^^^^
+
+warning: methods `relations`, `dependencies`, `ordered_parents`, and `successful_call` are never used
+    --> crates/yu-solver/src/candidate_receiver.rs:5379:8
+     |
+5378 | impl<'p, 'a> OrderedAncestryReader<'p, 'a> {
+     | ------------------------------------------ methods in this implementation
+5379 |     fn relations(&self) -> &'p [(usize, &'a candidate_context::Relation)] {
+     |        ^^^^^^^^^
+...
+5383 |     fn dependencies(&self) -> &'p [(usize, &'a candidate_context::Dependency)] {
+     |        ^^^^^^^^^^^^
+...
+5391 |     fn ordered_parents(
+     |        ^^^^^^^^^^^^^^^
+...
+5414 |     fn successful_call(
+     |        ^^^^^^^^^^^^^^^
+
+warning: method `value_component` is never used
+  --> crates/yu-solver/src/candidate_value_graph.rs:36:12
+   |
+30 | impl Graph {
+   | ---------- method in this implementation
+...
+36 |     pub fn value_component(&self, value: &Value) -> Option<usize> {
+   |            ^^^^^^^^^^^^^^^
+
+warning: fields `source_occurrence`, `lower`, and `upper` are never read
+   --> crates/yu-solver/src/candidate_effect.rs:375:9
+    |
+373 | pub(super) struct FieldBoundV1 {
+    |                   ------------ fields in this struct
+374 |     pub id: u32,
+375 |     pub source_occurrence: HirOccurrenceId,
+    |         ^^^^^^^^^^^^^^^^^
+...
+379 |     pub lower: EffectEndpointKey,
+    |         ^^^^^
+380 |     pub upper: EffectEndpointKey,
+    |         ^^^^^
+    |
+    = note: `FieldBoundV1` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: multiple fields are never read
+   --> crates/yu-solver/src/candidate_effect.rs:452:9
+    |
+451 | pub(super) struct FormalEntryPermissionUse<'a> {
+    |                   ------------------------ fields in this struct
+452 |     pub registration: usize,
+    |         ^^^^^^^^^^^^
+453 |     pub parameter: usize,
+    |         ^^^^^^^^^
+454 |     pub formal: &'a yu_hir::HirParameterId,
+    |         ^^^^^^
+455 |     pub source_owner: &'a SourceRootId,
+    |         ^^^^^^^^^^^^
+456 |     pub occurrence: &'a HirOccurrenceId,
+    |         ^^^^^^^^^^
+457 |     pub scope: &'a AnnotationScope,
+    |         ^^^^^
+458 |     pub annotation_position: &'a SourceNodeKey,
+    |         ^^^^^^^^^^^^^^^^^^^
+459 |     pub source_row: &'a SourceNodeKey,
+    |         ^^^^^^^^^^
+460 |     pub entry_effect: u32,
+    |         ^^^^^^^^^^^^
+461 |     pub concrete: &'a [SourceEffectId],
+    |         ^^^^^^^^
+462 |     pub mapped_row: RowKey,
+    |         ^^^^^^^^^^
+463 |     pub definition_use: &'a DefinitionUseId,
+    |         ^^^^^^^^^^^^^^
+464 |     pub context_use: usize,
+    |         ^^^^^^^^^^^
+    |
+    = note: `FormalEntryPermissionUse` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: `yu-solver` (lib) generated 31 warnings (run `cargo fix --lib -p yu-solver` to apply 1 suggestion)
+warning: variable does not need to be mutable
+    --> crates/yu-solver/src/candidate_effect.rs:3968:13
+     |
+3968 |         let mut delegated_ports = typed_trace.iter().filter_map(|event| match event {
+     |             ----^^^^^^^^^^^^^^^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `group_occurrence`
+   --> crates/yu-solver/src/shadow_apply/local_source_observation.rs:579:25
+    |
+579 |             for (group, group_occurrence, start, end, active) in solved.intrusion.observed_groups()
+    |                         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_group_occurrence`
+
+warning: unused variable: `group_occurrence`
+    --> crates/yu-solver/src/shadow_apply/local_source_observation.rs:1317:25
+     |
+1317 |                 for (_, group_occurrence, start, end, _) in solved.intrusion.observed_groups()
+     |                         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_group_occurrence`
+
+warning: type `candidate_effect::FormalDelegatedSiteKey` is more private than the item `candidate_effect::FormalCaptureTypedEvent::DelegatedTail::site`
+   --> crates/yu-solver/src/candidate_effect.rs:164:9
+    |
+164 |         site: FormalDelegatedSiteKey, witnesses: Vec<u64>, name: Box<str>, row: u32,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `candidate_effect::FormalCaptureTypedEvent::DelegatedTail::site` is reachable at visibility `pub(crate)`
+    |
+note: but type `candidate_effect::FormalDelegatedSiteKey` is only usable at visibility `pub(self)`
+   --> crates/yu-solver/src/candidate_effect.rs:133:1
+    |
+133 | struct FormalDelegatedSiteKey {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `candidate_effect::FormalDelegatedSiteKey` is more private than the item `candidate_effect::FormalCaptureTypedEvent::DelegatedPort::site`
+   --> crates/yu-solver/src/candidate_effect.rs:167:9
+    |
+167 |         site: FormalDelegatedSiteKey, order: usize, polarity: Polarity, row: u32,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `candidate_effect::FormalCaptureTypedEvent::DelegatedPort::site` is reachable at visibility `pub(crate)`
+    |
+note: but type `candidate_effect::FormalDelegatedSiteKey` is only usable at visibility `pub(self)`
+   --> crates/yu-solver/src/candidate_effect.rs:133:1
+    |
+133 | struct FormalDelegatedSiteKey {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `candidate_context::FunctionPortOperation` is more private than the item `CandidateSourceDependencyRecord::function_port`
+   --> crates/yu-solver/src/shadow_apply.rs:993:5
+    |
+993 |     pub function_port: Option<(FunctionField, crate::candidate_context::FunctionPortOperation)>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `CandidateSourceDependencyRecord::function_port` is reachable at visibility `pub`
+    |
+note: but type `candidate_context::FunctionPortOperation` is only usable at visibility `pub(crate)`
+   --> crates/yu-solver/src/candidate_context.rs:331:1
+    |
+331 | pub(super) enum FunctionPortOperation {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `candidate_context::TransportWitness` is more private than the item `CandidateSourceDependencyRecord::transport`
+   --> crates/yu-solver/src/shadow_apply.rs:995:5
+    |
+995 |     pub transport: Option<(usize, Option<crate::candidate_context::TransportWitness>)>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `CandidateSourceDependencyRecord::transport` is reachable at visibility `pub`
+    |
+note: but type `candidate_context::TransportWitness` is only usable at visibility `pub(crate)`
+   --> crates/yu-solver/src/candidate_context.rs:343:1
+    |
+343 | pub(super) struct TransportWitness {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `candidate_effect::BoundKey` is more private than the item `CandidateSourceReplayInputs::lower`
+    --> crates/yu-solver/src/shadow_apply.rs:1009:5
+     |
+1009 |     pub lower: crate::candidate_effect::BoundKey,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `CandidateSourceReplayInputs::lower` is reachable at visibility `pub`
+     |
+note: but type `candidate_effect::BoundKey` is only usable at visibility `pub(crate)`
+    --> crates/yu-solver/src/candidate_effect.rs:35:1
+     |
+  35 | pub(super) struct BoundKey(pub ExtrusionEndpoint, pub Polarity, pub ExtrusionEndpoint);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type `candidate_effect::BoundKey` is more private than the item `CandidateSourceReplayInputs::upper`
+    --> crates/yu-solver/src/shadow_apply.rs:1010:5
+     |
+1010 |     pub upper: crate::candidate_effect::BoundKey,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `CandidateSourceReplayInputs::upper` is reachable at visibility `pub`
+     |
+note: but type `candidate_effect::BoundKey` is only usable at visibility `pub(crate)`
+    --> crates/yu-solver/src/candidate_effect.rs:35:1
+     |
+  35 | pub(super) struct BoundKey(pub ExtrusionEndpoint, pub Polarity, pub ExtrusionEndpoint);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `root` is never read
+  --> crates/yu-solver/src/candidate_scheme.rs:71:9
+   |
+66 | pub(super) struct OperatorFreshUse {
+   |                   ---------------- field in this struct
+...
+71 |     pub root: Term,
+   |         ^^^^
+   |
+   = note: `OperatorFreshUse` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `level`, `non_generic`, and `boundary` are never read
+   --> crates/yu-solver/src/candidate_scheme.rs:319:9
+    |
+315 | pub(super) struct CapturedRowObservation {
+    |                   ---------------------- fields in this struct
+...
+319 |     pub level: u32,
+    |         ^^^^^
+320 |     pub non_generic: bool,
+    |         ^^^^^^^^^^^
+321 |     pub boundary: u32,
+    |         ^^^^^^^^
+    |
+    = note: `CapturedRowObservation` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `graph_row` is never read
+   --> crates/yu-solver/src/candidate_scheme.rs:328:9
+    |
+327 | pub(super) struct CaptureEffectFrontierObservation {
+    |                   -------------------------------- field in this struct
+328 |     pub graph_row: usize,
+    |         ^^^^^^^^^
+    |
+    = note: `CaptureEffectFrontierObservation` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `operation`, `ack`, `child_return`, and `drive_return` are never read
+    --> crates/yu-solver/src/candidate_scheme.rs:8408:23
+     |
+8408 |             Matched { operation: candidate_context::ReplayOperationId, ack: candidate_context::ReplayChildAck,
+     |             -------   ^^^^^^^^^                                        ^^^
+     |             |
+     |             fields in this variant
+8409 |                 child_return: candidate_context::ReplayDrainObservation, drive_return: candidate_context::ReplayDrainObservation },
+     |                 ^^^^^^^^^^^^                                             ^^^^^^^^^^^^
+     |
+     = note: `DrainStatus` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `live_root` is never read
+   --> crates/yu-solver/src/candidate_effect.rs:174:68
+    |
+174 |     CaptureOwner { capture: u64, owner: SourceRootId, root: usize, live_root: u32, node_count: usize },
+    |     ------------ field in this variant                             ^^^^^^^^^
+    |
+    = note: `FormalCaptureTypedEvent` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `drain_index` and `transitions` are never read
+  --> crates/yu-solver/src/candidate_context.rs:53:97
+   |
+53 |     ChildReturn { operation: ReplayOperationId, ack: ReplayChildAck, child: Option<RelationId>, drain_index: usize, transitions: usi...
+   |     ----------- fields in this variant                                                          ^^^^^^^^^^^         ^^^^^^^^^^^
+   |
+   = note: `ReplayDrainObservation` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `test_replace_relation_scoped` is never used
+    --> crates/yu-solver/src/candidate_context.rs:2081:19
+     |
+1629 | impl State {
+     | ---------- method in this implementation
+...
+2081 |     pub(super) fn test_replace_relation_scoped(&mut self, id: RelationId, scoped: usize) -> usize {
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `yu-solver` (lib test) generated 35 warnings (19 duplicates) (run `cargo fix --lib -p yu-solver --tests` to apply 3 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 41s
+     Running unittests src/lib.rs (/dev/shm/yulang-effect-permission-graph-fixture-repair-20261101-r102-target/debug/deps/yu_solver-12ea9c1c0f03380a)
+error: test failed, to rerun pass `-p yu-solver --lib`
+Command exited with non-zero status 101
+	Command being timed: "cargo test --locked --offline -p yu-solver --features shadow-apply-candidate candidate_effect::tests:: -- --test-threads=1"
+	User time (seconds): 82.69
+	System time (seconds): 6.48
+	Percent of CPU this job got: 87%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:42.16
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 1719752
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 19
+	Minor (reclaiming a frame) page faults: 2313295
+	Voluntary context switches: 14417
+	Involuntary context switches: 9090
+	Swaps: 0
+	File system inputs: 3424
+	File system outputs: 152
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 101

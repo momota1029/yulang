@@ -1,0 +1,102 @@
+
+running 52 tests
+test candidate_effect::tests::annotated_local_initializer_effect_has_one_block_edge_and_pure_lookups ... ok
+test candidate_effect::tests::annotation_holes_keep_source_scopes_rows_and_failed_attempts_separate ... ok
+test candidate_effect::tests::capture_incidence_merge_chain_keeps_one_record_per_relation_and_rolls_back_splices ... ok
+test candidate_effect::tests::capture_inverse_restores_occupied_without_allocation_and_inserts_absent ... ok
+test candidate_effect::tests::capture_map_native_admission_inverse_observation ... ignored, bounded native capture rollback research observation
+test candidate_effect::tests::covariant_allowance_is_not_production_and_conflicts_keep_actual_boundary_and_cause ... ok
+test candidate_effect::tests::covariant_formal_view_is_paired_and_rolls_back_at_publication_hooks ... ok
+test candidate_effect::tests::distinct_covariant_formal_positions_share_only_the_scoped_tail_and_freshen_independently ... ok
+test candidate_effect::tests::extrusion_maps_opposite_tails_separately_and_drops_scratch_on_failure ... ok
+test candidate_effect::tests::forbidden_siblings_do_not_contaminate_a_later_allowed_cause ... ok
+test candidate_effect::tests::formal_and_whole_annotation_share_tail_in_the_returned_effect_fiber ... FAILED
+test candidate_effect::tests::formal_permission_constructor_owner_domain_graph_export_identity_observation ... ok
+test candidate_effect::tests::formal_permission_constructor_owner_domain_graph_export_join ... FAILED
+test candidate_effect::tests::formal_permission_constructor_symbolic_effect_memo_hit_miss_and_delegation ... ok
+test candidate_effect::tests::formal_permission_consumer_residual_observation ... FAILED
+test candidate_effect::tests::formal_permission_live_capture_source_observation_trace ... ok
+test candidate_effect::tests::formal_permission_site_export_identity_and_delegation_observation ... ok
+test candidate_effect::tests::formal_permission_symbolic_effect_memo_trace_tolerates_missing_constructor_identity ... FAILED
+test candidate_effect::tests::local_annotation_first_edge_failure_rolls_back_and_retries ... ok
+test candidate_effect::tests::local_scheme_publication_rollback_preserves_prior_slots_and_retries ... ok
+test candidate_effect::tests::multiatom_view_copy_is_shared_and_member_tails_freshen_with_the_view ... ok
+test candidate_effect::tests::multiply_originated_bound_keeps_future_conflict_paths_through_extrusion_and_intrusion ... ok
+test candidate_effect::tests::multiply_originated_bound_replays_future_conflict_once_for_each_owning_cause ... ok
+test candidate_effect::tests::negative_concrete_formal_permission_recovers_its_shared_port_and_rolls_back ... ok
+test candidate_effect::tests::negative_concrete_formal_row_accepts_a_state_effect_callback ... ok
+test candidate_effect::tests::operation_lookup_evaluation_has_only_ordinary_exact_pure_facts ... ok
+test candidate_effect::tests::operation_nested_omitted_effect_rows_keep_their_actual_polarity_defaults ... ok
+test candidate_effect::tests::operation_views_preserve_symbolic_tail_provenance_and_rollback_owned_payload ... ok
+test candidate_effect::tests::original_choose_operation_rendering_reaches_native_frontier ... ok
+test candidate_effect::tests::paired_formal_failure_samples_live_named_and_domain_storage ... ok
+test candidate_effect::tests::positive_extrusion_retains_mixed_allowance_before_capture_and_late_lower ... ok
+test candidate_effect::tests::primitive_annotation_exposure_retains_fresh_correlated_entry_ports ... ok
+test candidate_effect::tests::raw_and_canonical_effect_roots_replay_late_conflict_after_parent_copy_intrusion ... ok
+test candidate_effect::tests::record_extrusion_is_reached_by_source_and_preserves_shared_children ... ok
+test candidate_effect::tests::record_formal_defaults_join_the_lambda_return_effect ... ok
+test candidate_effect::tests::record_formal_source_constraints_retain_distinct_default_rows_and_rollback ... ok
+test candidate_effect::tests::record_optional_extrusion_preserves_both_polarities_and_shared_rows ... ok
+test candidate_effect::tests::retained_local_capture_inverse_observation ... ignored, bounded actual Local capture rollback research observation
+test candidate_effect::tests::root_computation_annotation_allowance_never_creates_contributions ... ok
+test candidate_effect::tests::root_computation_annotation_rolls_back_storage_and_retries ... ok
+test candidate_effect::tests::source_tuple_annotations_reach_native_tuple_extrusion ... ok
+test candidate_effect::tests::symbolic_formal_tail_rows_are_scoped_to_local_bindings ... ok
+test candidate_effect::tests::transported_fresh_effect_conflicts_do_not_replay_on_template_or_valid_use ... ok
+test candidate_effect::tests::tuple_extrusion_transports_nested_children_aliases_and_function_polarities ... ok
+test candidate_effect::tests::tuple_formal_permissions_keep_element_paths_and_transaction_ownership ... ok
+test candidate_effect::tests::union_tail_preserves_flow_and_cached_effect_and_function_roots_replay_future_conflicts ... ok
+test candidate_effect::tests::unit_formal_source_constraints_retain_domain_and_rollback ... ok
+test candidate_effect::tests::unsupported_pinned_primitive_is_not_admitted_as_an_effect_operation ... ok
+test candidate_effect::tests::variant_extrusion_preserves_both_polarities_tag_arity_and_shared_rows ... ok
+test candidate_effect::tests::views_keep_fresh_use_ownership_and_intrusion_rollback_restores_relations ... FAILED
+test candidate_effect::tests::whole_annotation_failure_preserves_the_preexisting_formal_tail ... ok
+test candidate_effect::tests::whole_local_named_scope_shares_formals_and_isolates_other_bindings ... ok
+
+failures:
+
+---- candidate_effect::tests::formal_and_whole_annotation_share_tail_in_the_returned_effect_fiber stdout ----
+
+thread 'candidate_effect::tests::formal_and_whole_annotation_share_tail_in_the_returned_effect_fiber' (3871) panicked at crates/yu-solver/src/candidate_effect.rs:4879:9:
+assertion failed: session.errors.is_empty()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- candidate_effect::tests::formal_permission_constructor_owner_domain_graph_export_join stdout ----
+
+thread 'candidate_effect::tests::formal_permission_constructor_owner_domain_graph_export_join' (3873) panicked at crates/yu-solver/src/candidate_effect.rs:3821:13:
+the source construction exercises genuine unequal raw allocation r and captured representative q: [(21, 21), (23, 23)]
+
+---- candidate_effect::tests::formal_permission_consumer_residual_observation stdout ----
+consumer-returned-effect-forms=[]
+
+thread 'candidate_effect::tests::formal_permission_consumer_residual_observation' (3875) panicked at crates/yu-solver/src/candidate_effect.rs:3844:70:
+state remains in the returned computation
+
+---- candidate_effect::tests::formal_permission_symbolic_effect_memo_trace_tolerates_missing_constructor_identity stdout ----
+
+thread 'candidate_effect::tests::formal_permission_symbolic_effect_memo_trace_tolerates_missing_constructor_identity' (3878) panicked at crates/yu-solver/src/candidate_effect.rs:3518:9:
+assertion `left == right` failed: enabling the test observer leaves sibling/root solver state unchanged
+  left: "views=[];memo={(Definition(DefinitionRootId { .. }), \"'e\"): 2};domains={0: Term { brand: TermArenaBrand(25), index: 268 }};permissions=[];scratch=0"
+ right: "views=[];memo={(Definition(DefinitionRootId { .. }), \"'e\"): 2};domains={0: Term { brand: TermArenaBrand(26), index: 268 }};permissions=[];scratch=0"
+
+---- candidate_effect::tests::views_keep_fresh_use_ownership_and_intrusion_rollback_restores_relations stdout ----
+
+thread 'candidate_effect::tests::views_keep_fresh_use_ownership_and_intrusion_rollback_restores_relations' (3909) panicked at crates/yu-solver/src/candidate_effect.rs:5613:9:
+assertion failed: graph.routes.iter().all(|route|
+        route.graph.nodes.iter().any(|node|
+                matches!(node, Node::EffectOperand
+                    {
+                        endpoint: EffectEndpointKey::Support(_), polarity:
+                        Polarity::Positive, ..
+                    })))
+
+
+failures:
+    candidate_effect::tests::formal_and_whole_annotation_share_tail_in_the_returned_effect_fiber
+    candidate_effect::tests::formal_permission_constructor_owner_domain_graph_export_join
+    candidate_effect::tests::formal_permission_consumer_residual_observation
+    candidate_effect::tests::formal_permission_symbolic_effect_memo_trace_tolerates_missing_constructor_identity
+    candidate_effect::tests::views_keep_fresh_use_ownership_and_intrusion_rollback_restores_relations
+
+test result: FAILED. 45 passed; 5 failed; 2 ignored; 0 measured; 771 filtered out; finished in 0.58s
+
