@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "revision": 10,
+  "sprint": "EFFECT-PERMISSION-HELPER-FRAMES/20261029-r12",
+  "stage": "CLOSED_COMPLETE_CONDITIONAL",
+  "selector": "Close R11 conditionally; support its 13 local helper-frame premises from explicit operations and keep reservation/native correspondence separate.",
+  "contract": {
+    "path": "tasks/agent-loop/sprints/effect-permission-helper-frames-20261029-r12.md",
+    "sha256": "7c7573abd1778414300f78b7b0271d5d3479b7f3e9c296a343bfb51c6102ecd4"
+  },
+  "input_manifest": {
+    "path": "tasks/agent-loop/sprints/effect-permission-helper-frames-20261029-r12-inputs.json",
+    "sha256": "057f4dafaa51ab8343a090de4f789adf2bce1d4e8db08d630551cb1d013f9a8c",
+    "entries": 133,
+    "mismatches": 0
+  },
+  "prior_r11": {
+    "status": "CLOSED_COMPLETE_CONDITIONAL",
+    "outcome": "tasks/agent-loop/history/effect-permission-source-instance-20261029-r11-outcome.md",
+    "outcome_sha256": "c83c320e6046906149a3d99c49e47478a73c962fe23c5baa0fc2d7f602c8b6a3",
+    "artifact_sha256": "828eef57d8caaa538c8feb91ad023dc45eb41e421b4eb430532e383ee1c75e91",
+    "review_sha256": "379cc6eab5dd55917cbd4232072f835854d4a0ed759d878d02aebfaeb2dd57c1"
+  },
+  "budget_seconds": 1200,
+  "lanes": {
+    "source": {
+      "owner": "primary Luna",
+      "budget_seconds": 200,
+      "state": "COMPLETE_READ_ONLY_FROZEN",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-helper-frames-r12-source.md",
+      "sha256": "e270f74164f29816f5823687afc431617843b49ae7e28ffb06bc942d5a8e385b"
+    },
+    "proof": {
+      "role": "registered lean_prover",
+      "worker": "/root/effect_permission_helper_frames_r12_lean",
+      "budget_seconds": 690,
+      "state": "CLOSED_ACCEPTED_CONDITIONAL",
+      "artifact": "notes/theory/lean/YulangClosure/FormalPermissionHelperFrames.lean",
+      "artifact_baseline": "ABSENT",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-helper-frames-r12-proof.md",
+      "handoff_baseline": "ABSENT",
+      "audit_limit": {
+        "max_invocations": 2,
+        "per_attempt_timeout_seconds": 60,
+        "combined_wall_seconds": 72.92,
+        "released": 2
+      },
+      "artifact_sha256": "92531e0849a08a03a37bbb35315f01b831d31bdffb108712c5b0a4a7eaaa75dd",
+      "handoff_sha256": "63fde25dc4aec460338d127ef6e2c625d2016e9b60c17860a45b4e89c1c63b55",
+      "continuation_seconds": 90
+    },
+    "review": {
+      "role": "fresh nonauthor compiler_referee",
+      "worker": "/root/effect_permission_helper_frames_r12_review",
+      "budget_seconds": 160,
+      "state": "PASS_CONDITIONAL_STOPPED",
+      "handoff": "tasks/agent-loop/inbox/effect-permission-helper-frames-r12-review.md"
+    },
+    "primary": {
+      "budget_seconds": 150
+    }
+  },
+  "scratch_lease": "/tmp/yulang-effect-permission-helper-frames-20261029-r12/",
+  "gates": {
+    "source_operation_inventory": "CONDITIONAL_TRANSCRIPTION_ACCEPTED",
+    "protected_field_footprints": "CONDITIONAL_OPERATION_MODEL_ACCEPTED",
+    "effect_row_count_frame": "CONDITIONAL_OPERATION_MODEL_ACCEPTED",
+    "permission_prefix_and_delta": "CONDITIONAL_OPERATION_MODEL_ACCEPTED",
+    "r11_local_frame_application": "CONDITIONAL_SAME_WITNESS_APPLICATION_ACCEPTED",
+    "rust_execution_correspondence": "OPEN",
+    "native_authenticity": "OPEN",
+    "reservations": "OPEN",
+    "original_parent": "OPEN",
+    "effect_hygiene": "OPEN",
+    "consumer_residual": "OPEN",
+    "soundness": "OPEN",
+    "principality": "OPEN",
+    "termination": "OPEN",
+    "production": "OPEN"
+  },
+  "source": {
+    "path": "tasks/agent-loop/inbox/effect-permission-helper-frames-r12-source.md",
+    "bytes": 5979,
+    "sha256": "e270f74164f29816f5823687afc431617843b49ae7e28ffb06bc942d5a8e385b",
+    "candidate_effect_sha256": "1f64d4fec8f2abceb11a48a51f5b615aa2cf605c9586ba742f15f9024a6a2717",
+    "lib_rs_sha256": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07",
+    "state": "FROZEN_READ_ONLY"
+  },
+  "proof": {
+    "worker_state": "STOPPED",
+    "artifact_bytes": 15691,
+    "artifact_sha256": "92531e0849a08a03a37bbb35315f01b831d31bdffb108712c5b0a4a7eaaa75dd",
+    "handoff_bytes": 16212,
+    "handoff_sha256": "63fde25dc4aec460338d127ef6e2c625d2016e9b60c17860a45b4e89c1c63b55",
+    "public_roots": 9,
+    "status": "ACCEPTED_CONDITIONAL_OPERATION_TRANSCRIPTION_AND_R11_APPLICATION",
+    "audit_released": 2,
+    "native_path_correspondence": "OPEN",
+    "review_state": "PASS_CONDITIONAL"
+  },
+  "audit_state": "AUDIT_2_PASS_ALL_NINE_TYPE_AND_AXIOM_AUDITS",
+  "audit1_plan": {
+    "path": "/tmp/yulang-effect-permission-helper-frames-20261029-r12/audit-inputs-1.json",
+    "sha256": "096a97fd8f4dfcfe3d08616b8261b789f22212b24669eb8bc072de90b30153fc",
+    "copy_receipt_sha256": "7f44fcb6f77aaee5036d79557fdb04aee3465b733f711615e1f8e51df15e28d9",
+    "released_invocation": 1
+  },
+  "audit1": {
+    "receipt_path": "/tmp/yulang-effect-permission-helper-frames-20261029-r12/attempt-1/audit-receipt.json",
+    "receipt_sha256": "00a9fdc3795cec81e4e7b16ec090bfb4e566bd244a20538edf76dcdce7953376",
+    "plan_sha256": "096a97fd8f4dfcfe3d08616b8261b789f22212b24669eb8bc072de90b30153fc",
+    "exit_status": 1,
+    "wall_seconds": 12.92,
+    "max_rss_kib": 798608,
+    "printed_theorem_types": 0,
+    "printed_axiom_audits": 0,
+    "stdout_sha256": "4e1b827e639111386c8b74017c451ead8cb5125397138b2082136c9657f7fd92",
+    "stderr_sha256": "0edf2d238840b65a26de68075c964d099167cf4cae51705f162bcfa4e7addc60",
+    "status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "resource_sha256": "bd032bd57073fc8e41121c8b903cbc4fb186d79d61512f023420cb148555211a",
+    "first_diagnostics": [
+      "FormalPermissionHelperFrames.lean:80:69 parser error unexpected identifier expected }",
+      "FormalPermissionHelperFrames.lean:106 allocator projection rfl failures",
+      "FormalPermissionHelperFrames.lean:116 onward reserved identifier prefix causes parse cascade",
+      "FormalPermissionHelperFrames.lean:146 reservation projection unsolved goal"
+    ],
+    "interpretation": "Build failure; no theorem roots or axiom audits emitted; not a mathematical counterexample."
+  },
+  "amendment_01": {
+    "path": "tasks/agent-loop/sprints/effect-permission-helper-frames-20261029-r12-amendment-01.md",
+    "sha256": "94661003e31471dd4bdfcf1e96b0e789a9441e2d7c69bdb009f668e7f443f868",
+    "authority": "primary Luna; selector recommendation",
+    "proof_continuation_seconds": 90,
+    "repair_write_seconds": 30,
+    "final_audit_timeout_seconds": 60,
+    "combined_audit_wall_limit_seconds": 72.92,
+    "review_seconds": 160,
+    "prior_stopped_worker_remaining_seconds": "UNKNOWN"
+  },
+  "audit2_authority": "SPENT",
+  "audit2_plan": {
+    "path": "/tmp/yulang-effect-permission-helper-frames-20261029-r12/audit-inputs-2.json",
+    "sha256": "5f591bded5132e01f6da0fe02c3d1194e5b2db156445b363549cc54f2e66c8ee",
+    "copy_receipt_path": "/tmp/yulang-effect-permission-helper-frames-20261029-r12/attempt-2/copy-receipt.json",
+    "copy_receipt_sha256": "e1cefe9a1ffae4f1569254db5af27e1afce1fb9e60a44f960e8ced6e13bed1f3",
+    "released_invocation": 2,
+    "outer_timeout_seconds": 60,
+    "combined_wall_limit_seconds": 72.92,
+    "project_files": 16,
+    "lake_absent_before_audit": true
+  },
+  "audit2": {
+    "receipt_path": "/tmp/yulang-effect-permission-helper-frames-20261029-r12/attempt-2/audit-receipt.json",
+    "receipt_sha256": "2e956b992197d52f70f956b13997bbd9559938211edbee1121c3a43520e16168",
+    "plan_sha256": "5f591bded5132e01f6da0fe02c3d1194e5b2db156445b363549cc54f2e66c8ee",
+    "exit_status": 0,
+    "wall_seconds": 15.51,
+    "combined_wall_seconds": 28.43,
+    "max_rss_kib": 973036,
+    "printed_theorem_types": 9,
+    "printed_axiom_audits": 9,
+    "stdout_sha256": "1af3c0b81058c77ba1216d13248903500f8e5a76cab1472062b8327a0275e25f",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "resource_sha256": "774a030e609ae1ff687551c438eceaa002660aa61645047de9c20c6e0143be26",
+    "axioms": {
+      "operation_preserves_allocator": [],
+      "operations_preserve_allocator": [],
+      "nonempty_operations_frame": [],
+      "reservation_projection": [
+        "propext"
+      ],
+      "permission_append_delta": [],
+      "concrete_port_prefix_delta": [],
+      "ordered_concrete_port_delta": [],
+      "tree_frames_from_operations": [
+        "propext"
+      ],
+      "exact_tree_r9_from_operations": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    }
+  },
+  "review": {
+    "path": "tasks/agent-loop/inbox/effect-permission-helper-frames-r12-review.md",
+    "sha256": "2d3c0d6f4176757ee38c26ecf4efc8dfb6e453775b7760a26c0aa03f347c0dde",
+    "bytes": 2848,
+    "verdict": "PASS_CONDITIONAL_OPERATION_TRANSCRIPTION_AND_R11_APPLICATION",
+    "blocking": 0,
+    "major": 0,
+    "minor": 0,
+    "reviewer": "/root/effect_permission_helper_frames_r12_review",
+    "role": "fresh nonauthor compiler_referee",
+    "state": "STOPPED_READ_ONLY",
+    "audit_execution_by_reviewer": false,
+    "limitations": [
+      "no execution link between TreeOperations cuts",
+      "no actual Rust helper-return correspondence",
+      "complete retained-path to relative-path map OPEN",
+      "primitive/alias authenticity OPEN",
+      "reservation availability OPEN",
+      "publication/native authenticity OPEN"
+    ]
+  },
+  "outcome": {
+    "path": "tasks/agent-loop/history/effect-permission-helper-frames-20261029-r12-outcome.md",
+    "sha256": "870b14c3432b57e7648b64f860875f1f024deab56d3caed6485f5c503916aa06",
+    "artifact_archive": "tasks/agent-loop/history/artifacts/FormalPermissionHelperFrames-r12.lean",
+    "artifact_archive_sha256": "92531e0849a08a03a37bbb35315f01b831d31bdffb108712c5b0a4a7eaaa75dd",
+    "selector": "/root/r21_closeout_selector",
+    "selector_recommendation": "CLOSED_COMPLETE_CONDITIONAL; propose R13 connected cuts"
+  },
+  "next_step": {
+    "proposal": "EFFECT-PERMISSION-CONNECTED-CUTS/20261029-r13",
+    "fixed_outcome": "derive R12 cuts from one threaded operation-model state and explicit full-path-to-relative-path mapping",
+    "status": "PROPOSED_NOT_YET_ADMITTED",
+    "selector_budget_seconds": 1200
+  }
+}
