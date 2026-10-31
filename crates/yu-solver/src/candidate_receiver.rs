@@ -23,9 +23,7 @@ pub struct ReceivingResidualExperiment {
     schema: Assembly,
     outcomes: Vec<(EffectEndpointKey, ReceivingResidualOutcome)>,
     #[cfg(feature = "shadow-apply-candidate")]
-    publication_observation: Option<Vec<ResidualPublicationObservation>>,
-    #[cfg(feature = "shadow-apply-candidate")]
-    publication_identity: Option<ResidualPublicationIdentity>,
+    publication_observation: Option<WholePublicationObservation>,
     result_row: u32,
 }
 #[cfg(feature = "shadow-apply-candidate")]
@@ -311,6 +309,8 @@ struct CompleteResidualPlan {
 #[cfg(feature = "shadow-apply-candidate")]
 struct PreparedNativePublicationPlan {
     decisions: Vec<ResidualPublicationPlan>,
+    initial_lower_rows: Vec<u32>,
+    initial_lower_atoms: Vec<EffectEndpointKey>,
 }
 #[cfg(feature = "shadow-apply-candidate")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -368,6 +368,24 @@ struct ResidualPublicationObservation {
         native_bound: NativeResidualBoundEvidence,
 }
 #[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "whole publication source/native observation is a private query")]
+pub(super) struct WholePublicationObservation {
+    identity: ResidualPublicationIdentity,
+    relay_owner: DefinitionRootId,
+    answer_owner: DefinitionRootId,
+    catch_occurrence: HirOccurrenceId,
+    edge_scrutinee: HirOccurrenceId,
+    original_fact: ConstraintOccurrence,
+    upper: EffectEndpointKey,
+    result_row: u32,
+    plan: CompleteResidualPlan,
+    calls: Vec<ResidualPublicationObservation>,
+    initial_lower_rows: Vec<u32>,
+    initial_lower_atoms: Vec<EffectEndpointKey>,
+    final_lower_rows: Vec<u32>,
+    final_lower_atoms: Vec<EffectEndpointKey>,
+}
+#[cfg(feature = "shadow-apply-candidate")]
 fn snapshot_path(
     path: &[LowerPathStep<'_>],
     terminal: EffectEndpointKey,
@@ -417,12 +435,17 @@ impl ReceivingResidualExperiment {
     #[cfg(feature = "shadow-apply-candidate")]
     #[allow(dead_code, reason = "source/native publication evidence is a private observation query")]
     pub(super) fn native_publication_observations(&self) -> Option<&[ResidualPublicationObservation]> {
-        self.publication_observation.as_deref()
+        self.publication_observation.as_ref().map(|publication| publication.calls.as_slice())
     }
     #[cfg(feature = "shadow-apply-candidate")]
     #[allow(dead_code, reason = "private identity for the per-call observation query")]
     pub(super) fn native_publication_identity(&self) -> Option<ResidualPublicationIdentity> {
-        self.publication_identity
+        self.publication_observation.as_ref().map(|publication| publication.identity)
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "whole publication source/native observation query")]
+    pub(super) fn native_whole_publication_observation(&self) -> Option<&WholePublicationObservation> {
+        self.publication_observation.as_ref()
     }
     #[cfg(feature = "shadow-apply-candidate")]
     #[allow(dead_code, reason = "selected by the private proof correspondence query")]
@@ -431,7 +454,7 @@ impl ReceivingResidualExperiment {
         identity: ResidualPublicationIdentity,
         plan_index: usize,
     ) -> Option<&ResidualPublicationObservation> {
-        let observations = self.publication_observation.as_deref()?;
+        let observations = self.publication_observation.as_ref()?.calls.as_slice();
         let mut selected = observations.iter().filter(|observation| {
             observation.identity == identity && observation.plan_index == plan_index
         });
@@ -973,8 +996,6 @@ pub fn solve_receiving_residual_experiment(
         outcomes: Vec::new(),
         #[cfg(feature = "shadow-apply-candidate")]
         publication_observation: None,
-        #[cfg(feature = "shadow-apply-candidate")]
-        publication_identity: None,
         result_row: pending.result_row,
     };
     experiment.publish_authenticated_residual(pending)
@@ -1041,10 +1062,211 @@ impl ReceivingResidualExperiment {
         self.outcomes = outcomes;
         #[cfg(feature = "shadow-apply-candidate")]
         {
-            self.publication_observation = observe_calls.then_some(observations);
-            self.publication_identity = observe_calls.then_some(identity).flatten();
+            self.publication_observation = match (observe_calls, identity, publication_plan) {
+                (true, Some(identity), Some(publication)) => self.capture_native_whole_publication(
+                    pending, plan, publication, identity, observations,
+                ),
+                _ => None,
+            };
         }
         Ok(())
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn capture_native_whole_publication(
+        &self,
+        pending: PendingResidualFold,
+        plan: CompleteResidualPlan,
+        publication: PreparedNativePublicationPlan,
+        identity: ResidualPublicationIdentity,
+        calls: Vec<ResidualPublicationObservation>,
+    ) -> Option<WholePublicationObservation> {
+        let fact = &pending.fact;
+        if fact.id.occurrence() != &self.schema.edge_scrutinee
+            || fact.id.local_slot() != 51
+            || fact.cause.occurrence() != &fact.id
+            || self.schema.catch != self.schema.selected_arm.catch
+            || pending.upper != EffectEndpointKey::EffectRow(pending.result_row)
+            || self.result_row != pending.result_row
+            || plan.decisions.len() != pending.terminals.len()
+        {
+            return None;
+        }
+        if plan.decisions.iter().zip(&pending.terminals)
+            .any(|(decision, endpoint)| decision.endpoint != *endpoint)
+        {
+            return None;
+        }
+        let row = self.session.effect_bounds.get(pending.result_row as usize)?;
+        let mut final_lower_rows = Vec::new();
+        final_lower_rows.try_reserve_exact(row.direct_lower_rows.len()).ok()?;
+        final_lower_rows.extend_from_slice(&row.direct_lower_rows);
+        let mut final_lower_atoms = Vec::new();
+        final_lower_atoms.try_reserve_exact(row.exact_non_variable_lowers.len()).ok()?;
+        final_lower_atoms.extend(row.exact_non_variable_lowers.iter().cloned());
+
+        let expected_call_count = plan.decisions.iter()
+            .filter(|decision| decision.outcome == ReceivingResidualOutcome::Forward)
+            .count();
+        if expected_call_count != publication.decisions.len()
+            || expected_call_count != calls.len()
+            || publication.initial_lower_rows.len() > final_lower_rows.len()
+            || publication.initial_lower_atoms.len() > final_lower_atoms.len()
+            || final_lower_rows.get(..publication.initial_lower_rows.len())?
+                != publication.initial_lower_rows.as_slice()
+            || final_lower_atoms.get(..publication.initial_lower_atoms.len())?
+                != publication.initial_lower_atoms.as_slice()
+        {
+            return None;
+        }
+
+        let mut call_index = 0usize;
+        let mut next_row_suffix = 0usize;
+        let mut next_atom_suffix = 0usize;
+        let mut previous_origin_end = 0usize;
+        let mut previous_completion_end = 0usize;
+        let mut previous_emission_end = 0usize;
+        for (plan_index, decision) in plan.decisions.iter().enumerate() {
+            match decision.outcome {
+                ReceivingResidualOutcome::Suppress => {
+                    let suppression = decision.suppression.as_ref();
+                    if !suppression.is_some_and(|suppression| {
+                        suppression.endpoint == decision.endpoint
+                            && suppression.catch_fact == fact.id
+                            && suppression.catch_occurrence == self.schema.selected_arm.catch
+                    })
+                        || publication.decisions.get(call_index)
+                            .is_some_and(|entry| entry.plan_index == plan_index)
+                        || calls.get(call_index)
+                            .is_some_and(|call| call.plan_index == plan_index)
+                    {
+                        return None;
+                    }
+                }
+                ReceivingResidualOutcome::Forward => {
+                    if decision.suppression.is_some() { return None; }
+                    let prepared = publication.decisions.get(call_index)?;
+                    let call = calls.get(call_index)?;
+                    let expected_bound = candidate_effect::BoundKey(
+                        ExtrusionEndpoint::Effect(pending.upper),
+                        Polarity::Positive,
+                        ExtrusionEndpoint::Effect(decision.endpoint),
+                    );
+                    if prepared.plan_index != plan_index
+                        || prepared.endpoint != decision.endpoint
+                        || prepared.bound != expected_bound
+                        || call.identity != identity
+                        || call.plan_index != plan_index
+                        || call.endpoint != decision.endpoint
+                        || call.upper != pending.upper
+                        || call.occurrence != fact.id
+                        || call.cause != fact.cause
+                        || !call.returned
+                        || call.origin_cut > call.origin_end
+                        || call.completion_cut > call.completion_end
+                        || call.emission_cut > call.emission_end
+                        || call.source_origin_index < call.origin_cut
+                        || call.source_origin_index >= call.origin_end
+                        || call.completion_index < call.completion_cut
+                        || call.completion_index >= call.completion_end
+                        || call.origin_cut < previous_origin_end
+                        || call.completion_cut < previous_completion_end
+                        || call.emission_cut < previous_emission_end
+                    {
+                        return None;
+                    }
+                    match &call.native_bound {
+                        NativeResidualBoundEvidence::AlreadyPresent { slot, .. } => {
+                            let expected = match (slot.lane, decision.endpoint) {
+                                (candidate_context::BoundLane::EffectLowerRow,
+                                    EffectEndpointKey::EffectRow(lower)) => {
+                                        publication.initial_lower_rows.get(slot.index)
+                                            == Some(&lower)
+                                    }
+                                (candidate_context::BoundLane::EffectLowerAtom, endpoint) => {
+                                    publication.initial_lower_atoms.get(slot.index)
+                                        == Some(&endpoint)
+                                }
+                                _ => false,
+                            };
+                            if *slot != prepared.slot || !prepared.already_present
+                                || slot.owner != candidate_scheme::RowKey::Effect(pending.result_row)
+                                || !expected || call.pre_call_slot != Some(decision.endpoint)
+                                || call.prior_slot_emissions != prepared.prior_slot_emissions
+                            {
+                                return None;
+                            }
+                        }
+                        NativeResidualBoundEvidence::NewlyEmitted {
+                            slot, emission, readback, ..
+                        } => {
+                            if *slot != prepared.slot || prepared.already_present
+                                || slot.owner != candidate_scheme::RowKey::Effect(pending.result_row)
+                                || readback.slot != *slot || readback.bound != expected_bound
+                                || readback.phase != candidate_context::PhysicalReadbackPhase::ConstructorAfterAppend
+                                || emission.0 < call.emission_cut
+                                || emission.0 >= call.emission_end
+                                || call.pre_call_slot.is_some()
+                                || call.prior_slot_emissions != 0
+                            {
+                                return None;
+                            }
+                            match (slot.lane, decision.endpoint) {
+                                (candidate_context::BoundLane::EffectLowerRow,
+                                    EffectEndpointKey::EffectRow(lower)) => {
+                                    let index = publication.initial_lower_rows.len()
+                                        .checked_add(next_row_suffix)?;
+                                    if slot.index != index
+                                        || final_lower_rows.get(index) != Some(&lower)
+                                    {
+                                        return None;
+                                    }
+                                    next_row_suffix = next_row_suffix.checked_add(1)?;
+                                }
+                                (candidate_context::BoundLane::EffectLowerAtom, endpoint) => {
+                                    let index = publication.initial_lower_atoms.len()
+                                        .checked_add(next_atom_suffix)?;
+                                    if slot.index != index || final_lower_atoms.get(index) != Some(&endpoint) {
+                                        return None;
+                                    }
+                                    next_atom_suffix = next_atom_suffix.checked_add(1)?;
+                                }
+                                _ => return None,
+                            }
+                        }
+                    }
+                    previous_origin_end = call.origin_end;
+                    previous_completion_end = call.completion_end;
+                    previous_emission_end = call.emission_end;
+                    call_index = call_index.checked_add(1)?;
+                }
+            }
+        }
+        if call_index != calls.len()
+            || call_index != publication.decisions.len()
+            || publication.initial_lower_rows.len().checked_add(next_row_suffix)?
+                != final_lower_rows.len()
+            || publication.initial_lower_atoms.len().checked_add(next_atom_suffix)?
+                != final_lower_atoms.len()
+        {
+            return None;
+        }
+        Some(WholePublicationObservation {
+            identity,
+            relay_owner: self.schema.relay.clone(),
+            answer_owner: self.schema.answer.clone(),
+            catch_occurrence: self.schema.catch.clone(),
+            edge_scrutinee: self.schema.edge_scrutinee.clone(),
+            original_fact: pending.fact,
+            upper: pending.upper,
+            result_row: pending.result_row,
+            plan,
+            calls,
+            initial_lower_rows: publication.initial_lower_rows,
+            initial_lower_atoms: publication.initial_lower_atoms,
+            final_lower_rows,
+            final_lower_atoms,
+        })
     }
 
     #[cfg(feature = "shadow-apply-candidate")]
@@ -1266,6 +1488,13 @@ impl ReceivingResidualExperiment {
         pending: &PendingResidualFold,
         plan: &CompleteResidualPlan,
     ) -> Option<PreparedNativePublicationPlan> {
+        let initial = self.session.effect_bounds.get(pending.result_row as usize)?;
+        let mut initial_lower_rows = Vec::new();
+        initial_lower_rows.try_reserve_exact(initial.direct_lower_rows.len()).ok()?;
+        initial_lower_rows.extend_from_slice(&initial.direct_lower_rows);
+        let mut initial_lower_atoms = Vec::new();
+        initial_lower_atoms.try_reserve_exact(initial.exact_non_variable_lowers.len()).ok()?;
+        initial_lower_atoms.extend(initial.exact_non_variable_lowers.iter().cloned());
         let mut decisions = Vec::new();
         decisions.try_reserve(plan.decisions.len()).ok()?;
         let mut planned_row_appends = 0usize;
@@ -1289,7 +1518,11 @@ impl ReceivingResidualExperiment {
             }
             decisions.push(publication);
         }
-        Some(PreparedNativePublicationPlan { decisions })
+        Some(PreparedNativePublicationPlan {
+            decisions,
+            initial_lower_rows,
+            initial_lower_atoms,
+        })
     }
 
     #[cfg(feature = "shadow-apply-candidate")]
