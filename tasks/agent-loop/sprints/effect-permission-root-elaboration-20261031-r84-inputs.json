@@ -325,5 +325,29 @@
   "r83_prior_manifest_path": "tasks/agent-loop/sprints/effect-permission-root-closure-20261031-r83-inputs.json",
   "r83_prior_manifest_sha256": "7e7b9a4d934f6e7a1b9ecb616390331e06cd48b4d446ba198bee10e509ba51ab",
   "admission": "tasks/agent-loop/history/effect-permission-root-elaboration-20261031-r84-admission.md",
-  "admission_sha256": "057db44d1cff606b6b439493773b69145fbbd6e4d3e3e72c2bbb37e8e40caa0b"
+  "admission_sha256": "057db44d1cff606b6b439493773b69145fbbd6e4d3e3e72c2bbb37e8e40caa0b",
+  "frozen_candidate": {
+    "path": "notes/theory/lean/YulangClosure/ConstructedPhysicalRootR84.lean",
+    "bytes": 22748,
+    "sha256": "1681d78a8ec4b103dac7fb808bc4cdd02e0a46cba196ad5a64db6c10601f1839"
+  },
+  "proof_handoff": {
+    "path": "tasks/agent-loop/inbox/effect-permission-root-elaboration-r84-proof.md",
+    "bytes": 331759,
+    "sha256": "c9ba9b410094cea83309b2df18e64f42fe4308ef7b158c708fb737d41ead618a"
+  },
+  "independent_review": {
+    "path": "tasks/agent-loop/inbox/effect-permission-root-elaboration-r84-review.md",
+    "bytes": 2500,
+    "sha256": "ac3373ee1cc4cf7b4f619ee16425d90fa938914a675a340fceebcefd1ae39825",
+    "reviewer": "/root/r83_review",
+    "verdict": "PASS; source/normalization/exact recipes reviewed; Lean not executed"
+  },
+  "slot1_exact_input": {
+    "bytes": 93368,
+    "sha256": "e031132b1a5a42f22c5faba355a1af3d8639d0d577de9051e81f403bf465ebb3",
+    "recipe": "normalized_prefix_body + prefix_queries",
+    "reviewed": true,
+    "authorization": "pending separate primary commit and push"
+  }
 }
