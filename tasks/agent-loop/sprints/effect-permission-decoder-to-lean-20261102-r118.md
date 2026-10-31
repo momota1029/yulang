@@ -5,7 +5,7 @@ Status: admitted continuation of the unchanged Rust/Lean soundness and effect-hy
 Branch / baseline commit: `yulang3`, `43f2536806481feb073a4f5a39ce00b7edc650fe`.
 Authority: `notes/design/2026-10-10-annotation-effect-hygiene-integration.md` §§1–1.2; original parent `YulangClosure.SourceProblem.InferenceSoundness`, `notes/theory/lean/YulangClosure/Contracts.lean:128–130`; whole closure scope `docs/yulang-whole-proof-closure-ja.md` §§1,3–4.
 Dispatcher: `/root/r114_dispatch`, selected R118 after R117 closeout. R117 outcome: `tasks/agent-loop/history/effect-permission-native-decoder-20261102-r117-outcome.md` SHA-256 `95e6206a28f909a4cfffc303248ccf99602140b1ebc3ad0661eba772c2242a46`.
-Contract revision 1; SHA-256 recorded in current-state/admission receipt after freeze.
+Contract revision 2; SHA-256 recorded in current-state/admission receipt after freeze. Revision 2 adds the explicitly user-requested bounded Rust integration analysis below; the original Lean lane and its frozen outputs are unchanged.
 
 ## Fixed outcome and success evidence
 
@@ -36,7 +36,17 @@ Reuse only the pinned candidates below. R116 has theorems `selected_endpoint_mem
 
 1. Registered `lean_prover`, ≤480 seconds, Luna-authorized exact writes to the Lean candidate and one handoff above only. Build no executable Rust/native oracle and add no assumed bridge that bundles the missing source interpretation. No descendants.
 2. Fresh independent `compiler_referee`, ≤180 seconds, read-only review of frozen Lean artifact, R117 patch/handoff/review, and pinned R39/R45/R54/R116 sources. Attack unrelated-index collisions, foreign permission/registration, different state or batch, same family with distinct operation identity, native `(view,member)` versus family confusion, missing R39/selected-source premises and theorem-scope narrowing. Write one review receipt only.
-3. Primary adjudicates, updates compact current state and records. Total ≤900 seconds; Astra 0.
+3. Primary adjudicates, updates compact current state and records. Original Lean sprint ceiling ≤900 seconds; Astra 0.
+
+## User-directed Rust integration analysis (revision 2)
+
+The user explicitly asked to analyze the Rust implementation and push the result. Add one bounded static lane, without changing the R111 execution gate:
+
+1. Registered `implementer`, ≤300 seconds, reads only immutable baseline `d177c46ec61fcadd70a3d587c2f8934f6bc91f46`, R117 patch/handoff/review, and exact R111/R113 contracts, frozen handoff, review and outcome artifacts. It may reconstruct the R111 target and overlay R117 hunks in memory. Do not read or write any dirty working-tree Rust source, including `candidate_receiver.rs`; do not touch `candidate_scheme.rs`, runtime files or quarantined paths. Do not apply a patch or create source/index/cache/worktree/temp output. Write only `tasks/agent-loop/inbox/effect-permission-rust-integration-r118.md`.
+2. A fresh independent `compiler_referee`, ≤180 seconds, reviews only those same frozen inputs plus the frozen Rust integration handoff and writes only `tasks/agent-loop/inbox/effect-permission-rust-integration-r118-review.md`.
+3. The primary may push the reviewed analysis and records as a research checkpoint. It must not stage or push Rust source: R111's compile gate is still blocked by the documented aggregate-storage cap and no configured remote verification facility. Do not repeat resource/environment probes or create storage environments. If the frozen inputs yield no new integration fact beyond R113, stop without duplicating its analysis.
+
+The revision-2 Rust lane adds at most 480 seconds, making the combined cap ≤1380 seconds including the original ≤900-second Lean sprint. Existing per-lane caps are unchanged; no extra primary budget is authorized. No Cargo/compiler/build/test, Lean/Lake/checker, patch application or Astra work.
 
 Execution: no Lean/Lake/checker, compiler, Cargo/build/test, patch application, formatter, toolchain lookup/install, environment/resource exploration, cache, worktree or scratch path. R108's missing hard aggregate Lean output cap and R111's Rust execution cap remain unchanged. Candidate declarations remain CONSTRUCTED/UNCHECKED. Do not repeat feasibility probes.
 
