@@ -271,17 +271,17 @@ pub(super) struct FormalPermission {
 // require a nonempty structural path through a captured Function type.
 #[allow(dead_code, reason = "entry permission retention is source evidence; provider and Catch consumption remain open")]
 #[derive(Debug)]
-struct FormalEntryPermission {
-    registration: usize,
-    parameter: usize,
-    formal: yu_hir::HirParameterId,
-    occurrence: HirOccurrenceId,
-    source_owner: SourceRootId,
-    scope: AnnotationScope,
-    annotation_position: SourceNodeKey,
-    source_row: SourceNodeKey,
-    entry_effect: u32,
-    concrete: Vec<SourceEffectId>,
+pub(super) struct FormalEntryPermission {
+    pub(super) registration: usize,
+    pub(super) parameter: usize,
+    pub(super) formal: yu_hir::HirParameterId,
+    pub(super) occurrence: HirOccurrenceId,
+    pub(super) source_owner: SourceRootId,
+    pub(super) scope: AnnotationScope,
+    pub(super) annotation_position: SourceNodeKey,
+    pub(super) source_row: SourceNodeKey,
+    pub(super) entry_effect: u32,
+    pub(super) concrete: Vec<SourceEffectId>,
 }
 /// Ephemeral identity binding over one retained permission and one exact
 /// module FreshUse route. The concrete payload remains borrowed in source
@@ -383,6 +383,12 @@ fn formal_entry_permission_backing_bytes(permissions: &[FormalEntryPermission]) 
     })
 }
 impl State {
+    #[cfg(feature = "shadow-apply-candidate")]
+    pub(super) fn owned_projection_entry_permissions(
+        &self,
+    ) -> impl Iterator<Item = (usize, &FormalEntryPermission)> {
+        self.formal_entry_permissions.iter().enumerate()
+    }
     /// Read the unique source-owned entry permission for the same registered
     /// computation Lambda, then bind it to this already-authenticated native
     /// incidence and its owning FreshUse identity. No row or Term equality is
