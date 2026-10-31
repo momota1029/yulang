@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "sprint": "EFFECT-PERMISSION-SOURCE-INCIDENCE/20261031-R80",
+  "baseline_commit": "26dc98766a5779a92b42651bbc462d01ebc3ec72",
+  "source_sha256": {
+    "notes/theory/lean/YulangClosure/InternalPermissionIncidenceR45.lean": "9ff4fd544375a3d4a46100647cba93ddde6f34bebd767ba402f3bd3d35a84b1f",
+    "notes/theory/lean/YulangClosure/SourceInternalContextR55.lean": "7aaecdd3d358d769123f00acb4b19b4d7d61ccfef98fee4eb53179da4a105123",
+    "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+    "notes/theory/lean/YulangClosure/OccurrenceQualifiedConsumerR66.lean": "5db5ad3f3f5e5803e2bc564fc8922d5eb8a72182c7ba11de3904eebd7b5950e1",
+    "notes/theory/lean/YulangClosure/SourceInternalChoiceR77.lean": "0aa1185675cc92ac97a20f4163bd2b2486f34cfb5ca725a3fcb3c1861efdf682",
+    "notes/theory/lean/YulangClosure/CollectedDefinitionBridgeR79.lean": "6dff2ab5f1a5f2403822c180c21074cc1a063ed84b697bd484017705d53222ac",
+    "crates/yu-solver/src/candidate_receiver.rs": "c570bc01cc7536a617ac3c65beab153dc71d7d0981dcfa8c01b77593385774f2",
+    "crates/yu-solver/src/lib.rs": "c43fcc4f39e4ba8bfea10aa39879c37973100d9f4b8bdef71fa5b3dc3fae01df"
+  },
+  "prior_outcome_sha256": {
+    "tasks/agent-loop/history/effect-permission-source-alignment-20261031-r77-outcome.md": "8d6d69222ad21e4a0085ee3003381e89ed07346d3accbe3770b2b57ccf9613b4",
+    "tasks/agent-loop/history/effect-permission-definition-bridge-20261031-r79-outcome.md": "9fa5fd7b942c9277a711286f9699301ff1f6bdd87a893649275a49aece54640a"
+  },
+  "restrictions": [
+    "no compiler, Cargo, tests, builds, formatter, Lake, cache, target, scratch, new environment, nested CLI, or worktree",
+    "no semantic changes; no collection behavior; lib.rs read-only",
+    "only primary may authorize exact-input Lean stdin audits and Git operations",
+    "preserve 32 pending items, UNKNOWN workers, and quarantined leases"
+  ]
+}
