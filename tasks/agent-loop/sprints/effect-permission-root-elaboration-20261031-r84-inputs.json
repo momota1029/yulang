@@ -389,7 +389,7 @@
     "status": "FAILED; complete streams retained; no theorem accepted; reviewer diagnosis required"
   },
   "slot4_repair": {
-    "status": "REVIEW_PASS_AWAITING_SLOT4_AUTHORIZATION",
+    "status": "AUDIT_EXIT_0_PENDING_INDEPENDENT_TYPE_AND_AXIOM_REVIEW",
     "candidate_sha256": "5d8ad6429906cdf971dbb9ee44841223c1fcc28e6591e1a75d1f453ea4eac13d",
     "proof_handoff_sha256": "8241f3b7ab3a656c15d114a987159fd33c66f04ae48fc3d82dbda0e4972ed17b",
     "exact_input_bytes": 103470,
@@ -414,5 +414,21 @@
     "exact_input_sha256": "93b365ddf908e223558d166efe7f76a1f5c370a5b1c9080716d0fb0ce92b3df0",
     "review_receipt_sha256": "923f32c698d92d5e06d50258d73a5a3a2150884b1c86815bf129988e5e900214",
     "status": "COMMITTED_BEFORE_EXECUTION"
+  },
+  "slot4_execution": {
+    "stdin_bytes": 103470,
+    "stdin_sha256": "93b365ddf908e223558d166efe7f76a1f5c370a5b1c9080716d0fb0ce92b3df0",
+    "exit": 0,
+    "timeout": false,
+    "elapsed_seconds": 11.459,
+    "child_peak_rss_kib": 910724,
+    "stdout_bytes": 52985,
+    "stdout_sha256": "cdef7a87ed88369f0b4cddb5c308430b4d44884d0f9f65fc8acf3faa3d71dcab",
+    "stderr_bytes": 0,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "result": "tasks/agent-loop/history/effect-permission-root-elaboration-20261031-r84-slot4-raw-result.json",
+    "result_bytes": 54593,
+    "result_sha256": "e6dd42b23bc89faffb28dd52057487f0c460967085331bf8675ef08e93b3ccaa",
+    "status": "EXIT_0_PENDING_INDEPENDENT_OUTPUT_AND_AXIOM_REVIEW; no theorem accepted yet"
   }
 }
