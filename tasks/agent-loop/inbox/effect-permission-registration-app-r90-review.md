@@ -58,3 +58,21 @@ The candidate's printed prefix includes `app_rule` (`propext, Classical.choice, 
 The exact stdout was emitted in the primary execution receipt above; this file retains its byte length and digest plus the full failure classification, but not a second byte-for-byte copy. No Lean/build/test/cache/scratch/worktree/project-copy/environment output was created.
 
 Call 1 is consumed. The proof author is preparing a deterministic, semantics-preserving flattening repair for review. No second invocation is authorized by this receipt.
+
+## Primary exact-input authorization — call 2 of at most 2
+
+Fresh pre-execution review: **PASS** by `/root/r86_independent_review` for the order-only repair. The reviewer independently reconstructed the complete 137,750-byte input and verified SHA-256 `3ab0d68ec6ceaec30b391d9ee5aa58306b338692ebc660f9960b898e96370eba`, all 48 manifest pins, and unchanged candidate SHA-256 `cd836e6b12a4deff0e5acf83523faedfb883240b6d019f17ec5a7d294b8c205a`. The review confirmed both dependency edges: `SourceSignatureConstruction` and `OriginalSourceGeneration` depend only on `OriginalSourceSyntax`; the candidate depends on Generation and Signature. This places Signature before Generation so Generation's private `node` helper cannot shadow Signature's auto-implicit `node` binders. No source declaration, theorem statement, or candidate byte changed.
+
+The primary independently reconstructed the bytes with dependency-first order `OriginalSourceSyntax.lean`, `SourceSignatureConstruction.lean`, `OriginalSourceGeneration.lean`, `SourceRegistrationAppBridgeR90.lean`. For each exact file, split into lines retaining their line endings, remove only lines beginning exactly `import YulangClosure.`, join retained lines without editing, then join the four bodies with one LF byte. Each body retains its original trailing LF, so each inter-file boundary has two LF bytes. The direct `import Std` remains. No source or scratch output file is created.
+
+- `OriginalSourceSyntax.lean`: 22,040 bytes, SHA-256 `3184d156d661ace7da0345f5fa63f8a4396d9f52c745d265239c8d3db1e7d0d1`.
+- `SourceSignatureConstruction.lean`: 37,437 bytes, SHA-256 `ed07890e29b4dcb38cabd18ec0e196efde9e95c64902942a9906a470b38c3311`.
+- `OriginalSourceGeneration.lean`: 66,485 bytes, SHA-256 `126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef`.
+- R90 candidate: 11,964 bytes, SHA-256 `cd836e6b12a4deff0e5acf83523faedfb883240b6d019f17ec5a7d294b8c205a`.
+- Exact flattened stdin: **137,750 bytes**, SHA-256 `3ab0d68ec6ceaec30b391d9ee5aa58306b338692ebc660f9960b898e96370eba`.
+- Executable: `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean`, SHA-256 `bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38`; Lean **4.35.0**, commit `eb6cafb7290e8bd5f2937522d8d804f58f02bafc`.
+- Direct invocation: `lean -j1 -M1024 --stdin`, cwd `notes/theory/lean`, `LEAN_NUM_THREADS=1`, hard timeout 120 seconds.
+- Six complete type/axiom audit pairs remain: `app_rule`, `app_witness_scope_fields`, `app_core_iff`, `app_derivation_iff`, `installed_call_app_atom`, and `reference_insertion_whole_action`.
+- This is the final permitted invocation (**call 2/2**). No Lake/build/test/cache/scratch/worktree/project-copy/environment action is authorized.
+
+The repaired proof handoff and frozen candidate are committed and pushed at `82a6f04d0`. This second exact-input authorization is committed and will be pushed as a separate commit before the primary invokes Lean. The result will be appended below; no theorem is accepted until the complete stdout has no errors and all six types/axiom lists are audited.
