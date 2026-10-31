@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "archive_kind": "authenticated resolved R19 assignment and lease disposition",
+  "sprint": "EFFECT-PERMISSION-CANDIDATE-CALL-JOURNAL/20261030-r19",
+  "snapshot_current_sha256": "778e9cf2a2100047aba8e0f2efa9015745ac65ed806cff306f395a12f57506cf",
+  "previous_archive": {
+    "record": "tasks/agent-loop/history/effect-permission-structural-buffer-bound-20261029-r18-state-archive.json",
+    "sha256": "183715b01066e9d51b31f4313fb3c4014fe599aa73ecef4e2ae1650dcaa7e4f9"
+  },
+  "adjudicated_outcome": {
+    "path": "tasks/agent-loop/history/effect-permission-candidate-call-journal-20261030-r19-outcome.md",
+    "sha256": "179f5dc8ab849b8ef9e7df9bff2262617dd2fcb62fde6ecdbc0a55e80d23a60e",
+    "status": "CLOSED_INCOMPLETE"
+  },
+  "git_checkpoint": {
+    "commit": "871de7c6dca9c2645ad10bad231f05c46392b244",
+    "remote": "origin/yulang3",
+    "source_commit": "5bab984a0d57cf8d2f1fe9636751128fccdb9897",
+    "proof_commit": "871de7c6dca9c2645ad10bad231f05c46392b244"
+  },
+  "live_roster_reconciliation": {
+    "tool": "collaboration.list_agents",
+    "observed": "R19 proof and review workers are completed; no active R19 descendants; only /root is running.",
+    "capacity_override": "not used",
+    "unknown_and_quarantined_rows": "retained unchanged"
+  },
+  "removed_resolved_worker_rows": [
+    {
+      "id": "/root/effect_permission_candidate_call_journal_r19_lean",
+      "role": "lean_prover",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 600,
+      "session": "EFFECT-PERMISSION-CANDIDATE-CALL-JOURNAL/20261030-R19",
+      "receipt": "R19 proof frozen rev1; writer STOPPED, no descendants."
+    },
+    {
+      "id": "/root/effect_permission_candidate_call_journal_r19_review",
+      "role": "fresh independent compiler_referee review",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 250,
+      "session": "EFFECT-PERMISSION-CANDIDATE-CALL-JOURNAL/20261030-R19",
+      "receipt": "ACCEPT conditional presence model; no findings; native prefix OPEN."
+    }
+  ],
+  "removed_resolved_frozen_leases": [
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-candidate-call-journal-20261030-r19.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "626bde02d87b7205530e5fb4c90598f4f7d2aad7c4e442fcce1d7d9b332be565"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-candidate-call-journal-20261030-r19-inputs.json",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "3ba699f81d0a6f9f88cc63e3df744194cd758ace5ae636098b80870a020013c3"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-candidate-call-journal-r19-source.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "e3cc387457f6362a650376cbbb093d5600e1ad3eb7f838f76fa488144d3ccd4c"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/FormalPermissionCandidateCallJournal.lean",
+      "owner": "/root/effect_permission_candidate_call_journal_r19_lean",
+      "state": "FROZEN",
+      "sha256": "7796394c7cc312f2a403d82fe938c31b7d3c2dc4092ad1c53ef6729496f4f83a"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-candidate-call-journal-r19-proof.md",
+      "owner": "/root/effect_permission_candidate_call_journal_r19_lean",
+      "state": "FROZEN",
+      "sha256": "bd09cd149957ac91f0c56905de0e7457e337e6f5cdb826816dc6b8972152c6b2"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-candidate-call-journal-r19-source-addendum.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "52e188ffa8874091ba57fb1938bc168f68154f079e0cf6cd44e3ed53f734e4a3"
+    }
+  ],
+  "disposition": "Removed only the six authenticated frozen R19 paths and two completed R19 worker rows from compact current state. Their artifacts remain byte-preserved and linked through the outcome. No UNKNOWN/WAITING worker, quarantined/held path, pending item or unresolved writer was changed.",
+  "remaining_parent_premises": [
+    "complete native graph-plan prefix to the selected call",
+    "same observed native TupleInput correspondence",
+    "original source/native parent",
+    "effect hygiene consumers",
+    "principality",
+    "termination",
+    "production conformance"
+  ]
+}

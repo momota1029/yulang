@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "sprint": "CALL-CONSTRUCTOR-APPLICATION/20261028-r21",
+  "baseline_commit": "d33805eb589ac89925bacab57e362df093456fe0",
+  "source_snapshot": "isolated/latent-demand-transport-classification-r18",
+  "scope": "Apply selected Call constructors to the actual App/producer chain, reusing R20 only as unreviewed producer evidence; no repeated 25-file inventory.",
+  "entries": [
+    {"path":"AGENTS.md","sha256":"4a6c910e12adb8f5ccc07b0921f2cc781ea7044994f99425d3c54c4e75837d3c","use":"standing_authority"},
+    {"path":"rules/goal-driven-sprints.md","sha256":"f2e01e3c33dc13d6c5cb77a66e7c5f0de15f08669f5a47fef0d6cb5c914da3a5","use":"sprint_authority"},
+    {"path":"tasks/agent-loop/sprints/call-owner-constructor-20261028-r20.md","sha256":"0b19ec601ee40765fdd1f74235d0b6f35e0c6e195a4a032672f40c7358c410f1","use":"prior_contract"},
+    {"path":"tasks/agent-loop/sprints/call-owner-constructor-20261028-r20-inputs.json","sha256":"ebd5164460314d7b6a940e9a9caf2bbbe385c105bc8f4ff15f13e7daa9eec57d","use":"original_25_pin_manifest"},
+    {"path":"tasks/agent-loop/sprints/call-owner-constructor-20261028-r20-amendment-01.md","sha256":"3d7f56cd192311d5566a2deafe857bb48dc3fb6e463ea18570eea699d42fcaca","use":"late_admitted_dependency_receipt"},
+    {"path":"tasks/agent-loop/sprints/call-owner-constructor-20261028-r20-dependencies-01.json","sha256":"e4d8d9315e54b613f9ba03fc051cc4656e04c5419edd16458b8ebcfcb92f8102","use":"selected_source_pins"},
+    {"path":"notes/progress/2026-10-06-source-call-generation-construction.md","sha256":"6bd7773326ccdd3101eaeb60a7e0f5d98a6c7a80b68467f6bf06a6466ffc4073","use":"original_Call_template_and_generation"},
+    {"path":"notes/design/2026-10-07-complete-call-contribution-definition.md","sha256":"4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e","use":"selected_C_Call_and_J_Owned"},
+    {"path":"notes/design/2026-10-08-call-source-interface-definition.md","sha256":"20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c","use":"selected_interface_constructors"},
+    {"path":"notes/theory/2026-10-28-call-owner-constructor-r20.md","sha256":"cc7d33c3cf0224ae058da0eb636974e21292c8aba51ee56c42b8f874211aeaf1","use":"unreviewed_prior_proof_evidence_to_validate"},
+    {"path":"tasks/agent-loop/inbox/call-owner-constructor-r20-proof.md","sha256":"199db3a8c534af29bd3ad09c29a973e83cc0693bb1256c5e5856a92cbe75c652","use":"prior_proof_handoff"},
+    {"path":"tasks/agent-loop/inbox/call-owner-constructor-r20-impl.md","sha256":"7d24500cfc3ab98175ced4550b5b8683732fca6b919362828c84acc9a481cb1b","use":"prior_native_ordered_tuple_and_implementation_owner_evidence"},
+    {"path":"tasks/agent-loop/history/call-owner-constructor-20261028-r20-outcome.md","sha256":"4dd93ce72a50d2ce49108b5edc8e076071260c6bf9e7a86c9c896f3df9b24897","use":"prior_incomplete_disposition_and_resource_boundary"},
+    {"path":"tasks/agent-loop/inbox/latent-demand-transport-classification-r18-source.md","sha256":"9878f83cd1410da9c83305b711bc234b7424617776b46844602ebbd692d8c383","use":"four_exact_replay_rows_and_source_occurrences"},
+    {"path":"isolated/latent-demand-transport-classification-r18/crates/yu-solver/src/candidate_effect.rs","sha256":"7c8e4fe5270fd45cecece80dfbbdff81aa8f294546687938bf89212325fc146b","use":"implementation_owner_1"},
+    {"path":"isolated/latent-demand-transport-classification-r18/crates/yu-solver/src/candidate_context.rs","sha256":"be1be2277d54288ba4ae542e003dabc294031c29cb26b2b5d0454b0d1c102bd0","use":"implementation_owner_2"},
+    {"path":"isolated/latent-demand-transport-classification-r18/crates/yu-solver/src/candidate_scheme.rs","sha256":"3eb9ba3b414dd0e40f49957e0ee2b9de1ba21fd86dff718111d1b5030ccac6b7","use":"implementation_owner_3"},
+    {"path":"isolated/latent-demand-transport-classification-r18/crates/yu-solver/src/candidate_call.rs","sha256":"fdc39e01fa3665b4dc14e167973de63b275eb0280b831e340b6cdcee5ed0fc3f","use":"implementation_owner_4"},
+    {"path":"isolated/latent-demand-transport-classification-r18/crates/yu-solver/src/shadow_apply.rs","sha256":"8db4bae1b79959161b6b0dc4d516164b0e756eb8cbc73896bb4a4545a0b0ebf8","use":"implementation_owner_5"}
+  ],
+  "excluded": [
+    "notes/theory/2026-10-07-owned-call-contribution-construction.md",
+    "notes/theory/2026-10-08-call-source-interface-construction.md",
+    "isolated/latent-demand-transport-classification-r18/crates/yu-solver/src/candidate_extrusion.rs",
+    "all R19 candidate-overlay files"
+  ],
+  "native_ordered_ports": ["argument", "argument_effect", "result_effect", "result"],
+  "notes": "Selected construction proof files remain excluded until their exact selected historical revisions are authenticated and separately admitted. No current hash-mismatched substitute is permitted. The R20 review file does not exist; no independent ACCEPT is claimed."
+}
