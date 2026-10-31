@@ -1,0 +1,286 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling syn v2.0.119
+   Compiling fnv v1.0.7
+   Compiling strsim v0.11.1
+   Compiling ident_case v1.0.1
+   Compiling darling_core v0.21.3
+   Compiling darling_macro v0.21.3
+   Compiling darling v0.21.3
+   Compiling autocfg v1.5.1
+   Compiling memoffset v0.9.1
+   Compiling reborrow-generic-derive v0.1.1
+   Compiling seq-macro v0.3.6
+   Compiling reborrow-generic v0.1.2
+   Compiling copy-range v0.1.1
+   Compiling hashbrown v0.14.5
+   Compiling text-size v1.1.1
+   Compiling rustc-hash v1.1.0
+   Compiling countme v3.0.1
+   Compiling rowan v0.15.17
+   Compiling chasa v0.5.0
+   Compiling chasa-recover v0.2.0 (/home/momota1029/rust/yulang/crates/chasa-recover)
+   Compiling yu-syntax v0.1.0 (/home/momota1029/rust/yulang/crates/yu-syntax)
+   Compiling yu-hir v0.1.0 (/home/momota1029/rust/yulang/crates/yu-hir)
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:205:11
+    |
+205 |     Token(SyntaxToken),
+    |     ----- ^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+205 -     Token(SyntaxToken),
+205 +     Token(()),
+    |
+
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:206:15
+    |
+206 |     Synthetic(Vec<AssociationProvenance>),
+    |     --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+206 -     Synthetic(Vec<AssociationProvenance>),
+206 +     Synthetic(()),
+    |
+
+warning: struct `AssociatedFieldTailSource` is never constructed
+    --> crates/yu-hir/src/shadow.rs:1505:19
+     |
+1505 | pub(crate) struct AssociatedFieldTailSource<'a> {
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `source`, `receiver`, and `receiver_provenance` are never used
+    --> crates/yu-hir/src/shadow.rs:1512:19
+     |
+1511 | impl<'a> AssociatedFieldTailSource<'a> {
+     | -------------------------------------- methods in this implementation
+1512 |     pub(crate) fn source(&self) -> &'a PendingFieldTailSource { self.source }
+     |                   ^^^^^^
+1513 |     pub(crate) fn receiver(&self) -> &'a HirExpr { self.receiver }
+     |                   ^^^^^^^^
+1514 |     pub(crate) fn receiver_provenance(&self) -> &'a AssociationProvenance { self.receiver_provenance }
+     |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AssociatedRoleImplSource` is never constructed
+    --> crates/yu-hir/src/shadow.rs:1518:19
+     |
+1518 | pub(crate) struct AssociatedRoleImplSource<'a> {
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `source` and `node` are never used
+    --> crates/yu-hir/src/shadow.rs:1524:19
+     |
+1523 | impl<'a> AssociatedRoleImplSource<'a> {
+     | ------------------------------------- methods in this implementation
+1524 |     pub(crate) fn source(&self) -> &'a PendingRoleImplSource { self.source }
+     |                   ^^^^^^
+1525 |     pub(crate) fn node(&self) -> &'a SyntaxNode { self.node }
+     |                   ^^^^
+
+warning: method `with_associated_method_role_sources` is never used
+    --> crates/yu-hir/src/shadow.rs:1977:19
+     |
+1611 | impl ShadowArtifact {
+     | ------------------- method in this implementation
+...
+1977 |     pub(crate) fn with_associated_method_role_sources<R>(
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `walk_associated_pairs` is never used
+    --> crates/yu-hir/src/shadow.rs:2831:4
+     |
+2831 | fn walk_associated_pairs<'a>(
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `yu-hir` (lib) generated 8 warnings
+   Compiling yu-types v0.1.0 (/home/momota1029/rust/yulang/crates/yu-types)
+   Compiling yu-core v0.1.0 (/home/momota1029/rust/yulang/crates/yu-core)
+   Compiling yu-solver v0.1.0 (/home/momota1029/rust/yulang/crates/yu-solver)
+error[E0425]: cannot find type `RowKey` in this scope
+   --> crates/yu-solver/src/candidate_effect.rs:461:21
+    |
+461 |     pub mapped_row: RowKey,
+    |                     ^^^^^^ not found in this scope
+    |
+help: consider importing this enum
+    |
+  2 + use crate::candidate_scheme::RowKey;
+    |
+
+error[E0425]: cannot find type `RowKey` in this scope
+   --> crates/yu-solver/src/candidate_effect.rs:562:21
+    |
+562 |         mapped_row: RowKey,
+    |                     ^^^^^^ not found in this scope
+    |
+help: consider importing this enum
+    |
+  2 + use crate::candidate_scheme::RowKey;
+    |
+
+error[E0433]: cannot find type `RowKey` in this scope
+   --> crates/yu-solver/src/candidate_effect.rs:568:38
+    |
+568 |             || !matches!(mapped_row, RowKey::Effect(_))
+    |                                      ^^^^^^ use of undeclared type `RowKey`
+    |
+help: consider importing this enum
+    |
+  2 + use crate::candidate_scheme::RowKey;
+    |
+
+error[E0425]: cannot find function `exhausted` in this scope
+     --> crates/yu-solver/src/lib.rs:11763:81
+      |
+11763 |             let entry = match self.store.term_view(argument_effect).map_err(|_| exhausted())? {
+      |                                                                                 ^^^^^^^^^ not found in this scope
+      |
+note: these functions exist but are inaccessible
+     --> crates/yu-solver/src/candidate_scheme.rs:1248:1
+      |
+ 1248 | fn exhausted() -> SolveAvailabilityError {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::candidate_scheme::exhausted`: not accessible
+      |
+     ::: crates/yu-solver/src/candidate_effect.rs:506:1
+      |
+  506 | fn exhausted() -> SolveAvailabilityError {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::candidate_effect::exhausted`: not accessible
+      |
+     ::: crates/yu-solver/src/candidate_intrusion.rs:88:1
+      |
+   88 | fn exhausted() -> SolveAvailabilityError {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::candidate_intrusion::exhausted`: not accessible
+      |
+     ::: crates/yu-solver/src/candidate_context.rs:1413:1
+      |
+ 1413 | fn exhausted() -> SolveAvailabilityError {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::candidate_context::exhausted`: not accessible
+
+error[E0425]: cannot find value `exhausted` in this scope
+     --> crates/yu-solver/src/lib.rs:11770:29
+      |
+11770 |                 .ok_or_else(exhausted)?
+      |                             ^^^^^^^^^ not found in this scope
+      |
+note: these functions exist but are inaccessible
+     --> crates/yu-solver/src/candidate_scheme.rs:1248:1
+      |
+ 1248 | fn exhausted() -> SolveAvailabilityError {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::candidate_scheme::exhausted`: not accessible
+      |
+     ::: crates/yu-solver/src/candidate_effect.rs:506:1
+      |
+  506 | fn exhausted() -> SolveAvailabilityError {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::candidate_effect::exhausted`: not accessible
+      |
+     ::: crates/yu-solver/src/candidate_intrusion.rs:88:1
+      |
+   88 | fn exhausted() -> SolveAvailabilityError {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::candidate_intrusion::exhausted`: not accessible
+      |
+     ::: crates/yu-solver/src/candidate_context.rs:1413:1
+      |
+ 1413 | fn exhausted() -> SolveAvailabilityError {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `crate::candidate_context::exhausted`: not accessible
+
+error[E0603]: enum import `SourceRootId` is private
+     --> crates/yu-solver/src/lib.rs:18372:39
+      |
+18372 |                     candidate_source::SourceRootId::Definition(root) if root == &target_owner.root)
+      |                                       ^^^^^^^^^^^^  ---------- tuple variant `Definition` is not publicly re-exported
+      |                                       |
+      |                                       private enum import
+      |
+note: the enum import `SourceRootId` is defined here...
+     --> crates/yu-solver/src/candidate_source.rs:2:5
+      |
+    2 | use crate::*;
+      |     ^^^^^^^^
+note: ...and refers to the enum import `SourceRootId` which is defined here...
+     --> crates/yu-solver/src/lib.rs:198:14
+      |
+  198 | use yu_hir::{SourceRootId, ExpressionRootId,
+      |              ^^^^^^^^^^^^
+note: ...and refers to the enum `SourceRootId` which is defined here
+     --> crates/yu-hir/src/lib.rs:16:61
+      |
+   16 |     SourceMemberKind, SourceMemberRootId, SourceMemberType, SourceRootId, FileId, FileKey,
+      |                                                             ^^^^^^^^^^^^ you could import this directly
+
+error[E0308]: mismatched types
+    --> crates/yu-solver/src/candidate_receiver.rs:4186:44
+     |
+4186 |             || choice_recipe.occurrence != permission.occurrence
+     |                ------------------------    ^^^^^^^^^^^^^^^^^^^^^ expected `HirOccurrenceId`, found `&HirOccurrenceId`
+     |                |
+     |                expected because this is `yu_hir::HirOccurrenceId`
+     |
+help: consider dereferencing the borrow
+     |
+4186 |             || choice_recipe.occurrence != *permission.occurrence
+     |                                            +
+
+error[E0308]: mismatched types
+    --> crates/yu-solver/src/candidate_receiver.rs:4385:44
+     |
+4385 |             || choice.recipe.occurrence != incidence.permission.occurrence
+     |                ------------------------    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `HirOccurrenceId`, found `&HirOccurrenceId`
+     |                |
+     |                expected because this is `yu_hir::HirOccurrenceId`
+     |
+help: consider dereferencing the borrow
+     |
+4385 |             || choice.recipe.occurrence != *incidence.permission.occurrence
+     |                                            +
+
+error[E0308]: mismatched types
+    --> crates/yu-solver/src/candidate_receiver.rs:4628:41
+     |
+4628 |             if expression.occurrence != call.checking.occurrence()
+     |                ---------------------    ^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `HirOccurrenceId`, found `&HirOccurrenceId`
+     |                |
+     |                expected because this is `yu_hir::HirOccurrenceId`
+     |
+help: consider dereferencing the borrow
+     |
+4628 |             if expression.occurrence != *call.checking.occurrence()
+     |                                         +
+
+Some errors have detailed explanations: E0308, E0425, E0433, E0603.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `yu-solver` (lib) due to 9 previous errors
+Command exited with non-zero status 101
+	Command being timed: "cargo test --locked --offline --no-run -p yu-solver --features shadow-apply-candidate candidate_effect::tests::"
+	User time (seconds): 25.77
+	System time (seconds): 2.52
+	Percent of CPU this job got: 95%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:29.64
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 643192
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 3390
+	Minor (reclaiming a frame) page faults: 881090
+	Voluntary context switches: 6775
+	Involuntary context switches: 2409
+	Swaps: 0
+	File system inputs: 628624
+	File system outputs: 232
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 101
