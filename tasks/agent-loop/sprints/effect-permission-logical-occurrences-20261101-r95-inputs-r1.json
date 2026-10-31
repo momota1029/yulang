@@ -1,0 +1,117 @@
+{
+  "sprint": "EFFECT-PERMISSION-LOGICAL-OCCURRENCES/20261101-R95",
+  "revision": 1,
+  "baseline_commit": "9a80a223ebb8b82eaf49fecc9454c5acfe1a636d",
+  "baseline_branch": "yulang3",
+  "baseline_remote": "origin/yulang3",
+  "authority": "continuing explicit user goal for Yulang Rust/Lean soundness research; R94 closed before execution after independent reviewer found a malformed 62-hex expected digest",
+  "parent": "notes/theory/2026-10-13-intrusion-source-preservation-proof.md §§1,3,5,7; original source domain and quantifiers unchanged",
+  "dispatcher": "/root/r85_boundary_dispatch; correction-and-check recommendation after R94 hash blocker",
+  "inputs": [
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceSyntax.lean",
+      "bytes": 22040,
+      "sha256": "3184d156d661ace7da0345f5fa63f8a4396d9f52c745d265239c8d3db1e7d0d1"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/OriginalSourceGeneration.lean",
+      "bytes": 66485,
+      "sha256": "126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-formal-admission-r92-source.md",
+      "bytes": 6554,
+      "sha256": "20dba2bbbc87ea93f0f4d131561aa6cca8a1ed013b756dcdd3ad45c1981973bc"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/SourceLogicalOccurrencesR93.lean",
+      "bytes": 18460,
+      "sha256": "3c3ac12f0e652b361925ff0d80db78b4bae96f4bd2cc83f3f8346d6e5db54192"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r93-proof.md",
+      "bytes": 10913,
+      "sha256": "b8124915768462011bd4fe74a0a0b92cfc9ae3b140a88cde4c8708b06fb7b164"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r93-source.md",
+      "bytes": 4886,
+      "sha256": "4f1688000679f03c24a04ca84708b755f706399990b5c003291d7d19dce3ada6"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r93-review.md",
+      "bytes": 7997,
+      "sha256": "f794b77dda99bc970d81feb707b171b1836b1ff0657fed312a2da2cb96f737fa"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-logical-occurrences-20261101-r93-outcome.md",
+      "bytes": 4450,
+      "sha256": "0babe8a0bfb93a1b7fb6da347709a4fd123211b2b8631ca49d19f2e6b65e8b29"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-logical-occurrences-20261101-r93.md",
+      "bytes": 4263,
+      "sha256": "e762c73cfd33c60428bb632ef4441bac8f4df2f579a6e0a9c394c5e6ac9b0c77"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-logical-occurrences-20261101-r93-inputs-r1.json",
+      "bytes": 2138,
+      "sha256": "f78e8b13001b4c7dacd21f0e664d345fcd5d4e1639635d846d9f5df1b5a3762f"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-logical-occurrences-20261101-r93-admission.md",
+      "bytes": 3040,
+      "sha256": "0e4f87929b3c8aa0b2a1d525d0eb0e1dbc8d1c527e7874a2f2ae81a4983c725c"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-logical-occurrences-20261101-r94.md",
+      "bytes": 4374,
+      "sha256": "b00a4ddf0aec31ed0a5253b29afa2d7c980b48f1948139fb760f5cab55d19cde"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-logical-occurrences-20261101-r94-inputs-r1.json",
+      "bytes": 4194,
+      "sha256": "e8a15ae3e3f749101cbb38631b7776dd8a36db0c68c59712158db34fe97bc370"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-logical-occurrences-20261101-r94-admission.md",
+      "bytes": 2426,
+      "sha256": "2484a612341e99e5c167ccb2320fdb3649a866cb224f6d913de43c3e2b17cb49"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-logical-occurrences-20261101-r94-outcome.md",
+      "bytes": 2403,
+      "sha256": "e25d5c4bf564561746bf3e4bf00559f2a509671e650c8186ae9c1c22a64b7c33"
+    }
+  ],
+  "flattened_input": {
+    "bytes": 106897,
+    "sha256": "8bd62910afba8530f2140bd5b150db0d5fb5281c4651b87a88f78c51dc53d0d7",
+    "recipe": "byte-concatenate Syntax, Generation, and R93 candidate with no separators; preserve import Std; remove only Generation import of OriginalSourceSyntax and candidate import of OriginalSourceGeneration"
+  },
+  "executable": {
+    "path": "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean",
+    "sha256": "bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38",
+    "version": "Lean 4.35.0"
+  },
+  "outputs": [
+    "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r95-input-review.md",
+    "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r95-verification.md",
+    "tasks/agent-loop/inbox/effect-permission-logical-occurrences-r95-result-review.md"
+  ],
+  "limits": {
+    "aggregate_seconds": 360,
+    "input_review_seconds": 60,
+    "primary_seconds": 180,
+    "lean_call_seconds": 120,
+    "result_review_seconds": 120,
+    "astra_seconds": 0,
+    "lean_calls": 1,
+    "processes": 1,
+    "cpus": 1,
+    "memory_mb": 1024,
+    "new_environment_worktree_copy_cache_scratch": false,
+    "lake_build_or_tests": false
+  },
+  "scope_boundary": "corrected exact-input authority records and one bounded check of the unchanged R93 candidate; no repair, semantic admission, Rust edits, source restriction, A/B closure, or production authority"
+}
