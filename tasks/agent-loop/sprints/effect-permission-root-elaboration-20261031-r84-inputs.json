@@ -3,7 +3,7 @@
   "sprint": "EFFECT-PERMISSION-ROOT-ELABORATION/20261031-R84",
   "baseline_commit": "a3f8b4a40e57b6053663e0de69b9ebdd3e0c6c49",
   "contract": "tasks/agent-loop/sprints/effect-permission-root-elaboration-20261031-r84.md",
-  "contract_sha256": "ea3a1b7dcd84d19df0114d20d15d4976e04d1f2dbf25dd7f03a7fd462f110a37",
+  "contract_sha256": "28890c4ee0953c4a4e01a1f5a95b04b22eaa45616d87a4f3b5a9ad2a8d6604f0",
   "root_module": "YulangClosure.ConstructedPhysicalRootR84",
   "reachable_local_module_count": 20,
   "total_source_bytes": 543504,
@@ -306,7 +306,7 @@
     "outcome_sha256": "405ef6f3e70ef5eeafc6399fc29e78d283019b64029fb46f6d768ad6354390a3",
     "review_disposition": "independent reviewer confirmed failed-prefix gate; no theorem accepted",
     "audit_result": "tasks/agent-loop/history/effect-permission-root-closure-20261031-r83-audit2-result.md",
-    "audit_result_sha256": "11b5a272fe8194b71b8baf1310f5a304001ce0cbc3409c9930c4f2dd7b2015e5",
+    "audit_result_sha256": "a8d7f3782d4eaefd287024001d0bc9dac0d9b93e1d7ab50e726497415b9b351e",
     "amendment": "tasks/agent-loop/sprints/effect-permission-root-closure-20261031-r83-amendment-01.md",
     "amendment_sha256": "1ffd187469878a292a6b07e862892ff3bbc30053c8f3814627fa8e0e482608c2"
   },
@@ -325,5 +325,5 @@
   "r83_prior_manifest_path": "tasks/agent-loop/sprints/effect-permission-root-closure-20261031-r83-inputs.json",
   "r83_prior_manifest_sha256": "7e7b9a4d934f6e7a1b9ecb616390331e06cd48b4d446ba198bee10e509ba51ab",
   "admission": "tasks/agent-loop/history/effect-permission-root-elaboration-20261031-r84-admission.md",
-  "admission_sha256": "fe2e8a9c9e8841010b5be32e5105c0b02bd3879427cf4cc21a4813f0b2a24424"
+  "admission_sha256": "057db44d1cff606b6b439493773b69145fbbd6e4d3e3e72c2bbb37e8e40caa0b"
 }

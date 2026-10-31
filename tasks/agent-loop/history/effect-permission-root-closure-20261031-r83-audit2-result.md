@@ -22,9 +22,11 @@ to R77's `simp [internalInputs, unique, c.plans]`. Lean reports that the
 notation-expanded `unique` is a function type rather than a proposition, so it
 cannot be used as a simp theorem. The associated goal remains unsolved. The
 same invalid simp argument occurs in R81's three `simp [unique, ...]` calls at
-source lines 151, 155 and 159. The independent reviewer counted eight errors
-overall. The recorded output and hashes were independently checked against the
-retained base64 receipt.
+source lines 146, 150 and 154. The reviewer response initially attributed these
+to lines 151, 155 and 159; primary inspection of the pinned source corrected
+that attribution. The independent reviewer counted eight errors overall. The
+recorded output and hashes were independently checked against the retained
+base64 receipt.
 
 No R83 theorem type or axiom report appears in this prefix-only audit. No
 theorem is accepted. Audit 3 is blocked because the adopted amendment and

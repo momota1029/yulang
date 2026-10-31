@@ -13,8 +13,9 @@ continuation, not semantic approval or production promotion.
   `39b395b0a68dae8af921d6e2f93e652dfc48efe465283f88d5229177352bb3ae`;
   exit 1, no timeout. The independent closeout reviewer located the first
   invalid `simp [unique]` at R77 source line 223 and the same pattern in R81
-  source lines 151, 155 and 159. The normalized declaration repair remains
-  unproved and must be independently reviewed before any audit.
+  source lines 146, 150 and 154. Primary source inspection corrected the
+  review message's initial line attribution. The normalized declaration repair
+  remains unproved and must be independently reviewed before any audit.
 - All 20 pinned local module source byte lengths and SHA-256 values, plus the
   R83 proof handoff, authorization and outcome pins, were rechecked against the
   current checkout and matched.

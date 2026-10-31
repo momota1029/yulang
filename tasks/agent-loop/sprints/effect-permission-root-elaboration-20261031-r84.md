@@ -91,8 +91,13 @@ At most four separately authorized exact-input Lean invocations, each at most
 
 Each invocation requires a separately committed and pushed primary
 authorization with exact input bytes/hash, pinned executable hash, command,
-environment and timeout. Preserve all streams and receipts. Review the exact
-repair and assembled input before authorization. A reviewer does not run Lean.
+environment and timeout. Invocation 1 and the gated invocation-3 candidate
+must be frozen and hash-pinned before their respective authorizations. An
+invocation-2 or invocation-4 repair input cannot be fixed until its preceding
+diagnostic exists; if needed, first freeze the diagnostic-directed repair,
+independently review it, update the manifest/current receipt, then separately
+authorize it. The four slots do not pre-authorize any call. Preserve all streams
+and receipts. A reviewer does not run Lean.
 
 ## Review, application and stop conditions
 
