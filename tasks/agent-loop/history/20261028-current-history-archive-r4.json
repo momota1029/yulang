@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "archive": "20261028-current-history-archive-r4",
+  "previous_archive": {
+    "record": "tasks/agent-loop/history/20261028-current-history-archive-r3.json",
+    "sha256": "10d5c7a8f466f187e748fd3f36195fd0453095b8aa102c1da756ddeeb4efed25",
+    "entries": 17
+  },
+  "closed_outcomes": [
+    {
+      "path": "tasks/agent-loop/history/native-fresh-use-context-coverage-20261028-r4-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "244a6faecfab19e1c9b8958ccbb0406b3e7b6d03b0225da2acf980161d42c84a"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-use-context-coverage-20261028-r5-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "48f8b049d9d9120cc8e68306074ef5249673f6772bc236c845d64f466b5c1075"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-bound-attachment-20261028-r1-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "fe52daae6f64d959ef8e0aa1a58bcfc476075954207d77d5b7105de06084e701"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-bound-admission-20261028-r2-outcome.md",
+      "status": "CLOSED_INCOMPLETE",
+      "sha256": "be7203c8d00c7f7c4984eeaac82a6acc0ff7a467f435cea5bf495269bd1ddf52"
+    }
+  ],
+  "removed_resolved_frozen_leases": [
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-use-context-coverage-20261028-r4.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "a7ed1ad46c45c9a69e4db807f874b709716a7265dbe9d00eaa88275c7fbda11c"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_extrusion.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "80f126e9c77d1b3d8486c01b4f35a6852f4d466f99daed45ea4e19a598d59d61",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-use-context-coverage-20261028-r4-amendment-01.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "d8f5695ff461270e52d6a27bf0f09593a48a65e5fa2f4c5f5c6b77043730d02f"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-use-context-coverage-20261028-r4-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "244a6faecfab19e1c9b8958ccbb0406b3e7b6d03b0225da2acf980161d42c84a"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-use-context-coverage-20261028-r5.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "6f488e11f0d1e7eb8d86fec5fc30e7fbca454faca6691255d11a71120ddab6fa"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-bound-attachment-20261028-r1.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "fd040b8a5a1702b54c06c44fa88a8316433dc950a62d453de48db3f73e2e6e2c"
+    },
+    {
+      "path": "isolated/native-fresh-use-context-coverage-r5/crates/yu-solver/src/candidate_scheme.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "7fd3e16f2a6f856b925e2675d8a485fc25b90775a4b5a81f39d027c71874ef4a",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-bound-attachment-20261028-r1-amendment-01.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "51f0867e885940a163a5f9c31bd751593911830da9edfefb54788c321f17f0d1"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/native-fresh-bound-admission-20261028-r2.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "415195c283db4b9c03dc9cac17e636507b9810261fa987dfc4ab36e514e900f0"
+    },
+    {
+      "path": "tasks/agent-loop/history/native-fresh-bound-attachment-20261028-r1-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "fe52daae6f64d959ef8e0aa1a58bcfc476075954207d77d5b7105de06084e701",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-fresh-bound-attachment-r1-review.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "a18c4c255b116435a9a51b34fa76deb0a09121a3199307063b64df033cad905b",
+      "access": "READ_ONLY"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/native-fresh-bound-admission-r2-review.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "f857c64b05d89c34115410e73497f7b03ca608bff20f6e8942ae583dc236c812"
+    }
+  ],
+  "preservation_note": "Only frozen outputs belonging to the linked closed outcomes were removed from current.json. No UNKNOWN/QUARANTINED lease or pending item was removed."
+}
