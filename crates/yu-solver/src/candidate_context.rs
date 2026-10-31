@@ -2955,6 +2955,28 @@ impl State {
             (index, &relation.key.pair, flow)
         })
     }
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "owned residual projection enumerates the complete relation owner")]
+    pub(super) fn owned_projection_relations(
+        &self,
+    ) -> impl Iterator<Item = (usize, &Relation)> {
+        self.relations.iter().enumerate()
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "owned residual projection enumerates the complete completion owner")]
+    pub(super) fn owned_projection_source_drain_completions(
+        &self,
+    ) -> impl Iterator<Item = (usize, &SourceDrainReceipt)> {
+        self.source_drain_completions.iter().enumerate()
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "owned residual projection enumerates the complete emission owner")]
+    pub(super) fn owned_projection_bound_emissions(
+        &self,
+    ) -> impl Iterator<Item = (BoundEmissionId, &BoundEmission)> {
+        self.evidence.emissions.iter().enumerate()
+            .map(|(index, emission)| (BoundEmissionId(index), emission))
+    }
     pub(super) fn observed_dependencies(&self) -> impl Iterator<Item = &Dependency> { self.dependencies.iter() }
     // Borrowed research-only access to the retained producer records. These
     // helpers expose no mutation route and intentionally keep admission and

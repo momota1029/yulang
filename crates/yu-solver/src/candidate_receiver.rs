@@ -386,6 +386,46 @@ pub(super) struct WholePublicationObservation {
     final_lower_atoms: Vec<EffectEndpointKey>,
 }
 #[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "sealed borrowed owner interpretation for the R54 source/native bridge")]
+pub(super) struct OwnedResidualProjection<'a> {
+    pub(super) owner: &'a ReceivingResidualExperiment,
+    pub(super) schema: &'a Assembly,
+    pub(super) batch: &'a ConstraintBatch,
+    pub(super) session: &'a InferenceSession,
+    pub(super) live_state: &'a candidate_context::State,
+    pub(super) whole: &'a WholePublicationObservation,
+    pub(super) raw_lower_endpoint: EffectEndpointKey,
+    pub(super) canonical_lower_endpoint: EffectEndpointKey,
+    pub(super) raw_upper_endpoint: EffectEndpointKey,
+    pub(super) canonical_upper_endpoint: EffectEndpointKey,
+    pub(super) publications: Vec<(usize, &'a WholePublicationObservation)>,
+    pub(super) calls: Vec<(usize, &'a ResidualPublicationObservation)>,
+    pub(super) facts: Vec<(usize, &'a ConstraintOccurrence)>,
+    pub(super) rows: Vec<(usize, &'a EffectBounds)>,
+    pub(super) relations: Vec<(usize, &'a candidate_context::Relation)>,
+    pub(super) origins: Vec<(usize, &'a candidate_context::Origin)>,
+    pub(super) source_drains: Vec<Option<&'a candidate_context::SourceDrainReceipt>>,
+    pub(super) completions: Vec<(usize, &'a candidate_context::SourceDrainReceipt)>,
+    pub(super) admissions: Vec<(usize, &'a candidate_context::BoundAdmission)>,
+    pub(super) emissions: Vec<(usize, &'a candidate_context::BoundEmission)>,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+fn collect_owned_borrowed_inventory<'a, T>(
+    items: impl Iterator<Item = (usize, &'a T)>,
+) -> Option<Vec<(usize, &'a T)>> {
+    let (lower_bound, upper_bound) = items.size_hint();
+    let mut inventory = Vec::new();
+    if upper_bound == Some(lower_bound) {
+        inventory.try_reserve_exact(lower_bound).ok()?;
+    }
+    for (owner_index, item) in items {
+        if owner_index != inventory.len() { return None; }
+        inventory.try_reserve(1).ok()?;
+        inventory.push((owner_index, item));
+    }
+    Some(inventory)
+}
+#[cfg(feature = "shadow-apply-candidate")]
 fn snapshot_path(
     path: &[LowerPathStep<'_>],
     terminal: EffectEndpointKey,
@@ -446,6 +486,11 @@ impl ReceivingResidualExperiment {
     #[allow(dead_code, reason = "whole publication source/native observation query")]
     pub(super) fn native_whole_publication_observation(&self) -> Option<&WholePublicationObservation> {
         self.publication_observation.as_ref()
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "private R54 owner-preserving observation projection")]
+    pub(super) fn native_owned_projection(&self) -> Option<OwnedResidualProjection<'_>> {
+        OwnedResidualProjection::capture(self)
     }
     #[cfg(feature = "shadow-apply-candidate")]
     #[allow(dead_code, reason = "selected by the private proof correspondence query")]
@@ -743,7 +788,7 @@ impl ReceivingResidualExperiment {
 /// Immutable references to original constructors. Symbolic invocation/receipt/
 /// observation binders are justified by the validated A0–A7 sequence, never by
 /// ScopeState, inferred family membership, or a previous receiver activation.
-struct Assembly {
+pub(super) struct Assembly {
     relay: DefinitionRootId,
     answer: DefinitionRootId,
     catch: HirOccurrenceId,
@@ -1586,6 +1631,384 @@ impl ReceivingResidualExperiment {
             prior_slot_emissions,
         })
     }
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+impl<'a> OwnedResidualProjection<'a> {
+    fn capture(owner: &'a ReceivingResidualExperiment) -> Option<Self> {
+        let whole = owner.publication_observation.as_ref()?;
+        let graph = owner.session.candidate_graph.as_ref()?;
+        let live_state = &graph.intrusion.effect_algebra.context;
+        let raw_lower_endpoint = raw_source_effect_endpoint(
+            &owner.session, whole.original_fact.lower(), Polarity::Positive,
+        )?;
+        let canonical_lower_endpoint = owner.session.canonical_effect(raw_lower_endpoint);
+        let raw_upper_endpoint = raw_source_effect_endpoint(
+            &owner.session, whole.original_fact.upper(), Polarity::Negative,
+        )?;
+        let canonical_upper_endpoint = owner.session.canonical_effect(raw_upper_endpoint);
+        let mut publications = Vec::new();
+        publications.try_reserve_exact(1).ok()?;
+        publications.push((0, whole));
+        let origins = collect_owned_borrowed_inventory(live_state.origins.iter().enumerate())?;
+        let mut source_drains = Vec::new();
+        source_drains.try_reserve_exact(origins.len()).ok()?;
+        source_drains.extend(origins.iter().map(|(_, origin)| origin.source_drain_receipt.as_ref()));
+        let projection = Self {
+            owner,
+            schema: &owner.schema,
+            batch: &owner.session.batch,
+            session: &owner.session,
+            live_state,
+            whole,
+            raw_lower_endpoint,
+            canonical_lower_endpoint,
+            raw_upper_endpoint,
+            canonical_upper_endpoint,
+            publications,
+            calls: collect_owned_borrowed_inventory(whole.calls.iter().enumerate())?,
+            facts: collect_owned_borrowed_inventory(owner.session.batch.occurrences.iter().enumerate())?,
+            rows: collect_owned_borrowed_inventory(owner.session.effect_bounds.iter().enumerate())?,
+            relations: collect_owned_borrowed_inventory(live_state.owned_projection_relations())?,
+            origins,
+            source_drains,
+            completions: collect_owned_borrowed_inventory(
+                live_state.owned_projection_source_drain_completions(),
+            )?,
+            admissions: collect_owned_borrowed_inventory(live_state.observed_bound_admissions())?,
+            emissions: collect_owned_borrowed_inventory(
+                live_state.owned_projection_bound_emissions()
+                    .map(|(id, emission)| (id.0, emission)),
+            )?,
+        };
+        projection.verify_owner_round_trips().then_some(projection)
+    }
+
+    fn verify_owner_round_trips(&self) -> bool {
+        let Some(owner_whole) = self.owner.publication_observation.as_ref() else { return false; };
+        let Some(graph) = self.owner.session.candidate_graph.as_ref() else { return false; };
+        let owner_state = &graph.intrusion.effect_algebra.context;
+        if !std::ptr::eq(owner_whole, self.whole)
+            || !std::ptr::eq(&self.owner.schema, self.schema)
+            || !std::ptr::eq(&self.owner.session.batch, self.batch)
+            || !std::ptr::eq(&self.owner.session, self.session)
+            || !std::ptr::eq(owner_state, self.live_state)
+            || self.owner.session.canonical_effect(self.raw_lower_endpoint) != self.canonical_lower_endpoint
+            || self.owner.session.canonical_effect(self.raw_upper_endpoint) != self.canonical_upper_endpoint
+            || self.owner.session.effect_endpoint(
+                self.whole.original_fact.lower(), Polarity::Positive,
+            ) != self.canonical_lower_endpoint
+            || self.owner.session.effect_endpoint(
+                self.whole.original_fact.upper(), Polarity::Negative,
+            ) != self.canonical_upper_endpoint
+            || raw_source_effect_endpoint(
+                &self.owner.session,
+                self.whole.original_fact.lower(),
+                Polarity::Positive,
+            ) != Some(self.raw_lower_endpoint)
+            || raw_source_effect_endpoint(
+                &self.owner.session,
+                self.whole.original_fact.upper(),
+                Polarity::Negative,
+            ) != Some(self.raw_upper_endpoint)
+            || self.canonical_upper_endpoint != self.whole.upper
+            || self.publications.len() != 1
+            || self.publications[0].0 != 0
+            || !std::ptr::eq(self.publications[0].1, self.whole)
+        {
+            return false;
+        }
+        if !borrowed_inventory_matches(self.whole.calls.iter().enumerate(), &self.calls)
+            || !borrowed_inventory_matches(self.batch.occurrences.iter().enumerate(), &self.facts)
+            || !borrowed_inventory_matches(self.owner.session.effect_bounds.iter().enumerate(), &self.rows)
+            || !borrowed_inventory_matches(self.live_state.owned_projection_relations(), &self.relations)
+            || !borrowed_inventory_matches(self.live_state.origins.iter().enumerate(), &self.origins)
+            || !borrowed_inventory_matches(
+                self.live_state.owned_projection_source_drain_completions(), &self.completions,
+            )
+            || !borrowed_inventory_matches(
+                self.live_state.observed_bound_admissions(), &self.admissions,
+            )
+            || !borrowed_inventory_matches(
+                self.live_state.owned_projection_bound_emissions()
+                    .map(|(id, emission)| (id.0, emission)),
+                &self.emissions,
+            )
+        {
+            return false;
+        }
+        if self.source_drains.len() != self.origins.len()
+            || self.source_drains.iter().zip(&self.origins).any(|(drain, (_, origin))| {
+                match (drain, origin.source_drain_receipt.as_ref()) {
+                    (Some(borrowed), Some(owner_record)) => !std::ptr::eq(*borrowed, owner_record),
+                    (None, None) => false,
+                    _ => true,
+                }
+            })
+        {
+            return false;
+        }
+        self.verify_source_fact_owner() && self.verify_live_observation_owners()
+    }
+
+    fn verify_source_fact_owner(&self) -> bool {
+        let fact = &self.whole.original_fact;
+        if fact.id().occurrence() != &self.whole.edge_scrutinee
+            || fact.id().local_slot() != 51
+            || fact.cause().occurrence() != fact.id()
+            || self.whole.relay_owner != self.schema.relay
+            || self.whole.answer_owner != self.schema.answer
+            || self.whole.catch_occurrence != self.schema.catch
+            || self.schema.catch != self.schema.selected_arm.catch
+        {
+            return false;
+        }
+        let mut found = None;
+        for root in [&self.schema.relay, &self.schema.answer] {
+            let Some(actions) = self.batch.candidate_source.schedules.get(root) else { return false; };
+            for action in actions {
+                let candidate_source::Action::Fact(fact_index) = action else { continue; };
+                let Some((owner_index, source_fact)) = self.facts.get(*fact_index) else { return false; };
+                if *owner_index != *fact_index
+                    || source_fact.id().occurrence() != &self.whole.edge_scrutinee
+                    || source_fact.id().local_slot() != 51
+                {
+                    continue;
+                }
+                if **source_fact != *fact || found.replace(*owner_index).is_some() {
+                    return false;
+                }
+            }
+        }
+        found.is_some()
+    }
+
+    fn verify_live_observation_owners(&self) -> bool {
+        let whole = self.whole;
+        let Some((row_index, row)) = self.rows.get(whole.result_row as usize) else { return false; };
+        if *row_index != whole.result_row as usize
+            || self.owner.result_row != whole.result_row
+            || row.direct_lower_rows != whole.final_lower_rows
+            || row.exact_non_variable_lowers != whole.final_lower_atoms
+            || row.direct_lower_rows.get(..whole.initial_lower_rows.len())
+                != Some(whole.initial_lower_rows.as_slice())
+            || row.exact_non_variable_lowers.get(..whole.initial_lower_atoms.len())
+                != Some(whole.initial_lower_atoms.as_slice())
+            || whole.upper != EffectEndpointKey::EffectRow(whole.result_row)
+        {
+            return false;
+        }
+        let mut call_index = 0usize;
+        for (plan_index, decision) in whole.plan.decisions.iter().enumerate() {
+            match decision.outcome {
+                ReceivingResidualOutcome::Suppress => {
+                    if self.calls.get(call_index).is_some_and(|(index, call)| {
+                        *index == call_index && call.plan_index == plan_index
+                    }) {
+                        return false;
+                    }
+                }
+                ReceivingResidualOutcome::Forward => {
+                    let Some((candidate_index, call)) = self.calls.get(call_index) else { return false; };
+                    if *candidate_index != call_index
+                        || call.identity != whole.identity
+                        || call.plan_index != plan_index
+                        || call.endpoint != decision.endpoint
+                        || call.upper != whole.upper
+                        || call.occurrence != *whole.original_fact.id()
+                        || call.cause != *whole.original_fact.cause()
+                        || !self.verify_call_records(call)
+                    {
+                        return false;
+                    }
+                    let Some(next) = call_index.checked_add(1) else { return false; };
+                    call_index = next;
+                }
+            }
+        }
+        call_index == self.calls.len()
+    }
+
+    fn verify_call_records(&self, call: &ResidualPublicationObservation) -> bool {
+        if call.origin_cut > call.source_origin_index
+            || call.source_origin_index >= call.origin_end
+            || call.completion_cut > call.completion_index
+            || call.completion_index >= call.completion_end
+            || call.emission_cut > call.emission_end
+        {
+            return false;
+        }
+        let Some((origin_index, origin)) = self.origins.get(call.source_origin_index) else { return false; };
+        let Some(origin_receipt) = origin.source_drain_receipt.as_ref() else { return false; };
+        let Some(Some(receipt)) = self.source_drains.get(call.source_origin_index) else { return false; };
+        let Some((completion_index, completion)) = self.completions.get(call.completion_index) else { return false; };
+        let Some((relation_index, relation)) = self.relations.get(call.source_relation.0 as usize) else { return false; };
+        if *origin_index != call.source_origin_index
+            || origin.relation != call.source_relation
+            || origin.occurrence != call.occurrence
+            || !std::ptr::eq(*receipt, origin_receipt)
+            || origin_receipt != &call.source_drain
+            || receipt.origin_index != call.source_origin_index
+            || receipt.completed
+            || receipt.task != LiveConstraintTask::Effect(call.endpoint, call.upper)
+            || receipt.cause != *self.whole.original_fact.cause()
+            || *completion_index != call.completion_index
+            || !completion.completed
+            || completion.drain_index != receipt.drain_index
+            || completion.incoming_relation != receipt.incoming_relation
+            || completion.replay_ack != receipt.replay_ack
+            || completion.created_seed != receipt.created_seed
+            || completion.selected_relation != receipt.selected_relation
+            || completion.origin_index != receipt.origin_index
+            || completion.task != receipt.task
+            || completion.cause != receipt.cause
+            || *relation_index != call.source_relation.0 as usize
+            || self.live_state.relation_pair(call.source_relation) != Some(relation.key.pair)
+        {
+            return false;
+        }
+        match &call.native_bound {
+            NativeResidualBoundEvidence::AlreadyPresent { slot, prior_emission_count } => {
+                let candidate_scheme::RowKey::Effect(row_id) = slot.owner else { return false; };
+                let Some((row_index, row)) = self.rows.get(row_id as usize) else { return false; };
+                let expected_bound = candidate_effect::BoundKey(
+                    ExtrusionEndpoint::Effect(self.whole.upper),
+                    Polarity::Positive,
+                    ExtrusionEndpoint::Effect(call.endpoint),
+                );
+                if *row_index != row_id as usize
+                    || slot.owner != candidate_scheme::RowKey::Effect(self.whole.result_row)
+                    || call.pre_call_slot != Some(call.endpoint)
+                    || *prior_emission_count != call.prior_slot_emissions
+                {
+                    return false;
+                }
+                let exact_slot = match (slot.lane, call.endpoint) {
+                    (candidate_context::BoundLane::EffectLowerRow, EffectEndpointKey::EffectRow(lower)) => {
+                        row.direct_lower_rows.get(slot.index) == Some(&lower)
+                    }
+                    (candidate_context::BoundLane::EffectLowerAtom, endpoint) => {
+                        row.exact_non_variable_lowers.get(slot.index) == Some(&endpoint)
+                    }
+                    _ => false,
+                };
+                if !exact_slot { return false; }
+                let mut observed_prior = 0usize;
+                for (index, emission) in &self.emissions {
+                    if *index >= call.emission_cut && *index < call.emission_end
+                        && emission.physical == *slot
+                    {
+                        return false;
+                    }
+                    if *index < call.emission_cut && emission.physical == *slot {
+                        if emission.bound != expected_bound
+                            || emission.readback.bound != expected_bound
+                            || emission.readback.slot != *slot
+                            || emission.readback.phase != candidate_context::PhysicalReadbackPhase::ConstructorAfterAppend
+                            || !self.verify_emission_owner(*index, emission, expected_bound)
+                        {
+                            return false;
+                        }
+                        let Some(next) = observed_prior.checked_add(1) else { return false; };
+                        observed_prior = next;
+                    }
+                }
+                observed_prior == call.prior_slot_emissions
+            }
+            NativeResidualBoundEvidence::NewlyEmitted { slot, emission, admission, relation, readback } => {
+                let Some((emission_index, emitted)) = self.emissions.get(emission.0) else { return false; };
+                let Some((admission_index, admitted)) = self.admissions.get(admission.0) else { return false; };
+                let Some((native_relation_index, native_relation)) = self.relations.get(relation.0 as usize) else { return false; };
+                let expected_bound = candidate_effect::BoundKey(
+                    ExtrusionEndpoint::Effect(self.whole.upper),
+                    Polarity::Positive,
+                    ExtrusionEndpoint::Effect(call.endpoint),
+                );
+                let emitted_in_window = self.emissions.iter().filter(|(index, candidate)| {
+                    *index >= call.emission_cut && *index < call.emission_end
+                        && candidate.physical == *slot
+                }).count();
+                *emission_index == emission.0
+                    && *admission_index == admission.0
+                    && *native_relation_index == relation.0 as usize
+                    && emitted_in_window == 1
+                    && emitted.admission == *admission
+                    && emitted.bound == expected_bound
+                    && readback.bound == expected_bound
+                    && emitted.physical == *slot
+                    && emitted.readback == *readback
+                    && admitted.bound == readback.bound
+                    && admitted.relation == Some(*relation)
+                    && native_relation.key.pair == admitted.origin
+                    && readback.slot == *slot
+                    && slot.owner == candidate_scheme::RowKey::Effect(self.whole.result_row)
+                    && emission.0 >= call.emission_cut
+                    && emission.0 < call.emission_end
+                    && self.verify_emission_owner(emission.0, emitted, expected_bound)
+            }
+        }
+    }
+
+    fn verify_emission_owner(
+        &self,
+        emission_index: usize,
+        emission: &candidate_context::BoundEmission,
+        expected_bound: candidate_effect::BoundKey,
+    ) -> bool {
+        let Some((owner_index, owner_emission)) = self.emissions.get(emission_index) else { return false; };
+        let Some((admission_index, admission)) = self.admissions.get(emission.admission.0) else { return false; };
+        let Some(relation_id) = admission.relation else { return false; };
+        let Some((relation_index, relation)) = self.relations.get(relation_id.0 as usize) else { return false; };
+        *owner_index == emission_index
+            && std::ptr::eq(*owner_emission, emission)
+            && *admission_index == emission.admission.0
+            && admission.bound == expected_bound
+            && emission.bound == expected_bound
+            && emission.readback.bound == expected_bound
+            && emission.readback.slot == emission.physical
+            && emission.readback.phase == candidate_context::PhysicalReadbackPhase::ConstructorAfterAppend
+            && *relation_index == relation_id.0 as usize
+            && relation.key.pair == admission.origin
+            && self.live_state.relation_pair(relation_id) == Some(relation.key.pair)
+    }
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+fn raw_source_effect_endpoint(
+    session: &InferenceSession,
+    term: Term,
+    polarity: Polarity,
+) -> Option<EffectEndpointKey> {
+    match session.store.term_view(term).ok()? {
+        TermView::Leaf(Leaf::EffectBottomPositive) => Some(EffectEndpointKey::BottomPositive),
+        TermView::Leaf(Leaf::EmptyEffectNegative) => Some(EffectEndpointKey::EmptyNegative),
+        TermView::Component(_) => {
+            let endpoint = session.component_endpoint(term);
+            (endpoint.kind == ComponentKind::Effect)
+                .then_some(EffectEndpointKey::EffectRow(endpoint.ordinal))
+        }
+        TermView::LiveVariable(view)
+            if view.kind() == ComponentKind::Effect && view.polarity() == polarity =>
+        {
+            Some(EffectEndpointKey::EffectRow(view.ordinal()))
+        }
+        _ => None,
+    }
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+fn borrowed_inventory_matches<'a, T>(
+    source: impl Iterator<Item = (usize, &'a T)>,
+    inventory: &[(usize, &'a T)],
+) -> bool {
+    let mut source = source;
+    for (index, (owner_index, borrowed)) in inventory.iter().enumerate() {
+        let Some((source_index, source_item)) = source.next() else { return false; };
+        if index != *owner_index || index != source_index || !std::ptr::eq(*borrowed, source_item) {
+            return false;
+        }
+    }
+    source.next().is_none()
 }
 
 impl InferenceSession {
