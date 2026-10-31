@@ -1,0 +1,242 @@
+<stdin>:1790:70: warning: This simp argument is unused:
+  Prod.exists
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [inventory, lookup, List.mem_map, eq_comm]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+<stdin>:1950:61: error(lean.invalidDottedIdent): Invalid dotted identifier notation: The expected type of `.roleAndInitialCallOrigin` could not be determined
+
+Hint: Using `AtomKind.roleAndInitialCallOrigin would be unambiguous:
+  [apply] `AtomKind.roleAndInitialCallOrigin`
+<stdin>:1964:51: error: Tactic `rfl` failed: The left-hand side
+  observe scope
+    (Cursor.tree
+      (annotated { site := site } context
+        (RuleTree.existsE { site := site, kind := BinderKind.viewLogic }
+          (RuleTree.rule Rule.app site context
+            (premises
+                ([AtomKind.descriptorFormation, AtomKind.wholeArgumentCompatibility, AtomKind.completeCallCertificate,
+                    AtomKind.sourceCallIncidence, AtomKind.callableImage] ++
+                  if singletonFormalCall context callee argument = true then [AtomKind.roleAndInitialCallOrigin]
+                  else [])
+                site context [callee.site, argument.site] ++
+              [check CheckMode.value site context (endpoint callee.site Port.returnedValue)
+                  (endpoint site Port.descriptor),
+                check CheckMode.computation site context (endpoint site Port.callableImage)
+                  (endpoint site Port.synthesis)])
+            (RuleForest.two (sourceRules context callee) (sourceRules context argument))))))
+    (annotationRoute { site := site })
+is not definitionally equal to the right-hand side
+  some
+    { binder := { site := site, kind := BinderKind.viewLogic }, enclosing := scope,
+      subtree := appRule context { site := site } callee argument }
+
+case none
+context : Context
+callee argument : Source Category.expression
+scope : List ScopeFrame
+site : Site
+⊢ observe scope
+      (Cursor.tree
+        (annotated { site := site } context
+          (RuleTree.existsE { site := site, kind := BinderKind.viewLogic }
+            (RuleTree.rule Rule.app site context
+              (premises
+                  ([AtomKind.descriptorFormation, AtomKind.wholeArgumentCompatibility, AtomKind.completeCallCertificate,
+                      AtomKind.sourceCallIncidence, AtomKind.callableImage] ++
+                    if singletonFormalCall context callee argument = true then [AtomKind.roleAndInitialCallOrigin]
+                    else [])
+                  site context [callee.site, argument.site] ++
+                [check CheckMode.value site context (endpoint callee.site Port.returnedValue)
+                    (endpoint site Port.descriptor),
+                  check CheckMode.computation site context (endpoint site Port.callableImage)
+                    (endpoint site Port.synthesis)])
+              (RuleForest.two (sourceRules context callee) (sourceRules context argument))))))
+      (annotationRoute { site := site }) =
+    some
+      { binder := { site := site, kind := BinderKind.viewLogic }, enclosing := scope,
+        subtree := appRule context { site := site } callee argument }
+<stdin>:1964:51: error: Tactic `rfl` failed: The left-hand side
+  observe scope
+    (Cursor.tree
+      (annotated { site := site, annotation := some val✝ } context
+        (RuleTree.existsE { site := site, kind := BinderKind.viewLogic }
+          (RuleTree.rule Rule.app site context
+            (premises
+                ([AtomKind.descriptorFormation, AtomKind.wholeArgumentCompatibility, AtomKind.completeCallCertificate,
+                    AtomKind.sourceCallIncidence, AtomKind.callableImage] ++
+                  if singletonFormalCall context callee argument = true then [AtomKind.roleAndInitialCallOrigin]
+                  else [])
+                site context [callee.site, argument.site] ++
+              [check CheckMode.value site context (endpoint callee.site Port.returnedValue)
+                  (endpoint site Port.descriptor),
+                check CheckMode.computation site context (endpoint site Port.callableImage)
+                  (endpoint site Port.synthesis)])
+            (RuleForest.two (sourceRules context callee) (sourceRules context argument))))))
+    (annotationRoute { site := site, annotation := some val✝ })
+is not definitionally equal to the right-hand side
+  some
+    { binder := { site := site, kind := BinderKind.viewLogic }, enclosing := scope,
+      subtree := appRule context { site := site, annotation := some val✝ } callee argument }
+
+case some
+context : Context
+callee argument : Source Category.expression
+scope : List ScopeFrame
+site : Site
+val✝ : Annotation
+⊢ observe scope
+      (Cursor.tree
+        (annotated { site := site, annotation := some val✝ } context
+          (RuleTree.existsE { site := site, kind := BinderKind.viewLogic }
+            (RuleTree.rule Rule.app site context
+              (premises
+                  ([AtomKind.descriptorFormation, AtomKind.wholeArgumentCompatibility, AtomKind.completeCallCertificate,
+                      AtomKind.sourceCallIncidence, AtomKind.callableImage] ++
+                    if singletonFormalCall context callee argument = true then [AtomKind.roleAndInitialCallOrigin]
+                    else [])
+                  site context [callee.site, argument.site] ++
+                [check CheckMode.value site context (endpoint callee.site Port.returnedValue)
+                    (endpoint site Port.descriptor),
+                  check CheckMode.computation site context (endpoint site Port.callableImage)
+                    (endpoint site Port.synthesis)])
+              (RuleForest.two (sourceRules context callee) (sourceRules context argument))))))
+      (annotationRoute { site := site, annotation := some val✝ }) =
+    some
+      { binder := { site := site, kind := BinderKind.viewLogic }, enclosing := scope,
+        subtree := appRule context { site := site, annotation := some val✝ } callee argument }
+YulangClosure.OriginalSource.LogicalOccurrencesR103.inventory_iff_lookup : ∀
+  (index : YulangClosure.OriginalSource.LogicalOccurrencesR103.Index)
+  (route : YulangClosure.OriginalSource.LogicalOccurrencesR103.Route)
+  (occurrence : YulangClosure.OriginalSource.LogicalOccurrencesR103.Occurrence),
+  (route, occurrence) ∈ YulangClosure.OriginalSource.LogicalOccurrencesR103.inventory index ↔
+    YulangClosure.OriginalSource.LogicalOccurrencesR103.lookup index route = some occurrence
+'YulangClosure.OriginalSource.LogicalOccurrencesR103.inventory_iff_lookup' depends on axioms: [propext, Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR103.encode_lookup : ∀
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR103.ScopeFrame)
+  (cursor : YulangClosure.OriginalSource.LogicalOccurrencesR103.Cursor)
+  (route : YulangClosure.OriginalSource.LogicalOccurrencesR103.Route),
+  YulangClosure.OriginalSource.LogicalOccurrencesR103.lookup
+      (YulangClosure.OriginalSource.LogicalOccurrencesR103.encode scope cursor) route =
+    YulangClosure.OriginalSource.LogicalOccurrencesR103.observe scope cursor route
+'YulangClosure.OriginalSource.LogicalOccurrencesR103.encode_lookup' depends on axioms: [propext]
+YulangClosure.OriginalSource.LogicalOccurrencesR103.observe_eq_follow : ∀
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR103.ScopeFrame)
+  (cursor : YulangClosure.OriginalSource.LogicalOccurrencesR103.Cursor)
+  (route : YulangClosure.OriginalSource.LogicalOccurrencesR103.Route),
+  YulangClosure.OriginalSource.LogicalOccurrencesR103.observe scope cursor route =
+    (YulangClosure.OriginalSource.LogicalOccurrencesR103.follow scope cursor route).bind fun position =>
+      YulangClosure.OriginalSource.LogicalOccurrencesR103.payload position.enclosing position.cursor
+'YulangClosure.OriginalSource.LogicalOccurrencesR103.observe_eq_follow' depends on axioms: [propext]
+YulangClosure.OriginalSource.LogicalOccurrencesR103.source_membership_iff : ∀
+  (context : YulangClosure.OriginalSource.Context) {category : YulangClosure.OriginalSource.Category}
+  (source : YulangClosure.OriginalSource.Source category)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR103.ScopeFrame)
+  (route : YulangClosure.OriginalSource.LogicalOccurrencesR103.Route)
+  (occurrence : YulangClosure.OriginalSource.LogicalOccurrencesR103.Occurrence),
+  (route, occurrence) ∈ YulangClosure.OriginalSource.LogicalOccurrencesR103.sourceInventory context source scope ↔
+    YulangClosure.OriginalSource.LogicalOccurrencesR103.observe scope
+        (YulangClosure.OriginalSource.LogicalOccurrencesR103.Cursor.tree
+          (YulangClosure.OriginalSource.sourceRules context source))
+        route =
+      some occurrence
+'YulangClosure.OriginalSource.LogicalOccurrencesR103.source_membership_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR103.full_route_unique : ∀
+  (context : YulangClosure.OriginalSource.Context) {category : YulangClosure.OriginalSource.Category}
+  (source : YulangClosure.OriginalSource.Source category)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR103.ScopeFrame)
+  (route : YulangClosure.OriginalSource.LogicalOccurrencesR103.Route)
+  (first second : YulangClosure.OriginalSource.LogicalOccurrencesR103.Occurrence),
+  (route, first) ∈ YulangClosure.OriginalSource.LogicalOccurrencesR103.sourceInventory context source scope →
+    (route, second) ∈ YulangClosure.OriginalSource.LogicalOccurrencesR103.sourceInventory context source scope →
+      first = second
+'YulangClosure.OriginalSource.LogicalOccurrencesR103.full_route_unique' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR103.source_provenance : ∀
+  (context : YulangClosure.OriginalSource.Context) {category : YulangClosure.OriginalSource.Category}
+  (source : YulangClosure.OriginalSource.Source category)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR103.ScopeFrame)
+  (route : YulangClosure.OriginalSource.LogicalOccurrencesR103.Route)
+  (occurrence : YulangClosure.OriginalSource.LogicalOccurrencesR103.Occurrence),
+  (route, occurrence) ∈ YulangClosure.OriginalSource.LogicalOccurrencesR103.sourceInventory context source scope →
+    ∃ binder body,
+      YulangClosure.OriginalSource.LogicalOccurrencesR103.follow scope
+            (YulangClosure.OriginalSource.LogicalOccurrencesR103.Cursor.tree
+              (YulangClosure.OriginalSource.sourceRules context source))
+            route =
+          some
+            { enclosing := occurrence.enclosing,
+              cursor :=
+                YulangClosure.OriginalSource.LogicalOccurrencesR103.Cursor.tree
+                  (YulangClosure.OriginalSource.RuleTree.existsE binder body) } ∧
+        YulangClosure.OriginalSource.LogicalOccurrencesR103.logicalKind binder.kind = true ∧
+          occurrence.binder = binder ∧ occurrence.subtree = body
+'YulangClosure.OriginalSource.LogicalOccurrencesR103.source_provenance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR103.app_exact : ∀ (context : YulangClosure.OriginalSource.Context)
+  (mark : YulangClosure.OriginalSource.Mark)
+  (callee argument : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR103.ScopeFrame),
+  YulangClosure.OriginalSource.LogicalOccurrencesR103.observe scope
+      (YulangClosure.OriginalSource.LogicalOccurrencesR103.Cursor.tree
+        (YulangClosure.OriginalSource.sourceRules context
+          (YulangClosure.OriginalSource.Source.app mark callee argument)))
+      (YulangClosure.OriginalSource.LogicalOccurrencesR103.annotationRoute mark) =
+    some
+      { binder := { site := mark.site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic }, enclosing := scope,
+        subtree := YulangClosure.OriginalSource.LogicalOccurrencesR103.appRule context mark callee argument }
+'YulangClosure.OriginalSource.LogicalOccurrencesR103.app_exact' depends on axioms: [propext,
+ sorryAx,
+ Classical.choice,
+ Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR103.lambda_body_exact : ∀
+  (context : YulangClosure.OriginalSource.Context) (mark : YulangClosure.OriginalSource.Mark)
+  (formal : YulangClosure.OriginalSource.Formal)
+  (pattern : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.pattern)
+  (body : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR103.ScopeFrame),
+  YulangClosure.OriginalSource.LogicalOccurrencesR103.observe scope
+      (YulangClosure.OriginalSource.LogicalOccurrencesR103.Cursor.tree
+        (YulangClosure.OriginalSource.sourceRules context
+          (YulangClosure.OriginalSource.Source.lambda mark formal pattern body)))
+      (YulangClosure.OriginalSource.LogicalOccurrencesR103.bodyRoute mark formal) =
+    some
+      { binder := { site := body.site, kind := YulangClosure.OriginalSource.BinderKind.eventProof },
+        enclosing := YulangClosure.OriginalSource.LogicalOccurrencesR103.bodyScope scope mark formal,
+        subtree := YulangClosure.OriginalSource.LogicalOccurrencesR103.bodyRule context mark formal pattern body }
+'YulangClosure.OriginalSource.LogicalOccurrencesR103.lambda_body_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR103.app_inventory : ∀ (context : YulangClosure.OriginalSource.Context)
+  (mark : YulangClosure.OriginalSource.Mark)
+  (callee argument : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR103.ScopeFrame),
+  (YulangClosure.OriginalSource.LogicalOccurrencesR103.annotationRoute mark,
+      { binder := { site := mark.site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic }, enclosing := scope,
+        subtree := YulangClosure.OriginalSource.LogicalOccurrencesR103.appRule context mark callee argument }) ∈
+    YulangClosure.OriginalSource.LogicalOccurrencesR103.sourceInventory context
+      (YulangClosure.OriginalSource.Source.app mark callee argument) scope
+'YulangClosure.OriginalSource.LogicalOccurrencesR103.app_inventory' depends on axioms: [propext,
+ sorryAx,
+ Classical.choice,
+ Quot.sound]
+YulangClosure.OriginalSource.LogicalOccurrencesR103.lambda_body_inventory : ∀
+  (context : YulangClosure.OriginalSource.Context) (mark : YulangClosure.OriginalSource.Mark)
+  (formal : YulangClosure.OriginalSource.Formal)
+  (pattern : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.pattern)
+  (body : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression)
+  (scope : List YulangClosure.OriginalSource.LogicalOccurrencesR103.ScopeFrame),
+  (YulangClosure.OriginalSource.LogicalOccurrencesR103.bodyRoute mark formal,
+      { binder := { site := body.site, kind := YulangClosure.OriginalSource.BinderKind.eventProof },
+        enclosing := YulangClosure.OriginalSource.LogicalOccurrencesR103.bodyScope scope mark formal,
+        subtree := YulangClosure.OriginalSource.LogicalOccurrencesR103.bodyRule context mark formal pattern body }) ∈
+    YulangClosure.OriginalSource.LogicalOccurrencesR103.sourceInventory context
+      (YulangClosure.OriginalSource.Source.lambda mark formal pattern body) scope
+'YulangClosure.OriginalSource.LogicalOccurrencesR103.lambda_body_inventory' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
