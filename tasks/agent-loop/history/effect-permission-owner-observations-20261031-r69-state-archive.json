@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/effect-permission-owner-observations-20261031-r69.md",
   "contract_sha256": "a3c037da34cd5c6f7ba814145ecc39cc71bd17fb7b6072200e9939289050c3d4",
   "outcome": "tasks/agent-loop/history/effect-permission-owner-observations-20261031-r69-outcome.md",
-  "outcome_sha256": "a21ca325f9a25fb47c1fa21246218c474dd54923396a0ecadd4ac7b8565b3ff6",
+  "outcome_sha256": "cf640c1b7a9ae2d9a169421174504144a078da59869bff3eea33a4838bfaf90d",
   "workers": [
     {
       "id": "/root/r69_rust",
@@ -89,5 +89,37 @@
     "tasks/agent-loop/inbox/effect-permission-owner-observations-r69-proof.md",
     "tasks/agent-loop/inbox/effect-permission-owner-observations-r69-review.md"
   ],
-  "authority": "All three R69 lanes have exact frozen hashes and STOPPED / WRITES STOPPED receipts; independent review PASS with no findings. Only the exact resolved R69 rows and leases are archived. All 32 pending items and all unrelated UNKNOWN/quarantined worker rows and leases remain unchanged."
+  "authority": "All three R69 lanes have exact frozen hashes and STOPPED / WRITES STOPPED receipts; independent review PASS with no findings. Only the exact resolved R69 rows and leases are archived. All 32 pending items and all unrelated UNKNOWN/quarantined worker rows and leases remain unchanged.",
+  "source_repair": {
+    "finding": "Two InventoryPackage field-name mismatches at endpoint_observations loops were found after the R69 checkpoint.",
+    "corrected_receiver_sha256": "43eee07efef9a90d9fa57a5c4ac265cf323afa245de383c74bbf666bad30d638",
+    "review": "tasks/agent-loop/inbox/effect-permission-owner-observations-r69-source-fix-review.md",
+    "review_sha256": "fb7c28bbff06074aec1ce61e37a9f0903de199c9b8801e43d4409d77aa9cb7d1",
+    "reviewer": "/root/r69_fix_review",
+    "verdict": "PASS_EXACT_DELTA",
+    "state": "STOPPED",
+    "rust_compilation": "OPEN_NOT_RUN",
+    "repair_commit": null,
+    "repair_pushed": false
+  },
+  "post_closeout_workers": [
+    {
+      "id": "/root/r69_fix_review",
+      "role": "independent compiler referee",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "EFFECT-PERMISSION-OWNER-OBSERVATIONS/20261031-R69",
+      "receipt": "tasks/agent-loop/inbox/effect-permission-owner-observations-r69-source-fix-review.md#sha256=fb7c28bbff06074aec1ce61e37a9f0903de199c9b8801e43d4409d77aa9cb7d1; exact delta PASS; STOPPED / WRITES STOPPED."
+    }
+  ],
+  "post_closeout_resolved_leases": [
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-owner-observations-r69-source-fix-review.md",
+      "owner": "/root/r69_fix_review",
+      "state": "HELD"
+    }
+  ]
 }

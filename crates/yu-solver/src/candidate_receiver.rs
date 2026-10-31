@@ -885,7 +885,7 @@ impl<'a> InventoryPackage<'a> {
             live_components.push((position, live.kind, live.ordinal));
         }
 
-        for (position, representative) in self.value_representatives.iter().enumerate() {
+        for (position, representative) in self.value_row_representatives.iter().enumerate() {
             let row = u32::try_from(position).map_err(|_| Gap::SearchLimit)?;
             let (owner_position, actual) = representative;
             let canonical = self.session.canonical_value(ValueEndpointKey::ValueRow(row));
@@ -896,7 +896,7 @@ impl<'a> InventoryPackage<'a> {
                 return Err(Gap::BoundMismatch);
             }
         }
-        for (position, representative) in self.effect_representatives.iter().enumerate() {
+        for (position, representative) in self.effect_row_representatives.iter().enumerate() {
             let row = u32::try_from(position).map_err(|_| Gap::SearchLimit)?;
             let (owner_position, actual) = representative;
             let canonical = self.session.canonical_effect(EffectEndpointKey::EffectRow(row));

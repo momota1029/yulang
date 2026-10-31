@@ -23,3 +23,7 @@ Independent review passed with no blocking, major, or minor findings. Review aut
 The concrete Rust-to-Lean encoding of primitive rows, arena/component identity correspondence, freshness against actual native execution, actual source-instance construction/decode success, original R66 Root, Rust compilation/runtime evidence, native failure/resource equivalence, original A/B, whole-language effects, soundness, principality, termination, and production remain OPEN. R69 is a bounded research checkpoint and grants no semantic or production promotion.
 
 All R69 authors and reviewer are STOPPED / WRITES STOPPED. No Rust build, Cargo command, or Rust test was run; no environment, worktree, cache, target, or scratch directory was created.
+
+## Post-checkpoint source correction
+
+After the original R69 closeout, dispatcher source inspection found two wrong field names in `InventoryPackage::endpoint_observations`: the loops named `value_representatives` and `effect_representatives`, while the struct fields are `value_row_representatives` and `effect_row_representatives`. Primary corrected these two references. A fresh independent delta review passed and confirmed both now resolve to the declared fields and tuple types. Corrected receiver SHA-256: `43eee07efef9a90d9fa57a5c4ac265cf323afa245de383c74bbf666bad30d638`; review SHA-256: `fb7c28bbff06074aec1ce61e37a9f0903de199c9b8801e43d4409d77aa9cb7d1. The initial R69 review missed this mismatch; its original report is retained. Rust compilation/runtime remain OPEN and were not run.
