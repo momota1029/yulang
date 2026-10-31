@@ -4,7 +4,7 @@
   "baseline_commit": "c4e594fc64d72dba30a73c64fcbf258eaebdfc32",
   "parent_gate": "original Simple-sub A/B soundness at R66 Root",
   "contract": "tasks/agent-loop/sprints/native-root-premises-20261031-r85.md",
-  "contract_sha256": "d7a3049fd63247a5365b67f6638d89e8d09861b06d423294d2ae2467bcb1a2de",
+  "contract_sha256": "f37be4e21146b31ad2cf1a43edb7821bb35bf40b230b24f0ddd90688bad530fe",
   "inputs": [
     {
       "path": "crates/yu-solver/src/candidate_context.rs",
@@ -198,6 +198,21 @@
         [
           1,
           84
+        ]
+      ],
+      "lane_reads": [
+        "proof",
+        "review"
+      ]
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-root-elaboration-r84-proof.md",
+      "bytes": 339182,
+      "sha256": "8241f3b7ab3a656c15d114a987159fd33c66f04ae48fc3d82dbda0e4972ed17b",
+      "ranges": [
+        [
+          1,
+          7235
         ]
       ],
       "lane_reads": [
