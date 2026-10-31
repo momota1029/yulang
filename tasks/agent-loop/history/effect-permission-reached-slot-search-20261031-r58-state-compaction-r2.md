@@ -1,0 +1,5 @@
+# R58 resolved-lease compaction R2
+
+Before current.json SHA-256: 1af00291478080477c2f1d847437e2193a584793c5d0377979ec579f16a2d957
+Removed only resolved R57 lease rows: notes/theory/lean/YulangClosure/ProviderNativeContextR57.lean, tasks/agent-loop/history/effect-permission-provider-native-context-20261031-r57-admission.md, tasks/agent-loop/history/effect-permission-provider-native-context-20261031-r57-outcome.md, tasks/agent-loop/inbox/effect-permission-provider-native-context-r57-proof.md, tasks/agent-loop/inbox/effect-permission-provider-native-context-r57-review.md, tasks/agent-loop/inbox/effect-permission-provider-native-context-r57-rust.md, tasks/agent-loop/sprints/effect-permission-provider-native-context-20261031-r57.md. All source, proof, review, contract, admission and outcome artifacts remain intact and are pinned in the R58 review/outcome.
+Preserved all 32 pending items, all UNKNOWN workers, all 12 quarantined path leases, candidate_context read pin, current receiver pin, R58 proof/Rust evidence, reviewer report path and all R2 artifacts. No capacity override or path-lease release.
