@@ -13,6 +13,7 @@ The result does not establish universal first-entry/reuse reachability. An annot
 - Source handoff: `tasks/agent-loop/inbox/effect-permission-entry-prestate-r122-source.md`, SHA-256 `a9191683817369d96c94c74ffe737825ab83e7ee5a5ca3ee2eb491574ff20612`.
 - Proof handoff: `tasks/agent-loop/inbox/effect-permission-entry-prestate-r122-proof.md`, SHA-256 `abd69016f9177a09b7a56cc6c3499aef661cca5db5a08ea0e9cc24cdab294489`.
 - Independent `compiler_referee` review: **PASS**, no blocking/major/minor findings. It independently checked pinned source and Lean bodies before reading the handoffs, authenticated all source and handoff hashes, and confirmed the conditional scope and open owner/reachability obligations. Reviewer performed read-only work and wrote no file; this outcome is the primary's review receipt.
+- All R122 source/proof/review workers are STOPPED: `/root/r122_entry_source`, `/root/r122_prf`, `/root/r122_independent_review`.
 
 No compiler/Lean model or theorem was added. No builds, tests, checker, execution, storage probe, source edit, or quarantined/dirty source read was performed. Static consistency check only: `python3 tools/agent_sprint.py check` passed; this is not proof or independent review evidence.
 
