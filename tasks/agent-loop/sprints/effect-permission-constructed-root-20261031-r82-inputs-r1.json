@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "sprint": "EFFECT-PERMISSION-CONSTRUCTED-ROOT/20261031-R82",
+  "baseline_commit": "ba568e576badc6826ae3b3f70bba5d609f559f74",
+  "source_sha256": {
+    "notes/theory/lean/YulangClosure/ConstructedSourceIncidenceR81.lean": "3b9e9ac800dccce633c09bf3d7ed0f59f06e910eb42e3a4858e6588f3985bb37",
+    "tasks/agent-loop/inbox/effect-permission-incidence-repair-r81-proof.md": "589a13ae51919ab3bb3a64f34635bde192e90c3ab298d56bcfe0ef99d028fdcb",
+    "tasks/agent-loop/inbox/effect-permission-incidence-repair-r81-review.md": "60f732b4421dd9faddb272dd63cd7fe77ecafeed0bc52b44a8e74fdc19c70762",
+    "tasks/agent-loop/history/effect-permission-incidence-repair-20261031-r81-outcome.md": "b6c11625b77048484793b79809d4d70aa34beb543c2ddf53b421737239919e06",
+    "notes/theory/lean/YulangClosure/InternalPermissionIncidenceR45.lean": "9ff4fd544375a3d4a46100647cba93ddde6f34bebd767ba402f3bd3d35a84b1f",
+    "notes/theory/lean/YulangClosure/SourceInternalContextR55.lean": "7aaecdd3d358d769123f00acb4b19b4d7d61ccfef98fee4eb53179da4a105123",
+    "notes/theory/lean/YulangClosure/OccurrenceQualifiedFactReadersR65.lean": "3253e00f9b523446363507ae39567bab0a4ca69a2fc84cc128f8952c43bb700b",
+    "notes/theory/lean/YulangClosure/OccurrenceQualifiedConsumerR66.lean": "5db5ad3f3f5e5803e2bc564fc8922d5eb8a72182c7ba11de3904eebd7b5950e1",
+    "notes/theory/lean/YulangClosure/CurrentEmissionOwnershipR47.lean": "d64c54f7c977e110305a76e6437fc87c8ff14201a4d69eb0bbcb5ee0e1cd8b9c",
+    "notes/theory/lean/YulangClosure/ProviderNativeContextR57.lean": "804b3431c2e585370b8adc28f59b36c26a36e1524f42278a860823c9bd7eaa63",
+    "notes/theory/lean/YulangClosure/ComputationPermissionEntryR39.lean": "748cd52ff7962962940a3767ffa6a0b2d8def16d80e65e682282d1fa2b79560e",
+    "notes/theory/lean/YulangClosure/DistinctSourceEmissionRootR75.lean": "e868eb6bc6cba74af4f3096cc7fb2e48503c8183e064071b84022923c2bc6821",
+    "notes/theory/lean/YulangClosure/ConstructedSourceIncidenceR80.lean": "2d6f8c3a900ab2d37b86b415bbbcaef1bafa658f2092bf597691a2e6c1d933b4",
+    "crates/yu-solver/src/candidate_context.rs": "962af7c44b2e57ba50b7738e82785bd68b517e881ba08ea41c544c9314d60021",
+    "crates/yu-solver/src/candidate_receiver.rs": "b1873abe5b88a3d6b750bf517d565b1ffcfc3a619f223243c19d00e9d15c0085",
+    "crates/yu-solver/src/lib.rs": "c43fcc4f39e4ba8bfea10aa39879c37973100d9f4b8bdef71fa5b3dc3fae01df"
+  },
+  "restrictions": [
+    "same checkout only; no environments, worktrees, scratch, cache, target, compiler, Cargo, tests, builds, formatter, Lake or nested CLI",
+    "preserve exact R66 Root type, original A/B, source/native coordinates and accepted semantics",
+    "derive Root and BeforeAncestry from primitive indexed records; do not assume Root, BeforeAncestry or successful readRoot",
+    "at most two separately committed and pushed exact-input Lean stdin audits, each <=120 seconds",
+    "complete theorem types and transitive axiom reports; reject sorryAx, project axioms, Classical.choice and native-evaluation shortcuts",
+    "preserve 32 pending items, UNKNOWN observations and quarantined leases"
+  ]
+}

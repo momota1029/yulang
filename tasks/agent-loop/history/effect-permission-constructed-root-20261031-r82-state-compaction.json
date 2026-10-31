@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "action": "compact_terminal_frozen_leases",
+  "sprint": "EFFECT-PERMISSION-CONSTRUCTED-ROOT/20261031-R82",
+  "authority": "AGENTS.md substantial-milestone compaction rule; only resolved terminal FROZEN leases removed; no UNKNOWN/QUARANTINED/HELD leases touched",
+  "source_archive": "tasks/agent-loop/history/effect-permission-incidence-repair-20261031-r81-state-archive.json",
+  "source_archive_sha256": "29b3d390d01799a6b7a9657422a52c8dc01e3413f92aa471733b00fa34957c32",
+  "removed_leases": [
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-source-incidence-20261031-r80.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-source-incidence-20261031-r80-inputs-r1.json",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-source-incidence-20261031-r80-admission.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-incidence-r80-proof.md",
+      "owner": "/root/r80_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-incidence-r80-rust.md",
+      "owner": "/root/r80_rust",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-source-incidence-r80-review.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-incidence-repair-20261031-r81.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-incidence-repair-20261031-r81-inputs-r1.json",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-incidence-repair-20261031-r81-admission.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-incidence-repair-r81-proof.md",
+      "owner": "/root/r81_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-incidence-repair-r81-review.md",
+      "owner": "/root/r81_review",
+      "state": "FROZEN"
+    }
+  ],
+  "pending_preserved": 32,
+  "quarantined_preserved": 12,
+  "unknown_worker_rows_preserved": 14,
+  "removed_terminal_workers": [
+    {
+      "id": "/root/r80_proof",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root/r80_rust",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root/r80_review",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root/r81_proof",
+      "role": "registered lean_prover; proof only",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "EFFECT-PERMISSION-INCIDENCE-REPAIR/20261031-R81",
+      "receipt": "STOPPED; r2 frozen; no Lean run."
+    },
+    {
+      "id": "/root/r81_review",
+      "role": "fresh independent read-only review",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "EFFECT-PERMISSION-INCIDENCE-REPAIR/20261031-R81",
+      "receipt": "RUNNING; independent audit2 receipt review."
+    }
+  ],
+  "terminal_worker_compaction_note": "Removed these STOPPED R80/R81 author/reviewer rows from live current.json; exact rows remain in the authenticated source archive."
+}
