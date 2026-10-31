@@ -76,3 +76,208 @@ The primary independently reconstructed the bytes with dependency-first order `O
 - This is the final permitted invocation (**call 2/2**). No Lake/build/test/cache/scratch/worktree/project-copy/environment action is authorized.
 
 The repaired proof handoff and frozen candidate are committed and pushed at `82a6f04d0`. This second exact-input authorization is committed and will be pushed as a separate commit before the primary invokes Lean. The result will be appended below; no theorem is accepted until the complete stdout has no errors and all six types/axiom lists are audited.
+
+## Primary Lean audit receipt — call 2 of 2
+
+- Exact input: **137,750 bytes**, SHA-256 `3ab0d68ec6ceaec30b391d9ee5aa58306b338692ebc660f9960b898e96370eba`.
+- Frozen candidate: 11,964 bytes, SHA-256 `cd836e6b12a4deff0e5acf83523faedfb883240b6d019f17ec5a7d294b8c205a`.
+- Executable: `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean`, SHA-256 `bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38`; Lean 4.35.0, commit `eb6cafb7290e8bd5f2937522d8d804f58f02bafc`.
+- Args `-j1 -M1024 --stdin`; cwd `notes/theory/lean`; `LEAN_NUM_THREADS=1`; hard timeout 120 seconds.
+- Result: exit **0**, timeout **false**, elapsed **15.340572s**.
+- Complete stdout: **12,150 bytes**, SHA-256 `c46535a3b1822a02893fea0d22df2707b7ab90ee4dea3f1304a65024df0c03a2`.
+- Complete stderr: **0 bytes**, SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+
+The six requested declarations and their full standard axiom reports are:
+
+| Declaration | `#print axioms` |
+|---|---|
+| `app_rule` | `propext, Classical.choice, Quot.sound` |
+| `app_witness_scope_fields` | `propext` |
+| `app_core_iff` | `propext, Classical.choice, Quot.sound` |
+| `app_derivation_iff` | `propext, Classical.choice, Quot.sound` |
+| `installed_call_app_atom` | `propext, Quot.sound` |
+| `reference_insertion_whole_action` | `propext` |
+
+No errors or warnings appeared. All six `#check` commands printed theorem types matching the frozen source declarations: annotation-aware App rule equality; all original environment fields under one logical witness; exact App core equivalence with one admitted witness, every premise, and both children; full annotated App derivation equivalence; installed Call static-incidence atom membership; and reference insertion preserving the original introduction/owner/receiver/import classification and applying the whole substitution once. No `sorryAx`, project axiom, or kernel-bypass declaration appeared in the complete stdout. The four original R89 theorem statements remain unchanged; the two new declarations instantiate only the constructor-derived static evidence. These results do not construct the missing original whole registration/Gen-Call-0 supplier or close the parent A/B theorem.
+
+The primary execution output was complete at the recorded byte length and digest. This receipt preserves all six emitted types by reference to the frozen declarations, the full axiom lists, and the output hash. The independent result audit is pending.
+
+### Complete stdout bytes (call 2)
+
+```text
+def YulangClosure.SourceRegistrationAppBridgeR90.appPremises : YulangClosure.OriginalSource.Site →
+  YulangClosure.OriginalSource.Context →
+    YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression →
+      YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression →
+        List YulangClosure.OriginalSource.Premise :=
+fun site context callee argument =>
+  List.map
+      (fun kind =>
+        YulangClosure.OriginalSource.Premise.atom
+          (YulangClosure.OriginalSource.atom kind site context [callee.site, argument.site]))
+      ([YulangClosure.OriginalSource.AtomKind.descriptorFormation,
+          YulangClosure.OriginalSource.AtomKind.wholeArgumentCompatibility,
+          YulangClosure.OriginalSource.AtomKind.completeCallCertificate,
+          YulangClosure.OriginalSource.AtomKind.sourceCallIncidence,
+          YulangClosure.OriginalSource.AtomKind.callableImage] ++
+        if YulangClosure.OriginalSource.singletonFormalCall context callee argument = true then
+          [YulangClosure.OriginalSource.AtomKind.roleAndInitialCallOrigin]
+        else []) ++
+    [YulangClosure.OriginalSource.Premise.checking
+        { mode := YulangClosure.OriginalSource.CheckMode.value, site := site, context := context,
+          lower := { site := callee.site, port := YulangClosure.OriginalSource.Port.returnedValue },
+          upper := { site := site, port := YulangClosure.OriginalSource.Port.descriptor } },
+      YulangClosure.OriginalSource.Premise.checking
+        { mode := YulangClosure.OriginalSource.CheckMode.computation, site := site, context := context,
+          lower := { site := site, port := YulangClosure.OriginalSource.Port.callableImage },
+          upper := { site := site, port := YulangClosure.OriginalSource.Port.synthesis } }]
+def YulangClosure.SourceRegistrationAppBridgeR90.appCore : YulangClosure.OriginalSource.Site →
+  YulangClosure.OriginalSource.Context →
+    YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression →
+      YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression →
+        YulangClosure.OriginalSource.RuleTree :=
+fun site context callee argument =>
+  YulangClosure.OriginalSource.RuleTree.existsE
+    { site := site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic }
+    (YulangClosure.OriginalSource.RuleTree.rule YulangClosure.OriginalSource.Rule.app site context
+      (YulangClosure.SourceRegistrationAppBridgeR90.appPremises site context callee argument)
+      (YulangClosure.OriginalSource.RuleForest.two (YulangClosure.OriginalSource.sourceRules context callee)
+        (YulangClosure.OriginalSource.sourceRules context argument)))
+def YulangClosure.SourceRegistrationAppBridgeR90.annotationPremises : YulangClosure.OriginalSource.Site →
+  YulangClosure.OriginalSource.Context →
+    YulangClosure.OriginalSource.Annotation → List YulangClosure.OriginalSource.Premise :=
+fun site context target =>
+  [YulangClosure.OriginalSource.Premise.atom
+      (have __src :=
+        YulangClosure.OriginalSource.atom YulangClosure.OriginalSource.AtomKind.finalAnnotationFormation site context;
+      { kind := __src.kind, site := __src.site, context := __src.context, operands := __src.operands,
+        order := __src.order, names := __src.names, declaration := __src.declaration, annotation := some target,
+        annotations := __src.annotations, labels := __src.labels, flag := __src.flag, arity := __src.arity,
+        merges := __src.merges, literal := __src.literal, entry := __src.entry, binding := __src.binding }),
+    YulangClosure.OriginalSource.Premise.boundary site context
+      { site := site, port := YulangClosure.OriginalSource.Port.synthesis }
+      { site := site, port := YulangClosure.OriginalSource.Port.writtenTarget }]
+YulangClosure.SourceRegistrationAppBridgeR90.app_rule : ∀ (mark : YulangClosure.OriginalSource.Mark)
+  (context : YulangClosure.OriginalSource.Context)
+  (callee argument : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression),
+  YulangClosure.OriginalSource.sourceRules context (YulangClosure.OriginalSource.Source.app mark callee argument) =
+    match mark.annotation with
+    | none => YulangClosure.SourceRegistrationAppBridgeR90.appCore mark.site context callee argument
+    | some target =>
+      YulangClosure.OriginalSource.RuleTree.rule YulangClosure.OriginalSource.Rule.annotation mark.site context
+        (YulangClosure.SourceRegistrationAppBridgeR90.annotationPremises mark.site context target)
+        (YulangClosure.OriginalSource.RuleForest.one
+          (YulangClosure.SourceRegistrationAppBridgeR90.appCore mark.site context callee argument))
+'YulangClosure.SourceRegistrationAppBridgeR90.app_rule' depends on axioms: [propext, Classical.choice, Quot.sound]
+@YulangClosure.SourceRegistrationAppBridgeR90.app_witness_scope_fields : ∀ {Value : Type}
+  (environment : YulangClosure.OriginalSource.Environment Value) (site : YulangClosure.OriginalSource.Site)
+  (witness : YulangClosure.OriginalSource.ScopedValue Value),
+  have next := environment.extend { site := site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic } witness;
+  next.root = environment.root ∧
+    next.anchors = environment.anchors ∧
+      next.publications = environment.publications ∧
+        next.origin = environment.origin ∧
+          next.eventPath = environment.eventPath ∧
+            next.names = environment.names ∧
+              next.frames =
+                  environment.frames ++
+                    [{ binder := { site := site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic },
+                        value := witness, entryPath := environment.eventPath }] ∧
+                next.replay = environment.replay ∧ next.initializers = environment.initializers
+'YulangClosure.SourceRegistrationAppBridgeR90.app_witness_scope_fields' depends on axioms: [propext]
+@YulangClosure.SourceRegistrationAppBridgeR90.app_core_iff : ∀ {Value : Type}
+  (kernel : YulangClosure.OriginalSource.Kernel Value) (environment : YulangClosure.OriginalSource.Environment Value)
+  (site : YulangClosure.OriginalSource.Site) (context : YulangClosure.OriginalSource.Context)
+  (callee argument : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression),
+  YulangClosure.OriginalSource.Judgment kernel environment
+      (YulangClosure.SourceRegistrationAppBridgeR90.appCore site context callee argument) ↔
+    ∃ witness,
+      kernel.admitted environment { site := site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic } witness ∧
+        (∀ (premise : YulangClosure.OriginalSource.Premise),
+            premise ∈ YulangClosure.SourceRegistrationAppBridgeR90.appPremises site context callee argument →
+              YulangClosure.OriginalSource.Local kernel
+                (environment.extend { site := site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic } witness)
+                premise) ∧
+          YulangClosure.OriginalSource.SourceJudgment kernel
+              (environment.extend { site := site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic } witness)
+              context callee ∧
+            YulangClosure.OriginalSource.SourceJudgment kernel
+              (environment.extend { site := site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic } witness)
+              context argument
+'YulangClosure.SourceRegistrationAppBridgeR90.app_core_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+@YulangClosure.SourceRegistrationAppBridgeR90.app_derivation_iff : ∀ {Value : Type}
+  (kernel : YulangClosure.OriginalSource.Kernel Value) (environment : YulangClosure.OriginalSource.Environment Value)
+  (mark : YulangClosure.OriginalSource.Mark) (context : YulangClosure.OriginalSource.Context)
+  (callee argument : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression),
+  YulangClosure.OriginalSource.SourceJudgment kernel environment context
+      (YulangClosure.OriginalSource.Source.app mark callee argument) ↔
+    (match mark.annotation with
+      | none => True
+      | some target =>
+        ∀ (premise : YulangClosure.OriginalSource.Premise),
+          premise ∈ YulangClosure.SourceRegistrationAppBridgeR90.annotationPremises mark.site context target →
+            YulangClosure.OriginalSource.Local kernel environment premise) ∧
+      ∃ witness,
+        kernel.admitted environment { site := mark.site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic }
+            witness ∧
+          (∀ (premise : YulangClosure.OriginalSource.Premise),
+              premise ∈ YulangClosure.SourceRegistrationAppBridgeR90.appPremises mark.site context callee argument →
+                YulangClosure.OriginalSource.Local kernel
+                  (environment.extend { site := mark.site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic }
+                    witness)
+                  premise) ∧
+            YulangClosure.OriginalSource.SourceJudgment kernel
+                (environment.extend { site := mark.site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic }
+                  witness)
+                context callee ∧
+              YulangClosure.OriginalSource.SourceJudgment kernel
+                (environment.extend { site := mark.site, kind := YulangClosure.OriginalSource.BinderKind.viewLogic }
+                  witness)
+                context argument
+'YulangClosure.SourceRegistrationAppBridgeR90.app_derivation_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@YulangClosure.SourceRegistrationAppBridgeR90.installed_call_app_atom : ∀ {Joint : Type}
+  (graph : YulangClosure.SourceSignatureConstruction.Graph Joint) (context : YulangClosure.OriginalSource.Context)
+  (mark : YulangClosure.OriginalSource.Mark)
+  (callee argument : YulangClosure.OriginalSource.Source YulangClosure.OriginalSource.Category.expression)
+  (regions : YulangClosure.SourceSignatureConstruction.CallRegions Joint)
+  (locals : List (YulangClosure.SourceSignatureConstruction.Introduction Joint))
+  (result : YulangClosure.SourceSignatureConstruction.Catalogue Joint),
+  YulangClosure.OriginalSource.Premise.atom
+        (YulangClosure.SourceSignatureConstruction.callAtom context mark callee argument) ∈
+      YulangClosure.SourceRegistrationAppBridgeR90.appPremises mark.site context callee argument ∧
+    YulangClosure.SourceSignatureConstruction.StaticCallIncidence
+      (YulangClosure.SourceSignatureConstruction.installCall graph context mark callee argument regions locals result)
+      (YulangClosure.SourceSignatureConstruction.callAtom context mark callee argument)
+'YulangClosure.SourceRegistrationAppBridgeR90.installed_call_app_atom' depends on axioms: [propext, Quot.sound]
+@YulangClosure.SourceRegistrationAppBridgeR90.reference_insertion_whole_action : ∀ {Joint : Type}
+  (graph : YulangClosure.SourceSignatureConstruction.Graph Joint) (index target receiver clause : Nat)
+  (site : YulangClosure.OriginalSource.Site) (substitution : Nat)
+  (result : YulangClosure.SourceSignatureConstruction.Catalogue Joint)
+  (found :
+    graph.node index = some (YulangClosure.SourceSignatureConstruction.Node.reference site target substitution result))
+  (occurrence : YulangClosure.SourceSignatureConstruction.Occurrence graph target) (whole : Joint),
+  have moved := YulangClosure.SourceSignatureConstruction.contextual found ⋯ occurrence;
+  have placed := YulangClosure.SourceSignatureConstruction.insert graph receiver clause moved;
+  placed.intro = occurrence.intro ∧
+    placed.owner = occurrence.owner ∧
+      placed.receiver = graph.registration receiver ∧
+        placed.inherited = true ∧
+          YulangClosure.SourceSignatureConstruction.routeAction graph placed.route whole =
+            YulangClosure.SourceSignatureConstruction.routeAction graph occurrence.route
+              (graph.substitution substitution whole)
+'YulangClosure.SourceRegistrationAppBridgeR90.reference_insertion_whole_action' depends on axioms: [propext]
+```
+
+## Independent result review — call 2
+
+Reviewer: `/root/r86_independent_review`, independent read-only reviewer, neither author nor primary. Verdict: **PASS** for the six bounded declarations in the exact flattened input.
+
+The reviewer extracted the fenced stdout stream and independently verified 12,150 bytes and SHA-256 `c46535a3b1822a02893fea0d22df2707b7ab90ee4dea3f1304a65024df0c03a2`. It reconstructed the 137,750-byte stdin at SHA-256 `3ab0d68ec6ceaec30b391d9ee5aa58306b338692ebc660f9960b898e96370eba`, rehashed the unchanged candidate and executable, and matched process exit 0, no timeout, settings, and empty stderr.
+
+Exactly six unique theorem types and six complete axiom reports were emitted. The reviewer found zero errors, warnings, missing/duplicate reports, `sorryAx`, project axioms, native shortcuts, or bypasses. It compared every emitted type with the candidate: the App rule retains both annotation branches; environment-field preservation has all nine equations; core inversion uses one admitted witness for all premises and both children; full derivation inversion combines incoming-environment annotation obligations with that same witness; the installed Call result proves premise membership and constructor-built static incidence only; and reference insertion retains the actual found reference/occurrence, introduction, owner, registered receiver, import classification, and one whole-substitution action.
+
+Confirmed axiom lists: `app_rule`, `app_core_iff`, `app_derivation_iff` — `propext, Classical.choice, Quot.sound`; `app_witness_scope_fields`, `reference_insertion_whole_action` — `propext`; `installed_call_app_atom` — `propext, Quot.sound`. These are standard Lean axioms, not axiom-free results.
+
+Call 1 remains a failed assembly attempt; no candidate or dependency declaration changed. The topological reorder removed the private-node name-resolution collision, and the unchanged final declaration now prints cleanly. The result does not certify standalone imports, concrete original registration/Gen-Call-0 suppliers, native extraction, joint lift, A/B, or production. Calls consumed: **2/2**. The reviewer ran no Lean/build/tests and performed no writes or Git operations.
