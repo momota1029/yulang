@@ -40,3 +40,21 @@ The primary independently reconstructed the in-memory input using the same recip
 - No Lake command, build, test, cache generation, scratch file, worktree, project copy, or environment creation is authorized for this call.
 
 The reviewed candidate and handoff are committed and pushed before execution. This exact-input authorization is pushed separately before the primary invokes Lean. The complete exit, stdout, stderr, printed types and axiom reports will be appended here as the call-1 audit receipt.
+
+## Primary Lean audit receipt — call 1 of at most 2
+
+- Input: 137,750 bytes; SHA-256 `c43394385c4bec30c0ca35077d2ae7f0308ece6a7a26305ed2665d9f3a46fe1b`; executable SHA-256 `bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38`; Lean 4.35.0, commit `eb6cafb7290e8bd5f2937522d8d804f58f02bafc`.
+- Args: `-j1 -M1024 --stdin`; cwd `notes/theory/lean`; `LEAN_NUM_THREADS=1`; hard timeout 120 seconds.
+- Result: exit **1**, timeout **false**, elapsed **11.336706s**.
+- Stdout: **39,307 bytes**, SHA-256 `0a951e21fa2f9150084c8e5e09496c6ae0f22b449f50a6da89a925ff5e511075`.
+- Stderr: **0 bytes**, SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+
+### Failure classification
+
+The concatenated source did not preserve module privacy for `OriginalSourceGeneration.private def node`. In the single stdin module, this private helper collided with auto-implicit `node` binders in `SourceSignatureConstruction`. The first diagnostics occur at `<stdin>:1922`–`1939`: `PortProv`/`Developed` constructor arguments resolve to the private `node` function, then `node.introductions` and the graph-local node fields fail. This cascades into unknown `Occurrence`, `PortProv`, `Developed`, `SupportPath`, `BuiltPath`, `PortProv`, and other source-signature declarations, and prevents the final `reference_insertion_whole_action` declaration from being available.
+
+The candidate's printed prefix includes `app_rule` (`propext, Classical.choice, Quot.sound`), `app_witness_scope_fields` (`propext`), `app_core_iff` (`propext, Classical.choice, Quot.sound`), `app_derivation_iff` (`propext, Classical.choice, Quot.sound`), and `installed_call_app_atom` (`propext, Quot.sound`). Those reports came after source-file errors and therefore do **not** constitute accepted theorem results. The final theorem was unknown; the candidate as a whole was not accepted. No conclusion about A/B or the original source obligation follows.
+
+The exact stdout was emitted in the primary execution receipt above; this file retains its byte length and digest plus the full failure classification, but not a second byte-for-byte copy. No Lean/build/test/cache/scratch/worktree/project-copy/environment output was created.
+
+Call 1 is consumed. The proof author is preparing a deterministic, semantics-preserving flattening repair for review. No second invocation is authorized by this receipt.
