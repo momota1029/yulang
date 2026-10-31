@@ -14,7 +14,11 @@
       "crates/yu-solver/src/candidate_scheme.rs",
       "crates/yu-solver/src/shadow_apply.rs",
       "crates/yu-solver/src/shadow_apply/local_source_observation.rs",
-      "crates/yu-solver/src/candidate_native_inventory_tests.rs"
+      "crates/yu-solver/src/candidate_native_inventory_tests.rs",
+      "crates/yu-solver/src/candidate_intrusion.rs",
+      "crates/yu-solver/src/candidate_effect.rs",
+      "crates/yu-solver/src/candidate_intrusion.rs",
+      "crates/yu-solver/src/candidate_effect.rs"
     ],
     "scope": "whole pinned Rust files; source-only, no tests/builds"
   },
@@ -218,6 +222,18 @@
           84
         ]
       ]
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_intrusion.rs",
+      "bytes": 31786,
+      "sha256": "475edf15acbb5d986b5aebd1cb22b9c5fad61c50811690a763b39ff003cccd97",
+      "scope": "defaults, initialize, rollback, state replacement/restoration and direct receipt/completion dependencies only; no recursive expansion"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_effect.rs",
+      "bytes": 354102,
+      "sha256": "75267bd1a195121ca79addb62b2a446a4b1b26afcc11e8c70aa1fa732c9e2909",
+      "scope": "defaults, initialize, rollback, state replacement/restoration and direct receipt/completion dependencies only; no recursive expansion"
     }
   ],
   "prior_evidence": {
@@ -256,7 +272,20 @@
   "source_lane": {
     "role": "researcher read-only",
     "output": "tasks/agent-loop/inbox/effect-permission-native-receipt-join-r86-source.md",
-    "status": "NOT_STARTED"
+    "status": "NOT_STARTED",
+    "reads": [
+      "crates/yu-solver/src/candidate_context.rs",
+      "crates/yu-solver/src/lib.rs",
+      "crates/yu-solver/src/candidate_receiver.rs",
+      "crates/yu-solver/src/candidate_scheme.rs",
+      "crates/yu-solver/src/shadow_apply.rs",
+      "crates/yu-solver/src/shadow_apply/local_source_observation.rs",
+      "crates/yu-solver/src/candidate_native_inventory_tests.rs",
+      "crates/yu-solver/src/candidate_intrusion.rs",
+      "crates/yu-solver/src/candidate_effect.rs",
+      "crates/yu-solver/src/candidate_intrusion.rs",
+      "crates/yu-solver/src/candidate_effect.rs"
+    ]
   },
   "review_path": "tasks/agent-loop/inbox/effect-permission-native-receipt-join-r86-review.md",
   "resources_seconds": {
@@ -282,5 +311,23 @@
     "production promotion",
     "claiming original A/B or standalone module closure",
     "new environment/worktree/cache/target/scratch"
+  ],
+  "amendments": [
+    {
+      "path": "tasks/agent-loop/history/native-receipt-join-20261031-r86-amendment-01.md",
+      "sha256": "7c83569391ab2ec87d81365d87681dcc3366189bb1acc0e3015be52d0521c9b5",
+      "added_inputs": [
+        {
+          "path": "crates/yu-solver/src/candidate_intrusion.rs",
+          "sha256": "475edf15acbb5d986b5aebd1cb22b9c5fad61c50811690a763b39ff003cccd97"
+        },
+        {
+          "path": "crates/yu-solver/src/candidate_effect.rs",
+          "sha256": "75267bd1a195121ca79addb62b2a446a4b1b26afcc11e8c70aa1fa732c9e2909"
+        }
+      ],
+      "added_source_seconds_max": 300,
+      "additional_budget_reset": false
+    }
   ]
 }
