@@ -470,6 +470,10 @@ pub(super) struct SourceInternalProjection<'a> {
     pub(super) component_terms: Vec<(usize, &'a ComponentId, Term)>,
     pub(super) semantic_facts: Vec<(usize, &'a SemanticFact)>,
     pub(super) internal_incidence: InternalFormalPermissionIncidence<'a>,
+    /// The R77 source-derived choice joined to the native incidence below.
+    /// Its borrowed use, origin, registration and Lambda recipe are checked
+    /// against the exact records selected by the native permission path.
+    pub(super) internal_owner_choice: InventoryInternalOwnerChoice<'a>,
 }
 
 /// A checked owner-local coordinate for one collected source call.  The
@@ -4121,14 +4125,74 @@ impl<'a> SourceInternalProjection<'a> {
                 .then_some(source.source)
         })?;
         let internal_incidence = owner.internal_formal_permission_incidence()?;
+        let internal_owner_choice = owner.internal_owner_choice()?;
         let permission = &internal_incidence.permission;
         let registration_index = permission.registration;
         let registration = batch.candidate_calls.formals.get(registration_index)?;
+        let choice_registration = batch.candidate_calls.formals.get(internal_owner_choice.registration_index)?;
+        let choice_recipe = batch.lambda_recipes.get(internal_owner_choice.recipe_index)?;
+        let parameter_recipe = batch.parameter_recipes.get(internal_owner_choice.parameter_recipe_index)?;
+        if !std::ptr::eq(internal_owner_choice.use_record, internal_incidence.use_record)
+            || internal_owner_choice.use_index >= batch.definition_uses().len()
+            || batch.definition_uses().get(internal_owner_choice.use_index)
+                .is_none_or(|record| !std::ptr::eq(record, internal_owner_choice.use_record))
+            || internal_owner_choice.use_record.id() != internal_owner_choice.use_id
+            || internal_owner_choice.source_owner != &SourceRootId::Definition(owner.schema.answer.clone())
+            || internal_owner_choice.target_owner != &SourceRootId::Definition(owner.schema.relay.clone())
+            || internal_incidence.receiving_owner != &owner.schema.answer
+            || internal_incidence.target_owner != &owner.schema.relay
+            || internal_owner_choice.source_call_index >= batch.candidate_calls.calls.len()
+            || batch.candidate_calls.calls.get(internal_owner_choice.source_call_index)
+                .is_none_or(|call| !std::ptr::eq(call, internal_owner_choice.source_call))
+            || internal_owner_choice.source_call.owner != *internal_owner_choice.source_owner
+            || internal_owner_choice.source_call.checking.occurrence() != internal_owner_choice.apply_occurrence
+            || internal_owner_choice.callee_name_occurrence != internal_owner_choice.use_record.occurrence()
+            || internal_owner_choice.registration_index != registration_index
+            || !std::ptr::eq(internal_owner_choice.registration, registration)
+            || !std::ptr::eq(internal_owner_choice.registration, choice_registration)
+            || internal_owner_choice.registration.role != candidate_call::FormalRole::Computation
+            || internal_owner_choice.registration.owner != *internal_owner_choice.target_owner
+            || internal_owner_choice.origin_index >= owner.session.candidate_graph.as_ref()?
+                .intrusion.effect_algebra.context.lambda_argument_effects.len()
+            || owner.session.candidate_graph.as_ref()?.intrusion.effect_algebra
+                .context.lambda_argument_effects.get(internal_owner_choice.origin_index)
+                .is_none_or(|origin| !std::ptr::eq(origin, internal_owner_choice.origin))
+            || !std::ptr::eq(internal_owner_choice.origin, internal_incidence.lambda_origin)
+            || internal_owner_choice.origin.registration != registration_index
+            || !std::ptr::eq(internal_owner_choice.recipe, choice_recipe)
+            || choice_recipe.formal_registration != Some(registration_index)
+            || choice_recipe.occurrence != internal_owner_choice.origin.lambda
+            || choice_recipe.occurrence != permission.occurrence
+            || choice_recipe.root_component != internal_owner_choice.plan.target_root_component
+            || internal_owner_choice.parameter_recipe_index != registration.recipe_position
+            || !std::ptr::eq(internal_owner_choice.parameter_recipe, parameter_recipe)
+            || parameter_recipe != &registration.parameter
+            || internal_owner_choice.parameter_native_root != registration.native_root
+            || internal_owner_choice.registered_lambda_root
+                != batch.component_term_at(choice_recipe.root_component)
+            || internal_owner_choice.registered_lambda_root != internal_incidence.lambda_fact.upper()
+            || internal_owner_choice.registered_lambda_root != internal_incidence.internal_fact.lower()
+            || internal_incidence.internal_fact.upper() != internal_owner_choice.plan.use_value
+            || internal_owner_choice.plan.target_owner != internal_owner_choice.target_owner
+            || internal_owner_choice.plan.target_root_component != choice_recipe.root_component
+            || internal_owner_choice.plan.target_root != internal_owner_choice.registered_lambda_root
+            || batch.component_term_at(internal_owner_choice.plan.target_root_component)
+                != internal_owner_choice.registered_lambda_root
+            || permission.formal != &registration.parameter
+            || permission.parameter != registration.recipe_position
+            || permission.source_owner != &registration.owner
+            || permission.scope != &registration.scope
+            || permission.entry_effect != registration.entry_effect?
+        {
+            return None;
+        }
         let mut matching_recipes = batch.lambda_recipes.iter().enumerate().filter(|(_, recipe)| {
             recipe.formal_registration == Some(registration_index)
         });
         let (recipe_index, recipe) = matching_recipes.next()?;
         if matching_recipes.next().is_some()
+            || recipe_index != internal_owner_choice.recipe_index
+            || !std::ptr::eq(recipe, internal_owner_choice.recipe)
             || recipe.occurrence != internal_incidence.lambda_origin.lambda
             || recipe.root_component != internal_incidence.use_record.target_root_component
             || recipe.root_component >= batch.component_terms.len()
@@ -4245,6 +4309,7 @@ impl<'a> SourceInternalProjection<'a> {
             },
             semantic_facts: collect_owned_borrowed_inventory(owner.session.store.facts().iter().enumerate())?,
             internal_incidence,
+            internal_owner_choice,
         };
         projection.verify_owner_round_trips().then_some(projection)
     }
@@ -4264,6 +4329,48 @@ impl<'a> SourceInternalProjection<'a> {
             || !borrowed_inventory_matches(batch.definition_uses().iter().enumerate(), &self.definition_uses)
             || !borrowed_inventory_matches(owner.session.routed_uses.iter().enumerate(), &self.routed_uses)
             || !borrowed_inventory_matches(owner.session.store.facts().iter().enumerate(), &self.semantic_facts)
+        {
+            return false;
+        }
+        let choice = &self.internal_owner_choice;
+        let incidence = &self.internal_incidence;
+        let Some((use_index, use_record)) = self.definition_uses.get(choice.use_index) else { return false; };
+        let Some((call_index, source_call)) = self.calls.get(choice.source_call_index) else { return false; };
+        let Some((registration_index, registration)) = self.formal_registrations.get(choice.registration_index) else { return false; };
+        let Some((recipe_index, recipe)) = self.lambda_recipes.get(choice.recipe_index) else { return false; };
+        let Some((parameter_recipe_index, parameter_recipe)) = self.parameter_recipes.get(choice.parameter_recipe_index) else { return false; };
+        if *use_index != choice.use_index
+            || *call_index != choice.source_call_index
+            || *registration_index != choice.registration_index
+            || *recipe_index != choice.recipe_index
+            || *parameter_recipe_index != choice.parameter_recipe_index
+            || !std::ptr::eq(*use_record, choice.use_record)
+            || !std::ptr::eq(*use_record, incidence.use_record)
+            || !std::ptr::eq(*source_call, choice.source_call)
+            || !std::ptr::eq(*registration, choice.registration)
+            || !std::ptr::eq(*recipe, choice.recipe)
+            || !std::ptr::eq(*parameter_recipe, choice.parameter_recipe)
+            || !std::ptr::eq(choice.origin, incidence.lambda_origin)
+            || choice.registration_index != incidence.permission.registration
+            || choice.recipe.formal_registration != Some(choice.registration_index)
+            || choice.parameter_recipe_index != registration.recipe_position
+            || choice.parameter_recipe != &registration.parameter
+            || choice.source_call.owner != *choice.source_owner
+            || choice.source_call.checking.occurrence() != choice.apply_occurrence
+            || choice.callee_name_occurrence != choice.use_record.occurrence()
+            || choice.target_owner != &SourceRootId::Definition(incidence.target_owner.clone())
+            || choice.source_owner != &SourceRootId::Definition(incidence.receiving_owner.clone())
+            || choice.target_owner != &registration.owner
+            || choice.recipe.occurrence != incidence.permission.occurrence
+            || choice.parameter_recipe != incidence.permission.formal
+            || choice.registration.scope != *incidence.permission.scope
+            || choice.registration.recipe_position != incidence.permission.parameter
+            || choice.registration.entry_effect != Some(incidence.permission.entry_effect)
+            || choice.registered_lambda_root != incidence.lambda_fact.upper()
+            || choice.registered_lambda_root != incidence.internal_fact.lower()
+            || choice.plan.target_root != choice.registered_lambda_root
+            || choice.plan.target_root_component != choice.recipe.root_component
+            || incidence.internal_fact.upper() != choice.plan.use_value
         {
             return false;
         }
