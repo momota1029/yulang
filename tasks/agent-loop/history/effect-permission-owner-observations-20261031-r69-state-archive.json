@@ -99,8 +99,8 @@
     "verdict": "PASS_EXACT_DELTA",
     "state": "STOPPED",
     "rust_compilation": "OPEN_NOT_RUN",
-    "repair_commit": null,
-    "repair_pushed": false
+    "repair_commit": "a268cf75a",
+    "repair_pushed": true
   },
   "post_closeout_workers": [
     {
