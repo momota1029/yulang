@@ -148,3 +148,19 @@ No invocation has occurred as of this authorization. The subsequent committed re
 ```
 
 Audit 1 failed with exit 1 after 9.973 seconds; it did not time out. The exact output above is retained in full. The first blocking diagnostic is `unknown namespace CurrentEmissionOwnershipR47`: audit input construction omitted the pinned R47 module body, a direct dependency of R75. The resulting downstream errors are dependency fallout; no R82 theorem is accepted from this run. Audit 2 may correct only the flattened dependency closure by inserting the pinned R47 body (whose sole import, R45, is already present in the retained R81 prefix), then repeat the same R82 source and theorem queries. The proof module itself has not changed.
+
+## R82 exact Lean audit 2 authorization
+
+Audit 1's complete failed receipt is preserved above and consumed the first allowed audit. The only input-construction defect was omission of the direct pinned dependency `CurrentEmissionOwnershipR47`; no proof-module edits are made. Audit 2 adds that exact module body, with its sole `InternalPermissionIncidenceR45` import removed because R45 is already in the retained R81 prefix. It then appends the unchanged R75 body, unchanged R82 body, and the same thirteen complete-type and transitive-axiom query pairs.
+
+- Exact stdin length: 160,742 bytes.
+- Exact stdin SHA-256: `8473e4bea9dd0ae9906d9c513c4a5e76702e637004aa7efa52ff991a871b9df7`.
+- R81 retained prefix: 109,314 bytes; SHA-256 `dba59b391e9a2cfb982bc0e4c97102decdd7ea3ba5414d173f26c2abd47e56e7`.
+- R47 module SHA-256 `d64c54f7c977e110305a76e6437fc87c8ff14201a4d69eb0bbcb5ee0e1cd8b9c`; direct import is R45, present in the prefix.
+- R75 module SHA-256 `e868eb6bc6cba74af4f3096cc7fb2e48503c8183e064071b84022923c2bc6821`.
+- R82 module SHA-256 `9c1bd4d8f6c22f7bd79acd661c76255c3ba86d52ba9afd3b15fb4e8761c3fdc4`.
+- Lean executable SHA-256 remains `bf8d54e4714cc4b03d3f6bb34c83b7202b87e49c8bfcbff6895c085bb90ceb38`.
+- Exact command: `lean -j1 -M1024 --stdin` from `notes/theory/lean`, with `LEAN_NUM_THREADS=1`; timeout 120 seconds.
+- Primary authorization with this exact hash was pushed in commit `fbf95bb7b` before invocation. This is audit 2 of 2; no further audit is authorized.
+
+The input is passed via process stdin without scratch files. No invocation has occurred as of this authorization. Preserve its complete output and status below. A failed run accepts no theorem.
