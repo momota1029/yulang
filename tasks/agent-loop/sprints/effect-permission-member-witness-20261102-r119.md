@@ -24,7 +24,7 @@ Lean result must construct membership from the exact successful ordered search a
 
 ## Frozen inputs
 
-- R117 patch: `tasks/agent-loop/inbox/effect-permission-native-decoder-r117.patch`, SHA-256 `c3858b35433433806e7f8a01f27c12ab5491a8116e6e88c2b1e32a6ccf5beab1`.
+- R117 patch: `tasks/agent-loop/artifacts/effect-permission-native-decoder-r117.patch`, SHA-256 `c3858b35433433806e7f8a01f27c12ab5491a8116e6e88c2b1e32a6ccf5beab1`.
 - R117 handoff/review2: `6557b368fb1f092d5c4151cb54d74c7dd61c92153105e8720b17189c1efd128e` / `a47cfe5a54cc2d22b3fcd2834bed3f3c959ba85cfcb28cf38ed095db06488664`.
 - R118 Lean candidate/review: `2ebb7797c683b2bbf51d746f89d58d9abc4be66b5520fe6c0f4c6007a70d82ab` / `bee20cccf34f82388f5f68836e95865c1f878381c45f0fa7df7a95cce8d0ef7b`.
 - R118 corrected Rust integration handoff/review: `edec3e3d1747b9b4c78ea6ce19c9cc19de9db1f1ac113e4001c230db9249fd2f` / `d82023743bd5fd0c47d5baf21082aaa702359c787acd8687cc2ebd15177551f5`.
