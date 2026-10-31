@@ -569,6 +569,47 @@ struct InventoryOccurrenceFact<'p, 'a> {
     slot: u32,
 }
 
+/// A first-appearance coordinate for one exact HIR occurrence identity.
+/// Ordinals alone are deliberately insufficient: `HirOccurrenceId::eq`
+/// includes the owning artifact token.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "finite owner-scoped occurrence reification for R67")]
+struct InventoryReifiedOccurrence<'a> {
+    index: u32,
+    occurrence: &'a HirOccurrenceId,
+}
+
+/// One provenance row resolved against the complete borrowed semantic-fact
+/// table. Every provenance row remains a distinct row, even when FactIds
+/// repeat; the original Term endpoints are retained without inventing the
+/// separate raw/canonical endpoint projection required by the Lean record.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "finite owner-scoped fact/provenance reification for R67")]
+struct InventoryReifiedEdge<'a> {
+    edge_index: usize,
+    fact_index: usize,
+    occurrence_index: u32,
+    slot: u32,
+    edge: &'a ProvenanceEdge,
+    fact: &'a SemanticFact,
+    identity: FactId,
+    lower: Term,
+    upper: Term,
+}
+
+/// Private finite reification of the actual borrowed package tables. The
+/// tables stay in owner order; this adds checked exact-occurrence coordinates
+/// and one independently resolved row for every provenance edge.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "finite owner-scoped fact/provenance reification for R67")]
+struct InventoryQualifiedReification<'p, 'a> {
+    owner: &'a ReceivingResidualExperiment,
+    facts: &'p [(usize, &'a SemanticFact)],
+    provenance: &'p [(usize, &'a ProvenanceEdge)],
+    occurrences: Vec<InventoryReifiedOccurrence<'a>>,
+    edges: Vec<InventoryReifiedEdge<'a>>,
+}
+
 /// The owner-derived Internal request and root evidence consumed by the
 /// occurrence-qualified policy/consumer lane. Every fact and route remains a
 /// borrowed record selected from this package's source call and owner tables.
@@ -701,37 +742,142 @@ struct InventoryPackage<'a> {
 
 #[cfg(feature = "shadow-apply-candidate")]
 impl<'a> InventoryPackage<'a> {
+    /// Reify every borrowed fact and provenance row without quotienting
+    /// repeated FactIds. The owner check precedes all occurrence-coordinate
+    /// comparisons so equal local ordinals from distinct HIR artifacts never
+    /// enter the same local key space.
+    fn reify_qualified_facts<'p>(
+        &'p self,
+    ) -> Result<InventoryQualifiedReification<'p, 'a>, candidate_context::CurrentEmissionGap> {
+        let store = &self.session.store;
+        let mut occurrences = Vec::<InventoryReifiedOccurrence<'a>>::new();
+        let mut edges = Vec::<InventoryReifiedEdge<'a>>::new();
+        occurrences.try_reserve_exact(self.provenance.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+        edges.try_reserve_exact(self.provenance.len())
+            .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+
+        for (position, (fact_index, fact)) in self.semantic_facts.iter().enumerate() {
+            let expected_index = u32::try_from(position)
+                .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+            if *fact_index != position || fact.id().index() != expected_index {
+                return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+            }
+        }
+
+        for (position, (edge_index, edge)) in self.provenance.iter().enumerate() {
+            if *edge_index != position {
+                return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+            }
+            let cause_occurrence = edge.cause().occurrence().occurrence();
+            store.require_owned(cause_occurrence)
+                .map_err(|_| candidate_context::CurrentEmissionGap::BoundMismatch)?;
+
+            let occurrence_index = match occurrences.iter().find(|entry| {
+                entry.occurrence == cause_occurrence
+            }) {
+                Some(entry) => entry.index,
+                None => {
+                    let index = u32::try_from(occurrences.len())
+                        .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+                    occurrences.push(InventoryReifiedOccurrence {
+                        index,
+                        occurrence: cause_occurrence,
+                    });
+                    index
+                }
+            };
+            let slot = edge.cause().occurrence().local_slot();
+            if edges.iter().any(|prior| {
+                prior.occurrence_index == occurrence_index && prior.slot == slot
+            }) {
+                return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+            }
+
+            let fact_index = usize::try_from(edge.fact().index())
+                .map_err(|_| candidate_context::CurrentEmissionGap::SearchLimit)?;
+            let (owned_index, fact) = self.semantic_facts.get(fact_index)
+                .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
+            if *owned_index != fact_index || fact.id() != edge.fact() {
+                return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+            }
+            edges.push(InventoryReifiedEdge {
+                edge_index: *edge_index,
+                fact_index,
+                occurrence_index,
+                slot,
+                edge,
+                fact,
+                identity: fact.id(),
+                lower: fact.lower(),
+                upper: fact.upper(),
+            });
+        }
+
+        Ok(InventoryQualifiedReification {
+            owner: self.owner,
+            facts: &self.semantic_facts,
+            provenance: &self.provenance,
+            occurrences,
+            edges,
+        })
+    }
+
     /// Read the unique fact admitted at a source occurrence and local slot.
     /// The selected native fact must be the same owner-table entry, with its
     /// FactId and endpoints preserved by the selected provenance edge.
     fn source_fact_at(
         &self,
+        reification: &InventoryQualifiedReification<'_, 'a>,
         occurrence: &HirOccurrenceId,
         slot: u32,
         selected_native_fact: &SemanticFact,
     ) -> Option<InventoryOccurrenceFact<'_, 'a>> {
-        let mut candidates = self.admitted_fact_occurrences.iter().filter(|row| {
-            row.occurrence == occurrence && row.slot == slot
+        if !std::ptr::eq(reification.owner, self.owner)
+            || reification.facts.as_ptr() != self.semantic_facts.as_ptr()
+            || reification.facts.len() != self.semantic_facts.len()
+            || reification.provenance.as_ptr() != self.provenance.as_ptr()
+            || reification.provenance.len() != self.provenance.len()
+            || self.session.store.require_owned(occurrence).is_err()
+        {
+            return None;
+        }
+        let mut candidates = reification.edges.iter().filter(|row| {
+            usize::try_from(row.occurrence_index).ok()
+                .and_then(|index| reification.occurrences.get(index))
+                .is_some_and(|owner| owner.index == row.occurrence_index
+                    && owner.occurrence == occurrence)
+                && row.slot == slot
         });
-        let row = candidates.next()?;
+        let selected = candidates.next()?;
         if candidates.next().is_some() {
             return None;
         }
 
-        let (fact_index, owned_fact) = self.semantic_facts.get(row.fact_index)?;
-        let (edge_index, owned_edge) = self.provenance.get(row.edge_index)?;
-        if *fact_index != row.fact_index
-            || !std::ptr::eq(*owned_fact, row.fact)
-            || *edge_index != row.edge_index
-            || !std::ptr::eq(*owned_edge, row.edge)
-            || !std::ptr::eq(row.fact, selected_native_fact)
-            || row.edge.cause().occurrence().occurrence() != occurrence
-            || row.edge.cause().occurrence().local_slot() != slot
-            || row.edge.fact() != row.fact.id()
-            || u32::try_from(row.fact_index).ok() != Some(row.fact.id().index())
-            || row.fact.id() != selected_native_fact.id()
-            || row.fact.lower() != selected_native_fact.lower()
-            || row.fact.upper() != selected_native_fact.upper()
+        let (fact_index, owned_fact) = self.semantic_facts.get(selected.fact_index)?;
+        let (edge_index, owned_edge) = self.provenance.get(selected.edge_index)?;
+        if *fact_index != selected.fact_index
+            || !std::ptr::eq(*owned_fact, selected.fact)
+            || *edge_index != selected.edge_index
+            || !std::ptr::eq(*owned_edge, selected.edge)
+            || !std::ptr::eq(selected.fact, selected_native_fact)
+            || selected.edge.cause().occurrence().occurrence() != occurrence
+            || selected.edge.cause().occurrence().local_slot() != slot
+            || selected.edge.fact() != selected.identity
+            || selected.identity != selected.fact.id()
+            || selected.fact.id() != selected_native_fact.id()
+            || selected.lower != selected_native_fact.lower()
+            || selected.upper != selected_native_fact.upper()
+        {
+            return None;
+        }
+        let row = self.admitted_fact_occurrences.get(selected.edge_index)?;
+        if row.edge_index != selected.edge_index
+            || row.fact_index != selected.fact_index
+            || !std::ptr::eq(row.edge, selected.edge)
+            || !std::ptr::eq(row.fact, selected.fact)
+            || row.occurrence != occurrence
+            || row.slot != slot
         {
             return None;
         }
@@ -742,7 +888,20 @@ impl<'a> InventoryPackage<'a> {
     /// lambda fact, raw permission entry, and root emission into one borrowed
     /// view. This is evidence for downstream readers only; it does not route
     /// or consume the permission.
-    fn internal_root_view(&self) -> Option<InventoryInternalRootView<'_, 'a>> {
+    fn internal_root_view(
+        &self,
+    ) -> Result<InventoryInternalRootView<'_, 'a>, candidate_context::CurrentEmissionGap> {
+        let reification = self.reify_qualified_facts()?;
+        self.internal_root_view_from(&reification)
+            .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)
+    }
+
+    /// Structural owner/root mismatches remain an unavailable-view result;
+    /// the outer `internal_root_view` preserves the distinct reifier error.
+    fn internal_root_view_from(
+        &self,
+        reification: &InventoryQualifiedReification<'_, 'a>,
+    ) -> Option<InventoryInternalRootView<'_, 'a>> {
         let request = &self.internal;
         let mut source_calls = self.source_calls.iter().filter(|call| {
             call.call_index == request.source_call
@@ -768,11 +927,13 @@ impl<'a> InventoryPackage<'a> {
         }
 
         let internal_fact = self.source_fact_at(
+            &reification,
             request.occurrence,
             0,
             request.semantic_internal_fact,
         )?;
         let lambda_fact = self.source_fact_at(
+            &reification,
             request.lambda_occurrence,
             2,
             request.semantic_lambda_fact,
@@ -3380,9 +3541,7 @@ impl<'a> InventoryPackage<'a> {
             entry_path,
             catch_path,
         };
-        if package.internal_root_view().is_none() {
-            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
-        }
+        package.internal_root_view()?;
         Ok(package)
     }
 }
