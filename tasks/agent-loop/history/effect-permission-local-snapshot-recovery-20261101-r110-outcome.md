@@ -1,0 +1,9 @@
+# R110 outcome
+
+Status: CLOSED — reviewed negative recovery result; pre-R106 snapshot not recovered within the bounded search.
+
+Frozen handoff `tasks/agent-loop/inbox/effect-permission-local-snapshot-recovery-r110.md`, corrected revision 2, SHA-256 `34f202f59a28b5b3ebcb6b7af9884f79b42bbf79a9863c3e2cc6e21555910e03`, reports **NOT RECOVERED**. It searched 71 reachable/reflog path blobs (13,778,709 bytes), 12 path blobs in 371 unreachable commits (2,499,357 bytes), 16 size-plausible unreferenced blobs (5,641,616 bytes), path-specific stash metadata, and cited R104–R106 artifacts. None matched target SHA `fab53f41cba94da6ada8850ae99b4ab03a7bfce46ff8f71306dc1b77ade73cb5`; no authenticated R106 rev1 patch was found. It does not exclude arbitrary unreachable blobs outside its inspected size range.
+
+Fresh compiler_referee review found no blocking issue and reproduced the handoff hash, live source hash, byte arithmetic, and search-coverage limits. It identified a minor overstatement: RSS compliance was unverified because peak RSS was not recorded. Luna corrected only that sentence in revision 2; no search or source operation was repeated. Follow-up compiler_referee review PASS: revision 2 hash matches, RSS is explicitly unverified, duration author-reported, and the search result/counts/source pin are unchanged. Candidate bytes totaled 22,300,825, below 256 MiB; reported RSS cap compliance remains unverified, and elapsed time is author-reported only.
+
+Live `candidate_effect.rs` remains SHA-256 `4becefc07b81c1b298cafa190a3698e9e15e94656e1f17390eee13435dcb9b15`. No source write/materialization, scratch/copy, build/test/compiler or Git mutation occurred. Historical recovery stops here; an equivalent search will not be repeated. Next work must be a fresh baseline-derived source component with an independently reviewed, feasible verification method. Source integration and push remain blocked.
