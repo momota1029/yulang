@@ -66,3 +66,36 @@ Source inspection found no `sorry`, `admit`, project `axiom`, `unsafe`, `impleme
 Remaining open gates: exact-input kernel acceptance, module/import closure, authenticated extraction, R79 `OrderedRoots`, R66 Root and physical/current-slot/admission/relation/ancestry joins, Rust compilation/runtime, original A/B, whole-language soundness/principality/progress/termination, and production promotion.
 
 Reviewer STOPPED / WRITES STOPPED.
+
+## R2 delta review — 2026-10-31
+
+Verdict: **PASS for static review; BLOCKING for theorem acceptance until audit 2 succeeds.** No new major or minor correctness finding. The reviewer remained read-only and ran no Lean, checker, build or test process.
+
+### Authenticated final target
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| R81 r2 module | 27,521 | `3b9e9ac800dccce633c09bf3d7ed0f59f06e910eb42e3a4858e6588f3985bb37` |
+| R81 r2 handoff | — | `c90a1931ce3737b98d34cd686ef609d9a112e8d5caf1acaaa7b7c7595ae00e51` |
+| Proposed audit-2 stdin | 109,314 | `dba59b391e9a2cfb982bc0e4c97102decdd7ea3ba5414d173f26c2abd47e56e7` |
+
+All 15 complete-source hashes, slice hashes and byte counts match the r2 manifest. All twelve queries remain unchanged. The final module and handoff hashes remained stable at the last check.
+
+### Delta and proof boundary
+
+The module diff against committed r1 `cdc9eb134` contains only:
+
+1. Explicit intermediate normalization in `primitive_records_derive_source_probe`, now lines 171–198.
+2. Four fixture proof fields changed from `by decide` to `rfl`: `fixtureChoiceWitness.plans`, `.routes`, `.recipes`, and `fixtureAlignedWitness.uniqueUse`, around lines 314–328.
+
+The reader repair separates the two Option binds. After the computed plan equation, the first `change` reduces the outer bind and projected plan fields, exposing the exact `ownerSelection s target c.plan.targetRootComponent` application. Its agreement equation is then rewritten. The second `change` reduces the resulting bind to the reflexive registration guard. No successful reader result is supplied as an assumption.
+
+The four fixture equalities compare native Plan, Receipt and Recipe lists. Those R55 structures have no `DecidableEq` derivation, so the prior `decide` required unavailable instances. Their literal finite filters and record fields reduce definitionally; `rfl` proves the original equalities without adding instances or changing claims.
+
+All twelve theorem signatures are literally identical between r1 and r2. No definition of `PrimitiveRecords`, `Incidence`, `Constructed`, `construct`, finite inventories, projected records or rejection inputs changed. No assumptions, implicit parameters, typeclass instances, scope restrictions or semantic branches were added. No proof hole or kernel-check bypass appears.
+
+The original r1 handoff is an exact prefix of the final handoff, matching SHA-256 `c18a1ab492d305cd4e7f8b711ffeb97035b7cbaac83ea0371064fc58819f9b84`. The retained audit-1 receipt is authenticated: input 107,431 bytes SHA `35a379150757ec307d17da62048d64de23ab6e9c014183e1ac5a79bd99daedd6`; stdout 31,321 bytes SHA `9e3fe508ef4c09a8194a540de00f3578d715dacffa90ec6f900a4df94bc0ef04`; stderr zero bytes SHA `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`; exit 1, no timeout, 10.182 seconds. R1 stdin reconstructed exactly from its retained manifest/source. Its five errors are one failed reader `change` and four failed `Decidable` syntheses. Nine of twelve failed-run theorem reports contain `sorryAx`; the failed run establishes no accepted R81 construction.
+
+The remaining BLOCKING gate is the separately authorized exact audit of the final stdin: exit 0, no timeout/errors, all twelve complete types and transitive axiom lists, no unexpected premises, `sorryAx`, project axiom or native-evaluation assumption. Static review does not substitute for kernel acceptance.
+
+Module/import closure, Rust compilation/runtime, authenticated extraction, R79 `OrderedRoots`, R66 Root and physical/ancestry joins, original A/B, whole-language closure and production remain open.

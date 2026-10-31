@@ -168,8 +168,34 @@ theorem primitive_records_derive_source_probe (s : Source S T) (inventory : Inve
       let (_, component) ← (SourceInternalContextR55.internalInputs s).lambdaRecipe c.origin.lambda
       let child ← (SourceInternalContextR55.internalInputs s).positiveFunctionChild origin.function
       pure ⟨f, root, component, origin, p, selectedPlan, r, fact, child⟩) = some (projected c d)
-  simp only [premises.1, Option.bind_some, SourceInternalContextR55.plan]
-  simp only [premises.2.1, Option.bind_some, ne_eq, not_true_eq_false, ↓reduceIte]
+  simp only [premises.1]
+  -- Reduce Option's outer bind explicitly before using global-selection agreement.
+  change (do
+    let selected ← OccurrenceQualifiedConsumerR66.ownerSelection s target c.plan.targetRootComponent
+    if selected.registration ≠ c.origin.registration then none else do
+      let (f, root) ← (SourceInternalContextR55.internalInputs s).formals c.origin.registration
+      let origin ← unique (fun x => x.registration == c.origin.registration)
+        (SourceInternalContextR55.internalInputs s).constructions
+      let p ← unique (fun x => x.registration == c.origin.registration)
+        (SourceInternalContextR55.internalInputs s).permissions
+      let r ← unique (fun x => x.use == use u) (SourceInternalContextR55.internalInputs s).receipts
+      let fact ← r.fact
+      let (_, component) ← (SourceInternalContextR55.internalInputs s).lambdaRecipe c.origin.lambda
+      let child ← (SourceInternalContextR55.internalInputs s).positiveFunctionChild origin.function
+      pure ⟨f, root, component, origin, p, plan c.plan, r, fact, child⟩) = some (projected c d)
+  rw [premises.2.1]
+  change (if c.origin.registration ≠ c.origin.registration then none else do
+      let (f, root) ← (SourceInternalContextR55.internalInputs s).formals c.origin.registration
+      let origin ← unique (fun x => x.registration == c.origin.registration)
+        (SourceInternalContextR55.internalInputs s).constructions
+      let p ← unique (fun x => x.registration == c.origin.registration)
+        (SourceInternalContextR55.internalInputs s).permissions
+      let r ← unique (fun x => x.use == use u) (SourceInternalContextR55.internalInputs s).receipts
+      let fact ← r.fact
+      let (_, component) ← (SourceInternalContextR55.internalInputs s).lambdaRecipe c.origin.lambda
+      let child ← (SourceInternalContextR55.internalInputs s).positiveFunctionChild origin.function
+      pure ⟨f, root, component, origin, p, plan c.plan, r, fact, child⟩) = some (projected c d)
+  rw [if_neg (fun unequal => unequal rfl)]
   change (do
     let (f, root) ← (SourceInternalContextR55.internalInputs s).formals c.origin.registration
     let origin ← unique (fun x => x.registration == c.origin.registration)
@@ -285,13 +311,13 @@ def fixtureChoiceWitness : Choice fixture SourceInternalChoiceR77.fixtureUse (.s
     recipe := ⟨.source 17, some 0, 20⟩
     receipt := { ProviderNativeContextR57.fixtureReceipt with fact := some (.semantic 2 0) }
     artifact := rfl
-    plans := by decide
+    plans := rfl
     owners := by decide
-    routes := by decide
+    routes := rfl
     internal := by decide
     selected := rfl
     indexed := rfl
-    recipes := by decide
+    recipes := rfl
     lambda := rfl
     component := rfl
     parameter := rfl }
@@ -299,7 +325,7 @@ def fixtureChoiceWitness : Choice fixture SourceInternalChoiceR77.fixtureUse (.s
 def fixtureAlignedWitness : AlignedChoice fixture fixtureSource fixtureCalls
     SourceInternalChoiceR77.fixtureUse (.source 10) (.source 1) :=
   { selectedUse := ProviderNativeContextR57.fixturePlan
-    uniqueUse := by decide
+    uniqueUse := rfl
     exactUse := rfl
     choice := fixtureChoiceWitness
     alignment :=
