@@ -117,6 +117,13 @@ pub(super) struct SourceDrainReceipt {
     pub cause: CauseId,
     pub completed: bool,
 }
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(not(test), allow(dead_code, reason = "native residual publication observation is a private query"))]
+pub(super) struct CheckedSourceDrain<'a> {
+    pub origin_index: usize,
+    pub relation: RelationId,
+    pub receipt: &'a SourceDrainReceipt,
+}
 #[derive(Debug)]
 struct TypedDrainUndo {
     index: usize,
@@ -2252,6 +2259,38 @@ impl State {
         expected.completed = true;
         self.source_drain_completions.contains(&expected)
     }
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "queried only by the private native residual observation")]
+    pub(super) fn checked_source_drain(
+        &self,
+        occurrence: &ConstraintOccurrenceId,
+        cause: &CauseId,
+        task: LiveConstraintTask,
+    ) -> Option<CheckedSourceDrain<'_>> {
+        let expected_pair = task_pair(task);
+        let mut found = None;
+        for (origin_index, origin) in self.origins.iter().enumerate() {
+            if &origin.occurrence != occurrence || self.relation_pair(origin.relation) != Some(expected_pair) {
+                continue;
+            }
+            let receipt = origin.source_drain_receipt.as_ref()?;
+            if receipt.origin_index != origin_index
+                || receipt.created_seed != origin.relation
+                || receipt.selected_relation != origin.relation
+                || receipt.task != task
+                || &receipt.cause != cause
+                || cause.occurrence() != occurrence
+                || !self.source_drain_completed(receipt)
+            {
+                return None;
+            }
+            let checked = CheckedSourceDrain { origin_index, relation: origin.relation, receipt };
+            if found.replace(checked).is_some() {
+                return None;
+            }
+        }
+        found
+    }
     fn remove_replay_operation(&mut self, id: ReplayOperationId) {
         if let Some(operation) = self.replay_operations.remove(&id) {
             self.replay_child_bytes -= operation.children.capacity() * std::mem::size_of::<RelationId>();
@@ -2913,6 +2952,11 @@ impl State {
         &self, index: usize,
     ) -> Option<(BoundEmissionId, &BoundEmission)> {
         self.evidence.emissions.get(index).map(|emission| (BoundEmissionId(index), emission))
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "queried only by the private native residual observation")]
+    pub(super) fn observed_bound_emission_count(&self) -> usize {
+        self.evidence.emissions.len()
     }
     pub(super) fn observed_bound_emissions_for_slot(
         &self, slot: PhysicalBoundSlot,
