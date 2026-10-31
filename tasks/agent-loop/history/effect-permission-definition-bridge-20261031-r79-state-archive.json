@@ -1,0 +1,378 @@
+{
+  "schema_version": 1,
+  "sprint_id": "EFFECT-PERMISSION-DEFINITION-BRIDGE/20261031-R79",
+  "status": "CLOSED_BOUNDED_PASS",
+  "outcome": "tasks/agent-loop/history/effect-permission-definition-bridge-20261031-r79-outcome.md",
+  "outcome_sha256": "9fa5fd7b942c9277a711286f9699301ff1f6bdd87a893649275a49aece54640a",
+  "review": "tasks/agent-loop/inbox/effect-permission-definition-bridge-r79-review.md",
+  "review_sha256": "ece62912824f4b59ee59bcdc8fb5baeb70f14ddec671d626f59614cafa0c734a",
+  "contract_sha256": "38f6b80a6466f51cc68b7c7e155313730d353357ec47ad2464680babe9656189",
+  "input_manifest_sha256": "a5950ce61c9fd8cb6f3d595fb7c26f4ee4b56c5a2eef2ade68a967f0f6a6799f",
+  "baseline_commit": "7b9573c98cb29c594ece49f4268c887998176f76",
+  "rust_lib_sha256": "c43fcc4f39e4ba8bfea10aa39879c37973100d9f4b8bdef71fa5b3dc3fae01df",
+  "rust_receiver_sha256": "c570bc01cc7536a617ac3c65beab153dc71d7d0981dcfa8c01b77593385774f2",
+  "lean_module_sha256": "6dff2ab5f1a5f2403822c180c21074cc1a063ed84b697bd484017705d53222ac",
+  "rust_handoff_sha256": "84c679f3a400a1c4ec4911ab8de58b2ff8ac2c2aa3bf882de55cf799616d1d00",
+  "proof_handoff_sha256": "40a1062c063df4c5387a785ac48d4d8f2c4fb0de7c08e3c38f104275cbbee8a3",
+  "audit1": {
+    "status": "FAILED_NO_ACCEPTED_THEOREMS",
+    "stdin_bytes": 74161,
+    "stdin_sha256": "55d0959c72c98378cc481038f64ffc6b796c850ba6466c903b0591afd91dc045",
+    "exit": 1,
+    "stdout_bytes": 32198,
+    "stdout_sha256": "f2e57f6f80490c48350c6c2517f83ae898129c8760503f1535e3387035d3a624",
+    "stderr_bytes": 0
+  },
+  "audit2": {
+    "status": "PASS_BOUNDED_SLICE",
+    "stdin_bytes": 74343,
+    "stdin_sha256": "9ea072b736885d3bdc7818e149915a42641a253527aa507719ff20ab1570696a",
+    "exit": 0,
+    "elapsed_seconds": 8.419,
+    "stdout_bytes": 21966,
+    "stdout_sha256": "7737d3c195efc6badb6f5caa173f92da24e54cde554b103217e7cd37369bebef",
+    "stderr_bytes": 0,
+    "theorems": 15,
+    "axioms": [
+      "propext",
+      "Quot.sound"
+    ],
+    "sorryAx": false
+  },
+  "review_verdict": "ACCEPT bounded typed bridge; blocking=0, major=0, minor=0",
+  "workers": [
+    {
+      "id": "/root/r79_rust",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 1000,
+      "session": "EFFECT-PERMISSION-DEFINITION-BRIDGE/20261031-R79",
+      "receipt": "STOPPED; writes stopped; leases freeze hashes pin artifacts."
+    },
+    {
+      "id": "/root/r79_proof",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 1800,
+      "session": "EFFECT-PERMISSION-DEFINITION-BRIDGE/20261031-R79",
+      "receipt": "STOPPED; R2 frozen; audit2 authorized."
+    },
+    {
+      "id": "/root/r79_review",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 1000,
+      "session": "EFFECT-PERMISSION-DEFINITION-BRIDGE/20261031-R79",
+      "receipt": "Live roster: spawned /root/r79_review; active."
+    }
+  ],
+  "leases": [
+    {
+      "path": "crates/yu-solver/src/lib.rs",
+      "owner": "/root/r79_rust",
+      "state": "FROZEN",
+      "sha256": "c43fcc4f39e4ba8bfea10aa39879c37973100d9f4b8bdef71fa5b3dc3fae01df"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "owner": "/root/r79_rust",
+      "state": "FROZEN",
+      "sha256": "c570bc01cc7536a617ac3c65beab153dc71d7d0981dcfa8c01b77593385774f2"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-definition-bridge-r79-rust.md",
+      "owner": "/root/r79_rust",
+      "state": "FROZEN",
+      "sha256": "84c679f3a400a1c4ec4911ab8de58b2ff8ac2c2aa3bf882de55cf799616d1d00"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CollectedDefinitionBridgeR79.lean",
+      "owner": "/root/r79_proof",
+      "state": "FROZEN",
+      "sha256": "6dff2ab5f1a5f2403822c180c21074cc1a063ed84b697bd484017705d53222ac"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-definition-bridge-r79-proof.md",
+      "owner": "/root/r79_proof",
+      "state": "FROZEN",
+      "sha256": "40a1062c063df4c5387a785ac48d4d8f2c4fb0de7c08e3c38f104275cbbee8a3"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-definition-bridge-r79-review.md",
+      "owner": "/root/r79_review",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-definition-bridge-20261031-r79.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/effect-permission-definition-bridge-20261031-r79-inputs-r1.json",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-definition-bridge-20261031-r79-admission.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-definition-bridge-20261031-r79-lean-audit1-authorization.md",
+      "owner": "/root",
+      "state": "HELD",
+      "sha256": "be6dc0139037d3007c2e12ab4e41159d69afb26dbef39f63930a764430b81eb0"
+    },
+    {
+      "path": "tasks/agent-loop/history/effect-permission-definition-bridge-20261031-r79-lean-audit2-authorization.md",
+      "owner": "/root",
+      "state": "HELD",
+      "sha256": "74561dc31bab94e93556cbcab762c4d2e52139df977a5d2f673cd6cac08cde12"
+    }
+  ],
+  "pending_count": 32,
+  "pending_ids": [
+    "R61-SOURCE-ASCRIPTION-FORMATION-1",
+    "R64-SRC-ANN-ARG-1",
+    "R65-CURRENT-OPERAND-1",
+    "R66-LAMBDA-RESULT-STAGE-1",
+    "R67-DIRECT-BODY-CHECK-1",
+    "R68-OWNER-CONSUMER-1",
+    "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+    "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+    "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+    "R72-LATER-OCCURRENCE-1",
+    "R149-SOURCE-OWNER-CLOSURE-1",
+    "R339-D2-WHOLE-FRAME-RETIREMENT",
+    "R340-D3-AUTHENTIC-APPLY-CONTINUATION",
+    "R345-N-REMAINDER",
+    "OP-SEMANTICS-FULL-EFFECT",
+    "DOT-SELECTION-EVIDENCE-BRIDGE",
+    "CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE",
+    "SOURCE-SAFETY-BRIDGE",
+    "CALL-CONTEXT-PLUG-PRESERVATION",
+    "BOUNDED-CALL-FINITE-PREFIX-SAFETY",
+    "CALL-STEP-ERASURE",
+    "CALL-RAW-SUCCESSOR-COVERAGE",
+    "FORCE-SOURCE-REALIZATION-20261025",
+    "RESPONSE-ENCODING-1",
+    "RESPONSE-INSTANCE-1",
+    "RESPONSE-TEMPLATE-1",
+    "GVG-FORMS-1",
+    "GVG-REC-RHS-1",
+    "HO-METADATA-ADEQUACY-1",
+    "HO-SHALLOW-HANDLER-1",
+    "HO-HANDLER-GRAPH-COMPOSITION-1",
+    "GRAPH-CONTINUATION-EXTENSION-1"
+  ],
+  "unknown_workers_preserved": [
+    {
+      "id": "/root/resident_dispatcher_loop_a",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root/resident_implementer_idle",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root/runtime_source_supplier_proof",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root/handler_graph_recursive_trace_review_astra_r2",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root/handler_recursive_trace_review2_astra_r2",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "foreign/01a17150-2005-7562-81fd-359b3e7a268c",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "foreign/01a17251-405f-7c81-8d75-ce784095f7c8",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "foreign/01a17251-2e11-78d0-8779-8219addb6b37",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "/root/r63_view_coverage_review",
+      "state": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN"
+    },
+    {
+      "id": "UNKNOWN_WRITER",
+      "role": "quarantined writer",
+      "state": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Quarantine."
+    },
+    {
+      "id": "/root/effect_permission_module_environment_source",
+      "state": "UNKNOWN",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "UNKNOWN; quarantine."
+    },
+    {
+      "id": "/root/latent_demand_transport_classification_r17_source",
+      "state": "UNKNOWN",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "LATENT-DEMAND-TRANSPORT-CLASSIFICATION-20261028/r17",
+      "receipt": "R36 roster absent; cessation unconfirmed."
+    },
+    {
+      "id": "/root/call_constructor_application_r21_review",
+      "state": "UNKNOWN",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "budget_seconds": 300,
+      "session": "CALL-CONSTRUCTOR-APPLICATION-20261028-R21",
+      "receipt": "UNKNOWN; quarantine."
+    }
+  ],
+  "quarantined_paths_preserved": [
+    {
+      "path": "tasks/agent-loop/inbox/paper-observation-coverage-r63-review.md",
+      "owner": "/root/r63_view_coverage_review",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/machine.rs",
+      "owner": "UNKNOWN_WRITER",
+      "state": "QUARANTINED",
+      "sha256": "fd7383cc1a96ae5601a3ccf563b19ef4f6381d798d3ce1c72b94929aa7c193f0"
+    },
+    {
+      "path": "tools/inference-playground/src/runtime/receiving.rs",
+      "owner": "UNKNOWN_WRITER",
+      "state": "QUARANTINED",
+      "sha256": "3b79ad0bb1722f363c671f14eae104dceeb3face69b124a4393e2fab5bae50f4"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tools/inference-playground/src/runtime/machine.rs",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tools/inference-playground/src/runtime/receiving.rs",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tools/inference-playground/src/runtime/mod.rs",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tools/inference-playground/src/bin/name_receipt_seed.rs",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/notes/theory/lean/YulangClosure/OriginalNameReceiptSeedTrace.lean",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/tasks/agent-loop/inbox/name-receipt-seed-20261028-r2-source.md",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "isolated/name-receipt-seed-isolated-20261028/source",
+      "owner": "/root/name_receipt_seed_r2_source",
+      "state": "QUARANTINED"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/effect-permission-module-environment-source.md",
+      "owner": "/root/effect_permission_module_environment_source",
+      "state": "QUARANTINED",
+      "sha256": "7e91e6cbee8a78f8d960a3b0ef87916fd0b229f54858173f959ed8b7b84b1805"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/latent-demand-transport-classification-r17-source.md",
+      "owner": "/root/latent_demand_transport_classification_r17_source",
+      "state": "QUARANTINED",
+      "sha256": "ecd1c05c20f6888e6148109157d8bdc460999df3a9cf3767bc331f76841f2797"
+    }
+  ],
+  "commits": [
+    "7b9573c98",
+    "84771a405",
+    "42dd15c20",
+    "144985809",
+    "68770fb2e",
+    "a489cc61a",
+    "4379f62e1",
+    "065e0bfd9",
+    "ad4988273",
+    "e3b3d99f7",
+    "2c32664ff"
+  ]
+}
