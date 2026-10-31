@@ -106,3 +106,30 @@ Twelve theorem signatures are byte-identical. The thirteenth differs only by the
 **Gate:** slot 4 must exit 0 and provide all thirteen complete types and axiom reports without error recovery or forbidden axioms. This is the last permitted invocation; any remaining failure closes R84 incomplete.
 
 Reviewer `/root/r83_review` STOPPED / WRITES STOPPED. Read-only review; no Lean/checker/compiler/tests, writes, scratch or Git.
+
+
+## Slot-4 exact-output review — 2026-10-31
+
+**PASS for the exact flattened R84 finite-record Root construction.** All thirteen theorem types and transitive axiom reports are present exactly once. No blocking finding remains in this audited scope.
+
+Authenticated stdin: 103,470 bytes, SHA-256 `93b365ddf908e223558d166efe7f76a1f5c370a5b1c9080716d0fb0ce92b3df0`. Raw-result JSON SHA-256 `e6dd42b23bc89faffb28dd52057487f0c460967085331bf8675ef08e93b3ccaa`. Complete stdout: 52,985 bytes, SHA-256 `cdef7a87ed88369f0b4cddb5c308430b4d44884d0f9f65fc8acf3faa3d71dcab`; stderr empty with the expected empty-stream hash. Authorization SHA-256 `c7241e62feb68ecf7d49354f1503450c392963a43d961dea64b0e4cff024052f`. The receipt records exit 0, no timeout, 11.459 seconds and peak child RSS 910,724 KiB. Candidate, handoff, manifest pins and executable hashes match.
+
+| Theorem | Axioms |
+|---|---|
+| `value_endpoint_typed` | `propext` |
+| `effect_endpoint_typed` | `propext` |
+| `primitive_derive_root_matches` | `propext`, `Quot.sound` |
+| `primitive_derive_before_ancestry` | `propext`, `Quot.sound` |
+| `primitive_distinct_relation_roles` | `propext`, `Quot.sound` |
+| `constructed_applies_parent` | `propext`, `Quot.sound` |
+| `finite_reads` | `propext`, `Quot.sound` |
+| `finite_primitive` | `propext`, `Quot.sound` |
+| `finite_constructs_root` | `propext`, `Quot.sound` |
+| `finite_nonempty_mixed_witness` | `propext`, `Quot.sound` |
+| `duplicate_stale_and_substituted_rejected` | `propext`, `Quot.sound` |
+| `incomplete_foreign_and_wrong_task_rejected` | `propext`, `Quot.sound` |
+| `collapsed_roles_and_parameter_substitution_rejected` | `propext`, `Quot.sound` |
+
+Complete types preserve the reviewed quantifiers and premises. The first twelve printed types match slot 3’s intended types; the final type has the intended three rejection conjuncts, including relation-2 endpoint substitution to `positiveFunction 700` and occurrence substitution to `101`, without the previous parser-recovery hole. No errors, `sorryAx`, project axioms, `Classical.choice`, native-evaluation axioms or checker bypasses appear. Only deprecation and unused-section-variable warnings remain.
+
+The bounded exact-input proof gate is closed. Standalone module/import elaboration, authenticated Rust extraction/execution, source/native correspondence, original A/B, whole-language closure and production remain OPEN. Reviewer `/root/r83_review` STOPPED / WRITES STOPPED; no Lean rerun or writes.
