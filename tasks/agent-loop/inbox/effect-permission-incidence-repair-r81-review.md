@@ -99,3 +99,42 @@ The original r1 handoff is an exact prefix of the final handoff, matching SHA-25
 The remaining BLOCKING gate is the separately authorized exact audit of the final stdin: exit 0, no timeout/errors, all twelve complete types and transitive axiom lists, no unexpected premises, `sorryAx`, project axiom or native-evaluation assumption. Static review does not substitute for kernel acceptance.
 
 Module/import closure, Rust compilation/runtime, authenticated extraction, R79 `OrderedRoots`, R66 Root and physical/ancestry joins, original A/B, whole-language closure and production remain open.
+
+## Final exact-audit review — 2026-10-31
+
+**Verdict: PASS for R81’s bounded finite-record Incidence construction. The prior BLOCKING audit gate is closed.** No blocking, major or minor correctness finding remains within this reviewed scope. Reviewer remained read-only and stopped.
+
+Audit 2 is authenticated against authorization commit `3c30fce7d7464c1733398c10b22e0e4a272a5a52`. The reviewer independently reconstructed the exact input from all 15 pinned slices and twelve unchanged queries.
+
+| Evidence | Bytes | SHA-256 |
+|---|---:|---|
+| Exact stdin | 109,314 | `dba59b391e9a2cfb982bc0e4c97102decdd7ea3ba5414d173f26c2abd47e56e7` |
+| Complete stdout | 26,340 | `649c3e5aedd4a2dadff785190f0066ddd6331c5ae7b8dd1e3e7f079c72066dc7` |
+| Stderr | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| R2 module | 27,521 | `3b9e9ac800dccce633c09bf3d7ed0f59f06e910eb42e3a4858e6588f3985bb37` |
+| Final handoff | 397,416 | `589a13ae51919ab3bb3a64f34635bde192e90c3ab298d56bcfe0ef99d028fdcb` |
+
+The receipt records exit 0, no timeout, elapsed 10.851 seconds, the authorized command and pinned executable hash. Reconstructed input equals retained input byte-for-byte. Every source/slice hash and length matches. The prior reviewed r2 handoff is an exact 215,580-byte prefix with SHA-256 `c90a1931ce3737b98d34cd686ef609d9a112e8d5caf1acaaa7b7c7595ae00e51`; audit-1 evidence is preserved.
+
+The reviewer inspected all twelve complete printed theorem types. They match the reviewed source signatures without unexpected implicit premises. `constructed_applies_r45` explicitly requires inhabited `Constructed`; `bridged_target_in_collection` explicitly requires R79 `OrderedRoots` and `BridgedConstructed`; all eight finite reader/check/output/witness/identity/rejection theorems are closed statements without supplied success assumptions.
+
+Complete transitive axiom census:
+
+| Theorem | Axioms |
+|---|---|
+| `primitive_records_derive_fields` | `propext`, `Quot.sound` |
+| `primitive_records_derive_source_probe` | `propext`, `Quot.sound` |
+| `constructed_applies_r45` | `propext`, `Quot.sound` |
+| `bridged_target_in_collection` | `propext`, `Quot.sound` |
+| `finite_aligned_reader` | `propext`, `Quot.sound` |
+| `finite_native_reader` | `propext` |
+| `finite_primitive_records` | `propext` |
+| `finite_constructs_output` | `propext`, `Quot.sound` |
+| `nonempty_successful_finite_witness` | `propext`, `Quot.sound` |
+| `finite_permission_and_root_identity` | `propext`, `Quot.sound` |
+| `local_global_and_shared_foreign_rejected` | `propext`, `Quot.sound` |
+| `adversarial_inventories_rejected` | `propext`, `Quot.sound` |
+
+All twelve expected reports occur exactly once. No errors, `sorryAx`, project axioms, native-evaluation axioms or `Classical.choice` appear. Output contains only deprecation and unused-section-variable warnings.
+
+Combined with the prior source review, this establishes the exact flattened R66 Incidence construction, actual successful finite output, retained permission/root identities and all named rejection cases. It does not establish module/import closure, Rust compilation/runtime, authenticated extraction, R79 `OrderedRoots`, R66 Root/physical/ancestry joins, original A/B, whole-language closure or production promotion.
