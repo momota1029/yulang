@@ -77,3 +77,26 @@ Command: `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean
 Exact authorized stdin was independently reconstructed immediately before execution and matched the authorization byte-for-byte: 115,845 bytes, SHA-256 `2f001a9673e79313db2b57c456c9e0875d43d3b86d225944e33ee198a10759ac`. Lean exited 1 in 12.041 seconds, without timeout; peak child RSS 906,208 KiB. Complete stdout/stderr and process metadata are retained in the JSON receipt above. Stderr is empty.
 
 One elaboration error occurred at flattened line 2271:20 in `pending_rejects_checkedRootGate`: `rfl` cannot reduce the compiled `checkedRootGate` match in the unique-candidate / absent-attached-drain branch after case-splitting on `nativeCandidates`. The axiom output marks that theorem and dependent `reachable_rejects_checkedRootGate` with `sorryAx`; neither is accepted. The other R85 theorem reports do not contain `sorryAx`. R84 theorem outputs are retained context and were accepted in the prior independent exact-input gate; this R85 exit does not alter their acceptance. R85 invocation count is now **1/2**. Permit only one diagnostic-directed repair of this reduction proof, with unchanged source/claim and a fresh exact-input review before the second call.
+
+
+## Independent review — repaired revision 2 and exact slot-2 input
+
+Reviewer: `/root/r85_review` (`compiler_referee`), fresh read-only review after the proof author froze revision 2. No Lean, tests, builds, formatters or Git mutations were run by the reviewer.
+
+Verdict: **PASS** for the diagnostic-directed repair and proposed exact slot-2 input. The only candidate change is the authorized absent-drain branch reduction in `pending_rejects_checkedRootGate`: `rfl` becomes `simp [checkedRootGate, selected, attached]`. Reversing that change reproduces the exact revision-1 candidate hash. Definitions, theorem statements, inventories, competitors and the R84 parent are unchanged.
+
+Frozen revision-2 pins, independently reconstructed:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| Candidate | 10,834 | `1677d965ba2afa01ff07951325d1026f2da2fef97b19cc37cc8ef1490fecedcc` |
+| Proof handoff | 20,848 | `5f19a33238eb35ac553e9e32425308ed66997dbf07e3f12c8426414bceba28fc` |
+| Proposed slot-2 stdin | 115,884 | `bac29ad18bd16e9a5af0422ea4d3416e049a61951d6b1545c8ba35a0548cbc79` |
+
+The handoff's first 13,578 bytes reproduce revision 1 exactly. The accepted R84 input, pinned sources and unchanged R85 query suffix reconstruct correctly. Prior slot-1 failure and its two `sorryAx` reports remain rejected. The source-completion mismatch, unproved transition exhaustiveness and R57/R84 selector gap remain open; this authorization makes no native-correspondence or original A/B claim.
+
+## Primary authorization — slot 2 (final R85 invocation)
+
+Authorized by Luna after the fresh exact-input review above and under contract Amendment 03. Candidate SHA-256: `1677d965ba2afa01ff07951325d1026f2da2fef97b19cc37cc8ef1490fecedcc`; proof-handoff SHA-256: `5f19a33238eb35ac553e9e32425308ed66997dbf07e3f12c8426414bceba28fc`; exact stdin: 115,884 bytes, SHA-256 `bac29ad18bd16e9a5af0422ea4d3416e049a61951d6b1545c8ba35a0548cbc79`. This is invocation 2 of 2 and the final R85 Lean call.
+
+Run only the in-memory reconstruction of the accepted R84 slot-4 stdin plus the revision-2 R85 candidate and the unchanged eleven query pairs. Command: `/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lean -j1 -M1024 --stdin`; cwd `notes/theory/lean`; `LEAN_NUM_THREADS=1`; timeout 120 seconds. No input file, scratch, cache, target, environment or worktree is authorized. Recheck the exact bytes and executable hash immediately before execution, retain complete stdout/stderr and process metadata below, and stop after this single call.
