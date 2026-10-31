@@ -518,6 +518,40 @@ struct InventoryInternalPlan<'a> {
     use_value: Term,
 }
 
+/// A private, owner-borrowed derivation of the same-use plan and R66-style
+/// global formal-owner choice. This is constructed directly from complete
+/// use/call/formal/origin/recipe tables; it does not consume the native
+/// permission-incidence helper or a preselected registration.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "source-derived same-use owner choice remains provisional")]
+struct InventoryInternalOwnerChoice<'a> {
+    use_index: usize,
+    use_id: &'a DefinitionUseId,
+    use_record: &'a DefinitionUse,
+    source_call_index: usize,
+    source_call: &'a candidate_call::ApplySourceInput,
+    /// The Name occurrence that owns the DefinitionUse. This is deliberately
+    /// separate from `apply_occurrence`, which belongs to the enclosing call.
+    callee_name_occurrence: &'a HirOccurrenceId,
+    /// The enclosing Apply occurrence used by ApplySourceInput.checking.
+    apply_occurrence: &'a HirOccurrenceId,
+    source_owner: &'a SourceRootId,
+    target_owner: &'a SourceRootId,
+    plan: InventoryInternalPlan<'a>,
+    origin_index: usize,
+    origin: &'a candidate_context::LambdaArgumentEffectOrigin,
+    registration_index: usize,
+    registration: &'a candidate_call::FormalRegistrationInput,
+    recipe_index: usize,
+    recipe: &'a LambdaRecipe,
+    parameter_recipe_index: usize,
+    parameter_recipe: &'a HirParameterId,
+    /// This is the formal parameter's native root, distinct from the
+    /// registered Lambda root carried by `recipe.root_component`.
+    parameter_native_root: Option<Term>,
+    registered_lambda_root: Term,
+}
+
 /// Entry and Catch requests retain their distinct source coordinates and fact
 /// namespaces.  Indices refer only to the complete tables in `InventoryPackage`.
 #[cfg(feature = "shadow-apply-candidate")]
@@ -2285,6 +2319,240 @@ impl ReceivingResidualExperiment {
         (incidence.target_owner == &self.schema.relay
             && incidence.receiving_owner == &self.schema.answer)
             .then_some(incidence)
+    }
+    /// Derive the exact source/Internal use and the global formal-owner choice
+    /// from the experiment's complete source tables. The origin scan mirrors
+    /// `InferenceSession::internal_formal_permission_incidence`: invalid
+    /// registration indices are skipped; each eligible origin's recipe is
+    /// required to be unique before its component is compared; a second
+    /// matching origin fails immediately. Function and effect-row images do
+    /// not participate in selection.
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[allow(dead_code, reason = "private R77 source-derived choice; no consumer is connected")]
+    pub(super) fn internal_owner_choice(
+        &self,
+    ) -> Option<InventoryInternalOwnerChoice<'_>> {
+        let batch = &self.session.batch;
+        let mut selected_use = None;
+        for (use_index, use_record) in batch.definition_uses().iter().enumerate() {
+            let use_id = use_record.id();
+            if use_record.cause().id() != use_id
+                || use_record.occurrence() != use_id.occurrence()
+            {
+                continue;
+            }
+            let SourceReceiver::Definition(parent_id) = use_record.parent() else {
+                continue;
+            };
+            let Some(parent) = batch.definitions().get(parent_id.ordinal() as usize) else {
+                continue;
+            };
+            if parent.definition() != parent_id || parent.root != self.schema.answer {
+                continue;
+            }
+            let Some(target) = batch.definitions().get(use_record.target().ordinal() as usize) else {
+                continue;
+            };
+            if target.definition() != use_record.target() || target.root != self.schema.relay {
+                continue;
+            }
+
+            // A DefinitionUse belongs to the callee Name; ApplySourceInput's
+            // checking coordinate belongs to the enclosing Apply. Resolve the
+            // callee through this receiving owner's HIR and the supported
+            // Group peel before joining those two distinct coordinates.
+            let mut matching_call = None;
+            for (call_index, call) in batch.candidate_calls.calls.iter().enumerate() {
+                if call.owner != SourceRootId::Definition(parent.root.clone()) {
+                    continue;
+                }
+                let hir = batch.hir_for_source_root(&call.owner)?;
+                let source = hir.local_source_for(&call.owner).ok().flatten()?;
+                if source.source_root() != &call.owner {
+                    return None;
+                }
+
+                let apply = source.expressions().get(call.expression)?;
+                if !hir.owns_occurrence(&apply.occurrence)
+                    || call.checking.occurrence() != &apply.occurrence
+                    || call.cause.occurrence() != &call.checking
+                {
+                    return None;
+                }
+                let Form::Apply { callee, argument, .. } = &apply.form else {
+                    return None;
+                };
+                if callee != &call.callee || argument != &call.argument {
+                    return None;
+                }
+
+                let mut visited = HashSet::new();
+                let callee_name = peel(source, callee, &mut visited).ok()?;
+                let Form::Name {
+                    resolution: yu_hir::shadow::LocalSourceResolution::ModuleDef(definition),
+                    ..
+                } = &callee_name.form else {
+                    continue;
+                };
+                if callee_name.occurrence != *use_record.occurrence()
+                    || definition != use_record.target()
+                    || !hir.owns_occurrence(&callee_name.occurrence)
+                {
+                    continue;
+                }
+                if matching_call.replace((call_index, call, &callee_name.occurrence, &apply.occurrence)).is_some() {
+                    return None;
+                }
+            }
+            let Some((call_index, call, callee_name_occurrence, apply_occurrence)) = matching_call else {
+                continue;
+            };
+            if selected_use
+                .replace((use_index, use_id, use_record, &call.owner, &target.root, call_index, call,
+                    callee_name_occurrence, apply_occurrence))
+                .is_some()
+            {
+                return None;
+            }
+        }
+        let (use_index, use_id, use_record, source_owner, target_root, source_call_index, source_call,
+            callee_name_occurrence, apply_occurrence) = selected_use?;
+
+        // Keep the original native gate order: exact identity and unique
+        // Internal route are checked before the formal-origin scan.
+        if use_record.id() != use_id
+            || use_record.cause().id() != use_id
+            || use_record.occurrence() != use_id.occurrence()
+            || !self.session.routed_use_positions.contains(use_id)
+        {
+            return None;
+        }
+        let mut routes = self.session.routed_uses.iter().filter(|route| route.use_id == *use_id);
+        let route = routes.next()?;
+        if routes.next().is_some() || route.kind != RoutedUseKind::Internal || route.fact.is_none() {
+            return None;
+        }
+        let use_fact = self.session.admitted_source_fact(use_record.occurrence(), 0)?;
+        if route.fact != Some(use_fact.id())
+            || use_fact.lower() != batch.component_term_at(use_record.target_root_component)
+            || use_fact.upper() != batch.component_term_at(use_record.use_value_component)
+        {
+            return None;
+        }
+
+        let target_root_component = use_record.target_root_component;
+        let use_value_component = use_record.use_value_component;
+        let target_root_term = *batch.component_terms.get(target_root_component)?;
+        let use_value_term = *batch.component_terms.get(use_value_component)?;
+        let definitions = batch.definitions();
+        let target_definition = definitions.get(use_record.target().ordinal() as usize)?;
+        if target_definition.root != *target_root {
+            return None;
+        }
+
+        // This is the global R66 ownerSelection scan. Recipe cardinality is
+        // checked for every eligible origin before testing its root component,
+        // including earlier origins that do not match the eventual target.
+        let effect_state = &self.session.candidate_graph.as_ref()?.intrusion.effect_algebra;
+        let formals = &batch.candidate_calls.formals;
+        let mut selected_origin = None;
+        for (origin_index, origin) in effect_state.context.lambda_argument_effects.iter().enumerate() {
+            if origin.registration >= formals.len() {
+                continue;
+            }
+            let registration = formals.get(origin.registration)?;
+            if registration.role != candidate_call::FormalRole::Computation
+                || !matches!(&registration.owner,
+                    SourceRootId::Definition(root) if root == target_root)
+            {
+                continue;
+            }
+            let mut recipes = batch.lambda_recipes.iter().enumerate().filter(|(_, recipe)| {
+                recipe.formal_registration == Some(origin.registration)
+            });
+            let (recipe_index, recipe) = recipes.next()?;
+            if recipes.next().is_some() {
+                return None;
+            }
+            if recipe.root_component != target_root_component {
+                continue;
+            }
+            if selected_origin.replace((origin_index, origin.registration, origin, recipe_index, recipe)).is_some() {
+                return None;
+            }
+        }
+        let (origin_index, registration_index, origin, recipe_index, recipe) = selected_origin?;
+        let registration = formals.get(registration_index)?;
+        let mut selected_recipes = batch.lambda_recipes.iter().enumerate().filter(|(_, recipe)| {
+            recipe.formal_registration == Some(registration_index)
+        });
+        let (exact_recipe_index, exact_recipe) = selected_recipes.next()?;
+        if selected_recipes.next().is_some()
+            || exact_recipe_index != recipe_index
+            || !std::ptr::eq(exact_recipe, recipe)
+            || recipe.occurrence != origin.lambda
+            || recipe.root_component != target_root_component
+        {
+            return None;
+        }
+        let parameter_recipe_index = registration.recipe_position;
+        let parameter_recipe = batch.parameter_recipes.get(parameter_recipe_index)?;
+        if parameter_recipe != &registration.parameter {
+            return None;
+        }
+        let local_hir = batch.hir_for_source_root(&registration.owner)?;
+        let local_source = local_hir.local_source_for(&registration.owner).ok().flatten()?;
+        let source_lambda = local_source.expressions().get(registration.lambda)?;
+        if source_lambda.occurrence != origin.lambda
+            || !local_hir.owns_occurrence(&source_lambda.occurrence)
+            || !matches!(&source_lambda.form,
+                Form::Lambda { parameter, .. } if parameter.id == registration.parameter)
+        {
+            return None;
+        }
+        let mut same_registration_origins = effect_state.context.lambda_argument_effects.iter()
+            .enumerate().filter(|(_, candidate)| candidate.registration == registration_index);
+        let (exact_origin_index, exact_origin) = same_registration_origins.next()?;
+        if same_registration_origins.next().is_some()
+            || exact_origin_index != origin_index
+            || !std::ptr::eq(exact_origin, origin)
+            || exact_origin.lambda != recipe.occurrence
+        {
+            return None;
+        }
+        let registered_lambda_root = batch.component_term_at(recipe.root_component);
+        if registered_lambda_root != *batch.component_terms.get(recipe.root_component)? {
+            return None;
+        }
+        Some(InventoryInternalOwnerChoice {
+            use_index,
+            use_id,
+            use_record,
+            source_call_index,
+            source_call,
+            callee_name_occurrence,
+            apply_occurrence,
+            source_owner,
+            target_owner: &registration.owner,
+            plan: InventoryInternalPlan {
+                source_owner,
+                target_owner: &registration.owner,
+                target_root_component,
+                use_value_component,
+                target_root: target_root_term,
+                use_value: use_value_term,
+            },
+            origin_index,
+            origin,
+            registration_index,
+            registration,
+            recipe_index,
+            recipe,
+            parameter_recipe_index,
+            parameter_recipe,
+            parameter_native_root: registration.native_root,
+            registered_lambda_root,
+        })
     }
     /// Authenticate one retained emission against the same Internal use's
     /// raw entry row and a fresh read of its addressed physical slot.
