@@ -55,8 +55,7 @@ theorem alignment_apply_equation (source : OwnerSource (Key S T))
     (calls : List (SourceCall (Key S T))) (u : Use Nat (Key S T))
     (receiving target : Key S T) (a : Alignment source calls u receiving target) :
     applyCoordinate source a.call = some a.call.checking := by
-  simp only [applyCoordinate, a.applyIndexed, Option.bind_some, if_pos a.applied]
-  exact congrArg some a.checking
+  simp [applyCoordinate, a.applyIndexed, a.applied, a.checking]
 
 theorem alignment_name_target_equation (source : OwnerSource (Key S T))
     (calls : List (SourceCall (Key S T))) (u : Use Nat (Key S T))
@@ -130,46 +129,46 @@ theorem construction_certifies (s : Source S T)
 from selected expression index 2. Name 100 remains distinct from Apply 102. -/
 def unrelatedCall : SourceCall (Key Nat Nat) := { fixtureCall with owner := .source 999 }
 def completeCalls : List (SourceCall (Key Nat Nat)) := [unrelatedCall, fixtureCall]
-def fixtureCaptured := capture fixture fixtureOwnerSource completeCalls 1 fixtureUse (.source 10) (.source 1)
+def fixtureCaptured := capture fixture fixtureOwnerSource completeCalls 1 SourceInternalChoiceR77.fixtureUse (.source 10) (.source 1)
 
 theorem finite_distinct_coordinates_and_retained_calls :
-    fixtureUse.occurrence ≠ fixtureCall.checking ∧
+    SourceInternalChoiceR77.fixtureUse.occurrence ≠ fixtureCall.checking ∧
     completeCalls[0]? = some unrelatedCall ∧
     completeCalls[1]? = some fixtureCall ∧
     applyCoordinate fixtureOwnerSource fixtureCall = some fixtureCall.checking ∧
-    nameTarget fixtureOwnerSource fixtureCall = some (fixtureUse.occurrence, .source 1) ∧
+    nameTarget fixtureOwnerSource fixtureCall = some (SourceInternalChoiceR77.fixtureUse.occurrence, .source 1) ∧
     fixtureCaptured.isSome = true ∧
-    rootCoordinates fixtureOwnerSource completeCalls 1 fixtureUse (.source 10) (.source 1) = true := by
+    rootCoordinates fixtureOwnerSource completeCalls 1 SourceInternalChoiceR77.fixtureUse (.source 10) (.source 1) = true := by
   decide
 
 theorem finite_capture_rejects_bad_joins :
-    (capture fixture fixtureOwnerSource [fixtureCall, fixtureCall] 0 fixtureUse
+    (capture fixture fixtureOwnerSource [fixtureCall, fixtureCall] 0 SourceInternalChoiceR77.fixtureUse
       (.source 10) (.source 1)).isSome = false ∧
     (capture {fixture with plans := fixture.plans ++ fixture.plans}
-      fixtureOwnerSource completeCalls 1 fixtureUse (.source 10) (.source 1)).isSome = false ∧
+      fixtureOwnerSource completeCalls 1 SourceInternalChoiceR77.fixtureUse (.source 10) (.source 1)).isSome = false ∧
     (capture fixture {fixtureOwnerSource with owner := .source 999} completeCalls 1
-      fixtureUse (.source 10) (.source 1)).isSome = false ∧
-    (capture fixture fixtureOwnerSource [unrelatedCall] 0 fixtureUse
+      SourceInternalChoiceR77.fixtureUse (.source 10) (.source 1)).isSome = false ∧
+    (capture fixture fixtureOwnerSource [unrelatedCall] 0 SourceInternalChoiceR77.fixtureUse
       (.source 10) (.source 1)).isSome = false ∧
-    (capture fixture fixtureOwnerSource completeCalls 1 fixtureUse
+    (capture fixture fixtureOwnerSource completeCalls 1 SourceInternalChoiceR77.fixtureUse
       (.source 10) (.source 999)).isSome = false ∧
     (capture fixture fixtureOwnerSource completeCalls 1
-      {fixtureUse with occurrence := .source 102} (.source 10) (.source 1)).isSome = false ∧
+      {SourceInternalChoiceR77.fixtureUse with occurrence := .source 102} (.source 10) (.source 1)).isSome = false ∧
     (capture fixture fixtureOwnerSource [{fixtureCall with checking := .source 100}] 0
-      fixtureUse (.source 10) (.source 1)).isSome = false ∧
-    (capture fixture fixtureOwnerSource completeCalls 0 fixtureUse
+      SourceInternalChoiceR77.fixtureUse (.source 10) (.source 1)).isSome = false ∧
+    (capture fixture fixtureOwnerSource completeCalls 0 SourceInternalChoiceR77.fixtureUse
       (.source 10) (.source 1)).isSome = false ∧
-    (capture fixture fixtureOwnerSource completeCalls 2 fixtureUse
+    (capture fixture fixtureOwnerSource completeCalls 2 SourceInternalChoiceR77.fixtureUse
       (.source 10) (.source 1)).isSome = false := by
   decide
 
 theorem finite_root_rejects_bad_coordinates :
-    rootCoordinates fixtureOwnerSource completeCalls 0 fixtureUse (.source 10) (.source 1) = false ∧
-    rootCoordinates fixtureOwnerSource completeCalls 2 fixtureUse (.source 10) (.source 1) = false ∧
+    rootCoordinates fixtureOwnerSource completeCalls 0 SourceInternalChoiceR77.fixtureUse (.source 10) (.source 1) = false ∧
+    rootCoordinates fixtureOwnerSource completeCalls 2 SourceInternalChoiceR77.fixtureUse (.source 10) (.source 1) = false ∧
     rootCoordinates fixtureOwnerSource [{fixtureCall with checking := .source 100}] 0
-      fixtureUse (.source 10) (.source 1) = false ∧
-    rootCoordinates fixtureOwnerSource completeCalls 1 fixtureUse (.source 10) (.source 999) = false ∧
-    rootCoordinates fixtureOwnerSource completeCalls 1 {fixtureUse with occurrence := .source 102}
+      SourceInternalChoiceR77.fixtureUse (.source 10) (.source 1) = false ∧
+    rootCoordinates fixtureOwnerSource completeCalls 1 SourceInternalChoiceR77.fixtureUse (.source 10) (.source 999) = false ∧
+    rootCoordinates fixtureOwnerSource completeCalls 1 {SourceInternalChoiceR77.fixtureUse with occurrence := .source 102}
       (.source 10) (.source 1) = false := by
   decide
 
