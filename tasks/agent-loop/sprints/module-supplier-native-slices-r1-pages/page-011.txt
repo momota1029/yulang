@@ -1,0 +1,10 @@
+# source=crates/yu-solver/src/lib.rs sha256=ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07 bytes=[876287,876617) lines=19179-19187 unit=candidate-graph dispatch
+    fn route_incoming_inner(
+        &mut self,
+        id: &DefinitionUseId,
+        use_record: DefinitionUse,
+    ) -> Result<usize, SolveAvailabilityError> {
+        #[cfg(feature = "shadow-apply-candidate")]
+        if self.candidate_graph.is_some() {
+            return self.route_candidate_graph(id, use_record);
+        }

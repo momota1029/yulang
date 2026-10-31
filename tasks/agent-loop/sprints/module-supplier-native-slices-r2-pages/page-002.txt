@@ -1,0 +1,9 @@
+# source=crates/yu-solver/src/candidate_source.rs sha256=96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a bytes=[127225,127716) lines=1801-1808 kind=complete_arm_with_context name=Name-resolution arm plus surrounding context
+                                        push(&mut actions, Action::Local { slot: *local_slots.get(local).ok_or_else(invalid)?, occurrence: occurrence.clone(), value: pos.value, level })?;
+                                    }
+                                }
+                                _ => return Err(invalid()),
+                            }
+                            continue;
+                        }
+                        LocalSourceForm::Apply { callee, argument, .. } => {

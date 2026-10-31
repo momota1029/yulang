@@ -1,0 +1,40 @@
+# source=crates/yu-solver/src/candidate_source.rs sha256=96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a bytes=[123690,127225) lines=1762-1800 kind=complete_arm_with_context name=Name-resolution arm plus surrounding context
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+                            continue;
+                        }
+                        LocalSourceForm::Name { resolution, .. } => {
+                            let computation = match resolution {
+                                LocalSourceResolution::Parameter(parameter) => formal_registrations.get(parameter)
+                                    .copied()
+                                    .filter(|registration| self.candidate_calls.formals[*registration].role == candidate_call::FormalRole::Computation),
+                                _ => None,
+                            };
+                            if let Some(registration) = computation {
+                                push(&mut actions, Action::FormalNameEffect { registration, occurrence: occurrence.clone(), effect: pos.effect })?;
+                                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
+                                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
+                            } else {
+                                let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
+                                let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
+                                self.emit(occurrence.clone(), 1, bottom, self.component_term_at(pos.effect))?;
+                                self.emit(occurrence.clone(), 2, self.component_term_at(pos.effect), empty)?;
+                                self.append_source_facts(start, &mut actions)?;
+                            }
+                            match resolution {
+                                LocalSourceResolution::ModuleDef(target) => {
+                                    push(uses, PendingDefinitionUse { parent: parent.clone(), target, occurrence: occurrence.clone() })?;
+                                    push(&mut actions, Action::Module(occurrence.clone()))?;
+                                }
+                                LocalSourceResolution::Imported(export) => {
+                                    let target = imported_definitions.get(export).ok_or_else(invalid)?;
+                                    push(uses, PendingDefinitionUse { parent: parent.clone(), target, occurrence: occurrence.clone() })?;
+                                    push(&mut actions, Action::Module(occurrence.clone()))?;
+                                }
+                                LocalSourceResolution::Parameter(_) | LocalSourceResolution::CatchBinder(_) | LocalSourceResolution::CaseBinder(_) => {}
+                                LocalSourceResolution::Local(local) => {
+                                    if let Some(&endpoint) = active_initializers.get(local) {
+                                        push(&mut actions, Action::Link { occurrence: occurrence.clone(), endpoint, target: pos.value })?;
+                                        self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
+                                        self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+                                    } else {

@@ -1,0 +1,66 @@
+# source=crates/yu-solver/src/shadow_apply.rs sha256=c328e08662256b57ed9a31a4edd91e0832e9482cabb89952f204a89a78cf72ff bytes=[158590,161068) lines=3038-3102 unit=observer CandidateDefinitionUseRef
+/// Collection-owned identity retained before the batch is consumed.
+struct CandidateDefinitionUse {
+    record: DefinitionUse,
+    target_root: DefinitionRootId,
+    receiving_root: SourceRootId,
+}
+
+/// Borrowed current module Name use. No source typing or export transport follows.
+#[derive(Clone, Copy)]
+pub struct CandidateDefinitionUseRef<'a> {
+    observation: &'a CandidateValueObservation,
+    retained: &'a CandidateDefinitionUse,
+    target: crate::shadow_f5::ClosedSchemeRef<'a>,
+    receiving: crate::shadow_f5::ClosedSchemeRef<'a>,
+}
+impl<'a> CandidateDefinitionUseRef<'a> {
+    pub fn occurrence(self) -> &'a HirOccurrenceId {
+        self.retained.record.id().occurrence()
+    }
+    pub fn same_identity(self, other: Self) -> bool {
+        self.retained.record.id() == other.retained.record.id()
+    }
+    pub fn target_scheme(self) -> crate::shadow_f5::ClosedSchemeRef<'a> {
+        self.target
+    }
+    pub fn receiving_scheme(self) -> crate::shadow_f5::ClosedSchemeRef<'a> {
+        self.receiving
+    }
+    /// Actual receiving-root candidate observation from this same solve.
+    /// This does not establish semantic source typing or export transport.
+    pub fn receiving_export(self) -> Result<CandidateExport<'a>, ArtifactMismatch> {
+        self.observation.export(self.retained.receiving_root.definition_root().ok_or(ArtifactMismatch)?)
+    }
+    pub fn fresh_instantiation(self) -> crate::shadow_f5::FreshCaptureState<'a> {
+        self.target.fresh_capture(
+            self.retained.record.id(),
+            self.retained.record.target(),
+            true,
+        )
+    }
+    /// Exact retained store causes; an empty inventory supplies no invented fact.
+    pub fn provenance_causes(self) -> impl Iterator<Item = &'a CauseId> + 'a {
+        self.observation
+            .solved
+            .store
+            .provenance()
+            .iter()
+            .map(|edge| edge.cause())
+            .filter(move |cause| cause.occurrence().occurrence() == self.occurrence())
+    }
+    pub fn unresolved(self) -> &'static [UnresolvedPremise] {
+        UNRESOLVED
+    }
+}
+/// Historical row identity within this candidate's ordinary use substitution.
+pub struct CandidateFreshRow<'a> {
+    capture: &'a ShadowFreshCapture,
+    use_id: &'a DefinitionUseId,
+    row: u32,
+    binder: crate::shadow_f5::FreshBinderRef<'a>,
+}
+impl<'a> CandidateFreshRow<'a> {
+    pub fn source_binder(&self) -> crate::shadow_f5::FreshBinderRef<'a> {
+        self.binder
+    }

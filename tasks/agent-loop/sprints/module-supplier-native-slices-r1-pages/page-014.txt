@@ -1,0 +1,68 @@
+# source=crates/yu-solver/src/candidate_scheme.rs sha256=31ae5b9466a0f7bbd501c81e4401049ad9782636ba57ed89e8232e9149e8b707 bytes=[267333,270909) lines=4717-4783 unit=instantiate_candidate_graph
+    fn instantiate_candidate_graph(
+        &mut self,
+        id: &DefinitionUseId,
+        record: &DefinitionUse,
+        graph: Graph,
+        entry_scratch: usize,
+    ) -> Result<usize, SolveAvailabilityError> {
+        let occurrence = ConstraintOccurrenceId::new(record.occurrence.clone(), 0);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        let (lower, fresh) = self.freshen_candidate_graph_retained(&graph, record.use_level, &occurrence, &cause)?;
+        let receiving_owner = match &record.parent {
+            SourceReceiver::Definition(definition) => SourceRootId::Definition(
+                self.batch.definitions.get(definition.ordinal() as usize)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?.root.clone()),
+            SourceReceiver::Expression(root) => SourceRootId::Expression(root.clone()),
+            SourceReceiver::Member(root) => SourceRootId::Member(root.clone()),
+        };
+        let (activated_roles, activated_field_tails) = activate_source_obligations(
+            &graph, &fresh.rows, &fresh.source_role_obligation_rows,
+            &fresh.source_field_tail_obligation_rows, &receiving_owner,
+        )?;
+        let (rows, retained_maps) = fresh.into_retained_parts();
+        let remap_bytes = sum(&[bytes::<RowKey>(rows.capacity())?, retained_maps.bytes()?])?;
+        let upper = self.batch.component_term_at(record.use_value_component);
+        let key = CanonicalValuePairKey {
+            lower: self.value_endpoint(lower, Polarity::Positive),
+            upper: ValueEndpointKey::ValueRow(
+                self.live_components[record.use_value_component].ordinal,
+            ),
+        };
+        // Capture allocation and accounting failure precede route publication.
+        let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+        let old_capacity = state.routes.capacity();
+        state.routes.try_reserve(1).map_err(|_| exhausted())?;
+        let growth = bytes::<FreshRoute>(state.routes.capacity() - old_capacity)?;
+        let graph_bytes = graph.bytes()?;
+        let retained = sum(&[state.retained_bytes, growth, graph_bytes, remap_bytes])?;
+        // The captured Graph is already present in scratch at entry_scratch;
+        // FreshUse rows/maps were added by the retained helper. Transfer both
+        // categories to route ownership and leave the caller's scratch intact.
+        let transfer_bytes = sum(&[graph_bytes, remap_bytes])?;
+        let scratch = state.scratch_bytes.checked_sub(transfer_bytes).ok_or_else(exhausted)?;
+        state.retained_bytes = retained;
+        state.scratch_bytes = scratch;
+        #[cfg(test)]
+        assert_eq!(state.scratch_bytes, entry_scratch,
+            "module route transfer preserves caller scratch before resource sampling");
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        let transitions = self.route(
+            id,
+            record,
+            lower,
+            upper,
+            key,
+            RoutedUseKind::IncomingStructured,
+        )?;
+        let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+        let dispatch_route = DispatchRoute::Module(state.routes.len());
+        state.routes.push(FreshRoute {
+            use_id: id.clone(),
+            source_owner: receiving_owner.clone(),
+            provider: self.batch.definitions.get(record.target.ordinal() as usize)
+                .ok_or(SolveAvailabilityError::ReceiptMismatch)?.root.clone(),
+            graph,
+            rows,
+            retained: retained_maps,
+        });

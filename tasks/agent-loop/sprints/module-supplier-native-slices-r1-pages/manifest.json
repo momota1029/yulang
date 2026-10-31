@@ -1,0 +1,380 @@
+{
+  "protocol": "MSNS-r1 authenticated source pages v1",
+  "contract": "tasks/agent-loop/sprints/module-supplier-native-slices-20261028-r1.md",
+  "contract_sha256": "6ab211856d460e4c31fdcadd0f4c0576444444630eb9bcd380a53e4aec7f7435",
+  "max_emitted_page_bytes_including_header": 4096,
+  "max_unique_body_bytes": 102400,
+  "body_bytes_included_once": 32475,
+  "owners": {
+    "crates/yu-solver/src/candidate_source.rs": {
+      "sha256": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a"
+    },
+    "crates/yu-solver/src/lib.rs": {
+      "sha256": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07"
+    },
+    "crates/yu-solver/src/candidate_scheme.rs": {
+      "sha256": "31ae5b9466a0f7bbd501c81e4401049ad9782636ba57ed89e8232e9149e8b707"
+    },
+    "crates/yu-solver/src/shadow_apply.rs": {
+      "sha256": "c328e08662256b57ed9a31a4edd91e0832e9482cabb89952f204a89a78cf72ff"
+    }
+  },
+  "units": [
+    {
+      "owner": "crates/yu-solver/src/candidate_source.rs",
+      "start_line": 1762,
+      "end_line": 1808,
+      "name": "Name-resolution arm"
+    },
+    {
+      "owner": "crates/yu-solver/src/candidate_source.rs",
+      "start_line": 2457,
+      "end_line": 2511,
+      "name": "execute_candidate_action"
+    },
+    {
+      "owner": "crates/yu-solver/src/candidate_source.rs",
+      "start_line": 377,
+      "end_line": 403,
+      "name": "Action declaration"
+    },
+    {
+      "owner": "crates/yu-solver/src/lib.rs",
+      "start_line": 1054,
+      "end_line": 1108,
+      "name": "definition registration"
+    },
+    {
+      "owner": "crates/yu-solver/src/lib.rs",
+      "start_line": 1400,
+      "end_line": 1478,
+      "name": "pending-use resolution"
+    },
+    {
+      "owner": "crates/yu-solver/src/lib.rs",
+      "start_line": 19466,
+      "end_line": 19474,
+      "name": "validated_route_use"
+    },
+    {
+      "owner": "crates/yu-solver/src/lib.rs",
+      "start_line": 18207,
+      "end_line": 18236,
+      "name": "route_internal and route_internal_inner"
+    },
+    {
+      "owner": "crates/yu-solver/src/lib.rs",
+      "start_line": 19179,
+      "end_line": 19187,
+      "name": "candidate-graph dispatch"
+    },
+    {
+      "owner": "crates/yu-solver/src/candidate_scheme.rs",
+      "start_line": 4184,
+      "end_line": 4191,
+      "name": "route_candidate_open_use"
+    },
+    {
+      "owner": "crates/yu-solver/src/candidate_scheme.rs",
+      "start_line": 4193,
+      "end_line": 4220,
+      "name": "route_candidate_graph"
+    },
+    {
+      "owner": "crates/yu-solver/src/candidate_scheme.rs",
+      "start_line": 4717,
+      "end_line": 4799,
+      "name": "instantiate_candidate_graph"
+    },
+    {
+      "owner": "crates/yu-solver/src/shadow_apply.rs",
+      "start_line": 2029,
+      "end_line": 2055,
+      "name": "CandidateInference::export"
+    },
+    {
+      "owner": "crates/yu-solver/src/shadow_apply.rs",
+      "start_line": 3038,
+      "end_line": 3102,
+      "name": "observer CandidateDefinitionUseRef"
+    },
+    {
+      "owner": "crates/yu-solver/src/shadow_apply.rs",
+      "start_line": 3233,
+      "end_line": 3253,
+      "name": "observer definition_use"
+    }
+  ],
+  "pages": [
+    {
+      "file": "page-001.txt",
+      "owner": "crates/yu-solver/src/candidate_source.rs",
+      "owner_sha256": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a",
+      "unit": "Name-resolution arm",
+      "page_in_unit": 1,
+      "start_byte": 123690,
+      "end_byte": 127225,
+      "start_line": 1762,
+      "end_line": 1800,
+      "body_bytes": 3535,
+      "emitted_bytes": 3720,
+      "page_sha256": "ba5b867e1fdaf0bb93ea7b373f0c933048b200f69f34b7c3b68562efeea61754",
+      "continuation": "next page continues the same unit"
+    },
+    {
+      "file": "page-002.txt",
+      "owner": "crates/yu-solver/src/candidate_source.rs",
+      "owner_sha256": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a",
+      "unit": "Name-resolution arm",
+      "page_in_unit": 2,
+      "start_byte": 127225,
+      "end_byte": 127716,
+      "start_line": 1801,
+      "end_line": 1808,
+      "body_bytes": 491,
+      "emitted_bytes": 676,
+      "page_sha256": "bf516f1a14a30bb09f95f6f52e038bc89962e833379520cba48d9fb860922cde",
+      "continuation": "unit complete"
+    },
+    {
+      "file": "page-003.txt",
+      "owner": "crates/yu-solver/src/candidate_source.rs",
+      "owner_sha256": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a",
+      "unit": "execute_candidate_action",
+      "page_in_unit": 1,
+      "start_byte": 175766,
+      "end_byte": 179297,
+      "start_line": 2457,
+      "end_line": 2496,
+      "body_bytes": 3531,
+      "emitted_bytes": 3721,
+      "page_sha256": "8f9c60ab1125d4f649c1ec44f3f9bcded4c91d9ab83839cfcc18f1d4d30b6526",
+      "continuation": "next page continues the same unit"
+    },
+    {
+      "file": "page-004.txt",
+      "owner": "crates/yu-solver/src/candidate_source.rs",
+      "owner_sha256": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a",
+      "unit": "execute_candidate_action",
+      "page_in_unit": 2,
+      "start_byte": 179297,
+      "end_byte": 180997,
+      "start_line": 2497,
+      "end_line": 2511,
+      "body_bytes": 1700,
+      "emitted_bytes": 1890,
+      "page_sha256": "ea15a4c5e6868ef0e98bfb69e29c4839e3027aa694155809f725202cb70e5426",
+      "continuation": "unit complete"
+    },
+    {
+      "file": "page-005.txt",
+      "owner": "crates/yu-solver/src/candidate_source.rs",
+      "owner_sha256": "96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a",
+      "unit": "Action declaration",
+      "page_in_unit": 1,
+      "start_byte": 21679,
+      "end_byte": 24271,
+      "start_line": 377,
+      "end_line": 403,
+      "body_bytes": 2592,
+      "emitted_bytes": 2772,
+      "page_sha256": "d36c4953325489f4fe1cb37d59cb89efb7e338e77eeb5b1894669d841a3437ca",
+      "continuation": "unit complete"
+    },
+    {
+      "file": "page-006.txt",
+      "owner": "crates/yu-solver/src/lib.rs",
+      "owner_sha256": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07",
+      "unit": "definition registration",
+      "page_in_unit": 1,
+      "start_byte": 36549,
+      "end_byte": 40119,
+      "start_line": 1054,
+      "end_line": 1108,
+      "body_bytes": 3570,
+      "emitted_bytes": 3744,
+      "page_sha256": "7a88c01f7cb0cfa12176be00c5d9e585a09fc548303b1279ee1e77b1cbe77abf",
+      "continuation": "unit complete"
+    },
+    {
+      "file": "page-007.txt",
+      "owner": "crates/yu-solver/src/lib.rs",
+      "owner_sha256": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07",
+      "unit": "pending-use resolution",
+      "page_in_unit": 1,
+      "start_byte": 56644,
+      "end_byte": 60191,
+      "start_line": 1400,
+      "end_line": 1465,
+      "body_bytes": 3547,
+      "emitted_bytes": 3720,
+      "page_sha256": "d4da7e2dc8dc3ec6a305cd11ef3985ec17cade85c5f9c42b6a9bf2d0b22e1365",
+      "continuation": "next page continues the same unit"
+    },
+    {
+      "file": "page-008.txt",
+      "owner": "crates/yu-solver/src/lib.rs",
+      "owner_sha256": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07",
+      "unit": "pending-use resolution",
+      "page_in_unit": 2,
+      "start_byte": 60191,
+      "end_byte": 60893,
+      "start_line": 1466,
+      "end_line": 1478,
+      "body_bytes": 702,
+      "emitted_bytes": 875,
+      "page_sha256": "6a7b24e0e9e09f8e0eae87b766bd1edfdb30dcebc8f85afd64ba711ebac525e9",
+      "continuation": "unit complete"
+    },
+    {
+      "file": "page-009.txt",
+      "owner": "crates/yu-solver/src/lib.rs",
+      "owner_sha256": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07",
+      "unit": "validated_route_use",
+      "page_in_unit": 1,
+      "start_byte": 888255,
+      "end_byte": 888627,
+      "start_line": 19466,
+      "end_line": 19474,
+      "body_bytes": 372,
+      "emitted_bytes": 546,
+      "page_sha256": "a49204971d9ef785b9e4d13a9735bcf405a839027661000bbaf3fb94ea6456b4",
+      "continuation": "unit complete"
+    },
+    {
+      "file": "page-010.txt",
+      "owner": "crates/yu-solver/src/lib.rs",
+      "owner_sha256": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07",
+      "unit": "route_internal and route_internal_inner",
+      "page_in_unit": 1,
+      "start_byte": 829240,
+      "end_byte": 830481,
+      "start_line": 18207,
+      "end_line": 18236,
+      "body_bytes": 1241,
+      "emitted_bytes": 1435,
+      "page_sha256": "0d01cb880fa8cf62b095501d1aa2a1bc4ae28dcdba49b27c025d2d9015ea5f24",
+      "continuation": "unit complete"
+    },
+    {
+      "file": "page-011.txt",
+      "owner": "crates/yu-solver/src/lib.rs",
+      "owner_sha256": "ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07",
+      "unit": "candidate-graph dispatch",
+      "page_in_unit": 1,
+      "start_byte": 876287,
+      "end_byte": 876617,
+      "start_line": 19179,
+      "end_line": 19187,
+      "body_bytes": 330,
+      "emitted_bytes": 509,
+      "page_sha256": "2af53a78132d34da1b48af98051d7acd38d6060d7f00198feb9fc2200b7c84da",
+      "continuation": "unit complete"
+    },
+    {
+      "file": "page-012.txt",
+      "owner": "crates/yu-solver/src/candidate_scheme.rs",
+      "owner_sha256": "31ae5b9466a0f7bbd501c81e4401049ad9782636ba57ed89e8232e9149e8b707",
+      "unit": "route_candidate_open_use",
+      "page_in_unit": 1,
+      "start_byte": 233921,
+      "end_byte": 234610,
+      "start_line": 4184,
+      "end_line": 4191,
+      "body_bytes": 689,
+      "emitted_bytes": 879,
+      "page_sha256": "092f569d64001f4b2b55242437f68b8c81aeedce6360f6d7a546ca9955220549",
+      "continuation": "unit complete"
+    },
+    {
+      "file": "page-013.txt",
+      "owner": "crates/yu-solver/src/candidate_scheme.rs",
+      "owner_sha256": "31ae5b9466a0f7bbd501c81e4401049ad9782636ba57ed89e8232e9149e8b707",
+      "unit": "route_candidate_graph",
+      "page_in_unit": 1,
+      "start_byte": 234611,
+      "end_byte": 236135,
+      "start_line": 4193,
+      "end_line": 4220,
+      "body_bytes": 1524,
+      "emitted_bytes": 1711,
+      "page_sha256": "85876d789ac667fb70dd393be9964c532cd1c464868028ae50c14b704838d3ae",
+      "continuation": "unit complete"
+    },
+    {
+      "file": "page-014.txt",
+      "owner": "crates/yu-solver/src/candidate_scheme.rs",
+      "owner_sha256": "31ae5b9466a0f7bbd501c81e4401049ad9782636ba57ed89e8232e9149e8b707",
+      "unit": "instantiate_candidate_graph",
+      "page_in_unit": 1,
+      "start_byte": 267333,
+      "end_byte": 270909,
+      "start_line": 4717,
+      "end_line": 4783,
+      "body_bytes": 3576,
+      "emitted_bytes": 3769,
+      "page_sha256": "c91ecd30c421c0a9dc29c6963a0553b24b49f9e7f7ea87d0724dabc44a60bcba",
+      "continuation": "next page continues the same unit"
+    },
+    {
+      "file": "page-015.txt",
+      "owner": "crates/yu-solver/src/candidate_scheme.rs",
+      "owner_sha256": "31ae5b9466a0f7bbd501c81e4401049ad9782636ba57ed89e8232e9149e8b707",
+      "unit": "instantiate_candidate_graph",
+      "page_in_unit": 2,
+      "start_byte": 270909,
+      "end_byte": 271692,
+      "start_line": 4784,
+      "end_line": 4799,
+      "body_bytes": 783,
+      "emitted_bytes": 976,
+      "page_sha256": "eb07682544d14a7ae30ab98b7c06a3583a8fda420b338a275fe4fdd549e686d2",
+      "continuation": "unit complete"
+    },
+    {
+      "file": "page-016.txt",
+      "owner": "crates/yu-solver/src/shadow_apply.rs",
+      "owner_sha256": "c328e08662256b57ed9a31a4edd91e0832e9482cabb89952f204a89a78cf72ff",
+      "unit": "CandidateInference::export",
+      "page_in_unit": 1,
+      "start_byte": 107768,
+      "end_byte": 108768,
+      "start_line": 2029,
+      "end_line": 2055,
+      "body_bytes": 1000,
+      "emitted_bytes": 1188,
+      "page_sha256": "4ca68758acac53f518c996f357132982648087e8fb7642801a99be1448f85ef5",
+      "continuation": "unit complete"
+    },
+    {
+      "file": "page-017.txt",
+      "owner": "crates/yu-solver/src/shadow_apply.rs",
+      "owner_sha256": "c328e08662256b57ed9a31a4edd91e0832e9482cabb89952f204a89a78cf72ff",
+      "unit": "observer CandidateDefinitionUseRef",
+      "page_in_unit": 1,
+      "start_byte": 158590,
+      "end_byte": 161068,
+      "start_line": 3038,
+      "end_line": 3102,
+      "body_bytes": 2478,
+      "emitted_bytes": 2674,
+      "page_sha256": "542befa0829efff3c8528d7bec4d750d8d9fa2402a20aae07ef55adcdae5fead",
+      "continuation": "unit complete"
+    },
+    {
+      "file": "page-018.txt",
+      "owner": "crates/yu-solver/src/shadow_apply.rs",
+      "owner_sha256": "c328e08662256b57ed9a31a4edd91e0832e9482cabb89952f204a89a78cf72ff",
+      "unit": "observer definition_use",
+      "page_in_unit": 1,
+      "start_byte": 166615,
+      "end_byte": 167429,
+      "start_line": 3233,
+      "end_line": 3253,
+      "body_bytes": 814,
+      "emitted_bytes": 999,
+      "page_sha256": "283fa56ba000af06df7374150d340ea29923331bbe928e87685d245e95e96f64",
+      "continuation": "unit complete"
+    }
+  ]
+}

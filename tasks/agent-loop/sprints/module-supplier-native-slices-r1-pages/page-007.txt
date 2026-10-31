@@ -1,0 +1,67 @@
+# source=crates/yu-solver/src/lib.rs sha256=ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07 bytes=[56644,60191) lines=1400-1465 unit=pending-use resolution
+                .get(&pending.target)
+                .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?
+                .clone();
+            batch
+                .counters
+                .definition_endpoint_logical_successful_equality_byte_incidences +=
+                pending.target.hash_eq_payload_bytes();
+            let parent = pending.parent.clone();
+            match &parent {
+                SourceReceiver::Definition(id) => {
+                    let record = batch.definitions.get(id.ordinal() as usize)
+                        .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?;
+                    if &record.definition != id { return Err(CollectionAvailabilityError::MissingDefinitionEndpoint); }
+                }
+                SourceReceiver::Expression(root) => {
+                    let owner = SourceRootId::Expression(root.clone());
+                    #[cfg(feature = "shadow-apply-candidate")]
+                    if batch.candidate_source.source_owners.get(&pending.occurrence) != Some(&owner) {
+                        return Err(CollectionAvailabilityError::MissingDefinitionEndpoint);
+                    }
+                    #[cfg(not(feature = "shadow-apply-candidate"))]
+                    { let _ = owner; return Err(CollectionAvailabilityError::MissingDefinitionEndpoint); }
+                }
+                SourceReceiver::Member(root) => {
+                    let owner = SourceRootId::Member(root.clone());
+                    #[cfg(feature = "shadow-apply-candidate")]
+                    if batch.candidate_source.source_owners.get(&pending.occurrence) != Some(&owner) {
+                        return Err(CollectionAvailabilityError::MissingDefinitionEndpoint);
+                    }
+                    #[cfg(not(feature = "shadow-apply-candidate"))]
+                    { let _ = owner; return Err(CollectionAvailabilityError::MissingDefinitionEndpoint); }
+                }
+            }
+            u32::try_from(batch.definition_uses.len())
+                .map_err(|_| CollectionAvailabilityError::DefinitionUseIdentityExhausted)?;
+            let id = DefinitionUseId::new(
+                batch.collection_artifact.clone(),
+                pending.occurrence.clone(),
+            );
+            let target_root_component = batch
+                .root_component_positions
+                .get(&batch.definitions[target.ordinal() as usize].root)
+                .expect("target root has frozen component position")
+                .component;
+            let use_value_component = batch
+                .occurrence_component_positions
+                .get(&pending.occurrence)
+                .expect("resolved use has frozen component positions")
+                .value;
+            let position = batch.definition_uses.len();
+            batch.definition_uses.push(DefinitionUse {
+                cause: DefinitionUseCause::for_use(id.clone()),
+                id: id.clone(),
+                parent,
+                target,
+                occurrence: pending.occurrence.clone(),
+                use_level: {
+                    #[cfg(feature = "shadow-apply-candidate")]
+                    { batch.candidate_source.component_levels.get(&use_value_component).copied().unwrap_or(1) }
+                    #[cfg(not(feature = "shadow-apply-candidate"))]
+                    { 1 }
+                },
+                use_value_component,
+                target_root_component,
+            });
+            let old_capacity = batch.definition_use_positions.capacity();

@@ -1,0 +1,31 @@
+# source=crates/yu-solver/src/lib.rs sha256=ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07 bytes=[829240,830481) lines=18207-18236 unit=route_internal and route_internal_inner
+    fn route_internal(&mut self, id: &DefinitionUseId) -> Result<usize, SolveAvailabilityError> {
+        let use_record = Self::validated_route_use(&self.batch, id)?.clone();
+        self.with_route_transaction(|session| session.route_internal_inner(id, use_record))
+    }
+
+    fn route_internal_inner(
+        &mut self,
+        id: &DefinitionUseId,
+        use_record: DefinitionUse,
+    ) -> Result<usize, SolveAvailabilityError> {
+        let root = self
+            .batch
+            .component_term_at(use_record.target_root_component);
+        let value = self.batch.component_term_at(use_record.use_value_component);
+        let key = CanonicalValuePairKey {
+            lower: ValueEndpointKey::ValueRow(
+                self.live_components[use_record.target_root_component].ordinal,
+            ),
+            upper: ValueEndpointKey::ValueRow(
+                self.live_components[use_record.use_value_component].ordinal,
+            ),
+        };
+        self.route(id, &use_record, root, value, key, RoutedUseKind::Internal)
+    }
+
+    #[cfg(test)]
+    fn decode_positive_scheme<'meter>(
+        source_meter: &'meter DraftHeapMeter,
+        view: yu_types::ClosedValueSchemeView<'_>,
+        id: yu_types::PositiveValueId,

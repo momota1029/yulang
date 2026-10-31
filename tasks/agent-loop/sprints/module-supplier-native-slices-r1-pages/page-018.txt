@@ -1,0 +1,22 @@
+# source=crates/yu-solver/src/shadow_apply.rs sha256=c328e08662256b57ed9a31a4edd91e0832e9482cabb89952f204a89a78cf72ff bytes=[166615,167429) lines=3233-3253 unit=observer definition_use
+        &self,
+        occurrence: &HirOccurrenceId,
+    ) -> Option<CandidateDefinitionUseRef<'_>> {
+        let retained = self
+            .definition_uses
+            .iter()
+            .find(|u| u.record.occurrence() == occurrence)?;
+        if retained.record.id() != retained.record.cause().id()
+            || retained.record.id().occurrence() != retained.record.occurrence()
+            || !self.solved.owns_occurrence(occurrence)
+        {
+            return None;
+        }
+        let schemes = self.solved.shadow_closed_schemes();
+        Some(CandidateDefinitionUseRef {
+            observation: self,
+            retained,
+            target: schemes.for_root(&retained.target_root).ok()?,
+            receiving: schemes.for_root(retained.receiving_root.definition_root()?).ok()?,
+        })
+    }

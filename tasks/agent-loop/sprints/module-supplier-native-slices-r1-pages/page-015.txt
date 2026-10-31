@@ -1,0 +1,17 @@
+# source=crates/yu-solver/src/candidate_scheme.rs sha256=31ae5b9466a0f7bbd501c81e4401049ad9782636ba57ed89e8232e9149e8b707 bytes=[270909,271692) lines=4784-4799 unit=instantiate_candidate_graph
+        for obligation in activated_roles {
+            if !state.has_source_role_obligation(&receiving_owner, &obligation) {
+                state.retain_source_role_obligation_for(receiving_owner.clone(), obligation)?;
+            }
+        }
+        for mut obligation in activated_field_tails {
+            obligation.dispatch_context = Some(state.compose_dispatch_context(
+                None, dispatch_route, obligation.dispatch_context)?);
+            if !state.has_source_field_tail_obligation(&obligation) {
+                state.retain_source_field_tail_obligation(obligation)?;
+            }
+        }
+        state.refresh_bytes()?;
+        state.scratch_bytes = entry_scratch;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        Ok(transitions)

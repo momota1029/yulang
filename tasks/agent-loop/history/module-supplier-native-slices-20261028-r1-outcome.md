@@ -1,0 +1,19 @@
+# MODULE-SUPPLIER-NATIVE-SLICES/r1 outcome
+
+Status: **CLOSED_INCOMPLETE / PROTOCOL_INVALID**. No semantic source/native audit result is admitted. Preserve `DELTA_AUTH_UNRESOLVED / NO_SAFE_CODE_SLICE`; both named suppliers and all source/native/parent/production gates remain OPEN.
+
+Frozen inputs and receipts:
+
+- Contract `tasks/agent-loop/sprints/module-supplier-native-slices-20261028-r1.md`, SHA-256 `6ab211856d460e4c31fdcadd0f4c0576444444630eb9bcd380a53e4aec7f7435`.
+- Primary bootstrap receipt `tasks/agent-loop/history/module-supplier-native-slices-20261028-r1-primary-preflight.md`, SHA-256 `edef85583e4815ce4e9259b5dc3ddaedc05d570bcb2b90440c90f17a754f3e26`; the 21-entry preflight passed.
+- Source receipt `tasks/agent-loop/inbox/module-supplier-native-slices-source.md`, SHA-256 `2b3705f4d3fd715e4baf9d60d3e4d23cba919df942dd470403486aa8ff4638d8`.
+- Proof receipt `tasks/agent-loop/inbox/module-supplier-native-slices-proof.md`, SHA-256 `c4b1cb1440510232ccd68b69b21f2da367431953d18e6808fd63f4597b989c28`.
+- Independent review `tasks/agent-loop/inbox/module-supplier-native-slices-review.md`, SHA-256 `1e18e5cd5e40749cd7c3da5239d94ac1f572895857fd502de49ef40173fb2d72`.
+
+Both producer lanes emitted the same 5,231-byte source page `[175766,180997)`, above the contract's 4,096-byte limit; discard it from evidence. The source lane stopped and retained only its earlier bounded Name-resolution arm as a structural observation. The proof lane also issued a 3,072-byte read `[175766,178838)` after the mandatory stop condition. The contract only permits smaller retries after transport truncation, and neither lane reported transport truncation; this is an additional protocol violation. That page is also inadmissible. The proof receipt records it. The reviewer found a minor coverage-ledger omission: line boundaries for contract pages were missing; independent review records them as lines 1–80 and 80–131, and the mistaken smaller page ends inside line 2490. These metadata do not repair the execution breaches.
+
+The independent reviewer matched contract/source/proof hashes, manifest and script pins, and all 21 current manifest entries. No receipt relies on either invalid page for a semantic conclusion. The fieldwise supplier chain and first unsupported semantic premise remain unassessed. The review itself was read-only; measured lower bound 21 seconds, startup before first sample unknown.
+
+Resource accounting: prior conservative ledger **3,950/7,200 seconds**. Charge the full new **1,000 seconds** grant (source 350, proof 300, review 200, primary 100, contingency 50) despite early STOP; no refund or reuse. New ledger **4,950/7,200 seconds**, remaining **2,250 seconds**. Source reported 110.208 seconds plus unknown startup; proof reported at least 94.379 seconds plus unknown startup. Primary and contingency grants are charged in full without a certified elapsed measurement. No tests, builds, Cargo, Lean, Git mutations, or source edits occurred. Primary did run one read-only `git status --short --untracked-files=no` during initial worktree inventory, before producer dispatch; this violated the contract's literal Git=0 restriction and is recorded as a primary process deviation.
+
+Selector close disposition: **CLOSED_INCOMPLETE / PROTOCOL_INVALID**. Do not grant another worker audit yet. The next useful action is primary-owned mechanical preparation of immutable authenticated byte pages for the already admitted slices: each emitted page at most 4,096 bytes including headers, with owner/page hashes, exact offsets and continuation; verify complete units with no gaps or overlaps; freeze pages and manifest; verify one prescribed bounded-output consumer command before any new audit grant. This changes transport only, supplies no semantic evidence, and leaves enough budget for fresh review. Preserve UNKNOWN identities, leases/quarantines and every open gate.

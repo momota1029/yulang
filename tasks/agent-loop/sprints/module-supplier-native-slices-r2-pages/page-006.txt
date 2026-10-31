@@ -1,0 +1,56 @@
+# source=crates/yu-solver/src/lib.rs sha256=ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07 bytes=[36549,40119) lines=1054-1108 kind=context_fragment name=definition registration context
+        ] {
+            batch.term_for_leaf(leaf)?;
+        }
+        // This spelling-bearing index borrows HIR and is discarded after the
+        // endpoint pass; the immutable batch retains only order identities.
+        let mut definition_by_hir_id = HashMap::<&DefId, DefinitionOrderId>::new();
+        let mut pending_uses = Vec::new();
+        for (hir_index, hir) in source_hirs.iter().enumerate() {
+            for item in hir.items() {
+                batch.counters.body_pass_visits += 1;
+                let (expression, definition_root, definition) = match item {
+                    HirItem::Expression(expression) => (expression, None, None),
+                    HirItem::Binding(binding) => {
+                        let ordinal = u32::try_from(batch.definitions.len())
+                            .map_err(|_| CollectionAvailabilityError::DefinitionIdentityExhausted)?;
+                        let definition =
+                            DefinitionOrderId::new(batch.collection_artifact.clone(), ordinal);
+                        let fact_start = batch.occurrences.len();
+                        batch.add_definition_root(binding.definition_root().clone())?;
+                        batch.root_hir_positions.push(hir_index);
+                        #[cfg(feature = "shadow-apply-candidate")]
+                        batch.candidate_source.references.register_module(binding.definition_root().clone(), binding.id().clone())?;
+                        let endpoint_identity_payload_bytes = binding.id().hash_eq_payload_bytes();
+                        let old_capacity = definition_by_hir_id.capacity();
+                        let Entry::Vacant(entry) = definition_by_hir_id.entry(binding.id()) else {
+                            return Err(CollectionAvailabilityError::DuplicateDefinitionId);
+                        };
+                        entry.insert(definition.clone());
+                        batch.counters.definition_endpoint_index_inserts += 1;
+                        batch
+                            .counters
+                            .definition_endpoint_identity_hash_byte_incidences +=
+                            endpoint_identity_payload_bytes;
+                        if definition_by_hir_id.capacity() != old_capacity {
+                            batch.counters.definition_endpoint_index_capacity_growths += 1;
+                            batch.counters.index_rebuilds += 1;
+                        }
+                        let definition_position = batch.definitions.len();
+                        let old_capacity = batch.definition_positions.capacity();
+                        let Entry::Vacant(entry) = batch.definition_positions.entry(definition.clone())
+                        else {
+                            return Err(CollectionAvailabilityError::DuplicateDefinitionOrderId);
+                        };
+                        entry.insert(definition_position);
+                        batch.counters.definition_record_index_inserts += 1;
+                        if batch.definition_positions.capacity() != old_capacity {
+                            batch.counters.index_rebuilds += 1;
+                        }
+                        let body_status = if candidate_values {
+                            CollectedBodyStatus::Complete
+                        } else {
+                            match binding.value() {
+                                ResolvedExpr::Integer { .. }
+                                | ResolvedExpr::Name {
+                                    resolution: NameResolution::Resolved(_),

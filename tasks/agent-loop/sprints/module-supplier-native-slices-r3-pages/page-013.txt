@@ -1,0 +1,29 @@
+# source=crates/yu-solver/src/candidate_scheme.rs sha256=31ae5b9466a0f7bbd501c81e4401049ad9782636ba57ed89e8232e9149e8b707 bytes=[234611,236135) lines=4193-4220 kind=unit name=route_candidate_graph
+    pub(super) fn route_candidate_graph(
+        &mut self,
+        id: &DefinitionUseId,
+        record: DefinitionUse,
+    ) -> Result<usize, SolveAvailabilityError> {
+        let target = record.target.ordinal() as usize;
+
+        let (root, boundary, source_frontier, obligations, field_tails) = {
+            let stored = self.candidate_graph.as_ref()
+                .and_then(|state| state.graphs.get(target)).and_then(Option::as_ref)
+                .ok_or_else(exhausted)?;
+            (stored.live_root, stored.boundary, stored.source_frontier.clone(),
+                clone_role_obligations(&stored.source_role_obligations)?,
+                clone_field_tail_obligations(&stored.source_field_tail_obligations)?)
+        };
+        let frontier_scratch = bytes::<candidate_source::SourceRegionId>(source_frontier.capacity())?;
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.scope_inventory.note_scratch(frontier_scratch);
+        let entry_scratch = self.candidate_graph.as_ref().unwrap().scratch_bytes;
+        let result = (|| {
+            let graph = self.capture_candidate_graph_owned_with_roots(
+                root, boundary, &source_frontier, &obligations, &field_tails, &[],
+            ).map_err(|error| {  error })?;
+            self.instantiate_candidate_graph(id, &record, graph, entry_scratch)
+                .map_err(|error| {  error })
+        })();
+        self.candidate_graph.as_mut().ok_or_else(exhausted)?.scratch_bytes = entry_scratch;
+        result
+    }

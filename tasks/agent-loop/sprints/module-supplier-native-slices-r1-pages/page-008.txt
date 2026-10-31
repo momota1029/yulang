@@ -1,0 +1,14 @@
+# source=crates/yu-solver/src/lib.rs sha256=ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07 bytes=[60191,60893) lines=1466-1478 unit=pending-use resolution
+            let Entry::Vacant(entry) = batch.definition_use_positions.entry(id) else {
+                return Err(CollectionAvailabilityError::DuplicateDefinitionUseId);
+            };
+            entry.insert(position);
+            batch.counters.definition_use_index_inserts += 1;
+            if batch.definition_use_positions.capacity() != old_capacity {
+                batch.counters.index_rebuilds += 1;
+            }
+            batch.counters.retained_definition_uses += 1;
+        }
+        batch.ensure_total_definition_use_map()?;
+        // Alignment belongs to collection: a failed seal returns no partially
+        // observable batch and maps through the established component category.
