@@ -29,9 +29,9 @@ Static input reconstruction before audit 2 produced:
 
 - Repaired dependency body: 78,116 bytes; SHA-256 `886990606fbe866e1e8682664883820d08cffbba2646797f63abc8a3399652d3`.
 - Repaired prefix input (215 named checks): 92,550 bytes; SHA-256 `65d6e1c9ccd282bd905203da157135bd9eccf8f0cb1a22a55672c34b52caa302`.
-- Proposed repaired full candidate input (13 theorem type and axiom pairs): 102,933 bytes; SHA-256 `ca38b19bbd4dcf9586f3a65bfd5294ab1e5146d889ab530dc1832cc50fc14d62`.
+- Proposed repaired full candidate input (13 theorem type and axiom pairs): 102,876 bytes; SHA-256 `fc6f1754dfa0235a4ae2ca4c74102fd103d1eeaad1cc507a2ec80bfc41cddf11`.
 
-These inputs have not been invoked. The reviewer must independently verify the exact in-memory recipe and hashes.
+The repaired full preamble contains exactly three accepted `pp.*` options followed by thirteen candidate query pairs; it contains no prefix `#check` line. These inputs have not been invoked. The reviewer must independently verify the exact in-memory recipe and hashes.
 
 ## Amended remaining sequence
 
