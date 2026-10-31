@@ -569,6 +569,31 @@ struct InventoryOccurrenceFact<'p, 'a> {
     slot: u32,
 }
 
+/// The owner-derived Internal request and root evidence consumed by the
+/// occurrence-qualified policy/consumer lane. Every fact and route remains a
+/// borrowed record selected from this package's source call and owner tables.
+#[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "private R66 owner-derived Internal/root request view")]
+struct InventoryInternalRootView<'p, 'a> {
+    source_call: &'p InventorySourceCall<'a>,
+    use_record: &'a DefinitionUse,
+    internal_route: &'a RoutedUseProvenance,
+    permission: &'a candidate_effect::FormalEntryPermission,
+    registration: &'a candidate_call::FormalRegistrationInput,
+    lambda_recipe: &'a LambdaRecipe,
+    internal_request: &'p InventoryInternalRequest<'a>,
+    internal_fact: InventoryOccurrenceFact<'p, 'a>,
+    lambda_fact: InventoryOccurrenceFact<'p, 'a>,
+    entry: &'p InventoryEntryRequest<'a>,
+    owner_call: &'p InventoryOwnerCall<'a>,
+    root_join: &'p InternalRegisteredRootJoin,
+    internal_plan: &'p InventoryInternalPlan<'a>,
+    root_emission: &'a candidate_context::BoundEmission,
+    root_admission: &'a candidate_context::BoundAdmission,
+    root_relation: candidate_context::RelationId,
+    raw_entry: u32,
+}
+
 /// A TermView retained at a private package-local coordinate. Child indices
 /// point back into this same complete, owner-derived closure.
 #[cfg(feature = "shadow-apply-candidate")]
@@ -675,7 +700,7 @@ struct InventoryPackage<'a> {
 }
 
 #[cfg(feature = "shadow-apply-candidate")]
-impl InventoryPackage<'_> {
+impl<'a> InventoryPackage<'a> {
     /// Read the unique fact admitted at a source occurrence and local slot.
     /// The selected native fact must be the same owner-table entry, with its
     /// FactId and endpoints preserved by the selected provenance edge.
@@ -684,7 +709,7 @@ impl InventoryPackage<'_> {
         occurrence: &HirOccurrenceId,
         slot: u32,
         selected_native_fact: &SemanticFact,
-    ) -> Option<InventoryOccurrenceFact<'_, '_>> {
+    ) -> Option<InventoryOccurrenceFact<'_, 'a>> {
         let mut candidates = self.admitted_fact_occurrences.iter().filter(|row| {
             row.occurrence == occurrence && row.slot == slot
         });
@@ -712,6 +737,123 @@ impl InventoryPackage<'_> {
         }
         Some(InventoryOccurrenceFact { row, occurrence: row.occurrence, slot })
     }
+
+    /// Tie the selected source-call request, slot-0 Internal fact, slot-2
+    /// lambda fact, raw permission entry, and root emission into one borrowed
+    /// view. This is evidence for downstream readers only; it does not route
+    /// or consume the permission.
+    fn internal_root_view(&self) -> Option<InventoryInternalRootView<'_, 'a>> {
+        let request = &self.internal;
+        let mut source_calls = self.source_calls.iter().filter(|call| {
+            call.call_index == request.source_call
+        });
+        let source_call = source_calls.next()?;
+        if source_calls.next().is_some() { return None; }
+        let (use_index, use_record) = self.uses.get(request.definition_use)?;
+        if *use_index != request.definition_use
+            || source_call.call_index != request.source_call
+            || source_call.occurrence != request.occurrence
+            || source_call.checking.occurrence() != request.occurrence
+            || source_call.owner != request.source_owner
+            || !std::ptr::eq(source_call.input, self.calls.get(request.source_call)?.1)
+            || use_record.occurrence() != request.occurrence
+            || self.owner_call.source_call != request.source_call
+            || self.owner_call.source_owner != request.source_owner
+            || self.owner_call.target_owner != request.target_owner
+            || self.owner_call.use_occurrence != request.occurrence
+            || !matches!(request.source_owner, SourceRootId::Definition(root) if root == self.owner_call.answer)
+            || !matches!(request.target_owner, SourceRootId::Definition(root) if root == self.owner_call.relay)
+        {
+            return None;
+        }
+
+        let internal_fact = self.source_fact_at(
+            request.occurrence,
+            0,
+            request.semantic_internal_fact,
+        )?;
+        let lambda_fact = self.source_fact_at(
+            request.lambda_occurrence,
+            2,
+            request.semantic_lambda_fact,
+        )?;
+        let (permission_index, permission) = self.permissions.get(request.registration)?;
+        if *permission_index != request.registration
+            || permission.registration != request.registration
+            || &permission.source_owner != request.target_owner
+            || permission.occurrence != *request.lambda_occurrence
+            || permission.annotation_position != *request.annotation_position
+            || permission.source_row != *request.source_row
+            || permission.entry_effect != request.raw_entry
+        {
+            return None;
+        }
+        let (registration_index, registration) = self.formals.get(request.registration)?;
+        let (recipe_index, lambda_recipe) = self.recipes.get(self.root_join.recipe_index)?;
+        if *registration_index != request.registration
+            || registration.owner != *request.target_owner
+            || registration.lambda != request.lambda_index
+            || registration.recipe_position != permission.parameter
+            || registration.parameter != permission.formal
+            || *recipe_index != self.root_join.recipe_index
+            || lambda_recipe.formal_registration != Some(request.registration)
+            || lambda_recipe.occurrence != *request.lambda_occurrence
+            || lambda_recipe.root_component != self.root_join.root_component
+        {
+            return None;
+        }
+
+        let mut routes = self.routes.iter().filter(|(_, route)| {
+            route.use_id == *use_record.id()
+                && route.kind == RoutedUseKind::Internal
+                && route.fact == Some(request.semantic_internal_fact.id())
+        });
+        let (_, internal_route) = routes.next()?;
+        if routes.next().is_some() {
+            return None;
+        }
+        let emission = self.emissions.get(self.entry.emission_index)?;
+        let admission = self.admissions.get(self.entry.admission_index)?;
+        if emission.0 != self.entry.emission_index
+            || admission.0 != self.entry.admission_index
+            || self.entry.source_call != request.source_call
+            || self.entry.use_occurrence != request.occurrence
+            || !std::ptr::eq(self.entry.semantic_fact, request.semantic_internal_fact)
+            || self.entry.raw_entry != request.raw_entry
+            || emission.1.physical.owner != candidate_scheme::RowKey::Effect(request.raw_entry)
+            || admission.1.bound != emission.1.bound
+            || admission.1.relation != Some(self.entry.root_relation)
+            || emission.1.admission.0 != self.entry.admission_index
+            || !self.relations.iter().any(|(index, _)| *index == self.entry.root_relation.0 as usize)
+            || self.internal_plan.source_owner != request.source_owner
+            || self.internal_plan.target_owner != request.target_owner
+            || self.internal_plan.target_root != self.root_join.registered_root
+            || self.root_join.registration != request.registration
+            || self.root_join.root_component != self.internal_plan.target_root_component
+        {
+            return None;
+        }
+        Some(InventoryInternalRootView {
+            source_call,
+            use_record,
+            internal_route,
+            permission,
+            registration,
+            lambda_recipe,
+            internal_request: request,
+            internal_fact,
+            lambda_fact,
+            entry: &self.entry,
+            owner_call: &self.owner_call,
+            root_join: &self.root_join,
+            internal_plan: &self.internal_plan,
+            root_emission: emission.1,
+            root_admission: admission.1,
+            root_relation: self.entry.root_relation,
+            raw_entry: request.raw_entry,
+        })
+    }
+
 }
 
 #[cfg(feature = "shadow-apply-candidate")]
@@ -3238,11 +3380,7 @@ impl<'a> InventoryPackage<'a> {
             entry_path,
             catch_path,
         };
-        if package.source_fact_at(
-            package.internal.occurrence,
-            0,
-            package.internal.semantic_internal_fact,
-        ).is_none() {
+        if package.internal_root_view().is_none() {
             return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
         }
         Ok(package)
