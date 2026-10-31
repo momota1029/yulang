@@ -1,6 +1,6 @@
 # R83 amendment 01 — one diagnostic-directed assembly repair
 
-Status: proposed by primary Luna after failed prefix audit 1; awaiting independent read-only review. Original static review artifact SHA-256: `2398dff142232ac96149f2c0c5775ccec97297b2813a5d32fb37025a70cb200d`. This versioned amendment changes audit sequencing only. It does not change source declarations, theorem statements, semantics, authority, total sprint budget, per-audit timeout, or the absolute three-invocation / 360-second ceiling.
+Status: ADOPTED by primary Luna after independent review PASS. Original static review SHA-256: `2398dff142232ac96149f2c0c5775ccec97297b2813a5d32fb37025a70cb200d`. Amendment review confirmed source-only notation resolution and exact hashes; no blocking, major or minor finding. No Lean execution or theorem acceptance. This versioned amendment changes audit sequencing only. It does not change source declarations, theorem statements, semantics, authority, total sprint budget, per-audit timeout, or the absolute three-invocation / 360-second ceiling.
 
 ## Trigger and frozen evidence
 
