@@ -52,7 +52,7 @@ Unique-context relocation is part of the stated R120 method. In particular, this
 | File | Combined candidate SHA-256 | Bytes / lines |
 | --- | --- | --- |
 | `crates/yu-solver/src/lib.rs` | `6eb6b5df29bda1d1bd1fecabcbc2cc6e85e777dda2045f1d1ab86084f64cd84f` | 1,660,798 bytes |
-| `crates/yu-solver/src/candidate_receiver.rs` | `335f5f2cd4841dd8288306623ee863606e355b9ceda6948ab6877d944bed3165` | 296,602 bytes / 5,873 lines |
+| `crates/yu-solver/src/candidate_receiver.rs` | `335f5f2cd4841dd8288306623ee863606e355b9ceda6948ab6877d944bed3165` | 296,602 bytes / 5,872 lines |
 | `crates/yu-solver/src/candidate_effect.rs` | `102d0c78bb57339ccf110b9da721f005c83ad88d5a32901d6c676b90376ddf01` | 301,873 bytes |
 
 ## Preserved behavior evidence and interpretation limits
