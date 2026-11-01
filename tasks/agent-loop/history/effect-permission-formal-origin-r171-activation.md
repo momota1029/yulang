@@ -2,7 +2,7 @@
 
 Session: `EFFECT-PERMISSION-FORMAL-ORIGIN/20261102-R171`.
 Contract: `tasks/agent-loop/sprints/effect-permission-formal-origin-r171.md`.
-Contract SHA-256: `1bdffda8554332fc8e4c49c92e92dee403ba9d61da3087adbb8928c8c4d5d595`.
+Contract SHA-256: `8289f460cb3a3057118bda0337722699714c1debe3b349db51691cae2d7e541e`.
 Branch/baseline: `yulang3` / `6dc6aa855` (pushed).
 Authority: continuing user goal for Rust implementation and Lean soundness,
 with particular focus on effect hygiene and frequent reviewed commits/pushes.
@@ -81,4 +81,58 @@ algorithm implementation whose constraint-generation states must be related to
 that semantics; Rust runtime/machine correctness is outside the goal. R171's
 collector lemma remains intermediate evidence only and must be applied to an
 inference derivation or explicitly leave that bridge open. The proof worker was
-notified and continues under this unchanged full objective.
+notified and continued under this unchanged full objective.
+
+
+## Frozen R171 outcome and independent proof review
+
+Proof module:
+`notes/theory/lean/YulangClosure/FormalEntryOriginR171.lean`, SHA-256
+`03e727c104e2773ec3bbe1589c5dfb61ddb2df40d40a54de6be45583d01506f6`.
+Proof handoff:
+`tasks/agent-loop/inbox/effect-permission-formal-origin-r171-proof.md`, SHA-256
+`a1818e9797e8bdef8fac49157dc061fbf94b56b2bbd2981e436e7236a038caca`.
+The proof worker stopped after the second and final pinned Lean 4.35.0 stdin
+check passed. All nine declaration types and transitive axiom lists were
+captured. Axioms are `[propext]` or `[propext, Quot.sound]`; no `sorryAx`,
+project axiom, or native evaluation assumption was reported. `.lake` remained
+424 files / 100,516,779 bytes. No Rust build, test, Cargo, generated output,
+cache, scratch path, or Git action was used by the proof lane.
+
+Fresh independent review:
+`/root/formal_origin_r171_independent_proof_review`, STOPPED, read-only; no
+Lean rerun. Verdict: **FAIL for R171's fixed source-application outcome; PASS
+for the conditional mathematics and the handoff's disclosure of its limits.**
+The reviewed module and R169 dependency hashes match the frozen handoff. Source
+review remains PASS for its exact static source-mapping scope and
+`NO_SAFE_CODE_SLICE`; it found no reachable Rust defect.
+
+The R169 successful-trace application is uninhabited for a selected newly
+registered formal: `newFormal` records `entry = none` and scan preserves it,
+while R169 `Trace.entry` requires `entry = some port`. Actual preparation in
+`candidate_source.rs:2303–2325` updates `native_root` and `entry_effect`; the
+model needs an origin-preserving preparation relation and a projection into
+the prepared snapshot. Separately, the scan omits the interleaved record-field
+recipe appends and duplicate rejection at `candidate_source.rs:1119–1123`.
+This is a model coverage gap, not a demonstrated Rust bug.
+
+No R171 declaration constructs the actual inference judgment, proves inferred
+type/effect rows against the original source typing rules, establishes concrete
+`generates`/`solves`, or supplies the shared witness required by
+`YulangClosure.SourceProblem.InferenceSoundness` (`Contracts.lean:128–130`).
+The parent theorem and its quantifiers remain OPEN. Rust machine/evaluator
+correctness remains out of scope.
+
+At the R171 closure boundary, `next_action_selector` recommended
+`FORMAL-ENTRY-SOURCE-JUDGMENT-INPUT`: first freeze the independent original
+Lambda typing premises for type, effect inflow, and retained permission, and
+map them to actual constraint generation/preparation inputs. Its first
+falsifier is a record-pattern binder before a later Lambda, checking that
+interleaved recipe insertion and preparation preserve the formal's origin.
+No inference-soundness theorem is ready to apply until the actual source-rule
+judgment, concrete `generates`/`solves`, and shared `sameScoped` witness are
+connected. Candidate outputs are proposed for Luna's exact admission only;
+R171 does not authorize changing compiler semantics or production code.
+
+Both R171 proof outputs and the reviewed source handoff are frozen. Only Luna
+may change the sprint record or integrate/push selected evidence.
