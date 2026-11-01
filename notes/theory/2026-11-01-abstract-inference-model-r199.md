@@ -1,9 +1,9 @@
 # R199 — abstract Yulang inference model reconstruction
 
 Date: 2026-11-02
-Status: **MODEL-INCOMPLETE; BLOCKED_AT_ORIGINAL_LITERAL_RULE; R206 candidate unadopted; no semantic adoption**.
+Status: **MODEL-INCOMPLETE; Literal L1 adopted by the 2026-11-02 authoritative addendum; solver reflection and parent soundness remain open**.
 Parent baseline: `77bb8be466bbaa6cc9d7bd4587cf5975524f3ead`.
-No semantic adoption, theorem closure, Rust correspondence, or production authority.
+No theorem closure, Rust correspondence, or production authority.
 
 ## 1. Intended model and unchanged parent
 
@@ -385,6 +385,20 @@ R203 canonical introduction of (l, τ(l), v(l))
 **R207 exact stop:** the selected SG construction §3.1 requires the actual literal declaration and whole local typed relation, with all conservative alternatives and guards; L1 requires the authentic primitive's independently fixed typed relation, and L2 retains original Return/world/effect obligations. Those authorities do not state that the R203 base introduction satisfies that declaration at root `r`, nor give its ground/value-form and Return law for all eight payloads. The typed-core document is a draft schema `Value(type of literal)`; its full raw-source elaboration is open. The selected native `0` and `1` Call rules are bounded instances. Thus the candidate cannot yet be derived into the original source rule.
 
 Do not replace `r` by a new `LiteralRoot(q)`, and do not assume `sourceJudgment`, `LiteralDeclaration`, `Ground`, or a `Build` leaf proves the missing L1 law. No exhaustive overload policy is needed for soundness; preserve all other original alternatives while seeking one admissible path. The exact blocker is **BLOCKED_AT_ORIGINAL_LITERAL_RULE**: supply or authenticate the original L1 introduction law, or present a concrete changed-rule proposal for review and approval if creating it changes source meaning. Parent delta remains zero.
+
+### 4.5 Adoption disposition (2026-11-02)
+
+The user adopted the R206 intrinsic literal introduction after R207 corrected
+the source root to the original coordinate `r`. The exact binding source rule
+is [the Literal L1 adoption addendum](../design/2026-11-02-literal-l1-adoption.md).
+This supersedes §4.4's R207 stop only as to whether the canonical base
+introduction and pure Return are accepted source meaning. The eight raw
+payloads, original occurrence/root/event/scope/shared witness, empty intrinsic
+effect, and preservation of all independently admitted checking/conversion
+alternatives are fixed there. No generated-constraint denotation or solution
+readout is thereby established. The unchanged parent delta remains **0/4
+roots; 0/5 packages** until a literal implication is applied to
+`InferenceSoundness`.
 
 ## 5. Principality and termination remain distinct
 
