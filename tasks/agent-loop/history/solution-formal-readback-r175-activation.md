@@ -57,3 +57,18 @@ their purpose is to distinguish source-side authority from the still-missing
 Rust-solution interpretation. Luna had hash-verified these files before its
 initial bounded orientation read. No worker had read them under revisions 1
 or 2. Updated contract SHA-256: `7660e19661ecf4d6d3fbf2ee51c7ab699952ce5966c3f07aa3d9dde32f0e5f9f`.
+
+## Source lane finding (revision 2)
+
+The source researcher stopped after the pinned `candidate_call.rs` trace. The
+ordinary public `SolvedModule::solve` path and default-off candidate route are
+distinct; successful `Ok` results can retain conflicts. The candidate
+computation-source observer exposes prepared `native_root`/`entry_effect`
+handles for Computation, while its Value branch returns `None`; a different
+Call observer can expose an authenticated Value root only for a formal-use
+Call. These are structural observations, not source Descriptor/Interface
+readback or parent solution semantics. External caller coverage is unverified.
+No source output file was written.
+
+The proof researcher acknowledged contract revision 3, verified all 28 frozen
+input hashes before reading the newly admitted authority sources, and resumed.
