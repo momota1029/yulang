@@ -1,4 +1,4 @@
-# Sprint R175 — same-solution readback preflight (contract revision 2)
+# Sprint R175 — same-solution readback preflight (contract revision 3)
 
 Status: ADMITTED under the unchanged Yulang type/inferred-effect
 soundness goal. Runtime/machine correctness is excluded. Baseline: `yulang3`
@@ -70,6 +70,40 @@ construction demonstrably consumes that representation.
 Revision 2 adds `candidate_call.rs`, after the source lane identified it as
 the first owner needed to inspect the candidate route's formal observer. This
 is a read-only dependency; no result claim or write authority changes.
+
+Revision 3 pins the original semantic authorities that the proof lane found
+necessary to interpret `Descriptor`, `Interface`, effect membership and the
+scope/witness contract. Luna had hashed these files before a bounded authority
+orientation read; no worker read them under revision 1 or 2:
+
+- `notes/design/2026-10-08-source-generalize-definition.md`:
+  `46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38`
+- `notes/theory/2026-10-08-source-generalize-definition-and-proof.md`:
+  `e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240`
+- `notes/design/2026-10-08-contextual-function-membership-definition.md`:
+  `0341e44bcc01b916ca5b2cd1c7e95622d8dd3b562a7c2480d2e0241542e1f5d0`
+- `notes/theory/2026-10-08-call-semantic-input-realization.md`:
+  `fd781ba2d76b239724b86183985c612fe3bbd3542ff8d47860705c9c3752226a`
+- `notes/theory/2026-10-08-simultaneous-immutable-root-introduction.md`:
+  `a5efa7056b12f931892548ecf3366d66156627ec44577c99d20ca48596438ae6`
+- `notes/design/2026-10-05-inferred-function-call-views.md`:
+  `4b3363b79901e84b87cc8e02b59b023ff82c33e76d0be6d255e2b7bbab1a65c1`
+- `notes/design/2026-10-05-source-contracts-and-common-allowance.md`:
+  `1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186`
+- `notes/design/2026-10-06-directional-inferred-effect-protection-addendum.md`:
+  `f11c6594e43c29fbfdbca1638b5c548cecc12a5beb192cac743e60f022c1cc73`
+- `notes/design/2026-10-02-source-result-synthesis-choice.md`:
+  `71326de0897159343797d6aec083860ee0f57a1bc04f9c4ae77e579ea0ba5992`
+- `questions/2026-10-05-source-annotation-boundaries/approved-answer.md`:
+  `e1e2ff77b181fe42edd404ee0d69cfc6d3bb0fbc99ba7e7f092710025d11fb12`
+- `notes/progress/2026-10-08-source-generalize-review.md`:
+  `dcb73203e4b5b845e401f8705fbd1fc513b3791595120fa2db5fac94b7df6b5b`
+- `notes/progress/2026-10-08-call-interface-admission-review.md`:
+  `b679ebc836cc3691854a243444595e5a8f35116a0766503886eebc65a1eb07c4`
+
+These documents may define source-side contracts, but do not license equating
+Rust solution state with them. If their authority points to another required
+correction, stop and return its exact path before reading it.
 
 ## Read-only lanes
 

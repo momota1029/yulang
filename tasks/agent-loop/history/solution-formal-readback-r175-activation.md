@@ -48,3 +48,12 @@ first additional owner needed for the public candidate formal observer. Luna
 pinned SHA-256 `fdc39e01fa3665b4dc14e167973de63b275eb0280b831e340b6cdcee5ed0fc3f`
 before content reads. The dependency is read-only; no semantic result or write
 authority changed. Updated contract SHA-256: `514b13bf3934ac9723afe3f66776a0a036f0844604e373d326dc2faab436f7ba`.
+
+## Contract revision 3
+
+Luna pinned the original semantic authority set named by the proof lane before
+further worker reads. The exact paths and hashes are in contract revision 3;
+their purpose is to distinguish source-side authority from the still-missing
+Rust-solution interpretation. Luna had hash-verified these files before its
+initial bounded orientation read. No worker had read them under revisions 1
+or 2. Updated contract SHA-256: `7660e19661ecf4d6d3fbf2ee51c7ab699952ce5966c3f07aa3d9dde32f0e5f9f`.
