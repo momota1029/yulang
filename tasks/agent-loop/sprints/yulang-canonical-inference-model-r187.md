@@ -1,9 +1,9 @@
-# R187 revision 4 — canonical mathematical inference model
+# R187 revision 7 — canonical mathematical inference model
 
-Revision 4 adds one exact source-owned constructor definition reported before
-any content read. Revisions 2–4 add only delegated mathematical authorities.
-The objective, method, output leases and 2400-second constructor grant are
-unchanged; no grant reset.
+Revision 7 admits the two exact C0/IF operators selected by the admitted
+incidence construction. Revisions 2–7 add only delegated mathematical
+authorities. The objective, method, output leases and 2400-second constructor
+grant are unchanged; no grant reset.
 
 Status: **ACTIVE bounded model-construction packet**. Baseline is commit
 `41eb4bc24a82baa5ff203b48394041df76c848a7` in the existing checkout. Goal:
@@ -113,6 +113,55 @@ The primary authenticated these three hashes without reading their contents;
 the constructor must re-authenticate each before its first content read. If a
 necessary owner falls outside the combined admitted sets, stop and return its
 exact path; the primary must pin it before any read.
+
+Revision 5 additionally admits this exact owner of the finite primitive/Call
+catalogue, license and attachment equations, which the admitted source-owned
+signature definition selects in its §1:
+
+- `notes/theory/2026-10-08-source-signature-incidence-construction.md` —
+  `7367ce8eb69376583386c6d675d067712ec6fa173e96f458ee34ce390dc8901a`
+
+The primary authenticated this hash before any content read. Re-authenticate
+before reading; inspect only authority/status and the selected §§2–6 equations
+needed for the mathematical source primitive/Call denotation. Preserve the
+separation between definitions, conditional construction results and proved
+transport. Do not follow further links automatically.
+
+Revision 6 additionally admits the exact complete-Call contribution and
+source-interface definitions left as independent inputs by the admitted
+signature-incidence construction:
+
+- `notes/design/2026-10-07-complete-call-contribution-definition.md` —
+  `4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e`
+- `notes/design/2026-10-08-call-source-interface-definition.md` —
+  `20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c`
+
+The primary authenticated both hashes before content reads. Re-authenticate
+before reading; limit inspection to authority/status, C0/IF definitions and
+laws directly needed for the mathematical signature-incidence denotation.
+Preserve any independently required inputs; a conditional interface
+construction does not discharge them. Do not follow further links
+automatically. After these reads, incorporate the established equations into
+the existing model and report the precise remaining parent prerequisite;
+further dependency intake must not indefinitely replace construction.
+
+Revision 7 admits the exact complete-Call contribution and source-interface
+definitions selected by the already admitted signature-incidence construction
+as the independent C0 and IF operator laws:
+
+- `notes/design/2026-10-07-complete-call-contribution-definition.md` —
+  `4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e`
+- `notes/design/2026-10-08-call-source-interface-definition.md` —
+  `20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c`
+
+The primary authenticated both hashes before content reads. Re-authenticate
+before reading; limit inspection to authority/status, the C0/IF definitions
+and laws directly needed for this model. Preserve independently required
+inputs; a conditional interface construction does not discharge them. Do not
+follow further links automatically. After these reads, incorporate the
+established equations into the existing model and report the precise
+remaining parent prerequisite. Further dependency intake must not
+indefinitely replace construction.
 
 Revision 3 additionally admits these exact operation/transport owners, which
 the admitted intrusion association and Term source select for the actual
