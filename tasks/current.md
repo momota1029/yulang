@@ -1,3 +1,13 @@
+## 2026-11-02 R154 — receiver ownership audit active
+
+R154 freezes the remaining `candidate_receiver.rs` diff as an immutable input
+and traces deleted owner/batch/live-state, provider/arm and permission-origin
+checks through committed callers and retained records. Implementation and
+source-correspondence lanes use only that patch plus committed baseline blobs;
+the live dirty file, `candidate_scheme.rs` remainder and quarantined runtime
+are excluded. Any candidate remains unapplied pending separate review and
+source-only authority. See the [R154 contract](agent-loop/sprints/effect-permission-receiver-ownership-r154.md).
+
 ## 2026-11-02 R153 checkpoint — source-only Rust commit pushed
 
 R153's independent integration review passed the narrow authorization for the
