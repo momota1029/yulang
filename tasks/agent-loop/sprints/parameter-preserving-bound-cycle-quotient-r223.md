@@ -1,5 +1,8 @@
 # Sprint R223 — parameter-preserving bound-cycle quotient
 
+Contract revision: **2** (pins and explicit cache-output whitelist; objective
+and theorem gate unchanged).
+
 Status: **ADMISSION CANDIDATE pending exact-path and current-state update by
 Luna**. User objective: prove Yulang's type-inference guarantees first; original
 quantifiers, source domain, semantics, and all four parent roots stay fixed.
@@ -107,9 +110,21 @@ cache growth 64 MiB, no cleanup, default build, Rust, Cargo, or tests. Stop if
 any whitelisted output exists at intake or if Lake requires any additional
 output path.
 
-The exact eight R223 module outputs under `.lake/build/lib/lean` and
-`.lake/build/ir` were all absent at contract preparation. The complete path list
-must be copied unchanged into the Luna intake receipt before cache execution.
+The only permitted new cache files are this exact whitelist, all confirmed
+absent when revision 2 was prepared:
+
+```text
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractBoundCycleNormalizationR223.olean
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractBoundCycleNormalizationR223.olean.hash
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractBoundCycleNormalizationR223.ilean
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractBoundCycleNormalizationR223.ilean.hash
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractBoundCycleNormalizationR223.trace
+notes/theory/lean/.lake/build/ir/YulangClosure/AbstractBoundCycleNormalizationR223.c
+notes/theory/lean/.lake/build/ir/YulangClosure/AbstractBoundCycleNormalizationR223.c.hash
+notes/theory/lean/.lake/build/ir/YulangClosure/AbstractBoundCycleNormalizationR223.setup.json
+```
+
+Stop before writing if any listed path exists or if Lake requires another path.
 
 Aggregate assignment budget is 3600 seconds. No Astra or nested CLI. One heavy
 Lean process and one cache writer at a time.
