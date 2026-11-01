@@ -11760,14 +11760,14 @@ impl InferenceSession {
         let function = self.positive_function_term(argument, argument_effect, return_effect, result)?;
         #[cfg(feature = "shadow-apply-candidate")]
         if let Some(registration) = registration {
-            let entry = match self.store.term_view(argument_effect).map_err(|_| exhausted())? {
+            let entry = match self.store.term_view(argument_effect).map_err(|_| SolveAvailabilityError::IdentityExhausted)? {
                 TermView::LiveVariable(view) if view.kind() == ComponentKind::Effect
                     && view.polarity() == Polarity::Negative => view.ordinal(),
                 _ => return Err(SolveAvailabilityError::ReceiptMismatch),
             };
             self.candidate_graph
                 .as_mut()
-                .ok_or_else(exhausted)?
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
                 .intrusion
                 .effect_algebra
                 .context
@@ -18369,7 +18369,7 @@ impl InferenceSession {
             let registered = registered_formals.get(origin.registration)?;
             if registered.role == candidate_call::FormalRole::Computation
                 && matches!(&registered.owner,
-                    candidate_source::SourceRootId::Definition(root) if root == &target_owner.root)
+                    SourceRootId::Definition(root) if root == &target_owner.root)
             {
                 let mut recipes = self.batch.lambda_recipes.iter()
                     .filter(|recipe| recipe.formal_registration == Some(origin.registration));

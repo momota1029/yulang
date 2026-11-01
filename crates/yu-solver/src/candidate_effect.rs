@@ -1,5 +1,6 @@
 //! Private executable covariant annotation views at ordinary effect-row ports.
 use crate::*;
+use crate::candidate_scheme::RowKey;
 use yu_hir::shadow::SourceNodeKey;
 use yu_hir::HirLocalId;
 use yu_hir::shadow::{

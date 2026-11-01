@@ -4183,7 +4183,7 @@ impl<'a> SourceInternalProjection<'a> {
             || !std::ptr::eq(internal_owner_choice.recipe, choice_recipe)
             || choice_recipe.formal_registration != Some(registration_index)
             || choice_recipe.occurrence != internal_owner_choice.origin.lambda
-            || choice_recipe.occurrence != permission.occurrence
+            || choice_recipe.occurrence != *permission.occurrence
             || choice_recipe.root_component != internal_owner_choice.plan.target_root_component
             || internal_owner_choice.parameter_recipe_index != registration.recipe_position
             || !std::ptr::eq(internal_owner_choice.parameter_recipe, parameter_recipe)
@@ -4382,7 +4382,7 @@ impl<'a> SourceInternalProjection<'a> {
             || choice.target_owner != &SourceRootId::Definition(incidence.target_owner.clone())
             || choice.source_owner != &SourceRootId::Definition(incidence.receiving_owner.clone())
             || choice.target_owner != &registration.owner
-            || choice.recipe.occurrence != incidence.permission.occurrence
+            || choice.recipe.occurrence != *incidence.permission.occurrence
             || choice.parameter_recipe != incidence.permission.formal
             || choice.registration.scope != *incidence.permission.scope
             || choice.registration.recipe_position != incidence.permission.parameter
@@ -4430,10 +4430,7 @@ impl<'a> SourceInternalProjection<'a> {
         }
         for (registration_index, registration) in &self.formal_registrations {
             let Some(local_source) = self.local_sources.iter().find(|source| source.registration_owner == &registration.owner) else { return false; };
-            let root_is_owned = match &registration.owner {
-                SourceRootId::Definition(root) => local_source.hir.owns_definition_root(root),
-                SourceRootId::Expression(root) => local_source.hir.owns_expression_root(root),
-            };
+            let root_is_owned = local_source.hir.owns_source_root(&registration.owner);
             if !root_is_owned {
                 return false;
             }
@@ -4625,7 +4622,7 @@ impl<'a> InventoryPackage<'a> {
                 .ok_or(candidate_context::CurrentEmissionGap::MissingInternalCertificate)?;
             let expression = local.expressions().get(call.expression)
                 .ok_or(candidate_context::CurrentEmissionGap::MissingInternalCertificate)?;
-            if expression.occurrence != call.checking.occurrence()
+            if expression.occurrence != *call.checking.occurrence()
                 || !hir.owns_occurrence(&expression.occurrence)
                 || local.source_root() != &call.owner
             {
