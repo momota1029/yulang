@@ -40,3 +40,5 @@ closes R179 incomplete only; the user's continuing Yulang inference-soundness
 goal remains active.
 
 Activation record: `tasks/agent-loop/history/original-app-admission-r179-activation.md`; SHA-256 `9b29b2ffca613beba158f5b96c3398a084bb349ae99640ec8b0ac8d3d80bba01`.
+
+Worker identities: proof `/root/original_app_admission_r179_proof` (lean_prover; observed model/effort UNKNOWN), source `/root/original_app_admission_r179_source` (researcher; observed model/effort UNKNOWN), independent reviewer `/root/r179_blocker_review` (spec_auditor; observed model/effort UNKNOWN). All reported writes complete; all three STOPPED.
