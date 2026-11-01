@@ -2,7 +2,9 @@
 
 Status: **ADMITTED** by Luna under the continuing Yulang soundness goal.
 Branch / baseline: `yulang3` / `0134bbdc767db45abcbec35182c0c317de4c3b59` (pushed).
-Contract revision: 1, selected after R163 closure on 2026-11-02.
+Contract revision: 2, selected after R163 closure on 2026-11-02.
+Revision 1 SHA-256: `6375dc1901b9b01223f73d1c10ecbb342d69c297ba434d91e79f7864189155f9`.
+Revision 2 adds the governing generic source-contract Union rule; the Lean lane acknowledged this sequential dependency update before the edit.
 
 ## Parent and target
 
@@ -36,6 +38,7 @@ it.
 - Selected source construction §§2–8: `notes/theory/2026-10-08-source-signature-incidence-construction.md`, SHA-256 `7367ce8eb69376583386c6d675d067712ec6fa173e96f458ee34ce390dc8901a`.
 - Native signature authority §§2–5: `notes/design/2026-10-08-native-signature-formation-definition.md`, SHA-256 `e6c6cf995a3618172e45b4f8cdf4578313c057c6ec1e3e118c4dc11b6f162ab9`.
 - IF constructor construction §§3.1–3.3: `notes/theory/2026-10-08-call-source-interface-construction.md`, SHA-256 `278034197a90eab6e62a073545c09dd14415a0353f58aa3b3cc122a6af945d98`.
+- Generic source relation contract §2.1: `notes/design/2026-10-05-source-contracts-and-common-allowance.md`, SHA-256 `1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186`.
 - Existing formal owners: `SourceContributionConstruction.lean` SHA-256 `9755a65a2b3e6b97f7da5bf21c844fb7f5292c12925de9f9081fccaa322380a1`; `SourceSignatureConstruction.lean` SHA-256 `ed07890e29b4dcb38cabd18ec0e196efde9e95c64902942a9906a470b38c3311`.
 - Reuse independently reviewed five-owner Rust maps R160–R163; R163 frozen Rust handoff SHA-256 `e1070d37f7dcd8316ff01564b3841b857bc43acfc1a6d0f165384a7c96a64935`.
 
