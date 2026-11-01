@@ -277,3 +277,249 @@ impl ScopeTransformer {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{EffectScopeId, InputRouteId, ScopeState, ScopeTransformer};
+    use crate::SolveAvailabilityError;
+    use std::collections::{BTreeMap, BTreeSet};
+
+    #[derive(Clone, Copy, Debug)]
+    enum Primitive {
+        Stamp(InputRouteId),
+        Protect(EffectScopeId, InputRouteId),
+        Release(EffectScopeId),
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct OracleState {
+        inputs: BTreeSet<InputRouteId>,
+        protections: BTreeSet<EffectScopeId>,
+    }
+
+    impl OracleState {
+        fn new(inputs: &[InputRouteId], protections: &[EffectScopeId]) -> Self {
+            Self {
+                inputs: inputs.iter().copied().collect(),
+                protections: protections.iter().copied().collect(),
+            }
+        }
+
+        fn apply(&mut self, operation: Primitive) {
+            match operation {
+                Primitive::Stamp(input) => { self.inputs.insert(input); }
+                Primitive::Protect(scope, input) => {
+                    if !self.inputs.contains(&input) { self.protections.insert(scope); }
+                }
+                Primitive::Release(scope) => { self.protections.remove(&scope); }
+            }
+        }
+
+        fn as_scope_state(&self) -> ScopeState {
+            ScopeState {
+                inputs: self.inputs.iter().copied().collect(),
+                protections: self.protections.iter().copied().collect(),
+            }
+        }
+    }
+
+    fn transformer(operation: Primitive) -> ScopeTransformer {
+        match operation {
+            Primitive::Stamp(input) => ScopeTransformer::stamp_input(input).unwrap(),
+            Primitive::Protect(scope, input) => ScopeTransformer::protect_body(scope, input).unwrap(),
+            Primitive::Release(scope) => ScopeTransformer::release(scope).unwrap(),
+        }
+    }
+
+    fn oracle(initial_inputs: &[InputRouteId], initial_protections: &[EffectScopeId], operations: &[Primitive]) -> OracleState {
+        let mut state = OracleState::new(initial_inputs, initial_protections);
+        for operation in operations.iter().copied() { state.apply(operation); }
+        state
+    }
+
+    fn compose(operations: &[Primitive]) -> ScopeTransformer {
+        operations.iter().copied().try_fold(ScopeTransformer::identity(), |acc, operation| {
+            acc.then(&transformer(operation))
+        }).unwrap()
+    }
+
+    fn short_sequences(alphabet: &[Primitive], max_len: usize) -> Vec<Vec<Primitive>> {
+        let mut sequences = vec![Vec::new()];
+        let mut frontier = vec![Vec::new()];
+        for _ in 0..max_len {
+            let mut next = Vec::new();
+            for prefix in &frontier {
+                for operation in alphabet {
+                    let mut sequence = prefix.clone();
+                    sequence.push(*operation);
+                    next.push(sequence);
+                }
+            }
+            sequences.extend(next.iter().cloned());
+            frontier = next;
+        }
+        sequences
+    }
+
+    fn subsets<T: Copy>(values: &[T]) -> Vec<Vec<T>> {
+        (0..(1usize << values.len())).map(|mask| {
+            values.iter().enumerate().filter_map(|(bit, value)| {
+                ((mask & (1 << bit)) != 0).then_some(*value)
+            }).collect()
+        }).collect()
+    }
+
+    fn assert_state_eq(actual: ScopeState, expected: ScopeState) {
+        assert_eq!(actual.inputs, expected.inputs);
+        assert_eq!(actual.protections, expected.protections);
+    }
+
+    #[test]
+    fn finite_short_compositions_match_sequential_primitive_oracle() {
+        let a = InputRouteId(0);
+        let b = InputRouteId(1);
+        let x = EffectScopeId(0);
+        let y = EffectScopeId(1);
+        let alphabet = [
+            Primitive::Stamp(a), Primitive::Stamp(b),
+            Primitive::Protect(x, a), Primitive::Protect(x, b),
+            Primitive::Protect(y, a), Primitive::Protect(y, b),
+            Primitive::Release(x), Primitive::Release(y),
+        ];
+        let inputs = subsets(&[a, b]);
+        let protections = subsets(&[x, y]);
+        for operations in short_sequences(&alphabet, 3) {
+            let composed = compose(&operations);
+            for initial_inputs in &inputs {
+                for initial_protections in &protections {
+                    let expected = oracle(initial_inputs, initial_protections, &operations).as_scope_state();
+                    let actual = composed.evaluate(initial_inputs, initial_protections).unwrap();
+                    assert_state_eq(actual, expected);
+
+                    for split in 0..=operations.len() {
+                        let first = compose(&operations[..split]);
+                        let second = compose(&operations[split..]);
+                        let joined = first.then(&second).unwrap();
+                        let after_first = first.evaluate(initial_inputs, initial_protections).unwrap();
+                        let sequential = second.evaluate(&after_first.inputs, &after_first.protections).unwrap();
+                        let joined_state = joined.evaluate(initial_inputs, initial_protections).unwrap();
+                        assert_state_eq(joined_state, sequential);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn operation_order_and_release_tombstones_remain_observable() {
+        let input = InputRouteId(3);
+        let scope = EffectScopeId(7);
+        let orders = [
+            [Primitive::Stamp(input), Primitive::Protect(scope, input)],
+            [Primitive::Protect(scope, input), Primitive::Stamp(input)],
+            [Primitive::Protect(scope, input), Primitive::Release(scope)],
+            [Primitive::Release(scope), Primitive::Protect(scope, input)],
+        ];
+        let outcomes: Vec<_> = orders.iter().map(|operations| {
+            compose(operations).evaluate(&[], &[]).unwrap()
+        }).collect();
+        assert_ne!(outcomes[0], outcomes[1]);
+        assert_ne!(outcomes[2], outcomes[3]);
+        assert!(outcomes[0].protections.is_empty());
+        assert_eq!(outcomes[1].protections, vec![scope]);
+        assert!(outcomes[2].protections.is_empty());
+        assert_eq!(outcomes[3].protections, vec![scope]);
+
+        let released = ScopeTransformer::release(scope).unwrap();
+        assert!(released.evaluate(&[], &[]).unwrap().protections.is_empty());
+        assert!(released.evaluate(&[], &[scope]).unwrap().protections.is_empty());
+        let retained_unrelated = released.evaluate(&[], &[EffectScopeId(8)]).unwrap();
+        assert_eq!(retained_unrelated.protections, vec![EffectScopeId(8)]);
+    }
+
+    #[test]
+    fn inputs_and_protections_are_set_like_and_keep_unrelated_protections() {
+        let a = InputRouteId(1);
+        let b = InputRouteId(2);
+        let x = EffectScopeId(4);
+        let y = EffectScopeId(5);
+        let transformer = ScopeTransformer::protect_body(x, b).unwrap();
+        let actual = transformer.evaluate(&[b, a, b], &[y, x, y]).unwrap();
+        assert_eq!(actual.inputs, vec![a, b]);
+        assert_eq!(actual.protections, vec![x, y]);
+
+        let no_add = ScopeTransformer::protect_body(x, a).unwrap();
+        let actual = no_add.evaluate(&[b, a, b], &[y, x, y]).unwrap();
+        assert_eq!(actual.inputs, vec![a, b]);
+        assert_eq!(actual.protections, vec![x, y]);
+    }
+
+    #[test]
+    fn injective_remap_commutes_with_evaluation_on_finite_support() {
+        let a = InputRouteId(1);
+        let b = InputRouteId(2);
+        let x = EffectScopeId(4);
+        let y = EffectScopeId(5);
+        let operations = [
+            Primitive::Protect(x, a), Primitive::Stamp(b),
+            Primitive::Release(y), Primitive::Protect(y, b),
+        ];
+        let original = compose(&operations);
+        let remapped = original.remap(
+            |scope| EffectScopeId(scope.0 + 20),
+            |input| InputRouteId(input.0 + 30),
+        ).unwrap();
+        for initial_inputs in [&[][..], &[a][..]] {
+            let before = original.evaluate(initial_inputs, &[]).unwrap();
+            let mapped_inputs = initial_inputs.iter().map(|id| InputRouteId(id.0 + 30)).collect::<Vec<_>>();
+            let after = remapped.evaluate(&mapped_inputs, &[]).unwrap();
+            assert_eq!(
+                after.inputs,
+                before.inputs.iter().map(|id| InputRouteId(id.0 + 30)).collect::<Vec<_>>(),
+            );
+            assert_eq!(
+                after.protections,
+                before.protections.iter().map(|id| EffectScopeId(id.0 + 20)).collect::<Vec<_>>(),
+            );
+        }
+    }
+
+    #[test]
+    fn remap_rejects_scope_and_input_collisions_separately() {
+        let x = EffectScopeId(1);
+        let y = EffectScopeId(2);
+        let a = InputRouteId(3);
+        let b = InputRouteId(4);
+        let two_scopes = ScopeTransformer::release(x).unwrap()
+            .then(&ScopeTransformer::release(y).unwrap()).unwrap();
+        assert_eq!(
+            two_scopes.remap(|_| EffectScopeId(9), |input| input).unwrap_err(),
+            SolveAvailabilityError::ReceiptMismatch,
+        );
+        let two_inputs = ScopeTransformer::stamp_input(a).unwrap()
+            .then(&ScopeTransformer::stamp_input(b).unwrap()).unwrap();
+        assert_eq!(
+            two_inputs.remap(|scope| scope, |_| InputRouteId(9)).unwrap_err(),
+            SolveAvailabilityError::ReceiptMismatch,
+        );
+    }
+
+    #[test]
+    fn remap_calls_each_map_once_per_distinct_support_id() {
+        let x = EffectScopeId(1);
+        let y = EffectScopeId(2);
+        let a = InputRouteId(3);
+        let b = InputRouteId(4);
+        let transformer = ScopeTransformer::protect_body(x, a).unwrap()
+            .then(&ScopeTransformer::stamp_input(a).unwrap()).unwrap()
+            .then(&ScopeTransformer::protect_body(y, b).unwrap()).unwrap();
+        let mut scope_calls = BTreeMap::new();
+        let mut input_calls = BTreeMap::new();
+        transformer.remap(
+            |scope| { *scope_calls.entry(scope).or_insert(0usize) += 1; EffectScopeId(scope.0 + 10) },
+            |input| { *input_calls.entry(input).or_insert(0usize) += 1; InputRouteId(input.0 + 10) },
+        ).unwrap();
+        assert_eq!(scope_calls, BTreeMap::from([(x, 1), (y, 1)]));
+        assert_eq!(input_calls, BTreeMap::from([(a, 1), (b, 1)]));
+    }
+}
