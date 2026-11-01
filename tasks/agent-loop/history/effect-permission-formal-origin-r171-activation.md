@@ -33,3 +33,8 @@ lease and no-generated-output boundary. `/root/formal_origin_r171_source`
 acknowledged the four read-only source inputs, sole handoff output, and no
 build/test/Git/cache/source-write boundary. Both remain within their assigned
 lanes; no descendants were authorized.
+
+
+Boundary incident: `tasks/agent-loop/history/20261102-primary-read-boundary-incident-machine.md` records the primary read of a
+quarantined runtime path before refreshing current state. That path remains
+quarantined and is excluded from all R171 work.
