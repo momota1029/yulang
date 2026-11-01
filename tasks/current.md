@@ -18440,3 +18440,12 @@ effect hygiene and production remain **OPEN**. The next bounded step is a
 reviewed member/state construction and transport contract, alongside an exact
 R118 proof repair. No Rust implementation lease is granted before that
 contract is independently reviewed.
+# 2026-11-02 R149 active — member state and decoder repair
+
+R149 is admitted from baseline `87dfe33bcd4c572d740dc33b454114b6018a4376`.
+The source lane traces the authentic `AnnotationMember` state association and
+same-map FreshUse path from immutable Git blobs. The Lean lane repairs only the
+R118 proof terms and audits R119. No Rust edits are authorized in this sprint.
+The existing `.lake` is capped at +16 MiB; no new environment is allowed. The
+R148 review records why current dirty Rust is excluded and why its mixed
+receiver validation changes are not safe to push as-is.
