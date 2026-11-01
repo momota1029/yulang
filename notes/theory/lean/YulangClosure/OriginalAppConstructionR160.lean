@@ -1,13 +1,15 @@
 import YulangClosure.SourceAppAdmissionR159
 
 /-!
-R160 source constructor audit. This module constructs neither original profile
-P nor initial admission A. Authoritative inferred-call-view formation §§2,4--5
-and source-call generation §7 leave the exact original position/contribution
-constructor and independently typed initial-context constructor unprovided.
-The two theorems below reduce existing consumers to their supplied local
-relations. They are audit facts, not original source laws or P/A scaffolding.
-The unchanged full parent is SourceAppAdmissionR159.app_admission_iff.
+R160 source consumer audit. The selected native signature-formation definition
+already supplies native support, licensing/incidence, and profile projections
+within its scope. This module does not prove their witness-preserving
+interpretation into the original App's descriptorFormation atom,
+FunctionGuards, annotation/port evidence, or Logical payload at the same
+ViewLogic occurrence. It also does not construct the independent original
+initial-context admission A. The two theorems below reduce existing consumers
+to the supplied relations; they are audit facts, not P/A scaffolding. The
+unchanged full parent is SourceAppAdmissionR159.app_admission_iff.
 -/
 namespace YulangClosure.OriginalAppConstructionR160
 
@@ -15,10 +17,10 @@ open OriginalSource OriginalSourceInterpretation OriginalSourceEnvironment
 
 variable {s : Sorts} {View : Type}
 
-/-- At the very same original ViewLogic occurrence/extension, descriptor
-formation is consumed from original.atom. Admission replacement supplies no
-formation producer. All descriptor/interface writes and arbitrary operands
-remain explicit; this is a consumer reduction, not a proof of formation. -/
+/-- At the same original ViewLogic occurrence/extension, descriptor formation
+is consumed from original.atom. The selected native profile still needs a
+witness-preserving bridge to this exact consumer. All descriptor/interface
+writes and arbitrary operands remain explicit; this is not that bridge. -/
 theorem formation_consumer_iff (inputs : Inputs s)
     (readout : RuntimeReadout s View) (admissions : LocalAdmissions s View)
     (original : Kernel (Payload s View)) (environment : Environment (Payload s View))
