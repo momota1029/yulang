@@ -1,0 +1,5 @@
+NO_PATCH
+
+R155 implementation disposition: the only input hunk replaces the baseline's already-integrated, reviewed same-session binder with a separately supplied route/store/effect-state/registration API. Its session ownership cannot be established from the pinned committed source. No safe unapplied source patch exists against baseline 1dbb738de8af1b186ae56ca347e591ae0a1b3d83.
+
+Do not apply this marker as a patch. The residual candidate remains HOLD; R153's source-only authorization applies only to its exact reviewed R152 patch.

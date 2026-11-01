@@ -1,12 +1,32 @@
-## 2026-11-02 R154 — receiver ownership audit active
+## 2026-11-02 R155 — scheme residual held
 
-R154 freezes the remaining `candidate_receiver.rs` diff as an immutable input
-and traces deleted owner/batch/live-state, provider/arm and permission-origin
-checks through committed callers and retained records. Implementation and
-source-correspondence lanes use only that patch plus committed baseline blobs;
-the live dirty file, `candidate_scheme.rs` remainder and quarantined runtime
-are excluded. Any candidate remains unapplied pending separate review and
-source-only authority. See the [R154 contract](agent-loop/sprints/effect-permission-receiver-ownership-r154.md).
+R155 independently reviewed the remaining `candidate_scheme.rs` diff and
+returned **HOLD / NO_PATCH**. Its only hunk replaces the already-pushed,
+reviewed session-owned binder with separate caller-supplied route, store,
+effect-state and registration inputs. Local numeric equalities do not prove a
+common owner; the deleted source/Lambda/raw/canonical/mapped-row joins also have
+no replacement. The review found an API/certificate countermodel, not an
+executed suppression bug. No source was applied or integrated. See the
+[R155 outcome](agent-loop/history/effect-permission-scheme-residual-20261102-r155-outcome.md),
+[review](agent-loop/history/effect-permission-scheme-residual-20261102-r155-review.md),
+[implementation handoff](agent-loop/inbox/effect-permission-scheme-residual-r155-source.md),
+and [proof handoff](agent-loop/inbox/effect-permission-scheme-residual-r155-proof.md).
+
+## 2026-11-02 R154 — receiver deletion held
+
+R154 independently reviewed the frozen `candidate_receiver.rs` deletion and
+returned **HOLD / NO_PATCH**. Owner/batch/context identities are constructor-
+supplied on the private path, but the deletion also loses the registration to
+packed permission-slot join, full provider/arm operation identity in the
+evidence reader, and R119's ordered concrete-member receipt. The reviewer found
+no source-qualified ordinary-inference regression or actual erroneous
+suppression, so the result is an evidence-contract failure, not a demonstrated
+runtime bug. No source was applied, staged, committed, or pushed. The dirty
+receiver remains untouched; `candidate_scheme.rs` and quarantined runtime files
+remain outside this packet. See the [R154 outcome](agent-loop/history/effect-permission-receiver-ownership-20261102-r154-outcome.md),
+[review](agent-loop/history/effect-permission-receiver-ownership-20261102-r154-review.md),
+[implementation handoff](agent-loop/inbox/effect-permission-receiver-ownership-r154-source.md),
+and [proof handoff](agent-loop/inbox/effect-permission-receiver-ownership-r154-proof.md).
 
 ## 2026-11-02 R153 checkpoint — source-only Rust commit pushed
 
