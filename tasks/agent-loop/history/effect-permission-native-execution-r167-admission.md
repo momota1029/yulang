@@ -149,3 +149,16 @@ and `git ls-remote origin refs/heads/yulang3` returned
 `2518ddf40f7de45ec7b0ea8039a0f44866a345ea`, matching local HEAD. No force push.
 Pre-existing dirty/quarantined files and the pending typed-Union question remain
 unstaged and untouched.
+
+## Sprint-end dispatch
+
+The end dispatcher proposed R168, a real successful Rust invocation whose
+recorded FnMut calls and result construct an R167 `NativeTrace` witness. This is
+not admitted yet: the packet requires an existing approved runner with an
+enforced storage cap. The root `.cargo/config.toml` sets only the `xtask` alias;
+there is no root `target/` directory or task-specific capped runner for this
+scope. R144's exact scope-transformer candidate was explicitly uncompiled and
+unexecuted, and R143 records that no Rust/Cargo run occurred. Given the user's
+WSL storage constraint, no Cargo invocation, target creation, or substitute
+environment was started. Next action is marked `BLOCKED_RESOURCE` pending a
+material runner/cap decision; R167 remains accepted and pushed.
