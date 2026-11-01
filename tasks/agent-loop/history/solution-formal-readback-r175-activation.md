@@ -87,3 +87,6 @@ The proof worker stopped at this unpinned boundary after reporting that the
 authority documents retain independent Descriptor/Interface interpretations,
 source scopes and effect rules; no Rust solution readback equation was found
 in the frozen set. Those are bounded findings, not an exhaustive absence claim.
+
+Proof lane acknowledged revision 4, verified all 29 frozen dependencies before
+reading the existing annotation/effect policy, and resumed.
