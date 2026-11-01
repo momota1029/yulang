@@ -40,3 +40,11 @@ Luna's sole output lease is
 Cargo, runtime inspection, environment/cache/target/scratch, source edits,
 worker descendants or additional output paths are admitted. Worker exact-
 contract acknowledgements are pending.
+
+## Contract revision 2
+
+The source lane identified `crates/yu-solver/src/candidate_call.rs` as the
+first additional owner needed for the public candidate formal observer. Luna
+pinned SHA-256 `fdc39e01fa3665b4dc14e167973de63b275eb0280b831e340b6cdcee5ed0fc3f`
+before content reads. The dependency is read-only; no semantic result or write
+authority changed. Updated contract SHA-256: `514b13bf3934ac9723afe3f66776a0a036f0844604e373d326dc2faab436f7ba`.

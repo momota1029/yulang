@@ -1,4 +1,4 @@
-# Sprint R175 — same-solution readback preflight
+# Sprint R175 — same-solution readback preflight (contract revision 2)
 
 Status: ADMITTED under the unchanged Yulang type/inferred-effect
 soundness goal. Runtime/machine correctness is excluded. Baseline: `yulang3`
@@ -39,6 +39,8 @@ R174 contract v4 and reviewed source handoff are immutable dependencies:
   `429456c4e19723c652842860aa2746988f4ab43550707cf840b1d047c69cb2be`
 - candidate owner `crates/yu-solver/src/shadow_apply.rs`:
   `99d67895c250e5d79fb774728867fe2fc88c4dc22df9bfc38ac9fd1aeb0908e5`
+- public candidate observer owner `crates/yu-solver/src/candidate_call.rs`:
+  `fdc39e01fa3665b4dc14e167973de63b275eb0280b831e340b6cdcee5ed0fc3f`
 - feature manifest `crates/yu-solver/Cargo.toml`:
   `aaf341e14643b73668552a3bf499f6410bdd0e9ad6ebeea1a5d6ef454d9494ed`
 - `Contracts.lean`: `2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e`
@@ -64,6 +66,10 @@ Verify hashes before reading. If caller or semantic owner evidence requires a
 path outside this set, stop and return its exact path for primary pinning.
 `candidate_context.rs` is not preauthorized; pin it only if the selected
 construction demonstrably consumes that representation.
+
+Revision 2 adds `candidate_call.rs`, after the source lane identified it as
+the first owner needed to inspect the candidate route's formal observer. This
+is a read-only dependency; no result claim or write authority changes.
 
 ## Read-only lanes
 
