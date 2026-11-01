@@ -1,7 +1,7 @@
 # R199 — abstract Yulang inference model reconstruction
 
 Date: 2026-11-02
-Status: **MODEL-INCOMPLETE; R206 intrinsic literal-rule proposal independently reviewed PASS; no semantic adoption**.
+Status: **MODEL-INCOMPLETE; BLOCKED_AT_ORIGINAL_LITERAL_RULE; R206 candidate unadopted; no semantic adoption**.
 Parent baseline: `77bb8be466bbaa6cc9d7bd4587cf5975524f3ead`.
 No semantic adoption, theorem closure, Rust correspondence, or production authority.
 
@@ -355,48 +355,36 @@ The native literal `0`/`1` Call instances do not fill either whole-language tabl
 
 **R205 stop:** the independent local literal meaning and corresponding Simple-sub atom must be fixed before actual generation/readout equations or a literal reflection theorem can be written. A user decision is required only if choosing between the intrinsic table and the declaration-driven table changes accepted interfaces or alternatives; the proposal must first receive independent review. Parent delta remains zero.
 
-### 4.4 R206 concrete intrinsic literal-rule proposal (unadopted)
+### 4.4 R206 candidate introduction, corrected by R207
 
-This proposal makes R203's base introduction an actual source-rule candidate and closes its behavior under the already selected checking constructors. It does not identify the proposal with the original SG literal relation until the authority comparison and any missing alternatives are resolved.
+R203 supplies a canonical **static value/type introduction candidate** for each raw literal payload. With `p(l)` its payload-preserving map, `τ(l) := PaperTypes.literalType(p(l))`, and `v(l) := PaperTypes.Value.literal(p(l))`, the eight base projections remain `unit ↦ Unit`, `bool ↦ Bool`, `int ↦ Int`, `floatBits ↦ Float`, `string ↦ String`, `bytes ↦ Bytes`, `path ↦ Path`, `character ↦ Char`. This is the kernel-checked `PaperValueTyped.literal` rule, not yet an instance of the original SG source rule.
 
-For each raw source payload `l` at original occurrence `q`, define `p(l)` by the exact payload-preserving map of R203 and `τ(l) := PaperTypes.literalType(p(l))`. The eight type cases remain `unit ↦ Unit`, `bool ↦ Bool`, `int ↦ Int`, `floatBits ↦ Float`, `string ↦ String`, `bytes ↦ Bytes`, `path ↦ Path`, `character ↦ Char`; `v(l) := PaperTypes.Value.literal(p(l))` preserves the same payload. The proposal's source row is
-
-```text
-LiteralRoot(q) := the proposed literal-origin root token for source occurrence q
-
-LitRow(q,l,e0) =
-  ⟨ descriptor = Value(τ(l)), value = v(l),
-    root = LiteralRoot(q), event = e0 ⟩
-```
-
-where `e0` is inherited from the surrounding source derivation and `q` is not reselected. The literal rule introduces no fresh scope or event witness:
+For the source boundary, retain the original root coordinate `r`, occurrence `q`, scope `xi`, ambient event `e0`, and correlated witness strategy `omega` as supplied by the original source derivation:
 
 ```text
-────────────────────────────────────────────── Lit-Base
-Σ ; xi ; q ; e0 ⊢ l ⇓ LitRow(q,l,e0)
+LitRow(q,l,r,e0) =
+  ⟨ descriptor = Value(τ(l)), value = v(l), root = r, event = e0 ⟩
+
+Return(LitRow(q,l,r,e0)) =
+  ⟨ Comp(empty, τ(l)), v(l), r, e0 ⟩
 ```
 
-The same row is returned at the same event/world:
+The base literal performs no intrinsic operation. Its local performed-effect row is `empty`; surrounding permission, actual inflow, residual, Call effects, guards and future obligations remain in the enclosing source judgment. No fresh root, event, scope, or witness is introduced. Any proof-only checking uses the same value and its original endpoints. An actual selected conversion retains its own `Executed` boundary, distinct source/target rows and event/effect transport, all linked to the same literal occurrence and outer witness.
+
+This is intentionally only a **sufficient-direction candidate**. It proposes one base literal introduction followed by any independently admitted source checking/annotation path at its original occurrence. It does not define the complete literal relation or remove its other alternatives. Structural and annotation checks follow the selected Source-Generalize §3.2 rules; a registered method/adapter remains an alternative with its complete original inputs, effects, guard and evidence. An unregistered overload is not ruled out by this candidate, and the hypothetical `int → Number` case establishes no current Yulang behavior.
+
+The required admissibility implication is:
 
 ```text
-Return(LitRow(q,l,e0)) =
-  ⟨ Comp(empty, τ(l)), v(l), LiteralRoot(q), e0 ⟩
+R203 canonical introduction of (l, τ(l), v(l))
+  at original (q, r, e0, xi, omega)
+→ one authentic selected SG Literal derivation
+  at those same original coordinates
 ```
 
-The literal's **intrinsic performed-effect row** is `empty`. This equation describes only the literal's local operation behavior. The surrounding judgment still carries its original permission, actual inflow, residual, Call effects, guards and future obligations; Return does not reset or recompute those contextual fields.
+**R207 exact stop:** the selected SG construction §3.1 requires the actual literal declaration and whole local typed relation, with all conservative alternatives and guards; L1 requires the authentic primitive's independently fixed typed relation, and L2 retains original Return/world/effect obligations. Those authorities do not state that the R203 base introduction satisfies that declaration at root `r`, nor give its ground/value-form and Return law for all eight payloads. The typed-core document is a draft schema `Value(type of literal)`; its full raw-source elaboration is open. The selected native `0` and `1` Call rules are bounded instances. Thus the candidate cannot yet be derived into the original source rule.
 
-The proposed complete checking relation is the least proof relation generated by the following constructors at the actual check occurrence. Proof-only checking keeps the base row and source event. An admitted executed conversion has its own source/target endpoints and actual `Executed` event transition, with its full effects and guard; it may produce a different result row/event, but remains linked to this original `q` and the same outer witness strategy:
-
-1. **Base introduction:** `Lit-Base` above.
-2. **Original finite same-value/checking proof:** one of the selected Source-Generalize §3.2 identity/logical-composition, structural, same-value/same-computation, or complete Function checking derivations, with its complete original source/target endpoints and evidence. A literal check does not turn a proof of inclusion into an executed conversion.
-3. **Original annotation/final-formation rule:** the selected actual annotation and completed-value premises; retain synthesis and written-target endpoints plus their realization evidence.
-4. **Registered method/adapter alternative:** admit only an independently fixed method/adapter constructor at this exact occurrence, retaining its code, source boundary, effects, whole input/output relation, guards and original evidence. No method is inferred from a matching printed type.
-
-This list gives a concrete rule grammar, not a Boolean “some alternative succeeds” premise. In this proposal, an unregistered overloaded literal declaration is not an extra rule. This is the exact possible semantic commitment: if the original language admits an unregistered literal declaration/overload with a different descriptor, value relation, effect, guard or scope, the proposed relation rejects that derivation. For example, a declaration that lets a source `int` literal check directly at a distinct nominal `Number` interface would be accepted only if it is an independently registered method/checking rule above; the intrinsic base introduction by itself yields `Int` and the ordinary selected checking rules must derive the check. No selected source in the frozen inputs establishes whether such a declaration exists, so this example is a discriminator, not a claim about current Yulang behavior.
-
-The selected SG §3.1 requires the authentic declaration and **all** original conservative alternatives and guards. R203 explicitly makes the base rule nonexhaustive. Therefore the equation above is a concrete proposed intrinsic rule plus an explicit checking grammar, but its equivalence to the complete original local relation is still unproved. Either an authenticated existing declaration/alternative derives every added local rule and there is no semantic delta, or the unregistered-overload discriminator is a genuine source-language decision requiring approval. The independent review and source evidence must adjudicate this before adoption.
-
-All premises above retain the original literal occurrence and one outer witness strategy. `Lit-Base` uses the proposed `LiteralRoot(q)` and inherited event `e0`; it does not read either field from the solver assignment. `sameScoped` must later connect those fields to the same assignment coordinates. An executed conversion may change the result row/event only through its selected boundary and retains the associated effect obligations. Return for the unconverted literal retains its same value, root and event. The enclosing `sameScoped` witness remains shared with the rest of the source tree. This proposal closes no Simple-sub generation/readout equation and no parent premise.
+Do not replace `r` by a new `LiteralRoot(q)`, and do not assume `sourceJudgment`, `LiteralDeclaration`, `Ground`, or a `Build` leaf proves the missing L1 law. No exhaustive overload policy is needed for soundness; preserve all other original alternatives while seeking one admissible path. The exact blocker is **BLOCKED_AT_ORIGINAL_LITERAL_RULE**: supply or authenticate the original L1 introduction law, or present a concrete changed-rule proposal for review and approval if creating it changes source meaning. Parent delta remains zero.
 
 ## 5. Principality and termination remain distinct
 
