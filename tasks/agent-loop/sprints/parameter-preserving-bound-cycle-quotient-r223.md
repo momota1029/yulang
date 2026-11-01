@@ -1,10 +1,9 @@
 # Sprint R223 — parameter-preserving bound-cycle quotient
 
-Contract revision: **2** (pins and explicit cache-output whitelist; objective
-and theorem gate unchanged).
+Contract revision: **3** (adds two absent pinned dependency modules to the
+cache-output whitelist; objective and theorem gate unchanged).
 
-Status: **ADMISSION CANDIDATE pending exact-path and current-state update by
-Luna**. User objective: prove Yulang's type-inference guarantees first; original
+Status: **ADMITTED**. User objective: prove Yulang's type-inference guarantees first; original
 quantifiers, source domain, semantics, and all four parent roots stay fixed.
 
 ## Parent and measurable result
@@ -110,8 +109,9 @@ cache growth 64 MiB, no cleanup, default build, Rust, Cargo, or tests. Stop if
 any whitelisted output exists at intake or if Lake requires any additional
 output path.
 
-The only permitted new cache files are this exact whitelist, all confirmed
-absent when revision 2 was prepared:
+The only permitted new cache files are this exact whitelist. The two dependency
+module output groups were confirmed absent before revision 3; the target module
+group was confirmed absent when revision 2 was prepared:
 
 ```text
 notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractBoundCycleNormalizationR223.olean
@@ -122,6 +122,22 @@ notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractBoundCycleNormaliza
 notes/theory/lean/.lake/build/ir/YulangClosure/AbstractBoundCycleNormalizationR223.c
 notes/theory/lean/.lake/build/ir/YulangClosure/AbstractBoundCycleNormalizationR223.c.hash
 notes/theory/lean/.lake/build/ir/YulangClosure/AbstractBoundCycleNormalizationR223.setup.json
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractSimpleSubCore.olean
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractSimpleSubCore.olean.hash
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractSimpleSubCore.ilean
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractSimpleSubCore.ilean.hash
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractSimpleSubCore.trace
+notes/theory/lean/.lake/build/ir/YulangClosure/AbstractSimpleSubCore.c
+notes/theory/lean/.lake/build/ir/YulangClosure/AbstractSimpleSubCore.c.hash
+notes/theory/lean/.lake/build/ir/YulangClosure/AbstractSimpleSubCore.setup.json
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/BirthLevelSCC.olean
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/BirthLevelSCC.olean.hash
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/BirthLevelSCC.ilean
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/BirthLevelSCC.ilean.hash
+notes/theory/lean/.lake/build/lib/lean/YulangClosure/BirthLevelSCC.trace
+notes/theory/lean/.lake/build/ir/YulangClosure/BirthLevelSCC.c
+notes/theory/lean/.lake/build/ir/YulangClosure/BirthLevelSCC.c.hash
+notes/theory/lean/.lake/build/ir/YulangClosure/BirthLevelSCC.setup.json
 ```
 
 Stop before writing if any listed path exists or if Lake requires another path.
