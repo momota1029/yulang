@@ -18440,12 +18440,18 @@ effect hygiene and production remain **OPEN**. The next bounded step is a
 reviewed member/state construction and transport contract, alongside an exact
 R118 proof repair. No Rust implementation lease is granted before that
 contract is independently reviewed.
-# 2026-11-02 R149 active — member state and decoder repair
+# 2026-11-02 R149 checkpoint — member state and decoder repair
 
-R149 is admitted from baseline `87dfe33bcd4c572d740dc33b454114b6018a4376`.
-The source lane traces the authentic `AnnotationMember` state association and
-same-map FreshUse path from immutable Git blobs. The Lean lane repairs only the
-R118 proof terms and audits R119. No Rust edits are authorized in this sprint.
-The existing `.lake` is capped at +16 MiB; no new environment is allowed. The
-R148 review records why current dirty Rust is excluded and why its mixed
-receiver validation changes are not safe to push as-is.
+R149's bounded Lean repair passed its targeted R118/R119 build and complete
+axiom audit. `PermissionMemberWitnessR119.selected_retained_member` reports
+`[propext]`; the two R118 proof terms changed without changing definitions,
+types, assumptions, imports, or axioms. The independent review accepts the
+repair and conditional source contract. It confirms that authentic initial
+state construction and a protection-sensitive consumer are still missing from
+the pinned source evidence. See the [R149 review](agent-loop/history/effect-permission-member-state-decoder-20261102-r149-review.md)
+and [R149 admission](agent-loop/history/effect-permission-member-state-20261102-r149-admission.md).
+
+The existing `.lake` grew by 674,129 bytes; no new environment or cache was
+created. Original H/A/B, source/native correspondence, full effect hygiene,
+soundness, semantic approval, and production remain **OPEN**. The next source
+work must establish INITIAL-STATE and CONSUMER before authorizing Rust edits.

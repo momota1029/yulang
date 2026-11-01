@@ -84,7 +84,7 @@ theorem read_family_exact (views : List (Nat × List Id)) (endpoint : Endpoint)
     rcases entry with ⟨index, allowed⟩
     by_cases same : index = endpoint.view
     · subst index
-      exact ⟨allowed, found, by simpa [readFamily, found] using read⟩
+      exact ⟨allowed, rfl, by simpa [readFamily, found] using read⟩
     · simp [readFamily, found, same] at read
 
 theorem read_permission_exact (permissions : List (Nat × Permission Id))
@@ -133,9 +133,9 @@ theorem decode_member [DecidableEq State] [DecidableEq Batch]
           have sp := congrArg Prod.snd same
           cases sf
           cases sp
-          exact ⟨owners, read_family_exact views endpoint actualFamily rf,
-            read_permission_exact permissions registration storage actualPermission rp,
-            contains_member actualPermission.concrete actualFamily guard⟩
+          exact ⟨owners, read_family_exact views endpoint family rf,
+            read_permission_exact permissions registration storage permission rp,
+            contains_member permission.concrete family guard⟩
         · simp [decode, owners, rf, rp, guard] at success
   · simp [decode, owners] at success
 
