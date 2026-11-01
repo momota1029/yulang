@@ -38,6 +38,11 @@ separately admitted scope.
 - Proof handoff: `tasks/agent-loop/inbox/effect-permission-formal-origin-r171-proof.md`.
 - Source handoff: `tasks/agent-loop/inbox/effect-permission-formal-origin-r171-source.md`.
 
+The source handoff is a frozen R171 proof input after the source lane stops:
+`tasks/agent-loop/inbox/effect-permission-formal-origin-r171-source.md`,
+SHA-256 `8db9a9730932aedd162ad4c918000c6c73176323eae797be022a197db2174f22`.
+The proof lane may read this exact handoff; no other source-lane path is added.
+
 ## Required construction invariants
 
 Track the actual append-only registration vector and the ID-to-registration

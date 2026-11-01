@@ -38,3 +38,38 @@ lanes; no descendants were authorized.
 Boundary incident: `tasks/agent-loop/history/20261102-primary-read-boundary-incident-machine.md` records the primary read of a
 quarantined runtime path before refreshing current state. That path remains
 quarantined and is excluded from all R171 work.
+
+
+Source lane frozen: `tasks/agent-loop/inbox/effect-permission-formal-origin-r171-source.md`
+SHA-256 `8db9a9730932aedd162ad4c918000c6c73176323eae797be022a197db2174f22`;
+disposition `NO_SAFE_CODE_SLICE`. The exact source evidence distinguishes the
+Rust HashMap's last-write-wins behavior from R169's first-match list, identifies
+three Lambda emission sites and the shared checked ID allocator, and records
+the snapshot boundary. No reachable Rust bug was found. The proof lane now has
+read access to this frozen handoff only, in addition to its original exact
+outputs. A fresh source review will be assigned against the same frozen hashes.
+
+
+The live roster before source-review dispatch was synchronized: `/root` and the
+R171 proof worker are active; the R171 source author is stopped with its frozen
+handoff. `/root/r103_rust_referee` is assigned a fresh read-only review of the
+four pinned sources and the frozen source handoff; no Git/build/test/path writes.
+
+
+`/root/r103_rust_referee` is now RUNNING on the frozen R171 source handoff
+and exact pinned source hashes. It has read-only authority and no path outside
+the source lane was assigned. The proof worker is RUNNING and has authenticated
+the existing ten-import R116 closure; the R169 module is not compiled, so its
+planned verifier will use the authorized in-memory concatenation path after
+source review/model alignment.
+
+
+Fresh R171 source review: `/root/r103_rust_referee` PASS on the frozen source
+handoff and exact source hashes. It confirmed owner+ordinal parameter IDs,
+disjoint header intervals, checked allocation, all three Lambda emission sites,
+append-based registration capture, annotation cloning, and the Rust-last-write
+versus Lean-first-match order mismatch. It also confirmed the handoff does not
+overclaim: `set_at_range` can overwrite, allocator freshness alone does not
+prove work-stack history, and annotation equality is absent from runtime guards.
+No reachable Rust counterexample was found. Review certifies only the scoped
+static source map, not Rust-to-Lean execution or theorem closure.
