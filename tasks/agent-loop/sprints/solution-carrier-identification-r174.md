@@ -1,6 +1,6 @@
 # Sprint R174 — identify the actual solution carrier
 
-Status: ADMITTED (contract revision 3) under the unchanged goal: Yulang type and inferred effect-row soundness against original source typing rules. Runtime/machine correctness is excluded.
+Status: ADMITTED (contract revision 4) under the unchanged goal: Yulang type and inferred effect-row soundness against original source typing rules. Runtime/machine correctness is excluded.
 Branch / baseline: `yulang3` / `bb9b5826a`. Luna owns integration and Git.
 
 ## Parent and admitted outcome
@@ -73,6 +73,15 @@ and public scheme view:
 
 - `crates/yu-solver/src/candidate_scheme.rs`: `6072c73bc1a1629f025dcaf61fcbed98c738d93f8993bd81182a391d1ad4d89e`
 - `crates/yu-solver/src/shadow_f5.rs`: `b6a6c70da75329ff66cd9e6c0a2598a54cc8f0de7ba956f6f28b24616ca3a994`
+
+These are read-only representation inputs. No write authority, execution
+permission, or semantic assumption is added.
+
+Revision 4 adds the next representation owners needed to interpret captured
+candidate graph and effect-bound nodes:
+
+- `crates/yu-solver/src/candidate_intrusion.rs`: `475edf15acbb5d986b5aebd1cb22b9c5fad61c50811690a763b39ff003cccd97`
+- `crates/yu-solver/src/candidate_effect.rs`: `4becefc07b81c1b298cafa190a3698e9e15e94656e1f17390eee13435dcb9b15`
 
 These are read-only representation inputs. No write authority, execution
 permission, or semantic assumption is added.

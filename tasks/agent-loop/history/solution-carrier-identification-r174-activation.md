@@ -50,3 +50,10 @@ outside the prior frozen set. Luna pinned their exact hashes before authorizing
 further reads: `crates/yu-solver/src/candidate_scheme.rs` and
 `crates/yu-solver/src/shadow_f5.rs`. Both are read-only inputs; this expands no
 write lease or execution authority. Updated contract SHA-256: `d58b4a30e78bb409c5b4df0c29396f4f7d4458cbbd5090afa789b91be2848d39`.
+
+## Contract revision 4
+
+The source lane found that captured candidate graph and effect-bound nodes
+depend on two more representation owners. Luna pinned `candidate_intrusion.rs`
+and `candidate_effect.rs` by exact hash before authorizing further reads. The
+read-only lease and execution boundary are unchanged. Updated contract SHA-256: `72425107a3ad4d71844f666b2ff3fd2eefa4b34e26dd53f3737c0d2ee9430e79`.
