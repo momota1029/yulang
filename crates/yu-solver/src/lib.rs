@@ -13809,7 +13809,17 @@ impl InferenceSession {
         occurrence: &ConstraintOccurrenceId,
         cause: &CauseId,
     ) -> Result<usize, SolveAvailabilityError> {
-        self.constrain_live(LiveConstraintTask::Effect(lower, upper), occurrence, cause)
+        #[cfg(all(test, feature = "shadow-apply-candidate"))]
+        candidate_effect::formal_live_capture_trace_event(|| format!(
+            "live-effect-constraint before lower={lower:?} upper={upper:?} occurrence={occurrence:?} cause={cause:?} errors={}", self.errors.len()
+        ));
+        let result = self.constrain_live(LiveConstraintTask::Effect(lower, upper), occurrence, cause);
+        #[cfg(all(test, feature = "shadow-apply-candidate"))]
+        candidate_effect::formal_live_capture_trace_event(|| format!(
+            "live-effect-constraint after lower={lower:?} upper={upper:?} occurrence={occurrence:?} cause={cause:?} result={result:?} errors={:?}",
+            self.errors.iter().map(|error| (error.occurrence().clone(), error.cause().clone(), error.kind())).collect::<Vec<_>>()
+        ));
+        result
     }
 
     fn apply_effect_task(
@@ -13819,7 +13829,16 @@ impl InferenceSession {
     ) -> Result<(), SolveAvailabilityError> {
         #[cfg(feature = "shadow-apply-candidate")]
         if self.candidate_graph.is_some() {
-            return self.candidate_apply_effect(lower, upper);
+            #[cfg(test)]
+            candidate_effect::formal_live_capture_trace_event(|| format!(
+                "effect-propagation before lower={lower:?} upper={upper:?}"
+            ));
+            let result = self.candidate_apply_effect(lower, upper);
+            #[cfg(test)]
+            candidate_effect::formal_live_capture_trace_event(|| format!(
+                "effect-propagation after lower={lower:?} upper={upper:?} result={result:?}"
+            ));
+            return result;
         }
         match (lower, upper) {
             (EffectEndpointKey::EffectRow(a), EffectEndpointKey::EffectRow(b)) => {
@@ -16652,6 +16671,10 @@ impl InferenceSession {
                 cause: cause.clone(),
                 kind,
             });
+            #[cfg(all(test, feature = "shadow-apply-candidate"))]
+            candidate_effect::formal_live_capture_trace_event(|| format!(
+                "diagnostic-add occurrence={occurrence:?} cause={cause:?} kind={kind:?} index={}", self.errors.len() - 1
+            ));
             #[cfg(all(test, feature = "f5c_resource_probe"))]
             self.observe_f5c_structured_pair_top(
                 19, self.errors.len(), self.errors.capacity(),

@@ -2450,7 +2450,19 @@ impl InferenceSession {
             }
             _ => {},
         }
+        #[cfg(test)]
+        candidate_effect::formal_live_capture_trace_event(|| format!(
+            "source-action before schedule={:?} index={} action={action:?} errors={:?}",
+            frame.schedule, frame.next,
+            self.errors.iter().map(|error| (error.occurrence().clone(), error.cause().clone(), error.kind())).collect::<Vec<_>>()
+        ));
         self.execute_candidate_action(&action)?;
+        #[cfg(test)]
+        candidate_effect::formal_live_capture_trace_event(|| format!(
+            "source-action after schedule={:?} index={} action={action:?} errors={:?}",
+            frame.schedule, frame.next,
+            self.errors.iter().map(|error| (error.occurrence().clone(), error.cause().clone(), error.kind())).collect::<Vec<_>>()
+        ));
         self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().next += 1;
         Ok(CandidateRun::Complete(false))
     }
