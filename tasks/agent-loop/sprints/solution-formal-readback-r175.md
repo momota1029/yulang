@@ -1,4 +1,4 @@
-# Sprint R175 — same-solution readback preflight (contract revision 4)
+# Sprint R175 — same-solution readback preflight (contract revision 5)
 
 Status: ADMITTED under the unchanged Yulang type/inferred-effect
 soundness goal. Runtime/machine correctness is excluded. Baseline: `yulang3`
@@ -113,6 +113,19 @@ directional inferred-effect addendum for annotated callback/Computation cases:
 
 This is an existing semantic authority and correction, not a new user choice.
 It is read-only and does not authorize weakening effect or scope obligations.
+
+Revision 5 adds the exact correction and integration receipt referenced by
+annotation/effect policy §1.2. These distinguish declared permission,
+constraint-derived inflow and post-subtraction residual:
+
+- `questions/2026-10-16-annotation-declared-envelope/approved-answer.md`:
+  `7c564a6e28c85059473b2c8498fdff72fd5f5e8f6378e9a8dce2780b63d69785`
+- `questions/2026-10-16-annotation-declared-envelope/receipt.md`:
+  `8957bb5e0e1f306b0ba5f3b16e3f58fbc246316acb4fb9effde0527b2b7b5a58`
+
+The integration is recorded at `cfded839e`. This is an existing correction,
+not a new semantic choice. If either document points to another required
+correction, stop and return its exact path before reading.
 
 ## Read-only lanes
 

@@ -90,3 +90,14 @@ in the frozen set. Those are bounded findings, not an exhaustive absence claim.
 
 Proof lane acknowledged revision 4, verified all 29 frozen dependencies before
 reading the existing annotation/effect policy, and resumed.
+
+## Contract revision 5
+
+The proof lane read annotation/effect policy §1.1–1.2 under revision 4. It
+confirmed that the policy does not choose a solver representation or close
+source-subtraction/hygiene gates, and preserves the original provider,
+assignment, typed position, shared variables and correlated Function
+obligations. It points to the existing 2026-10-16 declared-envelope correction
+and receipt, whose exact hashes are pinned in revision 5 before those contents
+are read. The correction is integrated at `cfded839e`; no new semantic choice
+is requested. Updated contract SHA-256: `ff99c7a8a633d5ecdf54c9fb0aaadb32ca8c0ea4d4a4fee41e209152b783409b`.
