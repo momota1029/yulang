@@ -69,4 +69,7 @@ alone does not reduce the parent premise. This is a proposal for the next
 bounded packet, not evidence that a Rust registration table or an existing
 declaration-meaning theorem has been located.
 
-Git integration is recorded by the primary after this frozen review outcome.
+Primary Git integration: commit `dbcf3dd62` was pushed to `origin/yulang3`.
+Before integration, `origin/yulang3...HEAD` was `0 0`; the push advanced the
+remote from `90d757d2f` to `dbcf3dd62`. The checkpoint staged only the six
+listed R197 paths; unrelated dirty and quarantined paths were not staged.
