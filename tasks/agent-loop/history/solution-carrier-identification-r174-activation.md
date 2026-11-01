@@ -57,3 +57,26 @@ The source lane found that captured candidate graph and effect-bound nodes
 depend on two more representation owners. Luna pinned `candidate_intrusion.rs`
 and `candidate_effect.rs` by exact hash before authorizing further reads. The
 read-only lease and execution boundary are unchanged. Updated contract SHA-256: `72425107a3ad4d71844f666b2ff3fd2eefa4b34e26dd53f3737c0d2ee9430e79`.
+
+## Frozen source handoff and review
+
+Source writer stopped and returned its sole lease. Handoff
+`tasks/agent-loop/inbox/solution-carrier-identification-r174-source.md` is
+frozen at SHA-256 `8e653a67c593a8ccffe459f549f3d865784e36b56cc3112b5f4b26cb6c435ad2`. The live roster was synchronized; the source
+researcher is STOPPED. A fresh independent `spec_auditor`,
+`/root/r174_solution_carrier_review`, was assigned the read-only 300-second
+review; acknowledgement is pending. Review target is the exact frozen handoff
+and contract v4 dependencies. Parent inference soundness remains OPEN.
+
+## Independent review result
+
+Fresh independent reviewer `/root/r174_solution_carrier_review` returned PASS
+for the bounded source outcome, with no correctness or scope finding. It
+independently confirmed the distinct public legacy, private candidate and
+internal session carriers; the coarse legacy observers; the retained candidate
+graph/effect/permission algebra; the exact unpinned context stop boundary; and
+the missing same-solution original `FormalAssignment` readback and parent
+`sameScoped` witness. All contract, handoff, 13 representation/Lean/R173 and
+five governance hashes matched. Review was static only; author resource
+compliance was not independently certifiable. Parent inference soundness stays
+OPEN.
