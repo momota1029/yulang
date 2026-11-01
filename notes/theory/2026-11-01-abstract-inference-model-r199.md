@@ -202,6 +202,61 @@ candidate equation contradicts an approved meaning, narrows accepted source,
 changes an admission challenge, or duplicates a witness, stop that equation
 and return the exact conflict for adjudication.
 
+### 4.1 Literal equation construction attempt (R200)
+
+The source payloads have a lossless bridge to `PaperTypes.Literal`: the eight
+constructors carry the same payload types (`Bool`, `Int`, `Nat`, `String`, and
+`List Nat`) in `OriginalSourceSyntax.Literal` and `PaperExecutionSyntax.Literal`.
+The paper typing definition `PaperTypes.literalType` assigns each constructor
+its corresponding base type, and the `PaperValueTyped.literal` rule types that
+value without declaration, graph, or environment premises. This gives a
+concrete candidate for the *type/value* projection of a literal rule while
+preserving every original payload. It is stronger evidence than the `CoreSyntax`
+bridge, whose `UInt64`, `List UInt8`, and byte-list path carriers cannot encode
+all original payloads.
+
+It still does not supply the required `LiteralAtom` equation. The source
+interpretation's `LiteralDeclaration` relates a raw literal to a full row of
+descriptor, value, root, and event; `LiteralAtom` also requires the descriptor
+to be ground and the row to satisfy the independent ground predicate. Neither
+`PaperTypes.literalType` nor `PaperValueTyped.literal` chooses those original
+row carriers, defines the source `Root`/`Event`, gives the literal's contextual
+effect row, or proves that a Simple-sub solution reads back that same row.
+The paper execution typing relation is explicitly not identified with the
+original effectful source interpretation in `OriginalSourceInterpretation`.
+
+Therefore the following equation is supported only as a candidate local type
+rule:
+
+```text
+sourceLiteralType(l) := PaperTypes.literalType (toPaperLiteral(l))
+sourceLiteralValue(l) := PaperTypes.Value.literal (toPaperLiteral(l))
+PaperValueTyped.literal : sourceLiteralValue(l) : sourceLiteralType(l)
+```
+
+The immediate `LiteralAtom` bridge remains open:
+
+```text
+IndependentSolutions(GenerateLiteral(site, l), a)
+  → LiteralDeclaration l (descriptor(a, site), value(a, site),
+                           root(a, site), event(a))
+    ∧ valueForm(descriptor(a, site)) = ground
+    ∧ ground(row(a, site))
+```
+
+That is only the literal declaration/readout atom. The full local source rule
+also needs its actual Return construction and contextual effect equation, with
+the same event, scope, and literal occurrence. Those obligations remain in
+`interpretEffectΣ` and the source constructor/phase equations above; the paper
+typing rule does not discharge them.
+
+Filling the gap requires a source-faithful construction of the complete
+descriptor/value/root/event and effect meaning, together with an actual
+Simple-sub generator/readout equation. Supplying `LiteralDeclaration` as an
+arbitrary parameter, interpreting `Solves` through `Kernel.atom`, or deriving
+the row from the paper typing proof would leave that same premise assumed.
+This construction attempt changes no source rule and closes no parent premise.
+
 ## 5. Principality and termination remain distinct
 
 For the same fixed model, `PrincipalCoverage` must separately construct a
@@ -240,6 +295,7 @@ Contracts.lean                                 2fc7186f47a4e1bf7af1fec3cd546b063
 OriginalSourceSyntax.lean                      3184d156d661ace7da0345f5fa63f8a4396d9f52c745d265239c8d3db1e7d0d1
 OriginalSourceGeneration.lean                  126a7f2d8336aa7dd2fd4a50cae3eb6b56b6646f7dcf0207130b2a9c209aa7ef
 OriginalSourceInterpretation.lean              feddd8155e6130279c202453e4562019fde5c0ad0f3a0a491dcbc0cb4ef572ef
+PaperExecutionSyntax.lean                       d0dc9871c382ca945059167b8b9e05f8f672170208a994f081e29760a207b87d
 SimpleSubConstraintSyntax.lean                 a9ec574d31223e0484fd827838b45cd019fc858eece9f326c95ebc2e1e77a1f6
 OriginalSourceChecking.lean                     a0ba215e28fe0152e3c66024da86ab9a63219b7950e741bf260cbc4c2897ffd6
 2026-10-26-original-source-generation-construction.md e9027e317deb5cd5c34cc3892f332a06910a6ff93f1890a82e59faf31d643283

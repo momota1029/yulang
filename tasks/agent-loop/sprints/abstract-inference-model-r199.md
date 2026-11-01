@@ -37,10 +37,13 @@ OriginalSourceInterpretation.lean                   feddd8155e6130279c202453e456
 OriginalSourceChecking.lean                         a0ba215e28fe0152e3c66024da86ab9a63219b7950e741bf260cbc4c2897ffd6
 SimpleSubConstraintSyntax.lean                     a9ec574d31223e0484fd827838b45cd019fc858eece9f326c95ebc2e1e77a1f6
 Simple-sub top-level principles                  7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81
-Source-Generalize construction                    e9027e317deb5cd5c34cc3892f332a06910a6ff93f1890a82e59faf31d643283
+Source-Generalize selecting authority              46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38
+Selected Source-Generalize construction            e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240
+2026-10-26 source-generation construction          e9027e317deb5cd5c34cc3892f332a06910a6ff93f1890a82e59faf31d643283
 Annotation/effect hygiene policy                  a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18
 Source type safety crosswalk                       2c77bbd6f2679ac91ece3bb670152a9dfd16e033aa68545bff6c6dc509d24166
 Parent reconstruction plan                        7c525a98e53a62a370096d85a3b371af5952dae19d8593b4e02cf3a812c3f36e
+PaperExecutionSyntax.lean                          d0dc9871c382ca945059167b8b9e05f8f672170208a994f081e29760a207b87d
 ```
 
 ## Exact output leases
@@ -98,6 +101,30 @@ Review must reject success if any of the following holds:
 boundary and first missing equations. It is not a model-gate pass. If reviewers
 find a concrete approved source equation that closes a gap, Luna revises the
 candidate, rehashes, and requests delta review before any proof activation.
+
+### R200 bounded construction delta
+
+The primary added §4.1 to the candidate, mapping all eight raw source literal
+constructors losslessly to `PaperTypes.Literal`. `PaperTypes.literalType` and
+`PaperValueTyped.literal` give a candidate type/value projection without
+payload narrowing. The delta explicitly leaves the original descriptor/value/
+root/event readout, literal Return, contextual effect, and actual Simple-sub
+generator/solution equation open. No source rule or semantic choice was adopted.
+
+Fresh exact-hash read-only `compiler_referee` and `spec_auditor` delta reviews
+both passed the wording-repaired candidate at SHA-256
+`f60b89d98ced17cabf860c6dd65aa3929796c85a407c8f82af25607adf0017cb`, with no
+remaining findings. Both confirmed `MODEL-INCOMPLETE`, zero parent reduction,
+and no activation. The earlier minor finding that the displayed implication
+was only the immediate `LiteralAtom` bridge was repaired by leaving Return and
+effect premises explicitly open; Bool was added to the payload-type list.
+
+The R200 candidate delta was reviewed against baseline
+`2ecc95edb7282a387b288d27968148c3be6a82dc`. `PaperExecutionSyntax.lean` is pinned at
+`d0dc9871c382ca945059167b8b9e05f8f672170208a994f081e29760a207b87d`.
+No Lean/build/test or runtime was run, and no new environment or storage was
+created. Existing dirty/untracked/quarantined paths and UNKNOWN leases remain
+untouched.
 
 ## Resource and stop envelope
 

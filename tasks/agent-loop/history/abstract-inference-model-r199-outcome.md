@@ -99,3 +99,48 @@ untouched; no path lease was released. No test or theorem claim is made.
 The primary-owned checkpoint includes only the four explicit R199
 documentation/state paths; unrelated dirty, untracked, and quarantined paths
 remain excluded.
+
+## R200 bounded literal-model construction
+
+At current branch baseline `2ecc95edb7282a387b288d27968148c3be6a82dc`, the
+primary added §4.1 to the same candidate instead of creating another isolated
+literal model. It records a lossless constructorwise map from all eight
+`OriginalSource.Literal` payloads to `PaperTypes.Literal`, plus the selected
+paper type/value rule as a candidate projection. It explicitly does not equate
+paper execution typing with the original effectful source semantics.
+
+The exact remaining literal cut is now stated at two levels:
+
+1. The immediate `LiteralAtom` bridge still lacks a fixed relation connecting
+   an independently satisfying Simple-sub assignment to the original
+   descriptor, value, root and event, with ground formation and the same site.
+2. The complete literal constructor also needs its original Return and
+   contextual effect equations under that same event, scope and occurrence.
+
+The type/value projection does not remove either cut. It does not supply an
+independent Simple-sub generator/readout, does not rely on `Kernel.atom`, and
+does not close or reduce any original parent premise.
+
+Final candidate SHA-256:
+`f60b89d98ced17cabf860c6dd65aa3929796c85a407c8f82af25607adf0017cb`.
+Fresh exact-hash read-only `compiler_referee` and `spec_auditor` reviews both
+returned no remaining findings. The referee confirmed the candidate remained
+MODEL-INCOMPLETE; the spec review confirmed all eight payload domains, the
+Return/effect boundary and no semantic adoption. An initial wording issue
+calling the immediate atom implication the “full equation” was corrected;
+the final reviewed bytes identify Return and effect as still open. Reviewers
+performed no Lean, build, test, runtime or Git work.
+
+Parent accounting remains **0/4 roots closed; 0/5 dependency packages
+closed; zero parent-premise reductions**. The concrete type/value mapping
+improves the candidate model but is not counted as theorem progress. No
+theorem lane or Rust lane was activated. No environment, cache, target or
+scratch path was created, and all pre-existing dirty/untracked/quarantined
+paths, pending questions, UNKNOWN worker observations and path leases remain
+untouched.
+
+Next boundary: construct the complete independent Simple-sub literal
+generator/solution/readout from the original source meaning, including Return
+and contextual effects. If a source-meaning equation cannot be derived from
+the selected authority, retain that exact equation as the blocker rather than
+promoting the paper type/value projection into the full source rule.
