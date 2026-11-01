@@ -1,6 +1,6 @@
 # Sprint R174 — identify the actual solution carrier
 
-Status: ADMITTED under the unchanged goal: Yulang type and inferred effect-row soundness against original source typing rules. Runtime/machine correctness is excluded.
+Status: ADMITTED (contract revision 2) under the unchanged goal: Yulang type and inferred effect-row soundness against original source typing rules. Runtime/machine correctness is excluded.
 Branch / baseline: `yulang3` / `bb9b5826a`. Luna owns integration and Git.
 
 ## Parent and admitted outcome
@@ -53,6 +53,22 @@ Rust defect is demonstrated.
 
 Verify every hash before reading. If a needed representation owner is outside
 this set, stop and return its exact path; Luna will pin it before further work.
+
+## Inherited governance inputs (revision 2)
+
+These governing instructions were read to resolve the source lane's startup
+question. They constrain workflow and authority only; they are not solution
+carrier, type/effect representation, or source-semantics evidence:
+
+- root `AGENTS.md`: `4a6c910e12adb8f5ccc07b0921f2cc781ea7044994f99425d3c54c4e75837d3c`
+- `AGENTS.pre-sprint.md`: `99ae7bbda0a8907a48f762420d996e145e9870ad9794ea0dc608770131182882`
+- `rules/research-lab.md`: `1ffdabce7cc65d4e463e9a50a7a572c2974809bed415071b57a23efed8eb3228`
+- `rules/design-authority.md`: `e4055100f6e75b9c8a6294ec6c68643d8677d7b35b45e430450f7e2c2ad97eb1`
+- `rules/git-concurrency.md`: `0992b73aea3fdd9a53c624b6010e1eeaa97d308f8f9e18698b9115d1b4cf8d09`
+
+All representation and Lean semantic dependencies remain the exact frozen set
+above. This clarification adds no source paths, write authority, or execution
+permission.
 
 ## Review and stop boundary
 

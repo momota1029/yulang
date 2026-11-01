@@ -34,3 +34,11 @@ contract SHA before any writes. Requested role: `researcher`; requested and
 observed model/effort: UNKNOWN in runtime metadata. Its only write lease is the
 single R174 source handoff; all Rust sources are read-only. Budget: 600 seconds;
 no descendants or execution/build/test/Lean/Git/cache/scratch/runtime work.
+
+## Contract revision 2
+
+The source researcher requested the governing instruction paths before reading
+them. Luna read and hash-pinned them in contract revision 2 as inherited
+governance-only inputs, separate from the frozen representation and Lean
+semantic dependencies. No source dependency, lease, execution permission, or
+semantic claim changed. Updated contract SHA-256: `0348e550270015243dec340da3ac8e5e55aaa599e5102599d2367519362224b7`.
