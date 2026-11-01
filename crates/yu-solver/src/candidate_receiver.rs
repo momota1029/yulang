@@ -231,6 +231,11 @@ pub(super) struct ProviderNativeContextProjection<'a> {
     /// can collide while naming different fact owners.
     pub(super) catch_fact_owner: ProviderFactOwner,
     pub(super) provider_view_index: usize,
+    pub(super) provider_member_index: usize,
+    pub(super) provider_family: &'a yu_hir::shadow::SourceEffectId,
+    pub(super) permission_index: usize,
+    pub(super) permission_member_index: Option<usize>,
+    pub(super) permission: &'a candidate_effect::FormalEntryPermission,
 }
 #[cfg(feature = "shadow-apply-candidate")]
 #[derive(Clone, Debug)]
@@ -603,6 +608,11 @@ struct InventoryCatchRequest<'a> {
     collected_fact_index: usize,
     provider_view_index: usize,
     selected_arm_index: usize,
+    provider_member_index: usize,
+    provider_family: &'a yu_hir::shadow::SourceEffectId,
+    permission_index: usize,
+    permission_member_index: Option<usize>,
+    permission: &'a candidate_effect::FormalEntryPermission,
     raw_input: EffectEndpointKey,
     canonical_input: EffectEndpointKey,
     raw_output: EffectEndpointKey,
@@ -1857,14 +1867,36 @@ impl<'a> InventoryPackage<'a> {
             2,
             request.semantic_lambda_fact,
         )?;
-        let (permission_index, permission) = self.permissions.get(request.registration)?;
-        if *permission_index != request.registration
+        let mut matching_permissions = self.permissions.iter().filter(|(_, permission)| {
+            permission.registration == request.registration
+        });
+        let (permission_index, permission) = matching_permissions.next()?;
+        if matching_permissions.next().is_some() {
+            return None;
+        }
+        if *permission_index != self.catch.permission_index
+            || !std::ptr::eq(*permission, self.catch.permission)
             || permission.registration != request.registration
             || &permission.source_owner != request.target_owner
             || permission.occurrence != *request.lambda_occurrence
             || permission.annotation_position != *request.annotation_position
             || permission.source_row != *request.source_row
             || permission.entry_effect != request.raw_entry
+            || self.catch.permission_member_index
+                .and_then(|index| self.catch.permission.concrete.get(index))
+                != Some(self.catch.provider_family)
+            || self.catch.provider_view_index != self.provider_view_index
+            || self.catch.selected_arm_index != self.owner_call.selected_arm_index
+            || self.owner_call.provider_identity != self.owner_call.operation_identity
+            || self.owner_call.provider_identity.family != *self.catch.provider_family
+            || !matches!(self.provider_endpoint,
+                EffectEndpointKey::AnnotationMember(view, member)
+                    if usize::try_from(view).ok() == Some(self.catch.provider_view_index)
+                        && usize::try_from(member).ok() == Some(self.catch.provider_member_index))
+            || self.views.get(self.catch.provider_view_index)
+                .is_none_or(|(index, view)| *index != self.catch.provider_view_index
+                    || view.allowed.get(self.catch.provider_member_index)
+                        != Some(self.catch.provider_family))
         {
             return None;
         }
@@ -4840,6 +4872,11 @@ impl<'a> InventoryPackage<'a> {
             collected_fact_index: catch_fact_index,
             provider_view_index: provider.provider_view_index,
             selected_arm_index,
+            provider_member_index: provider.provider_member_index,
+            provider_family: provider.provider_family,
+            permission_index: provider.permission_index,
+            permission_member_index: provider.permission_member_index,
+            permission: provider.permission,
             raw_input: native.raw_lower_endpoint,
             canonical_input: native.canonical_lower_endpoint,
             raw_output: native.raw_upper_endpoint,
@@ -5049,6 +5086,12 @@ impl<'a> ProviderNativeContextProjection<'a> {
         let effect_state = &graph.intrusion.effect_algebra;
         let views = collect_owned_borrowed_inventory(effect_state.views.iter().enumerate())
             .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
+        if !std::ptr::eq(source_internal.native.owner, owner)
+            || !std::ptr::eq(source_internal.native.batch, &owner.session.batch)
+            || !std::ptr::eq(source_internal.native.live_state, &effect_state.context)
+        {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
         let Some((emission_index, owner_emission)) = source_internal.native.emissions
             .get(provider.internal.emission.id.0)
         else { return Err(candidate_context::CurrentEmissionGap::MissingEmission); };
@@ -5105,15 +5148,52 @@ impl<'a> ProviderNativeContextProjection<'a> {
         };
         if origin.occurrence != owner.schema.provider
             || !Arc::ptr_eq(&origin.declaration, &owner.schema.operation)
+            || origin.declaration.id != owner.schema.provider_identity
+            || owner.schema.provider_identity != owner.schema.operation.id
+            || owner.schema.selected_arm.operation_identity != owner.schema.selected_arm.operation.id
+            || owner.schema.selected_arm.operation_identity != owner.schema.provider_identity
         {
             return Err(candidate_context::CurrentEmissionGap::MissingProviderOrigin);
         }
+        let retained = &source_internal.internal_incidence.permission;
+        let mut matching_permissions = source_internal.formal_entry_permissions.iter().filter(|(_, permission)| {
+            permission.registration == retained.registration
+        });
+        let Some((permission_index, permission)) = matching_permissions.next() else {
+            return Err(candidate_context::CurrentEmissionGap::MissingInternalCertificate);
+        };
+        if matching_permissions.next().is_some()
+            || permission.parameter != retained.parameter
+            || permission.formal != *retained.formal
+            || permission.occurrence != *retained.occurrence
+            || permission.source_owner != *retained.source_owner
+            || permission.scope != *retained.scope
+            || permission.annotation_position != *retained.annotation_position
+            || permission.source_row != *retained.source_row
+            || permission.entry_effect != retained.entry_effect
+            || permission.concrete.as_slice().as_ptr() != retained.concrete.as_ptr()
+            || permission.concrete.iter()
+                .position(|family| family == &owner.schema.provider_identity.family)
+                .is_none()
+            || owner.schema.selected_arm.operation_identity.family != owner.schema.provider_identity.family
+        {
+            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
+        }
+        let provider_family = owner_view.allowed.get(member_index as usize)
+            .ok_or(candidate_context::CurrentEmissionGap::BoundMismatch)?;
+        let permission_member_index = permission.concrete.iter()
+            .position(|family| family == provider_family);
         let result = Self {
             source_internal,
             provider,
             views,
             catch_fact_owner: ProviderFactOwner::BatchOccurrence(catch_fact_index),
             provider_view_index: view_index as usize,
+            provider_member_index: member_index as usize,
+            provider_family,
+            permission_index: *permission_index,
+            permission_member_index,
+            permission,
         };
         if !result.verify_path_owners(&result.provider.entry_path)
             || !result.verify_path_owners(&result.provider.catch_path)
