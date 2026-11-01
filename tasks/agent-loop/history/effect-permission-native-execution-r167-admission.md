@@ -137,3 +137,15 @@ external-state/FreshUse, Catch, A/B, principality, and production remain OPEN.
 Both reviewers stopped writes, left no descendants or scratch outputs, and
 performed no Git or Rust operations. Current state records both reviews and the
 source-trace boundary.
+
+## Git integration outcome
+
+Primary-owned commit `2518ddf40f7de45ec7b0ea8039a0f44866a345ea`
+(`Prove native scope execution correspondence`) contains exactly the six R167
+paths listed by `git diff --cached --name-status`; staged whitespace check passed.
+The reviewed outbound range was one intended commit from the pre-push
+`f5af010783f8bd7c748b2e2838078a08283be496`. Push to `origin/yulang3` succeeded,
+and `git ls-remote origin refs/heads/yulang3` returned
+`2518ddf40f7de45ec7b0ea8039a0f44866a345ea`, matching local HEAD. No force push.
+Pre-existing dirty/quarantined files and the pending typed-Union question remain
+unstaged and untouched.
