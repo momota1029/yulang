@@ -98,12 +98,15 @@ model completion.
   result-telescope transport for Call/incidence. It does not block the
   structural Union operator. Preserve the question and its source-domain
   obligations; do not make a core theorem depend on an answer it does not use.
-- Literal L1 is still an open source-to-model equation. R206 already records a
-  reviewed proposal for payload types, ground/value form, Return, contextual
-  effects, annotation/conversion, and literal-root readout. Do not restate the
-  base-type table as a new result. In particular, annotated literals need the
-  original synthesis-to-written-target boundary and final-root readout; the
-  unannotated equation cannot be applied to every `finalRoot`.
+- Literal L1 source meaning is fixed by the authoritative
+  [adoption addendum](../design/2026-11-02-literal-l1-adoption.md): all raw
+  payloads, intrinsic value/type, pure Return, original occurrence/root/event/
+  scope/witness, and preservation of contextual effects and other checking
+  alternatives. The missing equation is now specifically the independent
+  Simple-sub generation and solution readout that reconstruct those facts at
+  the same original coordinates. Do not count the adopted rule or the old
+  `Build` literal rewrite as that bridge. Annotated literals still retain the
+  original synthesis-to-written-target boundary and final-root readout.
 - Call and contextual effects stay in the first soundness model wherever the
   approved algorithm makes them core. A source-adapter obligation may be
   staged later only after the abstract algorithm's relevant operation is
@@ -147,6 +150,7 @@ another local lemma. Do not use sprint count, Lean theorem count, Rust trace
 count, or tests as a substitute for parent-premise reduction.
 
 This plan supersedes the R209 next-action wording that treated typed Union as
-an undifferentiated core model blocker. It does not close the typed-Union
-source bridge, adopt the R206 literal proposal, alter any language rule, or
-grant Rust production authority.
+an undifferentiated core model blocker. Literal L1 was adopted separately by
+the 2026-11-02 addendum; this plan update records that source decision without
+claiming the missing generation/readout bridge, changing other language rules,
+or granting Rust production authority.
