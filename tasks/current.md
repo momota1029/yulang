@@ -18423,3 +18423,20 @@ All R149 proof and production gates remain OPEN. The contravariant `[io]`
 annotation remains the open row `[io,'e]`. See the [R283 contract](agent-loop/sprints/r283-y2-sample-declaration-role-source-map-20261022.md),
 [evidence](../notes/theory/2026-10-22-r283-y2-sample-declaration-role-source-map.md),
 and [handoff](agent-loop/inbox/20261022-r283-y2-sample-declaration-role-source-map.md).
+# 2026-11-02 R148 checkpoint — effect member state carrier
+
+R148's source audit and fresh review identify the missing edge: the actual
+`View`/`Support` member producer has no established association to incoming
+input/protection state, and FreshUse transports the transformer/demand without
+that state reaching a protection-sensitive consumer. Five Lean declarations
+were audited with complete axiom lists `[propext, Quot.sound]`. R119 remains
+unaudited because dependency R118 fails to build at two proof sites. The
+existing Lean cache grew by 19,980,823 bytes; no new environment or checkout
+was made. See the [R148 outcome](agent-loop/history/effect-permission-witness-carrier-20261102-r148-outcome.md)
+and [independent review](agent-loop/history/effect-permission-witness-carrier-20261102-r148-review.md).
+
+Source/native application, the original A/B claims, semantic approval, full
+effect hygiene and production remain **OPEN**. The next bounded step is a
+reviewed member/state construction and transport contract, alongside an exact
+R118 proof repair. No Rust implementation lease is granted before that
+contract is independently reviewed.
