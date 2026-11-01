@@ -104,3 +104,11 @@ is requested. Updated contract SHA-256: `ff99c7a8a633d5ecdf54c9fb0aaadb32ca8c0ea
 
 Proof lane acknowledged revision 5 and verified all 31 hashes before reading
 the approved 2026-10-16 effect-envelope correction and receipt.
+
+## Contract revision 6
+
+The v5 receipt named two actual annotation/type-construction correspondence
+owners as the consuming evidence. Luna pinned their exact hashes before new
+reads; both are existing source correspondence, not a new semantic choice.
+The receipt expressly leaves complete source/native Result/context and
+subtraction proofs open. Updated contract SHA-256: `8648768e6130022fe3052a216f4755392987b281a9cda9a193e85237b7d7c316`.

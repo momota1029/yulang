@@ -1,4 +1,4 @@
-# Sprint R175 — same-solution readback preflight (contract revision 5)
+# Sprint R175 — same-solution readback preflight (contract revision 6)
 
 Status: ADMITTED under the unchanged Yulang type/inferred-effect
 soundness goal. Runtime/machine correctness is excluded. Baseline: `yulang3`
@@ -126,6 +126,18 @@ constraint-derived inflow and post-subtraction residual:
 The integration is recorded at `cfded839e`. This is an existing correction,
 not a new semantic choice. If either document points to another required
 correction, stop and return its exact path before reading.
+
+Revision 6 adds the two constructor-correspondence owners named by the approved
+receipt's “Consumed at the actual type owner” section:
+
+- `notes/progress/2026-10-16-native-permission-inflow-residual-audit.md`:
+  `36b37e2e99fb74b353e2d6e93cb1b98f7b0b7ff23f0e5bfe78b8e5bf31b51797`
+- `notes/theory/2026-10-16-native-annotation-flow-correspondence.md`:
+  `b1ba2a9520903e5ca122ff279dc3cd76fffd44aee889e579c9179288a1606cea`
+
+These are existing source audit/correspondence evidence, not new semantic
+authority. Their stated boundary leaves complete source/native Result/context
+and subtraction proofs open; verify that limit rather than assuming closure.
 
 ## Read-only lanes
 
