@@ -42,3 +42,11 @@ them. Luna read and hash-pinned them in contract revision 2 as inherited
 governance-only inputs, separate from the frozen representation and Lean
 semantic dependencies. No source dependency, lease, execution permission, or
 semantic claim changed. Updated contract SHA-256: `0348e550270015243dec340da3ac8e5e55aaa599e5102599d2367519362224b7`.
+
+## Contract revision 3
+
+The source lane located two additional candidate-result representation owners
+outside the prior frozen set. Luna pinned their exact hashes before authorizing
+further reads: `crates/yu-solver/src/candidate_scheme.rs` and
+`crates/yu-solver/src/shadow_f5.rs`. Both are read-only inputs; this expands no
+write lease or execution authority. Updated contract SHA-256: `d58b4a30e78bb409c5b4df0c29396f4f7d4458cbbd5090afa789b91be2848d39`.
