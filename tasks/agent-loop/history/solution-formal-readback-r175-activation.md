@@ -112,3 +112,6 @@ owners as the consuming evidence. Luna pinned their exact hashes before new
 reads; both are existing source correspondence, not a new semantic choice.
 The receipt expressly leaves complete source/native Result/context and
 subtraction proofs open. Updated contract SHA-256: `8648768e6130022fe3052a216f4755392987b281a9cda9a193e85237b7d7c316`.
+
+Proof lane acknowledged revision 6 and verified all 33 frozen dependencies
+before reading the two existing actual-owner correspondence documents.
