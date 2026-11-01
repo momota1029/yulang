@@ -1,4 +1,8 @@
-# R187 — canonical mathematical inference model
+# R187 revision 2 — canonical mathematical inference model
+
+Revision 2 adds three exact mathematical source owners reported by the
+constructor before any content reads. The objective, method, output leases and
+2400-second constructor grant are unchanged; no grant reset.
 
 Status: **ACTIVE bounded model-construction packet**. Baseline is commit
 `41eb4bc24a82baa5ff203b48394041df76c848a7` in the existing checkout. Goal:
@@ -93,8 +97,21 @@ R186 reviewed outcome (`511727da5477e3a3616c6a03238b53ba70a12c6701a5443b411e2ded
 and parent dependency map
 (`bdb83b830072e78c244cd2da6215e7ba5f2468df93afa5a3208c2a2419c08fe0`) are
 authenticated navigation/evidence inputs. Authenticate every direct source
-hash before reading it. If a necessary owner falls outside these sets, stop
-and return its exact path; the primary must pin it before any read.
+hash before reading it. Revision 2 additionally admits these three exact
+direct mathematical owners, identified as delegated authorities of the
+already-pinned top-level/source definitions:
+
+- `notes/design/2026-10-12-intrusion-value-type-association.md` —
+  `531a9efae0ab7e03bfbd2f41cd7da86078e2fc8e67675d2c5c941972409f4e89`
+- `notes/design/2026-10-05-source-contracts-and-common-allowance.md` —
+  `1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186`
+- `questions/2026-10-05-production-function-inlet-context-domain/approved-answer.md` —
+  `9b63603890cd522ec80ef81e6208c52acdb1f09ab0a847a9b51368a8f563acf3`
+
+The primary authenticated these three hashes without reading their contents;
+the constructor must re-authenticate each before its first content read. If a
+necessary owner falls outside the combined admitted sets, stop and return its
+exact path; the primary must pin it before any read.
 
 One `researcher` owns only these exact outputs for at most 2400 seconds:
 
