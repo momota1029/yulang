@@ -115,3 +115,37 @@ subtraction proofs open. Updated contract SHA-256: `8648768e6130022fe3052a216f47
 
 Proof lane acknowledged revision 6 and verified all 33 frozen dependencies
 before reading the two existing actual-owner correspondence documents.
+
+
+## Contract revision 7 and frozen outcome
+
+The source typing/effect authority was already present in the pinned inputs.
+The missing fact is registration of the actual successful inference solution
+and its original Descriptor/Interface readback. Revision 7 separates
+`BLOCKED_SOLUTION_REGISTRATION` from a genuine `BLOCKED_SEMANTIC_AUTHORITY`;
+no new semantic choice was identified. Updated contract SHA-256:
+`db9e77b97ec86ef32e8de0ababc3b5daa25ef09d4b961cbe8153c4a5cb0f22ca`.
+
+Both R175 lanes are confirmed stopped. The proof lane delivered a source-level
+Lean declaration audit, not freshly Lean-printed types or a theorem. Luna's
+integrated handoff is
+`tasks/agent-loop/inbox/solution-formal-readback-r175.md`, SHA-256
+`7c3f30d1938c10ccd843c153aae10665552c8d123d999b4de4769af4cc03621c`. Outcome: `BLOCKED_SOLUTION_REGISTRATION`; original parent
+`InferenceSoundness` remains OPEN. Review was pending at the handoff freeze; its
+final PASS is recorded below. No UNKNOWN rows, quarantined paths, or other
+leases were changed.
+
+
+## Independent review receipt
+
+Fresh reviewer `/root/r175_readback_review` returned **PASS**, with no
+outstanding blocking, major or minor findings, for contract rev7
+`db9e77b97ec86ef32e8de0ababc3b5daa25ef09d4b961cbe8153c4a5cb0f22ca` and
+integrated handoff SHA-256
+`7c3f30d1938c10ccd843c153aae10665552c8d123d999b4de4769af4cc03621c`. The
+review caught and verified correction of the public wrapper/private result
+return distinction (`CandidateInference::solve` versus `run_candidate`). It
+confirmed the solution-registration classification, unchanged parent quantifiers
+and shared witness, whole-telescope boundary, and declared-permission/inflow/
+residual distinctions. Parent remains OPEN; no theorem or production gate
+closed. Review was read-only; no builds/tests/Lean/Cargo/runtime/Git.

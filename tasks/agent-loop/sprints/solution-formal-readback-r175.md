@@ -1,4 +1,4 @@
-# Sprint R175 — same-solution readback preflight (contract revision 6)
+# Sprint R175 — same-solution readback preflight (contract revision 7)
 
 Status: ADMITTED under the unchanged Yulang type/inferred-effect
 soundness goal. Runtime/machine correctness is excluded. Baseline: `yulang3`
@@ -20,12 +20,23 @@ telescope and source coordinate. Do not stipulate `solves := Satisfies`,
 carrier identity, or an assumed readback function. `Ok(...)` alone is not the
 success relation because returned results retain errors.
 
-This sprint is an admission preflight. Its output is either a frozen exact
-input set ready for a constructive readback sprint, or
-`BLOCKED_SEMANTIC_AUTHORITY`, naming the first missing original definition and
-required authority/input. It creates no conditional lemma and claims no parent
-closure. If authority is present, Luna admits the theorem construction as the
-next exact packet and applies it to R173's missing premise.
+This sprint is an admission preflight. The existing source-side typing and
+effect laws are authoritative and remain unchanged. Distinguish three possible
+outcomes:
+
+- `READY_FOR_CONSTRUCTIVE_READBACK`: the same successful solution relation
+  and its readback into the original semantic objects are concretely registered.
+- `BLOCKED_SOLUTION_REGISTRATION`: source meanings exist, but the actual
+  solver solution/success relation is not registered to those meanings, so no
+  same-solution `FormalAssignment` can yet be constructed.
+- `BLOCKED_SEMANTIC_AUTHORITY`: a required original source meaning is genuinely
+  absent or conflicting; name its owner and the decision/input needed.
+
+Do not classify a missing Rust-to-original registration as missing source
+semantics. This sprint creates no conditional lemma and claims no parent
+closure. A constructive readback packet may follow only when its actual
+solution relation and endpoint interpretation are grounded in the existing
+source laws; it must then apply the result to R173's missing premise.
 
 ## Frozen inputs
 
