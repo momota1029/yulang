@@ -1871,10 +1871,8 @@ impl<'a> InventoryPackage<'a> {
             permission.registration == request.registration
         });
         let (permission_index, permission) = matching_permissions.next()?;
-        if matching_permissions.next().is_some() {
-            return None;
-        }
-        if *permission_index != self.catch.permission_index
+        if matching_permissions.next().is_some()
+            || *permission_index != self.catch.permission_index
             || !std::ptr::eq(*permission, self.catch.permission)
             || permission.registration != request.registration
             || &permission.source_owner != request.target_owner

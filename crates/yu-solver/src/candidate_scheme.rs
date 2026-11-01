@@ -511,14 +511,15 @@ pub(super) fn bind_native_formal_entry_permission_use<'a>(
     let route = graph_state.routes.get(route_index)?;
     let native = extract_native_lambda_argument_effect_incidence(route, incidence_index, &session.store.terms)?;
     let registered = session.batch.candidate_calls.formals.get(native.registration)?;
-    if registered.role != candidate_call::FormalRole::Computation {
+    if registered.role != candidate_call::FormalRole::Computation
+        || registered.owner != SourceRootId::Definition(route.provider.clone())
+    {
         return None;
     }
 
     // Rejoin the retained context origin by its registration label and exact
-    // Lambda occurrence. The raw entry row is kept separate from its captured
-    // representative and FreshUse image; the original Function Term may differ
-    // from the fresh Function Term retained by this route.
+    // Lambda occurrence. Keep its raw entry row separate from both the
+    // captured representative and FreshUse image.
     let mut origins = graph_state.intrusion.effect_algebra.context.lambda_argument_effects.iter()
         .filter(|origin| origin.registration == native.registration);
     let origin = origins.next()?;
@@ -558,9 +559,9 @@ pub(super) fn bind_native_formal_entry_permission_use<'a>(
         return None;
     }
 
-    // Compare current canonical representatives because later equality
-    // propagation can merge rows after this graph was captured. Incidence
-    // registration/Lambda identity, not row equality, selects the permission.
+    // Compare current representatives because equality propagation can merge
+    // rows after this FreshUse graph was captured. Registration/Lambda
+    // incidence, not row equality, selects the permission.
     let captured_row = route.graph.rows.get(native.argument_effect_graph_row)?.key;
     let representative = graph_state.intrusion.rep(RowKey::Effect(raw_entry));
     if graph_state.intrusion.rep(captured_row) != representative {
@@ -577,8 +578,13 @@ pub(super) fn bind_native_formal_entry_permission_use<'a>(
         return None;
     }
     let permission = graph_state.intrusion.effect_algebra.bind_formal_entry_permission_use(
-        native.registration, registered, &origin.lambda, raw_entry,
-        native.mapped_argument_effect_row, &route.use_id, native.context_use,
+        native.registration,
+        registered,
+        &origin.lambda,
+        raw_entry,
+        native.mapped_argument_effect_row,
+        &route.use_id,
+        native.context_use,
     )?;
     Some((native, permission))
 }
