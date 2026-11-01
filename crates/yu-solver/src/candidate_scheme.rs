@@ -492,6 +492,93 @@ fn extract_native_lambda_argument_effect_incidence(
     })
 }
 
+/// Bind one selected module FreshUse incidence to its source permission using
+/// only state owned by the same inference session. Numeric row equality never
+/// selects a registration, Lambda, route, or incidence.
+#[allow(dead_code, reason = "session-owned permission binding remains a provisional source adapter")]
+pub(super) fn bind_native_formal_entry_permission_use<'a>(
+    session: &'a InferenceSession,
+    route_index: usize,
+    incidence_index: usize,
+) -> Option<(NativeLambdaArgumentEffectIncidence, candidate_effect::FormalEntryPermissionUse<'a>)> {
+    let graph_state = session.candidate_graph.as_ref()?;
+    let route = graph_state.routes.get(route_index)?;
+    let native = extract_native_lambda_argument_effect_incidence(route, incidence_index, &session.store)?;
+    let registered = session.batch.candidate_calls.formals.get(native.registration)?;
+    if registered.role != candidate_call::FormalRole::Computation
+        || registered.owner != SourceRootId::Definition(route.provider.clone())
+    {
+        return None;
+    }
+
+    // Rejoin the retained context origin by its registration label and exact
+    // Lambda occurrence. The raw entry row is kept separate from its captured
+    // representative and FreshUse image; the original Function Term may differ
+    // from the fresh Function Term retained by this route.
+    let mut origins = graph_state.intrusion.effect_algebra.context.lambda_argument_effects.iter()
+        .filter(|origin| origin.registration == native.registration);
+    let origin = origins.next()?;
+    if origins.next().is_some() || origin.lambda != native.lambda {
+        return None;
+    }
+    let EffectEndpointKey::EffectRow(raw_entry) = origin.entry else { return None; };
+    if registered.entry_effect != Some(raw_entry) {
+        return None;
+    }
+    let TermView::PositiveFunction { argument_effect: raw_argument_effect, .. } =
+        session.store.term_view(origin.function).ok()? else { return None; };
+    let TermView::LiveVariable(raw_view) = session.store.term_view(raw_argument_effect).ok()? else { return None; };
+    if raw_view.kind() != ComponentKind::Effect
+        || raw_view.polarity() != Polarity::Negative
+        || raw_view.ordinal() != raw_entry
+    {
+        return None;
+    }
+
+    // The registration's source recipe and source Lambda must be unique in
+    // this session; matching row numbers or a shared Function node is not enough.
+    let mut recipes = session.batch.lambda_recipes.iter()
+        .filter(|recipe| recipe.formal_registration == Some(native.registration));
+    let recipe = recipes.next()?;
+    if recipes.next().is_some() || recipe.occurrence != native.lambda {
+        return None;
+    }
+    let source = session.batch.hir_for_source_root(&registered.owner)?
+        .local_source_for(&registered.owner).ok().flatten()?;
+    let expression = source.expressions().get(registered.lambda)?;
+    if expression.occurrence != native.lambda
+        || !matches!(&expression.form,
+            yu_hir::shadow::LocalSourceForm::Lambda { parameter, .. }
+                if parameter.id == registered.parameter)
+    {
+        return None;
+    }
+
+    // Compare current canonical representatives because later equality
+    // propagation can merge rows after this graph was captured. Incidence
+    // registration/Lambda identity, not row equality, selects the permission.
+    let captured_row = route.graph.rows.get(native.argument_effect_graph_row)?.key;
+    let representative = graph_state.intrusion.rep(RowKey::Effect(raw_entry));
+    if graph_state.intrusion.rep(captured_row) != representative {
+        return None;
+    }
+    let RowKey::Effect(mapped_entry) = native.mapped_argument_effect_row else { return None; };
+    let TermView::PositiveFunction { argument_effect: mapped_argument_effect, .. } =
+        session.store.term_view(native.function).ok()? else { return None; };
+    let TermView::LiveVariable(mapped_view) = session.store.term_view(mapped_argument_effect).ok()? else { return None; };
+    if mapped_view.kind() != ComponentKind::Effect
+        || mapped_view.polarity() != Polarity::Negative
+        || mapped_view.ordinal() != mapped_entry
+    {
+        return None;
+    }
+    let permission = graph_state.intrusion.effect_algebra.bind_formal_entry_permission_use(
+        native.registration, registered, &origin.lambda, raw_entry,
+        native.mapped_argument_effect_row, &route.use_id, native.context_use,
+    )?;
+    Some((native, permission))
+}
+
 #[derive(Debug)]
 pub(super) struct LocalScheme {
     pub capture_region: Option<candidate_source::SourceRegionId>,
