@@ -1,7 +1,7 @@
 # R199 — abstract Yulang inference model reconstruction
 
 Date: 2026-11-02
-Status: **MODEL-INCOMPLETE; primary construction frozen for independent review**.
+Status: **MODEL-INCOMPLETE; R204 sufficient-direction delta independently reviewed PASS; no semantic adoption**.
 Parent baseline: `77bb8be466bbaa6cc9d7bd4587cf5975524f3ead`.
 No semantic adoption, theorem closure, Rust correspondence, or production authority.
 
@@ -256,6 +256,76 @@ Simple-sub generator/readout equation. Supplying `LiteralDeclaration` as an
 arbitrary parameter, interpreting `Solves` through `Kernel.atom`, or deriving
 the row from the paper typing proof would leave that same premise assumed.
 This construction attempt changes no source rule and closes no parent premise.
+
+### 4.2 R204 sufficient direction into the selected SG literal rule
+
+The soundness induction needs one direction only: the canonical value/type
+introduction must be usable in the selected original literal source rule. It
+does not need to characterize every legal literal checking alternative or
+prove equivalence between paper typing and the whole source relation.
+
+For the same raw occurrence `q`, original scope `xi`, event/world and row
+`r = ⟨descriptor, value, root, event⟩`, the sufficient source-rule derivation
+has these independently established parts:
+
+1. **Static value/type premise.** The R203 `PaperValueTyped.literal` derivation
+for the payload-preserving literal value at `sourceLiteralType(l)`. This gives
+only the local base-type projection.
+2. **L1 declaration and whole local typing premise.** The actual selected
+literal declaration for `(l,r)`, its ground descriptor/value interpretation,
+and every original primitive guard and permitted checking alternative needed
+for this occurrence. No field is obtained from the paper derivation alone.
+3. **L2 Return and contextual-effect premise.** The actual original Return
+construction for that same value, event and world. The literal contributes no
+immediate performed operation, while the enclosing judgment retains the
+original permission, actual inflow, residual and Call/effect obligations.
+4. **One-scope premise.** These facts use the source's original `xi`, occurrence
+and correlated witness; the SG rule and eventual parent conclusion may not
+choose a second row, event or witness.
+
+When these premises are proved, the selected SG Literal constructor supplies
+one source derivation at the original scope. Other source checking/declaration
+alternatives remain available. The sufficient direction is not permission to
+replace their relation, and no intrinsic-empty effect fact resets contextual
+effects.
+
+The parent-applicable theorem target is therefore **not**
+`PaperValueTyped.literal → SG Literal`. It is the original solver-to-source
+implication for this generated case: from the actual literal constraints and
+an independently satisfying assignment, construct the same-occurrence L1
+declaration/ground row and L2 Return/contextual-effect evidence above, then
+consume those facts in the unchanged `InferenceSoundness` literal case to
+produce its original source judgment and `sameScoped` witness.
+
+The first concrete missing premise is the following construction/readout
+equation, at the same generated `d`, solution `a`, source scope and occurrence:
+
+```text
+generates_literal s x d l ∧ solves d a
+  → the actual row(descriptor(a,q), value(a,q), root(a,q), event(a))
+    satisfies the independently defined L1 literal relation and ground law,
+    and the original L2 Return plus contextual-effect law,
+    with the same xi and one witness used by sameScoped(s,x,e,a)
+```
+
+The generator syntax must not encode `sourceJudgment`, the SG conclusion, or
+the target witness as a premise. The independent `Solves` interpretation may
+use separately specified `LiteralDeclaration` and `Ground` laws: sharing an
+independent primitive meaning between generation and source typing is not
+circular by itself. Circularity would arise if solution satisfaction assumed
+the desired source judgment or reflection theorem instead of interpreting the
+literal constraints independently. No selected source equation presently
+derives this implication from an actual generator and independent Simple-sub
+solution satisfaction. R194 supplies the symbolic literal atom and R196 proves
+its exact `Build` formula; neither defines independent `generates`/`solves`
+readout for descriptor, value, root, event, Return and contextual effects.
+
+**R204 stop:** the sufficient direction and exact theorem application are now
+fixed as the target; its decisive L1/L2 solver-to-source equation remains
+unproved. No parent premise is removed. A proposed original-clause definition
+must be reviewed for any change to accepted typings, payload validity,
+effects, alternatives or scope before adoption. Do not turn this target into a
+conditional theorem by assuming those missing fields.
 
 ## 5. Principality and termination remain distinct
 

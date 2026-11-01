@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "reason": "R204 is complete; the resolved read-only reviewer row is archived to preserve the bounded current-state file.",
+  "prior_compaction": {
+    "record": "tasks/agent-loop/history/r204-row-compaction.json",
+    "sha256": "f2060d1a29e69ce9ab42946679591ff8e0e1b96dfaf5b37f41fe680caebe8122"
+  },
+  "removed_worker": {
+    "id": "/root/r204_sg_literal_review",
+    "state": "STOPPED",
+    "requested_model": "gpt-6.1-sol",
+    "requested_effort": "low",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "session": "R204",
+    "receipt": "final-review-message",
+    "result": "PASS",
+    "reviewed_sha256": "580bb12b874735b536c1fc3b81daced5f4eb1668ba8839c2546428d1d16bc215"
+  },
+  "review_result": {
+    "state": "PASS",
+    "model_sha256": "9473d0c2d09fa5fbae15a64ab8d00cea12d160fd57bda01ab6fb39494b2de1a8",
+    "outcome": "tasks/agent-loop/history/r204-outcome.md",
+    "outcome_sha256": "9a3728dadb68922ef69229be3deead5f0f9b774c522dcda506b959594f4a5453"
+  },
+  "preservation": "This removes only the resolved reviewer assignment row. All UNKNOWN worker observations, quarantined paths, pending questions, and unrelated dirty/untracked files remain unchanged."
+}
