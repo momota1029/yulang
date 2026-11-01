@@ -1,13 +1,14 @@
-## 2026-11-02 R153 checkpoint — exact source-only integration staged
+## 2026-11-02 R153 checkpoint — source-only Rust commit pushed
 
 R153's independent integration review passed the narrow authorization for the
-exact R152 candidate. Luna applied the patch to the Git index only; the three
-staged source blobs match all reviewed hashes, and the dirty worktree is
-untouched. The source remains uncompiled and untested. `candidate_receiver.rs`
-and quarantined runtime files remain excluded. Build, test, Lean,
-source/native, INITIAL-STATE, CONSUMER, effect-hygiene, A/B and production gates
-remain open. See the [R153 outcome](agent-loop/history/effect-permission-session-isolation-20261102-r153-outcome.md)
-and [independent review](agent-loop/history/effect-permission-session-isolation-20261102-r153-integration.md).
+exact R152 candidate. Luna committed and pushed `9c94bed9b`; the three source
+blob hashes match the reviewed candidate and `HEAD` equals `origin/yulang3`. The
+source remains uncompiled and untested. `candidate_receiver.rs` and quarantined
+runtime files remain excluded. Build, test, Lean, source/native, INITIAL-STATE,
+CONSUMER, effect-hygiene, A/B and production gates remain open. See the
+[R153 outcome](agent-loop/history/effect-permission-session-isolation-20261102-r153-outcome.md),
+[review](agent-loop/history/effect-permission-session-isolation-20261102-r153-integration.md),
+and [push receipt](agent-loop/history/effect-permission-session-isolation-20261102-r153-push.md).
 
 ## 2026-11-02 R152 checkpoint — reviewed session ownership repair
 
