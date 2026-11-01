@@ -1,7 +1,7 @@
 # R199 — abstract Yulang inference model reconstruction
 
 Date: 2026-11-02
-Status: **MODEL-INCOMPLETE; R204 sufficient-direction delta independently reviewed PASS; no semantic adoption**.
+Status: **MODEL-INCOMPLETE; R205 literal-meaning boundary independently reviewed PASS; no semantic adoption**.
 Parent baseline: `77bb8be466bbaa6cc9d7bd4587cf5975524f3ead`.
 No semantic adoption, theorem closure, Rust correspondence, or production authority.
 
@@ -326,6 +326,34 @@ unproved. No parent premise is removed. A proposed original-clause definition
 must be reviewed for any change to accepted typings, payload validity,
 effects, alternatives or scope before adoption. Do not turn this target into a
 conditional theorem by assuming those missing fields.
+
+### 4.3 R205 exact missing primitive interpretation
+
+The existing syntax exposes the original literal clause but does not yet give an independent Simple-sub denotation. `OriginalSourceGeneration.sourceRules` retains the raw literal payload at its original site/context; `Build` compiles this to a local `.literalDeclaration` atom. `CanonicalSourceInferenceModelR196.literal_generated_formula` proves only that symbolic `Build` equation. In `OriginalSourceInterpretation`, `LiteralDeclaration` is an arbitrary supplied relation on `(literal, ValueRow)`, while `LiteralAtom` additionally assumes supplied `valueForm = ground` and `ground`. Those are useful source-boundary fields, not a concrete literal primitive interpretation or structural `Constraint.Satisfied` law.
+
+A genuinely independent Simple-sub clause would require a fixed signature `Σ` containing a concrete literal-domain interpretation, then equations of this shape:
+
+```text
+GenerateLiteralΣ(ξ, q, l) =
+  .local (.literalDecl(q, ξ, l, descriptorAt(q), valueAt(q), rootAt(q), event))
+
+InterpretLiteralConstraintΣ(.literalDecl(q, ξ, l, d, v, r, e), a) =
+  LiteralMeaningΣ(l, d, v, r, e)
+
+ReadLiteralΣ(q, l, a) =
+  (descriptorAt(a,q), valueAt(a,q), rootAt(a,q), eventAt(a))
+```
+
+These are a shape only, not the required equations: `LiteralMeaningΣ` is precisely the missing definition, and the current structural constraint grammar has no `.literalDecl` atom or independently selected interpretation for it. Defining `LiteralMeaningΣ` as `LiteralDeclaration`, `Ground`, or the existing source `Kernel.atom` would merely carry an unspecified relation into the solver interface. Defining it as `sourceJudgment` or the desired SG result would be circular. The actual source-typing rule and solution denotation need one independently fixed primitive meaning.
+
+The selected materials currently leave two materially different candidate completions:
+
+1. **Intrinsic table candidate (R203 projection).** Use the eight payload-preserving `PaperTypes.literalType` equations and `PaperValueTyped.literal` as the canonical source introduction, then define their descriptor/value/root embedding and ground/Return laws. This fixes one intrinsic base interface per payload constructor. It would reject any original declaration alternative assigning an incompatible interface unless that alternative is shown to be a checking rule over the same fixed interface. R203 explicitly leaves this as a candidate, not the selected SG literal relation.
+2. **Declaration-driven primitive candidate (selected SG shape).** Fix an explicit original literal declaration table over each payload and its complete descriptor/value/root/event row, including all permitted local checking alternatives, guards, ground law, and Return/effect/world obligations; generate a corresponding local constraint whose independent denotation is exactly that table. This can preserve multiple original alternatives, but the table itself and its constraints remain to be specified and must be shown to be the original language meaning. No selected source presently gives its all-payload equations.
+
+The native literal `0`/`1` Call instances do not fill either whole-language table. No subset-only rule is a candidate, since it would narrow the original source domain. This is an input gap in the authenticated source authorities, not evidence that the language lacks literal semantics. No candidate is adopted here.
+
+**R205 stop:** the independent local literal meaning and corresponding Simple-sub atom must be fixed before actual generation/readout equations or a literal reflection theorem can be written. A user decision is required only if choosing between the intrinsic table and the declaration-driven table changes accepted interfaces or alternatives; the proposal must first receive independent review. Parent delta remains zero.
 
 ## 5. Principality and termination remain distinct
 
