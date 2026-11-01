@@ -1,3 +1,16 @@
+## 2026-11-02 R152 checkpoint — reviewed session ownership repair
+
+R152 reconstructed the exact three-file solver diff against immutable baseline
+blobs. The corrected candidate restores the session-owned permission binder and
+keeps source/Lambda, registration, raw-entry, canonical-row, and mapped-row
+checks. Fresh independent review accepted the complete candidate for checkpoint
+as an unapplied research artifact only. No Rust source was applied, compiled, or
+tested. The dirty `candidate_receiver.rs` diff still removes owner/batch/live-
+state, provider/arm, and permission-origin checks and remains excluded. Runtime
+paths remain quarantined. Whole source/native correspondence, INITIAL-STATE,
+CONSUMER, original A/B, and production remain **OPEN**. See the [R152 outcome](agent-loop/history/effect-permission-session-isolation-20261102-r152-outcome.md)
+and [review](agent-loop/history/effect-permission-session-isolation-20261102-r152-review.md).
+
 ## 2026-11-02 R151 checkpoint — intrinsic Support activation remains open
 
 R151 traced one intrinsic operation-family member through signature Support,
