@@ -1,7 +1,11 @@
 # Parent-backward plan for Yulang inference guarantees
 
 Date: 2026-11-01
-Status: active research direction; no theorem or semantic rule is newly adopted by this note.
+Status: sequencing/accounting superseded by
+[`2026-11-01-parent-obligation-reconstruction-r199.md`](2026-11-01-parent-obligation-reconstruction-r199.md).
+The original objective and semantic authorities remain unchanged; this note
+records the earlier five-package framing and its history, not current dispatch
+authority. No theorem or semantic rule is newly adopted here.
 
 ## Decision and fixed objective
 

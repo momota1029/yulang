@@ -1,3 +1,19 @@
+## 2026-11-01 — parent-theorem replan after R198
+
+R198 stopped without a signature model, independent `solves`, or theorem.
+Independent review confirmed the report but found its accepted blocked-result
+condition unmet: the exact original declaration owner remained unestablished.
+Soundness, source-scoped coverage, principality, and inference termination are
+unchanged; **5/5 dependency packages remain open and 0/4 roots are closed**.
+
+The new [backward obligation reconstruction](../notes/theory/2026-11-01-parent-obligation-reconstruction-r199.md)
+replaces the earlier sequencing/accounting note. It records how each original
+root depends on the fixed mathematical model, how `PrincipalCoverage` entails
+the separate coverage root, and why structural solver results have not yet
+derived original source premises. No new semantic rule or Rust change was
+adopted. Proof activation waits on a reviewed mathematical model and recorded
+user approval for any genuinely new semantic/architecture choice.
+
 ## 2026-11-02 R155 — scheme residual held
 
 R155 independently reviewed the remaining `candidate_scheme.rs` diff and
