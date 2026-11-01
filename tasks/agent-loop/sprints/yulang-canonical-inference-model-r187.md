@@ -1,8 +1,9 @@
-# R187 revision 2 — canonical mathematical inference model
+# R187 revision 4 — canonical mathematical inference model
 
-Revision 2 adds three exact mathematical source owners reported by the
-constructor before any content reads. The objective, method, output leases and
-2400-second constructor grant are unchanged; no grant reset.
+Revision 4 adds one exact source-owned constructor definition reported before
+any content read. Revisions 2–4 add only delegated mathematical authorities.
+The objective, method, output leases and 2400-second constructor grant are
+unchanged; no grant reset.
 
 Status: **ACTIVE bounded model-construction packet**. Baseline is commit
 `41eb4bc24a82baa5ff203b48394041df76c848a7` in the existing checkout. Goal:
@@ -112,6 +113,38 @@ The primary authenticated these three hashes without reading their contents;
 the constructor must re-authenticate each before its first content read. If a
 necessary owner falls outside the combined admitted sets, stop and return its
 exact path; the primary must pin it before any read.
+
+Revision 3 additionally admits these exact operation/transport owners, which
+the admitted intrusion association and Term source select for the actual
+transition and its preservation obligation:
+
+- `notes/design/2026-10-10-parent-copy-scc-intrusion.md` —
+  `6e9c5fd89655a791b7863c7541465e7e95a52f12417344917b8b48bf93b0a60b`
+- `notes/design/2026-10-24-birth-level-scc-intrusion.md` —
+  `ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae`
+- `notes/theory/2026-10-13-intrusion-source-preservation-proof.md` —
+  `3142dd78111f0600ee9364e60af2d8138ce3989f9676589930c8a236837f3271`
+
+The primary authenticated these hashes before reading their contents. On
+first use, the constructor must re-authenticate all three and read them in
+this order: operation state/guards/copying/SCC equations; later birth-level
+decision and precedence; then the §4 preservation proof, only after matching
+its hypotheses to the current transition. Do not follow further links
+automatically. A newly required declaration owner returns to the primary.
+
+Revision 4 additionally admits this exact source-owned constructor definition,
+which the admitted source-Generalize construction §2 names for primitive/Call
+port, provenance and license formation:
+
+- `notes/design/2026-10-08-native-signature-formation-definition.md` —
+  `e6c6cf995a3618172e45b4f8cdf4578313c057c6ec1e3e118c4dc11b6f162ab9`
+
+The primary authenticated this hash before any content read. Re-authenticate
+before reading. Limit inspection to the authority/status statements and exact
+definitions required for the canonical source constructor/Call denotation.
+Do not infer an exhaustive interpretation or a proved solver bridge from this
+document, and do not follow further links automatically. Any further required
+owner returns to the primary.
 
 One `researcher` owns only these exact outputs for at most 2400 seconds:
 
