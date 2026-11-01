@@ -1,0 +1,469 @@
+{
+  "schema_version": 1,
+  "sprint": "R212",
+  "project": "notes/theory/lean",
+  "toolchain": "Lean 4.35.0",
+  "lake": "/home/momota1029/.elan/toolchains/leanprover--lean4---v4.35.0/bin/lake",
+  "modules": [
+    "Contracts",
+    "SimpleSubConstraintSyntax",
+    "SimpleSubConstraintSoundness",
+    "SimpleSubRegularSolutions",
+    "SimpleSubRegularConstraintSoundness",
+    "SimpleSubLatticeCertificates",
+    "SimpleSubGeneralizationSoundness",
+    "SimpleSubScopedPublication",
+    "SimpleSubRegularPublication",
+    "SimpleSubLatticeInference",
+    "SimpleSubLatticeDecision",
+    "SimpleSubLatticeGrowingInference"
+  ],
+  "source_sha256": {
+    "Contracts": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e",
+    "SimpleSubConstraintSyntax": "a9ec574d31223e0484fd827838b45cd019fc858eece9f326c95ebc2e1e77a1f6",
+    "SimpleSubConstraintSoundness": "33709d3978e8071708c10bba23d85b1b025c11dfd988220501acb7c6e3220293",
+    "SimpleSubRegularSolutions": "755d267714bd23bcfc17ec37d43d258392567b7d1356afc4897f541ae9855b29",
+    "SimpleSubRegularConstraintSoundness": "1d2266867115fc27afe39dbb80a3ca0e8f75247a2e16b739145137e83999de33",
+    "SimpleSubLatticeCertificates": "55533eee35ed7058abd125ac0e01d8f29b8c0534800018d254c1bd9f9c0bb79b",
+    "SimpleSubGeneralizationSoundness": "3f6114e4173d6cade6ad135ed83ad543116e28e87845b0f6a834cb8f727f6246",
+    "SimpleSubScopedPublication": "d64e9bffca5d513985237a9ff78dcf3d9e43baae1594edbc93dff4b5410d428f",
+    "SimpleSubRegularPublication": "18fc6f138204e1529dcd0bb9c01a20de7444a26e4dadc87677460ccd8ac9fc99",
+    "SimpleSubLatticeInference": "c534c060dfde84f2817fbaa53222f430b59d9b6377cfacedabeca7b9b4b8ffa3",
+    "SimpleSubLatticeDecision": "a9c184512bf6e23d15cc8a3a2ed230652fb168f707155e779be18c562d8e57c9",
+    "SimpleSubLatticeGrowingInference": "1270e3407ddeef881020610b094709ebba07b62a97e54712bcc4b139ef8e78d0"
+  },
+  "tool_inputs_sha256": {
+    "lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "lakefile.toml": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4",
+    "lake-manifest.json": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3"
+  },
+  "lake_size_apparent_bytes": 101833211,
+  "lake_size_allocated_bytes": 103112704,
+  "filesystem_available_bytes": 823781044224,
+  "artifact_whitelist": [
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/Contracts.olean",
+      "baseline": "present"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/Contracts.olean.hash",
+      "baseline": "present"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/Contracts.ilean",
+      "baseline": "present"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/Contracts.ilean.hash",
+      "baseline": "present"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/Contracts.trace",
+      "baseline": "present"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/Contracts.c",
+      "baseline": "present"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/Contracts.c.hash",
+      "baseline": "present"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/Contracts.setup.json",
+      "baseline": "present"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubConstraintSyntax.olean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubConstraintSyntax.olean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubConstraintSyntax.ilean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubConstraintSyntax.ilean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubConstraintSyntax.trace",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubConstraintSyntax.c",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubConstraintSyntax.c.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubConstraintSyntax.setup.json",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubConstraintSoundness.olean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubConstraintSoundness.olean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubConstraintSoundness.ilean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubConstraintSoundness.ilean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubConstraintSoundness.trace",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubConstraintSoundness.c",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubConstraintSoundness.c.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubConstraintSoundness.setup.json",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularSolutions.olean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularSolutions.olean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularSolutions.ilean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularSolutions.ilean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularSolutions.trace",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubRegularSolutions.c",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubRegularSolutions.c.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubRegularSolutions.setup.json",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularConstraintSoundness.olean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularConstraintSoundness.olean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularConstraintSoundness.ilean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularConstraintSoundness.ilean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularConstraintSoundness.trace",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubRegularConstraintSoundness.c",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubRegularConstraintSoundness.c.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubRegularConstraintSoundness.setup.json",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeCertificates.olean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeCertificates.olean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeCertificates.ilean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeCertificates.ilean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeCertificates.trace",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubLatticeCertificates.c",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubLatticeCertificates.c.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubLatticeCertificates.setup.json",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubGeneralizationSoundness.olean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubGeneralizationSoundness.olean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubGeneralizationSoundness.ilean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubGeneralizationSoundness.ilean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubGeneralizationSoundness.trace",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubGeneralizationSoundness.c",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubGeneralizationSoundness.c.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubGeneralizationSoundness.setup.json",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubScopedPublication.olean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubScopedPublication.olean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubScopedPublication.ilean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubScopedPublication.ilean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubScopedPublication.trace",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubScopedPublication.c",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubScopedPublication.c.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubScopedPublication.setup.json",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularPublication.olean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularPublication.olean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularPublication.ilean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularPublication.ilean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubRegularPublication.trace",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubRegularPublication.c",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubRegularPublication.c.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubRegularPublication.setup.json",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeInference.olean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeInference.olean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeInference.ilean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeInference.ilean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeInference.trace",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubLatticeInference.c",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubLatticeInference.c.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubLatticeInference.setup.json",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeDecision.olean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeDecision.olean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeDecision.ilean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeDecision.ilean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeDecision.trace",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubLatticeDecision.c",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubLatticeDecision.c.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubLatticeDecision.setup.json",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeGrowingInference.olean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeGrowingInference.olean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeGrowingInference.ilean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeGrowingInference.ilean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/SimpleSubLatticeGrowingInference.trace",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubLatticeGrowingInference.c",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubLatticeGrowingInference.c.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/SimpleSubLatticeGrowingInference.setup.json",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractSimpleSubCore.olean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractSimpleSubCore.olean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractSimpleSubCore.ilean",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractSimpleSubCore.ilean.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/AbstractSimpleSubCore.trace",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/AbstractSimpleSubCore.c",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/AbstractSimpleSubCore.c.hash",
+      "baseline": "absent"
+    },
+    {
+      "path": "notes/theory/lean/.lake/build/ir/YulangClosure/AbstractSimpleSubCore.setup.json",
+      "baseline": "absent"
+    }
+  ],
+  "limits": {
+    "incremental_apparent_bytes": 268435456,
+    "total_apparent_bytes": 370268667,
+    "per_invocation_seconds": 180,
+    "aggregate_seconds": 1200,
+    "cpu": 1,
+    "lean_memory_mib": 1024
+  }
+}
