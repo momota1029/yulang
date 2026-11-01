@@ -503,7 +503,7 @@ pub(super) fn bind_native_formal_entry_permission_use<'a>(
 ) -> Option<(NativeLambdaArgumentEffectIncidence, candidate_effect::FormalEntryPermissionUse<'a>)> {
     let graph_state = session.candidate_graph.as_ref()?;
     let route = graph_state.routes.get(route_index)?;
-    let native = extract_native_lambda_argument_effect_incidence(route, incidence_index, &session.store)?;
+    let native = extract_native_lambda_argument_effect_incidence(route, incidence_index, &session.store.terms)?;
     let registered = session.batch.candidate_calls.formals.get(native.registration)?;
     if registered.role != candidate_call::FormalRole::Computation
         || registered.owner != SourceRootId::Definition(route.provider.clone())
