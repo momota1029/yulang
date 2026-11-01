@@ -5086,12 +5086,6 @@ impl<'a> ProviderNativeContextProjection<'a> {
         let effect_state = &graph.intrusion.effect_algebra;
         let views = collect_owned_borrowed_inventory(effect_state.views.iter().enumerate())
             .ok_or(candidate_context::CurrentEmissionGap::SearchLimit)?;
-        if !std::ptr::eq(source_internal.native.owner, owner)
-            || !std::ptr::eq(source_internal.native.batch, &owner.session.batch)
-            || !std::ptr::eq(source_internal.native.live_state, &effect_state.context)
-        {
-            return Err(candidate_context::CurrentEmissionGap::BoundMismatch);
-        }
         let Some((emission_index, owner_emission)) = source_internal.native.emissions
             .get(provider.internal.emission.id.0)
         else { return Err(candidate_context::CurrentEmissionGap::MissingEmission); };
