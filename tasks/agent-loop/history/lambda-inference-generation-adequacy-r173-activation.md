@@ -68,3 +68,66 @@ No source semantics, source domain, production authority, budgets or other
 leases changed. R171's `entry` preparation contradiction and omitted
 record-field recipe events stay open unless directly resolved. Existing dirty
 or untracked unrelated artifacts are excluded from this sprint.
+
+
+## Frozen Rust source-lane outcome
+
+The source lane STOPPED with a detailed static derivation at
+`tasks/agent-loop/inbox/lambda-inference-generation-adequacy-r173-source.md`,
+SHA-256 `c07c17baaf32608a4ce526686b17ede584912fb717d7d5ca510b50fea487fe17`.
+The exact eight dependencies remained unchanged. It located ordinary session
+preparation before run, the shared source annotation identity, the body/result
+endpoints, and distinct Value/Computation entry equations. Both modes constrain
+body effects; Value mode additionally emits its fresh entry effect into the
+returned row, while Computation reuses the prepared entry and omits that edge.
+A Lambda with no formal Name use distinguishes the two paths. No reachable bug
+was demonstrated (`NO_SAFE_CODE_SLICE`). The missing premise remains the
+semantic interpretation of these actual generated constraints/solutions as the
+original Lambda judgment and the parent shared witness. No build, test, Cargo,
+Lean, runtime inspection or source edit occurred.
+
+
+## Frozen proof-lane outcome and review-source clarification
+
+The proof lane STOPPED with `BLOCKED_ORIGINAL_INTERPRETATION` at
+`tasks/agent-loop/inbox/lambda-inference-generation-adequacy-r173-proof.md`,
+SHA-256 `8666a46cca3e2d20f01a6cdff64cc67616c3840fbb394679dc6829a032a1749d`.
+No new Lean module was created. The first unavailable registration is
+solution-to-original `FormalAssignment` readback before invocation: Value uses
+the original descriptor of prepared `native_root`; Computation uses the
+original complete interface of `native_root` plus `entry_effect`. Those source
+meaning equations and the parent shared witness remain unproved. One Lean
+4.35.0 stdin audit of existing theorem types/axioms passed; the cache census
+remained 424 files / 100,516,779 bytes. Parent inference soundness remains
+OPEN.
+
+The proof handoff records three additional original-meaning modules actually
+read by its author. Luna issued sprint contract revision 2 solely to pin their
+hashes for independent review: `OriginalParameterWorld.lean`
+`7b5f849f744dbe56f374d8be6b11a5a218176abf6eeda2fb9da8180c7b1ff802`,
+`OriginalFormalAdmission.lean`
+`77230ab7984ee544db16fe4d9663b73f98b9afa9c5d2610fad59c26753d5ac7c`, and
+`OriginalSourceEnvironment.lean`
+`0e12d33d1b912820324f5140fbe3f16983d0b7ef33137642aaef07faa573f132`. This
+transparent review-only addendum neither changes the original claim nor
+retroactively expands a worker lease. The two R173 authors are STOPPED, with
+writes returned to Luna; a fresh independent review is now assigned.
+
+
+## Independent review and adjudication
+
+Fresh reviewer `/root/lambda_inference_generation_adequacy_r173_independent_review`
+returned PASS for R173's bounded `BLOCKED_ORIGINAL_INTERPRETATION` outcome, with
+no blocking, major or minor correctness findings. The reviewer matched the
+R173 rev2 contract, proof/source handoffs, all eight original dependency hashes,
+three review-addendum hashes, and the R172 Source Generalize / annotation
+authorities. Reviewer STOPPED; read-only, no Lean rerun. The handoff's two
+axiom lists remain producer-reported; review independently checked declaration
+types and the semantic boundary. Parent inference soundness remains OPEN.
+
+First missing input stands: a concrete solution-to-original `FormalAssignment`
+registration before invocation, reading Value's original descriptor from
+`native_root` and Computation's complete interface from `native_root` plus
+`entry_effect`. Existing `FormalAssignment` assumes that assignment; no concrete
+Yulang `SourceProblem.generates` / `solves` interpretation constructs it. The
+reviewer confirms this is the cause, not just a symptom.

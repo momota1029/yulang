@@ -53,3 +53,20 @@ All hashes must match before work. Runtime subtree, quarantined paths, and unrel
 After both writers stop, Luna freezes outputs and assigns a fresh independent reviewer (300 seconds) for the proof/source seam. Acceptance requires exact theorem types/axiom audits if Lean ran, source mapping at pinned hashes, no overclaim of parent closure, and an owner for the first remaining parent premise. A reviewer cannot be a producer/coauthor.
 
 Stop on a changed dependency, missing semantic authority, reachable counterexample, requirement to alter semantics/source domain, exhausted checks/budget, or need for new leases/resources. No production authority is granted. R171 application and all non-Lambda parent obligations remain open unless directly proved here. Only Luna stages/commits/pushes the reviewed exact output set; unknown/quarantined owners remain untouched.
+
+## Revision 2 — frozen review-source clarification
+
+Primary-issued after both R173 authors stopped. The R173 proof handoff records
+that its exact audit also read these original source-meaning definitions, whose
+hashes are now frozen for review: `OriginalParameterWorld.lean`
+`7b5f849f744dbe56f374d8be6b11a5a218176abf6eeda2fb9da8180c7b1ff802`,
+`OriginalFormalAdmission.lean`
+`77230ab7984ee544db16fe4d9663b73f98b9afa9c5d2610fad59c26753d5ac7c`, and
+`OriginalSourceEnvironment.lean`
+`0e12d33d1b912820324f5140fbe3f16983d0b7ef33137642aaef07faa573f132`.
+This records the proof lane's expanded read set for independent adjudication;
+it does not retroactively expand a writer lease or change the source domain,
+semantics, theorem, budget, or proof outcome. The R173 proof output remains
+identified as produced under revision 1. The reviewer must independently verify
+these three definitions and assess whether the blocked-readback finding follows.
+No further Lean invocation or dependency change is authorized by this addendum.
