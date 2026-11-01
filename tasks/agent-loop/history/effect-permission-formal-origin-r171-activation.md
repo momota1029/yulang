@@ -73,3 +73,12 @@ overclaim: `set_at_range` can overwrite, allocator freshness alone does not
 prove work-stack history, and annotation equality is absent from runtime guards.
 No reachable Rust counterexample was found. Review certifies only the scoped
 static source map, not Rust-to-Lean execution or theorem closure.
+
+
+User scope clarification: the target is Yulang type-inference soundness,
+including inferred effect rows, against the source typing rules. Rust is the
+algorithm implementation whose constraint-generation states must be related to
+that semantics; Rust runtime/machine correctness is outside the goal. R171's
+collector lemma remains intermediate evidence only and must be applied to an
+inference derivation or explicitly leave that bridge open. The proof worker was
+notified and continues under this unchanged full objective.

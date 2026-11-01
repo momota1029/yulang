@@ -8,12 +8,22 @@ R169/R170 results remain conditional; no source/native closure is claimed.
 
 ## Fixed outcome
 
+The target is soundness of **Yulang type inference**, including its inferred
+effect rows, against the original source typing rules. Rust is the implementation
+whose constraint-generation steps must be related to that semantics; Rust
+runtime or machine correctness is outside this sprint's goal. R171 is only an
+intermediate compiler-construction lemma, not a substitute for an inference
+derivation or the parent theorem.
+
 Prove, from the actual finite registration construction, that a collected
 formal registration identifies the same owner, Lambda occurrence, parameter,
 and annotation read by its `FormalEntry` action. Apply this fact to R169's
 frozen successful trace so that the action's annotation is the annotation
-observed at the selected source Lambda. Do not add a bare uniqueness premise,
-change the original parent quantifiers, or replace its shared witness.
+observed at the selected source Lambda. Then state exactly how that fact enters
+Yulang's inferred-effect judgment and the original `InferenceSoundness`
+obligation; if R169 lacks that inference derivation, keep it explicitly open.
+Do not add a bare uniqueness premise, change the original parent quantifiers,
+or replace its shared witness.
 
 The source lane maps the exact clean construction path from HIR parameter ID
 generation through Lambda registration, ID-map update, annotation lookup and
