@@ -1,0 +1,11 @@
+# R138 outcome — failed formal-permission session is discarded
+
+Contract: `tasks/agent-loop/sprints/effect-permission-formal-publication-envelope-20261102-r138.md`, SHA-256 `d0f3e4c13dd88b522122f5eff0622aeab5067d747183cd30fe054f833b84d5e7`. Baseline: `4c1d58a646a1101c080659ebfed6ae7862d8aded`.
+
+Source handoff: `tasks/agent-loop/inbox/effect-permission-formal-publication-envelope-r138-source.md`, 13,514 bytes, SHA-256 `0f154a69453984dd665b6994f4eb1be0c8cdfa45cdd9d6433bb1eafa8f1cb18d`. Fresh independent compiler-referee review: `tasks/agent-loop/history/effect-permission-formal-publication-envelope-r138-review.md`, SHA-256 `f5a7eedb8d626e24e767a34e877514d3c54ed16e5ff9bd423a47b8bd7911312b`.
+
+The supported production path may publish `formal_permissions`, `formal_domains`, or `formal_entry_permissions` and then fail a resource sample. The source action itself does not restore these fields and is not enclosed in the route transaction. Review traced both public owners: `CandidateInference::solve` returns failure without returning the local session or a candidate; `solve_receiving_residual_experiment` returns its session only after action execution, assembly checks and residual publication succeed. Failures discard the local session/experiment. A deferred-selection path can return diagnostic readbacks after an inner failure, but it exposes no session, candidate, or permission graph. Route transaction tests are not production rollback evidence.
+
+R138 therefore closes the bounded **failed-session discard/publication envelope** for the audited committed entrypoints under `R137-PUBLICATION-ROLLBACK-1`; it does not establish constructor-local atomicity or prove no internal consumer runs before final success. External permission-bearing results receive only successful completed candidates. The independent review found no additional supported production caller retaining a failed permission-bearing session.
+
+No Rust code changed and no build, tests, or Lean ran. Source identity encoding to R136 Lean `Nat`, actual native inventory equality, effect-hygiene capture/copy/arrival/Catch consumption, `SourceProblem.InferenceSoundness`, and production approval remain OPEN. Next action is dispatcher selection from this source checkpoint; do not create an identity encoding by assumption.
