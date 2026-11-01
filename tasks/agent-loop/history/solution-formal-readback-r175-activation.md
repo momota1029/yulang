@@ -101,3 +101,6 @@ obligations. It points to the existing 2026-10-16 declared-envelope correction
 and receipt, whose exact hashes are pinned in revision 5 before those contents
 are read. The correction is integrated at `cfded839e`; no new semantic choice
 is requested. Updated contract SHA-256: `ff99c7a8a633d5ecdf54c9fb0aaadb32ca8c0ea4d4a4fee41e209152b783409b`.
+
+Proof lane acknowledged revision 5 and verified all 31 hashes before reading
+the approved 2026-10-16 effect-envelope correction and receipt.
