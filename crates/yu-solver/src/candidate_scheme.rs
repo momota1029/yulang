@@ -215,6 +215,8 @@ pub(super) struct Graph {
     #[cfg(test)]
     pub capture_effect_frontiers: Vec<CaptureEffectFrontierObservation>,
     #[cfg(test)]
+    pub formal_capture_trace_id: Option<u64>,
+    #[cfg(test)]
     pub capture_forest: candidate_intrusion::ForestSnapshot,
 }
 
@@ -222,6 +224,7 @@ pub(super) struct Graph {
 pub(super) struct LambdaArgumentEffectCapture {
     pub registration: usize,
     pub lambda: HirOccurrenceId,
+    pub entry_effect: u32,
     pub function_node: usize,
     pub argument_effect_child_index: usize,
     pub argument_effect_child_node: usize,
@@ -232,6 +235,7 @@ pub(super) struct LambdaArgumentEffectCapture {
 pub(super) struct LambdaArgumentEffectFreshUse {
     pub registration: usize,
     pub lambda: HirOccurrenceId,
+    pub entry_effect: u32,
     pub function_node: usize,
     pub argument_effect_child_index: usize,
     pub argument_effect_child_node: usize,
@@ -431,9 +435,10 @@ pub(super) struct FreshRoute {
 /// module route. This is deliberately not solver state and has no consumer yet.
 #[derive(Debug)]
 #[allow(dead_code, reason = "native incidence extraction is retained pending a separately approved consumer")]
-struct NativeLambdaArgumentEffectIncidence {
+pub(super) struct NativeLambdaArgumentEffectIncidence {
     registration: usize,
     lambda: HirOccurrenceId,
+    entry_effect: u32,
     function_node: usize,
     argument_effect_child_node: usize,
     argument_effect_graph_row: usize,
@@ -481,6 +486,7 @@ fn extract_native_lambda_argument_effect_incidence(
     Some(NativeLambdaArgumentEffectIncidence {
         registration: incidence.registration,
         lambda: incidence.lambda.clone(),
+        entry_effect: incidence.entry_effect,
         function_node: incidence.function_node,
         argument_effect_child_node: incidence.argument_effect_child_node,
         argument_effect_graph_row: incidence.argument_effect_graph_row,
@@ -505,9 +511,7 @@ pub(super) fn bind_native_formal_entry_permission_use<'a>(
     let route = graph_state.routes.get(route_index)?;
     let native = extract_native_lambda_argument_effect_incidence(route, incidence_index, &session.store.terms)?;
     let registered = session.batch.candidate_calls.formals.get(native.registration)?;
-    if registered.role != candidate_call::FormalRole::Computation
-        || registered.owner != SourceRootId::Definition(route.provider.clone())
-    {
+    if registered.role != candidate_call::FormalRole::Computation {
         return None;
     }
 
@@ -522,7 +526,7 @@ pub(super) fn bind_native_formal_entry_permission_use<'a>(
         return None;
     }
     let EffectEndpointKey::EffectRow(raw_entry) = origin.entry else { return None; };
-    if registered.entry_effect != Some(raw_entry) {
+    if registered.entry_effect != Some(raw_entry) || native.entry_effect != raw_entry {
         return None;
     }
     let TermView::PositiveFunction { argument_effect: raw_argument_effect, .. } =
@@ -1897,10 +1901,32 @@ impl<'a> Capture<'a> {
         Ok(())
     }
     fn intern(&mut self, endpoint: Endpoint) -> Result<usize, SolveAvailabilityError> {
+        #[cfg(test)]
+        let original_effect_row = match &endpoint {
+            Endpoint::Effect(EffectEndpointKey::EffectRow(row), _) => Some(*row),
+            _ => None,
+        };
         let endpoint = match endpoint { Endpoint::Value(v, p) => Endpoint::Value(self.session.canonical_value(v), p), Endpoint::Effect(e, p) => Endpoint::Effect(self.session.canonical_effect(e), p) };
+        #[cfg(test)]
+        let trace_effect_witnesses = match &endpoint {
+            Endpoint::Effect(EffectEndpointKey::EffectRow(_), _) => original_effect_row
+                .map(candidate_effect::formal_live_capture_trace_witnesses_for_effect_row).unwrap_or_default(),
+            _ => Vec::new(),
+        };
+        #[cfg(test)]
+        let trace_effect_witness = trace_effect_witnesses.first().copied();
         if let Some(&index) = self.endpoints.get(&endpoint) {
             #[cfg(test)]
-            candidate_effect::formal_live_capture_trace_event(|| format!("intern-hit endpoint={endpoint:?} node={index}"));
+            if let (Some(capture), Some(original_row), Endpoint::Effect(EffectEndpointKey::EffectRow(canonical_row), polarity)) =
+                (self.graph.formal_capture_trace_id, original_effect_row, endpoint)
+            {
+                candidate_effect::formal_live_capture_typed_event(|| candidate_effect::FormalCaptureTypedEvent::CanonicalIntern {
+                    capture, witnesses: trace_effect_witnesses.clone(), original_row,
+                    canonical_endpoint: EffectEndpointKey::EffectRow(canonical_row), polarity, node: index,
+                });
+            }
+            #[cfg(test)]
+            candidate_effect::formal_live_capture_trace_event(|| format!("intern-hit capture={:?} witness={trace_effect_witness:?} endpoint={endpoint:?} node={index}", self.graph.formal_capture_trace_id));
             return Ok(index);
         }
         self.endpoints.try_reserve(1).map_err(|_| exhausted())?;
@@ -1908,15 +1934,42 @@ impl<'a> Capture<'a> {
         push(&mut self.graph.nodes, Node::Leaf(Atom::Bottom))?;
         push(&mut self.pending, endpoint)?;
         #[cfg(test)]
-        candidate_effect::formal_live_capture_trace_event(|| format!("intern-new endpoint={endpoint:?} node={index}; pending-push"));
+        if let (Some(capture), Some(original_row), Endpoint::Effect(EffectEndpointKey::EffectRow(canonical_row), polarity)) =
+            (self.graph.formal_capture_trace_id, original_effect_row, endpoint)
+        {
+            candidate_effect::formal_live_capture_typed_event(|| candidate_effect::FormalCaptureTypedEvent::CanonicalIntern {
+                capture, witnesses: trace_effect_witnesses.clone(), original_row,
+                canonical_endpoint: EffectEndpointKey::EffectRow(canonical_row), polarity, node: index,
+            });
+        }
+        #[cfg(test)]
+        candidate_effect::formal_live_capture_trace_event(|| format!("intern-new capture={:?} witness={trace_effect_witness:?} endpoint={endpoint:?} node={index}; pending-push", self.graph.formal_capture_trace_id));
         self.endpoints.insert(endpoint, index);
         Ok(index)
     }
     fn intern_shape(&mut self, endpoint: Endpoint) -> Result<usize, SolveAvailabilityError> {
+        #[cfg(test)]
+        let raw_endpoint = endpoint;
         let endpoint = match endpoint {
             Endpoint::Value(value, polarity) => Endpoint::Value(self.session.canonical_value(value), polarity),
             Endpoint::Effect(effect, polarity) => Endpoint::Effect(self.session.canonical_effect(effect), polarity),
         };
+        #[cfg(test)]
+        {
+            let witnesses = match raw_endpoint {
+                Endpoint::Effect(EffectEndpointKey::EffectRow(row), _) =>
+                    candidate_effect::formal_live_capture_trace_witnesses_for_effect_row(row),
+                _ => Vec::new(),
+            };
+            let representative = match endpoint {
+                Endpoint::Effect(EffectEndpointKey::EffectRow(row), _) => self.session.candidate_graph
+                    .as_ref().map(|graph| graph.intrusion.rep(RowKey::Effect(row))),
+                _ => None,
+            };
+            candidate_effect::formal_live_capture_trace_event(|| format!(
+                "intern-shape raw={raw_endpoint:?} canonical={endpoint:?} representative={representative:?} witnesses={witnesses:?}"
+            ));
+        }
         if let Endpoint::Effect(EffectEndpointKey::EffectRow(row), _) = endpoint {
             if !self.shape_effect_rows.contains(&row) {
                 self.shape_effect_rows.try_reserve(1).map_err(|_| exhausted())?;
@@ -2279,6 +2332,14 @@ impl<'a> Capture<'a> {
             _ => return Err(exhausted()),
         };
         self.graph.nodes[index] = node;
+        #[cfg(test)]
+        if let (Some(capture), Node::Row { row, polarity }) = (self.graph.formal_capture_trace_id, node) {
+            if let Some(Row { key: RowKey::Effect(canonical_row), .. }) = self.graph.rows.get(row) {
+                candidate_effect::formal_live_capture_typed_event(|| candidate_effect::FormalCaptureTypedEvent::CapturedEffectRowNode {
+                    capture, node: index, canonical_row: *canonical_row, polarity,
+                });
+            }
+        }
         Ok(())
     }
     fn bound(
@@ -2780,6 +2841,8 @@ impl InferenceSession {
         let owned_regions = self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra.context.scope_inventory.owned(frontier)?;
         #[cfg(test)]
         let capture_forest = self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.forest_snapshot()?;
+        #[cfg(test)]
+        let formal_capture_trace_id = candidate_effect::formal_live_capture_trace_new_id();
         let mut capture = Capture {
             evidence_keys: HashMap::new(),
             evidence_charge,
@@ -2803,6 +2866,8 @@ impl InferenceSession {
                 capture_rows: Vec::new(),
                 #[cfg(test)]
                 capture_effect_frontiers: Vec::new(),
+                #[cfg(test)]
+                formal_capture_trace_id,
                 #[cfg(test)]
                 capture_forest,
             },
@@ -2972,17 +3037,18 @@ impl InferenceSession {
             let Some(Node::Row { row: argument_effect_row, .. }) = capture.graph.nodes.get(argument_effect_child) else {
                 return Err(SolveAvailabilityError::ReceiptMismatch);
             };
-            let Some(RowKey::Effect(entry_row)) = (match origin.entry {
-                EffectEndpointKey::EffectRow(row) => Some(RowKey::Effect(row)),
+            let Some(entry_effect) = (match origin.entry {
+                EffectEndpointKey::EffectRow(row) => Some(row),
                 _ => None,
             }) else { return Err(SolveAvailabilityError::ReceiptMismatch); };
             let expected = capture.session.candidate_graph.as_ref().ok_or_else(exhausted)?
-                .intrusion.rep(RowKey::Effect(entry_row));
+                .intrusion.rep(RowKey::Effect(entry_effect));
             if capture.graph.rows.get(*argument_effect_row).map(|row| row.key) != Some(expected) {
                 return Err(SolveAvailabilityError::ReceiptMismatch);
             }
             push(&mut capture.graph.lambda_argument_effects, LambdaArgumentEffectCapture {
-                registration, lambda: origin.lambda.clone(), function_node,
+                registration, lambda: origin.lambda.clone(), entry_effect,
+                function_node,
                 argument_effect_child_index: 1,
                 argument_effect_child_node: argument_effect_child,
                 argument_effect_row: *argument_effect_row,
@@ -3038,7 +3104,7 @@ impl InferenceSession {
             if let Some(&index) = capture.endpoints.get(&endpoint) {
                 capture.graph.negative_formal_roots.insert(term, index);
                 #[cfg(test)]
-                candidate_effect::formal_live_capture_trace_event(|| format!("negative-root-publish term={term:?} node={index} endpoint={endpoint:?}"));
+                candidate_effect::formal_live_capture_trace_event(|| format!("negative-root-publish id={:?} term={term:?} node={index} endpoint={endpoint:?}", capture.graph.formal_capture_trace_id));
             }
         }
         let graph_bytes = capture.graph.bytes()?;
@@ -3068,7 +3134,7 @@ impl InferenceSession {
         #[cfg(test)]
         self.candidate_evidence_failure(candidate_context::EvidenceFailurePoint::CaptureScratch)?;
         #[cfg(test)]
-        candidate_effect::formal_live_capture_trace_event(|| format!("capture-return graph_root={} live_root={:?} node_count={} rows={} negative_formal_roots={}", graph.root, graph.live_root, graph.nodes.len(), graph.rows.len(), graph.negative_formal_roots.len()));
+        candidate_effect::formal_live_capture_trace_event(|| format!("capture-return id={:?} graph_root={} live_root={:?} node_count={} rows={} negative_formal_roots={:?}", graph.formal_capture_trace_id, graph.root, graph.live_root, graph.nodes.len(), graph.rows.len(), graph.negative_formal_roots.keys().collect::<Vec<_>>()));
         Ok(graph)
     }
     pub(super) fn execute_candidate_graph_plan(&mut self) -> Result<(), SolveAvailabilityError> {
@@ -3192,6 +3258,19 @@ impl InferenceSession {
                     if items.is_empty() {
                         state.source_field_tail_obligations.remove(&owner);
                     }
+                }
+                #[cfg(test)]
+                if let Some(capture_id) = graph.formal_capture_trace_id {
+                    candidate_effect::formal_live_capture_typed_event(|| candidate_effect::FormalCaptureTypedEvent::CaptureOwner {
+                        capture: capture_id, owner: owner.clone(), root: graph.root, live_root: graph.live_root, node_count: graph.nodes.len(),
+                    });
+                    let domains = state.intrusion.effect_algebra.formal_domains.iter()
+                        .filter_map(|(&parameter, &domain)| graph.negative_formal_roots.contains_key(&domain)
+                            .then_some((parameter, domain)))
+                        .collect::<Vec<_>>();
+                    candidate_effect::formal_live_capture_trace_event(|| format!(
+                        "capture-owner id={capture_id} owner={owner:?} root={} live_root={:?} node_count={} domains={domains:?}",
+                        graph.root, graph.live_root, graph.nodes.len()));
                 }
                 state.graphs[position] = Some(graph);
             }
@@ -4545,6 +4624,7 @@ impl InferenceSession {
             lambda_argument_effects.push(LambdaArgumentEffectFreshUse {
                 registration: incidence.registration,
                 lambda: incidence.lambda.clone(),
+                entry_effect: incidence.entry_effect,
                 function_node: incidence.function_node,
                 argument_effect_child_index: incidence.argument_effect_child_index,
                 argument_effect_child_node: incidence.argument_effect_child_node,

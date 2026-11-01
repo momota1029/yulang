@@ -2700,6 +2700,11 @@ impl<'a> CandidateGraphExport<'a> {
             if self.graph.rows.get(row).ok_or(ArtifactMismatch)?.key.kind() != ComponentKind::Effect {
                 return Err(ArtifactMismatch);
             }
+            #[cfg(test)]
+            crate::candidate_effect::formal_live_capture_trace_event(|| format!(
+                "formal-permission-export witness={:?} capture={:?} owner={:?} source_row={:?} path={path:?} endpoint={:?} node={port_index}",
+                match self.graph.rows[row].key { crate::candidate_scheme::RowKey::Effect(effect) => crate::candidate_effect::formal_live_capture_trace_witness_for_effect_row(effect), _ => None },
+                self.graph.formal_capture_trace_id, self.source_root, permission.source_row, self.graph.rows[row].key));
             permissions.push(CandidateGraphFormalEffectPermission {
                 occurrence: &permission.occurrence,
                 source_row: &permission.source_row,
@@ -4974,6 +4979,7 @@ mod tests {
             boundary: 0,
             capture_rows: Vec::new(),
             capture_effect_frontiers: Vec::new(),
+            formal_capture_trace_id: None,
             capture_forest: state.intrusion.forest_snapshot().unwrap(),
         };
         let first = CandidateGraphRow { state: &state, graph: &graph, index: 0 };
@@ -5087,6 +5093,7 @@ mod tests {
             boundary: 0,
             capture_rows: Vec::new(),
             capture_effect_frontiers: Vec::new(),
+            formal_capture_trace_id: None,
             capture_forest: state.intrusion.forest_snapshot().unwrap(),
         };
         let first = CandidateGraphRow { state, graph: &graph, index: 0 };
