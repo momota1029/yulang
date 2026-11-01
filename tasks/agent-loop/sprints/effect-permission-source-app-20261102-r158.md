@@ -1,6 +1,8 @@
 # R158 original App admission and effect correspondence
 
-Status: ACTIVE under the standing Rust/Lean goal.
+Status: COMPLETE as a bounded missing-law/source-audit packet under the standing
+Rust/Lean goal. Original soundness, effect-hygiene and production gates remain
+OPEN.
 Baseline: `78728e6774e97ca84ae3008888c2d1028ebb744c` (`origin/yulang3`).
 Keep the original soundness/effect-hygiene goal, source domain, quantifiers,
 semantics and production gates fixed. Budget: 2400 seconds aggregate.
@@ -60,3 +62,29 @@ source/native closure and production remain OPEN. STOP on a missing source law,
 counterexample, review rejection, lease/resource conflict or unknown writer.
 Next dispatcher trigger: sprint outcome, source-law obstruction, or a material
 authority/dependency/resource/integration change.
+
+## Frozen outcome and independent review
+
+- Rust handoff `tasks/agent-loop/inbox/effect-permission-source-app-r158-rust.md`
+  SHA-256 `8cfd25213a38b2f52b698fc4ff428f3942fd9e9a09cc0575c87b304a03b5a399`:
+  independent compiler review PASS for the exact bounded read set. It reports
+  `NO_SAFE_CODE_SLICE`. `candidate_call` authenticates Apply indices,
+  occurrence, native shape and polarity, while retained candidate capture maps
+  preserve keys; neither constructs original descriptorFormation/admission or
+  joins its two source operands and finite Checking judgments to those native
+  endpoints. This does not reject the compiler behavior; it locates a missing
+  source-construction bridge.
+- Lean comment-only freeze
+  `SourceAppAdmissionR158.lean` SHA-256
+  `5b451535ab2cf07c1431537c65a2a450b755655c5cb7fe4a8e8f7b7b2befcbae` and
+  handoff SHA-256
+  `2e5a6aa0e833a1013dbae786a6f654739b99c0c29f43709d26690c5b18b1f8a1`:
+  independent Lean review PASS for the honest missing-law disposition. The
+  original App asks `Kernel.atom` for descriptor formation at the existing
+  ViewLogic binder and separately requires `LocalAdmissions.logical`. No
+  concrete source interpretation supplies lawful descriptor/profile formation
+  and independent admission while retaining the same payload/extension.
+  R157's seven source candidates remain unchanged and unchecked.
+- Neither lane ran tests, builds, Cargo, Lean/Lake/checker, or generated output.
+  Both producers and reviewers stopped. The first remaining owner is primary
+  source/Checking semantics intake; native correspondence follows that law.
