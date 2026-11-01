@@ -1,3 +1,21 @@
+## 2026-11-02 R151 checkpoint — intrinsic Support activation remains open
+
+R151 traced one intrinsic operation-family member through signature Support,
+bound emission, Function-port projection, and FreshUse. Independent review
+accepted the identity trace, but the source still does not associate that member
+and relation with an actual request, its boundary state, and a complete inherited
+ordered prefix. R151 does not show that state belongs in the view and does not
+strictly reduce the decisive premise. INITIAL-STATE and CONSUMER remain **OPEN**;
+no Rust code changed and no build/tests ran. See the
+[R151 outcome](agent-loop/history/effect-permission-intrinsic-prefix-20261102-r151-outcome.md)
+and [review](agent-loop/history/effect-permission-intrinsic-prefix-20261102-r151-review.md).
+
+The existing dirty Rust solver diff is **held** after separate review found a
+major cross-session permission-join risk in `candidate_scheme.rs`; the dirty
+`candidate_receiver.rs` also deletes owner/provider/permission checks. Neither is
+pushed. Runtime changes remain quarantined to `UNKNOWN_WRITER`. See the
+[unpushed Rust audit](agent-loop/history/unpushed-rust-solver-diff-20261102-audit.md).
+
 ## 2026-11-02 R150 checkpoint — source laws, no complete Rust patch
 
 R150 was admitted on baseline `7a8a20bf7`. Original source rules distinguish
