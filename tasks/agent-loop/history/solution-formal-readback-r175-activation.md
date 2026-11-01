@@ -72,3 +72,18 @@ No source output file was written.
 
 The proof researcher acknowledged contract revision 3, verified all 28 frozen
 input hashes before reading the newly admitted authority sources, and resumed.
+
+## Contract revision 4
+
+The proof lane identified an existing annotation/effect policy explicitly
+delegated by the pinned directional effect addendum for annotated callback and
+Computation cases. Luna hash-pinned
+`notes/design/2026-10-10-annotation-effect-hygiene-integration.md` at
+`a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18` before
+its content is read. This is an existing semantic correction, not a new user
+choice. Updated contract SHA-256: `28e6e31c0dfdbfe6da6cc611cd0a0aa40b7d133d6b1fd5802ba31a7749be88a9`.
+
+The proof worker stopped at this unpinned boundary after reporting that the
+authority documents retain independent Descriptor/Interface interpretations,
+source scopes and effect rules; no Rust solution readback equation was found
+in the frozen set. Those are bounded findings, not an exhaustive absence claim.

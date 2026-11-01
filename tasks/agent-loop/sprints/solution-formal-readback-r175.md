@@ -1,4 +1,4 @@
-# Sprint R175 — same-solution readback preflight (contract revision 3)
+# Sprint R175 — same-solution readback preflight (contract revision 4)
 
 Status: ADMITTED under the unchanged Yulang type/inferred-effect
 soundness goal. Runtime/machine correctness is excluded. Baseline: `yulang3`
@@ -104,6 +104,15 @@ orientation read; no worker read them under revision 1 or 2:
 These documents may define source-side contracts, but do not license equating
 Rust solution state with them. If their authority points to another required
 correction, stop and return its exact path before reading it.
+
+Revision 4 adds the governing annotation/effect policy delegated by the
+directional inferred-effect addendum for annotated callback/Computation cases:
+
+- `notes/design/2026-10-10-annotation-effect-hygiene-integration.md`:
+  `a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18`
+
+This is an existing semantic authority and correction, not a new user choice.
+It is read-only and does not authorize weakening effect or scope obligations.
 
 ## Read-only lanes
 
