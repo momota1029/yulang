@@ -2079,6 +2079,142 @@ impl CandidateInference {
             graph: &route.graph,
         })
     }
+
+    /// Join one operation-bearing operand in an exact module FreshUse route to
+    /// a direct captured effect bound and the native effect term of one exact
+    /// outer Apply. The Apply's callee tree must contain `fresh_use`; no graph
+    /// reachability, canonical effect equality, or family-only match is used.
+    ///
+    /// This is candidate-only structural evidence. `ArtifactMismatch` means
+    /// the candidate does not retain the requested complete direct join.
+    pub fn source_operation_apply_effect_joins<'a>(
+        &'a self,
+        operation_occurrence: &'a HirOccurrenceId,
+        fresh_use: &'a HirOccurrenceId,
+        outer_apply: &'a HirOccurrenceId,
+    ) -> Result<Vec<CandidateSourceOperationApplyEffectJoin<'a>>, ArtifactMismatch> {
+        if !self.solved.data.errors.is_empty()
+            || !self.solved.data.owns_occurrence(operation_occurrence)
+            || !self.solved.data.owns_occurrence(fresh_use)
+            || !self.solved.data.owns_occurrence(outer_apply)
+        {
+            return Err(ArtifactMismatch);
+        }
+        let call_index = self.solved.data.candidate_calls.calls.iter()
+            .position(|call| call.checking.occurrence() == outer_apply)
+            .ok_or(ArtifactMismatch)?;
+        let call = self.source_call(call_index)?;
+        if !matches!(&call.source().form, yu_hir::shadow::LocalSourceForm::Apply { .. }) {
+            return Err(ArtifactMismatch);
+        }
+        let hir = self.solved.data.hir_for_source_root(call.owner()).ok_or(ArtifactMismatch)?;
+        let source = hir.local_source_for(call.owner()).map_err(|_| ArtifactMismatch)?
+            .ok_or(ArtifactMismatch)?;
+        if !source_callee_contains_occurrence(source, call.callee_source(), fresh_use) {
+            return Err(ArtifactMismatch);
+        }
+
+        let state = self.solved.data.candidate_graph.as_ref().ok_or(ArtifactMismatch)?;
+        let algebra = &state.intrusion.effect_algebra;
+        let mut joins = Vec::new();
+        const HARD_MAX_ROWS: usize = 256;
+        for (route_index, route) in state.routes.iter().enumerate() {
+            if route.use_id.occurrence() != fresh_use || &route.source_owner != call.owner() {
+                continue;
+            }
+            for (bound_index, bound) in route.graph.bounds.iter().enumerate() {
+                if bound.kind != ComponentKind::Effect || bound.side != Polarity::Positive {
+                    continue;
+                }
+                let operation_node = bound.lower;
+                let row_node = bound.upper;
+                let Some(crate::candidate_scheme::Node::EffectOperand {
+                    endpoint: EffectEndpointKey::Support(source_view),
+                    polarity: source_polarity, ..
+                }) = route.graph.nodes.get(operation_node).copied() else { continue; };
+                if source_polarity != Polarity::Positive { continue; }
+                let Some(source_view_data) = algebra.views.get(source_view as usize) else {
+                    return Err(ArtifactMismatch);
+                };
+                let crate::candidate_effect::ViewOrigin::Operation(source_origin) =
+                    &source_view_data.provenance else { continue; };
+                if source_origin.occurrence != *operation_occurrence {
+                    continue;
+                }
+                let Some(crate::candidate_scheme::Node::Row { row, polarity: row_polarity }) =
+                    route.graph.nodes.get(row_node).copied() else { continue; };
+                if row_polarity != Polarity::Negative { continue; }
+                let Some(crate::candidate_scheme::RowKey::Effect(source_row)) =
+                    route.graph.rows.get(row).map(|captured| captured.key) else { continue; };
+                let expected_bound = crate::candidate_effect::BoundKey(
+                    ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(source_row)),
+                    Polarity::Positive,
+                    ExtrusionEndpoint::Effect(EffectEndpointKey::Support(source_view)),
+                );
+                if bound.source_bound != expected_bound { continue; }
+                let Some(crate::candidate_scheme::RowKey::Effect(mapped_row)) =
+                    route.rows.get(row).copied() else { return Err(ArtifactMismatch); };
+
+                let mut copied_view = None;
+                route.retained.observe_map_entries(|name, entry| {
+                    if name != "effect_operands" { return; }
+                    if let Some(CandidateFreshUseMapEntry::EffectOperand {
+                        index, endpoint: CandidateSourceEffectEndpoint::Support(view),
+                    }) = entry {
+                        if index == operation_node { copied_view = Some(view); }
+                    }
+                });
+                let Some(copied_view) = copied_view else { continue; };
+                let Some(copied_view_data) = algebra.views.get(copied_view as usize) else {
+                    return Err(ArtifactMismatch);
+                };
+                let crate::candidate_effect::ViewOrigin::Operation(copied_origin) =
+                    &copied_view_data.provenance else { continue; };
+                if !std::ptr::eq(source_origin.declaration.as_ref(), copied_origin.declaration.as_ref())
+                    || source_view_data.owner != copied_view_data.owner
+                    || source_view_data.position != copied_view_data.position
+                    || source_origin.occurrence != copied_origin.occurrence
+                {
+                    return Err(ArtifactMismatch);
+                }
+
+                for (kind, term) in [
+                    (CandidateSourceOperationApplyEffectKind::Invocation, call.native_invocation_effect()),
+                    (CandidateSourceOperationApplyEffectKind::Application, call.native_application_effect()),
+                ] {
+                    let Ok(TermView::LiveVariable(native_row)) = self.solved.data.store.term_view(term) else {
+                        continue;
+                    };
+                    if native_row.kind() != ComponentKind::Effect
+                        || native_row.polarity() != Polarity::Negative
+                        || mapped_row != native_row.ordinal()
+                    {
+                        continue;
+                    }
+                    if joins.len() == HARD_MAX_ROWS { return Err(ArtifactMismatch); }
+                    joins.try_reserve(1).map_err(|_| ArtifactMismatch)?;
+                    joins.push(CandidateSourceOperationApplyEffectJoin {
+                        declaration: source_origin.declaration.as_ref(),
+                        owner: &source_view_data.owner,
+                        position: &source_view_data.position,
+                        operation_occurrence: &source_origin.occurrence,
+                        fresh_use: route.use_id.occurrence(),
+                        outer_apply,
+                        route: route_index,
+                        bound: bound_index,
+                        relation: bound.relation.map(|relation| relation.0),
+                        mapped_row,
+                        row_kind: ComponentKind::Effect,
+                        kind,
+                        invocation_effect: call.native_invocation_effect(),
+                        application_effect: call.native_application_effect(),
+                    });
+                }
+            }
+        }
+        if joins.is_empty() { return Err(ArtifactMismatch); }
+        Ok(joins)
+    }
     pub fn effect_conflict(&self, kind: SolverErrorKind) -> Result<CandidateEffectConflict<'_>, ArtifactMismatch> {
         let SolverErrorKind::IncompatibleEffect { operand, annotation } = kind else { return Err(ArtifactMismatch); };
         let state = &self.solved.data.candidate_graph.as_ref().ok_or(ArtifactMismatch)?.intrusion.effect_algebra;
@@ -2985,6 +3121,67 @@ pub struct CandidateGraphFreshRow<'a> {
     graph: &'a crate::candidate_scheme::Graph,
     index: usize,
 }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateSourceOperationApplyEffectKind {
+    Invocation,
+    Application,
+}
+/// A direct captured-bound/FreshUse/native-row join for one operation source
+/// occurrence and one outer Apply. This is structural evidence only; it does
+/// not prove source typing, permission, or whole-program effect soundness.
+pub struct CandidateSourceOperationApplyEffectJoin<'a> {
+    declaration: &'a yu_hir::shadow::SourceOperationDeclaration,
+    owner: &'a SourceRootId,
+    position: &'a yu_hir::shadow::SourceNodeKey,
+    operation_occurrence: &'a HirOccurrenceId,
+    fresh_use: &'a HirOccurrenceId,
+    outer_apply: &'a HirOccurrenceId,
+    route: usize,
+    bound: usize,
+    relation: Option<u32>,
+    mapped_row: u32,
+    row_kind: ComponentKind,
+    kind: CandidateSourceOperationApplyEffectKind,
+    invocation_effect: Term,
+    application_effect: Term,
+}
+impl CandidateSourceOperationApplyEffectJoin<'_> {
+    pub fn declaration(&self) -> &yu_hir::shadow::SourceOperationDeclaration { self.declaration }
+    pub fn owner(&self) -> &SourceRootId { self.owner }
+    pub fn position(&self) -> &yu_hir::shadow::SourceNodeKey { self.position }
+    pub fn operation_occurrence(&self) -> &HirOccurrenceId { self.operation_occurrence }
+    pub fn fresh_use(&self) -> &HirOccurrenceId { self.fresh_use }
+    pub fn outer_apply(&self) -> &HirOccurrenceId { self.outer_apply }
+    pub fn route(&self) -> usize { self.route }
+    pub fn captured_bound(&self) -> usize { self.bound }
+    pub fn captured_relation(&self) -> Option<u32> { self.relation }
+    pub fn mapped_row(&self) -> u32 { self.mapped_row }
+    pub fn row_kind(&self) -> ComponentKind { self.row_kind }
+    pub fn effect_kind(&self) -> CandidateSourceOperationApplyEffectKind { self.kind }
+    pub fn invocation_effect(&self) -> Term { self.invocation_effect }
+    pub fn application_effect(&self) -> Term { self.application_effect }
+}
+
+fn source_callee_contains_occurrence(
+    source: &yu_hir::shadow::LocalSource,
+    expression: &yu_hir::shadow::LocalSourceExpr,
+    needle: &HirOccurrenceId,
+) -> bool {
+    let mut expression = expression;
+    for _ in 0..=source.expressions().len() {
+        if &expression.occurrence == needle { return true; }
+        let index = match &expression.form {
+            yu_hir::shadow::LocalSourceForm::Apply { callee, .. } => callee,
+            yu_hir::shadow::LocalSourceForm::Group { inner }
+            | yu_hir::shadow::LocalSourceForm::Ascription { inner, .. } => inner,
+            _ => return false,
+        };
+        let Some(next) = source.expression(index) else { return false; };
+        expression = next;
+    }
+    false
+}
+
 impl<'a> CandidateGraphFreshRow<'a> {
     pub fn source_row(&self) -> CandidateGraphRow<'a> {
         CandidateGraphRow {
