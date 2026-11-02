@@ -1,0 +1,260 @@
+===== R277-E001 crates/yu-solver/src/candidate_receiver.rs:2921-3179 sha256=38aeae41a76d3f85107559a60e5e6553aa19ad935917502eb78582162c1b557d =====
+pub(super) struct Assembly {
+    relay: DefinitionRootId,
+    answer: DefinitionRootId,
+    catch: HirOccurrenceId,
+    scrutinee: HirOccurrenceId,
+    edge_scrutinee: HirOccurrenceId,
+    provider: HirOccurrenceId,
+    provider_source: SourceNodeKey,
+    provider_source_range: (usize, usize),
+    operation: Arc<SourceOperationDeclaration>,
+    provider_identity: yu_hir::shadow::SourceOperationId,
+    selected_arm: SelectedCatchArmEvidence,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+fn source_operation_match(schema: &Assembly) -> SourceOperationMatch {
+    // Both IDs are captured only from resolved LocalSource operations. Keep
+    // their source occurrence/key and declaration identity together; pointer
+    // inequality, spelling, or family inequality alone cannot mean mismatch.
+    let provider_authenticated = schema.provider_identity == schema.operation.id
+        && schema.provider_source_range.0 < schema.provider_source_range.1;
+    let handler_authenticated = schema.selected_arm.is_authenticated_source(schema);
+    if !provider_authenticated || !handler_authenticated {
+        return SourceOperationMatch::Unavailable;
+    }
+    if schema.selected_arm.operation_identity == schema.provider_identity {
+        SourceOperationMatch::Match
+    } else {
+        SourceOperationMatch::KnownUnmatched
+    }
+}
+fn unavailable() -> shadow_apply::CandidateError {
+    shadow_apply::CandidateError::Unsupported
+}
+fn native_unavailable() -> SolveAvailabilityError {
+    SolveAvailabilityError::IdentityExhausted
+}
+
+fn peel<'a>(
+    source: &'a LocalSource,
+    mut index: &'a LocalSourceIndex,
+    visited: &mut HashSet<u32>,
+) -> Result<&'a yu_hir::shadow::LocalSourceExpr, shadow_apply::CandidateError> {
+    loop {
+        if !visited.insert(index.ordinal()) {
+            return Err(unavailable());
+        }
+        let expression = source.expression(index).ok_or_else(unavailable)?;
+        match &expression.form {
+            Form::Group { inner } => index = inner,
+            _ => return Ok(expression),
+        }
+    }
+}
+fn source<'a>(
+    hir: &'a HirModule,
+    root: &DefinitionRootId,
+) -> Result<&'a LocalSource, shadow_apply::CandidateError> {
+    hir.local_source(root)
+        .map_err(|_| unavailable())?
+        .ok_or_else(unavailable)
+}
+fn unit_operation(declaration: &SourceOperationDeclaration) -> bool {
+    let signature = &declaration.signature;
+    let AnnotationValue::Function { argument, result } = &signature.value else {
+        return false;
+    };
+    signature.effects.is_none()
+        && argument.effects.is_none()
+        && result.effects.is_none()
+        && matches!(argument.value, AnnotationValue::Unit)
+        && matches!(result.value, AnnotationValue::Int)
+}
+fn assemble(
+    hir: &HirModule,
+    answer: &DefinitionRootId,
+) -> Result<Assembly, shadow_apply::CandidateError> {
+    // The complete private inventory is two definitions. No unrelated caller,
+    // alias, initializer, expression item or unselected consumer is admitted.
+    let bindings: Vec<_> = hir
+        .items()
+        .iter()
+        .filter_map(|item| match item {
+            HirItem::Binding(binding) => Some(binding),
+            _ => None,
+        })
+        .collect();
+    if bindings.len() != 2
+        || hir
+            .items()
+            .iter()
+            .any(|item| matches!(item, HirItem::Expression(_)))
+    {
+        return Err(unavailable());
+    }
+    let answer_binding = bindings
+        .iter()
+        .find(|binding| binding.definition_root() == answer)
+        .ok_or_else(unavailable)?;
+    let relay_binding = bindings
+        .iter()
+        .find(|binding| binding.definition_root() != answer)
+        .ok_or_else(unavailable)?;
+    let caller = source(hir, answer_binding.definition_root())?;
+    let relay = source(hir, relay_binding.definition_root())?;
+    if caller.expressions().len() > candidate_source::SCOPED_RECORD_LIMIT
+        || relay.expressions().len() > candidate_source::SCOPED_RECORD_LIMIT
+        || caller.annotation().is_some()
+        || relay.annotation().is_some()
+        || !caller.bindings().is_empty()
+        || !relay.bindings().is_empty()
+    {
+        return Err(unavailable());
+    }
+    let mut visited = HashSet::new();
+    let call = peel(caller, caller.body(), &mut visited)?;
+    let Form::Apply {
+        callee, argument, ..
+    } = &call.form
+    else {
+        return Err(unavailable());
+    };
+    let callee = peel(caller, callee, &mut visited)?;
+    if !matches!(&callee.form, Form::Name { resolution: Resolution::ModuleDef(id), .. } if id == relay_binding.id())
+    {
+        return Err(unavailable());
+    }
+    let provider_call = peel(caller, argument, &mut visited)?;
+    let Form::Apply {
+        callee, argument, ..
+    } = &provider_call.form
+    else {
+        return Err(unavailable());
+    };
+    let provider = peel(caller, callee, &mut visited)?;
+    let Form::Operation {
+        resolution: SourceOperationResolution::Resolved(operation),
+    } = &provider.form
+    else {
+        return Err(unavailable());
+    };
+    if !unit_operation(operation)
+        || !matches!(peel(caller, argument, &mut visited)?.form, Form::Unit)
+        || visited.len() != caller.expressions().len()
+    {
+        return Err(unavailable());
+    }
+    visited.clear();
+    let lambda = peel(relay, relay.body(), &mut visited)?;
+    let Form::Lambda { parameter, body } = &lambda.form else {
+        return Err(unavailable());
+    };
+    let annotation = parameter.annotation.as_ref().ok_or_else(unavailable)?;
+    let row = annotation.ty.effects.as_ref().ok_or_else(unavailable)?;
+    if row.concrete.len() != 1
+        || !row.variables.is_empty()
+        || !matches!(annotation.ty.value, AnnotationValue::Int)
+    {
+        return Err(unavailable());
+    }
+    let catch = peel(relay, body, &mut visited)?;
+    let Form::Catch { scrutinee, arms } = &catch.form else {
+        return Err(unavailable());
+    };
+    let edge_scrutinee = relay
+        .expression(scrutinee)
+        .ok_or_else(unavailable)?
+        .occurrence
+        .clone();
+    let scrutinee = peel(relay, scrutinee, &mut visited)?;
+    if !matches!(&scrutinee.form, Form::Name { resolution: Resolution::Parameter(id), .. } if id == &parameter.id)
+        || arms.len() != 2
+    {
+        return Err(unavailable());
+    }
+    let Pattern::Operation {
+        resolution: SourceOperationResolution::Resolved(handled),
+        operation_source,
+        payloads,
+        continuation,
+    } = &arms[0].pattern
+    else {
+        return Err(unavailable());
+    };
+    if !unit_operation(handled)
+        || handled.id.family != row.concrete[0]
+        || payloads.len() != 1
+        || !matches!(payloads[0], PayloadPattern::Unit { .. })
+        || !matches!(continuation, ValuePattern::Wildcard)
+        || !matches!(
+            peel(relay, &arms[0].body, &mut visited)?.form,
+            Form::Integer(_)
+        )
+    {
+        return Err(unavailable());
+    }
+    let Pattern::Value(ValuePattern::Binder(binder)) = &arms[1].pattern else {
+        return Err(unavailable());
+    };
+    if !matches!(&peel(relay, &arms[1].body, &mut visited)?.form,
+        Form::Name { resolution: Resolution::CatchBinder(id), .. } if id == &binder.id)
+        || visited.len() != relay.expressions().len()
+    {
+        return Err(unavailable());
+    }
+    let PayloadPattern::Unit { source: unit_payload_source, range: unit_payload_range } = &payloads[0]
+    else { return Err(unavailable()); };
+    let selected_arm = SelectedCatchArmEvidence {
+        catch: catch.occurrence.clone(),
+        arm_ordinal: 0,
+        arm_source: arms[0].source.clone(),
+        arm_range: (arms[0].range.start, arms[0].range.end),
+        operation_source: operation_source.clone(),
+        operation: Arc::clone(handled),
+        operation_identity: handled.id.clone(),
+        unit_payload_source: unit_payload_source.clone(),
+        unit_payload_range: (unit_payload_range.start, unit_payload_range.end),
+        continuation_is_wildcard: matches!(continuation, ValuePattern::Wildcard),
+    };
+    Ok(Assembly {
+        relay: relay.definition_root().ok_or_else(unavailable)?.clone(),
+        answer: answer.clone(),
+        catch: catch.occurrence.clone(),
+        scrutinee: scrutinee.occurrence.clone(),
+        edge_scrutinee,
+        provider: provider.occurrence.clone(),
+        provider_source: provider.source.clone(),
+        provider_source_range: (provider.range.start, provider.range.end),
+        operation: Arc::clone(operation),
+        provider_identity: operation.id.clone(),
+        selected_arm,
+    })
+}
+
+/// Source-shaped admission failure means this private attempt is unavailable;
+/// it never rejects source from the ordinary compiler or changes its solver.
+pub fn solve_receiving_residual_experiment(
+    hir: Arc<HirModule>,
+    answer: DefinitionRootId,
+) -> Result<ReceivingResidualExperiment, shadow_apply::CandidateError> {
+    let schema = assemble(&hir, &answer)?;
+    let batch = ConstraintBatch::collect_candidate_mode(hir, true, true)
+        .map_err(shadow_apply::CandidateError::Collection)?;
+    let mut session =
+        InferenceSession::try_new_candidate(batch).map_err(shadow_apply::CandidateError::Solve)?;
+    let pending = session
+        .execute_receiving_assembly(&schema)
+        .map_err(shadow_apply::CandidateError::Solve)?;
+    let mut experiment = ReceivingResidualExperiment {
+        session,
+        schema,
+        outcomes: Vec::new(),
+        #[cfg(feature = "shadow-apply-candidate")]
+        publication_observation: None,
+        result_row: pending.result_row,
+    };
+    experiment.publish_authenticated_residual(pending)
+        .map_err(shadow_apply::CandidateError::Solve)?;
+    Ok(experiment)
+}

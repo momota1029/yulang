@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "purpose": "Binary-offset payload index for the exact R277 production-only view. Offsets are byte offsets; payloads equal source intervals exactly.",
+  "ranges_path": "tasks/agent-loop/sprints/public-entry-admission-r277-ranges.json",
+  "ranges_sha256": "63f2ce9d1ffb2e14a497d89b928065edd955f3ecd2266b0eb51f670fabd4e855",
+  "view_path": "tasks/agent-loop/sprints/public-entry-admission-r277-source-view.txt",
+  "view_sha256": "ebeae02540be5811850017b6f8b7ff49783a95e17d2b05358a155bd47bb22b21",
+  "view_byte_length": 9870,
+  "payload_count": 1,
+  "payloads": [
+    {
+      "excerpt_id": "R277-E001",
+      "path": "crates/yu-solver/src/candidate_receiver.rs",
+      "start_line": 2921,
+      "end_line": 3179,
+      "whole_file_sha256": "5ca308e7b890e57a8458a151554ece55585d762565204d39c520c4b534e44ade",
+      "excerpt_sha256": "38aeae41a76d3f85107559a60e5e6553aa19ad935917502eb78582162c1b557d",
+      "byte_offset": 147,
+      "byte_length": 9723
+    }
+  ]
+}
