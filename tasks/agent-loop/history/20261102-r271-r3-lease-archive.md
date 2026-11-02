@@ -38,3 +38,7 @@ Archived resolved R271-r3 FROZEN state row: `tasks/agent-loop/history/20261102-r
 Archived resolved R271-r3 FROZEN state row: `tasks/agent-loop/history/20261102-r271-r3-readiness.md` SHA-256 `ef2b3f4c51e383722b458483ba3f5cf05e35ee8e4d918545c94294d0734a7871`.
 
 Archived stopped reviewer row `/root/r271_source_qualification_review`: state STOPPED; requested compiler_referee Sol; full 300s charged; exact incident and partial review retained at `tasks/agent-loop/history/20261102-r271-source-qualification-review.md`.
+
+Archived resolved FROZEN row `tasks/agent-loop/history/20261102-r271-r3-stop.md` SHA-256 `8bd01cbecee82d836e8930708c7070c3540fb284368f38b7d7081b60d44b2516`; artifact remains at its original path.
+
+Archived resolved FROZEN row `tasks/agent-loop/history/20261102-r271-r3-contract-erratum.md` SHA-256 `3f84974daf251534e8dedf0116ad9d20d12d6ec41e9012e2e5f98768395a8e7e`; artifact remains at its original path.
