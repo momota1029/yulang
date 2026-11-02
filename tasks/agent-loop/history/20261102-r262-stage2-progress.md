@@ -1,5 +1,7 @@
 # R262 stage 2 progress — 2026-11-02
 
+UNREVIEWED observation from a second live attempt with a duplicate textual task ID. That attempt wrote no leased output; see `20261102-r262-overlap-reconciliation.md`. This note is not an input or proof premise for the independently reviewed R262 result.
+
 Source proof producer `/root/sol_r262_source_wide_drain_progress` reports
 stage 2 complete under contract `3cae007dd0fb6ed247ca16784ec8f7a8196718bf4c671cf23ddaa9ca73372355`.
 This is an intermediate report, not a frozen result or independent review.
