@@ -24,7 +24,7 @@ One registered `prover`, Sol/high, no descendants. Exact write leases:
 
 Active time maximum 1,800 seconds. No Lean, build, test, probe, Cargo, scratch/cache output, runtime/quarantined path, production edit or Git. Freeze the source account and handoff with all call-site/caller cases, exact success/error transitions, constructor/consumer owner links, dependency and artifact hashes, residual R245 lifetime premises, and STOPPED-writing receipt. Fresh independent `compiler_referee` review is capped at 300 seconds.
 
-Baseline HEAD: `64dcbc150aec64f7a17abb08171f4cea48c84ce8`.
+Baseline HEAD: `2c70049839210df7f12e3d3d68b17f1908ed897b`.
 
 | Path | SHA-256 |
 |---|---|
@@ -35,6 +35,9 @@ Baseline HEAD: `64dcbc150aec64f7a17abb08171f4cea48c84ce8`.
 | `crates/yu-solver/src/term.rs` | `d253cd9a77ad91c523b413b25a503ef0c6bef47ee4b1f5b8492766531fe493a1` |
 | `crates/yu-solver/src/candidate_context.rs` | `a6e8bde3a187369ddf847a31f2ae6eb443434a34d819e44a7fc72c9788809905` |
 | `crates/yu-solver/src/candidate_intrusion.rs` | `475edf15acbb5d986b5aebd1cb22b9c5fad61c50811690a763b39ff003cccd97` |
+| `crates/yu-solver/src/candidate_effect.rs` | `4becefc07b81c1b298cafa190a3698e9e15e94656e1f17390eee13435dcb9b15` |
+| `crates/yu-solver/src/candidate_receiver.rs` | `5ca308e7b890e57a8458a151554ece55585d762565204d39c520c4b534e44ade` |
+| `crates/yu-solver/src/shadow_apply.rs` | `99d67895c250e5d79fb774728867fe2fc88c4dc22df9bfc38ac9fd1aeb0908e5` |
 | `tasks/agent-loop/inbox/formal-permission-projection-20261028-source-r3.md` | `104720837d86a40efafe1676bf23d756042ce78355d0bfc84c69918aa7676956` |
 | `notes/theory/2026-11-02-ordinary-extrusion-native-entry-and-return-r245.md` | `7ef7ca1bb40fbe18370691b064edc3b24d9818076dbb63738fdb3d6b6f72101e` |
 | `tasks/agent-loop/inbox/ordinary-extrusion-native-entry-and-return-r245.md` | `647860bfec8b9b7b7b1809ace66c24181e1c9ad8c7b3f7616c7100acdb439322` |
