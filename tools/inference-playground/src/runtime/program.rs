@@ -1577,6 +1577,7 @@ impl RuntimeProgram {
                     role,
                     root_schema,
                     callback_schema,
+                    source_permission_row: None,
                     body,
                 },
             }));

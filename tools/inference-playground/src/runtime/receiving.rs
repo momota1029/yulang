@@ -185,7 +185,49 @@ pub(super) struct Receiving {
     #[cfg(test)]
     query_visits: std::cell::RefCell<Vec<usize>>,
 }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum RawObservationError {
+    Truncated,
+    Unavailable,
+}
+
 impl Receiving {
+    pub(super) fn raw_receipt_fields(&self, index: usize) -> Option<String> {
+        let receipt = self.receipts.get(index)?;
+        Some(format!(
+            "receipt_index={index} owner={:?} view={} slot_root={:?} slot_occurrence={} formal_ordinal={:?}",
+            receipt.owner, receipt.view.0, receipt.slot.source_root,
+            receipt.slot.occurrence.ordinal(), receipt.formal.as_ref().map(|id| id.ordinal())
+        ))
+    }
+
+    pub(super) fn raw_view_fields(&self, index: usize) -> Option<String> {
+        let view = self.views.get(index)?;
+        let kind = match view.kind {
+            ViewKind::Ordinary => "Ordinary".to_string(),
+            ViewKind::RootComp => "RootComp".to_string(),
+            ViewKind::CallbackEntry(handle) => format!("CallbackEntry({})", handle.0),
+            ViewKind::CallbackResult(handle) => format!("CallbackResult({})", handle.0),
+        };
+        Some(format!("view_index={index} value_handle={:?} image={:?} unknown={} kind={kind}",
+            view.value, view.image, view.unknown))
+    }
+
+    pub(super) fn bounded_raw_image_chain(&self, view_index: usize) -> Result<String, RawObservationError> {
+        let view = self.views.get(view_index).ok_or(RawObservationError::Unavailable)?;
+        let mut image = view.image;
+        let mut entries = Vec::new();
+        while let Some(index) = image {
+            if entries.len() == 64 { return Err(RawObservationError::Truncated); }
+            let current = self.images.get(index).ok_or(RawObservationError::Unavailable)?;
+            let boundary = self.boundaries.get(current.boundary).ok_or(RawObservationError::Unavailable)?;
+            entries.try_reserve(1).map_err(|_| RawObservationError::Unavailable)?;
+            entries.push(format!("image={index},boundary={},receiver={}", current.boundary, boundary.receiver));
+            image = current.parent;
+        }
+        Ok(entries.join(";"))
+    }
+
     pub(super) fn next_receipt_index(&self) -> usize {
         self.receipts.len()
     }
@@ -716,6 +758,23 @@ mod tests {
             panic!("ground source value");
         };
         (schemas[0].clone(), schemas[1].clone(), family, value)
+    }
+
+    #[test]
+    fn bounded_image_observation_distinguishes_64_65_and_missing_records() {
+        let (schema, _, _, value) = source_operands();
+        let mut receiving = Receiving::default();
+        let mut view = receiving.ground(value);
+        for receiver in 0..64 {
+            view = receiving.enter(value, view, receiver, schema.clone());
+        }
+        let chain = receiving.bounded_raw_image_chain(view.index()).unwrap();
+        assert_eq!(chain.split(';').count(), 64);
+        view = receiving.enter(value, view, 64, schema);
+        assert_eq!(receiving.bounded_raw_image_chain(view.index()), Err(RawObservationError::Truncated));
+        assert_eq!(receiving.bounded_raw_image_chain(usize::MAX), Err(RawObservationError::Unavailable));
+        receiving.images.last_mut().unwrap().boundary = usize::MAX;
+        assert_eq!(receiving.bounded_raw_image_chain(view.index()), Err(RawObservationError::Unavailable));
     }
 
     #[test]

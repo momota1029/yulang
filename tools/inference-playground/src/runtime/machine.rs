@@ -59,6 +59,23 @@ pub struct Machine {
     pending_name_observation: Option<PendingNameObservation>,
     pending_name_return_observation: Option<CompletedNameObservation>,
     name_entry_name_return_observations: Vec<NameEntryNameReturnObservation>,
+    name_receipt_calls: Vec<NameReceiptCallObservation>,
+    name_receipt_seed_trace: Option<String>,
+    name_receipt_calls_truncated: bool,
+    name_receipt_observation_unavailable: bool,
+    name_receipt_seed_status: NameReceiptSeedObservationStatus,
+}
+
+/// Availability of the bounded provisional Name/receipt observation.
+/// `NoCorrespondenceObserved` describes this observer only; it is not semantic
+/// evidence that no qualifying source event occurred.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NameReceiptSeedObservationStatus {
+    NotCompleted,
+    NoCorrespondenceObserved,
+    Observed,
+    Truncated,
+    Unavailable,
 }
 
 /// Provisional research observation joining an actual lexical Name receipt to
@@ -137,6 +154,21 @@ struct CompletedNameObservation {
     view: ViewHandle,
     receipt_index: usize,
     cells_before_observe: usize,
+}
+
+struct NameReceiptCallObservation {
+    call_site: SourceSite,
+    invocation: usize,
+    previous_owner: ExecutionOwner,
+    callee_value: ValueHandle,
+    callee_view: ViewHandle,
+    callee_site: SourceSite,
+    formal: HirParameterId,
+    closure_environment: usize,
+    argument_environment: usize,
+    delay_value: ValueHandle,
+    argument_code: usize,
+    delay_view: ViewHandle,
 }
 
 struct PendingNameEntry {
@@ -572,6 +604,11 @@ impl RuntimeProgram {
             pending_name_observation: None,
             pending_name_return_observation: None,
             name_entry_name_return_observations: Vec::new(),
+            name_receipt_calls: Vec::new(),
+            name_receipt_seed_trace: None,
+            name_receipt_calls_truncated: false,
+            name_receipt_observation_unavailable: false,
+            name_receipt_seed_status: NameReceiptSeedObservationStatus::NotCompleted,
         };
         machine.begin_root(0);
         Ok(machine)
@@ -611,6 +648,66 @@ impl Machine {
             event.resolution, event.name_site_ordinal, event.source_cell, event.value,
             event.view, event.receipt_index, event.cells_before_observe, event.return_frame
         )).collect()
+    }
+
+    pub fn name_receipt_seed_trace(&self) -> Option<&str> {
+        self.name_receipt_seed_trace.as_deref()
+    }
+
+    pub fn name_receipt_seed_observation_status(&self) -> NameReceiptSeedObservationStatus {
+        self.name_receipt_seed_status
+    }
+
+    fn finish_name_receipt_observation(&mut self) {
+        use NameReceiptSeedObservationStatus as Status;
+        if !matches!(self.state, State::Stopped(RuntimeOutcome::Completed(_))) {
+            return;
+        }
+        self.name_receipt_seed_trace = None;
+        self.name_receipt_seed_status = if self.name_receipt_observation_unavailable {
+            Status::Unavailable
+        } else if self.name_receipt_calls_truncated {
+            Status::Truncated
+        } else {
+            Status::NoCorrespondenceObserved
+        };
+        if self.name_receipt_observation_unavailable || self.name_receipt_calls_truncated {
+            return;
+        }
+        let Some(entry) = &self.name_entry_trace else { return; };
+        let Some(call) = self.name_receipt_calls.iter().find(|call| call.invocation == entry.invocation) else {
+            self.name_receipt_seed_status = Status::Unavailable;
+            return;
+        };
+        let Some(receipt) = self.receiving.raw_receipt_fields(entry.receipt_index) else {
+            self.name_receipt_seed_status = Status::Unavailable;
+            return;
+        };
+        let Some(view) = self.receiving.raw_view_fields(entry.view) else {
+            self.name_receipt_seed_status = Status::Unavailable;
+            return;
+        };
+        let image = match self.receiving.bounded_raw_image_chain(entry.view) {
+            Ok(image) => image,
+            Err(super::receiving::RawObservationError::Truncated) => {
+                self.name_receipt_seed_status = Status::Truncated;
+                return;
+            }
+            Err(super::receiving::RawObservationError::Unavailable) => {
+                self.name_receipt_seed_status = Status::Unavailable;
+                return;
+            }
+        };
+        self.name_receipt_seed_trace = Some(format!(
+            "invocation={} call_site={:?} previous_owner={:?} callee_value={} callee_view={} callee_site={:?} formal={:?} closure_environment={} argument_environment={} delay_value={} argument_code={} delay_view={} name_site={:?} source_parameter={:?} entry_parameter={:?} source_cell={} value={} view={} bound_cell={} cells_before_bind={} cells_after_bind={} receipt=[{}] view_fields=[{}] image_chain=[{}]",
+            call.invocation, call.call_site, call.previous_owner, call.callee_value.0,
+            call.callee_view.index(), call.callee_site, call.formal, call.closure_environment,
+            call.argument_environment, call.delay_value.0, call.argument_code,
+            call.delay_view.index(), entry.name_site, entry.source_parameter,
+            entry.entry_parameter, entry.source_cell, entry.value, entry.view,
+            entry.bound_cell, entry.cells_before_bind, entry.cells_after_bind, receipt, view, image,
+        ));
+        self.name_receipt_seed_status = Status::Observed;
     }
 
     /// Mint the dynamic receipt after an actual completed run, never from a
@@ -820,6 +917,7 @@ impl Machine {
             self.pending_name_return_observation = None;
             self.state = State::Stopped(RuntimeOutcome::Unavailable(error));
         }
+        self.finish_name_receipt_observation();
         match &self.state {
             State::Stopped(outcome) => outcome.clone(),
             _ => RuntimeOutcome::Running,
@@ -1031,6 +1129,7 @@ impl Machine {
                 }
             }
             Instruction::Lambda {
+                source_permission_row: _,
                 parameter,
                 unit_pattern,
                 record_pattern,
@@ -1386,7 +1485,7 @@ impl Machine {
             Frame::Callee {
                 callee,
                 argument,
-                environment,
+                environment: caller_environment,
                 site,
             } => {
                 // This allocates only inert code plus lexical references. No
@@ -1396,10 +1495,10 @@ impl Machine {
                     RuntimeValueKind::Computation,
                     Some(ExecutableValue::Delay {
                         code: argument,
-                        environment,
+                        environment: caller_environment,
                     }),
                 );
-                let inherited = self.direct_formal_root(argument, environment);
+                let inherited = self.direct_formal_root(argument, caller_environment);
                 let delay_view = self.receiving.delay(delay, inherited);
                 let executable = self.executables.get(&received.value.0).cloned();
                 match executable {
@@ -1451,6 +1550,26 @@ impl Machine {
                             });
                         let provider = self.values[received.value.0].source.clone();
                         let (activation, previous) = self.new_invocation(site.clone(), provider)?;
+                        if self.name_receipt_calls.len() == 64 {
+                            self.name_receipt_calls_truncated = true;
+                        } else if self.name_receipt_calls.try_reserve(1).is_err() {
+                            self.name_receipt_observation_unavailable = true;
+                        } else {
+                            self.name_receipt_calls.push(NameReceiptCallObservation {
+                                call_site: site.clone(),
+                                invocation: activation,
+                                previous_owner: previous,
+                                callee_value: received.value,
+                                callee_view: received.view,
+                                callee_site: self.values[received.value.0].source.clone(),
+                                formal: parameter.clone(),
+                                closure_environment: environment,
+                                argument_environment: caller_environment,
+                                delay_value: delay,
+                                argument_code: argument.0,
+                                delay_view,
+                            });
+                        }
                         if let (Some(plan), Some(trace)) =
                             (&self.program.operation_v1, &mut self.operation_v1_trace)
                         {
@@ -3248,6 +3367,62 @@ mod module_expression_tests {
                 )
             })
             .count()
+    }
+
+    #[test]
+    fn name_receipt_seed_is_published_only_on_completion_and_joins_actual_invocation() {
+        let mut machine = machine("my id x = x\nmy relay x = id x\nmy main = relay 7", true);
+        use NameReceiptSeedObservationStatus as Status;
+        assert_eq!(machine.name_receipt_seed_observation_status(), Status::NotCompleted);
+        let completed = loop {
+            match machine.run(1) {
+                RuntimeOutcome::Completed(value) => break value,
+                RuntimeOutcome::Running | RuntimeOutcome::ResourceExhausted { .. } => {
+                    assert_eq!(machine.name_receipt_seed_trace(), None);
+                    assert_eq!(machine.name_receipt_seed_observation_status(), Status::NotCompleted);
+                }
+                other => panic!("unexpected outcome: {other:?}"),
+            }
+        };
+        assert!(matches!(&machine.value(completed).unwrap().kind,
+            RuntimeValueKind::Integer(value) if value.as_ref() == "7"));
+        assert_eq!(machine.name_receipt_seed_observation_status(), Status::Observed);
+        let entry = machine.name_entry_correspondence().unwrap();
+        let call = machine.name_receipt_calls.iter().find(|call| call.invocation == entry.invocation).unwrap();
+        assert_eq!(call.formal, entry.entry_parameter);
+        let trace = machine.name_receipt_seed_trace().unwrap().to_owned();
+        assert!(trace.contains(&format!("invocation={}", entry.invocation)));
+        assert!(trace.contains(&format!("receipt_index={}", entry.receipt_index)));
+        assert!(matches!(machine.step(), RuntimeOutcome::Completed(value) if value == completed));
+        assert_eq!(machine.name_receipt_seed_trace(), Some(trace.as_str()));
+        machine.name_receipt_observation_unavailable = true; // Simulate unavailable optional storage.
+        machine.finish_name_receipt_observation();
+        assert_eq!(machine.name_receipt_seed_trace(), None);
+        assert_eq!(machine.name_receipt_seed_observation_status(), Status::Unavailable);
+    }
+
+    #[test]
+    fn name_receipt_seed_call_cap_is_explicit_and_does_not_change_execution() {
+        use NameReceiptSeedObservationStatus as Status;
+        for calls in [64, 65] {
+            let source = format!("my id x = x\nmy main = {{ {} }}", vec!["id 7"; calls].join("; "));
+            let mut machine = machine(&source, true);
+            let RuntimeOutcome::Completed(value) = machine.run(10_000) else { panic!("completion"); };
+            assert!(matches!(&machine.value(value).unwrap().kind,
+                RuntimeValueKind::Integer(value) if value.as_ref() == "7"));
+            assert_eq!(machine.name_receipt_calls.len(), 64);
+            assert_eq!(machine.name_receipt_seed_trace(), None);
+            assert_eq!(machine.name_receipt_seed_observation_status(),
+                if calls == 64 { Status::NoCorrespondenceObserved } else { Status::Truncated });
+        }
+        let mut primitive = machine("my main = builtin_op::int_add 1 2", true);
+        assert!(matches!(primitive.run(1000), RuntimeOutcome::Completed(_)));
+        assert!(primitive.name_receipt_calls.is_empty());
+        assert_eq!(primitive.name_receipt_seed_observation_status(), Status::NoCorrespondenceObserved);
+        let mut failure = machine("my main = case :some 1: :none -> 0", true);
+        assert!(matches!(failure.run(1000), RuntimeOutcome::Unavailable(_)));
+        assert_eq!(failure.name_receipt_seed_trace(), None);
+        assert_eq!(failure.name_receipt_seed_observation_status(), Status::NotCompleted);
     }
 
     #[test]

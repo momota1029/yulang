@@ -5151,7 +5151,7 @@ impl<'a> ProviderNativeContextProjection<'a> {
         let mut matching_permissions = source_internal.formal_entry_permissions.iter().filter(|(_, permission)| {
             permission.registration == retained.registration
         });
-        let Some((permission_index, permission)) = matching_permissions.next() else {
+        let Some(&(permission_index, permission)) = matching_permissions.next() else {
             return Err(candidate_context::CurrentEmissionGap::MissingInternalCertificate);
         };
         if matching_permissions.next().is_some()
@@ -5183,7 +5183,7 @@ impl<'a> ProviderNativeContextProjection<'a> {
             provider_view_index: view_index as usize,
             provider_member_index: member_index as usize,
             provider_family,
-            permission_index: *permission_index,
+            permission_index,
             permission_member_index,
             permission,
         };
