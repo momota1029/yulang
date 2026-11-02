@@ -32,3 +32,9 @@ The following resolved historical rows were compacted from `current.json`; no pa
 | `tasks/agent-loop/history/20261102-r271-lease-archive.md` | FROZEN | `ed5f5d106d44a6ed3768d8cc3f7accafca2950289e7c337d34e49506c462c713` |
 | `/root/name_receipt_seed_r2_source` | STOPPED | STOPPED; source receipt retained in prior task records. |
 | `/root/sol_r263_source_causal_episode` | STOPPED | STOPPED; R263 stop receipt and reconciliation retained in history. |
+
+Archived resolved R271-r3 FROZEN state row: `tasks/agent-loop/history/20261102-r271-r3-admission.md` SHA-256 `4cb233943ae2cc29d750bc1482a35ca2835008bdf5a10ceb49d9ba4a49867915`.
+
+Archived resolved R271-r3 FROZEN state row: `tasks/agent-loop/history/20261102-r271-r3-readiness.md` SHA-256 `ef2b3f4c51e383722b458483ba3f5cf05e35ee8e4d918545c94294d0734a7871`.
+
+Archived stopped reviewer row `/root/r271_source_qualification_review`: state STOPPED; requested compiler_referee Sol; full 300s charged; exact incident and partial review retained at `tasks/agent-loop/history/20261102-r271-source-qualification-review.md`.
