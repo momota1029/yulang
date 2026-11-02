@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "purpose": "Source-owner locator index for R275-r3 readiness. It records visible constructor and flag-forwarding sites plus excluded test-call locators; it is not a source-absence proof.",
+  "authorized_input_manifest": "tasks/agent-loop/sprints/source-successful-consumer-r273-inputs.json",
+  "authorized_input_manifest_sha256": "42040552635bb7c2652eb0bad68cb46295078d03ae70620b7edd555d3883fa5f",
+  "path": "crates/yu-solver/src/lib.rs",
+  "whole_file_sha256": "429456c4e19723c652842860aa2746988f4ab43550707cf840b1d047c69cb2be",
+  "visible_production_owner_sites": [
+    {
+      "line": 938,
+      "owner": "ConstraintBatch::collect",
+      "forwarding": "Self::collect_mode(hir,false)",
+      "view_excerpt": "R274-E024"
+    },
+    {
+      "line": 942,
+      "owner": "ConstraintBatch::collect_mode",
+      "forwarding": "Self::collect_candidate_mode(hir,candidate_values,false)",
+      "view_excerpt": "R274-E024"
+    },
+    {
+      "line": 949,
+      "owner": "ConstraintBatch::collect_candidate_mode",
+      "forwarding": "scoped wrapper; forwards candidate_values and candidate_graph_effects",
+      "view_excerpt": "R274-E024"
+    },
+    {
+      "line": 973,
+      "owner": "ConstraintBatch::collect_candidate_world_scoped_v1",
+      "forwarding": "collection constructor and candidate-source guarded branches",
+      "view_excerpts": [
+        "R274-E024",
+        "R275R3-E003",
+        "R275R3-E004",
+        "R275R3-E005",
+        "R275R3-E006"
+      ]
+    },
+    {
+      "line": 1239,
+      "owner": "candidate source emission callsite",
+      "forwarding": "batch.emit_candidate_source(...) under candidate feature and candidate_values/source guards",
+      "view_excerpt": "R275R3-E005"
+    },
+    {
+      "line": 1379,
+      "owner": "member source emission callsite",
+      "forwarding": "batch.emit_candidate_source(...) under candidate feature/source-member guards",
+      "view_excerpt": "R275R3-E005"
+    },
+    {
+      "line": 1571,
+      "owner": "candidate world collection return/seal path",
+      "view_excerpt": "R275R3-E006"
+    }
+  ],
+  "known_test_call_locators_excluded_from_evidence": [
+    21054,
+    36092,
+    36356,
+    36505,
+    36557,
+    36614
+  ],
+  "classification_limit": "These locators and the indexed view do not prove that no other production route exists. Readiness must exhibit a positive production flag-provenance path; absence alone is inconclusive."
+}
