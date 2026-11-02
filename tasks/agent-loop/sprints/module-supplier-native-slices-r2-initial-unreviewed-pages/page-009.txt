@@ -1,0 +1,10 @@
+# source=crates/yu-solver/src/lib.rs sha256=ac3c0701958e82da2ce5174a3b52b1c02adfc8c93d582b68147a085e682a6d07 bytes=[888255,888627) lines=19466-19474 kind=unit name=validated_route_use
+    fn validated_route_use<'a>(
+        batch: &'a ConstraintBatch,
+        id: &DefinitionUseId,
+    ) -> Result<&'a DefinitionUse, SolveAvailabilityError> {
+        let use_record = batch.definition_use(id).expect("plan-owned use");
+        (use_record.cause.id() == id)
+            .then_some(use_record)
+            .ok_or(SolveAvailabilityError::CauseMismatch)
+    }

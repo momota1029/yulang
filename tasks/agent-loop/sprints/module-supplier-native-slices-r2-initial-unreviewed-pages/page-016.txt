@@ -1,0 +1,27 @@
+# source=crates/yu-solver/src/shadow_apply.rs sha256=c328e08662256b57ed9a31a4edd91e0832e9482cabb89952f204a89a78cf72ff bytes=[107768,108670) lines=2029-2054 kind=unit name=CandidateInference::export
+    pub fn export(
+        &self,
+        root: &DefinitionRootId,
+    ) -> Result<CandidateGraphExport<'_>, ArtifactMismatch> {
+        // Conflicts remain available for diagnostics, but invalidate graph export.
+        if !self.solved.data.errors.is_empty() {
+            return Err(ArtifactMismatch);
+        }
+        if !self.solved.data.owns_definition_root(root) {
+            return Err(ArtifactMismatch);
+        }
+        let position = self
+            .solved
+            .data
+            .root_scheme_positions
+            .get(root)
+            .ok_or(ArtifactMismatch)?;
+        let state = self
+            .solved
+            .data
+            .candidate_graph
+            .as_ref()
+            .ok_or(ArtifactMismatch)?;
+        let graph = state.graphs[*position].as_ref().ok_or(ArtifactMismatch)?;
+        Ok(CandidateGraphExport { state, graph, source_root: root.clone() })
+    }

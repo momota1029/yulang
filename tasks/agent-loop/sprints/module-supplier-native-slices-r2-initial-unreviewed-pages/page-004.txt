@@ -1,0 +1,14 @@
+# source=crates/yu-solver/src/candidate_source.rs sha256=96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a bytes=[179297,180994) lines=2497-2509 kind=unit name=execute_candidate_action
+                Action::LocalAnnotation { annotation, slot, endpoint, computation_effect, occurrence, level, boundary } => self.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary, *computation_effect)?,
+                Action::Local { slot, occurrence, value, level } => self.route_candidate_local(*slot, occurrence, *value, *level)?,
+                Action::BeginLocal { slot } => self.begin_candidate_local_capture(*slot)?,
+                Action::Install { slot, initializer, boundary } => self.install_candidate_local(*slot, *initializer, *boundary)?,
+                Action::CatchOperation { declaration, owner, occurrence, payload, continuation, original, effect, level, h_arg } => self.candidate_catch_operation(declaration, owner, occurrence, *payload, *continuation, *original, *effect, *level, h_arg.as_ref())?,
+                Action::FieldBoundV1 { declaration, h_arg } => self.candidate_field_bound_v1(declaration, h_arg)?,
+                Action::Operation { declaration, owner, occurrence, target, level } => self.candidate_operation(declaration, owner, occurrence, *target, *level)?,
+                Action::Primitive { operation, owner, position, occurrence, target, level } => self.candidate_pinned_primitive(operation.clone(), owner, position, occurrence, *target, *level)?,
+                Action::Annotation { annotation, endpoint, computation_effect, target, occurrence, level } => self.candidate_annotation(annotation, *endpoint, *target, occurrence, *level, *computation_effect)?,
+                Action::WhereClause { source, scope } => self.candidate_register_source_role_obligation(source, scope)?,
+            }
+        Ok(())
+    }

@@ -1,0 +1,41 @@
+# source=crates/yu-solver/src/candidate_source.rs sha256=96be2c8e3270870bfd7c0f76827b50e8ce381139cd33796980375a79004b8b4a bytes=[175766,179297) lines=2457-2496 kind=unit name=execute_candidate_action
+    pub(super) fn execute_candidate_action(&mut self, action: &Action) -> Result<(), SolveAvailabilityError> {
+            match action {
+                Action::Ascription { annotation, endpoint, computation_effect, occurrence, level, scope } => self.candidate_expression_ascription(annotation, *endpoint, occurrence, *level, *computation_effect, scope)?,
+                Action::FormalAnnotation { annotation, parameter, occurrence, scope } => self.candidate_formal_annotation(annotation, *parameter, occurrence, scope)?,
+                Action::UnitParameter { parameter, occurrence } => self.candidate_unit_parameter(*parameter, occurrence)?,
+                Action::RecordParameter { parameter, fields, occurrence } => self.candidate_record_parameter(*parameter, fields, occurrence)?,
+                Action::FormalEntry { registration, annotation, occurrence, scope } => self.candidate_formal_entry_annotation(*registration, annotation, occurrence, scope)?,
+                Action::FormalNameEffect { registration, occurrence, effect } => {
+                    let entry = self.batch.candidate_calls.formals[*registration].entry_effect.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    let name = self.live_components[*effect].ordinal;
+                    self.candidate_formal_effect_equal(occurrence, 1, entry, name)?;
+                }
+                Action::Fact(index) => self.admit_collected_fact(*index)?,
+                Action::Link { occurrence, endpoint, target } => {
+                    let lower = self.candidate_endpoint(*endpoint, Polarity::Positive)?;
+                    let upper = self.batch.component_term_at(*target);
+                    self.admit_candidate_value_link(occurrence, 30, lower, upper)?;
+                }
+                Action::ValueConstraint { occurrence, slot, endpoint, upper } => {
+                    let lower = self.candidate_endpoint(*endpoint, Polarity::Positive)?;
+                    self.admit_candidate_value_link(occurrence, *slot, lower, *upper)?;
+                }
+                Action::Candidate(index) => { let recipe = self.batch.candidate_recipes[*index].clone(); self.admit_candidate_fact(&recipe)?; }
+                Action::Operator(index) => self.execute_candidate_operator_use(*index)?,
+                Action::Lambda(index) => { let recipe = self.batch.lambda_recipes[*index].clone(); self.admit_lambda_fact(&recipe)?; }
+                Action::BeginLambda => {
+                    let state = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                    state.source_lambda_depth = state.source_lambda_depth.checked_add(1).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                }
+                Action::EndLambda => {
+                    let state = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                    state.source_lambda_depth = state.source_lambda_depth.checked_sub(1).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                }
+                Action::Module(occurrence) => {
+                    let id = DefinitionUseId::new(self.batch.collection_artifact.clone(), occurrence.clone());
+                    if self.batch.definition_use_positions.contains_key(&id) {
+                        if self.candidate_graph.as_ref().is_some_and(|state| state.intrusion.active_uses.contains(&id)) { self.route_candidate_open_use(&id)?; }
+                        else { self.route_incoming(&id)?; }
+                    }
+                }
