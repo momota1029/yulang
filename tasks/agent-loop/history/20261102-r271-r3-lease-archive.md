@@ -22,3 +22,13 @@ Additional resolved FROZEN rows compacted in this same snapshot (all source file
 | `crates/yu-solver/src/candidate_receiver.rs` | FROZEN | `5ca308e7b890e57a8458a151554ece55585d762565204d39c520c4b534e44ade` |
 | `notes/theory/2026-11-02-slot-family-lineage-cover-r269-r4.md` | FROZEN | `30cc20db3c6d07a7616d40568019b7e6973e946cc579706885f29b9eb9ea6277` |
 | `tasks/agent-loop/inbox/slot-family-lineage-cover-r269-r4.md` | FROZEN | `47c719197132f5dfed06465105aff2759222049284e7b220ba478dd3fe20679a` |
+
+## Additional compact-state rows
+
+The following resolved historical rows were compacted from `current.json`; no path or lease status was changed.
+
+| Record | Prior state | Receipt or SHA-256 |
+|---|---|---|
+| `tasks/agent-loop/history/20261102-r271-lease-archive.md` | FROZEN | `ed5f5d106d44a6ed3768d8cc3f7accafca2950289e7c337d34e49506c462c713` |
+| `/root/name_receipt_seed_r2_source` | STOPPED | STOPPED; source receipt retained in prior task records. |
+| `/root/sol_r263_source_causal_episode` | STOPPED | STOPPED; R263 stop receipt and reconciliation retained in history. |
