@@ -9,3 +9,9 @@ The contract-only gate supplied SHA-256 `40f96e4b987dfd4de72b4ae04787f383c1f577b
 This is a primary pin-record error. Preserve the R271-r4 contract byte-for-byte; update the current pointer and treat the reviewer acknowledgement/GO as invalid for technical source work. No source authority was exercised. The 450-second reservation remains charged, with no reset/refund. Luna's 150-second adjudication cap remains part of the same 600-second correction. No further review/proof work is admitted automatically.
 
 R271-r3 artifacts remain immutable at theory `5760eeaac26e3b99104b3f14f137b37f60684434342a436527b849674be40147` and handoff `cf03bebdcd643e3168719a9097a01cf8a99f7f0a86805d2f323b0bbe0fd2d7be`. Their source-native result remains conditional; Parent/Need_D and the unchanged parent remain OPEN, Parent/A/B 0→0, `NO_SAFE_CODE_SLICE`.
+
+## Luna adjudication / envelope disposition
+
+Dispatcher disposition: **R271 CLOSED INCOMPLETE; no clean independent review gate**. The incorrect supplied contract pin is a primary pin-authority failure before technical review, not a source correctness finding. Preserve the actual contract bytes/hash and the corrected current pointer. The 450-second reviewer allocation is fully charged; prior R271 retained allocation 6,600s plus this review-only correction 600s totals 7,200s, exhausted. No further producer/reviewer grant is issued under R271.
+
+The R271-r3 producer artifacts remain frozen conditional candidates. No independent clean gate, accepted-source Parent/`Need_D`, R70/R71 closure, counterexample, approved-clause violation, or implementation repair is established. Parent/A/B remains 0→0; implementation remains `NO_SAFE_CODE_SLICE`. The overarching inference/effects goal remains unfinished and active; this sprint budget boundary alone does not mark the goal blocked or complete.
