@@ -12,6 +12,11 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Resident Yulang orchestration (2026-10-16)
 
+- [Harness workflow simplification](2026-11-03-harness-workflow-simplification.md)
+  — User-approved, independently reviewed default for broad read-only exploration,
+  session-scoped identities and non-blocking compact-state size diagnostics;
+  writer isolation and proof review remain binding.
+
 - [Reduced Astra use in goal-driven sprints](2026-10-17-astra-budget-reduction.md)
   — User-directed resource amendment: default zero, with one named-risk
   assignment capped at 300 seconds and three stages per sprint.

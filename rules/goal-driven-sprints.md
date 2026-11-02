@@ -202,6 +202,12 @@ results, changes semantics nor performs Git. Luna validates proposals and grants
 a continuation envelope once. Workers send compact frozen handoffs to Luna;
 no compulsory dispatcher acknowledgement is inserted between internal steps.
 Only Luna assigns fresh independent reviews and integrates accepted artifacts.
+During a shared-state owner handoff, a read-only review may proceed only after
+its aggregate capacity slot is coordinated with the current scheduler or covered
+by an already exclusive reservation. If the central record cannot safely be
+updated, retain an exclusive session receipt with identity, frozen inputs,
+launch, STOP and findings; reconcile it before gate acceptance or integration.
+No such receipt releases a writer lease or proves another session stopped.
 
 ## 5. Small current state, immutable evidence and ownership
 
@@ -211,13 +217,13 @@ by default and returns deltas. This supersedes its old board-file write lease
 only after the old writer's acknowledged handoff. The small `board.md` links
 current state and history; do not maintain another detailed mutable queue.
 
-Keep current state <=16 KiB and at most 32 active/blocked/pending-review entries.
-Retain only the active sprint, workers, requested/observed settings, live/frozen/
-quarantined leases, ready next work, pending review/integration and history
-locators. Archive resolved receipts in a uniquely named frozen sprint milestone,
-verify its hash/reference, then remove only resolved entries from current state.
-Do not discard active/unknown leases or unconsumed results to meet a size limit;
-stop admissions and checkpoint/resolve them. No full historical-ledger startup read.
+Keep current state compact; 16 KiB is a diagnostic target, not an admission
+failure. Retain at most 32 active/blocked/pending-review entries and validate all
+workers, leases, capacity releases and pending items regardless of byte size.
+Archive resolved receipts in a uniquely named frozen sprint milestone, verify its
+hash/reference, then remove only resolved entries. Never discard active/unknown
+leases or unconsumed results to meet a size target. No full historical-ledger
+startup read. See the [workflow simplification decision](../notes/design/2026-11-03-harness-workflow-simplification.md).
 
 A worker owns only its exact artifact and handoff paths, including generated or
 scratch outputs. Use one handoff file per multi-stage assignment, not per lemma.
@@ -230,9 +236,13 @@ is preserved; requests alone do not assign work or transfer a lease.
 
 ## 6. Runtime truth, STOP and resumption
 
-Keep planned task state separate from observed worker state. ASSIGNED is not
-RUNNING. RUNNING needs a current-session actual launch/resume acknowledgement,
-worker ID and active-work receipt. A retained idle worker is WAITING. Requested
+Keep planned task state separate from observed worker state. Record the runtime
+session namespace and actual agent identity separately from its display path and
+assignment ID when available. A display path alone is not globally unique;
+missing runtime identity remains UNKNOWN. A roster scoped to another session
+cannot establish cessation. ASSIGNED is not RUNNING. RUNNING needs a
+current-session actual launch/resume acknowledgement, worker ID and active-work
+receipt. A retained idle worker is WAITING. Requested
 model/effort and effective observed model/effort are separate fields; absent
 metadata is UNKNOWN. A successful request or configuration parse proves neither
 execution nor a particular effective model. Record a known routing mismatch;

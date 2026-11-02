@@ -7,8 +7,10 @@ append-only board after an acknowledged live writer reconciliation.
 
 ## Read and write ownership
 
-Read current.json, the selected sprint contract and exact needed source locators.
-Read historical task/proof records only when a claim/owner requires them. Luna
+Read current.json and the selected sprint contract at startup. Investigations
+may follow relevant source, test and local dependency bodies read-only; freeze
+and authenticate actual claim inputs before review. Read historical task/proof
+records when a claim or owner requires them. Luna
 owns current.json and Git. A dispatcher normally returns a proposed delta; one
 explicit recorder lease is possible, never concurrent central writers. board.md
 is a small navigation card. Old board/inbox history is preserved without loading
@@ -64,6 +66,9 @@ BLOCKED/CANCELLED/FAILED/STALE alternatives. A multi-stage RESULT is not DONE.
 Worker observations are NOT_STARTED/RUNNING/WAITING/BLOCKED/STOPPED/UNKNOWN.
 A resident idle identity is WAITING. RUNNING requires a current-session actual
 launch/resume and active-work receipt, not a configured role or old worker ID.
+For a resumed assignment, distinguish its immutable worker-origin session from the
+session of each new cessation receipt. The offline checker validates this
+structure; a session label and nonempty receipt are not runtime authentication.
 Known routing mismatch keeps the real returned identity and quarantined lease;
 it is not a nonexistent launch and cannot justify overlapping replacement.
 
@@ -114,11 +119,13 @@ capacity override may free slots after live-roster synchronization without
 unquarantining their paths.
 No live tool support means explicit degraded serial work, not a fictional team.
 
-Keep current.json <=16 KiB with at most 32 pending items. At a substantial
-milestone freeze a uniquely named outcome receipt, verify its content hash and
-history locator, then remove only resolved entries from current state. Never
-remove active/unknown leases, pending reviews or unconsumed results to shrink it.
-Stop admissions if they cannot fit. The archive records original goals, before/
+Keep current.json compact; 16 KiB is a warning target, not an admission limit.
+Keep at most 32 pending items and validate all entries regardless of file size.
+At a substantial milestone freeze a uniquely named outcome receipt, verify its
+content hash and history locator, then remove only resolved entries from current
+state. Never remove active/unknown leases, pending reviews or unconsumed results
+to shrink it. A missing session-scoped runtime identity is UNKNOWN, not evidence
+that another session stopped or that a user started a process. The archive records original goals, before/
 after evidence, remaining premises, substantive implementation behavior, review,
 checks, Git outcome and limitations. Avoid duplicate micro-progress narratives
 in tasks/current.md, tasks/research-lab.md and the historical board.

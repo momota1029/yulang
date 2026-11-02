@@ -4,11 +4,13 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import shutil
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
-from agent_sprint import (ASTRA, LUNA, SOL, ProtocolError, SprintModel,
+from agent_sprint import (ASTRA, LUNA, SOL, ProtocolError, SprintModel, check_repository,
                           digest, exact_path, simulation, validate_current)
 
 
@@ -337,6 +339,62 @@ class SprintTransitions(unittest.TestCase):
         with self.assertRaises(ProtocolError):
             self.m.assign("another-astra", "proof", ["aux.md"], ["proof"], model=ASTRA)
 
+    def test_repeated_runtime_label_is_scoped_to_its_launch_session(self) -> None:
+        self.proof()
+        self.m.assign("duplicate", "proof", ["aux.md"], ["proof"])
+        with self.assertRaises(ProtocolError):
+            self.m.launch("duplicate", "fixture-producer", "duplicate-launch", self.m.session)
+        self.m.cancel_unstarted("duplicate", "fixture-never-launched")
+        self.m.pause(end=True)
+        self.m.begin("fixture-session-2")
+        self.m.assign("P2", "proof", ["aux.md"], ["proof"])
+        self.m.launch("P2", "fixture-producer", "fresh-launch", self.m.session)
+        self.assertEqual(self.m.jobs["P"]["worker_state"], "UNKNOWN")
+        self.assertEqual(self.m.jobs["P"]["worker_session"], "fixture-session-1")
+        self.assertEqual(self.m.jobs["P2"]["worker_session"], "fixture-session-2")
+        self.assertEqual(self.m.leases, {"proof.md": "P", "aux.md": "P2"})
+
+        for origin in (None, "fixture-session-2"):
+            with self.subTest(origin=origin), self.assertRaises(ProtocolError):
+                self.m.stopped("P", "fixture-producer", "wrong-stop", worker_session=origin)
+        self.assertEqual(self.m.jobs["P"]["worker_state"], "UNKNOWN")
+        self.assertEqual(self.m.leases["proof.md"], "P")
+        with self.assertRaises(ProtocolError):
+            self.m.resume_worker("P", "fixture-producer", "new-resume", self.m.session)
+        self.m.resume_worker("P", "fixture-producer", "new-resume", self.m.session,
+                             worker_session="fixture-session-1")
+        self.assertEqual(self.m.jobs["P"]["session"], "fixture-session-2")
+        self.assertEqual(self.m.jobs["P"]["worker_session"], "fixture-session-1")
+        for receipt_session in (None, "fixture-session-1"):
+            with self.subTest(receipt_session=receipt_session), self.assertRaises(ProtocolError):
+                self.m.stopped("P", "fixture-producer", "stale-stop",
+                               worker_session="fixture-session-1", receipt_session=receipt_session)
+        self.assertEqual(self.m.jobs["P"]["worker_state"], "RUNNING")
+        self.assertEqual(self.m.leases["proof.md"], "P")
+        with self.assertRaises(ProtocolError):
+            self.m.stopped("P", "fixture-producer", "new-resume",
+                           worker_session="fixture-session-1", receipt_session="fixture-session-2")
+        self.m.stopped("P", "fixture-producer", "exact-stop",
+                       worker_session="fixture-session-1", receipt_session="fixture-session-2")
+        self.assertEqual(self.m.jobs["P2"]["worker_state"], "RUNNING")
+        self.assertEqual(self.m.leases, {"aux.md": "P2"})
+
+    def test_unknown_old_assignment_needs_explicit_cessation_session(self) -> None:
+        self.proof()
+        self.m.pause(end=True)
+        self.m.begin("fixture-session-2")
+        with self.assertRaises(ProtocolError):
+            self.m.stopped("P", "fixture-producer", "unscoped-stop")
+        self.assertEqual(self.m.jobs["P"]["worker_state"], "UNKNOWN")
+        self.assertEqual(self.m.leases["proof.md"], "P")
+        with self.assertRaises(ProtocolError):
+            self.m.stopped("P", "fixture-producer", "wrong-stop",
+                           receipt_session="fixture-session-2")
+        self.m.stopped("P", "fixture-producer", "actual-old-session-stop",
+                       receipt_session="fixture-session-1")
+        self.assertEqual(self.m.jobs["P"]["worker_state"], "STOPPED")
+        self.assertNotIn("proof.md", self.m.leases)
+
     def test_fresh_resume_receipt_continues_same_assignment_without_budget_reset(self) -> None:
         self.proof(astra=True)
         self.m.step("P", "lemma", "parent", seconds=12)
@@ -357,6 +415,42 @@ class SprintTransitions(unittest.TestCase):
             self.m.resume_worker("P", "fixture-producer", "fixture-resume", self.m.session)
         self.m.resume_worker("P", "fixture-producer", "fixture-resume", self.m.session,
                              unblock_receipt="fixture-established-premise")
+
+    def test_multiple_restarts_reject_every_previous_runtime_receipt(self) -> None:
+        self.proof()
+        consumed = ["fixture-launch-P"]
+        for number in (2, 3, 4):
+            self.m.pause(end=True)
+            self.m.begin(f"fixture-session-{number}")
+            before = self.m.snapshot()
+            for receipt in consumed:
+                with self.subTest(session=number, receipt=receipt), self.assertRaises(ProtocolError):
+                    self.m.resume_worker("P", "fixture-producer", receipt, self.m.session,
+                                         worker_session="fixture-session-1")
+                self.assertEqual(self.m.snapshot(), before)
+            fresh = f"fixture-resume-{number}"
+            self.m.resume_worker("P", "fixture-producer", fresh, self.m.session,
+                                 worker_session="fixture-session-1")
+            consumed.append(fresh)
+
+        # A new session label cannot turn an old launch/resume into cessation.
+        before = self.m.snapshot()
+        for receipt in consumed:
+            with self.subTest(stop_receipt=receipt), self.assertRaises(ProtocolError):
+                self.m.stopped("P", "fixture-producer", receipt,
+                               worker_session="fixture-session-1", receipt_session=self.m.session)
+            self.assertEqual(self.m.snapshot(), before)
+        self.m.stopped("P", "fixture-producer", "fixture-stop-1",
+                       worker_session="fixture-session-1", receipt_session=self.m.session)
+        self.m.stopped("P", "fixture-producer", "fixture-stop-2",
+                       worker_session="fixture-session-1", receipt_session=self.m.session)
+        before = self.m.snapshot()
+        with self.assertRaises(ProtocolError):
+            self.m.stopped("P", "fixture-producer", "fixture-stop-1",
+                           worker_session="fixture-session-1", receipt_session=self.m.session)
+        self.assertEqual(self.m.snapshot(), before)
+        self.assertEqual(self.m.jobs["P"]["used_runtime_receipts"],
+                         consumed + ["fixture-stop-1", "fixture-stop-2"])
 
     def test_stale_session_cannot_launch_reserved_work(self) -> None:
         self.m.assign("P", "proof", ["proof.md"], ["proof"])
@@ -480,6 +574,92 @@ class SnapshotValidation(unittest.TestCase):
     def test_current_live_receipt_structure(self) -> None:
         validate_current(self.s)  # Structure only: not authentication of this fixture.
 
+    def test_repository_check_validates_oversized_state(self) -> None:
+        source = Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = tomllib.loads((source / ".codex/config.toml").read_text())
+            role_files = [".codex/" + entry["config_file"]
+                          for entry in config["agents"].values() if isinstance(entry, dict)]
+            skill_files = [f".agents/skills/{name}/{file}"
+                           for name in ("yulang-research-loop", "yulang-next-action",
+                                        "yulang-sprint", "yulang-lean-proofs")
+                           for file in ("SKILL.md", "agents/openai.yaml")]
+            for relative in ([".codex/config.toml", "AGENTS.md",
+                              "rules/agent-orchestration.md", "rules/research-lab.md",
+                              "rules/orchestration-budget.md", "tasks/agent-loop/board.md",
+                              "tasks/agent-loop/sprints/call-contextual-effects.json"]
+                             + role_files + skill_files):
+                destination = root / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source / relative, destination)
+            current = root / "tasks/agent-loop/current.json"
+            # Exercise the physical-file size path even when compact JSON is small.
+            current.write_text(json.dumps(self.s) + " " * (17 * 1024))
+            self.assertIn("DIAGNOSTIC: current.json file exceeds 16 KiB; all rows validated",
+                          check_repository(root))
+            invalid = copy.deepcopy(self.s)
+            invalid["leases"][0]["owner"] = "missing-worker"
+            invalid["note"] = "x" * (17 * 1024)
+            current.write_text(json.dumps(invalid))
+            with self.assertRaises(ProtocolError):
+                check_repository(root)
+
+    def test_runtime_labels_have_session_scope_but_row_ids_stay_exact(self) -> None:
+        old = copy.deepcopy(self.s["workers"][0])
+        old.update(id="older-assignment", state="UNKNOWN", session="s0",
+                   worker_id="reused-label", worker_session="s0")
+        self.s["workers"][0].update(worker_id="reused-label", worker_session="s1")
+        self.s["workers"].append(old)
+        self.s["leases"].append({"path": "old-proof.md", "owner": "older-assignment",
+                                 "state": "QUARANTINED"})
+        validate_current(self.s)
+        self.assertEqual(old["state"], "UNKNOWN")
+        self.assertEqual(self.s["leases"][1]["state"], "QUARANTINED")
+        old["worker_session"] = "s1"
+        with self.assertRaises(ProtocolError):
+            validate_current(self.s)
+
+    def test_partial_runtime_identity_is_rejected(self) -> None:
+        for key in ("worker_id", "worker_session"):
+            state = copy.deepcopy(self.s)
+            state["workers"][0][key] = "fixture"
+            with self.subTest(key=key), self.assertRaises(ProtocolError):
+                validate_current(state)
+
+    def test_oversized_state_is_diagnostic_and_keeps_all_rows(self) -> None:
+        self.s["note"] = "x" * (17 * 1024)
+        self.s["workers"][0]["state"] = "UNKNOWN"
+        self.s["leases"][0]["state"] = "QUARANTINED"
+        before = copy.deepcopy(self.s)
+        diagnostics = validate_current(self.s)
+        self.assertEqual(len(diagnostics), 1)
+        self.assertIn("exceeds 16 KiB", diagnostics[0])
+        self.assertEqual(self.s, before)
+
+    def test_oversized_state_still_validates_workers_leases_capacity_and_pending(self) -> None:
+        self.s["note"] = "x" * (17 * 1024)
+        invalid = []
+        state = copy.deepcopy(self.s)
+        state["workers"][0]["receipt"] = ""
+        invalid.append(state)
+        state = copy.deepcopy(self.s)
+        state["leases"][0]["owner"] = "missing"
+        invalid.append(state)
+        state = copy.deepcopy(self.s)
+        state["workers"] = [dict(state["workers"][0], id=f"reserved-{i}", state="UNKNOWN")
+                            for i in range(13)]
+        invalid.append(state)
+        state = copy.deepcopy(self.s)
+        state["pending"] = list(range(33))
+        invalid.append(state)
+        state = copy.deepcopy(self.s)
+        state["schema_version"] = 2
+        invalid.append(state)
+        for index, state in enumerate(invalid):
+            with self.subTest(index=index), self.assertRaises(ProtocolError):
+                validate_current(state)
+
     def test_running_is_forbidden_after_end_or_in_simulation_or_without_receipt(self) -> None:
         for field, value in (("phase", "ENDED"), ("mode", "SIMULATION"), ("session", "s2")):
             s = copy.deepcopy(self.s)
@@ -509,10 +689,12 @@ class SnapshotValidation(unittest.TestCase):
             state = copy.deepcopy(self.s)
             state["phase"] = "ENDED"
             state["session"] = None
+            state["note"] = "x" * (17 * 1024)
             state["workers"] = [
                 {"id": ident, "state": "UNKNOWN", "requested_model": SOL,
                  "observed_model": "UNKNOWN", "requested_effort": "high",
-                 "observed_effort": "UNKNOWN"}
+                 "observed_effort": "UNKNOWN", "worker_id": "reused-label",
+                 "worker_session": ident}
                 for ident in released + [f"current-{i}" for i in range(12)]
             ]
             state["leases"] = []
@@ -525,6 +707,16 @@ class SnapshotValidation(unittest.TestCase):
                 },
             }
             validate_current(state, repo_root=root)
+
+            # Receipt identities remain row IDs, never a repeated runtime label.
+            relabeled = receipt.replace("legacy-0", "reused-label")
+            receipt_path.write_text(relabeled)
+            state["legacy_reconciliation"]["capacity_override"]["sha256"] = hashlib.sha256(
+                relabeled.encode()).hexdigest()
+            with self.assertRaises(ProtocolError):
+                validate_current(state, repo_root=root)
+            receipt_path.write_bytes(raw)
+            state["legacy_reconciliation"]["capacity_override"]["sha256"] = hashlib.sha256(raw).hexdigest()
 
             state["legacy_reconciliation"]["capacity_override"]["slots"] -= 1
             with self.assertRaises(ProtocolError):

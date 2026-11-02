@@ -26,7 +26,7 @@ BOUNDARIES = frozenset({"START", "END", "BLOCKER", "COUNTEREXAMPLE",
                         "INTEGRATION", "REPLAN"})
 WORKER_STATES = frozenset({"NOT_STARTED", "RUNNING", "WAITING", "BLOCKED",
                            "STOPPED", "UNKNOWN"})
-LIMIT_BYTES = 16 * 1024
+LIMIT_BYTES = 16 * 1024  # Compact-state diagnostic threshold, not admission authority.
 
 
 class ProtocolError(ValueError):
@@ -200,7 +200,7 @@ class SprintModel:
                     "Astra sprint seconds exhausted")
         job = {"id": ident, "lane": lane, "role": role, "paths": list(paths),
                "steps": list(steps), "cursor": 0, "status": "ASSIGNED",
-               "worker_state": "NOT_STARTED", "worker_id": None,
+               "worker_state": "NOT_STARTED", "worker_id": None, "worker_session": None,
                "requested_model": model, "observed_model": "UNKNOWN",
                "requested_effort": effort, "observed_effort": "UNKNOWN",
                "session": self.session, "receipt": None, "attempts": 0,
@@ -208,7 +208,7 @@ class SprintModel:
                "production": production, "seconds": seconds, "spent": 0,
                "evidence": [], "artifact": None, "review": None,
                "parent": parent, "coordinator": coordinator, "leaf_paths": list(leaf_paths),
-               "stop_receipt": None, "stale": False}
+               "stop_receipt": None, "used_runtime_receipts": [], "stale": False}
         self.jobs[ident] = job
         self.leases.update({p: ident for p in paths})
         # Charge the full grant up front. Unknown runtime duration, interruption,
@@ -224,17 +224,22 @@ class SprintModel:
         require(self.phase == "ACTIVE" and session == self.session == j["session"], "stale session receipt")
         require(j["status"] == "ASSIGNED" and j["attempts"] < 3, "not launchable")
         require(bool(worker) and bool(receipt), "actual worker and receipt required")
-        require(not any(x["worker_id"] == worker and x["worker_state"] != "STOPPED"
+        require(receipt not in j["used_runtime_receipts"], "runtime receipt was already consumed")
+        require(not any(x["worker_id"] == worker and x["worker_session"] == session and
+                        x["worker_state"] != "STOPPED"
                         for x in self.jobs.values()), "duplicate live worker")
         mismatch = (observed_model not in {"UNKNOWN", j["requested_model"]} or
                     observed_effort not in {"UNKNOWN", j["requested_effort"]})
         # A returned worker may be alive even on a routing mismatch. Keep its ID,
         # observed model and quarantined lease rather than pretending launch failed.
-        j.update(worker_id=worker, receipt=receipt,
+        # The launch session scopes a human-readable runtime ID. Resumption
+        # updates the active receipt session, never this origin identity.
+        j.update(worker_id=worker, worker_session=session, receipt=receipt,
                  worker_state="UNKNOWN" if mismatch else "RUNNING",
                  status="ROUTING_MISMATCH" if mismatch else "RUNNING",
                  observed_model=observed_model, observed_effort=observed_effort)
         j["attempts"] += 1
+        j["used_runtime_receipts"].append(receipt)
         if observed_model == ASTRA and j["requested_model"] != ASTRA:
             # A real routing mismatch cannot be undone by the simulator. Charge
             # its whole grant and retain UNKNOWN/ROUTING_MISMATCH for Luna to
@@ -243,12 +248,13 @@ class SprintModel:
             self.astra_assignments += 1
 
     def resume_worker(self, ident: str, worker: str, receipt: str, session: str, *,
-                      unblock_receipt: str | None = None) -> None:
+                      unblock_receipt: str | None = None,
+                      worker_session: str | None = None) -> None:
         self._contract()
         j = self.jobs[ident]
         require(self.phase == "ACTIVE" and session == self.session and bool(receipt),
                 "fresh current-session resume receipt required")
-        require(worker == j["worker_id"] and bool(worker), "actual worker identity required")
+        self._worker_identity(j, worker, worker_session)
         require(j["worker_state"] in {"UNKNOWN", "BLOCKED", "WAITING"} and
                 j["status"] not in {"ROUTING_MISMATCH", "STALE"} and not j["stale"],
                 "worker is not eligible for same-contract resumption")
@@ -256,8 +262,11 @@ class SprintModel:
         require(j["status"] != "BLOCKED" or bool(unblock_receipt), "blocker resolution required")
         require(all(self.leases.get(p) == ident for p in j["paths"]), "lease was transferred")
         require(all(self.dependencies.get(k) == v for k, v in j["dependencies"].items()), "stale dependency")
-        require(receipt != j["receipt"], "old receipt cannot resurrect a worker")
+        # Keep every accepted launch/resume/cessation identity across restarts;
+        # comparing only the latest receipt permits replay after another resume.
+        require(receipt not in j["used_runtime_receipts"], "old receipt cannot resurrect a worker")
         j.update(session=session, receipt=receipt, worker_state="RUNNING", status="RUNNING")
+        j["used_runtime_receipts"].append(receipt)
 
     def launch_failed(self, ident: str, reason: str) -> None:
         j = self.jobs[ident]
@@ -274,7 +283,9 @@ class SprintModel:
         j = self.jobs[ident]
         require(j["status"] == "ASSIGNED" and j["worker_id"] is None and bool(no_launch_receipt),
                 "positive no-launch evidence required; unknown workers are not unstarted")
+        require(no_launch_receipt not in j["used_runtime_receipts"], "runtime receipt was already consumed")
         j.update(status="FAILED", worker_state="STOPPED", stop_receipt=no_launch_receipt)
+        j["used_runtime_receipts"].append(no_launch_receipt)
         for p in j["paths"]:
             self.leases.pop(p)
 
@@ -394,12 +405,34 @@ class SprintModel:
             # Unconfirmed paths remain quarantined in self.leases.
         # User STOP never depends on a dispatcher response.
 
-    def stopped(self, ident: str, worker: str, receipt: str) -> None:
+    def _worker_identity(self, job: dict[str, Any], worker: str,
+                         worker_session: str | None) -> None:
+        require(bool(worker) and worker == job["worker_id"], "actual worker identity required")
+        origins = {j["worker_session"] for j in self.jobs.values() if j["worker_id"] == worker}
+        require(worker_session is not None or len(origins) == 1,
+                "repeated worker ID requires its launch session")
+        require(worker_session is None or worker_session == job["worker_session"],
+                "worker launch session does not match assignment")
+
+    def stopped(self, ident: str, worker: str, receipt: str, *,
+                worker_session: str | None = None,
+                receipt_session: str | None = None) -> None:
         j = self.jobs[ident]
-        require(bool(worker) and worker == j["worker_id"] and bool(receipt), "actual cessation acknowledgement required")
+        self._worker_identity(j, worker, worker_session)
+        require(bool(receipt), "actual cessation acknowledgement required")
+        # An origin identity can survive a session restart; a cessation receipt
+        # must identify the currently active session rather than only that origin.
+        require(receipt_session is not None or (
+                    j["session"] == j["worker_session"] == self.session),
+                "cross-session cessation requires receipt session")
+        require(receipt_session is None or receipt_session == j["session"],
+                "stale cessation receipt session")
+        require(receipt not in j["used_runtime_receipts"],
+                "cessation acknowledgement must be fresh")
         require(not any(x["parent"] == ident and x["worker_state"] != "STOPPED"
                         for x in self.jobs.values()), "a descendant may still write")
         j.update(worker_state="STOPPED", stop_receipt=receipt)
+        j["used_runtime_receipts"].append(receipt)
         if j["status"] in {"RUNNING", "ASSIGNED", "ROUTING_MISMATCH"}:
             j["status"] = "CANCELLED"
         for p in j["paths"]:
@@ -458,9 +491,16 @@ def _released_capacity_ids(data: dict[str, Any], repo_root: Path | None) -> set[
     return released
 
 
-def validate_current(data: dict[str, Any], *, repo_root: Path | None = None) -> None:
+def validate_current(data: dict[str, Any], *, repo_root: Path | None = None) -> list[str]:
+    """Validate all rows; return non-failing size diagnostics.
+
+    Row IDs remain the exact capacity-receipt and lease-owner keys. Optional
+    worker_id/worker_session pairs identify runtime labels within their launch
+    session, without claiming live evidence or migrating legacy row IDs.
+    """
     compact = json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
-    require(len(compact) + 1 <= LIMIT_BYTES, "compact current state exceeds 16 KiB")
+    diagnostics = (["DIAGNOSTIC: compact current state exceeds 16 KiB; all rows validated"]
+                   if len(compact) + 1 > LIMIT_BYTES else [])
     require(data.get("schema_version") == 1, "unsupported current-state schema")
     require(data.get("mode") in {"UNAVAILABLE", "LIVE", "SIMULATION"}, "explicit runtime mode required")
     require(data.get("phase") in {"NOT_STARTED", "ACTIVE", "PAUSED", "ENDED", "RECONCILE"}, "invalid session phase")
@@ -468,10 +508,19 @@ def validate_current(data: dict[str, Any], *, repo_root: Path | None = None) -> 
     require(isinstance(workers, list), "invalid worker inventory")
     require(len(data.get("pending", [])) <= 32, "archive resolved history, never active leases")
     ids: set[str] = set()
+    runtime_ids: set[tuple[str, str]] = set()
     for worker in workers:
         require(worker["state"] in WORKER_STATES, "unknown worker state")
         require(worker["id"] not in ids and bool(worker["id"]), "duplicate/empty worker identity")
         ids.add(worker["id"])
+        if "worker_id" in worker or "worker_session" in worker:
+            require(all(isinstance(worker.get(key), str) and bool(worker[key])
+                        for key in ("worker_id", "worker_session")),
+                    "runtime identity requires worker ID and launch session")
+            identity = (worker["worker_id"], worker["worker_session"])
+            if worker["state"] != "STOPPED":
+                require(identity not in runtime_ids, "duplicate reserved runtime identity")
+                runtime_ids.add(identity)
         require(bool(worker.get("requested_model")) and bool(worker.get("observed_model")), "use UNKNOWN, not omitted model facts")
         require(bool(worker.get("requested_effort")) and bool(worker.get("observed_effort")),
                 "use UNKNOWN, not omitted effort facts")
@@ -503,6 +552,7 @@ def validate_current(data: dict[str, Any], *, repo_root: Path | None = None) -> 
         require(data["phase"] != "ACTIVE", "pending policy review blocks live adoption")
     if data.get("legacy_reconciliation", {}).get("required"):
         require(data["phase"] != "ACTIVE", "legacy reconciliation must precede activation")
+    return diagnostics
 
 
 def check_repository(root: Path, *, inventory: dict[str, str] | None = None) -> list[str]:
@@ -561,10 +611,12 @@ def check_repository(root: Path, *, inventory: dict[str, str] | None = None) -> 
                 f"skill UI routing missing: {name}")
         require("every action boundary" not in ui, f"legacy UI cadence: {name}")
     current_path = root / "tasks/agent-loop/current.json"
-    require(len(current_path.read_bytes()) <= LIMIT_BYTES,
-            "current.json file exceeds 16 KiB")
-    state = json.loads(current_path.read_text())
-    validate_current(state, repo_root=root)
+    raw_current = current_path.read_bytes()
+    state = json.loads(raw_current)
+    diagnostics = validate_current(state, repo_root=root)
+    if len(raw_current) > LIMIT_BYTES and not diagnostics:
+        diagnostics.append("DIAGNOSTIC: current.json file exceeds 16 KiB; all rows validated")
+    checked.extend(diagnostics)
     require(len((root / "tasks/agent-loop/board.md").read_bytes()) <= 4096, "navigation board grew into history")
     seed = json.loads((root / "tasks/agent-loop/sprints/call-contextual-effects.json").read_text())
     require(seed["status"] == "CANDIDATE" and bool(seed["unresolved_before_activation"]), "seed must not pretend to be executable")

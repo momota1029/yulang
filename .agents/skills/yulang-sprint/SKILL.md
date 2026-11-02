@@ -13,10 +13,15 @@ plan-only and status-only requests never imply production work or live spawning.
 ## Establish one outcome
 
 Read `tasks/agent-loop/current.json` and README, then the active sprint contract.
+For new or explicitly revised packets, relevant repository source, tests and
+local dependency bodies may be explored read-only; identify and freeze the actual
+production evidence before independent review. Historical packet restrictions and
+STOP records remain unchanged.
 At migration, leave legacy workers/leases UNKNOWN until the live primary
 reconciles them; an archived board is not proof of cessation. Preserve current
-uncommitted/foreign work and pending questions. Read only needed original
-source/theorem locators and owner-path history, not entire historical ledgers.
+uncommitted/foreign work and pending questions. Use targeted owner-path history
+at startup rather than loading entire historical ledgers; follow relevant source,
+test and dependency bodies as the investigation requires.
 
 At sprint start consult next_action_selector once. Fill the sprint template:
 original theorem and quantifiers, accepted source/native meaning, implementation

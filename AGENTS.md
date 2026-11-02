@@ -191,6 +191,11 @@ Search historical task/proof records by gate and owner when needed; do not load
 all of `tasks/current.md`, `tasks/research-lab.md` or the archived board at startup.
 A current-state row never establishes a live worker, a released lease, a proof,
 or production authority. Reconcile live identities and unknown old leases first.
+Runtime identities are session-scoped: an absent identity in a different session's
+roster is not a STOP receipt and is not evidence that the user started a process.
+For new or explicitly revised packets, relevant source, tests and local dependency
+implementations may be explored read-only; freeze actual production evidence for
+independent review. See [the workflow simplification decision](notes/design/2026-11-03-harness-workflow-simplification.md).
 The standing capacity override may release assignment slots after live-roster
 synchronization when stale reservations impede authorized bounded work; it does
 not reconcile or release unknown path leases.

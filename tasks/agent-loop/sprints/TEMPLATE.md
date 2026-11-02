@@ -26,7 +26,7 @@ Relevant prior work and concrete reuse/adapt/reject rationale:
 
 ## Permissions and resources
 
-Exact source reads / artifact, generated, scratch and handoff file leases:
+Read-only exploration scope / actual claim evidence to freeze / exact artifact, generated, scratch and handoff write leases:
 Authority/dependency/lease boundary that requires returning to Luna:
 Available runtime capacity; aggregate assignment/descendant budget and review reserve:
 Global Astra concurrency <=1 and assignments <=2; finite stages and active wall time:

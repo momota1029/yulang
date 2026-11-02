@@ -69,14 +69,20 @@ Use the scheduling and resource budgets in [`research-lab.md`](research-lab.md).
 
 The primary may run concurrent write-capable children in one worktree only when:
 
-1. Each has an explicit, non-overlapping lease of exact output paths, plus a
-   pinned source/authority baseline and a bounded read/dependency set. Different
+1. Each has an explicit, non-overlapping lease of exact output paths and a
+   pinned source/authority baseline. Relevant repository source, tests and local
+   dependency implementation may be explored read-only without per-symbol
+   admission. A read does not authorize a write, establish production reachability
+   or change expected output. Freeze and authenticate the actual evidence and
+   production configuration before independent review or acceptance. Different
    functions or sections in one file are not disjoint leases. Leases are
    coordination contracts, not a claim of sandbox-enforced file permissions.
-2. No worker depends on another worker's unfinished edits. Read stable shared
-   inputs from the pinned revision or a frozen copy. Generated files, reports,
-   temporary output, caches with unsafe writers, and formatting writes are part
-   of the write set, not exceptions. Unknown side effects require isolation.
+2. No accepted result depends on another worker's unfinished edits. Use the
+   pinned revision or a frozen copy for accepted evidence and review inputs;
+   preliminary read-only exploration of mutable files is not proof evidence.
+   Generated files, reports, temporary output, caches with unsafe writers, and
+   formatting writes are part of the write set, not exceptions. Unknown side
+   effects require isolation.
 3. `AGENTS.md`, `rules/`, `.codex/`, manifests/lockfiles, `tasks/current.md`,
    `notes/design/INDEX.md`, and the shared lane queue have one coordinating
    primary writer. Theory-map files may have one explicitly leased curator.
