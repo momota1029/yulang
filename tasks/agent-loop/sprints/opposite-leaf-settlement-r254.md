@@ -30,6 +30,7 @@ Baseline HEAD: `b67a154ff7bedf23b937a915379f262ad71aaef7`.
 | `crates/yu-solver/src/candidate_intrusion.rs` | `475edf15acbb5d986b5aebd1cb22b9c5fad61c50811690a763b39ff003cccd97` |
 | `crates/yu-solver/src/candidate_scheme.rs` | `6072c73bc1a1629f025dcaf61fcbed98c738d93f8993bd81182a391d1ad4d89e` |
 | `crates/yu-solver/src/candidate_source.rs` | `bb8348a4cf6f83df1099f06bb0e853a178d4629f85778730bb2f394d74745a49` |
+| `crates/yu-solver/src/shadow_apply.rs` | `99d67895c250e5d79fb774728867fe2fc88c4dc22df9bfc38ac9fd1aeb0908e5` |
 | `crates/yu-solver/src/candidate_extrusion.rs` | `80f126e9c77d1b3d8486c01b4f35a6852f4d466f99daed45ea4e19a598d59d61` |
 | `crates/yu-solver/src/candidate_effect.rs` | `4becefc07b81c1b298cafa190a3698e9e15e94656e1f17390eee13435dcb9b15` |
 | `crates/yu-solver/src/term.rs` | `d253cd9a77ad91c523b413b25a503ef0c6bef47ee4b1f5b8492766531fe493a1` |
@@ -54,4 +55,12 @@ Baseline HEAD: `b67a154ff7bedf23b937a915379f262ad71aaef7`.
 | `tasks/agent-loop/history/20261102-r253-admission.md` | `f0ef140587ce60f7c54b534ddaaf26fd17276359d898cf829e4ef368b435d382` |
 | `tasks/agent-loop/sprints/receiver-ancestry-renewal-r253.md` | `b5a6599eb29d3d451ca31ac621d9dd83cecfea162202ca0d9d0696d282b6e0d3` |
 
-Verify every hash before citation. R253's admitted baseline `901d1f9…` is reconciled in its reviewed history. Use the exact R254 baseline above; no further planned administrative HEAD movement is permitted before the initial R254 hash gate.
+Revision 2 supplemental source-owner admission: the primary verified
+`crates/yu-solver/src/shadow_apply.rs` SHA-256
+`99d67895c250e5d79fb774728867fe2fc88c4dc22df9bfc38ac9fd1aeb0908e5`
+before body reads. This is the actual Apply producer needed to connect
+`candidate_source` actions to an upper Function and its checking relation.
+No output, semantic, lease or budget changes. Contract revision 2 adds only
+this exact read dependency.
+
+Verify every hash before citation. R253's admitted baseline `901d1f9…` is reconciled in its reviewed history. Initial R254 baseline `b67a154ff7bedf23b937a915379f262ad71aaef7` was matched before body reads. The post-gate administrative ref `5bd27bbcd8a59250f59b68bf44fe3e05aa90d6d8` changes only R254 current/history/contract records; Luna verified the exact diff. Record this as administrative movement; source pins are unchanged. No further planned administrative HEAD movement before admitting any further new source owner.
