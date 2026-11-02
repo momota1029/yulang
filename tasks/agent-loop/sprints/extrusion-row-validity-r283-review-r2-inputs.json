@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "project_root": "notes/theory/lean",
+  "inputs": [
+    {"path": "notes/theory/lean/YulangClosure/NativeContextExpansion.lean", "sha256": "9887bef34e51678cead77eaf84a2f9b47916987ea9cffaad5d4ef74d53de2ea8"},
+    {"path": "notes/theory/lean/YulangClosure/NativeMergeExpansion.lean", "sha256": "f14bd35e8f7a6b9f326dadf003797c63f4a48fd0d0c0c9d68891c579560baf6e"},
+    {"path": "notes/theory/lean/YulangClosure/NativeRecordPlan.lean", "sha256": "3cf43fdb754748b83a6816791d640752dda491b87f7e2513a27548a950b27d43"},
+    {"path": "notes/theory/lean/YulangClosure/NativeRelationInterner.lean", "sha256": "1fd7ece6c6a7c6df7159efaebaec585b78a9e8513e9b10e6a3fb4d472b577d3a"},
+    {"path": "notes/theory/lean/YulangClosure/NativeReplayCoverage.lean", "sha256": "e65d925ab5222fd6bbc4bf63e756701aaba1273fff677ceb052d7f66e6450b7e"},
+    {"path": "notes/theory/lean/YulangClosure/NativeReplayCurrent.lean", "sha256": "fdd7dfa32f944f09b2cfc7440caeff95edcfad1fd5c839094f186d27168d9088"},
+    {"path": "notes/theory/lean/YulangClosure/NativeValuePorts.lean", "sha256": "f49bf12537633c65b4dbdcb4e739df5de5eee76cfb5ad845c8dba50cef4101fa"},
+    {"path": "notes/theory/lean/YulangClosure/NativeValueStructure.lean", "sha256": "81060e17ad37f2e4a47edb7ed2829bea6820438bf3d4db0e4de8d113fd9497fc"},
+    {"path": "notes/theory/lean/YulangClosure/OriginalExtrusionWork.lean", "sha256": "c419675d75a2cdf03fe5b1ba8d2eef106fea0c4f5187f9f5c06999fa734edd58"},
+    {"path": "notes/theory/lean/YulangClosure/OriginalInferenceTerminationResolution.lean", "sha256": "a89a316ea72e472b0e2c09effc144730dc4c683228008caf42a433d0a969a6dd"},
+    {"path": "notes/theory/lean/YulangClosure/RecordBoundaryPreservation.lean", "sha256": "1bde9224c1b0d568d5cc73d84a5ccc5f1157452c87ea2ff428096c1dbd50d056"},
+    {"path": "notes/theory/lean/lakefile.toml", "sha256": "212646a72982e77ec92fcbd7e1e171680f6236676d224003f3af36338f83e2f4"},
+    {"path": "notes/theory/lean/lake-manifest.json", "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3"},
+    {"path": "notes/theory/lean/lean-toolchain", "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"},
+    {"path": "notes/theory/lean/YulangClosure/OriginalExtrusionRowValidityR283.lean", "sha256": "31c83006c8d9b411b00d045fd16c9e5875e8a73d5baead989c7a55315f3a3f10"},
+    {"path": "tasks/agent-loop/inbox/extrusion-row-validity-r283.md", "sha256": "63e79d8e52243eccd6e83ddf4eef4c11d72e40e91a3f0fcea551e58084b72428"}
+  ]
+}
