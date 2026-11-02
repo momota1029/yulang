@@ -1,0 +1,361 @@
+{
+  "schema_version": 1,
+  "purpose": "Static production-only source view for R275; not a proof. R274 exact excerpts are inherited unchanged; added excerpts close the R274 missing header and use-item lexical owners. Excerpts are non-contiguous; omitted source behavior is not assumed absent.",
+  "authorized_input_manifest": "tasks/agent-loop/sprints/source-successful-consumer-r273-inputs.json",
+  "authorized_input_manifest_sha256": "42040552635bb7c2652eb0bad68cb46295078d03ae70620b7edd555d3883fa5f",
+  "inherited_ranges": "tasks/agent-loop/sprints/source-acceptance-r274-ranges.json",
+  "inherited_ranges_sha256": "4df81d44a22a22c7ea7d56d19f49bd75c6ed6061bbd06fc777cd80cfafa2debf",
+  "excerpt_count": 35,
+  "excerpts": [
+    {
+      "excerpt_id": "R274-E001",
+      "path": "crates/yu-solver/src/candidate_source.rs",
+      "whole_file_sha256": "bb8348a4cf6f83df1099f06bb0e853a178d4629f85778730bb2f394d74745a49",
+      "start_line": 2525,
+      "end_line": 2540,
+      "excerpt_sha256": "f6cb5eb0852f908072e1b463a2f05f320dbd071c98a15224c398d6b01c9d23fb",
+      "purpose": "fixture-input-only",
+      "class": "exception"
+    },
+    {
+      "excerpt_id": "R274-E002",
+      "path": "crates/yu-syntax/src/lexical/lexer.rs",
+      "whole_file_sha256": "620f91d99cd4b0bd320315398466cbbec2ed625b8a8ebc6ba07f84d0c97524d1",
+      "start_line": 712,
+      "end_line": 972,
+      "excerpt_sha256": "ec80e48d5ebc4f95bf0c3cee6688fbce957c433299ba86822386c9bd69683e54",
+      "purpose": "identifier-and-exact-word-scanners",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E003",
+      "path": "crates/yu-syntax/src/cursor.rs",
+      "whole_file_sha256": "f08aae49fcf048ad11890def7ef9cadab56825a63b8d87db44821a792fe9b142",
+      "start_line": 35,
+      "end_line": 114,
+      "excerpt_sha256": "2a833a71f0a45c7c7178b126be00df131700341fc57c4d317c0eaf357b9e45f5",
+      "purpose": "syntax-cursor-token-owner",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E004",
+      "path": "crates/chasa-recover/src/input.rs",
+      "whole_file_sha256": "303d4dbcad1030b2a3f270a677b0cbfe697bf703c6cd39f159f88348da69bffe",
+      "start_line": 1,
+      "end_line": 274,
+      "excerpt_sha256": "303d4dbcad1030b2a3f270a677b0cbfe697bf703c6cd39f159f88348da69bffe",
+      "purpose": "recoverable-input-and-token-transaction",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E005",
+      "path": "crates/chasa-recover/src/parser.rs",
+      "whole_file_sha256": "1fdc8ba6be46b8f34a6224f7687d1f192b086273180d5b7f593397b98df09bbf",
+      "start_line": 1,
+      "end_line": 434,
+      "excerpt_sha256": "23f3a6ce951fb81913bd1c057f72d3ceb76f48d3096321b728efe8414fb66992",
+      "purpose": "token-run-once-and-rollback-owner",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E006",
+      "path": "/home/momota1029/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-ident-1.0.24/src/lib.rs",
+      "whole_file_sha256": "078912e7c64ba3ea1081b88c2610deba31eeb057c28f9d78e929db4856b7774f",
+      "start_line": 261,
+      "end_line": 274,
+      "excerpt_sha256": "8344b7b4fe4aa1b7c57a519c9cc2841ba4e8e3d8205fd6b77127f8bcf4144ac6",
+      "purpose": "unicode-ident-ascii-branch",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E007",
+      "path": "/home/momota1029/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-ident-1.0.24/src/tables.rs",
+      "whole_file_sha256": "369c476ba91a39fce55563b692a3f598daf7f026cfe0a3796cfed1102fb3b190",
+      "start_line": 14,
+      "end_line": 15,
+      "excerpt_sha256": "513d95448f5fed5fd0d5dbeaa6a618899bfa57144e995e2d931cdbfa45842ab3",
+      "purpose": "unicode-ident-ascii-masks",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E008",
+      "path": "crates/yu-syntax/src/header.rs",
+      "whole_file_sha256": "cd3791144704226f67a05ae3d39aff9b42f4380073b3e9f9817951a493bce5ad",
+      "start_line": 1,
+      "end_line": 444,
+      "excerpt_sha256": "cd3791144704226f67a05ae3d39aff9b42f4380073b3e9f9817951a493bce5ad",
+      "purpose": "header-discovery-and-selection",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E009",
+      "path": "crates/yu-syntax/src/full_parse.rs",
+      "whole_file_sha256": "dd92603f8f5549b8b3f6e45ab6cb39b6598480b7f1cda7897e27b5113107db93",
+      "start_line": 1,
+      "end_line": 371,
+      "excerpt_sha256": "52edbc4ba4690ee6717fd03fd3a9f75013862f00e8a97cf42fdd734bfca41968",
+      "purpose": "full-parse-root-and-construction",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E010",
+      "path": "crates/yu-syntax/src/root_statement.rs",
+      "whole_file_sha256": "c6d1dc49625d1687ff0dae8f6808f4c97c3f78398aae3bc061c44b6fc9661626",
+      "start_line": 106,
+      "end_line": 419,
+      "excerpt_sha256": "4e00389ccbd37b0b40e691baac96bd3b989c81c908cce0231d2a083d49346871",
+      "purpose": "root-statement-sequence",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E011",
+      "path": "crates/yu-syntax/src/declaration/binding.rs",
+      "whole_file_sha256": "a9b0602fccc90d49f294706092c85b373b06869b678cdd4c25efd429d0374387",
+      "start_line": 185,
+      "end_line": 565,
+      "excerpt_sha256": "15091f0439bd02b5acc15bb3e3ecb64f41a98d616ebd613df7340e3e78440366",
+      "purpose": "binding-pattern-body-owner",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E012",
+      "path": "crates/yu-syntax/src/statement.rs",
+      "whole_file_sha256": "2370423ffef9869032da275a12e6d4a96deb9b1bf43ea098320d78ca6fc45bfd",
+      "start_line": 750,
+      "end_line": 1408,
+      "excerpt_sha256": "0f552ea417795e85fb98385e64e8b0a9529cb6cad83a62290b5672ee8aa0ae87",
+      "purpose": "braced-statement-block-owners",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E013",
+      "path": "crates/yu-syntax/src/lexical/item.rs",
+      "whole_file_sha256": "b264b63e84fc73a3ef7dba355864be84d756fab287fa3734eaf37992e3655db7",
+      "start_line": 683,
+      "end_line": 981,
+      "excerpt_sha256": "59e582063b45b15e6befb22bfac39a65edba31d3c4770b721039dd0605007290",
+      "purpose": "item-production-methods",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E014",
+      "path": "crates/yu-syntax/src/lexical/trivia.rs",
+      "whole_file_sha256": "887f1499fe63d870a70777626f0357c502a356d106c623d9a79e3596a17aba19",
+      "start_line": 1,
+      "end_line": 464,
+      "excerpt_sha256": "887f1499fe63d870a70777626f0357c502a356d106c623d9a79e3596a17aba19",
+      "purpose": "trivia-owners",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E015",
+      "path": "crates/yu-syntax/src/sequence.rs",
+      "whole_file_sha256": "1a68331e5d16d46471545e673226541dc848123d1c3e286260359cecf41adcd2",
+      "start_line": 1,
+      "end_line": 25,
+      "excerpt_sha256": "1a68331e5d16d46471545e673226541dc848123d1c3e286260359cecf41adcd2",
+      "purpose": "sequence-primitive",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E016",
+      "path": "/home/momota1029/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rowan-0.15.17/src/green/builder.rs",
+      "whole_file_sha256": "517e4f6393f8fe6deaabd288f5e5b6a670dc7deec99e5bd92df34cdb4f02db49",
+      "start_line": 1,
+      "end_line": 119,
+      "excerpt_sha256": "517e4f6393f8fe6deaabd288f5e5b6a670dc7deec99e5bd92df34cdb4f02db49",
+      "purpose": "rowan-green-builder",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E017",
+      "path": "/home/momota1029/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rowan-0.15.17/src/api.rs",
+      "whole_file_sha256": "93726e561f4f6c46490e351ef0ca4e10ef70faa6941ad31be24edd0e42f0d17f",
+      "start_line": 98,
+      "end_line": 150,
+      "excerpt_sha256": "e50f3d94550ed82cd3038f0866bb76faeef3757dd47137b5ccef50d234783618",
+      "purpose": "rowan-syntax-root-and-children",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E018",
+      "path": "/home/momota1029/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rowan-0.15.17/src/green/node.rs",
+      "whole_file_sha256": "02701fc84ad6fdf44bd2c9b63923b0c919ca77acdb09c40d1d2b949830eab185",
+      "start_line": 1,
+      "end_line": 361,
+      "excerpt_sha256": "02701fc84ad6fdf44bd2c9b63923b0c919ca77acdb09c40d1d2b949830eab185",
+      "purpose": "rowan-green-node-content",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E019",
+      "path": "/home/momota1029/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rowan-0.15.17/src/green/node_cache.rs",
+      "whole_file_sha256": "f85ca104edb7d2261fd111a6fa4165f076e802aa9414457bdb028788db8dde9d",
+      "start_line": 1,
+      "end_line": 157,
+      "excerpt_sha256": "f85ca104edb7d2261fd111a6fa4165f076e802aa9414457bdb028788db8dde9d",
+      "purpose": "rowan-node-cache-equality-path",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E020",
+      "path": "crates/yu-hir/src/module.rs",
+      "whole_file_sha256": "6bf92c93fa37f425a7380248c12c50c0d04ea6eb282e76edb6df54e628260646",
+      "start_line": 1051,
+      "end_line": 1210,
+      "excerpt_sha256": "ee5a8c12f49a6fe7105f07d2964865de57299351cc6db430dd280f5e6917fdc3",
+      "purpose": "hir-source-identities",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E021",
+      "path": "crates/yu-hir/src/module.rs",
+      "whole_file_sha256": "6bf92c93fa37f425a7380248c12c50c0d04ea6eb282e76edb6df54e628260646",
+      "start_line": 2103,
+      "end_line": 2150,
+      "excerpt_sha256": "972010f8302a6c96e154e691f4701c4829cef631e2630fad30cd098af82edf99",
+      "purpose": "hir-module-publication-views",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E022",
+      "path": "crates/yu-hir/src/module.rs",
+      "whole_file_sha256": "6bf92c93fa37f425a7380248c12c50c0d04ea6eb282e76edb6df54e628260646",
+      "start_line": 2182,
+      "end_line": 2750,
+      "excerpt_sha256": "c59f4dc746cc11a122a72039f0a68bf98fcc834b21dc1e453fcc12c4f8d9d58e",
+      "purpose": "hir-local-source-module-lowering",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E023",
+      "path": "crates/yu-hir/src/module/local_source.rs",
+      "whole_file_sha256": "7055975d582dfb198836c2aa659f8b8033c29dff419d522feea4fea4c42523d1",
+      "start_line": 968,
+      "end_line": 2835,
+      "excerpt_sha256": "4d505e4f296ffa22a81d265703d6ba6c41494dd30e1d793db0d9e1fa2441081e",
+      "purpose": "local-source-carrier-and-builders",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E024",
+      "path": "crates/yu-solver/src/lib.rs",
+      "whole_file_sha256": "429456c4e19723c652842860aa2746988f4ab43550707cf840b1d047c69cb2be",
+      "start_line": 938,
+      "end_line": 1004,
+      "excerpt_sha256": "d937d2918595d6abd31cd78924c39b411656ff7e079c925d8c8b18dd6a252db3",
+      "purpose": "candidate-collection-entry-wrappers",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E025",
+      "path": "crates/yu-solver/src/candidate_source.rs",
+      "whole_file_sha256": "bb8348a4cf6f83df1099f06bb0e853a178d4629f85778730bb2f394d74745a49",
+      "start_line": 1043,
+      "end_line": 2383,
+      "excerpt_sha256": "59bedf8a9ebe272c85aa491d31bcc54f1b3b11728b120a88cd49f43f186100d0",
+      "purpose": "candidate-source-collection-and-schedule",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E026",
+      "path": "crates/yu-solver/src/candidate_source.rs",
+      "whole_file_sha256": "bb8348a4cf6f83df1099f06bb0e853a178d4629f85778730bb2f394d74745a49",
+      "start_line": 2393,
+      "end_line": 2452,
+      "excerpt_sha256": "ce29ec9bfd7acf9c2aac40dcef88279777b03b596e0037763774f3668842124d",
+      "purpose": "candidate-source-drive-and-step",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E027",
+      "path": "crates/yu-solver/src/candidate_source.rs",
+      "whole_file_sha256": "bb8348a4cf6f83df1099f06bb0e853a178d4629f85778730bb2f394d74745a49",
+      "start_line": 2469,
+      "end_line": 2523,
+      "excerpt_sha256": "1dbf4284df784410f25992bf3ea83c13a95d944394eef81578bb09f43da5f030",
+      "purpose": "candidate-action-dispatch",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R274-E028",
+      "path": "crates/yu-solver/src/candidate_value_graph.rs",
+      "whole_file_sha256": "aaaa88a374083f898188cd390b8cf0244855d8c09c8939b9e68ee2831bc692cf",
+      "start_line": 1,
+      "end_line": 415,
+      "excerpt_sha256": "6cbc0c89b0164a94f958333c3f3fb7580f668ef6a341f64a9a551cef1d0cb0ab",
+      "purpose": "candidate-value-graph-and-seal",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R275-E001",
+      "path": "crates/yu-syntax/src/lib.rs",
+      "whole_file_sha256": "770a4af4a5832b3210050b4fc5513545569b0ca4718597f67434a714f76f301d",
+      "start_line": 46,
+      "end_line": 90,
+      "excerpt_sha256": "62a9dce47106800e1fbaf3ad6f28b8bf86d6e220f1135677eca4f96c6d693447",
+      "purpose": "source-text-and-header-carrier",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R275-E002",
+      "path": "crates/yu-syntax/src/lib.rs",
+      "whole_file_sha256": "770a4af4a5832b3210050b4fc5513545569b0ca4718597f67434a714f76f301d",
+      "start_line": 361,
+      "end_line": 363,
+      "excerpt_sha256": "e7c41de27d5d331a833961e36f439a18008e0b237c37a9de338d1297796f53ec",
+      "purpose": "public-header-scan-forwarder",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R275-E003",
+      "path": "crates/yu-syntax/src/declaration/mod.rs",
+      "whole_file_sha256": "cf1067280be3974a5702b18f47ac02cf824c9d8cf971c1bdbc1b143676fc5c71",
+      "start_line": 40,
+      "end_line": 49,
+      "excerpt_sha256": "118a935543405b6e4fefda8694658b213d8a4456e313c4424b91bde3d2f24de7",
+      "purpose": "use-item-lexical-owner-reexport",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R275-E004",
+      "path": "crates/yu-syntax/src/declaration/use_decl.rs",
+      "whole_file_sha256": "1f7df7e6101cc398056b610536c723271ed108aeecafe38eb09b8dc62cc45fc0",
+      "start_line": 1537,
+      "end_line": 1575,
+      "excerpt_sha256": "8db6127deb94008fbf865d8c65fa07e96c8b2911301961acf289511022e7eebb",
+      "purpose": "use-item-lexical-entry-and-transaction",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R275-E005",
+      "path": "crates/yu-syntax/src/declaration/use_decl.rs",
+      "whole_file_sha256": "1f7df7e6101cc398056b610536c723271ed108aeecafe38eb09b8dc62cc45fc0",
+      "start_line": 1577,
+      "end_line": 1669,
+      "excerpt_sha256": "9a48cec77cb04f5de2c57d3c7b5d2585f990504e63cc70e658a9c00dacaef122",
+      "purpose": "use-payload-and-lexical-scanners",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R275-E006",
+      "path": "crates/yu-syntax/src/declaration/use_decl.rs",
+      "whole_file_sha256": "1f7df7e6101cc398056b610536c723271ed108aeecafe38eb09b8dc62cc45fc0",
+      "start_line": 1692,
+      "end_line": 1735,
+      "excerpt_sha256": "373440bfc141dc8127d1578edefa7049e2f21856f0d73fb5d1d5583224f7bcf9",
+      "purpose": "use-item-word-and-tree-starter-helpers",
+      "class": "production"
+    },
+    {
+      "excerpt_id": "R275-E007",
+      "path": "crates/yu-syntax/src/lexical/current_item.rs",
+      "whole_file_sha256": "41efcce2b737a0362484e854a8549bda5f7bf0d2b911499553f1e449c6782a84",
+      "start_line": 1,
+      "end_line": 250,
+      "excerpt_sha256": "03bb7b2e9bcd6597858b0b3bf7046b3b56c24cd71c248cfd3f1dcb37fba64c21",
+      "purpose": "current-item-recognition-owner",
+      "class": "production"
+    }
+  ]
+}
