@@ -18565,3 +18565,17 @@ The existing `.lake` grew by 674,129 bytes; no new environment or cache was
 created. Original H/A/B, source/native correspondence, full effect hygiene,
 soundness, semantic approval, and production remain **OPEN**. The next source
 work must establish INITIAL-STATE and CONSUMER before authorizing Rust edits.
+## 2026-11-02 R260/R261 — R70 diagnostic suffix prerequisites
+
+R260 independently passed review for source-wide ReplayChildAck ownership and
+order at actually reached Diagnostics cuts. This discharges only SUFFIX250's
+ordered-ack premise under the reviewed R249/R250 conditions. R261 independently
+passed review for the narrower `DISPATCH-MEMO261` fact: a real Value item that
+returns successfully from dispatch has its exact raw-key memo. The first
+unproved R70 dependency remains scoped copied-bound coverage from physical/raw/
+canonical keys to an adequate executable fiber before replay emits its child.
+Neither packet constructs an accepted-prefix counterexample or closes R70,
+whole-language soundness, Simple-sub A/B, or production. Implementation remains
+`NO_SAFE_CODE_SLICE`; runtime paths with unknown writers remain quarantined.
+See the [R260 outcome](agent-loop/history/20261102-r260-admission.md) and the
+[R261 freeze/review record](agent-loop/history/20261102-r261-freeze-intake.md).
