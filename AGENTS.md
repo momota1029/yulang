@@ -209,6 +209,12 @@ complete axiom audits. A proposition definition, assumed `LocalLaws`, or default
 build does not close the whole-language obligation. Follow the skill's source map
 and execution guide. The role adds no compiler, dependency, Git or scheduling rights.
 
+For multi-step inference proofs, stalled theorem programs, or proof delegation,
+also apply [yulang-proof-portfolio](.agents/skills/yulang-proof-portfolio/SKILL.md).
+Start decomposition from the unchanged parent theorem and measure progress by
+checked, justified obligations applied at its proof edges. The skill does not
+change the primary's existing delegation or semantic authority.
+
 ## Preserved non-negotiable boundaries
 
 Keep original Simple-sub A/B claims, quantifiers, source/native correspondence,
