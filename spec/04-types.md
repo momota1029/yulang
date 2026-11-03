@@ -46,7 +46,7 @@ my f(x: int): int = x          // 引数と返り値の注釈
 
 出典: `main:web/docs/ja/reference/types.md` §Type variable、§`as` による inline ascription
 
-## 4.3 record　〔要確認〕
+## 4.3 record　〔幅の部分型付けは確定、他は要確認〕
 
 ```yulang
 { x: 3, y: 4 }
@@ -54,6 +54,14 @@ my f(x: int): int = x          // 引数と返り値の注釈
 ```
 
 - field access は `.field`。
+- **record は幅の部分型付けを持つ**（確定, 2026-11-04）。余分な field を持つ record は、少ない field の型として使える。
+
+```yulang
+my get_x(r: {x: int}) = r.x
+get_x { x: 1, y: 2 }       // OK: y が余分でも渡せる
+```
+
+- 対して `struct`（4.4）は名前で区別される nominal な型で、部分型付けを持たない。
 - 型の表示では、省略可能な field は `?` 付きで出る。例: `{width?: 'a} -> 'a | int`。
 - record pattern の default（`{ width = 1 }`）が、省略可能な field を生む（章3b.3）。
 
