@@ -28,7 +28,7 @@ case point:
 
 出典: `main:web/docs/ja/reference/patterns.md`
 
-## 3b.2 名前か、variant か　〔罠: T4〕
+## 3b.2 名前か、variant か　〔罠: T4、対処は確定〕
 
 pattern の位置で、`red` のような**修飾なしの名前は、variant ではなく新しい束縛**になる。variant に合わせたいときは
 `color::red` と修飾するか、先に `use color::*` を書く。
@@ -44,6 +44,15 @@ case c:
 
 - prelude が re-export する `just` / `nil` / `ok` / `err` などは、修飾なしで variant として使える。
 - 式の位置の未解決の `red` は name error だが、pattern の位置では束縛になる。この非対称は暗黙の意味変化なので危険。
+
+出典: `main:web/docs/ja/reference/patterns.md` §enum pattern
+この罠への対処は **案 B**（確定, 2026-11-04）。通すが、その後ろで到達しなくなった arm に警告を出す。
+
+| 案 | 上の例の扱い |
+| --- | --- |
+| A 今のまま | 黙って通る。`name blue` も `"r"` を返す |
+| **B 到達不能の警告（採用）** | 通る。ただし `green` / `blue` の arm に「到達しない」警告が出る |
+| C Rust 流（E0170 相当） | 走査対象の型が `color` と分かっていて、`red` がその variant 名と同じなら**エラー**（採らない） |
 
 出典: `main:web/docs/ja/reference/patterns.md` §enum pattern
 この罠への対処は未決定（確認 P1）。案は 3 つ。
@@ -133,4 +142,4 @@ case 41:
 
 ## 確認してほしい点
 
-- **P1** pattern の位置の修飾なしの名前の扱い（3b.2 の A / B / C）。推奨は「B を常に、C を型が分かったときに」。
+なし（P1〜P5 は反映済み）。
