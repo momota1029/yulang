@@ -32,7 +32,7 @@ Build the smallest clear kernel based on a known algorithm or explicit invariant
 ## Performance-review risk trigger
 
 Every producer accounts for obvious work added by the diff. A separate
-`performance_auditor` is mandatory only when at least one of the following is
+performance review is warranted only when at least one of the following is
 plausibly material:
 
 - asymptotic complexity changes;
@@ -45,8 +45,7 @@ plausibly material:
 - a verification command capable of high memory, long runtime, or process explosion.
 
 An incidental branch, small local allocation, or bounded traversal does not
-alone require a separate auditor. The implementer still reports its expected
-cost. Escalate when scale or call frequency makes the effect material or
+alone require a separate review. The author still reports its expected cost. Escalate when scale or call frequency makes the effect material or
 unknown.
 
 ## Measurement decision
@@ -62,7 +61,7 @@ If no concrete decision depends on timing, do not collect repeated timings.
 
 ## Ordinary measurement budget
 
-For an ordinary M1/M2 task:
+For an ordinary task:
 
 1. prefer a harness that compares baseline and candidate in one invocation;
 2. use one warm-up and three paired measured samples at one representative
@@ -97,7 +96,7 @@ the median difference is within roughly ten percent, choose one of:
 - request a larger experiment.
 
 Any plan above 8 process invocations or 10 minutes requires an explicit written
-justification from `performance_auditor` and primary approval before execution.
+justification and the user's approval before execution.
 A plan above 16 process invocations or 20 minutes requires user approval.
 Twenty-four separate measurements are therefore never a default regression
 check.
@@ -124,4 +123,4 @@ measurement table.
 
 ## Resource safety
 
-Do not run an unscoped or unfamiliar heavy suite merely to be thorough. Establish the current test inventory and expected resource profile first. Historical yulang2 incidents are recorded under `notes/incidents/`; their old skip lists are not current yulang3 policy.
+Do not run an unscoped or unfamiliar heavy suite merely to be thorough. Establish the current test inventory and expected resource profile first.

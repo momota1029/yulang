@@ -1,6 +1,0 @@
-interface:
-  display_name: "Yulang Sprint Dispatch"
-  short_description: "Manage sprint goals, dependencies and resources"
-  default_prompt: "Use $yulang-next-action at a material sprint boundary to coordinate both lanes without per-lemma replanning."
-policy:
-  allow_implicit_invocation: true

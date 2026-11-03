@@ -1,31 +1,15 @@
 # Yulang repository rules
 
-`rules/` contains active, durable repository policy. Root `AGENTS.md` is only the operating map and user-facing communication contract; it must point here instead of copying these rules.
+`rules/` holds durable repository policy. Root `AGENTS.md` is the operating map and conversation contract; it points here instead of copying these rules.
 
-## Authority and orchestration
-
-- [`design-authority.md`](design-authority.md) — authority order,
-  user-selected Oracle-fidelity/lightweight priorities and bounded rejection
-  envelope, design status, approval, supersession, and legacy provenance.
-- [`orchestration-budget.md`](orchestration-budget.md) — lightweight operating modes, reviewer limits, review convergence, delta review, measurement/verification budgets, and progress-record ownership. It is authoritative over broader reviewer-count wording elsewhere.
-- [`agent-orchestration.md`](agent-orchestration.md) — specialist roles, task routing, information isolation, review loops, and handoffs.
-- [`research-lab.md`](research-lab.md) — user-directed parallel research, independent methods, ready-queue replenishment, immutable assumptions, file leases and compute budgets; distinct from reviewer-count limits. The inference lane seed is [`tasks/research-lab.md`](../tasks/research-lab.md).
-- [`legacy-compatibility.md`](legacy-compatibility.md) — interpretation of historical Claude/Codex/Fable/Level terminology without reviving retired policy.
-- [`workflow.md`](workflow.md) — task context, handoffs, scoped execution, progress records, decision points, and completion reports.
-- [`question-board.md`](question-board.md) — repository-local uncommitted questions/answers, questioner-owned integration, revision validation, and disjoint primary file writers.
-- [`git-concurrency.md`](git-concurrency.md) — worktree isolation, staging, commits, branch safety, and integration ownership.
-
-## Compiler engineering
-
-- [`compiler-engineering.md`](compiler-engineering.md) — responsibility boundaries, natural compiler behavior, proof-obligation economy, file/module shape, diagnostics, experimental mechanisms, and comments.
-- [`parser-chasa.md`](parser-chasa.md) — repository-specific `chasa` parser-combinator conventions.
-- [`bug-fixing.md`](bug-fixing.md) — root-cause diagnosis, repair placement, temporary workarounds, and scope discipline.
-- [`performance.md`](performance.md) — hot paths, recomputation/allocation policy, adaptive measurement budgets, and resource-risk triggers.
-- [`testing.md`](testing.md) — focused verification, broad-check budgets, regression structure, expected-output protection, and heavy-suite safety.
-
-## Prose and model operation
-
+- [`workflow.md`](workflow.md) — context, work shape, delegation, records, completion report.
+- [`git-concurrency.md`](git-concurrency.md) — staging, commits, pushes, worktrees.
+- [`compiler-engineering.md`](compiler-engineering.md) — responsibility boundaries, phases, diagnostics, file shape, comments.
+- [`parser-chasa.md`](parser-chasa.md) — `chasa` parser-combinator conventions.
+- [`bug-fixing.md`](bug-fixing.md) — root-cause diagnosis and repair placement.
+- [`performance.md`](performance.md) — hot paths and measurement budgets.
+- [`testing.md`](testing.md) — focused verification, expected-output protection, heavy-suite safety.
 - [`documentation.md`](documentation.md) — public documentation and style-guide routing.
-- [`codex-quirks.md`](codex-quirks.md) — observed agent failure patterns and verification countermeasures.
+- [`codex-quirks.md`](codex-quirks.md) — observed agent failure patterns and countermeasures.
 
-Design-document navigation lives in [`notes/design/INDEX.md`](../notes/design/INDEX.md). Historical incidents live under [`notes/incidents/`](../notes/incidents/); incident records are not automatically active command policy.
+Design documents: [`notes/design/INDEX.md`](../notes/design/INDEX.md).

@@ -15,7 +15,7 @@ These guides govern site prose only. They do not govern commit messages, interna
 
 Public docs, README text, guides, release notes, specifications, diagnostics, and UI text use the register appropriate to their audience. They do not inherit the primary agent's conversational Japanese style.
 
-A documentation writer may implement confirmed content and structure but may not invent or finalize language/compiler design. When docs expose a missing semantic decision, stop and route it through design authority.
+A documentation writer may implement confirmed content and structure but may not invent or finalize language/compiler design. When docs expose a missing semantic decision, stop and ask the user.
 
 ## Examples and translation pairs
 

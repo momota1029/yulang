@@ -803,25 +803,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "yu-playground"
-version = "0.1.0"
-dependencies = [
- "yu-hir",
- "yu-solver",
- "yu-syntax",
-]
-
-[[package]]
-name = "yu-solver"
-version = "0.1.0"
-dependencies = [
- "yu-core",
- "yu-hir",
- "yu-syntax",
- "yu-types",
-]
-
-[[package]]
 name = "yu-syntax"
 version = "0.1.0"
 dependencies = [
@@ -830,21 +811,6 @@ dependencies = [
  "reborrow-generic",
  "rowan",
  "unicode-ident",
-]
-
-[[package]]
-name = "yu-types"
-version = "0.1.0"
-dependencies = [
- "yu-hir",
-]
-
-[[package]]
-name = "yulang-wasm"
-version = "0.1.0"
-dependencies = [
- "wasm-bindgen",
- "yu-playground",
 ]
 
 [[package]]

@@ -36,4 +36,4 @@ SynIn<'_, 'source, '_, E>
 
 Parser behavior, CST/AST ownership, recovery roles, byte ranges, ambient newline ownership, and dispatch promotion are design decisions. Follow the relevant `Authoritative` grammar/addendum and its gate order. Do not infer a new recovery rule locally from one failing fixture.
 
-A parser change that affects grammar, recovery, CST/AST, diagnostics, or public dispatch requires the routing and reviews defined in `rules/agent-orchestration.md` once that policy is active.
+A parser change that affects grammar, recovery, CST/AST, diagnostics, or public dispatch needs the user's design approval and a fixture that names the contract.

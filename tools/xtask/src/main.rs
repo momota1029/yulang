@@ -250,8 +250,6 @@ fn crate_rank(crate_name: &str) -> Option<u8> {
     match crate_name {
         "yu-syntax" => Some(0),
         "yu-hir" => Some(1),
-        "yu-types" => Some(2),
-        "yu-solver" => Some(3),
         "yu-core" => Some(4),
         "yu-backend-vm" | "yu-backend-native" => Some(5),
         "yu-compiler" => Some(6),
@@ -298,19 +296,10 @@ mod tests {
         let graph = graph(&[
             ("yu-syntax", &[]),
             ("yu-hir", &[("yu-syntax", DependencyKind::Normal)]),
-            ("yu-types", &[("yu-hir", DependencyKind::Normal)]),
-            (
-                "yu-solver",
-                &[
-                    ("yu-hir", DependencyKind::Normal),
-                    ("yu-types", DependencyKind::Normal),
-                ],
-            ),
             (
                 "yu-core",
                 &[
                     ("yu-hir", DependencyKind::Normal),
-                    ("yu-solver", DependencyKind::Normal),
                     ("yu-syntax", DependencyKind::Normal),
                 ],
             ),

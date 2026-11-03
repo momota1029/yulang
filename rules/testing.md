@@ -16,16 +16,12 @@ These commands do not prove compiler behavior. Behavioral changes require releva
 
 ## Verification budget
 
-Follow the selected mode in `rules/orchestration-budget.md`.
+- Record/comment/link-only changes: inspect the diff and run only the checks needed for syntax or references.
+- Local change: run focused tests for the owning responsibility. Defer the broad workspace check to a coherent boundary.
+- Cross-layer or contract change: focused checks plus one broad check after the repair settles.
+- Final certification: run the full required gate once on the final candidate, not after every intermediate patch.
 
-- M0 record/comment/link changes: inspect the diff and run only checks needed for syntax or references. Do not run a workspace build merely because a progress file changed.
-- M1 local gate: run focused tests/checks for the owning responsibility. A broad workspace check is normally deferred to the coherent phase boundary.
-- M2 cross-layer/contract change: run focused checks plus one appropriate broad check after the repair round closes.
-- M3 critical/final certification: run the full required gate once on the final candidate, not after every intermediate patch.
-
-For a multi-gate Authoritative plan, focused checks run per gate; unchanged expensive workspace suites run once per coherent phase or final boundary unless the gate changes shared infrastructure that makes earlier broad evidence stale.
-
-Do not rerun an unchanged expensive suite after bookkeeping-only, comment-only, or review-record-only changes.
+Do not rerun an unchanged expensive suite after bookkeeping-only or comment-only changes.
 
 ## Test shape
 
@@ -59,7 +55,7 @@ When a test fails, first assume the expectation may encode the intended contract
 1. a reason, traced to the causal semantics, why the new behavior is correct;
 2. confirmation that it matches an authoritative design/spec or an explicitly approved change;
 3. a recorded explanation in the design, review record, or commit;
-4. pre-write `spec_auditor` review once role orchestration is active.
+4. the user's approval when the change alters language-visible behavior.
 
 Do not remove residual information, change a test's stated meaning, or weaken a diagnostic just to obtain green output.
 
@@ -72,8 +68,6 @@ Do not run an unscoped or potentially heavy suite until its current resource beh
 3. cap concurrency when appropriate;
 4. establish monitoring or a kill condition for intentionally broad runs;
 5. report what remains unverified.
-
-The old yulang2 `infer` commands and skip patterns in `notes/incidents/yulang2-infer-test-memory.md` are forensic history, not commands for the current workspace.
 
 Performance experiments and repeated timing runs follow `rules/performance.md`; test thoroughness alone does not authorize unbounded repetition.
 

@@ -1,6 +1,0 @@
-interface:
-  display_name: "Yulang Research Loop"
-  short_description: "Continue proof and implementation toward one outcome"
-  default_prompt: "Use $yulang-research-loop to preserve the active sprint goal and continue authorized proof and implementation; consult only at material sprint boundaries."
-policy:
-  allow_implicit_invocation: true
