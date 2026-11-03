@@ -80,6 +80,14 @@ pub struct Machine {
     r312_observations_truncated: bool,
     #[cfg(test)]
     r312_order: usize,
+    #[cfg(test)]
+    r313_next_frame_id: usize,
+    #[cfg(test)]
+    r313_value_entry_binds: Vec<R313ValueEntryBind>,
+    #[cfg(test)]
+    r313_watch_apply: Option<SourceSite>,
+    #[cfg(test)]
+    r313_return_snapshot: Option<R313CalleeReturnSnapshot>,
     name_receipt_seed_trace: Option<String>,
     name_receipt_calls_truncated: bool,
     name_receipt_observation_unavailable: bool,
@@ -178,10 +186,16 @@ struct CompletedNameObservation {
 
 struct NameReceiptCallObservation {
     call_site: SourceSite,
+    #[cfg(test)]
+    callee_code: Option<usize>,
     invocation: usize,
     previous_owner: ExecutionOwner,
     callee_value: ValueHandle,
     callee_view: ViewHandle,
+    #[cfg(test)]
+    callee_interface: ParameterRole,
+    #[cfg(test)]
+    callee_dispatch: Option<usize>,
     callee_site: SourceSite,
     formal: HirParameterId,
     closure_environment: usize,
@@ -250,6 +264,44 @@ struct R312NameForceCompletion {
     output_value: ValueHandle,
 }
 #[cfg(test)]
+struct R313ValueEntryBind {
+    step: usize,
+    order: usize,
+    entry_receiver: usize,
+    parameter: HirParameterId,
+    binder_parent_environment: usize,
+    binder_parent: Option<usize>,
+    binder_at_parent: Option<(Binder, usize)>,
+    parent_dispatch: String,
+    cells_before_bind: usize,
+    environments_before_bind: usize,
+    received: ReceivedValue,
+    bound_cell: usize,
+    bound_environment: usize,
+    cells_after_bind: usize,
+    environments_after_bind: usize,
+}
+#[cfg(test)]
+struct R313CalleeReturnSnapshot {
+    frame_id: usize,
+    apply_site: SourceSite,
+    argument_code: Label,
+    caller_environment: usize,
+    source_name_initialization: Option<R313SourceNameInitialization>,
+    cells: Vec<Option<ReceivedValue>>,
+    environments: Vec<Environment>,
+    values: Vec<RuntimeValue>,
+    receiving_views: Vec<String>,
+    receiving_image_chains: Vec<String>,
+    receiving_scan_truncated: bool,
+}
+#[cfg(test)]
+struct R313SourceNameInitialization {
+    parameter: HirParameterId,
+    cell: usize,
+    received: ReceivedValue,
+}
+#[cfg(test)]
 enum R312FrameEvent {
     RequestObserved {
         step: usize,
@@ -262,19 +314,28 @@ enum R312FrameEvent {
         step: usize,
         order: usize,
         request: usize,
+        frame_id: usize,
         request_site: SourceSite,
+        owner: ExecutionOwner,
         apply_site: SourceSite,
+        callee: Option<Label>,
         argument: Label,
         environment: usize,
     },
     CalleeReturned {
         step: usize,
         order: usize,
+        frame_id: usize,
+        owner: ExecutionOwner,
         apply_site: SourceSite,
+        callee: Option<Label>,
         argument: Label,
         environment: usize,
         value: ValueHandle,
         view: ViewHandle,
+        interface: ParameterRole,
+        dispatch: Option<usize>,
+        provider: SourceSite,
     },
 }
 #[cfg(test)]
@@ -418,6 +479,7 @@ struct TuplePrefix {
     previous: Option<usize>,
     received: ReceivedValue,
 }
+#[derive(Clone)]
 struct Environment {
     parent: Option<usize>,
     binder: Option<(Binder, usize)>,
@@ -501,6 +563,8 @@ pub(super) enum Frame {
         site: SourceSite,
     },
     Callee {
+        #[cfg(test)]
+        frame_id: usize,
         callee: Option<Label>,
         argument: Label,
         environment: usize,
@@ -742,6 +806,14 @@ impl RuntimeProgram {
             r312_observations_truncated: false,
             #[cfg(test)]
             r312_order: 0,
+            #[cfg(test)]
+            r313_next_frame_id: 0,
+            #[cfg(test)]
+            r313_value_entry_binds: Vec::new(),
+            #[cfg(test)]
+            r313_watch_apply: None,
+            #[cfg(test)]
+            r313_return_snapshot: None,
             name_receipt_seed_trace: None,
             name_receipt_calls_truncated: false,
             name_receipt_observation_unavailable: false,
@@ -1090,9 +1162,9 @@ impl Machine {
     fn r312_record_pending_callee_frames(&mut self, request: &PendingRequest) {
         if !request.suffix.is_empty() { return; }
         for index in 0..self.frames.len() {
-            let (argument, environment, site) = match &self.frames[index] {
-                Frame::Callee { argument, environment, site, .. } =>
-                    (*argument, *environment, site.clone()),
+            let (frame_id, callee, argument, environment, site) = match &self.frames[index] {
+                Frame::Callee { frame_id, callee, argument, environment, site } =>
+                    (*frame_id, *callee, *argument, *environment, site.clone()),
                 _ => continue,
             };
             if self.r312_frame_events.len() >= 1024
@@ -1106,8 +1178,11 @@ impl Machine {
                 step: self.steps,
                 order,
                 request: request.event,
+                frame_id,
                 request_site: request.source.clone(),
+                owner: self.current_execution_owner(),
                 apply_site: site,
+                callee,
                 argument,
                 environment,
             });
@@ -1119,6 +1194,13 @@ impl Machine {
         let order = self.r312_order;
         self.r312_order = self.r312_order.saturating_add(1);
         order
+    }
+
+    #[cfg(test)]
+    fn r313_new_frame_id(&mut self) -> usize {
+        let frame_id = self.r313_next_frame_id;
+        self.r313_next_frame_id = self.r313_next_frame_id.saturating_add(1);
+        frame_id
     }
 
     fn evaluate(&mut self, label: Label, environment: usize) -> Result<(), RuntimeUnavailable> {
@@ -1188,7 +1270,12 @@ impl Machine {
                 let callee = *self.program.dictionaries.as_ref().unwrap().get(&(word, key.clone()))
                     .ok_or_else(|| RuntimeUnavailable::UnsupportedFieldTail(site.clone()))?;
                 let entered = self.dispatch_environment(environment, dispatch::Step { kind: dispatch::Kind::Member, site: key })?;
-                self.frames.push(Frame::Callee { callee: None, argument: *receiver, environment, site: site.clone() });
+                #[cfg(test)]
+                let frame_id = self.r313_new_frame_id();
+                self.frames.push(Frame::Callee {
+                    #[cfg(test)] frame_id,
+                    callee: None, argument: *receiver, environment, site: site.clone(),
+                });
                 self.state = State::Evaluate { code: callee, environment: entered };
             }
             Instruction::FieldTail { .. } => {
@@ -1203,8 +1290,20 @@ impl Machine {
                     kind: dispatch::Kind::Operator,
                     site: dispatch::Site { owner: site.source_root.clone(), occurrence: site.occurrence.clone() },
                 })?;
-                if let Some(right) = right { self.frames.push(Frame::Callee { callee: None, argument: *right, environment, site: site.clone() }); }
-                self.frames.push(Frame::Callee { callee: None, argument: *left, environment, site: site.clone() });
+                if let Some(right) = right {
+                    #[cfg(test)]
+                    let frame_id = self.r313_new_frame_id();
+                    self.frames.push(Frame::Callee {
+                        #[cfg(test)] frame_id,
+                        callee: None, argument: *right, environment, site: site.clone(),
+                    });
+                }
+                #[cfg(test)]
+                let frame_id = self.r313_new_frame_id();
+                self.frames.push(Frame::Callee {
+                    #[cfg(test)] frame_id,
+                    callee: None, argument: *left, environment, site: site.clone(),
+                });
                 self.state = State::Evaluate { code: callee, environment: entered };
             }
             Instruction::OperatorApplication { .. } => {
@@ -1378,7 +1477,10 @@ impl Machine {
                 );
             }
             Instruction::Apply { callee, argument } => {
+                #[cfg(test)]
+                let frame_id = self.r313_new_frame_id();
                 self.frames.push(Frame::Callee {
+                    #[cfg(test)] frame_id,
                     callee: Some(*callee),
                     argument: *argument,
                     environment,
@@ -1707,11 +1809,63 @@ impl Machine {
                 }
             }
             Frame::Callee {
+                #[cfg(test)]
+                frame_id,
                 callee,
                 argument,
                 environment: caller_environment,
                 site,
             } => {
+                // Test-only R313 evidence is captured at the actual Return
+                // elimination, before this frame allocates the argument Delay
+                // or selects the received closure's entry mode.
+                #[cfg(test)]
+                if self.r313_return_snapshot.is_none()
+                    && self.r313_watch_apply.as_ref().is_some_and(|watched|
+                        watched.source_root == site.source_root
+                            && watched.occurrence == site.occurrence
+                            && watched.range == site.range)
+                {
+                    let source_name_initialization = self.program.code.get(argument.0)
+                        .and_then(|argument_code| match &argument_code.instruction {
+                            Instruction::Name {
+                                resolution: LocalSourceResolution::Parameter(parameter),
+                                consumption: NameConsumption::Observe,
+                            } => self.lookup(caller_environment, |binder| matches!(binder,
+                                Binder::Parameter(candidate) if candidate == parameter))
+                                .and_then(|cell| self.cells.get(cell).copied().flatten()
+                                    .map(|received| R313SourceNameInitialization {
+                                        parameter: parameter.clone(), cell, received,
+                                    })),
+                            _ => None,
+                        });
+                    let mut receiving_views = Vec::new();
+                    let mut receiving_image_chains = Vec::new();
+                    let mut receiving_scan_truncated = true;
+                    for index in 0..4096 {
+                        let Some(fields) = self.receiving.raw_view_fields(index) else {
+                            receiving_scan_truncated = false;
+                            break;
+                        };
+                        receiving_views.push(fields);
+                        receiving_image_chains.push(self.receiving
+                            .bounded_raw_image_chain(index)
+                            .map_or_else(|error| format!("error:{error:?}"), |chain| chain));
+                    }
+                    self.r313_return_snapshot = Some(R313CalleeReturnSnapshot {
+                        frame_id,
+                        apply_site: site.clone(),
+                        argument_code: argument,
+                        caller_environment,
+                        source_name_initialization,
+                        cells: self.cells.clone(),
+                        environments: self.environments.clone(),
+                        values: self.values.clone(),
+                        receiving_views,
+                        receiving_image_chains,
+                        receiving_scan_truncated,
+                    });
+                }
                 #[cfg(test)]
                 if self.r312_frame_events.len() < 1024
                     && self.r312_frame_events.try_reserve(1).is_ok()
@@ -1720,11 +1874,17 @@ impl Machine {
                     self.r312_frame_events.push(R312FrameEvent::CalleeReturned {
                         step: self.steps,
                         order,
+                        frame_id,
+                        owner: self.current_execution_owner(),
                         apply_site: site.clone(),
+                        callee,
                         argument,
                         environment: caller_environment,
                         value: received.value,
                         view: received.view,
+                        interface: received.interface,
+                        dispatch: received.dispatch,
+                        provider: self.values[received.value.0].source.clone(),
                     });
                 } else {
                     #[cfg(test)]
@@ -1801,10 +1961,16 @@ impl Machine {
                             let selected_order = self.r312_next_order();
                             self.name_receipt_calls.push(NameReceiptCallObservation {
                                 call_site: site.clone(),
+                                #[cfg(test)]
+                                callee_code: callee.map(|label| label.0),
                                 invocation: activation,
                                 previous_owner: previous,
                                 callee_value: received.value,
                                 callee_view: received.view,
+                                #[cfg(test)]
+                                callee_interface: received.interface,
+                                #[cfg(test)]
+                                callee_dispatch: received.dispatch,
                                 callee_site: self.values[received.value.0].source.clone(),
                                 formal: parameter.clone(),
                                 closure_environment: environment,
@@ -2080,6 +2246,19 @@ impl Machine {
                 }
                 let bound_cell = self.cells.len();
                 let returned_value_origin_site = self.values[received.value.0].source.clone();
+                #[cfg(test)]
+                let r313_bind_before = ordinary_entry.then(|| {
+                    let parent = &self.environments[environment];
+                    (
+                        environment,
+                        parent.parent,
+                        parent.binder.clone(),
+                        format!("{:?}", parent.dispatch),
+                        self.cells.len(),
+                        self.environments.len(),
+                        received,
+                    )
+                });
                 let environment = if unit_pattern {
                     if !self.value(received.value).is_some_and(|value| matches!(value.kind, RuntimeValueKind::Unit)) {
                         return Err(RuntimeUnavailable::InvalidSourceReference);
@@ -2095,6 +2274,35 @@ impl Machine {
                         view: received.view,
                     },
                 ) };
+                #[cfg(test)]
+                if let Some((binder_parent_environment, binder_parent, binder_at_parent,
+                    parent_dispatch, cells_before_bind, environments_before_bind, received_before_bind)) = r313_bind_before
+                {
+                    if self.r313_value_entry_binds.len() >= 1024
+                        || self.r313_value_entry_binds.try_reserve(1).is_err()
+                    {
+                        self.r312_observations_truncated = true;
+                    } else {
+                        let order = self.r312_next_order();
+                        self.r313_value_entry_binds.push(R313ValueEntryBind {
+                            step: self.steps,
+                            order,
+                            entry_receiver,
+                            parameter: parameter.clone(),
+                            binder_parent_environment,
+                            binder_parent,
+                            binder_at_parent,
+                            parent_dispatch,
+                            cells_before_bind,
+                            environments_before_bind,
+                            received: received_before_bind,
+                            bound_cell,
+                            bound_environment: environment,
+                            cells_after_bind: self.cells.len(),
+                            environments_after_bind: self.environments.len(),
+                        });
+                    }
+                }
                 if ordinary_entry {
                     let owner_matches = self.current_execution_owner()
                         == ExecutionOwner::Invocation(entry_receiver);
@@ -3879,36 +4087,414 @@ mod module_expression_tests {
     fn assert_callee_frame_survived_request(machine: &Machine, call: &NameReceiptCallObservation) {
         let pending = machine.r312_frame_events.iter().filter_map(|event| match event {
             R312FrameEvent::PendingCalleeAtRequest {
-                step, order, request, request_site, apply_site, argument, environment,
+                step, order, request, frame_id, request_site, owner, apply_site,
+                callee, argument, environment,
             } if apply_site.source_root == call.call_site.source_root
                 && apply_site.occurrence == call.call_site.occurrence
+                && *callee == call.callee_code.map(Label)
                 && *argument == Label(call.argument_code)
                 && *environment == call.argument_environment =>
-                Some((*step, *order, *request, request_site)),
+                Some((*step, *order, *request, *frame_id, request_site, *owner)),
             _ => None,
         }).collect::<Vec<_>>();
         assert_eq!(pending.len(), 1, "the exact Apply's Callee frame is present at one Request");
 
         let returned = machine.r312_frame_events.iter().filter_map(|event| match event {
             R312FrameEvent::CalleeReturned {
-                step, order, apply_site, argument, environment, value, view,
+                step, order, frame_id, owner, apply_site, callee, argument, environment,
+                value, view, interface, dispatch, provider,
             } if apply_site.source_root == call.call_site.source_root
                 && apply_site.occurrence == call.call_site.occurrence
+                && *callee == call.callee_code.map(Label)
                 && *argument == Label(call.argument_code)
                 && *environment == call.argument_environment =>
-                Some((*step, *order, *value, *view)),
+                Some((*step, *order, *frame_id, *value, *view, *interface, *dispatch, provider, *owner)),
             _ => None,
         }).collect::<Vec<_>>();
         assert_eq!(returned.len(), 1, "the same saved Callee frame is consumed once after resume");
-        let (pending_step, pending_order, request_id, request_site) = pending[0];
-        let (return_step, return_order, returned_callee, returned_view) = returned[0];
+        let (pending_step, pending_order, request_id, frame_id, request_site, request_owner) = pending[0];
+        let (return_step, return_order, returned_frame_id, returned_callee, returned_view,
+            returned_interface, returned_dispatch, provider, return_owner) = returned[0];
         assert!(pending_order < return_order);
         assert!(pending_step < return_step);
         assert!(return_order < call.selected_order);
+        assert_eq!(returned_frame_id, frame_id,
+            "dynamic frame identity survives suspension even when current owner changes");
         assert_eq!(returned_callee, call.callee_value);
         assert_eq!(returned_view, call.callee_view);
+        assert_eq!(returned_interface, call.callee_interface);
+        assert_eq!(returned_dispatch, call.callee_dispatch);
+        assert!(matches!(request_owner, ExecutionOwner::Invocation(_)));
+        assert!(matches!(return_owner, ExecutionOwner::Invocation(_)));
+        // A resumed machine may execute the retained Callee frame under a
+        // different current owner. Keep the two dynamic owners as distinct
+        // observations; the saved frame is joined by its exact Apply labels,
+        // caller environment and request/return order.
+        assert_same_source_site(provider, &call.callee_site);
         assert_ne!(request_site.occurrence, call.call_site.occurrence);
-        assert_eq!(request_id, 0, "the callee computation requests before selecting the closure");
+        let actual_requests = machine.r312_frame_events.iter().filter_map(|event| match event {
+            R312FrameEvent::RequestObserved { request, site, owner, .. }
+                if *request == request_id && *owner == request_owner => Some(site),
+            _ => None,
+        }).collect::<Vec<_>>();
+        assert_eq!(actual_requests.len(), 1, "saved frame lineage joins the one actual Request");
+        assert_same_source_site(actual_requests[0], request_site);
+    }
+
+    fn source_apply_labels_match_call(
+        program: &RuntimeProgram,
+        call: &NameReceiptCallObservation,
+        callee_label: usize,
+        argument_label: usize,
+    ) -> bool {
+        let Ok(Some(source)) = program._hir.local_source_for(&call.call_site.source_root) else {
+            return false;
+        };
+        let Some(apply) = source.expressions().iter()
+            .find(|expression| expression.occurrence == call.call_site.occurrence) else {
+            return false;
+        };
+        let yu_hir::shadow::LocalSourceForm::Apply { callee, argument, .. } = &apply.form else {
+            return false;
+        };
+        let (Some(source_callee), Some(source_argument)) =
+            (source.expression(callee), source.expression(argument)) else {
+                return false;
+            };
+        let (Some(native_callee), Some(native_argument)) =
+            (program.code.get(callee_label), program.code.get(argument_label)) else {
+                return false;
+            };
+        source_callee.occurrence == native_callee.site.occurrence
+            && source_argument.occurrence == native_argument.site.occurrence
+            && native_callee.site.source_root == call.call_site.source_root
+            && native_argument.site.source_root == call.call_site.source_root
+    }
+
+    fn assert_source_callee_return_observe_witness(
+        machine: &Machine,
+        call: &NameReceiptCallObservation,
+    ) {
+        let callee_label = call.callee_code.expect("source Apply retains its actual callee label");
+        let apply_label = machine.program.code.iter().position(|code| {
+            code.site.source_root == call.call_site.source_root
+                && code.site.occurrence == call.call_site.occurrence
+        }).expect("source Apply instruction is present in the retained RuntimeProgram");
+        let apply_code = &machine.program.code[apply_label];
+        let Instruction::Apply { callee, argument } = apply_code.instruction else {
+            panic!("the retained owner occurrence must compile to Apply");
+        };
+        assert_eq!(callee.0, callee_label);
+        assert_eq!(argument.0, call.argument_code);
+        assert!(source_apply_labels_match_call(
+            &machine.program, call, callee_label, call.argument_code,
+        ));
+        assert!(!source_apply_labels_match_call(
+            &machine.program, call, call.argument_code, callee_label,
+        ), "swapping the source Apply labels must be rejected");
+        let other_apply = machine.program.code.iter().enumerate().find_map(|(index, code)| {
+            (index != apply_label && matches!(code.instruction, Instruction::Apply { .. }))
+                .then_some(index)
+        });
+        if let Some(other_apply) = other_apply {
+            assert!(!source_apply_labels_match_call(
+                &machine.program, call, other_apply, call.argument_code,
+            ), "a label owned by another source node must be rejected");
+        }
+
+        let Some(ExecutableValue::Delay { code, environment }) =
+            machine.executables.get(&call.delay_value.0) else {
+                panic!("the actual receiver allocated a Delay for the source argument");
+            };
+        assert_eq!(*code, Label(call.argument_code));
+        assert_eq!(*environment, call.argument_environment);
+        assert!(machine.receiving.matches_value(call.delay_view, call.delay_value));
+        assert_ne!(call.delay_value, call.callee_value);
+        assert_ne!(call.delay_view, call.callee_view,
+            "the argument Delay retains its own received view");
+        assert_ne!(call.closure_environment, call.argument_environment,
+            "the saved closure environment cannot stand in for the caller environment");
+
+        let lookups = machine.r312_name_lookups.iter().filter(|lookup| {
+            lookup.code == call.argument_code
+                && lookup.site.source_root == call.call_site.source_root
+                && lookup.site.occurrence == machine.program.code[call.argument_code].site.occurrence
+        }).collect::<Vec<_>>();
+        assert_eq!(lookups.len(), 1, "the exact argument Name is read once after dispatch");
+        let lookup = lookups[0];
+        assert!(lookup.order > call.selected_order);
+        assert_eq!(lookup.consumption, NameConsumption::Observe);
+        assert_eq!(lookup.environment, call.argument_environment);
+        assert_ne!(call.delay_view, lookup.view,
+            "the Delay view cannot replace the later Name value view");
+        assert!(!machine.receiving.matches_value(call.callee_view, call.delay_value),
+            "a different received value/view pair must be rejected");
+        assert!(matches!(&machine.value(lookup.value).unwrap().kind,
+            RuntimeValueKind::Integer(value) if value.as_ref() == "7"));
+        assert!(machine.r312_name_forces.iter().all(|force| force.lookup
+            != machine.r312_name_lookups.iter().position(|candidate| std::ptr::eq(candidate, lookup)).unwrap()));
+    }
+
+    fn r313_instruction_summary(instruction: &Instruction) -> String {
+        match instruction {
+            Instruction::Apply { callee, argument } =>
+                format!("Apply(callee={}, argument={})", callee.0, argument.0),
+            Instruction::Name { resolution, consumption } =>
+                format!("Name(resolution={resolution:?}, consumption={consumption:?})"),
+            other => format!("{}", std::any::type_name_of_val(other)),
+        }
+    }
+
+    fn r313_watch_source_apply(machine: &mut Machine) {
+        let candidates = machine.program.code.iter().filter_map(|apply_code| {
+            let Instruction::Apply { callee, argument } = apply_code.instruction else { return None; };
+            let (Some(callee_code), Some(argument_code)) = (
+                machine.program.code.get(callee.0), machine.program.code.get(argument.0),
+            ) else { return None; };
+            (matches!(callee_code.instruction, Instruction::Apply { .. })
+                && matches!(argument_code.instruction,
+                    Instruction::Name { consumption: NameConsumption::Observe, .. })
+                && apply_code.site.source_root == argument_code.site.source_root)
+                .then(|| apply_code.site.clone())
+        }).collect::<Vec<_>>();
+        assert_eq!(candidates.len(), 1,
+            "fixture has one source Apply with an Apply callee and Observe Name argument");
+        machine.r313_watch_apply = Some(candidates[0].clone());
+    }
+
+    fn r313_witness_text(
+        machine: &Machine,
+        call: &NameReceiptCallObservation,
+        completed: ValueHandle,
+        source_text: &str,
+    ) -> String {
+        let callee_label = call.callee_code.unwrap();
+        let apply_label = machine.program.code.iter().position(|code| {
+            code.site.source_root == call.call_site.source_root
+                && code.site.occurrence == call.call_site.occurrence
+        }).unwrap();
+        let source = machine.program._hir.local_source_for(&call.call_site.source_root)
+            .unwrap().unwrap();
+        let source_root_key = machine.program._hir
+            .source_root_source_key(&call.call_site.source_root).unwrap().unwrap();
+        let apply = source.expressions().iter()
+            .find(|expression| expression.occurrence == call.call_site.occurrence).unwrap();
+        let yu_hir::shadow::LocalSourceForm::Apply { callee, argument, .. } = &apply.form else {
+            unreachable!();
+        };
+        let source_callee = source.expression(callee).unwrap();
+        let source_argument = source.expression(argument).unwrap();
+        let lookup_index = machine.r312_name_lookups.iter().position(|lookup| {
+            lookup.code == call.argument_code && lookup.site.occurrence == source_argument.occurrence
+        }).unwrap();
+        let lookup = &machine.r312_name_lookups[lookup_index];
+        let receipt = machine.r312_name_receipts.iter()
+            .find(|receipt| receipt.lookup == lookup_index).unwrap();
+        let bind = machine.r313_value_entry_binds.iter().find(|bind|
+            bind.entry_receiver == call.invocation && bind.parameter == call.formal
+        ).unwrap();
+        let original_bind = machine.r313_value_entry_binds.iter().find(|bind|
+            bind.bound_environment == lookup.environment && bind.bound_cell == lookup.cell
+        ).unwrap();
+        let mut out = String::new();
+        use std::fmt::Write as _;
+        let _ = writeln!(out, "claim_class=source-native-evidence; provisional=true; test_only=true");
+        let _ = writeln!(out, "source_text={source_text:?}");
+        let _ = writeln!(out, "source_file_key=r312-accepted/callee-history.yu");
+        let _ = writeln!(out, "pipeline=parse+lower_local_source+CandidateInference::solve(no_conflicts)+RuntimeProgram::from_hir+Machine::run");
+        let _ = writeln!(out, "single_hir_runtime_program=true; artifact_local_interns=H0,S0,A0,C0,G0,N0; H0_ptr={:p}; program_ptr={:p}",
+            Arc::as_ptr(&machine.program._hir), Arc::as_ptr(&machine.program));
+        let _ = writeln!(out, "S0_owner={:?}; source_root_key={source_root_key:?}; A0_cst_key={:?}; apply_scope={:?}; A0_occurrence={:?}; apply_range={:?}; apply_label={}",
+            call.call_site.source_root, apply.source, apply.scope,
+            call.call_site.occurrence, call.call_site.range, apply_label);
+        let _ = writeln!(out, "A0_source_apply={:?}; C0_source_callee={:?}@{:?} scope={:?} cst_key={:?}; G0_source_argument={:?}@{:?} scope={:?} cst_key={:?}",
+            apply.form, source_callee.occurrence, source_callee.range, source_callee.scope,
+            source_callee.source, source_argument.occurrence, source_argument.range,
+            source_argument.scope, source_argument.source);
+        let _ = writeln!(out, "runtime_apply={}", r313_instruction_summary(&machine.program.code[apply_label].instruction));
+        let _ = writeln!(out, "runtime_callee_label={callee_label}; callee_site={:?}; callee_instruction={}",
+            machine.program.code[callee_label].site,
+            r313_instruction_summary(&machine.program.code[callee_label].instruction));
+        let _ = writeln!(out, "runtime_argument_label={}; argument_site={:?}; argument_instruction={}",
+            call.argument_code, machine.program.code[call.argument_code].site,
+            r313_instruction_summary(&machine.program.code[call.argument_code].instruction));
+        let _ = writeln!(out, "G0_runtime_argument_occurrence={:?}; N0=G0_argument_Name_instruction",
+            machine.program.code[call.argument_code].site.occurrence);
+        let _ = writeln!(out, "selection_step={}; selection_order={}; callee_value={}; callee_view={}; callee_interface={:?}; callee_dispatch={:?}; callee_provider={:?}",
+            call.selected_step, call.selected_order, call.callee_value.0, call.callee_view.index(),
+            call.callee_interface, call.callee_dispatch, call.callee_site);
+        for event in &machine.r312_frame_events {
+            match event {
+                R312FrameEvent::RequestObserved { step, order, request, site, owner } => {
+                    let _ = writeln!(out, "request step={step} order={order} id={request} site={site:?} owner={owner:?}");
+                }
+                R312FrameEvent::PendingCalleeAtRequest { step, order, request, frame_id,
+                    request_site, owner, apply_site, callee, argument, environment } => {
+                    if apply_site.occurrence == call.call_site.occurrence {
+                        let _ = writeln!(out, "pending_callee step={step} order={order} request={request} frame=F{frame_id} request_site={request_site:?} request_owner={owner:?} apply_site={apply_site:?} callee_label={callee:?} argument_label={} caller_environment={environment}", argument.0);
+                    }
+                }
+                R312FrameEvent::CalleeReturned { step, order, frame_id, owner, apply_site,
+                    callee, argument, environment, value, view, interface, dispatch, provider } => {
+                    if apply_site.occurrence == call.call_site.occurrence {
+                        let _ = writeln!(out, "callee_return step={step} order={order} frame=F{frame_id} return_owner={owner:?} apply_site={apply_site:?} callee_label={callee:?} argument_label={} caller_environment={environment} value={} view={} interface={interface:?} dispatch={dispatch:?} provider={provider:?}", argument.0, value.0, view.index());
+                    }
+                }
+            }
+        }
+        let Some(ExecutableValue::Delay { code, environment }) = machine.executables.get(&call.delay_value.0) else { unreachable!() };
+        let _ = writeln!(out, "delay value={} code={} environment={} view={}", call.delay_value.0, code.0, environment, call.delay_view.index());
+        let _ = writeln!(out, "name_lookup step={} order={} site={:?} owner={:?} environment={} parameter={:?} cell={} value={} view={} consumption={:?}",
+            lookup.step, lookup.order, lookup.site, lookup.owner, lookup.environment, lookup.parameter,
+            lookup.cell, lookup.value.0, lookup.view.index(), lookup.consumption);
+        let _ = writeln!(out, "name_receipt step={} order={} index={} site={:?} owner={:?} value={} view={} consumption={:?}",
+            receipt.step, receipt.order, receipt.receipt, receipt.site, receipt.owner,
+            receipt.value.0, receipt.view.index(), receipt.consumption);
+        let _ = writeln!(out, "value_entry_bind step={} order={} receiver={} parameter={:?} lexical_parent_environment={} lexical_parent_node={:?} binder_at_parent={:?} parent_dispatch={} cells_before_bind={} environments_before_bind={} received=(value={},view={},interface={:?},dispatch={:?}) bound_cell={} bound_environment={} cells_after_bind={} environments_after_bind={}",
+            bind.step, bind.order, bind.entry_receiver, bind.parameter,
+            bind.binder_parent_environment, bind.binder_parent, bind.binder_at_parent,
+            bind.parent_dispatch, bind.cells_before_bind, bind.environments_before_bind,
+            bind.received.value.0, bind.received.view.index(), bind.received.interface,
+            bind.received.dispatch, bind.bound_cell, bind.bound_environment,
+            bind.cells_after_bind, bind.environments_after_bind);
+        let _ = writeln!(out, "original_name_caller_bind step={} order={} receiver={} parameter={:?} lexical_parent_environment={} lexical_parent_node={:?} binder_at_parent={:?} parent_dispatch={} cells_before_bind={} environments_before_bind={} received=(value={},view={},interface={:?},dispatch={:?}) bound_cell={} bound_environment={} cells_after_bind={} environments_after_bind={}",
+            original_bind.step, original_bind.order, original_bind.entry_receiver, original_bind.parameter,
+            original_bind.binder_parent_environment, original_bind.binder_parent, original_bind.binder_at_parent,
+            original_bind.parent_dispatch, original_bind.cells_before_bind, original_bind.environments_before_bind,
+            original_bind.received.value.0, original_bind.received.view.index(), original_bind.received.interface,
+            original_bind.received.dispatch, original_bind.bound_cell, original_bind.bound_environment,
+            original_bind.cells_after_bind, original_bind.environments_after_bind);
+        let return_snapshot = machine.r313_return_snapshot.as_ref().unwrap();
+        let _ = writeln!(out, "callee_return_arena_snapshot frame=F{} apply_site={:?} sizes=(cells:{},environments:{},values:{},receiving_views:{}) receiving_scan_truncated={}",
+            return_snapshot.frame_id, return_snapshot.apply_site,
+            return_snapshot.cells.len(), return_snapshot.environments.len(),
+            return_snapshot.values.len(), return_snapshot.receiving_views.len(),
+            return_snapshot.receiving_scan_truncated);
+        if let Some(initialization) = &return_snapshot.source_name_initialization {
+            let _ = writeln!(out, "return_source_name_initialization code={} environment={} parameter={:?} cell={} value={} view={} interface={:?} dispatch={:?}",
+                return_snapshot.argument_code.0, return_snapshot.caller_environment,
+                initialization.parameter, initialization.cell, initialization.received.value.0,
+                initialization.received.view.index(), initialization.received.interface,
+                initialization.received.dispatch);
+        } else {
+            let _ = writeln!(out, "return_source_name_initialization=unavailable");
+        }
+        for (index, cell) in return_snapshot.cells.iter().enumerate() {
+            match cell {
+                Some(received) => {
+                    let _ = writeln!(out, "return_cell[{index}]=Some(value={},view={},interface={:?},dispatch={:?})",
+                        received.value.0, received.view.index(), received.interface, received.dispatch);
+                }
+                None => { let _ = writeln!(out, "return_cell[{index}]=None"); }
+            }
+        }
+        for (index, environment) in return_snapshot.environments.iter().enumerate() {
+            let _ = writeln!(out, "return_environment[{index}]=(parent={:?},binder={:?},dispatch={:?})",
+                environment.parent, environment.binder, environment.dispatch);
+        }
+        for (index, value) in return_snapshot.values.iter().enumerate() {
+            let _ = writeln!(out, "return_value[{index}]=(source={:?},kind={:?})", value.source, value.kind);
+        }
+        for (index, fields) in return_snapshot.receiving_views.iter().enumerate() {
+            let chain = return_snapshot.receiving_image_chains.get(index).map(String::as_str).unwrap_or("missing");
+            let _ = writeln!(out, "return_receiving_view[{index}]={fields}; image_chain={chain}");
+        }
+        let _ = writeln!(out, "post_run_arena_sizes=(cells:{},environments:{},values:{})", machine.cells.len(), machine.environments.len(), machine.values.len());
+        let _ = writeln!(out, "completed_value={} kind={:?}; requests_total={}",
+            completed.0, machine.values[completed.0].kind, machine.next_request);
+        out
+    }
+
+    #[test]
+    fn r313_accepted_source_callee_returns_after_request_and_observes_value_name() {
+        let source = "act io:\n    our tick: int -> int\nmy make seed = { io::tick seed; \\argument -> argument }\nmy relay value = make 1 value\nmy handle (thunk:[io] int) = catch thunk { io::tick(p), k -> handle { k 10 } }\nmy main = handle { relay 7 }";
+        let mut machine = accepted_machine(source);
+        r313_watch_source_apply(&mut machine);
+        let RuntimeOutcome::Completed(value) = machine.run(30_000) else {
+            panic!("accepted source callee/Observe path did not complete: {:?}", machine.state_outcome());
+        };
+        assert!(matches!(&machine.value(value).unwrap().kind,
+            RuntimeValueKind::Integer(actual) if actual.as_ref() == "7"));
+        assert_eq!(machine.next_request, 1, "the source callee's Request prefix runs once");
+        let call = machine.name_receipt_calls.iter().find(|call| {
+            matches!(machine.program.code.get(call.argument_code).map(|code| &code.instruction),
+                Some(Instruction::Name { consumption: NameConsumption::Observe, .. }))
+                && call.call_site.source_root == machine.program.code[call.argument_code].site.source_root
+        }).expect("the real source Apply carries an Observe Name argument");
+        assert_source_callee_return_observe_witness(&machine, call);
+        assert_name_argument_receipt(&machine, call, NameConsumption::Observe);
+        assert_callee_frame_survived_request(&machine, call);
+        let binds = machine.r313_value_entry_binds.iter().filter(|bind|
+            bind.entry_receiver == call.invocation && bind.parameter == call.formal
+        ).collect::<Vec<_>>();
+        assert_eq!(binds.len(), 1, "the actual callee ValueEntry records one pre-bind arena snapshot");
+        let bind = binds[0];
+        assert_eq!(bind.binder_parent_environment, call.closure_environment);
+        assert_eq!(bind.cells_before_bind, bind.bound_cell);
+        assert_eq!(bind.bound_cell, bind.cells_after_bind - 1);
+        assert_eq!(bind.environments_before_bind, bind.bound_environment);
+        assert_eq!(bind.bound_environment, bind.environments_after_bind - 1);
+        let observed = machine.r312_name_lookups.iter().find(|lookup|
+            lookup.code == call.argument_code
+                && lookup.site.occurrence == machine.program.code[call.argument_code].site.occurrence
+        ).unwrap();
+        assert_eq!(bind.received.value, observed.value);
+        assert_eq!(bind.received.view, observed.view);
+        assert_eq!(machine.environments[bind.bound_environment].parent,
+            Some(bind.binder_parent_environment));
+        let original_binds = machine.r313_value_entry_binds.iter().filter(|bind|
+            bind.bound_environment == observed.environment && bind.bound_cell == observed.cell
+        ).collect::<Vec<_>>();
+        assert_eq!(original_binds.len(), 1,
+            "the Observe Name is initialized by the exact caller parameter bind");
+        let original_bind = original_binds[0];
+        assert_eq!(original_bind.parameter, observed.parameter);
+        assert_eq!(original_bind.received.value, observed.value);
+        assert_eq!(original_bind.received.view, observed.view);
+        assert_eq!(original_bind.received.interface, ParameterRole::Value);
+        assert_eq!(original_bind.bound_cell, original_bind.cells_before_bind);
+        assert_eq!(original_bind.bound_environment, original_bind.environments_before_bind);
+        assert_eq!(original_bind.cells_after_bind, original_bind.cells_before_bind + 1);
+        assert_eq!(original_bind.environments_after_bind, original_bind.environments_before_bind + 1);
+        assert_eq!(machine.environments[original_bind.bound_environment].parent,
+            Some(original_bind.binder_parent_environment));
+        let return_snapshot = machine.r313_return_snapshot.as_ref().unwrap();
+        assert!(!return_snapshot.receiving_scan_truncated,
+            "CalRet Receiving view vector snapshot is complete");
+        assert_same_source_site(&return_snapshot.apply_site, &call.call_site);
+        assert_eq!(return_snapshot.argument_code, Label(call.argument_code));
+        assert_eq!(return_snapshot.caller_environment, call.argument_environment);
+        let initialized_name = return_snapshot.source_name_initialization.as_ref().unwrap();
+        assert_eq!(initialized_name.parameter, observed.parameter);
+        assert_eq!(initialized_name.cell, observed.cell);
+        assert_eq!(initialized_name.received.value, observed.value);
+        assert_eq!(initialized_name.received.view, observed.view);
+        assert!(return_snapshot.cells[initialized_name.cell]
+            .is_some_and(|received| received.value == observed.value
+                && received.view == observed.view
+                && received.interface == ParameterRole::Value
+                && received.dispatch == original_bind.received.dispatch));
+        assert_eq!(return_snapshot.frame_id, machine.r312_frame_events.iter().find_map(|event| match event {
+            R312FrameEvent::CalleeReturned { apply_site, frame_id, .. }
+                if apply_site.occurrence == call.call_site.occurrence => Some(*frame_id),
+            _ => None,
+        }).unwrap());
+
+        let request_count = machine.r312_frame_events.iter().filter(|event| matches!(event,
+            R312FrameEvent::RequestObserved { .. }
+        )).count();
+        assert_eq!(request_count, 1, "no resumed suffix replay creates another source Request");
+
+        let foreign = runtime_program(source, true);
+        assert!(!Arc::ptr_eq(&foreign._hir, &machine.program._hir));
+        assert!(!source_apply_labels_match_call(
+            &foreign, call, call.callee_code.unwrap(), call.argument_code,
+        ), "same-shaped foreign HIR cannot witness the accepted run's source owner");
+        if let Some(path) = std::env::var_os("YULANG_R313_NATIVE_WITNESS") {
+            let witness = r313_witness_text(&machine, call, value, source);
+            std::fs::write(path, witness)
+                .expect("explicit R313 witness export path must be writable");
+        }
     }
 
     #[test]
