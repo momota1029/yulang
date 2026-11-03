@@ -655,19 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R325",
+    "id": "R326",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/original-operation-adequacy-r325.md",
-    "contract_sha256": "01225c41897219cdebe7e1f1daee6e65692a8389f906410f1a26f05b8f15141c",
-    "review_result": "tasks/agent-loop/history/20261103-operation-source-adequacy-r325-review.md",
-    "review_result_sha256": "e506acddcbfc3683108788f46c469dd210cbef84e907305a6b34502c49f6ffb1",
+    "contract": "tasks/agent-loop/sprints/source-call-algebra-r326.md",
+    "contract_sha256": "195178575a860060e62192ea4efe2aab1f8a5976fb7d932bc64e64a83bf7a32d",
+    "review_result": "tasks/agent-loop/history/20261103-source-call-algebra-r326-review.md",
+    "review_result_sha256": "37e4b9f308c8897716122b161b57a844cbf78c7533d1e5de28413db5d3dd2847",
     "previous_sprint": {
-      "id": "R324",
+      "id": "R325",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/source-request-resume-r324.md",
-      "contract_sha256": "c3af8363ab642c9cbe879a8df018f8edad59a82cdf458e49af1f3db7f05c4636",
-      "review_result": "tasks/agent-loop/history/20261103-source-request-resume-r324-review.md",
-      "review_result_sha256": "e9e52b8e15744b1d908490f565f0581f8b131678de6a3e5769e0e3613f1929e6"
+      "contract": "tasks/agent-loop/sprints/original-operation-adequacy-r325.md",
+      "contract_sha256": "01225c41897219cdebe7e1f1daee6e65692a8389f906410f1a26f05b8f15141c",
+      "review_result": "tasks/agent-loop/history/20261103-operation-source-adequacy-r325-review.md",
+      "review_result_sha256": "e506acddcbfc3683108788f46c469dd210cbef84e907305a6b34502c49f6ffb1"
     }
   },
   "lease_archive": {
