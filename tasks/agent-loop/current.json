@@ -655,19 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R315",
+    "id": "R316",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/module-context-binding-r315.md",
-    "contract_sha256": "00e98ec431011a89bd42ffd0ea872bc0a631880f34206004786917b9a55953fd",
-    "review_result": "tasks/agent-loop/history/20261103-module-context-binding-r315-review.md",
-    "review_result_sha256": "93d3908b51d37621d3b957a3fd71d35749bde632e77070ecae0d896616df01a2",
+    "contract": "tasks/agent-loop/sprints/original-app-formation-owner-r316.md",
+    "contract_sha256": "01ad18e44a75f46b63d90b162050922dbee142529cc4bad178b0ffd8f5a2e424",
+    "review_result": "tasks/agent-loop/history/20261103-original-formation-owner-r316-review.md",
+    "review_result_sha256": "d4ba50b5ac19241340eb07ec17622746794f3a97e72009809d5e458a1b71a8d4",
     "previous_sprint": {
-      "id": "R314",
+      "id": "R315",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/scoped-source-event-map-r314.md",
-      "contract_sha256": "5938b2e97ff033cc3936f79a9fecedf984ede0be6e3f4a4b5ceb296bd559afe7",
-      "review_result": "tasks/agent-loop/history/20261103-scoped-source-event-map-r314-review.md",
-      "review_result_sha256": "7743390f22d62deb7d3f002d11395f223541605a9356dcbda19c990e7b4278ef"
+      "contract": "tasks/agent-loop/sprints/module-context-binding-r315.md",
+      "contract_sha256": "00e98ec431011a89bd42ffd0ea872bc0a631880f34206004786917b9a55953fd",
+      "review_result": "tasks/agent-loop/history/20261103-module-context-binding-r315-review.md",
+      "review_result_sha256": "93d3908b51d37621d3b957a3fd71d35749bde632e77070ecae0d896616df01a2"
     }
   },
   "lease_archive": {
