@@ -655,19 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R329",
+    "id": "R330",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/source-evidence-transport-r329.md",
-    "contract_sha256": "168778197ce8fa4fc06b6f8d4cb44f43335b748e38ffee1b45ba0b3d9a6cfe8f",
-    "review_result": "tasks/agent-loop/history/20261103-original-evidence-transport-r329-review.md",
-    "review_result_sha256": "0c31d896600855a213c7310508555b9a02b1c3e18141510885e2184eaf5a89a9",
+    "contract": "tasks/agent-loop/sprints/source-phase-view-r330.md",
+    "contract_sha256": "527d29025b58ae33128adc71ef43c3f45f3e931b61e091b8400967fed0564ba5",
+    "review_result": "tasks/agent-loop/history/20261103-source-view-registration-r330-review.md",
+    "review_result_sha256": "55472bb7cde596f15fe8df39e5ad00575aa9bc07c1cf35581bf19a59cc538755",
     "previous_sprint": {
-      "id": "R328",
+      "id": "R329",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/source-interface-preservation-r328.md",
-      "contract_sha256": "2a31920f421387efe2088e61fd71ae599b94b6ef9597f8078c42b461de41c0dd",
-      "review_result": "tasks/agent-loop/history/20261103-interface-preservation-r328-review.md",
-      "review_result_sha256": "56254c4452e02939cf2170d252ecf3d63bd96fd8911ccc1546c25aeb894842e7"
+      "contract": "tasks/agent-loop/sprints/source-evidence-transport-r329.md",
+      "contract_sha256": "168778197ce8fa4fc06b6f8d4cb44f43335b748e38ffee1b45ba0b3d9a6cfe8f",
+      "review_result": "tasks/agent-loop/history/20261103-original-evidence-transport-r329-review.md",
+      "review_result_sha256": "0c31d896600855a213c7310508555b9a02b1c3e18141510885e2184eaf5a89a9"
     }
   },
   "lease_archive": {
