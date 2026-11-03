@@ -23,6 +23,7 @@ use yu_hir::shadow::{
 };
 use yu_hir::{DefId, ExpressionRootId, HirParameterId};
 
+
 /// Explicit source small-step state. Source recursion grows arenas/frames, never
 /// the Rust call stack. Environments and cells contain integer arena references,
 /// so recursive closures do not construct reference-counted ownership cycles.
@@ -88,6 +89,8 @@ pub struct Machine {
     r313_watch_apply: Option<SourceSite>,
     #[cfg(test)]
     r313_return_snapshot: Option<R313CalleeReturnSnapshot>,
+    #[cfg(test)]
+    r315_module_uses: Vec<R315ModuleUse>,
     name_receipt_seed_trace: Option<String>,
     name_receipt_calls_truncated: bool,
     name_receipt_observation_unavailable: bool,
@@ -282,6 +285,7 @@ struct R313ValueEntryBind {
     environments_after_bind: usize,
 }
 #[cfg(test)]
+#[derive(Clone)]
 struct R313CalleeReturnSnapshot {
     frame_id: usize,
     apply_site: SourceSite,
@@ -296,10 +300,23 @@ struct R313CalleeReturnSnapshot {
     receiving_scan_truncated: bool,
 }
 #[cfg(test)]
+#[derive(Clone)]
 struct R313SourceNameInitialization {
     parameter: HirParameterId,
     cell: usize,
     received: ReceivedValue,
+}
+#[cfg(test)]
+#[derive(Clone)]
+struct R315ModuleUse {
+    step: usize,
+    code: usize,
+    site: SourceSite,
+    owner: ExecutionOwner,
+    environment: usize,
+    definition: DefId,
+    cell: usize,
+    consumption: NameConsumption,
 }
 #[cfg(test)]
 enum R312FrameEvent {
@@ -814,6 +831,8 @@ impl RuntimeProgram {
             r313_watch_apply: None,
             #[cfg(test)]
             r313_return_snapshot: None,
+            #[cfg(test)]
+            r315_module_uses: Vec::new(),
             name_receipt_seed_trace: None,
             name_receipt_calls_truncated: false,
             name_receipt_observation_unavailable: false,
@@ -1321,7 +1340,25 @@ impl Machine {
             } => {
                 let cell = match resolution {
                     LocalSourceResolution::ModuleDef(id) => {
-                        self.program.definition_indices.get(id).copied()
+                        let cell = self.program.definition_indices.get(id).copied();
+                        #[cfg(test)]
+                        if id.spelling() == "make" {
+                            if self.r315_module_uses.len() < 1024
+                                && self.r315_module_uses.try_reserve(1).is_ok()
+                            {
+                                self.r315_module_uses.push(R315ModuleUse {
+                                    step: self.steps,
+                                    code: label.0,
+                                    site: site.clone(),
+                                    owner: self.current_execution_owner(),
+                                    environment,
+                                    definition: id.clone(),
+                                    cell: cell.ok_or(RuntimeUnavailable::InvalidSourceReference)?,
+                                    consumption: *consumption,
+                                });
+                            }
+                        }
+                        cell
                     }
                     LocalSourceResolution::Parameter(id) => {
                         self.lookup(environment, |binder| {
@@ -4768,11 +4805,211 @@ mod module_expression_tests {
         let snapshot_parameter = snapshot.source_name_initialization.as_ref().map_or_else(|| "none".to_owned(), |initialization|
             format!("some {}", initialization.parameter.ordinal()));
         let apply_site = r314_lean_runtime_site(machine, parsed, &snapshot.apply_site)?;
-        let _ = writeln!(out, "def returnSnapshot : ReturnSnapshot := {{ frame := {}, applySite := {}, argumentLabel := {}, callerEnvironment := {}, cells := [{}], environments := [{}], values := [{}], receivingViews := {}, receivingImageChains := {}, sourceNameInitialization := {}, sourceNameParameter := {}, receivingScanTruncated := {} }}",
-            snapshot.frame_id, apply_site, snapshot.argument_code.0, snapshot.caller_environment, cells,
+        let _ = writeln!(out, "def returnSnapshot : ReturnSnapshot := {{ runId := {}, frame := {}, applySite := {}, argumentLabel := {}, callerEnvironment := {}, cells := [{}], environments := [{}], values := [{}], receivingViews := {}, receivingImageChains := {}, sourceNameInitialization := {}, sourceNameParameter := {}, receivingScanTruncated := {} }}",
+            machine as *const Machine as usize, snapshot.frame_id, apply_site, snapshot.argument_code.0, snapshot.caller_environment, cells,
             environments, values, receiving_views, receiving_chains, snapshot_source_name, snapshot_parameter,
             snapshot.receiving_scan_truncated);
         let _ = writeln!(out, "end R314Artifact");
+        Ok(out)
+    }
+
+    fn r315_lean_binding_artifact(
+        machine: &Machine,
+        parsed: &ParsedFile,
+        source_text: &str,
+        snapshot: &R313CalleeReturnSnapshot,
+    ) -> Result<String, super::super::RuntimeUnavailable> {
+        use std::fmt::Write as _;
+        use yu_hir::{HirItem, SourceRootId};
+        let owned_snapshot = machine.r313_return_snapshot.as_ref()
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        if !std::ptr::eq(snapshot, owned_snapshot) {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        let bindings = machine.program._hir.items().iter().filter_map(|item| match item {
+            HirItem::Binding(binding) if binding.id().spelling() == "make" => Some(binding),
+            _ => None,
+        }).collect::<Vec<_>>();
+        let [binding] = bindings.as_slice() else {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        };
+        let root = SourceRootId::Definition(binding.definition_root().clone());
+        if !machine.program._hir.owns_source_root(&root) {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        let source = machine.program._hir.local_source_for(&root)
+            .map_err(|_| super::super::RuntimeUnavailable::InvalidSourceReference)?
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        let make_applies = machine.program.code.iter().filter(|code|
+            code.site.source_root == root && matches!(code.instruction, Instruction::Apply { .. })
+        ).collect::<Vec<_>>();
+        let apply = *make_applies.first()
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        let mut make_tree = machine.program.r314_lean_source_export(parsed, &apply.site, source_text)?;
+        if make_applies.iter().any(|code| !source.expressions().iter().any(|expr|
+            expr.occurrence == code.site.occurrence && expr.range == code.site.range
+        )) {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        make_tree = make_tree
+            .replacen("import Lean\nnamespace R314Artifact", "\nnamespace R315MakeArtifact", 1)
+            .replace("end R314Artifact", "end R315MakeArtifact");
+
+        let use_observations = machine.r315_module_uses.iter().filter(|observation|
+            observation.definition == *binding.id()
+        ).collect::<Vec<_>>();
+        let [use_observation] = use_observations.as_slice() else {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        };
+        let expected_cell = *machine.program.definition_indices.get(binding.id())
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        if expected_cell != use_observation.cell
+            || use_observation.site.source_root == root
+            || use_observation.code >= machine.program.code.len()
+            || use_observation.code != machine.program.code.iter().position(|code|
+                code.site.source_root == use_observation.site.source_root
+                    && code.site.occurrence == use_observation.site.occurrence
+                    && code.site.range == use_observation.site.range
+                    && matches!(&code.instruction,
+                        Instruction::Name { resolution: LocalSourceResolution::ModuleDef(id), .. }
+                            if id == binding.id())
+            ).ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?
+        {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        let cell_value = snapshot.cells.get(expected_cell).copied().flatten()
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        if cell_value.interface != ParameterRole::Value {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        let value = snapshot.values.get(cell_value.value.0)
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        let ExecutableValue::Closure { parameter, role, body, environment, .. } = machine.executables
+            .get(&cell_value.value.0).ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?
+        else {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        };
+        let provider_environment = *environment;
+        if value.source.source_root != root || parameter.source_root() != &root
+            || *role != ParameterRole::Value
+            || provider_environment >= snapshot.environments.len()
+            || use_observation.environment >= snapshot.environments.len()
+        {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+
+        let indexes = yu_hir::shadow::index_source_exports(
+            ModuleIdentity::source_root(binding.id().module().file().clone()),
+            parsed,
+        ).map_err(|_| super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        let declarations = indexes.declarations.iter().filter(|declaration|
+            declaration.name.as_deref() == Some("make")
+                && declaration.range == *binding.range()
+                && !declaration.recovered
+        ).collect::<Vec<_>>();
+        let [declaration] = declarations.as_slice() else {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        };
+        let module_binding_rows = machine.program._hir.items().iter().filter_map(|item| match item {
+            HirItem::Binding(binding) => Some(binding),
+            _ => None,
+        }).map(|binding| -> Result<String, super::super::RuntimeUnavailable> {
+            let rows = indexes.declarations.iter().filter(|declaration|
+                declaration.name.as_deref() == Some(binding.id().spelling())
+                    && declaration.range == *binding.range()
+                    && !declaration.recovered
+            ).collect::<Vec<_>>();
+            let [declaration] = rows.as_slice() else {
+                return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+            };
+            let cell = *machine.program.definition_indices.get(binding.id())
+                .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+            let (realm, path) = super::super::program::r314_module_fields(binding.id().module())?;
+            let binding_root = SourceRootId::Definition(binding.definition_root().clone());
+            let binding_source = machine.program._hir.local_source_for(&binding_root)
+                .map_err(|_| super::super::RuntimeUnavailable::InvalidSourceReference)?
+                .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+            let annotation = super::super::program::r314_lean_annotation(binding_source.annotation(), parsed, &binding_root)?;
+            Ok(format!("{{ name := {}, realm := {}, path := {}, sameNameOrdinal := {}, definitionRoot := {}, declaration := {}, bindingAnnotation := {}, hirVisibility := {}, sourceIndexPublic := {}, runtimeCell := {} }}",
+                super::super::program::r314_lean_string(binding.id().spelling()),
+                super::super::program::r314_lean_string(realm), super::super::program::r314_lean_string(path),
+                binding.id().same_name_ordinal(),
+                format!("R314Artifact.{}", r314_lean_source_root_identity(machine, parsed, &SourceRootId::Definition(binding.definition_root().clone()))?),
+                super::super::program::r314_key_position(parsed, &declaration.source)?,
+                annotation,
+                super::super::program::r314_lean_string(&format!("{:?}", binding.visibility())),
+                declaration.public, cell))
+        }).collect::<Result<Vec<_>, _>>()?.join(", ");
+        let declaration_position = super::super::program::r314_key_position(parsed, &declaration.source)?;
+        let binding_annotation = super::super::program::r314_lean_annotation(source.annotation(), parsed, &root)?;
+        let definition_identity = format!("R314Artifact.{}", r314_lean_source_root_identity(machine, parsed, &root)?);
+        let use_site = r314_lean_runtime_site(machine, parsed, &use_observation.site)?;
+        let use_code = machine.program.code.get(use_observation.code)
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        let (spelling, resolution, scope) = {
+            let local_source = machine.program._hir.local_source_for(&use_observation.site.source_root)
+                .map_err(|_| super::super::RuntimeUnavailable::InvalidSourceReference)?
+                .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+            let expression = local_source.expressions().iter().find(|expression|
+                expression.occurrence == use_observation.site.occurrence
+            ).ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+            if expression.range != use_observation.site.range { return Err(super::super::RuntimeUnavailable::InvalidSourceReference); }
+            let yu_hir::shadow::LocalSourceForm::Name { spelling, resolution } = &expression.form else {
+                return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+            };
+            (spelling.clone(), resolution.clone(), expression.scope.clone())
+        };
+        if spelling.as_ref() != "make"
+            || !matches!(&resolution, LocalSourceResolution::ModuleDef(id) if id == binding.id())
+            || !matches!(&use_code.instruction,
+                Instruction::Name { resolution: LocalSourceResolution::ModuleDef(id), consumption }
+                    if id == binding.id() && *consumption == use_observation.consumption)
+        {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        let scope = format!("R314Artifact.{}", super::super::program::r314_lean_scope(&scope, parsed)?);
+        let consumption = super::super::program::r314_lean_string(match use_observation.consumption {
+            NameConsumption::Observe => "Observe", NameConsumption::Execute => "Execute",
+        });
+        let visibility = super::super::program::r314_lean_string(&format!("{:?}", binding.visibility()));
+        let initializer = source.body().ordinal();
+        let provider_site = r314_lean_runtime_site(machine, parsed, &value.source)?;
+        let use_environment_frame = snapshot.environments.get(use_observation.environment)
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        let (env_kind, env_id, env_cell, env_owner) = match use_environment_frame.binder.as_ref() {
+            None => ("none".to_owned(), "none".to_owned(), "none".to_owned(), "none".to_owned()),
+            Some((binder, cell)) => {
+                let (kind, id, owner) = match binder {
+                    Binder::Parameter(id) => ("parameter", id.ordinal(), id.source_root()),
+                    Binder::Local(id) => ("local", id.ordinal(), id.source_root()),
+                    Binder::Catch(id) => ("catch", id.ordinal(), id.source_root()),
+                };
+                (format!("some {}", super::super::program::r314_lean_string(kind)),
+                    format!("some {id}"), format!("some {cell}"),
+                    format!("some (R314Artifact.{})", r314_lean_source_root_identity(machine, parsed, owner)?))
+            }
+        };
+        let (dispatch_base, dispatch_word) = use_environment_frame.dispatch.context.r314_parts();
+        let optional_nat = |value: Option<usize>| value.map_or_else(|| "none".to_owned(), |n| format!("some {n}"));
+        let dispatch_substitution = optional_nat(use_environment_frame.dispatch.substitution);
+        let hir_visibility_public = declaration.public;
+        let resolution = format!("R314Artifact.{}", super::super::program::r314_lean_resolution(&resolution, &use_observation.site.source_root)?);
+        let mut out = String::new();
+        out.push_str(&make_tree);
+        out.push_str("\nend R315MakeArtifact\n\nnamespace R315Artifact\n");
+        out.push_str("structure BindingUsePublication where\n  makeRoot : R315MakeArtifact.RootBinding\n  makeDefinitionRoot : R314Artifact.SourceRootIdentity\n  declaration : R314Artifact.Position\n  bindingAnnotation : Option R314Artifact.Annotation\n  hirVisibility : String\n  sourceIndexPublic : Bool\n  initializer : Nat\n  useSite : R314Artifact.RuntimeSite\n  useOwner : R314Artifact.ExecutionOwner\n  useStep : Nat\n  useEnvironment : Nat\n  useScope : R314Artifact.ScopeTag\n  resolution : R314Artifact.Resolution\n  consumes : String\n  globalCell : Nat\n  cellValue : Nat\n  cellView : Nat\n  cellInterface : R314Artifact.Interface\n  providerSite : R314Artifact.RuntimeSite\n  providerFormal : Nat\n  providerBody : Nat\n  providerEnvironment : Nat\n  providerEnvironmentParent : Option Nat\n  providerInterfaceIsValue : Bool\n  useEnvironmentParent : Option Nat\n  useEnvironmentBinderKind : Option String\n  useEnvironmentBinderId : Option Nat\n  useEnvironmentBinderCell : Option Nat\n  useEnvironmentBinderOwner : Option R314Artifact.SourceRootIdentity\n  dispatchBase : Option Nat\n  dispatchWord : Option Nat\n  substitution : Option Nat\n  runId : Nat\n  deriving Repr\n");
+        out.push_str("structure ModuleBindingRow where\n  name : String\n  realm : String\n  path : String\n  sameNameOrdinal : Nat\n  definitionRoot : R314Artifact.SourceRootIdentity\n  declaration : R314Artifact.Position\n  bindingAnnotation : Option R314Artifact.Annotation\n  hirVisibility : String\n  sourceIndexPublic : Bool\n  runtimeCell : Nat\n  deriving Repr\n");
+        let _ = writeln!(out, "def moduleBindingsInSourceOrder : List ModuleBindingRow := [{}]", module_binding_rows);
+        let provider_parent = snapshot.environments.get(provider_environment).and_then(|environment| environment.parent);
+        let use_parent = use_environment_frame.parent;
+        let frame = snapshot.frame_id;
+        let _ = writeln!(out, "def makeBindingUse : BindingUsePublication := {{ makeRoot := R315MakeArtifact.rootBinding, makeDefinitionRoot := {definition_identity}, declaration := {declaration_position}, bindingAnnotation := {binding_annotation}, hirVisibility := {visibility}, sourceIndexPublic := {hir_visibility_public}, initializer := {initializer}, useSite := {use_site}, useOwner := {}, useStep := {}, useEnvironment := {}, useScope := {scope}, resolution := {resolution}, consumes := {consumption}, globalCell := {expected_cell}, cellValue := {}, cellView := {}, cellInterface := R314Artifact.Interface.value, providerSite := {provider_site}, providerFormal := {}, providerBody := {}, providerEnvironment := {}, providerEnvironmentParent := {}, providerInterfaceIsValue := {}, useEnvironmentParent := {}, useEnvironmentBinderKind := {env_kind}, useEnvironmentBinderId := {env_id}, useEnvironmentBinderCell := {env_cell}, useEnvironmentBinderOwner := {env_owner}, dispatchBase := {}, dispatchWord := {}, substitution := {}, runId := {} }}",
+            format!("R314Artifact.{}", r314_lean_owner(use_observation.owner)), use_observation.step, use_observation.environment, cell_value.value.0,
+            cell_value.view.index(), parameter.ordinal(), body.0, provider_environment,
+            optional_nat(provider_parent), *role == ParameterRole::Value, optional_nat(use_parent),
+            optional_nat(dispatch_base), optional_nat(dispatch_word), dispatch_substitution,
+            machine as *const Machine as usize);
+        out.push_str("end R315Artifact\n");
         Ok(out)
     }
 
@@ -4834,6 +5071,24 @@ mod module_expression_tests {
             "CalRet Receiving view vector snapshot is complete");
         let lean = r314_lean_machine_artifact(&machine, call, &parsed, source)
             .expect("the exact snapshot and binder owners serialize into Lean data");
+        let r315 = r315_lean_binding_artifact(&machine, &parsed, source, return_snapshot)
+            .expect("the same accepted run exports make's full source root and global-cell use");
+        let r315 = format!("{lean}\n{r315}");
+        assert!(r315.contains("namespace R314Artifact"));
+        assert!(r315.contains("namespace R315MakeArtifact"));
+        assert!(r315.contains("namespace R315Artifact"));
+        assert!(r315.contains("def makeBindingUse : BindingUsePublication"));
+        assert!(r315.contains("sourceIndexPublic := false"));
+        assert!(r315.contains("Resolution.moduleDef"));
+        assert!(r315.contains("cellInterface := R314Artifact.Interface.value"));
+        let cloned_snapshot = return_snapshot.clone();
+        assert!(r315_lean_binding_artifact(&machine, &parsed, source, &cloned_snapshot).is_err(),
+            "a cloned snapshot has no authenticated ownership in this Machine");
+        let make_cell = machine.program._hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.id().spelling() == "make" =>
+                machine.program.definition_indices.get(binding.id()).copied(),
+            _ => None,
+        }).unwrap();
         let mut parameter_zero_owners = HashSet::new();
         for (environment_index, environment) in return_snapshot.environments.iter().enumerate() {
             let Some((binder, cell)) = environment.binder.as_ref() else { continue; };
@@ -4878,6 +5133,19 @@ mod module_expression_tests {
             R312FrameEvent::RequestObserved { .. }
         )).count();
         assert_eq!(request_count, 1, "no resumed suffix replay creates another source Request");
+        let make_cell_value = {
+            let snapshot = machine.r313_return_snapshot.as_mut().unwrap();
+            let received = snapshot.cells[make_cell].unwrap();
+            snapshot.cells[make_cell] = Some(ReceivedValue {
+                interface: ParameterRole::Computation,
+                ..received
+            });
+            received
+        };
+        assert!(r315_lean_binding_artifact(&machine, &parsed, source,
+            machine.r313_return_snapshot.as_ref().unwrap()).is_err(),
+            "a definition cell with only its interface changed is rejected");
+        machine.r313_return_snapshot.as_mut().unwrap().cells[make_cell] = Some(make_cell_value);
 
         let foreign = runtime_program(source, true);
         assert!(!Arc::ptr_eq(&foreign._hir, &machine.program._hir));
@@ -4903,9 +5171,16 @@ mod module_expression_tests {
         );
         assert!(machine.program.r314_lean_source_export(&foreign_parse, &call.call_site, source).is_err(),
             "a second parse of identical text has a different parse owner");
-        let second_run = start(&machine.program);
+        let mut second_run = start(&machine.program);
         assert!(r314_lean_machine_artifact(&second_run, call, &parsed, source).is_err(),
             "a second Machine over the same HIR cannot reuse the first run's Return snapshot");
+        r313_watch_source_apply(&mut second_run);
+        let RuntimeOutcome::Completed(_) = second_run.run(30_000) else {
+            panic!("second same-program run did not complete for the foreign-snapshot mutation check");
+        };
+        let foreign_snapshot = second_run.r313_return_snapshot.as_ref().unwrap();
+        assert!(r315_lean_binding_artifact(&machine, &parsed, source, foreign_snapshot).is_err(),
+            "a second Machine's structurally matching Return snapshot is rejected");
         drop(second_run);
         if let Some(path) = std::env::var_os("YULANG_R313_NATIVE_WITNESS") {
             let witness = r313_witness_text(&machine, call, value, source);
@@ -4914,6 +5189,9 @@ mod module_expression_tests {
         }
         if let Some(path) = std::env::var_os("YULANG_R314_LEAN_WITNESS") {
             std::fs::write(path, lean).expect("explicit R314 Lean witness path must be writable");
+        }
+        if let Some(path) = std::env::var_os("YULANG_R315_LEAN_WITNESS") {
+            std::fs::write(path, r315).expect("explicit R315 Lean witness path must be writable");
         }
     }
 

@@ -925,8 +925,8 @@ impl RuntimeProgram {
             r314_validate_pair(source, expr, &code.instruction, self)?;
             let syntax = r314_key_position(parsed, &expr.source)?;
             let scope = r314_lean_scope(&expr.scope, parsed)?;
-            let form = r314_lean_source_form(&expr.form, parsed, &apply_site.source_root)?;
-            let instruction = r314_lean_instruction(&code.instruction, &apply_site.source_root)?;
+            let form = r314_lean_source_form(source, &expr.form, parsed, &apply_site.source_root)?;
+            let instruction = r314_lean_instruction(&code.instruction, source, parsed, &apply_site.source_root)?;
             let children = r314_child_ordinals(&expr.form).iter().map(u32::to_string).collect::<Vec<_>>().join(", ");
             let _ = writeln!(out, "  {{ ordinal := {ordinal}, occurrence := {}, startByte := {}, endByte := {}, sourcePosition := {syntax}, scope := {scope}, form := {form}, childOrdinals := [{children}], codeLabel := {code_label}, instruction := {instruction} }},",
                 expr.occurrence.ordinal(), expr.range.start, expr.range.end);
@@ -2065,6 +2065,7 @@ structure RuntimeValue where
   kind : ValueKind
   deriving Repr
 structure ReturnSnapshot where
+  runId : Nat
   frame : Nat
   applySite : RuntimeSite
   argumentLabel : Nat
@@ -2087,16 +2088,34 @@ structure Formal where
   scope : ScopeTag
   annotation : Option Annotation
   deriving Repr
+inductive BlockStatement where
+  | expression (code : Nat) | binding (ordinal localId initializer : Nat)
+  deriving Repr
+inductive SourceStatement where
+  | expression (source : Nat) | binding (ordinal localId initializer : Nat)
+  deriving Repr
+structure SourceStatementBlock where
+  statements : List SourceStatement
+  finalExpression : Nat
+  deriving Repr
+structure InstructionStatementBlock where
+  statements : List BlockStatement
+  finalExpression : Nat
+  deriving Repr
 inductive SourceForm where
   | unit | integer (value : String) | boolean (value : Bool) | string (value : String)
   | decodedString (value : String) | name (spelling : String) (resolution : Resolution)
   | apply (syntaxKind : String) (callee argument : Nat) | group (inner : Nat)
   | ascription (annotation : Annotation) (inner : Nat) | lambda (formal : Formal) (body : Nat)
+  | operation (identity : OperationIdentity) | block (bindings : List (Nat × Nat)) (finalExpression : Nat)
+  | statementBlock (block : SourceStatementBlock)
   deriving Repr
 inductive Instruction where
   | unit | integer (value : String) | boolean (value : Bool) | string (value : String)
   | decodedString (value : String) | name (resolution : Resolution) (consumption : String)
   | apply (callee argument : Nat) | forward (inner : Nat) | lambda (formalId body : Nat)
+  | operation (identity : OperationIdentity) | block (bindings : List (Nat × Nat)) (finalExpression : Nat)
+  | statementBlock (block : InstructionStatementBlock)
   deriving Repr
 structure SourceNode where
   ordinal : Nat
@@ -2135,7 +2154,7 @@ pub(super) fn r314_key_position(
 }
 
 #[cfg(test)]
-fn r314_lean_scope(
+pub(super) fn r314_lean_scope(
     scope: &yu_hir::shadow::LocalSourceScope,
     parsed: &yu_syntax::ParsedFile,
 ) -> Result<String, RuntimeUnavailable> {
@@ -2159,7 +2178,7 @@ pub(super) fn r314_module_fields(module: &yu_hir::ModuleId) -> Result<(&str, &st
 }
 
 #[cfg(test)]
-fn r314_lean_resolution(
+pub(super) fn r314_lean_resolution(
     resolution: &LocalSourceResolution,
     root: &SourceRootId,
 ) -> Result<String, RuntimeUnavailable> {
@@ -2231,6 +2250,31 @@ fn r314_validate_pair(
         | (LocalSourceForm::Ascription { inner, .. }, Instruction::Forward(actual)) => label_for(inner)? == actual.0,
         (LocalSourceForm::Lambda { parameter, body }, Instruction::Lambda { parameter: actual, body: actual_body, .. }) =>
             parameter.id == *actual && label_for(body)? == actual_body.0,
+        (LocalSourceForm::Operation { resolution: source_resolution }, Instruction::Operation(code_resolution)) => {
+            match (source_resolution, code_resolution) {
+                (SourceOperationResolution::Resolved(source), SourceOperationResolution::Resolved(code)) => Arc::ptr_eq(source, code),
+                _ => false,
+            }
+        }
+        (LocalSourceForm::Block { bindings, final_expression }, Instruction::Block { bindings: code_bindings, final_expression: code_final }) => {
+            if bindings.len() != code_bindings.len() || label_for(final_expression)? != code_final.0 { false }
+            else {
+                bindings.iter().zip(code_bindings).all(|(ordinal, code_binding)| {
+                    source.bindings().iter().find(|binding| binding.id.ordinal() == *ordinal)
+                        .is_some_and(|binding| binding.id == code_binding.id
+                            && label_for(&binding.initializer).ok() == Some(code_binding.initializer.0))
+                })
+            }
+        }
+        (LocalSourceForm::StatementBlock { statements, final_expression }, Instruction::StatementBlock { statements: code_statements, final_expression: code_final }) => {
+            if statements.len() != code_statements.len() || label_for(final_expression)? != code_final.0 { false }
+            else { statements.iter().zip(code_statements).all(|(source_statement, code_statement)| match (source_statement, code_statement) {
+                (yu_hir::shadow::LocalSourceStatement::Expression(source), BlockStatement::Expression(code)) => label_for(source).ok() == Some(code.0),
+                (yu_hir::shadow::LocalSourceStatement::Binding(ordinal), BlockStatement::Binding(code)) => source.bindings().get(*ordinal as usize)
+                    .is_some_and(|source| source.id == code.id && label_for(&source.initializer).ok() == Some(code.initializer.0)),
+                _ => false,
+            }) }
+        }
         _ => false,
     };
     if valid { Ok(()) } else { Err(RuntimeUnavailable::InvalidSourceReference) }
@@ -2280,7 +2324,7 @@ fn r314_lean_annotation_value(
 }
 
 #[cfg(test)]
-fn r314_lean_annotation(
+pub(super) fn r314_lean_annotation(
     annotation: Option<&yu_hir::SourceAnnotation>,
     parsed: &yu_syntax::ParsedFile,
     root: &SourceRootId,
@@ -2327,6 +2371,7 @@ pub(super) fn r314_lean_annotation_type(
 
 #[cfg(test)]
 fn r314_lean_source_form(
+    source: &yu_hir::shadow::LocalSource,
     form: &LocalSourceForm,
     parsed: &yu_syntax::ParsedFile,
     root: &SourceRootId,
@@ -2353,12 +2398,56 @@ fn r314_lean_source_form(
                 parameter.range.end, syntax, scope, annotation);
             format!("SourceForm.lambda ({formal}) {}", body.ordinal())
         }
+        LocalSourceForm::Operation { resolution } => format!("SourceForm.operation ({})",
+            r314_lean_source_operation(resolution, parsed)?),
+        LocalSourceForm::Block { bindings, final_expression } => {
+            let rows = bindings.iter().map(|ordinal| {
+                let binding = source.bindings().iter().find(|binding| binding.id.ordinal() == *ordinal)
+                    .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                Ok(format!("({}, {})", ordinal, binding.initializer.ordinal()))
+            }).collect::<Result<Vec<_>, RuntimeUnavailable>>()?.join(", ");
+            format!("SourceForm.block [{rows}] {}", final_expression.ordinal())
+        }
+        LocalSourceForm::StatementBlock { statements, final_expression } => {
+            let rows = statements.iter().map(|statement| match statement {
+                yu_hir::shadow::LocalSourceStatement::Expression(index) => Ok(format!("SourceStatement.expression {}", index.ordinal())),
+                yu_hir::shadow::LocalSourceStatement::Binding(ordinal) => {
+                    let binding = source.bindings().get(*ordinal as usize).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                    Ok(format!("SourceStatement.binding {ordinal} {} {}", binding.id.ordinal(), binding.initializer.ordinal()))
+                }
+            }).collect::<Result<Vec<_>, RuntimeUnavailable>>()?.join(", ");
+            format!("SourceForm.statementBlock {{ statements := [{rows}], finalExpression := {} }}", final_expression.ordinal())
+        }
         _ => return Err(RuntimeUnavailable::InvalidSourceReference),
     })
 }
 
 #[cfg(test)]
-fn r314_lean_instruction(instruction: &Instruction, root: &SourceRootId) -> Result<String, RuntimeUnavailable> {
+fn r314_lean_source_operation(
+    resolution: &SourceOperationResolution,
+    parsed: &yu_syntax::ParsedFile,
+) -> Result<String, RuntimeUnavailable> {
+    let SourceOperationResolution::Resolved(operation) = resolution else {
+        return Err(RuntimeUnavailable::InvalidSourceReference);
+    };
+    let (realm, path) = r314_module_fields(&operation.id.family.module)?;
+    let visibility = match operation.visibility {
+        yu_hir::HirVisibility::Private => "Private",
+        yu_hir::HirVisibility::Our => "Our",
+        yu_hir::HirVisibility::Public => "Public",
+    };
+    Ok(format!("{{ name := {}, familyRealm := {}, familyPath := {}, familyDeclaration := {}, declaration := {}, namePosition := {}, signaturePosition := {}, startByte := {}, endByte := {}, visibility := {}, signature := {} }}",
+        r314_lean_string(&operation.spelling), r314_lean_string(realm), r314_lean_string(path),
+        r314_key_position(parsed, &operation.id.family.declaration)?,
+        r314_key_position(parsed, &operation.id.declaration)?,
+        r314_key_position(parsed, &operation.name_position)?,
+        r314_key_position(parsed, &operation.signature_position)?,
+        operation.range.start, operation.range.end, r314_lean_string(visibility),
+        r314_lean_annotation_type(&operation.signature, parsed)?))
+}
+
+#[cfg(test)]
+fn r314_lean_instruction(instruction: &Instruction, source: &yu_hir::shadow::LocalSource, parsed: &yu_syntax::ParsedFile, root: &SourceRootId) -> Result<String, RuntimeUnavailable> {
     Ok(match instruction {
         Instruction::Unit => "Instruction.unit".to_owned(),
         Instruction::Integer(value) => format!("Instruction.integer {}", r314_lean_string(value)),
@@ -2368,6 +2457,27 @@ fn r314_lean_instruction(instruction: &Instruction, root: &SourceRootId) -> Resu
         Instruction::Apply { callee, argument } => format!("Instruction.apply {} {}", callee.0, argument.0),
         Instruction::Forward(inner) => format!("Instruction.forward {}", inner.0),
         Instruction::Lambda { parameter, body, .. } => format!("Instruction.lambda {} {}", parameter.ordinal(), body.0),
+        Instruction::Operation(resolution) => format!("Instruction.operation ({})",
+            r314_lean_source_operation(resolution, parsed)?),
+        Instruction::Block { bindings, final_expression } => {
+            let rows = bindings.iter().map(|binding| {
+                let ordinal = source.bindings().iter().position(|source| source.id == binding.id)
+                    .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                Ok(format!("({ordinal}, {})", binding.initializer.0))
+            }).collect::<Result<Vec<_>, RuntimeUnavailable>>()?.join(", ");
+            format!("Instruction.block [{rows}] {}", final_expression.0)
+        }
+        Instruction::StatementBlock { statements, final_expression } => {
+            let rows = statements.iter().map(|statement| match statement {
+                BlockStatement::Expression(code) => Ok(format!("BlockStatement.expression {}", code.0)),
+                BlockStatement::Binding(binding) => {
+                    let ordinal = source.bindings().iter().position(|source| source.id == binding.id)
+                        .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                    Ok(format!("BlockStatement.binding {ordinal} {} {}", binding.id.ordinal(), binding.initializer.0))
+                }
+            }).collect::<Result<Vec<_>, RuntimeUnavailable>>()?.join(", ");
+            format!("Instruction.statementBlock {{ statements := [{rows}], finalExpression := {} }}", final_expression.0)
+        }
         Instruction::Name { resolution, consumption } => {
             let source = match resolution {
                 LocalSourceResolution::ModuleDef(def) => LocalSourceResolution::ModuleDef(def.clone()),
