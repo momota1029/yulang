@@ -60,6 +60,26 @@ pub struct Machine {
     pending_name_return_observation: Option<CompletedNameObservation>,
     name_entry_name_return_observations: Vec<NameEntryNameReturnObservation>,
     name_receipt_calls: Vec<NameReceiptCallObservation>,
+    #[cfg(test)]
+    r312_name_lookups: Vec<R312NameLookup>,
+    #[cfg(test)]
+    r312_name_receipts: Vec<R312NameReceipt>,
+    #[cfg(test)]
+    r312_name_forces: Vec<R312NameForce>,
+    #[cfg(test)]
+    r312_name_force_completions: Vec<R312NameForceCompletion>,
+    #[cfg(test)]
+    r312_active_forces: HashMap<usize, R312PendingForce>,
+    #[cfg(test)]
+    r312_frame_events: Vec<R312FrameEvent>,
+    #[cfg(test)]
+    r312_pending_name_lookup: Option<usize>,
+    #[cfg(test)]
+    r312_pending_force: Option<R312PendingForce>,
+    #[cfg(test)]
+    r312_observations_truncated: bool,
+    #[cfg(test)]
+    r312_order: usize,
     name_receipt_seed_trace: Option<String>,
     name_receipt_calls_truncated: bool,
     name_receipt_observation_unavailable: bool,
@@ -169,6 +189,103 @@ struct NameReceiptCallObservation {
     delay_value: ValueHandle,
     argument_code: usize,
     delay_view: ViewHandle,
+    #[cfg(test)]
+    selected_step: usize,
+    #[cfg(test)]
+    selected_order: usize,
+}
+#[cfg(test)]
+struct R312NameLookup {
+    step: usize,
+    order: usize,
+    code: usize,
+    site: SourceSite,
+    owner: ExecutionOwner,
+    environment: usize,
+    parameter: HirParameterId,
+    cell: usize,
+    value: ValueHandle,
+    view: ViewHandle,
+    consumption: NameConsumption,
+}
+#[cfg(test)]
+struct R312NameReceipt {
+    lookup: usize,
+    step: usize,
+    order: usize,
+    receipt: usize,
+    owner: ExecutionOwner,
+    site: SourceSite,
+    value: ValueHandle,
+    view: ViewHandle,
+    consumption: NameConsumption,
+}
+#[cfg(test)]
+struct R312NameForce {
+    lookup: usize,
+    receipt: usize,
+    step: usize,
+    order: usize,
+    owner: ExecutionOwner,
+    site: SourceSite,
+    view: ViewHandle,
+    value: ValueHandle,
+    code: Label,
+    environment: usize,
+}
+#[cfg(test)]
+struct R312NameForceCompletion {
+    lookup: usize,
+    receipt: usize,
+    step: usize,
+    order: usize,
+    owner: ExecutionOwner,
+    return_owner: ExecutionOwner,
+    entry_receiver: usize,
+    parameter: HirParameterId,
+    site: SourceSite,
+    input_view: ViewHandle,
+    input_value: ValueHandle,
+    output_view: ViewHandle,
+    output_value: ValueHandle,
+}
+#[cfg(test)]
+enum R312FrameEvent {
+    RequestObserved {
+        step: usize,
+        order: usize,
+        request: usize,
+        site: SourceSite,
+        owner: ExecutionOwner,
+    },
+    PendingCalleeAtRequest {
+        step: usize,
+        order: usize,
+        request: usize,
+        request_site: SourceSite,
+        apply_site: SourceSite,
+        argument: Label,
+        environment: usize,
+    },
+    CalleeReturned {
+        step: usize,
+        order: usize,
+        apply_site: SourceSite,
+        argument: Label,
+        environment: usize,
+        value: ValueHandle,
+        view: ViewHandle,
+    },
+}
+#[cfg(test)]
+#[derive(Clone)]
+struct R312PendingForce {
+    lookup: usize,
+    receipt: usize,
+    owner: ExecutionOwner,
+    site: SourceSite,
+    view: ViewHandle,
+    value: ValueHandle,
 }
 
 struct PendingNameEntry {
@@ -605,6 +722,26 @@ impl RuntimeProgram {
             pending_name_return_observation: None,
             name_entry_name_return_observations: Vec::new(),
             name_receipt_calls: Vec::new(),
+            #[cfg(test)]
+            r312_name_lookups: Vec::new(),
+            #[cfg(test)]
+            r312_name_receipts: Vec::new(),
+            #[cfg(test)]
+            r312_name_forces: Vec::new(),
+            #[cfg(test)]
+            r312_name_force_completions: Vec::new(),
+            #[cfg(test)]
+            r312_active_forces: HashMap::new(),
+            #[cfg(test)]
+            r312_frame_events: Vec::new(),
+            #[cfg(test)]
+            r312_pending_name_lookup: None,
+            #[cfg(test)]
+            r312_pending_force: None,
+            #[cfg(test)]
+            r312_observations_truncated: false,
+            #[cfg(test)]
+            r312_order: 0,
             name_receipt_seed_trace: None,
             name_receipt_calls_truncated: false,
             name_receipt_observation_unavailable: false,
@@ -906,7 +1043,13 @@ impl Machine {
                 control,
                 response,
             } => self.enter_template(template, node, control, response),
-            State::Request(request) => self.propagate_request(request),
+            State::Request(request) => {
+                #[cfg(test)]
+                self.r312_record_request(&request);
+                #[cfg(test)]
+                self.r312_record_pending_callee_frames(&request);
+                self.propagate_request(request)
+            }
             State::IntegerProduct { product, site } => self.advance_integer_product(product, site),
             State::Stopped(_) => unreachable!(),
         };
@@ -922,6 +1065,60 @@ impl Machine {
             State::Stopped(outcome) => outcome.clone(),
             _ => RuntimeOutcome::Running,
         }
+    }
+
+    #[cfg(test)]
+    fn r312_record_request(&mut self, request: &PendingRequest) {
+        if !request.suffix.is_empty() { return; }
+        if self.r312_frame_events.len() >= 1024
+            || self.r312_frame_events.try_reserve(1).is_err()
+        {
+            self.r312_observations_truncated = true;
+            return;
+        }
+        let order = self.r312_next_order();
+        self.r312_frame_events.push(R312FrameEvent::RequestObserved {
+            step: self.steps,
+            order,
+            request: request.event,
+            site: request.source.clone(),
+            owner: self.current_execution_owner(),
+        });
+    }
+
+    #[cfg(test)]
+    fn r312_record_pending_callee_frames(&mut self, request: &PendingRequest) {
+        if !request.suffix.is_empty() { return; }
+        for index in 0..self.frames.len() {
+            let (argument, environment, site) = match &self.frames[index] {
+                Frame::Callee { argument, environment, site, .. } =>
+                    (*argument, *environment, site.clone()),
+                _ => continue,
+            };
+            if self.r312_frame_events.len() >= 1024
+                || self.r312_frame_events.try_reserve(1).is_err()
+            {
+                self.r312_observations_truncated = true;
+                return;
+            }
+            let order = self.r312_next_order();
+            self.r312_frame_events.push(R312FrameEvent::PendingCalleeAtRequest {
+                step: self.steps,
+                order,
+                request: request.event,
+                request_site: request.source.clone(),
+                apply_site: site,
+                argument,
+                environment,
+            });
+        }
+    }
+
+    #[cfg(test)]
+    fn r312_next_order(&mut self) -> usize {
+        let order = self.r312_order;
+        self.r312_order = self.r312_order.saturating_add(1);
+        order
     }
 
     fn evaluate(&mut self, label: Label, environment: usize) -> Result<(), RuntimeUnavailable> {
@@ -1054,6 +1251,33 @@ impl Machine {
                 .ok_or_else(|| RuntimeUnavailable::MissingBinding(site.clone()))?;
                 if let Some(received) = self.cells[cell] {
                     let execution_owner = self.current_execution_owner();
+                    #[cfg(test)]
+                    if let LocalSourceResolution::Parameter(parameter) = resolution
+                    {
+                        if self.r312_name_lookups.len() >= 1024
+                            || self.r312_name_lookups.try_reserve(1).is_err()
+                        {
+                            self.r312_observations_truncated = true;
+                            self.r312_pending_name_lookup = None;
+                        } else {
+                            let index = self.r312_name_lookups.len();
+                            let order = self.r312_next_order();
+                            self.r312_name_lookups.push(R312NameLookup {
+                                step: self.steps,
+                                order,
+                                code: label.0,
+                                site: site.clone(),
+                                owner: execution_owner,
+                                environment,
+                                parameter: parameter.clone(),
+                                cell,
+                                value: received.value,
+                                view: received.view,
+                                consumption: *consumption,
+                            });
+                            self.r312_pending_name_lookup = Some(index);
+                        }
+                    }
                     if *consumption == NameConsumption::Observe {
                         let resolution_kind = match resolution {
                             LocalSourceResolution::Parameter(_) => "Parameter",
@@ -1488,6 +1712,24 @@ impl Machine {
                 environment: caller_environment,
                 site,
             } => {
+                #[cfg(test)]
+                if self.r312_frame_events.len() < 1024
+                    && self.r312_frame_events.try_reserve(1).is_ok()
+                {
+                    let order = self.r312_next_order();
+                    self.r312_frame_events.push(R312FrameEvent::CalleeReturned {
+                        step: self.steps,
+                        order,
+                        apply_site: site.clone(),
+                        argument,
+                        environment: caller_environment,
+                        value: received.value,
+                        view: received.view,
+                    });
+                } else {
+                    #[cfg(test)]
+                    { self.r312_observations_truncated = true; }
+                }
                 // This allocates only inert code plus lexical references. No
                 // argument prefix runs before the receiver entry is selected.
                 let delay = self.allocate(
@@ -1555,6 +1797,8 @@ impl Machine {
                         } else if self.name_receipt_calls.try_reserve(1).is_err() {
                             self.name_receipt_observation_unavailable = true;
                         } else {
+                            #[cfg(test)]
+                            let selected_order = self.r312_next_order();
                             self.name_receipt_calls.push(NameReceiptCallObservation {
                                 call_site: site.clone(),
                                 invocation: activation,
@@ -1568,6 +1812,10 @@ impl Machine {
                                 delay_value: delay,
                                 argument_code: argument.0,
                                 delay_view,
+                                #[cfg(test)]
+                                selected_step: self.steps,
+                                #[cfg(test)]
+                                selected_order,
                             });
                         }
                         if let (Some(plan), Some(trace)) =
@@ -1794,6 +2042,41 @@ impl Machine {
                 };
                 if let Some(fields) = record_pattern {
                     return self.bind_record_parameter(fields, 0, received, body, environment);
+                }
+                #[cfg(test)]
+                if ordinary_entry {
+                    let completed = self.r312_active_forces.iter().filter_map(|(lookup, pending)| {
+                        let ExecutionOwner::Invocation(owner) = pending.owner else { return None; };
+                        (owner == entry_receiver
+                            && self.name_receipt_calls.iter().any(|call|
+                                call.invocation == owner && call.formal == parameter))
+                            .then_some(*lookup)
+                    }).collect::<Vec<_>>();
+                    for lookup in completed {
+                        let Some(pending) = self.r312_active_forces.remove(&lookup) else { continue; };
+                        if self.r312_name_force_completions.len() >= 1024
+                            || self.r312_name_force_completions.try_reserve(1).is_err()
+                        {
+                            self.r312_observations_truncated = true;
+                        } else {
+                            let order = self.r312_next_order();
+                            self.r312_name_force_completions.push(R312NameForceCompletion {
+                                lookup: pending.lookup,
+                                receipt: pending.receipt,
+                                step: self.steps,
+                                order,
+                                owner: pending.owner,
+                                return_owner: self.current_execution_owner(),
+                                entry_receiver,
+                                parameter: parameter.clone(),
+                                site: pending.site,
+                                input_view: pending.view,
+                                input_value: pending.value,
+                                output_view: received.view,
+                                output_value: received.value,
+                            });
+                        }
+                    }
                 }
                 let bound_cell = self.cells.len();
                 let returned_value_origin_site = self.values[received.value.0].source.clone();
@@ -2861,6 +3144,29 @@ impl Machine {
         let receipt =
             self.receiving
                 .receipt(owner, received.view, site, None);
+        #[cfg(test)]
+        let r312_lookup = self.r312_pending_name_lookup.take();
+        #[cfg(test)]
+        if let Some(lookup) = r312_lookup {
+            if self.r312_name_receipts.len() >= 1024
+                || self.r312_name_receipts.try_reserve(1).is_err()
+            {
+                self.r312_observations_truncated = true;
+            } else {
+                let order = self.r312_next_order();
+                self.r312_name_receipts.push(R312NameReceipt {
+                    lookup,
+                    step: self.steps,
+                    order,
+                    receipt: receipt_index,
+                    owner,
+                    site: site.clone(),
+                    value: received.value,
+                    view: received.view,
+                    consumption,
+                });
+            }
+        }
         if consumption == NameConsumption::Observe {
             if let Some(observed) = observed_name.filter(|observed|
                 observed.site.source_root == site.source_root
@@ -2893,6 +3199,21 @@ impl Machine {
         match consumption {
             NameConsumption::Observe => self.state = State::Return(received),
             NameConsumption::Execute => {
+                #[cfg(test)]
+                if let Some(lookup) = r312_lookup {
+                    if let Some(source_receipt) = self.r312_name_receipts.iter().rev()
+                        .find(|observation| observation.lookup == lookup)
+                    {
+                        self.r312_pending_force = Some(R312PendingForce {
+                            lookup,
+                            receipt: source_receipt.receipt,
+                            owner: source_receipt.owner,
+                            site: source_receipt.site.clone(),
+                            view: source_receipt.view,
+                            value: source_receipt.value,
+                        });
+                    }
+                }
                 if received.interface != ParameterRole::Computation {
                     return Err(RuntimeUnavailable::MissingConsumptionEvidence(site.clone()));
                 }
@@ -2965,6 +3286,36 @@ impl Machine {
         match self.executables.get(&value.0).cloned() {
             Some(ExecutableValue::Delay { code, environment }) => {
                 let environment = self.substitute_environment(environment, substitution)?;
+                #[cfg(test)]
+                if let Some(pending) = self.r312_pending_force.take() {
+                    if self.r312_name_forces.len() >= 1024
+                        || self.r312_name_forces.try_reserve(1).is_err()
+                    {
+                        self.r312_observations_truncated = true;
+                    } else {
+                        let order = self.r312_next_order();
+                        let active = pending.clone();
+                        self.r312_name_forces.push(R312NameForce {
+                            lookup: pending.lookup,
+                            receipt: pending.receipt,
+                            step: self.steps,
+                            order,
+                            owner: self.current_execution_owner(),
+                            site: pending.site,
+                            view: pending.view,
+                            value,
+                            code,
+                            environment,
+                        });
+                        if self.r312_active_forces.len() >= 1024
+                            || self.r312_active_forces.try_reserve(1).is_err()
+                        {
+                            self.r312_observations_truncated = true;
+                        } else {
+                            self.r312_active_forces.insert(active.lookup, active);
+                        }
+                    }
+                }
                 self.state = State::Evaluate { code, environment };
                 Ok(())
             }
@@ -3312,7 +3663,7 @@ mod module_expression_tests {
         let source: Arc<SourceText> = Arc::from(source);
         let parsed = parse_file(
             source.clone(),
-            Arc::new(scan_header(source)),
+            Arc::new(scan_header(source.clone())),
             Arc::new(SyntaxEnvironment::empty()),
         );
         assert!(parsed.syntax_diagnostics().unwrap().is_empty());
@@ -3342,6 +3693,27 @@ mod module_expression_tests {
         start(&runtime_program(source, opt_in_source))
     }
 
+    fn accepted_machine(source: &str) -> Machine {
+        let source: Arc<SourceText> = Arc::from(source);
+        let parsed = parse_file(
+            source.clone(),
+            Arc::new(scan_header(source.clone())),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{source}");
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("r312-accepted", "callee-history.yu"))),
+            &parsed,
+            SemanticImports::empty(),
+        ).unwrap());
+        let candidate = yu_solver::shadow_apply::CandidateInference::solve(hir.clone()).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty(), "accepted source has no candidate conflicts");
+        let program = Arc::new(RuntimeProgram::from_hir(
+            hir, super::super::RuntimeEvidence::default(),
+        ).unwrap());
+        start(&program)
+    }
+
     fn cache_snapshot(
         machine: &Machine,
     ) -> Vec<Option<(ValueHandle, ParameterRole, ViewHandle)>> {
@@ -3369,8 +3741,178 @@ mod module_expression_tests {
             .count()
     }
 
+    fn assert_same_source_site(left: &SourceSite, right: &SourceSite) {
+        assert_eq!(left.source_root, right.source_root);
+        assert_eq!(left.occurrence, right.occurrence);
+        assert_eq!(left.range, right.range);
+    }
+
+    fn program_hir_owns_apply_argument(
+        hir: &yu_hir::HirModule,
+        program: &RuntimeProgram,
+        site: &SourceSite,
+        argument_label: usize,
+    ) -> bool {
+        let Ok(Some(local)) = hir.local_source_for(&site.source_root) else { return false; };
+        let apply = local.expressions().iter()
+            .find(|expression| expression.occurrence == site.occurrence);
+        let Some(apply) = apply else { return false; };
+        let yu_hir::shadow::LocalSourceForm::Apply { argument, .. } = &apply.form else {
+            return false;
+        };
+        let Some(argument_code) = program.code.get(argument_label) else { return false; };
+        let Some(source_argument) = local.expression(argument) else { return false; };
+        source_argument.occurrence == argument_code.site.occurrence
+            && argument_code.site.source_root == site.source_root
+    }
+
+    fn assert_name_argument_receipt(
+        machine: &Machine,
+        call: &NameReceiptCallObservation,
+        consumption: NameConsumption,
+    ) {
+        assert!(!machine.r312_observations_truncated);
+        assert!(program_hir_owns_apply_argument(
+            &machine.program._hir, &machine.program, &call.call_site, call.argument_code
+        ));
+        let code = machine.program.code.get(call.argument_code).unwrap();
+        let lookups = machine.r312_name_lookups.iter().enumerate()
+            .filter(|(_, lookup)| lookup.site.source_root == code.site.source_root
+                && lookup.site.occurrence == code.site.occurrence
+                && lookup.site.range == code.site.range)
+            .collect::<Vec<_>>();
+        assert_eq!(lookups.len(), 1, "no early or duplicate execution of this source Name");
+        let (lookup_index, lookup) = lookups[0];
+        assert_eq!(lookup.code, call.argument_code, "the exact source occurrence uses its Apply-owned code label");
+        assert!(lookup.step >= call.selected_step);
+        assert!(lookup.order > call.selected_order, "the Name executes only after Callee selection");
+        assert_eq!(lookup.owner, ExecutionOwner::Invocation(call.invocation));
+        assert_eq!(lookup.environment, call.argument_environment);
+        assert_same_source_site(&lookup.site, &code.site);
+        assert!(matches!(
+            &code.instruction,
+            Instruction::Name {
+                resolution: LocalSourceResolution::Parameter(parameter),
+                consumption: actual,
+            } if parameter == &lookup.parameter && *actual == consumption
+        ));
+        assert_eq!(lookup.consumption, consumption);
+        assert_eq!(
+            machine.lookup(lookup.environment, |binder| {
+                matches!(binder, Binder::Parameter(parameter) if parameter == &lookup.parameter)
+            }),
+            Some(lookup.cell)
+        );
+        let received = machine.cells[lookup.cell].unwrap();
+        assert_eq!(received.value, lookup.value);
+        assert_eq!(received.view, lookup.view);
+        assert!(machine.receiving.matches_value(lookup.view, lookup.value));
+
+        let receipts = machine.r312_name_receipts.iter()
+            .filter(|receipt| receipt.lookup == lookup_index)
+            .collect::<Vec<_>>();
+        assert_eq!(receipts.len(), 1, "the lookup has its actual consume receipt");
+        let receipt = receipts[0];
+        assert!(receipt.step >= lookup.step);
+        assert!(receipt.order > lookup.order);
+        assert_eq!(receipt.owner, lookup.owner);
+        assert_eq!(receipt.consumption, consumption);
+        assert_same_source_site(&receipt.site, &lookup.site);
+        assert_eq!(receipt.value, lookup.value);
+        assert_eq!(receipt.view, lookup.view);
+        assert!(machine.receiving.matches_value(receipt.view, receipt.value));
+        let raw = machine.receiving.raw_receipt_fields(receipt.receipt).unwrap();
+        assert!(raw.contains(&format!("owner={:?}", receipt.owner)));
+        assert!(raw.contains(&format!("view={}", receipt.view.index())));
+        assert!(raw.contains(&format!("slot_root={:?}", receipt.site.source_root)));
+        assert!(raw.contains(&format!("slot_occurrence={}", receipt.site.occurrence.ordinal())));
+
+        let forces = machine.r312_name_forces.iter()
+            .filter(|force| force.lookup == lookup_index)
+            .collect::<Vec<_>>();
+        if consumption == NameConsumption::Execute {
+            assert_eq!(forces.len(), 1, "Execute has one actual Delay force under its receipt");
+            let force = forces[0];
+            assert!(force.step >= receipt.step);
+            assert!(force.order > receipt.order);
+            assert_eq!(force.receipt, receipt.receipt);
+            assert_eq!(force.owner, receipt.owner);
+            assert_eq!(force.owner, ExecutionOwner::Invocation(call.invocation));
+            assert_eq!(force.view, receipt.view);
+            assert_eq!(force.value, receipt.value);
+            assert_same_source_site(&force.site, &receipt.site);
+            assert!(matches!(
+                machine.executables.get(&force.value.0),
+                Some(ExecutableValue::Delay { code, environment })
+                    if *code == force.code && *environment == force.environment
+            ));
+            let completions = machine.r312_name_force_completions.iter()
+                .filter(|completion| completion.lookup == lookup_index)
+                .collect::<Vec<_>>();
+            assert_eq!(completions.len(), 1, "the same receipt's Force returns once");
+            let completion = completions[0];
+            assert!(completion.order > force.order);
+            assert!(completion.step >= force.step);
+            assert_eq!(completion.receipt, force.receipt);
+            assert_eq!(completion.owner, force.owner);
+            assert_eq!(completion.entry_receiver, call.invocation,
+                "the actual saved ValueEntry receiver retains the Force invocation id");
+            assert!(matches!(completion.return_owner, ExecutionOwner::Invocation(_)),
+                "the resumed Force result is consumed by an actual invocation");
+            // Request/resume may consume the saved ordinary ValueEntry under
+            // its replay owner. Keep the original entry receiver and return
+            // owner separate; the receipt/view/site/formal join authenticates
+            // this Force without claiming those invocation ids are equal.
+            assert_eq!(completion.parameter, call.formal,
+                "the returned ValueEntry is the saved entry for this call's formal");
+            assert_same_source_site(&completion.site, &force.site);
+            assert_eq!(completion.input_view, force.view);
+            assert_eq!(completion.input_value, force.value);
+            assert!(machine.receiving.matches_value(completion.output_view, completion.output_value));
+        } else {
+            assert!(forces.is_empty(), "Observe does not manufacture a Force");
+            assert!(machine.r312_name_force_completions.iter()
+                .all(|completion| completion.lookup != lookup_index));
+        }
+    }
+
+    fn assert_callee_frame_survived_request(machine: &Machine, call: &NameReceiptCallObservation) {
+        let pending = machine.r312_frame_events.iter().filter_map(|event| match event {
+            R312FrameEvent::PendingCalleeAtRequest {
+                step, order, request, request_site, apply_site, argument, environment,
+            } if apply_site.source_root == call.call_site.source_root
+                && apply_site.occurrence == call.call_site.occurrence
+                && *argument == Label(call.argument_code)
+                && *environment == call.argument_environment =>
+                Some((*step, *order, *request, request_site)),
+            _ => None,
+        }).collect::<Vec<_>>();
+        assert_eq!(pending.len(), 1, "the exact Apply's Callee frame is present at one Request");
+
+        let returned = machine.r312_frame_events.iter().filter_map(|event| match event {
+            R312FrameEvent::CalleeReturned {
+                step, order, apply_site, argument, environment, value, view,
+            } if apply_site.source_root == call.call_site.source_root
+                && apply_site.occurrence == call.call_site.occurrence
+                && *argument == Label(call.argument_code)
+                && *environment == call.argument_environment =>
+                Some((*step, *order, *value, *view)),
+            _ => None,
+        }).collect::<Vec<_>>();
+        assert_eq!(returned.len(), 1, "the same saved Callee frame is consumed once after resume");
+        let (pending_step, pending_order, request_id, request_site) = pending[0];
+        let (return_step, return_order, returned_callee, returned_view) = returned[0];
+        assert!(pending_order < return_order);
+        assert!(pending_step < return_step);
+        assert!(return_order < call.selected_order);
+        assert_eq!(returned_callee, call.callee_value);
+        assert_eq!(returned_view, call.callee_view);
+        assert_ne!(request_site.occurrence, call.call_site.occurrence);
+        assert_eq!(request_id, 0, "the callee computation requests before selecting the closure");
+    }
+
     #[test]
-    fn name_receipt_seed_is_published_only_on_completion_and_joins_actual_invocation() {
+    fn callee_argument_history_r312_name_receipt_seed_joins_actual_invocation() {
         let mut machine = machine("my id x = x\nmy relay x = id x\nmy main = relay 7", true);
         use NameReceiptSeedObservationStatus as Status;
         assert_eq!(machine.name_receipt_seed_observation_status(), Status::NotCompleted);
@@ -3388,8 +3930,13 @@ mod module_expression_tests {
             RuntimeValueKind::Integer(value) if value.as_ref() == "7"));
         assert_eq!(machine.name_receipt_seed_observation_status(), Status::Observed);
         let entry = machine.name_entry_correspondence().unwrap();
-        let call = machine.name_receipt_calls.iter().find(|call| call.invocation == entry.invocation).unwrap();
-        assert_eq!(call.formal, entry.entry_parameter);
+        let call = machine.name_receipt_calls.iter().find(|call| {
+            matches!(
+                machine.program.code.get(call.argument_code).map(|code| &code.instruction),
+                Some(Instruction::Name { consumption: NameConsumption::Observe, .. })
+            )
+        }).unwrap();
+        assert_name_argument_receipt(&machine, call, NameConsumption::Observe);
         let trace = machine.name_receipt_seed_trace().unwrap().to_owned();
         assert!(trace.contains(&format!("invocation={}", entry.invocation)));
         assert!(trace.contains(&format!("receipt_index={}", entry.receipt_index)));
@@ -3399,6 +3946,93 @@ mod module_expression_tests {
         machine.finish_name_receipt_observation();
         assert_eq!(machine.name_receipt_seed_trace(), None);
         assert_eq!(machine.name_receipt_seed_observation_status(), Status::Unavailable);
+    }
+
+    #[test]
+    fn callee_argument_history_r312_preserves_pending_outer_call_and_forces_named_computation() {
+        let source = "act io:\n    our tick: int -> int\nmy make seed = { io::tick seed; \\argument -> builtin_op::int_add seed argument }\nmy relay (thunk:[io] int) = make 1 thunk\nmy handle (thunk:[io] int) = catch thunk { io::tick(p), k -> handle { k 10 } }\nmy main = handle { relay { io::tick 2 } }";
+        let mut machine = accepted_machine(source);
+        let RuntimeOutcome::Completed(value) = machine.run(30_000) else {
+            panic!("request/resume call path did not complete: {:?}", machine.state_outcome());
+        };
+        assert!(matches!(
+            &machine.value(value).unwrap().kind,
+            RuntimeValueKind::Integer(actual) if actual.as_ref() == "11"
+        ), "the callee Request, resumed closure, forced argument and result suffix complete");
+        assert_eq!(machine.next_request, 2, "each completed prefix executes once");
+
+        let call = machine.name_receipt_calls.iter().find(|call| {
+            matches!(
+                machine.program.code.get(call.argument_code).map(|code| &code.instruction),
+                Some(Instruction::Name { consumption: NameConsumption::Execute, .. })
+            )
+        }).expect("the returned make closure is applied to the original computation Name");
+        assert_name_argument_receipt(&machine, call, NameConsumption::Execute);
+        assert_callee_frame_survived_request(&machine, call);
+        let lookup_index = machine.r312_name_lookups.iter()
+            .position(|lookup| lookup.code == call.argument_code).unwrap();
+        let force_completion = machine.r312_name_force_completions.iter()
+            .find(|completion| completion.lookup == lookup_index)
+            .unwrap();
+        let force = machine.r312_name_forces.iter()
+            .find(|force| force.lookup == lookup_index).unwrap();
+        let force_requests = machine.r312_frame_events.iter().filter_map(|event| match event {
+            R312FrameEvent::RequestObserved { step, order, request, site, owner }
+                if *owner == ExecutionOwner::Invocation(call.invocation) =>
+                Some((*step, *order, *request, site)),
+            _ => None,
+        }).collect::<Vec<_>>();
+        assert_eq!(force_requests.len(), 1, "the actual forced Delay emits one Request under the same owner");
+        let (request_step, request_order, request_id, request_site) = force_requests[0];
+        let force_code = &machine.program.code[force.code.0];
+        assert_eq!(request_id, 1);
+        assert!(force.order < request_order && request_order < force_completion.order);
+        assert!(force.step <= request_step && request_step <= force_completion.step);
+        assert_eq!(request_site.source_root, force_code.site.source_root);
+        assert!(request_site.range.start >= force_code.site.range.start
+            && request_site.range.end <= force_code.site.range.end);
+        assert!(matches!(
+            &machine.value(force_completion.output_value).unwrap().kind,
+            RuntimeValueKind::Integer(actual) if actual.as_ref() == "10"
+        ), "the second handled Request returns through the same Force receipt");
+
+        // Rejection controls use real retained source owners/labels. A
+        // structurally equivalent HIR built separately cannot authorize this
+        // occurrence, nor can another Apply or Name label stand in for it.
+        let foreign = runtime_program(source, true);
+        assert!(!Arc::ptr_eq(&foreign._hir, &machine.program._hir));
+        assert!(!program_hir_owns_apply_argument(
+            &foreign._hir, &machine.program, &call.call_site, call.argument_code
+        ));
+        let argument = machine.program.code.get(call.argument_code).unwrap();
+        let mut wrong_apply = call.call_site.clone();
+        wrong_apply.occurrence = argument.site.occurrence.clone();
+        wrong_apply.range = argument.site.range.clone();
+        assert!(!program_hir_owns_apply_argument(
+            &machine.program._hir, &machine.program, &wrong_apply, call.argument_code
+        ));
+        let wrong_name = machine.program.code.iter().enumerate()
+            .find(|(index, candidate)| *index != call.argument_code
+                && candidate.site.occurrence != argument.site.occurrence
+                && matches!(candidate.instruction, Instruction::Name { .. }))
+            .map(|(index, _)| index)
+            .expect("fixture contains another Name label for the rejection control");
+        assert!(!program_hir_owns_apply_argument(
+            &machine.program._hir, &machine.program, &call.call_site, wrong_name
+        ));
+
+        let code = argument;
+        let Instruction::Name { resolution: LocalSourceResolution::Parameter(parameter), .. } = &code.instruction else {
+            panic!("the selected argument is the source parameter Name");
+        };
+        let actual_lookup = machine.r312_name_lookups.iter().find(|lookup| lookup.code == call.argument_code).unwrap();
+        let wrong_environment_cell = machine.lookup(call.closure_environment, |binder| {
+                matches!(binder, Binder::Parameter(candidate) if candidate == parameter)
+            });
+        assert_ne!(wrong_environment_cell, Some(actual_lookup.cell),
+            "the closure's saved environment cannot replace the Apply caller environment");
+        let force = machine.r312_name_forces.iter().find(|force| force.lookup == machine.r312_name_lookups.iter().position(|lookup| lookup.code == call.argument_code).unwrap()).unwrap();
+        assert_ne!(force.view, call.delay_view, "the wrapper Delay view cannot replace the received computation view");
     }
 
     #[test]
