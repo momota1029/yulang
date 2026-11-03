@@ -4,7 +4,7 @@
 `do` / `sub` / `return` / `for` / `last` / `next` / `redo` / `$x` / `&x` は、制御構文として別にまとめる（章3b）。
 Yulang は式指向で、ここに出る構文はほとんどが式として値を持つ。
 
-## 3.1 literal　〔要確認〕
+## 3.1 literal　〔数値型は確定、他は要確認〕
 
 ```yulang
 1            // integer
@@ -19,8 +19,10 @@ true         // bool
 
 - list は spread を持つ: `[1, ..xs, 3]`。record も spread を持つ: `{x: 1, ..rest}`。
 
+- `int` は**任意精度**、`1.5` のような小数 literal は `float`（確定, 2026-11-04）。
+
 出典: `main:notes/design/yulang-language-report.md` §6.1
-数値型（`int` / `float` の精度）と string の書式は、型と標準ライブラリの章で扱う（確認 E1）。
+`float` の精度と string の書式は、型と標準ライブラリの章で扱う。
 
 ## 3.2 名前・path・field　〔要確認〕
 
@@ -102,7 +104,8 @@ if cond { a } else { b }
 ```
 
 - `if` は式で、条件は `bool`。`elsif` と `else` を持てる。条件は上から順に試す。
-- `else` がないとき、式全体は `()` を返す。then 側の値は捨てられる（確認 E2）。
+- `else` がないとき、式全体は `()` を返す。then 側は**何型でもよく**、値は捨てられる（確定, 2026-11-04）。
+  Simple-sub の体系では、値を分解する方法がないので、捨てても型の整合は壊れない。
 - 条件が effectful な場合の扱い（junction。`all` / `any`）は章5 で書く。
 
 出典: `main:web/docs/ja/reference/control-flow.md`
@@ -118,7 +121,8 @@ case n:
 
 - arm は上から順に試し、最初に pattern が合って guard が真になった arm が選ばれる。
 - guard は pattern の後ろに `if`（または `where`）で書く。guard からは pattern が束縛した名前が見える。
-- pattern の形は次の章。網羅性の検査（確認 E3）。
+- **網羅性を検査する**。どの arm にも合わない場合があるなら、エラーになる（確定, 2026-11-04）。
+- pattern の形は次の章。網羅性の検査の細部（何を網羅とみなすか）は pattern の章で書く。
 
 出典: `main:web/docs/ja/reference/control-flow.md` §case、`main:notes/design/yulang-language-report.md` §6.7
 
@@ -135,14 +139,33 @@ catch expr:
 
 出典: `main:notes/design/yulang-language-report.md` §6.8
 
-## 3.9 パーサにはあるが意味のない構文
+## 3.9 パイプライン `|`　〔存在は確定、細部は要確認〕
 
-`rule { ... }` と `~"pattern"`（mark）は、パーサにはあるが式としての意味を持たない。仕様には載せず、parser DSL を扱うときに書く（確認 E4）。
+```yulang
+"data" | parse | render
+xs | map f
+```
+
+- `x | f` は左辺の値を右辺に渡す。素材の一方は「左辺を右辺の最初の引数にする」と書いている。
+- 結合力は旧い文書で `5`（比較より弱い）とされている。現行の値は未確認（確認 E6）。
+
+出典: `main:web/docs/ja/reference/idioms.md`、`main:notes/design/yulang-language-report.md` §6.3
+
+## 3.10 parser DSL（`rule { ... }` と `~"..."`）　〔仕様に入れると確定〕
+
+`~"GET :resource"` や `rule { ... }` は parser 値を作る。`case` の arm では**入力文字列全体**にマッチし、名前付き capture を binding にする。
+
+```yulang
+my request(source: str): str = case source:
+    ~"GET :resource" -> resource
+    _ -> "no match"
+```
+
+- 意味が大きいので、専用の章（parser DSL）を後で立てる。ここでは、`case` の arm に parser pattern が書けることだけを述べる。
+
+出典: `main:web/docs/ja/reference/parser-dsl.md`
 
 ## 確認してほしい点
 
-- **E1** 数値 literal の型（`int` は任意精度か、固定幅か。`1.5` の型は何か）は、この章に書くか、標準ライブラリの章に回すか。
-- **E2** `else` のない `if` は、then 側が `()` 型でなければならないか。それとも then 側は何型でもよく、値は捨てられるのか。
-- **E3** `case` は網羅性を検査するか。arm がどれも合わなかったときはどうなるか。
-- **E4** `rule` / `~"pattern"`（parser DSL）は言語仕様に入れるか。入れるなら、いつの章で書くか。
-- **E5** パイプライン `lhs | rhs`（左辺を右辺の最初の引数にする）は、素材の一方（報告書）にだけある。現行の言語に存在するか。
+- **E6** `|` の現行の結合力と、「最初の引数」か「最後の引数」か。`xs | map f` なら `map f xs` になるのか、`map xs f` なのか。
+- **E7** `case` の網羅性は、guard 付きの arm をどう扱うか（guard は網羅に数えないのか）。pattern の章で書くので、そこで決めればよい。

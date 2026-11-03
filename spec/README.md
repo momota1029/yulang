@@ -28,5 +28,6 @@
   6. role・method・cast
   7. 型の表示（注釈と表示型の関係）
   8. 参照・エラー・標準ライブラリの境界
+  9. parser DSL（`rule` / `~"..."`）
 
 構文の細部は `syntax-reference/` と `notes/design/` が既にある。仕様側は意味を書き、構文は参照で済ませる。
