@@ -26,7 +26,7 @@
   4. [型](04-types.md)（`type` / `struct` / `enum` / 注釈）
   5. [effect と handler](05-effects.md)（反変位置の effect、hygiene を含む）
   6. [role・method・cast](06-roles.md)
-  7. 型の表示（注釈と表示型の関係）
+  7. [型の表示](07-display.md)（注釈と表示型の関係）
   8. 参照・エラー・標準ライブラリの境界
   9. parser DSL（`rule` / `~"..."`）
 
