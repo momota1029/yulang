@@ -655,19 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R345",
+    "id": "R346",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/scoped-union-consumer-r345.md",
-    "contract_sha256": "931846e21cfda83d6b24ae69f1740b472762fc5db05660d082d4369aa06e2bad",
-    "review_result": "tasks/agent-loop/history/20261104-original-union-relation-r345-review.md",
-    "review_result_sha256": "5559f4cdceee3ce75e14f3a97018edd39157ec87afc3e3bc5bf7a6eed78f1def",
+    "contract": "tasks/agent-loop/sprints/original-callee-prefix-r346.md",
+    "contract_sha256": "3edc4e7c15a94d596d042bd96a930144b7b2a0c290a0bf0f0e99dfef218fc0f3",
+    "review_result": "tasks/agent-loop/history/20261104-original-callee-prefix-r346-review.md",
+    "review_result_sha256": "89e2ed9dbb964804610e21f720b64464dbf67d39e609709bec572c16ac73408a",
     "previous_sprint": {
-      "id": "R344",
+      "id": "R345",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/authenticated-scoped-if-r344.md",
-      "contract_sha256": "acd806c9040b8c63b4e321966fc678f1d20d7f48be78bfaffa0ac25c03847af8",
-      "review_result": "tasks/agent-loop/history/20261104-scoped-arm-separation-r344-review.md",
-      "review_result_sha256": "f8ba0725139f994835592c874d86a1d3fb7543a2169928529cd4b541f228912c"
+      "contract": "tasks/agent-loop/sprints/scoped-union-consumer-r345.md",
+      "contract_sha256": "931846e21cfda83d6b24ae69f1740b472762fc5db05660d082d4369aa06e2bad",
+      "review_result": "tasks/agent-loop/history/20261104-original-union-relation-r345-review.md",
+      "review_result_sha256": "5559f4cdceee3ce75e14f3a97018edd39157ec87afc3e3bc5bf7a6eed78f1def"
     }
   },
   "lease_archive": {
