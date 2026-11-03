@@ -5370,6 +5370,166 @@ mod tests {
         assert!(dormant.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.is_none(),
             "the dormant observer retains no allocation or cross-session trace");
     }
+
+    #[test]
+    fn operation_emission_propagates_into_retained_capture_and_fresh_use() {
+        let source = "act E\nact tick:\n    our next: ('a -> ['e] 'a) -> ('a -> [E, 'e] 'a)\n\nmy provider = tick::next\nmy left = provider\nmy right = provider";
+        let mut session = make_session(source);
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.operation_trace = Some(Vec::new());
+        session.execute().unwrap();
+        assert!(session.errors.is_empty(), "the authentic nested operation fixture must solve without diagnostics");
+        let traces = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.as_ref().unwrap();
+        assert_eq!(traces.len(), 1);
+        let trace = &traces[0];
+        let provider = root(&session, "provider");
+        let scheduled_declaration = session.batch.candidate_source.schedules[&provider].iter().find_map(|action| match action {
+            candidate_source::Action::Operation { declaration, occurrence, .. } if occurrence == &trace.occurrence => Some(declaration),
+            _ => None,
+        }).expect("the trace occurrence is the authentic source Operation action");
+        assert!(Arc::ptr_eq(&trace.declaration, scheduled_declaration));
+        assert_eq!(trace.owner, SourceRootId::Definition(provider.clone()));
+        assert_eq!(trace.functions.len(), 3, "the parsed signature contains its root and two nested Function constructors");
+        let provider_index = *session.batch.root_definition_positions.get(&provider).unwrap();
+        let state = session.candidate_graph.as_ref().unwrap();
+        let graph = state.graphs[provider_index].as_ref().expect("provider capture");
+        let receiving_component = session.batch.root_component_positions[&provider].component;
+        let receiving_owner = session.live_components[receiving_component].ordinal;
+        assert_eq!(graph.live_root, receiving_owner, "the captured provider graph has its actual receiving owner row");
+        let routes: Vec<_> = state.routes.iter().filter(|route| route.provider == provider).collect();
+        assert_eq!(routes.len(), 2, "left and right both FreshUse the same source provider graph");
+        let slot42 = ConstraintOccurrenceId::new(trace.occurrence.clone(), 42);
+        let slot42_fact = session.store.provenance().iter().find(|edge|
+            edge.cause().occurrence() == &slot42
+        ).and_then(|edge| session.store.facts().iter().find(|fact| fact.id() == edge.fact()))
+            .expect("the exact operation occurrence publishes slot 42");
+        assert_eq!(slot42_fact.lower(), trace.root, "slot 42's lower endpoint is the observed constructor Function");
+        let slot42_pair = CanonicalValuePairKey {
+            lower: session.value_endpoint(slot42_fact.lower(), Polarity::Positive),
+            upper: session.value_endpoint(slot42_fact.upper(), Polarity::Negative),
+        };
+        let rewritten = session.typed_pairs.iter().find_map(|(key, memo)| {
+            let (TypedPairKey::Value(pair), TypedPairMemo::Value { retained_extrusion_rewrite: Some(rewritten), .. }) = (key, memo) else {
+                return None;
+            };
+            (*pair == slot42_pair).then_some((pair, *rewritten))
+        }).expect("the exact slot-42 Function pair retains candidate_extrude's rewrite");
+        assert_eq!(rewritten.1.upper, rewritten.0.upper, "extrusion rewrites the Function endpoint at the actual receiving row");
+        let ValueEndpointKey::PositiveFunction(rewritten_term) = rewritten.1.lower else {
+            panic!("retained rewrite keeps the exact positive Function endpoint");
+        };
+        let source_bound = graph.bounds.iter().find(|bound| {
+            bound.source_bound.2 == ExtrusionEndpoint::Value(rewritten.1.lower)
+        }).expect("captured Bound retains the exact rewritten source-bound item");
+        let expected_bound = BoundKey(
+            ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(receiving_owner)),
+            Polarity::Positive,
+            ExtrusionEndpoint::Value(rewritten.1.lower),
+        );
+        assert_eq!(source_bound.source_bound, expected_bound,
+            "the full captured BoundKey retains the receiving owner, side, and exact retained rewrite endpoint");
+        fn walk_function(
+            session: &InferenceSession,
+            graph: &crate::candidate_scheme::Graph,
+            root_node: usize,
+            root_term: Term,
+            retained: Option<(&[Option<Term>], &[RowKey])>,
+            path: &mut Vec<FormalPortStep>,
+            visited: &mut Vec<(Vec<FormalPortStep>, Polarity)>,
+        ) {
+            if let Some((terms, _)) = retained {
+                assert_eq!(terms[root_node], Some(root_term), "the retained map owns this Function node");
+            }
+            let (polarity, ports) = match session.store.term_view(root_term).unwrap() {
+                TermView::PositiveFunction { argument, argument_effect, result_effect, result } =>
+                    (Polarity::Positive, [argument, argument_effect, result_effect, result]),
+                TermView::NegativeFunction { argument, argument_effect, result_effect, result } =>
+                    (Polarity::Negative, [argument, argument_effect, result_effect, result]),
+                other => panic!("captured Function node is not its exact Term: {other:?}"),
+            };
+            let Node::Function { polarity: captured_polarity, children } = graph.nodes[root_node] else {
+                panic!("the source-bound endpoint must be captured as a Function node");
+            };
+            assert_eq!(captured_polarity, polarity);
+            visited.push((path.clone(), polarity));
+            for (port_index, (child, port)) in children.into_iter().zip(ports).enumerate() {
+                match graph.nodes[child] {
+                    Node::Function { .. } => {
+                        if let Some((terms, _)) = retained {
+                            assert_eq!(terms[child], Some(port), "FreshUse preserves nested Function child {port_index}");
+                        }
+                        let step = match port_index {
+                            0 => FormalPortStep::Argument,
+                            3 => FormalPortStep::Result,
+                            _ => panic!("a nested Function occurs only at a value port"),
+                        };
+                        path.push(step);
+                        walk_function(session, graph, child, port, retained, path, visited);
+                        path.pop();
+                    }
+                    Node::Row { row, polarity: child_polarity } => {
+                        let source_key = match port_index {
+                            0 | 3 => RowKey::Value(match session.value_endpoint(port, child_polarity) {
+                                ValueEndpointKey::ValueRow(row) => row,
+                                other => panic!("value port {port_index} is not its captured row: {other:?}"),
+                            }),
+                            1 | 2 => RowKey::Effect(match session.effect_endpoint(port, child_polarity) {
+                                EffectEndpointKey::EffectRow(row) => row,
+                                other => panic!("effect port {port_index} is not its captured row: {other:?}"),
+                            }),
+                            _ => unreachable!(),
+                        };
+                        let expected = if let Some((_, rows)) = retained { rows[row] } else { graph.rows[row].key };
+                        assert_eq!(expected, source_key,
+                            "Function child {port_index} follows the same captured/FreshUse row slot");
+                    }
+                    Node::Leaf(atom) => {
+                        if let Some((terms, _)) = retained {
+                            assert_eq!(terms[child], Some(port), "FreshUse preserves leaf child {port_index}");
+                        }
+                        match (atom, session.store.term_view(port).unwrap()) {
+                            (crate::candidate_scheme::Atom::EmptyEffect, TermView::Leaf(Leaf::EmptyEffectNegative)) => {}
+                            (crate::candidate_scheme::Atom::EffectBottom, TermView::Leaf(Leaf::EffectBottomPositive)) => {}
+                            (crate::candidate_scheme::Atom::IntPositive, TermView::Leaf(Leaf::IntPositive)) => {}
+                            (crate::candidate_scheme::Atom::IntNegative, TermView::Leaf(Leaf::IntNegative)) => {}
+                            (crate::candidate_scheme::Atom::UnitPositive, TermView::Leaf(Leaf::UnitPositive)) => {}
+                            (crate::candidate_scheme::Atom::UnitNegative, TermView::Leaf(Leaf::UnitNegative)) => {}
+                            (crate::candidate_scheme::Atom::BoolPositive, TermView::Leaf(Leaf::BoolPositive)) => {}
+                            (crate::candidate_scheme::Atom::BoolNegative, TermView::Leaf(Leaf::BoolNegative)) => {}
+                            (crate::candidate_scheme::Atom::StrPositive, TermView::Leaf(Leaf::StrPositive)) => {}
+                            (crate::candidate_scheme::Atom::StrNegative, TermView::Leaf(Leaf::StrNegative)) => {}
+                            (captured, actual) => panic!("captured leaf {captured:?} differs from emitted port: {actual:?}"),
+                        }
+                    }
+                    other => panic!("fixture Function child must remain a nested Function or row, got {other:?}"),
+                }
+            }
+        }
+        let mut source_functions = Vec::new();
+        walk_function(&session, graph, source_bound.lower, rewritten_term, None,
+            &mut Vec::new(), &mut source_functions);
+        assert_eq!(source_functions, trace.functions.iter()
+            .map(|function| (function.path.clone(), function.polarity)).collect::<Vec<_>>(),
+            "the exact original Function paths and signs survive emission, extrusion and capture");
+        let mut mapped_function_terms = Vec::new();
+        for route in routes {
+            assert_eq!(route.graph.live_root, graph.live_root, "each route reuses this exact captured graph");
+            assert!(route.graph.bounds.iter().any(|bound|
+                bound.source_bound == source_bound.source_bound
+                    && bound.lower == source_bound.lower && bound.upper == source_bound.upper),
+                "the same captured bound enters each retained FreshUse graph");
+            let Some(mapped_function) = route.retained.terms[source_bound.lower] else {
+                panic!("the same FreshUse retains the captured Function term");
+            };
+            mapped_function_terms.push(mapped_function);
+            let mut fresh_functions = Vec::new();
+            walk_function(&session, graph, source_bound.lower, mapped_function,
+                Some((&route.retained.terms, &route.rows)), &mut Vec::new(), &mut fresh_functions);
+            assert_eq!(fresh_functions, source_functions,
+                "each FreshUse retains every original nested Function path and sign");
+        }
+        assert_ne!(mapped_function_terms[0], mapped_function_terms[1],
+            "the two authentic use routes retain separate Function reconstructions");
+    }
     #[test]
     fn operation_views_preserve_symbolic_tail_provenance_and_rollback_owned_payload() {
         let mut session = make_session("act E\nact tick:\n    our next: 'a -> [E, 'e] 'a\n\nmy lookup = tick::next");
