@@ -46,7 +46,15 @@ case c:
 - 式の位置の未解決の `red` は name error だが、pattern の位置では束縛になる。この非対称は暗黙の意味変化なので危険。
 
 出典: `main:web/docs/ja/reference/patterns.md` §enum pattern
-要確認: pattern の位置の `red` を束縛として読む規則を、警告や error にするか（確認 P1）。
+この罠への対処は未決定（確認 P1）。案は 3 つ。
+
+| 案 | 上の例の扱い |
+| --- | --- |
+| A 今のまま | 黙って通る。`name blue` も `"r"` を返す |
+| B 到達不能の警告 | 通る。ただし `green` / `blue` の arm に「到達しない」警告が出る |
+| C Rust 流（E0170 相当） | 走査対象の型が `color` と分かっていて、`red` がその variant 名と同じなら**エラー** |
+
+C は Simple-sub では推論が終わって型が分かった後にしか出せない。推奨は「B を常に入れ、C を型が分かったときに足す」。
 
 ## 3b.3 record・list の細部　〔要確認〕
 
@@ -74,9 +82,17 @@ case n:
     x if x >= 0 -> "non-negative"    // guard は網羅に数えないので、これだけではエラー
 ```
 
-- 「何を網羅とみなすか」の細部は Rust の規則に従う。Yulang 独自の pattern（symbol、polyvariant）の網羅性は未確認（確認 P2）。
+- 「何を網羅とみなすか」の細部は Rust の規則に従う。
+- symbol / polyvariant の pattern を使った `case` は、`_` を書かなくても網羅できる。走査対象の型が、pattern に書いた tag だけの**閉じた型**になるため（確定, 2026-11-04）。
 
-## 3b.5 `my` の分割代入　〔要確認〕
+```yulang
+my f x = case x:
+    :ready -> 1
+    :waiting -> 2
+// x : :ready | :waiting（閉じた型）。_ は要らない
+```
+
+## 3b.5 `my` の分割代入　〔確定〕
 
 ```yulang
 my (a, b) = (1, 2)
@@ -84,27 +100,37 @@ my { x, y } = some_point
 my [first, ..rest] = some_list
 ```
 
-- 素材では、`my` の分割代入は「pattern が必ず合う前提」で処理され、網羅性が検査されないとある。
-  これは `case` の方針（検査する）と食い違う。Rust の `let` なら反駁可能な pattern はエラー（確認 P3）。
+- **反駁可能な pattern はエラーにする**（Rust の `let` と同じ, 確定, 2026-11-04）。素材は「検査されない」と書いていたが、それは実装の穴として扱う。
+
+```yulang
+my (a, b) = (1, 2)       // 反駁不能: OK
+my just x = some_opt     // 反駁可能: エラー
+```
 
 出典: `main:web/docs/ja/reference/patterns.md` §my の pattern
 
-## 3b.6 or pattern と束縛　〔要確認〕
+## 3b.6 or pattern と束縛　〔確定〕
 
-- 素材では、or pattern の選択肢が違う名前を束縛しても受け入れられ、選ばれなかった側の束縛を body で使うと実行時エラーになる。
-  これは仕様というより実装の穴に見える（確認 P4）。
+- **or pattern の選択肢は、同じ名前の集合を束縛しなければならない**（Rust と同じ, 確定, 2026-11-04）。
+  素材の実装は、違う名前を受け入れて実行時エラーになるが、それは実装の穴として扱う。
 
-## 3b.7 pattern の型注釈　〔要確認〕
+```yulang
+x | y -> ...          // エラー: 選択肢で束縛する名前が違う
+(a, 0) | (0, a) -> a  // OK: どちらも a を束縛する
+```
 
-- パーサは `pattern: type` を受け付けるが、現状の実装は `case` の pattern の注釈を**検査せず無視する**。
-  `text: str` は int の値にも合ってしまう。「値の型を制約するために使ってはならない」状態（確認 P5）。
+## 3b.7 pattern の型注釈　〔確定〕
+
+- **pattern の型注釈は、値の型を制約する**（確定, 2026-11-04）。素材の実装は注釈を無視するが、それは実装の穴として扱う。
+
+```yulang
+case 41:
+    text: str -> "..."     // 型エラー: 41 は int
+    _ -> "fallback"
+```
 
 出典: `main:web/docs/ja/reference/patterns.md` §型 pattern は利用できない
 
 ## 確認してほしい点
 
-- **P1** pattern の位置の修飾なしの名前（`red`）が、同名の variant があっても束縛になる件。警告にするか、error にするか、今のままか。
-- **P2** symbol / polyvariant の網羅性をどう扱うか。開いた型なので、網羅には `_` が必要という扱いでよいか。
-- **P3** `my` の分割代入は、反駁可能な pattern ならエラーにするか（Rust の `let` と同じ）。
-- **P4** or pattern の選択肢は、同じ名前の集合を束縛しなければならない、でよいか（Rust と同じ）。
-- **P5** pattern の型注釈は、`case` の中でも**型を制約する**仕様にするか。現状の「無視する」は実装の穴か。
+- **P1** pattern の位置の修飾なしの名前の扱い（3b.2 の A / B / C）。推奨は「B を常に、C を型が分かったときに」。
