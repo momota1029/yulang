@@ -655,19 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R319",
+    "id": "R320",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/source-name-child-r319.md",
-    "contract_sha256": "7bb663150558fb076c8a3daad2f7ec3ce703fca1d95b6530a0b18ec880def260",
-    "review_result": "tasks/agent-loop/history/20261103-source-name-child-r319-review.md",
-    "review_result_sha256": "2960d5cbafe19850818255db0b0350e68ce36aa588c2736c8ba7712308e344f3",
+    "contract": "tasks/agent-loop/sprints/source-ei-receiver-result-r320.md",
+    "contract_sha256": "36658ade0a1f382cef2755660606e0518fae8c802631fb67b985976daa11e7e7",
+    "review_result": "tasks/agent-loop/history/20261103-source-ei-receiver-result-r320-review.md",
+    "review_result_sha256": "5e78a64f6aa34003ef6042e9279c29e5356bfd2e316d4664de790217491077f8",
     "previous_sprint": {
-      "id": "R318",
+      "id": "R319",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/source-clause-relational-compiler-r318.md",
-      "contract_sha256": "14f623d8187eaf3d95859f5158a874596ec2989bde449d37e5d78f15af1c6e62",
-      "review_result": "tasks/agent-loop/history/20261103-source-clause-relational-compiler-r318-review.md",
-      "review_result_sha256": "a5763487a1e4f018b0b9f18ebc82d2bfe378e481e2dd7ffe25068895de00ba31"
+      "contract": "tasks/agent-loop/sprints/source-name-child-r319.md",
+      "contract_sha256": "7bb663150558fb076c8a3daad2f7ec3ce703fca1d95b6530a0b18ec880def260",
+      "review_result": "tasks/agent-loop/history/20261103-source-name-child-r319-review.md",
+      "review_result_sha256": "2960d5cbafe19850818255db0b0350e68ce36aa588c2736c8ba7712308e344f3"
     }
   },
   "lease_archive": {
