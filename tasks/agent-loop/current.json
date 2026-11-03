@@ -655,19 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R342",
+    "id": "R343",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/original-continuation-union-r342.md",
-    "contract_sha256": "e31e094b9c2d6185c5297e31dea91db991082154ce054f05ab08dbe1bba10858",
-    "review_result": "tasks/agent-loop/history/20261104-higher-order-source-prefix-r342-review.md",
-    "review_result_sha256": "953410e833f2bcea8d5b4b83db8731cfb13555e551916d9d7e306173cc3bc162",
+    "contract": "tasks/agent-loop/sprints/higher-order-source-correspondence-r343.md",
+    "contract_sha256": "f6ee1f9332b3279f84c83b96f2c5ba44e13a85a1e8641e1d60734d2bd9aa6bb3",
+    "review_result": "tasks/agent-loop/history/20261104-scoped-if-carrier-r343-review.md",
+    "review_result_sha256": "e2b132dbd1cd1b8f03d4da34abbe7a9698c4b9b39691f71a7255c1b6c05bf8b8",
     "previous_sprint": {
-      "id": "R341",
+      "id": "R342",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/original-use-pullback-r341.md",
-      "contract_sha256": "465777314a85a42098f8559868954dc28a947d1e81bee592be6065e08af64085",
-      "review_result": "tasks/agent-loop/history/20261104-original-use-pullback-r341-review.md",
-      "review_result_sha256": "a50ba7862ff64715e86383d889ab9ffb06e00831294b0bec1c9103763ad1c680"
+      "contract": "tasks/agent-loop/sprints/original-continuation-union-r342.md",
+      "contract_sha256": "e31e094b9c2d6185c5297e31dea91db991082154ce054f05ab08dbe1bba10858",
+      "review_result": "tasks/agent-loop/history/20261104-higher-order-source-prefix-r342-review.md",
+      "review_result_sha256": "953410e833f2bcea8d5b4b83db8731cfb13555e551916d9d7e306173cc3bc162"
     }
   },
   "lease_archive": {
