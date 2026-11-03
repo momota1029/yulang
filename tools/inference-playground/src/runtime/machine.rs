@@ -105,6 +105,8 @@ pub struct Machine {
     r335_receiver_return_observations: Vec<R335ReceiverReturnObservation>,
     #[cfg(test)]
     r335_selected_result_observations: Vec<R335SelectedResultObservation>,
+    #[cfg(test)]
+    r338_receiver_post_exit_observations: Vec<R338ReceiverPostExitObservation>,
     name_receipt_seed_trace: Option<String>,
     name_receipt_calls_truncated: bool,
     name_receipt_observation_unavailable: bool,
@@ -431,6 +433,37 @@ struct R335SelectedResultObservation {
     received: ReceivedValue,
     owner: ExecutionOwner,
     step: usize,
+}
+
+/// Finite control and return-tuple readout taken immediately after a
+/// successful ReceiverReturn `leave_owner`. This is test evidence only; it
+/// does not identify the complete native state with an original semantic world.
+#[cfg(test)]
+#[derive(Clone)]
+struct R338ReceiverPostExitObservation {
+    run_id: usize,
+    activation: usize,
+    previous: ExecutionOwner,
+    owner_before_exit: ExecutionOwner,
+    active_receivers_before_exit: Vec<usize>,
+    invocations_before_exit: Vec<R338InvocationSnapshot>,
+    owner_after_exit: ExecutionOwner,
+    active_receivers_after_exit: Vec<usize>,
+    invocations_after_exit: Vec<R338InvocationSnapshot>,
+    call: SourceSite,
+    provider: SourceSite,
+    incoming: ReceivedValue,
+    received: ReceivedValue,
+    step_before_exit: usize,
+    step_after_exit: usize,
+}
+
+#[cfg(test)]
+#[derive(Clone)]
+struct R338InvocationSnapshot {
+    call: SourceSite,
+    provider: SourceSite,
+    active: bool,
 }
 
 #[cfg(test)]
@@ -1076,6 +1109,8 @@ impl RuntimeProgram {
             r335_receiver_return_observations: Vec::new(),
             #[cfg(test)]
             r335_selected_result_observations: Vec::new(),
+            #[cfg(test)]
+            r338_receiver_post_exit_observations: Vec::new(),
             name_receipt_seed_trace: None,
             name_receipt_calls_truncated: false,
             name_receipt_observation_unavailable: false,
@@ -2488,6 +2523,20 @@ impl Machine {
                     view: received.view,
                 };
                 #[cfg(test)]
+                let pre_exit = (|| {
+                    let mut active_receivers = Vec::new();
+                    active_receivers.try_reserve_exact(self.active_receivers.len()).ok()?;
+                    active_receivers.extend_from_slice(&self.active_receivers);
+                    let mut invocations = Vec::new();
+                    invocations.try_reserve_exact(self.invocations.len()).ok()?;
+                    invocations.extend(self.invocations.iter().map(|invocation| R338InvocationSnapshot {
+                        call: invocation.call.clone(),
+                        provider: invocation.provider.clone(),
+                        active: invocation.active,
+                    }));
+                    Some((self.current_execution_owner(), active_receivers, invocations, self.steps))
+                })();
+                #[cfg(test)]
                 if let Some(invocation) = self.invocations.get(activation) {
                     if self.r335_receiver_return_observations.len() < 1024
                         && self.r335_receiver_return_observations.try_reserve(1).is_ok()
@@ -2509,6 +2558,60 @@ impl Machine {
                     self.r312_observations_truncated = true;
                 }
                 self.leave_owner(ExecutionOwner::Invocation(activation), true, previous)?;
+                #[cfg(test)]
+                if let Some((owner_before_exit, active_receivers_before_exit,
+                    invocations_before_exit, step_before_exit)) = pre_exit
+                {
+                    if let Some(invocation) = self.invocations.get(activation) {
+                        let mut active_receivers_after_exit = Vec::new();
+                        let mut invocations_after_exit = Vec::new();
+                        let captured = active_receivers_after_exit
+                            .try_reserve_exact(self.active_receivers.len()).is_ok()
+                            && invocations_after_exit
+                                .try_reserve_exact(self.invocations.len()).is_ok();
+                        if captured {
+                            active_receivers_after_exit.extend_from_slice(&self.active_receivers);
+                            invocations_after_exit.extend(self.invocations.iter().map(|invocation| {
+                                R338InvocationSnapshot {
+                                    call: invocation.call.clone(),
+                                    provider: invocation.provider.clone(),
+                                    active: invocation.active,
+                                }
+                            }));
+                            if self.r338_receiver_post_exit_observations.len() < 1024
+                                && self.r338_receiver_post_exit_observations.try_reserve(1).is_ok()
+                            {
+                                self.r338_receiver_post_exit_observations.push(
+                                    R338ReceiverPostExitObservation {
+                                        run_id: self as *const Machine as usize,
+                                        activation,
+                                        previous,
+                                        owner_before_exit,
+                                        active_receivers_before_exit,
+                                        invocations_before_exit,
+                                        owner_after_exit: self.current_execution_owner(),
+                                        active_receivers_after_exit,
+                                        invocations_after_exit,
+                                        call: invocation.call.clone(),
+                                        provider: invocation.provider.clone(),
+                                        incoming: received,
+                                        received: returned,
+                                        step_before_exit,
+                                        step_after_exit: self.steps,
+                                    },
+                                );
+                            } else {
+                                self.r312_observations_truncated = true;
+                            }
+                        } else {
+                            self.r312_observations_truncated = true;
+                        }
+                    } else {
+                        self.r312_observations_truncated = true;
+                    }
+                } else {
+                    self.r312_observations_truncated = true;
+                }
                 self.state = State::Return(returned);
             }
             Frame::ValueEntry {
@@ -5586,6 +5689,49 @@ mod module_expression_tests {
         {
             return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
         }
+        let post_exits = machine.r338_receiver_post_exit_observations.iter().filter(|post|
+            post.activation == call.invocation
+        ).collect::<Vec<_>>();
+        let [post_exit] = post_exits.as_slice() else {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        };
+        let exact_retirement = post_exit.active_receivers_before_exit.last() == Some(&call.invocation)
+            && post_exit.invocations_before_exit.get(call.invocation).is_some_and(|invocation|
+                invocation.active
+                    && r323_same_site(&invocation.call, &receiver_return.call)
+                    && r323_same_site(&invocation.provider, &receiver_return.provider))
+            && post_exit.active_receivers_after_exit.as_slice()
+                == &post_exit.active_receivers_before_exit[..post_exit.active_receivers_before_exit.len() - 1]
+            && post_exit.invocations_after_exit.len() == post_exit.invocations_before_exit.len()
+            && post_exit.invocations_after_exit.iter().zip(&post_exit.invocations_before_exit)
+                .enumerate().all(|(id, (after, before))| {
+                    r323_same_site(&after.call, &before.call)
+                        && r323_same_site(&after.provider, &before.provider)
+                        && after.active == (id != call.invocation && before.active)
+                });
+        let same_return_tuple = post_exit.received.value == receiver_return.received.value
+            && post_exit.received.view == receiver_return.received.view
+            && post_exit.received.interface == receiver_return.received.interface
+            && post_exit.received.dispatch == receiver_return.received.dispatch;
+        let outgoing_is_normalized_incoming = post_exit.received.value == post_exit.incoming.value
+            && post_exit.received.view == post_exit.incoming.view
+            && post_exit.received.interface == ParameterRole::Value
+            && post_exit.received.dispatch == post_exit.incoming.dispatch;
+        if post_exit.run_id != run_id
+            || post_exit.activation != receiver_return.activation
+            || post_exit.previous != receiver_return.previous
+            || post_exit.owner_before_exit != receiver_return.owner_before_return
+            || post_exit.owner_after_exit != receiver_return.previous
+            || post_exit.step_before_exit != receiver_return.step
+            || post_exit.step_after_exit != receiver_return.step
+            || !r323_same_site(&post_exit.call, &receiver_return.call)
+            || !r323_same_site(&post_exit.provider, &receiver_return.provider)
+            || !same_return_tuple
+            || !outgoing_is_normalized_incoming
+            || !exact_retirement
+        {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
         let selected_results = machine.r335_selected_result_observations.iter().filter(|selected|
             selected.run_id == run_id
         ).collect::<Vec<_>>();
@@ -5665,6 +5811,17 @@ mod module_expression_tests {
                 r323_lean_owner(replay.current_owner_after),
             ))
         }).collect::<Result<Vec<_>, _>>()?.join(", ");
+        let invocation_rows = |rows: &[R338InvocationSnapshot]|
+            -> Result<Vec<String>, super::super::RuntimeUnavailable> {
+            rows.iter().enumerate().map(|(id, invocation)| Ok(format!(
+                "{{ id := {id}, call := {}, provider := {}, active := {} }}",
+                r314_lean_runtime_site(machine, parsed, &invocation.call)?,
+                r314_lean_runtime_site(machine, parsed, &invocation.provider)?,
+                invocation.active,
+            ))).collect()
+        };
+        let invocation_rows_before = invocation_rows(&post_exit.invocations_before_exit)?.join(", ");
+        let invocation_rows_after = invocation_rows(&post_exit.invocations_after_exit)?.join(", ");
         let mut out = String::from("\nnamespace R323Artifact\nopen R314Artifact\n");
         let _ = writeln!(out, "def requestEvent : Nat := {}", request.request);
         let _ = writeln!(out, "def operation : String := {operation}");
@@ -5709,6 +5866,25 @@ mod module_expression_tests {
         let _ = writeln!(out, "def selectedReceiverReturnDispatch : Option Nat := {}", receiver_return.received.dispatch.map_or_else(|| "none".to_owned(), |dispatch| format!("some {dispatch}")));
         let _ = writeln!(out, "def selectedReceiverReturnRuntimeValue : R314Artifact.RuntimeValue := {receiver_return_runtime}");
         let _ = writeln!(out, "def selectedReceiverReturnStep : Nat := {}", receiver_return.step);
+        let _ = writeln!(out, "def selectedReceiverPostExitActivation : Nat := {}", post_exit.activation);
+        let _ = writeln!(out, "def selectedReceiverPostExitPreviousOwner : R314Artifact.ExecutionOwner := {}", r323_lean_owner(post_exit.previous));
+        let _ = writeln!(out, "def selectedReceiverPostExitOwnerBefore : R314Artifact.ExecutionOwner := {}", r323_lean_owner(post_exit.owner_before_exit));
+        let _ = writeln!(out, "def selectedReceiverPostExitOwnerAfter : R314Artifact.ExecutionOwner := {}", r323_lean_owner(post_exit.owner_after_exit));
+        let _ = writeln!(out, "def selectedReceiverPostExitNativeActiveReceiversBefore : List Nat := [{}]", post_exit.active_receivers_before_exit.iter().map(usize::to_string).collect::<Vec<_>>().join(", "));
+        let _ = writeln!(out, "def selectedReceiverPostExitNativeActiveReceiversAfter : List Nat := [{}]", post_exit.active_receivers_after_exit.iter().map(usize::to_string).collect::<Vec<_>>().join(", "));
+        out.push_str("structure R338InvocationSnapshot where\n  id : Nat\n  call : R314Artifact.RuntimeSite\n  provider : R314Artifact.RuntimeSite\n  active : Bool\n  deriving Repr\n");
+        let _ = writeln!(out, "def selectedReceiverPostExitInvocationTableBefore : List R338InvocationSnapshot := [{}]", invocation_rows_before);
+        let _ = writeln!(out, "def selectedReceiverPostExitInvocationTableAfter : List R338InvocationSnapshot := [{}]", invocation_rows_after);
+        let _ = writeln!(out, "def selectedReceiverPostExitCallSite : R314Artifact.RuntimeSite := {}", r314_lean_runtime_site(machine, parsed, &post_exit.call)?);
+        let _ = writeln!(out, "def selectedReceiverPostExitProviderSite : R314Artifact.RuntimeSite := {}", r314_lean_runtime_site(machine, parsed, &post_exit.provider)?);
+        let _ = writeln!(out, "def selectedReceiverPostExitReturnValue : Nat := {}", post_exit.received.value.0);
+        let _ = writeln!(out, "def selectedReceiverPostExitReturnView : Nat := {}", post_exit.received.view.index());
+        let _ = writeln!(out, "def selectedReceiverPostExitReturnInterface : R314Artifact.Interface := R314Artifact.Interface.value");
+        let _ = writeln!(out, "def selectedReceiverPostExitReturnDispatch : Option Nat := {}", post_exit.received.dispatch.map_or_else(|| "none".to_owned(), |dispatch| format!("some {dispatch}")));
+        let incoming = r314_lean_received(post_exit.incoming).replace("Interface.", "R314Artifact.Interface.");
+        let _ = writeln!(out, "def selectedReceiverPostExitIncoming : R314Artifact.Received := {incoming}");
+        let _ = writeln!(out, "def selectedReceiverPostExitStepBefore : Nat := {}", post_exit.step_before_exit);
+        let _ = writeln!(out, "def selectedReceiverPostExitStepAfter : Nat := {}", post_exit.step_after_exit);
         let _ = writeln!(out, "def selectedDefinitionResult : Nat := {}", selected_result.received.value.0);
         let _ = writeln!(out, "def selectedDefinitionResultView : Nat := {}", selected_result.received.view.index());
         let _ = writeln!(out, "def selectedDefinitionResultOwner : R314Artifact.ExecutionOwner := {}", r323_lean_owner(selected_result.owner));
@@ -5795,6 +5971,51 @@ mod module_expression_tests {
         assert!(r323.contains("def selectedReceiverReturnValue : Nat := "));
         assert!(r323.contains("def selectedReceiverReturnRuntimeValue : R314Artifact.RuntimeValue := "));
         assert!(r323.contains("def selectedDefinitionResultRuntimeValue : R314Artifact.RuntimeValue := "));
+        assert!(r323.contains("def selectedReceiverPostExitNativeActiveReceiversBefore : List Nat := ["));
+        assert!(r323.contains("def selectedReceiverPostExitInvocationTableBefore : List R338InvocationSnapshot := ["));
+        assert!(r323.contains("def selectedReceiverPostExitInvocationTableAfter : List R338InvocationSnapshot := ["));
+        assert!(r323.contains("def selectedReceiverPostExitIncoming : R314Artifact.Received := "));
+        assert!(r323.contains("def selectedReceiverPostExitOwnerAfter : R314Artifact.ExecutionOwner := R314Artifact.ExecutionOwner.invocation"));
+        let post_exit_index = machine.r338_receiver_post_exit_observations.iter()
+            .position(|post| post.activation == call.invocation)
+            .expect("successful ReceiverReturn captures its immediate post-exit state");
+        let post_exit = machine.r338_receiver_post_exit_observations[post_exit_index].clone();
+        assert_eq!(post_exit.active_receivers_before_exit.last(), Some(&call.invocation));
+        assert_eq!(post_exit.active_receivers_after_exit,
+            post_exit.active_receivers_before_exit[..post_exit.active_receivers_before_exit.len() - 1]);
+        assert!(post_exit.invocations_before_exit[call.invocation].active);
+        assert!(!post_exit.invocations_after_exit[call.invocation].active);
+        assert_eq!(post_exit.invocations_after_exit.len(), post_exit.invocations_before_exit.len());
+        assert_eq!(post_exit.owner_after_exit, post_exit.previous);
+        assert_eq!(post_exit.step_before_exit, post_exit.step_after_exit);
+        assert_eq!(post_exit.incoming.value, post_exit.received.value);
+        assert_eq!(post_exit.incoming.view, post_exit.received.view);
+        assert_eq!(post_exit.incoming.dispatch, post_exit.received.dispatch);
+        assert_eq!(post_exit.received.interface, ParameterRole::Value);
+        let incoming_row = r314_lean_received(post_exit.incoming)
+            .replace("Interface.", "R314Artifact.Interface.");
+        assert!(r323.contains(&format!(
+            "def selectedReceiverPostExitIncoming : R314Artifact.Received := {incoming_row}"
+        )), "the incoming interface and tuple are exported verbatim");
+        machine.r338_receiver_post_exit_observations[post_exit_index].activation += 1000;
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "a post-exit snapshot from another activation is rejected");
+        machine.r338_receiver_post_exit_observations[post_exit_index] = post_exit.clone();
+        machine.r338_receiver_post_exit_observations[post_exit_index].owner_after_exit = post_exit.owner_before_exit;
+        machine.r338_receiver_post_exit_observations[post_exit_index].active_receivers_after_exit =
+            post_exit.active_receivers_before_exit.clone();
+        machine.r338_receiver_post_exit_observations[post_exit_index].invocations_after_exit =
+            post_exit.invocations_before_exit.clone();
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "a pre-exit control snapshot cannot be presented as successful post-exit state");
+        machine.r338_receiver_post_exit_observations[post_exit_index] = post_exit;
+        let post_exit = machine.r338_receiver_post_exit_observations[post_exit_index].clone();
+        let alternate_post_view = machine.receiving.ground(post_exit.received.value);
+        assert_ne!(alternate_post_view, post_exit.received.view);
+        machine.r338_receiver_post_exit_observations[post_exit_index].received.view = alternate_post_view;
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "post-exit evidence must retain the exact R335 value/view/interface/dispatch tuple");
+        machine.r338_receiver_post_exit_observations[post_exit_index] = post_exit;
         let request_source = machine.r323_request_observations[0].source.clone();
         machine.r323_request_observations[0].source.range.start += 1;
         assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
@@ -6051,6 +6272,14 @@ mod module_expression_tests {
         assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
             "a request receipt from a separately executed same-HIR run is rejected");
         machine.r323_request_observations[0] = original_request;
+        let foreign_post_exit = second_run.r338_receiver_post_exit_observations.iter()
+            .find(|post| post.activation == call.invocation)
+            .expect("second run has its own activation-matched return").clone();
+        let original_post_exit = machine.r338_receiver_post_exit_observations[post_exit_index].clone();
+        machine.r338_receiver_post_exit_observations[post_exit_index] = foreign_post_exit;
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "same-HIR post-exit state from a different Machine run is rejected");
+        machine.r338_receiver_post_exit_observations[post_exit_index] = original_post_exit;
         let foreign_template_run = second_run.r323_template_observations[0].run_id;
         machine.r323_template_observations[0].run_id = foreign_template_run;
         assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
@@ -6079,6 +6308,22 @@ mod module_expression_tests {
         if let Some(path) = std::env::var_os("YULANG_R323_LEAN_WITNESS") {
             std::fs::write(path, &r315).expect("explicit R323 Lean witness path must be writable");
         }
+        let failed_return = machine.r335_receiver_return_observations.iter()
+            .find(|returned| returned.activation == call.invocation)
+            .expect("the successful R335 fixture retains its pre-exit receipt").clone();
+        let post_exit_count = machine.r338_receiver_post_exit_observations.len();
+        machine.active_receivers.push(call.invocation);
+        machine.current_owner = ExecutionOwner::Invocation(call.invocation);
+        machine.invocations[call.invocation].active = false;
+        machine.frames.push(Frame::ReceiverReturn {
+            activation: call.invocation,
+            previous: failed_return.previous,
+        });
+        assert!(matches!(machine.return_value(failed_return.received),
+            Err(super::super::RuntimeUnavailable::InvalidSourceReference)),
+            "a failed leave_owner does not produce a successful return");
+        assert_eq!(machine.r338_receiver_post_exit_observations.len(), post_exit_count,
+            "a partially mutated failed leave cannot be recorded as successful post-exit evidence");
     }
 
     #[test]
