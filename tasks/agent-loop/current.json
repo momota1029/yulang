@@ -655,19 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R328",
+    "id": "R329",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/source-interface-preservation-r328.md",
-    "contract_sha256": "2a31920f421387efe2088e61fd71ae599b94b6ef9597f8078c42b461de41c0dd",
-    "review_result": "tasks/agent-loop/history/20261103-interface-preservation-r328-review.md",
-    "review_result_sha256": "56254c4452e02939cf2170d252ecf3d63bd96fd8911ccc1546c25aeb894842e7",
+    "contract": "tasks/agent-loop/sprints/source-evidence-transport-r329.md",
+    "contract_sha256": "168778197ce8fa4fc06b6f8d4cb44f43335b748e38ffee1b45ba0b3d9a6cfe8f",
+    "review_result": "tasks/agent-loop/history/20261103-original-evidence-transport-r329-review.md",
+    "review_result_sha256": "0c31d896600855a213c7310508555b9a02b1c3e18141510885e2184eaf5a89a9",
     "previous_sprint": {
-      "id": "R326",
+      "id": "R328",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/source-call-algebra-r326.md",
-      "contract_sha256": "195178575a860060e62192ea4efe2aab1f8a5976fb7d932bc64e64a83bf7a32d",
-      "review_result": "tasks/agent-loop/history/20261103-source-call-algebra-r326-review.md",
-      "review_result_sha256": "37e4b9f308c8897716122b161b57a844cbf78c7533d1e5de28413db5d3dd2847"
+      "contract": "tasks/agent-loop/sprints/source-interface-preservation-r328.md",
+      "contract_sha256": "2a31920f421387efe2088e61fd71ae599b94b6ef9597f8078c42b461de41c0dd",
+      "review_result": "tasks/agent-loop/history/20261103-interface-preservation-r328-review.md",
+      "review_result_sha256": "56254c4452e02939cf2170d252ecf3d63bd96fd8911ccc1546c25aeb894842e7"
     }
   },
   "lease_archive": {
