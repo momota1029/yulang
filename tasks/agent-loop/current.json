@@ -655,19 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R317",
+    "id": "R318",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/scoped-relational-result-r317.md",
-    "contract_sha256": "6cc775be1acbe5aa58792d20c91d241a4576d4e42a2b7381a55f70a0e2a852aa",
-    "review_result": "tasks/agent-loop/history/20261103-scoped-relational-result-r317-review.md",
-    "review_result_sha256": "7e021d79ee99936f2154c65ab27b1e0706d808fd9f6b9df0350a85c32520c40a",
+    "contract": "tasks/agent-loop/sprints/source-clause-relational-compiler-r318.md",
+    "contract_sha256": "14f623d8187eaf3d95859f5158a874596ec2989bde449d37e5d78f15af1c6e62",
+    "review_result": "tasks/agent-loop/history/20261103-source-clause-relational-compiler-r318-review.md",
+    "review_result_sha256": "a5763487a1e4f018b0b9f18ebc82d2bfe378e481e2dd7ffe25068895de00ba31",
     "previous_sprint": {
-      "id": "R316",
+      "id": "R317",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/original-app-formation-owner-r316.md",
-      "contract_sha256": "01ad18e44a75f46b63d90b162050922dbee142529cc4bad178b0ffd8f5a2e424",
-      "review_result": "tasks/agent-loop/history/20261103-original-formation-owner-r316-review.md",
-      "review_result_sha256": "d4ba50b5ac19241340eb07ec17622746794f3a97e72009809d5e458a1b71a8d4"
+      "contract": "tasks/agent-loop/sprints/scoped-relational-result-r317.md",
+      "contract_sha256": "6cc775be1acbe5aa58792d20c91d241a4576d4e42a2b7381a55f70a0e2a852aa",
+      "review_result": "tasks/agent-loop/history/20261103-scoped-relational-result-r317-review.md",
+      "review_result_sha256": "7e021d79ee99936f2154c65ab27b1e0706d808fd9f6b9df0350a85c32520c40a"
     }
   },
   "lease_archive": {
