@@ -97,11 +97,11 @@ enum event:
 - variant は companion module の member（`event::moved`）。
 - variant の payload には、位置の型と record の両方が書ける。
 - `error` の variant に record payload を書くことは、パーサは受理するが checker が拒否する。
-  仕様として許すかどうかは未決定（確認 G4）。例:
+  **許す**（確定, 2026-11-04）。いまの checker の拒否は実装の穴として扱う。例:
 
 ```yulang
 error path_err:
-    not_found { path: str, hint: str }     // いまは unsupported syntax で拒否される
+    not_found { path: str, hint: str }     // 許す。いまの実装は unsupported syntax で拒否する
 ```
 
 出典: `main:web/docs/ja/reference/structs.md` §Variant の record payload
@@ -158,7 +158,4 @@ my b = make a              // エラー: 再帰する component の中で comput
 
 ## 確認してほしい点
 
-- **G4** `error` の variant に record payload を許すか。例は 4.5。`error` の variant は値の constructor にも effect の operation にもなる
-  （`path_err::not_found path` は期待型が error ならば値、effect の位置なら operation）ので、
-  `path_err::not_found { path: "x", hint: "y" }` を同じように両方で使える形にするかどうか。
 - **G5'** polymorphic variant の型の綴り（`:{A int, B}`）が現行のものか。payload を持つ tag と持たない tag の書き分け。
