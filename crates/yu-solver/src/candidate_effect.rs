@@ -336,6 +336,8 @@ pub(super) struct State {
     #[cfg(test)]
     pub(super) operation_trace: Option<Vec<OperationSignatureObservation>>,
     #[cfg(test)]
+    pub(super) signed_view_remap_trace: Option<Vec<SignedViewRemapObservation>>,
+    #[cfg(test)]
     operation_family_arguments: Vec<(Term, Option<SourceEffectId>)>,
 }
 #[cfg(test)]
@@ -363,6 +365,23 @@ pub(super) struct OperationSignatureObservation {
     /// Actual constructor-local source-row cache contents, keyed by the HIR
     /// row position used by candidate_signature_effect.
     pub cached_views: Vec<(SourceNodeKey, u32)>,
+}
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct SignedViewRemapObservation {
+    pub extrusion: usize,
+    pub source: ExtrusionEndpoint,
+    pub polarity: Polarity,
+    pub target: u32,
+    pub view: u32,
+    pub source_tail: u32,
+    pub child: ExtrusionEndpoint,
+    pub child_polarity: Polarity,
+    pub child_target: u32,
+    pub looked_up_child: ExtrusionEndpoint,
+    pub cache_hit: bool,
+    pub copied_view: u32,
+    pub copied_tail: u32,
 }
 #[derive(Debug)]
 pub(super) struct Contribution {
@@ -537,6 +556,8 @@ pub(super) struct Checkpoint {
     annotation_value_bytes: usize,
     #[cfg(test)]
     operation_trace: Option<usize>,
+    #[cfg(test)]
+    signed_view_remap_trace: Option<usize>,
     #[cfg(test)]
     operation_family_arguments: usize,
 }
@@ -723,12 +744,18 @@ impl State {
             #[cfg(test)]
             operation_trace: self.operation_trace.as_ref().map(Vec::len),
             #[cfg(test)]
+            signed_view_remap_trace: self.signed_view_remap_trace.as_ref().map(Vec::len),
+            #[cfg(test)]
             operation_family_arguments: self.operation_family_arguments.len(),
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
         #[cfg(test)]
         if let (Some(trace), Some(len)) = (&mut self.operation_trace, checkpoint.operation_trace) {
+            trace.truncate(len);
+        }
+        #[cfg(test)]
+        if let (Some(trace), Some(len)) = (&mut self.signed_view_remap_trace, checkpoint.signed_view_remap_trace) {
             trace.truncate(len);
         }
         #[cfg(test)]
@@ -5286,6 +5313,7 @@ mod tests {
         let mut session = make_session(source);
         let owner = root(&session, "lookup");
         session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.operation_trace = Some(Vec::new());
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.signed_view_remap_trace = Some(Vec::new());
         session.with_route_transaction(|session| session.execute_candidate_source_root(&owner)).unwrap();
 
         let observations = session.candidate_graph.as_ref().unwrap()
@@ -5324,11 +5352,19 @@ mod tests {
             effect_state.views.get(*view as usize).is_some_and(|view| view.tail == Some(effect_variable))),
             "the actual row cache resolves to the constructor's shared effect variable");
 
+        let signed_trace = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra
+            .signed_view_remap_trace.as_ref().unwrap();
+        assert!(!signed_trace.is_empty(), "the committed operation has actual signed remap events");
+        let committed_signed_prefix = signed_trace.clone();
+
         let committed_root = observation.root;
         let committed_occurrence = observation.occurrence.clone();
         let sibling = root(&session, "sibling");
         assert_eq!(session.with_route_transaction(|session| {
             session.execute_candidate_source_root(&sibling)?;
+            assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra
+                .signed_view_remap_trace.as_ref().unwrap().len() > committed_signed_prefix.len(),
+                "the sibling execution publishes transient signed events before the outer abort");
             Err::<(), _>(exhausted())
         }), Err(exhausted()));
         let trace = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.as_ref().unwrap();
@@ -5336,6 +5372,10 @@ mod tests {
         assert_eq!(trace[0].root, committed_root);
         assert_eq!(trace[0].occurrence, committed_occurrence);
         assert!(Arc::ptr_eq(&trace[0].declaration, &observation.declaration));
+        let signed_trace = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra
+            .signed_view_remap_trace.as_ref().unwrap();
+        assert_eq!(signed_trace, &committed_signed_prefix,
+            "rollback removes sibling signed events while preserving the committed prefix");
         session.with_route_transaction(|session| session.execute_candidate_source_root(&sibling)).unwrap();
         let trace = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.as_ref().unwrap();
         assert_eq!(trace.len(), 2, "retry publishes one fresh observation after the committed prefix");
@@ -5344,24 +5384,39 @@ mod tests {
         assert!(Arc::ptr_eq(&trace[0].declaration, &observation.declaration));
         assert_ne!(trace[1].occurrence, trace[0].occurrence);
         assert_ne!(trace[1].root, committed_root);
+        let signed_trace = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra
+            .signed_view_remap_trace.as_ref().unwrap();
+        assert!(signed_trace.len() > committed_signed_prefix.len(),
+            "retry appends the sibling's newly executed signed remap event(s)");
+        assert_eq!(&signed_trace[..committed_signed_prefix.len()], committed_signed_prefix.as_slice(),
+            "retry leaves the already committed signed trace prefix byte-for-byte intact");
 
         let mut rolled_back = make_session(source);
         let rollback_owner = root(&rolled_back, "lookup");
         rolled_back.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.operation_trace = Some(Vec::new());
+        rolled_back.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.signed_view_remap_trace = Some(Vec::new());
         assert_eq!(rolled_back.with_route_transaction(|session| {
             session.execute_candidate_source_root(&rollback_owner)?;
+            assert!(!session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra
+                .signed_view_remap_trace.as_ref().unwrap().is_empty(),
+                "the successful inner execution observed its actual signed remap before the outer abort");
             Err::<(), _>(exhausted())
         }), Err(exhausted()));
         assert!(rolled_back.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.as_ref().unwrap().is_empty(),
             "transaction rollback removes constructor evidence with rolled-back terms");
+        assert!(rolled_back.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.signed_view_remap_trace.as_ref().unwrap().is_empty(),
+            "transaction rollback removes signed remap evidence with rolled-back terms");
 
         let mut failed = make_session(source);
         let failed_owner = root(&failed, "lookup");
         failed.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.operation_trace = Some(Vec::new());
+        failed.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.signed_view_remap_trace = Some(Vec::new());
         failed.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.fail_after_view = true;
         assert_eq!(failed.with_route_transaction(|session| session.execute_candidate_source_root(&failed_owner)), Err(exhausted()));
         assert!(failed.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.as_ref().unwrap().is_empty(),
             "failed constructor observation publishes no trace");
+        assert!(failed.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.signed_view_remap_trace.as_ref().unwrap().is_empty(),
+            "failed construction publishes no signed remap event");
 
         let mut dormant = make_session(source);
         let dormant_owner = root(&dormant, "lookup");
@@ -5369,6 +5424,8 @@ mod tests {
         dormant.with_route_transaction(|session| session.execute_candidate_source_root(&dormant_owner)).unwrap();
         assert!(dormant.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.is_none(),
             "the dormant observer retains no allocation or cross-session trace");
+        assert!(dormant.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.signed_view_remap_trace.is_none(),
+            "the signed remap observer remains unallocated when dormant");
     }
 
     #[test]
@@ -5376,11 +5433,16 @@ mod tests {
         let source = "act E\nact tick:\n    our next: ('a -> ['e] 'a) -> ('a -> [E, 'e] 'a)\n\nmy provider = tick::next\nmy left = provider\nmy right = provider";
         let mut session = make_session(source);
         session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.operation_trace = Some(Vec::new());
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.signed_view_remap_trace = Some(Vec::new());
         session.execute().unwrap();
         assert!(session.errors.is_empty(), "the authentic nested operation fixture must solve without diagnostics");
         let traces = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.as_ref().unwrap();
         assert_eq!(traces.len(), 1);
         let trace = &traces[0];
+        let signed_remaps = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra
+            .signed_view_remap_trace.as_ref().unwrap();
+        assert_eq!(signed_remaps.len(), 1,
+            "only the actual Work::EffectView lookup publishes an event for this fixture");
         let SourceAnnotationValue::Function { result: outer_result, .. } = &trace.declaration.signature.value else {
             panic!("the authentic operation signature has an outer Function");
         };
@@ -5515,6 +5577,26 @@ mod tests {
         };
         assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[extruded_support_view as usize].tail,
             Some(extruded_tail), "the signed extrusion copy reads back the exact captured tail-node row");
+        let remap = signed_remaps.iter().find(|event|
+            event.source == ExtrusionEndpoint::Effect(EffectEndpointKey::Support(source_row_view))
+                && event.polarity == Polarity::Positive
+                && event.view == source_row_view
+        ).copied().expect("the exact source Support reaches a signed Work::EffectView event");
+        assert_eq!(remap.source_tail, source_tail,
+            "the remapped source view is the HIR row's actual 'e variable view");
+        assert_eq!(remap.target, remap.child_target,
+            "the full signed child key keeps the same extrusion target");
+        assert_eq!(remap.child, ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(source_tail)),
+            "the child key is formed from this exact source view's tail");
+        assert_eq!(remap.child_polarity, remap.polarity,
+            "the actual child lookup preserves the source sign");
+        assert_eq!(remap.looked_up_child, ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(extruded_tail)),
+            "the signed child key resolves through candidate_extrude's rows/structure map");
+        assert!(!remap.cache_hit, "the actual route takes the recorded view_remap miss branch");
+        assert_eq!(remap.copied_view, extruded_support_view,
+            "the miss's copied view is the exact captured Bound endpoint");
+        assert_eq!(remap.copied_tail, extruded_tail,
+            "the remap output tail is the captured Support's own tail-node row");
         let extruded_support = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[extruded_support_view as usize];
         assert_eq!(extruded_support.owner, trace.owner);
         assert!(matches!(&extruded_support.provenance, ViewOrigin::Operation(origin)
@@ -5669,6 +5751,20 @@ mod tests {
         }
         assert_ne!(mapped_function_terms[0], mapped_function_terms[1],
             "the two authentic use routes retain separate Function reconstructions");
+
+        // Exercise the real local remap's hit branch on the same authenticated
+        // source view and copied tail. This direct cache probe emits no Work
+        // event; only candidate_extrude's actual lookup above is traced.
+        let mut remap_cache = HashMap::new();
+        remap_cache.try_reserve(1).unwrap();
+        let probed_copy = session.candidate_remapped_effect_view(source_row_view, Some(extruded_tail), &mut remap_cache).unwrap();
+        assert_eq!(remap_cache.get(&(source_row_view, Some(extruded_tail))), Some(&probed_copy),
+            "the actual source view/tail pair is inserted on the remap miss");
+        assert_eq!(session.candidate_remapped_effect_view(source_row_view, Some(extruded_tail), &mut remap_cache).unwrap(), probed_copy,
+            "reusing the exact source view and copied tail takes the real cache hit path");
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra
+            .signed_view_remap_trace.as_ref().unwrap().len(), 1,
+            "the standalone cache probe does not fabricate a signed Work event");
     }
     #[test]
     fn operation_views_preserve_symbolic_tail_provenance_and_rollback_owned_payload() {

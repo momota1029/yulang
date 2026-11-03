@@ -345,6 +345,8 @@ impl InferenceSession {
                         else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
+                        #[cfg(test)]
+                        let cache_hit = view_remap.contains_key(&(id, Some(tail)));
                         let old = view_remap.capacity();
                         view_remap
                             .try_reserve(1)
@@ -357,6 +359,31 @@ impl InferenceSession {
                         )?;
                         let copy =
                             self.candidate_remapped_effect_view(id, Some(tail), &mut view_remap)?;
+                        #[cfg(test)]
+                        let source_tail = self.candidate_graph.as_ref().unwrap()
+                            .intrusion.effect_algebra.views[id as usize].tail
+                            .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                        #[cfg(test)]
+                        if let Some(trace) = self.candidate_graph.as_mut().unwrap()
+                            .intrusion.effect_algebra.signed_view_remap_trace.as_mut()
+                        {
+                            trace.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                            trace.push(crate::candidate_effect::SignedViewRemapObservation {
+                                extrusion: occurrence,
+                                source: key.0,
+                                polarity: key.1,
+                                target: key.2,
+                                view: id,
+                                source_tail,
+                                child: child.0,
+                                child_polarity: child.1,
+                                child_target: child.2,
+                                looked_up_child: endpoint,
+                                cache_hit,
+                                copied_view: copy,
+                                copied_tail: tail,
+                            });
+                        }
                         let copied = match key.0 {
                             ExtrusionEndpoint::Effect(EffectEndpointKey::Support(_)) => {
                                 EffectEndpointKey::Support(copy)
