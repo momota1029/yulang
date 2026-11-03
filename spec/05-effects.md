@@ -5,7 +5,7 @@ solver の内部表現（directed stack weight、`J = H ∩ Common(L)` による
 effect 注釈が位置によって意味を変える点は、先に確定した [T2・T3](traps.md) が本体で、5.5 でまとめる。
 素材は effect 行を `;` 区切りで書いていたが、ここでは新表記の `,` に直してある（[T1](traps.md)）。
 
-## 5.1 `act` と operation　〔要確認〕
+## 5.1 `act` と operation　〔補完は確定、他は要確認〕
 
 ```yulang
 act flip:
@@ -18,7 +18,10 @@ my bit = flip::coin()
 - operation は `our`（または `pub`）の型 signature として並べる。
 - **operation の呼び出しは普通の関数呼び出しに見える。** 呼んだ computation の型には、その effect が残る（`flip` が effect 行に入る）。
 - effect は型引数を持てる: `act ref_update 'a:`。行には `ref_update int` のような entry が入る。
-- operation の signature は、最後の戻り位置に effect が書かれていなければ、その `act` の effect を補う（確認 H1）。
+- operation の signature は、最後の戻り位置に effect が書かれていなければ、その `act` の effect を**補う**（確定, 2026-11-04）。
+  effect を送出しない operation は作れない。
+- 一般に、関数型の戻り側には形式上いつも effect 行が付く。`'a -> ('b -> 'c)` には形式的に `'a -> [e] ('b -> 'c)` が付く。
+  表示で行が見えなくても、型の中には行がある。
 
 出典: `main:web/docs/ja/reference/effects.md`、`main:notes/design/yulang-language-report.md` §5.8
 
@@ -43,9 +46,9 @@ all_paths : 'a [flip, 'b] -> ['b] list 'a
 
 出典: `main:web/docs/ja/reference/effects.md`、`main:web/docs/ja/reference/control-flow.md`
 
-## 5.3 handler は shallow　〔要確認〕
+## 5.3 handler は shallow　〔確定〕
 
-`k` で再開した計算は、**同じ handler に自動では包まれない**。再開後に同じ effect が起きても、handler は二度目には発火せず、effect は外側へ伝わる。
+`k` で再開した計算は、**同じ handler に自動では包まれない**（言語として約束する, 確定, 2026-11-04）。再開後に同じ effect が起きても、handler は二度目には発火せず、effect は外側へ伝わる。
 続けて受けたいときは、arm の中で継続を handler で包み直す。
 
 ```yulang
@@ -57,7 +60,7 @@ our run_console(action: [console] 'a): 'a = catch action:
 
 出典: `main:web/docs/ja/reference/effects.md` §handler は shallow
 
-## 5.4 handler hygiene　〔要確認〕
+## 5.4 handler hygiene　〔確定〕
 
 handler は、**自分から見える effect は処理してよいが、外側の呼び出し元が持ち込んだ effect を奪ってはいけない**。
 
@@ -89,7 +92,7 @@ our compose(f, g: _ -> [_] _, x: [_] _) = f g(x)     // g(x) の表層の effect
 
 出典: `main:web/docs/ja/reference/effects.md` §handler hygiene、`main:web/docs/ja/reference/type-theory.md`
 
-## 5.5 effect 注釈の意味（T2・T3 のまとめ）　〔要確認〕
+## 5.5 effect 注釈の意味（T2・T3 のまとめ）　〔矛盾なしと確認、細部は要確認〕
 
 effect 注釈は、公開される型の行を説明すると同時に、**高階の境界で handler に何を見せてよいか**を決める局所的な契約になる。
 注釈は閉じた形式で書くが、実際には開いた注釈として扱われる（T3）。
@@ -102,6 +105,7 @@ effect 注釈は、公開される型の行を説明すると同時に、**高�
 | 反変・高階の callback | 注釈なし | callback 由来の effect は handler から守られる（空の可視性） |
 | 反変・高階の callback | `[_]` | 表層の行が見える（`g: _ -> [_] _` の形） |
 
+- 高階の callback 境界では、**注釈なしは「何も取らない」、注釈ありは「全部取る」**（ユーザー説明, 2026-11-04）。
 - `[_]` は注釈の placeholder で、effect 行そのものの標準形ではない。境界を消す指定でもない。
 - 反変の注釈がないと、`catch` はその effect を引けない（`catch` が `io` を引くには `f(a: [io] _)` が要る。T2）。
 
@@ -123,7 +127,7 @@ act local = original with:
 
 出典: `main:web/docs/ja/reference/effects.md`、`main:spec/2026-06-25-act-copy.md`
 
-## 5.7 `error` 宣言　〔要確認〕
+## 5.7 `error` 宣言　〔固定する仕様〕
 
 ```yulang
 error path_err:
@@ -132,6 +136,7 @@ error path_err:
 ```
 
 - `error` は `enum`、throw する operation を持つ `act`、`impl Throw`、`impl Display`、`wrap` helper をまとめて作る短縮形。`from` 付きの宣言には `up` も作る。
+  **何を作るかは言語の仕様として固定する**（確定, 2026-11-04）。標準ライブラリの実装詳細ではない。
 - **variant は値の constructor と effect の operation の両方**になる。期待型が error なら値、effect の位置なら operation。
 - record payload も許す（章4.5）。
 
@@ -149,8 +154,5 @@ use std::control::nondet::*
 
 ## 確認してほしい点
 
-- **H1** operation の signature が、戻り位置に effect を書かなくてもその `act` の effect を補う、で正しいか。
-- **H2** 5.5 の表（特に「反変・高階の callback、注釈なし／`[_]`」の 2 行）は、T2・T3 の説明と矛盾しないか。表は素材の表から起こした。
-- **H3** handler が shallow であること（5.3）は、言語として約束するか。
-- **H4** hygiene（5.4）を、「既定では callback 由来の effect は見えない」と**利用者向けの規則**として書いた。この言い方でよいか。
-- **H5** `error` 宣言が作るもの（`enum` と `act` と `Throw` と `Display` と `wrap` と `up`）は、仕様として固定するか、標準ライブラリの実装とするか。
+- **H2'** 「注釈ありは全部取る」は、`[console]` のように effect を列挙した注釈でも、列挙した effect を**全部**引ける、という意味か。
+  それとも `[_]` のように何も列挙しない注釈だけが「全部」か。T2（列挙した effect を引いてよい）との関係を、一文で言い切ってほしい。
