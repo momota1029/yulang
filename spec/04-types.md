@@ -13,7 +13,7 @@ effect 行の意味（T2・T3）は章5、`role` / `impl` / `where` / `cast` は
 | `bool` | `true`, `false` | |
 | `str` | `"hello"` | |
 | `()` | unit | |
-| `never` | | 返らない式の型 |
+| `never` | | 返らない式の型（確定, 2026-11-04） |
 | tuple | `(int, str, bool)` | 位置で持つ product |
 | list | `list int`, `list 'a` | |
 | record | `{x: int, y: int}` | 名前を持つ product（匿名） |
@@ -84,6 +84,8 @@ struct point { x: int, y: int } with:
 
 ## 4.5 `enum`　〔要確認〕
 
+polymorphic variant の型も存在する（確定, 2026-11-04）。素材にある綴りは `:{A int, B}`。これは `:name payload` の pattern（章3b）に対応する型で、閉じた tag の集合を表す。綴りと意味の細部は要確認。
+
 ```yulang
 enum opt 'a = nil | just 'a
 
@@ -94,25 +96,41 @@ enum event:
 
 - variant は companion module の member（`event::moved`）。
 - variant の payload には、位置の型と record の両方が書ける。
-- `error` の variant に record payload を書くことは、パーサは受理するが checker が拒否する（確認 G5）。
+- `error` の variant に record payload を書くことは、パーサは受理するが checker が拒否する。
+  仕様として許すかどうかは未決定（確認 G4）。例:
+
+```yulang
+error path_err:
+    not_found { path: str, hint: str }     // いまは unsupported syntax で拒否される
+```
 
 出典: `main:web/docs/ja/reference/structs.md` §Variant の record payload
 
-## 4.6 `type`　〔要確認・素材が古い〕
+## 4.6 `type`　〔確定〕
+
+`type` の宣言には 2 つの形がある（確定, 2026-11-04）。
 
 ```yulang
-type list 'a                            // 名前だけの nominal 型
-type ref 'e 'a with:                    // companion を伴う型
+type meters = int                        // alias: meters は int の別名
+```
+
+```yulang
+type list 'a                             // 名前だけの nominal 型
+type ref 'e 'a with:                     // companion を伴う nominal 型
     struct self:
         get: () -> ['e] 'a
 ```
 
-- `type` は nominal な型と companion module を作る。
-- `type T = ...` が **alias なのか別の意味なのか**は、素材が古く不明（確認 G1）。
+- `type T = ...` は **alias**（別名）。新しい型は作らない。
+- `type T ... with:` + `struct self { ... }` の形は、**nominal な型**と companion module を作る。
+  `struct self` が、その型の中身（field）を宣言する。`=` の alias とは別物なので注意。
+- 標準ライブラリの `list` / `str` / `ref` も companion module に method を定義している。
 
-## 4.7 一般化と値制限　〔要確認〕
+注意: 同じ `type` で、`=` があれば alias、`with:` があれば nominal、と綴りで意味が変わる。
 
-`binding` の右辺が**構文上の値**であるときだけ一般化する。関数値には多相の型が付く。
+## 4.7 一般化と値制限　〔確定〕
+
+`binding` の右辺が**構文上の値**であるときだけ一般化する（確定, 2026-11-04）。関数値には多相の型が付く。
 
 ```yulang
 my id = \x -> x
@@ -140,8 +158,7 @@ my b = make a              // エラー: 再帰する component の中で comput
 
 ## 確認してほしい点
 
-- **G1** `type T = ...` は何か。alias か、別の型を作るのか。
-- **G2** 値制限（右辺が構文上の値のときだけ一般化）は、仕様として約束してよいか。
-- **G3** `never` は「返らない式」の型でよいか。`bottom` との関係。
-- **G4** `error` の variant に record payload が書けないのは、仕様か実装の穴か。
-- **G5** 型を表す構文として、polymorphic variant の型（`:{A int, B}`）が素材にあるが、現行の言語にあるか。
+- **G4** `error` の variant に record payload を許すか。例は 4.5。`error` の variant は値の constructor にも effect の operation にもなる
+  （`path_err::not_found path` は期待型が error ならば値、effect の位置なら operation）ので、
+  `path_err::not_found { path: "x", hint: "y" }` を同じように両方で使える形にするかどうか。
+- **G5'** polymorphic variant の型の綴り（`:{A int, B}`）が現行のものか。payload を持つ tag と持たない tag の書き分け。
