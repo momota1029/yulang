@@ -56,7 +56,7 @@ my read_and_parse path =
 
 出典: `main:web/docs/ja/reference/errors.md`
 
-## 8.5 言語と標準ライブラリの境界　〔要確認〕
+## 8.5 言語と標準ライブラリの境界　〔線引きは確定〕
 
 | 言語（`spec/` の対象） | 標準ライブラリ（対象外） |
 | --- | --- |
@@ -67,11 +67,12 @@ my read_and_parse path =
 
 - 通常の entry file は、prelude を暗黙に import する（`use std::prelude::*`）。prelude を無効にする設定もある。
 - `sub`・`return`・`last` などは**予約語ではなく**、prelude が再公開する名前（章3c）。
-- 標準ライブラリの安定性は段階が分かれる（stable / provisional / experimental）。std の stable な面は、別途、標準 API の仕様（`main:spec/2026-07-01-stable-standard-api.md`）で扱う。
+- 標準ライブラリの安定性は段階が分かれる（stable / provisional / experimental）。
+- 言語の構文が前提にする std の最小限（`Fold`、`Index` など）は、`spec/` に書く（確定, 2026-11-04）。
+- 標準 API の仕様（file、server、instant など）は、この `spec/` に**取り込む**（確定, 2026-11-04）。素材は `main:spec/2026-07-01-*`、`2026-07-02-*`。章は標準ライブラリの章として後で立てる。
 
 出典: `main:web/docs/ja/reference/std/index.md`、`main:web/docs/ja/reference/errors.md`
 
 ## 確認してほしい点
 
-- **K1** 8.5 の表の線引きでよいか。特に、`Fold` role や `Index` role のように、言語の構文（`for`、`xs[i]`）が前提にする std の部分は、言語の仕様として最小限を `spec/` に書くか。
-- **K2** 標準 API の仕様（file、server、instant など）は、この `spec/` に取り込むか、別のまま残すか。
+なし（K1・K2 は反映済み）。

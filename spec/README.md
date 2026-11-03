@@ -31,3 +31,4 @@
   9. [parser DSL](09-parser-dsl.md)（`rule` / `~"..."`）
 
 構文の細部は `syntax-reference/` と `notes/design/` が既にある。仕様側は意味を書き、構文は参照で済ませる。
+  10. 標準ライブラリ（これから。素材は `main:spec/2026-07-01-*`, `2026-07-02-*`）
