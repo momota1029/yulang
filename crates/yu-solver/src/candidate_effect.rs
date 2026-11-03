@@ -331,6 +331,38 @@ pub(super) struct State {
     failed_formal_sample: Option<(usize, usize, usize, usize, usize, usize)>,
     #[cfg(test)]
     capture_probe: Option<CaptureProbe>,
+    // Explicitly enabled, session-owned source/native observations. They are
+    // absent from production builds and dormant tests do not allocate.
+    #[cfg(test)]
+    pub(super) operation_trace: Option<Vec<OperationSignatureObservation>>,
+    #[cfg(test)]
+    operation_family_arguments: Vec<(Term, Option<SourceEffectId>)>,
+}
+#[cfg(test)]
+#[derive(Clone, Debug)]
+pub(super) struct OperationFunctionObservation {
+    pub path: Vec<FormalPortStep>,
+    pub function: Term,
+    pub ports: [Term; 4],
+    pub polarity: Polarity,
+    pub port_polarities: [Polarity; 4],
+    /// Actual family argument passed to candidate_signature_effect for this
+    /// Function constructor. This records an input, not an emitted effect.
+    pub family_argument: Option<SourceEffectId>,
+}
+#[cfg(test)]
+#[derive(Clone, Debug)]
+pub(super) struct OperationSignatureObservation {
+    pub declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>,
+    pub owner: SourceRootId,
+    pub occurrence: HirOccurrenceId,
+    pub root: Term,
+    pub functions: Vec<OperationFunctionObservation>,
+    pub value_variables: Vec<(Box<str>, u32)>,
+    pub effect_variables: Vec<(Box<str>, u32)>,
+    /// Actual constructor-local source-row cache contents, keyed by the HIR
+    /// row position used by candidate_signature_effect.
+    pub cached_views: Vec<(SourceNodeKey, u32)>,
 }
 #[derive(Debug)]
 pub(super) struct Contribution {
@@ -503,6 +535,10 @@ pub(super) struct Checkpoint {
     annotation_holes: Vec<(AnnotationScope, SourceNodeKey)>,
     annotation_effects: Vec<(AnnotationScope, Box<str>)>,
     annotation_value_bytes: usize,
+    #[cfg(test)]
+    operation_trace: Option<usize>,
+    #[cfg(test)]
+    operation_family_arguments: usize,
 }
 fn exhausted() -> SolveAvailabilityError {
     SolveAvailabilityError::IdentityExhausted
@@ -684,9 +720,19 @@ impl State {
             annotation_holes: Vec::new(),
             annotation_effects: Vec::new(),
             annotation_value_bytes: 0,
+            #[cfg(test)]
+            operation_trace: self.operation_trace.as_ref().map(Vec::len),
+            #[cfg(test)]
+            operation_family_arguments: self.operation_family_arguments.len(),
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        #[cfg(test)]
+        if let (Some(trace), Some(len)) = (&mut self.operation_trace, checkpoint.operation_trace) {
+            trace.truncate(len);
+        }
+        #[cfg(test)]
+        self.operation_family_arguments.truncate(checkpoint.operation_family_arguments);
         self.context.rollback(checkpoint.context);
         for key in checkpoint.formal_domains { self.formal_domains.remove(&key); }
         self.formal_permissions.truncate(checkpoint.formal_permissions);
@@ -1291,11 +1337,59 @@ impl InferenceSession {
             .and_then(|n| n.checked_add(retained_bytes))
             .ok_or_else(exhausted)?;
         self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap().scratch_bytes.checked_add(scratch).ok_or_else(exhausted)?;
+        #[cfg(test)]
+        let trace_family_start = self.candidate_graph.as_ref().unwrap()
+            .intrusion.effect_algebra.operation_family_arguments.len();
+        #[cfg(test)]
+        let mut constructed = None;
         let result = (|| {
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             let value = self.candidate_signature_value(&SignatureContext::Operation { declaration, owner, occurrence, retained_bytes }, &declaration.signature, Polarity::Positive, Polarity::Positive, level.checked_add(1).ok_or_else(exhausted)?, &mut values, &mut effects, &mut views)?;
-            self.admit_candidate_value_link(occurrence, 42, value, self.batch.component_term_at(target))
+            self.admit_candidate_value_link(occurrence, 42, value, self.batch.component_term_at(target))?;
+            #[cfg(test)]
+            { constructed = Some(value); }
+            Ok(())
         })();
+        #[cfg(test)]
+        if result.is_ok() {
+            let observing = self.candidate_graph.as_ref()
+                .and_then(|graph| graph.intrusion.effect_algebra.operation_trace.as_ref()).is_some();
+            if observing {
+                let root = constructed.expect("successful operation constructor returned its term");
+                let mut functions = Vec::new();
+                collect_operation_function_observations(
+                    &self.store, &declaration.signature, root, &mut Vec::new(),
+                    &mut functions,
+                )?;
+                let family_arguments = &self.candidate_graph.as_ref().unwrap()
+                    .intrusion.effect_algebra.operation_family_arguments[trace_family_start..];
+                for function in &mut functions {
+                    function.family_argument = family_arguments.iter().rev()
+                        .find_map(|(term, family)| (*term == function.function).then(|| family.clone()))
+                        .flatten();
+                }
+                let mut cached_views = Vec::new();
+                cached_views.try_reserve_exact(views.len()).map_err(|_| exhausted())?;
+                cached_views.extend(views.iter().map(|(position, view)| (position.clone(), *view)));
+                let mut value_variables = Vec::new();
+                value_variables.try_reserve_exact(values.len()).map_err(|_| exhausted())?;
+                value_variables.extend(values.iter().map(|(name, row)| (Box::<str>::from(name.as_ref()), *row)));
+                let mut effect_variables = Vec::new();
+                effect_variables.try_reserve_exact(effects.len()).map_err(|_| exhausted())?;
+                effect_variables.extend(effects.iter().map(|(name, row)| (Box::<str>::from(name.as_ref()), *row)));
+                let trace = self.candidate_graph.as_mut().unwrap()
+                    .intrusion.effect_algebra.operation_trace.as_mut().unwrap();
+                trace.try_reserve(1).map_err(|_| exhausted())?;
+                trace.push(OperationSignatureObservation {
+                    declaration: Arc::clone(declaration), owner: owner.clone(),
+                    occurrence: occurrence.clone(), root, functions, value_variables,
+                    effect_variables, cached_views,
+                });
+            }
+        }
+        #[cfg(test)]
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra
+            .operation_family_arguments.truncate(trace_family_start);
         drop((values, effects, views));
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
         result
@@ -2654,7 +2748,7 @@ impl InferenceSession {
                     effects,
                     views,
                 )?;
-                if polarity == Polarity::Positive {
+                let function = if polarity == Polarity::Positive {
                     let (ae, re) = if matches!(context, SignatureContext::Primitive { .. }) {
                         // Each curried primitive stage is Value entry with a
                         // pure body: forall e. F_Value(A, e; B, e). The same row
@@ -2664,10 +2758,20 @@ impl InferenceSession {
                         (self.live_effect_term(Polarity::Negative, entry)?,
                          self.live_effect_term(Polarity::Positive, entry)?)
                     } else { (ae, re) };
-                    self.positive_function_term(a, ae, re, r)
+                    self.positive_function_term(a, ae, re, r)?
                 } else {
-                    self.negative_function_term(a, ae, re, r)
+                    self.negative_function_term(a, ae, re, r)?
+                };
+                #[cfg(test)]
+                if matches!(context, SignatureContext::Operation { .. })
+                    && self.candidate_graph.as_ref().is_some_and(|graph|
+                        graph.intrusion.effect_algebra.operation_trace.is_some())
+                {
+                    let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
+                    state.operation_family_arguments.try_reserve(1).map_err(|_| exhausted())?;
+                    state.operation_family_arguments.push((function, family.cloned()));
                 }
+                Ok(function)
             }
         }
     }
@@ -2822,6 +2926,55 @@ impl InferenceSession {
             }),
         )?;
         self.live_effect_term(polarity, port)
+    }
+}
+
+#[cfg(test)]
+fn collect_operation_function_observations(
+    store: &ConstraintStore,
+    ty: &SourceAnnotationType,
+    term: Term,
+    path: &mut Vec<FormalPortStep>,
+    out: &mut Vec<OperationFunctionObservation>,
+) -> Result<(), SolveAvailabilityError> {
+    match (&ty.value, store.term_view(term).map_err(|_| exhausted())?) {
+        (SourceAnnotationValue::Function { argument, result }, TermView::PositiveFunction {
+            argument: a, argument_effect: ae, result_effect: re, result: r,
+        }) | (SourceAnnotationValue::Function { argument, result }, TermView::NegativeFunction {
+            argument: a, argument_effect: ae, result_effect: re, result: r,
+        }) => {
+            let polarity = if matches!(store.term_view(term), Ok(TermView::PositiveFunction { .. })) {
+                Polarity::Positive
+            } else { Polarity::Negative };
+            out.try_reserve(1).map_err(|_| exhausted())?;
+            out.push(OperationFunctionObservation {
+                path: path.clone(), function: term, ports: [a, ae, re, r], polarity,
+                port_polarities: [
+                    if polarity == Polarity::Positive { Polarity::Negative } else { Polarity::Positive },
+                    if polarity == Polarity::Positive { Polarity::Negative } else { Polarity::Positive },
+                    polarity, polarity,
+                ],
+                family_argument: None,
+            });
+            path.push(FormalPortStep::Argument);
+            collect_operation_function_observations(store, argument, a, path, out)?;
+            path.pop();
+            path.push(FormalPortStep::Result);
+            collect_operation_function_observations(store, result, r, path, out)?;
+            path.pop();
+            Ok(())
+        }
+        (SourceAnnotationValue::Tuple(elements), TermView::PositiveTuple { elements: terms })
+        | (SourceAnnotationValue::Tuple(elements), TermView::NegativeTuple { elements: terms }) => {
+            if elements.len() != terms.len() { return Err(exhausted()); }
+            for (index, (element, term)) in elements.iter().zip(terms).enumerate() {
+                path.push(FormalPortStep::Element(index));
+                collect_operation_function_observations(store, element, *term, path, out)?;
+                path.pop();
+            }
+            Ok(())
+        }
+        _ => Ok(()),
     }
 }
 
@@ -2990,7 +3143,7 @@ mod tests {
         let answer = definition("answer");
         let answer_source = hir.local_source(&answer).unwrap().unwrap();
         let first_use = answer_source.expressions().iter().find_map(|expression| match &expression.form {
-            yu_hir::shadow::LocalSourceForm::Name { spelling, .. } if spelling.as_ref() == "first" => Some(&expression.occurrence),
+            yu_hir::shadow::LocalSourceForm::Name { spelling, .. } if spelling.as_ref() == "first" => Some(expression.occurrence.clone()),
             _ => None,
         }).expect("the real consumer names the returned function");
 
@@ -3005,7 +3158,7 @@ mod tests {
         // function before applying the returned effectful `run` to 1.
         let first_scheme = candidate.export(&first).unwrap();
         assert!(first_scheme.root().children().is_some(), "the returned function is captured in its own scheme");
-        let fresh = candidate.fresh_use(first_use).expect("consumer use must have a fresh-use route");
+        let fresh = candidate.fresh_use(&first_use).expect("consumer use must have a fresh-use route");
         assert!(fresh.rows().any(|row| row.kind() == ComponentKind::Effect), "fresh use retains an effect row");
 
         // Exporting the actual callback application result requires the candidate to
@@ -5125,6 +5278,97 @@ mod tests {
         assert!(matches!(session.store.term_view(result_effect), Ok(TermView::Leaf(Leaf::EffectBottomPositive))));
         let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
         assert!(state.views.iter().all(|view| view.allowed == vec![session.batch.hir.source_effect_declarations()[0].id.clone()]));
+    }
+
+    #[test]
+    fn operation_constructor_trace_is_session_owned_transactional_and_provisional() {
+        let source = "act E\nact tick:\n    our next: ('a -> ['e] 'a) -> ('a -> [E, 'e] 'a)\n\nmy lookup = tick::next\nmy sibling = tick::next";
+        let mut session = make_session(source);
+        let owner = root(&session, "lookup");
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.operation_trace = Some(Vec::new());
+        session.with_route_transaction(|session| session.execute_candidate_source_root(&owner)).unwrap();
+
+        let observations = session.candidate_graph.as_ref().unwrap()
+            .intrusion.effect_algebra.operation_trace.as_ref().unwrap();
+        assert_eq!(observations.len(), 1);
+        let observation = observations[0].clone();
+        let scheduled = session.batch.candidate_source.schedules.get(&owner).unwrap();
+        let scheduled_declaration = scheduled.iter().find_map(|action| match action {
+            candidate_source::Action::Operation { declaration, .. } => Some(declaration),
+            _ => None,
+        }).unwrap();
+        assert!(Arc::ptr_eq(&observation.declaration, scheduled_declaration));
+        assert_eq!(observation.owner, SourceRootId::Definition(owner.clone()));
+        assert_eq!(observation.occurrence, match scheduled.iter().find(|action| matches!(action, candidate_source::Action::Operation { .. })).unwrap() {
+            candidate_source::Action::Operation { occurrence, .. } => occurrence.clone(), _ => unreachable!(),
+        });
+        let root_function = observation.functions.iter().find(|function| function.path.is_empty()).unwrap();
+        assert_eq!(root_function.polarity, Polarity::Positive);
+        assert_eq!(root_function.family_argument.as_ref(), Some(&observation.declaration.id.family));
+        assert_eq!(root_function.port_polarities, [Polarity::Negative, Polarity::Negative, Polarity::Positive, Polarity::Positive]);
+        let nested: Vec<_> = observation.functions.iter().filter(|function| !function.path.is_empty()).collect();
+        assert_eq!(nested.len(), 2, "the argument and result Functions are both observed");
+        let argument_function = nested.iter().find(|function| function.path == [FormalPortStep::Argument]).unwrap();
+        let result_function = nested.iter().find(|function| function.path == [FormalPortStep::Result]).unwrap();
+        assert_eq!(argument_function.polarity, Polarity::Negative);
+        assert_eq!(result_function.polarity, Polarity::Positive);
+        assert!(nested.iter().all(|function| function.family_argument.is_none()));
+        assert!(nested.iter().all(|function| function.ports[0] != function.ports[3]));
+        assert!(!observation.cached_views.is_empty(), "actual source-row view cache is retained");
+        let value_variable = observation.value_variables.iter().find(|(name, _)| name.as_ref() == "'a").unwrap().1;
+        let effect_variable = observation.effect_variables.iter().find(|(name, _)| name.as_ref() == "'e").unwrap().1;
+        assert!(nested.iter().all(|function| [function.ports[0], function.ports[3]].iter().all(|term|
+            matches!(session.store.term_view(*term), Ok(TermView::LiveVariable(variable)) if variable.ordinal() == value_variable))));
+        let effect_state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        assert!(observation.cached_views.iter().any(|(_, view)|
+            effect_state.views.get(*view as usize).is_some_and(|view| view.tail == Some(effect_variable))),
+            "the actual row cache resolves to the constructor's shared effect variable");
+
+        let committed_root = observation.root;
+        let committed_occurrence = observation.occurrence.clone();
+        let sibling = root(&session, "sibling");
+        assert_eq!(session.with_route_transaction(|session| {
+            session.execute_candidate_source_root(&sibling)?;
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        let trace = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.as_ref().unwrap();
+        assert_eq!(trace.len(), 1, "rollback removes only the failed append after the committed prefix");
+        assert_eq!(trace[0].root, committed_root);
+        assert_eq!(trace[0].occurrence, committed_occurrence);
+        assert!(Arc::ptr_eq(&trace[0].declaration, &observation.declaration));
+        session.with_route_transaction(|session| session.execute_candidate_source_root(&sibling)).unwrap();
+        let trace = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.as_ref().unwrap();
+        assert_eq!(trace.len(), 2, "retry publishes one fresh observation after the committed prefix");
+        assert_eq!(trace[0].root, committed_root);
+        assert_eq!(trace[0].occurrence, committed_occurrence);
+        assert!(Arc::ptr_eq(&trace[0].declaration, &observation.declaration));
+        assert_ne!(trace[1].occurrence, trace[0].occurrence);
+        assert_ne!(trace[1].root, committed_root);
+
+        let mut rolled_back = make_session(source);
+        let rollback_owner = root(&rolled_back, "lookup");
+        rolled_back.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.operation_trace = Some(Vec::new());
+        assert_eq!(rolled_back.with_route_transaction(|session| {
+            session.execute_candidate_source_root(&rollback_owner)?;
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        assert!(rolled_back.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.as_ref().unwrap().is_empty(),
+            "transaction rollback removes constructor evidence with rolled-back terms");
+
+        let mut failed = make_session(source);
+        let failed_owner = root(&failed, "lookup");
+        failed.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.operation_trace = Some(Vec::new());
+        failed.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.fail_after_view = true;
+        assert_eq!(failed.with_route_transaction(|session| session.execute_candidate_source_root(&failed_owner)), Err(exhausted()));
+        assert!(failed.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.as_ref().unwrap().is_empty(),
+            "failed constructor observation publishes no trace");
+
+        let mut dormant = make_session(source);
+        let dormant_owner = root(&dormant, "lookup");
+        assert!(dormant.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.is_none());
+        dormant.with_route_transaction(|session| session.execute_candidate_source_root(&dormant_owner)).unwrap();
+        assert!(dormant.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.is_none(),
+            "the dormant observer retains no allocation or cross-session trace");
     }
     #[test]
     fn operation_views_preserve_symbolic_tail_provenance_and_rollback_owned_payload() {
