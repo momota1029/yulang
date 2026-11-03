@@ -104,21 +104,27 @@ my incremented =
 
 出典: `main:web/docs/ja/guide/pitfalls.md`「参照は effect、メモリ穴ではない」、`main:web/docs/ja/reference/idioms.md`
 
-## 3c.7 `do`　〔要確認・素材が少ない〕
+## 3c.7 `do`　〔確定〕
+
+`do` は、**後ろに続く文を継続（lambda）として切り出し、`do` の位置に渡す**印（確定, 2026-11-04）。
+`my 名前 = 式` の右辺に `do` を書くと、`名前` が lambda の引数になり、残りの文が本体になる。
+
+```yulang
+my a = f(g do)
+b
+// 同じ意味:
+f(g \a -> b)
+```
 
 ```yulang
 my x = effectful do
 rest
-
-f(g do)       // 引数の位置にも書ける
+// 同じ意味:
+effectful \x -> rest
 ```
 
-- `do` は継続を切り出す印。`do` の後ろに続く文が lambda として切り出され、`do` の位置に渡される。
-  effectful な API を、見た目上は direct style で書くための構文。
-- 式の途中（引数の中）にも書ける。`f(g do)` の形が例として挙がった（ユーザー説明, 2026-11-04）。
-  この形で、切り出される継続が `g` に渡るのか、それを包む `f(...)` 全体に及ぶのかは未確認（確認 F2'）。
-
-出典: `main:notes/design/yulang-language-report.md` §6.9 のみ。
+- 継続は `do` を含む最も内側の呼び出し（上の例では `g`）の引数になる。`f(...)` の括弧の中に収まる。
+- effectful な API を、見た目上は direct style で書くための構文。
 
 ## 3c.8 effectful な条件　〔章5 へ〕
 
@@ -127,4 +133,4 @@ f(g do)       // 引数の位置にも書ける
 
 ## 確認してほしい点
 
-- **F2'** `f(g do)` で、`do` の後ろの文（継続）は `g` に渡されるのか。`f(g(\_ -> rest))` のようになるのか、別の形か。短い実行例があれば、それも添えたい。
+なし（F1〜F4 は反映済み）。
