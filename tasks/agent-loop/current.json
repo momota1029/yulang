@@ -655,19 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R341",
+    "id": "R342",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/original-use-pullback-r341.md",
-    "contract_sha256": "465777314a85a42098f8559868954dc28a947d1e81bee592be6065e08af64085",
-    "review_result": "tasks/agent-loop/history/20261104-original-use-pullback-r341-review.md",
-    "review_result_sha256": "a50ba7862ff64715e86383d889ab9ffb06e00831294b0bec1c9103763ad1c680",
+    "contract": "tasks/agent-loop/sprints/original-continuation-union-r342.md",
+    "contract_sha256": "e31e094b9c2d6185c5297e31dea91db991082154ce054f05ab08dbe1bba10858",
+    "review_result": "tasks/agent-loop/history/20261104-higher-order-source-prefix-r342-review.md",
+    "review_result_sha256": "953410e833f2bcea8d5b4b83db8731cfb13555e551916d9d7e306173cc3bc162",
     "previous_sprint": {
-      "id": "R340",
+      "id": "R341",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/original-ei-contract-r340.md",
-      "contract_sha256": "d89d9ecb374d1a4bf032a5189221a112027c1a1ef394bf9d2119101124543903",
-      "review_result": "tasks/agent-loop/history/20261104-ei-action-projection-r340-review.md",
-      "review_result_sha256": "b2749f4b7ce8f145d9f5797443cbfaac0ec5e88da8d948a6780fdec07f99b04b"
+      "contract": "tasks/agent-loop/sprints/original-use-pullback-r341.md",
+      "contract_sha256": "465777314a85a42098f8559868954dc28a947d1e81bee592be6065e08af64085",
+      "review_result": "tasks/agent-loop/history/20261104-original-use-pullback-r341-review.md",
+      "review_result_sha256": "a50ba7862ff64715e86383d889ab9ffb06e00831294b0bec1c9103763ad1c680"
     }
   },
   "lease_archive": {
