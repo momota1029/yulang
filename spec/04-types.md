@@ -100,7 +100,7 @@ struct point { x: int, y: int } with:
 
 出典: `main:web/docs/ja/reference/structs.md`
 
-## 4.5 `enum`　〔要確認〕
+## 4.5 `enum`　〔constructor のカリー化は確定、他は要確認〕
 
 polymorphic variant の型も存在する（確定, 2026-11-04）。素材にある綴りは `:{A int, B}`。これは `:name payload` の pattern（章3b）に対応する型で、閉じた tag の集合を表す。綴りと意味の細部は要確認。
 
@@ -113,6 +113,16 @@ enum event:
 ```
 
 - variant は companion module の member（`event::moved`）。
+- **複数の payload を持つ variant の constructor は、カリー化された関数**（確定, 2026-11-04）。部分適用ができ、値としても取り出せる。
+
+```yulang
+enum tree 'a:
+    leaf
+    node 'a (tree 'a) (tree 'a)
+
+tree::node : 'a -> tree 'a -> tree 'a -> tree 'a
+my f = tree::node 1            // 部分適用。残りの 2 つを取る関数
+```
 - variant の payload には、位置の型と record の両方が書ける。
 - `error` の variant に record payload を書くことは、パーサは受理するが checker が拒否する。
   **許す**（確定, 2026-11-04）。いまの checker の拒否は実装の穴として扱う。例:
