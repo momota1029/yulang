@@ -108,6 +108,10 @@ impl ViewHandle {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct ReceiptHandle(usize);
+#[cfg(test)]
+impl ReceiptHandle {
+    pub(super) fn index(self) -> usize { self.0 }
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub(super) struct CallbackEntryHandle(usize);
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]

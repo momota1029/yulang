@@ -405,7 +405,29 @@ struct R323TemplateObservation {
     request: usize,
     template: usize,
     capture_owner: ExecutionOwner,
-    saved_frame_order: Vec<String>,
+    saved_frame_order: Vec<R323FrameWitness>,
+}
+
+#[cfg(test)]
+#[derive(Clone)]
+enum R323FrameWitness {
+    Callee {
+        frame_id: usize,
+        callee: Option<Label>,
+        argument: Label,
+        environment: usize,
+        site: SourceSite,
+    },
+    BlockExpression {
+        block: Arc<Code>,
+        next: usize,
+        environment: usize,
+    },
+    RootCompReturn {
+        execution: ExecutionView,
+    },
+    Owner(ExecutionOwner),
+    Unsupported,
 }
 #[cfg(test)]
 #[derive(Clone)]
@@ -761,44 +783,67 @@ enum SavedFrame {
 }
 
 #[cfg(test)]
-fn r323_site_fingerprint(site: &SourceSite) -> String {
-    format!("{:?}:{}:{:?}", site.source_root, site.occurrence.ordinal(), site.range)
+fn r323_same_site(left: &SourceSite, right: &SourceSite) -> bool {
+    left.source_root == right.source_root
+        && left.occurrence == right.occurrence
+        && left.range == right.range
 }
 
 #[cfg(test)]
-fn r323_frame_label(frame: &Frame) -> Option<String> {
+fn r323_frame_witness(frame: &Frame) -> R323FrameWitness {
     match frame {
-        Frame::Callee { frame_id, callee, argument, environment, site } => Some(format!(
-            "Callee:{frame_id}:{callee:?}:{}:{environment}:{}", argument.0, r323_site_fingerprint(site))),
-        Frame::BlockExpression { block, next, environment } => Some(format!(
-            "BlockExpression:{}:{}:{next}:{environment}", Arc::as_ptr(block) as usize,
-            r323_site_fingerprint(&block.site))),
-        _ => None,
+        Frame::Callee { frame_id, callee, argument, environment, site } =>
+            R323FrameWitness::Callee {
+                frame_id: *frame_id, callee: *callee, argument: *argument,
+                environment: *environment, site: site.clone(),
+            },
+        Frame::BlockExpression { block, next, environment } =>
+            R323FrameWitness::BlockExpression {
+                block: block.clone(), next: *next, environment: *environment,
+            },
+        Frame::RootCompReturn { execution } =>
+            R323FrameWitness::RootCompReturn { execution: *execution },
+        _ => R323FrameWitness::Unsupported,
     }
 }
 
 #[cfg(test)]
-fn r323_saved_frame_label(frame: &SavedFrame) -> Option<String> {
+fn r323_saved_frame_witness(frame: &SavedFrame) -> R323FrameWitness {
     match frame {
-        SavedFrame::AmbientBoundary => Some(format!("Owner:{:?}", ExecutionOwner::ModuleRun)),
-        SavedFrame::ReceiverBoundary { original_activation } => Some(format!(
-            "Owner:{:?}", ExecutionOwner::Invocation(*original_activation))),
-        SavedFrame::Ordinary(Frame::RootCompReturn { execution }) => Some(format!(
-            "View:{}:{:?}:{}", execution.view.index(), execution.receipt, execution.occurrence)),
-        SavedFrame::Ordinary(frame) => r323_frame_label(frame),
-        SavedFrame::HandlerBoundary { .. } => None,
+        SavedFrame::AmbientBoundary => R323FrameWitness::Owner(ExecutionOwner::ModuleRun),
+        SavedFrame::ReceiverBoundary { original_activation } =>
+            R323FrameWitness::Owner(ExecutionOwner::Invocation(*original_activation)),
+        SavedFrame::Ordinary(frame) => r323_frame_witness(frame),
+        SavedFrame::HandlerBoundary { .. } => R323FrameWitness::Unsupported,
     }
 }
 
 #[cfg(test)]
-fn r323_template_node_label(node: &TemplateNode) -> Option<String> {
+fn r323_template_node_witness(node: &TemplateNode) -> R323FrameWitness {
     match node {
-        TemplateNode::Hole => None,
-        TemplateNode::Bind { frame, .. } => r323_frame_label(frame),
-        TemplateNode::Owner { original, .. } => Some(format!("Owner:{original:?}")),
-        TemplateNode::View { original, .. } => Some(format!(
-            "View:{}:{:?}:{}", original.view.index(), original.receipt, original.occurrence)),
-        TemplateNode::ForwardHandler { .. } => None,
+        TemplateNode::Hole | TemplateNode::ForwardHandler { .. } => R323FrameWitness::Unsupported,
+        TemplateNode::Bind { frame, .. } => r323_frame_witness(frame),
+        TemplateNode::Owner { original, .. } => R323FrameWitness::Owner(*original),
+        TemplateNode::View { original, .. } => R323FrameWitness::RootCompReturn { execution: *original },
+    }
+}
+
+#[cfg(test)]
+fn r323_frame_witness_matches(left: &R323FrameWitness, right: &R323FrameWitness) -> bool {
+    match (left, right) {
+        (R323FrameWitness::Callee { frame_id: lf, callee: lc, argument: la, environment: le, site: ls },
+         R323FrameWitness::Callee { frame_id: rf, callee: rc, argument: ra, environment: re, site: rs }) =>
+            lf == rf && lc == rc && la.0 == ra.0 && le == re && r323_same_site(ls, rs),
+        (R323FrameWitness::BlockExpression { block: lb, next: ln, environment: le },
+         R323FrameWitness::BlockExpression { block: rb, next: rn, environment: re }) =>
+            Arc::ptr_eq(lb, rb) && ln == rn && le == re && r323_same_site(&lb.site, &rb.site),
+        (R323FrameWitness::RootCompReturn { execution: left },
+         R323FrameWitness::RootCompReturn { execution: right }) =>
+            left.view.index() == right.view.index()
+                && left.receipt.index() == right.receipt.index()
+                && left.occurrence == right.occurrence,
+        (R323FrameWitness::Owner(left), R323FrameWitness::Owner(right)) => left == right,
+        _ => false,
     }
 }
 
@@ -831,7 +876,8 @@ fn r323_live_template_matches(template: &ResumeTemplate, observation: &R323Templ
     let live_order = template.nodes.iter().skip(1).take(suffix_len)
         .enumerate().map(|(offset, node)| {
             r323_template_inner(node) == Some(offset)
-                && r323_template_node_label(node).as_ref() == observation.saved_frame_order.get(offset)
+                && observation.saved_frame_order.get(offset)
+                    .is_some_and(|saved| r323_frame_witness_matches(saved, &r323_template_node_witness(node)))
         }).collect::<Vec<_>>();
     live_order.iter().all(|matches| *matches)
 }
@@ -2989,9 +3035,7 @@ impl Machine {
         if self.r323_template_observations.len() < 1024
             && self.r323_template_observations.try_reserve(1).is_ok()
         {
-            let saved_frame_order = request.suffix.iter().map(|frame|
-                r323_saved_frame_label(frame).unwrap_or_else(|| "UNSUPPORTED_SAVED_FRAME".into())
-            ).collect();
+            let saved_frame_order = request.suffix.iter().map(r323_saved_frame_witness).collect();
             self.r323_template_observations.push(R323TemplateObservation {
                 run_id: self as *const Machine as usize,
                 request: request.event,
@@ -4791,6 +4835,10 @@ mod module_expression_tests {
         }
     }
 
+    fn r323_lean_owner(owner: ExecutionOwner) -> String {
+        r314_lean_owner(owner).replace("ExecutionOwner.", "R314Artifact.ExecutionOwner.")
+    }
+
     fn r314_lean_primitive(operation: &yu_hir::shadow::PinnedPrimitiveOp) -> String {
         use yu_hir::shadow::PinnedPrimitiveOp as P;
         let name = match operation {
@@ -5236,7 +5284,6 @@ mod module_expression_tests {
         let _ = writeln!(out, "def moduleBindingsInSourceOrder : List ModuleBindingRow := [{}]", module_binding_rows);
         let provider_parent = snapshot.environments.get(provider_environment).and_then(|environment| environment.parent);
         let use_parent = use_environment_frame.parent;
-        let frame = snapshot.frame_id;
         let _ = writeln!(out, "def makeBindingUse : BindingUsePublication := {{ makeRoot := R315MakeArtifact.rootBinding, makeDefinitionRoot := {definition_identity}, declaration := {declaration_position}, bindingAnnotation := {binding_annotation}, hirVisibility := {visibility}, sourceIndexPublic := {hir_visibility_public}, initializer := {initializer}, useSite := {use_site}, useOwner := {}, useStep := {}, useEnvironment := {}, useScope := {scope}, resolution := {resolution}, consumes := {consumption}, globalCell := {expected_cell}, cellValue := {}, cellView := {}, cellInterface := R314Artifact.Interface.value, providerSite := {provider_site}, providerFormal := {}, providerBody := {}, providerEnvironment := {}, providerEnvironmentParent := {}, providerInterfaceIsValue := {}, useEnvironmentParent := {}, useEnvironmentBinderKind := {env_kind}, useEnvironmentBinderId := {env_id}, useEnvironmentBinderCell := {env_cell}, useEnvironmentBinderOwner := {env_owner}, dispatchBase := {}, dispatchWord := {}, substitution := {}, runId := {} }}",
             format!("R314Artifact.{}", r314_lean_owner(use_observation.owner)), use_observation.step, use_observation.environment, cell_value.value.0,
             cell_value.view.index(), parameter.ordinal(), body.0, provider_environment,
@@ -5254,6 +5301,40 @@ mod module_expression_tests {
         source_text: &str,
     ) -> Result<String, super::super::RuntimeUnavailable> {
         use std::fmt::Write as _;
+        fn witness_row(
+            machine: &Machine,
+            parsed: &ParsedFile,
+            witness: &R323FrameWitness,
+        ) -> Result<String, super::super::RuntimeUnavailable> {
+            Ok(match witness {
+                R323FrameWitness::Callee { frame_id, callee, argument, environment, site } => {
+                    let code_ref = |label: Label| -> Result<String, super::super::RuntimeUnavailable> {
+                        let code = machine.program.code.get(label.0)
+                            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+                        let site = r314_lean_runtime_site(machine, parsed, &code.site)?;
+                        Ok(format!("{{ label := {}, site := {site} }}", label.0))
+                    };
+                    let callee = callee.map(|label| code_ref(label).map(|row| format!("some ({row})")))
+                        .transpose()?.unwrap_or_else(|| "none".to_owned());
+                    let argument = code_ref(*argument)?;
+                    let site = r314_lean_runtime_site(machine, parsed, site)?;
+                    format!("R323Frame.callee {{ frameId := {frame_id}, callee := {callee}, argument := {argument}, environment := {environment}, site := {site} }}")
+                }
+                R323FrameWitness::BlockExpression { block, next, environment } => {
+                    let label = machine.program.code.iter().position(|candidate| Arc::ptr_eq(candidate, block))
+                        .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+                    let site = r314_lean_runtime_site(machine, parsed, &block.site)?;
+                    format!("R323Frame.blockExpression {{ codeLabel := {label}, codeSite := {site}, next := {next}, environment := {environment} }}")
+                }
+                R323FrameWitness::RootCompReturn { execution } =>
+                    format!("R323Frame.rootCompReturn {{ view := {}, receipt := {}, occurrence := {} }}",
+                        execution.view.index(), execution.receipt.index(), execution.occurrence),
+                R323FrameWitness::Owner(owner) =>
+                    format!("R323Frame.owner ({})", r323_lean_owner(*owner)),
+                R323FrameWitness::Unsupported =>
+                    return Err(super::super::RuntimeUnavailable::InvalidSourceReference),
+            })
+        }
         if !machine.name_receipt_calls.iter().any(|entry| std::ptr::eq(entry, call))
             || machine.r312_observations_truncated
         {
@@ -5275,6 +5356,7 @@ mod module_expression_tests {
         let run_id = machine as *const Machine as usize;
         if request.run_id != run_id || !request.owner_live
             || !matches!(request.owner, ExecutionOwner::Invocation(_))
+            || !machine.receiving.matches_value(request.payload.view, request.payload.value)
             || !machine.program._hir.owns_source_root(&request.source.source_root)
         {
             return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
@@ -5309,10 +5391,8 @@ mod module_expression_tests {
             || owner_replays.iter().any(|replay| {
                 let invocation_sites_match = match replay.owner {
                     ExecutionOwner::Invocation(id) => machine.invocations.get(id).is_some_and(|invocation|
-                        replay.call_site.as_ref().is_some_and(|site|
-                            r323_site_fingerprint(site) == r323_site_fingerprint(&invocation.call))
-                        && replay.provider_site.as_ref().is_some_and(|site|
-                            r323_site_fingerprint(site) == r323_site_fingerprint(&invocation.provider))),
+                        replay.call_site.as_ref().is_some_and(|site| r323_same_site(site, &invocation.call))
+                        && replay.provider_site.as_ref().is_some_and(|site| r323_same_site(site, &invocation.provider))),
                     ExecutionOwner::ModuleRun => replay.call_site.is_none() && replay.provider_site.is_none(),
                 };
                 if replay.run_id != run_id || !replay.owner_live
@@ -5339,8 +5419,8 @@ mod module_expression_tests {
         }).collect::<Vec<_>>();
         let outer = outer_callees.iter().find(|(frame_id, _)|
             template_observation.saved_frame_order.iter().any(|frame|
-                frame.starts_with(&format!("Callee:{frame_id}:")))
-        ).ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+                matches!(frame, R323FrameWitness::Callee { frame_id: saved, .. } if saved == frame_id)))
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
         let responses = machine.r323_resume_observations.iter().filter(|response|
             response.request == request.request && response.template == template_observation.template
         ).collect::<Vec<_>>();
@@ -5350,6 +5430,7 @@ mod module_expression_tests {
         if response.run_id != run_id || !response.owner_live
             || !matches!(response.owner, ExecutionOwner::Invocation(_))
             || response.response.interface != ParameterRole::Value
+            || !machine.receiving.matches_value(response.response.view, response.response.value)
             || !matches!(machine.values.get(response.response.value.0).map(|value| &value.kind),
                 Some(RuntimeValueKind::Integer(number)) if number.as_ref() == "10")
         {
@@ -5359,8 +5440,10 @@ mod module_expression_tests {
         let outer_site = r314_lean_runtime_site(machine, parsed, outer.1)?;
         let response_site = r314_lean_runtime_site(machine, parsed, &response.source)?;
         let operation = super::super::program::r314_lean_string(&request.declaration.spelling);
-        let operation_identity = super::super::program::r314_lean_string(&format!("{:?}", request.declaration.id));
-        let signature = super::super::program::r314_lean_string(&format!("{:?}", request.declaration.signature));
+        let operation_identity = r314_lean_operation_identity(
+            &SourceOperationResolution::Resolved(request.declaration.clone()), parsed)?
+            .replace("AnnotationType.", "R314Artifact.AnnotationType.")
+            .replace("SourceType.", "R314Artifact.SourceType.");
         let payload = r314_lean_received(request.payload).replace("Interface.", "R314Artifact.Interface.");
         let response_value = format!("{{ value := {}, view := {}, interface := R314Artifact.Interface.value, dispatch := {} }}",
             response.response.value.0, response.response.view.index(),
@@ -5374,12 +5457,10 @@ mod module_expression_tests {
             .replace("ValueKind.", "R314Artifact.ValueKind.")
             .replace("interface := Interface.", "interface := R314Artifact.Interface.");
         let saved_frames = template_observation.saved_frame_order.iter()
-            .map(|frame| super::super::program::r314_lean_string(frame))
-            .collect::<Vec<_>>().join(", ");
+            .map(|frame| witness_row(machine, parsed, frame))
+            .collect::<Result<Vec<_>, _>>()?.join(", ");
         let template_frames = template.nodes.iter().skip(1).take(template_observation.saved_frame_order.len())
-            .map(|node| r323_template_node_label(node)
-                .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)
-                .map(|frame| super::super::program::r314_lean_string(&frame)))
+            .map(|node| witness_row(machine, parsed, &r323_template_node_witness(node)))
             .collect::<Result<Vec<_>, _>>()?.join(", ");
         let template_inner_links = template.nodes.iter().map(|node|
             r323_template_inner(node).map_or_else(|| "none".to_owned(), |inner| format!("some {inner}")))
@@ -5396,32 +5477,32 @@ mod module_expression_tests {
             Ok::<_, super::super::RuntimeUnavailable>(format!(
                 "{{ node := {}, original := {}, resolved := {}, resolvedWasActive := {}, owner := {}, owned := {}, previous := {}, ownerLive := {}, currentOwnerAfter := {}, control := [{control}], callSite := {call_site}, providerSite := {provider_site} }}",
                 replay.node,
-                super::super::program::r314_lean_string(&format!("{:?}", replay.original)),
-                super::super::program::r314_lean_string(&format!("{:?}", replay.resolved)),
+                r323_lean_owner(replay.original),
+                r323_lean_owner(replay.resolved),
                 replay.resolved_active,
-                super::super::program::r314_lean_string(&format!("{:?}", replay.owner)),
+                r323_lean_owner(replay.owner),
                 replay.owned,
-                super::super::program::r314_lean_string(&format!("{:?}", replay.previous)),
+                r323_lean_owner(replay.previous),
                 replay.owner_live,
-                super::super::program::r314_lean_string(&format!("{:?}", replay.current_owner_after)),
+                r323_lean_owner(replay.current_owner_after),
             ))
         }).collect::<Result<Vec<_>, _>>()?.join(", ");
-        let mut out = String::from("\nnamespace R323Artifact\n");
+        let mut out = String::from("\nnamespace R323Artifact\nopen R314Artifact\n");
         let _ = writeln!(out, "def requestEvent : Nat := {}", request.request);
         let _ = writeln!(out, "def operation : String := {operation}");
-        let _ = writeln!(out, "def operationIdentity : String := {operation_identity}");
-        let _ = writeln!(out, "def declaredSignature : String := {signature}");
+        let _ = writeln!(out, "def operationIdentity : R314Artifact.OperationIdentity := {operation_identity}");
         let _ = writeln!(out, "def requestSite : R314Artifact.RuntimeSite := {request_site}");
-        let _ = writeln!(out, "def requestOwner : String := {}", super::super::program::r314_lean_string(&format!("{:?}", request.owner)));
+        let _ = writeln!(out, "def requestOwner : R314Artifact.ExecutionOwner := {}", r323_lean_owner(request.owner));
         let _ = writeln!(out, "def requestOwnerWasLive : Bool := {}", request.owner_live);
         let _ = writeln!(out, "def payload : R314Artifact.Received := {payload}");
         let _ = writeln!(out, "def payloadRuntimeValue : R314Artifact.RuntimeValue := {payload_runtime}");
         let _ = writeln!(out, "def templateHandle : Nat := {}", template_observation.template);
         let _ = writeln!(out, "def templateRoot : Nat := {}", template.root);
         let _ = writeln!(out, "def templateNodeCount : Nat := {}", template.nodes.len());
-        let _ = writeln!(out, "def captureOwner : String := {}", super::super::program::r314_lean_string(&format!("{:?}", template_observation.capture_owner)));
-        let _ = writeln!(out, "def savedFrameOrder : List String := [{saved_frames}]");
-        let _ = writeln!(out, "def templateFrameOrder : List String := [{template_frames}]");
+        let _ = writeln!(out, "def captureOwner : R314Artifact.ExecutionOwner := {}", r323_lean_owner(template_observation.capture_owner));
+        out.push_str("structure R323CodeRef where\n  label : Nat\n  site : R314Artifact.RuntimeSite\n  deriving Repr\nstructure R323CalleeFrame where\n  frameId : Nat\n  callee : Option R323CodeRef\n  argument : R323CodeRef\n  environment : Nat\n  site : R314Artifact.RuntimeSite\n  deriving Repr\nstructure R323BlockExpressionFrame where\n  codeLabel : Nat\n  codeSite : R314Artifact.RuntimeSite\n  next : Nat\n  environment : Nat\n  deriving Repr\nstructure R323RootCompReturn where\n  view : Nat\n  receipt : Nat\n  occurrence : Nat\n  deriving Repr\ninductive R323Frame where\n  | callee (frame : R323CalleeFrame)\n  | blockExpression (frame : R323BlockExpressionFrame)\n  | rootCompReturn (execution : R323RootCompReturn)\n  | owner (owner : R314Artifact.ExecutionOwner)\n  deriving Repr\n");
+        let _ = writeln!(out, "def savedFrameOrder : List R323Frame := [{saved_frames}]");
+        let _ = writeln!(out, "def templateFrameOrder : List R323Frame := [{template_frames}]");
         let _ = writeln!(out, "def templateInnerByNode : List (Option Nat) := [{template_inner_links}]");
         let _ = writeln!(out, "def outerCalleeFrame : Nat := {}", outer.0);
         let _ = writeln!(out, "def outerCalleeSite : R314Artifact.RuntimeSite := {outer_site}");
@@ -5433,9 +5514,9 @@ mod module_expression_tests {
         let _ = writeln!(out, "def responseRuntimeValue : R314Artifact.RuntimeValue := {response_runtime}");
         let _ = writeln!(out, "def responseStep : Nat := {}", response.step);
         let _ = writeln!(out, "def responseSite : R314Artifact.RuntimeSite := {response_site}");
-        let _ = writeln!(out, "def responseOwner : String := {}", super::super::program::r314_lean_string(&format!("{:?}", response.owner)));
+        let _ = writeln!(out, "def responseOwner : R314Artifact.ExecutionOwner := {}", r323_lean_owner(response.owner));
         let _ = writeln!(out, "def responseOwnerWasLive : Bool := {}", response.owner_live);
-        out.push_str("structure OwnerReplay where\n  node : Nat\n  original : String\n  resolved : String\n  resolvedWasActive : Bool\n  owner : String\n  owned : Bool\n  previous : String\n  ownerLive : Bool\n  currentOwnerAfter : String\n  control : List (Nat × Nat)\n  callSite : Option R314Artifact.RuntimeSite\n  providerSite : Option R314Artifact.RuntimeSite\n  deriving Repr\n");
+        out.push_str("structure OwnerReplay where\n  node : Nat\n  original : R314Artifact.ExecutionOwner\n  resolved : R314Artifact.ExecutionOwner\n  resolvedWasActive : Bool\n  owner : R314Artifact.ExecutionOwner\n  owned : Bool\n  previous : R314Artifact.ExecutionOwner\n  ownerLive : Bool\n  currentOwnerAfter : R314Artifact.ExecutionOwner\n  control : List (Nat × Nat)\n  callSite : Option R314Artifact.RuntimeSite\n  providerSite : Option R314Artifact.RuntimeSite\n  deriving Repr\n");
         let _ = writeln!(out, "def ownerReplay : List OwnerReplay := [{}]", owner_replay_rows);
         out.push_str("end R323Artifact\n");
         Ok(out)
@@ -5503,6 +5584,30 @@ mod module_expression_tests {
             .expect("the same accepted run exports make's full source root and global-cell use");
         let r323 = r323_lean_operation_artifact(&machine, call, &parsed, source)
             .expect("same-run tick request, captured ordered suffix, and exact response resume join");
+        assert!(r323.contains("R314Artifact.OperationIdentity"));
+        assert!(r323.contains("R314Artifact.AnnotationType.mk"));
+        assert!(r323.contains("R323Frame.callee"));
+        assert!(r323.contains("codeLabel := "));
+        assert!(r323.contains("R314Artifact.ExecutionOwner.invocation"));
+        let request_source = machine.r323_request_observations[0].source.clone();
+        machine.r323_request_observations[0].source.range.start += 1;
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "a request moved away from its actual HIR source site is rejected");
+        machine.r323_request_observations[0].source = request_source;
+        let request_declaration = machine.r323_request_observations[0].declaration.clone();
+        let mut altered_declaration = (*request_declaration).clone();
+        altered_declaration.signature.value = SourceAnnotationValue::Int;
+        machine.r323_request_observations[0].declaration = Arc::new(altered_declaration);
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "a changed operation signature cannot borrow the captured continuation");
+        machine.r323_request_observations[0].declaration = request_declaration;
+        let payload = machine.r323_request_observations[0].payload;
+        assert!(!machine.receiving.matches_value(call.callee_view, payload.value),
+            "the source callee view is not the Request payload's receiving view");
+        machine.r323_request_observations[0].payload.view = call.callee_view;
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "a payload with no matching current receiving view is rejected");
+        machine.r323_request_observations[0].payload = payload;
         let response = machine.r323_resume_observations[0].response;
         machine.r323_resume_observations[0].response = machine.r323_request_observations[0].payload;
         assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
@@ -5544,6 +5649,18 @@ mod module_expression_tests {
         assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
             "changed live Callee operands are rejected");
         machine.resume_templates[0].nodes = template_nodes.clone();
+        let mut changed_view_receipt = false;
+        for node in &mut machine.resume_templates[0].nodes {
+            if let TemplateNode::View { original, .. } = node {
+                original.occurrence = original.occurrence.saturating_add(1);
+                changed_view_receipt = true;
+                break;
+            }
+        }
+        assert!(changed_view_receipt, "the captured continuation includes a typed receiving View receipt");
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "a changed saved View receipt/occurrence is rejected");
+        machine.resume_templates[0].nodes = template_nodes.clone();
         if let TemplateNode::Owner { inner, .. } = &mut machine.resume_templates[0].nodes[template_root] {
             *inner = usize::MAX;
         } else {
@@ -5562,7 +5679,9 @@ mod module_expression_tests {
         assert!(r315.contains("cellInterface := R314Artifact.Interface.value"));
         assert!(r315.contains("namespace R323Artifact"));
         assert!(r315.contains("def operation : String := (String.ofList"));
-        assert!(r315.contains("def savedFrameOrder : List String"));
+        assert!(r315.contains("def operationIdentity : R314Artifact.OperationIdentity"));
+        assert!(r315.contains("def savedFrameOrder : List R323Frame"));
+        assert!(r315.contains("def requestOwner : R314Artifact.ExecutionOwner := R314Artifact.ExecutionOwner.invocation"));
         assert!(r315.contains("def responseOwnerWasLive : Bool := true"));
         assert!(r315.contains("structure OwnerReplay where"));
         assert!(r315.contains("def ownerReplay : List OwnerReplay := ["));
