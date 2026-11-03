@@ -42,18 +42,21 @@ for x in 0..:
         say x
 ```
 
-## 3c.3 label　〔`sub` の形は確定、他は要確認〕
+## 3c.3 label　〔形は確定、`case` / `catch` の再帰の形は未決定〕
 
 ```yulang
 for 'outer x in 0..:
     for y in 0..:
         if y == 3: last 'outer
+        if y == 4: 'outer.last      // 同じ意味
 ```
 
-- label は `'outer` のように `'` で始める。`last 'outer` / `next 'outer` / `redo 'outer` は、その label のループを対象にする。
-- `sub` の label の形は **`'done.return 42` に一本化する**（確定, 2026-11-04）。
-  label は値で、`.return` はその label に対する操作。`return 'done 42` という別の綴りは仕様に採らない。
-- `last` / `next` / `redo` の label の形（`last 'outer` のままか、`'outer.last` にそろえるか）は未決定（確認 M1）。
+- label は `'outer` のように `'` で始める。label は値で、操作を `.` で付けて呼べる。
+- **操作は 2 つの形で書ける**（確定, 2026-11-04）。意味は同じ。
+  - label を値として使う形: `'done.return 42`、`'outer.last`、`'outer.next`、`'outer.redo`
+  - 演算子の形: `return 'done 42`、`last 'outer`、`next 'outer`、`redo 'outer`
+- `sub 'done:` は、label `'done` を body に渡す。
+- `case` / `catch` の arm 集合の再帰（3c.5）で `'count (n - 1)` と書く形は、上の流儀でどう書くか未決定（確認 M2）。
 - 現在のパーサ（yu-syntax）は、`for` の見出しの label しか読めない。式の中の `'x` は未実装（[パーサの未実装](parser-gaps.md)）。
 
 ## 3c.4 `sub` と `return`　〔要確認〕
@@ -66,7 +69,7 @@ sub:
 ```
 
 - `sub:` は早期 return の範囲を作る。`return value` は直近の `sub:` から抜ける。値なしの `return` は `()` を返す。
-- label 付きの `sub` もある。`'done.return 42` の形に一本化する（3c.3）。
+- label 付きの `sub` もある。`'done.return 42` と `return 'done 42` のどちらでも書ける（3c.3）。
 
 ```yulang
 sub 'done:
@@ -137,4 +140,4 @@ effectful \x -> rest
 
 ## 確認してほしい点
 
-- **M1** `last` / `next` / `redo` の label は、`'outer.last` のように `'done.return` とそろえるか。`case` / `catch` の label（3c.5）の呼び出し形 `'count (n - 1)` も、同じ流儀（`'count.…`）にそろえるか。
+- **M2** `case 'count 3:` や `catch 'again 3:` の body から、arm 集合を再適用するときの書き方（現行は `'count (n - 1)`）は、`'count.…` のような流儀にそろえるか、このままか。
