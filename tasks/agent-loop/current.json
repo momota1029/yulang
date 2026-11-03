@@ -655,18 +655,26 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R286",
+    "id": "R305",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/extrusion-caller-closure-r286.md",
-    "contract_sha256": "3d21c214ede8a82eceac2ddea3c9e85c6e41e48a1a6565ca45545bc5be1bd068",
-    "admission": "tasks/agent-loop/history/20261103-r286-admission.md",
-    "review_contract": "tasks/agent-loop/sprints/extrusion-caller-closure-r286-review.md",
-    "review_contract_sha256": "55deed9c820d53a9b9b098059f8a1c7b08fe8612d63783d5ec1ac7bf64257d85",
-    "review_inputs": "tasks/agent-loop/sprints/extrusion-caller-closure-r286-review-inputs.json",
-    "review_inputs_sha256": "eae82f1c6379eee265ec141e073bb055e4b350e0d74192ac29d3a08be473f105",
-    "review_admission": "tasks/agent-loop/history/20261103-r286-review-admission.md",
-    "review_admission_sha256": "e7b797eaf4487bfe08c82e857e728ed574081aaddfcca6fd0adb00a324ed37c5",
-    "review_result": "tasks/agent-loop/history/20261103-r286-independent-review.md"
+    "contract": "tasks/agent-loop/sprints/call-source-formation-r305.md",
+    "contract_sha256": "9bf670afd72d3f59632ff8214d24033c44390d838427cd4be214d65406160cc6",
+    "review_result": "tasks/agent-loop/history/20261103-call-source-formation-r305-review.md",
+    "review_result_sha256": "d7b5a98c4d57cab80650c455b014d5c8029180365a0c33604ba089e8698b92ab",
+    "previous_sprint": {
+      "id": "R286",
+      "status": "REVIEWED_PARTIAL",
+      "contract": "tasks/agent-loop/sprints/extrusion-caller-closure-r286.md",
+      "contract_sha256": "3d21c214ede8a82eceac2ddea3c9e85c6e41e48a1a6565ca45545bc5be1bd068",
+      "admission": "tasks/agent-loop/history/20261103-r286-admission.md",
+      "review_contract": "tasks/agent-loop/sprints/extrusion-caller-closure-r286-review.md",
+      "review_contract_sha256": "55deed9c820d53a9b9b098059f8a1c7b08fe8612d63783d5ec1ac7bf64257d85",
+      "review_inputs": "tasks/agent-loop/sprints/extrusion-caller-closure-r286-review-inputs.json",
+      "review_inputs_sha256": "eae82f1c6379eee265ec141e073bb055e4b350e0d74192ac29d3a08be473f105",
+      "review_admission": "tasks/agent-loop/history/20261103-r286-review-admission.md",
+      "review_admission_sha256": "e7b797eaf4487bfe08c82e857e728ed574081aaddfcca6fd0adb00a324ed37c5",
+      "review_result": "tasks/agent-loop/history/20261103-r286-independent-review.md"
+    }
   },
   "lease_archive": {
     "record": "tasks/agent-loop/history/20261103-r279-resolved-lease-archive.md",

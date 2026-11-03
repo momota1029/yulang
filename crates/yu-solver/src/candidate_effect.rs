@@ -5381,6 +5381,31 @@ mod tests {
         let traces = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.operation_trace.as_ref().unwrap();
         assert_eq!(traces.len(), 1);
         let trace = &traces[0];
+        let SourceAnnotationValue::Function { result: outer_result, .. } = &trace.declaration.signature.value else {
+            panic!("the authentic operation signature has an outer Function");
+        };
+        let SourceAnnotationValue::Function { result: inner_result, .. } = &outer_result.value else {
+            panic!("the operation result contains the declared nested Function");
+        };
+        let source_row = inner_result.effects.as_ref().expect("the nested result has its original source effect row");
+        assert_eq!(source_row.concrete.len(), 1, "the selected source row contains exactly E");
+        assert_eq!(source_row.variables.as_slice(), [Box::<str>::from("'e")]);
+        let source_row_view = trace.cached_views.iter().find_map(|(position, view)|
+            (position == &source_row.position).then_some(*view)
+        ).expect("candidate_signature_effect caches the actual HIR SourceEffectRow position");
+        let source_view = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[source_row_view as usize];
+        let source_tail = trace.effect_variables.iter().find_map(|(name, row)| (name.as_ref() == "'e").then_some(*row))
+            .expect("the actual operation signature trace retains its declared 'e variable row");
+        assert_eq!(source_view.tail, Some(source_tail),
+            "the source-position Support tail is the operation constructor's actual 'e row");
+        assert_eq!(source_view.owner, trace.owner);
+        assert_eq!(source_view.position, source_row.position,
+            "the source row is joined by its own HIR position, not a declaration root or raw tail ordinal");
+        assert_eq!(source_view.allowed, source_row.concrete,
+            "the captured Support view retains the concrete payload from this exact source row");
+        assert!(matches!(&source_view.provenance, ViewOrigin::Operation(origin)
+            if Arc::ptr_eq(&origin.declaration, &trace.declaration) && origin.occurrence == trace.occurrence),
+            "the source row view retains its exact source operation origin");
         let provider = root(&session, "provider");
         let scheduled_declaration = session.batch.candidate_source.schedules[&provider].iter().find_map(|action| match action {
             candidate_source::Action::Operation { declaration, occurrence, .. } if occurrence == &trace.occurrence => Some(declaration),
@@ -5427,6 +5452,74 @@ mod tests {
         );
         assert_eq!(source_bound.source_bound, expected_bound,
             "the full captured BoundKey retains the receiving owner, side, and exact retained rewrite endpoint");
+        let source_function = trace.functions.iter().find(|function|
+            function.path == [FormalPortStep::Result]
+        ).expect("source annotation traversal records the nested result Function");
+        assert_eq!(source_function.polarity, Polarity::Positive);
+        let TermView::PositiveFunction { result: rewritten_nested, .. } = session.store.term_view(rewritten_term).unwrap() else {
+            panic!("slot 42 retains the rewritten positive root Function");
+        };
+        let TermView::PositiveFunction { result_effect: rewritten_result_effect, .. } = session.store.term_view(rewritten_nested).unwrap() else {
+            panic!("the source Result path retains its positive nested Function after extrusion");
+        };
+        let EffectEndpointKey::EffectRow(rewritten_effect_port) = session.effect_endpoint(rewritten_result_effect, Polarity::Positive) else {
+            panic!("the rewritten nested result effect port remains an exact effect row");
+        };
+        fn captured_function_at_path(
+            graph: &crate::candidate_scheme::Graph,
+            node: usize,
+            path: &[FormalPortStep],
+        ) -> Option<usize> {
+            let Some(step) = path.first() else { return Some(node); };
+            let Node::Function { children, .. } = *graph.nodes.get(node)? else { return None; };
+            let child = match step {
+                FormalPortStep::Argument => children[0],
+                FormalPortStep::Result => children[3],
+                _ => return None,
+            };
+            captured_function_at_path(graph, child, &path[1..])
+        }
+        let source_function_node = captured_function_at_path(graph, source_bound.lower, &source_function.path)
+            .expect("the exact source Function path is retained below slot 42's captured bound");
+        assert!(matches!(graph.nodes[source_function_node], Node::Function { polarity, .. }
+            if polarity == source_function.polarity));
+        let Node::Function { children, .. } = graph.nodes[source_function_node] else { unreachable!() };
+        let Node::Row { row: source_effect_graph_row, .. } = graph.nodes[children[2]] else {
+            panic!("the exact result effect child remains a captured row");
+        };
+        assert_eq!(graph.rows[source_effect_graph_row].key, RowKey::Effect(rewritten_effect_port),
+            "the captured child follows candidate_extrude's actual rewritten port, not the pre-extrusion raw row");
+        let captured_support_bound = graph.bounds.iter().find(|bound|
+            matches!(bound.source_bound, BoundKey(
+                ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(owner)), Polarity::Positive,
+                ExtrusionEndpoint::Effect(EffectEndpointKey::Support(_)),
+            ) if owner == rewritten_effect_port)
+                && matches!(graph.nodes[bound.upper], Node::Row { row, .. }
+                    if graph.rows[row].key == RowKey::Effect(rewritten_effect_port))
+                && matches!(graph.nodes[bound.lower], Node::EffectOperand {
+                    endpoint: EffectEndpointKey::Support(view), polarity: Polarity::Positive, ..
+                } if session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize].position == source_row.position
+                    && session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize].allowed == source_row.concrete)
+        ).expect("signed extrusion preserves the source row Support bound in the captured Function child");
+        let Node::EffectOperand { tail: Some(captured_tail_node), .. } = graph.nodes[captured_support_bound.lower] else {
+            panic!("the copied operation Support retains its exact captured tail node");
+        };
+        let Node::Row { row: captured_tail_row, .. } = graph.nodes[captured_tail_node] else {
+            panic!("the copied Support tail is the captured graph's row node");
+        };
+        let RowKey::Effect(extruded_tail) = graph.rows[captured_tail_row].key else {
+            panic!("the copied Support tail retains an effect row");
+        };
+        let ExtrusionEndpoint::Effect(EffectEndpointKey::Support(extruded_support_view)) = captured_support_bound.source_bound.2 else {
+            unreachable!("captured bound matcher selected a Support endpoint");
+        };
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[extruded_support_view as usize].tail,
+            Some(extruded_tail), "the signed extrusion copy reads back the exact captured tail-node row");
+        let extruded_support = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[extruded_support_view as usize];
+        assert_eq!(extruded_support.owner, trace.owner);
+        assert!(matches!(&extruded_support.provenance, ViewOrigin::Operation(origin)
+            if Arc::ptr_eq(&origin.declaration, &trace.declaration) && origin.occurrence == trace.occurrence),
+            "signed extrusion preserves the exact operation provenance");
         fn walk_function(
             session: &InferenceSession,
             graph: &crate::candidate_scheme::Graph,
@@ -5517,6 +5610,53 @@ mod tests {
                 bound.source_bound == source_bound.source_bound
                     && bound.lower == source_bound.lower && bound.upper == source_bound.upper),
                 "the same captured bound enters each retained FreshUse graph");
+            let routed_support_bound = route.graph.bounds.iter().find(|bound|
+                bound.source_bound == captured_support_bound.source_bound
+                    && bound.lower == captured_support_bound.lower
+                    && bound.upper == captured_support_bound.upper
+            ).expect("each retained FreshUse route keeps this signed source-row bound");
+            let mut mapped_support = None;
+            route.retained.observe_map_entries(|name, entry| {
+                if name == "effect_operands" {
+                    if let Some(crate::shadow_apply::CandidateFreshUseMapEntry::EffectOperand { index, endpoint }) = entry {
+                        if index == routed_support_bound.lower {
+                            mapped_support = Some(endpoint);
+                        }
+                    }
+                }
+            });
+            let Some(crate::shadow_apply::CandidateSourceEffectEndpoint::Support(mapped_view_id)) = mapped_support else {
+                panic!("the same FreshUse map retains this source Support operand");
+            };
+            let Node::EffectOperand { tail: Some(route_tail_node), .. } = route.graph.nodes[routed_support_bound.lower] else {
+                panic!("the retained route Support keeps its captured tail node");
+            };
+            let Node::Row { row: route_tail_graph_row, .. } = route.graph.nodes[route_tail_node] else {
+                panic!("the retained route Support tail points at its graph row");
+            };
+            let RowKey::Effect(route_tail_row) = route.rows[route_tail_graph_row] else {
+                panic!("the same FreshUse map has the exact effect-row image");
+            };
+            let Node::Row { row: route_owner_graph_row, .. } = route.graph.nodes[routed_support_bound.upper] else {
+                panic!("the signed Support bound retains its own route owner row");
+            };
+            let RowKey::Effect(route_owner_row) = route.rows[route_owner_graph_row] else {
+                panic!("the same FreshUse route maps the signed Support bound's owner effect row");
+            };
+            let mapped_view = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[mapped_view_id as usize];
+            assert_eq!(mapped_view.position, source_row.position,
+                "the retained FreshUse Support maps back to the exact source row position");
+            assert_eq!(mapped_view.owner, trace.owner);
+            assert_eq!(mapped_view.allowed, source_row.concrete,
+                "the retained FreshUse Support keeps the source concrete payload");
+            assert!(matches!(&mapped_view.provenance, ViewOrigin::Operation(origin)
+                if Arc::ptr_eq(&origin.declaration, &trace.declaration) && origin.occurrence == trace.occurrence),
+                "the retained FreshUse Support keeps the same source operation origin");
+            assert_eq!(mapped_view.tail, Some(route_tail_row),
+                "the same FreshUse route reads the copied tail from its own captured node and row map");
+            assert!(session.effect_bounds[route_owner_row as usize].exact_non_variable_lowers
+                .contains(&EffectEndpointKey::Support(mapped_view_id)),
+                "the mapped Support is a physical exact lower of this same FreshUse route's mapped owner row");
             let Some(mapped_function) = route.retained.terms[source_bound.lower] else {
                 panic!("the same FreshUse retains the captured Function term");
             };
