@@ -2,9 +2,9 @@
 
 状態の凡例は [README](README.md)。この章は binding、可視性（`my` / `our` / `pub`）、`mod`、`use` を扱う。
 データ型（`struct` / `enum` / `type`）は章4、`act` は章5、`role` / `impl` / `cast` は章6 で書く。
-`realm` / `band` と `test` module は、範囲を決めてから書く（確認 C7, C8）。
+配布単位とコード塊の単位（`realm` / `band`）は 2.6 に最小限で書く。
 
-## 2.1 binding　〔要確認〕
+## 2.1 binding　〔カリー化は確定、他は要確認〕
 
 ```yulang
 my x = 1
@@ -12,7 +12,7 @@ our answer = 42
 pub exported = answer
 ```
 
-関数の引数は binding の頭部に直接書ける。これは**カリー化された lambda の糖衣**である。
+関数の引数は binding の頭部に直接書ける。これは**カリー化された lambda の糖衣**である（確定, 2026-11-04）。関数は実際にカリー化される。
 
 ```yulang
 my add x y = x + y
@@ -21,18 +21,20 @@ my add = \x -> \y -> x + y
 ```
 
 - block は文を順に評価し、最後の式を値として返す（式指向）。
-- 宣言だけで本体のない `pub declared` の形がある。意味は未確認（確認 C5）。
+- 宣言だけで本体のない `pub declared` の形がある。意味は未確認（確認 C9）。
 - `our p.norm2 = ...` のように名前に dot を含む binding は **method の定義**になる。意味は章4・章6 で書く。
 
 出典: `main:docs/language/overview.ja.md` §block と binding、`main:notes/design/yulang-language-report.md` §5.1
 
-## 2.2 可視性: `my` / `our` / `pub`　〔要確認・最重要〕
+## 2.2 可視性: `my` / `our` / `pub`　〔対応は確定、範囲の細部は要確認〕
 
-| 語 | 見える範囲（素材から起こした仮説） |
-| --- | --- |
-| `my` | その module の中だけ（private）。local binding は字句的な local |
-| `our` | 囲んでいる companion module へ出る。`with:` の method や `act` の operation に使う |
-| `pub` | module の外へ出る。加えて、その値を module 自身の「型 pane」にも公開する |
+Rust の `let` に対応づけると次のとおり（確定, 2026-11-04）。
+
+| 語 | Rust での対応 | 見える範囲 |
+| --- | --- | --- |
+| `my` | `let` | その module の中だけ（private）。local binding は字句的な local |
+| `our` | `pub(crate) let` | 配布単位の内側には見えて、外には出ない |
+| `pub` | `pub let` | 配布単位の外へ出る |
 
 ```yulang
 struct point:
@@ -42,14 +44,14 @@ with:
     our p.norm2 = p.x * p.x + p.y * p.y    // companion へ出る
 ```
 
-- `with:` の中では `our` も `pub` も、companion 経由で他の module から見える。違いは `pub` が型 pane にも出ることだけ。
+- `with:` の method や `act` の operation は、囲んでいる companion module へ出る。ここでは `our` を使う。
 - module の外へ出す top-level の helper は `pub` を使う。
-- 現状の実装は、`our` と `pub` の差を**アクセス判定だけ**ではほとんど区別していない。意図の明文化が要る。
+- 現状の実装は、`our` と `pub` の差を**アクセス判定だけ**ではほとんど区別していない。上の対応が意図で、実装を合わせる側に倒す。
 
-出典: `main:web/docs/ja/guide/pitfalls.md`「`our` と `pub` の違い」、`main:notes/design/yulang-language-report.md` §5.2
-注意: 「型 pane」が何を指すか（hover の表示か、型の公開面か）は、素材だけでは判断できなかった（確認 C5）。
+出典: ユーザー回答（Rust との対応）、`main:web/docs/ja/guide/pitfalls.md`「`our` と `pub` の違い」、`main:notes/design/yulang-language-report.md` §5.2
+要確認: `pub(crate)` の「crate」に当たる単位は何か（`band` か、`realm` か。2.6 を参照）。素材にあった「`pub` は module 自身の型 pane にも公開する」という記述が、この対応とどうつながるか（確認 C9）。
 
-## 2.3 `mod`　〔要確認〕
+## 2.3 `mod` と test module　〔test module は言語仕様と確定、他は要確認〕
 
 ```yulang
 mod geometry:
@@ -63,6 +65,16 @@ mod helper;        // 同階層の helper.yu（または helper/mod.yu）を子 
 pub mod helper;    // どちらの形にも可視性を付けられる
 ```
 
+```yulang
+mod test named:
+    my passing = assert true
+
+mod test:
+    my anonymous = assert true
+```
+
+- `mod test name:` は名前付き、`mod test:` は無名の test module を作る。通常の実行（`yulang run`）では飛ばされ、
+  テスト実行（`yulang test`）では module 内の binding が test として実行される。test module は言語仕様の一部（確定）。
 - inline の `mod` は nested module を作る。ファイル形式の `mod name;` は `name.yu` を子 module として読み込む。
 - module 内の path は `::` で辿る。
 
@@ -104,13 +116,36 @@ prelude が `just` / `nil` / `ok` / `err` のような標準 variant を re-expo
 
 出典: `main:web/docs/ja/reference/modules.md` §Companion module
 
+## 2.6 配布単位とコード塊の単位　〔方針は確定、名前と細部は未定〕
+
+**配布の単位**と**コードの塊の単位**は別であるべき、という設計（確定, 2026-11-04）。現状の素材では次の用語を使っている。
+
+- `realm` — version を持つ解決空間。配布単位にあたる。
+- `band` — realm の中の import / build の島。コード塊の単位にあたる。Rust の crate に近い役割だが、配布の単位ではない。
+
+```yulang
+use realm/helper::answer                      // current realm の別 band
+use local/theme/colors::palette v1.0.0        // install 済みの realm
+use band::inner::value                        // current band の root から
+```
+
+- 通常の module path は current band の中だけを探す。別 band は `realm/` や `local/` で明示する。
+- `std::...` は標準ライブラリへの prebound alias。
+
+出典: `main:web/docs/ja/reference/modules.md` §Realm と band の path、`main:spec/2026-06-26-local-realm-band.md`
+
+### 名前についての案
+
+役割を分けた名前としては `realm` / `band` で足りていると思う。他の案を出すなら次のようになる。
+
+- 配布単位: `pack`（Python の package、Nix の store path に近い）、`shelf`
+- コード塊: `unit`（Haskell の compilation unit に近い）、`crate`（Rust の語をそのまま借りる）
+
+私は**今の名前を残す**のを推す。`realm/helper::answer` のような path が既に説明的で、他の語に替えても `pub(crate)` 相当の単位が何かという問題（確認 C10）は解けないため。
+
 ## 確認してほしい点
 
-- **C5** `my` / `our` / `pub` の意味を、あなたの言葉で確定してほしい。特に次の 2 つ。
-  - `our` と `pub` の違い。素材では「`pub` は module 自身の型 pane にも公開する」とあるが、「型 pane」とは何か。
-  - 本体のない `pub declared` の意味。
-- **C6** カリー化 lambda への糖衣（`my add x y = ...` ≡ `\x -> \y -> ...`）は仕様として約束してよいか。
-  多引数の関数が内部で本当にカリー化されるのか、それとも引数リストを持つのか。
-- **C7** `realm` / `band`（version 付きの解決空間と import の島）を仕様に入れるか。素材では「実験中」とされている。
-  入れないなら、この章では「module path は current band の中」とだけ書いて詳細は後回しにする。
-- **C8** `mod test:` / `mod test name:`（`yulang test` が実行する test module）は言語仕様か、処理系（ツール）の機能か。
+- **C9** 素材の「`pub` は module 自身の型 pane にも公開する」は、上の `my` / `our` / `pub` の対応と食い違わないか。
+  また、本体のない `pub declared` の意味は何か。
+- **C10** `our`（`pub(crate)` 相当）の「crate」に当たる単位は、`band` か `realm` か。
+- **C11** `realm` / `band` の名前は、今のままでよいか。変えるなら案を選んでほしい。
