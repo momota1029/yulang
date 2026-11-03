@@ -4585,6 +4585,457 @@ mod tests {
             .unwrap(),
         )
     }
+
+    #[derive(Clone, Copy)]
+    struct R310ChainEvidence {
+        inner_call_replay: crate::candidate_context::RelationId,
+        inner_parent: crate::candidate_context::RelationId,
+        inner_seed: crate::candidate_context::RelationId,
+        inner_lower_bound: crate::candidate_effect::BoundKey,
+        inner_upper_bound: crate::candidate_effect::BoundKey,
+        inner_callee_seed: crate::candidate_context::RelationId,
+        outer_call_replay: crate::candidate_context::RelationId,
+        outer_seed: crate::candidate_context::RelationId,
+        outer_upper_bound: crate::candidate_effect::BoundKey,
+        group_seed: crate::candidate_context::RelationId,
+        result_port: crate::candidate_context::RelationId,
+        result_replay_child: crate::candidate_context::RelationId,
+        group_replay: crate::candidate_context::RelationId,
+        outer_argument_port: crate::candidate_context::RelationId,
+    }
+
+    #[test]
+    fn r310_nested_call_replay_has_source_owned_parents_and_group_path() {
+        use crate::candidate_context::Dependency;
+        let hir = local_source_module("my id x = x\nmy answer = id (id 1)");
+        let mut candidate = CandidateInference::solve(hir.clone()).unwrap();
+        let validate = |candidate: &CandidateInference| {
+        let graph = candidate.solved.data.candidate_graph.as_ref().unwrap();
+        let context = &graph.intrusion.effect_algebra.context;
+        use yu_hir::shadow::LocalSourceForm;
+        let answer = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "answer" => Some(binding),
+            _ => None,
+        }).expect("answer source binding");
+        let source = hir.local_source(answer.definition_root()).unwrap().unwrap();
+        let outer_index = source.body().clone();
+        let outer_expr = source.expression(&outer_index).unwrap();
+        let LocalSourceForm::Apply { callee: _, argument, .. } = &outer_expr.form else { panic!("outer Call") };
+        let group_index = argument.clone();
+        let group_expr = source.expression(&group_index).unwrap();
+        let LocalSourceForm::Group { inner } = &group_expr.form else { panic!("actual Group") };
+        let inner_expr = source.expression(inner).unwrap();
+        assert!(matches!(inner_expr.form, LocalSourceForm::Apply { .. }));
+
+        let call_for = |occurrence: &HirOccurrenceId| {
+            (0..candidate.source_call_count()).map(|i| candidate.source_call(i).unwrap())
+                .find(|call| call.source().occurrence == *occurrence).expect("source-owned Call")
+        };
+        let outer = call_for(&outer_expr.occurrence);
+        let inner = call_for(&inner_expr.occurrence);
+        let row = |term: Term| match candidate.solved.data.store.term_view(term).unwrap() {
+            TermView::LiveVariable(view) if view.kind() == ComponentKind::Value => Some(ValueEndpointKey::ValueRow(view.ordinal())),
+            _ => None,
+        };
+        let direct_origin = |occurrence: &HirOccurrenceId| {
+            let observation = candidate.source_occurrence_observation(occurrence, 128).unwrap();
+            assert!(observation.facts_complete() && observation.origins_complete(), "source observation is complete");
+            assert!(observation.facts().any(|fact| fact.cause.local_slot() == 0), "actual source value fact slot");
+            observation.origins().find_map(|origin|
+                (origin.local_slot == 0 &&
+                matches!(origin.attribution, CandidateSourceOriginAttribution::EnqueuedDrain {
+                    incoming_relation: None, replay_ack: None, created_seed, selected_relation, ..
+                } if created_seed == selected_relation)).then_some(crate::candidate_context::RelationId(origin.relation as u32)))
+                .expect("exact direct source drain")
+        };
+        let pair = |relation: crate::candidate_context::RelationId| context.observed_pair(relation).unwrap();
+        let has_bound = |bound: crate::candidate_effect::BoundKey, relation: crate::candidate_context::RelationId| {
+            context.bound_relations(bound).any(|retained| retained == relation)
+                && pair(relation) == crate::candidate_context::bound_pair(bound)
+        };
+        let replay_is_exact = |child: crate::candidate_context::RelationId,
+            lower: crate::candidate_context::RelationId,
+            upper: crate::candidate_context::RelationId,
+            lower_input: crate::candidate_effect::BoundKey,
+            upper_input: crate::candidate_effect::BoundKey| {
+            let context_is_valid = |relation| context.relation_context(relation).is_ok_and(|id| {
+                let mut visited = std::collections::HashSet::new();
+                let mut pending = Vec::new();
+                let mut weights = Vec::new();
+                context.context_payloads(id, &mut visited, &mut pending, &mut weights).is_ok()
+            });
+            if !context_is_valid(child) || !context_is_valid(lower) || !context_is_valid(upper)
+                || !has_bound(lower_input, lower) || !has_bound(upper_input, upper)
+                || lower_input.0 != upper_input.0
+                || lower_input.1 != Polarity::Positive || upper_input.1 != Polarity::Negative {
+                return false;
+            }
+            let expected = match (lower_input.2, upper_input.2) {
+                (crate::ExtrusionEndpoint::Value(lower_item), crate::ExtrusionEndpoint::Value(upper_item)) =>
+                    crate::TypedPairKey::Value(crate::CanonicalValuePairKey { lower: lower_item, upper: upper_item }),
+                (crate::ExtrusionEndpoint::Effect(lower_item), crate::ExtrusionEndpoint::Effect(upper_item)) =>
+                    crate::TypedPairKey::Effect { lower: lower_item, upper: upper_item },
+                _ => return false,
+            };
+            pair(child) == expected
+                && context.observed_dependencies().any(|dependency| matches!(*dependency,
+                    Dependency::Replay { child: actual_child, lower: actual_lower, upper: actual_upper,
+                        lower_input: actual_lower_input, upper_input: actual_upper_input }
+                    if actual_child == child && actual_lower == lower && actual_upper == upper
+                        && actual_lower_input == lower_input && actual_upper_input == upper_input))
+        };
+        let replay_for_upper = |upper: crate::candidate_context::RelationId| {
+            let mut rows = context.observed_dependencies().filter_map(|dependency| match *dependency {
+                Dependency::Replay { child, lower, upper: actual_upper, lower_input, upper_input }
+                    if actual_upper == upper && replay_is_exact(child, lower, actual_upper, lower_input, upper_input) =>
+                        Some((child, lower, actual_upper, lower_input, upper_input)),
+                _ => None,
+            });
+            let found = rows.next().expect("retained ordered Replay");
+            assert!(rows.next().is_none(), "unique Replay for exact source parent");
+            found
+        };
+        let source_parent = |call: &crate::candidate_call::CandidateSourceCall<'_>, seed: crate::candidate_context::RelationId| {
+            let callee_seed = direct_origin(&call.callee_source().occurrence);
+            let (child, lower, upper, lower_input, upper_input) = replay_for_upper(seed);
+            let Some(callee_row) = row(call.native_callee()) else { panic!("Call callee is a live value row") };
+            assert_eq!(lower_input.0, crate::ExtrusionEndpoint::Value(callee_row));
+            assert_eq!(lower_input.1, Polarity::Positive, "Positive means item <: owner");
+            assert!(matches!(lower_input.2, crate::ExtrusionEndpoint::Value(crate::ValueEndpointKey::PositiveFunction(_))));
+            assert!(matches!(candidate.solved.data.store.term_view(call.native_demand()), Ok(TermView::NegativeFunction { .. })));
+            assert_eq!(upper_input.2, crate::ExtrusionEndpoint::Value(crate::ValueEndpointKey::NegativeFunction(call.native_demand())));
+            assert_eq!(upper, seed);
+            assert!(context.observed_bound_admissions().any(|(_, admission)|
+                admission.relation == Some(lower) && admission.bound == lower_input));
+            let mut owner_bridges = context.observed_dependencies().filter_map(|dependency| match *dependency {
+                Dependency::Replay { child: owner_child, upper: owner, lower: fresh, lower_input: fresh_bound, upper_input: owner_bound }
+                    if owner_child == lower && owner == callee_seed
+                        && replay_is_exact(owner_child, fresh, owner, fresh_bound, owner_bound) => Some((fresh, fresh_bound, owner_bound)),
+                _ => None,
+            });
+            let (fresh, fresh_bound, callee_bound) = owner_bridges.next().expect("backward owner Replay reaches this Call's actual callee source");
+            assert!(owner_bridges.next().is_none());
+            assert!(has_bound(callee_bound, callee_seed));
+            let mut admission_rows = context.observed_bound_admissions().filter_map(|(_, admission)| {
+                if admission.relation != Some(fresh) || admission.bound != fresh_bound { return None; }
+                let crate::candidate_context::BoundAdmissionCause::FreshUse {
+                    antecedent, use_origin, source_bound, mapped_relation,
+                } = admission.cause else { return None; };
+                Some((antecedent, use_origin, source_bound, mapped_relation))
+            });
+            let (antecedent, use_origin, source_bound, mapped_relation) =
+                admission_rows.next().expect("exact FreshUse admission tuple");
+            assert!(admission_rows.next().is_none(), "unique FreshUse admission owner");
+            assert_eq!(mapped_relation, Some(fresh), "admission identifies the mapped relation");
+            let mut fresh_transports = context.observed_dependencies().filter_map(|dependency| match *dependency {
+                Dependency::Transport { child, parent, use_origin: actual_use,
+                    witness: Some(crate::candidate_context::TransportWitness { from, to, reason: crate::candidate_context::TransportReason::FreshUse }) }
+                    if child == fresh && actual_use == use_origin && from == source_bound && to == fresh_bound => Some(parent),
+                _ => None,
+            });
+            let transport_parent = fresh_transports.next().expect("source-bound Transport parent");
+            assert!(fresh_transports.next().is_none(), "unique source-bound Transport");
+            let mut routes = graph.routes.iter().filter(|route|
+                route.use_id.occurrence() == &call.callee_source().occurrence);
+            let route = routes.next().expect("callee's exact retained FreshUse route");
+            assert!(routes.next().is_none(), "unique route for source callee");
+            assert_eq!(route.retained.observed_context_use(), use_origin, "route owns FreshUse use_origin");
+            let mut captured_bounds = route.graph.bounds.iter().filter(|bound|
+                bound.source_bound == source_bound && bound.relation == Some(transport_parent));
+            let captured = captured_bounds.next().expect("source-bound captured in exact provider route");
+            assert!(captured_bounds.next().is_none(), "unique source-bound capture");
+            let transport_parent = captured.relation.unwrap();
+            let snapshot = *route.graph.bound_evidence.get(captured.evidence.0).expect("captured source-bound evidence snapshot");
+            assert_eq!(snapshot.source_bound, source_bound);
+            assert_eq!(snapshot.relation, Some(transport_parent));
+            let mut imported_snapshot = None;
+            route.retained.observe_map_entries(|name, entry| {
+                if name == "evidence_remap" {
+                    if let Some(CandidateFreshUseMapEntry::EvidenceSnapshot { index, snapshot }) = entry {
+                        if index == captured.evidence.0 { imported_snapshot = Some(snapshot); }
+                    }
+                }
+            });
+            let imported_snapshot = crate::candidate_context::EvidenceSnapshotId(
+                imported_snapshot.expect("the exact captured evidence was imported into this FreshUse route"));
+            assert_eq!(imported_snapshot, antecedent,
+                "FreshUse admission antecedent is the exact snapshot imported from its captured source bound");
+            assert!(context.captured_snapshot_was_imported(snapshot, imported_snapshot));
+            let owner_node = if captured.side == Polarity::Positive { captured.upper } else { captured.lower };
+            let item_node = if captured.side == Polarity::Positive { captured.lower } else { captured.upper };
+            let crate::candidate_scheme::Node::Row { row: owner_index, .. } = route.graph.nodes[owner_node] else {
+                panic!("captured bound owner is a provider row")
+            };
+            let crate::candidate_scheme::RowKey::Value(mapped_owner) = route.rows[owner_index] else {
+                panic!("captured value owner maps to a value row")
+            };
+            let crate::candidate_scheme::Node::Function { polarity: item_polarity, .. } = route.graph.nodes[item_node] else {
+                panic!("captured function item keeps its typed provider node")
+            };
+            let mapped_item = route.retained.terms.get(item_node).copied().flatten().expect("mapped function term");
+            let mapped_item = match item_polarity {
+                Polarity::Positive => crate::ValueEndpointKey::PositiveFunction(mapped_item),
+                Polarity::Negative => crate::ValueEndpointKey::NegativeFunction(mapped_item),
+            };
+            let target_bound = crate::candidate_effect::BoundKey(
+                crate::ExtrusionEndpoint::Value(crate::ValueEndpointKey::ValueRow(mapped_owner)),
+                captured.side, crate::ExtrusionEndpoint::Value(mapped_item));
+            assert_eq!(source_bound, captured.source_bound);
+            assert_eq!(target_bound, fresh_bound, "provider row/function mapping equals FreshUse target");
+            assert_eq!(target_bound, fresh_bound);
+            assert!(context.fresh_use_fiber_emission(antecedent, source_bound, use_origin, fresh, target_bound).is_some(),
+                "exact FreshUse tuple reaches its physical emission");
+            (child, lower, upper, lower_input, upper_input, callee_seed)
+        };
+
+        let inner_seed = direct_origin(&inner_expr.occurrence);
+        let outer_seed = direct_origin(&outer_expr.occurrence);
+        let group_seed = direct_origin(&group_expr.occurrence);
+        let truncated = candidate.source_occurrence_observation(&inner_expr.occurrence, 0).unwrap();
+        assert!(!truncated.facts_complete() && !truncated.origins_complete(), "zero-row cap is rejected as incomplete");
+        let (inner_call_replay, inner_parent, _, inner_lower_bound, inner_upper_bound, inner_callee_seed) = source_parent(&inner, inner_seed);
+        let (outer_call_replay, outer_parent, _, outer_lower_bound, outer_upper_bound, _) = source_parent(&outer, outer_seed);
+        assert_ne!(inner_parent, outer_parent, "independent source Call owners");
+        let inner_callee_row = row(inner.native_callee()).unwrap();
+        let outer_callee_row = row(outer.native_callee()).unwrap();
+        assert_ne!(inner_lower_bound.0, crate::ExtrusionEndpoint::Value(outer_callee_row), "cross-Call owner rewire rejected");
+        assert_ne!(outer_lower_bound.0, crate::ExtrusionEndpoint::Value(inner_callee_row), "cross-Call owner rewire rejected");
+        assert_ne!(inner_upper_bound.2, crate::ExtrusionEndpoint::Value(crate::ValueEndpointKey::NegativeFunction(outer.native_demand())),
+            "cross-Call demand rewire rejected");
+        assert_ne!(outer_upper_bound.2, crate::ExtrusionEndpoint::Value(crate::ValueEndpointKey::NegativeFunction(inner.native_demand())),
+            "cross-Call demand rewire rejected");
+
+        // The actual Result/Preserve projection carries the nested call's native result row.
+        let inner_result_row = row(inner.native_result()).expect("native inner result row");
+        let result_port = context.observed_dependencies().find_map(|dependency| match *dependency {
+            Dependency::FunctionPort { child, parent, field: FunctionField::Result,
+                operation: crate::candidate_context::FunctionPortOperation::Preserve }
+                if parent == inner_call_replay => Some(child), _ => None,
+        }).expect("retained Result/Preserve port");
+        assert!(context.relation_context(result_port).is_ok(), "port belongs to the retained graph context");
+        assert!(matches!(pair(result_port), crate::TypedPairKey::Value(pair)
+            if pair.lower == inner_result_row || pair.upper == inner_result_row));
+        let result_replay = context.observed_dependencies().find_map(|dependency| match *dependency {
+            Dependency::Replay { child, lower, upper, lower_input, upper_input }
+                if upper == result_port && replay_is_exact(child, lower, upper, lower_input, upper_input) =>
+                    Some((child, lower, upper)), _ => None,
+        }).expect("nested result feeds ordered argument Replay");
+        let group_replay = context.observed_dependencies().find_map(|dependency| match *dependency {
+            Dependency::Replay { child, lower, upper, lower_input, upper_input }
+                if upper == group_seed && lower == result_replay.0
+                    && replay_is_exact(child, lower, upper, lower_input, upper_input) => Some(child),
+            _ => None,
+        }).expect("nested result crosses the actual Group source relation");
+        let outer_argument_port = context.observed_dependencies().find_map(|dependency| match *dependency {
+            Dependency::FunctionPort { child, parent, field: FunctionField::Argument,
+                operation: crate::candidate_context::FunctionPortOperation::Swap }
+                if parent == outer_call_replay => Some(child), _ => None,
+        }).expect("outer Argument/Swap port");
+        assert!(context.relation_context(outer_argument_port).is_ok(), "port belongs to the retained graph context");
+        let final_replay = context.observed_dependencies().find_map(|dependency| match *dependency {
+            Dependency::Replay { child, lower, upper, lower_input, upper_input }
+                if lower == group_replay && upper == outer_argument_port
+                    && replay_is_exact(child, lower, upper, lower_input, upper_input) => Some(child),
+            _ => None,
+        }).expect("Group result reaches the outer argument port");
+        let outer_argument_row = row(outer.native_argument()).expect("native outer argument row");
+        assert!(matches!(pair(outer_argument_port), crate::TypedPairKey::Value(pair)
+            if pair.lower == outer_argument_row || pair.upper == outer_argument_row));
+
+        // Falsifiers: phantom parent, endpoint mutation, cross-call substitution and erased Group all fail.
+        assert!(!has_bound(inner_lower_bound, crate::candidate_context::RelationId(u32::MAX)));
+        assert_ne!(crate::candidate_context::bound_pair(inner_lower_bound), pair(inner_callee_seed));
+        assert_ne!(inner_seed, outer_seed);
+        assert!(!context.observed_dependencies().any(|dependency| matches!(*dependency,
+            Dependency::Replay { child, lower, upper, .. } if child == final_replay && lower == result_replay.0 && upper == outer_argument_port)),
+            "erasing Group must break the nested result to outer argument join");
+        assert_ne!(group_seed, result_replay.0);
+        assert!(!has_bound(crate::candidate_effect::BoundKey(inner_upper_bound.0, inner_upper_bound.1,
+            crate::ExtrusionEndpoint::Value(crate::ValueEndpointKey::ValueRow(u32::MAX))), inner_seed),
+            "mutating the native demand endpoint must be rejected");
+        assert!(has_bound(outer_lower_bound, outer_parent));
+        assert!(has_bound(inner_upper_bound, inner_seed));
+        assert!(has_bound(outer_upper_bound, outer_seed));
+        R310ChainEvidence {
+            inner_call_replay, inner_parent, inner_seed, inner_lower_bound, inner_upper_bound, inner_callee_seed,
+            outer_call_replay, outer_seed, outer_upper_bound,
+            group_seed, result_port, result_replay_child: result_replay.0, group_replay,
+            outer_argument_port,
+        }
+        };
+        let R310ChainEvidence {
+            inner_call_replay, inner_parent, inner_seed, inner_lower_bound, inner_upper_bound, inner_callee_seed,
+            outer_call_replay, outer_seed, outer_upper_bound,
+            group_seed, result_port, result_replay_child, group_replay, outer_argument_port,
+        } = validate(&candidate);
+        macro_rules! assert_chain_rejected {
+            ($why:literal) => {{
+                let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| validate(&candidate)));
+                assert!(outcome.is_err(), $why);
+            }};
+        }
+        macro_rules! assert_chain_restored {
+            () => {{
+                validate(&candidate);
+            }};
+        }
+
+        // Mutate the retained post-solve graph, check rejection, and restore each edge.
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let inner_owner_replay = state.observed_dependencies().find_map(|dependency| match *dependency {
+            Dependency::Replay { child, lower, upper, lower_input, upper_input }
+                if child == inner_parent && upper == inner_callee_seed => Some((lower, lower_input, upper_input)),
+            _ => None,
+        }).expect("backward owner Replay retained");
+        let inner_fresh = inner_owner_replay.0;
+        let inner_fresh_bound = inner_owner_replay.1;
+        let (antecedent, use_origin, source_bound, mapped_relation, target_bound) = state.observed_bound_admissions()
+            .find_map(|(_, admission)| {
+                if admission.relation != Some(inner_fresh) || admission.bound != inner_fresh_bound { return None; }
+                let crate::candidate_context::BoundAdmissionCause::FreshUse {
+                    antecedent, use_origin, source_bound, mapped_relation,
+                } = admission.cause else { return None; };
+                Some((antecedent, use_origin, source_bound, mapped_relation, admission.bound))
+            }).expect("exact FreshUse owner metadata");
+        assert_eq!(mapped_relation, Some(inner_fresh));
+        assert!(state.fresh_use_fiber_emission(antecedent, source_bound, use_origin, inner_fresh, target_bound).is_some());
+        assert!(state.fresh_use_fiber_emission(antecedent, source_bound, usize::MAX, inner_fresh, target_bound).is_none(),
+            "mutated FreshUse use_origin is rejected");
+        assert!(state.fresh_use_fiber_emission(antecedent, source_bound, use_origin,
+            crate::candidate_context::RelationId(u32::MAX), target_bound).is_none(), "mutated mapped relation is rejected");
+        assert!(state.fresh_use_fiber_emission(crate::candidate_context::EvidenceSnapshotId(usize::MAX),
+            source_bound, use_origin, inner_fresh, target_bound).is_none(), "mutated antecedent is rejected");
+
+        let original_transport = state.observed_dependencies().find_map(|dependency| match *dependency {
+            Dependency::Transport { child, parent, use_origin: actual_use,
+                witness: Some(witness @ crate::candidate_context::TransportWitness { reason: crate::candidate_context::TransportReason::FreshUse, .. }) }
+                if child == inner_fresh && actual_use == use_origin && witness.from == source_bound && witness.to == target_bound =>
+                    Some(Dependency::Transport { child, parent, use_origin: actual_use, witness: Some(witness) }),
+            _ => None,
+        }).expect("exact source-bound transport");
+        let mutated_transport = match original_transport {
+            Dependency::Transport { child, use_origin, witness, .. } => Dependency::Transport {
+                child, parent: crate::candidate_context::RelationId(u32::MAX), use_origin, witness,
+            },
+            _ => unreachable!(),
+        };
+        state.test_replace_dependency(original_transport, mutated_transport);
+        assert!(!state.observed_dependencies().any(|dependency| *dependency == original_transport),
+            "mutating the FreshUse Transport parent removes authenticated source ownership");
+        let _ = state;
+        assert_chain_rejected!("source-bound Transport parent mutation must invalidate the same ownership validator");
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        state.test_replace_dependency(mutated_transport, original_transport);
+        let _ = state;
+        assert_chain_restored!();
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+
+        let original_inner_replay = Dependency::Replay { child: inner_call_replay, lower: inner_parent, upper: inner_seed,
+            lower_input: inner_lower_bound, upper_input: inner_upper_bound };
+        let mutated_child_replay = Dependency::Replay { child: crate::candidate_context::RelationId(u32::MAX), lower: inner_parent,
+            upper: inner_seed, lower_input: inner_lower_bound, upper_input: inner_upper_bound };
+        state.test_replace_dependency(original_inner_replay, mutated_child_replay);
+        assert!(state.relation_context(crate::candidate_context::RelationId(u32::MAX)).is_err(),
+            "terminal Replay child mutation is rejected as a foreign relation");
+        let _ = state;
+        assert_chain_rejected!("selected terminal Replay child mutation must invalidate the same ownership validator");
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        state.test_replace_dependency(mutated_child_replay, original_inner_replay);
+        let _ = state;
+        assert_chain_restored!();
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+
+        let phantom_parents_replay = Dependency::Replay { child: inner_call_replay,
+            lower: crate::candidate_context::RelationId(u32::MAX), upper: crate::candidate_context::RelationId(u32::MAX),
+            lower_input: inner_lower_bound, upper_input: inner_upper_bound };
+        state.test_replace_dependency(original_inner_replay, phantom_parents_replay);
+        assert!(state.relation_context(crate::candidate_context::RelationId(u32::MAX)).is_err(),
+            "both Replay parent mutations are rejected as foreign relations");
+        let _ = state;
+        assert_chain_rejected!("Replay parent mutation must invalidate the same ownership validator");
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        state.test_replace_dependency(phantom_parents_replay, original_inner_replay);
+        let _ = state;
+        assert_chain_restored!();
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+
+        let rewired_inner_replay = Dependency::Replay { child: inner_call_replay, lower: inner_parent, upper: outer_seed,
+            lower_input: inner_lower_bound, upper_input: outer_upper_bound };
+        assert_ne!(inner_lower_bound.0, outer_upper_bound.0, "cross-Call rewire violates shared owner");
+        state.test_replace_dependency(original_inner_replay, rewired_inner_replay);
+        assert!(!state.observed_dependencies().any(|dependency| *dependency == original_inner_replay),
+            "rewiring the inner Call to the outer source parent is rejected");
+        let _ = state;
+        assert_chain_rejected!("cross-Call Replay substitution must invalidate the same ownership validator");
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        state.test_replace_dependency(rewired_inner_replay, original_inner_replay);
+        let _ = state;
+        assert_chain_restored!();
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+
+        let group_edge = state.observed_dependencies().find_map(|dependency| match *dependency {
+            Dependency::Replay { child, lower, upper, lower_input, upper_input }
+                if child == group_replay && lower == result_replay_child && upper == group_seed =>
+                    Some(Dependency::Replay { child, lower, upper, lower_input, upper_input }),
+            _ => None,
+        }).expect("actual Group Replay edge");
+        let removed_group_edge = match group_edge {
+            Dependency::Replay { child, lower: _, upper, lower_input, upper_input } => Dependency::Replay {
+                child, lower: crate::candidate_context::RelationId(u32::MAX), upper, lower_input, upper_input,
+            },
+            _ => unreachable!(),
+        };
+        state.test_replace_dependency(group_edge, removed_group_edge);
+        assert!(!state.observed_dependencies().any(|dependency| *dependency == group_edge),
+            "removing the actual Group edge breaks nested-result ownership");
+        let _ = state;
+        assert_chain_rejected!("removing the actual Group Replay must invalidate the same ownership validator");
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        state.test_replace_dependency(removed_group_edge, group_edge);
+        let _ = state;
+        assert_chain_restored!();
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+
+        let result_port_edge = Dependency::FunctionPort { child: result_port, parent: inner_call_replay,
+            field: FunctionField::Result, operation: crate::candidate_context::FunctionPortOperation::Preserve };
+        let phantom_result_port = Dependency::FunctionPort { child: result_port,
+            parent: crate::candidate_context::RelationId(u32::MAX), field: FunctionField::Result,
+            operation: crate::candidate_context::FunctionPortOperation::Preserve };
+        state.test_replace_dependency(result_port_edge, phantom_result_port);
+        assert!(!state.observed_dependencies().any(|dependency| *dependency == result_port_edge),
+            "Result/Preserve parent mutation is rejected");
+        let _ = state;
+        assert_chain_rejected!("Result/Preserve parent mutation must invalidate the same ownership validator");
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        state.test_replace_dependency(phantom_result_port, result_port_edge);
+        let _ = state;
+        assert_chain_restored!();
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+
+        let argument_port_edge = Dependency::FunctionPort { child: outer_argument_port, parent: outer_call_replay,
+            field: FunctionField::Argument, operation: crate::candidate_context::FunctionPortOperation::Swap };
+        let phantom_argument_port = Dependency::FunctionPort { child: outer_argument_port,
+            parent: crate::candidate_context::RelationId(u32::MAX), field: FunctionField::Argument,
+            operation: crate::candidate_context::FunctionPortOperation::Swap };
+        state.test_replace_dependency(argument_port_edge, phantom_argument_port);
+        assert!(!state.observed_dependencies().any(|dependency| *dependency == argument_port_edge),
+            "Argument/Swap parent mutation is rejected");
+        let _ = state;
+        assert_chain_rejected!("Argument/Swap parent mutation must invalidate the same ownership validator");
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        state.test_replace_dependency(phantom_argument_port, argument_port_edge);
+        let _ = state;
+        assert_chain_restored!();
+        let state = &mut candidate.solved.data.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+
+        let mut visited = std::collections::HashSet::new();
+        let mut pending = Vec::new();
+        let mut weights = Vec::new();
+        assert!(state.context_payloads(crate::candidate_context::ContextId(u32::MAX), &mut visited, &mut pending, &mut weights).is_err(),
+            "foreign relation-context mutation is rejected");
+        let _ = state;
+        assert_chain_restored!();
+    }
     fn local_source_module(text: &str) -> Arc<HirModule> {
         let source: Arc<yu_syntax::SourceText> = Arc::from(text);
         let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
