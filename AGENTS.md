@@ -4,15 +4,19 @@ Yulang3 の作業リポジトリ。この文書は地図で、詳細な方針は
 
 ## 現在の状態（2026-11-04）
 
-- 構文解析器（`crates/yu-syntax`、`crates/chasa-recover`）は完成度が高く、保守モードにある。
+このリポジトリは**構文解析器だけ**を残して白紙にしてある。
+
+- 残している実装: `crates/chasa-recover`, `crates/yu-syntax`（完成度が高く、保守モード）。
   文法を変えるときは `syntax-reference/` と `notes/design/` の該当 Authoritative 文書に従う。
-- 型推論器は **意図的に白紙**にした。2026-10 の自走型証明スプリント（約6800 commit）は
-  閉じた定理を出せずに終わった。全記録は tag `archive/proof-sprint-2026-11-04` にある。
-  必要なら `git show archive/proof-sprint-2026-11-04:<path>` で取り出す。
+- 型推論・HIR・runtime・backend・playground・docs は、必要になった時点で
+  tag から**一つずつサルベージ**する。まとめて戻さない。
+  - 2026-10 の自走型証明スプリント（約6800 commit）は閉じた定理を出せずに終わった。
+    その全記録は tag `archive/proof-sprint-2026-11-04`（HEAD `7c889aa9c`）にある。
+  - 取り出しは `git show archive/proof-sprint-2026-11-04:<path>` か
+    `git checkout archive/proof-sprint-2026-11-04 -- <path>`。
+  - 戻すときは、何のために要るか、旧スプリントの前提を持ち込んでいないかを確認する。
 - 次の仕事は、型推論の**核の計算体系**を Lean と文書で先に書くこと。
   実装はその核から導く。実装を先に育てて後から証明する順序には戻さない。
-- `crates/yu-hir` と `crates/yu-core` には旧スプリントの `shadow` 系コードが残っている。
-  新しい核が決まった時点で、残すか消すかを判断する。
 
 ## 基本方針
 
@@ -27,17 +31,15 @@ Yulang3 の作業リポジトリ。この文書は地図で、詳細な方針は
 ## 構成
 
 - `crates/chasa-recover`, `crates/yu-syntax` — 構文解析（chasa ベース）。
-- `crates/yu-hir`, `crates/yu-core`, `crates/yu-backend-*` — 旧世代の名残を含む。上記参照。
+- `tests/contracts/phase2-parser`, `web/playground/examples` — parser テストが読む fixture。
 - `syntax-reference/` — 構文リファレンスサイト（英日）。
-- `docs/` — 設計・意味論の文書。`docs/yulang3-architecture.md` が全体設計。
-- `notes/design/` — 設計文書（[INDEX](notes/design/INDEX.md)）。`notes/style/` — 文章規範。
-- `tests/contracts` — 言語の契約テスト。`tools/` — xtask、bench-runner。
-- `web/` — playground。wasm 版は型推論器と一緒に外したので、現在はビルドできない。
+- `notes/design/` — parser・構文・Yumark・宣言の設計文書（[INDEX](notes/design/INDEX.md)）。
+  `notes/style/` — 文章規範。
+- `tools/xtask` — workspace 依存グラフの検査（`cargo xtask check-graph`）。
 
 ## 規則
 
-[rules/INDEX.md](rules/INDEX.md) を見る。コンパイラ設計、バグ修正、テスト、性能、
-parser、文書、Git の各方針がある。
+[rules/INDEX.md](rules/INDEX.md) を見る。
 
 ## 口調
 

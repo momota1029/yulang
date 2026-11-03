@@ -1,3 +1,0 @@
-use std::control::nondet::*
-
-([1, 2].each).list

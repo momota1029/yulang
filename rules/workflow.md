@@ -4,7 +4,7 @@
 
 Read only what the task needs:
 
-- the relevant Authoritative design in `notes/design/` (start from its `INDEX.md`) or `docs/`;
+- the relevant Authoritative design in `notes/design/` (start from its `INDEX.md`);
 - `syntax-reference/` when the surface syntax is involved;
 - the code and tests of the responsibility being changed.
 

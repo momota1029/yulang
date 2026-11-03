@@ -2,7 +2,7 @@
 
 ## Public documentation
 
-Before writing or editing prose under `web/docs/`, read both:
+Before writing or editing prose under `syntax-reference/` or a future public docs site, read both:
 
 - `notes/style/japanese-writing-guide.md` for orthography, formatting, paragraph construction, and argument construction;
 - `notes/style/writing-rhythm-guide.md` for page-layer assignment, conflict arbitration, rhythm, English prose, and translation pairs.

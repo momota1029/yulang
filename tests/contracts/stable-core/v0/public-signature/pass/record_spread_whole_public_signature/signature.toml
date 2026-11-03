@@ -1,5 +1,0 @@
-"std" = "none"
-"expected_type" = "('a & {a: 'b}) -> 'a | {a: 'b, ..never}"
-
-["selector"]
-"symbol" = "whole"

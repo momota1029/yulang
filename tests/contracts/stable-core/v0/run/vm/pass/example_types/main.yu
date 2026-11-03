@@ -1,8 +1,0 @@
-// Public bindings are shown by `--infer`.
-
-our twice x = x + x
-
-our answer = twice 21
-
-answer
-

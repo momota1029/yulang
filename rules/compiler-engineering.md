@@ -11,64 +11,7 @@ Yulang code should make the entrypoint, owner, principal data flow, and phase bo
 - Preserve meaningful types, boundaries, and names; avoid abstraction created only to look organized.
 - A test-specific branch is not a language or compiler rule.
 
-The broad architecture is governed by `docs/yulang3-architecture.md`; task-specific authoritative addenda may narrow it.
-
-## Natural compiler behavior and proof-obligation economy
-
-Treat proof complexity as an engineering signal, not as a reason to deform the
-language. The target is a compiler whose ordinary source behavior is natural
-and whose correctness argument follows the compiler's actual construction
-rather than reconstructing hidden facts after the fact.
-
-Before introducing a new semantic layer, proof-only relation, inverse theorem,
-or helper whose main purpose is to discharge another helper, classify the
-obligation:
-
-- **A — safety/correctness**: required to show accepted compiler output is
-  sound, well scoped, well owned, and safe to publish or execute.
-- **B — natural inference**: required so the intended ordinary programs infer,
-  generalize, resolve, recurse, or instantiate as expected without artificial
-  user annotations or source restrictions.
-- **C — stronger characterization**: useful metatheory such as arbitrary-view
-  completeness, full converse correspondence, maximal/open-world
-  characterization, or another theorem stronger than A/B.
-- **D — reconstruction debt**: a theorem exists mainly because an earlier
-  phase discarded a fact that it naturally possessed and a later phase now
-  tries to recover it from identifiers, shapes, solver success, or duplicated
-  relations.
-
-Work A and B to closure. Keep C as a research theorem unless the governing
-Authority makes it a cutover dependency. For D, first ask whether the owning
-phase should retain a canonical typed certificate, provenance edge, owner,
-scope, incidence, license, provider identity, or other explicit output so that
-the later property follows by construction.
-
-Evidence retention is preferred when all of these hold:
-
-- the fact is already known at the owning construction point;
-- retaining it preserves the approved source/compiler behavior;
-- it gives one authority rather than a second independently reconstructed
-  meaning;
-- later consumers can validate or pattern-match the evidence locally;
-- it does not smuggle in a semantic assumption that the source or production
-  system has not justified.
-
-Do not optimize proofs by adding mandatory annotations, rejecting otherwise
-approved natural programs, coupling semantics to incidental source spelling or
-IDs, introducing user-visible modes only for the theorem, or expanding runtime
-metadata with no compiler responsibility.
-
-When two materially different proof attempts hit the same missing premise,
-pause before launching a third variant. Run a design-debt audit: decide whether
-the premise is A/B, C, or D; identify the phase that originally knows the fact;
-and test whether a constructional invariant or retained certificate removes the
-reconstruction obligation without changing behavior. Resume proof search when
-the obligation is genuinely semantic or when redesign would damage the approved
-compiler contract.
-
-This classification is a planning and design tool, not a proof shortcut.
-Existing Authoritative semantics and current proof-gate statuses remain in
-force until separately reviewed and, where required, approved.
+The broad architecture is not fixed yet; the old `docs/yulang3-architecture.md` is in the archive tag as reference only. Task-specific Authoritative design documents govern.
 
 ## File order
 
@@ -129,41 +72,6 @@ Do not hide experiments inside central processing. Give them a named boundary an
 Comments preserve non-obvious design decisions: why a responsibility lives here, why recomputation is avoided, why order matters, the source algorithm, or a fragile invariant.
 
 Do not comment by paraphrasing code, preserving dead implementation history, or leaving ownerless TODOs. A TODO states the completion condition and intended owner.
-
-## Type and inference safeguards
-
-### Deterministic Simple-sub inference
-
-The successor is a deterministic Simple-sub algorithm. Construct it from
-constraint generation, accumulation, propagation, levels, extrusion,
-intrusion, and generalization. Do not add per-constraint eager-solving rules or
-speculative search over possible typings. Establish the central invariants
-before implementation, derive data structures and processing from them, and
-prove the correctness and complexity of optimizations. Avoid unnecessary
-recomputation, state duplication, and auxiliary structures.
-
-For abnormal paths, continue inference and diagnostics where meaningful and
-detect appropriate type errors. Do not retry to discover another typing.
-Diagnostic text/order/identity and complete internal-state restoration are not
-general requirements. Never accept an incorrect typing or publish an
-inconsistent result. On unrecoverable resource exhaustion, stop safely without
-exposing a partial result. Use rollback only when an owning proof shows it is
-needed to preserve a semantic invariant; do not require full recovery, capacity
-restoration, or allocation-free rollback as goals in themselves.
-
-A successful suspension is normal inference progress: retain its accepted
-facts and continuation, and do not reuse invalidated dependent results.
-Consult the [top-level inference principles](../notes/design/2026-10-11-yulang-inference-top-level-principles.md)
-before applying more specific historical rollback clauses.
-
-Do not encode semantics through incidental strings:
-
-- no special cases by path text, module name, function name, or variable name;
-- no unnamed builtin/intrinsic behavior buried inside general inference;
-- renaming an identifier must not change its type when resolution is unchanged;
-- moving a module path must not change semantics when it resolves to the same symbol.
-
-Do not add unprincipled protection sets, rigid/blocked pairs, fresh variables, or fixture-specific exceptions merely to make elimination or residual behavior settle. When a residual is wrong, inspect desugaring, constraint generation, ownership/freeze, and the responsible invariant before patching the eliminator's output.
 
 ## Engineering checklist
 

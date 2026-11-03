@@ -1,1 +1,0 @@
-my x: { a: int, b: int } = { a: 1 }

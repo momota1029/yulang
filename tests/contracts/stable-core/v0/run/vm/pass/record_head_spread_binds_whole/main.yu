@@ -1,3 +1,0 @@
-my keep_whole({ ..whole, a }) = (a, whole.a, whole.b)
-
-keep_whole { a: 3, b: 4 }
