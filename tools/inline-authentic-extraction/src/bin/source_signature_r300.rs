@@ -15,7 +15,10 @@ use yu_hir::shadow::{
     SourceEffectRow, SourceOperationDeclaration, SourceOperationResolution,
     lower_module_with_local_source,
 };
-use yu_hir::{FileId, FileKey, HirItem, HirModule, HirVisibility, ModuleIdentity, SemanticImports};
+use yu_hir::{
+    FileId, FileKey, HirItem, HirModule, HirVisibility, LocalSource, LocalSourceIndex,
+    ModuleIdentity, SemanticImports,
+};
 use yu_syntax::{
     ParsedFile, SourceNodeKey, SourceText, SyntaxEnvironment, parse_file, scan_header,
 };
@@ -169,6 +172,7 @@ struct Extraction {
     operations: Vec<Operation>,
     diagnostics: Vec<Diagnostic>,
     uses: Vec<OperationUse>,
+    apply_incidences: Vec<ApplyIncidence>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -178,6 +182,31 @@ struct OperationUse {
     occurrence_ordinal: u32,
     resolution: &'static str,
     operation: Option<usize>,
+}
+
+/// One exact node reached through a LocalSourceIndex in the selected carrier.
+/// The occurrence ordinal is intentionally independent from `source_key`:
+/// distinct HIR occurrences may share one CST key and range (notably empty
+/// call Unit and Apply nodes).
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ApplyNodeRef {
+    local_source_index: u32,
+    occurrence_ordinal: u32,
+    source_key: usize,
+    position: usize,
+    range: Range<usize>,
+    form: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ApplyIncidence {
+    owner_definition_source_key: usize,
+    owner_local_source_index: u32,
+    application: ApplyNodeRef,
+    raw_callee: ApplyNodeRef,
+    argument: ApplyNodeRef,
+    raw_callee_group_projection: Vec<ApplyNodeRef>,
+    source_form: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -392,6 +421,163 @@ impl<'a> Extractor<'a> {
     }
 }
 
+fn source_form_name(form: &LocalSourceForm) -> &'static str {
+    match form {
+        LocalSourceForm::Unit => "Unit",
+        LocalSourceForm::Apply { .. } => "Apply",
+        LocalSourceForm::Group { .. } => "Group",
+        LocalSourceForm::Lambda { .. } => "Lambda",
+        LocalSourceForm::Name { .. } => "Name",
+        LocalSourceForm::Primitive { .. } => "Primitive",
+        LocalSourceForm::Operation { .. } => "Operation",
+        LocalSourceForm::Integer(_) => "Integer",
+        LocalSourceForm::Boolean(_) => "Boolean",
+        LocalSourceForm::String(_) => "String",
+        LocalSourceForm::DecodedString(_) => "DecodedString",
+        LocalSourceForm::InterpolatedString { .. } => "InterpolatedString",
+        LocalSourceForm::Catch { .. } => "Catch",
+        LocalSourceForm::Case { .. } => "Case",
+        LocalSourceForm::If { .. } => "If",
+        LocalSourceForm::Sequence { .. } => "Sequence",
+        LocalSourceForm::StatementBlock { .. } => "StatementBlock",
+        LocalSourceForm::Tuple { .. } => "Tuple",
+        LocalSourceForm::Record { .. } => "Record",
+        LocalSourceForm::Variant { .. } => "Variant",
+        LocalSourceForm::FieldTail { .. } => "FieldTail",
+        LocalSourceForm::GeneratedFormatSelection { .. } => "GeneratedFormatSelection",
+        LocalSourceForm::OperatorApplication { .. } => "OperatorApplication",
+        LocalSourceForm::Ascription { .. } => "Ascription",
+        LocalSourceForm::Block { .. } => "Block",
+    }
+}
+
+fn apply_node_ref(
+    source: &LocalSource,
+    hir: &HirModule,
+    keys: &mut Keys<'_>,
+    index: &LocalSourceIndex,
+) -> Result<ApplyNodeRef> {
+    if index.source_root() != source.source_root() {
+        return Err("Apply child index belongs to a foreign LocalSource root".into());
+    }
+    let expression = source
+        .expression(index)
+        .ok_or("Apply child index is absent from selected LocalSource")?;
+    if !hir.owns_occurrence(&expression.occurrence)
+        || hir
+            .occurrence_source_key(&expression.occurrence)
+            .map_err(|error| format!("Apply child occurrence lookup failed: {error:?}"))?
+            != Some(&expression.source)
+    {
+        return Err("Apply child occurrence/source key is not joined in selected HIR".into());
+    }
+    let source_key = keys.intern(&expression.source)?;
+    let key_record = keys
+        .records
+        .get(source_key)
+        .ok_or("interned Apply child source key has no record")?;
+    if key_record.range != expression.range {
+        return Err("Apply child LocalSource and source-key ranges differ".into());
+    }
+    Ok(ApplyNodeRef {
+        local_source_index: index.ordinal(),
+        occurrence_ordinal: expression.occurrence.ordinal(),
+        source_key,
+        position: key_record.position,
+        range: expression.range.clone(),
+        form: source_form_name(&expression.form).into(),
+    })
+}
+
+fn collect_apply_incidences(hir: &HirModule, keys: &mut Keys<'_>) -> Result<Vec<ApplyIncidence>> {
+    let mut incidences = Vec::new();
+    for item in hir.items() {
+        let HirItem::Binding(binding) = item else {
+            continue;
+        };
+        let Some(source) = hir
+            .local_source(binding.definition_root())
+            .map_err(|error| format!("Apply LocalSource lookup failed: {error:?}"))?
+        else {
+            continue;
+        };
+        if source.definition_root() != Some(binding.definition_root()) {
+            return Err("Apply LocalSource has a different definition owner".into());
+        }
+        let owner_definition_source_key = keys.intern(
+            hir.definition_source_key(binding.definition_root())
+                .map_err(|error| format!("Apply owner definition lookup failed: {error:?}"))?
+                .ok_or("Apply owner definition has no source key")?,
+        )?;
+        let owner_local_source_index = source.body().ordinal();
+        // LocalSourceIndex ordinals are the positions in `expressions`; each
+        // actual child edge below is still followed through its branded index.
+        for (ordinal, application_expr) in source.expressions().iter().enumerate() {
+            let LocalSourceForm::Apply {
+                callee,
+                argument,
+                source_form,
+            } = &application_expr.form
+            else {
+                continue;
+            };
+            if !hir.owns_occurrence(&application_expr.occurrence)
+                || hir
+                    .occurrence_source_key(&application_expr.occurrence)
+                    .map_err(|error| format!("Apply occurrence lookup failed: {error:?}"))?
+                    != Some(&application_expr.source)
+            {
+                return Err(
+                    "Apply parent occurrence/source key is not joined in selected HIR".into(),
+                );
+            }
+            let application_key = keys.intern(&application_expr.source)?;
+            let application_key_record = &keys.records[application_key];
+            if application_key_record.range != application_expr.range {
+                return Err("Apply parent LocalSource and source-key ranges differ".into());
+            }
+            let application = ApplyNodeRef {
+                local_source_index: u32::try_from(ordinal)
+                    .map_err(|_| "Apply LocalSource index exceeds u32")?,
+                occurrence_ordinal: application_expr.occurrence.ordinal(),
+                source_key: application_key,
+                position: application_key_record.position,
+                range: application_expr.range.clone(),
+                form: "Apply".into(),
+            };
+            let raw_callee = apply_node_ref(source, hir, keys, callee)?;
+            let argument = apply_node_ref(source, hir, keys, argument)?;
+            let mut raw_callee_group_projection = Vec::new();
+            let mut projection_index = callee.clone();
+            loop {
+                let projection = source
+                    .expression(&projection_index)
+                    .ok_or("raw callee Group projection is absent from LocalSource")?;
+                let LocalSourceForm::Group { inner } = &projection.form else {
+                    break;
+                };
+                projection_index = inner.clone();
+                raw_callee_group_projection.push(apply_node_ref(
+                    source,
+                    hir,
+                    keys,
+                    &projection_index,
+                )?);
+            }
+            incidences.push(ApplyIncidence {
+                owner_definition_source_key,
+                owner_local_source_index,
+                application,
+                raw_callee,
+                argument,
+                raw_callee_group_projection,
+                source_form: format!("{source_form:?}"),
+            });
+        }
+    }
+    Ok(incidences)
+}
+
 fn parse(text: &str) -> ParsedFile {
     let source: Arc<SourceText> = Arc::from(text);
     parse_file(
@@ -496,6 +682,7 @@ fn extract(text: &str, source_path: &str) -> Result<Extraction> {
             });
         }
     }
+    let apply_incidences = collect_apply_incidences(&hir, &mut extractor.keys)?;
     let diagnostics = hir
         .errors()
         .iter()
@@ -516,6 +703,7 @@ fn extract(text: &str, source_path: &str) -> Result<Extraction> {
         operations,
         diagnostics,
         uses,
+        apply_incidences,
     })
 }
 
@@ -540,6 +728,18 @@ fn array<T>(items: &[T], f: impl Fn(&T) -> String) -> String {
 }
 fn optional<T>(value: &Option<T>, f: impl Fn(&T) -> String) -> String {
     value.as_ref().map(f).unwrap_or_else(|| "null".into())
+}
+fn json_apply_node_ref(node: &ApplyNodeRef) -> String {
+    format!(
+        "{{\"local_source_index\":{},\"occurrence_ordinal\":{},\"source_key_id\":{},\"source_position_ordinal\":{},\"byte_range\":[{},{}],\"source_form\":{}}}",
+        node.local_source_index,
+        node.occurrence_ordinal,
+        node.source_key,
+        node.position,
+        node.range.start,
+        node.range.end,
+        quoted(&node.form)
+    )
 }
 fn json_path(path: &[Step]) -> String {
     array(path, |step| match step {
@@ -624,6 +824,18 @@ impl Extraction {
                 optional(&u.operation, |v| v.to_string())
             )
         });
+        let apply_incidences = array(&self.apply_incidences, |row| {
+            format!(
+                "{{\"owner_definition_source_key_id\":{},\"owner_local_source_index\":{},\"application\":{},\"raw_callee\":{},\"argument\":{},\"raw_callee_group_projection\":{},\"apply_source_form\":{}}}",
+                row.owner_definition_source_key,
+                row.owner_local_source_index,
+                json_apply_node_ref(&row.application),
+                json_apply_node_ref(&row.raw_callee),
+                json_apply_node_ref(&row.argument),
+                array(&row.raw_callee_group_projection, json_apply_node_ref),
+                quoted(&row.source_form)
+            )
+        });
         let operations = array(&self.operations, |o| {
             let fields = array(&o.fields, |f| {
                 format!(
@@ -664,7 +876,7 @@ impl Extraction {
             )
         });
         format!(
-            "{{\"schema_version\":1,\"claim\":\"finite authentic HIR extraction; no Rust-Lean equivalence or original semantic proof\",\"identity_scope\":\"single execution and selected parse; IDs intern complete native Eq identities; locators are not identity\",\"solver_preflight\":\"not run; retained HIR includes tuples and holes unsupported by operation inference\",\"use_scope\":\"LocalSourceForm::Operation expressions in top-level binding carriers; catch patterns are outside this inventory\",\"source_path\":{},\"source\":{},\"keys\":{keys},\"families\":{families},\"operations\":{operations},\"operation_uses\":{uses},\"hir_diagnostics\":{diagnostics}}}\n",
+            "{{\"schema_version\":1,\"claim\":\"finite authentic HIR extraction; no Rust-Lean equivalence or original semantic proof\",\"identity_scope\":\"single execution and selected parse; IDs intern complete native Eq identities; locators are not identity\",\"solver_preflight\":\"not run; retained HIR includes tuples and holes unsupported by operation inference\",\"use_scope\":\"LocalSourceForm::Operation expressions in top-level binding carriers; catch patterns are outside this inventory\",\"source_path\":{},\"source\":{},\"keys\":{keys},\"families\":{families},\"operations\":{operations},\"operation_uses\":{uses},\"apply_incidences\":{apply_incidences},\"hir_diagnostics\":{diagnostics}}}\n",
             quoted(&self.source_path),
             quoted(&self.source)
         )
@@ -690,6 +902,15 @@ impl Extraction {
             )
             .unwrap();
         }
+        out.push_str(
+            "structure ApplyNodeRef where\n  localSourceIndex : Nat\n  occurrenceOrdinal : Nat\n  sourceKeyId : Nat\n  sourcePositionOrdinal : Nat\n  byteRange : Nat × Nat\n  sourceForm : String\n  deriving DecidableEq, Repr\n\nstructure ApplyOccurrenceRow where\n  ownerDefinitionSourceKeyId : Nat\n  ownerLocalSourceIndex : Nat\n  application : ApplyNodeRef\n  rawCallee : ApplyNodeRef\n  argument : ApplyNodeRef\n  rawCalleeGroupProjection : List ApplyNodeRef\n  applySourceForm : String\n  deriving DecidableEq, Repr\n\n",
+        );
+        writeln!(
+            out,
+            "def applyIncidences : List ApplyOccurrenceRow := {}",
+            array(&self.apply_incidences, lean_apply_incidence)
+        )
+        .unwrap();
         out.push_str("end YulangClosure.SourceSignatureExtractionR300\n");
         out
     }
@@ -718,6 +939,30 @@ fn lean_string(value: &str) -> String {
     }
     out.push('"');
     out
+}
+fn lean_apply_node_ref(node: &ApplyNodeRef) -> String {
+    format!(
+        "{{ localSourceIndex := {}, occurrenceOrdinal := {}, sourceKeyId := {}, sourcePositionOrdinal := {}, byteRange := ({}, {}), sourceForm := {} }}",
+        node.local_source_index,
+        node.occurrence_ordinal,
+        node.source_key,
+        node.position,
+        node.range.start,
+        node.range.end,
+        lean_string(&node.form)
+    )
+}
+fn lean_apply_incidence(row: &ApplyIncidence) -> String {
+    format!(
+        "{{ ownerDefinitionSourceKeyId := {}, ownerLocalSourceIndex := {}, application := {}, rawCallee := {}, argument := {}, rawCalleeGroupProjection := {}, applySourceForm := {} }}",
+        row.owner_definition_source_key,
+        row.owner_local_source_index,
+        lean_apply_node_ref(&row.application),
+        lean_apply_node_ref(&row.raw_callee),
+        lean_apply_node_ref(&row.argument),
+        array(&row.raw_callee_group_projection, lean_apply_node_ref),
+        lean_string(&row.source_form)
+    )
 }
 fn lean_annotation(a: &Annotation) -> String {
     let row = a
@@ -943,5 +1188,131 @@ mod tests {
                 .iter()
                 .any(|u| u.operation.is_none() && u.resolution == "unresolved")
         );
+    }
+
+    #[test]
+    fn apply_incidence_authenticates_nested_children_and_is_deterministic() {
+        let text = "my value f = f() (f())";
+        let first = extract(text, "nested-apply.yu").unwrap();
+        let second = extract(text, "nested-apply.yu").unwrap();
+        assert_eq!(first.apply_incidences, second.apply_incidences);
+        assert_eq!(first.json(), second.json());
+        assert_eq!(first.lean(), second.lean());
+        assert_eq!(first.apply_incidences.len(), 3);
+        let outer = first
+            .apply_incidences
+            .iter()
+            .find(|row| row.raw_callee.form == "Apply" && row.argument.form == "Group")
+            .expect("outer application row");
+        let inner = first
+            .apply_incidences
+            .iter()
+            .find(|row| {
+                row.application.range != outer.application.range
+                    && row.application.range.start >= outer.argument.range.start
+                    && row.application.range.end <= outer.argument.range.end
+            })
+            .expect("nested application row");
+        assert_eq!(outer.argument.form, "Group");
+        assert_eq!(outer.raw_callee.form, "Apply");
+        assert_eq!(inner.application.form, "Apply");
+        assert_eq!(
+            outer.owner_definition_source_key,
+            inner.owner_definition_source_key
+        );
+        assert!(
+            first
+                .lean()
+                .contains("def applyIncidences : List ApplyOccurrenceRow")
+        );
+        assert!(first.json().contains("\"apply_incidences\":["));
+    }
+
+    #[test]
+    fn empty_call_keeps_apply_and_unit_occurrences_distinct_at_one_source_key() {
+        let e = extract("my invoke f = f()", "empty-apply.yu").unwrap();
+        let row = e.apply_incidences.first().expect("authentic Apply row");
+        assert_eq!(row.source_form, "CallTail");
+        assert_eq!(row.argument.form, "Unit");
+        assert_eq!(row.application.source_key, row.argument.source_key);
+        assert_eq!(row.application.position, row.argument.position);
+        assert_eq!(row.application.range, row.argument.range);
+        assert_ne!(
+            row.application.occurrence_ordinal,
+            row.argument.occurrence_ordinal
+        );
+        assert_ne!(
+            row.application.local_source_index,
+            row.argument.local_source_index
+        );
+    }
+
+    #[test]
+    fn fixed_owner_reification_apply_fixture_has_real_group_and_both_children() {
+        let e = extract("my value = \\x -> { (\\x -> x) x; x }", "owner-apply.yu").unwrap();
+        let row = e.apply_incidences.first().expect("owner-fixture Apply row");
+        assert_eq!(row.raw_callee.form, "Group");
+        assert_eq!(row.raw_callee_group_projection.len(), 1);
+        assert_eq!(row.raw_callee_group_projection[0].form, "Lambda");
+        assert_eq!(row.argument.form, "Name");
+        assert_ne!(
+            row.raw_callee.local_source_index,
+            row.raw_callee_group_projection[0].local_source_index
+        );
+        assert_ne!(
+            row.application.occurrence_ordinal,
+            row.argument.occurrence_ordinal
+        );
+    }
+
+    #[test]
+    fn multiple_group_projection_preserves_each_inner_edge_in_order() {
+        let e = extract("my value f = (((f))) x", "multi-group-apply.yu").unwrap();
+        let row = e.apply_incidences.first().expect("authentic Apply row");
+        assert_eq!(row.raw_callee.form, "Group");
+        assert_eq!(
+            row.raw_callee_group_projection
+                .iter()
+                .map(|node| node.form.as_str())
+                .collect::<Vec<_>>(),
+            ["Group", "Group", "Name"]
+        );
+        assert_eq!(
+            row.raw_callee_group_projection
+                .iter()
+                .map(|node| node.local_source_index)
+                .collect::<Vec<_>>(),
+            [4, 5, 6]
+        );
+        assert_ne!(
+            row.raw_callee.local_source_index,
+            row.raw_callee_group_projection[0].local_source_index
+        );
+    }
+
+    #[test]
+    fn two_definition_owners_can_reuse_local_index_without_sharing_owner() {
+        let e = extract("my one f = f(); my two g = g()", "two-owner-apply.yu").unwrap();
+        assert_eq!(e.apply_incidences.len(), 2);
+        let [first, second] = e.apply_incidences.as_slice() else {
+            panic!("expected one Apply from each binding owner");
+        };
+        assert_eq!(
+            first.application.local_source_index,
+            second.application.local_source_index
+        );
+        assert_eq!(
+            first.owner_local_source_index,
+            second.owner_local_source_index
+        );
+        assert_ne!(
+            first.owner_definition_source_key,
+            second.owner_definition_source_key
+        );
+        assert_ne!(
+            first.application.occurrence_ordinal,
+            second.application.occurrence_ordinal
+        );
+        assert_ne!(first.application.source_key, second.application.source_key);
     }
 }
