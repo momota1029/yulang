@@ -32,7 +32,7 @@ block doc。中身は Yumark として読まれる
 
 出典: `main:notes/design/yulang-language-report.md` §4.2
 
-## 1.3 ブロックと layout　〔要確認〕
+## 1.3 ブロックと layout　〔字下げ継続は確定、他は要確認〕
 
 ブロックは、インデント（`:` で始める）と波括弧の両方で書ける。意味は同じ。
 
@@ -45,17 +45,25 @@ else:
 if cond { a } else { b }
 ```
 
-- 改行は文の区切りになる。波括弧の中では `;` や `,` も文脈によって区切りになる。
-- 改行は**裸の application を閉じる**。次の行は新しい文になる。続けたいなら、字下げして継続式にするか、`:` / `{}` を使う。
+- 改行は文の区切りになる。波括弧や括弧の中では `;` や `,` も文脈によって区切りになる。
+- **次の行の字下げが基準より深ければ、前の式の続き。同じか浅ければ、新しい文**（確定, 2026-11-04）。
 
 ```yulang
-f x y        // 1 つの文
+f x
+    y         // 字下げが深い → 同じ式の続き。f x y（y は 3 つ目の引数）
 
 f x
-    y        // 2 つの文: `f x` と `y`（裸 application は改行で閉じる）
+y             // 字下げが同じ → 新しい文
+
+xs
+    .map f    // 字下げが深い → xs.map f
 ```
 
-出典: `main:web/docs/ja/guide/pitfalls.md`「改行で裸 application は閉じる」、`main:notes/design/yulang-language-report.md` §4.3
+- 長い application は、続きの行を深く字下げして複数行に折れる。`:` や `{}` は必須ではない。
+- 括弧の中では、基準は開き括弧の直後の行の字下げ。基準より深い改行は現在の項目の続きで、基準以下の改行は次の項目の区切りになる。
+
+出典: `main:notes/design/yulang-language-report.md` §4.3、`syntax-reference/ja/src/cross-cutting/layout-aware-separator-authority.md`
+注意: `main:web/docs/ja/guide/pitfalls.md` の「改行で裸 application は閉じる」は、この規則と逆のことを書いており、古い。起こし直すときに採らない。
 
 ## 1.4 呼び出しの 3 つの形　〔要確認〕
 
