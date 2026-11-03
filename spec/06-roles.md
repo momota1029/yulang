@@ -21,7 +21,7 @@ role Index 'container 'key:
 
 出典: `main:web/docs/ja/reference/structs.md` §Role
 
-## 6.2 `impl`　〔要確認〕
+## 6.2 `impl`　〔曖昧時の扱いは確定、他は要確認〕
 
 ```yulang
 impl Add int:
@@ -46,6 +46,7 @@ struct box 'a { value: 'a } with:
 
 - **`impl` は、それを含むファイルが読み込まれたときにだけ候補になる。** 読み込まれていないファイルの `impl` は、method 選択にも role の解決にも入らない。
   読み込まれた後の可視性は、通常の module の可視性（`my` / `our` / `pub`）に従う。
+- 同じ role と型に対して複数の `impl` が候補になる場合は**曖昧**として拒否される（確定, 2026-11-04）。
 
 出典: `main:web/docs/ja/reference/structs.md` §impl、`main:spec/2026-06-04-method-selection.md` §impl候補の有効範囲
 
@@ -60,7 +61,7 @@ my twice(x: 'a) =
 - `where` は型変数に role の制約を付ける。binding・`role`・`impl` の body の中に書ける。
 - `role` の body の `where` は、その role の method に継承される。`impl` の body の `where` は、その `impl` が候補になるための前提になる。
 
-## 6.4 `x.method` の解決　〔要確認〕
+## 6.4 `x.method` の解決　〔確定〕
 
 `x.method` は、すぐには解決されない。**`x` の型の下界が分かって、その型に `.method` があるとき**に初めて解決される。
 
@@ -69,9 +70,10 @@ x.add y
 ```
 
 - 候補の探し方は、まず receiver の型に結びついた field と、`with:` で定義した method。次に role の method と effect 行の method。
+  **この順序は仕様**で、同じ名前が複数の段にあるときは**この順で先に見つかったものが選ばれる**（確定, 2026-11-04）。
 - `x` が `ref 'e 'a` なら、`'a` に対して同じ探し方をする。
 - method が解決されるまで、それを含む SCC は解かれない。
-- SCC がこれ以上変化しなくなったとき、解決していない method は、role の method か record の field として解釈される。
+- SCC がこれ以上変化しなくなったとき、解決していない method は、role の method か record の field として解釈される（確定, 2026-11-04）。
 
 出典: `main:spec/2026-06-04-method-selection.md`、`main:web/docs/ja/reference/modules.md` §Dot selection
 
@@ -99,6 +101,7 @@ use_int id                  // 引数の境界で int に変換される
 - 該当する規則がなければ「暗黙の cast が見つからない」エラー。一致する規則が複数あれば ambiguous で拒否される（Yulang は勝手に選ばない）。
 - cast は遅延しない。境界に着いた時点で body が走る。重い変換は普通の関数にして、呼び出しを明示する。
 - 現状の対象は nominal な型どうし。汎用の構造的変換の仕組みではない。
+- **cast は連鎖する**（`A → B → C`, 確定, 2026-11-04）。連鎖の経路が複数ある場合の扱いと、連鎖の深さの制限は未確認（確認 I6）。
 
 ### `from` 付き variant
 
@@ -117,11 +120,9 @@ enum app_err:
 ### 注意: `cast` 宣言と `Cast` role は別物
 
 標準ライブラリには `.cast` method を持つ `std::core::convert::Cast` という role があるが、`cast` 宣言はこの role を**実装しない**し、呼びもしない（罠 T6）。
+同じ名前は意図的で、変える予定はない（確定, 2026-11-04）。
 
 ## 確認してほしい点
 
-- **I1** `impl` の候補は、読み込まれたファイルのものだけ、で仕様としてよいか。同じ role と型に対して複数の `impl` が読み込まれた場合は、エラーか、曖昧として拒否か。
-- **I2** `x.method` の探す順（struct の field と `with:` の method → role → effect 行）は仕様か。同じ名前が複数の段にあるときの優先は。
-- **I3** 解決できなかった method を「role か field とみなす」最終段の規則は、仕様として書いてよいか。
-- **I4** 暗黙の cast は、連鎖する（`A → B → C`）か。しないなら、仕様として「しない」と書く。
-- **I5** `cast` 宣言と `Cast` role を同じ名前にしているのは意図か。罠として載せたが、名前を変える予定があるか。
+- **I6** cast が連鎖するとき、`A → B → C` と `A → D → C` のように経路が複数あれば、ambiguous として拒否するか。連鎖の深さに制限はあるか。
+  また、連鎖の途中で body が走る回数（`A → B` の body と `B → C` の body が両方走る）は仕様として約束するか。
