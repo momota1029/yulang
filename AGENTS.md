@@ -22,7 +22,8 @@ Yulang3 の作業リポジトリ。この文書は地図で、詳細な方針は
 
 - 意味論の権威はユーザーの設計判断。エージェントは言語意味論を勝手に決めない。
   決めるべき点に当たったら、選択肢と推奨を示して止まる。
-- 核の計算体系は Lean と文書が正本。Rust の実装は正本ではない。
+- 言語仕様は `spec/`（日本語）が正本で、核の計算体系は Lean がそれを形式化する。Rust の実装は正本ではない。
+  `spec/` は `main` 等の素材から起こし、ユーザーが加筆する。状態（確定/要確認/未定）を付け、出典のない文は書かない。
 - 自走ループ、常駐ワーカー、スプリント、question board は使わない。作業は一つの依頼ごとに閉じる。
 - 証明済みと言えるのは、Lean が通り、公理の監査が済み、元の主張と量化子が一致するときだけ。
   補題・条件付き結果・green な test を、親定理の完了として報告しない。
@@ -32,6 +33,7 @@ Yulang3 の作業リポジトリ。この文書は地図で、詳細な方針は
 
 - `crates/chasa-recover`, `crates/yu-syntax` — 構文解析（chasa ベース）。
 - `tests/contracts/phase2-parser`, `web/playground/examples` — parser テストが読む fixture。
+- `spec/` — 言語仕様（日本語、書き始めたところ）。意味論の正本。素材の所在は `spec/00-sources.md`。
 - `syntax-reference/` — 構文リファレンスサイト（英日）。
 - `notes/design/` — parser・構文・Yumark・宣言の設計文書（[INDEX](notes/design/INDEX.md)）。
   `notes/style/` — 文章規範。
