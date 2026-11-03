@@ -93,3 +93,10 @@
   - 「具体的な型が見えない」変数が、あとで具体化して注釈に入らない effect だと分かったときの扱い（その時点でエラーか、推論の終わりまで待つか）。
   - 反変位置の属性と共変位置の属性が、同じ変数に両方付いた場合。
 - 関連: 章5 effect と handler、章7 型の表示、`main:notes/design/2026-07-03-hover-public-type-projection.md`、`main:notes/debugs/std-var-ref-effect-annotation.md`
+
+### T4. pattern の位置の修飾なしの名前は、variant ではなく新しい束縛になる
+- 状態: 要確認（素材から起こした）
+- 現象: `case c: red -> ...` の `red` は、同名の variant があっても何にでも合う新しい変数になる。以降の arm は到達しない。
+  `color::red` と修飾するか、`use color::*` が要る。
+- 関連: [章3b](03b-patterns.md) 3b.2
+

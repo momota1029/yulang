@@ -1,7 +1,7 @@
 # 章3 式
 
-状態の凡例は [README](README.md)。この章は式の骨格を扱う。**pattern は次の章**、effect と handler の意味は章5 に回す。
-`do` / `sub` / `return` / `for` / `last` / `next` / `redo` / `$x` / `&x` は、制御構文として別にまとめる（章3b）。
+状態の凡例は [README](README.md)。この章は式の骨格を扱う。**pattern は [章3b](03b-patterns.md)**、effect と handler の意味は章5 に回す。
+`do` / `sub` / `return` / `for` / `last` / `next` / `redo` / `$x` / `&x` は、制御構文として別にまとめる（章3c）。
 Yulang は式指向で、ここに出る構文はほとんどが式として値を持つ。
 
 ## 3.1 literal　〔数値型は確定、他は要確認〕
@@ -122,7 +122,7 @@ case n:
 - arm は上から順に試し、最初に pattern が合って guard が真になった arm が選ばれる。
 - guard は pattern の後ろに `if`（または `where`）で書く。guard からは pattern が束縛した名前が見える。
 - **網羅性を検査する**。どの arm にも合わない場合があるなら、エラーになる（確定, 2026-11-04）。
-- pattern の形は次の章。網羅性の検査の細部（何を網羅とみなすか）は pattern の章で書く。
+- 網羅性の細部（guard 付きの arm の扱いなど）は [章3b](03b-patterns.md) に書く。
 
 出典: `main:web/docs/ja/reference/control-flow.md` §case、`main:notes/design/yulang-language-report.md` §6.7
 
@@ -146,8 +146,9 @@ catch expr:
 xs | map f
 ```
 
-- `x | f` は左辺の値を右辺に渡す。素材の一方は「左辺を右辺の最初の引数にする」と書いている。
-- 結合力は旧い文書で `5`（比較より弱い）とされている。現行の値は未確認（確認 E6）。
+- `x | f` は左辺の値を右辺に渡す。**仮採用: `lhs | rhs` は `rhs lhs`**、つまり `xs | map f` は `map f xs`（ユーザー判断, 2026-11-04。
+  素材の一方は「最初の引数」と書いていたが、ユーザーも確信がなく、`map f xs` で良いとした）。
+- 結合力は旧い文書で `5`（比較より弱い）とされている。現行の値は未確認。
 
 出典: `main:web/docs/ja/reference/idioms.md`、`main:notes/design/yulang-language-report.md` §6.3
 
@@ -167,5 +168,4 @@ my request(source: str): str = case source:
 
 ## 確認してほしい点
 
-- **E6** `|` の現行の結合力と、「最初の引数」か「最後の引数」か。`xs | map f` なら `map f xs` になるのか、`map xs f` なのか。
-- **E7** `case` の網羅性は、guard 付きの arm をどう扱うか（guard は網羅に数えないのか）。pattern の章で書くので、そこで決めればよい。
+- **E6** `|` の仮採用（`rhs lhs`）を、実装と突き合わせて確かめる。結合力の現行値も確かめる。

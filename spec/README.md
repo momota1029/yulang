@@ -22,7 +22,7 @@
 - 章（順序は案）
   1. [字句・layout・演算子](01-lexical.md)
   2. [binding・可視性・module](02-declarations.md)
-  3. [式](03-expressions.md)（pattern は次）
+  3. [式](03-expressions.md)、[pattern](03b-patterns.md)、制御構文（章3c、これから）
   4. 型（`type` / `struct` / `enum` / 注釈）
   5. effect と handler（反変位置の effect、hygiene を含む）
   6. role・method・cast
