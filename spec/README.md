@@ -18,6 +18,7 @@
 ## 構成
 
 - [00-sources.md](00-sources.md) — 素材の所在地（main と archive tag）。
+- [parser-gaps.md](parser-gaps.md) — 仕様が約束しているが、パーサがまだ読めない形の台帳。
 - [traps.md](traps.md) — 罠台帳。直感と違う挙動、仕様と表示・実装の乖離。ユーザーが随時足す。
 - 章（順序は案）
   1. [字句・layout・演算子](01-lexical.md)
