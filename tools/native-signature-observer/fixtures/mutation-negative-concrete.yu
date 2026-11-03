@@ -1,0 +1,4 @@
+act E:
+    our nested: (() -> [E]int) -> [F, E, F, 'out]('a -> [E]int)
+act F;
+my resolved = E::nested

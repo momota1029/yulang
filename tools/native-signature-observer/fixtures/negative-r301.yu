@@ -1,0 +1,7 @@
+act E:
+    our nested: (() -> ['arg]int) -> [F, E, F, 'out]('a -> [E]int)
+    our empty: () -> []int
+    our retained: ('a, _) -> (() -> int)
+act F;
+my resolved = E::nested
+my unresolved = E::missing
