@@ -77,7 +77,7 @@ x.add y
 
 出典: `main:spec/2026-06-04-method-selection.md`、`main:web/docs/ja/reference/modules.md` §Dot selection
 
-## 6.5 `cast`　〔要確認〕
+## 6.5 `cast`　〔境界と合流は確定、他は要確認〕
 
 ```yulang
 struct user_id { raw: int }
@@ -96,7 +96,17 @@ my use_int(n: int) = n + 1
 use_int id                  // 引数の境界で int に変換される
 ```
 
-- 適用される境界: binding や引数の注釈、関数の引数、分岐の合流（2 つの arm が同じ型に揃う場所）、effect arm の結果型。
+- cast が入るのは、**期待型が分かっている境界**: binding や引数の注釈、関数の引数。
+- **分岐の合流**（`if` / `case` の arm、effect arm の結果）で型が違うときは、cast を入れず**union として一度持つ**（確定, 2026-11-04）。
+  その後で期待型が現れたら、その型へ cast される。何も期待されていなければ、**曖昧さを警告する**（エラーではない）。
+
+```yulang
+my x = if c: 1 else: user_id_value     // int | user_id の union。どちらの型になるかはここでは決まらない
+my n: int = x                           // 期待型 int が来たので、user_id の側が int に cast される
+my y = x                                // 何も期待されていない → 曖昧さの警告
+```
+
+- 変換の定義を変にするほうが悪い、という立場。合流は許し、どちらに寄るかは期待型に任せる。
 - **期待型のない裸の式では変換されない。** `id` だけなら `user_id` のまま。
 - 該当する規則がなければ「暗黙の cast が見つからない」エラー。一致する規則が複数あれば ambiguous で拒否される（Yulang は勝手に選ばない）。
 - cast は遅延しない。境界に着いた時点で body が走る。重い変換は普通の関数にして、呼び出しを明示する。
