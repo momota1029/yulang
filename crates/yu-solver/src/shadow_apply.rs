@@ -4492,6 +4492,78 @@ impl InferenceSession {
 mod tests {
     use super::*;
     use std::collections::HashMap;
+
+    fn r311_lean_string(value: &str) -> String {
+        format!("{value:?}")
+    }
+
+    fn r311_lean_value_endpoint(value: crate::ValueEndpointKey, session: u64) -> String {
+        use crate::ValueEndpointKey as V;
+        match value {
+            V::BottomPositive => "ValueEndpoint.bottomPositive".into(),
+            V::BottomNegative => "ValueEndpoint.bottomNegative".into(),
+            V::TopNegative => "ValueEndpoint.topNegative".into(),
+            V::IntPositive => "ValueEndpoint.intPositive".into(),
+            V::IntNegative => "ValueEndpoint.intNegative".into(),
+            V::UnitPositive => "ValueEndpoint.unitPositive".into(),
+            V::BoolPositive => "ValueEndpoint.boolPositive".into(),
+            V::StrPositive => "ValueEndpoint.strPositive".into(),
+            V::UnitNegative => "ValueEndpoint.unitNegative".into(),
+            V::BoolNegative => "ValueEndpoint.boolNegative".into(),
+            V::StrNegative => "ValueEndpoint.strNegative".into(),
+            V::ValueRow(row) => format!("ValueEndpoint.row {session} {row}"),
+            V::PositiveFunction(term) => format!("ValueEndpoint.term {session} {} {}", r311_lean_string("PositiveFunction"), r311_lean_string(&format!("{term:?}"))),
+            V::NegativeFunction(term) => format!("ValueEndpoint.term {session} {} {}", r311_lean_string("NegativeFunction"), r311_lean_string(&format!("{term:?}"))),
+            V::PositiveVariant(term) => format!("ValueEndpoint.term {session} {} {}", r311_lean_string("PositiveVariant"), r311_lean_string(&format!("{term:?}"))),
+            V::NegativeVariant(term) => format!("ValueEndpoint.term {session} {} {}", r311_lean_string("NegativeVariant"), r311_lean_string(&format!("{term:?}"))),
+            V::PositiveRecord(term) => format!("ValueEndpoint.term {session} {} {}", r311_lean_string("PositiveRecord"), r311_lean_string(&format!("{term:?}"))),
+            V::NegativeRecord(term) => format!("ValueEndpoint.term {session} {} {}", r311_lean_string("NegativeRecord"), r311_lean_string(&format!("{term:?}"))),
+            V::PositiveTuple(term, index) => format!("ValueEndpoint.tuple {session} {} {} {index}", r311_lean_string("PositiveTuple"), r311_lean_string(&format!("{term:?}"))),
+            V::NegativeTuple(term, index) => format!("ValueEndpoint.tuple {session} {} {} {index}", r311_lean_string("NegativeTuple"), r311_lean_string(&format!("{term:?}"))),
+        }
+    }
+
+    fn r311_lean_effect_endpoint(effect: crate::EffectEndpointKey, session: u64) -> String {
+        use crate::EffectEndpointKey as E;
+        match effect {
+            E::BottomPositive => "EffectEndpoint.bottomPositive".into(),
+            E::EmptyNegative => "EffectEndpoint.emptyNegative".into(),
+            #[cfg(feature = "shadow-apply-candidate")]
+            E::Contribution(index) => format!("EffectEndpoint.contribution {session} {index}"),
+            #[cfg(feature = "shadow-apply-candidate")]
+            E::Allowance(index) => format!("EffectEndpoint.allowance {session} {index}"),
+            #[cfg(feature = "shadow-apply-candidate")]
+            E::Support(index) => format!("EffectEndpoint.support {session} {index}"),
+            #[cfg(feature = "shadow-apply-candidate")]
+            E::AnnotationMember(owner, member) => format!("EffectEndpoint.annotationMember {session} {owner} {member}"),
+            E::EffectRow(row) => format!("EffectEndpoint.row {session} {row}"),
+        }
+    }
+
+    fn r311_lean_endpoint(endpoint: crate::ExtrusionEndpoint, session: u64) -> String {
+        match endpoint {
+            crate::ExtrusionEndpoint::Value(value) => format!("Endpoint.value ({})", r311_lean_value_endpoint(value, session)),
+            crate::ExtrusionEndpoint::Effect(effect) => format!("Endpoint.effect ({})", r311_lean_effect_endpoint(effect, session)),
+        }
+    }
+
+    fn r311_lean_bound(bound: crate::candidate_effect::BoundKey, session: u64) -> String {
+        let polarity = match bound.1 {
+            Polarity::Positive => "Polarity.positive",
+            Polarity::Negative => "Polarity.negative",
+        };
+        format!("{{ owner := {}, side := {}, item := {} }}", r311_lean_endpoint(bound.0, session), polarity, r311_lean_endpoint(bound.2, session))
+    }
+
+    fn r311_lean_pair(pair: crate::TypedPairKey, session: u64) -> String {
+        match pair {
+            crate::TypedPairKey::Value(pair) => format!("TypedPair.value ({}) ({})",
+                r311_lean_value_endpoint(pair.lower, session), r311_lean_value_endpoint(pair.upper, session)),
+            crate::TypedPairKey::Effect { lower, upper } => format!("TypedPair.effect ({}) ({})",
+                r311_lean_effect_endpoint(lower, session), r311_lean_effect_endpoint(upper, session)),
+        }
+    }
+
     #[test]
     fn nested_member_source_instances_keep_the_actual_freshuse_crosswalk() {
         use crate::candidate_scheme::{DispatchContextNode, DispatchRoute};
@@ -4586,14 +4658,25 @@ mod tests {
         )
     }
 
-    #[derive(Clone, Copy)]
     struct R310ChainEvidence {
+        source_outer_id: HirOccurrenceId,
+        source_group_id: HirOccurrenceId,
+        source_inner_id: HirOccurrenceId,
+        source_outer_callee_id: HirOccurrenceId,
+        source_inner_callee_id: HirOccurrenceId,
         inner_call_replay: crate::candidate_context::RelationId,
         inner_parent: crate::candidate_context::RelationId,
         inner_seed: crate::candidate_context::RelationId,
         inner_lower_bound: crate::candidate_effect::BoundKey,
         inner_upper_bound: crate::candidate_effect::BoundKey,
         inner_callee_seed: crate::candidate_context::RelationId,
+        outer_callee_seed: crate::candidate_context::RelationId,
+        fresh_antecedent: crate::candidate_context::EvidenceSnapshotId,
+        fresh_use_origin: usize,
+        fresh_source_bound: crate::candidate_effect::BoundKey,
+        fresh_target_bound: crate::candidate_effect::BoundKey,
+        fresh_mapped_relation: crate::candidate_context::RelationId,
+        fresh_captured_evidence: usize,
         outer_call_replay: crate::candidate_context::RelationId,
         outer_seed: crate::candidate_context::RelationId,
         outer_upper_bound: crate::candidate_effect::BoundKey,
@@ -4602,12 +4685,14 @@ mod tests {
         result_replay_child: crate::candidate_context::RelationId,
         group_replay: crate::candidate_context::RelationId,
         outer_argument_port: crate::candidate_context::RelationId,
+        final_replay: crate::candidate_context::RelationId,
     }
 
     #[test]
     fn r310_nested_call_replay_has_source_owned_parents_and_group_path() {
         use crate::candidate_context::Dependency;
-        let hir = local_source_module("my id x = x\nmy answer = id (id 1)");
+        let source_text = "my id x = x\nmy answer = id (id 1)";
+        let hir = local_source_module(source_text);
         let mut candidate = CandidateInference::solve(hir.clone()).unwrap();
         let validate = |candidate: &CandidateInference| {
         let graph = candidate.solved.data.candidate_graph.as_ref().unwrap();
@@ -4785,7 +4870,8 @@ mod tests {
             assert_eq!(target_bound, fresh_bound);
             assert!(context.fresh_use_fiber_emission(antecedent, source_bound, use_origin, fresh, target_bound).is_some(),
                 "exact FreshUse tuple reaches its physical emission");
-            (child, lower, upper, lower_input, upper_input, callee_seed)
+            (child, lower, upper, lower_input, upper_input, callee_seed,
+                antecedent, use_origin, source_bound, fresh_bound, mapped_relation, captured.evidence.0)
         };
 
         let inner_seed = direct_origin(&inner_expr.occurrence);
@@ -4793,8 +4879,11 @@ mod tests {
         let group_seed = direct_origin(&group_expr.occurrence);
         let truncated = candidate.source_occurrence_observation(&inner_expr.occurrence, 0).unwrap();
         assert!(!truncated.facts_complete() && !truncated.origins_complete(), "zero-row cap is rejected as incomplete");
-        let (inner_call_replay, inner_parent, _, inner_lower_bound, inner_upper_bound, inner_callee_seed) = source_parent(&inner, inner_seed);
-        let (outer_call_replay, outer_parent, _, outer_lower_bound, outer_upper_bound, _) = source_parent(&outer, outer_seed);
+        let (inner_call_replay, inner_parent, _, inner_lower_bound, inner_upper_bound, inner_callee_seed,
+            fresh_antecedent, fresh_use_origin, fresh_source_bound, fresh_target_bound,
+            fresh_mapped_relation, fresh_captured_evidence) = source_parent(&inner, inner_seed);
+        let (outer_call_replay, outer_parent, _, outer_lower_bound, outer_upper_bound, outer_callee_seed,
+            _, _, _, _, _, _) = source_parent(&outer, outer_seed);
         assert_ne!(inner_parent, outer_parent, "independent source Call owners");
         let inner_callee_row = row(inner.native_callee()).unwrap();
         let outer_callee_row = row(outer.native_callee()).unwrap();
@@ -4857,17 +4946,358 @@ mod tests {
         assert!(has_bound(inner_upper_bound, inner_seed));
         assert!(has_bound(outer_upper_bound, outer_seed));
         R310ChainEvidence {
+            source_outer_id: outer_expr.occurrence.clone(),
+            source_group_id: group_expr.occurrence.clone(),
+            source_inner_id: inner_expr.occurrence.clone(),
+            source_outer_callee_id: outer.callee_source().occurrence.clone(),
+            source_inner_callee_id: inner.callee_source().occurrence.clone(),
             inner_call_replay, inner_parent, inner_seed, inner_lower_bound, inner_upper_bound, inner_callee_seed,
+            outer_callee_seed,
+            fresh_antecedent, fresh_use_origin, fresh_source_bound,
+            fresh_target_bound,
+            fresh_mapped_relation: fresh_mapped_relation.expect("validated mapped relation"),
+            fresh_captured_evidence,
             outer_call_replay, outer_seed, outer_upper_bound,
             group_seed, result_port, result_replay_child: result_replay.0, group_replay,
-            outer_argument_port,
+            outer_argument_port, final_replay,
         }
         };
         let R310ChainEvidence {
+            source_outer_id, source_group_id, source_inner_id, source_outer_callee_id, source_inner_callee_id,
             inner_call_replay, inner_parent, inner_seed, inner_lower_bound, inner_upper_bound, inner_callee_seed,
+            outer_callee_seed,
+            fresh_antecedent, fresh_use_origin, fresh_source_bound, fresh_mapped_relation,
+            fresh_target_bound, fresh_captured_evidence,
             outer_call_replay, outer_seed, outer_upper_bound,
-            group_seed, result_port, result_replay_child, group_replay, outer_argument_port,
+            group_seed, result_port, result_replay_child, group_replay, outer_argument_port, final_replay,
         } = validate(&candidate);
+        // This export is downstream of the unchanged full same-HIR validator.
+        // It records an explicit per-export session domain: IDs are meaningful
+        // only inside this artifact and are not promised unique across runs.
+        let graph = candidate.solved.data.candidate_graph.as_ref().unwrap();
+        let context = &graph.intrusion.effect_algebra.context;
+        static NEXT_R311_EXPORT_SESSION: std::sync::atomic::AtomicU64 =
+            std::sync::atomic::AtomicU64::new(1);
+        let export_session = NEXT_R311_EXPORT_SESSION.fetch_update(
+            std::sync::atomic::Ordering::Relaxed,
+            std::sync::atomic::Ordering::Relaxed,
+            |current| current.checked_add(1),
+        ).expect("R311 export-session domain does not wrap");
+        let hir_occurrences = [
+            ("outerApply", &source_outer_id, outer_seed),
+            ("groupArgument", &source_group_id, group_seed),
+            ("innerApply", &source_inner_id, inner_seed),
+            ("outerCallee", &source_outer_callee_id, outer_callee_seed),
+            ("innerCallee", &source_inner_callee_id, inner_callee_seed),
+        ];
+        let answer = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "answer" => Some(binding),
+            _ => None,
+        }).expect("validated source answer binding");
+        assert!(hir.owns_definition_root(answer.definition_root()));
+        for (_, occurrence, _) in hir_occurrences {
+            assert!(hir.owns_occurrence(occurrence), "exported HIR occurrence belongs to the validated artifact");
+        }
+        let file_key = answer.id().module().file().key();
+        let source_revision = format!("{:?}", hir.source_revision());
+        let definition_spelling = answer.id().spelling();
+        let definition_ordinal = answer.id().same_name_ordinal();
+
+        // Enumerate the full retained relation table independently of the
+        // selected dependency references; this is the reference owner used by
+        // every Lean membership and signed-composition check below.
+        let relation_rows = context.observed_relations().map(|(index, pair, _flow)| {
+            let relation = crate::candidate_context::RelationId(
+                u32::try_from(index).expect("retained relation index fits RelationId"));
+            let context_id = context.relation_context(relation).expect("enumerated relation has a context");
+            (index, *pair, context_id.0)
+        }).collect::<Vec<_>>();
+
+        let relation_ref = |index: usize| format!("{{ kind := RefKind.relation, session := {export_session}, ordinal := {index} }}");
+        let context_ref = |index: u32| format!("{{ kind := RefKind.context, session := {export_session}, ordinal := {index} }}");
+        let captured_ref = |index: usize| format!("{{ kind := RefKind.capturedEvidence, session := {export_session}, ordinal := {index} }}");
+        let imported_ref = |index: usize| format!("{{ kind := RefKind.importedEvidence, session := {export_session}, ordinal := {index} }}");
+        let use_ref = |index: usize| format!("{{ kind := RefKind.useOrigin, session := {export_session}, ordinal := {index} }}");
+        let source_ref = |occurrence: &HirOccurrenceId| format!(
+            "{{ session := {export_session}, owner := sourceOwner, occurrence := {} }}", occurrence.ordinal());
+        let replay_record = |wanted_child| {
+            let mut records = context.observed_dependencies().filter_map(|dependency| match *dependency {
+                Dependency::Replay { child, lower, upper, lower_input, upper_input } if child == wanted_child =>
+                    Some((child, lower, upper, lower_input, upper_input)),
+                _ => None,
+            });
+            let record = records.next().expect("exported Replay is retained");
+            assert!(records.next().is_none(), "exported Replay child is unique");
+            record
+        };
+        let selected_replays = [
+            ("innerCall", &source_inner_id, replay_record(inner_call_replay)),
+            ("resultReplay", &source_inner_id, replay_record(result_replay_child)),
+            ("groupReplay", &source_group_id, replay_record(group_replay)),
+            ("outerArgumentReplay", &source_outer_id, replay_record(final_replay)),
+        ];
+        let selected_ports = [
+            ("result", &source_inner_id, result_port, inner_call_replay,
+                FunctionField::Result, crate::candidate_context::FunctionPortOperation::Preserve),
+            ("argument", &source_outer_id, outer_argument_port, outer_call_replay,
+                FunctionField::Argument, crate::candidate_context::FunctionPortOperation::Swap),
+        ];
+        for (_, source, child, parent, field, operation) in selected_ports {
+            assert!(context.observed_dependencies().any(|dependency| matches!(*dependency,
+                Dependency::FunctionPort { child: actual_child, parent: actual_parent,
+                    field: actual_field, operation: actual_operation }
+                    if actual_child == child && actual_parent == parent
+                        && actual_field == field && actual_operation == operation)));
+            assert!(hir.owns_occurrence(source));
+        }
+
+        // The selected callee route owns the actual captured evidence table
+        // and its remap; preserve every row and separately mark imported IDs.
+        let mut inner_routes = graph.routes.iter().filter(|route|
+            route.use_id.occurrence() == &source_inner_callee_id);
+        let inner_route = inner_routes.next().expect("validated inner callee FreshUse route");
+        assert!(inner_routes.next().is_none());
+        let mut evidence_remap = HashMap::<usize, usize>::new();
+        inner_route.retained.observe_map_entries(|name, entry| {
+            if name == "evidence_remap" {
+                if let Some(CandidateFreshUseMapEntry::EvidenceSnapshot { index, snapshot }) = entry {
+                    evidence_remap.insert(index, snapshot);
+                }
+            }
+        });
+        assert_eq!(inner_route.graph.bound_evidence.get(fresh_captured_evidence).map(|snapshot|
+            (*snapshot, evidence_remap.get(&fresh_captured_evidence).copied())),
+            Some((
+                inner_route.graph.bound_evidence[fresh_captured_evidence],
+                Some(fresh_antecedent.0),
+            )), "captured snapshot maps to the exact validated FreshUse antecedent");
+
+        println!("R311_LEAN_EXPORT_BEGIN");
+        println!("import Std");
+        println!("-- Source owner fields are stable provenance, not equality for the private runtime HIR token.");
+        println!("-- The Rust validator checks actual same-HIR ownership before this finite export.");
+        println!("def exportSession : Nat := {export_session}");
+        println!("inductive RefKind where");
+        println!("  | relation | context | capturedEvidence | importedEvidence | useOrigin");
+        println!("  deriving DecidableEq, Repr");
+        println!("structure Ref where");
+        println!("  kind : RefKind");
+        println!("  session : Nat");
+        println!("  ordinal : Nat");
+        println!("  deriving DecidableEq, Repr");
+        println!("structure SourceOwner where");
+        println!("  realm : String");
+        println!("  path : String");
+        println!("  definition : String");
+        println!("  definitionOrdinal : Nat");
+        println!("  sourceRevision : String");
+        println!("  sourceText : String");
+        println!("  deriving DecidableEq, Repr");
+        println!("structure SourceRef where");
+        println!("  session : Nat");
+        println!("  owner : SourceOwner");
+        println!("  occurrence : Nat");
+        println!("  deriving DecidableEq, Repr");
+        println!("inductive ValueEndpoint where");
+        for name in ["bottomPositive", "bottomNegative", "topNegative", "intPositive", "intNegative", "unitPositive", "boolPositive", "strPositive", "unitNegative", "boolNegative", "strNegative"] {
+            println!("  | {name}");
+        }
+        println!("  | row (session index : Nat)");
+        println!("  | term (session : Nat) (kind identity : String)");
+        println!("  | tuple (session : Nat) (kind identity : String) (index : Nat)");
+        println!("  deriving DecidableEq, Repr");
+        println!("inductive EffectEndpoint where");
+        println!("  | bottomPositive | emptyNegative");
+        println!("  | contribution (session index : Nat) | allowance (session index : Nat) | support (session index : Nat)");
+        println!("  | annotationMember (session owner member : Nat) | row (session index : Nat)");
+        println!("  deriving DecidableEq, Repr");
+        println!("inductive Endpoint where");
+        println!("  | value (endpoint : ValueEndpoint)");
+        println!("  | effect (endpoint : EffectEndpoint)");
+        println!("  deriving DecidableEq, Repr");
+        println!("inductive Polarity where");
+        println!("  | positive | negative");
+        println!("  deriving DecidableEq, Repr");
+        println!("structure BoundKey where");
+        println!("  owner : Endpoint");
+        println!("  side : Polarity");
+        println!("  item : Endpoint");
+        println!("  deriving DecidableEq, Repr");
+        println!("inductive TypedPair where");
+        println!("  | value (lower upper : ValueEndpoint)");
+        println!("  | effect (lower upper : EffectEndpoint)");
+        println!("  deriving DecidableEq, Repr");
+        println!("structure RelationSnapshot where");
+        println!("  id : Ref");
+        println!("  pair : TypedPair");
+        println!("  context : Ref");
+        println!("  deriving DecidableEq, Repr");
+        println!("structure SourceOccurrence where");
+        println!("  ref : SourceRef");
+        println!("  role : String");
+        println!("  relation : Ref");
+        println!("  deriving DecidableEq, Repr");
+        println!("structure ReplayEdge where");
+        println!("  source : SourceRef");
+        println!("  child : Ref");
+        println!("  lower : Ref");
+        println!("  upper : Ref");
+        println!("  lowerInput : BoundKey");
+        println!("  upperInput : BoundKey");
+        println!("  deriving DecidableEq, Repr");
+        println!("inductive FunctionField where");
+        println!("  | result | argument | resultEffect | argumentEffect");
+        println!("  deriving DecidableEq, Repr");
+        println!("inductive FunctionOperation where");
+        println!("  | preserve | swap");
+        println!("  deriving DecidableEq, Repr");
+        println!("structure FunctionPort where");
+        println!("  source : SourceRef");
+        println!("  child : Ref");
+        println!("  parent : Ref");
+        println!("  pair : TypedPair");
+        println!("  field : FunctionField");
+        println!("  operation : FunctionOperation");
+        println!("  deriving DecidableEq, Repr");
+        println!("structure EvidenceSnapshot where");
+        println!("  captured : Ref");
+        println!("  imported : Option Ref");
+        println!("  sourceBound : BoundKey");
+        println!("  relation : Option Ref");
+        println!("  context : Option Ref");
+        println!("  coverage : String");
+        println!("  deriving DecidableEq, Repr");
+        println!("structure FreshUse where");
+        println!("  source : SourceRef");
+        println!("  antecedent : Ref");
+        println!("  capturedSnapshot : Ref");
+        println!("  useOrigin : Ref");
+        println!("  mappedRelation : Ref");
+        println!("  sourceBound : BoundKey");
+        println!("  targetBound : BoundKey");
+        println!("  deriving DecidableEq, Repr");
+        println!("def sourceOwner : SourceOwner := {{ realm := {}, path := {}, definition := {}, definitionOrdinal := {}, sourceRevision := {}, sourceText := {} }}",
+            r311_lean_string(file_key.realm()), r311_lean_string(file_key.normalized_workspace_relative_path()),
+            r311_lean_string(definition_spelling), definition_ordinal, r311_lean_string(&source_revision),
+            r311_lean_string(source_text));
+        println!("def sourceOccurrences : List SourceOccurrence := [");
+        for (role, occurrence, relation) in hir_occurrences {
+            println!("  {{ ref := {{ session := exportSession, owner := sourceOwner, occurrence := {} }}, role := {}, relation := {} }},",
+                occurrence.ordinal(), r311_lean_string(role), relation_ref(relation.0 as usize));
+        }
+        println!("]");
+        println!("def relationSnapshots : List RelationSnapshot := [");
+        for (index, pair, context_id) in &relation_rows {
+            println!("  {{ id := {}, pair := {}, context := {} }},",
+                relation_ref(*index), r311_lean_pair(*pair, export_session), context_ref(*context_id));
+        }
+        println!("]");
+        println!("def replayEdges : List ReplayEdge := [");
+        for (_role, occurrence, (child, lower, upper, lower_input, upper_input)) in &selected_replays {
+            println!("  {{ source := {}, child := {}, lower := {}, upper := {}, lowerInput := {}, upperInput := {} }},",
+                source_ref(occurrence), relation_ref(child.0 as usize), relation_ref(lower.0 as usize),
+                relation_ref(upper.0 as usize), r311_lean_bound(*lower_input, export_session), r311_lean_bound(*upper_input, export_session));
+        }
+        println!("]");
+        println!("def functionPorts : List FunctionPort := [");
+        for (_role, occurrence, child, parent, field, operation) in selected_ports {
+            let field = match field {
+                FunctionField::Result => "FunctionField.result",
+                FunctionField::Argument => "FunctionField.argument",
+                FunctionField::ResultEffect => "FunctionField.resultEffect",
+                FunctionField::ArgumentEffect => "FunctionField.argumentEffect",
+            };
+            let operation = match operation {
+                crate::candidate_context::FunctionPortOperation::Preserve => "FunctionOperation.preserve",
+                crate::candidate_context::FunctionPortOperation::Swap => "FunctionOperation.swap",
+            };
+            println!("  {{ source := {}, child := {}, parent := {}, pair := {}, field := {}, operation := {} }},",
+                source_ref(occurrence), relation_ref(child.0 as usize), relation_ref(parent.0 as usize),
+                r311_lean_pair(context.observed_pair(child).expect("FunctionPort child has retained typed pair"), export_session),
+                field, operation);
+        }
+        println!("]");
+        println!("def evidenceSnapshots : List EvidenceSnapshot := [");
+        for (index, snapshot) in inner_route.graph.bound_evidence.iter().enumerate() {
+            let imported = evidence_remap.get(&index).map(|imported| format!("some {}", imported_ref(*imported)) )
+                .unwrap_or_else(|| "none".into());
+            let relation = snapshot.relation.map(|relation| format!("some {}", relation_ref(relation.0 as usize)))
+                .unwrap_or_else(|| "none".into());
+            let context = snapshot.relation.map(|relation| context_ref(context.relation_context(relation).expect("snapshot relation context").0))
+                .map(|context| format!("some {context}")).unwrap_or_else(|| "none".into());
+            println!("  {{ captured := {}, imported := {}, sourceBound := {}, relation := {}, context := {}, coverage := {} }},",
+                captured_ref(index), imported, r311_lean_bound(snapshot.source_bound, export_session), relation, context,
+                r311_lean_string(&format!("{:?}", snapshot.coverage)));
+        }
+        println!("]");
+        println!("def freshUse : FreshUse := {{ source := {}, antecedent := {}, capturedSnapshot := {}, useOrigin := {}, mappedRelation := {}, sourceBound := {}, targetBound := {} }}",
+            source_ref(&source_inner_callee_id), imported_ref(fresh_antecedent.0),
+            captured_ref(fresh_captured_evidence), use_ref(fresh_use_origin),
+            relation_ref(fresh_mapped_relation.0 as usize), r311_lean_bound(fresh_source_bound, export_session),
+            r311_lean_bound(fresh_target_bound, export_session));
+        println!("def sourceRefExists (sources : List SourceOccurrence) (source : SourceRef) : Bool := sources.any (fun row => row.ref == source)");
+        println!("def relationRow (relations : List RelationSnapshot) (ref : Ref) : Option RelationSnapshot := relations.find? (fun row => row.id == ref)");
+        println!("def relationPair (relations : List RelationSnapshot) (ref : Ref) : Option TypedPair := (relationRow relations ref).map (fun row => row.pair)");
+        println!("def relationRefValid (relations : List RelationSnapshot) (ref : Ref) : Bool := ref.kind == RefKind.relation && ref.session == exportSession && ((relationRow relations ref).map (fun row => row.context.kind == RefKind.context && row.context.session == exportSession)).getD false");
+        println!("def optionalEvidenceRefValid (ref : Option Ref) : Bool := match ref with | none => true | some ref => ref.kind == RefKind.importedEvidence && ref.session == exportSession");
+        println!("def boundPair (bound : BoundKey) : Option TypedPair := match bound.owner, bound.item with");
+        println!("  | Endpoint.value owner, Endpoint.value item => some (if bound.side == Polarity.positive then TypedPair.value item owner else TypedPair.value owner item)");
+        println!("  | Endpoint.effect owner, Endpoint.effect item => some (if bound.side == Polarity.positive then TypedPair.effect item owner else TypedPair.effect owner item)");
+        println!("  | _, _ => none");
+        println!("def itemPair (lower upper : Endpoint) : Option TypedPair := match lower, upper with");
+        println!("  | Endpoint.value lower, Endpoint.value upper => some (TypedPair.value lower upper)");
+        println!("  | Endpoint.effect lower, Endpoint.effect upper => some (TypedPair.effect lower upper)");
+        println!("  | _, _ => none");
+        println!("def replayValidOn (relations : List RelationSnapshot) (sources : List SourceOccurrence) (edge : ReplayEdge) : Bool :=");
+        println!("  edge.source.session == exportSession && sourceRefExists sources edge.source &&");
+        println!("  [edge.child, edge.lower, edge.upper].all (relationRefValid relations) &&");
+        println!("  edge.lowerInput.side == Polarity.positive && edge.upperInput.side == Polarity.negative &&");
+        println!("  edge.lowerInput.owner == edge.upperInput.owner &&");
+        println!("  relationPair relations edge.lower == boundPair edge.lowerInput &&");
+        println!("  relationPair relations edge.upper == boundPair edge.upperInput &&");
+        println!("  relationPair relations edge.child == itemPair edge.lowerInput.item edge.upperInput.item");
+        println!("def functionPortValidOn (relations : List RelationSnapshot) (sources : List SourceOccurrence) (port : FunctionPort) : Bool :=");
+        println!("  port.source.session == exportSession && sourceRefExists sources port.source &&");
+        println!("  relationRefValid relations port.child && relationRefValid relations port.parent &&");
+        println!("  relationPair relations port.child == some port.pair");
+        println!("def evidenceSnapshotValidOn (relations : List RelationSnapshot) (row : EvidenceSnapshot) : Bool :=");
+        println!("  row.captured.kind == RefKind.capturedEvidence && row.captured.session == exportSession && optionalEvidenceRefValid row.imported &&");
+        println!("  (match row.relation with");
+        println!("    | none => row.context.isNone");
+        println!("    | some ref => relationRefValid relations ref && relationPair relations ref == boundPair row.sourceBound &&");
+        println!("        (relationRow relations ref).map (fun retained => row.context == some retained.context) == some true)");
+        println!("def freshUseValidOn (relations : List RelationSnapshot) (sources : List SourceOccurrence) (snapshots : List EvidenceSnapshot) (fresh : FreshUse) : Bool :=");
+        println!("  fresh.source.session == exportSession && sourceRefExists sources fresh.source &&");
+        println!("  fresh.antecedent.kind == RefKind.importedEvidence && fresh.capturedSnapshot.kind == RefKind.capturedEvidence && fresh.useOrigin.kind == RefKind.useOrigin &&");
+        println!("  [fresh.antecedent, fresh.capturedSnapshot, fresh.useOrigin].all (fun ref => ref.session == exportSession) &&");
+        println!("  relationRefValid relations fresh.mappedRelation &&");
+        println!("  ((snapshots.find? (fun row => row.captured == fresh.capturedSnapshot)).map (fun row => evidenceSnapshotValidOn relations row && row.imported == some fresh.antecedent && row.sourceBound == fresh.sourceBound && row.relation.isSome)).getD false &&");
+        println!("  (relationPair relations fresh.mappedRelation == boundPair fresh.targetBound)");
+        println!("def allReplaysValid : Bool := replayEdges.all (replayValidOn relationSnapshots sourceOccurrences)");
+        println!("def allFunctionPortsRetained : Bool := functionPorts.all (functionPortValidOn relationSnapshots sourceOccurrences)");
+        println!("def freshUseRetained : Bool := freshUseValidOn relationSnapshots sourceOccurrences evidenceSnapshots freshUse");
+        println!("theorem selected_replays_resolve_with_signed_composition : allReplaysValid = true := by decide");
+        println!("theorem selected_function_ports_resolve : allFunctionPortsRetained = true := by decide");
+        println!("theorem freshuse_snapshot_and_target_resolve : freshUseRetained = true := by decide");
+        println!("theorem all_exported_snapshot_rows_match_actual_relation_pairs : evidenceSnapshots.all (evidenceSnapshotValidOn relationSnapshots) = true := by decide");
+        println!("theorem source_refs_keep_the_export_owner : sourceOccurrences.all (fun row => row.ref.session == exportSession && row.ref.owner == sourceOwner) = true := by decide");
+        println!("def foreignRef : Ref := {{ kind := RefKind.relation, session := exportSession + 1, ordinal := 0 }}");
+        println!("def missingRef : Ref := {{ kind := RefKind.relation, session := exportSession, ordinal := relationSnapshots.length }}");
+        println!("theorem foreign_ref_rejected : (relationRow relationSnapshots foreignRef).isNone := by decide");
+        println!("theorem missing_ref_rejected : (relationRow relationSnapshots missingRef).isNone := by decide");
+        println!("def foreignChildRejected : Bool := match replayEdges.head? with | none => false | some edge => !(replayValidOn relationSnapshots sourceOccurrences {{ edge with child := foreignRef }})");
+        println!("def missingChildRejected : Bool := match replayEdges.head? with | none => false | some edge => !(replayValidOn relationSnapshots sourceOccurrences {{ edge with child := missingRef }})");
+        println!("def foreignSourceRejected : Bool := match replayEdges.head? with | none => false | some edge => !(replayValidOn relationSnapshots sourceOccurrences {{ edge with source := {{ edge.source with session := exportSession + 1 }} }})");
+        println!("def wrongPolarityRejected : Bool := match replayEdges.head? with | none => false | some edge => !(replayValidOn relationSnapshots sourceOccurrences {{ edge with lowerInput := {{ edge.lowerInput with side := Polarity.negative }} }})");
+        println!("theorem foreign_replay_fails : foreignChildRejected = true := by decide");
+        println!("theorem missing_replay_fails : missingChildRejected = true := by decide");
+        println!("theorem cross_session_source_join_fails : foreignSourceRejected = true := by decide");
+        println!("theorem mutated_sign_fails : wrongPolarityRejected = true := by decide");
+        println!("def truncatedParentRejected : Bool := match replayEdges.head? with | none => false | some edge => !(replayValidOn (relationSnapshots.filter (fun row => row.id != edge.lower)) sourceOccurrences edge)");
+        println!("theorem truncated_parent_fails : truncatedParentRejected = true := by decide");
+        println!("def truncatedFreshUseRejected : Bool := !(freshUseValidOn relationSnapshots sourceOccurrences (evidenceSnapshots.filter (fun row => row.captured != freshUse.capturedSnapshot)) freshUse)");
+        println!("theorem truncated_snapshot_fails : truncatedFreshUseRejected = true := by decide");
+        println!("R311_LEAN_EXPORT_END");
         macro_rules! assert_chain_rejected {
             ($why:literal) => {{
                 let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| validate(&candidate)));
