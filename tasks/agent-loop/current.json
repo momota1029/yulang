@@ -655,19 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R340",
+    "id": "R341",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/original-ei-contract-r340.md",
-    "contract_sha256": "d89d9ecb374d1a4bf032a5189221a112027c1a1ef394bf9d2119101124543903",
-    "review_result": "tasks/agent-loop/history/20261104-ei-action-projection-r340-review.md",
-    "review_result_sha256": "b2749f4b7ce8f145d9f5797443cbfaac0ec5e88da8d948a6780fdec07f99b04b",
+    "contract": "tasks/agent-loop/sprints/original-use-pullback-r341.md",
+    "contract_sha256": "465777314a85a42098f8559868954dc28a947d1e81bee592be6065e08af64085",
+    "review_result": "tasks/agent-loop/history/20261104-original-use-pullback-r341-review.md",
+    "review_result_sha256": "a50ba7862ff64715e86383d889ab9ffb06e00831294b0bec1c9103763ad1c680",
     "previous_sprint": {
-      "id": "R339",
+      "id": "R340",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/source-witness-integration-r339.md",
-      "contract_sha256": "e2d2b87031854fd7e6ebf591aec3f9d28859df29992a7dd378338f125d924672",
-      "review_result": "tasks/agent-loop/history/20261103-parametric-ei-witness-r339-review.md",
-      "review_result_sha256": "fe915e30d680b5fd94f32776f3a89f407bda815faa89944b41d157fe6c2cbb68"
+      "contract": "tasks/agent-loop/sprints/original-ei-contract-r340.md",
+      "contract_sha256": "d89d9ecb374d1a4bf032a5189221a112027c1a1ef394bf9d2119101124543903",
+      "review_result": "tasks/agent-loop/history/20261104-ei-action-projection-r340-review.md",
+      "review_result_sha256": "b2749f4b7ce8f145d9f5797443cbfaac0ec5e88da8d948a6780fdec07f99b04b"
     }
   },
   "lease_archive": {
