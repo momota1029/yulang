@@ -99,6 +99,12 @@ pub struct Machine {
     r323_template_observations: Vec<R323TemplateObservation>,
     #[cfg(test)]
     r323_owner_replay_observations: Vec<R323OwnerReplayObservation>,
+    #[cfg(test)]
+    r335_hole_response_observations: Vec<R335HoleResponseObservation>,
+    #[cfg(test)]
+    r335_receiver_return_observations: Vec<R335ReceiverReturnObservation>,
+    #[cfg(test)]
+    r335_selected_result_observations: Vec<R335SelectedResultObservation>,
     name_receipt_seed_trace: Option<String>,
     name_receipt_calls_truncated: bool,
     name_receipt_observation_unavailable: bool,
@@ -384,6 +390,46 @@ struct R323ResumeObservation {
     source: SourceSite,
     owner: ExecutionOwner,
     owner_live: bool,
+    step: usize,
+}
+
+/// Actual response identity consumed by the live continuation Hole.
+#[cfg(test)]
+#[derive(Clone, Copy)]
+struct R335HoleResponseObservation {
+    run_id: usize,
+    request: usize,
+    template: usize,
+    node: usize,
+    response: ReceivedValue,
+    owner: ExecutionOwner,
+    owner_live: bool,
+    step: usize,
+}
+
+/// Actual result returned through a receiver frame, including the activation
+/// and source provider that owned this return.
+#[cfg(test)]
+#[derive(Clone)]
+struct R335ReceiverReturnObservation {
+    run_id: usize,
+    activation: usize,
+    previous: ExecutionOwner,
+    owner_before_return: ExecutionOwner,
+    call: SourceSite,
+    provider: SourceSite,
+    received: ReceivedValue,
+    step: usize,
+}
+
+/// Exact cached selected-definition tuple consumed by completion.
+#[cfg(test)]
+#[derive(Clone, Copy)]
+struct R335SelectedResultObservation {
+    run_id: usize,
+    definition: usize,
+    received: ReceivedValue,
+    owner: ExecutionOwner,
     step: usize,
 }
 
@@ -1024,6 +1070,12 @@ impl RuntimeProgram {
             r323_template_observations: Vec::new(),
             #[cfg(test)]
             r323_owner_replay_observations: Vec::new(),
+            #[cfg(test)]
+            r335_hole_response_observations: Vec::new(),
+            #[cfg(test)]
+            r335_receiver_return_observations: Vec::new(),
+            #[cfg(test)]
+            r335_selected_result_observations: Vec::new(),
             name_receipt_seed_trace: None,
             name_receipt_calls_truncated: false,
             name_receipt_observation_unavailable: false,
@@ -2429,13 +2481,35 @@ impl Machine {
                 activation,
                 previous,
             } => {
-                self.leave_owner(ExecutionOwner::Invocation(activation), true, previous)?;
-                self.state = State::Return(ReceivedValue {
+                let returned = ReceivedValue {
                     dispatch: received.dispatch,
                     value: received.value,
                     interface: ParameterRole::Value,
                     view: received.view,
-                });
+                };
+                #[cfg(test)]
+                if let Some(invocation) = self.invocations.get(activation) {
+                    if self.r335_receiver_return_observations.len() < 1024
+                        && self.r335_receiver_return_observations.try_reserve(1).is_ok()
+                    {
+                        self.r335_receiver_return_observations.push(R335ReceiverReturnObservation {
+                            run_id: self as *const Machine as usize,
+                            activation,
+                            previous,
+                            owner_before_return: self.current_execution_owner(),
+                            call: invocation.call.clone(),
+                            provider: invocation.provider.clone(),
+                            received: returned,
+                            step: self.steps,
+                        });
+                    } else {
+                        self.r312_observations_truncated = true;
+                    }
+                } else {
+                    self.r312_observations_truncated = true;
+                }
+                self.leave_owner(ExecutionOwner::Invocation(activation), true, previous)?;
+                self.state = State::Return(returned);
             }
             Frame::ValueEntry {
                 parameter,
@@ -3072,6 +3146,23 @@ impl Machine {
             .ok_or(RuntimeUnavailable::InvalidSourceReference)?
         {
             TemplateNode::Hole => {
+                #[cfg(test)]
+                if self.r335_hole_response_observations.len() < 1024
+                    && self.r335_hole_response_observations.try_reserve(1).is_ok()
+                {
+                    self.r335_hole_response_observations.push(R335HoleResponseObservation {
+                        run_id: self as *const Machine as usize,
+                        request: self.resume_templates[template.0].original_event,
+                        template: template.0,
+                        node,
+                        response,
+                            owner: self.current_execution_owner(),
+                            owner_live: self.owner_active(self.current_execution_owner()),
+                        step: self.steps,
+                    });
+                } else {
+                    self.r312_observations_truncated = true;
+                }
                 self.state = State::Return(response);
                 return Ok(());
             }
@@ -3609,6 +3700,20 @@ impl Machine {
         // Schedule exhaustion retains the selected-definition entry contract:
         // use its cached cell, or evaluate its initializer as the final root.
         if let Some(value) = self.cells[selected] {
+            #[cfg(test)]
+            if self.r335_selected_result_observations.len() < 1024
+                && self.r335_selected_result_observations.try_reserve(1).is_ok()
+            {
+                self.r335_selected_result_observations.push(R335SelectedResultObservation {
+                    run_id: self as *const Machine as usize,
+                    definition: selected,
+                    received: value,
+                    owner: self.current_execution_owner(),
+                    step: self.steps,
+                });
+            } else {
+                self.r312_observations_truncated = true;
+            }
             self.state = State::Stopped(RuntimeOutcome::Completed(value.value));
         } else {
             self.initializing_globals.insert(selected);
@@ -5436,9 +5541,74 @@ mod module_expression_tests {
         {
             return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
         }
+        let hole_responses = machine.r335_hole_response_observations.iter().filter(|hole|
+            hole.request == request.request && hole.template == template_observation.template
+        ).collect::<Vec<_>>();
+        let [hole_response] = hole_responses.as_slice() else {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        };
+        let same_response = hole_response.response.value == response.response.value
+            && hole_response.response.view == response.response.view
+            && hole_response.response.interface == response.response.interface
+            && hole_response.response.dispatch == response.response.dispatch;
+        let last_owner_node = owner_nodes.iter().min().copied()
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        let last_owner_replay = owner_replays.iter().find(|replay| replay.node == last_owner_node)
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        if hole_response.run_id != run_id
+            || hole_response.node != 0
+            || hole_response.step <= response.step
+            || !hole_response.owner_live
+            || last_owner_replay.current_owner_after != hole_response.owner
+            || !same_response
+            || !matches!(template.nodes.get(hole_response.node), Some(TemplateNode::Hole))
+        {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        let receiver_returns = machine.r335_receiver_return_observations.iter().filter(|returned|
+            returned.activation == call.invocation
+        ).collect::<Vec<_>>();
+        let [receiver_return] = receiver_returns.as_slice() else {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        };
+        let invocation = machine.invocations.get(call.invocation)
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        if receiver_return.run_id != run_id
+            || receiver_return.owner_before_return != ExecutionOwner::Invocation(call.invocation)
+            || receiver_return.step <= hole_response.step
+            || !r323_same_site(&receiver_return.call, &call.call_site)
+            || !r323_same_site(&receiver_return.call, &invocation.call)
+            || !r323_same_site(&receiver_return.provider, &invocation.provider)
+            || receiver_return.received.interface != ParameterRole::Value
+            || !machine.receiving.matches_value(receiver_return.received.view, receiver_return.received.value)
+            || !matches!(machine.values.get(receiver_return.received.value.0).map(|value| &value.kind),
+                Some(RuntimeValueKind::Integer(number)) if number.as_ref() == "7")
+        {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        let selected_results = machine.r335_selected_result_observations.iter().filter(|selected|
+            selected.run_id == run_id
+        ).collect::<Vec<_>>();
+        let [selected_result] = selected_results.as_slice() else {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        };
+        let receiver_result_reaches_selection = selected_result.received.value == receiver_return.received.value
+            && selected_result.received.view == receiver_return.received.view
+            && selected_result.received.interface == receiver_return.received.interface
+            && selected_result.received.dispatch == receiver_return.received.dispatch;
+        if selected_result.definition != machine.selected.unwrap_or(usize::MAX)
+            || selected_result.step <= receiver_return.step
+            || !receiver_result_reaches_selection
+            || !matches!(machine.values.get(selected_result.received.value.0).map(|value| &value.kind),
+                Some(RuntimeValueKind::Integer(number)) if number.as_ref() == "7")
+        {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
         let request_site = r314_lean_runtime_site(machine, parsed, &request.source)?;
         let outer_site = r314_lean_runtime_site(machine, parsed, outer.1)?;
         let response_site = r314_lean_runtime_site(machine, parsed, &response.source)?;
+        let receiver_call_site = r314_lean_runtime_site(machine, parsed, &receiver_return.call)?;
+        let receiver_provider_site = r314_lean_runtime_site(machine, parsed, &receiver_return.provider)?;
         let operation = super::super::program::r314_lean_string(&request.declaration.spelling);
         let operation_identity = r314_lean_operation_identity(
             &SourceOperationResolution::Resolved(request.declaration.clone()), parsed)?
@@ -5454,6 +5624,14 @@ mod module_expression_tests {
             .replace("interface := Interface.", "interface := R314Artifact.Interface.");
         let response_runtime = r314_lean_runtime_value(machine, parsed, response.response.value.0,
             machine.values.get(response.response.value.0).ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?)?
+            .replace("ValueKind.", "R314Artifact.ValueKind.")
+            .replace("interface := Interface.", "interface := R314Artifact.Interface.");
+        let receiver_return_runtime = r314_lean_runtime_value(machine, parsed, receiver_return.received.value.0,
+            machine.values.get(receiver_return.received.value.0).ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?)?
+            .replace("ValueKind.", "R314Artifact.ValueKind.")
+            .replace("interface := Interface.", "interface := R314Artifact.Interface.");
+        let selected_result_runtime = r314_lean_runtime_value(machine, parsed, selected_result.received.value.0,
+            machine.values.get(selected_result.received.value.0).ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?)?
             .replace("ValueKind.", "R314Artifact.ValueKind.")
             .replace("interface := Interface.", "interface := R314Artifact.Interface.");
         let saved_frames = template_observation.saved_frame_order.iter()
@@ -5516,6 +5694,28 @@ mod module_expression_tests {
         let _ = writeln!(out, "def responseSite : R314Artifact.RuntimeSite := {response_site}");
         let _ = writeln!(out, "def responseOwner : R314Artifact.ExecutionOwner := {}", r323_lean_owner(response.owner));
         let _ = writeln!(out, "def responseOwnerWasLive : Bool := {}", response.owner_live);
+        let _ = writeln!(out, "def responseHoleNode : Nat := {}", hole_response.node);
+        let _ = writeln!(out, "def responseHoleOwner : R314Artifact.ExecutionOwner := {}", r323_lean_owner(hole_response.owner));
+        let _ = writeln!(out, "def responseHoleOwnerWasLive : Bool := {}", hole_response.owner_live);
+        let _ = writeln!(out, "def responseHoleStep : Nat := {}", hole_response.step);
+        let _ = writeln!(out, "def selectedReceiverActivation : Nat := {}", receiver_return.activation);
+        let _ = writeln!(out, "def selectedReceiverOwner : R314Artifact.ExecutionOwner := {}", r323_lean_owner(receiver_return.owner_before_return));
+        let _ = writeln!(out, "def selectedReceiverPreviousOwner : R314Artifact.ExecutionOwner := {}", r323_lean_owner(receiver_return.previous));
+        let _ = writeln!(out, "def selectedReceiverCallSite : R314Artifact.RuntimeSite := {receiver_call_site}");
+        let _ = writeln!(out, "def selectedReceiverProviderSite : R314Artifact.RuntimeSite := {receiver_provider_site}");
+        let _ = writeln!(out, "def selectedReceiverReturnValue : Nat := {}", receiver_return.received.value.0);
+        let _ = writeln!(out, "def selectedReceiverReturnView : Nat := {}", receiver_return.received.view.index());
+        let _ = writeln!(out, "def selectedReceiverReturnInterface : R314Artifact.Interface := R314Artifact.Interface.value");
+        let _ = writeln!(out, "def selectedReceiverReturnDispatch : Option Nat := {}", receiver_return.received.dispatch.map_or_else(|| "none".to_owned(), |dispatch| format!("some {dispatch}")));
+        let _ = writeln!(out, "def selectedReceiverReturnRuntimeValue : R314Artifact.RuntimeValue := {receiver_return_runtime}");
+        let _ = writeln!(out, "def selectedReceiverReturnStep : Nat := {}", receiver_return.step);
+        let _ = writeln!(out, "def selectedDefinitionResult : Nat := {}", selected_result.received.value.0);
+        let _ = writeln!(out, "def selectedDefinitionResultView : Nat := {}", selected_result.received.view.index());
+        let _ = writeln!(out, "def selectedDefinitionResultOwner : R314Artifact.ExecutionOwner := {}", r323_lean_owner(selected_result.owner));
+        let _ = writeln!(out, "def selectedDefinitionResultInterface : R314Artifact.Interface := R314Artifact.Interface.value");
+        let _ = writeln!(out, "def selectedDefinitionResultDispatch : Option Nat := {}", selected_result.received.dispatch.map_or_else(|| "none".to_owned(), |dispatch| format!("some {dispatch}")));
+        let _ = writeln!(out, "def selectedDefinitionResultRuntimeValue : R314Artifact.RuntimeValue := {selected_result_runtime}");
+        let _ = writeln!(out, "def selectedDefinitionResultStep : Nat := {}", selected_result.step);
         out.push_str("structure OwnerReplay where\n  node : Nat\n  original : R314Artifact.ExecutionOwner\n  resolved : R314Artifact.ExecutionOwner\n  resolvedWasActive : Bool\n  owner : R314Artifact.ExecutionOwner\n  owned : Bool\n  previous : R314Artifact.ExecutionOwner\n  ownerLive : Bool\n  currentOwnerAfter : R314Artifact.ExecutionOwner\n  control : List (Nat × Nat)\n  callSite : Option R314Artifact.RuntimeSite\n  providerSite : Option R314Artifact.RuntimeSite\n  deriving Repr\n");
         let _ = writeln!(out, "def ownerReplay : List OwnerReplay := [{}]", owner_replay_rows);
         out.push_str("end R323Artifact\n");
@@ -5589,6 +5789,12 @@ mod module_expression_tests {
         assert!(r323.contains("R323Frame.callee"));
         assert!(r323.contains("codeLabel := "));
         assert!(r323.contains("R314Artifact.ExecutionOwner.invocation"));
+        assert!(r323.contains("def responseHoleNode : Nat := 0"));
+        assert!(r323.contains("def responseHoleOwnerWasLive : Bool := true"));
+        assert!(r323.contains(&format!("def selectedReceiverActivation : Nat := {}", call.invocation)));
+        assert!(r323.contains("def selectedReceiverReturnValue : Nat := "));
+        assert!(r323.contains("def selectedReceiverReturnRuntimeValue : R314Artifact.RuntimeValue := "));
+        assert!(r323.contains("def selectedDefinitionResultRuntimeValue : R314Artifact.RuntimeValue := "));
         let request_source = machine.r323_request_observations[0].source.clone();
         machine.r323_request_observations[0].source.range.start += 1;
         assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
@@ -5613,6 +5819,61 @@ mod module_expression_tests {
         assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
             "a different same-shaped response value is rejected");
         machine.r323_resume_observations[0].response = response;
+        let alternate_response_view = machine.receiving.ground(response.value);
+        assert_ne!(alternate_response_view, response.view,
+            "the same response value can have a distinct valid receiving view");
+        machine.r323_resume_observations[0].response.view = alternate_response_view;
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "the response view must match the identity actually consumed at Hole");
+        machine.r323_resume_observations[0].response = response;
+        let hole_response = machine.r335_hole_response_observations[0];
+        machine.r335_hole_response_observations[0].response.view = alternate_response_view;
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "a mutated Hole receipt cannot authenticate a different response view");
+        machine.r335_hole_response_observations[0] = hole_response;
+        let hole_responses = std::mem::take(&mut machine.r335_hole_response_observations);
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "missing actual Hole response evidence is rejected");
+        machine.r335_hole_response_observations = hole_responses;
+        let receiver_return_index = machine.r335_receiver_return_observations.iter()
+            .position(|returned| returned.activation == call.invocation)
+            .expect("the resumed receiver has an actual Return observation");
+        let receiver_return = machine.r335_receiver_return_observations[receiver_return_index].clone();
+        machine.r335_receiver_return_observations[receiver_return_index].activation += 1000;
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "a selected receiver result from another activation is rejected");
+        machine.r335_receiver_return_observations[receiver_return_index] = receiver_return;
+        let receiver_return = machine.r335_receiver_return_observations[receiver_return_index].clone();
+        machine.r335_receiver_return_observations[receiver_return_index].call = call.callee_site.clone();
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "a receiver Return from another source Call is rejected");
+        machine.r335_receiver_return_observations[receiver_return_index] = receiver_return;
+        let receiver_return_run = machine.r335_receiver_return_observations[receiver_return_index].run_id;
+        machine.r335_receiver_return_observations[receiver_return_index].run_id = usize::MAX;
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "a receiver Return receipt from another run is rejected");
+        machine.r335_receiver_return_observations[receiver_return_index].run_id = receiver_return_run;
+        let receiver_returns = std::mem::take(&mut machine.r335_receiver_return_observations);
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "missing actual receiver Return evidence is rejected");
+        machine.r335_receiver_return_observations = receiver_returns;
+        let receiver_return = machine.r335_receiver_return_observations[receiver_return_index].clone();
+        let alternate_result_view = machine.receiving.ground(receiver_return.received.value);
+        assert_ne!(alternate_result_view, receiver_return.received.view,
+            "the same returned value can have a distinct valid receiving view");
+        machine.r335_receiver_return_observations[receiver_return_index].received.view = alternate_result_view;
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "a same-value alternate receiver result view must disagree with terminal completion");
+        machine.r335_receiver_return_observations[receiver_return_index] = receiver_return;
+        let selected_result = machine.r335_selected_result_observations[0];
+        machine.r335_selected_result_observations[0].received.view = alternate_result_view;
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "a same-value alternate selected-definition result view is rejected");
+        machine.r335_selected_result_observations[0] = selected_result;
+        let selected_results = std::mem::take(&mut machine.r335_selected_result_observations);
+        assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
+            "missing selected-definition completion evidence is rejected");
+        machine.r335_selected_result_observations = selected_results;
         let response_template = machine.r323_resume_observations[0].template;
         machine.r323_resume_observations[0].template = usize::MAX;
         assert!(r323_lean_operation_artifact(&machine, call, &parsed, source).is_err(),
