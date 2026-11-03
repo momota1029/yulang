@@ -655,19 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R322",
+    "id": "R323",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/original-callee-request-r322.md",
-    "contract_sha256": "5d8a404152d8b442fbad3e8acd83219aef9a2cb72096e0009fc56baf0f258f20",
-    "review_result": "tasks/agent-loop/history/20261103-original-callee-request-r322-review.md",
-    "review_result_sha256": "1e3bf2d1c376381154bc930ca9557565f2ced43aea6aeb9acc8589dfbefe90f9",
+    "contract": "tasks/agent-loop/sprints/source-operation-interpretation-r323.md",
+    "contract_sha256": "8e9fd4bba658cc441a1c68af82af5fb50e8fe9f27cabef49b7c9978c4dad4854",
+    "review_result": "tasks/agent-loop/history/20261103-source-operation-interpretation-r323-review.md",
+    "review_result_sha256": "c0643eca9510fd29c2b5d21c3e2084958fefb0c9130c683e078d840a36902e5a",
     "previous_sprint": {
-      "id": "R321",
+      "id": "R322",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/source-ei-all-construction-r321.md",
-      "contract_sha256": "15dd003fe818e18dd310eb7fb73454c9cc4e4f88863b7471a8fb641facfda0c6",
-      "review_result": "tasks/agent-loop/history/20261103-tick-declared-response-r321-review.md",
-      "review_result_sha256": "ee47dde7431a1462abdd8f88b755549358d73c2664737ac67737c477e96e562e"
+      "contract": "tasks/agent-loop/sprints/original-callee-request-r322.md",
+      "contract_sha256": "5d8a404152d8b442fbad3e8acd83219aef9a2cb72096e0009fc56baf0f258f20",
+      "review_result": "tasks/agent-loop/history/20261103-original-callee-request-r322-review.md",
+      "review_result_sha256": "1e3bf2d1c376381154bc930ca9557565f2ced43aea6aeb9acc8589dfbefe90f9"
     }
   },
   "lease_archive": {
