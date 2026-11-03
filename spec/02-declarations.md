@@ -81,7 +81,7 @@ mod test:
 
 出典: `main:web/docs/ja/reference/modules.md`
 
-## 2.4 `use`　〔要確認〕
+## 2.4 `use`　〔基本形は確定、version は未定〕
 
 ```yulang
 use std::data::list::map
@@ -98,6 +98,8 @@ use noisy::* without debug
 | `use path::{a, b as c, (+)}` | group。演算子は `(+)` と括弧で書く |
 | `use path::* without a, (+)` | glob から除く |
 
+- 上の形（`use path::name`、`as`、`*`、group、`without`、演算子の `(+)` 表記）までを仕様として約束する（確定, 2026-11-04）。
+- version 付きの import（`use provider/realm/band::path::name v1.0.0`）は realm / band の方針（2.6）とあわせて後で決める（未定）。
 - 演算子の宣言は、`use` で import したファイルだけでその演算子が読める（章1.5）。
 - 通常の entry file には `use std::prelude::*` が暗黙に付く。
 
