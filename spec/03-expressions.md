@@ -24,7 +24,7 @@ true         // bool
 出典: `main:notes/design/yulang-language-report.md` §6.1
 `float` の精度と string の書式は、型と標準ライブラリの章で扱う。
 
-## 3.2 名前・path・field　〔要確認〕
+## 3.2 名前・path・field　〔`x.foo::bar` は確定、他は要確認〕
 
 ```yulang
 x
@@ -37,7 +37,8 @@ xs[0]
 - `a::b` は module path。
 - `p.x` は field selection、または method。まず receiver の型に結びついた field と method を探し、次に role の method と effect 行の method を探す。
 - `xs[0]` は index で、`xs.index 0` のように field selection と application に落ちる。
-- `x.foo::bar` は「`foo::bar` を `x` に適用する」method の糖衣で、field を取ってから path を進む意味ではない。
+- `x.foo::bar` は「`foo::bar` を `x` に適用する」method の糖衣（`foo::bar x`）で、field を取ってから path を進む意味ではない（確定, 2026-11-04）。
+  field を取ってから path を進みたいときは `(x.foo)::bar` と括弧で包む。同名の method が複数あるときに、path で指定して呼ぶ用途が想定される（用途は推測）。
 
 出典: `main:notes/design/yulang-language-report.md` §6.2、`main:web/docs/ja/reference/modules.md` §Dot selection
 
