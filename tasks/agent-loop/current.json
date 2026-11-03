@@ -655,19 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R335",
+    "id": "R336",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/source-scoped-realization-r335.md",
-    "contract_sha256": "766623dd93aaaf9b14770d0793dcc63b33326af03a3be633671cdec5307afab0",
-    "review_result": "tasks/agent-loop/history/20261103-scoped-source-native-r335-review.md",
-    "review_result_sha256": "b3c7717b32e9d889e0c71a7f3f6ef80fc96d39f63b2cf2b6b86331fad10d5a8a",
+    "contract": "tasks/agent-loop/sprints/source-union-realization-r336.md",
+    "contract_sha256": "33d3b48f5c251eb56d8ebb4afce251b8e2575c89736121e5ab8c339386dcc830",
+    "review_result": "tasks/agent-loop/history/20261103-source-argument-and-result-r336-review.md",
+    "review_result_sha256": "a85da1def4ae48e7a9414b4facce898a4aa9f487ac8e8b118321a8be965987e6",
     "previous_sprint": {
-      "id": "R334",
+      "id": "R335",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/source-union-registered-r334.md",
-      "contract_sha256": "24f645db708baf4ae4e800a4bffd17e7f84c5f85f0ba6711dff544d10adac464",
-      "review_result": "tasks/agent-loop/history/20261103-source-union-evidence-r334-review.md",
-      "review_result_sha256": "322f2441721888d18a7d67372a089b0496f79d05146600aad4785ef3421d28bb"
+      "contract": "tasks/agent-loop/sprints/source-scoped-realization-r335.md",
+      "contract_sha256": "766623dd93aaaf9b14770d0793dcc63b33326af03a3be633671cdec5307afab0",
+      "review_result": "tasks/agent-loop/history/20261103-scoped-source-native-r335-review.md",
+      "review_result_sha256": "b3c7717b32e9d889e0c71a7f3f6ef80fc96d39f63b2cf2b6b86331fad10d5a8a"
     }
   },
   "lease_archive": {
