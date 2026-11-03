@@ -19,8 +19,8 @@
 
 - [00-sources.md](00-sources.md) — 素材の所在地（main と archive tag）。
 - [traps.md](traps.md) — 罠台帳。直感と違う挙動、仕様と表示・実装の乖離。ユーザーが随時足す。
-- 章（これから起こす。順序は案）
-  1. 字句・layout・演算子
+- 章（順序は案）
+  1. [字句・layout・演算子](01-lexical.md)
   2. 宣言・module・可視性
   3. 式・pattern
   4. 型（`type` / `struct` / `enum` / 注釈）
