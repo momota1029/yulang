@@ -24,7 +24,7 @@ effect 行の意味（T2・T3）は章5、`role` / `impl` / `where` / `cast` は
 
 出典: `main:web/docs/ja/reference/types.md`
 
-## 4.2 型変数と注釈　〔要確認〕
+## 4.2 型変数と注釈　〔注釈の位置は確定、他は要確認〕
 
 型変数は `'a` と書き、注釈の中に直接出す。**型変数を先に宣言する引数リストはない。**
 
@@ -39,6 +39,13 @@ my id(x: 'a): 'a = x
 my x: int = 1                  // binding の注釈
 my f(x: int): int = x          // 引数と返り値の注釈
 ([] as list int)               // 式の途中は as
+```
+
+- **型注釈は pattern のどこにでも付けられる**（確定, 2026-11-04）。lambda の引数、分割代入の各要素、`case` の arm の pattern も含む（章3b.7）。
+
+```yulang
+\(x: int) -> x
+my (a: int, b: str) = p
 ```
 
 - 式の途中の注釈には `as` を使う。`(e : T)` は colon application（`f: x`）と衝突するので使えない。
