@@ -21,7 +21,7 @@
 - [traps.md](traps.md) — 罠台帳。直感と違う挙動、仕様と表示・実装の乖離。ユーザーが随時足す。
 - 章（順序は案）
   1. [字句・layout・演算子](01-lexical.md)
-  2. 宣言・module・可視性
+  2. [binding・可視性・module](02-declarations.md)
   3. 式・pattern
   4. 型（`type` / `struct` / `enum` / 注釈）
   5. effect と handler（反変位置の effect、hygiene を含む）
