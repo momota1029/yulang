@@ -655,21 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R332",
+    "id": "R333",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/source-prefix-authenticated-ei-r332.md",
-    "contract_sha256": "f36c9bb40b90bb4a784fafe1136daab6f1eb1e3fcf899f152c9ad26429d49af9",
-    "review_result": "tasks/agent-loop/history/20261103-source-prefix-bridge-r332-review.md",
-    "review_result_sha256": "6c009b227481e720de8a9999a47432386f40a81d530a2137ac8779b176695667",
-    "response_review": "tasks/agent-loop/history/20261103-tick-formal-response-r332-review.md",
-    "response_review_sha256": "24a107d882326c0b9b0afe0f64b2421970a2de39ec4687725ab16ae319b5321d",
+    "contract": "tasks/agent-loop/sprints/source-kernel-transport-r333.md",
+    "contract_sha256": "3fb294a21d49e3b432ef3662e95b6535eb72216546116ff73f184c83aa35ed9a",
+    "review_result": "tasks/agent-loop/history/20261103-source-kernel-transport-r333-review.md",
+    "review_result_sha256": "31d7de025f46ef619ea081ec45706da15026d107a16f79840e99d1d247193bc4",
     "previous_sprint": {
-      "id": "R331",
+      "id": "R332",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/source-environment-ei-r331.md",
-      "contract_sha256": "d81ee0eace9b646dddfdfd001eac1317a3ec99d3435d2c15cdeb04f4a9727ae7",
-      "review_result": "tasks/agent-loop/history/20261103-source-environment-r331-review.md",
-      "review_result_sha256": "8b9b49c807ea5f81a9d22d270859dd47ca914732c049c4c25af7feaec4c0b6c1"
+      "contract": "tasks/agent-loop/sprints/source-prefix-authenticated-ei-r332.md",
+      "contract_sha256": "f36c9bb40b90bb4a784fafe1136daab6f1eb1e3fcf899f152c9ad26429d49af9",
+      "review_result": "tasks/agent-loop/history/20261103-source-prefix-bridge-r332-review.md",
+      "review_result_sha256": "6c009b227481e720de8a9999a47432386f40a81d530a2137ac8779b176695667"
     }
   },
   "lease_archive": {
