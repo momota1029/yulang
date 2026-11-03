@@ -159,7 +159,7 @@ error path_err:
 
 出典: `main:web/docs/ja/reference/effects.md` §error 宣言、`main:web/docs/ja/guide/pitfalls.md`
 
-## 5.8 effect 行の method　〔要確認〕
+## 5.8 effect 行の method　〔曖昧時の扱いは確定、他は要確認〕
 
 ```yulang
 use std::control::nondet::*
@@ -168,6 +168,8 @@ use std::control::nondet::*
 
 - `.list` / `.once` / `.logic` のような method は、receiver の型ではなく**effect 行**から選ばれる。
 - 同じ行の複数の effect が同名の method を持つと、行が絞られるまで selection は曖昧になる。
+- 推論が終わっても曖昧なままなら、**曖昧エラー**（確定, 2026-11-04）。`impl` の候補が複数あるとき（章6.2）と同じ扱いで、
+  利用者が `p::run e` のように path で指定して直す。行の中の順序で選ぶことはしない（行は集合として扱う）。
 
 ## 確認してほしい点
 
