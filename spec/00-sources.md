@@ -3,6 +3,8 @@
 取り出し方: `git show main:<path>`（main）、`git show archive/proof-sprint-2026-11-04:<path>`（旧スプリント）。
 どれも**仕様ではなく素材**。そのまま写さず、読んで起こし直す。
 
+注意: main の文書は effect 行の旧表記 `[a; 'b]`（`;` 区切り）を使っている。起こすときは新表記 `[a, 'b]` に直す（[traps.md](traps.md) T1）。
+
 ## main — 言語の説明（日本語が多い）
 
 | 素材 | 行数 | 使いどころ |
