@@ -3865,7 +3865,7 @@ fn decimal_add(left: &str, right: &str) -> Option<String> {
 mod module_expression_tests {
     use super::*;
     use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports, lower_module};
-    use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
+    use yu_syntax::{ParsedFile, SourceText, SyntaxEnvironment, parse_file, scan_header};
 
     fn runtime_program(source: &str, opt_in_source: bool) -> Arc<RuntimeProgram> {
         let source: Arc<SourceText> = Arc::from(source);
@@ -3901,13 +3901,13 @@ mod module_expression_tests {
         start(&runtime_program(source, opt_in_source))
     }
 
-    fn accepted_machine(source: &str) -> Machine {
+    fn accepted_machine_with_parse(source: &str) -> (Machine, Arc<ParsedFile>) {
         let source: Arc<SourceText> = Arc::from(source);
-        let parsed = parse_file(
+        let parsed = Arc::new(parse_file(
             source.clone(),
             Arc::new(scan_header(source.clone())),
             Arc::new(SyntaxEnvironment::empty()),
-        );
+        ));
         assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{source}");
         let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
             ModuleIdentity::source_root(FileId::new(FileKey::new("r312-accepted", "callee-history.yu"))),
@@ -3919,7 +3919,11 @@ mod module_expression_tests {
         let program = Arc::new(RuntimeProgram::from_hir(
             hir, super::super::RuntimeEvidence::default(),
         ).unwrap());
-        start(&program)
+        (start(&program), parsed)
+    }
+
+    fn accepted_machine(source: &str) -> Machine {
+        accepted_machine_with_parse(source).0
     }
 
     fn cache_snapshot(
@@ -4405,10 +4409,377 @@ mod module_expression_tests {
         out
     }
 
+    fn r314_lean_runtime_site(
+        machine: &Machine,
+        parsed: &ParsedFile,
+        site: &SourceSite,
+    ) -> Result<String, super::super::RuntimeUnavailable> {
+        let hir = &machine.program._hir;
+        if !hir.owns_source_root(&site.source_root) || !hir.owns_occurrence(&site.occurrence) {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        let source_key = hir.occurrence_source_key(&site.occurrence)
+            .map_err(|_| super::super::RuntimeUnavailable::InvalidSourceReference)?
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        if !parsed.owns_source_key(source_key) {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        let source = hir.local_source_for(&site.source_root)
+            .map_err(|_| super::super::RuntimeUnavailable::InvalidSourceReference)?
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        if !source.expressions().iter().any(|expression|
+            expression.occurrence == site.occurrence && expression.range == site.range
+                && expression.source == *source_key
+        ) {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        let Some(definition_root) = site.source_root.definition_root() else {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        };
+        let binding = hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.definition_root() == definition_root => Some(binding),
+            _ => None,
+        }).ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        let (realm, path) = match binding.id().module() {
+            yu_hir::ModuleId::SourceRoot(file) => (file.key().realm(), file.key().normalized_workspace_relative_path()),
+        };
+        Ok(format!("{{ bindingName := {}, realm := {}, path := {}, sameNameOrdinal := {}, occurrence := {}, startByte := {}, endByte := {} }}",
+            super::super::program::r314_lean_string(binding.id().spelling()),
+            super::super::program::r314_lean_string(realm), super::super::program::r314_lean_string(path),
+            binding.id().same_name_ordinal(),
+            site.occurrence.ordinal(), site.range.start, site.range.end))
+    }
+
+    fn r314_lean_source_root_identity(
+        machine: &Machine,
+        parsed: &ParsedFile,
+        root: &yu_hir::SourceRootId,
+    ) -> Result<String, super::super::RuntimeUnavailable> {
+        use yu_hir::SourceRootId as R;
+        let hir = &machine.program._hir;
+        if !hir.owns_source_root(root) {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        Ok(match root {
+            R::Definition(definition_root) => {
+                let binding = hir.items().iter().find_map(|item| match item {
+                    yu_hir::HirItem::Binding(binding)
+                        if binding.definition_root() == definition_root => Some(binding),
+                    _ => None,
+                }).ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+                let (realm, path) = super::super::program::r314_module_fields(binding.id().module())?;
+                format!("SourceRootIdentity.definition {} {} {} {}",
+                    super::super::program::r314_lean_string(binding.id().spelling()),
+                    super::super::program::r314_lean_string(realm),
+                    super::super::program::r314_lean_string(path), binding.id().same_name_ordinal())
+            }
+            R::Expression(expression_root) => {
+                let occurrence = expression_root.occurrence();
+                let key = hir.occurrence_source_key(occurrence)
+                    .map_err(|_| super::super::RuntimeUnavailable::InvalidSourceReference)?
+                    .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+                if !parsed.owns_source_key(key) || !hir.owns_occurrence(occurrence) {
+                    return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+                }
+                format!("SourceRootIdentity.expression {}", occurrence.ordinal())
+            }
+            R::Member(member_root) => {
+                let (realm, path) = super::super::program::r314_module_fields(member_root.module())?;
+                if !parsed.owns_source_key(member_root.declaration_source_key())
+                    || !parsed.owns_source_key(member_root.member_source_key())
+                {
+                    return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+                }
+                let kind = match member_root.kind() {
+                    yu_hir::SourceMemberKind::Role => "role",
+                    yu_hir::SourceMemberKind::Implementation => "implementation",
+                };
+                format!("SourceRootIdentity.member {} {} {} {} {}",
+                    super::super::program::r314_lean_string(realm),
+                    super::super::program::r314_lean_string(path),
+                    super::super::program::r314_lean_string(kind),
+                    super::super::program::r314_key_position(parsed, member_root.declaration_source_key())?,
+                    super::super::program::r314_key_position(parsed, member_root.member_source_key())?)
+            }
+        })
+    }
+
+    fn r314_lean_received(received: ReceivedValue) -> String {
+        let interface = match received.interface {
+            ParameterRole::Value => "Interface.value",
+            ParameterRole::Computation => "Interface.computation",
+        };
+        format!("{{ value := {}, view := {}, interface := {interface}, dispatch := {} }}",
+            received.value.0, received.view.index(), received.dispatch.map_or_else(|| "none".to_owned(), |id| format!("some {id}")))
+    }
+
+    fn r314_lean_owner(owner: ExecutionOwner) -> String {
+        match owner {
+            ExecutionOwner::ModuleRun => "ExecutionOwner.moduleRun".to_owned(),
+            ExecutionOwner::Invocation(id) => format!("ExecutionOwner.invocation {id}"),
+        }
+    }
+
+    fn r314_lean_primitive(operation: &yu_hir::shadow::PinnedPrimitiveOp) -> String {
+        use yu_hir::shadow::PinnedPrimitiveOp as P;
+        let name = match operation {
+            P::BoolNot => "BoolNot", P::BoolEq => "BoolEq", P::BoolToString => "BoolToString",
+            P::IntAdd => "IntAdd", P::IntSub => "IntSub", P::IntMul => "IntMul", P::IntEq => "IntEq",
+            P::IntLt => "IntLt", P::IntLe => "IntLe", P::IntGt => "IntGt", P::IntGe => "IntGe",
+            P::IntToString => "IntToString", P::StringConcat => "StringConcat", P::Unsupported(_) => "Unsupported",
+        };
+        super::super::program::r314_lean_string(name)
+    }
+
+    fn r314_lean_operation_identity(
+        operation: &yu_hir::shadow::SourceOperationResolution,
+        parsed: &ParsedFile,
+    ) -> Result<String, super::super::RuntimeUnavailable> {
+        let SourceOperationResolution::Resolved(operation) = operation else {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        };
+        let (realm, path) = super::super::program::r314_module_fields(&operation.id.family.module)?;
+        let visibility = match operation.visibility {
+            yu_hir::HirVisibility::Private => "Private",
+            yu_hir::HirVisibility::Our => "Our",
+            yu_hir::HirVisibility::Public => "Public",
+        };
+        let family_declaration = super::super::program::r314_key_position(parsed, &operation.id.family.declaration)?;
+        let declaration = super::super::program::r314_key_position(parsed, &operation.id.declaration)?;
+        let name_position = super::super::program::r314_key_position(parsed, &operation.name_position)?;
+        let signature_position = super::super::program::r314_key_position(parsed, &operation.signature_position)?;
+        let signature = super::super::program::r314_lean_annotation_type(&operation.signature, parsed)?;
+        Ok(format!("{{ name := {}, familyRealm := {}, familyPath := {}, familyDeclaration := {}, declaration := {}, namePosition := {}, signaturePosition := {}, startByte := {}, endByte := {}, visibility := {}, signature := {} }}",
+            super::super::program::r314_lean_string(&operation.spelling),
+            super::super::program::r314_lean_string(realm), super::super::program::r314_lean_string(path),
+            family_declaration, declaration, name_position, signature_position, operation.range.start, operation.range.end,
+            super::super::program::r314_lean_string(visibility), signature))
+    }
+
+    fn r314_lean_runtime_value(
+        machine: &Machine,
+        parsed: &ParsedFile,
+        index: usize,
+        value: &RuntimeValue,
+    ) -> Result<String, super::super::RuntimeUnavailable> {
+        let source = r314_lean_runtime_site(machine, parsed, &value.source)?;
+        let kind = match &value.kind {
+            RuntimeValueKind::Unit => "ValueKind.unit".to_owned(),
+            RuntimeValueKind::Integer(value) => format!("ValueKind.integer {}", super::super::program::r314_lean_string(value)),
+            RuntimeValueKind::Boolean(value) => format!("ValueKind.boolean {value}"),
+            RuntimeValueKind::String(value) => format!("ValueKind.string {}", super::super::program::r314_lean_string(value)),
+            RuntimeValueKind::Primitive(operation) => format!("ValueKind.primitive {}", r314_lean_primitive(operation)),
+            RuntimeValueKind::Tuple(items) => format!("ValueKind.tuple [{}]", items.iter().map(|item| r314_lean_received(item.received)).collect::<Vec<_>>().join(", ")),
+            RuntimeValueKind::Variant { tag, payloads } => format!("ValueKind.variant {} [{}]", super::super::program::r314_lean_string(tag), payloads.iter().map(|item| r314_lean_received(item.received)).collect::<Vec<_>>().join(", ")),
+            RuntimeValueKind::Record(fields) => format!("ValueKind.record [{}]", fields.iter().map(|(name, item)| format!("({}, {})", super::super::program::r314_lean_string(name), r314_lean_received(item.received))).collect::<Vec<_>>().join(", ")),
+            RuntimeValueKind::Closure => "ValueKind.closure".to_owned(),
+            RuntimeValueKind::Computation => "ValueKind.computation".to_owned(),
+            RuntimeValueKind::Operation(resolution) => {
+                format!("ValueKind.operation ({})", r314_lean_operation_identity(resolution, parsed)?)
+            }
+        };
+        let _ = index;
+        Ok(format!("{{ source := {source}, kind := {kind} }}"))
+    }
+
+    fn r314_lean_receiving_snapshot(
+        snapshot: &R313CalleeReturnSnapshot,
+    ) -> Result<(String, String), super::super::RuntimeUnavailable> {
+        let mut views = Vec::new();
+        for (index, raw) in snapshot.receiving_views.iter().enumerate() {
+            let fields = raw.split_whitespace().collect::<Vec<_>>();
+            if fields.len() != 5 { return Err(super::super::RuntimeUnavailable::InvalidSourceReference); }
+            let parse_value = |field: &str, prefix: &str| -> Result<usize, super::super::RuntimeUnavailable> {
+                field.strip_prefix(prefix).and_then(|value| value.parse().ok())
+                    .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)
+            };
+            let view_index = parse_value(fields[0], "view_index=")?;
+            let value_handle = fields[1].strip_prefix("value_handle=ValueHandle(")
+                .and_then(|value| value.strip_suffix(')')).and_then(|value| value.parse::<usize>().ok())
+                .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+            let image_raw = fields[2].strip_prefix("image=")
+                .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+            let image = if image_raw == "None" { "none".to_owned() }
+                else if let Some(value) = image_raw.strip_prefix("Some(").and_then(|value| value.strip_suffix(')')) {
+                    format!("some {}", value.parse::<usize>().map_err(|_| super::super::RuntimeUnavailable::InvalidSourceReference)?)
+                } else { return Err(super::super::RuntimeUnavailable::InvalidSourceReference); };
+            let unknown = fields[3].strip_prefix("unknown=")
+                .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+            if unknown != "true" && unknown != "false" { return Err(super::super::RuntimeUnavailable::InvalidSourceReference); }
+            let kind = fields[4].strip_prefix("kind=")
+                .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+            let kind = match kind {
+                "Ordinary" => "ReceivingViewKind.ordinary".to_owned(),
+                "RootComp" => "ReceivingViewKind.rootComp".to_owned(),
+                other if other.starts_with("CallbackEntry(") => format!("ReceivingViewKind.callbackEntry {}",
+                    other.strip_prefix("CallbackEntry(").and_then(|s| s.strip_suffix(')')).and_then(|s| s.parse::<usize>().ok())
+                        .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?),
+                other if other.starts_with("CallbackResult(") => format!("ReceivingViewKind.callbackResult {}",
+                    other.strip_prefix("CallbackResult(").and_then(|s| s.strip_suffix(')')).and_then(|s| s.parse::<usize>().ok())
+                        .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?),
+                _ => return Err(super::super::RuntimeUnavailable::InvalidSourceReference),
+            };
+            if view_index != index { return Err(super::super::RuntimeUnavailable::InvalidSourceReference); }
+            views.push(format!("{{ index := {view_index}, value := {value_handle}, image := {image}, unknown := {unknown}, kind := {kind} }}"));
+        }
+        let mut chains = Vec::new();
+        for (view, raw) in snapshot.receiving_image_chains.iter().enumerate() {
+            if raw.starts_with("error:") { return Err(super::super::RuntimeUnavailable::InvalidSourceReference); }
+            let mut links = Vec::new();
+            if !raw.is_empty() {
+                for item in raw.split(';') {
+                    let mut parts = item.split(',');
+                    let image = parts.next().and_then(|part| part.strip_prefix("image=")).and_then(|n| n.parse::<usize>().ok())
+                        .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+                    let boundary = parts.next().and_then(|part| part.strip_prefix("boundary=")).and_then(|n| n.parse::<usize>().ok())
+                        .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+                    let receiver = parts.next().and_then(|part| part.strip_prefix("receiver=")).and_then(|n| n.parse::<usize>().ok())
+                        .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+                    if parts.next().is_some() { return Err(super::super::RuntimeUnavailable::InvalidSourceReference); }
+                    links.push(format!("{{ image := {image}, boundary := {boundary}, receiver := {receiver} }}"));
+                }
+            }
+            chains.push(format!("{{ view := {view}, links := [{}] }}", links.join(", ")));
+        }
+        if chains.len() != views.len() { return Err(super::super::RuntimeUnavailable::InvalidSourceReference); }
+        Ok((format!("[{}]", views.join(", ")), format!("[{}]", chains.join(", "))))
+    }
+
+    fn r314_lean_machine_artifact(
+        machine: &Machine,
+        call: &NameReceiptCallObservation,
+        parsed: &ParsedFile,
+        source_text: &str,
+    ) -> Result<String, super::super::RuntimeUnavailable> {
+        if !machine.name_receipt_calls.iter().any(|entry| std::ptr::eq(entry, call)) {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        let snapshot = machine.r313_return_snapshot.as_ref()
+            .ok_or(super::super::RuntimeUnavailable::InvalidSourceReference)?;
+        if snapshot.apply_site.source_root != call.call_site.source_root
+            || snapshot.apply_site.occurrence != call.call_site.occurrence
+            || snapshot.apply_site.range != call.call_site.range
+            || snapshot.argument_code.0 != call.argument_code
+            || snapshot.caller_environment != call.argument_environment
+            || snapshot.receiving_scan_truncated
+        {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        let returns = machine.r312_frame_events.iter().filter_map(|event| match event {
+            R312FrameEvent::CalleeReturned { step, order, frame_id, owner, apply_site, callee,
+                argument, environment, value, view, interface, provider, .. }
+                if apply_site.occurrence == call.call_site.occurrence =>
+                    Some((*step, *order, *frame_id, *owner, apply_site, *callee, *argument,
+                        *environment, *value, *view, *interface, provider)),
+            _ => None,
+        }).collect::<Vec<_>>();
+        if returns.len() != 1 || returns[0].2 != snapshot.frame_id {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        }
+        let mut out = machine.program.r314_lean_source_export(parsed, &call.call_site, source_text)?;
+        use std::fmt::Write as _;
+        let _ = writeln!(out, "def runId : Nat := {}", machine as *const Machine as usize);
+        let mut events = Vec::new();
+        for event in &machine.r312_frame_events {
+            match event {
+                R312FrameEvent::RequestObserved { step, order, request, site, owner } => {
+                    let site = r314_lean_runtime_site(machine, parsed, site)?;
+                    events.push(format!("RuntimeEvent.request {step} {order} {request} ({site}) ({})", r314_lean_owner(*owner)));
+                }
+                R312FrameEvent::PendingCalleeAtRequest { step, order, request, frame_id,
+                    request_site, owner, apply_site, callee, argument, environment }
+                    if apply_site.occurrence == call.call_site.occurrence => {
+                    let request_site = r314_lean_runtime_site(machine, parsed, request_site)?;
+                    let apply_site = r314_lean_runtime_site(machine, parsed, apply_site)?;
+                    let callee = callee.map_or_else(|| "none".to_owned(), |label| format!("some {}", label.0));
+                    events.push(format!("RuntimeEvent.pendingCallee {step} {order} {request} {frame_id} {} {environment} ({callee}) ({request_site}) ({apply_site}) ({})",
+                        argument.0, r314_lean_owner(*owner)));
+                }
+                R312FrameEvent::CalleeReturned { step, order, frame_id, owner, apply_site, callee,
+                    argument, environment, value, view, interface, dispatch, provider }
+                    if apply_site.occurrence == call.call_site.occurrence => {
+                    let site = r314_lean_runtime_site(machine, parsed, apply_site)?;
+                    let provider = r314_lean_runtime_site(machine, parsed, provider)?;
+                    let callee = callee.map_or_else(|| "none".to_owned(), |label| format!("some {}", label.0));
+                    let interface = match interface { ParameterRole::Value => "Interface.value", ParameterRole::Computation => "Interface.computation" };
+                    events.push(format!("RuntimeEvent.calleeReturn {step} {order} {frame_id} {} {environment} {} {} ({callee}) ({site}) ({}) {interface} ({provider})",
+                        argument.0, value.0, view.index(), r314_lean_owner(*owner)));
+                    let _ = dispatch;
+                }
+                _ => {}
+            }
+        }
+        let Some(ExecutableValue::Delay { code, environment }) = machine.executables.get(&call.delay_value.0) else {
+            return Err(super::super::RuntimeUnavailable::InvalidSourceReference);
+        };
+        events.push(format!("RuntimeEvent.delay {} {} {} {}", call.delay_value.0, code.0, environment, call.delay_view.index()));
+        for lookup in machine.r312_name_lookups.iter().filter(|lookup| lookup.code == call.argument_code
+            && lookup.site.occurrence == machine.program.code[call.argument_code].site.occurrence) {
+            let site = r314_lean_runtime_site(machine, parsed, &lookup.site)?;
+            let consumption = super::super::program::r314_lean_string(match lookup.consumption { NameConsumption::Observe => "Observe", NameConsumption::Execute => "Execute" });
+            events.push(format!("RuntimeEvent.nameLookup {} {} {} {} {} {} {} ({}) ({}) ({})",
+                lookup.step, lookup.order, lookup.environment, lookup.parameter.ordinal(), lookup.cell,
+                lookup.value.0, lookup.view.index(), format!("({site})"),
+                r314_lean_owner(lookup.owner), consumption));
+        }
+        for receipt in &machine.r312_name_receipts {
+            if receipt.site.occurrence != machine.program.code[call.argument_code].site.occurrence { continue; }
+            let site = r314_lean_runtime_site(machine, parsed, &receipt.site)?;
+            let consumption = super::super::program::r314_lean_string(match receipt.consumption { NameConsumption::Observe => "Observe", NameConsumption::Execute => "Execute" });
+            events.push(format!("RuntimeEvent.nameReceipt {} {} {} {} {} ({}) ({}) ({})",
+                receipt.step, receipt.order, receipt.receipt, receipt.value.0, receipt.view.index(),
+                format!("({site})"), r314_lean_owner(receipt.owner), consumption));
+        }
+        for bind in &machine.r313_value_entry_binds {
+            events.push(format!("RuntimeEvent.valueBind {} {} {} {} {} {} {} {} {}",
+                bind.step, bind.order, bind.entry_receiver, bind.parameter.ordinal(), bind.bound_cell,
+                bind.bound_environment, bind.received.value.0, bind.received.view.index(),
+                match bind.received.interface { ParameterRole::Value => "Interface.value", ParameterRole::Computation => "Interface.computation" }));
+        }
+        let _ = writeln!(out, "def events : List RuntimeEvent := [{}]", events.join(",\n"));
+        let cells = snapshot.cells.iter().map(|cell| cell.map_or_else(|| "{ value := none }".to_owned(), |received|
+            format!("{{ value := some {} }}", r314_lean_received(received)))).collect::<Vec<_>>().join(", ");
+        let environments = snapshot.environments.iter().map(|environment|
+            -> Result<String, super::super::RuntimeUnavailable> {
+            let (kind, id, binder_cell, binder_owner) = match environment.binder.as_ref() {
+                None => ("none".to_owned(), "none".to_owned(), "none".to_owned(), "none".to_owned()),
+                Some((binder, cell)) => {
+                    let (kind, id, root) = match binder {
+                        Binder::Parameter(id) => (super::super::program::r314_lean_string("parameter"), id.ordinal(), id.source_root()),
+                        Binder::Local(id) => (super::super::program::r314_lean_string("local"), id.ordinal(), id.source_root()),
+                        Binder::Catch(id) => (super::super::program::r314_lean_string("catch"), id.ordinal(), id.source_root()),
+                    };
+                    let owner = r314_lean_source_root_identity(machine, parsed, root)?;
+                    (format!("some {kind}"), format!("some {id}"), format!("some {cell}"), format!("some ({owner})"))
+                }
+            };
+            let (dispatch_base, dispatch_word) = environment.dispatch.context.r314_parts();
+            let dispatch_base = dispatch_base.map_or_else(|| "none".to_owned(), |value| format!("some {value}"));
+            let dispatch_word = dispatch_word.map_or_else(|| "none".to_owned(), |value| format!("some {value}"));
+            let substitution = environment.dispatch.substitution.map_or_else(|| "none".to_owned(), |value| format!("some {value}"));
+            Ok(format!("{{ parent := {}, binderKind := {kind}, binderId := {id}, binderCell := {binder_cell}, binderOwner := {binder_owner}, dispatchBase := {dispatch_base}, dispatchWord := {dispatch_word}, substitution := {substitution} }}",
+                environment.parent.map_or_else(|| "none".to_owned(), |parent| format!("some {parent}"))))
+        }).collect::<Result<Vec<_>, _>>()?.join(", ");
+        let values = snapshot.values.iter().enumerate().map(|(index, value)|
+            r314_lean_runtime_value(machine, parsed, index, value)).collect::<Result<Vec<_>, _>>()?.join(", ");
+        let (receiving_views, receiving_chains) = r314_lean_receiving_snapshot(snapshot)?;
+        let snapshot_source_name = snapshot.source_name_initialization.as_ref().map_or_else(|| "none".to_owned(), |initialization|
+            format!("some {}", r314_lean_received(initialization.received)));
+        let snapshot_parameter = snapshot.source_name_initialization.as_ref().map_or_else(|| "none".to_owned(), |initialization|
+            format!("some {}", initialization.parameter.ordinal()));
+        let apply_site = r314_lean_runtime_site(machine, parsed, &snapshot.apply_site)?;
+        let _ = writeln!(out, "def returnSnapshot : ReturnSnapshot := {{ frame := {}, applySite := {}, argumentLabel := {}, callerEnvironment := {}, cells := [{}], environments := [{}], values := [{}], receivingViews := {}, receivingImageChains := {}, sourceNameInitialization := {}, sourceNameParameter := {}, receivingScanTruncated := {} }}",
+            snapshot.frame_id, apply_site, snapshot.argument_code.0, snapshot.caller_environment, cells,
+            environments, values, receiving_views, receiving_chains, snapshot_source_name, snapshot_parameter,
+            snapshot.receiving_scan_truncated);
+        let _ = writeln!(out, "end R314Artifact");
+        Ok(out)
+    }
+
     #[test]
     fn r313_accepted_source_callee_returns_after_request_and_observes_value_name() {
         let source = "act io:\n    our tick: int -> int\nmy make seed = { io::tick seed; \\argument -> argument }\nmy relay value = make 1 value\nmy handle (thunk:[io] int) = catch thunk { io::tick(p), k -> handle { k 10 } }\nmy main = handle { relay 7 }";
-        let mut machine = accepted_machine(source);
+        let (mut machine, parsed) = accepted_machine_with_parse(source);
         r313_watch_source_apply(&mut machine);
         let RuntimeOutcome::Completed(value) = machine.run(30_000) else {
             panic!("accepted source callee/Observe path did not complete: {:?}", machine.state_outcome());
@@ -4461,6 +4832,29 @@ mod module_expression_tests {
         let return_snapshot = machine.r313_return_snapshot.as_ref().unwrap();
         assert!(!return_snapshot.receiving_scan_truncated,
             "CalRet Receiving view vector snapshot is complete");
+        let lean = r314_lean_machine_artifact(&machine, call, &parsed, source)
+            .expect("the exact snapshot and binder owners serialize into Lean data");
+        let mut parameter_zero_owners = HashSet::new();
+        for (environment_index, environment) in return_snapshot.environments.iter().enumerate() {
+            let Some((binder, cell)) = environment.binder.as_ref() else { continue; };
+            assert!(*cell < return_snapshot.cells.len(), "environment {environment_index} binder cell is retained");
+            let (kind, id, owner) = match binder {
+                Binder::Parameter(id) => {
+                    if id.ordinal() == 0 { parameter_zero_owners.insert(id.source_root().clone()); }
+                    ("parameter", id.ordinal(), id.source_root())
+                }
+                Binder::Local(id) => ("local", id.ordinal(), id.source_root()),
+                Binder::Catch(id) => ("catch", id.ordinal(), id.source_root()),
+            };
+            let owner = r314_lean_source_root_identity(&machine, &parsed, owner).unwrap();
+            let exact_link = format!("binderKind := some {}, binderId := some {id}, binderCell := some {cell}, binderOwner := some ({owner})",
+                super::super::program::r314_lean_string(kind));
+            assert!(lean.contains(&exact_link),
+                "serialized Environment {environment_index} preserves its exact binder owner/id/cell relation");
+        }
+        assert!(parameter_zero_owners.len() >= 2,
+            "the retained snapshot contains ordinal-zero parameters from multiple source roots");
+        assert!(lean.contains("SourceRootIdentity.definition"));
         assert_same_source_site(&return_snapshot.apply_site, &call.call_site);
         assert_eq!(return_snapshot.argument_code, Label(call.argument_code));
         assert_eq!(return_snapshot.caller_environment, call.argument_environment);
@@ -4490,11 +4884,90 @@ mod module_expression_tests {
         assert!(!source_apply_labels_match_call(
             &foreign, call, call.callee_code.unwrap(), call.argument_code,
         ), "same-shaped foreign HIR cannot witness the accepted run's source owner");
+        let lean = r314_lean_machine_artifact(&machine, call, &parsed, source)
+            .expect("same-parse source and actual run must export as Lean data");
+        assert!(lean.contains("def rootBinding : RootBinding"));
+        assert!(lean.contains("SourceForm.apply"));
+        assert!(lean.contains("Instruction.name (Resolution.parameter 0)"));
+        assert!(lean.contains("sameNameOrdinal := 0"));
+        assert!(lean.contains("binderCell := some "));
+        let altered_same_length = source.replacen("relay", "riley", 1);
+        assert_eq!(altered_same_length.len(), source.len());
+        assert!(machine.program.r314_lean_source_export(&parsed, &call.call_site, &altered_same_length).is_err(),
+            "same-length text from another source revision must be rejected");
+        let foreign_parse_source: Arc<SourceText> = Arc::from(source);
+        let foreign_parse = parse_file(
+            foreign_parse_source.clone(),
+            Arc::new(scan_header(foreign_parse_source)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        assert!(machine.program.r314_lean_source_export(&foreign_parse, &call.call_site, source).is_err(),
+            "a second parse of identical text has a different parse owner");
+        let second_run = start(&machine.program);
+        assert!(r314_lean_machine_artifact(&second_run, call, &parsed, source).is_err(),
+            "a second Machine over the same HIR cannot reuse the first run's Return snapshot");
+        drop(second_run);
         if let Some(path) = std::env::var_os("YULANG_R313_NATIVE_WITNESS") {
             let witness = r313_witness_text(&machine, call, value, source);
             std::fs::write(path, witness)
-                .expect("explicit R313 witness export path must be writable");
+                .expect("explicit R314 witness export path must be writable");
         }
+        if let Some(path) = std::env::var_os("YULANG_R314_LEAN_WITNESS") {
+            std::fs::write(path, lean).expect("explicit R314 Lean witness path must be writable");
+        }
+    }
+
+    #[test]
+    fn r314_lean_source_export_emits_typed_ascription_and_rejects_corrupt_code_owner() {
+        let source: Arc<SourceText> = Arc::from(
+            "my id x = x\nmy relay value = id value as int\nmy main = relay 1",
+        );
+        let parsed = Arc::new(parse_file(
+            source.clone(),
+            Arc::new(scan_header(source.clone())),
+            Arc::new(SyntaxEnvironment::empty()),
+        ));
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("r314-ascription", "source.yu"))),
+            &parsed,
+            SemanticImports::empty(),
+        ).unwrap());
+        let program = RuntimeProgram::from_hir(hir.clone(), super::super::RuntimeEvidence::default()).unwrap();
+        let relay = hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.id().spelling() == "relay" => Some(binding),
+            _ => None,
+        }).unwrap();
+        let apply_site = program.code.iter().find(|code|
+            code.site.source_root.definition_root() == Some(relay.definition_root())
+                && matches!(code.instruction, Instruction::Apply { .. })
+        ).unwrap().site.clone();
+        let lean = program.r314_lean_source_export(&parsed, &apply_site, &source).unwrap();
+        assert!(lean.contains("SourceForm.ascription ({ owner :="), "ascription is a required Annotation, not an Option");
+        assert!(!lean.contains("SourceForm.ascription (some "));
+        let other_site = program.code.iter().find(|code|
+            code.site.source_root != apply_site.source_root && matches!(code.instruction, Instruction::Apply { .. })
+        ).unwrap().site.clone();
+        let mut wrong_root = apply_site.clone();
+        wrong_root.source_root = other_site.source_root;
+        assert!(program.r314_lean_source_export(&parsed, &wrong_root, &source).is_err(),
+            "exporter must reject applying a source occurrence to another binding root");
+        if let Some(path) = std::env::var_os("YULANG_R314_ASCRIPTION_WITNESS") {
+            std::fs::write(path, lean).expect("explicit R314 ascription witness path must be writable");
+        }
+
+        let mut corrupt = RuntimeProgram::from_hir(hir, super::super::RuntimeEvidence::default()).unwrap();
+        let corrupt_program = Arc::get_mut(&mut corrupt).unwrap();
+        let row = corrupt_program.code.iter_mut().find(|code|
+            code.site.source_root == apply_site.source_root && code.site.occurrence == apply_site.occurrence
+        ).unwrap();
+        let instruction = match &row.instruction {
+            Instruction::Apply { callee, argument } => Instruction::Apply { callee: *argument, argument: *callee },
+            _ => panic!("selected code is Apply"),
+        };
+        *row = Arc::new(Code { site: row.site.clone(), instruction });
+        assert!(corrupt.r314_lean_source_export(&parsed, &apply_site, &source).is_err(),
+            "exporter must reject source/instruction operand corruption");
     }
 
     #[test]

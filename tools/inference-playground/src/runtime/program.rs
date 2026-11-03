@@ -827,6 +827,114 @@ impl RuntimeProgram {
         self.hir_snapshot_token.clone()
     }
 
+    /// Render a self-contained Lean data module, checked against the exact
+    /// parse product that supplied the retained HIR source keys.
+    #[cfg(test)]
+    pub(super) fn r314_lean_source_export(
+        &self,
+        parsed: &yu_syntax::ParsedFile,
+        apply_site: &SourceSite,
+        source_text: &str,
+    ) -> Result<String, RuntimeUnavailable> {
+        use std::fmt::Write as _;
+        if parsed.source() != source_text
+            || !self._hir.owns_source_root(&apply_site.source_root)
+            || !self._hir.owns_occurrence(&apply_site.occurrence)
+        {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        let source = self._hir.local_source_for(&apply_site.source_root)
+            .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
+            .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+        if source.source_root() != &apply_site.source_root
+            || source.expressions().iter().any(|expr|
+                !parsed.owns_source_key(&expr.source)
+                    || !r314_scope_owned(&expr.scope, &apply_site.source_root, source)
+            )
+        {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        let selected = source.expressions().iter().filter(|expr|
+            expr.occurrence == apply_site.occurrence && expr.range == apply_site.range
+        ).collect::<Vec<_>>();
+        if selected.len() != 1 { return Err(RuntimeUnavailable::InvalidSourceReference); }
+        let LocalSourceForm::Apply { callee, argument, .. } = &selected[0].form else {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        };
+        source.expression(callee).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+        source.expression(argument).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+        if self.code.iter().filter(|code| code.site.source_root == apply_site.source_root).count()
+            != source.expressions().len()
+        {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+
+        let root_binding = self._hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding)
+                if apply_site.source_root.definition_root() == Some(binding.definition_root()) => Some(binding),
+            _ => None,
+        }).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+        let mut formals = Vec::new();
+        let mut body_index = source.body().clone();
+        while let Some(expression) = source.expression(&body_index) {
+            let LocalSourceForm::Lambda { parameter, body } = &expression.form else { break; };
+            if parameter.id.source_root() != &apply_site.source_root
+                || !parsed.owns_source_key(&parameter.source)
+            {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            formals.push(parameter);
+            body_index = body.clone();
+        }
+        if formals.len() != root_binding.parameters().len()
+            || formals.iter().zip(root_binding.parameters()).any(|(source, hir)| source.id != *hir.id())
+        {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+
+        let mut out = String::new();
+        let _ = writeln!(out, "import Lean\nnamespace R314Artifact");
+        out.push_str(r314_lean_schema());
+        let _ = writeln!(out, "def sourceText : String := {}", r314_lean_string(source_text));
+        let (realm, path) = match root_binding.id().module() {
+            yu_hir::ModuleId::SourceRoot(file) =>
+                (file.key().realm(), file.key().normalized_workspace_relative_path()),
+        };
+        let _ = writeln!(out, "def rootBinding : RootBinding := {{ name := {}, realm := {}, path := {}, sameNameOrdinal := {} }}",
+            r314_lean_string(root_binding.id().spelling()), r314_lean_string(realm),
+            r314_lean_string(path), root_binding.id().same_name_ordinal());
+        let _ = writeln!(out, "def rootInitializer : Nat := {}", source.body().ordinal());
+        let _ = writeln!(out, "def rootFormals : List Formal := [");
+        for formal in &formals {
+            let pos = r314_key_position(parsed, &formal.source)?;
+            let scope = r314_lean_scope(&formal.scope, parsed)?;
+            let annotation = r314_lean_annotation(formal.annotation.as_ref(), parsed, &apply_site.source_root)?;
+            let _ = writeln!(out, "  {{ id := {}, spelling := {}, startByte := {}, endByte := {}, sourcePosition := {}, scope := {}, annotation := {} }},",
+                formal.id.ordinal(), r314_lean_string(&formal.spelling), formal.range.start,
+                formal.range.end, pos, scope, annotation);
+        }
+        let _ = writeln!(out, "]");
+        let _ = writeln!(out, "def nodes : List SourceNode := [");
+        for (ordinal, expr) in source.expressions().iter().enumerate() {
+            let code_rows = self.code.iter().enumerate().filter(|(_, row)|
+                row.site.source_root == apply_site.source_root
+                    && row.site.occurrence == expr.occurrence && row.site.range == expr.range
+            ).collect::<Vec<_>>();
+            if code_rows.len() != 1 { return Err(RuntimeUnavailable::InvalidSourceReference); }
+            let (code_label, code) = code_rows[0];
+            r314_validate_pair(source, expr, &code.instruction, self)?;
+            let syntax = r314_key_position(parsed, &expr.source)?;
+            let scope = r314_lean_scope(&expr.scope, parsed)?;
+            let form = r314_lean_source_form(&expr.form, parsed, &apply_site.source_root)?;
+            let instruction = r314_lean_instruction(&code.instruction, &apply_site.source_root)?;
+            let children = r314_child_ordinals(&expr.form).iter().map(u32::to_string).collect::<Vec<_>>().join(", ");
+            let _ = writeln!(out, "  {{ ordinal := {ordinal}, occurrence := {}, startByte := {}, endByte := {}, sourcePosition := {syntax}, scope := {scope}, form := {form}, childOrdinals := [{children}], codeLabel := {code_label}, instruction := {instruction} }},",
+                expr.occurrence.ordinal(), expr.range.start, expr.range.end);
+        }
+        let _ = writeln!(out, "]");
+        Ok(out)
+    }
+
     /// Build runtime member/operator roots from the same successful candidate
     /// world that selected their source identities. Runtime value shapes and
     /// member spellings are never implementation-selection inputs.
@@ -1788,6 +1896,521 @@ impl RuntimeProgram {
         };
         program.closed_primitive = super::primitive::closed_primitive(&program);
         Ok(Arc::new(program))
+    }
+}
+
+#[cfg(test)]
+fn r314_scope_owned(
+    scope: &yu_hir::shadow::LocalSourceScope,
+    root: &SourceRootId,
+    source: &yu_hir::shadow::LocalSource,
+) -> bool {
+    use yu_hir::shadow::LocalSourceScope as Scope;
+    match scope {
+        Scope::Definition(definition) => root.definition_root() == Some(definition),
+        Scope::ModuleExpression(expression) => root.expression_root() == Some(expression),
+        Scope::SourceMember(member) => root.member_root() == Some(member),
+        Scope::Expression(index) => source.expression(index).is_some(),
+        Scope::Parameter(parameter) => parameter.source_root() == root,
+        Scope::LocalInitializer(local) => local.source_root() == root,
+        Scope::CatchArm { catch, .. } => source.expression(catch).is_some(),
+    }
+}
+
+#[cfg(test)]
+pub(super) fn r314_lean_string(value: &str) -> String {
+    let chars = value.chars().map(|ch| format!("Char.ofNat {}", ch as u32)).collect::<Vec<_>>().join(", ");
+    format!("(String.ofList [{chars}])")
+}
+
+#[cfg(test)]
+fn r314_lean_schema() -> &'static str {
+    r#"
+structure Position where
+  startByte : Nat
+  endByte : Nat
+  kind : String
+  text : String
+  deriving Repr
+inductive ScopeTag where
+  | definition | moduleExpression | sourceMember
+  | expression (id : Nat) | parameter (id : Nat) | localInitializer (id : Nat)
+  | catchArm (id : Nat) (arm : Position)
+  deriving Repr
+structure RootBinding where
+  name : String
+  realm : String
+  path : String
+  sameNameOrdinal : Nat
+  deriving Repr
+inductive ExecutionOwner where | moduleRun | invocation (id : Nat) deriving Repr
+inductive SourceRootIdentity where
+  | definition (bindingName realm path : String) (sameNameOrdinal : Nat)
+  | expression (occurrence : Nat)
+  | member (realm path kind : String) (declaration member : Position)
+  deriving Repr
+structure RuntimeSite where
+  bindingName : String
+  realm : String
+  path : String
+  sameNameOrdinal : Nat
+  occurrence : Nat
+  startByte : Nat
+  endByte : Nat
+  deriving Repr
+inductive Interface where | value | computation deriving Repr
+structure Received where
+  value : Nat
+  view : Nat
+  interface : Interface
+  dispatch : Option Nat
+  deriving Repr
+structure RuntimeCell where
+  value : Option Received
+  deriving Repr
+structure RuntimeEnvironment where
+  parent : Option Nat
+  binderKind : Option String
+  binderId : Option Nat
+  binderCell : Option Nat
+  binderOwner : Option SourceRootIdentity
+  dispatchBase : Option Nat
+  dispatchWord : Option Nat
+  substitution : Option Nat
+  deriving Repr
+inductive ReceivingViewKind where
+  | ordinary | rootComp | callbackEntry (id : Nat) | callbackResult (id : Nat)
+  deriving Repr
+structure ReceivingView where
+  index : Nat
+  value : Nat
+  image : Option Nat
+  unknown : Bool
+  kind : ReceivingViewKind
+  deriving Repr
+structure ImageLink where
+  image : Nat
+  boundary : Nat
+  receiver : Nat
+  deriving Repr
+structure ViewImageChain where
+  view : Nat
+  links : List ImageLink
+  deriving Repr
+inductive RuntimeEvent where
+  | request (step order id : Nat) (site : RuntimeSite) (owner : ExecutionOwner)
+  | pendingCallee (step order request frame argumentLabel environment : Nat)
+      (calleeLabel : Option Nat) (requestSite applySite : RuntimeSite) (owner : ExecutionOwner)
+  | calleeReturn (step order frame argumentLabel environment value view : Nat)
+      (calleeLabel : Option Nat) (site : RuntimeSite) (owner : ExecutionOwner)
+      (interface : Interface) (provider : RuntimeSite)
+  | delay (value code environment view : Nat)
+  | nameLookup (step order environment parameter cell value view : Nat)
+      (site : RuntimeSite) (owner : ExecutionOwner) (consumption : String)
+  | nameReceipt (step order receipt value view : Nat)
+      (site : RuntimeSite) (owner : ExecutionOwner) (consumption : String)
+  | valueBind (step order receiver parameter cell environment value view : Nat) (interface : Interface)
+  deriving Repr
+inductive Resolution where
+  | moduleDef (name : String) (realm : String) (path : String) (ordinal : Nat)
+  | parameter (id : Nat) | local (id : Nat) | catchBinder (id : Nat) | caseBinder (id : Nat)
+  | unresolved | ambiguous
+  deriving Repr
+structure EffectId where
+  realm : String
+  path : String
+  declaration : Position
+  deriving Repr
+structure EffectRow where
+  position : Position
+  concrete : List EffectId
+  variables : List String
+  deriving Repr
+mutual
+inductive SourceType where
+  | unit | int | bool | str | variable (name : String) | hole (position : Position)
+  | tuple (items : List AnnotationType) | function (argument result : AnnotationType)
+  deriving Repr
+inductive AnnotationType where
+  | mk (value : SourceType) (effects : Option EffectRow)
+  deriving Repr
+end
+structure Annotation where
+  owner : String
+  position : Position
+  type : AnnotationType
+  deriving Repr
+structure OperationIdentity where
+  name : String
+  familyRealm : String
+  familyPath : String
+  familyDeclaration : Position
+  declaration : Position
+  namePosition : Position
+  signaturePosition : Position
+  startByte : Nat
+  endByte : Nat
+  visibility : String
+  signature : AnnotationType
+  deriving Repr
+inductive ValueKind where
+  | unit | integer (value : String) | boolean (value : Bool) | string (value : String)
+  | primitive (name : String) | tuple (items : List Received)
+  | variant (tag : String) (items : List Received)
+  | record (fields : List (String × Received)) | closure | computation
+  | operation (identity : OperationIdentity)
+  deriving Repr
+structure RuntimeValue where
+  source : RuntimeSite
+  kind : ValueKind
+  deriving Repr
+structure ReturnSnapshot where
+  frame : Nat
+  applySite : RuntimeSite
+  argumentLabel : Nat
+  callerEnvironment : Nat
+  cells : List RuntimeCell
+  environments : List RuntimeEnvironment
+  values : List RuntimeValue
+  receivingViews : List ReceivingView
+  receivingImageChains : List ViewImageChain
+  sourceNameInitialization : Option Received
+  sourceNameParameter : Option Nat
+  receivingScanTruncated : Bool
+  deriving Repr
+structure Formal where
+  id : Nat
+  spelling : String
+  startByte : Nat
+  endByte : Nat
+  sourcePosition : Position
+  scope : ScopeTag
+  annotation : Option Annotation
+  deriving Repr
+inductive SourceForm where
+  | unit | integer (value : String) | boolean (value : Bool) | string (value : String)
+  | decodedString (value : String) | name (spelling : String) (resolution : Resolution)
+  | apply (syntaxKind : String) (callee argument : Nat) | group (inner : Nat)
+  | ascription (annotation : Annotation) (inner : Nat) | lambda (formal : Formal) (body : Nat)
+  deriving Repr
+inductive Instruction where
+  | unit | integer (value : String) | boolean (value : Bool) | string (value : String)
+  | decodedString (value : String) | name (resolution : Resolution) (consumption : String)
+  | apply (callee argument : Nat) | forward (inner : Nat) | lambda (formalId body : Nat)
+  deriving Repr
+structure SourceNode where
+  ordinal : Nat
+  occurrence : Nat
+  startByte : Nat
+  endByte : Nat
+  sourcePosition : Position
+  scope : ScopeTag
+  form : SourceForm
+  childOrdinals : List Nat
+  codeLabel : Nat
+  instruction : Instruction
+  deriving Repr
+"#
+}
+
+#[cfg(test)]
+pub(super) fn r314_key_position(
+    parsed: &yu_syntax::ParsedFile,
+    key: &yu_syntax::SourceNodeKey,
+) -> Result<String, RuntimeUnavailable> {
+    let mut pending = vec![parsed.source_root()];
+    while let Some(node) = pending.pop() {
+        if node.key() == *key {
+            let range = node.syntax().text_range();
+            let start = usize::from(range.start());
+            let end = usize::from(range.end());
+            let kind = format!("{:?}", node.syntax().kind());
+            let text = node.syntax().to_string();
+            return Ok(format!("{{ startByte := {start}, endByte := {end}, kind := {}, text := {} }}",
+                r314_lean_string(&kind), r314_lean_string(&text)));
+        }
+        pending.extend(node.children());
+    }
+    Err(RuntimeUnavailable::InvalidSourceReference)
+}
+
+#[cfg(test)]
+fn r314_lean_scope(
+    scope: &yu_hir::shadow::LocalSourceScope,
+    parsed: &yu_syntax::ParsedFile,
+) -> Result<String, RuntimeUnavailable> {
+    use yu_hir::shadow::LocalSourceScope as S;
+    Ok(match scope {
+        S::Definition(_) => "ScopeTag.definition".to_owned(),
+        S::ModuleExpression(_) => "ScopeTag.moduleExpression".to_owned(),
+        S::SourceMember(_) => "ScopeTag.sourceMember".to_owned(),
+        S::Expression(index) => format!("ScopeTag.expression {}", index.ordinal()),
+        S::Parameter(parameter) => format!("ScopeTag.parameter {}", parameter.ordinal()),
+        S::LocalInitializer(local) => format!("ScopeTag.localInitializer {}", local.ordinal()),
+        S::CatchArm { catch, arm } => format!("ScopeTag.catchArm {} ({})", catch.ordinal(), r314_key_position(parsed, arm)?),
+    })
+}
+
+#[cfg(test)]
+pub(super) fn r314_module_fields(module: &yu_hir::ModuleId) -> Result<(&str, &str), RuntimeUnavailable> {
+    match module {
+        yu_hir::ModuleId::SourceRoot(file) => Ok((file.key().realm(), file.key().normalized_workspace_relative_path())),
+    }
+}
+
+#[cfg(test)]
+fn r314_lean_resolution(
+    resolution: &LocalSourceResolution,
+    root: &SourceRootId,
+) -> Result<String, RuntimeUnavailable> {
+    Ok(match resolution {
+        LocalSourceResolution::ModuleDef(definition) => {
+            let (realm, path) = r314_module_fields(definition.module())?;
+            format!("Resolution.moduleDef {} {} {} {}", r314_lean_string(definition.spelling()),
+                r314_lean_string(realm), r314_lean_string(path), definition.same_name_ordinal())
+        }
+        LocalSourceResolution::Parameter(id) if id.source_root() == root => format!("Resolution.parameter {}", id.ordinal()),
+        LocalSourceResolution::Local(id) if id.source_root() == root => format!("Resolution.local {}", id.ordinal()),
+        LocalSourceResolution::CatchBinder(id) if id.source_root() == root => format!("Resolution.catchBinder {}", id.ordinal()),
+        LocalSourceResolution::CaseBinder(id) if id.source_root() == root => format!("Resolution.caseBinder {}", id.ordinal()),
+        LocalSourceResolution::Unresolved => "Resolution.unresolved".to_owned(),
+        LocalSourceResolution::Ambiguous => "Resolution.ambiguous".to_owned(),
+        LocalSourceResolution::Imported(_) => return Err(RuntimeUnavailable::InvalidSourceReference),
+        _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+    })
+}
+
+#[cfg(test)]
+fn r314_typed_resolution_eq(source: &LocalSourceResolution, code: &LocalSourceResolution) -> bool {
+    match (source, code) {
+        (LocalSourceResolution::ModuleDef(a), LocalSourceResolution::ModuleDef(b)) => a == b,
+        (LocalSourceResolution::Parameter(a), LocalSourceResolution::Parameter(b)) => a == b,
+        (LocalSourceResolution::Local(a), LocalSourceResolution::Local(b)) => a == b,
+        (LocalSourceResolution::CatchBinder(a), LocalSourceResolution::CatchBinder(b)) => a == b,
+        (LocalSourceResolution::CaseBinder(a), LocalSourceResolution::CaseBinder(b)) => a == b,
+        (LocalSourceResolution::Unresolved, LocalSourceResolution::Unresolved)
+        | (LocalSourceResolution::Ambiguous, LocalSourceResolution::Ambiguous) => true,
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+fn r314_validate_pair(
+    source: &yu_hir::shadow::LocalSource,
+    expression: &yu_hir::shadow::LocalSourceExpr,
+    instruction: &Instruction,
+    program: &RuntimeProgram,
+) -> Result<(), RuntimeUnavailable> {
+    let label_for = |index: &LocalSourceIndex| -> Result<usize, RuntimeUnavailable> {
+        let child = source.expression(index).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+        let matches = program.code.iter().enumerate().filter(|(_, row)|
+            row.site.source_root == *source.source_root()
+                && row.site.occurrence == child.occurrence && row.site.range == child.range
+        ).collect::<Vec<_>>();
+        if matches.len() != 1 { return Err(RuntimeUnavailable::InvalidSourceReference); }
+        Ok(matches[0].0)
+    };
+    let valid = match (&expression.form, instruction) {
+        (LocalSourceForm::Unit, Instruction::Unit) => true,
+        (LocalSourceForm::Integer(a), Instruction::Integer(b)) => a == b,
+        (LocalSourceForm::Boolean(a), Instruction::Boolean(b)) => a == b,
+        (LocalSourceForm::String(a), Instruction::String(b)) => a == b,
+        (LocalSourceForm::DecodedString(a), Instruction::DecodedString(b)) => a == b,
+        (LocalSourceForm::Name { resolution: a, .. }, Instruction::Name { resolution: b, .. }) => {
+            if let LocalSourceResolution::ModuleDef(definition) = a {
+                if !program._hir.items().iter().any(|item| matches!(item,
+                    HirItem::Binding(binding) if binding.id() == definition)) {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                }
+            }
+            r314_typed_resolution_eq(a, b)
+        }
+        (LocalSourceForm::Apply { callee, argument, .. }, Instruction::Apply { callee: actual_callee, argument: actual_argument }) =>
+            label_for(callee)? == actual_callee.0 && label_for(argument)? == actual_argument.0,
+        (LocalSourceForm::Group { inner }, Instruction::Forward(actual))
+        | (LocalSourceForm::Ascription { inner, .. }, Instruction::Forward(actual)) => label_for(inner)? == actual.0,
+        (LocalSourceForm::Lambda { parameter, body }, Instruction::Lambda { parameter: actual, body: actual_body, .. }) =>
+            parameter.id == *actual && label_for(body)? == actual_body.0,
+        _ => false,
+    };
+    if valid { Ok(()) } else { Err(RuntimeUnavailable::InvalidSourceReference) }
+}
+
+#[cfg(test)]
+fn r314_lean_annotation_value(
+    annotation: &yu_hir::SourceAnnotation,
+    parsed: &yu_syntax::ParsedFile,
+    root: &SourceRootId,
+) -> Result<String, RuntimeUnavailable> {
+    use yu_hir::SourceAnnotationValue as V;
+    fn type_value(value: &V, parsed: &yu_syntax::ParsedFile) -> Result<String, RuntimeUnavailable> {
+        Ok(match value {
+            V::Unit => "SourceType.unit".to_owned(),
+            V::Int => "SourceType.int".to_owned(),
+            V::Bool => "SourceType.bool".to_owned(),
+            V::Str => "SourceType.str".to_owned(),
+            V::Variable(name) => format!("SourceType.variable {}", r314_lean_string(name)),
+            V::Hole(key) => format!("SourceType.hole ({})", r314_key_position(parsed, key)?),
+            V::Tuple(items) => format!("SourceType.tuple [{}]", items.iter().map(|item| type_annotation(item, parsed)).collect::<Result<Vec<_>, _>>()?.join(", ")),
+            V::Function { argument, result } => format!("SourceType.function ({}) ({})", type_annotation(argument, parsed)?, type_annotation(result, parsed)?),
+        })
+    }
+    fn type_annotation(value: &yu_hir::SourceAnnotationType, parsed: &yu_syntax::ParsedFile) -> Result<String, RuntimeUnavailable> {
+        let effects = match &value.effects {
+            None => "none".to_owned(),
+            Some(row) => {
+                let position = r314_key_position(parsed, &row.position)?;
+                let concrete = row.concrete.iter().map(|effect| {
+                    let (realm, path) = r314_module_fields(&effect.module)?;
+                    Ok(format!("{{ realm := {}, path := {}, declaration := {} }}",
+                        r314_lean_string(realm), r314_lean_string(path), r314_key_position(parsed, &effect.declaration)?))
+                }).collect::<Result<Vec<String>, RuntimeUnavailable>>()?.join(", ");
+                let variables = row.variables.iter().map(|v| r314_lean_string(v)).collect::<Vec<_>>().join(", ");
+                format!("some {{ position := {position}, concrete := [{concrete}], variables := [{variables}] }}")
+            }
+        };
+        Ok(format!("AnnotationType.mk ({}) ({effects})", type_value(&value.value, parsed)?))
+    }
+    if &annotation.owner != root || !parsed.owns_source_key(&annotation.position) {
+        return Err(RuntimeUnavailable::InvalidSourceReference);
+    }
+    Ok(format!("{{ owner := {}, position := {}, type := {} }}",
+        r314_lean_string("source_root"), r314_key_position(parsed, &annotation.position)?,
+        type_annotation(&annotation.ty, parsed)?))
+}
+
+#[cfg(test)]
+fn r314_lean_annotation(
+    annotation: Option<&yu_hir::SourceAnnotation>,
+    parsed: &yu_syntax::ParsedFile,
+    root: &SourceRootId,
+) -> Result<String, RuntimeUnavailable> {
+    annotation.map_or_else(|| Ok("none".to_owned()), |annotation|
+        r314_lean_annotation_value(annotation, parsed, root).map(|value| format!("some {value}")))
+}
+
+#[cfg(test)]
+pub(super) fn r314_lean_annotation_type(
+    value: &yu_hir::SourceAnnotationType,
+    parsed: &yu_syntax::ParsedFile,
+) -> Result<String, RuntimeUnavailable> {
+    use yu_hir::SourceAnnotationValue as V;
+    fn source_type(value: &V, parsed: &yu_syntax::ParsedFile) -> Result<String, RuntimeUnavailable> {
+        Ok(match value {
+            V::Unit => "SourceType.unit".to_owned(),
+            V::Int => "SourceType.int".to_owned(),
+            V::Bool => "SourceType.bool".to_owned(),
+            V::Str => "SourceType.str".to_owned(),
+            V::Variable(name) => format!("SourceType.variable {}", r314_lean_string(name)),
+            V::Hole(key) => format!("SourceType.hole ({})", r314_key_position(parsed, key)?),
+            V::Tuple(items) => format!("SourceType.tuple [{}]", items.iter().map(|item|
+                r314_lean_annotation_type(item, parsed)).collect::<Result<Vec<_>, _>>()?.join(", ")),
+            V::Function { argument, result } => format!("SourceType.function ({}) ({})",
+                r314_lean_annotation_type(argument, parsed)?, r314_lean_annotation_type(result, parsed)?),
+        })
+    }
+    let effects = match &value.effects {
+        None => "none".to_owned(),
+        Some(row) => {
+            let position = r314_key_position(parsed, &row.position)?;
+            let concrete = row.concrete.iter().map(|effect| {
+                let (realm, path) = r314_module_fields(&effect.module)?;
+                Ok(format!("{{ realm := {}, path := {}, declaration := {} }}",
+                    r314_lean_string(realm), r314_lean_string(path), r314_key_position(parsed, &effect.declaration)?))
+            }).collect::<Result<Vec<String>, RuntimeUnavailable>>()?.join(", ");
+            let variables = row.variables.iter().map(|name| r314_lean_string(name)).collect::<Vec<_>>().join(", ");
+            format!("some {{ position := {position}, concrete := [{concrete}], variables := [{variables}] }}")
+        }
+    };
+    Ok(format!("AnnotationType.mk ({}) ({effects})", source_type(&value.value, parsed)?))
+}
+
+#[cfg(test)]
+fn r314_lean_source_form(
+    form: &LocalSourceForm,
+    parsed: &yu_syntax::ParsedFile,
+    root: &SourceRootId,
+) -> Result<String, RuntimeUnavailable> {
+    Ok(match form {
+        LocalSourceForm::Unit => "SourceForm.unit".to_owned(),
+        LocalSourceForm::Integer(value) => format!("SourceForm.integer {}", r314_lean_string(value)),
+        LocalSourceForm::Boolean(value) => format!("SourceForm.boolean {value}"),
+        LocalSourceForm::String(value) => format!("SourceForm.string {}", r314_lean_string(value)),
+        LocalSourceForm::DecodedString(value) => format!("SourceForm.decodedString {}", r314_lean_string(value)),
+        LocalSourceForm::Name { spelling, resolution } => format!("SourceForm.name {} ({})",
+            r314_lean_string(spelling), r314_lean_resolution(resolution, root)?),
+        LocalSourceForm::Apply { callee, argument, source_form } => format!("SourceForm.apply {} {} {}",
+            r314_lean_string(&format!("{source_form:?}")), callee.ordinal(), argument.ordinal()),
+        LocalSourceForm::Group { inner } => format!("SourceForm.group {}", inner.ordinal()),
+        LocalSourceForm::Ascription { inner, annotation } => format!("SourceForm.ascription ({}) {}",
+            r314_lean_annotation_value(annotation, parsed, root)?, inner.ordinal()),
+        LocalSourceForm::Lambda { parameter, body } => {
+            let syntax = r314_key_position(parsed, &parameter.source)?;
+            let scope = r314_lean_scope(&parameter.scope, parsed)?;
+            let annotation = r314_lean_annotation(parameter.annotation.as_ref(), parsed, root)?;
+            let formal = format!("{{ id := {}, spelling := {}, startByte := {}, endByte := {}, sourcePosition := {}, scope := {}, annotation := {} }}",
+                parameter.id.ordinal(), r314_lean_string(&parameter.spelling), parameter.range.start,
+                parameter.range.end, syntax, scope, annotation);
+            format!("SourceForm.lambda ({formal}) {}", body.ordinal())
+        }
+        _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+    })
+}
+
+#[cfg(test)]
+fn r314_lean_instruction(instruction: &Instruction, root: &SourceRootId) -> Result<String, RuntimeUnavailable> {
+    Ok(match instruction {
+        Instruction::Unit => "Instruction.unit".to_owned(),
+        Instruction::Integer(value) => format!("Instruction.integer {}", r314_lean_string(value)),
+        Instruction::Boolean(value) => format!("Instruction.boolean {value}"),
+        Instruction::String(value) => format!("Instruction.string {}", r314_lean_string(value)),
+        Instruction::DecodedString(value) => format!("Instruction.decodedString {}", r314_lean_string(value)),
+        Instruction::Apply { callee, argument } => format!("Instruction.apply {} {}", callee.0, argument.0),
+        Instruction::Forward(inner) => format!("Instruction.forward {}", inner.0),
+        Instruction::Lambda { parameter, body, .. } => format!("Instruction.lambda {} {}", parameter.ordinal(), body.0),
+        Instruction::Name { resolution, consumption } => {
+            let source = match resolution {
+                LocalSourceResolution::ModuleDef(def) => LocalSourceResolution::ModuleDef(def.clone()),
+                LocalSourceResolution::Parameter(id) => LocalSourceResolution::Parameter(id.clone()),
+                LocalSourceResolution::Local(id) => LocalSourceResolution::Local(id.clone()),
+                LocalSourceResolution::CatchBinder(id) => LocalSourceResolution::CatchBinder(id.clone()),
+                LocalSourceResolution::CaseBinder(id) => LocalSourceResolution::CaseBinder(id.clone()),
+                LocalSourceResolution::Unresolved => LocalSourceResolution::Unresolved,
+                LocalSourceResolution::Ambiguous => LocalSourceResolution::Ambiguous,
+                LocalSourceResolution::Imported(_) => return Err(RuntimeUnavailable::InvalidSourceReference),
+            };
+            if !r314_typed_resolution_eq(&source, resolution) {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            format!("Instruction.name ({}) {}", r314_lean_resolution(&source, root)?,
+                match consumption { NameConsumption::Observe => r314_lean_string("Observe"), NameConsumption::Execute => r314_lean_string("Execute") })
+        }
+        _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+    })
+}
+
+#[cfg(test)]
+fn r314_child_ordinals(form: &LocalSourceForm) -> Vec<u32> {
+    use yu_hir::shadow::LocalSourceStatement as Statement;
+    match form {
+        LocalSourceForm::InterpolatedString { lowered, .. } => lowered.iter().map(LocalSourceIndex::ordinal).collect(),
+        LocalSourceForm::Catch { scrutinee, arms } => std::iter::once(scrutinee.ordinal()).chain(arms.iter().map(|arm| arm.body.ordinal())).collect(),
+        LocalSourceForm::Case { scrutinee, arms } => std::iter::once(scrutinee.ordinal()).chain(arms.iter().map(|arm| arm.body.ordinal())).collect(),
+        LocalSourceForm::If { arms, else_branch } => arms.iter().flat_map(|(a, b)| [a.ordinal(), b.ordinal()])
+            .chain(else_branch.iter().map(LocalSourceIndex::ordinal)).collect(),
+        LocalSourceForm::Sequence { items } | LocalSourceForm::Tuple { elements: items } => items.iter().map(LocalSourceIndex::ordinal).collect(),
+        LocalSourceForm::StatementBlock { statements, final_expression } => statements.iter().filter_map(|statement| match statement {
+            Statement::Expression(index) => Some(index.ordinal()), Statement::Binding(_) => None,
+        }).chain(std::iter::once(final_expression.ordinal())).collect(),
+        LocalSourceForm::Record { fields } => fields.iter().map(|field| field.value.ordinal()).collect(),
+        LocalSourceForm::Variant { payloads, .. } => payloads.iter().map(LocalSourceIndex::ordinal).collect(),
+        LocalSourceForm::FieldTail { receiver, .. } | LocalSourceForm::GeneratedFormatSelection { receiver, .. }
+        | LocalSourceForm::Group { inner: receiver } | LocalSourceForm::Ascription { inner: receiver, .. } => vec![receiver.ordinal()],
+        LocalSourceForm::Apply { callee, argument, .. } => vec![callee.ordinal(), argument.ordinal()],
+        LocalSourceForm::OperatorApplication { left, right, .. } => std::iter::once(left.ordinal()).chain(right.iter().map(LocalSourceIndex::ordinal)).collect(),
+        LocalSourceForm::Lambda { body, .. } => vec![body.ordinal()],
+        LocalSourceForm::Block { bindings, final_expression } => bindings.iter().map(|ordinal| *ordinal).chain(std::iter::once(final_expression.ordinal())).collect(),
+        _ => Vec::new(),
     }
 }
 

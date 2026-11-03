@@ -25,6 +25,12 @@ pub(super) struct Context {
     base: Option<usize>,
     word: Option<usize>,
 }
+impl Context {
+    #[cfg(test)]
+    pub(super) fn r314_parts(self) -> (Option<usize>, Option<usize>) {
+        (self.base, self.word)
+    }
+}
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct State {
     pub context: Context,
