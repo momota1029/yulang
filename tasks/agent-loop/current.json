@@ -655,21 +655,21 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R331",
+    "id": "R332",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/source-environment-ei-r331.md",
-    "contract_sha256": "d81ee0eace9b646dddfdfd001eac1317a3ec99d3435d2c15cdeb04f4a9727ae7",
-    "review_result": "tasks/agent-loop/history/20261103-source-environment-r331-review.md",
-    "review_result_sha256": "8b9b49c807ea5f81a9d22d270859dd47ca914732c049c4c25af7feaec4c0b6c1",
-    "ei_review": "tasks/agent-loop/history/20261103-selected-ei-tail-r331-review.md",
-    "ei_review_sha256": "07c511bcdd494583eb6eb031210d4b81f0e000b5afa01461319ade6a5efa4cd3",
+    "contract": "tasks/agent-loop/sprints/source-prefix-authenticated-ei-r332.md",
+    "contract_sha256": "f36c9bb40b90bb4a784fafe1136daab6f1eb1e3fcf899f152c9ad26429d49af9",
+    "review_result": "tasks/agent-loop/history/20261103-source-prefix-bridge-r332-review.md",
+    "review_result_sha256": "6c009b227481e720de8a9999a47432386f40a81d530a2137ac8779b176695667",
+    "response_review": "tasks/agent-loop/history/20261103-tick-formal-response-r332-review.md",
+    "response_review_sha256": "24a107d882326c0b9b0afe0f64b2421970a2de39ec4687725ab16ae319b5321d",
     "previous_sprint": {
-      "id": "R330",
+      "id": "R331",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/source-phase-view-r330.md",
-      "contract_sha256": "527d29025b58ae33128adc71ef43c3f45f3e931b61e091b8400967fed0564ba5",
-      "review_result": "tasks/agent-loop/history/20261103-source-view-registration-r330-review.md",
-      "review_result_sha256": "55472bb7cde596f15fe8df39e5ad00575aa9bc07c1cf35581bf19a59cc538755"
+      "contract": "tasks/agent-loop/sprints/source-environment-ei-r331.md",
+      "contract_sha256": "d81ee0eace9b646dddfdfd001eac1317a3ec99d3435d2c15cdeb04f4a9727ae7",
+      "review_result": "tasks/agent-loop/history/20261103-source-environment-r331-review.md",
+      "review_result_sha256": "8b9b49c807ea5f81a9d22d270859dd47ca914732c049c4c25af7feaec4c0b6c1"
     }
   },
   "lease_archive": {
