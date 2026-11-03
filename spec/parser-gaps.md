@@ -6,3 +6,4 @@
 | 項目 | 仕様の根拠 | 現在のパーサ | 確かめた日 |
 | --- | --- | --- | --- |
 | 式の中の label（`'done.return 42`、`last 'outer`、`sub 'done:`、`case 'count 3:`） | [章3c.3](03c-control.md) | `for` の見出しの label（`ForLabel`）だけ読める。式の中の `'x` は Error になる | 2026-11-04 |
+| tuple / tuple struct の位置 field（`(1, 2).0`、`id.0`） | [章4.4](04-types.md) | `.` の後ろの `0` が Error になる | 2026-11-04 |

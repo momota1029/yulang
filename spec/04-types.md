@@ -65,7 +65,7 @@ get_x { x: 1, y: 2 }       // OK: y が余分でも渡せる
 - 型の表示では、省略可能な field は `?` 付きで出る。例: `{width?: 'a} -> 'a | int`。
 - record pattern の default（`{ width = 1 }`）が、省略可能な field を生む（章3b.3）。
 
-## 4.4 `struct`　〔要確認〕
+## 4.4 `struct`　〔`.0` は確定、他は要確認〕
 
 ```yulang
 struct point { x: int, y: int }
@@ -79,6 +79,16 @@ struct pair 'a 'b { fst: 'a, snd: 'b }    // 型引数
 
 - `struct` は**名前で区別される** record 型。値は `point { x: 3, y: 4 }` と作る。
 - tuple struct は位置で field を持つ。field が 1 個でも constructor と pattern を持ち、括弧を書いても payload の型には変わらない。
+- tuple と tuple struct の中身は **`.0`、`.1` で取り出せる**（確定, 2026-11-04）。pattern での分解もできる。
+
+```yulang
+struct user_id(int)
+my id = user_id(7)
+id.0               // 7
+(1, 2).0           // 1
+```
+
+- 現在のパーサは `.0` を読めない（[パーサの未実装](parser-gaps.md)）。
 - `with:` で companion module に method を足す。
 
 ```yulang
