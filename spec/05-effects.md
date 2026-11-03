@@ -114,7 +114,7 @@ effect 注釈は、公開される型の行を説明すると同時に、**高�
 
 出典: `main:web/docs/ja/reference/type-theory.md` §effect 注釈の意味の表、[traps.md](traps.md) の T2・T3
 
-## 5.6 effect family の copy　〔要確認〕
+## 5.6 effect family の copy　〔可視性の規則は確定、細部は要確認〕
 
 ```yulang
 act original:
@@ -125,10 +125,24 @@ act local = original with:
 ```
 
 - `act copy = source` は alias ではなく、**新しい effect family** を作る。`local::tick` は `original::tick` の別名ではない。
-- source から継承するのは `pub` / `our` だけ。source の `my` は継承されず、copy 先の `with:` からも見えない。
-- source の `our` member が source の `my` helper に依存していると、copy 先では解決できなくなる。これは意図した規則。
+- source から継承するのは `pub` / `our` だけ。source の `my` は copy 先の公開面にも `with:` にも**現れない**。
+- source の `our` member が source の `my` の helper に依存している場合、**helper も copy の private として一緒に持っていく**（確定, 2026-11-04）。
+  copy 先でも member は動き、helper は外から見えないまま。source の実装詳細を変えても copy が壊れない。
 
-出典: `main:web/docs/ja/reference/effects.md`、`main:spec/2026-06-25-act-copy.md`
+```yulang
+act source:
+    my helper = 10
+    our tick: () -> never
+    our twice = helper * 2
+
+act copy = source          // twice は copy でも動く。helper は copy の private
+```
+
+- main の素材は「依存すると copy 先で解決できなくなる（ill-formed）。意図した規則」と書いていたが、この章では採らない。
+- 未確認（確認 N1）: private の helper が source の operation を呼んでいる場合、copy 先では **copy の operation**を呼ぶように付け替えるのか。
+  copy は新しい family なので、source の operation を呼び続けると、copy を handle しても helper が起こす effect が handler に届かない。
+
+出典: `main:web/docs/ja/reference/effects.md` §effect family の copy、`main:spec/2026-06-25-act-copy.md`
 
 ## 5.7 `error` 宣言　〔固定する仕様〕
 
@@ -157,4 +171,4 @@ use std::control::nondet::*
 
 ## 確認してほしい点
 
-なし（H1〜H5、H2' は反映済み）。
+- **N1** 5.6 の helper が source の operation を呼んでいるとき、copy 先では copy の operation を呼ぶ形に付け替えるか。
