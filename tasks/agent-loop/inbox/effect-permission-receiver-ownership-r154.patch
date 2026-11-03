@@ -1,1 +1,0 @@
-NO_PATCH — baseline already contains the necessary consumer joins; the frozen deletion candidate has no safe source slice. This marker is not a unified diff and must not be applied.
