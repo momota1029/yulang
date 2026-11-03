@@ -28,6 +28,6 @@
   6. [role・method・cast](06-roles.md)
   7. [型の表示](07-display.md)（注釈と表示型の関係）
   8. [エラー・標準ライブラリの境界](08-errors-std.md)（参照 `$x` / `&x` は[章3c](03c-control.md)）
-  9. parser DSL（`rule` / `~"..."`）
+  9. [parser DSL](09-parser-dsl.md)（`rule` / `~"..."`）
 
 構文の細部は `syntax-reference/` と `notes/design/` が既にある。仕様側は意味を書き、構文は参照で済ませる。
