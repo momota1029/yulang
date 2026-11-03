@@ -655,19 +655,19 @@
     "current_sha256": "41fb580c9bbe68270d6f43c524741bdc480d3a314a893663f1e713d8db53e57c"
   },
   "active_sprint": {
-    "id": "R338",
+    "id": "R339",
     "status": "REVIEWED_PARTIAL",
-    "contract": "tasks/agent-loop/sprints/actual-source-union-r338.md",
-    "contract_sha256": "b416b1731da2bd1bd9e83d34fcee300237ca06b21a48634ebfec139092458215",
-    "review_result": "tasks/agent-loop/history/20261103-original-source-return-r338-review.md",
-    "review_result_sha256": "04510cd904d6ac248f0883c2a1b0e9608aae7e3ca90eaa2f53cff1cff0bb5a50",
+    "contract": "tasks/agent-loop/sprints/source-witness-integration-r339.md",
+    "contract_sha256": "e2d2b87031854fd7e6ebf591aec3f9d28859df29992a7dd378338f125d924672",
+    "review_result": "tasks/agent-loop/history/20261103-parametric-ei-witness-r339-review.md",
+    "review_result_sha256": "fe915e30d680b5fd94f32776f3a89f407bda815faa89944b41d157fe6c2cbb68",
     "previous_sprint": {
-      "id": "R337",
+      "id": "R338",
       "status": "REVIEWED_PARTIAL",
-      "contract": "tasks/agent-loop/sprints/original-contract-family-r337.md",
-      "contract_sha256": "b4dc9ed1e68303300af636481dbe689e42bbd9780ba3a89a41e92df88a36e9a1",
-      "review_result": "tasks/agent-loop/history/20261103-contract-owner-world-r337-review.md",
-      "review_result_sha256": "b5c62c833383157916f65a609a2d1840b36d6af843f9c5b7fe8d5a91150935fa"
+      "contract": "tasks/agent-loop/sprints/actual-source-union-r338.md",
+      "contract_sha256": "b416b1731da2bd1bd9e83d34fcee300237ca06b21a48634ebfec139092458215",
+      "review_result": "tasks/agent-loop/history/20261103-original-source-return-r338-review.md",
+      "review_result_sha256": "04510cd904d6ac248f0883c2a1b0e9608aae7e3ca90eaa2f53cff1cff0bb5a50"
     }
   },
   "lease_archive": {
