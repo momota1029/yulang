@@ -1,4 +1,5 @@
 import Yulang.Effects
+import Yulang.StructuralBase
 import Yulang.Inference
 
 /-!
@@ -19,67 +20,32 @@ namespace Yulang.Structural
 open Yulang.Inference
 open Yulang.Effects
 
-inductive Ty (Key : Type u) where
-  | base : Base → Ty Key
-  | bottom : Ty Key
-  | union : Ty Key → Ty Key → Ty Key
-  | inter : Ty Key → Ty Key → Ty Key
-  | pair : Ty Key → Ty Key → Ty Key
-  | emptyRecord : Ty Key
-  | record : Nat → Ty Key → Ty Key → Ty Key
-  | variant : Nat → Ty Key → Ty Key
-  | arrow : Ty Key → Row Key → Ty Key → Row Key → Ty Key
+abbrev Ty (Key : Type u) := StructuralBase.Ty (Row Key)
 
-/-- Lookup stops at the first field; a hidden duplicate is not a requirement. -/
-def Ty.lookup (label : Nat) : Ty Key → Option (Ty Key)
-  | .record current value rest => if label = current then some value else rest.lookup label
-  | _ => none
+namespace Ty
+export StructuralBase.Ty (base bottom union inter pair emptyRecord record variant arrow)
 
-inductive IsRecord : Ty Key → Prop where
-  | empty : IsRecord .emptyRecord
-  | field : IsRecord rest → IsRecord (.record label value rest)
+abbrev lookup (label : Nat) (ty : Ty Key) : Option (Ty Key) :=
+  StructuralBase.Ty.lookup label ty
+end Ty
 
-/-- A structural preorder; it is intentionally not defined by solver success. -/
-inductive Subtype : Ty Key → Ty Key → Prop where
-  | refl (a : Ty Key) : Subtype a a
-  | trans : Subtype a b → Subtype b c → Subtype a c
-  | bottom (a : Ty Key) : Subtype .bottom a
-  | unionLeft (a b : Ty Key) : Subtype a (.union a b)
-  | unionRight (a b : Ty Key) : Subtype b (.union a b)
-  | unionElim : Subtype a c → Subtype b c → Subtype (.union a b) c
-  | interLeft (a b : Ty Key) : Subtype (.inter a b) a
-  | interRight (a b : Ty Key) : Subtype (.inter a b) b
-  | interIntro : Subtype c a → Subtype c b → Subtype c (.inter a b)
-  | pair : Subtype a a' → Subtype b b' → Subtype (.pair a b) (.pair a' b')
-  | variant : Subtype a b → Subtype (.variant label a) (.variant label b)
-  | arrow : Subtype input' input → RowSubset inputRow' inputRow →
-      Subtype output output' → RowSubset outputRow outputRow' →
-      Subtype (.arrow input inputRow output outputRow)
-        (.arrow input' inputRow' output' outputRow')
-  | record : IsRecord source → IsRecord target →
-      (∀ label value, target.lookup label = some value →
-        ∃ actual, source.lookup label = some actual) →
-      (∀ label actual expected, source.lookup label = some actual →
-        target.lookup label = some expected → Subtype actual expected) →
-      Subtype source target
+abbrev IsRecord {Key : Type u} := @StructuralBase.IsRecord (Row Key)
 
-/-- Actual scoped occurrence rows, with inclusion and union as their order/join. -/
-def model (Key : Type u) : Model where
-  Ty := Ty Key
-  Row := Row Key
-  base := Ty.base
-  bottom := Ty.bottom
-  union := Ty.union
-  inter := Ty.inter
-  pair := Ty.pair
-  emptyRecord := Ty.emptyRecord
-  record := Ty.record
-  variant := Ty.variant
-  arrow := Ty.arrow
-  empty := []
-  join := List.append
-  subTy := Subtype
-  subRow := RowSubset
+namespace IsRecord
+export StructuralBase.IsRecord (empty field)
+end IsRecord
+
+abbrev Subtype {Key : Type u} := StructuralBase.Subtype (@RowSubset Key)
+
+namespace Subtype
+export StructuralBase.Subtype
+  (refl trans bottom unionLeft unionRight unionElim interLeft interRight interIntro
+    pair variant arrow record)
+end Subtype
+
+/-- The legacy API specializes the shared type algebra to nonnegative rows. -/
+abbrev model (Key : Type u) : Model :=
+  StructuralBase.model (Row Key) [] List.append RowSubset
 
 theorem row_refl (row : Row Key) : RowSubset row row := fun _ h => h
 
@@ -114,130 +80,67 @@ theorem row_join_assoc (a b c : Row Key) : RowEquiv ((a ++ b) ++ c) (a ++ (b ++ 
   simp only [List.mem_append, or_assoc]
 
 theorem union_is_join (a b c : Ty Key) :
-    Subtype (.union a b) c ↔ Subtype a c ∧ Subtype b c := by
-  constructor
-  · intro h
-    exact ⟨.trans (.unionLeft a b) h, .trans (.unionRight a b) h⟩
-  · rintro ⟨ha, hb⟩
-    exact .unionElim ha hb
+    Subtype (.union a b) c ↔ Subtype a c ∧ Subtype b c :=
+  StructuralBase.union_is_join a b c
 
 theorem inter_is_meet (a b c : Ty Key) :
-    Subtype c (.inter a b) ↔ Subtype c a ∧ Subtype c b := by
-  constructor
-  · intro h
-    exact ⟨.trans h (.interLeft a b), .trans h (.interRight a b)⟩
-  · rintro ⟨ha, hb⟩
-    exact .interIntro ha hb
+    Subtype c (.inter a b) ↔ Subtype c a ∧ Subtype c b :=
+  StructuralBase.inter_is_meet a b c
 
 theorem union_mono {a a' b b' : Ty Key} (ha : Subtype a a') (hb : Subtype b b') :
-    Subtype (.union a b) (.union a' b') :=
-  .unionElim (.trans ha (.unionLeft a' b')) (.trans hb (.unionRight a' b'))
+    Subtype (.union a b) (.union a' b') := StructuralBase.union_mono ha hb
 
 theorem inter_mono {a a' b b' : Ty Key} (ha : Subtype a a') (hb : Subtype b b') :
-    Subtype (.inter a b) (.inter a' b') :=
-  .interIntro (.trans (.interLeft a b) ha) (.trans (.interRight a b) hb)
+    Subtype (.inter a b) (.inter a' b') := StructuralBase.inter_mono ha hb
 
-/-! ## Non-vacuity
-
-A scalar observation is a small sound interpretation of this judgement. It
-distinguishes base types and unions, without asserting that it characterizes
-all structural subtypes or function denotations.
--/
-
-def Scalar (observed : Base) : Ty Key → Prop
-  | .base actual => actual = observed
-  | .union a b => Scalar observed a ∨ Scalar observed b
-  | .inter a b => Scalar observed a ∧ Scalar observed b
-  | _ => False
+abbrev Scalar {Key : Type u} := @StructuralBase.Scalar (Row Key)
 
 theorem record_not_scalar (observed : Base) {record : Ty Key} (shape : IsRecord record) :
-    ¬ Scalar observed record := by
-  cases shape <;> simp [Scalar]
+    ¬ Scalar observed record := StructuralBase.record_not_scalar observed shape
 
 theorem scalar_preserved {a b : Ty Key} (subtype : Subtype a b) :
-    ∀ observed, Scalar observed a → Scalar observed b := by
-  induction subtype with
-  | refl => exact fun _ h => h
-  | trans _ _ ihab ihbc => exact fun observed h => ihbc observed (ihab observed h)
-  | bottom => exact fun _ h => False.elim h
-  | unionLeft => exact fun _ h => Or.inl h
-  | unionRight => exact fun _ h => Or.inr h
-  | unionElim _ _ iha ihb => exact fun observed h => h.elim (iha observed) (ihb observed)
-  | interLeft => exact fun _ h => h.1
-  | interRight => exact fun _ h => h.2
-  | interIntro _ _ iha ihb => exact fun observed h => ⟨iha observed h, ihb observed h⟩
-  | pair => exact fun _ h => False.elim h
-  | variant => exact fun _ h => False.elim h
-  | arrow => exact fun _ h => False.elim h
-  | record sourceShape _ _ _ _ =>
-    exact fun observed h => False.elim (record_not_scalar observed sourceShape h)
+    ∀ observed, Scalar observed a → Scalar observed b := StructuralBase.scalar_preserved subtype
 
 theorem distinct_bases_not_subtypes {left right : Base} (different : left ≠ right) :
-    ¬ Subtype (Ty.base left : Ty Key) (.base right) := by
-  intro h
-  exact different ((scalar_preserved h left rfl).symm)
+    ¬ Subtype (Ty.base left : Ty Key) (.base right) :=
+  StructuralBase.distinct_bases_not_subtypes different
 
 theorem int_not_str : ¬ Subtype (Ty.base .int : Ty Key) (.base .str) :=
-  distinct_bases_not_subtypes (by decide)
+  StructuralBase.int_not_str
 
 theorem str_not_int : ¬ Subtype (Ty.base .str : Ty Key) (.base .int) :=
-  distinct_bases_not_subtypes (by decide)
+  StructuralBase.str_not_int
 
 theorem int_union_str_not_int :
-    ¬ Subtype (Ty.union (.base .int) (.base .str) : Ty Key) (.base .int) := by
-  intro h
-  exact str_not_int (.trans (.unionRight _ _) h)
-
-/-! ## Record and variance witnesses -/
+    ¬ Subtype (Ty.union (.base .int) (.base .str) : Ty Key) (.base .int) :=
+  StructuralBase.int_union_str_not_int
 
 @[simp] theorem lookup_first (label : Nat) (head tail : Ty Key) :
-    (Ty.record label head tail).lookup label = some head := by
-  simp [Ty.lookup]
+    (Ty.record label head tail).lookup label = some head :=
+  StructuralBase.lookup_first label head tail
 
 @[simp] theorem lookup_other (label other : Nat) (different : label ≠ other)
     (head tail : Ty Key) :
-    (Ty.record other head tail).lookup label = tail.lookup label := by
-  simp [Ty.lookup, different]
+    (Ty.record other head tail).lookup label = tail.lookup label :=
+  StructuralBase.lookup_other label other different head tail
 
 theorem first_field_wins (label : Nat) (first hidden tail : Ty Key) :
-    (Ty.record label first (.record label hidden tail)).lookup label = some first := by
-  simp
+    (Ty.record label first (.record label hidden tail)).lookup label = some first :=
+  StructuralBase.first_field_wins label first hidden tail
 
 theorem record_width :
     Subtype (Ty.record 0 (.base .int) (.record 1 (.base .str) .emptyRecord) : Ty Key)
-      (.record 0 (.base .int) .emptyRecord) := by
-  apply Subtype.record (.field (.field .empty)) (.field .empty)
-  · intro label value h
-    by_cases hl : label = 0
-    · subst label
-      exact ⟨.base .int, by simp⟩
-    · simp [Ty.lookup, hl] at h
-  · intro label actual expected ha he
-    by_cases hl : label = 0
-    · subst label
-      simp at ha he
-      cases ha
-      cases he
-      exact .refl _
-    · simp [Ty.lookup, hl] at he
+      (.record 0 (.base .int) .emptyRecord) := StructuralBase.record_width
 
 theorem record_width_to_empty {record : Ty Key} (shape : IsRecord record) :
-    Subtype record .emptyRecord := by
-  apply Subtype.record shape .empty
-  · intro label value h
-    cases h
-  · intro label actual expected _ h
-    cases h
+    Subtype record .emptyRecord := StructuralBase.record_width_to_empty shape
 
-/-- Dropping a shadowing int head would expose str and fails the field obligation. -/
 theorem shadowed_field_obligation_rejected :
     ¬ (∀ label actual expected,
       (Ty.record 0 (.base .int) (.record 0 (.base .str) .emptyRecord) : Ty Key).lookup
         label = some actual →
       (Ty.record 0 (.base .str) .emptyRecord : Ty Key).lookup label = some expected →
-      Subtype actual expected) := by
-  intro obligation
-  exact int_not_str (obligation 0 (.base .int) (.base .str) (by simp) (by simp))
+      Subtype actual expected) := StructuralBase.shadowed_field_obligation_rejected
 
 theorem arrow_variance (extra : Row Key) :
     Subtype

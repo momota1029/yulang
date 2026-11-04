@@ -158,7 +158,7 @@ recordのfield照合は同じlabelの最初の出現を採用する。後に現�
 
 ### 10.5.2 operationとshallow handlerの制約
 
-`EffectInference` は前節の生成器を実際に呼び、解決済みのoperation呼出し・境界変換・shallow handlerについて、独立な型判断と制約生成の双方向の一致を証明する。以下の式は最小限の結果上界を示しており、核の部分型規則でさらに上界へ広げられる。
+`RowInference` は前節の生成器を実際に呼び、解決済みのoperation呼出し・境界変換・shallow handlerについて、独立な型判断と制約生成の双方向の一致を証明する。行の空・和・明示的head・保護・解除・残余・包含を `RowAlgebra` で与えることで、同じ生成器と定理を非負の保護listと符号付き行の両方に使う。`EffectInference` は非負参照核の規則と署名・arm環境の定義を保持する。以下の式は最小限の結果上界を示しており、核の部分型規則でさらに上界へ広げられる。
 
 operationの署名を `k : P → Q`、宣言された追加行を `δ`、payloadの推論結果を `P ! ρp` とすると、結果は
 
@@ -181,6 +181,12 @@ Q ! ∅ → A ! ρ
 ```
 
 である。`ρo` の中に同じoperationが現れても再び差し引かない。別operationの残存、handler armの再送出、元の行を持つ継続が個別の定理になっている。
+
+`SignedStructural` は共通の構造部分型を実際の `Directed.Row` へ具体化し、`RowView` を恒等写像で実装する。このモデルでは、operationの生成制約が自身の行を含む結果を受理し、空行を拒否する。また、保護前の解除が作る負の差分を持つ行は受理され、その差分を空行へ消すことは拒否される。これらは任意のscope数と解決済みkeyについての定理である。
+
+`DirectedBounds` 内の `Directed.Computation.shallowHandle_bounded` は、符号付きcomputationのactionと両armに実行時の上界があることを前提として、上の残余と和がhandler全体の上界になると証明する。継続の前提にも元の行を使う。境界での保護・解除によるcomputationと行のtransportは双方向に上界を保ち、この主張自体には `ZeroAt` を必要としない。上界のtransportと非captureを混同しない。
+
+`RowInference.generated_signed_handler_composes_effect_bounds` は、成立したhandler生成制約を独立の型判断へ戻し、action・armの明示された実行時上界と組み合わせて、実際の符号付きshallow handlerの出力上界を導く。この合成定理は `DirectedHandlerInference` に置く。型付けからaction・armの上界を導くpreservationを、前提の中へ隠して証明済みと数えない。
 
 この層では、payload・action・armを前節のcore `Expr` で表し、一つの解決済み規則ごとに生成する。effect構文を再帰的に含む一つのsource ASTからの翻訳まで証明したものではない。また、境界規則がここで変換するのはその場のcomputation行である。値の中にある関数の潜在行と10.3.4の高階transportを結び付けるには、型に沿ったelaborationの証明が別に必要になる。
 

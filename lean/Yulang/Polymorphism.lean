@@ -53,7 +53,8 @@ def symbolicContext : SchemeEnv Unit :=
 def assignment : Unit → Comp (model Nat) := fun _ => (.base .int, [io])
 
 theorem context_related : EnvRel (model Nat) assignment symbolicContext actionContext := by
-  simpa [symbolicContext, actionContext, assignment, CompTerm.eval, TyTerm.eval, RowTerm.eval, model]
+  simpa [symbolicContext, actionContext, assignment, CompTerm.eval, TyTerm.eval, RowTerm.eval,
+    model, StructuralBase.model]
     using (EnvRel.nil (model Nat) assignment).mono (⟨.base .int, .var ()⟩ : CompTerm Unit)
 
 theorem generated_effectful_alias_accepted :
