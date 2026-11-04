@@ -126,6 +126,8 @@ mod inner:
     pub get = secret      // 親の my を参照できる
 ```
 
+- 逆に、親から子の `my` は見えない（確定, 2026-11-04）。`inner::hidden` のように子の `my` を指すのはエラー。
+
 出典: `main:web/docs/ja/reference/modules.md`
 
 ## 2.4 `use`　〔基本形は確定、version は未定〕
