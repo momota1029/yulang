@@ -1,0 +1,7 @@
+name = "yulang-inference"
+version = "0.1.0"
+defaultTargets = ["Yulang"]
+moreLeanArgs = ["--trust=0"]
+
+[[lean_lib]]
+name = "Yulang"
