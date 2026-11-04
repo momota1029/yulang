@@ -149,6 +149,15 @@ use noisy::* without debug
 
 - 上の形（`use path::name`、`as`、`*`、group、`without`、演算子の `(+)` 表記）までを仕様として約束する（確定, 2026-11-04）。
 - version 付きの import（`use provider/realm/band::path::name v1.0.0`）は realm / band の方針（2.6）とあわせて後で決める（未定）。
+- `use` で入れた名前は、その module の中だけで効く。外から `a::map` のように辿ることはできない（確定, 2026-11-04）。
+  外へ出すには可視性を付ける。`our use path::name` は同じ band の内側へ、`pub use path::name` は band の外へ出す。
+
+```yulang
+use std::data::list::map          // この module の中だけ
+our use std::data::list::map      // 同じ band の中へ再公開
+pub use std::data::list::map      // band の外へ再公開
+```
+
 - 演算子の宣言は、`use` で import したファイルだけでその演算子が読める（章1.5）。
 - 通常の entry file には `use std::prelude::*` が暗黙に付く。
 
