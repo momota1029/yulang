@@ -5,13 +5,14 @@ import Yulang.Effects
 
 Current spec/05-effects.md §5.5 and traps.md T3 check the concrete effects visible
 at an annotation, while allowing an opaque tail. This module characterizes that
-local check. It deliberately does not decide whether a later refinement triggers
-a new check: that is a remaining source-spec decision, not a solver theorem.
+local check. A later refinement does not trigger a new check (spec T3, 2026-11-05).
 
 The final impossibility theorem explains why a purely extensional checker cannot
 simultaneously accept every unknown row, reject a forbidden concrete effect, and
 be invariant under arbitrary substitution. A source implementation must retain
-the observation boundary/provenance or recheck at a specified refinement point.
+the observation boundary: spec T3 (decided 2026-11-05) checks only what is
+visible at the annotation, and later concretization of a generalized row
+variable is substitution into a scheme, not a recheck.
 -/
 
 namespace Yulang.Annotations
