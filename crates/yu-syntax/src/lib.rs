@@ -26,6 +26,7 @@ mod syntax_environment;
 mod syntax_kind;
 mod type_expr;
 mod virtual_statement_block;
+mod yumark;
 
 pub use diagnostics_schema::{
     ExpectedSyntax, GrammarSlot, GrammarSlotRole, SyntaxDiagnosticIdentity, SyntaxDiagnosticKind,
