@@ -147,7 +147,7 @@ enum event:
     named { name: str }
 ```
 
-- variant は companion module の member（`event::moved`）。
+- variant は companion module の member（`event::moved`）。修飾なしで使うには `color::red` と書くか、`use color::*` で入れる。prelude が再公開する `just` / `nil` / `ok` / `err` だけが、はじめから修飾なしで使える（確定, 2026-11-04）。
 - **複数の payload を持つ variant の constructor は、カリー化された関数**（確定, 2026-11-04）。部分適用ができ、値としても取り出せる。
 
 ```yulang
