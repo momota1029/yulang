@@ -105,3 +105,22 @@ run_cmd do
 #print axioms Yulang.Variants.residual_constraint_iff
 #print axioms Yulang.Variants.residual_empty_iff
 #print axioms Yulang.Variants.residual_map_payload
+
+#print axioms Yulang.Variants.Merged.normalize_unique
+#print axioms Yulang.Variants.Merged.lookup_normalize
+#print axioms Yulang.Variants.Merged.tags_normalize
+#print axioms Yulang.Variants.Merged.mergeAll_eq_none_iff
+#print axioms Yulang.Variants.Merged.normalize_residual
+#print axioms Yulang.Variants.Merged.selected_normalize
+#print axioms Yulang.Variants.Merged.mem_residual_normalize_iff
+#print axioms Yulang.Variants.Merged.handled_no_residual_payload
+#print axioms Yulang.Variants.Merged.residual_empty_iff
+#print axioms Yulang.Variants.Merged.case_exact_tags_empty
+#print axioms Yulang.Variants.Merged.case_omitted_tag
+#print axioms Yulang.Variants.Merged.case_omitted_normalize
+#print axioms Yulang.Variants.Merged.normalize_map
+#print axioms Yulang.Variants.Merged.residual_map
+#print axioms Yulang.Variants.Merged.variant_union_upper_bound
+#print axioms Yulang.Variants.Merged.Examples.id_merge
+#print axioms Yulang.Variants.Merged.Examples.id_handled_entirely
+#print axioms Yulang.Variants.Merged.Examples.str_leaves_num

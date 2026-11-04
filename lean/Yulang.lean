@@ -1,4 +1,5 @@
 import Yulang.Variants
+import Yulang.VariantsMerged
 import Yulang.Effects
 import Yulang.EffectExamples
 import Yulang.Horn

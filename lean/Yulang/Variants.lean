@@ -4,9 +4,11 @@ import Std
 # Inferred variant residuals
 
 The row below is a finite support of (tag, payload-type) alternatives, not a
-surface annotation grammar. Order and duplicate entries have no semantic force:
-the theorems use membership. Unlike effect occurrences, value alternatives do
-not carry handler barriers. Sources: spec/04-types.md §4.5 and traps.md T-variant.
+surface annotation grammar. These support-level theorems use membership and
+allow duplicate tags; `Yulang.VariantsMerged` adds the tag-unique representation
+with merged payloads required by the 2026-11-05 decision. Unlike effect
+occurrences, value alternatives do not carry handler barriers.
+Sources: spec/04-types.md §4.5 and traps.md T-variant.
 
 These results characterize removal of resolved tags. They do not decide source
 pattern exhaustiveness, guards, payload subtyping, or recursive open row solving.

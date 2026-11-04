@@ -146,8 +146,9 @@ payload がなければ unit。
   ```
 
   これを引数 `list (:str str | :num int)` に当てると、`'r` は `:num int` になり、結果の型に「文字は全部処理した、残りは数字だけ」が出る。
+- **tag は一意で、payload は tag ごとに合流する**（確定, 2026-11-05）。`if b then :id 1 else :id "a"` の型は `:id (int | str)` で、`:id int | :id str` という別々の alternative は持たない。`case` が `:id x` を拾えば `x: int | str` の全体が取れ、payload の一部だけを処理して残りの payload を `'r` に残すことはできない。したがって網羅性は「tag の集合が閉じているか」で決まり、payload の中までは入らない。全部処理して残りが空になることと、網羅性（章3b.4）は同じ条件である。値の variant には effect の stack weight 相当は要らない（tag は handler に捕まえられない）。
 - **行変数 `'r` は利用者が注釈に書かない**（確定, 2026-11-04）。注釈に書けるのは閉じた `:str str | :num int` の形だけで、`:str 'a | 'r` は推論された型として hover などに現れる（`'e?` と同じ扱い）。書けるようにするかは、必要が出てから決める。
-- 要確認: 残りの行が空になったとき（全部処理したとき）の扱いと `case` の網羅性（章3b）の関係。effect の引き算（章5.5）と同じ計算で扱えるか、値には effect の stack weight 相当が要らないか。核の計算体系を書くときに確かめる（`traps.md` T-variant）。
+- 残りが空のときの網羅性との関係、effect の引き算との関係は上のとおり確定した。形式化は `lean/Yulang/Variants.lean`（`traps.md` T-variant）。
 
 ```yulang
 enum opt 'a = nil | just 'a

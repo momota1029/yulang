@@ -104,19 +104,33 @@ protect(b, P, release(b, P, v)) = v
 
 ## 10.4 variant の残り
 
-完全に処理することが確かめられた resolved tag の集合 `H` と有限の alternative support `R` に対して、残余は
+章4.5の決定（2026-11-05）に従い、variant の行は tag ごとに一つの alternative を持ち、同一 tag の payload は union に合流する。`:id int` と `:id str` の合流は `:id (int | str)` である。処理する tag の集合 `H` と、tag が一意な有限行 `R` に対して、残余は
 
 ```text
 residual(H, R) = { (tag, payload) ∈ R | tag ∉ H }
 ```
 
-である。payload を変えず、処理済み tag を除く。値の alternative には handler の保護 stack を付けない。effect の残余計算と同じ「選択と残余への分割」を使うが、effect の衛生性を必要とする根拠を値へ持ち込まない。
+である。tag の腕は合流済み payload 全体を受け取り、その tag の entry 全体を除く。payload の一部を処理して残りを同じ tag の残余に残すことはしない。値の alternative には effect の stack weight を付けない。
 
-[`Yulang/Variants.lean`](../lean/Yulang/Variants.lean) は、入力の正確な分割、処理済み tag の不在、残余の最小性・最大性、二度除去しても変わらないこと、除去順の交換、payload 置換との両立を証明する。`residual_empty_iff` は「残余が空」と「入力の全 tag が処理対象」の同値である。
+[`Yulang/Variants.lean`](../lean/Yulang/Variants.lean) の既存定理は、tag の重複を許す有限 support について、正確な分割、処理済み tag の不在、残余の最小性・最大性、除去の冪等性・交換、payload 置換との両立を述べる。これらの定義と定理は維持する。
 
-これは tag 全体の処理に関する定理である。例えば `:some 0` だけを処理しても `:some int` 全体を `H` に入れてはならず、guard 付きの腕も無条件の被覆にはならない。source の pattern、guard、payload の部分型、再帰的な open row の solver、case の網羅性検査との接続は、この定理だけからは出ない。
+[`Yulang/VariantsMerged.lean`](../lean/Yulang/VariantsMerged.lean) の `Variants.Merged.Row` は tag の列が `Nodup` であることを保持する。`normalize merge` は重複を許す行からこの表現へ移す。`merge` は payload の二項演算として明示的に渡し、同一 tag の payload を入力順の右結合でまとめる。該当 payload が `[a, b, c]` なら `mergeAll` は `some (merge a (merge b c))`、一つならその payload、存在しなければ `none` を返す。空の場合のために特別な payload や merge の単位元は要求しない。tag の列順は最後の出現順の逆順である。
 
-出典: 章4.5、`traps.md` T-variant。例: `:str str | :num int` から `:str` を除けば `:num int` が残る。
+ここで証明する主張は次のとおりである。以下の定理名は `Yulang.Variants.Merged` 内にある。
+
+- `normalize_unique` は合流後の tag の一意性を、`tags_normalize` は元の行との tag の一致を述べる。`lookup_normalize` は lookup と上の `mergeAll` の一致を述べ、`mergeAll_eq_none_iff` は `none` と元の行に tag がないことを同値にする。
+- `normalize_residual` は `normalize merge (residual H R) = residual H (normalize merge R)` を行の等式として証明する。除去と合流の前後で tag の列順も一致する。
+- `selected_normalize` は処理対象 tag の選択結果が合流済み payload 全体であることを述べる。`mem_residual_normalize_iff` は残余の `(tag, payload)` が「tag が未処理、かつ `mergeAll` がその payload」と同値であることを述べる。`handled_no_residual_payload` は、処理済み tag がどの payload を伴っても残余に現れないことを述べる。
+- `residual_empty_iff` は、tag が一意な有限行について「残余が空」と「存在する全 tag が処理対象」の同値を述べる。`case_exact_tags_empty` は腕の tag が入力の tag とちょうど一致すれば残余が空であることを述べる。`case_omitted_tag` と合流後への特殊化 `case_omitted_normalize` は、存在する tag を一つでも落とせば残余が非空となり、その tag と payload 全体を含むことを述べる。
+- `normalize_map` は、payload 置換 `f` が `f (merge a b) = merge' (f a) (f b)` を満たすとき、置換と合流が交換することを述べる。`residual_map` は合流済み行での置換と残余の交換を述べ、こちらには merge 準同型の仮定は不要である。
+
+これらの合流・残余の定理に、merge の結合則・交換則・冪等則は必要ない。入力の並べ替えや重複挿入で payload が等しくなることまでは主張しない。`variant_union_upper_bound` は既存の `StructuralBase.Subtype` の variant 共変規則と union 規則だけから `variant l a ∪ variant l b ≤ variant l (a ∪ b)` を導く。逆向きの包含や、構造部分型モデル全体の正規化を示すものではない。
+
+`Examples.id_merge` と `id_handled_entirely` は、`[("id", int), ("id", str)]` が一つの `id (int ∪ str)` へ合流し、`id` の処理で残余が空になることを確認する。`str_leaves_num` は任意の payload `s, n` について、`[("str", s), ("num", n)]` から `str` を除けば `[("num", n)]` が残ることを示す。
+
+したがって、この有限行の核では「残余が空」と「全 tag の被覆」は同じ条件である。入力型が腕に書いた tag だけで閉じていれば `_` は不要という章3b.4の条件に対応する。payload 内部の source pattern 網羅性は章4.5の決定により対象外であり、guard 付きの腕は章3b.4に従って被覆に数えない。定理は解決済み tag の処理集合を受け取り、source からその集合を作る検査器は証明していない。payload の部分型 solver、再帰的な open row の solver、case の入力型を閉じる制約生成も、この形式化からは出ない。
+
+出典: 章4.5（確定, 2026-11-05）、章3b.4、`traps.md` T-variant。
 
 ## 10.5 一般化・解決・表示の境界
 
