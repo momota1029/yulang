@@ -4,10 +4,8 @@ use super::required_operand::required_expr_after_accept_normalized;
 use crate::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
 use crate::ambient_claim::AmbientClaimView;
-#[cfg(test)]
 use crate::lexical::{current_item::CurrentItem, lexer::scan_nud_payload};
 
-#[cfg(test)]
 use reborrow_generic::Reborrow as _;
 
 use crate::{
@@ -54,9 +52,9 @@ use crate::{
 };
 
 #[cfg(test)]
-use crate::{
-    handoff::TailExit,
-    lexical::{current_item::current_item, expression_item::scan_expression_literal_payload},
+use crate::handoff::TailExit;
+use crate::lexical::{
+    current_item::current_item, expression_item::scan_expression_literal_payload,
 };
 
 #[cfg(test)]
@@ -77,7 +75,6 @@ pub(crate) fn expr(i: SyntaxIn) -> Option<TailExit> {
     .map(ordinary_exit)
 }
 
-#[cfg(test)]
 pub(crate) fn expr_normalized(
     mut i: SyntaxIn,
     threshold: Option<&BindingPower>,
@@ -1041,7 +1038,6 @@ fn operator_tail(
     }
 }
 
-#[cfg(test)]
 fn optional_nud_item(
     mut i: SyntaxIn,
     item_origin: usize,

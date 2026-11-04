@@ -1,8 +1,8 @@
 //! Direct Rowan emission for already-accepted parser items.
 
+use crate::cursor::SyntaxOutput;
 #[cfg(test)]
 use crate::handoff::End;
-use rowan::GreenNodeBuilder;
 use std::ops::Range;
 
 use crate::syntax_kind::SyntaxKind;
@@ -17,8 +17,8 @@ use crate::{
 /// Its private `SyntaxIn` cannot escape. The body can only perform total
 /// lexical work, emit already-owned run bytes, or terminally seal a run
 /// through eligible retry leading; node ownership remains with the helper.
-pub(crate) struct ErrorRunOutput<'a, 'source, 'operators, 'cache> {
-    input: SyntaxIn<'a, 'source, 'operators, 'cache>,
+pub(crate) struct ErrorRunOutput<'a, 'source, 'operators> {
+    input: SyntaxIn<'a, 'source, 'operators>,
     error_run_extent: Option<Range<usize>>,
 }
 
@@ -34,7 +34,7 @@ pub(crate) enum CallArgumentRetryLeadingSeal {
     Sealed,
 }
 
-impl ErrorRunOutput<'_, '_, '_, '_> {
+impl ErrorRunOutput<'_, '_, '_> {
     pub(crate) fn lexical<O>(&mut self, operation: impl FnOnce(LexIn) -> O) -> O {
         self.input
             .token(|lex| Some(operation(lex)))
@@ -185,7 +185,7 @@ pub(crate) fn emit_recovery_error_item(
 
 pub(crate) fn emit_recovery_error_run<R>(
     i: SyntaxIn,
-    body: impl FnOnce(&mut ErrorRunOutput<'_, '_, '_, '_>) -> R,
+    body: impl FnOnce(&mut ErrorRunOutput<'_, '_, '_>) -> R,
 ) -> R {
     // The physical token run is the only durable recovery fact.
     let mut run = ErrorRunOutput {
@@ -313,7 +313,7 @@ pub(crate) fn emit_fragmented_item(i: &mut SyntaxIn, item: Item) {
 
 /// The enclosing owner emits accepted EOF trivia after receiving `End`.
 #[cfg(test)]
-pub(crate) fn emit_end(output: &mut GreenNodeBuilder, end: &mut End) {
+pub(crate) fn emit_end(output: &mut dyn SyntaxOutput, end: &mut End) {
     end.item.emit_eof_leading(output);
 }
 
@@ -321,7 +321,7 @@ fn emit_trivia(i: &mut SyntaxIn, trivia: &LeadingTrivia) {
     emit_trivia_builder(&mut *i.state, trivia);
 }
 
-fn emit_trivia_builder(output: &mut GreenNodeBuilder, trivia: &LeadingTrivia) {
+fn emit_trivia_builder(output: &mut dyn SyntaxOutput, trivia: &LeadingTrivia) {
     trivia.emit(output);
 }
 

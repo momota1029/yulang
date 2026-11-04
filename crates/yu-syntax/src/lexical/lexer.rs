@@ -168,7 +168,6 @@ pub(crate) fn scan_expression_payload(
 
 /// Optional NUD payload vocabulary. The enclosing `current_item` transaction
 /// owns rollback when no expression can start at this Item.
-#[cfg(test)]
 pub(crate) fn scan_nud_payload(
     mut i: LexIn,
     has_leading_trivia: bool,
@@ -1172,7 +1171,6 @@ fn scan_expression_colon(mut i: LexIn) -> Option<Token> {
     })
 }
 
-#[cfg(test)]
 fn scan_expression_symbol_colon(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut symbol| {
         (symbol.next()? == ':').then_some(())?;
@@ -1369,13 +1367,11 @@ fn scan_record_spread_marker(i: LexIn) -> Option<Token> {
     })
 }
 
-#[cfg(test)]
 fn scan_lparen(i: LexIn) -> Option<Token> {
     let token = scan_punctuation(i)?;
     (token.kind == TokenKind::LParen).then_some(token)
 }
 
-#[cfg(test)]
 pub(crate) fn scan_lbrace(i: LexIn) -> Option<Token> {
     let token = scan_punctuation(i)?;
     (token.kind == TokenKind::LBrace).then_some(token)

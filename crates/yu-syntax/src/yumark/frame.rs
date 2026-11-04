@@ -47,6 +47,7 @@ pub(crate) enum FrameOwner {
 pub(crate) enum EmbeddedOuterKind {
     Parenthesis,
     RequiredSemicolon,
+    MyHeadBoundary,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -198,6 +199,30 @@ impl YumarkFrameStack {
 
     pub(crate) fn len(&self) -> usize {
         self.head.as_ref().map_or(0, |node| node.depth)
+    }
+
+    pub(crate) fn nearest_prefix_quote_depth(&self) -> Option<usize> {
+        let mut node = self.head.as_deref();
+        while let Some(current) = node {
+            if let YumarkFrame::PrefixQuote { depth } = &current.frame {
+                return Some(*depth);
+            }
+            node = current.parent.as_deref();
+        }
+        None
+    }
+
+    pub(crate) fn nearest_layout_floor(&self) -> Option<usize> {
+        let mut node = self.head.as_deref();
+        while let Some(current) = node {
+            match &current.frame {
+                YumarkFrame::ListItem { content_column, .. } => return Some(*content_column),
+                YumarkFrame::IndentedBody { body_indent, .. } => return Some(*body_indent),
+                _ => {}
+            }
+            node = current.parent.as_deref();
+        }
+        None
     }
 
     pub(crate) fn is_empty(&self) -> bool {

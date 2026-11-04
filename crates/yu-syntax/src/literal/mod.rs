@@ -158,13 +158,13 @@ pub(super) fn scan_string_text_witness(
 /// this callback surface remains the preserved L3 primitive, while the L6
 /// adapter below supplies full virtual-statement construction.
 #[cfg(test)]
-pub(super) fn string_literal_witness<'source, 'operators, 'frozen>(
-    i: SyntaxIn<'_, 'source, 'operators, 'frozen>,
+pub(super) fn string_literal_witness<'source, 'operators>(
+    i: SyntaxIn<'_, 'source, 'operators>,
     opener: Item,
     mode: StringMode,
     part_origin: usize,
     fence: &FenceBoundary,
-    mut interpolation_body: impl for<'a> FnMut(SyntaxIn<'a, 'source, 'operators, 'frozen>) -> Item,
+    mut interpolation_body: impl for<'a> FnMut(SyntaxIn<'a, 'source, 'operators>) -> Item,
 ) -> StringLiteralExit {
     match string_literal_with_interpolation_body(
         i,
@@ -185,8 +185,8 @@ pub(super) fn string_literal_witness<'source, 'operators, 'frozen>(
 /// L6 isolated StringLiteral construction using the canonical virtual
 /// Statement sequence for every interpolation body.
 #[cfg(test)]
-pub(super) fn string_literal_with_virtual_statements_witness<'source, 'operators, 'frozen>(
-    i: SyntaxIn<'_, 'source, 'operators, 'frozen>,
+pub(super) fn string_literal_with_virtual_statements_witness<'source, 'operators>(
+    i: SyntaxIn<'_, 'source, 'operators>,
     opener: Item,
     mode: StringMode,
     part_origin: usize,
@@ -237,13 +237,13 @@ pub(super) fn string_literal_with_virtual_statements_normalized(
 }
 
 fn string_literal_with_interpolation_body<'source, 'operators, 'frozen>(
-    mut i: SyntaxIn<'_, 'source, 'operators, 'frozen>,
+    mut i: SyntaxIn<'_, 'source, 'operators>,
     opener: Item,
     mode: StringMode,
     mut part_origin: usize,
     fence: Option<&FenceBoundary>,
     mut interpolation_body: impl for<'a> FnMut(
-        SyntaxIn<'a, 'source, 'operators, 'frozen>,
+        SyntaxIn<'a, 'source, 'operators>,
         usize,
         LineEntry,
     ) -> InterpolationBodyExit,
@@ -378,12 +378,12 @@ fn pending_line_entry(item: &Item) -> LineEntry {
 }
 
 fn emit_string_interpolation<'source, 'operators, 'frozen>(
-    mut i: SyntaxIn<'_, 'source, 'operators, 'frozen>,
+    mut i: SyntaxIn<'_, 'source, 'operators>,
     prefix: Option<AcceptedQuotePrefix>,
     part_origin: &mut usize,
     fence: Option<&FenceBoundary>,
     interpolation_body: &mut impl for<'a> FnMut(
-        SyntaxIn<'a, 'source, 'operators, 'frozen>,
+        SyntaxIn<'a, 'source, 'operators>,
         usize,
         LineEntry,
     ) -> InterpolationBodyExit,

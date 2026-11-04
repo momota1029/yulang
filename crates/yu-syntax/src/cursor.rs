@@ -4,12 +4,37 @@ use chasa_recover::{In, ParserOnce, Recoverable};
 
 use crate::operator_table::OperatorTable;
 
+/// Minimal direct-syntax output used by every canonical grammar owner.
+///
+/// Rowan remains the production implementation.  The isolated Yumark grammar
+/// supplies a streaming implementation so embedded Yulang can drive its
+/// neutral sink during the same canonical parse, without a CST walk or replay.
+pub(crate) trait SyntaxOutput {
+    fn start_node(&mut self, kind: rowan::SyntaxKind);
+    fn token(&mut self, kind: rowan::SyntaxKind, text: &str);
+    fn finish_node(&mut self);
+}
+
+impl SyntaxOutput for rowan::GreenNodeBuilder<'_> {
+    fn start_node(&mut self, kind: rowan::SyntaxKind) {
+        rowan::GreenNodeBuilder::start_node(self, kind);
+    }
+
+    fn token(&mut self, kind: rowan::SyntaxKind, text: &str) {
+        rowan::GreenNodeBuilder::token(self, kind, text);
+    }
+
+    fn finish_node(&mut self) {
+        rowan::GreenNodeBuilder::finish_node(self);
+    }
+}
+
 pub(crate) mod recovery;
 
-pub(crate) struct SyntaxIn<'a, 'source, 'operators, 'cache> {
+pub(crate) struct SyntaxIn<'a, 'source, 'operators> {
     source: &'a mut &'source str,
     recover: &'a mut Recover<'operators>,
-    pub(crate) state: &'a mut rowan::GreenNodeBuilder<'cache>,
+    pub(crate) state: &'a mut dyn SyntaxOutput,
 }
 
 pub(crate) type LexIn<'a, 'source, 'recover, 'operators> =
@@ -40,11 +65,11 @@ impl Recoverable for LexRecover<'_> {
     fn rollback(&mut self, _: ()) {}
 }
 
-impl<'a, 'source, 'operators, 'cache> SyntaxIn<'a, 'source, 'operators, 'cache> {
+impl<'a, 'source, 'operators> SyntaxIn<'a, 'source, 'operators> {
     pub(crate) fn new(
         source: &'a mut &'source str,
         recover: &'a mut Recover<'operators>,
-        state: &'a mut rowan::GreenNodeBuilder<'cache>,
+        state: &'a mut dyn SyntaxOutput,
     ) -> Self {
         Self {
             source,
@@ -53,7 +78,7 @@ impl<'a, 'source, 'operators, 'cache> SyntaxIn<'a, 'source, 'operators, 'cache> 
         }
     }
 
-    pub(crate) fn rb(&mut self) -> SyntaxIn<'_, 'source, 'operators, 'cache> {
+    pub(crate) fn rb(&mut self) -> SyntaxIn<'_, 'source, 'operators> {
         SyntaxIn::new(self.source, self.recover, self.state)
     }
 
@@ -108,7 +133,7 @@ pub(crate) fn discover_header(source: &str) -> crate::header::HeaderDiscovery {
 }
 
 impl<'operators> Recover<'operators> {
-    fn new(operators: &'operators OperatorTable) -> Self {
+    pub(crate) fn new(operators: &'operators OperatorTable) -> Self {
         Self { operators }
     }
 

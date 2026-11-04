@@ -200,6 +200,44 @@ enum Separator {
 
 type UseResult<T = Item> = Result<T, Item>;
 
+/// Canonical `UseTree` entry used by the isolated Yumark §6.1 bridge.
+///
+/// The Yumark owner supplies and retains the outer `)` or `;`; this function
+/// invokes the same recursive use-tree grammar as an ordinary declaration and
+/// returns its first unowned Item unchanged.
+pub(crate) fn yumark_use_tree_normalized(
+    mut i: SyntaxIn,
+    baseline: usize,
+    stops: Stops,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    outer_close: Option<char>,
+) -> Option<NormalizedExit> {
+    let mut item = next_use_item(i.rb(), &mut item_origin, &mut line_entry, None);
+    if item.payload_view().is_boundary() || item.payload_view().is_eof() {
+        return None;
+    }
+    item.emit_all_remaining_leading(&mut *i.state);
+    if !use_tree_starter(&item) {
+        return None;
+    }
+    let mut projection = Projection::default();
+    let item = match parse_use_tree(
+        &mut projection,
+        i,
+        item,
+        baseline,
+        stops,
+        outer_close,
+        &mut item_origin,
+        &mut line_entry,
+        None,
+    ) {
+        Ok(item) | Err(item) => item,
+    };
+    Some(complete(handoff(item), line_entry))
+}
+
 pub(crate) fn use_declaration_selected_normalized(
     i: SyntaxIn,
     item: &Item,

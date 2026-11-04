@@ -188,7 +188,6 @@ pub(super) fn pattern_with_stops(i: SyntaxIn, stops: PatternStops) -> TailExit {
     ))
 }
 
-#[cfg(test)]
 pub(super) fn pattern_normalized(
     mut i: SyntaxIn,
     item_origin: usize,
@@ -214,7 +213,6 @@ pub(super) fn pattern_normalized(
 }
 
 #[allow(clippy::too_many_arguments)]
-#[cfg(test)]
 fn pattern_from_item_normalized(
     i: SyntaxIn,
     item: Item,
@@ -281,7 +279,6 @@ impl PatternState {
 }
 
 #[allow(clippy::too_many_arguments)]
-#[cfg(test)]
 fn pattern_from_item_with_completion_normalized(
     i: SyntaxIn,
     item: Item,
@@ -312,7 +309,6 @@ fn pattern_from_item_with_completion_normalized(
 }
 
 #[allow(clippy::too_many_arguments)]
-#[cfg(test)]
 fn pattern_from_item_recording_normalized(
     i: SyntaxIn,
     item: Item,

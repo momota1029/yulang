@@ -1412,7 +1412,7 @@ fn cast_pattern_close_error_run(
 }
 
 fn cast_transition_lex(
-    run: &mut crate::cursor::recovery::emit::ErrorRunOutput<'_, '_, '_, '_>,
+    run: &mut crate::cursor::recovery::emit::ErrorRunOutput<'_, '_, '_>,
     item: &Item,
     baseline: usize,
     stops: Stops,
@@ -1631,7 +1631,7 @@ fn cast_pattern_introducer_error_run(
 }
 
 fn cast_prefix_boundary_lex(
-    run: &mut crate::cursor::recovery::emit::ErrorRunOutput<'_, '_, '_, '_>,
+    run: &mut crate::cursor::recovery::emit::ErrorRunOutput<'_, '_, '_>,
     item: &Item,
     baseline: usize,
     stops: Stops,

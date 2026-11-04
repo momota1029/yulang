@@ -216,7 +216,7 @@ fn is_unread_operand_boundary(item: &Item) -> bool {
 }
 
 fn is_required_operand_boundary_in_error_run(
-    run: &mut ErrorRunOutput<'_, '_, '_, '_>,
+    run: &mut ErrorRunOutput<'_, '_, '_>,
     item: &Item,
     stops: Stops,
 ) -> bool {
