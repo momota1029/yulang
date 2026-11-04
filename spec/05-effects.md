@@ -43,7 +43,7 @@ our all_paths(action: [flip] _) = catch action:
 ```
 
 - `catch expr:` は handler。operation arm は operation の引数と継続 `k` を受け取る。value arm `v -> ...` は通常終了を処理する。
-- `k value` を呼ぶと、operation の発生地点に値を返して元の計算を続ける。`k` は限定継続で、複数回呼んでもよい（上の例は `true` と `false` の両方で再開する）。
+- `k value` を呼ぶと、operation の発生地点に値を返して元の計算を続ける。`k` は限定継続で、何回でも呼べる（multi-shot。確定, 2026-11-04）。（上の例は `true` と `false` の両方で再開する）。
 - 推論される型:
 
 ```text

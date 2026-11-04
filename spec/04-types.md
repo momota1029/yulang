@@ -124,7 +124,7 @@ struct point { x: int, y: int } with:
     our p.norm2 = p.x * p.x + p.y * p.y
 ```
 
-- 構造 projection: `value.(x, y(4))` は tuple、`value.{ first: x }` は record を作る。
+- 構造 projection（確定, 2026-11-04）: `value.(x, y(4))` は `(value.x, value.y(4))` という tuple、`value.{ first: x }` は `{first: value.x}` という record を作る。同じ `value` から複数の field を取り出す略記。
 
 出典: `main:web/docs/ja/reference/structs.md`
 
