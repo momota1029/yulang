@@ -11,10 +11,11 @@ lowering are outside this page.
 ## 2. Accepted syntax
 
 ```text
-StructDeclaration := [ VisibilityKw Gstruct+ ] StructKw Gstruct+ StructName Gstruct* StructBody
+StructDeclaration := [ VisibilityKw Gstruct+ ] StructKw Gstruct+ StructName [ DeclarationTypeParameterList ] Gstruct* StructBody
 VisibilityKw := MyKw | OurKw | PubKw
 StructKw := exact maximal word "struct"
 StructName := Identifier
+DeclarationTypeParameterList := Gstruct-param SigilIdentifier { Gstruct-param SigilIdentifier }
 StructBody := Semicolon | NamedBracedStructBody | NamedIndentedStructBody | TupleStructBody
 NamedBracedStructBody := LBrace StructOpeningTrivia [ StructNamedField { StructBracedFieldBoundary StructNamedField } [ StructBracedFieldBoundary ] ] RBrace
 TupleStructBody := LParen StructOpeningTrivia [ StructTupleField { StructBracedFieldBoundary StructTupleField } [ StructBracedFieldBoundary ] ] RParen
@@ -30,6 +31,8 @@ Gfield-name := empty or same-line trivia
 `RequiredTypeExpression` is the full required type production in the
 [TypeExpression reference](../types/type-expression-core.md). `Gstruct+` is
 non-empty declaration-continuing trivia; `Gstruct*` is empty or one such run.
+`Gstruct-param` is non-empty same-line trivia. Struct type parameters accept
+only sigil identifiers; a bare identifier is not a parameter.
 `Gfield-type` permits empty, same-line, or strictly-deeper continuation trivia.
 
 ## 3. Admission and boundaries
@@ -47,12 +50,14 @@ The closed schema is:
 
 ```text
 StructDeclaration := [ VisibilityKw Trivia ] StructKw Trivia StructName
+  [ DeclarationTypeParameterList ]
   { Trivia DerivesClause }
   ( Semicolon
   | DeclarationCompanion
   | NamedIndentedStructBody
   | NamedBracedStructBodyActualClose { Trivia DerivesClause } [ DeclarationCompanion ]
   | TupleStructBodyActualClose { Trivia DerivesClause } [ DeclarationCompanion ] )
+DeclarationTypeParameterList := Trivia SigilIdentifier { Trivia SigilIdentifier }
 NamedBracedStructBodyActualClose := NamedBracedStructBody whose RBrace is an actual matching close
 TupleStructBodyActualClose := TupleStructBody whose RParen is an actual matching close
 NamedBracedStructBody := LBrace Trivia { StructField | Comma | Trivia | StructFieldForeignClose } RBrace
@@ -64,10 +69,12 @@ TupleStructFieldContent := TypeExpression
 StructFieldForeignClose := Error+
 ```
 
-The header position admits header derives before either a body or a header
-companion. Only an actual matching braced or tuple close opens the trailing
-position, where derives precede an optional companion. A semicolon, an
-indented body, and a missing or mismatched close do not open it. Braced and
+The parameter-list node exists only when it has one or more parameters. The
+header position admits derives, a body, or a header companion after the
+complete name and optional parameter list. Only an actual matching braced or
+tuple close opens the trailing position, where derives precede an optional
+companion. A semicolon, an indented body, and a missing or mismatched close do
+not open it. Braced and
 tuple bodies have one actual or recovered close; indented bodies have none.
 `StructFieldForeignClose`, where present, is a direct delimited-list child,
 never a `StructField` child.
@@ -163,6 +170,6 @@ The accepted source `struct S { x: Int }` has one named field.
 
 ## 7. Attachments, composition, and non-goals
 
-Header derives attach after a complete name. Trailing derives attach only after
+Header derives attach after a complete header. Trailing derives attach only after
 an actual matching braced or tuple close. See [derives attachment](derives-attachment.md),
 [Rowan CST notation](../conventions/rowan-cst.md), and [recovery topology](../conventions/recovery-error-invalid-topology.md).

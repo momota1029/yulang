@@ -14,6 +14,7 @@ use crate::{
         declaration_companion::declaration_companion_normalized,
         declaration_variant::{VariantSequenceForm, declaration_variant_sequence_normalized},
         derives::{derives_clause_normalized, is_word},
+        type_parameters::{ParameterForm, parameters_normalized},
     },
     expression::if_expr::active_statement_companion,
     handoff::{NormalizedExit, complete, handoff},
@@ -21,8 +22,7 @@ use crate::{
         current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
         item::{Item, LeadingTrivia, TokenKind},
         lexer::{
-            introduced_body_indentation_normalized, is_declaration_starter_word,
-            scan_declaration_type_parameter, scan_identifier, scan_statement_payload,
+            introduced_body_indentation_normalized, scan_identifier, scan_statement_payload,
             scan_type_nud_payload, source_declaration_head, source_identifier,
         },
         observation::{
@@ -272,7 +272,13 @@ pub(crate) fn error_declaration_normalized(
         fence,
     ) {
         Ok(None) => {
-            parameters_normalized(i.rb(), &mut item_origin, &mut line_entry, fence);
+            parameters_normalized(
+                i.rb(),
+                &mut item_origin,
+                &mut line_entry,
+                fence,
+                ParameterForm::SigilOrIdentifier,
+            );
             let (item, item_origin, line_entry) = error_item_normalized(
                 i.rb(),
                 item_origin,
@@ -363,32 +369,6 @@ fn required_name_normalized(
     debug_assert!(raw_name(&item));
     emit_token_item(&mut i, item);
     Ok(None)
-}
-
-fn parameters_normalized(
-    mut i: SyntaxIn,
-    item_origin: &mut usize,
-    line_entry: &mut LineEntry,
-    fence: Option<&FenceBoundary>,
-) {
-    let Some((parameter, next_origin, next_entry)) =
-        parameter_item_normalized(i.rb(), *item_origin, *line_entry, fence)
-    else {
-        return;
-    };
-    *item_origin = next_origin;
-    *line_entry = next_entry;
-    i.state
-        .start_node(SyntaxKind::DeclarationTypeParameterList.into());
-    emit_parameter(&mut i, parameter);
-    while let Some((parameter, next_origin, next_entry)) =
-        parameter_item_normalized(i.rb(), *item_origin, *line_entry, fence)
-    {
-        *item_origin = next_origin;
-        *line_entry = next_entry;
-        emit_parameter(&mut i, parameter);
-    }
-    i.state.finish_node();
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -842,72 +822,6 @@ fn raw_name(item: &Item) -> bool {
     token_kind(item) == Some(TokenKind::Identifier)
 }
 
-fn parameter_spelling(parameter: &Item) -> bool {
-    if token_kind(parameter) == Some(TokenKind::SigilIdentifier) {
-        return true;
-    }
-    debug_assert_eq!(token_kind(parameter), Some(TokenKind::Identifier));
-    let spelling = parameter
-        .payload_view()
-        .spelling()
-        .expect("declaration parameter scanner returns identifiers");
-    !is_declaration_starter_word(spelling)
-        && !matches!(
-            spelling,
-            "for"
-                | "realm"
-                | "band"
-                | "as"
-                | "without"
-                | "with"
-                | "if"
-                | "case"
-                | "catch"
-                | "where"
-                | "elsif"
-                | "else"
-                | "derives"
-        )
-}
-
-fn parameter_item_normalized(
-    mut i: SyntaxIn,
-    item_origin: usize,
-    line_entry: LineEntry,
-    fence: Option<&FenceBoundary>,
-) -> Option<(Item, usize, LineEntry)> {
-    let entry = suffix_marker(i.rb());
-    let CurrentItem {
-        item,
-        next_line_entry,
-    } = i.token(|lex| {
-        let current = current_item(
-            lex,
-            item_origin,
-            line_entry,
-            fence,
-            |mut lex, _, _, _, _| {
-                let parameter = lex.token(scan_declaration_type_parameter)?;
-                Some(AcceptedPayload {
-                    payload: CurrentPayload::Token(parameter),
-                    next_line_entry: LineEntry::InLine,
-                })
-            },
-        )?;
-        (!current.item.payload_view().is_boundary()
-            && !current.item.payload_view().is_eof()
-            && !current.item.leading_view().is_grammar_empty()
-            && !current.item.leading_view().contains_line_break()
-            && parameter_spelling(&current.item))
-        .then_some(current)
-    })?;
-    Some((
-        item,
-        advanced_origin(item_origin, entry, i),
-        next_line_entry,
-    ))
-}
-
 #[allow(clippy::too_many_arguments)]
 fn error_item_normalized(
     mut i: SyntaxIn,
@@ -984,15 +898,6 @@ fn item_word(item: &Item) -> Option<&str> {
 
 fn emit_item_as(i: &mut SyntaxIn, item: Item, kind: SyntaxKind) {
     item.emit_remaining(&mut *i.state, kind);
-}
-
-fn emit_parameter(i: &mut SyntaxIn, parameter: Item) {
-    let kind = match token_kind(&parameter) {
-        Some(TokenKind::Identifier) => SyntaxKind::Identifier,
-        Some(TokenKind::SigilIdentifier) => SyntaxKind::SigilIdentifier,
-        _ => unreachable!("declaration parameter scanner returns identifiers"),
-    };
-    parameter.emit_remaining(&mut *i.state, kind);
 }
 
 fn emit_visibility(i: &mut SyntaxIn, item: Item) {

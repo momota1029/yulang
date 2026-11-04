@@ -2041,6 +2041,200 @@ fn token_count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
         .count()
 }
 
+fn direct_projection(node: &SyntaxNode) -> Vec<(SyntaxKind, std::ops::Range<usize>)> {
+    node.children_with_tokens()
+        .map(|child| {
+            (
+                child.kind(),
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn struct_type_parameters_build_the_exact_header_topology() {
+    use SyntaxKind::{
+        Colon, Comma, DeclarationTypeParameterList, Identifier, LBrace, RBrace, SigilIdentifier,
+        StructField, StructKw, TypeExpression, Whitespace,
+    };
+
+    let source = "struct pair 'a 'b { fst: 'a, snd: 'b }";
+    let (green, _) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+    let node = declaration(&green);
+    assert_eq!(
+        direct_projection(&node),
+        [
+            (StructKw, 0..6),
+            (Whitespace, 6..7),
+            (Identifier, 7..11),
+            (DeclarationTypeParameterList, 11..17),
+            (Whitespace, 17..18),
+            (LBrace, 18..19),
+            (Whitespace, 19..20),
+            (StructField, 20..27),
+            (Comma, 27..28),
+            (Whitespace, 28..29),
+            (StructField, 29..36),
+            (Whitespace, 36..37),
+            (RBrace, 37..38),
+        ]
+    );
+    let parameters = node
+        .children()
+        .find(|child| child.kind() == DeclarationTypeParameterList)
+        .expect("type-parameter list");
+    assert_eq!(
+        direct_projection(&parameters),
+        [
+            (Whitespace, 11..12),
+            (SigilIdentifier, 12..14),
+            (Whitespace, 14..15),
+            (SigilIdentifier, 15..17),
+        ]
+    );
+    let fields = node
+        .children()
+        .filter(|child| child.kind() == StructField)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        direct_projection(&fields[0]),
+        [
+            (Identifier, 20..23),
+            (Colon, 23..24),
+            (Whitespace, 24..25),
+            (TypeExpression, 25..27),
+        ]
+    );
+    assert_eq!(count(&node, SyntaxKind::Error), 0);
+    assert_eq!(count(&node, SyntaxKind::Missing), 0);
+    assert_eq!(count(&node, SyntaxKind::Invalid), 0);
+}
+
+#[test]
+fn struct_type_parameters_preserve_tuple_companion_and_derives_forms() {
+    for (source, fields, derives, companions) in [
+        ("struct pair 'a (int, 'a)", 2, 0, 0),
+        (
+            "struct box 'a { value: 'a } with:\n    our b.get = b.value",
+            1,
+            0,
+            1,
+        ),
+        ("struct box 'a derives Eq { value: 'a }", 1, 1, 0),
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let node = declaration(&green);
+        assert_eq!(
+            count(&node, SyntaxKind::DeclarationTypeParameterList),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(count(&node, SyntaxKind::StructField), fields, "{source:?}");
+        assert_eq!(
+            count(&node, SyntaxKind::DerivesClause),
+            derives,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&node, SyntaxKind::DeclarationCompanion),
+            companions,
+            "{source:?}"
+        );
+        assert_eq!(count(&node, SyntaxKind::Error), 0, "{source:?}");
+        assert_eq!(count(&node, SyntaxKind::Missing), 0, "{source:?}");
+        assert_eq!(count(&node, SyntaxKind::Invalid), 0, "{source:?}");
+    }
+}
+
+#[test]
+fn struct_parameterless_header_cst_and_starters_are_unchanged() {
+    use SyntaxKind::{
+        Colon, Identifier, LBrace, RBrace, StructField, StructKw, TypeExpression, Whitespace,
+    };
+
+    let source = "struct s { x: int }";
+    let (green, _) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+    let node = declaration(&green);
+    assert_eq!(
+        direct_projection(&node),
+        [
+            (StructKw, 0..6),
+            (Whitespace, 6..7),
+            (Identifier, 7..8),
+            (Whitespace, 8..9),
+            (LBrace, 9..10),
+            (Whitespace, 10..11),
+            (StructField, 11..17),
+            (Whitespace, 17..18),
+            (RBrace, 18..19),
+        ]
+    );
+    let field = node
+        .children()
+        .find(|child| child.kind() == StructField)
+        .expect("named field");
+    assert_eq!(
+        direct_projection(&field),
+        [
+            (Identifier, 11..12),
+            (Colon, 12..13),
+            (Whitespace, 13..14),
+            (TypeExpression, 14..17),
+        ]
+    );
+
+    for source in [
+        "struct s;",
+        "struct s {}",
+        "struct s (int)",
+        "struct s:\n  x: int",
+        "struct s with:\n  our x = y",
+        "struct s derives Eq { }",
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let node = declaration(&green);
+        assert_eq!(
+            count(&node, SyntaxKind::DeclarationTypeParameterList),
+            0,
+            "{source:?}"
+        );
+        assert_eq!(count(&node, SyntaxKind::Error), 0, "{source:?}");
+        assert_eq!(count(&node, SyntaxKind::Missing), 0, "{source:?}");
+    }
+}
+
+#[test]
+fn struct_malformed_type_parameter_keeps_struct_header_recovery() {
+    use SyntaxKind::{Identifier, Missing, StructKw, Whitespace};
+
+    let source = "struct s 1 { x: int }";
+    let (green, exit) = run_statement(source);
+    assert_eq!(green.to_string(), "struct s ");
+    let node = declaration(&green);
+    assert_eq!(
+        direct_projection(&node),
+        [
+            (StructKw, 0..6),
+            (Whitespace, 6..7),
+            (Identifier, 7..8),
+            (Whitespace, 8..9),
+            (Missing, 9..9),
+        ]
+    );
+    assert_eq!(count(&node, SyntaxKind::DeclarationTypeParameterList), 0);
+    assert_eq!(count(&node, SyntaxKind::Error), 0);
+    let Some(Err(Either::Left(item))) = exit else {
+        panic!("integer type starter must remain pending")
+    };
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Integer));
+    assert_eq!(item.payload_view().spelling(), Some("1"));
+}
+
 fn assert_pending_word_with_leading(exit: Option<TailExit>, word: &str, leading: &str) {
     let mut item = match exit {
         Some(Err(Either::Left(item))) => item,

@@ -36,13 +36,17 @@ Scope: grammar, CST and recovery ownership for eleven forms that `spec/` promise
 
 Measure first. The existing tests pin `mod test;` clean, yet `mod helper;` yields `Missing` in a direct run. Find the cause. If the form is already valid and the test input differs, correct the ledger only. Otherwise fix at the owning responsibility and add a fixture.
 
+Result (2026-11-04): the root path of `parse_file` passes `STOP_SEMICOLON`; `mod_decl` treated the module's own `; { :` body starter as an outer boundary. The module's own body starter now wins over caller stops. The old `mod test;` pins used a direct harness with no stops, which is why they stayed clean.
+
 ### WP-2 type annotation on an arm pattern (`x: int -> 1`)
 
 `->` and the guard keywords (`if`, `where`) belong to the arm owner. The annotation's type stops at them. This is the existing contract in `syntax-reference/ja/src/patterns/type-annotation.md` §6; the implementation did not map `PATTERN_STOP_ARROW` into the type caller stops. A function-typed annotation needs parentheses: `(x: int -> int) -> body`.
 
+Result (2026-11-04): the type parser now receives the arm arrow (`STOP_ARROW`) and the `if` / `where` guard keywords (`TypeOuterBoundary::ARM_GUARD_IF` / `ARM_GUARD_WHERE`) as caller boundaries.
+
 ### WP-3 `struct` type parameters
 
-`struct pair 'a 'b { fst: 'a, snd: 'b }`. The header reuses `DeclarationTypeParameterList` exactly as `type`, `enum` and `error` do. The four duplicated parameter helpers are merged into one shared helper in this package. Parameters must not consume `derives`, `with`, `(`, `{`, `:` or `;`.
+`struct pair 'a 'b { fst: 'a, snd: 'b }`. The header reuses `DeclarationTypeParameterList`. The four duplicated parameter helpers are merged into one shared helper (`declaration/type_parameters.rs`) with an explicit mode: `type` / `enum` / `error` keep `SigilOrIdentifier` (unchanged CST and recovery); **`struct` accepts only sigil parameters (`SigilOnly`)**, because `spec/` writes type variables only as `'a` and the existing pin `struct S Foo` (a bare identifier is not a parameter) must stay. Parameters must not consume `derives`, `with`, `(`, `{`, `:` or `;`. `struct s 1 { ... }` keeps the struct header's own recovery (the struct body protects an integer as a type starter); it is not made equal to `enum`'s. (Decision recorded 2026-11-04 after the first implementation hit the `struct S Foo` pin.)
 
 ### WP-4 float literal and positional field
 

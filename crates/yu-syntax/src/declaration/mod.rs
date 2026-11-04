@@ -17,6 +17,7 @@ pub(super) mod operator_header;
 pub(super) mod role_decl;
 pub(super) mod struct_decl;
 pub(super) mod type_decl;
+mod type_parameters;
 pub(super) mod use_decl;
 
 // Explicit entry surface for statement admission and header discovery.

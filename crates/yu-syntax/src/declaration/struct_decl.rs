@@ -15,6 +15,7 @@ use crate::{
             parse_indented_fields_normalized, raw_name, scan_declaration_item_lexical,
             type_starter,
         },
+        type_parameters::{ParameterForm, parameters_normalized},
     },
     expression::if_expr::active_statement_companion,
     handoff::{NormalizedExit, complete, handoff},
@@ -157,6 +158,13 @@ pub(crate) fn struct_declaration_normalized(
     ) {
         Ok(Some(body)) => body,
         Ok(None) => {
+            parameters_normalized(
+                i.rb(),
+                &mut item_origin,
+                &mut line_entry,
+                fence,
+                ParameterForm::SigilOnly,
+            );
             let (body, next_origin, next_entry) = declaration_item_normalized(
                 i.rb(),
                 item_origin,

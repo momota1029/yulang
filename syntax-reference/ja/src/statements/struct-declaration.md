@@ -9,10 +9,11 @@ field meaning、constructor、method、loweringは対象外である。
 ## 2. 受理する構文
 
 ```text
-StructDeclaration := [ VisibilityKw Gstruct+ ] StructKw Gstruct+ StructName Gstruct* StructBody
+StructDeclaration := [ VisibilityKw Gstruct+ ] StructKw Gstruct+ StructName [ DeclarationTypeParameterList ] Gstruct* StructBody
 VisibilityKw := MyKw | OurKw | PubKw
 StructKw := exact maximal word "struct"
 StructName := Identifier
+DeclarationTypeParameterList := Gstruct-param SigilIdentifier { Gstruct-param SigilIdentifier }
 StructBody := Semicolon | NamedBracedStructBody | NamedIndentedStructBody | TupleStructBody
 NamedBracedStructBody := LBrace StructOpeningTrivia [ StructNamedField { StructBracedFieldBoundary StructNamedField } [ StructBracedFieldBoundary ] ] RBrace
 TupleStructBody := LParen StructOpeningTrivia [ StructTupleField { StructBracedFieldBoundary StructTupleField } [ StructBracedFieldBoundary ] ] RParen
@@ -27,6 +28,9 @@ Gfield-name := empty or same-line trivia
 
 `RequiredTypeExpression`は[TypeExpressionの参照](../types/type-expression-core.md)にあるfull required type productionである。
 `Gstruct+`はnon-empty declaration-continuing trivia、`Gstruct*`はemptyまたはそのrunである。
+`Gstruct-param`はnon-empty same-line triviaである。
+structのtype parameterにはsigil identifierだけを受け入れる。
+bare identifierはparameterにしない。
 `Gfield-type`はempty、same-line、またはstrictly deeper continuation triviaを許す。
 
 ## 3. 受理と境界
@@ -41,12 +45,14 @@ deeper lineはfield typeのcontinuationであり、`::`はfield colonではな�
 
 ```text
 StructDeclaration := [ VisibilityKw Trivia ] StructKw Trivia StructName
+  [ DeclarationTypeParameterList ]
   { Trivia DerivesClause }
   ( Semicolon
   | DeclarationCompanion
   | NamedIndentedStructBody
   | NamedBracedStructBodyActualClose { Trivia DerivesClause } [ DeclarationCompanion ]
   | TupleStructBodyActualClose { Trivia DerivesClause } [ DeclarationCompanion ] )
+DeclarationTypeParameterList := Trivia SigilIdentifier { Trivia SigilIdentifier }
 NamedBracedStructBodyActualClose := RBraceがactual matching closeであるNamedBracedStructBody
 TupleStructBodyActualClose := RParenがactual matching closeであるTupleStructBody
 NamedBracedStructBody := LBrace Trivia { StructField | Comma | Trivia | StructFieldForeignClose } RBrace
@@ -58,7 +64,9 @@ TupleStructFieldContent := TypeExpression
 StructFieldForeignClose := Error+
 ```
 
-header positionは、header derivesの後にbodyまたはheader companionを受け入れる。
+parameter listはparameter一つ以上のときだけ作る。
+header positionはcomplete nameとoptionalなparameter listの後に開く。
+そこではderives、body、またはheader companionを受け入れる。
 trailing positionが開くのはactual matching bracedまたはtuple closeの後だけであり、そこでderivesがoptionalなcompanionに先行する。
 semicolon、indented body、missingまたはmismatched closeの後には開かない。
 bracedとtupleはactualまたはrecovered closeを一つ持ち、indented bodyはcloseを持たない。
@@ -122,6 +130,6 @@ locally consumed foreign closeはschemaで示した別のwrapperを使う。
 
 ## 7. 構成と非対象
 
-header derivesはcomplete nameの後にattachする。
+header derivesはcomplete headerの後にattachする。
 trailing derivesはactual matching bracedまたはtuple closeの後だけにattachする。
 [derives attachment](derives-attachment.md)、[Rowan CST表記](../conventions/rowan-cst.md)、[回復のtopology](../conventions/recovery-error-invalid-topology.md)を参照する。
