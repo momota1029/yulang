@@ -69,6 +69,17 @@ sub:
 ```
 
 - `sub:` は早期 return の範囲を作る。`return value` は直近の `sub:` から抜ける。値なしの `return` は `()` を返す。
+- `return` は effect の操作で、関数や lambda に暗黙の `sub` はない（確定, 2026-11-04）。`return` は、実行時にそれを呼んだ地点を囲んでいる直近の `sub:` が受け取る。
+  呼ばれた関数の中で `return` しても、呼び出し元の `sub:` の中ならそこへ抜ける。囲む `sub:` が全くなければ、`return` の effect が受け手なしで残り、型に現れる（章5）。
+
+```yulang
+my find_negative xs =
+    sub:
+        for x in xs:
+            if x < 0: return x
+        0
+```
+
 - label 付きの `sub` もある。`'done.return 42` と `return 'done 42` のどちらでも書ける（3c.3）。
 
 ```yulang
