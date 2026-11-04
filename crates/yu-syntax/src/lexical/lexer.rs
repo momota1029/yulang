@@ -1378,10 +1378,12 @@ fn scan_type_effect_row_apostrophe(mut i: LexIn) -> Option<Token> {
 
 fn scan_type_polymorphic_variant_colon(mut i: LexIn) -> Option<Token> {
     let remainder = i.remainder();
+    // 先読みは同じ行に限る(別の宣言や式まで見ない)。
+    let line = remainder.lines().next().unwrap_or("");
     let is_bar_variant = remainder.starts_with(':')
         && remainder.chars().nth(1).is_some_and(is_xid_start)
-        && remainder.find('|').is_some_and(|pipe| {
-            let after_pipe = remainder[pipe + 1..].trim_start();
+        && line.find('|').is_some_and(|pipe| {
+            let after_pipe = line[pipe + 1..].trim_start();
             after_pipe
                 .strip_prefix(':')
                 .and_then(|tag| tag.chars().next())
