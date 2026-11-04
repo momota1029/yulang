@@ -53,3 +53,8 @@
 - 1問ずつ、例つきで聞く。ファイルを読ませない。Lean の細部はユーザーに聞かない(私が決める)。
 - 決まったら先に spec に書き、Lean は Codex(`gpt-6.1-sol`, high, `terminal: false`)に渡して、戻ってから自分で `lake build` と Audit を回し直す。
 - Codex の報告は鵜呑みにしない。README の「示さないこと」の列が正しいか、`git diff` で必ず見る。
+
+## 証明の担当について(2026-11-05 追記)
+- 証明の本命は ChatGPT 側が GitHub 経由で持ち込む。この文書の Lean(`Roles.lean`・`RolesAssoc.lean`・`VariantsMerged.lean`・`PolySignature` まわり)は
+  **参考実装**として残してある。衝突したら ChatGPT 側を優先してよい。
+- Claude 側の役割は、仕様の決定を `spec/` に書くことと、持ち込まれた証明が仕様に忠実か(特に README の「示さないこと」の列)のレビュー。
