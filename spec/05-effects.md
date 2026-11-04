@@ -44,6 +44,7 @@ our all_paths(action: [flip] _) = catch action:
 
 - `catch expr:` は handler。operation arm は operation の引数と継続 `k` を受け取る。value arm `v -> ...` は通常終了を処理する。
 - `k value` を呼ぶと、operation の発生地点に値を返して元の計算を続ける。`k` は限定継続で、何回でも呼べる（multi-shot。確定, 2026-11-04）。（上の例は `true` と `false` の両方で再開する）。
+- value arm は省略できる（確定, 2026-11-04）。省略したら `v -> v` と同じで、`action` の値がそのまま返る。型は handler の返り値の型と合わなければならない。
 - 推論される型:
 
 ```text
