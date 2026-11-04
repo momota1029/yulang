@@ -5,7 +5,7 @@ solver の内部表現（directed stack weight、`J = H ∩ Common(L)` による
 effect 注釈が位置によって意味を変える点は、先に確定した [T2・T3](traps.md) が本体で、5.5 でまとめる。
 素材は effect 行を `;` 区切りで書いていたが、ここでは新表記の `,` に直してある（[T1](traps.md)）。
 
-## 5.1 `act` と operation　〔補完は確定、他は要確認〕
+## 5.1 `act` と operation　〔補完は確定、他は仮採用〕
 
 ```yulang
 act flip:
@@ -34,7 +34,7 @@ act ref_update 'a:
 
 出典: `main:web/docs/ja/reference/effects.md`、`main:notes/design/yulang-language-report.md` §5.8
 
-## 5.2 `catch`（handler）　〔要確認〕
+## 5.2 `catch`（handler）　〔仮採用〕
 
 ```yulang
 our all_paths(action: [flip] _) = catch action:
@@ -178,7 +178,7 @@ error path_err:
 
 出典: `main:web/docs/ja/reference/effects.md` §error 宣言、`main:web/docs/ja/guide/pitfalls.md`
 
-## 5.8 effect 行の method　〔曖昧時の扱いは確定、他は要確認〕
+## 5.8 effect 行の method　〔曖昧時の扱いは確定、他は仮採用〕
 
 ```yulang
 use std::control::nondet::*

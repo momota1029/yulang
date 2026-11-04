@@ -3,7 +3,7 @@
 状態の凡例は [README](README.md)。この章は `role` / `impl` / `where`、`x.method` の解決、`cast` を扱う。
 role の解決アルゴリズム（不変区間規則、level 管理、関連型の再帰的な解決）は仕様ではなく核の計算体系（Lean）の側で扱う。ここは利用者から見える意味だけ。
 
-## 6.1 `role`　〔要確認〕
+## 6.1 `role`　〔仮採用〕
 
 ```yulang
 role Add 'a:
@@ -31,7 +31,7 @@ impl Eq int:
 
 出典: `main:web/docs/ja/reference/structs.md` §Role
 
-## 6.2 `impl`　〔曖昧時の扱いは確定、他は要確認〕
+## 6.2 `impl`　〔曖昧時の扱いは確定、他は仮採用〕
 
 ```yulang
 impl Add int:
@@ -61,7 +61,7 @@ struct box 'a { value: 'a } with:
 
 出典: `main:web/docs/ja/reference/structs.md` §impl、`main:spec/2026-06-04-method-selection.md` §impl候補の有効範囲
 
-## 6.3 `where`　〔要確認〕
+## 6.3 `where`　〔仮採用〕
 
 ```yulang
 my twice(x: 'a) =
@@ -88,7 +88,7 @@ x.add y
 
 出典: `main:spec/2026-06-04-method-selection.md`、`main:web/docs/ja/reference/modules.md` §Dot selection
 
-## 6.5 `cast`　〔境界と合流は確定、他は要確認〕
+## 6.5 `cast`　〔境界と合流は確定、他は仮採用〕
 
 ```yulang
 struct user_id { raw: int }
