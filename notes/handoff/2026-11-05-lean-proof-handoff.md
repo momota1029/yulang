@@ -1,0 +1,55 @@
+# 引き継ぎ: Lean 型推論核の証明と仕様確定 (2026-11-05)
+
+ブランチ `yulang3`。別マシンで続きをやるための文書。
+
+## 今どこにいるか
+- `lean/` は `lake build` と `lake env lean --trust=0 Audit.lean` が通る。`sorry`・追加公理・`native_decide` はない。
+  README の証明対象表が、何を証明して何を証明していないかの正本。
+- 前日までの証明(型推論の主性、符号付き行の高階衛生性、shallow handler の上界など)は、
+  commit `d5bef9645`〜`663fee827` で入っていた。止まっていた理由は、言語仕様が決まらない箇所があったこと。
+- 今日は仕様の未決を1問ずつ決めて、決まった所から Lean に落とした。
+
+## 今日決めたこと(すべて spec に書いて commit 済み)
+1. **T3 の検査時点**(`spec/traps.md` T3、`spec/10-inference-core.md` 末尾)。共変位置の effect 注釈は、
+   注釈を検査した時点で見えている具体 effect だけを縛る。見えていない行変数が後で具体化されるのは、
+   一般化された型の具体化(代入)であって、注釈の再検査ではない。注釈時点で既に分かっている effect は、その時点でエラー。
+2. **共変と反変の注釈が同じ変数に付く問題は生じない**。共変位置の注釈は行変数を束縛せず、検査するだけ。
+3. **operation-local 多相の escape はエラー**(`spec/05-effects.md`)。handler 内で `'b` は抽象型。
+   handler の結果の型や外側の環境に現れてはならない。存在型は導入しない。
+4. **variant の tag は一意で、payload は tag ごとに union へ合流する**(`spec/04-types.md` 4.5)。
+   payload の一部だけを処理することはできない。網羅性は「tag の集合が閉じているか」で決まる。値に stack weight は要らない。
+5. **impl の where は head より構造的に小さい**(`spec/06-roles.md` 6.3)。Paterson 型: 条件の型サイズ合計が head より真に小さく、
+   各変数の出現回数が head 以下。違反する impl は宣言時に拒否。解決の深さ上限は置かない。
+6. **impl の `type name = ...` の右辺は、他 role の associated type を参照できない**(6.3)。
+   具体的な型・型構築子・head の型変数だけ。必要が出てから構文を足す。
+
+## Lean に入ったもの(commit 順)
+| commit | 内容 |
+| --- | --- |
+| `55f990a15` | 決定1・2。`Annotations.lean` の docstring を確定に合わせた |
+| `827ec9f6a` | 決定3。`PolySignature`、`poly_request_constraints_exact`、`poly_handler_constraints_exact`。呼出側は存在量化、handler 側は全称量化 |
+| `c037e46cb` | 決定4。`VariantsMerged.lean`。合流、残余との可換、tag 単位の全部処理、網羅性との同値 |
+| `856be37bc` | 決定5。`Roles.lean`。停止する `resolve`、健全性、完全性、曖昧さ |
+| `06379b6a4` | 決定6。`RolesAssoc.lean`。関連型は既存の `resolve` を再利用でき、停止性の議論は増えない |
+
+## 割り引いて読む所(過大評価しないこと)
+- `local_result_no_escape` は、型が局所変数を持たない形で書かれていることから出るだけで、証明は `simp` 一発。設計の帰結であって深い定理ではない。
+- operation-local の負例は1つの具体モデルでの確認。任意のモデルで「payload を返す腕は必ず拒否」とは言っていない。
+- `VariantsMerged` の合流は入力順の右結合で定義した。順列不変性は証明していない。
+- `Roles.resolve` は「impl 集合が整形式」を入力として要求するだけ。source の宣言を検査して拒否する部分は未接続。
+- `Roles` の曖昧さは head 照合の段階で判定し、where の成否は見ない。goal の変数は rigid。複数引数の head のサイズは型サイズの合計。
+  これらは spec が黙っていた所を、Codex と私で選んだもの。
+
+## まだ決まっていない・未着手
+- **関連型が `where` 条件や method 署名に現れ、`value ~ int` のような等式制約や型引数と単一化される場合**(`spec/10-inference-core.md` 10.7)。
+  ここから先は「宣言」ではなく「推論器の制約言語に role を載せる」設計になる。次の大きな山。
+- **operation-local な `'b: Display`**(role 制約付き)。綴りは 6.3 の `where 'b: Display`。`Roles` ができたので繋げられるが、制約言語への接続が先。
+- 網羅性と source pattern の組合せ。guard は網羅に数えない(3b.4 で確定)、payload 内は見ない(決定4)ので、実質は閉じている。
+  残るのは source の pattern を核へ翻訳する部分。
+- 再帰 SCC、solver、preservation/progress、source から核への elaboration(README の「示さないこと」の列)。
+- `traps.md` T-variant の ①最小解に落ちるか ④`'r` が `:str` を含まないことの保ち方 は solver の仕事として残る。
+
+## 作業の進め方(ユーザーの流儀)
+- 1問ずつ、例つきで聞く。ファイルを読ませない。Lean の細部はユーザーに聞かない(私が決める)。
+- 決まったら先に spec に書き、Lean は Codex(`gpt-6.1-sol`, high, `terminal: false`)に渡して、戻ってから自分で `lake build` と Audit を回し直す。
+- Codex の報告は鵜呑みにしない。README の「示さないこと」の列が正しいか、`git diff` で必ず見る。
