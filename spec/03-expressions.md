@@ -214,7 +214,7 @@ case n:
 ```
 
 - arm は上から順に試し、最初に pattern が合って guard が真になった arm が選ばれる。
-- guard は pattern の後ろに `if`（または `where`）で書く。guard からは pattern が束縛した名前が見える。
+- guard は pattern の後ろに `if` で書く（確定, 2026-11-04。`where` は宣言の型制約に使うので guard には使わない）。guard からは pattern が束縛した名前が見える。
 - **網羅性を検査する**。どの arm にも合わない場合があるなら、エラーになる（確定, 2026-11-04）。
 - 網羅性の細部（guard 付きの arm の扱いなど）は [章3b](03b-patterns.md) に書く。
 
