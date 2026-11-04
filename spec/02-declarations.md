@@ -158,6 +158,16 @@ our use std::data::list::map      // 同じ band の中へ再公開
 pub use std::data::list::map      // band の外へ再公開
 ```
 
+- 名前の衝突（確定, 2026-11-04）: glob（`use path::*`）で入れた名前と自分の定義がぶつかったら、自分の定義が勝つ。名前を指定した `use path::name` と自分の定義がぶつかったらエラー（`as` で別名にするか、片方を消す）。
+
+```yulang
+use std::data::list::*
+my map f xs = ...                 // glob の map より、自分の map が勝つ
+
+use std::data::list::map
+my map f xs = ...                 // エラー: 名前指定の use と定義が衝突
+```
+
 - 演算子の宣言は、`use` で import したファイルだけでその演算子が読める（章1.5）。
 - 通常の entry file には `use std::prelude::*` が暗黙に付く。
 
