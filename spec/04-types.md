@@ -25,6 +25,8 @@ effect 行の意味（T2・T3）は章5、`role` / `impl` / `where` / `cast` は
 my x: int = if cond: 1 else: fail "oops"    // else 側は never なので int と合う
 ```
 
+- 要素が 1 つの tuple は末尾に `,` を付けて `(1,)` と書く（確定, 2026-11-04）。`(1)` はグループ化された式で値は `1`。`()` は 0 要素の tuple で unit と同じ。型の `(int,)` も同じ形。
+
 - `xs[i]` は `Index` role を通して解決される（章6）。
 - `opt 'a`（`nil` / `just`）と `result 'ok 'err`（`ok` / `err`）は標準ライブラリの enum で、prelude が型と variant の両方を再公開する。
 
