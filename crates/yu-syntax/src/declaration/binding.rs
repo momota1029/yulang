@@ -314,7 +314,7 @@ fn binding_target_normalized(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn binding_body_normalized(
+pub(super) fn binding_body_normalized(
     mut i: SyntaxIn,
     baseline: usize,
     stops: Stops,

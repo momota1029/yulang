@@ -11,9 +11,9 @@ use crate::{
         declaration_companion::declaration_companion_normalized,
         derives::{derives_clause_normalized, is_word},
         fields::{
-            FieldList, FieldOuterClose, declaration_fields_normalized, declaration_item_normalized,
-            parse_indented_fields_normalized, raw_name, scan_declaration_item_lexical,
-            type_starter,
+            FieldDefaults, FieldList, FieldOuterClose, declaration_fields_with_defaults_normalized,
+            declaration_item_normalized, parse_indented_fields_normalized, raw_name,
+            scan_declaration_item_lexical, type_starter,
         },
         type_parameters::{ParameterForm, parameters_normalized},
     },
@@ -407,6 +407,11 @@ fn parse_body_item_normalized(
                 i,
                 baseline,
                 stops,
+                FieldDefaults {
+                    stops,
+                    line_handoff,
+                    sequence,
+                },
                 item_origin,
                 line_entry,
                 fence,
@@ -555,7 +560,7 @@ fn parse_delimited_fields_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
-    let result = declaration_fields_normalized(
+    let result = declaration_fields_with_defaults_normalized(
         i.rb(),
         open,
         owner_baseline,
@@ -563,6 +568,11 @@ fn parse_delimited_fields_normalized(
         list,
         FieldOuterClose::Recover,
         false,
+        (list == FieldList::NamedBrace).then_some(FieldDefaults {
+            stops,
+            line_handoff,
+            sequence,
+        }),
         item_origin,
         line_entry,
         fence,

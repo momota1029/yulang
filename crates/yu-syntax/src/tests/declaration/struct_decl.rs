@@ -1,6 +1,132 @@
 use crate::structural_diagnostic::StructuralKind;
 use crate::tests::support::*;
 
+fn parse_struct_default_file(source: &str) -> SyntaxNode {
+    let text: std::sync::Arc<crate::SourceText> = std::sync::Arc::from(source);
+    let parsed = crate::parse_file(
+        text.clone(),
+        std::sync::Arc::new(crate::scan_header(text)),
+        std::sync::Arc::new(crate::SyntaxEnvironment::empty()),
+    );
+    assert_eq!(parsed.green().to_string(), source);
+    SyntaxNode::new_root(parsed.green().clone())
+}
+
+#[test]
+fn struct_named_field_defaults_are_expressions_in_both_layouts() {
+    for (source, expected) in [
+        ("struct point { x: int, y: int = 4 }", vec![("y", "4")]),
+        (
+            "struct point { x: int = 1, y: int = 4 }",
+            vec![("x", "1"), ("y", "4")],
+        ),
+        (
+            "struct point:\n    x: int\n    y: int = 4",
+            vec![("y", "4")],
+        ),
+        (
+            "struct point:\n    x: int = 1\n    y: int",
+            vec![("x", "1")],
+        ),
+        (
+            "struct point { x: int = f(1, 2), y: int }",
+            vec![("x", "f(1, 2)")],
+        ),
+    ] {
+        let root = parse_struct_default_file(source);
+        assert!(
+            structural_facts(&root.green().into_owned()).is_empty(),
+            "{source:?}\n{root:#?}"
+        );
+        assert!(
+            !root.descendants_with_tokens().any(|item| matches!(
+                item.kind(),
+                SyntaxKind::Error | SyntaxKind::Missing | SyntaxKind::Invalid
+            )),
+            "{source:?}\n{root:#?}"
+        );
+        let fields: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::StructField)
+            .collect();
+        assert_eq!(fields.len(), 2, "{source:?}\n{root:#?}");
+        for (name, expression) in expected {
+            let field = fields
+                .iter()
+                .find(|field| {
+                    field
+                        .first_token()
+                        .is_some_and(|token| token.text() == name)
+                })
+                .unwrap();
+            let body = field
+                .children()
+                .find(|node| node.kind() == SyntaxKind::OperatorChain)
+                .expect("default expression belongs to its field");
+            assert_eq!(body.text().to_string(), expression, "{source:?}");
+        }
+    }
+}
+
+#[test]
+fn struct_fields_without_defaults_keep_their_direct_cst_shape() {
+    use SyntaxKind::{Colon, Identifier, StructField, TypeExpression};
+    let root = parse_struct_default_file("struct S{x:T,y:Y}");
+    let fields: Vec<_> = root
+        .descendants()
+        .filter(|node| node.kind() == StructField)
+        .collect();
+    assert_eq!(fields.len(), 2);
+    for (field, text) in fields.iter().zip(["x:T", "y:Y"]) {
+        assert_eq!(field.to_string(), text);
+        assert_eq!(
+            field
+                .children_with_tokens()
+                .map(|item| item.kind())
+                .collect::<Vec<_>>(),
+            [Identifier, Colon, TypeExpression]
+        );
+    }
+}
+
+#[test]
+fn struct_tuple_and_variant_fields_do_not_accept_defaults() {
+    for source in [
+        "struct user_id(int = 3)",
+        "enum E{A{x: int = 3}}",
+        "error E{A{x: int = 3}}",
+    ] {
+        let root = parse_struct_default_file(source);
+        assert!(
+            !structural_facts(&root.green().into_owned()).is_empty(),
+            "{source:?}\n{root:#?}"
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::OperatorChain),
+            "{source:?}\n{root:#?}"
+        );
+    }
+}
+
+#[test]
+fn struct_missing_default_expression_leaves_the_next_field_intact() {
+    for source in ["struct S{x:T=, y:Y}", "struct S:\n  x:T=\n  y:Y"] {
+        let root = parse_struct_default_file(source);
+        assert!(
+            !structural_facts(&root.green().into_owned()).is_empty(),
+            "{source:?}"
+        );
+        let fields: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::StructField)
+            .collect();
+        assert_eq!(fields.len(), 2, "{source:?}\n{root:#?}");
+        assert_eq!(fields[1].to_string(), "y:Y", "{source:?}\n{root:#?}");
+    }
+}
+
 #[test]
 fn struct_selector_rejection_is_effect_free_for_visibility_prefixes() {
     use crate::{

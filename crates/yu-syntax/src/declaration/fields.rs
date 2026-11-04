@@ -7,6 +7,7 @@ use crate::{
     ambient_claim::AmbientClaimContext,
     cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
+    declaration::binding::binding_body_normalized,
     handoff::{Either, NormalizedExit, complete, handoff},
     lexical::{
         current_item::{AcceptedPayload, CurrentPayload, LineEntry, current_item},
@@ -20,15 +21,24 @@ use crate::{
             is_active_stop, is_active_stop_lex, token_kind,
         },
         position::{advanced_origin, suffix_marker},
-        stops::Stops,
+        stops::{STOP_CLOSES, STOP_COMMA, STOP_SEMICOLON, Stops},
         trivia::{TriviaObservation, observe_fenced_trivia},
         yumark::FenceBoundary,
     },
+    statement::StatementLineHandoff,
     syntax_kind::SyntaxKind,
     type_expr::{
-        TypeApplyBoundary, required_type_expr_with_boundary_normalized, with_type_outer_close,
+        TypeApplyBoundary, TypeOuterBoundary, required_type_expr_with_boundary_normalized,
+        with_type_outer_close,
     },
 };
+
+#[derive(Clone, Copy)]
+pub(super) struct FieldDefaults {
+    pub(super) stops: Stops,
+    pub(super) line_handoff: StatementLineHandoff,
+    pub(super) sequence: crate::sequence::SequenceContext,
+}
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub(crate) enum FieldList {
@@ -157,6 +167,36 @@ fn declaration_field_error_run(
 /// acquire the successor after `Ok(())`.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn declaration_fields_normalized(
+    i: SyntaxIn,
+    open: Item,
+    owner_baseline: usize,
+    stops: Stops,
+    list: FieldList,
+    outer_close: FieldOuterClose,
+    pipe_lexical: bool,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> DeclarationFieldExit {
+    declaration_fields_with_defaults_normalized(
+        i,
+        open,
+        owner_baseline,
+        stops,
+        list,
+        outer_close,
+        pipe_lexical,
+        None,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn declaration_fields_with_defaults_normalized(
     mut i: SyntaxIn,
     open: Item,
     owner_baseline: usize,
@@ -164,6 +204,7 @@ pub(crate) fn declaration_fields_normalized(
     list: FieldList,
     outer_close: FieldOuterClose,
     pipe_lexical: bool,
+    defaults: Option<FieldDefaults>,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -194,6 +235,7 @@ pub(crate) fn declaration_fields_normalized(
         Some(list),
         outer_close,
         pipe_lexical,
+        defaults,
         item_origin,
         line_entry,
         fence,
@@ -206,6 +248,7 @@ pub(super) fn parse_indented_fields_normalized(
     mut i: SyntaxIn,
     baseline: usize,
     stops: Stops,
+    defaults: FieldDefaults,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -263,6 +306,7 @@ pub(super) fn parse_indented_fields_normalized(
         None,
         FieldOuterClose::Recover,
         false,
+        Some(defaults),
         item_origin,
         line_entry,
         fence,
@@ -280,6 +324,7 @@ fn field_sequence_normalized(
     delimited: Option<FieldList>,
     outer_close: FieldOuterClose,
     pipe_lexical: bool,
+    defaults: Option<FieldDefaults>,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -468,6 +513,7 @@ fn field_sequence_normalized(
                     stops,
                     delimited,
                     pipe_lexical,
+                    defaults,
                     item_origin,
                     line_entry,
                     fence,
@@ -511,6 +557,7 @@ fn field_sequence_normalized(
                     stops,
                     delimited,
                     pipe_lexical,
+                    defaults,
                     item_origin,
                     line_entry,
                     fence,
@@ -542,6 +589,7 @@ fn named_field_normalized(
     stops: Stops,
     delimited: Option<FieldList>,
     pipe_lexical: bool,
+    defaults: Option<FieldDefaults>,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -587,6 +635,7 @@ fn named_field_normalized(
             baseline,
             delimited,
             pipe_lexical,
+            defaults,
             item_origin,
             line_entry,
             fence,
@@ -609,6 +658,7 @@ fn named_field_normalized(
             baseline,
             delimited,
             pipe_lexical,
+            defaults,
             item_origin,
             line_entry,
             fence,
@@ -646,6 +696,7 @@ fn named_field_normalized(
                 baseline,
                 delimited,
                 pipe_lexical,
+                defaults,
                 item_origin,
                 line_entry,
                 fence,
@@ -659,6 +710,7 @@ fn named_field_normalized(
                 baseline,
                 delimited,
                 pipe_lexical,
+                defaults,
                 item_origin,
                 line_entry,
                 fence,
@@ -682,6 +734,7 @@ fn recover_named_field_normalized(
     stops: Stops,
     delimited: Option<FieldList>,
     pipe_lexical: bool,
+    defaults: Option<FieldDefaults>,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -707,6 +760,7 @@ fn recover_named_field_normalized(
             baseline,
             delimited,
             pipe_lexical,
+            defaults,
             item_origin,
             line_entry,
             fence,
@@ -723,6 +777,7 @@ fn named_field_rhs_normalized(
     baseline: usize,
     delimited: Option<FieldList>,
     pipe_lexical: bool,
+    defaults: Option<FieldDefaults>,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -754,6 +809,7 @@ fn named_field_rhs_normalized(
         baseline,
         delimited,
         pipe_lexical,
+        defaults,
         item_origin,
         line_entry,
         fence,
@@ -770,6 +826,7 @@ fn named_type_normalized(
     baseline: usize,
     delimited: Option<FieldList>,
     pipe_lexical: bool,
+    defaults: Option<FieldDefaults>,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -777,17 +834,51 @@ fn named_type_normalized(
 ) -> (NormalizedExit, usize) {
     let close = delimited.map_or(0, |list| with_type_outer_close(0, list.close()));
     let entry = suffix_marker(i.rb());
+    // A malformed fresh type retains its existing recovery, including `x: =`.
+    let defaults =
+        defaults.filter(|_| !primary.payload_view().is_boundary() && type_starter(&primary));
+    let outer_boundary = if defaults.is_some() {
+        TypeOuterBoundary::EQUALS
+    } else {
+        TypeOuterBoundary::NONE
+    };
     let exit = required_type_expr_with_boundary_normalized(
         i.rb(),
         primary,
         baseline,
         Some(TypeApplyBoundary::DeclarationNamedFields),
         close,
+        outer_boundary,
         pipe_lexical,
         item_origin,
         line_entry,
         fence,
         ambient,
+    );
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
+    let (mut item, line_entry, defaults) = match (exit, defaults) {
+        (NormalizedExit::Complete(Err(Either::Left(item)), line_entry), Some(defaults))
+            if !item.payload_view().is_boundary()
+                && token_kind(&item) == Some(TokenKind::Equals)
+                && !implicit_delimited_newline(baseline, item.leading_view()) =>
+        {
+            (item, line_entry, defaults)
+        }
+        (exit, _) => return (exit, item_origin),
+    };
+    item.emit_all_remaining_leading(&mut *i.state);
+    emit_token_item(&mut i, item);
+    let entry = suffix_marker(i.rb());
+    let exit = binding_body_normalized(
+        i.rb(),
+        baseline,
+        defaults.stops | STOP_COMMA | STOP_SEMICOLON | STOP_CLOSES,
+        defaults.line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+        defaults.sequence,
     );
     (exit, advanced_origin(item_origin, entry, i))
 }
@@ -811,6 +902,7 @@ fn tuple_field_normalized(
         baseline,
         None,
         1,
+        TypeOuterBoundary::NONE,
         pipe_lexical,
         item_origin,
         line_entry,
