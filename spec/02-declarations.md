@@ -194,7 +194,7 @@ mod point:
     pub origin = point { x: 0, y: 0 }     // point::origin が companion に足される
 ```
 
-合流した結果、同じ名前が 2 つできたら重複定義のエラー（未確認: 詳細は D14）。
+合流した結果、同じ名前が 2 つできたら重複定義のエラー（確定, 2026-11-04）。
 
 prelude が `just` / `nil` / `ok` / `err` のような標準 variant を re-export するので、通常は修飾なしで書ける。
 
