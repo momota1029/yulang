@@ -54,17 +54,6 @@ case c:
 | **B 到達不能の警告（採用）** | 通る。ただし `green` / `blue` の arm に「到達しない」警告が出る |
 | C Rust 流（E0170 相当） | 走査対象の型が `color` と分かっていて、`red` がその variant 名と同じなら**エラー**（採らない） |
 
-出典: `main:web/docs/ja/reference/patterns.md` §enum pattern
-この罠への対処は未決定（確認 P1）。案は 3 つ。
-
-| 案 | 上の例の扱い |
-| --- | --- |
-| A 今のまま | 黙って通る。`name blue` も `"r"` を返す |
-| B 到達不能の警告 | 通る。ただし `green` / `blue` の arm に「到達しない」警告が出る |
-| C Rust 流（E0170 相当） | 走査対象の型が `color` と分かっていて、`red` がその variant 名と同じなら**エラー** |
-
-C は Simple-sub では推論が終わって型が分かった後にしか出せない。推奨は「B を常に入れ、C を型が分かったときに足す」。
-
 ## 3b.3 record・list の細部　〔要確認〕
 
 ```yulang
