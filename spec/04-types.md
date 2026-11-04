@@ -102,6 +102,9 @@ struct pair 'a 'b { fst: 'a, snd: 'b }    // 型引数
 ```
 
 - `struct` は**名前で区別される** record 型。値は `point { x: 3, y: 4 }` と作る。
+- `struct` の値を作るときは field を全部書く。足りない field はエラー（確定, 2026-11-04）。足りない分を別の値から取るなら spread を使う（`point { x: 3, ..p }`）。
+- field に default を宣言できる（`struct point { x: int, y: int = 4 }`）。この場合 constructor が受ける record は `{ x: int, y?: int }` になり、`y` を省略できる。値からは `y` は常に取り出せる（確定, 2026-11-04）。
+
 - tuple struct は位置で field を持つ。field が 1 個でも constructor と pattern を持ち、括弧を書いても payload の型には変わらない。
 - tuple と tuple struct の中身は **`.0`、`.1` で取り出せる**（確定, 2026-11-04）。pattern での分解もできる。
 
