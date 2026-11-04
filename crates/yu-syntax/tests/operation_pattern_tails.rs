@@ -25,6 +25,72 @@ fn direct_kinds(node: &SyntaxNode) -> Vec<SyntaxKind> {
 }
 
 #[test]
+fn bare_operation_heads_keep_the_handler_comma_with_the_catch_arm() {
+    for (source, handler_kind) in [
+        (
+            "catch e:\n    op x, k -> k x",
+            SyntaxKind::IdentifierPattern,
+        ),
+        ("catch e:\n    op x, _ -> 0", SyntaxKind::IdentifierPattern),
+    ] {
+        let parsed = parse(source);
+        assert!(
+            parsed.syntax_diagnostics().unwrap().is_empty(),
+            "{source:?}"
+        );
+        let arm = nodes(&parsed, SyntaxKind::CatchArm).remove(0);
+        let patterns = arm
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Pattern)
+            .collect::<Vec<_>>();
+        assert_eq!(patterns.len(), 2, "{source:?}");
+        assert_eq!(
+            direct_kinds(&patterns[0]),
+            [
+                SyntaxKind::IdentifierPattern,
+                SyntaxKind::PatternMlApplicationTail,
+            ],
+            "{source:?}"
+        );
+        assert_eq!(direct_kinds(&patterns[1]), [handler_kind], "{source:?}");
+        assert_eq!(
+            arm.children_with_tokens()
+                .filter(|element| element.kind() == SyntaxKind::Comma)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            arm.children_with_tokens()
+                .filter(|element| element.kind() == SyntaxKind::Arrow)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn qualified_operation_application_keeps_its_existing_tail_shape() {
+    let source = "catch e:\n    console::println s, k -> k ()";
+    let parsed = parse(source);
+    assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+    let arm = nodes(&parsed, SyntaxKind::CatchArm).remove(0);
+    let operation = arm
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("operation Pattern");
+    assert_eq!(
+        direct_kinds(&operation),
+        [
+            SyntaxKind::IdentifierPattern,
+            SyntaxKind::PatternPathTail,
+            SyntaxKind::PatternMlApplicationTail,
+        ]
+    );
+}
+
+#[test]
 fn qualified_empty_operation_and_value_arm_keep_handler_comma() {
     let parsed = parse("catch signal::ping() { signal::ping(), k -> k 1, v -> v }");
     assert!(parsed.syntax_diagnostics().unwrap().is_empty());

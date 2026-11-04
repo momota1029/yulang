@@ -27,8 +27,8 @@ CaseInlineArms := CaseArm { CaseArmSeparator CaseArm } [ CaseArmSeparator ]
 CatchBracedArms := CatchArm { CatchArmSeparator CatchArm } [ CatchArmSeparator ]
 CaseArmSeparator := ","
 CatchArmSeparator := ","
-CaseArm  := Pattern [ CaseGuard ] "->" ArmBody [ ";" ]
-CatchArm := Pattern [ "," Pattern ] [ CatchGuard ] "->" ArmBody [ ";" ]
+CaseArm  := ArmPattern [ CaseGuard ] "->" ArmBody [ ";" ]
+CatchArm := ArmPattern [ "," ArmPattern ] [ CatchGuard ] "->" ArmBody [ ";" ]
 CaseGuard := (IfKw | WhereKw) OperatorChain
 CatchGuard := (IfKw | WhereKw) OperatorChain
 ArmBody := OperatorChain | IndentedStatementBlock
@@ -51,6 +51,12 @@ A Catch handler comma is a direct `CatchArm` child; an arm-list comma belongs to
 Current-depth Catch-brace newlines and indented arm-indent newlines belong to that family, while an indented body block owns its statement newlines.
 The active arm owner returns nested colon, comma, arrow, brace, guard word, and close spelling to their immediate owners.
 
+An `ArmPattern` whose application head is a bare identifier admits same-line Pattern arguments.
+For example, `just x -> x` and `op x, k -> k x` place `x` in a `PatternMlApplicationTail`; the Catch comma still belongs to `CatchArm`.
+The parser records only this structure.
+Name resolution decides whether the bare head is a binding or a variant.
+The Authoritative parser-gap design memo WP-9 supersedes R280's earlier qualified-only rule in this arm context.
+
 ## 4. Direct Rowan CST
 
 `CaseExpression` and `CatchExpression` are direct primary children of `OperatorChain`.
@@ -72,8 +78,8 @@ CaseExpression := CaseKw [ CaseLabel ] CaseScrutinee CaseBlock
 CatchExpression := CatchKw [ CatchLabel ] CatchScrutinee CatchBlock
 CaseInlineArms := CaseArm { CaseArmSeparator CaseArm } [ CaseArmSeparator ]
 CatchBracedArms := CatchArm { CatchArmSeparator CatchArm } [ CatchArmSeparator ]
-CaseArm := Pattern [ CaseGuard ] Arrow ArmBody [ Semicolon ]
-CatchArm := Pattern [ Comma Pattern ] [ CatchGuard ] Arrow ArmBody [ Semicolon ]
+CaseArm := ArmPattern [ CaseGuard ] Arrow ArmBody [ Semicolon ]
+CatchArm := ArmPattern [ Comma ArmPattern ] [ CatchGuard ] Arrow ArmBody [ Semicolon ]
 ```
 
 ## 5. Recovery CST

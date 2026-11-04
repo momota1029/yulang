@@ -376,14 +376,209 @@ fn explicit_constructor_patterns_retain_all_payloads_and_arm_frontiers() {
             "{source:?}"
         );
     }
-    // Plain heads keep the caller's existing recovery boundary.
+    // WP-9: superseded the R280 unqualified-application pin (design memo WP-9).
     let green = run("case x: name value -> value").0;
-    assert!(!structural_facts(&green).is_empty());
+    assert!(structural_facts(&green).is_empty());
     assert!(
-        !crate::SyntaxNode::new_root(green)
+        crate::SyntaxNode::new_root(green)
             .descendants()
             .any(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
     );
+}
+
+#[test]
+fn bare_identifier_application_moves_the_missing_arrow_to_the_pattern_end() {
+    let source = "case x: n yes";
+    let green = run(source).0;
+    assert_eq!(green.to_string(), source);
+    assert_eq!(
+        structural_facts(&green),
+        [(StructuralKind::Missing, 13..13)]
+    );
+    let root = SyntaxNode::new_root(green);
+    let arm = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::CaseArm)
+        .expect("case arm");
+    let pattern = arm
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("arm Pattern");
+    assert_eq!(
+        pattern
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::IdentifierPattern,
+            SyntaxKind::PatternMlApplicationTail,
+        ]
+    );
+    assert_eq!(
+        arm.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [SyntaxKind::Pattern, SyntaxKind::Missing]
+    );
+}
+
+#[test]
+fn bare_identifier_arm_patterns_build_same_line_ml_application_tails() {
+    for (source, direct_tails, all_tails) in [
+        ("case o:\n    just x -> x", 1, 1),
+        ("case o:\n    nil -> 0", 0, 0),
+        ("case t:\n    node v l r -> v", 3, 3),
+        ("case p:\n    just (a, b) -> a", 1, 1),
+        ("case xs:\n    just [x, ..rest] -> x", 1, 1),
+        ("case o:\n    just _ -> 0", 1, 1),
+        ("case s:\n    just :ready -> 1", 1, 1),
+        ("case o:\n    just (just x) -> x", 1, 2),
+    ] {
+        let root = case_like_literal_production(source);
+        let arm = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::CaseArm)
+            .expect("case arm");
+        let pattern = arm
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Pattern)
+            .expect("arm Pattern");
+        assert_eq!(
+            pattern
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+                .count(),
+            direct_tails,
+            "{source:?}"
+        );
+        assert_eq!(
+            pattern
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+                .count(),
+            all_tails,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn bare_identifier_arm_application_stops_before_guards() {
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        ">",
+        OperatorFixities::new().with_infix(BindingPower::scalar(50), BindingPower::scalar(51)),
+    )])
+    .expect("infix operator table");
+    for (source, guard_kind) in [
+        ("case o:\n    just x if x > 0 -> x", SyntaxKind::IfKw),
+        ("case o:\n    just x where x > 0 -> x", SyntaxKind::WhereKw),
+    ] {
+        let green = run_with(source, &operators).0;
+        assert_eq!(green.to_string(), source);
+        assert!(structural_facts(&green).is_empty(), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let arm = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::CaseArm)
+            .expect("case arm");
+        let pattern = arm
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Pattern)
+            .expect("arm Pattern");
+        assert_eq!(
+            pattern
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            arm.children()
+                .find(|node| node.kind() == SyntaxKind::CaseGuard)
+                .expect("CaseGuard")
+                .first_token()
+                .expect("guard keyword")
+                .kind(),
+            guard_kind,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn arm_control_words_and_fixed_tails_do_not_become_ml_arguments() {
+    for source in [
+        "case p: x as whole -> whole",
+        "case p: x | y -> y",
+        "case p: x if ready -> x",
+        "case p: x where ready -> x",
+        "case p: x: int -> 1",
+        "case p: x -> x",
+        "catch e: x, k -> k",
+    ] {
+        let root = case_like_literal_production(source);
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::PatternMlApplicationTail),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn qualified_and_call_arm_patterns_keep_their_exact_tail_kinds() {
+    for (source, expected) in [
+        (
+            "case o: opt::just x -> x",
+            vec![
+                SyntaxKind::IdentifierPattern,
+                SyntaxKind::PatternPathTail,
+                SyntaxKind::PatternMlApplicationTail,
+            ],
+        ),
+        (
+            "case o: just(x) -> x",
+            vec![SyntaxKind::IdentifierPattern, SyntaxKind::PatternCallTail],
+        ),
+    ] {
+        let root = case_like_literal_production(source);
+        let pattern = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::CaseArm)
+            .and_then(|arm| {
+                arm.children()
+                    .find(|node| node.kind() == SyntaxKind::Pattern)
+            })
+            .expect("case arm Pattern");
+        assert_eq!(
+            pattern
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn wp9_arm_rule_does_not_change_non_arm_header_contexts() {
+    for (source, applications) in [
+        ("my x y = 1", 1),
+        ("my f (a, b) = a", 1),
+        ("for x in xs: x", 0),
+        (r"\x -> x", 0),
+        ("my (a, b) = p", 0),
+    ] {
+        let root = case_like_literal_production(source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+                .count(),
+            applications,
+            "{source:?}"
+        );
+    }
 }
 
 #[test]
@@ -1054,7 +1249,8 @@ fn case_schema_arm_and_block_slots_keep_distinct_direct_occurrences() {
             [Missing]
         );
         for (tail, expected) in [
-            ("yes", vec![Pattern, Missing, OperatorChain]),
+            // WP-9: 'n yes' is now a bare-identifier application; the probe token was replaced to keep this contract (design memo WP-9)
+            ("in", vec![Pattern, Missing, OperatorChain]),
             ("->", vec![Pattern, Arrow, Missing]),
             ("", vec![Pattern, Missing]),
             ("@", vec![Pattern, Missing, Error]),
@@ -1149,7 +1345,8 @@ fn case_schema_indented_statement_owner_and_accepted_controls() {
 fn case_arrow_body_facts_are_exact_at_source_offsets() {
     use CstSlot::{Arrow, Body};
     for (source, specifications) in [
-        ("case x: n yes", vec![(Arrow, 10..10, false, vec![])]),
+        // WP-9: 'n yes' is now a bare-identifier application; the probe token was replaced to keep this contract (design memo WP-9)
+        ("case x: n in", vec![(Arrow, 10..10, false, vec![])]),
         ("case x: n ->", vec![(Body, 12..12, false, vec![])]),
         ("case x: n", vec![(Arrow, 9..9, true, vec![])]),
         ("case x: n if yes", vec![(Arrow, 16..16, true, vec![])]),
@@ -1160,7 +1357,8 @@ fn case_arrow_body_facts_are_exact_at_source_offsets() {
             vec![(Body, 24..24, false, vec![])],
         ),
         (
-            "catch x: err, handler yes",
+            // WP-9: 'n yes' is now a bare-identifier application; the probe token was replaced to keep this contract (design memo WP-9)
+            "catch x: err, handler in",
             vec![(Arrow, 22..22, false, vec![])],
         ),
         (

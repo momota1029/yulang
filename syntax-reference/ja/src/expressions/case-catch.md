@@ -27,8 +27,8 @@ CaseInlineArms := CaseArm { CaseArmSeparator CaseArm } [ CaseArmSeparator ]
 CatchBracedArms := CatchArm { CatchArmSeparator CatchArm } [ CatchArmSeparator ]
 CaseArmSeparator := ","
 CatchArmSeparator := ","
-CaseArm  := Pattern [ CaseGuard ] "->" ArmBody [ ";" ]
-CatchArm := Pattern [ "," Pattern ] [ CatchGuard ] "->" ArmBody [ ";" ]
+CaseArm  := ArmPattern [ CaseGuard ] "->" ArmBody [ ";" ]
+CatchArm := ArmPattern [ "," ArmPattern ] [ CatchGuard ] "->" ArmBody [ ";" ]
 CaseGuard := (IfKw | WhereKw) OperatorChain
 CatchGuard := (IfKw | WhereKw) OperatorChain
 ArmBody := OperatorChain | IndentedStatementBlock
@@ -52,6 +52,12 @@ Catch handlerのcommaは直接の`CatchArm` childであり、arm-list commaは�
 current-depthのCatch-brace newlineとindented arm-indent newlineはそのfamilyに属し、indented body blockがstatement newlineを所有する。
 active arm ownerは、nested colon、comma、arrow、brace、guard word、closeの表記を、それぞれのimmediate ownerへ戻す。
 
+application head が bare identifier である `ArmPattern` は、同一行の Pattern 引数を受理する。
+たとえば、`just x -> x` と `op x, k -> k x` では、`x` が `PatternMlApplicationTail` に入る。
+Catch comma は、引き続き `CatchArm` に属する。
+parser は構造だけを記録し、bare head が binding と variant のどちらを表すかは名前解決が決める。
+Authoritative な parser-gap design memo WP-9 は、この arm context における R280 の qualified-only rule を置き換える。
+
 ## 4. 直接 Rowan CST
 
 `CaseExpression`と`CatchExpression`は、`OperatorChain`の直接のprimary childである。
@@ -73,8 +79,8 @@ CaseExpression := CaseKw [ CaseLabel ] CaseScrutinee CaseBlock
 CatchExpression := CatchKw [ CatchLabel ] CatchScrutinee CatchBlock
 CaseInlineArms := CaseArm { CaseArmSeparator CaseArm } [ CaseArmSeparator ]
 CatchBracedArms := CatchArm { CatchArmSeparator CatchArm } [ CatchArmSeparator ]
-CaseArm := Pattern [ CaseGuard ] Arrow ArmBody [ Semicolon ]
-CatchArm := Pattern [ Comma Pattern ] [ CatchGuard ] Arrow ArmBody [ Semicolon ]
+CaseArm := ArmPattern [ CaseGuard ] Arrow ArmBody [ Semicolon ]
+CatchArm := ArmPattern [ Comma ArmPattern ] [ CatchGuard ] Arrow ArmBody [ Semicolon ]
 ```
 
 ## 5. Recovery CST

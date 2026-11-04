@@ -8,7 +8,6 @@
 | 項目 | 仕様の根拠 | 現在のパーサ |
 | --- | --- | --- |
 | 複数引数の lambda（`\x y -> x`） | [章3.4](03-expressions.md) | 文頭で Error（単項 `\x -> x` は読める。素材では「unary lambda の admission」まで） |
-| 裸の名前を頭にした pattern の適用（`just x -> ...`、`op x, k -> ...`） | [章3b.1](03b-patterns.md)、[章5.2](05-effects.md) | `Missing`。`opt::just x`、`just(x)`、`op(x), k` は読める |
 | `--` / `---`（doc コメント） | [章1.2](01-lexical.md) | `-` が Error。`//` は読める |
 
 ## 仕様の側を見直す候補（パーサの実装が意図的かもしれないもの）

@@ -10,9 +10,13 @@ list と record の primary は、それぞれのページで定める。
 
 ```text
 Pattern := Pattern@Lowest
+ArmPattern := Pattern@Lowest with arm_application = true
 Pattern@P := PatternPrimary { PatternTail(P) }
 PatternTail(P) := G* PatternAliasTail if P <= Alias
                 | G* PatternAlternationTail if P <= Alternation
+                | G_same_line+ PatternMlApplicationTail
+                    if arm_application and P < MlApplication
+PatternMlApplicationTail := Pattern@MlApplication
 PatternAliasTail := AsKw G+ Identifier
 PatternAlternationTail := Pipe G* Pattern@Alternation
 PatternPrimary := IdentifierPattern | IntegerPattern | SymbolPattern
@@ -27,6 +31,7 @@ PatternSeparator := ExplicitCommaBoundary | ImplicitNewlineBoundary(pattern_base
 
 `G*` は、連続する source trivia の最大の run である。
 `G+` は、empty でない最大の run である。
+`G_same_line+` は、通常の newline を含まない empty でない trivia run である。
 `OpeningTrivia` は delimiter opener の直後にある `G*` である。
 各 delimited Pattern は、その opening trivia の後で次の base を snapshot する。
 
@@ -56,6 +61,14 @@ core は固定の Pattern 優先順位を使う。
 この複合形がなければ、active な caller colon は消費しない。
 `as` は alias tail の位置でだけ文脈的な keyword になる。
 
+`ArmPattern` では、bare な `IdentifierPattern` head が同一行の引数に対する `arm_application` を保つ。
+したがって、`just x`、`node value left right`、`op x` は、引数ごとに `PatternMlApplicationTail` を一つ追加する。
+identifier が binding と variant のどちらを表すかは、parser ではなく名前解決が決める。
+`as`、`|`、`if`、`where`、`in`、単独の `:`、`->`、`,`、close delimiter、newline、入力末尾は引数にならず、境界のまま残る。
+
+Authoritative な parser-gap design memo WP-9 は、arm pattern における R280 の qualified-only application rule を置き換える。
+`opt::just x` のような qualified form は、既存の application shape を保つ。
+
 `(` の後は、parenthesized owner が comma と対応する `)` を所有する。
 外側の close は、消費せず caller へ返す。
 
@@ -67,6 +80,8 @@ primary は `IdentifierPattern`、`IntegerPattern`、`SymbolPattern`、`Parenthe
 
 `PatternAliasTail` は `AsKw` と binding identifier を含む。
 `PatternAlternationTail` は `Pipe` と再帰する RHS の `Pattern` を含む。
+`PatternMlApplicationTail` は、引数となる `Pattern` を一つ含む。
+引数を区切る source trivia は、外側の `Pattern` の直接の content に残る。
 `ParenthesizedPattern` は `LParen`、子 Pattern、source の comma と trivia、`RParen` を含む。
 separator となる newline は子の間の source trivia のままであり、CST は synthetic な separator node を作らない。
 

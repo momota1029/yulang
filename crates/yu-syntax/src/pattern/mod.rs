@@ -20,7 +20,9 @@ use crate::{
         expression_item::scan_pattern_quote_literal_payload,
         item::{Item, LeadingTrivia, Payload, TokenKind},
         lexer::{scan_identifier, scan_pattern_nud_payload, scan_pattern_payload},
-        observation::{delimited_baseline, implicit_delimited_newline, token_kind},
+        observation::{
+            delimited_baseline, implicit_delimited_newline, is_contextual_word, token_kind,
+        },
         position::{advanced_origin, suffix_marker},
         stops::{STOP_ARROW, STOP_COMMA, STOP_IN, STOP_SEMICOLON, Stops, stops_for},
         yumark::FenceBoundary,
@@ -65,6 +67,10 @@ pub(super) const PATTERN_STOP_PRIMARY_COLON: PatternStops = 1 << 13;
 /// Pattern ML-application argument.
 pub(super) const PATTERN_STOP_ITEM: PatternStops = 1 << 14;
 const PATTERN_STOP_RECOVERED_PRIMARY: PatternStops = 1 << 15;
+pub(crate) const PATTERN_ARM_APPLICATION_STOPS: PatternStops = PATTERN_STOP_ITEM
+    | PATTERN_STOP_ARROW
+    | PATTERN_STOP_ARM_GUARD_IF
+    | PATTERN_STOP_ARM_GUARD_WHERE;
 
 #[cfg(test)]
 pub(super) const PATTERN_DEFAULT_STOPS: PatternStops = PATTERN_STOP_COMMA
@@ -251,6 +257,7 @@ struct PatternState {
     unresolved_path_member: bool,
     identifier_receiver: bool,
     explicit_constructor: bool,
+    bare_identifier_head: bool,
 }
 
 impl PatternState {
@@ -260,6 +267,7 @@ impl PatternState {
             unresolved_path_member: false,
             identifier_receiver: false,
             explicit_constructor: false,
+            bare_identifier_head: false,
         }
     }
 
@@ -656,6 +664,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     completion.identifier_receiver = false;
+    completion.bare_identifier_head = false;
     if token_kind(&item) == Some(TokenKind::Identifier)
         && item.payload_view().spelling() == Some("rule")
     {
@@ -697,6 +706,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
         emit_token_item(&mut i, item);
         i.state.finish_node();
         completion.identifier_receiver = true;
+        completion.bare_identifier_head = true;
         return pattern_tail_normalized(
             i,
             successor,
@@ -774,6 +784,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
             emit_token_item(&mut i, item);
             i.state.finish_node();
             completion.identifier_receiver = identifier_receiver;
+            completion.bare_identifier_head = identifier_receiver;
             scan_pattern_tail_normalized(
                 i,
                 minimum,
@@ -790,6 +801,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
         }
         Some(TokenKind::Integer) => {
             completion.identifier_receiver = false;
+            completion.bare_identifier_head = false;
             i.state.start_node(SyntaxKind::IntegerPattern.into());
             emit_token_item(&mut i, item);
             i.state.finish_node();
@@ -811,6 +823,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
             TokenKind::Colon | TokenKind::PatternSymbolColon | TokenKind::ExpressionSymbolColon,
         ) => {
             completion.identifier_receiver = false;
+            completion.bare_identifier_head = false;
             i.state.start_node(SyntaxKind::SymbolPattern.into());
             emit_token_item(&mut i, item);
             let entry = suffix_marker(i.rb());
@@ -1057,6 +1070,7 @@ fn pattern_tail_normalized(
         completion.native = member_completion.native;
         completion.identifier_receiver = member_completion.native == PatternCompletion::Complete;
         completion.explicit_constructor = member_completion.native == PatternCompletion::Complete;
+        completion.bare_identifier_head = false;
         i.state.finish_node();
         return pattern_tail_normalized(
             i,
@@ -1078,6 +1092,7 @@ fn pattern_tail_normalized(
         && completion.identifier_receiver
     {
         completion.explicit_constructor = false;
+        completion.bare_identifier_head = false;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternFieldTail.into());
         emit_token_item(&mut i, item);
@@ -1119,6 +1134,7 @@ fn pattern_tail_normalized(
     if token_kind(&item) == Some(TokenKind::LParen) && !item.leading_view().has_ordinary_trivia() {
         completion.identifier_receiver = false;
         completion.explicit_constructor = false;
+        completion.bare_identifier_head = false;
         let mut call_completion = PatternState::new(PatternCompletion::Complete);
         let exit = delimited::call_pattern(
             i,
@@ -1141,6 +1157,7 @@ fn pattern_tail_normalized(
     if is_pattern_alias(&item) && minimum <= PatternPrecedence::Alias {
         completion.identifier_receiver = false;
         completion.explicit_constructor = false;
+        completion.bare_identifier_head = false;
         completion.native = PatternCompletion::Incomplete;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternAliasTail.into());
@@ -1185,6 +1202,7 @@ fn pattern_tail_normalized(
     }
     if token_kind(&item) == Some(TokenKind::Pipe) && minimum <= PatternPrecedence::Alternation {
         completion.identifier_receiver = false;
+        completion.bare_identifier_head = false;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state
             .start_node(SyntaxKind::PatternAlternationTail.into());
@@ -1230,12 +1248,20 @@ fn pattern_tail_normalized(
             ambient,
         );
     }
-    if token_kind(&item) == Some(TokenKind::Colon)
+    let bare_arm_application_head = completion.bare_identifier_head
+        && stops & PATTERN_ARM_APPLICATION_STOPS == PATTERN_ARM_APPLICATION_STOPS;
+    if matches!(
+        token_kind(&item),
+        Some(TokenKind::Colon | TokenKind::PatternSymbolColon)
+    ) && !(token_kind(&item) == Some(TokenKind::PatternSymbolColon)
+        && (completion.explicit_constructor || bare_arm_application_head)
+        && !item.leading_view().has_ordinary_newline())
         && stops & PATTERN_STOP_COLON == 0
         && minimum <= PatternPrecedence::TypeAnnotation
     {
         completion.identifier_receiver = false;
         completion.explicit_constructor = false;
+        completion.bare_identifier_head = false;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternTypeAnnotation.into());
         emit_token_item(&mut i, item);
@@ -1258,13 +1284,17 @@ fn pattern_tail_normalized(
         && item.leading_view().has_ordinary_trivia()
         && ((stops & (PATTERN_STOP_ITEM | PATTERN_STOP_RECOVERED_PRIMARY) == 0
             && item.leading_view().gml_continues_deeper_than(baseline))
-            || (completion.explicit_constructor && !item.leading_view().has_ordinary_newline()))
+            || ((completion.explicit_constructor || bare_arm_application_head)
+                && !item.leading_view().has_ordinary_newline()))
         && !is_current_pattern_tail(&item, stops)
+        && !is_contextual_word(i.rb(), &item, "in")
         && is_pattern_nud(&item, stops)
     {
         let outer_constructor = completion.explicit_constructor;
+        let outer_bare_identifier = completion.bare_identifier_head;
         completion.identifier_receiver = false;
         completion.explicit_constructor = false;
+        completion.bare_identifier_head = false;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state
             .start_node(SyntaxKind::PatternMlApplicationTail.into());
@@ -1288,6 +1318,8 @@ fn pattern_tail_normalized(
         // The payload's head cannot replace the outer constructor's permission.
         completion.explicit_constructor =
             outer_constructor && completion.reported() == PatternCompletion::Complete;
+        completion.bare_identifier_head =
+            outer_bare_identifier && completion.reported() == PatternCompletion::Complete;
         completion.identifier_receiver = false;
         item_origin = advanced_origin(item_origin, entry, i.rb());
         i.state.finish_node();

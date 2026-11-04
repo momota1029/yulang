@@ -10,9 +10,13 @@ The trailing type annotation is defined in [type annotations](type-annotation.md
 
 ```text
 Pattern := Pattern@Lowest
+ArmPattern := Pattern@Lowest with arm_application = true
 Pattern@P := PatternPrimary { PatternTail(P) }
 PatternTail(P) := G* PatternAliasTail if P <= Alias
                 | G* PatternAlternationTail if P <= Alternation
+                | G_same_line+ PatternMlApplicationTail
+                    if arm_application and P < MlApplication
+PatternMlApplicationTail := Pattern@MlApplication
 PatternAliasTail := AsKw G+ Identifier
 PatternAlternationTail := Pipe G* Pattern@Alternation
 PatternPrimary := IdentifierPattern | IntegerPattern | SymbolPattern
@@ -26,6 +30,7 @@ PatternSeparator := ExplicitCommaBoundary | ImplicitNewlineBoundary(pattern_base
 ```
 
 `G*` is one maximal contiguous source-trivia run, and `G+` is one nonempty maximal run.
+`G_same_line+` is a nonempty trivia run with no ordinary newline.
 `OpeningTrivia` is the `G*` immediately after a delimiter opener.
 Each delimited Pattern snapshots its base after that opening trivia:
 
@@ -53,6 +58,14 @@ A contiguous `:identifier` is a SymbolPattern before an active caller colon is c
 If that composite is absent, an active caller colon remains unconsumed.
 The `as` keyword is contextual only in the alias-tail position.
 
+In an `ArmPattern`, a bare `IdentifierPattern` head keeps `arm_application` for its same-line arguments.
+Thus `just x`, `node value left right`, and `op x` add one `PatternMlApplicationTail` per argument.
+Whether the identifier denotes a binding or a variant is decided by name resolution, not by the parser.
+The parser does not admit `as`, `|`, `if`, `where`, `in`, `:`, `->`, `,`, a close delimiter, a newline, or end of input as such an argument boundary.
+
+The Authoritative parser-gap design memo WP-9 supersedes the earlier R280 qualified-only application rule for arm patterns.
+Qualified forms such as `opt::just x` retain their existing application shape.
+
 After `(`, the parenthesized owner owns its comma and matching `)`.
 An outer close is returned to its caller without consumption.
 
@@ -64,6 +77,7 @@ Its primary is an `IdentifierPattern`, `IntegerPattern`, `SymbolPattern`, `Paren
 
 `PatternAliasTail` contains `AsKw` and its binding identifier.
 `PatternAlternationTail` contains `Pipe` and the recursive RHS `Pattern`.
+`PatternMlApplicationTail` contains one argument `Pattern`; the separating source trivia remains direct content of the enclosing `Pattern`.
 `ParenthesizedPattern` contains its `LParen`, child Patterns, source commas and trivia, and its `RParen`.
 Qualifying newline separation remains source trivia between children; the CST creates no synthetic separator node.
 

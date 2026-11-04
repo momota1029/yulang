@@ -3504,13 +3504,6 @@ fn pattern_ml_application_boundary_matrix_leaves_every_caller_item_pending() {
             " A",
         ),
         ("f { A", PATTERN_STOP_LBRACE, TokenKind::LBrace, None, " A"),
-        (
-            "f x",
-            PATTERN_STOP_ITEM,
-            TokenKind::Identifier,
-            Some("x"),
-            "",
-        ),
     ] {
         let (green, exit, completion, actual_remainder) = run_required_pattern_with_context(
             source,
@@ -3540,6 +3533,32 @@ fn pattern_ml_application_boundary_matrix_leaves_every_caller_item_pending() {
         }
         assert_eq!(emit_pending_leading_text(&mut item), " ", "{source:?}");
     }
+
+    // WP-9: superseded the R280 unqualified-application pin (design memo WP-9).
+    let arm_stops = PATTERN_STOP_ITEM
+        | PATTERN_STOP_ARROW
+        | PATTERN_STOP_ARM_GUARD_IF
+        | PATTERN_STOP_ARM_GUARD_WHERE;
+    let (green, exit, completion, remainder) = run_required_pattern_with_context(
+        "f x",
+        arm_stops,
+        PatternMandatorySlotPolicy::default(),
+        PatternCallerCloses::NONE,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "f x");
+    assert_eq!(remainder, "");
+    assert_eq!(completion, PatternCompletion::Complete);
+    assert_eq!(
+        recovery_count(&green, SyntaxKind::PatternMlApplicationTail),
+        1
+    );
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Right(_)), _)
+    ));
 
     // This stop applies only when a Pattern primary has not been established;
     // an established Pattern retains its fixed type-annotation tail.
@@ -3632,6 +3651,94 @@ fn pattern_ml_application_boundary_matrix_leaves_every_caller_item_pending() {
         pending.into_kind(),
         Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
     ));
+}
+
+#[test]
+fn wp9_arm_application_keeps_non_arguments_pending() {
+    let arm_stops = PATTERN_STOP_ITEM
+        | PATTERN_STOP_ARROW
+        | PATTERN_STOP_ARM_GUARD_IF
+        | PATTERN_STOP_ARM_GUARD_WHERE;
+    for (source, expected_kind, expected_spelling, leading) in [
+        ("f in xs", TokenKind::Identifier, Some("in"), " "),
+        ("f\n  x", TokenKind::Identifier, Some("x"), "\n  "),
+        ("f ) tail", TokenKind::RParen, None, " "),
+    ] {
+        let caller_closes = if expected_kind == TokenKind::RParen {
+            PatternCallerCloses::RPAREN
+        } else {
+            PatternCallerCloses::NONE
+        };
+        let (green, exit, completion, _) = run_required_pattern_with_context(
+            source,
+            arm_stops,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), "f", "{source:?}");
+        assert_eq!(completion, PatternCompletion::Complete, "{source:?}");
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::PatternMlApplicationTail),
+            0,
+            "{source:?}"
+        );
+        let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
+            panic!("non-argument must remain pending: {source:?}");
+        };
+        assert_eq!(
+            item.payload_view().token_kind(),
+            Some(expected_kind),
+            "{source:?}"
+        );
+        if let Some(expected_spelling) = expected_spelling {
+            assert_eq!(
+                item.payload_view().spelling(),
+                Some(expected_spelling),
+                "{source:?}"
+            );
+        }
+        assert_eq!(emit_pending_leading_text(&mut item), leading, "{source:?}");
+    }
+
+    let (green, exit, completion, remainder) = run_required_pattern_with_context(
+        "f",
+        arm_stops,
+        PatternMandatorySlotPolicy::default(),
+        PatternCallerCloses::NONE,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "f");
+    assert_eq!(remainder, "");
+    assert_eq!(completion, PatternCompletion::Complete);
+    assert_eq!(
+        recovery_count(&green, SyntaxKind::PatternMlApplicationTail),
+        0
+    );
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Right(_)), _)
+    ));
+}
+
+#[test]
+fn wp9_arm_capability_does_not_change_nested_non_arm_pattern_items() {
+    for (source, applications) in [("(just x)", 1), ("[just x]", 1), ("{just x}", 0)] {
+        let (green, _) = run_pattern(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(
+            SyntaxNode::new_root(green)
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+                .count(),
+            applications,
+            "{source:?}"
+        );
+    }
 }
 
 #[test]

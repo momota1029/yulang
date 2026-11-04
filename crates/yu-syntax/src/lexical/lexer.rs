@@ -371,12 +371,18 @@ pub(crate) fn scan_pattern_nud_payload(
 /// Raw successor vocabulary for one normalized Pattern Item.
 pub(crate) fn scan_pattern_payload(
     mut i: LexIn,
-    _has_leading_trivia: bool,
+    has_leading_trivia: bool,
     _payload_origin: usize,
     _fence: Option<&FenceBoundary>,
     stops: crate::pattern::PatternStops,
 ) -> Option<AcceptedPayload> {
-    if stops & crate::pattern::PATTERN_STOP_ARROW != 0
+    if has_leading_trivia
+        && stops & crate::pattern::PATTERN_ARM_APPLICATION_STOPS
+            == crate::pattern::PATTERN_ARM_APPLICATION_STOPS
+        && let Some(symbol) = i.token(scan_pattern_symbol_colon)
+    {
+        Some(token_payload(symbol))
+    } else if stops & crate::pattern::PATTERN_STOP_ARROW != 0
         && let Some(arrow) = i.token(scan_arm_arrow)
     {
         Some(token_payload(arrow))
