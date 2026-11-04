@@ -29,6 +29,8 @@ true         // bool
 {x,}             // {x: x}
 {x: 1}           // block（x: 1 は application）
 {x}              // block（値は x）
+{}               // 空の record
+{;}              // 空の block（値は unit）。`()` と書いてもよい
 ```
 
 - list は spread を持つ: `[1, ..xs, 3]`。record も spread を持つ: `{x: 1, ..rest}`。
