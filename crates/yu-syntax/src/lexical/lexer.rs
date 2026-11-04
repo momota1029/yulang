@@ -1089,8 +1089,20 @@ fn scan_identifier_suffix(mut i: LexIn) -> Option<()> {
 
 pub(crate) fn scan_integer(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut number| {
-        scan_integer_digit(number.rb())?;
-        while number.token(scan_integer_digit).is_some() {}
+        let radix = number.token(|mut prefix| {
+            (prefix.next()? == '0').then_some(())?;
+            let radix = match prefix.next()? {
+                'x' | 'X' => 16,
+                'b' | 'B' => 2,
+                'o' | 'O' => 8,
+                _ => return None,
+            };
+            scan_radix_digit_run(prefix.rb(), radix)?;
+            Some(())
+        });
+        if radix.is_none() {
+            scan_decimal_digit_run(number.rb())?;
+        }
         Some(())
     });
     accepted?;
@@ -1102,13 +1114,11 @@ pub(crate) fn scan_integer(mut i: LexIn) -> Option<Token> {
 
 fn scan_float(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut number| {
-        scan_integer_digit(number.rb())?;
-        while number.token(scan_integer_digit).is_some() {}
+        scan_decimal_digit_run(number.rb())?;
 
         let decimal = number.token(|mut decimal| {
             (decimal.next()? == '.').then_some(())?;
-            scan_integer_digit(decimal.rb())?;
-            while decimal.token(scan_integer_digit).is_some() {}
+            scan_decimal_digit_run(decimal.rb())?;
             Some(())
         });
         let exponent = number.token(scan_float_exponent);
@@ -1124,13 +1134,32 @@ fn scan_float(mut i: LexIn) -> Option<Token> {
 fn scan_float_exponent(mut i: LexIn) -> Option<()> {
     matches!(i.next()?, 'e' | 'E').then_some(())?;
     i.token(|mut sign| matches!(sign.next()?, '+' | '-').then_some(()));
-    scan_integer_digit(i.rb())?;
-    while i.token(scan_integer_digit).is_some() {}
+    scan_decimal_digit_run(i.rb())?;
     Some(())
 }
 
-fn scan_integer_digit(mut i: LexIn) -> Option<()> {
-    i.next()?.is_ascii_digit().then_some(())
+fn scan_decimal_digit_run(mut i: LexIn) -> Option<()> {
+    scan_radix_digit_run(i.rb(), 10)
+}
+
+fn scan_radix_digit_run(mut i: LexIn, radix: u32) -> Option<()> {
+    let digit = |ch: char| ch.to_digit(radix).is_some();
+    digit(i.next()?).then_some(())?;
+    loop {
+        if i.token(|mut next| digit(next.next()?).then_some(()))
+            .is_some()
+        {
+            continue;
+        }
+        let separator = i.token(|mut next| {
+            (next.next()? == '_').then_some(())?;
+            digit(next.next()?).then_some(())
+        });
+        if separator.is_none() {
+            break;
+        }
+    }
+    Some(())
 }
 
 pub(crate) fn scan_punctuation(i: LexIn) -> Option<Token> {

@@ -23,6 +23,52 @@ use crate::{
 };
 
 #[test]
+fn numeric_separators_and_radix_prefixes_are_single_tokens() {
+    for source in [
+        "my a = 1_000_000",
+        "my a = 1_0.5_0",
+        "my a = 0xff",
+        "my a = 0XFF",
+        "my a = 0b1010",
+        "my a = 0o17",
+    ] {
+        let text: std::sync::Arc<crate::SourceText> = std::sync::Arc::from(source);
+        let parsed = crate::parse_file(
+            text.clone(),
+            std::sync::Arc::new(crate::scan_header(text)),
+            std::sync::Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.structural_recoveries().is_empty(), "{source:?}");
+        assert_eq!(parsed.green().to_string(), source, "{source:?}");
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        let numbers: Vec<_> = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| matches!(token.kind(), SyntaxKind::Integer | SyntaxKind::Float))
+            .collect();
+        assert_eq!(numbers.len(), 1, "{source:?}");
+        assert_eq!(numbers[0].text(), source.strip_prefix("my a = ").unwrap());
+        assert!(
+            matches!(numbers[0].kind(), SyntaxKind::Integer | SyntaxKind::Float),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn malformed_numeric_forms_round_trip_without_panicking() {
+    for source in ["0x", "0xg", "1__0", "_1", "1_", "0b2"] {
+        let text: std::sync::Arc<crate::SourceText> = std::sync::Arc::from(source);
+        let parsed = crate::parse_file(
+            text.clone(),
+            std::sync::Arc::new(crate::scan_header(text)),
+            std::sync::Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        assert_eq!(parsed.green().to_string(), source, "{source:?}");
+    }
+}
+
+#[test]
 fn raw_declaration_head_predicate_matches_identifier_and_sigil_surface() {
     for source in [
         "name", "_name", "name?", "$hidden", "&hidden", "'hidden", "$hidden!",

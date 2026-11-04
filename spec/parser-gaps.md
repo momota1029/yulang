@@ -43,7 +43,7 @@ lambda（複数引数、pattern 引数）、`sub:`、`for`、`do`、`type`（ali
 | 番号 | 内容 | 例の名前 |
 | --- | --- | --- |
 | G12 | doc コメントの行末・`=` 直後・メンバー（field）への付与 | doc-trailing, doc-after-eq, doc-member-field |
-| G13 | 数値 literal の `_` 区切り・`0x`・`0b`（`0o` は未検証） | num-underscore, num-hex, num-bin |
+| G13 | 数値 literal の `_` 区切り・`0x`・`0b`・`0o` **（完了 2026-11-04、gpt-6-luna、yu-syntax 1567 + 統合11 緑）** | num-underscore, num-hex, num-bin |
 | G14 | 空の block `{;}` **（完了 2026-11-04、gpt-6-luna、yu-syntax 1561 + 統合11 緑）** | empty-block |
 | G15 | range pattern `0..10`、`1..`、`..0` | range-pat, range-pat-lower, range-pat-upper |
 | G16 | lambda の `&` 引数 `\&a -> ...`（`&a::run` を手で呼ぶ形） | ref-run |
