@@ -57,7 +57,7 @@ for 'outer x in 0..:
   - 演算子の形: `return 'done 42`、`last 'outer`、`next 'outer`、`redo 'outer`
 - `sub 'done:` は、label `'done` を body に渡す。
 - `case` / `catch` の arm 集合の再帰（3c.5）で `'count (n - 1)` と書く形は、上の流儀でどう書くか未決定（確認 M2）。
-- 現在のパーサ（yu-syntax）は、`for` の見出しの label しか読めない。式の中の `'x` は未実装（[パーサの未実装](parser-gaps.md)）。
+- パーサ（yu-syntax）は、式の中の `'x` を読める（2026-11-04）。見出し（`for` / `case` / `catch`）の label は従来どおり。
 
 ## 3c.4 `sub` と `return`　〔要確認〕
 

@@ -95,7 +95,7 @@ id.0               // 7
 (1, 2).0           // 1
 ```
 
-- 現在のパーサは `.0` を読めない（[パーサの未実装](parser-gaps.md)）。
+- パーサ（yu-syntax）は `.0` を読める（2026-11-04）。
 - `with:` で companion module に method を足す。
 
 ```yulang

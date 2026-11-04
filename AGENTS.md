@@ -7,6 +7,7 @@ Yulang3 の作業リポジトリ。この文書は地図で、詳細な方針は
 このリポジトリは**構文解析器だけ**を残して白紙にしてある。
 
 - 残している実装: `crates/chasa-recover`, `crates/yu-syntax`（完成度が高く、保守モード）。
+  `spec/` の構文例はすべて読める（2026-11-04、`spec/parser-gaps.md` は空）。Yumark の doc コメント（`--` / `---`）も入っている。
   文法を変えるときは `syntax-reference/` と `notes/design/` の該当 Authoritative 文書に従う。
 - 型推論・HIR・runtime・backend・playground・docs は、必要になった時点で
   tag から**一つずつサルベージ**する。まとめて戻さない。
