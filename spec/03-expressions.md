@@ -250,8 +250,7 @@ catch expr:
 xs | map f
 ```
 
-- `x | f` は左辺の値を右辺に渡す。**仮採用: `lhs | rhs` は `rhs lhs`**、つまり `xs | map f` は `map f xs`（ユーザー判断, 2026-11-04。
-  素材の一方は「最初の引数」と書いていたが、ユーザーも確信がなく、`map f xs` で良いとした）。
+- `x | f` は左辺の値を右辺に渡す。`lhs | rhs` は `rhs lhs`（確定, 2026-11-04）。左辺は右辺の**最後の引数**になる。`xs | map f` は `map f xs`、`xs | map f | filter g` は `filter g (map f xs)`。
 - 結合力は旧い文書で `5`（比較より弱い）とされている。現行の値は未確認。
 
 出典: `main:web/docs/ja/reference/idioms.md`、`main:notes/design/yulang-language-report.md` §6.3
@@ -272,4 +271,4 @@ my request(source: str): str = case source:
 
 ## 確認してほしい点
 
-- **E6** `|` の仮採用（`rhs lhs`）を、実装と突き合わせて確かめる。結合力の現行値も確かめる。
+- **E6** `|` の結合力の現行値を確かめる（`rhs lhs` は確定）。
