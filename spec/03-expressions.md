@@ -251,7 +251,13 @@ xs | map f
 ```
 
 - `x | f` は左辺の値を右辺に渡す。`lhs | rhs` は `rhs lhs`（確定, 2026-11-04）。左辺は右辺の**最後の引数**になる。`xs | map f` は `map f xs`、`xs | map f | filter g` は `filter g (map f xs)`。
-- 結合力は旧い文書で `5`（比較より弱い）とされている。現行の値は未確認。
+- `|` の結合力は全演算子の中で一番弱い（確定, 2026-11-04）。左辺は `and` / `or` を含む式全体になる。
+
+```yulang
+xs | map f == ys           // xs | (map f == ys)
+1 + 2 | f                  // f (1 + 2)
+a and b | f                // f (a and b)
+```
 
 出典: `main:web/docs/ja/reference/idioms.md`、`main:notes/design/yulang-language-report.md` §6.3
 
@@ -271,4 +277,4 @@ my request(source: str): str = case source:
 
 ## 確認してほしい点
 
-- **E6** `|` の結合力の現行値を確かめる（`rhs lhs` は確定）。
+- **E6** `|` の結合力が実装で一番弱くなっているか確かめる（仕様は確定）。
