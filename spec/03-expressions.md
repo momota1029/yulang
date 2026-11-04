@@ -160,10 +160,12 @@ target with:
 
 ```yulang
 area r = pi * r * r with:
-    my pi = 3.14159          // 本体 pi * r * r から見える
+    our pi = 3.14159         // our なので、本体 pi * r * r から見える
+    my unused = 1            // my なので、本体からは見えない（with: の中だけ）
 ```
 
-- 素材は「その中の `our` / `pub` は tail から見える」と書いていたが、局所 scope での `my` / `our` / `pub` の意味は E13 で決める。
+- `with:` の中で `our` / `pub` を付けた binding は tail から見え、`my` を付けたものは見えない（確定, 2026-11-04）。
+  `with:` の中では `our` と `pub` に違いはない（どちらも tail から見えるだけ）。
 
 出典: `main:notes/design/yulang-language-report.md` §6.5
 
