@@ -218,10 +218,8 @@ pub(crate) fn scan_nud_payload(
             CurrentPayload::Token(token)
         } else if let Some(token) = i.token(scan_identifier) {
             CurrentPayload::Token(token)
-        } else if let Some(token) = i.token(scan_float) {
-            CurrentPayload::Token(token)
         } else {
-            CurrentPayload::Token(i.token(scan_integer)?)
+            CurrentPayload::Token(i.token(scan_number)?)
         };
     Some(AcceptedPayload {
         payload,
@@ -259,8 +257,7 @@ pub(crate) fn scan_path_segment_payload(
 fn scan_token(mut i: LexIn) -> Option<Token> {
     i.check(choice((
         token(scan_identifier),
-        token(scan_float),
-        token(scan_integer),
+        token(scan_number),
         token(scan_expression_colon),
         token(scan_punctuation),
         token(scan_unknown),
@@ -537,7 +534,14 @@ fn scan_pattern_malformed_fixed_operator(i: LexIn) -> Option<Token> {
 pub(crate) fn scan_operator_shaped_unknown(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut operator| {
         scan_operator_shaped_character(operator.rb())?;
-        while operator.token(scan_operator_shaped_character).is_some() {}
+        while operator
+            .remainder()
+            .chars()
+            .next()
+            .is_some_and(is_operator_shaped_character)
+        {
+            operator.next();
+        }
         Some(())
     });
     accepted?;
@@ -575,16 +579,14 @@ pub(crate) fn scan_trivia_part(mut i: LexIn) -> Option<Trivia> {
 
 fn scan_horizontal_whitespace(mut i: LexIn) -> Option<Trivia> {
     let (accepted, text) = i.rb().with_str(|mut whitespace| {
-        scan_horizontal_whitespace_unit(whitespace.rb())?;
-        while whitespace.token(scan_horizontal_whitespace_unit).is_some() {}
+        matches!(whitespace.remainder().chars().next()?, ' ' | '\t').then_some(())?;
+        while matches!(whitespace.remainder().chars().next(), Some(' ' | '\t')) {
+            whitespace.next();
+        }
         Some(())
     });
     accepted?;
     Some(Trivia::whitespace(text.into()))
-}
-
-fn scan_horizontal_whitespace_unit(mut i: LexIn) -> Option<()> {
-    matches!(i.next()?, ' ' | '\t').then_some(())
 }
 
 fn scan_newline(mut i: LexIn) -> Option<Trivia> {
@@ -607,15 +609,18 @@ fn scan_line_feed(mut i: LexIn) -> Option<()> {
 fn scan_line_comment(mut i: LexIn) -> Option<Trivia> {
     let (accepted, text) = i.rb().with_str(|mut comment| {
         scan_pair(comment.rb(), '/', '/')?;
-        while comment.token(scan_line_comment_character).is_some() {}
+        while comment
+            .remainder()
+            .chars()
+            .next()
+            .is_some_and(|ch| !matches!(ch, '\r' | '\n'))
+        {
+            comment.next();
+        }
         Some(())
     });
     accepted?;
     Some(Trivia::line_comment(text.into()))
-}
-
-fn scan_line_comment_character(mut i: LexIn) -> Option<()> {
-    (!matches!(i.next()?, '\r' | '\n')).then_some(())
 }
 
 fn scan_block_comment(mut i: LexIn) -> Option<Trivia> {
@@ -992,8 +997,12 @@ pub(crate) fn scan_identifier(mut i: LexIn) -> Option<Token> {
             return None;
         }
         let _ = word.next()?;
-        while word.token(scan_identifier_continue).is_some() {}
-        let _ = word.token(scan_identifier_suffix);
+        while word.remainder().chars().next().is_some_and(is_xid_continue) {
+            word.next();
+        }
+        if matches!(word.remainder().chars().next(), Some('?' | '!')) {
+            word.next();
+        }
         Some(())
     });
     accepted?;
@@ -1201,14 +1210,6 @@ pub(crate) fn is_declaration_starter_word(word: &str) -> bool {
     )
 }
 
-fn scan_identifier_continue(mut i: LexIn) -> Option<()> {
-    is_xid_continue(i.next()?).then_some(())
-}
-
-fn scan_identifier_suffix(mut i: LexIn) -> Option<()> {
-    matches!(i.next()?, '?' | '!').then_some(())
-}
-
 pub(crate) fn scan_integer(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut number| {
         let radix = number.token(|mut prefix| {
@@ -1234,9 +1235,10 @@ pub(crate) fn scan_integer(mut i: LexIn) -> Option<Token> {
     })
 }
 
-fn scan_float(mut i: LexIn) -> Option<Token> {
-    let (accepted, text) = i.rb().with_str(|mut number| {
-        scan_decimal_digit_run(number.rb())?;
+fn scan_number(mut i: LexIn) -> Option<Token> {
+    let (kind, text) = i.rb().with_str(|mut number| {
+        let (digits, integer_text) = number.rb().with_str(scan_decimal_digit_run);
+        digits?;
 
         let decimal = number.token(|mut decimal| {
             (decimal.next()? == '.').then_some(())?;
@@ -1244,18 +1246,33 @@ fn scan_float(mut i: LexIn) -> Option<Token> {
             Some(())
         });
         let exponent = number.token(scan_float_exponent);
-        (decimal.is_some() || exponent.is_some()).then_some(())
+        if decimal.is_some() || exponent.is_some() {
+            return Some(TokenKind::Float);
+        }
+        if integer_text == "0" {
+            number.token(|mut prefix| {
+                let radix = match prefix.next()? {
+                    'x' | 'X' => 16,
+                    'b' | 'B' => 2,
+                    'o' | 'O' => 8,
+                    _ => return None,
+                };
+                scan_radix_digit_run(prefix.rb(), radix)
+            });
+        }
+        Some(TokenKind::Integer)
     });
-    accepted?;
     Some(Token {
-        kind: TokenKind::Float,
+        kind: kind?,
         text: text.into(),
     })
 }
 
 fn scan_float_exponent(mut i: LexIn) -> Option<()> {
     matches!(i.next()?, 'e' | 'E').then_some(())?;
-    i.token(|mut sign| matches!(sign.next()?, '+' | '-').then_some(()));
+    if matches!(i.remainder().chars().next(), Some('+' | '-')) {
+        i.next();
+    }
     scan_decimal_digit_run(i.rb())?;
     Some(())
 }
@@ -1268,17 +1285,16 @@ fn scan_radix_digit_run(mut i: LexIn, radix: u32) -> Option<()> {
     let digit = |ch: char| ch.to_digit(radix).is_some();
     digit(i.next()?).then_some(())?;
     loop {
-        if i.token(|mut next| digit(next.next()?).then_some(()))
-            .is_some()
-        {
-            continue;
-        }
-        let separator = i.token(|mut next| {
-            (next.next()? == '_').then_some(())?;
-            digit(next.next()?).then_some(())
-        });
-        if separator.is_none() {
-            break;
+        let mut next = i.remainder().chars();
+        match next.next() {
+            Some(ch) if digit(ch) => {
+                i.next();
+            }
+            Some('_') if next.next().is_some_and(digit) => {
+                i.next();
+                i.next();
+            }
+            _ => break,
         }
     }
     Some(())

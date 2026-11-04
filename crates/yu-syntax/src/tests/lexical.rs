@@ -591,6 +591,57 @@ fn normalized_nud_operator_observes_a_fence_without_consuming_its_boundary() {
 }
 
 #[test]
+fn numeric_token_boundaries_remain_stable() {
+    use TokenKind::{Float, Integer};
+
+    for (source, kind, spelling, remainder) in [
+        ("1", Integer, "1", ""),
+        ("1.", Integer, "1", "."),
+        ("1..2", Integer, "1", "..2"),
+        ("1.e3", Integer, "1", ".e3"),
+        ("1e", Integer, "1", "e"),
+        ("1e+", Integer, "1", "e+"),
+        ("0x", Integer, "0", "x"),
+        ("0xFF", Integer, "0xFF", ""),
+        ("0b2", Integer, "0", "b2"),
+        ("1_000", Integer, "1_000", ""),
+        ("1__0", Integer, "1", "__0"),
+        ("1_", Integer, "1", "_"),
+        ("0xF_", Integer, "0xF", "_"),
+        ("1.2_3e+4_5", Float, "1.2_3e+4_5", ""),
+        ("1.2e+", Float, "1.2", "e+"),
+        ("0e2", Float, "0e2", ""),
+    ] {
+        let operators = OperatorTable::empty();
+        let recover = Recover::new_for_test(&operators);
+        let mut input = source;
+        let current = current_item(
+            chasa_recover::In::new(
+                &mut input,
+                &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+                (),
+            ),
+            0,
+            LineEntry::InLine,
+            None,
+            |i, leading, origin, fence, _| scan_nud_payload(i, leading, origin, fence, 0, 0),
+        )
+        .expect("a numeric prefix is one NUD Item");
+        assert_eq!(
+            current.item.payload_view().token_kind(),
+            Some(kind),
+            "{source:?}"
+        );
+        assert_eq!(
+            current.item.payload_view().spelling(),
+            Some(spelling),
+            "{source:?}"
+        );
+        assert_eq!(input, remainder, "{source:?}");
+    }
+}
+
+#[test]
 fn expression_numeric_scanning_distinguishes_floats_from_integer_boundaries() {
     let operators = OperatorTable::empty();
     for source in ["1.5", "0.25", "1e3", "2.5e-3", "1E3"] {
