@@ -102,3 +102,55 @@ fn lone_polymorphic_variant_tag_remains_rejected() {
         )
     }));
 }
+
+#[test]
+fn bar_variant_colon_uses_head_or_leading_trivia_and_adjacent_identifier() {
+    use crate::lexical::current_item::current_item;
+    use crate::lexical::lexer::{scan_type_nud_payload, scan_type_payload};
+
+    let operators = OperatorTable::empty();
+    for (source, head, expected) in [
+        (":a | :b", true, TokenKind::PolymorphicVariantColon),
+        (":b", true, TokenKind::PolymorphicVariantColon), // after `(` or `|`
+        (" :a | :b", false, TokenKind::PolymorphicVariantColon),
+        (":y", false, TokenKind::Colon), // attached to `x`
+        (": y", true, TokenKind::Colon),
+        (":{", false, TokenKind::PolymorphicVariantColon),
+    ] {
+        let mut input = source;
+        let item = current_item(
+            chasa_recover::In::new(
+                &mut input,
+                &mut crate::cursor::LexRecover::new_for_test(&operators),
+                (),
+            ),
+            0,
+            LineEntry::InLine,
+            None,
+            |lex, leading, origin, fence, _| {
+                if head {
+                    scan_type_nud_payload(lex, leading, origin, fence)
+                } else {
+                    scan_type_payload(lex, leading, origin, fence)
+                }
+            },
+        )
+        .expect("type item")
+        .item;
+        assert_eq!(
+            item.payload_view().token_kind(),
+            Some(expected),
+            "{source:?}"
+        );
+    }
+    assert_clean("(:a | :b)");
+    assert_clean(":a |:b");
+    assert_clean(":a | :b");
+}
+
+#[test]
+fn bar_variant_after_long_same_line_type_remains_lossless() {
+    let prefix = "arg ".repeat(64);
+    let source = format!("wrapper {prefix}(:a | :b)");
+    assert_clean(&source);
+}

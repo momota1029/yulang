@@ -22,6 +22,15 @@ pub(crate) fn is_active_stop_lex(mut i: LexIn, item: &Item, stops: Stops) -> boo
     if token_kind(item).is_some_and(|kind| active_stop_item(kind, stops)) {
         return true;
     }
+    if stops & crate::lexical::stops::STOP_COLON != 0
+        && token_kind(item) == Some(TokenKind::PolymorphicVariantColon)
+        && i.remainder()
+            .chars()
+            .next()
+            .is_some_and(unicode_ident::is_xid_start)
+    {
+        return true;
+    }
     (stops & crate::lexical::stops::STOP_ELSIF != 0
         && is_contextual_word_lex(i.rb(), item, "elsif"))
         || (stops & crate::lexical::stops::STOP_ELSE != 0

@@ -306,26 +306,37 @@ pub(crate) fn scan_case_label_payload(mut i: LexIn) -> Option<AcceptedPayload> {
 /// Raw NUD vocabulary for one normalized TypeExpression Item.
 pub(crate) fn scan_type_nud_payload(
     mut i: LexIn,
-    has_leading_trivia: bool,
+    _has_leading_trivia: bool,
     payload_origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> Option<AcceptedPayload> {
     if let Some(forall) = i.token(scan_type_forall) {
         return Some(token_payload(forall));
     }
-    scan_type_payload(i, has_leading_trivia, payload_origin, fence)
+    scan_type_payload_at(i, true, payload_origin, fence)
 }
 
 /// Raw successor vocabulary for one normalized TypeExpression Item.
 pub(crate) fn scan_type_payload(
+    i: LexIn,
+    has_leading_trivia: bool,
+    payload_origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> Option<AcceptedPayload> {
+    scan_type_payload_at(i, has_leading_trivia, payload_origin, fence)
+}
+
+fn scan_type_payload_at(
     mut i: LexIn,
-    _has_leading_trivia: bool,
+    allow_tag: bool,
     _payload_origin: usize,
     _fence: Option<&FenceBoundary>,
 ) -> Option<AcceptedPayload> {
+    if let Some(colon) = i.token(|lex| scan_type_polymorphic_variant_colon(lex, allow_tag)) {
+        return Some(token_payload(colon));
+    }
     let token = i.check(choice((
         token(scan_type_effect_row_apostrophe),
-        token(scan_type_polymorphic_variant_colon),
         token(scan_path_segment),
         token(scan_integer),
         choice((
@@ -1425,26 +1436,11 @@ fn scan_type_effect_row_apostrophe(mut i: LexIn) -> Option<Token> {
     })
 }
 
-/// `:tag | :tag` の形(同じ行に限る)。
-fn is_bar_variant_colon(remainder: &str) -> bool {
-    if !remainder.chars().nth(1).is_some_and(is_xid_start) {
-        return false;
-    }
-    let line = remainder.lines().next().unwrap_or("");
-    line.find('|').is_some_and(|pipe| {
-        line[pipe + 1..]
-            .trim_start()
-            .strip_prefix(':')
-            .and_then(|tag| tag.chars().next())
-            .is_some_and(is_xid_start)
-    })
-}
-
-fn scan_type_polymorphic_variant_colon(mut i: LexIn) -> Option<Token> {
+fn scan_type_polymorphic_variant_colon(mut i: LexIn, allow_tag: bool) -> Option<Token> {
     let remainder = i.remainder();
-    // 安い判定を先にして、`:` で始まらないときは行を探さない。
-    remainder.starts_with(':').then_some(())?;
-    let is_variant_colon = remainder.starts_with(":{") || is_bar_variant_colon(remainder);
+    let after_colon = remainder.strip_prefix(':')?;
+    let is_variant_colon = after_colon.starts_with('{')
+        || (allow_tag && after_colon.chars().next().is_some_and(is_xid_start));
     is_variant_colon.then_some(())?;
     let (accepted, text) = i
         .rb()

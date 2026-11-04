@@ -20,6 +20,17 @@
    - 6,7 `6122cfc8f` 1 文字ごとの transaction をやめて run 消費、数値を 1 回の走査で分類
      (数値境界の表形式テスト `numeric_token_boundaries_remain_stable` を追加。旧実装で先に通してから変更)。
 
+## 追記: 手順14(bar-variant)をユーザー指示どおり実装済み
+- 規則(ユーザー): `:` は「型式の頭(NUD)か、直前が空白/trivia」かつ「直後に識別子の1文字目が隣接」なら
+  PolymorphicVariantColon。`|` の行探索は不要。`:{` は従来どおり。行探索 `is_bar_variant_colon` は削除。
+- 単独タグ `my f(x: :ready) = 0` は、parser 側の既存の「bar 無しタグ列に Missing」処理で引き続き拒否される。
+- **未解決(要判断)**: `lexical/observation.rs` の `is_active_stop_lex` に、STOP_COLON が立っていて
+  PolymorphicVariantColon の直後が識別子始まりなら stop とみなす特例を足した(struct header の既存テスト
+  `struct_header_active_starters_and_quoted_fences_remain_whole` を保つため)。字句の都合をパーサ側の stop に
+  押し込んだ形なので、将来きれいにするなら「stop の colon」と「tag の colon」の区別をパーサ状態で持つ。
+- **既存の別問題**: 型引数を512個並べた型(`wrapper arg arg ... int`)でスタックオーバーフローする
+  (variantとは無関係、plain型で確認済み)。型式パーサの再帰深さ。未調査。
+
 ## 方針(ユーザー判断)
 - パーサが汚い(無節操な先読み、chasa の使い方が悪い)という指摘を受けて整理中。
   **字句解析器の先読みはほぼ不要**。文脈は先読みでなくパーサ状態で渡す。Yulang2 (tag `yulang2-oracle`,
