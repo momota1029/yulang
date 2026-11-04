@@ -31,3 +31,32 @@ lambda（複数引数、pattern 引数）、`sub:`、`for`、`do`、`type`（ali
 
 - 仕様: `spec/03-expressions.md` §3.1。`_` 区切り、`0x`/`0b`/`0o`、指数（`1e3`、`1.5e-2`）。`1.` と `.5` は書けない。
 - 現状: 字句解析器に該当処理が見つからない。実 parser で例を通して確かめてから着手する。
+
+
+## 実 parser での仕分け結果（2026-11-04、`spec/parser-gap-cases.txt` の 38 例）
+
+実 parser（`parse_file`、演算子は `+ - * < |` だけ宣言）で、`structural_recoveries()` が空かどうかを見た。
+例の入力は `spec/parser-gap-cases.txt`（`=====` 区切り、1 行目が名前）。
+
+### 読めない（実装する）
+
+| 番号 | 内容 | 例の名前 |
+| --- | --- | --- |
+| G12 | doc コメントの行末・`=` 直後・メンバー（field）への付与 | doc-trailing, doc-after-eq, doc-member-field |
+| G13 | 数値 literal の `_` 区切り・`0x`・`0b`（`0o` は未検証） | num-underscore, num-hex, num-bin |
+| G14 | 空の block `{;}` | empty-block |
+| G15 | range pattern `0..10`、`1..`、`..0` | range-pat, range-pat-lower, range-pat-upper |
+| G16 | lambda の `&` 引数 `\&a -> ...`（`&a::run` を手で呼ぶ形） | ref-run |
+| G17 | struct の field default `y: int = 4` | struct-default |
+| G18 | variant 型の `\|` 形 `:ready \| :some int` | variant-type-bar |
+
+### 読める（parser は追加不要）
+
+`1e3`、`1.5e-2`、`our use`、`pub use`、`{x: 1,}`、`{x, y}`、`{x,}`、`{}`、`(1,)`、複数行文字列 `"""`（構文のみ。字下げの意味は別）、
+`%x{255}` `%8.3{t}`、guard の `if`、`'count.again`、`my $c = 0`、`my &c = &d`、`with:`、`|`、`xs[0]`、`v.(x, y(4))`、`v.{first: x}`、
+`if` の else 無し、`mod helper;`、`:{ready, some int}`。
+
+### 読めるが仕様が約束しない
+
+- guard の `where`（`x where x < 0 -> ...`）も読める。仕様は `if` だけ（E19）。実装で拒否するかは後で決める。
+- 複数行文字列の字下げの除去、`%{}` の書式の意味、`'count.again` の意味などは、構文が通るだけで意味は未実装。意味の実装は parser の外。

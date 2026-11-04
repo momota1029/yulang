@@ -1,0 +1,138 @@
+doc-trailing
+my g x = x   -- doc
+=====
+doc-after-eq
+my h x = -- doc
+    x + 1
+=====
+doc-member-field
+struct point {
+    x: int,   -- x
+    -- y
+    y: int,
+}
+=====
+num-underscore
+my a = 1_000_000
+=====
+num-hex
+my a = 0xff
+=====
+num-bin
+my a = 0b1010
+=====
+num-exp
+my a = 1e3
+=====
+num-float-exp
+my a = 1.5e-2
+=====
+our-use
+our use std::data::list::map
+=====
+pub-use
+pub use std::data::list::map
+=====
+record-trailing-comma
+my r = {x: 1,}
+=====
+record-shorthand
+my r = {x, y}
+=====
+record-shorthand-one
+my r = {x,}
+=====
+empty-record
+my r = {}
+=====
+empty-block
+my r = {;}
+=====
+tuple-one
+my t = (1,)
+=====
+range-pat
+my f n = case n:
+    0..10 -> 1
+    _ -> 2
+=====
+range-pat-lower
+my f n = case n:
+    1.. -> 1
+    _ -> 2
+=====
+range-pat-upper
+my f n = case n:
+    ..0 -> 1
+    _ -> 2
+=====
+multiline-string
+my a =
+    """
+    line1
+    line2
+    """
+=====
+string-format
+my a = "hex = %x{255} %8.3{t}"
+=====
+guard-where
+my f n = case n:
+    x where x < 0 -> 1
+    _ -> 2
+=====
+guard-if
+my f n = case n:
+    x if x < 0 -> 1
+    _ -> 2
+=====
+again
+my r = case 'count 3:
+    0 -> 0
+    n -> 'count.again (n - 1)
+=====
+my-ref-init
+my x =
+    my $c = 0
+    &c = $c + 1
+    $c
+=====
+my-ref-alias
+my x =
+    my &c = &d
+    $c
+=====
+ref-run
+my x = &a::run 0 (\&a -> $a)
+=====
+struct-default
+struct point { x: int, y: int = 4 }
+=====
+variant-type-braces
+my f(x: :{ready, some int}) = 0
+=====
+variant-type-bar
+my g(x: :ready | :some int) = 0
+=====
+with-where
+my area r = pi * r * r with:
+    our pi = 3.14
+=====
+pipeline
+my a = xs | map f | filter g
+=====
+index-sugar
+my a = xs[0]
+=====
+projection-tuple
+my a = v.(x, y(4))
+=====
+projection-record
+my a = v.{first: x}
+=====
+if-no-else
+my a = if c: 1
+=====
+mod-file
+mod helper;
+pub mod helper;
