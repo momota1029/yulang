@@ -16,7 +16,17 @@ role Index 'container 'key:
 
 - `role` は、型が実装できる method と、省略可能な associated type（`type value`）の集まり。型引数を複数持てる。
 - method header `our a.add: ...` の `a` は、実装対象の型の値（receiver）を表す。
-- method は default の本体を持てる。
+- method は default の本体を持てる（確定, 2026-11-04）。`impl` が書かなければ default が使われ、書けば上書きする。本体のない method（型 signature だけ）は `impl` が必ず書く。
+
+```yulang
+role Eq 'a:
+    our a.eq: 'a -> bool
+    our a.ne b = not (a.eq b)          // default の本体
+
+impl Eq int:
+    our x.eq y = ...                   // ne は書かない
+```
+
 - `role` も companion module を作る。
 
 出典: `main:web/docs/ja/reference/structs.md` §Role
