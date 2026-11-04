@@ -14,7 +14,7 @@ role Index 'container 'key:
     our container.index: 'key -> value
 ```
 
-- `role` は、型が実装できる method と、省略可能な associated type（`type value`）の集まり。型引数を複数持てる。
+- `role` は、型が実装できる method と、associated type（`type value`）の集まり。associated type は、role 側に default（`type value = char`）がなければ `impl` で必ず `type value = ...` と指定する。default があれば省略できる（確定, 2026-11-04）。型引数を複数持てる。
 - method header `our a.add: ...` の `a` は、実装対象の型の値（receiver）を表す。
 - method は default の本体を持てる（確定, 2026-11-04）。`impl` が書かなければ default が使われ、書けば上書きする。本体のない method（型 signature だけ）は `impl` が必ず書く。
 
