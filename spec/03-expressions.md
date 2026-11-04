@@ -119,6 +119,8 @@ hello            // 関数そのもの（呼ばれない）
 not x.field      // not (x.field)
 ```
 
+- 前置演算子（`-` や `not`）は application より弱い（確定, 2026-11-04）。`-f x` は `-(f x)`、`not f x` は `not (f x)`、`-x.abs` は `-(x.abs)`。
+
 - 並置の右辺では、空白の直前で止まる。そのため `f g(x)` は `f (g(x))`、`f g (x)` は `(f g) x`。
 
 出典: `main:web/docs/ja/reference/application.md`
