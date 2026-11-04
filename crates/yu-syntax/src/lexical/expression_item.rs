@@ -117,6 +117,11 @@ pub(crate) fn scan_pattern_literal_payload(mut i: LexIn) -> Option<AcceptedPaylo
         .map(literal_payload)
 }
 
+pub(crate) fn scan_pattern_quote_literal_payload(i: LexIn) -> Option<AcceptedPayload> {
+    (quote_run(i.remainder()) != 0).then_some(())?;
+    scan_pattern_literal_payload(i)
+}
+
 fn literal_payload(token: crate::lexical::item::Token) -> AcceptedPayload {
     AcceptedPayload {
         payload: CurrentPayload::Token(token),

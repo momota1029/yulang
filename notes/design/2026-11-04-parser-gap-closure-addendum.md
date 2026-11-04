@@ -76,6 +76,8 @@ Ten pre-existing tests used `[` as the canonical 'token that cannot start an exp
 
 The pattern opener also accepts `~"`. `rule_literal_normalized` is shared with the expression form. Whether a bare `"..."` stays valid in an arm is measured first. If it stays, it keeps meaning a rule literal; the result is recorded here by the package. `rule { ... }` in a pattern is unchanged.
 
+Result (2026-11-04): measured before the change, the bare `"..."` arm pattern was already a clean `RuleLiteral` in both `case` and `catch`; it stays accepted (no CST change). `~"` is now a Pattern NUD opener sharing `rule_literal_normalized`; in Pattern tail position `x ~"a"` is unchanged (not a primary), and `~name` keeps its recovery.
+
 ### WP-9 bare-name pattern application (`just x`, `op x, k`)
 
 A pattern head that is a bare identifier followed on the same line by an argument is a `PatternMlApplicationTail`, when the arm stop set is active. The parser decides structure only; whether the head is a binding or a variant is name resolution's decision (`spec/03b-patterns.md` §3b.2).

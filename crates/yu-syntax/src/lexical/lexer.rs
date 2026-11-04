@@ -359,6 +359,9 @@ pub(crate) fn scan_pattern_nud_payload(
     fence: Option<&FenceBoundary>,
     stops: crate::pattern::PatternStops,
 ) -> Option<AcceptedPayload> {
+    if let Some(literal) = i.token(crate::lexical::expression_item::scan_pattern_literal_payload) {
+        return Some(literal);
+    }
     if let Some(symbol) = i.token(scan_pattern_symbol_colon) {
         return Some(token_payload(symbol));
     }

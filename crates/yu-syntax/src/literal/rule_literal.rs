@@ -46,7 +46,7 @@ pub(crate) fn scan_expression_rule_literal_opener_token(mut i: LexIn) -> Option<
 #[cfg(test)]
 pub(crate) fn scan_pattern_literal_opener_witness(mut i: LexIn) -> Option<PatternLiteralOpener> {
     let token = i.token(scan_pattern_literal_opener_token)?;
-    if token.text.len() == 1 {
+    if matches!(token.text.as_ref(), "\"" | "~\"") {
         return Some(PatternLiteralOpener::Rule(Item::plain(
             LeadingTrivia::default(),
             Payload::Token(token),
@@ -63,6 +63,9 @@ pub(crate) fn scan_pattern_literal_opener_witness(mut i: LexIn) -> Option<Patter
 }
 
 pub(crate) fn scan_pattern_literal_opener_token(mut i: LexIn) -> Option<Token> {
+    if let Some(token) = i.token(scan_expression_rule_literal_opener_token) {
+        return Some(token);
+    }
     let run = quote_run(i.remainder());
     match run {
         1 => {

@@ -38,7 +38,8 @@ pattern_base := if OpeningTrivia ends after a physical newline
 
 Later tokens and recovery positions do not recompute that base.
 
-One quote routes a Pattern primary to `RuleLiteral`.
+An adjacent `~"` routes a Pattern primary to `RuleLiteral`, using the same opener and multiline handling as the expression form.
+A bare one-quote opener remains accepted and also routes to the existing `RuleLiteral` CST.
 A quote run of three or more routes it to `StringLiteral`.
 Pattern has no `NormalString` route.
 `RuleExpression` retains its own CST and is also admitted as a Pattern primary.

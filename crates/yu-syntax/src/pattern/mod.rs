@@ -17,7 +17,7 @@ use crate::{
     handoff::{Either, NormalizedExit, complete, handoff},
     lexical::{
         current_item::{LineEntry, current_item},
-        expression_item::scan_pattern_literal_payload,
+        expression_item::scan_pattern_quote_literal_payload,
         item::{Item, LeadingTrivia, Payload, TokenKind},
         lexer::{scan_identifier, scan_pattern_nud_payload, scan_pattern_payload},
         observation::{delimited_baseline, implicit_delimited_newline, token_kind},
@@ -712,7 +712,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
             ambient,
         );
     }
-    if item.payload_view().spelling() == Some("\"") {
+    if is_pattern_rule_literal_opener(&item) {
         let entry = suffix_marker(i.rb());
         let exit = rule_literal_normalized(i.rb(), item, item_origin, line_entry, fence, ambient);
         item_origin = advanced_origin(item_origin, entry, i.rb());
@@ -951,13 +951,10 @@ fn scan_pattern_item_lexical(
             item_origin,
             line_entry,
             fence,
-            |mut lex, leading, origin, fence, _| {
-                scan_pattern_literal_payload(lex.rb()).or_else(|| match mode {
-                    PatternScan::Nud => {
-                        scan_pattern_nud_payload(lex, leading, origin, fence, stops)
-                    }
-                    PatternScan::Tail => scan_pattern_payload(lex, leading, origin, fence, stops),
-                })
+            |mut lex, leading, origin, fence, _| match mode {
+                PatternScan::Nud => scan_pattern_nud_payload(lex, leading, origin, fence, stops),
+                PatternScan::Tail => scan_pattern_quote_literal_payload(lex.rb())
+                    .or_else(|| scan_pattern_payload(lex, leading, origin, fence, stops)),
             },
         )
         .expect("Pattern payload scanning is total")
@@ -1605,9 +1602,13 @@ pub(super) fn is_pattern_nud(item: &Item, stops: PatternStops) -> bool {
         )
         || (token_kind(item) == Some(TokenKind::Colon)
             && stops & (PATTERN_STOP_COLON | PATTERN_STOP_PRIMARY_COLON) == 0)
-        || item.payload_view().spelling() == Some("\"")
+        || is_pattern_rule_literal_opener(item)
         || string_mode_from_opener(item)
             .is_some_and(|mode| matches!(mode, crate::literal::StringMode::Heredoc { .. }))
+}
+
+fn is_pattern_rule_literal_opener(item: &Item) -> bool {
+    matches!(item.payload_view().spelling(), Some("\"" | "~\""))
 }
 
 fn is_pattern_primary_boundary(item: &Item, baseline: usize, stops: PatternStops) -> bool {

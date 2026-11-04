@@ -2307,6 +2307,255 @@ fn case_like_literal_production(source: &str) -> SyntaxNode {
 }
 
 #[test]
+fn bare_quote_arm_rule_literals_were_already_accepted_before_wp8() {
+    // Measured before the WP-8 parser change: both arm owners accepted the
+    // bare quote and built the existing RuleLiteral CST without recovery.
+    for (source, arm_kind) in [
+        (
+            "case source:\n    \"GET :resource\" -> resource",
+            SyntaxKind::CaseArm,
+        ),
+        (
+            "catch source:\n    \"GET :resource\" -> resource",
+            SyntaxKind::CatchArm,
+        ),
+    ] {
+        let root = case_like_literal_production(source);
+        let arm = root
+            .descendants()
+            .find(|node| node.kind() == arm_kind)
+            .expect("case-like arm");
+        let literal = arm
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::RuleLiteral)
+            .expect("arm RuleLiteral");
+        assert_eq!(
+            literal
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::RuleLiteralStart)
+                .map(|token| (token.kind(), token.text().to_owned())),
+            Some((SyntaxKind::RuleLiteralStart, "\"".to_owned())),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn non_quote_pattern_tilde_and_mid_pattern_tilde_quote_keep_pre_wp8_recovery() {
+    for (source, expected_facts, expected_errors) in [
+        (
+            "case source:\n    ~name -> 1",
+            vec![(StructuralKind::ErrorGroup, 17..18)],
+            vec!["~"],
+        ),
+        (
+            "case source:\n    x ~\"a\" -> 1",
+            vec![
+                (StructuralKind::Missing, 19..19),
+                (StructuralKind::ErrorGroup, 19..20),
+                (StructuralKind::ErrorGroup, 24..28),
+            ],
+            vec!["~", "-", ">", " ", "1"],
+        ),
+    ] {
+        let text: std::sync::Arc<crate::SourceText> = std::sync::Arc::from(source);
+        let parsed = crate::parse_file(
+            text.clone(),
+            std::sync::Arc::new(crate::scan_header(text)),
+            std::sync::Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        assert_eq!(
+            structural_facts(parsed.green()),
+            expected_facts,
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::Error)
+                .map(|token| token.text().to_owned())
+                .collect::<Vec<_>>(),
+            expected_errors,
+            "{source:?}"
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::RuleLiteral),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn tilde_quote_rule_literal_patterns_parse_in_case_and_catch_multi_arm_blocks() {
+    for (source, arm_kind) in [
+        (
+            "case source:\n    ~\"GET :resource/{tail = ..}\" -> resource\n    _ -> \"no match\"",
+            SyntaxKind::CaseArm,
+        ),
+        (
+            "catch source:\n    ~\"GET :resource/{tail = ..}\" -> resource\n    _ -> \"no match\"",
+            SyntaxKind::CatchArm,
+        ),
+    ] {
+        let root = case_like_literal_production(source);
+        let arms = root
+            .descendants()
+            .filter(|node| node.kind() == arm_kind)
+            .collect::<Vec<_>>();
+        assert_eq!(arms.len(), 2, "{source:?}");
+        let literal = arms[0]
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::RuleLiteral)
+            .expect("parser-pattern RuleLiteral");
+        assert_eq!(
+            literal
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::RuleLiteralStart)
+                .map(|token| (token.kind(), token.text().to_owned())),
+            Some((SyntaxKind::RuleLiteralStart, "~\"".to_owned())),
+            "{source:?}"
+        );
+        assert_eq!(
+            literal
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::RuleLazyCapture)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            literal
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::RuleCapture)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn tilde_quote_rule_literal_pattern_guards_remain_direct_arm_children() {
+    for (source, arm_kind, guard_kind) in [
+        (
+            "case source:\n    ~\"a\" if c -> 1",
+            SyntaxKind::CaseArm,
+            SyntaxKind::CaseGuard,
+        ),
+        (
+            "case source:\n    ~\"a\" where c -> 1",
+            SyntaxKind::CaseArm,
+            SyntaxKind::CaseGuard,
+        ),
+        (
+            "catch source:\n    ~\"a\" if c -> 1",
+            SyntaxKind::CatchArm,
+            SyntaxKind::CatchGuard,
+        ),
+        (
+            "catch source:\n    ~\"a\" where c -> 1",
+            SyntaxKind::CatchArm,
+            SyntaxKind::CatchGuard,
+        ),
+    ] {
+        let root = case_like_literal_production(source);
+        let arm = root
+            .descendants()
+            .find(|node| node.kind() == arm_kind)
+            .expect("case-like arm");
+        assert_eq!(
+            arm.children()
+                .filter(|node| node.kind() == guard_kind)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            arm.descendants()
+                .find(|node| node.kind() == SyntaxKind::RuleLiteral)
+                .expect("guarded parser-pattern RuleLiteral")
+                .to_string(),
+            "~\"a\"",
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn tilde_quote_arm_rule_literals_reuse_expression_multiline_scanning() {
+    let source = "case source:\n    ~\"GET\r\n    :resource\" -> resource";
+    let root = case_like_literal_production(source);
+    let literal = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::RuleLiteral)
+        .expect("multiline arm RuleLiteral");
+    assert_eq!(literal.to_string(), "~\"GET\r\n    :resource\"");
+    assert_eq!(
+        literal
+            .first_token()
+            .map(|token| (token.kind(), token.text().to_owned())),
+        Some((SyntaxKind::RuleLiteralStart, "~\"".to_owned()))
+    );
+    assert_eq!(
+        literal
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::RuleLazyCapture)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn expression_rule_literal_positions_keep_pre_wp8_behavior() {
+    for source in ["my x = ~\"a\"", "case ~\"a\":\n    _ -> 1"] {
+        let root = case_like_literal_production(source);
+        let literal = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::RuleLiteral)
+            .expect("expression RuleLiteral");
+        assert_eq!(
+            literal
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::RuleLiteralStart)
+                .map(|token| (token.kind(), token.text().to_owned())),
+            Some((SyntaxKind::RuleLiteralStart, "~\"".to_owned())),
+            "{source:?}"
+        );
+        assert_eq!(
+            literal.parent().map(|node| node.kind()),
+            Some(SyntaxKind::OperatorChain),
+            "{source:?}"
+        );
+    }
+
+    // An expression RuleLiteral is a NUD form, not an ML argument after a
+    // complete primary. WP-8 changes only Pattern NUD admission.
+    let source = "f ~\"a\"";
+    let text: std::sync::Arc<crate::SourceText> = std::sync::Arc::from(source);
+    let parsed = crate::parse_file(
+        text.clone(),
+        std::sync::Arc::new(crate::scan_header(text)),
+        std::sync::Arc::new(crate::SyntaxEnvironment::empty()),
+    );
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    assert_eq!(
+        structural_facts(parsed.green()),
+        [(StructuralKind::ErrorGroup, 2..6)]
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::RuleLiteral)
+    );
+}
+
+#[test]
 fn case_like_label_probe_wins_before_label_expression_scrutinees() {
     let operators = OperatorTable::from_declarations([
         OperatorDeclaration::new(

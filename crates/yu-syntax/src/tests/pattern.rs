@@ -41,9 +41,19 @@ pub(super) fn pattern_literal_witness(
 ) -> Option<PatternLiteralWitnessExit> {
     let opener = i.token(scan_pattern_literal_opener_witness)?;
     match opener {
-        PatternLiteralOpener::Rule(opener) => Some(PatternLiteralWitnessExit::Rule(
-            rule_literal_witness(i, opener, origin + 1, fence),
-        )),
+        PatternLiteralOpener::Rule(opener) => {
+            let opener_length = opener
+                .payload_view()
+                .spelling()
+                .expect("a Pattern rule opener is one token")
+                .len();
+            Some(PatternLiteralWitnessExit::Rule(rule_literal_witness(
+                i,
+                opener,
+                origin + opener_length,
+                fence,
+            )))
+        }
         PatternLiteralOpener::String(opener, mode) => {
             let opener_length = opener
                 .payload_view()
@@ -2880,6 +2890,25 @@ fn pattern_literal_checkpoint_splits_one_quote_from_three_quote_string() {
         Some(SyntaxKind::RuleLiteralStart)
     );
 
+    let (green, exit, remainder) = run_pattern_literal("~\"a:name\"tail");
+    assert_eq!(remainder, "tail");
+    assert_eq!(
+        exit,
+        PatternLiteralWitnessExit::Rule(RuleLiteralExit::Complete)
+    );
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        root.first_token()
+            .map(|token| (token.kind(), token.text().to_owned())),
+        Some((SyntaxKind::RuleLiteralStart, "~\"".to_owned()))
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::RuleLazyCapture)
+            .count(),
+        1
+    );
+
     let (green, exit, remainder) = run_pattern_literal("\"\"\"α\"\"\"tail");
     assert_eq!(remainder, "tail");
     assert_eq!(
@@ -2919,6 +2948,46 @@ fn pattern_literal_checkpoint_splits_one_quote_from_three_quote_string() {
             .count(),
         1
     );
+}
+
+#[test]
+fn tilde_quote_rule_literals_reach_binding_and_nested_pattern_primary_slots() {
+    for (source, expected_literals) in [
+        ("my ~\"head\" = value", 1),
+        ("my (~\"left\", [~\"right\"]) = value", 2),
+    ] {
+        let text: std::sync::Arc<crate::SourceText> = std::sync::Arc::from(source);
+        let parsed = crate::parse_file(
+            text.clone(),
+            std::sync::Arc::new(crate::scan_header(text)),
+            std::sync::Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        assert_eq!(parsed.green().to_string(), source, "{source:?}");
+        assert!(
+            parsed.syntax_diagnostics().unwrap().is_empty(),
+            "{source:?}"
+        );
+        assert!(structural_facts(parsed.green()).is_empty(), "{source:?}");
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        let literals = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::RuleLiteral)
+            .collect::<Vec<_>>();
+        assert_eq!(literals.len(), expected_literals, "{source:?}");
+        assert!(
+            literals.iter().all(|literal| {
+                literal.first_token().is_some_and(|token| {
+                    token.kind() == SyntaxKind::RuleLiteralStart && token.text() == "~\""
+                }) && literal
+                    .ancestors()
+                    .any(|ancestor| ancestor.kind() == SyntaxKind::Pattern)
+                    && !literal
+                        .ancestors()
+                        .any(|ancestor| ancestor.kind() == SyntaxKind::OperatorChain)
+            }),
+            "{source:?}"
+        );
+    }
 }
 
 #[test]

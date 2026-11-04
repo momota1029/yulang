@@ -39,7 +39,9 @@ pattern_base := if OpeningTrivia ends after a physical newline
 
 後続の token や recovery position は、その base を再計算しない。
 
-1 個の quote は Pattern primary を `RuleLiteral` へ route する。
+隣接する `~"` は、Pattern primary を `RuleLiteral` へ route する。
+この形式は expression 形式と同じ opener と multiline 処理を使う。
+quote 1 個だけの opener も引き続き受理し、既存の `RuleLiteral` CST へ route する。
 3 個以上の quote run は `StringLiteral` へ route する。
 Pattern に `NormalString` route はない。
 `RuleExpression` は自身の CST を保ち、Pattern primary としても許される。
