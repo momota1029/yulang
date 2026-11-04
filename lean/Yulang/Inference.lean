@@ -21,6 +21,7 @@ inductive Formula : Type → Type 1 where
   | top : Formula α
   | bot : Formula α
   | and : Formula α → Formula α → Formula α
+  | or : Formula α → Formula α → Formula α
   | tyLe : TyTerm α → TyTerm α → Formula α
   | rowLe : RowTerm α → RowTerm α → Formula α
   | existsSlot : Formula (Option α) → Formula α
@@ -32,6 +33,7 @@ def Formula.Holds (m : Model) : {α : Type} → (α → Comp m) → Formula α �
   | _, _, .top => True
   | _, _, .bot => False
   | _, ρ, .and p q => p.Holds m ρ ∧ q.Holds m ρ
+  | _, ρ, .or p q => p.Holds m ρ ∨ q.Holds m ρ
   | _, ρ, .tyLe a b => m.subTy (a.eval m ρ) (b.eval m ρ)
   | _, ρ, .rowLe a b => m.subRow (a.eval m ρ) (b.eval m ρ)
   | _, ρ, .existsSlot p => ∃ c, p.Holds m (extend ρ c)
@@ -40,6 +42,7 @@ def Formula.rename (f : α → β) : Formula α → Formula β
   | .top => .top
   | .bot => .bot
   | .and p q => .and (p.rename f) (q.rename f)
+  | .or p q => .or (p.rename f) (q.rename f)
   | .tyLe a b => .tyLe (a.rename f) (b.rename f)
   | .rowLe a b => .rowLe (a.rename f) (b.rename f)
   | .existsSlot p => .existsSlot (p.rename (Option.map f))
@@ -52,6 +55,7 @@ def Formula.subst (f : α → CompTerm β) : Formula α → Formula β
   | .top => .top
   | .bot => .bot
   | .and p q => .and (p.subst f) (q.subst f)
+  | .or p q => .or (p.subst f) (q.subst f)
   | .tyLe a b => .tyLe (a.subst f) (b.subst f)
   | .rowLe a b => .rowLe (a.subst f) (b.subst f)
   | .existsSlot p => .existsSlot (p.subst (liftSubst f))
@@ -67,6 +71,7 @@ def Formula.subst (f : α → CompTerm β) : Formula α → Formula β
   | top => rfl
   | bot => rfl
   | and p q ihp ihq => simp [rename, Holds, ihp, ihq]
+  | or p q ihp ihq => simp [rename, Holds, ihp, ihq]
   | tyLe a b => simp [rename, Holds]
   | rowLe a b => simp [rename, Holds]
   | existsSlot p ih =>
@@ -85,6 +90,7 @@ def Formula.subst (f : α → CompTerm β) : Formula α → Formula β
   | top => rfl
   | bot => rfl
   | and p q ihp ihq => simp [subst, Holds, ihp, ihq]
+  | or p q ihp ihq => simp [subst, Holds, ihp, ihq]
   | tyLe a b => simp [subst, Holds]
   | rowLe a b => simp [subst, Holds]
   | existsSlot p ih =>
@@ -169,7 +175,7 @@ mutual
         Comp.le m (b.1, m.join ef b.2) c → Typing m Γ (.app f x) c
     | letValue : v.isValue = true → Typing m Γ v (Comp.pure m a) →
         Typing m (.poly v Γ :: Γ) body c → Typing m Γ (.letE v body) c
-    | letComputed : v.isValue = false → Typing m Γ v a →
+    | letComputed : Typing m Γ v a →
         Typing m (.mono (Comp.pure m a.1) :: Γ) body b →
         Comp.le m (b.1, m.join a.2 b.2) c → Typing m Γ (.letE v body) c
     | branch : Typing m Γ condition (m.base .bool, eg) →
@@ -184,7 +190,7 @@ mutual
         Comp.le m (b, er) c → Typing m Γ (.snd x) c
     | emptyRecord : Comp.le m (Comp.pure m m.emptyRecord) c →
         Typing m Γ .emptyRecord c
-    | record : Typing m Γ x a → Typing m Γ rest b →
+    | record : Typing m Γ x a → Typing m Γ rest b → m.subTy b.1 m.emptyRecord →
         Comp.le m (m.record l a.1 b.1, m.join a.2 b.2) c →
         Typing m Γ (.record l x rest) c
     | field : Typing m Γ x (m.record l a m.emptyRecord, er) →
@@ -227,17 +233,18 @@ def generate (Γ : SchemeEnv α) : Expr → CompTerm α → Formula α
           (.and (generate (env₃ Γ) x fresh₀₃)
             (Formula.compLe ⟨fresh₁₃.ty, .join fresh₂₃.row fresh₁₃.row⟩ (lift₃ out))))))
   | .letE v body, out =>
+      let monomorphic := .existsSlot (.existsSlot (
+        .and (generate (env₂ Γ) v fresh₀)
+          (.and (generate (Scheme.mono (CompTerm.pure fresh₀.ty) :: env₂ Γ) body fresh₁)
+            (Formula.compLe ⟨fresh₁.ty, .join fresh₀.row fresh₁.row⟩ (lift₂ out)))))
       if v.isValue then
         let scheme : Scheme α :=
           .and (generate Γ.lift v (CompTerm.pure (.var none)))
             (.rowLe .empty (.var none))
-        .and (.existsSlot (generate Γ.lift v (CompTerm.pure (.var none))))
-          (generate (scheme :: Γ) body out)
+        .or (.and (.existsSlot (generate Γ.lift v (CompTerm.pure (.var none))))
+          (generate (scheme :: Γ) body out)) monomorphic
       else
-        .existsSlot (.existsSlot (
-          .and (generate (env₂ Γ) v fresh₀)
-            (.and (generate (Scheme.mono (CompTerm.pure fresh₀.ty) :: env₂ Γ) body fresh₁)
-              (Formula.compLe ⟨fresh₁.ty, .join fresh₀.row fresh₁.row⟩ (lift₂ out)))))
+        monomorphic
   | .branch g y n, out =>
       .existsSlot (.existsSlot (.existsSlot (
         .and (generate (env₃ Γ) g ⟨.base .bool, fresh₀₃.row⟩)
@@ -263,7 +270,8 @@ def generate (Γ : SchemeEnv α) : Expr → CompTerm α → Formula α
       .existsSlot (.existsSlot (
         .and (generate (env₂ Γ) x fresh₀)
           (.and (generate (env₂ Γ) rest fresh₁)
-            (Formula.compLe ⟨.record l fresh₀.ty fresh₁.ty, .join fresh₀.row fresh₁.row⟩ (lift₂ out)))))
+            (.and (.tyLe fresh₁.ty .emptyRecord)
+              (Formula.compLe ⟨.record l fresh₀.ty fresh₁.ty, .join fresh₀.row fresh₁.row⟩ (lift₂ out))))))
   | .field l x, out =>
       .existsSlot (
         .and (generate Γ.lift x ⟨.record l (.var none) .emptyRecord, .var none⟩)
@@ -377,14 +385,18 @@ theorem EnvRel.lift {m : Model} {ρ : α → Comp m} {sΓ : SchemeEnv α}
 theorem Typing.letValue_iff (m : Model) (Γ : List (Binding m)) (v body : Expr) (c : Comp m)
     (hv : v.isValue = true) :
     Typing m Γ (.letE v body) c ↔
-      (∃ a, Typing m Γ v (Comp.pure m a)) ∧ Typing m (.poly v Γ :: Γ) body c := by
+      ((∃ a, Typing m Γ v (Comp.pure m a)) ∧ Typing m (.poly v Γ :: Γ) body c) ∨
+      ∃ a b, Typing m Γ v a ∧ Typing m (.mono (Comp.pure m a.1) :: Γ) body b ∧
+        Comp.le m (b.1, m.join a.2 b.2) c := by
   constructor
   · intro h
     cases h with
-    | letValue _ ha hb => exact ⟨⟨_, ha⟩, hb⟩
-    | letComputed hn _ _ _ => simp [hv] at hn
-  · rintro ⟨⟨a, ha⟩, hb⟩
-    exact Typing.letValue hv ha hb
+    | letValue _ ha hb => exact Or.inl ⟨⟨_, ha⟩, hb⟩
+    | letComputed ha hb hc => exact Or.inr ⟨_, _, ha, hb, hc⟩
+  · intro h
+    rcases h with ⟨⟨a, ha⟩, hb⟩ | ⟨a, b, ha, hb, hc⟩
+    · exact Typing.letValue hv ha hb
+    · exact Typing.letComputed ha hb hc
 
 theorem Typing.letComputed_iff (m : Model) (Γ : List (Binding m)) (v body : Expr) (c : Comp m)
     (hv : v.isValue = false) :
@@ -395,9 +407,9 @@ theorem Typing.letComputed_iff (m : Model) (Γ : List (Binding m)) (v body : Exp
   · intro h
     cases h with
     | letValue hn _ _ => simp [hv] at hn
-    | letComputed _ ha hb hc => exact ⟨_, _, ha, hb, hc⟩
+    | letComputed ha hb hc => exact ⟨_, _, ha, hb, hc⟩
   · rintro ⟨a, b, ha, hb, hc⟩
-    exact Typing.letComputed hv ha hb hc
+    exact Typing.letComputed ha hb hc
 
 @[simp] theorem Typing.branch_iff (m : Model) (Γ : List (Binding m)) (g y n : Expr) (c : Comp m) :
     Typing m Γ (.branch g y n) c ↔ ∃ eg a b,
@@ -438,11 +450,11 @@ theorem Typing.letComputed_iff (m : Model) (Γ : List (Binding m)) (v body : Exp
 @[simp] theorem Typing.record_iff (m : Model) (Γ : List (Binding m))
     (l : Nat) (x r : Expr) (c : Comp m) :
     Typing m Γ (.record l x r) c ↔ ∃ a b,
-      Typing m Γ x a ∧ Typing m Γ r b ∧
+      Typing m Γ x a ∧ Typing m Γ r b ∧ m.subTy b.1 m.emptyRecord ∧
       Comp.le m (m.record l a.1 b.1, m.join a.2 b.2) c := by
   constructor
-  · intro h; cases h with | record hx hr hc => exact ⟨_, _, hx, hr, hc⟩
-  · rintro ⟨a, b, hx, hr, hc⟩; exact Typing.record hx hr hc
+  · intro h; cases h with | record hx hr hs hc => exact ⟨_, _, hx, hr, hs, hc⟩
+  · rintro ⟨a, b, hx, hr, hs, hc⟩; exact Typing.record hx hr hs hc
 
 @[simp] theorem Typing.field_iff (m : Model) (Γ : List (Binding m))
     (l : Nat) (x : Expr) (c : Comp m) :
@@ -518,6 +530,29 @@ theorem generate_models_iff_typing (m : Model) (e : Expr)
       exact exists_comp_row m (fun r => Typing m Γ f (Comp.arrow m a b, r) ∧
         Typing m Γ x a ∧ Comp.le m (b.1, m.join r b.2) (out.eval m ρ))
   | letE v body ihv ihb =>
+      let mono : Formula α := .existsSlot (.existsSlot (
+        .and (generate (env₂ sΓ) v fresh₀)
+          (.and (generate (Scheme.mono (CompTerm.pure fresh₀.ty) :: env₂ sΓ) body fresh₁)
+            (Formula.compLe ⟨fresh₁.ty, .join fresh₀.row fresh₁.row⟩ (lift₂ out)))))
+      have hmono : mono.Holds m ρ ↔ ∃ a b,
+          Typing m Γ v a ∧ Typing m (.mono (Comp.pure m a.1) :: Γ) body b ∧
+          Comp.le m (b.1, m.join a.2 b.2) (out.eval m ρ) := by
+        have ha (a b : Comp m) :
+            (generate (env₂ sΓ) v fresh₀).Holds m (extend (extend ρ a) b) ↔ Typing m Γ v a := by
+          simpa only [env₂, fresh₀, CompTerm.eval_var, extend_none, extend_some]
+            using ihv _ _ _ fresh₀ ((henv.lift a).lift b)
+        have hb (a b : Comp m) :
+            (generate (Scheme.mono (CompTerm.pure fresh₀.ty) :: env₂ sΓ) body fresh₁).Holds m
+              (extend (extend ρ a) b) ↔ Typing m (.mono (Comp.pure m a.1) :: Γ) body b := by
+          simpa [env₂, fresh₀, fresh₁, CompTerm.pure, Comp.pure,
+            CompTerm.var, CompTerm.eval, TyTerm.eval, RowTerm.eval]
+            using ihb _ _ _ fresh₁ (((henv.lift a).lift b).mono (CompTerm.pure fresh₀.ty))
+        simp only [mono, Formula.Holds]
+        apply exists_congr; intro a
+        apply exists_congr; intro b
+        rw [ha, hb]
+        simp [Formula.compLe, Formula.Holds, Comp.le, CompTerm.eval, CompTerm.var,
+          CompTerm.rename, fresh₀, fresh₁, lift₂, TyTerm.eval, RowTerm.eval, Function.comp_def]
       cases hv : v.isValue with
       | true =>
           let scheme : Scheme α := .and
@@ -533,30 +568,18 @@ theorem generate_models_iff_typing (m : Model) (e : Expr)
               BindingTyping.poly_iff]
           have hbody := ihb (scheme :: sΓ) (.poly v Γ :: Γ) ρ out (henv.cons hscheme)
           simp only [generate, hv]
-          change ((∃ c, (generate sΓ.lift v (CompTerm.pure (.var none))).Holds m (extend ρ c)) ∧
-            (generate (scheme :: sΓ) body out).Holds m ρ) ↔ _
-          simp only [hvalue]
-          rw [hbody, Typing.letValue_iff m Γ v body (out.eval m ρ) hv]
-          exact and_congr (exists_comp_ty m (fun a => Typing m Γ v (Comp.pure m a))) Iff.rfl
+          change (((∃ c, (generate sΓ.lift v (CompTerm.pure (.var none))).Holds m (extend ρ c)) ∧
+            (generate (scheme :: sΓ) body out).Holds m ρ) ∨ mono.Holds m ρ) ↔ _
+          rw [Typing.letValue_iff m Γ v body (out.eval m ρ) hv]
+          apply or_congr
+          · simp only [hvalue]
+            rw [hbody]
+            exact and_congr (exists_comp_ty m (fun a => Typing m Γ v (Comp.pure m a))) Iff.rfl
+          · exact hmono
       | false =>
-          have ha (a b : Comp m) :
-              (generate (env₂ sΓ) v fresh₀).Holds m (extend (extend ρ a) b) ↔ Typing m Γ v a := by
-            simpa only [env₂, fresh₀, CompTerm.eval_var, extend_none, extend_some]
-              using ihv _ _ _ fresh₀ ((henv.lift a).lift b)
-          have hb (a b : Comp m) :
-              (generate (Scheme.mono (CompTerm.pure fresh₀.ty) :: env₂ sΓ) body fresh₁).Holds m
-                (extend (extend ρ a) b) ↔ Typing m (.mono (Comp.pure m a.1) :: Γ) body b := by
-            simpa [env₂, fresh₀, fresh₁, CompTerm.pure, Comp.pure,
-              CompTerm.var, CompTerm.eval, TyTerm.eval, RowTerm.eval]
-              using ihb _ _ _ fresh₁ (((henv.lift a).lift b).mono (CompTerm.pure fresh₀.ty))
           simp only [generate, hv]
-          rw [Typing.letComputed_iff m Γ v body (out.eval m ρ) hv]
-          apply exists_congr; intro a
-          apply exists_congr; intro b
-          simp only [Formula.Holds]
-          rw [ha, hb]
-          simp [Formula.compLe, Formula.Holds, Comp.le, CompTerm.eval, CompTerm.var,
-            CompTerm.rename, fresh₀, fresh₁, lift₂, TyTerm.eval, RowTerm.eval, Function.comp_def]
+          change mono.Holds m ρ ↔ _
+          exact hmono.trans (Typing.letComputed_iff m Γ v body (out.eval m ρ) hv).symm
   | branch g y n ihg ihy ihn =>
       have hg (a b d : Comp m) :
           (generate (env₃ sΓ) g ⟨.base .bool, fresh₀₃.row⟩).Holds m
@@ -707,7 +730,7 @@ theorem unbound_not_typable (m : Model) (Γ : List (Binding m)) (n : Nat) (c : C
 no performance claim that scheme instantiation is constant time. -/
 def Formula.nodes : Formula α → Nat
   | .top | .bot | .tyLe _ _ | .rowLe _ _ => 1
-  | .and p q => 1 + p.nodes + q.nodes
+  | .and p q | .or p q => 1 + p.nodes + q.nodes
   | .existsSlot p => 1 + p.nodes
 
 theorem Formula.nodes_pos (p : Formula α) : 0 < p.nodes := by

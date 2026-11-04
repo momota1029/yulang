@@ -334,7 +334,9 @@ theorem wide_record_typing_at_narrow_type (Key : Type u) :
       (a := (Ty.base .str, [])) (b := (Ty.emptyRecord, []))
     · exact Typing.lit ⟨.refl _, row_refl _⟩
     · exact Typing.emptyRecord ⟨.refl _, row_refl _⟩
+    · exact record_width_to_empty .empty
     · exact ⟨.refl _, row_refl _⟩
+  · exact record_width_to_empty (.field .empty)
   · exact ⟨record_width, row_refl _⟩
 
 theorem record_field_uses_width (Key : Type u) :
@@ -347,5 +349,22 @@ theorem generated_record_width_satisfied (environment : α → Comp (model Key))
   apply (generate_models_iff_typing (model Key) (.field 0 wideRecord) [] [] environment
     _ (EnvRel.nil _ _)).mpr
   exact record_field_uses_width Key
+
+/-- A scalar spread cannot be disguised as an arbitrary record tail. -/
+theorem scalar_spread_rejected (out : Comp (model Key)) :
+    ¬ Typing (model Key) [] (.record 0 (.lit .int) (.lit .str)) out := by
+  intro h
+  rcases (Typing.record_iff _ _ _ _ _ _).mp h with ⟨a, b, _, htail, hshape, _⟩
+  have hbase := ((Typing.lit_iff _ _ _ _).mp htail).1
+  have impossible := scalar_preserved (Subtype.trans hbase hshape) .str rfl
+  exact impossible
+
+theorem generated_scalar_spread_rejected (environment : α → Comp (model Key))
+    (out : CompTerm α) :
+    ¬ (generate [] (.record 0 (.lit .int) (.lit .str)) out).Holds
+      (model Key) environment := by
+  intro h
+  exact scalar_spread_rejected (out.eval (model Key) environment)
+    ((generate_models_iff_typing _ _ _ _ _ _ (EnvRel.nil _ _)).mp h)
 
 end Yulang.Structural

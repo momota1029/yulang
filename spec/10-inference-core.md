@@ -53,7 +53,7 @@ effect の出現は、**family とその型引数を含む key**、およびど�
 
 境界 `b` と、そこで引いてよい key の集合 `P` に対して、`protect(b, P, ρ)` は `P` にない出現へ保護を付ける。許可は effect の存在を要求しない。
 
-`release(b, ρ)` は対応する境界の保護を一回だけ外す。別の境界の保護は残す。再帰等で同じ静的境界を反復しても、重なった保護を Boolean 一個へ潰してはならない。往復の等式を主張するときは、境界の新鮮性など実際に必要な前提を明記する。
+解除は対応する境界の保護を一回分だけ相殺し、別の境界の保護は残す。再帰等で同じ静的境界を反復しても、重なった保護を Boolean 一個へ潰してはならない。非負の保護listだけを扱う参照核 `Effects` では `release(b, ρ)` が一個の層を消す。この参照核を高階へそのまま拡張すると往復が壊れるため、10.3.4では符号付き差分に精密化する。
 
 handler が引いてよいのは、対象 key が一致し、かつ現在の保護がない出現だけである。外側の保護は、内側で `[_]` と書いたからといって消えない。
 
@@ -69,7 +69,7 @@ handler が引いてよいのは、対象 key が一致し、かつ現在の保�
 
 この表は章5.4–5.5と章7.3を同時に満たす内部表現としての再構成である。章7.3の最終的な表示形式、複数の解除をどう印字するかまで確定するものではない。
 
-Lean の裸の `.var e` は環境の行を参照するだけである。保護された出現 `'e` の内部形は `.protect b allowNone (.var e)`、その対応位置での解除は `.release b (.protect b allowNone (.var e))` とする。前処理で保護の wrapper を落とすと、衛生性の定理は適用できない。
+Lean の裸の `.var e` は環境の行を参照するだけである。保護された出現 `'e` の内部形には境界と許可maskを明示し、その対応位置での解除にも同じ境界を使う。非負参照核の例は `.protect b allowNone (.var e)` と `.release b (.protect b allowNone (.var e))` である。符号付き核では解除にも対応するmaskを保存する。前処理で保護のwrapperを落とすと、衛生性の定理は適用できない。
 
 ### 10.3.3 置換と shallow handler
 
@@ -81,9 +81,26 @@ shallow handler の継続は同じ handler に自動で包み直さない。再�
 
 ### 10.3.4 値の中のcallbackと高階の向き
 
-computation の request を写すだけでは、`pure callback` の値の内部には届かない。`HigherOrder` は有限の型shapeに沿ってproduct・sum・list・arrowの中をたどる保護を定義し、そこから取り出したcallbackの非captureを証明する。arrowの入力では向きが反転し、戻り値と戻りcomputationでは元の向きになる。
+computation の request を写すだけでは、`pure callback` の値の内部には届かない。有限の型shapeに沿ってproduct・sum・list・arrowの中をたどる必要がある。arrowの入力では向きが反転し、戻り値と戻りcomputationでは元の向きになる。
 
-ただし、保護をlistから一個消すだけの解除では、高階の往復を一般には復元できない。可視なrequestを先に解除しても変化せず、後の保護だけが残る。`fresh_roundtrip_is_not_symmetric` がこの反例である。この単純なwrapperを任意の高階引数に対する意味保存の翻訳とは扱わない。局所の非capture定理と、反変位置を含む変換の相殺は別の証明義務である。
+保護をlistから一個消すだけの解除では、高階の往復を一般には復元できない。可視なrequestを先に解除しても変化せず、後の保護だけが残る。`HigherOrder.Examples.fresh_roundtrip_is_not_symmetric` がこの反例である。この単純なwrapperを任意の高階引数に対する意味保存の翻訳とは扱わない。
+
+この欠落を埋める精密化が `Directed` と `DirectedHigherOrder` である。出現はkeyのほかに境界ごとの整数weightを持つ。許可mask `P` がそのkeyを許可していなければ、`protect(b, P)` は `b` のweightを `+1`、対応する `release(b, P)` は `−1` だけ変更する。許可されていれば両方とも恒等である。handlerがcaptureできるのは、keyが一致し、**すべての境界のweightが0**のときだけである。負のweightもcaptureを阻止する。
+
+同じmaskを使う一対について、任意の出現・行・有限shapeの値で、次の両方を証明する。
+
+```text
+release(b, P, protect(b, P, v)) = v
+protect(b, P, release(b, P, v)) = v
+```
+
+`DirectedHigherOrder.transport_opposite` は関数を含む任意の値を量化し、新鮮性、weightの上限、fuelを仮定しない。境界名の集合は任意の有限 `Fin n`、各weightは上限のない整数である。非負の保護listは各境界の出現回数へ写せる。`legacy_capture_agrees` はその埋込みでcaptureが一致することを示し、保護層が存在する場合には一個のerase解除とも一致する。層がない場合の解除では負の差分が残り、ここが単純なlistモデルとの違いになる。
+
+相殺の定理と非captureの定理の前提は異なる。符号付き入力のweightがもともと `−1` なら `+1` で可視になるため、任意の行に対する無条件の非captureは成立しない。`default_zero_boundary_noncapture` と高階の `guard_arrow_noncapture` は、変換対象のrequestがその境界でweight 0から来たという `ZeroAt` を明示する。高階の定理では、反変方向に引数を変換した後の `function(releaseValue(argument))` にこの前提を課す。
+
+`contravariant_debt_preserves_local_callback` は由来の混在する具体例である。callbackを受け取る関数の内部に同じkeyを捕まえて `99` を返すhandlerを置くと、無変換ではcallbackが奪われる。高階の保護では、引数側の `−1` がこのcaptureを阻止し、戻り側の `+1` が相殺することで、元の呼出側のhandlerがpayload `7` を受け取る。外側でも永久に隠すだけの例ではない。
+
+これは旧実装のdirected stack全体の正しさを主張するものではない。今回の核では有限の解決済みshapeを扱い、atomとoperation payloadの内部は不透明のままである。sourceからshapeを作り、変換を挿入し、`ZeroAt` に相当する由来の条件を保存するelaborationは別の証明義務とする。
 
 ## 10.4 variant の残り
 
@@ -105,7 +122,7 @@ residual(H, R) = { (tag, payload) ∈ R | tag ∉ H }
 
 ### 10.5.1 実行可能な制約生成
 
-`Yulang.Inference.generate` は、型の包含・行の包含・連言・freshなcomputation slotの存在量化からなる有限の式を構文再帰で作る。各slotは値の型と行の組であり、新しいslotを `none`、既存のslotを `some x` で表すので、名前の衝突は起きない。結果のslotを開けたschemeを返す入口が `principal` である。
+`Yulang.Inference.generate` は、型の包含・行の包含・連言・選言・freshなcomputation slotの存在量化からなる有限の式を構文再帰で作る。各slotは値の型と行の組であり、新しいslotを `none`、既存のslotを `some x` で表すので、名前の衝突は起きない。結果のslotを開けたschemeを返す入口が `principal` である。
 
 `generate_models_iff_typing` と `principal_exact` は、独立に定義した宣言的判断と解集合が一致することを証明する。
 
@@ -115,11 +132,59 @@ principal(Γ, e) の解 (A, ε)  ↔  Γ ⊢ e : A ! ε
 
 これは任意の型・行モデルと、それに対応する入力環境についての主張である。生成器はsolverを呼ばず、solverの健全性や成功を前提にしない。`principal_most_general` は、どの健全な候補schemeの解も、この生成schemeの解に含まれると述べる。解いた後の単一の型表示が最も一般的だ、という定理ではない。
 
-非再帰の値letでは、右辺を純粋に型付けするschemeを保存し、参照ごとに内部の存在slotを独立に具体化する。外の環境のslotはそのまま残す。計算されたletでは一つの型を選んで共有し、二回目の利用で新しく一般化しない。右辺が未使用でも、その右辺の型付けを要求する。
+非再帰letの一般化経路では、右辺が構文的な値であり、純粋に型付けできることを要求する。その右辺のschemeを保存し、参照ごとに内部の存在slotを独立に具体化する。外の環境のslotはそのまま残す。
+
+単相経路はすべての右辺に使える。一つの右辺型を選び、その純粋な値を本体で共有し、右辺の実行行と本体の行を合流する。構文的な値には「純粋な一般化経路、または単相経路」の選言を生成し、値でない式には単相経路だけを生成する。どちらの経路でも、右辺が未使用だからといってその型付けを省略しない。
+
+この区別はcomputation引数で必要になる。変数 `action` が `int ! [io]` を表す場合、変数という構文だけを見て空行で一般化しようとすると、その `let` 自体を誤って拒否してしまう。`Polymorphism` はこの変数を束縛してunitを返す式が `unit ! [io]` を持ち、空行では任意の結果型について型付けできないことを、生成制約まで証明する。effect付きの変数を純粋な多相値へ変えてしまう修正ではない。
 
 対象は、名前解決後の変数・基本literal・lambda・computation application・非再帰let・分岐・pair/projection・record/field・variant注入である。`Structural` の具体的モデルで、unionを必要とする分岐、二種類の型で使う多相identity、record幅部分型からのprojectionを生成制約まで検証する。
 
-### 10.5.2 sourceへ接続するときの義務
+内部の判断を `Γ ⊢ e : A ! ρ` と書く。各行の結果には、必要に応じて値の型と行それぞれの包含制約を加える。以下の表はsource構文の追加ではなく、`Typing` と `generate` の共通の契約である。
+
+| 核の式 | 前提と生成する関係 |
+| --- | --- |
+| 変数 | 環境のschemeをfreshな内部slotで具体化する。捕捉した外側のslotは共有する。未束縛なら偽の制約になる |
+| literal | 対応する基本型と空行を結果の上界へ包含させる |
+| lambda | 引数にfreshな `A ! ρa` を置いて本体を `B ! ρb` と型付けする。関数値は `(A ! ρa → B ! ρb) ! ∅` |
+| application | 関数を `(A ! ρa → B ! ρb) ! ρf`、引数を `A ! ρa` と型付けする。結果は `B ! (ρf ∪ ρb)` |
+| 分岐 | 条件を `bool ! ρg`、両腕を `A ! ρa` と `B ! ρb` にする。結果は `(A ∪ B) ! (ρg ∪ ρa ∪ ρb)` |
+| pair | 両成分の値型をpairにし、実行行を合流する。projectionはpair型との包含制約を通じて該当成分を取り出す |
+| record | field値とrestを型付けし、restに `restType ≤ emptyRecord` を要求する。結果には元のrest型を保持し、両方の実行行を合流する |
+| field | receiverを対象fieldを持つ単一fieldのrecord型へ包含させ、その値型を返す。余分なfieldは幅部分型で許す |
+| variant注入 | payloadの値型を指定tagで包み、payloadの実行行を保つ |
+
+recordのfield照合は同じlabelの最初の出現を採用する。後に現れた同名fieldへ都合よく読み替える幅規則にはしない。具体的な部分型モデルは有限recordのspineについてこの条件を実装するが、unionを含むすべてのrecord型の正規化や完全なMLsub solverを定義したものではない。
+
+### 10.5.2 operationとshallow handlerの制約
+
+`EffectInference` は前節の生成器を実際に呼び、解決済みのoperation呼出し・境界変換・shallow handlerについて、独立な型判断と制約生成の双方向の一致を証明する。以下の式は最小限の結果上界を示しており、核の部分型規則でさらに上界へ広げられる。
+
+operationの署名を `k : P → Q`、宣言された追加行を `δ`、payloadの推論結果を `P ! ρp` とすると、結果は
+
+```text
+Q ! (ρp ∪ {k} ∪ δ)
+```
+
+となる。追加行があってもoperation自身のeffectを消さない。`k` はfamily・operation・family型引数を含む解決済みkeyである。この層の署名は単相で、operation-localな多相変数の具体化とhandlerでの抽象化は含めない。
+
+actionの型を `A ! ρ` とするhandlerでは、value armに純粋な `A` を渡す。operation armには純粋なpayload `P` と、純粋な関数値としての継続
+
+```text
+Q ! ∅ → A ! ρ
+```
+
+を渡す。継続の出力行は元の `ρ` であり、`residual({k}, ρ)` ではない。value armとoperation armがそれぞれ `B ! ρr`、`C ! ρo` ならhandlerの結果は
+
+```text
+(B ∪ C) ! (residual({k}, ρ) ∪ ρr ∪ ρo)
+```
+
+である。`ρo` の中に同じoperationが現れても再び差し引かない。別operationの残存、handler armの再送出、元の行を持つ継続が個別の定理になっている。
+
+この層では、payload・action・armを前節のcore `Expr` で表し、一つの解決済み規則ごとに生成する。effect構文を再帰的に含む一つのsource ASTからの翻訳まで証明したものではない。また、境界規則がここで変換するのはその場のcomputation行である。値の中にある関数の潜在行と10.3.4の高階transportを結び付けるには、型に沿ったelaborationの証明が別に必要になる。
+
+### 10.5.3 sourceへ接続するときの義務
 
 - **一般化**: 構文的な値だけを一般化する。環境由来の未確定変数を量化してはならない。計算された binding は単相で共有する。再帰 SCC は同時に扱い、computed-value cycle を通さない。
 - **operation の多相性**: 呼出側は operation-local 型変数を具体化する。handler 側は抽象型として受け取り、任意の具体型へ単一化しない。role 制約があれば、その証拠だけを利用できる。

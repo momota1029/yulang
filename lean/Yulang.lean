@@ -7,3 +7,7 @@ import Yulang.Inference
 import Yulang.Annotations
 import Yulang.Structural
 import Yulang.HigherOrder
+import Yulang.EffectInference
+import Yulang.Directed
+import Yulang.DirectedHigherOrder
+import Yulang.Polymorphism
