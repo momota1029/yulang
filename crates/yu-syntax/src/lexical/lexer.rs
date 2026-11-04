@@ -1289,7 +1289,18 @@ fn scan_type_effect_row_apostrophe(mut i: LexIn) -> Option<Token> {
 }
 
 fn scan_type_polymorphic_variant_colon(mut i: LexIn) -> Option<Token> {
-    i.remainder().starts_with(":{").then_some(())?;
+    let remainder = i.remainder();
+    let is_bar_variant = remainder.starts_with(':')
+        && remainder.chars().nth(1).is_some_and(is_xid_start)
+        && remainder.find('|').is_some_and(|pipe| {
+            let after_pipe = remainder[pipe + 1..].trim_start();
+            after_pipe
+                .strip_prefix(':')
+                .and_then(|tag| tag.chars().next())
+                .is_some_and(is_xid_start)
+        });
+    let is_variant_colon = remainder.starts_with(":{") || is_bar_variant;
+    is_variant_colon.then_some(())?;
     let (accepted, text) = i
         .rb()
         .with_str(|mut colon| (colon.next()? == ':').then_some(()));

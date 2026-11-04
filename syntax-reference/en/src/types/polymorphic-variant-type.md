@@ -9,7 +9,7 @@ polymorphic-variant current-Item recovery authority, and the structured
 polymorphic-variant foreign-close slot authority governs its foreign-close
 wrapper.
 
-It covers the type-only form `:{A Int, B}`, tag and payload boundaries, and
+It covers the type-only forms `:{A Int, B}` and `:A | :B Int`, tag and payload boundaries, and
 recovery. It does not define expression or pattern variants, type semantics,
 lowering, inference, or diagnostic wording.
 
@@ -17,6 +17,9 @@ lowering, inference, or diagnostic wording.
 
 ```text
 PolymorphicVariantType := ":" adjacent "{" G* [ PolymorphicVariantTag { PolyVariantTagBoundary PolymorphicVariantTag } [ PolyVariantTagBoundary ] ] "}"
+                      | BarVariantType
+BarVariantType := ":" VariantTag { G* "|" G* ":" VariantTag }
+VariantTag := Identifier { PolymorphicVariantPayload }
 PolymorphicVariantTag := Identifier { PolymorphicVariantPayload }
 PolymorphicVariantPayload := nonempty same-line trivia TypeExpressionInTypeMlScope
 PolyVariantTagBoundary := comma | qualifying newline
@@ -29,9 +32,10 @@ a tag boundary.
 ## 3. Admission and boundaries
 
 The canonical primary judge returns active stops and caller-owned closes before
-it probes `for`, adjacent `"'["`, and adjacent `":{"`. Bare `:` does not
-commit: `:{A}` is a variant primary, while `: {A}`, `:/*c*/{A}`, and `:\n{A}`
-are not.
+it probes `for`, adjacent `"'["`, adjacent `":{"`, and a colon-tag sequence
+whose first tag is followed by `| :tag`. Bare `:` does not commit: `:{A}` is a
+variant primary, while `: {A}`, `:/*c*/{A}`, and `:\n{A}` are not. A lone `:A`
+does not admit the bar spelling.
 
 After admission, the outer brace/list owner controls tags and close recovery.
 Within a tag, same-line payload candidates are siblings in Type-ML scope, not
@@ -40,8 +44,11 @@ tail judge, so `F :{A}` is an apply argument.
 
 ## 4. Direct Rowan CST
 
-`PolymorphicVariantType` contains colon, brace, direct
-`PolymorphicVariantTag` children, commas, trivia, and close in source order.
+The braced `PolymorphicVariantType` contains colon, brace, direct
+`PolymorphicVariantTag` children, commas, trivia, and close in source order. The
+bar spelling uses the same variant-type and tag nodes; each bar-separated tag
+after the first has its own leading colon. A bar without a following colon and
+tag is not admitted as a variant tag.
 Each tag contains its name and direct `PolymorphicVariantPayload` children.
 Each payload contains its boundary trivia and direct `TypeExpression`.
 
@@ -72,7 +79,7 @@ unconsumed.
 
 ## 6. Source/CST examples
 
-`:{A Int, B}` has tags `A` and `B`; `A` has one direct payload.
+`:{A Int, B}` and `:A | :B Int` have the same tags; `B` has one direct payload.
 
 `:{A Int Bool}` has two sibling payloads under `A`. `Bool` is not a TypeApply
 tail of `Int`.

@@ -129,7 +129,24 @@ pub(super) fn type_polymorphic_variant_normalized(
         ambient,
     );
     item_origin = next_origin;
-    debug_assert_eq!(token_kind(&open), Some(TokenKind::LBrace));
+    if token_kind(&open) != Some(TokenKind::LBrace) {
+        return type_polymorphic_variant_bar_normalized(
+            i,
+            open,
+            baseline,
+            type_ml,
+            apply_boundary,
+            outer_separators,
+            outer_closes,
+            caller_stops,
+            outer_boundary,
+            pipe_lexical,
+            item_origin,
+            next_line_entry,
+            fence,
+            ambient,
+        );
+    }
     debug_assert!(open.leading_view().is_grammar_empty());
     emit_token_item(&mut i, open);
 
@@ -167,6 +184,175 @@ pub(super) fn type_polymorphic_variant_normalized(
         fence,
         ambient,
     )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn type_polymorphic_variant_bar_normalized(
+    mut i: SyntaxIn,
+    mut item: Item,
+    baseline: usize,
+    type_ml: TypeMlContext,
+    apply_boundary: Option<TypeApplyBoundary>,
+    outer_separators: bool,
+    outer_closes: u8,
+    caller_stops: Stops,
+    outer_boundary: TypeOuterBoundary,
+    pipe_lexical: bool,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    let mut saw_bar = false;
+    loop {
+        if !is_type_polymorphic_variant_tag_name(&item) {
+            emit_polymorphic_variant_token_error(i.rb(), item, item_origin);
+            let (next, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
+                i.rb(),
+                item_origin,
+                line_entry,
+                fence,
+                pipe_lexical,
+                ambient,
+            );
+            item_origin = next_origin;
+            line_entry = next_line_entry;
+            i.state.finish_node();
+            return continue_type_tail_normalized(
+                i,
+                baseline,
+                type_ml,
+                apply_boundary,
+                outer_separators,
+                outer_closes,
+                caller_stops,
+                outer_boundary,
+                pipe_lexical,
+                complete(handoff(next), line_entry),
+                item_origin,
+                fence,
+                ambient,
+            );
+        }
+        item.emit_all_remaining_leading(&mut *i.state);
+        let entry = suffix_marker(i.rb());
+        let exit = type_polymorphic_variant_tag_normalized(
+            i.rb(),
+            item,
+            baseline,
+            type_ml.dormant(),
+            outer_closes,
+            caller_stops,
+            true,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+        item_origin = advanced_origin(item_origin, entry, i.rb());
+        let NormalizedExit::Complete(tag_exit, next_line_entry) = exit else {
+            unreachable!("normalized Type owners do not defer")
+        };
+        line_entry = next_line_entry;
+        let (mut next, next_origin, next_line_entry) = match tag_exit {
+            Ok(()) => type_nud_item_with_pipe_lexical_normalized(
+                i.rb(),
+                item_origin,
+                line_entry,
+                fence,
+                true,
+                ambient,
+            ),
+            Err(Either::Left(next)) => (next, item_origin, line_entry),
+            Err(Either::Right(end)) => {
+                if !saw_bar {
+                    emit_polymorphic_variant_missing(i.rb(), &end.item, item_origin);
+                }
+                i.state.finish_node();
+                return complete(handoff(end.item), line_entry);
+            }
+        };
+        item_origin = next_origin;
+        line_entry = next_line_entry;
+        if token_kind(&next) != Some(TokenKind::Pipe) {
+            // The colon spelling is reserved for a non-singleton tag sequence.
+            if !saw_bar {
+                emit_polymorphic_variant_missing(i.rb(), &next, item_origin);
+            }
+            i.state.finish_node();
+            return continue_type_tail_normalized(
+                i,
+                baseline,
+                type_ml,
+                apply_boundary,
+                outer_separators,
+                outer_closes,
+                caller_stops,
+                outer_boundary,
+                pipe_lexical,
+                complete(handoff(next), line_entry),
+                item_origin,
+                fence,
+                ambient,
+            );
+        }
+        next.emit_all_remaining_leading(&mut *i.state);
+        emit_token_item(&mut i, next);
+        saw_bar = true;
+        let (mut colon, colon_origin, colon_line_entry) =
+            type_nud_item_with_pipe_lexical_normalized(
+                i.rb(),
+                item_origin,
+                line_entry,
+                fence,
+                pipe_lexical,
+                ambient,
+            );
+        item_origin = colon_origin;
+        line_entry = colon_line_entry;
+        if !matches!(
+            token_kind(&colon),
+            Some(TokenKind::PolymorphicVariantColon | TokenKind::Colon)
+        ) {
+            emit_polymorphic_variant_token_error(i.rb(), colon, item_origin);
+            let (next, next_origin, next_line_entry) = type_nud_item_with_pipe_lexical_normalized(
+                i.rb(),
+                item_origin,
+                line_entry,
+                fence,
+                pipe_lexical,
+                ambient,
+            );
+            item_origin = next_origin;
+            line_entry = next_line_entry;
+            i.state.finish_node();
+            return continue_type_tail_normalized(
+                i,
+                baseline,
+                type_ml,
+                apply_boundary,
+                outer_separators,
+                outer_closes,
+                caller_stops,
+                outer_boundary,
+                pipe_lexical,
+                complete(handoff(next), line_entry),
+                item_origin,
+                fence,
+                ambient,
+            );
+        }
+        colon.emit_all_remaining_leading(&mut *i.state);
+        emit_token_item(&mut i, colon);
+        (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+            ambient,
+        );
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -968,6 +1154,7 @@ fn is_type_polymorphic_variant_payload_boundary(item: &Item) -> bool {
             Some(
                 TokenKind::Comma
                     | TokenKind::Semicolon
+                    | TokenKind::Pipe
                     | TokenKind::RParen
                     | TokenKind::RBracket
                     | TokenKind::RBrace

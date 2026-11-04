@@ -7,7 +7,7 @@ Authoritative polymorphic-variant section、polymorphic-variant current-Item
 recovery authority、structured `Invalid` topology authorityに従う。2026年9月10日の
 polymorphic-variant foreign-close slot authorityはforeign-close wrapperを定める。
 
-type-only formの`:{A Int, B}`、tag/payload boundary、recoveryを対象とする。
+type-only formの`:{A Int, B}`と`:A | :B Int`、tag/payload boundary、recoveryを対象とする。
 expression/pattern variant、type semantics、lowering、inference、diagnostic wordingは
 対象外である。
 
@@ -15,6 +15,9 @@ expression/pattern variant、type semantics、lowering、inference、diagnostic 
 
 ```text
 PolymorphicVariantType := ":" adjacent "{" G* [ PolymorphicVariantTag { PolyVariantTagBoundary PolymorphicVariantTag } [ PolyVariantTagBoundary ] ] "}"
+                      | BarVariantType
+BarVariantType := ":" VariantTag { G* "|" G* ":" VariantTag }
+VariantTag := Identifier { PolymorphicVariantPayload }
 PolymorphicVariantTag := Identifier { PolymorphicVariantPayload }
 PolymorphicVariantPayload := nonempty same-line trivia TypeExpressionInTypeMlScope
 PolyVariantTagBoundary := comma | qualifying newline
@@ -26,8 +29,9 @@ qualifying newlineをtag boundaryとしてclassifyできるのはouter tag list�
 ## 3. 受理と境界
 
 canonical primary judgeはactive stop/caller-owned closeを返した後、ordinary name/number/`(`/`{`
-より先に`for`、adjacent `"'["`、adjacent `":{"`をprobeする。bare `:`はcommitしない。
-`:{A}`はvariant primaryだが、`: {A}`、`:/*c*/{A}`、`:\n{A}`は受理しない。
+より先に`for`、adjacent `"'["`、adjacent `":{"`、最初のtag後に`| :tag`が続くcolon-tag列をprobeする。
+bare `:`はcommitしない。`:{A}`はvariant primaryだが、`: {A}`、`:/*c*/{A}`、`:\n{A}`は受理しない。
+lone `:A`はbar formを開始しない。
 
 admission後、outer brace/list ownerがtag/close recoveryを所有する。tag内のsame-line payload
 candidateはType-ML scopeのsiblingであり、互いのTypeApply tailではない。complete variantは
@@ -35,8 +39,8 @@ ordinary tail judgeへ戻るため、`F :{A}`はapply argumentとなる。
 
 ## 4. Direct Rowan CST
 
-`PolymorphicVariantType`はcolon、brace、direct `PolymorphicVariantTag`、comma、trivia、
-closeをsource orderで持つ。各tagはnameとdirect `PolymorphicVariantPayload`を持つ。各payload
+brace formの`PolymorphicVariantType`はcolon、brace、direct `PolymorphicVariantTag`、comma、trivia、
+closeをsource orderで持つ。bar formは同じvariant-type/tag nodeを使い、各tagの前にcolonを持つ。各tagはnameとdirect `PolymorphicVariantPayload`を持つ。各payload
 はboundary triviaとdirect `TypeExpression`を持つ。
 
 wrong-kind tag-name recoveryは、このownerだけに定めたstructured `Invalid` topologyを使う。

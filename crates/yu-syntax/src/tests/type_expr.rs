@@ -23,6 +23,7 @@ mod forall_recovery;
 mod leading_row_cst;
 mod leading_row_recovery;
 mod pe_recovery;
+mod pv_bar;
 mod pv_recovery;
 mod record_field_recovery;
 mod record_sequence_recovery;
