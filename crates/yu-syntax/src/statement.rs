@@ -1136,6 +1136,23 @@ fn indented_statement_slot_normalized(
         }
         return complete(handoff(item), line_entry);
     }
+    let member_doc_position = if first {
+        first_position
+    } else {
+        statement_position(&item, item_origin, false)
+    };
+    let member_doc = !allow_doc_comment
+        && matches!(
+            member_doc_position,
+            StatementPosition::CanonicalLineStart { .. }
+        )
+        && crate::declaration::member_line_doc_at(
+            i.remainder(),
+            &item,
+            item_origin,
+            member_doc_position,
+        )
+        .is_some();
     let admission = known_admission.unwrap_or_else(|| {
         classify_statement_item_normalized_at(
             i.rb(),
@@ -1143,7 +1160,9 @@ fn indented_statement_slot_normalized(
             baseline,
             item_origin,
             fence,
-            if allow_doc_comment {
+            if member_doc {
+                member_doc_position
+            } else if allow_doc_comment {
                 if first {
                     first_position
                 } else {
@@ -1158,8 +1177,9 @@ fn indented_statement_slot_normalized(
         if !first {
             emit_separator_leading(&mut i, &mut item);
         }
-        return canonical_statement_from_admission_normalized(
-            i,
+        let entry = suffix_marker(i.rb());
+        let exit = canonical_statement_from_admission_normalized(
+            i.rb(),
             item,
             admission,
             baseline,
@@ -1171,6 +1191,19 @@ fn indented_statement_slot_normalized(
             ambient,
             sequence,
         );
+        if member_doc && matches!(exit, NormalizedExit::Complete(Ok(()), _)) {
+            let origin = advanced_origin(item_origin, entry, i.rb());
+            let (item, _, line) = statement_item_normalized(
+                i.rb(),
+                origin,
+                LineEntry::InLine,
+                fence,
+                baseline,
+                stops,
+            );
+            return complete(handoff(item), line);
+        }
+        return exit;
     }
 
     if !first {
@@ -1362,6 +1395,23 @@ fn braced_statement_slot_normalized(
         emit_braced_missing(i.rb(), &item, item_origin);
         return complete(handoff(item), line_entry);
     }
+    let member_doc_position = if first {
+        first_position
+    } else {
+        statement_position(&item, item_origin, false)
+    };
+    let member_doc = !allow_doc_comment
+        && matches!(
+            member_doc_position,
+            StatementPosition::CanonicalLineStart { .. }
+        )
+        && crate::declaration::member_line_doc_at(
+            i.remainder(),
+            &item,
+            item_origin,
+            member_doc_position,
+        )
+        .is_some();
     let admission = known_admission.unwrap_or_else(|| {
         classify_statement_item_normalized_at(
             i.rb(),
@@ -1369,7 +1419,9 @@ fn braced_statement_slot_normalized(
             baseline,
             item_origin,
             fence,
-            if !allow_doc_comment {
+            if member_doc {
+                member_doc_position
+            } else if !allow_doc_comment {
                 StatementPosition::NonStatement
             } else if first {
                 first_position

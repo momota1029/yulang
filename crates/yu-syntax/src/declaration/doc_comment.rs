@@ -1,4 +1,14 @@
 //! Canonical-Statement admission and direct construction for doc declarations.
+//!
+//! WP-G12 CST contract: leading documents retain their existing sibling position.
+//! An attached line document is a `DocCommentDeclaration` directly inside its
+//! owning `BindingStatement`: after `BindingHeader` for an after-`=` document,
+//! after `BindingBody` for a trailing document. Both forms preserve source order;
+//! the physical newline stays with the next grammar owner. The owner constructs
+//! the node, rather than putting it in the expression or interpreting trivia later.
+//! An operator-table declaration of `--` disables both attached positions.
+//! Fresh delimited/statement sequences discard the enclosing doc permission;
+//! mandatory-operand scanning never receives a doc boundary.
 
 use crate::{
     cursor::SyntaxIn,
@@ -144,4 +154,141 @@ pub(crate) fn doc_comment_declaration_normalized(
     }
     i.state.finish_node();
     complete(Ok(()), line_entry)
+}
+
+/// Owns the after-`=` line document before the body starts. Only horizontal
+/// whitespace is crossed; the physical newline remains for the body owner.
+pub(super) fn line_doc_after_equals(
+    mut i: SyntaxIn,
+    origin: usize,
+    doc: crate::sequence::DeclarationDocContext,
+) -> Option<usize> {
+    let source = i.remainder();
+    let gap = source
+        .bytes()
+        .take_while(|b| matches!(b, b' ' | b'\t'))
+        .count();
+    let source = &source[gap..];
+    if origin + gap > doc.start_line_end || !source.starts_with("--") || source.starts_with("---") {
+        return None;
+    }
+    if gap != 0 {
+        i.state
+            .token(SyntaxKind::Whitespace.into(), &i.remainder()[..gap]);
+        i.advance_bytes(gap);
+    }
+    i.state.start_node(SyntaxKind::DocCommentDeclaration.into());
+    i.state.token(SyntaxKind::DocLinePrefix.into(), "--");
+    i.advance_bytes(2);
+    let state = parse_line_document_direct(i.remainder(), i.operators(), &mut *i.state)
+        .expect("a line document has no deferred fence body");
+    i.advance_bytes(state.consumed);
+    i.state.finish_node();
+    Some(origin + gap + 2 + state.consumed)
+}
+
+/// A completed expression returns its unconsumed marker to the declaration.
+/// The node is emitted only after the expression/body node has closed.
+pub(super) fn trailing_line_doc(
+    mut i: SyntaxIn,
+    exit: NormalizedExit,
+    origin: usize,
+    doc: Option<crate::sequence::DeclarationDocContext>,
+    fence: Option<&FenceBoundary>,
+) -> NormalizedExit {
+    match exit {
+        NormalizedExit::Complete(Err(crate::handoff::Either::Left(item)), line)
+            if doc.is_some_and(|doc| item.extent(origin).payload().start <= doc.start_line_end) =>
+        {
+            if let Some(admission) = doc_comment_selected_lexical(
+                i.remainder(),
+                &item,
+                origin,
+                StatementPosition::CanonicalSameLine,
+            ) {
+                doc_comment_declaration_normalized(i.rb(), item, admission, origin, line, fence)
+            } else {
+                complete(crate::handoff::handoff(item), line)
+            }
+        }
+        exit => exit,
+    }
+}
+
+/// Member leading lines keep the sibling representation of canonical leading
+/// docs. Same-line body introducers do not create a leading-doc position.
+pub(super) fn member_leading_doc(
+    source: &str,
+    item: &Item,
+    origin: usize,
+) -> Option<DocCommentAdmission> {
+    let base_col = item.leading_view().indentation_after_newline()?;
+    let admission = doc_comment_selected_lexical(
+        source,
+        item,
+        origin,
+        StatementPosition::CanonicalLineStart { base_col },
+    )?;
+    (admission.kind == DocCommentKind::Line).then_some(admission)
+}
+
+pub(super) fn member_trailing_doc_selected(
+    source: &str,
+    item: &Item,
+    origin: usize,
+    doc: Option<crate::sequence::DeclarationDocContext>,
+) -> Option<DocCommentAdmission> {
+    if item.payload_view().is_boundary()
+        || !doc.is_some_and(|doc| item.extent(origin).payload().start <= doc.start_line_end)
+    {
+        return None;
+    }
+    doc_comment_selected_lexical(source, item, origin, StatementPosition::CanonicalSameLine)
+}
+
+/// Keeps a separator inside the member only when it precedes an attached doc.
+/// Without a doc, the exact existing separator/tree ownership is retained.
+pub(super) fn member_trailing_doc(
+    mut i: SyntaxIn,
+    item: Item,
+    origin: usize,
+    line: LineEntry,
+    doc: Option<crate::sequence::DeclarationDocContext>,
+    fence: Option<&FenceBoundary>,
+) -> (Option<Item>, usize, LineEntry) {
+    if let Some(admission) = member_trailing_doc_selected(i.remainder(), &item, origin, doc) {
+        let entry = i.remainder().len();
+        doc_comment_declaration_normalized(i.rb(), item, admission, origin, line, fence);
+        return (
+            None,
+            origin + entry - i.remainder().len(),
+            LineEntry::InLine,
+        );
+    }
+    if item.payload_view().token_kind() == Some(crate::lexical::item::TokenKind::Comma)
+        && let Some(doc) = doc
+    {
+        let source = i.remainder().trim_start_matches([' ', '\t']);
+        let gap = i.remainder().len() - source.len();
+        if origin + gap <= doc.start_line_end
+            && source.starts_with("--")
+            && !source.starts_with("---")
+        {
+            crate::cursor::recovery::emit::emit_token_item(&mut i, item);
+            let origin =
+                line_doc_after_equals(i.rb(), origin, doc).expect("lookahead admitted line doc");
+            return (None, origin, LineEntry::InLine);
+        }
+    }
+    (Some(item), origin, line)
+}
+
+pub(crate) fn member_line_doc_at(
+    source: &str,
+    item: &Item,
+    origin: usize,
+    position: StatementPosition,
+) -> Option<DocCommentAdmission> {
+    let admission = doc_comment_selected_lexical(source, item, origin, position)?;
+    (admission.kind == DocCommentKind::Line).then_some(admission)
 }

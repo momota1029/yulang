@@ -194,6 +194,12 @@ pub(crate) fn binding_statement_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
+    let doc = i
+        .operators()
+        .definition("--")
+        .is_none()
+        .then(|| crate::sequence::DeclarationDocContext::new(i.remainder(), item_origin));
+    let sequence = sequence.map(|owner| owner.with_declaration_doc(doc));
     i.state.start_node(SyntaxKind::BindingStatement.into());
     i.state.start_node(SyntaxKind::BindingHeader.into());
     emit_visibility(&mut i, visibility);
@@ -230,15 +236,31 @@ pub(crate) fn binding_statement_normalized(
         || implicit_delimited_newline(baseline, item.leading_view())
     {
         i.state.finish_node();
+        let exit = binding_trailing_doc(
+            i.rb(),
+            complete(handoff(item), line_entry),
+            item_origin,
+            doc,
+            fence,
+            baseline,
+            stops,
+        );
         i.state.finish_node();
-        return complete(handoff(item), line_entry);
+        return exit;
     }
 
     item.emit_all_remaining_leading(&mut *i.state);
     emit_token_item(&mut i, item);
     i.state.finish_node();
 
+    if let Some(doc) = doc {
+        if let Some(origin) = super::doc_comment::line_doc_after_equals(i.rb(), item_origin, doc) {
+            item_origin = origin;
+            line_entry = LineEntry::InLine;
+        }
+    }
     i.state.start_node(SyntaxKind::BindingBody.into());
+    let body_entry = suffix_marker(i.rb());
     let exit = binding_body_normalized(
         i.rb(),
         baseline,
@@ -250,7 +272,9 @@ pub(crate) fn binding_statement_normalized(
         ambient,
         sequence,
     );
+    let origin = advanced_origin(item_origin, body_entry, i.rb());
     i.state.finish_node();
+    let exit = binding_trailing_doc(i.rb(), exit, origin, doc, fence, baseline, stops);
     i.state.finish_node();
     exit
 }
@@ -562,4 +586,32 @@ fn emit_visibility(i: &mut SyntaxIn, item: Item) {
         _ => unreachable!("the binding judge accepted only visibility words"),
     };
     item.emit_remaining(&mut *i.state, kind);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn binding_trailing_doc(
+    mut i: SyntaxIn,
+    exit: NormalizedExit,
+    origin: usize,
+    doc: Option<crate::sequence::DeclarationDocContext>,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+) -> NormalizedExit {
+    let entry = suffix_marker(i.rb());
+    let exit = super::doc_comment::trailing_line_doc(i.rb(), exit, origin, doc, fence);
+    if matches!(exit, NormalizedExit::Complete(Ok(()), _)) && i.remainder().len() < entry.1 {
+        let origin = advanced_origin(origin, entry, i.rb());
+        let (item, _, line) = binding_statement_item_normalized(
+            i.rb(),
+            origin,
+            LineEntry::InLine,
+            fence,
+            baseline,
+            stops,
+        );
+        complete(handoff(item), line)
+    } else {
+        exit
+    }
 }

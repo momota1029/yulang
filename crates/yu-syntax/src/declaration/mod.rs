@@ -32,6 +32,7 @@ pub(super) use cast_decl::cast_declaration_selected_lexical;
 pub(super) use doc_comment::DocCommentAdmission;
 pub(super) use doc_comment::doc_comment_declaration_normalized;
 pub(super) use doc_comment::doc_comment_selected_lexical;
+pub(super) use doc_comment::member_line_doc_at;
 pub(super) use enum_decl::enum_declaration_normalized;
 pub(super) use enum_decl::enum_declaration_selected_lexical;
 pub(super) use error_decl::error_declaration_normalized;

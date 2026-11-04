@@ -420,6 +420,32 @@ fn field_sequence_normalized(
             };
         }
 
+        if let Some(admission) =
+            super::doc_comment::member_leading_doc(i.remainder(), &item, item_origin)
+        {
+            let entry = suffix_marker(i.rb());
+            super::doc_comment::doc_comment_declaration_normalized(
+                i.rb(),
+                item,
+                admission,
+                item_origin,
+                line_entry,
+                fence,
+            );
+            item_origin = advanced_origin(item_origin, entry, i.rb());
+            (item, item_origin, line_entry) = field_item_normalized(
+                i.rb(),
+                item_origin,
+                LineEntry::InLine,
+                fence,
+                baseline,
+                stops,
+                delimited,
+                pipe_lexical,
+            );
+            continue;
+        }
+
         if delimited.is_some_and(|list| mismatched_close(&item, list.close())) {
             if outer_close == FieldOuterClose::Borrow {
                 emit_missing_close(&mut i, &item, item_origin);
@@ -584,6 +610,72 @@ fn field_sequence_normalized(
 #[allow(clippy::too_many_arguments)]
 fn named_field_normalized(
     mut i: SyntaxIn,
+    item: Item,
+    baseline: usize,
+    stops: Stops,
+    delimited: Option<FieldList>,
+    pipe_lexical: bool,
+    defaults: Option<FieldDefaults>,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> (NormalizedExit, usize) {
+    let doc = i
+        .operators()
+        .definition("--")
+        .is_none()
+        .then(|| crate::sequence::DeclarationDocContext::new(i.remainder(), item_origin));
+    let defaults = defaults.map(|mut defaults| {
+        defaults.sequence = defaults
+            .sequence
+            .map(|owner| owner.with_declaration_doc(doc));
+        defaults
+    });
+    i.state.start_node(SyntaxKind::StructField.into());
+    let (exit, origin) = named_field_contents_normalized(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        delimited,
+        pipe_lexical,
+        defaults,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    );
+    let (exit, origin) = match exit {
+        NormalizedExit::Complete(Err(Either::Left(item)), line) => {
+            let (item, origin, line) =
+                super::doc_comment::member_trailing_doc(i.rb(), item, origin, line, doc, fence);
+            match item {
+                Some(item) => (complete(handoff(item), line), origin),
+                None => {
+                    let (item, origin, line) = field_item_normalized(
+                        i.rb(),
+                        origin,
+                        line,
+                        fence,
+                        baseline,
+                        stops,
+                        delimited,
+                        pipe_lexical,
+                    );
+                    (complete(handoff(item), line), origin)
+                }
+            }
+        }
+        exit => (exit, origin),
+    };
+    i.state.finish_node();
+    (exit, origin)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn named_field_contents_normalized(
+    mut i: SyntaxIn,
     mut item: Item,
     baseline: usize,
     stops: Stops,
@@ -595,7 +687,6 @@ fn named_field_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, usize) {
-    i.state.start_node(SyntaxKind::StructField.into());
     if raw_name(&item) {
         emit_token_item(&mut i, item);
         (item, item_origin, line_entry) = declaration_item_with_pipe_lexical_normalized(
@@ -616,13 +707,11 @@ fn named_field_normalized(
 
     if item.payload_view().is_boundary() {
         declaration_field_missing(&mut i, &item, item_origin);
-        i.state.finish_node();
         return (complete(handoff(item), line_entry), item_origin);
     }
     if item.payload_view().is_eof() {
         item.emit_eof_leading(&mut *i.state);
         declaration_field_missing(&mut i, &item, item_origin);
-        i.state.finish_node();
         return (complete(handoff(item), line_entry), item_origin);
     }
     if token_kind(&item) == Some(TokenKind::Colon)
@@ -645,7 +734,6 @@ fn named_field_normalized(
 
     if indentation_after_newline(item.leading_view()).is_some() {
         declaration_field_missing(&mut i, &item, item_origin);
-        i.state.finish_node();
         return (complete(handoff(item), line_entry), item_origin);
     }
 
@@ -664,14 +752,12 @@ fn named_field_normalized(
             fence,
             ambient,
         );
-        i.state.finish_node();
         return (exit, item_origin);
     }
 
     if field_boundary(i.rb(), &item, baseline, stops, delimited) {
         item.emit_all_remaining_leading(&mut *i.state);
         declaration_field_missing(&mut i, &item, item_origin);
-        i.state.finish_node();
         return (complete(handoff(item), line_entry), item_origin);
     }
 
@@ -716,13 +802,9 @@ fn named_field_normalized(
                 fence,
                 ambient,
             );
-            i.state.finish_node();
             (exit, item_origin)
         }
-        FieldErrorExit::Other => {
-            i.state.finish_node();
-            (complete(handoff(item), line_entry), item_origin)
-        }
+        FieldErrorExit::Other => (complete(handoff(item), line_entry), item_origin),
     }
 }
 
@@ -755,8 +837,8 @@ fn recover_named_field_normalized(
     );
     if exit == FieldErrorExit::Colon {
         emit_token_item(&mut i, item);
-        return named_field_rhs_normalized(
-            i,
+        let result = named_field_rhs_normalized(
+            i.rb(),
             baseline,
             delimited,
             pipe_lexical,
@@ -766,6 +848,8 @@ fn recover_named_field_normalized(
             fence,
             ambient,
         );
+        i.state.finish_node();
+        return result;
     }
     i.state.finish_node();
     (complete(handoff(item), line_entry), item_origin)
@@ -815,7 +899,6 @@ fn named_field_rhs_normalized(
         fence,
         ambient,
     );
-    i.state.finish_node();
     (exit, item_origin)
 }
 
@@ -868,6 +951,12 @@ fn named_type_normalized(
     };
     item.emit_all_remaining_leading(&mut *i.state);
     emit_token_item(&mut i, item);
+    let mut item_origin = item_origin;
+    if let Some(doc) = defaults.sequence.and_then(|owner| owner.declaration_doc())
+        && let Some(origin) = super::doc_comment::line_doc_after_equals(i.rb(), item_origin, doc)
+    {
+        item_origin = origin;
+    }
     let entry = suffix_marker(i.rb());
     let exit = binding_body_normalized(
         i.rb(),

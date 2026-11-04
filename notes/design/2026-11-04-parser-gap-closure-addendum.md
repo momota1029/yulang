@@ -126,3 +126,37 @@ Authority: the design authority (primary) decided the following where the approv
 - **Performance question from Gate 4 answered by measurement (2026-11-04, primary).** Parsing 68 `.yu` files (90,183 bytes: repo fixtures, playground examples and the std library copy under `.temp/`) 100 times, best of 5, release build: commit `2a12340d6` (before the `SyntaxOutput` trait object) 912.8-939.9 ms; head 921.0-933.1 ms, i.e. no measurable difference (about 9.7 MB/s both). The trait-object output path is kept.
 - **Left open on purpose:** the body of a selected `yulang` Yumark fence; canonical embedded AST/direct equality and 'Gate 3/4 complete' certification (O6).
 
+
+
+## 7. G12 line-document attachment (2026-11-04)
+
+Status: Authoritative for the user-approved G12 positions and CST choice.
+Authority: `spec/01-lexical.md` §1.2 and the project owner's G12 decisions.
+This extension supersedes WP-11's field nonreachability for leading line docs;
+its block-document grammar and existing leading CST are unchanged.
+
+- Effective operator-table membership of exact `--` disables trailing and
+  after-`=` attachment. Leading canonical line docs retain priority.
+- A complete binding expression may return a line marker on the binding's start
+  line to its declaration owner. Required operands and nested argument, delimiter,
+  and case sequences do not gain this boundary. The existing operator/recovery
+  CST remains the oracle elsewhere.
+- The binding/field owner consumes an after-`=` line doc before its body/default.
+  Named struct fields, enum variants, role methods, and act operations also admit
+  own-line leading docs and start-line trailing docs. A body opener followed by
+  `--` on the same line is not a member-leading position.
+- Leading nodes remain siblings (with the existing `Statement` wrappers and
+  separators where applicable). Attached docs are direct `DocCommentDeclaration`
+  children of `BindingStatement`, `StructField`, or `EnumVariant`, in source order.
+  A binding's after-`=` doc is between header and body; a field's is after `Equals`.
+  A trailing doc follows the completed body/header, field type/default, or variant
+  payload. A member comma is moved inside that member only when it immediately
+  precedes its attached doc. All other separator/node placement is retained.
+- No new syntax kinds, semantic attachment pass, or document concatenation are
+  introduced. The paired syntax-reference page describes owner lookup from CST.
+
+Implementation choice: Design A. `DeclarationDocContext` carries the declaration
+start-line end coordinate through the existing current-depth sequence carrier,
+without replacing its original owner or `StatementLineHandoff`. New nested
+sequences have no inherited permission. The immutable operator table remains the
+sole authority for declared `--`; there is no previous-token/global lexer state.

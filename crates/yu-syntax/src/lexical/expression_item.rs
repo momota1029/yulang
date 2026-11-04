@@ -34,6 +34,7 @@ pub(crate) fn expression_item(
         baseline,
         stops,
         false,
+        None,
     )
 }
 
@@ -47,6 +48,7 @@ pub(crate) fn expression_item_with_doc_boundary(
     baseline: usize,
     stops: Stops,
     doc_boundary: bool,
+    declaration_doc: Option<crate::sequence::DeclarationDocContext>,
 ) -> (Item, usize, LineEntry) {
     i.token(|lex| {
         Some(scan_expression_item_lexical_with_doc_boundary(
@@ -58,6 +60,7 @@ pub(crate) fn expression_item_with_doc_boundary(
             baseline,
             stops,
             doc_boundary,
+            declaration_doc,
         ))
     })
     .expect("expression payload scanning is total")
@@ -82,6 +85,7 @@ pub(crate) fn scan_expression_item_lexical(
         baseline,
         stops,
         false,
+        None,
     )
 }
 
@@ -95,27 +99,23 @@ fn scan_expression_item_lexical_with_doc_boundary(
     baseline: usize,
     stops: Stops,
     doc_boundary: bool,
+    declaration_doc: Option<crate::sequence::DeclarationDocContext>,
 ) -> (Item, usize, LineEntry) {
     let (current, consumed) = i.with_str(|lex| {
-        let marker_boundary = doc_boundary
-            && matches!(site, OperatorSite::Led)
+        let marker_boundary = matches!(site, OperatorSite::Led)
+            && (doc_boundary || declaration_doc.is_some())
             && matches!(
-                observe_fenced_trivia(
-                    lex.remainder(),
-                    item_origin,
-                    line_entry,
-                    fence,
-                ),
-                TriviaObservation::Visible(visible)
-                    if visible.indentation == Some(baseline)
+                observe_fenced_trivia(lex.remainder(), item_origin, line_entry, fence),
+                TriviaObservation::Visible(visible) if
+                    (declaration_doc.is_some_and(|doc|
+                        item_origin + lex.remainder().len() - visible.source.len() <= doc.start_line_end)
+                        && visible.source.starts_with("--")
+                        && !visible.source.starts_with("---"))
+                    || (doc_boundary && visible.indentation == Some(baseline)
                         && crate::yumark::judge::judge_document_marker(
-                            visible.source,
-                            0,
-                            crate::yumark::judge::StatementPosition::CanonicalLineStart {
-                                base_col: baseline,
-                            },
-                        )
-                        .is_some()
+                            visible.source, 0,
+                            crate::yumark::judge::StatementPosition::CanonicalLineStart { base_col: baseline },
+                        ).is_some())
             );
         current_item(
             lex,

@@ -200,6 +200,24 @@ fn drive_variant_sequence(
             return complete(handoff(item), line_entry);
         }
 
+        if let Some(admission) =
+            super::doc_comment::member_leading_doc(i.remainder(), &item, item_origin)
+        {
+            let entry = suffix_marker(i.rb());
+            super::doc_comment::doc_comment_declaration_normalized(
+                i.rb(),
+                item,
+                admission,
+                item_origin,
+                line_entry,
+                fence,
+            );
+            item_origin = advanced_origin(item_origin, entry, i.rb());
+            (item, item_origin, line_entry) =
+                variant_item_normalized(i.rb(), item_origin, LineEntry::InLine, fence);
+            continue;
+        }
+
         if slot == Slot::AfterVariant && is_implicit_separator(form, &item, sequence_baseline) {
             item.emit_all_remaining_leading(&mut *i.state);
             slot = Slot::Required;
@@ -324,6 +342,60 @@ struct ParsedVariant {
 #[allow(clippy::too_many_arguments)]
 fn parse_variant(
     mut i: SyntaxIn,
+    owner: VariantOwner,
+    item: Item,
+    form: VariantSequenceForm,
+    yield_with: bool,
+    sequence_baseline: usize,
+    stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> ParsedVariant {
+    let doc = i
+        .operators()
+        .definition("--")
+        .is_none()
+        .then(|| crate::sequence::DeclarationDocContext::new(i.remainder(), item_origin));
+    i.state.start_node(SyntaxKind::EnumVariant.into());
+    let parsed = parse_variant_contents(
+        i.rb(),
+        owner,
+        item,
+        form,
+        yield_with,
+        sequence_baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+        doc,
+    );
+    let (item, origin, line) = super::doc_comment::member_trailing_doc(
+        i.rb(),
+        parsed.item,
+        parsed.item_origin,
+        parsed.line_entry,
+        doc,
+        fence,
+    );
+    let (item, item_origin, line_entry) = match item {
+        Some(item) => (item, origin, line),
+        None => variant_item_normalized(i.rb(), origin, line, fence),
+    };
+    i.state.finish_node();
+    ParsedVariant {
+        item,
+        item_origin,
+        line_entry,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn parse_variant_contents(
+    mut i: SyntaxIn,
     _owner: VariantOwner,
     mut item: Item,
     form: VariantSequenceForm,
@@ -334,8 +406,8 @@ fn parse_variant(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    doc: Option<crate::sequence::DeclarationDocContext>,
 ) -> ParsedVariant {
-    i.state.start_node(SyntaxKind::EnumVariant.into());
     item.emit_all_remaining_leading(&mut *i.state);
     if is_raw_variant_name(&item) {
         emit_token_item(&mut i, item);
@@ -360,7 +432,6 @@ fn parse_variant(
         item_origin = origin;
         line_entry = line;
         if !retry {
-            i.state.finish_node();
             return ParsedVariant {
                 item,
                 item_origin,
@@ -377,7 +448,6 @@ fn parse_variant(
         || i.token(|lex| Some(is_variant_caller_boundary(lex, &item, stops)))
             .unwrap()
     {
-        i.state.finish_node();
         return ParsedVariant {
             item,
             item_origin,
@@ -411,7 +481,6 @@ fn parse_variant(
             fence,
             ambient,
         );
-        i.state.finish_node();
         return parsed;
     }
 
@@ -460,7 +529,6 @@ fn parse_variant(
                 unreachable!("normalized declaration fields do not defer")
             }
         }
-        i.state.finish_node();
         return ParsedVariant {
             item,
             item_origin,
@@ -468,7 +536,9 @@ fn parse_variant(
         };
     }
 
-    while !yields_with(form, yield_with, &item, sequence_baseline)
+    while super::doc_comment::member_trailing_doc_selected(i.remainder(), &item, item_origin, doc)
+        .is_none()
+        && !yields_with(form, yield_with, &item, sequence_baseline)
         && positional_payload_candidate(form, &item, sequence_baseline)
         && !i
             .token(|lex| Some(is_variant_caller_boundary(lex, &item, stops)))
@@ -493,7 +563,6 @@ fn parse_variant(
         line_entry = parsed.line_entry;
     }
 
-    i.state.finish_node();
     ParsedVariant {
         item,
         item_origin,

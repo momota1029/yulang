@@ -7,6 +7,7 @@ mod colon_with_recovery;
 mod declaration;
 mod delimited_recovery;
 mod doc_comment;
+mod doc_comment_g12;
 mod doc_comment_matrix;
 mod expression_recovery;
 mod expression_structural_tails;

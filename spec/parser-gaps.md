@@ -42,7 +42,7 @@ lambda（複数引数、pattern 引数）、`sub:`、`for`、`do`、`type`（ali
 
 | 番号 | 内容 | 例の名前 |
 | --- | --- | --- |
-| G12 | doc コメントの行末・`=` 直後・メンバー（field）への付与 | doc-trailing, doc-after-eq, doc-member-field |
+| G12 | doc コメントの行末・`=` 直後・メンバー（field）への付与 **（完了 2026-11-04。gpt-6.1-terra で 2 回止まり、gpt-6.1-sol/xhigh で完了。yu-syntax 1587 + 統合11 緑。付与された doc は `BindingStatement` / `StructField` / `EnumVariant` の直接の子 `DocCommentDeclaration`）** | doc-trailing, doc-after-eq, doc-member-field |
 | G13 | 数値 literal の `_` 区切り・`0x`・`0b`・`0o` **（完了 2026-11-04、gpt-6-luna、yu-syntax 1567 + 統合11 緑）** | num-underscore, num-hex, num-bin |
 | G14 | 空の block `{;}` **（完了 2026-11-04、gpt-6-luna、yu-syntax 1561 + 統合11 緑）** | empty-block |
 | G15 | range pattern `0..10`、`1..`、`..0` **（完了 2026-11-04。Luna は途中で降りたので gpt-6.1-terra/high で完了。yu-syntax 1578 + 統合11 緑。新 SyntaxKind `RangePattern`）** | range-pat, range-pat-lower, range-pat-upper |
@@ -66,3 +66,9 @@ lambda（複数引数、pattern 引数）、`sub:`、`for`、`do`、`type`（ali
 - G18 の補足（要フォロー）: 字句解析器の `scan_type_polymorphic_variant_colon` は、`:ident` の後に `| :tag` が来るかを `remainder.find('|')` で**ソースの残り全部**から探している。
   正しい入力には影響しないが（隣接 colon の束縛・返り値注釈は 5 例で確認済み）、不正な単独 `:tag` が多い入力では O(n²) になりうる。先読みを同じ型式の範囲に制限する小修正を後で入れる。
 - G15 の補足: 負の bound（`-1..5`）は未検証。式の `..` / `..<` / `1..`、list/record の spread は 16 例で回帰なしを確認済み。
+
+- G12 の補足:
+  - 既存テストを 1 件だけ更新した（`doc_comment.rs` の role/act member の直前行 doc は、recovery なしで doc node を作る）。spec 1.2 規則 4 による。
+  - `--` が演算子として宣言されているファイルでは、途中・行末の `--` は従来どおり演算子。
+  - 式の途中や継続行の `--`（`my a = 1 + -- c`、`f x\n    y -- c`）は従来どおり recovery になる。**未決: これを無害なコメントとして読むか。**（spec 1.2 は「独立コメントのまま」と書いているが、実際は RawError。）
+  - 直前行の doc は、struct の field では `StructDeclaration` の子（field の兄弟）として入る。

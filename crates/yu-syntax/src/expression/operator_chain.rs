@@ -167,6 +167,7 @@ pub(super) fn append_nud(
             baseline,
             stops,
             crate::sequence::admits_doc_comment(sequence),
+            sequence.and_then(|owner| owner.declaration_doc()),
         );
         if successor.payload_view().token_kind() == Some(TokenKind::LBrace) {
             let entry = suffix_marker(i.rb());
@@ -558,6 +559,7 @@ pub(crate) fn scan_tail_after_accept_normalized(
         baseline,
         stops,
         crate::sequence::admits_doc_comment(sequence),
+        sequence.and_then(|owner| owner.declaration_doc()),
     );
     tail_normalized(
         i,
@@ -646,7 +648,7 @@ pub(crate) fn tail_normalized(
         return complete(handoff(item), line_entry);
     }
     if matches!(
-        sequence,
+        sequence.map(crate::sequence::SequenceOwner::without_declaration_doc),
         Some(
             crate::sequence::SequenceOwner::CaseIndented
                 | crate::sequence::SequenceOwner::CatchIndented

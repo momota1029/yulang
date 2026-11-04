@@ -316,11 +316,11 @@ fn field_and_owner_specific_sequences_do_not_admit_doc_declarations() {
         ),
         (
             "role R:\n  -- docs\n  pub show: T\n",
-            vec![(StructuralKind::ErrorGroup, 10..12)],
+            vec![], // WP-G12: superseded by spec 1.2 rule 4 (members take docs)
         ),
         (
             "act A:\n  -- docs\n  pub run: T\n",
-            vec![(StructuralKind::ErrorGroup, 9..11)],
+            vec![], // WP-G12: superseded by spec 1.2 rule 4 (members take docs)
         ),
         (
             "role R { -- docs\npub show: T }",
@@ -339,7 +339,7 @@ fn field_and_owner_specific_sequences_do_not_admit_doc_declarations() {
         let root = SyntaxNode::new_root(parsed.green().clone());
         assert_eq!(
             count(&root, SyntaxKind::DocCommentDeclaration),
-            0,
+            usize::from(expected.is_empty()), // WP-G12: superseded by spec 1.2 rule 4 (members take docs)
             "{source:?}"
         );
     }
