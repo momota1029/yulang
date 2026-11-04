@@ -44,7 +44,7 @@ lambda（複数引数、pattern 引数）、`sub:`、`for`、`do`、`type`（ali
 | --- | --- | --- |
 | G12 | doc コメントの行末・`=` 直後・メンバー（field）への付与 | doc-trailing, doc-after-eq, doc-member-field |
 | G13 | 数値 literal の `_` 区切り・`0x`・`0b`（`0o` は未検証） | num-underscore, num-hex, num-bin |
-| G14 | 空の block `{;}` | empty-block |
+| G14 | 空の block `{;}` **（完了 2026-11-04、gpt-6-luna、yu-syntax 1561 + 統合11 緑）** | empty-block |
 | G15 | range pattern `0..10`、`1..`、`..0` | range-pat, range-pat-lower, range-pat-upper |
 | G16 | lambda の `&` 引数 `\&a -> ...`（`&a::run` を手で呼ぶ形） | ref-run |
 | G17 | struct の field default `y: int = 4` | struct-default |
@@ -60,3 +60,5 @@ lambda（複数引数、pattern 引数）、`sub:`、`for`、`do`、`type`（ali
 
 - guard の `where`（`x where x < 0 -> ...`）も読める。仕様は `if` だけ（E19）。実装で拒否するかは後で決める。
 - 複数行文字列の字下げの除去、`%{}` の書式の意味、`'count.again` の意味などは、構文が通るだけで意味は未実装。意味の実装は parser の外。
+
+- G14 の補足: `{ ; 1 }`（先頭に `;` を置いて続きがある形）は今も読めない。仕様が約束していない形なので放置。

@@ -60,6 +60,35 @@ fn braced_slots_have_exact_structural_facts() {
 }
 
 #[test]
+fn first_braced_separator_is_an_empty_block_without_recovery() {
+    for source in ["{;}", "{ ; }"] {
+        let (green, facts, _, suffix) = parse(source, 0, None);
+        assert_eq!(green.to_string(), source);
+        assert!(facts.is_empty(), "{source:?}: {facts:?}");
+        assert_eq!(suffix, "");
+
+        let root = SyntaxNode::new_root(green);
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .expect("braced empty block");
+        let children = block
+            .children_with_tokens()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>();
+        assert_eq!(children.first(), Some(&SyntaxKind::LBrace));
+        assert_eq!(
+            children
+                .iter()
+                .filter(|kind| **kind == SyntaxKind::BlockStatementSeparator)
+                .count(),
+            1,
+        );
+        assert_eq!(children.last(), Some(&SyntaxKind::RBrace));
+    }
+}
+
+#[test]
 fn braced_missing_slots_collide_at_the_same_direct_rowan_occurrence_path() {
     let cases = [
         // The comma and semicolon remain in their explicit separator phase.

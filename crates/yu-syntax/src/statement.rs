@@ -1341,6 +1341,18 @@ fn braced_statement_slot_normalized(
         return braced_terminal_normalized(i, item, item_origin, line_entry);
     }
     if is_separator(&item) {
+        if first && token_kind(&item) == Some(TokenKind::Semicolon) {
+            let (item, _, line_entry) = braced_explicit_separator_normalized(
+                i,
+                item,
+                baseline,
+                stops,
+                item_origin,
+                line_entry,
+                fence,
+            );
+            return complete(handoff(item), line_entry);
+        }
         // Retire the newline separator before handing this fresh required-slot
         // punctuation to the explicit separator owner; otherwise successor
         // selection retries the same newline-leading Item indefinitely.

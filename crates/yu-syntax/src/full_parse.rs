@@ -524,6 +524,22 @@ mod tests {
     }
 
     #[test]
+    fn public_parser_accepts_empty_block_expression_without_recovery() {
+        let source: Arc<SourceText> = Arc::from("my r = {;}");
+        let header = Arc::new(crate::scan_header(source.clone()));
+        let parsed = parse_file(source.clone(), header, Arc::new(SyntaxEnvironment::empty()));
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+
+        let syntax = crate::SyntaxNode::new_root(parsed.green().clone());
+        let block = syntax
+            .descendants()
+            .find(|node| node.kind() == crate::SyntaxKind::BracedStatementBlockExpression)
+            .expect("empty block expression");
+        assert_eq!(block.to_string(), "{;}");
+    }
+
+    #[test]
     fn public_parser_promotes_root_doc_declaration_after_header_cutoff() {
         let source: Arc<SourceText> = Arc::from("-- document\nuse late\nmy value = 1\n");
         let header = Arc::new(crate::scan_header(Arc::clone(&source)));
