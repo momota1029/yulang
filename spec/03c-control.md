@@ -80,6 +80,17 @@ my find_negative xs =
         0
 ```
 
+- 呼ばれた関数の中の `return` が、呼び出し元の `sub:` に届くのは意図した動き（確定, 2026-11-04）。effect の通常の動作で、直近の handler が受け取る。
+  これを驚きにしないのが衛生性（hygiene）の役割で、どの `sub:` に届くかは名前や label の束縛で決まる。ライブラリの作者は label 付き（`sub 'done:` と `'done.return`）で閉じられる。
+
+```yulang
+my check x = if x < 0: return x      // check の中の return
+
+sub:
+    check -1                          // この sub を抜ける
+    "unreachable"
+```
+
 - label 付きの `sub` もある。`'done.return 42` と `return 'done 42` のどちらでも書ける（3c.3）。
 
 ```yulang
