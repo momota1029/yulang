@@ -63,16 +63,59 @@ pub struct ParsedFile {
     syntax: Arc<SyntaxEnvironment>,
     operators: Arc<OperatorTable>,
     green: GreenNode,
+    green_lifetime: Arc<GreenLifetime>,
     parse_identity: Arc<()>,
+}
+
+const ITERATIVE_GREEN_DROP_DEPTH: usize = 512;
+
+struct GreenLifetime {
+    green: GreenNode,
+    green_depth: usize,
+}
+
+impl std::fmt::Debug for GreenLifetime {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GreenLifetime")
+            .field("green_depth", &self.green_depth)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Drop for GreenLifetime {
+    fn drop(&mut self) {
+        if self.green_depth < ITERATIVE_GREEN_DROP_DEPTH {
+            return;
+        }
+        let empty = GreenNode::new(
+            crate::SyntaxKind::Root.into(),
+            std::iter::empty::<rowan::NodeOrToken<rowan::GreenNode, rowan::GreenToken>>(),
+        );
+        let root = std::mem::replace(&mut self.green, empty);
+        drop_green_iterative(root);
+    }
+}
+
+fn drop_green_iterative(root: GreenNode) {
+    let mut pending = vec![root];
+    while let Some(node) = pending.pop() {
+        pending.extend(node.children().filter_map(|child| match child {
+            rowan::NodeOrToken::Node(child) => Some(child.to_owned()),
+            rowan::NodeOrToken::Token(_) => None,
+        }));
+        drop(node);
+    }
 }
 
 /// Exact immutable node identity within one parse product. Clones preserve the
 /// parse brand and retain the green allocation, preventing allocation reuse.
 #[derive(Clone)]
 pub struct SourceNodeKey {
-    parse: Arc<()>,
     green: GreenNode,
     start: rowan::TextSize,
+    _green_lifetime: Arc<GreenLifetime>,
+    parse: Arc<()>,
 }
 
 impl std::fmt::Debug for SourceNodeKey {
@@ -103,8 +146,9 @@ impl std::hash::Hash for SourceNodeKey {
 /// arbitrary caller-supplied Rowan nodes cannot acquire a parse brand.
 #[derive(Clone, Debug)]
 pub struct SourceNode {
-    parse: Arc<()>,
     node: crate::SyntaxNode,
+    green_lifetime: Arc<GreenLifetime>,
+    parse: Arc<()>,
 }
 impl SourceNode {
     pub fn syntax(&self) -> &crate::SyntaxNode {
@@ -115,12 +159,14 @@ impl SourceNode {
             parse: self.parse.clone(),
             green: self.node.green().into_owned(),
             start: self.node.text_range().start(),
+            _green_lifetime: self.green_lifetime.clone(),
         }
     }
     pub fn children(&self) -> impl Iterator<Item = Self> + '_ {
         self.node.children().map(|node| Self {
             parse: self.parse.clone(),
             node,
+            green_lifetime: self.green_lifetime.clone(),
         })
     }
 }
@@ -131,6 +177,7 @@ impl ParsedFile {
         SourceNode {
             parse: self.parse_identity.clone(),
             node: crate::SyntaxNode::new_root(self.green.clone()),
+            green_lifetime: self.green_lifetime.clone(),
         }
     }
     pub fn owns_source_key(&self, key: &SourceNodeKey) -> bool {
@@ -366,7 +413,7 @@ pub fn parse_file(
     // authority or mutating the table while parsing.
     let operators = effective_full_parse_operators(syntax.operators(), header.operators())
         .expect("complete header operators and validated imports never have empty spellings");
-    let green = crate::cursor::parse_root(source.as_ref(), &operators);
+    let (green, green_depth) = crate::cursor::parse_root_with_depth(source.as_ref(), &operators);
 
     ParsedFile {
         source,
@@ -374,6 +421,10 @@ pub fn parse_file(
         header,
         syntax,
         operators: Arc::new(operators),
+        green_lifetime: Arc::new(GreenLifetime {
+            green: green.clone(),
+            green_depth,
+        }),
         green,
         parse_identity: Arc::new(()),
     }

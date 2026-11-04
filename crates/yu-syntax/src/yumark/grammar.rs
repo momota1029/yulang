@@ -1516,6 +1516,27 @@ where
         if line.indent_end == line.content_end {
             return false;
         }
+        if self.stop_at_document_close
+            && line.indent_end - line.start == self.document_base_col
+            && matches!(
+                judge_chunk(
+                    &self.source[line.indent_end..],
+                    line.indent_end,
+                    ChunkContext {
+                        at_line_start: true,
+                        indent_col: self.document_base_col,
+                        base_col: self.document_base_col,
+                        active_close: Some(JudgeActiveClose::BlockDocument {
+                            after_opening_line: true,
+                        }),
+                    },
+                )
+                .kind,
+                ChunkKind::Terminator(super::judge::TerminatorKind::BlockDocument)
+            )
+        {
+            return true;
+        }
         let mut logical_start = line.indent_end;
         if let Some(required_depth) = parent_quote_depth {
             let Some((depth, marker_end, explicit)) = quote_facts(
@@ -3710,6 +3731,27 @@ mod tests {
             );
             assert_exact_final_state(source, state);
         }
+    }
+
+    #[test]
+    fn missing_braced_command_close_returns_the_block_doc_close_unconsumed() {
+        let source = "\\cmd{body\n---\nafter";
+        let (events, state) = recorded(source, Mode::BlockDocument);
+        assert_eq!(
+            recoveries(&events),
+            vec![(
+                Recovery {
+                    kind: SyntaxKind::Missing,
+                    owner: RecoveryOwner::Command,
+                    slot: RecoverySlot::ClosingDelimiter,
+                },
+                10..10,
+            )]
+        );
+        assert_eq!(state.consumed, 10);
+        assert_eq!(state.byte_visits, 10);
+        assert_eq!(&source[state.consumed..], "---\nafter");
+        assert_eq!(state.frame_depth, 0);
     }
 
     #[test]

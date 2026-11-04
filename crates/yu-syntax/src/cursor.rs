@@ -77,6 +77,86 @@ impl SyntaxOutput for rowan::GreenNodeBuilder<'_> {
     }
 }
 
+#[derive(Clone)]
+struct RootCheckpoint(usize);
+
+/// Root-owned Rowan construction without the per-builder node interner.
+///
+/// Rowan's cache re-hashes an inserted key by recursively walking its complete
+/// subtree. A valid deeply nested Yumark command therefore overflows before a
+/// `GreenNode` can be returned. The root builder already constructs every node
+/// bottom-up, so retaining completed children directly avoids that second walk
+/// while preserving the same green topology.
+struct RootOutput {
+    parents: Vec<(rowan::SyntaxKind, usize)>,
+    children: Vec<rowan::NodeOrToken<rowan::GreenNode, rowan::GreenToken>>,
+    depth: usize,
+    max_depth: usize,
+}
+
+impl RootOutput {
+    fn new() -> Self {
+        Self {
+            parents: Vec::new(),
+            children: Vec::new(),
+            depth: 0,
+            max_depth: 0,
+        }
+    }
+
+    fn finish(mut self) -> (rowan::GreenNode, usize) {
+        assert_eq!(self.depth, 0, "the root output finishes balanced");
+        assert!(self.parents.is_empty(), "the root output has no open node");
+        assert_eq!(self.children.len(), 1, "the root output has one root");
+        let root = match self.children.pop().expect("one root") {
+            rowan::NodeOrToken::Node(node) => node,
+            rowan::NodeOrToken::Token(_) => panic!("the root output is a node"),
+        };
+        (root, self.max_depth)
+    }
+}
+
+impl SyntaxOutput for RootOutput {
+    fn start_node(&mut self, kind: rowan::SyntaxKind) {
+        self.parents.push((kind, self.children.len()));
+        self.depth += 1;
+        self.max_depth = self.max_depth.max(self.depth);
+    }
+
+    fn token(&mut self, kind: rowan::SyntaxKind, text: &str) {
+        self.children
+            .push(rowan::GreenToken::new(kind, text).into());
+    }
+
+    fn finish_node(&mut self) {
+        let (kind, first_child) = self.parents.pop().expect("an output node is open");
+        let node = rowan::GreenNode::new(kind, self.children.drain(first_child..));
+        self.children.push(node.into());
+        self.depth = self.depth.checked_sub(1).expect("an output node is open");
+    }
+
+    fn checkpoint(&mut self) -> SyntaxOutputCheckpoint {
+        SyntaxOutputCheckpoint::new(RootCheckpoint(self.children.len()))
+    }
+
+    fn start_node_at(&mut self, checkpoint: &SyntaxOutputCheckpoint, kind: rowan::SyntaxKind) {
+        let checkpoint = checkpoint
+            .downcast_ref::<RootCheckpoint>()
+            .expect("a root output receives its own checkpoint")
+            .0;
+        assert!(checkpoint <= self.children.len());
+        if let Some(&(_, first_child)) = self.parents.last() {
+            assert!(
+                checkpoint >= first_child,
+                "a checkpoint remains in its owner"
+            );
+        }
+        self.parents.push((kind, checkpoint));
+        self.depth += 1;
+        self.max_depth = self.max_depth.max(self.depth);
+    }
+}
+
 pub(crate) mod recovery;
 
 pub(crate) struct SyntaxIn<'a, 'source, 'operators> {
@@ -168,19 +248,27 @@ pub(crate) struct Recover<'operators> {
 }
 
 /// Own the recovery state for the complete source-file construction.
+#[cfg(test)]
 pub(crate) fn parse_root(source: &str, operators: &OperatorTable) -> rowan::GreenNode {
+    parse_root_with_depth(source, operators).0
+}
+
+pub(crate) fn parse_root_with_depth(
+    source: &str,
+    operators: &OperatorTable,
+) -> (rowan::GreenNode, usize) {
     let mut remaining = source;
     let mut recover = Recover::new(operators);
-    let mut builder = rowan::GreenNodeBuilder::new();
-    builder.start_node(crate::SyntaxKind::Root.into());
+    let mut output = RootOutput::new();
+    output.start_node(crate::SyntaxKind::Root.into());
     crate::root_statement::parse_root_statements(
         source.len(),
         &mut remaining,
         &mut recover,
-        &mut builder,
+        &mut output,
     );
-    builder.finish_node();
-    builder.finish()
+    output.finish_node();
+    output.finish()
 }
 
 /// Header discovery borrows its cursor but cannot replace or finalize it.

@@ -12,6 +12,21 @@ use std::ops::Range;
 
 use rowan::{Checkpoint, GreenNode, GreenNodeBuilder};
 
+#[cfg(test)]
+thread_local! {
+    static PUBLIC_BYTE_VISITS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(crate) fn reset_public_byte_visits() {
+    PUBLIC_BYTE_VISITS.with(|visits| visits.set(0));
+}
+
+#[cfg(test)]
+pub(crate) fn public_byte_visits() -> usize {
+    PUBLIC_BYTE_VISITS.with(std::cell::Cell::get)
+}
+
 use crate::cursor::{SyntaxOutput, SyntaxOutputCheckpoint};
 use crate::{OperatorTable, SyntaxKind};
 
@@ -459,6 +474,8 @@ fn parse_document_direct(
     let mut sink = StreamingDirectSink::new(source, output);
     let state =
         grammar::parse_at_document_base(source, mode, document_base_col, operators, &mut sink);
+    #[cfg(test)]
+    PUBLIC_BYTE_VISITS.with(|visits| visits.set(visits.get().saturating_add(state.byte_visits)));
     assert_eq!(sink.depth, 0, "the direct Yumark sink finishes balanced");
     if let Some(deferred) = sink.deferred {
         Err(deferred)

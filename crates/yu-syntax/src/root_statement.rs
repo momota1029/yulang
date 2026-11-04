@@ -3,6 +3,7 @@
 #[cfg(test)]
 use std::ops::Range;
 
+#[cfg(test)]
 use rowan::GreenNodeBuilder;
 
 use crate::syntax_kind::SyntaxKind;
@@ -10,7 +11,7 @@ use crate::syntax_kind::SyntaxKind;
 use crate::{
     ambient_claim::AmbientClaimView,
     cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing},
-    cursor::{Recover, SyntaxIn},
+    cursor::{Recover, SyntaxIn, SyntaxOutput},
     declaration::{operator_header, use_decl},
     handoff::{Either, MlMode, NormalizedExit},
     header,
@@ -32,7 +33,7 @@ pub(crate) fn parse_root_statements(
     source_len: usize,
     remaining: &mut &str,
     recover: &mut Recover<'_>,
-    output: &mut GreenNodeBuilder,
+    output: &mut dyn SyntaxOutput,
 ) {
     let (mut terminal, _, _) = root_statement_sequence(
         source_len,
@@ -62,7 +63,7 @@ pub(crate) fn parse_yulang_code_cell(
     source_len: usize,
     remaining: &mut &str,
     recover: &mut Recover<'_>,
-    output: &mut GreenNodeBuilder,
+    output: &mut dyn SyntaxOutput,
     origin: usize,
     line: LineEntry,
     fence: &FenceBoundary,
@@ -108,7 +109,7 @@ fn root_statement_sequence(
     source_len: usize,
     remaining: &mut &str,
     recover: &mut Recover<'_>,
-    output: &mut GreenNodeBuilder,
+    output: &mut dyn SyntaxOutput,
     state: RootStatementState,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
