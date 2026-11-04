@@ -52,6 +52,70 @@ fn ranges_in_case_arms_have_literal_bounds() {
 }
 
 #[test]
+fn negative_integer_patterns_and_range_bounds() {
+    for (pattern, bounds) in [
+        ("-1", vec!["-1"]),
+        ("-1..5", vec!["-1", "5"]),
+        ("..-1", vec!["-1"]),
+        ("-3..-1", vec!["-3", "-1"]),
+        ("-5..", vec!["-5"]),
+    ] {
+        let source = format!("my f n = case n:\n    {pattern} -> 1\n    _ -> 2\n");
+        let root = parse(&source);
+        let integers: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::IntegerPattern)
+            .map(|node| node.to_string())
+            .collect();
+        assert_eq!(integers, bounds, "{source:?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::RangePattern)
+                .count(),
+            usize::from(pattern.contains(".."))
+        );
+    }
+}
+
+#[test]
+fn negative_integer_patterns_compose_and_work_in_other_contexts() {
+    for source in [
+        "my f n = case n:\n    (-1, [-3..-1, ..-1]) -> 1\n    _ -> 2\n",
+        "my f n = case n:\n    -1 | -5.. as x -> 1\n    _ -> 2\n",
+        "my f = catch action { -1 -> 1, -3..-1 -> 2 }",
+        "my (-1, -3..-1) = pair",
+    ] {
+        let root = parse(source);
+        assert!(
+            root.descendants()
+                .any(|node| node.kind() == SyntaxKind::IntegerPattern
+                    && node.to_string().starts_with('-')),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn negative_patterns_do_not_change_expression_operators() {
+    let source = "infix (-) 50 51 = sub\nprefix (-) 60 = neg\ninfix (..) 50 51 = range\nmy f n = n - 1\nmy x = a ..-1\n";
+    let root = parse(source);
+    let operators: Vec<_> = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::InfixOperatorUse)
+        .map(|node| node.to_string())
+        .collect();
+    assert_eq!(
+        operators.iter().map(|s| s.trim()).collect::<Vec<_>>(),
+        ["-", ".."]
+    );
+    assert!(
+        root.descendants()
+            .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse
+                && node.to_string().trim() == "-")
+    );
+}
+
+#[test]
 fn range_patterns_compose_with_alternation_alias_and_delimiters() {
     for (pattern, ranges) in [
         ("0..5 | 10..20", vec!["0..5", "10..20"]),

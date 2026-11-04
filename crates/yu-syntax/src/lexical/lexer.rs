@@ -359,7 +359,7 @@ pub(crate) fn scan_pattern_nud_payload(
     stops: crate::pattern::PatternStops,
 ) -> Option<AcceptedPayload> {
     if pattern_range_start(i.rb(), payload_origin, fence, stops) {
-        let mut marker = i.token(scan_record_spread_marker)?;
+        let mut marker = i.token(scan_pattern_range_marker)?;
         marker.kind = TokenKind::PatternRangeStart;
         return Some(token_payload(marker));
     }
@@ -384,7 +384,7 @@ fn pattern_range_start(
     let mut source = i.remainder();
     let mut recover = LexRecover::new(i.recovery().operators());
     let mut probe = chasa_recover::In::new(&mut source, &mut recover, ());
-    let Some(marker) = probe.token(scan_record_spread_marker) else {
+    let Some(marker) = probe.token(scan_pattern_range_marker) else {
         return false;
     };
     pattern_range_upper_starts(
@@ -480,8 +480,9 @@ fn scan_pattern_tail_token(mut i: LexIn) -> Option<Token> {
     i.check(choice((
         token(scan_pattern_colon),
         token(scan_path_segment),
+        token(scan_pattern_negative_integer),
         token(scan_integer),
-        token(scan_record_spread_marker),
+        token(scan_pattern_range_marker),
         token(scan_exact_equals),
         token(scan_exact_pipe),
         choice((
@@ -490,6 +491,35 @@ fn scan_pattern_tail_token(mut i: LexIn) -> Option<Token> {
             token(scan_unknown),
         )),
     )))
+}
+
+fn scan_pattern_negative_integer(mut i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut signed| {
+        (signed.next()? == '-').then_some(())?;
+        signed.token(scan_integer)?;
+        Some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Integer,
+        text: text.into(),
+    })
+}
+
+fn scan_pattern_range_marker(mut i: LexIn) -> Option<Token> {
+    if let Some(marker) = i.token(scan_record_spread_marker) {
+        return Some(marker);
+    }
+    let mut source = i.remainder().strip_prefix("..")?;
+    let mut recover = LexRecover::new(i.recovery().operators());
+    let mut probe = chasa_recover::In::<_, _, ()>::new(&mut source, &mut recover, ());
+    probe.token(scan_pattern_negative_integer)?;
+    let (accepted, text) = i.with_str(|mut marker| scan_pair(marker.rb(), '.', '.'));
+    accepted?;
+    Some(Token {
+        kind: TokenKind::DotDot,
+        text: text.into(),
+    })
 }
 
 /// Keep a rejected exact record marker or field introducer as one malformed
