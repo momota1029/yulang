@@ -67,7 +67,7 @@ case config:
 - default は field が欠けているときに評価される。そのため pattern の照合そのものが effect を持ちうる。
 - record の spread `..name` は、**残りではなく入力 record 全体**を束縛する（record の差は型システム上、十分に扱えないため）。
   他の field があってもよいことだけを示すなら `.._` を使う。
-- list の spread は 1 つだけ置ける。先頭にも末尾にも置ける。
+- list の spread は 1 つだけ置ける。先頭にも末尾にも置ける。`..name` は**残りの要素の list** に束縛される（`[1, 2, 3]` を `[first, ..rest]` に合わせると `rest = [2, 3]`。確定, 2026-11-04）。record の spread とは違う。
 
 出典: `main:web/docs/ja/reference/patterns.md`
 
