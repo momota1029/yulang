@@ -244,8 +244,12 @@ handlerの結果 `out : CompTerm α` と外側のscheme環境 `SchemeEnv α` は
 
 ここでは未確定の意味論を補って定理を強く見せない。
 
-- generic role、再帰する where、associated type の解決についての循環・停止条件。
+- associated type を含む型の大きさの数え方と、associated type を含む再帰的な `where` の循環・停止条件。
 - 章4.5の残余と、source の網羅性・guard の組合せ。
+
+章6.3の Paterson 型条件の下で、第一階の impl 集合に対する role 解決の停止は [`Yulang/Roles.lean`](../lean/Yulang/Roles.lean) で証明した。型構築子と型変数を各1と数え、head と各条件の型引数のサイズを合計する。各条件の合計が head より真に小さく、各変数の出現回数が head 以下なら、任意の impl 変数の置換後も条件は head より真に小さい。全 impl がこの条件を満たすことを入力に要求する `resolve` は、そのサイズを測度として深さ制限なしに停止する。候補は goal の変数を rigid に保った一方向の head 照合で決め、二つ以上なら `where` を調べる前に曖昧とする。一意な候補の子で曖昧さが見つかった場合も、別の子の候補不在より曖昧さを優先する。健全性、到達する head に重なりがない場合の完全性、到達可能な head の重なりと曖昧さの同値もこの核の範囲で証明した。
+
+この結果は associated type のサイズ計算を定めない。associated type を含む再帰的な `where` は未決定のままである。generic role の method dispatch、章6.4の receiver 下界による保留、operation-local role 制約、effect との相互作用、推論の制約言語との統合、source 宣言時の検査もこの定理の対象外である。出典: 章6.2–6.3（確定, 2026-11-04・2026-11-05）、`Yulang.Roles.size_decreases`・`resolve_sound`・`resolve_complete`・`resolve_ambiguous_iff`。
 
 上の判断に依存しない核の定理は先に閉じる。未解決制約を受理済みプログラムと同一視しない。
 

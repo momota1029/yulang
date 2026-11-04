@@ -70,6 +70,19 @@ my twice(x: 'a) =
 ```
 
 - `where` は型変数に role の制約を付ける。binding・`role`・`impl` の body の中に書ける。
+- **`impl` の `where` は、head より構造的に小さくなければならない**（確定, 2026-11-05）。`impl` の `where` に書く各条件 `C t₁ … tₙ` は、次の二つを満たす。満たさない `impl` は宣言時に拒否される。解決の深さに上限は置かない。
+  1. 条件の型の大きさの合計が、`impl` の head の型の大きさの合計より**真に小さい**（型構築子と型変数を一個ずつ数える）。
+  2. どの型変数も、条件の中での出現回数が head の中での出現回数を超えない。
+
+  ```yulang
+  impl Display (list 'a):
+      where 'a: Display          // 良い: 'a は list 'a より小さい。list (list int) → list int → int と降りて止まる
+
+  impl Foo 'a:
+      where (list 'a): Foo       // 拒否: 条件のほうが大きい。Foo int → Foo (list int) → ... と終わらない
+  ```
+
+  この条件のもとで、role の解決は必ず停止する。associated type が他の条件に依存する場合の大きさの数え方は、まだ決めていない。
 - `role` の body の `where` は、その role の method に継承される。`impl` の body の `where` は、その `impl` が候補になるための前提になる。
 
 ## 6.4 `x.method` の解決　〔確定〕
