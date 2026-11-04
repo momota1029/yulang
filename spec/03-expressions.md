@@ -84,6 +84,7 @@ xs[0]
 
 - 単純な名前は、字句的な local、module scope、`use` で入れた名前の順に探す。
 - `a::b` は module path。
+- 存在しない field を読む（`{x: 1}.y`）のはコンパイル時の型エラーで、実行時エラーにはしない（確定, 2026-11-04）。
 - `p.x` は field selection、または method。まず receiver の型に結びついた field と method を探し、次に role の method と effect 行の method を探す。
 - `xs[0]` は index で、`xs.index 0` のように field selection と application に落ちる。
 - `x.foo::bar` は「`foo::bar` を `x` に適用する」method の糖衣（`foo::bar x`）で、field を取ってから path を進む意味ではない（確定, 2026-11-04）。
