@@ -129,7 +129,10 @@ impl OperatorDefinition<'_> {
     }
 
     /// The exact declaration site that supplied one selected fixity.
-    pub fn declaration_site(&self, fixity: OperatorFixity) -> Option<OperatorDeclarationProvenance> {
+    pub fn declaration_site(
+        &self,
+        fixity: OperatorFixity,
+    ) -> Option<OperatorDeclarationProvenance> {
         let site = self.sites.site(fixity)?;
         Some(OperatorDeclarationProvenance {
             origin: site.origin(),
@@ -146,8 +149,12 @@ pub struct OperatorDeclarationProvenance {
 }
 
 impl OperatorDeclarationProvenance {
-    pub fn origin(&self) -> OperatorOrigin { self.origin }
-    pub fn range(&self) -> &Range<usize> { &self.range }
+    pub fn origin(&self) -> OperatorOrigin {
+        self.origin
+    }
+    pub fn range(&self) -> &Range<usize> {
+        &self.range
+    }
 }
 
 impl Default for OperatorTable {

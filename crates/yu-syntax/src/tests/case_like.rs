@@ -94,21 +94,44 @@ fn qualified_constructor_payloads_leave_the_case_arrow_to_the_arm() {
 fn unchanged_yulang2_button_has_complete_symbol_and_pattern_syntax() {
     let source = include_str!("../../../../web/playground/examples/yulang2-button.yu");
     let root = case_like_literal_production(source);
-    assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::SymbolExpression).count(), 2);
-    assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::SymbolPattern).count(), 2);
-    assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::CaseArm)
-        .flat_map(|arm| arm.descendants().collect::<Vec<_>>())
-        .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail).count(), 1);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::SymbolExpression)
+            .count(),
+        2
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::SymbolPattern)
+            .count(),
+        2
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::CaseArm)
+            .flat_map(|arm| arm.descendants().collect::<Vec<_>>())
+            .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+            .count(),
+        1
+    );
 }
 
 #[test]
 fn symbol_expression_statements_keep_declaration_and_nested_owners() {
     for source in [
-        ":disabled\n", "my x = :ok\n:disabled\n", "struct S{x:T}\n:ok\n",
-        "my f = { :ok }", "my f =\n    :ok\n", "mod M {}\n:ok\n",
+        ":disabled\n",
+        "my x = :ok\n:disabled\n",
+        "struct S{x:T}\n:ok\n",
+        "my f = { :ok }",
+        "my f =\n    :ok\n",
+        "mod M {}\n:ok\n",
     ] {
         let root = case_like_literal_production(source);
-        assert!(root.descendants().any(|node| node.kind() == SyntaxKind::SymbolExpression), "{source}");
+        assert!(
+            root.descendants()
+                .any(|node| node.kind() == SyntaxKind::SymbolExpression),
+            "{source}"
+        );
     }
 }
 
@@ -126,16 +149,36 @@ fn explicit_constructor_patterns_retain_all_payloads_and_arm_frontiers() {
         assert_eq!(green.to_string(), source);
         assert!(structural_facts(&green).is_empty(), "{source:?}");
         let root = crate::SyntaxNode::new_root(green);
-        let arm = root.descendants().find(|node| node.kind() == SyntaxKind::CaseArm).unwrap();
-        let pattern = arm.children().find(|node| node.kind() == SyntaxKind::Pattern).unwrap();
-        assert_eq!(pattern.children().filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail).count(), payloads, "{source:?}");
-        assert!(arm.children_with_tokens().any(|element| element.kind() == SyntaxKind::Arrow), "{source:?}");
+        let arm = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::CaseArm)
+            .unwrap();
+        let pattern = arm
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Pattern)
+            .unwrap();
+        assert_eq!(
+            pattern
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+                .count(),
+            payloads,
+            "{source:?}"
+        );
+        assert!(
+            arm.children_with_tokens()
+                .any(|element| element.kind() == SyntaxKind::Arrow),
+            "{source:?}"
+        );
     }
     // Plain heads keep the caller's existing recovery boundary.
     let green = run("case x: name value -> value").0;
     assert!(!structural_facts(&green).is_empty());
-    assert!(!crate::SyntaxNode::new_root(green).descendants()
-        .any(|node| node.kind() == SyntaxKind::PatternMlApplicationTail));
+    assert!(
+        !crate::SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+    );
 }
 
 #[test]

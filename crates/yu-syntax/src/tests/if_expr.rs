@@ -1079,9 +1079,23 @@ fn braced_if_body_is_consumed_by_its_arm() {
     assert_eq!(green.to_string(), source);
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
     let root = SyntaxNode::new_root(green);
-    assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::IfArm).count(), 1);
-    assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression).count(), 1);
-    assert!(!root.descendants().any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)));
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::IfArm)
+            .count(),
+        1
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .count(),
+        1
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
+    );
 }
 
 #[test]

@@ -26,7 +26,10 @@ use crate::{
         stops::{STOP_COLON, STOP_ELSE, STOP_ELSIF, STOP_LBRACE, Stops, lambda_recovery_boundary},
         yumark::FenceBoundary,
     },
-    statement::{StatementLineHandoff, braced_statement_block_with_recovery_normalized, indented_statement_block_normalized},
+    statement::{
+        StatementLineHandoff, braced_statement_block_with_recovery_normalized,
+        indented_statement_block_normalized,
+    },
 };
 
 #[allow(clippy::too_many_arguments)]

@@ -61,21 +61,44 @@ fn projection_failure_discards_only_its_whole_declaration() {
 
 #[test]
 fn leading_module_globs_keep_the_module_route_without_a_fake_star_segment() {
-    let source = "use std::core::ops::*\nuse std::data::opt::*\nuse std::num::*\nuse std::num::frac::frac\n";
+    let source =
+        "use std::core::ops::*\nuse std::data::opt::*\nuse std::num::*\nuse std::num::frac::frac\n";
     let header = discover_header(source);
     assert_eq!(header.stop, HeaderStop::Eof);
     assert_eq!(header.imports.len(), 4, "{:#?}", header.imports);
     assert_eq!(
-        header.imports.iter().map(|import| import.path().join("::")).collect::<Vec<_>>(),
-        ["std::core::ops", "std::data::opt", "std::num", "std::num::frac::frac"],
+        header
+            .imports
+            .iter()
+            .map(|import| import.path().join("::"))
+            .collect::<Vec<_>>(),
+        [
+            "std::core::ops",
+            "std::data::opt",
+            "std::num",
+            "std::num::frac::frac"
+        ],
     );
     assert_eq!(
-        header.imports.iter().map(|import| import.selection()).collect::<Vec<_>>(),
-        [HeaderImportSelection::Glob, HeaderImportSelection::Glob, HeaderImportSelection::Glob, HeaderImportSelection::Path],
+        header
+            .imports
+            .iter()
+            .map(|import| import.selection())
+            .collect::<Vec<_>>(),
+        [
+            HeaderImportSelection::Glob,
+            HeaderImportSelection::Glob,
+            HeaderImportSelection::Glob,
+            HeaderImportSelection::Path
+        ],
     );
     assert!(header.imports[..3].iter().all(|import| {
         import.route().separators().len() == import.path().len().saturating_sub(1)
-            && import.route().separators().iter().all(|separator| *separator == HeaderImportRouteSeparator::ColonColon)
+            && import
+                .route()
+                .separators()
+                .iter()
+                .all(|separator| *separator == HeaderImportRouteSeparator::ColonColon)
     }));
 }
 

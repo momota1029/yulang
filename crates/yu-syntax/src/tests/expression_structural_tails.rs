@@ -724,9 +724,24 @@ fn symbol_atoms_preserve_colon_and_ml_application_ownership() {
         assert_eq!(green.to_string(), source);
         assert!(structural_facts(&green).is_empty(), "{source}");
         let root = SyntaxNode::new_root(green);
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::SymbolExpression).count(), symbols, "{source}");
-        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), colon_tails, "{source}");
-        for symbol in root.descendants().filter(|node| node.kind() == SyntaxKind::SymbolExpression) {
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::SymbolExpression)
+                .count(),
+            symbols,
+            "{source}"
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+                .count(),
+            colon_tails,
+            "{source}"
+        );
+        for symbol in root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::SymbolExpression)
+        {
             let token = symbol.first_token().unwrap();
             assert_eq!(token.kind(), SyntaxKind::Colon);
             assert_eq!(token.text(), ":");
@@ -736,7 +751,12 @@ fn symbol_atoms_preserve_colon_and_ml_application_ownership() {
     }
     for source in [":", ": tag", "::name"] {
         let (green, _) = run(source);
-        assert!(!SyntaxNode::new_root(green).descendants().any(|node| node.kind() == SyntaxKind::SymbolExpression), "{source}");
+        assert!(
+            !SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::SymbolExpression),
+            "{source}"
+        );
     }
 }
 
@@ -753,16 +773,37 @@ fn ml_argument_whitespace_returns_fixed_tails_to_the_outer_chain() {
         assert!(structural_facts(&green).is_empty(), "{source}");
         let root = SyntaxNode::new_root(green);
         let chain = root.first_child().unwrap();
-        assert_eq!(chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
-            [SyntaxKind::IdentifierExpression, SyntaxKind::MlArgument, tail], "{source}");
-        let argument = chain.children().find(|node| node.kind() == SyntaxKind::MlArgument).unwrap();
-        assert!(!argument.descendants().any(|node| node.kind() == tail), "{source}");
+        assert_eq!(
+            chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            [
+                SyntaxKind::IdentifierExpression,
+                SyntaxKind::MlArgument,
+                tail
+            ],
+            "{source}"
+        );
+        let argument = chain
+            .children()
+            .find(|node| node.kind() == SyntaxKind::MlArgument)
+            .unwrap();
+        assert!(
+            !argument.descendants().any(|node| node.kind() == tail),
+            "{source}"
+        );
     }
     let (green, _, _) = parse("f x.field", None, MlMode::All, 0);
     assert_eq!(green.to_string(), "f x.field");
     let root = SyntaxNode::new_root(green);
     let chain = root.first_child().unwrap();
-    assert_eq!(chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
-        [SyntaxKind::IdentifierExpression, SyntaxKind::MlArgument]);
-    assert!(chain.last_child().unwrap().descendants().any(|node| node.kind() == SyntaxKind::FieldTail));
+    assert_eq!(
+        chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [SyntaxKind::IdentifierExpression, SyntaxKind::MlArgument]
+    );
+    assert!(
+        chain
+            .last_child()
+            .unwrap()
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::FieldTail)
+    );
 }

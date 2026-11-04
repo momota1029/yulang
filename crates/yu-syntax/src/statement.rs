@@ -483,7 +483,14 @@ pub(super) fn indented_statement_block_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     indented_statement_block_inner_normalized(
-        i, base_indent, stops, item_origin, line_entry, fence, ambient, false,
+        i,
+        base_indent,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+        false,
     )
 }
 
@@ -497,7 +504,14 @@ pub(super) fn indented_declaration_body_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     indented_statement_block_inner_normalized(
-        i, base_indent, stops, item_origin, line_entry, fence, ambient, true,
+        i,
+        base_indent,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+        true,
     )
 }
 
@@ -588,7 +602,11 @@ fn where_clause_normalized(
 
     let (subject, subject_origin, subject_line) =
         crate::type_expr::type_nud_item_normalized_with_ambient(
-            i.rb(), item_origin, line_entry, fence, ambient,
+            i.rb(),
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
         );
     if implicit_delimited_newline(baseline, subject.leading_view()) {
         emit_recovery_missing(
@@ -618,7 +636,11 @@ fn where_clause_normalized(
     item_origin = origin;
     line_entry = next_line_entry;
     if !subject_complete || token_kind(&item) != Some(TokenKind::Colon) {
-        emit_recovery_missing(i.rb(), LeadingTrivia::default(), item.extent(item_origin).recovery_range().start);
+        emit_recovery_missing(
+            i.rb(),
+            LeadingTrivia::default(),
+            item.extent(item_origin).recovery_range().start,
+        );
         i.state.finish_node();
         return (item, item_origin, line_entry);
     }
@@ -626,10 +648,13 @@ fn where_clause_normalized(
     let entry = suffix_marker(i.rb());
     emit_token_item(&mut i, item);
     item_origin = advanced_origin(item_origin, entry, i.rb());
-    let (role, role_origin, role_line) =
-        crate::type_expr::type_nud_item_normalized_with_ambient(
-            i.rb(), item_origin, line_entry, fence, ambient,
-        );
+    let (role, role_origin, role_line) = crate::type_expr::type_nud_item_normalized_with_ambient(
+        i.rb(),
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    );
     if implicit_delimited_newline(baseline, role.leading_view()) {
         emit_recovery_missing(
             i.rb(),
@@ -656,7 +681,11 @@ fn where_clause_normalized(
     let (item, item_origin, line_entry) =
         where_type_successor(i.rb(), exit, item_origin, baseline, caller_stops, fence);
     if !role_complete {
-        emit_recovery_missing(i.rb(), LeadingTrivia::default(), item.extent(item_origin).recovery_range().start);
+        emit_recovery_missing(
+            i.rb(),
+            LeadingTrivia::default(),
+            item.extent(item_origin).recovery_range().start,
+        );
     }
     i.state.finish_node();
     (item, item_origin, line_entry)
@@ -678,9 +707,9 @@ fn where_type_successor(
         NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
             (end.item, item_origin, line_entry)
         }
-        NormalizedExit::Complete(Ok(()), line_entry) => statement_item_normalized(
-            i, item_origin, line_entry, fence, baseline, caller_stops,
-        ),
+        NormalizedExit::Complete(Ok(()), line_entry) => {
+            statement_item_normalized(i, item_origin, line_entry, fence, baseline, caller_stops)
+        }
         NormalizedExit::Deferred(_, _) => {
             unreachable!("normalized TypeExpression does not defer a where clause")
         }
@@ -742,7 +771,14 @@ pub(super) fn braced_statement_block_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     braced_statement_block_with_recovery_normalized(
-        i, open, incoming_baseline, 0, item_origin, line_entry, fence, ambient,
+        i,
+        open,
+        incoming_baseline,
+        0,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
     )
 }
 

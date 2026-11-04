@@ -170,12 +170,18 @@ impl ParsedFile {
         spelling: &str,
         fixity: crate::OperatorFixity,
     ) -> Option<OperatorUseProvenance> {
-        let declaration = self.operators.definition(spelling)?.declaration_site(fixity)?;
+        let declaration = self
+            .operators
+            .definition(spelling)?
+            .declaration_site(fixity)?;
         let dependency = match declaration.origin() {
             crate::OperatorOrigin::Local => None,
             crate::OperatorOrigin::Imported(slot) => Some(self.syntax.dependency(slot)?.clone()),
         };
-        Some(OperatorUseProvenance { declaration, dependency })
+        Some(OperatorUseProvenance {
+            declaration,
+            dependency,
+        })
     }
 
     pub fn green(&self) -> &GreenNode {
@@ -243,8 +249,12 @@ pub struct OperatorUseProvenance {
 }
 
 impl OperatorUseProvenance {
-    pub fn declaration(&self) -> &crate::OperatorDeclarationProvenance { &self.declaration }
-    pub fn dependency(&self) -> Option<&crate::SyntaxDependencyProvenance> { self.dependency.as_ref() }
+    pub fn declaration(&self) -> &crate::OperatorDeclarationProvenance {
+        &self.declaration
+    }
+    pub fn dependency(&self) -> Option<&crate::SyntaxDependencyProvenance> {
+        self.dependency.as_ref()
+    }
 }
 
 /// A structural recovery projection could not preserve its dense ordinal invariant.

@@ -219,11 +219,19 @@ pub(crate) fn emit_integer_core(i: &mut SyntaxIn, item: Item) {
     i.state.finish_node();
 }
 
-pub(crate) fn emit_symbol_core(i: &mut SyntaxIn, item: Item, identifier: crate::lexical::item::Token) {
-    debug_assert!(matches!(item.payload_view().token_kind(), Some(TokenKind::ExpressionSymbolColon | TokenKind::Colon)));
+pub(crate) fn emit_symbol_core(
+    i: &mut SyntaxIn,
+    item: Item,
+    identifier: crate::lexical::item::Token,
+) {
+    debug_assert!(matches!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::ExpressionSymbolColon | TokenKind::Colon)
+    ));
     i.state.start_node(SyntaxKind::SymbolExpression.into());
     item.emit_remaining(&mut *i.state, SyntaxKind::Colon);
-    i.state.token(SyntaxKind::Identifier.into(), identifier.text.as_ref());
+    i.state
+        .token(SyntaxKind::Identifier.into(), identifier.text.as_ref());
     i.state.finish_node();
 }
 

@@ -204,9 +204,15 @@ fn prefixed_act_candidate_normalized(
         let host_end = item_origin + (source.len() - observed.source.len()) + word.len();
         let TriviaObservation::Visible(act) =
             observe_fenced_trivia(after_keyword, host_end, LineEntry::InLine, fence)
-        else { return false; };
-        let Some((act_word, after_act)) = source_identifier(act.source) else { return false; };
-        if act_word != "act" { return false; }
+        else {
+            return false;
+        };
+        let Some((act_word, after_act)) = source_identifier(act.source) else {
+            return false;
+        };
+        if act_word != "act" {
+            return false;
+        }
         let act_end = host_end + (after_keyword.len() - act.source.len()) + act_word.len();
         (after_act, act_end)
     } else if word == "act" {
@@ -264,7 +270,14 @@ pub(crate) fn act_declaration_normalized(
             keyword.emit_all_remaining_leading(&mut *i.state);
             emit_item_as(&mut i, keyword, SyntaxKind::Identifier);
             let (next, next_origin, next_entry) = act_item_normalized(
-                i.rb(), item_origin, line_entry, fence, baseline, stops, true, false,
+                i.rb(),
+                item_origin,
+                line_entry,
+                fence,
+                baseline,
+                stops,
+                true,
+                false,
             );
             keyword = next;
             item_origin = next_origin;

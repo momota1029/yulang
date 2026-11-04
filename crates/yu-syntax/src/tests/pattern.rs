@@ -3249,11 +3249,7 @@ fn qualified_constructor_pattern_admits_same_line_payload_without_changing_contr
     for source in ["opt::just fill", "std::data::list::list_view::leaf item"] {
         let (green, _) = run_pattern(source);
         assert_eq!(green.to_string(), source, "{source:?}");
-        assert_eq!(
-            recovery_count(&green, SyntaxKind::Missing),
-            0,
-            "{source:?}"
-        );
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0, "{source:?}");
         let root = SyntaxNode::new_root(green);
         assert_eq!(
             root.descendants()

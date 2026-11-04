@@ -5,8 +5,7 @@ use unicode_ident::is_xid_continue;
 
 use crate::{
     HeaderImport, HeaderImportForm, HeaderImportRoute, HeaderImportRouteSeparator,
-    HeaderImportSelection, Visibility,
-    syntax_kind::SyntaxKind,
+    HeaderImportSelection, Visibility, syntax_kind::SyntaxKind,
 };
 use crate::{
     cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing},
@@ -1004,7 +1003,11 @@ fn parse_glob(
             line_entry,
             fence,
         )?;
-        if projection.frames.last().is_some_and(|frame| !frame.aliases.is_empty()) {
+        if projection
+            .frames
+            .last()
+            .is_some_and(|frame| !frame.aliases.is_empty())
+        {
             projection.invalid = true;
         }
         if inline_keyword(&item, "without") {

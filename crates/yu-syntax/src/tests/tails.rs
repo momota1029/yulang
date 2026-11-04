@@ -19,7 +19,10 @@ fn unary_callback_lambda_header_has_direct_cst() {
 
     // The approved unary-lambda gate replaces the historical parser gap.
     assert!(errors.is_empty());
-    assert!(root.descendants().any(|node| node.kind() == SyntaxKind::LambdaExpression));
+    assert!(
+        root.descendants()
+            .any(|node| node.kind() == SyntaxKind::LambdaExpression)
+    );
     assert_eq!(identifiers, ["host", "x", "x"]);
     assert!(
         root.descendants()
@@ -50,8 +53,15 @@ fn callback_apply_from_lambda_cst(source: &str) -> Option<ResearchCallbackApply>
         u32::from(range.start()) as usize..u32::from(range.end()) as usize
     };
     let open_paren = source.find('(')?;
-    let lambda = root.descendants().find(|node| node.kind() == SyntaxKind::LambdaExpression)?;
-    let header_token = |kind| lambda.children_with_tokens().filter_map(|element| element.into_token()).find(|token| token.kind() == kind);
+    let lambda = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::LambdaExpression)?;
+    let header_token = |kind| {
+        lambda
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == kind)
+    };
     let binder_range = to_range(header_token(SyntaxKind::Identifier)?.text_range());
     let arrow_range = to_range(header_token(SyntaxKind::Arrow)?.text_range());
 
@@ -112,8 +122,17 @@ fn unary_lambda_header_maps_to_retained_callback_cst_tokens() {
     let range = |range: rowan::TextRange| {
         u32::from(range.start()) as usize..u32::from(range.end()) as usize
     };
-    let lambda = root.descendants().find(|node| node.kind() == SyntaxKind::LambdaExpression).unwrap();
-    let header_token = |kind| lambda.children_with_tokens().filter_map(|element| element.into_token()).find(|token| token.kind() == kind).unwrap();
+    let lambda = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::LambdaExpression)
+        .unwrap();
+    let header_token = |kind| {
+        lambda
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == kind)
+            .unwrap()
+    };
     let binder = range(header_token(SyntaxKind::Identifier).text_range());
     let arrow = range(header_token(SyntaxKind::Arrow).text_range());
     let identifiers = root
@@ -181,8 +200,15 @@ fn research_registered_backslash_prefix_interacts_with_lambda_header() {
         .map(|token| token.text().to_owned())
         .collect::<Vec<_>>();
     assert!(errors.is_empty());
-    assert!(root.descendants().any(|node| node.kind() == SyntaxKind::LambdaExpression));
-    assert!(!root.descendants().any(|node| node.kind() == SyntaxKind::PrefixOperatorUse));
+    assert!(
+        root.descendants()
+            .any(|node| node.kind() == SyntaxKind::LambdaExpression)
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse)
+    );
 }
 use crate::{
     ambient_claim::AmbientClaimView,

@@ -301,13 +301,30 @@ mod tests {
                 .is_empty()
         );
         assert!(parsed.operators().definition("+").is_some());
-        let selected = parsed.operator_provenance("+", OperatorFixity::Infix)
+        let selected = parsed
+            .operator_provenance("+", OperatorFixity::Infix)
             .expect("the accepted use selects an exact imported declaration");
-        assert_eq!(selected.declaration().origin(), OperatorOrigin::Imported(dependency));
-        assert_eq!(selected.declaration().range(), header.operators()[0].range());
-        assert_eq!(selected.dependency().unwrap().module_label(), "std/core/ops.yu");
-        assert_eq!(selected.dependency().unwrap().revision(), SourceRevision::UNTRACKED);
-        assert!(parsed.operator_provenance("+", OperatorFixity::Prefix).is_none());
+        assert_eq!(
+            selected.declaration().origin(),
+            OperatorOrigin::Imported(dependency)
+        );
+        assert_eq!(
+            selected.declaration().range(),
+            header.operators()[0].range()
+        );
+        assert_eq!(
+            selected.dependency().unwrap().module_label(),
+            "std/core/ops.yu"
+        );
+        assert_eq!(
+            selected.dependency().unwrap().revision(),
+            SourceRevision::UNTRACKED
+        );
+        assert!(
+            parsed
+                .operator_provenance("+", OperatorFixity::Prefix)
+                .is_none()
+        );
     }
 
     #[test]
@@ -318,7 +335,8 @@ mod tests {
             Arc::new(crate::scan_header(source)),
             Arc::new(SyntaxEnvironment::empty()),
         );
-        let selected = parsed.operator_provenance("+", OperatorFixity::Infix)
+        let selected = parsed
+            .operator_provenance("+", OperatorFixity::Infix)
             .expect("local infix declaration is retained");
         assert_eq!(selected.declaration().origin(), OperatorOrigin::Local);
         assert!(selected.dependency().is_none());

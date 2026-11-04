@@ -807,7 +807,9 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
                 ambient,
             )
         }
-        Some(TokenKind::Colon | TokenKind::PatternSymbolColon | TokenKind::ExpressionSymbolColon) => {
+        Some(
+            TokenKind::Colon | TokenKind::PatternSymbolColon | TokenKind::ExpressionSymbolColon,
+        ) => {
             completion.identifier_receiver = false;
             i.state.start_node(SyntaxKind::SymbolPattern.into());
             emit_token_item(&mut i, item);
@@ -1287,8 +1289,8 @@ fn pattern_tail_normalized(
             ambient,
         );
         // The payload's head cannot replace the outer constructor's permission.
-        completion.explicit_constructor = outer_constructor
-            && completion.reported() == PatternCompletion::Complete;
+        completion.explicit_constructor =
+            outer_constructor && completion.reported() == PatternCompletion::Complete;
         completion.identifier_receiver = false;
         item_origin = advanced_origin(item_origin, entry, i.rb());
         i.state.finish_node();
@@ -1588,7 +1590,10 @@ pub(super) fn is_pattern_nud(item: &Item, stops: PatternStops) -> bool {
     (!is_pattern_word_stop(item, stops)
         && is_pattern_primary(item)
         && !(stops & PATTERN_STOP_LBRACE != 0 && token_kind(item) == Some(TokenKind::LBrace)))
-        || matches!(token_kind(item), Some(TokenKind::PatternSymbolColon | TokenKind::ExpressionSymbolColon))
+        || matches!(
+            token_kind(item),
+            Some(TokenKind::PatternSymbolColon | TokenKind::ExpressionSymbolColon)
+        )
         || (token_kind(item) == Some(TokenKind::Colon)
             && stops & (PATTERN_STOP_COLON | PATTERN_STOP_PRIMARY_COLON) == 0)
         || item.payload_view().spelling() == Some("\"")
@@ -1721,7 +1726,8 @@ mod operation_tail_tests {
     #[test]
     fn adjacent_identifier_fields_form_ordered_pattern_field_tails() {
         for (source, field_count) in [("a.show", 1), ("a.show.note", 2)] {
-            let (root, _, completion) = run(source, PATTERN_DEFAULT_STOPS, PatternCallerCloses::NONE);
+            let (root, _, completion) =
+                run(source, PATTERN_DEFAULT_STOPS, PatternCallerCloses::NONE);
             assert_eq!(root.to_string(), source);
             assert_eq!(completion, PatternCompletion::Complete);
             let fields = field_tail_nodes(&root);
@@ -1742,8 +1748,7 @@ mod operation_tail_tests {
 
     #[test]
     fn dotted_pattern_recovery_keeps_member_frontiers_and_rejects_nonidentifiers() {
-        let (root, exit, completion) =
-            run("a.", PATTERN_DEFAULT_STOPS, PatternCallerCloses::NONE);
+        let (root, exit, completion) = run("a.", PATTERN_DEFAULT_STOPS, PatternCallerCloses::NONE);
         assert_eq!(root.to_string(), "a.");
         let fields = field_tail_nodes(&root);
         assert_eq!(fields.len(), 1);
@@ -1751,17 +1756,29 @@ mod operation_tail_tests {
         assert_eq!(completion, PatternCompletion::Incomplete);
         assert_eq!(pending(exit).payload_view().token_kind(), None);
 
-        let (root, exit, completion) = run("a. : int", PATTERN_STOP_COLON, PatternCallerCloses::NONE);
+        let (root, exit, completion) =
+            run("a. : int", PATTERN_STOP_COLON, PatternCallerCloses::NONE);
         assert_eq!(root.to_string(), "a.");
         assert_eq!(field_tail_nodes(&root).len(), 1);
         assert_eq!(missing_count(&root), 1);
         assert_eq!(completion, PatternCompletion::Incomplete);
-        assert_eq!(pending(exit).payload_view().token_kind(), Some(TokenKind::Colon));
+        assert_eq!(
+            pending(exit).payload_view().token_kind(),
+            Some(TokenKind::Colon)
+        );
 
-        for (source, pending_kind) in [("a .show", TokenKind::Dot), ("a..show", TokenKind::DotDot), ("1.show", TokenKind::Dot)] {
+        for (source, pending_kind) in [
+            ("a .show", TokenKind::Dot),
+            ("a..show", TokenKind::DotDot),
+            ("1.show", TokenKind::Dot),
+        ] {
             let (root, exit, _) = run(source, PATTERN_DEFAULT_STOPS, PatternCallerCloses::NONE);
             assert_eq!(field_tail_nodes(&root).len(), 0, "{source}: {root:#?}");
-            assert_eq!(pending(exit).payload_view().token_kind(), Some(pending_kind), "{source}");
+            assert_eq!(
+                pending(exit).payload_view().token_kind(),
+                Some(pending_kind),
+                "{source}"
+            );
         }
     }
 

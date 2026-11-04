@@ -31,10 +31,12 @@ pub use diagnostics_schema::{
     ExpectedSyntax, GrammarSlot, GrammarSlotRole, SyntaxDiagnosticIdentity, SyntaxDiagnosticKind,
 };
 pub use full_parse::{
-    OperatorUseProvenance, ParsedFile, SourceNode, SourceNodeKey, StructuralProjectionError, StructuralRecovery,
-    StructuralRecoveryKind, SyntaxDiagnosticError, parse_file,
+    OperatorUseProvenance, ParsedFile, SourceNode, SourceNodeKey, StructuralProjectionError,
+    StructuralRecovery, StructuralRecoveryKind, SyntaxDiagnosticError, parse_file,
 };
-pub use operator_table::{OperatorDeclarationProvenance, OperatorDefinition, OperatorOrigin, OperatorTable};
+pub use operator_table::{
+    OperatorDeclarationProvenance, OperatorDefinition, OperatorOrigin, OperatorTable,
+};
 pub use syntax_diagnostic::{OperatorConflictDiagnostic, SyntaxDiagnostic, SyntaxDiagnosticCause};
 pub use syntax_environment::{
     SourceRevision, SyntaxDependencyProvenance, SyntaxDependencySlot, SyntaxEnvironment,

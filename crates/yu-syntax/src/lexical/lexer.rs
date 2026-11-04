@@ -97,59 +97,60 @@ pub(crate) fn scan_expression_payload(
 ) -> Option<AcceptedPayload> {
     let record_spread = stops & STOP_RECORD_SPREAD != 0;
     let marker_after_operator = stops & STOP_RECORD_SPREAD_AFTER_OPERATOR != 0;
-    let payload = if let Some(slash) = i.token(|lex| scan_lambda_backslash(lex, payload_origin, fence)) {
-        CurrentPayload::Token(slash)
-    } else if record_spread
-        && matches!(site, OperatorSite::Nud)
-        && let Some(marker) = i.token(scan_record_spread_marker)
-    {
-        CurrentPayload::Token(marker)
-    } else if stops & STOP_ARROW != 0
-        && let Some(arrow) = i.token(scan_arm_arrow)
-    {
-        CurrentPayload::Token(arrow)
-    } else if matches!(site, OperatorSite::Nud)
-        && let Some(keyword) = i.token(scan_nud_keyword)
-    {
-        CurrentPayload::Token(keyword)
-    } else if let Some(operator) = i.token(|lex| {
-        scan_operator_fenced(
-            lex,
-            site,
-            has_leading_trivia,
-            baseline,
-            stops,
-            payload_origin,
-            fence,
-        )
-    }) {
-        CurrentPayload::Operator(operator)
-    } else if matches!(site, OperatorSite::Led)
-        && let Some(equals) = i.token(scan_assignment_equals)
-    {
-        CurrentPayload::Token(equals)
-    } else if matches!(site, OperatorSite::Led)
-        && let Some(operator) = i.token(|lex| {
-            scan_dangling_operator_fenced(
+    let payload =
+        if let Some(slash) = i.token(|lex| scan_lambda_backslash(lex, payload_origin, fence)) {
+            CurrentPayload::Token(slash)
+        } else if record_spread
+            && matches!(site, OperatorSite::Nud)
+            && let Some(marker) = i.token(scan_record_spread_marker)
+        {
+            CurrentPayload::Token(marker)
+        } else if stops & STOP_ARROW != 0
+            && let Some(arrow) = i.token(scan_arm_arrow)
+        {
+            CurrentPayload::Token(arrow)
+        } else if matches!(site, OperatorSite::Nud)
+            && let Some(keyword) = i.token(scan_nud_keyword)
+        {
+            CurrentPayload::Token(keyword)
+        } else if let Some(operator) = i.token(|lex| {
+            scan_operator_fenced(
                 lex,
-                OperatorSite::Led,
+                site,
+                has_leading_trivia,
                 baseline,
                 stops,
                 payload_origin,
                 fence,
             )
-        })
-    {
-        CurrentPayload::Operator(operator)
-    } else if marker_after_operator || (record_spread && matches!(site, OperatorSite::Led)) {
-        if let Some(marker) = i.token(scan_record_spread_marker) {
-            CurrentPayload::Token(marker)
+        }) {
+            CurrentPayload::Operator(operator)
+        } else if matches!(site, OperatorSite::Led)
+            && let Some(equals) = i.token(scan_assignment_equals)
+        {
+            CurrentPayload::Token(equals)
+        } else if matches!(site, OperatorSite::Led)
+            && let Some(operator) = i.token(|lex| {
+                scan_dangling_operator_fenced(
+                    lex,
+                    OperatorSite::Led,
+                    baseline,
+                    stops,
+                    payload_origin,
+                    fence,
+                )
+            })
+        {
+            CurrentPayload::Operator(operator)
+        } else if marker_after_operator || (record_spread && matches!(site, OperatorSite::Led)) {
+            if let Some(marker) = i.token(scan_record_spread_marker) {
+                CurrentPayload::Token(marker)
+            } else {
+                CurrentPayload::Token(scan_token(i)?)
+            }
         } else {
             CurrentPayload::Token(scan_token(i)?)
-        }
-    } else {
-        CurrentPayload::Token(scan_token(i)?)
-    };
+        };
     Some(AcceptedPayload {
         payload,
         next_line_entry: LineEntry::InLine,
@@ -167,48 +168,49 @@ pub(crate) fn scan_nud_payload(
     baseline: usize,
     stops: Stops,
 ) -> Option<AcceptedPayload> {
-    let payload = if let Some(slash) = i.token(|lex| scan_lambda_backslash(lex, payload_origin, fence)) {
-        CurrentPayload::Token(slash)
-    } else if stops & STOP_ARROW != 0
-        && let Some(arrow) = i.token(scan_arm_arrow)
-    {
-        CurrentPayload::Token(arrow)
-    } else if let Some(keyword) = i.token(scan_nud_keyword) {
-        CurrentPayload::Token(keyword)
-    } else if let Some(token) = i.token(scan_lparen) {
-        CurrentPayload::Token(token)
-    } else if let Some(token) = i.token(scan_lbrace) {
-        CurrentPayload::Token(token)
-    } else if let Some(operator) = i.token(|lex| {
-        scan_operator_fenced(
-            lex,
-            OperatorSite::Nud,
-            has_leading_trivia,
-            baseline,
-            stops,
-            payload_origin,
-            fence,
-        )
-    }) {
-        CurrentPayload::Operator(operator)
-    } else if let Some(operator) = i.token(|lex| {
-        scan_dangling_operator_fenced(
-            lex,
-            OperatorSite::Nud,
-            baseline,
-            stops,
-            payload_origin,
-            fence,
-        )
-    }) {
-        CurrentPayload::Operator(operator)
-    } else if let Some(token) = i.token(scan_expression_symbol_colon) {
-        CurrentPayload::Token(token)
-    } else if let Some(token) = i.token(scan_identifier) {
-        CurrentPayload::Token(token)
-    } else {
-        CurrentPayload::Token(i.token(scan_integer)?)
-    };
+    let payload =
+        if let Some(slash) = i.token(|lex| scan_lambda_backslash(lex, payload_origin, fence)) {
+            CurrentPayload::Token(slash)
+        } else if stops & STOP_ARROW != 0
+            && let Some(arrow) = i.token(scan_arm_arrow)
+        {
+            CurrentPayload::Token(arrow)
+        } else if let Some(keyword) = i.token(scan_nud_keyword) {
+            CurrentPayload::Token(keyword)
+        } else if let Some(token) = i.token(scan_lparen) {
+            CurrentPayload::Token(token)
+        } else if let Some(token) = i.token(scan_lbrace) {
+            CurrentPayload::Token(token)
+        } else if let Some(operator) = i.token(|lex| {
+            scan_operator_fenced(
+                lex,
+                OperatorSite::Nud,
+                has_leading_trivia,
+                baseline,
+                stops,
+                payload_origin,
+                fence,
+            )
+        }) {
+            CurrentPayload::Operator(operator)
+        } else if let Some(operator) = i.token(|lex| {
+            scan_dangling_operator_fenced(
+                lex,
+                OperatorSite::Nud,
+                baseline,
+                stops,
+                payload_origin,
+                fence,
+            )
+        }) {
+            CurrentPayload::Operator(operator)
+        } else if let Some(token) = i.token(scan_expression_symbol_colon) {
+            CurrentPayload::Token(token)
+        } else if let Some(token) = i.token(scan_identifier) {
+            CurrentPayload::Token(token)
+        } else {
+            CurrentPayload::Token(i.token(scan_integer)?)
+        };
     Some(AcceptedPayload {
         payload,
         next_line_entry: LineEntry::InLine,
@@ -690,21 +692,38 @@ fn scan_pair(mut i: LexIn, first: char, second: char) -> Option<()> {
 
 /// Complete headers reserve only their introducer, at both expression sites.
 /// The lookahead borrows source; each accepted header Item is scanned later.
-fn scan_lambda_backslash(mut i: LexIn, origin: usize, fence: Option<&FenceBoundary>) -> Option<Token> {
+fn scan_lambda_backslash(
+    mut i: LexIn,
+    origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> Option<Token> {
     let source = i.remainder();
     let after_slash = source.strip_prefix('\\')?;
     let binder = lambda_inline_suffix(after_slash, origin + 1, fence)?;
     let (_, after_binder) = source_identifier(binder)?;
-    let arrow = lambda_inline_suffix(after_binder, origin + source.len() - after_binder.len(), fence)?;
+    let arrow = lambda_inline_suffix(
+        after_binder,
+        origin + source.len() - after_binder.len(),
+        fence,
+    )?;
     is_exact_arm_arrow(arrow).then_some(())?;
     let (_, text) = i.rb().with_str(|mut lex| lex.next());
-    Some(Token { kind: TokenKind::Backslash, text: text.into() })
+    Some(Token {
+        kind: TokenKind::Backslash,
+        text: text.into(),
+    })
 }
 
-fn lambda_inline_suffix<'source>(source: &'source str, origin: usize, fence: Option<&FenceBoundary>) -> Option<&'source str> {
+fn lambda_inline_suffix<'source>(
+    source: &'source str,
+    origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> Option<&'source str> {
     use crate::lexical::trivia::{TriviaObservation, observe_logical_fenced_trivia};
     match observe_logical_fenced_trivia(source, origin, LineEntry::InLine, fence) {
-        TriviaObservation::Visible(visible) if visible.indentation.is_none() => Some(visible.source),
+        TriviaObservation::Visible(visible) if visible.indentation.is_none() => {
+            Some(visible.source)
+        }
         _ => None,
     }
 }
@@ -977,7 +996,10 @@ fn scan_expression_symbol_colon(mut i: LexIn) -> Option<Token> {
         identifier_starts(symbol.remainder()).then_some(())
     });
     accepted?;
-    Some(Token { kind: TokenKind::ExpressionSymbolColon, text: text.into() })
+    Some(Token {
+        kind: TokenKind::ExpressionSymbolColon,
+        text: text.into(),
+    })
 }
 
 pub(crate) fn is_expression_symbol_item(remaining: &str, item: &Item) -> bool {
@@ -987,11 +1009,23 @@ pub(crate) fn is_expression_symbol_item(remaining: &str, item: &Item) -> bool {
 /// Expression-only vocabulary; generic declaration scans retain plain Colon.
 /// Consume only the colon so an outer Pattern owner can receive the same Item.
 pub(crate) fn scan_expression_payload_with_symbols(
-    mut i: LexIn, site: OperatorSite, has_leading_trivia: bool,
-    payload_origin: usize, fence: Option<&FenceBoundary>, baseline: usize, stops: Stops,
+    mut i: LexIn,
+    site: OperatorSite,
+    has_leading_trivia: bool,
+    payload_origin: usize,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
 ) -> Option<AcceptedPayload> {
-    let mut accepted = scan_expression_payload(i.rb(), site, has_leading_trivia,
-        payload_origin, fence, baseline, stops)?;
+    let mut accepted = scan_expression_payload(
+        i.rb(),
+        site,
+        has_leading_trivia,
+        payload_origin,
+        fence,
+        baseline,
+        stops,
+    )?;
     if (matches!(site, OperatorSite::Nud) || has_leading_trivia)
         && identifier_starts(i.remainder())
         && let CurrentPayload::Token(token) = &mut accepted.payload

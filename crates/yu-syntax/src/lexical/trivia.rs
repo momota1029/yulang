@@ -247,7 +247,10 @@ fn observe_fenced_trivia_mode<'source>(
 /// The `None` mode is the retained ordinary raw scanner. It deliberately
 /// avoids fence coordinates and line classification, preserving the ordinary
 /// operator/follower path's work and result shape.
-fn observe_ordinary_trivia<'source>(mut source: &'source str, opaque_comments: bool) -> TriviaObservation<'source> {
+fn observe_ordinary_trivia<'source>(
+    mut source: &'source str,
+    opaque_comments: bool,
+) -> TriviaObservation<'source> {
     let mut present = false;
     let mut saw_newline = false;
     let mut at_line_start = false;
