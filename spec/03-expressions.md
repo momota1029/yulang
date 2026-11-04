@@ -156,7 +156,14 @@ target with:
 ```
 
 - block は文を順に評価し、最後の式が値になる。
-- `with:` は、本体（tail）の前に局所的な binding 群を開く。その中の `our` / `pub` は tail から見える。
+- 式の `with:` は Haskell の `where` に近い（確定, 2026-11-04）。`target with:` の下に書いた binding 群は、`target`（tail）から見える局所の名前になる。式の `with` は companion を足すものではない。
+
+```yulang
+area r = pi * r * r with:
+    my pi = 3.14159          // 本体 pi * r * r から見える
+```
+
+- 素材は「その中の `our` / `pub` は tail から見える」と書いていたが、局所 scope での `my` / `our` / `pub` の意味は E13 で決める。
 
 出典: `main:notes/design/yulang-language-report.md` §6.5
 
