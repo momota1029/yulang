@@ -1,0 +1,31 @@
+name: Lean inference kernel
+
+on:
+  push:
+    paths:
+      - 'lean/**'
+      - '.github/workflows/lean.yml'
+  pull_request:
+    paths:
+      - 'lean/**'
+      - '.github/workflows/lean.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@fe408643ea7367d8c0404a8be3975bb145f5fb64 # v1
+        with:
+          lake-package-directory: lean
+          auto-config: false
+          build: true
+          build-args: '--wfail'
+          use-mathlib-cache: false
+      - name: Audit every declaration and report principal theorem dependencies
+        working-directory: lean
+        run: lake env lean --trust=0 Audit.lean

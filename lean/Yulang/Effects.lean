@@ -19,14 +19,16 @@ Sources: `spec/05-effects.md` §§5.3–5.5, `spec/07-display.md` §7.3;
 
 namespace Yulang.Effects
 
-/-- Family identity retains its type arguments; equality does not erase them. -/
+/-- Family identity retains its act/family parameters; equality does not erase them.
+Operation-local polymorphic variables belong to signature checking, not this key. -/
 structure EffectKey (Family : Type u) (Argument : Type v) where
   family : Family
   arguments : List Argument
   deriving DecidableEq, Repr
 
 /--
-Use operation identity when a handler covers individual operations. Erasing an
+Use operation identity when a handler covers individual operations. `arguments`
+contains act/family parameters, not operation-local polymorphic variables. Erasing an
 entire family from a displayed row requires complete operation coverage (and
 visibility); otherwise its residual family must remain. This kernel makes no
 claim about a source-language coverage checker.
