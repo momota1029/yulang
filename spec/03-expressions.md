@@ -17,8 +17,19 @@ true         // bool
 {x: 1, y: 2} // record
 ```
 
-- 波括弧の読み分け（確定, 2026-11-04。単一 field の扱いは要見直し）: 先頭が名前で、`,` が付いたら record、それ以外は block。
+- 波括弧の読み分け（確定, 2026-11-04）: 先頭が名前で、`,` が付いたら record、それ以外は block。
   理由は、`;` は式の意味を変える（文の区切り）が `,` は変えないため。
+  field が 1 つの record は末尾に `,` を付けて `{x: 1,}` と書く。`{x: 1}` は block（値は `x: 1`、つまり `x 1` の application）。
+  値を省略した field（`{x, y}` は `{x: x, y: y}`）を認める。1 つだけなら `{x,}`。`{x}` は block で、値は `x`。
+
+```yulang
+{x: 1, y: 2}     // record
+{x: 1,}          // field が 1 つの record
+{x, y}           // {x: x, y: y}
+{x,}             // {x: x}
+{x: 1}           // block（x: 1 は application）
+{x}              // block（値は x）
+```
 
 - list は spread を持つ: `[1, ..xs, 3]`。record も spread を持つ: `{x: 1, ..rest}`。
 
