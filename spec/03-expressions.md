@@ -133,6 +133,13 @@ not x.field      // not (x.field)
 ```
 
 - `\pat -> body`。引数は名前に限らず pattern を書ける。複数並べるとカリー化された lambda になる。
+- 引数に書ける pattern は irrefutable（必ず成功するもの）だけ（確定, 2026-11-04）。tuple・record・`_`・名前は書けて、`\(just x) -> x` のように失敗しうるものはエラー（`case` を使う）。`my` の分解と同じ規則。
+
+```yulang
+\(a, b) -> a + b
+\{x, y} -> x + y
+\_ -> 0
+```
 
 出典: `main:notes/design/yulang-language-report.md` §6.4
 
