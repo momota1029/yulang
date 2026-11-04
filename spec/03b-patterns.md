@@ -14,8 +14,7 @@
 | tuple | `(a, b)` | tuple |
 | record | `{ x, y }`, `{ x: name }`, `{ x = 0 }` | 指定した field を持つ record |
 | list | `[]`, `[x, ..rest]`, `[..init, last]` | list |
-| symbol | `:ready` | 同じ名前の symbol（payload なし） |
-| polyvariant | `:some value` | 同じ tag と payload |
+| polyvariant | `:ready`, `:some value` | 同じ tag と payload。`:ready` は payload が unit の略記で、`:ready ()` と同じ（確定, 2026-11-04） |
 | enum variant | `opt::just x`, `nil` | その variant |
 | or | `"yes" \| "y"` | どちらかの選択肢 |
 | as | `pat as name` | `pat` に合い、値全体も `name` に束縛 |
