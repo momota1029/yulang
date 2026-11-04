@@ -20,6 +20,7 @@ my bit = flip::coin()
 - effect は型引数を持てる: `act ref_update 'a:`。行には `ref_update int` のような entry が入る。
 - operation の signature は、最後の戻り位置に effect が書かれていなければ、その `act` の effect を**補う**（確定, 2026-11-04）。
   effect を送出しない operation は作れない。
+  書いたときは補われず、書いたとおりになる（`our coin: () -> [flip, io] bool`。確定, 2026-11-04）。
 - 一般に、関数型の戻り側には形式上いつも effect 行が付く。`'a -> ('b -> 'c)` には形式的に `'a -> [e] ('b -> 'c)` が付く。
   表示で行が見えなくても、型の中には行がある。
 
