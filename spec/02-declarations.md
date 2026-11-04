@@ -32,6 +32,16 @@ my a = 1
 my a = a + 1                    // 右辺の a は 1 行目の a。結果は 2
 ```
 
+- **参照の順序**（確定, 2026-11-04）: 関数 binding どうしは書く順番に関係なく互いを参照できる（相互再帰できる）。値 binding は上から順に評価され、下で定義されるものは参照できない。
+
+```yulang
+my even n = if n == 0: true else: odd (n - 1)     // odd は下にあるが参照できる
+my odd n = if n == 0: false else: even (n - 1)
+
+my a = b + 1     // エラー: b はまだ定義されていない
+my b = 2
+```
+
 - block は文を順に評価し、最後の式を値として返す（式指向）。
 - 宣言だけで本体のない `pub declared` の形がある。Rust の `pub let a = ...` や `pub const a = ...` に相当するものとして読んでよい（確定, 2026-11-04）。
 - `our p.norm2 = ...` のように名前に dot を含む binding は **method の定義**になる。意味は章4・章6 で書く。
