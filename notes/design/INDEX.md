@@ -7,6 +7,7 @@ They remain in tag `archive/proof-sprint-2026-11-04`. What remains here is the
 parser, syntax, Yumark and declaration designs from 2026-08 and 2026-09, plus `oracles/`.
 The type-inference core calculus will be written in Lean and a companion document; add its entry here when it exists.
 
+- [Parser gap closure: forms promised by `spec/` that yu-syntax does not yet read](2026-11-04-parser-gap-closure-addendum.md) — Authoritative (approved 2026-11-04)
 - [Phase 2 parser compatibility fixture schema](2026-08-20-phase2-parser-fixture-schema.md) — Authoritative。実 fixture case の投入と population 前の Open questions の解消は、次スライス以降で進める。
 - [`yu-syntax` chasa-based parsing architecture](2026-08-20-yu-syntax-chasa-architecture.md) — Proposal。実装、dependency 追加、grammar の拡張はこの文書の scope 外とする。
 - [Declaration companion Gate 2 semantic-work performance amendment](2026-08-30-declaration-companion-gate2-performance-amendment.md) — Authoritative
