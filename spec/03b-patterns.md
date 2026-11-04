@@ -62,6 +62,8 @@ case config:
 ```
 
 - 明示した field は、default がなければ必須。`field: name` で別名に束縛し、`field = value` で default を与える。
+- default（`port = 80`）は、その field が型の上で省略可能（`port?: int`）なときだけ書ける。必須の field に default を書いたらエラー（欠けることがないため）。
+  pattern に default を書くと、推論が自動的にその field を省略可能（`port?: int`）にする（確定, 2026-11-04）。省略可能な field の型表記は章4.3・章7.5 で扱う。
 - default は field が欠けているときに評価される。そのため pattern の照合そのものが effect を持ちうる。
 - record の spread `..name` は、**残りではなく入力 record 全体**を束縛する（record の差は型システム上、十分に扱えないため）。
   他の field があってもよいことだけを示すなら `.._` を使う。
