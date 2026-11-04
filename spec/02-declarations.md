@@ -185,6 +185,17 @@ opt::just 1
 out::write "hi"
 ```
 
+同名の `mod` を自分で書いたら、companion module に**合流**する（確定, 2026-11-04）。`with:` で足したものと同じ場所に入り、後から外で足すこと（いわゆるモンキーパッチ）もできる。
+
+```yulang
+struct point { x: int, y: int }
+
+mod point:
+    pub origin = point { x: 0, y: 0 }     // point::origin が companion に足される
+```
+
+合流した結果、同じ名前が 2 つできたら重複定義のエラー（未確認: 詳細は D14）。
+
 prelude が `just` / `nil` / `ok` / `err` のような標準 variant を re-export するので、通常は修飾なしで書ける。
 
 出典: `main:web/docs/ja/reference/modules.md` §Companion module
