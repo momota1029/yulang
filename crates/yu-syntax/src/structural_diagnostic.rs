@@ -182,7 +182,7 @@ pub(crate) fn walk_with_node_entry(
     let mut walk = Walk::new(enter, visit);
     let mut path = vec![root.kind()];
     let mut occurrence_path = Vec::new();
-    walk.visit(root, &mut path, &mut occurrence_path, None)
+    walk.visit(root, &mut path, &mut occurrence_path, None, false)
 }
 
 struct Walk<'a> {
@@ -209,6 +209,7 @@ impl<'a> Walk<'a> {
         path: &mut Vec<SyntaxKind>,
         occurrence_path: &mut Vec<u32>,
         direct_root_ordinal: Option<u32>,
+        suppress_direct_error_tokens: bool,
     ) -> Result<(), StructuralProjectionError> {
         if (self.enter)(node, occurrence_path, self.ordinal) {
             self.ordinal = self
@@ -265,23 +266,44 @@ impl<'a> Walk<'a> {
                             )?;
                             path.push(SyntaxKind::Invalid);
                             occurrence_path.push(index as u32);
-                            self.visit(child, path, occurrence_path, child_root_ordinal)?;
+                            self.visit(child, path, occurrence_path, child_root_ordinal, false)?;
                             occurrence_path.pop();
                             path.pop();
                         }
                         SyntaxKind::Error => {
-                            return Err(StructuralProjectionError::StructuralInvariant);
+                            let range = byte_range(child.text_range());
+                            if range.is_empty() {
+                                return Err(StructuralProjectionError::StructuralInvariant);
+                            }
+                            self.push(
+                                StructuralKind::ErrorGroup,
+                                range,
+                                path,
+                                occurrence_path,
+                                index,
+                                precise_yumark_error(path),
+                                direct_root_ordinal,
+                            )?;
+                            path.push(SyntaxKind::Error);
+                            occurrence_path.push(index as u32);
+                            self.visit(child, path, occurrence_path, child_root_ordinal, true)?;
+                            occurrence_path.pop();
+                            path.pop();
                         }
                         kind => {
                             path.push(kind);
                             occurrence_path.push(index as u32);
-                            self.visit(child, path, occurrence_path, child_root_ordinal)?;
+                            self.visit(child, path, occurrence_path, child_root_ordinal, false)?;
                             occurrence_path.pop();
                             path.pop();
                         }
                     }
                 }
                 NodeOrToken::Token(token) if token.kind() == SyntaxKind::Error => {
+                    if suppress_direct_error_tokens {
+                        self.flush(&mut run, path, occurrence_path, direct_root_ordinal)?;
+                        continue;
+                    }
                     let range = byte_range(token.text_range());
                     if token.text().is_empty() || range.end - range.start != token.text().len() {
                         return Err(StructuralProjectionError::StructuralInvariant);
@@ -371,15 +393,16 @@ fn precise_missing(
     children: &[NodeOrToken<SyntaxNode, SyntaxToken>],
     index: usize,
 ) -> Option<CatalogSlot> {
-    let owner = missing_row_owner(*path.last()?)?;
-    match next_significant(children, index) {
+    let owner = missing_row_owner(*path.last()?);
+    let canonical = owner.and_then(|owner| match next_significant(children, index) {
         Some(SyntaxKind::Comma) => Some(item_slot(owner)),
         Some(kind) if kind == admitted_item_kind(owner) => (previous_significant(children, index)
             == Some(admitted_item_kind(owner)))
         .then(|| separator_slot(owner)),
         Some(_) => None,
         None => Some(close_slot(owner)),
-    }
+    });
+    canonical.or_else(|| precise_yumark_missing(path, children, index))
 }
 
 /// Precise raw `Error` group slot for the mapped expression-delimited row.
@@ -389,7 +412,7 @@ fn precise_missing(
 /// `ExpressionDelimitedForeignClose` projects the owner's `Separator` or
 /// matching-close expectation.
 fn precise_error_group(path: &[SyntaxKind]) -> Option<CatalogSlot> {
-    match *path.last()? {
+    let canonical = match *path.last()? {
         SyntaxKind::ExpressionDelimitedSeparator => {
             Some(separator_slot(raw_row_owner(grandparent(path)?)?))
         }
@@ -397,6 +420,173 @@ fn precise_error_group(path: &[SyntaxKind]) -> Option<CatalogSlot> {
             Some(close_slot(raw_row_owner(grandparent(path)?)?))
         }
         kind => raw_row_owner(kind).map(item_slot),
+    };
+    canonical.or_else(|| precise_yumark_error(path))
+}
+
+/// Gate-5 Yumark slots use the same bounded CST projection as the existing
+/// delimited rows. The nearest typed Yumark owner supplies identity; the local
+/// wrapper/child phase supplies the append-only semantic slot.
+fn precise_yumark_missing(
+    path: &[SyntaxKind],
+    children: &[NodeOrToken<SyntaxNode, SyntaxToken>],
+    index: usize,
+) -> Option<CatalogSlot> {
+    let owner = yumark_owner(path)?;
+    let parent = *path.last()?;
+    let previous = previous_significant(children, index);
+    let role = match parent {
+        SyntaxKind::DocCommentDeclaration
+        | SyntaxKind::YmCodeFence
+        | SyntaxKind::YmInlineGroup
+        | SyntaxKind::YmInlineLink
+        | SyntaxKind::YmEmphasis
+        | SyntaxKind::YmStrong
+        | SyntaxKind::YmDocArg => GrammarSlotRole::ClosingDelimiter,
+        SyntaxKind::YmInlineImage => {
+            if previous == Some(SyntaxKind::RBracket) {
+                GrammarSlotRole::Destination
+            } else {
+                GrammarSlotRole::ClosingDelimiter
+            }
+        }
+        SyntaxKind::YmInlineApplyHead => GrammarSlotRole::Name,
+        SyntaxKind::YmMyBindingHead => {
+            if children
+                .iter()
+                .any(|child| child.kind() == SyntaxKind::LParen)
+            {
+                GrammarSlotRole::ClosingDelimiter
+            } else {
+                GrammarSlotRole::Head
+            }
+        }
+        SyntaxKind::YmMyExpressionBody => {
+            if children
+                .iter()
+                .any(|child| child.kind() == SyntaxKind::OperatorChain)
+            {
+                GrammarSlotRole::Terminator
+            } else {
+                GrammarSlotRole::ExpressionBody
+            }
+        }
+        SyntaxKind::YmUse => {
+            if children
+                .iter()
+                .any(|child| child.kind() == SyntaxKind::UseTree)
+            {
+                if children
+                    .iter()
+                    .any(|child| child.kind() == SyntaxKind::LParen)
+                {
+                    GrammarSlotRole::ClosingDelimiter
+                } else {
+                    GrammarSlotRole::Terminator
+                }
+            } else {
+                GrammarSlotRole::Route
+            }
+        }
+        SyntaxKind::YmIfCondition | SyntaxKind::YmElsifCondition => {
+            if children
+                .iter()
+                .any(|child| child.kind() == SyntaxKind::LParen)
+            {
+                GrammarSlotRole::ClosingDelimiter
+            } else {
+                GrammarSlotRole::Condition
+            }
+        }
+        SyntaxKind::YmCommand
+        | SyntaxKind::YmMy
+        | SyntaxKind::YmIf
+        | SyntaxKind::YmElsif
+        | SyntaxKind::YmElse => GrammarSlotRole::BodyIntroducer,
+        SyntaxKind::YmDoc => match owner {
+            SyntaxKind::YmExplicitSection
+            | SyntaxKind::YmCommand
+            | SyntaxKind::YmMy
+            | SyntaxKind::YmIf
+            | SyntaxKind::YmElsif
+            | SyntaxKind::YmElse => GrammarSlotRole::Body,
+            _ => GrammarSlotRole::ClosingDelimiter,
+        },
+        _ => GrammarSlotRole::ClosingDelimiter,
+    };
+    Some(yumark_slot(owner, role))
+}
+
+fn precise_yumark_error(path: &[SyntaxKind]) -> Option<CatalogSlot> {
+    let owner = yumark_owner(path)?;
+    let role = match owner {
+        SyntaxKind::YmSection | SyntaxKind::YmExplicitSection | SyntaxKind::YmImplicitSection => {
+            GrammarSlotRole::SectionClose
+        }
+        SyntaxKind::YmQuoteBlock => GrammarSlotRole::QuoteForm,
+        SyntaxKind::YmDoCapture | SyntaxKind::YmCommand => GrammarSlotRole::Arguments,
+        SyntaxKind::YmIfChain => GrammarSlotRole::BranchPredecessor,
+        SyntaxKind::YmElse => GrammarSlotRole::Condition,
+        _ => return None,
+    };
+    Some(yumark_slot(owner, role))
+}
+
+fn yumark_owner(path: &[SyntaxKind]) -> Option<SyntaxKind> {
+    path.iter().rev().copied().find(|kind| {
+        matches!(
+            kind,
+            SyntaxKind::DocCommentDeclaration
+                | SyntaxKind::YmSection
+                | SyntaxKind::YmImplicitSection
+                | SyntaxKind::YmExplicitSection
+                | SyntaxKind::YmList
+                | SyntaxKind::YmListItem
+                | SyntaxKind::YmQuoteBlock
+                | SyntaxKind::YmCodeFence
+                | SyntaxKind::YmInlineGroup
+                | SyntaxKind::YmInlineLink
+                | SyntaxKind::YmInlineImage
+                | SyntaxKind::YmInlineApply
+                | SyntaxKind::YmInlineRef
+                | SyntaxKind::YmEmphasis
+                | SyntaxKind::YmStrong
+                | SyntaxKind::YmCommand
+                | SyntaxKind::YmMy
+                | SyntaxKind::YmUse
+                | SyntaxKind::YmDocArg
+                | SyntaxKind::YmDoCapture
+                | SyntaxKind::YmIfChain
+                | SyntaxKind::YmIf
+                | SyntaxKind::YmElsif
+                | SyntaxKind::YmElse
+        )
+    })
+}
+
+fn yumark_slot(owner: SyntaxKind, role: GrammarSlotRole) -> CatalogSlot {
+    CatalogSlot::new(GrammarSlot::new(owner, role), yumark_expected(role))
+}
+
+fn yumark_expected(role: GrammarSlotRole) -> SchemaExpectedSyntax {
+    match role {
+        GrammarSlotRole::Name | GrammarSlotRole::Route => SchemaExpectedSyntax::Identifier,
+        GrammarSlotRole::Head => SchemaExpectedSyntax::Pattern,
+        GrammarSlotRole::Arguments => SchemaExpectedSyntax::CommandArgument,
+        GrammarSlotRole::Condition => SchemaExpectedSyntax::Condition,
+        GrammarSlotRole::BodyIntroducer => SchemaExpectedSyntax::BodyIntroducer,
+        GrammarSlotRole::Body => SchemaExpectedSyntax::YumarkDocument,
+        GrammarSlotRole::Destination => SchemaExpectedSyntax::Destination,
+        GrammarSlotRole::BranchPredecessor => SchemaExpectedSyntax::Statement,
+        GrammarSlotRole::ClosingDelimiter => SchemaExpectedSyntax::ClosingDelimiter,
+        GrammarSlotRole::SectionClose => SchemaExpectedSyntax::SectionClose,
+        GrammarSlotRole::QuoteForm => SchemaExpectedSyntax::QuoteForm,
+        GrammarSlotRole::ExpressionBody => SchemaExpectedSyntax::Expression,
+        GrammarSlotRole::Terminator => SchemaExpectedSyntax::Terminator,
+        GrammarSlotRole::Starter => SchemaExpectedSyntax::Statement,
+        GrammarSlotRole::Item => SchemaExpectedSyntax::Expression,
+        GrammarSlotRole::Separator => SchemaExpectedSyntax::DelimitedSequenceSeparator,
+        GrammarSlotRole::Close => SchemaExpectedSyntax::ClosingDelimiter,
     }
 }
 

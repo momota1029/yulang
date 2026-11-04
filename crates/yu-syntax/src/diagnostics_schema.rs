@@ -17,6 +17,21 @@ pub enum GrammarSlotRole {
     Item,
     Separator,
     Close,
+    Starter,
+    Name,
+    Head,
+    Arguments,
+    Condition,
+    BodyIntroducer,
+    Body,
+    Destination,
+    BranchPredecessor,
+    ClosingDelimiter,
+    SectionClose,
+    QuoteForm,
+    ExpressionBody,
+    Route,
+    Terminator,
 }
 
 /// A mapped grammar slot, identified by its CST owner and semantic child role.
@@ -48,6 +63,19 @@ pub enum ExpectedSyntax {
     ClosingParenthesis,
     ClosingBracket,
     ClosingBrace,
+    Identifier,
+    Pattern,
+    TypeExpression,
+    Statement,
+    YumarkDocument,
+    CommandArgument,
+    Condition,
+    BodyIntroducer,
+    Destination,
+    ClosingDelimiter,
+    SectionClose,
+    QuoteForm,
+    Terminator,
 }
 
 /// Snapshot-local identity for one output of the shared analysis walk.

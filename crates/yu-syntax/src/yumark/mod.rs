@@ -11,8 +11,8 @@
 //!
 //! Ranges are half-open byte ranges into the original source. The driver never
 //! stores this stream. Only the test recording sink collects it in a `Vec`;
-//! Gate 5 may add streaming AST/direct sinks without adding another grammar or
-//! scanner. Sink checkpoints are control operations required by §4 transaction
+//! Gate 5 adds the isolated streaming AST/direct sinks in [`adapter`] without
+//! adding another grammar or scanner. Sink checkpoints are control operations required by §4 transaction
 //! rollback and by post-group link/apply classification; they add no fifth
 //! event kind and retain no production event buffer.
 //!
@@ -35,6 +35,7 @@
     reason = "Gate 2 is an isolated construction; production dispatch belongs to Gate 6"
 )]
 
+mod adapter;
 mod frame;
 mod grammar;
 mod judge;

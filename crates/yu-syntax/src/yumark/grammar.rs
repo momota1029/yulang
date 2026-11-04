@@ -36,6 +36,7 @@ use super::judge::{
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RecoveryOwner {
+    DocComment,
     Section,
     List,
     ListItem,
@@ -100,6 +101,17 @@ pub(crate) trait Sink {
     fn token(&mut self, kind: SyntaxKind, range: Range<usize>);
     fn exit(&mut self);
     fn recovery(&mut self, recovery: Recovery, range: Range<usize>);
+    /// Publishes a recovery whose nonempty range may already have streamed.
+    /// The checkpoint is an output-control handle, not an additional event.
+    fn recovery_at(
+        &mut self,
+        checkpoint: &Self::Checkpoint,
+        recovery: Recovery,
+        range: Range<usize>,
+    ) {
+        let _ = checkpoint;
+        self.recovery(recovery, range);
+    }
     fn replace_enter(&mut self, checkpoint: &Self::Checkpoint, kind: SyntaxKind);
     /// Opens a node at an earlier output checkpoint, matching Rowan's
     /// `start_node_at`.  Gate 4 uses this once after the first ordinary
@@ -122,6 +134,9 @@ pub(crate) struct Gate3State {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Mode {
     Block,
+    /// A block document whose strict `---` close belongs to its envelope.
+    /// The marker and its suffix are returned unconsumed to the Gate-5 driver.
+    BlockDocument,
     Line,
 }
 
@@ -153,13 +168,14 @@ pub(crate) fn parse<S: Sink>(
     parser.frames.push(YumarkFrame::Document {
         base: 0,
         envelope_stop: match mode {
-            Mode::Block => EnvelopeStop::BlockDocument,
+            Mode::Block | Mode::BlockDocument => EnvelopeStop::BlockDocument,
             Mode::Line => EnvelopeStop::LineDocument,
         },
     });
     parser.sink.enter(SyntaxKind::YmDoc);
     match mode {
-        Mode::Block => parser.parse_block_iterative(),
+        Mode::Block => parser.parse_block_iterative(false),
+        Mode::BlockDocument => parser.parse_block_iterative(true),
         Mode::Line => {
             let end = physical_line(&source[parser.position..], parser.position).content_end;
             parser.parse_inline_until(end);
@@ -487,10 +503,30 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
 
     /// The production Gate-3 block path. All structural nesting is represented
     /// by `open`; it never calls a Yumark block parser through Rust recursion.
-    fn parse_block_iterative(&mut self) {
+    fn parse_block_iterative(&mut self, stop_at_document_close: bool) {
         let mut open = Vec::new();
         while self.position < self.source.len() {
             let line = physical_line(&self.source[self.position..], self.position);
+            if stop_at_document_close
+                && matches!(
+                    judge_chunk(
+                        &self.source[self.position..],
+                        self.position,
+                        ChunkContext {
+                            at_line_start: true,
+                            indent_col: line.indent_end - line.start,
+                            base_col: 0,
+                            active_close: Some(JudgeActiveClose::BlockDocument {
+                                after_opening_line: true,
+                            }),
+                        },
+                    )
+                    .kind,
+                    ChunkKind::Terminator(super::judge::TerminatorKind::BlockDocument)
+                )
+            {
+                break;
+            }
             let content = &self.source[line.indent_end..line.content_end];
 
             if line.indent_end < line.content_end {
@@ -554,10 +590,12 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
                         self.finish_line(line);
                         self.close_open_block(&mut open, false);
                     } else {
+                        let recovery_checkpoint = self.sink.checkpoint();
                         self.sink.enter(SyntaxKind::YmSectionClose);
                         self.emit_token(SyntaxKind::YmHeadingMarker, line.indent_end..marker_end);
                         self.sink.exit();
-                        self.sink.recovery(
+                        self.sink.recovery_at(
+                            &recovery_checkpoint,
                             Recovery {
                                 kind: SyntaxKind::Error,
                                 owner: RecoveryOwner::Section,
@@ -1058,7 +1096,6 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
     fn parse_command_line(&mut self, open: &mut Vec<OpenBlock>, line: PhysicalLine) {
         let command_start = self.position;
         let checkpoint = self.sink.checkpoint();
-        self.sink.enter(SyntaxKind::YmInlineRef);
         self.emit_token(SyntaxKind::YmBackslash, self.position..self.position + 1);
         let name_start = self.position;
         let name_end = identifier_end(self.source, name_start, line.content_end);
@@ -1067,20 +1104,20 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
 
         match name {
             "my" => {
-                self.sink.replace_enter(&checkpoint, SyntaxKind::YmMy);
+                self.sink.start_enter_at(&checkpoint, SyntaxKind::YmMy);
                 self.parse_my_tail(open, line, command_start);
                 return;
             }
             "use" => {
-                self.sink.replace_enter(&checkpoint, SyntaxKind::YmUse);
+                self.sink.start_enter_at(&checkpoint, SyntaxKind::YmUse);
                 self.parse_use_tail(line);
                 self.sink.exit();
                 self.finish_line(line);
                 return;
             }
             "if" | "elsif" | "else" => {
-                self.sink.replace_enter(&checkpoint, SyntaxKind::YmIfChain);
-                self.parse_if_chain_line(name, line);
+                self.sink.start_enter_at(&checkpoint, SyntaxKind::YmIfChain);
+                self.parse_if_chain_line(name, line, &checkpoint);
                 self.sink.exit();
                 return;
             }
@@ -1095,12 +1132,14 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
         let mut promoted = false;
         let mut capture = false;
         let mut arguments_open = false;
+        let mut command_open = false;
 
         if self.position < line.content_end {
             match self.source.as_bytes()[self.position] {
                 b'[' => {
                     promoted = true;
-                    self.sink.replace_enter(&checkpoint, SyntaxKind::YmCommand);
+                    self.sink.start_enter_at(&checkpoint, SyntaxKind::YmCommand);
+                    command_open = true;
                     self.sink.enter(SyntaxKind::YmCommandArgs);
                     arguments_open = true;
                     self.parse_doc_argument(line.content_end);
@@ -1109,7 +1148,8 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
                     if let Some(enabled) = self.parse_do_candidate(line.content_end) {
                         promoted = true;
                         capture = enabled;
-                        self.sink.replace_enter(&checkpoint, SyntaxKind::YmCommand);
+                        self.sink.start_enter_at(&checkpoint, SyntaxKind::YmCommand);
+                        command_open = true;
                         self.sink
                             .start_enter_at(&argument_checkpoint, SyntaxKind::YmCommandArgs);
                         arguments_open = true;
@@ -1125,7 +1165,8 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
                             && self.source.as_bytes()[self.position] == b'{';
                         if followed_by_doc || followed_by_brace || self.strict_colon_body(line) {
                             promoted = true;
-                            self.sink.replace_enter(&checkpoint, SyntaxKind::YmCommand);
+                            self.sink.start_enter_at(&checkpoint, SyntaxKind::YmCommand);
+                            command_open = true;
                             self.sink
                                 .start_enter_at(&argument_checkpoint, SyntaxKind::YmCommandArgs);
                             arguments_open = true;
@@ -1134,11 +1175,13 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
                 }
                 b'{' => {
                     promoted = true;
-                    self.sink.replace_enter(&checkpoint, SyntaxKind::YmCommand);
+                    self.sink.start_enter_at(&checkpoint, SyntaxKind::YmCommand);
+                    command_open = true;
                 }
                 b':' if self.strict_colon_body(line) => {
                     promoted = true;
-                    self.sink.replace_enter(&checkpoint, SyntaxKind::YmCommand);
+                    self.sink.start_enter_at(&checkpoint, SyntaxKind::YmCommand);
+                    command_open = true;
                 }
                 _ => {}
             }
@@ -1174,6 +1217,7 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
             // `do` is the sole command argument.  A later argument is retained
             // as one maximal local error and disables sibling capture.
             let unexpected = self.position;
+            let recovery_checkpoint = self.sink.checkpoint();
             while self.position < line.content_end
                 && matches!(self.source.as_bytes()[self.position], b'(' | b'[')
             {
@@ -1188,7 +1232,8 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
                 }
             }
             if self.position > unexpected {
-                self.sink.recovery(
+                self.sink.recovery_at(
+                    &recovery_checkpoint,
                     Recovery {
                         kind: SyntaxKind::Error,
                         owner: RecoveryOwner::DoCapture,
@@ -1208,6 +1253,8 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
             if self.position < line.content_end && self.source.as_bytes()[self.position] == b';' {
                 self.emit_token(SyntaxKind::Semicolon, self.position..self.position + 1);
             }
+            self.sink
+                .start_enter_at(&checkpoint, SyntaxKind::YmInlineRef);
             self.sink.exit();
             self.sink
                 .start_enter_at(&checkpoint, SyntaxKind::YmParagraph);
@@ -1219,6 +1266,8 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
             }
             return;
         }
+
+        debug_assert!(command_open, "every promoted command opens its owner");
 
         let braced =
             self.position < line.content_end && self.source.as_bytes()[self.position] == b'{';
@@ -1801,7 +1850,12 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
         self.emit_horizontal_to(line.content_end);
     }
 
-    fn parse_if_chain_line(&mut self, first: &str, mut line: PhysicalLine) {
+    fn parse_if_chain_line(
+        &mut self,
+        first: &str,
+        mut line: PhysicalLine,
+        chain_checkpoint: &S::Checkpoint,
+    ) {
         let chain_indent = line.indent_end - line.start;
         self.frames.push(YumarkFrame::IfChain {
             indent: chain_indent,
@@ -1815,6 +1869,17 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
                 "elsif" => RecoveryOwner::ElsifBranch,
                 _ => RecoveryOwner::ElseBranch,
             };
+            if first_branch && branch != "if" {
+                self.sink.recovery_at(
+                    chain_checkpoint,
+                    Recovery {
+                        kind: SyntaxKind::Error,
+                        owner: RecoveryOwner::IfChain,
+                        slot: RecoverySlot::BranchPredecessor,
+                    },
+                    line.indent_end..self.position,
+                );
+            }
             self.sink.enter(match branch {
                 "if" => SyntaxKind::YmIf,
                 "elsif" => SyntaxKind::YmElsif,
@@ -1825,16 +1890,6 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
                     indent: chain_indent,
                     seen_else: true,
                 });
-            }
-            if first_branch && branch != "if" {
-                self.sink.recovery(
-                    Recovery {
-                        kind: SyntaxKind::Error,
-                        owner: RecoveryOwner::IfChain,
-                        slot: RecoverySlot::BranchPredecessor,
-                    },
-                    line.indent_end..self.position,
-                );
             }
             let gap = self.horizontal_end(line.content_end);
             self.emit_horizontal_to(gap);
@@ -1855,8 +1910,10 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
                 && self.source.as_bytes()[self.position] == b'('
             {
                 let start = self.position;
+                let recovery_checkpoint = self.sink.checkpoint();
                 self.parse_parenthesized_yulang(RecoveryOwner::ElseBranch, line.content_end);
-                self.sink.recovery(
+                self.sink.recovery_at(
+                    &recovery_checkpoint,
                     Recovery {
                         kind: SyntaxKind::Error,
                         owner: RecoveryOwner::ElseBranch,
@@ -2292,15 +2349,19 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
                 continue;
             }
             if chunk.kind == ChunkKind::InlineGroup {
-                self.open_inline(
-                    &mut inline,
-                    SyntaxKind::YmInlineGroup,
-                    SyntaxKind::LBracket,
-                    InlineClose::RightBracket,
-                    RecoveryOwner::InlineGroup,
-                    1,
-                    FrameOwner::InlineGroup,
-                );
+                let checkpoint = self.sink.checkpoint();
+                self.emit_token(SyntaxKind::LBracket, self.position..self.position + 1);
+                self.sink.enter(SyntaxKind::YmDoc);
+                self.frames.push(YumarkFrame::Inline {
+                    owner: FrameOwner::InlineGroup,
+                    close: InlineClose::RightBracket,
+                });
+                inline.push(InlineFrame {
+                    close: InlineClose::RightBracket,
+                    owner: RecoveryOwner::InlineGroup,
+                    checkpoint,
+                    node: SyntaxKind::YmInlineGroup,
+                });
                 continue;
             }
             if chunk.kind == ChunkKind::Emphasis {
@@ -2326,6 +2387,10 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
         while let Some(frame) = inline.pop() {
             self.missing(frame.owner, RecoverySlot::ClosingDelimiter, self.position);
             self.sink.exit();
+            if frame.node == SyntaxKind::YmInlineGroup {
+                self.sink
+                    .start_enter_at(&frame.checkpoint, SyntaxKind::YmInlineGroup);
+            }
             self.sink.exit();
             self.frames.pop();
         }
@@ -2364,7 +2429,7 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
                 RecoveryOwner::InlineImage
             } else {
                 self.sink
-                    .replace_enter(&frame.checkpoint, SyntaxKind::YmInlineLink);
+                    .start_enter_at(&frame.checkpoint, SyntaxKind::YmInlineLink);
                 RecoveryOwner::InlineLink
             };
             self.parse_raw_destination(owner, limit);
@@ -2378,7 +2443,7 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
             self.sink.exit();
         } else if self.position < limit && self.source.as_bytes()[self.position] == b':' {
             self.sink
-                .replace_enter(&frame.checkpoint, SyntaxKind::YmInlineApply);
+                .start_enter_at(&frame.checkpoint, SyntaxKind::YmInlineApply);
             let colon = self.position;
             self.emit_token(SyntaxKind::Colon, colon..colon + 1);
             self.sink.enter(SyntaxKind::YmInlineApplyHead);
@@ -2399,6 +2464,8 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
             }
             self.sink.exit();
         } else {
+            self.sink
+                .start_enter_at(&frame.checkpoint, SyntaxKind::YmInlineGroup);
             self.sink.exit();
         }
     }
