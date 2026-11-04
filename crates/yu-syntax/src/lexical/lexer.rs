@@ -1151,6 +1151,10 @@ pub(crate) fn scan_path_segment(mut i: LexIn) -> Option<Token> {
         return Some(word);
     }
 
+    scan_sigil_path_segment(i)
+}
+
+fn scan_sigil_path_segment(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut segment| {
         matches!(segment.next()?, '$' | '&' | '\'').then_some(())?;
         scan_identifier(segment.rb())?;
@@ -1169,7 +1173,7 @@ pub(crate) fn scan_declaration_type_parameter(mut i: LexIn) -> Option<Token> {
     if let Some(word) = i.token(scan_identifier) {
         return Some(word);
     }
-    i.token(scan_path_segment)
+    i.token(scan_sigil_path_segment)
 }
 
 pub(crate) fn is_declaration_starter_word(word: &str) -> bool {

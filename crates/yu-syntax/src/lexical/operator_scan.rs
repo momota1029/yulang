@@ -47,8 +47,8 @@ pub(crate) fn scan_operator_fenced(
             LineEntry::InLine,
             fence,
         );
-        let (post_whitespace, value_start) = match observation {
-            TriviaObservation::Boundary => (true, false),
+        let post_whitespace = match &observation {
+            TriviaObservation::Boundary => true,
             TriviaObservation::Visible(visible) => {
                 if is_call_or_path_sensitive(kinds)
                     && !visible.present
@@ -56,17 +56,20 @@ pub(crate) fn scan_operator_fenced(
                 {
                     return None;
                 }
-                let post_whitespace = visible.present
-                    || visible.source.is_empty()
-                    || active_stop(visible.source, stops);
-                let value_start =
-                    raw_value_start(table, visible.indentation, visible.source, baseline);
-                (post_whitespace, value_start)
+                visible.present || visible.source.is_empty() || active_stop(visible.source, stops)
             }
         };
         let with_value = judge_operator(site, kinds, has_leading_trivia, post_whitespace, true);
         let without_value = judge_operator(site, kinds, has_leading_trivia, post_whitespace, false);
-        let fixity = if is_call_or_path_sensitive(kinds) && post_whitespace && value_start {
+        let sensitive = is_call_or_path_sensitive(kinds) && post_whitespace;
+        let value_start = (sensitive || with_value != without_value)
+            && match observation {
+                TriviaObservation::Boundary => false,
+                TriviaObservation::Visible(visible) => {
+                    raw_value_start(table, visible.indentation, visible.source, baseline)
+                }
+            };
+        let fixity = if sensitive && value_start {
             Some(OperatorFixity::Prefix)
         } else if with_value != without_value {
             if value_start {
