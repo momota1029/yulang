@@ -26,3 +26,8 @@ lambda（複数引数、pattern 引数）、`sub:`、`for`、`do`、`type`（ali
 - 仕様: `spec/01-lexical.md` §1.2。同じ行の末尾 `-- ...` と `=` 直後の `-- ...` が、その行で始まった宣言の doc になる。
 - struct の field / enum の variant / role の method / act の operation にも、直前行・行末・`=` 直後の doc が付く。
 - 現状: 直前行の doc だけ（WP-11 gate 6）。行末・`=` 直後・メンバーは未対応。
+
+## G13 数値 literal の形（2026-11-04 起票、未確認）
+
+- 仕様: `spec/03-expressions.md` §3.1。`_` 区切り、`0x`/`0b`/`0o`、指数（`1e3`、`1.5e-2`）。`1.` と `.5` は書けない。
+- 現状: 字句解析器に該当処理が見つからない。実 parser で例を通して確かめてから着手する。
