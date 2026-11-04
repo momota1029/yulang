@@ -42,6 +42,7 @@ impl Index str int:
     our s.index i = std::text::str::index_raw s i
 ```
 
+- `impl` は具体的な型にも、型引数を持つ一般的な型（`impl Display (list 'a)`）にも、一部の型引数だけを決めた型（`impl Display (list int)`）にも書ける（確定, 2026-11-04）。候補が重なれば曖昧エラー、重ならなければ共存する。
 - role 名の直後の型が最初の型引数を埋め、後ろの型が残りを埋める。
 - `impl` の中の `our` が候補として公開される。`my` は `impl` の中の helper。
 - 足りない method、role にない method は検査で報告される。
