@@ -52,6 +52,15 @@ my base = 10
 - block は文を順に評価し、最後の式を値として返す（式指向）。
 - 素材にあった本体のない `pub declared` の形は、デバッグ用の名残りらしいので**仕様に採らない**（確定, 2026-11-04）。
 - `our p.norm2 = ...` のように名前に dot を含む binding は **method の定義**になる。意味は章4・章6 で書く。
+  書ける場所は `with:` の中に限らない。module のトップレベル、`role` や `act` の中にも書ける（確定, 2026-11-04）。
+  何も要求しない method（`.tap` のように、どの型にも付けられるもの）もこの形で書く。
+
+```yulang
+our x.tap f = f x; x            // どの型にも付く method
+our p.norm2 = p.x * p.x + p.y * p.y    // トップレベルに書いても method になる
+```
+
+  他の module の型へ method を足してよいか、同名の method がぶつかったらどうなるかは未決（D6）。
 
 出典: `main:docs/language/overview.ja.md` §block と binding、`main:notes/design/yulang-language-report.md` §5.1
 
