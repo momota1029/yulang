@@ -171,19 +171,68 @@ fn malformed_binding_where_clause_leaves_the_following_body_statement() {
 fn nested_statement_blocks_do_not_enable_declaration_where_prefixes() {
     use SyntaxKind::*;
 
+    // WP-6 of notes/design/2026-11-04-parser-gap-closure-addendum.md changed
+    // only the incidental recovery expectations; nested blocks still forbid WhereClause.
     let source = "my f = if true:\n    where 'a: Display\n    1";
     let (green, exit) = run_statement(source);
     let root = SyntaxNode::new_root(green.clone());
-    assert_eq!(root.to_string(), "my f = if true:\n    where");
+    assert_eq!(root.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
     assert!(
         !root.descendants().any(|node| node.kind() == WhereClause),
         "{root:#?}"
     );
-    let Some(Err(Either::Left(item))) = exit else {
-        panic!("the ordinary nested parser must leave the unsupported suffix pending")
-    };
-    assert_eq!(token_kind(&item), Some(TokenKind::Unknown));
-    assert_eq!(item.payload_view().spelling(), Some("'"));
+    assert!(
+        !root
+            .descendants_with_tokens()
+            .any(|element| matches!(element.kind(), Error | Missing | Invalid)),
+        "{root:#?}"
+    );
+
+    let where_chain = root
+        .descendants()
+        .find(|node| {
+            node.kind() == OperatorChain
+                && node.first_child().is_some_and(|child| {
+                    child.kind() == IdentifierExpression && child.text() == "where"
+                })
+        })
+        .expect("ordinary where expression chain");
+    assert_eq!(
+        where_chain
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [IdentifierExpression, MlArgument, ColonApplicationTail]
+    );
+    let where_expression = where_chain
+        .first_child()
+        .expect("where IdentifierExpression");
+    assert_eq!(
+        where_expression
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [Identifier]
+    );
+    assert_eq!(where_expression.first_token().unwrap().text(), "where");
+
+    let argument = where_chain
+        .children()
+        .find(|node| node.kind() == MlArgument)
+        .expect("label MlArgument");
+    let label_expression = argument
+        .descendants()
+        .find(|node| node.kind() == IdentifierExpression)
+        .expect("label IdentifierExpression");
+    assert_eq!(
+        label_expression
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SigilIdentifier]
+    );
+    assert_eq!(label_expression.first_token().unwrap().text(), "'a");
 }
 
 #[test]

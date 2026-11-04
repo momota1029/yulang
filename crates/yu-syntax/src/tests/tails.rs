@@ -102,6 +102,118 @@ fn ampersand_reference_is_the_left_operand_of_assignment() {
     );
 }
 
+fn clean_file(source: &str) -> SyntaxNode {
+    let text: std::sync::Arc<crate::SourceText> = std::sync::Arc::from(source);
+    let parsed = crate::parse_file(
+        text.clone(),
+        std::sync::Arc::new(crate::scan_header(text)),
+        std::sync::Arc::new(crate::SyntaxEnvironment::empty()),
+    );
+    assert_eq!(parsed.green().to_string(), source, "{source:?}");
+    assert!(
+        parsed.syntax_diagnostics().unwrap().is_empty(),
+        "{source:?}"
+    );
+    assert!(structural_facts(parsed.green()).is_empty(), "{source:?}");
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    assert!(
+        !root.descendants_with_tokens().any(|element| matches!(
+            element.kind(),
+            SyntaxKind::Error | SyntaxKind::Missing | SyntaxKind::Invalid
+        )),
+        "{source:?}"
+    );
+    root
+}
+
+#[test]
+fn labels_are_identifier_primaries_in_operand_and_ml_argument_positions() {
+    for source in [
+        "last 'outer",
+        "next 'outer",
+        "redo 'outer",
+        "return 'done 42",
+        "'done.return 42",
+        "'outer.last",
+        "sub 'done:\n    1",
+        "sub 'done:\n    'done.return 42\n    0",
+        "f('a, 'b)",
+        "my l = 'x",
+    ] {
+        let root = clean_file(source);
+        let labels = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| {
+                token.kind() == SyntaxKind::SigilIdentifier && token.text().starts_with('\'')
+            })
+            .collect::<Vec<_>>();
+        assert!(!labels.is_empty(), "{source:?}");
+        assert!(
+            labels.iter().all(|token| {
+                token
+                    .parent()
+                    .is_some_and(|parent| parent.kind() == SyntaxKind::IdentifierExpression)
+            }),
+            "{source:?}"
+        );
+    }
+
+    let root = clean_file("last 'outer");
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::MlArgument)
+            .count(),
+        1
+    );
+
+    let root = clean_file("'done.return 42");
+    let outer = root.first_child().expect("outer OperatorChain");
+    assert_eq!(
+        outer.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [
+            SyntaxKind::IdentifierExpression,
+            SyntaxKind::FieldTail,
+            SyntaxKind::MlArgument,
+        ]
+    );
+}
+
+#[test]
+fn expression_label_admission_does_not_change_type_variables() {
+    let root = clean_file("my f(x: 'a): 'a = x");
+    let variables = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::SigilIdentifier)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        variables
+            .iter()
+            .map(|token| token.text())
+            .collect::<Vec<_>>(),
+        ["'a", "'a"]
+    );
+    assert!(variables.iter().all(|token| {
+        token
+            .parent_ancestors()
+            .any(|ancestor| ancestor.kind() == SyntaxKind::TypeExpression)
+    }));
+
+    let (green, exit) = run_type("'a -> 'b");
+    assert_eq!(green.to_string(), "'a -> 'b");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert!(structural_facts(&green).is_empty());
+    assert!(
+        !SyntaxNode::new_root(green)
+            .descendants_with_tokens()
+            .any(|element| matches!(
+                element.kind(),
+                SyntaxKind::Error | SyntaxKind::Missing | SyntaxKind::Invalid
+            ))
+    );
+}
+
 #[test]
 fn unary_callback_lambda_header_has_direct_cst() {
     let (green, _) = run(r"host (\x -> x)");

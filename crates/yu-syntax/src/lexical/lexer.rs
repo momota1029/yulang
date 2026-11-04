@@ -114,7 +114,7 @@ pub(crate) fn scan_expression_payload(
         {
             CurrentPayload::Token(keyword)
         } else if matches!(site, OperatorSite::Nud)
-            && let Some(identifier) = i.token(scan_reference_sigil_identifier)
+            && let Some(identifier) = i.token(scan_expression_sigil_identifier)
         {
             CurrentPayload::Token(identifier)
         } else if let Some(operator) = i.token(|lex| {
@@ -135,7 +135,7 @@ pub(crate) fn scan_expression_payload(
             CurrentPayload::Token(equals)
         } else if matches!(site, OperatorSite::Led)
             && has_leading_trivia
-            && let Some(identifier) = i.token(scan_reference_sigil_identifier)
+            && let Some(identifier) = i.token(scan_expression_sigil_identifier)
         {
             CurrentPayload::Token(identifier)
         } else if matches!(site, OperatorSite::Led)
@@ -190,7 +190,7 @@ pub(crate) fn scan_nud_payload(
             CurrentPayload::Token(token)
         } else if let Some(token) = i.token(scan_lbrace) {
             CurrentPayload::Token(token)
-        } else if let Some(token) = i.token(scan_reference_sigil_identifier) {
+        } else if let Some(token) = i.token(scan_expression_sigil_identifier) {
             CurrentPayload::Token(token)
         } else if let Some(operator) = i.token(|lex| {
             scan_operator_fenced(
@@ -830,9 +830,9 @@ pub(crate) fn scan_apostrophe_sigil_identifier(mut i: LexIn) -> Option<Token> {
     })
 }
 
-fn scan_reference_sigil_identifier(mut i: LexIn) -> Option<Token> {
+fn scan_expression_sigil_identifier(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut segment| {
-        matches!(segment.next()?, '$' | '&').then_some(())?;
+        matches!(segment.next()?, '$' | '&' | '\'').then_some(())?;
         scan_identifier(segment.rb())?;
         Some(())
     });

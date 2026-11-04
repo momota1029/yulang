@@ -4,11 +4,12 @@ Expressionの文脈と記録済みの全ファミリーは、[構文の内容モ
 
 ## Identifierのprimary form
 
-`IdentifierExpression`はoperand位置にある通常のidentifierまたは参照sigil identifierを記録する。
+`IdentifierExpression`はoperand位置にある通常のidentifier、参照sigil identifier、またはlabel identifierを記録する。
 
 ```text
-IdentifierPrimary := Identifier | ReferenceSigilIdentifier
+IdentifierPrimary := Identifier | ReferenceSigilIdentifier | LabelIdentifier
 ReferenceSigilIdentifier := ("$" | "&") ! Identifier
+LabelIdentifier := "'" ! Identifier
 ```
 
 `!`はsigilとidentifierの間にtriviaを置かず、隣接させることを表す。
@@ -19,6 +20,8 @@ operandの後でLED演算子を選択するとき、宣言済みの`&`はsigil i
 ```yulang
 $count
 &count = $count + 1
+last 'outer
+'done.return 42
 ```
 
 - [Parenthesized primary form](parenthesized-expression.md)

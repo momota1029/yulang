@@ -7,7 +7,6 @@
 
 | 項目 | 仕様の根拠 | 現在のパーサ |
 | --- | --- | --- |
-| 式の中の label（`'done.return 42`、`last 'outer`、`sub 'done:`） | [章3c.3](03c-control.md) | `for 'x`、`case 'c 3:` の見出しは読める。`sub 'done:`、`last 'outer` は Error |
 | list literal（`[]`、`[1, 2]`、`[1, ..xs]`） | [章3.1](03-expressions.md) | `[` が Error（pattern の list は読める） |
 | `case` の arm の parser pattern（`~"GET :x" -> ...`） | [章9.1](09-parser-dsl.md) | `~` が Error（式としての `~"a"` と `rule { }` は読める） |
 | 複数引数の lambda（`\x y -> x`） | [章3.4](03-expressions.md) | 文頭で Error（単項 `\x -> x` は読める。素材では「unary lambda の admission」まで） |

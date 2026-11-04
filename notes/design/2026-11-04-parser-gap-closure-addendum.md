@@ -63,6 +63,8 @@ In operand position (NUD), `$name` and `&name` adjacent to an identifier are `Si
 
 `'name` is accepted in operand position and as an ML argument. `'done.return 42`, `last 'outer`, `return 'done 42`, `sub 'done:` all follow from this. The existing head probes (`case 'c`, `catch 'c`, `for 'c`) run first so their behavior does not change. The label's meaning (`'done.return` as a method-like operation, and the recursion call form of M2 in `spec/03c-control.md`) belongs to later phases; the parser records structure only.
 
+Result (2026-11-04): the WP-5 sigil scan also accepts a leading `'` in NUD and ML-argument positions (`scan_expression_sigil_identifier`), reusing `IdentifierExpression(SigilIdentifier)`. One pre-existing test changed its incidental expectations with the user-delegated approval of the primary: `nested_statement_blocks_do_not_enable_declaration_where_prefixes` (`where 'a: Display` in a nested block). Its contract, that no `WhereClause` is built in a nested block, is unchanged and still asserted; the old pins (text stops at `where`, pending Unknown `'`) only recorded that an expression-position `'a` was unsupported, and now the whole line parses as the ordinary expression `where 'a` followed by a colon application.
+
 ### WP-7 list literal
 
 `[]`, `[1, 2]`, `[1, ..xs, 3]`. A new `ListExpression` kind with `[` `]` as its delimiters, built like `ParenthesizedExpression` with a new `DelimitedOwner::List`. A spread item is a new kind appended at the end (`ListExpressionSpreadItem`), following `ProjectionRecordSpreadItem`. Recovery follows the existing delimited-sequence authority (`cross-cutting/layout-aware-separator-authority.md`).

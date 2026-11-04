@@ -3,7 +3,7 @@ use crate::{
     cursor::recovery::emit::{emit_identifier_core, emit_literal_item, emit_token_item},
     handoff::handoff,
     lexical::{
-        current_item::{LineEntry, current_item, scan_identifier_item_witness},
+        current_item::{CurrentPayload, LineEntry, current_item, scan_identifier_item_witness},
         item::{
             BorrowedTarget, Boundary, ForeignSplit, FragmentError, Item, LeadingTrivia, Payload,
             PhysicalLeadingTrivia, StopKind, Token,
@@ -31,6 +31,52 @@ fn raw_declaration_head_predicate_matches_identifier_and_sigil_surface() {
     }
     for source in ["", "$", "&", "'", "1name", "=", ";", "}"] {
         assert!(!source_declaration_head(source), "{source:?}");
+    }
+}
+
+#[test]
+fn nonadjacent_or_nonidentifier_apostrophes_keep_unknown_token_recovery() {
+    for (source, remainder) in [("'", ""), ("' x", " x"), ("'1", "1")] {
+        let operators = OperatorTable::empty();
+        let recover = Recover::new_for_test(&operators);
+        let mut input = source;
+        let mut lexical_view = crate::cursor::LexRecover::new_for_test(recover.operators());
+        let mut i: crate::cursor::LexIn = chasa_recover::In::new(&mut input, &mut lexical_view, ());
+        let accepted = i
+            .token(|lex| scan_expression_payload(lex, OperatorSite::Nud, false, 0, None, 0, 0))
+            .expect("the raw NUD scanner retains an invalid apostrophe");
+        let CurrentPayload::Token(token) = accepted.payload else {
+            panic!("an invalid apostrophe is not an operator")
+        };
+
+        assert_eq!(token.kind, TokenKind::Unknown, "{source:?}");
+        assert_eq!(&*token.text, "'");
+        assert_eq!(input, remainder, "{source:?}");
+
+        let text: std::sync::Arc<crate::SourceText> = std::sync::Arc::from(source);
+        let parsed = crate::parse_file(
+            text.clone(),
+            std::sync::Arc::new(crate::scan_header(text)),
+            std::sync::Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        assert_eq!(parsed.green().to_string(), source, "{source:?}");
+        assert!(
+            !parsed.syntax_diagnostics().unwrap().is_empty(),
+            "{source:?}"
+        );
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        assert!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::Error && token.text() == "'"),
+            "{source:?}"
+        );
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|element| element.kind() == SyntaxKind::SigilIdentifier),
+            "{source:?}"
+        );
     }
 }
 

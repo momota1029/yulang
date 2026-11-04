@@ -2316,10 +2316,8 @@ fn case_like_literal_production(source: &str) -> SyntaxNode {
         std::sync::Arc::new(crate::SyntaxEnvironment::empty()),
     );
     assert_eq!(parsed.green().to_string(), source);
-    assert!(
-        parsed.syntax_diagnostics().unwrap().is_empty(),
-        "{source:?}"
-    );
+    let diagnostics = parsed.syntax_diagnostics().unwrap();
+    assert!(diagnostics.is_empty(), "{source:?}: {diagnostics:#?}");
     assert!(structural_facts(parsed.green()).is_empty(), "{source:?}");
     let root = SyntaxNode::new_root(parsed.green().clone());
     assert!(
@@ -2330,6 +2328,116 @@ fn case_like_literal_production(source: &str) -> SyntaxNode {
         "{source:?}"
     );
     root
+}
+
+#[test]
+fn case_like_label_probe_wins_before_label_expression_scrutinees() {
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "-",
+            OperatorFixities::new()
+                .with_infix(BindingPower::scalar(40), BindingPower::new(40, [1])),
+        ),
+        OperatorDeclaration::new(
+            ">",
+            OperatorFixities::new()
+                .with_infix(BindingPower::scalar(30), BindingPower::new(30, [1])),
+        ),
+    ])
+    .expect("arithmetic operators used inside the label recursion examples");
+    for (source, expression_kind, label_kind, scrutinee_kind, arm_kind, spelling) in [
+        (
+            "case 'count 3:\n    0 -> 1\n    n -> 'count (n - 1)",
+            SyntaxKind::CaseExpression,
+            SyntaxKind::CaseLabel,
+            SyntaxKind::CaseScrutinee,
+            SyntaxKind::CaseArm,
+            "'count",
+        ),
+        (
+            "catch 'again 3:\n    n if n > 0 -> 'again (n - 1)\n    n -> n",
+            SyntaxKind::CatchExpression,
+            SyntaxKind::CatchLabel,
+            SyntaxKind::CatchScrutinee,
+            SyntaxKind::CatchArm,
+            "'again",
+        ),
+    ] {
+        let (green, exit) = run_with(source, &operators);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert!(structural_facts(&green).is_empty(), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        assert!(
+            !root.descendants_with_tokens().any(|element| matches!(
+                element.kind(),
+                SyntaxKind::Error | SyntaxKind::Missing | SyntaxKind::Invalid
+            )),
+            "{source:?}"
+        );
+        let expression = root
+            .descendants()
+            .find(|node| node.kind() == expression_kind)
+            .expect("case-like expression");
+        assert_eq!(
+            expression
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [
+                label_kind,
+                scrutinee_kind,
+                match expression_kind {
+                    SyntaxKind::CaseExpression => SyntaxKind::CaseBlock,
+                    SyntaxKind::CatchExpression => SyntaxKind::CatchBlock,
+                    _ => unreachable!(),
+                },
+            ],
+            "{source:?}"
+        );
+        assert_eq!(
+            expression
+                .descendants()
+                .filter(|node| node.kind() == arm_kind)
+                .count(),
+            2,
+            "{source:?}"
+        );
+
+        let labels = expression
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::SigilIdentifier && token.text() == spelling)
+            .collect::<Vec<_>>();
+        assert_eq!(labels.len(), 2, "{source:?}");
+        assert_eq!(
+            labels
+                .iter()
+                .map(|token| token.parent().expect("label token parent").kind())
+                .collect::<Vec<_>>(),
+            [label_kind, SyntaxKind::IdentifierExpression],
+            "{source:?}"
+        );
+
+        let scrutinee = expression
+            .children()
+            .find(|node| node.kind() == scrutinee_kind)
+            .expect("case-like scrutinee");
+        assert!(
+            !scrutinee
+                .descendants_with_tokens()
+                .any(|element| element.kind() == SyntaxKind::SigilIdentifier),
+            "{source:?}"
+        );
+        assert_eq!(
+            scrutinee
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::IntegerLiteral)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
 }
 
 fn assert_case_like_string_scrutinee(root: &SyntaxNode, scrutinee_kind: SyntaxKind, width: usize) {

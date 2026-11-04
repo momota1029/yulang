@@ -492,6 +492,39 @@ fn for_c13_label_probe_accepts_only_a_real_label() {
 }
 
 #[test]
+fn for_label_probe_keeps_label_outside_expression_primaries() {
+    let source = "for 'outer x in xs: x";
+    let (green, exit) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert!(structural_facts(&green).is_empty());
+
+    let statement = for_node(&green);
+    assert_eq!(
+        statement
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::ForLabel,
+            SyntaxKind::Pattern,
+            SyntaxKind::ForIterable,
+            SyntaxKind::OperatorChain,
+        ]
+    );
+    let label = statement
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::SigilIdentifier)
+        .expect("For label token");
+    assert_eq!(label.text(), "'outer");
+    assert_eq!(
+        label.parent().map(|parent| parent.kind()),
+        Some(SyntaxKind::ForLabel)
+    );
+}
+
+#[test]
 fn for_c13_statement_dispatch_is_exact_and_visibility_stays_binding() {
     for source in ["forall", "fork", "format"] {
         let (green, _) = run_statement(source);

@@ -4,11 +4,12 @@ The [syntax content model](../conventions/syntax-content-model.md) identifies th
 
 ## Identifier primary forms
 
-An `IdentifierExpression` records a plain identifier or a reference sigil identifier in operand position.
+An `IdentifierExpression` records a plain identifier, a reference sigil identifier, or a label identifier in operand position.
 
 ```text
-IdentifierPrimary := Identifier | ReferenceSigilIdentifier
+IdentifierPrimary := Identifier | ReferenceSigilIdentifier | LabelIdentifier
 ReferenceSigilIdentifier := ("$" | "&") ! Identifier
+LabelIdentifier := "'" ! Identifier
 ```
 
 `!` requires the sigil and identifier to be adjacent, with no trivia between them.
@@ -19,6 +20,8 @@ A bare sigil or a sigil not adjacent to an identifier is not an identifier prima
 ```yulang
 $count
 &count = $count + 1
+last 'outer
+'done.return 42
 ```
 
 - [Parenthesized primary forms](parenthesized-expression.md)
