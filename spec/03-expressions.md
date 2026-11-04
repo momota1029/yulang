@@ -159,13 +159,14 @@ target with:
 - 式の `with:` は Haskell の `where` に近い（確定, 2026-11-04）。`target with:` の下に書いた binding 群は、`target`（tail）から見える局所の名前になる。式の `with` は companion を足すものではない。
 
 ```yulang
-area r = pi * r * r with:
+my area r = pi * r * r with:
     our pi = 3.14159         // our なので、本体 pi * r * r から見える
     my unused = 1            // my なので、本体からは見えない（with: の中だけ）
 ```
 
 - `with:` の中で `our` / `pub` を付けた binding は tail から見え、`my` を付けたものは見えない（確定, 2026-11-04）。
   `with:` の中では `our` と `pub` に違いはない（どちらも tail から見えるだけ）。
+- `with:` の中の `our` 同士は順番を問わず参照できる。ただし値制限で一般化できなくなるもの（評価が要る値）は、上から順にしか置けない（確定, 2026-11-04。「値制限で死ぬもの」の線引きは E14 で確かめる）。
 
 出典: `main:notes/design/yulang-language-report.md` §6.5
 
