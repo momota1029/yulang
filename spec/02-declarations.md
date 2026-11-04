@@ -60,7 +60,8 @@ our x.tap f = f x; x            // どの型にも付く method
 our p.norm2 = p.x * p.x + p.y * p.y    // トップレベルに書いても method になる
 ```
 
-  他の module の型へ method を足してよいか、同名の method がぶつかったらどうなるかは未決（D6）。
+  他の module の型にも method を足せる（確定, 2026-11-04）。method は定義した module の名前空間に入り、
+  `use` で見えるようにしたものだけが `p.norm2` で選ばれる。同名の method を 2 つ `use` したら曖昧エラー（impl が複数候補のときと同じ）。
 
 出典: `main:docs/language/overview.ja.md` §block と binding、`main:notes/design/yulang-language-report.md` §5.1
 
