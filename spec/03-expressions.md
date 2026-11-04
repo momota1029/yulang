@@ -198,6 +198,8 @@ if cond: do_something()          // 結果の opt unit を捨てて文として�
 my r = if x > 0: x               // opt int
 ```
 
+- 文の位置で値を捨てても警告は出さない（確定, 2026-11-04）。
+
 - 条件が effectful な場合の扱い（junction。`all` / `any`）は章5 で書く。
 
 出典: `main:web/docs/ja/reference/control-flow.md`
