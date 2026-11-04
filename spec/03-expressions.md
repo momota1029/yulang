@@ -19,6 +19,19 @@ true         // bool
 
 - list は spread を持つ: `[1, ..xs, 3]`。record も spread を持つ: `{x: 1, ..rest}`。
 
+- 文字列は `"..."` で、`\n` などの escape と `\u{1F600}` の Unicode escape を使える。`"""` で囲んだ複数行の文字列もある。
+- 式の埋め込みは `%{式}` で、値を `Display` role で文字列にする（確定, 2026-11-04）。`%` と `{` の間に Rust 風の書式指定を置ける。
+
+```yulang
+"hello %{name}"
+"hex = %x{255}"          // 16 進
+"%8.3{text}"             // 幅 8、最大 3 文字
+"%*>8{side}"             // fill `*`、右寄せ、幅 8
+"%+#08x{255}"            // "+0x000ff"
+```
+
+  書式の並びは `%[[fill]align][sign][#][0][width][.precision][kind]{式}`（`kind` は `?` `x` `X`）。詳細は main の `web/docs/ja/reference/strings.md` が素材で、`str` の API は標準ライブラリの章で扱う。
+
 - 数値 literal は桁区切りの `_`（`1_000_000`）、`0x` `0b` `0o` の進数、指数（`1e3`、`1.5e-2`）、小数を書ける。`1.` や `.5` のような省略形は書けない（`1.foo` が method 呼び出しと紛れるため）（確定, 2026-11-04）。
 
 - `int` は**任意精度**、`1.5` のような小数 literal は `float`（確定, 2026-11-04）。
