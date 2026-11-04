@@ -17,7 +17,7 @@ my bit = flip::coin()
 - `act` は effect の family を作る。同名の companion module ができ、operation は `flip::coin` のように参照する。
 - operation は `our`（または `pub`）の型 signature として並べる。
 - **operation の呼び出しは普通の関数呼び出しに見える。** 呼んだ computation の型には、その effect が残る（`flip` が effect 行に入る）。
-- operation の signature に出てくる、`act` の型引数ではない型変数（`'b`）は、その operation だけの多相になる（確定, 2026-11-04）。呼び出しごとに別の型で使える。rank 2 の多相に当たる（引数の位置の多相の扱いは I4 で確かめる）。
+- operation の signature に出てくる、`act` の型引数ではない型変数（`'b`）は、その operation だけの多相になる（確定, 2026-11-04）。呼び出しごとに別の型で使える。呼び出す側は好きな型を選べる（`apply::twice (\x -> x + 1)` のように）。一方 handler の側では、その `'b` が何の型か分からない抽象的な型として受け取る（`'b -> 'b` の関数らしいが `'b` は不明。確定, 2026-11-04）。呼ぶ側で全称、受ける側で存在のように働く。
 
 ```yulang
 act ref_update 'a:
