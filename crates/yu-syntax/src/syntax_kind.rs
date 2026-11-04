@@ -289,10 +289,10 @@ pub enum SyntaxKind {
     PatternMlApplicationTail,
     PatternPathTail,
     PatternCallTail,
-    LambdaExpression,
     PatternFieldTail,
     WhereClause,
     SymbolExpression,
+    LambdaExpression,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
