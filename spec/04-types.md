@@ -4,7 +4,7 @@
 effect 行の意味（T2・T3）は章5、`role` / `impl` / `where` / `cast` は章6、型の表示は章7 に回す。
 素材の effect 行は `;` 区切りで書かれていたが、ここでは新表記の `,` に直してある（[T1](traps.md)）。
 
-## 4.1 基本の型　〔要確認〕
+## 4.1 基本の型　〔仮採用〕
 
 | 型 | 例 | 備考 |
 | --- | --- | --- |
@@ -34,7 +34,7 @@ my x: int = if cond: 1 else: fail "oops"    // else 側は never なので int �
 
 出典: `main:web/docs/ja/reference/types.md`
 
-## 4.2 型変数と注釈　〔注釈の位置は確定、他は要確認〕
+## 4.2 型変数と注釈　〔注釈の位置は確定、他は仮採用〕
 
 型変数は `'a` と書き、注釈の中に直接出す。**型変数を先に宣言する引数リストはない。**
 
@@ -63,7 +63,7 @@ my (a: int, b: str) = p
 
 出典: `main:web/docs/ja/reference/types.md` §Type variable、§`as` による inline ascription
 
-## 4.3 record　〔幅の部分型付けは確定、他は要確認〕
+## 4.3 record　〔幅の部分型付けは確定、他は仮採用〕
 
 ```yulang
 { x: 3, y: 4 }
@@ -89,7 +89,7 @@ get_x { x: 1, y: 2 }       // OK: y が余分でも渡せる
 - 型の表示では、省略可能な field は `?` 付きで出る。例: `{width?: 'a} -> 'a | int`。
 - record pattern の default（`{ width = 1 }`）が、省略可能な field を生む（章3b.3）。
 
-## 4.4 `struct`　〔`.0` は確定、他は要確認〕
+## 4.4 `struct`　〔`.0` は確定、他は仮採用〕
 
 ```yulang
 struct point { x: int, y: int }
@@ -128,7 +128,7 @@ struct point { x: int, y: int } with:
 
 出典: `main:web/docs/ja/reference/structs.md`
 
-## 4.5 `enum`　〔constructor のカリー化は確定、他は要確認〕
+## 4.5 `enum`　〔constructor のカリー化は確定、他は仮採用〕
 
 polymorphic variant の型も存在する（確定, 2026-11-04）。綴りは 2 つあり、同じ意味（確定, 2026-11-04）。`:name payload` の pattern（章3b）に対応する型で、閉じた tag の集合を表す。
 
@@ -213,7 +213,7 @@ my b = make a              // エラー: 再帰する component の中で comput
 
 出典: `main:web/docs/ja/reference/types.md` §Value restriction、`main:spec/2026-06-13-computed-fetch-value-restriction.md`
 
-## 4.8 書けない型と、表示に出る型　〔要確認〕
+## 4.8 書けない型と、表示に出る型　〔仮採用〕
 
 - 推論結果には union / intersection（`'a | int`、`'a & {width?: ⊤}`）が出ることがある。
   これらを**注釈として直接書くことはできない**（確定, 2026-11-04）。注釈に書ける型は、nominal な型・tuple・record・関数・型変数・`:{...}`（4.5）だけ。値を複数の型から選ぶときは `enum` を作る。H7 の `:ready | :some int` の `|` は polymorphic variant の型の綴りで、一般の union 型を書く構文ではない。

@@ -3,7 +3,7 @@
 状態の凡例は [README](README.md)。この章は短くして、**確認してほしい点を最後にまとめた**。
 構文木の形（CST）は `syntax-reference/` が扱うので、ここでは「利用者から見える意味」だけを書く。
 
-## 1.1 ソースと識別子　〔識別子の大小は確定、他は要確認〕
+## 1.1 ソースと識別子　〔識別子の大小は確定、他は仮採用〕
 
 - ソースファイルは UTF-8 のテキストで、1ファイルが1つの module になる。
 - 識別子は大文字と小文字を**区別する**が、どちらで書くかは**強制されない**（Linux のファイル名と同じ）。
@@ -13,7 +13,7 @@
 
 出典: ユーザーの言語設計メモ（memory）、`main:docs/language/overview.ja.md` §block と binding
 
-## 1.2 コメント　〔要確認〕
+## 1.2 コメント　〔仮採用〕
 
 ```yulang
 // 行コメント（確定）
@@ -48,7 +48,7 @@ my h x =     -- ③ `=` の直後: この宣言の doc
 
 出典: `main:notes/design/yulang-language-report.md` §4.2
 
-## 1.3 ブロックと layout　〔字下げ継続は確定、他は要確認〕
+## 1.3 ブロックと layout　〔字下げ継続は確定、他は仮採用〕
 
 ブロックは、インデント（`:` で始める）と波括弧の両方で書ける。意味は同じ。
 
@@ -81,7 +81,7 @@ xs
 出典: `main:notes/design/yulang-language-report.md` §4.3、`syntax-reference/ja/src/cross-cutting/layout-aware-separator-authority.md`
 注意: `main:web/docs/ja/guide/pitfalls.md` の「改行で裸 application は閉じる」は、この規則と逆のことを書いており、古い。起こし直すときに採らない。
 
-## 1.4 呼び出しの 3 つの形　〔要確認〕
+## 1.4 呼び出しの 3 つの形　〔仮採用〕
 
 見た目が似ていて、別の構文として読まれる。
 
@@ -101,7 +101,7 @@ f xs .map     // (f xs).map
 
 出典: `main:web/docs/ja/guide/pitfalls.md`、`main:web/docs/ja/reference/syntax-style.md`
 
-## 1.5 演算子は宣言で決まる　〔要確認〕
+## 1.5 演算子は宣言で決まる　〔仮採用〕
 
 演算子はパーサに固定されていない。`nullfix` / `prefix` / `infix` / `suffix` の宣言で作り、
 **その宣言を import したファイルだけ**が、その演算子を読める。

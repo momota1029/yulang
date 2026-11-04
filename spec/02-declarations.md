@@ -4,7 +4,7 @@
 データ型（`struct` / `enum` / `type`）は章4、`act` は章5、`role` / `impl` / `cast` は章6 で書く。
 配布単位とコード塊の単位（`realm` / `band`）は 2.6 に最小限で書く。
 
-## 2.1 binding　〔カリー化は確定、他は要確認〕
+## 2.1 binding　〔カリー化は確定、他は仮採用〕
 
 ```yulang
 my x = 1
@@ -110,7 +110,7 @@ with:
 `pub(crate)` の「crate」に当たる単位は `band`（確定, 2026-11-04）。
 素材にあった「`pub` は module 自身の型 pane にも公開する」という記述は、ユーザーも意味を把握していないため**仕様に採らない**（無視してよい, 確定）。
 
-## 2.3 `mod` と test module　〔test module は言語仕様と確定、他は要確認〕
+## 2.3 `mod` と test module　〔test module は言語仕様と確定、他は仮採用〕
 
 ```yulang
 mod geometry:
@@ -194,7 +194,7 @@ my map f xs = ...                 // エラー: 名前指定の use と定義が
 
 出典: `main:web/docs/ja/reference/modules.md` §use、`main:notes/design/yulang-language-report.md` §3.1, §3.3
 
-## 2.5 companion module　〔要確認〕
+## 2.5 companion module　〔仮採用〕
 
 `struct`、`type ... with:`、`enum`、`act`、`error`、`role` は、**同名の companion module** を作る。
 body の中の `our` / `pub` はそこへ入る。`enum` / `error` の variant と `act` の operation も companion の member になる。

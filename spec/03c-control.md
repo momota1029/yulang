@@ -4,7 +4,7 @@
 これらは標準ライブラリ（prelude）の面と、少数の構文でできている。parser 専用の予約語ではないものが多い。
 effect と handler の意味は章5 に回す。
 
-## 3c.1 `for`　〔閉区間は確定、他は要確認〕
+## 3c.1 `for`　〔閉区間は確定、他は仮採用〕
 
 ```yulang
 for x in 0..10:
@@ -60,7 +60,7 @@ for 'outer x in 0..:
 - `case` / `catch` の arm 集合の再帰（3c.5）は、label の操作として `'count.again (n - 1)` と書く（確定, 2026-11-04）。
 - パーサ（yu-syntax）は、式の中の `'x` を読める（2026-11-04）。見出し（`for` / `case` / `catch`）の label は従来どおり。
 
-## 3c.4 `sub` と `return`　〔要確認〕
+## 3c.4 `sub` と `return`　〔仮採用〕
 
 ```yulang
 sub:
@@ -104,7 +104,7 @@ sub 'done:
 
 出典: `main:web/docs/ja/reference/control-flow.md`、`main:web/docs/ja/reference/idioms.md`
 
-## 3c.5 `case` と `catch` の label（再帰）　〔要確認〕
+## 3c.5 `case` と `catch` の label（再帰）　〔仮採用〕
 
 `case 'label value:` と `catch 'label action:` は、arm の集合全体に再帰の名前を付ける。body から `'label next` を呼ぶと、同じ arm 集合が `next` に再適用される。
 
@@ -119,7 +119,7 @@ my result = case 'count 3:
 
 出典: `main:web/docs/ja/reference/control-flow.md` §case と catch のラベル
 
-## 3c.6 局所の参照 `$x` と `&x`　〔要確認〕
+## 3c.6 局所の参照 `$x` と `&x`　〔仮採用〕
 
 ```yulang
 my incremented =

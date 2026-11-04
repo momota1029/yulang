@@ -4,7 +4,7 @@
 `do` / `sub` / `return` / `for` / `last` / `next` / `redo` / `$x` / `&x` は、制御構文として別にまとめる（章3c）。
 Yulang は式指向で、ここに出る構文はほとんどが式として値を持つ。
 
-## 3.1 literal　〔数値型は確定、他は要確認〕
+## 3.1 literal　〔数値型は確定、他は仮採用〕
 
 ```yulang
 1            // integer
@@ -73,7 +73,7 @@ my b = """
 出典: `main:notes/design/yulang-language-report.md` §6.1
 `float` の精度と string の書式は、型と標準ライブラリの章で扱う。
 
-## 3.2 名前・path・field　〔`x.foo::bar` は確定、他は要確認〕
+## 3.2 名前・path・field　〔`x.foo::bar` は確定、他は仮採用〕
 
 ```yulang
 x
@@ -93,7 +93,7 @@ xs[0]
 
 出典: `main:notes/design/yulang-language-report.md` §6.2、`main:web/docs/ja/reference/modules.md` §Dot selection
 
-## 3.3 application　〔要確認〕
+## 3.3 application　〔仮採用〕
 
 呼び出しの形は 4 つあり、**どれも同じカリー化された application に落ちる**。違うのは表記と結合の仕方だけ。
 
@@ -125,7 +125,7 @@ not x.field      // not (x.field)
 
 出典: `main:web/docs/ja/reference/application.md`
 
-## 3.4 lambda　〔要確認〕
+## 3.4 lambda　〔仮採用〕
 
 ```yulang
 \x -> x + 1
@@ -143,7 +143,7 @@ not x.field      // not (x.field)
 
 出典: `main:notes/design/yulang-language-report.md` §6.4
 
-## 3.5 block と `with`　〔要確認〕
+## 3.5 block と `with`　〔仮採用〕
 
 ```yulang
 {
@@ -180,7 +180,7 @@ my area r = c * r with:
 
 出典: `main:notes/design/yulang-language-report.md` §6.5
 
-## 3.6 `if`　〔要確認〕
+## 3.6 `if`　〔仮採用〕
 
 ```yulang
 if n < 0: "negative"
@@ -204,7 +204,7 @@ my r = if x > 0: x               // opt int
 
 出典: `main:web/docs/ja/reference/control-flow.md`
 
-## 3.7 `case`　〔要確認〕
+## 3.7 `case`　〔仮採用〕
 
 ```yulang
 case n:

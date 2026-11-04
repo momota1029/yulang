@@ -3,7 +3,7 @@
 状態の凡例は [README](README.md)。pattern は、値に名前を束縛するあらゆる場所に現れる。
 `case` の arm、`catch` の arm、関数の引数、`my` の分割代入、lambda の引数は、**同じ pattern の文法**を共有する。
 
-## 3b.1 pattern の種類　〔要確認〕
+## 3b.1 pattern の種類　〔仮採用〕
 
 | pattern | 例 | 合う値 |
 | --- | --- | --- |
@@ -54,7 +54,7 @@ case c:
 | **B 到達不能の警告（採用）** | 通る。ただし `green` / `blue` の arm に「到達しない」警告が出る |
 | C Rust 流（E0170 相当） | 走査対象の型が `color` と分かっていて、`red` がその variant 名と同じなら**エラー**（採らない） |
 
-## 3b.3 record・list の細部　〔要確認〕
+## 3b.3 record・list の細部　〔仮採用〕
 
 ```yulang
 case config:
