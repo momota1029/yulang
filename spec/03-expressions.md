@@ -191,8 +191,13 @@ if cond { a } else { b }
 ```
 
 - `if` は式で、条件は `bool`。`elsif` と `else` を持てる。条件は上から順に試す。
-- `else` がないとき、式全体は `()` を返す。then 側は**何型でもよく**、値は捨てられる（確定, 2026-11-04）。
-  Simple-sub の体系では、値を分解する方法がないので、捨てても型の整合は壊れない。
+- `else` がないとき、式全体は `opt` になる（確定, 2026-11-04。以前の「`()` を返して値は捨てる」を改訂）。then 側の値 `v` は `just v`、通らなかったときは `nil`。結果は使っても使わなくてもよい。
+
+```yulang
+if cond: do_something()          // 結果の opt unit を捨てて文として使える
+my r = if x > 0: x               // opt int
+```
+
 - 条件が effectful な場合の扱い（junction。`all` / `any`）は章5 で書く。
 
 出典: `main:web/docs/ja/reference/control-flow.md`
