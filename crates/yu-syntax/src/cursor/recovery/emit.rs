@@ -219,6 +219,13 @@ pub(crate) fn emit_integer_core(i: &mut SyntaxIn, item: Item) {
     i.state.finish_node();
 }
 
+pub(crate) fn emit_float_core(i: &mut SyntaxIn, item: Item) {
+    debug_assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Float));
+    i.state.start_node(SyntaxKind::FloatLiteral.into());
+    item.emit_remaining(&mut *i.state, SyntaxKind::Float);
+    i.state.finish_node();
+}
+
 pub(crate) fn emit_symbol_core(
     i: &mut SyntaxIn,
     item: Item,
@@ -315,6 +322,7 @@ pub(crate) fn token_syntax_kind(kind: TokenKind) -> SyntaxKind {
         TokenKind::Identifier => SyntaxKind::Identifier,
         TokenKind::SigilIdentifier => SyntaxKind::SigilIdentifier,
         TokenKind::Integer => SyntaxKind::Integer,
+        TokenKind::Float => SyntaxKind::Float,
         TokenKind::Operator => unreachable!("operators have a selected dynamic role"),
         TokenKind::LParen => SyntaxKind::LParen,
         TokenKind::RParen => SyntaxKind::RParen,

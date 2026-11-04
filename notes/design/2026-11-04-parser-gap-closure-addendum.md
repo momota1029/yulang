@@ -53,6 +53,7 @@ Result (2026-11-04): the type parser now receives the arm arrow (`STOP_ARROW`) a
 - Float: `\d+\.\d+` and `\d+[eE][+-]?\d+`. The dot must be followed by a digit. `..` is never part of a float, so `0..10` is unchanged. New kind `FloatLiteral`.
 - Positional field: after a `Dot` tail, an adjacent integer token is read as an integer only, never as a float. So `x.0.1` is two field tails. The tail reuses `FieldTail` with an integer in the field position (no new kind unless a fixture shows an ambiguity).
 - Float patterns are out of scope.
+- Kinds (decided 2026-11-04): `FloatLiteral` is the node and `Float` the token, appended in that order after `LambdaExpression`, mirroring `IntegerLiteral` / `Integer`.
 
 ### WP-5 `$x` and `&x`
 

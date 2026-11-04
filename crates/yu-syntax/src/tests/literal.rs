@@ -1449,3 +1449,143 @@ fn escaped_lf_and_crlf_preserve_every_fence_transition_item() {
         }
     }
 }
+
+#[test]
+fn float_literals_have_one_direct_token_in_expression_position() {
+    let operators = OperatorTable::empty();
+    for source in ["1.5", "0.25", "1e3", "2.5e-3", "1E3"] {
+        let (green, exit, remainder) =
+            run_normalized(source, &operators, 0, LineEntry::InLine, None);
+        assert!(exit.is_some(), "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let literal = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::FloatLiteral)
+            .expect("FloatLiteral");
+        assert_eq!(literal.to_string(), source);
+        assert_eq!(
+            literal
+                .children_with_tokens()
+                .map(|element| element.kind())
+                .collect::<Vec<_>>(),
+            [SyntaxKind::Float]
+        );
+    }
+}
+
+#[test]
+fn float_literals_follow_integer_expression_composition() {
+    let operators = dynamic_operator_table();
+    for (source, floats) in [
+        ("1.5 + 2.5", 2),
+        ("f 1.5", 1),
+        ("f(1.5, 2.5)", 2),
+        ("xs[1.5]", 1),
+    ] {
+        let (green, exit, remainder) =
+            run_normalized(source, &operators, 0, LineEntry::InLine, None);
+        assert!(exit.is_some(), "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(
+            node_count(&green, SyntaxKind::FloatLiteral),
+            floats,
+            "{source:?}"
+        );
+        assert_eq!(node_count(&green, SyntaxKind::Error), 0, "{source:?}");
+        assert_eq!(node_count(&green, SyntaxKind::Missing), 0, "{source:?}");
+    }
+
+    let minus = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "-",
+        OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+    )])
+    .expect("one prefix operator");
+    let source = "-2.5";
+    let (green, exit, remainder) = run_normalized(source, &minus, 0, LineEntry::InLine, None);
+    assert!(exit.is_some());
+    assert_eq!(remainder, "");
+    assert_eq!(green.to_string(), source);
+    assert_eq!(node_count(&green, SyntaxKind::PrefixOperatorUse), 1);
+    assert_eq!(node_count(&green, SyntaxKind::FloatLiteral), 1);
+    assert_eq!(node_count(&green, SyntaxKind::Error), 0);
+    assert_eq!(node_count(&green, SyntaxKind::Missing), 0);
+}
+
+fn parse_wp4_source(source: &str) -> GreenNode {
+    let source: std::sync::Arc<crate::SourceText> = std::sync::Arc::from(source);
+    let header = std::sync::Arc::new(crate::scan_header(source.clone()));
+    crate::parse_file(
+        source,
+        header,
+        std::sync::Arc::new(crate::SyntaxEnvironment::empty()),
+    )
+    .green()
+    .clone()
+}
+
+#[test]
+fn float_boundaries_keep_the_existing_integer_and_tail_csts() {
+    for (source, expected) in [
+        (
+            "0..10",
+            r#"Root(OperatorChain(IntegerLiteral(Integer("0"))),Error("."),Error("."),Error("10"))"#,
+        ),
+        (
+            "0..",
+            r#"Root(OperatorChain(IntegerLiteral(Integer("0"))),Error("."),Error("."))"#,
+        ),
+        (
+            "0..<10",
+            r#"Root(OperatorChain(IntegerLiteral(Integer("0"))),Error("."),Error("."),Error("<"),Error("10"))"#,
+        ),
+        (
+            "1.foo",
+            r#"Root(OperatorChain(IntegerLiteral(Integer("1")),FieldTail(Dot("."),Identifier("foo"))))"#,
+        ),
+        (
+            "1.",
+            r#"Root(OperatorChain(IntegerLiteral(Integer("1")),FieldTail(Dot("."),Missing())))"#,
+        ),
+        (
+            "1.e3",
+            r#"Root(OperatorChain(IntegerLiteral(Integer("1")),FieldTail(Dot("."),Identifier("e3"))))"#,
+        ),
+        (
+            "1e",
+            r#"Root(OperatorChain(IntegerLiteral(Integer("1"))),Error("e"))"#,
+        ),
+        (
+            "1e+",
+            r#"Root(OperatorChain(IntegerLiteral(Integer("1"))),Error("e"),Error("+"))"#,
+        ),
+        (
+            "1..",
+            r#"Root(OperatorChain(IntegerLiteral(Integer("1"))),Error("."),Error("."))"#,
+        ),
+    ] {
+        let green = parse_wp4_source(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(syntax_shape(&green), expected, "{source:?}");
+        assert_eq!(
+            node_count(&green, SyntaxKind::FloatLiteral),
+            0,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn float_spelling_in_pattern_position_keeps_pattern_recovery_without_panicking() {
+    let source = "case x:\n    1.5 -> 0";
+    let green = parse_wp4_source(source);
+    assert_eq!(green.to_string(), source);
+    assert_eq!(
+        syntax_shape(&green),
+        r#"Root(OperatorChain(CaseExpression(CaseKw("case"),CaseScrutinee(OperatorChain(IdentifierExpression(Whitespace(" "),Identifier("x")))),CaseBlock(Colon(":"),Newline("\n"),Whitespace("    "),CaseArm(Pattern(IntegerPattern(Integer("1"))),Missing(),Error("."),OperatorChain(IntegerLiteral(Integer("5"))))))),Whitespace(" "),Error("-"),Error(">"),Error(" "),Error("0"))"#
+    );
+    assert_eq!(node_count(&green, SyntaxKind::FloatLiteral), 0);
+}

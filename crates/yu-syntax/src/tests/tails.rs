@@ -354,6 +354,60 @@ fn fixed_tail_name_slots_have_direct_rowan_admission_shapes() {
 }
 
 #[test]
+fn positional_fields_reuse_field_tail_with_adjacent_integer_tokens() {
+    for (source, fields) in [("id.0", 1), ("id.0.1", 2), ("x.0.1", 2), ("(1, 2).0", 1)] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let tails = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::FieldTail)
+            .collect::<Vec<_>>();
+        assert_eq!(tails.len(), fields, "{source:?}");
+        for tail in tails {
+            assert_eq!(
+                tail.children_with_tokens()
+                    .map(|element| element.kind())
+                    .collect::<Vec<_>>(),
+                [SyntaxKind::Dot, SyntaxKind::Integer],
+                "{source:?}"
+            );
+        }
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::FloatLiteral)
+        );
+    }
+}
+
+#[test]
+fn positional_field_recovery_keeps_each_later_dot_with_the_outer_chain() {
+    for (source, expected) in [
+        ("x.", vec![(".", SyntaxKind::Missing)]),
+        (
+            "x.0.",
+            vec![(".0", SyntaxKind::Integer), (".", SyntaxKind::Missing)],
+        ),
+    ] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let tails = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::FieldTail)
+            .collect::<Vec<_>>();
+        assert_eq!(tails.len(), expected.len(), "{source:?}");
+        for (tail, (text, slot)) in tails.iter().zip(expected) {
+            assert_eq!(tail.to_string(), text, "{source:?}");
+            assert_eq!(tail.last_child_or_token().expect("field slot").kind(), slot);
+        }
+    }
+}
+
+#[test]
 fn fixed_tail_name_slots_keep_missing_and_field_leading_at_the_outer_slot() {
     let (green, exit) = run("x. field");
     assert_eq!(green.to_string(), "x. field");

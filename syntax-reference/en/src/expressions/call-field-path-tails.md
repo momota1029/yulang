@@ -27,7 +27,8 @@ CallTail := "(" G*
             ")"
 CallSeparator := "," | ";" | qualifying current-depth newline
 
-FieldTail := "." Identifier
+FieldTail := "." FieldName
+FieldName := Identifier | Integer
 PathTail := "::" G* PathSegment
 PathSegment := Identifier | SigilIdentifier
 
@@ -39,7 +40,7 @@ MlArgument := OperatorChain under the ML-argument stop scope
 
 The call opener is adjacent to its completed operand.
 `ChainContinuingTrivia` is empty, same-line, or deeper-line trivia at the outer-chain level.
-The dot and identifier of a field tail are adjacent.
+The dot and field name of a field tail are adjacent.
 Field and path tails follow `ChainContinuingTrivia`, and `PathTail` accepts its maximal `G*` after `::`.
 A call accepts comma, semicolon, and a qualifying current-depth newline in its item list.
 
@@ -48,7 +49,8 @@ A call accepts comma, semicolon, and a qualifying current-depth newline in its i
 At an operand-complete position, active stops, matching closes, and an equal-or-shallower newline return to their owners before a tail is admitted.
 An accepted dynamic spelling also keeps its dynamic role.
 After those decisions, an adjacent `(` admits `CallTail`.
-An exact `.identifier` admits `FieldTail` after `ChainContinuingTrivia`, and exact `::` admits `PathTail` after `ChainContinuingTrivia`.
+An exact `.identifier` or `.integer` admits `FieldTail` after `ChainContinuingTrivia`, and exact `::` admits `PathTail` after `ChainContinuingTrivia`.
+An integer immediately after the dot is scanned as a field name before float recognition, so `x.0.1` has two field tails.
 The projection forms `.(` and `.{` take precedence over field recovery, and a longer accepted dot spelling is not split into a field tail.
 
 ML application requires both a qualifying non-empty trivia run and a shared `OperatorChain` NUD candidate.
@@ -68,7 +70,7 @@ A tail does not contain its target expression.
 
 `CallTail` directly contains its `LParen`, opening and inter-item trivia, nested argument `OperatorChain` nodes, literal `Comma` or `Semicolon` leaves, and `RParen`.
 A qualifying newline remains trivia; it creates neither a separator node nor a synthetic token.
-`FieldTail` directly contains `Dot` and `Identifier`.
+`FieldTail` directly contains `Dot` and `Identifier` or `Integer`.
 `PathTail` directly contains `ColonColon`, its post-separator trivia, and `Identifier` or `SigilIdentifier`.
 `ChainContinuingTrivia` before a field or path tail is direct native content of the enclosing `OperatorChain`.
 It is outside the tail's source range.
@@ -139,6 +141,16 @@ If an admitted ML argument lacks an operand, the nested `OperatorChain` owns tha
   <FieldTail><Dot text="." /><Identifier text="b" /></FieldTail>
   <Whitespace text=" " />
   <PathTail><ColonColon text="::" /><Whitespace text=" " /><Identifier text="c" /></PathTail>
+</OperatorChain>
+```
+
+`x.0.1` places each positional field in a sibling tail.
+
+```xml
+<OperatorChain>
+  <IdentifierExpression><Identifier text="x" /></IdentifierExpression>
+  <FieldTail><Dot text="." /><Integer text="0" /></FieldTail>
+  <FieldTail><Dot text="." /><Integer text="1" /></FieldTail>
 </OperatorChain>
 ```
 

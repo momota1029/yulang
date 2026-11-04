@@ -27,7 +27,8 @@ CallTail := "(" G*
             ")"
 CallSeparator := "," | ";" | qualifying current-depth newline
 
-FieldTail := "." Identifier
+FieldTail := "." FieldName
+FieldName := Identifier | Integer
 PathTail := "::" G* PathSegment
 PathSegment := Identifier | SigilIdentifier
 
@@ -39,7 +40,7 @@ MlArgument := OperatorChain under the ML-argument stop scope
 
 call openerはcompleted operandにadjacentである。
 `ChainContinuingTrivia`はouter-chain levelのempty、same-line、またはdeeper-line triviaである。
-field tailのdotとidentifierもadjacentである。
+field tailのdotとfield nameもadjacentである。
 fieldとpath tailは`ChainContinuingTrivia`の後に置き、`PathTail`は`::`後のmaximal `G*`を受理する。
 callはitem listでcomma、semicolon、qualifying current-depth newlineを受理する。
 
@@ -48,7 +49,8 @@ callはitem listでcomma、semicolon、qualifying current-depth newlineを受理
 operand-complete positionでは、active stop、matching close、equal-or-shallower newlineがtailを受理する前に各ownerへ返る。
 accepted dynamic spellingもdynamic roleを保つ。
 これらの判定の後、adjacentな`(`は`CallTail`を受理する。
-exactな`.identifier`は`ChainContinuingTrivia`の後に`FieldTail`を受理し、exactな`::`は`ChainContinuingTrivia`の後に`PathTail`を受理する。
+exactな`.identifier`または`.integer`は`ChainContinuingTrivia`の後に`FieldTail`を受理し、exactな`::`は`ChainContinuingTrivia`の後に`PathTail`を受理する。
+dot直後の整数はfloat recognitionより先にfield nameとしてscanするため、`x.0.1`は二つのfield tailを持つ。
 projection形式の`.(`と`.{`はfield recoveryより先に判定する。
 より長いaccepted dot spellingはfield tailへ分割しない。
 
@@ -69,7 +71,7 @@ tailはtarget expressionをchildに持たない。
 
 `CallTail`は`LParen`、openingとinter-itemのtrivia、nested argument `OperatorChain`、literalな`Comma`または`Semicolon` leaf、`RParen`を直接持つ。
 qualifying newlineはtriviaのままであり、separator nodeもsynthetic tokenも作らない。
-`FieldTail`は`Dot`と`Identifier`を直接持つ。
+`FieldTail`は`Dot`と`Identifier`または`Integer`を直接持つ。
 `PathTail`は`ColonColon`、separator後のtrivia、`Identifier`または`SigilIdentifier`を直接持つ。
 fieldまたはpath tail前の`ChainContinuingTrivia`は、enclosing `OperatorChain`のdirect native contentである。
 これはtailのsource range外にある。
@@ -143,6 +145,16 @@ admitted ML argumentにoperandがなければ、nested `OperatorChain`がoperand
   <FieldTail><Dot text="." /><Identifier text="b" /></FieldTail>
   <Whitespace text=" " />
   <PathTail><ColonColon text="::" /><Whitespace text=" " /><Identifier text="c" /></PathTail>
+</OperatorChain>
+```
+
+`x.0.1`は各positional fieldをsibling tailに置く。
+
+```xml
+<OperatorChain>
+  <IdentifierExpression><Identifier text="x" /></IdentifierExpression>
+  <FieldTail><Dot text="." /><Integer text="0" /></FieldTail>
+  <FieldTail><Dot text="." /><Integer text="1" /></FieldTail>
 </OperatorChain>
 ```
 

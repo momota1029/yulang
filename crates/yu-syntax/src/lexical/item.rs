@@ -262,6 +262,7 @@ pub(crate) enum TokenKind {
     Identifier,
     SigilIdentifier,
     Integer,
+    Float,
     Operator,
     LParen,
     RParen,

@@ -9,9 +9,9 @@ use crate::{
             PhysicalLeadingTrivia, StopKind, Token,
         },
         lexer::{
-            FencedBlockComment, scan_block_comment_fenced, scan_fenced_prior_trivia_part,
-            scan_nud_payload, scan_pattern_nud_payload, scan_statement_item, scan_type_nud_payload,
-            source_declaration_head,
+            FencedBlockComment, scan_block_comment_fenced, scan_expression_payload,
+            scan_fenced_prior_trivia_part, scan_nud_payload, scan_pattern_nud_payload,
+            scan_statement_item, scan_type_nud_payload, source_declaration_head,
         },
         operator_scan::scan_operator_fenced,
         trivia::{
@@ -496,6 +496,126 @@ fn normalized_nud_operator_observes_a_fence_without_consuming_its_boundary() {
         emit_pending_leading_tokens(&mut current.item),
         [(SyntaxKind::YmQuotePrefix, "> > ".to_owned())]
     );
+}
+
+#[test]
+fn expression_numeric_scanning_distinguishes_floats_from_integer_boundaries() {
+    let operators = OperatorTable::empty();
+    for source in ["1.5", "0.25", "1e3", "2.5e-3", "1E3"] {
+        let recover = Recover::new_for_test(&operators);
+        let mut input = source;
+        let current = current_item(
+            chasa_recover::In::new(
+                &mut input,
+                &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+                (),
+            ),
+            0,
+            LineEntry::InLine,
+            None,
+            |i, leading, origin, fence, _| scan_nud_payload(i, leading, origin, fence, 0, 0),
+        )
+        .expect("a valid float is one NUD Item");
+
+        assert_eq!(input, "", "{source:?}");
+        assert_eq!(
+            current.item.payload_view().token_kind(),
+            Some(TokenKind::Float),
+            "{source:?}"
+        );
+        assert_eq!(current.item.payload_view().spelling(), Some(source));
+    }
+
+    for (source, integer, remainder) in [
+        ("0..10", "0", "..10"),
+        ("0..", "0", ".."),
+        ("0..<10", "0", "..<10"),
+        ("1.foo", "1", ".foo"),
+        ("1.", "1", "."),
+        ("1.e3", "1", ".e3"),
+        ("1e", "1", "e"),
+        ("1e+", "1", "e+"),
+        ("1..", "1", ".."),
+    ] {
+        let recover = Recover::new_for_test(&operators);
+        let mut input = source;
+        let current = current_item(
+            chasa_recover::In::new(
+                &mut input,
+                &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+                (),
+            ),
+            0,
+            LineEntry::InLine,
+            None,
+            |i, leading, origin, fence, _| scan_nud_payload(i, leading, origin, fence, 0, 0),
+        )
+        .expect("an incomplete float prefix remains an integer Item");
+
+        assert_eq!(input, remainder, "{source:?}");
+        assert_eq!(
+            current.item.payload_view().token_kind(),
+            Some(TokenKind::Integer),
+            "{source:?}"
+        );
+        assert_eq!(current.item.payload_view().spelling(), Some(integer));
+    }
+
+    let range_operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "..",
+        OperatorFixities::new().with_infix(BindingPower::scalar(40), BindingPower::new(40, [1])),
+    )])
+    .expect("one range operator");
+    for (source, remainder) in [("..10", "10"), ("..", ""), ("..<10", "<10")] {
+        let recover = Recover::new_for_test(&range_operators);
+        let mut input = source;
+        let current = current_item(
+            chasa_recover::In::new(
+                &mut input,
+                &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+                (),
+            ),
+            1,
+            LineEntry::InLine,
+            None,
+            |i, leading, origin, fence, _| {
+                scan_expression_payload(i, OperatorSite::Led, leading, origin, fence, 0, 0)
+            },
+        )
+        .expect("the declared range operator remains one Item");
+        assert!(matches!(
+            current.item.payload_view().operator_use(),
+            Some(OperatorUse::Infix { .. })
+        ));
+        assert_eq!(current.item.payload_view().spelling(), Some(".."));
+        assert_eq!(input, remainder, "{source:?}");
+    }
+}
+
+#[test]
+fn type_numeric_scanning_does_not_admit_float_tokens() {
+    let operators = OperatorTable::empty();
+    let recover = Recover::new_for_test(&operators);
+    let mut input = "1.5";
+    let current = current_item(
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
+        0,
+        LineEntry::InLine,
+        None,
+        |i, leading, origin, fence, _| scan_type_nud_payload(i, leading, origin, fence),
+    )
+    .expect("the existing integer Type primary remains available");
+
+    assert_eq!(
+        current.item.payload_view().token_kind(),
+        Some(TokenKind::Integer)
+    );
+    assert_eq!(current.item.payload_view().spelling(), Some("1"));
+    assert_eq!(input, ".5");
 }
 
 #[test]

@@ -3,6 +3,7 @@
 The [syntax content model](../conventions/syntax-content-model.md) identifies the expression contexts and all recorded expression families. The pages below define the placement and production of the documented forms.
 
 - [Parenthesized primary forms](parenthesized-expression.md)
+- [Numeric literal primary forms](numeric-literals.md)
 - [Operator-chain expression form](operator-chain.md)
 - [Assignment terminal form](assignment-tail.md)
 - [Colon-application terminal form](colon-application.md)

@@ -8,10 +8,12 @@ use crate::cursor::recovery::emit::{
 use crate::cursor::{LexIn, SyntaxIn};
 use crate::expression::{is_led_operator, scan_tail_after_accept_normalized, tail_normalized};
 use crate::handoff::{MlMode, NormalizedExit};
-use crate::lexical::current_item::{LineEntry, current_item};
-use crate::lexical::expression_item::scan_expression_item_lexical;
+use crate::lexical::current_item::{AcceptedPayload, CurrentPayload, LineEntry, current_item};
+use crate::lexical::expression_item::{
+    scan_expression_item_lexical, scan_expression_payload_with_literals,
+};
 use crate::lexical::item::{Item, LeadingTrivia, TokenKind};
-use crate::lexical::lexer::scan_path_segment_payload;
+use crate::lexical::lexer::{scan_integer, scan_path_segment_payload};
 use crate::lexical::observation::{
     is_active_stop, is_active_stop_lex, is_close, is_line_stop, is_separator, token_kind,
 };
@@ -36,15 +38,8 @@ pub(crate) fn dot_tail_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
-    let (next, item_origin, line_entry) = crate::lexical::expression_item::expression_item(
-        i.rb(),
-        OperatorSite::Led,
-        item_origin,
-        line_entry,
-        fence,
-        baseline,
-        stops,
-    );
+    let (next, item_origin, line_entry) =
+        field_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
     if !next.payload_view().is_boundary() && next.leading_view().is_grammar_empty() {
         match token_kind(&next) {
             Some(TokenKind::LParen) => {
@@ -127,7 +122,10 @@ fn field_tail_normalized(
         || is_line_stop(&name, stops)
         || is_active_stop(i.rb(), &name, stops);
     if !boundary
-        && token_kind(&name) == Some(TokenKind::Identifier)
+        && matches!(
+            token_kind(&name),
+            Some(TokenKind::Identifier | TokenKind::Integer)
+        )
         && name.leading_view().is_grammar_empty()
     {
         emit_token_item(&mut i, name);
@@ -175,6 +173,70 @@ fn field_tail_normalized(
         fence,
         ambient,
         sequence,
+    )
+}
+
+fn field_item_normalized(
+    mut i: SyntaxIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+) -> (Item, usize, LineEntry) {
+    i.token(|lex| {
+        Some(scan_field_item_lexical(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            baseline,
+            stops,
+        ))
+    })
+    .expect("field payload scanning is total")
+}
+
+fn scan_field_item_lexical(
+    i: LexIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+) -> (Item, usize, LineEntry) {
+    let (current, consumed) = i.with_str(|lex| {
+        current_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            |mut lex, leading, origin, fence, _| {
+                if !leading && let Some(integer) = lex.token(scan_integer) {
+                    return Some(AcceptedPayload {
+                        payload: CurrentPayload::Token(integer),
+                        next_line_entry: LineEntry::InLine,
+                    });
+                }
+                scan_expression_payload_with_literals(
+                    lex,
+                    OperatorSite::Led,
+                    leading,
+                    origin,
+                    fence,
+                    baseline,
+                    stops,
+                )
+            },
+        )
+        .expect("field payload scanning is total")
+    });
+    (
+        current.item,
+        item_origin
+            .checked_add(consumed.len())
+            .expect("a field coordinate fits usize"),
+        current.next_line_entry,
     )
 }
 

@@ -11,6 +11,7 @@
 
 - [Expression placement overview](expressions/index.md)
 - [Parenthesized primary forms](expressions/parenthesized-expression.md)
+- [Numeric literal primary forms](expressions/numeric-literals.md)
 - [Operator-chain expression form](expressions/operator-chain.md)
 - [Assignment terminal form](expressions/assignment-tail.md)
 - [Colon-application terminal form](expressions/colon-application.md)

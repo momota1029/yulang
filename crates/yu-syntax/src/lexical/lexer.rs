@@ -208,6 +208,8 @@ pub(crate) fn scan_nud_payload(
             CurrentPayload::Token(token)
         } else if let Some(token) = i.token(scan_identifier) {
             CurrentPayload::Token(token)
+        } else if let Some(token) = i.token(scan_float) {
+            CurrentPayload::Token(token)
         } else {
             CurrentPayload::Token(i.token(scan_integer)?)
         };
@@ -247,6 +249,7 @@ pub(crate) fn scan_path_segment_payload(
 fn scan_token(mut i: LexIn) -> Option<Token> {
     i.check(choice((
         token(scan_identifier),
+        token(scan_float),
         token(scan_integer),
         token(scan_expression_colon),
         token(scan_punctuation),
@@ -945,6 +948,35 @@ pub(crate) fn scan_integer(mut i: LexIn) -> Option<Token> {
         kind: TokenKind::Integer,
         text: text.into(),
     })
+}
+
+fn scan_float(mut i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut number| {
+        scan_integer_digit(number.rb())?;
+        while number.token(scan_integer_digit).is_some() {}
+
+        let decimal = number.token(|mut decimal| {
+            (decimal.next()? == '.').then_some(())?;
+            scan_integer_digit(decimal.rb())?;
+            while decimal.token(scan_integer_digit).is_some() {}
+            Some(())
+        });
+        let exponent = number.token(scan_float_exponent);
+        (decimal.is_some() || exponent.is_some()).then_some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::Float,
+        text: text.into(),
+    })
+}
+
+fn scan_float_exponent(mut i: LexIn) -> Option<()> {
+    matches!(i.next()?, 'e' | 'E').then_some(())?;
+    i.token(|mut sign| matches!(sign.next()?, '+' | '-').then_some(()));
+    scan_integer_digit(i.rb())?;
+    while i.token(scan_integer_digit).is_some() {}
+    Some(())
 }
 
 fn scan_integer_digit(mut i: LexIn) -> Option<()> {

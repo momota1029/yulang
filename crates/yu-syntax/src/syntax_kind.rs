@@ -293,6 +293,8 @@ pub enum SyntaxKind {
     WhereClause,
     SymbolExpression,
     LambdaExpression,
+    FloatLiteral,
+    Float,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -312,6 +314,8 @@ impl Language for YulangLanguage {
         match raw.0 {
             value if value == SyntaxKind::SymbolExpression as u16 => SyntaxKind::SymbolExpression,
             value if value == SyntaxKind::LambdaExpression as u16 => SyntaxKind::LambdaExpression,
+            value if value == SyntaxKind::FloatLiteral as u16 => SyntaxKind::FloatLiteral,
+            value if value == SyntaxKind::Float as u16 => SyntaxKind::Float,
             value if value == SyntaxKind::Root as u16 => SyntaxKind::Root,
             value if value == SyntaxKind::Missing as u16 => SyntaxKind::Missing,
             value if value == SyntaxKind::Error as u16 => SyntaxKind::Error,
@@ -775,6 +779,8 @@ mod tests {
             SyntaxKind::RuleLiteralCloseBrace,
             SyntaxKind::RuleLiteralColon,
             SyntaxKind::TypeCallClose,
+            SyntaxKind::FloatLiteral,
+            SyntaxKind::Float,
         ] {
             let raw = <YulangLanguage as Language>::kind_to_raw(kind);
             assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);
@@ -817,6 +823,8 @@ mod tests {
         assert_eq!(SyntaxKind::PolymorphicVariantForeignClose as u16, 281);
         assert_eq!(SyntaxKind::UseGroupForeignClose as u16, 282);
         assert_eq!(SyntaxKind::TypeDelimitedForeignClose as u16, 283);
+        assert_eq!(SyntaxKind::FloatLiteral as u16, 291);
+        assert_eq!(SyntaxKind::Float as u16, 292);
 
         for kind in [
             SyntaxKind::Unknown,
@@ -835,6 +843,8 @@ mod tests {
             SyntaxKind::PolymorphicVariantForeignClose,
             SyntaxKind::UseGroupForeignClose,
             SyntaxKind::TypeDelimitedForeignClose,
+            SyntaxKind::FloatLiteral,
+            SyntaxKind::Float,
         ] {
             let raw = <YulangLanguage as Language>::kind_to_raw(kind);
             assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);

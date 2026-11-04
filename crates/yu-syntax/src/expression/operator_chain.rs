@@ -17,7 +17,8 @@ use crate::{
 use crate::{
     cursor::SyntaxIn,
     cursor::recovery::emit::{
-        emit_identifier_core, emit_integer_core, emit_operator_use, emit_symbol_core,
+        emit_float_core, emit_identifier_core, emit_integer_core, emit_operator_use,
+        emit_symbol_core,
     },
     expression::{
         case_like::{CaseLikeFamily, case_like_nud_normalized},
@@ -331,6 +332,22 @@ pub(super) fn append_nud(
         }
         Some(TokenKind::Integer) => {
             emit_integer_core(&mut i, nud);
+            scan_tail_after_accept_normalized(
+                i,
+                threshold,
+                baseline,
+                stops,
+                ml_mode,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+                sequence,
+            )
+        }
+        Some(TokenKind::Float) => {
+            emit_float_core(&mut i, nud);
             scan_tail_after_accept_normalized(
                 i,
                 threshold,
@@ -1069,6 +1086,7 @@ fn is_normal_core_item(item: &Item) -> bool {
         Some(
             TokenKind::Identifier
                 | TokenKind::Integer
+                | TokenKind::Float
                 | TokenKind::ExpressionSymbolColon
                 | TokenKind::LParen
                 | TokenKind::Backslash

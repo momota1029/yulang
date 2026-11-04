@@ -11,6 +11,7 @@
 
 - [Expressionの配置一覧](expressions/index.md)
 - [Parenthesized primary form](expressions/parenthesized-expression.md)
+- [数値リテラルのprimary form](expressions/numeric-literals.md)
 - [Operator-chainによる式](expressions/operator-chain.md)
 - [Assignmentのterminal form](expressions/assignment-tail.md)
 - [Colon applicationのterminal form](expressions/colon-application.md)

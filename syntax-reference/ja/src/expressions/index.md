@@ -3,6 +3,7 @@
 Expressionの文脈と記録済みの全ファミリーは、[構文の内容モデル](../conventions/syntax-content-model.md)で確認する。次のページは、詳細化済みの形式の配置と生成規則を定める。
 
 - [Parenthesized primary form](parenthesized-expression.md)
+- [数値リテラルのprimary form](numeric-literals.md)
 - [Operator-chainによる式](operator-chain.md)
 - [Assignmentのterminal form](assignment-tail.md)
 - [Colon applicationのterminal form](colon-application.md)
