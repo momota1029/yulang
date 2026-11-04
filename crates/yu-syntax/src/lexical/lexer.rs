@@ -809,7 +809,9 @@ fn scan_lambda_backslash(
         if parameters != 0 && is_exact_arm_arrow(suffix) {
             break;
         }
-        let next = if let Some((_, after_identifier)) = source_identifier(suffix) {
+        let next = if let Some(after_reference) = lambda_reference_suffix(suffix) {
+            after_reference
+        } else if let Some((_, after_identifier)) = source_identifier(suffix) {
             after_identifier
         } else {
             lambda_parenthesized_suffix(suffix, suffix_origin, fence)?
@@ -824,6 +826,13 @@ fn scan_lambda_backslash(
         kind: TokenKind::Backslash,
         text: text.into(),
     })
+}
+
+/// A bare reference pattern is one lambda parameter, while a bare `&` that
+/// cannot introduce an identifier remains available to operator parsing.
+fn lambda_reference_suffix(source: &str) -> Option<&str> {
+    let suffix = source.strip_prefix('&')?;
+    source_identifier(suffix).map(|(_, remainder)| remainder)
 }
 
 /// Balance one parenthesized lambda parameter using source-only evidence.

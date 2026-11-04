@@ -101,6 +101,56 @@ fn multiple_identifier_and_parenthesized_pattern_parameters_parse_cleanly() {
 }
 
 #[test]
+fn bare_reference_patterns_are_clean_lambda_parameters() {
+    let sources = [
+        r"my x = \&a -> 1",
+        r"my x = \&a &b -> 1",
+        "infix (+) 40 41 = 0\nmy x = \\&a ->\n    &a = $a + 1\n    $a",
+        r"my x = &a::run 0 (\&a -> $a)",
+        r"\x &a y -> 1",
+    ];
+    for source in sources {
+        let source_text: Arc<crate::SourceText> = Arc::from(source);
+        let parsed = crate::parse_file(
+            Arc::clone(&source_text),
+            Arc::new(crate::scan_header(Arc::clone(&source_text))),
+            Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.structural_recoveries().is_empty(), "{source}");
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{source}");
+        let root = production(source);
+        assert_clean(&root);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(lambdas(&root).len(), 1, "{source}: {root:#?}");
+    }
+
+    let source = "my incr &r = 1\nmy f = \\&a -> 1";
+    let root = production(source);
+    let binding_reference_parameter = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Pattern)
+        .find(|node| {
+            node.descendants_with_tokens().any(|element| {
+                element.kind() == SyntaxKind::SigilIdentifier && element.to_string() == "&r"
+            })
+        })
+        .expect("binding reference parameter Pattern");
+    let lambda_reference_parameter = lambdas(&root)
+        .remove(0)
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("lambda reference parameter Pattern");
+    assert_eq!(
+        lambda_reference_parameter.kind(),
+        binding_reference_parameter.kind()
+    );
+    assert_eq!(
+        lambda_reference_parameter.first_child().unwrap().kind(),
+        binding_reference_parameter.first_child().unwrap().kind()
+    );
+}
+
+#[test]
 fn lambda_parameters_keep_the_direct_cst_shape() {
     let unary = lambdas(&production(r"\x -> x")).remove(0);
     assert_eq!(

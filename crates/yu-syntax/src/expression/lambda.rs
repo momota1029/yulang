@@ -72,6 +72,30 @@ pub(super) fn lambda_nud_normalized(
                     ),
                 };
             }
+            Some(crate::lexical::item::TokenKind::SigilIdentifier) => {
+                item.emit_all_remaining_leading(&mut *i.state);
+                let entry = suffix_marker(i.rb());
+                let exit = pattern_from_entry_item_normalized(
+                    i.rb(),
+                    item,
+                    baseline,
+                    pattern_stops,
+                    line_handoff,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    ambient,
+                );
+                item_origin = advanced_origin(item_origin, entry, i.rb());
+                (item, line_entry) = match exit {
+                    NormalizedExit::Complete(Err(crate::handoff::Either::Left(item)), line) => {
+                        (item, line)
+                    }
+                    _ => unreachable!(
+                        "complete source-only lambda header retains its next parameter or arrow"
+                    ),
+                };
+            }
             Some(crate::lexical::item::TokenKind::Arrow) => {
                 item.emit_remaining(&mut *i.state, SyntaxKind::Arrow);
                 break;
