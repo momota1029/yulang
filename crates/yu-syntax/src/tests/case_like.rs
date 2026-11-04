@@ -91,6 +91,212 @@ fn qualified_constructor_payloads_leave_the_case_arrow_to_the_arm() {
 }
 
 #[test]
+fn arm_pattern_type_annotations_leave_arrows_and_guards_to_the_arm_owner() {
+    for (source, arm_kind, guard_kind) in [
+        ("case p:\n    x: int -> 1", SyntaxKind::CaseArm, None),
+        (
+            "case p:\n    x: int if c -> 1",
+            SyntaxKind::CaseArm,
+            Some(SyntaxKind::CaseGuard),
+        ),
+        (
+            "case p:\n    x: int where c -> 1",
+            SyntaxKind::CaseArm,
+            Some(SyntaxKind::CaseGuard),
+        ),
+        ("catch e:\n    x: int -> 1", SyntaxKind::CatchArm, None),
+        (
+            "catch e:\n    x: int if c -> 1",
+            SyntaxKind::CatchArm,
+            Some(SyntaxKind::CatchGuard),
+        ),
+        (
+            "catch e:\n    x: int where c -> 1",
+            SyntaxKind::CatchArm,
+            Some(SyntaxKind::CatchGuard),
+        ),
+    ] {
+        let root = case_like_literal_production(source);
+        let arm = root
+            .descendants()
+            .find(|node| node.kind() == arm_kind)
+            .expect("annotated arm");
+        let annotation = arm
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+            .expect("arm PatternTypeAnnotation");
+        assert!(
+            annotation
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::Identifier && token.text() == "int"),
+            "{source:?}"
+        );
+        assert!(
+            !annotation
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::TypeArrowTail),
+            "{source:?}"
+        );
+        assert_eq!(
+            arm.children_with_tokens()
+                .filter(|element| element.kind() == SyntaxKind::Arrow)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            arm.children()
+                .filter(|node| matches!(
+                    node.kind(),
+                    SyntaxKind::CaseGuard | SyntaxKind::CatchGuard
+                ))
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            guard_kind.into_iter().collect::<Vec<_>>(),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn parenthesized_arm_pattern_annotation_keeps_its_function_type_arrow() {
+    for (source, arm_kind) in [
+        ("case p:\n    (x: int -> int) -> body", SyntaxKind::CaseArm),
+        (
+            "catch e:\n    (x: int -> int) -> body",
+            SyntaxKind::CatchArm,
+        ),
+    ] {
+        let root = case_like_literal_production(source);
+        let arm = root
+            .descendants()
+            .find(|node| node.kind() == arm_kind)
+            .expect("parenthesized annotated arm");
+        let annotation = arm
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+            .expect("parenthesized PatternTypeAnnotation");
+        assert_eq!(
+            annotation
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeArrowTail)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(
+            arm.children_with_tokens()
+                .filter(|element| element.kind() == SyntaxKind::Arrow)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn catch_effect_arm_payload_annotation_keeps_handler_and_arrow_structure() {
+    let source = "catch e:\n    op(x: int), k -> k x";
+    let root = case_like_literal_production(source);
+    let arm = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::CatchArm)
+        .expect("catch effect arm");
+    assert_eq!(
+        arm.children()
+            .filter(|node| node.kind() == SyntaxKind::Pattern)
+            .count(),
+        2
+    );
+    assert_eq!(
+        arm.descendants()
+            .filter(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+            .count(),
+        1
+    );
+    assert!(
+        arm.descendants()
+            .any(|node| node.kind() == SyntaxKind::PatternCallTail)
+    );
+    assert_eq!(
+        arm.children_with_tokens()
+            .filter(|element| element.kind() == SyntaxKind::Arrow)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn arm_pattern_annotation_recovery_preserves_arrow_ownership() {
+    let source = "case p:\n    x: int ->";
+    let green = run(source).0;
+    assert_eq!(green.to_string(), source);
+    assert_eq!(
+        structural_facts(&green),
+        [(StructuralKind::Missing, source.len()..source.len())]
+    );
+    let root = SyntaxNode::new_root(green);
+    let arm = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::CaseArm)
+        .expect("annotated case arm");
+    let annotation = arm
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+        .expect("arm PatternTypeAnnotation");
+    assert!(!annotation.descendants().any(|node| matches!(
+        node.kind(),
+        SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+    )));
+    assert_eq!(
+        arm.children_with_tokens()
+            .filter(|element| element.kind() == SyntaxKind::Arrow)
+            .count(),
+        1
+    );
+    assert_eq!(
+        arm.children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+
+    let source = "case p:\n    x:";
+    let green = run(source).0;
+    assert_eq!(green.to_string(), source);
+    assert_eq!(
+        structural_facts(&green),
+        [
+            (StructuralKind::Missing, source.len()..source.len()),
+            (StructuralKind::Missing, source.len()..source.len()),
+        ]
+    );
+    let root = SyntaxNode::new_root(green);
+    let annotation = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+        .expect("incomplete PatternTypeAnnotation");
+    assert_eq!(
+        annotation
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+    let arm = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::CaseArm)
+        .expect("incomplete case arm");
+    assert_eq!(
+        arm.children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn unchanged_yulang2_button_has_complete_symbol_and_pattern_syntax() {
     let source = include_str!("../../../../web/playground/examples/yulang2-button.yu");
     let root = case_like_literal_production(source);

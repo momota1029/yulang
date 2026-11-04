@@ -66,6 +66,8 @@ impl TypeOuterBoundary {
 
     const VARIANT_PIPE: Self = Self(1 << 24);
     const VARIANT_WITH: Self = Self(1 << 25);
+    pub(super) const ARM_GUARD_IF: Self = Self(1 << 26);
+    pub(super) const ARM_GUARD_WHERE: Self = Self(1 << 27);
 
     pub(super) const fn variant_payload(
         stops: Stops,
@@ -110,7 +112,7 @@ impl TypeOuterBoundary {
     }
 
     const fn without_variant_scope(self) -> Self {
-        Self(self.0 & 0xff)
+        Self(self.0 & (0xff | Self::ARM_GUARD_IF.0 | Self::ARM_GUARD_WHERE.0))
     }
 
     pub(super) const fn with(self, other: Self) -> Self {
@@ -2623,6 +2625,8 @@ fn is_type_outer_boundary(item: &Item, outer_boundary: TypeOuterBoundary) -> boo
         Some("via") => outer_boundary.contains(TypeOuterBoundary::VIA),
         Some("with") => outer_boundary.contains(TypeOuterBoundary::WITH),
         Some("impl") => outer_boundary.contains(TypeOuterBoundary::IMPL),
+        Some("if") => outer_boundary.contains(TypeOuterBoundary::ARM_GUARD_IF),
+        Some("where") => outer_boundary.contains(TypeOuterBoundary::ARM_GUARD_WHERE),
         _ => false,
     }
 }

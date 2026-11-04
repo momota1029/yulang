@@ -68,6 +68,21 @@ Case and catch patterns leave guards and `->` to the arm owner.
 The first catch pattern also leaves its handler comma to the catch owner.
 Delimited patterns leave their local comma and matching close to their delimiter owner.
 
+In a simple arm annotation, the type ends at `int`, and `->` belongs to the arm.
+
+```text
+case p:
+    x: int -> 1
+```
+
+To annotate with a function type, parenthesize the whole Pattern that contains the annotation.
+The `->` inside the parentheses belongs to the type, while the `->` after the parentheses belongs to the arm.
+
+```text
+case p:
+    (x: int -> int) -> body
+```
+
 For malformed type recovery, the `TMN` classifier examines one maximal trivia run after the error.
 An active caller newline takes priority over indentation and retry candidates.
 That `TMN-CallerBoundary` result creates a rollback-scoped positional fence at the untouched trivia start.

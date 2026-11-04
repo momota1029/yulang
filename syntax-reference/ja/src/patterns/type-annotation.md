@@ -68,6 +68,21 @@ caseとcatchのpatternでは、guardと`->`をarm ownerへ残す。
 最初のcatch patternでは、handler commaもcatch ownerへ残す。
 delimited patternでは、local commaと対応するcloseをdelimiter ownerへ残す。
 
+単純なarm注釈では、型は`int`で終わり、`->`はarmに属する。
+
+```text
+case p:
+    x: int -> 1
+```
+
+関数型を注釈する場合は、注釈を含むPattern全体を括弧で囲む。
+括弧内の`->`は型に属し、括弧後の`->`はarmに属する。
+
+```text
+case p:
+    (x: int -> int) -> body
+```
+
 malformed typeのrecoveryでは、`TMN` classifierがError後の最大のtrivia runを判定する。
 activeなcaller newlineはindentationとretry candidateより先に勝つ。
 この`TMN-CallerBoundary`の結果は、未消費のtrivia開始位置にrollback-scoped positional fenceを置く。

@@ -16,7 +16,6 @@
 | `case` の arm の parser pattern（`~"GET :x" -> ...`） | [章9.1](09-parser-dsl.md) | `~` が Error（式としての `~"a"` と `rule { }` は読める） |
 | 複数引数の lambda（`\x y -> x`） | [章3.4](03-expressions.md) | 文頭で Error（単項 `\x -> x` は読める。素材では「unary lambda の admission」まで） |
 | 裸の名前を頭にした pattern の適用（`just x -> ...`、`op x, k -> ...`） | [章3b.1](03b-patterns.md)、[章5.2](05-effects.md) | `Missing`。`opt::just x`、`just(x)`、`op(x), k` は読める |
-| arm の pattern の型注釈（`x: int -> ...`） | [章3b.7](03b-patterns.md) | `->` が型の矢印と衝突して `Missing`。`(x: int) -> ...` なら読める可能性（未確認） |
 | `--` / `---`（doc コメント） | [章1.2](01-lexical.md) | `-` が Error。`//` は読める |
 
 ## 仕様の側を見直す候補（パーサの実装が意図的かもしれないもの）

@@ -22,7 +22,7 @@ use crate::{
         lexer::{scan_identifier, scan_pattern_nud_payload, scan_pattern_payload},
         observation::{delimited_baseline, implicit_delimited_newline, token_kind},
         position::{advanced_origin, suffix_marker},
-        stops::{STOP_COMMA, STOP_IN, STOP_SEMICOLON, Stops, stops_for},
+        stops::{STOP_ARROW, STOP_COMMA, STOP_IN, STOP_SEMICOLON, Stops, stops_for},
         yumark::FenceBoundary,
     },
     literal::{
@@ -1546,14 +1546,23 @@ fn pattern_type_annotation_rhs_normalized(
         primary.emit_all_remaining_leading(&mut *i.state);
     }
     let mut caller_stops = caller_closes.type_stops();
+    if stops & PATTERN_STOP_ARROW != 0 {
+        caller_stops |= STOP_ARROW;
+    }
     if stops & PATTERN_STOP_IN != 0 {
         caller_stops |= STOP_IN;
     }
-    let outer_boundary = if stops & PATTERN_STOP_EQUALS != 0 {
+    let mut outer_boundary = if stops & PATTERN_STOP_EQUALS != 0 {
         TypeOuterBoundary::EQUALS
     } else {
         TypeOuterBoundary::NONE
     };
+    if stops & PATTERN_STOP_ARM_GUARD_IF != 0 {
+        outer_boundary = outer_boundary.with(TypeOuterBoundary::ARM_GUARD_IF);
+    }
+    if stops & PATTERN_STOP_ARM_GUARD_WHERE != 0 {
+        outer_boundary = outer_boundary.with(TypeOuterBoundary::ARM_GUARD_WHERE);
+    }
     let (exit, primary_found) =
         required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
             i,
