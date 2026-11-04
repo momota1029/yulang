@@ -60,6 +60,17 @@ run_cmd do
 #print axioms Yulang.RowInference.request_constraints_exact
 #print axioms Yulang.RowInference.boundary_constraints_exact
 #print axioms Yulang.RowInference.handler_constraints_exact
+#print axioms Yulang.Inference.EnvRel.rename
+#print axioms Yulang.EffectInference.local_result_no_escape
+#print axioms Yulang.EffectInference.local_outer_environment
+#print axioms Yulang.EffectInference.poly_request_constraints_exact
+#print axioms Yulang.EffectInference.poly_handler_constraints_exact
+#print axioms Yulang.RowInference.poly_request_constraints_exact
+#print axioms Yulang.RowInference.poly_handler_constraints_exact
+#print axioms Yulang.SignedStructural.generated_poly_request_at_any_type
+#print axioms Yulang.SignedStructural.generated_poly_requests_independent
+#print axioms Yulang.SignedStructural.generated_poly_handler_resumes_payload
+#print axioms Yulang.SignedStructural.generated_poly_handler_payload_escape_rejected
 #print axioms Yulang.RowInference.generated_signed_handler_composes_effect_bounds
 #print axioms Yulang.RowInference.signed_eval_release_protect
 #print axioms Yulang.RowInference.signed_eval_protect_release

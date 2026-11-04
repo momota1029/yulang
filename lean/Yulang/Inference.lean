@@ -112,6 +112,10 @@ def Scheme.instantiate (s : Scheme α) (c : CompTerm α) : Formula α :=
 def Scheme.mono (a : CompTerm α) : Scheme α :=
   Formula.compLe (a.rename some) (CompTerm.var none)
 
+/-- Rename captured slots, preserving the scheme's result slot. -/
+def SchemeEnv.rename (Γ : SchemeEnv α) (f : α → β) : SchemeEnv β :=
+  Γ.map (Formula.rename (Option.map f))
+
 def SchemeEnv.lift (Γ : SchemeEnv α) : SchemeEnv (Option α) :=
   Γ.map (Formula.rename (Option.map some))
 
@@ -335,6 +339,24 @@ theorem EnvRel.mono {m : Model} {ρ : α → Comp m} {sΓ : SchemeEnv α}
   apply h.cons
   intro c
   simp
+
+theorem EnvRel.rename {m : Model} {ρ : α → Comp m} {sΓ : SchemeEnv α}
+    {Γ : List (Binding m)} (h : EnvRel m ρ sΓ Γ) (f : α → β) (η : β → Comp m)
+    (he : η ∘ f = ρ) : EnvRel m η (sΓ.rename f) Γ := by
+  intro n c
+  have hn := h n c
+  unfold SchemeLookup at hn ⊢
+  simp only [SchemeEnv.rename, List.getElem?_map]
+  cases hs : sΓ[n]? with
+  | none => simpa [hs] using hn
+  | some s =>
+      simp only [Option.map_some, Formula.holds_rename]
+      have he' : extend η c ∘ Option.map f = extend ρ c := by
+        funext x
+        cases x with
+        | none => rfl
+        | some x => exact congrFun he x
+      simpa only [he', hs] using hn
 
 theorem EnvRel.lift {m : Model} {ρ : α → Comp m} {sΓ : SchemeEnv α}
     {Γ : List (Binding m)} (h : EnvRel m ρ sΓ Γ) (a : Comp m) :

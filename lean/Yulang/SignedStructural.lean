@@ -106,7 +106,7 @@ theorem generated_absent_effect_rejected (n : Nat) (key : Key) :
 
 /-! The generic resolved-operation generator has inhabited, discriminating
 instances in this concrete model. Keys contain family parameters only; these
-examples do not introduce operation-local polymorphic quantifiers. -/
+initial examples use monomorphic signatures; the examples below add local quantifiers. -/
 
 def integerOperation (key : EffectInference.SigKey F O A) :
     EffectInference.Signature Unit F O A where
@@ -138,6 +138,100 @@ theorem generated_request_without_effect_rejected [DecidableEq (EffectInference.
     have impossible : Directed.raw (n := n) key ∈ ([] : Directed.Row n _) :=
       budget _ (by simp [RowInference.signedAlgebra, RowInference.keysRow, integerOperation])
     cases impossible
+
+/-! Concrete operation-local polymorphism over actual signed rows. -/
+
+def polyIdentityOperation (key : EffectInference.SigKey F O A) :
+    EffectInference.PolySignature α 1 F O A where
+  key := key
+  input := .var (.inr 0)
+  output := .var (.inr 0)
+
+/-- The caller can choose an arbitrary structural type, including compound
+and effectful arrow types. The ambient slot is fixed independently of locals. -/
+theorem generated_poly_request_at_any_type [DecidableEq (EffectInference.SigKey F O A)]
+    (n : Nat) (key : EffectInference.SigKey F O A) (t : Ty n (EffectInference.SigKey F O A)) :
+    (RowInference.polyRequestConstraints [Scheme.mono (CompTerm.pure (.var ()))]
+      (polyIdentityOperation key) (.var 0) (CompTerm.var ())).Holds
+      (rowView n (EffectInference.SigKey F O A)) (fun _ => (t, [Directed.raw key])) := by
+  apply (RowInference.poly_request_constraints_exact _ _ _ [.mono (t, [])] _
+    ((EnvRel.nil _ _).mono (CompTerm.pure (.var ()))) _ _ _).mpr
+  apply RowInference.PolyRequestTyping.intro (fun _ => t)
+  apply RowInference.RequestTyping.intro (er := [])
+  · exact Typing.var rfl (BindingTyping.mono ⟨.refl _, row_refl _⟩)
+  · exact .refl _
+  · exact row_refl _
+
+theorem generated_poly_request_literal [DecidableEq (EffectInference.SigKey F O A)]
+    (n : Nat) (key : EffectInference.SigKey F O A) (ρ : α → Comp (model n (EffectInference.SigKey F O A)))
+    (base : Base) (out : CompTerm α) (hout : out.eval _ ρ = (.base base, [Directed.raw key])) :
+    (RowInference.polyRequestConstraints [] (polyIdentityOperation key) (.lit base) out).Holds
+      (rowView n (EffectInference.SigKey F O A)) ρ := by
+  apply (RowInference.poly_request_constraints_exact _ _ [] [] _ (EnvRel.nil _ _) _ _ _).mpr
+  rw [hout]
+  apply RowInference.PolyRequestTyping.intro (fun _ => Ty.base base)
+  apply RowInference.RequestTyping.intro (er := [])
+  · exact Typing.lit ⟨.refl _, row_refl _⟩
+  · exact .refl _
+  · exact row_refl _
+
+/-- Both calls use one signature and one ambient assignment. Each existential
+binder chooses its own local type (int and str, respectively). -/
+theorem generated_poly_requests_independent [DecidableEq (EffectInference.SigKey F O A)]
+    (n : Nat) (key : EffectInference.SigKey F O A) :
+    let ρ : Bool → Comp (model n (EffectInference.SigKey F O A)) :=
+      fun b => (.base (if b then .str else .int), [Directed.raw key])
+    (RowInference.Constraint.and
+      (RowInference.polyRequestConstraints [] (polyIdentityOperation key) (.lit .int) (CompTerm.var false))
+      (RowInference.polyRequestConstraints [] (polyIdentityOperation key) (.lit .str) (CompTerm.var true))).Holds
+      (rowView n (EffectInference.SigKey F O A)) ρ := by
+  constructor
+  · exact generated_poly_request_literal n key _ .int _ rfl
+  · exact generated_poly_request_literal n key _ .str _ rfl
+
+/-- A rigid payload may be passed to a continuation expecting the same local
+type, for every choice of that type. The result remains the fixed int type. -/
+theorem generated_poly_handler_resumes_payload [DecidableEq (EffectInference.SigKey F O A)]
+    (n : Nat) (key : EffectInference.SigKey F O A)
+    (ρ : α → Comp (model n (EffectInference.SigKey F O A))) :
+    (RowInference.polyHandlerConstraints [] (polyIdentityOperation key) (.lit .int) (.var 0)
+      (.app (.var 1) (.var 0)) (CompTerm.pure (.base .int))).Holds
+      (rowView n (EffectInference.SigKey F O A)) ρ := by
+  apply (RowInference.poly_handler_constraints_exact _ _ [] [] _ (EnvRel.nil _ _) _ _ _ _ _).mpr
+  apply RowInference.PolyHandlerTyping.intro
+    (input := (Ty.base .int, [])) (returned := (Ty.base .int, []))
+  · exact Typing.lit ⟨.refl _, row_refl _⟩
+  · exact Typing.var rfl (BindingTyping.mono ⟨.refl _, row_refl _⟩)
+  · intro ι
+    refine ⟨(Ty.base .int, []), ?_, .unionElim (.refl _) (.refl _), ?_⟩
+    · apply Typing.app (a := (ι 0, [])) (b := (Ty.base .int, [])) (ef := [])
+      · exact Typing.var rfl (BindingTyping.mono ⟨.refl _, row_refl _⟩)
+      · exact Typing.var rfl (BindingTyping.mono ⟨.refl _, row_refl _⟩)
+      · exact ⟨.refl _, row_refl _⟩
+    · exact row_refl _
+
+/-- Choosing local := int once would accept this arm. Rigid quantification
+also requires local := str, which cannot be returned as the fixed int result. -/
+theorem generated_poly_handler_payload_escape_rejected
+    [DecidableEq (EffectInference.SigKey F O A)]
+    (n : Nat) (key : EffectInference.SigKey F O A)
+    (ρ : α → Comp (model n (EffectInference.SigKey F O A))) :
+    ¬ (RowInference.polyHandlerConstraints [] (polyIdentityOperation key) (.lit .int) (.var 0)
+      (.var 0) (CompTerm.pure (.base .int))).Holds
+      (rowView n (EffectInference.SigKey F O A)) ρ := by
+  intro h
+  have typed := (RowInference.poly_handler_constraints_exact _ _ [] [] _ (EnvRel.nil _ _) _ _ _ _ _).mp h
+  rcases (RowInference.polyHandlerTyping_iff _ _ _ _ _ _ _ _ _ _).mp typed with
+    ⟨input, returned, _, _, arms⟩
+  rcases arms (fun _ => Ty.base .str) with ⟨operated, ho, bound, _⟩
+  cases ho with
+  | var lookup binding =>
+    simp only [EffectInference.semanticArmEnvironment, List.getElem?_cons_zero,
+      Option.some.injEq] at lookup
+    cases lookup
+    cases binding with
+    | mono included =>
+      exact StructuralBase.str_not_int (.trans included.1 (.trans (.unionRight _ _) bound))
 
 /-! Release-before-protect is genuinely signed in generated boundary rules. -/
 

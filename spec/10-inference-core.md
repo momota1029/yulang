@@ -166,7 +166,7 @@ operationの署名を `k : P → Q`、宣言された追加行を `δ`、payload
 Q ! (ρp ∪ {k} ∪ δ)
 ```
 
-となる。追加行があってもoperation自身のeffectを消さない。`k` はfamily・operation・family型引数を含む解決済みkeyである。この層の署名は単相で、operation-localな多相変数の具体化とhandlerでの抽象化は含めない。
+となる。追加行があってもoperation自身のeffectを消さない。`k` はfamily・operation・family型引数を含む解決済みkeyである。単相署名を保ったまま、有限個のoperation-local型変数を持つ `PolySignature α n` も扱う。署名の入出力ではambient slot `α` と局所型変数 `Fin n` を区別する。呼出側の `polyRequestConstraints` は局所型の割当てを存在量化し、`poly_request_constraints_exact` は「ある割当てで独立なrequest規則が成立する」との同値を証明する。この存在量化は、呼ぶ側が任意の型を選べるという章5.1の規則を表す。呼出しごとに量化し、別の呼出しと局所型を共有しない。
 
 actionの型を `A ! ρ` とするhandlerでは、value armに純粋な `A` を渡す。operation armには純粋なpayload `P` と、純粋な関数値としての継続
 
@@ -181,6 +181,20 @@ Q ! ∅ → A ! ρ
 ```
 
 である。`ρo` の中に同じoperationが現れても再び差し引かない。別operationの残存、handler armの再送出、元の行を持つ継続が個別の定理になっている。
+
+operation-local型変数を持つhandlerでは、その型をrigidに扱う。`poly_handler_constraints_exact` が対応する独立な `PolyHandlerTyping` の量化順序は
+
+```text
+∃ input returned, actionとvalue armの型付け ∧
+  ∀ ι : Fin n → m.Ty, ∃ operated,
+    operation armの型付け ∧ 結果の型と行への包含
+```
+
+である。actionとvalue armの型・行は局所型を選ぶ前に固定する。operation armは、すべての局所型割当てで同じ式を型付けできなければならず、一つの具体型に単一化して検査を済ませることはできない。局所型の値を同じ型を受け取る継続へ渡す使い方は許す。
+
+handlerの結果 `out : CompTerm α` と外側のscheme環境 `SchemeEnv α` は局所slotを含まない。`EffectInference.local_result_no_escape` はどの局所割当てでも結果の型・行が元の `out` の評価と一致することを、`local_outer_environment` はどの局所割当てでも同じ外側binding環境を表すことを証明する。したがって局所変数のescapeは核の規則の構造で排除され、存在型へ包んで外へ出す規則はない（章5.1、確定2026-11-05）。source上でescapeを検出しエラーを報告するelaboratorまで証明したものではない。局所slotの行成分は空行であり、局所行変数は導入しない。atomのkeyと追加effectは局所割当てによらず固定する。atomのpayload内部に現れる局所変数と、局所変数のrole制約はこの形式化の対象外である。
+
+`SignedStructural.generated_poly_request_at_any_type` は任意の構造型での呼出しを受理し、`generated_poly_requests_independent` は同じ署名・同じ外側の割当てでintとstrへの二回の独立した具体化を受理する。`generated_poly_handler_resumes_payload` は任意の局所型で `k payload` を受理する。一方 `generated_poly_handler_payload_escape_rejected` はpayloadを固定のint結果へ直接返す腕を拒否する。負例は局所型をstrとしたときの `str ≰ int` によるもので、任意のモデルや任意の固定結果上界について拒否を示した定理ではない。
 
 `SignedStructural` は共通の構造部分型を実際の `Directed.Row` へ具体化し、`RowView` を恒等写像で実装する。このモデルでは、operationの生成制約が自身の行を含む結果を受理し、空行を拒否する。また、保護前の解除が作る負の差分を持つ行は受理され、その差分を空行へ消すことは拒否される。これらは任意のscope数と解決済みkeyについての定理である。
 
