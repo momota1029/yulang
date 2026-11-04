@@ -56,7 +56,7 @@ for 'outer x in 0..:
   - label を値として使う形: `'done.return 42`、`'outer.last`、`'outer.next`、`'outer.redo`
   - 演算子の形: `return 'done 42`、`last 'outer`、`next 'outer`、`redo 'outer`
 - `sub 'done:` は、label `'done` を body に渡す。
-- `case` / `catch` の arm 集合の再帰（3c.5）は、label の操作として `'count.call (n - 1)` と書く（操作の名前は仮。確認 G2）。
+- `case` / `catch` の arm 集合の再帰（3c.5）は、label の操作として `'count.again (n - 1)` と書く（確定, 2026-11-04）。
 - パーサ（yu-syntax）は、式の中の `'x` を読める（2026-11-04）。見出し（`for` / `case` / `catch`）の label は従来どおり。
 
 ## 3c.4 `sub` と `return`　〔要確認〕
@@ -88,10 +88,10 @@ sub 'done:
 ```yulang
 my result = case 'count 3:
     0 -> "done"
-    n -> 'count.call (n - 1)       // 再帰。`call 'count (n - 1)` とも書ける
+    n -> 'count.again (n - 1)      // 再帰。`again 'count (n - 1)` とも書ける
 ```
 
-- 再帰は `last` / `return` と同じ流儀で、label の操作として呼ぶ（確定, 2026-11-04。操作の名前 `call` は仮で、G2 で決める）。素材の `'count (n - 1)` の形は採らない。
+- 再帰は `last` / `return` と同じ流儀で、label の操作として呼ぶ（確定, 2026-11-04。操作の名前は `again`）。素材の `'count (n - 1)` の形は採らない。
 - label は個々の arm ではなく、arm 集合に属する。
 
 出典: `main:web/docs/ja/reference/control-flow.md` §case と catch のラベル
