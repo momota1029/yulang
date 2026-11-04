@@ -19,6 +19,12 @@ effect 行の意味（T2・T3）は章5、`role` / `impl` / `where` / `cast` は
 | record | `{x: int, y: int}` | 名前を持つ product（匿名） |
 | 関数 | `int -> int` | `->` は右結合 |
 
+- `never` は全ての型の部分型（bottom 型）で、注釈にも書ける（確定, 2026-11-04）。`if` の片側が `never` なら、全体の型はもう片側の型になる。`return` や `last` のような返らない式の型にも現れる。
+
+```yulang
+my x: int = if cond: 1 else: fail "oops"    // else 側は never なので int と合う
+```
+
 - `xs[i]` は `Index` role を通して解決される（章6）。
 - `opt 'a`（`nil` / `just`）と `result 'ok 'err`（`ok` / `err`）は標準ライブラリの enum で、prelude が型と variant の両方を再公開する。
 
