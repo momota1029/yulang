@@ -243,7 +243,7 @@ catch expr:
 
 出典: `main:notes/design/yulang-language-report.md` §6.8
 
-## 3.9 パイプライン `|`　〔存在は確定、細部は要確認〕
+## 3.9 パイプライン `|`　〔存在は確定、細部は仮採用〕
 
 ```yulang
 "data" | parse | render
