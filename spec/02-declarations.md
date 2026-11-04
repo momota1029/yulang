@@ -50,7 +50,7 @@ my base = 10
 ```
 
 - block は文を順に評価し、最後の式を値として返す（式指向）。
-- 宣言だけで本体のない `pub declared` の形がある。Rust の `pub let a = ...` や `pub const a = ...` に相当するものとして読んでよい（確定, 2026-11-04）。
+- 素材にあった本体のない `pub declared` の形は、デバッグ用の名残りらしいので**仕様に採らない**（確定, 2026-11-04）。
 - `our p.norm2 = ...` のように名前に dot を含む binding は **method の定義**になる。意味は章4・章6 で書く。
 
 出典: `main:docs/language/overview.ja.md` §block と binding、`main:notes/design/yulang-language-report.md` §5.1
