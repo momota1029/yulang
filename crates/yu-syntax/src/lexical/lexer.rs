@@ -721,20 +721,138 @@ fn scan_lambda_backslash(
     fence: Option<&FenceBoundary>,
 ) -> Option<Token> {
     let source = i.remainder();
-    let after_slash = source.strip_prefix('\\')?;
-    let binder = lambda_inline_suffix(after_slash, origin + 1, fence)?;
-    let (_, after_binder) = source_identifier(binder)?;
-    let arrow = lambda_inline_suffix(
-        after_binder,
-        origin + source.len() - after_binder.len(),
-        fence,
-    )?;
-    is_exact_arm_arrow(arrow).then_some(())?;
+    let mut suffix = source.strip_prefix('\\')?;
+    let mut suffix_origin = origin.checked_add(1)?;
+    suffix = lambda_inline_suffix(suffix, suffix_origin, fence)?;
+    suffix_origin = origin.checked_add(source.len().checked_sub(suffix.len())?)?;
+
+    let mut parameters = 0usize;
+    loop {
+        if parameters != 0 && is_exact_arm_arrow(suffix) {
+            break;
+        }
+        let next = if let Some((_, after_identifier)) = source_identifier(suffix) {
+            after_identifier
+        } else {
+            lambda_parenthesized_suffix(suffix, suffix_origin, fence)?
+        };
+        parameters = parameters.checked_add(1)?;
+        suffix_origin = suffix_origin.checked_add(suffix.len().checked_sub(next.len())?)?;
+        suffix = lambda_inline_suffix(next, suffix_origin, fence)?;
+        suffix_origin = suffix_origin.checked_add(next.len().checked_sub(suffix.len())?)?;
+    }
     let (_, text) = i.rb().with_str(|mut lex| lex.next());
     Some(Token {
         kind: TokenKind::Backslash,
         text: text.into(),
     })
+}
+
+/// Balance one parenthesized lambda parameter using source-only evidence.
+/// Literal and trivia bodies are opaque so their parentheses cannot affect the
+/// header decision. The real Pattern parser still owns all accepted contents.
+fn lambda_parenthesized_suffix<'source>(
+    mut source: &'source str,
+    mut origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> Option<&'source str> {
+    source = source.strip_prefix('(')?;
+    origin = origin.checked_add(1)?;
+    let mut depth = 1usize;
+
+    loop {
+        use crate::lexical::trivia::{TriviaObservation, observe_logical_fenced_trivia};
+        match observe_logical_fenced_trivia(source, origin, LineEntry::InLine, fence) {
+            TriviaObservation::Boundary => return None,
+            TriviaObservation::Visible(visible) if visible.source.len() != source.len() => {
+                origin = origin.checked_add(source.len().checked_sub(visible.source.len())?)?;
+                source = visible.source;
+                continue;
+            }
+            TriviaObservation::Visible(_) => {}
+        }
+
+        if source.starts_with('"') || source.starts_with("~\"") {
+            let next = lambda_literal_suffix(source, origin, fence)?;
+            origin = origin.checked_add(source.len().checked_sub(next.len())?)?;
+            source = next;
+            continue;
+        }
+        let character = source.chars().next()?;
+        source = &source[character.len_utf8()..];
+        origin = origin.checked_add(character.len_utf8())?;
+        match character {
+            '(' => depth = depth.checked_add(1)?,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(source);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Skip one rule/string literal while balancing a parenthesized parameter.
+/// This recognizes the literal delimiters only; literal CST and recovery stay
+/// with the committed Pattern parser.
+fn lambda_literal_suffix<'source>(
+    mut source: &'source str,
+    mut origin: usize,
+    fence: Option<&FenceBoundary>,
+) -> Option<&'source str> {
+    if source.starts_with('~') {
+        source = &source[1..];
+        origin = origin.checked_add(1)?;
+    }
+    let quotes = source.bytes().take_while(|byte| *byte == b'"').count();
+    let delimiter = if quotes >= 3 { quotes } else { 1 };
+    source = source.get(delimiter..)?;
+    origin = origin.checked_add(delimiter)?;
+
+    loop {
+        let run = source.bytes().take_while(|byte| *byte == b'"').count();
+        if run != 0 && (delimiter == 1 || run == delimiter) {
+            return source.get(delimiter..);
+        }
+        if run != 0 {
+            source = source.get(run..)?;
+            origin = origin.checked_add(run)?;
+            continue;
+        }
+        if source.starts_with('\\') {
+            let mut characters = source.chars();
+            let lead = characters.next()?.len_utf8();
+            let target = characters.next()?.len_utf8();
+            let width = lead.checked_add(target)?;
+            source = source.get(width..)?;
+            origin = origin.checked_add(width)?;
+            continue;
+        }
+        let character = source.chars().next()?;
+        let width = if character == '\r' && source.starts_with("\r\n") {
+            2
+        } else {
+            character.len_utf8()
+        };
+        source = source.get(width..)?;
+        origin = origin.checked_add(width)?;
+        if matches!(character, '\r' | '\n') {
+            let Some(fence) = fence else {
+                continue;
+            };
+            match judge_fence_line(source, origin, fence) {
+                FenceLineDecision::Boundary(_) => return None,
+                FenceLineDecision::Body { prefix: None, .. } => {}
+                FenceLineDecision::Body { content, .. } => {
+                    let prefix = content.checked_sub(origin)?;
+                    source = source.get(prefix..)?;
+                    origin = content;
+                }
+            }
+        }
+    }
 }
 
 fn lambda_inline_suffix<'source>(

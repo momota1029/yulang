@@ -12,6 +12,7 @@
 - [Expressionの配置一覧](expressions/index.md)
 - [Parenthesized primary form](expressions/parenthesized-expression.md)
 - [List-expression primary form](expressions/list-expression.md)
+- [Lambda式のprimary form](expressions/lambda-expression.md)
 - [数値リテラルのprimary form](expressions/numeric-literals.md)
 - [Operator-chainによる式](expressions/operator-chain.md)
 - [Assignmentのterminal form](expressions/assignment-tail.md)

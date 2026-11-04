@@ -26,6 +26,7 @@ last 'outer
 
 - [Parenthesized primary form](parenthesized-expression.md)
 - [List-expression primary form](list-expression.md)
+- [Lambda式のprimary form](lambda-expression.md)
 - [数値リテラルのprimary form](numeric-literals.md)
 - [Operator-chainによる式](operator-chain.md)
 - [Assignmentのterminal form](assignment-tail.md)

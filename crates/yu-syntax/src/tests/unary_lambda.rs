@@ -41,6 +41,8 @@ fn assert_clean(root: &SyntaxNode) {
 fn complete_headers_are_primaries_in_production_and_internal_entry() {
     for source in [
         r"\x -> x",
+        // WP-10: superseded the unary-only admission pin (design memo WP-10).
+        r"\x y -> x",
         r"g \i -> i",
         r"host (\x -> x)",
         r"host(\x -> x)",
@@ -77,6 +79,88 @@ fn complete_headers_are_primaries_in_production_and_internal_entry() {
 }
 
 #[test]
+fn multiple_identifier_and_parenthesized_pattern_parameters_parse_cleanly() {
+    for source in [
+        r"\x y z -> x",
+        r"\(a, b) -> a",
+        r"\x (a, b) -> a",
+        r"\(a, b) (c, d) -> a",
+        r"\(just x) -> x",
+        r"\(just x) y -> x",
+        r"\(x: int) -> x",
+        r"\_ -> 0",
+        r"f (\x y -> x)",
+        r"f \x y -> x",
+        r"\x -> \y -> x",
+        "\\x y -> if x:\n  y",
+    ] {
+        let root = production(source);
+        assert_clean(&root);
+        assert!(!lambdas(&root).is_empty(), "{source}: {root:#?}");
+    }
+}
+
+#[test]
+fn lambda_parameters_keep_the_direct_cst_shape() {
+    let unary = lambdas(&production(r"\x -> x")).remove(0);
+    assert_eq!(
+        unary
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::Backslash,
+            SyntaxKind::Identifier,
+            SyntaxKind::Whitespace,
+            SyntaxKind::Arrow,
+            SyntaxKind::OperatorChain,
+        ]
+    );
+
+    let lambda = lambdas(&production(r"\x (a, b) y -> a")).remove(0);
+    assert_eq!(
+        lambda
+            .children_with_tokens()
+            .filter(|element| !matches!(element.kind(), SyntaxKind::Whitespace))
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::Backslash,
+            SyntaxKind::Identifier,
+            SyntaxKind::Pattern,
+            SyntaxKind::Identifier,
+            SyntaxKind::Arrow,
+            SyntaxKind::OperatorChain,
+        ]
+    );
+    let parameter = lambda
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("parenthesized parameter Pattern");
+    assert_eq!(parameter.to_string(), "(a, b)");
+    assert!(
+        parameter
+            .children()
+            .any(|node| node.kind() == SyntaxKind::ParenthesizedPattern)
+    );
+}
+
+#[test]
+fn parenthesized_header_lookahead_ignores_nested_and_opaque_parentheses() {
+    for source in [
+        r"\((a, b)) -> a",
+        r#"\(")") -> 0"#,
+        r#"\(~")") -> 0"#,
+        r"\(/* outer /* ) */ still */ x) -> x",
+        "\\(x, // )\n  y) -> x",
+    ] {
+        let root = production(source);
+        assert_clean(&root);
+        assert_eq!(lambdas(&root).len(), 1, "{source}: {root:#?}");
+    }
+}
+
+#[test]
 fn header_uses_maximal_raw_identifier_and_logical_inline_trivia() {
     for binder in ["_", "値", "café?", "ready!", "if", "case", "catch", "rule"] {
         let source = format!("\\ /*one\n two*/ {binder} /*three*/ -> {binder}");
@@ -105,7 +189,10 @@ fn nonmatching_headers_do_not_create_lambda_nodes() {
         r"\x -",
         r"\x - > x",
         r"\ ->",
-        r"\x y ->",
+        r"\x y",
+        r"\(a, b -> a",
+        r"\1 -> x",
+        r"\x.y -> x",
         r"\x ->> x",
         "\\\nx -> x",
         "\\x\n-> x",
@@ -113,6 +200,49 @@ fn nonmatching_headers_do_not_create_lambda_nodes() {
     ] {
         assert!(lambdas(&production(source)).is_empty(), "{source}");
     }
+}
+
+#[test]
+fn adjacent_parenthesized_groups_follow_pattern_call_adjacency() {
+    let root = production(r"\(a, b)(c) -> a");
+    assert_clean(&root);
+    let lambda = lambdas(&root).remove(0);
+    let parameters = lambda
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Pattern)
+        .collect::<Vec<_>>();
+    assert_eq!(parameters.len(), 1);
+    assert!(
+        parameters[0]
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::PatternCallTail)
+    );
+}
+
+#[test]
+fn malformed_parenthesized_parameters_keep_pattern_recovery() {
+    let trailing_comma = production(r"\(a,) -> a");
+    assert_clean(&trailing_comma);
+    assert_eq!(lambdas(&trailing_comma).len(), 1);
+
+    let root = production(r"\(,) x -> x");
+    let lambda = lambdas(&root).remove(0);
+    assert!(
+        lambda
+            .children()
+            .any(|node| node.kind() == SyntaxKind::Pattern)
+    );
+    assert!(
+        lambda
+            .children_with_tokens()
+            .any(|element| element.kind() == SyntaxKind::Arrow)
+    );
+    assert!(
+        lambda
+            .descendants_with_tokens()
+            .any(|element| matches!(element.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+        "{lambda:#?}"
+    );
 }
 
 #[test]
@@ -140,7 +270,7 @@ fn complete_headers_precede_dynamic_backslash_at_both_sites() {
     ] {
         let table =
             OperatorTable::from_declarations([OperatorDeclaration::new("\\", fixities)]).unwrap();
-        for source in [r"\x -> x", r"g \i -> g i"] {
+        for source in [r"\x -> x", r"\x y -> x", r"g \i -> g i"] {
             let (green, _) = run_with(source, &table);
             assert_eq!(green.to_string(), source);
             let root = SyntaxNode::new_root(green);
@@ -164,6 +294,26 @@ fn complete_headers_precede_dynamic_backslash_at_both_sites() {
         SyntaxNode::new_root(green)
             .descendants()
             .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse)
+    );
+    let (green, _) = run_with(r"\x y", &table);
+    let root = SyntaxNode::new_root(green);
+    assert!(lambdas(&root).is_empty());
+    assert!(
+        root.descendants()
+            .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse)
+    );
+
+    let table = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "\\",
+        OperatorFixities::new().with_infix(BindingPower::scalar(40), BindingPower::scalar(41)),
+    )])
+    .unwrap();
+    let (green, _) = run_with(r"left \ right", &table);
+    let root = SyntaxNode::new_root(green);
+    assert!(lambdas(&root).is_empty());
+    assert!(
+        root.descendants()
+            .any(|node| node.kind() == SyntaxKind::InfixOperatorUse)
     );
 }
 
