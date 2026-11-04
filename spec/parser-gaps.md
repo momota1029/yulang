@@ -46,7 +46,7 @@ lambda（複数引数、pattern 引数）、`sub:`、`for`、`do`、`type`（ali
 | G13 | 数値 literal の `_` 区切り・`0x`・`0b`・`0o` **（完了 2026-11-04、gpt-6-luna、yu-syntax 1567 + 統合11 緑）** | num-underscore, num-hex, num-bin |
 | G14 | 空の block `{;}` **（完了 2026-11-04、gpt-6-luna、yu-syntax 1561 + 統合11 緑）** | empty-block |
 | G15 | range pattern `0..10`、`1..`、`..0` **（完了 2026-11-04。Luna は途中で降りたので gpt-6.1-terra/high で完了。yu-syntax 1578 + 統合11 緑。新 SyntaxKind `RangePattern`）** | range-pat, range-pat-lower, range-pat-upper |
-| G16 | lambda の `&` 引数 `\&a -> ...`（`&a::run` を手で呼ぶ形） | ref-run |
+| G16 | lambda の `&` 引数 `\&a -> ...`（`&a::run` を手で呼ぶ形）**（完了 2026-11-04、gpt-6-luna、yu-syntax 1579 + 統合11 緑。実際に読めなかったのは lambda の括弧なし引数だけ）** | ref-run |
 | G17 | struct の field default `y: int = 4` **（完了 2026-11-04。Luna は途中で降りたので gpt-6.1-terra/high で完了。yu-syntax 1565 + 統合11 緑）** | struct-default |
 | G18 | variant 型の `\|` 形 `:ready \| :some int` | variant-type-bar |
 
