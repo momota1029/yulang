@@ -113,6 +113,10 @@ pub(crate) fn scan_expression_payload(
             && let Some(keyword) = i.token(scan_nud_keyword)
         {
             CurrentPayload::Token(keyword)
+        } else if matches!(site, OperatorSite::Nud)
+            && let Some(identifier) = i.token(scan_reference_sigil_identifier)
+        {
+            CurrentPayload::Token(identifier)
         } else if let Some(operator) = i.token(|lex| {
             scan_operator_fenced(
                 lex,
@@ -129,6 +133,11 @@ pub(crate) fn scan_expression_payload(
             && let Some(equals) = i.token(scan_assignment_equals)
         {
             CurrentPayload::Token(equals)
+        } else if matches!(site, OperatorSite::Led)
+            && has_leading_trivia
+            && let Some(identifier) = i.token(scan_reference_sigil_identifier)
+        {
+            CurrentPayload::Token(identifier)
         } else if matches!(site, OperatorSite::Led)
             && let Some(operator) = i.token(|lex| {
                 scan_dangling_operator_fenced(
@@ -180,6 +189,8 @@ pub(crate) fn scan_nud_payload(
         } else if let Some(token) = i.token(scan_lparen) {
             CurrentPayload::Token(token)
         } else if let Some(token) = i.token(scan_lbrace) {
+            CurrentPayload::Token(token)
+        } else if let Some(token) = i.token(scan_reference_sigil_identifier) {
             CurrentPayload::Token(token)
         } else if let Some(operator) = i.token(|lex| {
             scan_operator_fenced(
@@ -809,6 +820,19 @@ pub(crate) fn source_declaration_head(source: &str) -> bool {
 pub(crate) fn scan_apostrophe_sigil_identifier(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut segment| {
         (segment.next()? == '\'').then_some(())?;
+        scan_identifier(segment.rb())?;
+        Some(())
+    });
+    accepted?;
+    Some(Token {
+        kind: TokenKind::SigilIdentifier,
+        text: text.into(),
+    })
+}
+
+fn scan_reference_sigil_identifier(mut i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut segment| {
+        matches!(segment.next()?, '$' | '&').then_some(())?;
         scan_identifier(segment.rb())?;
         Some(())
     });

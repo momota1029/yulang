@@ -57,7 +57,7 @@ Result (2026-11-04): the type parser now receives the arm arrow (`STOP_ARROW`) a
 
 ### WP-5 `$x` and `&x`
 
-In operand position (NUD), `$name` and `&name` adjacent to an identifier are `SigilIdentifier`. After an operand (LED), `&` stays an operator, so a user-declared infix `&` keeps working. `&count = value` is the existing `AssignmentTail` with a sigil operand. A reference read is an `IdentifierExpression`-like node over `SigilIdentifier`, as the declaration side already uses.
+In operand position (NUD), `$name` and `&name` adjacent to an identifier are `SigilIdentifier`. After an operand (LED), `&` stays an operator, so a user-declared infix `&` keeps working. `&count = value` is the existing `AssignmentTail` with a sigil operand. Implemented as: the NUD scan and the ML-argument position (LED after trivia) read an adjacent `$name` / `&name` as a `SigilIdentifier` wrapped in the existing `IdentifierExpression`; a declared infix `&` is tried first in LED position, so `a & b` is unchanged. A reference read is an `IdentifierExpression`-like node over `SigilIdentifier`, as the declaration side already uses.
 
 ### WP-6 labels in expressions
 

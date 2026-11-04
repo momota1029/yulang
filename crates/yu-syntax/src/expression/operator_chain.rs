@@ -314,7 +314,7 @@ pub(super) fn append_nud(
             ambient,
             sequence,
         ),
-        Some(TokenKind::Identifier) => {
+        Some(TokenKind::Identifier | TokenKind::SigilIdentifier) => {
             emit_identifier_core(&mut i, nud);
             scan_tail_after_accept_normalized(
                 i,
@@ -1085,6 +1085,7 @@ fn is_normal_core_item(item: &Item) -> bool {
         token_kind(item),
         Some(
             TokenKind::Identifier
+                | TokenKind::SigilIdentifier
                 | TokenKind::Integer
                 | TokenKind::Float
                 | TokenKind::ExpressionSymbolColon

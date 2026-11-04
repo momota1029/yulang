@@ -2,6 +2,25 @@
 
 Expressionの文脈と記録済みの全ファミリーは、[構文の内容モデル](../conventions/syntax-content-model.md)で確認する。次のページは、詳細化済みの形式の配置と生成規則を定める。
 
+## Identifierのprimary form
+
+`IdentifierExpression`はoperand位置にある通常のidentifierまたは参照sigil identifierを記録する。
+
+```text
+IdentifierPrimary := Identifier | ReferenceSigilIdentifier
+ReferenceSigilIdentifier := ("$" | "&") ! Identifier
+```
+
+`!`はsigilとidentifierの間にtriviaを置かず、隣接させることを表す。
+直接CSTは`Identifier`または`SigilIdentifier` token一つを持つ`IdentifierExpression`である。
+operandの後でLED演算子を選択するとき、宣言済みの`&`はsigil identifierを開始せず、演算子candidateのままになる。
+単独のsigilとidentifierに隣接しないsigilはidentifier primaryではない。
+
+```yulang
+$count
+&count = $count + 1
+```
+
 - [Parenthesized primary form](parenthesized-expression.md)
 - [数値リテラルのprimary form](numeric-literals.md)
 - [Operator-chainによる式](operator-chain.md)

@@ -1,6 +1,47 @@
 use crate::tests::support::*;
 
 #[test]
+fn declared_ampersand_stays_an_infix_operator_after_an_operand() {
+    use std::sync::Arc;
+
+    let source: Arc<crate::SourceText> = Arc::from("infix (&) 5.0.0 5.0.1 = f\na & b");
+    let parsed = crate::parse_file(
+        Arc::clone(&source),
+        Arc::new(crate::scan_header(Arc::clone(&source))),
+        Arc::new(crate::SyntaxEnvironment::empty()),
+    );
+    assert_eq!(parsed.green().to_string(), source.as_ref());
+    assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+    assert!(structural_facts(parsed.green()).is_empty());
+
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    let chain = root
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+        .last()
+        .expect("a & b OperatorChain");
+    assert_eq!(chain.to_string(), "a & b");
+    assert_eq!(
+        chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [
+            SyntaxKind::IdentifierExpression,
+            SyntaxKind::InfixOperatorUse,
+            SyntaxKind::IdentifierExpression,
+        ]
+    );
+    let infix = chain
+        .children()
+        .find(|node| node.kind() == SyntaxKind::InfixOperatorUse)
+        .expect("ampersand infix use");
+    let operator = infix
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::Operator)
+        .expect("ampersand Operator token");
+    assert_eq!(operator.text(), "&");
+}
+
+#[test]
 fn dynamic_operator_roles_append_to_the_active_flat_chain() {
     let operators = dynamic_operator_table();
     let source = "~a + b++";

@@ -203,12 +203,20 @@ pub(crate) fn emit_recovery_error_run<R>(
 }
 
 pub(crate) fn emit_identifier_core(i: &mut SyntaxIn, item: Item) {
-    debug_assert_eq!(
-        item.payload_view().token_kind(),
-        Some(TokenKind::Identifier)
-    );
+    let token_kind = item.payload_view().token_kind();
+    debug_assert!(matches!(
+        token_kind,
+        Some(TokenKind::Identifier | TokenKind::SigilIdentifier)
+    ));
     i.state.start_node(SyntaxKind::IdentifierExpression.into());
-    item.emit_remaining(&mut *i.state, SyntaxKind::Identifier);
+    item.emit_remaining(
+        &mut *i.state,
+        match token_kind {
+            Some(TokenKind::Identifier) => SyntaxKind::Identifier,
+            Some(TokenKind::SigilIdentifier) => SyntaxKind::SigilIdentifier,
+            _ => unreachable!("an identifier core has an identifier token"),
+        },
+    );
     i.state.finish_node();
 }
 

@@ -1,6 +1,108 @@
 use crate::tests::support::*;
 
 #[test]
+fn reference_sigils_are_identifier_primaries_in_operand_positions() {
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "+",
+            OperatorFixities::new()
+                .with_infix(BindingPower::scalar(40), BindingPower::new(40, [1])),
+        ),
+        OperatorDeclaration::new(
+            "-",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+        ),
+    ])
+    .expect("reference-position operator declarations");
+
+    for source in [
+        "$count",
+        "$count + 1",
+        "$count + $x",
+        "f $count",
+        "f &count",
+        "f($count, $x)",
+        "-$x",
+    ] {
+        let (green, exit) = run_with(source, &operators);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        assert!(structural_facts(&green).is_empty(), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        assert!(
+            root.descendants()
+                .any(|node| node.kind() == SyntaxKind::IdentifierExpression),
+            "{source:?}"
+        );
+        let sigils = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::SigilIdentifier)
+            .collect::<Vec<_>>();
+        assert!(!sigils.is_empty(), "{source:?}");
+        assert!(
+            sigils
+                .iter()
+                .all(|token| token.text().starts_with(['$', '&'])),
+            "{source:?}"
+        );
+        assert!(
+            !root.descendants_with_tokens().any(|element| matches!(
+                element.kind(),
+                SyntaxKind::Error | SyntaxKind::Missing | SyntaxKind::Invalid
+            )),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = run_statement_with("my y = $count + 1", &operators);
+    assert_eq!(green.to_string(), "my y = $count + 1");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert!(structural_facts(&green).is_empty());
+    assert!(
+        SyntaxNode::new_root(green)
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::SigilIdentifier && token.text() == "$count")
+    );
+}
+
+#[test]
+fn ampersand_reference_is_the_left_operand_of_assignment() {
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "+",
+        OperatorFixities::new().with_infix(BindingPower::scalar(40), BindingPower::new(40, [1])),
+    )])
+    .expect("assignment RHS operator declaration");
+    let source = "&count = $count + 1";
+    let (green, exit) = run_with(source, &operators);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    assert!(structural_facts(&green).is_empty());
+
+    let root = SyntaxNode::new_root(green);
+    let outer = root.first_child().expect("outer OperatorChain");
+    assert_eq!(outer.kind(), SyntaxKind::OperatorChain);
+    assert_eq!(
+        outer.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [SyntaxKind::IdentifierExpression, SyntaxKind::AssignmentTail]
+    );
+    let left = outer.first_child().expect("assignment left operand");
+    assert_eq!(left.to_string(), "&count");
+    assert_eq!(
+        left.first_token().map(|token| token.kind()),
+        Some(SyntaxKind::SigilIdentifier)
+    );
+    let tail = outer.last_child().expect("AssignmentTail");
+    assert_eq!(tail.kind(), SyntaxKind::AssignmentTail);
+    assert!(
+        tail.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::SigilIdentifier && token.text() == "$count")
+    );
+}
+
+#[test]
 fn unary_callback_lambda_header_has_direct_cst() {
     let (green, _) = run(r"host (\x -> x)");
     let root = SyntaxNode::new_root(green);

@@ -234,6 +234,45 @@ fn required_operand_error_run_retries_from_its_structural_error_group() {
 }
 
 #[test]
+fn non_adjacent_reference_sigils_keep_operator_recovery() {
+    for (source, trailing_kind) in [
+        ("$", None),
+        ("$ x", Some(SyntaxKind::IdentifierExpression)),
+        ("$1", Some(SyntaxKind::IntegerLiteral)),
+        ("&", None),
+    ] {
+        let (green, exit, remainder, facts) = direct_required_expr_with_facts(source, 0);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(
+            matches!(exit, NormalizedExit::Complete(Err(_), _)),
+            "{source:?}"
+        );
+        assert_eq!(remainder, "", "{source:?}");
+        assert_eq!(facts, [(StructuralKind::ErrorGroup, 0..1)], "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let chain = root.first_child().expect("OperatorChain");
+        assert_eq!(chain.kind(), SyntaxKind::OperatorChain);
+        assert_eq!(
+            chain.first_token().map(|token| token.kind()),
+            Some(SyntaxKind::Error),
+            "{source:?}"
+        );
+        assert_eq!(
+            chain.children().last().map(|node| node.kind()),
+            trailing_kind,
+            "{source:?}"
+        );
+        assert!(
+            !chain
+                .descendants_with_tokens()
+                .any(|element| { element.kind() == SyntaxKind::SigilIdentifier }),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn required_for_inline_body_missing_and_error_are_structural_facts() {
     for (source, kind, range, emitted) in [
         (" ]", StructuralKind::Missing, 0..0, ""),
