@@ -28,9 +28,8 @@ use crate::{
         yumark::FenceBoundary,
     },
     statement::{
-        StatementAdmission, StatementLineHandoff, braced_statement_block_normalized,
-        canonical_statement_from_admission_normalized, classify_statement_item_normalized,
-        indented_statement_block_normalized,
+        StatementAdmission, StatementLineHandoff, braced_owner_field_block_normalized,
+        canonical_statement_from_admission_normalized, indented_owner_field_body_normalized,
     },
     type_expr::{
         TypeOuterBoundary, is_type_caller_boundary,
@@ -342,7 +341,7 @@ fn body_from_item_normalized(
         }
         Some(TokenKind::LBrace) => {
             let child_entry = suffix_marker(i.rb());
-            let exit = braced_statement_block_normalized(
+            let exit = braced_owner_field_block_normalized(
                 i.rb(),
                 item,
                 baseline,
@@ -444,7 +443,7 @@ fn colon_body_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     match introduced_body_indentation_normalized(i.rb(), item_origin, fence) {
-        Some(indentation) if indentation > baseline => indented_statement_block_normalized(
+        Some(indentation) if indentation > baseline => indented_owner_field_body_normalized(
             i,
             baseline,
             stops,
@@ -511,9 +510,14 @@ fn inline_body_from_item_normalized(
         role_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
-    if let Some(admission) =
-        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
-    {
+    if let Some(admission) = crate::statement::classify_statement_item_normalized_at(
+        i.rb(),
+        &item,
+        baseline,
+        item_origin,
+        fence,
+        crate::yumark::judge::StatementPosition::NonStatement,
+    ) {
         return inline_statement_normalized(
             i,
             item,
@@ -569,9 +573,14 @@ fn recover_inline_body_normalized(
     if inline_body_boundary(i.rb(), &item, baseline, stops) {
         return complete(handoff(item), line_entry);
     }
-    if let Some(admission) =
-        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
-    {
+    if let Some(admission) = crate::statement::classify_statement_item_normalized_at(
+        i.rb(),
+        &item,
+        baseline,
+        item_origin,
+        fence,
+        crate::yumark::judge::StatementPosition::NonStatement,
+    ) {
         return inline_statement_normalized(
             i,
             item,
@@ -601,7 +610,7 @@ fn inline_statement_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
-    sequence: crate::sequence::SequenceContext,
+    _sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     let child_entry = suffix_marker(i.rb());
     let exit = canonical_statement_from_admission_normalized(
@@ -615,7 +624,7 @@ fn inline_statement_normalized(
         line_entry,
         fence,
         ambient,
-        sequence,
+        Some(crate::sequence::SequenceOwner::OwnerField),
     );
     let item_origin = advanced_origin(item_origin, child_entry, i.rb());
     match exit {
@@ -815,12 +824,13 @@ fn role_error_run(
                     || (phase == RoleBodyRecoveryPhase::Body
                         && run
                             .lexical(|lex| {
-                                crate::statement::classify_statement_item_lexical(
+                                crate::statement::classify_statement_item_lexical_at(
                                     lex.remainder(),
                                     &item,
                                     baseline,
                                     origin,
                                     fence,
+                                    crate::yumark::judge::StatementPosition::NonStatement,
                                 )
                             })
                             .is_some()));

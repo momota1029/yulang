@@ -53,6 +53,8 @@
 - [`derives`のdeclaration-attachment form](statements/derives-attachment.md)
 - [Standalone `impl` declaration form](statements/impl-shell.md)
 - [Standalone `cast` declaration form](statements/cast-declaration.md)
+- [Doc-comment declaration](statements/doc-comment-declaration.md)
+- [Yumark document grammar](statements/yumark-document.md)
 
 # Cross-cutting mechanisms
 

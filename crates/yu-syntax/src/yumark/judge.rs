@@ -9,7 +9,7 @@ use unicode_ident::is_xid_start;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum StatementPosition {
-    CanonicalLineStart,
+    CanonicalLineStart { base_col: usize },
     CanonicalSameLine,
     NonStatement,
 }
@@ -25,6 +25,13 @@ pub(crate) struct DocumentMarker {
     pub(crate) kind: DocumentMarkerKind,
     /// The complete and only committed marker bytes.
     pub(crate) range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct DocumentMarkerMatch {
+    pub(crate) marker: DocumentMarker,
+    /// Marker bytes not already owned by the current canonical Item.
+    pub(crate) trailing_bytes: usize,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -130,26 +137,58 @@ pub(crate) fn judge_document_marker(
     origin: usize,
     position: StatementPosition,
 ) -> Option<DocumentMarker> {
-    if position == StatementPosition::NonStatement {
+    judge_document_marker_parts("", source, origin, position).map(|matched| matched.marker)
+}
+
+/// Judges a marker whose first bytes may already be owned by a dynamic-
+/// operator Item. This keeps Statement dispatch longest-first without changing
+/// expression NUD/LED scanning.
+pub(crate) fn judge_document_marker_parts(
+    item_spelling: &str,
+    source: &str,
+    origin: usize,
+    position: StatementPosition,
+) -> Option<DocumentMarkerMatch> {
+    if position == StatementPosition::NonStatement
+        || item_spelling.is_empty() && !source.starts_with('-')
+        || !item_spelling.bytes().all(|byte| byte == b'-')
+    {
         return None;
     }
-    if let Some(suffix) = source.strip_prefix("---") {
-        return (position == StatementPosition::CanonicalLineStart
+
+    let tail_hyphens = source.bytes().take_while(|byte| *byte == b'-').count();
+    let run = item_spelling.len().checked_add(tail_hyphens)?;
+    if run >= 3 {
+        let trailing_bytes = 3usize.checked_sub(item_spelling.len())?;
+        let suffix = source.get(trailing_bytes..)?;
+        return (run == 3
+            && matches!(position, StatementPosition::CanonicalLineStart { .. })
             && strict_horizontal_suffix(suffix, false))
-        .then(|| DocumentMarker {
-            kind: DocumentMarkerKind::BlockOpen,
-            range: origin..origin + 3,
+        .then(|| DocumentMarkerMatch {
+            marker: DocumentMarker {
+                kind: DocumentMarkerKind::BlockOpen,
+                range: origin..origin + 3,
+            },
+            trailing_bytes,
         });
     }
-    source.starts_with("--").then(|| DocumentMarker {
-        kind: DocumentMarkerKind::Line,
-        range: origin..origin + 2,
+
+    (run == 2).then(|| DocumentMarkerMatch {
+        marker: DocumentMarker {
+            kind: DocumentMarkerKind::Line,
+            range: origin..origin + 2,
+        },
+        trailing_bytes: 2 - item_spelling.len(),
     })
 }
 
 /// Judges the complete line-document extent without owning its newline.
 pub(crate) fn judge_line_document(source: &str, origin: usize) -> Option<LineDocumentExtent> {
-    let marker = judge_document_marker(source, origin, StatementPosition::CanonicalLineStart)?;
+    let marker = judge_document_marker(
+        source,
+        origin,
+        StatementPosition::CanonicalLineStart { base_col: 0 },
+    )?;
     if marker.kind != DocumentMarkerKind::Line {
         return None;
     }
@@ -456,7 +495,7 @@ mod tests {
         for (source, position, expected) in [
             (
                 "---\nnext",
-                StatementPosition::CanonicalLineStart,
+                StatementPosition::CanonicalLineStart { base_col: 0 },
                 Some(DocumentMarker {
                     kind: DocumentMarkerKind::BlockOpen,
                     range: 7..10,
@@ -464,7 +503,7 @@ mod tests {
             ),
             (
                 "--- \t\r\nnext",
-                StatementPosition::CanonicalLineStart,
+                StatementPosition::CanonicalLineStart { base_col: 0 },
                 Some(DocumentMarker {
                     kind: DocumentMarkerKind::BlockOpen,
                     range: 7..10,
@@ -472,17 +511,37 @@ mod tests {
             ),
             (
                 "--text",
-                StatementPosition::CanonicalLineStart,
+                StatementPosition::CanonicalLineStart { base_col: 0 },
                 Some(DocumentMarker {
                     kind: DocumentMarkerKind::Line,
                     range: 7..9,
                 }),
             ),
-            ("---", StatementPosition::CanonicalLineStart, None),
-            ("----\n", StatementPosition::CanonicalLineStart, None),
-            ("---x\n", StatementPosition::CanonicalLineStart, None),
-            (" ---\n", StatementPosition::CanonicalLineStart, None),
-            ("---\r", StatementPosition::CanonicalLineStart, None),
+            (
+                "---",
+                StatementPosition::CanonicalLineStart { base_col: 0 },
+                None,
+            ),
+            (
+                "----\n",
+                StatementPosition::CanonicalLineStart { base_col: 0 },
+                None,
+            ),
+            (
+                "---x\n",
+                StatementPosition::CanonicalLineStart { base_col: 0 },
+                None,
+            ),
+            (
+                " ---\n",
+                StatementPosition::CanonicalLineStart { base_col: 0 },
+                None,
+            ),
+            (
+                "---\r",
+                StatementPosition::CanonicalLineStart { base_col: 0 },
+                None,
+            ),
             ("---\n", StatementPosition::CanonicalSameLine, None),
             (
                 "--text",

@@ -13,13 +13,14 @@ use crate::{
     cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
     declaration::{
-        act_declaration_normalized, act_declaration_selected_lexical, binding_statement_normalized,
-        binding_statement_selected_lexical, cast_declaration_normalized,
-        cast_declaration_selected_lexical, enum_declaration_normalized,
-        enum_declaration_selected_lexical, error_declaration_normalized,
-        error_declaration_selected_lexical, impl_declaration_normalized,
-        impl_declaration_selected_lexical, is_binding_visibility, mod_declaration_normalized,
-        mod_declaration_selected_lexical, role_declaration_normalized,
+        DocCommentAdmission, act_declaration_normalized, act_declaration_selected_lexical,
+        binding_statement_normalized, binding_statement_selected_lexical,
+        cast_declaration_normalized, cast_declaration_selected_lexical,
+        doc_comment_declaration_normalized, doc_comment_selected_lexical,
+        enum_declaration_normalized, enum_declaration_selected_lexical,
+        error_declaration_normalized, error_declaration_selected_lexical,
+        impl_declaration_normalized, impl_declaration_selected_lexical, is_binding_visibility,
+        mod_declaration_normalized, mod_declaration_selected_lexical, role_declaration_normalized,
         role_declaration_selected_lexical, struct_declaration_normalized,
         struct_declaration_selected_lexical, type_declaration_normalized,
         type_declaration_selected_lexical, use_declaration_normalized,
@@ -44,6 +45,7 @@ use crate::{
         stops::{STOP_COLON, Stops, stops_for},
         yumark::FenceBoundary,
     },
+    yumark::judge::StatementPosition,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -187,7 +189,17 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     match admission.0 {
-        StatementFamily::Struct => {
+        StatementKind::DocComment(doc) => {
+            return doc_comment_declaration_normalized(
+                i.rb(),
+                item,
+                doc,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+        StatementKind::Struct => {
             let exit = struct_declaration_normalized(
                 i.rb(),
                 item,
@@ -202,7 +214,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
             );
             return exit;
         }
-        StatementFamily::Enum => {
+        StatementKind::Enum => {
             return enum_declaration_normalized(
                 i.rb(),
                 item,
@@ -216,7 +228,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 sequence,
             );
         }
-        StatementFamily::Error => {
+        StatementKind::Error => {
             return error_declaration_normalized(
                 i.rb(),
                 item,
@@ -230,7 +242,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 sequence,
             );
         }
-        StatementFamily::Mod => {
+        StatementKind::Mod => {
             let exit = mod_declaration_normalized(
                 i.rb(),
                 item,
@@ -245,7 +257,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
             );
             return exit;
         }
-        StatementFamily::Type => {
+        StatementKind::Type => {
             return type_declaration_normalized(
                 i.rb(),
                 item,
@@ -259,7 +271,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 sequence,
             );
         }
-        StatementFamily::Role => {
+        StatementKind::Role => {
             return role_declaration_normalized(
                 i.rb(),
                 item,
@@ -273,7 +285,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 sequence,
             );
         }
-        StatementFamily::Impl => {
+        StatementKind::Impl => {
             return impl_declaration_normalized(
                 i.rb(),
                 item,
@@ -287,7 +299,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 sequence,
             );
         }
-        StatementFamily::Cast => {
+        StatementKind::Cast => {
             return cast_declaration_normalized(
                 i.rb(),
                 item,
@@ -301,7 +313,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 sequence,
             );
         }
-        StatementFamily::Act => {
+        StatementKind::Act => {
             return act_declaration_normalized(
                 i.rb(),
                 item,
@@ -315,7 +327,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 sequence,
             );
         }
-        StatementFamily::For => {
+        StatementKind::For => {
             return for_statement_normalized(
                 i.rb(),
                 item,
@@ -329,7 +341,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 sequence,
             );
         }
-        StatementFamily::Binding => {
+        StatementKind::Binding => {
             return binding_statement_normalized(
                 i.rb(),
                 item,
@@ -343,7 +355,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 sequence,
             );
         }
-        StatementFamily::Use => {
+        StatementKind::Use => {
             return use_declaration_normalized(
                 i.rb(),
                 item,
@@ -354,7 +366,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 fence,
             );
         }
-        StatementFamily::Expression => {
+        StatementKind::Expression => {
             return expr_from_nud_normalized(
                 i.rb(),
                 item,
@@ -375,14 +387,23 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
 
 #[cfg(test)]
 pub(super) fn is_canonical_statement_nud(i: SyntaxIn, item: &Item, baseline: usize) -> bool {
-    classify_statement_item_normalized(i, item, baseline, 0, None).is_some()
+    classify_statement_item_normalized_at(
+        i,
+        item,
+        baseline,
+        0,
+        None,
+        StatementPosition::NonStatement,
+    )
+    .is_some()
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct StatementAdmission(StatementFamily);
+pub(super) struct StatementAdmission(StatementKind);
 
 #[derive(Clone, Copy)]
-enum StatementFamily {
+pub(super) enum StatementKind {
+    DocComment(DocCommentAdmission),
     Struct,
     Enum,
     Error,
@@ -405,14 +426,27 @@ pub(super) fn classify_statement_item_normalized(
     item_origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> Option<StatementAdmission> {
+    let position = statement_position(item, item_origin, false);
+    classify_statement_item_normalized_at(i, item, baseline, item_origin, fence, position)
+}
+
+pub(super) fn classify_statement_item_normalized_at(
+    i: SyntaxIn,
+    item: &Item,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+    position: StatementPosition,
+) -> Option<StatementAdmission> {
     i.map(
         |lex: LexIn| {
-            Some(classify_statement_item_lexical(
+            Some(classify_statement_item_lexical_at(
                 lex.remainder(),
                 item,
                 baseline,
                 item_origin,
                 fence,
+                position,
             ))
         },
         |admission| admission,
@@ -427,50 +461,85 @@ pub(super) fn classify_statement_item_lexical(
     item_origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> Option<StatementAdmission> {
+    let position = statement_position(item, item_origin, false);
+    classify_statement_item_lexical_at(source, item, baseline, item_origin, fence, position)
+}
+
+pub(super) fn classify_statement_item_lexical_at(
+    source: &str,
+    item: &Item,
+    baseline: usize,
+    item_origin: usize,
+    fence: Option<&FenceBoundary>,
+    position: StatementPosition,
+) -> Option<StatementAdmission> {
     if item.payload_view().is_boundary() {
         return None;
     }
-    let family = if struct_declaration_selected_lexical(source, item, baseline, item_origin, fence)
-    {
-        StatementFamily::Struct
-    } else if enum_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
-        StatementFamily::Enum
-    } else if error_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
-        StatementFamily::Error
-    } else if mod_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
-        StatementFamily::Mod
-    } else if type_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
-        StatementFamily::Type
-    } else if role_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
-        StatementFamily::Role
-    } else if impl_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
-        StatementFamily::Impl
-    } else if cast_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
-        StatementFamily::Cast
-    } else if act_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
-        StatementFamily::Act
-    } else if for_statement_selected(item) {
-        StatementFamily::For
-    } else if is_binding_visibility(item)
-        && binding_statement_selected_lexical(source, item, baseline, item_origin, fence)
-    {
-        StatementFamily::Binding
-    } else if use_declaration_selected_lexical(source, item, item_origin, fence) {
-        StatementFamily::Use
-    } else if !is_binding_visibility(item)
-        && (is_nud_item(item) || crate::lexical::lexer::is_expression_symbol_item(source, item))
-    {
-        StatementFamily::Expression
-    } else {
-        return None;
-    };
+    let family =
+        if let Some(doc) = doc_comment_selected_lexical(source, item, item_origin, position) {
+            StatementKind::DocComment(doc)
+        } else if struct_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+            StatementKind::Struct
+        } else if enum_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+            StatementKind::Enum
+        } else if error_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+            StatementKind::Error
+        } else if mod_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+            StatementKind::Mod
+        } else if type_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+            StatementKind::Type
+        } else if role_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+            StatementKind::Role
+        } else if impl_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+            StatementKind::Impl
+        } else if cast_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+            StatementKind::Cast
+        } else if act_declaration_selected_lexical(source, item, baseline, item_origin, fence) {
+            StatementKind::Act
+        } else if for_statement_selected(item) {
+            StatementKind::For
+        } else if is_binding_visibility(item)
+            && binding_statement_selected_lexical(source, item, baseline, item_origin, fence)
+        {
+            StatementKind::Binding
+        } else if use_declaration_selected_lexical(source, item, item_origin, fence) {
+            StatementKind::Use
+        } else if !is_binding_visibility(item)
+            && (is_nud_item(item) || crate::lexical::lexer::is_expression_symbol_item(source, item))
+        {
+            StatementKind::Expression
+        } else {
+            return None;
+        };
     Some(StatementAdmission(family))
+}
+
+pub(super) fn statement_position(
+    item: &Item,
+    item_origin: usize,
+    allow_same_line: bool,
+) -> StatementPosition {
+    if item_origin == 0 || item.leading_view().contains_line_break() {
+        StatementPosition::CanonicalLineStart {
+            base_col: item.leading_view().indentation_after_newline().unwrap_or(0),
+        }
+    } else if allow_same_line {
+        StatementPosition::CanonicalSameLine
+    } else {
+        StatementPosition::NonStatement
+    }
 }
 
 #[derive(Clone, Copy)]
 enum StatementSequencePolicy {
-    Indented { block_indent: usize },
-    Braced,
+    Indented {
+        block_indent: usize,
+        allow_doc_comment: bool,
+    },
+    Braced {
+        allow_doc_comment: bool,
+    },
 }
 
 pub(super) fn indented_statement_block_normalized(
@@ -490,6 +559,29 @@ pub(super) fn indented_statement_block_normalized(
         line_entry,
         fence,
         ambient,
+        false,
+        true,
+    )
+}
+
+pub(super) fn indented_owner_field_body_normalized(
+    i: SyntaxIn,
+    base_indent: usize,
+    stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    indented_statement_block_inner_normalized(
+        i,
+        base_indent,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+        false,
         false,
     )
 }
@@ -512,6 +604,7 @@ pub(super) fn indented_declaration_body_normalized(
         fence,
         ambient,
         true,
+        true,
     )
 }
 
@@ -525,8 +618,13 @@ fn indented_statement_block_inner_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
     where_prefix: bool,
+    allow_doc_comment: bool,
 ) -> NormalizedExit {
-    let sequence = Some(crate::sequence::SequenceOwner::IndentedStatement);
+    let sequence = Some(if allow_doc_comment {
+        crate::sequence::SequenceOwner::IndentedStatement
+    } else {
+        crate::sequence::SequenceOwner::IndentedOwnerField
+    });
     let (mut item, mut item_origin, mut line_entry) =
         statement_item_normalized(i.rb(), item_origin, line_entry, fence, base_indent, stops);
     i.state
@@ -539,6 +637,7 @@ fn indented_statement_block_inner_normalized(
     let block_indent = indentation_after_newline(item.leading_view())
         .filter(|&indentation| indentation > base_indent)
         .expect("C2 admission proved a strictly indented block opening");
+    let first_position = statement_position(&item, item_origin, true);
     let ambient = ambient.map(|view| view.statement(block_indent));
 
     if !indented_statement_slot_boundary(i.rb(), &item, block_indent, stops) {
@@ -565,13 +664,17 @@ fn indented_statement_block_inner_normalized(
     let exit = statement_sequence_normalized(
         i.rb(),
         item,
-        StatementSequencePolicy::Indented { block_indent },
+        StatementSequencePolicy::Indented {
+            block_indent,
+            allow_doc_comment,
+        },
         block_indent,
         stops,
         item_origin,
         line_entry,
         fence,
         true,
+        first_position,
         ambient,
         sequence,
     );
@@ -770,7 +873,7 @@ pub(super) fn braced_statement_block_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    braced_statement_block_with_recovery_normalized(
+    braced_statement_block_inner_normalized(
         i,
         open,
         incoming_baseline,
@@ -779,12 +882,35 @@ pub(super) fn braced_statement_block_normalized(
         line_entry,
         fence,
         ambient,
+        true,
+    )
+}
+
+pub(super) fn braced_owner_field_block_normalized(
+    i: SyntaxIn,
+    open: Item,
+    incoming_baseline: usize,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    braced_statement_block_inner_normalized(
+        i,
+        open,
+        incoming_baseline,
+        0,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+        false,
     )
 }
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn braced_statement_block_with_recovery_normalized(
-    mut i: SyntaxIn,
+    i: SyntaxIn,
     open: Item,
     incoming_baseline: usize,
     inherited_stops: Stops,
@@ -793,7 +919,36 @@ pub(super) fn braced_statement_block_with_recovery_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    let sequence = Some(crate::sequence::SequenceOwner::BracedStatement);
+    braced_statement_block_inner_normalized(
+        i,
+        open,
+        incoming_baseline,
+        inherited_stops,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+        true,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn braced_statement_block_inner_normalized(
+    mut i: SyntaxIn,
+    open: Item,
+    incoming_baseline: usize,
+    inherited_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+    allow_doc_comment: bool,
+) -> NormalizedExit {
+    let sequence = Some(if allow_doc_comment {
+        crate::sequence::SequenceOwner::BracedStatement
+    } else {
+        crate::sequence::SequenceOwner::BracedOwnerField
+    });
     let ambient = ambient.map(AmbientClaimView::braced);
     i.state
         .start_node(SyntaxKind::BracedStatementBlockExpression.into());
@@ -814,17 +969,19 @@ pub(super) fn braced_statement_block_with_recovery_normalized(
         return exit;
     }
     let baseline = delimited_baseline(incoming_baseline, item.leading_view());
+    let first_position = statement_position(&item, item_origin, true);
     item.emit_all_remaining_leading(&mut *i.state);
     let exit = statement_sequence_normalized(
         i.rb(),
         item,
-        StatementSequencePolicy::Braced,
+        StatementSequencePolicy::Braced { allow_doc_comment },
         baseline,
         stops,
         item_origin,
         line_entry,
         fence,
         true,
+        first_position,
         ambient,
         sequence,
     );
@@ -843,13 +1000,17 @@ fn statement_sequence_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     mut first: bool,
+    first_position: StatementPosition,
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     let mut known_admission = None;
     loop {
         match policy {
-            StatementSequencePolicy::Indented { block_indent } => {
+            StatementSequencePolicy::Indented {
+                block_indent,
+                allow_doc_comment,
+            } => {
                 let entry = suffix_marker(i.rb());
                 let exit = indented_statement_slot_normalized(
                     i.rb(),
@@ -862,6 +1023,8 @@ fn statement_sequence_normalized(
                     line_entry,
                     fence,
                     first,
+                    first_position,
+                    allow_doc_comment,
                     known_admission,
                     ambient,
                     sequence,
@@ -877,7 +1040,7 @@ fn statement_sequence_normalized(
                     Err(exit) => return exit,
                 };
             }
-            StatementSequencePolicy::Braced => {
+            StatementSequencePolicy::Braced { allow_doc_comment } => {
                 if item.payload_view().is_boundary()
                     || item.payload_view().is_eof()
                     || is_close(&item)
@@ -901,6 +1064,8 @@ fn statement_sequence_normalized(
                     line_entry,
                     fence,
                     first,
+                    first_position,
+                    allow_doc_comment,
                     known_admission,
                     ambient,
                     sequence,
@@ -953,6 +1118,8 @@ fn indented_statement_slot_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     first: bool,
+    first_position: StatementPosition,
+    allow_doc_comment: bool,
     known_admission: Option<Option<StatementAdmission>>,
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
@@ -970,7 +1137,22 @@ fn indented_statement_slot_normalized(
         return complete(handoff(item), line_entry);
     }
     let admission = known_admission.unwrap_or_else(|| {
-        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+        classify_statement_item_normalized_at(
+            i.rb(),
+            &item,
+            baseline,
+            item_origin,
+            fence,
+            if allow_doc_comment {
+                if first {
+                    first_position
+                } else {
+                    statement_position(&item, item_origin, false)
+                }
+            } else {
+                StatementPosition::NonStatement
+            },
+        )
     });
     if let Some(admission) = admission {
         if !first {
@@ -1149,6 +1331,8 @@ fn braced_statement_slot_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     first: bool,
+    first_position: StatementPosition,
+    allow_doc_comment: bool,
     known_admission: Option<Option<StatementAdmission>>,
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
@@ -1167,7 +1351,20 @@ fn braced_statement_slot_normalized(
         return complete(handoff(item), line_entry);
     }
     let admission = known_admission.unwrap_or_else(|| {
-        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+        classify_statement_item_normalized_at(
+            i.rb(),
+            &item,
+            baseline,
+            item_origin,
+            fence,
+            if !allow_doc_comment {
+                StatementPosition::NonStatement
+            } else if first {
+                first_position
+            } else {
+                statement_position(&item, item_origin, false)
+            },
+        )
     });
     if let Some(admission) = admission {
         if !first && implicit_delimited_newline(baseline, item.leading_view()) {

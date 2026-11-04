@@ -19,8 +19,8 @@ use crate::lexical::trivia::lone_colon_after_fenced_trivia;
 use crate::lexical::yumark::FenceBoundary;
 use crate::statement::{
     StatementAdmission, StatementLineHandoff, canonical_statement_from_admission_normalized,
-    classify_statement_item_lexical, classify_statement_item_normalized,
-    indented_statement_block_normalized, scan_statement_item_lexical, statement_item_normalized,
+    classify_statement_item_lexical, indented_statement_block_normalized,
+    scan_statement_item_lexical, statement_item_normalized,
 };
 use crate::syntax_kind::SyntaxKind;
 
@@ -192,9 +192,14 @@ fn with_inline_item_normalized(
         return complete(handoff(item), line_entry);
     }
     if allow_braced || token_kind(&item) != Some(TokenKind::LBrace) {
-        if let Some(admission) =
-            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
-        {
+        if let Some(admission) = crate::statement::classify_statement_item_normalized_at(
+            i.rb(),
+            &item,
+            baseline,
+            item_origin,
+            fence,
+            crate::statement::statement_position(&item, item_origin, true),
+        ) {
             return canonical_statement_from_admission_normalized(
                 i,
                 item,

@@ -39,6 +39,27 @@ fn direct_error_ranges(syntax: &SyntaxNode) -> Vec<std::ops::Range<usize>> {
 }
 
 #[test]
+fn root_promotes_line_and_block_doc_declarations_losslessly() {
+    for source in ["-- docs\nmy x = 1\n", "---\n# Heading\n---\nmy x = 1\n"] {
+        let green = parse_root(source, &OperatorTable::empty());
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(crate::tests::support::structural_facts(&green).is_empty());
+        let syntax = SyntaxNode::new_root(green);
+        assert_eq!(
+            syntax
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [
+                SyntaxKind::DocCommentDeclaration,
+                SyntaxKind::BindingStatement
+            ],
+            "{source:?}",
+        );
+    }
+}
+
+#[test]
 fn root_binding_intro_wins_over_header_words() {
     for word in ["use", "lazy", "prefix", "infix", "suffix", "nullfix"] {
         let source = format!("my {word} = 値\r\nuse later");

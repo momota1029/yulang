@@ -531,9 +531,14 @@ fn inline_body_from_item_normalized(
         impl_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
-    if let Some(admission) =
-        classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
-    {
+    if let Some(admission) = crate::statement::classify_statement_item_normalized_at(
+        i.rb(),
+        &item,
+        baseline,
+        item_origin,
+        fence,
+        crate::statement::statement_position(&item, item_origin, true),
+    ) {
         return inline_statement_normalized(
             i,
             item,

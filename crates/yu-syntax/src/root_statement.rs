@@ -22,6 +22,7 @@ use crate::{
     },
     sequence::SequenceOwner,
     statement::{self, StatementLineHandoff},
+    yumark::judge::StatementPosition,
 };
 
 #[cfg(test)]
@@ -208,9 +209,18 @@ fn root_statement_sequence(
                 fence,
             );
             exit
-        } else if let Some(admission) =
-            statement::classify_statement_item_normalized(i.rb(), &item, 0, origin, fence)
-        {
+        } else if let Some(admission) = statement::classify_statement_item_normalized_at(
+            i.rb(),
+            &item,
+            0,
+            origin,
+            fence,
+            if physical_start {
+                StatementPosition::CanonicalLineStart { base_col: 0 }
+            } else {
+                StatementPosition::NonStatement
+            },
+        ) {
             statement::canonical_statement_contents_from_admission_normalized(
                 i,
                 item,

@@ -7,6 +7,7 @@ use crate::{
         lexer::{scan_expression_payload_with_symbols, scan_operator_shaped_unknown},
         operator_scan::OperatorSite,
         stops::Stops,
+        trivia::{TriviaObservation, observe_fenced_trivia},
         yumark::FenceBoundary,
     },
     literal::{
@@ -16,7 +17,7 @@ use crate::{
 };
 
 pub(crate) fn expression_item(
-    mut i: SyntaxIn,
+    i: SyntaxIn,
     site: OperatorSite,
     item_origin: usize,
     line_entry: LineEntry,
@@ -24,8 +25,31 @@ pub(crate) fn expression_item(
     baseline: usize,
     stops: Stops,
 ) -> (Item, usize, LineEntry) {
+    expression_item_with_doc_boundary(
+        i,
+        site,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        stops,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn expression_item_with_doc_boundary(
+    mut i: SyntaxIn,
+    site: OperatorSite,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+    doc_boundary: bool,
+) -> (Item, usize, LineEntry) {
     i.token(|lex| {
-        Some(scan_expression_item_lexical(
+        Some(scan_expression_item_lexical_with_doc_boundary(
             lex,
             site,
             item_origin,
@@ -33,6 +57,7 @@ pub(crate) fn expression_item(
             fence,
             baseline,
             stops,
+            doc_boundary,
         ))
     })
     .expect("expression payload scanning is total")
@@ -48,13 +73,64 @@ pub(crate) fn scan_expression_item_lexical(
     baseline: usize,
     stops: Stops,
 ) -> (Item, usize, LineEntry) {
+    scan_expression_item_lexical_with_doc_boundary(
+        i,
+        site,
+        item_origin,
+        line_entry,
+        fence,
+        baseline,
+        stops,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn scan_expression_item_lexical_with_doc_boundary(
+    i: LexIn,
+    site: OperatorSite,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+    doc_boundary: bool,
+) -> (Item, usize, LineEntry) {
     let (current, consumed) = i.with_str(|lex| {
+        let marker_boundary = doc_boundary
+            && matches!(site, OperatorSite::Led)
+            && matches!(
+                observe_fenced_trivia(
+                    lex.remainder(),
+                    item_origin,
+                    line_entry,
+                    fence,
+                ),
+                TriviaObservation::Visible(visible)
+                    if visible.indentation == Some(baseline)
+                        && crate::yumark::judge::judge_document_marker(
+                            visible.source,
+                            0,
+                            crate::yumark::judge::StatementPosition::CanonicalLineStart {
+                                base_col: baseline,
+                            },
+                        )
+                        .is_some()
+            );
         current_item(
             lex,
             item_origin,
             line_entry,
             fence,
-            |lex, leading, origin, fence, _| {
+            |mut lex, leading, origin, fence, _| {
+                if marker_boundary {
+                    return lex
+                        .token(scan_operator_shaped_unknown)
+                        .map(|token| AcceptedPayload {
+                            payload: CurrentPayload::Token(token),
+                            next_line_entry: LineEntry::InLine,
+                        });
+                }
                 scan_expression_payload_with_literals(
                     lex, site, leading, origin, fence, baseline, stops,
                 )

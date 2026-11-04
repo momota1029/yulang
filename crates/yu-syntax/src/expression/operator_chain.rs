@@ -43,7 +43,7 @@ use crate::{
 use crate::{
     handoff::{Either, MlMode, NormalizedExit, complete, handoff},
     lexical::{
-        expression_item::expression_item,
+        expression_item::expression_item_with_doc_boundary,
         observation::{
             indentation_after_newline, is_active_stop, is_contextual_word, is_line_stop, token_kind,
         },
@@ -157,7 +157,7 @@ pub(super) fn append_nud(
     if token_kind(&nud) == Some(TokenKind::Identifier)
         && nud.payload_view().spelling() == Some("rule")
     {
-        let (successor, mut origin, line) = expression_item(
+        let (successor, mut origin, line) = expression_item_with_doc_boundary(
             i.rb(),
             OperatorSite::Led,
             item_origin,
@@ -165,6 +165,7 @@ pub(super) fn append_nud(
             fence,
             baseline,
             stops,
+            crate::sequence::admits_doc_comment(sequence),
         );
         if successor.payload_view().token_kind() == Some(TokenKind::LBrace) {
             let entry = suffix_marker(i.rb());
@@ -547,7 +548,7 @@ pub(crate) fn scan_tail_after_accept_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
-    let (item, item_origin, line_entry) = expression_item(
+    let (item, item_origin, line_entry) = expression_item_with_doc_boundary(
         i.rb(),
         OperatorSite::Led,
         item_origin,
@@ -555,6 +556,7 @@ pub(crate) fn scan_tail_after_accept_normalized(
         fence,
         baseline,
         stops,
+        crate::sequence::admits_doc_comment(sequence),
     );
     tail_normalized(
         i,

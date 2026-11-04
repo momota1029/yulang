@@ -10,3 +10,5 @@ Statement sequenceとdeclarationの文脈は、[構文の内容モデル](../con
 - [`derives`のdeclaration-attachment form](derives-attachment.md)
 - [Standalone `impl` declaration form](impl-shell.md)
 - [Standalone `cast` declaration form](cast-declaration.md)
+- [Doc-comment declaration](doc-comment-declaration.md)
+- [Yumark document grammar](yumark-document.md)

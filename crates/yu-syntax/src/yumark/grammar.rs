@@ -10,7 +10,7 @@ use unicode_ident::{is_xid_continue, is_xid_start};
 use crate::{
     SyntaxKind,
     ambient_claim::AmbientClaimView,
-    cursor::{Recover, SyntaxIn, SyntaxOutput},
+    cursor::{Recover, SyntaxIn, SyntaxOutput, SyntaxOutputCheckpoint},
     handoff::{Either, MlMode, NormalizedExit},
     lexical::{
         current_item::LineEntry,
@@ -153,7 +153,23 @@ pub(crate) fn parse<S: Sink>(
     mode: Mode,
     operators: &OperatorTable,
     sink: &mut S,
-) -> Gate3State {
+) -> Gate3State
+where
+    S::Checkpoint: 'static,
+{
+    parse_at_document_base(source, mode, 0, operators, sink)
+}
+
+pub(crate) fn parse_at_document_base<S: Sink>(
+    source: &str,
+    mode: Mode,
+    document_base_col: usize,
+    operators: &OperatorTable,
+    sink: &mut S,
+) -> Gate3State
+where
+    S::Checkpoint: 'static,
+{
     let mut parser = Parser {
         source,
         position: 0,
@@ -161,6 +177,8 @@ pub(crate) fn parse<S: Sink>(
         column: 0,
         at_line_start: true,
         byte_visits: 0,
+        stop_at_document_close: mode == Mode::BlockDocument,
+        document_base_col,
         operators,
         sink,
         frames: YumarkFrameStack::new(),
@@ -200,6 +218,8 @@ struct Parser<'source, 'sink, 'operators, S> {
     column: usize,
     at_line_start: bool,
     byte_visits: usize,
+    stop_at_document_close: bool,
+    document_base_col: usize,
     operators: &'operators OperatorTable,
     sink: &'sink mut S,
     frames: YumarkFrameStack,
@@ -213,7 +233,10 @@ struct EmbeddedOutput<'sink, S> {
     position: usize,
 }
 
-impl<S: Sink> SyntaxOutput for EmbeddedOutput<'_, S> {
+impl<S: Sink> SyntaxOutput for EmbeddedOutput<'_, S>
+where
+    S::Checkpoint: 'static,
+{
     fn start_node(&mut self, kind: rowan::SyntaxKind) {
         self.sink
             .enter(<crate::YulangLanguage as rowan::Language>::kind_from_raw(
@@ -232,6 +255,20 @@ impl<S: Sink> SyntaxOutput for EmbeddedOutput<'_, S> {
 
     fn finish_node(&mut self) {
         self.sink.exit();
+    }
+
+    fn checkpoint(&mut self) -> SyntaxOutputCheckpoint {
+        SyntaxOutputCheckpoint::new(self.sink.checkpoint())
+    }
+
+    fn start_node_at(&mut self, checkpoint: &SyntaxOutputCheckpoint, kind: rowan::SyntaxKind) {
+        let checkpoint = checkpoint
+            .downcast_ref::<S::Checkpoint>()
+            .expect("an embedded output receives its own sink checkpoint");
+        self.sink.start_enter_at(
+            checkpoint,
+            <crate::YulangLanguage as rowan::Language>::kind_from_raw(kind),
+        );
     }
 }
 
@@ -291,7 +328,10 @@ fn physical_line(source: &str, origin: usize) -> PhysicalLine {
     }
 }
 
-impl<S: Sink> Parser<'_, '_, '_, S> {
+impl<S: Sink> Parser<'_, '_, '_, S>
+where
+    S::Checkpoint: 'static,
+{
     fn advance_to(&mut self, end: usize) {
         debug_assert!(end >= self.position && end <= self.source.len());
         let consumed = &self.source[self.position..end];
@@ -510,12 +550,12 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
             if stop_at_document_close
                 && matches!(
                     judge_chunk(
-                        &self.source[self.position..],
-                        self.position,
+                        &self.source[line.indent_end..],
+                        line.indent_end,
                         ChunkContext {
                             at_line_start: true,
                             indent_col: line.indent_end - line.start,
-                            base_col: 0,
+                            base_col: self.document_base_col,
                             active_close: Some(JudgeActiveClose::BlockDocument {
                                 after_opening_line: true,
                             }),
@@ -2218,6 +2258,27 @@ impl<S: Sink> Parser<'_, '_, '_, S> {
             let next = (next_position < self.source.len())
                 .then(|| physical_line(&self.source[next_position..], next_position));
             let continues = next.is_some_and(|next| {
+                if self.stop_at_document_close
+                    && next.indent_end - next.start == self.document_base_col
+                    && matches!(
+                        judge_chunk(
+                            &self.source[next.indent_end..],
+                            next.indent_end,
+                            ChunkContext {
+                                at_line_start: true,
+                                indent_col: self.document_base_col,
+                                base_col: self.document_base_col,
+                                active_close: Some(JudgeActiveClose::BlockDocument {
+                                    after_opening_line: true,
+                                }),
+                            },
+                        )
+                        .kind,
+                        ChunkKind::Terminator(super::judge::TerminatorKind::BlockDocument)
+                    )
+                {
+                    return false;
+                }
                 if next.indent_end == next.content_end {
                     return false;
                 }

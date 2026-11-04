@@ -35,7 +35,7 @@
     reason = "Gate 2 is an isolated construction; production dispatch belongs to Gate 6"
 )]
 
-mod adapter;
+pub(crate) mod adapter;
 mod frame;
 mod grammar;
-mod judge;
+pub(crate) mod judge;

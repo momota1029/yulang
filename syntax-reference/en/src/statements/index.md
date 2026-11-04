@@ -10,3 +10,5 @@ The [syntax content model](../conventions/syntax-content-model.md) identifies st
 - [`derives` declaration-attachment form](derives-attachment.md)
 - [Standalone `impl` declaration form](impl-shell.md)
 - [Standalone `cast` declaration form](cast-declaration.md)
+- [Doc-comment declaration](doc-comment-declaration.md)
+- [Yumark document grammar](yumark-document.md)

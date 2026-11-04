@@ -12,6 +12,7 @@ use std::ops::Range;
 
 use rowan::{Checkpoint, GreenNode, GreenNodeBuilder};
 
+use crate::cursor::{SyntaxOutput, SyntaxOutputCheckpoint};
 use crate::{OperatorTable, SyntaxKind};
 
 use super::{
@@ -308,6 +309,187 @@ struct DirectSink<'source> {
     deferred: Option<AdapterDeferred>,
 }
 
+#[derive(Clone)]
+struct StreamingDirectCheckpoint {
+    checkpoint: SyntaxOutputCheckpoint,
+    depth: usize,
+    position: usize,
+}
+
+struct StreamingDirectSink<'source, 'output> {
+    source: &'source str,
+    output: &'output mut dyn SyntaxOutput,
+    depth: usize,
+    emitted: usize,
+    deferred: Option<AdapterDeferred>,
+}
+
+impl<'source, 'output> StreamingDirectSink<'source, 'output> {
+    fn new(source: &'source str, output: &'output mut dyn SyntaxOutput) -> Self {
+        Self {
+            source,
+            output,
+            depth: 0,
+            emitted: 0,
+            deferred: None,
+        }
+    }
+
+    fn defer_gap(&mut self, end: usize) {
+        if self.deferred.is_none() {
+            self.deferred = Some(AdapterDeferred::SelectedYulangFenceBody {
+                range: self.emitted..end,
+            });
+        }
+    }
+
+    fn publish_recovery(
+        &mut self,
+        checkpoint: Option<&StreamingDirectCheckpoint>,
+        recovery: Recovery,
+        range: Range<usize>,
+    ) {
+        match recovery.kind {
+            SyntaxKind::Missing => {
+                if range.start != self.emitted {
+                    self.defer_gap(range.start);
+                    return;
+                }
+                self.output.start_node(SyntaxKind::Missing.into());
+                self.output.finish_node();
+            }
+            SyntaxKind::Error if range.start < self.emitted => {
+                let Some(checkpoint) = checkpoint.filter(|checkpoint| {
+                    checkpoint.position == range.start
+                        && (checkpoint.depth == self.depth || checkpoint.depth + 1 == self.depth)
+                }) else {
+                    self.defer_gap(range.end);
+                    return;
+                };
+                self.output
+                    .start_node_at(&checkpoint.checkpoint, SyntaxKind::Error.into());
+                self.output.finish_node();
+            }
+            SyntaxKind::Error => {
+                if range.start > self.emitted {
+                    self.defer_gap(range.start);
+                    return;
+                }
+                self.output.start_node(SyntaxKind::Error.into());
+                if !range.is_empty() {
+                    self.output
+                        .token(SyntaxKind::Error.into(), &self.source[range.clone()]);
+                    self.emitted = range.end;
+                }
+                self.output.finish_node();
+            }
+            kind => panic!("unexpected Yumark recovery kind {kind:?}"),
+        }
+    }
+}
+
+impl Sink for StreamingDirectSink<'_, '_> {
+    type Checkpoint = StreamingDirectCheckpoint;
+
+    fn checkpoint(&mut self) -> Self::Checkpoint {
+        StreamingDirectCheckpoint {
+            checkpoint: self.output.checkpoint(),
+            depth: self.depth,
+            position: self.emitted,
+        }
+    }
+
+    fn enter(&mut self, kind: SyntaxKind) {
+        self.output.start_node(kind.into());
+        self.depth += 1;
+    }
+
+    fn token(&mut self, kind: SyntaxKind, range: Range<usize>) {
+        if range.start > self.emitted {
+            self.defer_gap(range.start);
+        }
+        if range.end <= self.emitted {
+            return;
+        }
+        let start = range.start.max(self.emitted);
+        self.output
+            .token(kind.into(), &self.source[start..range.end]);
+        self.emitted = range.end;
+    }
+
+    fn exit(&mut self) {
+        self.depth = self
+            .depth
+            .checked_sub(1)
+            .expect("a direct Exit has an Enter");
+        self.output.finish_node();
+    }
+
+    fn recovery(&mut self, recovery: Recovery, range: Range<usize>) {
+        self.publish_recovery(None, recovery, range);
+    }
+
+    fn recovery_at(
+        &mut self,
+        checkpoint: &Self::Checkpoint,
+        recovery: Recovery,
+        range: Range<usize>,
+    ) {
+        self.publish_recovery(Some(checkpoint), recovery, range);
+    }
+
+    fn replace_enter(&mut self, _: &Self::Checkpoint, _: SyntaxKind) {
+        unreachable!("Gate 6 uses start_node_at for every postclassified owner")
+    }
+
+    fn start_enter_at(&mut self, checkpoint: &Self::Checkpoint, kind: SyntaxKind) {
+        self.output
+            .start_node_at(&checkpoint.checkpoint, kind.into());
+        self.depth += 1;
+    }
+}
+
+fn parse_document_direct(
+    source: &str,
+    mode: Mode,
+    document_base_col: usize,
+    operators: &OperatorTable,
+    output: &mut dyn SyntaxOutput,
+) -> Result<Gate3State, AdapterDeferred> {
+    let mut sink = StreamingDirectSink::new(source, output);
+    let state =
+        grammar::parse_at_document_base(source, mode, document_base_col, operators, &mut sink);
+    assert_eq!(sink.depth, 0, "the direct Yumark sink finishes balanced");
+    if let Some(deferred) = sink.deferred {
+        Err(deferred)
+    } else {
+        Ok(state)
+    }
+}
+
+pub(crate) fn parse_line_document_direct(
+    source: &str,
+    operators: &OperatorTable,
+    output: &mut dyn SyntaxOutput,
+) -> Result<Gate3State, AdapterDeferred> {
+    parse_document_direct(source, Mode::Line, 0, operators, output)
+}
+
+pub(crate) fn parse_block_document_direct(
+    source: &str,
+    document_base_col: usize,
+    operators: &OperatorTable,
+    output: &mut dyn SyntaxOutput,
+) -> Result<Gate3State, AdapterDeferred> {
+    parse_document_direct(
+        source,
+        Mode::BlockDocument,
+        document_base_col,
+        operators,
+        output,
+    )
+}
+
 impl<'source> DirectSink<'source> {
     fn new(source: &'source str) -> Self {
         Self {
@@ -499,8 +681,15 @@ struct EnvelopeResult {
     state: Gate3State,
 }
 
-fn drive<S: Sink>(source: &str, operators: &OperatorTable, sink: &mut S) -> Option<EnvelopeResult> {
-    let marker = judge_document_marker(source, 0, StatementPosition::CanonicalLineStart)?;
+fn drive<S: Sink>(source: &str, operators: &OperatorTable, sink: &mut S) -> Option<EnvelopeResult>
+where
+    S::Checkpoint: 'static,
+{
+    let marker = judge_document_marker(
+        source,
+        0,
+        StatementPosition::CanonicalLineStart { base_col: 0 },
+    )?;
     sink.enter(SyntaxKind::DocCommentDeclaration);
     match marker.kind {
         DocumentMarkerKind::Line => {

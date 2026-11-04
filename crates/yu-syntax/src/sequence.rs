@@ -23,4 +23,26 @@ pub(crate) enum SequenceOwner {
     CatchIndented,
     CatchBraced,
     If,
+    IndentedOwnerField,
+    BracedOwnerField,
+    OwnerField,
+}
+
+impl SequenceOwner {
+    pub(crate) fn admits_doc_comment(self) -> bool {
+        matches!(
+            self,
+            Self::RootStatement
+                | Self::VirtualStatement
+                | Self::IndentedStatement
+                | Self::BracedStatement
+                | Self::CaseInline
+                | Self::CatchInline
+                | Self::If
+        )
+    }
+}
+
+pub(crate) fn admits_doc_comment(context: SequenceContext) -> bool {
+    context.is_some_and(SequenceOwner::admits_doc_comment)
 }

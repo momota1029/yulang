@@ -21,8 +21,8 @@ use crate::{
     },
     statement::{
         StatementAdmission, StatementLineHandoff, canonical_statement_from_admission_normalized,
-        classify_statement_item_lexical, classify_statement_item_normalized,
-        scan_statement_item_lexical, statement_item_normalized,
+        classify_statement_item_lexical, classify_statement_item_normalized_at,
+        scan_statement_item_lexical, statement_item_normalized, statement_position,
     },
 };
 
@@ -100,7 +100,14 @@ pub(super) fn virtual_statement_block_normalized(
         }
 
         let admission = known_admission.take().unwrap_or_else(|| {
-            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
+            classify_statement_item_normalized_at(
+                i.rb(),
+                &item,
+                baseline,
+                item_origin,
+                fence,
+                statement_position(&item, item_origin, position == SequencePosition::Initial),
+            )
         });
 
         if position == SequencePosition::AfterStatement {
@@ -282,8 +289,14 @@ fn emit_explicit_separator(
     let admission = if separator_successor_terminal(&item) {
         None
     } else {
-        let admission =
-            classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence);
+        let admission = classify_statement_item_normalized_at(
+            i.rb(),
+            &item,
+            baseline,
+            item_origin,
+            fence,
+            statement_position(&item, item_origin, false),
+        );
         item.emit_all_remaining_leading(&mut *i.state);
         Some(admission)
     };

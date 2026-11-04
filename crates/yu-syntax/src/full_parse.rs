@@ -473,6 +473,31 @@ mod tests {
     }
 
     #[test]
+    fn public_parser_promotes_root_doc_declaration_after_header_cutoff() {
+        let source: Arc<SourceText> = Arc::from("-- document\nuse late\nmy value = 1\n");
+        let header = Arc::new(crate::scan_header(Arc::clone(&source)));
+        assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
+        assert!(header.imports().is_empty());
+
+        let parsed = parse_file(
+            Arc::clone(&source),
+            header,
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+        assert!(parsed.structural_recoveries().is_empty());
+        let root = crate::SyntaxNode::new_root(parsed.green().clone());
+        assert_eq!(
+            root.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            [
+                crate::SyntaxKind::DocCommentDeclaration,
+                crate::SyntaxKind::UseDeclaration,
+                crate::SyntaxKind::BindingStatement,
+            ]
+        );
+    }
+
+    #[test]
     fn public_parser_pair_preserves_imported_local_conflict_provenance_after_recovery() {
         let source: Arc<SourceText> =
             Arc::from("use a as\r\nprefix (?) 71 = value\r\nmy x = 1\r\n");

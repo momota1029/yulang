@@ -1,6 +1,7 @@
 //! Live syntax and lexical cursors with their recoverable operator environment.
 
 use chasa_recover::{In, ParserOnce, Recoverable};
+use std::any::Any;
 
 use crate::operator_table::OperatorTable;
 
@@ -9,10 +10,45 @@ use crate::operator_table::OperatorTable;
 /// Rowan remains the production implementation.  The isolated Yumark grammar
 /// supplies a streaming implementation so embedded Yulang can drive its
 /// neutral sink during the same canonical parse, without a CST walk or replay.
+trait SyntaxOutputCheckpointValue: Any {
+    fn clone_box(&self) -> Box<dyn SyntaxOutputCheckpointValue>;
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T: Any + Clone> SyntaxOutputCheckpointValue for T {
+    fn clone_box(&self) -> Box<dyn SyntaxOutputCheckpointValue> {
+        Box::new(self.clone())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+pub(crate) struct SyntaxOutputCheckpoint(Box<dyn SyntaxOutputCheckpointValue>);
+
+impl Clone for SyntaxOutputCheckpoint {
+    fn clone(&self) -> Self {
+        Self(self.0.clone_box())
+    }
+}
+
+impl SyntaxOutputCheckpoint {
+    pub(crate) fn new(value: impl Any + Clone) -> Self {
+        Self(Box::new(value))
+    }
+
+    pub(crate) fn downcast_ref<T: Any>(&self) -> Option<&T> {
+        self.0.as_any().downcast_ref()
+    }
+}
+
 pub(crate) trait SyntaxOutput {
     fn start_node(&mut self, kind: rowan::SyntaxKind);
     fn token(&mut self, kind: rowan::SyntaxKind, text: &str);
     fn finish_node(&mut self);
+    fn checkpoint(&mut self) -> SyntaxOutputCheckpoint;
+    fn start_node_at(&mut self, checkpoint: &SyntaxOutputCheckpoint, kind: rowan::SyntaxKind);
 }
 
 impl SyntaxOutput for rowan::GreenNodeBuilder<'_> {
@@ -26,6 +62,18 @@ impl SyntaxOutput for rowan::GreenNodeBuilder<'_> {
 
     fn finish_node(&mut self) {
         rowan::GreenNodeBuilder::finish_node(self);
+    }
+
+    fn checkpoint(&mut self) -> SyntaxOutputCheckpoint {
+        SyntaxOutputCheckpoint::new(rowan::GreenNodeBuilder::checkpoint(self))
+    }
+
+    fn start_node_at(&mut self, checkpoint: &SyntaxOutputCheckpoint, kind: rowan::SyntaxKind) {
+        let checkpoint = checkpoint
+            .downcast_ref::<rowan::Checkpoint>()
+            .expect("a Rowan output receives its own checkpoint")
+            .clone();
+        rowan::GreenNodeBuilder::start_node_at(self, checkpoint, kind);
     }
 }
 
@@ -80,6 +128,19 @@ impl<'a, 'source, 'operators> SyntaxIn<'a, 'source, 'operators> {
 
     pub(crate) fn rb(&mut self) -> SyntaxIn<'_, 'source, 'operators> {
         SyntaxIn::new(self.source, self.recover, self.state)
+    }
+
+    pub(crate) fn remainder(&self) -> &'source str {
+        self.source
+    }
+
+    pub(crate) fn advance_bytes(&mut self, length: usize) {
+        assert!(self.source.is_char_boundary(length));
+        *self.source = &self.source[length..];
+    }
+
+    pub(crate) fn operators(&self) -> &'operators OperatorTable {
+        self.recover.operators
     }
 
     pub(crate) fn token<O>(

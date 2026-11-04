@@ -13,6 +13,7 @@ use crate::{
     cursor::{LexIn, Recover},
     handoff::{Either, NormalizedExit},
     lexical::{current_item::LineEntry, item::Item},
+    yumark::judge::StatementPosition,
 };
 
 pub(crate) struct HeaderDiscovery {
@@ -80,6 +81,26 @@ pub(crate) fn discover_header_with_cursor(
             break (origin, HeaderStop::Eof);
         }
         if !at_start {
+            break (start, HeaderStop::FirstNonHeader);
+        }
+        let is_doc = i
+            .rb()
+            .map(
+                |lex: LexIn| {
+                    Some(
+                        crate::declaration::doc_comment_selected_lexical(
+                            lex.remainder(),
+                            &item,
+                            origin,
+                            StatementPosition::CanonicalLineStart { base_col: 0 },
+                        )
+                        .is_some(),
+                    )
+                },
+                |selected| selected,
+            )
+            .unwrap();
+        if is_doc {
             break (start, HeaderStop::FirstNonHeader);
         }
         let is_use =

@@ -6,6 +6,7 @@ mod colon_sequence;
 mod colon_with_recovery;
 mod declaration;
 mod delimited_recovery;
+mod doc_comment;
 mod expression_recovery;
 mod expression_structural_tails;
 mod fixed_tail_recovery;
