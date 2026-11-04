@@ -798,11 +798,49 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
         Some(TokenKind::Integer) => {
             completion.identifier_receiver = false;
             completion.bare_identifier_head = false;
+            let (next, next_origin, next_line_entry) =
+                pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
+            let is_range = token_kind(&next) == Some(TokenKind::DotDot)
+                && !implicit_delimited_newline(baseline, next.leading_view());
+            if is_range {
+                i.state.start_node(SyntaxKind::RangePattern.into());
+            }
             i.state.start_node(SyntaxKind::IntegerPattern.into());
             emit_token_item(&mut i, item);
             i.state.finish_node();
-            scan_pattern_tail_normalized(
+            let (item, item_origin, line_entry) = if is_range {
+                let next =
+                    range_pattern_suffix(i.rb(), next, next_origin, next_line_entry, fence, stops);
+                i.state.finish_node();
+                next
+            } else {
+                (next, next_origin, next_line_entry)
+            };
+            pattern_tail_normalized(
                 i,
+                item,
+                minimum,
+                baseline,
+                stops,
+                line_handoff,
+                caller_closes,
+                completion,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            )
+        }
+        Some(TokenKind::PatternRangeStart) => {
+            completion.identifier_receiver = false;
+            completion.bare_identifier_head = false;
+            i.state.start_node(SyntaxKind::RangePattern.into());
+            let (item, item_origin, line_entry) =
+                range_pattern_suffix(i.rb(), item, item_origin, line_entry, fence, stops);
+            i.state.finish_node();
+            pattern_tail_normalized(
+                i,
+                item,
                 minimum,
                 baseline,
                 stops,
@@ -897,6 +935,27 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
         ),
         _ => unreachable!("the Pattern NUD judge accepted only Pattern primaries"),
     }
+}
+
+fn range_pattern_suffix(
+    mut i: SyntaxIn,
+    marker: Item,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    stops: PatternStops,
+) -> (Item, usize, LineEntry) {
+    emit_token_item(&mut i, marker);
+    let (mut item, item_origin, line_entry) =
+        pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
+    if token_kind(&item) != Some(TokenKind::Integer) || item.leading_view().has_ordinary_newline() {
+        return (item, item_origin, line_entry);
+    }
+    item.emit_all_remaining_leading(&mut *i.state);
+    i.state.start_node(SyntaxKind::IntegerPattern.into());
+    emit_token_item(&mut i, item);
+    i.state.finish_node();
+    pattern_item_normalized(i, item_origin, line_entry, fence, stops)
 }
 
 fn pattern_item_normalized(
@@ -1613,6 +1672,7 @@ fn is_pattern_primary(item: &Item) -> bool {
             TokenKind::Identifier
                 | TokenKind::SigilIdentifier
                 | TokenKind::Integer
+                | TokenKind::PatternRangeStart
                 | TokenKind::LParen
                 | TokenKind::LBracket
                 | TokenKind::LBrace

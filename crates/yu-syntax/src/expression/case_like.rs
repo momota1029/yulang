@@ -22,8 +22,8 @@ use crate::{
         },
         item::{Item, LeadingTrivia, TokenKind},
         lexer::{
-            introduced_body_indentation_normalized, scan_case_label_payload,
-            scan_pattern_nud_payload,
+            introduced_body_indentation_normalized, pattern_range_after_expression_item,
+            scan_case_label_payload, scan_pattern_nud_payload,
         },
         observation::{
             implicit_delimited_newline, indentation_after_newline, is_active_stop,
@@ -1099,14 +1099,23 @@ impl ArmSequencePolicy {
     #[allow(clippy::too_many_arguments)]
     fn successor_normalized(
         self,
-        i: SyntaxIn,
-        item: Item,
+        mut i: SyntaxIn,
+        mut item: Item,
         first_stops: PatternStops,
         outer_stops: Stops,
-        item_origin: usize,
+        mut item_origin: usize,
         line_entry: LineEntry,
         fence: Option<&FenceBoundary>,
     ) -> Result<(Item, LineEntry), NormalizedExit> {
+        if !matches!(self, Self::CatchInline)
+            && self.accepts_arm_entry(i.rb(), &item, outer_stops)
+            && let Some(additional) =
+                pattern_range_after_expression_item(&i, &item, item_origin, fence, first_stops)
+        {
+            item.promote_pattern_range_start();
+            i.advance_bytes(additional);
+            item_origin += additional;
+        }
         match self {
             Self::CatchInline => Err(complete(handoff(item), line_entry)),
             Self::CaseInline => inline_successor_normalized(

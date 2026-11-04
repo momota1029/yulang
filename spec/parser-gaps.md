@@ -45,7 +45,7 @@ lambda（複数引数、pattern 引数）、`sub:`、`for`、`do`、`type`（ali
 | G12 | doc コメントの行末・`=` 直後・メンバー（field）への付与 | doc-trailing, doc-after-eq, doc-member-field |
 | G13 | 数値 literal の `_` 区切り・`0x`・`0b`・`0o` **（完了 2026-11-04、gpt-6-luna、yu-syntax 1567 + 統合11 緑）** | num-underscore, num-hex, num-bin |
 | G14 | 空の block `{;}` **（完了 2026-11-04、gpt-6-luna、yu-syntax 1561 + 統合11 緑）** | empty-block |
-| G15 | range pattern `0..10`、`1..`、`..0` | range-pat, range-pat-lower, range-pat-upper |
+| G15 | range pattern `0..10`、`1..`、`..0` **（完了 2026-11-04。Luna は途中で降りたので gpt-6.1-terra/high で完了。yu-syntax 1578 + 統合11 緑。新 SyntaxKind `RangePattern`）** | range-pat, range-pat-lower, range-pat-upper |
 | G16 | lambda の `&` 引数 `\&a -> ...`（`&a::run` を手で呼ぶ形） | ref-run |
 | G17 | struct の field default `y: int = 4` **（完了 2026-11-04。Luna は途中で降りたので gpt-6.1-terra/high で完了。yu-syntax 1565 + 統合11 緑）** | struct-default |
 | G18 | variant 型の `\|` 形 `:ready \| :some int` | variant-type-bar |
@@ -65,3 +65,4 @@ lambda（複数引数、pattern 引数）、`sub:`、`for`、`do`、`type`（ali
 
 - G18 の補足（要フォロー）: 字句解析器の `scan_type_polymorphic_variant_colon` は、`:ident` の後に `| :tag` が来るかを `remainder.find('|')` で**ソースの残り全部**から探している。
   正しい入力には影響しないが（隣接 colon の束縛・返り値注釈は 5 例で確認済み）、不正な単独 `:tag` が多い入力では O(n²) になりうる。先読みを同じ型式の範囲に制限する小修正を後で入れる。
+- G15 の補足: 負の bound（`-1..5`）は未検証。式の `..` / `..<` / `1..`、list/record の spread は 16 例で回帰なしを確認済み。

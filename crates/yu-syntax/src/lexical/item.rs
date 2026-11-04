@@ -274,6 +274,7 @@ pub(crate) enum TokenKind {
     Semicolon,
     Dot,
     DotDot,
+    PatternRangeStart,
     Arrow,
     Backslash,
     Colon,
@@ -727,6 +728,14 @@ impl Item {
         PayloadView {
             payload: &self.payload,
         }
+    }
+
+    pub(crate) fn promote_pattern_range_start(&mut self) {
+        debug_assert!(matches!(self.payload_view().spelling(), Some("." | "..")));
+        self.payload = Payload::Token(Token {
+            kind: TokenKind::PatternRangeStart,
+            text: "..".into(),
+        });
     }
 
     /// Derives the recovery extent from the threaded successor coordinate and

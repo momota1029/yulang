@@ -24,6 +24,7 @@ use crate::{
 };
 use reborrow_generic::Reborrow as _;
 
+mod range;
 mod recovery;
 
 #[derive(Debug, Eq, PartialEq)]

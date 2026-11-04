@@ -297,6 +297,7 @@ pub enum SyntaxKind {
     Float,
     ListExpression,
     ListExpressionSpreadItem,
+    RangePattern,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -322,6 +323,7 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::ListExpressionSpreadItem as u16 => {
                 SyntaxKind::ListExpressionSpreadItem
             }
+            value if value == SyntaxKind::RangePattern as u16 => SyntaxKind::RangePattern,
             value if value == SyntaxKind::Root as u16 => SyntaxKind::Root,
             value if value == SyntaxKind::Missing as u16 => SyntaxKind::Missing,
             value if value == SyntaxKind::Error as u16 => SyntaxKind::Error,

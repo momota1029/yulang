@@ -174,7 +174,7 @@ pub(crate) struct LexRecover<'operators> {
 }
 
 impl<'operators> LexRecover<'operators> {
-    fn new(operators: &'operators OperatorTable) -> Self {
+    pub(crate) fn new(operators: &'operators OperatorTable) -> Self {
         Self { operators }
     }
 

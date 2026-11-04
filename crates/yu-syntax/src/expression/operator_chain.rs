@@ -30,6 +30,7 @@ use crate::{
     lexical::{
         current_item::LineEntry,
         item::{Item, LeadingView, OperatorUse, TokenKind},
+        lexer::pattern_range_after_expression_item,
         stops::Stops,
         yumark::FenceBoundary,
     },
@@ -642,6 +643,17 @@ pub(crate) fn tail_normalized(
         return complete(handoff(item), line_entry);
     }
     if is_active_stop(i.rb(), &item, stops) || is_line_stop(&item, stops) {
+        return complete(handoff(item), line_entry);
+    }
+    if matches!(
+        sequence,
+        Some(
+            crate::sequence::SequenceOwner::CaseIndented
+                | crate::sequence::SequenceOwner::CatchIndented
+        )
+    ) && indentation_after_newline(item.leading_view()) == Some(baseline)
+        && pattern_range_after_expression_item(&i, &item, item_origin, fence, 0).is_some()
+    {
         return complete(handoff(item), line_entry);
     }
     // The nested ML argument ends at the first nonempty tail-leading run.

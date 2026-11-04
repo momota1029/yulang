@@ -9,9 +9,9 @@ use unicode_ident::{is_xid_continue, is_xid_start};
 use crate::lexical::operator_scan::OperatorSite;
 
 use crate::{
-    cursor::{LexIn, SyntaxIn},
+    cursor::{LexIn, LexRecover, SyntaxIn},
     lexical::{
-        current_item::{AcceptedPayload, CurrentPayload, LineEntry},
+        current_item::{AcceptedPayload, CurrentPayload, LineEntry, current_item},
         item::{ForeignSplit, Item, PendingBoundary, PendingFragments, Token, TokenKind, Trivia},
         operator_scan::{scan_dangling_operator_fenced, scan_operator_fenced},
         stops::{STOP_ARROW, STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, Stops},
@@ -358,6 +358,11 @@ pub(crate) fn scan_pattern_nud_payload(
     fence: Option<&FenceBoundary>,
     stops: crate::pattern::PatternStops,
 ) -> Option<AcceptedPayload> {
+    if pattern_range_start(i.rb(), payload_origin, fence, stops) {
+        let mut marker = i.token(scan_record_spread_marker)?;
+        marker.kind = TokenKind::PatternRangeStart;
+        return Some(token_payload(marker));
+    }
     if let Some(literal) = i.token(crate::lexical::expression_item::scan_pattern_literal_payload) {
         return Some(literal);
     }
@@ -365,6 +370,80 @@ pub(crate) fn scan_pattern_nud_payload(
         return Some(token_payload(symbol));
     }
     scan_pattern_payload(i, has_leading_trivia, payload_origin, fence, stops)
+}
+
+fn pattern_range_start(
+    mut i: LexIn,
+    origin: usize,
+    fence: Option<&FenceBoundary>,
+    stops: crate::pattern::PatternStops,
+) -> bool {
+    if !i.remainder().starts_with("..") {
+        return false;
+    }
+    let mut source = i.remainder();
+    let mut recover = LexRecover::new(i.recovery().operators());
+    let mut probe = chasa_recover::In::new(&mut source, &mut recover, ());
+    let Some(marker) = probe.token(scan_record_spread_marker) else {
+        return false;
+    };
+    pattern_range_upper_starts(
+        probe.remainder(),
+        probe.recovery().operators(),
+        origin + marker.text.len(),
+        fence,
+        stops,
+    )
+}
+
+fn pattern_range_upper_starts(
+    source: &str,
+    operators: &crate::operator_table::OperatorTable,
+    origin: usize,
+    fence: Option<&FenceBoundary>,
+    stops: crate::pattern::PatternStops,
+) -> bool {
+    let mut source = source;
+    let mut recover = LexRecover::new(operators);
+    let mut probe = chasa_recover::In::new(&mut source, &mut recover, ());
+    let Some(next) = current_item(
+        probe.rb(),
+        origin,
+        LineEntry::InLine,
+        fence,
+        |lex, leading, origin, fence, _| scan_pattern_payload(lex, leading, origin, fence, stops),
+    ) else {
+        return false;
+    };
+    !next.item.leading_view().has_ordinary_newline()
+        && next.item.payload_view().token_kind() == Some(TokenKind::Integer)
+}
+
+/// An expression tail can hand the first dot of a following arm to its owner.
+pub(crate) fn pattern_range_after_expression_item(
+    i: &SyntaxIn,
+    item: &Item,
+    origin: usize,
+    fence: Option<&FenceBoundary>,
+    stops: crate::pattern::PatternStops,
+) -> Option<usize> {
+    let (suffix, additional) = match item.payload_view().spelling()? {
+        "." => {
+            let suffix = i.remainder().strip_prefix('.')?;
+            if suffix
+                .chars()
+                .next()
+                .is_some_and(is_operator_shaped_character)
+            {
+                return None;
+            }
+            (suffix, 1)
+        }
+        ".." => (i.remainder(), 0),
+        _ => return None,
+    };
+    pattern_range_upper_starts(suffix, i.operators(), origin + additional, fence, stops)
+        .then_some(additional)
 }
 
 /// Raw successor vocabulary for one normalized Pattern Item.

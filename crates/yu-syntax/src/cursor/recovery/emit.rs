@@ -341,7 +341,7 @@ pub(crate) fn token_syntax_kind(kind: TokenKind) -> SyntaxKind {
         TokenKind::Comma => SyntaxKind::Comma,
         TokenKind::Semicolon => SyntaxKind::Semicolon,
         TokenKind::Dot => SyntaxKind::Dot,
-        TokenKind::DotDot => SyntaxKind::DotDot,
+        TokenKind::DotDot | TokenKind::PatternRangeStart => SyntaxKind::DotDot,
         TokenKind::Arrow => SyntaxKind::Arrow,
         TokenKind::Backslash => SyntaxKind::Backslash,
         TokenKind::Colon => SyntaxKind::Colon,
