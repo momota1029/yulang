@@ -124,7 +124,7 @@ effect 注釈は、公開される型の行を説明すると同時に、**高�
 
 出典: `main:web/docs/ja/reference/type-theory.md` §effect 注釈の意味の表、[traps.md](traps.md) の T2・T3
 
-## 5.6 effect family の copy　〔可視性の規則は確定、細部は要確認〕
+## 5.6 effect family の copy　〔可視性の規則は確定、細部は仮採用〕
 
 ```yulang
 act original:
