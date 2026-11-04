@@ -115,7 +115,7 @@ mod test:
 
 - `mod test name:` は名前付き、`mod test:` は無名の test module を作る。通常の実行（`yulang run`）では飛ばされ、
   テスト実行（`yulang test`）では module 内の binding が test として実行される。test module は言語仕様の一部（確定）。
-- inline の `mod` は nested module を作る。ファイル形式の `mod name;` は `name.yu` を子 module として読み込む。
+- inline の `mod` は nested module を作る。ファイル形式の `mod name;` は `name.yu` または `name/mod.yu` を子 module として読み込む（確定, 2026-11-04。`index.html` のようにディレクトリの代表ファイルを置けるため）。両方あったらエラー。
 - module 内の path は `::` で辿る。
 
 出典: `main:web/docs/ja/reference/modules.md`
