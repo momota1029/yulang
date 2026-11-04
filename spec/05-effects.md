@@ -149,8 +149,17 @@ act copy = source          // twice は copy でも動く。helper は copy の 
 ```
 
 - main の素材は「依存すると copy 先で解決できなくなる（ill-formed）。意図した規則」と書いていたが、この章では採らない。
-- 未確認（確認 N1）: private の helper が source の operation を呼んでいる場合、copy 先では **copy の operation**を呼ぶように付け替えるのか。
+- private の helper が source の operation を呼んでいるときは、copy 先では **copy の operation** を呼ぶように付け替える（確定, 2026-11-04）。
   copy は新しい family なので、source の operation を呼び続けると、copy を handle しても helper が起こす effect が handler に届かない。
+
+```yulang
+act source:
+    my helper () = tick ()
+    our tick: () -> never
+    our twice () = helper ()
+
+act copy = source          // copy::twice の中の tick は copy::tick
+```
 
 出典: `main:web/docs/ja/reference/effects.md` §effect family の copy、`main:spec/2026-06-25-act-copy.md`
 
@@ -183,4 +192,4 @@ use std::control::nondet::*
 
 ## 確認してほしい点
 
-- **N1** 5.6 の helper が source の operation を呼んでいるとき、copy 先では copy の operation を呼ぶ形に付け替えるか。
+なし（N1 は I8 で解決）。
