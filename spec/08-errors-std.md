@@ -3,7 +3,7 @@
 状態の凡例は [README](README.md)。この章は、`error` の使い方（宣言は章5.7）と、**言語と標準ライブラリの境界**を扱う。
 標準ライブラリの個々の API（`list`、`str`、`file` など）の仕様は、この `spec/` の対象外。ここでは「何が言語で、何が std か」だけを決める。
 
-## 8.1 エラーは名指しで捕まえる　〔要確認〕
+## 8.1 エラーは名指しで捕まえる　〔仮採用〕
 
 ```yulang
 my read_text_or_label path = catch read_text path:
@@ -16,7 +16,7 @@ my read_text_or_label path = catch read_text path:
 - 型を消去した catch-all（`catch _ -> ...`）や、任意の `Display` を実行時に dispatch する仕組みは**ない**。anyhow 風の境界は意図的に提供しない。
 - 各エラーは effect 行の中で具体的な型を保つので、発火元と handler を型から特定できる。
 
-## 8.2 `fail`　〔要確認〕
+## 8.2 `fail`　〔仮採用〕
 
 ```yulang
 my missing path = fail (io_err::not_found path)
@@ -25,7 +25,7 @@ my missing path = fail (io_err::not_found path)
 - `fail` は prelude の prefix 演算子で、`\e -> e.throw` と同じ。特別な構文ではない（`e.throw` と書いても動く）。
 - エラー値を effect として送り出すときに使う。読みやすさのために選ぶ。
 
-## 8.3 `wrap`: エラー effect を値に閉じる　〔要確認〕
+## 8.3 `wrap`: エラー effect を値に閉じる　〔仮採用〕
 
 ```yulang
 my wrapped = io_err::wrap: read_text path
@@ -36,7 +36,7 @@ case wrapped:
 
 - `E::wrap` は、引数の thunk が起こす `E` の effect を捕まえて、`result _ E` を返す。
 
-## 8.4 `from` と `up`: エラーを集約する　〔要確認〕
+## 8.4 `from` と `up`: エラーを集約する　〔仮採用〕
 
 ```yulang
 pub error app_err:

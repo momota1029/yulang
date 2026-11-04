@@ -3,7 +3,7 @@
 状態の凡例は [README](README.md)。`~"..."` と `rule { ... }` は、**parser 値**を作る。`case` の arm に書くと、入力文字列を照合して capture を束縛する。
 この章は DSL の見える意味だけを書く。背後の combinator（`token`、`word`、`rest`、`choice`、`many`、`some`、`optional`）と低水準の `parse` effect は `std::text::parse` の側の話。
 
-## 9.1 `case` での照合　〔要確認〕
+## 9.1 `case` での照合　〔仮採用〕
 
 ```yulang
 use std::text::parse::*
@@ -34,7 +34,7 @@ my request(source: str): str = case source:
 // "GET /users/42/edit" → method=GET, resource=users, tail=42/edit
 ```
 
-## 9.3 長い形 `rule { ... }`　〔要確認〕
+## 9.3 長い形 `rule { ... }`　〔仮採用〕
 
 ```yulang
 case source:
@@ -55,7 +55,7 @@ case source:
 - **選択 `left | right`**（backtrack も仕様として約束する）は左から順に試す。左が途中まで入力を消費して失敗しても、分岐前の位置に戻って右を試す（backtrack）。
   1 つの分岐が成功したら、後ろの分岐は試さない。入力全体の検査は選択の後なので、`rule { "a" | "ab" }` は `"ab"` にマッチしない。
 
-## 9.4 parser 値と prefix 実行　〔要確認〕
+## 9.4 parser 値と prefix 実行　〔仮採用〕
 
 どちらの形も、関数に渡せる parser 値を作る。`case` の parser pattern と違って、`read_prefix` は**入力が残ってもよい**。
 
