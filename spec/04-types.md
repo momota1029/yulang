@@ -71,6 +71,13 @@ my (a: int, b: str) = p
 ```
 
 - field access は `.field`。
+- spread で field が重複したら、**前に書いたほうが勝つ**（確定, 2026-11-04。JS とは逆）。デフォルト値を後ろに置く形で書ける。
+
+```yulang
+my base = { x: 1, y: 2 }
+{ x: 3, ..base }          // { x: 3, y: 2 }
+{ ..base, x: 3 }          // { x: 1, y: 2 }
+```
 - **record は幅の部分型付けを持つ**（確定, 2026-11-04）。余分な field を持つ record は、少ない field の型として使える。
 
 ```yulang
