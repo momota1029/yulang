@@ -1,22 +1,22 @@
 # パーサの未実装・仕様との差
 
-仕様（`spec/`）が約束している形のうち、現在の構文解析器（`crates/yu-syntax`、2026-11-04 時点）がまだ読めない・扱えない形の台帳。
+仕様（`spec/`）が約束している形のうち、現在の構文解析器（`crates/yu-syntax`）がまだ読めない・扱えない形の台帳。
 パーサを触るときの TODO で、仕様の状態とは別に管理する。確かめ方: `parse_file` に演算子の宣言を前置きしたソースを渡し、CST に `Error` / `Missing` / `Invalid` が出ないかを見た。
 
-## 読めない形（実装の穴と見ているもの）
+## 読めない形
 
-| 項目 | 仕様の根拠 | 現在のパーサ |
-| --- | --- | --- |
+**なし**（2026-11-04）。`spec/` の章 1〜9 に載せた構文例 80 個は、すべて `Error` / `Missing` / `Invalid` なしで読める。
+経緯と設計判断は `notes/design/2026-11-04-parser-gap-closure-addendum.md`（Authoritative）に残してある。
 
-## 仕様の側を見直す候補（パーサの実装が意図的かもしれないもの）
+## 意図的に残している未完了
 
-- 複数引数の lambda、裸の名前を頭にした pattern の適用、`--` の doc コメントは、パーサの設計判断で今の形になっている可能性がある。
-  仕様の側を変える必要があるかは、ユーザーの判断を待つ（章3.4、章3b.1、章1.2）。
+- `yulang` として選ばれた Yumark のコード fence の**本文**: 開き・info・境界だけを出し、本文のイベントは convergence gate まで延期（設計メモ §6）。
+- Yumark の埋め込み Yulang について、AST と direct CST の等価性の証明と gate 3・4 の完了認定は O6 まで延期（`2026-09-07-successor-t2a-yumark-evidence-timing-correction.md`）。
+- 出力先を trait object（`SyntaxOutput`）にした影響の速度測定（gate 7）。
 
 ## 読めると確かめた形
 
-コメント `//` と `/* */`、`if` / `elsif` / `else`（インデントと波括弧）、字下げによる式の継続、`f(x)` / `f (x)` / `f: x`、演算子の宣言（`prefix` / `infix` / `lazy infix` / `suffix`）、
-`my` / `our` / `pub` の binding、引数付き binding、`our p.m = ...`、`mod name:`、`mod test:`、`use`（group、glob、`without`、`as`、`(+)`）、
-`x.foo::bar`、`xs[0]`、`f()`、`with:`、`case`（guard の `if` / `where`、label の `case 'c 3:`、or・as pattern、tuple・record・list・symbol・polyvariant pattern）、
-`catch`、`sub:`、`for`（label つき）、`do`、tuple・record literal、record spread、`type`（alias と `with:`）、tuple struct、brace の `struct`、`enum`（`=` 形と字下げ形）、
-`act`、`act copy`、`error`、`role`（associated type を含む）、`impl`、`where`、`cast`、型注釈（binding、引数、返り値、`as`）、範囲 `0..10` / `0..<10`、パイプ `|`、文字列の補間、`rule { }`、`~"..."` の式。
+コメント `//` と `/* */` と doc コメント（`--`、`---`）、`if` / `elsif` / `else`、字下げによる式の継続、`f(x)` / `f (x)` / `f: x`、演算子の宣言、
+`my` / `our` / `pub` の binding、`mod`（ファイル形式を含む）、`use`、`x.foo::bar`、`xs[0]`、`(1, 2).0`、`f()`、`with:`、
+literal（整数、小数、文字列、list、record、tuple）、`$x` / `&x`、label、`case` / `catch`（guard、or・as、裸の名前の適用、`~"..."`、型注釈つき）、
+lambda（複数引数、pattern 引数）、`sub:`、`for`、`do`、`type`（alias と `with:`）、`struct`（型引数、tuple struct）、`enum`、`act`、`act copy`、`error`、`role`、`impl`、`where`、`cast`、型注釈、範囲、パイプ、`rule { }`、`~"..."`。
