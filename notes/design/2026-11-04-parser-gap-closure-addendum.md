@@ -108,3 +108,14 @@ WP-1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11. Packages touch shared files (`syntax_kind.
 - `cargo test -p yu-syntax` after every package.
 - All 80 `spec/` example snippets, with operator declarations prepended, parse with no `Error` / `Missing` / `Invalid` once WP-11 lands.
 - `cargo xtask check-graph` and `cargo check --workspace --all-targets` at the end.
+
+## 6. WP-11 progress and gate-level decisions (2026-11-04)
+
+Authority: the design authority (primary) decided the following where the approved Yumark documents left a gap or conflicted. Each is recorded so a later gate can cite it.
+
+- Gate 2 is committed (`yumark/{mod,judge,frame}.rs`): marker, strict close, line-doc, chunk judges, explicit frame stack with persistent transaction storage and a test-only full-state snapshot.
+- **Neutral event contract (Gate 3).** The base addendum section 4 requires a neutral driver but does not define an event representation. Decision: a crate-private `Sink` trait driven by the grammar with node Enter(kind), Token(kind, byte range), node Exit, Recovery(kind/slot, byte range). Production never stores events; only test sinks record. Gate 5 AST and direct adapters are further sinks over the same driver.
+- **Selected `yulang` fence.** Per the parsed-yulang-fence addendum sections 1 and 7, Gate 3 emits only opener, info and boundary facts; body events wait for the convergence gate.
+- **Recency rule.** When two Authoritative documents conflict and the later one explicitly corrects or defers the earlier, the later wins. Applied: parsed-fence section 1/7 over base sections 7/8 (selected fence body); the prefix-trailing-whitespace amendment over the parsed-fence full-prefix wording; T2a sections 2-3 over Gate-3b section 6 (T2 embedded AST/direct equality and 'Gate 3 complete' certification are deferred to O6; no embedded facts are fabricated).
+- **Allocation of what Gate 3 could not do.** Argument-bearing `InlineReference` / `InlineApply` (they need Yulang argument ownership) move to Gate 4. The canonical recovery matrix rows and the adoption of recovery output into the current transport move to Gate 5 (adapters with recovery-node and record identity). Equality and completion certification stay at O6.
+

@@ -92,7 +92,6 @@ pub(crate) enum FenceLineDecision {
 }
 
 /// Selects only an exact first ASCII-horizontal-delimited `yulang` atom.
-#[cfg(test)]
 pub(crate) fn is_yulang_fence_info(info: &str) -> bool {
     if info.bytes().any(|byte| matches!(byte, b'\r' | b'\n')) {
         return false;
