@@ -184,4 +184,4 @@ effectful \x -> rest
 
 ## 確認してほしい点
 
-- **M2** `case 'count 3:` や `catch 'again 3:` の body から、arm 集合を再適用するときの書き方（現行は `'count (n - 1)`）は、`'count.…` のような流儀にそろえるか、このままか。
+なし（M2 は G1・G2 で解決: `'count.again (n - 1)`）。
