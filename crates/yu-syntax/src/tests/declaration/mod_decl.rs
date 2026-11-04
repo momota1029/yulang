@@ -1273,6 +1273,7 @@ fn mod_c10_commits_ordinary_eof_trivia_before_the_owned_missing_slot() {
 
 #[test]
 fn mod_c10_recovers_body_slots_and_preserves_boundaries() {
+    // WP-7: `[` is now a list-literal expression start; the probe token was replaced to keep this contract.
     for (source, missing, error) in [
         ("mod A", 1, 0),
         ("mod A x", 1, 0),
@@ -1283,7 +1284,7 @@ fn mod_c10_recovers_body_slots_and_preserves_boundaries() {
         ("mod A: @", 0, 1),
         ("mod A:", 1, 0),
         ("mod A::x", 0, 1),
-        ("mod A][next", 0, 1),
+        ("mod A]@next", 0, 1),
         ("mod A {x", 1, 0),
     ] {
         let (green, exit) = run_statement(source);
@@ -1315,13 +1316,13 @@ fn mod_c10_recovers_body_slots_and_preserves_boundaries() {
         ));
     }
 
-    let (green, _) = run_statement("mod A][next");
+    let (green, _) = run_statement("mod A]@next");
     let declaration = mod_declaration(&green);
     let error = crate::tests::recovery_output::recovery_groups(&declaration)
         .into_iter()
         .find(|group| group.parent().as_ref() == Some(&declaration))
         .expect("local BodyIntroducer Error");
-    assert_eq!(error.text().to_string(), "][");
+    assert_eq!(error.text().to_string(), "]@");
 
     let operators = OperatorTable::empty();
     let (green, exit) = run_statement_with_stops("mod A:  else", &operators, STOP_ELSE);

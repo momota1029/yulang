@@ -23,8 +23,7 @@ fn sequence_fact(_: u32, _: bool, at: usize) -> StructuralFact {
 #[test]
 fn case_sequence_missing_slots_are_exact_at_source_offsets() {
     for (source, separator, at) in [
-        ("case x: n -> [tail] -> yes", true, 12),
-        ("catch x { n -> [tail] -> yes }", true, 14),
+        // WP-7 removed the row for 'n -> [tail] -> yes': with list literals every pattern start is also an expression start, so an unread pattern-only opener no longer exists (design memo WP-7).
         ("catch action { err -> recover", false, 29),
         ("catch x { n -> a,  ", false, 19),
     ] {
@@ -1073,22 +1072,7 @@ fn case_schema_arm_and_block_slots_keep_distinct_direct_occurrences() {
             }
         }
     }
-    for (source, block_kind, arm_kind, at) in [
-        ("case x: n -> [tail] -> yes", CaseBlock, CaseArm, 12),
-        ("catch x { n -> [tail] -> yes }", CatchBlock, CatchArm, 14),
-    ] {
-        let root = SyntaxNode::new_root(run(source).0);
-        let block = expression(&root, block_kind);
-        let arms: Vec<_> = block.children().filter(|n| n.kind() == arm_kind).collect();
-        assert_eq!(arms.len(), 2);
-        let body = arms[0].children().find(|n| n.kind() == Missing).unwrap();
-        let separator = block.children().find(|n| n.kind() == Missing).unwrap();
-        assert_eq!(usize::from(body.text_range().start()), at);
-        assert_eq!(body.text_range(), separator.text_range());
-        assert!(body.text_range().is_empty());
-        assert_eq!(separator.prev_sibling(), Some(arms[0].clone()));
-        assert_eq!(separator.next_sibling(), Some(arms[1].clone()));
-    }
+    // WP-7 removed the row for 'n -> [tail] -> yes': with list literals every pattern start is also an expression start, so an unread pattern-only opener no longer exists (design memo WP-7).
     for source in [
         "catch x { n -> yes",
         "catch x { n",
@@ -1315,6 +1299,7 @@ fn case_arrow_body_combined_absence_keeps_prior_owner_facts_in_order() {
 
 #[test]
 fn case_arrow_body_keeps_protected_boundaries_before_and_after_error() {
+    // WP-7: `[` is now a list-literal expression start; the probe token was replaced to keep this contract.
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
@@ -1334,15 +1319,11 @@ fn case_arrow_body_keeps_protected_boundaries_before_and_after_error() {
     ] {
         for suffix in [
             " ]tail",
-            " [tail",
+            " )tail",
             "\r\nnext",
             "\r\n> > ```\r\nouter",
             "\r\n> foreign",
         ] {
-            if head.starts_with("case") && suffix.starts_with(" [") {
-                // Case's existing sequence owner admits this Item as the next Pattern.
-                continue;
-            }
             let source = format!("{head}{suffix}");
             let fenced = suffix.contains('>');
             let origin = 7200;
@@ -1466,44 +1447,39 @@ fn case_body_lexical_retry_keeps_native_tokens_and_prefix_admission() {
 }
 
 #[test]
-fn case_body_unread_opener_reaches_the_existing_next_pattern_owner() {
-    for head in ["case x: n", "case x: n ->", "case x: n -> @"] {
-        let source = format!("{head} [tail] -> yes");
-        let operators = OperatorTable::empty();
-        let mut recover = Recover::new_for_test(&operators);
-        let mut output = GreenNodeBuilder::new();
-        output.start_node(SyntaxKind::Root.into());
-        let _ = parse_case_into(&source, 0, None, &mut recover, &mut output);
-        output.finish_node();
-        let green = finish_with_discarded_recoveries(output, recover);
-        let facts = structural_facts(&green);
-        let root = SyntaxNode::new_root(green);
-        let arms: Vec<_> = root
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::CaseArm)
-            .collect();
-        assert_eq!(arms.len(), 2);
-        assert_eq!(arms[0].to_string(), head.strip_prefix("case x: ").unwrap());
-        assert!(arms[1].to_string().contains("[tail] -> yes"));
-        let expected = if head.ends_with('@') {
-            arm_fact(0, CstSlot::Body, 13..14, false, &[13..14])
-        } else {
-            let combined = !head.contains("->");
-            arm_fact(
-                0,
-                if combined {
-                    CstSlot::Arrow
-                } else {
-                    CstSlot::Body
-                },
-                head.len()..head.len(),
-                combined,
-                &[],
-            )
-        };
-        let separator_at = head.len();
-        assert_eq!(facts, [expected, sequence_fact(1, true, separator_at)]);
-    }
+fn case_arm_body_list_literal_replaces_the_old_unread_opener_contract() {
+    let source = "case x: n -> [tail] -> yes";
+    let operators = OperatorTable::empty();
+    let green = crate::cursor::parse_root(source, &operators);
+    assert_eq!(green.to_string(), source);
+    let facts = structural_facts(&green);
+    assert_eq!(facts, [(StructuralKind::ErrorGroup, 20..26)]);
+    let root = SyntaxNode::new_root(green);
+    let arms = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::CaseArm)
+        .collect::<Vec<_>>();
+    assert_eq!(arms.len(), 1);
+    let body = arms[0]
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("case arm body");
+    let list = body
+        .children()
+        .find(|node| node.kind() == SyntaxKind::ListExpression)
+        .expect("list-literal arm body");
+    assert_eq!(list.to_string(), "[tail]");
+    assert_eq!(
+        list.text_range(),
+        rowan::TextRange::new(13.into(), 19.into())
+    );
+    let leftover = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Error)
+        .map(|token| token.text().to_owned())
+        .collect::<String>();
+    assert_eq!(leftover, "-> yes");
 }
 
 #[test]

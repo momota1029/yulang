@@ -25,6 +25,7 @@ last 'outer
 ```
 
 - [Parenthesized primary forms](parenthesized-expression.md)
+- [List-expression primary form](list-expression.md)
 - [Numeric literal primary forms](numeric-literals.md)
 - [Operator-chain expression form](operator-chain.md)
 - [Assignment terminal form](assignment-tail.md)

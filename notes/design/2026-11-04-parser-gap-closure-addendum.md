@@ -69,6 +69,9 @@ Result (2026-11-04): the WP-5 sigil scan also accepts a leading `'` in NUD and M
 
 `[]`, `[1, 2]`, `[1, ..xs, 3]`. A new `ListExpression` kind with `[` `]` as its delimiters, built like `ParenthesizedExpression` with a new `DelimitedOwner::List`. A spread item is a new kind appended at the end (`ListExpressionSpreadItem`), following `ProjectionRecordSpreadItem`. Recovery follows the existing delimited-sequence authority (`cross-cutting/layout-aware-separator-authority.md`).
 
+Result (2026-11-04): `[` is now a list-literal expression start (NUD and ML argument). Kinds `ListExpression` and `ListExpressionSpreadItem` were appended after `Float`. Inside a list each item is read in `MlMode::All`, so `[1 2]` is one item (the ML application `1 2`), exactly like `(1 2)`; it is not a missing-separator case.
+Ten pre-existing tests used `[` as the canonical 'token that cannot start an expression'. With the design authority's approval: seven keep their contract and had their probe token replaced (`[` became `)`, `]@`, `?`, or `else`, each marked with a WP-7 comment); in three `case_like` tests the contract 'an unread pattern-only opener reaches the next arm's pattern owner' cannot occur any more, because every pattern start is now also an expression start. There the `n -> [tail] -> yes` rows were removed (one test was rewritten as `case_arm_body_list_literal_replaces_the_old_unread_opener_contract`, pinning one arm with a list body plus the leftover `-> yes`).
+
 ### WP-8 `~"..."` in an arm
 
 The pattern opener also accepts `~"`. `rule_literal_normalized` is shared with the expression form. Whether a bare `"..."` stays valid in an arm is measured first. If it stays, it keeps meaning a rule literal; the result is recorded here by the package. `rule { ... }` in a pattern is unchanged.

@@ -418,7 +418,7 @@ fn close_slot(owner: DelimitedOwner) -> CatalogSlot {
     CatalogSlot::new(
         GrammarSlot::new(owner_kind(owner), GrammarSlotRole::Close),
         match owner {
-            DelimitedOwner::Index => SchemaExpectedSyntax::ClosingBracket,
+            DelimitedOwner::List | DelimitedOwner::Index => SchemaExpectedSyntax::ClosingBracket,
             DelimitedOwner::ProjectionRecord => SchemaExpectedSyntax::ClosingBrace,
             DelimitedOwner::Parenthesized
             | DelimitedOwner::Call
@@ -432,16 +432,18 @@ fn close_slot(owner: DelimitedOwner) -> CatalogSlot {
 fn missing_row_owner(kind: SyntaxKind) -> Option<DelimitedOwner> {
     match kind {
         SyntaxKind::ParenthesizedExpression => Some(DelimitedOwner::Parenthesized),
+        SyntaxKind::ListExpression => Some(DelimitedOwner::List),
         SyntaxKind::CallTail => Some(DelimitedOwner::Call),
         SyntaxKind::IndexTail => Some(DelimitedOwner::Index),
         _ => None,
     }
 }
 
-/// The five owners whose raw `Error` group slots the mapped raw row covers.
+/// The expression owners whose raw `Error` group slots the mapped raw row covers.
 fn raw_row_owner(kind: SyntaxKind) -> Option<DelimitedOwner> {
     match kind {
         SyntaxKind::ParenthesizedExpression => Some(DelimitedOwner::Parenthesized),
+        SyntaxKind::ListExpression => Some(DelimitedOwner::List),
         SyntaxKind::CallTail => Some(DelimitedOwner::Call),
         SyntaxKind::IndexTail => Some(DelimitedOwner::Index),
         SyntaxKind::ProjectionTupleTail => Some(DelimitedOwner::ProjectionTuple),
@@ -454,6 +456,7 @@ fn admitted_item_kind(owner: DelimitedOwner) -> SyntaxKind {
     match owner {
         DelimitedOwner::Index => SyntaxKind::IndexItem,
         DelimitedOwner::Parenthesized
+        | DelimitedOwner::List
         | DelimitedOwner::Call
         | DelimitedOwner::ProjectionTuple
         | DelimitedOwner::ProjectionRecord => SyntaxKind::OperatorChain,
@@ -501,6 +504,7 @@ fn is_trivia(kind: SyntaxKind) -> bool {
 fn owner_kind(owner: DelimitedOwner) -> SyntaxKind {
     match owner {
         DelimitedOwner::Parenthesized => SyntaxKind::ParenthesizedExpression,
+        DelimitedOwner::List => SyntaxKind::ListExpression,
         DelimitedOwner::Call => SyntaxKind::CallTail,
         DelimitedOwner::Index => SyntaxKind::IndexTail,
         DelimitedOwner::ProjectionTuple => SyntaxKind::ProjectionTupleTail,

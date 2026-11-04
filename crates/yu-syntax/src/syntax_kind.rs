@@ -295,6 +295,8 @@ pub enum SyntaxKind {
     LambdaExpression,
     FloatLiteral,
     Float,
+    ListExpression,
+    ListExpressionSpreadItem,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -316,6 +318,10 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::LambdaExpression as u16 => SyntaxKind::LambdaExpression,
             value if value == SyntaxKind::FloatLiteral as u16 => SyntaxKind::FloatLiteral,
             value if value == SyntaxKind::Float as u16 => SyntaxKind::Float,
+            value if value == SyntaxKind::ListExpression as u16 => SyntaxKind::ListExpression,
+            value if value == SyntaxKind::ListExpressionSpreadItem as u16 => {
+                SyntaxKind::ListExpressionSpreadItem
+            }
             value if value == SyntaxKind::Root as u16 => SyntaxKind::Root,
             value if value == SyntaxKind::Missing as u16 => SyntaxKind::Missing,
             value if value == SyntaxKind::Error as u16 => SyntaxKind::Error,
@@ -781,6 +787,8 @@ mod tests {
             SyntaxKind::TypeCallClose,
             SyntaxKind::FloatLiteral,
             SyntaxKind::Float,
+            SyntaxKind::ListExpression,
+            SyntaxKind::ListExpressionSpreadItem,
         ] {
             let raw = <YulangLanguage as Language>::kind_to_raw(kind);
             assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);
@@ -825,6 +833,8 @@ mod tests {
         assert_eq!(SyntaxKind::TypeDelimitedForeignClose as u16, 283);
         assert_eq!(SyntaxKind::FloatLiteral as u16, 291);
         assert_eq!(SyntaxKind::Float as u16, 292);
+        assert_eq!(SyntaxKind::ListExpression as u16, 293);
+        assert_eq!(SyntaxKind::ListExpressionSpreadItem as u16, 294);
 
         for kind in [
             SyntaxKind::Unknown,
@@ -845,6 +855,8 @@ mod tests {
             SyntaxKind::TypeDelimitedForeignClose,
             SyntaxKind::FloatLiteral,
             SyntaxKind::Float,
+            SyntaxKind::ListExpression,
+            SyntaxKind::ListExpressionSpreadItem,
         ] {
             let raw = <YulangLanguage as Language>::kind_to_raw(kind);
             assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);

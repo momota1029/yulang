@@ -3,7 +3,7 @@
 ## Scope
 
 This rule defines the comma-or-newline boundary for `ParenthesizedExpression`,
-`ParenthesizedPattern`, `ListPattern`, `RecordPattern`, and inline colon
+`ListExpression`, `ParenthesizedPattern`, `ListPattern`, `RecordPattern`, and inline colon
 arguments that have no outer sequence owner. It decides whether trivia after a
 complete item separates the next item or continues the current item.
 

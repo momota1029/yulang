@@ -399,6 +399,7 @@ fn if_elsif_condition_missing_error_and_retry_use_ordered_rowan_children() {
 
 #[test]
 fn if_selected_slots_have_exact_structural_kind_and_range_facts() {
+    // WP-7: `[` is now a list-literal expression start; the probe token was replaced to keep this contract.
     use CstSlot::{Body, BodyIntroducer, Condition, ElseBody};
     use StructuralKind::{ErrorGroup as Error, Missing};
     for (source, slots) in [
@@ -437,7 +438,7 @@ fn if_selected_slots_have_exact_structural_kind_and_range_facts() {
         ("(if x: @ , y)", vec![(Body, Error, 7..8)]),
         ("if x: @ @ \"α\"", vec![(Body, Error, 6..9)]),
         ("if x: ] α", vec![(Body, Error, 6..7)]),
-        ("if x: [ α", vec![(Body, Error, 6..7)]),
+        ("if x: ? α", vec![(Body, Error, 6..7)]),
         ("if x: @ 💥 α", vec![(Body, Error, 6..12)]),
         ("if x: @ - y", vec![(Body, Error, 6..7)]),
         ("if x: @ if y: z", vec![(Body, Error, 6..7)]),

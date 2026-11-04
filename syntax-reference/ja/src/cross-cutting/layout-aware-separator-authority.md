@@ -2,7 +2,7 @@
 
 ## 対象範囲
 
-この規則は、`ParenthesizedExpression`、`ParenthesizedPattern`、`ListPattern`、`RecordPattern`、および外側の列ownerを持たないinline colon argumentのcommaまたはnewlineによる境界を定める。
+この規則は、`ParenthesizedExpression`、`ListExpression`、`ParenthesizedPattern`、`ListPattern`、`RecordPattern`、および外側の列ownerを持たないinline colon argumentのcommaまたはnewlineによる境界を定める。
 completeなitemの後のtriviaが次のitemを区切るか、現在のitemを継続するかを決める。
 
 この規則はsemicolonを共通separatorとして追加しない。

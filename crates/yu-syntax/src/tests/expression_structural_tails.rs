@@ -590,10 +590,11 @@ fn annotation_required_type_missing_has_a_direct_structural_slot() {
 
 #[test]
 fn structural_tail_initial_missing_and_type_error_preserve_kind_range_and_order() {
+    // WP-7: `[` is now a list-literal expression start; the probe token was replaced to keep this contract.
     for (source, expected) in [
         ("x =", (StructuralKind::Missing, 3..3)),
         ("x = ]", (StructuralKind::Missing, 3..3)),
-        ("x = [", (StructuralKind::Missing, 3..3)),
+        ("x = )", (StructuralKind::Missing, 3..3)),
         ("x = ,", (StructuralKind::Missing, 3..3)),
         ("x =\ny", (StructuralKind::Missing, 3..3)),
         ("x = @ ]", (StructuralKind::ErrorGroup, 4..5)),
@@ -609,12 +610,13 @@ fn structural_tail_initial_missing_and_type_error_preserve_kind_range_and_order(
 
 #[test]
 fn assignment_boundaries_before_and_after_error_preserve_whole_items() {
+    // WP-7: `[` is now a list-literal expression start; the probe token was replaced to keep this contract.
     use crate::lexical::stops::{STOP_COLON, STOP_COMMA, STOP_LINE_BREAK};
     for (suffix, stops, pending) in [
         (" , next", STOP_COMMA, TokenKind::Comma),
         (" : next", STOP_COLON, TokenKind::Colon),
         (" ] next", 0, TokenKind::RBracket),
-        (" [ next", 0, TokenKind::LBracket),
+        (" ) next", 0, TokenKind::RParen),
         ("\nnext", STOP_LINE_BREAK, TokenKind::Identifier),
     ] {
         for (prefix, kind, emitted, fact_range) in [

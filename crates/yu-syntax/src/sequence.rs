@@ -9,6 +9,7 @@ pub(crate) enum SequenceOwner {
     RecordPattern,
     RuleExpressionList,
     Parenthesized,
+    List,
     Call,
     Index,
     ProjectionTuple,

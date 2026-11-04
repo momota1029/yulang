@@ -166,12 +166,13 @@ fn required_operand_unclaimed_close_publishes_missing_and_keeps_its_whole_item()
 
 #[test]
 fn required_operand_boundaries_keep_items_except_ordinary_eof_leading() {
+    // WP-7: `[` is now a list-literal expression start; the probe token was replaced to keep this contract.
     for (source, stops, expected_green, range) in [
         ("", 0, "", 0..0),
         (" ", 0, " ", 1..1),
         (",", crate::lexical::stops::STOP_COMMA, "", 0..0),
         ("]", 0, "", 0..0),
-        ("[", 0, "", 0..0),
+        (")", 0, "", 0..0),
         ("\r\n", crate::lexical::stops::STOP_LINE_BREAK, "", 0..0),
     ] {
         let (green, exit, remainder, facts) = direct_required_expr_with_facts(source, stops);
@@ -568,6 +569,7 @@ fn required_operand_cst_keeps_nested_nud_and_terminal_recovery_distinct() {
 
 #[test]
 fn required_operand_cst_orders_caller_and_nested_nud_recovery_in_one_chain() {
+    // WP-7: `[` is now a list-literal expression start; the probe token was replaced to keep this contract.
     let operators = OperatorTable::from_declarations([
         OperatorDeclaration::new(
             "?",
@@ -581,7 +583,7 @@ fn required_operand_cst_orders_caller_and_nested_nud_recovery_in_one_chain() {
     .unwrap();
     for (source, accepted, nested_kind) in [
         (
-            "if @ ? [: x",
+            "if @ ? else: x",
             SyntaxKind::PrefixOperatorUse,
             SyntaxKind::Missing,
         ),

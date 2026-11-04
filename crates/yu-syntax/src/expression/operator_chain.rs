@@ -22,7 +22,7 @@ use crate::{
     },
     expression::{
         case_like::{CaseLikeFamily, case_like_nud_normalized},
-        delimited::parenthesized_nud_normalized,
+        delimited::{list_nud_normalized, parenthesized_nud_normalized},
         if_expr::if_nud_normalized,
         tails::{
             call_tail_normalized, colon_tail_normalized, dot_tail_normalized,
@@ -386,6 +386,20 @@ pub(super) fn append_nud(
             )
         }
         Some(TokenKind::LParen) => parenthesized_nud_normalized(
+            i,
+            nud,
+            threshold,
+            baseline,
+            stops,
+            ml_mode,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+            sequence,
+        ),
+        Some(TokenKind::LBracket) => list_nud_normalized(
             i,
             nud,
             threshold,
@@ -1090,6 +1104,7 @@ fn is_normal_core_item(item: &Item) -> bool {
                 | TokenKind::Float
                 | TokenKind::ExpressionSymbolColon
                 | TokenKind::LParen
+                | TokenKind::LBracket
                 | TokenKind::Backslash
         )
     )

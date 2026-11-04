@@ -32,10 +32,58 @@ use crate::{
 #[derive(Clone, Copy)]
 pub(crate) enum DelimitedOwner {
     Parenthesized,
+    List,
     Call,
     Index,
     ProjectionTuple,
     ProjectionRecord,
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn list_nud_normalized(
+    mut i: SyntaxIn,
+    open: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: Stops,
+    ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+    sequence: crate::sequence::SequenceContext,
+) -> NormalizedExit {
+    i.state.start_node(SyntaxKind::ListExpression.into());
+    emit_token_item(&mut i, open);
+    let entry = suffix_marker(i.rb());
+    let exit = delimited_items_normalized(
+        i.rb(),
+        DelimitedOwner::List,
+        stops,
+        baseline,
+        MlMode::All,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    );
+    let item_origin = advanced_origin(item_origin, entry, i.rb());
+    i.state.finish_node();
+    continue_normalized_tail(
+        i,
+        threshold,
+        baseline,
+        stops,
+        ml_mode,
+        line_handoff,
+        exit,
+        item_origin,
+        fence,
+        ambient,
+        sequence,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -102,6 +150,7 @@ pub(crate) fn delimited_items_normalized(
     let inherited_closes = inherited_stops & STOP_CLOSES;
     let sequence = Some(match owner {
         DelimitedOwner::Parenthesized => crate::sequence::SequenceOwner::Parenthesized,
+        DelimitedOwner::List => crate::sequence::SequenceOwner::List,
         DelimitedOwner::Call => crate::sequence::SequenceOwner::Call,
         DelimitedOwner::Index => crate::sequence::SequenceOwner::Index,
         DelimitedOwner::ProjectionTuple => crate::sequence::SequenceOwner::ProjectionTuple,
@@ -113,7 +162,7 @@ pub(crate) fn delimited_items_normalized(
     let stops = stops_for(owner.close())
         | inherited_closes
         | (inherited_stops & crate::lexical::stops::LAMBDA_RECOVERY_BOUNDARY)
-        | if owner.is_record() {
+        | if owner.allows_spread() {
             STOP_RECORD_SPREAD
         } else {
             0
@@ -202,7 +251,7 @@ pub(crate) fn delimited_items_normalized(
         {
             phase = Phase::Item;
         }
-        let spread = owner.is_record() && is_record_spread_item(&item);
+        let spread = owner.allows_spread() && is_spread_item(&item);
         if !is_nud_item(&item) && !spread {
             item.emit_all_remaining_leading(&mut *i.state);
             if matches!(phase, Phase::Separator) {
@@ -217,7 +266,7 @@ pub(crate) fn delimited_items_normalized(
                 item_origin,
                 line_entry,
                 fence,
-                owner.is_record(),
+                owner.allows_spread(),
             );
             if matches!(phase, Phase::Separator) {
                 i.state.finish_node();
@@ -230,9 +279,10 @@ pub(crate) fn delimited_items_normalized(
         }
         let entry = suffix_marker(i.rb());
         let exit = if spread {
-            record_spread_item_normalized(
+            spread_item_normalized(
                 i.rb(),
                 item,
+                owner.spread_kind(),
                 baseline,
                 stops,
                 line_handoff,
@@ -302,13 +352,20 @@ enum Phase {
 impl DelimitedOwner {
     fn close(self) -> TokenKind {
         match self {
-            Self::Index => TokenKind::RBracket,
+            Self::List | Self::Index => TokenKind::RBracket,
             Self::ProjectionRecord => TokenKind::RBrace,
             _ => TokenKind::RParen,
         }
     }
-    fn is_record(self) -> bool {
-        matches!(self, Self::ProjectionRecord)
+    fn allows_spread(self) -> bool {
+        matches!(self, Self::List | Self::ProjectionRecord)
+    }
+    fn spread_kind(self) -> SyntaxKind {
+        match self {
+            Self::List => SyntaxKind::ListExpressionSpreadItem,
+            Self::ProjectionRecord => SyntaxKind::ProjectionRecordSpreadItem,
+            _ => unreachable!("only spread-owning delimiters request a spread kind"),
+        }
     }
 }
 
@@ -333,9 +390,10 @@ fn delimited_baseline_from_source(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn record_spread_item_normalized(
+fn spread_item_normalized(
     mut i: SyntaxIn,
     marker: Item,
+    node: SyntaxKind,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
@@ -345,8 +403,7 @@ fn record_spread_item_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
-    i.state
-        .start_node(SyntaxKind::ProjectionRecordSpreadItem.into());
+    i.state.start_node(node.into());
     emit_token_item(&mut i, marker);
     let rhs_stops = (stops & !STOP_RECORD_SPREAD) | STOP_RECORD_SPREAD_AFTER_OPERATOR;
     let (mut rhs, origin, line) = expression_item(
@@ -438,11 +495,11 @@ fn error_run(
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
-    record_spread: bool,
+    spread: bool,
 ) -> (Item, usize, LineEntry) {
     emit_recovery_error_run(i, |run| {
         loop {
-            let continues_operator_spelling = record_spread && is_operator_shaped_unknown(&item);
+            let continues_operator_spelling = spread && is_operator_shaped_unknown(&item);
             run.emit_item_as(item, item_origin);
             if continues_operator_spelling {
                 while let Some(token) =
@@ -468,22 +525,22 @@ fn error_run(
                     stops,
                 )
             });
-            if is_run_boundary(&item, baseline, record_spread, true) || is_nud_item(&item) {
+            if is_run_boundary(&item, baseline, spread, true) || is_nud_item(&item) {
                 return (item, item_origin, line_entry);
             }
         }
     })
 }
 
-fn is_run_boundary(item: &Item, baseline: usize, record_spread: bool, newline: bool) -> bool {
+fn is_run_boundary(item: &Item, baseline: usize, spread: bool, newline: bool) -> bool {
     item.payload_view().is_boundary()
         || item.payload_view().is_eof()
         || is_separator(item)
         || is_close(item)
-        || (record_spread && is_record_spread_item(item))
+        || (spread && is_spread_item(item))
         || (newline && implicit_delimited_newline(baseline, item.leading_view()))
 }
 
-fn is_record_spread_item(item: &Item) -> bool {
+fn is_spread_item(item: &Item) -> bool {
     token_kind(item) == Some(TokenKind::DotDot)
 }

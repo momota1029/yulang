@@ -14,6 +14,7 @@ mod header;
 mod if_expr;
 mod indented_recovery;
 mod lexical;
+mod list_expression;
 mod literal;
 mod normalized;
 mod operators;
