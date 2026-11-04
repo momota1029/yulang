@@ -130,7 +130,14 @@ struct point { x: int, y: int } with:
 
 ## 4.5 `enum`　〔constructor のカリー化は確定、他は要確認〕
 
-polymorphic variant の型も存在する（確定, 2026-11-04）。素材にある綴りは `:{A int, B}`。これは `:name payload` の pattern（章3b）に対応する型で、閉じた tag の集合を表す。綴りと意味の細部は要確認。
+polymorphic variant の型も存在する（確定, 2026-11-04）。綴りは 2 つあり、同じ意味（確定, 2026-11-04）。`:name payload` の pattern（章3b）に対応する型で、閉じた tag の集合を表す。
+
+```yulang
+my f(x: :{ready, some int}) = ...         // { } に tag を並べる形
+my g(x: :ready | :some int) = ...         // tag ごとに : を付けて | でつなぐ形
+```
+
+payload がなければ unit。意味の細部（開いた集合など）は未確認。
 
 ```yulang
 enum opt 'a = nil | just 'a
