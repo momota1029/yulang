@@ -20,3 +20,9 @@
 `my` / `our` / `pub` の binding、`mod`（ファイル形式を含む）、`use`、`x.foo::bar`、`xs[0]`、`(1, 2).0`、`f()`、`with:`、
 literal（整数、小数、文字列、list、record、tuple）、`$x` / `&x`、label、`case` / `catch`（guard、or・as、裸の名前の適用、`~"..."`、型注釈つき）、
 lambda（複数引数、pattern 引数）、`sub:`、`for`、`do`、`type`（alias と `with:`）、`struct`（型引数、tuple struct）、`enum`、`act`、`act copy`、`error`、`role`、`impl`、`where`、`cast`、型注釈、範囲、パイプ、`rule { }`、`~"..."`。
+
+## G12 doc コメントの後ろ向き付与とメンバーへの付与（2026-11-04 起票）
+
+- 仕様: `spec/01-lexical.md` §1.2。同じ行の末尾 `-- ...` と `=` 直後の `-- ...` が、その行で始まった宣言の doc になる。
+- struct の field / enum の variant / role の method / act の operation にも、直前行・行末・`=` 直後の doc が付く。
+- 現状: 直前行の doc だけ（WP-11 gate 6）。行末・`=` 直後・メンバーは未対応。
