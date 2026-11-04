@@ -19,6 +19,8 @@ true         // bool
 
 - list は spread を持つ: `[1, ..xs, 3]`。record も spread を持つ: `{x: 1, ..rest}`。
 
+- 数値 literal は桁区切りの `_`（`1_000_000`）、`0x` `0b` `0o` の進数、指数（`1e3`、`1.5e-2`）、小数を書ける。`1.` や `.5` のような省略形は書けない（`1.foo` が method 呼び出しと紛れるため）（確定, 2026-11-04）。
+
 - `int` は**任意精度**、`1.5` のような小数 literal は `float`（確定, 2026-11-04）。
 
 出典: `main:notes/design/yulang-language-report.md` §6.1
