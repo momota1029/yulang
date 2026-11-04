@@ -1306,8 +1306,7 @@ pub(crate) fn scan_punctuation(i: LexIn) -> Option<Token> {
 /// The expression tail owns only a lone colon; the longer `::` spelling
 /// remains the path separator recognized by [`scan_punctuation`].
 fn scan_expression_colon(mut i: LexIn) -> Option<Token> {
-    let remainder = i.remainder();
-    (remainder.starts_with(':') && !remainder.starts_with("::")).then_some(())?;
+    scan_lone_colon(&i)?;
     let (accepted, text) = i
         .rb()
         .with_str(|mut colon| (colon.next()? == ':').then_some(()));
@@ -1438,8 +1437,7 @@ fn scan_type_polymorphic_variant_colon(mut i: LexIn) -> Option<Token> {
 }
 
 fn scan_type_colon(mut i: LexIn) -> Option<Token> {
-    let remainder = i.remainder();
-    (remainder.starts_with(':') && !remainder.starts_with("::")).then_some(())?;
+    scan_lone_colon(&i)?;
     let (accepted, text) = i
         .rb()
         .with_str(|mut colon| (colon.next()? == ':').then_some(()));
@@ -1451,8 +1449,7 @@ fn scan_type_colon(mut i: LexIn) -> Option<Token> {
 }
 
 fn scan_pattern_colon(mut i: LexIn) -> Option<Token> {
-    let remainder = i.remainder();
-    (remainder.starts_with(':') && !remainder.starts_with("::")).then_some(())?;
+    scan_lone_colon(&i)?;
     let (accepted, text) = i
         .rb()
         .with_str(|mut colon| (colon.next()? == ':').then_some(()));
@@ -1533,14 +1530,26 @@ fn scan_record_spread_marker(i: LexIn) -> Option<Token> {
     })
 }
 
+fn scan_lone_colon(i: &LexIn) -> Option<()> {
+    let remainder = i.remainder();
+    (remainder.starts_with(':') && !remainder.starts_with("::")).then_some(())
+}
+
+fn scan_fixed_opener(i: LexIn, expected: char, kind: TokenKind) -> Option<Token> {
+    let (accepted, text) = i.with_str(|mut opener| (opener.next()? == expected).then_some(()));
+    accepted?;
+    Some(Token {
+        kind,
+        text: text.into(),
+    })
+}
+
 fn scan_lparen(i: LexIn) -> Option<Token> {
-    let token = scan_punctuation(i)?;
-    (token.kind == TokenKind::LParen).then_some(token)
+    scan_fixed_opener(i, '(', TokenKind::LParen)
 }
 
 pub(crate) fn scan_lbrace(i: LexIn) -> Option<Token> {
-    let token = scan_punctuation(i)?;
-    (token.kind == TokenKind::LBrace).then_some(token)
+    scan_fixed_opener(i, '{', TokenKind::LBrace)
 }
 
 fn scan_dot(mut i: LexIn) -> Option<()> {
