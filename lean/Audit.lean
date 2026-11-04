@@ -149,3 +149,23 @@ run_cmd do
 #print axioms Yulang.Roles.Examples.bad_foo_int_no_derives
 #print axioms Yulang.Roles.Examples.overlap_ambiguous
 #print axioms Yulang.Roles.Examples.overlap_before_constraints
+
+#print axioms Yulang.Roles.assoc_rhs_closed
+#print axioms Yulang.Roles.assoc_rhs_matching
+#print axioms Yulang.Roles.default_rhs_closed
+#print axioms Yulang.Roles.assoc_independent_of_constraints
+#print axioms Yulang.Roles.assoc_explicit_eq
+#print axioms Yulang.Roles.assoc_total_closed
+#print axioms Yulang.Roles.assoc_unique
+#print axioms Yulang.Roles.assoc_derivation_agrees
+#print axioms Yulang.Roles.assoc_derivations_unique
+#print axioms Yulang.Roles.assoc_explicit_size
+#print axioms Yulang.Roles.AssocExamples.str_value
+#print axioms Yulang.Roles.AssocExamples.box_value
+#print axioms Yulang.Roles.AssocExamples.default_value
+#print axioms Yulang.Roles.AssocExamples.parameter_default_value
+#print axioms Yulang.Roles.AssocExamples.explicit_overrides_default
+#print axioms Yulang.Roles.AssocExamples.rigid_goal_value
+#print axioms Yulang.Roles.AssocExamples.escaping_not_assocWellFormed
+#print axioms Yulang.Roles.AssocExamples.missing_not_assocWellFormed
+#print axioms Yulang.Roles.AssocExamples.undeclared_not_assocWellFormed

@@ -17,3 +17,4 @@ import Yulang.RowInference
 import Yulang.SignedStructural
 import Yulang.DirectedHandlerInference
 import Yulang.Roles
+import Yulang.RolesAssoc

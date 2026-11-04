@@ -244,12 +244,14 @@ handlerの結果 `out : CompTerm α` と外側のscheme環境 `SchemeEnv α` は
 
 ここでは未確定の意味論を補って定理を強く見せない。
 
-- associated type を含む型の大きさの数え方と、associated type を含む再帰的な `where` の循環・停止条件。
+- associated type が `where` 条件や method 署名に現れ、`value ~ int` 等の等式制約や型引数と単一化される場合の扱い。
 - 章4.5の残余と、source の網羅性・guard の組合せ。
 
 章6.3の Paterson 型条件の下で、第一階の impl 集合に対する role 解決の停止は [`Yulang/Roles.lean`](../lean/Yulang/Roles.lean) で証明した。型構築子と型変数を各1と数え、head と各条件の型引数のサイズを合計する。各条件の合計が head より真に小さく、各変数の出現回数が head 以下なら、任意の impl 変数の置換後も条件は head より真に小さい。全 impl がこの条件を満たすことを入力に要求する `resolve` は、そのサイズを測度として深さ制限なしに停止する。候補は goal の変数を rigid に保った一方向の head 照合で決め、二つ以上なら `where` を調べる前に曖昧とする。一意な候補の子で曖昧さが見つかった場合も、別の子の候補不在より曖昧さを優先する。健全性、到達する head に重なりがない場合の完全性、到達可能な head の重なりと曖昧さの同値もこの核の範囲で証明した。
 
-この結果は associated type のサイズ計算を定めない。associated type を含む再帰的な `where` は未決定のままである。generic role の method dispatch、章6.4の receiver 下界による保留、operation-local role 制約、effect との相互作用、推論の制約言語との統合、source 宣言時の検査もこの定理の対象外である。出典: 章6.2–6.3（確定, 2026-11-04・2026-11-05）、`Yulang.Roles.size_decreases`・`resolve_sound`・`resolve_complete`・`resolve_ambiguous_iff`。
+章6.3の決定（確定, 2026-11-05）により、impl の associated type の右辺は具体的な型・型構築子・head に現れる型変数だけからなり、他 role の associated type を参照できない。この第一階の関連型には追加のサイズ規則は不要である。[`Yulang/RolesAssoc.lean`](../lean/Yulang/RolesAssoc.lean) の `assocOf` は、既存の `resolve` の成功後に、選ばれた impl の右辺へ照合置換を一度適用する。省略された定義には、role の引数位置を goal の型引数で置換した default を使う。別の関連型を展開する再帰はない。表現上は、関連型名の辞書の無重複性、同じ元の impl への辞書の一貫性、default の変数範囲を要求する。`AssocWellFormed` は、明示定義の変数が head に現れること、署名との引数数の一致と必須定義の充足、role にない名前を提供しないことを要求する。
+
+`assoc_total_closed` は、全 impl が Paterson 適格性と関連型適格性を満たすとき、解決済み goal の宣言済みの各関連型名について値が存在し、結果の変数がすべて goal に現れることを証明する。`assoc_unique` は値の一意性を、`assoc_independent_of_constraints`・`assoc_explicit_eq`・`assoc_derivations_unique` は where の解決導出や head の照合置換の選び方によらないことを示す。`assoc_explicit_size` は明示定義の具体化について、既存の `Term.subst_size` の正確なサイズ公式を再利用する。関連型が where 条件や method 署名に現れて単一化を要求する場合の規則は定めていない。generic role の method dispatch、章6.4の receiver 下界による保留、operation-local role 制約、effect との相互作用、推論の制約言語との統合、source 宣言時の検査もこの定理の対象外である。出典: 章6.1–6.3（確定, 2026-11-04・2026-11-05）、`Yulang.Roles.size_decreases`・`resolve_sound`・`resolve_complete`・`resolve_ambiguous_iff` および上記の関連型の定理。
 
 上の判断に依存しない核の定理は先に閉じる。未解決制約を受理済みプログラムと同一視しない。
 

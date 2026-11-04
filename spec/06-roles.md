@@ -82,7 +82,8 @@ my twice(x: 'a) =
       where (list 'a): Foo       // 拒否: 条件のほうが大きい。Foo int → Foo (list int) → ... と終わらない
   ```
 
-  この条件のもとで、role の解決は必ず停止する。associated type が他の条件に依存する場合の大きさの数え方は、まだ決めていない。
+  この条件のもとで、role の解決は必ず停止する。
+- **`impl` の `type name = ...` の右辺は、他の role の associated type を参照できない**（確定, 2026-11-05）。右辺に書けるのは具体的な型・型構築子・その `impl` の head に現れる型変数だけで、associated type は head の型引数から決まる一つの型になる。解決の途中で別の associated type を展開する必要は生じない。他の role の associated type を右辺で引ける構文は、必要が出てから足す。
 - `role` の body の `where` は、その role の method に継承される。`impl` の body の `where` は、その `impl` が候補になるための前提になる。
 
 ## 6.4 `x.method` の解決　〔確定〕
