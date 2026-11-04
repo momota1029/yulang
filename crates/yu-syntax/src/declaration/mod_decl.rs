@@ -816,7 +816,7 @@ fn name_boundary(mut i: SyntaxIn, item: &Item, baseline: usize, stops: Stops) ->
     item.payload_view().is_boundary()
         || item.payload_view().is_eof()
         || implicit_delimited_newline(baseline, item.leading_view())
-        || is_active_stop(i.rb(), item, stops)
+        || (!is_body_starter_item(item) && is_active_stop(i.rb(), item, stops))
         || token_kind(item) == Some(TokenKind::Comma)
 }
 
@@ -824,7 +824,7 @@ fn body_boundary(mut i: SyntaxIn, item: &Item, baseline: usize, stops: Stops) ->
     item.payload_view().is_boundary()
         || item.payload_view().is_eof()
         || implicit_delimited_newline(baseline, item.leading_view())
-        || is_active_stop(i.rb(), item, stops)
+        || (!is_body_starter_item(item) && is_active_stop(i.rb(), item, stops))
         || token_kind(item) == Some(TokenKind::Comma)
 }
 

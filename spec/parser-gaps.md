@@ -12,7 +12,6 @@
 | 小数 literal（`1.5`、`1e3`） | [章3.1](03-expressions.md) | `1` の後ろの `.5` / `e3` が Error |
 | 位置 field（`(1, 2).0`、`id.0`） | [章4.4](04-types.md) | `.` の後ろの `0` が Error |
 | 参照の読み出しと更新（`$count`、`&count = v`） | [章3c.6](03c-control.md) | 式の中の `$x`・`&x` は Error。`my $count = 0` の束縛は読める |
-| `mod name;`（ファイル形式） | [章2.3](02-declarations.md) | `Missing` |
 | `struct` の型引数（`struct pair 'a { ... }`） | [章4.4](04-types.md) | `'a` が Error（型引数のない `struct` は読める） |
 | `case` の arm の parser pattern（`~"GET :x" -> ...`） | [章9.1](09-parser-dsl.md) | `~` が Error（式としての `~"a"` と `rule { }` は読める） |
 | 複数引数の lambda（`\x y -> x`） | [章3.4](03-expressions.md) | 文頭で Error（単項 `\x -> x` は読める。素材では「unary lambda の admission」まで） |

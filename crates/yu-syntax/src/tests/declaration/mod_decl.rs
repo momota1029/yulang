@@ -2,6 +2,49 @@ use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
 use crate::structural_diagnostic::StructuralKind;
 use crate::tests::support::*;
 
+fn parse_file_green(source: &str) -> GreenNode {
+    let source: std::sync::Arc<crate::SourceText> = std::sync::Arc::from(source);
+    crate::parse_file(
+        source.clone(),
+        std::sync::Arc::new(crate::scan_header(source)),
+        std::sync::Arc::new(crate::SyntaxEnvironment::empty()),
+    )
+    .green()
+    .clone()
+}
+
+fn assert_file_form_modules_parse_without_recovery(source: &str, expected_modules: usize) {
+    let green = parse_file_green(source);
+    assert_eq!(green.to_string(), source);
+    assert!(structural_facts(&green).is_empty());
+    let root = SyntaxNode::new_root(green);
+    let declarations = root
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::ModDeclaration)
+        .collect::<Vec<_>>();
+    assert_eq!(declarations.len(), expected_modules);
+    assert!(declarations.iter().all(|declaration| {
+        declaration
+            .children_with_tokens()
+            .any(|child| child.kind() == SyntaxKind::Semicolon)
+    }));
+}
+
+#[test]
+fn file_form_module_with_non_test_name_parses_without_recovery() {
+    assert_file_form_modules_parse_without_recovery("mod helper;", 1);
+}
+
+#[test]
+fn public_file_form_module_with_non_test_name_parses_without_recovery() {
+    assert_file_form_modules_parse_without_recovery("pub mod helper;", 1);
+}
+
+#[test]
+fn two_file_form_modules_in_a_row_parse_without_recovery() {
+    assert_file_form_modules_parse_without_recovery("mod a;\nmod b;", 2);
+}
+
 fn typed_mod<'s>(
     source: &'s str,
     stops: Stops,
