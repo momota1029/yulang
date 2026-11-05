@@ -110,6 +110,9 @@
 29. **receiver の型が最後まで分からない `x.method` は、role の method を先にする**(`spec/06-roles.md` 6.4)。同名の method を持つ role がスコープに複数あれば曖昧エラー、なければ record の field。型が分かっているときの順(field が先)とは逆。決定 7(`x.add x` が `where 'a: Add`)と整合させるための判断。
     証明してほしい主張: `QualifiedInference` の method 要求の生成が、(a) 未知 receiver では role 候補があれば role の制約、なければ field の構造制約になること、(b) 同名 method を持つ role が複数なら曖昧、(c) 同じ SCC の中で receiver の型が分かった場合は、型が分かっているときの順(field → role)で解くこと。(d) **SCC の解決後は解釈が固定**され、呼び出し側の具体化(`'a := box` など)で field に再解釈されないこと(`Size box` の impl が無ければエラー)。ChatGPT の `Methods` が「member ごとの method lookup の優先順位」を対象外にしていた所の一部。
 
+30. **`impl` の候補は、具体化した場所(呼び出し側)で見えるものから選ぶ**(`spec/06-roles.md` 6.2)。入れ子の where も根の呼び出し側の可視範囲で解く。証拠(辞書)は関数へ渡される。
+    証明してほしい主張: `Roles.resolve` に「可視な impl 集合」を引数として渡す形(すでに入力リストが可視な impl 集合を表す設計)で、(a) 可視集合が単調に増えると、resolved だった goal は resolved か ambiguous になること(単調性。ambiguous への遷移を除いて結果は変わらない)、(b) 同じ関数を別の可視集合で具体化しても、各具体化の証拠が独立に決まること。`ModuleRoles` の EOF 検査が、その file の可視集合を使うこと。
+
 ## Lean に入ったもの(commit 順)
 | commit | 内容 |
 | --- | --- |

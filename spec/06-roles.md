@@ -59,6 +59,7 @@ struct box 'a { value: 'a } with:
 - **`impl` は、それを含むファイルが読み込まれたときにだけ候補になる。** 読み込まれていないファイルの `impl` は、method 選択にも role の解決にも入らない。
   読み込まれた後の可視性は、通常の module の可視性（`my` / `our` / `pub`）に従う。
 - 同じ role と型に対して複数の `impl` が候補になる場合は**曖昧**として拒否される（確定, 2026-11-04）。
+- **`impl` の候補は、具体化した場所（呼び出し側）で見えるものから選ぶ**（確定, 2026-11-05）。`lib.yu` の `twice(x) = x.add x`（`'a: Add`）を `user.yu` で `user_id` に使うなら、`Add user_id` は `user.yu` の可視範囲で探す。見つかった `impl` の証拠は関数へ渡される。入れ子の `where`（`impl Display (list 'a)` の `'a: Display` など）も、根の呼び出し側の可視範囲で解く。定義側（`lib.yu`）からは見えない `impl` でも、呼び出し側から見えれば使える。同じ式でも、見える `impl` が違う場所では結果が変わりうる。可視性は通常の module の可視性（`my` / `our` / `pub`）に従う。
 
 出典: `main:web/docs/ja/reference/structs.md` §impl、`main:spec/2026-06-04-method-selection.md` §impl候補の有効範囲
 
