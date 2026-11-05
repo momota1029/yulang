@@ -273,14 +273,16 @@ theorem solve_targets_exact [DecidableEq Vertex] (vertices : List Vertex)
     close_complete_targets vertices graph complete first last weight⟩
 
 /-- The input graph itself supplies the finite support. Even if the type of
-vertex identifiers is infinite, every intermediate vertex is an edge target. -/
+vertex identifiers is infinite, every intermediate vertex is an edge target.
+Eliminate each distinct target once: repeated elimination preserves meaning
+but can expand even a single seeded cycle into millions of linear components. -/
 def solveFinite [DecidableEq Vertex] (graph : Graph n Vertex) (first last : Vertex) : Semi n :=
-  solve (graph.map Edge.target) graph first last
+  solve (graph.map Edge.target).eraseDups graph first last
 
 theorem solveFinite_exact [DecidableEq Vertex] (graph : Graph n Vertex)
     (first last : Vertex) (weight : Weight n) :
     Meaning (solveFinite graph first last) weight ↔ Path graph first last weight :=
-  solve_targets_exact (graph.map Edge.target) graph
-    (fun edge member => List.mem_map.mpr ⟨edge, member, rfl⟩) first last weight
+  solve_targets_exact (graph.map Edge.target).eraseDups graph
+    (fun edge member => List.mem_eraseDups.mpr (List.mem_map.mpr ⟨edge, member, rfl⟩)) first last weight
 
 end Yulang.WeightedPaths
