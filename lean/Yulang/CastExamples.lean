@@ -1,4 +1,5 @@
 import Yulang.Methods
+import Yulang.LiteralCasts
 
 /-!
 # Executable boundary regressions
@@ -140,5 +141,36 @@ theorem duplicate_union_members_do_not_create_ambiguity :
       .resolved intType := by
   simp [Methods.checkCall, Methods.resolve, Methods.candidates, Methods.select, Methods.AllEqual,
     Methods.membersAccept, hasAdd] <;> decide
+
+def intToId : Registry 2 where
+  types := idToInt.types
+  rules := [(1, 0)]
+
+def integerLiteral : LiteralCasts.DeferredLiteral :=
+  ⟨100, [⟨101, intType⟩]⟩
+
+theorem chosen_literal_target_checks_the_original_site :
+    LiteralCasts.finish equalityCompatibility intToId integerLiteral (some idType) =
+      some (integerLiteral.targetPlan idType) := by
+  simp [LiteralCasts.finish, LiteralCasts.sitesAccept, integerLiteral] <;> decide
+
+theorem already_built_list_is_not_rewritten :
+    checkBoundary equalityCompatibility intToId (listType intType) (listType idType) =
+      .rejected := by
+  simp [checkBoundary] <;> decide
+
+def mixedLiteral : LiteralCasts.DeferredLiteral :=
+  ⟨200, [⟨201, intType⟩, ⟨202, idType⟩]⟩
+
+theorem eof_keeps_the_original_element_union :
+    LiteralCasts.finish equalityCompatibility idToInt mixedLiteral none =
+      some ⟨200, .unionOf [intType, idType],
+        [.keep ⟨201, intType⟩, .keep ⟨202, idType⟩]⟩ := by
+  simp [LiteralCasts.finish, LiteralCasts.DeferredLiteral.fallbackPlan, mixedLiteral] <;> decide
+
+theorem literal_target_rejects_a_missing_element_cast :
+    LiteralCasts.finish equalityCompatibility idToInt
+      ⟨300, [⟨301, intType⟩, ⟨302, strType⟩]⟩ (some intType) = none := by
+  simp [LiteralCasts.finish, LiteralCasts.sitesAccept] <;> decide
 
 end Yulang.CastExamples
