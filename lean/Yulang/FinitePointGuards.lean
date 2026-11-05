@@ -12,7 +12,9 @@ Conversely, every integer translation with finitely many forbidden input points
 has such a program. A point is tested by translating its weight vector to zero,
 applying the ordinary residual for its key, then translating back. The test
 uses the full occurrence: another key with the same weights remains permitted.
-This is an expressibility theorem, with no general reachability decision claim.
+Finite graphs of these transports embed into finite row problems, with exact
+preservation of reachability and the least set solution. This is an
+expressibility theorem, with no general reachability decision claim.
 -/
 
 namespace Yulang.FinitePointGuards
@@ -235,5 +237,130 @@ theorem eval_encode [DecidableEq Key] (normal : NormalForm n Key)
       ∃ input, row.eval (RecursiveRows.algebra n Key) rows input ∧ normal.run input = some output := by
   rw [eval_wrap]
   simp only [encode_run]
+
+/-! ## Finite guarded translation graphs embed into finite row problems -/
+
+open RecursiveRowGraph (Source Route compileExpr)
+
+theorem compile_applyAction (action : Action n Key) (row : RowExpr Key (Fin n) Slot) :
+    compileExpr (applyAction action row) = (compileExpr row).map (Route.push action) := by
+  cases action <;> rfl
+
+theorem compile_wrap (program : Program n Key) (row : RowExpr Key (Fin n) Slot) :
+    compileExpr (wrap program row) =
+      (compileExpr row).map (fun route => ⟨route.source, route.program ++ program⟩) := by
+  induction program generalizing row with
+  | nil => simp [wrap]
+  | cons action rest ih =>
+      rw [wrap, ih, compile_applyAction]
+      simp only [List.map_map]
+      congr 1
+      funext route
+      cases route
+      simp [Route.push, List.append_assoc]
+
+def sourceRow : Source Key Slot → RowExpr Key (Fin n) Slot
+  | .head key => .head key
+  | .slot name => .var name
+
+theorem compile_source (source : Source Key Slot) :
+    compileExpr (sourceRow (n := n) source) = [⟨source, []⟩] := by
+  cases source <;> rfl
+
+structure GuardedEdge (n : Nat) (Key Slot : Type) where
+  source : Source Key Slot
+  transport : NormalForm n Key
+  target : Slot
+
+def GuardedEdge.toEdge (edge : GuardedEdge n Key Slot) : RecursiveRowGraph.Edge n Key Slot :=
+  ⟨edge.source, encode edge.transport, edge.target⟩
+
+def GuardedEdge.toRule (edge : GuardedEdge n Key Slot) : RecursiveRows.Rule n Key Slot :=
+  ⟨edge.target, wrap (encode edge.transport) (sourceRow edge.source)⟩
+
+/-- An arbitrary initial integer point is expressible from its ordinary raw
+head; initialization does not restrict the starting weights to zero. -/
+def GuardedEdge.seed (target : Slot) (point : Occurrence n Key) : GuardedEdge n Key Slot :=
+  ⟨.head point.key, ⟨point.weights, []⟩, target⟩
+
+theorem GuardedEdge.seed_run [DecidableEq Key] (target : Slot) (point : Occurrence n Key) :
+    (GuardedEdge.seed target point).transport.run (raw point.key) = some point := by
+  simp only [GuardedEdge.seed, NormalForm.run, List.not_mem_nil, ↓reduceIte]
+  congr 1
+  apply Occurrence.ext
+  · rfl
+  intro index
+  simp [translate, raw]
+
+abbrev GuardedGraph (n : Nat) (Key Slot : Type) := List (GuardedEdge n Key Slot)
+
+def programGraph (graph : GuardedGraph n Key Slot) : RecursiveRowGraph.Graph n Key Slot :=
+  graph.map GuardedEdge.toEdge
+
+def rowProblem (graph : GuardedGraph n Key Slot) : RecursiveRows.Problem n Key Slot :=
+  graph.map GuardedEdge.toRule
+
+/-- Compiling the embedded row problem returns precisely its encoded edge
+programs. There are no extra control slots, branches, or assumptions. -/
+theorem compile_rowProblem (graph : GuardedGraph n Key Slot) :
+    RecursiveRowGraph.compile (rowProblem graph) = programGraph graph := by
+  induction graph with
+  | nil => rfl
+  | cons edge rest ih =>
+      change (compileExpr edge.toRule.lower).map (Route.edge edge.toRule.target) ++
+        RecursiveRowGraph.compile (rowProblem rest) = edge.toEdge :: programGraph rest
+      rw [ih]
+      simp [GuardedEdge.toRule, compile_wrap, compile_source, Route.edge, GuardedEdge.toEdge]
+
+/-- Reachability stated directly with finite forbidden points and integer
+translations, independently of row expressions and transport programs. -/
+inductive GuardedReachable [DecidableEq Key] (graph : GuardedGraph n Key Slot) :
+    Slot → Occurrence n Key → Prop where
+  | head {key : Key} {transport : NormalForm n Key} {target : Slot} :
+      ⟨.head key, transport, target⟩ ∈ graph →
+      transport.run (raw key) = some output → GuardedReachable graph target output
+  | step {source target : Slot} {transport : NormalForm n Key} :
+      ⟨.slot source, transport, target⟩ ∈ graph → GuardedReachable graph source input →
+      transport.run input = some output → GuardedReachable graph target output
+
+theorem seed_reachable [DecidableEq Key] (graph : GuardedGraph n Key Slot)
+    (target : Slot) (point : Occurrence n Key) (declared : GuardedEdge.seed target point ∈ graph) :
+    GuardedReachable graph target point :=
+  .head declared (GuardedEdge.seed_run target point)
+
+theorem guarded_reachable_program [DecidableEq Key] (graph : GuardedGraph n Key Slot)
+    (slot : Slot) (occurrence : Occurrence n Key) :
+    GuardedReachable graph slot occurrence ↔
+      RecursiveRowGraph.Reachable (programGraph graph) slot occurrence := by
+  constructor
+  · intro reached
+    induction reached with
+    | head declared execution =>
+        exact .head (List.mem_map.mpr ⟨_, declared, rfl⟩) (by simpa only [encode_run] using execution)
+    | step declared reached execution ih =>
+        exact .step (List.mem_map.mpr ⟨_, declared, rfl⟩) ih (by simpa only [encode_run] using execution)
+  · intro reached
+    induction reached with
+    | head declared execution =>
+        obtain ⟨edge, member, equality⟩ := List.mem_map.mp declared
+        cases edge with
+        | mk source transport target =>
+            cases equality
+            exact .head member (by simpa only [encode_run] using execution)
+    | step declared reached execution ih =>
+        obtain ⟨edge, member, equality⟩ := List.mem_map.mp declared
+        cases edge with
+        | mk source transport target =>
+            cases equality
+            exact .step member ih (by simpa only [encode_run] using execution)
+
+/-- Arbitrary finite-point-guarded integer translation graphs occur inside the
+existing row language. Their reachability is exactly the least row solution. -/
+theorem guarded_graph_exact [DecidableEq Key] (graph : GuardedGraph n Key Slot)
+    (slot : Slot) (occurrence : Occurrence n Key) :
+    GuardedReachable graph slot occurrence ↔
+      RecursiveRows.Derives (rowProblem graph) slot occurrence := by
+  rw [guarded_reachable_program, ← compile_rowProblem]
+  exact RecursiveRowGraph.reachable_iff_derives _ _ _
 
 end Yulang.FinitePointGuards
