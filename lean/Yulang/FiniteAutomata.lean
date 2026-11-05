@@ -1,4 +1,5 @@
 import Yulang.FiniteBooleanReachability
+import Yulang.FiniteWorklist
 import Yulang.Horn
 
 /-!
@@ -7,7 +8,8 @@ import Yulang.Horn
 The independent `Runs` judgment consumes arbitrary finite words. Executable
 subset construction computes its exact set of endpoints; a finite graph of
 pairs of such subsets detects every counterexample to language inclusion.
-Graph reachability uses the materialized Boolean closure, with no bound on
+Reachability explores only successors of the initial subset pair. The finite
+powerset cardinality proves termination and completeness, with no bound on
 word length and no supplied termination fuel.
 
 The alphabet is supplied as a finite list. The unrestricted inclusion theorem
@@ -15,8 +17,11 @@ requires that this list covers the letter type. Its restricted version covers
 exactly words whose letters occur in the list. Repetitions and letter order do
 not change the meaning. States are finite but words have unbounded length.
 
-This reference algorithm explicitly enumerates the two powersets and computes
-their product reachability matrix. It is not a claim of production performance.
+The complete powerset enumeration is retained as a proof of the cardinality
+bound; the executable search does not construct it or a product matrix.
+Subset coordinates are materialized once at every transition, avoiding nested
+recomputation of earlier transitions. The worst-case reachable powerset remains
+exponential; this is not a claim of production performance.
 -/
 
 namespace Yulang.FiniteAutomata
@@ -116,7 +121,13 @@ theorem pairEq_exact (left right : Pair n m) : pairEq left right = true ↔ left
   exact ⟨fun parts => Prod.ext parts.1 parts.2, fun equal => ⟨congrArg Prod.fst equal, congrArg Prod.snd equal⟩⟩
 
 def stepPair (left : NFA Letter n) (right : NFA Letter m) (pair : Pair n m) (symbol : Letter) : Pair n m :=
-  (advance left pair.1 symbol, advance right pair.2 symbol)
+  let leftValues := Vector.ofFn (advance left pair.1 symbol)
+  let rightValues := Vector.ofFn (advance right pair.2 symbol)
+  (fun target => leftValues[target.val], fun target => rightValues[target.val])
+
+theorem stepPair_eq (left : NFA Letter n) (right : NFA Letter m) (pair : Pair n m) (symbol : Letter) :
+    stepPair left right pair symbol = (advance left pair.1 symbol, advance right pair.2 symbol) := by
+  simp [stepPair]
 
 def runPair (left : NFA Letter n) (right : NFA Letter m) : Pair n m → List Letter → Pair n m
   | pair, [] => pair
@@ -127,7 +138,7 @@ theorem runPair_eq (left : NFA Letter n) (right : NFA Letter m)
     runPair left right pair word = (run left pair.1 word, run right pair.2 word) := by
   induction word generalizing pair with
   | nil => rfl
-  | cons symbol rest ih => simp only [runPair, ih, stepPair, run]
+  | cons symbol rest ih => simp only [runPair, ih, stepPair_eq, run]
 
 def badPair (left : NFA Letter n) (right : NFA Letter m) (pair : Pair n m) : Bool :=
   acceptsSubset left pair.1 && !(acceptsSubset right pair.2)
@@ -145,6 +156,20 @@ def pairs (n m : Nat) : List (Pair n m) :=
 theorem mem_pairs (pair : Pair n m) : pair ∈ pairs n m := by
   exact List.mem_flatMap.mpr ⟨pair.1, Horn.mem_valuations _,
     List.mem_map.mpr ⟨pair.2, Horn.mem_valuations _, rfl⟩⟩
+
+theorem valuations_length (states : Nat) : (Horn.valuations states).length = 2 ^ states := by
+  induction states with
+  | zero => rfl
+  | succ states ih =>
+      simp only [Horn.valuations, List.length_append, List.length_map, ih, Nat.pow_succ]
+      omega
+
+theorem pairs_length (leftStates rightStates : Nat) :
+    (pairs leftStates rightStates).length = 2 ^ leftStates * 2 ^ rightStates := by
+  simp [pairs, List.length_flatMap, List.map_const', List.sum_replicate_nat, valuations_length]
+
+local instance pairDecidableEq : DecidableEq (Pair n m) := fun left right =>
+  decidable_of_iff (pairEq left right = true) (pairEq_exact left right)
 
 abbrev Vertex (n m : Nat) := Fin (pairs n m).length
 
@@ -196,32 +221,69 @@ theorem word_path (alphabet : List Letter) (left : NFA Letter n) (right : NFA Le
           ⟨symbol, over symbol (by simp), step.symm⟩
       · simpa only [runPair, step] using final
 
+def successors (alphabet : List Letter) (left : NFA Letter n) (right : NFA Letter m)
+    (pair : Pair n m) : List (Pair n m) := alphabet.map (stepPair left right pair)
+
+theorem successors_exact (alphabet : List Letter) (left : NFA Letter n) (right : NFA Letter m)
+    (source target : Pair n m) : target ∈ successors alphabet left right source ↔
+      ∃ symbol ∈ alphabet, stepPair left right source symbol = target := by
+  simp [successors]
+
+theorem successor_path_word (alphabet : List Letter) (left : NFA Letter n) (right : NFA Letter m)
+    {source target : Pair n m}
+    (path : FiniteWorklist.Path (successors alphabet left right) source target) :
+    ∃ word, Over alphabet word ∧ runPair left right source word = target := by
+  induction path with
+  | nil pair => exact ⟨[], by simp [Over], rfl⟩
+  | @cons source middle target edge rest ih =>
+      obtain ⟨symbol, member, step⟩ := (successors_exact alphabet left right source middle).mp edge
+      obtain ⟨word, over, finished⟩ := ih
+      refine ⟨symbol :: word, ?_, ?_⟩
+      · intro letter present
+        rcases List.mem_cons.mp present with rfl | inRest
+        · exact member
+        · exact over letter inRest
+      · simpa only [runPair, step] using finished
+
+theorem word_successor_path (alphabet : List Letter) (left : NFA Letter n) (right : NFA Letter m)
+    (source : Pair n m) (word : List Letter) (over : Over alphabet word) :
+    FiniteWorklist.Path (successors alphabet left right) source (runPair left right source word) := by
+  induction word generalizing source with
+  | nil => exact .nil source
+  | cons symbol rest ih =>
+      apply FiniteWorklist.Path.cons
+        ((successors_exact alphabet left right source _).mpr ⟨symbol, over symbol (by simp), rfl⟩)
+      exact ih _ (fun letter member => over letter (List.mem_cons_of_mem _ member))
+
+def reachablePairs (alphabet : List Letter) (left : NFA Letter n) (right : NFA Letter m) :
+    List (Pair n m) :=
+  FiniteWorklist.reachable (successors alphabet left right) (2 ^ n * 2 ^ m)
+    (left.initial, right.initial)
+
+theorem reachablePairs_exact (alphabet : List Letter) (left : NFA Letter n) (right : NFA Letter m)
+    (target : Pair n m) : target ∈ reachablePairs alphabet left right ↔
+      ∃ word, Over alphabet word ∧ runPair left right (left.initial, right.initial) word = target := by
+  rw [reachablePairs, FiniteWorklist.reachable_exact _ _ (pairs n m) mem_pairs (by simp [pairs_length])]
+  constructor
+  · exact successor_path_word alphabet left right
+  · rintro ⟨word, over, rfl⟩
+    exact word_successor_path alphabet left right _ word over
+
 def hasCounterexample (alphabet : List Letter) (left : NFA Letter n) (right : NFA Letter m) : Bool :=
-  let reachability := FiniteBooleanReachability.closure (graph alphabet left right)
-  (List.finRange (pairs n m).length).any fun source =>
-    pairEq (stateAt source) (left.initial, right.initial) &&
-      (List.finRange (pairs n m).length).any fun target =>
-        FiniteBooleanReachability.entry reachability source target && badPair left right (stateAt target)
+  (reachablePairs alphabet left right).any (badPair left right)
 
 theorem hasCounterexample_exact (alphabet : List Letter)
     (left : NFA Letter n) (right : NFA Letter m) :
     hasCounterexample alphabet left right = true ↔
       ∃ word, Over alphabet word ∧ Accepts left word ∧ ¬ Accepts right word := by
-  simp only [hasCounterexample, List.any_eq_true, List.mem_finRange, true_and,
-    Bool.and_eq_true, pairEq_exact, FiniteBooleanReachability.closure_exact]
+  simp only [hasCounterexample, List.any_eq_true, reachablePairs_exact]
   constructor
-  · rintro ⟨source, initial, target, path, bad⟩
-    obtain ⟨word, over, final⟩ := path_word alphabet left right path
+  · rintro ⟨target, ⟨word, over, final⟩, bad⟩
     refine ⟨word, over, ?_⟩
-    rw [initial] at final
     rw [← final] at bad
     exact (badPair_run_exact left right word).mp bad
   · rintro ⟨word, over, accepted, rejected⟩
-    obtain ⟨source, initial⟩ := stateAt_covers (left.initial, right.initial)
-    obtain ⟨target, path, final⟩ := word_path alphabet left right source word over
-    refine ⟨source, initial, target, path, ?_⟩
-    rw [final, initial]
-    exact (badPair_run_exact left right word).mpr ⟨accepted, rejected⟩
+    exact ⟨_, ⟨word, over, rfl⟩, (badPair_run_exact left right word).mpr ⟨accepted, rejected⟩⟩
 
 def checkSubset (alphabet : List Letter) (left : NFA Letter n) (right : NFA Letter m) : Bool :=
   !(hasCounterexample alphabet left right)
