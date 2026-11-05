@@ -45,6 +45,11 @@ import Yulang.Polymorphism
 import Yulang.RowInference
 import Yulang.RecursiveRows
 import Yulang.RecursiveEffects
+import Yulang.RecursiveEffectExamples
+import Yulang.RecursiveEffectsConservativity
+import Yulang.OperationalTyping
+import Yulang.OperationalTypingExamples
+import Yulang.CheckedHygiene
 import Yulang.SignedStructural
 import Yulang.DirectedHandlerInference
 import Yulang.Roles

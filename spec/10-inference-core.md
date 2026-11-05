@@ -370,8 +370,30 @@ protect(b, ∅, r) ≤ r
 
 `RecursiveEffects` は10.5.1の全core構文にrequest・boundary・shallow handlerを加え、すべての部分式を同じ再帰ASTで表す。operationのpayload、lambdaの本体、handlerのactionと両armにも、さらにhandlerやoperationを含められる。10.5.2の一段ごとの生成規則をこの有限ASTへ接続したもので、新しいsurface構文やhandler規則は加えない。
 
-`generate_models_iff_typing` は任意の式、型・行モデル、対応するscheme環境と署名環境について、生成制約の解と独立な型判断を双方向に対応させる。`principal_exact` はすべての許される結果の型・行を表し、`principal_most_general` は健全な候補schemeの解がこの生成schemeの解に含まれることを述べる。生成は式の構造に沿って停止し、solverの成功やruntime上界を前提にしない。解を見つける全体solverの主性・停止性とは別の定理である。
+`generate_models_iff_typing` は任意の式、空・和・行包含を整合させる `RowView` を備えた型・行モデル、対応するscheme環境と署名環境について、生成制約の解と独立な型判断を双方向に対応させる。`principal_exact` はすべての許される結果の型・行を表し、`principal_most_general` は健全な候補schemeの解がこの生成schemeの解に含まれることを述べる。生成は式の構造に沿って停止し、solverの成功やruntime上界を前提にしない。解を見つける全体solverの主性・停止性とは別の定理である。
 
 computation引数、値制限付きの多相let、computed letの共有、関数の入力行と出力行の区別は維持する。handlerの継続は元のaction行を保ち、armのeffectは残余を取った後に加える。境界規則は即時のcomputation行に作用し、値内部の潜在callbackを自動で変換する規則にはしない。
 
 この統合層のoperation署名は、外側の型slotを参照できる単相署名である。fresh slotを増やすときは署名中の外側slotもrenameし、利用ごとに勝手に一般化しない。10.5.2のoperation-local多相と10.8のrole証拠は別層に残り、任意の入れ子ASTとの統合は未証明である。再帰SCC、source elaboration、型付けからの実行時安全性も、この生成器の定理だけでは従わない。
+
+`RecursiveEffects.Conservativity.generate_preserved` は、既存の `Inference.Expr` の全constructorについて、生成formulaが旧生成結果の埋込みと等しいことを証明する。fresh slotの配置、値制限letの両分岐、principal schemeの結果binderを含めて保存する。`generated_core_exact` と `principal_core_exact` は既存の `Inference.Typing` そのものとの一致も導く。
+
+operationのkeyは10.5.2と同じく、family・operation・family型引数を区別する解決済み識別子を想定する。genericな `Key` にfamily名だけを渡してoperationの区別を潰してよい、という意味ではない。`RecursiveEffectExamples` は入れ子handler、effectを含む多相lambda、未使用のcomputation引数とcomputed letを検査する。armの再送出、保護、負の解除差分を空行へ消せないことは、任意の結果型とslot割当てについて示す。
+
+## 10.12 型付けから実際のeffect上界へ
+
+### 10.12.1 形状解決済みのchecker
+
+`OperationalTyping` はatom・pair・関数の有限shapeが決まった式を扱う。lambdaの入力型とhandlerの結果型は構文に持ち、残りのcomputation行を実際の `infer` で計算する。関数型の入力は値型と行の両方で反変、出力は共変に検査する。`infer_exact` はこのcheckerと独立な型判断との双方向の一致を証明する。未知のshapeを推論するsolverや、全言語の主型の決定手続きではない。
+
+評価は既存の符号付きrequest treeを使い、関数へ引数をcomputationとして渡す。型の意味は「即時の要求が推論行に収まること」と「返された値が型に適合すること」の連言であり、関数では任意の適合するcomputation引数に対する結果まで要求する。`typing_sound` は部分式の型付けからこの意味を導く。handlerのaction・armの安全性を外から仮定せず、各型付けへの帰納仮定を使う。`closed_inferred_bound` は閉式のchecker受理だけから、実行中のすべての要求と継続分岐の上界を得る。
+
+`OperationalTypingExamples` では未使用引数、明示した許可の下での引数の処理、shallow再開後に外へ残る要求、同じ継続の二回利用、armからの同一key再送出、pair内のcallback、負の差分を検証する。checker結果だけでなく、実際の評価値・request treeと、不適切な空行やraw行では上界にならないことも確認する。
+
+この層のatomは一つの共通carrierで、operationのpayload・responseも同じcarrierを使う。任意のsource署名の安全性、一般再帰、sourceのelaboration、全言語のpreservation/progressは対象に含めない。
+
+### 10.12.2 fresh境界での衛生性
+
+`CheckedHygiene.inferred_fresh_origin` はchecker受理から実行上界を得て、推論行が古い境界からfresh座標へ持ち上げた `RowExpr` の評価であるという静的な前提から、実際の評価木の `ZeroAt` を導く。未知tailに具体的な負の重みが含まれていても、古い座標の重みはそのまま保たれる。行の表現をchecker自身が発見するとは主張しない。
+
+`closed_checked_boundary` は閉式のchecker受理だけを前提に、実際にfresh座標を割り当て、許可なしで保護したrequest treeについて、対応する行上界と任意の内側shallow handlerによる非captureを証明する。runtime上界や原点条件を追加の入力に要求しない。fresh化と保護が作用するのは即時のrequest treeであり、返り値は元の `Value n` のまま保持する。潜在closureに型に沿ったtransportを挿入することと、sourceの各境界がこの割当てを使うことは別の接続義務である。

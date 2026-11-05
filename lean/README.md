@@ -6,7 +6,7 @@ Lean は `lean-toolchain` の **4.35.0** に固定する。依存は Lean/Std �
 
 ```sh
 cd lean
-lake build
+lake build --wfail
 lake env lean --trust=0 Audit.lean
 ```
 
@@ -42,6 +42,9 @@ lake env lean --trust=0 Audit.lean
 | `Yulang.Horn` | 任意の有限Horn制約に対する解の存在判定と最小モデル。成功・失敗の両方向の完全性 | 構造部分型、再帰型、無限の保護stack、roleの解決 |
 | `Yulang.RecursiveRows` | 保護・解除・残余を含む正の再帰的行制約 `E ≤ slot` の最小集合解、全解で強制される出現との一致、固定上界との両立の必要十分条件、既存の有限行解釈の保存、有限行では解けない保護反復の例 | 解への所属の決定手続き、任意の右辺を持つ行包含、構造型solver、sourceからの制約抽出、すべての再帰行の有限表示 |
 | `Yulang.RecursiveEffects` | 全既存core式とrequest・boundary・shallow handlerを同じ再帰ASTに置く有限制約生成、任意の入れ子について独立な型判断との双方向一致・制約schemeの主性、値制限付き多相letと署名のambient slotの保持 | operation-local多相・roleを含む統合、再帰SCC、source elaboration、制約solver、型付けからruntime安全性への接続 |
+| `Yulang.RecursiveEffectsConservativity` / `Yulang.RecursiveEffectExamples` | effectを含まない全core式で実際の生成formula・principal schemeを保存する等式、旧型判断との一致、入れ子handler・多相let・computation引数・保護と負債の正例と負例 | source parserからの翻訳、全制約solver |
+| `Yulang.OperationalTyping` / `Yulang.OperationalTypingExamples` | 形状解決済みの単相核の実行可能なcheckerと独立型付けの一致、checker受理から実際の全requestの推論行上界と返り値の潜在関数の健全性、shallow継続・複数回再開・arm再送出・格納callbackの実行例 | 未知shapeの推論、一般再帰、source elaboration、異なるpayload型を持つoperation、値内部への衛生変換の挿入 |
+| `Yulang.CheckedHygiene` | checker受理から実行上界を導き、推論行のfreshな表現または実際の座標割当てから原点条件・新境界での非captureを導くこと | sourceが全境界を正しく割り当てること、payload・response・返り値の潜在closureのtransport |
 | `Yulang.FiniteReachability` | 有限隣接リストから計算する到達集合と独立な有限経路の判断の一致、空の始点集合からの到達不能性、辺・始点の順序と重複に対する不変性 | source の依存関係抽出、未具体化の多相 cast 集合の有限性、実用的な計算量 |
 | `Yulang.EvaluationOrder` | 名前解決済みの有限宣言・module 文からの評価依存計算と独立な推移的依存判断の一致、computed 自己依存・未来の computed binding の拒否、受理された初期化・文の全依存が元の順序で利用可能なこと、lambda による遅延と直接適用時の依存の復帰 | source の名前解決、局所 closure/alias や格納された関数のフロー、任意の高階 callback の実行が依存判断に含まれること、全言語の副作用順序の保存 |
 | `Yulang.EvaluationSafety` / `Yulang.EvaluationReads` | 名前で決まらない呼出しへのmodule全体の関数本体近似、独立なCBV読み取りprefixの上界、closure由来の保存、局所・返却・格納closureの読み取り安全性、既評価prefixからの参照先の利用可能性 | source elaboration、外部由来closure、可変store、計算全体の停止・progress。module内のlambda由来とsource位置の構造を明示 |
@@ -115,6 +118,10 @@ lake env lean --trust=0 Audit.lean
 
 `contravariant_debt_preserves_local_callback` は、callbackを奪う内側handlerの結果 `99` と、transportを入れて呼出側のhandlerへ届く結果 `7` を比較する。引数側の負の差分が内側でのcaptureを阻止し、帰りの正の差分が元の可視性を回復する。
 
+`FreshBoundaries` は、古い境界を単射で埋め込んで新しい座標を割り当てる。既存の負の重みも保ったまま、新座標での `ZeroAt` を構成する。`FreshRowInference.fresh_eval_zero` は未知tailを含む全 `RowExpr` で同じ条件を導く。`CheckedHygiene.inferred_fresh_origin` はその静的な行の表現とchecker受理から、実際の評価木の原点条件を得る。行の表現は明示的な前提であり、checker自身がsourceの境界割当てを発見したとは扱わない。
+
+`CheckedHygiene.closed_checked_boundary` は閉式のchecker受理だけから、評価木を実際にfresh化して保護した後の行上界と、任意の内側shallow handlerによる非captureを結合する。action・armの上界や `ZeroAt` は入力に要求しない。このfresh化は即時request treeに作用し、返り値の型は元の `Value n` のままである。値の内部に格納されたclosureを新しい境界へtransportする定理とは区別する。
+
 ## 型推論の主定理
 
 `AnnotationSnapshots.observe` は、現在の行式に含まれる concrete な頭を符号付き行として計算し、残った行変数をこの観測では opaque とする。観測を取る前に、その時点ですでに分かっている置換は適用されている必要がある。`TrackedRow.subst` は行式を具体化し、注釈時点の履歴をそのまま保つ。`principal_observed_exact` は、保存した観測の許容性と既存の宣言的型判断の連言が、観測を付けた主制約schemeの意味と一致することを示す。許容された観測から後の行変数へ上界・等式は追加しない。T3 の例では、未知行を観測してから禁止effectへ具体化した履歴は受理され、その具体化後の行を**新しく**観測すれば拒否される。当初から既知で可視な禁止effectを未知tailの横に置いても拒否される。
@@ -159,6 +166,14 @@ lake env lean --trust=0 Audit.lean
 `SignedStructural` は実際の符号付き行を使い、生成されたoperationの制約が自身のeffectを含む行で成立し、空行では成立しないと証明する。保護前の解除が作る `−1` の差分についても、生成された境界制約がその行を保持し、空行へ消せないことを証明する。型構築子・部分型規則・scalarの分離は `StructuralBase` を通して非負モデルと共有し、別の型体系を複製しない。
 
 `DirectedHandlerInference` の `generated_signed_handler_composes_effect_bounds` は、成立した `RowInference.handlerConstraints` から得たaction・armの型付けと、明示された実行時の上界を組み合わせる。結論は実際の `Directed.Computation.shallowHandle` の出力上界である。制約の定理とoperationalな定理を別々に置くだけでなく接続しているが、型付けから実行時上界を得る前提そのものを証明したとは扱わない。
+
+`RecursiveEffects` は全core構文とrequest・boundary・handlerを一つの再帰ASTにまとめる。生成の双方向定理は、型モデルと行代数の空・和・包含を整合させる `RowView` の下で成立する。`RecursiveEffects.Conservativity.generate_preserved` は旧 `Inference.Expr` の全constructorについて、fresh slotや値制限letの両分岐まで含め、生成formulaが旧生成結果の埋込みと等しいことを証明する。`principal_core_exact` は旧 `Inference.Typing` 自体との対応を導く。新しい生成器へ置き換えたことだけを理由に、既存coreの意味を変更しない。
+
+`RecursiveEffectExamples` は入れ子のhandlerとlambda内部のhandlerを検査する。同じkeyをarmで再送出する式、保護された要求、負の解除差分は、任意の結果型・slot割当てでも空行には型付けできない。未使用computation引数を純粋に扱う一方、computed letが実行する右辺のeffectを消せないことも示す。
+
+`OperationalTyping.infer` はshapeが解決し、lambdaの入力型とhandlerの結果型が与えられた単相核のcheckerである。`infer_exact` は実行可能なcheckerと独立な構文的型判断の一致であり、未知の構造型や全言語の主型を求めるsolverの完全性ではない。`typing_sound` はaction・armを含む部分式の型付けに帰納法を適用し、実際のrequest treeの上界と、返された関数を任意の適合するcomputation引数へ適用したときの上界を同時に導く。閉式の `closed_inferred_bound` はchecker受理だけを前提とする。
+
+この評価は関数へ引数をcomputationとして渡す。引数の行を無条件に呼出し結果へ加えず、computed letは右辺を実行する。shallow継続の型には元のaction行を保ち、armが新しく出す要求は残余の外へ加える。`OperationalTypingExamples` は未使用引数、明示的に許可した引数の処理、再開後の未処理要求、同じ継続の二回利用、同じkeyの再送出、pair内のcallback、負の差分についてchecker結果と実際の評価を確認する。即時boundaryが返り値内のcallbackを勝手に変換しないことも検証する。
 
 ## 検証ゲート
 
