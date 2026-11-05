@@ -294,3 +294,51 @@ SCC後の一般化はブロック全体の検査を含み、量化するslotに�
 `CastGraph` は有限のground登録集合について、直接規則の重複と複数の間接経路を区別する。`Methods.checkCall_exact` は相異なるmethod所有型がちょうど一つであることと、全receiver memberからその型への境界変換を要求し、memberの順列で結果は変わらない。
 
 `LiteralCasts` はlist literalの元の構築位置と要素型を保留する。期待要素型が決まれば各構築位置で境界を検査し、EOFまで期待型がなければ元の要素型のunionを記録して変換を挿入しない。構築済みのnominalなlistの要素を変換する規則とは別である。cast本体の実行・effectと弱い型変数の解探索は、この計画の正確性の対象外となる。
+
+## 10.9 追加確定事項の形式化
+
+2026-11-05の追補（章2.1、5.5b、6.2、6.4–6.5）により、前節で分離していた義務のうち次を接続する。source全体の翻訳や全体solverの完了とは区別する。
+
+### 10.9.1 一般化直前の観測
+
+`AnnotationFinalization` は一つのbinding/SCCの有限Horn制約を全部集め、実際の最小解を求めてから符号付き行を観測する。`known_iff_forced` は、成功した最小解の真のfactが、全モデルで強制されるfactと一致することを示す。制約のmembershipが同じなら解は同じで、制約の生成順序・重複・memberの収集順序に受理は依存しない。memberを並べ替えても名前解決済みのfact/row識別子は保つ。
+
+同じSCCの別memberから伝わるeffectも検査し、後のscheme具体化は保存した観測を再検査しない。入れ子のbindingは自身の単位を確定するAPIで扱う。有限fact interfaceを構造推論から漏れなく生成することと、source traversalが各APIを呼ぶ時点の正しさはelaborationの義務として残る。
+
+### 10.9.2 純粋なcastの実行
+
+`PureCasts` は、実際の符号付きcomputationで表したcast本体と、その推論行による上界を受け取る。宣言の検査は行全体が空であることを要求する。可視なheadだけを消して純粋と判定することはなく、保護された要求・負の差分も拒否する。
+
+チェック済みの基本castから、合成・積・和・関数wrapperのplanを作る。`Plan.run_eq_pure` はplan全体の純粋性を導き、`insert_requestTree` は境界挿入前後で返り値を除いた要求木が等しいことを示す。関数の入力は反変に変換し、出力は共変に変換する。`wrapper_requestTree` が比較する元の関数の呼出しは、変換後の引数に対する呼出しであり、変換前後の入力値に対する実行が等しいとは主張しない。任意の宣言済みの潜在行の上界は保たれる。
+
+本体のoperationalな行上界をsource型付けから導くことと、`Casts.Boundary`から実行planを合成することは別に必要である。
+
+### 10.9.3 多相castの有限探索
+
+`ParametricCastRules` は第一階の型について、targetサイズの非増大と全変数の出現回数の非増大を有限に検査する。その条件から、任意の置換後にもtargetサイズがsource以下になることを導く。固定ground宣言がサイズを増やす場合には、宣言のtargetサイズも全体の上界へ含める。
+
+到達先の構築子は、出発型と有限個の宣言targetに現れるものに限られる。`ParametricCastUniverse` はその有限alphabetとサイズ上界からground型を列挙し、任意の明示cast経路の到達先が列挙に含まれることを証明する。`ParametricCasts` はこの集合からグラフを構成して探索する。成功は適格な宣言・groundなsource・経路の存在と同値であり、検査済みの領域での失敗は経路の不在と同値である。等サイズの循環を禁止せず、任意の深さ打切りも用いない。
+
+これは明示規則のendpoint連鎖の決定可能性である。直接規則の重複・重なり診断、source型の正規化、構造的な持ち上げを混ぜた全体のelaboration/solverは別の責務となる。列挙型の参照実装であり、性能上の主張ではない。
+
+`box 'a → 'a` の具体化に合わせ、ground境界もnominal/baseなsourceから任意のtargetへの外側全体のcastを許す。pair・関数・unionを返すunboxの例を検証した。sourceがunionの場合は全memberの境界を要求し、union全体だけの規則でこの要求を迂回しない。
+
+### 10.9.4 nominal構築位置の保留
+
+`NominalConstructions` はlist・struct・enumの各構築位置を有限の不変パラメータslotへ対応させる。期待型が決まったslotでは、対応する元の値すべてに境界変換を要求する。EOFで未解決のslotには、そのslotに属する元の型だけのunionを記録し、変換を挿入しない。構築子・enum tag・元の位置を保持し、構築済みの値の内部へcastを通さない。
+
+一つのslotのlist構築への特殊化は、失敗も含め既存の `LiteralCasts.finish` と厳密に一致する。出現しない未解決パラメータの空union記述は、既定型や公開可能性を決めるものではない。sourceからの全出現位置の収集と弱い変数の解探索は前段に残る。
+
+### 10.9.5 実際の読み取りと初期化順序
+
+`EvaluationSafety` は名前で決まらない呼出しについて、moduleの宣言・文に含まれるすべてのlambda本体の参照を候補にする。`EvaluationReads` はclosureと捕捉環境、pair/projection、分岐、storeを持つ独立なCBV意味論を定義する。読み取りprefixは、値のないstoreから読もうとする場合や、その後に発散する場合も表す。
+
+`reads_needed` は、closureがmodule内のlambdaから作られたという由来条件の下で、実際の読み取りを静的な依存集合が覆うことを証明する。由来条件は実行で保たれ、初期化済みであることや読み取りの安全性を仮定しない。checkerの受理からcomputedな読み取り先の真の先行性を導き、先行する初期化結果を記録したprefix storeでは、その値が存在することを導く。初期化の実行結果を記録すると、このprefix不変条件が次の位置へ進む。`EvaluatedPrefix` は空storeからのcomputed宣言の実際の初期化履歴を表し、closureの由来と先行値の存在をその履歴から導く。位置を進めるときは、その位置の宣言が一意であることを要求する。
+
+`Initialization.generate` はこの検査をSCC型推論と同じ本体へ課す。`generated_prefix_initializer_read_initialized` は、生成制約の解と実際の既評価prefixから、次の初期化の読み取り先に値が存在することを導く。現在の式の終了や読み取り先の利用可能性を前提としない。依存計算は実際の読みの保守的な上界であり、実行時に必ず読まれる集合との同値ではない。外部closure・可変store・source翻訳・全言語のprogressは対象外である。
+
+### 10.9.6 匿名変数とrefの照合
+
+`ImplHeads` はimpl headの各 `_` に別の変数を割り当て、名前付き変数の共有と衝突しないことを、任意の有限headについて証明する。whereの名前から匿名変数を参照できないことも示す。下ろしたheadは既存の第一階matcherへ渡す。
+
+refには委譲規則を加えず、nominal application全体を同じmatcherで調べる。異なる外側の構築子のheadは一致せず、`ref _ int` の特化は任意のeffect引数を受理する。methodの検索段階・可視性・sourceのkind検査までこの照合補題で証明したものではない。

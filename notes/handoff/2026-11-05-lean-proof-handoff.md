@@ -2,11 +2,11 @@
 
 ブランチ `yulang3`。別マシンで続きをやるための文書。
 
-> 証明再開後の追補: この文書の「Lean 未実装」は引き継ぎ時点の記録。決定7〜18に対応するqualified推論・EOF検査・関連型等式・operation辞書・SCC・評価依存・method/castの拡張核を追加した。T3の観測履歴とPaterson宣言検査も接続済み。最新の証明範囲と残る義務は [`lean/README.md`](../../lean/README.md) と [`spec/10-inference-core.md` 10.8](../../spec/10-inference-core.md#108-確定事項を接続した拡張核) を参照する。これらはsource全体のelaboration、全体solver、preservation/progressの完了を意味しない。
+> 証明再開後の追補: この文書の「Lean 未実装」は引き継ぎ時点の記録。決定7〜18に対応する拡張核に加え、21〜26の純粋cast・多相castの有限endpoint探索・実際のclosure読み取りと初期化済みstore・一般化直前の観測・nominal構築境界・ref照合を追加した。章6.2の匿名impl変数も形式化した。最新の証明範囲と残る義務は [`lean/README.md`](../../lean/README.md) と [`spec/10-inference-core.md` 10.8–10.9](../../spec/10-inference-core.md#109-追加確定事項の形式化) を参照する。これらはsource全体のelaboration、全体solver、preservation/progressの完了を意味しない。
 
 ## 読む順番(目次)
 1. 「今どこにいるか」と「割り引いて読む所」: 状況と注意点
-2. 「今日決めたこと」1〜20: 決定の一覧。各項目の末尾に spec の場所がある
+2. 「今日決めたこと」1〜26: 決定の一覧。各項目の末尾に spec の場所がある
 3. 「証明してほしい主張」の節(7〜11 / 12,13 / 14 / 15〜17): ChatGPT に渡す材料。量化子と負例つき
 4. 「Lean に入ったもの」: 参考実装(本命は ChatGPT 側)
 5. 「まだ決まっていない・未着手」: 残り
