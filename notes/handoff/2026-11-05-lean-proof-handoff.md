@@ -93,6 +93,9 @@
     ChatGPT 側の `AnnotationSnapshots`(観測履歴を保存する層)が前提にしていた「何がその時点で既知かを決める solver」の観測時点を、仕様で固定した。
     証明してほしい主張: (a) 観測時点が一般化の直前であれば、受理は本体内の制約生成の順序に依らない(順序不変)。(b) 相互再帰の SCC 内で member の並びを入れ替えても受理は変わらない。(c) 呼び出し側の具体化は、検査済みの snapshot を変えない(`AnnotationSnapshots` で証明済みの性質)。
 
+25. **保留された cast 境界は list に限らない**(6.5)。不変の型引数を持つ nominal 型の構築(struct literal、enum constructor)すべてが、型引数に当たる値に保留された境界を持つ。tuple・record・payload は共変で保留不要。
+    ChatGPT 側の `LiteralCasts` は list に限っていたので、対象を「不変の型引数を持つ nominal 型の構築」に広げる義務が増えた。証明してほしい主張: 構築位置の保留境界が、`'_a` が決まったとき(または EOF)に、list の場合と同じ性質(位置ごとの検査、EOF では変換なしで要素型の合流)を満たすこと。
+
 ## Lean に入ったもの(commit 順)
 | commit | 内容 |
 | --- | --- |
