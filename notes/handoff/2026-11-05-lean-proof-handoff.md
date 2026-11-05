@@ -96,6 +96,9 @@
 25. **保留された cast 境界は list に限らない**(6.5)。不変の型引数を持つ nominal 型の構築(struct literal、enum constructor)すべてが、型引数に当たる値に保留された境界を持つ。tuple・record・payload は共変で保留不要。
     ChatGPT 側の `LiteralCasts` は list に限っていたので、対象を「不変の型引数を持つ nominal 型の構築」に広げる義務が増えた。証明してほしい主張: 構築位置の保留境界が、`'_a` が決まったとき(または EOF)に、list の場合と同じ性質(位置ごとの検査、EOF では変換なしで要素型の合流)を満たすこと。
 
+26. **`ref` の receiver は `ref` だけを探す**(6.4)。中身 `'a` には降りない(値に適用したいなら `$n.method`)。`ref` は普通の nominal 型で、委譲規則はない。`ref _ int` のように一部だけ決めた形に特化した method を定義できる。
+    ChatGPT 側の `Methods` が対象外にしていた「参照型の処理」は、特別な処理が無いと決まったので不要になった。
+
 ## Lean に入ったもの(commit 順)
 | commit | 内容 |
 | --- | --- |

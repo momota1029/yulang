@@ -106,7 +106,16 @@ x.add y
 
 - 候補の探し方は、まず receiver の型に結びついた field と、`with:` で定義した method。次に role の method と effect 行の method。
   **この順序は仕様**で、同じ名前が複数の段にあるときは**この順で先に見つかったものが選ばれる**（確定, 2026-11-04）。
-- `x` が `ref 'e 'a` なら、`'a` に対して同じ探し方をする。
+- **`x` が `ref 'e 'a` のとき、探すのは `ref` だけである**（確定, 2026-11-05）。中身の `'a` には降りない。中身の method を使いたいときは、値を読み出して `$n.add 1` と書く。`ref` は普通の nominal な型として扱い、特別な委譲規則はない。
+  `ref` に対する method は、型の一部だけを決めた形に対しても定義できる。例えば `ref _ int`（effect 行は任意、中身は `int`）に特化した method を `with:` や `impl` で書ける。
+
+```yulang
+my $n = 0
+&n.get                 // ref の method
+$n.add 1               // 中身の int の method
+&n.add 1               // エラー: ref に add は無い（ref _ int に特化した add を定義すれば別）
+```
+
 - **receiver の型が union のとき**（確定, 2026-11-05）。union のメンバーのうち、その method を**持つ型が一つだけ**なら、その型の method に決まる。決まったら、receiver はその method の receiver 型への**普通の cast 境界**として扱われる（章6.5）。他のメンバーはその型へ cast され、規則がなければ「暗黙の cast が見つからない」エラーになる。method を持つメンバーが**二つ以上**あれば曖昧エラーで、利用者に型の注釈を入れさせる（メンバーの並び順では選ばない）。
 
   ```yulang
