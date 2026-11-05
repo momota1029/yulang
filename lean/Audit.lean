@@ -94,6 +94,16 @@ run_cmd do
 #print axioms Yulang.Directed.Computation.shallowHandle_bounded
 #print axioms Yulang.Directed.Computation.protect_bounded_iff
 #print axioms Yulang.Directed.Computation.release_bounded_iff
+#print axioms Yulang.FreshBoundaries.restrict_reindex
+#print axioms Yulang.FreshBoundaries.capturable_reindex_iff
+#print axioms Yulang.FreshBoundaries.reindexTree_bounded_iff
+#print axioms Yulang.FreshBoundaries.reindexTree_shallowHandle
+#print axioms Yulang.FreshBoundaries.fresh_protect_capture_iff
+#print axioms Yulang.FreshBoundaries.fresh_protect_residual
+#print axioms Yulang.FreshBoundaries.liftTree_zeroAt
+#print axioms Yulang.FreshBoundaries.fresh_noncapture
+#print axioms Yulang.FreshBoundaries.fresh_roundtrip
+#print axioms Yulang.FreshBoundaries.Examples.release_does_not_erase_old_debt
 #print axioms Yulang.DirectedHigherOrder.transport_opposite
 #print axioms Yulang.DirectedHigherOrder.release_guard
 #print axioms Yulang.DirectedHigherOrder.guard_release

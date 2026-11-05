@@ -102,6 +102,8 @@ protect(b, P, release(b, P, v)) = v
 
 これは旧実装のdirected stack全体の正しさを主張するものではない。今回の核では有限の解決済みshapeを扱い、atomとoperation payloadの内部は不透明のままである。sourceからshapeを作り、変換を挿入し、`ZeroAt` に相当する由来の条件を保存するelaborationは別の証明義務とする。
 
+新しい境界を明示的に割り当てる場合には、その原点条件を構成できる。`FreshBoundaries` は、既存の座標を単射で大きいinterfaceへ写し、追加した座標だけを0にする。既存の正負すべての重みを保持し、capture、残余、既存境界での保護・解除、shallow handlerの実行と可換である。`liftTree_zeroAt` は任意の元のrequest treeについて新しい座標の `ZeroAt` を導き、`fresh_noncapture` はその座標で既定の保護を付けた計算が内側のhandlerに捕まらないことを証明する。元のtreeの既存座標には負の重みがあってもよい。これは原点条件を仮定から構成へ進める定理であり、sourceの全呼出しへの割当ての挿入や、値の内部のcallbackの変換までを証明したものではない。
+
 ## 10.4 variant の残り
 
 章4.5の決定（2026-11-05）に従い、variant の行は tag ごとに一つの alternative を持ち、同一 tag の payload は union に合流する。`:id int` と `:id str` の合流は `:id (int | str)` である。処理する tag の集合 `H` と、tag が一意な有限行 `R` に対して、残余は

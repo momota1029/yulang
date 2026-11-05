@@ -39,6 +39,7 @@ import Yulang.EffectInference
 import Yulang.Directed
 import Yulang.DirectedHigherOrder
 import Yulang.DirectedBounds
+import Yulang.FreshBoundaries
 import Yulang.Polymorphism
 import Yulang.RowInference
 import Yulang.SignedStructural
