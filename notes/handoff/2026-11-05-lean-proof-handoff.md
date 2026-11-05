@@ -69,12 +69,11 @@
   これらは spec が黙っていた所を、Codex と私で選んだもの。
 
 ## まだ決まっていない・未着手
-- **関連型が `where` 条件や method 署名に現れ、`value ~ int` のような等式制約や型引数と単一化される場合**(`spec/10-inference-core.md` 10.7)。
-  ここから先は「宣言」ではなく「推論器の制約言語に role を載せる」設計になる。次の大きな山。
-- **operation-local な `'b: Display`**(role 制約付き)。綴りは 6.3 の `where 'b: Display`。`Roles` ができたので繋げられるが、制約言語への接続が先。
-- 網羅性と source pattern の組合せ。guard は網羅に数えない(3b.4 で確定)、payload 内は見ない(決定4)ので、実質は閉じている。
-  残るのは source の pattern を核へ翻訳する部分。
-- 再帰 SCC、solver、preservation/progress、source から核への elaboration(README の「示さないこと」の列)。
+- 仕様の未決(優先度は低い): `cast` の仮採用部分(6.5)、相互再帰で一部だけ注釈した binding の扱い(困る例が出てから)、
+  表示(章7)の暫定記法(`@`、`Index(int, value = 'v)`)、型の SCC と評価依存の SCC を同じ単位で扱うか(今は別と書いた)。
+- 網羅性と source pattern の組合せ。guard は網羅に数えない(3b.4)、payload 内は見ない(決定4)ので、仕様としては閉じている。
+  残るのは source の pattern を核へ翻訳する部分(実装寄り)。
+- 証明側(ChatGPT 担当): 決定 7〜14 の各主張(上の「証明してほしい主張」)、solver、preservation/progress、source から核への elaboration。
 - `traps.md` T-variant の ①最小解に落ちるか ④`'r` が `:str` を含まないことの保ち方 は solver の仕事として残る。
 
 ## 作業の進め方(ユーザーの流儀)
