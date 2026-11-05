@@ -70,3 +70,5 @@ import Yulang.RolesAssoc
 import Yulang.RoleConstraints
 import Yulang.CheckedRoles
 import Yulang.ImplHeads
+import Yulang.RoleVisibility
+import Yulang.MethodResolution

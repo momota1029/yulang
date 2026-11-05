@@ -21,6 +21,14 @@ run_cmd do
     throwError "The audit did not find any Yulang declarations"
   logInfo m!"Axiom allowlist passed for {checked} declarations from Yulang modules"
 
+#print axioms Yulang.RoleVisibility.resolved_mono
+#print axioms Yulang.RoleVisibility.ambiguous_mono
+#print axioms Yulang.RoleVisibility.resolve_congr
+#print axioms Yulang.RoleVisibility.Examples.unrelated_overlap_is_allowed
+#print axioms Yulang.MethodResolution.resolve_exact
+#print axioms Yulang.MethodResolution.freeze_exact
+#print axioms Yulang.MethodResolution.unknown_scope_ext
+#print axioms Yulang.MethodResolution.known_field_priority
 #print axioms Yulang.Inference.Formula.holds_subst
 #print axioms Yulang.Inference.EnvRel.lift
 #print axioms Yulang.Inference.generate_models_iff_typing
