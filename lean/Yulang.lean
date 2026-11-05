@@ -5,6 +5,8 @@ import Yulang.EffectExamples
 import Yulang.Horn
 import Yulang.HornExamples
 import Yulang.FiniteReachability
+import Yulang.EvaluationOrder
+import Yulang.Methods
 import Yulang.Inference
 import Yulang.Annotations
 import Yulang.Structural
