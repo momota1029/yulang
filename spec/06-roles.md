@@ -69,7 +69,7 @@ my twice(x: 'a) =
     x.add x
 ```
 
-- `where` は型変数に role の制約を付ける。binding・`role`・`impl` の body の中に書ける。
+- `where` は型変数に role の制約を付ける。binding・`role`・`impl` の body の中に書ける。`act` の operation の署名にも、署名の下に `where` を書ける（確定, 2026-11-05）。
 - **`where` は書かなくても、未解決の role 制約が型に自動で付く**（確定, 2026-11-05）。`my twice(x) = x.add x` は `'a -> 'a where 'a: Add` と推論される。`x` の型が分からないまま現れた role の method は、その制約を残したまま進み、一般化のとき、環境由来でない型変数に付いた制約を型に持ち上げる。使う側で型変数が決まるたびに、その制約の解決が走る（`twice 1` なら `Add int`）。hover にも `where` が出る。
 - **関連型は、新しい型変数と等式で表す**（確定, 2026-11-05）。`my first(c) = c.index 0` の型は、戻り値に型の射影（`'c::value` のような式）を書かず、新しい型変数 `'v` を置いて、制約の側に関連型の等式を持たせる。
 
