@@ -236,8 +236,15 @@ def alphabet (n : Nat) : List (Letter n) := List.finRange _
 
 theorem alphabet_complete (letter : Letter n) : letter ∈ alphabet n := by simp [alphabet]
 
+theorem normalized_accepts_exact (semi : Semi n) (word : List (Letter n)) :
+    FiniteAutomata.Accepts (automaton (SemilinearNormalization.normalize semi)) word ↔
+      Meaning semi (value word) :=
+  (accepts_exact _ word).trans (SemilinearNormalization.normalize_exact semi (value word))
+
 def checkSubset (source target : Semi n) : Bool :=
-  FiniteAutomata.checkSubset (alphabet n) (automaton source) (automaton target)
+  FiniteAutomata.checkSubset (alphabet n)
+    (automaton (SemilinearNormalization.normalize source))
+    (automaton (SemilinearNormalization.normalize target))
 
 /-- Finite NFA inclusion decides semantic containment at every integer vector,
 not merely at a supplied collection of sample weights. -/
@@ -248,22 +255,24 @@ theorem checkSubset_exact (source target : Semi n) :
   · intro included weight member
     obtain ⟨word, represented⟩ := SemilinearDigits.value_surjective weight
     rw [← represented] at member ⊢
-    exact (accepts_exact target word).mp (included word ((accepts_exact source word).mpr member))
+    exact (normalized_accepts_exact target word).mp
+      (included word ((normalized_accepts_exact source word).mpr member))
   · intro included word accepted
-    exact (accepts_exact target word).mpr (included _ ((accepts_exact source word).mp accepted))
+    exact (normalized_accepts_exact target word).mpr
+      (included _ ((normalized_accepts_exact source word).mp accepted))
 
 theorem checkSubset_rejects (source target : Semi n) :
     checkSubset source target = false ↔ ∃ weight, Meaning source weight ∧ ¬ Meaning target weight := by
   rw [checkSubset, FiniteAutomata.checkSubset_rejects _ alphabet_complete]
   constructor
   · rintro ⟨word, accepted, rejected⟩
-    exact ⟨value word, (accepts_exact source word).mp accepted,
-      fun member => rejected ((accepts_exact target word).mpr member)⟩
+    exact ⟨value word, (normalized_accepts_exact source word).mp accepted,
+      fun member => rejected ((normalized_accepts_exact target word).mpr member)⟩
   · rintro ⟨weight, member, absent⟩
     obtain ⟨word, represented⟩ := SemilinearDigits.value_surjective weight
     rw [← represented] at member absent
-    exact ⟨word, (accepts_exact source word).mpr member,
-      fun accepted => absent ((accepts_exact target word).mp accepted)⟩
+    exact ⟨word, (normalized_accepts_exact source word).mpr member,
+      fun accepted => absent ((normalized_accepts_exact target word).mp accepted)⟩
 
 def checkEqual (left right : Semi n) : Bool := checkSubset left right && checkSubset right left
 

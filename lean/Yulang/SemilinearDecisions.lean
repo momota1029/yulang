@@ -1,5 +1,6 @@
 import Yulang.BinaryCarries
 import Yulang.FiniteBooleanReachability
+import Yulang.SemilinearNormalization
 
 /-!
 # Total membership decisions for finite semilinear integer sets
@@ -156,16 +157,16 @@ theorem states_complete (generators : List (Weight n)) (weight candidate : Weigh
   apply List.mem_cons_of_mem
   exact (box_exact _ candidate).mpr bounded
 
-def checkSpan (generators : List (Weight n)) (weight : Weight n) : Bool :=
+def checkSpanRaw (generators : List (Weight n)) (weight : Weight n) : Bool :=
   FiniteBooleanReachability.entry
     (FiniteBooleanReachability.closure (edge generators (states generators weight)))
     (first generators weight) (last generators weight)
 
 /-- Arbitrary natural coefficients are decided by a finite binary-carry graph.
 No positivity, linear independence, pointedness or input bound is assumed. -/
-theorem checkSpan_exact (generators : List (Weight n)) (weight : Weight n) :
-    checkSpan generators weight = true ↔ Span generators weight := by
-  rw [checkSpan, FiniteBooleanReachability.closure_exact]
+theorem checkSpanRaw_exact (generators : List (Weight n)) (weight : Weight n) :
+    checkSpanRaw generators weight = true ↔ Span generators weight := by
+  rw [checkSpanRaw, FiniteBooleanReachability.closure_exact]
   constructor
   · intro path
     have ending : Span generators ((states generators weight).get (last generators weight)) := by
@@ -179,6 +180,20 @@ theorem checkSpan_exact (generators : List (Weight n)) (weight : Weight n) :
       (last generators weight) (last_value generators weight) counts length
       (first generators weight) (by rw [first_value, equality])
       (by rw [first_value]; exact (within_norm weight).mono (Nat.le_max_left _ _))
+
+/-- Redundant periods are removed before constructing the carry box or digit
+alphabet, not just from a display of the resulting automaton. -/
+def checkSpan (generators : List (Weight n)) (weight : Weight n) : Bool :=
+  checkSpanRaw (SemilinearNormalization.periods generators) weight
+
+theorem checkSpan_exact (generators : List (Weight n)) (weight : Weight n) :
+    checkSpan generators weight = true ↔ Span generators weight :=
+  (checkSpanRaw_exact _ weight).trans (SemilinearNormalization.span_exact generators weight)
+
+theorem checkSpan_preserves_result (generators : List (Weight n)) (weight : Weight n) :
+    checkSpan generators weight = checkSpanRaw generators weight := by
+  have same := (checkSpan_exact generators weight).trans (checkSpanRaw_exact generators weight).symm
+  cases left : checkSpan generators weight <;> cases right : checkSpanRaw generators weight <;> simp_all
 
 def subtract (weight base : Weight n) : Weight n := fun coordinate => weight coordinate - base coordinate
 
@@ -207,12 +222,13 @@ theorem checkLinear_exact (line : Linear n) (weight : Weight n) :
   (checkSpan_exact line.periods _).trans (linear_iff_span line weight).symm
 
 def check (semi : Semi n) (weight : Weight n) : Bool :=
-  semi.any fun line => checkLinear line weight
+  (SemilinearNormalization.normalize semi).any fun line => checkLinear line weight
 
 /-- Total executable membership for every finite semilinear integer set. -/
 theorem check_exact (semi : Semi n) (weight : Weight n) :
     check semi weight = true ↔ Meaning semi weight := by
-  simp only [check, List.any_eq_true, checkLinear_exact, Meaning]
+  simp only [check, List.any_eq_true, checkLinear_exact]
+  exact SemilinearNormalization.normalize_exact semi weight
 
 theorem check_rejects (semi : Semi n) (weight : Weight n) :
     check semi weight = false ↔ ¬ Meaning semi weight := by
