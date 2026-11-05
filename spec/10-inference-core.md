@@ -367,7 +367,7 @@ protect(b, ∅, r) ≤ r
 
 は重み `0, 1, 2, …` のすべてを `r` に強制する。`Examples.every_weight_derived` と `growing_has_no_finite_model` は任意の有限list解の不在を証明する一方、`growing_has_least_model` は集合解が存在することを示す。保護と解除が対応して相殺するcycleには有限解があり、`balanced_has_finite_model` が同じ核でその例を確認する。cycle自体を一律に拒否する規則は加えない。
 
-この結果は、有限Hornへの翻訳に有限性の根拠が必要なことを明示する。解へのmembershipの決定手続き、再帰行の有限な記号表現、sourceからの制約抽出は未証明であり、この二規則から特定のsourceプログラムの拒否を結論しない。
+この結果は、有限Hornへの翻訳に有限性の根拠が必要なことを明示する。任意の残余付き相互再帰問題のmembership判定と解の有限記号表現、sourceからの制約抽出は別の義務であり、この二規則から特定のsourceプログラムの拒否を結論しない。2026-11-05の10.3.2の決定により、この無限解自体は許容する。有限表現と決定手続きについて閉じた範囲は10.13で区別する。
 
 ## 10.11 入れ子のeffect式の制約生成
 
@@ -412,3 +412,42 @@ operationのkeyは10.5.2と同じく、family・operation・family型引数を�
 `closed_checked_boundary` は閉式のchecker受理だけを前提に、実際にfresh座標を割り当て、許可なしで保護したrequest treeについて、対応する行上界と任意の内側shallow handlerによる非captureを証明する。runtime上界や原点条件を追加の入力に要求しない。fresh化と保護が作用するのは即時のrequest treeであり、返り値は元の `Value n` のまま保持する。潜在closureに型に沿ったtransportを挿入することと、sourceの各境界がこの割当てを使うことは別の接続義務である。
 
 `principal_fresh_boundary` は同じ行上界と非captureの結論を、10.12.2の実際のprincipal formulaの解から導く。これにより、再帰制約生成器・独立な型判断・実際のrequest treeの上界・fresh境界の非captureが、同じresolved式について接続される。checker受理を重ねて要求しない。
+
+
+## 10.13 無限の行型と有限な制約表現
+
+この節は10.3.2の2026-11-05の確定事項を形式化する。無限の最小解を拒否せず、探索の深さや重みに上限を課さない。行の意味、制約の有限表示、解の所属を判定する算法を区別する。
+
+### 10.13.1 無限行の衛生性
+
+`InfiniteRowHygiene` は既存の `RecursiveRows.SetRow` と同じ集合行を使う。`release_protect` と `protect_release` は任意の無限行に対する両方向の相殺を示し、`protect_included_iff` は包含を保存・反映する。`residual_greatest` は残余が捕捉不能な最大部分集合であることを示す。古い座標の重みには負の値も許す。
+
+`eval_mapScopes` は未知tailに無限行を代入した全 `RowExpr` で、境界の単射による変更と評価が可換であることを証明する。`least_reindex` は残余を含む再帰問題全体について、新しい境界で求めた最小解が、元の最小解全体の像に等しいことを示す。fresh座標の原点条件はこの等式から構成できる。
+
+`explicit_head_protected_tail` は `[key,'e]` の明示的なheadを処理した後も保護されたtail全体が残ることを示す。tailは同じkeyを含んでよく、無限でもよい。実行上界は既存の `Computation.AllRequests` に集合行を渡して定義する。`shallowHandle_bounded` は元のinput行を継続に保持して、armのeffectを残余の外へ加える。`fresh_boundary` は無限行上界の保存と非captureを同時に導く。これらの合成定理で受け取るruntime上界を、任意のsource型付けから導いたとは主張しない。
+
+深さ2でもresponseごとに任意に大きな重みを要求するtreeを構成し、`infinite_tree_bound` で実際の `growing` の最小解による上界を、`infinite_tree_has_no_finite_bound` で任意の有限list上界の不在を証明する。この例をsourceから生成できるという主張ではない。
+
+### 10.13.2 有限graphへの正確な変換
+
+`RecursiveRowGraph.compile` は、既存の有限問題をheadまたはslotからtarget slotへ進む有限edge列に変換する。edgeには保護・解除・残余を内側から外側へ並べたprogramが付く。`compile_models_exact` は任意の集合行割当てで全モデルを保存し、`reachable_iff_derives` は独立な有限path到達可能性と既存の最小解への所属を同値にする。
+
+`RowTransportNormalForm.normalize` は固定keyについて各edgeを、一つの整数平行移動と有限個の禁止入力点へ正規化する。途中の残余は、その位置の零ベクトルを入力側へ逆平行移動した禁止点として残す。`execution_normal_form` は元のprogramの成功・失敗との一致を示す。総変位が零でも `protect; residual; release` は恒等とは限らず、重み−1の要求を途中で拒否する具体例を検証する。
+
+このgraphは制約の有限表示であって、解集合の半線形な表示や所属判定器ではない。control graphが有限でも整数重みのconfiguration空間は無限であり、各edgeの禁止点をpath全体から消すことはできない。
+
+### 10.13.3 affineな無限行の判定
+
+`AffineRows.Ray` はkey、基点の重み `a`、整数周期ベクトル `d` から、`a + k d`（`k : Nat`）の全出現を表す。境界数は任意に有限で、周期の各成分は負・零でもよい。`check_exact` は所属判定の正確性を両方向に証明する。各座標の整数割算から候補を一つずつ取り、零回の候補と合わせて実際の出現の等式を検査するため、探索回数は重みの大きさによる打切りではない。
+
+`checkSubset_exact` と `checkEqual_exact` は二つのrayの包含と等価性を判定する。包含では基点と一回進んだ点の対応に加え、相手の反復indexが非減少であることを検査する。相手の周期が非零ならindexは一意で、負の傾きは十分先の点に負のindexを要求して矛盾する。周期零のsingletonも同じ入口で扱う。有限個のrayのunionに対し、各rayが一つの相手rayに含まれるかだけで全体の包含を決めるとは主張しない。
+
+`SymbolicRows.Segment` はこのrayに任意の有限な上端を付けるか、上端なしのまま保持する。`Segment.check_exact` はどちらも有限候補で正確に判定する。上端は表す集合自体の一部であり、未知の再帰解へ勝手に加える上限ではない。この層の定理だけでは、すべての再帰制約をrayまたはsegmentへ解けるとは結論しない。
+
+### 10.13.4 生成制約から無限行による実行上界へ
+
+`InfiniteOperationalCorrespondence` は10.12の `OperationalCorrespondence.erase` と `principal`、`OperationalTyping.Expr` と `eval` をそのまま共有し、構造型の行だけを `RecursiveRows.SetRow` で解釈する。`erasure_typing_sound` は全resolved式の型判断から、全requestの行上界と返却値の構造型解釈を導く。union・intersection・arrow、computed let・値制限付き多相let、request・境界・shallow handlerを含む。handlerのaction・return節・operation節のruntime上界は前提として渡さず、型付けの帰納法で導く。
+
+`principal_operationally_valid` と `principal_effect_bound` は、既存のprincipal formulaの集合行モデルでの解から、同じ閉式の評価木についてこの結論を導く。`principal_fresh_boundary` は同じ解・同じ評価木から、fresh座標へのliftとdefault protect後の行上界、および任意の内側shallow handlerによる非captureへ接続する。有限行checkerの受理を仮定しない。
+
+これは与えられた制約解の健全性であり、任意の無限行制約を解くsolverではない。resolved shapesと同じAtom carrierによるunit署名という10.12の制限は残る。source elaboration、異種payload署名、runtimeの再帰構文、返却closure内部のscope変更と型に沿ったwrapper挿入は別の接続義務である。

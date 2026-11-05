@@ -41,6 +41,12 @@ lake env lean --trust=0 Audit.lean
 | `Yulang.ImplHeads` | impl headの各holeを別の変数へ下ろす処理、全匿名識別子の一回性と名前付き変数の共有、whereから匿名変数への参照不能性、ref全体の照合と部分特化 | source parser・型/行のkind検査、未束縛名の診断、methodの可視性や段階ごとの検索 |
 | `Yulang.Horn` | 任意の有限Horn制約に対する解の存在判定と最小モデル。成功・失敗の両方向の完全性 | 構造部分型、再帰型、無限の保護stack、roleの解決 |
 | `Yulang.RecursiveRows` | 保護・解除・残余を含む正の再帰的行制約 `E ≤ slot` の最小集合解、全解で強制される出現との一致、固定上界との両立の必要十分条件、既存の有限行解釈の保存、有限行では解けない保護反復の例 | 解への所属の決定手続き、任意の右辺を持つ行包含、構造型solver、sourceからの制約抽出、すべての再帰行の有限表示 |
+| `Yulang.InfiniteRowHygiene` | 任意の無限集合行での両方向相殺・包含保存・残余、境界再indexと全行式・再帰最小解の可換性、fresh原点と非capture、同じkeyを含む無限tailの保持、無限行によるrequest tree上界 | 一般の所属決定、無限行のsource型付けからruntime上界を導くこと、潜在closure変換 |
+| `Yulang.RecursiveRowGraph` | 有限行制約から有限guard付きgraphへの実行可能なコンパイル、任意の無限行割当てでのモデル保存、独立な到達可能性と既存最小解の一致、有限の到達key・slot支持 | 無限configuration空間の到達判定、半線形な解表示、包含・等価判定 |
+| `Yulang.RowTransportNormalForm` | 固定keyに対する有限programの平行移動＋有限禁止入力点への正確な正規化、各途中residualの保存 | guard付きpath全体の半線形性、単なる総変位によるpath判定 |
+| `Yulang.AffineRows` | 任意の有限境界数・整数周期ベクトルを持つ一つのrayの有限候補による所属判定、二つのrayの包含・等価判定と両方向の正確性 | 任意の相互再帰制約の求解、複数rayのunion同士の包含判定 |
+| `Yulang.SymbolicRows` | 上限の有無を明示したaffine segmentの有限表現と正確な所属判定 | 未知の最小解への人為的な上限、全再帰問題の解がこの形を持つこと |
+| `Yulang.InfiniteOperationalCorrespondence` | 同じresolved式の既存principal制約を任意の集合行で解釈した解から、同じ実行木の全request上界・返却値の構造型解釈・fresh境界非captureまでの接続。handlerの各armの上界と元の継続行は型判断から導出 | 無限行solverの完全性、source elaboration、異種payload署名、runtimeの再帰構文、潜在closureの衛生wrapper挿入 |
 | `Yulang.RecursiveEffects` | 全既存core式とrequest・boundary・shallow handlerを同じ再帰ASTに置く有限制約生成、任意の入れ子について独立な型判断との双方向一致・制約schemeの主性、値制限付き多相letと署名のambient slotの保持 | operation-local多相・roleを含む統合、再帰SCC、source elaboration、制約solver、型付けからruntime安全性への接続 |
 | `Yulang.RecursiveEffectsConservativity` / `Yulang.RecursiveEffectExamples` | effectを含まない全core式で実際の生成formula・principal schemeを保存する等式、旧型判断との一致、入れ子handler・多相let・computation引数・保護と負債の正例と負例 | source parserからの翻訳、全制約solver |
 | `Yulang.OperationalTyping` / `Yulang.OperationalTypingExamples` | 形状解決済みの単相核の実行可能なcheckerと独立型付けの一致、checker受理から実際の全requestの推論行上界と返り値の潜在関数の健全性、shallow継続・複数回再開・arm再送出・格納callbackの実行例 | 未知shapeの推論、一般再帰、source elaboration、異なるpayload型を持つoperation、値内部への衛生変換の挿入 |
