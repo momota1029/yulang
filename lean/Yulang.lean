@@ -122,3 +122,8 @@ import Yulang.SolvedRecursiveTypeExamples
 import Yulang.ValueBounds
 import Yulang.ValueBoundSolvers
 import Yulang.ValueBoundExamples
+import Yulang.RecursiveValueBounds
+import Yulang.ValueBoundElimination
+import Yulang.ValueBoundEliminationExamples
+import Yulang.ValueInference
+import Yulang.ValueInferenceExamples

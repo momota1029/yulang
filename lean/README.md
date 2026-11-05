@@ -10,6 +10,22 @@ lake build --wfail
 lake env lean --trust=0 Audit.lean
 ```
 
+## 実際に型を求める入口
+
+`ValueInference.solve` は既存の核の式を受け取り、変数・リテラル・分岐・let・pair・variantの型を構成する。途中の型や生成制約の解を引数として渡さない。分岐では `ValueBounds.solve` が結果の未知型を解く。評価時のeffectは空で、入力環境の既知値型には符号付きの潜在effectを含められる。
+
+次の実行例は、実際のsolverを呼び、想定と違う結果なら失敗する。
+
+```sh
+lake env lean --trust=0 --run RunValueInference.lean
+```
+
+混在した分岐の `int | str`、その結果を使うletとpair、不正な条件と未束縛変数の拒否、循環bound、負の潜在effect、無限row、恒等関数の型・行の相関を確かめる。入力はparser後の `Inference.Expr` であり、surface source文字列を処理するcompiler frontendではない。一般のlambda/applicationは `unsupported` として返す。これは `unsat` と異なり、型付けの不在を意味しない。
+
+`closed_principal_solved_exact` は、求めた型 `T` の上位型全体が、元の `Inference.principal` の許すすべての結果と一致することを示す。`closed_principal_unsat_iff` は対応する構文について、solverの拒否と、元のprincipal formulaの解の不在を同値にする。単なる「解を与えれば正しい」という入口から、この断片では解の構成と失敗判定まで進んでいる。
+
+関数については別に、`ValueBoundEliminationExamples.identity_principal_exact` が実際の `principal [] (lam (var 0))` をsolverで構成した型族へ接続する。引数の型 `A` と行 `R` を自由なparameterに残し、内部結果だけを解くと、意味的に `A [R] -> A [R]` になる。一般化する変数をsourceから発見する算法や、任意の関数の推論まで閉じたとは主張しない。詳しい算法・量化子・対象外の範囲は [`spec/10-inference-core.md` 10.18](../spec/10-inference-core.md#1018-未知の値型の求解) にまとめる。
+
 ## 証明対象
 
 | モジュール | 閉じる主張 | それだけでは示さないこと |
@@ -63,6 +79,9 @@ lake env lean --trust=0 Audit.lean
 | `Yulang.GuardedRowErasure` / `Yulang.AutomaticRowSummaries` | 正規化された元のrow ASTについて、各slot edgeの禁止点への到達不能性を自動検査し、成功時の半線形表示・所属・非所属を元のDerivesへ接続。外部potential・座標・Slotの有限列挙不要、既存の座標certificateが通る場合を包含 | guardが実際に到達する一般問題の求解。`none`はこの算法の未対応で、言語の拒否や非所属ではない |
 | `Yulang.StructuralCut` / `Yulang.StructuralDecisions` | 既存の有限構造部分型preorder全体のcut除去、union/intersection・pair・variant・record幅/先勝ち・関数の型と二つの行の分散を含む完全な比較器、符号付き有限行に対する真偽・同値判定 | 未知型変数のbound探索、再帰値型、Simple-sub全体のextrusion/intrusion/generalization、sourceの推論器 |
 | `Yulang.ValueBounds` / `Yulang.ValueBoundSolvers` | ground下界・変数間包含・ground上界から未知の値型を実際に構成するsolver、循環を含む有限graphの停止、全構造型割当てに対する最小性と成功・失敗の完全性、無限半線形latent rowを持つ入力と任意のSetRow割当てに対する完全性 | constructor内部に残る未知型の求解、再帰値型、最小解を多相主型と同一視すること、全Simple-subの一般化とsource全体への接続 |
+| `Yulang.RecursiveValueBounds` | 元の再帰row制約から潜在行を解き、未知の値型を構成する入口、元のDerives解に対する健全性・最小性・解なしの完全性、未対応と矛盾の区別 | 一般のguard付きrow問題、任意のrow解と値型の同時探索。rowは元の再帰問題の固定最小解で解釈する |
+| `Yulang.ValueBoundElimination` / `Yulang.ValueBoundEliminationExamples` | 既存TyTermの極性検査、正の内部未知型の存在量化の正確な消去、自由なparameterと行の保持、実際のprincipal恒等関数とsolverが構成した型族の同値、負の位置の無条件最小化への反例 | 一般化するparameterの自動発見、constructor内部の未知型を含むboundの解消、任意のlambda/applicationを推論するsource算法 |
+| `Yulang.ValueInference` / `Yulang.ValueInferenceExamples` | 既存Exprのvar/lit/branch/letE/pair/variantから型を構成し、元のTyping・principal formulaとの成功時の主性と失敗の完全性を証明、値letの両経路、未対応との区別 | 評価時effectを持つ式、一般のlambda/application、SCC、variantのtag合流・case残余、parserからのelaboration、表示の完全な標準形 |
 | `Yulang.SemilinearNormalization` / `Yulang.SemilinearFastInclusion` | 零・重複周期と同じ成分の除去の意味保存、単一周期への全座標を使う正確な所属判定、健全な包含の高速成功と完全なNFA判定へのfallback、最適化前後のBoolean結果の一致 | 全半線形集合の最小正規形、異なる成分の共同被覆を一成分比較だけで判定すること、一般の多項式時間 |
 | `Yulang.SemilinearRowAlgebra` | 有限key支持と無限の整数重み集合を持つ行の包含・等価性、重複keyの和と欠けたkeyの空解釈、既存SetRow代数との一致、その行を潜在行とする有限ground構造型の比較 | 未知型変数・再帰値型の求解、元のrow制約からの解抽出は別層 |
 | `Yulang.SolvedRecursiveRows` | 元の有限row制約から到達可能な全keyを列挙し、guard検査が通る場合の行全体を構成、元のDerives最小解について包含・等価性・非包含の反例存在を完全に判定 | 一般のguard付き問題、すべての後続具体化での開いた行変数の等価性。未対応の`none`と否定の`some false`は区別する |

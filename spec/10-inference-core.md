@@ -695,3 +695,39 @@ solverは `α ≤ β` を有向辺にし、各変数に到達する下界 `A` �
 `ValueBoundExamples` は、相互循環を通る `int` と `str` の合流、矛盾する上界の拒否、下界のない循環、record幅と隠れた重複field、関数の分散、負のeffect差分を消せないこと、無限の潜在行を含む求解を実行して検証する。拒否例は実際の失敗から任意の割当ての不在へ接続する。
 
 ここでの最小割当ては、多相関数の主型とは異なる。一般化すべき変数までbottomで置き換えると、入力と出力の関係や任意の具体化を失う。また、下界のないslotの数学的な最小解がbottomであることから、EOFの未定weak変数をbottomに既定化してよいとは結論しない。constructor内部の未知型、再帰値型、extrusion・intrusion・一般化を含む全Simple-subは、このflatなbound problemとは別の証明義務である。この節は既存の型代数に対する算法の追加であり、新しい言語意味論やdefaulting規則を決めるものではない。
+
+### 10.18.2 元の再帰row制約から未知の値型まで
+
+`RecursiveValueBounds.solve` は、元の `RecursiveRows.Problem` と、そのrow slotを潜在行に持つ値型bound problemを受け取る。ground boundに実際に現れるrowだけを `SolvedRecursiveTypes.resolve` で解決し、その後で値型の未知変数を解く。返り値は `unsupported`・`unsatisfiable`・`solved valuation` の三種類を区別する。
+
+`solve_solved_least_eq` は、返された型をdecodeした割当てが、元の `RecursiveRows.Derives` で解釈したbound problemの最小割当てに等しいことを証明する。`solve_unsatisfiable_iff` は、失敗が「rowの解決対象が対応範囲にあり、任意の集合行を含む構造型割当てが存在しない」ことと同値であると述べる。`solve_unsupported_iff` は対応範囲外を別に特徴付ける。無関係なrow graphの未対応箇所は、rowを持たないboundの求解を妨げない。
+
+row自体は、元の再帰問題の**固定された最小解**で解釈する。任意のrow解と値型を一緒に探索して、全制約の主解を得たとは主張しない。回帰例は、保護が積み上がる無限rowと未知値型どうしの循環を同時に扱う成功、その潜在rowを空行へ収める上界の拒否、active guardの未対応を区別する。
+
+### 10.18.3 多相なparameterを残す消去
+
+`ValueBoundElimination` は、既存の `Inference.TyTerm (Parameter ⊕ Fin n)` において、自由に具体化するparameterと、今回解く内部未知型を区別する。`polarity` はarrow入力で極性を反転し、出力・pair・variant・union/intersectionでは維持する。recordは固定されたspineを要求し、先頭field優先の意味を保つ。行の割当ては値型の内部未知変数とは独立して固定し、消去によって変更しない。
+
+正の極性が検査できた出力型 `T` では、`inferTerm` がboundを解いて出力型 `T₀` を構成する。`inferTerm_exact` は、任意の観測型 `U` について、`T₀ ≤ U` が「元のboundを満たす割当てで `T ≤ U` となるものが存在する」ことと同値であると示す。`parameterized_exact` はこの同値をparameterの全インスタンスへ接続する。内部未知型の負の出現は、この消去方式では未対応として返し、解なしとは扱わない。
+
+恒等関数では、引数の値型 `A` と行 `R` をparameterとして残し、内部の結果型 `β` に `A ≤ β` を課す。`identity_inferred` は、任意の `A` と `R` について実際のsolverが成功し、`A [R] -> (A | never) [R]` を返すと証明する。`identity_result_equivalent` により、これは `A [R] -> A [R]` と相互部分型である。`identity_principal_exact` は、この計算された型族の全インスタンスと、既存の `Inference.principal [] (lam (var 0))` の意味を同値にする。式自身の型付けやsolverの成功を前提に渡す定理ではない。
+
+`negative_minimization_loses_instance` は、出力 `α -> int` に内部未知型 `α` を使い、boundが空のときの反例を与える。`α = int` なら `int -> int` に適合するが、最小解 `α = never` を代入すると適合しない。したがって極性の条件を外せない。二度の反変位置は正に戻ることも実行して検証する。一般化するparameterをsourceから自動で発見することは、この消去定理とは別の義務である。
+
+### 10.18.4 核の式からの推論と元のprincipal formula
+
+`ValueInference.solve` は既存の `Inference.Expr` を入力とし、変数・リテラル・分岐・let・pair・variantの値型を実際に構成する。途中のshape、未知型の割当て、式自身の制約解は入力に要求しない。入力環境は純粋に参照できる既知の値型の列で、内部には任意の構造型と符号付き有限潜在行を含められる。pairとvariantの型の形も式から決める。分岐は、条件型を `bool` と照合し、両枝からfreshな結果slotへ下界を流す `ValueBounds.solve` を呼ぶ。
+
+`source_solved_exact` は、返された値型 `T` と任意の結果computation `(U, ε)` について、元の `Inference.Typing` が成立することと `T ≤ U` を同値にする。この断片は純粋なので、結果行 `ε` は任意の上位行でよい。`source_unsat_iff` は対応構文での拒否が、どの値型・符号付き行を選んでも元の型付けが存在しないことと同値であると示す。環境の条件は `monoEnvironment_principal` で既知型リストから構成する。
+
+`closed_principal_solved_exact` と `closed_principal_unsat_iff` は、閉じた式について同じ結論を**元の `Inference.principal` が生成するformulaそのもの**へ接続する。fresh slotの存在量化も、値letの一般化経路と単相経路の選言も残したままである。健全性の証明は既存の `letComputed` を使い、完全性は `letValue` の各具体化も扱う。この断片では後者が計算済みの最小型に含まれることを証明するので、生成器の一般化経路を取り除く仕様変更ではない。
+
+結果は `solved T`・`unsat`・`unsupported` を区別する。lambda/applicationはこの一般入口では未対応であり、型付けできる恒等関数も未対応になる例を置く。10.18.3の恒等関数の専用定理を、任意の関数推論の完成と混同しない。variantは既存の `StructuralBase` のconstructorについての結果であり、章4.5の同一tagのpayload合流、case残余、sourceの網羅性検査との統合は別に必要である。
+
+`ValueInferenceExamples` は、混在分岐の `int | str`、不正な `int` 条件の全解の不在、pair/variantの構成、値let・計算let、shadowing、未束縛変数、値型内の負のeffect差分の保持をkernelと通常のコード実行で検証する。`lean/RunValueInference.lean` はこれらの入口を呼ぶ小さな実行例である。`never` を含む冗長なunionは内部表現に残り得る。章7.4bの完全な表示標準形を、このsolverの出力に仮定しない。
+
+### 10.18.5 全体solverへ残る義務
+
+ここまでで閉じたflat boundの求解と、上の核の式の推論については、解の構成・失敗の完全性・それぞれの主性または最小性・停止がそろう。残るのは、constructor内部に未解決変数を持つ一般の制約、再帰値型、一般のlambda/application、SCCと一般化変数の発見、extrusion/intrusionを含む全体算法である。任意のguardを含む再帰row問題や、未知の値型と未知の行を同時に解く全体手続きも、この結果から自動的には得られない。
+
+値型注釈が公開型を決める章4.2の規則、T3の観測時点、role・cast・case・sourceの境界割当てを、この実行可能な推論入口へ接続する義務も残る。今回の追加で、既存の注釈・衛生性・EOFの非defaultingの意味は変更しない。
