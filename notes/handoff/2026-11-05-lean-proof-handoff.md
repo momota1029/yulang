@@ -58,7 +58,7 @@
 - メンバーのうち method を持つものがちょうど1つなら解決し、2つ以上なら曖昧、0なら失敗、の三分(`Roles.resolve` の曖昧さの判定と同型)。
 
 16. **union の値の各メンバーは別々に cast する。cast の無いメンバーが1つでもあれば型エラー**(`spec/06-roles.md` 6.5)。実行時に失敗させない。
-17. **cast は方向を持つ位置に沿って通る**(関数の引数反変・戻り値共変、tuple の成分・record のフィールド・variant の payload は共変)。**nominal な型の型引数(list・ref・box など)は不変で cast も通らない**(区間 (lower, upper) で持つ)。list literal の要素型は `int | ?a` のように後で決まる部分を持つ(細部は要確認)。
+17. **cast は方向を持つ位置に沿って通る**(関数の引数反変・戻り値共変、tuple の成分・record のフィールド・variant の payload は共変)。**nominal な型の型引数(list・ref・box など)は不変で cast も通らない**(区間 (lower, upper) で持つ)。list literal の要素型は `int | ?a` のように後で決まる部分を持ち、`?a` が決まったとき要素は**構築位置に遡って**cast される(保留された境界)。
 
 ### 15〜17 を ChatGPT に証明してほしい主張(Lean 未実装)
 - cast を部分型とは別の「境界での変換関係」として定義し、関数に対して引数反変・戻り値共変に持ち上がること。
