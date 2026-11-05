@@ -168,6 +168,10 @@ capture the caller's future instantiations or generalize their variables. -/
 inductive Binding (m : Model) where
   | mono : Comp m → Binding m
   | poly : Expr → List (Binding m) → Binding m
+  /-- An independently prescribed signature quantifies value types only.
+  Inferred row assignments and the lexical environment are captured by
+  `instantiate`; no fresh row assignment is supplied at a call. -/
+  | signature (n : Nat) (instantiate : (Fin n → m.Ty) → Comp m) : Binding m
 
 mutual
   inductive Typing (m : Model) : List (Binding m) → Expr → Comp m → Prop where
@@ -206,6 +210,9 @@ mutual
     | mono : Comp.le m a c → BindingTyping m (.mono a) c
     | poly : Typing m Γ v (Comp.pure m c.1) → m.subRow m.empty c.2 →
         BindingTyping m (.poly v Γ) c
+    | signature {n : Nat} {instantiate : (Fin n → m.Ty) → Comp m} {ι : Fin n → m.Ty} :
+        Comp.le m (instantiate ι) c →
+        BindingTyping m (.signature n instantiate) c
 end
 
 /-- Two fresh slots. Their names and all prior free names remain distinct. -/
@@ -319,6 +326,13 @@ def EnvRel (m : Model) (ρ : α → Comp m) (sΓ : SchemeEnv α)
   constructor
   · intro h; cases h with | poly hv he => exact ⟨hv, he⟩
   · rintro ⟨hv, he⟩; exact BindingTyping.poly hv he
+
+@[simp] theorem BindingTyping.signature_iff (m : Model) (n : Nat)
+    (instantiate : (Fin n → m.Ty) → Comp m) (c : Comp m) :
+    BindingTyping m (.signature n instantiate) c ↔ ∃ ι, Comp.le m (instantiate ι) c := by
+  constructor
+  · intro h; cases h with | signature hc => exact ⟨_, hc⟩
+  · rintro ⟨ι, hc⟩; exact BindingTyping.signature hc
 
 theorem EnvRel.nil (m : Model) (ρ : α → Comp m) : EnvRel m ρ [] [] := by
   intro n c
