@@ -107,6 +107,9 @@
     ChatGPT が 10.13 で閉じたもの: 無限行の衛生性、一つのサイクルの最小解の有限表示(ray/segment)と所属・包含・等価の決定、生成制約の解から無限行の実行上界まで。
     **閉じていない(研究的な問い)**: 一般の相互再帰(複数サイクルが絡む)の所属決定・有限表示。「禁止点つき整数平行移動 graph の到達定理」に還元される(禁止点なしなら Presburger = Haase–Halfon 2014)。決定不能とは主張されていない。松田先生への相談候補。
 
+29. **receiver の型が最後まで分からない `x.method` は、role の method を先にする**(`spec/06-roles.md` 6.4)。同名の method を持つ role がスコープに複数あれば曖昧エラー、なければ record の field。型が分かっているときの順(field が先)とは逆。決定 7(`x.add x` が `where 'a: Add`)と整合させるための判断。
+    証明してほしい主張: `QualifiedInference` の method 要求の生成が、(a) 未知 receiver では role 候補があれば role の制約、なければ field の構造制約になること、(b) 同名 method を持つ role が複数なら曖昧、(c) receiver の型が後から分かる場合は、型が分かっているときの順(field → role)に切り替わること。ChatGPT の `Methods` が「member ごとの method lookup の優先順位」を対象外にしていた所の一部。
+
 ## Lean に入ったもの(commit 順)
 | commit | 内容 |
 | --- | --- |

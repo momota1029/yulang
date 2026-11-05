@@ -128,6 +128,7 @@ $n.add 1               // 中身の int の method
 
 - method が解決されるまで、それを含む SCC は解かれない。
 - SCC がこれ以上変化しなくなったとき、解決していない method は、role の method か record の field として解釈される（確定, 2026-11-04）。
+  - **receiver の型が最後まで分からないとき、role の method を先にする**（確定, 2026-11-05）。その名前の method を持つ role がスコープにあれば role の制約として扱い（`x.add x` は `'a: Add`、章6.3）、なければ record の field として扱う（`p.x` は `p: {x: 'b}`）。スコープに同名の method を持つ role が**複数**あれば曖昧エラーで、型の注釈を入れさせる。型が分かっているときの順（field が先）とは逆になる。分かっている型に field があるなら、それが具体的な手がかりになるが、未知の receiver は field を持つかどうかも分からないため。
 
 出典: `main:spec/2026-06-04-method-selection.md`、`main:web/docs/ja/reference/modules.md` §Dot selection
 
