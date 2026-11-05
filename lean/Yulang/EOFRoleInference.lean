@@ -2,7 +2,13 @@ import Yulang.ModuleVisibility
 import Yulang.Methods
 
 /-!
-# Declaration-derived EOF inference for ground anchor heads
+# Reference only: declaration-derived completion from ground anchor heads
+
+This module is **not a Yulang3 EOF inference entry point**. Spec §6.3,
+decision 33 (2026-11-05), forbids completing an undetermined weak type from a
+unique visible impl. `EOFNoDefaulting` formalizes the current EOF gate. The
+older completion algorithm and its mathematical theorems are retained only as
+reference material; their success is not language acceptance.
 
 This executable fragment infers a finite tuple of remaining weak value types
 from the impl declarations actually visible in a file. A residual anchor

@@ -20,7 +20,10 @@ declarations have distinct keys, while repeated imports retain the same key.
 
 This module connects visibility to the established EOF gate. That gate still
 validates a supplied partial assignment; it does not infer missing type slots.
-The separate ground-head inference layer addresses that additional operation.
+Spec §6.3, decision 33, requires missing ambient slots to be rejected even when
+only one visible impl could determine them. `EOFNoDefaulting` supplies explicit
+diagnostic witnesses for this same gate; the older ground-head completion layer
+is reference material only.
 -/
 
 namespace Yulang.ModuleVisibility
