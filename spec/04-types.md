@@ -14,12 +14,14 @@ effect 行の意味（T2・T3）は章5、`role` / `impl` / `where` / `cast` は
 | `str` | `"hello"` | |
 | `()` | unit | |
 | `never` | | 返らない式の型（確定, 2026-11-04） |
+| `any` | | 最大の型（確定, 2026-11-06）。どんな値も受けられるが、受けた値は何にも使えない |
 | tuple | `(int, str, bool)` | 位置で持つ product |
 | list | `list int`, `list 'a` | |
 | record | `{x: int, y: int}` | 名前を持つ product（匿名） |
 | 関数 | `int -> int` | `->` は右結合 |
 
 - `never` は全ての型の部分型（bottom 型）で、注釈にも書ける（確定, 2026-11-04）。`if` の片側が `never` なら、全体の型はもう片側の型になる。`return` や `last` のような返らない式の型にも現れる。
+- **`any` は全ての型の上位型（top 型）で、注釈にも書ける**（確定, 2026-11-06）。TypeScript の `unknown` と同じで、`any` 型の値は何にも使えない。TypeScript の `any`（型検査を抜ける穴）とは別物なので注意。推論で負の位置に残った未知の型は `any` になる。junction の `all` / `any`（章3c）は値の名前で、型の `any` とは名前空間が別である。
 
 ```yulang
 my x: int = if cond: 1 else: fail "oops"    // else 側は never なので int と合う
@@ -246,7 +248,7 @@ my b = make a              // エラー: 再帰する component の中で comput
 
 ## 4.8 書けない型と、表示に出る型　〔仮採用〕
 
-- 推論結果には union / intersection（`'a | int`、`'a & {width?: ⊤}`）が出ることがある。
+- 推論結果には union / intersection（`'a | int`、`'a & {width?: any}`）が出ることがある。
   これらを**注釈として直接書くことはできない**（確定, 2026-11-04）。注釈に書ける型は、nominal な型・tuple・record・関数・型変数・`:{...}`（4.5）だけ。値を複数の型から選ぶときは `enum` を作る。H7 の `:ready | :some int` の `|` は polymorphic variant の型の綴りで、一般の union 型を書く構文ではない。
 - 注釈を足すと、表示型を意図した公開形に絞れる。表示の規則は章7。
 

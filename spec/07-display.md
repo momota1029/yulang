@@ -133,7 +133,7 @@ my compose(f: _ -> [io] _, g) = g f x
 
 ```text
 'a | int
-'a & {width?: ⊤}
+'a & {width?: any}
 {width?: 'a} -> 'a | int
 ```
 
