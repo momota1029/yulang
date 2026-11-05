@@ -14,8 +14,8 @@ The resulting weighted paths agree with the existing guarded `Reachable`
 relation and hence with the original `RecursiveRows.Derives`, including all
 coordinates, negative weights, arbitrary finite paths and mutual recursion.
 Finite state elimination then produces a semilinear presentation of the actual
-least solution. A checked entry point rejects graphs with any remaining point
-guard for this key. This does not decide membership/inclusion of arbitrary
+least solution. A checked entry point returns no unguarded summary when any
+point guard remains for this key. This does not decide membership/inclusion of arbitrary
 semilinear sets or guarded recursive row graphs.
 -/
 
@@ -208,5 +208,38 @@ theorem summarize_exact [DecidableEq Key] [DecidableEq Slot] (key : Key) (slots 
   have same : presentation key slots problem target = result := by simpa [summarize, checked] using accepted
   rw [← same]
   exact presentation_exact key slots complete problem free target weights
+
+/-- No global enumeration of the slot identifier type is needed: the compiled
+finite graph supplies all intermediate vertices used by state elimination. -/
+def presentationFinite [DecidableEq Key] [DecidableEq Slot] (key : Key)
+    (problem : RecursiveRows.Problem n Key Slot) (target : Slot) : Semi n :=
+  WeightedPaths.solveFinite (weightedGraph key (RecursiveRowGraph.compile problem)) none (some target)
+
+theorem presentationFinite_exact [DecidableEq Key] [DecidableEq Slot] (key : Key)
+    (problem : RecursiveRows.Problem n Key Slot)
+    (free : Unguarded key (RecursiveRowGraph.compile problem)) (target : Slot) (weights : Weight n) :
+    SemilinearWeights.Meaning (presentationFinite key problem target) weights ↔
+      RecursiveRows.Derives problem target (occurrence key weights) :=
+  (WeightedPaths.solveFinite_exact _ none (some target) weights).trans
+    (path_derives_exact key problem free target weights)
+
+def summarizeFinite [DecidableEq Key] [DecidableEq Slot] (key : Key)
+    (problem : RecursiveRows.Problem n Key Slot) (target : Slot) : Option (Semi n) :=
+  if checkUnguarded key (RecursiveRowGraph.compile problem) then
+    some (presentationFinite key problem target)
+  else none
+
+theorem summarizeFinite_exact [DecidableEq Key] [DecidableEq Slot] (key : Key)
+    (problem : RecursiveRows.Problem n Key Slot) (target : Slot) (result : Semi n)
+    (accepted : summarizeFinite key problem target = some result) (weights : Weight n) :
+    SemilinearWeights.Meaning result weights ↔
+      RecursiveRows.Derives problem target (occurrence key weights) := by
+  unfold summarizeFinite at accepted
+  split at accepted
+  next checked =>
+    have same := Option.some.inj accepted
+    rw [← same]
+    exact presentationFinite_exact key problem ((checkUnguarded_exact key _).mp checked) target weights
+  next => cases accepted
 
 end Yulang.SemilinearRows

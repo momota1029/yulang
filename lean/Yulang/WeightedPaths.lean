@@ -230,8 +230,8 @@ theorem direct_sound [DecidableEq Vertex] (graph : Graph n Vertex)
   · exact .nil _
   · exact Path.single present
 
-theorem close_complete [DecidableEq Vertex] (vertices : List Vertex)
-    (complete : ∀ vertex, vertex ∈ vertices) (graph : Graph n Vertex)
+theorem close_complete_targets [DecidableEq Vertex] (vertices : List Vertex)
+    (graph : Graph n Vertex) (complete : ∀ edge ∈ graph, edge.target ∈ vertices)
     (first last : Vertex) (weight : Weight n) (path : Path graph first last weight) :
     (close vertices (direct graph) first last).Meaning weight := by
   induction path with
@@ -242,7 +242,13 @@ theorem close_complete [DecidableEq Vertex] (vertices : List Vertex)
       have step : (close vertices (direct graph) edge.source edge.target).Meaning edge.weight :=
         close_keeps vertices (direct graph) _ _ _
           ((direct_exact _ _ _ _).mpr (Or.inr ⟨edge, member, rfl, rfl, rfl⟩))
-      exact close_trans vertices (direct graph) edge.target (complete edge.target) _ _ _ _ step ih
+      exact close_trans vertices (direct graph) edge.target (complete edge member) _ _ _ _ step ih
+
+theorem close_complete [DecidableEq Vertex] (vertices : List Vertex)
+    (complete : ∀ vertex, vertex ∈ vertices) (graph : Graph n Vertex)
+    (first last : Vertex) (weight : Weight n) (path : Path graph first last weight) :
+    (close vertices (direct graph) first last).Meaning weight :=
+  close_complete_targets vertices graph (fun edge _ => complete edge.target) first last weight path
 
 def solve [DecidableEq Vertex] (vertices : List Vertex) (graph : Graph n Vertex)
     (first last : Vertex) : Semi n := (close vertices (direct graph) first last).compile
@@ -257,5 +263,24 @@ theorem solve_exact [DecidableEq Vertex] (vertices : List Vertex)
   rw [solve, Regex.compile_exact]
   exact ⟨close_sound vertices (direct graph) (direct_sound graph) first last weight,
     close_complete vertices complete graph first last weight⟩
+
+theorem solve_targets_exact [DecidableEq Vertex] (vertices : List Vertex)
+    (graph : Graph n Vertex) (complete : ∀ edge ∈ graph, edge.target ∈ vertices)
+    (first last : Vertex) (weight : Weight n) :
+    Meaning (solve vertices graph first last) weight ↔ Path graph first last weight := by
+  rw [solve, Regex.compile_exact]
+  exact ⟨close_sound vertices (direct graph) (direct_sound graph) first last weight,
+    close_complete_targets vertices graph complete first last weight⟩
+
+/-- The input graph itself supplies the finite support. Even if the type of
+vertex identifiers is infinite, every intermediate vertex is an edge target. -/
+def solveFinite [DecidableEq Vertex] (graph : Graph n Vertex) (first last : Vertex) : Semi n :=
+  solve (graph.map Edge.target) graph first last
+
+theorem solveFinite_exact [DecidableEq Vertex] (graph : Graph n Vertex)
+    (first last : Vertex) (weight : Weight n) :
+    Meaning (solveFinite graph first last) weight ↔ Path graph first last weight :=
+  solve_targets_exact (graph.map Edge.target) graph
+    (fun edge member => List.mem_map.mpr ⟨edge, member, rfl⟩) first last weight
 
 end Yulang.WeightedPaths
