@@ -476,7 +476,7 @@ wrap(body, r) ≤ r
 
 ### 10.13.6 一般の相互再帰に残る証明義務
 
-任意の分岐と複数cycleが相互作用する有限問題については、最小解の所属決定、有限な半線形表示の構成、その表示間の包含・等価性の決定は未証明である。10.13.5の一つの反復programへの制限を、言語の制限やそれ以外の問題の拒否規則にはしない。10.3.2で確定した無限最小解の許容は、すべての問題についてそのまま保つ。
+有限禁止点を残す任意の分岐と複数cycleが相互作用する問題については、最小解の所属決定、有限な半線形表示の構成、その表示間の包含・等価性の決定は未証明である。禁止点のない一般graphの有限半線形表示は10.13.8で構成する。10.13.5の一つの反復programへの制限を、言語の制限やそれ以外の問題の拒否規則にはしない。10.3.2で確定した無限最小解の許容は、すべての問題についてそのまま保つ。
 
 禁止点を除いた整数vector addition systemの到達集合には、有効なPresburger表示がある（[Haase–Halfon, 2014, Corollary 10](https://lsv.ens-paris-saclay.fr/Publis/PAPERS/PDF/HH-rp14.pdf)）。その結果から、禁止点を保持する本問題の結論をそのまま導くことはできない。`guarded_graph_exact` により、必要なのは有限禁止点付き整数平行移動graphについての対応する到達定理である。ここでは一般の決定不能性も主張しない。推論された無限行の再帰表示には7.3bで確定した `as` を使う。複数の相互再帰変数の具体的な表記は引き続き未決である。
 
@@ -499,6 +499,12 @@ wrap(body, r) ≤ r
 `WeightedPaths` は任意の有限なunguarded graphからstate eliminationで正規表現を構成する。処理済みvertexを経由する合成に対する閉性を各段階で保存し、最後は全有限pathについての完全性を帰納法で導く。`solve_exact` は、実行可能な変換が返す半線形集合への所属と、独立な `Path` 判断を同値にする。vertex一覧の網羅性を入力に要求するだけで、pathの長さ・整数重み・cycleの数に上限を置かない。
 
 この結果は禁止点のないgraphの有限表示であり、有限禁止点付きgraphへの外挿や、半線形集合の一般の所属・包含・等価性の決定手続きは含まない。表示の大きさや変換速度についても主張しない。
+
+`SemilinearRows` はこれを既存の行制約へ接続する。固定keyについて全compiled programを正規化する。matching headは専用のseed vertexからtarget slotへ進むedgeに、slot間の依存は通常のedgeに変換する。seed vertexへ入るedgeはないため、複数のheadの重みを足し合わせて架空の到達点を作らない。`path_derives_exact` と `presentation_exact` は、全normalized exclusionが空の場合、計算した半線形表示と元の `RecursiveRows.Derives` が正確に同じ最小集合解を表すことを示す。
+
+`summarize` はこのguard条件を自分で有限に検査し、`summarize_exact` は返された表示の正確性を導く。残るguardがあればこの入口では未対応として返し、言語の拒否規則にはしない。任意の有限slot一覧と任意の境界数を扱い、各座標の符号・大きさやpath長を制限しない。`SemilinearRowExamples.whole_quadrant_in_presentation` は、2slotの相互再帰と別のself loopが混ざる実際の問題で、すべての `p, q : Nat` に対する `(p, -q)` の所属を示す。途中のresidualが負の入力点を除外する場合に、そのguardを消去しないことも検証する。
+
+さらに `WeightedPaths.solveFinite` はgraphのedge targetを自分で列挙する。pathの帰納で必要な中間vertexはこの集合に含まれるので、`solveFinite_exact` にはvertex型全体の有限性や外部の列挙を要求しない。`SemilinearRows.summarizeFinite_exact` は同じ入口を元の行制約まで接続する。slot識別子を `Nat` のような無限型で表す場合も、問題自体の有限性と実際のguard検査だけで有限半線形表示の正確性が成立する。
 
 ## 10.14 SCCで固定するmethodと呼出し側の可視impl
 
@@ -527,3 +533,15 @@ wrap(body, r) ≤ r
 sourceのimport構文・access規則の解析は入力に残る。別のsource implは別の `Roles.Impl.key`、同じ宣言の重複importは同じidentityとして供給する必要がある。この層だけでは未定型を推論せず、与えられた部分割当てを検査する既存入口へ可視性を接続する。
 
 `ModuleDictionaries` は同じfile selectorを実際の辞書elaboratorへ渡す。`elaborateAt_all_origins` は返った木の全nodeについて、自fileまたはloaded fileのaccess可能な宣言に由来することを示す。`elaborateAt_congr` は非可視宣言・順序・重複に対する木全体の不変性を保つ。`crossing_file_preserves_dictionary` は、そのfileで構成した辞書を、任意の別fileのcatalogの下でも同じ木として使うことを示す。受取側のcatalogが元のimplを含むという前提は要求しない。
+
+### 10.14.4 可視ground headからEOFの弱型を推論する範囲
+
+`EOFRoleInference` は、残る弱型slotを `Fin k` で表し、全slotを直接引数に持つpending predicate `Role ?a₀ … ?aₖ₋₁` をanchorとする。そのroleについて見えるimpl headがgroundなら、型タプルの候補を宣言headそのものから列挙できる。他roleのheadとnested whereには多相性を許す。rowは既に解かれたものを入力とし、型の損失のない第一階表現 `TypeCodec` と、残る通常制約の実行可能な検査を明示的に受け取る。
+
+候補ごとに既知の型との一致、通常制約、すべてのpending roleを検査する。`completion_is_candidate` は、固定rowとこれらの検査を満たす任意の意味的代入が必ず列挙に入ることを証明する。有限候補集合の完全性を外部仮定にはしない。`infer_unique_exact`・`infer_missing_exact`・`infer_ambiguous_exact` は、それぞれ任意の代入全体での一意completion・completion不在・異なるcompletionの存在と対応する。
+
+`finalize` は一意に残ったタプルからactual assignmentを構成し、実際の `finishModule` が返したclosed interfaceと一緒に返す。`finalize_exact` は一意completionとの同値を、`finalize_preserves_known` と `finalized_scheme_exact` は既知型と保存schemeの意味を保つことを示す。`checkedFinalize` はground headとanchorの存在を自分で有限に検査するため、成功の健全性にはこれらの外部仮定を要求しない。`finishFile_congr` は可視集合が同じなら推論したassignmentとclosed interface全体が不変であることを示す。
+
+実例は、未定型をintへ決めてexportする場合、二つの弱型を同時にint/strへ決める場合、候補型が二つある場合、同じ型に異なるimplが重複する場合、同じ宣言を重複importする場合、既知型・通常制約を保持する場合、fileのimport可視性が変わる場合を区別する。一意の型と一意のimplは混同しない。
+
+この範囲の外は `outsideFragment` で返す。一般の `impl Default (box 'a)` から `box ?a` という形を決め、残る弱型を最小型solverへ渡す処理を、ground型が一意でないという理由で拒否しない。anchorの発見・anchorが覆わないslot・未定row・一般通常制約solver・一般型モデルのcodecは別の接続義務である。`noCompletion` はすべての検査を通るcompletionがないという内部結果で、具体型に対するimpl重複も含む。章6.3のimpl不在と曖昧さのdiagnosticsを細分する処理は、この入口ではまだ接続していない。

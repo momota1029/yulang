@@ -77,5 +77,8 @@ import Yulang.FrozenMethodExamples
 import Yulang.RoleDictionaries
 import Yulang.ModuleVisibility
 import Yulang.ModuleDictionaries
+import Yulang.EOFRoleInference
 import Yulang.SemilinearWeights
 import Yulang.WeightedPaths
+import Yulang.SemilinearRows
+import Yulang.SemilinearRowExamples
