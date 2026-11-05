@@ -233,6 +233,8 @@ my a = make b
 my b = make a              // エラー: 再帰する component の中で computed value を取得している
 ```
 
+  これは章2の参照順序の規則（評価される位置に現れた関数は呼ばれたとみなす保守的な判定。確定, 2026-11-05）の特別な場合として拒否される。型の SCC とは別に、評価の依存で判定する。
+
 出典: `main:web/docs/ja/reference/types.md` §Value restriction、`main:spec/2026-06-13-computed-fetch-value-restriction.md`
 
 ## 4.8 書けない型と、表示に出る型　〔仮採用〕
