@@ -57,6 +57,10 @@ lake env lean --trust=0 Audit.lean
 | `Yulang.SemilinearWeights` / `Yulang.WeightedPaths` | 任意次元の符号付き整数重みについて、半線形集合の有限union・和・starの構成と意味保存、有限graphのstate elimination、独立な全有限pathとの双方向一致、到達重みの有限半線形表示 | 有限禁止点を含むgraph、半線形集合の一般所属・包含・等価性の決定、性能・最小表示 |
 | `Yulang.SemilinearRows` / `Yulang.SemilinearRowExamples` | 固定keyで全normalized guardが空の任意有限row graphについて、元のDerivesと計算した有限半線形表示の一致、実行可能なguard検査、複数seedを混ぜないこと、相互再帰・複数cycle・正負2座標の無制限な例 | 禁止点が残る一般graph、一般の半線形所属・包含・等価判定、source SCCからの制約抽出 |
 | `Yulang.GuardedAffineRows` / `Yulang.CertifiedRowSummaries` | 指定座標とslot potentialの有限検査から全中間点のguard通過を導出、非空禁止点を含む複数cycleの半線形表示、固定keyの正規化と元の任意row AST problemの到達・Derivesの同値、検査成功から元の最小解への直接接続、全Slot列挙不要 | certificateの探索、検査を通らない一般guard問題の求解、一般の半線形所属・包含・等価判定、sourceからの制約抽出 |
+| `Yulang.FiniteBooleanReachability` / `Yulang.BinaryCarries` / `Yulang.SemilinearDecisions` | 任意次元・任意符号の有限周期集合について、無制限の自然数係数を二進carryの有限到達問題へ変換し、半線形集合への所属・非所属を完全に判定。零周期・相殺・空集合・0次元も含む | 任意のguard付きgraphの半線形表示の構成、実用的な大入力性能 |
+| `Yulang.FiniteAutomata` / `Yulang.SemilinearDigits` / `Yulang.SemilinearAutomata` | 全有限語についてのNFA包含・等価性、全整数vectorの符号付き二進表示、全表現での受理との一致、任意の半線形集合の包含・等価性・非包含時の整数反例の存在 | 全guard付きgraphの到達集合が半線形であること、最短反例の抽出、productionの計算量 |
+| `Yulang.GuardedRowErasure` / `Yulang.AutomaticRowSummaries` | 正規化された元のrow ASTについて、各slot edgeの禁止点への到達不能性を自動検査し、成功時の半線形表示・所属・非所属を元のDerivesへ接続。外部potential・座標・Slotの有限列挙不要、既存の座標certificateが通る場合を包含 | guardが実際に到達する一般問題の求解。`none`はこの算法の未対応で、言語の拒否や非所属ではない |
+| `Yulang.StructuralCut` / `Yulang.StructuralDecisions` | 既存の有限構造部分型preorder全体のcut除去、union/intersection・pair・variant・record幅/先勝ち・関数の型と二つの行の分散を含む完全な比較器、符号付き有限行に対する真偽・同値判定 | 未知型変数のbound探索、再帰値型、Simple-sub全体のextrusion/intrusion/generalization、sourceの推論器 |
 | `Yulang.InfiniteOperationalCorrespondence` | 同じresolved式の既存principal制約を任意の集合行で解釈した解から、同じ実行木の全request上界・返却値の構造型解釈・fresh境界非captureまでの接続。handlerの各armの上界と元の継続行は型判断から導出 | 無限行solverの完全性、source elaboration、異種payload署名、runtimeの再帰構文、潜在closureの衛生wrapper挿入 |
 | `Yulang.RecursiveEffects` | 全既存core式とrequest・boundary・shallow handlerを同じ再帰ASTに置く有限制約生成、任意の入れ子について独立な型判断との双方向一致・制約schemeの主性、値制限付き多相letと署名のambient slotの保持 | operation-local多相・roleを含む統合、再帰SCC、source elaboration、制約solver、型付けからruntime安全性への接続 |
 | `Yulang.RecursiveEffectsConservativity` / `Yulang.RecursiveEffectExamples` | effectを含まない全core式で実際の生成formula・principal schemeを保存する等式、旧型判断との一致、入れ子handler・多相let・computation引数・保護と負債の正例と負例 | source parserからの翻訳、全制約solver |
@@ -107,7 +111,7 @@ lake env lean --trust=0 Audit.lean
 
 `RoleConstraints.addAssociated` は既存の関連型解決が返した値を、普通の型変数との等式として蓄積する。`Store.permutation_preserves_solutions` は一つの選んだ置換だけでなく、**すべての置換**について解集合が順序に依存しないことを示す。`conflicting_constraint_rejects` は同じ変数への char と str の要求が、後からの代入で上書きしても解にならないことを示す。`Store.check_dichotomy` は固定した置換での整合・矛盾の二分であり、解となる置換の存在判定器ではない。
 
-`Casts.accepts_exact` は、与えられた普通の適合性の判定と明示castの探索を用い、独立な `Boundary` 判断と実行可能な追加変換の検査を対応させる。適合すればそのまま通し、不一致の場合だけ構造に沿った変換を調べる。recordはfield名で照合し、既存の構造型モデルと同じく最初のfieldが後の同名fieldを隠す。`union_mismatch_iff` は不一致の場合に全memberの検査が必要なことを示す。無条件の `union_boundary_iff` では、普通の適合性がunionの除去則を満たすことを明示的に要求する。`structural_union_boundary_iff` は既存の `StructuralBase.Subtype` と一致する適合性からこの前提を導くが、その部分型の判定器自体は実装していない。
+`Casts.accepts_exact` は、与えられた普通の適合性の判定と明示castの探索を用い、独立な `Boundary` 判断と実行可能な追加変換の検査を対応させる。適合すればそのまま通し、不一致の場合だけ構造に沿った変換を調べる。recordはfield名で照合し、既存の構造型モデルと同じく最初のfieldが後の同名fieldを隠す。`union_mismatch_iff` は不一致の場合に全memberの検査が必要なことを示す。無条件の `union_boundary_iff` では、普通の適合性がunionの除去則を満たすことを明示的に要求する。`structural_union_boundary_iff` は既存の `StructuralBase.Subtype` と一致する適合性からこの前提を導くが、本層自体は部分型判定器を実装しない。有限構造型の判定は `StructuralDecisions` で別に実装・証明する。
 
 このground型構文で、登録先の同一性と固定nominal引数には構文的等号を用いる。nominal引数内のunionの並べ替えなど、意味的に等価な型を同じ表現にする正規化は前段の課題である。`equalityCompatibility` は検査の具体例用の適合性であり、Yulangの部分型solverを置き換えるものではない。
 

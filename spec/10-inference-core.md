@@ -476,7 +476,7 @@ wrap(body, r) ≤ r
 
 ### 10.13.6 一般の相互再帰に残る証明義務
 
-有限禁止点を残す任意の分岐と複数cycleが相互作用する問題については、最小解の所属決定、有限な半線形表示の構成、その表示間の包含・等価性の決定は未証明である。禁止点のない一般graphの有限半線形表示は10.13.8で、禁止点の無害性を指定座標の不変条件から検査できる範囲は10.13.9で構成する。10.13.5の一つの反復programへの制限を、言語の制限やそれ以外の問題の拒否規則にはしない。10.3.2で確定した無限最小解の許容は、すべての問題についてそのまま保つ。
+有限禁止点を残す任意の分岐と複数cycleが相互作用する問題については、最小解の所属決定と有限な半線形表示の構成は未証明である。既に有限半線形表示が得られた集合の所属・包含・等価性は10.15で完全に判定する。禁止点のない一般graphの有限半線形表示は10.13.8で、禁止点の無害性を指定座標の不変条件から検査できる範囲は10.13.9で構成する。10.13.5の一つの反復programへの制限を、言語の制限やそれ以外の問題の拒否規則にはしない。10.3.2で確定した無限最小解の許容は、すべての問題についてそのまま保つ。
 
 禁止点を除いた整数vector addition systemの到達集合には、有効なPresburger表示がある（[Haase–Halfon, 2014, Corollary 10](https://lsv.ens-paris-saclay.fr/Publis/PAPERS/PDF/HH-rp14.pdf)）。その結果から、禁止点を保持する本問題の結論をそのまま導くことはできない。`guarded_graph_exact` により、必要なのは有限禁止点付き整数平行移動graphについての対応する到達定理である。ここでは一般の決定不能性も主張しない。推論された無限行の再帰表示には7.3bで確定した `as` を使う。複数の相互再帰変数の具体的な表記は引き続き未決である。
 
@@ -498,7 +498,7 @@ wrap(body, r) ≤ r
 
 `WeightedPaths` は任意の有限なunguarded graphからstate eliminationで正規表現を構成する。処理済みvertexを経由する合成に対する閉性を各段階で保存し、最後は全有限pathについての完全性を帰納法で導く。`solve_exact` は、実行可能な変換が返す半線形集合への所属と、独立な `Path` 判断を同値にする。vertex一覧の網羅性を入力に要求するだけで、pathの長さ・整数重み・cycleの数に上限を置かない。
 
-この結果は禁止点のないgraphの有限表示であり、有限禁止点付きgraphへの外挿や、半線形集合の一般の所属・包含・等価性の決定手続きは含まない。表示の大きさや変換速度についても主張しない。
+この結果は禁止点のないgraphの有限表示であり、有限禁止点付きgraphへの外挿や、半線形集合の一般の所属・包含・等価性の決定手続きは含まない。表示の大きさや変換速度についても主張しない。得られた任意の半線形表示についての完全な判定は10.15を参照する。
 
 `SemilinearRows` はこれを既存の行制約へ接続する。固定keyについて全compiled programを正規化する。matching headは専用のseed vertexからtarget slotへ進むedgeに、slot間の依存は通常のedgeに変換する。seed vertexへ入るedgeはないため、複数のheadの重みを足し合わせて架空の到達点を作らない。`path_derives_exact` と `presentation_exact` は、全normalized exclusionが空の場合、計算した半線形表示と元の `RecursiveRows.Derives` が正確に同じ最小集合解を表すことを示す。
 
@@ -557,3 +557,37 @@ sourceのimport構文・access規則の解析は入力に残る。別のsource i
 `accepted_no_unresolved` と `accepted_export_independent` は、成功した公開interfaceの閉性と、入力割当ての任意の全域拡張に対する意味の独立性を保つ。`accepted_with_more_impls` は、可視implを増やしたとき、同じclosed interfaceのまま成功するか、具体goalの曖昧さになることを示す。別の弱型を選び直すことはない。既知型に対するimpl追加で曖昧さが起こり得るという章6.2の規則はそのまま保つ。
 
 旧 `EOFRoleInference` は参考実装として残すが、現在の核をまとめる `Yulang` からはimportしない。独立した実験として公理監査には含める。そのground anchorからのcompletionは現行言語の推論入口へ接続しない。sourceからの残留制約の漏れない収集、ambient/generalizedの分類、通常型推論そのもの、source診断の位置と文言は上流の義務として残る。
+
+## 10.15 整数重みの完全な判定と自動guard検査
+
+### 10.15.1 任意の半線形集合への所属
+
+`SemilinearDecisions.checkSpan` は、任意の整数vectorの有限リストが生成する非負整数和への所属を判定する。係数に上限を置かず、各係数の二進数字を一桁ずつ選ぶ。状態qと次のcarry q′は `q = digit + 2q′` を満たす。`digit`は各周期を0回か1回選んだ和である。入力vectorと周期の絶対値から有限のcarry boxを構成でき、係数のhalvingによって任意の真の組合せからそのbox内の到達経路を構成する。状態空間の有限化は係数や再帰の展開回数の打切りではない。
+
+`checkSpan_exact` は独立な `Span` 判断と、`check_exact` と `check_rejects` は有限unionの `Meaning` と正確に一致する。周期の正負・次元・相殺を制限せず、空周期・零周期・空集合・0次元も含める。`FiniteBooleanReachability.closure_exact` は実際に構成した有限Boolean行列と全有限pathの一致を支える。
+
+### 10.15.2 任意の半線形集合の包含と等価性
+
+`SemilinearDigits` は各座標が−1・0・1の有限alphabetを使い、整数vectorを有限語の値として表す。符号付き絶対値のhalvingにより `value_surjective` を証明する。`SemilinearAutomata` は半線形集合を有限NFAへ変換する。carryの遷移は `2q′ = q + periodDigit − inputDigit` であり、終状態の受理には既存の `checkSpan(periods, −q)` を使う。この検査は入力語より上位に残る任意の係数桁を吸収するため、短い語や末尾の零の個数に依存する欠落がない。
+
+`accepts_exact` はすべての語について、NFAの受理とその語の整数vectorが `Meaning` に属することを同値にする。`FiniteAutomata` の全有限語に対する包含判定を用い、`checkSubset_exact` は全整数vectorを量化する集合包含を、`checkEqual_exact` と `checkEqual_sets` は意味的な等価性を完全に判定する。非包含時には `checkSubset_rejects` が実際の整数vectorの反例の存在を与える。sourceの各線形成分がtargetのどれか一成分に入る、という不完全な置換はしない。自然数全体が偶数と奇数のunionに等しい例も形式化する。
+
+これは停止する参照判定器であり、実用上の小さい計算量を主張しない。有限NFAの比較は冪集合構成を含み、半線形表示自体も大きくなり得る。これらの定理は、禁止点を持つ任意の到達集合が半線形であるという未証明の主張を含まない。
+
+### 10.15.3 外部certificateを要求しないguardの検査
+
+`AutomaticRowSummaries` は元の有限 `RecursiveRows.Problem` とkeyを入力とする。head edgeのguardは実際に実行して、失敗したseedを無効にする。slot edgeのguardだけを一旦消したgraphについて、各sourceへの到達集合を半線形表示する。元の各禁止点がそのsourceの到達集合にないことを、10.15.1の完全な所属判定で検査する。空の禁止集合と別keyだけの禁止集合では、この表示の計算を省く。
+
+`GuardedRowErasure.path_state` は各途中状態で元のguardを通過することを保つ。`AutomaticRowSummaries.check_exact` は、checkerの成功と、この十分条件 `Harmless` の一致を示す。`summarize_exact` は返された有限表示が元の `Derives` と全整数重みについて一致することを、`query_exact` と `query_false` は返された所属・非所属の答えの正確性を示す。座標・potential・任意のSlot型全体の有限列挙を入力に要求しない。`certified_is_supported` により既存の座標certificateが通る場合もこの自動入口で扱える。
+
+十分条件が満たされなければ `none` を返す。この値は一般のguard問題がこの入口では未対応であることを表し、プログラムの拒否や非所属を表さない。到達するguardが意味的に冗長な場合もあるため、この条件を半線形表示の存在やguard消去可能性の必要条件とは呼ばない。
+
+直接のrow ASTを使う例は、重み1のseedから2ずつ増える無限行と、入力点0を禁止するcycleを持つ。偶奇によってguardの無害性を判定し、1・3への所属、2・−1への非所属を実際のqueryで検証する。seedが0の例ではguardを消すと余計な到達点が生じるので、未対応として返す。有限graphのstate eliminationでは、同じtargetを一度だけ消去する。重複消去を省いても `solveFinite_exact` の全pathとの同値は変わらない。
+
+## 10.16 有限構造部分型の完全な比較
+
+`StructuralCut.Comparison`（namespace `StructuralDecisions`）は既存の `StructuralBase.Subtype` から明示的な推移則を除いた判断である。`Comparison.trans` は任意の中間型を消去し、`comparison_iff_subtype` が元の判断との双方向一致を証明する。union/intersection・pair・variant・recordの幅と同名fieldの先勝ち・関数の入力反変と出力共変をすべて含み、関数の二つの行の向きも保つ。行関係には推移性だけを要求する。
+
+`StructuralDecisions.check` は型の有限構造に従って再帰する実行可能な比較器であり、`check_exact` が正確な行比較を入力として元の部分型判断と一致することを示す。`checkSigned` は行比較を実際の符号付き出現の包含で実装するため、有限符号付き行では外部oracleが残らない。`checkSigned_rejects` の否定結果は、直接の比較規則だけでなく、任意の中間型を通るすべての宣言的導出の不存在を意味する。unionの順序、格子の吸収、隠れたrecord field、負の解除差分、入力行と出力行の分散を回帰例に含める。
+
+ここで有限なのは値型の構造であり、未知の型変数を解くbound propagationや、再帰値型の意味論を決めるものではない。Simple-sub全体のextrusion・intrusion・generalization、source elaboration、全言語のpreservation/progressは別の証明義務として残る。
