@@ -4,8 +4,10 @@ import Yulang.FiniteReachability
 /-!
 # Finite ground cast registration and boundary checking
 
-The registry contains distinct ground nominal endpoints and visible direct
-rules. Two declarations of the same direct source/target pair are rejected.
+The registry contains distinct ground endpoints and visible direct rules.
+Every direct source is nominal/base; its target may be any ground type, so a
+whole nominal unbox can return a pair, function, or other structural target.
+Two declarations of the same direct source/target pair are rejected.
 Different paths through the graph are allowed; reachability is exact for paths
 of every finite length and does not use a search-depth cutoff.
 
@@ -57,10 +59,12 @@ structure Registry (n : Nat) where
   types : Fin n → Ty
   rules : List (Rule n)
 
-/-- One vertex per ground type, nominal endpoints, and one direct declaration
-per ordered pair. This does not demand a unique transitive path. -/
+/-- One vertex per ground type, nominal/base direct sources, and one direct
+declaration per ordered pair. Structural target vertices are permitted; this
+does not add whole-source-union lookup or demand a unique transitive path. -/
 def Registry.WellFormed (registry : Registry n) : Prop :=
-  registry.rules.Nodup ∧ (∀ vertex, (registry.types vertex).isNominal = true) ∧
+  registry.rules.Nodup ∧
+    (∀ edge ∈ registry.rules, (registry.types edge.1).isNominal = true) ∧
     ∀ left right, registry.types left = registry.types right → left = right
 
 instance (registry : Registry n) : Decidable registry.WellFormed := by

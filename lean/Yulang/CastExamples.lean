@@ -95,6 +95,44 @@ theorem explicit_outer_nominal_rule_is_accepted :
       .converted := by
   simp [checkBoundary] <;> decide
 
+/-- A ground instance of `cast(x: box 'a): 'a = x.value`. -/
+def unboxAt (element : Ty) : Registry 2 where
+  types := fun vertex => if vertex = 0 then .nominal 2 [element] else element
+  rules := [(0, 1)]
+
+theorem structural_unbox_registry_is_valid :
+    (unboxAt (.pair intType strType)).validate = true := by decide
+
+theorem whole_nominal_unbox_can_return_pair :
+    checkBoundary equalityCompatibility (unboxAt (.pair intType strType))
+      (.nominal 2 [.pair intType strType]) (.pair intType strType) = .converted := by
+  simp [checkBoundary] <;> decide
+
+theorem whole_nominal_unbox_can_return_function :
+    checkBoundary equalityCompatibility (unboxAt (.arrow intType strType))
+      (.nominal 2 [.arrow intType strType]) (.arrow intType strType) = .converted := by
+  simp [checkBoundary] <;> decide
+
+theorem whole_nominal_unbox_can_return_union :
+    checkBoundary equalityCompatibility (unboxAt (.union intType strType))
+      (.nominal 2 [.union intType strType]) (.union intType strType) = .converted := by
+  simp [checkBoundary] <;> decide
+
+theorem structural_unbox_still_requires_whole_rule :
+    checkBoundary equalityCompatibility idToInt
+      (.nominal 2 [.pair intType strType]) (.pair intType strType) = .rejected := by
+  simp [checkBoundary] <;> decide
+
+/-- Even an oracle advertising only a whole source union cannot bypass the
+per-member rule. This property does not rely on registry validation. -/
+def wholeUnionOnly (source target : Ty) : Bool :=
+  decide (source = .union intType strType ∧ target = intType)
+
+theorem whole_union_lookup_cannot_hide_missing_member :
+    wholeUnionOnly (.union intType strType) intType = true ∧
+      accepts equalityCompatibility.check wholeUnionOnly (.union intType strType) intType = false := by
+  simp [wholeUnionOnly] <;> decide
+
 def selfRule : Registry 1 where
   types := fun _ => intType
   rules := [(0, 0)]

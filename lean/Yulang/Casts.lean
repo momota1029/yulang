@@ -9,7 +9,8 @@ not replaced by cast reachability. This module decides the additional boundary
 relation: source unions require every member, arrow inputs are contravariant,
 and outputs, tuple components, record fields, and variant payloads are covariant.
 Nominal arguments are opaque. Only an explicit rule for the entire nominal type
-can change them.
+can change them. A whole-rule cast from a nominal/base source may return any
+ground target, including a structural type instantiated by `box 'a -> 'a`.
 
 The ground syntax extends the effect-free fragment of `StructuralBase` with
 nominal applications. It does not solve ordinary subtyping, ground polymorphic
@@ -154,7 +155,7 @@ mutual
         Boundary fits explicit source target
 
   inductive Conversion (fits explicit : Ty → Ty → Prop) : Ty → Ty → Prop where
-    | named : source.isNominal = true → target.isNominal = true → explicit source target →
+    | named : source.isNominal = true → explicit source target →
         Conversion fits explicit source target
     | union : Boundary fits explicit left target → Boundary fits explicit right target →
         Conversion fits explicit (.union left right) target
@@ -185,7 +186,7 @@ mutual
 
   def converts (fits explicit : Ty → Ty → Bool) (source target : Ty) : Bool :=
     match source with
-    | .base _ | .nominal _ _ => target.isNominal && explicit source target
+    | .base _ | .nominal _ _ => explicit source target
     | .union left right => accepts fits explicit left target && accepts fits explicit right target
     | .pair first second =>
       match target with
@@ -242,13 +243,9 @@ mutual
       Conversion fits.Rel explicit.Rel source target := by
     cases sourceShape : source with
     | base base =>
-      have parts : target.isNominal = true ∧ explicit.check (.base base) target = true := by
-        simpa [converts, sourceShape] using checked
-      exact .named rfl parts.1 ((explicit.exact _ _).mp parts.2)
+      exact .named rfl ((explicit.exact _ _).mp (by simpa [converts, sourceShape] using checked))
     | nominal name args =>
-      have parts : target.isNominal = true ∧ explicit.check (.nominal name args) target = true := by
-        simpa [converts, sourceShape] using checked
-      exact .named rfl parts.1 ((explicit.exact _ _).mp parts.2)
+      exact .named rfl ((explicit.exact _ _).mp (by simpa [converts, sourceShape] using checked))
     | union left right =>
       have parts : accepts fits.check explicit.check left target = true ∧
           accepts fits.check explicit.check right target = true := by
@@ -350,9 +347,9 @@ private theorem completeness (fits : Compatibility) (explicit : ExplicitCasts) :
     have mismatch : fits.check source target ≠ true :=
       fun h => incompatible ((fits.exact _ _).mp h)
     simpa [accepts, mismatch] using checked
-  have namedCase : ∀ {source target}, source.isNominal = true → target.isNominal = true →
+  have namedCase : ∀ {source target}, source.isNominal = true →
       explicit.Rel source target → converts fits.check explicit.check source target = true := by
-    intro source target sourceNominal targetNominal registered
+    intro source target sourceNominal registered
     have checked := (explicit.exact _ _).mpr registered
     cases source <;> simp_all [Ty.isNominal, converts]
   have unionCase : ∀ {left target right}, Boundary fits.Rel explicit.Rel left target →
@@ -467,7 +464,7 @@ theorem union_mismatch_iff (fits : Compatibility) (explicit : ExplicitCasts)
     | keep matching => exact False.elim (mismatch matching)
     | convert _ conversion =>
       cases conversion with
-      | named sourceNominal _ _ => simp [Ty.isNominal] at sourceNominal
+      | named sourceNominal _ => simp [Ty.isNominal] at sourceNominal
       | union first second => exact ⟨first, second⟩
       | record sourceRecord _ => simp [Ty.isRecord] at sourceRecord
   · rintro ⟨first, second⟩
@@ -488,6 +485,24 @@ theorem union_boundary_iff (fits : Compatibility) (explicit : ExplicitCasts)
   · exact union_mismatch_iff fits explicit left right target
       (fun related => matching ((fits.exact _ _).mpr related))
 
+/-- Whole nominal conversions may return an arbitrary instantiated ground type.
+The source remains nominal; the source-union rule still checks every member. -/
+theorem nominal_mismatch_iff (fits : Compatibility) (explicit : ExplicitCasts)
+    (name : Nat) (args : List Ty) (target : Ty)
+    (mismatch : ¬ fits.Rel (.nominal name args) target) :
+    Boundary fits.Rel explicit.Rel (.nominal name args) target ↔
+      explicit.Rel (.nominal name args) target := by
+  constructor
+  · intro typed
+    cases typed with
+    | keep matching => exact False.elim (mismatch matching)
+    | convert _ conversion =>
+      cases conversion with
+      | named _ registered => exact registered
+      | record sourceRecord _ => simp [Ty.isRecord] at sourceRecord
+  · intro registered
+    exact .convert mismatch (.named rfl registered)
+
 /-- Changing a fixed nominal argument requires a rule/path for the entire
 outer application. Rules for its argument types alone cannot derive this. -/
 theorem nominal_arguments_need_outer_rule (fits : Compatibility) (explicit : ExplicitCasts)
@@ -496,16 +511,7 @@ theorem nominal_arguments_need_outer_rule (fits : Compatibility) (explicit : Exp
       explicit.Rel (.nominal name args) (.nominal otherName otherArgs) := by
   have mismatch : ¬ fits.Rel (.nominal name args) (.nominal otherName otherArgs) :=
     fun matching => different ((fits.nominalInvariant _ _ _ _ matching).2)
-  constructor
-  · intro typed
-    cases typed with
-    | keep matching => exact False.elim (mismatch matching)
-    | convert _ conversion =>
-      cases conversion with
-      | named _ _ registered => exact registered
-      | record sourceRecord _ => simp [Ty.isRecord] at sourceRecord
-  · intro registered
-    exact .convert mismatch (.named rfl rfl registered)
+  exact nominal_mismatch_iff fits explicit name args _ mismatch
 
 /-! ## Explicit syntax bridge to the existing effect-free structural carrier -/
 
