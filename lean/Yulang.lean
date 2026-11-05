@@ -72,3 +72,10 @@ import Yulang.CheckedRoles
 import Yulang.ImplHeads
 import Yulang.RoleVisibility
 import Yulang.MethodResolution
+import Yulang.FrozenMethods
+import Yulang.FrozenMethodExamples
+import Yulang.RoleDictionaries
+import Yulang.ModuleVisibility
+import Yulang.ModuleDictionaries
+import Yulang.SemilinearWeights
+import Yulang.WeightedPaths

@@ -229,7 +229,7 @@ handlerの結果 `out : CompTerm α` と外側のscheme環境 `SchemeEnv α` は
 
 - **一般化**: 構文的な値だけを一般化する。環境由来の未確定変数を量化してはならない。計算された binding は単相で共有する。再帰 SCC は同時に扱い、computed-value cycle を通さない。
 - **operation の多相性**: 呼出側は operation-local 型変数を具体化する。handler 側は抽象型として受け取り、任意の具体型へ単一化しない。role 制約があれば、その証拠だけを利用できる。
-- **method / role**: receiver の下界が定まるまで解決を保留する。field/with、role、effect 行の優先順位を守り、同じ階層の複数候補は曖昧とする。
+- **method / role**: receiver の下界が定まるまで解決を保留する。同じSCC内で型が分かれば既知型の優先順位を使い、SCC確定時にも未知なら可視roleの同名methodを0/1/複数で分ける。解決済みSCCの解釈は後の具体化で選び直さない。field/with、role、effect 行の優先順位を守り、同じ階層の複数候補は曖昧とする。
 - **cast**: 期待型境界で挿入する。直接の重複規則と、複数の間接経路を区別する。後者は選択が仕様上自由なので、型の主性と elaboration の一意性を同じ定理にしない。
 - **公開表示**: 残余の行変数や実際の制約を消さない。内部の識別子を隠す処理には、型の意味を保つことの根拠が必要になる。
 
@@ -489,3 +489,41 @@ wrap(body, r) ≤ r
 `Display.render` は既に確定した一つの境界を意味情報として持ち、`[k, 'e] as 'e`、`[k, 'e?] as 'e`、`[io, 'e[io]] as 'e` の形を出力する。default tailは保護、`?` は解除、maskに含まれるkeyはその境界で移動しない。数値重みを表示に持ち出さない。`Display.check_exact`・`checkSubset_exact`・`checkEqual_exact` は、この一stepのcycleの表示payloadについて、既存のcycle solverと展開後の意味の所属・包含・等価性が一致することを示す。
 
 名前の変更は意味を変えない。この層は推論結果の表示payloadを扱い、型注釈の構文を追加しない。文字列のparse/roundtrip、複数の境界をまたぐ一般本体の整形、相互再帰する複数変数の表記は対象外である。
+
+### 10.13.8 禁止点のない一般graphの半線形表示
+
+`SemilinearWeights` は任意の `Fin n → Int` 上の線形集合を、基点と有限個の周期が生成する非負整数和で表す。半線形集合はその有限unionである。`Linear.sum_exact`・`sum_exact` は和を、`Linear.star_exact`・`star_exact` は任意の有限回の反復を、有限の同じ表現へ変換する。線形集合 `a + Span(P)` のstarは `{0} ∪ (a + Span(a :: P))` となる。基点を一度も使わず周期だけを使う点は加えない。
+
+`Regex.compile_exact` は、union・連接・starを持つ有限な重み付き正規表現から半線形表示への変換が、独立な集合意味論と一致することを示す。整数の負成分・零成分や次元を制限しない。重みの和が可換であることを使うが、元のgraphの合法なpath自体を自由に並べ替えてよいという主張ではない。
+
+`WeightedPaths` は任意の有限なunguarded graphからstate eliminationで正規表現を構成する。処理済みvertexを経由する合成に対する閉性を各段階で保存し、最後は全有限pathについての完全性を帰納法で導く。`solve_exact` は、実行可能な変換が返す半線形集合への所属と、独立な `Path` 判断を同値にする。vertex一覧の網羅性を入力に要求するだけで、pathの長さ・整数重み・cycleの数に上限を置かない。
+
+この結果は禁止点のないgraphの有限表示であり、有限禁止点付きgraphへの外挿や、半線形集合の一般の所属・包含・等価性の決定手続きは含まない。表示の大きさや変換速度についても主張しない。
+
+## 10.14 SCCで固定するmethodと呼出し側の可視impl
+
+この節は2026-11-05の確定事項29–32と章6.2–6.4を接続する。入力に残るsourceの名前解決・制約収集と、ここで実装・証明した選択および検査を区別する。
+
+### 10.14.1 SCC確定時の選択と後続代入
+
+`MethodResolution` はSCC最終時点のreceiver知識を受け取る。未知なら、可視roleからmethod名を持つ相異なるroleを数え、0個ならfield制約、1個ならそのrole method、複数なら曖昧とする。同じroleの重複は候補数を増やさず、順序も結果を変えない。既知の構造receiverでは既存の `StructuralBase.Ty.lookup` でfieldの有無を計算し、存在するfieldを優先する。fieldがない場合のnominal/inherent/effect/unionのlookup結果は入力であり、この層が全lookupを実装したとは主張しない。
+
+`FrozenMethods` は選択済み参照を既存の `.field` または `.app (.method declaration) receiver` へ変換する。`generateDot_exact` と `principalDot_exact` は、選択とfield/methodの契約を直接述べる独立な型判断との双方向一致を証明する。`FrozenDot.principal_substitution_exact` は、captured slotとresult slotを含む任意の後続代入でも同じ選択と宣言の要求が残ることを示す。具体化時のreceiver型でlookupを再実行しない。
+
+`FrozenMethodExamples.fixed_selection_changes_acceptance` は、未知receiverで選んだ `Size` が後の `box` の `size` fieldで置換されないことを、実際のprincipalの拒否として示す。同じSCC内でreceiverが既知ならfieldを選び、同じ最終型のprincipalがimplなしで成立する。保存したqualified schemeは正確に `Size box` を要求し、定義自体は抽象辞書の下で検査できる。例の `box` は構造型carrierであり、nominal型のelaborationを代替しない。最終snapshotの算出、role scopeとmethod宣言tableの整合性検査は上流の義務となる。
+
+### 10.14.2 呼出し側の可視性と実際の辞書木
+
+`RoleVisibility.resolved_mono` は可視impl集合の増加に対し、成功が成功または曖昧にしか変わらないことを、`ambiguous_mono` は曖昧さが保存されることを示す。`resolve_congr` はmembershipが同じなら順序・重複によらず結果が同じことを示す。全体のcoherence条件やorphan ruleを追加しない。別fileの同じheadは各々の呼出し側で解決でき、両方が見える呼出しだけで曖昧になり得る。
+
+`RoleDictionaries.buildResolved` は既存のresolverの成功から、実際に選んだimplとすべてのwhere子を持つ辞書木を計算する。再帰は同じPatersonのサイズ減少で停止し、全nodeで同じrootの可視集合を使う。`elaborate_success_iff` は成功と辞書木の存在を同値にし、`elaborate_all_visible` は木全体の宣言が呼出し側から見えることを示す。`elaborate_mono` は可視集合が増えてなお成功する場合、rootだけでなく全子の宣言選択が同じになることを証明する。
+
+`useEvidence` は既に渡された辞書を先に使い、存在しない場合にだけ受取側でresolverを呼ぶ。`useEvidence_exact` は既存の `WithEvidence` と成功条件が一致することを、`useEvidence_preserves` は渡された辞書の木が受取側の別impl・impl不在・曖昧さで選び直されないことを示す。辞書payloadは宣言identityと子辞書であり、source method bodyの実行や重複given binderのsource選択規則は対象外である。
+
+### 10.14.3 EOFのfile可視性
+
+`ModuleVisibility.FileScope.select` は、宣言が自fileまたは読み込んだfileの所属であることと、通常のaccess検査を通ることを要求する。その結果だけを実際の `finishModule` とresolverへ渡す。`finish_exact` は既存の公開型閉性・全pending roleの充足・scheme構成と接続し、`finish_congr` と `finish_append_hidden` は同じ可視集合ならEOF結果が変わらず、非可視宣言の追加も影響しないことを示す。全where子も同じfile可視集合を使う。
+
+sourceのimport構文・access規則の解析は入力に残る。別のsource implは別の `Roles.Impl.key`、同じ宣言の重複importは同じidentityとして供給する必要がある。この層だけでは未定型を推論せず、与えられた部分割当てを検査する既存入口へ可視性を接続する。
+
+`ModuleDictionaries` は同じfile selectorを実際の辞書elaboratorへ渡す。`elaborateAt_all_origins` は返った木の全nodeについて、自fileまたはloaded fileのaccess可能な宣言に由来することを示す。`elaborateAt_congr` は非可視宣言・順序・重複に対する木全体の不変性を保つ。`crossing_file_preserves_dictionary` は、そのfileで構成した辞書を、任意の別fileのcatalogの下でも同じ木として使うことを示す。受取側のcatalogが元のimplを含むという前提は要求しない。
