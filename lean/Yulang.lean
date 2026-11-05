@@ -98,3 +98,10 @@ import Yulang.AutomaticRowSummaryExamples
 import Yulang.StructuralCut
 import Yulang.StructuralDecisions
 import Yulang.StructuralDecisionExamples
+import Yulang.SemilinearNormalization
+import Yulang.SemilinearNormalizationExamples
+import Yulang.SemilinearFastInclusion
+import Yulang.SemilinearRowAlgebra
+import Yulang.SemilinearRowAlgebraExamples
+import Yulang.SolvedRecursiveRows
+import Yulang.SolvedRecursiveRowExamples

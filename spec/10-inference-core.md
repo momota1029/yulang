@@ -584,10 +584,28 @@ sourceのimport構文・access規則の解析は入力に残る。別のsource i
 
 直接のrow ASTを使う例は、重み1のseedから2ずつ増える無限行と、入力点0を禁止するcycleを持つ。偶奇によってguardの無害性を判定し、1・3への所属、2・−1への非所属を実際のqueryで検証する。seedが0の例ではguardを消すと余計な到達点が生じるので、未対応として返す。有限graphのstate eliminationでは、同じtargetを一度だけ消去する。重複消去を省いても `solveFinite_exact` の全pathとの同値は変わらない。
 
+### 10.15.4 意味を保つ正規化と高速な成功判定
+
+`SemilinearNormalization` は零vectorと重複する周期を除き、同じ基点・同じ周期集合を持つ成分をまとめる。周期の順番が異なるだけの成分も対象とし、`span_exact` と `normalize_exact` が全整数vectorについて意味を保存する。これは最小の半線形表示を構成する主張ではない。carry boxとNFAを作る前にこの正規化を使い、冗長な構文がそのまま状態数を増やすことを避ける。
+
+空周期は零vectorとの等号だけで判定する。単一周期では非零座標から自然数係数の候補を計算し、すべての座標の一致を確認する。`checkSingleton_exact` により、この場合は巨大な入力座標に比例するcarry boxが不要になる。包含については、各source成分の基点と周期が一つのtarget成分で表せる場合だけ `SemilinearFastInclusion` が先に成功を返す。それで成功しなければ、10.15.2の完全なunion比較を実行する。`checkSubset_preserves_result` は最適化前後のBoolean値そのものの一致を示し、偶数・奇数による共同被覆を高速経路の失敗で拒否しない。
+
+### 10.15.5 元の制約から行全体を比較する
+
+`SemilinearRowAlgebra.Row` は有限のkeyと半線形表示の組のリストである。同じkeyの複数entryは和として解釈し、存在しないkeyは空集合とする。keyの型自体は有限でなくてよい。`checkSubset_sets` と `checkEqual_sets` は全key・全整数重みでの比較を既存の `RecursiveRows.SetRow` の包含・等号へ接続する。
+
+`SolvedRecursiveRows` は元の制約graphに現れるhead keyを列挙し、各keyについて10.15.3の自動summaryを集める。すべての導出がいずれかのheadに始まり、保護・解除・残余はkeyを変えないことから、列挙外のkeyには最小解の出現がない。`summarize_exact` と `summarize_decode` は返された行全体が元の `Derives` と一致することを示す。`querySubset_exact`・`queryEqual_exact` は元の二つの最小解の包含・等号を、`querySubset_rejects` は非包含の実際の出現が存在することを証明する。
+
+この入口も未対応を `none` として保つ。現在の十分条件は全head key・全slot edgeのguardを調べるため、照会先とは別の成分の有害なguardで未対応になることもある。headを持たない再帰cycleは空の最小解となり、head自身で失敗するguardはseedを生まない。重複・順序変更したhead、複数key、存在しないslot、無限の奇数行、失敗するhead guardと未対応のslot guardを元のASTで実行検証する。
+
+比較するのは制約の**最小解**である。下界を持たないslotの最小解が空でも、他のモデルや後のscheme具体化でそのslotが空に固定されるとは限らない。この判定を、開いた行変数のすべての後続具体化における等価性へ読み替えない。出典: 10.3.2・10.10、上記Lean定理。
+
 ## 10.16 有限構造部分型の完全な比較
 
 `StructuralCut.Comparison`（namespace `StructuralDecisions`）は既存の `StructuralBase.Subtype` から明示的な推移則を除いた判断である。`Comparison.trans` は任意の中間型を消去し、`comparison_iff_subtype` が元の判断との双方向一致を証明する。union/intersection・pair・variant・recordの幅と同名fieldの先勝ち・関数の入力反変と出力共変をすべて含み、関数の二つの行の向きも保つ。行関係には推移性だけを要求する。
 
 `StructuralDecisions.check` は型の有限構造に従って再帰する実行可能な比較器であり、`check_exact` が正確な行比較を入力として元の部分型判断と一致することを示す。`checkSigned` は行比較を実際の符号付き出現の包含で実装するため、有限符号付き行では外部oracleが残らない。`checkSigned_rejects` の否定結果は、直接の比較規則だけでなく、任意の中間型を通るすべての宣言的導出の不存在を意味する。unionの順序、格子の吸収、隠れたrecord field、負の解除差分、入力行と出力行の分散を回帰例に含める。
+
+`SemilinearRowAlgebra.checkType_exact` は同じ構造比較へ10.15.5の完全な行包含を代入する。したがって、有限ground値型の潜在行が無限集合でも比較できる。重複keyに偶数・奇数を分けた行が自然数全体と等しいこと、その行を持つ関数型の比較、keyや片方の偶奇が欠ける場合の拒否、非空の出力行を消せないことを確認する。この定理の型構文は有限半線形表示を行位置に持ち、その上で既存の構造部分型関係を使う。
 
 ここで有限なのは値型の構造であり、未知の型変数を解くbound propagationや、再帰値型の意味論を決めるものではない。Simple-sub全体のextrusion・intrusion・generalization、source elaboration、全言語のpreservation/progressは別の証明義務として残る。
