@@ -476,7 +476,7 @@ wrap(body, r) ≤ r
 
 ### 10.13.6 一般の相互再帰に残る証明義務
 
-有限禁止点を残す任意の分岐と複数cycleが相互作用する問題については、最小解の所属決定、有限な半線形表示の構成、その表示間の包含・等価性の決定は未証明である。禁止点のない一般graphの有限半線形表示は10.13.8で構成する。10.13.5の一つの反復programへの制限を、言語の制限やそれ以外の問題の拒否規則にはしない。10.3.2で確定した無限最小解の許容は、すべての問題についてそのまま保つ。
+有限禁止点を残す任意の分岐と複数cycleが相互作用する問題については、最小解の所属決定、有限な半線形表示の構成、その表示間の包含・等価性の決定は未証明である。禁止点のない一般graphの有限半線形表示は10.13.8で、禁止点の無害性を指定座標の不変条件から検査できる範囲は10.13.9で構成する。10.13.5の一つの反復programへの制限を、言語の制限やそれ以外の問題の拒否規則にはしない。10.3.2で確定した無限最小解の許容は、すべての問題についてそのまま保つ。
 
 禁止点を除いた整数vector addition systemの到達集合には、有効なPresburger表示がある（[Haase–Halfon, 2014, Corollary 10](https://lsv.ens-paris-saclay.fr/Publis/PAPERS/PDF/HH-rp14.pdf)）。その結果から、禁止点を保持する本問題の結論をそのまま導くことはできない。`guarded_graph_exact` により、必要なのは有限禁止点付き整数平行移動graphについての対応する到達定理である。ここでは一般の決定不能性も主張しない。推論された無限行の再帰表示には7.3bで確定した `as` を使う。複数の相互再帰変数の具体的な表記は引き続き未決である。
 
@@ -502,9 +502,21 @@ wrap(body, r) ≤ r
 
 `SemilinearRows` はこれを既存の行制約へ接続する。固定keyについて全compiled programを正規化する。matching headは専用のseed vertexからtarget slotへ進むedgeに、slot間の依存は通常のedgeに変換する。seed vertexへ入るedgeはないため、複数のheadの重みを足し合わせて架空の到達点を作らない。`path_derives_exact` と `presentation_exact` は、全normalized exclusionが空の場合、計算した半線形表示と元の `RecursiveRows.Derives` が正確に同じ最小集合解を表すことを示す。
 
-`summarize` はこのguard条件を自分で有限に検査し、`summarize_exact` は返された表示の正確性を導く。残るguardがあればこの入口では未対応として返し、言語の拒否規則にはしない。任意の有限slot一覧と任意の境界数を扱い、各座標の符号・大きさやpath長を制限しない。`SemilinearRowExamples.whole_quadrant_in_presentation` は、2slotの相互再帰と別のself loopが混ざる実際の問題で、すべての `p, q : Nat` に対する `(p, -q)` の所属を示す。途中のresidualが負の入力点を除外する場合に、そのguardを消去しないことも検証する。
+`summarize` はこのguard条件を自分で有限に検査する。slot一覧がslot型全体を覆うという前提の下で、`summarize_exact` は返された表示の正確性を導く。残るguardがあればこの入口では未対応として返し、言語の拒否規則にはしない。全slotを網羅する有限一覧と任意の境界数を扱い、各座標の符号・大きさやpath長を制限しない。`SemilinearRowExamples.whole_quadrant_in_presentation` は、2slotの相互再帰と別のself loopが混ざる実際の問題で、すべての `p, q : Nat` に対する `(p, -q)` の所属を示す。途中のresidualが負の入力点を除外する場合に、そのguardを消去しないことも検証する。
 
 さらに `WeightedPaths.solveFinite` はgraphのedge targetを自分で列挙する。pathの帰納で必要な中間vertexはこの集合に含まれるので、`solveFinite_exact` にはvertex型全体の有限性や外部の列挙を要求しない。`SemilinearRows.summarizeFinite_exact` は同じ入口を元の行制約まで接続する。slot識別子を `Nat` のような無限型で表す場合も、問題自体の有限性と実際のguard検査だけで有限半線形表示の正確性が成立する。
+
+### 10.13.9 不変な座標で禁止点を避ける再帰問題
+
+`GuardedAffineRows` は、固定key、指定座標 `j : Fin n`、各slotのpotential `h : Slot → Int` をcertificateとして受け取る。slot間のedge `u → v` の変位を `d` とすると、有限checkerは `h(u) + d(j) = h(v)` を検査する。さらにそのedgeの全禁止入力点が、別keyを持つか、座標 `j` の値が `h(u)` と異なることを検査する。head edgeはraw出現に対して実際のguardを実行し、失敗したseedは加えず、成功したseedがtargetのpotentialを満たすことを検査する。
+
+`path_state` は全中間vertexで重みの指定座標がそのslotのpotentialに等しいことと、元のguardを通った導出の両方を保持する。最後の総変位だけからguardを消すのではない。検査が通れば、任意の分岐・複数cycleの経路をunguardedな重み付きgraphへ移しても到達集合が変わらず、`checkedSummary_derives` が実際に返した半線形表示と既存のrow構文へ埋めた問題の最小解の同値を示す。
+
+`CertifiedRowSummaries` は任意の元の `RecursiveRows.Problem` を直接受け取る。既存のcompile結果の各programを固定keyで正規化し、`normalized_reachable_exact` と `normalized_derives_exact` がそのguard付きgraphと元の導出を双方向に結ぶ。各stepでkeyの保存を復元してから正規化の実行等式を使うため、異なるkeyのheadを混ぜない。`checkedSummary_derives` は実際のchecker成功だけから、返された半線形表示の意味が元の `problem` の `Derives` と全整数重みについて一致することを示す。別途encodeして作った問題だけを結論にするものではなく、全slotの列挙も外部のguard安全性の仮定も要求しない。
+
+具体例では、一座標を1に保ち、他の座標を正負のcycleで任意の整数へ動かす。両cycleは非空の禁止点を持つが、禁止点の第一座標は0なので到達しない。同じpotentialで実際のseedを除外するguardはcheckerが未対応として返す。直接のrow ASTで `protect`・`release`・`residual` を組み合わせ、slot識別子を `Nat` とする例も接続する。
+
+この層は指定したcoordinate/potentialを検査する一つのcertificate familyであり、その発見・探索や一般のguard問題を解く算法ではない。検査失敗はこの入口が表示を返せないことだけを意味し、言語プログラムや無限解の拒否にはしない。半線形表示を構成することと、一般の所属・包含・等価性を判定することも区別する。
 
 ## 10.14 SCCで固定するmethodと呼出し側の可視impl
 
@@ -544,4 +556,4 @@ sourceのimport構文・access規則の解析は入力に残る。別のsource i
 
 実例は、未定型をintへ決めてexportする場合、二つの弱型を同時にint/strへ決める場合、候補型が二つある場合、同じ型に異なるimplが重複する場合、同じ宣言を重複importする場合、既知型・通常制約を保持する場合、fileのimport可視性が変わる場合を区別する。一意の型と一意のimplは混同しない。
 
-この範囲の外は `outsideFragment` で返す。一般の `impl Default (box 'a)` から `box ?a` という形を決め、残る弱型を最小型solverへ渡す処理を、ground型が一意でないという理由で拒否しない。anchorの発見・anchorが覆わないslot・未定row・一般通常制約solver・一般型モデルのcodecは別の接続義務である。`noCompletion` はすべての検査を通るcompletionがないという内部結果で、具体型に対するimpl重複も含む。章6.3のimpl不在と曖昧さのdiagnosticsを細分する処理は、この入口ではまだ接続していない。
+ground head条件または全slotを覆うanchor条件が満たされなければ、`outsideFragment` で返す。解決済みrow、codec、通常制約checkは型付き入力として受け取り、それらの有無をこのBool検査で判定するわけではない。一般の `impl Default (box 'a)` から `box ?a` という形を決め、残る弱型を最小型solverへ渡す処理を、ground型が一意でないという理由で拒否しない。anchor roleの選択と一般制約からの抽出、anchorが覆わないslot、未定row、一般通常制約solver、一般型モデルのcodecは別の接続義務である。`noCompletion` はすべての検査を通るcompletionがないという内部結果で、具体型に対するimpl重複も含む。章6.3のimpl不在と曖昧さのdiagnosticsを細分する処理は、この入口ではまだ接続していない。

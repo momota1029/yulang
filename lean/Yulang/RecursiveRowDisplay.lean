@@ -9,7 +9,7 @@ fixed point. Folding and unfolding preserve the possibly infinite set of
 occurrences. Any finite problem with one row slot can be collected into this
 one binder without changing its least solution, even if it has several cycles.
 
-The textual printer below implements the three confirmed one-tail spellings
+The textual printer below implements the three current one-tail spellings
 at an already determined boundary: `'e`, `'e?`, and `'e[io]`, followed by `as`.
 It prints no numerical weights. It is an inferred display payload, not a new
 source annotation grammar. General formatting across several boundaries and
@@ -136,7 +136,8 @@ theorem AsRow.ofProblem_least (name : String) (problem : Problem n Key Unit) :
   rw [same]
   exact RecursiveRows.least_principal problem
 
-/-- Only the already confirmed single-tail display forms are printed here. -/
+/-- Only the current single-tail display forms are printed here. The `as`
+binder is settled; the surrounding surface notation follows current spec 7.3. -/
 inductive TailMode (Key : Type) where
   | defaultProtect
   | defaultRelease
