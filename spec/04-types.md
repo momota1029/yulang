@@ -60,6 +60,13 @@ my (a: int, b: str) = p
 
 - 式の途中の注釈には `as` を使う。`(e : T)` は colon application（`f: x`）と衝突するので使えない。
 - 型注釈は**局所的に使い、許す型**であって、effect は注釈を素通りして推論される（[T3](traps.md)）。
+- **値の型の注釈は、公開される型を決める**（確定, 2026-11-06）。推論された型が注釈に収まること（推論結果 ≤ 注釈）を検査し、公開型は注釈の型になる。戻り値の注釈で本体より狭くすれば、公開型から情報が減る。引数の注釈も公開される引数の型を決める。effect の行は例外で、注釈は検査だけを行い、行変数を束縛しない（章5.5・5.5b）。
+
+```yulang
+my f(): {x: int} = {x: 1, y: 2}     // 本体は {x: int, y: int}。公開型は () -> {x: int}
+my g(n: int) = n + 1                // 公開型は int -> int
+```
+
 
 出典: `main:web/docs/ja/reference/types.md` §Type variable、§`as` による inline ascription
 
