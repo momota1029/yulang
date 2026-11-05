@@ -413,7 +413,6 @@ operationのkeyは10.5.2と同じく、family・operation・family型引数を�
 
 `principal_fresh_boundary` は同じ行上界と非captureの結論を、10.12.2の実際のprincipal formulaの解から導く。これにより、再帰制約生成器・独立な型判断・実際のrequest treeの上界・fresh境界の非captureが、同じresolved式について接続される。checker受理を重ねて要求しない。
 
-
 ## 10.13 無限の行型と有限な制約表現
 
 この節は10.3.2の2026-11-05の確定事項を形式化する。無限の最小解を拒否せず、探索の深さや重みに上限を課さない。行の意味、制約の有限表示、解の所属を判定する算法を区別する。
@@ -436,6 +435,8 @@ operationのkeyは10.5.2と同じく、family・operation・family型引数を�
 
 このgraphは制約の有限表示であって、解集合の半線形な表示や所属判定器ではない。control graphが有限でも整数重みのconfiguration空間は無限であり、各edgeの禁止点をpath全体から消すことはできない。
 
+逆方向の `FinitePointGuards.encode_run` は、任意の整数平行移動と有限個の禁止入力点を既存の保護・解除・残余で表現する。禁止点 `p` は重みを `-p.weights` だけ動かし、`residual [p.key]` を掛け、重みを戻すことで表す。同じ重みでも異なるkeyは残る。`guarded_graph_exact` はこの表現を有限graph全体へ拡張し、その独立な到達可能性を既存の `RecursiveRows.Derives` と同値にする。禁止点を持つ一般graphを解く義務は、単に過大な中間表現を選んだ結果ではない。
+
 ### 10.13.3 affineな無限行の判定
 
 `AffineRows.Ray` はkey、基点の重み `a`、整数周期ベクトル `d` から、`a + k d`（`k : Nat`）の全出現を表す。境界数は任意に有限で、周期の各成分は負・零でもよい。`check_exact` は所属判定の正確性を両方向に証明する。各座標の整数割算から候補を一つずつ取り、零回の候補と合わせて実際の出現の等式を検査するため、探索回数は重みの大きさによる打切りではない。
@@ -444,6 +445,10 @@ operationのkeyは10.5.2と同じく、family・operation・family型引数を�
 
 `SymbolicRows.Segment` はこのrayに任意の有限な上端を付けるか、上端なしのまま保持する。`Segment.check_exact` はどちらも有限候補で正確に判定する。上端は表す集合自体の一部であり、未知の再帰解へ勝手に加える上限ではない。この層の定理だけでは、すべての再帰制約をrayまたはsegmentへ解けるとは結論しない。
 
+`SymbolicRows.Expr` はsegment・union・差集合からなる有限式である。`Expr.check_exact` はその所属判定を、`compile_exact` と `check_compiled_exact` はこの式で表現済みの環境に対する全 `RowExpr` の評価保存と所属判定を示す。保護・解除はkeyごとに基点を移し、周期と上端を保つ。shiftには両方向の逆写像があるため差集合も保たれる。残余は扱うkeyのraw点だけを有限集合として除く。再帰式の未知環境を求める算法ではない。
+
+`SegmentDecisions.checkSubset_exact` は二つのsegmentの包含を判定する。sourceの上端が有限ならそこまでの全点を検査する。両者とも上端がなければrayの包含を使い、sourceだけ上端がない場合は周期が全座標で零かつ基点がtargetに入ることを検査する。非零周期なら無限個の異なる点を生むため有限targetには収まらない。`checkEqual_set_exact` は両方向の包含と集合行自体の等号の同値を示す。有限sourceの処理量は実際の上端に依存する。
+
 ### 10.13.4 生成制約から無限行による実行上界へ
 
 `InfiniteOperationalCorrespondence` は10.12の `OperationalCorrespondence.erase` と `principal`、`OperationalTyping.Expr` と `eval` をそのまま共有し、構造型の行だけを `RecursiveRows.SetRow` で解釈する。`erasure_typing_sound` は全resolved式の型判断から、全requestの行上界と返却値の構造型解釈を導く。union・intersection・arrow、computed let・値制限付き多相let、request・境界・shallow handlerを含む。handlerのaction・return節・operation節のruntime上界は前提として渡さず、型付けの帰納法で導く。
@@ -451,3 +456,26 @@ operationのkeyは10.5.2と同じく、family・operation・family型引数を�
 `principal_operationally_valid` と `principal_effect_bound` は、既存のprincipal formulaの集合行モデルでの解から、同じ閉式の評価木についてこの結論を導く。`principal_fresh_boundary` は同じ解・同じ評価木から、fresh座標へのliftとdefault protect後の行上界、および任意の内側shallow handlerによる非captureへ接続する。有限行checkerの受理を仮定しない。
 
 これは与えられた制約解の健全性であり、任意の無限行制約を解くsolverではない。resolved shapesと同じAtom carrierによるunit署名という10.12の制限は残る。source elaboration、異種payload署名、runtimeの再帰構文、返却closure内部のscope変更と型に沿ったwrapper挿入は別の接続義務である。
+
+### 10.13.5 一つのguard付き再帰cycleの最小解と判定
+
+`CyclicRows.SeededCycle` は一つのkey・初期program・反復programを持つ。その `problem` は既存の構文だけで表した二つの下限制約からなる。
+
+```text
+wrap(initial, head key) ≤ r
+wrap(body, r) ≤ r
+```
+
+初期programが失敗すれば最小解は空になる。成功した初期点を `a`、bodyの正規形の変位を `d`、有限禁止入力点の集合を `F` とする。到達可能なのは、すべての `j < k` について `a + j d ∉ F` を満たす `a + k d` である。`firstHit` は各禁止点の有限なindex候補から最小の一致を計算する。一致がなければ全ray、一致する最初のindexが `h` なら `0 ≤ k ≤ h` のsegmentを返す。点 `h` 自体には到達済みであり、そこからの次のbody実行が失敗するため、上端は含める。
+
+`Cycle.firstHit_exact` と `no_hit_exact` はこの停止点の意味を、`SeededCycle.solve_exact` と `solution_least` は求めた有限表示が元の二規則の最小集合解そのものであることを証明する。`check_exact` と `check_rejects` は所属の成功・失敗を実際の `Derives` と同値にする。任意の符号付き初期点も `Cycle.asSeeded` で有限の初期programに変換でき、`Cycle.check_derives` と `solution_least` が接続を示す。境界数は任意に有限で、周期の符号・零座標・零周期を制限しない。
+
+`CyclicRowDecisions.checkSubset_exact` と `checkEqual_set_exact` は二つのこの問題を解いてから比較し、元の問題の最小解同士の包含・等号と一致する。初期programが失敗する空解も扱う。これは表示済みsegmentだけの比較から、既存の再帰制約の解同士の比較までを閉じる定理である。
+
+例では、無制限に増加・減少する重み、正味変位が正でも途中のresidualで止まるcycle、上端の包含、零周期、初期点からのbody失敗、初期program自体の失敗、別境界に非零重みがあるため捕捉されない場合、異なる二つのcycleが同じ有限最小解を持つ場合を検証する。これらの算法は無限解を拒否せず、深さ・重みの人工的な上限を設けない。
+
+### 10.13.6 一般の相互再帰に残る証明義務
+
+任意の分岐と複数cycleが相互作用する有限問題については、最小解の所属決定、有限な半線形表示の構成、その表示間の包含・等価性の決定は未証明である。10.13.5の一つの反復programへの制限を、言語の制限やそれ以外の問題の拒否規則にはしない。10.3.2で確定した無限最小解の許容は、すべての問題についてそのまま保つ。
+
+禁止点を除いた整数vector addition systemの到達集合には、有効なPresburger表示がある（[Haase–Halfon, 2014, Corollary 10](https://lsv.ens-paris-saclay.fr/Publis/PAPERS/PDF/HH-rp14.pdf)）。その結果から、禁止点を保持する本問題の結論をそのまま導くことはできない。`guarded_graph_exact` により、必要なのは有限禁止点付き整数平行移動graphについての対応する到達定理である。ここでは一般の決定不能性も主張しない。無限解のsource表示も引き続き未決であり、新たな記法を確定しない。

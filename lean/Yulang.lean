@@ -47,8 +47,12 @@ import Yulang.RecursiveRows
 import Yulang.InfiniteRowHygiene
 import Yulang.RecursiveRowGraph
 import Yulang.RowTransportNormalForm
+import Yulang.FinitePointGuards
 import Yulang.AffineRows
 import Yulang.SymbolicRows
+import Yulang.SegmentDecisions
+import Yulang.CyclicRows
+import Yulang.CyclicRowDecisions
 import Yulang.RecursiveEffects
 import Yulang.RecursiveEffectExamples
 import Yulang.RecursiveEffectsConservativity

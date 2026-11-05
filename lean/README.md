@@ -44,8 +44,11 @@ lake env lean --trust=0 Audit.lean
 | `Yulang.InfiniteRowHygiene` | 任意の無限集合行での両方向相殺・包含保存・残余、境界再indexと全行式・再帰最小解の可換性、fresh原点と非capture、同じkeyを含む無限tailの保持、無限行によるrequest tree上界 | 一般の所属決定、無限行のsource型付けからruntime上界を導くこと、潜在closure変換 |
 | `Yulang.RecursiveRowGraph` | 有限行制約から有限guard付きgraphへの実行可能なコンパイル、任意の無限行割当てでのモデル保存、独立な到達可能性と既存最小解の一致、有限の到達key・slot支持 | 無限configuration空間の到達判定、半線形な解表示、包含・等価判定 |
 | `Yulang.RowTransportNormalForm` | 固定keyに対する有限programの平行移動＋有限禁止入力点への正確な正規化、各途中residualの保存 | guard付きpath全体の半線形性、単なる総変位によるpath判定 |
+| `Yulang.FinitePointGuards` | 逆方向に、任意の有限禁止点付き整数平行移動を既存protect/release/residualで表現し、有限graph全体を既存の行問題へ埋め込むこと、独立なgraph到達可能性と最小解の一致 | 一般の到達可能性・半線形性・決定不能性の結論、巨大整数のbit長に対する効率 |
 | `Yulang.AffineRows` | 任意の有限境界数・整数周期ベクトルを持つ一つのrayの有限候補による所属判定、二つのrayの包含・等価判定と両方向の正確性 | 任意の相互再帰制約の求解、複数rayのunion同士の包含判定 |
-| `Yulang.SymbolicRows` | 上限の有無を明示したaffine segmentの有限表現と正確な所属判定 | 未知の最小解への人為的な上限、全再帰問題の解がこの形を持つこと |
+| `Yulang.SymbolicRows` | affine segment・union・差集合からなる有限表現の所属判定、既存の全行式操作についての閉包性と評価保存。shiftは基点を動かし、residualは有限raw点を除去 | 未知の最小解への人為的な上限、全再帰問題の解がこの形を持つこと、任意の有限式同士の包含 |
+| `Yulang.SegmentDecisions` | 任意の二つの有限または無限segmentについて包含・等価性を決定し成功・失敗を意味と一致させること。有限sourceは真の上端まで列挙 | 複数segmentのunionの包含、全再帰問題の求解、有限上端に依存しない計算量 |
+| `Yulang.CyclicRows` / `Yulang.CyclicRowDecisions` | 一つの初期programと一つの反復programからなる既存の二規則問題について、途中guardを保った最小解の有限表示、所属・包含・等価性の実行可能な判定、実際のDerivesと最小モデルへの接続 | 分岐・複数cycleの相互作用を含む一般graph、一般の半線形最小解の構成、sourceの再帰SCCからこの形式への翻訳 |
 | `Yulang.InfiniteOperationalCorrespondence` | 同じresolved式の既存principal制約を任意の集合行で解釈した解から、同じ実行木の全request上界・返却値の構造型解釈・fresh境界非captureまでの接続。handlerの各armの上界と元の継続行は型判断から導出 | 無限行solverの完全性、source elaboration、異種payload署名、runtimeの再帰構文、潜在closureの衛生wrapper挿入 |
 | `Yulang.RecursiveEffects` | 全既存core式とrequest・boundary・shallow handlerを同じ再帰ASTに置く有限制約生成、任意の入れ子について独立な型判断との双方向一致・制約schemeの主性、値制限付き多相letと署名のambient slotの保持 | operation-local多相・roleを含む統合、再帰SCC、source elaboration、制約solver、型付けからruntime安全性への接続 |
 | `Yulang.RecursiveEffectsConservativity` / `Yulang.RecursiveEffectExamples` | effectを含まない全core式で実際の生成formula・principal schemeを保存する等式、旧型判断との一致、入れ子handler・多相let・computation引数・保護と負債の正例と負例 | source parserからの翻訳、全制約solver |
