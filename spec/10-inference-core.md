@@ -103,7 +103,7 @@ protect(b, P, release(b, P, v)) = v
 
 `contravariant_debt_preserves_local_callback` は由来の混在する具体例である。callbackを受け取る関数の内部に同じkeyを捕まえて `99` を返すhandlerを置くと、無変換ではcallbackが奪われる。高階の保護では、引数側の `−1` がこのcaptureを阻止し、戻り側の `+1` が相殺することで、元の呼出側のhandlerがpayload `7` を受け取る。外側でも永久に隠すだけの例ではない。
 
-これは旧実装のdirected stack全体の正しさを主張するものではない。今回の核では有限の解決済みshapeを扱い、atomとoperation payloadの内部は不透明のままである。sourceからshapeを作り、変換を挿入し、`ZeroAt` に相当する由来の条件を保存するelaborationは別の証明義務とする。
+これは旧実装のdirected stack全体の正しさを主張するものではない。今回の核では有限の解決済みshapeを扱い、atomとoperation payloadの内部は不透明のままである。sourceからshapeを作り、変換を挿入し、`ZeroAt` に相当する由来の条件を保存するelaborationは別の証明義務とする。10.17では、既存の実行モデルのcomputation引数と返却closureに対するwrapperを構成し、その型との対応を接続する。
 
 新しい境界を明示的に割り当てる場合には、その原点条件を構成できる。`FreshBoundaries` は、既存の座標を単射で大きいinterfaceへ写し、追加した座標だけを0にする。既存の正負すべての重みを保持し、capture、残余、既存境界での保護・解除、shallow handlerの実行と可換である。`liftTree_zeroAt` は任意の元のrequest treeについて新しい座標の `ZeroAt` を導き、`fresh_noncapture` はその座標で既定の保護を付けた計算が内側のhandlerに捕まらないことを証明する。元のtreeの既存座標には負の重みがあってもよい。これは原点条件を仮定から構成へ進める定理であり、sourceの全呼出しへの割当ての挿入や、値の内部のcallbackの変換までを証明したものではない。
 
@@ -609,3 +609,39 @@ sourceのimport構文・access規則の解析は入力に残る。別のsource i
 `SemilinearRowAlgebra.checkType_exact` は同じ構造比較へ10.15.5の完全な行包含を代入する。したがって、有限ground値型の潜在行が無限集合でも比較できる。重複keyに偶数・奇数を分けた行が自然数全体と等しいこと、その行を持つ関数型の比較、keyや片方の偶奇が欠ける場合の拒否、非空の出力行を消せないことを確認する。この定理の型構文は有限半線形表示を行位置に持ち、その上で既存の構造部分型関係を使う。
 
 ここで有限なのは値型の構造であり、未知の型変数を解くbound propagationや、再帰値型の意味論を決めるものではない。Simple-sub全体のextrusion・intrusion・generalization、source elaboration、全言語のpreservation/progressは別の証明義務として残る。
+
+## 10.17 実際のcomputation引数と潜在closureの衛生変換
+
+この節は10.2・10.3.4で定めた計算体系への接続であり、新しいsource構文や注釈規則を追加しない（2026-11-06）。旧版の参照点は `yulang2-oracle:web/docs/ja/reference/type-theory.md` の「行表示だけでは実行時の由来を保てず、関数・thunk・構造値に衛生性を伴わせる」という意図である。符号付きの相殺とpermissionの意味は現行の10.3を使う。
+
+### 10.17.1 実行値上のwrapper
+
+`OperationalTransport` は `OperationalTyping.Value` と `Tree` を直接使う。既存の `DirectedHigherOrder` の関数は値を引数に取るが、この実行モデルの関数はcomputationを引数に取るため、そのまま同じ定理を適用することはできない。方向を `d`、逆方向を `opposite(d)`、値と計算の変換を `V`・`C` と書くと、arrowの規則は次である。
+
+```text
+V_d(f)(argument) = C_d(f(C_opposite(d)(argument)))
+```
+
+入力の変換は、その場のrequestと、computationが返す値の両方を対象とする。返り値のpairに格納された関数も再帰的に包むが、包むために関数を実行することはない。`value_opposite` と `tree_opposite` は、任意の有限resolved shape・任意の値と計算で両方向の相殺を示す。`value_apply_tree` は関数と引数interfaceをともに変換した呼出しの等式、`tree_bind` はsequencingとの対応である。未変換の同じ引数に対してdispatchが変わらない、という主張ではない。
+
+### 10.17.2 checkerと主制約からの接続
+
+静的な型の変換は、即時行とすべての潜在行を同じrequest写像の像へ移す。関数の入力型も静的には同じ向きで写す。実行時の入力wrapperが逆向きへ戻すことで、変換後の入力interfaceに適合する引数を元の関数へ渡せる。
+
+`OperationalTransportTyping.validValue_iff`・`valid_iff` は有限行checkerの型について、`InfiniteOperationalTransport.typeHolds_iff`・`compHolds_iff` は既存の構造型について、変換後の型と値・計算の適合性が元の適合性と同値であることを証明する。後者の行は任意の集合行で、無限tail・負の重み・重みの上限なしを許す。型のunion/intersectionはそれぞれ選言・連言として保つ。
+
+`closed_inferred_transport_valid` は既存checkerの受理から、`principal_transport_valid` は既存の `RecursiveEffects.principal` の集合行モデルでの解から、同じ `eval` へwrapperを適用した結果の適合性を導く。即時requestの上界に加え、返却・格納された関数へ適合するcomputationを渡したときの潜在interfaceも含む。handlerの各armの実行上界やcheckerの別途受理を、principal側の定理へ追加しない。
+
+### 10.17.3 静的な出力行から非captureへ
+
+`guarded_call_noncapture` は、元の関数の型、変換後の入力型に適合する引数、元の出力行が対象境界で重み0を持つという静的な `ZeroAt` から、既定の保護を付けた呼出しが任意の内側shallow handlerを素通りすることを導く。関数の型から逆変換した引数に対する実行上界を得て、行の原点条件から実行木の原点条件を構成する。実行木の上界や `ZeroAt` を新たな前提として受け取らない。
+
+この出力行の条件は省略しない。局所callbackが持つ負の差分は、戻り側の正の差分と相殺され、元の呼出側で可視になる必要がある。すべてのclosure呼出しを永久に非captureにする規則ではない。
+
+`principal_guarded_arrow_calls` は同じ保証を、変換後の評価が返す各closureへ接続する。結論の `AllReturns` は、返ってきた値すべてについての性質であり、値が返ることや計算の停止を保証しない。`fresh_output_call_noncapture` では出力行が `liftRow` であることから静的な原点条件を構成する。この系は既に拡張後の境界集合で型付けされた関数を受け取り、古いclosure自体を新しい境界集合へ持ち上げる処理は構成しない。
+
+### 10.17.4 残る接続
+
+今回の実行時shapeはatom・pair・arrowである。既存の構造型のrecord・variantはこの実行モデルでは空の解釈なので、その実行時表現の衛生変換までを証明済みと数えない。atom・operation payload・responseの内部も不透明のままである。
+
+sourceからshapeと境界・permissionを決めてwrapperを挿入するpass、世界をまたぐ潜在closureの構成、任意の異種operation署名と再帰runtimeとの統合は別の義務として残る。既存の `Expr.boundary` はその場のrequestだけを変換する意味を保つ。Simple-subのbound探索・extrusion・intrusion・generalizationの全体定理も、この高階transportから自動的には従わない。

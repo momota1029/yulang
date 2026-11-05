@@ -70,6 +70,9 @@ lake env lean --trust=0 Audit.lean
 | `Yulang.OperationalTyping` / `Yulang.OperationalTypingExamples` | 形状解決済みの単相核の実行可能なcheckerと独立型付けの一致、checker受理から実際の全requestの推論行上界と返り値の潜在関数の健全性、shallow継続・複数回再開・arm再送出・格納callbackの実行例 | 未知shapeの推論、一般再帰、source elaboration、異なるpayload型を持つoperation、値内部への衛生変換の挿入 |
 | `Yulang.OperationalCorrespondence` / `Yulang.OperationalCorrespondenceExamples` | 形状解決済み式の消去結果に対する任意の既存再帰型判断から実行上界・返り値の意味を導くこと、union/intersection・値制限付き多相letの解釈、実際のprincipal formulaの解から閉式の全request上界への接続、具体的な解と空行解の拒否 | annotated checkerとの受理集合の一致、未知shape・再帰型の推論、異種operation署名、sourceの注釈や潜在値の衛生変換のelaboration |
 | `Yulang.CheckedHygiene` | checker受理または実際のprincipal formulaの解から実行上界を導き、推論行のfreshな表現または実際の座標割当てから原点条件・新境界での非captureを導くこと | sourceが全境界を正しく割り当てること、payload・response・返り値の潜在closureのtransport |
+| `Yulang.OperationalTransport` | 実際のcomputation引数を持つ関数・pair内の関数・request treeの高階wrapper、任意の値での両方向の相殺、対応する引数との呼出し・sequencingの等式 | sourceでのwrapper挿入、任意の未変換引数でのdispatch不変性、freshな世界へのclosureの構成 |
+| `Yulang.OperationalTransportTyping` | 有限行checkerの型・部分型・実行時適合性の変換前後の同値、既存checker受理から潜在closureまで包んだ同じ評価の型保証 | 未知shapeの推論、sourceでの境界選択、非captureに必要な原点条件の発見 |
+| `Yulang.InfiniteOperationalTransport` | 任意の無限集合行を含む既存構造型と高階実行値の対応、principal解から潜在closureのinterface、静的出力行の原点条件から返却関数の呼出しの非capture | sourceでのwrapper挿入、古いclosureのfresh化、record・variantのruntime表現、計算の停止、Simple-sub全体 |
 | `Yulang.FiniteReachability` | 有限隣接リストから計算する到達集合と独立な有限経路の判断の一致、空の始点集合からの到達不能性、辺・始点の順序と重複に対する不変性 | source の依存関係抽出、未具体化の多相 cast 集合の有限性、実用的な計算量 |
 | `Yulang.EvaluationOrder` | 名前解決済みの有限宣言・module 文からの評価依存計算と独立な推移的依存判断の一致、computed 自己依存・未来の computed binding の拒否、受理された初期化・文の全依存が元の順序で利用可能なこと、lambda による遅延と直接適用時の依存の復帰 | source の名前解決、局所 closure/alias や格納された関数のフロー、任意の高階 callback の実行が依存判断に含まれること、全言語の副作用順序の保存 |
 | `Yulang.EvaluationSafety` / `Yulang.EvaluationReads` | 名前で決まらない呼出しへのmodule全体の関数本体近似、独立なCBV読み取りprefixの上界、closure由来の保存、局所・返却・格納closureの読み取り安全性、既評価prefixからの参照先の利用可能性 | source elaboration、外部由来closure、可変store、計算全体の停止・progress。module内のlambda由来とsource位置の構造を明示 |
@@ -149,6 +152,12 @@ lake env lean --trust=0 Audit.lean
 `CheckedHygiene.closed_checked_boundary` は閉式のchecker受理だけから、評価木を実際にfresh化して保護した後の行上界と、任意の内側shallow handlerによる非captureを結合する。action・armの上界や `ZeroAt` は入力に要求しない。このfresh化は即時request treeに作用し、返り値の型は元の `Value n` のままである。値の内部に格納されたclosureを新しい境界へtransportする定理とは区別する。
 
 `CheckedHygiene.principal_fresh_boundary` は同じ結論を、実際の `RecursiveEffects.principal` の解を入口にして導く。`OperationalCorrespondence.principal_effect_bound` によってruntime上界を構成するため、annotated checkerの受理を別途仮定しない。
+
+`OperationalTransport` は上の値渡しの模型ではなく、実際の `OperationalTyping.Value`・`Tree` に高階wrapperを定義する。関数はcomputation引数全体を逆方向へ戻し、呼出し結果のrequestと返却値を順方向へ写す。`value_opposite`・`tree_opposite` はすべての有限resolved shapeについて両方向の相殺を示す。`value_apply_tree` は関数と入力interfaceをともに写した呼出しの正確な対応であり、未変換の引数に対するdispatchの不変性ではない。
+
+`OperationalTransportTyping.valid_iff` は有限行checkerの型について、`InfiniteOperationalTransport.compHolds_iff` は任意の集合行を持つ既存構造型について、変換前後の型と実行の対応を双方向に証明する。後者は無限行・負の重み・型のunion/intersectionを許す。`closed_inferred_transport_valid` と `principal_transport_valid` により、checker受理または既存principal formulaの解から、即時requestに加えて返却・格納されたclosureの潜在interfaceも導く。runtimeのshapeはatom・pair・arrowであり、record・variantの実行時表現までは追加しない。
+
+`InfiniteOperationalTransport.guarded_call_noncapture` は、型に適合する変換後の引数と、元の出力行の静的な `ZeroAt` から、保護した呼出しの非captureを導く。実行時の上界と原点条件は関数の型から構成する。`principal_guarded_arrow_calls` は、この保証を変換後の評価が返す各closureへ接続する。これは `AllReturns` の保証であり、値が返ることや停止性を主張しない。`fresh_output_call_noncapture` は、既に拡張された境界集合で型付けされ、出力行が `liftRow` である関数への系であって、任意の古いclosureをfreshな世界へ持ち上げる構成ではない。sourceでwrapperを挿入するpassは別の義務として残る。
 
 ## 型推論の主定理
 
