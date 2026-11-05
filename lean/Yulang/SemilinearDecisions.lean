@@ -181,14 +181,61 @@ theorem checkSpanRaw_exact (generators : List (Weight n)) (weight : Weight n) :
       (first generators weight) (by rw [first_value, equality])
       (by rw [first_value]; exact (within_norm weight).mono (Nat.le_max_left _ _))
 
+def weightEqual (left right : Weight n) : Bool := decide (∀ coordinate, left coordinate = right coordinate)
+
+theorem weightEqual_exact (left right : Weight n) : weightEqual left right = true ↔ left = right := by
+  simp only [weightEqual, decide_eq_true_eq]
+  exact ⟨funext, congrFun⟩
+
+def singletonCandidates (generator weight : Weight n) : List Nat :=
+  0 :: (List.finRange n).map (fun coordinate => (weight coordinate / generator coordinate).toNat)
+
+theorem singleton_candidate (generator weight : Weight n) (member : Span [generator] weight) :
+    ∃ count ∈ singletonCandidates generator weight, scale count generator = weight := by
+  obtain ⟨count, rfl⟩ := (singleton_span generator weight).mp member
+  by_cases empty : ∀ coordinate, generator coordinate = 0
+  · refine ⟨0, by simp [singletonCandidates], ?_⟩
+    funext coordinate
+    simp [scale, empty coordinate]
+  · obtain ⟨coordinate, nonzero⟩ := Classical.not_forall.mp empty
+    refine ⟨count, List.mem_cons.mpr (Or.inr ?_), rfl⟩
+    apply List.mem_map.mpr
+    refine ⟨coordinate, by simp, ?_⟩
+    simp only [scale, Int.mul_ediv_cancel _ nonzero, Int.toNat_natCast]
+
+def checkSingleton (generator weight : Weight n) : Bool :=
+  (singletonCandidates generator weight).any fun count => weightEqual (scale count generator) weight
+
+theorem checkSingleton_exact (generator weight : Weight n) :
+    checkSingleton generator weight = true ↔ Span [generator] weight := by
+  simp only [checkSingleton, List.any_eq_true, weightEqual_exact]
+  exact ⟨fun ⟨count, _, equal⟩ => (singleton_span generator weight).mpr ⟨count, equal⟩,
+    singleton_candidate generator weight⟩
+
+/-- Empty spans and one-period rays use constant/coordinate checks. General
+multi-period inputs retain the exact carry solver. -/
+def checkSpanNormalized : List (Weight n) → Weight n → Bool
+  | [], weight => weightEqual weight zero
+  | [generator], weight => checkSingleton generator weight
+  | generators, weight => checkSpanRaw generators weight
+
+theorem checkSpanNormalized_exact (generators : List (Weight n)) (weight : Weight n) :
+    checkSpanNormalized generators weight = true ↔ Span generators weight := by
+  cases generators with
+  | nil => exact (weightEqual_exact weight zero).trans (span_nil weight).symm
+  | cons generator rest =>
+      cases rest with
+      | nil => exact checkSingleton_exact generator weight
+      | cons head tail => exact checkSpanRaw_exact _ weight
+
 /-- Redundant periods are removed before constructing the carry box or digit
 alphabet, not just from a display of the resulting automaton. -/
 def checkSpan (generators : List (Weight n)) (weight : Weight n) : Bool :=
-  checkSpanRaw (SemilinearNormalization.periods generators) weight
+  checkSpanNormalized (SemilinearNormalization.periods generators) weight
 
 theorem checkSpan_exact (generators : List (Weight n)) (weight : Weight n) :
     checkSpan generators weight = true ↔ Span generators weight :=
-  (checkSpanRaw_exact _ weight).trans (SemilinearNormalization.span_exact generators weight)
+  (checkSpanNormalized_exact _ weight).trans (SemilinearNormalization.span_exact generators weight)
 
 theorem checkSpan_preserves_result (generators : List (Weight n)) (weight : Weight n) :
     checkSpan generators weight = checkSpanRaw generators weight := by

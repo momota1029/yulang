@@ -38,4 +38,34 @@ theorem zero_dimensional_duplicates_collapse :
 theorem zero_period_component_equals_point :
     SemilinearAutomata.checkEqual [⟨(zero : Weight 0), [zero, zero]⟩] [Linear.point zero] = true := by decide
 
+theorem large_single_period_uses_exact_candidate :
+    SemilinearDecisions.checkSpan [scalar (-3), scalar 0, scalar (-3)] (scalar (-3000000)) = true := by decide
+
+theorem empty_span_rejects_large_nonzero_without_box :
+    SemilinearDecisions.checkSpan [] (scalar 1000000) = false := by decide
+
+def plane (first second : Int) : Weight 2 := fun coordinate =>
+  if coordinate.val = 0 then first else second
+
+theorem single_period_checks_all_coordinates :
+    SemilinearDecisions.checkSpan [plane 1 (-2)] (plane 4 (-8)) = true := by decide
+
+theorem one_matching_coordinate_is_insufficient :
+    SemilinearDecisions.checkSpan [plane 1 (-2)] (plane 4 (-7)) = false := by decide
+
+def naturals : Semi 1 := [⟨scalar 0, [scalar 1]⟩]
+def evens : Semi 1 := [⟨scalar 0, [scalar 2]⟩]
+def odds : Semi 1 := [⟨scalar 1, [scalar 2]⟩]
+
+theorem identical_infinite_rays_use_fast_success :
+    SemilinearAutomata.checkEqual naturals naturals = true := by decide
+
+theorem proper_infinite_ray_containment_uses_fast_success :
+    SemilinearAutomata.checkSubset evens naturals = true := by decide
+
+/-- This answer is "try the complete comparison", not rejection. The existing
+`parity_union_exact` regression proves the full comparison accepts the union. -/
+theorem joint_residue_coverage_uses_complete_fallback :
+    SemilinearFastInclusion.check naturals (evens ++ odds) = false := by decide
+
 end Yulang.SemilinearNormalization.Examples

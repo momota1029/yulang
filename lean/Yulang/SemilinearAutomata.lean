@@ -1,5 +1,6 @@
 import Yulang.SemilinearDigits
 import Yulang.FiniteAutomata
+import Yulang.SemilinearFastInclusion
 
 /-!
 # Exact finite automata for arbitrary semilinear integer sets
@@ -241,16 +242,16 @@ theorem normalized_accepts_exact (semi : Semi n) (word : List (Letter n)) :
       Meaning semi (value word) :=
   (accepts_exact _ word).trans (SemilinearNormalization.normalize_exact semi (value word))
 
-def checkSubset (source target : Semi n) : Bool :=
+def checkSubsetFallback (source target : Semi n) : Bool :=
   FiniteAutomata.checkSubset (alphabet n)
     (automaton (SemilinearNormalization.normalize source))
     (automaton (SemilinearNormalization.normalize target))
 
 /-- Finite NFA inclusion decides semantic containment at every integer vector,
 not merely at a supplied collection of sample weights. -/
-theorem checkSubset_exact (source target : Semi n) :
-    checkSubset source target = true ↔ ∀ weight, Meaning source weight → Meaning target weight := by
-  rw [checkSubset, FiniteAutomata.checkSubset_exact _ alphabet_complete]
+theorem checkSubsetFallback_exact (source target : Semi n) :
+    checkSubsetFallback source target = true ↔ ∀ weight, Meaning source weight → Meaning target weight := by
+  rw [checkSubsetFallback, FiniteAutomata.checkSubset_exact _ alphabet_complete]
   constructor
   · intro included weight member
     obtain ⟨word, represented⟩ := SemilinearDigits.value_surjective weight
@@ -261,9 +262,9 @@ theorem checkSubset_exact (source target : Semi n) :
     exact (normalized_accepts_exact target word).mpr
       (included _ ((normalized_accepts_exact source word).mp accepted))
 
-theorem checkSubset_rejects (source target : Semi n) :
-    checkSubset source target = false ↔ ∃ weight, Meaning source weight ∧ ¬ Meaning target weight := by
-  rw [checkSubset, FiniteAutomata.checkSubset_rejects _ alphabet_complete]
+theorem checkSubsetFallback_rejects (source target : Semi n) :
+    checkSubsetFallback source target = false ↔ ∃ weight, Meaning source weight ∧ ¬ Meaning target weight := by
+  rw [checkSubsetFallback, FiniteAutomata.checkSubset_rejects _ alphabet_complete]
   constructor
   · rintro ⟨word, accepted, rejected⟩
     exact ⟨value word, (normalized_accepts_exact source word).mp accepted,
@@ -273,6 +274,49 @@ theorem checkSubset_rejects (source target : Semi n) :
     rw [← represented] at member absent
     exact ⟨word, (normalized_accepts_exact source word).mpr member,
       fun accepted => absent ((normalized_accepts_exact target word).mp accepted)⟩
+
+theorem fastSubset_sound (source target : Semi n)
+    (checked : SemilinearFastInclusion.check (SemilinearNormalization.normalize source)
+      (SemilinearNormalization.normalize target) = true)
+    (weight : Weight n) (member : Meaning source weight) : Meaning target weight :=
+  (SemilinearNormalization.normalize_exact target weight).mp
+    (SemilinearFastInclusion.check_sound _ _ checked weight
+      ((SemilinearNormalization.normalize_exact source weight).mpr member))
+
+/-- Fast success avoids the automata construction. Failure of the sufficient
+line-by-line test invokes the full union-aware inclusion decision. -/
+def checkSubset (source target : Semi n) : Bool :=
+  if SemilinearFastInclusion.check (SemilinearNormalization.normalize source)
+      (SemilinearNormalization.normalize target) then true
+  else checkSubsetFallback source target
+
+theorem checkSubset_exact (source target : Semi n) :
+    checkSubset source target = true ↔ ∀ weight, Meaning source weight → Meaning target weight := by
+  unfold checkSubset
+  split
+  next checked =>
+    exact ⟨fun _ => fastSubset_sound source target checked, fun _ => rfl⟩
+  next => exact checkSubsetFallback_exact source target
+
+theorem checkSubset_rejects (source target : Semi n) :
+    checkSubset source target = false ↔ ∃ weight, Meaning source weight ∧ ¬ Meaning target weight := by
+  constructor
+  · intro rejected
+    have fallback : checkSubsetFallback source target = false := by
+      unfold checkSubset at rejected
+      split at rejected
+      · cases rejected
+      · exact rejected
+    exact (checkSubsetFallback_rejects source target).mp fallback
+  · rintro ⟨weight, member, absent⟩
+    cases answer : checkSubset source target with
+    | false => rfl
+    | true => exact False.elim (absent ((checkSubset_exact source target).mp answer weight member))
+
+theorem checkSubset_preserves_result (source target : Semi n) :
+    checkSubset source target = checkSubsetFallback source target := by
+  have same := (checkSubset_exact source target).trans (checkSubsetFallback_exact source target).symm
+  cases left : checkSubset source target <;> cases right : checkSubsetFallback source target <;> simp_all
 
 def checkEqual (left right : Semi n) : Bool := checkSubset left right && checkSubset right left
 
