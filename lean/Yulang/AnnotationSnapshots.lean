@@ -4,17 +4,20 @@ import Yulang.RowInference
 /-!
 # Frozen positive-annotation observations, including signed rows
 
-T3 (2026-11-05) checks concrete effects visible at the observation site. An
+T3 (spec §5.5b, 2026-11-05) checks concrete effects after the whole binding/SCC
+has been inferred and immediately before its generalization. An
 unknown row later instantiated through a generalized scheme is not rechecked.
 This module makes that temporal distinction explicit: a row expression can be
 substituted, while the finite history of observations retains its original
 signed concrete rows. A failed earlier observation also cannot be repaired by
 a later substitution or by adding protection afterwards.
 
-`observe` expects the row expression at the current inference stage: any
+`observe` expects the row expression at that finalization stage: any
 already-known substitutions must have been applied before taking the snapshot.
 Its unresolved variables are opaque. The theorem does not claim a solver that
 decides when a variable becomes known, or source annotation elaboration.
+`AnnotationFinalization` supplies the collection/least-solution/freeze sequence
+for finite Horn facts and proves its generation/member-order invariance.
 
 `principal_observed_exact` connects this check to the existing principal
 constraint generator. Valid snapshots add no row equation or permission bound
