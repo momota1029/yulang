@@ -119,7 +119,7 @@ contravariance. Parameters pass both checks because they are not minimized. -/
 def polarity (positive : Bool) : TyTerm (Parameter ⊕ Fin n) → Bool
   | .var (.inl _) => true
   | .var (.inr _) => positive
-  | .base _ | .bottom | .emptyRecord => true
+  | .base _ | .bottom | .top | .emptyRecord => true
   | .union left right | .inter left right | .pair left right =>
       polarity positive left && polarity positive right
   | .record _ value rest =>
@@ -166,7 +166,7 @@ theorem evaluate_recordSpine (empty : RowType) (join : RowType → RowType → R
 
 /-- A subtype between records has exactly the ordinary first-field lookup
 obligations. Cut elimination removes the possible intervening types. -/
-private theorem record_subtype_fields {leRow : RowType → RowType → Prop}
+theorem record_subtype_fields {leRow : RowType → RowType → Prop}
     (rowTrans : ∀ {a b c : RowType}, leRow a b → leRow b c → leRow a c)
     {source target : Ty RowType} (sourceShape : IsRecord source) (targetShape : IsRecord target)
     (subtype : Subtype leRow source target) :
@@ -186,9 +186,9 @@ private theorem record_subtype_fields {leRow : RowType → RowType → Prop}
       exact ⟨fields, fun label actual expected found expectedFound =>
         (comparisons label actual expected found expectedFound).sound⟩
   | bottom | unionElim | interLeft | interRight | pair | variant | arrow => cases sourceShape
-  | interIntro | unionLeft | unionRight => cases targetShape
+  | top | interIntro | unionLeft | unionRight => cases targetShape
 
-private theorem record_cons_mono {leRow : RowType → RowType → Prop}
+theorem record_cons_mono {leRow : RowType → RowType → Prop}
     (rowTrans : ∀ {a b c : RowType}, leRow a b → leRow b c → leRow a c)
     (label : Nat) {head head' rest rest' : Ty RowType}
     (restShape : IsRecord rest) (restShape' : IsRecord rest')
@@ -231,7 +231,7 @@ theorem polarity_sound (empty : RowType) (join : RowType → RowType → RowType
           have direction : positive = true := checked
           subst positive
           exact below index
-  | base | bottom | emptyRecord => cases positive <;> exact .refl _
+  | base | bottom | top | emptyRecord => cases positive <;> exact .refl _
   | union a b iha ihb =>
       have checks : polarity positive a = true ∧ polarity positive b = true := by
         simpa only [polarity, Bool.and_eq_true] using checked

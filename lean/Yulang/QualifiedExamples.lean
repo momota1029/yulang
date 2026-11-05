@@ -25,6 +25,7 @@ def model : Model where
   Row := Unit
   base := fun b => .app (baseCode b) []
   bottom := .app 4 []
+  top := .app 12 []
   union := fun a b => .app 5 [a, b]
   inter := fun a b => .app 6 [a, b]
   pair := fun a b => .app 7 [a, b]

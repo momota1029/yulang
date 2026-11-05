@@ -29,6 +29,7 @@ open Inference
 inductive Ty where
   | base : Base → Ty
   | bottom
+  | top
   | union : Ty → Ty → Ty
   | inter : Ty → Ty → Ty
   | pair : Ty → Ty → Ty
@@ -45,6 +46,7 @@ mutual
       try (solve | apply isFalse; intro impossible; cases impossible)
     case base.base a b => exact decidable_of_iff (a = b) (by simp)
     case bottom.bottom => exact isTrue rfl
+    case top.top => exact isTrue rfl
     case union.union a b c d =>
       have := Ty.decEq a c
       have := Ty.decEq b d
@@ -88,7 +90,7 @@ instance : DecidableEq Ty := Ty.decEq
 
 /-- Nominal arguments are a single opaque leaf for structural cast traversal. -/
 def Ty.size : Ty → Nat
-  | .base _ | .bottom | .emptyRecord | .nominal _ _ => 1
+  | .base _ | .bottom | .top | .emptyRecord | .nominal _ _ => 1
   | .union a b | .inter a b | .pair a b | .arrow a b => 1 + a.size + b.size
   | .record _ a rest => 1 + a.size + rest.size
   | .variant _ a => 1 + a.size
@@ -203,7 +205,7 @@ mutual
     | .emptyRecord => fields fits explicit [] .emptyRecord target
     | .record label value rest =>
       rest.isRecord && fields fits explicit [] (.record label value rest) target
-    | .bottom | .inter _ _ => false
+    | .bottom | .top | .inter _ _ => false
   termination_by 3 * (source.size + target.size) + 1
   decreasing_by all_goals simp_all only [Ty.size] <;> omega
 
@@ -286,7 +288,7 @@ mutual
           fields fits.check explicit.check [] (.record label value rest) target = true := by
         simpa [converts, sourceShape] using checked
       exact .record parts.1 (fields_sound fits explicit [] (.record label value rest) target parts.2)
-    | bottom | inter _ _ => simp [converts, sourceShape] at checked
+    | bottom | top | inter _ _ => simp [converts, sourceShape] at checked
   termination_by 3 * (source.size + target.size) + 1
   decreasing_by
     all_goals try rw [sourceShape]
@@ -518,6 +520,7 @@ theorem nominal_arguments_need_outer_rule (fits : Compatibility) (explicit : Exp
 def Ty.ofStructural : StructuralBase.Ty Unit → Ty
   | .base atom => .base atom
   | .bottom => .bottom
+  | .top => .top
   | .union left right => .union (.ofStructural left) (.ofStructural right)
   | .inter left right => .inter (.ofStructural left) (.ofStructural right)
   | .pair first second => .pair (.ofStructural first) (.ofStructural second)
@@ -529,6 +532,7 @@ def Ty.ofStructural : StructuralBase.Ty Unit → Ty
 def Ty.toStructural : Ty → Option (StructuralBase.Ty Unit)
   | .base atom => some (.base atom)
   | .bottom => some .bottom
+  | .top => some .top
   | .union left right => do return .union (← left.toStructural) (← right.toStructural)
   | .inter left right => do return .inter (← left.toStructural) (← right.toStructural)
   | .pair first second => do return .pair (← first.toStructural) (← second.toStructural)

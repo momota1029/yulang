@@ -100,6 +100,7 @@ def TypeHolds : CoreType n Key → (shape : Shape) → Value n Key Atom shape �
   | .base _, .pair _ _, _ => False
   | .base _, .arrow _ _, _ => False
   | .bottom, _, _ => False
+  | .top, _, _ => True
   | .union a b, shape, value => TypeHolds a shape value ∨ TypeHolds b shape value
   | .inter a b, shape, value => TypeHolds a shape value ∧ TypeHolds b shape value
   | .pair a b, .pair left right, value => TypeHolds a left value.1 ∧ TypeHolds b right value.2
@@ -130,6 +131,7 @@ theorem subtype_interpretation {left right : CoreType n Key}
   | refl => exact valid
   | trans _ _ ihl ihr => exact ihr shape value (ihl shape value valid)
   | bottom => exact False.elim valid
+  | top => trivial
   | unionLeft => exact Or.inl valid
   | unionRight => exact Or.inr valid
   | unionElim _ _ ihl ihr => exact valid.elim (ihl shape value) (ihr shape value)

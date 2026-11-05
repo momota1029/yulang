@@ -54,6 +54,7 @@ def type (scope : Fin n) (permission : Permission Key) (direction : Direction) :
     CoreType n Key → CoreType n Key
   | .base base => .base base
   | .bottom => .bottom
+  | .top => .top
   | .union left right => .union (type scope permission direction left) (type scope permission direction right)
   | .inter left right => .inter (type scope permission direction left) (type scope permission direction right)
   | .pair left right => .pair (type scope permission direction left) (type scope permission direction right)
@@ -127,7 +128,7 @@ theorem typeHolds_iff (scope : Fin n) (permission : Permission Key) (original : 
         (value scope permission shape direction v) ↔ TypeHolds original shape v := by
   induction original with
   | base base => intro direction shape v; cases shape <;> rfl
-  | bottom => intro direction shape v; rfl
+  | bottom | top => intro direction shape v; rfl
   | union left right ihl ihr =>
       intro direction shape v
       exact or_congr (ihl direction shape v) (ihr direction shape v)

@@ -102,6 +102,7 @@ def check [DecidableEq RowType] (rowCheck : RowType → RowType → Bool)
     (source target : Ty RowType) : Bool :=
   decide (source = target) ||
   (match source with | .bottom => true | _ => false) ||
+  (match target with | .top => true | _ => false) ||
   (match source with
     | .union left right => check rowCheck left target && check rowCheck right target
     | _ => false) ||
@@ -150,6 +151,7 @@ theorem check_complete [DecidableEq RowType]
   induction comparison with
   | refl => rw [check.eq_def]; simp
   | bottom => rw [check.eq_def]; simp
+  | top => rw [check.eq_def]; simp
   | unionElim _ _ left right => rw [check.eq_def]; simp [left, right]
   | interIntro _ _ left right => rw [check.eq_def]; simp [left, right]
   | unionLeft _ ih => rw [check.eq_def]; simp [ih]
@@ -184,7 +186,7 @@ theorem check_sound [DecidableEq RowType]
     Comparison leRow source target := by
   rw [check.eq_def] at checked
   simp only [Bool.or_eq_true, or_assoc] at checked
-  rcases checked with equal | bottom | union | inter | toUnion | fromInter |
+  rcases checked with equal | bottom | top | union | inter | toUnion | fromInter |
     pair | variant | arrow | record
   · have same : source = target := of_decide_eq_true equal
     subst target
@@ -192,6 +194,9 @@ theorem check_sound [DecidableEq RowType]
   · split at bottom
     · exact .bottom _
     · cases bottom
+  · split at top
+    · exact .top _
+    · cases top
   · split at union
     · simp only [Bool.and_eq_true] at union
       obtain ⟨left, right⟩ := union

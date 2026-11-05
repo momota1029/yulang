@@ -16,7 +16,7 @@ open StructuralBase
 variable {A : Type u} {B : Type v} {C : Type w}
 
 def rows : Ty A → List A
-  | .base _ | .bottom | .emptyRecord => []
+  | .base _ | .bottom | .top | .emptyRecord => []
   | .union left right | .inter left right | .pair left right => rows left ++ rows right
   | .record _ value rest => rows value ++ rows rest
   | .variant _ value => rows value
@@ -25,6 +25,7 @@ def rows : Ty A → List A
 def traverseRows (choose : A → Option B) : Ty A → Option (Ty B)
   | .base base => some (.base base)
   | .bottom => some .bottom
+  | .top => some .top
   | .union left right =>
       (traverseRows choose left).bind fun left' =>
       (traverseRows choose right).bind fun right' =>
@@ -58,7 +59,7 @@ theorem traverseRows_exact (choose : A → Option B) (decode : B → C) (meaning
     mapRows decode resolved = mapRows meaning type := by
   induction type generalizing resolved with
   | base base => cases returned; rfl
-  | bottom => cases returned; rfl
+  | bottom | top => cases returned; rfl
   | emptyRecord => cases returned; rfl
   | union left right ihl ihr =>
       simp only [traverseRows, Option.bind_eq_some_iff, Option.some.injEq] at returned
@@ -91,7 +92,7 @@ theorem traverseRows_supported_iff (choose : A → Option B) (type : Ty A) :
       ∀ row ∈ rows type, ∃ result, choose row = some result := by
   induction type with
   | base base => simp [traverseRows, rows]
-  | bottom => simp [traverseRows, rows]
+  | bottom | top => simp [traverseRows, rows]
   | emptyRecord => simp [traverseRows, rows]
   | union left right ihl ihr =>
       simp only [traverseRows, Option.bind_eq_some_iff, Option.some.injEq, rows,

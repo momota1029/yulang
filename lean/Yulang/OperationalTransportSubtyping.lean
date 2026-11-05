@@ -62,6 +62,7 @@ theorem subtype_preserved (scope : Fin n) (permission : Permission Key)
   | refl => exact .refl _
   | trans _ _ ihl ihr => exact .trans ihl ihr
   | bottom => exact .bottom _
+  | top => exact .top _
   | unionLeft => exact .unionLeft _ _
   | unionRight => exact .unionRight _ _
   | unionElim _ _ ihl ihr => exact .unionElim ihl ihr

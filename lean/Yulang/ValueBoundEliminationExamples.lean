@@ -138,6 +138,12 @@ def negativeTerm : Inference.TyTerm (Empty ⊕ Fin 1) :=
 
 theorem negative_polarity_rejected : polarity true negativeTerm = false := rfl
 
+theorem negative_polarity_accepted : polarity false negativeTerm = true := rfl
+
+theorem any_has_both_polarities :
+    polarity true (Parameter := Empty) (n := 1) .top = true ∧
+      polarity false (Parameter := Empty) (n := 1) .top = true := ⟨rfl, rfl⟩
+
 def negativeOutput (value : ValueBounds.Valuation 1 Unit) : Ty Unit :=
   .arrow (value 0) () (.base .int) ()
 
@@ -170,6 +176,13 @@ theorem negative_minimization_loses_instance :
     intro constraint impossible
     cases impossible
   · exact negative_bottom_rejected
+
+/-- An unconstrained variable occurring only negatively has the greatest
+assignment `any`; arrow contravariance preserves every previous instance. -/
+theorem negative_maximization_preserves_every_instance
+    (value : ValueBounds.Valuation 1 Unit) :
+    Subtype trivialRow (negativeOutput (fun _ => .top)) (negativeOutput value) :=
+  .arrow (.top _) trivial (.refl _) trivial
 
 /-- Two contravariant arrow positions restore a positive occurrence. The
 checker distinguishes this higher-order case from a single negative one. -/

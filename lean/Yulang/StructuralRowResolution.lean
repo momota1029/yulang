@@ -24,6 +24,7 @@ variable {A : Type u} {B : Type v}
 def mapRows (f : A → B) : Ty A → Ty B
   | .base base => .base base
   | .bottom => .bottom
+  | .top => .top
   | .union left right => .union (mapRows f left) (mapRows f right)
   | .inter left right => .inter (mapRows f left) (mapRows f right)
   | .pair left right => .pair (mapRows f left) (mapRows f right)
@@ -72,7 +73,7 @@ theorem mapRows_injective (f : A → B) (injective : Function.Injective f) :
   | base base =>
       intro target same; cases target <;> simp [mapRows] at same
       cases same; rfl
-  | bottom =>
+  | bottom | top =>
       intro target same; cases target <;> simp [mapRows] at same
       rfl
   | union left right ihl ihr =>
@@ -107,6 +108,7 @@ theorem subtype_map (f : A → B) {leA : A → A → Prop} {leB : B → B → Pr
   | refl => exact .refl _
   | trans _ _ ihl ihr => exact .trans ihl ihr
   | bottom => exact .bottom _
+  | top => exact .top _
   | unionLeft => exact .unionLeft _ _
   | unionRight => exact .unionRight _ _
   | unionElim _ _ ihl ihr => exact .unionElim ihl ihr
@@ -145,6 +147,10 @@ theorem comparison_unmap (f : A → B) (injective : Function.Injective f)
       intro source target first second
       cases source <;> simp only [mapRows] at first <;> cases first
       exact .bottom _
+  | top =>
+      intro source target first second
+      cases target <;> simp only [mapRows] at second <;> cases second
+      exact .top _
   | unionElim _ _ ihl ihr =>
       intro source target first second
       cases source <;> simp only [mapRows] at first <;> cases first

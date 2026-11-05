@@ -17,6 +17,7 @@ open Yulang.Inference
 inductive Ty (RowType : Type u) where
   | base : Base → Ty RowType
   | bottom : Ty RowType
+  | top : Ty RowType
   | union : Ty RowType → Ty RowType → Ty RowType
   | inter : Ty RowType → Ty RowType → Ty RowType
   | pair : Ty RowType → Ty RowType → Ty RowType
@@ -39,6 +40,7 @@ inductive Subtype (leRow : RowType → RowType → Prop) : Ty RowType → Ty Row
   | refl (a : Ty RowType) : Subtype leRow a a
   | trans : Subtype leRow a b → Subtype leRow b c → Subtype leRow a c
   | bottom (a : Ty RowType) : Subtype leRow .bottom a
+  | top (a : Ty RowType) : Subtype leRow a .top
   | unionLeft (a b : Ty RowType) : Subtype leRow a (.union a b)
   | unionRight (a b : Ty RowType) : Subtype leRow b (.union a b)
   | unionElim : Subtype leRow a c → Subtype leRow b c → Subtype leRow (.union a b) c
@@ -65,6 +67,7 @@ def model (RowType : Type u) (empty : RowType) (join : RowType → RowType → R
   Row := RowType
   base := Ty.base
   bottom := Ty.bottom
+  top := Ty.top
   union := Ty.union
   inter := Ty.inter
   pair := Ty.pair
@@ -111,6 +114,7 @@ all structural subtypes or function denotations.
 -/
 
 def Scalar (observed : Base) : Ty RowType → Prop
+  | .top => True
   | .base actual => actual = observed
   | .union a b => Scalar observed a ∨ Scalar observed b
   | .inter a b => Scalar observed a ∧ Scalar observed b
@@ -126,6 +130,7 @@ theorem scalar_preserved {a b : Ty RowType} (subtype : Subtype leRow a b) :
   | refl => exact fun _ h => h
   | trans _ _ ihab ihbc => exact fun observed h => ihbc observed (ihab observed h)
   | bottom => exact fun _ h => False.elim h
+  | top => exact fun _ _ => trivial
   | unionLeft => exact fun _ h => Or.inl h
   | unionRight => exact fun _ h => Or.inr h
   | unionElim _ _ iha ihb => exact fun observed h => h.elim (iha observed) (ihb observed)
@@ -153,6 +158,55 @@ theorem int_union_str_not_int :
     ¬ Subtype leRow (Ty.union (.base .int) (.base .str) : Ty RowType) (.base .int) := by
   intro h
   exact str_not_int (.trans (.unionRight _ _) h)
+
+/-! ## The writable `any` type is top, not an unchecked value
+
+Every value may be forgotten to `top`. The converse does not permit selecting
+a scalar, calling a function, or projecting a structural value.
+-/
+
+theorem top_not_int : ¬ Subtype leRow (Ty.top : Ty RowType) (.base .int) := by
+  intro h
+  have impossible := scalar_preserved h .str trivial
+  cases impossible
+
+theorem top_not_bottom : ¬ Subtype leRow (Ty.top : Ty RowType) .bottom := by
+  intro h
+  exact scalar_preserved h .int trivial
+
+theorem top_not_pair (left right : Ty RowType) :
+    ¬ Subtype leRow .top (.pair left right) := by
+  intro h
+  exact scalar_preserved h .int trivial
+
+theorem top_not_variant (label : Nat) (payload : Ty RowType) :
+    ¬ Subtype leRow .top (.variant label payload) := by
+  intro h
+  exact scalar_preserved h .int trivial
+
+theorem top_not_arrow (input output : Ty RowType) (inputRow outputRow : RowType) :
+    ¬ Subtype leRow .top (.arrow input inputRow output outputRow) := by
+  intro h
+  exact scalar_preserved h .int trivial
+
+theorem top_not_record {record : Ty RowType} (shape : IsRecord record) :
+    ¬ Subtype leRow .top record := by
+  intro h
+  exact record_not_scalar .int shape (scalar_preserved h .int trivial)
+
+theorem inter_top_equivalent (type : Ty RowType) :
+    Subtype leRow (.inter type .top) type ∧ Subtype leRow type (.inter type .top) :=
+  ⟨.interLeft _ _, .interIntro (.refl _) (.top _)⟩
+
+theorem union_top_equivalent (type : Ty RowType) :
+    Subtype leRow (.union type .top) .top ∧ Subtype leRow .top (.union type .top) :=
+  ⟨.top _, .unionRight _ _⟩
+
+theorem arrow_top_input (input output : Ty RowType) (inputRow outputRow : RowType)
+    (inputRefl : leRow inputRow inputRow) (outputRefl : leRow outputRow outputRow) :
+    Subtype leRow (.arrow .top inputRow output outputRow)
+      (.arrow input inputRow output outputRow) :=
+  .arrow (.top _) inputRefl (.refl _) outputRefl
 
 /-! ## Record and variance witnesses -/
 

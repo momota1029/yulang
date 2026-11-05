@@ -21,7 +21,7 @@ open StructuralBase
 variable {RowType : Type u} {leRow : RowType → RowType → Prop}
 
 def nodes : Ty RowType → Nat
-  | .base _ | .bottom | .emptyRecord => 1
+  | .base _ | .bottom | .top | .emptyRecord => 1
   | .union left right | .inter left right | .pair left right =>
       1 + nodes left + nodes right
   | .record _ value rest => 1 + nodes value + nodes rest
@@ -48,6 +48,7 @@ inductive Comparison (leRow : RowType → RowType → Prop) :
     Ty RowType → Ty RowType → Prop where
   | refl (type : Ty RowType) : Comparison leRow type type
   | bottom (type : Ty RowType) : Comparison leRow .bottom type
+  | top (type : Ty RowType) : Comparison leRow type .top
   | unionElim : Comparison leRow left target → Comparison leRow right target →
       Comparison leRow (.union left right) target
   | interIntro : Comparison leRow source left → Comparison leRow source right →
@@ -80,6 +81,7 @@ theorem Comparison.sound {source target : Ty RowType}
   induction comparison with
   | refl => exact .refl _
   | bottom => exact .bottom _
+  | top => exact .top _
   | unionElim _ _ left right => exact .unionElim left right
   | interIntro _ _ left right => exact .interIntro left right
   | unionLeft _ ih => exact .trans ih (.unionLeft _ _)
@@ -102,6 +104,15 @@ theorem Comparison.trans
   cases first with
   | refl => exact second
   | bottom => exact .bottom _
+  | top =>
+      cases second with
+      | refl => exact .top _
+      | top => exact .top _
+      | interIntro left right =>
+          exact .interIntro (trans rowTrans (.top _) left) (trans rowTrans (.top _) right)
+      | unionLeft rest => exact .unionLeft (trans rowTrans (.top _) rest)
+      | unionRight rest => exact .unionRight (trans rowTrans (.top _) rest)
+      | record shape _ _ _ => cases shape
   | unionElim left right =>
       exact .unionElim (trans rowTrans left second) (trans rowTrans right second)
   | interLeft part => exact .interLeft (trans rowTrans part second)
@@ -109,6 +120,7 @@ theorem Comparison.trans
   | unionLeft part =>
       cases second with
       | refl => exact .unionLeft part
+      | top => exact .top _
       | unionElim left _ => exact trans rowTrans part left
       | interIntro left right =>
           exact .interIntro (trans rowTrans (.unionLeft part) left)
@@ -119,6 +131,7 @@ theorem Comparison.trans
   | unionRight part =>
       cases second with
       | refl => exact .unionRight part
+      | top => exact .top _
       | unionElim _ right => exact trans rowTrans part right
       | interIntro left right =>
           exact .interIntro (trans rowTrans (.unionRight part) left)
@@ -129,6 +142,7 @@ theorem Comparison.trans
   | interIntro left right =>
       cases second with
       | refl => exact .interIntro left right
+      | top => exact .top _
       | interLeft rest => exact trans rowTrans left rest
       | interRight rest => exact trans rowTrans right rest
       | interIntro first last =>
@@ -140,6 +154,7 @@ theorem Comparison.trans
   | pair left right =>
       cases second with
       | refl => exact .pair left right
+      | top => exact .top _
       | interIntro first last =>
           exact .interIntro (trans rowTrans (.pair left right) first)
             (trans rowTrans (.pair left right) last)
@@ -150,6 +165,7 @@ theorem Comparison.trans
   | variant payload =>
       cases second with
       | refl => exact .variant payload
+      | top => exact .top _
       | interIntro first last =>
           exact .interIntro (trans rowTrans (.variant payload) first)
             (trans rowTrans (.variant payload) last)
@@ -160,6 +176,7 @@ theorem Comparison.trans
   | arrow input inputRow output outputRow =>
       cases second with
       | refl => exact .arrow input inputRow output outputRow
+      | top => exact .top _
       | interIntro first last =>
           exact .interIntro (trans rowTrans (.arrow input inputRow output outputRow) first)
             (trans rowTrans (.arrow input inputRow output outputRow) last)
@@ -174,6 +191,7 @@ theorem Comparison.trans
   | @record source middle sourceShape middleShape fields comparisons =>
       cases second with
       | refl => exact .record sourceShape middleShape fields comparisons
+      | top => exact .top _
       | interIntro first last =>
           exact .interIntro (trans rowTrans (.record sourceShape middleShape fields comparisons) first)
             (trans rowTrans (.record sourceShape middleShape fields comparisons) last)
@@ -217,6 +235,7 @@ theorem Comparison.complete
   | refl => exact .refl _
   | trans _ _ left right => exact Comparison.trans (leRow := leRow) rowTrans left right
   | bottom => exact .bottom _
+  | top => exact .top _
   | unionLeft => exact .unionLeft (.refl _)
   | unionRight => exact .unionRight (.refl _)
   | unionElim _ _ left right => exact .unionElim left right

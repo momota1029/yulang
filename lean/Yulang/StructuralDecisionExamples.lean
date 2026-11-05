@@ -83,4 +83,34 @@ theorem finite_row_order_irrelevant :
       (.arrow unit [] unit [debt, shield, debt])
       (.arrow unit [] unit [shield, debt]) = true := by decide +kernel
 
+/-! `any` is the writable top type from decision 36. It forgets value
+structure while leaving latent row comparisons on arrows intact. -/
+
+theorem every_type_is_below_any (type : T) : checkSigned type .top = true :=
+  (checkSigned_exact _ _).mpr (.top _)
+
+theorem any_is_not_an_integer : checkSigned (.top : T) integer = false := by decide +kernel
+
+theorem any_is_not_callable :
+    checkSigned (.top : T) (.arrow integer [] integer []) = false := by decide +kernel
+
+theorem any_meet_and_join :
+    equivalentSigned (.inter integer .top) integer = true ∧
+      equivalentSigned (.union integer .top) .top = true := by decide +kernel
+
+theorem any_arrow_input_is_contravariant :
+    checkSigned (.arrow .top [] integer []) (.arrow integer [] integer []) = true ∧
+      checkSigned (.arrow integer [] integer []) (.arrow .top [] integer []) = false := by
+  decide +kernel
+
+theorem any_input_preserves_protected_latent_effects :
+    ¬ SignedStructural.Subtype
+      (.arrow .top [] integer [shield]) (.arrow integer [] integer []) :=
+  (checkSigned_rejects _ _).mp (by decide +kernel)
+
+theorem any_input_preserves_negative_latent_effects :
+    ¬ SignedStructural.Subtype
+      (.arrow .top [] integer [debt]) (.arrow integer [] integer []) :=
+  (checkSigned_rejects _ _).mp (by decide +kernel)
+
 end Yulang.StructuralDecisions.Examples

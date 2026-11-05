@@ -102,7 +102,7 @@ def rowCaptured : RowTerm (Fin n ⊕ α) → Bool
   | .join a b => rowCaptured a && rowCaptured b
 
 def rowsCaptured : TyTerm (Fin n ⊕ α) → Bool
-  | .var _ | .base _ | .bottom | .emptyRecord => true
+  | .var _ | .base _ | .bottom | .top | .emptyRecord => true
   | .union a b | .inter a b | .pair a b => rowsCaptured a && rowsCaptured b
   | .record _ a b => rowsCaptured a && rowsCaptured b
   | .variant _ a => rowsCaptured a
@@ -126,7 +126,7 @@ theorem captured_type_ignores_local_rows (m : Model) (ρ : α → Comp m)
     t.eval m (manyEnv ρ locals) = t.eval m (typeEnv m ρ (fun i => (locals i).1)) := by
   induction t with
   | var x => cases x <;> rfl
-  | base _ | bottom | emptyRecord => rfl
+  | base _ | bottom | top | emptyRecord => rfl
   | union a b iha ihb | inter a b iha ihb | pair a b iha ihb | record _ a b iha ihb =>
     simp only [rowsCaptured, Bool.and_eq_true] at captured
     simp only [TyTerm.eval, iha captured.1, ihb captured.2]

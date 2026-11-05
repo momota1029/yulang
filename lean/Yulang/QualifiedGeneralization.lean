@@ -24,7 +24,7 @@ def rowUsesLocal : RowTerm (α ⊕ β) → Bool
   | .join a b => rowUsesLocal a || rowUsesLocal b
 
 def typeUsesLocal : TyTerm (α ⊕ β) → Bool
-  | .var (.inl _) | .base _ | .bottom | .emptyRecord => false
+  | .var (.inl _) | .base _ | .bottom | .top | .emptyRecord => false
   | .var (.inr _) => true
   | .union a b | .inter a b | .pair a b | .record _ a b =>
       typeUsesLocal a || typeUsesLocal b
@@ -55,7 +55,7 @@ theorem type_eval_capture (m : Model) (ρ η : α ⊕ β → Comp m)
       cases x with
       | inl a => exact congrArg Prod.fst (agree a)
       | inr b => simp [typeUsesLocal] at absent
-  | base _ | bottom | emptyRecord => rfl
+  | base _ | bottom | top | emptyRecord => rfl
   | union a b iha ihb | inter a b iha ihb | pair a b iha ihb | record _ a b iha ihb =>
       simp only [typeUsesLocal, Bool.or_eq_false_iff] at absent
       simp [TyTerm.eval, iha absent.1, ihb absent.2]

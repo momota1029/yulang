@@ -21,6 +21,7 @@ structure Model where
   Row : Type v
   base : Base → Ty
   bottom : Ty
+  top : Ty
   union : Ty → Ty → Ty
   inter : Ty → Ty → Ty
   pair : Ty → Ty → Ty
@@ -53,6 +54,7 @@ inductive TyTerm (α : Type) where
   | var : α → TyTerm α
   | base : Base → TyTerm α
   | bottom : TyTerm α
+  | top : TyTerm α
   | union : TyTerm α → TyTerm α → TyTerm α
   | inter : TyTerm α → TyTerm α → TyTerm α
   | pair : TyTerm α → TyTerm α → TyTerm α
@@ -81,6 +83,7 @@ def TyTerm.eval (m : Model) (ρ : α → Comp m) : TyTerm α → m.Ty
   | .var a => (ρ a).1
   | .base b => m.base b
   | .bottom => m.bottom
+  | .top => m.top
   | .union a b => m.union (a.eval m ρ) (b.eval m ρ)
   | .inter a b => m.inter (a.eval m ρ) (b.eval m ρ)
   | .pair a b => m.pair (a.eval m ρ) (b.eval m ρ)
@@ -101,6 +104,7 @@ def TyTerm.rename (f : α → β) : TyTerm α → TyTerm β
   | .var a => .var (f a)
   | .base b => .base b
   | .bottom => .bottom
+  | .top => .top
   | .union a b => .union (a.rename f) (b.rename f)
   | .inter a b => .inter (a.rename f) (b.rename f)
   | .pair a b => .pair (a.rename f) (b.rename f)
@@ -121,6 +125,7 @@ def TyTerm.subst (f : α → CompTerm β) : TyTerm α → TyTerm β
   | .var a => (f a).ty
   | .base b => .base b
   | .bottom => .bottom
+  | .top => .top
   | .union a b => .union (a.subst f) (b.subst f)
   | .inter a b => .inter (a.subst f) (b.subst f)
   | .pair a b => .pair (a.subst f) (b.subst f)

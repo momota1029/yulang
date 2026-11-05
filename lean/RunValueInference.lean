@@ -21,6 +21,7 @@ private def typeText : StructuralBase.Ty Row → String
   | .base .bool => "bool"
   | .base .unit => "()"
   | .bottom => "never"
+  | .top => "any"
   | .union .bottom right => typeText right
   | .union left .bottom => typeText left
   | .union left right => "(" ++ typeText left ++ " | " ++ typeText right ++ ")"

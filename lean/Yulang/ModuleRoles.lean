@@ -26,7 +26,7 @@ def rowVariables : RowTerm α → List α
 
 def typeVariables : TyTerm α → List α
   | .var a => [a]
-  | .base _ | .bottom | .emptyRecord => []
+  | .base _ | .bottom | .top | .emptyRecord => []
   | .union a b | .inter a b | .pair a b | .record _ a b => typeVariables a ++ typeVariables b
   | .variant _ a => typeVariables a
   | .arrow a ea b eb => typeVariables a ++ rowVariables ea ++ typeVariables b ++ rowVariables eb
@@ -46,7 +46,7 @@ theorem type_eval_on_support (m : Model) (ρ η : α → Comp m) (t : TyTerm α)
     (agree : ∀ a ∈ typeVariables t, ρ a = η a) : t.eval m ρ = t.eval m η := by
   induction t with
   | var a => exact congrArg Prod.fst (agree a (by simp [typeVariables]))
-  | base _ | bottom | emptyRecord => rfl
+  | base _ | bottom | top | emptyRecord => rfl
   | union a b iha ihb | inter a b iha ihb | pair a b iha ihb | record _ a b iha ihb =>
       simp only [typeVariables, List.mem_append, or_imp, forall_and] at agree
       simp [TyTerm.eval, iha agree.1, ihb agree.2]
