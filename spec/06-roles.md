@@ -170,16 +170,16 @@ my inc(n: int) = n + 1
 apply_to_id inc            // OK: inc : int -> int は、引数側に user_id → int の cast が入った関数として渡る
 ```
 
-- **関数以外の型の中身は、cast に関して不変**（確定, 2026-11-05）。tuple・record・variant の payload・list・ref などの中身へ cast は通らない。すでに作られた `list user_id` の値は `list int` の場所には渡せない（エラー）。値を**作る**場所（literal の要素など）では、その要素ごとが境界になる。
-  値制限で一般化されなかった型変数（`my e = []` の要素型 `'a` など）が後の使い方で決まるのは、cast ではなく型変数の解決である。
+- **cast は、方向を持つ位置に沿って通る**（確定, 2026-11-05）。関数の引数（反変）・戻り値（共変）に加えて、tuple の成分・record のフィールド・variant の payload（いずれも共変）にも通る。通るときは成分ごとに cast して、新しい値を作る。変換の量は型の大きさで決まり、データの大きさには依らない。
 
 ```yulang
-my e = []                      // list 'a。値制限で弱多相のまま
-my a: list int = e             // 'a := int。cast は入らない
-
-my ys = [id_value]             // list user_id
-my zs: list int = ys           // エラー: 中身の cast は認めない
+my p = (id_value, "a")            // (user_id, str)
+my q: (int, str) = p              // 成分ごとに cast: (int, str)
 ```
+
+- **nominal な型の型引数（`list 'a`・`ref`・`box 'a` など）は不変で、cast も通らない**（確定, 2026-11-05）。不変な引数は `(lower, upper)` の区間として持ち、実際の引数は一つの型に決まる。すでに型が決まった `list user_id` は `list int` の場所には渡せない。
+- **配列（list）の literal の要素型は `int | ?a` のように、後で決まる部分を持つ**（確定, 2026-11-05。細部は要確認）。`?a` は値制限で一般化されない弱多相の変数で、後の使い方で決まる。`my e = []` の `'a` が後で決まるのと同じ仕組み。
+  - 要確認: literal の要素が、後で決まった `?a` に cast されるときの扱い（要素の構築位置に遡って cast を入れるのか、`?a` が決まるときに要素の型との合流で処理するのか）。
 
 - 現状の対象は nominal な型どうしと、それを引数・戻り値に持つ関数型。汎用の構造的変換の仕組みではない。
 - **cast は連鎖する**（`A → B → C`, 確定, 2026-11-04）。
