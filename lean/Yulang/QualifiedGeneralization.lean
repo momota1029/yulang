@@ -8,7 +8,7 @@ automatically: a predicate mentioning a local slot is lifted into the scheme;
 captured-only and concrete predicates stay pending in the enclosing module.
 Mixed predicates may mention ambient slots, but those slots are never quantified.
 
-The RHS is checked under abstract dictionaries, universally over local types.
+The RHS is checked under abstract dictionaries, universally over local value types and rows.
 No global impl is required merely to define a qualified value. Instantiation
 requires real evidence. Inferring the finite interface from an unsolved subtype
 graph, nested source elaboration and an all-language solver remain separate.
@@ -17,7 +17,6 @@ graph, nested source elaboration and an all-language solver remain separate.
 namespace Yulang.QualifiedInference
 
 open Inference RoleConstraints
-open EffectInference (localEnv localEnv_comp_inl localEnv_map)
 
 def rowUsesLocal : RowTerm (α ⊕ β) → Bool
   | .var (.inl _) | .empty => false
@@ -74,14 +73,14 @@ def dropLocal : α ⊕ β → CompTerm α
 
 def lowerGoal (goal : Goal (α ⊕ β)) : Goal α := goal.subst dropLocal
 
-theorem lowerGoal_exact (m : Model) (ρ : α → Comp m) (ι : Fin n → m.Ty)
+theorem lowerGoal_exact (m : Model) (ρ : α → Comp m) (ι : Fin n → Comp m)
     (goal : Goal (α ⊕ Fin n)) (absent : goalUsesLocal goal = false) :
-    (lowerGoal goal).eval m ρ = goal.eval m (localEnv m ρ ι) := by
+    (lowerGoal goal).eval m ρ = goal.eval m (slotEnv ρ ι) := by
   rw [lowerGoal, Goal.eval_subst]
   apply congrArg (Predicate.mk goal.role)
   apply List.map_congr_left
   intro t ht
-  apply type_eval_capture m (fun x => (dropLocal x).eval m ρ) (localEnv m ρ ι)
+  apply type_eval_capture m (fun x => (dropLocal x).eval m ρ) (slotEnv ρ ι)
     (fun _ => rfl) t
   simpa using (List.any_eq_false.mp absent) t ht
 
@@ -93,10 +92,10 @@ def pending (goals : List (Goal (α ⊕ Fin n))) : List (Goal α) :=
 
 /-- The partition preserves every role obligation at every substitution. -/
 theorem partition_exact (m : Model) (theory : Theory m) (ρ : α → Comp m)
-    (ι : Fin n → m.Ty) (goals : List (Goal (α ⊕ Fin n))) :
-    Satisfies theory (goals.map (Goal.eval m (localEnv m ρ ι))) ↔
+    (ι : Fin n → Comp m) (goals : List (Goal (α ⊕ Fin n))) :
+    Satisfies theory (goals.map (Goal.eval m (slotEnv ρ ι))) ↔
       Satisfies theory ((pending goals).map (Goal.eval m ρ)) ∧
-      Satisfies theory ((qualifiers goals).map (Goal.eval m (localEnv m ρ ι))) := by
+      Satisfies theory ((qualifiers goals).map (Goal.eval m (slotEnv ρ ι))) := by
   constructor
   · intro all
     constructor
@@ -131,19 +130,19 @@ structure Interface (α : Type) (n : Nat) where
   obligations : List (Goal (α ⊕ Fin n))
 
 def Interface.scheme (interface : Interface α n) : Scheme α :=
-  .existsTypes n (
+  .existsSlots n (
     .and (Formula.roles ((qualifiers interface.obligations).map (Goal.rename (Sum.map some id))))
       (Formula.compLe (CompTerm.pure (interface.value.rename (Sum.map some id)))
         (CompTerm.var (.inl none))))
 
 def Interface.binding (m : Model) (ρ : α → Comp m) (interface : Interface α n) : Binding m :=
   .qualified n
-    (fun ι => (qualifiers interface.obligations).map (Goal.eval m (localEnv m ρ ι)))
-    (fun ι => Comp.pure m (interface.value.eval m (localEnv m ρ ι)))
+    (fun ι => (qualifiers interface.obligations).map (Goal.eval m (slotEnv ρ ι)))
+    (fun ι => Comp.pure m (interface.value.eval m (slotEnv ρ ι)))
 
 @[simp] theorem BindingTyping.qualified_iff (m : Model) (theory : Theory m)
-    (requirements : (Fin n → m.Ty) → List (Predicate m.Ty))
-    (result : (Fin n → m.Ty) → Comp m) (c : Comp m) :
+    (requirements : (Fin n → Comp m) → List (Predicate m.Ty))
+    (result : (Fin n → Comp m) → Comp m) (c : Comp m) :
     BindingTyping m theory (.qualified n requirements result) c ↔
       ∃ ι, Satisfies theory (requirements ι) ∧ Comp.le m (result ι) c := by
   constructor
@@ -157,7 +156,7 @@ theorem Interface.scheme_exact (m : Model) (theory : Theory m) (ρ : α → Comp
   simp only [scheme, Formula.Holds, Formula.holds_roles, Formula.holds_compLe,
     binding, BindingTyping.qualified_iff]
   apply exists_congr; intro ι
-  have he : (fun x => localEnv m (extend ρ c) ι (Sum.map some id x)) = localEnv m ρ ι := by
+  have he : (fun x => slotEnv (extend ρ c) ι (Sum.map some id x)) = slotEnv ρ ι := by
     funext x; cases x <;> rfl
   simp only [List.map_map, Function.comp_def, Goal.eval_rename, CompTerm.eval_pure,
     TyTerm.eval_rename, CompTerm.eval_var]
@@ -166,15 +165,15 @@ theorem Interface.scheme_exact (m : Model) (theory : Theory m) (ρ : α → Comp
 
 /-- Captured slots stay shared under every independent local instantiation. -/
 theorem ambient_not_quantified (m : Model) (ρ : α → Comp m)
-    (ι κ : Fin n → m.Ty) (a : α) :
-    localEnv m ρ ι (.inl a) = ρ a ∧ localEnv m ρ κ (.inl a) = ρ a := ⟨rfl, rfl⟩
+    (ι κ : Fin n → Comp m) (a : α) :
+    slotEnv ρ ι (.inl a) = ρ a ∧ slotEnv ρ κ (.inl a) = ρ a := ⟨rfl, rfl⟩
 
 theorem captured_scheme_shared (m : Model) (theory : Theory m) (ρ : α → Comp m)
-    (ι : Fin n → m.Ty) (scheme : Scheme α) (c : Comp m) :
-    (scheme.rename (Option.map Sum.inl)).Holds m theory (extend (localEnv m ρ ι) c) ↔
+    (ι : Fin n → Comp m) (scheme : Scheme α) (c : Comp m) :
+    (scheme.rename (Option.map Sum.inl)).Holds m theory (extend (slotEnv ρ ι) c) ↔
       scheme.Holds m theory (extend ρ c) := by
   rw [Formula.holds_rename]
-  have he : extend (localEnv m ρ ι) c ∘ Option.map Sum.inl = extend ρ c := by
+  have he : extend (slotEnv ρ ι) c ∘ Option.map Sum.inl = extend ρ c := by
     funext x; cases x <;> rfl
   rw [he]
 
@@ -182,7 +181,7 @@ def qualifiedLetConstraints (methods : MethodTable) (Γ : SchemeEnv α)
     (interface : Interface α n) (rhs body : Expr) (out : CompTerm α) : Formula α :=
   if rhs.isValue then
     .and (Formula.roles (pending interface.obligations))
-      (.and (.forallTypes n (.given (qualifiers interface.obligations)
+      (.and (.forallSlots n (.given (qualifiers interface.obligations)
         (generate methods (Γ.rename Sum.inl) rhs (CompTerm.pure interface.value))))
         (generate methods (interface.scheme :: Γ) body out))
   else .bot
@@ -191,8 +190,8 @@ def qualifiedLetConstraints (methods : MethodTable) (Γ : SchemeEnv α)
 uses of the stored signature must supply evidence in the caller's theory. -/
 inductive QualifiedLetTyping (m : Model) (methods : MethodTable) (theory : Theory m)
     (Γ : List (Binding m)) (shared : List (Predicate m.Ty))
-    (requirements : (Fin n → m.Ty) → List (Predicate m.Ty))
-    (value : (Fin n → m.Ty) → m.Ty) (rhs body : Expr) (out : Comp m) : Prop where
+    (requirements : (Fin n → Comp m) → List (Predicate m.Ty))
+    (value : (Fin n → Comp m) → m.Ty) (rhs body : Expr) (out : Comp m) : Prop where
   | intro : rhs.isValue = true → Satisfies theory shared →
       (∀ ι, Typing m methods (WithEvidence theory (requirements ι)) Γ rhs (Comp.pure m (value ι))) →
       Typing m methods theory (.qualified n requirements (fun ι => Comp.pure m (value ι)) :: Γ) body out →
@@ -200,8 +199,8 @@ inductive QualifiedLetTyping (m : Model) (methods : MethodTable) (theory : Theor
 
 @[simp] theorem qualifiedLetTyping_iff (m : Model) (methods : MethodTable) (theory : Theory m)
     (Γ : List (Binding m)) (shared : List (Predicate m.Ty))
-    (requirements : (Fin n → m.Ty) → List (Predicate m.Ty))
-    (value : (Fin n → m.Ty) → m.Ty) (rhs body : Expr) (out : Comp m) :
+    (requirements : (Fin n → Comp m) → List (Predicate m.Ty))
+    (value : (Fin n → Comp m) → m.Ty) (rhs body : Expr) (out : Comp m) :
     QualifiedLetTyping m methods theory Γ shared requirements value rhs body out ↔
       rhs.isValue = true ∧ Satisfies theory shared ∧
       (∀ ι, Typing m methods (WithEvidence theory (requirements ι)) Γ rhs (Comp.pure m (value ι))) ∧
@@ -217,16 +216,16 @@ theorem qualified_let_exact (m : Model) (methods : MethodTable) (theory : Theory
     (qualifiedLetConstraints methods sΓ interface rhs body out).Holds m theory ρ ↔
       QualifiedLetTyping m methods theory Γ
         ((pending interface.obligations).map (Goal.eval m ρ))
-        (fun ι => (qualifiers interface.obligations).map (Goal.eval m (localEnv m ρ ι)))
-        (fun ι => interface.value.eval m (localEnv m ρ ι)) rhs body (out.eval m ρ) := by
-  have hr (ι : Fin n → m.Ty) :
+        (fun ι => (qualifiers interface.obligations).map (Goal.eval m (slotEnv ρ ι)))
+        (fun ι => interface.value.eval m (slotEnv ρ ι)) rhs body (out.eval m ρ) := by
+  have hr (ι : Fin n → Comp m) :
       (generate methods (sΓ.rename Sum.inl) rhs (CompTerm.pure interface.value)).Holds m
-        (WithEvidence theory ((qualifiers interface.obligations).map (Goal.eval m (localEnv m ρ ι))))
-        (localEnv m ρ ι) ↔
+        (WithEvidence theory ((qualifiers interface.obligations).map (Goal.eval m (slotEnv ρ ι))))
+        (slotEnv ρ ι) ↔
       Typing m methods
-        (WithEvidence theory ((qualifiers interface.obligations).map (Goal.eval m (localEnv m ρ ι))))
-        Γ rhs (Comp.pure m (interface.value.eval m (localEnv m ρ ι))) := by
-    simpa using generate_models_iff_typing m methods _ rhs _ Γ (localEnv m ρ ι)
+        (WithEvidence theory ((qualifiers interface.obligations).map (Goal.eval m (slotEnv ρ ι))))
+        Γ rhs (Comp.pure m (interface.value.eval m (slotEnv ρ ι))) := by
+    simpa using generate_models_iff_typing m methods _ rhs _ Γ (slotEnv ρ ι)
       (CompTerm.pure interface.value) ((henv _).rename Sum.inl _ rfl)
   have hb :
       (generate methods (interface.scheme :: sΓ) body out).Holds m theory ρ ↔

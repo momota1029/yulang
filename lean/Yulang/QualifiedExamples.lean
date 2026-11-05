@@ -1,4 +1,5 @@
 import Yulang.QualifiedGeneralization
+import Yulang.SignedStructural
 
 /-!
 # Non-vacuous dictionary timing examples
@@ -89,7 +90,7 @@ theorem unused_qualified_definition_without_impl :
   · change Satisfies noImpls []
     simp [Satisfies]
   · intro ι
-    exact twice_typed_under_dictionary noImpls (ι 0)
+    exact twice_typed_under_dictionary noImpls (ι 0).1
   · exact .lit ⟨rfl, trivial⟩
 
 theorem qualified_binding_without_evidence_rejected (c : Comp model) :
@@ -98,8 +99,8 @@ theorem qualified_binding_without_evidence_rejected (c : Comp model) :
   intro typed
   cases typed with
   | qualified ι requirements _ =>
-    change Satisfies noImpls [⟨0, [ι 0]⟩] at requirements
-    have demand := requirements ⟨0, [ι 0]⟩ (by simp)
+    change Satisfies noImpls [⟨0, [(ι 0).1]⟩] at requirements
+    have demand := requirements ⟨0, [(ι 0).1]⟩ (by simp)
     exact no_concrete_evidence _ demand
 
 /-- Merely using the stored qualified value now demands its dictionary. -/
@@ -141,7 +142,7 @@ theorem qualified_use_at_int :
         model intEvidence Empty.elim := by
   rw [QualifiedInference.Scheme.holds_instantiate, Interface.scheme_exact]
   apply QualifiedInference.BindingTyping.qualified (m := model) (theory := intEvidence)
-    (fun _ => Roles.Term.app 0 [])
+    (fun _ => (Roles.Term.app 0 [], ()))
   · intro goal member
     have eq : goal = ⟨0, [.app 0 []]⟩ := by
       change goal ∈ [⟨0, [Roles.Term.app 0 []]⟩] at member
@@ -169,3 +170,46 @@ theorem captured_constraint_not_erased (out : CompTerm Unit) :
       addGoal, Goal.eval, Predicate.map, TyTerm.eval]))
 
 end Yulang.QualifiedExamples
+
+namespace Yulang.QualifiedRowExamples
+
+open Inference RoleConstraints QualifiedInference
+
+abbrev rowModel := SignedStructural.model 1 Nat
+
+def callback (row : Directed.Row 1 Nat) : rowModel.Ty :=
+  .arrow (.base .unit) [] (.base .unit) row
+
+def identityOnCallback (row : Directed.Row 1 Nat) : Comp rowModel :=
+  (.arrow (callback row) [] (callback row) [], [])
+
+/-- The generalized row occurs twice inside latent callback result positions. -/
+def callbackInterface : Interface Unit 1 where
+  value := .arrow
+    (.arrow (.base .unit) .empty (.base .unit) (.var (.inr 0))) .empty
+    (.arrow (.base .unit) .empty (.base .unit) (.var (.inr 0))) .empty
+  obligations := []
+
+theorem independently_instantiates_latent_row (row : Directed.Row 1 Nat) :
+    (callbackInterface.scheme.instantiate (CompTerm.var ())).Holds rowModel
+      (fun _ => False) (fun _ => identityOnCallback row) := by
+  rw [QualifiedInference.Scheme.holds_instantiate, Interface.scheme_exact]
+  apply QualifiedInference.BindingTyping.qualified (m := rowModel) (fun _ => (.base .unit, row))
+  · simp [callbackInterface, qualifiers, Satisfies]
+  · exact ⟨.refl _, SignedStructural.row_refl _⟩
+
+theorem two_nonempty_rows_from_one_scheme :
+    (callbackInterface.scheme.instantiate (CompTerm.var ())).Holds rowModel
+      (fun _ => False) (fun _ => identityOnCallback [Directed.raw 0]) ∧
+    (callbackInterface.scheme.instantiate (CompTerm.var ())).Holds rowModel
+      (fun _ => False) (fun _ => identityOnCallback [Directed.raw 1]) :=
+  ⟨independently_instantiates_latent_row _, independently_instantiates_latent_row _⟩
+
+theorem example_rows_distinct :
+    ([Directed.raw 0] : Directed.Row 1 Nat) ≠ [Directed.raw 1] := by
+  intro equal
+  have head : Directed.raw (n := 1) 0 = Directed.raw 1 := List.cons.inj equal |>.1
+  have key := congrArg Directed.Occurrence.key head
+  cases key
+
+end Yulang.QualifiedRowExamples

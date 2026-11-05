@@ -27,6 +27,18 @@ abbrev MethodTable := Nat → MethodDecl
 
 def typeEnv (m : Model) (ι : Fin n → m.Ty) : Fin n → Comp m := Comp.pure m ∘ ι
 
+/-- Ordinary let schemes quantify value types and rows independently. This is
+distinct from operation-local type parameters, whose row component is empty. -/
+def slotEnv (ρ : α → Comp m) (ι : Fin n → Comp m) : α ⊕ Fin n → Comp m :=
+  Sum.elim ρ ι
+
+@[simp] theorem slotEnv_comp_inl (ρ : α → Comp m) (ι : Fin n → Comp m) :
+    slotEnv ρ ι ∘ Sum.inl = ρ := rfl
+
+@[simp] theorem slotEnv_map (ρ : β → Comp m) (ι : Fin n → Comp m) (f : α → β) :
+    slotEnv ρ ι ∘ Sum.map f id = slotEnv (ρ ∘ f) ι := by
+  funext x; cases x <;> rfl
+
 inductive Formula : Type → Type 1 where
   | top : Formula α
   | bot : Formula α
@@ -38,6 +50,8 @@ inductive Formula : Type → Type 1 where
   | existsSlot : Formula (Option α) → Formula α
   | existsTypes : (n : Nat) → Formula (α ⊕ Fin n) → Formula α
   | forallTypes : (n : Nat) → Formula (α ⊕ Fin n) → Formula α
+  | existsSlots : (n : Nat) → Formula (α ⊕ Fin n) → Formula α
+  | forallSlots : (n : Nat) → Formula (α ⊕ Fin n) → Formula α
   | given : List (Goal α) → Formula α → Formula α
 
 def Formula.compLe (a b : CompTerm α) : Formula α :=
@@ -58,6 +72,8 @@ def Formula.Holds (m : Model) (theory : Theory m) :
   | _, ρ, .existsSlot p => ∃ c, p.Holds m theory (extend ρ c)
   | _, ρ, .existsTypes n p => ∃ ι : Fin n → m.Ty, p.Holds m theory (localEnv m ρ ι)
   | _, ρ, .forallTypes n p => ∀ ι : Fin n → m.Ty, p.Holds m theory (localEnv m ρ ι)
+  | _, ρ, .existsSlots n p => ∃ ι : Fin n → Comp m, p.Holds m theory (slotEnv ρ ι)
+  | _, ρ, .forallSlots n p => ∀ ι : Fin n → Comp m, p.Holds m theory (slotEnv ρ ι)
   | _, ρ, .given goals p => p.Holds m
       (WithEvidence theory (goals.map (Goal.eval m ρ))) ρ
 
@@ -72,6 +88,8 @@ def Formula.rename (f : α → β) : Formula α → Formula β
   | .existsSlot p => .existsSlot (p.rename (Option.map f))
   | .existsTypes n p => .existsTypes n (p.rename (Sum.map f id))
   | .forallTypes n p => .forallTypes n (p.rename (Sum.map f id))
+  | .existsSlots n p => .existsSlots n (p.rename (Sum.map f id))
+  | .forallSlots n p => .forallSlots n (p.rename (Sum.map f id))
   | .given goals p => .given (goals.map (Goal.rename f)) (p.rename f)
 
 def liftTypeSubst (f : α → CompTerm β) : α ⊕ Fin n → CompTerm (β ⊕ Fin n)
@@ -89,6 +107,8 @@ def Formula.subst (f : α → CompTerm β) : Formula α → Formula β
   | .existsSlot p => .existsSlot (p.subst (Inference.liftSubst f))
   | .existsTypes n p => .existsTypes n (p.subst (liftTypeSubst f))
   | .forallTypes n p => .forallTypes n (p.subst (liftTypeSubst f))
+  | .existsSlots n p => .existsSlots n (p.subst (liftTypeSubst f))
+  | .forallSlots n p => .forallSlots n (p.subst (liftTypeSubst f))
   | .given goals p => .given (goals.map (Goal.subst f)) (p.subst f)
 
 @[simp] theorem Formula.holds_compLe (m : Model) (theory : Theory m) (ρ : α → Comp m)
@@ -121,6 +141,8 @@ def Formula.subst (f : α → CompTerm β) : Formula α → Formula β
       rw [h]
   | existsTypes n p ih => simp [rename, Holds, ih, localEnv_map]
   | forallTypes n p ih => simp [rename, Holds, ih, localEnv_map]
+  | existsSlots n p ih => simp [rename, Holds, ih, slotEnv_map]
+  | forallSlots n p ih => simp [rename, Holds, ih, slotEnv_map]
   | given goals p ih => simp [rename, Holds, ih, List.map_map, Function.comp_def]
 
 theorem eval_liftTypeSubst (m : Model) (ρ : β → Comp m)
@@ -128,6 +150,12 @@ theorem eval_liftTypeSubst (m : Model) (ρ : β → Comp m)
     (fun x => (liftTypeSubst f x).eval m (localEnv m ρ ι)) =
       localEnv m (fun x => (f x).eval m ρ) ι := by
   funext x; cases x <;> simp [liftTypeSubst, localEnv]
+
+theorem eval_liftSlotSubst (m : Model) (ρ : β → Comp m)
+    (f : α → CompTerm β) (ι : Fin n → Comp m) :
+    (fun x => (liftTypeSubst f x).eval m (slotEnv ρ ι)) =
+      slotEnv (fun x => (f x).eval m ρ) ι := by
+  funext x; cases x <;> simp [liftTypeSubst, slotEnv]
 
 @[simp] theorem Formula.holds_subst (m : Model) (theory : Theory m) (p : Formula α)
     (f : α → CompTerm β) (ρ : β → Comp m) :
@@ -150,6 +178,8 @@ theorem eval_liftTypeSubst (m : Model) (ρ : β → Comp m)
       rw [h]
   | existsTypes n p ih => simp [subst, Holds, ih, eval_liftTypeSubst]
   | forallTypes n p ih => simp [subst, Holds, ih, eval_liftTypeSubst]
+  | existsSlots n p ih => simp [subst, Holds, ih, eval_liftSlotSubst]
+  | forallSlots n p ih => simp [subst, Holds, ih, eval_liftSlotSubst]
   | given goals p ih => simp [subst, Holds, ih, List.map_map, Function.comp_def]
 
 abbrev Scheme (α : Type) := Formula (Option α)
@@ -213,15 +243,15 @@ def Expr.isValue : Expr → Bool
   | _ => false
 
 /-- Signatures retain their captured environment through these semantic
-functions; only the finite local value types are independently instantiated. -/
+functions; only finite local type/row slots are independently instantiated. -/
 inductive Binding (m : Model) where
   | mono : Comp m → Binding m
-  | qualified : (n : Nat) → ((Fin n → m.Ty) → List (Predicate m.Ty)) →
-      ((Fin n → m.Ty) → Comp m) → Binding m
+  | qualified : (n : Nat) → ((Fin n → Comp m) → List (Predicate m.Ty)) →
+      ((Fin n → Comp m) → Comp m) → Binding m
 
 inductive BindingTyping (m : Model) (theory : Theory m) : Binding m → Comp m → Prop where
   | mono : Comp.le m a c → BindingTyping m theory (.mono a) c
-  | qualified (ι : Fin n → m.Ty) : Satisfies theory (requirements ι) →
+  | qualified (ι : Fin n → Comp m) : Satisfies theory (requirements ι) →
       Comp.le m (result ι) c → BindingTyping m theory (.qualified n requirements result) c
 
 inductive Typing (m : Model) (methods : MethodTable) (theory : Theory m) : List (Binding m) → Expr → Comp m → Prop where
