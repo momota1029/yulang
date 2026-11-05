@@ -1,4 +1,5 @@
 import Yulang.QualifiedGeneralization
+import Yulang.ModuleRoles
 import Yulang.SignedStructural
 
 /-!
@@ -168,6 +169,45 @@ theorem captured_constraint_not_erased (out : CompTerm Unit) :
   | intro _ shared _ _ =>
     exact no_concrete_evidence ⟨0, [.app 1 []]⟩ (shared _ (by simp [captured_role_stays_pending,
       addGoal, Goal.eval, Predicate.map, TyTerm.eval]))
+
+/-- A weak captured slot still missing at EOF is rejected, not generalized. -/
+theorem eof_rejects_unsolved_weak_slot :
+    finishModule model decode [addIntImpl] addInt_wf (fun _ : Unit => none) capturedInterface = none :=
+  finishModule_missing model decode [addIntImpl] addInt_wf _ capturedInterface () (by decide) rfl
+
+/-- Later uses may determine the weak slot before the same module ends. -/
+theorem eof_accepts_later_integer_solution :
+    finishModule model decode [addIntImpl] addInt_wf
+      (fun _ : Unit => some (Roles.Term.app 0 [], ())) capturedInterface =
+      some (capturedInterface.closeAt model (fun _ => (Roles.Term.app 0 [], ()))) := by
+  apply (finishModule_exact model decode [addIntImpl] addInt_wf _ _ _).mpr
+  refine ⟨rfl, ?_, rfl⟩
+  change Satisfies intEvidence [⟨0, [.app 0 []]⟩]
+  intro goal member
+  have he : goal = ⟨0, [.app 0 []]⟩ := by simpa using member
+  exact he ▸ add_int_resolves
+
+theorem eof_rejects_unsupported_solution :
+    finishModule model decode [addIntImpl] addInt_wf
+      (fun _ : Unit => some (Roles.Term.app 1 [], ())) capturedInterface = none := by
+  have rejected : pendingCheck model decode [addIntImpl] addInt_wf
+      (completeAssignment model (fun _ : Unit => some (Roles.Term.app 1 [], ()))) capturedInterface = false := by
+    cases h : pendingCheck model decode [addIntImpl] addInt_wf
+        (completeAssignment model (fun _ : Unit => some (Roles.Term.app 1 [], ()))) capturedInterface with
+    | false => rfl
+    | true =>
+        have accepted := (pendingCheck_exact model decode [addIntImpl] addInt_wf _ capturedInterface).mp h
+        change Satisfies intEvidence [⟨0, [.app 1 []]⟩] at accepted
+        exact (add_str_does_not_resolve (accepted _ (by simp))).elim
+  simp [finishModule, rejected]
+
+theorem empty_impls_wellFormed : Roles.WellFormed [] := by simp [Roles.WellFormed]
+
+/-- Generalized qualifiers stay in the export; EOF does not demand an impl
+for every possible future instantiation of the qualified function. -/
+theorem eof_exports_abstract_qualified_function :
+    finishModule model decode [] empty_impls_wellFormed (fun e : Empty => nomatch e) twiceInterface =
+      some (twiceInterface.closeAt model Empty.elim) := rfl
 
 end Yulang.QualifiedExamples
 
