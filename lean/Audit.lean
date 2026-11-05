@@ -1,4 +1,7 @@
 import Yulang
+-- Historical, non-language defaulting experiment; audited without exporting it
+-- from the current inference kernel.
+import Yulang.EOFRoleInference
 import Lean
 
 /- The allowlist applies to every declaration from a Yulang module, including
@@ -49,6 +52,16 @@ run_cmd do
 #print axioms Yulang.ModuleDictionaries.elaborateAt_all_origins
 #print axioms Yulang.ModuleDictionaries.elaborateAt_congr
 #print axioms Yulang.ModuleDictionaries.crossing_file_preserves_dictionary
+#print axioms Yulang.EOFNoDefaulting.finish_success_iff
+#print axioms Yulang.EOFNoDefaulting.finishFile_success_iff
+#print axioms Yulang.EOFNoDefaulting.undetermined_exists_iff
+#print axioms Yulang.EOFNoDefaulting.undetermined_catalog_independent
+#print axioms Yulang.EOFNoDefaulting.role_error_sound
+#print axioms Yulang.EOFNoDefaulting.accepted_no_unresolved
+#print axioms Yulang.EOFNoDefaulting.accepted_export_independent
+#print axioms Yulang.EOFNoDefaulting.accepted_with_more_impls
+#print axioms Yulang.EOFNoDefaulting.Examples.unique_visible_impl_does_not_complete
+#print axioms Yulang.EOFNoDefaulting.Examples.extra_impl_preserves_annotated_type
 #print axioms Yulang.EOFRoleInference.fragmentCheck_exact
 #print axioms Yulang.EOFRoleInference.completion_is_candidate
 #print axioms Yulang.EOFRoleInference.infer_unique_exact

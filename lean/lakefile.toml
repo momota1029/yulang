@@ -1,6 +1,6 @@
 name = "yulang-inference"
 version = "0.1.0"
-defaultTargets = ["Yulang"]
+defaultTargets = ["Yulang", "Yulang.EOFRoleInference"]
 moreLeanArgs = ["--trust=0"]
 
 [[lean_lib]]

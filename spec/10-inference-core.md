@@ -520,7 +520,7 @@ wrap(body, r) ≤ r
 
 ## 10.14 SCCで固定するmethodと呼出し側の可視impl
 
-この節は2026-11-05の確定事項29–32と章6.2–6.4を接続する。入力に残るsourceの名前解決・制約収集と、ここで実装・証明した選択および検査を区別する。
+この節は2026-11-05の確定事項29–33と章6.2–6.4を接続する。入力に残るsourceの名前解決・制約収集と、ここで実装・証明した選択および検査を区別する。
 
 ### 10.14.1 SCC確定時の選択と後続代入
 
@@ -546,14 +546,14 @@ sourceのimport構文・access規則の解析は入力に残る。別のsource i
 
 `ModuleDictionaries` は同じfile selectorを実際の辞書elaboratorへ渡す。`elaborateAt_all_origins` は返った木の全nodeについて、自fileまたはloaded fileのaccess可能な宣言に由来することを示す。`elaborateAt_congr` は非可視宣言・順序・重複に対する木全体の不変性を保つ。`crossing_file_preserves_dictionary` は、そのfileで構成した辞書を、任意の別fileのcatalogの下でも同じ木として使うことを示す。受取側のcatalogが元のimplを含むという前提は要求しない。
 
-### 10.14.4 可視ground headからEOFの弱型を推論する範囲
+### 10.14.4 EOFで未定型をimplから補完しない
 
-`EOFRoleInference` は、残る弱型slotを `Fin k` で表し、全slotを直接引数に持つpending predicate `Role ?a₀ … ?aₖ₋₁` をanchorとする。そのroleについて見えるimpl headがgroundなら、型タプルの候補を宣言headそのものから列挙できる。他roleのheadとnested whereには多相性を許す。rowは既に解かれたものを入力とし、型の損失のない第一階表現 `TypeCodec` と、残る通常制約の実行可能な検査を明示的に受け取る。
+章6.3・2026-11-05の決定33により、EOFまで未定の型変数を、唯一の可視impl headから決めることはしない。通常の推論または注釈で型が決まってから、そのfileの可視implによる一意・曖昧・不在の検査を行う。これは以前の決定32の訂正であり、旧completion実験の成功例を現行言語の受理例とは扱わない。
 
-候補ごとに既知の型との一致、通常制約、すべてのpending roleを検査する。`completion_is_candidate` は、固定rowとこれらの検査を満たす任意の意味的代入が必ず列挙に入ることを証明する。有限候補集合の完全性を外部仮定にはしない。`infer_unique_exact`・`infer_missing_exact`・`infer_ambiguous_exact` は、それぞれ任意の代入全体での一意completion・completion不在・異なるcompletionの存在と対応する。
+`EOFNoDefaulting.finish` は既存のinterface supportを先に走査し、未定slotがあればそのslotを返して失敗する。すべて決まっている場合にだけpending roleを具体化し、既存の停止するresolverを呼ぶ。入力の部分割当てを補完する処理はない。`finish_success_iff` と `finishFile_success_iff` は、それぞれ既存の `ModuleRoles.finishModule` とfile可視な `ModuleVisibility.finish` の成功に正確に一致することを証明する。
 
-`finalize` は一意に残ったタプルからactual assignmentを構成し、実際の `finishModule` が返したclosed interfaceと一緒に返す。`finalize_exact` は一意completionとの同値を、`finalize_preserves_known` と `finalized_scheme_exact` は既知型と保存schemeの意味を保つことを示す。`checkedFinalize` はground headとanchorの存在を自分で有限に検査するため、成功の健全性にはこれらの外部仮定を要求しない。`finishFile_congr` は可視集合が同じなら推論したassignmentとclosed interface全体が不変であることを示す。
+`undetermined_exists_iff` は、support内に未定slotがあることと未定型エラーを同値にする。`undetermined_catalog_independent` はこのエラーが任意の可視impl集合の間で不変であることを示す。`role_error_sound` は、roleエラーを返す段階ではsupport全体が既知であり、返された具体goalについて実際のresolverが失敗したことを示す。公開値に現れず残留role制約にだけ現れる未定slotも検査から漏らさない。一般化されたslotはambientな未定slotとは区別する。
 
-実例は、未定型をintへ決めてexportする場合、二つの弱型を同時にint/strへ決める場合、候補型が二つある場合、同じ型に異なるimplが重複する場合、同じ宣言を重複importする場合、既知型・通常制約を保持する場合、fileのimport可視性が変わる場合を区別する。一意の型と一意のimplは混同しない。
+`accepted_no_unresolved` と `accepted_export_independent` は、成功した公開interfaceの閉性と、入力割当ての任意の全域拡張に対する意味の独立性を保つ。`accepted_with_more_impls` は、可視implを増やしたとき、同じclosed interfaceのまま成功するか、具体goalの曖昧さになることを示す。別の弱型を選び直すことはない。既知型に対するimpl追加で曖昧さが起こり得るという章6.2の規則はそのまま保つ。
 
-ground head条件または全slotを覆うanchor条件が満たされなければ、`outsideFragment` で返す。解決済みrow、codec、通常制約checkは型付き入力として受け取り、それらの有無をこのBool検査で判定するわけではない。一般の `impl Default (box 'a)` から `box ?a` という形を決め、残る弱型を最小型solverへ渡す処理を、ground型が一意でないという理由で拒否しない。anchor roleの選択と一般制約からの抽出、anchorが覆わないslot、未定row、一般通常制約solver、一般型モデルのcodecは別の接続義務である。`noCompletion` はすべての検査を通るcompletionがないという内部結果で、具体型に対するimpl重複も含む。章6.3のimpl不在と曖昧さのdiagnosticsを細分する処理は、この入口ではまだ接続していない。
+旧 `EOFRoleInference` は参考実装として残すが、現在の核をまとめる `Yulang` からはimportしない。独立した実験として公理監査には含める。そのground anchorからのcompletionは現行言語の推論入口へ接続しない。sourceからの残留制約の漏れない収集、ambient/generalizedの分類、通常型推論そのもの、source診断の位置と文言は上流の義務として残る。
