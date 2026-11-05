@@ -9,6 +9,8 @@ import Yulang.EvaluationOrder
 import Yulang.Methods
 import Yulang.Inference
 import Yulang.Annotations
+import Yulang.AnnotationSnapshots
+import Yulang.RecursiveInference
 import Yulang.Structural
 import Yulang.HigherOrder
 import Yulang.EffectInference
@@ -21,3 +23,5 @@ import Yulang.SignedStructural
 import Yulang.DirectedHandlerInference
 import Yulang.Roles
 import Yulang.RolesAssoc
+import Yulang.RoleConstraints
+import Yulang.CheckedRoles
