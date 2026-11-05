@@ -344,4 +344,185 @@ theorem inferUnannotatedSCC_exact (m : Model) (ρ : α → Comp m) (sΓ : Scheme
       ∃ slots, SCCTyping m Γ (manyEnv ρ slots) (unannotatedMembers bodies) :=
   closeSCC_exact m ρ sΓ Γ henv (unannotatedMembers bodies)
 
+/-! ## Generalization after the whole block has been checked
+
+`generalizeMember` is a constraint-scheme instantiator for one exported value.
+Its local slots are existentially bound only around the complete SCC check.
+Every unannotated member occupying a local slot must be syntactically a value
+and have a pure definition check. Computed/weak members instead use captured
+slots; this interface does not guess the solver's free-variable partition.
+-/
+
+def checkPureDefinition (Γ : SchemeEnv α) : Declaration α → Constraint α
+  | .inferred slot body => .core (generate Γ body (CompTerm.pure (.var slot)))
+  | declaration@(.annotated _ _ _) => checkDeclaration Γ declaration
+
+def PureDefinitionTyping (m : Model) (Γ : List (Binding m)) (ρ : α → Comp m) :
+    Declaration α → Prop
+  | .inferred slot body => Typing m Γ body (Comp.pure m (ρ slot).1)
+  | .annotated _ annotation body =>
+      ∀ locals, Typing m Γ body (Comp.pure m (annotation.eval m ρ locals))
+
+theorem checkPureDefinition_exact (m : Model) (ρ : α → Comp m) (sΓ : SchemeEnv α)
+    (Γ : List (Binding m)) (henv : EnvRel m ρ sΓ Γ) (declaration : Declaration α) :
+    (checkPureDefinition sΓ declaration).Holds m ρ ↔ PureDefinitionTyping m Γ ρ declaration := by
+  cases declaration with
+  | inferred slot body =>
+    simpa only [checkPureDefinition, Constraint.Holds, PureDefinitionTyping,
+      CompTerm.eval_pure, TyTerm.eval] using
+      generate_models_iff_typing m body sΓ Γ ρ (CompTerm.pure (.var slot)) henv
+  | annotated n annotation body =>
+    simpa only [checkPureDefinition, PureDefinitionTyping, DefinitionTyping.annotated_iff]
+      using checkDeclaration_exact m ρ sΓ Γ henv (.annotated n annotation body)
+
+def memberInstance (Γ : SchemeEnv α) (members : List (Declaration α))
+    (index : Nat) (out : CompTerm α) : Constraint α :=
+  match members[index]? with
+  | none => .core .bot
+  | some declaration =>
+    if declaration.body.isValue then
+      .and (generateSCC Γ members)
+        (.and (checkPureDefinition (assumptions members Γ) declaration)
+          (.core (declaration.assumption.instantiate out)))
+    else .core .bot
+
+def MemberInstanceTyping (m : Model) (Γ : List (Binding m)) (ρ : α → Comp m)
+    (members : List (Declaration α)) (index : Nat) (out : Comp m) : Prop :=
+  match members[index]? with
+  | none => False
+  | some declaration => declaration.body.isValue = true ∧ SCCTyping m Γ ρ members ∧
+      PureDefinitionTyping m (bindings m ρ members Γ) ρ declaration ∧
+      BindingTyping m (declaration.binding m ρ) out
+
+theorem memberInstance_exact (m : Model) (ρ : α → Comp m) (sΓ : SchemeEnv α)
+    (Γ : List (Binding m)) (henv : EnvRel m ρ sΓ Γ) (members : List (Declaration α))
+    (index : Nat) (out : CompTerm α) :
+    (memberInstance sΓ members index out).Holds m ρ ↔
+      MemberInstanceTyping m Γ ρ members index (out.eval m ρ) := by
+  cases found : members[index]? with
+  | none => simp [memberInstance, MemberInstanceTyping, found, Constraint.Holds, Formula.Holds]
+  | some declaration =>
+    cases value : declaration.body.isValue <;>
+      simp [memberInstance, MemberInstanceTyping, found, value, Constraint.Holds, Formula.Holds,
+        generateSCC_exact m ρ sΓ Γ henv, checkPureDefinition_exact m ρ _ _
+          (assumptions_related m ρ members sΓ Γ henv),
+        Scheme.holds_instantiate, declaration.assumption_related]
+
+def localPurity (Γ : SchemeEnv (Fin n ⊕ α)) : Declaration (Fin n ⊕ α) → Constraint (Fin n ⊕ α)
+  | .inferred (.inl slot) body =>
+      if body.isValue then checkPureDefinition Γ (.inferred (.inl slot) body) else .core .bot
+  | _ => .core .top
+
+def LocalPureDefinition (m : Model) (Γ : List (Binding m)) (ρ : Fin n ⊕ α → Comp m) :
+    Declaration (Fin n ⊕ α) → Prop
+  | .inferred (.inl slot) body => body.isValue = true ∧
+      Typing m Γ body (Comp.pure m (ρ (.inl slot)).1)
+  | _ => True
+
+theorem localPurity_exact (m : Model) (ρ : Fin n ⊕ α → Comp m)
+    (sΓ : SchemeEnv (Fin n ⊕ α)) (Γ : List (Binding m)) (henv : EnvRel m ρ sΓ Γ)
+    (declaration : Declaration (Fin n ⊕ α)) :
+    (localPurity sΓ declaration).Holds m ρ ↔ LocalPureDefinition m Γ ρ declaration := by
+  cases declaration with
+  | inferred slot body =>
+    cases slot with
+    | inl slot =>
+      cases value : body.isValue <;>
+        simp [localPurity, LocalPureDefinition, value, Constraint.Holds, Formula.Holds,
+          checkPureDefinition_exact m ρ sΓ Γ henv, PureDefinitionTyping]
+    | inr slot => simp [localPurity, LocalPureDefinition, Constraint.Holds, Formula.Holds]
+  | annotated n annotation body =>
+      simp [localPurity, LocalPureDefinition, Constraint.Holds, Formula.Holds]
+
+def checkLocalPurity (Γ : SchemeEnv (Fin n ⊕ α)) :
+    List (Declaration (Fin n ⊕ α)) → Constraint (Fin n ⊕ α)
+  | [] => .core .top
+  | declaration :: rest => .and (localPurity Γ declaration) (checkLocalPurity Γ rest)
+
+def LocalPure (m : Model) (Γ : List (Binding m)) (ρ : Fin n ⊕ α → Comp m)
+    (members : List (Declaration (Fin n ⊕ α))) : Prop :=
+  ∀ declaration ∈ members, LocalPureDefinition m Γ ρ declaration
+
+theorem checkLocalPurity_exact (m : Model) (ρ : Fin n ⊕ α → Comp m)
+    (sΓ : SchemeEnv (Fin n ⊕ α)) (Γ : List (Binding m)) (henv : EnvRel m ρ sΓ Γ)
+    (members : List (Declaration (Fin n ⊕ α))) :
+    (checkLocalPurity sΓ members).Holds m ρ ↔ LocalPure m Γ ρ members := by
+  induction members with
+  | nil => simp [checkLocalPurity, Constraint.Holds, Formula.Holds, LocalPure]
+  | cons declaration rest ih =>
+    simp only [checkLocalPurity, Constraint.Holds, localPurity_exact m ρ sΓ Γ henv, ih]
+    simp [LocalPure]
+
+def generalizeMember (Γ : SchemeEnv α) (members : List (Declaration (Fin n ⊕ α)))
+    (index : Nat) (out : CompTerm α) : Constraint α :=
+  .existsSlots n (.and (checkLocalPurity (assumptions members (Γ.rename Sum.inr)) members)
+    (memberInstance (Γ.rename Sum.inr) members index (out.rename Sum.inr)))
+
+def GeneralizedMemberTyping (m : Model) (Γ : List (Binding m)) (ρ : α → Comp m)
+    (members : List (Declaration (Fin n ⊕ α))) (index : Nat) (out : Comp m) : Prop :=
+  ∃ slots, LocalPure m (bindings m (manyEnv ρ slots) members Γ) (manyEnv ρ slots) members ∧
+    MemberInstanceTyping m Γ (manyEnv ρ slots) members index out
+
+theorem generalizeMember_exact (m : Model) (ρ : α → Comp m) (sΓ : SchemeEnv α)
+    (Γ : List (Binding m)) (henv : EnvRel m ρ sΓ Γ)
+    (members : List (Declaration (Fin n ⊕ α))) (index : Nat) (out : CompTerm α) :
+    (generalizeMember sΓ members index out).Holds m ρ ↔
+      GeneralizedMemberTyping m Γ ρ members index (out.eval m ρ) := by
+  simp only [generalizeMember, Constraint.Holds, GeneralizedMemberTyping]
+  apply exists_congr
+  intro slots
+  have renamed := henv.rename Sum.inr (manyEnv ρ slots) rfl
+  rw [checkLocalPurity_exact _ _ _ _
+    (assumptions_related m _ members (sΓ.rename Sum.inr) Γ renamed)]
+  rw [memberInstance_exact _ _ _ _ renamed]
+  simp only [CompTerm.eval_rename]
+  rfl
+
+/-- Computed members cannot occupy the slots closed by generalization. Their
+chosen computation, including any weak type information, remains captured. -/
+theorem computed_slot_retained (m : Model) (Γ : List (Binding m))
+    (ρ : Fin n ⊕ α → Comp m) (members : List (Declaration (Fin n ⊕ α)))
+    (checked : LocalPure m Γ ρ members) (slot : Fin n ⊕ α) (body : Expr)
+    (present : .inferred slot body ∈ members) (computed : body.isValue = false) :
+    ∃ ambient, slot = .inr ambient := by
+  cases slot with
+  | inl slot =>
+    have impossible := checked (.inferred (.inl slot) body) present
+    simp [LocalPureDefinition, computed] at impossible
+  | inr ambient => exact ⟨ambient, rfl⟩
+
+theorem generalized_computed_assignment_fixed (m : Model) (Γ : List (Binding m))
+    (ρ : α → Comp m) (members : List (Declaration (Fin n ⊕ α))) (index : Nat) (out : Comp m)
+    (checked : GeneralizedMemberTyping m Γ ρ members index out)
+    (slot : Fin n ⊕ α) (body : Expr) (present : .inferred slot body ∈ members)
+    (computed : body.isValue = false) (first second : Fin n → Comp m) :
+    manyEnv ρ first slot = manyEnv ρ second slot := by
+  rcases checked with ⟨slots, purity, _⟩
+  rcases computed_slot_retained m _ _ members purity slot body present computed with ⟨ambient, rfl⟩
+  rfl
+
+theorem generalizeMember_rejects_computed_local (m : Model) (ρ : α → Comp m)
+    (sΓ : SchemeEnv α) (Γ : List (Binding m)) (henv : EnvRel m ρ sΓ Γ)
+    (members : List (Declaration (Fin n ⊕ α))) (slot : Fin n) (body : Expr)
+    (present : .inferred (.inl slot) body ∈ members) (computed : body.isValue = false)
+    (index : Nat) (out : CompTerm α) :
+    ¬ (generalizeMember sΓ members index out).Holds m ρ := by
+  intro h
+  rcases (generalizeMember_exact m ρ sΓ Γ henv members index out).mp h with ⟨slots, purity, _⟩
+  have impossible := purity (.inferred (.inl slot) body) present
+  simp [LocalPureDefinition, computed] at impossible
+
+/-- An exported instance includes a successful simultaneous definition check;
+the recursive assumptions alone are never enough to export a signature. -/
+theorem generalized_instance_requires_checked_block (m : Model) (Γ : List (Binding m))
+    (ρ : α → Comp m) (members : List (Declaration (Fin n ⊕ α))) (index : Nat) (out : Comp m)
+    (checked : GeneralizedMemberTyping m Γ ρ members index out) :
+    ∃ slots, SCCTyping m Γ (manyEnv ρ slots) members := by
+  rcases checked with ⟨slots, _, instanceChecked⟩
+  cases found : members[index]? with
+  | none => simp [MemberInstanceTyping, found] at instanceChecked
+  | some declaration =>
+    simp only [MemberInstanceTyping, found] at instanceChecked
+    exact ⟨slots, instanceChecked.2.1⟩
+
 end Yulang.RecursiveInference
