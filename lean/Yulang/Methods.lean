@@ -1,4 +1,4 @@
-import Std
+import Yulang.CastGraph
 
 /-!
 # Order-independent method selection for union receivers
@@ -171,6 +171,105 @@ theorem resolve_perm [DecidableEq α] (hasMethod : α → Bool) {left right : Li
   apply select_ext
   intro member
   simp [candidates, permutation.mem_iff]
+
+/-! ## The selected receiver is an ordinary cast boundary for every member -/
+
+open Casts
+
+inductive CallResult where
+  | missingMethod
+  | ambiguous
+  | invalidCasts
+  | missingCast
+  | resolved (receiver : Ty)
+  deriving DecidableEq, Repr
+
+def membersAccept (fits : Compatibility) (registry : CastGraph.Registry n)
+    (members : List Ty) (receiver : Ty) : Bool :=
+  members.all (fun member => accepts fits.check registry.find member receiver)
+
+theorem membersAccept_exact (fits : Compatibility) (registry : CastGraph.Registry n)
+    (members : List Ty) (receiver : Ty) :
+    membersAccept fits registry members receiver = true ↔
+      ∀ member ∈ members, Boundary fits.Rel registry.Explicit member receiver := by
+  simp only [membersAccept, List.all_eq_true]
+  exact forall_congr' (fun member => forall_congr' (fun _ => accepts_exact fits registry.oracle member receiver))
+
+def checkCall (fits : Compatibility) (registry : CastGraph.Registry n)
+    (hasMethod : Ty → Bool) (members : List Ty) : CallResult :=
+  match resolve hasMethod members with
+  | .missing => .missingMethod
+  | .ambiguous => .ambiguous
+  | .unique receiver =>
+    if registry.validate then
+      if membersAccept fits registry members receiver then .resolved receiver else .missingCast
+    else .invalidCasts
+
+/-- Independent resolved-call judgement: one distinct method owner and a valid
+ordinary boundary from each possible receiver member to that owner. -/
+def CallTyping (fits : Compatibility) (registry : CastGraph.Registry n)
+    (hasMethod : Ty → Bool) (members : List Ty) (receiver : Ty) : Prop :=
+  (Candidate hasMethod members receiver ∧
+    ∀ other, Candidate hasMethod members other → other = receiver) ∧
+  registry.WellFormed ∧
+    ∀ member ∈ members, Boundary fits.Rel registry.Explicit member receiver
+
+private theorem checkCall_result_iff (fits : Compatibility) (registry : CastGraph.Registry n)
+    (hasMethod : Ty → Bool) (members : List Ty) (receiver : Ty) :
+    checkCall fits registry hasMethod members = .resolved receiver ↔
+      resolve hasMethod members = .unique receiver ∧ registry.validate = true ∧
+        membersAccept fits registry members receiver = true := by
+  cases selected : resolve hasMethod members with
+  | missing => simp [checkCall, selected]
+  | ambiguous => simp [checkCall, selected]
+  | unique chosen =>
+    by_cases valid : registry.validate = true
+    · by_cases convertible : membersAccept fits registry members chosen = true
+      · constructor
+        · intro result
+          have same : chosen = receiver := by simpa [checkCall, selected, valid, convertible] using result
+          subst receiver
+          exact ⟨rfl, valid, convertible⟩
+        · rintro ⟨same, _, _⟩
+          have equal : chosen = receiver := Selection.unique.inj same
+          subst receiver
+          simp [checkCall, selected, valid, convertible]
+      · constructor
+        · simp [checkCall, selected, valid, convertible]
+        · rintro ⟨same, _, converted⟩
+          have equal : chosen = receiver := Selection.unique.inj same
+          subst receiver
+          exact False.elim (convertible converted)
+    · simp [checkCall, selected, valid]
+
+theorem checkCall_exact (fits : Compatibility) (registry : CastGraph.Registry n)
+    (hasMethod : Ty → Bool) (members : List Ty) (receiver : Ty) :
+    checkCall fits registry hasMethod members = .resolved receiver ↔
+      CallTyping fits registry hasMethod members receiver := by
+  rw [checkCall_result_iff, resolve_unique_iff, registry.validate_exact, membersAccept_exact]
+  rfl
+
+theorem membersAccept_perm (fits : Compatibility) (registry : CastGraph.Registry n)
+    {left right : List Ty} (permutation : left.Perm right) (receiver : Ty) :
+    membersAccept fits registry left receiver = membersAccept fits registry right receiver := by
+  have equivalent : membersAccept fits registry left receiver = true ↔
+      membersAccept fits registry right receiver = true := by
+    rw [membersAccept_exact, membersAccept_exact]
+    exact ⟨fun h member present => h member (permutation.mem_iff.mpr present),
+      fun h member present => h member (permutation.mem_iff.mp present)⟩
+  cases hl : membersAccept fits registry left receiver <;>
+    cases hr : membersAccept fits registry right receiver <;> simp_all
+
+/-- Cast acceptance as well as candidate selection is independent of union order. -/
+theorem checkCall_perm (fits : Compatibility) (registry : CastGraph.Registry n)
+    (hasMethod : Ty → Bool) {left right : List Ty} (permutation : left.Perm right) :
+    checkCall fits registry hasMethod left = checkCall fits registry hasMethod right := by
+  simp only [checkCall, resolve_perm hasMethod permutation]
+  cases resolve hasMethod right with
+  | missing | ambiguous => rfl
+  | unique receiver =>
+    dsimp only
+    rw [membersAccept_perm fits registry permutation receiver]
 
 namespace Examples
 
