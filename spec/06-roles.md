@@ -107,6 +107,15 @@ x.add y
 - 候補の探し方は、まず receiver の型に結びついた field と、`with:` で定義した method。次に role の method と effect 行の method。
   **この順序は仕様**で、同じ名前が複数の段にあるときは**この順で先に見つかったものが選ばれる**（確定, 2026-11-04）。
 - `x` が `ref 'e 'a` なら、`'a` に対して同じ探し方をする。
+- **receiver の型が union のとき**（確定, 2026-11-05）。union のメンバーのうち、その method を**持つ型が一つだけ**なら、その型の method に決まる。決まったら、receiver はその method の receiver 型への**普通の cast 境界**として扱われる（章6.5）。他のメンバーはその型へ cast され、規則がなければ「暗黙の cast が見つからない」エラーになる。method を持つメンバーが**二つ以上**あれば曖昧エラーで、利用者に型の注釈を入れさせる（メンバーの並び順では選ばない）。
+
+  ```yulang
+  my x = if c: 1 else: user_id_value     // int | user_id
+  x.add 2                                 // Add を持つのは int だけ → int の add に決まり、user_id 側は int へ cast
+  x.show                                  // int にも user_id にも show がある → 曖昧エラー
+  (x: int).show                           // 注釈で期待型を与える。user_id 側が int へ cast される
+  ```
+
 - method が解決されるまで、それを含む SCC は解かれない。
 - SCC がこれ以上変化しなくなったとき、解決していない method は、role の method か record の field として解釈される（確定, 2026-11-04）。
 
