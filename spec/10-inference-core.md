@@ -574,6 +574,10 @@ sourceのimport構文・access規則の解析は入力に残る。別のsource i
 
 これは停止する参照判定器であり、実用上の小さい計算量を主張しない。有限NFAの比較は冪集合構成を含み、半線形表示自体も大きくなり得る。これらの定理は、禁止点を持つ任意の到達集合が半線形であるという未証明の主張を含まない。
 
+実行時のNFA比較には `FiniteWorklist` を使い、初期状態対から到達する後続だけを列挙する。新しい状態を処理するたびに有限全状態数から容量を減らすが、既出のpending状態では減らさない。pendingが空なら到達集合は閉じており、容量を使い切った場合は相異なる訪問済み状態が全状態を尽くす。この二場合から `reachable_exact` が任意長のpathについて完全性を証明する。NFA対の容量は `2^n * 2^m` から自動計算し、全冪集合の列挙は証明だけに使う。呼出側のfuelや言語の再帰上限ではない。各状態対のBoolean座標も一度だけ実体化し、過去の遷移を座標参照のたびに再計算しない。
+
+`FiniteWorklistExamples` は高速な包含成功を経由せず、NFAの入口を直接実行する。自然数全体と偶数・奇数の和では、5状態と14状態のNFAからなる524,288通りの候補対のうち、到達する5対だけを訪問する。共同被覆の肯定、偶数だけへの包含の否定、同じ無限rayへの包含を実行検証し、全有限語についての論理的保証は別のkernel検証された定理で与える。
+
 ### 10.15.3 外部certificateを要求しないguardの検査
 
 `AutomaticRowSummaries` は元の有限 `RecursiveRows.Problem` とkeyを入力とする。head edgeのguardは実際に実行して、失敗したseedを無効にする。slot edgeのguardだけを一旦消したgraphについて、各sourceへの到達集合を半線形表示する。元の各禁止点がそのsourceの到達集合にないことを、10.15.1の完全な所属判定で検査する。空の禁止集合と別keyだけの禁止集合では、この表示の計算を省く。
@@ -600,6 +604,20 @@ sourceのimport構文・access規則の解析は入力に残る。別のsource i
 
 比較するのは制約の**最小解**である。下界を持たないslotの最小解が空でも、他のモデルや後のscheme具体化でそのslotが空に固定されるとは限らない。この判定を、開いた行変数のすべての後続具体化における等価性へ読み替えない。出典: 10.3.2・10.10、上記Lean定理。
 
+### 10.15.6 固定上界を持つ元の制約の充足可能性
+
+`RecursiveRowQueries.extend` は、任意の有限個の既存 `RowExpr` をfreshな出力専用slotの下界として追加する。元のruleと照会式は元のslotだけを読み、追加slotから元のruleへ戻る依存を作らない。`models_exact` は拡張前後のモデルの関係を記述し、`extension_least`・`original_exact`・`query_exact` は元の最小解を保存したまま、追加slotが照会式をその最小解で評価した集合と一致することを示す。`query_iff_forced` は、そこで得る出現が元のすべてのモデルで強制されることとも一致する。
+
+`RecursiveRowConstraints.Upper` は左辺に任意の既存row式、右辺に固定した半線形行を持つ。`check` は各左辺を上の追加slotへ写し、そのsummaryを右辺と比較する。返されたBooleanについて `check_exact` は次を証明する。
+
+```text
+check(problem, limits) = some answer ならば、
+answer = true
+  ↔ 元の全下界を満たし、limitsの全上界も満たす行割当てが存在する
+```
+
+証明は10.10の `upper_constraints_exact` を使い、最小解での包含と元のモデルの存在を結ぶ。`check_rejects` は `some false` と解の不存在の同値であり、単に一つの候補割当てが失敗したという主張ではない。`none` は拡張問題のguard検査が未対応であることを保ち、不整合とは扱わない。上界が空のリストなら、正の下界制約には常に最小モデルがあるので、guardの到達判定をせず成功する。右辺は固定された集合であり、未知の上界変数との相互求解や、すべての後続具体化で同じ上界を満たすという全称的な保証は含まない。
+
 ## 10.16 有限構造部分型の完全な比較
 
 `StructuralCut.Comparison`（namespace `StructuralDecisions`）は既存の `StructuralBase.Subtype` から明示的な推移則を除いた判断である。`Comparison.trans` は任意の中間型を消去し、`comparison_iff_subtype` が元の判断との双方向一致を証明する。union/intersection・pair・variant・recordの幅と同名fieldの先勝ち・関数の入力反変と出力共変をすべて含み、関数の二つの行の向きも保つ。行関係には推移性だけを要求する。
@@ -607,6 +625,12 @@ sourceのimport構文・access規則の解析は入力に残る。別のsource i
 `StructuralDecisions.check` は型の有限構造に従って再帰する実行可能な比較器であり、`check_exact` が正確な行比較を入力として元の部分型判断と一致することを示す。`checkSigned` は行比較を実際の符号付き出現の包含で実装するため、有限符号付き行では外部oracleが残らない。`checkSigned_rejects` の否定結果は、直接の比較規則だけでなく、任意の中間型を通るすべての宣言的導出の不存在を意味する。unionの順序、格子の吸収、隠れたrecord field、負の解除差分、入力行と出力行の分散を回帰例に含める。
 
 `SemilinearRowAlgebra.checkType_exact` は同じ構造比較へ10.15.5の完全な行包含を代入する。したがって、有限ground値型の潜在行が無限集合でも比較できる。重複keyに偶数・奇数を分けた行が自然数全体と等しいこと、その行を持つ関数型の比較、keyや片方の偶奇が欠ける場合の拒否、非空の出力行を消せないことを確認する。この定理の型構文は有限半線形表示を行位置に持ち、その上で既存の構造部分型関係を使う。
+
+集合として同じ行に複数の半線形表示があるため、表示の構文上の等号と意味上の等号は区別する。`SemilinearRowQuotient` は10.15.5の決定可能な集合等号で行を同一視し、その商から既存の `SetRow` への写像を単射にする。商上の等号と包含は実行可能であり、標準形を一意に選ぶoracleは不要である。`StructuralRowResolution.subtype_map_iff` は、構造を変えずに行を写すときの部分型の保存・反映をcut除去から導く。これを用いた `SemilinearRowQuotient.checkType_exact` と `compareCodes_exact` は、元の集合行を持つ `StructuralBase.Subtype` と正確に一致する。内部のraw型でrecordのtailがrecordでない場合の反射律も保持し、追加のwell-formedness前提で比較対象を狭めない。
+
+`SolvedRecursiveTypes` は、各行位置に元の問題のslotを持つ有限型を入力にし、その位置だけを `StructuralRowTraversal.traverseRows` で解く。`resolve_exact` は、返された型の集合解釈が元の各 `Derives` を代入した型と一致することを示す。`querySubtype_exact`・`querySubtype_rejects` は、返された肯定・否定がその元の型同士の部分型関係と正確に一致することを、`queryEquivalent_exact` は相互部分型との一致を証明する。source側とtarget側の問題・slot型は異なっていてよく、有限なslot全体の列挙は要らない。
+
+`resolve_supported_iff` と `querySubtype_supported_iff` は成功に必要なguard検査を実際に出現する行位置に限定する。行位置を持たない型では照会自体をしないため、別の成分に未対応guardがあっても比較できる。一方、型に現れる行が未対応なら `none` を保つ。出力行の共変・入力行の反変、非空effectの欠落の拒否、元の無限奇数行を持つ関数型の等価性、異なる行表示が意味的に等しいraw record型の反射律を実行検証する。ここでも各行の最小解を代入した型の比較であり、あらゆる後続scheme具体化における部分型関係ではない。
 
 ここで有限なのは値型の構造であり、未知の型変数を解くbound propagationや、再帰値型の意味論を決めるものではない。Simple-sub全体のextrusion・intrusion・generalization、source elaboration、全言語のpreservation/progressは別の証明義務として残る。
 
