@@ -1,13 +1,15 @@
 import Yulang.OperationalTyping
+import Yulang.OperationalCorrespondence
 import Yulang.FreshRowInference
 
 /-!
 # Checked computations across fresh effect boundaries
 
-This connects the executable resolved-program checker to the existing signed
-boundary allocation and inferred-row syntax. Operational bounds are derived
-from checker success. Zero origin is then derived either from the inferred
-row's fresh-coordinate representation or from explicit tree allocation.
+This connects both the executable resolved-program checker and the recursive
+principal constraints to signed boundary allocation and inferred-row syntax.
+Operational bounds are derived from checker success or a principal-formula
+solution. Zero origin is then derived either from the inferred row's fresh
+coordinate representation or from explicit tree allocation.
 
 The boundary acts on immediate requests and keeps returned values opaque.
 In particular, this module does not claim a type-directed transformation of
@@ -94,5 +96,33 @@ theorem closed_checked_boundary [DecidableEq Key]
   ⟨allocated_inferred_bound expression Env.nil output accepted Env.nil
       (fun index => nomatch index) allowNone,
     FreshBoundaries.fresh_noncapture handled onReturn onOperation (eval Env.nil expression)⟩
+
+/-- The actual recursive principal formula is an independent entry point:
+its solution supplies the operational row bound, after which a fresh boundary
+supplies noncapture. The annotated checker is not assumed to accept the input.
+As above, returned latent values are opaque to this immediate-tree allocation. -/
+theorem principal_fresh_boundary [DecidableEq Key]
+    (expression : Expr n Key Atom [] s) (output : OperationalCorrespondence.CoreComp n Key)
+    (solution : (OperationalCorrespondence.principal expression).Holds
+      (OperationalCorrespondence.Model n Key) (SignedStructural.rowView n Key)
+      (Inference.extend Empty.elim output))
+    (handled : List Key)
+    (onReturn : Value n Key Atom s → Computation (n + 1) Key Atom Atom Result)
+    (onOperation : Occurrence (n + 1) Key → Atom →
+      (Atom → Computation (n + 1) Key Atom Atom (Value n Key Atom s)) →
+        Computation (n + 1) Key Atom Atom Result) :
+    Computation.BoundedBy
+      (output.2.map (fun occurrence => protect fresh allowNone (liftOccurrence occurrence)))
+      (Computation.mapRequests (protect fresh allowNone) (liftTree (eval Env.nil expression))) ∧
+    Computation.shallowHandle handled onReturn onOperation
+      (Computation.mapRequests (protect fresh allowNone) (liftTree (eval Env.nil expression))) =
+        (Computation.mapRequests (protect fresh allowNone) (liftTree (eval Env.nil expression))).bind
+          onReturn := by
+  refine ⟨?_, FreshBoundaries.fresh_noncapture handled onReturn onOperation (eval Env.nil expression)⟩
+  have bounded := OperationalCorrespondence.principal_effect_bound expression output solution
+  have lifted := (FreshBoundaries.reindexTree_bounded_iff Fin.succ
+    FreshBoundaries.succ_injective output.2 (eval Env.nil expression)).mpr bounded
+  have guarded := Computation.mapRequests_bounded (protect fresh allowNone) _ _ lifted
+  simpa only [liftTree, liftOccurrence, List.map_map, Function.comp_def] using guarded
 
 end Yulang.CheckedHygiene

@@ -44,7 +44,8 @@ lake env lean --trust=0 Audit.lean
 | `Yulang.RecursiveEffects` | 全既存core式とrequest・boundary・shallow handlerを同じ再帰ASTに置く有限制約生成、任意の入れ子について独立な型判断との双方向一致・制約schemeの主性、値制限付き多相letと署名のambient slotの保持 | operation-local多相・roleを含む統合、再帰SCC、source elaboration、制約solver、型付けからruntime安全性への接続 |
 | `Yulang.RecursiveEffectsConservativity` / `Yulang.RecursiveEffectExamples` | effectを含まない全core式で実際の生成formula・principal schemeを保存する等式、旧型判断との一致、入れ子handler・多相let・computation引数・保護と負債の正例と負例 | source parserからの翻訳、全制約solver |
 | `Yulang.OperationalTyping` / `Yulang.OperationalTypingExamples` | 形状解決済みの単相核の実行可能なcheckerと独立型付けの一致、checker受理から実際の全requestの推論行上界と返り値の潜在関数の健全性、shallow継続・複数回再開・arm再送出・格納callbackの実行例 | 未知shapeの推論、一般再帰、source elaboration、異なるpayload型を持つoperation、値内部への衛生変換の挿入 |
-| `Yulang.CheckedHygiene` | checker受理から実行上界を導き、推論行のfreshな表現または実際の座標割当てから原点条件・新境界での非captureを導くこと | sourceが全境界を正しく割り当てること、payload・response・返り値の潜在closureのtransport |
+| `Yulang.OperationalCorrespondence` / `Yulang.OperationalCorrespondenceExamples` | 形状解決済み式の消去結果に対する任意の既存再帰型判断から実行上界・返り値の意味を導くこと、union/intersection・値制限付き多相letの解釈、実際のprincipal formulaの解から閉式の全request上界への接続、具体的な解と空行解の拒否 | annotated checkerとの受理集合の一致、未知shape・再帰型の推論、異種operation署名、sourceの注釈や潜在値の衛生変換のelaboration |
+| `Yulang.CheckedHygiene` | checker受理または実際のprincipal formulaの解から実行上界を導き、推論行のfreshな表現または実際の座標割当てから原点条件・新境界での非captureを導くこと | sourceが全境界を正しく割り当てること、payload・response・返り値の潜在closureのtransport |
 | `Yulang.FiniteReachability` | 有限隣接リストから計算する到達集合と独立な有限経路の判断の一致、空の始点集合からの到達不能性、辺・始点の順序と重複に対する不変性 | source の依存関係抽出、未具体化の多相 cast 集合の有限性、実用的な計算量 |
 | `Yulang.EvaluationOrder` | 名前解決済みの有限宣言・module 文からの評価依存計算と独立な推移的依存判断の一致、computed 自己依存・未来の computed binding の拒否、受理された初期化・文の全依存が元の順序で利用可能なこと、lambda による遅延と直接適用時の依存の復帰 | source の名前解決、局所 closure/alias や格納された関数のフロー、任意の高階 callback の実行が依存判断に含まれること、全言語の副作用順序の保存 |
 | `Yulang.EvaluationSafety` / `Yulang.EvaluationReads` | 名前で決まらない呼出しへのmodule全体の関数本体近似、独立なCBV読み取りprefixの上界、closure由来の保存、局所・返却・格納closureの読み取り安全性、既評価prefixからの参照先の利用可能性 | source elaboration、外部由来closure、可変store、計算全体の停止・progress。module内のlambda由来とsource位置の構造を明示 |
@@ -122,6 +123,8 @@ lake env lean --trust=0 Audit.lean
 
 `CheckedHygiene.closed_checked_boundary` は閉式のchecker受理だけから、評価木を実際にfresh化して保護した後の行上界と、任意の内側shallow handlerによる非captureを結合する。action・armの上界や `ZeroAt` は入力に要求しない。このfresh化は即時request treeに作用し、返り値の型は元の `Value n` のままである。値の内部に格納されたclosureを新しい境界へtransportする定理とは区別する。
 
+`CheckedHygiene.principal_fresh_boundary` は同じ結論を、実際の `RecursiveEffects.principal` の解を入口にして導く。`OperationalCorrespondence.principal_effect_bound` によってruntime上界を構成するため、annotated checkerの受理を別途仮定しない。
+
 ## 型推論の主定理
 
 `AnnotationSnapshots.observe` は、現在の行式に含まれる concrete な頭を符号付き行として計算し、残った行変数をこの観測では opaque とする。観測を取る前に、その時点ですでに分かっている置換は適用されている必要がある。`TrackedRow.subst` は行式を具体化し、注釈時点の履歴をそのまま保つ。`principal_observed_exact` は、保存した観測の許容性と既存の宣言的型判断の連言が、観測を付けた主制約schemeの意味と一致することを示す。許容された観測から後の行変数へ上界・等式は追加しない。T3 の例では、未知行を観測してから禁止effectへ具体化した履歴は受理され、その具体化後の行を**新しく**観測すれば拒否される。当初から既知で可視な禁止effectを未知tailの横に置いても拒否される。
@@ -174,6 +177,12 @@ lake env lean --trust=0 Audit.lean
 `OperationalTyping.infer` はshapeが解決し、lambdaの入力型とhandlerの結果型が与えられた単相核のcheckerである。`infer_exact` は実行可能なcheckerと独立な構文的型判断の一致であり、未知の構造型や全言語の主型を求めるsolverの完全性ではない。`typing_sound` はaction・armを含む部分式の型付けに帰納法を適用し、実際のrequest treeの上界と、返された関数を任意の適合するcomputation引数へ適用したときの上界を同時に導く。閉式の `closed_inferred_bound` はchecker受理だけを前提とする。
 
 この評価は関数へ引数をcomputationとして渡す。引数の行を無条件に呼出し結果へ加えず、computed letは右辺を実行する。shallow継続の型には元のaction行を保ち、armが新しく出す要求は残余の外へ加える。`OperationalTypingExamples` は未使用引数、明示的に許可した引数の処理、再開後の未処理要求、同じ継続の二回利用、同じkeyの再送出、pair内のcallback、負の差分についてchecker結果と実際の評価を確認する。即時boundaryが返り値内のcallbackを勝手に変換しないことも検証する。
+
+`OperationalCorrespondence.erase` はこのresolved式からlambda入力注釈・handlerの結果型・明示的なwidenを消し、`RecursiveEffects` の同じ演算へ写す。`erasure_typing_sound` は消去結果の任意の再帰型判断を解釈する。既存の `StructuralBase` のunion・intersection・関数の分散を含み、値制限付き多相letでは純粋な右辺の一つの評価値が各使用箇所の型を満たすことを導く。atomは一つのopaqueなcarrierで、構造型ではunitをそのmarkerにする。source literalの型をunitへ変更する規則ではない。
+
+`principal_operationally_valid` と `principal_effect_bound` は、閉じたresolved式の実際のprincipal formulaの解だけから、返り値の意味と全requestの上界を導く。個々のaction・armのruntime上界もannotated checkerの受理も前提としない。二つの入口は同じ評価に対して健全だが、受理集合の一致は主張しない。注釈の不一致でcheckerが拒否しても、注釈を消した式の制約には解があり得る。source注釈を保持するelaborationの正しさは別の義務である。
+
+`OperationalCorrespondenceExamples` は実際のrequestと、lambda内部のhandlerが許可したcomputation引数を処理するapplicationについてprincipal formulaの解を構成し、同じ評価の行上界へ接続する。requestのformulaには、どの結果値型を選んでも空行の解がないことを示す。この入口の前提が具体的に充足でき、effectを自由に消せる空虚なモデルではないことを確認する。
 
 ## 検証ゲート
 

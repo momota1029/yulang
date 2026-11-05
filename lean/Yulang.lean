@@ -49,6 +49,8 @@ import Yulang.RecursiveEffectExamples
 import Yulang.RecursiveEffectsConservativity
 import Yulang.OperationalTyping
 import Yulang.OperationalTypingExamples
+import Yulang.OperationalCorrespondence
+import Yulang.OperationalCorrespondenceExamples
 import Yulang.CheckedHygiene
 import Yulang.SignedStructural
 import Yulang.DirectedHandlerInference

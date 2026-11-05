@@ -392,8 +392,20 @@ operationのkeyは10.5.2と同じく、family・operation・family型引数を�
 
 この層のatomは一つの共通carrierで、operationのpayload・responseも同じcarrierを使う。任意のsource署名の安全性、一般再帰、sourceのelaboration、全言語のpreservation/progressは対象に含めない。
 
-### 10.12.2 fresh境界での衛生性
+### 10.12.2 再帰制約生成器からの直接の接続
+
+`OperationalCorrespondence.erase` は形状解決済みの式からlambda入力注釈・handlerの結果型・明示的なwidenを消し、10.11の再帰ASTへ写す。application・computed let・request・境界・shallow handlerの実行構造は保つ。`erasure_typing_sound` は、消去結果に対する任意の `RecursiveEffects.Typing` から同じ式の実行上界と返り値の意味を導く。型判断には既存の構造型モデルのunion・intersection・関数の分散を使える。値制限付き多相letでは、純粋な右辺が返す一つの実際の値が、各使用箇所の型を満たすことを導く。
+
+`principal_operationally_valid` と `principal_effect_bound` は閉式について、実際の `RecursiveEffects.principal` の解だけから評価木の上界を導く。annotated checkerの受理やaction・armのruntime上界は前提にしない。operationのpayload・responseは共通のatom carrierで、構造型モデルのunitをそのmarkerにする。任意のsource literalをunit型とする仕様変更ではない。
+
+この入口と10.12.1のcheckerは、同じ評価に対する二つの健全な入口である。注釈を消すため受理集合の一致は主張せず、checkerが注釈不一致で拒否する式の消去結果にも解があり得る。未知shapeの推論、異種operation署名、注釈と潜在値の衛生変換を保持したsource elaborationは別途必要となる。
+
+`OperationalCorrespondenceExamples` は実際のrequestと、lambda内部のhandlerが許可したcomputation引数を処理するapplicationの制約解を構成する。requestは任意の結果値型で空行解を持たない。handlerを含むapplicationは空行の解を持ち、同じ評価が値8を返すことと接続する。これは具体的な解と拒否の検証であり、全制約solverを実装したという主張ではない。
+
+### 10.12.3 fresh境界での衛生性
 
 `CheckedHygiene.inferred_fresh_origin` はchecker受理から実行上界を得て、推論行が古い境界からfresh座標へ持ち上げた `RowExpr` の評価であるという静的な前提から、実際の評価木の `ZeroAt` を導く。未知tailに具体的な負の重みが含まれていても、古い座標の重みはそのまま保たれる。行の表現をchecker自身が発見するとは主張しない。
 
 `closed_checked_boundary` は閉式のchecker受理だけを前提に、実際にfresh座標を割り当て、許可なしで保護したrequest treeについて、対応する行上界と任意の内側shallow handlerによる非captureを証明する。runtime上界や原点条件を追加の入力に要求しない。fresh化と保護が作用するのは即時のrequest treeであり、返り値は元の `Value n` のまま保持する。潜在closureに型に沿ったtransportを挿入することと、sourceの各境界がこの割当てを使うことは別の接続義務である。
+
+`principal_fresh_boundary` は同じ行上界と非captureの結論を、10.12.2の実際のprincipal formulaの解から導く。これにより、再帰制約生成器・独立な型判断・実際のrequest treeの上界・fresh境界の非captureが、同じresolved式について接続される。checker受理を重ねて要求しない。
