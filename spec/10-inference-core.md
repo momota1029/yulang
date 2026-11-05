@@ -632,6 +632,8 @@ V_d(f)(argument) = C_d(f(C_opposite(d)(argument)))
 
 `closed_inferred_transport_valid` は既存checkerの受理から、`principal_transport_valid` は既存の `RecursiveEffects.principal` の集合行モデルでの解から、同じ `eval` へwrapperを適用した結果の適合性を導く。即時requestの上界に加え、返却・格納された関数へ適合するcomputationを渡したときの潜在interfaceも含む。handlerの各armの実行上界やcheckerの別途受理を、principal側の定理へ追加しない。
 
+`OperationalTransportSubtyping.subtype_iff` は実行時の解釈を経由せず、元の `StructuralBase.Subtype Included` について変換前後の同値を証明する。推移則・union/intersection・pair・variant・recordの幅と先頭field優先・関数の型と両方の行の分散をすべて含む。recordとvariantの主張も空の実行時解釈から得たものではない。`comp_subtype_iff` はこの同値を既存の集合行モデルの `Inference.Comp.le` へ接続する。未知の型を探索するsolverを、この保存・反映の定理で代用したとは扱わない。
+
 ### 10.17.3 静的な出力行から非captureへ
 
 `guarded_call_noncapture` は、元の関数の型、変換後の入力型に適合する引数、元の出力行が対象境界で重み0を持つという静的な `ZeroAt` から、既定の保護を付けた呼出しが任意の内側shallow handlerを素通りすることを導く。関数の型から逆変換した引数に対する実行上界を得て、行の原点条件から実行木の原点条件を構成する。実行木の上界や `ZeroAt` を新たな前提として受け取らない。
@@ -639,6 +641,8 @@ V_d(f)(argument) = C_d(f(C_opposite(d)(argument)))
 この出力行の条件は省略しない。局所callbackが持つ負の差分は、戻り側の正の差分と相殺され、元の呼出側で可視になる必要がある。すべてのclosure呼出しを永久に非captureにする規則ではない。
 
 `principal_guarded_arrow_calls` は同じ保証を、変換後の評価が返す各closureへ接続する。結論の `AllReturns` は、返ってきた値すべてについての性質であり、値が返ることや計算の停止を保証しない。`fresh_output_call_noncapture` では出力行が `liftRow` であることから静的な原点条件を構成する。この系は既に拡張後の境界集合で型付けされた関数を受け取り、古いclosure自体を新しい境界集合へ持ち上げる処理は構成しない。
+
+`OperationalTransportExamples` は、同じcheckerと評価器を使い、pair内のcallbackを即時境界だけで包む場合と高階wrapperで包む場合を区別する。前者は内側handlerに捕まり `99` を返し、後者は要求を通過させ、対応する解除で呼出側がpayload `7` を受け取る。高階invokerの入力では、callbackの値だけでなく、それを生成する途中のrequest `13` も保護する。invokerの入力にはrawと負の差分を明示し、実際のcallback・遅延producerの型と変換後の入力型との適合を検査する。出力行には相殺でraw要求が残るため、混在した由来の例を一律の非captureや純粋性の例とはしない。内側のglobが別の境界の負の差分を消さないことも同じ評価で確認する。
 
 ### 10.17.4 残る接続
 

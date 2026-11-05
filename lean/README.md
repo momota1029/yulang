@@ -73,6 +73,8 @@ lake env lean --trust=0 Audit.lean
 | `Yulang.OperationalTransport` | 実際のcomputation引数を持つ関数・pair内の関数・request treeの高階wrapper、任意の値での両方向の相殺、対応する引数との呼出し・sequencingの等式 | sourceでのwrapper挿入、任意の未変換引数でのdispatch不変性、freshな世界へのclosureの構成 |
 | `Yulang.OperationalTransportTyping` | 有限行checkerの型・部分型・実行時適合性の変換前後の同値、既存checker受理から潜在closureまで包んだ同じ評価の型保証 | 未知shapeの推論、sourceでの境界選択、非captureに必要な原点条件の発見 |
 | `Yulang.InfiniteOperationalTransport` | 任意の無限集合行を含む既存構造型と高階実行値の対応、principal解から潜在closureのinterface、静的出力行の原点条件から返却関数の呼出しの非capture | sourceでのwrapper挿入、古いclosureのfresh化、record・variantのruntime表現、計算の停止、Simple-sub全体 |
+| `Yulang.OperationalTransportSubtyping` | 任意の集合行について、既存の構造部分型関係全体とcomputation部分型の変換前後の同値。recordの幅・先頭field優先、variant、union/intersection、関数の両方の行も含む | 未知型boundのsolver、record・variantの実行時表現、source elaboration |
+| `Yulang.OperationalTransportExamples` | checkerで受理される実際の式の評価による格納callback・遅延producerの保護と解除、変換後入力型との適合、負の出力差分の復元、内側globによる外側保護の保持 | sourceによるwrapperの自動挿入、静的原点条件なしでの一律の非capture |
 | `Yulang.FiniteReachability` | 有限隣接リストから計算する到達集合と独立な有限経路の判断の一致、空の始点集合からの到達不能性、辺・始点の順序と重複に対する不変性 | source の依存関係抽出、未具体化の多相 cast 集合の有限性、実用的な計算量 |
 | `Yulang.EvaluationOrder` | 名前解決済みの有限宣言・module 文からの評価依存計算と独立な推移的依存判断の一致、computed 自己依存・未来の computed binding の拒否、受理された初期化・文の全依存が元の順序で利用可能なこと、lambda による遅延と直接適用時の依存の復帰 | source の名前解決、局所 closure/alias や格納された関数のフロー、任意の高階 callback の実行が依存判断に含まれること、全言語の副作用順序の保存 |
 | `Yulang.EvaluationSafety` / `Yulang.EvaluationReads` | 名前で決まらない呼出しへのmodule全体の関数本体近似、独立なCBV読み取りprefixの上界、closure由来の保存、局所・返却・格納closureの読み取り安全性、既評価prefixからの参照先の利用可能性 | source elaboration、外部由来closure、可変store、計算全体の停止・progress。module内のlambda由来とsource位置の構造を明示 |
@@ -158,6 +160,10 @@ lake env lean --trust=0 Audit.lean
 `OperationalTransportTyping.valid_iff` は有限行checkerの型について、`InfiniteOperationalTransport.compHolds_iff` は任意の集合行を持つ既存構造型について、変換前後の型と実行の対応を双方向に証明する。後者は無限行・負の重み・型のunion/intersectionを許す。`closed_inferred_transport_valid` と `principal_transport_valid` により、checker受理または既存principal formulaの解から、即時requestに加えて返却・格納されたclosureの潜在interfaceも導く。runtimeのshapeはatom・pair・arrowであり、record・variantの実行時表現までは追加しない。
 
 `InfiniteOperationalTransport.guarded_call_noncapture` は、型に適合する変換後の引数と、元の出力行の静的な `ZeroAt` から、保護した呼出しの非captureを導く。実行時の上界と原点条件は関数の型から構成する。`principal_guarded_arrow_calls` は、この保証を変換後の評価が返す各closureへ接続する。これは `AllReturns` の保証であり、値が返ることや停止性を主張しない。`fresh_output_call_noncapture` は、既に拡張された境界集合で型付けされ、出力行が `liftRow` である関数への系であって、任意の古いclosureをfreshな世界へ持ち上げる構成ではない。sourceでwrapperを挿入するpassは別の義務として残る。
+
+`OperationalTransportSubtyping.subtype_iff` は実行時の解釈とは独立に、既存の `StructuralBase.Subtype Included` 全体を保存・反映する。recordの幅と先頭field優先、variant、推移則を含む。`comp_subtype_iff` は実際の集合行推論モデルの `Inference.Comp.le` まで接続する。したがって、この型変換だけで新しい部分型関係を作ったり、元の制約を失ったりしない。未知のboundを解くことまでは意味しない。
+
+`OperationalTransportExamples` はcheckerで受理される既存の式を評価する。即時境界だけでは内側handlerがpair内のcallbackを奪い `99` を返すが、高階wrapperでは要求が通過し、対応する解除後に呼出側がpayload `7` を受け取る。callbackを生成する途中のrequest `13` も、computation引数全体の反変変換で保持する。混在した由来のinvokerについては、実際の引数が変換後の入力型に適合することと、出力行にraw要求が残ることも検査し、純粋性や無条件の非captureを主張しない。別の境界のglobが外側の負の差分を消せないことも確認する。
 
 ## 型推論の主定理
 

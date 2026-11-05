@@ -64,6 +64,8 @@ import Yulang.InfiniteOperationalCorrespondence
 import Yulang.OperationalTransport
 import Yulang.OperationalTransportTyping
 import Yulang.InfiniteOperationalTransport
+import Yulang.OperationalTransportSubtyping
+import Yulang.OperationalTransportExamples
 import Yulang.OperationalCorrespondenceExamples
 import Yulang.CheckedHygiene
 import Yulang.SignedStructural
