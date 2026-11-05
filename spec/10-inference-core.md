@@ -284,7 +284,7 @@ handlerの結果 `out : CompTerm α` と外側のscheme環境 `SchemeEnv α` は
 
 SCC後の一般化はブロック全体の検査を含み、量化するslotに属するunannotated memberには構文上の値かつpureであることを要求する。computed memberのslotは共有環境へ残る。local/captured slotの分類はこの核への明示的な入力であり、未解決の部分型グラフから分類を発見する算法は別である。
 
-`RecursiveExamples` は、再帰時に引数をpairへ包むdepth型の本体について、全注釈による受理と、有限の構造型すべてについての単相拒否を示す。後者はunion・intersection・bottomを含む同じ構造部分型モデルでの結果であり、再帰型を導入したモデルへは外挿しない。
+`RecursiveExamples` は、再帰時に引数をpairへ包むdepth型の本体について、全注釈による受理と、`any -> int` による単相での受理を示す。決定36以前のtopを持たない有限型モデルでは単相拒否を証明していたが、現在はpairの引数を `any` に広げられるため、その拒否命題は成立しない。`unannotated_depth_typable` と生成制約・closed SCCへの接続が、この仕様変更の具体的な証拠である。全注釈による多相再帰の規則自体は維持する。
 
 `EvaluationOrder` は有限グラフの到達可能性を使って保守的な評価依存を判定する。computedな参照先には評価位置の真の先行を要求するため、自己依存と未来への依存は拒否される。`Initialization` は同じresolvedな本体をSCCの式へ翻訳し、値制限の一致を証明してから両判定を接続する。型の解の有無だけではcomputed cycleを通さない。依存判断と任意のsourceの高階closureフローとの対応、実行時のpreservation/progressは別の義務である。
 
@@ -731,3 +731,41 @@ row自体は、元の再帰問題の**固定された最小解**で解釈する�
 ここまでで閉じたflat boundの求解と、上の核の式の推論については、解の構成・失敗の完全性・それぞれの主性または最小性・停止がそろう。残るのは、constructor内部に未解決変数を持つ一般の制約、再帰値型、一般のlambda/application、SCCと一般化変数の発見、extrusion/intrusionを含む全体算法である。任意のguardを含む再帰row問題や、未知の値型と未知の行を同時に解く全体手続きも、この結果から自動的には得られない。
 
 値型注釈が公開型を決める章4.2の規則、T3の観測時点、role・cast・case・sourceの境界割当てを、この実行可能な推論入口へ接続する義務も残る。今回の追加で、既存の注釈・衛生性・EOFの非defaultingの意味は変更しない。
+
+## 10.19 `any`・上界の双対・全解の型スキーム
+
+出典は章4.1、章7.4b、およびhandoffの決定36・37（2026-11-06）である。
+
+### 10.19.1 topを含む核
+
+`StructuralBase.Ty.top` と `Inference.TyTerm.top` が、書ける型 `any` を表す。全型 `A` に `A ≤ any` が成立する。逆に `any ≤ int` や `any ≤ A -> B` は成立せず、任意の型へ暗黙に狭めるescape hatchではない。四つのliteral用の `Base` には追加しない。
+
+topを含む独立の `Subtype` に対してcut eliminationと `StructuralDecisions.check` の完全性を拡張した。有限・集合の両行解釈、型内の行変換、cast表現との往復もtopを保つ。関数の入力が `any` でも、関数に付く保護済みeffectや負の解除差分を消せないことを検証する。
+
+### 10.19.2 負の位置の最大解
+
+`ValueUpperBounds.greatest` は、`αᵢ ≤ αⱼ` の辺を辿って到達する全上界を交差する。
+
+\[
+U_i=\bigcap\{A\mid i\leadsto j,\ (\alpha_j\le A)\in C\}.
+\]
+
+空の交差は `any` である。`greatest_above` は任意の上界モデルがこの割当て以下であることを、`greatest_models_iff` は元の制約が可解であることとこの最大割当てが全制約を満たすことの同値を示す。`solveGreatest_none_iff` の失敗は、型の深さや候補集合に制限のない解の不在と一致する。
+
+`inferTerm_exact` は、内部未知型がすべて負の位置に現れる出力について、最大解を代入した結果の上位型全体が、元の全モデルから得る出力の上位型全体と一致することを示す。`negative_principal_exact` は、以前の `negative_minimization_loses_instance` と同じ例を、全インスタンスについて `any -> int` へ正確に閉じる。正負の両方に現れる変数は、この一方向の消去では扱わない。
+
+### 10.19.3 混在する極性と自由parameter
+
+`ValueBoundSchemes.solve` は、flatなbound problemの**全解**を表す有限な型スキームを構成する。`L_i` を下界の伝播で得たunion、`U_i` を上界の伝播で得たintersectionとして、各未知型に次の式を割り当てる。
+
+\[
+S_i(\rho)=L_i\cup\bigcup_{j\leadsto i}(\rho_j\cap U_j).
+\]
+
+`ρ` は制約のない自由parameterの割当てであり、正負の位置で同じparameterを共有する。返り値の `Term` はground型・parameter・union・intersectionだけの構文で、具体化の際に再検査する不等式を含まない。
+
+`expand_models` は、元の制約が可解なら**任意の** `ρ` に対して `S(ρ)` が全制約を満たすことを示す。`expand_equivalent` は、元の任意の解 `v` を `ρ` に選ぶと `S(v)` と `v` が各slotで相互部分型になることを示す。この二方向が、解を失わず余分な解を加えないことの証明である。
+
+`solve_models_exact` は計算されたスキームの全具体化と元の全モデルを対応させ、`principal_exact` は相互部分型を保つ任意の出力型へ接続する。出力の極性を正か負の片方に制限せず、恒等関数のような入力と出力の相関も維持できる。constructorの分配則は仮定しない。
+
+これはboundがgroundである有限graphの完全な制約消去である。bound自体のconstructor内の未知型、再帰値型の `as`、source全体からの一般化・effect行の同時求解は別の接続として残る。EOFの未定weak slotをこの自由parameterへ勝手に一般化する規則は導入しない。

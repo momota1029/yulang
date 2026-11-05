@@ -125,5 +125,8 @@ import Yulang.ValueBoundExamples
 import Yulang.RecursiveValueBounds
 import Yulang.ValueBoundElimination
 import Yulang.ValueBoundEliminationExamples
+import Yulang.ValueUpperBounds
+import Yulang.ValueUpperBoundsExamples
+import Yulang.ValueBoundSchemes
 import Yulang.ValueInference
 import Yulang.ValueInferenceExamples

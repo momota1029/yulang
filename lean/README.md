@@ -26,12 +26,14 @@ lake env lean --trust=0 --run RunValueInference.lean
 
 関数については別に、`ValueBoundEliminationExamples.identity_principal_exact` が実際の `principal [] (lam (var 0))` をsolverで構成した型族へ接続する。引数の型 `A` と行 `R` を自由なparameterに残し、内部結果だけを解くと、意味的に `A [R] -> A [R]` になる。一般化する変数をsourceから発見する算法や、任意の関数の推論まで閉じたとは主張しない。詳しい算法・量化子・対象外の範囲は [`spec/10-inference-core.md` 10.18](../spec/10-inference-core.md#1018-未知の値型の求解) にまとめる。
 
+決定36・37に対応し、`any` を核のtop型へ追加した。`ValueUpperBounds.solveGreatest` は上界の交差から最大解を構成し、負の位置の未知型の消去を全インスタンスについて証明する。`ValueBoundSchemes.solve` はさらに、正負が混在する出力でも共有parameterを保つ、制約のない型スキームを構成する。`solve_models_exact` と `principal_exact` は、計算されたスキームの全具体化が元のflat boundの全解を正確に表すことを示す。式と量化子は [10.19](../spec/10-inference-core.md#1019-any上界の双対全解の型スキーム) にまとめる。
+
 ## 証明対象
 
 | モジュール | 閉じる主張 | それだけでは示さないこと |
 | --- | --- | --- |
 | `Yulang.Types` / `Yulang.Inference` | 構造再帰する有限制約生成、独立な宣言的型付けとの双方向の一致、制約schemeの主性、非再帰の値制限付き多相let | 全制約の判定、再帰SCC、sourceのoperation/handlerのelaboration、公開型の正規化 |
-| `Yulang.StructuralBase` / `Yulang.Structural` | 行の解釈を共有する具体的な構造部分型モデル、union/intersection・幅部分型・関数の分散、生成制約の正例と反例 | 完全なMLsub意味論、再帰型、部分型の決定手続き |
+| `Yulang.StructuralBase` / `Yulang.Structural` | 行の解釈を共有する具体的な構造部分型モデル、`never`/`any`・union/intersection・幅部分型・関数の分散、生成制約の正例と反例 | 完全なMLsub意味論、再帰型。決定手続きは `StructuralDecisions` で扱う |
 | `Yulang.Polymorphism` | effect付きcomputation変数の単相let束縛を受理し、そのeffectを空行へ消す生成制約を拒否すること | 再帰的な一般化、sourceのalias解析 |
 | `Yulang.Effects` | 出現ごとの保護・解除、任意の行置換での非capture、well-founded computation treeでの非capture、shallow handlerのeffect上界 | sourceからのelaboration、operation署名の型安全性、全言語のpreservation/progress |
 | `Yulang.EffectInference` | core生成器を使うrequest・boundary・shallow handler規則の健全性と完全性、有限個のoperation-local型変数の呼出側での存在具体化・handler側での全称検査、結果と外側環境へのescapeの構造的排除、単相規則と明示された実行時上界の合成 | sourceからのelaboration、atomのpayload内部にある局所変数、局所変数のrole制約、型付けから実行時上界を導く証明 |
@@ -46,7 +48,7 @@ lake env lean --trust=0 --run RunValueInference.lean
 | `Yulang.DirectedHandlerInference` | 成立した共通のhandler生成制約とaction・armの実行時上界から、実際の符号付きhandler全体の上界を導くこと | action・armの前提そのものをsourceの型付けから導くこと |
 | `Yulang.Annotations` / `Yulang.AnnotationSnapshots` | 注釈時点の可視effect検査と正確性、符号付きの観測履歴の固定、T3 の具体化時に再検査しない規則と主制約生成器の接続、未知行の後の具体化と当初から既知で可視な禁止effectの区別 | 何がその時点で既知かを決める solver、source 注釈から観測時点を構成する elaboration |
 | `Yulang.AnnotationFinalization` | binding/SCC全体の有限Horn制約を解いてから符号付き観測を固定する入口、最小解の真のfactと全モデルで強制されるfactの一致、制約順序・重複・member順序に依存しない受理、一般化前の検査と後の具体化の分離 | 構造型推論から有限fact interfaceへの翻訳、無限のsigned stackを含む全体solver、sourceのSCC発見と名前の振り直し |
-| `Yulang.RecursiveInference` / `Yulang.RecursiveExamples` | 有限の同時再帰制約生成と独立な SCC 型判断の一致、全注釈の値型変数だけを具体化する多相再帰、明示的なeffect行の共有、SCC 後の値の一般化と computed slot の保持、有限の構造型すべてについて depth 型再帰の単相拒否と注釈による受理 | source の SCC 発見と全注釈認識、local/captured slot 分類の推論、解の探索、再帰型での depth の拒否、評価依存の検査 |
+| `Yulang.RecursiveInference` / `Yulang.RecursiveExamples` | 有限の同時再帰制約生成と独立な SCC 型判断の一致、全注釈の値型変数だけを具体化する多相再帰、明示的なeffect行の共有、SCC 後の値の一般化と computed slot の保持、depth型再帰の全注釈受理と `any -> int` での単相受理 | source の SCC 発見と全注釈認識、local/captured slot 分類の推論、解の探索、評価依存の検査 |
 | `Yulang.QualifiedInference` / `Yulang.QualifiedGeneralization` | resolved method からの role 制約生成と独立な型判断の一致・主性、raw role 制約の自動分配、抽象辞書での定義検査と利用時の証拠要求、環境slotの共有、通常のletでの値型・行の独立した一般化 | 未解決の構造制約から一般化interfaceを発見するsolver、source の method lookup、任意に入れ子になった source qualified let の elaboration |
 | `Yulang.ModuleRoles` / `Yulang.QualifiedExamples` | 与えられた部分割当てとinterfaceに対するEOF検査、実際のresolverによる残留role制約の確認、公開型に使う未確定slotの拒否、公開schemeの意味と解の拡張に対する独立性、辞書の有無・型の後決め・非空の潜在行の正例と負例 | module全体から未解決制約を漏れなく収集するsource pass、部分型の解を探索すること、opaqueな意味的型の内部表現に関する閉性 |
 | `Yulang.ModuleVisibility` / `Yulang.ModuleDictionaries` | 自file・import・accessの可視判定を実際のEOF検査と辞書木の構成へ接続、非可視宣言の変更・宣言順序・重複による不変性、公開schemeの意味保存、全nodeの可視な由来、file間で渡された辞書木の保持 | source module/import/access解析、未定型の推論、source宣言identityの割当て |
@@ -81,6 +83,8 @@ lake env lean --trust=0 --run RunValueInference.lean
 | `Yulang.ValueBounds` / `Yulang.ValueBoundSolvers` | ground下界・変数間包含・ground上界から未知の値型を実際に構成するsolver、循環を含む有限graphの停止、全構造型割当てに対する最小性と成功・失敗の完全性、無限半線形latent rowを持つ入力と任意のSetRow割当てに対する完全性 | constructor内部に残る未知型の求解、再帰値型、最小解を多相主型と同一視すること、全Simple-subの一般化とsource全体への接続 |
 | `Yulang.RecursiveValueBounds` | 元の再帰row制約から潜在行を解き、未知の値型を構成する入口、元のDerives解に対する健全性・最小性・解なしの完全性、未対応と矛盾の区別 | 一般のguard付きrow問題、任意のrow解と値型の同時探索。rowは元の再帰問題の固定最小解で解釈する |
 | `Yulang.ValueBoundElimination` / `Yulang.ValueBoundEliminationExamples` | 既存TyTermの極性検査、正の内部未知型の存在量化の正確な消去、自由なparameterと行の保持、実際のprincipal恒等関数とsolverが構成した型族の同値、負の位置の無条件最小化への反例 | 一般化するparameterの自動発見、constructor内部の未知型を含むboundの解消、任意のlambda/applicationを推論するsource算法 |
+| `Yulang.ValueUpperBounds` / `Yulang.ValueUpperBoundsExamples` | 上界の逆伝播と交差、空交差 `any`、全割当てに対する最大性・成功と失敗の完全性、負の位置の全インスタンスを保つ消去 | 正負が混在する変数の独立した既定化、nested bound、再帰値型 |
+| `Yulang.ValueBoundSchemes` | flat boundの全解を表す制約のない有限型スキームの構成、任意の自由parameterが解になることと全解を再現できること、任意の混在極性の出力についての全インスタンス保存 | constructor内に未知変数を持つbound、再帰値型、sourceからの一般化interface発見 |
 | `Yulang.ValueInference` / `Yulang.ValueInferenceExamples` | 既存Exprのvar/lit/branch/letE/pair/variantから型を構成し、元のTyping・principal formulaとの成功時の主性と失敗の完全性を証明、値letの両経路、未対応との区別 | 評価時effectを持つ式、一般のlambda/application、SCC、variantのtag合流・case残余、parserからのelaboration、表示の完全な標準形 |
 | `Yulang.SemilinearNormalization` / `Yulang.SemilinearFastInclusion` | 零・重複周期と同じ成分の除去の意味保存、単一周期への全座標を使う正確な所属判定、健全な包含の高速成功と完全なNFA判定へのfallback、最適化前後のBoolean結果の一致 | 全半線形集合の最小正規形、異なる成分の共同被覆を一成分比較だけで判定すること、一般の多項式時間 |
 | `Yulang.SemilinearRowAlgebra` | 有限key支持と無限の整数重み集合を持つ行の包含・等価性、重複keyの和と欠けたkeyの空解釈、既存SetRow代数との一致、その行を潜在行とする有限ground構造型の比較 | 未知型変数・再帰値型の求解、元のrow制約からの解抽出は別層 |
@@ -199,7 +203,7 @@ lake env lean --trust=0 --run RunValueInference.lean
 
 `generalizeMember_exact` は、SCC全体を検査した後の一つの値memberの具体化を記述する。存在量化するlocal slotに属する全unannotated memberへ、構文上の値かつpureに型付けされるという検査を入れる。computed memberはcaptured slotに残り、別々の具体化で同じ割当てを参照する。`RecursiveExamples` では、SCC後のidentityをintとstrで独立に使うこと、別memberを公開するときにもcomputed memberをlocal slotへ隠せないこと、全注釈の関数と単相関数が互いに呼び合う例を検証する。
 
-`unannotated_depth_not_typable` は、`x`を`(x,x)`へ変えて再帰する式について、既存の有限 `Structural.Ty` の**すべての型と実行行**を量化して単相型付けを排除する。pairの深さの単調性と関数入力の反変性から、`depth(A)+1 ≤ depth(A)` が必要になり矛盾する。union・intersection・bottom・部分型の推移もこの証明に含む。`generated_annotated_depth_satisfied` は同じ本体を全注釈のschemeで受理する。source例の算術と条件値はliteralへ抽象化しており、実行の停止性や再帰型のある体系での拒否は主張しない。
+`unannotated_depth_typable` は、`x`を`(x,x)`へ変えて再帰する同じ式を、単相型 `any -> int` で受理する。再帰引数のpairを `any` へ広げることができるため、決定36以前のtopを持たないモデルでの単相拒否は、現在の体系では偽になる。`generated_unannotated_depth_satisfied` と `closed_unannotated_depth_satisfied` は、この実際の割当てを生成制約・closed SCCへ接続する。`generated_annotated_depth_satisfied` の全注釈のschemeによる受理も維持する。source例の算術と条件値はliteralへ抽象化しており、実行の停止性は主張しない。
 
 `QualifiedInference.principal_exact` は、resolved methodの有限のrole要求を制約に加えた生成器と独立な宣言的型判断の一致を、元の構造的な式の全ケースについて証明する。この層の通常の `letE` は単相で、qualifiedな値の一般化は `qualified_let_exact` の別規則で接続する。一般化interfaceはlocal slotと環境slotを明示する。`partition_exact` はraw role要求を自動で分け、local slotを含む要求をschemeへ、環境slotだけの要求を残留制約へ移す。混合した要求の環境slotは量化せず共有する。定義は抽象辞書を仮定して全local割当てで検査し、利用時にその具体化の証拠を要求する。
 

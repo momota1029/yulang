@@ -458,6 +458,7 @@ def mapRows (f : RowType → OtherRow) (problem : Problem n RowType) : Problem n
 theorem least_mapRows (f : RowType → OtherRow) (problem : Problem n RowType)
     (target : Fin n) :
     StructuralRowResolution.mapRows f (least problem target) = least (mapRows f problem) target :=
-  least_mapTypes (StructuralRowResolution.mapRows f) rfl (fun _ _ => rfl) problem target
+  least_mapTypes (StructuralRowResolution.mapRows f) (by simp only [StructuralRowResolution.mapRows])
+    (fun _ _ => by simp only [StructuralRowResolution.mapRows]) problem target
 
 end Yulang.ValueBounds
