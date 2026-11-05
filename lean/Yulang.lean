@@ -4,6 +4,7 @@ import Yulang.Effects
 import Yulang.EffectExamples
 import Yulang.Horn
 import Yulang.HornExamples
+import Yulang.FiniteReachability
 import Yulang.Inference
 import Yulang.Annotations
 import Yulang.Structural

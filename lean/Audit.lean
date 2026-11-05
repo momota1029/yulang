@@ -99,6 +99,11 @@ run_cmd do
 #print axioms Yulang.Horn.solve_eq_none_iff
 #print axioms Yulang.Horn.solve_complete
 #print axioms Yulang.Horn.solve_eq_some_iff
+#print axioms Yulang.FiniteReachability.closure_least
+#print axioms Yulang.FiniteReachability.closure_exact
+#print axioms Yulang.FiniteReachability.Reach.append
+#print axioms Yulang.FiniteReachability.closure_empty
+#print axioms Yulang.FiniteReachability.closure_congr
 #print axioms Yulang.Variants.partition
 #print axioms Yulang.Variants.residual_greatest
 #print axioms Yulang.Variants.residual_least
