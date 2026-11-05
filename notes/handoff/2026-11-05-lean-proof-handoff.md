@@ -2,6 +2,8 @@
 
 ブランチ `yulang3`。別マシンで続きをやるための文書。
 
+> 証明再開後の追補: この文書の「Lean 未実装」は引き継ぎ時点の記録。決定7〜18に対応するqualified推論・EOF検査・関連型等式・operation辞書・SCC・評価依存・method/castの拡張核を追加した。T3の観測履歴とPaterson宣言検査も接続済み。最新の証明範囲と残る義務は [`lean/README.md`](../../lean/README.md) と [`spec/10-inference-core.md` 10.8](../../spec/10-inference-core.md#108-確定事項を接続した拡張核) を参照する。これらはsource全体のelaboration、全体solver、preservation/progressの完了を意味しない。
+
 ## 読む順番(目次)
 1. 「今どこにいるか」と「割り引いて読む所」: 状況と注意点
 2. 「今日決めたこと」1〜20: 決定の一覧。各項目の末尾に spec の場所がある

@@ -9,7 +9,7 @@ then runs the real terminating role resolver on residual predicates. Failure
 never turns an unresolved weak slot into a new polymorphic parameter.
 
 An accepted export is interpreted over its explicit generalized slots only.
-The preservation theorem quantifies over every total extension of the assignment
+The preservation theorem quantifies over every total extension of the partial
 assignment, so a default used outside the checked support cannot affect it.
 This gate does not compute a structural-subtyping solution or a source module
 schedule; it validates the assignment available at EOF.

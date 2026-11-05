@@ -206,7 +206,7 @@ operation-local型変数を持つhandlerでは、その型をrigidに扱う。`p
 
 である。actionとvalue armの型・行は局所型を選ぶ前に固定する。operation armは、すべての局所型割当てで同じ式を型付けできなければならず、一つの具体型に単一化して検査を済ませることはできない。局所型の値を同じ型を受け取る継続へ渡す使い方は許す。
 
-handlerの結果 `out : CompTerm α` と外側のscheme環境 `SchemeEnv α` は局所slotを含まない。`EffectInference.local_result_no_escape` はどの局所割当てでも結果の型・行が元の `out` の評価と一致することを、`local_outer_environment` はどの局所割当てでも同じ外側binding環境を表すことを証明する。したがって局所変数のescapeは核の規則の構造で排除され、存在型へ包んで外へ出す規則はない（章5.1、確定2026-11-05）。source上でescapeを検出しエラーを報告するelaboratorまで証明したものではない。局所slotの行成分は空行であり、局所行変数は導入しない。atomのkeyと追加effectは局所割当てによらず固定する。atomのpayload内部に現れる局所変数と、局所変数のrole制約はこの形式化の対象外である。
+handlerの結果 `out : CompTerm α` と外側のscheme環境 `SchemeEnv α` は局所slotを含まない。`EffectInference.local_result_no_escape` はどの局所割当てでも結果の型・行が元の `out` の評価と一致することを、`local_outer_environment` はどの局所割当てでも同じ外側binding環境を表すことを証明する。したがって局所変数のescapeは核の規則の構造で排除され、存在型へ包んで外へ出す規則はない（章5.1、確定2026-11-05）。source上でescapeを検出しエラーを報告するelaboratorまで証明したものではない。局所slotの行成分は空行であり、局所行変数は導入しない。atomのkeyと追加effectは局所割当てによらず固定する。atomのpayload内部に現れる局所変数はこの形式化の対象外である。局所変数のrole制約は、10.8の `RoleEvidence` 層で同じ署名へ接続する。
 
 `SignedStructural.generated_poly_request_at_any_type` は任意の構造型での呼出しを受理し、`generated_poly_requests_independent` は同じ署名・同じ外側の割当てでintとstrへの二回の独立した具体化を受理する。`generated_poly_handler_resumes_payload` は任意の局所型で `k payload` を受理する。一方 `generated_poly_handler_payload_escape_rejected` はpayloadを固定のint結果へ直接返す腕を拒否する。負例は局所型をstrとしたときの `str ≰ int` によるもので、任意のモデルや任意の固定結果上界について拒否を示した定理ではない。
 
@@ -240,19 +240,57 @@ handlerの結果 `out : CompTerm α` と外側のscheme環境 `SchemeEnv α` は
 
 2・3だけから4・5を主張しない。有限の包含制約の solver を証明しても、再帰的な型・保護の stack・role 解決を含む全言語 solver の証明に置き換えない。証明対象、量化子、依存公理は [`lean/README.md`](../lean/README.md) に記す。
 
-## 10.7 既存仕様に残る判断
+## 10.7 確定した規則と残る接続
 
-ここでは未確定の意味論を補って定理を強く見せない。
+2026-11-05の決定により、次の二点は言語仕様として確定している。意味論の未決定と、sourceへの接続やsolverの未証明を区別する。
 
-- associated type が `where` 条件や method 署名に現れ、`value ~ int` 等の等式制約や型引数と単一化される場合の扱い。
-- 章4.5の残余と、source の網羅性・guard の組合せ。
+- associated typeは普通のfreshな型変数と等式制約で表す。impl選択で等式を追加し、先に積まれた制約を上書きしない（章6.3）。
+- variantはtagごとにpayloadをunionへ合流し、tag全体を処理する。網羅性は閉じたtag集合で決まり、guard付きarmは被覆に数えない（章4.5、章3b.4）。source patternからこの核へ翻訳する証明は別に必要である。
 
 章6.3の Paterson 型条件の下で、第一階の impl 集合に対する role 解決の停止は [`Yulang/Roles.lean`](../lean/Yulang/Roles.lean) で証明した。型構築子と型変数を各1と数え、head と各条件の型引数のサイズを合計する。各条件の合計が head より真に小さく、各変数の出現回数が head 以下なら、任意の impl 変数の置換後も条件は head より真に小さい。全 impl がこの条件を満たすことを入力に要求する `resolve` は、そのサイズを測度として深さ制限なしに停止する。候補は goal の変数を rigid に保った一方向の head 照合で決め、二つ以上なら `where` を調べる前に曖昧とする。一意な候補の子で曖昧さが見つかった場合も、別の子の候補不在より曖昧さを優先する。健全性、到達する head に重なりがない場合の完全性、到達可能な head の重なりと曖昧さの同値もこの核の範囲で証明した。
 
 章6.3の決定（確定, 2026-11-05）により、impl の associated type の右辺は具体的な型・型構築子・head に現れる型変数だけからなり、他 role の associated type を参照できない。この第一階の関連型には追加のサイズ規則は不要である。[`Yulang/RolesAssoc.lean`](../lean/Yulang/RolesAssoc.lean) の `assocOf` は、既存の `resolve` の成功後に、選ばれた impl の右辺へ照合置換を一度適用する。省略された定義には、role の引数位置を goal の型引数で置換した default を使う。別の関連型を展開する再帰はない。表現上は、関連型名の辞書の無重複性、同じ元の impl への辞書の一貫性、default の変数範囲を要求する。`AssocWellFormed` は、明示定義の変数が head に現れること、署名との引数数の一致と必須定義の充足、role にない名前を提供しないことを要求する。
 
-`assoc_total_closed` は、全 impl が Paterson 適格性と関連型適格性を満たすとき、解決済み goal の宣言済みの各関連型名について値が存在し、結果の変数がすべて goal に現れることを証明する。`assoc_unique` は値の一意性を、`assoc_independent_of_constraints`・`assoc_explicit_eq`・`assoc_derivations_unique` は where の解決導出や head の照合置換の選び方によらないことを示す。`assoc_explicit_size` は明示定義の具体化について、既存の `Term.subst_size` の正確なサイズ公式を再利用する。関連型が where 条件や method 署名に現れて単一化を要求する場合の規則は定めていない。generic role の method dispatch、章6.4の receiver 下界による保留、operation-local role 制約、effect との相互作用、推論の制約言語との統合、source 宣言時の検査もこの定理の対象外である。出典: 章6.1–6.3（確定, 2026-11-04・2026-11-05）、`Yulang.Roles.size_decreases`・`resolve_sound`・`resolve_complete`・`resolve_ambiguous_iff` および上記の関連型の定理。
+`assoc_total_closed` は、全 impl が Paterson 適格性と関連型適格性を満たすとき、解決済み goal の宣言済みの各関連型名について値が存在し、結果の変数がすべて goal に現れることを証明する。`assoc_unique` は値の一意性を、`assoc_independent_of_constraints`・`assoc_explicit_eq`・`assoc_derivations_unique` は where の解決導出や head の照合置換の選び方によらないことを示す。`assoc_explicit_size` は明示定義の具体化について、既存の `Term.subst_size` の正確なサイズ公式を再利用する。関連型の等式追加は10.8の `RoleConstraints` で接続するが、構造部分型と合わせた単一化のsolverは未証明である。generic role の method dispatch、章6.4の receiver 下界による保留、operation-local role 制約、effect との相互作用、推論の制約言語との統合、source 宣言時の検査は `RolesAssoc` 単体の定理の対象外であり、以下の各層で扱う範囲を分ける。出典: 章6.1–6.3（確定, 2026-11-04・2026-11-05）、`Yulang.Roles.size_decreases`・`resolve_sound`・`resolve_complete`・`resolve_ambiguous_iff` および上記の関連型の定理。
 
 上の判断に依存しない核の定理は先に閉じる。未解決制約を受理済みプログラムと同一視しない。
 
-`Annotations.no_substitution_invariant_extensional_check` は、さらに次の三つを同時に満たす単純なcheckerが存在しないことを証明する: 未知の行を常に受理すること、許可外の具体headを拒否すること、任意の行置換に対して受理が不変であること。未知行をその具体headで置換すれば矛盾する。したがってT3の注釈検査は、**注釈を検査した時点で見えている具体 effect** だけを対象にする（確定, 2026-11-05）。共変の注釈は行変数を束縛せず、検査するだけで、反変の許可と同じ変数に集まって干渉することはない。その時点で見えていない行変数が後で具体化されるのは、一般化された型の具体化（代入）であって、注釈の再検査ではない。注釈の時点で既に分かっている effect（例えば引数の型が `undet` を出すと分かっている場合）は、その時点でエラーになる。局所snapshotの検査はこの方針に対応し、実装・証明した。
+`Annotations.no_substitution_invariant_extensional_check` は、さらに次の三つを同時に満たす単純なcheckerが存在しないことを証明する: 未知の行を常に受理すること、許可外の具体headを拒否すること、任意の行置換に対して受理が不変であること。未知行をその具体headで置換すれば矛盾する。したがってT3の注釈検査は、**注釈を検査した時点で見えている具体 effect** だけを対象にする（確定, 2026-11-05）。共変の注釈は行変数を束縛せず、検査するだけで、反変の許可と同じ変数に集まって干渉することはない。その時点で見えていない行変数が後で具体化されるのは、一般化された型の具体化（代入）であって、注釈の再検査ではない。注釈の時点で既に分かっていて、保護されず可視な許可外のeffect（例えば `[io]` の注釈に対して引数の型が `undet` を出すと分かっている場合）は、その時点でエラーになる。局所snapshotの検査はこの方針に対応し、実装・証明した。
+
+## 10.8 確定事項を接続した拡張核
+
+この節は、章2・4・5・6と2026-11-05の決定を形式化する層の対応を記す。新しい言語仕様を追加する節ではない。詳細な量化子と対象外の範囲は [`lean/README.md`](../lean/README.md) を参照する。
+
+### 10.8.1 qualifiedな推論と公開境界
+
+`QualifiedInference` はrole要求を有限の制約として生成する。resolved methodの要求を生成した時点で具体的なimplを探す必要はない。`principal_exact` は、指定されたrole証拠の解釈の下で、生成制約の解と独立な型判断を双方向に対応させる。
+
+`QualifiedGeneralization` では、環境slot `α` と一般化する有限slot `Fin n` を分ける。raw role制約のうちlocal slotを含むものはschemeへ、環境slotだけのものは残留制約へ移す。この分配はすべての割当てについて制約を保ち、混合した制約の環境slotも共有する。右辺は抽象辞書を仮定して全local割当てで検査し、schemeの利用時に具体化と証拠を要求する。通常のletは値型と行を含む `Comp` slotを一般化する。
+
+`ModuleRoles` のEOF検査には、推論が求めた部分割当てと、公開型および残留制約を含むinterfaceを渡す。公開に関わる未確定ambient slotは拒否し、残留role制約は実際のresolverで検査する。受理した公開schemeの意味は、その後の無関係なslotの補完に依存しない。この定理は部分割当てを探索するsolverやmodule全体の制約収集passを含まない。
+
+`RoleConstraints` は関連型選択の結果を普通の等式として蓄積する。すべての置換に対して、追加の順序・重複は解集合を変えない。与えられた置換での検査と、解となる置換の存在を決めるsolverは区別する。`CheckedRoles` は有限回の出現回数・サイズ検査からPaterson適格性を構成し、不適格な宣言をresolverの呼出し前に拒否する。
+
+### 10.8.2 再帰と評価依存
+
+`RecursiveInference` は有限のresolved blockについて、全本体を同じ再帰仮定環境で検査する。単相memberのslotはブロック全体の外で一度だけ選ぶ。全注釈memberの呼出しは値型変数だけを存在的に具体化し、定義の検査はそれらすべての具体化について行う。明示的なeffect行slotは共有する。通常のletの行の一般化と、この注釈による多相再帰の量化を混同しない。
+
+SCC後の一般化はブロック全体の検査を含み、量化するslotに属するunannotated memberには構文上の値かつpureであることを要求する。computed memberのslotは共有環境へ残る。local/captured slotの分類はこの核への明示的な入力であり、未解決の部分型グラフから分類を発見する算法は別である。
+
+`RecursiveExamples` は、再帰時に引数をpairへ包むdepth型の本体について、全注釈による受理と、有限の構造型すべてについての単相拒否を示す。後者はunion・intersection・bottomを含む同じ構造部分型モデルでの結果であり、再帰型を導入したモデルへは外挿しない。
+
+`EvaluationOrder` は有限グラフの到達可能性を使って保守的な評価依存を判定する。computedな参照先には評価位置の真の先行を要求するため、自己依存と未来への依存は拒否される。`Initialization` は同じresolvedな本体をSCCの式へ翻訳し、値制限の一致を証明してから両判定を接続する。型の解の有無だけではcomputed cycleを通さない。依存判断と任意のsourceの高階closureフローとの対応、実行時のpreservation/progressは別の義務である。
+
+### 10.8.3 roleを持つoperationと観測履歴
+
+`RoleEvidence` は既存の `PolySignature` にrole制約を追加する。呼出側では局所型の存在具体化と証拠の充足を要求する。handler側では、action・value arm・外側の結果を固定した後に、署名の辞書を加えてすべての局所型でoperation armを検査する。継続の行は元のinput rowを保ち、armが新しく起こすeffectを残余操作で消さない。
+
+`AnnotationSnapshots` は注釈時点の符号付きの具体行を保存する。後のscheme具体化はその履歴を変更しない。許容された履歴は後の行変数へ上界や等式を追加せず、失敗した履歴は後の置換で修復されない。観測前には、その時点で既知の置換を適用しておく必要があり、その知識を求めるsolverの正しさはこの定理の前提となる接続義務である。
+
+### 10.8.4 castと構築位置
+
+`Casts` の境界変換は普通の適合性と別の判断である。普通に適合すれば変換せず、不一致なら関数の入力を反変、出力とデータの中身を共変に調べる。固定されたnominal引数の変換には、外側の型全体の明示規則が必要になる。普通の部分型判定はこの層への独立した入力であり、この追加変換の決定可能性だけから部分型全体の決定可能性は導かない。
+
+`CastGraph` は有限のground登録集合について、直接規則の重複と複数の間接経路を区別する。`Methods.checkCall_exact` は相異なるmethod所有型がちょうど一つであることと、全receiver memberからその型への境界変換を要求し、memberの順列で結果は変わらない。
+
+`LiteralCasts` はlist literalの元の構築位置と要素型を保留する。期待要素型が決まれば各構築位置で境界を検査し、EOFまで期待型がなければ元の要素型のunionを記録して変換を挿入しない。構築済みのnominalなlistの要素を変換する規則とは別である。cast本体の実行・effectと弱い型変数の解探索は、この計画の正確性の対象外となる。
