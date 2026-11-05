@@ -15,6 +15,8 @@ The selected declarations are the sole impl database supplied to the existing
 uses the root file's same selected list. Hidden declarations need not even be
 well formed: only the selected database is checked. Membership-equivalent
 visible declarations give the same EOF result, including order and duplicates.
+`Impl.key` retains declaration identity across this selection: distinct source
+declarations have distinct keys, while repeated imports retain the same key.
 
 This module connects visibility to the established EOF gate. That gate still
 validates a supplied partial assignment; it does not infer missing type slots.
