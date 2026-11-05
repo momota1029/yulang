@@ -673,3 +673,25 @@ V_d(f)(argument) = C_d(f(C_opposite(d)(argument)))
 今回の実行時shapeはatom・pair・arrowである。既存の構造型のrecord・variantはこの実行モデルでは空の解釈なので、その実行時表現の衛生変換までを証明済みと数えない。atom・operation payload・responseの内部も不透明のままである。
 
 sourceからshapeと境界・permissionを決めてwrapperを挿入するpass、世界をまたぐ潜在closureの構成、任意の異種operation署名と再帰runtimeとの統合は別の義務として残る。既存の `Expr.boundary` はその場のrequestだけを変換する意味を保つ。Simple-subのbound探索・extrusion・intrusion・generalizationの全体定理も、この高階transportから自動的には従わない。
+
+## 10.18 未知の値型の求解
+
+### 10.18.1 下界の伝播と失敗の完全性
+
+`ValueBounds` は、既存の `StructuralBase.Subtype` に対して未知の値型を実際に構成する。入力は有限個の未知変数と、次の有限個の制約である。
+
+```text
+A ≤ α       α ≤ β       α ≤ U       A ≤ U
+```
+
+`A` と `U` はgroundな有限構造型であり、recordの幅と先頭field優先、variant、union/intersection、関数の反変な入力と共変な出力を含められる。関数の潜在行は別途選んだ行モデルに従う。解となる未知型の候補集合や深さ上限を与える必要はない。
+
+solverは `α ≤ β` を有向辺にし、各変数に到達する下界 `A` のunionを構成する。下界が届かない変数には既存のbottomを使う。worklistの容量は変数数から導き、同じ変数を二度展開しないことにより十分だと証明する。自己循環・相互循環を許し、呼出側のfuelや型サイズの打切りを使わない。構成した割当てを全制約に照合し、成功ならその割当てを返す。
+
+`least_below` は、構成した割当てが、下界と変数間包含を満たす**すべての構造型割当て**以下であることを示す。したがって、何らかの解が上界 `U` を満たせば、構成した最小割当ても上界を満たす。`solve_none_iff` は失敗と解の不在を、`solve_exists_iff` は成功結果の存在と解の存在を同値にする。`solve_some_iff` と `solve_least` が、実際に返された割当ての健全性と最小性を結ぶ。
+
+`ValueBoundSolvers.solveSigned` は符号付き有限行の比較器を内部で選ぶ。`solveSemilinear` は半線形な無限行の有限codeを入力とし、意味的な行の等価性を使う `SemilinearRowQuotient.compareCodes` へ接続する。この後者の失敗定理は、半線形な行で表現できる割当てだけでなく、**任意の集合行を含む有限構造型の割当て**を排除する。任意の解をcode化できると仮定せず、下界から作る最小解の構成とdecodeが可換である `least_mapTypes` を使う。
+
+`ValueBoundExamples` は、相互循環を通る `int` と `str` の合流、矛盾する上界の拒否、下界のない循環、record幅と隠れた重複field、関数の分散、負のeffect差分を消せないこと、無限の潜在行を含む求解を実行して検証する。拒否例は実際の失敗から任意の割当ての不在へ接続する。
+
+ここでの最小割当ては、多相関数の主型とは異なる。一般化すべき変数までbottomで置き換えると、入力と出力の関係や任意の具体化を失う。また、下界のないslotの数学的な最小解がbottomであることから、EOFの未定weak変数をbottomに既定化してよいとは結論しない。constructor内部の未知型、再帰値型、extrusion・intrusion・一般化を含む全Simple-subは、このflatなbound problemとは別の証明義務である。この節は既存の型代数に対する算法の追加であり、新しい言語意味論やdefaulting規則を決めるものではない。

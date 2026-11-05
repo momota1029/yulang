@@ -25,6 +25,17 @@ run_cmd do
   logInfo m!"Axiom allowlist passed for {checked} declarations from Yulang modules"
 
 #print axioms Yulang.RoleVisibility.resolved_mono
+#print axioms Yulang.ValueBounds.least_models_iff
+#print axioms Yulang.ValueBounds.solve_some_iff
+#print axioms Yulang.ValueBounds.solve_none_iff
+#print axioms Yulang.ValueBounds.solve_exists_iff
+#print axioms Yulang.ValueBounds.least_mapRows
+#print axioms Yulang.ValueBoundSolvers.solveSigned_none_iff
+#print axioms Yulang.ValueBoundSolvers.solveSemilinear_none_iff
+#print axioms Yulang.ValueBoundSolvers.solveSemilinear_least
+#print axioms Yulang.ValueBoundSolvers.Examples.conflicting_upper_has_no_assignment
+#print axioms Yulang.ValueBoundSolvers.Examples.hidden_negative_effects_have_no_assignment
+#print axioms Yulang.ValueBoundSolvers.Examples.infinite_row_solution_is_least_among_all_set_rows
 #print axioms Yulang.RoleVisibility.ambiguous_mono
 #print axioms Yulang.RoleVisibility.resolve_congr
 #print axioms Yulang.RoleVisibility.Examples.unrelated_overlap_is_allowed
