@@ -40,9 +40,11 @@ import Yulang.Directed
 import Yulang.DirectedHigherOrder
 import Yulang.DirectedBounds
 import Yulang.FreshBoundaries
+import Yulang.FreshRowInference
 import Yulang.Polymorphism
 import Yulang.RowInference
 import Yulang.RecursiveRows
+import Yulang.RecursiveEffects
 import Yulang.SignedStructural
 import Yulang.DirectedHandlerInference
 import Yulang.Roles

@@ -104,6 +104,8 @@ protect(b, P, release(b, P, v)) = v
 
 新しい境界を明示的に割り当てる場合には、その原点条件を構成できる。`FreshBoundaries` は、既存の座標を単射で大きいinterfaceへ写し、追加した座標だけを0にする。既存の正負すべての重みを保持し、capture、残余、既存境界での保護・解除、shallow handlerの実行と可換である。`liftTree_zeroAt` は任意の元のrequest treeについて新しい座標の `ZeroAt` を導き、`fresh_noncapture` はその座標で既定の保護を付けた計算が内側のhandlerに捕まらないことを証明する。元のtreeの既存座標には負の重みがあってもよい。これは原点条件を仮定から構成へ進める定理であり、sourceの全呼出しへの割当ての挿入や、値の内部のcallbackの変換までを証明したものではない。
 
+`FreshRowInference.eval_mapScopes` は既存の `RowExpr` の全構文について、この座標写像と行評価の可換性を証明する。未知のtailに入る行は任意の符号付き行でよい。`fresh_eval_zero` は新座標の原点条件を推論行の評価から導く。注釈のsnapshotと保存履歴の検査も単射による境界名の変更で不変であり、`emit_reindex` は推論formulaに付けるgateまで保存する。過去の拒否はfresh化で修復されず、後の行変数の具体化では履歴を再検査しない。
+
 ## 10.4 variant の残り
 
 章4.5の決定（2026-11-05）に従い、variant の行は tag ごとに一つの alternative を持ち、同一 tag の payload は union に合流する。`:id int` と `:id str` の合流は `:id (int | str)` である。処理する tag の集合 `H` と、tag が一意な有限行 `R` に対して、残余は
@@ -363,3 +365,13 @@ protect(b, ∅, r) ≤ r
 は重み `0, 1, 2, …` のすべてを `r` に強制する。`Examples.every_weight_derived` と `growing_has_no_finite_model` は任意の有限list解の不在を証明する一方、`growing_has_least_model` は集合解が存在することを示す。保護と解除が対応して相殺するcycleには有限解があり、`balanced_has_finite_model` が同じ核でその例を確認する。cycle自体を一律に拒否する規則は加えない。
 
 この結果は、有限Hornへの翻訳に有限性の根拠が必要なことを明示する。解へのmembershipの決定手続き、再帰行の有限な記号表現、sourceからの制約抽出は未証明であり、この二規則から特定のsourceプログラムの拒否を結論しない。
+
+## 10.11 入れ子のeffect式の制約生成
+
+`RecursiveEffects` は10.5.1の全core構文にrequest・boundary・shallow handlerを加え、すべての部分式を同じ再帰ASTで表す。operationのpayload、lambdaの本体、handlerのactionと両armにも、さらにhandlerやoperationを含められる。10.5.2の一段ごとの生成規則をこの有限ASTへ接続したもので、新しいsurface構文やhandler規則は加えない。
+
+`generate_models_iff_typing` は任意の式、型・行モデル、対応するscheme環境と署名環境について、生成制約の解と独立な型判断を双方向に対応させる。`principal_exact` はすべての許される結果の型・行を表し、`principal_most_general` は健全な候補schemeの解がこの生成schemeの解に含まれることを述べる。生成は式の構造に沿って停止し、solverの成功やruntime上界を前提にしない。解を見つける全体solverの主性・停止性とは別の定理である。
+
+computation引数、値制限付きの多相let、computed letの共有、関数の入力行と出力行の区別は維持する。handlerの継続は元のaction行を保ち、armのeffectは残余を取った後に加える。境界規則は即時のcomputation行に作用し、値内部の潜在callbackを自動で変換する規則にはしない。
+
+この統合層のoperation署名は、外側の型slotを参照できる単相署名である。fresh slotを増やすときは署名中の外側slotもrenameし、利用ごとに勝手に一般化しない。10.5.2のoperation-local多相と10.8のrole証拠は別層に残り、任意の入れ子ASTとの統合は未証明である。再帰SCC、source elaboration、型付けからの実行時安全性も、この生成器の定理だけでは従わない。
