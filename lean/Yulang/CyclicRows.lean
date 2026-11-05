@@ -357,6 +357,46 @@ theorem SeededCycle.solution_least [DecidableEq Key] (source : SeededCycle n Key
   rw [same]
   exact RecursiveRows.least_principal source.problem
 
+/-- Every signed seed occurrence can be introduced from its raw key using a
+finite sequence of the existing protection and release constructors. -/
+def Cycle.asSeeded (cycle : Cycle n Key) : SeededCycle n Key :=
+  ⟨cycle.seed.key, FinitePointGuards.translation cycle.seed.weights, cycle.body⟩
+
+theorem Cycle.asSeeded_initial [DecidableEq Key] (cycle : Cycle n Key) :
+    Program.run cycle.asSeeded.initial (raw cycle.asSeeded.key) = some cycle.seed := by
+  rw [show cycle.asSeeded.initial = FinitePointGuards.translation cycle.seed.weights from rfl,
+    FinitePointGuards.translation_run]
+  congr 1
+  apply Occurrence.ext
+  · rfl
+  intro coordinate
+  simp [translate, raw]
+
+theorem Cycle.asSeeded_solve [DecidableEq Key] (cycle : Cycle n Key) :
+    cycle.asSeeded.solve = some cycle.solution := by
+  unfold SeededCycle.solve
+  rw [cycle.asSeeded_initial]
+  rfl
+
+/-- The exact membership decision also applies directly to the existing finite
+rule problem for an arbitrary signed seed, not just a zero-weight head. -/
+theorem Cycle.check_derives [DecidableEq Key] (cycle : Cycle n Key)
+    (output : Occurrence n Key) :
+    cycle.check output = true ↔ RecursiveRows.Derives cycle.asSeeded.problem () output := by
+  have same : cycle.asSeeded.check output = cycle.check output := by
+    simp only [SeededCycle.check, cycle.asSeeded_solve, Cycle.check]
+  rw [← same]
+  exact cycle.asSeeded.check_exact output
+
+theorem Cycle.solution_least [DecidableEq Key] (cycle : Cycle n Key) :
+    RecursiveRows.IsLeastModel cycle.asSeeded.problem (fun _ => cycle.Holds) := by
+  have same : cycle.asSeeded.Holds = cycle.Holds := by
+    funext output
+    unfold SeededCycle.Holds
+    rw [cycle.asSeeded_solve]
+    rfl
+  simpa only [same] using cycle.asSeeded.solution_least
+
 namespace Examples
 
 def scope : Fin 1 := 0
