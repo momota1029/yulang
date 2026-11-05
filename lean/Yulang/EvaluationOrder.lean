@@ -6,8 +6,10 @@ import Yulang.FiniteReachability
 This is a finite, name-resolved dependency calculus for declarations and module
 statements. Local binders and global declaration identifiers are distinct. A
 global function mentioned in an evaluated position is conservatively invoked,
-even when passed as an argument. Its leading lambda binders are opened when its
-body is followed. Constructing an ordinary lambda does not inspect its body;
+even when passed as an argument. Its summary recursively opens lambdas in result
+positions, including lambdas returned through branches or callee expressions.
+Arguments, conditions, and pair components retain ordinary value demand.
+Constructing an ordinary lambda does not inspect its body;
 syntactically applying a lambda does inspect it, including curried applications.
 
 `Depends` is an independent inductive judgement. The executable checker uses
@@ -81,6 +83,95 @@ theorem references_exact (expression : Expr n) (calls : Nat) (target : Fin n) :
   | pair left right ihleft ihright => simp [Expr.references, Uses, ihleft, ihright]
   | branch condition yes no ihc ihy ihn => simp [Expr.references, Uses, ihc, ihy, ihn, or_assoc]
 
+/-- A named function is conservatively followed through every syntactic result
+lambda, even when a branch returns it. This summary does not propagate closure
+values through local parameters, argument substitution, or pair projection. -/
+def Expr.invokedReferences : Expr n → List (Fin n)
+  | .bound _ | .lit => []
+  | .reference name => [name]
+  | .lam body => body.invokedReferences
+  | .app fn arg => fn.invokedReferences ++ arg.references 0
+  | .pair left right => left.references 0 ++ right.references 0
+  | .branch condition yes no =>
+      condition.references 0 ++ yes.invokedReferences ++ no.invokedReferences
+
+/-- Independent declarative summary for invoking a named declaration. Only
+result positions recurse with invocation demand; other positions use `Uses`. -/
+inductive InvokedUses : Expr n → Fin n → Prop where
+  | reference : InvokedUses (.reference name) name
+  | lam : InvokedUses body target → InvokedUses (.lam body) target
+  | appCallee : InvokedUses fn target → InvokedUses (.app fn arg) target
+  | appArgument : Uses arg 0 target → InvokedUses (.app fn arg) target
+  | pairLeft : Uses left 0 target → InvokedUses (.pair left right) target
+  | pairRight : Uses right 0 target → InvokedUses (.pair left right) target
+  | branchCondition : Uses condition 0 target → InvokedUses (.branch condition yes no) target
+  | branchYes : InvokedUses yes target → InvokedUses (.branch condition yes no) target
+  | branchNo : InvokedUses no target → InvokedUses (.branch condition yes no) target
+
+theorem invokedReferences_exact (expression : Expr n) (target : Fin n) :
+    target ∈ expression.invokedReferences ↔ InvokedUses expression target := by
+  constructor
+  · induction expression with
+    | bound _ => simp [Expr.invokedReferences]
+    | reference name =>
+        simp only [Expr.invokedReferences, List.mem_singleton]
+        intro equality
+        subst target
+        exact .reference
+    | lit => simp [Expr.invokedReferences]
+    | lam body ih => exact fun member => .lam (ih member)
+    | app fn arg ihfn _ =>
+        intro member
+        rcases List.mem_append.mp member with member | member
+        · exact .appCallee (ihfn member)
+        · exact .appArgument ((references_exact _ _ _).mp member)
+    | pair left right _ _ =>
+        intro member
+        rcases List.mem_append.mp member with member | member
+        · exact .pairLeft ((references_exact _ _ _).mp member)
+        · exact .pairRight ((references_exact _ _ _).mp member)
+    | branch condition yes no _ ihyes ihno =>
+        intro member
+        have alternatives : target ∈ condition.references 0 ∨
+            target ∈ yes.invokedReferences ∨ target ∈ no.invokedReferences := by
+          simpa only [Expr.invokedReferences, List.mem_append, or_assoc] using member
+        rcases alternatives with member | member | member
+        · exact .branchCondition ((references_exact _ _ _).mp member)
+        · exact .branchYes (ihyes member)
+        · exact .branchNo (ihno member)
+  · intro use
+    induction use <;> simp_all [Expr.invokedReferences, references_exact]
+
+/-- The invocation summary retains every dependency previously exposed by any
+finite number of syntactic applications; it can additionally open returned
+lambdas for which the named caller's application count is not retained. -/
+theorem InvokedUses.of_uses (expression : Expr n) (calls : Nat) (target : Fin n)
+    (use : Uses expression calls target) : InvokedUses expression target := by
+  induction expression generalizing calls with
+  | bound _ => exact False.elim use
+  | reference name =>
+      have equality : target = name := use
+      subst target
+      exact .reference
+  | lit => exact False.elim use
+  | lam body ih =>
+      cases calls with
+      | zero => exact False.elim use
+      | succ calls => exact .lam (ih calls use)
+  | app fn arg ihfn _ =>
+      rcases use with use | use
+      · exact .appCallee (ihfn _ use)
+      · exact .appArgument use
+  | pair left right _ _ =>
+      rcases use with use | use
+      · exact .pairLeft use
+      · exact .pairRight use
+  | branch condition yes no _ ihyes ihno =>
+      rcases use with (use | use) | use
+      · exact .branchCondition use
+      · exact .branchYes (ihyes _ use)
+      · exact .branchNo (ihno _ use)
+
 structure Program (n : Nat) where
   body : Fin n → Expr n
   position : Fin n → Nat
@@ -89,12 +180,12 @@ def Program.computed (program : Program n) (binding : Fin n) : Bool :=
   !(program.body binding).isValue
 
 def Program.graph (program : Program n) : Adj n :=
-  fun binding => (program.body binding).references (program.body binding).arity
+  fun binding => (program.body binding).invokedReferences
 
 inductive Depends (program : Program n) (root : Expr n) : Fin n → Prop where
   | direct : Uses root 0 target → Depends program root target
   | through : Depends program root source →
-      Uses (program.body source) (program.body source).arity target →
+      InvokedUses (program.body source) target →
       Depends program root target
 
 theorem depends_iff_reach (program : Program n) (root : Expr n) (target : Fin n) :
@@ -103,11 +194,11 @@ theorem depends_iff_reach (program : Program n) (root : Expr n) (target : Fin n)
   · intro dependency
     induction dependency with
     | direct use => exact .seed ((references_exact _ _ _).mpr use)
-    | through _ use ih => exact .step ih ((references_exact _ _ _).mpr use)
+    | through _ use ih => exact .step ih ((invokedReferences_exact _ _).mpr use)
   · intro path
     induction path with
     | seed member => exact .direct ((references_exact _ _ _).mp member)
-    | step _ edge ih => exact .through ih ((references_exact _ _ _).mp edge)
+    | step _ edge ih => exact .through ih ((invokedReferences_exact _ _).mp edge)
 
 def dependencies (program : Program n) (root : Expr n) : Fin n → Bool :=
   closure program.graph (root.references 0)
@@ -226,12 +317,21 @@ theorem applied_lambda_preserves_body_dependency (program : Program n)
   | direct use => exact .direct (Or.inl use)
   | through _ use ih => exact .through ih use
 
-/-- Mentioning a named function as an argument is enough to follow its body. -/
+/-- Mentioning a named function as an argument follows its complete invocation
+summary, including lambdas returned through branch result positions. -/
+theorem passed_function_invoked_dependency (program : Program n) (fn : Expr n)
+    (name target : Fin n)
+    (bodyUse : InvokedUses (program.body name) target) :
+    Depends program (.app fn (.reference name)) target :=
+  .through (.direct (Or.inr rfl)) bodyUse
+
+/-- Compatibility with the previous leading-parameter invocation criterion. -/
 theorem passed_function_dependency (program : Program n) (fn : Expr n)
     (name target : Fin n)
     (bodyUse : Uses (program.body name) (program.body name).arity target) :
     Depends program (.app fn (.reference name)) target :=
-  .through (.direct (Or.inr rfl)) bodyUse
+  passed_function_invoked_dependency program fn name target
+    (InvokedUses.of_uses _ _ _ bodyUse)
 
 namespace Examples
 
@@ -259,6 +359,29 @@ theorem inline_lambda_application_rejected :
 
 theorem curried_inline_lambda_application_rejected :
     checkAt forward 1 (.app (.app (.lam (.lam (.reference 2))) .lit) .lit) = false := by decide
+
+/-- `factory x = if c then (\y -> late) else (\y -> late)` followed by
+`k = factory () (); late = compute ()`. Following only leading lambdas misses
+`late`, because the branch interrupts the syntactic parameter list. -/
+def returnedFactory : Program 3 where
+  body
+    | 0 => .lam (.branch .lit (.lam (.reference 2)) (.lam (.reference 2)))
+    | 1 => .app (.app (.reference 0) .lit) .lit
+    | _ => .app (.lam .lit) .lit
+  position := Fin.val
+
+theorem returned_lambda_before_initialization_rejected :
+    check returnedFactory [] = false := by decide
+
+theorem passing_returned_lambda_factory_rejected :
+    checkAt returnedFactory 1 (.app (.lam .lit) (.reference 0)) = false := by decide
+
+theorem returned_lambda_after_initialization_accepted :
+    checkAt returnedFactory 3 (.app (.app (.reference 0) .lit) .lit) = true := by decide
+
+theorem wrapping_returned_lambda_factory_delays_dependency :
+    checkAt returnedFactory 1 (.lam (.app (.app (.reference 0) .lit) .lit)) = true :=
+  checkAt_lambda _ _ _
 
 def delayed : Program 3 where
   body
