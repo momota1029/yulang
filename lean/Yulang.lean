@@ -42,6 +42,7 @@ import Yulang.DirectedBounds
 import Yulang.FreshBoundaries
 import Yulang.Polymorphism
 import Yulang.RowInference
+import Yulang.RecursiveRows
 import Yulang.SignedStructural
 import Yulang.DirectedHandlerInference
 import Yulang.Roles
