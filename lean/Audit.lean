@@ -203,6 +203,14 @@ run_cmd do
 #print axioms Yulang.CyclicRowDecisions.checkSubset_exact
 #print axioms Yulang.CyclicRowDecisions.checkSubset_rejects
 #print axioms Yulang.CyclicRowDecisions.checkEqual_set_exact
+#print axioms Yulang.RecursiveRowDisplay.AsRow.unfold_set
+#print axioms Yulang.RecursiveRowDisplay.AsRow.least
+#print axioms Yulang.RecursiveRowDisplay.AsRow.ofProblem_exact
+#print axioms Yulang.RecursiveRowDisplay.AsRow.ofProblem_least
+#print axioms Yulang.RecursiveRowDisplay.Display.check_exact
+#print axioms Yulang.RecursiveRowDisplay.Display.checkSubset_exact
+#print axioms Yulang.RecursiveRowDisplay.Display.checkEqual_exact
+#print axioms Yulang.RecursiveRowDisplay.Examples.noSeed_empty
 #print axioms Yulang.InfiniteOperationalCorrespondence.erasure_typing_sound
 #print axioms Yulang.InfiniteOperationalCorrespondence.principal_operationally_valid
 #print axioms Yulang.InfiniteOperationalCorrespondence.principal_effect_bound

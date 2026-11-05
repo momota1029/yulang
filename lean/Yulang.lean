@@ -53,6 +53,7 @@ import Yulang.SymbolicRows
 import Yulang.SegmentDecisions
 import Yulang.CyclicRows
 import Yulang.CyclicRowDecisions
+import Yulang.RecursiveRowDisplay
 import Yulang.RecursiveEffects
 import Yulang.RecursiveEffectExamples
 import Yulang.RecursiveEffectsConservativity

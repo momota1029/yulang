@@ -478,4 +478,14 @@ wrap(body, r) ≤ r
 
 任意の分岐と複数cycleが相互作用する有限問題については、最小解の所属決定、有限な半線形表示の構成、その表示間の包含・等価性の決定は未証明である。10.13.5の一つの反復programへの制限を、言語の制限やそれ以外の問題の拒否規則にはしない。10.3.2で確定した無限最小解の許容は、すべての問題についてそのまま保つ。
 
-禁止点を除いた整数vector addition systemの到達集合には、有効なPresburger表示がある（[Haase–Halfon, 2014, Corollary 10](https://lsv.ens-paris-saclay.fr/Publis/PAPERS/PDF/HH-rp14.pdf)）。その結果から、禁止点を保持する本問題の結論をそのまま導くことはできない。`guarded_graph_exact` により、必要なのは有限禁止点付き整数平行移動graphについての対応する到達定理である。ここでは一般の決定不能性も主張しない。無限解のsource表示も引き続き未決であり、新たな記法を確定しない。
+禁止点を除いた整数vector addition systemの到達集合には、有効なPresburger表示がある（[Haase–Halfon, 2014, Corollary 10](https://lsv.ens-paris-saclay.fr/Publis/PAPERS/PDF/HH-rp14.pdf)）。その結果から、禁止点を保持する本問題の結論をそのまま導くことはできない。`guarded_graph_exact` により、必要なのは有限禁止点付き整数平行移動graphについての対応する到達定理である。ここでは一般の決定不能性も主張しない。推論された無限行の再帰表示には7.3bで確定した `as` を使う。複数の相互再帰変数の具体的な表記は引き続き未決である。
+
+### 10.13.7 推論表示の `as` と最小解
+
+7.3bと2026-11-05の確定事項28に従い、`RecursiveRowDisplay.AsRow` は単一の行変数を束縛する有限の `RowExpr` 本体を持つ。その意味は既存の `RecursiveRows.Derives` による最小解である。`unfold_set` は展開・折り畳みで集合行が変わらないことを、`least` は任意の前固定点に含まれることを証明する。自己参照だけでseedのない本体は空の最小解となり、任意の固定点を勝手に選ばない。
+
+`AsRow.ofProblem` はslotが一つの任意の有限問題について、すべての下限を有限unionにまとめる。`ofProblem_exact` と `ofProblem_least` は、得られたbinderが元の問題の最小解を正確に表すことを示す。元の問題は分岐や複数cycleを含んでよい。ただしこの有限な再帰表示を構成することから、所属・包含の決定手続きは導かない。
+
+`Display.render` は既に確定した一つの境界を意味情報として持ち、`[k, 'e] as 'e`、`[k, 'e?] as 'e`、`[io, 'e[io]] as 'e` の形を出力する。default tailは保護、`?` は解除、maskに含まれるkeyはその境界で移動しない。数値重みを表示に持ち出さない。`Display.check_exact`・`checkSubset_exact`・`checkEqual_exact` は、この一stepのcycleの表示payloadについて、既存のcycle solverと展開後の意味の所属・包含・等価性が一致することを示す。
+
+名前の変更は意味を変えない。この層は推論結果の表示payloadを扱い、型注釈の構文を追加しない。文字列のparse/roundtrip、複数の境界をまたぐ一般本体の整形、相互再帰する複数変数の表記は対象外である。
