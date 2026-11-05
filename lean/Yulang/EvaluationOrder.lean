@@ -17,12 +17,11 @@ finite graph closure and is exact for that judgement. Acceptance requires every
 reached computed declaration to precede the evaluation site strictly. There is
 no depth cutoff, topological reordering, or acyclicity assumption on functions.
 
-The result is an initialization-order theorem for this dependency calculus,
-not an operational safety theorem for arbitrary higher-order source programs.
-Source name resolution, local closure/alias flow, effects performed by callbacks,
-and evaluation of stored functions must be related to this calculus separately.
-In particular, a delayed lambda is a value, not a proof that a caller will never
-invoke it. The checker must not be used as a substitute for that elaboration.
+This is the direct dependency layer. `EvaluationSafety` adds decision 23's
+module-wide unnamed-call fallback, and `EvaluationReads` proves that strengthened
+checker contains actual closure/argument/stored-pair read prefixes. Initialization
+uses both checks. Source name resolution and elaboration are still separate;
+constructing a delayed lambda is not a proof that a caller will never invoke it.
 -/
 
 namespace Yulang.EvaluationOrder
@@ -33,16 +32,19 @@ inductive Expr (n : Nat) where
   | bound : Nat → Expr n
   | reference : Fin n → Expr n
   | lit : Expr n
+  | bool : Bool → Expr n
   | lam : Expr n → Expr n
   | app : Expr n → Expr n → Expr n
   | pair : Expr n → Expr n → Expr n
+  | fst : Expr n → Expr n
+  | snd : Expr n → Expr n
   | branch : Expr n → Expr n → Expr n → Expr n
   deriving DecidableEq, Repr
 
 def Expr.isValue : Expr n → Bool
-  | .bound _ | .reference _ | .lit | .lam _ => true
+  | .bound _ | .reference _ | .lit | .bool _ | .lam _ => true
   | .pair left right => left.isValue && right.isValue
-  | .app _ _ | .branch _ _ _ => false
+  | .app _ _ | .fst _ | .snd _ | .branch _ _ _ => false
 
 /-- The complete syntactic parameter list of a named function. -/
 def Expr.arity : Expr n → Nat
@@ -52,23 +54,25 @@ def Expr.arity : Expr n → Nat
 /-- `calls` opens only lambdas immediately demanded by enclosing applications.
 Named global functions are followed separately by the dependency graph. -/
 def Expr.references : Expr n → Nat → List (Fin n)
-  | .bound _, _ | .lit, _ => []
+  | .bound _, _ | .lit, _ | .bool _, _ => []
   | .reference name, _ => [name]
   | .lam _, 0 => []
   | .lam body, calls + 1 => body.references calls
   | .app fn arg, calls => fn.references (calls + 1) ++ arg.references 0
   | .pair left right, _ => left.references 0 ++ right.references 0
+  | .fst operand, _ | .snd operand, _ => operand.references 0
   | .branch condition yes no, calls =>
       condition.references 0 ++ yes.references calls ++ no.references calls
 
 /-- A syntax-directed relation, without lists or the graph algorithm. -/
 def Uses : Expr n → Nat → Fin n → Prop
-  | .bound _, _, _ | .lit, _, _ => False
+  | .bound _, _, _ | .lit, _, _ | .bool _, _, _ => False
   | .reference name, _, target => target = name
   | .lam _, 0, _ => False
   | .lam body, calls + 1, target => Uses body calls target
   | .app fn arg, calls, target => Uses fn (calls + 1) target ∨ Uses arg 0 target
   | .pair left right, _, target => Uses left 0 target ∨ Uses right 0 target
+  | .fst pair, _, target | .snd pair, _, target => Uses pair 0 target
   | .branch condition yes no, calls, target =>
       (Uses condition 0 target ∨ Uses yes calls target) ∨ Uses no calls target
 
@@ -78,20 +82,23 @@ theorem references_exact (expression : Expr n) (calls : Nat) (target : Fin n) :
   | bound _ => simp [Expr.references, Uses]
   | reference _ => simp [Expr.references, Uses]
   | lit => simp [Expr.references, Uses]
+  | bool _ => simp [Expr.references, Uses]
   | lam body ih => cases calls <;> simp [Expr.references, Uses, ih]
   | app fn arg ihfn iharg => simp [Expr.references, Uses, ihfn, iharg]
   | pair left right ihleft ihright => simp [Expr.references, Uses, ihleft, ihright]
+  | fst pair ih | snd pair ih => simp [Expr.references, Uses, ih]
   | branch condition yes no ihc ihy ihn => simp [Expr.references, Uses, ihc, ihy, ihn, or_assoc]
 
 /-- A named function is conservatively followed through every syntactic result
 lambda, even when a branch returns it. This summary does not propagate closure
 values through local parameters, argument substitution, or pair projection. -/
 def Expr.invokedReferences : Expr n → List (Fin n)
-  | .bound _ | .lit => []
+  | .bound _ | .lit | .bool _ => []
   | .reference name => [name]
   | .lam body => body.invokedReferences
   | .app fn arg => fn.invokedReferences ++ arg.references 0
   | .pair left right => left.references 0 ++ right.references 0
+  | .fst operand | .snd operand => operand.references 0
   | .branch condition yes no =>
       condition.references 0 ++ yes.invokedReferences ++ no.invokedReferences
 
@@ -104,6 +111,8 @@ inductive InvokedUses : Expr n → Fin n → Prop where
   | appArgument : Uses arg 0 target → InvokedUses (.app fn arg) target
   | pairLeft : Uses left 0 target → InvokedUses (.pair left right) target
   | pairRight : Uses right 0 target → InvokedUses (.pair left right) target
+  | fst : Uses pair 0 target → InvokedUses (.fst pair) target
+  | snd : Uses pair 0 target → InvokedUses (.snd pair) target
   | branchCondition : Uses condition 0 target → InvokedUses (.branch condition yes no) target
   | branchYes : InvokedUses yes target → InvokedUses (.branch condition yes no) target
   | branchNo : InvokedUses no target → InvokedUses (.branch condition yes no) target
@@ -119,6 +128,7 @@ theorem invokedReferences_exact (expression : Expr n) (target : Fin n) :
         subst target
         exact .reference
     | lit => simp [Expr.invokedReferences]
+    | bool _ => simp [Expr.invokedReferences]
     | lam body ih => exact fun member => .lam (ih member)
     | app fn arg ihfn _ =>
         intro member
@@ -130,6 +140,8 @@ theorem invokedReferences_exact (expression : Expr n) (target : Fin n) :
         rcases List.mem_append.mp member with member | member
         · exact .pairLeft ((references_exact _ _ _).mp member)
         · exact .pairRight ((references_exact _ _ _).mp member)
+    | fst pair _ => exact fun member => .fst ((references_exact _ _ _).mp member)
+    | snd pair _ => exact fun member => .snd ((references_exact _ _ _).mp member)
     | branch condition yes no _ ihyes ihno =>
         intro member
         have alternatives : target ∈ condition.references 0 ∨
@@ -154,6 +166,7 @@ theorem InvokedUses.of_uses (expression : Expr n) (calls : Nat) (target : Fin n)
       subst target
       exact .reference
   | lit => exact False.elim use
+  | bool _ => exact False.elim use
   | lam body ih =>
       cases calls with
       | zero => exact False.elim use
@@ -166,6 +179,8 @@ theorem InvokedUses.of_uses (expression : Expr n) (calls : Nat) (target : Fin n)
       rcases use with use | use
       · exact .pairLeft use
       · exact .pairRight use
+  | fst pair _ => exact .fst use
+  | snd pair _ => exact .snd use
   | branch condition yes no _ ihyes ihno =>
       rcases use with (use | use) | use
       · exact .branchCondition use

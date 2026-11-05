@@ -1,4 +1,4 @@
-import Yulang.EvaluationOrder
+import Yulang.EvaluationReads
 import Yulang.RecursiveInference
 
 /-!
@@ -14,10 +14,12 @@ conjoins the separately decidable initialization-order policy. Thus a computed
 cycle is rejected even if the simultaneous type constraints have a solution.
 There is no premise asserting successful type inference or absence of a cycle.
 
-This is the dependency syntax fragment (unit literal, local/global reference,
-lambda, application, pair, branch). Module statements contribute dependency
-checks here; their result typing belongs to the subsequent expression checker.
-This is not source name resolution or an operational callback-flow theorem.
+This is the dependency syntax fragment (unit/Boolean literal, local/global
+reference, lambda, application, pair/projection, branch). Module statements
+contribute dependency checks here; their result typing belongs to the subsequent
+expression checker.
+The strengthened check is connected to operational read-prefix soundness in
+`EvaluationReads`; source name resolution/elaboration remains separate.
 -/
 
 namespace Yulang.Initialization
@@ -27,9 +29,10 @@ open RecursiveInference
 
 def wellScoped : EvaluationOrder.Expr n → Nat → Bool
   | .bound index, depth => decide (index < depth)
-  | .reference _, _ | .lit, _ => true
+  | .reference _, _ | .lit, _ | .bool _, _ => true
   | .lam body, depth => wellScoped body (depth + 1)
   | .app fn arg, depth | .pair fn arg, depth => wellScoped fn depth && wellScoped arg depth
+  | .fst pair, depth | .snd pair, depth => wellScoped pair depth
   | .branch condition yes no, depth =>
       wellScoped condition depth && wellScoped yes depth && wellScoped no depth
 
@@ -37,16 +40,20 @@ def toCore : EvaluationOrder.Expr n → Nat → Inference.Expr
   | .bound index, _ => .var index
   | .reference name, depth => .var (depth + name.val)
   | .lit, _ => .lit .unit
+  | .bool _, _ => .lit .bool
   | .lam body, depth => .lam (toCore body (depth + 1))
   | .app fn arg, depth => .app (toCore fn depth) (toCore arg depth)
   | .pair left right, depth => .pair (toCore left depth) (toCore right depth)
+  | .fst pair, depth => .fst (toCore pair depth)
+  | .snd pair, depth => .snd (toCore pair depth)
   | .branch condition yes no, depth =>
       .branch (toCore condition depth) (toCore yes depth) (toCore no depth)
 
 theorem value_restriction_agrees (expression : EvaluationOrder.Expr n) (depth : Nat) :
     (toCore expression depth).isValue = expression.isValue := by
   induction expression generalizing depth with
-  | bound _ | reference _ | lit | lam _ _ | app _ _ _ _ | branch _ _ _ _ _ _ => rfl
+  | bound _ | reference _ | lit | bool _ | lam _ _ | app _ _ _ _ | fst _ _ | snd _ _ => rfl
+  | branch _ _ _ _ _ _ => rfl
   | pair left right ihl ihr => simp [toCore, Expr.isValue, EvaluationOrder.Expr.isValue, ihl, ihr]
 
 theorem local_index_cannot_capture_member (index depth : Nat)
@@ -70,7 +77,8 @@ theorem computed_agrees (program : EvaluationOrder.Program n) (name : Fin n) :
 
 def generate (Γ : SchemeEnv α) (program : EvaluationOrder.Program n)
     (statements : List (EvaluationOrder.Statement n)) : Constraint α :=
-  if allScoped program statements && EvaluationOrder.check program statements then
+  if allScoped program statements && EvaluationOrder.check program statements &&
+      EvaluationSafety.check ⟨program, statements⟩ then
     inferUnannotatedSCC Γ (bodies program)
   else .core .bot
 
@@ -78,6 +86,7 @@ def generate (Γ : SchemeEnv α) (program : EvaluationOrder.Program n)
 def Checked (m : Model) (Γ : List (Binding m)) (ρ : α → Comp m)
     (program : EvaluationOrder.Program n) (statements : List (EvaluationOrder.Statement n)) : Prop :=
   allScoped program statements = true ∧ EvaluationOrder.Ordered program statements ∧
+    EvaluationSafety.Ordered ⟨program, statements⟩ ∧
     ∃ slots, SCCTyping m Γ (manyEnv ρ slots) (unannotatedMembers (bodies program))
 
 theorem generate_exact (m : Model) (ρ : α → Comp m) (sΓ : SchemeEnv α)
@@ -87,8 +96,9 @@ theorem generate_exact (m : Model) (ρ : α → Comp m) (sΓ : SchemeEnv α)
   have typeExact := inferUnannotatedSCC_exact m ρ sΓ Γ environment (bodies program)
   cases scopeCheck : allScoped program statements <;>
     cases orderCheck : EvaluationOrder.check program statements <;>
-    simp [generate, scopeCheck, orderCheck, Constraint.Holds, Formula.Holds, Checked,
-      ← EvaluationOrder.check_exact, typeExact]
+    cases safetyCheck : EvaluationSafety.check ⟨program, statements⟩ <;>
+    simp [generate, scopeCheck, orderCheck, safetyCheck, Constraint.Holds, Formula.Holds, Checked,
+      ← EvaluationOrder.check_exact, ← EvaluationSafety.check_exact, typeExact]
 
 theorem order_failure_rejects (m : Model) (ρ : α → Comp m) (Γ : SchemeEnv α)
     (program : EvaluationOrder.Program n) (statements : List (EvaluationOrder.Statement n))
@@ -115,6 +125,51 @@ theorem generated_initializers_use_earlier_values (m : Model) (ρ : α → Comp 
     program.position target < program.position source := by
   have checked := (generate_exact m ρ sΓ Γ environment program statements).mp solution
   exact checked.2.1.1 source sourceComputed target dependency targetComputed
+
+/-- This follows from the generator's guard for every model and assignment; no
+source typing or operational-safety premise is hidden in the implication. -/
+theorem generated_operational_check (m : Model) (ρ : α → Comp m) (Γ : SchemeEnv α)
+    (program : EvaluationOrder.Program n) (statements : List (EvaluationOrder.Statement n))
+    (solution : (generate Γ program statements).Holds m ρ) :
+    EvaluationSafety.check ⟨program, statements⟩ = true := by
+  cases checked : EvaluationSafety.check ⟨program, statements⟩ with
+  | true => rfl
+  | false => simp [generate, checked, Constraint.Holds, Formula.Holds] at solution
+
+theorem generated_initializer_read_earlier (m : Model) (ρ : α → Comp m) (Γ : SchemeEnv α)
+    (program : EvaluationOrder.Program n) (statements : List (EvaluationOrder.Statement n))
+    (solution : (generate Γ program statements).Holds m ρ)
+    (store : EvaluationSafety.Store n)
+    (closedStore : EvaluationSafety.ClosedStore ⟨program, statements⟩ store)
+    (source target : Fin n) (computed : program.computed source = true)
+    (event : EvaluationSafety.Reads program store [] (program.body source) target) :
+    program.position target < program.position source :=
+  EvaluationSafety.accepted_initializer_read_earlier ⟨program, statements⟩ store closedStore
+    (generated_operational_check m ρ Γ program statements solution) source computed event
+
+theorem generated_statement_read_earlier (m : Model) (ρ : α → Comp m) (Γ : SchemeEnv α)
+    (program : EvaluationOrder.Program n) (statements : List (EvaluationOrder.Statement n))
+    (solution : (generate Γ program statements).Holds m ρ)
+    (store : EvaluationSafety.Store n)
+    (closedStore : EvaluationSafety.ClosedStore ⟨program, statements⟩ store)
+    (statement : EvaluationOrder.Statement n) (present : statement ∈ statements) (target : Fin n)
+    (event : EvaluationSafety.Reads program store [] statement.expression target) :
+    program.position target < statement.position :=
+  EvaluationSafety.accepted_statement_read_earlier ⟨program, statements⟩ store closedStore
+    (generated_operational_check m ρ Γ program statements solution) statement present event
+
+/-- The operational invariants are derived from the actual completed prefix;
+this theorem assumes neither read coverage nor availability of the current read. -/
+theorem generated_prefix_initializer_read_initialized (m : Model) (ρ : α → Comp m) (Γ : SchemeEnv α)
+    (program : EvaluationOrder.Program n) (statements : List (EvaluationOrder.Statement n))
+    (solution : (generate Γ program statements).Holds m ρ)
+    (store : EvaluationSafety.Store n) (source target : Fin n)
+    (completed : EvaluationSafety.EvaluatedPrefix ⟨program, statements⟩ (program.position source) store)
+    (computed : program.computed source = true)
+    (event : EvaluationSafety.Reads program store [] (program.body source) target) :
+    ∃ value, store target = some value :=
+  EvaluationSafety.accepted_prefix_initializer_read_initialized ⟨program, statements⟩ store source completed
+    (generated_operational_check m ρ Γ program statements solution) computed event
 
 namespace Examples
 
