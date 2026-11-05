@@ -205,8 +205,10 @@ theorem Cycle.inclusive_prefix [DecidableEq Key] (cycle : Cycle n Key) (last : N
     cycle.Holds output ↔ ∃ count, count ≤ last ∧ cycle.ray.point count = output := by
   simp [Cycle.Holds, Cycle.solution, SymbolicRows.Segment.Holds, SymbolicRows.Allows, blocked]
 
-/-- Membership needs at most one candidate per boundary coordinate and zero.
-It does not enumerate the cycle up to the obstruction or the queried weight. -/
+/-- Once the segment is computed, membership uses at most one candidate per
+boundary coordinate and zero. Segment construction separately checks the finite
+candidate list for every excluded input. Neither phase unfolds the cycle up to
+the obstruction or the queried weight. -/
 def Cycle.check [DecidableEq Key] (cycle : Cycle n Key) (output : Occurrence n Key) : Bool :=
   cycle.solution.check output
 
