@@ -12,6 +12,22 @@ lake env lean --trust=0 Audit.lean
 
 ## 実際に型を求める入口
 
+**`SourcePrincipalInference.infer` は、元の閉じた `Inference.Expr` から主型スキームを計算する。** 元のprincipal formulaの生成、存在変数とletの選択肢の正規化、共有graphへの変換、値型と行の求解、正則再帰型スキームの構成を実行する。型graph、途中の型、行の割当て、制約の解、成功cache、fuelを呼出側から渡さない。
+
+record構築を含まない既存の核について、推論が対応範囲外にならないことも証明した。lambda・application・値制限付き多相let・分岐・pair・fst/snd・field access・variant・空record・literal・変数を含む。`recordFree_instances_exact` は、計算結果の自由な型・行parameterによる**全instance**と、元の独立な `Inference.Typing` の全結果を一致させる。`recordFree_rejected_iff` は拒否と型付け不存在の同値で、成功やモデル存在を前提にしない。`recordFree_principal_formula_exact` は元のprincipal formulaそのものへ接続する。
+
+```sh
+lake env lean --trust=0 --run RunSourceInference.lean
+```
+
+実行例は元の式から、恒等関数、`any` を入力に持つ定数関数のinstance、自己適用、関数適用、多相letと単相引数の違い、構造型、拒否と未対応の区別を確認する。`SourceInferenceExamples` は計算されたschemeの全instanceが、それぞれ `A ! R -> A ! R`、`any ! R -> int ! ∅` の族と一致することを別途証明する。ここで `! R` は説明用のcomputation行の記法であり、surface構文ではない。定数関数でも未使用引数の行 `R` は自由なまま残る。
+
+`SignedSourceInference` は同じ定理を既存の `RecursiveRows.SetRow` に具体化する。自由な行には保護済みの出現、負の差分、無限supportを含められ、行の深さや重みを打ち切らない。行のempty・join・包含は既存モデルと同じで、`rowView` のdecodeは恒等写像である。これはcore式の推論を符号付き行モデルで解釈する定理であり、operation・handler・protect/releaseを持つ全effect式を、この入口で求解したという主張ではない。
+
+戻り値は `unsupported`・`rejected`・`inferred alternatives` を区別する。成功した全let alternativeを保持し、型矛盾と証明されたalternativeだけを除く。一つでも未対応のalternativeがあれば、全体を未対応とする。record構築の境界と全言語へ残る接続は [10.25–10.26](../spec/10-inference-core.md#1025-record-tailの意味論上の境界) にまとめる。sourceは核のASTであり、parserからのelaborationや表示文字列の正しさを含まない。
+
+## 個別のsolverと従来の入口
+
 `ValueInference.solve` は既存の核の式を受け取り、変数・リテラル・分岐・let・pair・variantの型を構成する。途中の型や生成制約の解を引数として渡さない。分岐では `ValueBounds.solve` が結果の未知型を解く。評価時のeffectは空で、入力環境の既知値型には符号付きの潜在effectを含められる。
 
 次の実行例は、実際のsolverを呼び、想定と違う結果なら失敗する。
@@ -38,7 +54,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 
 元の型項からは **`TypeConstraintInference.infer`** が、`TyTerm (Fin n)` の不等式列を共有node graphへ変換し、同じsolverからregular schemeを構成する。`infer_correct` は実際の呼出しについて、未対応・解なし・推論成功の三分岐を証明する。対応範囲では `infer_models_exact` が元の全割当てと自由parameterによる全具体化を一致させ、`infer_instances_exact` が任意の出力slotの全instanceを一致させる。行の割当ては、この入口では固定される。型のconstructorと再帰blockは `RegularInferenceModel` の一つの型carrierに収まる。
 
-行には `RowFlowSchemes` と `NestedRowRequirements.solveRows` を追加した。後者はshapeの飽和で必要になる全arrow行比較を回収し、明示された行制約と合わせて共有parameterの行schemeを求める。関数入力の行比較は反変方向のままである。値型・行の未知数の番号を保つsource clauseの分割は `ConstraintProblems.closed_source_problems_exact` で元の型判断に接続する。この段階では、それらを統合した全source入口とは区別する。
+行には `RowFlowSchemes` と `NestedRowRequirements.solveRows` を追加した。後者はshapeの飽和で必要になる全arrow行比較を回収し、明示された行制約と合わせて共有parameterの行schemeを求める。関数入力の行比較は反変方向のままである。値型・行の未知数の番号を保つsource clauseの分割は `ConstraintProblems.closed_source_problems_exact` で元の型判断に接続する。値型との統合は `JointConstraintInference`、元の式への接続は上の `SourcePrincipalInference` が担う。
 
 一般recordの境界は反例として検証した。`RecordTailBoundary` は、空recordと相互部分型であるtailに置き換えても、現行reference algebraではrecord全体が同値にならないことを示す。実際の閉record literalのprincipal instanceが失われるため、未知tailをproper spineへ暗黙に正規化しない。意味論上の選択肢と証明範囲は [10.25](../spec/10-inference-core.md#1025-record-tailの意味論上の境界) に記す。
 
@@ -110,6 +126,10 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.RowFlowSchemes` / `Yulang.NestedRowRequirements` / `Yulang.TypeConstraintRowInstantiation` | core行の共有parameter scheme、shape飽和と行代入の可換性、全arrow行obligationの求解、元の行モデルの回復 | operation head・protect/release・residualを含む一般RowExprの制約消去 |
 | `Yulang.ConstraintProblems` | 型・行の同一slotを保つclause分割、元Typingのsubsumption、全閉式から計算した問題のinstanceとの同値 | 各問題の求解や全構文の対応判定 |
 | `Yulang.RecordTailBoundary` | 同値tailの置換がrecordの同値を保たない反例、元principalの全instanceをproper spine一つで表せないこと | 一般solverの不可能性、意図されたrecordモデルの決定 |
+| `Yulang.JointConstraintInference` | 元の型・行制約から共有parameterのregular schemeを計算、全値型・行モデルおよび全出力instanceの一致、対応範囲での失敗の完全性 | right-join等の非対応行制約、一般のRowExpr求解 |
+| `Yulang.SourceConstraintSupport` / `Yulang.SourcePrincipalInference` | record構築以外の全既存Exprが対応範囲内である証明、元の式からの実際の推論、計算された全scheme instanceと元Typing/principalの一致、拒否と型付け不存在の同値 | record構築、surface elaboration、effect operation/handler・SCC・T3・role/castとの統合 |
+| `Yulang.SourceInferenceExamples` | 恒等関数の型・行共有、定数関数の負位置のany化と自由な入力行、実際のsource推論結果とcanonical familyの全instance一致 | 返り値blockの構文的な表示簡約 |
+| `Yulang.SignedSourceInference` | 上のsource主型定理を無限・符号付き集合行へ具体化、既存effect algebraとの恒等RowView | protect/release/residual制約を生成する全effect ASTの同時求解 |
 | `Yulang.ValueInference` / `Yulang.ValueInferenceExamples` | 既存Exprのvar/lit/branch/letE/pair/variantから型を構成し、元のTyping・principal formulaとの成功時の主性と失敗の完全性を証明、値letの両経路、未対応との区別 | 評価時effectを持つ式、一般のlambda/application、SCC、variantのtag合流・case残余、parserからのelaboration、表示の完全な標準形 |
 | `Yulang.SemilinearNormalization` / `Yulang.SemilinearFastInclusion` | 零・重複周期と同じ成分の除去の意味保存、単一周期への全座標を使う正確な所属判定、健全な包含の高速成功と完全なNFA判定へのfallback、最適化前後のBoolean結果の一致 | 全半線形集合の最小正規形、異なる成分の共同被覆を一成分比較だけで判定すること、一般の多項式時間 |
 | `Yulang.SemilinearRowAlgebra` | 有限key支持と無限の整数重み集合を持つ行の包含・等価性、重複keyの和と欠けたkeyの空解釈、既存SetRow代数との一致、その行を潜在行とする有限ground構造型の比較 | 未知型変数・再帰値型の求解、元のrow制約からの解抽出は別層 |

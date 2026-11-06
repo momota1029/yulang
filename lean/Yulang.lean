@@ -153,5 +153,11 @@ import Yulang.NestedRowRequirements
 import Yulang.TypeConstraintRowInstantiation
 import Yulang.ConstraintProblems
 import Yulang.RecordTailBoundary
+import Yulang.JointConstraintInference
+import Yulang.JointConstraintInferenceExamples
+import Yulang.SourceConstraintSupport
+import Yulang.SourcePrincipalInference
+import Yulang.SourceInferenceExamples
+import Yulang.SignedSourceInference
 import Yulang.ValueInference
 import Yulang.ValueInferenceExamples

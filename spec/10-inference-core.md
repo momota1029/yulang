@@ -844,7 +844,7 @@ solverはnode対のcacheを増やす。constructor比較を子の比較へ分解
 
 `solveRows_models_exact_eq` は行包含の反対称性を明示した上で、元の行割当てをschemeから等号で回復する。これは集合行のような反対称なcarrierに適用できる。listの重複・順序まで同一になるという主張ではない。`TypeConstraintRowInstantiation.compile_instantiate` により、symbolicなcompiler出力に行を代入すると、最初からその行割当てでコンパイルした出力と一致する。
 
-`ConstraintProblems.split` は正規化されたclauseから型制約と行制約の列を取り出す。値型と行は元と同じslot番号を共有する。`closed_source_problems_exact` は、計算したいずれかの問題の出力instanceが、元の閉式の `Typing` と同値であることを示す。型判断のsubsumptionにはcaptured polymorphic bindingも含める。この分割・行scheme・固定行での型solverを統合した入口は別途必要である。
+`ConstraintProblems.split` は正規化されたclauseから型制約と行制約の列を取り出す。値型と行は元と同じslot番号を共有する。`closed_source_problems_exact` は、計算したいずれかの問題の出力instanceが、元の閉式の `Typing` と同値であることを示す。型判断のsubsumptionにはcaptured polymorphic bindingも含める。この分割・行scheme・固定行での型solverの統合は10.26で扱う。
 
 この行schemeの構文は `RowTerm` であり、operation head、保護、解除、handler residualを持つ一般の `RowExpr` の全解を消去したとは主張しない。既存の衛生性、負の差分、無限集合行の意味を変更しない。
 
@@ -865,3 +865,50 @@ tailの `{} | never` と `{}` は相互部分型だが、前者は構文的なre
 `no_record_spine_represents_principal` は、特定の `P` に限らず、どのproper spine一つの上方閉包でもこのliteralの全instanceを表せないことを示す。これは制約式のprincipalityや一般solverの存在を否定するものではない。未知tailを同値なproper spineへ置換するだけでは、現在の意味を保存できないという境界である。
 
 選択肢は、現在のraw tailを区別する意味論を保ってsolverを拡張すること、または許されるtailについてrecordの合同性を持つモデルを明示的に定めることである。後者ではchecker・cut elimination・compilerの接続もそのモデルについて再証明する必要がある。`Typing.record` に構文条件を加えて既存instanceを落とす変更や、旧モデルの単なる商を意味保存として扱う変更は行わない。
+
+## 10.26 元の核の式からの主型推論の完成範囲
+
+### 10.26.1 型と行を同時に解く
+
+`JointConstraintInference.infer` は元の型・行不等式の対を入力にし、symbolicな型graphと行schemeを構成する。計算は具体的なrow carrierや意味論上の包含checkerに依存しない。結果の `Scheme` はsymbolic graph、飽和cache、入力参照、自由なrow式を保持する。具体化は任意の自由row parameterと任意のregular value parameterを受け取り、元の制約を再検査せずに型・行の割当てを構成する。
+
+`infer_models_exact` は、反対称なrow join algebraについて、元の全型・行モデルと計算したschemeの全具体化を一致させる。元のrow割当てを等号で回復してから、同じrowsの下で値型のモデルを回復するので、入出力の型・行の相関を失わない。証明に使うclassicalなrow checkerは証明内部だけにあり、実際の `infer` や `Scheme.instantiate` はそれを呼ばない。
+
+### 10.26.2 元の式からの実行と全instanceの一致
+
+`SourcePrincipalInference.infer` は既存の閉じた `Inference.Expr` を受け取り、元の `Inference.principal` を生成し、正規化された各clauseをjoint solverへ渡す。成功した全alternativeを保持し、矛盾したalternativeだけを除く。元の値制限付きletの多相branchを単相branchへ置き換えない。一つでも未対応のalternativeが残れば、全体を `unsupported` と返す。
+
+`SourceConstraintSupport.RecordFree` は部分式を含めてrecord構築だけを除外する。lambda・application・値制限付きlet・分岐・pair・fst/snd・field access・variant・emptyRecord・literal・変数を含む。`good_generate` は元の生成器に対する構造帰納で、scheme置換とcaptureを保つrenameを扱い、letの両branchに不変条件を示す。`closed_compiler_and_rows_supported` は正規化したすべてのclauseについて、型compilerの成功と行stageの非unsupportedを導く。可解性は前提にしない。
+
+したがってこの構文範囲では、`recordFree_instances_exact` が次の形で閉じる。
+
+\[
+\operatorname{Typing}(e,T!\epsilon)
+\iff
+\exists S\in\operatorname{infer}(e),\ \exists\vec p,\vec\rho,\quad
+  \llbracket S\rrbracket(\vec p,\vec\rho)\le(T,\epsilon).
+\]
+
+右辺は計算された有限familyの自由parameterによる具体化とsubsumptionだけで、元の制約を満たすという残余条件を持たない。左辺は `RegularInferenceModel` における元の独立な `Typing` である。任意のtargetを量化し、成功cache・途中の型・型付け導出・モデル存在・fuelを呼出側から渡さない。`recordFree_principal_formula_exact` は同じ結論を元のprincipal formulaへ接続する。
+
+`recordFree_rejected_iff` は拒否と元の型付け不存在を同値にする。未対応と拒否を混同せず、`recordFree_ne_unsupported` はこの構文範囲で未対応の返り値自体が起きないことを示す。制約の正規化とcompilerは有限構文に対する再帰、飽和は有限node対の新規追加数に基づいて停止する。再帰型の深さを有限に打ち切る停止ではない。
+
+### 10.26.3 `any` と共有行を持つ具体例
+
+`SourceInferenceExamples` は元の `Typing` から独立に、恒等関数と整数定数関数の全結果を特徴付け、その結果を実際の `SourcePrincipalInference.infer` に接続する。以下の `! R` は説明用のcomputation行の記法であり、surface構文ではない。
+
+\[
+\lambda x.x:\quad \forall A,R.\ (A!R)\to(A!R),
+\qquad
+\lambda x.1:\quad \forall R.\ (\mathrm{any}!R)\to(\mathrm{int}!\varnothing).
+\]
+
+恒等関数では型・行の両parameterを共有する。定数関数では値の入力型だけが負の位置にあるため `any` に消去できるが、入力computationの行は自由な `R` として残る。`infer_identity_instances_exact` と `infer_constant_int_instances_exact` は、計算されたschemeの全instanceがこの簡潔な型の族と一致する定理である。内部blockをその文字列へ書き換えるpretty printerを実装したという主張ではない。
+
+### 10.26.4 符号付き行と全言語への残りの接続
+
+`SignedSourceInference` は上のsource主型性を、既存の `RecursiveRows.SetRow` へ具体化する。empty・join・包含は既存のeffect algebraと同じで、`rowView` は恒等decodeである。自由なrow parameterには保護済み出現、負の差分、無限supportを持つ集合行も入る。有限のscope interfaceに対して、符号付き重みの大きさやrowのsupportを制限しない。
+
+完成したのは、record構築を除く既存core ASTの、値型とcore rowの主型推論である。10.25の一般recordモデル、operation・handler・保護・解除を生成するeffect ASTの一つの求解入口、再帰SCC・T3観測・注釈・role/cast・EOF判定との統合、surfaceからのelaboration、`as`を含む表示標準形は別の義務として残る。各層に既存の定理があることを、それらを統合した全言語の推論器の完成とは扱わない。
+
+このreference solverは証明の対象として明示的なDNFと有限listを使う。letの選択肢の展開は最悪で指数的になり得る。停止と主型性を、production向けの時間・メモリ性能の保証とは区別する。`lean/RunSourceInference.lean` は元の式からの実行と具体化を確認する入口である。
