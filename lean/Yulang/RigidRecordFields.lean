@@ -175,6 +175,16 @@ theorem erase_record (label : Nat) {type : Ty Row} (shape : IsRecord type) :
         · simp [erase, Ty.lookup, drop, same, ih]
   | _ => simp [erase, Ty.lookup]
 
+@[simp] theorem erase_idempotent (label : Nat) (type : Ty Row) :
+    erase label (erase label type) = erase label type := by
+  induction type with
+  | record name value rest _ ih =>
+      by_cases same : label = name
+      · subst name
+        simpa [erase] using ih
+      · simp [erase, same, ih]
+  | _ => rfl
+
 /-- Forgetting fields of a proper spine is an ordinary width comparison. -/
 theorem erase_subtype (label : Nat) {type : Ty Row} (shape : IsRecord type) :
     Subtype leRow type (erase label type) := by
