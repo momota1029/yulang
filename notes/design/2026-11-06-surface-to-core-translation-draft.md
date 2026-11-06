@@ -99,7 +99,7 @@ handler op action ret arm
 | `role R 'a: ...` / `impl R T: ...` | 辞書(dictionary)の型と値 | 確定 | 辞書渡しは `RoleDictionaries` に証明がある |
 | `where 'a: R` | 辞書引数 | 確定 | 具体化した場所で解く(決定 30) |
 | `act a: our op: P -> Q` | operation の署名 | 確定 | `PolySignature` |
-| `error e: v1 p; v2 q` | `enum` + `act` + `impl Throw` + `impl Display` + `wrap` | **要確認** | 何を作るかは固定する、と章5.7。**生成される名前と型の一覧が仕様に無い** |
+| `error e: v1 p; v2 q` | 下の「`error` 宣言の展開」 | 下書き | 章5.7。`wrap` は error effect → `result`、`up` は error effect → 別の error effect(2026-11-06 ユーザー説明)。型は私の読み |
 | `cast(x: A): B = body` | cast 規則の登録 | 確定 | 本体は純粋。境界で挿入 |
 | `act copy = source` | 新しい effect family | 確定 | 章5.6 |
 
@@ -111,6 +111,26 @@ handler op action ret arm
 | 辞書引数 | 確定 | `where` の制約ごと |
 | 保護・解除の境界 | 下書き | 高階の callback の境界。型から決まる |
 | 保留された cast 境界 | 確定 | 不変の型引数を持つ nominal 型の構築(決定 25) |
+
+## `error` 宣言の展開 (下書き)
+
+```yulang
+error path_err:
+    not_found path
+    denied path
+```
+
+作られるもの:
+
+1. `enum path_err = not_found path | denied path` と、同名の operation を持つ `act`(`not_found: path -> never`、`denied: path -> never`)。variant は値の constructor であり operation でもある。期待型が error なら値、effect の位置なら operation
+2. `impl Throw path_err`(`e.throw` で、variant に対応する operation を呼ぶ)
+3. `impl Display path_err`(variant 名と payload を文字列にする)
+4. `path_err::wrap : [path_err] 'a -> result 'a path_err` — error effect を handle して `result` に戻す。`ok v` か `err e`
+
+`from` 付き(`enum app_err: path from path_err`)では、さらに次が作られる。
+
+5. `app_err::up : [path_err] 'a -> [app_err] 'a` — `path_err` の operation を handle して、`app_err::path e` として投げ直す(error effect を cast する)
+6. `app_err::wrap` は、`app_err` と `from` で結んだ `path_err` の両方を handle する(狭いエラーを同時に捕まえる。章5.7)
 
 ## 核に足りない形(まとめ)
 
@@ -125,7 +145,7 @@ ChatGPT に依頼する核の拡張の候補。
 
 ## 確認したいこと(ユーザーへ)
 
-- `error` 宣言が作るものの正確な一覧(名前・型・impl)
+- `error` 宣言の展開(上の下書きで、型の読みを確認)
 - `for` の `redo` の意味(同じ反復のやり直し)の実装方針
 - junction(`all`/`any`)の意味(章5 に未記述)
 - 書式付き文字列の `fmt` の境界(言語か std か)

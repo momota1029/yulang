@@ -187,6 +187,7 @@ error path_err:
 - `error` は `enum`、throw する operation を持つ `act`、`impl Throw`、`impl Display`、`wrap` helper をまとめて作る短縮形。`from` 付きの宣言には `up` も作る。
   **何を作るかは言語の仕様として固定する**（確定, 2026-11-04）。標準ライブラリの実装詳細ではない。
 - **variant は値の constructor と effect の operation の両方**になる。期待型が error なら値、effect の位置なら operation。
+- **`wrap` は、error effect を handle して `result` に戻す**helper（確定, 2026-11-06）。**`up` は、error effect を別の error effect へ cast する**helper で、`from` 付きの宣言にだけ作られる。型の細部は下書き（`notes/design/2026-11-06-surface-to-core-translation-draft.md`）。
 - record payload も許す（章4.5）。
 
 出典: `main:web/docs/ja/reference/effects.md` §error 宣言、`main:web/docs/ja/guide/pitfalls.md`
