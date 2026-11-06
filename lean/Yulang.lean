@@ -234,3 +234,10 @@ import Yulang.ErrorEffectExamples
 import Yulang.StrictApplication
 import Yulang.StrictApplicationPrincipal
 import Yulang.StrictApplicationExamples
+import Yulang.JunctionEffects
+import Yulang.JunctionEffectExamples
+import Yulang.PresenceDataTypes
+import Yulang.PresenceDataShapes
+import Yulang.PresenceDataInference
+import Yulang.PresenceDataSafety
+import Yulang.PresenceDataExamples

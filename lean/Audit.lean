@@ -48,6 +48,24 @@ run_cmd do
 #print axioms Yulang.StrictApplication.closed_inferred_values
 #print axioms Yulang.StrictApplication.unused_argument_bound_iff
 #print axioms Yulang.StrictApplicationPrincipal.principal_operationally_valid
+#print axioms Yulang.JunctionEffects.run_is_shallow
+#print axioms Yulang.JunctionEffects.disjoin_short_circuit
+#print axioms Yulang.JunctionEffects.conjoin_short_circuit
+#print axioms Yulang.JunctionEffects.run_bounded
+#print axioms Yulang.JunctionEffects.closed_returns
+#print axioms Yulang.JunctionEffects.run_all_any
+#print axioms Yulang.PresenceDataTypes.records_not_le_lacks
+#print axioms Yulang.PresenceDataTypes.records_not_le_optional_int
+#print axioms Yulang.PresenceDataTypes.recordDefault_optional
+#print axioms Yulang.PresenceDataTypes.recordDefault_other
+#print axioms Yulang.PresenceDataInference.infer_instances_exact
+#print axioms Yulang.PresenceDataInference.infer_success_iff
+#print axioms Yulang.PresenceDataInference.infer_rejected_iff
+#print axioms Yulang.PresenceDataSafety.typing_evaluates
+#print axioms Yulang.PresenceDataSafety.inferred_evaluates
+#print axioms Yulang.PresenceDataSafety.default_operator_principal
+#print axioms Yulang.PresenceDataSafety.optional_operator_principal
+#print axioms Yulang.PresenceDataSafety.optional_operator_union
 
 #print axioms Yulang.RoleVisibility.resolved_mono
 #print axioms Yulang.Inference.ModelMap.formula_preserved

@@ -39,6 +39,45 @@ optional-fieldやfield不在の型を持たない。この判断での `recordDe
 既存の `{}` は引き続き任意のrecordの上界であり、exact emptyへの読み替えはしない。
 以下の旧主型定理・全core graph対応は、このrequired-field判断についての主張である。
 
+### presenceを区別するdata推論の閉じた主定理
+
+`PresenceDataTypes` は実際のdata値上の述語を型、包含を部分型とする。
+`required` / `optional` / `lacks` を別の述語として定め、`records`（旧 `{}` の意味）と
+`exactEmpty`（ちょうど空の値）を区別する。`records_not_le_lacks` /
+`records_not_le_optional_int` は、幅の上界だけから不在や任意のoptional payload型を
+推論できないことを反例で示す。旧Shadow部分型関係の定義を変更していない。
+
+`PresenceDataInference.infer` は元の `Inference.Expr` に対するtotalな実行可能入口である。
+変数・literal・非再帰let・pairと射影・record・default・field・variantを構文再帰で合成し、
+有限の型descriptor `Shape` を返す。評価器は呼ばず、type-level lookup/insertionを使う。
+`Typing` は算法も評価器も参照しないconstructor/subsumptionの独立判断である。
+`infer_instances_exact` は任意の式 `e` とこのdata意味論の任意の型 `T` に対して
+次の同値を証明する。
+
+```text
+Typing [] e T ↔ ∃ shape, infer e = solved shape ∧ shape.denote ≤ T
+```
+
+callerが推論成功やsolverの解を前もって渡す必要はない。`infer_success_iff` は推論成功と
+型付け可能性の同値、`infer_rejected_iff` は対応するdata構文上での拒否と型付け不能の同値を
+示す。関数・application・branchは `unsupported` と区別する。
+この主型はfieldの不在まで記録する新しいdata意味論の精密な型であり、旧型grammar上の
+全core自由parameter主型を求めたという主張ではない。literalは引き続き既存ASTのbase tagである。
+
+`PresenceDataSafety.typing_evaluates` は任意の型適合する実環境で実際の
+`SourceDataRuntime.eval` が成功し、その値が指定された型を満たすことを示す。
+`inferred_evaluates` は実inferの成功だけから同じ保証を得る。
+`default_operator_principal` は実AST `recordDefault l (var 0) (var 1)` について、
+任意のbase型 `R`、fallback型 `B`、結果型 `T` を量化し、`R ≤ records` の下で
+`Typing [R,B] ... T ↔ recordDefault(l,R,B) ≤ T` を証明する。
+したがって未知baseの契約も既知の有限record例に限られない。
+`optional_operator_principal` / `optional_operator_union` は `x?: A` のbaseから
+必須field `x: A | B` を導く。known-presentでは元のpayload型、known-absentではfallback型を
+保持し、他fieldのlookupも保存する。fallback式自体はどの場合も型付け・評価される。
+
+`lake env lean --trust=0 --run RunPresenceDataInference.lean` はpresent/absent、computed base、
+非recordの拒否、隠れるfallbackの失敗、unsupportedとrejectedの区別を実行する。
+
 決定43の一般的なstrict引数評価と、歴史的な `OperationalTyping` のcomputation引数渡しは
 区別する。`OperationalTypingExamples.unusedArgument_eval` は未使用の引数を実行しない
 旧模型の定理であり、現在のsurface言語の評価順を証明するものではない。
@@ -47,6 +86,7 @@ optional-fieldやfield不在の型を持たない。この判断での `recordDe
 `compile_correct` が独立なstrict評価器との実行木全体の等号を証明する。
 lambda本体・handler両arm・返された関数・継続・符号付きweightも対象である。
 `infer_forceApplication` は結果行が関数の行、引数の行、戻りの行の順で合成されることを示す。
+行の包含自体は順序を観測しないため、評価順の保証はこの行上界ではなく実行木の等号による。
 `closed_inferred_bound` / `closed_inferred_values` は実checkerの成功からstrictな実行の上界と
 返却値の型適合を導き、`unused_argument_bound_iff` は任意の未使用引数の要求を保持する。
 `StrictApplicationPrincipal.principal_operationally_valid` は実際にloweringした式の
@@ -70,6 +110,25 @@ error operationのresponseは `Empty` へ写せるため、`up_captured` は元�
 外部のeffect、保護された要求、負のweightは転送される。
 複数の直接の `from` は対応表の合成で扱う。nominal宣言のelaboration、推移的なfrom探索や
 複数経路の選択規則はここで決めない。要求木はwell-foundedであり、一般再帰の停止定理ではない。
+このhelperの入力は計算の要求木であり、ordinaryなstrict applicationへそのまま写した値引数とは
+同一視しない。actionのeffectがhandlerの外で先に起きないようにするsurface展開と、その型・実行の
+対応は未接続である。`StrictApplication` とこれらのhelperを個別に証明しただけで、両者を統合した
+source elaborationの正しさまで得られたとは扱わない。
+
+## junctionの短絡とmulti-shot実行
+
+`JunctionEffects.run` はsignature付き要求木上で、`or` / `and` の継続をまず `true` で
+再開し、必要な場合だけ同じ継続を `false` で再開する。`ret` はBoolを返して脱出する。
+`run_is_shallow` は既存shallow handlerとの等号であり、継続を再度包む処理がlibraryの
+armに明示的に存在することを示す。kernelの継続を暗黙にdeepへ変更していない。
+`disjoin_short_circuit` / `conjoin_short_circuit` は短絡、`run_external` / `run_nonzero` は
+外部effect・保護・負のweightの転送を実行木の等号で示す。
+`closed_returns` は全要求が捕捉可能なjunctionである任意のwell-foundedな入力木について
+Boolへの実終了を導く。`run_any` / `run_all` / `run_all_any` は任意の有限リストと述語に対し、
+計算結果が `List.any` / `List.all` およびその入れ子と一致することを示す。
+`lake env lean --trust=0 --run RunEffectExpansions.lean` はerrorの変換、短絡で飛ばす枝、
+false枝へ進む順序、外部観測と保護された要求を実行する。
+effectfulなsurface `if` をこのhelperへ包むelaborationとsource再帰の停止性は別の義務である。
 
 ## 決定40：隠れたfieldの型等価
 
