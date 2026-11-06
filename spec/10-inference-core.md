@@ -1409,7 +1409,7 @@ sourceで同じ名前集合を異なる順に束縛する場合の整列は、�
 `CaseEvaluation` はscrutinee、arm、guard、bodyの順を保持する。
 guardは照合成功後だけ、bodyは最初のguard成功後だけ評価する。
 `runArms_typed` と、合うunguarded armの存在からの `runArms_progress` を証明した。
-この存在を網羅性検査から構成する定理は別の義務である。
+この存在は10.35.1で独立な網羅性判断と実行可能checkerから構成する。
 `CaseDataTerms` は具体的なdata式の型付けから実評価を導き、抽象default/guard/body契約を充足する。
 型付け済みguardの実値はboolであり、外から成功結果を渡すoracleではない。
 
@@ -1418,7 +1418,38 @@ pattern defaultは存在fieldではfallbackを実行せず、欠如時はfallbac
 旧markerへ射影できるrecordではoptional/required要求とlookupが一致する。
 許可されたmetadataと型付きfallbackから、実際の束縛がpayload/fallbackのunionに属することを示す。
 
-**残る義務:** 網羅性checkerとのprogress接続、一般のRust pattern matrix、source注釈・名前解決、
+**残る義務:** 一般のRust pattern matrix、source注釈・名前解決、
 optional metadataの導出と全patternへの適用、束縛順の整列、nominal宣言のlookup、
 関数・effect・再帰を含む統一source ASTとの接続。
 この値安全性判断の意味的包含を、sourceのnominal部分型・注釈拒否規則と同一視しない。
+
+### 10.35.1 保守的な網羅性checkerと具体caseのprogress
+
+`CaseCoverage` は有限な型の記述 `Domain` と、独立な帰納判断
+`Cell` / `Total` / `Handles` / `Covered` / `VariantsCovered` を定める。
+任意のdefault型表・arm列・domainについて `check_exact`、任意の閉じたtag一意行について
+`checkVariants_exact` が、実行可能checkerの成功と対応する独立判断を同値にする。
+判断の定義はcheckerを呼ばず、入力値を有限にサンプリングせず、評価成功を前提にしない。
+guard付きarmを加えても被覆の判定は変わらない（`guarded_cons_ignored`）。
+
+`check_matches` は、checkerが受理したdomainの任意の実値について、実際に照合に成功する
+unguarded armの存在を示す。必要なdefault契約は構文内に現れるコードへ局所化する。
+`checked_case_evaluates` / `checked_variants_case_evaluates` は、この存在と独立な葉の型付けから
+上から順の評価器が型を満たす結果を返すことを導く。
+`CaseDataProgram.typing_evaluates` は、具体data葉を持つ任意のprogramと任意の適合環境について、
+独立な型付けから `.ok (some result)` と結果型の所属を導く。
+default・guard・body・scrutineeの実行成功を外から仮定する必要はない。
+
+merged variant行の `residual_lookup` は未処理tagのpayload全体を保持し、
+`residual_empty_iff` は残余の空性を `VariantsCovered` と同値にする。
+現在の「一armがpayload全体を覆う」は保守的な十分条件であり、
+複数armのpayload被覆をsourceで拒否する規則を新たに設けたものではない。
+
+**残る義務:** このcheckerのfalseをsource拒否と同一視してはならない。
+`integer_split_semantically_exhaustive` は任意の整数に `..0` / `1..` のいずれかが合うことを示すが、
+`integer_split_not_yet_recognized` により現checkerはfalseを返す。
+同様にrecord内のbool二分、list長さ0/1/2以上の分岐の合成、一般の区間合併とRust pattern matrixが残る。
+`CaseCoverageBoundaryExamples` はrecord/list/整数の三例でcheckerのfalseと
+任意の実値が本物のmatcherでいずれかのarmに合うことを、それぞれ別の定理として証明する。
+source名解決・注釈・presence検査の全patternへの適用、defaultのscope、
+関数・effect・再帰を含む統一ASTへの接続は10.35と同じ境界を保つ。

@@ -29,7 +29,7 @@ list nil/cons/snoc、variant、nominal、or、as を持つ。record の残りを
 訪問列はscrutinee、arm、guard、bodyと葉の評価を保持する。
 `runArms_typed` は束縛をguard/bodyへ渡す際の安全性、`runArms_progress` は型付きarm列と
 実際に合うunguarded armの存在から、型を満たす結果が返ることを示す。
-この段階の `runArms_progress` 単独では網羅性checkerの完成とは呼ばない。
+この定理単独の照合witnessは、次の網羅性の節で検査結果から構成する。
 
 `CaseDataTerms` は具体的なdata葉のAST・評価器・独立型判断を持ち、
 `typing_evaluates` からdefault/guard/bodyの健全性契約を導く。
@@ -42,6 +42,38 @@ literal内容を旧marker値へ射影したrecordについて、lookupとrequire
 実際の束縛成功とpayload/fallbackのunion所属を導く。
 **意味的なrequired≤optionalだけでは、必須fieldへのdefaultを拒否したことにはならない。**
 sourceからmetadataを求めて全patternへ検査を適用するpassは残る。
+
+### 網羅性の独立判断と実際のcase評価
+
+`CaseCoverage` の `Cell` / `Total` / `Handles` / `Covered` は、checkerや評価成功を
+前提にしない構造的な判断である。任意のdefault型表・arm列・入力domainについて、
+`check_exact` は `check = true ↔ Covered`、閉じたmerged variant行について
+`checkVariants_exact` は `checkVariants = true ↔ VariantsCovered` を示す。
+`guarded_cons_ignored` によりguard付きarmは網羅性へ寄与しない。
+bool、unit、tuple積、listのnil/cons、unionを分割する。これは値の有限サンプル検査ではなく、
+任意の整数・文字列・任意長の有限listを含むdomainの全要素についての証明である。
+
+`CaseCoverageSafety.check_matches` は、受理済みdomainの任意の値から、実際に合う
+unguarded armを構成する。defaultの健全性は、arm構文に現れるコードだけに要求する。
+`CaseDataProgram.typing_evaluates` は任意の具体的なprogram、型環境、default型表、結果型、
+その独立な型付けと環境の `BindingsHold` から、評価結果が `.ok (some value)` となり
+結果型を満たすことを示す。照合・guard・bodyの評価成功を追加の前提にしない。
+`checked_evaluates` / `checked_variants_evaluate` では実行可能な網羅性検査で判断を充足できる。
+
+variantの `residual_lookup` は、処理したtagを丸ごと除き、未処理tagのpayload全体をそのまま残す。
+`residual_empty_iff` はこの残余の空性と独立な `VariantsCovered` を一致させる。
+このcheckerは、一つのunguarded armでpayload全体を覆えることを十分条件としている。
+複数armを合成したpayload網羅性をsourceでどう扱うかの決定ではない。
+
+**checkerのfalseは未認証であり、sourceの非網羅エラーとは同一視しない。**
+例えば整数の `..0` と `1..` は任意の整数を覆うと証明したが、現checkerは受理しない。
+recordのbool fieldをfalse/trueの二armに分ける場合、listを長さ0/1/2以上の三armに分ける場合も
+現checkerの対象外である。`CaseCoverageBoundaryExamples` はこのrecord/list/整数の三例について、
+checkerのfalseと任意の実値への意味上の網羅性を別々に証明する。
+一般のRust pattern matrix・区間合併・再帰的な複数armの組合せは残る。
+`RunCaseCoverage.lean` はguardとarmの訪問順、present/absentのdefault、nil/cons、
+variant残余、二constructorを持つenumからのpayload束縛を実行する。
+enumの例は解決済みの値からの分解であり、source構築子のelaborationの証明ではない。
 
 ## Literal の中身と比較
 
@@ -533,7 +565,8 @@ lake env lean --trust=0 --run RunRegularInference.lean
 
 | モジュール | 閉じる主張 | それだけでは示さないこと |
 | --- | --- | --- |
-| `Yulang.CaseValues` / `CasePatterns` / `CasePatternSafety` / `CaseEvaluation` / `CaseDataTerms` | 具体値の分解、独立な束縛型判断から照合安全性、whole merged payloadの型付け、orの名前集合、上から順のarm/guard/body評価、具体data葉から健全性契約の導出 | この段階では網羅性checkerからのprogress接続、全Rust pattern matrix、sourceの名前解決・型注釈検査・束縛順の整列、関数/effect/再帰との統合 |
+| `Yulang.CaseValues` / `CasePatterns` / `CasePatternSafety` / `CaseEvaluation` / `CaseDataTerms` | 具体値の分解、独立な束縛型判断から照合安全性、whole merged payloadの型付け、orの名前集合、上から順のarm/guard/body評価、具体data葉から健全性契約の導出 | 全Rust pattern matrix、sourceの名前解決・型注釈検査・束縛順の整列、関数/effect/再帰との統合 |
+| `Yulang.CaseCoverage` / `CaseCoverageSafety` / `CaseDataProgram` / `CaseCoverageExamples` / `CaseCoverageBoundaryExamples` | 保守的な網羅性checkerと独立判断の同値、guard除外、merged tag残余の正確性、具体programの型付けから実評価・全arm不一致の不在、順序/default/enum payloadの実値例 | false側のsource拒否完全性、record内の複数arm合成、list長さの深い分岐、整数区間合併、source全体のRust pattern matrix、source nominal構築子elaboration |
 | `Yulang.CasePresenceValidation` | 宣言presenceのoptional許可/required拒否/unknown未解決、具体recordの旧markerへのlookup保存、required/optional所属の対応、型付きlazy defaultからunionに入る実束縛 | sourceからpresence metadataを導出し全patternへ適用するpass、旧markerにないfloat/list/nominalの射影、source defaultのscope選択 |
 | `Yulang.LiteralValues` / `LiteralValueExamples` | 任意精度整数・文字列・bool・unitの内容、実行可能literal比較と独立判断の同値、整数閉区間/片側区間の正確性、明示的float比較契約 | float精度・丸め・比較規則の決定、数値演算、parser/escapeの正しさ、既存base-marker ASTとの全体統合 |
 | `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、同一operationのpayload-pattern編成と網羅性、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |
@@ -661,7 +694,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.ParametricCastRules` / `Yulang.ParametricCastUniverse` / `Yulang.ParametricCasts` | 多相castの宣言検査と全置換後のサイズ非増大、入力と有限宣言から導く有限alphabet・サイズ上界・到達型集合、任意の有限経路との同値を満たす実行可能な探索、等サイズ循環と固定ground型の拡大の許容 | 明示規則のendpoint探索からsource境界へのelaboration、直接規則の重複・重なり診断、構造変換を混ぜた全言語のsolver、実用的な計算量 |
 | `Yulang.LiteralCasts` | list literal の元の構築位置を保持した変換計画、期待要素型が決まった場合の全要素の境界検査、EOFで期待型がない場合の元の要素型のunionと変換省略 | 弱い要素型を解くsolver、cast本体の実行・effect、構築済みlistの変更、空unionを含む表示上の正規化 |
 | `Yulang.NominalConstructions` | 任意の有限個の不変パラメータを持つstruct/enum/list構築、各元の位置での境界検査、パラメータごとのEOF unionと変換省略、構築子・tag・位置の保存、既存list plannerへの厳密な特殊化 | 全パラメータ出現位置のsourceからの収集、弱い型変数の解探索、未使用パラメータの既定値・公開可能性 |
-| `Yulang.Variants` / `Yulang.VariantsMerged` | support の分割・残余の最小性と最大性、同一 tag の payload 合流と tag 一意性、合流と残余の交換、tag 全体の選択・除去、全 tag 処理と空行の同値、merge 準同型による payload 置換 | payload 内部の source pattern 網羅性（2026-11-05 の決定により対象外）、guard 付き arm の被覆（章3b.4により数えない）、payload の部分型 solver、open row の solver、source の case 検査への接続 |
+| `Yulang.Variants` / `Yulang.VariantsMerged` | support の分割・残余の最小性と最大性、同一 tag の payload 合流と tag 一意性、合流と残余の交換、tag 全体の選択・除去、全 tag 処理と空行の同値、merge 準同型による payload 置換 | payload 内部の source pattern 網羅性（2026-11-05 の決定により対象外）、guard 付き arm の被覆（章3b.4により数えない）、payload の部分型 solver、open row の solver、source 全体の case 検査への接続（保守的な核との接続は `CaseCoverage` で証明） |
 
 `Variants.Merged.Row` は tag の重複がない有限行を表す。`normalize merge` は同一 tag の payload を入力順の右結合で合流し、`lookup_normalize` はその結果を `mergeAll` と一致させる。該当 tag がなければ `none`、一つならその payload、複数なら指定した `merge` を用いる。tag の列順は最後の出現順の逆順である。これらの定理に結合則・交換則・冪等則は不要で、入力の並べ替えや重複挿入で payload が等しくなるとは主張しない。`normalize_map` だけは `f (merge a b) = merge' (f a) (f b)` を仮定する。`variant_union_upper_bound` は既存の構造部分型規則から `variant l a ∪ variant l b ≤ variant l (a ∪ b)` の一方向を導く。case の入力型を閉じる推論器や、部分型モデル全体の正規化を証明したものではない。
 

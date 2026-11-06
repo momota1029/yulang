@@ -257,3 +257,8 @@ import Yulang.CasePatternSafety
 import Yulang.CasePresenceValidation
 import Yulang.CaseEvaluation
 import Yulang.CaseDataTerms
+import Yulang.CaseCoverage
+import Yulang.CaseCoverageSafety
+import Yulang.CaseDataProgram
+import Yulang.CaseCoverageExamples
+import Yulang.CaseCoverageBoundaryExamples

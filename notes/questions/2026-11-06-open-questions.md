@@ -66,3 +66,26 @@ float の精度・丸めは書いていない。今回の依頼の「任意精�
 float patternの網羅性。保存値の構造的な等号 `eqCheck` と、言語のpattern比較は区別する。
 現在は比較関数と関係の正確性を明示的な引数に取り、反射性を仮定しない。
 整数・文字列・bool・unitの比較はこの回答に依存せず閉じている。
+
+## Q4. record pattern のdefaultから、同じpattern内の束縛が見えるか
+
+状態: **未回答**。`spec/03b-patterns.md` 3b.3 は欠如時の評価を定めるが、default式の名前のscopeを定めていない。
+決定43の評価順だけから、束縛が見える範囲までは拡張して決めない。
+
+例（`outer` の値が10の場合）:
+
+```yulang
+my outer = 10
+case { x: 3 }:
+    { x: outer, y: result = outer } -> result
+```
+
+- **A（推奨）:** defaultはpatternの外側のlexical環境を見る。同じpattern内の新しい束縛はguard/bodyから見える。例は10を返す。
+- **B:** それまでに照合して束縛した名前もdefaultから見える。例は3を返し、fieldの記述順が名前解決にも影響する。
+- **C:** 同じpattern内の名前をdefaultが参照すること自体を禁止し、外側と同名の場合も明示的な別名を要求する。
+
+影響する義務: `CaseDataTerms.defaultEval` に渡す環境のsource elaboration、nested pattern、or patternの各枝、
+default式の型環境、effectを持つdefaultの意味保存。現在の核はdefault evaluatorを明示的に受け取り、
+具体data wrapperの外側環境も引数で指定する。これはAをsourceの仕様に採用したという意味ではない。
+既存の「presentなら評価しない」「absentなら観測を保って評価する」証明と、局所default契約からのcase安全性は、
+sourceがどの環境を選ぶかの回答に依存しない。
