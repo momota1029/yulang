@@ -968,8 +968,61 @@ SourceInstance model (compileSource e) C ↔ Typing model [] e C
 
 章4.3の幅部分型とfield利用は既存の義務である。最小合同閉包は任意のadmissible tailを持つrecordについて、そのhead/幅をすべて証明できる最終モデルではない。例えば `record(l,A,never) ≤ {}` はこの中間関係では導出できない。checkerのこの否定結果を、言語仕様での型エラーと解釈しない。
 
-一般の `R ≤ S ≤ {}` から `record(l,A,R) ≤ record(l,A,S)` を採用するかは、決定38の同値tail置換を一方向の包含保存へ拡大するため、確認点として残す。`S = {}` に対応するhead/幅を再決定する問いではない。unionの分配等式やbottomでのstrictnessも、この問いだけで決まったものとしない。
+この時点の確認点は、一般の `R ≤ S ≤ {}` から `record(l,A,R) ≤ record(l,A,S)` を採用するか、というものだった。決定39は要求側 `S` がrigidな場合に限定する回答であり、その規則の証明状況を10.28に記す。`S = {}` に対応するhead/幅を再決定する問いではない。unionの分配等式やbottomでのstrictnessも、この回答だけで決まったものとしない。
 
 `SemanticRecordVarianceBoundary.local_laws_without_tail_covariance` は、同値置換・proper record・head/幅・既知field存在・同じfieldの冪等性・異なるfieldの交換という明示した局所法則を満たしながら、一般tail共変性を満たさない有限のfield存在代数の存在を証明する。具体例は `R = ↑{y}`、`S = ↑{y} ∪ ↑{z}` に同じ `x` を加えるもの。payloadの型・実行・inhabited性の保存は含まないため、**Yulang全仕様からの独立性やsourceプログラムの型付け不能を示す反例ではない。**
 
-**残る義務:** 既存のhead/幅を満たし、確認後の一般tail規則を反映する最終record関係とそのchecker/cut、独立な正則再帰値型モデルとcoalescingへの接続、新しいgraphの実際の制約求解、record構築を含む全coreの自由parameter scheme・全instance主型性・拒否完全性。`SourcePrincipalInference` の `RecordFree` 制限はまだ外していない。effectのoperation/handler/保護/解除、再帰SCCと全注釈多相再帰、注釈の公開値型と一般化直前のeffect検査、role/cast/EOFは既存の個別定理のままで、この入口との統合は未完。表示の標準形・`as`の最終表示・一般の禁止点付きgraph到達は今回の変更に含めない。
+**この段階からの残る義務:** head/幅を満たす決定39の限定規則とchecker/cutは10.28で更新する。独立な正則再帰値型モデルとcoalescingへの接続、新しいgraphの実際の制約求解、record構築を含む全coreの自由parameter scheme・全instance主型性・拒否完全性は引き続き残る。`SourcePrincipalInference` の `RecordFree` 制限はまだ外していない。effectのoperation/handler/保護/解除、再帰SCCと全注釈多相再帰、注釈の公開値型と一般化直前のeffect検査、role/cast/EOFは既存の個別定理のままで、この入口との統合は未完。表示の標準形・`as`の最終表示・一般の禁止点付きgraph到達は今回の変更に含めない。
+
+## 10.28 rigidな要求tailへの共変性
+
+出典は章4.3とhandoffの決定39（2026-11-06）である。10.27の最小合同閉包の定理を歴史的に保持し、`RigidSemanticRecords.Subtype` に限定された規則を追加する。従来の束・構造・合同規則に加えるのは、次の一つである。
+
+```text
+IsRecord S → R ≤ S → record(l,A,R) ≤ record(l,A,S)
+```
+
+`semantic_subtype` は決定38の任意の導出を保存し、`Subtype.minimal` は明示した規則の最小閉包を特徴付ける。一般の要求tailへの共変性、分配等式、bottom strictnessは追加していない。`record_head` と `record_width` は任意の行関係・label・field型・tail `R` について、`R ≤ {}` だけを前提にhead利用と `{}` への幅部分型を導く。`record_never_below_empty` は前回のwidth境界を解消する。
+
+### 10.28.1 hidden fieldを比較しない必要十分条件
+
+`RigidRecordFields.erase l P` は要求型 `P` のspineからlabel `l` のfieldをすべて除く。任意の `Row`、任意の行関係、label `l`、型 `A,R,P` について、`IsRecord P` を仮定すると、`RigidRecordDemands.record_mask_exact` が
+
+```text
+record(l,A,R) ≤ P
+  ↔ (∀B, P.lookup l = some B → A ≤ B) ∧ R ≤ erase l P
+```
+
+を示す。供給側のtailはunion/intersection等を含めて任意で、行法則・判定可能性・可解性を前提にしない。`Fits` の宣言的導出に沿った反変単調性で必要性を、rigid-tail規則とproper record規則で十分性を示す。この範囲では、隠れたfieldを比較しないことによる完全性の欠落はない。
+
+### 10.28.2 完全checker・cut・商モデル
+
+`RigidRecordChecker.check` は入力のconstructor depthから層数を内算する。任意の `Row`、`DecidableEq Row`、行関係 `leRow` とBoolean row checker `rows` について、`rows r s = true ↔ leRow r s` が全行で成立し、`leRow` が反射的・推移的なら、任意の有限raw型 `A,B` に対する成功・失敗が新関係の成立・不成立と同値になる。`cut_elimination` は前層の実際のatom比較を前提に持つcut-free判断との同値であり、`StructuralDecisions` に接続する。row checker以外の意味的比較oracleや外部fuelは要求しない。
+
+`checkDemand rows A P (rigid : IsRecord P)` は要求側の制限を明示する別入口で、同じrow前提の下で成功・失敗が完全である。`checkDemand_hidden_payload` は、任意のBoolean row checkerについて、外側の同名fieldに隠れたpayloadを変更しても計算結果が等しいことを示す。visible fieldのpayload内部は再帰的な比較に委ねるため、その内部にopaqueな要求型を許す場合には次節の境界が残る。
+
+`RigidRecordQuotient` は新関係の相互部分型による商で、`Rigid` はproper代表元の存在として定義する。要求tailがこの意味でrigidなら、`record_tail_mono` が限定共変性を商へ持ち上げる。前段の商からの `fromCongruence` は全旧等式を保存する。`RigidRecordQuotientDecisions` は上のrow前提で代表元不変性・商の順序判定・実際の等号判定を与える。標準形を選ぶ手続きではない。
+
+`RigidRecordInference.old_typing_preserved` は旧有限モデルの任意環境・式・結果の型付けを保存する。行関係の反射性の下で、`RigidRecordQuotientInference` は元Formulaと全閉式Typingのraw/商同値、前回の合同モデルとその商の全閉式instance保存を示す。任意のrow join algebra・元core式・結果計算型について、`compiled_typing_exact` は実際の `OpenRecordConstraintGraph.compileSource` の全instanceと新商モデルのTypingを同値にする。元の `Typing.record` を狭めず、残余graph制約が求解済みだとも主張しない。
+
+### 10.28.3 rigid要求での先勝ちとopaqueな要求の境界
+
+`RigidRecordOpaqueBoundary.hidden_field_rigid_comparison` は、任意の行関係・label `l`・型 `A,B,R` と全rigid型 `P` について、
+
+```text
+record(l,A,record(l,B,R)) ≤ P ↔ record(l,A,R) ≤ P
+```
+
+を示す。tailのadmissibilityも追加前提にしない。一方、今回の最小関係では、rigidな要求への全比較が一致しても、任意の型同士の相互部分型になるとは限らない。
+
+`OpaqueTail R` は、どのproper spineとも相互部分型でないことを表す。`opaque_comparison_iff` は、任意の行関係・label・head型・供給tailと、opaqueな要求tail `S` について、
+
+```text
+record(l,A,R) ≤ record(l,B,S) ↔ A ≃ B ∧ R ≃ S
+```
+
+を示す。したがって、この場合の比較では内側の隠れたfieldも区別される。具体的に `R = never` と `R = {y:int} | {z:str}` について、`record(x,A,record(x,B,R))` と `record(x,A,R)` はともに `{}` の部分型だが、どちらも他方の部分型でない。unionについては構文的にnonrigidというだけでなく、properな同値代表元が存在しないことまで証明した。これは参照関係の境界であり、sourceプログラムの拒否や一般solverの不可能性ではない。任意opaque型でhidden fieldを同一視する法則を、この証明から追加しない。
+
+前回の局所field存在代数について、`RigidRecordVarianceBoundary.local_laws_rigid_covariant` は任意の `LocalRecordLaws` を満たす操作がprincipalな要求tailへの共変性を持つことを示す。旧反例の右辺unionはnonprincipalである。したがって前回の具体例は決定39の反例ではない。この確認も、payload・実行を含むYulang全体の意味モデルを構成したという主張ではない。
+
+**残る義務:** opaqueな型同士の同一視とhidden fieldの扱い、独立な正則再帰値型モデル・coalescing、新graphの実際の制約求解、全coreの自由parameter scheme・全instance主型性・拒否完全性への接続。`SourcePrincipalInference` の `RecordFree` は残る。effect式・再帰SCC・全注釈多相再帰・注釈確定・role/cast/EOFの統合、および表示標準形・`as`・一般の禁止点付き到達は引き続き未完である。

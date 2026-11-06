@@ -12,7 +12,7 @@ lake env lean --trust=0 Audit.lean
 
 ## 実際に型を求める入口
 
-**決定38への移行中。全coreの実際の求解は未完。** 下記の `SourcePrincipalInference.infer` は旧reference modelのままで、全instance主型性の `RecordFree` 前提も残る。今回の別経路では、recordの意味的合同性を加えた中間関係、その商、有限ground型の完全checkerとcut elimination、未知tailを保持する全coreのgraph compilerまで接続した。graphの残余制約を解いて自由parameterのschemeを返す接続はまだない。中間関係は任意tailのhead/幅の全義務まで満たす最終recordモデルではなく、その点も下に明示する。
+**決定39のrigid要求への共変性を形式化済み。全coreの実際の求解は未完。** 下記の `SourcePrincipalInference.infer` は旧reference modelのままで、全instance主型性の `RecordFree` 前提も残る。新しい `RigidSemanticRecords` は決定38の合同関係に、要求tailがrigidな場合だけの共変性を加える。任意admissible tailのhead/幅、hidden fieldを比較しないrigid要求の必要十分条件、完全ground checkerとcut elimination、その商と全core graph compilerの接続まで閉じた。opaqueな要求型での同一視の境界と、残余graph制約の求解は区別して下に明記する。
 
 **`SourcePrincipalInference.infer` は、元の閉じた `Inference.Expr` から主型スキームを計算する。** 元のprincipal formulaの生成、存在変数とletの選択肢の正規化、共有graphへの変換、値型と行の求解、正則再帰型スキームの構成を実行する。型graph、途中の型、行の割当て、制約の解、成功cache、fuelを呼出側から渡さない。
 
@@ -28,7 +28,7 @@ lake env lean --trust=0 --run RunSourceInference.lean
 
 戻り値は `unsupported`・`rejected`・`inferred alternatives` を区別する。成功した全let alternativeを保持し、型矛盾と証明されたalternativeだけを除く。一つでも未対応のalternativeがあれば、全体を未対応とする。record構築の境界と全言語へ残る接続は [10.25–10.27](../spec/10-inference-core.md#1025-record-tailの意味論上の境界) にまとめる。sourceは核のASTであり、parserからのelaborationや表示文字列の正しさを含まない。
 
-## 意味的recordへの移行で閉じた範囲
+## 決定38の基礎と保存した証明
 
 `SemanticRecords.Subtype` は、旧構造・束の規則とrecordのhead/tailの相互部分型による置き換えからなる**最小の合同閉包**である。`Subtype.minimal` がこの意味を特徴付ける。これは旧関係をそのまま商にしたものではない。まず合同性を加え、`SemanticRecordQuotient.QTy` がその相互部分型を同一の値型にする。任意のlabelとfield型について、`record(l,A,{})` と `record(l,A,{} | never)` はこの商で実際に等しい。`int` と `str` は等しくならない。
 
@@ -46,9 +46,35 @@ lake env lean --trust=0 --run RunSemanticRecordCheck.lean
 
 `SemanticRecordQuotientInference.compiled_typing_exact` は、任意のrow join algebra、任意の元core式 `e` と商モデル上の結果 `C` について、**実際に `compileSource e` が返したgraph族のinstanceであることと `Typing [] e C` が同値**だと示す。ここに `RecordFree` はない。しかしgraphの `Models` 条件は残っており、自由parameterだけで全解を表す主型schemeの定理ではない。
 
-**残る意味論と求解:** 最小合同閉包は必要な基礎であって、任意のadmissible tailを持つrecordがheadを使え、fieldを忘れて `{}` に幅包含できるという既存の義務をすべて満たすモデルではない。例えばこの関係では `record(l,A,never) ≤ {}` が導けない。この否定は中間関係の境界であり、意図する言語の型エラーではない。一般に `R ≤ S ≤ {}` から `record(l,A,R) ≤ record(l,A,S)` を採用するかは、同値tail置換とは別に未確定として残す。`SemanticRecordVarianceBoundary` は、明示したフィールド存在の局所法則だけからこの共変性が導けない有限代数を示す。payload・実行・inhabited性を含むYulang全仕様からの独立性は主張しない。
+**決定38時点の境界:** 最小合同閉包は必要な基礎であって、任意のadmissible tailを持つrecordがheadを使え、fieldを忘れて `{}` に幅包含できるという既存の義務をすべて満たすモデルではない。例えばこの関係では `record(l,A,never) ≤ {}` が導けない。この否定は中間関係の境界であり、意図する言語の型エラーではない。当時の確認点だったtail共変性には、決定39でrigid要求に限定する回答が入った。`SemanticRecordVarianceBoundary` は、明示したフィールド存在の局所法則だけから一般共変性が導けない有限代数を示す。payload・実行・inhabited性を含むYulang全仕様からの独立性は主張しない。
 
-この仕様点を確定した最終record関係のchecker、正則再帰型/coalescing、新graphの実際の制約求解、`SourcePrincipalInference` の全instance主型性と拒否完全性への接続が残る。effect式、再帰SCCと全注釈多相再帰、注釈の一般化直前の確定、role・cast・EOFは各層の既存定理のままで、この入口には未統合。表示の標準形・`as`の最終表示・一般の禁止点付きgraph到達も今回の変更に含めない。
+決定39はこの確認点に対し、要求tailがrigidな場合だけの共変性を指定した。その証明は次節の新関係で行い、この最小合同閉包の定理・負例は歴史的な参照として保持する。正則再帰型/coalescing、新graphの実際の制約求解、`SourcePrincipalInference` の全instance主型性と拒否完全性への接続は残る。effect式、再帰SCCと全注釈多相再帰、注釈の一般化直前の確定、role・cast・EOFは各層の既存定理のままで、この入口には未統合。表示の標準形・`as`の最終表示・一般の禁止点付きgraph到達も今回の変更に含めない。
+
+## 決定39：rigidな要求への共変性と先勝ち
+
+`RigidSemanticRecords` は旧関係を保存し、`IsRecord S` と `R ≤ S` から `record(l,A,R) ≤ record(l,A,S)` を導く規則だけを追加する。一般の要求tailへの共変性、分配則、bottom strictnessは追加していない。`record_head` と `record_width` は、任意の `R ≤ {}` についてheadの利用と `{}` への幅部分型を導く。特に `record(l,A,never) ≤ {}` が成立する。旧モデルの否定定理や期待値を変更せず、新関係について別の定理を証明している。
+
+`RigidRecordDemands.record_mask_exact` は、任意のrawな供給head `A`・tail `R` とrigidな要求 `P` について、次の必要十分条件を示す。行関係の法則は前提にしない。
+
+```text
+record(l,A,R) ≤ P
+  ↔ (Pにlがあれば、その最初のfield型Bに対してA≤B)
+    ∧ R ≤ erase(l,P)
+```
+
+`erase(l,P)` は要求側の同名fieldをすべて除く。`checkDemand` はこの分解を実行し、任意の正確なBoolean row checkerと行preorder、および `DecidableEq Row` の下で、rigidな要求型に対する成功・失敗が宣言的関係と一致する。`checkDemand_hidden_payload` は隠れたpayloadを変更してもBoolean結果が変わらないことを示す。この省略は当該record層についてで、visible payload内の比較は再帰的な型比較に委ねる。
+
+`RigidRecordChecker.check` は非rigidな要求も含む有限ground型の**参照関係**全体を同じrow前提で完全に判定する。`cut_elimination` は計算されたatom比較を持つcut-free判断へ接続する。`RigidRecordQuotientDecisions` は代表元不変性から、商の順序・実際の等号の実行可能な判定を構成する。商上の `Rigid` はproper代表元の存在であり、単なる構文判定ではない。
+
+```sh
+lake env lean --trust=0 --run RunRigidRecordCheck.lean
+```
+
+`RigidRecordInference` と `RigidRecordQuotientInference` は、旧有限モデルの任意環境の型付け、前回の合同関係とその商の全閉式instance、元Formulaのraw/商同値を保存する。`compiled_typing_exact` は任意のrow join algebra・元core式・結果について、実際の全core graph出力のinstanceと新商モデルの `Typing` を一致させる。これは依然として残余graph制約を持つcompiler定理である。
+
+**opaque要求の境界:** `RigidRecordOpaqueBoundary.hidden_field_rigid_comparison` は、任意のtail `R` と全rigid要求 `P` について、`record(l,A,record(l,B,R))` と `record(l,A,R)` が同じ比較結果を持つことを示す。一方、`R = never`、および `R = {y:int} | {z:str}` の具体例では、両型はadmissibleでも互いに部分型ではない。後者のunionも、proper spineと同値な代表元を持たないことまで証明した。この限定規則だけでは、rigid要求で省略できるhidden fieldを任意の型同士の同一視まで省略できない。これらは関係の境界であって、sourceの拒否や一般solverの不可能性ではない。
+
+前回の `SemanticRecordVarianceBoundary` の有限field存在代数は、今回のrigid要求への共変性を満たす。`RigidRecordVarianceBoundary.local_laws_with_rigid_without_general_covariance` がそれを示し、旧反例の右辺unionはnonrigidなので決定39の反例にならない。payload・実行を持つ言語全体のモデルであるとは主張しない。
 
 ## 個別のsolverと従来の入口
 
@@ -157,6 +183,13 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.InferenceModelMap` / `Yulang.SemanticRecordInference` | model写像による任意Formulaの保存、反映・全射の明示前提下での双方向一致、任意の旧環境の型付け保存、literalの全instanceの有限record型による特徴付け | 旧関係と合同閉包の逆向き保存、全coreの実際の求解、表示標準形 |
 | `Yulang.RecordConstraintSupport` / `Yulang.OpenRecordConstraintGraph` | 元の全coreからのpolar制約準備、未知tail参照を持つ全域compiler、任意modelでの全割当て・全instance・retractionの一致、union-join/preorder前提下の全core Typingとの同値 | 制約を満たす割当ての探索、充足可能性判定、自由parameterによる主型scheme、SourcePrincipalInferenceのRecordFree除去 |
 | `Yulang.SemanticRecordVarianceBoundary` | head/幅・同値置換・既知field存在・冪等性・交換を含む明示した局所法則を満たすが一般tail共変性を満たさない有限のfield存在代数 | payload型・値の実行・inhabited性を含む言語全体のモデル、全仕様からの独立性、sourceの型付け不能 |
+| `Yulang.RigidSemanticRecords` | 決定39のrigid要求tailへの共変性だけを加えた最小関係、旧関係の保存、任意admissible tailでのhead/幅、never tailの幅 | 一般tail共変性、分配、bottom strictness、opaqueな型同士でのhidden fieldの同一視 |
+| `Yulang.RigidRecordFields` / `Yulang.RigidRecordDemands` | proper recordの最初のfieldによる比較、要求側maskによる任意供給tailの必要十分条件、hidden fieldを比較しないことの完全性 | 非rigid要求へのmask規則、未解決型変数の求解 |
+| `Yulang.RigidRecordAtoms` / `Yulang.RigidRecordViews` / `Yulang.RigidRecordAtomNormal` / `Yulang.RigidRecordLatticeCheck` / `Yulang.RigidRecordDemandCheck` / `Yulang.RigidRecordChecker` | 新参照関係の有限ground checker・計算済みatom比較によるcut elimination、rigid要求の別入口とhidden payloadに依存しないBoolean結果 | 任意opaque要求でhidden比較を省く言語規則、未知変数・正則再帰型のsolver、row checkerの構成 |
+| `Yulang.RigidRecordQuotient` / `Yulang.RigidRecordQuotientDecisions` | 新関係の商、意味的にrigidな要求tailへの共変性、代表元によらない実行可能な順序・等号判定 | 表示標準形、opaque hidden fieldを消す新しい同一視 |
+| `Yulang.RigidRecordInference` / `Yulang.RigidRecordQuotientInference` | 旧型付け・前回商の閉式instance保存、raw/商のFormula・全閉式Typingの同値、新商モデルでの全core graph compilerとの同値 | graph残余制約の求解、全core自由parameter schemeと拒否完全性 |
+| `Yulang.RigidRecordOpaqueBoundary` | 全rigid要求でのhidden fieldの除去、never/unionのopaque tailにおけるadmissibilityと非比較、隠れたpayloadに関する比較の正確な特徴付け | 全言語仕様からの独立性、source拒否、一般solver不可能性 |
+| `Yulang.RigidRecordVarianceBoundary` | 前回の局所field存在代数がrigid要求への共変性を満たし、旧右辺unionがnonrigidであること | payloadや実行を含む言語全体のモデル |
 | `Yulang.JointConstraintInference` | 元の型・行制約から共有parameterのregular schemeを計算、全値型・行モデルおよび全出力instanceの一致、対応範囲での失敗の完全性 | right-join等の非対応行制約、一般のRowExpr求解 |
 | `Yulang.SourceConstraintSupport` / `Yulang.SourcePrincipalInference` | record構築以外の全既存Exprが対応範囲内である証明、元の式からの実際の推論、計算された全scheme instanceと元Typing/principalの一致、拒否と型付け不存在の同値 | record構築、surface elaboration、effect operation/handler・SCC・T3・role/castとの統合 |
 | `Yulang.SourceInferenceExamples` | 恒等関数の型・行共有、定数関数の負位置のany化と自由な入力行、実際のsource推論結果とcanonical familyの全instance一致 | 返り値blockの構文的な表示簡約 |
