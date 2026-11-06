@@ -39,7 +39,7 @@ regularな `SourcePrincipalInference` 全体への統合は、別メモ `2026-11
 | 表の構文 | 核 | 状態 | 出典・備考 |
 | --- | --- | --- | --- |
 | 整数・文字列・bool・unit literal | `LiteralValues.Literal` | 確定 | 内容とliteral/range比較を追加。source codecとの対応は未証明 |
-| float literal / literal pattern | `Binary64.Value`、`LiteralValues.binary64MatchCheck` | 確定 | 回答済みQ2・Q3。64bit codecと厳密な数値Eq、正負zeroの一致・NaNの不一致を証明。literalは網羅性に数えない。token丸めとsource codecの接続は別層 |
+| float literal / literal pattern | `Binary64Decimal.convert`、`Binary64.Value`、`LiteralValues.binary64MatchCheck` | 確定 | 回答済みQ2・Q3。任意tokenを厳密な分数にし、最大有限値以下で全有限候補への最近接・偶数丸めを証明。数値Eqは正負zero一致・NaN不一致。literalは網羅性に数えない。lexer/Rust f64との対応と範囲外tokenのsource方針（新Q11）は別義務 |
 | 名前 `x`、path `a::b` | `var i`(束縛済み)、またはモジュールの宣言への参照 | 確定 | 名前解決は核の前。章3.2 |
 | `f x y` / `f(x, y)` / `x.m y` / `f: body` | `app (app f x) y` | 確定 | 章3.3。どれも同じカリー化 |
 | `f()` | `app f unit` | 確定 | `unit` は `lit unit` |

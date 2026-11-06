@@ -1370,3 +1370,14 @@ run_cmd do
 #print axioms Yulang.Binary64Rounding.roundedRank_correct
 #print axioms Yulang.Binary64Rounding.roundedRank_finite
 #print axioms Yulang.Binary64Rounding.roundFinite_correct
+
+#print axioms Yulang.Binary64Decimal.magnitudeFraction_exact
+#print axioms Yulang.Binary64Decimal.denominator_positive
+#print axioms Yulang.Binary64Decimal.convert_success_iff
+#print axioms Yulang.Binary64Decimal.convert_boundary_iff
+#print axioms Yulang.Binary64Decimal.convert_correct
+#print axioms Yulang.Binary64Decimal.convert_retains_sign
+#print axioms Yulang.Binary64Decimal.convert_is_finite
+#print axioms Yulang.Binary64Decimal.convert_never_nan
+#print axioms Yulang.LiteralValues.binary64OfDecimal_correct
+#print axioms Yulang.LiteralValues.binary64OfDecimal_kind

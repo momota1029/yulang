@@ -137,7 +137,13 @@ literal の `matchCheck_exact` は、任意の float 比較関数とその独立
 厳密な距離 `|n - units(candidate) * d|` を最小にし、異なるrankとの同距離では
 fractionの下位bitを偶数にすることを示す。符号はzeroへ丸める場合も保存する。
 `n/d` は `2^-1074` 単位の絶対値であり、有限サンプルとの比較ではない。
-小数tokenをこの厳密な分数へ変換する層とsourceの範囲外方針は別に扱う。
+`Binary64Decimal.magnitudeFraction_exact` は任意の小数tokenを厳密な有理数へ変換する。
+`convert_success_iff` は実装の成功を「厳密な絶対値が最大有限値以下」と同値にし、
+`convert_correct` は任意の成功結果について上の全候補への丸め契約を導く。
+`LiteralValues.binary64OfDecimal_correct` が具体的なfloat literalへ接続する。
+範囲外は内部の `outsideFiniteRange` として区別し、source拒否や無限大への変換を選ばない（Q11）。
+`RunBinary64.lean` は0.1、2^53付近の両方向のmidpoint、subnormal境界、最大有限値、zero/NaNを実行する。
+極端な非零十進指数の資源使用量の最適化とRust f64との対応は残る。
 既存 `Inference.Base` に float はなく、`legacyBase` は float に `none` を返す。
 旧 base-marker 評価器を具体 literal 評価器へ黙って置き換えていない。
 字句解析・escape の正しさ、数値演算、source への翻訳はこの定理群の対象外である。
@@ -708,7 +714,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.CaseCoverage` / `CaseCoverageSafety` / `CaseDataProgram` / `CaseCoverageExamples` / `CaseCoverageBoundaryExamples` | 保守的な網羅性checkerと独立判断の同値、guard除外、merged tag残余の正確性、具体programの型付けから実評価・全arm不一致の不在、順序/default/enum payloadの実値例 | false側のsource拒否完全性、record内の複数arm合成、list長さの深い分岐、整数区間合併、source全体のRust pattern matrix、source nominal構築子elaboration |
 | `Yulang.CaseTree` / `CaseTreeExamples` | scrutinee/body・pair・letへの有限case入れ子、独立型付けから実評価の型安全性と未一致の不在、任意整数について値と訪問列を保持する入れ子例 | guard/default内部のcase、一般再帰・関数/application/effect/castの統合、source名解決とscope付きdefaultの統合 |
 | `Yulang.CasePresenceValidation` | 宣言presenceのoptional許可/required拒否/unknown未解決、具体recordの旧markerへのlookup保存、required/optional所属の対応、型付きlazy defaultからunionに入る実束縛 | sourceからpresence metadataを導出し全patternへ適用するpass、旧markerにないfloat/list/nominalの射影、source defaultのscopeを割り当てるpass |
-| `Yulang.LiteralValues` / `LiteralValueExamples` / `Binary64` / `Binary64Rounding` | 内容つきliteral、整数範囲、64bit codecの相互逆、数値Eqと独立判断の同値、正負zeroの一致・NaNの不一致、任意の正分母と範囲内分子について全有限binary64候補への最近接・偶数丸め | DecimalToken変換、範囲外tokenのsource方針、数値演算、parser/escape、Rust f64との対応、既存base-marker ASTとの全体統合 |
+| `Yulang.LiteralValues` / `LiteralValueExamples` / `Binary64` / `Binary64Rounding` / `Binary64Decimal` | 内容つきliteral、整数範囲、64bit codecの相互逆、数値Eqと独立判断の同値、正負zeroの一致・NaNの不一致、任意tokenの厳密な分数化と範囲内での全有限binary64候補への最近接・偶数丸め | 範囲外tokenのsource方針（Q11）、数値演算、parser/escape、Rust f64との対応、非零巨大指数の資源最適化、既存base-marker ASTとの全体統合 |
 | `Yulang.PresenceLegacyBridge` | 任意の有限legacy型とmaskのdata意味を保存するpresence翻訳、Shadow部分型の包含保存、閉supported型判断の移送、finite-data planの全parameterを同じexact結果が一方向に包含、optionalの分解と旧width型の反例 | 逆向きの部分型完全性・scheme等価、regular型と自由row parameter、closure/effect行の意味、SourcePrincipalInference全体への統合 |
 | `Yulang.NominalConstructionRuntime` / `NominalConstructionExamples` | 不変parameterの元の構築位置の順序、適合時のcast抑制、純粋cast後の全request tree保存、EOFの実値保持、metadataとarity保存 | ground境界検査から値型に正しい変換codeの合成、固定struct field・宣言defaultを含むsource elaboration、具体data構築ASTとの統合 |
 | `Yulang.NominalListViews` / `NominalListIndex` | 同じlistに対するcursor・index・foldの一致、整数indexの成功と有効区間の同値、無効indexの非再開error要求、既存wrapとの一致 | sourceのFold/Index辞書の選択・署名と本文の対応、下書きのerror名/payloadの確定 |

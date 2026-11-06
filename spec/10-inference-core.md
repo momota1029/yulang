@@ -1452,7 +1452,7 @@ source の裸 `..` を許す規則ではない。source pattern 側でこれを�
 `nan_never_matches_left/right`、任意の値について `reflexive_iff_not_nan` を示す。
 `LiteralValues.binary64MatchCheck_exact` はこのEqを具体literal比較へ接続する。
 
-**残る義務:** 小数tokenの最近接・偶数丸め、数値演算、lexer/文字列 escape とこの値の対応、
+**残る義務:** 範囲外tokenのsource上の扱い、数値演算、lexer/文字列 escape とこの値の対応、
 source AST・全型推論器への literal 内容の接続。旧 marker の定理を変更していない。
 
 ### 10.34.1 有限binary64の最近接・偶数丸め
@@ -1471,8 +1471,18 @@ source AST・全型推論器への literal 内容の接続。旧 marker の定�
 異なる指数・仮数rankとの距離が等しければ、結果のfraction下位bitは0である。
 `n/d` は最小subnormal `2^-1074` を単位とする絶対値で、符号は別に保持する。
 
-**残る義務:** DecimalTokenの解釈との接続、sourceの最大有限値を超えるtokenの方針、
-Rustの実際のf64変換との対応。有限範囲内のこの証明を範囲外の受理完全性へ広げない。
+`Binary64Decimal.magnitudeFraction_exact` は任意のtokenの符号を除く十進値について、
+任意精度整数で作った分数が独立な `RepresentsMagnitude` を満たすことを示す。
+`convert_success_iff` は任意のtokenについて成功値の存在と、厳密な絶対値が最大有限値以下であることを同値にする。
+`convert_correct` は任意のtokenと実際の成功結果から、上記の `RoundsToEven` を導く。
+`convert_retains_sign`、`convert_is_finite`、`convert_never_nan` は任意の成功について
+符号保持・有限性・NaNでないことを示す。zeroの場合は巨大指数の累乗より先に短絡する。
+`LiteralValues.binary64OfDecimal_correct` は成功した任意のliteralが正しく丸められたfloatであることを示す。
+
+**残る義務:** sourceの最大有限値を超えるtokenの方針（Q11）、lexerとの対応、
+Rustの実際のf64変換との対応、極端な非零十進指数の資源最適化。
+内部結果 `outsideFiniteRange` はsourceの型エラーでもruntime errorでもなく、未接続の方針境界である。
+有限範囲内の証明を範囲外の受理完全性へ広げない。
 
 ## 10.35 Case の照合と独立な束縛型判断
 
