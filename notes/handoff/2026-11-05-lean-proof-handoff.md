@@ -145,6 +145,9 @@
 39. **record の「残り」は、要求側が rigid なときに共変**(`spec/04-types.md` 4.3、2026-11-06)。要求側(右辺・反変の位置)の残り `S` は field が決まった rigid な spine に限られ、未知 tail の展開(union・`never`・型変数)は供給側(左辺)だけに現れる。`S` が rigid なら、`R ≤ S ⇒ {l:A, ..R} ≤ {l:A, ..S}`。一般の `S` に対する新しい規則は足さない。10.27.5 の確認点への回答。
     ChatGPT への指示: (1) この rigid-`S` 版の共変性を、SemanticRecords の関係に足す。これで `record(l,A,never) ≤ {}` も `never ≤ {}` から導ける。(2) 最終 record 関係の checker と cut elimination を再証明する。(3) `SemanticRecordVarianceBoundary` の反例(`S = ↑{y} ∪ ↑{z}`)は、`S` が rigid でないので、この規則の反例にならないことを明記する。(4) 隠れた field(first-field-wins)は検査で比べない。比べないことによる完全性の欠落があれば、その形を境界として示す。(5) `RecordFree` の制限を外し、record 構築を含む全 core の自由 parameter scheme・全 instance 主型性・拒否完全性を閉じる。
 
+40. **隠れた field は、型の上でも無かったことになる**(`spec/04-types.md` 4.3、2026-11-06)。first-field-wins で隠れた同名 field は値にも残らないので、`{x:int, x:str, ..R}` と `{x:int, ..R}` は同じ型。rigid な tail でも、推論された未知 tail(union など)でも同じ。10.28.3 の確認事項(「nonrigid な推論 tail に隠れた同名 field にも型等価としての消去を適用するか」)への回答。
+    ChatGPT への指示: (1) モデルの合同関係に、隠れた同名 field の消去 `record(l,A,record(l,B,R)) ≡ record(l,A,R)` を足す。tail が rigid でない場合も含む。(2) 10.28.3 の `opaque_comparison_iff` と `source_has_incomparable_instances` が、この等式の下で「二つの instance が等価」に変わることを示す(旧関係の定理は歴史として保持し、書き換えて消さない)。(3) checker・cut elimination・商の等号判定を、この等式を含む関係で再証明する。(4) `RecordFree` の制限を外し、opaque な tail を含む全 core 式まで、自由 parameter scheme・全 instance 主型性・拒否完全性を閉じる。
+
 ## Lean に入ったもの(commit 順)
 | commit | 内容 |
 | --- | --- |
