@@ -10,6 +10,41 @@ lake build --wfail
 lake env lean --trust=0 Audit.lean
 ```
 
+## Core (M0)
+
+[`統合計画の M0`](../notes/design/2026-11-06-integrated-inference-plan.md) に対応する。
+`Core.Expr` は型・shape 添字を持たない共有構文で、全ローカル参照は de Bruijn 添字である。
+operation/key/scope・float 内容・opaque atom の carrier は `Core.Signature` で指定する。
+未束縛名は `free`、旧 named let の名前は復元用の hint として保持する。
+ordered case の guard/default、単一/複数/部分 handler、nominal 構築 site、内容つき literal、
+method 要求、cast site を表現する。旧 computation-argument の `app` と `strictApp` は区別し、
+Multi の `.core` は `StrictApplication.compile` を経由する。
+
+`Core.Typing model` はモデルの独立な構成子判断であり、旧型付けの存在で定義した関係ではない。
+required-field と presence の carrier・判断は別に保持する（M1 の境界）。
+下表の同値は任意の旧式・環境・結果について成立し、推論成功・solver 解・fuel は前提にしない。
+定理名の接頭辞は `Yulang.Core` である。
+
+| 接続・定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `Required.conservative` | 任意の model、捕捉された poly/signature を含む環境、式、computation について旧 `Inference.Typing` ⇔ Core 判断 | required-field への `recordDefault` 規則追加 |
+| `Effects.conservative` | 任意の model・row view・署名・環境・式・computation について旧 `RecursiveEffects.Typing` ⇔ Core 判断 | 他断片との混合、operation-local 多相の統合 |
+| `Qualified.conservative` | 任意の model・method table・role theory・環境・式・computation について旧判断 ⇔ Core 判断 | method lookup・辞書 elaboration の統合 |
+| `Presence.conservative` | 任意の data 型環境・式・意味的結果型について旧判断 ⇔ Core 判断。strict な `recordDefault` を含む | required-field/regular 型との同一視 |
+| `Data.conservative` | 任意の名前付き型環境を名前列と型列に分け、旧 `CaseDataTerms.Typing` ⇔ de Bruijn 化した Core 判断。shadowing・未束縛構文も量化の対象 | source の名前解決 pass の証明 |
+| `Case.conservative` | 任意の `CaseTree.Expr`・環境・結果型について旧判断 ⇔ Core 判断。arm 順・guard・default・通常/variant coverage を保持 | scoped default への旧 CaseTree の意味変更、effect/cast を含む case 推論 |
+| `Scoped.conservative` | 任意の環境・入力型・束縛型列について、具体 data default を持つ旧 scoped pattern 判断 ⇔ Core default で具体化した同じ汎用判断 | この module は pattern AST。全 source の pattern elaboration は含まない |
+| `Resolved.operational_core` / `multi_core` | 任意の shape 環境・注釈付き式・結果 computation 型について、旧型付け ⇒ 同じ環境/結果型での Core 消去式の型付け | 両 AST とも同じ元の式への逆向きは不成立。lambda/handler/widen の注釈を消し、Core の subsumption も許す。`annotation_erasure_typed` / `annotated_not_pure`（Multi は `multi_` 接頭辞）で両方の反例を証明 |
+| `Construction.conservative` | 任意の parameter 数・compatibility・registry・期待型・construction・plan について旧 `PlanTyping` ⇔ Core site の planner 判断。site 順・元型・parameter 割当てを保持 | 旧 module は式 AST を持たない。site の実式の推論/実行、nominal 値型の推論ではない |
+| `Literal.conservative` / `matches_conservative` | 任意の float carrier・literal・kind について kind 分類と Core 判断が一致。任意の float 比較関係の下で matching も双方向に保持 | 旧 module は式型付けを持たない。Kind を言語全体の主型とすることや marker literal との統合ではない |
+| `Block.definition_conservative` / `scc_conservative` / `generate_exact` | SCC は式の外。宣言 head と Core body を分離し、任意の旧環境・slot 割当て・宣言列で全 body 検査が同値。実際の同時再帰環境と旧 `generateSCC` の充足にも接続（後者は `EnvRel` 前提）。全注釈の局所値型変数も全称量化 | SCC 発見・求解・closure・一般化の統合、effect/case body の SCC 推論（M3） |
+| `required_principal_exact` / `effects_principal_exact` / `qualified_principal_exact` | 既存の `EnvRel`（effect は `SigRel` も）の下で、任意の結果 computation について旧 principal scheme の充足 ⇔ 対応する Core 型付け | 混合 Core 全体の新しい scheme/solver ではない |
+
+機能の相互作用を扱う統一判断、`Core.infer`、拒否完全性・unsupported の排除は未証明である。
+`cast` は site の構文のみで、統一した挿入/型付け規則は M4 に残す。
+literal の内容・presence・nominal の planner 結果を一つの値型 carrier に統合したとは主張しない。
+`Core.Expr.isValue` は旧 required/effect 判断用の構文検査であり、新構成子の値制限を決めない。
+
 ## Case の照合・順序・presence
 
 `CaseValues` は内容つき literal、pair、record、variant、解決済み nominal identity、有限listを持つ。

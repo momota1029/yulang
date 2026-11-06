@@ -9,6 +9,10 @@ import Yulang.CoreData
 import Yulang.CorePatterns
 import Yulang.CoreCase
 import Yulang.CoreScopedPatterns
+import Yulang.CoreConstruction
+import Yulang.CoreLiteral
+import Yulang.CoreSCC
+import Yulang.CorePrincipal
 import Yulang.VariantsMerged
 import Yulang.Effects
 import Yulang.EffectExamples

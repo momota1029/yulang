@@ -173,4 +173,17 @@ theorem annotated_not_pure :
   intro h
   cases h
 
+def multiAnnotated : MultiOperationHandlerTyping.Expr 0 Nat Unit [] .atom :=
+  .widen ⟨.atom, [raw 0]⟩ (.lit ())
+
+theorem multi_annotation_erasure_typed :
+    Core.Typing (model (n := 0) (Key := Nat) (Atom := Unit))
+      ⟨[], Env.nil⟩ (multi multiAnnotated) ⟨.atom, CTy.pure .atom⟩ :=
+  Typing.lit
+
+theorem multi_annotated_not_pure :
+    ¬ MultiOperationHandlerTyping.Typing Env.nil multiAnnotated (CTy.pure .atom) := by
+  intro h
+  cases h
+
 end Yulang.Core.Resolved

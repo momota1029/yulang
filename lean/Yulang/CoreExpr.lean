@@ -70,6 +70,8 @@ inductive Expr (s : Signature) where
   | construction : NominalConstructions.Constructor → Nat → Nat →
       List (Nat × LiteralCasts.Element × Expr s) → Expr s
 
+/-- Historical nonexpansiveness test used by the required/effect restrictions.
+This does not specify value restriction for the other Core constructors. -/
 def Expr.isValue : Expr s → Bool
   | .var _ | .lit _ | .method _ | .lam _ | .emptyRecord => true
   | .pair a b | .record _ a b | .recordDefault _ a b => a.isValue && b.isValue
