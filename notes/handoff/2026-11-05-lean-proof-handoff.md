@@ -165,6 +165,7 @@
     旧入口との要件は緩める: 旧 instance は新 instance に入る(保存)。新 instance は旧 instance と要求で等しい(反映は同値を除く)。「全 instance が一致」は要求しない。
 47. **標準形は、同じ構成子の union を成分ごとにまとめた形**(`spec/07-display.md` 7.4b、2026-11-07)。`(int, int | str)` が標準形で、展開した形は標準形にしない。
     Pro / Sol への指示: M1 の問い Q1(`notes/questions/2026-11-06-m1-model-contracts.md`)の答えがこれ。(1) `ProducerLe`(要求で定義した順序)を Lean で定義し、要求の文法は union を含まない形に限る。(2) 旧い構造的部分型の保存、分配の等式を定理として示す。(3) `Core.PresenceLegacyObstructions.no_semantic_legacy_instance_exact` は「全 instance の一致」を要求した場合の障害物として保持し、新しい要件(保存と、要求での同値を除く反映)の定理を別に立てる。(4) 7.4b の標準形(まとめる)を選ぶ関数と、その等価保存。
+    注意(2026-11-07): variant の型の `|` は型の union ではなく、`:{ str 'a, ..'r }` の別表記(tag の行)。引数の位置(負)にも現れる。決定 46 の「要求は union を含まない」は型の union についてで、variant の行には当てはまらない(`spec/04-types.md` 4.7b)。
 
 ## Lean に入ったもの(commit 順)
 | commit | 内容 |
