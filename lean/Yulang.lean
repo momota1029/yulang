@@ -269,3 +269,4 @@ import Yulang.NominalConstructionRuntime
 import Yulang.NominalListViews
 import Yulang.NominalConstructionExamples
 import Yulang.NominalDataConstructionExamples
+import Yulang.PresenceLegacyBridge

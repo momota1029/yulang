@@ -126,7 +126,7 @@ enumのlet/var payload、listのnil/cons構築について、任意の整数の�
 `accepted_requestTree` は任意のruntime・registry・construction・expectation・受理planについて、
 実行のrequest treeが元の引数列を順に読むrequest treeと等しいことを示す。
 全response分岐、payload、正負の重みを保持し、返り値そのものの等号はこの定理の結論ではない。
-`execute_eof` は期待型が未解決の全parameterについて変換せず、元の実値を保つ完全な計算等号を示す。
+`execute_eof` は全parameterの期待型が未解決の場合に変換せず、元の実値を保つ完全な計算等号を示す。
 constructor identity・enum tag・構築位置・引数個数も保持する。
 
 `runValues_typed` は元の値の型付け契約と変換コードの値型保存契約を別に必要とする。
@@ -177,6 +177,31 @@ source の名前解決、同じ operation の複数 payload-pattern arm の編�
 source から mask を求めて checker に渡す elaboration は残る。
 非網羅 payload arm の扱いは [Q1](../notes/questions/2026-11-06-open-questions.md) に記録した。
 表の key 一意性は核の表現条件であり、source の重複 arm を拒否する仕様ではない。
+
+## Presenceと旧required-field推論の橋
+
+[統合の工程案](../notes/design/2026-11-06-presence-inference-integration.md)を追加した。
+`PresenceLegacyBridge.translate` は任意の有限legacy型・hidden label列・旧data値について、
+旧 `DataTypeSemantics.Holds` と同じ意味を持つpresence述語を構成する（`translate_exact`）。
+旧 `{}` は `records` のままであり、exact emptyやfield不在には変えない。
+隠れたfieldはunion/intersectionを含むtailの中でも要求を足さず、
+任意のShadow部分型導出は翻訳後の包含を保存する（`shadow_subtype_preserved`）。
+
+`closed_typing_translates` は任意の行代数・supportedな閉data式・raw Shadow型判断について、
+同じ式の返り値型をpresence判断へ移す。評価成功は仮定しないが、effect行の移送は結論していない。
+`legacy_data_plan_translates` は任意の行代数・式・受理されたfinite-data planについて、
+一つのpresence推論結果が存在し、そのexact型が、旧planの**任意の自由parameter代入**から得る型の翻訳に含まれることを示す。
+parameterの個数は有限だが、代入する有限raw型を有限候補へ制限していない。
+このplanは `RigidRecordValueInference` のもので、regularな `SourcePrincipalInference` のschemeではない。
+
+`optional_iff_absent_or_required` と `optional_never_iff_absent` は既存述語の意味から無条件に成り立つ。
+旧width型からabsenceやexact emptyは導けない反例も保持する。
+旧runtimeのliteralはbase markerで、関数型の翻訳はdata上ではneverである。
+今回の橋を内容つきliteral・closure・regular再帰型・自由row parameter・全source主型推論へ一般化したとは扱わない。
+
+旧 `SourcePrincipalInference.infer_instances_exact` は任意の行代数と行順序の反対称性の下で、
+任意の `supported e = true` の入力について成立する。`RecordFree` はsupportを構文から保証する十分条件であり、
+inferの必要条件ではない。optional構文のunsupportedを型エラーへ変える変更は加えていない。
 
 ## 決定42–44：評価順とspread-first record
 
@@ -484,7 +509,7 @@ lake env lean --trust=0 --run RunHandlerPermissions.lean
 
 ## 実際に型を求める入口
 
-**全coreの求解は未完。以下の一般solverは決定39以前の参照モデルを使う。データ式については上節の定理が同じ算法を決定40のモデルへ接続する。** 下記の `SourcePrincipalInference.infer` は旧reference modelのままで、全instance主型性の `RecordFree` 前提も残る。新しい `RigidSemanticRecords` は決定38の合同関係に、要求tailがrigidな場合だけの共変性を加える。任意admissible tailのhead/幅、hidden fieldを比較しないrigid要求の必要十分条件、完全ground checkerとcut elimination、その商と全core graph compilerの接続を閉じた。さらに新商モデルで、閉じたデータ式の自由parameter scheme・全instance主型性・拒否完全性と、引数recordを拡張する関数族の全instance主型性を証明した。opaqueな要求型での同一視の境界と、一般の残余graph制約の求解は区別して下に明記する。
+**全coreの求解は未完。以下の一般solverは決定39以前の参照モデルを使う。データ式については上節の定理が同じ算法を決定40のモデルへ接続する。** 下記の `SourcePrincipalInference.infer` は旧reference modelのままで、`RecordFree` による無条件のsupport保証もその構文範囲のままである。新しい `RigidSemanticRecords` は決定38の合同関係に、要求tailがrigidな場合だけの共変性を加える。任意admissible tailのhead/幅、hidden fieldを比較しないrigid要求の必要十分条件、完全ground checkerとcut elimination、その商と全core graph compilerの接続を閉じた。さらに新商モデルで、閉じたデータ式の自由parameter scheme・全instance主型性・拒否完全性と、引数recordを拡張する関数族の全instance主型性を証明した。opaqueな要求型での同一視の境界と、一般の残余graph制約の求解は区別して下に明記する。
 
 **`SourcePrincipalInference.infer` は、元の閉じた `Inference.Expr` から主型スキームを計算する。** 元のprincipal formulaの生成、存在変数とletの選択肢の正規化、共有graphへの変換、値型と行の求解、正則再帰型スキームの構成を実行する。型graph、途中の型、行の割当て、制約の解、成功cache、fuelを呼出側から渡さない。
 
@@ -630,6 +655,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.CaseTree` / `CaseTreeExamples` | scrutinee/body・pair・letへの有限case入れ子、独立型付けから実評価の型安全性と未一致の不在、任意整数について値と訪問列を保持する入れ子例 | guard/default内部のcase、一般再帰・関数/application/effect/castの統合、source名解決とdefault省略方針の決定 |
 | `Yulang.CasePresenceValidation` | 宣言presenceのoptional許可/required拒否/unknown未解決、具体recordの旧markerへのlookup保存、required/optional所属の対応、型付きlazy defaultからunionに入る実束縛 | sourceからpresence metadataを導出し全patternへ適用するpass、旧markerにないfloat/list/nominalの射影、source defaultのscope選択 |
 | `Yulang.LiteralValues` / `LiteralValueExamples` | 任意精度整数・文字列・bool・unitの内容、実行可能literal比較と独立判断の同値、整数閉区間/片側区間の正確性、明示的float比較契約 | float精度・丸め・比較規則の決定、数値演算、parser/escapeの正しさ、既存base-marker ASTとの全体統合 |
+| `Yulang.PresenceLegacyBridge` | 任意の有限legacy型とmaskのdata意味を保存するpresence翻訳、Shadow部分型の包含保存、閉supported型判断の移送、finite-data planの全parameterを同じexact結果が一方向に包含、optionalの分解と旧width型の反例 | 逆向きの部分型完全性・scheme等価、regular型と自由row parameter、closure/effect行の意味、SourcePrincipalInference全体への統合 |
 | `Yulang.NominalConstructionRuntime` / `NominalConstructionExamples` | 不変parameterの元の構築位置の順序、適合時のcast抑制、純粋cast後の全request tree保存、EOFの実値保持、metadataとarity保存 | ground境界検査から値型に正しい変換codeの合成、固定struct field・宣言defaultを含むsource elaboration、具体data構築ASTとの統合 |
 | `Yulang.NominalListViews` | 同じ構築済みpayloadに対するcursor・自然数index・foldの一致、既存loop machineへのcursor接続 | sourceのFold/Index辞書の選択・署名と実装の対応、負数keyと無効indexの規則 |
 | `Yulang.NominalDataConstructionExamples` | 解決済みnominal構築式、任意整数から計算するstruct/enum/list payloadの型付けと実評価・全訪問列 | 宣言のlookup・型引数・payload宣言型の検査、source constructor default・castの挿入 |

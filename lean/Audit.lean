@@ -1253,3 +1253,14 @@ run_cmd do
 #print axioms Yulang.NominalDataConstructionExamples.just_written_order
 #print axioms Yulang.NominalDataConstructionExamples.list_evaluates_from_typing
 #print axioms Yulang.NominalDataConstructionExamples.list_written_order
+#print axioms Yulang.PresenceLegacyBridge.translate_exact
+#print axioms Yulang.PresenceLegacyBridge.translate_visible
+#print axioms Yulang.PresenceLegacyBridge.translate_required
+#print axioms Yulang.PresenceLegacyBridge.translate_shadow
+#print axioms Yulang.PresenceLegacyBridge.shadow_subtype_preserved
+#print axioms Yulang.PresenceLegacyBridge.closed_typing_translates
+#print axioms Yulang.PresenceLegacyBridge.legacy_data_plan_translates
+#print axioms Yulang.PresenceLegacyBridge.optional_iff_absent_or_required
+#print axioms Yulang.PresenceLegacyBridge.optional_never_iff_absent
+#print axioms Yulang.PresenceLegacyBridge.legacy_emptyRecord_not_absence
+#print axioms Yulang.PresenceLegacyBridge.legacy_emptyRecord_not_exactEmpty

@@ -972,7 +972,7 @@ SourceInstance model (compileSource e) C ↔ Typing model [] e C
 
 `SemanticRecordVarianceBoundary.local_laws_without_tail_covariance` は、同値置換・proper record・head/幅・既知field存在・同じfieldの冪等性・異なるfieldの交換という明示した局所法則を満たしながら、一般tail共変性を満たさない有限のfield存在代数の存在を証明する。具体例は `R = ↑{y}`、`S = ↑{y} ∪ ↑{z}` に同じ `x` を加えるもの。payloadの型・実行・inhabited性の保存は含まないため、**Yulang全仕様からの独立性やsourceプログラムの型付け不能を示す反例ではない。**
 
-**この段階からの残る義務:** head/幅を満たす決定39の限定規則とchecker/cutは10.28で更新する。独立な正則再帰値型モデルとcoalescingへの接続、新しいgraphの実際の制約求解、record構築を含む全coreの自由parameter scheme・全instance主型性・拒否完全性は引き続き残る。`SourcePrincipalInference` の `RecordFree` 制限はまだ外していない。effectのoperation/handler/保護/解除、再帰SCCと全注釈多相再帰、注釈の公開値型と一般化直前のeffect検査、role/cast/EOFは既存の個別定理のままで、この入口との統合は未完。表示の標準形・`as`の最終表示・一般の禁止点付きgraph到達は今回の変更に含めない。
+**この段階からの残る義務:** head/幅を満たす決定39の限定規則とchecker/cutは10.28で更新する。独立な正則再帰値型モデルとcoalescingへの接続、新しいgraphの実際の制約求解、record構築を含む全coreの自由parameter scheme・全instance主型性・拒否完全性は引き続き残る。`SourcePrincipalInference` について、`RecordFree`を超える全構文の無条件support保証はまだ示していない。effectのoperation/handler/保護/解除、再帰SCCと全注釈多相再帰、注釈の公開値型と一般化直前のeffect検査、role/cast/EOFは既存の個別定理のままで、この入口との統合は未完。表示の標準形・`as`の最終表示・一般の禁止点付きgraph到達は今回の変更に含めない。
 
 ## 10.28 rigidな要求tailへの共変性
 
@@ -1076,7 +1076,7 @@ T = (I | γ) & {}
 
 `RigidRecordFunctionQuotient.instances_exact` と `principal_formula_exact` は同じ定理を商の任意の結果計算型へ移し、`instantiate_sound` は任意の商parameter tupleに対する型付けを示す。これはこの関数族の全instance主型性であり、任意のsource関数を推論するdispatcherを追加したものではない。値型carrierは引き続き有限raw型とその商である。
 
-**残る義務:** opaqueな型同士の同一視とhidden fieldの扱い、独立な正則再帰値型モデル・coalescing、新graphの一般の制約求解、全coreの自由parameter scheme・全instance主型性・拒否完全性への接続。10.28.4のデータ構文と10.28.5の関数族は閉じたが、`SourcePrincipalInference` の `RecordFree` 制限は残る。effect式・再帰SCC・全注釈多相再帰・注釈確定・role/cast/EOFの統合、および表示標準形・`as`・一般の禁止点付き到達は引き続き未完である。
+**残る義務:** opaqueな型同士の同一視とhidden fieldの扱い、独立な正則再帰値型モデル・coalescing、新graphの一般の制約求解、全coreの自由parameter scheme・全instance主型性・拒否完全性への接続。10.28.4のデータ構文と10.28.5の関数族は閉じたが、`SourcePrincipalInference` の構文だけからのsupport保証は `RecordFree` の範囲のままである。effect式・再帰SCC・全注釈多相再帰・注釈確定・role/cast/EOFの統合、および表示標準形・`as`・一般の禁止点付き到達は引き続き未完である。
 
 
 ## 10.29 決定40：隠れたfieldの型上の消去
@@ -1345,8 +1345,9 @@ effect式・再帰sourceを含む全言語の実行安全性は引き続き別�
 ## 10.33 複数 operation handler の解決済み核
 
 `MultiOperationHandlers` は相異なる operation key の有限表、1つの value arm、
-key ごとの全域な operation body を持つ。`handle_eq_directed` は既存の
-`Directed.Computation.shallowHandle` との一致を示す。捕捉した arm には元の継続を渡し、
+key ごとの全域な operation body を持つ。`handle_eq_directed` は、宣言済みの各keyで
+任意のoccurrence・payload・resumptionに対するdispatcherが対応する表のarmと一致する前提の下で、
+既存の `Directed.Computation.shallowHandle` との一致を示す。捕捉した arm には元の継続を渡し、
 `handle_multishot` は同じ継続を二回使う body の実行等式を示す。
 
 `MultiOperationHandlerTyping` はこの handler を lambda、strict application、pair、let、
@@ -1453,8 +1454,8 @@ guard付きarmを加えても被覆の判定は変わらない（`guarded_cons_i
 
 `check_matches` は、checkerが受理したdomainの任意の実値について、実際に照合に成功する
 unguarded armの存在を示す。必要なdefault契約は構文内に現れるコードへ局所化する。
-`checked_case_evaluates` / `checked_variants_case_evaluates` は、この存在と独立な葉の型付けから
-上から順の評価器が型を満たす結果を返すことを導く。
+`checked_case_evaluates` / `checked_variants_case_evaluates` は、この存在と独立な葉の型付け、および
+scrutinee/default/guard/body評価器の健全性契約から、上から順の評価器が型を満たす結果を返すことを導く。
 `CaseDataProgram.typing_evaluates` は、具体data葉を持つ任意のprogramと任意の適合環境について、
 独立な型付けから `.ok (some result)` と結果型の所属を導く。
 default・guard・body・scrutineeの実行成功を外から仮定する必要はない。
@@ -1524,3 +1525,31 @@ registryに受理されたground boundaryからそのcodeを合成・検証す�
 保留site実行器と具体構築ASTの統合、ground boundaryから型付きpure conversionの合成、
 Fold/Indexのsource辞書解決と本文の対応、整数keyの負数解釈（Q9）と無効indexの失敗規則（Q10）。
 内部の `Nat → Option Value` はsourceのAPIを選ぶための決定ではない。
+
+## 10.37 Presence型と有限legacy data推論の橋
+
+`PresenceLegacyBridge.translate` は有限な `StructuralBase.Ty Row` をhidden label列とともに
+presence述語へ翻訳する。任意のRow・型・hidden列・runtime値について、`translate_exact` は
+翻訳後の所属と旧 `DataTypeSemantics.Holds` の同値を示す。row順序や型付けはこの同値の前提ではない。
+旧emptyRecord型はwidth型の `records` へ写し、exact emptyやabsenceへは写さない。
+`translate_shadow` と `shadow_subtype_preserved` は、任意のmaskについてhidden field消去と
+任意のShadow部分型導出の意味的包含を保存する。部分型完全性の逆向きは主張しない。
+
+`closed_typing_translates` は任意の行代数・closed supported data式・raw Shadow型判断について、
+同じsource式のpresence型判断を翻訳した結果値型で構成する。実行成功を追加の前提にはしない。
+`legacy_data_plan_translates` は任意の行代数・式e・plan pについて、
+`RigidRecordValueInference.infer e = .inferred p` なら、一つのshape sが存在して
+`PresenceDataInference.infer e = .solved s`、かつ任意の `θ : p.Parameters (StructuralBase.Ty Row)` に対し
+`s.denote ≤ translate (p.evaluate θ) []` が成立することを示す。
+このplanの構文とparameter個数は有限だが、parameter値の候補を有限集合へ制限してはいない。
+
+`optional_iff_absent_or_required` は任意のlabel・payload述語・値についてoptional所属を
+absenceまたはrequired所属に分解し、`optional_never_iff_absent` はnever payloadの場合の不在との同値を示す。
+旧width型をabsence/exact emptyと同一視できない反例も保持する。
+
+**残る義務:** finite-data planの一方向の保存をregular schemeの等価と同一視しない。
+自由row parameter・regular block・関数closure・effect行・内容つきliteralへの移送、
+presence制約生成の正確性、拡張solverの全instance主型性と拒否完全性、統一source入口が残る。
+旧 `SourcePrincipalInference.infer_instances_exact` は行順序の反対称性とsupport成功が前提で、
+`RecordFree`はsupportの十分な構文条件である。RecordFree外の一律拒否は導入していない。
+詳細な工程と完了条件は `notes/design/2026-11-06-presence-inference-integration.md` に分ける。
