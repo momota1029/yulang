@@ -352,3 +352,11 @@ import Yulang.ProducerRankedRegular
 import Yulang.CoreProducerLegacyInstances
 import Yulang.CoreProducerRankedInstances
 import Yulang.ProducerNormalForm
+
+import Yulang.PresenceConstructorDecomposition
+import Yulang.PresenceOpenTailSignature
+import Yulang.PresenceOpenTailGenerationLowering
+import Yulang.PresenceConstructorDefaultBoundary
+import Yulang.PresenceProducerDataBoundary
+import Yulang.ProducerDemandExpressiveness
+import Yulang.ProducerRankedArrowInversion

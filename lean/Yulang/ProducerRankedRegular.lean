@@ -17,6 +17,8 @@ This model supplies the old empty-record width type. It does not add exact
 empty records, optional fields, record-default images or a new solver. The
 legacy-instance theorem transports actual supported source typings into this
 model; it does not identify instances of an independent presence solver.
+It inherits the explicit finite rigid demand-variable interpretation of
+`ProducerRanked`; it is not a resolution of the richer-variable question Q5.
 -/
 
 namespace Yulang.ProducerRankedRegular

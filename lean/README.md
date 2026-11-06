@@ -47,9 +47,13 @@ literal の内容・presence・nominal の planner 結果を一つの値型 carr
 
 ### M1: 型モデルの接続（部分完了）
 
-決定46・47の要求順序を `ProducerRanked` / `ProducerRankedRegular` に実装した。
+決定46・47の要求順序の候補を `ProducerRanked` / `ProducerRankedRegular` に実装した。
 `ProducerDemand.Demand` は union を持たず、intersection、rigid な pair/field/tag、型変数、
 mask、関数の引数・返り値・両行の要求を持つ。変数の割当ては任意の有限観測列である。
+この変数解釈では `int | str` と `any` も同値になるため、決定46がこの解釈まで確定したとは扱わない。
+変数の意味の選択を [Q5](../notes/questions/2026-11-07-demand-model-contracts.md) に分け、以下の定理は
+この明示した具体的な要求文法・解釈に対する結果とする。arrow-domain probe の `Negative` は閉じた型で、
+その内部には変数/mask を持たず、任意の引数を分離できることは未証明である。
 `ProducerLe S T` は全要求環境・全要求で `T` の受理から `S` の受理が従う関係で、
 関数の負位置を観測する全有限 rank も量化する。regular 版はさらに全展開深さを量化する。
 どちらも solver fuel や有限サンプルによる近似ではない。
@@ -64,11 +68,13 @@ mask を payload の下に置ける文法は、[Q4](../notes/questions/2026-11-0
 | `ProducerRanked.pair_union_group` / `record_union_group` / `variant_union` と regular 版の同名定理 | 任意の行関係・全成分型で、pair・同じ label の record・同じ tag の variant の union と成分ごとの union をまとめた型が要求同値。record は payload と tail の両方をまとめる | 異なる label/tag の統合、presence の whole default image |
 | `ProducerRanked.producerLe_pair_iff` / `producerLe_variant_iff` と regular 版の同名定理 | 任意の行関係・全成分型で、pair／同じ tag の比較は成分の新順序による比較と同値 | arrow の逆向き分解、absence/exact record の分解 |
 | `ProducerRanked.producerLe_arrow` / `producerEq_arrow` と regular 版の同名定理 | 行推移律の下で引数の新順序による反変・返り値の共変・両行の比較を保存。同値置換には行反射律も仮定し、任意の引数/返り値型で成立 | union-free な引数要求だけから任意の引数比較を回収する分離補題 |
+| `ProducerRankedArrowInversion.arrow_result_inversion` / `arrow_input_row_inversion` / `arrow_output_row_inversion` / `arrow_negative_argument_iff` | 任意の有限 arrow 比較から結果型比較を回収し、行反射律の下で両行比較も回収。target 引数が閉じた `Negative` 型の埋込みなら、行反射律・推移律だけで引数反変も含む4成分の比較との同値を証明 | 任意の変数/mask/regular graph を含む target 引数への分離・完全分解 |
 | `ProducerRankedRegular.modelMap` / `legacy_instances_preserved` | 行推移律だけで旧 regular model から実際の恒等 constructor map を構成。任意の行代数・行反対称性・旧 supported 式・旧結果について旧 instance から新 ranked regular model の独立な `Typing` を得る | exactEmpty/required/default を持つ presence 拡張への具体 map、新独立型判断からの完全性 |
 | `Core.ProducerRankedInstances.legacy_instances_preserved` / `legacy_instances_reflected` / `legacy_instances_exact_modulo` | 任意の行代数・任意の実際の旧推論 `Result`・任意の結果型で、返却された同じ scheme と全自由 parameter を新順序で直接評価すると、旧 instance を保存し、新 instance は同じ結果行を持つある旧 instance と要求同値。型付けや旧 instance の存在を新 instance の定義に使わない | 新 solver の返却 family の完全性 |
 | `Core.ProducerRankedInstances.source_instances_exact_modulo` / `source_instances_sound` | 任意の行代数・行反対称性・旧 supported 式・旧結果で、新順序での scheme instance ⇔ ある要求同値な値型と同じ結果行での旧独立 `Typing`。各新 instance は新 regular model の独立 `Typing` も与える | 任意の新独立 `Typing` ⇒ この scheme family の instance、presence を含む全 source の保守性 |
 | `Core.ProducerRankedInstances.DistributionExample.distributed_instance` | 任意の行代数・行反対称性について、旧反例の同じ supported 式・同じ実際の推論結果で、分配後の型は新 instance だが旧 instance ではない。`factorised_equivalent_distributed` は任意の行関係で同値を証明 | 旧反例の削除や旧 theorem の弱化 |
 | `ProducerNormalForm.merge_equivalent` / `normalize_equivalent` / `normalize_accept_iff` | 実行可能な成分まとめ関数は任意の有限型で要求同値を保つ。全型の再帰処理は行反射律・推移律を仮定し、関数の負位置、全 rank・環境・要求も含む。指定例を `(int, int \| str)` に計算する | arbitrary union の整列・平坦化、変数の改名、完全で一意な表示標準形、regular graph の正規化 |
+| `ProducerDemandExpressiveness.distinct_bases_union_equivalent_top` / `mixed_union_accept_iff` | 任意の行関係・相異なる base 2つの union はこの候補で top と同値。int/str の例では任意の rank・有限観測列を値に持つ環境・要求の受理が一致する | 言語全体でこの同一視を採用する判断。Q5 の変数解釈の選択とは区別する |
 
 補助の `ProducerDemand` / `ProducerRegular` にある初期の順序は、arrow 引数だけ旧構造順序で
 比較するため、新同値の arrow 合同性を保証しない。共通モデルへの接続には上の ranked 版を使う。
@@ -178,6 +184,16 @@ variant の親比較である。子に mask `[7]` を適用すると前者だけ
 現行 cache の辺は子にも全 mask 比較を要求するため、親から子への通常の辺分解は完全ではない。
 この境界は [`要求モデルの追加の問い`](../notes/questions/2026-11-07-demand-model-contracts.md) に記す。
 
+`PresenceConstructorDecomposition` は既存の data 観測に対して、各深さでの constructor 比較を
+有限 alternative に正確に分解する。子の obligation は unmasked と明記し、親の全 mask 比較から
+子の全 mask 比較を誤って導かない。これは新しい要求順序の solver ではない。
+
+| 定理（接頭辞 `PresenceConstructorDecomposition`） | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `pairAlternatives_exact` / `variantAlternatives_exact` / `requiredAlternatives_exact` / `optionalAlternatives_exact` | 任意の子述語割当て・全 label/tag で、実際に計算する有限 alternatives の充足 ⇔ 親の全外側 mask 比較。pair は左のいずれかの子が空、または二成分比較という3枝。tag 不一致、label 不一致も含む | regular graph の全深さで固定した枝を選ぶ solver、旧 `Closed` を得る全入力飽和 |
+| `pair_at_depth_iff` / `pair_all_depths_iff` | 任意の graph・子参照・深さで局所分解が正確。全深さ版の結論は「各深さに対してある枝」である | 量化順を「ある一つの枝が全深さで成立」へ交換すること |
+| `ChangingDepth.parent_all_depths` / `local_alternatives_at_every_depth` / `no_uniform_alternative` | 具体的な有限・非循環 graph で親比較は全深さで成立するが、3つの局所 alternative のどれも全深さを一様には満たさない | 観測深さを扱う別の obligation 表現や新しい要求順序上での solver の不可能性 |
+
 `PresenceOpenTailTransport` / `PresenceOpenTailLowering` は、既存の
 `OpenRecordConstraintGraph` の全 node 文法について、tail と payload の観測深さを分ける。
 外側が `d+1` なら payload は `d`、tail と union/intersection の子は `d+1` で読む。
@@ -194,6 +210,38 @@ data 包含への置換を要求しない。
 `open_tail_at_zero` と `naive_guarded_tail_loses_masked_observation` が、tail まで一段減らす
 実装では失う観測を明示する。これで旧 open-tail 制約の表現移送は進んだが、
 新 presence model 上の全入力 solver 完全性を閉じたとは扱わない。
+
+`PresenceOpenTailSignature` / `PresenceOpenTailGenerationLowering` は、実際の
+`Core.PresenceGeneration.TyTerm` を扱う有限共有 block への変換を追加する。
+独立な `exactEmpty`・`required`・whole `recordDefault`、arrow と両行をすべて保持する。
+default の source は同一層、fallback は guarded payload とし、source の残りの field を捨てない。
+ここで有限解釈 `Model` は任意の明示的な引数であり、要求に基づく具体的な有限 presence モデルの
+構成をこの parametric な表現定理で代用しない。
+
+| 定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `PresenceOpenTailSignature.block_observe_exact` / `arrow_observe` / `recordDefault_observe` | 任意の有限解釈・有限 block・全元状態・全深さで block closure が観測を保存。arrow の両行と全 default source をそのまま渡す | 各演算の意図した具体意味を finite Model の引数だけから導くこと |
+| `PresenceOpenTailGenerationLowering.lowerTerm_observe_exact` / `lowerTerm_readout_exact` | 任意の有限解釈・構文で閉じた有限 subterm pool・全独立 regular 型/行割当て・pool 中の任意の実際の presence term・全深さで、構成した block と独立 term 評価が等しい。任意の readout/mask family にも等式を移せる | 具体 mask family の構成、由来のない非guarded tail 循環の求解 |
+| `PresenceOpenTailGenerationLowering.recordDefault_observe_exact` / `required_observe_exact` / `exactEmpty_observe_exact` | 同じ全入力について、新しい3構成子の観測を保存。default は一 field の union に縮約せず、全 source と fallback を有限モデルの演算へ渡す | 有限モデル上の whole-image 法則を仮定なしに与えること |
+| `PresenceOpenTailGenerationLowering.compile_constraints_exact` / `row_constraints_exact` / `compile_instances_exact` | 任意の有限 presence 型/行問題・有限解釈・元型/行割当て・結果について、実際の block lowering と元問題の充足・制約つき instance が同値。順序法則・solver 成功・解の存在・fuel を仮定しない | 残余制約を持たない自由 parameter family、実際の source infer の拒否完全性 |
+
+`PresenceConstructorDefaultBoundary` は whole image の実装で落とせない条件を分離する。
+`recordDefault_never_fallback` / `recordDefault_never_source` は任意の label・他方の述語について
+一方が空なら strict な data image が空であることを示す。`recordDefault_inhabited_iff` は、
+任意の source/fallback で image が値を持つことと「source が record 値を持ち、fallback も値を持つ」
+ことの同値である。`present_exact_image_iff` は任意の exact 有限 record・存在する label・fallback について、
+whole image が source 自身に等しい ⇔ fallback に値が存在する、という正確な条件を示す。
+既知 present field だけを見て fallback の空性や他 field を捨てる実装にはしない。
+別に `pair_bottom_not_equivalent_bottom` は任意の行関係・他成分で現在の ranked 候補が pair の形を
+保持することを示す。この data image の事実と要求での同値を同一視したり、一般の
+constructor bottom strictness を仕様へ追加したりしたわけではない。
+
+`PresenceProducerDataBoundary.crossed_bottom_pair_equivalent` は任意の行関係と有限型 `A,B` で
+`pair(bottom,B) | pair(A,bottom) ≡ pair(A,B)` を示す。`A=B=int` では左の既存 strict data 意味は空、
+右は具体的な pair 値を持つ。`no_exact_data_factorization` は、任意の carrier・埋込み・意味写像について、
+要求同値な型を埋込みで等値にし、同時に元の strict data 所属を正確に回収することはできないと示す。
+これは決定46の「集合論的な部分型を別に持ち込まない」という区別を具体化した境界であり、
+独立な runtime interpretation を持つ共通 presence/function model の不可能性ではない。
 
 `CorePresenceGenerationModel` は既存 `Inference.Model` に独立な `exactEmpty`・`required`・
 `recordDefault` 演算を加えた interface である。継承した `emptyRecord` は width 上界用で、
@@ -280,6 +328,14 @@ field を追加しても所属が変わらないためであり、全観測深�
   `LegacyPreservation` で仮定する presence の `Compatible` も具体モデルで構成する必要がある。
   各枝の solver exactness があれば `collect` の証明は再利用できるが、現状の補題だけでは
   そこから統一入口の全 instance exactness を導けない。
+
+要求順序側では、任意の rank `k` と型 `S,T` について
+`(∀ N : Negative, ProducerLeAt k N.embed S → ProducerLeAt k N.embed T) → ProducerLeAt k S T`
+という閉要求による分離補題が未証明である。必要な行の法則を明示してこの主張を示すか、
+成り立たない場合は要求文法を拡張する必要がある。`S` 自体が `Negative` の埋込みなら
+自身を要求に使えるため、上記の限定された arrow inversion はこの一般分離を仮定せず成立する。
+Q5 の変数解釈、exact/absence/default の具体的 acceptance と合同性、関数値を含む whole-image への橋も
+未完であり、現在の parameterized `Model` だけを埋めて完了とはしない。
 
 旧 `Layer.record` の tail は有限 layer、open-record graph の tail は node 参照であり、
 単純な置換は観測深さを減らす位置を変える（spec 10.32.5）。さらに旧 regular 部分型は構造的関係で、

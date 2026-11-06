@@ -128,3 +128,11 @@ cache と元入力の独立解は、constructor を含む任意の graph で同�
 全 node が変数なら `variable_models_exact` で自由 parameter family 全体の exactness も閉じた。
 これらや固定された有限 presence bound の solver の完全性は、1 の constructor-rich な
 入力に対する `Closed` の生成・拒否完全性を置き換えない。README の表で完了範囲を区別する。
+
+今回の追加証明では、2 のうち実際の有限 source-term 由来の open tail を共有 regular block へ移す
+表現移送を、全 constructor・全元型/行割当て・全深さについて閉じた。presence の全署名を含む版は
+任意の有限 `Model` を明示的に受け取り、その具体的な要求意味論や残余制約の消去までは主張しない。
+4 は具体的な ranked 要求順序で同じ旧 scheme を再評価する境界では保存・要求同値を除く反映を閉じた。
+ただし新独立型判断からの完全性、presence を含む共通モデルへの接続は残る。
+要求の型変数を有限 rigid 観測列として解釈する候補の境界は
+[`Q5`](2026-11-07-demand-model-contracts.md) に記録した。README の「示さないこと」と併せて区別する。

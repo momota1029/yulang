@@ -16,6 +16,11 @@ congruence of arrows are proved below. The order preserves the old structural
 preorder and derives same-constructor union grouping from demand observations.
 This module supplies a concrete finite type model, not a constraint solver or
 a model of exact/optional records and record-default images.
+Its finite rigid interpretation of demand variables is the explicit candidate
+from Q5 in `notes/questions/2026-11-07-demand-model-contracts.md`. It can forget
+more than same-constructor grouping (for example, mixed bases versus top).
+Closed `Negative` arrow-domain tests also lack variables/masks internally;
+their adequacy for arbitrary symbolic domains is not assumed here.
 -/
 
 namespace Yulang.ProducerRanked

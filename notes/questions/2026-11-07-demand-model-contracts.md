@@ -28,3 +28,39 @@
 現時点の constructor-bound 定理はどちらの選択にも依存しない。
 新たな要求モデルにおける mask の具体的解釈は、その定義と依存する定理の前提に明示する。
 選択肢1の最終採用や、全 source への接続をこの問いの記録だけで済ませない。
+
+## Q5. 要求の型変数で `int | str` と `any` を区別するか
+
+**問い:** union-free な要求に型変数を含めるとき、その変数が受ける型は、有限個の rigid な
+観測の共通部分で表せるものに限定するか。それともその範囲を越える未知要求を保持するか。
+
+例: 現在の候補 `ProducerDemand.Environment` は `Nat → List Observation` であり、要求の変数を
+任意の有限観測列へ展開する。int と str に共通する rigid な観測は自明な要求しかないので、
+この候補では全 rank・全要求環境について `int | str` と `any` の要求が一致する。
+`ProducerDemandExpressiveness.distinct_bases_union_equivalent_top` と `mixed_union_accept_iff` が、
+任意の行関係についてこの境界を証明する。
+これは同じ構成子の union を成分でまとめる決定47だけからは出ない、追加の表現上の境界である。
+要求の構文から union を除くことと、変数の意味をこの有限観測列へ限定することを区別する。
+
+選択肢:
+
+1. **推奨:** `int | str` と `any` は区別する。要求の型変数を有限 rigid 観測列の略記へ限定せず、
+   構成子のまとめ等式と旧部分型の保存に整合する未知要求として保持する。
+   要求の構文には union を追加せず、変数の解釈・束縛・許容する具体化を別に定義する。
+   例えば `int ≤ α` と `str ≤ α` の下界を持つ共有変数を、`any` と区別したまま扱える必要がある。
+2. finite rigid 観測列で尽くされる要求を採用し、この文脈では `int | str ≡ any` を認める。
+   表示で `int | str` を残す場合、それは完全な要求同値の一意な標準形とは別の表示方針とする。
+
+**仮の作業前提:** 既存の証明を消さず、`ProducerRanked` / `ProducerRankedRegular` は有限 rigid 観測に
+基づく候補モデルとして公開する。前順序・旧部分型保存・構成子 grouping・同じ旧 scheme の
+instance 保存/同値を除く反映は、この具体的な要求解釈についての定理である。
+これを変数の解釈まで確定した最終共通モデルとは主張しない。
+`ProducerNormalForm.normalize` も成分をまとめる同値保存 pass であって、全同値類の一意な代表を
+計算するものではない。open-tail の表現移送と、既存 data モデルの constructor 境界はこの選択に依存しない。
+
+また現在の arrow-domain probe に渡す `Negative` は閉じた union-free 型であり、その内部には
+変数/mask を含まない。要求全体には変数/mask があるが、任意の引数型をこの閉じた probe だけで
+分離できるという補題は未証明である。これを要求された完全な型変数処理と読み替えない。
+閉じた `Negative` 自体を target 引数にする場合だけは、
+`ProducerRankedArrowInversion.arrow_negative_argument_iff` が行反射律・推移律の下で
+4成分の arrow 比較を完全に回収する。この限定された分解は任意の target 引数の分解とは別である。

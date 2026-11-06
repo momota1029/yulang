@@ -1748,13 +1748,18 @@ run_cmd do
 #print axioms Yulang.Core.PresenceGeneration.LegacyPreservation.legacy_core_instances_preserved
 
 -- Computed constructor bounds and the current all-mask cache boundary.
+#print axioms Yulang.PresenceConstructorBounds.lower_saturate
+#print axioms Yulang.PresenceConstructorBounds.upper_saturate
 #print axioms Yulang.PresenceConstructorBounds.saturate_closed
 #print axioms Yulang.PresenceConstructorBounds.coalesce_satisfies
 #print axioms Yulang.PresenceConstructorBounds.models_transport
 #print axioms Yulang.PresenceConstructorBounds.satisfiable
 #print axioms Yulang.PresenceConstructorBounds.models_exact
 #print axioms Yulang.PresenceConstructorBounds.Examples.recursive_lower_closed
+#print axioms Yulang.PresenceConstructorBounds.Examples.recursive_lower_oneSided
 #print axioms Yulang.PresenceConstructorBounds.Examples.recursive_lower_all_parameters
+#print axioms Yulang.PresenceConstructorObstructions.MaskedPayload.bottom_observe
+#print axioms Yulang.PresenceConstructorObstructions.MaskedPayload.payload_observe
 #print axioms Yulang.PresenceConstructorObstructions.MaskedPayload.parent_subtype
 #print axioms Yulang.PresenceConstructorObstructions.MaskedPayload.child_not_subtype
 #print axioms Yulang.PresenceConstructorObstructions.MaskedPayload.input_model
@@ -1942,3 +1947,84 @@ run_cmd do
 #print axioms Yulang.ProducerNormalForm.Examples.grouped_pair
 #print axioms Yulang.ProducerNormalForm.Examples.grouped_record
 #print axioms Yulang.ProducerNormalForm.Examples.grouped_variant
+
+-- Exact local branches, full presence-signature lowering, and strict default images.
+#print axioms Yulang.PresenceConstructorDecomposition.pair_le_iff
+#print axioms Yulang.PresenceConstructorDecomposition.pairAlternatives_exact
+#print axioms Yulang.PresenceConstructorDecomposition.variant_same_le_iff
+#print axioms Yulang.PresenceConstructorDecomposition.variant_different_le_iff
+#print axioms Yulang.PresenceConstructorDecomposition.variantAlternatives_exact
+#print axioms Yulang.PresenceConstructorDecomposition.required_same_le_iff
+#print axioms Yulang.PresenceConstructorDecomposition.requiredAlternatives_exact
+#print axioms Yulang.PresenceConstructorDecomposition.optional_same_le_iff
+#print axioms Yulang.PresenceConstructorDecomposition.optionalAlternatives_exact
+#print axioms Yulang.PresenceConstructorDecomposition.pair_at_depth_iff
+#print axioms Yulang.PresenceConstructorDecomposition.pair_all_depths_iff
+#print axioms Yulang.PresenceConstructorDecomposition.ChangingDepth.local_alternatives_at_every_depth
+#print axioms Yulang.PresenceConstructorDecomposition.ChangingDepth.parent_all_depths
+#print axioms Yulang.PresenceConstructorDecomposition.ChangingDepth.no_uniform_alternative
+#print axioms Yulang.PresenceOpenTailSignature.Layer.map_id
+#print axioms Yulang.PresenceOpenTailSignature.Layer.map_comp
+#print axioms Yulang.PresenceOpenTailSignature.Layer.eval_map
+#print axioms Yulang.PresenceOpenTailSignature.observe_morphism
+#print axioms Yulang.PresenceOpenTailSignature.eval_morphism
+#print axioms Yulang.PresenceOpenTailSignature.graph_node
+#print axioms Yulang.PresenceOpenTailSignature.graph_closeBlock
+#print axioms Yulang.PresenceOpenTailSignature.block_morphism
+#print axioms Yulang.PresenceOpenTailSignature.block_observe_exact
+#print axioms Yulang.PresenceOpenTailSignature.exactEmpty_ne_width
+#print axioms Yulang.PresenceOpenTailSignature.recordDefault_observe
+#print axioms Yulang.PresenceOpenTailSignature.arrow_observe
+#print axioms Yulang.PresenceOpenTailGenerationLowering.self_mem_subterms
+#print axioms Yulang.PresenceOpenTailGenerationLowering.subterms_trans
+#print axioms Yulang.PresenceOpenTailGenerationLowering.collect_covers
+#print axioms Yulang.PresenceOpenTailGenerationLowering.Pool.at_mem
+#print axioms Yulang.PresenceOpenTailGenerationLowering.Pool.termAt_reference
+#print axioms Yulang.PresenceOpenTailGenerationLowering.Pool.reference_termAt
+#print axioms Yulang.PresenceOpenTailGenerationLowering.rowEval_exact
+#print axioms Yulang.PresenceOpenTailGenerationLowering.lowerLayer_map_evaluation
+#print axioms Yulang.PresenceOpenTailGenerationLowering.evaluation_morphism
+#print axioms Yulang.PresenceOpenTailGenerationLowering.close_observe_exact
+#print axioms Yulang.PresenceOpenTailGenerationLowering.lowerValue_observe_exact
+#print axioms Yulang.PresenceOpenTailGenerationLowering.lowerTerm_observe_exact
+#print axioms Yulang.PresenceOpenTailGenerationLowering.lowerTerm_readout_exact
+#print axioms Yulang.PresenceOpenTailGenerationLowering.recordDefault_observe_exact
+#print axioms Yulang.PresenceOpenTailGenerationLowering.required_observe_exact
+#print axioms Yulang.PresenceOpenTailGenerationLowering.exactEmpty_observe_exact
+#print axioms Yulang.PresenceOpenTailGenerationLowering.lowerTerm_subtype_exact
+#print axioms Yulang.PresenceOpenTailGenerationLowering.lower_input_observe_exact
+#print axioms Yulang.PresenceOpenTailGenerationLowering.Problem.covers
+#print axioms Yulang.PresenceOpenTailGenerationLowering.compile_constraints_exact
+#print axioms Yulang.PresenceOpenTailGenerationLowering.row_constraints_exact
+#print axioms Yulang.PresenceOpenTailGenerationLowering.lower_input_subtype_exact
+#print axioms Yulang.PresenceOpenTailGenerationLowering.compile_instances_exact
+#print axioms Yulang.PresenceConstructorDefaultBoundary.recordDefault_never_fallback
+#print axioms Yulang.PresenceConstructorDefaultBoundary.recordDefault_never_source
+#print axioms Yulang.PresenceConstructorDefaultBoundary.recordDefault_inhabited_iff
+#print axioms Yulang.PresenceConstructorDefaultBoundary.present_exact_image_iff
+#print axioms Yulang.PresenceConstructorDefaultBoundary.PresentSource.known_present
+#print axioms Yulang.PresenceConstructorDefaultBoundary.PresentSource.empty_fallback_image
+#print axioms Yulang.PresenceConstructorDefaultBoundary.PresentSource.no_default_result
+#print axioms Yulang.PresenceConstructorDefaultBoundary.PresentSource.present_source_not_preserved
+#print axioms Yulang.PresenceConstructorDefaultBoundary.PresentSource.present_image_not_source
+#print axioms Yulang.PresenceConstructorDefaultBoundary.pair_bottom_not_below_bottom
+#print axioms Yulang.PresenceConstructorDefaultBoundary.pair_bottom_not_equivalent_bottom
+
+-- Demand grouping is distinct from exact strict-data membership.
+#print axioms Yulang.PresenceProducerDataBoundary.crossed_bottom_pair_equivalent
+#print axioms Yulang.PresenceProducerDataBoundary.diagonal_equivalent
+#print axioms Yulang.PresenceProducerDataBoundary.diagonal_data_empty
+#print axioms Yulang.PresenceProducerDataBoundary.grouped_data_inhabited
+#print axioms Yulang.PresenceProducerDataBoundary.data_meanings_differ
+#print axioms Yulang.PresenceProducerDataBoundary.translated_meanings_differ
+#print axioms Yulang.PresenceProducerDataBoundary.no_exact_data_factorization
+
+-- Explicit demand-variable expressiveness and closed-negative arrow inversion.
+#print axioms Yulang.ProducerDemandExpressiveness.distinct_bases_union_equivalent_top
+#print axioms Yulang.ProducerDemandExpressiveness.mixed_union_equivalent_top
+#print axioms Yulang.ProducerDemandExpressiveness.mixed_union_accept_iff
+#print axioms Yulang.ProducerRankedArrowInversion.arrow_result_inversion
+#print axioms Yulang.ProducerRankedArrowInversion.arrow_input_row_inversion
+#print axioms Yulang.ProducerRankedArrowInversion.arrow_output_row_inversion
+#print axioms Yulang.ProducerRankedArrowInversion.arrow_negative_argument_inversion
+#print axioms Yulang.ProducerRankedArrowInversion.arrow_negative_argument_iff

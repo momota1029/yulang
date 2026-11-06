@@ -8,11 +8,17 @@ membership. A constructor with a bottom payload still has its own shape.
 Demand variables denote finite conjunctions of rigid observations, never
 arbitrary predicates on producer syntax. Masks erase outer field requirements;
 payload demands can have their own masks before placement under a constructor.
+This finite interpretation of variables is a candidate, not a claim that all
+symbolic unknown requirements are expressible by these observations. The
+mixed-base/top boundary and the question about richer variable meanings are
+documented in `notes/questions/2026-11-07-demand-model-contracts.md`, Q5.
 
 Arrow argument observations use the old structural order on closed union-free
 argument requirements. This proves preservation of all old finite structural
 subtypes, with real arrows and rows, but does not yet prove new-order
 contravariance for arbitrary arrow arguments or complete regular inference.
+`ProducerRanked` supplies new-order arrow congruence for this same observer
+grammar; it does not silently enlarge the variable interpretation.
 -/
 
 namespace Yulang.ProducerDemand
