@@ -35,6 +35,12 @@ list nil/cons/snoc、variant、nominal、or、as を持つ。record の残りを
 `typing_evaluates` からdefault/guard/bodyの健全性契約を導く。
 guardは実際のbool値から判定する。構築のrecordDefaultはstrict、pattern defaultは欠如時のみである。
 現時点のdata葉には関数、再帰、effect handler、cast、nested caseを含めない。
+caseのscrutinee/body・pair・letへの有限な入れ子は、後述の `CaseTree` で追加する。
+
+**仮の照合方針（Q5）:** 複合patternは左から試し、先行部分がmissなら後ろのdefaultを実行しない。
+仕様の評価順だけからこの省略規則を確定したとは扱わない。現在の訪問列の定理はこの核の方針に対する証明で、
+effectful defaultを含むsource翻訳への意味保存は回答後に接続する。
+rawな束縛IDの重複時のlookupも、sourceの重複名を許す決定ではない。
 
 `CasePresenceValidation` はoptional宣言metadataを許可し、requiredを拒否、unknownを未解決とする。
 literal内容を旧marker値へ射影したrecordについて、lookupとrequired/optional要求の一致を示す。
@@ -74,6 +80,21 @@ checkerのfalseと任意の実値への意味上の網羅性を別々に証明�
 `RunCaseCoverage.lean` はguardとarmの訪問順、present/absentのdefault、nil/cons、
 variant残余、二constructorを持つenumからのpayload束縛を実行する。
 enumの例は解決済みの値からの分解であり、source構築子のelaborationの証明ではない。
+
+### 有限構文木として入れ子になったcase
+
+`CaseTree.Expr` / `Arms` は、caseをscrutinee・選ばれるbody・pair・letの内部へ再帰的に閉じる。
+`CaseTree.typing_evaluates` は任意のfloat比較関数、型環境、有限式、結果型について、
+独立な `Typing` と任意の適合する実行時環境から、実評価が `.ok (some value)` を返し結果型を満たすことを示す。
+型判断は各caseの独立な `Covered` または `VariantsCovered` と、実際に使うdefaultの構文型付けを要求する。
+scrutineeやbodyの成功は相互帰納法から導き、実行時の成功契約を外から仮定しない。
+`checked_case_evaluates` / `checked_variants_evaluate` はcheckerの成功をこの判断へ接続し、
+`typed_no_unmatched` は型付き式が全arm不一致で終了しないことを示す。
+
+`CaseTreeExamples.nested_written_order` は任意の整数について、scrutinee内とbody内の両方にあるcaseが
+その値を束縛・参照して返すことと、訪問列全体を証明する。
+guard/default内の式はdata葉のままで、その内部のcase・関数再帰・application・effect・castは残る。
+sourceの名前解決・束縛順・default環境を構文木に正しく割り当てる証明も含めない。
 
 ## Literal の中身と比較
 
@@ -567,6 +588,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | --- | --- | --- |
 | `Yulang.CaseValues` / `CasePatterns` / `CasePatternSafety` / `CaseEvaluation` / `CaseDataTerms` | 具体値の分解、独立な束縛型判断から照合安全性、whole merged payloadの型付け、orの名前集合、上から順のarm/guard/body評価、具体data葉から健全性契約の導出 | 全Rust pattern matrix、sourceの名前解決・型注釈検査・束縛順の整列、関数/effect/再帰との統合 |
 | `Yulang.CaseCoverage` / `CaseCoverageSafety` / `CaseDataProgram` / `CaseCoverageExamples` / `CaseCoverageBoundaryExamples` | 保守的な網羅性checkerと独立判断の同値、guard除外、merged tag残余の正確性、具体programの型付けから実評価・全arm不一致の不在、順序/default/enum payloadの実値例 | false側のsource拒否完全性、record内の複数arm合成、list長さの深い分岐、整数区間合併、source全体のRust pattern matrix、source nominal構築子elaboration |
+| `Yulang.CaseTree` / `CaseTreeExamples` | scrutinee/body・pair・letへの有限case入れ子、独立型付けから実評価の型安全性と未一致の不在、任意整数について値と訪問列を保持する入れ子例 | guard/default内部のcase、一般再帰・関数/application/effect/castの統合、source名解決とdefault省略方針の決定 |
 | `Yulang.CasePresenceValidation` | 宣言presenceのoptional許可/required拒否/unknown未解決、具体recordの旧markerへのlookup保存、required/optional所属の対応、型付きlazy defaultからunionに入る実束縛 | sourceからpresence metadataを導出し全patternへ適用するpass、旧markerにないfloat/list/nominalの射影、source defaultのscope選択 |
 | `Yulang.LiteralValues` / `LiteralValueExamples` | 任意精度整数・文字列・bool・unitの内容、実行可能literal比較と独立判断の同値、整数閉区間/片側区間の正確性、明示的float比較契約 | float精度・丸め・比較規則の決定、数値演算、parser/escapeの正しさ、既存base-marker ASTとの全体統合 |
 | `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、同一operationのpayload-pattern編成と網羅性、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |

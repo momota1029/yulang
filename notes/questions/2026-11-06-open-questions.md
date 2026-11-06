@@ -89,3 +89,24 @@ default式の型環境、effectを持つdefaultの意味保存。現在の核は
 具体data wrapperの外側環境も引数で指定する。これはAをsourceの仕様に採用したという意味ではない。
 既存の「presentなら評価しない」「absentなら観測を保って評価する」証明と、局所default契約からのcase安全性は、
 sourceがどの環境を選ぶかの回答に依存しない。
+
+## Q5. patternの先行不一致で、後に書いたdefaultの評価を省略するか
+
+状態: **未回答**。`spec/03b-patterns.md` 3b.3 は欠如時のdefault評価を定め、
+決定43は実行する式の順序を定めるが、先行patternのmiss後も評価を続けるかは書いていない。
+
+例（`log 1` は観測を残して1を返す式の説明用記法）:
+
+```yulang
+case { y: 1 }:
+    { y: 0, x = log 1 } -> 10
+    _ -> 20
+```
+
+- **A（推奨）:** patternを記述順に照合し、先行部分のmissでそのarmの残りを打ち切る。例では`log 1`を実行しない。
+- **B:** armに入ったら欠けたfieldのdefaultを記述順にすべて評価してから、pattern全体の成否を決める。例でも`log 1`を実行する。
+
+影響する義務: effectful defaultの訪問列、複合pattern/or patternの失敗時の実行、
+LeanとRust oracleの差分テスト、sourceから`CasePatterns.run`への意味保存。
+**仮:** 現在の解決済み照合核はAで実装し、その評価器についてのみ順序・型安全性を証明する。
+Aをsource仕様の決定とは扱わない。既存のdefault訪問例は先行missを含まないため、この回答を先取りしない。

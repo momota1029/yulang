@@ -7,6 +7,8 @@ Rust 実装の中心になる desugar / elaboration の一覧。**下書き**で
 
 旧核は `Inference.Expr` と `RecursiveEffects.Expr`。追加の解決済みcase/handler核は下記の
 専用AST・評価器として置き、旧ASTとの全体統合は別の証明義務として残す。
+追加した核の形と証明範囲を各行に記す。未決定のsource翻訳は備考と問いへ明記し、
+確定の印で拡張しない。特にpattern defaultのscope・不一致後の評価は下書きのまま残す。
 
 ```text
 var i        lit b        lam e        app f a       let v b
@@ -68,10 +70,10 @@ multiHandler operations action ret arms
 
 | 表の構文 | 核 | 状態 | 備考 |
 | --- | --- | --- | --- |
-| `case e: p1 -> a; p2 -> b` | `CaseEvaluation.eval` と順序付き `Arm` 列 | 確定 | 各分解形・独立な型判断・保守的coverageから具体case評価のprogressまで証明。一般Rust matrixと全sourceへのelaborationは別義務 |
+| `case e: p1 -> a; p2 -> b` | `CaseTree.Expr.caseE`、`CaseEvaluation.eval` と順序付きarm | 確定 | 各分解形・独立型判断・保守的coverageから有限に入れ子になったcaseのprogressまで証明。guard/default内のcase、一般Rust matrix、統一sourceへの接続は別義務 |
 | guard `p if g -> a` | pattern成功後にbool guard、偽なら次のarm | 確定 | 実行順と網羅性checkerのguard除外を証明（3b.4）。source guardの名前解決は別義務 |
 | or pattern、`as` | `CasePatterns.Pattern.or/as` | 確定 | 左から照合、全体値の束縛。orの名前集合検査。異なる束縛順のsource整列は未証明 |
-| record pattern の既定値 `{x = 1}` | `defaultField`、解決済みpresence検査とunion | 確定 | 欠如時のみfallbackを評価。required metadataを拒否。sourceからmetadataを求め全patternへ適用するpassは未証明 |
+| record pattern の既定値 `{x = 1}` | `defaultField`、解決済みpresence検査とunion | 確定（形）／下書き（scope・省略） | 欠如時のfallbackとrequired metadata拒否を核へ追加。defaultのscopeはQ4、先行missで後のdefaultを省略する核の方針は仮（Q5）。全patternへのpresence検査は未証明 |
 | 範囲 pattern `0..10` | `LiteralValues.intRangeCheck` | 確定 | 整数の閉区間/片側区間を追加。裸`..`は禁止。区間の合併による一般網羅性は別義務 |
 | list pattern `[x, ..rest]` / `[..init, last]` | `CasePatterns.Pattern.cons/snoc` | 確定 | 残りの有限listを実際に渡す。nominal宣言・Fold/Indexのsource辞書への接続は別義務 |
 | `~"GET :resource"` | parser 値を入力文字列に適用し、capture を束縛 | 下書き | 章9。後で詳しく |

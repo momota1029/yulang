@@ -10,6 +10,13 @@ whole input, whereas a list tail receives only the remaining elements.
 Default code is abstract and is invoked only for a missing field. Its lexical
 environment, effects, and source name resolution belong to the caller.
 No rule about default-expression scope or effect rollback is chosen here.
+
+Provisional kernel policy (仮; open question Q5): matching proceeds from left
+to right and stops the remainder of a compound pattern on a miss. Thus a
+later missing-field default is skipped after an earlier mismatch. The source
+specification does not yet decide this interaction with effectful defaults;
+the source-to-kernel correctness claim remains conditional on that decision.
+Raw repeated binder identities are also not a source shadowing policy.
 -/
 
 namespace Yulang.CasePatterns

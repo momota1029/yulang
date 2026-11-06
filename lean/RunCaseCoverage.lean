@@ -1,4 +1,5 @@
 import Yulang.CaseCoverageExamples
+import Yulang.CaseTreeExamples
 
 open Yulang Yulang.CaseValues Yulang.CasePatterns Yulang.CaseCoverage
 open Yulang.CaseCoverageExamples
@@ -56,4 +57,12 @@ def main : IO Unit := do
   | .ok (some (.literal (.int 77))) => pure ()
   | _ => throw (IO.userError "typed two-constructor enum program: wrong payload")
   IO.println "nominal enum: full two-constructor input typed; selected constructor preserves payload 77"
+  let nested := CaseTree.eval floatCheck [] (CaseTreeExamples.nested 123)
+  match nested.result with
+  | .ok (some (.literal (.int 123))) => pure ()
+  | _ => throw (IO.userError "nested case: wrong value")
+  require "nested case visits" (decide (nested.trace.map eventLabel =
+    ["scrutinee", "scrutinee", "source", "arm:0", "body:0", "source", "arm:0", "body:0",
+     "scrutinee", "source", "arm:0", "body:0", "source"]))
+  IO.println "nested case: cases in scrutinee and body preserve the value and all ordered visits"
   IO.println "case coverage and concrete evaluation tour passed"

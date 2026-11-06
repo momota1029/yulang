@@ -262,3 +262,5 @@ import Yulang.CaseCoverageSafety
 import Yulang.CaseDataProgram
 import Yulang.CaseCoverageExamples
 import Yulang.CaseCoverageBoundaryExamples
+import Yulang.CaseTree
+import Yulang.CaseTreeExamples

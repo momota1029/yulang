@@ -1453,3 +1453,23 @@ merged variant行の `residual_lookup` は未処理tagのpayload全体を保持�
 任意の実値が本物のmatcherでいずれかのarmに合うことを、それぞれ別の定理として証明する。
 source名解決・注釈・presence検査の全patternへの適用、defaultのscope、
 関数・effect・再帰を含む統一ASTへの接続は10.35と同じ境界を保つ。
+
+### 10.35.2 有限に入れ子になったcaseの評価
+
+`CaseTree` はscrutinee・arm body・pair・letの内部にcaseを持つ相互帰納的な有限構文木を評価する。
+`typing_evaluates` は、任意のfloat比較関数、独立な `Typing types expression target` の導出、
+任意の `BindingsHold types environment` を満たす環境について、実評価が
+`.ok (some value)` を返し `target value` が成立することを示す。
+各caseの前提は独立な構文型付け、使用されるdefault codeの型付け、
+`Covered` または `VariantsCovered` であり、部分式の実行成功ではない。
+構文型判断の相互帰納法が再帰するscrutinee/bodyの成功を導く。
+`checked_case_evaluates` / `checked_variants_evaluate` と `typed_no_unmatched` により、
+実行可能なcoverage検査から、型を満たす結果と未一致終了の不在を得る。
+
+**仮の核の方針（Q5）:** compound patternの先行不一致では後のdefaultを評価しない。
+既存の決定43からこの省略規則を追加で決定したとは扱わず、sourceへの意味保存は回答後に接続する。
+rawな重複binderのlookupも、sourceの名前解決・重複名の規則ではない。
+
+**残る義務:** guard/default内部のcase、関数再帰・application・effect・castとの統合、
+sourceの名前解決・束縛順序・default環境のelaboration、および10.35.1の完全なcoverage算法。
+有限構文木への構造再帰を、sourceの一般再帰に関する停止性の証明と同一視しない。

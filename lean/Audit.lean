@@ -1211,3 +1211,12 @@ run_cmd do
 #print axioms Yulang.CaseCoverageBoundaryExamples.zeroOneMany_semantically_exhaustive
 #print axioms Yulang.CaseCoverageBoundaryExamples.splitInt_check_false
 #print axioms Yulang.CaseCoverageBoundaryExamples.splitInt_semantically_exhaustive
+#print axioms Yulang.CaseTree.typing_evaluates
+#print axioms Yulang.CaseTree.checked_case_evaluates
+#print axioms Yulang.CaseTree.checked_variants_evaluate
+#print axioms Yulang.CaseTree.closed_typing_evaluates
+#print axioms Yulang.CaseTree.typed_no_unmatched
+#print axioms Yulang.CaseTreeExamples.nested_typed
+#print axioms Yulang.CaseTreeExamples.nested_evaluates_from_typing
+#print axioms Yulang.CaseTreeExamples.nested_written_order
+#print axioms Yulang.CaseTreeExamples.uncovered_cannot_be_typed
