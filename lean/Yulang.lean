@@ -286,6 +286,8 @@ import Yulang.Binary64
 import Yulang.Binary64Rounding
 import Yulang.Binary64Overflow
 import Yulang.Binary64Decimal
+import Yulang.Binary64SourceDecimal
+import Yulang.Binary64SourceExamples
 import Yulang.JointCaseCoverage
 import Yulang.ScopedCaseCoverageSafety
 import Yulang.ScopedJointCaseCoverage

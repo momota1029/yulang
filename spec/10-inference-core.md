@@ -1452,7 +1452,7 @@ source の裸 `..` を許す規則ではない。source pattern 側でこれを�
 `nan_never_matches_left/right`、任意の値について `reflexive_iff_not_nan` を示す。
 `LiteralValues.binary64MatchCheck_exact` はこのEqを具体literal比較へ接続する。
 
-**残る義務:** 十進tokenの全域source入口への接続、数値演算、lexer/文字列 escape とこの値の対応、
+**残る義務:** 数値演算、lexer/文字列 escape とこの値の対応、
 source AST・全型推論器への literal 内容の接続。旧 marker の定理を変更していない。
 
 ### 10.34.1 有限binary64の最近接・偶数丸め
@@ -1479,11 +1479,9 @@ source AST・全型推論器への literal 内容の接続。旧 marker の定�
 符号保持・有限性・NaNでないことを示す。zeroの場合は巨大指数の累乗より先に短絡する。
 `LiteralValues.binary64OfDecimal_correct` は成功した任意のliteralが正しく丸められたfloatであることを示す。
 
-**残る義務:** 回答済みQ11の「丸めが有限なら受理、無限大へのoverflowは静的error」を
-最大有限値より大きいtokenにも接続すること、lexerとの対応、
-Rustの実際のf64変換との対応、極端な非零十進指数の資源最適化。
-内部結果 `outsideFiniteRange` はsourceの型エラーでもruntime errorでもなく、未接続の方針境界である。
-有限範囲内の証明を範囲外の受理完全性へ広げない。
+**残る義務:** lexerとの対応、Rustの実際のf64変換との対応、極端な非零十進指数の資源最適化。
+内部結果 `outsideFiniteRange` はこの部分converterの境界であり、sourceの静的overflowと同一視しない。
+有限範囲内の証明を範囲外の受理完全性へ広げず、回答済みQ11の全token入口は10.34.2で別に接続する。
 
 ### 10.34.2 回答済みQ11：有限丸めとoverflowの厳密な境界
 
@@ -1506,9 +1504,23 @@ sentinelより大きい入力もこの全称範囲に含み、探索の事前bra
 `round_agrees_with_finite` は旧 `InFiniteRange` を満たす任意入力で旧 `roundFinite` と完全一致する。
 `round_above_max` は最大有限値以上かつ境界未満の任意入力で、符号を保った最大有限値を返すことを示す。
 
-**残る義務:** この境界判定と十進tokenの全域source入口・静的overflow結果を接続すること、
-lexerとRust f64変換との対応、極端な非零十進指数の資源最適化。
-旧部分converterと旧成功範囲の定理は変更していない。
+`Binary64SourceDecimal.convert` は任意のdecoded `DecimalToken` について全域であり、
+成功か静的 `overflow` を返す。`accepted_iff_rounds` はtokenの正確な十進解釈について、
+実行可能な境界判定と独立な全grid最近接偶数の有限値が存在することを同値にする。
+`convert_success_exact` と `convert_overflow_exact` は全tokenについて、成功とその存在、
+静的overflowとその不存在をそれぞれ同値にする。
+`convert_overflow_threshold` は拒否と厳密なmidpoint以上であることを同値にし、符号では分岐しない。
+`convert_correct`・`convert_retains_sign`・`convert_is_finite`・`convert_never_nan` は
+任意のtokenと実際の成功値について、全gridの丸め、符号保持、有限性、非NaNを導く。
+`convert_agrees_with_old` は任意の旧converterの成功から、新converterが同じ値を返すことを示す。
+旧拒否と新拒否の同値ではなく、最大有限値を少し超える受理域は意図的に広い。
+`LiteralValues.binary64SourceOfDecimal_correct` と `binary64SourceOfDecimal_overflow_exact` は
+これらをfloat literalの構成へ接続する。
+`Binary64SourceExamples` の両符号での回帰は、`1.7976931348623158e308`、midpoint直前、
+midpoint一致・直後、`1e309` をkernel検査し、`RunBinary64Source.lean` でも実行する。
+
+**残る義務:** lexer・source span/診断・無限大定数の名前との接続、Rust f64変換との対応、
+極端な非零十進指数の資源最適化。旧部分converterと旧成功範囲の定理・旧runnerの期待値は変更していない。
 
 ## 10.35 Case の照合と独立な束縛型判断
 

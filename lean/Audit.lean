@@ -1402,6 +1402,33 @@ run_cmd do
 #print axioms Yulang.LiteralValues.binary64OfDecimal_correct
 #print axioms Yulang.LiteralValues.binary64OfDecimal_kind
 
+#print axioms Yulang.Binary64SourceDecimal.accepted_iff_below_midpoint
+#print axioms Yulang.Binary64SourceDecimal.accepted_iff_rounds
+#print axioms Yulang.Binary64SourceDecimal.convert_success_iff
+#print axioms Yulang.Binary64SourceDecimal.convert_overflow_iff
+#print axioms Yulang.Binary64SourceDecimal.convert_success_exact
+#print axioms Yulang.Binary64SourceDecimal.convert_overflow_exact
+#print axioms Yulang.Binary64SourceDecimal.convert_overflow_threshold
+#print axioms Yulang.Binary64SourceDecimal.convert_correct
+#print axioms Yulang.Binary64SourceDecimal.convert_finite_contract
+#print axioms Yulang.Binary64SourceDecimal.convert_retains_sign
+#print axioms Yulang.Binary64SourceDecimal.convert_is_finite
+#print axioms Yulang.Binary64SourceDecimal.convert_never_nan
+#print axioms Yulang.Binary64SourceDecimal.accepted_of_old_range
+#print axioms Yulang.Binary64SourceDecimal.convert_agrees_with_old
+#print axioms Yulang.Binary64SourceDecimal.convert_above_max
+#print axioms Yulang.LiteralValues.binary64SourceOfDecimal_correct
+#print axioms Yulang.LiteralValues.binary64SourceOfDecimal_kind
+#print axioms Yulang.LiteralValues.binary64SourceOfDecimal_overflow_exact
+#print axioms Yulang.Binary64SourceExamples.nearMax_outside_old_range
+#print axioms Yulang.Binary64SourceExamples.nearMax_keeps_old_boundary
+#print axioms Yulang.Binary64SourceExamples.nearMax_rounds_to_largest
+#print axioms Yulang.Binary64SourceExamples.justBelowMidpoint_rounds_to_largest
+#print axioms Yulang.Binary64SourceExamples.atMidpoint_rejected
+#print axioms Yulang.Binary64SourceExamples.justAboveMidpoint_rejected
+#print axioms Yulang.Binary64SourceExamples.nextDecimal_rejected
+#print axioms Yulang.Binary64SourceExamples.huge_rejected
+
 #print axioms Yulang.JointCaseCoverage.checkTag_exact
 #print axioms Yulang.JointCaseCoverage.old_check_preserved
 #print axioms Yulang.JointCaseCoverage.guarded_cons_ignored

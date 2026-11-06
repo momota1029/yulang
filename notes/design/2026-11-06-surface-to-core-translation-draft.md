@@ -44,7 +44,7 @@ regularな `SourcePrincipalInference` 全体の主型性・関数/行意味へ�
 | 表の構文 | 核 | 状態 | 出典・備考 |
 | --- | --- | --- | --- |
 | 整数・文字列・bool・unit literal | `LiteralValues.Literal` | 確定 | 内容とliteral/range比較を追加。source codecとの対応は未証明 |
-| float literal / literal pattern | `Binary64Decimal.convert`、`Binary64.Value`、`LiteralValues.binary64MatchCheck` | 確定 | 回答済みQ2・Q3。任意tokenを厳密な分数にし、最大有限値以下で全有限候補への最近接・偶数丸めを証明。数値Eqは正負zero一致・NaN不一致。literalは網羅性に数えない。回答済みQ11の全token入口、lexer/Rust f64との対応は別義務 |
+| float literal / literal pattern | `Binary64SourceDecimal.convert`、`Binary64.Value`、`LiteralValues.binary64MatchCheck` | 確定 | 回答済みQ2・Q3・Q11。任意decoded tokenの厳密な十進解釈と全grid最近接偶数丸め、有限結果の存在⇔成功・不存在⇔静的overflowを証明。数値Eqは正負zero一致・NaN不一致。literalは網羅性に数えない。lexer・診断/Rust f64との対応は別義務 |
 | 名前 `x`、path `a::b` | `var i`(束縛済み)、またはモジュールの宣言への参照 | 確定 | 名前解決は核の前。章3.2 |
 | `f x y` / `f(x, y)` / `x.m y` / `f: body` | `app (app f x) y` | 確定 | 章3.3。どれも同じカリー化 |
 | `f()` | `app f unit` | 確定 | `unit` は `lit unit` |
@@ -166,7 +166,7 @@ ChatGPT に依頼する核の拡張の候補。
 2. 複数 operation の核は `MultiOperationHandlerTyping` に追加済み。残るのは source payload-pattern arm の編成、個別署名、多相、mask の elaboration
 3. labelの値・methodと衛生的な境界をsourceから核へ対応させるelaboration。labelが値であること自体は章3c.2で確定
 4. nominal構築の核と保留site実行は追加済み。source宣言・default/cast・辞書と統一ASTへのelaborationは残る
-5. 整数・文字列・bool・unitの中身とbinary64の数値Eq、最大有限値以下の小数の最近接偶数丸めを追加済み。回答済みQ11のoverflow規則、lexer・旧AST・Rust実装との接続が残る
+5. 整数・文字列・bool・unitの中身とbinary64の数値Eq、任意decoded小数tokenの最近接偶数丸め・静的overflowを追加済み。lexer・source診断・旧AST・Rust実装との接続が残る
 
 決定44の `recordDefault` は上記の通り追加済み。`error` と `junction` の要求木helperも
 `ErrorEffects` / `JunctionEffects` にあるが、ordinary strict applicationとの接続を含む
