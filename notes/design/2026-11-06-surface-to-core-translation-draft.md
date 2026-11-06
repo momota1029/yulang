@@ -76,6 +76,7 @@ regularな `SourcePrincipalInference` 全体への統合は、別メモ `2026-11
 | `case e: p1 -> a; p2 -> b` | `CaseTree.Expr.caseE`、`CaseEvaluation.eval` と順序付きarm | 確定 | 各分解形・独立型判断・保守的coverageから有限に入れ子になったcaseのprogressまで証明。guard/default内のcase、一般Rust matrix、統一sourceへの接続は別義務 |
 | `case:`(対象の式なし) | `lam (case #0 ...)`(`\x -> case x:`) | 確定 | 章3.7(2026-11-06)。`catch:` の同形・多引数は要確認 |
 | guard `p if g -> a` | pattern成功後にbool guard、偽なら次のarm | 確定 | 実行順と網羅性checkerのguard除外を証明（3b.4）。source guardの名前解決は別義務 |
+| 同一polyvariant tagの複数payload arm | `JointCaseCoverage.checkTag/checkRow`、全tag単位の `residual` | 確定 | 回答済みQ8。既存のpayload cellを別々のunguarded armが覆える。独立被覆判断・旧検査の受理保存・実matcherと旧scope非依存caseのprogressへ接続。guard/float literalを被覆に数えない。一般pattern matrixとscope付きdefaultの接続は別義務 |
 | or pattern、`as` | `CasePatterns.Pattern.or/as`、`ScopedCasePatterns.run` | 確定 | 回答済みQ6。左の照合成功で枝を確定しguard偽なら次のarmへ進む。失敗枝の束縛は他枝に漏らさない。異なる束縛順のsource整列は未証明 |
 | record pattern の既定値 `{x = 1}` | `ScopedCasePatterns.run`、`ScopedCaseDataProgram`、解決済みpresence検査とunion | 確定 | 回答済みQ4・Q5。先行束縛が外側を隠し、左から右・nested patternへ渡る。具体data式の型判断から実評価の健全性を証明。先行missでは後続defaultを省略。Q7の同一経路の重複binderは実行前に拒否。全patternへのpresence検査・一般coverageとの接続は別義務 |
 | 範囲 pattern `0..10` | `LiteralValues.intRangeCheck` | 確定 | 整数の閉区間/片側区間を追加。裸`..`は禁止。区間の合併による一般網羅性は別義務 |

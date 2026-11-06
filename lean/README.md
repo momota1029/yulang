@@ -87,7 +87,15 @@ unguarded armを構成する。defaultの健全性は、arm構文に現れるコ
 variantの `residual_lookup` は、処理したtagを丸ごと除き、未処理tagのpayload全体をそのまま残す。
 `residual_empty_iff` はこの残余の空性と独立な `VariantsCovered` を一致させる。
 このcheckerは、一つのunguarded armでpayload全体を覆えることを十分条件としている。
-複数armを合成したpayload網羅性をsourceでどう扱うかの決定ではない（Q8）。
+この旧checkerの受理範囲は変更せず、回答済みQ8は次の拡張で扱う。
+
+`JointCaseCoverage` は同一tagのpayloadを既存の構造的cellに分け、各cellを異なるunguarded armが
+覆うことを認める。`checkTag_exact` / `checkRow_exact` は実行検査と独立な `TagCovered` / `RowCovered` を一致させる。
+`old_check_preserved` は旧checkerの受理を保ち、bool payloadのfalse/true二armでtag全体を除ける。
+`residual_lookup` は除去できないtagのpayload全体を残し、`residual_empty_iff` は空残余と `RowCovered` を同値にする。
+guard付きarmとfloat literalは網羅性に数えない。`checked_program_evaluates` は旧scope非依存の
+具体caseについて、独立なscrutinee/葉/armの型付けと検査成功・環境整合から成功する型付き結果を導く。
+scope付きdefaultとこのjoint検査の接続は別の定理で扱う。
 
 **checkerのfalseは未認証であり、sourceの非網羅エラーとは同一視しない。**
 例えば整数の `..0` と `1..` は任意の整数を覆うと証明したが、現checkerは受理しない。
@@ -712,6 +720,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.CaseValues` / `CasePatterns` / `CasePatternSafety` / `CaseEvaluation` / `CaseDataTerms` | 具体値の分解、独立な束縛型判断から照合安全性、whole merged payloadの型付け、orの名前集合、上から順のarm/guard/body評価、具体data葉から健全性契約の導出 | 全Rust pattern matrix、sourceの名前解決・型注釈検査・束縛順の整列、関数/effect/再帰との統合 |
 | `Yulang.ScopedCasePatterns` / `ScopedCasePatternSafety` / `ScopedCaseEvaluation` / `ScopedCaseTotal` / `ScopedCaseDataProgram` / `PatternBindingChecks` | 先行束縛を読むdefaultと同じ順の型環境、型判断から照合安全性、独立TotalTypingから具体caseのprogress、同一経路の重複binderの静的拒否、Q4–Q7の実値・訪問列 | 一般coverageとのscope付き接続、sourceの環境/presence導出、effectfulな葉、CaseTree・統一ASTへの接続 |
 | `Yulang.CaseCoverage` / `CaseCoverageSafety` / `CaseDataProgram` / `CaseCoverageExamples` / `CaseCoverageBoundaryExamples` | 保守的な網羅性checkerと独立判断の同値、guard除外、merged tag残余の正確性、具体programの型付けから実評価・全arm不一致の不在、順序/default/enum payloadの実値例 | false側のsource拒否完全性、record内の複数arm合成、list長さの深い分岐、整数区間合併、source全体のRust pattern matrix、source nominal構築子elaboration |
+| `Yulang.JointCaseCoverage` | 複数の反駁可能armによる同一tagのpayload cell被覆、独立判断との同値、旧受理の保存、全tag単位の残余、旧scope非依存の具体caseへのprogress接続 | 一般pattern matrix、record/list/整数の既存未認証例、scope付きdefaultとの接続、sourceの拒否完全性 |
 | `Yulang.CaseTree` / `CaseTreeExamples` | scrutinee/body・pair・letへの有限case入れ子、独立型付けから実評価の型安全性と未一致の不在、任意整数について値と訪問列を保持する入れ子例 | guard/default内部のcase、一般再帰・関数/application/effect/castの統合、source名解決とscope付きdefaultの統合 |
 | `Yulang.CasePresenceValidation` | 宣言presenceのoptional許可/required拒否/unknown未解決、具体recordの旧markerへのlookup保存、required/optional所属の対応、型付きlazy defaultからunionに入る実束縛 | sourceからpresence metadataを導出し全patternへ適用するpass、旧markerにないfloat/list/nominalの射影、source defaultのscopeを割り当てるpass |
 | `Yulang.LiteralValues` / `LiteralValueExamples` / `Binary64` / `Binary64Rounding` / `Binary64Decimal` | 内容つきliteral、整数範囲、64bit codecの相互逆、数値Eqと独立判断の同値、正負zeroの一致・NaNの不一致、任意tokenの厳密な分数化と範囲内での全有限binary64候補への最近接・偶数丸め | 範囲外tokenのsource方針（Q11）、数値演算、parser/escape、Rust f64との対応、非零巨大指数の資源最適化、既存base-marker ASTとの全体統合 |

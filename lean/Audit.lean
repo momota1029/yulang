@@ -1381,3 +1381,17 @@ run_cmd do
 #print axioms Yulang.Binary64Decimal.convert_never_nan
 #print axioms Yulang.LiteralValues.binary64OfDecimal_correct
 #print axioms Yulang.LiteralValues.binary64OfDecimal_kind
+
+#print axioms Yulang.JointCaseCoverage.checkTag_exact
+#print axioms Yulang.JointCaseCoverage.old_check_preserved
+#print axioms Yulang.JointCaseCoverage.guarded_cons_ignored
+#print axioms Yulang.JointCaseCoverage.checkRow_exact
+#print axioms Yulang.JointCaseCoverage.residual_lookup
+#print axioms Yulang.JointCaseCoverage.residual_empty_iff
+#print axioms Yulang.JointCaseCoverage.tag_covered_matches
+#print axioms Yulang.JointCaseCoverage.row_covered_matches
+#print axioms Yulang.JointCaseCoverage.checked_program_evaluates
+#print axioms Yulang.JointCaseCoverage.Examples.boolean_payload_jointly_covered
+#print axioms Yulang.JointCaseCoverage.Examples.boolean_payload_removed
+#print axioms Yulang.JointCaseCoverage.Examples.guarded_half_retains_payload
+#print axioms Yulang.JointCaseCoverage.Examples.float_literal_not_coverage

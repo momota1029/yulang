@@ -285,3 +285,4 @@ import Yulang.ScopedCaseExamples
 import Yulang.Binary64
 import Yulang.Binary64Rounding
 import Yulang.Binary64Decimal
+import Yulang.JointCaseCoverage

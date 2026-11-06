@@ -1537,7 +1537,7 @@ default・guard・body・scrutineeの実行成功を外から仮定する必要�
 merged variant行の `residual_lookup` は未処理tagのpayload全体を保持し、
 `residual_empty_iff` は残余の空性を `VariantsCovered` と同値にする。
 現在の「一armがpayload全体を覆う」は保守的な十分条件であり、
-複数armのpayload被覆をsourceで拒否する規則を新たに設けたものではない（Q8）。
+回答済みQ8の複数armによるpayload被覆は10.35.4の拡張で扱う。
 
 **残る義務:** このcheckerのfalseをsource拒否と同一視してはならない。
 `integer_split_semantically_exhaustive` は任意の整数に `..0` / `1..` のいずれかが合うことを示すが、
@@ -1603,6 +1603,30 @@ defaultの実評価を導く。`ScopedCaseDataProgram.typing_evaluates` は、�
 **残る義務:** 一般の網羅性checkerのscope付き接続、
 sourceから型・値環境とpresence metadataを導出するpass、
 effectfulなdefault/guard、有限case treeと統一ASTへの接続。
+
+### 10.35.4 回答済みQ8：同一tagのpayloadを複数armで覆う
+
+`JointCaseCoverage.TagCovered` は、旧全体被覆に加え、payloadの各構造的cellを
+（異なるものでもよい）unguarded armが覆う独立な判断を持つ。
+`checkTag_exact` は任意のdefault domain表・arm列・tag・payloadについて検査成功とこの判断を同値にし、
+`checkRow_exact` は任意の閉じたmerged行について独立な `RowCovered` と同値にする。
+`old_check_preserved` は旧checkerが受理する任意のtagを新checkerも受理することを示す。
+旧 `CaseCoverage` の関数・否定定理・期待値は変更しない。
+
+任意の行とtagに対し `residual_lookup` は、joint検査が成功すればtagを丸ごと除き、
+そうでなければ元のpayload全体を残すことを示す。
+`residual_empty_iff` は任意の行の残余が空であることを `RowCovered` と同値にする。
+bool payloadのfalse/true別armは全体を覆うが、片方にguardを付ければpayload全体が残る。
+`float_literal_not_coverage` は任意のfloat値・tagについてfloat literal一つを網羅性に数えないことを示す。
+
+`tag_covered_matches` / `row_covered_matches` は任意の比較関数・default evaluatorについて、
+使用するdefault codeのdomain健全性と独立被覆判断から、domain内の任意の実値に合うunguarded armを構成する。
+`checked_program_evaluates` は任意の具体program・型環境・domain表・行について、
+scrutinee/使用default/armの独立型付け、joint検査成功、整合する任意の外側環境から
+実際の `CaseDataProgram.eval` が型に合う値を返すことを示す。
+
+**残る義務:** この入口は旧scope非依存defaultの特殊な場合である。scope付きmatcherとの接続、
+一般Rust matrix、record内の複数arm合成・listの深い長さ分割・整数区間合併、sourceの拒否完全性は残る。
 
 ## 10.36 Nominal構築の実行とlistの観測
 
