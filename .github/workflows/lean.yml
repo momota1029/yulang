@@ -29,3 +29,8 @@ jobs:
       - name: Audit every declaration and report principal theorem dependencies
         working-directory: lean
         run: lake env lean --trust=0 Audit.lean
+      - name: Execute value and regular inference examples
+        working-directory: lean
+        run: |
+          lake env lean --trust=0 --run RunValueInference.lean
+          lake env lean --trust=0 --run RunRegularInference.lean
