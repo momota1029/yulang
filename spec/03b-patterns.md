@@ -65,6 +65,14 @@ case config:
 - default（`port = 80`）は、その field が型の上で省略可能（`port?: int`）なときだけ書ける。必須の field に default を書いたらエラー（欠けることがないため）。
   pattern に default を書くと、推論が自動的にその field を省略可能（`port?: int`）にする（確定, 2026-11-04）。省略可能な field の型表記は章4.3・章7.5 で扱う。
 - default は field が欠けているときに評価される。そのため pattern の照合そのものが effect を持ちうる。
+- **default の式からは、同じ pattern でそれまでに照合して束縛した名前が見える**（確定, 2026-11-06）。照合は field の記述順（左から右）に進み、先に束縛された名前は、後ろの default の式で使える。同名なら、pattern の束縛が外側の名前を隠す。field の記述順が名前解決にも影響するが、未使用の束縛の警告や型エラーで気づける。or pattern の各枝は、それぞれ自分の枝の束縛だけを見る。
+
+```yulang
+my outer = 10
+case { x: 3 }:
+    { x: outer, y: result = outer } -> result    // y が無いので、default の outer は x の束縛 3。結果は 3
+```
+
 - record の spread `..name` は、**残りではなく入力 record 全体**を束縛する（record の差は型システム上、十分に扱えないため）。
   他の field があってもよいことだけを示すなら `.._` を使う。
 - list の spread は 1 つだけ置ける。先頭にも末尾にも置ける。`..name` は**残りの要素の list** に束縛される（`[1, 2, 3]` を `[first, ..rest]` に合わせると `rest = [2, 3]`。確定, 2026-11-04）。record の spread とは違う。

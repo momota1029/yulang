@@ -69,7 +69,7 @@ float patternの網羅性。保存値の構造的な等号 `eqCheck` と、言�
 
 ## Q4. record pattern のdefaultから、同じpattern内の束縛が見えるか
 
-状態: **未回答**。`spec/03b-patterns.md` 3b.3 は欠如時の評価を定めるが、default式の名前のscopeを定めていない。
+状態: **回答済み(2026-11-06): B**(便利なので。紛らわしさは未使用の警告や型エラーで気づける)。それまでに照合して束縛した名前もdefaultから見える。field の記述順が名前解決にも影響する。`spec/03b-patterns.md` 3b.3に反映。以下は質問の記録。`spec/03b-patterns.md` 3b.3 は欠如時の評価を定めるが、default式の名前のscopeを定めていない。
 決定43の評価順だけから、束縛が見える範囲までは拡張して決めない。
 
 例（`outer` の値が10の場合）:
