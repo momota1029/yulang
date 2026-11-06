@@ -180,7 +180,7 @@ effectful \x -> rest
 ## 3c.8 effectful な条件　〔章5 へ〕
 
 `if` の条件が非決定的な場合（`all` / `any`）は、`std::control::junction` が提供する effectful な真偽値として扱われる。
-通常の `bool` の条件は通常の経路を通る。意味は章5 で書く。
+通常の `bool` の条件は通常の経路を通る。意味は章5.9 に書いた。
 
 ## 確認してほしい点
 

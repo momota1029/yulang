@@ -205,6 +205,32 @@ use std::control::nondet::*
 - 推論が終わっても曖昧なままなら、**曖昧エラー**（確定, 2026-11-04）。`impl` の候補が複数あるとき（章6.2）と同じ扱いで、
   利用者が `p::run e` のように path で指定して直す。行の中の順序で選ぶことはしない（行は集合として扱う）。
 
+## 5.9 junction（effectful な条件）　〔確定, 2026-11-06〕
+
+Raku の junction を effect で再現したもの。`any` / `all` は、要素を非決定的に選ぶ値になり、`if` の条件が「どれか」「すべて」を表せる。実装は標準ライブラリ（`std::control::junction`）にあり、言語との接続は `if` の 1 箇所だけである。
+
+```yulang
+if all [1, 2, 3] < any [2, 3, 4]:
+    1
+else:
+    0
+```
+
+- `junction` は `act` で、operation として `or: () -> bool` と `and: () -> bool` を持つ。`any xs` は各要素について `or()` を呼び、真の枝でその要素を値として返す。要素がなければ全体が偽。`all xs` は `and()` で同様に、要素がなければ全体が真。
+- **`if` の条件が effectful（effect 行に `junction` を持つ）のとき、条件は `junction::junction` で包まれる**（確定, 2026-11-06）。条件が pure なら、普通の `bool` として扱う。包む処理は型に依存して挿入される（章6の辞書や cast と同じ elaboration）。
+- `junction::junction` は handler で、条件の真偽を次のように決める。継続は何度でも呼ぶ（multi-shot）。
+  - `or()`: 継続に `true` を渡して全体が真ならそれ。そうでなければ `false` を渡す。
+  - `and()`: 継続に `true` を渡して全体が真なら、`false` も試す。そうでなければ偽。
+  - `ret b`: 全体の真偽を `b` に決めて抜ける。
+
+```yulang
+if all [1, 2, 3] < any [2, 3, 4]: 1 else: 0
+// 左の全要素について、右のどれかより小さい → 1
+```
+
+- これらは普通の effect と handler の組み合わせであり、`junction` を handle する自前の handler も書ける。
+- 出典: `main:lib/std/control/junction.yu`、`main:examples/07_junction.yu`、`main:docs/language/overview.ja.md`「effectful condition」。
+
 ## 確認してほしい点
 
 なし（N1 は I8 で解決）。

@@ -87,7 +87,7 @@ handler op action ret arm
 | `$a` | `&a` の読み出し operation | 確定 | `var` effect |
 | `&a = v` | `&a` の更新 operation | 確定 | |
 | `x.method`(effect 行の method) | effect 行から選ぶ | 確定 | 章5.8 |
-| `if c`(c が junction: `all`/`any`) | `std::control::junction` の effectful な真偽値 | 下書き | 意味は章5(未記述) |
+| `if c`(c の行に `junction`) | `if junction::junction c: ...` | 確定 | 章5.9。型に依存して挿入(条件が pure なら何もしない) |
 
 ## D. 宣言
 
@@ -111,6 +111,7 @@ handler op action ret arm
 | 辞書引数 | 確定 | `where` の制約ごと |
 | 保護・解除の境界 | 下書き | 高階の callback の境界。型から決まる |
 | 保留された cast 境界 | 確定 | 不変の型引数を持つ nominal 型の構築(決定 25) |
+| `junction::junction` | 確定 | `if` の条件の行に `junction` が出るとき(章5.9) |
 
 ## `error` 宣言の展開 (下書き)
 
@@ -146,5 +147,4 @@ ChatGPT に依頼する核の拡張の候補。
 ## 確認したいこと(ユーザーへ)
 
 - `for` の `redo` の意味(同じ反復のやり直し)の実装方針
-- junction(`all`/`any`)の意味(章5 に未記述)
 - 書式付き文字列の `fmt` の境界(言語か std か)
