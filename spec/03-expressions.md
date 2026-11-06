@@ -229,6 +229,20 @@ case n:
         y + 1
 ```
 
+- **`case:`（対象の式なし）は、一引数の関数を作る**（確定, 2026-11-06）。`case:` は `\x -> case x:` の略で、パイプライン（章3.9）の右辺や、関数として渡す場所に置ける。arm の意味は `case x:` と同じ。
+
+```yulang
+my handle = case:
+    ok res -> res
+    err e  -> fail_page e
+
+route req | http_err::wrap | case:      // パイプラインの最後に置く
+    ok res -> res
+    err e  -> fail_page e
+```
+
+  `catch:` に同じ形があるか、arm が複数の引数を取る形があるかは、要確認。
+
 - **網羅性を検査する**。どの arm にも合わない場合があるなら、エラーになる（確定, 2026-11-04）。
 - 網羅性の細部（guard 付きの arm の扱いなど）は [章3b](03b-patterns.md) に書く。
 

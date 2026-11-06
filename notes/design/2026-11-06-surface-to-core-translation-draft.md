@@ -73,6 +73,7 @@ regularな `SourcePrincipalInference` 全体への統合は、別メモ `2026-11
 | 表の構文 | 核 | 状態 | 備考 |
 | --- | --- | --- | --- |
 | `case e: p1 -> a; p2 -> b` | `CaseTree.Expr.caseE`、`CaseEvaluation.eval` と順序付きarm | 確定 | 各分解形・独立型判断・保守的coverageから有限に入れ子になったcaseのprogressまで証明。guard/default内のcase、一般Rust matrix、統一sourceへの接続は別義務 |
+| `case:`(対象の式なし) | `lam (case #0 ...)`(`\x -> case x:`) | 確定 | 章3.7(2026-11-06)。`catch:` の同形・多引数は要確認 |
 | guard `p if g -> a` | pattern成功後にbool guard、偽なら次のarm | 確定 | 実行順と網羅性checkerのguard除外を証明（3b.4）。source guardの名前解決は別義務 |
 | or pattern、`as` | `CasePatterns.Pattern.or/as` | 確定（形・名前集合・as）／下書き（or選択） | 全体値の束縛とorの名前集合検査。左の照合成功で枝を確定しguard失敗時に右を再試行しない核の方針は仮（Q6）。異なる束縛順のsource整列は未証明 |
 | record pattern の既定値 `{x = 1}` | `defaultField`、解決済みpresence検査とunion | 確定（形）／下書き（scope・省略） | 欠如時のfallbackとrequired metadata拒否を核へ追加。defaultのscopeはQ4、先行missで後のdefaultを省略する核の方針は仮（Q5）。全patternへのpresence検査は未証明 |
