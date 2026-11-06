@@ -31,3 +31,39 @@ spread の effect 行、`Fold` 走査から list 構築への翻訳、有限性�
 この回答に依存しない範囲: operand が既に有限の list 値を返すと解決された核で、
 任意の位置・任意個数の spread を書いた順に一回ずつ評価し、得た有限列を順に連結する。
 この限定は source が A を選んだという仮定ではなく、どちらの案にも共通する実装層である。
+
+## Q14. 既に型が決まった list を spread した要素へ、保留 cast 境界を新設するか
+
+状態: **未回答**。
+
+`spec/06-roles.md` 6.5 は、型が決まった nominal list の型引数へ cast を通さず、
+list literal の各要素には構築位置の保留境界を置くとする。
+spread が既存 list の値を新しい literal へ取り込むとき、その各値を「literal の各要素」
+という新しい境界に数えるかは明示されていない。決定 25 を広げて採用しない。
+
+例（意味を問うための表記。parser/oracle 実行結果ではない）:
+
+```yulang
+struct user_id { raw: int }
+cast(x: user_id): int = x.raw
+my ids: list user_id = [user_id { raw: 1 }]
+my numbers: list int = [0, ..ids, 2]
+```
+
+- **A（推奨）:** 既存 list を spread する部分は、既に確定した要素型のまま取り込む。
+  spread で取り込む各要素へ新たな保留境界を自動生成しない。
+  この例は `ids` の要素型と構築先の要素型が合わず拒否する。
+  既存 nominal 値の内部を暗黙に走査して変換しない規則をそのまま保てる。
+- **B:** 新しい list literal へ取り込まれる各要素に、新たな保留境界を置く。
+  この例は新しい `numbers` を作る過程で各 `user_id` を `int` へ変換し、`ids` 自体は変更しない。
+  source の一つの spread 位置から実行時の要素数ぶんの純粋な変換を発生させる。
+
+影響する義務: list literal の弱変数制約、spread から保留境界の位置を生成する規則、
+`NominalConstructions.finish` の静的siteと動的要素数の対応、
+既存 nominal list の不変性と新規literalのcast挿入の境界、Rust oracle の変換回数。
+
+この回答に依存しない範囲: 明示的に選ばれた純粋な変換コードを持つ通常の要素位置と、
+既に構築先の要素型を満たす有限 list の spread を扱う。
+spread の内部へ新しい変換を暗黙に挿入する source 規則は作らない。
+これは B の source lowering を拒否すると決定した意味ではなく、その未決定の工程を
+有限list構築kernelの外に残すという境界である。
