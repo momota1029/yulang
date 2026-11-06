@@ -166,8 +166,8 @@ instance は旧 scheme を同じ自由な値・行 parameter で評価してか�
    が保存されること。現モデルは旧 record 幅上界を持ち、これらの演算を実装したモデルではない。
 3. 任意の独立した新 Typing から `Core.ProducerContextualInstances.Instance` へ戻る完全性。
    証明済みの source sound と source_instances_exact_modulo を逆向き Typing completeness と取り違えない。
-4. arbitrary target の分解は閉じたが、それを solver の transition・branch saturation・solved parameter
-   の全入力完全性へ接続する補題は別に必要である。
+4. arbitrary target の分解は閉じ、以下の rigid graph 文法では実 inspector・全入力の branch saturation・
+   拒否完全性へ接続した。全 contextual 解の solved parameter への retraction と、presence 文法への拡張は別に必要である。
 5. role head table の核から、条件付き role impl と辞書の実際の意味への対応。
 
 代案として (a) 旧 finite-rigid demand に戻す方法は Q5 の区別を失い、(b) arbitrary role predicate に
@@ -192,6 +192,34 @@ target が `{x:B}`（旧 width `{}` を rest に持つ required singleton）な�
 同じ label の内側 head を消しても要求同値であることも証明した。式の評価順を消す変換ではない。
 任意の regular graph と具体 regular carrier にも全深さで移し、tail は同じ観測深さで扱う。
 この regular carrier の tail は有限 layer なので、次の非guarded node-tail 解法とはまだ別の境界である。
+
+### 実 constructor solver と型制約 compiler
+
+`ContextualNestedModels.Models` は任意の外部 regular graph と元 slot の割当てに対する独立判断である。
+graph の rigid node は変数・base・bottom/top・pair・行付き arrow・proper record spine・variant を持つ。
+実 `NestedValueSolver.inspect` の子制約と行制約が新順序で健全なことを全深さで示し、
+既存の finite Horn 飽和をそのまま用いて全モデルを保存・反映する。
+任意の入力で solve の拒否は独立 contextual model の不存在と同値である。
+逆向きでは既存の実 coalescer が構成する regular 解を旧部分型保存で移すため、
+存在するはずの解や successful solver を caller の前提にはしない。
+
+`ContextualBranchSolver` は edge の任意の有限論理積・論理和を実際に DNF 列挙し、各枝でこの solver を呼ぶ。
+全入力の任意のモデルはある受理枝の cache に残り、受理 cache の任意のモデルは元の入力モデルになる。
+各受理枝から constructor/variable `Closed`・整合性・slot 数の二乗の cache 長上界を得る。
+空結果とモデル不存在も同値である。DNF の枝数が多項式とは主張しない。
+この Closed は古い「子辺を全 mask で閉じる presence cache」とは異なり、既存反例を変更していない。
+
+`ContextualTypeConstraintGraph` はこの順序の lattice/congruence 則を、既存型項 compiler の generic 契約に供給する。
+共有するソース変数への各割当てを保ったまま、型制約の充足と実 compiled graph の独立モデルを双方向に結ぶ。
+さらに同じ具体 regular inference carrier 上で全自由 parameter の健全性と拒否完全性を示す。
+任意の rows と型制約について、実 `TypeConstraintInference.infer` の rejected は、既存 supported check が true であり、
+新順序による充足割当てが存在しないことと同値である。成功・Closed・解・fuel の前提はない。
+source union・target intersection・fixed record spine という既存 compiler の境界は変更しない。
+
+採用理由は既存の実 inspector/compiler/coalescer を使い、model 判定を solver 成功の定義にしてしまわずに接続するため。
+代案の独立な新 compiler を同時に追加する方法は共有変数と行の対応に別の証明義務を増やす。
+ただし任意 contextual 解のこの同じ coalescer への retraction は、旧構造解の存在からは得られない。
+この部分と simultaneous row inference、presence 全体への lowering は未完として残す。
 
 ## 5. 有限の正方程式を解く核
 
@@ -221,7 +249,21 @@ slot と有限 mask の積を座標とし、上の消去を実 layer の union/i
 mask の語彙は `Fin labels` として宣言し、容量は `slots * 2^labels` と証明した。
 Rust では言及された label の局所 intern を使う案とするが、任意 Nat label をこの dense 語彙へ移す補題はまだない。
 外側 mask は任意の Nat 列を量化するので、語彙外の field を有限サンプルとして捨ててはいない。
-guarded payload 自身を再帰 graph に閉じること、関数・行・whole default の統合、producer 不等式への適用は別の義務である。
+guarded payload の再帰 graph 化は次の接続で閉じた。関数・行・whole default の統合、producer 不等式への適用は別の義務である。
+
+### 同深さ循環を消去してから regular graph に閉じる
+
+`PresenceTailRegular.solveGraph` は実際の有限 tail 消去の後、payload ref を regular graph の内部参照へ閉じる。
+外部の任意 graph と任意 parameter layer を保持し、tail の同深さと payload の一段の差を変えない。
+独立 `Realizes` は元の Body 方程式を、任意の深さ・外側 Nat mask・内部有限 mask・slot・data 値で解く判断である。
+実構成がすべての parameter で Realizes を満たすことと、任意の独立 regular 解の全深さ・全 mask での回収を証明した。
+従って source 由来を持たない非 guarded な tail の循環も、この positive data-demand 文法では具体的に求解できる。
+外側 mask と atom/parameter 中の label は Nat のままで、有限語彙の外を観測から削除していない。
+
+採用理由は同深さの循環を先に有限消去してから guarded graph を閉じることで、tail に一段の guard を挿入する代案を避けるため。
+深さごとの任意述語 family を free parameter と仮定することも不要になった。
+この layer 文法には関数・行・exactEmpty・whole recordDefault image がない。
+`Body.record` は required head と除去後の tail 要求を組み立てる演算であり、producer 全体のモデルとは主張しない。
 
 ## 6. 計数付きの参照実装
 
@@ -243,12 +285,22 @@ binder の下では捕捉された置換値の両成分を rename する費用�
 どちらも入力以下であることを示す。受理/不受理のどちらの候補分岐にも成立する。
 一時的な joint substitution だけは各変数を union/inter の3 nodeに広げ、全体で元の3倍以下となる。
 実際の候補列は parameter 数 n に対して merge が n²、scalar sandwich が 4n。
-これだけでは `symbolicCheck` の再帰で同じ部分問題を繰り返す費用をまだ数えていない。
+`TypeSimplificationCheckCost` は続いて `symbolicCheck` の計数付き参照実装を与える。
+全11枝を eager に評価し、型・行の equality と record-spine 検査も実際に再帰走査して数える。
+Bool の結果は既存 checker とすべての入力で一致し、source/target の行込み node 数の和 S に対して
+`(S+1)*128^S` 以下である。128 は再帰枝と局所走査を覆う保守的な定数であり、tight bound ではない。
+再帰深さは入力の既存 termination measure から計算し、caller の fuel 前提はない。
+ID の等号は原始単位とするが、型全体の等号を一単位とは数えない。
+多項式 bound を仮定する代案は採らず、同じ部分問題を繰り返しうる現 checker の指数上界をまず証明した。
+これと候補数・size 非増大を全 automatic pipeline に合成する義務は別に残る。
 
 ## 7. 残る統合義務
 
-- 任意の constructor 制約から、意味を失わない分岐と受理枝の閉 cache を構成すること。
+- rigid constructor graph の全入力分岐・実 Closed・拒否完全性は閉じた。
+  残るのは exact/optional/default/mask を持つ任意 presence 制約の lowering と同じ carrier での飽和である。
   旧 cache の子辺まで全 mask に閉じる表現には既存の反例がある。別の obligation 表現が必要。
+- positive tail 方程式の具体 mask family と全深さ regular 解は閉じた。
+  残るのはこの family と contextual constructor 不等式の共通解釈・全解 retraction の接続である。
 - Q5 対応 contextual モデルで任意 arrow 引数の分解は閉じた。残るのは exactEmpty/required/whole recordDefault image と自由 parameter/mask の評価を含む同じモデルへの統合。
 - 具体モデルで `presence_solve_complete` と `presence_generate_exact` を結合し、残余 existential 制約を持たない scheme family を得ること。
 - 新独立 `Typing` から旧 scheme の新 instance を得る完全性と、統一 `Core.infer` の主型性・拒否完全性・unsupported 排除。

@@ -70,6 +70,20 @@ literal の内容・presence・nominal の planner 結果を一つの値型 carr
 regular graph の payload は既存 `Layer` の guarded 参照であり、同深さの tail 循環は下の別の核で扱う。
 旧 `{}` は任意の record の上界のままである。
 
+新しい順序を、実際の `NestedValueSolver` と `TypeConstraintInference` に接続した。
+graph の文法は変数・base・bottom/top・pair・行を持つ arrow・有限の proper record spine・variant。
+この表の全入力とはこの宣言済み文法のすべての入力であり、presence の exact/optional/default/mask node
+を黙って同じ graph に含めてはいない。行関係には反射律・推移律を、実行する行検査には意味との iff を使う。
+
+| 定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `ContextualConstructorInspection.inspect_sound` / `ContextualNestedModels.inspect_sound` | 任意の実 rigid node・任意の独立 contextual 割当てで、constructor 比較から実 inspector が生成する全子制約・行制約を導く。regular 版は任意の graph の全深さを扱う | optional/exact/default の inspector、旧 all-mask presence cache の反例の解消 |
+| `ContextualNestedModels.saturate_models_iff` / `solve_none_iff` | 任意の有限 graph・入力辺列で、実飽和の前後は同じ任意 regular model を持ち、実 solve の拒否 ⇔ contextual model が存在しない。成功・解・Closed・fuel は前提でない | 同深さの presence tail/mask node を含む不等式 solver |
+| `ContextualNestedModels.solve_instantiates_model` / `solve_closed_capacity` | 任意の実受理結果について、任意の外部 regular graph と自由 parameter layer からの実 coalescer が入力のモデルを与える。受理結果から constructor/variable `Closed`・整合性・cache 長 ≤ slot数² を得る | 任意の新 contextual 解をこの同じ自由 family へ戻す retraction、presence 全体の Closed |
+| `ContextualBranchSolver.solve_models_exact` / `accepted_closed_capacity` / `solve_nil_iff` | 任意の graph・truth/falsity/edge/論理積/論理和の有限式で実分岐列挙と飽和を実行し、任意の独立モデル ⇔ ある実受理枝の cache のモデル。各枝から Closed と slot数² 上界を得て、空結果 ⇔ モデル不存在。成功・解・fuel 不要 | presence signature からこの分岐文法への lowering、枝数の多項式上界、残余制約なしの全解 family |
+| `ContextualTypeConstraintGraph.compile_assignment_exact` / `compile_output_instances_exact` | 行の前順序の下で、任意の実 compiler 返却 graph・任意の元共有変数割当てを保持し、元型制約の充足／上方出力 instance と同じ具体 regular carrier 上の contextual graph model が同値 | compiler の既存構文境界を越える open-tail/default 入力 |
+| `ContextualTypeConstraintGraph.solve_solution` / `solve_none_iff` / `compile_solve_none_iff` / `infer_rejected_iff` | 実 solver の全自由 parameter の解を具体 carrier へ移す。任意の rows・型制約入力について、既存 `TypeConstraintInference.infer` の拒否 ⇔ supported かつ contextual 順序で充足する割当てなし。推論成功・解・cache・fuel 不要 | この入口の新順序での全解 retraction、行 solver との simultaneous な接続、統合 `Core.infer` の主型性 |
+
 以下は以前の有限 rigid 観測の候補の証明であり、Q5 対応の新モデルと区別する。
 決定46・47の要求順序の候補を `ProducerRanked` / `ProducerRankedRegular` に実装した。
 `ProducerDemand.Demand` は union を持たず、intersection、rigid な pair/field/tag、型変数、
@@ -125,10 +139,19 @@ source 由来や guardedness を持たない任意の tail ref 循環を許す�
 | 定理（接頭辞 `PresenceTailElimination`） | 示したこと | 示さないこと |
 | --- | --- | --- |
 | `coordinates_complete` / `coordinates_length` / `solveFamily_coherent` / `solve_mask` | 任意の slot 数・有限 label 語彙で全 `(slot, mask)` を列挙し、容量は `slots * 2^labels`。任意の入力 graph・自由な具体 parameter layer で、結果 layer を mask した構文が対応座標の解と文字通り一致する | 任意の異なる Nat label 語彙への intern/移送、producer の要求順序との接続 |
-| `solve_satisfies` / `solve_retract` / `solved_instances_exact` | 任意の有限 positive tail graph で、全自由 parameter layer が独立方程式を満たす解になり、全独立の具体 layer 解を同値を除いて回収する。意味の同値は全 payload 述語割当て・全外側 mask・全 data 値を量化する。成功・解・source 由来・fuel を前提にしない | guarded payload 自身を再帰 graph に閉じた全深さの解 family、関数・行・exactEmpty/whole default、任意の constructor 不等式の拒否完全性 |
+| `solve_satisfies` / `solve_retract` / `solved_instances_exact` | 任意の有限 positive tail graph で、全自由 parameter layer が独立方程式を満たす解になり、全独立の具体 layer 解を同値を除いて回収する。意味の同値は全 payload 述語割当て・全外側 mask・全 data 値を量化する。成功・解・source 由来・fuel を前提にしない | この layer 定理単体での regular graph 化（次の表で接続）、関数・行・exactEmpty/whole default、任意の constructor 不等式の拒否完全性 |
 
 有限 mask family は一つの実 layer の mask から構成され、自由 parameter を深さごとの任意述語で代用しない。
 入力で宣言した mask label 語彙は `Fin labels` であり、語彙外の label も外側 mask の全称量化には含まれる。
+
+`PresenceTailRegular` は同じ実消去を行った後で、payload 参照を regular graph に閉じる。
+tail 参照では観測深さを減らさず、payload 参照でだけ減らす。`Body.record` は field 要求側の演算であり、
+関数値や whole record-default image を含む producer constructor のモデルとは区別する。
+
+| 定理（接頭辞 `PresenceTailRegular`） | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `solveGraph_realizes` / `parameter_embedding` / `parameter_mask_embedding` | 任意の有限 positive tail/payload graph・任意の外部 regular graph・全自由 parameter layer で、実際に構成する regular graph が独立 `Realizes` を満たす。任意の深さ・外側 Nat mask・内部有限 mask・slot・data 値を量化し、source 由来・非循環性・成功・fuel を仮定しない | contextual producer 順序、負位置、関数・行・exactEmpty/whole default と同じ carrier への統合 |
+| `solveGraph_retract` / `solved_instances_exact` | 任意の入力 graph と任意の独立 regular 解について、その root layer を自由 parameter として入れると全深さ・全外側 mask・全 slot・全 data 値で元の解を回収する。独立 `Realizes` ⇔ ある自由 parameter の実構成結果とこの意味で同値 | 任意の presence constructor 不等式をこの正方程式へ移す保存・反映、統合 `Core.infer` の solved scheme |
 
 `CoreRequiredDemands` は有限の required demand が一致する断片を明示する。
 `Required` は optional/lacks を除き、union/intersection・pair・variant・任意の payload 参照を許す。
@@ -366,12 +389,14 @@ field を追加しても所属が変わらないためであり、全観測深�
   旧 `coalesceGraph_retraction` は fixed record spine のみで、この主張を与えない。
 - `presence_solve_complete`: 宣言する入力 graph 断片の**すべての graph**で飽和が停止し unsupported を返さず、
   rejected ⇔ 解が存在しない。上の二補題とともに、自由 parameter に残余制約を課さない全 instance 抽出に必要。
-  flat な固定 presence/absence bound については、上記の二 solver でこの条件を前提なしに証明した。
+  flat な固定 presence/absence bound と、上記 contextual rigid graph の実分岐 solver では、この条件を前提なしに証明した。
+  `PresenceTailRegular` は正方程式の同深さ循環と全 mask family の具体解を構成したが、
+  これを contextual constructor 不等式と同じ carrier に統合する義務は残る。
 - `presence_generate_exact`: 任意の拡張モデル・対応環境・式・値/行割当てについて、生成制約の充足 ⇔
   独立 presence 型付けは `Core.PresenceGeneration.generate_models_iff_typing` で閉じた。
   未完なのは具体的な共通 regular モデルへの適用と、existential 制約を残さない solved family への接続である。
 - `presence_legacy_instances_exact`（決定46による新契約）: 共通モデルと埋込みを定義した上で、任意の旧 supported 式・任意の旧結果型について、旧 instance ⇒ 新 instance を示し、新 instance からはある旧 instance と要求で同値であることを示す。全 instance の文字通りの一致は要求しない。
-  `ProducerRankedInstances` は、実際の旧 scheme を新しい具体 regular 順序で再解釈する境界ではこの両方向を閉じた。
+  `ProducerContextualInstances` は、実際の旧 scheme を新しい具体 regular 順序で再解釈する境界ではこの両方向を閉じた。
   未完なのは presence を含む新 solver/独立型判断との同値である。正確には、任意の行代数・行反対称性・
   旧 supported `e`・結果 `c` について、新 model の `Typing [] e c` から同じ scheme の新 instance を得る補題がない。
   `LegacyPreservation` で仮定する presence の `Compatible` も具体モデルで構成する必要がある。
@@ -412,6 +437,7 @@ exact/presence/default と関数/行を含む具体的な共通モデル、open-
 | `MethodResolutionIndex.indexedResolve_exact` / `resolveNamesCount_exact` / `resolveNamesCount_bound` | 任意の有限 catalog・可視 role 列・名前・receiver・fallback で、同じ role/name の宣言が一致するなら index と既存解決の結果が等しい。任意の可視宣言列 `D` 件と名前列 `N` 件の計数付き一括解決は `3D+2N` 以下。上界自体は catalog の関数性も成功も仮定しない | visibility filtering、永続 map の実装費用、未確定 SCC の依存構築 |
 | `InferenceSubstitutionCost.formulaSubst_value` / `instantiate_value` / `instantiate_bound` / `instantiate_size_bound` | 任意の scheme と具体化先で計数付き置換の値が実際の `Scheme.instantiate` と等しい。scheme の型・行を含む全 node 数 `N`、binder 深さ `H`、具体化先の型・行 node 数 `K` に対して syntax work は `N*(1+max(2,K)*H)`、従って `N*(1+max(2,K)*N)` 以下。束縛下の型・行の rename も数える | source body の再推論、identifier の bit cost、メモリ allocator、scheme を使う solver 全体の時間 |
 | `TypeSimplificationSize.simplifyAll_sizes` / `jointSubstitution_sizes` / `merge_candidate_count` / `sandwich_candidate_count` | 任意の parameter 数 `n` と入力項で、実 `simplifyAll` は値型 node 数と行込み全 node 数の両方を増やさない。merge certificate の一時置換は元の3倍以下。実候補列の長さは merge が `n*n`、scalar sandwich が `4*n` | 再帰的な `symbolicCheck` の実行ステップ数、線形時間の簡約、完全な一意標準形 |
+| `TypeSimplificationCheckCost.symbolicCount_value` / `symbolicCount_bound` / `symbolicCount_size_bound` | 任意の型項二つについて、型・行の等号と record spine の走査も数える実参照 checker が既存 `symbolicCheck` と同じ Bool を返す。行込み node 数の和 `S` に対して費用 ≤ `(S+1)*128^S`。再帰深さは入力から決まり、外部 fuel・成功前提なし | 多項式時間の checker、ID の bit cost・メモリ割当て、全 simplifyAll pipeline の計数、canonical interface の完全性 |
 
 `EOFNoDefaulting.accepted_export_independent` は同じ型情報・割当ての下で、**両方の EOF 検査が成功した場合**の
 公開型の一致である。後続 impl による曖昧化まで無条件に cache から省略できることを意味しない。

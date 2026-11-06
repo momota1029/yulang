@@ -374,3 +374,9 @@ import Yulang.ModuleInterfaceCache
 import Yulang.TypeSimplificationSize
 import Yulang.ProducerContextualRecord
 import Yulang.PresenceTailElimination
+import Yulang.PresenceTailRegular
+import Yulang.ContextualConstructorInspection
+import Yulang.ContextualNestedModels
+import Yulang.ContextualBranchSolver
+import Yulang.ContextualTypeConstraintGraph
+import Yulang.TypeSimplificationCheckCost
