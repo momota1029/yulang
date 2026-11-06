@@ -10,9 +10,29 @@ lake build --wfail
 lake env lean --trust=0 Audit.lean
 ```
 
+## 決定40：隠れたfieldの型等価
+
+`ShadowSemanticRecords` は決定39の全規則を保持し、任意のtail `R` について
+`record(l,A,record(l,B,R)) ≃ record(l,A,R)` の両方向を追加した最小関係である。
+`Subtype.minimal` がこの規則範囲を特徴付ける。一般のtail共変性や分配則は加えていない。
+`ShadowRecordQuotient.shadow` は、任意の商型のhead・hidden payload・tailについて、
+この等式が実際の型の等号になることを示す。`int` と `str` は引き続き異なる。
+
+`ShadowRecordInference` は以前の型付けを保存する。`ShadowRecordQuotientInference`
+の `formula_exact`・`closed_typing_exact`・`compiled_typing_exact` は、任意の元core式・
+結果型と行について、新しいraw関係、商、実際の全core graph出力を接続する。
+`ShadowRecordExamples.source_has_equal_instances` は、10.28.3で分離されていた
+同じsource式の二つのopaqueな結果を保持した上で、その商型が等しいと証明する。
+unionと`never`で隠れた重複も `shadow_under_union_bottom` が扱う。
+
+旧 `Rigid*` 関係とその否定定理は、決定39時点の比較用として変更せず保持する。
+以下で記すopaque結果の別型性はこの旧関係についての事実であり、決定40後の言語の
+区別ではない。新関係の完全なground checker・cut elimination・商の等号判定、
+全coreの自由parameter主型推論は、このcheckpointでは未完である。
+
 ## 実際に型を求める入口
 
-**決定39のrigid要求への共変性と、recordを含むデータ式の実際の求解を形式化済み。全coreの求解は未完。** 下記の `SourcePrincipalInference.infer` は旧reference modelのままで、全instance主型性の `RecordFree` 前提も残る。新しい `RigidSemanticRecords` は決定38の合同関係に、要求tailがrigidな場合だけの共変性を加える。任意admissible tailのhead/幅、hidden fieldを比較しないrigid要求の必要十分条件、完全ground checkerとcut elimination、その商と全core graph compilerの接続を閉じた。さらに新商モデルで、閉じたデータ式の自由parameter scheme・全instance主型性・拒否完全性と、引数recordを拡張する関数族の全instance主型性を証明した。opaqueな要求型での同一視の境界と、一般の残余graph制約の求解は区別して下に明記する。
+**全coreの求解は未完。以下の実行可能solverは決定39時点の参照関係を使う。決定40の最新関係と接続範囲は上節を参照。** 下記の `SourcePrincipalInference.infer` は旧reference modelのままで、全instance主型性の `RecordFree` 前提も残る。新しい `RigidSemanticRecords` は決定38の合同関係に、要求tailがrigidな場合だけの共変性を加える。任意admissible tailのhead/幅、hidden fieldを比較しないrigid要求の必要十分条件、完全ground checkerとcut elimination、その商と全core graph compilerの接続を閉じた。さらに新商モデルで、閉じたデータ式の自由parameter scheme・全instance主型性・拒否完全性と、引数recordを拡張する関数族の全instance主型性を証明した。opaqueな要求型での同一視の境界と、一般の残余graph制約の求解は区別して下に明記する。
 
 **`SourcePrincipalInference.infer` は、元の閉じた `Inference.Expr` から主型スキームを計算する。** 元のprincipal formulaの生成、存在変数とletの選択肢の正規化、共有graphへの変換、値型と行の求解、正則再帰型スキームの構成を実行する。型graph、途中の型、行の割当て、制約の解、成功cache、fuelを呼出側から渡さない。
 

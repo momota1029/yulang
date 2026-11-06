@@ -193,3 +193,9 @@ import Yulang.SourceInferenceExamples
 import Yulang.SignedSourceInference
 import Yulang.ValueInference
 import Yulang.ValueInferenceExamples
+
+import Yulang.ShadowSemanticRecords
+import Yulang.ShadowRecordQuotient
+import Yulang.ShadowRecordInference
+import Yulang.ShadowRecordQuotientInference
+import Yulang.ShadowRecordExamples

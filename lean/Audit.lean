@@ -983,3 +983,17 @@ run_cmd do
 #print axioms Yulang.RoleEvidenceExamples.generated_handler_uses_only_signature_dictionary
 #print axioms Yulang.RoleEvidenceExamples.generated_handler_without_evidence_rejected
 #print axioms Yulang.RoleEvidenceExamples.generated_request_without_evidence_rejected
+
+#print axioms Yulang.ShadowSemanticRecords.Subtype.minimal
+#print axioms Yulang.ShadowSemanticRecords.rigid_subtype
+#print axioms Yulang.ShadowSemanticRecords.shadow_equivalent
+#print axioms Yulang.ShadowSemanticRecords.int_not_str
+#print axioms Yulang.ShadowRecordQuotient.shadow
+#print axioms Yulang.ShadowRecordInference.old_typing_preserved
+#print axioms Yulang.ShadowRecordInference.rigid_closed_typing_preserved
+#print axioms Yulang.ShadowRecordQuotientInference.rigid_quotient_typing_preserved
+#print axioms Yulang.ShadowRecordQuotientInference.formula_exact
+#print axioms Yulang.ShadowRecordQuotientInference.compiled_typing_exact
+#print axioms Yulang.ShadowRecordExamples.source_has_equal_instances
+#print axioms Yulang.ShadowRecordExamples.compiled_boundary_instance
+#print axioms Yulang.ShadowRecordExamples.shadow_under_union_bottom

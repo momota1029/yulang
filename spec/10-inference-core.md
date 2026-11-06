@@ -1077,3 +1077,39 @@ T = (I | γ) & {}
 `RigidRecordFunctionQuotient.instances_exact` と `principal_formula_exact` は同じ定理を商の任意の結果計算型へ移し、`instantiate_sound` は任意の商parameter tupleに対する型付けを示す。これはこの関数族の全instance主型性であり、任意のsource関数を推論するdispatcherを追加したものではない。値型carrierは引き続き有限raw型とその商である。
 
 **残る義務:** opaqueな型同士の同一視とhidden fieldの扱い、独立な正則再帰値型モデル・coalescing、新graphの一般の制約求解、全coreの自由parameter scheme・全instance主型性・拒否完全性への接続。10.28.4のデータ構文と10.28.5の関数族は閉じたが、`SourcePrincipalInference` の `RecordFree` 制限は残る。effect式・再帰SCC・全注釈多相再帰・注釈確定・role/cast/EOFの統合、および表示標準形・`as`・一般の禁止点付き到達は引き続き未完である。
+
+
+## 10.29 決定40：隠れたfieldの型上の消去
+
+**状態:** 4.3と引き継ぎ決定40（2026-11-06）の形式化。言語規則の追加決定ではない。
+
+`ShadowSemanticRecords.Subtype` は10.28の関係の規則を保持し、任意のraw型
+`A,B,R` について次の両方向を加えた最小の関係である。
+
+```text
+record(l,A,record(l,B,R)) ≃ record(l,A,R)
+```
+
+`R` がrigid・admissibleであることは前提にしない。`Subtype.minimal` はこの
+閉包の最小性を、`rigid_subtype` は以前の任意の比較の保存を示す。
+`ShadowRecordQuotient.shadow` は任意の商型での等号を示す。
+head/tail合同性、束の法則、rigid要求への共変性は保持し、一般tailへの
+共変性・分配則は追加しない。`int_not_str` はscalarの区別が保たれることを示す。
+
+`ShadowRecordInference.old_typing_preserved` は旧有限モデルの任意の環境・式・結果の
+型付けを保存する。`rigid_closed_typing_preserved` と商版の
+`rigid_quotient_typing_preserved` は決定39の全閉core instanceを保存する。
+`ShadowRecordQuotientInference.formula_exact` はrawモデルと商モデルの任意の元Formulaの
+全解を双方向に一致させる。`compiled_typing_exact` は任意のrow join algebra・
+任意の元core式・任意の結果について、実際の `compileSource` が返したgraphの
+instanceと新商モデルでの元 `Typing` を一致させる。graphの `Models` 条件は残る。
+
+`ShadowRecordExamples.source_has_equal_instances` は10.28.3の元式を変更せず、
+二つの型付けを保持して、その結果商型が等しいことを証明する。
+`shadow_left_iff`・`shadow_right_iff` は任意の比較相手に対して消去前後を置換できる
+ことを示す。以前の `opaque_comparison_iff`・`source_has_incomparable_instances` は
+決定39の関係についての歴史的な定理として保持し、最新仕様の非比較とは扱わない。
+
+**このcheckpointの未完範囲:** 新関係の完全ground checker、cut elimination、
+実行可能な商等号判定、未知tailを含む一般graphの求解、全coreの自由parameter主型性・
+拒否完全性。制約生成の正確性を、残余制約のない推論算法の完成とは扱わない。
