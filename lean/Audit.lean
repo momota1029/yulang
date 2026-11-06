@@ -2032,3 +2032,13 @@ run_cmd do
 #print axioms Yulang.Core.EffectTyping.generate_models_iff_typing
 #print axioms Yulang.Core.EffectTyping.principal_exact
 #print axioms Yulang.Core.EffectTyping.legacy_conservative
+#print axioms Yulang.Core.EffectTyping.legacy_generate_models_iff_typing
+#print axioms Yulang.Core.EffectTyping.Examples.two_operations_generated
+#print axioms Yulang.Core.EffectTyping.Examples.partial_generated
+#print axioms Yulang.Core.EffectTyping.Examples.partial_forwards
+#print axioms Yulang.Core.EffectTyping.Examples.forbidden_multi_no_solution
+#print axioms Yulang.Core.EffectTyping.Examples.forbidden_partial_rejected
+#print axioms Yulang.Core.EffectTyping.Examples.local_request_generated
+#print axioms Yulang.Core.EffectTyping.Examples.local_escape_no_solution
+#print axioms Yulang.Core.EffectTyping.Examples.callback_boundary_roundtrip_generated
+#print axioms Yulang.Core.EffectTyping.Examples.callback_transport_roundtrip

@@ -172,4 +172,20 @@ theorem legacy_conservative (view : RowView m algebra) (sigs : Op → RecursiveE
     simpa [List.map_map, Function.comp_def] using
       legacy_reflected keySigs compatible h env (by simp [LegacyTerm])
 
+/-- The actual historical finite generator, with its scheme/signature relations,
+now targets the independent M2 Core judgement on the legacy image. -/
+theorem legacy_generate_models_iff_typing (view : RowView m algebra)
+    (sigs : Op → RecursiveEffects.Signature m Key) (keySigs : Key → LocalSignature m)
+    (compatible : ∀ op, (monoSignature (sigs op)).toLocalSignature = keySigs (sigs op).key)
+    (e : RecursiveEffects.Expr Op Key Scope) (sigsTerm : RecursiveEffects.Signatures Op Key α)
+    (sΓ : RecursiveEffects.SchemeEnv Key Scope α) (Γ : List (RecursiveEffects.Binding m Op Key Scope))
+    (ρ : α → Comp m) (out : Inference.CompTerm α)
+    (henv : RecursiveEffects.EnvRel m view sigs ρ sΓ Γ)
+    (hsig : RecursiveEffects.SigRel m ρ sigsTerm sigs) :
+    (RecursiveEffects.generate sigsTerm sΓ e out).Holds m view ρ ↔
+      Core.Typing (model m view (monomorphicContract sigs keySigs compatible))
+        (Γ.map legacyBinding) (Effects.embed e) (out.eval m ρ) :=
+  (RecursiveEffects.generate_models_iff_typing m view sigs e sigsTerm sΓ Γ ρ out henv hsig).trans
+    (legacy_conservative view sigs keySigs compatible Γ e (out.eval m ρ))
+
 end Yulang.Core.EffectTyping
