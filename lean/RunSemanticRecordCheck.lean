@@ -22,4 +22,9 @@ def main : IO Unit := do
   if !SemanticRecordChecker.check boolRows before after || SemanticRecordChecker.check boolRows after before then
     throw (IO.userError "contravariant input row comparison changed")
   IO.println "contravariant input rows => forward accepted, reverse rejected"
+  if !quotientEqual (SemanticRecordQuotient.mk proper) (SemanticRecordQuotient.mk redundant) ||
+      !quotientCheck (SemanticRecordQuotient.mk shadowed) (SemanticRecordQuotient.mk proper) ||
+      quotientEqual (SemanticRecordQuotient.mk integer) (SemanticRecordQuotient.mk string) then
+    throw (IO.userError "quotient equality or order differs from semantic representatives")
+  IO.println "quotient equality and order => all three checks passed"
   IO.println "semantic record checker tour passed"

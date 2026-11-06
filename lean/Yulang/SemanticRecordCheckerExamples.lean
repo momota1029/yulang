@@ -1,4 +1,4 @@
-import Yulang.SemanticRecordChecker
+import Yulang.SemanticRecordQuotientDecisions
 
 /-!
 # Kernel execution checks for semantic record comparison
@@ -60,6 +60,25 @@ theorem input_row_reverse_rejected :
 not a proposed rejection in the intended full source language. -/
 theorem minimum_relation_does_not_supply_raw_width :
     check pureRows (.record 0 integer .bottom) .emptyRecord = false := by decide +kernel
+
+def pureLe (_ _ : Unit) : Prop := True
+
+theorem pureRows_exact (a b : Unit) : pureRows a b = true ↔ pureLe a b := by simp [pureRows, pureLe]
+theorem pureRows_refl (a : Unit) : pureLe a a := trivial
+theorem pureRows_trans {a b c : Unit} : pureLe a b → pureLe b c → pureLe a c := fun _ _ => trivial
+
+abbrev quotientCheck : SemanticRecordQuotient.QTy pureLe → SemanticRecordQuotient.QTy pureLe → Bool :=
+  SemanticRecordQuotientDecisions.check pureRows pureRows_exact pureRows_refl pureRows_trans
+
+abbrev quotientEqual : SemanticRecordQuotient.QTy pureLe → SemanticRecordQuotient.QTy pureLe → Bool :=
+  SemanticRecordQuotientDecisions.equal pureRows pureRows_exact pureRows_refl pureRows_trans
+
+theorem quotient_redundant_tail_equal :
+    quotientEqual (SemanticRecordQuotient.mk proper) (SemanticRecordQuotient.mk redundant) = true := by decide +kernel
+theorem quotient_shadowed_order :
+    quotientCheck (SemanticRecordQuotient.mk shadowed) (SemanticRecordQuotient.mk proper) = true := by decide +kernel
+theorem quotient_distinct_scalars :
+    quotientEqual (SemanticRecordQuotient.mk integer) (SemanticRecordQuotient.mk string) = false := by decide +kernel
 
 def cases : List (String × Ty Unit × Ty Unit × Bool) :=
   [ ("redundant tail forward", proper, redundant, true)
