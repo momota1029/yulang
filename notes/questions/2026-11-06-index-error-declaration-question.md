@@ -2,7 +2,9 @@
 
 ## Q12. 下書きの `index_err` と無効indexのpayloadを確定するか
 
-状態: **未回答**。回答済みQ9・Q10の、有効区間 `0 ≤ i < length`、
+状態: **回答済み(2026-11-06): A**。下書きのまま確定: `error index_err: out_of_range int`、payloadは無効だったindex。`spec/03-expressions.md` 3.2に反映。以下は質問の記録。
+
+回答済みQ9・Q10の、有効区間 `0 ≤ i < length`、
 負のindexの禁止、無効indexを名前つきerror effectにすることは変更しない。
 `spec/03-expressions.md` 3.2 は名前とpayloadを明示的に下書きとしている。
 
