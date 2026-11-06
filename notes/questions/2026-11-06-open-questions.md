@@ -36,7 +36,7 @@ source `catch` から `MultiOperationHandlerTyping.Expr.handler` への翻訳、
 
 ## Q2. 小数 literal の float はどの精度と丸めを持つか
 
-状態: **未回答**。`spec/03-expressions.md` 3.1 は整数を任意精度、小数 literal を `float` とするが、
+状態: **回答済み(2026-11-06): A**。IEEE 754 binary64、literalは最近接・偶数丸め。厳密な有理数は std の別の型(ユーザー: `rat`、Y2の std では `frac`。名前は要確認)。`spec/03-expressions.md` 3.1に反映。以下は質問の記録。`spec/03-expressions.md` 3.1 は整数を任意精度、小数 literal を `float` とするが、
 float の精度・丸めは書いていない。今回の依頼の「任意精度の整数・小数」が、小数にも任意精度を
 要求するかを含めて決める必要がある。旧 `Inference.Base` には float 自体がまだない。
 
