@@ -1,4 +1,4 @@
-import Yulang.CommonPresenceTailElimination
+import Yulang.CommonPresenceTailRegular
 
 /-!
 # Simultaneous row and presence-tail families in the common carrier
@@ -9,7 +9,9 @@ and record payloads are finite common syntax whose two arrow rows contain
 those same row terms. Their row identities therefore remain shared with the
 explicit row constraints. Same-depth value references may occur under record
 tails, whole-default sources, masks, unions and intersections, with arbitrary
-cycles. Record payloads and default fallbacks are fixed symbolic type terms.
+cycles. A symbolic layer and explicit record/default reference constructors
+also share the same unknowns at guarded payload positions, including arrow
+arguments. Both reference kinds are closed into one common regular block.
 
 The output stores a finite row scheme and the symbolic constructor graph.
 Instantiation substitutes arbitrary row parameters, then solves the resulting
@@ -19,8 +21,8 @@ the concrete common rows. No equivalence-transport law for rows inside a type
 is added to the semantic model.
 
 This is an exact simultaneous solver for this syntax. It is not an inspector
-for arbitrary producer inequalities, a solver for shared unknown payload
-references, or a proof that every source-generated problem has this shape.
+for arbitrary producer inequalities or a proof that every source-generated
+problem has this shape.
 -/
 
 namespace Yulang.CommonRowTailInference
@@ -112,40 +114,83 @@ def TypeTerm.eval (rows : Fin rowSlots → Row) : TypeTerm rowSlots → Ty
         (eval rows result) (RowFlowSchemes.eval Common.rowAlgebra rows output)
   | .mask hidden type => Common.mask hidden (eval rows type)
 
+/-- Only row annotations are substituted; every guarded slot ID is retained. -/
+def layerAtRows (rows : Fin rowSlots → Row) :
+    CommonSyntax.Layer (RowTerm (Fin rowSlots)) (Fin slots) → CommonSyntax.Layer Row (Fin slots)
+  | .base scalar => .base scalar
+  | .bottom => .bottom
+  | .top => .top
+  | .union first last => .union (layerAtRows rows first) (layerAtRows rows last)
+  | .inter first last => .inter (layerAtRows rows first) (layerAtRows rows last)
+  | .pair first last => .pair first last
+  | .emptyRecord => .emptyRecord
+  | .exactEmpty => .exactEmpty
+  | .record label payload tail => .record label payload (layerAtRows rows tail)
+  | .recordDefault label source fallback => .recordDefault label (layerAtRows rows source) fallback
+  | .variant label payload => .variant label payload
+  | .arrow arg input result output => .arrow arg (RowFlowSchemes.eval Common.rowAlgebra rows input)
+      result (RowFlowSchemes.eval Common.rowAlgebra rows output)
+  | .mask hidden source => .mask hidden (layerAtRows rows source)
+
+theorem TypeTerm.quote_external (type : TypeTerm rowSlots) (rows : Fin rowSlots → Row)
+    (values : Fin slots → Ty) :
+    CommonPresenceTailLayers.quoteLayer (CommonPresenceTailRegular.payload values)
+      ((type.eval rows).map Sum.inr) = type.eval rows := by
+  induction type <;>
+    simp_all [eval, CommonPresenceTailLayers.quoteLayer, CommonPresenceTailRegular.payload,
+      CommonSyntax.Layer.map, Function.comp_def, Common.pair, Common.emptyRecord,
+      Common.exactEmpty, Common.record, Common.recordDefault, Common.variant,
+      Common.arrow, Common.mask, CommonSyntax.graph_node]
+
 inductive Body (slots labels rowSlots : Nat) where
   | atom : TypeTerm rowSlots → Body slots labels rowSlots
+  | layer : CommonSyntax.Layer (RowTerm (Fin rowSlots)) (Fin slots) → Body slots labels rowSlots
   | ref : Fin slots → Body slots labels rowSlots
   | union : Body slots labels rowSlots → Body slots labels rowSlots → Body slots labels rowSlots
   | inter : Body slots labels rowSlots → Body slots labels rowSlots → Body slots labels rowSlots
   | mask : Mask labels → Body slots labels rowSlots → Body slots labels rowSlots
   | record : Nat → TypeTerm rowSlots → Body slots labels rowSlots → Body slots labels rowSlots
   | recordDefault : Nat → Body slots labels rowSlots → TypeTerm rowSlots → Body slots labels rowSlots
+  | recordRef : Nat → Fin slots → Body slots labels rowSlots → Body slots labels rowSlots
+  | recordDefaultRef : Nat → Body slots labels rowSlots → Fin slots → Body slots labels rowSlots
 
 namespace Body
 
 /-- Direct interpretation of the original symbolic constructor syntax. -/
 def eval (rows : Fin rowSlots → Row) (values : Fin slots → Ty) : Body slots labels rowSlots → Ty
   | .atom type => type.eval rows
+  | .layer layerSyntax => CommonPresenceTailLayers.quoteLayer values (layerAtRows rows layerSyntax)
   | .ref index => values index
   | .union first last => .union (eval rows values first) (eval rows values last)
   | .inter first last => .inter (eval rows values first) (eval rows values last)
   | .mask hidden body => Common.mask hidden.names (eval rows values body)
   | .record label payload tail => Common.record label (payload.eval rows) (eval rows values tail)
   | .recordDefault label source fallback => Common.recordDefault label (eval rows values source) (fallback.eval rows)
+  | .recordRef label payload tail => Common.record label (values payload) (eval rows values tail)
+  | .recordDefaultRef label source fallback => Common.recordDefault label (eval rows values source) (values fallback)
 
 def atRows (rows : Fin rowSlots → Row) : Body slots labels rowSlots →
-    CommonPresenceTailElimination.Body slots labels
-  | .atom type => .atom (type.eval rows)
+    CommonPresenceTailLayers.Body slots labels (CommonPresenceTailRegular.Payload slots)
+  | .atom type => .atom ((type.eval rows).map Sum.inr)
+  | .layer layerSyntax => .atom ((layerAtRows rows layerSyntax).map Sum.inl)
   | .ref index => .ref index
   | .union first last => .union (atRows rows first) (atRows rows last)
   | .inter first last => .inter (atRows rows first) (atRows rows last)
   | .mask hidden body => .mask hidden (atRows rows body)
-  | .record label payload tail => .record label (payload.eval rows) (atRows rows tail)
-  | .recordDefault label source fallback => .recordDefault label (atRows rows source) (fallback.eval rows)
+  | .record label payload tail => .record label (.inr (.node (payload.eval rows))) (atRows rows tail)
+  | .recordDefault label source fallback => .recordDefault label (atRows rows source) (.inr (.node (fallback.eval rows)))
+  | .recordRef label payload tail => .record label (.inl payload) (atRows rows tail)
+  | .recordDefaultRef label source fallback => .recordDefault label (atRows rows source) (.inl fallback)
 
 @[simp] theorem eval_atRows (body : Body slots labels rowSlots) (rows : Fin rowSlots → Row)
-    (values : Fin slots → Ty) : (body.atRows rows).eval values = body.eval rows values := by
-  induction body <;> simp [atRows, CommonPresenceTailElimination.Body.eval, eval, *]
+    (values : Fin slots → Ty) :
+    ((body.atRows rows).quote (CommonPresenceTailRegular.payload values)).eval values = body.eval rows values := by
+  induction body
+  case atom type => exact type.quote_external rows values
+  all_goals
+    simp_all [atRows, CommonPresenceTailLayers.Body.quote, CommonPresenceTailElimination.Body.eval,
+      CommonPresenceTailLayers.quoteLayer_map, CommonPresenceTailRegular.payload,
+      CommonSyntax.graph_node, Function.comp_def, eval]
 
 end Body
 
@@ -154,7 +199,7 @@ structure Problem (slots labels rowSlots : Nat) where
   body : Fin slots → Body slots labels rowSlots
 
 def Problem.atRows (problem : Problem slots labels rowSlots) (rows : Fin rowSlots → Row) :
-    CommonPresenceTailElimination.Graph slots labels := fun index => (problem.body index).atRows rows
+    CommonPresenceTailRegular.Graph slots labels := fun index => (problem.body index).atRows rows
 
 def Models (problem : Problem slots labels rowSlots) (rows : Fin rowSlots → Row)
     (values : Fin slots → Ty) : Prop :=
@@ -164,8 +209,8 @@ def Models (problem : Problem slots labels rowSlots) (rows : Fin rowSlots → Ro
 theorem models_iff_atRows (problem : Problem slots labels rowSlots) (rows : Fin rowSlots → Row)
     (values : Fin slots → Ty) :
     Models problem rows values ↔ RowsHold problem.rows rows ∧
-      CommonPresenceTailElimination.Models (problem.atRows rows) values := by
-  simp only [Models, CommonPresenceTailElimination.Models, Problem.atRows, Body.eval_atRows]
+      CommonPresenceTailRegular.Models (problem.atRows rows) values := by
+  simp only [Models, CommonPresenceTailRegular.Models, Problem.atRows, Body.eval_atRows]
 
 /-- Finite syntax only: no semantic row function or assumed model law is
 stored in an inferred scheme. -/
@@ -181,7 +226,7 @@ def Scheme.instantiateRows (scheme : Scheme slots labels rowSlots) (parameters :
 
 def Scheme.instantiateValues (scheme : Scheme slots labels rowSlots)
     (rowParameters : Fin rowSlots → Row) (valueParameters : Fin slots → Ty) : Fin slots → Ty :=
-  CommonPresenceTailElimination.solve
+  CommonPresenceTailRegular.solveBlock
     (fun index => (scheme.body index).atRows (scheme.instantiateRows rowParameters)) valueParameters
 
 theorem solve_models (problem : Problem slots labels rowSlots)
@@ -190,7 +235,7 @@ theorem solve_models (problem : Problem slots labels rowSlots)
       ((solve problem).instantiateValues rowParameters valueParameters) := by
   apply (models_iff_atRows problem _ _).mpr
   exact ⟨rowScheme_models problem.rows rowParameters,
-    CommonPresenceTailElimination.solve_models _ valueParameters⟩
+    CommonPresenceTailRegular.solveBlock_models _ valueParameters⟩
 
 /-- Retraction recovers rows literally, so every shared input/output arrow
 row is preserved inside the simultaneous value family as well. -/
@@ -201,11 +246,11 @@ theorem solve_retract (problem : Problem slots labels rowSlots) (rows : Fin rowS
   have rowSame := rowScheme_retract problem.rows rows valid.1
   refine ⟨rowSame, ?_⟩
   change ∀ index, Common.Equivalent
-    (CommonPresenceTailElimination.solve
+    (CommonPresenceTailRegular.solveBlock
       (problem.atRows (RowFlowSchemes.instantiate Common.rowAlgebra (rowScheme problem.rows) rows)) values index)
     (values index)
   rw [rowSame]
-  exact CommonPresenceTailElimination.solve_retract _ values
+  exact CommonPresenceTailRegular.solveBlock_retract _ values
     ((models_iff_atRows problem rows values).mp valid).2
 
 /-- All inputs in the declared syntax, all independent row/value solutions,
@@ -227,10 +272,10 @@ theorem joint_instances_exact (problem : Problem slots labels rowSlots) (rows : 
     · have valid := rowScheme_models problem.rows rowParameters
       change RowsHold problem.rows ((solve problem).instantiateRows rowParameters) at valid
       simpa only [rowSame] using valid
-    · apply (CommonPresenceTailElimination.solved_instances_exact (problem.atRows rows) values).mpr
+    · apply (CommonPresenceTailRegular.guarded_solved_instances_exact (problem.atRows rows) values).mpr
       refine ⟨valueParameters, ?_⟩
       change ∀ index, Common.Equivalent
-        (CommonPresenceTailElimination.solve
+        (CommonPresenceTailRegular.solveBlock
           (problem.atRows ((solve problem).instantiateRows rowParameters)) valueParameters index)
         (values index) at valueSame
       simpa only [rowSame] using valueSame
