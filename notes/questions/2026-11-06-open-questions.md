@@ -148,7 +148,7 @@ sourceとの対応は重複の解決規則を決めるまで主張せず、既�
 
 ## Q8. polyvariantの反駁可能なpayload patternを、複数armで網羅してよいか
 
-状態: **未回答**。`spec/04-types.md` 4.5と決定4による、tag一意・同一tagのpayload合流・
+状態: **回答済み(2026-11-06): A**。反駁可能なpayload patternを許し、同じtagの複数armを合わせてpayload全体を覆えたらtagを丸ごと処理済みにする。残余型は部分payloadに細分化しない(決定4のまま)。`spec/03b-patterns.md` 3b.4に反映。以下は質問の記録。`spec/04-types.md` 4.5と決定4による、tag一意・同一tagのpayload合流・
 残余にはpayload全体だけを残す規則は確定済みで、問い直さない。
 ここで問うのは、3b.4のRust相当coverageと4.5の「payloadの中まで入らない」の適用範囲である。
 

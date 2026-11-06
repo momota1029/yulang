@@ -93,6 +93,14 @@ case n:
 ```
 
 - 「何を網羅とみなすか」の細部は Rust の規則に従う。
+- **polyvariant の payload が反駁可能でもよい**（確定, 2026-11-06）。同じ tag の複数の arm を合わせて payload 全体を覆えたら、その tag は丸ごと処理済みになる。guard 付きの arm は数えない。残余の型は、部分的な payload に細分化しない（章4.5、決定4）。網羅性の内部の計算と、残余の型は別である。
+
+```yulang
+case x:                 // x : :flag bool
+    :flag true -> 1
+    :flag false -> 0    // 二つで payload の bool 全体を覆う → :flag を処理済み
+```
+
 - symbol / polyvariant の pattern を使った `case` は、`_` を書かなくても網羅できる。走査対象の型が、pattern に書いた tag だけの**閉じた型**になるため（確定, 2026-11-04）。
 
 ```yulang
