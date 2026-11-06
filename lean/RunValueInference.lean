@@ -53,7 +53,7 @@ def main : IO Unit := do
   runExample "tag carrying a pair" (.variant 7 (.pair (.lit .int) (.lit .str))) ":tag7 (int, str)"
   runExample "if int then int else str" (.branch (.lit .int) (.lit .int) (.lit .str)) "no type"
   runExample "unbound variable" (.var 0) "no type"
-  runExample "lambda in the general source entry" (.lam (.var 0)) "unsupported"
+  runExample "lambda in the ValueInference entry" (.lam (.var 0)) "unsupported"
   let cycle := ValueBoundSolvers.Examples.cycle
   match ValueBoundSolvers.solveSigned cycle with
   | none => throw (IO.userError "cyclic bounds unexpectedly failed")
