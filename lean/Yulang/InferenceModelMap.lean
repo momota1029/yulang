@@ -136,5 +136,65 @@ theorem closed_typing_preserved (map : ModelMap source target) (expression : Exp
   exact (principal_exact target expression ([] : SchemeEnv Empty) [] Empty.elim
     (by intro index value; simp [SchemeLookup, BindingLookup]) (map.comp result)).mp moved
 
+/-- Reflection requires exact atomic comparisons and coverage of all target
+computations. In particular existential witnesses cannot escape the image. -/
+theorem formula_reflected (map : ModelMap source target)
+    (valueReflect : ∀ {left right}, target.subTy (map.value left) (map.value right) → source.subTy left right)
+    (rowReflect : ∀ {left right}, target.subRow (map.row left) (map.row right) → source.subRow left right)
+    (onto : ∀ computation : Comp target, ∃ original : Comp source, map.comp original = computation)
+    (formula : Formula α) (values : α → Comp source)
+    (held : formula.Holds target (map.assignment values)) : formula.Holds source values := by
+  induction formula with
+  | top => trivial
+  | bot => exact held
+  | and left right ihl ihr => exact ⟨ihl values held.1, ihr values held.2⟩
+  | or left right ihl ihr =>
+      exact held.elim (fun proof => Or.inl (ihl values proof))
+        (fun proof => Or.inr (ihr values proof))
+  | tyLe left right =>
+      apply valueReflect
+      simpa only [Formula.Holds, map.eval_value] using held
+  | rowLe left right =>
+      apply rowReflect
+      simpa only [Formula.Holds, map.eval_row] using held
+  | existsSlot body ih =>
+      obtain ⟨witness, proof⟩ := held
+      obtain ⟨original, same⟩ := onto witness
+      refine ⟨original, ih (extend values original) ?_⟩
+      simpa only [map.assignment_extend, same] using proof
+
+theorem formula_exact (map : ModelMap source target)
+    (valueReflect : ∀ {left right}, target.subTy (map.value left) (map.value right) → source.subTy left right)
+    (rowReflect : ∀ {left right}, target.subRow (map.row left) (map.row right) → source.subRow left right)
+    (onto : ∀ computation : Comp target, ∃ original : Comp source, map.comp original = computation)
+    (formula : Formula α) (values : α → Comp source) :
+    formula.Holds target (map.assignment values) ↔ formula.Holds source values :=
+  ⟨map.formula_reflected valueReflect rowReflect onto formula values,
+    map.formula_preserved formula values⟩
+
+/-- Exactness of the original closed judgment under a surjective map that
+preserves and reflects its atomic comparisons. No source syntax is excluded. -/
+theorem closed_typing_exact (map : ModelMap source target)
+    (valueReflect : ∀ {left right}, target.subTy (map.value left) (map.value right) → source.subTy left right)
+    (rowReflect : ∀ {left right}, target.subRow (map.row left) (map.row right) → source.subRow left right)
+    (onto : ∀ computation : Comp target, ∃ original : Comp source, map.comp original = computation)
+    (expression : Expr) (result : Comp source) :
+    Typing target [] expression (map.comp result) ↔ Typing source [] expression result := by
+  constructor
+  · intro typed
+    have targetHeld := (principal_exact target expression ([] : SchemeEnv Empty) [] Empty.elim
+      (by intro index value; simp [SchemeLookup, BindingLookup]) (map.comp result)).mpr typed
+    have emptyAssignment : map.assignment (Empty.elim : Empty → Comp source) = Empty.elim := by
+      funext index
+      exact Empty.elim index
+    have mappedHeld : (principal ([] : SchemeEnv Empty) expression).Holds target
+        (map.assignment (extend Empty.elim result)) := by
+      simpa only [map.assignment_extend, emptyAssignment] using targetHeld
+    have original := map.formula_reflected valueReflect rowReflect onto
+      (principal ([] : SchemeEnv Empty) expression) (extend Empty.elim result) mappedHeld
+    exact (principal_exact source expression ([] : SchemeEnv Empty) [] Empty.elim
+      (by intro index value; simp [SchemeLookup, BindingLookup]) result).mp original
+  · exact map.closed_typing_preserved expression result
+
 end ModelMap
 end Yulang.Inference

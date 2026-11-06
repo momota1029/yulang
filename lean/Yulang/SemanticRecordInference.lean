@@ -59,6 +59,69 @@ theorem old_closed_typing_preserved (empty : Row) (join : Row → Row → Row) (
     Typing (SemanticRecords.model Row empty join leRow) [] expression result :=
   (legacyMap empty join leRow).closed_typing_preserved expression result typed
 
+/-- Captured environments and explicit signatures keep the same value/row
+assignments when only the subtype relation is extended. -/
+def mapBinding (empty : Row) (join : Row → Row → Row) (leRow : Row → Row → Prop) :
+    Binding (StructuralBase.model Row empty join leRow) →
+      Binding (SemanticRecords.model Row empty join leRow)
+  | .mono computation => .mono computation
+  | .poly expression environment => .poly expression (environment.map (mapBinding empty join leRow))
+  | .signature count instantiate => .signature count instantiate
+
+def mapEnvironment (empty : Row) (join : Row → Row → Row) (leRow : Row → Row → Prop)
+    (environment : List (Binding (StructuralBase.model Row empty join leRow))) :
+    List (Binding (SemanticRecords.model Row empty join leRow)) :=
+  environment.map (mapBinding empty join leRow)
+
+/-- Preservation also holds in every open environment, including captured
+polymorphic bindings and explicitly quantified signatures. -/
+theorem old_typing_preserved (empty : Row) (join : Row → Row → Row) (leRow : Row → Row → Prop)
+    {environment : List (Binding (StructuralBase.model Row empty join leRow))}
+    {expression : Expr} {result : Ty Row × Row}
+    (typed : Typing (StructuralBase.model Row empty join leRow) environment expression result) :
+    Typing (SemanticRecords.model Row empty join leRow)
+      (mapEnvironment empty join leRow environment) expression result := by
+  induction typed using Typing.rec
+    (motive_2 := fun binding result _ =>
+      BindingTyping (SemanticRecords.model Row empty join leRow)
+        (mapBinding empty join leRow binding) result) with
+  | var found _ ih =>
+      refine .var ?_ ih
+      simp [mapEnvironment, found]
+  | lit bounded => exact .lit ((legacyMap empty join leRow).comp_le bounded)
+  | lam _ bounded body =>
+      exact .lam (by simpa [mapEnvironment, mapBinding] using body)
+        ((legacyMap empty join leRow).comp_le bounded)
+  | app _ _ bounded function argument =>
+      exact .app function argument ((legacyMap empty join leRow).comp_le bounded)
+  | letValue value _ _ definition body =>
+      exact .letValue value definition (by simpa [mapEnvironment, mapBinding] using body)
+  | letComputed _ _ bounded definition body =>
+      have adjusted := body
+      simp only [mapEnvironment, List.map_cons, mapBinding, Comp.pure] at adjusted
+      exact .letComputed definition adjusted
+        ((legacyMap empty join leRow).comp_le bounded)
+  | branch _ _ _ bounded condition yes no =>
+      exact .branch condition yes no ((legacyMap empty join leRow).comp_le bounded)
+  | pair _ _ bounded left right =>
+      exact .pair left right ((legacyMap empty join leRow).comp_le bounded)
+  | fst _ bounded pair => exact .fst pair ((legacyMap empty join leRow).comp_le bounded)
+  | snd _ bounded pair => exact .snd pair ((legacyMap empty join leRow).comp_le bounded)
+  | emptyRecord bounded => exact .emptyRecord ((legacyMap empty join leRow).comp_le bounded)
+  | record _ _ admissible bounded head tail =>
+      exact .record head tail (SemanticRecords.old_subtype admissible)
+        ((legacyMap empty join leRow).comp_le bounded)
+  | field _ bounded record => exact .field record ((legacyMap empty join leRow).comp_le bounded)
+  | variant _ bounded payload => exact .variant payload ((legacyMap empty join leRow).comp_le bounded)
+  | mono bounded =>
+      rw [mapBinding]
+      exact .mono ⟨SemanticRecords.old_subtype bounded.1, bounded.2⟩
+  | poly _ row body =>
+      simpa only [mapBinding, mapEnvironment] using BindingTyping.poly body row
+  | signature bounded =>
+      rw [mapBinding]
+      exact .signature ⟨SemanticRecords.old_subtype bounded.1, bounded.2⟩
+
 theorem singleton_mono {leRow : Row → Row → Prop} (label : Nat) {head head' : Ty Row}
     (bounded : SemanticRecords.Subtype leRow head head') :
     SemanticRecords.Subtype leRow (.record label head .emptyRecord) (.record label head' .emptyRecord) := by
