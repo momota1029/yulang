@@ -86,6 +86,22 @@ pair/variant/field を通る。parameter の root layer を同じ観測深さに
 `Derives` 証明からなる。`Derives.sound` は任意の子述語割当てについて健全性を示すが、
 その規則の完全性を主張しない。上記は以下の四つの regular/source 契約全体の完了ではない。
 
+`PresenceMaskedCoalescing` は root の比較と constructor 等式を、**すべての mask**で要求する
+別の観測モデルを定義する。payload の子は既存の意味通り unmasked で観測する。
+既存の unmasked 定義は変更せず、これを言語の最終モデルとして採用したとも扱わない。
+
+| 定理（接頭辞 `PresenceMaskedCoalescing`） | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `coalesceGraph_satisfies_cache` / `coalesceGraph_satisfies` | 任意の有限 guarded presence graph・入力/cache・同じ `Closed` 証明について、任意の外部 graph と全自由 parameter layer が、全 root mask・全深さで constructor 等式と cache/入力辺を満たす解になる | 完全な飽和、非guardedな open tail、関数・行、旧 instance の保守性 |
+| `coalesceGraph_retract_at` / `coalesceGraph_retraction` / `coalesceGraph_root_mask_retraction` | 任意の独立な **mask つき cache の解**について、全 slot・全深さ・全 mask の観測を回収。実際の生成 root と元の root をそれぞれ mask した意味も一致し、新しい比較の両方向を得る | unmasked な解だけから同じ結論を得ること、入力解から cache 解への移送 |
+
+この強い解の前提は必要である。`Core.PresenceMaskObstructions.no_extensional_mask` は、
+非空 mask を、unmasked な data 述語だけの関数として実装できないことを示す。
+`required l never` と `bottom` は mask 前に同じ空集合だが、`l` の mask 後は前者だけが
+`records` になる。`Counterexample.masked_root_retraction_fails` は、実際の二 node graph
+`x ≤ bottom` に対し、`Closed` と unmasked な独立解があっても root-mask 回収が失敗する
+具体例を示す。これを強いモデルへの暗黙の前提変換で隠さない。
+
 `CorePresenceGenerationModel` は既存 `Inference.Model` に独立な `exactEmpty`・`required`・
 `recordDefault` 演算を加えた interface である。継承した `emptyRecord` は width 上界用で、
 空 record 式の精密な型とは同一視しない。`recordDefault` は結果全体の型の演算であり、
