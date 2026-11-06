@@ -36,6 +36,12 @@ lake env lean --trust=0 --run RunRegularInference.lean
 
 この実行例は恒等関数適用・自己適用のgraphからschemeを作り、再帰する自由parameterを代入する。反変入力とnested pairの矛盾の拒否、共有parameterを守る簡約も実行する。有限深さの実行チェックと、全深さについて証明されたmodel/主型定理を区別する。Simple-subとの対応と参照revisionは [`REFERENCES.md`](REFERENCES.md)、算法の主張は [10.20–10.22](../spec/10-inference-core.md#1020-共有parameterの意味を保つ簡約) に記す。
 
+元の型項からは **`TypeConstraintInference.infer`** が、`TyTerm (Fin n)` の不等式列を共有node graphへ変換し、同じsolverからregular schemeを構成する。`infer_correct` は実際の呼出しについて、未対応・解なし・推論成功の三分岐を証明する。対応範囲では `infer_models_exact` が元の全割当てと自由parameterによる全具体化を一致させ、`infer_instances_exact` が任意の出力slotの全instanceを一致させる。行の割当ては、この入口では固定される。型のconstructorと再帰blockは `RegularInferenceModel` の一つの型carrierに収まる。
+
+行には `RowFlowSchemes` と `NestedRowRequirements.solveRows` を追加した。後者はshapeの飽和で必要になる全arrow行比較を回収し、明示された行制約と合わせて共有parameterの行schemeを求める。関数入力の行比較は反変方向のままである。値型・行の未知数の番号を保つsource clauseの分割は `ConstraintProblems.closed_source_problems_exact` で元の型判断に接続する。この段階では、それらを統合した全source入口とは区別する。
+
+一般recordの境界は反例として検証した。`RecordTailBoundary` は、空recordと相互部分型であるtailに置き換えても、現行reference algebraではrecord全体が同値にならないことを示す。実際の閉record literalのprincipal instanceが失われるため、未知tailをproper spineへ暗黙に正規化しない。意味論上の選択肢と証明範囲は [10.25](../spec/10-inference-core.md#1025-record-tailの意味論上の境界) に記す。
+
 ## 証明対象
 
 | モジュール | 閉じる主張 | それだけでは示さないこと |
@@ -99,6 +105,11 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.RegularValueTypes` | 全有限観察による独立な再帰値型意味論、有限型での保守性、guardedな循環導出の健全性、入力/出力の再帰例 | 最終的なas文字列、循環導出体系全体の決定手続き |
 | `Yulang.RegularNestedModels` / `Yulang.RegularValueCoalescing` / `Yulang.RegularSchemeInference` | 任意自由parameterから元のnested graphの解を構成、元の全regular modelを再現、subsumptionを含む全instanceの主型性、実際の推論入口と解不存在の完全性 | 未知rowの同時求解、source全体のlowering、一般化・intrusion/T3との全統合、完全な表示標準形 |
 | `Yulang.ConstraintNormalForm` | 任意の元Formulaを有限の存在的clauseへ変換、全Exprの元Typingとの同値、letの両枝・capture・結果slotとrowsの保持 | 個々のatomの求解、DNFの大入力性能、source全clauseがnested solverの対応範囲に入ること |
+| `Yulang.RegularInferenceModel` | constructorと有限再帰blockに閉じた単一のInference.Model、有限graphの保存・反映、全自由parameterからの解構成と全instance一致 | surfaceのas表示、意味論を追加したrecord正規化 |
+| `Yulang.TypeConstraintGraph` / `Yulang.TypeConstraintGraphEquivalence` / `Yulang.TypeConstraintInference` | 元TyTermの共有変数を保つgraph化、semantic realizerの反映、実際のsource型制約solverの全モデル・全出力instance一致、regular model不存在と拒否の同値 | 未知record tail、非対応位置のunion/intersection、未解決行と値型の統合入口 |
+| `Yulang.RowFlowSchemes` / `Yulang.NestedRowRequirements` / `Yulang.TypeConstraintRowInstantiation` | core行の共有parameter scheme、shape飽和と行代入の可換性、全arrow行obligationの求解、元の行モデルの回復 | operation head・protect/release・residualを含む一般RowExprの制約消去 |
+| `Yulang.ConstraintProblems` | 型・行の同一slotを保つclause分割、元Typingのsubsumption、全閉式から計算した問題のinstanceとの同値 | 各問題の求解や全構文の対応判定 |
+| `Yulang.RecordTailBoundary` | 同値tailの置換がrecordの同値を保たない反例、元principalの全instanceをproper spine一つで表せないこと | 一般solverの不可能性、意図されたrecordモデルの決定 |
 | `Yulang.ValueInference` / `Yulang.ValueInferenceExamples` | 既存Exprのvar/lit/branch/letE/pair/variantから型を構成し、元のTyping・principal formulaとの成功時の主性と失敗の完全性を証明、値letの両経路、未対応との区別 | 評価時effectを持つ式、一般のlambda/application、SCC、variantのtag合流・case残余、parserからのelaboration、表示の完全な標準形 |
 | `Yulang.SemilinearNormalization` / `Yulang.SemilinearFastInclusion` | 零・重複周期と同じ成分の除去の意味保存、単一周期への全座標を使う正確な所属判定、健全な包含の高速成功と完全なNFA判定へのfallback、最適化前後のBoolean結果の一致 | 全半線形集合の最小正規形、異なる成分の共同被覆を一成分比較だけで判定すること、一般の多項式時間 |
 | `Yulang.SemilinearRowAlgebra` | 有限key支持と無限の整数重み集合を持つ行の包含・等価性、重複keyの和と欠けたkeyの空解釈、既存SetRow代数との一致、その行を潜在行とする有限ground構造型の比較 | 未知型変数・再帰値型の求解、元のrow制約からの解抽出は別層 |

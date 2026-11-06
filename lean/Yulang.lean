@@ -142,5 +142,16 @@ import Yulang.RegularNestedModels
 import Yulang.RegularValueCoalescing
 import Yulang.RegularValueCoalescingExamples
 import Yulang.RegularSchemeInference
+import Yulang.RegularInferenceModel
+import Yulang.TypeConstraintGraph
+import Yulang.TypeConstraintGraphExamples
+import Yulang.TypeConstraintGraphEquivalence
+import Yulang.TypeConstraintInference
+import Yulang.TypeConstraintInferenceExamples
+import Yulang.RowFlowSchemes
+import Yulang.NestedRowRequirements
+import Yulang.TypeConstraintRowInstantiation
+import Yulang.ConstraintProblems
+import Yulang.RecordTailBoundary
 import Yulang.ValueInference
 import Yulang.ValueInferenceExamples

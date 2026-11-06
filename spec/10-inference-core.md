@@ -823,3 +823,45 @@ solverはnode対のcacheを増やす。constructor比較を子の比較へ分解
 `normalise_exact` は任意の `Inference.Model` に対して元のformulaと正確に同値である。`closed_source_exact` は、元の閉式の `Typing` が、計算したclauseのいずれかに割当てを与え、最後の結果slotを元のresultと等しくすることと同値であると示す。lambda・application・value-restricted letを含む既存の全 `Inference.Expr` を対象にし、letの一般化側を削除しない。型と行は元のcomputation slotの組として保持する。
 
 この正規化はatomの求解ではない。DNFを明示的に列挙するため、最悪では指数的に大きくなる。任意のclauseを10.21のgraphと行制約へ意味を保って下ろし、双方を解く接続が必要であり、normalizerだけでsourceの型推論が完成したとは主張しない。
+
+## 10.23 元の型制約から主型スキームを構成する入口
+
+`TypeConstraintGraph.compile` は、元の `TyTerm (Fin n)` の不等式列を有限の共有graphへ変換する。同じ型変数は同じnodeを参照し、制約中に現れない入力slotも保持する。左辺のunionと右辺のintersectionは既存の束の法則で分解する。constructor内部ではrigidな型項を要求し、recordのtailは固定されたspineに限る。対応しない項は型エラーではなく `unsupported` となる。
+
+`TypeConstraintGraphEquivalence` はconstructorの実現を構文等号ではなく相互部分型で扱う。任意のsemantic realizerを元の型項の評価へ戻せること、共有入力の割当てを等号で保持すること、出力slotの全instanceを保つことを証明する。recordに要求する合同性は同じ有限field list内の値についてだけであり、未知tailへの合同性は仮定しない。
+
+`RegularInferenceModel` は有限layerと有限の同時再帰blockから一つの型carrierを構成する。blockの内部参照は有限listの添字で表し、finite graphからの埋込みが範囲内に留まり、全観察を保存・反映することを示す。pair・arrow・recordなどのconstructorを組み立てても同じcarrierに収まり、coalescingの自由parameterもこのcarrier全体を動く。
+
+`TypeConstraintInference.infer` はコンパイル、飽和、regular schemeの構成を実際に呼ぶ。返された `Scheme` はgraph・cache・入力参照を持ち、具体化時に元の不等式を再検査しない。`infer_correct` は成功したcompilerやcacheを追加前提に要求せず、実際の三分岐の意味を示す。対応範囲の検査が通ると、`infer_models_exact` と `infer_instances_exact` により元の全型割当てと全出力instanceが得られる。`infer_rejected_iff` は拒否とregular model不存在の同値である。
+
+例は実際の型項の制約から、恒等関数、自己適用、双方向の再帰arrow equationを解く。反変入力とnested pairの矛盾は、正則再帰型でも解けないことを証明する。行はこの入口では固定した割当てであり、全sourceの推論入口とは区別する。
+
+## 10.24 行の相関を残す求解と型graphとの接続
+
+`RowFlowSchemes` は、空行・変数・joinからなるcoreの行不等式を扱う。右辺は変数または空行、左辺のjoinは分解できる。変数間の流れを辿り、空行以下に強制されるparameterだけを消し、その他のparameterを到達先のjoinへ残す。元の全行モデルとschemeの全具体化が、相互包含まで一致する。未拘束行をすべて空行へ決める構成ではない。
+
+`NestedRowRequirements.solveRows` はsymbolic rowを持つ型graphをshapeだけで飽和させ、cache中の全constructor比較から必要な行不等式を回収する。arrow入力の行は反変方向、出力の行は共変方向である。明示されたsourceの行制約と合わせて行schemeを構成し、`solveRows_instantiates` は任意の自由parameterについて、同じcacheが実際の行比較の下でも成功することを示す。
+
+`solveRows_models_exact_eq` は行包含の反対称性を明示した上で、元の行割当てをschemeから等号で回復する。これは集合行のような反対称なcarrierに適用できる。listの重複・順序まで同一になるという主張ではない。`TypeConstraintRowInstantiation.compile_instantiate` により、symbolicなcompiler出力に行を代入すると、最初からその行割当てでコンパイルした出力と一致する。
+
+`ConstraintProblems.split` は正規化されたclauseから型制約と行制約の列を取り出す。値型と行は元と同じslot番号を共有する。`closed_source_problems_exact` は、計算したいずれかの問題の出力instanceが、元の閉式の `Typing` と同値であることを示す。型判断のsubsumptionにはcaptured polymorphic bindingも含める。この分割・行scheme・固定行での型solverを統合した入口は別途必要である。
+
+この行schemeの構文は `RowTerm` であり、operation head、保護、解除、handler residualを持つ一般の `RowExpr` の全解を消去したとは主張しない。既存の衛生性、負の差分、無限集合行の意味を変更しない。
+
+## 10.25 record tailの意味論上の境界
+
+**現行reference algebraについて証明済み。意図されたrecordモデルの修正は未決定。** 出典は10.5.1のrecord生成規則と、`StructuralBase` の構文的な `IsRecord` 条件である。章4.3のfirst-field-winsと幅部分型を変更する決定は行っていない。
+
+`RecordTailBoundary` は次の閉record literalと二つの型を使う。行は純粋な `Unit` とし、effectには依存しない。
+
+\[
+e=\operatorname{record}(0,\operatorname{lit}(\mathrm{int}),\{\}),\qquad
+P=\operatorname{record}(0,\mathrm{int},\{\}),\qquad
+M=\operatorname{record}(0,\mathrm{int},\{\}\cup\bot).
+\]
+
+tailの `{} | never` と `{}` は相互部分型だが、前者は構文的なrecord spineではない。元の `Typing.record` はrestの型に `restType ≤ emptyRecord` を要求してその型を保持するため、`e` は `P` と `M` の両方へ型付けでき、両方が元のprincipal formulaのinstanceになる。一方で、現在の `Subtype.record` は両端に `IsRecord` を要求するので、`P ≤ M` も `M ≤ P` も成立しない。
+
+`no_record_spine_represents_principal` は、特定の `P` に限らず、どのproper spine一つの上方閉包でもこのliteralの全instanceを表せないことを示す。これは制約式のprincipalityや一般solverの存在を否定するものではない。未知tailを同値なproper spineへ置換するだけでは、現在の意味を保存できないという境界である。
+
+選択肢は、現在のraw tailを区別する意味論を保ってsolverを拡張すること、または許されるtailについてrecordの合同性を持つモデルを明示的に定めることである。後者ではchecker・cut elimination・compilerの接続もそのモデルについて再証明する必要がある。`Typing.record` に構文条件を加えて既存instanceを落とす変更や、旧モデルの単なる商を意味保存として扱う変更は行わない。
