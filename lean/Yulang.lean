@@ -304,3 +304,4 @@ import Yulang.NominalListIndexError
 import Yulang.FoldTraversal
 import Yulang.FoldListSpread
 import Yulang.FoldListSpreadFinite
+import Yulang.FoldListSpreadRoles

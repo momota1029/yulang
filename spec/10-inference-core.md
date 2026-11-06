@@ -1893,6 +1893,28 @@ prefixで同じflatten列へ到達すること、その最後の観測が同列�
 全推論器へのelaboration。ここで成功した有限実行を前提にするのは旧実行との対応定理であり、
 10.36.4・10.36.5の一般prefix安全性/progressに有限性や成功の前提を加えていない。
 
+### 10.36.7 acceptedなFold slotと実際のspread型判断
+
+`FoldListSpreadRoles.Slot` はcontainer/itemのrigid termと、供給された `foldGoal` encodingに対する
+`CheckedRoles.resolve visible goal = answer resolved` の成功を保持する。
+`Body` は解決済みdriver、走査行、局所state不変条件、container型からの開始点適合性、
+item型と行についての局所 `Safe` を持つ。`Registry` は任意の供給denoteの下で、
+container/item/選択planをこの型付きbodyへ写す。source methodを推論して自動生成する関数ではない。
+
+`spread_typing` は任意のSourceLayer・Registry・Slot・source式・source行について、
+sourceがslotのcontainer意味を持つ独立な型判断を前提に、実際の `FoldListSpread.PartTyping` を導く。
+結果のitem型はslotのitem意味そのもの、行はsource行と選択されたBody行のunionとなる。
+SourceLayerには開始点適合性・一歩の安全性・全response継続の不変条件・純粋変換の型保存を要求し、
+全source実行の成功は要求しない。
+`spread_role_constraint` は任意のそのslotとFold型判断から、可視implのWellFormed、
+独立なrole解決判断、container/item/rowがslotと選択bodyに一致することを示す。
+`selected_exact` と `engine_uses_selected_dictionary` は任意の同goalの独立なDictionaryについて、
+選ばれたbody、実machineのdriver、その宣言行が同じであることを示す。
+
+**残る義務:** source Fold roleとassociated typeを `foldGoal` / `denote` へ写すこと、
+source methodから型付きRegistryを作ることと意味保存、既存evidenceを含む全辞書elaboration、
+source `for_in` と同じ高階実行への接続。任意の高階Foldがcallbackの返却accumulatorを必ず採用する律は仮定しない。
+
 ## 10.37 Presence型と有限legacy data推論の橋
 
 `PresenceLegacyBridge.translate` は有限な `StructuralBase.Ty Row` をhidden label列とともに

@@ -1572,3 +1572,8 @@ run_cmd do
 #print axioms Yulang.FoldListSpreadFinite.part_meaning
 #print axioms Yulang.FoldListSpreadFinite.meaning
 #print axioms Yulang.FoldListSpreadFinite.finite_run_correspondence
+
+#print axioms Yulang.FoldListSpreadRoles.selected_exact
+#print axioms Yulang.FoldListSpreadRoles.spread_typing
+#print axioms Yulang.FoldListSpreadRoles.spread_role_constraint
+#print axioms Yulang.FoldListSpreadRoles.engine_uses_selected_dictionary
