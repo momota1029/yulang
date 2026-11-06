@@ -71,7 +71,7 @@ regularな `SourcePrincipalInference` 全体の主型性・関数/行意味へ�
 | `a and b` / `a or b` | `lazy infix` の本体に両辺を thunk として渡す | 確定 | 章1.5。短絡評価 |
 | `-x`、`not x` | prefix 宣言の本体の展開 | 確定 | |
 | `0..10` / `0..` | suffix/infix 宣言の本体(`std::data::range::...`) | 確定 | 閉区間 |
-| `xs[i]` | `app (app (method index) xs) i`、解決済みlist本文は `NominalListViews.effectIndex` | 確定 | 章3.2、回答済みQ9・Q10。整数の有効区間と任意encodingのerror要求への接続を証明。Q12はindex_err/out_of_range intを確定。具体宣言とrole辞書から本文へのelaborationは残る |
+| `xs[i]` | `app (app (method index) xs) i`、解決済みlist本文は `NominalListIndexError.index` | 確定 | 回答済みQ9・Q10・Q12。任意整数の有効区間、Int/Emptyの具体宣言、無効時の同一operationと原index、wrap/catchと残余行まで証明。source名/宣言identityとrole辞書から本文へのelaborationは残る |
 | `"a %{x} b"` | `Display` で `x` を文字列にして連結 | 下書き | 書式指定付きは `fmt` 相当の呼び出し。std 側 |
 | `do` | 後続の文を継続 lambda にして、最も内側の呼び出しの引数にする | 確定 | 章3c.7。純粋に構文 |
 

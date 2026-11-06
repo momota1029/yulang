@@ -216,7 +216,13 @@ Indexの内部lookupとFold用cursorが同じ順序の要素を観測する。`l
 error wrapperで成功値または指定された範囲外errorが得られることを示す。
 汎用定理は任意の `ErrorEffects.Encoding` と `Int → Error` を引数に取る。
 回答済みQ12は `error index_err: out_of_range int` と無効だったindexのpayloadを確定した。
-この宣言の具体化とsourceのrole辞書選択・Index本文のelaborationは別に接続する。
+`NominalListIndexError` は任意の外部signatureと直和を取り、PayloadがInt・ResponseがEmptyの
+一つの解決済みoperation、`Cases`、正しい `Encoding` を具体化する。
+`invalid_index` は任意の無効indexについて、負・空list・上限超過のいずれも同じoperationへ
+元のIntをそのままpayloadとして渡すことを示す。`invalid_bind` は後続を実行しない。
+`wrap_index` と `catch_index` は通常返却／範囲外armへの完全な計算等式を持ち、
+wrap後は空行、catch後は明示されたarmの行で全要求が上から抑えられる。
+source文字列・宣言identityからこのfamilyへの対応、role辞書選択・Index本文のelaborationは残る。
 `RunLiteralConstruction.lean` で大きな整数・範囲比較と実際のstruct/enum/list構築を実行できる。
 
 ## 複数 operation の shallow handler
@@ -776,6 +782,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.NominalDataAssembly` / `NominalDataAssemblyExamples` | site実行器から具体ASTへの完全等式、元のrequest treeとEOF値の保持、受理plan・局所CastContract・元site型・独立Code型判断から返却分岐の構築成功と結果型、struct/enum/listの実値例 | sourceのsite抽出・Code生成、固定field/defaultの宣言検査、cast code合成、Fold/Indexのsource辞書との対応 |
 | `Yulang.NominalListSpread` / `NominalListSpreadExamples` | 任意位置の有限list spread、独立data型判断と環境・変換契約から実評価と全要素型、記述順に各sourceを一度読む全訪問列、同じ列に対する具体list・nominal metadata・Fold・内部Indexの一致 | 回答済みQ13の一般Fold・effect・要素型unionへの接続、spread要素の保留cast境界（Q14）、source site抽出・変換選択・保留planの自動生成 |
 | `Yulang.NominalListViews` / `NominalListIndex` | 同じlistに対するcursor・index・foldの一致、整数indexの成功と有効区間の同値、無効indexの非再開error要求、既存wrapとの一致 | sourceのFold/Index辞書の選択・署名と本文の対応、回答済みQ12の具体宣言から本文への接続 |
+| `Yulang.NominalListIndexError` | Q12の解決済みInt/Empty宣言・Cases・Encoding、任意Intの成功区間、全無効原因で同一operation/原index payload、abortiveなbind、wrap/catchとの完全等式と残余行上界 | source名と宣言identityの解決、source Index辞書・本文へのelaboration、統一推論器への行の組込み |
 | `Yulang.NominalDataConstructionExamples` | 解決済みnominal構築式、任意整数から計算するstruct/enum/list payloadの型付けと実評価・全訪問列 | 宣言のlookup・型引数・payload宣言型の検査、source constructor default・castの挿入 |
 | `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、source patternから束縛付きarm表への翻訳、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |
 | `Yulang.MultiOperationPayloadHandlers` / `MultiOperationPayloadInference` / `MultiOperationPayloadExamples` | 同一keyの順序付きpayload dispatch、missのforwardと残余保持、unguarded反駁不能armだけのkey減算、既存構文のchecker/型判断/安全性の拡張、旧全域表との一致、全armへの明示mask検査 | source patternの束縛、effectful default/guard、個別operation署名と多相、mask導出とfresh移送、全sourceの主型推論 |

@@ -1699,8 +1699,25 @@ Fold/Indexのsource辞書解決と本文の対応、回答済みQ12のindex erro
 
 回答済みQ12により、3.2の宣言は `error index_err: out_of_range int`、payloadは無効だったindexで確定した。
 ここまでの汎用定理は任意の正しいencodingとerror構成を扱うため、その主張は保つ。
-**残る義務:** 確定した宣言の具体化、sourceのIndex辞書・全型推論器へのeffect行の組込みと、
-宣言からencodingを作るelaboration。内部Optionをsourceの返り値にはしていない。
+`NominalListIndexError` は任意の外部operation署名を保った直和familyに、PayloadがInt・ResponseがEmptyの
+`outOfRange` を加え、`Cases` と正しい `Encoding` を具体構成する。
+`encoded_operation`・`encoded_payload`・`encoding_roundtrip` は任意の外部署名と任意の整数/errorについて
+同じoperation、元の整数、宣言との往復を示す。
+任意の座標数・外部署名・有限list・整数に対し、`index_success_iff` は成功と有効区間を同値にする。
+`invalid_index` は有効区間の否定だけから、同じraw operation・元のInt payload・Empty responseの要求木等号を導く。
+`negative_index`・`empty_index`・`upper_index` はそれぞれの原因の全称的な系であり、
+`invalid_bind` は任意の後続が失敗後に実行されないことを示す。
+
+外部keyがdecidable equalityを持つとき、`wrap_index` は任意のlistとIntについて通常要素か
+`error (outOfRange i)` への完全等式を、`catch_index` は任意のreturn arm・範囲外armについて
+通常要素をreturn armへ渡すか元のiを範囲外armへ渡す完全等式を示す。
+`catch_index_via_wrap` は同じ観測をwrapとresultの分岐でも得ることを示す。
+`index_bounded` はsourceの要求を単一のraw error行で抑え、`wrap_index_bounded_empty` は捕捉後の空行を示す。
+`catch_index_bounded` は両armが共通行で有界という全値・全整数の前提から、捕捉結果もその行で有界と示す。
+
+**残る義務:** source文字列と宣言identityからこのlocal familyへの意味保存、
+sourceのIndex辞書・本文のelaboration、全型推論器へのeffect行の組込み。
+内部Optionをsourceの返り値にはしていない。
 
 ### 10.36.2 保留siteの実行から具体構築ASTへの接続
 
