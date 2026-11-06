@@ -1452,7 +1452,7 @@ source の裸 `..` を許す規則ではない。source pattern 側でこれを�
 `nan_never_matches_left/right`、任意の値について `reflexive_iff_not_nan` を示す。
 `LiteralValues.binary64MatchCheck_exact` はこのEqを具体literal比較へ接続する。
 
-**残る義務:** 範囲外tokenのsource上の扱い、数値演算、lexer/文字列 escape とこの値の対応、
+**残る義務:** 十進tokenの全域source入口への接続、数値演算、lexer/文字列 escape とこの値の対応、
 source AST・全型推論器への literal 内容の接続。旧 marker の定理を変更していない。
 
 ### 10.34.1 有限binary64の最近接・偶数丸め
@@ -1484,6 +1484,31 @@ source AST・全型推論器への literal 内容の接続。旧 marker の定�
 Rustの実際のf64変換との対応、極端な非零十進指数の資源最適化。
 内部結果 `outsideFiniteRange` はsourceの型エラーでもruntime errorでもなく、未接続の方針境界である。
 有限範囲内の証明を範囲外の受理完全性へ広げない。
+
+### 10.34.2 回答済みQ11：有限丸めとoverflowの厳密な境界
+
+`Binary64Overflow` は最大有限値の次の2冪まで指数gridを拡張する。
+このsentinelは数学的な有限の実数であり、無限大との距離を定義していない。
+`nearest_below_even_boundary_iff` は任意の狭義単調な自然数grid・target・丸めrank・
+正の偶数境界rankについて、独立な全候補最近接偶数判断を前提に、
+結果が境界rank未満であることと、targetが直前点とのmidpointより厳密に下であることを同値にする。
+
+binary64に対して `midpoint_units` は境界をsubnormal単位で `2^2098 - 2^2044`、
+実数では `2^1024 - 2^970` と求める。`midpoint_rounds_to_sentinel` は任意の正分母について、
+境界そのものが偶数rankの上側sentinelへ丸まることを独立な最近接判断で示す。
+`finiteRounding_iff_exists_nearest` と `finiteRounding_iff_exists_value` は任意の分子・正分母
+（後者では任意の符号も）について、境界未満の条件と有限rank／有限値の最近接偶数結果の存在を同値にする。
+sentinelより大きい入力もこの全称範囲に含み、探索の事前bracketを呼出側へ要求しない。
+
+`round_correct` は任意の符号・分子・正分母と境界未満の条件から、実際の計算結果が有限で
+同じ符号を持ち、拡張gridの全候補に対して最近接偶数であることを示す。
+`Rounds.finite_contract` はこの判断から旧有限候補の丸め契約を導く。
+`round_agrees_with_finite` は旧 `InFiniteRange` を満たす任意入力で旧 `roundFinite` と完全一致する。
+`round_above_max` は最大有限値以上かつ境界未満の任意入力で、符号を保った最大有限値を返すことを示す。
+
+**残る義務:** この境界判定と十進tokenの全域source入口・静的overflow結果を接続すること、
+lexerとRust f64変換との対応、極端な非零十進指数の資源最適化。
+旧部分converterと旧成功範囲の定理は変更していない。
 
 ## 10.35 Case の照合と独立な束縛型判断
 

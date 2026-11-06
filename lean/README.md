@@ -159,7 +159,13 @@ fractionの下位bitを偶数にすることを示す。符号はzeroへ丸め�
 `LiteralValues.binary64OfDecimal_correct` が具体的なfloat literalへ接続する。
 この部分converterは範囲外を内部の `outsideFiniteRange` として区別する。
 回答済みQ11のsource規則は、最大有限値を超えても丸めが有限なら受理し、無限大へのoverflowを静的errorにする。
-その広い範囲のsource入口への接続は、この部分converterの成功範囲とは別に扱う。
+`Binary64Overflow.finiteRounding_iff_exists_value` は任意の符号・分子・正分母について、
+拡張した指数grid上の全候補に対する最近接偶数丸めが有限値を持つことと、
+絶対値が厳密に `2^1024 - 2^970` 未満であることを同値にする。
+境界ちょうどは偶数rankの上側sentinelへ丸まり、最大有限値以上かつ境界未満なら最大有限値へ丸まる。
+sentinelは数学的な次の2冪であり、無限大に有限の距離を割り当てるものではない。
+`round_agrees_with_finite` は旧成功範囲で旧丸めと全称的に一致することを示す。
+この境界を全tokenのsource入口へ接続することは、部分converterの成功範囲とは別に扱う。
 `RunBinary64.lean` は0.1、2^53付近の両方向のmidpoint、subnormal境界、最大有限値、zero/NaNを実行する。
 極端な非零十進指数の資源使用量の最適化とRust f64との対応は残る。
 既存 `Inference.Base` に float はなく、`legacyBase` は float に `none` を返す。
@@ -774,7 +780,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.JointCaseCoverage` / `ScopedCaseCoverageSafety` / `ScopedJointCaseCoverage` / `ScopedJointCaseExamples` | 複数の反駁可能armによる同一tagのpayload cell被覆、独立判断との同値、旧受理の保存、全tag単位の残余、各scopeの型付けとdefault domain包含から具体caseのprogress、Q4とQ8が同時に働く量化例 | 一般pattern matrix、record/list/整数の既存未認証例、sourceの拒否完全性、effectfulな葉・CaseTree・統一ASTへの接続 |
 | `Yulang.CaseTree` / `CaseTreeExamples` | scrutinee/body・pair・letへの有限case入れ子、独立型付けから実評価の型安全性と未一致の不在、任意整数について値と訪問列を保持する入れ子例 | guard/default内部のcase、一般再帰・関数/application/effect/castの統合、source名解決とscope付きdefaultの統合 |
 | `Yulang.CasePresenceValidation` | 宣言presenceのoptional許可/required拒否/unknown未解決、具体recordの旧markerへのlookup保存、required/optional所属の対応、型付きlazy defaultからunionに入る実束縛 | sourceからpresence metadataを導出し全patternへ適用するpass、旧markerにないfloat/list/nominalの射影、source defaultのscopeを割り当てるpass |
-| `Yulang.LiteralValues` / `LiteralValueExamples` / `Binary64` / `Binary64Rounding` / `Binary64Decimal` | 内容つきliteral、整数範囲、64bit codecの相互逆、数値Eqと独立判断の同値、正負zeroの一致・NaNの不一致、任意tokenの厳密な分数化と範囲内での全有限binary64候補への最近接・偶数丸め | 回答済みQ11の全token入口への接続、数値演算、parser/escape、Rust f64との対応、非零巨大指数の資源最適化、既存base-marker ASTとの全体統合 |
+| `Yulang.LiteralValues` / `LiteralValueExamples` / `Binary64` / `Binary64Rounding` / `Binary64Decimal` / `Binary64Overflow` | 内容つきliteral、整数範囲、64bit codecの相互逆、数値Eqと独立判断の同値、正負zeroの一致・NaNの不一致、任意tokenの厳密な分数化、全候補への最近接偶数丸め、全正分母有理数の有限丸めと厳密なoverflow境界の同値 | 回答済みQ11の全token入口への接続、数値演算、parser/escape、Rust f64との対応、非零巨大指数の資源最適化、既存base-marker ASTとの全体統合 |
 | `Yulang.PresenceLegacyBridge` | 任意の有限legacy型とmaskのdata意味を保存するpresence翻訳、Shadow部分型の包含保存、閉supported型判断の移送、finite-data planの全parameterを同じexact結果が一方向に包含、optionalの分解と旧width型の反例 | 逆向きの部分型完全性・scheme等価、regular型と自由row parameter、closure/effect行の意味、SourcePrincipalInference全体への統合 |
 | `Yulang.PresenceLayers` | required/optional/lacksを保つ有限layer、任意の子述語と正確なmembership checkerから全値で判定同値、mask合成とhidden field消去、field別optional化で相関が失われる反例 | 任意述語の決定可能性、全深さの部分型判定、closure/effect行の意味、拡張solverの主型性 |
 | `Yulang.PresenceRegularObservations` / `PresenceRegularLegacyBridge` | 任意graphの全有限観測判定、可換なrenameと有限block closureでの保存・反映、旧regular型のdata所属・data包含との同値、既存common carrierのblockへの接続 | 旧structural subtypingとの同値、arrow/closureと行の意味、全深さの判定算法、presence制約の飽和/coalescing、全source schemeのinstance同値 |

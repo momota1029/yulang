@@ -1371,6 +1371,26 @@ run_cmd do
 #print axioms Yulang.Binary64Rounding.roundedRank_finite
 #print axioms Yulang.Binary64Rounding.roundFinite_correct
 
+#print axioms Yulang.Binary64Overflow.midpoint_twice
+#print axioms Yulang.Binary64Overflow.midpoint_units
+#print axioms Yulang.Binary64Overflow.finiteRounding_iff_below_midpoint
+#print axioms Yulang.Binary64Overflow.midpoint_overflows
+#print axioms Yulang.Binary64Overflow.nearest_ge_bound
+#print axioms Yulang.Binary64Overflow.nearest_below_even_boundary_iff
+#print axioms Yulang.Binary64Overflow.finiteRounding_upper
+#print axioms Yulang.Binary64Overflow.inFiniteRange_implies
+#print axioms Yulang.Binary64Overflow.roundedRank_correct
+#print axioms Yulang.Binary64Overflow.nearest_finite_iff
+#print axioms Yulang.Binary64Overflow.midpoint_rounds_to_sentinel
+#print axioms Yulang.Binary64Overflow.roundedRank_finite
+#print axioms Yulang.Binary64Overflow.finiteRounding_iff_exists_nearest
+#print axioms Yulang.Binary64Overflow.round_correct
+#print axioms Yulang.Binary64Overflow.Rounds.finite_contract
+#print axioms Yulang.Binary64Overflow.finiteRounding_iff_exists_value
+#print axioms Yulang.Binary64Overflow.round_agrees_with_finite
+#print axioms Yulang.Binary64Overflow.largestFinite_word
+#print axioms Yulang.Binary64Overflow.round_above_max
+
 #print axioms Yulang.Binary64Decimal.magnitudeFraction_exact
 #print axioms Yulang.Binary64Decimal.denominator_positive
 #print axioms Yulang.Binary64Decimal.convert_success_iff
