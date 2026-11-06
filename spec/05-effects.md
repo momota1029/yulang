@@ -187,7 +187,7 @@ error path_err:
 - `error` は `enum`、throw する operation を持つ `act`、`impl Throw`、`impl Display`、`wrap` helper をまとめて作る短縮形。`from` 付きの宣言には `up` も作る。
   **何を作るかは言語の仕様として固定する**（確定, 2026-11-04）。標準ライブラリの実装詳細ではない。
 - **variant は値の constructor と effect の operation の両方**になる。期待型が error なら値、effect の位置なら operation。
-- **`wrap` は、error effect を handle して `result` に戻す**helper（確定, 2026-11-06）。**`up` は、error effect を別の error effect へ cast する**helper で、`from` 付きの宣言にだけ作られる。型の細部は下書き（`notes/design/2026-11-06-surface-to-core-translation-draft.md`）。
+- **`wrap` は、error effect を handle して `result` に戻す**helper（確定, 2026-11-06）。**`up` は、error effect を別の error effect へ cast する**helper で、`from` 付きの宣言にだけ作られる。型は次のとおり（確定, 2026-11-06）。`path_err::wrap : [path_err] 'a -> result 'a path_err`、`app_err::up : [path_err] 'a -> [app_err] 'a`（`app_err` が `path from path_err` を持つとき。`path_err` の operation を handle して `app_err::path e` として投げ直す。継続は再開しない）。`from` 付きの宣言の `app_err::wrap` は、`from` で結んだ狭いエラーも同時に handle し、`err (app_err::path e)` のように包んで `result` に入れる。
 - record payload も許す（章4.5）。
 
 出典: `main:web/docs/ja/reference/effects.md` §error 宣言、`main:web/docs/ja/guide/pitfalls.md`

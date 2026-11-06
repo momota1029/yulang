@@ -99,7 +99,7 @@ handler op action ret arm
 | `role R 'a: ...` / `impl R T: ...` | 辞書(dictionary)の型と値 | 確定 | 辞書渡しは `RoleDictionaries` に証明がある |
 | `where 'a: R` | 辞書引数 | 確定 | 具体化した場所で解く(決定 30) |
 | `act a: our op: P -> Q` | operation の署名 | 確定 | `PolySignature` |
-| `error e: v1 p; v2 q` | 下の「`error` 宣言の展開」 | 下書き | 章5.7。`wrap` は error effect → `result`、`up` は error effect → 別の error effect(2026-11-06 ユーザー説明)。型は私の読み |
+| `error e: v1 p; v2 q` | 下の「`error` 宣言の展開」 | 確定 | 章5.7。`wrap` は error effect → `result`、`up` は error effect → 別の error effect(2026-11-06 ユーザー説明)。型は私の読み |
 | `cast(x: A): B = body` | cast 規則の登録 | 確定 | 本体は純粋。境界で挿入 |
 | `act copy = source` | 新しい effect family | 確定 | 章5.6 |
 
@@ -125,12 +125,12 @@ error path_err:
 1. `enum path_err = not_found path | denied path` と、同名の operation を持つ `act`(`not_found: path -> never`、`denied: path -> never`)。variant は値の constructor であり operation でもある。期待型が error なら値、effect の位置なら operation
 2. `impl Throw path_err`(`e.throw` で、variant に対応する operation を呼ぶ)
 3. `impl Display path_err`(variant 名と payload を文字列にする)
-4. `path_err::wrap : [path_err] 'a -> result 'a path_err` — error effect を handle して `result` に戻す。`ok v` か `err e`
+4. `path_err::wrap : [path_err] 'a -> result 'a path_err`(確定) — error effect を handle して `result` に戻す。`ok v` か `err e`
 
 `from` 付き(`enum app_err: path from path_err`)では、さらに次が作られる。
 
-5. `app_err::up : [path_err] 'a -> [app_err] 'a` — `path_err` の operation を handle して、`app_err::path e` として投げ直す(error effect を cast する)
-6. `app_err::wrap` は、`app_err` と `from` で結んだ `path_err` の両方を handle する(狭いエラーを同時に捕まえる。章5.7)
+5. `app_err::up : [path_err] 'a -> [app_err] 'a`(確定) — `path_err` の operation を handle して、`app_err::path e` として投げ直す(error effect を cast する。継続は再開しない: error の operation は `never` を返す)
+6. `app_err::wrap` は、`app_err` と `from` で結んだ `path_err`・`parse_err` の両方を handle する(狭いエラーを同時に捕まえる。章5.7)。狭いエラーは `err (app_err::path e)` のように `app_err` に包まれて `result` に入る(確定, 2026-11-06)
 
 ## 核に足りない形(まとめ)
 
@@ -145,7 +145,6 @@ ChatGPT に依頼する核の拡張の候補。
 
 ## 確認したいこと(ユーザーへ)
 
-- `error` 宣言の展開(上の下書きで、型の読みを確認)
 - `for` の `redo` の意味(同じ反復のやり直し)の実装方針
 - junction(`all`/`any`)の意味(章5 に未記述)
 - 書式付き文字列の `fmt` の境界(言語か std か)
