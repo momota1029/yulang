@@ -16,7 +16,10 @@ to right and stops the remainder of a compound pattern on a miss. Thus a
 later missing-field default is skipped after an earlier mismatch. The source
 specification does not yet decide this interaction with effectful defaults;
 the source-to-kernel correctness claim remains conditional on that decision.
-Raw repeated binder identities are also not a source shadowing policy.
+Provisional or policy (仮; Q6): take the first matching branch; a later
+failed arm guard does not retry the other branch. This is not inferred from
+the parser DSL choice rule. Raw repeated binder identities are also not a
+source shadowing policy.
 -/
 
 namespace Yulang.CasePatterns

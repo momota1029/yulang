@@ -40,6 +40,8 @@ caseのscrutinee/body・pair・letへの有限な入れ子は、後述の `CaseT
 **仮の照合方針（Q5）:** 複合patternは左から試し、先行部分がmissなら後ろのdefaultを実行しない。
 仕様の評価順だけからこの省略規則を確定したとは扱わない。現在の訪問列の定理はこの核の方針に対する証明で、
 effectful defaultを含むsource翻訳への意味保存は回答後に接続する。
+**仮のor方針（Q6）:** 最初に照合が成功した枝を採り、後のguardが偽でも別の枝を再試行しない。
+parser DSLの選択規則から普通のpatternへこの挙動を広げたものではない。
 rawな束縛IDの重複時のlookupも、sourceの重複名を許す決定ではない。
 
 `CasePresenceValidation` はoptional宣言metadataを許可し、requiredを拒否、unknownを未解決とする。

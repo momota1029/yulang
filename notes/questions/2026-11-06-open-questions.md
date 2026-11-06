@@ -110,3 +110,22 @@ case { y: 1 }:
 LeanとRust oracleの差分テスト、sourceから`CasePatterns.run`への意味保存。
 **仮:** 現在の解決済み照合核はAで実装し、その評価器についてのみ順序・型安全性を証明する。
 Aをsource仕様の決定とは扱わない。既存のdefault訪問例は先行missを含まないため、この回答を先取りしない。
+
+## Q6. or patternの枝を、照合成功時に確定するか、guardまで含めて試すか
+
+状態: **未回答**。`spec/03b-patterns.md` 3b.1/3b.6/3b.6′は選択・名前集合・asの結合力を定めるが、
+普通のor patternで複数の枝が合う場合の選択とguard失敗時の再試行は明記していない。
+`spec/09-parser-dsl.md` 9.3のparser選択のbacktrack規則は、普通のpatternへ拡張しない。
+
+```yulang
+case (1, 2):
+    (x, _) | (_, x) if x == 2 -> x
+    _ -> 0
+```
+
+- **A（推奨）:** 左から照合し、最初に合った枝の束縛でguardを一度評価する。guardが偽なら次のarmへ進む。例は0。
+- **B:** 左からguardまで含めて試す。左のguardが偽なら右を試し直す。例は2。
+
+影響する義務: orの束縛の選択、guard/defaultの実行回数と訪問列、CaseEvaluationとRust oracleの一致、
+sourceのor patternから解決済み核への翻訳。guard付きarmを網羅性に数えない決定は、どちらでも変更しない。
+**仮:** 現在の核はA。名前集合の一致・asの結合力は既存仕様どおりであり、選択順の回答を待つために止めない。

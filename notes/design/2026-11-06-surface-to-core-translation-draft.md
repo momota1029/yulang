@@ -72,7 +72,7 @@ multiHandler operations action ret arms
 | --- | --- | --- | --- |
 | `case e: p1 -> a; p2 -> b` | `CaseTree.Expr.caseE`、`CaseEvaluation.eval` と順序付きarm | 確定 | 各分解形・独立型判断・保守的coverageから有限に入れ子になったcaseのprogressまで証明。guard/default内のcase、一般Rust matrix、統一sourceへの接続は別義務 |
 | guard `p if g -> a` | pattern成功後にbool guard、偽なら次のarm | 確定 | 実行順と網羅性checkerのguard除外を証明（3b.4）。source guardの名前解決は別義務 |
-| or pattern、`as` | `CasePatterns.Pattern.or/as` | 確定 | 左から照合、全体値の束縛。orの名前集合検査。異なる束縛順のsource整列は未証明 |
+| or pattern、`as` | `CasePatterns.Pattern.or/as` | 確定（形・名前集合・as）／下書き（or選択） | 全体値の束縛とorの名前集合検査。左の照合成功で枝を確定しguard失敗時に右を再試行しない核の方針は仮（Q6）。異なる束縛順のsource整列は未証明 |
 | record pattern の既定値 `{x = 1}` | `defaultField`、解決済みpresence検査とunion | 確定（形）／下書き（scope・省略） | 欠如時のfallbackとrequired metadata拒否を核へ追加。defaultのscopeはQ4、先行missで後のdefaultを省略する核の方針は仮（Q5）。全patternへのpresence検査は未証明 |
 | 範囲 pattern `0..10` | `LiteralValues.intRangeCheck` | 確定 | 整数の閉区間/片側区間を追加。裸`..`は禁止。区間の合併による一般網羅性は別義務 |
 | list pattern `[x, ..rest]` / `[..init, last]` | `CasePatterns.Pattern.cons/snoc` | 確定 | 残りの有限listを実際に渡す。nominal宣言・Fold/Indexのsource辞書への接続は別義務 |
