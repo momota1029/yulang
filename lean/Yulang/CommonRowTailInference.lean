@@ -1,26 +1,26 @@
-import Yulang.CommonRecordTailElimination
+import Yulang.CommonPresenceTailElimination
 
 /-!
-# Simultaneous row and record-tail families in the common carrier
+# Simultaneous row and presence-tail families in the common carrier
 
 The declared finite input syntax has arbitrary empty/variable/join row terms
 on the left of inequalities and a variable or empty on the right. Type atoms
 and record payloads are finite common syntax whose two arrow rows contain
 those same row terms. Their row identities therefore remain shared with the
 explicit row constraints. Same-depth value references may occur under record
-tails, masks, unions and intersections, with arbitrary cycles.
+tails, whole-default sources, masks, unions and intersections, with arbitrary
+cycles. Record payloads and default fallbacks are fixed symbolic type terms.
 
 The output stores a finite row scheme and the symbolic constructor graph.
 Instantiation substitutes arbitrary row parameters, then solves the resulting
-record-tail equations using arbitrary common value parameters. All original
+presence-tail equations using arbitrary common value parameters. All original
 row assignments are recovered by literal equality, using the antisymmetry of
 the concrete common rows. No equivalence-transport law for rows inside a type
 is added to the semantic model.
 
 This is an exact simultaneous solver for this syntax. It is not an inspector
-for arbitrary producer inequalities, a compiler for unknown default sources,
-or a proof that every source-generated problem has this shape. Finite default
-constructors may already occur inside the fixed symbolic atoms or payloads.
+for arbitrary producer inequalities, a solver for shared unknown payload
+references, or a proof that every source-generated problem has this shape.
 -/
 
 namespace Yulang.CommonRowTailInference
@@ -119,6 +119,7 @@ inductive Body (slots labels rowSlots : Nat) where
   | inter : Body slots labels rowSlots → Body slots labels rowSlots → Body slots labels rowSlots
   | mask : Mask labels → Body slots labels rowSlots → Body slots labels rowSlots
   | record : Nat → TypeTerm rowSlots → Body slots labels rowSlots → Body slots labels rowSlots
+  | recordDefault : Nat → Body slots labels rowSlots → TypeTerm rowSlots → Body slots labels rowSlots
 
 namespace Body
 
@@ -130,19 +131,21 @@ def eval (rows : Fin rowSlots → Row) (values : Fin slots → Ty) : Body slots 
   | .inter first last => .inter (eval rows values first) (eval rows values last)
   | .mask hidden body => Common.mask hidden.names (eval rows values body)
   | .record label payload tail => Common.record label (payload.eval rows) (eval rows values tail)
+  | .recordDefault label source fallback => Common.recordDefault label (eval rows values source) (fallback.eval rows)
 
 def atRows (rows : Fin rowSlots → Row) : Body slots labels rowSlots →
-    CommonRecordTailElimination.Body slots labels
+    CommonPresenceTailElimination.Body slots labels
   | .atom type => .atom (type.eval rows)
   | .ref index => .ref index
   | .union first last => .union (atRows rows first) (atRows rows last)
   | .inter first last => .inter (atRows rows first) (atRows rows last)
   | .mask hidden body => .mask hidden (atRows rows body)
   | .record label payload tail => .record label (payload.eval rows) (atRows rows tail)
+  | .recordDefault label source fallback => .recordDefault label (atRows rows source) (fallback.eval rows)
 
 @[simp] theorem eval_atRows (body : Body slots labels rowSlots) (rows : Fin rowSlots → Row)
     (values : Fin slots → Ty) : (body.atRows rows).eval values = body.eval rows values := by
-  induction body <;> simp [atRows, CommonRecordTailElimination.Body.eval, eval, *]
+  induction body <;> simp [atRows, CommonPresenceTailElimination.Body.eval, eval, *]
 
 end Body
 
@@ -151,7 +154,7 @@ structure Problem (slots labels rowSlots : Nat) where
   body : Fin slots → Body slots labels rowSlots
 
 def Problem.atRows (problem : Problem slots labels rowSlots) (rows : Fin rowSlots → Row) :
-    CommonRecordTailElimination.Graph slots labels := fun index => (problem.body index).atRows rows
+    CommonPresenceTailElimination.Graph slots labels := fun index => (problem.body index).atRows rows
 
 def Models (problem : Problem slots labels rowSlots) (rows : Fin rowSlots → Row)
     (values : Fin slots → Ty) : Prop :=
@@ -161,8 +164,8 @@ def Models (problem : Problem slots labels rowSlots) (rows : Fin rowSlots → Ro
 theorem models_iff_atRows (problem : Problem slots labels rowSlots) (rows : Fin rowSlots → Row)
     (values : Fin slots → Ty) :
     Models problem rows values ↔ RowsHold problem.rows rows ∧
-      CommonRecordTailElimination.Models (problem.atRows rows) values := by
-  simp only [Models, CommonRecordTailElimination.Models, Problem.atRows, Body.eval_atRows]
+      CommonPresenceTailElimination.Models (problem.atRows rows) values := by
+  simp only [Models, CommonPresenceTailElimination.Models, Problem.atRows, Body.eval_atRows]
 
 /-- Finite syntax only: no semantic row function or assumed model law is
 stored in an inferred scheme. -/
@@ -178,7 +181,7 @@ def Scheme.instantiateRows (scheme : Scheme slots labels rowSlots) (parameters :
 
 def Scheme.instantiateValues (scheme : Scheme slots labels rowSlots)
     (rowParameters : Fin rowSlots → Row) (valueParameters : Fin slots → Ty) : Fin slots → Ty :=
-  CommonRecordTailElimination.solve
+  CommonPresenceTailElimination.solve
     (fun index => (scheme.body index).atRows (scheme.instantiateRows rowParameters)) valueParameters
 
 theorem solve_models (problem : Problem slots labels rowSlots)
@@ -187,7 +190,7 @@ theorem solve_models (problem : Problem slots labels rowSlots)
       ((solve problem).instantiateValues rowParameters valueParameters) := by
   apply (models_iff_atRows problem _ _).mpr
   exact ⟨rowScheme_models problem.rows rowParameters,
-    CommonRecordTailElimination.solve_models _ valueParameters⟩
+    CommonPresenceTailElimination.solve_models _ valueParameters⟩
 
 /-- Retraction recovers rows literally, so every shared input/output arrow
 row is preserved inside the simultaneous value family as well. -/
@@ -198,11 +201,11 @@ theorem solve_retract (problem : Problem slots labels rowSlots) (rows : Fin rowS
   have rowSame := rowScheme_retract problem.rows rows valid.1
   refine ⟨rowSame, ?_⟩
   change ∀ index, Common.Equivalent
-    (CommonRecordTailElimination.solve
+    (CommonPresenceTailElimination.solve
       (problem.atRows (RowFlowSchemes.instantiate Common.rowAlgebra (rowScheme problem.rows) rows)) values index)
     (values index)
   rw [rowSame]
-  exact CommonRecordTailElimination.solve_retract _ values
+  exact CommonPresenceTailElimination.solve_retract _ values
     ((models_iff_atRows problem rows values).mp valid).2
 
 /-- All inputs in the declared syntax, all independent row/value solutions,
@@ -224,10 +227,10 @@ theorem joint_instances_exact (problem : Problem slots labels rowSlots) (rows : 
     · have valid := rowScheme_models problem.rows rowParameters
       change RowsHold problem.rows ((solve problem).instantiateRows rowParameters) at valid
       simpa only [rowSame] using valid
-    · apply (CommonRecordTailElimination.solved_instances_exact (problem.atRows rows) values).mpr
+    · apply (CommonPresenceTailElimination.solved_instances_exact (problem.atRows rows) values).mpr
       refine ⟨valueParameters, ?_⟩
       change ∀ index, Common.Equivalent
-        (CommonRecordTailElimination.solve
+        (CommonPresenceTailElimination.solve
           (problem.atRows ((solve problem).instantiateRows rowParameters)) valueParameters index)
         (values index) at valueSame
       simpa only [rowSame] using valueSame
