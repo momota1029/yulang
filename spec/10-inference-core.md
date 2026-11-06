@@ -728,7 +728,7 @@ row自体は、元の再帰問題の**固定された最小解**で解釈する�
 
 ### 10.18.5 全体solverへ残る義務
 
-ここまでで閉じたflat boundの求解と、上の核の式の推論については、解の構成・失敗の完全性・それぞれの主性または最小性・停止がそろう。残るのは、constructor内部に未解決変数を持つ一般の制約、再帰値型、一般のlambda/application、SCCと一般化変数の発見、extrusion/intrusionを含む全体算法である。任意のguardを含む再帰row問題や、未知の値型と未知の行を同時に解く全体手続きも、この結果から自動的には得られない。
+ここまでで閉じたflat boundの求解と、上の核の式の推論については、解の構成・失敗の完全性・それぞれの主性または最小性・停止がそろう。constructor内部の未知型と再帰値型の制約は、後述10.21で独立に解く。一般のlambda/application、SCCと一般化変数の発見、extrusion/intrusionを含むsource全体への接続は別の義務である。任意のguardを含む再帰row問題や、未知の値型と未知の行を同時に解く全体手続きも、この結果から自動的には得られない。
 
 値型注釈が公開型を決める章4.2の規則、T3の観測時点、role・cast・case・sourceの境界割当てを、この実行可能な推論入口へ接続する義務も残る。今回の追加で、既存の注釈・衛生性・EOFの非defaultingの意味は変更しない。
 
@@ -769,3 +769,57 @@ S_i(\rho)=L_i\cup\bigcup_{j\leadsto i}(\rho_j\cap U_j).
 `solve_models_exact` は計算されたスキームの全具体化と元の全モデルを対応させ、`principal_exact` は相互部分型を保つ任意の出力型へ接続する。出力の極性を正か負の片方に制限せず、恒等関数のような入力と出力の相関も維持できる。constructorの分配則は仮定しない。
 
 これはboundがgroundである有限graphの完全な制約消去である。bound自体のconstructor内の未知型、再帰値型の `as`、source全体からの一般化・effect行の同時求解は別の接続として残る。EOFの未定weak slotをこの自由parameterへ勝手に一般化する規則は導入しない。
+
+`ValueBoundSchemeInference.infer` は、この構成を既存の `TyTerm (Fin n)` と固定されたrow割当てに接続する。混在する極性を認め、固定record spineの検査だけを要求する。`infer_principal_exact` は実際の呼出しから得たschemeの全具体化を元のboundと出力termに対応させる。`infer_retains_rows` は、値型の置換によってrowや出力構文が書き換わらないことを示す。
+
+## 10.20 共有parameterの意味を保つ簡約
+
+出典は決定37(2)と、Simple-sub論文の§4.3である。資料と実装の固定revisionは [`lean/REFERENCES.md`](../lean/REFERENCES.md) に記す。ここで使うconstructorの法則は既存の構造部分型のままであり、論文のcompact representationが使う追加の分配等式は採用しない。
+
+`TypeSimplification.occurs` は変数ごとの正負の出現を数え、`simplify` は正だけの変数を `never`、負だけの変数を `any` へ置く。両方に現れる変数は同じまま残す。値型の変数を置換しても、そのslotのrow変数は保持する。`simplify_instances_exact` は、具体的な一つの割当ての比較ではなく、存在的な全割当てとsubsumptionによるinstance集合の一致を示す。
+
+共起とsandwichには、実行可能で健全なsymbolic subtype checkerを使う。`mergeCheck` は、二変数の共通unionまたはintersectionを両変数に代入した型が元の型以下になることを、任意の割当てについて認証する。`merge_instances_exact` は認証された統合の全instance保存を示す。`sandwichCheck` は置換対象に依存しない型への置換を同様に認証し、`sandwich_instances_exact` へ接続する。
+
+実例は `α -> β -> (α | β)`、`(α & β) -> (α, β)`、`(α & int) -> (α | int)` を扱う。無関係な `α -> β` を共有変数へ統合すると `int -> str` のinstanceを失うことも証明し、その統合はcheckerが拒否する。
+
+`simplifyAll` は有限の変数集合とscalar候補を走査して、単極除去・sandwich・共有変数統合を自動で行う。`simplifyAll_instances_exact` は任意の入力termに対する全instance一致である。checkerは安全な簡約の十分条件であり、すべての安全な統合を発見する完全な共起解析や、唯一の表示標準形を主張しない。対応範囲外のrecord tailは、該当する段階で元のtermを保持する。
+
+## 10.21 入れ子の未知型と正則再帰型の完全な求解
+
+### 10.21.1 有限の制約飽和
+
+`NestedValueSolver` は、変数・base・`never`・`any`・pair・variant・record・arrowからなる有限の型node graphを入力にする。constructorの子は同じgraphのnodeを参照し、その内部にも未知変数や循環を置ける。arrowの二つのrowは、この層では固定したcarrierの値である。
+
+solverはnode対のcacheを増やす。constructor比較を子の比較へ分解し、`L ≤ α` と `α ≤ U` から `L ≤ U` を伝播する。arrowでは入力の型と行の方向を反転する。recordでは先頭field優先を維持する。`FiniteHorn.saturate_exact` により、計算したcacheは独立な有限導出関係と一致し、`saturate_capacity` により対の追加数はnode数の二乗以下になる。呼出側のfuelや型深さの上限を用いない。
+
+### 10.21.2 solverから独立した再帰値型
+
+`RegularValueTypes.Layer` は有限のlattice式とconstructorを持ち、再帰参照をconstructorの子にだけ置く。有限stateのgraphで相互再帰する値型を表現する。値型のsubtypingは、すべての有限観察が既存の `StructuralBase.Subtype` を満たすこととして定義する。solverの成功やeffect行の最小解から定義しない。
+
+`finite_conservative` は有限の型では元の部分型関係と完全に一致することを示す。`Derivation` は、直ちに使える仮定とconstructorを通過してから使える仮定を分離した循環的証明体系である。`Derivation.sound` はその健全性を全観察深さについて示し、裸の循環から `any ≤ never` を導くことを排除する。入力側と出力側それぞれの再帰について、一周期と二周期のgraphの同値も検証する。
+
+### 10.21.3 成功からの実際の解構成
+
+`RegularValueCoalescing.coalesceGraph` は、変数だけを辿る部分を有限のunion/intersectionへ展開し、constructorの子への再帰参照をgraphに残す。10.19.3の全解を表す式を各観察深さで使い、自由parameter graphは同じ深さで観察されるように組み込む。
+
+`solve_instantiates_model` は、実際のsolverが成功すると、任意の自由parameterから元の全制約を満たすregular modelを構成できることを示す。型付けやモデル存在を前提に渡す必要はない。反変位置を含む再帰を、単調な最小不動点であると仮定する必要もない。
+
+`coalesceGraph_retraction` は逆向きの構成である。元の任意のモデルをparameterに選ぶと、生成した全nodeが元の全nodeと相互部分型になる。`solve_models_exact` はこれを全モデルの同値へ、`solve_instances_exact` は任意の出力nodeとtargetに対する全instanceの同値へ接続する。scheme側のinstance条件には、元の不等式を満たすという残余条件がない。
+
+`RegularNestedModels` は元のconstructorの意味とedgeの成立からモデルを独立に定義し、飽和が任意のregularモデルを保存することを証明する。したがって `solve_none_iff` は、solverの拒否とregular modelの不在を同値にできる。拒否を有限型の割当てだけへ限定しない。
+
+### 10.21.4 推論入口と対象範囲
+
+`RegularSchemeInference.infer` は元のgraph・制約・出力nodeから、失敗または自由parameterを持つschemeを返す。`infer_principal_exact` は、成功cacheを追加前提に要求せず、実際の呼出し結果の全instanceと元の独立な制約modelの全instanceを同値にする。`infer_none_iff` は解不存在に対応する。
+
+`RegularValueCoalescingExamples` は、恒等関数適用と自己適用の実際のcache計算を、生成した解と全instanceの定理までつなぐ。関数入力の反変性や関数の出力内のpairから判明する矛盾については、再帰型を用いても解がないことを示す。`lean/RunRegularInference.lean` から通常のコード実行も試せる。
+
+完成した対象は、固定されたrow比較の下での、有限の単相nested subtype graphである。自由parameterの各型自体は再帰してよい。source全体からのgraph抽出、rowの未知変数の同時求解、一般化とintrusion/T3の統合、`as` の最終表示、完全な表示簡約は、この定理と区別する。
+
+## 10.22 元のprincipal formulaをsolverへ渡す正規化
+
+`ConstraintNormalForm.normalise` は、元の `Inference.Formula` を有限の選択肢へ変換する。一つの `Clause` は有限個のfreshなcomputation slotと、型・rowの不等式の連言を持つ。conjunctionでは二つの局所slot集合を分離し、元のfree slotは共有する。存在量化は局所slotへ移し、disjunctionは両側の選択肢を保持する。
+
+`normalise_exact` は任意の `Inference.Model` に対して元のformulaと正確に同値である。`closed_source_exact` は、元の閉式の `Typing` が、計算したclauseのいずれかに割当てを与え、最後の結果slotを元のresultと等しくすることと同値であると示す。lambda・application・value-restricted letを含む既存の全 `Inference.Expr` を対象にし、letの一般化側を削除しない。型と行は元のcomputation slotの組として保持する。
+
+この正規化はatomの求解ではない。DNFを明示的に列挙するため、最悪では指数的に大きくなる。任意のclauseを10.21のgraphと行制約へ意味を保って下ろし、双方を解く接続が必要であり、normalizerだけでsourceの型推論が完成したとは主張しない。

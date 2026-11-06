@@ -28,6 +28,14 @@ lake env lean --trust=0 --run RunValueInference.lean
 
 決定36・37に対応し、`any` を核のtop型へ追加した。`ValueUpperBounds.solveGreatest` は上界の交差から最大解を構成し、負の位置の未知型の消去を全インスタンスについて証明する。`ValueBoundSchemes.solve` はさらに、正負が混在する出力でも共有parameterを保つ、制約のない型スキームを構成する。`solve_models_exact` と `principal_exact` は、計算されたスキームの全具体化が元のflat boundの全解を正確に表すことを示す。式と量化子は [10.19](../spec/10-inference-core.md#1019-any上界の双対全解の型スキーム) にまとめる。
 
+入れ子の未知型と循環には **`RegularSchemeInference.infer`** を使う。有限の型node graph・制約・出力nodeからregular principal schemeを構成し、`infer_principal_exact` が実際の呼出し結果の全instanceと元の独立な制約モデルの全instanceを一致させる。`infer_none_iff` は正則再帰型を含むモデル不存在と失敗の同値である。rowはこの入口では固定され、source ASTからの全変換や行の同時求解は別の層にある。
+
+```sh
+lake env lean --trust=0 --run RunRegularInference.lean
+```
+
+この実行例は恒等関数適用・自己適用のgraphからschemeを作り、再帰する自由parameterを代入する。反変入力とnested pairの矛盾の拒否、共有parameterを守る簡約も実行する。有限深さの実行チェックと、全深さについて証明されたmodel/主型定理を区別する。Simple-subとの対応と参照revisionは [`REFERENCES.md`](REFERENCES.md)、算法の主張は [10.20–10.22](../spec/10-inference-core.md#1020-共有parameterの意味を保つ簡約) に記す。
+
 ## 証明対象
 
 | モジュール | 閉じる主張 | それだけでは示さないこと |
@@ -85,6 +93,12 @@ lake env lean --trust=0 --run RunValueInference.lean
 | `Yulang.ValueBoundElimination` / `Yulang.ValueBoundEliminationExamples` | 既存TyTermの極性検査、正の内部未知型の存在量化の正確な消去、自由なparameterと行の保持、実際のprincipal恒等関数とsolverが構成した型族の同値、負の位置の無条件最小化への反例 | 一般化するparameterの自動発見、constructor内部の未知型を含むboundの解消、任意のlambda/applicationを推論するsource算法 |
 | `Yulang.ValueUpperBounds` / `Yulang.ValueUpperBoundsExamples` | 上界の逆伝播と交差、空交差 `any`、全割当てに対する最大性・成功と失敗の完全性、負の位置の全インスタンスを保つ消去 | 正負が混在する変数の独立した既定化、nested bound、再帰値型 |
 | `Yulang.ValueBoundSchemes` | flat boundの全解を表す制約のない有限型スキームの構成、任意の自由parameterが解になることと全解を再現できること、任意の混在極性の出力についての全インスタンス保存 | constructor内に未知変数を持つbound、再帰値型、sourceからの一般化interface発見 |
+| `Yulang.ValueBoundSchemeInference` | 既存TyTermとfixed rowsから混在極性のprincipal output schemeを計算、元の全bound modelとのinstance exactness、rowsの保持 | 未知record spine、sourceからのgraph抽出 |
+| `Yulang.TypeSimplification` | 正のみをnever・負のみをanyへ置く変数除去、認証された共起mergeとsandwich、自動有限passの全instance保存 | 全ての安全なmergeの発見、constructor分配則、唯一の表示標準形 |
+| `Yulang.FiniteHorn` / `Yulang.NestedValueSolver` | 型constructor内の未知変数を扱う有限飽和、n²対での停止、独立モデル保存、rigid/row矛盾の拒否 | 単独では成功cacheからの再帰解構成。この接続は次のcoalescingで証明する |
+| `Yulang.RegularValueTypes` | 全有限観察による独立な再帰値型意味論、有限型での保守性、guardedな循環導出の健全性、入力/出力の再帰例 | 最終的なas文字列、循環導出体系全体の決定手続き |
+| `Yulang.RegularNestedModels` / `Yulang.RegularValueCoalescing` / `Yulang.RegularSchemeInference` | 任意自由parameterから元のnested graphの解を構成、元の全regular modelを再現、subsumptionを含む全instanceの主型性、実際の推論入口と解不存在の完全性 | 未知rowの同時求解、source全体のlowering、一般化・intrusion/T3との全統合、完全な表示標準形 |
+| `Yulang.ConstraintNormalForm` | 任意の元Formulaを有限の存在的clauseへ変換、全Exprの元Typingとの同値、letの両枝・capture・結果slotとrowsの保持 | 個々のatomの求解、DNFの大入力性能、source全clauseがnested solverの対応範囲に入ること |
 | `Yulang.ValueInference` / `Yulang.ValueInferenceExamples` | 既存Exprのvar/lit/branch/letE/pair/variantから型を構成し、元のTyping・principal formulaとの成功時の主性と失敗の完全性を証明、値letの両経路、未対応との区別 | 評価時effectを持つ式、一般のlambda/application、SCC、variantのtag合流・case残余、parserからのelaboration、表示の完全な標準形 |
 | `Yulang.SemilinearNormalization` / `Yulang.SemilinearFastInclusion` | 零・重複周期と同じ成分の除去の意味保存、単一周期への全座標を使う正確な所属判定、健全な包含の高速成功と完全なNFA判定へのfallback、最適化前後のBoolean結果の一致 | 全半線形集合の最小正規形、異なる成分の共同被覆を一成分比較だけで判定すること、一般の多項式時間 |
 | `Yulang.SemilinearRowAlgebra` | 有限key支持と無限の整数重み集合を持つ行の包含・等価性、重複keyの和と欠けたkeyの空解釈、既存SetRow代数との一致、その行を潜在行とする有限ground構造型の比較 | 未知型変数・再帰値型の求解、元のrow制約からの解抽出は別層 |
