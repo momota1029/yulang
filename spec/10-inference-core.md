@@ -1372,6 +1372,25 @@ operation-local多相・個別payload/response署名との接続、sourceからp
 このcheckerはshape解決済み・lambda入力型/handler目標型を持つ単相核のcheckerであり、
 全sourceの主型推論器ではない。再帰を含む全言語のpreservation/progressも残る。
 
+### 10.33.1 明示incoming maskと構文推論の合成
+
+`MultiOperationIncomingInference.Handler` は明示maskと既存のtop-level handlerの各構文要素を保持する。
+実行可能 `infer` は全armの許可検査を先に行い、その後に既存構文のcheckerを実行する。
+`infer_exact` は任意の型環境・wrapper・出力型について、この成功と
+独立な `Typing`（全keyの許可と実際の構文型付け）の同値を示す。
+`denied_arm_rejected` は任意の不許可armの存在から推論の拒否を導き、到達可能性を前提にしない。
+
+`typing_evaluates` / `inferred_operationally_valid` は、独立型付けまたは推論成功と
+任意の型どおりの外部環境から、元の構文評価が全request/returnについて `Valid` を満たすことを示す。
+閉式で推論されたeffect行が空なら `closed_empty_row_returns` が型どおりのpure returnを導く。
+既存checkerは通るが拒否mask wrapperは拒否し、maskだけを許可に変えると同一構文が受理され値5を返す例を置く。
+
+**残る義務:** sourceからmaskを導出し入れ子の各handlerへ割り当てること。
+`inferred_opens_incoming_gate` は同じmaskとoperation表のpermission gateの対応だけであり、
+任意のruntime callbacksを、型検査した構文のbodyと関係づける定理ではない。
+fresh座標へaction・closure・型の潜在行を移し、actionのみを保護してarm内のeffectを外に保つ
+elaboration、および構文評価と `enterTree` の可換性・移送後の `Valid` はまだ示していない。
+
 ## 10.34 Literal の内容と独立な比較判断
 
 `LiteralValues.Literal FloatValue` は任意精度整数・文字列・bool・unit の内容を持つ。

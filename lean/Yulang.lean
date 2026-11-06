@@ -264,3 +264,4 @@ import Yulang.CaseCoverageExamples
 import Yulang.CaseCoverageBoundaryExamples
 import Yulang.CaseTree
 import Yulang.CaseTreeExamples
+import Yulang.MultiOperationIncomingInference

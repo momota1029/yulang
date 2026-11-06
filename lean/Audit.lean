@@ -1220,3 +1220,14 @@ run_cmd do
 #print axioms Yulang.CaseTreeExamples.nested_evaluates_from_typing
 #print axioms Yulang.CaseTreeExamples.nested_written_order
 #print axioms Yulang.CaseTreeExamples.uncovered_cannot_be_typed
+#print axioms Yulang.MultiOperationIncomingInference.infer_exact
+#print axioms Yulang.MultiOperationIncomingInference.infer_success_iff
+#print axioms Yulang.MultiOperationIncomingInference.denied_arm_rejected
+#print axioms Yulang.MultiOperationIncomingInference.typing_evaluates
+#print axioms Yulang.MultiOperationIncomingInference.inferred_operationally_valid
+#print axioms Yulang.MultiOperationIncomingInference.closed_empty_row_returns
+#print axioms Yulang.MultiOperationIncomingInference.inferred_opens_incoming_gate
+#print axioms Yulang.MultiOperationIncomingInference.Examples.ordinary_infer_accepts_denied_handler
+#print axioms Yulang.MultiOperationIncomingInference.Examples.explicit_denied_rejects
+#print axioms Yulang.MultiOperationIncomingInference.Examples.explicit_allowed_accepts
+#print axioms Yulang.MultiOperationIncomingInference.Examples.allowed_returns_from_checker

@@ -129,6 +129,16 @@ literal の `matchCheck_exact` は、任意の float 比較関数とその独立
 一般の非零の符号付き重みを保つ forwarding と、許可された raw 要求の dispatch を証明した。
 通常の checker が source から mask を発見することはまだ示していない。
 
+`MultiOperationIncomingInference.Handler` は明示されたincoming maskを同じtop-level handler構文に付ける。
+その `infer` は許可検査の後に既存の構文checkerを呼び、独立な `Typing` との同値を `infer_exact` で示す。
+任意の型環境・handler・armについて、不許可keyが一つあれば `denied_arm_rejected` が拒否を導く。
+`inferred_operationally_valid` は推論成功と外部環境の型適合性だけから、実構文の評価の `Valid` を導く。
+action/armのruntime上界は仮定しない。pureなactionでも不許可armがあれば拒否する実例を含む。
+`inferred_opens_incoming_gate` は同じmaskとoperation表のgateが開くことまでの対応である。
+構文評価と `enterTree` を施した実行の等号はまだ示しておらず、
+fresh座標への構文・closure・潜在行の移送、arm側を境界の外に保つ意味保存は残る。
+入れ子のhandlerへのmask割当てもこのtop-level wrapperの範囲外である。
+
 `MultiOperationHandlerExamples.nesting_not_equivalent` は任意の境界座標数について、
 operation 0 の元の継続が operation 1 を要求する具体例を分離する。
 一つの handler では 0 の捕捉時に両 arm の delimiter が外れ、1 が外へ出る。
@@ -594,6 +604,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.CasePresenceValidation` | 宣言presenceのoptional許可/required拒否/unknown未解決、具体recordの旧markerへのlookup保存、required/optional所属の対応、型付きlazy defaultからunionに入る実束縛 | sourceからpresence metadataを導出し全patternへ適用するpass、旧markerにないfloat/list/nominalの射影、source defaultのscope選択 |
 | `Yulang.LiteralValues` / `LiteralValueExamples` | 任意精度整数・文字列・bool・unitの内容、実行可能literal比較と独立判断の同値、整数閉区間/片側区間の正確性、明示的float比較契約 | float精度・丸め・比較規則の決定、数値演算、parser/escapeの正しさ、既存base-marker ASTとの全体統合 |
 | `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、同一operationのpayload-pattern編成と網羅性、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |
+| `Yulang.MultiOperationIncomingInference` | 明示incoming maskを実構文checkerに合成、独立型付けとの同値、不許可armの静的拒否、推論成功と環境適合性から既存構文評価のValid、同一maskのruntime gate対応 | source maskの導出と入れ子handlerへの割当て、fresh座標へのclosure/潜在行の移送、構文評価とenterTree後の実行の意味保存 |
 | `Yulang.Types` / `Yulang.Inference` | 構造再帰する有限制約生成、独立な宣言的型付けとの双方向の一致、制約schemeの主性、非再帰の値制限付き多相let | 全制約の判定、再帰SCC、sourceのoperation/handlerのelaboration、公開型の正規化 |
 | `Yulang.StructuralBase` / `Yulang.Structural` | 行の解釈を共有する具体的な構造部分型モデル、`never`/`any`・union/intersection・幅部分型・関数の分散、生成制約の正例と反例 | 完全なMLsub意味論、再帰型。決定手続きは `StructuralDecisions` で扱う |
 | `Yulang.Polymorphism` | effect付きcomputation変数の単相let束縛を受理し、そのeffectを空行へ消す生成制約を拒否すること | 再帰的な一般化、sourceのalias解析 |

@@ -83,7 +83,7 @@ multiHandler operations action ret arms
 | 表の構文 | 核 | 状態 | 備考 |
 | --- | --- | --- | --- |
 | `op args`(operation の呼び出し) | `request op args` | 確定 | 普通の関数呼び出しに見える(章5.1) |
-| `catch e: op p, k -> body; v -> ret` | `MultiOperationHandlerTyping.Expr.handler operations target e ret arms` | 確定 | 複数key・1つのvalue armを持つ核、独立型付け・checker・実行安全性を追加。追加lambdaで包まない。同一operationのpayload-pattern編成とsource elaborationは未接続（Q1）。singleton handlerの入れ子化が意味を変えることも証明済み |
+| `catch e: op p, k -> body; v -> ret` | `MultiOperationHandlerTyping.Expr.handler operations target e ret arms` | 確定 | 複数key・1つのvalue armを持つ核、独立型付け・checker・実行安全性を追加。明示maskをcheckerへ合成するIncomingInferenceも追加。source mask導出とfresh座標への構文移送は別義務。追加lambdaで包まない。同一operationのpayload-pattern編成とsource elaborationは未接続（Q1）。singleton handlerの入れ子化が意味を変えることも証明済み |
 | `catch` の value arm 省略 | `v -> v` と同じ | 確定 | 章5.2 |
 | 高階の境界の保護・解除 | `boundary(protect/release, mask) e` | 下書き | 型から elaboration が挿入する。利用者は書かない |
 | `for x in xs: body` | `loop::for_in xs (\x -> body)` | 確定 | std の `for_in`(`main:lib/std/control/flow.yu`)。`last`/`next`/`redo` は `loop` の operation。値は常に `()` |
