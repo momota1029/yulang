@@ -134,6 +134,22 @@ pair/variant/field を通る。parameter の root layer を同じ観測深さに
 | `coalesce_saturated_retraction` | 任意の graph・入力辺と、その独立な mask つき **入力の解**について、実際に計算した cache で coalesce すると全元 slot を全深さ・全 mask で双方向に回収。cache の解や `Closed` を別途仮定しない | constructor を含む全入力で、任意の自由 parameter が解になること |
 | `variable_coalesce_satisfies` / `variable_satisfiable` / `variable_models_exact` | 全 node が変数である任意の graph・任意の入力辺で、全自由 parameter から構成した graph が解になり、任意の独立解と計算した解 family が全深さ・全 mask で正確に対応。成功・解の存在・cache・fuel を前提にしない | rigid bound や constructor のある入力。この変数のみの断片は全問題が充足可能で、constructor の拒否完全性を含まない |
 
+`PresenceConstructorBounds` は全 node が変数という制限を外し、pair・variant・
+required/optional/lacks・union/intersection を含む任意の有限 guarded graph を扱う。
+入力辺がすべて変数を終点とする、またはすべて変数を始点とする `OneSided` が構文的な条件である。
+循環・共有 payload は許すが、rigid 下界と rigid 上界を結ぶ混合制約は含めない。
+
+| 定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `PresenceConstructorBounds.saturate_closed` / `coalesce_satisfies` / `satisfiable` | 任意の `OneSided` 入力の実際の flow cache が `Closed`。任意の自由 regular parameter graph/全 slot layer で coalesce が全 constructor 等式・全入力辺を全深さ・全外側 mask で満たす。成功・cache・解・fuel を仮定しない | 両側 rigid bound の矛盾検出、分岐付き飽和、関数・行・open tail |
+| `PresenceConstructorBounds.models_exact` | 同じ任意の入力と任意の独立 regular slot 割当てで、入力充足 ⇔ ある自由 parameter 具体化と全 slot が全深さ・全 mask で双方向に比較できる | 任意の二方向 constructor 問題の完全性 |
+| `PresenceConstructorObstructions.MaskedPayload.no_closed_cache_preserves_model` / `no_exact_closed_alternatives` | 具体的な充足可能4-node入力について、現行 `Closed` の任意の cache がある独立解を失う。したがって同じ graph 上の任意の有限 `Closed` cache 列は全入力解を正確に被覆できない | 改訂した観測付き obligation、要求順序上の新 solver、graph を変更する solver の不可能性 |
+
+最後の反例は `required 7 bottom` と `bottom` を、mask なしの子として同じに観測する
+variant の親比較である。子に mask `[7]` を適用すると前者だけが records を許す。
+現行 cache の辺は子にも全 mask 比較を要求するため、親から子への通常の辺分解は完全ではない。
+この境界は [`要求モデルの追加の問い`](../notes/questions/2026-11-07-demand-model-contracts.md) に記す。
+
 `CorePresenceGenerationModel` は既存 `Inference.Model` に独立な `exactEmpty`・`required`・
 `recordDefault` 演算を加えた interface である。継承した `emptyRecord` は width 上界用で、
 空 record 式の精密な型とは同一視しない。`recordDefault` は結果全体の型の演算であり、

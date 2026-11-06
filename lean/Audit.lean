@@ -1746,3 +1746,18 @@ run_cmd do
 #print axioms Yulang.Core.PresenceGeneration.LegacyPreservation.closed_typing_mapped
 #print axioms Yulang.Core.PresenceGeneration.LegacyPreservation.legacy_instances_preserved
 #print axioms Yulang.Core.PresenceGeneration.LegacyPreservation.legacy_core_instances_preserved
+
+-- Computed constructor bounds and the current all-mask cache boundary.
+#print axioms Yulang.PresenceConstructorBounds.saturate_closed
+#print axioms Yulang.PresenceConstructorBounds.coalesce_satisfies
+#print axioms Yulang.PresenceConstructorBounds.models_transport
+#print axioms Yulang.PresenceConstructorBounds.satisfiable
+#print axioms Yulang.PresenceConstructorBounds.models_exact
+#print axioms Yulang.PresenceConstructorBounds.Examples.recursive_lower_closed
+#print axioms Yulang.PresenceConstructorBounds.Examples.recursive_lower_all_parameters
+#print axioms Yulang.PresenceConstructorObstructions.MaskedPayload.parent_subtype
+#print axioms Yulang.PresenceConstructorObstructions.MaskedPayload.child_not_subtype
+#print axioms Yulang.PresenceConstructorObstructions.MaskedPayload.input_model
+#print axioms Yulang.PresenceConstructorObstructions.MaskedPayload.adding_payload_edge_loses_model
+#print axioms Yulang.PresenceConstructorObstructions.MaskedPayload.no_closed_cache_preserves_model
+#print axioms Yulang.PresenceConstructorObstructions.MaskedPayload.no_exact_closed_alternatives
