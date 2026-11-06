@@ -997,3 +997,25 @@ run_cmd do
 #print axioms Yulang.ShadowRecordExamples.source_has_equal_instances
 #print axioms Yulang.ShadowRecordExamples.compiled_boundary_instance
 #print axioms Yulang.ShadowRecordExamples.shadow_under_union_bottom
+
+#print axioms Yulang.ShadowRecordValueInference.plan_complete
+#print axioms Yulang.ShadowRecordValueInference.infer_complete
+#print axioms Yulang.ShadowRecordValueInference.infer_instances_exact
+#print axioms Yulang.ShadowRecordValueInference.infer_rejected_iff
+#print axioms Yulang.ShadowRecordValueQuotient.infer_instances_exact
+#print axioms Yulang.ShadowRecordValueQuotient.infer_principal_formula_exact
+#print axioms Yulang.ShadowRecordValueQuotient.infer_plan_sound
+#print axioms Yulang.ShadowRecordValueQuotient.infer_rejected_iff
+#print axioms Yulang.ShadowRecordValueQuotient.inferred_boundary_instances_equal
+#print axioms Yulang.HandlerPermissions.check_exact
+#print axioms Yulang.HandlerPermissions.diagnostic_iff_unreachable
+#print axioms Yulang.HandlerPermissions.permission_iff_capture_possible
+#print axioms Yulang.HandlerPermissions.discard_denied_arms
+#print axioms Yulang.HandlerPermissions.denied_arm_bodies_irrelevant
+#print axioms Yulang.HandlerPermissions.permitted_request_dispatches
+#print axioms Yulang.HandlerPermissions.old_nonzero_request_forwarded
+#print axioms Yulang.HandlerPermissions.permitted_resume_is_original
+#print axioms Yulang.HandlerPermissions.checked_residual_incoming
+#print axioms Yulang.HandlerPermissions.checkedHandleIncoming_success_iff
+#print axioms Yulang.HandlerPermissions.checkedHandleIncoming_error_iff
+#print axioms Yulang.HandlerPermissionExamples.runtime_cases_correct

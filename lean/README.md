@@ -28,11 +28,45 @@ unionと`never`で隠れた重複も `shadow_under_union_bottom` が扱う。
 旧 `Rigid*` 関係とその否定定理は、決定39時点の比較用として変更せず保持する。
 以下で記すopaque結果の別型性はこの旧関係についての事実であり、決定40後の言語の
 区別ではない。新関係の完全なground checker・cut elimination・商の等号判定、
-全coreの自由parameter主型推論は、このcheckpointでは未完である。
+全coreの自由parameter主型推論は未完である。
+
+## 最新record関係でのデータ推論
+
+`ShadowRecordValueInference` と `ShadowRecordValueQuotient` は、既存の
+`RigidRecordValueInference.infer`・`Plan`・自由parameter tupleをそのまま使い、
+決定40のraw関係と商モデルで全instance主型性・拒否完全性を再証明する。
+`infer_complete` は型付け可能な任意の `Data` 式で実際の推論が成功することを、
+`infer_instances_exact` は推論したschemeの全instanceと独立な元Typingの一致を示す。
+以前の型付けの保存だけでなく、新しい等式で増えた型付けも完全性の対象とする。
+`inferred_boundary_instances_equal` は以前のopaqueな両instanceを同じ商型として保持する。
+対象はliteral・emptyRecord・pair・variant・record構築と、不正なdata tailである。
+一般lambda/application・let・effect式はこの推論入口の対象外である。
+
+## 決定41：incoming actionのhandler許可
+
+`HandlerPermissions.check` は注釈の許可maskとarmのkey一覧を受け取り、許可されない
+armがあれば拒否する。`diagnostics` は該当keyを元の順序・重複を保って返す。
+`diagnostic_iff_unreachable` は診断対象であることと、そのkeyの**すべてのincoming
+occurrence**が当該handlerに捕まらないことを同値にする。
+
+境界座標は入口内でfreshに構成する。既存の正の保護も負の解除差分も保持され、
+古い`−1`と新しい`+1`を同じ座標で相殺することはない。`discard_denied_arms` と
+`denied_arm_bodies_irrelevant` は任意のincoming request tree全体について、不許可armの
+削除・本体変更が実行結果に影響しないと示す。許可keyかつ既存重み0のrequestは
+`permitted_request_dispatches` により実際のoperation armへ進み、shallow継続は元の行動を保つ。
+
+`checkedHandleIncoming` は検査後に既存のshallow handlerを実行する入口で、成功と
+非空の診断一覧による拒否が静的条件と一致する。対象はその注釈付きincoming actionであり、
+arm内で局所的に発生するeffectに同じmaskを押し付けない。sourceからの注釈抽出や
+mixed-origin action全体の許可推論は未接続である。
+
+```sh
+lake env lean --trust=0 --run RunHandlerPermissions.lean
+```
 
 ## 実際に型を求める入口
 
-**全coreの求解は未完。以下の実行可能solverは決定39時点の参照関係を使う。決定40の最新関係と接続範囲は上節を参照。** 下記の `SourcePrincipalInference.infer` は旧reference modelのままで、全instance主型性の `RecordFree` 前提も残る。新しい `RigidSemanticRecords` は決定38の合同関係に、要求tailがrigidな場合だけの共変性を加える。任意admissible tailのhead/幅、hidden fieldを比較しないrigid要求の必要十分条件、完全ground checkerとcut elimination、その商と全core graph compilerの接続を閉じた。さらに新商モデルで、閉じたデータ式の自由parameter scheme・全instance主型性・拒否完全性と、引数recordを拡張する関数族の全instance主型性を証明した。opaqueな要求型での同一視の境界と、一般の残余graph制約の求解は区別して下に明記する。
+**全coreの求解は未完。以下の一般solverは決定39以前の参照モデルを使う。データ式については上節の定理が同じ算法を決定40のモデルへ接続する。** 下記の `SourcePrincipalInference.infer` は旧reference modelのままで、全instance主型性の `RecordFree` 前提も残る。新しい `RigidSemanticRecords` は決定38の合同関係に、要求tailがrigidな場合だけの共変性を加える。任意admissible tailのhead/幅、hidden fieldを比較しないrigid要求の必要十分条件、完全ground checkerとcut elimination、その商と全core graph compilerの接続を閉じた。さらに新商モデルで、閉じたデータ式の自由parameter scheme・全instance主型性・拒否完全性と、引数recordを拡張する関数族の全instance主型性を証明した。opaqueな要求型での同一視の境界と、一般の残余graph制約の求解は区別して下に明記する。
 
 **`SourcePrincipalInference.infer` は、元の閉じた `Inference.Expr` から主型スキームを計算する。** 元のprincipal formulaの生成、存在変数とletの選択肢の正規化、共有graphへの変換、値型と行の求解、正則再帰型スキームの構成を実行する。型graph、途中の型、行の割当て、制約の解、成功cache、fuelを呼出側から渡さない。
 

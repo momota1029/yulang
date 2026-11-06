@@ -38,3 +38,4 @@ jobs:
           lake env lean --trust=0 --run RunSemanticRecordCheck.lean
           lake env lean --trust=0 --run RunRigidRecordCheck.lean
           lake env lean --trust=0 --run RunRigidRecordInference.lean
+          lake env lean --trust=0 --run RunHandlerPermissions.lean

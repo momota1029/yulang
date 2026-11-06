@@ -1113,3 +1113,41 @@ instanceと新商モデルでの元 `Typing` を一致させる。graphの `Mode
 **このcheckpointの未完範囲:** 新関係の完全ground checker、cut elimination、
 実行可能な商等号判定、未知tailを含む一般graphの求解、全coreの自由parameter主型性・
 拒否完全性。制約生成の正確性を、残余制約のない推論算法の完成とは扱わない。
+
+
+### 10.29.1 同じ実行可能算法の全instance主型性
+
+`ShadowRecordValueInference` は既存の `RigidRecordValueInference.infer` と `Plan` を変更せず、
+新関係の型付けについて `infer_complete`・`infer_instances_exact`・`infer_rejected_iff` を証明する。
+任意のrow join algebra・任意の `Data e`・任意の結果 `C` が量化範囲である。
+成功側は有限の自由parameter tupleと通常のsubsumptionだけを使い、parameterへの残余制約、
+graphの解、型付け導出、外部fuelは算法への入力にしない。完全性は新関係の元Typingから
+parameterを回収するので、以前のinstanceの保存より強い。
+
+`ShadowRecordValueQuotient` は商型全体を自由parameterの値域として同じ一致を証明する。
+`infer_plan_sound` は実際に返ったplanの任意の商parameter tupleが元式の型付けを与えることを示す。
+`inferred_boundary_instances_equal` は以前のopaqueな二つの結果をschemeが保持し、型等号で一致させる。
+対象構文は10.28.4と同じで、一般lambda/application・let・effect式・正則再帰値型を含めない。
+
+## 10.30 決定41：handler armの許可検査と実際のcapture
+
+**状態:** 5.5・T2・引き継ぎ決定41（2026-11-06）の形式化。
+
+`HandlerPermissions.check permission arms` は全armのkeyがincoming actionの許可maskに
+含まれるかを有限に検査し、`diagnostics` は不許可keyの一覧を返す。
+`diagnostic_iff_unreachable` は、あるkeyが診断されることと、そのkeyがarm一覧にあり、
+そのkeyを持つ任意のincoming occurrenceが境界後に捕捉されないことを同値にする。
+既存の重みには任意の符号付き整数を許す。境界は `FreshBoundaries` のfresh座標を実際に
+割り当てて構成し、古い座標の`−1`で新しい保護が相殺されることを防ぐ。
+
+`discard_denied_arms`・`denied_arm_bodies_irrelevant` は任意のincoming request treeについて、
+不許可armの削除・本体変更が実際の `Directed.Computation.shallowHandle` の結果を変えないことを示す。
+`permitted_request_dispatches` は許可されたmatching keyで既存重みがすべて0なら実際のarmを呼び、
+`old_nonzero_request_forwarded` は既存の正負の重みが残れば許可keyでもforwardすると示す。
+`permitted_resume_is_original` は再開時にhandlerを再設置しないshallowの継続を保持する。
+
+`checkedHandleIncoming` は、許可検査に成功した場合だけこの実行へ進み、失敗時は非空の
+診断一覧を返す。成功・拒否の必要十分条件と、行のresidualとの一致も証明した。
+検査対象はその注釈付きincoming actionの境界契約であり、handler arm内で局所的に
+発生するeffectへ同じmaskを適用する規則ではない。source全体のelaboration、注釈からの
+mask抽出、mixed-origin actionの許可推論、全言語の型安全性はこの定理の対象外である。
