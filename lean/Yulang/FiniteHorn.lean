@@ -37,12 +37,55 @@ theorem enabled_exact [DecidableEq Fact] (rules : List (Rule Fact)) (seen : List
   simp only [enabled, Enabled, List.any_eq_true, Bool.and_eq_true,
     decide_eq_true_eq, List.all_eq_true]
 
-def firstFresh [DecidableEq Fact] (rules : List (Rule Fact)) (seen : List Fact) :
+/- Compute enabled conclusions once per step. Looking up each candidate by
+rescanning every rule makes large finite universes needlessly expensive.
+The subsequent scan still chooses the first fresh fact in the original
+universe order, so the executable cache order is unchanged. -/
+def enabledConclusions [DecidableEq Fact] (rules : List (Rule Fact))
+    (seen : List Fact) : List Fact :=
+  (rules.filter fun rule =>
+    rule.premises.all (fun premise => decide (premise ∈ seen))).map Rule.conclusion
+
+theorem mem_enabledConclusions [DecidableEq Fact] (rules : List (Rule Fact))
+    (seen : List Fact) (fact : Fact) :
+    fact ∈ enabledConclusions rules seen ↔ Enabled rules seen fact := by
+  constructor
+  · intro present
+    obtain ⟨rule, member, same⟩ := List.mem_map.mp present
+    obtain ⟨member, premises⟩ := List.mem_filter.mp member
+    exact ⟨rule, member, same, by simpa only [List.all_eq_true, decide_eq_true_eq] using premises⟩
+  · rintro ⟨rule, member, same, premises⟩
+    apply List.mem_map.mpr
+    exact ⟨rule, List.mem_filter.mpr ⟨member, by
+      simpa only [List.all_eq_true, decide_eq_true_eq] using premises⟩, same⟩
+
+def firstFreshFrom [DecidableEq Fact] (conclusions seen : List Fact) :
     List Fact → Option Fact
   | [] => none
   | fact :: rest =>
+      if fact ∉ seen ∧ fact ∈ conclusions then some fact
+      else firstFreshFrom conclusions seen rest
+
+def firstFresh [DecidableEq Fact] (rules : List (Rule Fact)) (seen facts : List Fact) :
+    Option Fact :=
+  firstFreshFrom (enabledConclusions rules seen) seen facts
+
+theorem firstFresh_nil [DecidableEq Fact] (rules : List (Rule Fact)) (seen : List Fact) :
+    firstFresh rules seen [] = none := rfl
+
+theorem firstFresh_cons [DecidableEq Fact] (rules : List (Rule Fact))
+    (seen : List Fact) (fact : Fact) (rest : List Fact) :
+    firstFresh rules seen (fact :: rest) =
       if fact ∉ seen ∧ enabled rules seen fact = true then some fact
-      else firstFresh rules seen rest
+      else firstFresh rules seen rest := by
+  simp only [firstFresh, firstFreshFrom]
+  have same : (fact ∉ seen ∧ fact ∈ enabledConclusions rules seen) ↔
+      (fact ∉ seen ∧ enabled rules seen fact = true) :=
+    and_congr_right fun _ =>
+      (mem_enabledConclusions rules seen fact).trans (enabled_exact rules seen fact).symm
+  by_cases chosen : fact ∉ seen ∧ fact ∈ enabledConclusions rules seen
+  · rw [ite_eq_left chosen, ite_eq_left (same.mp chosen)]
+  · rw [ite_eq_right chosen, ite_eq_right (fun possible => chosen (same.mpr possible))]
 
 theorem firstFresh_some [DecidableEq Fact] (rules : List (Rule Fact))
     (seen facts : List Fact) {fact : Fact}
@@ -51,7 +94,7 @@ theorem firstFresh_some [DecidableEq Fact] (rules : List (Rule Fact))
   induction facts with
   | nil => cases found
   | cons first rest ih =>
-      simp only [firstFresh] at found
+      simp only [firstFresh_cons] at found
       split at found
       · rename_i chosen
         have same : first = fact := Option.some.inj found
@@ -65,9 +108,9 @@ theorem firstFresh_none_iff [DecidableEq Fact] (rules : List (Rule Fact))
     firstFresh rules seen facts = none ↔
       ∀ fact ∈ facts, Enabled rules seen fact → fact ∈ seen := by
   induction facts with
-  | nil => simp [firstFresh]
+  | nil => simp [firstFresh_nil]
   | cons first rest ih =>
-      simp only [firstFresh]
+      simp only [firstFresh_cons]
       split
       · rename_i chosen
         constructor
