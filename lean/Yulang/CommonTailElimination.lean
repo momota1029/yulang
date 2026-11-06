@@ -1,4 +1,4 @@
-import Yulang.Common
+import Yulang.CommonMaskOrder
 import Yulang.CommonFiniteMask
 import Yulang.PresenceTailElimination
 
@@ -374,5 +374,35 @@ theorem maskedEquivalent_common (first last : Fin slots → Ty) (same : MaskedEq
     have related := same depth rank env [] index obs
     simp only [Read, CommonFinite.maskedProbeAt_nil] at related
     exact related.mp accepted
+
+/-- For the concrete common carrier, the previously retained mask information
+is already determined by ordinary producer equivalence. -/
+theorem maskedEquivalent_iff_common (first last : Fin slots → Ty) :
+    MaskedEquivalent first last ↔ ∀ index, Common.Equivalent (first index) (last index) := by
+  constructor
+  · exact fun same index => maskedEquivalent_common first last same index
+  · intro same depth rank env hidden index obs
+    have masked := Common.common_mask_type_congr hidden (same index)
+    have finite : CommonFinite.ProducerEq Common.rowLe
+        (.mask hidden (Common.observeTy depth (first index)))
+        (.mask hidden (Common.observeTy depth (last index))) :=
+      ⟨masked.1 depth, masked.2 depth⟩
+    have probes := (CommonFinite.producerEq_iff_probe _ _).mp finite rank env obs
+    simpa only [Read, CommonFinite.probeAt_mask] using probes
+
+theorem solve_retract_common (graph : Graph slots labels) (solution : Fin slots → Ty)
+    (valid : Satisfies graph solution) (index : Fin slots) :
+    Common.Equivalent (solve graph solution index) (solution index) :=
+  maskedEquivalent_common _ _ (solve_retract graph solution valid) index
+
+/-- Exact instances in ordinary common equivalence. Every parameter is a
+freely chosen common type; no uneliminated model condition or mask-coherence
+premise remains on that family. -/
+theorem common_solved_instances_exact (graph : Graph slots labels) (solution : Fin slots → Ty) :
+    Satisfies graph solution ↔
+      ∃ parameters : Fin slots → Ty,
+        ∀ index, Common.Equivalent (solve graph parameters index) (solution index) := by
+  rw [solved_instances_exact]
+  exact exists_congr fun parameters => maskedEquivalent_iff_common _ _
 
 end Yulang.CommonTailElimination
