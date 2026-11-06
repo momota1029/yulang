@@ -150,6 +150,23 @@ variant の親比較である。子に mask `[7]` を適用すると前者だけ
 現行 cache の辺は子にも全 mask 比較を要求するため、親から子への通常の辺分解は完全ではない。
 この境界は [`要求モデルの追加の問い`](../notes/questions/2026-11-07-demand-model-contracts.md) に記す。
 
+`PresenceOpenTailTransport` / `PresenceOpenTailLowering` は、既存の
+`OpenRecordConstraintGraph` の全 node 文法について、tail と payload の観測深さを分ける。
+外側が `d+1` なら payload は `d`、tail と union/intersection の子は `d+1` で読む。
+arrow は両 child と両 effect 行を保持する。比較は任意の有限型関係を引数とし、
+data 包含への置換を要求しない。
+
+| 定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `PresenceOpenTailTransport.node_observe_morphism` / `models_morphism` / `masked_models_morphism` | 任意の graph と可換な写像、全 open-node graph、全独立 slot 割当てで、全有限観測・意味的 constructor 等式・全制約の保存と反映。mask 付き比較も成立。単射性・非循環性を仮定しない | 任意の unguarded tail graph の解の構成、raw 構文等号の反映 |
+| `PresenceOpenTailLowering.close_observe_exact` / `lowerValue_observe_exact` / `lowerValue_mask_exact` | 有限 source-term pool の全 slot・全元入力型/行割当て・全深さで、実際に構成した共有 regular block と独立 term 評価の観測が等しい。tail を展開しても payload の共有を保持 | solver の残余制約消去、元 term の由来を持たない tail 循環の処理 |
+| `PresenceOpenTailLowering.compile_lower_models_exact` / `compile_lower_instances_exact` | 任意の元制約問題・入力型/行割当て・結果型で、実 compiler と有限 block lowering 後の全 constructor 等式/制約/instance が元問題と同値。有限比較の反射律のみを仮定 | 自由 parameter に制約を残さない solved family。新 presence 専用 constructor (`exactEmpty`/`recordDefault`/optional/lacks) はこの旧 node 文法にはない |
+| `PresenceOpenTailLowering.compile_lower_raw_retraction` | 任意の実 compiler 出力と、独立に与えた raw constructor 等式の解を、全元 slot・全深さで回収。部分型制約の充足は不要 | raw 等号の前提を意味的同値だけへ置き換えた一般回収 |
+
+`open_tail_at_zero` と `naive_guarded_tail_loses_masked_observation` が、tail まで一段減らす
+実装では失う観測を明示する。これで旧 open-tail 制約の表現移送は進んだが、
+新 presence model 上の全入力 solver 完全性を閉じたとは扱わない。
+
 `CorePresenceGenerationModel` は既存 `Inference.Model` に独立な `exactEmpty`・`required`・
 `recordDefault` 演算を加えた interface である。継承した `emptyRecord` は width 上界用で、
 空 record 式の精密な型とは同一視しない。`recordDefault` は結果全体の型の演算であり、
