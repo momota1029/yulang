@@ -60,7 +60,19 @@ shadow 操作でも閉じる。旧 `{}` は引き続き全 record の上界で�
 `normalise_exact` は任意の payload 述語・mask・data 値で所属を保存・反映し、
 `mask_exact` は各枝全体への mask 適用を独立意味と一致させる。
 これは presence 述語上の分配であり、旧構造的部分型に分配則を追加しない。
-工程3の有限表現までで、矛盾検出・飽和・regular 解の抽出は示していない。
+工程3の有限表現であり、この標準化自体は矛盾検出・飽和・regular 解の抽出を行わない。
+
+`PresenceBoundCoalescing` は工程3のうち、有限個の変数間の flow と固定された
+presence 上下界の消去を扱う。任意の payload 述語・mask の下で相関を保ち、
+自由 parameter を有限個の値へ制限しない。
+
+| 定理（接頭辞 `PresenceBoundCoalescing`） | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `expand_satisfies` / `coalesce_satisfies` | 任意の有限 flat 制約集合で、伝播した下界が全制約を満たすなら、任意の自由述語 parameter（後者は layer parameter）から構成した解が全制約を満たす。layer 版は任意の payload 割当て・mask を量化 | constructor/open-tail の分解と整合性の自動証明、関数・行を含む regular graph の解 |
+| `expand_retraction` / `expand_retraction_eq` / `coalesce_retraction` | 同じ flat 制約の任意の独立な解を共有 parameter に戻すと、全元 slot の述語を回収。述語版は外延的に等しく、後続の観測に正位置性を要求しない | 循環 graph の同時構成・負位置を含む regular 型の回収 |
+| `consistent_iff_satisfiable` | 任意の固定境界解釈と、その包含を正確に決定する checker の下で、有限整合性検査の受理 ⇔ 独立な解の存在。fuel・solver 成功を仮定しない | 任意の述語境界に対する包含 checker の構成、presence graph 全体の拒否完全性 |
+
+flat な自由 parameter 消去は証明済みだが、以下の四つの regular/source 契約はまだ閉じていない。
 
 Core 上で実行する二つの既存入口への接続も追加した。**統一入口ではない。**
 `InferenceSyntax.embed_decode` が入口の構文検査から round trip を保証し、対応外の Core 構文が

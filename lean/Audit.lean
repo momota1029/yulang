@@ -51,6 +51,14 @@ run_cmd do
 #print axioms Yulang.Core.PresenceAlternatives.holds_cross
 #print axioms Yulang.Core.PresenceAlternatives.normalise_exact
 #print axioms Yulang.Core.PresenceAlternatives.mask_exact
+#print axioms Yulang.PresenceBoundCoalescing.expand_satisfies
+#print axioms Yulang.PresenceBoundCoalescing.expand_retraction
+#print axioms Yulang.PresenceBoundCoalescing.expand_retraction_eq
+#print axioms Yulang.PresenceBoundCoalescing.consistent_exact
+#print axioms Yulang.PresenceBoundCoalescing.consistent_iff_satisfiable
+#print axioms Yulang.PresenceBoundCoalescing.coalesce_exact
+#print axioms Yulang.PresenceBoundCoalescing.coalesce_satisfies
+#print axioms Yulang.PresenceBoundCoalescing.coalesce_retraction
 #print axioms Yulang.Core.InferenceExamples.present_inferred
 #print axioms Yulang.Core.InferenceExamples.absent_inferred
 #print axioms Yulang.Core.InferenceExamples.shadowed_inferred
