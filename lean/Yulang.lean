@@ -217,3 +217,10 @@ import Yulang.ShadowRecordNormalization
 import Yulang.ShadowRecordChecker
 import Yulang.ShadowRecordQuotientDecisions
 import Yulang.ShadowRecordCheckerExamples
+import Yulang.ShadowRecordDemands
+import Yulang.SingletonRecordDemands
+import Yulang.SingletonRecordGraph
+import Yulang.ShadowRegularValueTypes
+import Yulang.ShadowRegularInferenceModel
+import Yulang.RecordDemandInspection
+import Yulang.SourceRecordDemandInspection

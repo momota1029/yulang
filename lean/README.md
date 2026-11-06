@@ -46,6 +46,45 @@ headを除き、残りtailのconstructor depthが真に減る。unionの枝ご�
 lake env lean --trust=0 --run RunShadowRecordCheck.lean
 ```
 
+## 全coreのrecord要求と正則モデルへの接続
+
+`ShadowRecordDemands.record_mask_exact` は、任意の供給head `A`・tail `R` とrigid要求 `P` について、
+`record(l,A,R) ≤ P` を、要求に `l:B` があれば `A ≤ B`、および `R ≤ erase(l,P)` と同値にする。
+新しいshadow規則を含む導出全体から必要性を証明し、十分性も実際の規則から導く。
+行の法則、供給tailの形、決定可能性は前提にしない。
+
+`SingletonRecordDemands.good_generate` と `SingletonRecordGraph` は、元の全core式で、
+生成される要求の明示的なrecord spineが空かsingletonになることを示す。
+lambda・application・両let分岐を含み、rename・scheme置換・normalise・pack・prepare・
+実際の `compileSource` まで保存する。閉式では環境の不変条件を空環境から証明する。
+未知slotに代入できる型をsingletonへ制限するものではない。
+任意の外部schemeでは強めた `GoodEnv` が必要で、旧前提だけでは足りないことも反例で証明する。
+
+`maskReference` と `compileSource_erasure_closed` は、残りの要求が元のnodeか既存のempty-tail
+nodeへの参照になることを示す。`compileSource_upper_record_tail` はprovenanceだけでなく
+actual graph tagがemptyになることまで導く。追加の型変数やmask nodeを確保する必要はない。
+
+`RecordDemandInspection.inspect` はそのnode tagを直接読み、同名fieldならhead比較とtailの
+empty要求、別名なら元tailへの同じ要求を返す。未対応pairは拒否せず元の辺を保持する。
+`expand_exact`・`expandCompiled_instances_exact` は、同じvalue/row割当てと共有slotを保ったまま
+制約集合と全instanceを双方向に一致させる。`SourceRecordDemandInspection.prepareSource` は
+実際の全source alternativeへこの一回の分解を適用する。
+
+`ShadowRegularValueTypes` は既存 `Layer`・graph・観測関数を保持し、各有限観測の比較に
+決定40の関係を使う。任意の既存Layer tailでshadow等価・合同性・rigid要求への共変性が成立し、
+`finite_conservative` は有限treeの比較を保存・反映する。共通carrierの
+`ShadowRegularInferenceModel.embed_subtype` も `iff` であり、finite blockの埋込みも正確である。
+`SourceRecordDemandInspection.shadow_source_typing_exact` と
+`shadow_regular_source_typing_exact` は、分解後の全graph instanceと、それぞれのモデルでの
+元Typingを一致させる。両方にgraphの `Models` 条件が残る。
+
+**全core solverへの残る義務は、分解を含む飽和と、open-tail graphから自由parameterの
+正則解を構成するcoalescingである。** 既存 `Layer.record` のtailは有限Layerであり、
+graph-state参照ではない。一般のtail参照をそのまま既存blockへ写す証明はなく、
+全parameterでの充足と任意の元解へのretractionを新しい関係で証明する必要がある。
+これはtail-cycleが解を持たないという主張ではない。旧solverの新関係についての完全性や
+`RecordFree` の除去は、この接続だけからは導かない。
+
 ## 最新record関係でのデータ推論
 
 `ShadowRecordValueInference` と `ShadowRecordValueQuotient` は、既存の
@@ -346,6 +385,9 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.RigidRecordFunctionScheme` / `Yulang.RigidRecordFunctionQuotient` | 引数recordにliteral fieldを足す関数族の有限descriptor構成、3自由値型と1自由行での全instance主型性、元principalと商モデルへの接続 | 任意の関数を推論するsource入口、正則再帰値型、全coreのRecordFree制限除去 |
 | `Yulang.ShadowSemanticRecords` / `Yulang.ShadowRecordQuotient` / `Yulang.ShadowRecordQuotientInference` | 決定40の任意tailでの隣接同名field消去の最小閉包、商の型等号、旧型付け保存、全core graphと元Typingの全instance一致 | 一般graphの求解、自由parameterによる全core推論 |
 | `Yulang.ShadowRecordNormalization` / `Yulang.ShadowRecordChecker` / `Yulang.ShadowRecordQuotientDecisions` | 新関係の有限ground完全checker、意味を保存する停止的正規化、計算されたnormal formsによるcut elimination、実行可能な商等号判定 | 未知graph変数、正則再帰値型、表示canonical化、row checker自体の構成 |
+| `Yulang.ShadowRecordDemands` / `Yulang.SingletonRecordDemands` / `Yulang.SingletonRecordGraph` | 決定40のrigid要求の必要十分条件、全元coreのsingleton要求不変条件、実graph tagと既存参照内のerasure閉包 | 任意外部schemeへの無条件singleton化、未知slot値のsingleton制限、飽和済みgraphの完成 |
+| `Yulang.ShadowRegularValueTypes` / `Yulang.ShadowRegularInferenceModel` | 既存正則carrierでのshadow等価・合同性、有限型およびfinite block埋込みの保存反映、旧/有限モデルからの型付け保存 | 一般tail参照のcoalescing、正則部分型のchecker、旧solverの新関係についての完全性 |
+| `Yulang.RecordDemandInspection` / `Yulang.SourceRecordDemandInspection` | 元nodeだけを使う実行可能なrecord分解、有限/正則モデルの全割当て・全instance保存、元全core Typingへの接続 | 飽和と自由parameter解の構成、残余Models条件を除いた全core推論成功 |
 | `Yulang.ShadowRecordValueInference` / `Yulang.ShadowRecordValueQuotient` | 既存の実データ推論算法について新raw/商モデルの全instance主型性、推論成功の完全性、拒否完全性 | 一般lambda/application・let・fieldを含む全core solver |
 | `Yulang.ShadowRecordFunctionScheme` / `Yulang.ShadowRecordFunctionQuotient` | 同じopen-record拡張関数族の自由parameter schemaを新関係の全Typingと一致させること | 任意の関数のsource dispatcher、正則再帰型 |
 | `Yulang.SourceDataRuntime` / `Yulang.SourceDataSafety` / `Yulang.ShadowDataSafety` | 元の第一階式のTyping・principal formulaから実eval成功と返り値の型適合、実データinfer成功から全商parameterで同じ値の適合、strict/poly letと実field lookup | 関数・branch・effect・再帰sourceの実行、literal具体payload、Rust/elaboration、意味論から部分型への完全性 |

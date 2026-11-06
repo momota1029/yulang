@@ -1111,7 +1111,8 @@ instanceと新商モデルでの元 `Typing` を一致させる。graphの `Mode
 決定39の関係についての歴史的な定理として保持し、最新仕様の非比較とは扱わない。
 
 **残る義務:** 未知tailを含む一般graphの求解、全coreの自由parameter主型性・拒否完全性、
-正則再帰値型との接続。有限ground checker・cut elimination・商等号判定は10.29.2で閉じた。
+open-tail graphの正則coalescing。有限ground checker・cut elimination・商等号判定は10.29.2、
+正則モデル自体の接続とrecord要求の正確な分解は10.32で閉じた。
 制約生成の正確性を、残余制約のない全core推論算法の完成とは扱わない。
 
 
@@ -1235,3 +1236,108 @@ Rust runtime、parserから核へのelaboration、全言語のpreservation/progr
 `ShadowRecordFunctionScheme`・`ShadowRecordFunctionQuotient` は10.28.5の同じ有限descriptorと
 自由parameterを使い、決定40のraw/商モデルで全instance主型性を再証明する。
 その対象は明示したopen-record拡張関数族であり、上の第一階評価器へ関数を追加するものではない。
+
+## 10.32 決定40の要求分解と正則モデルへの接続
+
+**状態:** 10.29の有限関係、既存の正則有限観測モデル、元coreの制約生成に関する証明。
+新しい言語規則や構文の決定を追加しない。
+
+### 10.32.1 rigid要求の必要十分条件
+
+`ShadowRecordDemands.record_mask_exact` は、任意のraw供給型 `A,R` とrigidな要求 `P` について、
+決定40の関係で次を証明する。
+
+```text
+record(l,A,R) ≤ P
+  ↔ (∀ B, lookup(P,l)=some(B) → A≤B) ∧ R≤erase(l,P)
+```
+
+`Fits` のpayload比較も新しい関係を使う。必要性は全Subtype規則への帰納法であり、
+`shadowErase` と `shadowInsert` の両方を扱う。先頭fieldを処理した要求ではそのlabelが消えており、
+二度目の消去は同じ要求になるため、隠れたpayloadの比較を加える必要がない。
+十分性はrigid要求へのtail共変性と既存record規則から導く。
+供給tailの形、行のpreorder、部分型の決定可能性は前提にしない。
+
+### 10.32.2 全元coreが生成するsingleton要求
+
+`SingletonRecordDemands.good_generate` は元の `Inference.generate` に対する構造帰納で、
+要求型に現れる明示的なrecordがsingleton spineであることを示す。
+payload内の関数・pair・variant・recordや未知slotは許し、生成側の最外recordだけは
+元のhead/tail slotを保持する。lambda・application・値制限付きletの両分岐を含む。
+
+rename、grammarを保つscheme置換、normalise、clauseのpackとsplit、既存のpolar prepareまで
+この性質を保存する。`closed_prepared_polar` は全閉core式について環境前提を内部で満たす。
+`RecordFree`、型付け、解存在、solver成功は仮定しない。
+任意の外部schemeには強めた `GoodEnv` が必要であり、旧finite-spine前提だけでは足りないことを
+`older_goodEnv_insufficient` が示す。これは閉式の言語構文を新たに制限するものではない。
+
+`SingletonRecordGraph.compileSource_upper_grammar` と `compileSource_proper_subterm` は、
+実際のcompiler出力の要求上端とconstructorのproper subtermへこの性質を移す。
+未知slotへ代入される型自体をsingletonに制限する主張ではない。
+明示的なrigid要求からlabelを消すと、残る要求は元のsingletonかemptyRecordである。
+`maskReference` はこの残りを元の有限pool内の参照として計算し、`maskReference_source` と
+`compileSource_erasure_closed` が正確性を示す。`compileSource_upper_record_tail` は、
+要求record nodeのtail参照が実際にemptyRecord tagを持つことまで導く。
+
+### 10.32.3 既存nodeを保つ実行可能なinspection
+
+`RecordDemandInspection.inspect` はopen-record供給と空/singleton要求を直接分解する。
+
+| 供給と要求 | 生成する辺 |
+| --- | --- |
+| record供給、emptyRecord要求 | 元tailから同じemptyRecord nodeへ |
+| 同じlabelのsingleton要求 | headから要求payloadへ、およびtailから要求のempty-tail nodeへ |
+| 違うlabelのsingleton要求 | 元tailから元の要求nodeへ |
+
+元の型slot、node数、constructor等式、row問題は変えない。`none` はこのinspectorの未対応pairであり、
+型矛盾を意味しない。全域な `expand` はその場合に元の辺を残す。
+`inspect_exact` と `expand_exact` は任意の元のrealizationについて分解前後の制約を同値にし、
+`expandCompiled_instances_exact` は同じvalue/row割当てで全target instanceを保つ。
+有限モデルと下記の正則モデルの両方で必要なrecord法則を実際に証明して使う。
+
+`SourceRecordDemandInspection.prepareSource` は全source alternativeを保ってこの一回の分解を適用する。
+`source_record_pair_inspected` は元compilerのrecord対record制約が実際に分解されることを示す。
+`shadow_source_typing_exact` と `shadow_regular_source_typing_exact` は、それぞれのモデルで、
+分解後のgraph族のinstanceと独立な元の閉Typingを一致させる。
+ここにもconstructor realization・値型制約・row制約を含む `Models` 条件は残る。
+
+### 10.32.4 決定40を満たす正則carrier
+
+`ShadowRegularValueTypes` は既存の `Layer`、graph、`observe` を変更せず、各有限観測の比較を
+`ShadowSemanticRecords.Subtype` で解釈する。全観測深さを量化し、外部fuelは使わない。
+任意の既存Layer tailについてshadow等価とhead/tail合同性が成立する。
+`record_tail_covariant` はrigid要求への共変性だけを使う。
+
+`observe_tree_mono` は新しい有限関係の全規則を保存する。十分な有限観測では元の有限treeが
+復元されるので、`finite_conservative` は保存だけでなく反映も成立する。
+`ShadowRegularInferenceModel` は既存共通モデルの `subTy` だけを更新する。
+record constructorの同一性は `model_record` の `rfl` で確認できる。
+`embed_subtype` は任意の有限raw型 `A,B` について
+
+```text
+ShadowRegularSubtype (embed A) (embed B) ↔ ShadowSubtype A B
+```
+
+を示す。有限blockやfiniteGraphの埋込みも比較を保存・反映する。
+旧正則モデルと有限Shadowモデルからの任意の閉core式のTypingは新モデルに保存する。
+正則側には追加の存在量化witnessがあるため、Formula/Typing全体の逆向き保存は主張しない。
+
+### 10.32.5 全coreの自由parameter求解へ残る義務
+
+今回閉じたのは要求の正確な分解、元source graphの要求表現の閉包、分解前後の全instance一致、
+正則モデルの整合性である。これを使う全graphの飽和と、自由parameterからの一般解構成は別の定理である。
+
+既存 `RegularValueTypes.Layer.record` のtail位置は有限Layerであり、payloadのようなState参照ではない。
+`OpenRecordConstraintGraph.Node.recordExtend` はtailもnode参照として持つので、一般のtail依存を
+そのまま既存blockへ写す構造的なcoalescingはまだない。State参照に単に置き換えると観測深さが
+減る位置が変わるため、同じ意味を保つ証明が必要になる。tail-cycleに解が存在しないという主張でもない。
+
+必要な出力側の契約は、既存の `coalesceGraph_satisfies` と `coalesceGraph_retraction` に対応する、
+新関係・open-record graphでの次の二点である。
+
+1. 任意の自由parameter割当てから構成した解が、全constructorと全制約を満たすこと。
+2. 任意の元の解をparameterに取ると、共有された元slotをすべて保持してその解へ戻ること。
+
+一般の任意tail共変性を追加することは、この接続の前提ではない。
+全coreの自由parameter主型性・拒否完全性、`SourcePrincipalInference` の `RecordFree` 除去、
+effect式・再帰sourceを含む全言語の実行安全性は引き続き別の未完義務である。
