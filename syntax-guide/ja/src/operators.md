@@ -9,7 +9,7 @@ pub infix (+) 5.0.0 5.0.1 = \x -> \y -> x.add y
 pub suffix (..) 8.0.0 = std::data::range::from_included
 ```
 
-状態: 仮採用・未検査。出典: `spec/01-lexical.md` 1.5。
+状態: 仮採用・パース検査済み。出典: `spec/01-lexical.md` 1.5。
 
 ## 結合力
 
@@ -25,7 +25,7 @@ pub infix (+) 5.0.0 5.0.1 = ...    // 左右で値が違う → 結合方向が�
 ## 短絡評価: `lazy infix`
 
 `lazy infix` の本体は、両辺を thunk(`() -> value`)として受け取る。`and` / `or` の短絡評価はこれで実現する。
-状態: 仮採用・未検査。
+状態: 仮採用・パース検査済み。
 
 ## 標準の演算子
 
@@ -54,7 +54,7 @@ xs | map f == ys           // xs | (map f == ys)
 a and b | f                // f (a and b)
 ```
 
-状態: 確定(細部は仮採用)・未検査。出典: `spec/03-expressions.md` 3.9。
+状態: 確定(細部は仮採用)・パース検査済み。出典: `spec/03-expressions.md` 3.9。
 
 ## application との強さ
 
@@ -65,4 +65,4 @@ a and b | f                // f (a and b)
 not x.field      // not (x.field)
 ```
 
-状態: 仮採用・未検査。出典: `spec/03-expressions.md` 3.3。
+状態: 仮採用・パース検査済み。出典: `spec/03-expressions.md` 3.3。

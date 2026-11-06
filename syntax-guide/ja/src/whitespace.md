@@ -11,7 +11,7 @@ f (x)   // f に「括弧で囲んだ式 x」を渡す(ML 風の裸の applicati
 f: x    // colon application: `:` の後ろ全体を 1 つの引数にする
 ```
 
-状態: 確定(仮採用の細部あり)・未検査。出典: `spec/01-lexical.md` 1.4。
+状態: 確定(仮採用の細部あり)・パース検査済み。出典: `spec/01-lexical.md` 1.4。
 
 どれも、最後は同じカリー化された application になる。違うのは、**どこまでを引数と読むか**。
 
@@ -34,7 +34,7 @@ f xs.map      // f (xs.map)     dot の前に空白が無い → xs.map が 1 �
 f xs .map     // (f xs).map     dot の前に空白がある → (f xs) に .map を適用
 ```
 
-状態: 仮採用・未検査。出典: `spec/01-lexical.md` 1.4。
+状態: 仮採用・パース検査済み。出典: `spec/01-lexical.md` 1.4。
 
 ## index と、リストの適用
 
@@ -43,7 +43,7 @@ xs[0]     // index: xs.index 0 と同じ(Index role の糖衣)
 xs [0]    // xs に list literal [0] を適用する(index にはならない)
 ```
 
-`f(x)` と `f (x)` の区別と同じ原則。状態: 確定・未検査。出典: `spec/03-expressions.md` 3.2。
+`f(x)` と `f (x)` の区別と同じ原則。状態: 確定・パース検査済み。出典: `spec/03-expressions.md` 3.2。
 
 ## 並置の右辺は、空白の直前で止まる
 
@@ -52,7 +52,7 @@ f g(x)     // f (g(x))
 f g (x)    // (f g) x
 ```
 
-状態: 仮採用・未検査。出典: `spec/03-expressions.md` 3.3。
+状態: 仮採用・パース検査済み。出典: `spec/03-expressions.md` 3.3。
 
 ## path と method
 
@@ -61,7 +61,7 @@ x.foo::bar     // foo::bar を x に適用する method の糖衣(foo::bar x)。
 (x.foo)::bar   // field を取ってから path を進みたいときは括弧で包む
 ```
 
-状態: 確定・未検査。出典: `spec/03-expressions.md` 3.2。
+状態: 確定・パース検査済み。出典: `spec/03-expressions.md` 3.2。
 
 ## 波括弧: record か block か
 
@@ -79,7 +79,7 @@ x.foo::bar     // foo::bar を x に適用する method の糖衣(foo::bar x)。
 ```
 
 理由は、`;` が式の意味を変える(文の区切り)のに対して、`,` は変えないから。
-状態: 確定・未検査。出典: `spec/03-expressions.md` 3.1。
+状態: 確定・パース検査済み。出典: `spec/03-expressions.md` 3.1。
 
 ## 前置演算子と application
 
@@ -91,4 +91,4 @@ not f x    // not (f x)
 -x.abs     // -(x.abs)
 ```
 
-状態: 確定・未検査。出典: `spec/03-expressions.md` 3.3。
+状態: 確定・パース検査済み。出典: `spec/03-expressions.md` 3.3。
