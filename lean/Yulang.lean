@@ -380,3 +380,10 @@ import Yulang.ContextualNestedModels
 import Yulang.ContextualBranchSolver
 import Yulang.ContextualTypeConstraintGraph
 import Yulang.TypeSimplificationCheckCost
+import Yulang.TypeSimplificationCost
+import Yulang.ContextualValueBounds
+import Yulang.ContextualCoalescing
+import Yulang.ContextualRegularInference
+import Yulang.ContextualBranchInstances
+import Yulang.ContextualTypeConstraintInference
+import Yulang.ContextualJointConstraintInference

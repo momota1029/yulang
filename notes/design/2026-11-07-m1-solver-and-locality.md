@@ -167,7 +167,7 @@ instance は旧 scheme を同じ自由な値・行 parameter で評価してか�
 3. 任意の独立した新 Typing から `Core.ProducerContextualInstances.Instance` へ戻る完全性。
    証明済みの source sound と source_instances_exact_modulo を逆向き Typing completeness と取り違えない。
 4. arbitrary target の分解は閉じ、以下の rigid graph 文法では実 inspector・全入力の branch saturation・
-   拒否完全性へ接続した。全 contextual 解の solved parameter への retraction と、presence 文法への拡張は別に必要である。
+   拒否完全性・全 contextual 解の自由 parameter への retraction まで接続した。presence 文法への拡張は別に必要である。
 5. role head table の核から、条件付き role impl と辞書の実際の意味への対応。
 
 代案として (a) 旧 finite-rigid demand に戻す方法は Q5 の区別を失い、(b) arbitrary role predicate に
@@ -218,8 +218,24 @@ source union・target intersection・fixed record spine という既存 compiler
 
 採用理由は既存の実 inspector/compiler/coalescer を使い、model 判定を solver 成功の定義にしてしまわずに接続するため。
 代案の独立な新 compiler を同時に追加する方法は共有変数と行の対応に別の証明義務を増やす。
-ただし任意 contextual 解のこの同じ coalescer への retraction は、旧構造解の存在からは得られない。
-この部分と simultaneous row inference、presence 全体への lowering は未完として残す。
+任意 contextual 解のこの同じ coalescer への retraction は、旧構造解の存在からは得られないため、
+`ContextualValueBounds.expand_equivalent` を新順序について証明した。
+任意の独立解は、reachable な lower bound の join 以上・upper bound の meet 以下となる。
+共有する元解を parameter に選ぶと、実際の flow 消去式が元解と要求同値になる。
+constructor の合同性と観測深さの帰納を合わせ、`ContextualCoalescing.coalesceGraph_retraction` が
+全 node・全深さで元の regular 解を回収する。負位置と共有 parameter の相関も同じ割当てのまま保つ。
+
+`ContextualRegularInference` はこの graph retraction を実 `RegularInferenceModel.solution` の block closure に移す。
+全入力の独立モデル ⇔ 実 solve の返す cache と、制約を課さない自由 parameter による要求同値となる。
+`ContextualBranchInstances` は実分岐 solver と同じ block evaluator を結び、全入力 formula と任意 target に対する
+出力 instance の等価性と、空出力 ⇔ 同じ具体 carrier でのモデル不存在を示す。
+
+`ContextualTypeConstraintInference` と `ContextualJointConstraintInference` は既存の実 algorithm・result・scheme・
+具体化を alias として再利用する。新しいのは独立した contextual `Models`/`Instance`/`Correct` とその証明である。
+固定した rows の全元割当てを保ったまま exactness を得てから、実際の symbolic row solver と合成する。
+任意の反対称な row join 代数に対して、元の型/行制約の充足は、自由な行/値 parameter の scheme family と同値となる。
+意味的 rowCheck は証明内でのみ用い、algorithm の入力にしない。元の全行を文字通り回収するため反対称律を明記する。
+引き続き未完なのは presence 全体への lowering と、共通 carrier 上での exact/default/open-tail の求解である。
 
 ## 5. 有限の正方程式を解く核
 
@@ -292,7 +308,14 @@ Bool の結果は既存 checker とすべての入力で一致し、source/targe
 再帰深さは入力の既存 termination measure から計算し、caller の fuel 前提はない。
 ID の等号は原始単位とするが、型全体の等号を一単位とは数えない。
 多項式 bound を仮定する代案は採らず、同じ部分問題を繰り返しうる現 checker の指数上界をまず証明した。
-これと候補数・size 非増大を全 automatic pipeline に合成する義務は別に残る。
+`TypeSimplificationCost` はこれを実4段階 automatic pipeline に合成する。
+行込み入力サイズを M、有限 parameter 数を n、`B(S)=(S+1)*128^S` と置くと、
+`V(M)=1+M(M+1)+M(2+2M)`、`W(M)=7+2M+B(2M)`、`G(M)=3+10M+2B(4M)` に対し、
+全費用は `3+2V(M)+(4+10n+4n(W(M)+1))+(n+n(1+2n)+n²(G(M)+1))` 以下である。
+全 parameter inventory のコピーと map/product/append による候補列の構築も参照実装が実際に数える。
+inventory `List.finRange n` 自体の library 内 materialization、ID bit cost、allocator はこのモデルの外に置く。
+全入力で返す型項が既存 `simplifyAll` と等しいため、既存の構造的 instance 完全保存をそのまま得る。
+これは新 contextual instance への意味の移送や、完全な interface 標準形の証明とは区別する。
 
 ## 7. 残る統合義務
 
@@ -300,7 +323,8 @@ ID の等号は原始単位とするが、型全体の等号を一単位とは�
   残るのは exact/optional/default/mask を持つ任意 presence 制約の lowering と同じ carrier での飽和である。
   旧 cache の子辺まで全 mask に閉じる表現には既存の反例がある。別の obligation 表現が必要。
 - positive tail 方程式の具体 mask family と全深さ regular 解は閉じた。
-  残るのはこの family と contextual constructor 不等式の共通解釈・全解 retraction の接続である。
+  rigid constructor 不等式でも新順序の全解 retraction と simultaneous row inference は閉じた。
+  残るのはこの二つの family の共通解釈と、exact/default を含む同じ carrier への接続である。
 - Q5 対応 contextual モデルで任意 arrow 引数の分解は閉じた。残るのは exactEmpty/required/whole recordDefault image と自由 parameter/mask の評価を含む同じモデルへの統合。
 - 具体モデルで `presence_solve_complete` と `presence_generate_exact` を結合し、残余 existential 制約を持たない scheme family を得ること。
 - 新独立 `Typing` から旧 scheme の新 instance を得る完全性と、統一 `Core.infer` の主型性・拒否完全性・unsupported 排除。
