@@ -2028,3 +2028,7 @@ run_cmd do
 #print axioms Yulang.ProducerRankedArrowInversion.arrow_output_row_inversion
 #print axioms Yulang.ProducerRankedArrowInversion.arrow_negative_argument_inversion
 #print axioms Yulang.ProducerRankedArrowInversion.arrow_negative_argument_iff
+
+#print axioms Yulang.Core.EffectTyping.generate_models_iff_typing
+#print axioms Yulang.Core.EffectTyping.principal_exact
+#print axioms Yulang.Core.EffectTyping.legacy_conservative

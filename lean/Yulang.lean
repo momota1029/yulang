@@ -360,3 +360,6 @@ import Yulang.PresenceConstructorDefaultBoundary
 import Yulang.PresenceProducerDataBoundary
 import Yulang.ProducerDemandExpressiveness
 import Yulang.ProducerRankedArrowInversion
+
+import Yulang.CoreEffectExactness
+import Yulang.CoreEffectLegacy
