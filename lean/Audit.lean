@@ -2729,3 +2729,13 @@ run_cmd do
 #print axioms Yulang.CommonDefaultRequired.finite_default_record_split
 #print axioms Yulang.CommonDefaultRequired.default_record_split
 #print axioms Yulang.CommonDefaultRequired.default_record_iff
+#print axioms Yulang.CommonPayloadProjection.Payload.evalAt_evalLayer
+#print axioms Yulang.CommonPayloadProjection.optionalProject_exact
+#print axioms Yulang.CommonPayloadProjection.fieldProject_exact
+#print axioms Yulang.CommonPayloadProjection.Payload.observe_common
+#print axioms Yulang.CommonPayloadProjection.optional_type_exact
+#print axioms Yulang.CommonPayloadProjection.field_type_exact
+#print axioms Yulang.CommonPayloadProjection.profileBelow_exact
+#print axioms Yulang.CommonPayloadProjection.optional_payload_exact
+#print axioms Yulang.CommonPayloadProjection.default_required_projected_iff
+#print axioms Yulang.CommonPayloadProjection.default_record_projected_iff
