@@ -92,7 +92,7 @@ sourceがどの環境を選ぶかの回答に依存しない。
 
 ## Q5. patternの先行不一致で、後に書いたdefaultの評価を省略するか
 
-状態: **未回答**。`spec/03b-patterns.md` 3b.3 は欠如時のdefault評価を定め、
+状態: **回答済み(2026-11-06): A**。patternを記述順に照合し、先行部分のmissでそのarmの残りを打ち切る(後ろのdefaultは評価しない)。`spec/03b-patterns.md` 3b.3に反映。以下は質問の記録。`spec/03b-patterns.md` 3b.3 は欠如時のdefault評価を定め、
 決定43は実行する式の順序を定めるが、先行patternのmiss後も評価を続けるかは書いていない。
 
 例（`log 1` は観測を残して1を返す式の説明用記法）:
