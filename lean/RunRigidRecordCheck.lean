@@ -1,4 +1,5 @@
 import Yulang.RigidRecordCheckerExamples
+import Yulang.RigidRecordQuotientExamples
 
 /-!
 Run the exact ground reference checker and the separate rigid-demand entry:
@@ -26,4 +27,8 @@ def main : IO Unit := do
   if !RigidRecordChecker.check boolRows before after || RigidRecordChecker.check boolRows after before then
     throw (IO.userError "contravariant input row comparison changed")
   IO.println "contravariant input rows => forward accepted, reverse rejected"
+  for (name, result) in RigidRecordQuotientExamples.cases do
+    if !result then
+      throw (IO.userError (name ++ ": quotient comparison failed"))
+    IO.println (name ++ " => true")
   IO.println "rigid record checker tour passed"
