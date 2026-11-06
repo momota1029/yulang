@@ -1,0 +1,6 @@
+[book]
+title = "Yulang 構文ガイド"
+language = "ja"
+src = "src"
+
+[output.html]
