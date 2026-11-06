@@ -156,6 +156,15 @@ import Yulang.RecordTailBoundary
 import Yulang.InferenceModelMap
 import Yulang.SemanticRecords
 import Yulang.SemanticRecordInference
+import Yulang.SemanticRecordQuotient
+import Yulang.SemanticRecordQuotientInference
+import Yulang.SemanticRecordChecker
+import Yulang.SemanticRecordQuotientDecisions
+import Yulang.SemanticRecordCheckerExamples
+import Yulang.RecordConstraintSupport
+import Yulang.OpenRecordConstraintGraph
+import Yulang.OpenRecordConstraintGraphExamples
+import Yulang.SemanticRecordVarianceBoundary
 import Yulang.JointConstraintInference
 import Yulang.JointConstraintInferenceExamples
 import Yulang.SourceConstraintSupport

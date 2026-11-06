@@ -915,12 +915,61 @@ tailの `{} | never` と `{}` は相互部分型だが、前者は構文的なre
 
 ## 10.27 意味的record合同性への移行
 
-出典は章4.3とhandoffの決定38（2026-11-06）である。`SemanticRecords.Subtype` は、旧モデルの構造・束の規則を新関係の下で閉じ、recordのheadと任意tailについて相互部分型の置き換えを認める。`record_congr` に `IsRecord` の前提はない。`old_subtype` は旧関係の任意の導出を保存する。任意tailに対する一方向の共変性、constructorの分配等式、`record(l,A,never) = never` はこの追加規則に含めない。
+出典は章4.3とhandoffの決定38（2026-11-06）である。以下は移行の証明状況であり、一般tailの新しい部分型規則を決定する節ではない。10.26の実行入口は旧reference modelのままで、`SourcePrincipalInference.recordFree_instances_exact` の `RecordFree` 前提は残る。
+
+### 10.27.1 最小合同閉包と意味的な商
+
+`SemanticRecords.Subtype` は、旧モデルの構造・束の規則を新関係の下で閉じ、recordのheadと任意tailについて相互部分型の置き換えを認める**中間関係**である。`record_congr` に `IsRecord` の前提はない。`old_subtype` は旧関係の任意の導出を保存し、`Subtype.minimal` と `subtype_iff_all_closed` は、明示した規則からなる最小閉包であることを示す。任意tailに対する一方向の共変性、constructorの分配等式、`record(l,A,never) = never` はこの追加規則に含めない。
 
 `boundary_pair_equivalent` は、任意の行関係・label・field型について `record(l,A,{})` と `record(l,A,{} | never)` の相互部分型を示す。新関係では後者も空recordへ幅包含できる。10.25の否定定理は旧関係に留め、主張や期待値を書き換えて消さない。
 
-`Inference.ModelMap` は全型constructor・行演算・型と行の包含を保存する写像である。`formula_preserved` は任意の元Formulaとその任意の充足割当てを写し、存在slotのwitnessも値型と行を組にして保持する。`closed_typing_preserved` は元のprincipal生成器の完全性から、任意の閉式・任意の結果計算型の型付け保存を導く。`SemanticRecordInference.old_closed_typing_preserved` はこれを新関係への恒等写像に具体化する。record構築・値制限付き多相letを除外しない。
+`SemanticRecordQuotient.QTy` はこの新関係の相互部分型による商である。任意の行関係で、`mk_eq_mk_iff` はraw型の相互部分型と商での等号を一致させ、`eq_iff_mutual_subtype` は商の部分型を反対称にする。recordを含むconstructorはwell-definedである。arrowと `Inference.Model` の構成には行関係の反射性を要求する。`boundary_pair_equal` は上の二つのrecordを実際に等しくし、`int_ne_str` は基本型を潰さないことを示す。合同性を持たない旧関係をそのまま商にしてはいない。
 
-`literal_typing_iff` と `literal_principal_formula_iff` は、任意のrow join algebra、label `l`、基本型 `b`、結果計算型 `C` について、元のliteral `record(l,lit(b),{})` の型付け／principal formulaの充足が、有限型 `record(l,b,{})` と空行から `C` への通常のsubsumptionと同値であることを示す。推論されたtailを構文的に制限せず、rowの反対称性も要求しない。
+### 10.27.2 元のFormula・型付けの保存と反映
 
-**残る義務:** 新関係の完全なground checkerとcut elimination、未知tailを消さないgraph表現とcompilerの双方向保存、独立な再帰値型モデルとcoalescingへの接続、record構築を含む全coreの実際の求解と全instance主型性。上のliteralの特徴付けや旧型付け保存を、これらの完了とは扱わない。10.26の実行入口は現時点では旧reference modelのままである。
+`Inference.ModelMap` は全型constructor・行演算・型と行の包含を保存する写像である。`formula_preserved` は任意の元Formulaとその任意の充足割当てを写し、存在slotのwitnessも値型と行を組にして保持する。型・行の包含の反映と計算型全体の全射性も仮定すると、`formula_exact` と `closed_typing_exact` が双方向の一致を与える。
+
+`SemanticRecordInference.old_typing_preserved` は、旧有限モデルの任意の環境・元core式・結果計算型の型付けを新しい合同関係へ保存する。`mapEnvironment` は捕捉した多相束縛と明示署名も写す。`Typing.record` の規則に構文条件は追加せず、値制限付きletの両経路も除外しない。`SemanticRecordQuotientInference.formula_exact` と `closed_typing_exact` は、行関係の反射性の下で、任意のraw割当て・Formula、任意の閉core式・raw結果についてraw合同モデルと商モデルの同値を与える。`old_closed_typing_preserved` は旧有限モデルから商までを合成する。旧関係と合同閉包の逆向き保存を主張する定理ではない。
+
+rawと商の `literal_typing_iff`・`literal_principal_formula_iff` は、任意のrow join algebra、label `l`、基本型 `b`、結果計算型 `C` について、元のliteral `record(l,lit(b),{})` の型付け／principal formulaの充足が、有限型 `record(l,b,{})` と空行から `C` への通常のsubsumptionと同値であることを示す。推論されたtailを構文的に制限せず、rowの反対称性も要求しない。
+
+### 10.27.3 有限ground checker・cut elimination・商の等号判定
+
+`SemanticRecordAtoms` は外側のunion/intersectionを構造atom間の比較へ分離し、`equivalent_atomic_witness` は必要な代表atomが元の有限atom列内にあることを示す。`SemanticRecordViews` と `SemanticRecordAtomNormal` はproper record viewとatom pathの形を特徴付ける。`SemanticRecordLatticeCheck` は既存 `StructuralDecisions` の有限束checkerへ接続する。
+
+`SemanticRecordChecker.check rows A B` は型のconstructor depthから必要な層数を計算する全域関数である。任意の `Row`、`DecidableEq Row`、関係 `leRow`、Boolean関数 `rows` について、
+
+- 任意の `r, s` で `rows r s = true ↔ leRow r s`、
+- `leRow` の反射性と推移性、
+
+を仮定すると、任意の有限raw型 `A, B` について `check_true_iff` は計算結果 `true` と `SemanticRecords.Subtype leRow A B` を同値にし、`check_false_iff` は `false` とその否定を同値にする。`cut_elimination` は宣言的導出と、前の構造depth層の**計算された**atom比較を前提に持つcut-free判断を一致させる。atomの意味的oracle・探索候補・外部fuelを前提にしない。row checkerの正確性は明示した前提として残る。
+
+同じ前提の下で `SemanticRecordQuotientDecisions.raw_check_congr` は代表元不変性を示し、`Quotient.lift₂` により商型上の実行可能な `check` と `equal` を構成する。任意の商型 `A, B` について、`check_true_iff` は商の部分型と、`equal_true_iff` はLeanの実際の等号 `A = B` と一致する。標準形やcanonical代表元は構成していない。
+
+これらが判定する関係は10.27.1の最小合同閉包に厳密に限る。任意tailの追加規則を含む最終的な関係の完全checkerを得たとは扱わない。
+
+### 10.27.4 全coreから未知tailを保持するgraphへの完全なcompiler
+
+`RecordConstraintSupport.good_generate` は元のすべてのcore constructor、scheme置換・rename・capture、letの両branchにpolarな生成条件を示す。`prepare` は下側unionを分割する。任意のmodelでunionがjoinなら、`prepare_exact` は任意の元の型・row割当ての充足を双方向に保つ。生成されるopen recordは型制約の下側rootに限られ、上側はrigidなdemand文法に従う。この事実に可解性は必要ない。
+
+`OpenRecordConstraintGraph.compile` は任意の `ConstraintProblems.Problem m` を有限graphにする全域関数である。record nodeは `.recordExtend label headRef tailRef` としてheadとtailを両方保持し、union/intersection nodeも残す。未使用を含む元input slot、arrow内部のrow term、独立なrow制約は元の番号を保つ。
+
+任意のmodel・problem・型割当て・row割当てについて、`compile_assignment_exact` は元制約の充足と、元inputへの制限が同じであるgraph解の存在を同値にする。`compile_retraction` はconstructorを実現する任意のgraph割当てを制限して再拡張すると全nodeで元に戻ることを示す。`compile_instances_exact` は任意の出力slot・結果計算型で全instanceを一致させる。これらのgraph変換定理自体にはrecord法則も型・rowのpreorder性も必要ない。
+
+`compileSource e` は実際に `principal → normalise → prepare → compile` を実行する。任意のmodelについて、unionがjoin、型・rowの包含が反射的・推移的なら、任意の元core式 `e` と任意の結果計算型 `C` に対して、
+
+```text
+SourceInstance model (compileSource e) C ↔ Typing model [] e C
+```
+
+が `compileSource_instances_exact` により成立する。record構築を含み、`RecordFree`・compiler成功・解存在を前提にしない。`SemanticRecordQuotientInference.compiled_typing_exact` は任意のrow join algebraでこの同値を商モデルへ具体化する。**右辺と同じ解を持つgraphを計算する証明であり、graphの残余制約を消去した自由parameterの主型schemeを計算する証明ではない。**
+
+### 10.27.5 仕様の確認点と残る義務
+
+章4.3の幅部分型とfield利用は既存の義務である。最小合同閉包は任意のadmissible tailを持つrecordについて、そのhead/幅をすべて証明できる最終モデルではない。例えば `record(l,A,never) ≤ {}` はこの中間関係では導出できない。checkerのこの否定結果を、言語仕様での型エラーと解釈しない。
+
+一般の `R ≤ S ≤ {}` から `record(l,A,R) ≤ record(l,A,S)` を採用するかは、決定38の同値tail置換を一方向の包含保存へ拡大するため、確認点として残す。`S = {}` に対応するhead/幅を再決定する問いではない。unionの分配等式やbottomでのstrictnessも、この問いだけで決まったものとしない。
+
+`SemanticRecordVarianceBoundary.local_laws_without_tail_covariance` は、同値置換・proper record・head/幅・既知field存在・同じfieldの冪等性・異なるfieldの交換という明示した局所法則を満たしながら、一般tail共変性を満たさない有限のfield存在代数の存在を証明する。具体例は `R = ↑{y}`、`S = ↑{y} ∪ ↑{z}` に同じ `x` を加えるもの。payloadの型・実行・inhabited性の保存は含まないため、**Yulang全仕様からの独立性やsourceプログラムの型付け不能を示す反例ではない。**
+
+**残る義務:** 既存のhead/幅を満たし、確認後の一般tail規則を反映する最終record関係とそのchecker/cut、独立な正則再帰値型モデルとcoalescingへの接続、新しいgraphの実際の制約求解、record構築を含む全coreの自由parameter scheme・全instance主型性・拒否完全性。`SourcePrincipalInference` の `RecordFree` 制限はまだ外していない。effectのoperation/handler/保護/解除、再帰SCCと全注釈多相再帰、注釈の公開値型と一般化直前のeffect検査、role/cast/EOFは既存の個別定理のままで、この入口との統合は未完。表示の標準形・`as`の最終表示・一般の禁止点付きgraph到達は今回の変更に含めない。
