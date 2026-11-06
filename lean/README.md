@@ -10,6 +10,21 @@ lake build --wfail
 lake env lean --trust=0 Audit.lean
 ```
 
+## Literal の中身と比較
+
+`LiteralValues.Literal FloatValue` は任意精度の `Int`、decoded `String`、`Bool`、unit の中身を持つ。
+整数の閉区間・片側区間の実行可能検査は、任意の上下端と literal に対して
+独立な `InRange` 判断と同値である（`intRangeCheck_exact`）。
+literal の `matchCheck_exact` は、任意の float 比較関数とその独立関係の正確性を前提に、
+全 literal に対して実行比較と帰納的 `Matches` の同値を示す。
+`FloatValue = Empty` の整数・文字列・bool・unit では通常の値の等号に一致する。
+
+小数 token は符号・任意精度仮数・十進指数を保持する `DecimalToken` とし、
+`ofDecimal` に解釈関数を明示して渡す。float の精度・丸めは Q2 に残す。
+既存 `Inference.Base` に float はなく、`legacyBase` は float に `none` を返す。
+旧 base-marker 評価器を具体 literal 評価器へ黙って置き換えていない。
+字句解析・escape の正しさ、数値演算、source への翻訳はこの定理群の対象外である。
+
 ## 複数 operation の shallow handler
 
 `MultiOperationHandlerTyping.Expr.handler` は、相異なる解決済み operation key の有限表、
@@ -485,6 +500,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 
 | モジュール | 閉じる主張 | それだけでは示さないこと |
 | --- | --- | --- |
+| `Yulang.LiteralValues` / `LiteralValueExamples` | 任意精度整数・文字列・bool・unitの内容、実行可能literal比較と独立判断の同値、整数閉区間/片側区間の正確性、明示的float比較契約 | float精度・丸め・比較規則の決定、数値演算、parser/escapeの正しさ、既存base-marker ASTとの全体統合 |
 | `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、同一operationのpayload-pattern編成と網羅性、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |
 | `Yulang.Types` / `Yulang.Inference` | 構造再帰する有限制約生成、独立な宣言的型付けとの双方向の一致、制約schemeの主性、非再帰の値制限付き多相let | 全制約の判定、再帰SCC、sourceのoperation/handlerのelaboration、公開型の正規化 |
 | `Yulang.StructuralBase` / `Yulang.Structural` | 行の解釈を共有する具体的な構造部分型モデル、`never`/`any`・union/intersection・幅部分型・関数の分散、生成制約の正例と反例 | 完全なMLsub意味論、再帰型。決定手続きは `StructuralDecisions` で扱う |

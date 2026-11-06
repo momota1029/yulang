@@ -33,3 +33,22 @@ source `catch` から `MultiOperationHandlerTyping.Expr.handler` への翻訳、
 この回答に依存せず証明した範囲: 相異なる解決済み operation key ごとに一つの全域な body を持つ
 有限表の実行・独立型付け・checker の一致、shallow/multi-shot、許可 mask と符号付き重み。
 表の key 一意性はこの核の表現条件であり、source payload arm の意味の決定ではない。
+
+## Q2. 小数 literal の float はどの精度と丸めを持つか
+
+状態: **未回答**。`spec/03-expressions.md` 3.1 は整数を任意精度、小数 literal を `float` とするが、
+float の精度・丸めは書いていない。今回の依頼の「任意精度の整数・小数」が、小数にも任意精度を
+要求するかを含めて決める必要がある。旧 `Inference.Base` には float 自体がまだない。
+
+例: `0.1`、`9007199254740993.0`、非常に大きい指数を持つ小数。
+仮数を全部保存することと、評価後の数値に丸めがないことは異なる。
+
+- **A（推奨。通常の float と実装の小ささを優先する場合）:** IEEE 754 binary64。
+  有限の範囲内の literal は最近接・偶数丸め。小数も任意精度という要求なら、この案は採らない。
+- **B:** 有限小数を任意精度の十進数として正確に保持する。割算等の非有限小数の規則は別に定める。
+- **C:** 任意精度浮動小数とし、精度・丸め context を持つ。context の渡し方も必要になる。
+
+影響する義務: `LiteralValues.ofDecimal` の具体化、Lean/Rust oracle の値codec、
+数値演算、float literal の解釈の一致。比較規則は精度と独立に次の問いへ分ける。
+現在どの案も採用していない。`DecimalToken` と明示的な解釈引数だけを追加し、
+整数・文字列・bool・unit と整数範囲の証明を先に閉じた。

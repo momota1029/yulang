@@ -1371,3 +1371,21 @@ payload非網羅時の規則（`notes/questions/2026-11-06-open-questions.md` Q1
 operation-local多相・個別payload/response署名との接続、sourceからpermission maskを発見するelaboration。
 このcheckerはshape解決済み・lambda入力型/handler目標型を持つ単相核のcheckerであり、
 全sourceの主型推論器ではない。再帰を含む全言語のpreservation/progressも残る。
+
+## 10.34 Literal の内容と独立な比較判断
+
+`LiteralValues.Literal FloatValue` は任意精度整数・文字列・bool・unit の内容を持つ。
+任意の `floatCheck` と独立関係 `floatRel` について、その二者が全入力で一致することを前提に、
+`matchCheck_exact` は全 literal に対する実行比較と独立な帰納判断 `Matches` の同値を示す。
+float の比較の反射性は仮定しない。float のない具体部分では等号との一致が無条件に成り立つ。
+
+`intRangeCheck_exact` は任意の上下端 `Option Int` と literal について、閉区間/片側区間の
+実行判定と独立な `InRange` が同値であることを示す。内部補助表現で両端を欠くことはできるが、
+source の裸 `..` を許す規則ではない。source pattern 側でこれを拒否する。
+
+`DecimalToken` は符号・任意精度仮数・十進指数を保持する syntax data であり、
+`ofDecimal` の float 解釈は引数である。精度と丸めは Q2 の回答前に決定しない。
+旧 `Inference.Base` に float を追加したという主張でもない。
+
+**残る義務:** float の具体解釈と比較、数値演算、lexer/文字列 escape とこの値の対応、
+source AST・全型推論器への literal 内容の接続。旧 marker の定理を変更していない。

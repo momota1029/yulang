@@ -17,7 +17,9 @@ handler op action ret arm
 multiHandler operations action ret arms
 ```
 
-`lit` の `b` は base 型の印だけで、整数や文字列の中身を持たない。再帰束縛は核の式の外側(`RecursiveInference` の SCC ブロック)にある。
+旧 `lit` の `b` は base 型の印だけで、整数や文字列の中身を持たない。
+内容を持つ `LiteralValues.Literal FloatValue` と独立な比較判断を追加した。旧ASTとの統合は別途必要である。
+再帰束縛は核の式の外側(`RecursiveInference` の SCC ブロック)にある。
 `recordDefault` は決定44に従って追加済み。型付けと実推論は `PresenceDataInference`、
 実評価は `SourceDataRuntime` にある。旧required-field推論器では明示的に未対応と区別する。
 
@@ -31,6 +33,7 @@ multiHandler operations action ret arms
 
 | 表の構文 | 核 | 状態 | 出典・備考 |
 | --- | --- | --- | --- |
+| 整数・文字列・bool・unit literal | `LiteralValues.Literal` | 確定 | 内容とliteral/range比較を追加。source codecとの対応は未証明。小数tokenのfloat解釈・精度はQ2 |
 | 名前 `x`、path `a::b` | `var i`(束縛済み)、またはモジュールの宣言への参照 | 確定 | 名前解決は核の前。章3.2 |
 | `f x y` / `f(x, y)` / `x.m y` / `f: body` | `app (app f x) y` | 確定 | 章3.3。どれも同じカリー化 |
 | `f()` | `app f unit` | 確定 | `unit` は `lit unit` |
@@ -147,7 +150,7 @@ ChatGPT に依頼する核の拡張の候補。
 2. 複数 operation の核は `MultiOperationHandlerTyping` に追加済み。残るのは source payload-pattern arm の編成、個別署名、多相、mask の elaboration
 3. labelの値・methodと衛生的な境界をsourceから核へ対応させるelaboration。labelが値であること自体は章3c.2で確定
 4. nominal 型の構築子(struct・enum・list)
-5. 整数・文字列などの literal の中身(今は base の印だけ)
+5. 整数・文字列・bool・unit の中身は `LiteralValues` に追加済み。小数の具体解釈と旧AST/sourceとの接続が残る
 
 決定44の `recordDefault` は上記の通り追加済み。`error` と `junction` の要求木helperも
 `ErrorEffects` / `JunctionEffects` にあるが、ordinary strict applicationとの接続を含む

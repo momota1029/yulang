@@ -1161,3 +1161,9 @@ run_cmd do
 #print axioms Yulang.MultiOperationHandlerTyping.inferred_operationally_valid
 #print axioms Yulang.MultiOperationHandlerTyping.closed_empty_row_returns
 #print axioms Yulang.MultiOperationHandlerExamples.nesting_not_equivalent
+#print axioms Yulang.LiteralValues.eqCheck_exact
+#print axioms Yulang.LiteralValues.matchCheck_exact
+#print axioms Yulang.LiteralValues.matches_without_floats
+#print axioms Yulang.LiteralValues.intRangeCheck_exact
+#print axioms Yulang.LiteralValueExamples.integer_successor_distinct
+#print axioms Yulang.LiteralValueExamples.beyond_machine_word
