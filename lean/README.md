@@ -74,6 +74,21 @@ presence 上下界の消去を扱う。任意の payload 述語・mask の下で
 
 flat な自由 parameter 消去は証明済みだが、以下の四つの regular/source 契約はまだ閉じていない。
 
+`CorePresenceGenerationModel` は既存 `Inference.Model` に独立な `exactEmpty`・`required`・
+`recordDefault` 演算を加えた interface である。継承した `emptyRecord` は width 上界用で、
+空 record 式の精密な型とは同一視しない。`recordDefault` は結果全体の型の演算であり、
+選ばれる一 field の union だけに結果を縮めない。具体 regular model の定義は未完である。
+
+| 定理（接頭辞 `Core.PresenceGeneration`） | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `generate_models_iff_typing` / `principal_exact` | 任意の拡張モデル・式・値/行割当て・結果について、`EnvRel` で対応する捕捉 scheme 環境の下で生成制約の充足 ⇔ 独立な構成子型判断。lambda/app/branch・値制限付き let の全選択肢・record/default/field を含む | 具体 presence regular model、existential 制約を消去した solved scheme、solver の停止・拒否完全性 |
+| `CoreRules.conservative` / `generateCore_exact` / `principalCore_exact` | 拡張 source 判断と独立な拡張 Core 判断の同値、および全 Core 式で生成制約の exactness。構文検査により decoder の既定 literal への漏れを防ぐ | 旧 required 判断との保守性、公開 `infer` の `.rejected` / `.unsupported` の分類 |
+| `unbound_default_fallback` / `generate_unbound_default_fallback` | 任意の拡張モデル・source・label・未束縛 index・結果で、閉じた default の未束縛 fallback は型付け不能で生成制約も不充足 | 関数を含む runtime safety、effect の具体的な行 solver |
+
+`principal` / `principalCore` は existential 制約を保持した constraint scheme であり、
+自由 parameter だけから具体化できる solver の返却値ではない。上の exactness は solver 成功・
+入力型付け・fuel を仮定せず、モデルに追加の公理や代数法則も要求しない。
+
 Core 上で実行する二つの既存入口への接続も追加した。**統一入口ではない。**
 `InferenceSyntax.embed_decode` が入口の構文検査から round trip を保証し、対応外の Core 構文が
 `Required.decode` の既定 literal として推論されることを防ぐ。
@@ -97,7 +112,7 @@ Core の M0 model が `Type` に固定されているため、Required Core 定�
 開いた default operator の Core **型判断**であり、未知 base を推論した実行例ではない。
 effectful fallback の推論例、未知 base を持つ lambda の推論例は未完である。
 
-**M1 は未完了。** 関数・行を含む共通 carrier/部分型と presence 制約生成の exactness がないため、
+**M1 は未完了。** 関数・行を含む具体的な共通 carrier/部分型と、そのモデル上の solved scheme がないため、
 所属の同値を `SourcePrincipalInference` と presence 推論の全 instance の同値へ読み替えない。
 統合メモ5節の工程3〜5で必要な未証明の補題は次の通りである（以下は契約であり、Lean の定理名ではない）。
 

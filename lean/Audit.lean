@@ -59,6 +59,14 @@ run_cmd do
 #print axioms Yulang.PresenceBoundCoalescing.coalesce_exact
 #print axioms Yulang.PresenceBoundCoalescing.coalesce_satisfies
 #print axioms Yulang.PresenceBoundCoalescing.coalesce_retraction
+#print axioms Yulang.Core.PresenceGeneration.generate_models_iff_typing
+#print axioms Yulang.Core.PresenceGeneration.principal_exact
+#print axioms Yulang.Core.PresenceGeneration.CoreRules.conservative
+#print axioms Yulang.Core.PresenceGeneration.CoreRules.generateCore_exact
+#print axioms Yulang.Core.PresenceGeneration.CoreRules.principalCore_exact
+#print axioms Yulang.Core.PresenceGeneration.CoreRules.typing_syntax
+#print axioms Yulang.Core.PresenceGeneration.unbound_default_fallback
+#print axioms Yulang.Core.PresenceGeneration.generate_unbound_default_fallback
 #print axioms Yulang.Core.InferenceExamples.present_inferred
 #print axioms Yulang.Core.InferenceExamples.absent_inferred
 #print axioms Yulang.Core.InferenceExamples.shadowed_inferred

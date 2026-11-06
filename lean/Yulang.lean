@@ -19,6 +19,7 @@ import Yulang.CoreSourceInference
 import Yulang.CorePresenceInference
 import Yulang.CorePresenceAlternatives
 import Yulang.PresenceBoundCoalescing
+import Yulang.CorePresenceGenerationCore
 import Yulang.CoreInferenceExamples
 import Yulang.VariantsMerged
 import Yulang.Effects
