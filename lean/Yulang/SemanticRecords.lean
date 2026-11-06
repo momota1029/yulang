@@ -76,6 +76,66 @@ theorem old_subtype {a b : Ty Row} (old : StructuralBase.Subtype leRow a b) :
   | record sourceShape targetShape fields _ fieldSubtypes =>
       exact .record sourceShape targetShape fields fieldSubtypes
 
+/-- Closure requirements for a relation extending the old structural
+preorder. Only existing recursive rules and record congruence are listed. -/
+structure Closed (leRow : Row → Row → Prop) (relation : Ty Row → Ty Row → Prop) : Prop where
+  old : ∀ {a b}, StructuralBase.Subtype leRow a b → relation a b
+  trans : ∀ {a b c}, relation a b → relation b c → relation a c
+  unionElim : ∀ {a b c}, relation a c → relation b c → relation (.union a b) c
+  interIntro : ∀ {a b c}, relation c a → relation c b → relation c (.inter a b)
+  pair : ∀ {a a' b b'}, relation a a' → relation b b' → relation (.pair a b) (.pair a' b')
+  variant : ∀ {label a b}, relation a b → relation (.variant label a) (.variant label b)
+  arrow : ∀ {input input' output output' inputRow inputRow' outputRow outputRow'},
+    relation input' input → leRow inputRow' inputRow →
+    relation output output' → leRow outputRow outputRow' →
+    relation (.arrow input inputRow output outputRow) (.arrow input' inputRow' output' outputRow')
+  record : ∀ {source target}, IsRecord source → IsRecord target →
+    (∀ label value, target.lookup label = some value → ∃ actual, source.lookup label = some actual) →
+    (∀ label actual expected, source.lookup label = some actual →
+      target.lookup label = some expected → relation actual expected) → relation source target
+  recordCongr : ∀ {label value value' rest rest'},
+    relation value value' → relation value' value → relation rest rest' → relation rest' rest →
+    relation (.record label value rest) (.record label value' rest')
+
+theorem subtype_closed : Closed leRow (Subtype leRow) where
+  old := old_subtype
+  trans := .trans
+  unionElim := .unionElim
+  interIntro := .interIntro
+  pair := .pair
+  variant := .variant
+  arrow := .arrow
+  record := .record
+  recordCongr := .recordCongr
+
+/-- This relation is the least extension with the stated closure properties.
+In particular, defining it introduces no additional constructor equations. -/
+theorem Subtype.minimal {relation : Ty Row → Ty Row → Prop} (closed : Closed leRow relation)
+    {a b : Ty Row} (below : Subtype leRow a b) : relation a b := by
+  induction below with
+  | refl a => exact closed.old (.refl a)
+  | trans _ _ first last => exact closed.trans first last
+  | bottom a => exact closed.old (.bottom a)
+  | top a => exact closed.old (.top a)
+  | unionLeft a b => exact closed.old (.unionLeft a b)
+  | unionRight a b => exact closed.old (.unionRight a b)
+  | unionElim _ _ first last => exact closed.unionElim first last
+  | interLeft a b => exact closed.old (.interLeft a b)
+  | interRight a b => exact closed.old (.interRight a b)
+  | interIntro _ _ first last => exact closed.interIntro first last
+  | pair _ _ first last => exact closed.pair first last
+  | variant _ payload => exact closed.variant payload
+  | arrow _ inputRow _ outputRow input output => exact closed.arrow input inputRow output outputRow
+  | record sourceShape targetShape fields _ fieldSubtypes =>
+      exact closed.record sourceShape targetShape fields fieldSubtypes
+  | recordCongr _ _ _ _ headForward headBackward tailForward tailBackward =>
+      exact closed.recordCongr headForward headBackward tailForward tailBackward
+
+theorem subtype_iff_all_closed (a b : Ty Row) :
+    Subtype leRow a b ↔
+      ∀ relation : Ty Row → Ty Row → Prop, Closed leRow relation → relation a b :=
+  ⟨fun below _ closed => below.minimal closed, fun universal => universal _ subtype_closed⟩
+
 def Equivalent (leRow : Row → Row → Prop) (a b : Ty Row) : Prop :=
   Subtype leRow a b ∧ Subtype leRow b a
 
@@ -193,6 +253,54 @@ theorem boundary_raw_tail_below_empty (label : Nat) (value : Ty Row) :
     Subtype leRow (.record label value (.union .emptyRecord .bottom)) .emptyRecord :=
   .trans (record_tail_union_bottom label value .emptyRecord).1
     (old_subtype (StructuralBase.record_width_to_empty (.field .empty)))
+
+/-! ## Non-collapse
+
+The same independent scalar observation that separates old ground types is
+sound for the new relation. Record congruence cannot create a scalar value.
+-/
+
+theorem scalar_preserved {a b : Ty Row} (below : Subtype leRow a b) :
+    ∀ observed, StructuralBase.Scalar observed a → StructuralBase.Scalar observed b := by
+  induction below with
+  | refl => exact fun _ h => h
+  | trans _ _ first last => exact fun observed h => last observed (first observed h)
+  | bottom => exact fun _ h => False.elim h
+  | top => exact fun _ _ => trivial
+  | unionLeft => exact fun _ h => Or.inl h
+  | unionRight => exact fun _ h => Or.inr h
+  | unionElim _ _ first last => exact fun observed h => h.elim (first observed) (last observed)
+  | interLeft => exact fun _ h => h.1
+  | interRight => exact fun _ h => h.2
+  | interIntro _ _ first last => exact fun observed h => ⟨first observed h, last observed h⟩
+  | pair => exact fun _ h => False.elim h
+  | variant => exact fun _ h => False.elim h
+  | arrow => exact fun _ h => False.elim h
+  | record sourceShape _ _ _ _ =>
+      exact fun observed h => False.elim (StructuralBase.record_not_scalar observed sourceShape h)
+  | recordCongr => exact fun _ h => False.elim h
+
+theorem distinct_bases_not_subtypes {left right : Base} (different : left ≠ right) :
+    ¬ Subtype leRow (.base left) (.base right) := by
+  intro below
+  exact different ((scalar_preserved below left rfl).symm)
+
+theorem int_not_str : ¬ Subtype leRow (.base .int) (.base .str) :=
+  distinct_bases_not_subtypes (by decide)
+
+theorem top_not_int : ¬ Subtype leRow .top (.base .int) := by
+  intro below
+  have impossible := scalar_preserved below .str trivial
+  cases impossible
+
+theorem top_not_bottom : ¬ Subtype leRow .top .bottom := by
+  intro below
+  exact scalar_preserved below .int trivial
+
+theorem top_not_arrow (input output : Ty Row) (inputRow outputRow : Row) :
+    ¬ Subtype leRow .top (.arrow input inputRow output outputRow) := by
+  intro below
+  exact scalar_preserved below .int trivial
 
 /-- The original carrier and operations, with the congruence-closed relation.
 No source typing rule or row interpretation is changed. -/
