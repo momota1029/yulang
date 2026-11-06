@@ -276,10 +276,18 @@ union/intersectionの全構造を残してfield間の相関を保つ。子parame
 `mask_exact` / `meaning_mask` / `record_shadow` は任意のmaskとtailについて隠れた同名fieldの要求を消す。
 `independent_fields_lose_correlation` はfield別のoptional化が元の二field間の選択肢を広げる反例である。
 
+`PresenceRegularObservations.check_exact` は任意のgraph・全有限深さ・全state・全data値の観測を判定する。
+`observe_morphism` / `subtype_morphism` はgraphと可換な任意のrenameについて保存・反映を示す。
+renameの単射性は要求しない。`Blocks.close_observe_exact` / `close_subtype_exact` は
+任意の有限同時再帰blockと内部・外部rootについて、閉じる前後の全有限観測を保つ。
+`PresenceRegularLegacyBridge.observe_exact` / `layer_exact` / `data_subtype_exact` は旧regular graphの
+全有限data観測と新しいpresence観測を一致させ、`legacy_block_observe_exact` が既存common carrierのblockへ接続する。
+ここでの包含はdata述語間のもので、旧structural subtypingや関数・行の意味の同値ではない。
+
 `optional_iff_absent_or_required` と `optional_never_iff_absent` は既存述語の意味から無条件に成り立つ。
 旧width型からabsenceやexact emptyは導けない反例も保持する。
 旧runtimeのliteralはbase markerで、関数型の翻訳はdata上ではneverである。
-今回の橋を内容つきliteral・closure・regular再帰型・自由row parameter・全source主型推論へ一般化したとは扱わない。
+regular再帰型のdata投影の橋は上で与えた。内容つきliteral・closure・自由row parameter・全source主型推論への一般化は残る。
 
 旧 `SourcePrincipalInference.infer_instances_exact` は任意の行代数と行順序の反対称性の下で、
 任意の `supported e = true` の入力について成立する。`RecordFree` はsupportを構文から保証する十分条件であり、
@@ -741,6 +749,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.LiteralValues` / `LiteralValueExamples` / `Binary64` / `Binary64Rounding` / `Binary64Decimal` | 内容つきliteral、整数範囲、64bit codecの相互逆、数値Eqと独立判断の同値、正負zeroの一致・NaNの不一致、任意tokenの厳密な分数化と範囲内での全有限binary64候補への最近接・偶数丸め | 範囲外tokenのsource方針（Q11）、数値演算、parser/escape、Rust f64との対応、非零巨大指数の資源最適化、既存base-marker ASTとの全体統合 |
 | `Yulang.PresenceLegacyBridge` | 任意の有限legacy型とmaskのdata意味を保存するpresence翻訳、Shadow部分型の包含保存、閉supported型判断の移送、finite-data planの全parameterを同じexact結果が一方向に包含、optionalの分解と旧width型の反例 | 逆向きの部分型完全性・scheme等価、regular型と自由row parameter、closure/effect行の意味、SourcePrincipalInference全体への統合 |
 | `Yulang.PresenceLayers` | required/optional/lacksを保つ有限layer、任意の子述語と正確なmembership checkerから全値で判定同値、mask合成とhidden field消去、field別optional化で相関が失われる反例 | 任意述語の決定可能性、全深さの部分型判定、closure/effect行の意味、拡張solverの主型性 |
+| `Yulang.PresenceRegularObservations` / `PresenceRegularLegacyBridge` | 任意graphの全有限観測判定、可換なrenameと有限block closureでの保存・反映、旧regular型のdata所属・data包含との同値、既存common carrierのblockへの接続 | 旧structural subtypingとの同値、arrow/closureと行の意味、全深さの判定算法、presence制約の飽和/coalescing、全source schemeのinstance同値 |
 | `Yulang.NominalConstructionRuntime` / `NominalConstructionExamples` | 不変parameterの元の構築位置の順序、適合時のcast抑制、純粋cast後の全request tree保存、EOFの実値保持、metadataとarity保存 | ground境界検査から値型に正しい変換codeの合成、固定struct field・宣言defaultを含むsource elaboration、具体data構築ASTとの統合 |
 | `Yulang.NominalListViews` / `NominalListIndex` | 同じlistに対するcursor・index・foldの一致、整数indexの成功と有効区間の同値、無効indexの非再開error要求、既存wrapとの一致 | sourceのFold/Index辞書の選択・署名と本文の対応、下書きのerror名/payloadの確定 |
 | `Yulang.NominalDataConstructionExamples` | 解決済みnominal構築式、任意整数から計算するstruct/enum/list payloadの型付けと実評価・全訪問列 | 宣言のlookup・型引数・payload宣言型の検査、source constructor default・castの挿入 |

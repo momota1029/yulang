@@ -290,3 +290,5 @@ import Yulang.ScopedCaseCoverageSafety
 import Yulang.ScopedJointCaseCoverage
 import Yulang.ScopedJointCaseExamples
 import Yulang.PresenceLayers
+import Yulang.PresenceRegularObservations
+import Yulang.PresenceRegularLegacyBridge

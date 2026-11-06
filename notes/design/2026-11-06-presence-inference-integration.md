@@ -14,6 +14,8 @@
 | `PresenceDataSafety` | 独立な presence 型付けと、その環境を満たす値の列 | 実際の `SourceDataRuntime.eval` が成功し、返り値が型を満たす |
 | `PresenceDataCompatibility` | exact 環境の descriptor と同じ source 式 | `synth` と `eval` の成功結果が一致する。型付け・推論成功を前提にしない |
 | `PresenceLegacyBridge` | 有限 legacy 型と、隠す field 名の有限列 | 既存の data 意味を required/presence 述語へ構成的に翻訳し、包含と data 型付けを移す |
+| `PresenceLayers` / `PresenceRegularObservations` | 相関を保つfinite layer、任意のregular graphと有限深さのdata観測 | 子判定からのmembership exactness、全有限観測の判定、graph morphismとfinite block closureの保存・反映 |
+| `PresenceRegularLegacyBridge` | 旧regular layer/graphと既存common carrier | 任意mask・全有限depth・全data値の旧意味と同値。関数/行意味や全schemeの同値ではない |
 
 `Shape.denote` は `exact shape.value` である。現在の値の literal は base tag なので、
 これは「任意の整数値を持つ source 全体の主型」ではなく、既存 data 値の exact descriptor である。
@@ -104,6 +106,19 @@ record **pattern** の default は field がないときだけ評価される（
 4. alternative の列をまとめる `collect` の exactness を再利用または保守的に拡張する。
 5. 旧入力を埋め込んだ場合の全 instance の保存・反映を示し、その後で新しい入口を公開する。
 
+工程1・2は **data投影と全有限観測の範囲** で閉じた。
+`PresenceRegularObservations.check_exact` は任意graph・全depth・全state・全data値で判定と意味を一致させる。
+graphと可換な任意renameに対する `observe_morphism` / `layer_morphism` / `subtype_morphism` と、
+内部/外部rootをともに扱う `Blocks.close_observe_exact` / `close_subtype_exact` を証明した。
+renameの単射性やgraphの非循環性は仮定していない。
+
+`PresenceRegularLegacyBridge` は旧layerのmask付き意味、旧regular graphの全有限観測、
+任意outer layerのdata包含を保存・反映する。`legacy_block_observe_exact` が
+既存の `RegularInferenceModel` のcommon carrierとそのblock closureへつなぐ。
+`DataSubtype` はdata述語包含であり、旧structural subtype関係との一致や全depthの判定算法ではない。
+arrowは既存のdata投影と同じneverなので、関数・effect行の意味を閉じたとは扱わない。
+工程3〜5と、その前提となる関数/行の意味の拡張は残る。
+
 最終の solver 定理では、任意の行代数に加え、既存定理と同じ行順序の反対称性を明示する。
 任意の入力 `e`、`supportedPresence e = true`、任意の結果 `c` に対して、
 `(inferPresence e).Instance c ↔ PresenceTyping [] e c` を示す。
@@ -129,6 +144,7 @@ regular/function/effect の interpreter を与える前に、arrow の空の dat
 
 当面の完了単位は、有限 required demand の翻訳、presence layer の exactness、
 regular block の移送、拡張制約生成、拡張 solver の全 instance、実行への接続で分ける。
-今回閉じたのは最初の翻訳と closed supported data 型判断の移送である。
+有限翻訳とclosed supported data型判断の移送に加え、presence layerのexactness、
+regular graphとblock closureの全有限data観測、旧regular data意味の保存・反映まで閉じた。
 `SourcePrincipalInference` 全体への統合、関数を含む runtime interpretation、
 Rust の構文・型推論器との対応は引き続き証明義務として残す。

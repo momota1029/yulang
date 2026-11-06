@@ -1722,7 +1722,7 @@ absenceまたはrequired所属に分解し、`optional_never_iff_absent` はneve
 旧width型をabsence/exact emptyと同一視できない反例も保持する。
 
 **残る義務:** finite-data planの一方向の保存をregular schemeの等価と同一視しない。
-自由row parameter・regular block・関数closure・effect行・内容つきliteralへの移送、
+自由row parameter・regular blockの関数/行意味・関数closure・effect行・内容つきliteralへの移送、
 presence制約生成の正確性、拡張solverの全instance主型性と拒否完全性、統一source入口が残る。
 旧 `SourcePrincipalInference.infer_instances_exact` は行順序の反対称性とsupport成功が前提で、
 `RecordFree`はsupportの十分な構文条件である。RecordFree外の一律拒否は導入していない。
@@ -1742,4 +1742,28 @@ presence制約生成の正確性、拡張solverの全instance主型性と拒否�
 `independent_fields_lose_correlation` は「x:intだけ」または「y:strだけ」という選択肢を
 field別optionalへ落とすと両fieldを持つ値まで受理する反例を示す。
 
-**残る義務:** regular graphの全有限観測との橋、飽和・coalescing・全instanceを保つsource推論の統合。
+regular graphの全有限data観測への橋は10.37.2で与える。
+**残る義務:** 飽和・coalescing・全instanceを保つsource推論の統合。
+
+### 10.37.2 Regularなdata観測とblock closure
+
+`PresenceRegularObservations.observe` は深さ0をneverとし、各段でfinite presence layerを解釈する。
+`check_exact` は任意のgraph・自然数depth・state・runtime値について、実行判定とこの独立意味を同値にする。
+観測深さは定理で全量化し、入力graphの非循環性や有限サンプルは仮定しない。
+
+`observe_morphism` / `layer_morphism` / `subtype_morphism` は任意のsource/target graphとrenameについて、
+全stateでlayerのmapがgraphと可換であることを前提に、全depth・全値・任意のouter layerの
+観測と `DataSubtype` を保存・反映する。renameの単射性は不要である。
+`Blocks.close_observe_exact` / `close_subtype_exact` は任意の有限同時再帰body・内部/外部rootについて
+開いたblockとcommon carrierに閉じたblockを同値にする。
+
+`PresenceRegularLegacyBridge.translate_exact` は任意の旧layer・任意の子raw型割当て・mask・値について
+旧data意味への翻訳とpresence layerの意味を同値にする。
+`observe_exact` / `check_exact` / `layer_exact` は任意の旧regular graph、全有限depth、
+全stateまたは任意のouter layer、全data値で旧 `DataTypeSemantics.Holds` と一致する。
+`data_subtype_exact` は全有限観測のdata包含と `DataSubtype` の同値、
+`legacy_block_observe_exact` は既存の `RegularInferenceModel` の任意blockと内部/外部rootの観測不変性を示す。
+
+**残る義務:** このdata投影でarrowはneverとなる。旧structural subtypingの同値、
+closureとeffect行の意味、全深さを一度に判定する算法、presence制約の飽和/coalescing、
+旧/新schemeの全instance対応と統一source入口は未完である。旧support gateと主型定理の量化子は変更しない。

@@ -25,8 +25,11 @@ multiHandler operations action ret arms
 再帰束縛は核の式の外側(`RecursiveInference` の SCC ブロック)にある。
 `recordDefault` は決定44に従って追加済み。型付けと実推論は `PresenceDataInference`、
 実評価は `SourceDataRuntime` にある。旧required-field推論器では明示的に未対応と区別する。
-`PresenceLegacyBridge` は有限legacy data型の意味と全parameterの一方向の移送を追加した。
-regularな `SourcePrincipalInference` 全体への統合は、別メモ `2026-11-06-presence-inference-integration.md` の工程を残す。
+`PresenceLegacyBridge` は有限legacy data型の意味と全parameterの一方向の移送を持つ。
+`PresenceLayers` と `PresenceRegularLegacyBridge` はrequired/optional/lacksの相関を保ち、
+旧regular graphの全有限data観測とblock closureの保存・反映まで接続した。
+regularな `SourcePrincipalInference` 全体の主型性・関数/行意味への統合は、
+別メモ `2026-11-06-presence-inference-integration.md` の工程3〜5を残す。
 
 ## 状態の印
 
