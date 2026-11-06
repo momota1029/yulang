@@ -154,6 +154,10 @@
 42. **隠れる field の式も評価される**(`spec/04-types.md` 4.3、2026-11-06)。record の構築は、書いた順に各 field の式(と spread)を評価してから、同名 field のうち先に書いたものを残す。ChatGPT の `SourceDataRuntime.eval` が黙って採っていた挙動を、仕様として確定した。
     ChatGPT への指示: (1) 評価器の record 構築が「書いた順に全式を評価する」ことを、定理として明示する(評価順の独立な特徴付け)。(2) 将来 effect を含む式を評価器に入れるとき、隠れる field の式の effect も起きることを前提にする。
 
+43. **式は書いた順(左→右、上→下)に評価される**(`spec/03-expressions.md`、2026-11-06)。tuple の成分・関数の引数・record の field(と spread)・`let` の右辺→本体。値を使わない式も評価される。`SourceDataRuntime.eval` が黙って採っていた順序の、一般規則としての確定。
+44. **spread が前にある record の型は、省略可能な field の仕組みで付ける**(`spec/04-types.md` 4.3、2026-11-06)。`{..base, x: 3}` の `x: 3` は既定値。`base` が未知なら `base` に `x?: 'a` を要求し、結果の `x` を `'a | int`。pattern の既定値(3b.3)の型 `{width?: 'a} -> 'a | int` と同じ道具。
+    ChatGPT への指示: (1) 核の AST に、spread が前にある record を表す形を足す(今の `record label head tail` は、先頭の field が勝つ形だけ)。(2) その形の型付けを、省略可能な field(`x?`)と union の仕組みで定義し、主型推論と評価器(`SourceDataRuntime`)の両方に接続する。(3) 評価順は決定 43 のとおり(spread が前なら `base` の式が先)。(4) `{..base, x: 3}` の評価結果が、`base` が `x` を持つなら `base.x`、持たなければ `3` になることを、型付けの結果(`'a | int`)と対応づけて証明する。
+
 ## Lean に入ったもの(commit 順)
 | commit | 内容 |
 | --- | --- |

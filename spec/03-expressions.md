@@ -156,6 +156,7 @@ target with:
 ```
 
 - block は文を順に評価し、最後の式が値になる。
+- **式は、書いた順（左から右、上から下）に評価される**（確定, 2026-11-06）。tuple の成分、関数の引数、record の field（と spread）、`let` の右辺→本体のどれも同じである。値を使わない式も、評価はされる。
 - 式の `with:` は Haskell の `where` に近い（確定, 2026-11-04）。`target with:` の下に書いた binding 群は、`target`（tail）から見える局所の名前になる。式の `with` は companion を足すものではない。
 
 ```yulang
