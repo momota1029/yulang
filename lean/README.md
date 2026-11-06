@@ -44,6 +44,10 @@ caseのscrutinee/body・pair・letへの有限な入れ子は、後述の `CaseT
 型に適合する任意の環境・入力から、missまたは型の合う束縛を導き、runtime errorを排除する。
 `run_constant_defaults` はdefaultが環境を読まない場合に旧matcherと訪問列を含め完全に一致する。
 `ScopedCaseEvaluation` はこのmatcherを既存のarm/guard/bodyの順序へつなぐ。
+`ScopedCaseCoverage.typing_total_matches` は、独立なscope付き型判断と既存の構造的 `Total` から
+実際の照合成功と束縛型を導く。defaultの型が各使用scopeでcoverage domainに含まれる条件を明示する。
+`covered_arms_match` / `checked_arms_evaluate` により、旧coverage checkerを変更せずに
+scope付きarm列のprogressへ接続する。比較するdomainと型入力は異なってよいが、実値は両方を満たす必要がある。
 
 `CaseDataTerms.default_scoped_sound` は具体data式を各時点の環境で評価してこの契約を充足する。
 `ScopedCaseDataProgram.typing_evaluates` は、独立な構文型判断と整合する任意の外側環境から

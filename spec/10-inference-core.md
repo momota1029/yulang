@@ -1600,7 +1600,14 @@ defaultの実評価を導く。`ScopedCaseDataProgram.typing_evaluates` は、�
 この検査はorの全経路の直積を列挙せず、名前集合の要約を合成する。
 `ScopedCaseDataProgram.checkedEval_rejects_iff` は名前の不正なarmの存在と静的拒否を同値にする。
 
-**残る義務:** 一般の網羅性checkerのscope付き接続、
+`ScopedCaseCoverage.typing_total_matches` は任意のscope付き型判断・独立な構造被覆 `Total`、
+整合する環境、および型入力と被覆domainの両方に属する任意の値から、実際の照合成功と束縛型を導く。
+default evaluatorの全型環境における健全性に加え、各scopeで型付けしたdefaultの型が
+coverage domainに含まれる `DefaultBounded` を前提とする。
+`covered_arms_match` と `checked_arms_evaluate` はこの前提の下で既存の `Covered` / `check` を
+実際のscope付きarm列のprogressへ接続する。payloadの型をcellへ弱めて型付けし直すことは要求しない。
+
+**残る義務:** joint payload被覆と具体scope付きdata式の一体化、一般Rust matrix、
 sourceから型・値環境とpresence metadataを導出するpass、
 effectfulなdefault/guard、有限case treeと統一ASTへの接続。
 

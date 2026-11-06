@@ -1395,3 +1395,6 @@ run_cmd do
 #print axioms Yulang.JointCaseCoverage.Examples.boolean_payload_removed
 #print axioms Yulang.JointCaseCoverage.Examples.guarded_half_retains_payload
 #print axioms Yulang.JointCaseCoverage.Examples.float_literal_not_coverage
+#print axioms Yulang.ScopedCaseCoverage.typing_total_matches
+#print axioms Yulang.ScopedCaseCoverage.covered_arms_match
+#print axioms Yulang.ScopedCaseCoverage.checked_arms_evaluate
