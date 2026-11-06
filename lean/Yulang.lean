@@ -274,3 +274,7 @@ import Yulang.NominalListIndex
 import Yulang.NominalConstructionExamples
 import Yulang.NominalDataConstructionExamples
 import Yulang.PresenceLegacyBridge
+
+import Yulang.ScopedCasePatterns
+import Yulang.ScopedCasePatternSafety
+import Yulang.ScopedCaseEvaluation

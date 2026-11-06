@@ -1533,6 +1533,27 @@ rawな重複binderのlookupも、sourceの名前解決・重複名の規則で�
 sourceの名前解決・束縛順序・default環境のelaboration、および10.35.1の完全なcoverage算法。
 有限構文木への構造再帰を、sourceの一般再帰に関する停止性の証明と同一視しない。
 
+### 10.35.3 回答済みQ4：先行束縛を読むpattern default
+
+`ScopedCasePatterns.run` は左から右へ照合し、先に得た束縛を外側の環境の前へ加えて、
+後の部分patternとdefault evaluatorへ渡す。nested patternも同じ環境を受け取り、
+orの両枝はそれぞれ同じ入口環境から始まる。失敗枝の束縛は次の枝へ移らない。
+`Typing` も各部分の結果型環境を同じ順に延長する独立な構文判断である。
+
+`typing_matches` は任意のfloat比較、任意の型・値環境に健全なdefault evaluator、
+独立な型判断、型に適合する入口環境と入力値について、実照合がmissするか型に合う束縛を返すことを示す。
+`typed_match_no_error` は同じ前提でruntime errorを排除する。
+`run_constant_defaults` はdefaultが環境を参照しない場合に、任意のpatternと値について
+旧 `CasePatterns.run` と訪問列を含め等しいことを示す。旧定理の主張は変更しない。
+
+回答済みQ5の先行missによる後続省略は `andThen_miss`、Q6の最初のor成功での確定は
+`or_left_success` に対応する。`ScopedCaseEvaluation` はこのmatcherを既存のarm/guard/bodyへ接続し、
+型付きarm列の安全性と、合うunguarded armが存在するときのprogressを示す。
+
+**残る義務:** 具体的なdefault式の構文型付けと一般の網羅性checkerのscope付き接続、
+重複binderの静的拒否、sourceから型・値環境とpresence metadataを導出するpass、
+effectfulなdefault/guard、有限case treeと統一ASTへの接続。
+
 ## 10.36 Nominal構築の実行とlistの観測
 
 `CaseDataTerms.Expr.nominal` は解決済みtype/constructor identityとpayload式を持つ。

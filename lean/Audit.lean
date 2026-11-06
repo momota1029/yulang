@@ -1302,3 +1302,18 @@ run_cmd do
 #print axioms Yulang.MultiOperationPayloadExamples.partial_operationally_valid
 #print axioms Yulang.MultiOperationPayloadExamples.partial_false_exposes_request
 #print axioms Yulang.MultiOperationPayloadExamples.denied_partial_rejected
+
+#print axioms Yulang.ScopedCasePatterns.run_constant_defaults
+#print axioms Yulang.ScopedCasePatterns.default_present
+#print axioms Yulang.ScopedCasePatterns.default_absent
+#print axioms Yulang.ScopedCasePatterns.andThen_miss
+#print axioms Yulang.ScopedCasePatterns.or_left_miss
+#print axioms Yulang.ScopedCasePatterns.or_left_success
+#print axioms Yulang.ScopedCasePatterns.Typing.binding_names
+#print axioms Yulang.ScopedCasePatterns.Typing.aligned
+#print axioms Yulang.ScopedCasePatterns.typing_matches
+#print axioms Yulang.ScopedCasePatterns.typed_match_no_error
+#print axioms Yulang.ScopedCasePatterns.typed_match_bindings
+#print axioms Yulang.ScopedCaseEvaluation.testArm_typed
+#print axioms Yulang.ScopedCaseEvaluation.runArms_typed
+#print axioms Yulang.ScopedCaseEvaluation.runArms_progress

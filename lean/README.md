@@ -37,12 +37,19 @@ guardは実際のbool値から判定する。構築のrecordDefaultはstrict、p
 現時点のdata葉には関数、再帰、effect handler、cast、nested caseを含めない。
 caseのscrutinee/body・pair・letへの有限な入れ子は、後述の `CaseTree` で追加する。
 
-**仮の照合方針（Q5）:** 複合patternは左から試し、先行部分がmissなら後ろのdefaultを実行しない。
-仕様の評価順だけからこの省略規則を確定したとは扱わない。現在の訪問列の定理はこの核の方針に対する証明で、
-effectful defaultを含むsource翻訳への意味保存は回答後に接続する。
-**仮のor方針（Q6）:** 最初に照合が成功した枝を採り、後のguardが偽でも別の枝を再試行しない。
-parser DSLの選択規則から普通のpatternへこの挙動を広げたものではない。
-rawな束縛IDの重複時のlookupも、sourceの重複名を許す決定ではない（Q7）。
+回答済みQ4を反映する `ScopedCasePatterns.run` は、前の部分で得た束縛を外側環境の前へ置き、
+後のdefaultへ渡す。nested patternにも同じ環境を運び、orの失敗枝の束縛は次の枝へ漏らさない。
+独立な `ScopedCasePatterns.Typing` も同じ順に型環境を延長する。
+任意の型・値環境に健全なdefault evaluatorと独立型判断を前提に、`typing_matches` は
+型に適合する任意の環境・入力から、missまたは型の合う束縛を導き、runtime errorを排除する。
+`run_constant_defaults` はdefaultが環境を読まない場合に旧matcherと訪問列を含め完全に一致する。
+`ScopedCaseEvaluation` はこのmatcherを既存のarm/guard/bodyの順序へつなぐ。
+
+Q5・Q6は回答済みの規則として維持する。先行missなら後のdefaultを実行せず、
+orは最初の照合成功で確定し、その後のguardが偽なら次のarmへ進む。
+rawな束縛IDの重複時のlookupは、回答済みQ7の静的な重複名拒否を代用しない。
+旧 `CaseDataProgram` / `CaseTree` のscope非依存defaultの定理は特殊な場合として残し、
+source全体のdefault環境の割当てやeffectfulな葉の翻訳を証明済みとは扱わない。
 
 `CasePresenceValidation` はoptional宣言metadataを許可し、requiredを拒否、unknownを未解決とする。
 literal内容を旧marker値へ射影したrecordについて、lookupとrequired/optional要求の一致を示す。
