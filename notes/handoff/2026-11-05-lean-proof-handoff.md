@@ -161,6 +161,11 @@
 45. **list の spread の対象は任意の `Fold`**(`spec/03-expressions.md` 3.1、2026-11-06)。`[0, ..(1..10), 11]`。走査順に新しい list へ入れる。`for` と同じ role 解決・辞書・effect。無限の Fold なら終わらない。ChatGPT の推奨(A: list だけ)と違う答え。
     ChatGPT への指示: list spread の型判断に `Fold 'item` の制約を足し、結果の要素型を spread の要素型と literal の要素型の union にする。辞書選択、spread の effect 行、`Fold` の走査から list 構築への翻訳、評価順(書いた順)を接続する。有限性は仮定せず、進行と停止を区別する。operand が既に有限の list 値と解決された核(今の実装)は、その特別な場合として保つ。
 
+46. **作る側の型の順序は、要求で定義する**(`spec/04-types.md` 4.7b、2026-11-07)。`S ≤ T :⇔ ∀ 要求 D, T ≤ D ⇒ S ≤ D`。`|` は正の位置にだけ、要求(負の位置)は union を含まない。構成子の union への分配は、この定義から出る(`(int, int | str) = (int, int) | (int, str)`)。集合論的な部分型を別に持ち込まない。
+    旧入口との要件は緩める: 旧 instance は新 instance に入る(保存)。新 instance は旧 instance と要求で等しい(反映は同値を除く)。「全 instance が一致」は要求しない。
+47. **標準形は、同じ構成子の union を成分ごとにまとめた形**(`spec/07-display.md` 7.4b、2026-11-07)。`(int, int | str)` が標準形で、展開した形は標準形にしない。
+    Pro / Sol への指示: M1 の問い Q1(`notes/questions/2026-11-06-m1-model-contracts.md`)の答えがこれ。(1) `ProducerLe`(要求で定義した順序)を Lean で定義し、要求の文法は union を含まない形に限る。(2) 旧い構造的部分型の保存、分配の等式を定理として示す。(3) `Core.PresenceLegacyObstructions.no_semantic_legacy_instance_exact` は「全 instance の一致」を要求した場合の障害物として保持し、新しい要件(保存と、要求での同値を除く反映)の定理を別に立てる。(4) 7.4b の標準形(まとめる)を選ぶ関数と、その等価保存。
+
 ## Lean に入ったもの(commit 順)
 | commit | 内容 |
 | --- | --- |
