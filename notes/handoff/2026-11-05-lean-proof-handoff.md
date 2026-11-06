@@ -142,6 +142,9 @@
     ChatGPT への指示: `RecordTailBoundary` が示した、構文的な `IsRecord` 条件を持つ参照モデルを、record の tail を束の法則の下で同一視するモデルに作り直す。checker・cut elimination・`StructuralDecisions`・compiler の接続を、そのモデルで再証明する。`Typing.record` の既存のインスタンスを落とさない(10.25 の末尾の方針どおり)。その上で、`SourceConstraintSupport.RecordFree` の制限を外し、record 構築を含む core の式まで、`recordFree_instances_exact` 相当を閉じる。
     注意: 4.1 には「`never` は全ての型の部分型(bottom 型)で、注釈にも書ける」とある。「厳密には型ではない」というユーザーの言い方との表現の差は、実害はないが、4.1 の文言を後で揃えるかもしれない。
 
+39. **record の「残り」は、要求側が rigid なときに共変**(`spec/04-types.md` 4.3、2026-11-06)。要求側(右辺・反変の位置)の残り `S` は field が決まった rigid な spine に限られ、未知 tail の展開(union・`never`・型変数)は供給側(左辺)だけに現れる。`S` が rigid なら、`R ≤ S ⇒ {l:A, ..R} ≤ {l:A, ..S}`。一般の `S` に対する新しい規則は足さない。10.27.5 の確認点への回答。
+    ChatGPT への指示: (1) この rigid-`S` 版の共変性を、SemanticRecords の関係に足す。これで `record(l,A,never) ≤ {}` も `never ≤ {}` から導ける。(2) 最終 record 関係の checker と cut elimination を再証明する。(3) `SemanticRecordVarianceBoundary` の反例(`S = ↑{y} ∪ ↑{z}`)は、`S` が rigid でないので、この規則の反例にならないことを明記する。(4) 隠れた field(first-field-wins)は検査で比べない。比べないことによる完全性の欠落があれば、その形を境界として示す。(5) `RecordFree` の制限を外し、record 構築を含む全 core の自由 parameter scheme・全 instance 主型性・拒否完全性を閉じる。
+
 ## Lean に入ったもの(commit 順)
 | commit | 内容 |
 | --- | --- |
