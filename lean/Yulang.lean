@@ -22,6 +22,8 @@ import Yulang.PresenceBoundCoalescing
 import Yulang.PresenceRegularCoalescing
 import Yulang.PresenceMaskedCoalescing
 import Yulang.CorePresenceMaskObstructions
+import Yulang.CorePresenceLegacyObstructions
+import Yulang.PresenceLayerExpressiveness
 import Yulang.CorePresenceGenerationCore
 import Yulang.CoreInferenceExamples
 import Yulang.VariantsMerged

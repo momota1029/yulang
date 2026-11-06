@@ -79,6 +79,17 @@ run_cmd do
 #print axioms Yulang.Core.PresenceMaskObstructions.Counterexample.closed
 #print axioms Yulang.Core.PresenceMaskObstructions.Counterexample.model
 #print axioms Yulang.Core.PresenceMaskObstructions.Counterexample.masked_root_retraction_fails
+#print axioms Yulang.Core.PresenceLegacyObstructions.source_supported
+#print axioms Yulang.Core.PresenceLegacyObstructions.source_lower_bound
+#print axioms Yulang.Core.PresenceLegacyObstructions.source_minimum_instance
+#print axioms Yulang.Core.PresenceLegacyObstructions.source_not_distributed_instance
+#print axioms Yulang.Core.PresenceLegacyObstructions.regular_data_distributes
+#print axioms Yulang.Core.PresenceLegacyObstructions.data_subtype_not_reflecting
+#print axioms Yulang.Core.PresenceLegacyObstructions.no_semantic_legacy_instance_exact
+#print axioms Yulang.PresenceLayerExpressiveness.meaning_fresh_insert
+#print axioms Yulang.PresenceLayerExpressiveness.no_exactEmpty_layer
+#print axioms Yulang.PresenceLayerExpressiveness.no_exactEmpty_all_observations
+#print axioms Yulang.PresenceLayerExpressiveness.no_exactEmpty_some_observation
 #print axioms Yulang.Core.PresenceGeneration.generate_models_iff_typing
 #print axioms Yulang.Core.PresenceGeneration.principal_exact
 #print axioms Yulang.Core.PresenceGeneration.CoreRules.conservative

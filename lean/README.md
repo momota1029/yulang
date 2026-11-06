@@ -142,6 +142,19 @@ effectful fallback の推論例、未知 base を持つ lambda の推論例は�
 
 **M1 は未完了。** 関数・行を含む具体的な共通 carrier/部分型と、そのモデル上の solved scheme がないため、
 所属の同値を `SourcePrincipalInference` と presence 推論の全 instance の同値へ読み替えない。
+`Core.PresenceLegacyObstructions` はこの注意を実際の旧 supported 式で証明する。
+`int × (int | str)` は旧 instance になるが、`(int × int) | (int × str)` はどの結果行でもならず、
+data 包含では前者から後者へ移せる。`no_semantic_legacy_instance_exact` は、full data 包含で
+subsumption する新関係と旧全 instance の保存・反映が両立しないことを示す。
+新しい構造的 presence 拡張一般を否定する主張ではない。
+
+さらに `PresenceLayerExpressiveness.no_exactEmpty_layer` は任意の payload 割当て・mask の下で、
+既存の有限 layer だけでは exact empty を表現できないことを示す。有限個の言及 label の外に
+field を追加しても所属が変わらないためであり、全観測深さの共通部分／和集合でも同じ境界が残る。
+共通 carrier には追加の exact/closed 情報が必要となる。
+これらと mask の問題の選択肢・仮の前提・正確な残りの義務は
+[`M1 の問い`](../notes/questions/2026-11-06-m1-model-contracts.md) に分離した。
+
 統合メモ5節の工程3〜5で必要な未証明の補題は次の通りである（以下は契約であり、Lean の定理名ではない）。
 
 - `presence_coalesce_satisfies`: 任意の有限 presence/open-tail 制約 graph と入力制約について、
