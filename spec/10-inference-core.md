@@ -1807,6 +1807,40 @@ sourceの構築位置抽出・変換選択・保留plan生成・role辞書選択
 既存listのspread要素に新しい保留cast境界を設けるか（Q14）は未回答であり、
 `notes/questions/2026-11-06-list-spread-questions.md` に例・選択肢・推奨を記録した。
 
+### 10.36.4 回答済みQ13：非停止を含む解決済みFold走査protocol
+
+`FoldTraversal.View` はdone・内部tick・itemのyield・operation別のrequestを区別する。
+cursorは任意の型であり、有限listであることも、protocolが終わることも要求しない。
+requestはsigned occurrence・型付きpayload・そのoperationのResponseを受け取る継続をそのまま持つ。
+`Step` と独立な `Prefix` は有限な実行部分を記述し、未回答requestへ架空のresponseを与えない。
+この `Prefix` の出力はyield列と回答済みrequest occurrence列を別々に持つ。
+payloadや両者の相互順序を含む一つの完全trace、または全request treeの等価を主張する定理ではない。
+
+`Safe` は任意の有効stateで、一歩後の不変条件、yieldのitem型、要求の行所属、
+**すべてのresponse**の継続stateの不変条件を要求する局所契約である。
+`prefix_safe` は任意のprotocol・不変条件・item述語・行述語とこの契約、
+有効な開始state、任意の有限prefixから、最後のstateの不変条件・全yieldの型・全requestの行所属を導く。
+`progress` は同じ局所契約と有効stateから、done、有効なtick、有効なtyped yield、
+または行に属するrequestと全responseに対する有効な継続、の四通りを導く。
+`pending_after_prefix` は任意の有限prefixの後に残るrequestにもこの契約を与える。
+これらは完全な実行成功、有限性、停止を前提にも結論にもしていない。
+
+`repeat_safe` は任意の型付きitemを無限にyieldするprotocolの局所契約を与え、
+`repeat_prefix` は任意の自然数個のyieldを含むprefixを構成し、`repeat_never_done` はそのprotocolがdoneにならないことを示す。
+`ofNext_done`・`ofNext_yield` は任意の純粋cursorをprotocolへ移すexactな一歩の対応であり、
+`existing_for_enters`・`existing_for_finishes` は既存 `LoopEffects.Machine` のpull遷移に接続する。
+
+`accepted_plan_unique` は任意の可視impl列・rigid goalについて、
+`CheckedRoles.resolve = answer resolved` と同じgoalの任意の独立なDictionaryから、消去後planの一致を導く。
+`selected_driver_exact` はさらに任意の供給method tableを取り、検査で選んだdriverとそのDictionaryのdriverが同じことを示す。
+role受理だけから供給tableの型安全性やsource実装との一致を推論する定理ではない。
+
+**残る義務:** sourceの高階・accumulator多相な `Fold.fold` 本体からprotocolを生成すること、
+callback・effectとの意味保存、供給method tableの検証、sourceの型/effect一般化、一般spread構築との接続。
+既存forの純粋 `nextItem` 核を任意のsource Foldそのものとは同一視しない。
+`for_in` はUnit accumulatorでFoldを呼ぶため、将来の対応でも任意のFoldがcallbackの返却accumulatorを
+必ず採用するという未指定の律を追加しない。
+
 ## 10.37 Presence型と有限legacy data推論の橋
 
 `PresenceLegacyBridge.translate` は有限な `StructuralBase.Ty Row` をhidden label列とともに

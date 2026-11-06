@@ -300,3 +300,5 @@ import Yulang.NominalDataAssemblyExamples
 import Yulang.NominalListSpread
 import Yulang.NominalListSpreadExamples
 import Yulang.NominalListIndexError
+
+import Yulang.FoldTraversal

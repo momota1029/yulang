@@ -1532,3 +1532,18 @@ run_cmd do
 #print axioms Yulang.NominalListIndexError.catch_invalid
 #print axioms Yulang.NominalListIndexError.catch_index_via_wrap
 #print axioms Yulang.NominalListIndexError.catch_index_bounded
+
+#print axioms Yulang.FoldTraversal.Prefix.trans
+#print axioms Yulang.FoldTraversal.step_safe
+#print axioms Yulang.FoldTraversal.prefix_safe
+#print axioms Yulang.FoldTraversal.progress
+#print axioms Yulang.FoldTraversal.pending_after_prefix
+#print axioms Yulang.FoldTraversal.ofNext_done
+#print axioms Yulang.FoldTraversal.ofNext_yield
+#print axioms Yulang.FoldTraversal.existing_for_enters
+#print axioms Yulang.FoldTraversal.existing_for_finishes
+#print axioms Yulang.FoldTraversal.repeat_safe
+#print axioms Yulang.FoldTraversal.repeat_prefix
+#print axioms Yulang.FoldTraversal.repeat_never_done
+#print axioms Yulang.FoldTraversal.accepted_plan_unique
+#print axioms Yulang.FoldTraversal.selected_driver_exact
