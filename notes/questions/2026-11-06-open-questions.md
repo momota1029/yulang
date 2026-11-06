@@ -113,7 +113,7 @@ Aをsource仕様の決定とは扱わない。既存のdefault訪問例は先行
 
 ## Q6. or patternの枝を、照合成功時に確定するか、guardまで含めて試すか
 
-状態: **未回答**。`spec/03b-patterns.md` 3b.1/3b.6/3b.6′は選択・名前集合・asの結合力を定めるが、
+状態: **回答済み(2026-11-06): A**。左から照合し、最初に合った枝の束縛でguardを一度だけ評価する。偽なら次のarmへ進む(右の枝を試し直さない)。`spec/03b-patterns.md` 3b.6に反映。以下は質問の記録。`spec/03b-patterns.md` 3b.1/3b.6/3b.6′は選択・名前集合・asの結合力を定めるが、
 普通のor patternで複数の枝が合う場合の選択とguard失敗時の再試行は明記していない。
 `spec/09-parser-dsl.md` 9.3のparser選択のbacktrack規則は、普通のpatternへ拡張しない。
 
