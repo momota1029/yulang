@@ -183,7 +183,14 @@ constructor identity・enum tag・構築位置・引数個数も保持する。
 `runValues_typed` は元の値の型付け契約と変換コードの値型保存契約を別に必要とする。
 registryのground境界検査から正しい変換コードを合成する証明は未完であり、
 `finish` の受理だけからtarget型の構築値が得られるとは主張しない。
-このsite実行器と上の具体構築ASTを一つのsource elaboratorで結ぶ義務も残る。
+`NominalDataAssembly.execute_runtime` はsite実行器の結果を具体 `CaseDataTerms` 構築ASTへ渡すことを
+完全な計算等式でつなぐ。`accepted_requestTree` は受理planについて元の全siteの要求を保ち、
+`execute_eof` は未解決parameterで元値を変換せずassemblyへ渡す。
+`typing_evaluates` はplan受理・元siteの型契約・明示 `CastContract`・独立なassembly型判断から、
+返る各分岐でmetadata保存、具体ASTの評価成功、結果型への所属を導く。
+適合境界のidentity保存と、許可された非適合境界のpure codeの型保存をcontractとして要求する。
+隠れるstruct fieldも要求を残し、実際のstruct/enum/list値を構築する等式を含む。
+sourceからsiteとassembly codeを作るpass、固定field/defaultの宣言検査、cast code合成は残る。
 
 `NominalListViews.index_exact` は任意の有限list・自然数位置・要素について、内部lookupの成功と
 独立な位置判断 `At` を同値にする。`cursor_index` と `fold_records_order` により、
@@ -751,6 +758,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.PresenceLayers` | required/optional/lacksを保つ有限layer、任意の子述語と正確なmembership checkerから全値で判定同値、mask合成とhidden field消去、field別optional化で相関が失われる反例 | 任意述語の決定可能性、全深さの部分型判定、closure/effect行の意味、拡張solverの主型性 |
 | `Yulang.PresenceRegularObservations` / `PresenceRegularLegacyBridge` | 任意graphの全有限観測判定、可換なrenameと有限block closureでの保存・反映、旧regular型のdata所属・data包含との同値、既存common carrierのblockへの接続 | 旧structural subtypingとの同値、arrow/closureと行の意味、全深さの判定算法、presence制約の飽和/coalescing、全source schemeのinstance同値 |
 | `Yulang.NominalConstructionRuntime` / `NominalConstructionExamples` | 不変parameterの元の構築位置の順序、適合時のcast抑制、純粋cast後の全request tree保存、EOFの実値保持、metadataとarity保存 | ground境界検査から値型に正しい変換codeの合成、固定struct field・宣言defaultを含むsource elaboration、具体data構築ASTとの統合 |
+| `Yulang.NominalDataAssembly` / `NominalDataAssemblyExamples` | site実行器から具体ASTへの完全等式、元のrequest treeとEOF値の保持、受理plan・局所CastContract・元site型・独立Code型判断から返却分岐の構築成功と結果型、struct/enum/listの実値例 | sourceのsite抽出・Code生成、固定field/defaultの宣言検査、cast code合成、Fold/Indexのsource辞書との対応 |
 | `Yulang.NominalListViews` / `NominalListIndex` | 同じlistに対するcursor・index・foldの一致、整数indexの成功と有効区間の同値、無効indexの非再開error要求、既存wrapとの一致 | sourceのFold/Index辞書の選択・署名と本文の対応、下書きのerror名/payloadの確定 |
 | `Yulang.NominalDataConstructionExamples` | 解決済みnominal構築式、任意整数から計算するstruct/enum/list payloadの型付けと実評価・全訪問列 | 宣言のlookup・型引数・payload宣言型の検査、source constructor default・castの挿入 |
 | `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、source patternから束縛付きarm表への翻訳、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |

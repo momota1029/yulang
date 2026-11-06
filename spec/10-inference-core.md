@@ -1675,7 +1675,7 @@ registryに受理されたground boundaryからそのcodeを合成・検証す�
 `loopMachine` はこのcursorを既存のloop evaluatorへ渡し、headへの進入と空listの終了を一致させる。
 
 **残る義務:** source nominal宣言の存在・型引数・payload宣言型の検査、固定field/default/castのelaboration、
-保留site実行器と具体構築ASTの統合、ground boundaryから型付きpure conversionの合成、
+sourceから保留siteと具体構築ASTを導出するpass、ground boundaryから型付きpure conversionの合成、
 Fold/Indexのsource辞書解決と本文の対応、下書きのindex error宣言の確定とその本文への接続。
 内部の `Nat → Option Value` はsourceのAPIを選ぶための決定ではない。
 
@@ -1699,6 +1699,26 @@ Fold/Indexのsource辞書解決と本文の対応、下書きのindex error宣�
 **残る義務:** `error index_err: out_of_range int` は3.2で下書きのため、名前・payloadを
 固定していない。sourceのIndex辞書・全型推論器へのeffect行の組込みと、宣言からこの
 encodingを作るelaborationは別の義務である。内部Optionをsourceの返り値にはしていない。
+
+### 10.36.2 保留siteの実行から具体構築ASTへの接続
+
+`NominalDataAssembly.Code` はplanのconstructorにindexされ、enumのtagをそのまま保持し、
+structのconstructor identityは宣言解決から明示的に受け取る。listは具体 `Value.list` を作り、nominal identityをmetadataに保つ。
+`execute_runtime` は任意のruntime・plan・Codeについて、site実行器の結果へ具体AST評価を写像したものと完全に等しいことを示す。
+`execute_requestTree` は型前提なしで元instruction列の要求木と一致し、
+`accepted_requestTree` は任意registry・construction・expectation・planの `finish` 成功から
+元のconstruction引数列との要求木等号を導く。全response分岐・payload・signed weightを保持する。
+`execute_eof` は任意のconstructionについて、期待型がすべて未解決なら元値をそのまま元順でAST環境へ渡す。
+
+`CastContract` は任意の適合境界でidentityが値型を保つことと、許可された非適合境界のpure codeが
+値型を保つことを要求する。`boundary_typed` は任意のこのcontract・許可境界・元型の値からtarget型への所属を導く。
+`accepted_values_typed` はplan受理、同contract、全元siteの返却値型契約から、変換後vectorの型を全返却分岐で導く。
+`typing_evaluates` はさらにsite型環境における独立なCode型判断を前提に、
+返却分岐ごとにmetadata保存・具体ASTの評価成功・結果型所属を導く。
+未処理のeffect要求が必ず返ることや、任意sourceの停止性を主張する定理ではない。
+
+**残る義務:** sourceの全siteの抽出とCode生成、固定field/defaultの宣言検査、
+registry境界から正しい変換codeを合成すること、Fold/Indexのsource辞書と本文の対応。
 
 ## 10.37 Presence型と有限legacy data推論の橋
 

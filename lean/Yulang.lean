@@ -292,3 +292,5 @@ import Yulang.ScopedJointCaseExamples
 import Yulang.PresenceLayers
 import Yulang.PresenceRegularObservations
 import Yulang.PresenceRegularLegacyBridge
+import Yulang.NominalDataAssembly
+import Yulang.NominalDataAssemblyExamples

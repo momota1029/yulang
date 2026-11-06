@@ -1435,3 +1435,16 @@ run_cmd do
 #print axioms Yulang.PresenceRegularLegacyBridge.layer_exact
 #print axioms Yulang.PresenceRegularLegacyBridge.data_subtype_exact
 #print axioms Yulang.PresenceRegularLegacyBridge.legacy_block_observe_exact
+#print axioms Yulang.NominalDataAssembly.Typing.expression
+#print axioms Yulang.NominalDataAssembly.bindings_typed
+#print axioms Yulang.NominalDataAssembly.execute_runtime
+#print axioms Yulang.NominalDataAssembly.execute_requestTree
+#print axioms Yulang.NominalDataAssembly.accepted_requestTree
+#print axioms Yulang.NominalDataAssembly.execute_eof
+#print axioms Yulang.NominalDataAssembly.boundary_typed
+#print axioms Yulang.NominalDataAssembly.accepted_values_typed
+#print axioms Yulang.NominalDataAssembly.typing_evaluates
+#print axioms Yulang.NominalDataAssemblyExamples.struct_casts_at_sites_and_keeps_hidden_requests
+#print axioms Yulang.NominalDataAssemblyExamples.enum_casts_then_constructs_payload
+#print axioms Yulang.NominalDataAssemblyExamples.list_casts_then_constructs_elements
+#print axioms Yulang.NominalDataAssemblyExamples.eof_list_keeps_original_values

@@ -113,9 +113,9 @@ regularな `SourcePrincipalInference` 全体の主型性・関数/行意味へ�
 
 | 表の構文 | 核 | 状態 | 備考 |
 | --- | --- | --- | --- |
-| `struct p {x: int, y: int}` | `CaseDataTerms.Expr.nominal typeId ctorId recordPayload` | 確定（核の形） | record payloadを実際に計算する構築式と型安全性を追加。宣言lookup・固定fieldの宣言型・default・castのelaborationは未証明 |
-| `enum e = a | b x` | `CaseDataTerms.Expr.nominal typeId ctorId payload` | 確定（核の形） | 解決済みidentityを保つstrictなpayload構築。複数constructorからのcase分解も追加。source宣言の検査は未証明 |
-| list literal の構築 | `CaseDataTerms.Expr.nil/cons`、`NominalConstructions.listLiteral` のsite実行 | 確定（核の形） | 実値の構築、保留cast位置の順序、Fold用cursorと内部Indexの一致。source辞書・整数key規則・二つの核の統合は別義務 |
+| `struct p {x: int, y: int}` | `NominalDataAssembly.Code.structLiteral` → `CaseDataTerms.Expr.nominal` | 確定（解決済み核） | 保留cast siteから実record payload構築を接続。局所CastContractと独立Code型判断から値型を保存し、隠れるfieldの要求も残す。宣言lookup・固定field/default・source site抽出・cast合成は別義務 |
+| `enum e = a | b x` | `NominalDataAssembly.Code.enumeration` → `CaseDataTerms.Expr.nominal` | 確定（解決済み核） | planのidentity/tagを保ち、保留siteから具体payloadへ接続。受理planの全request treeとEOF元値を保持。source宣言検査・site抽出・cast合成は別義務 |
+| list literal の構築 | `NominalDataAssembly.Code.list` → `CaseDataTerms.Expr.nil/cons` | 確定（解決済み核） | 保留site実行器と実値構築を接続。Fold cursorと整数Indexが同じpayloadを観測し、無効indexは任意encodingのerror要求へ接続。source辞書・site抽出・error宣言（Q12）は別義務 |
 | `type t = int`(alias) | 展開 | 確定 | 章4.4 |
 | `role R 'a: ...` / `impl R T: ...` | 辞書(dictionary)の型と値 | 確定 | 辞書渡しは `RoleDictionaries` に証明がある |
 | `where 'a: R` | 辞書引数 | 確定 | 具体化した場所で解く(決定 30) |
