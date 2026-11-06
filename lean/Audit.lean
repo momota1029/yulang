@@ -66,6 +66,25 @@ run_cmd do
 #print axioms Yulang.PresenceDataSafety.default_operator_principal
 #print axioms Yulang.PresenceDataSafety.optional_operator_principal
 #print axioms Yulang.PresenceDataSafety.optional_operator_union
+#print axioms Yulang.PresenceDataCompatibility.eval_toOption
+#print axioms Yulang.PresenceDataCompatibility.eval_success_iff_infer
+#print axioms Yulang.PresenceDataCompatibility.infer_rejected_iff_eval_error
+#print axioms Yulang.PresenceDataCompatibility.exact_typing_iff_evaluates
+#print axioms Yulang.PresenceDataCompatibility.shadow_typing_infers
+#print axioms Yulang.PresenceDataCompatibility.shadow_quotient_typing_infers
+#print axioms Yulang.PresenceDataCompatibility.shadow_principal_infers
+#print axioms Yulang.PresenceDataCompatibility.shadow_plan_infers
+#print axioms Yulang.LoopEffects.step_progress_iff
+#print axioms Yulang.LoopEffects.step_blocked_iff
+#print axioms Yulang.LoopEffects.prefix_iff_run
+#print axioms Yulang.LoopEffects.run_add
+#print axioms Yulang.LoopEffects.run_add_exhausted
+#print axioms Yulang.LoopEffects.run_last
+#print axioms Yulang.LoopEffects.run_next
+#print axioms Yulang.LoopEffects.run_redo
+#print axioms Yulang.LoopEffects.external_then_redo
+#print axioms Yulang.LoopEffects.normal_finite_traversal
+#print axioms Yulang.LoopEffects.redo_forever
 
 #print axioms Yulang.RoleVisibility.resolved_mono
 #print axioms Yulang.Inference.ModelMap.formula_preserved

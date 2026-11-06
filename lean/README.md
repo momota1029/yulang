@@ -78,6 +78,15 @@ callerが推論成功やsolverの解を前もって渡す必要はない。`infe
 `lake env lean --trust=0 --run RunPresenceDataInference.lean` はpresent/absent、computed base、
 非recordの拒否、隠れるfallbackの失敗、unsupportedとrejectedの区別を実行する。
 
+`PresenceDataCompatibility.eval_success_iff_synth` は任意のexact descriptor環境と元Exprに
+ついて、別々の算法である型合成と実評価の成功を双方向に一致させ、返り値の等号も証明する。
+`infer_rejected_iff_eval_error` は支持されたdata構文について拒否と実行時エラーを同値にする。
+新推論器が評価器を呼ぶ定義へ変更したのではなく、独立な構造再帰同士を帰納法で接続した。
+`shadow_typing_infers` / `shadow_quotient_typing_infers` / `shadow_principal_infers` は
+以前のraw型付け・商型付け・principal formulaの解から、新inferの成功と旧targetの値意味論を
+導く。`shadow_plan_infers` は一つの同じ新推論結果の値が**全ての旧parameter instance**を
+満たすことを示す。型宇宙・部分型関係・主型の定義を同一視する定理ではない。
+
 決定43の一般的なstrict引数評価と、歴史的な `OperationalTyping` のcomputation引数渡しは
 区別する。`OperationalTypingExamples.unusedArgument_eval` は未使用の引数を実行しない
 旧模型の定理であり、現在のsurface言語の評価順を証明するものではない。
@@ -129,6 +138,31 @@ Boolへの実終了を導く。`run_any` / `run_all` / `run_all_any` は任意�
 `lake env lean --trust=0 --run RunEffectExpansions.lean` はerrorの変換、短絡で飛ばす枝、
 false枝へ進む順序、外部観測と保護された要求を実行する。
 effectfulなsurface `if` をこのhelperへ包むelaborationとsource再帰の停止性は別の義務である。
+
+## for・last・next・redoの有限実行
+
+`LoopEffects` はlabelなしのloop展開を、同じsignature付き要求木上の小ステップmachineで
+記述する。任意のcursorによる要素選択と外部effectのinterpreterを明示的なparameterに持つ。
+独立な `Step` / `Pending` / `Prefix` と実際の `step` / `run` の一致を
+`step_progress_iff` / `step_blocked_iff` / `prefix_iff_run` が証明する。
+fuelは観測する有限step数であり、型付けの前提や言語の停止仮定ではない。
+
+`run_last` はUnitで終了し、`run_next` は残りcursorへ進み、`run_redo` は同じ要素のbodyを
+先頭から再設定する。いずれも操作の古い継続は再開しない。
+`external_then_redo` は外部effect後の**現在のstateとevent**を保持したまま再開することを
+示す。`run_add_exhausted` は予算を追加して現在のconfigurationから続きを実行した結果が、
+初めから合計予算で実行した結果と一致し、過去のtraceをappendで保持することを示す。
+
+`normal_finite_traversal` は明示された有限 `Traverses` とpureな各bodyの下で、長さから
+計算した予算 `2 * length + 2` によりUnitへ終了することを証明する。
+`redo_forever` は逆に、有限bodyでもすべてのfuelで予算切れとなる例を証明する。
+一般のfor/redoの停止性を主張しない。保護されたloop要求や応答のない外部要求は元の
+configurationを保って中断する。外部interpreterへsigned occurrenceを渡すが、その
+interpreter自身のmask適合、effectfulな `Fold`、label値のsource束縛・method・衛生性と
+入れ子loopを含むsource elaborationはこのmodelの外に残る。
+`lake env lean --trust=0 --run RunLoopEffects.lean` はstateを更新してredo→next→lastと進む
+実例、途中からの再開、abort後の未実行、保護された要求、有限走査と無限redoを確認する。
+評価順・presence推論・error/junction・loopの4 runnerもCIへ追加した。
 
 ## 決定40：隠れたfieldの型等価
 

@@ -41,3 +41,7 @@ jobs:
           lake env lean --trust=0 --run RunHandlerPermissions.lean
           lake env lean --trust=0 --run RunSourceDataSafety.lean
           lake env lean --trust=0 --run RunShadowRecordCheck.lean
+          lake env lean --trust=0 --run RunSourceDataOrder.lean
+          lake env lean --trust=0 --run RunPresenceDataInference.lean
+          lake env lean --trust=0 --run RunEffectExpansions.lean
+          lake env lean --trust=0 --run RunLoopEffects.lean

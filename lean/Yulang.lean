@@ -241,3 +241,7 @@ import Yulang.PresenceDataShapes
 import Yulang.PresenceDataInference
 import Yulang.PresenceDataSafety
 import Yulang.PresenceDataExamples
+import Yulang.PresenceDataCompatibility
+import Yulang.LoopEffects
+import Yulang.LoopEffectLaws
+import Yulang.LoopEffectExamples

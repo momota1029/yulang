@@ -11,11 +11,14 @@ Lean の `Inference.Expr` と `RecursiveEffects.Expr` が持つ形だけを使�
 var i        lit b        lam e        app f a       let v b
 branch c t e              pair a b     fst e         snd e
 {}  (emptyRecord)         record l h t               field l e
+recordDefault l base fallback
 variant l e               request op e               boundary(protect|release, mask) e
 handler op action ret arm
 ```
 
 `lit` の `b` は base 型の印だけで、整数や文字列の中身を持たない。再帰束縛は核の式の外側(`RecursiveInference` の SCC ブロック)にある。
+`recordDefault` は決定44に従って追加済み。型付けと実推論は `PresenceDataInference`、
+実評価は `SourceDataRuntime` にある。旧required-field推論器では明示的に未対応と区別する。
 
 ## 状態の印
 
@@ -40,7 +43,7 @@ handler op action ret arm
 | `(a, b, c)` | `pair a (pair b c)` | 下書き | 右ネストの pair。`.0` `.1` `.2` は `fst` と `snd` の連鎖 |
 | `{x: 1, y: 2}` | `record x 1 (record y 2 {})` | 確定 | 先頭が勝つ(決定 40) |
 | `{x: 1, ..rest}` | `record x 1 rest` | 確定 | |
-| `{..base, x: 3}` | (新しい形が要る) | **欠** | 決定 44。`x?` と union で型付け |
+| `{..base, x: 3}` | `recordDefault x base 3` | 確定 | 決定44。核AST・presence-aware data推論・実評価を追加済み。surface翻訳passの証明とは区別する |
 | `{x, y}` | `{x: x, y: y}` と同じ | 確定 | 章3.1 |
 | `p.x`(field) | `field x p` | 確定 | field か method かは 6.4 の解決で決まる |
 | `:tag e` / `enum::v e` | `variant l e` | 確定 | |
@@ -73,7 +76,7 @@ handler op action ret arm
 | 表の構文 | 核 | 状態 | 備考 |
 | --- | --- | --- | --- |
 | `op args`(operation の呼び出し) | `request op args` | 確定 | 普通の関数呼び出しに見える(章5.1) |
-| `catch e: op p, k -> body; v -> ret` | `handler op e (lam ret) (lam (lam body))` | **欠** | 核の `handler` は operation を 1 つしか取れない。複数 arm の handler が要る |
+| `catch e: op p, k -> body; v -> ret` | `handler op e ret body` | **欠** | 核のarmは既にreturn値、payload・継続を環境に束縛するため、追加のlambdaでは包まない。複数armのsource handlerへの対応は未接続 |
 | `catch` の value arm 省略 | `v -> v` と同じ | 確定 | 章5.2 |
 | 高階の境界の保護・解除 | `boundary(protect/release, mask) e` | 下書き | 型から elaboration が挿入する。利用者は書かない |
 | `for x in xs: body` | `loop::for_in xs (\x -> body)` | 確定 | std の `for_in`(`main:lib/std/control/flow.yu`)。`last`/`next`/`redo` は `loop` の operation。値は常に `()` |
@@ -101,7 +104,7 @@ handler op action ret arm
 | `role R 'a: ...` / `impl R T: ...` | 辞書(dictionary)の型と値 | 確定 | 辞書渡しは `RoleDictionaries` に証明がある |
 | `where 'a: R` | 辞書引数 | 確定 | 具体化した場所で解く(決定 30) |
 | `act a: our op: P -> Q` | operation の署名 | 確定 | `PolySignature` |
-| `error e: v1 p; v2 q` | 下の「`error` 宣言の展開」 | 確定 | 章5.7。`wrap` は error effect → `result`、`up` は error effect → 別の error effect(2026-11-06 ユーザー説明)。型は私の読み |
+| `error e: v1 p; v2 q` | 下の「`error` 宣言の展開」 | 確定 | 章5.7。`wrap` は error effect → `result`、`up` は error effect → 別の error effect。型と非再開は章5.7で確定 |
 | `cast(x: A): B = body` | cast 規則の登録 | 確定 | 本体は純粋。境界で挿入 |
 | `act copy = source` | 新しい effect family | 確定 | 章5.6 |
 
@@ -141,12 +144,17 @@ ChatGPT に依頼する核の拡張の候補。
 
 1. variant・literal・list を分解する `case` 相当の形(網羅性と残余の型付けを含む。決定 4)
 2. 複数 operation を持つ handler(shallow・value arm は 1 つ)
-3. label(handler の instance の同一性)
+3. labelの値・methodと衛生的な境界をsourceから核へ対応させるelaboration。labelが値であること自体は章3c.2で確定
 4. nominal 型の構築子(struct・enum・list)
 5. 整数・文字列などの literal の中身(今は base の印だけ)
-6. `{..base, x: 3}`(決定 44)
+
+決定44の `recordDefault` は上記の通り追加済み。`error` と `junction` の要求木helperも
+`ErrorEffects` / `JunctionEffects` にあるが、ordinary strict applicationとの接続を含む
+source elaborationの証明は別に必要である。
 
 ## 確認したいこと(ユーザーへ)
 
-- `for` の `redo` の意味(同じ反復のやり直し)の実装方針
 - 書式付き文字列の `fmt` の境界(std 側。`main:web/docs/ja/reference/strings.md` が素材。言語としては `Display` を呼ぶところまで)
+
+`redo` は章3c.2で確定済み。同じ要素について本体の先頭からやり直し、既に起きたeffectや
+state変更は巻き戻さない。この意味について再確認は不要である。
