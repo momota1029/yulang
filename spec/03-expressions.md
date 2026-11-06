@@ -87,6 +87,7 @@ xs[0]
 - 存在しない field を読む（`{x: 1}.y`）のはコンパイル時の型エラーで、実行時エラーにはしない（確定, 2026-11-04）。
 - `p.x` は field selection、または method。まず receiver の型に結びついた field と method を探し、次に role の method と effect 行の method を探す。
 - `xs[0]` は index で、`xs.index 0` のように field selection と application に落ちる。`[ ]` は `Index` role の `index` への糖衣で、`Index` を実装した型なら何でも使える（list・map・`str` など）。
+  list の index が有効なのは `0 ≤ i < length` のときだけで、**負の index は無効**である（末尾相対にはしない。確定, 2026-11-06）。`[10, 20][-1]` は有効な位置を指さない。無効な index の結果の表し方は、別に決める。
   `xs [0]` と空白を空けると、`xs` に list literal `[0]` を適用する裸 application になり、index にはならない（`f(x)` と `f (x)` の区別と同じ。確定, 2026-11-04）。
 - `x.foo::bar` は「`foo::bar` を `x` に適用する」method の糖衣（`foo::bar x`）で、field を取ってから path を進む意味ではない（確定, 2026-11-04）。
   field を取ってから path を進みたいときは `(x.foo)::bar` と括弧で包む。同名の method が複数あるときに、path で指定して呼ぶ用途が想定される（用途は推測）。

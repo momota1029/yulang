@@ -172,7 +172,7 @@ tagを残すなら元のbool payload全体を残す決定は、どちらの選�
 
 ## Q9. listの負の整数indexを、無効とするか末尾相対とするか
 
-状態: **未回答**。`spec/03-expressions.md` 3.5、`spec/04-types.md` 4.1、`spec/06-roles.md` 6.1はIndex経由の解決を定めるが、
+状態: **回答済み(2026-11-06): A**。負のindexは無効。末尾相対にしない。`spec/03-expressions.md` 3.2に反映。以下は質問の記録。`spec/03-expressions.md` 3.5、`spec/04-types.md` 4.1、`spec/06-roles.md` 6.1はIndex経由の解決を定めるが、
 負のlist indexの解釈は定めていない。例: `[10, 20][-1]`。
 
 - **A（推奨）:** 有効な位置は`0 ≤ i < length`とし、負のindexは無効にする。失敗の表現は次の問いで分けて扱う。
