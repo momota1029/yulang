@@ -58,10 +58,18 @@ data 述語の外延的な商上の関数として実装することはできな
 
 **今回の仮の作業前提:** 1 を `PresenceMaskedCoalescing` の明示的な候補モデルとして
 追加した。全 root mask について独立な constructor 等式と辺を満たす解を定義し、
-そのすべての解を回収する定理を証明した。既存の unmasked 型や関係は変更しない。
+coalesce に渡す cache のすべての独立な mask つき解を回収する定理を証明した。
+実際の flow 飽和 cache では、元入力のすべての独立な mask つき解まで回収できる。
+既存の unmasked 型や関係は変更しない。
 1 を言語全体に採用したことにはせず、2 との接続も未証明とする。
 今後の inspector は、採用する観測に対して完全でなければならない。
 `required l never` を unmasked な意味だけで `bottom` に縮約しては、1 の観測を保存しない。
+
+`PresenceMaskedFlatSolver` は固定 presence/absence bound の上下界・flow の断片で、
+全 mask の独立な predicate family を対象に、solver 成功や比較 oracle を仮定しない完全性を示す。
+ただし自由 family は `Fin n → List Nat → (Value → Prop)` の全体であり、mask の順序・重複で
+異なるものも含む。任意の family が regular 型の mask 解釈として表現可能とは主張しない。
+この表現可能性を仮定して共通モデルへの接続を済ませることはしない。
 
 ## Q3. exact/closed record を共通 carrier にどう保持するか
 

@@ -117,7 +117,22 @@ renameの単射性やgraphの非循環性は仮定していない。
 既存の `RegularInferenceModel` のcommon carrierとそのblock closureへつなぐ。
 `DataSubtype` はdata述語包含であり、旧structural subtype関係との一致や全depthの判定算法ではない。
 arrowは既存のdata投影と同じneverなので、関数・effect行の意味を閉じたとは扱わない。
-工程3〜5と、その前提となる関数/行の意味の拡張は残る。
+工程3は次の明示した範囲まで進んだ。各定理の前提と「示さないこと」は `lean/README.md` の M1 表に記す。
+
+- `PresenceBoundCoalescing` は固定 bound と変数間の flow の共有 parameter 消去を証明する。
+- `PresenceRegularCoalescing` / `PresenceMaskedCoalescing` は、有限の `Closed` 証明を前提に、
+  guarded graph で全自由 parameter の健全性と全独立 cache 解の回収を示す。
+  masked 版は全 root mask を観測に含む明示的な候補モデルであり、言語全体への採用ではない。
+- `PresenceFlowSaturation` は変数経由の推移律を全域に飽和し、任意の graph で入力解と実計算 cache 解を一致させる。
+  全 node が変数なら `Closed` も自動的に成立し、全 parameter family と全独立解が一致する。
+- `PresenceFlatSolver` / `PresenceMaskedFlatSolver` は固定 presence/absence bound の任意の有限問題で、
+  具体的な比較 checker・残余制約のない scheme を返し、全 instance exactness と拒否完全性を示す。
+  比較 oracle・成功・解の存在・fuel は前提にない。後者の parameter は任意の mask-indexed 述語 family であり、
+  具体 regular 型による表現可能性は別の未完義務である。
+
+constructor の分解・分岐を含む飽和、open tail、関数/行の具体モデル、工程4・5は残る。
+旧 instance の反映と full data 包含の違い、mask と外延的同値、exact empty の有限 layer での非表現可能性は、
+[`M1 の問い`](../questions/2026-11-06-m1-model-contracts.md) に Lean で証明した反例と仮の作業前提を記す。
 
 最終の solver 定理では、任意の行代数に加え、既存定理と同じ行順序の反対称性を明示する。
 任意の入力 `e`、`supportedPresence e = true`、任意の結果 `c` に対して、
@@ -146,5 +161,9 @@ regular/function/effect の interpreter を与える前に、arrow の空の dat
 regular block の移送、拡張制約生成、拡張 solver の全 instance、実行への接続で分ける。
 有限翻訳とclosed supported data型判断の移送に加え、presence layerのexactness、
 regular graphとblock closureの全有限data観測、旧regular data意味の保存・反映まで閉じた。
+拡張制約生成の model-parametric exactness は `Core.PresenceGeneration` で閉じた。
+lambda/app/branch・値制限付き let・pair/variant・record/default/field を含む独立型判断と対応するが、
+existential 制約を保持した constraint scheme であり、具体 regular solver の返却 scheme ではない。
+工程3の guarded coalescing、flow 飽和、固定 presence/absence bound の全域 solver も、上記の範囲で閉じた。
 `SourcePrincipalInference` 全体への統合、関数を含む runtime interpretation、
 Rust の構文・型推論器との対応は引き続き証明義務として残す。

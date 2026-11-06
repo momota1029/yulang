@@ -19,6 +19,10 @@ import Yulang.CoreSourceInference
 import Yulang.CorePresenceInference
 import Yulang.CorePresenceAlternatives
 import Yulang.PresenceBoundCoalescing
+import Yulang.PresenceFiniteBounds
+import Yulang.PresenceFlatSolver
+import Yulang.PresenceMaskedBounds
+import Yulang.PresenceMaskedFlatSolver
 import Yulang.PresenceRegularCoalescing
 import Yulang.PresenceMaskedCoalescing
 import Yulang.PresenceFlowSaturation

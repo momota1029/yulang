@@ -1708,3 +1708,34 @@ run_cmd do
 #print axioms Yulang.PresenceFlowSaturation.variable_coalesce_satisfies
 #print axioms Yulang.PresenceFlowSaturation.variable_satisfiable
 #print axioms Yulang.PresenceFlowSaturation.variable_models_exact
+
+-- M1: executable fixed-bound comparison and unconditional flat solving.
+#print axioms Yulang.PresenceFiniteBounds.toLayer_exact
+#print axioms Yulang.PresenceFiniteBounds.checkLe_exact
+#print axioms Yulang.PresenceFiniteBounds.checkLe_rejects
+#print axioms Yulang.PresenceFlatSolver.coalesce_exact
+#print axioms Yulang.PresenceFlatSolver.consistent_exact
+#print axioms Yulang.PresenceFlatSolver.coalesce_satisfies
+#print axioms Yulang.PresenceFlatSolver.coalesce_retraction
+#print axioms Yulang.PresenceFlatSolver.solve_models_exact
+#print axioms Yulang.PresenceFlatSolver.solve_rejected_iff
+#print axioms Yulang.PresenceFlatSolver.solve_complete
+#print axioms Yulang.PresenceFlatSolver.solve_instances_exact
+#print axioms Yulang.PresenceFlatSolver.unconstrained_parameters
+#print axioms Yulang.PresenceFlatSolver.Examples.conflicting_rejected
+#print axioms Yulang.PresenceFlatSolver.Examples.indirect_conflict_rejected
+#print axioms Yulang.PresenceFlatSolver.Examples.correlated_solved
+#print axioms Yulang.PresenceMaskedBounds.toLayer_mask
+#print axioms Yulang.PresenceMaskedBounds.denote_mask
+#print axioms Yulang.PresenceMaskedBounds.checkMaskedLe_exact
+#print axioms Yulang.PresenceMaskedBounds.checkMaskedLe_rejects
+#print axioms Yulang.PresenceMaskedFlatSolver.consistent_all_masks
+#print axioms Yulang.PresenceMaskedFlatSolver.consistent_exact
+#print axioms Yulang.PresenceMaskedFlatSolver.coalesce_satisfies
+#print axioms Yulang.PresenceMaskedFlatSolver.coalesce_retraction
+#print axioms Yulang.PresenceMaskedFlatSolver.Examples.shadow_conflict_unmasked_solved
+#print axioms Yulang.PresenceMaskedFlatSolver.Examples.shadow_conflict_rejected
+#print axioms Yulang.PresenceMaskedFlatSolver.solve_models_exact
+#print axioms Yulang.PresenceMaskedFlatSolver.solve_rejected_iff
+#print axioms Yulang.PresenceMaskedFlatSolver.solve_complete
+#print axioms Yulang.PresenceMaskedFlatSolver.solve_instances_exact

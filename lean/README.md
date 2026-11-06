@@ -72,6 +72,28 @@ presence 上下界の消去を扱う。任意の payload 述語・mask の下で
 | `expand_retraction` / `expand_retraction_eq` / `coalesce_retraction` | 同じ flat 制約の任意の独立な解を共有 parameter に戻すと、全元 slot の述語を回収。述語版は外延的に等しく、後続の観測に正位置性を要求しない | 循環 graph の同時構成・負位置を含む regular 型の回収 |
 | `consistent_iff_satisfiable` | 任意の固定境界解釈と、その包含を正確に決定する checker の下で、有限整合性検査の受理 ⇔ 独立な解の存在。fuel・solver 成功を仮定しない | 任意の述語境界に対する包含 checker の構成、presence graph 全体の拒否完全性 |
 
+`PresenceFiniteBounds` / `PresenceFlatSolver` は、固定 bound の文法を
+`bottom | top | records | present label | absent label | union | inter` に限定し、
+比較 checker も含めた全域 solver を構成する。入力型 `Problem n` はこの bound の上下界・
+固定比較・変数間の flow の任意の有限列であり、型付け・成功・fuel による support 条件はない。
+返却 scheme は固定下界の有限 union と、共有 parameter を固定上界の有限 intersection で
+制限した項の有限 union からなり、残余制約や解の witness を含まない。
+
+| 定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `PresenceFiniteBounds.checkLe_exact` | 任意の二つの bound で、実行可能な有限 profile 比較が true ⇔ 任意の runtime data 値についての述語包含。payload や未知 field を有限サンプルに制限しない | payload 型を含む bound、任意の述語の包含決定 |
+| `PresenceFlatSolver.solve_models_exact` / `solve_instances_exact` | 任意の `n`・入力問題・独立な全 slot 述語割当てで、制約の充足 ⇔ 実際に返る scheme の自由 parameter 具体化との等値。任意の出力 slot・結果述語への subsumption についても全 instance が一致 | recursive payload・open tail・関数・行、source 式からこの入力文法への翻訳 |
+| `PresenceFlatSolver.solve_rejected_iff` / `solve_complete` | 任意の入力問題で拒否 ⇔ 独立な解なし。成功した場合はすべての自由述語 parameter が解になり、任意の独立解をそのまま parameter にすると回収。比較 oracle・成功・解の存在・fuel を前提にしない | この flat 断片外の求解。結果型は `rejected` と `solved` のみだが、source の unsupported 排除を意味しない |
+| `PresenceMaskedBounds.checkMaskedLe_exact` / `denote_mask` | 任意の二 bound で、有限の実行比較が true ⇔ **任意の hidden-label 列**の mask 後の包含。bound の mask は既存 layer の mask と意味が一致し、未知 label・重複・順序も量化に含む | 任意の regular graph の全 mask 部分型の決定 |
+| `PresenceMaskedFlatSolver.solve_models_exact` / `solve_instances_exact` / `solve_rejected_iff` / `solve_complete` | 同じ任意の flat 入力について、全 mask の独立解を、一つの有限 scheme の全自由 parameter family と正確に対応させる。全 mask での subsumption・拒否完全性・全 parameter の健全性・全 slot の回収まで、成功・oracle・fuel の前提なしで成立 | 任意の predicate family の regular 型による表現、再帰的な構成子・open tail・関数・行との結合 |
+
+masked 版の自由 parameter は `Fin n → List Nat → (Value → Prop)` の任意の family である。
+mask の順序・重複への不変性も仮定していないため、これを具体的な regular 型 carrier と
+同一視しない。有限列挙は固定 bound の比較だけに使い、自由 parameter は列挙しない。
+単一 field の矛盾、flow 経由の矛盾、二 field の相関を残す成功例を実際の solver で証明した。
+`present 7 ∩ absent 7 ≤ bottom` が unmasked 版では成功し masked 版では拒否される例もあり、
+mask 前の空集合への縮約で観測を失わないことを検査する。
+
 `PresenceRegularCoalescing` は同じ構成を guarded な presence graph へ持ち上げる。
 有限 graph の各 node は自由変数または既存の `PresenceLayers.Layer` であり、payload の参照は
 pair/variant/field を通る。parameter の root layer を同じ観測深さに埋め込み、共有した参照を保つ。
@@ -92,7 +114,7 @@ pair/variant/field を通る。parameter の root layer を同じ観測深さに
 
 | 定理（接頭辞 `PresenceMaskedCoalescing`） | 示したこと | 示さないこと |
 | --- | --- | --- |
-| `coalesceGraph_satisfies_cache` / `coalesceGraph_satisfies` | 任意の有限 guarded presence graph・入力/cache・同じ `Closed` 証明について、任意の外部 graph と全自由 parameter layer が、全 root mask・全深さで constructor 等式と cache/入力辺を満たす解になる | 完全な飽和、非guardedな open tail、関数・行、旧 instance の保守性 |
+| `coalesceGraph_satisfies_cache` / `coalesceGraph_satisfies` | 任意の有限 guarded presence graph・入力/cache・同じ `Closed` 証明について、任意の外部 graph と全自由 parameter layer から構成した graph が、全 root mask・全深さで constructor 等式と cache/入力辺を満たす解になる | 完全な飽和、非guardedな open tail、関数・行、旧 instance の保守性 |
 | `coalesceGraph_retract_at` / `coalesceGraph_retraction` / `coalesceGraph_root_mask_retraction` | 任意の独立な **mask つき cache の解**について、全 slot・全深さ・全 mask の観測を回収。実際の生成 root と元の root をそれぞれ mask した意味も一致し、新しい比較の両方向を得る | unmasked な解だけから同じ結論を得ること、任意の constructor 飽和での入力解の保存（flow のみは下記で証明） |
 
 この強い解の前提は必要である。`Core.PresenceMaskObstructions.no_extensional_mask` は、
@@ -110,7 +132,7 @@ pair/variant/field を通る。parameter の root layer を同じ観測深さに
 | `saturate_exact` / `saturate_capacity` | 任意の有限 graph・入力辺・node 対について、計算した cache への所属 ⇔ 入力と変数経由の推移律からの独立な導出。cache の要素数は `n * n` 以下 | constructor の分解・矛盾検出・分岐付き飽和 |
 | `saturate_models_iff` / `saturate_masked_models_iff` | constructor を含む任意の graph・入力辺・独立な外部 graph/slot 割当てで、計算した flow cache の解 ⇔ 入力の解。後者は全 mask について成立 | constructor の逆向き分解を加えた別の飽和の完全性 |
 | `coalesce_saturated_retraction` | 任意の graph・入力辺と、その独立な mask つき **入力の解**について、実際に計算した cache で coalesce すると全元 slot を全深さ・全 mask で双方向に回収。cache の解や `Closed` を別途仮定しない | constructor を含む全入力で、任意の自由 parameter が解になること |
-| `variable_coalesce_satisfies` / `variable_satisfiable` / `variable_models_exact` | 全 node が変数である任意の graph・任意の入力辺で、全自由 parameter が解になり、任意の独立解と計算した解 family が全深さ・全 mask で正確に対応。成功・解の存在・cache・fuel を前提にしない | rigid bound や constructor のある入力。この変数のみの断片は全問題が充足可能で、constructor の拒否完全性を含まない |
+| `variable_coalesce_satisfies` / `variable_satisfiable` / `variable_models_exact` | 全 node が変数である任意の graph・任意の入力辺で、全自由 parameter から構成した graph が解になり、任意の独立解と計算した解 family が全深さ・全 mask で正確に対応。成功・解の存在・cache・fuel を前提にしない | rigid bound や constructor のある入力。この変数のみの断片は全問題が充足可能で、constructor の拒否完全性を含まない |
 
 `CorePresenceGenerationModel` は既存 `Inference.Model` に独立な `exactEmpty`・`required`・
 `recordDefault` 演算を加えた interface である。継承した `emptyRecord` は width 上界用で、
@@ -120,7 +142,7 @@ pair/variant/field を通る。parameter の root layer を同じ観測深さに
 | 定理（接頭辞 `Core.PresenceGeneration`） | 示したこと | 示さないこと |
 | --- | --- | --- |
 | `generate_models_iff_typing` / `principal_exact` | 任意の拡張モデル・式・値/行割当て・結果について、`EnvRel` で対応する捕捉 scheme 環境の下で生成制約の充足 ⇔ 独立な構成子型判断。lambda/app/branch・値制限付き let の全選択肢・record/default/field を含む | 具体 presence regular model、existential 制約を消去した solved scheme、solver の停止・拒否完全性 |
-| `CoreRules.conservative` / `generateCore_exact` / `principalCore_exact` | 拡張 source 判断と独立な拡張 Core 判断の同値、および全 Core 式で生成制約の exactness。構文検査により decoder の既定 literal への漏れを防ぐ | 旧 required 判断との保守性、公開 `infer` の `.rejected` / `.unsupported` の分類 |
+| `CoreRules.conservative` / `CoreRules.generateCore_exact` / `CoreRules.principalCore_exact` | 拡張 source 判断と独立な拡張 Core 判断の同値、および全 Core 式で生成制約の exactness。構文検査により decoder の既定 literal への漏れを防ぐ | 旧 required 判断との保守性、公開 `infer` の `.rejected` / `.unsupported` の分類 |
 | `unbound_default_fallback` / `generate_unbound_default_fallback` | 任意の拡張モデル・source・label・未束縛 index・結果で、閉じた default の未束縛 fallback は型付け不能で生成制約も不充足 | 関数を含む runtime safety、effect の具体的な行 solver |
 
 `principal` / `principalCore` は existential 制約を保持した constraint scheme であり、
@@ -165,7 +187,8 @@ field を追加しても所属が変わらないためであり、全観測深�
 これらと mask の問題の選択肢・仮の前提・正確な残りの義務は
 [`M1 の問い`](../notes/questions/2026-11-06-m1-model-contracts.md) に分離した。
 
-統合メモ5節の工程3〜5で必要な未証明の補題は次の通りである（以下は契約であり、Lean の定理名ではない）。
+統合メモ5節の工程3〜5で必要な契約の、全範囲では閉じていない部分は次の通りである
+（以下は契約であり、Lean の定理名ではない）。上表の限定された断片での証明と区別する。
 
 - `presence_coalesce_satisfies`: 任意の有限 presence/open-tail 制約 graph と入力制約について、
   飽和手続きが整合する閉 cache を返したなら、**すべての自由な値/行 parameter 割当て**から構成した
@@ -175,15 +198,20 @@ field を追加しても所属が変わらないためであり、全観測深�
   旧 `coalesceGraph_retraction` は fixed record spine のみで、この主張を与えない。
 - `presence_solve_complete`: 宣言する入力 graph 断片の**すべての graph**で飽和が停止し unsupported を返さず、
   rejected ⇔ 解が存在しない。上の二補題とともに、自由 parameter に残余制約を課さない全 instance 抽出に必要。
-- `presence_generate_exact` と `presence_legacy_instances_exact`: 共通モデルを定義した上で、任意の対応環境・式・
-  値/行割当てについて生成制約の充足 ⇔ 独立 presence 型付けを示し、任意の旧 supported 式・任意の旧結果型で
-  旧 instance ⇔ 埋込み後の新 instance を示す。各枝の solver exactness があれば `collect` の証明は再利用できるが、
-  現状の補題だけではそこから統一入口の全 instance exactness を導けない。
+  flat な固定 presence/absence bound については、上記の二 solver でこの条件を前提なしに証明した。
+- `presence_generate_exact`: 任意の拡張モデル・対応環境・式・値/行割当てについて、生成制約の充足 ⇔
+  独立 presence 型付けは `Core.PresenceGeneration.generate_models_iff_typing` で閉じた。
+  未完なのは具体的な共通 regular モデルへの適用と、existential 制約を残さない solved family への接続である。
+- `presence_legacy_instances_exact`: 共通モデルと埋込みを定義した上で、任意の旧 supported 式・任意の旧結果型で
+  旧 instance ⇔ 埋込み後の新 instance を示す。full data 包含を旧部分型と同一視する経路には上記の反例がある。
+  各枝の solver exactness があれば `collect` の証明は再利用できるが、現状の補題だけでは
+  そこから統一入口の全 instance exactness を導けない。
 
 旧 `Layer.record` の tail は有限 layer、open-record graph の tail は node 参照であり、
 単純な置換は観測深さを減らす位置を変える（spec 10.32.5）。さらに旧 regular 部分型は構造的関係で、
 presence の data 述語包含との同値はない。これらを既存 data 観測の橋だけで埋めることはできない。
-関数/行の意味、上記の解構成と retraction は新たな数学的義務として残し、統一入口の公開を止めた。
+関数/行を含む具体的な共通モデル、open-tail・負位置・行を含む範囲への解構成と retraction の拡張は
+新たな数学的義務として残し、統一入口の公開を止めた。
 既存 `collect_instances_exact` の変更、既存 theorem・test expectation の変更、仕様の仮決定は行っていない。
 
 ## Case の照合・順序・presence
