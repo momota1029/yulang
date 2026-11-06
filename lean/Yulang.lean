@@ -6,6 +6,9 @@ import Yulang.CoreQualified
 import Yulang.CorePresence
 import Yulang.CoreResolved
 import Yulang.CoreData
+import Yulang.CorePatterns
+import Yulang.CoreCase
+import Yulang.CoreScopedPatterns
 import Yulang.VariantsMerged
 import Yulang.Effects
 import Yulang.EffectExamples

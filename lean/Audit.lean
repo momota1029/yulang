@@ -30,6 +30,11 @@ run_cmd do
 #print axioms Yulang.Core.Qualified.conservative
 #print axioms Yulang.Core.Presence.conservative
 #print axioms Yulang.Core.Data.conservative
+#print axioms Yulang.Core.Patterns.typing_reflect
+#print axioms Yulang.Core.Patterns.covered_map
+#print axioms Yulang.Core.Patterns.variantsCovered_map
+#print axioms Yulang.Core.Case.conservative
+#print axioms Yulang.Core.Scoped.conservative
 #print axioms Yulang.Core.Resolved.operational_core
 #print axioms Yulang.Core.Resolved.multi_core
 #print axioms Yulang.Core.Resolved.annotation_erasure_typed
