@@ -1341,3 +1341,33 @@ ShadowRegularSubtype (embed A) (embed B) ↔ ShadowSubtype A B
 一般の任意tail共変性を追加することは、この接続の前提ではない。
 全coreの自由parameter主型性・拒否完全性、`SourcePrincipalInference` の `RecordFree` 除去、
 effect式・再帰sourceを含む全言語の実行安全性は引き続き別の未完義務である。
+
+## 10.33 複数 operation handler の解決済み核
+
+`MultiOperationHandlers` は相異なる operation key の有限表、1つの value arm、
+key ごとの全域な operation body を持つ。`handle_eq_directed` は既存の
+`Directed.Computation.shallowHandle` との一致を示す。捕捉した arm には元の継続を渡し、
+`handle_multishot` は同じ継続を二回使う body の実行等式を示す。
+
+`MultiOperationHandlerTyping` はこの handler を lambda、strict application、pair、let、
+request、boundary の下にも置ける解決済み構文と、評価器を参照しない `Typing` 判断を持つ。
+任意の型付け導出と `EnvValid` な実行環境について `typing_evaluates` が実評価の `Valid` を導く。
+`MultiOperationHandlerInference.infer`（名前空間は `MultiOperationHandlerTyping`）の
+`infer_exact` は、全ての式・型環境・出力型で成功とその独立判断が同値であることを示す。
+閉式で出力行が空なら `closed_empty_row_returns` により型に属する値が返る。
+
+決定41の incoming mask は `checkedIncoming` で検査する。全表keyの許可と実行等号が
+成功の必要十分条件であり、許可外keyは静的に拒否する。freshな座標へ入れた要求について、
+不許可keyのforwardingと許可されたraw要求のdispatchを既存の重みに接続した。
+一般の非零重みは正負ともforwardingされる。
+
+`MultiOperationHandlerExamples.nesting_not_equivalent` は任意の境界座標数に対する反例である。
+operation 0 を捕まえて元の継続を再開すると、一つの二operation handlerは次のoperation 1を外へ渡す。
+同じbody/value armのsingleton handlerを入れ子にすると、外側が1を捕まえて99を返す。
+operationごとの入れ子化を一般の翻訳として採用できない。
+
+**残る義務:** source の operation 名解決と同一operationのpayload-pattern armの編成、
+payload非網羅時の規則（`notes/questions/2026-11-06-open-questions.md` Q1）、
+operation-local多相・個別payload/response署名との接続、sourceからpermission maskを発見するelaboration。
+このcheckerはshape解決済み・lambda入力型/handler目標型を持つ単相核のcheckerであり、
+全sourceの主型推論器ではない。再帰を含む全言語のpreservation/progressも残る。

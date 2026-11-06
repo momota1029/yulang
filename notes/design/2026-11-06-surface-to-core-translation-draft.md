@@ -14,6 +14,7 @@ branch c t e              pair a b     fst e         snd e
 recordDefault l base fallback
 variant l e               request op e               boundary(protect|release, mask) e
 handler op action ret arm
+multiHandler operations action ret arms
 ```
 
 `lit` の `b` は base 型の印だけで、整数や文字列の中身を持たない。再帰束縛は核の式の外側(`RecursiveInference` の SCC ブロック)にある。
@@ -76,7 +77,7 @@ handler op action ret arm
 | 表の構文 | 核 | 状態 | 備考 |
 | --- | --- | --- | --- |
 | `op args`(operation の呼び出し) | `request op args` | 確定 | 普通の関数呼び出しに見える(章5.1) |
-| `catch e: op p, k -> body; v -> ret` | `handler op e ret body` | **欠** | 核のarmは既にreturn値、payload・継続を環境に束縛するため、追加のlambdaでは包まない。複数armのsource handlerへの対応は未接続 |
+| `catch e: op p, k -> body; v -> ret` | `MultiOperationHandlerTyping.Expr.handler operations target e ret arms` | 確定 | 複数key・1つのvalue armを持つ核、独立型付け・checker・実行安全性を追加。追加lambdaで包まない。同一operationのpayload-pattern編成とsource elaborationは未接続（Q1）。singleton handlerの入れ子化が意味を変えることも証明済み |
 | `catch` の value arm 省略 | `v -> v` と同じ | 確定 | 章5.2 |
 | 高階の境界の保護・解除 | `boundary(protect/release, mask) e` | 下書き | 型から elaboration が挿入する。利用者は書かない |
 | `for x in xs: body` | `loop::for_in xs (\x -> body)` | 確定 | std の `for_in`(`main:lib/std/control/flow.yu`)。`last`/`next`/`redo` は `loop` の operation。値は常に `()` |
@@ -143,7 +144,7 @@ error path_err:
 ChatGPT に依頼する核の拡張の候補。
 
 1. variant・literal・list を分解する `case` 相当の形(網羅性と残余の型付けを含む。決定 4)
-2. 複数 operation を持つ handler(shallow・value arm は 1 つ)
+2. 複数 operation の核は `MultiOperationHandlerTyping` に追加済み。残るのは source payload-pattern arm の編成、個別署名、多相、mask の elaboration
 3. labelの値・methodと衛生的な境界をsourceから核へ対応させるelaboration。labelが値であること自体は章3c.2で確定
 4. nominal 型の構築子(struct・enum・list)
 5. 整数・文字列などの literal の中身(今は base の印だけ)

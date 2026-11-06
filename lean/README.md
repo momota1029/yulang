@@ -10,6 +10,34 @@ lake build --wfail
 lake env lean --trust=0 Audit.lean
 ```
 
+## 複数 operation の shallow handler
+
+`MultiOperationHandlerTyping.Expr.handler` は、相異なる解決済み operation key の有限表、
+各 operation body、1つの value body を持つ。ordinary application は左から右へ strict に評価し、
+再開する継続には action の元の行を保つ。`MultiOperationHandlerTyping.infer_exact` は
+全ての解決済み式・型環境・出力型について、実行可能 checker の成功と独立な `Typing` 判断の同値を示す。
+`typing_evaluates` は、その型判断と開いた環境の `EnvValid` から、全 response 分岐の request 上界と
+返り値の型を導く。action/arm ごとの実行時上界を追加の前提にしない。
+閉式の行が空なら `closed_empty_row_returns` により、対応する型の値へ返る。
+
+`MultiOperationHandlers.checkedIncoming` は incoming action 用の別入口である。
+許可 mask にない key の arm があれば拒否し、`checkedIncoming_success_iff` は
+全 key の許可と実行結果の等号を成功の必要十分条件にする。
+一般の非零の符号付き重みを保つ forwarding と、許可された raw 要求の dispatch を証明した。
+通常の checker が source から mask を発見することはまだ示していない。
+
+`MultiOperationHandlerExamples.nesting_not_equivalent` は任意の境界座標数について、
+operation 0 の元の継続が operation 1 を要求する具体例を分離する。
+一つの handler では 0 の捕捉時に両 arm の delimiter が外れ、1 が外へ出る。
+singleton handler の入れ子では外側の 1 が残り、同じ arm が 99 を返す。
+従って operation ごとの入れ子化は一般に意味を保存しない。
+
+この核の payload/response は既存の一様な `Atom` carrier である。
+source の名前解決、同じ operation の複数 payload-pattern arm の編成、operation-local 多相署名、
+source から mask を求めて checker に渡す elaboration は残る。
+非網羅 payload arm の扱いは [Q1](../notes/questions/2026-11-06-open-questions.md) に記録した。
+表の key 一意性は核の表現条件であり、source の重複 arm を拒否する仕様ではない。
+
 ## 決定42–44：評価順とspread-first record
 
 元の `Inference.Expr` に `recordDefault label base fallback` を追加した。
@@ -457,6 +485,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 
 | モジュール | 閉じる主張 | それだけでは示さないこと |
 | --- | --- | --- |
+| `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、同一operationのpayload-pattern編成と網羅性、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |
 | `Yulang.Types` / `Yulang.Inference` | 構造再帰する有限制約生成、独立な宣言的型付けとの双方向の一致、制約schemeの主性、非再帰の値制限付き多相let | 全制約の判定、再帰SCC、sourceのoperation/handlerのelaboration、公開型の正規化 |
 | `Yulang.StructuralBase` / `Yulang.Structural` | 行の解釈を共有する具体的な構造部分型モデル、`never`/`any`・union/intersection・幅部分型・関数の分散、生成制約の正例と反例 | 完全なMLsub意味論、再帰型。決定手続きは `StructuralDecisions` で扱う |
 | `Yulang.Polymorphism` | effect付きcomputation変数の単相let束縛を受理し、そのeffectを空行へ消す生成制約を拒否すること | 再帰的な一般化、sourceのalias解析 |

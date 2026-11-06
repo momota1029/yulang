@@ -1149,3 +1149,15 @@ run_cmd do
 #print axioms Yulang.SourceRecordDemandInspection.source_instances_exact
 #print axioms Yulang.SourceRecordDemandInspection.shadow_source_typing_exact
 #print axioms Yulang.SourceRecordDemandInspection.shadow_regular_source_typing_exact
+
+#print axioms Yulang.MultiOperationHandlers.handle_eq_directed
+#print axioms Yulang.MultiOperationHandlers.handle_multishot
+#print axioms Yulang.MultiOperationHandlers.checkPermission_exact
+#print axioms Yulang.MultiOperationHandlers.checkedIncoming_success_iff
+#print axioms Yulang.MultiOperationHandlers.incoming_denied_forwarded
+#print axioms Yulang.MultiOperationHandlers.incoming_allowed_dispatches
+#print axioms Yulang.MultiOperationHandlerTyping.typing_evaluates
+#print axioms Yulang.MultiOperationHandlerTyping.infer_exact
+#print axioms Yulang.MultiOperationHandlerTyping.inferred_operationally_valid
+#print axioms Yulang.MultiOperationHandlerTyping.closed_empty_row_returns
+#print axioms Yulang.MultiOperationHandlerExamples.nesting_not_equivalent
