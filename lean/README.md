@@ -113,6 +113,33 @@ literal の `matchCheck_exact` は、任意の float 比較関数とその独立
 旧 base-marker 評価器を具体 literal 評価器へ黙って置き換えていない。
 字句解析・escape の正しさ、数値演算、source への翻訳はこの定理群の対象外である。
 
+## Nominal構築・保留cast・listの観測
+
+`CaseDataTerms.Expr.nominal typeId ctorId payload` はpayload式をstrictに評価し、
+結果を解決済みのtype/constructor identityで包む。独立な `Typing.nominal` と既存の
+`typing_evaluates` がこの構築にも適用される。structのrecord fieldを式から計算する例、
+enumのlet/var payload、listのnil/cons構築について、任意の整数の値と訪問列全体を
+`NominalDataConstructionExamples` で証明した。宣言のlookup・固定fieldの宣言型・default・castのelaborationは含めない。
+
+`NominalConstructionRuntime` は決定25の既存planに保留された不変parameterの元の構築位置を、
+元の順に評価して `PureCasts.Plan` の純粋な変換を挟む。適合する位置では変換を呼ばない。
+`accepted_requestTree` は任意のruntime・registry・construction・expectation・受理planについて、
+実行のrequest treeが元の引数列を順に読むrequest treeと等しいことを示す。
+全response分岐、payload、正負の重みを保持し、返り値そのものの等号はこの定理の結論ではない。
+`execute_eof` は期待型が未解決の全parameterについて変換せず、元の実値を保つ完全な計算等号を示す。
+constructor identity・enum tag・構築位置・引数個数も保持する。
+
+`runValues_typed` は元の値の型付け契約と変換コードの値型保存契約を別に必要とする。
+registryのground境界検査から正しい変換コードを合成する証明は未完であり、
+`finish` の受理だけからtarget型の構築値が得られるとは主張しない。
+このsite実行器と上の具体構築ASTを一つのsource elaboratorで結ぶ義務も残る。
+
+`NominalListViews.index_exact` は任意の有限list・自然数位置・要素について、内部lookupの成功と
+独立な位置判断 `At` を同値にする。`cursor_index` と `fold_records_order` により、
+Indexの内部lookupとFold用cursorが同じ順序の要素を観測する。`loopMachine` は既存loop評価器へ同じcursorを渡す。
+これはsourceのrole辞書を選ぶ証明ではなく、整数keyの負数規則（Q9）や無効indexの失敗規則も決めない。
+`RunLiteralConstruction.lean` で大きな整数・範囲比較と実際のstruct/enum/list構築を実行できる。
+
 ## 複数 operation の shallow handler
 
 `MultiOperationHandlerTyping.Expr.handler` は、相異なる解決済み operation key の有限表、
@@ -603,6 +630,9 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.CaseTree` / `CaseTreeExamples` | scrutinee/body・pair・letへの有限case入れ子、独立型付けから実評価の型安全性と未一致の不在、任意整数について値と訪問列を保持する入れ子例 | guard/default内部のcase、一般再帰・関数/application/effect/castの統合、source名解決とdefault省略方針の決定 |
 | `Yulang.CasePresenceValidation` | 宣言presenceのoptional許可/required拒否/unknown未解決、具体recordの旧markerへのlookup保存、required/optional所属の対応、型付きlazy defaultからunionに入る実束縛 | sourceからpresence metadataを導出し全patternへ適用するpass、旧markerにないfloat/list/nominalの射影、source defaultのscope選択 |
 | `Yulang.LiteralValues` / `LiteralValueExamples` | 任意精度整数・文字列・bool・unitの内容、実行可能literal比較と独立判断の同値、整数閉区間/片側区間の正確性、明示的float比較契約 | float精度・丸め・比較規則の決定、数値演算、parser/escapeの正しさ、既存base-marker ASTとの全体統合 |
+| `Yulang.NominalConstructionRuntime` / `NominalConstructionExamples` | 不変parameterの元の構築位置の順序、適合時のcast抑制、純粋cast後の全request tree保存、EOFの実値保持、metadataとarity保存 | ground境界検査から値型に正しい変換codeの合成、固定struct field・宣言defaultを含むsource elaboration、具体data構築ASTとの統合 |
+| `Yulang.NominalListViews` | 同じ構築済みpayloadに対するcursor・自然数index・foldの一致、既存loop machineへのcursor接続 | sourceのFold/Index辞書の選択・署名と実装の対応、負数keyと無効indexの規則 |
+| `Yulang.NominalDataConstructionExamples` | 解決済みnominal構築式、任意整数から計算するstruct/enum/list payloadの型付けと実評価・全訪問列 | 宣言のlookup・型引数・payload宣言型の検査、source constructor default・castの挿入 |
 | `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、同一operationのpayload-pattern編成と網羅性、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |
 | `Yulang.MultiOperationIncomingInference` | 明示incoming maskを実構文checkerに合成、独立型付けとの同値、不許可armの静的拒否、推論成功と環境適合性から既存構文評価のValid、同一maskのruntime gate対応 | source maskの導出と入れ子handlerへの割当て、fresh座標へのclosure/潜在行の移送、構文評価とenterTree後の実行の意味保存 |
 | `Yulang.Types` / `Yulang.Inference` | 構造再帰する有限制約生成、独立な宣言的型付けとの双方向の一致、制約schemeの主性、非再帰の値制限付き多相let | 全制約の判定、再帰SCC、sourceのoperation/handlerのelaboration、公開型の正規化 |

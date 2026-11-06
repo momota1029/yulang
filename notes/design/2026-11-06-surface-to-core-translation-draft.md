@@ -105,8 +105,9 @@ multiHandler operations action ret arms
 
 | 表の構文 | 核 | 状態 | 備考 |
 | --- | --- | --- | --- |
-| `struct p {x: int, y: int}` | nominal 型と constructor | **欠** | 核に nominal 型が無い(Lean は構造型だけ) |
-| `enum e = a | b x` | nominal 型と variant constructor | **欠** | |
+| `struct p {x: int, y: int}` | `CaseDataTerms.Expr.nominal typeId ctorId recordPayload` | 確定（核の形） | record payloadを実際に計算する構築式と型安全性を追加。宣言lookup・固定fieldの宣言型・default・castのelaborationは未証明 |
+| `enum e = a | b x` | `CaseDataTerms.Expr.nominal typeId ctorId payload` | 確定（核の形） | 解決済みidentityを保つstrictなpayload構築。複数constructorからのcase分解も追加。source宣言の検査は未証明 |
+| list literal の構築 | `CaseDataTerms.Expr.nil/cons`、`NominalConstructions.listLiteral` のsite実行 | 確定（核の形） | 実値の構築、保留cast位置の順序、Fold用cursorと内部Indexの一致。source辞書・整数key規則・二つの核の統合は別義務 |
 | `type t = int`(alias) | 展開 | 確定 | 章4.4 |
 | `role R 'a: ...` / `impl R T: ...` | 辞書(dictionary)の型と値 | 確定 | 辞書渡しは `RoleDictionaries` に証明がある |
 | `where 'a: R` | 辞書引数 | 確定 | 具体化した場所で解く(決定 30) |
@@ -152,7 +153,7 @@ ChatGPT に依頼する核の拡張の候補。
 1. 分解するcase形は `CasePatterns` / `CaseEvaluation` に追加済み。保守的網羅性checker・merged残余・具体caseのprogressも追加済み。一般Rust matrix・統一sourceへの接続は別途追跡
 2. 複数 operation の核は `MultiOperationHandlerTyping` に追加済み。残るのは source payload-pattern arm の編成、個別署名、多相、mask の elaboration
 3. labelの値・methodと衛生的な境界をsourceから核へ対応させるelaboration。labelが値であること自体は章3c.2で確定
-4. nominal 型の構築子(struct・enum・list)
+4. nominal構築の核と保留site実行は追加済み。source宣言・default/cast・辞書と統一ASTへのelaborationは残る
 5. 整数・文字列・bool・unit の中身は `LiteralValues` に追加済み。小数の具体解釈と旧AST/sourceとの接続が残る
 
 決定44の `recordDefault` は上記の通り追加済み。`error` と `junction` の要求木helperも

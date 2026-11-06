@@ -1494,3 +1494,33 @@ rawな重複binderのlookupも、sourceの名前解決・重複名の規則で�
 **残る義務:** guard/default内部のcase、関数再帰・application・effect・castとの統合、
 sourceの名前解決・束縛順序・default環境のelaboration、および10.35.1の完全なcoverage算法。
 有限構文木への構造再帰を、sourceの一般再帰に関する停止性の証明と同一視しない。
+
+## 10.36 Nominal構築の実行とlistの観測
+
+`CaseDataTerms.Expr.nominal` は解決済みtype/constructor identityとpayload式を持つ。
+任意の型環境・payload式・型について、payloadの独立型付けから `Typing.nominal` が構築式を型付けし、
+拡張した `typing_evaluates` が実評価の成功と所属を導く。既存の定理の主張や前提は弱めていない。
+`NominalDataConstructionExamples` は任意の整数について、計算されるrecord payloadを持つstruct、
+let/var payloadを持つenum、nil/consで作るlistの型付けと値・訪問列全体を証明する。
+
+`NominalConstructionRuntime.execute` は既存の保留planの元の構築位置を順に評価する。
+変換codeは `PureCasts.Plan` であり、適合する位置はidentityにして変換表を参照しない。
+`accepted_requestTree` は、任意のruntime・registry・construction・expectation・planについて、
+`finish = some plan` なら、実行のrequest treeが元の引数列のrequest treeに等しいことを示す。
+全response分岐・payload・符号付き重みを保持するが、変換前後の返り値の等号は主張しない。
+`execute_eof` は全parameterの期待型が未解決の場合に、元の実値を保つ完全な計算等号を示す。
+metadata・arityはすべてのreturnで保たれる。
+
+`runValues_typed` の値型保存は、元のsource値の型付けと、提供された変換codeの値型保存を前提とする。
+registryに受理されたground boundaryからそのcodeを合成・検証する接続は未完である。
+したがってcompile-time planの受理を、構築値の無条件なtarget型保存とは扱わない。
+
+`NominalListViews.index_exact` は任意の有限list・自然数位置・要素について内部indexの成功と独立な `At` を同値にする。
+`cursor_index` は任意回dropしたcursorの次要素と同じ位置のindexを等置し、
+`fold_records_order` は任意の先行観測列とlistについて全要素が元の順で追加されることを示す。
+`loopMachine` はこのcursorを既存のloop evaluatorへ渡し、headへの進入と空listの終了を一致させる。
+
+**残る義務:** source nominal宣言の存在・型引数・payload宣言型の検査、固定field/default/castのelaboration、
+保留site実行器と具体構築ASTの統合、ground boundaryから型付きpure conversionの合成、
+Fold/Indexのsource辞書解決と本文の対応、整数keyの負数解釈（Q9）と無効indexの失敗規則。
+内部の `Nat → Option Value` はsourceのAPIを選ぶための決定ではない。

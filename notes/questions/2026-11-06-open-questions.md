@@ -169,3 +169,18 @@ tagを残すなら元のbool payload全体を残す決定は、どちらの選�
 影響する義務: source polyvariantのcoverage、処理済みtag集合の生成、`VariantsMerged`残余とcase typingの接続。
 現在のcheckerは一つのarmがpayload全体を覆う場合を認証するだけで、falseをsource拒否と解釈しない。
 これはBを仕様として採用したことではない。nominal enumへ決定4を広げず、そのpayload分割は通常のcoverage算法の残る義務とする。
+
+## Q9. listの負の整数indexを、無効とするか末尾相対とするか
+
+状態: **未回答**。`spec/03-expressions.md` 3.5、`spec/04-types.md` 4.1、`spec/06-roles.md` 6.1はIndex経由の解決を定めるが、
+負のlist indexの解釈は定めていない。例: `[10, 20][-1]`。
+
+- **A（推奨）:** 有効な位置は`0 ≤ i < length`とし、負のindexは無効にする。失敗の表現は次の問いで分けて扱う。
+- **B:** 負の`i`は`length + i`へ変換する。`-1`は末尾となり、変換後も範囲外なら無効にする。
+
+旧素材の根拠: [mainのruntime snapshot](https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/crates/mono-runtime/src/lib.rs)
+の`value_index`は整数からusizeへの変換失敗を返すため、負数を末尾相対にはしない。
+ただし`spec/00-sources.md`に従い、この素材を新仕様として自動採用しない。machine integerの上限も引き継がない。
+
+影響する義務: sourceの任意精度Intから内部Nat indexへの変換、`NominalListViews.index_exact`との接続、
+Index辞書とRust oracleの一致。現在は内部Nat indexと独立な位置判断だけを証明し、A/Bのどちらも選んでいない。

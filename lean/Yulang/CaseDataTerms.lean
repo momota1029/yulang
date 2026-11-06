@@ -4,8 +4,9 @@ import Yulang.CaseEvaluation
 # Concrete data leaves for the ordered case evaluator
 
 This finite, first-order syntax evaluates values, resolved named variables,
-products, records and their projections, variants, finite lists and computed
-lets. Every syntax visit is logged. Record constructors evaluate both operands
+products, records and their projections, variants, resolved nominal
+construction, finite lists and computed lets. Every syntax visit is logged.
+Record constructors evaluate both operands
 in written order; only pattern defaults are lazy.
 
 The independent judgement is a value-safety judgement using `CaseValues.Ty`
@@ -19,6 +20,9 @@ supplied by an arbitrary Boolean oracle.
 Bindings prepend a resolved scope to an explicitly supplied outer lexical
 environment. The source pass that chooses a default's lexical environment,
 resolves names or rejects duplicate binders remains outside this module.
+Nominal type and constructor identities are supplied by an earlier pass;
+declaration validation, constructor defaults and cast insertion are not chosen
+by this resolved constructor. Its payload expression is evaluated strictly.
 -/
 
 namespace Yulang.CaseDataTerms
@@ -36,6 +40,7 @@ inductive Expr (F : Type) where
   | recordDefault : Nat → Expr F → Expr F → Expr F
   | field : Nat → Expr F → Expr F
   | variant : Nat → Expr F → Expr F
+  | nominal : Nat → Nat → Expr F → Expr F
   | nil
   | cons : Expr F → Expr F → Expr F
   | letE : Nat → Expr F → Expr F → Expr F
@@ -92,6 +97,8 @@ def eval (environment : Bindings F) (expression : Expr F) : Result F :=
         | none => fail (.missingField name)
       | _ => fail .expectedRecord
     | .variant tag payload => (eval environment payload).bind fun value => pure (.variant tag value)
+    | .nominal typeId ctorId payload => (eval environment payload).bind fun value =>
+        pure (.nominal typeId ctorId value)
     | .nil => pure (.list [])
     | .cons head tail => (eval environment head).bind fun first =>
         (eval environment tail).bind fun rest => match rest with
@@ -148,6 +155,8 @@ inductive Typing : List (Nat × Ty F) → Expr F → Ty F → Prop where
   | field : Typing types source input → Ty.Le input (Ty.required name payload) →
       Typing types (.field name source) payload
   | variant : Typing types payload type → Typing types (.variant tag payload) (Ty.variant tag type)
+  | nominal : Typing types payload type →
+      Typing types (.nominal typeId ctorId payload) (Ty.nominal typeId ctorId type)
   | nil : Typing types .nil (Ty.exact (.list []))
   | cons : Typing types head headType → Typing types tail tailType → Ty.Le tailType (Ty.list Ty.any) →
       Typing types (.cons head tail) (consType headType tailType)
@@ -224,6 +233,11 @@ theorem typing_evaluates {F : Type} {types : List (Nat × Ty F)}
       intro environment valid
       obtain ⟨value, evaluated, valueValid⟩ := payloadIH environment valid
       exact ⟨.variant _ value, by simp [eval, Logged.bind_result, evaluated, pure, Logged.ofResult], rfl, valueValid⟩
+  | nominal payload payloadIH =>
+      intro environment valid
+      obtain ⟨value, evaluated, valueValid⟩ := payloadIH environment valid
+      exact ⟨.nominal _ _ value,
+        by simp [eval, Logged.bind_result, evaluated, pure, Logged.ofResult], rfl, rfl, valueValid⟩
   | nil => intro environment valid; exact ⟨_, rfl, rfl⟩
   | cons head tail isList headIH tailIH =>
       intro environment valid
