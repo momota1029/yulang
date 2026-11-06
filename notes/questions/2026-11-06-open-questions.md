@@ -36,7 +36,7 @@ source `catch` から `MultiOperationHandlerTyping.Expr.handler` への翻訳、
 
 ## Q2. 小数 literal の float はどの精度と丸めを持つか
 
-状態: **回答済み(2026-11-06): A**。IEEE 754 binary64、literalは最近接・偶数丸め。厳密な有理数は std の別の型(ユーザー: `rat`、Y2の std では `frac`。名前は要確認)。`spec/03-expressions.md` 3.1に反映。以下は質問の記録。`spec/03-expressions.md` 3.1 は整数を任意精度、小数 literal を `float` とするが、
+状態: **回答済み(2026-11-06): A**。IEEE 754 binary64、literalは最近接・偶数丸め。厳密な有理数は std の別の型 `frac`(2026-11-06確認)。`spec/03-expressions.md` 3.1に反映。以下は質問の記録。`spec/03-expressions.md` 3.1 は整数を任意精度、小数 literal を `float` とするが、
 float の精度・丸めは書いていない。今回の依頼の「任意精度の整数・小数」が、小数にも任意精度を
 要求するかを含めて決める必要がある。旧 `Inference.Base` には float 自体がまだない。
 
@@ -55,7 +55,7 @@ float の精度・丸めは書いていない。今回の依頼の「任意精�
 
 ## Q3. float literal pattern の比較は数値比較か、表現の一致か
 
-状態: **未回答**。Q2の精度とは別の問い。
+状態: **回答済み(2026-11-06): A**(ユーザー: 「Eqを使おう」)。float の literal pattern は `Eq float`(`==`)で比較する。IEEEなので `0.0` と `-0.0` は等しく、NaN は自分にも合わない。`spec/03b-patterns.md` 3b.1に反映。以下は質問の記録。Q2の精度とは別の問い。
 例: `0.0` のpatternは `-0.0` に合うか。選んだfloatモデルにNaNがある場合、NaN同士は合うか。
 
 - **A（推奨）:** 選んだfloatの数値比較に合わせる。IEEEモデルなら正負の零は等しく、NaNは自分にも一致しない。
