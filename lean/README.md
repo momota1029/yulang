@@ -52,6 +52,7 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 同じ構文に持つ。要求環境は任意の有限型または regular 型を名前で参照し、負位置でも同じ
 環境を使う。型の順序と、strict な runtime data の読取りは分離する。
 内部表現と代案は [共通モデルの設計](../notes/design/2026-11-07-m1-common-model.md) に記す。
+定理の量化・前提と未完の補題、検証結果は [今回の実装結果](../notes/handoff/2026-11-07-m1-common-results.md) にまとめる。
 
 | 共通 carrier の定理 | 示したこと | 示さないこと |
 | --- | --- | --- |
@@ -69,15 +70,18 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 | `CommonTailElimination.common_solved_instances_exact` | 任意の有限 positive 同深さ graph（ref/union/inter/mask、任意 Common 型の atom）と任意の独立割当てで、方程式成立 ⇔ ある制約なし Common 型 parameter から計算した解と各 slot が要求同値。成功・fuel・closed を前提にしない | 任意の subtype 不等式や whole-default source 方程式の完全 compiler |
 | `CommonRecordTailElimination.compile_models_exact` / `solve_models` / `solved_instances_exact` | 上の graph に実際の record 構築を追加し、任意 payload と同深さ tail 循環を実 polynomial へ完全変換する。任意 parameter は解を与え、任意の独立解も回収する | payload 自体の未知 constructor 方程式、default source の未知参照、全 source principal theorem |
 | `CommonPresenceTailElimination.solve_models` / `solve_retract` / `solved_instances_exact` | 任意の有限 graph の実 record/default/mask 方程式を解く。未知参照は同深さ tail と whole-default source に置け、循環も自由。payload/fallback は固定された任意 Common 型。Models ⇔ ある制約なし Common parameter の解と各 slot が要求同値で、どの parameter 割当てもモデルを与える。深さ・rank・外側 mask・観測をすべて量化し、内部反復数は有限座標から導出 | 同じ未知 graph の guarded payload/fallback/arrow 子への参照、任意の型不等式や全 source compiler |
-| `CommonRowTailInference.joint_instances_exact` / `solve_models` / `solve_retract` | 宣言した有限構文の任意入力・任意の独立行／値割当てで、Models ⇔ ある制約なし行・値 parameter の具体化が元の行と等しく、値が要求同値。別途、どの parameter 割当てもモデルを与える。行の右辺は構文上 var/empty、左辺は任意 join。record/default source の同深さ循環を含む。atom/payload/fallback は全有限 Common constructor と共有する symbolic arrow 行を持つ。無制約行も自由のまま | 任意の型不等式からこの構文への compiler、guarded な未知 payload、全 source の生成入力がこの構文へ完全変換されること |
+| `CommonPresenceTailLayers.solveLayers_quote` / `solveLayers_map` / `solveLayers_evalAt` | 任意 payload index 型・有限 symbolic graph・Layer parameter・payload 割当て・深さで、実四 mode 反復と引用／rename／有限評価が文字通り可換。guarded 子と同深さ ref は別の参照種として共有 ID を保つ | この構文変換だけによる不等式の完全 inspector |
+| `CommonPresenceTailRegular.solveBlock_models` / `solveBlock_retract` / `guarded_solved_instances_exact` | 任意の有限 graph・独立 Common 型割当てで、元の方程式 Models ⇔ ある制約なし parameter から計算した regular block の全 slot が要求同値。同じ未知 slot を guarded payload／fallback／負の arrow 子と同深さ record/default/mask tail の両方へ代入する。任意外部 state も許し、どの parameter もモデルを与える。成功・fuel・Closed を前提にしない | 任意 subtype 不等式からこの graph への完全 compiler、全 source の生成制約の求解 |
+| `CommonRowTailInference.joint_instances_exact` / `solve_models` / `solve_retract` | 宣言した有限構文の任意入力・任意の独立行／値割当てで、Models ⇔ ある制約なし行・値 parameter の具体化が元の行と等しく、値が要求同値。別途、どの parameter 割当てもモデルを与える。行の右辺は構文上 var/empty、左辺は任意 join。record/default source の同深さ循環と、同じ slot の guarded payload/fallback/負の arrow 子を含む。symbolic layer 内の両 arrow 行は同じ row ID を共有し、無制約行も自由のまま | 任意の型不等式からこの構文への compiler、inspector が追加する全行辺の source support、全 source の生成入力がこの構文へ完全変換されること |
 | `CommonPresenceInspection.common_inspect_exact` / `default_inspect_at_exact` | 任意の共通型・環境・深さ・rank・一つの観測について、実有限 DNF inspector が proper child 観測／負引数比較／行比較／role membership のみへ保存・反映する。default source を再帰展開し元の whole-default 比較を atom に残さない | 任意 target の全観測を一つの有限な subtype branch へ落とす `default_inspect_exact`、atom の全求解 |
+| `CommonDefaultRequired.default_required_iff` / `inspect_required_exact` / `default_record_iff` | 任意 label/source/fallback/payload と任意 tail で、required／同名 record target に対する default 比較を、深さを一段ずらす optional-payload 条件と（有限な presence 判定または fallback≤payload）と残りの RecordTailLe へ完全分解する。required 版は実2 branch。source shape・成功前提は不要 | 任意 target への完全 inspector、未知 source slot の optional/presence 条件を制約なし family へ解消する compiler |
 | `CommonDefaultBoundary.presence_does_not_erase_default` | 任意 label で、source が width 以下かつ required label top 以下でも、whole default を source へ要求同値で置換できない具体反例。optional payload の制約も残す必要がある | 正常な構文上の present head に対する `default_present_record` の否定 |
 | `PresenceNormalForm.presence_normalise_exact` / `principal_clauses_exact` / `Clause.pack_exact` | 任意 model・実 presence Formula・自由割当てで、Holds ⇔ 計算した有限 clause の一つと局所 computation 割当ての存在。値と行を同じ slot として保持し、捕捉環境の EnvRel の下で全 source の独立 Typing と一致 | 原子制約の解消、局所割当てに条件を残さない全自由 parameter family |
 | `PresenceNormalForm.closed_core_exact` / `closed_source_exact` | 任意 model・閉じた Core/source 式・任意結果について、型判断 ⇔ finite packed clause と全原子制約を満たす割当て。support checker・推論成功・fuel 前提は不要 | solved infer の principal/rejected/unsupported theorem。右辺の原子制約は未求解 |
 | `PresenceSourceConstraintSupport.generated_row_shapes` / `generated_explicit_rows_supported` / `generated_explicit_rows_models_exact` | record/default を含む全 source の実生成式の全 clause で、明示 row atom を実 RowFlowSchemes solver が扱える。任意行代数・任意独立行解に対し、自由 parameter scheme から相互包含で回収する | 新しい全 target 型 inspector が後から追加する行辺まで含む simultaneous support |
 | `CommonPresenceInspectionRows.inspect_preserves_rows` / `inspected_rows_supported` | 任意の行述語を満たす outer arrow 行と観測側の行から、inspector が生成する行 atom の両端も同じ述語を満たす。元の行が var/empty なら実 RowFlowSchemes.supported が true。mask/record/default の再帰も含む | 全 target の型比較を有限 branch へ変換する未実装手続きの行保存 |
 | `CommonLegacyTyping.formula_preserved` / `presence_typing_preserved` / `legacy_core_instances_preserved` | 具体旧モデルの任意 Formula と割当ての充足を、実 witness と同じ行を保って Common へ移す。任意の閉じた旧 Typing は独立 Common presence Typing に保存される。旧 infer 版は任意の旧 supported 式・任意旧結果・その旧 instance を前提に Core.Typing を得る。Compatible は具体的に証明し呼出側へ要求しない | 新 Core.infer の instance、反映、同じ行での旧 instance 回収 |
-| `CommonSyntax.Layer.evalAt_congr` / `evalAt_masked_probe_iff` | 任意の行前順序・payload index 型・深さ・Layer・二つの payload 割当てについて、各 payload が全 rank の有限要求同値なら Layer の評価も同値。負の arrow、default の深さ0、任意外側 mask を含む | 同じ未知 graph の guarded 子と同深さ tail を同時に閉じる block solver |
+| `CommonSyntax.Layer.evalAt_congr` / `evalAt_masked_probe_iff` | 任意の行前順序・payload index 型・深さ・Layer・二つの payload 割当てについて、各 payload が全 rank の有限要求同値なら Layer の評価も同値。負の arrow、default の深さ0、任意外側 mask を含む。上記 block retraction の深さ帰納で使用 | 片方向の payload 単調性、全 target inspector |
 
 回答済み Q5 に対応する新しい具体要求モデルを `ProducerContextual` / `ProducerContextualRegular` に追加した。
 型変数は任意の意味型が満たすすべての観測を表し、arrow の引数要求も同じ環境の型を名前で参照する。
@@ -463,7 +467,8 @@ runtime data 解釈に関数値は含めず、関数／行は独立した要求�
 旧 `Layer.record` の tail は有限 layer、open-record graph の tail は node 参照であり、
 単純な置換は観測深さを減らす位置を変える（spec 10.32.5）。さらに旧 regular 部分型は構造的関係で、
 presence の data 述語包含との同値はない。これらを既存 data 観測の橋だけで埋めることはできない。
-具体的な共通モデルと、宣言した同深さ record/default-tail・共有 symbolic 行の解構成／retraction は追加した。
+具体的な共通モデル、guarded 子と同深さ record/default-tail を共有する regular block の解構成／retraction、
+宣言した共有 symbolic 行の simultaneous family は追加した。
 全 presence 不等式の完全 inspector/compiler と全 source の自由 family は数学的義務として残り、統一入口は未公開である。
 既存 `collect_instances_exact` の変更、既存 theorem・test expectation の変更、仕様の仮決定は行っていない。
 未実装部分の正確な量化と前提は [残契約の設計メモ](../notes/design/2026-11-07-m1-remaining-contracts.md) に記す。

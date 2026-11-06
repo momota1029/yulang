@@ -6,6 +6,10 @@ Date: 2026-11-07
 
 Scope: `integration/m1-solver` で未実装の共通モデル・求解・source 接続。
 
+このメモは設計時点の残契約を保持する。`integration/m1-common` で証明済みとなった部分と、現在も
+開いている補題は [実装結果](../handoff/2026-11-07-m1-common-results.md) を参照する。
+下記契約の量化・前提を、実装済みの限定断片に合わせて縮小しない。
+
 このメモの code block は **未実装契約の Lean 風型**であり、Lean に追加した declaration ではない。`Common`、`PresenceCompiler`、`PresenceSolved` は将来の実装を区別する仮名である。要求された定理を structure の law field や Instance の定義へ埋め込むことを完成とは数えない。
 
 `Core.PresenceGeneration.Model` は演算の interface だけである。`PresenceOpenTailSignature.model finite` はその任意の既存解釈 finite を regular 化する表現変換であり、finite の意図した意味や具体的存在を証明していない。`Core.RequiredInference.infer` と `Core.PresenceInference.infer` は別入口のまま。統合 `Core.infer` はこの snapshot では存在しない。

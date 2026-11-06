@@ -10,6 +10,7 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Presence 型と required-field 主型推論の統合](2026-11-06-presence-inference-integration.md) — Draft。有限data型の意味と全parameterの一方向の橋、presence layer、旧regular graphの全有限data観測とblock closureの保存・反映を実装。関数/行意味、presence制約の飽和・coalescing、全source instance同値は残る。
 - [M1 solver の内部契約と局所更新](2026-11-07-m1-solver-and-locality.md) — Draft。要求モデル・具体 tail/mask 解・全 contextual constructor 解・旧 supported source の主型性、SCC selection と増分 build、selection/具体化/簡約の費用上界、完全な標準形との未接続境界。
 - [共通 presence carrier と全 source の M1 残契約](2026-11-07-m1-remaining-contracts.md) — Draft。exactEmpty/required/whole default、関数・行・同深さ tail/mask を統合した具体モデル、全入力 presence solver、統合 Core.infer と旧結果型の埋込みについて、未実装の定理を量化・前提つきで記録する。
+- [M1 の具体共通 carrier と残る compiler 境界](2026-11-07-m1-common-model.md) — Draft。独立構文・要求意味・strict data image、guarded 子と同深さ record/default tail の regular 解、行との simultaneous family、全 source compiler と完全標準形の残契約。
 - [Scoped pattern defaults と joint payload coverage](2026-11-06-scoped-pattern-defaults.md) — 解決済みkernelの設計。Q4の累積環境、Q5〜Q7の順序・名前検査、Q8と同じ具体evaluatorへの型付き網羅性契約、source接続の残る境界。
 - [Rust AST oracle の段階的導入計画](2026-11-06-rust-oracle-plan.md) — Draft。Lean data evaluatorとの値・訪問列の差分試験から始め、関数・handler・辞書・cast・推論、Perceus/evidence passing/Craneliftの導入境界を分ける。§6はcache・let選言・疎な飽和・行判定・scheme共有、§7はarena/path intern・依存収集・module量化・SCC単位のselectionとrole索引・三つの初期benchmarkの設計。
 - [Parser gap closure: forms promised by `spec/` that yu-syntax does not yet read](2026-11-04-parser-gap-closure-addendum.md) — Authoritative (approved 2026-11-04)
@@ -150,4 +151,3 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [First HIR module resolution slice](2026-09-19-hir-simple-module-resolution-first-slice-draft.md) — Authoritative
 - [HIR direct-root expression slice](2026-09-20-hir-direct-root-expression-slice.md) — Authoritative; construction complete (2026-09-20)
 - [BracketRow close-error CST topology supersession](2026-09-20-successor-bracket-row-close-topology-supersession.md) — Authoritative; construction complete (2026-09-20)
-- [M1 concrete common carrier and compiler boundary](2026-11-07-m1-common-model.md) — Draft; concrete syntax, demand semantics, strict data readout, remaining compiler obligations

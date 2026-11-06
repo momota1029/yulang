@@ -112,20 +112,32 @@ fallback の観測を組み合わせる。そのため record と同じ一観測
 反復回数は座標数から決まり、有限個の要求をサンプルするものではない。独立な Models は
 元の Body.eval による各 constructor 方程式そのもので、solve を参照しない。
 
-payload と fallback は任意の固定された Common 型でよく、型自身は regular/mask/arrow/default を
-含められる。ただし、解いている同じ未知 slot を guarded payload や負の arrow の子で参照する
-graph は別の closure 義務である。`Layer.evalAt_congr` は全 rank の payload 要求同値を保存し、
-負位置を理由に型を除外せず、この closure の深さ帰納に使える。
+この有限反復単体の payload と fallback は任意の固定された Common 型でよく、型自身は
+regular/mask/arrow/default を含められる。さらに `CommonPresenceTailLayers` で payload を index に戻し、
+Layer 構文上で同じ反復を行う。引用・rename・有限評価と実反復の交換を文字通りの等号で示した。
+
+`CommonPresenceTailRegular` はその symbolic 解を `CommonSyntax.closeBlock` で閉じる。同じ未知 slot を
+guarded payload／fallback／負の arrow 子と同深さ tail に代入する独立 Models を定義し、任意 parameter の
+健全性と、任意独立解の retraction を証明する。`Layer.evalAt_congr` は前の constructor depth の全 rank の
+payload 同値を保存するため、負位置に単調性を仮定する必要がない。default の初期層もそのまま保つ。
 
 presence だけを見て default を source に消す案は採用しない。
 `inter exactEmpty (required l int)` は width 以下かつ required l top 以下だが、default 後の str field
 要求を元の source が満たさない。`CommonDefaultBoundary.presence_does_not_erase_default` が任意 label
 についてこの境界を証明する。source が構文上同名 record head である場合の既存法則とは区別する。
 
+`CommonDefaultRequired` は required target をさらに有限2 branch へ分ける。正の全深さの field 存在は
+outer Layer から計算でき、payload index の名前変更に依存しない。source の optional payload は深さ d+1、
+target payload と fallback は d で比較する。深さ0の record-bottom 近似は別に処理する。
+同名 record target には、先頭 label を除いた `RecordTailLe` を追加する。この規則でも optional/presence
+条件は独立な義務であり、未知 source slot を含む全 compiler が解消したと数えない。
+
 ## 7. 行・formula・旧型付け
 
 `CommonRowTailInference` の入力は有限 syntax であり、行右辺を var/empty、左辺を var/empty/join とする。
 型 atom、record payload、default fallback の両 arrow 行も同じ symbolic row ID を共有する。
+`.layer` は同じ未知 Fin slot を guarded 子／負の arrow 引数へ置き、`.recordRef`／`.recordDefaultRef` は
+未知 payload/fallback を同深さ tail/source と共有する。実 Body.eval は両位置へ同じ values を代入する。
 まず実 RowFlowSchemes の有限 scheme を作り、その行代入で実 presence-tail solver を実行する。
 任意 parameter が元の独立 Models を満たし、任意解は行を文字通りの等号、型を要求同値で回収する。
 元の行を保持できるため、型内部の行を交換する法則を model の前提として追加しない。

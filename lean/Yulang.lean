@@ -413,6 +413,8 @@ import Yulang.CommonLegacyTyping
 import Yulang.ProducerCanonicalClauses
 import Yulang.CommonCanonicalShapes
 import Yulang.CommonLayerCongruence
+import Yulang.CommonPresenceTailRegular
+import Yulang.CommonDefaultRecord
 import Yulang.CommonDefault
 import Yulang.CommonFiniteParameters
 import Yulang.CommonFiniteEmbedding
