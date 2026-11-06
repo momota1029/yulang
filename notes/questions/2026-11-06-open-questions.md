@@ -187,7 +187,7 @@ Index辞書とRust oracleの一致。現在は内部Nat indexと独立な位置�
 
 ## Q10. 無効なlist indexの結果を、どの失敗として表すか
 
-状態: **未回答**。負数の解釈（Q9）とは独立に、`[10,20][2]`や`[][0]`の結果を定める必要がある。
+状態: **回答済み(2026-11-06): A**。名前つきerror effectにする。型にerrorは載る。多くなるerrorを `errors` のようにまとめる仕組みは将来の拡張。effect keyの名前とpayloadは下書き(`spec/03-expressions.md` 3.2)。以下は質問の記録。負数の解釈（Q9）とは独立に、`[10,20][2]`や`[][0]`の結果を定める必要がある。
 `spec/06-roles.md`と`spec/08-errors-std.md`は、その失敗の型・effectをまだ確定していない。
 
 - **A（推奨）:** 名前つきerror effectにし、sourceの型とhandlerで扱えるようにする。effect key・payload・署名とIndexのeffect行への反映を定める。
