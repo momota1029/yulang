@@ -67,6 +67,14 @@ required/optional の印だけを各 field へ別々に射影すると、相関�
 同じ field が後ろで隠れたときに payload の制約が残らないことである。
 既存 required-field fragment に対しては、翻訳の保存と反映を別々に示す。
 
+このうち有限表現を `PresenceLayers.Layer` として実装した。
+`required` / `optional` / `lacks` とunion/intersectionを別々に保持し、子の参照には任意の述語を割り当てる。
+`Layer.check_exact` は子membership checkerの全値での正確性を前提に、任意のlayer・値について
+実行判定と独立意味を同値にする。`mask_exact` / `meaning_mask` / `record_shadow` が
+union/intersectionを含む任意のtailのshadowを扱う。
+`independent_fields_lose_correlation` はfield別optional化が二field間の選択肢を失う具体反例を残す。
+このlayer自体は部分型solverでもexact-value descriptorでもない。
+
 ## 4. 制約生成と評価順
 
 `recordDefault l source fallback` の source を `optional l A`、fallback を `B` で制約する。

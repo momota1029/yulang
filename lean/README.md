@@ -269,6 +269,13 @@ source から mask を求めて checker に渡す elaboration は残る。
 parameterの個数は有限だが、代入する有限raw型を有限候補へ制限していない。
 このplanは `RigidRecordValueInference` のもので、regularな `SourcePrincipalInference` のschemeではない。
 
+`PresenceLayers.Layer` はrequired・optional・不在を別々に持つ有限の型層であり、
+union/intersectionの全構造を残してfield間の相関を保つ。子parameterは任意のdata述語へ割り当てられる。
+`Layer.check_exact` は任意の割当てとそれに正確な子membership checkerについて、
+任意のlayer・実値の所属判定を独立な意味と一致させる。部分型判定や全述語の決定可能性は主張しない。
+`mask_exact` / `meaning_mask` / `record_shadow` は任意のmaskとtailについて隠れた同名fieldの要求を消す。
+`independent_fields_lose_correlation` はfield別のoptional化が元の二field間の選択肢を広げる反例である。
+
 `optional_iff_absent_or_required` と `optional_never_iff_absent` は既存述語の意味から無条件に成り立つ。
 旧width型からabsenceやexact emptyは導けない反例も保持する。
 旧runtimeのliteralはbase markerで、関数型の翻訳はdata上ではneverである。
@@ -733,6 +740,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.CasePresenceValidation` | 宣言presenceのoptional許可/required拒否/unknown未解決、具体recordの旧markerへのlookup保存、required/optional所属の対応、型付きlazy defaultからunionに入る実束縛 | sourceからpresence metadataを導出し全patternへ適用するpass、旧markerにないfloat/list/nominalの射影、source defaultのscopeを割り当てるpass |
 | `Yulang.LiteralValues` / `LiteralValueExamples` / `Binary64` / `Binary64Rounding` / `Binary64Decimal` | 内容つきliteral、整数範囲、64bit codecの相互逆、数値Eqと独立判断の同値、正負zeroの一致・NaNの不一致、任意tokenの厳密な分数化と範囲内での全有限binary64候補への最近接・偶数丸め | 範囲外tokenのsource方針（Q11）、数値演算、parser/escape、Rust f64との対応、非零巨大指数の資源最適化、既存base-marker ASTとの全体統合 |
 | `Yulang.PresenceLegacyBridge` | 任意の有限legacy型とmaskのdata意味を保存するpresence翻訳、Shadow部分型の包含保存、閉supported型判断の移送、finite-data planの全parameterを同じexact結果が一方向に包含、optionalの分解と旧width型の反例 | 逆向きの部分型完全性・scheme等価、regular型と自由row parameter、closure/effect行の意味、SourcePrincipalInference全体への統合 |
+| `Yulang.PresenceLayers` | required/optional/lacksを保つ有限layer、任意の子述語と正確なmembership checkerから全値で判定同値、mask合成とhidden field消去、field別optional化で相関が失われる反例 | 任意述語の決定可能性、全深さの部分型判定、closure/effect行の意味、拡張solverの主型性 |
 | `Yulang.NominalConstructionRuntime` / `NominalConstructionExamples` | 不変parameterの元の構築位置の順序、適合時のcast抑制、純粋cast後の全request tree保存、EOFの実値保持、metadataとarity保存 | ground境界検査から値型に正しい変換codeの合成、固定struct field・宣言defaultを含むsource elaboration、具体data構築ASTとの統合 |
 | `Yulang.NominalListViews` / `NominalListIndex` | 同じlistに対するcursor・index・foldの一致、整数indexの成功と有効区間の同値、無効indexの非再開error要求、既存wrapとの一致 | sourceのFold/Index辞書の選択・署名と本文の対応、下書きのerror名/payloadの確定 |
 | `Yulang.NominalDataConstructionExamples` | 解決済みnominal構築式、任意整数から計算するstruct/enum/list payloadの型付けと実評価・全訪問列 | 宣言のlookup・型引数・payload宣言型の検査、source constructor default・castの挿入 |

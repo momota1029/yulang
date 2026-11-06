@@ -1412,3 +1412,11 @@ run_cmd do
 #print axioms Yulang.ScopedJointCaseExamples.program_typed
 #print axioms Yulang.ScopedJointCaseExamples.typed_program_progress
 #print axioms Yulang.ScopedJointCaseExamples.default_uses_pattern_binding
+#print axioms Yulang.PresenceLayers.Layer.check_exact
+#print axioms Yulang.PresenceLayers.Layer.mask_exact
+#print axioms Yulang.PresenceLayers.Layer.mask_append
+#print axioms Yulang.PresenceLayers.Layer.meaning_mask
+#print axioms Yulang.PresenceLayers.Layer.denote_map
+#print axioms Yulang.PresenceLayers.Layer.map_mask
+#print axioms Yulang.PresenceLayers.Layer.record_shadow
+#print axioms Yulang.PresenceLayers.independent_fields_lose_correlation

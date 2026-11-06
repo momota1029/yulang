@@ -1727,3 +1727,19 @@ presence制約生成の正確性、拡張solverの全instance主型性と拒否�
 旧 `SourcePrincipalInference.infer_instances_exact` は行順序の反対称性とsupport成功が前提で、
 `RecordFree`はsupportの十分な構文条件である。RecordFree外の一律拒否は導入していない。
 詳細な工程と完了条件は `notes/design/2026-11-06-presence-inference-integration.md` に分ける。
+
+### 10.37.1 相関を保つ有限presence layer
+
+`PresenceLayers.Layer` はrequired・optional・lacksを別の構成子とし、union/intersectionを保持する。
+子の参照は任意のdata述語に割り当てられ、exact valueや有限サンプルに制限しない。
+`Layer.check_exact` は任意の子述語割当て・子membership Bool判定について、
+各子と全値で判定が正確であることを前提に、任意のlayer・値の判定成功と独立意味の所属を同値にする。
+この前提から全述語の決定可能性や部分型判定を結論しない。
+
+`mask_exact` は任意の割当て・mask・layer・値について構文的maskと独立なhidden-field意味を同値にする。
+`meaning_mask` / `mask_append` はmaskの合成、`record_shadow` は任意のtailを含む
+同名fieldの後ろに書かれた要求が隠れることを示す。実値のlookupは引き続き先頭優先である。
+`independent_fields_lose_correlation` は「x:intだけ」または「y:strだけ」という選択肢を
+field別optionalへ落とすと両fieldを持つ値まで受理する反例を示す。
+
+**残る義務:** regular graphの全有限観測との橋、飽和・coalescing・全instanceを保つsource推論の統合。
