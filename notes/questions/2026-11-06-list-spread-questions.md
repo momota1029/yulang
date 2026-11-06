@@ -5,7 +5,7 @@
 
 ## Q13. list spread の対象は list だけか、任意の Fold か
 
-状態: **未回答**。
+状態: **回答済み(2026-11-06): B**(ユーザー: 「Bだねえ……」。推奨Aと違う答え)。list spread の対象は任意の `Fold` 値。要素は走査順に新しい list へ入る。無限の Fold なら構築は終わらない。`spec/03-expressions.md` 3.1に反映。以下は質問の記録。
 
 `spec/03-expressions.md` 3.1 は `[1, ..xs, 3]` を認める。
 `spec/03c-control.md` 3c.1 は `for` の対象を任意の `Fold` とするが、

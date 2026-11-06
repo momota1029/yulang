@@ -158,6 +158,9 @@
 44. **spread が前にある record の型は、省略可能な field の仕組みで付ける**(`spec/04-types.md` 4.3、2026-11-06)。`{..base, x: 3}` の `x: 3` は既定値。`base` が未知なら `base` に `x?: 'a` を要求し、結果の `x` を `'a | int`。pattern の既定値(3b.3)の型 `{width?: 'a} -> 'a | int` と同じ道具。
     ChatGPT への指示: (1) 核の AST に、spread が前にある record を表す形を足す(今の `record label head tail` は、先頭の field が勝つ形だけ)。(2) その形の型付けを、省略可能な field(`x?`)と union の仕組みで定義し、主型推論と評価器(`SourceDataRuntime`)の両方に接続する。(3) 評価順は決定 43 のとおり(spread が前なら `base` の式が先)。(4) `{..base, x: 3}` の評価結果が、`base` が `x` を持つなら `base.x`、持たなければ `3` になることを、型付けの結果(`'a | int`)と対応づけて証明する。
 
+45. **list の spread の対象は任意の `Fold`**(`spec/03-expressions.md` 3.1、2026-11-06)。`[0, ..(1..10), 11]`。走査順に新しい list へ入れる。`for` と同じ role 解決・辞書・effect。無限の Fold なら終わらない。ChatGPT の推奨(A: list だけ)と違う答え。
+    ChatGPT への指示: list spread の型判断に `Fold 'item` の制約を足し、結果の要素型を spread の要素型と literal の要素型の union にする。辞書選択、spread の effect 行、`Fold` の走査から list 構築への翻訳、評価順(書いた順)を接続する。有限性は仮定せず、進行と停止を区別する。operand が既に有限の list 値と解決された核(今の実装)は、その特別な場合として保つ。
+
 ## Lean に入ったもの(commit 順)
 | commit | 内容 |
 | --- | --- |
