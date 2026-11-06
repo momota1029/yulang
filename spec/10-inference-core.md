@@ -1489,7 +1489,7 @@ source名解決・注釈・presence検査の全patternへの適用、defaultのs
 既存の決定43からこの省略規則を追加で決定したとは扱わず、sourceへの意味保存は回答後に接続する。
 **仮のor方針（Q6）:** 最初に照合が成功した枝を選び、guardが偽でも別枝を再試行しない。
 sourceの普通のor patternへの意味保存はこの回答後に接続する。
-rawな重複binderのlookupも、sourceの名前解決・重複名の規則ではない。
+rawな重複binderのlookupも、sourceの名前解決・重複名の規則ではない（Q7）。
 
 **残る義務:** guard/default内部のcase、関数再帰・application・effect・castとの統合、
 sourceの名前解決・束縛順序・default環境のelaboration、および10.35.1の完全なcoverage算法。

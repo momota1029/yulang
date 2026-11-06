@@ -42,7 +42,7 @@ caseのscrutinee/body・pair・letへの有限な入れ子は、後述の `CaseT
 effectful defaultを含むsource翻訳への意味保存は回答後に接続する。
 **仮のor方針（Q6）:** 最初に照合が成功した枝を採り、後のguardが偽でも別の枝を再試行しない。
 parser DSLの選択規則から普通のpatternへこの挙動を広げたものではない。
-rawな束縛IDの重複時のlookupも、sourceの重複名を許す決定ではない。
+rawな束縛IDの重複時のlookupも、sourceの重複名を許す決定ではない（Q7）。
 
 `CasePresenceValidation` はoptional宣言metadataを許可し、requiredを拒否、unknownを未解決とする。
 literal内容を旧marker値へ射影したrecordについて、lookupとrequired/optional要求の一致を示す。
