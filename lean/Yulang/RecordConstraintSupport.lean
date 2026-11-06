@@ -179,6 +179,7 @@ theorem good_generate (expression : Expr)
     (schemes : SchemeEnv α) (environment : GoodEnv schemes)
     (output : CompTerm α) (accepted : GoodComp output) : GoodFormula (generate schemes expression output) := by
   induction expression generalizing α with
+  | recordDefault => trivial
   | var index => exact good_lookup environment index output accepted
   | lit scalar => exact good_compLe rfl accepted
   | lam body ih =>

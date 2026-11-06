@@ -85,6 +85,7 @@ theorem typing_evaluates (algebra : RowFlowSchemes.Algebra Row)
     (typed : Typing (model algebra relation) bindings expression target) :
     ∃ value, eval runtime expression = .ok value ∧ Holds target.1 visible value := by
   induction expression generalizing bindings runtime target with
+  | recordDefault => cases typed
   | var index =>
       cases typed with
       | var found bindingTyped =>

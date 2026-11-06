@@ -7,6 +7,8 @@ The input is `Inference.Expr`, not an intrinsically typed or shape-resolved AST.
 Values contain actual finite records. Extending a record removes every older
 field with the same label, so a hidden payload is not retained in the result.
 Both the new head and the old tail are evaluated before this removal.
+Spread-first default extension evaluates its base before its fallback, even
+when an existing field wins. An absent field is appended after the base fields.
 
 This pure fragment includes variables, literals, pairs and projections,
 records and field selection, variants, and evaluated nonrecursive lets.
@@ -40,6 +42,41 @@ def erase (label : Nat) : List (Nat × Value) → List (Nat × Value)
 
 def insert (label : Nat) (value : Value) (rest : List (Nat × Value)) : List (Nat × Value) :=
   (label, value) :: erase label rest
+
+/-- First-field-wins fallback insertion, after both expressions have run. -/
+def insertDefault (label : Nat) (value : Value) (fields : List (Nat × Value)) :
+    List (Nat × Value) :=
+  if (lookup label fields).isSome then fields else fields ++ [(label, value)]
+
+theorem lookup_append (label : Nat) (left right : List (Nat × Value)) :
+    lookup label (left ++ right) = (lookup label left).or (lookup label right) := by
+  induction left with
+  | nil => rfl
+  | cons field rest ih =>
+      obtain ⟨name, value⟩ := field
+      by_cases same : label = name <;> simp [lookup, same, ih]
+
+theorem insertDefault_present (label : Nat) (value existing : Value)
+    (fields : List (Nat × Value)) (present : lookup label fields = some existing) :
+    insertDefault label value fields = fields := by
+  simp [insertDefault, present]
+
+theorem insertDefault_absent (label : Nat) (value : Value)
+    (fields : List (Nat × Value)) (absent : lookup label fields = none) :
+    insertDefault label value fields = fields ++ [(label, value)] := by
+  simp [insertDefault, absent]
+
+@[simp] theorem lookup_insertDefault_same (label : Nat) (value : Value)
+    (fields : List (Nat × Value)) :
+    lookup label (insertDefault label value fields) =
+      (lookup label fields).or (some value) := by
+  cases found : lookup label fields <;> simp [insertDefault, found, lookup_append, lookup]
+
+theorem lookup_insertDefault_other (label query : Nat) (value : Value)
+    (different : query ≠ label) (fields : List (Nat × Value)) :
+    lookup query (insertDefault label value fields) = lookup query fields := by
+  cases found : lookup label fields <;>
+    simp [insertDefault, found, lookup_append, lookup, different]
 
 @[simp] theorem lookup_erase_same (label : Nat) (fields : List (Nat × Value)) :
     lookup label (erase label fields) = none := by
@@ -140,6 +177,12 @@ def eval (environment : List Value) : Expr → Result
       match last with
       | .record fields => pure (.record (Fields.insert label first fields))
       | _ => .error .expectedRecord
+  | .recordDefault label base fallback => do
+      let first ← eval environment base
+      let last ← eval environment fallback
+      match first with
+      | .record fields => pure (.record (Fields.insertDefault label last fields))
+      | _ => .error .expectedRecord
   | .field label expression => do
       let value ← eval environment expression
       match value with
@@ -156,7 +199,7 @@ def eval (environment : List Value) : Expr → Result
 /-- This syntax predicate does not require successful evaluation or typing. -/
 def Supported : Expr → Prop
   | .var _ | .lit _ | .emptyRecord => True
-  | .letE left right | .pair left right | .record _ left right =>
+  | .letE left right | .pair left right | .record _ left right | .recordDefault _ left right =>
       Supported left ∧ Supported right
   | .fst expression | .snd expression | .field _ expression | .variant _ expression =>
       Supported expression

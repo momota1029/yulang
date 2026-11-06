@@ -81,14 +81,17 @@ def Result.Instance (algebra : RowFlowSchemes.Algebra Row)
 /-- Total inference directly from a closed core expression. The finite
 alternatives keep all value-let instances; no arbitrary branch is selected. -/
 def infer (expression : Expr) : Result :=
-  match collect (clauses expression) with
-  | none => .unsupported
-  | some [] => .rejected
-  | some (first :: rest) => .inferred (first :: rest)
+  if expression.requiredFieldsOnly then
+    match collect (clauses expression) with
+    | none => .unsupported
+    | some [] => .rejected
+    | some (first :: rest) => .inferred (first :: rest)
+  else .unsupported
 
 def supported (expression : Expr) : Bool :=
-  (clauses expression).all fun clause =>
-    JointConstraintInference.supported (ConstraintProblems.split clause.pack)
+  expression.requiredFieldsOnly &&
+    (clauses expression).all fun clause =>
+      JointConstraintInference.supported (ConstraintProblems.split clause.pack)
 
 private theorem joint_supported_of_status (problem : ConstraintProblems.Problem n)
     (supportedStatus : (JointConstraintInference.infer problem).status ≠ .unsupported) :
@@ -189,21 +192,31 @@ theorem collect_instances_exact (algebra : RowFlowSchemes.Algebra Row)
 
 theorem infer_unsupported_iff (expression : Expr) :
     (infer expression).status = .unsupported ↔ supported expression = false := by
-  have absent := collect_none_iff (clauses expression)
-  cases returned : collect (clauses expression) with
-  | none =>
-      obtain ⟨clause, member, unsupported⟩ := absent.mp returned
-      have failed : supported expression = false := by
-        apply Bool.eq_false_iff.mpr
-        intro accepted
-        have all := List.all_eq_true.mp accepted clause member
-        rw [unsupported] at all
-        cases all
-      simp [infer, returned, Result.status, failed]
-  | some result =>
-      have checked : supported expression = true :=
-        List.all_eq_true.mpr (collect_some_supported (clauses expression) result returned)
-      cases result <;> simp [infer, returned, Result.status, checked]
+  cases sourceChecked : expression.requiredFieldsOnly with
+  | false => simp [infer, supported, sourceChecked, Result.status]
+  | true =>
+      have absent := collect_none_iff (clauses expression)
+      cases returned : collect (clauses expression) with
+      | none =>
+          obtain ⟨clause, member, unsupported⟩ := absent.mp returned
+          have failed : supported expression = false := by
+            apply Bool.eq_false_iff.mpr
+            intro accepted
+            have all := List.all_eq_true.mp (Bool.and_eq_true_iff.mp accepted).2 clause member
+            rw [unsupported] at all
+            cases all
+          simp [infer, sourceChecked, returned, Result.status, failed]
+      | some result =>
+          have checked : supported expression = true :=
+            Bool.and_eq_true_iff.mpr ⟨sourceChecked,
+              List.all_eq_true.mpr (collect_some_supported (clauses expression) result returned)⟩
+          cases result <;> simp [infer, sourceChecked, returned, Result.status, checked]
+
+/-- The required-field solver explicitly declines optional-field syntax,
+including when it occurs inside another expression. -/
+theorem infer_optional_unsupported (expression : Expr)
+    (optional : expression.requiredFieldsOnly = false) : infer expression = .unsupported := by
+  simp [infer, optional]
 
 /-- All instances of the actual inference result are exactly the original
 declarative typings, provided only the executable support check succeeds. -/
@@ -211,6 +224,7 @@ theorem infer_instances_exact (algebra : RowFlowSchemes.Algebra Row)
     (rowAntisymm : ∀ {left right}, algebra.le left right → algebra.le right left → left = right)
     (expression : Expr) (checked : supported expression = true) (target : Comp (model algebra)) :
     (infer expression).Instance algebra target ↔ Typing (model algebra) [] expression target := by
+  have sourceChecked := (Bool.and_eq_true_iff.mp checked).1
   rw [ConstraintProblems.closed_source_problems_exact (model algebra)
     (RegularInferenceModel.subtype_refl algebra.le) RegularInferenceModel.subtype_trans
     algebra.refl algebra.trans expression target]
@@ -220,15 +234,15 @@ theorem infer_instances_exact (algebra : RowFlowSchemes.Algebra Row)
   cases returned : collect (clauses expression) with
   | none =>
       have failed := (infer_unsupported_iff expression).mp
-        (by simp [infer, returned, Result.status])
+        (by simp [infer, sourceChecked, returned, Result.status])
       rw [checked] at failed
       cases failed
   | some result =>
       have exact := collect_instances_exact algebra rowAntisymm (clauses expression) result returned target
       cases result with
-      | nil => simpa only [infer, returned, Result.Instance, Principal.Instance,
+      | nil => simpa only [infer, sourceChecked, ↓reduceIte, returned, Result.Instance, Principal.Instance,
           List.not_mem_nil, false_and, exists_false] using exact
-      | cons first rest => simpa only [infer, returned, Result.Instance] using exact
+      | cons first rest => simpa only [infer, sourceChecked, ↓reduceIte, returned, Result.Instance] using exact
 
 /-- A returned principal family represents every original result type and
 row. The only operational premise names the actual computed return value. -/
@@ -268,13 +282,17 @@ theorem Alternative.instance_of_parameters (algebra : RowFlowSchemes.Algebra Row
 
 theorem infer_inferred_nonempty (expression : Expr) (result : Principal)
     (returned : infer expression = .inferred result) : result ≠ [] := by
+  have sourceChecked : expression.requiredFieldsOnly = true := by
+    cases checked : expression.requiredFieldsOnly with
+    | false => simp [infer, checked] at returned
+    | true => rfl
   cases collected : collect (clauses expression) with
-  | none => simp [infer, collected] at returned
+  | none => simp [infer, sourceChecked, collected] at returned
   | some alternatives =>
       cases alternatives with
-      | nil => simp [infer, collected] at returned
+      | nil => simp [infer, sourceChecked, collected] at returned
       | cons first rest =>
-          have equal : first :: rest = result := by simpa [infer, collected] using returned
+          have equal : first :: rest = result := by simpa [infer, sourceChecked, collected] using returned
           rw [← equal]
           simp
 
@@ -330,6 +348,8 @@ This is proved through the original generator and both value-let branches,
 not assumed as a property of an already successful inference run. -/
 theorem recordFree_supported (expression : Expr) (core : SourceConstraintSupport.RecordFree expression) :
     supported expression = true := by
+  apply Bool.and_eq_true_iff.mpr
+  refine ⟨SourceConstraintSupport.recordFree_requiredFieldsOnly expression core, ?_⟩
   apply List.all_eq_true.mpr
   intro clause member
   obtain ⟨compiled, found, rowsSupported⟩ :=

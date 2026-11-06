@@ -24,7 +24,11 @@ def RecordFree : Expr → Prop
   | .lam body | .fst body | .snd body | .field _ body | .variant _ body => RecordFree body
   | .app left right | .letE left right | .pair left right => RecordFree left ∧ RecordFree right
   | .branch condition yes no => RecordFree condition ∧ RecordFree yes ∧ RecordFree no
-  | .record _ _ _ => False
+  | .record _ _ _ | .recordDefault _ _ _ => False
+
+theorem recordFree_requiredFieldsOnly (expression : Expr) (core : RecordFree expression) :
+    expression.requiredFieldsOnly = true := by
+  induction expression <;> simp_all [RecordFree, Expr.requiredFieldsOnly]
 
 def simpleRow : RowTerm α → Bool
   | .var _ | .empty => true
@@ -228,7 +232,7 @@ theorem good_generate (expression : Expr) (core : RecordFree expression)
   | fst pair ih | snd pair ih =>
       exact ⟨ih core _ environment.lift.lift _ ⟨rfl, rfl⟩, good_compLe rfl (accepted.rename _)⟩
   | emptyRecord => exact good_compLe rfl accepted
-  | record => cases core
+  | record | recordDefault => cases core
   | field label record ih =>
       exact ⟨ih core _ environment.lift _ ⟨rfl, rfl⟩, good_compLe rfl (accepted.rename _)⟩
   | variant label payload ih =>

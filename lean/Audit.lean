@@ -24,6 +24,10 @@ run_cmd do
     throwError "The audit did not find any Yulang declarations"
   logInfo m!"Axiom allowlist passed for {checked} declarations from Yulang modules"
 
+#print axioms Yulang.SourceDataRuntime.Fields.lookup_insertDefault_same
+#print axioms Yulang.SourceDataRuntime.Fields.lookup_insertDefault_other
+#print axioms Yulang.SourcePrincipalInference.infer_optional_unsupported
+
 #print axioms Yulang.RoleVisibility.resolved_mono
 #print axioms Yulang.Inference.ModelMap.formula_preserved
 #print axioms Yulang.Inference.ModelMap.closed_typing_preserved

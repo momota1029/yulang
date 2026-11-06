@@ -29,6 +29,7 @@ def expr : Inference.Expr → Expr Op Key Scope
   | .snd x => .snd (expr x)
   | .emptyRecord => .emptyRecord
   | .record label value rest => .record label (expr value) (expr rest)
+  | .recordDefault label base fallback => .recordDefault label (expr base) (expr fallback)
   | .field label value => .field label (expr value)
   | .variant label value => .variant label (expr value)
 

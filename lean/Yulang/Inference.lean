@@ -151,6 +151,9 @@ inductive Expr where
   | snd : Expr → Expr
   | emptyRecord : Expr
   | record : Nat → Expr → Expr → Expr
+  /-- Spread-first default extension: evaluate the base, then the fallback.
+  The base's existing field wins, but the fallback is still evaluated. -/
+  | recordDefault : Nat → Expr → Expr → Expr
   | field : Nat → Expr → Expr
   | variant : Nat → Expr → Expr
   deriving Repr, DecidableEq
@@ -159,9 +162,23 @@ inductive Expr where
 scheme also permits a pure typing; a computation argument is not made pure. -/
 def Expr.isValue : Expr → Bool
   | .var _ | .lit _ | .lam _ | .emptyRecord => true
-  | .pair a b | .record _ a b => a.isValue && b.isValue
+  | .pair a b | .record _ a b | .recordDefault _ a b => a.isValue && b.isValue
   | .variant _ a => a.isValue
   | _ => false
+
+/-- The historical required-field constraint language has no optional-field
+or absence constructor. Presence-aware data inference handles `recordDefault`
+separately; this check prevents its old solver from misreporting unsupported
+syntax as a language type error. -/
+def Expr.requiredFieldsOnly : Expr → Bool
+  | .var _ | .lit _ | .emptyRecord => true
+  | .lam body | .fst body | .snd body | .field _ body | .variant _ body =>
+      body.requiredFieldsOnly
+  | .app left right | .letE left right | .pair left right | .record _ left right =>
+      left.requiredFieldsOnly && right.requiredFieldsOnly
+  | .branch condition yes no =>
+      condition.requiredFieldsOnly && yes.requiredFieldsOnly && no.requiredFieldsOnly
+  | .recordDefault _ _ _ => false
 
 /-- A polymorphic binding remembers the lexical environment. It does not
 capture the caller's future instantiations or generalize their variables. -/
@@ -283,6 +300,9 @@ def generate (Γ : SchemeEnv α) : Expr → CompTerm α → Formula α
           (.and (generate (env₂ Γ) rest fresh₁)
             (.and (.tyLe fresh₁.ty .emptyRecord)
               (Formula.compLe ⟨.record l fresh₀.ty fresh₁.ty, .join fresh₀.row fresh₁.row⟩ (lift₂ out))))))
+  -- This historical judgement deliberately has no optional-field rule.
+  -- Public inference must check `requiredFieldsOnly` before using it.
+  | .recordDefault _ _ _, _ => .bot
   | .field l x, out =>
       .existsSlot (
         .and (generate Γ.lift x ⟨.record l (.var none) .emptyRecord, .var none⟩)
@@ -395,6 +415,15 @@ theorem EnvRel.lift {m : Model} {ρ : α → Comp m} {sΓ : SchemeEnv α}
     cases h with | var hget hb => exact ⟨_, hget, hb⟩
   · rintro ⟨b, hget, hb⟩
     exact Typing.var hget hb
+
+/-- Unsupported by this historical judgement; not a rejection by the
+presence-aware data typing relation. -/
+@[simp] theorem Typing.recordDefault_iff (m : Model) (Γ : List (Binding m))
+    (label : Nat) (base fallback : Expr) (c : Comp m) :
+    Typing m Γ (.recordDefault label base fallback) c ↔ False := by
+  constructor
+  · intro typed; cases typed
+  · exact False.elim
 
 @[simp] theorem Typing.lit_iff (m : Model) (Γ : List (Binding m)) (b : Base) (c : Comp m) :
     Typing m Γ (.lit b) c ↔ Comp.le m (Comp.pure m (m.base b)) c := by
@@ -528,6 +557,7 @@ theorem generate_models_iff_typing (m : Model) (e : Expr)
     (out : CompTerm α) (henv : EnvRel m ρ sΓ Γ) :
     (generate sΓ e out).Holds m ρ ↔ Typing m Γ e (out.eval m ρ) := by
   induction e generalizing α sΓ Γ ρ out with
+  | recordDefault => simp [generate, Formula.Holds]
   | var n => simpa [generate] using henv n (out.eval m ρ)
   | lit b => simp [generate, CompTerm.eval, CompTerm.pure, TyTerm.eval, RowTerm.eval, Comp.pure]
   | lam body ih =>

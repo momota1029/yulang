@@ -10,6 +10,29 @@ lake build --wfail
 lake env lean --trust=0 Audit.lean
 ```
 
+## 決定42–44：評価順とspread-first record
+
+元の `Inference.Expr` に `recordDefault label base fallback` を追加した。
+`SourceDataRuntime.eval` は `base`、`fallback` の順に両方を評価してから、
+baseのfieldが存在すれば保持し、なければfallbackを末尾へ追加する。
+`Fields.lookup_insertDefault_same` は結果の同名fieldを
+`(lookup label fields).or (some fallback)` と特徴付け、
+`lookup_insertDefault_other` は他のfieldの保持を示す。
+baseの評価が失敗すればそこで止まり、baseが非recordの値まで評価された場合は
+fallbackを評価した後で `expectedRecord` とする。field選択による式の省略はない。
+
+従来の `Inference.Model` / `Typing` / `generate` はrequired-field用の体系で、
+optional-fieldやfield不在の型を持たない。この判断での `recordDefault` は未対応であり、
+`Expr.requiredFieldsOnly` と `SourcePrincipalInference.infer_optional_unsupported` により
+旧solverは入れ子の新構文も `unsupported` とする。これを言語の型エラーとは扱わない。
+既存の `{}` は引き続き任意のrecordの上界であり、exact emptyへの読み替えはしない。
+以下の旧主型定理・全core graph対応は、このrequired-field判断についての主張である。
+
+決定43の一般的なstrict引数評価と、歴史的な `OperationalTyping` のcomputation引数渡しは
+区別する。`OperationalTypingExamples.unusedArgument_eval` は未使用の引数を実行しない
+旧模型の定理であり、現在のsurface言語の評価順を証明するものではない。
+旧定義や負例を消して仕様との不一致を隠さない。
+
 ## 決定40：隠れたfieldの型等価
 
 `ShadowSemanticRecords` は決定39の全規則を保持し、任意のtail `R` について

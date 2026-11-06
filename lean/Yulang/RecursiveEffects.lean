@@ -207,6 +207,7 @@ inductive Expr (Op Key Scope : Type) where
   | snd : Expr Op Key Scope → Expr Op Key Scope
   | emptyRecord : Expr Op Key Scope
   | record : Nat → Expr Op Key Scope → Expr Op Key Scope → Expr Op Key Scope
+  | recordDefault : Nat → Expr Op Key Scope → Expr Op Key Scope → Expr Op Key Scope
   | field : Nat → Expr Op Key Scope → Expr Op Key Scope
   | variant : Nat → Expr Op Key Scope → Expr Op Key Scope
   | request : Op → Expr Op Key Scope → Expr Op Key Scope
@@ -217,7 +218,7 @@ inductive Expr (Op Key Scope : Type) where
 scheme also permits a pure typing; a computation argument is not made pure. -/
 def Expr.isValue : Expr Op Key Scope → Bool
   | .var _ | .lit _ | .lam _ | .emptyRecord => true
-  | .pair a b | .record _ a b => a.isValue && b.isValue
+  | .pair a b | .record _ a b | .recordDefault _ a b => a.isValue && b.isValue
   | .variant _ a => a.isValue
   | _ => false
 
@@ -354,6 +355,8 @@ def generate (sigsTerm : Signatures Op Key α) (Γ : SchemeEnv Key Scope α) : E
       .existsSlot (
         .and (generate sigsTerm.lift Γ.lift x ⟨.record l (.var none) .emptyRecord, .var none⟩)
           (Formula.compLe (CompTerm.var none) (out.rename some)))
+  -- Optional-field inference is a separate presence-aware layer.
+  | .recordDefault _ _ _, _ => .bot
   | .variant l x, out =>
       .existsSlot (
         .and (generate sigsTerm.lift Γ.lift x (CompTerm.var none))
@@ -648,6 +651,11 @@ theorem generate_models_iff_typing (m : Model) (view : RowView m algebra) (sigs 
     (out : CompTerm α) (henv : EnvRel m view sigs ρ sΓ Γ) (hsig : SigRel m ρ sigsTerm sigs) :
     (generate sigsTerm sΓ e out).Holds m view ρ ↔ Typing m view sigs Γ e (out.eval m ρ) := by
   induction e generalizing α sigsTerm sΓ Γ ρ out with
+  | recordDefault =>
+      change False ↔ _
+      constructor
+      · exact False.elim
+      · intro typed; cases typed
   | var n => simpa [generate] using henv n (out.eval m ρ)
   | lit b => simp [generate, CompTerm.eval, CompTerm.pure, TyTerm.eval, RowTerm.eval, Comp.pure]
   | lam body ih =>
