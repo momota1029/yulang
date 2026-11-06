@@ -43,11 +43,13 @@ presence 拡張全般の不可能性を示す定理ではない。
 2. full semantic data inclusion を新しい部分型に採用し、旧 instance の契約を
    一方向保存などへ変更する。これは今回の「旧全 instance と一致」という要件と両立しない。
 
-**今回の仮の作業前提:** 旧全 instance の反映を維持する。2 は採用しない。
+**旧作業時の仮の前提（決定46で置換済み）:** 旧全 instance の反映を維持する。2 は採用しない。
 具体的な新 structural carrier の構成は未完。predicate モデルの補題を、その構成の
 代用として扱わない。model-parametric な制約生成の exactness はこの選択に依存しない。
 
 ## Q2. demand の mask が観測する同値
+
+**回答済み(2026-11-07): 案1を今回の作業前提として継続する。** すべての外側 mask を観測に含める。
 
 **問い:** 共通モデルで、現在の demand-mask が保存すべき同値は何か。
 
@@ -83,6 +85,8 @@ coalesce に渡す cache のすべての独立な mask つき解を回収する�
 
 ## Q3. exact/closed record を共通 carrier にどう保持するか
 
+**回答済み(2026-11-07): `exactEmpty` を独立な演算として持つ前提で継続する。** 旧 `{}` は幅の上界のまま保つ。
+
 **問い:** 任意の未知 field の不在も含む exact record 情報を、どの構成子で保持するか。
 
 既存 `PresenceLayers.Layer` は有限個の外側 label しか観測しない。
@@ -113,7 +117,7 @@ regular 表現は選択していない。既存の `{}` を exact empty に読�
 3. **関数と行を含む具体モデル:** 負の引数位置・共有参照・行を保持する carrier/部分型と、
    `exactEmpty`・`required`・全 recordDefault image を実装する。arrow の空の data 投影だけで代用しない。
 4. **旧結果型への embedding の保守性:** 任意の旧 supported 式 `e` と任意の旧結果型 `c` について、
-   旧入口の全 instance と、新入口で埋め込んだ `e,c` の全 instance を同値にする。
+   旧 instance を新 instance に保存し、新 instance はある旧 instance と要求で同値であることを示す（決定46）。全 instance の文字通りの一致ではない。
 5. **source 全体の結合:** 上記モデル上で、任意の対象断片の閉式 `e` と任意の結果 `c` について、
    独立 `Typing [] e c` と、実際の `infer e` が返す有限 family の自由 parameter 具体化からの
    subsumption を同値にし、`.rejected` と型付け不能の同値・`.unsupported` の排除を導く。

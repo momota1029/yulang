@@ -1739,3 +1739,10 @@ run_cmd do
 #print axioms Yulang.PresenceMaskedFlatSolver.solve_rejected_iff
 #print axioms Yulang.PresenceMaskedFlatSolver.solve_complete
 #print axioms Yulang.PresenceMaskedFlatSolver.solve_instances_exact
+
+-- Legacy source rules under the presence model interface.
+#print axioms Yulang.Core.PresenceGeneration.LegacyPreservation.typing_preserved
+#print axioms Yulang.Core.PresenceGeneration.LegacyPreservation.closed_typing_preserved
+#print axioms Yulang.Core.PresenceGeneration.LegacyPreservation.closed_typing_mapped
+#print axioms Yulang.Core.PresenceGeneration.LegacyPreservation.legacy_instances_preserved
+#print axioms Yulang.Core.PresenceGeneration.LegacyPreservation.legacy_core_instances_preserved

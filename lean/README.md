@@ -145,6 +145,15 @@ pair/variant/field を通る。parameter の root layer を同じ観測深さに
 | `CoreRules.conservative` / `CoreRules.generateCore_exact` / `CoreRules.principalCore_exact` | 拡張 source 判断と独立な拡張 Core 判断の同値、および全 Core 式で生成制約の exactness。構文検査により decoder の既定 literal への漏れを防ぐ | 旧 required 判断との保守性、公開 `infer` の `.rejected` / `.unsupported` の分類 |
 | `unbound_default_fallback` / `generate_unbound_default_fallback` | 任意の拡張モデル・source・label・未束縛 index・結果で、閉じた default の未束縛 fallback は型付け不能で生成制約も不充足 | 関数を含む runtime safety、effect の具体的な行 solver |
 
+`Core.PresenceGeneration.LegacyPreservation` は、旧判断から拡張判断への保存を扱う。
+`Compatible` の前提は、新しい値部分型の推移律、`exactEmpty ≤ emptyRecord`、
+`record l A emptyRecord = required l A` である。旧 `{}` を exact empty に変えない。
+
+| 定理（接頭辞 `Core.PresenceGeneration.LegacyPreservation`） | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `typing_preserved` / `closed_typing_preserved` | 任意の拡張モデル・`Compatible`・旧環境・式・結果について、継承モデル上の旧型判断を独立 presence 型判断へ保存。捕捉 poly、signature、値制限付き let の両規則を含む | 具体モデルでの `Compatible` の構成、新しい判断からの反映 |
+| `closed_typing_mapped` / `legacy_instances_preserved` / `legacy_core_instances_preserved` | 任意の旧モデルから拡張モデルへの実際の `ModelMap` と `Compatible` の下で閉じた旧導出を保存。旧入口版では任意の行代数・行反対称性・旧 supported 式・旧結果について、実際の旧 instance から新しい独立 source/Core 型判断を得る | 具体 regular model 間の map、要求同値を除く反映、新 solver の solved instance への接続 |
+
 `principal` / `principalCore` は existential 制約を保持した constraint scheme であり、
 自由 parameter だけから具体化できる solver の返却値ではない。上の exactness は solver 成功・
 入力型付け・fuel を仮定せず、モデルに追加の公理や代数法則も要求しない。
@@ -202,8 +211,8 @@ field を追加しても所属が変わらないためであり、全観測深�
 - `presence_generate_exact`: 任意の拡張モデル・対応環境・式・値/行割当てについて、生成制約の充足 ⇔
   独立 presence 型付けは `Core.PresenceGeneration.generate_models_iff_typing` で閉じた。
   未完なのは具体的な共通 regular モデルへの適用と、existential 制約を残さない solved family への接続である。
-- `presence_legacy_instances_exact`: 共通モデルと埋込みを定義した上で、任意の旧 supported 式・任意の旧結果型で
-  旧 instance ⇔ 埋込み後の新 instance を示す。full data 包含を旧部分型と同一視する経路には上記の反例がある。
+- `presence_legacy_instances_exact`（決定46による新契約）: 共通モデルと埋込みを定義した上で、任意の旧 supported 式・任意の旧結果型について、旧 instance ⇒ 新 instance を示し、新 instance からはある旧 instance と要求で同値であることを示す。全 instance の文字通りの一致は要求しない。
+  上記 `LegacyPreservation` は具体 map を明示的に仮定した保存であり、この具体的な契約全体の証明ではない。
   各枝の solver exactness があれば `collect` の証明は再利用できるが、現状の補題だけでは
   そこから統一入口の全 instance exactness を導けない。
 

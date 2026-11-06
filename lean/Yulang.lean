@@ -338,3 +338,5 @@ import Yulang.FoldListSpread
 import Yulang.FoldListSpreadFinite
 import Yulang.FoldListSpreadRoles
 import Yulang.FoldListSpreadDivergence
+
+import Yulang.CorePresenceLegacyPreservation
