@@ -278,3 +278,7 @@ import Yulang.PresenceLegacyBridge
 import Yulang.ScopedCasePatterns
 import Yulang.ScopedCasePatternSafety
 import Yulang.ScopedCaseEvaluation
+import Yulang.PatternBindingChecks
+import Yulang.ScopedCaseTotal
+import Yulang.ScopedCaseDataProgram
+import Yulang.ScopedCaseExamples

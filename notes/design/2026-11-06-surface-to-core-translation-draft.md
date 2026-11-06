@@ -76,7 +76,7 @@ regularな `SourcePrincipalInference` 全体への統合は、別メモ `2026-11
 | `case:`(対象の式なし) | `lam (case #0 ...)`(`\x -> case x:`) | 確定 | 章3.7(2026-11-06)。`catch:` の同形・多引数は要確認 |
 | guard `p if g -> a` | pattern成功後にbool guard、偽なら次のarm | 確定 | 実行順と網羅性checkerのguard除外を証明（3b.4）。source guardの名前解決は別義務 |
 | or pattern、`as` | `CasePatterns.Pattern.or/as`、`ScopedCasePatterns.run` | 確定 | 回答済みQ6。左の照合成功で枝を確定しguard偽なら次のarmへ進む。失敗枝の束縛は他枝に漏らさない。異なる束縛順のsource整列は未証明 |
-| record pattern の既定値 `{x = 1}` | `ScopedCasePatterns.run` と型環境を延長する `Typing`、解決済みpresence検査とunion | 確定 | 回答済みQ4・Q5。先行する照合の束縛が外側を隠し、左から右・nested patternへ渡る。先行missでは後続defaultを省略。全patternへのpresence検査・一般coverageとの接続は別義務 |
+| record pattern の既定値 `{x = 1}` | `ScopedCasePatterns.run`、`ScopedCaseDataProgram`、解決済みpresence検査とunion | 確定 | 回答済みQ4・Q5。先行束縛が外側を隠し、左から右・nested patternへ渡る。具体data式の型判断から実評価の健全性を証明。先行missでは後続defaultを省略。Q7の同一経路の重複binderは実行前に拒否。全patternへのpresence検査・一般coverageとの接続は別義務 |
 | 範囲 pattern `0..10` | `LiteralValues.intRangeCheck` | 確定 | 整数の閉区間/片側区間を追加。裸`..`は禁止。区間の合併による一般網羅性は別義務 |
 | list pattern `[x, ..rest]` / `[..init, last]` | `CasePatterns.Pattern.cons/snoc` | 確定 | 残りの有限listを実際に渡す。nominal宣言・Fold/Indexのsource辞書への接続は別義務 |
 | `~"GET :resource"` | parser 値を入力文字列に適用し、capture を束縛 | 下書き | 章9。後で詳しく |

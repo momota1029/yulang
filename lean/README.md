@@ -45,9 +45,18 @@ caseのscrutinee/body・pair・letへの有限な入れ子は、後述の `CaseT
 `run_constant_defaults` はdefaultが環境を読まない場合に旧matcherと訪問列を含め完全に一致する。
 `ScopedCaseEvaluation` はこのmatcherを既存のarm/guard/bodyの順序へつなぐ。
 
+`CaseDataTerms.default_scoped_sound` は具体data式を各時点の環境で評価してこの契約を充足する。
+`ScopedCaseDataProgram.typing_evaluates` は、独立な構文型判断と整合する任意の外側環境から
+実際に結果型の値へ返ることを示す。現在のprogress判断は少なくとも一つのunguarded armについて
+独立な構造判断 `TotalTyping` を要求し、照合成功を前提にしない。
+`PatternBindingChecks.check_exact` は名前検査と独立な `NamesValid` を一致させ、
+`checked_path_nodup` は検査を通る任意のpatternの任意の構文経路に重複binderがないことを示す。
+別のor枝の同名束縛と外側の名前を隠すことは許す。
+`checkedEval_rejects_iff` により不正なbinderを持つarmがあればscrutineeの実行前に拒否する。
+
 Q5・Q6は回答済みの規則として維持する。先行missなら後のdefaultを実行せず、
 orは最初の照合成功で確定し、その後のguardが偽なら次のarmへ進む。
-rawな束縛IDの重複時のlookupは、回答済みQ7の静的な重複名拒否を代用しない。
+回答済みQ7の同一経路の重複名拒否は上の静的検査で実装する。
 旧 `CaseDataProgram` / `CaseTree` のscope非依存defaultの定理は特殊な場合として残し、
 source全体のdefault環境の割当てやeffectfulな葉の翻訳を証明済みとは扱わない。
 

@@ -1550,8 +1550,21 @@ orの両枝はそれぞれ同じ入口環境から始まる。失敗枝の束縛
 `or_left_success` に対応する。`ScopedCaseEvaluation` はこのmatcherを既存のarm/guard/bodyへ接続し、
 型付きarm列の安全性と、合うunguarded armが存在するときのprogressを示す。
 
-**残る義務:** 具体的なdefault式の構文型付けと一般の網羅性checkerのscope付き接続、
-重複binderの静的拒否、sourceから型・値環境とpresence metadataを導出するpass、
+`CaseDataTerms.default_scoped_sound` は任意のdata式の独立型判断と整合する各環境から
+defaultの実評価を導く。`ScopedCaseDataProgram.typing_evaluates` は、任意の具体program・
+結果型について、その独立型判断と任意の適合環境から `.ok (some value)` と結果型所属を示す。
+現在の網羅性前提は少なくとも一つのunguarded armの独立な構造判断 `TotalTyping` であり、
+照合やscrutinee・default・guard・bodyの成功を仮定しない。
+
+回答済みQ7の静的検査 `PatternBindingChecks.check_exact` は任意のpatternについて
+成功と独立な `NamesValid` を一致させる。`checked_path_nodup` は検査成功と任意の
+構文上の分岐経路 `BindingPath` から、その経路の名前列の重複不在を導く。
+異なるor枝での同名は許すが、pair/asなどの同じ経路の重複は拒否する。
+この検査はorの全経路の直積を列挙せず、名前集合の要約を合成する。
+`ScopedCaseDataProgram.checkedEval_rejects_iff` は名前の不正なarmの存在と静的拒否を同値にする。
+
+**残る義務:** 一般の網羅性checkerのscope付き接続、
+sourceから型・値環境とpresence metadataを導出するpass、
 effectfulなdefault/guard、有限case treeと統一ASTへの接続。
 
 ## 10.36 Nominal構築の実行とlistの観測
