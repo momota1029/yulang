@@ -196,4 +196,79 @@ theorem atomic_iff_chain {a b : Ty Row} (first : Atomic a) (last : Atomic b) :
     | record shape => cases shape
   · exact Chain.sound
 
+theorem atomic_below_union {atom left right : Ty Row} (shape : Atomic atom)
+    (below : Subtype leRow atom (.union left right)) :
+    Subtype leRow atom left ∨ Subtype leRow atom right := by
+  have comparison := (outer_cut_exact atom (.union left right)).mpr below
+  rw [encode_atomic shape] at comparison
+  cases comparison with
+  | unionLeft part => exact Or.inl ((encoded_iff _ _).mp (by simpa only [encode_atomic shape] using part.sound))
+  | unionRight part => exact Or.inr ((encoded_iff _ _).mp (by simpa only [encode_atomic shape] using part.sound))
+  | record source => cases source
+
+theorem inter_below_atomic {left right atom : Ty Row} (shape : Atomic atom)
+    (below : Subtype leRow (.inter left right) atom) :
+    Subtype leRow left atom ∨ Subtype leRow right atom := by
+  have comparison := (outer_cut_exact (.inter left right) atom).mpr below
+  rw [encode_atomic shape] at comparison
+  cases comparison with
+  | interLeft part => exact Or.inl ((encoded_iff _ _).mp (by simpa only [encode_atomic shape] using part.sound))
+  | interRight part => exact Or.inr ((encoded_iff _ _).mp (by simpa only [encode_atomic shape] using part.sound))
+  | record source => cases source
+
+theorem atomic_not_bottom {atom : Ty Row} (shape : Atomic atom) :
+    ¬ Subtype leRow atom .bottom := by
+  intro below
+  have comparison := (outer_cut_exact atom .bottom).mpr below
+  rw [encode_atomic shape] at comparison
+  cases comparison with
+  | record source => cases source
+
+theorem top_not_atomic {atom : Ty Row} (shape : Atomic atom) :
+    ¬ Subtype leRow .top atom := by
+  intro below
+  have comparison := (outer_cut_exact .top atom).mpr below
+  rw [encode_atomic shape] at comparison
+  cases comparison with
+  | record source => cases source
+
+/-- Only the outer lattice is traversed; children of constructors are atoms
+at this stage. This finite list is independent of subtype search. -/
+def atoms : Ty Row → List (Ty Row)
+  | .bottom | .top => []
+  | .union left right | .inter left right => atoms left ++ atoms right
+  | atom => [atom]
+
+theorem mem_atoms_atomic {type atom : Ty Row} (member : atom ∈ atoms type) : Atomic atom := by
+  induction type with
+  | bottom | top => cases member
+  | union left right first last | inter left right first last =>
+      exact (List.mem_append.mp member).elim first last
+  | _ => simp only [atoms, List.mem_singleton] at member; subst atom; trivial
+
+/-- If a lattice expression equals a structural atom, an already occurring
+outer atom represents that same equivalence class. No new intermediate type
+has to be enumerated to find such a representative. -/
+theorem equivalent_atomic_witness {type target : Ty Row} (targetShape : Atomic target)
+    (same : Equivalent leRow type target) :
+    ∃ atom ∈ atoms type, Equivalent leRow atom target := by
+  induction type with
+  | bottom => exact False.elim (atomic_not_bottom targetShape same.2)
+  | top => exact False.elim (top_not_atomic targetShape same.1)
+  | union left right first last =>
+      have lower := (SemanticRecords.union_is_join left right target).mp same.1
+      rcases atomic_below_union targetShape same.2 with upper | upper
+      · obtain ⟨atom, member, equivalent⟩ := first ⟨lower.1, upper⟩
+        exact ⟨atom, List.mem_append_left _ member, equivalent⟩
+      · obtain ⟨atom, member, equivalent⟩ := last ⟨lower.2, upper⟩
+        exact ⟨atom, List.mem_append_right _ member, equivalent⟩
+  | inter left right first last =>
+      have upper := (SemanticRecords.inter_is_meet left right target).mp same.2
+      rcases inter_below_atomic targetShape same.1 with lower | lower
+      · obtain ⟨atom, member, equivalent⟩ := first ⟨lower, upper.1⟩
+        exact ⟨atom, List.mem_append_left _ member, equivalent⟩
+      · obtain ⟨atom, member, equivalent⟩ := last ⟨lower, upper.2⟩
+        exact ⟨atom, List.mem_append_right _ member, equivalent⟩
+  | _ => exact ⟨_, List.mem_singleton_self _, same⟩
+
 end Yulang.SemanticRecordAtoms

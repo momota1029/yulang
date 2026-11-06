@@ -207,4 +207,17 @@ theorem View.comparison_exact {source target : Ty Row} {left right : Fields Row}
   ⟨fun below => .trans sourceView.equivalent.2 (.trans below targetView.equivalent.1),
     fun below => .trans sourceView.equivalent.1 (.trans below targetView.equivalent.2)⟩
 
+/-- A semantic proper-record representative can always be found among the
+finite outer atoms of the original tail. The representative's field values
+remain the values occurring in its record prefix and semantic tail view. -/
+theorem equivalent_proper_atom {type proper : Ty Row} (shape : IsRecord proper)
+    (same : Equivalent leRow type proper) :
+    ∃ atom ∈ SemanticRecordAtoms.atoms type,
+      (∃ fields, View leRow atom fields) ∧ Equivalent leRow type atom := by
+  obtain ⟨atom, member, equivalent⟩ :=
+    SemanticRecordAtoms.equivalent_atomic_witness (SemanticRecordAtoms.isRecord_atomic shape) same
+  have chain := (SemanticRecordAtoms.atomic_iff_chain
+    (SemanticRecordAtoms.mem_atoms_atomic member) (SemanticRecordAtoms.isRecord_atomic shape)).mp equivalent.1
+  exact ⟨atom, member, (Chain.view_iff chain).mpr (record_has_view shape), same.trans equivalent.symm⟩
+
 end Yulang.SemanticRecordViews
