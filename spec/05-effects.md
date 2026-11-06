@@ -55,6 +55,16 @@ all_paths : 'a [flip, 'b] -> ['b] list 'a
 
   `flip` だけを処理し、残りの行 `'b` は外側へ残す。
 - handler は処理できる effect だけを行から取り除く。それ以外は外側へ**伝播**する。
+- **operation の payload pattern が非網羅でもよい**（確定, 2026-11-06。「引けるけど引かない」）。arm の payload pattern に合わない要求は、元の継続と一緒に外側へ渡される。その operation は**行から引かれない**（残余に残る）。operation の payload 全体を覆う arm（反駁不能な pattern。guard 付き arm は数えない）があるときに限り、その operation key を行から引く。
+  `case` が網羅性をエラーにするのとは違い、`catch` の arm は「引ける範囲のうち、引くものだけ書く」形である。引けない effect の arm を書くのはエラーのまま（5.5）。
+
+```yulang
+catch action:
+    ask::choose true, k -> k 1     // payload が true の要求だけ処理する
+    v -> v
+// ask::choose false は外へ渡る。ask::choose は行に残る
+```
+
 
 出典: `main:web/docs/ja/reference/effects.md`、`main:web/docs/ja/reference/control-flow.md`
 

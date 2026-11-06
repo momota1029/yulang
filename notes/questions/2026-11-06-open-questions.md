@@ -5,7 +5,7 @@
 
 ## Q1. operation の payload pattern が非網羅の catch を許すか
 
-状態: **未回答**。出典: `spec/03-expressions.md` 3.8、`spec/05-effects.md` 5.2。
+状態: **回答済み(2026-11-06): B**。ユーザーの言葉は「引けるけど引かない」。非網羅の payload arm を許し、合う arm が無い要求は元の継続と一緒に外へ渡し、その operation key を残余の行に残す。`spec/05-effects.md` 5.2に反映。以下は質問の記録。出典: `spec/03-expressions.md` 3.8、`spec/05-effects.md` 5.2。
 operation arm の payload pattern と value arm は書けるが、operation ごとの
 payload が非網羅のときの扱いは、現在の記述から確定できない。
 
