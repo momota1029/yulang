@@ -1590,7 +1590,7 @@ orの両枝はそれぞれ同じ入口環境から始まる。失敗枝の束縛
 `CaseDataTerms.default_scoped_sound` は任意のdata式の独立型判断と整合する各環境から
 defaultの実評価を導く。`ScopedCaseDataProgram.typing_evaluates` は、任意の具体program・
 結果型について、その独立型判断と任意の適合環境から `.ok (some value)` と結果型所属を示す。
-現在の網羅性前提は少なくとも一つのunguarded armの独立な構造判断 `TotalTyping` であり、
+この簡単な入口の網羅性前提は少なくとも一つのunguarded armの独立な構造判断 `TotalTyping` であり、
 照合やscrutinee・default・guard・bodyの成功を仮定しない。
 
 回答済みQ7の静的検査 `PatternBindingChecks.check_exact` は任意のpatternについて
@@ -1607,7 +1607,8 @@ coverage domainに含まれる `DefaultBounded` を前提とする。
 `covered_arms_match` と `checked_arms_evaluate` はこの前提の下で既存の `Covered` / `check` を
 実際のscope付きarm列のprogressへ接続する。payloadの型をcellへ弱めて型付けし直すことは要求しない。
 
-**残る義務:** joint payload被覆と具体scope付きdata式の一体化、一般Rust matrix、
+joint payload被覆との接続は10.35.4の `ScopedJointCaseCoverage` で与える。
+**残る義務:** 一般Rust matrix、
 sourceから型・値環境とpresence metadataを導出するpass、
 effectfulなdefault/guard、有限case treeと統一ASTへの接続。
 
@@ -1632,8 +1633,21 @@ bool payloadのfalse/true別armは全体を覆うが、片方にguardを付け�
 scrutinee/使用default/armの独立型付け、joint検査成功、整合する任意の外側環境から
 実際の `CaseDataProgram.eval` が型に合う値を返すことを示す。
 
-**残る義務:** この入口は旧scope非依存defaultの特殊な場合である。scope付きmatcherとの接続、
-一般Rust matrix、record内の複数arm合成・listの深い長さ分割・整数区間合併、sourceの拒否完全性は残る。
+`ScopedJointCaseCoverage` は同じjoint被覆をscope付きの具体data evaluatorへつなぐ。
+`BoundedDefaultTyping domains Γ code T` は独立なdata構文型判断と `T ≤ domains(code)` の連言であり、
+runtimeの成功を前提にしない。各defaultは先行束縛を含むその時点の `Γ` で型付けする。
+`typing_evaluates` は任意のfloat比較関数・domain表・型環境・program・結果型について、
+独立な `Typing` と任意の外側環境の `BindingsHold` から、
+実際の `ScopedCaseDataProgram.eval` が `.ok (some result)` を返し結果型を満たすことを示す。
+この `Typing` はscrutinee/全armの独立型判断、各armの `NamesValid`、および `RowCovered` を含む。
+`typed_checkedEval` は同じ型判断から名前検査が通ることを示し、`typed_no_unmatched` は型に合う環境で未一致終了を排除する。
+
+`ScopedJointCaseExamples.typed_program_progress` と `default_uses_pattern_binding` は、
+任意のbool payloadと内外の整数について、false/trueの二armによるjoint被覆と先行束縛を読むdefaultが
+同じ実行で働くことを示す。旧whole-payload checkerがfalseを返すことも別に保持する。
+
+**残る義務:** 一般Rust matrix、record内の複数arm合成・listの深い長さ分割・整数区間合併、
+sourceの拒否完全性、effectfulな葉・scope付き有限CaseTree・統一ASTの接続は残る。
 
 ## 10.36 Nominal構築の実行とlistの観測
 

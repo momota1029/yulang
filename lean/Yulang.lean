@@ -287,3 +287,5 @@ import Yulang.Binary64Rounding
 import Yulang.Binary64Decimal
 import Yulang.JointCaseCoverage
 import Yulang.ScopedCaseCoverageSafety
+import Yulang.ScopedJointCaseCoverage
+import Yulang.ScopedJointCaseExamples

@@ -1398,3 +1398,17 @@ run_cmd do
 #print axioms Yulang.ScopedCaseCoverage.typing_total_matches
 #print axioms Yulang.ScopedCaseCoverage.covered_arms_match
 #print axioms Yulang.ScopedCaseCoverage.checked_arms_evaluate
+#print axioms Yulang.ScopedJointCaseCoverage.tag_covered_arms_match
+#print axioms Yulang.ScopedJointCaseCoverage.row_covered_arms_match
+#print axioms Yulang.ScopedJointCaseCoverage.bounded_defaults_sound
+#print axioms Yulang.ScopedJointCaseCoverage.bounded_defaults_domain
+#print axioms Yulang.ScopedJointCaseCoverage.typing_evaluates
+#print axioms Yulang.ScopedJointCaseCoverage.typed_checkedEval
+#print axioms Yulang.ScopedJointCaseCoverage.typed_no_unmatched
+#print axioms Yulang.ScopedJointCaseExamples.record_pattern_typed
+#print axioms Yulang.ScopedJointCaseExamples.arm_typed
+#print axioms Yulang.ScopedJointCaseExamples.joint_coverage_checked
+#print axioms Yulang.ScopedJointCaseExamples.whole_payload_checker_rejects
+#print axioms Yulang.ScopedJointCaseExamples.program_typed
+#print axioms Yulang.ScopedJointCaseExamples.typed_program_progress
+#print axioms Yulang.ScopedJointCaseExamples.default_uses_pattern_binding

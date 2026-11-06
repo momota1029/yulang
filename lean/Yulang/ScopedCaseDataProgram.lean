@@ -10,11 +10,12 @@ The existing `CaseDataProgram.Program` is evaluated with the extended matcher.
 Default code is actual `CaseDataTerms` syntax, evaluated in the current
 environment. No expression-success oracle is required by the safety theorem.
 
-This entry certifies progress with a declaratively irrefutable unguarded arm.
-It does not yet connect the general multi-arm coverage checker to scoped
-default environments. `checkBindings` is only a static naming check, not a
-whole-language type checker. The old unscoped reference entry and its
-theorems are retained unchanged.
+This minimal typing entry certifies progress with a declaratively irrefutable
+unguarded arm. `ScopedCaseCoverageSafety` and `ScopedJointCaseCoverage` connect
+the same evaluator to structural coverage and joint polyvariant payload
+coverage. `checkBindings` is only a static naming check, not a whole-language
+type checker. The old unscoped reference entry and its theorems are retained
+unchanged.
 -/
 
 namespace Yulang.CaseDataTerms
