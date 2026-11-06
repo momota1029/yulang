@@ -257,6 +257,28 @@ my b = make a              // エラー: 再帰する component の中で comput
 
 出典: `main:web/docs/ja/reference/types.md` §Value restriction、`main:spec/2026-06-13-computed-fetch-value-restriction.md`
 
+## 4.7b 型の順序と同一視　〔確定, 2026-11-07〕
+
+`|`（union）は、値を作る側（正の位置、共変）にしか現れない。値を受ける側（要求、負の位置）に現れるのは、`&`（intersection）と、field・tag を要求する rigid な形だけである。したがって、union どうしを「代入する」比較は、実際には起こらない。起こる比較は、いつも「作る側 ≤ 要求」である。
+
+作る側の型の順序は、**要求で定義する**。
+
+```text
+S ≤ T   :⇔   すべての要求 D について、T ≤ D ならば S ≤ D
+```
+
+要求は union を含まない（4.8 で、注釈に書けない形と同じ）。この定義から、構成子の union への分配が、作る側の同一視として出る。
+
+```text
+(int, int | str)   =   (int, int) | (int, str)
+```
+
+どんな要求 `(a, b)` に対しても、どちらも `int ≤ a`、`int ≤ b`、`str ≤ b` と同じ制約になるからである。関数や effect の行や再帰型にも、同じ定義をそのまま使える。集合論的な部分型を、別に持ち込まない。
+
+- 旧い構造的な部分型で成り立つ関係は、すべて保たれる（旧い instance は、新しい instance に入る）。
+- 新しい instance は、旧い instance と**要求で等しい**（反映は同値を除く）。旧い体系の instance の集合と、完全には一致しない。
+- 7.4b の標準形は、この「要求で等しい」を基準にする。同じ構成子の union は、成分ごとにまとめた形で表示する（`(int, int | str)`。展開した `(int, int) | (int, str)` は標準形にしない）。
+
 ## 4.8 書けない型と、表示に出る型　〔仮採用〕
 
 - 推論結果には union / intersection（`'a | int`、`'a & {width?: any}`）が出ることがある。
