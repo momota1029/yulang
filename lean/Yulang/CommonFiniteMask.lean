@@ -139,4 +139,41 @@ theorem mask_required (label : Nat) (payload : Ty Row) (hidden : List Nat)
   intro rank env obs
   cases rank <;> cases obs <;> simp [ProbeAt, ProbeStep, MaskedProbeStep, required, member]
 
+/-- Outer masks do not cross a pair's payload boundary. -/
+theorem mask_pair (hidden : List Nat) (first last : Ty Row) :
+    ProducerEq leRow (.mask hidden (.pair first last)) (.pair first last) := by
+  apply (producerEq_iff_probe _ _).mpr
+  intro rank env obs
+  cases rank <;> cases obs <;> simp [ProbeAt, ProbeStep, MaskedProbeStep]
+
+/-- A mask inside a variant payload stays inside; an outer mask leaves the
+payload interpretation unchanged. -/
+theorem mask_variant (hidden : List Nat) (label : Nat) (payload : Ty Row) :
+    ProducerEq leRow (.mask hidden (.variant label payload)) (.variant label payload) := by
+  apply (producerEq_iff_probe _ _).mpr
+  intro rank env obs
+  cases rank <;> cases obs <;> simp [ProbeAt, ProbeStep, MaskedProbeStep]
+
+theorem mask_arrow (hidden : List Nat) (input output : Ty Row) (inputRow outputRow : Row) :
+    ProducerEq leRow (.mask hidden (.arrow input inputRow output outputRow))
+      (.arrow input inputRow output outputRow) := by
+  apply (producerEq_iff_probe _ _).mpr
+  intro rank env obs
+  cases rank <;> cases obs <;> simp [ProbeAt, ProbeStep, MaskedProbeStep]
+
+/-- Moving a payload mask outward is observably wrong, even in one finite
+variant with an integer field and a single hidden label. -/
+theorem payload_mask_not_outer (label tag : Nat) :
+    ¬ ProducerEq leRow
+      (.variant tag (.mask [label] (required label (.base .int))))
+      (.mask [label] (.variant tag (required label (.base .int)))) := by
+  intro same
+  let env : Environment Row := ⟨fun _ => .bottom, fun _ => []⟩
+  let obs : Observation Row := .variant tag (.field label (.base .int))
+  have valid : ProbeAt leRow 0 env
+      (.mask [label] (.variant tag (required label (.base .int)))) obs := by
+    simp [ProbeAt, ProbeStep, MaskedProbeStep, obs, required]
+  have invalid := (producerLe_iff_probe _ _).mp same.1 0 env obs valid
+  simp [ProbeAt, ProbeStep, MaskedProbeStep, obs, required] at invalid
+
 end Yulang.CommonFinite
