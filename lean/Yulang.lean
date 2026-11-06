@@ -371,3 +371,6 @@ import Yulang.MethodResolutionIndex
 import Yulang.InferenceSubstitutionCost
 import Yulang.ProducerContextualNormalForm
 import Yulang.ModuleInterfaceCache
+import Yulang.TypeSimplificationSize
+import Yulang.ProducerContextualRecord
+import Yulang.PresenceTailElimination

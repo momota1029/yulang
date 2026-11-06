@@ -180,6 +180,19 @@ arrow の負位置も新しい合同性を使う。
 `normalize_not_complete` は同値な `int | str` と `str | int` の出力が異なることを証明する。
 この関数の同値保存だけでは spec 7.4b の完全な canonical interface を得られない、という境界を形式化した。
 
+### record の head を消費した後の要求
+
+`ProducerContextualRecord.FieldLe hidden S T` は、hidden にない label の field 観測だけを比較する。
+すべての負文脈 rank・要求環境・payload 観測を量化する。
+same-label record 比較は、payload の通常の `ProducerLe` と、head label を hidden に加えた tail の
+`FieldLe` に正確に分解される。元の要求を tail にそのまま渡すことや、head を `any` に置換することはしない。
+外側 record が kind と role-head の要求を既に満たすため、tail そのものを whole-type 比較する必要はない。
+
+target が `{x:B}`（旧 width `{}` を rest に持つ required singleton）なら tail の要求は空になる。
+同じ label の内側 head を消しても要求同値であることも証明した。式の評価順を消す変換ではない。
+任意の regular graph と具体 regular carrier にも全深さで移し、tail は同じ観測深さで扱う。
+この regular carrier の tail は有限 layer なので、次の非guarded node-tail 解法とはまだ別の境界である。
+
 ## 5. 有限の正方程式を解く核
 
 `PositiveEquationElimination` は、未知変数と任意の atom に union/inter を適用する有限方程式系を扱う。
@@ -192,6 +205,23 @@ arrow の負位置も新しい合同性を使う。
 非単射の座標写像と step が可換なら `project_natural` によって消去結果も可換となる。
 具体的な mask family では、この step の可換性と有限座標化を別に構成する必要がある。
 また一般の producer subtyping の負位置の循環や、guarded payload をこの Boolean 系と同一視しない。
+
+### 具体的な tail と mask family
+
+`PresenceTailElimination.Body` は既存 `PresenceLayers.Layer` の atom と同深さの tail ref を分ける。
+union/inter/mask の下に任意の同深さ循環を許し、record head は required atom と label を除いた tail で構成する。
+slot と有限 mask の積を座標とし、上の消去を実 layer の union/inter で実行する。
+結果 layer を追加 mask した構文は、対応する座標の結果と等しい。
+従って自由 parameter は通常の具体 layer で足り、深さごとの任意述語 family を別に仮定しない。
+
+独立判断 `Satisfies` は、任意の payload 述語割当て、外側 mask、data 値で元の方程式が成り立つこと。
+実際の `solve` は全 parameter でこれを満たし、任意の独立した layer 解を同じ parameter として回収する。
+構成に成功や解の存在は使わない。比較の両方向を示す `solved_instances_exact` は任意の具体 layer 解を対象とする。
+
+mask の語彙は `Fin labels` として宣言し、容量は `slots * 2^labels` と証明した。
+Rust では言及された label の局所 intern を使う案とするが、任意 Nat label をこの dense 語彙へ移す補題はまだない。
+外側 mask は任意の Nat 列を量化するので、語彙外の field を有限サンプルとして捨ててはいない。
+guarded payload 自身を再帰 graph に閉じること、関数・行・whole default の統合、producer 不等式への適用は別の義務である。
 
 ## 6. 計数付きの参照実装
 
@@ -208,6 +238,12 @@ binder の下では捕捉された置換値の両成分を rename する費用�
 `N * (1 + max(2,K) * H)` 以下、従って `N * (1 + max(2,K) * N)` 以下である。
 旧 `Scheme.instantiation_nodes` が論理 node 数だけを保っていたことを、定数時間性と読み替えない。
 参照実装には source body の再推論を含めない。ID bit cost、allocator、後続 solver の費用も別である。
+
+`TypeSimplificationSize` は既存 automatic pass の全入力で、最終項の値 node 数と行込み node 数が
+どちらも入力以下であることを示す。受理/不受理のどちらの候補分岐にも成立する。
+一時的な joint substitution だけは各変数を union/inter の3 nodeに広げ、全体で元の3倍以下となる。
+実際の候補列は parameter 数 n に対して merge が n²、scalar sandwich が 4n。
+これだけでは `symbolicCheck` の再帰で同じ部分問題を繰り返す費用をまだ数えていない。
 
 ## 7. 残る統合義務
 

@@ -62,6 +62,8 @@ literal の内容・presence・nominal の planner 結果を一つの値型 carr
 | `Core.ProducerContextualInstances.legacy_instances_preserved` / `legacy_instances_reflected` / `legacy_instances_exact_modulo` | 任意の行代数・実際の旧 `Result`・結果値と行で、同じ scheme の直接評価による新 instance は旧 instance を保存し、同じ結果行を持つ要求同値な旧 instance へ反映する | presence の新 solver family との同一視 |
 | `Core.ProducerContextualInstances.source_instances_exact_modulo` / `source_instances_sound` | 任意の行代数・行反対称性・旧 supported 式・結果で、新 instance ⇔ ある要求同値な旧値型と同じ行での旧 `Typing`。新 instance から新 concrete model の独立 `Typing` も得る | 任意の新独立 `Typing` からの逆向き完全性、recordDefault を含む新入口 |
 | `ProducerContextualNormalForm.merge_equivalent` / `normalize_equivalent` / `normalize_accept_iff` / `normalize_not_complete` | 既存の実 grouping pass が新 contextual 順序でも全要求を保存・反映。全有限型の normalize は行の前順序を仮定し、負位置・role・要求変数・mask を含む。同値な `int \| str` と `str \| int` が異なる出力になる具体反例も証明 | 完全な interface 標準形。この pass の結果の不一致から型の非同値を判定すること |
+| `ProducerContextualRecord.producerLe_record_iff` / `fieldLe_record_iff` / `Regular.record_reference_iff` / `Regular.record_iff` | 任意の行関係・任意の同一 label の record について、比較 ⇔ payload の比較と、その label を除く tail の field 観測の比較。relative mask の下では head が隠れていると payload 比較も不要。任意の graph・引用した regular 型の全深さにも成立し、tail の深さを減らさない | whole tail の `ProducerLe` に置換すること、非guardedな node tail と presence 全体の新 carrier |
+| `ProducerContextualRecord.singleton_requirement_iff` / `Regular.singleton_requirement_iff` / `shadowed_head_equivalent` と regular 版 | 任意の同一 label の singleton required target では payload 比較だけが残り、tail への field 要求は空。同名の内側 head は任意の payload/tail で消しても要求同値 | hidden field 式の評価を省くこと、exact empty への `{}` の読み替え |
 
 要求側の `Demand.mask` は隠す label の field 観測を record-kind 観測に写す。
 上記 arrow iff はその全要求を含むが、これを producer の concrete mask family の構成とは数えない。
@@ -114,6 +116,19 @@ mask を payload の下に置ける文法は、[Q4](../notes/questions/2026-11-0
 | --- | --- | --- |
 | `solve_sound` / `solve_retract` / `solved_instances_exact` | 任意の有限座標全列・任意の正方程式・任意の atom 命題割当てで、全自由 parameter から計算した式が不動点になり、任意の独立不動点を同じ parameter で回収する。任意の割当て `v` で `F(v)=v` ⇔ ある parameter の計算結果が `v`。成功・解の存在・guardedness・fuel を前提にしない | 任意の producer subtyping 制約、負の自己参照、関数・行・whole default を含む具体 presence solver |
 | `project_natural` | 任意の座標列・非単射も許す座標写像・写像と可換な二つの step・任意の parameter について、実際の有限消去と座標写像が可換 | 具体的な mask 状態系とその可換性の構成 |
+
+`PresenceTailElimination` はこの核を具体的な layer と mask に適用する。
+`Body` は任意の既存 presence layer を atom とし、同深さの tail ref、union/inter、有限 mask を持つ。
+`Body.record` は required head と、その label の要求を取り除いた tail の intersection として組み立てる。
+source 由来や guardedness を持たない任意の tail ref 循環を許す。
+
+| 定理（接頭辞 `PresenceTailElimination`） | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `coordinates_complete` / `coordinates_length` / `solveFamily_coherent` / `solve_mask` | 任意の slot 数・有限 label 語彙で全 `(slot, mask)` を列挙し、容量は `slots * 2^labels`。任意の入力 graph・自由な具体 parameter layer で、結果 layer を mask した構文が対応座標の解と文字通り一致する | 任意の異なる Nat label 語彙への intern/移送、producer の要求順序との接続 |
+| `solve_satisfies` / `solve_retract` / `solved_instances_exact` | 任意の有限 positive tail graph で、全自由 parameter layer が独立方程式を満たす解になり、全独立の具体 layer 解を同値を除いて回収する。意味の同値は全 payload 述語割当て・全外側 mask・全 data 値を量化する。成功・解・source 由来・fuel を前提にしない | guarded payload 自身を再帰 graph に閉じた全深さの解 family、関数・行・exactEmpty/whole default、任意の constructor 不等式の拒否完全性 |
+
+有限 mask family は一つの実 layer の mask から構成され、自由 parameter を深さごとの任意述語で代用しない。
+入力で宣言した mask label 語彙は `Fin labels` であり、語彙外の label も外側 mask の全称量化には含まれる。
 
 `CoreRequiredDemands` は有限の required demand が一致する断片を明示する。
 `Required` は optional/lacks を除き、union/intersection・pair・variant・任意の payload 参照を許す。
@@ -396,6 +411,7 @@ exact/presence/default と関数/行を含む具体的な共通モデル、open-
 | `MethodResolutionCost.resolveCount_value` / `resolveCount_bound` / `runCount_bound` | 任意の site で計数付き実装の値が既存 resolver と一致。未知 receiver は可視 role 数 `R` で `1+2R` 以下、既知 receiver は型 node 数 `V` で `1+V` 以下。任意の処理列は各 site 上界の和以下 | map lookup/update の内部費用、ID の bit cost、solver 全体の時間 |
 | `MethodResolutionIndex.indexedResolve_exact` / `resolveNamesCount_exact` / `resolveNamesCount_bound` | 任意の有限 catalog・可視 role 列・名前・receiver・fallback で、同じ role/name の宣言が一致するなら index と既存解決の結果が等しい。任意の可視宣言列 `D` 件と名前列 `N` 件の計数付き一括解決は `3D+2N` 以下。上界自体は catalog の関数性も成功も仮定しない | visibility filtering、永続 map の実装費用、未確定 SCC の依存構築 |
 | `InferenceSubstitutionCost.formulaSubst_value` / `instantiate_value` / `instantiate_bound` / `instantiate_size_bound` | 任意の scheme と具体化先で計数付き置換の値が実際の `Scheme.instantiate` と等しい。scheme の型・行を含む全 node 数 `N`、binder 深さ `H`、具体化先の型・行 node 数 `K` に対して syntax work は `N*(1+max(2,K)*H)`、従って `N*(1+max(2,K)*N)` 以下。束縛下の型・行の rename も数える | source body の再推論、identifier の bit cost、メモリ allocator、scheme を使う solver 全体の時間 |
+| `TypeSimplificationSize.simplifyAll_sizes` / `jointSubstitution_sizes` / `merge_candidate_count` / `sandwich_candidate_count` | 任意の parameter 数 `n` と入力項で、実 `simplifyAll` は値型 node 数と行込み全 node 数の両方を増やさない。merge certificate の一時置換は元の3倍以下。実候補列の長さは merge が `n*n`、scalar sandwich が `4*n` | 再帰的な `symbolicCheck` の実行ステップ数、線形時間の簡約、完全な一意標準形 |
 
 `EOFNoDefaulting.accepted_export_independent` は同じ型情報・割当ての下で、**両方の EOF 検査が成功した場合**の
 公開型の一致である。後続 impl による曖昧化まで無条件に cache から省略できることを意味しない。
