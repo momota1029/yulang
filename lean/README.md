@@ -47,6 +47,34 @@ literal の内容・presence・nominal の planner 結果を一つの値型 carr
 
 ### M1: 型モデルの接続（部分完了）
 
+決定46・47の要求順序を `ProducerRanked` / `ProducerRankedRegular` に実装した。
+`ProducerDemand.Demand` は union を持たず、intersection、rigid な pair/field/tag、型変数、
+mask、関数の引数・返り値・両行の要求を持つ。変数の割当ては任意の有限観測列である。
+`ProducerLe S T` は全要求環境・全要求で `T` の受理から `S` の受理が従う関係で、
+関数の負位置を観測する全有限 rank も量化する。regular 版はさらに全展開深さを量化する。
+どちらも solver fuel や有限サンプルによる近似ではない。
+負位置の引数比較も同じ要求順序で行い、arrow を空の data 投影に置き換えない。
+mask を payload の下に置ける文法は、[Q4](../notes/questions/2026-11-07-demand-model-contracts.md)
+の明示した仮の前提に基づく。既存 masked data 観測の定義は変更しない。
+
+| 定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `ProducerRanked.producerLe_refl` / `producerLe_trans` | 任意の行関係・有限型について要求順序は前順序。regular 版も任意の graph・行関係で成立 | 要求比較を決定する実行可能な checker |
+| `ProducerRanked.structural_subtype_preserved` / `ProducerRankedRegular.structural_subtype_preserved` | 行関係の推移律の下で、任意の旧有限型／任意の graph 上の旧 regular 型の構造的部分型を要求順序へ保存 | 旧順序への文字通りの反映 |
+| `ProducerRanked.pair_union_group` / `record_union_group` / `variant_union` と regular 版の同名定理 | 任意の行関係・全成分型で、pair・同じ label の record・同じ tag の variant の union と成分ごとの union をまとめた型が要求同値。record は payload と tail の両方をまとめる | 異なる label/tag の統合、presence の whole default image |
+| `ProducerRanked.producerLe_pair_iff` / `producerLe_variant_iff` と regular 版の同名定理 | 任意の行関係・全成分型で、pair／同じ tag の比較は成分の新順序による比較と同値 | arrow の逆向き分解、absence/exact record の分解 |
+| `ProducerRanked.producerLe_arrow` / `producerEq_arrow` と regular 版の同名定理 | 行推移律の下で引数の新順序による反変・返り値の共変・両行の比較を保存。同値置換には行反射律も仮定し、任意の引数/返り値型で成立 | union-free な引数要求だけから任意の引数比較を回収する分離補題 |
+| `ProducerRankedRegular.modelMap` / `legacy_instances_preserved` | 行推移律だけで旧 regular model から実際の恒等 constructor map を構成。任意の行代数・行反対称性・旧 supported 式・旧結果について旧 instance から新 ranked regular model の独立な `Typing` を得る | exactEmpty/required/default を持つ presence 拡張への具体 map、新独立型判断からの完全性 |
+| `Core.ProducerRankedInstances.legacy_instances_preserved` / `legacy_instances_reflected` / `legacy_instances_exact_modulo` | 任意の行代数・任意の実際の旧推論 `Result`・任意の結果型で、返却された同じ scheme と全自由 parameter を新順序で直接評価すると、旧 instance を保存し、新 instance は同じ結果行を持つある旧 instance と要求同値。型付けや旧 instance の存在を新 instance の定義に使わない | 新 solver の返却 family の完全性 |
+| `Core.ProducerRankedInstances.source_instances_exact_modulo` / `source_instances_sound` | 任意の行代数・行反対称性・旧 supported 式・旧結果で、新順序での scheme instance ⇔ ある要求同値な値型と同じ結果行での旧独立 `Typing`。各新 instance は新 regular model の独立 `Typing` も与える | 任意の新独立 `Typing` ⇒ この scheme family の instance、presence を含む全 source の保守性 |
+| `Core.ProducerRankedInstances.DistributionExample.distributed_instance` | 任意の行代数・行反対称性について、旧反例の同じ supported 式・同じ実際の推論結果で、分配後の型は新 instance だが旧 instance ではない。`factorised_equivalent_distributed` は任意の行関係で同値を証明 | 旧反例の削除や旧 theorem の弱化 |
+| `ProducerNormalForm.merge_equivalent` / `normalize_equivalent` / `normalize_accept_iff` | 実行可能な成分まとめ関数は任意の有限型で要求同値を保つ。全型の再帰処理は行反射律・推移律を仮定し、関数の負位置、全 rank・環境・要求も含む。指定例を `(int, int \| str)` に計算する | arbitrary union の整列・平坦化、変数の改名、完全で一意な表示標準形、regular graph の正規化 |
+
+補助の `ProducerDemand` / `ProducerRegular` にある初期の順序は、arrow 引数だけ旧構造順序で
+比較するため、新同値の arrow 合同性を保証しない。共通モデルへの接続には上の ranked 版を使う。
+`Core.ProducerLegacyInstances` はこの実際の scheme 解釈の一般補題であり、反映の witness を
+「具体化した値型 `a` と要求された結果 `c` の union `a | c`」として構成する。
+
 `CoreRequiredDemands` は有限の required demand が一致する断片を明示する。
 `Required` は optional/lacks を除き、union/intersection・pair・variant・任意の payload 参照を許す。
 `encode_exact` は任意の payload 述語割当て・mask・data 値について、presence demand を
@@ -214,8 +242,9 @@ Core の M0 model が `Type` に固定されているため、Required Core 定�
 開いた default operator の Core **型判断**であり、未知 base を推論した実行例ではない。
 effectful fallback の推論例、未知 base を持つ lambda の推論例は未完である。
 
-**M1 は未完了。** 関数・行を含む具体的な共通 carrier/部分型と、そのモデル上の solved scheme がないため、
-所属の同値を `SourcePrincipalInference` と presence 推論の全 instance の同値へ読み替えない。
+**M1 は未完了。** 関数・行を含む具体的な要求順序と旧 family の新解釈は上記で構成したが、
+exact/absence/default を統合した具体 presence carrier と、そのモデル上の全入力 solved scheme はない。
+旧 family の同値を除く反映を、任意の新独立 `Typing` からの完全性へ読み替えない。
 `Core.PresenceLegacyObstructions` はこの注意を実際の旧 supported 式で証明する。
 `int × (int | str)` は旧 instance になるが、`(int × int) | (int × str)` はどの結果行でもならず、
 data 包含では前者から後者へ移せる。`no_semantic_legacy_instance_exact` は、full data 包含で
@@ -245,14 +274,17 @@ field を追加しても所属が変わらないためであり、全観測深�
   独立 presence 型付けは `Core.PresenceGeneration.generate_models_iff_typing` で閉じた。
   未完なのは具体的な共通 regular モデルへの適用と、existential 制約を残さない solved family への接続である。
 - `presence_legacy_instances_exact`（決定46による新契約）: 共通モデルと埋込みを定義した上で、任意の旧 supported 式・任意の旧結果型について、旧 instance ⇒ 新 instance を示し、新 instance からはある旧 instance と要求で同値であることを示す。全 instance の文字通りの一致は要求しない。
-  上記 `LegacyPreservation` は具体 map を明示的に仮定した保存であり、この具体的な契約全体の証明ではない。
+  `ProducerRankedInstances` は、実際の旧 scheme を新しい具体 regular 順序で再解釈する境界ではこの両方向を閉じた。
+  未完なのは presence を含む新 solver/独立型判断との同値である。正確には、任意の行代数・行反対称性・
+  旧 supported `e`・結果 `c` について、新 model の `Typing [] e c` から同じ scheme の新 instance を得る補題がない。
+  `LegacyPreservation` で仮定する presence の `Compatible` も具体モデルで構成する必要がある。
   各枝の solver exactness があれば `collect` の証明は再利用できるが、現状の補題だけでは
   そこから統一入口の全 instance exactness を導けない。
 
 旧 `Layer.record` の tail は有限 layer、open-record graph の tail は node 参照であり、
 単純な置換は観測深さを減らす位置を変える（spec 10.32.5）。さらに旧 regular 部分型は構造的関係で、
 presence の data 述語包含との同値はない。これらを既存 data 観測の橋だけで埋めることはできない。
-関数/行を含む具体的な共通モデル、open-tail・負位置・行を含む範囲への解構成と retraction の拡張は
+exact/presence/default と関数/行を含む具体的な共通モデル、open-tail・負位置・行を含む範囲への解構成と retraction の拡張は
 新たな数学的義務として残し、統一入口の公開を止めた。
 既存 `collect_instances_exact` の変更、既存 theorem・test expectation の変更、仕様の仮決定は行っていない。
 

@@ -344,3 +344,11 @@ import Yulang.PresenceConstructorBounds
 import Yulang.PresenceConstructorObstructions
 import Yulang.PresenceOpenTailTransport
 import Yulang.PresenceOpenTailLowering
+
+import Yulang.ProducerDemand
+import Yulang.ProducerRegular
+import Yulang.ProducerRanked
+import Yulang.ProducerRankedRegular
+import Yulang.CoreProducerLegacyInstances
+import Yulang.CoreProducerRankedInstances
+import Yulang.ProducerNormalForm
