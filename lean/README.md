@@ -12,6 +12,8 @@ lake env lean --trust=0 Audit.lean
 
 ## 実際に型を求める入口
 
+**決定38への移行中。** 下記の実行入口は引き続き旧reference modelについての定理を保持する。新しい `SemanticRecords` は、既存の構造・束の規則にrecordのheadと任意tailの意味的合同性を加えた関係である。`SemanticRecordInference.old_closed_typing_preserved` により旧モデルの任意の閉式・結果型・行の型付けは失われず、`literal_principal_formula_iff` は以前の反例のrecord literalについて通常の有限record型が全instanceを表すことを示す。新モデルの完全checker、cut elimination、未知tailのgraph化、全core求解はまだこの入口へ接続していない。
+
 **`SourcePrincipalInference.infer` は、元の閉じた `Inference.Expr` から主型スキームを計算する。** 元のprincipal formulaの生成、存在変数とletの選択肢の正規化、共有graphへの変換、値型と行の求解、正則再帰型スキームの構成を実行する。型graph、途中の型、行の割当て、制約の解、成功cache、fuelを呼出側から渡さない。
 
 record構築を含まない既存の核について、推論が対応範囲外にならないことも証明した。lambda・application・値制限付き多相let・分岐・pair・fst/snd・field access・variant・空record・literal・変数を含む。`recordFree_instances_exact` は、計算結果の自由な型・行parameterによる**全instance**と、元の独立な `Inference.Typing` の全結果を一致させる。`recordFree_rejected_iff` は拒否と型付け不存在の同値で、成功やモデル存在を前提にしない。`recordFree_principal_formula_exact` は元のprincipal formulaそのものへ接続する。
@@ -125,7 +127,9 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.TypeConstraintGraph` / `Yulang.TypeConstraintGraphEquivalence` / `Yulang.TypeConstraintInference` | 元TyTermの共有変数を保つgraph化、semantic realizerの反映、実際のsource型制約solverの全モデル・全出力instance一致、regular model不存在と拒否の同値 | 未知record tail、非対応位置のunion/intersection、未解決行と値型の統合入口 |
 | `Yulang.RowFlowSchemes` / `Yulang.NestedRowRequirements` / `Yulang.TypeConstraintRowInstantiation` | core行の共有parameter scheme、shape飽和と行代入の可換性、全arrow行obligationの求解、元の行モデルの回復 | operation head・protect/release・residualを含む一般RowExprの制約消去 |
 | `Yulang.ConstraintProblems` | 型・行の同一slotを保つclause分割、元Typingのsubsumption、全閉式から計算した問題のinstanceとの同値 | 各問題の求解や全構文の対応判定 |
-| `Yulang.RecordTailBoundary` | 同値tailの置換がrecordの同値を保たない反例、元principalの全instanceをproper spine一つで表せないこと | 一般solverの不可能性、意図されたrecordモデルの決定 |
+| `Yulang.RecordTailBoundary` | 旧reference modelについて、同値tailの置換がrecordの同値を保たない反例、元principalの全instanceをproper spine一つで表せないこと | 決定38後の新モデルの反例、一般solverの不可能性 |
+| `Yulang.SemanticRecords` | 既存の構造・束の規則と任意record head/tailの意味的合同性、全旧部分型の保存、10.25の二つのrecord型の同値と幅包含 | 任意tailの一方向共変則、constructor分配・bottomでのstrictness、完全checker・cut elimination・再帰型solver |
+| `Yulang.InferenceModelMap` / `Yulang.SemanticRecordInference` | 全constructorと型・行包含を保つmodel写像による任意Formulaのモデル保存、全旧閉式の型付け保存、10.25のliteralの全Typing/principal instanceを一つの有限record型で特徴付け | 新旧モデルの逆向き保存、未知tailを含む全coreの実際の求解、表示標準形 |
 | `Yulang.JointConstraintInference` | 元の型・行制約から共有parameterのregular schemeを計算、全値型・行モデルおよび全出力instanceの一致、対応範囲での失敗の完全性 | right-join等の非対応行制約、一般のRowExpr求解 |
 | `Yulang.SourceConstraintSupport` / `Yulang.SourcePrincipalInference` | record構築以外の全既存Exprが対応範囲内である証明、元の式からの実際の推論、計算された全scheme instanceと元Typing/principalの一致、拒否と型付け不存在の同値 | record構築、surface elaboration、effect operation/handler・SCC・T3・role/castとの統合 |
 | `Yulang.SourceInferenceExamples` | 恒等関数の型・行共有、定数関数の負位置のany化と自由な入力行、実際のsource推論結果とcanonical familyの全instance一致 | 返り値blockの構文的な表示簡約 |

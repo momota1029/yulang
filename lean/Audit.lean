@@ -25,6 +25,14 @@ run_cmd do
   logInfo m!"Axiom allowlist passed for {checked} declarations from Yulang modules"
 
 #print axioms Yulang.RoleVisibility.resolved_mono
+#print axioms Yulang.Inference.ModelMap.formula_preserved
+#print axioms Yulang.Inference.ModelMap.closed_typing_preserved
+#print axioms Yulang.SemanticRecords.old_subtype
+#print axioms Yulang.SemanticRecords.record_congr
+#print axioms Yulang.SemanticRecords.boundary_pair_equivalent
+#print axioms Yulang.SemanticRecordInference.old_closed_typing_preserved
+#print axioms Yulang.SemanticRecordInference.literal_typing_iff
+#print axioms Yulang.SemanticRecordInference.literal_principal_formula_iff
 #print axioms Yulang.ValueBounds.least_models_iff
 #print axioms Yulang.ValueBounds.solve_some_iff
 #print axioms Yulang.ValueBounds.solve_none_iff

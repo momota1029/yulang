@@ -153,6 +153,9 @@ import Yulang.NestedRowRequirements
 import Yulang.TypeConstraintRowInstantiation
 import Yulang.ConstraintProblems
 import Yulang.RecordTailBoundary
+import Yulang.InferenceModelMap
+import Yulang.SemanticRecords
+import Yulang.SemanticRecordInference
 import Yulang.JointConstraintInference
 import Yulang.JointConstraintInferenceExamples
 import Yulang.SourceConstraintSupport

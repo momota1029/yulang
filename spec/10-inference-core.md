@@ -850,7 +850,7 @@ solverはnode対のcacheを増やす。constructor比較を子の比較へ分解
 
 ## 10.25 record tailの意味論上の境界
 
-**現行reference algebraについて証明済み。意図されたrecordモデルの修正は未決定。** 出典は10.5.1のrecord生成規則と、`StructuralBase` の構文的な `IsRecord` 条件である。章4.3のfirst-field-winsと幅部分型を変更する決定は行っていない。
+**旧reference algebraについて証明済み。決定38により意味的合同性を持つモデルへ移行する。** 出典は10.5.1のrecord生成規則と、`StructuralBase` の構文的な `IsRecord` 条件である。章4.3のfirst-field-winsと幅部分型を変更する決定は行っていない。以下の反例は旧関係についての定理として保持し、新しいモデルについての反例とは扱わない。
 
 `RecordTailBoundary` は次の閉record literalと二つの型を使う。行は純粋な `Unit` とし、effectには依存しない。
 
@@ -864,7 +864,7 @@ tailの `{} | never` と `{}` は相互部分型だが、前者は構文的なre
 
 `no_record_spine_represents_principal` は、特定の `P` に限らず、どのproper spine一つの上方閉包でもこのliteralの全instanceを表せないことを示す。これは制約式のprincipalityや一般solverの存在を否定するものではない。未知tailを同値なproper spineへ置換するだけでは、現在の意味を保存できないという境界である。
 
-選択肢は、現在のraw tailを区別する意味論を保ってsolverを拡張すること、または許されるtailについてrecordの合同性を持つモデルを明示的に定めることである。後者ではchecker・cut elimination・compilerの接続もそのモデルについて再証明する必要がある。`Typing.record` に構文条件を加えて既存instanceを落とす変更や、旧モデルの単なる商を意味保存として扱う変更は行わない。
+2026-11-06の決定38は、tailを含めてrecordの意味的合同性を持つモデルへ進む方を選んだ。checker・cut elimination・compilerの接続もそのモデルについて再証明する必要がある。`Typing.record` に構文条件を加えて既存instanceを落とす変更や、合同性を持たない旧モデルの単なる商を意味保存として扱う変更は行わない。新しい合同関係と保存定理の到達範囲は10.27に記す。
 
 ## 10.26 元の核の式からの主型推論の完成範囲
 
@@ -912,3 +912,15 @@ tailの `{} | never` と `{}` は相互部分型だが、前者は構文的なre
 完成したのは、record構築を除く既存core ASTの、値型とcore rowの主型推論である。10.25の一般recordモデル、operation・handler・保護・解除を生成するeffect ASTの一つの求解入口、再帰SCC・T3観測・注釈・role/cast・EOF判定との統合、surfaceからのelaboration、`as`を含む表示標準形は別の義務として残る。各層に既存の定理があることを、それらを統合した全言語の推論器の完成とは扱わない。
 
 このreference solverは証明の対象として明示的なDNFと有限listを使う。letの選択肢の展開は最悪で指数的になり得る。停止と主型性を、production向けの時間・メモリ性能の保証とは区別する。`lean/RunSourceInference.lean` は元の式からの実行と具体化を確認する入口である。
+
+## 10.27 意味的record合同性への移行
+
+出典は章4.3とhandoffの決定38（2026-11-06）である。`SemanticRecords.Subtype` は、旧モデルの構造・束の規則を新関係の下で閉じ、recordのheadと任意tailについて相互部分型の置き換えを認める。`record_congr` に `IsRecord` の前提はない。`old_subtype` は旧関係の任意の導出を保存する。任意tailに対する一方向の共変性、constructorの分配等式、`record(l,A,never) = never` はこの追加規則に含めない。
+
+`boundary_pair_equivalent` は、任意の行関係・label・field型について `record(l,A,{})` と `record(l,A,{} | never)` の相互部分型を示す。新関係では後者も空recordへ幅包含できる。10.25の否定定理は旧関係に留め、主張や期待値を書き換えて消さない。
+
+`Inference.ModelMap` は全型constructor・行演算・型と行の包含を保存する写像である。`formula_preserved` は任意の元Formulaとその任意の充足割当てを写し、存在slotのwitnessも値型と行を組にして保持する。`closed_typing_preserved` は元のprincipal生成器の完全性から、任意の閉式・任意の結果計算型の型付け保存を導く。`SemanticRecordInference.old_closed_typing_preserved` はこれを新関係への恒等写像に具体化する。record構築・値制限付き多相letを除外しない。
+
+`literal_typing_iff` と `literal_principal_formula_iff` は、任意のrow join algebra、label `l`、基本型 `b`、結果計算型 `C` について、元のliteral `record(l,lit(b),{})` の型付け／principal formulaの充足が、有限型 `record(l,b,{})` と空行から `C` への通常のsubsumptionと同値であることを示す。推論されたtailを構文的に制限せず、rowの反対称性も要求しない。
+
+**残る義務:** 新関係の完全なground checkerとcut elimination、未知tailを消さないgraph表現とcompilerの双方向保存、独立な再帰値型モデルとcoalescingへの接続、record構築を含む全coreの実際の求解と全instance主型性。上のliteralの特徴付けや旧型付け保存を、これらの完了とは扱わない。10.26の実行入口は現時点では旧reference modelのままである。
