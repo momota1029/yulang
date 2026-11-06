@@ -157,7 +157,9 @@ fractionの下位bitを偶数にすることを示す。符号はzeroへ丸め�
 `convert_success_iff` は実装の成功を「厳密な絶対値が最大有限値以下」と同値にし、
 `convert_correct` は任意の成功結果について上の全候補への丸め契約を導く。
 `LiteralValues.binary64OfDecimal_correct` が具体的なfloat literalへ接続する。
-範囲外は内部の `outsideFiniteRange` として区別し、source拒否や無限大への変換を選ばない（Q11）。
+この部分converterは範囲外を内部の `outsideFiniteRange` として区別する。
+回答済みQ11のsource規則は、最大有限値を超えても丸めが有限なら受理し、無限大へのoverflowを静的errorにする。
+その広い範囲のsource入口への接続は、この部分converterの成功範囲とは別に扱う。
 `RunBinary64.lean` は0.1、2^53付近の両方向のmidpoint、subnormal境界、最大有限値、zero/NaNを実行する。
 極端な非零十進指数の資源使用量の最適化とRust f64との対応は残る。
 既存 `Inference.Base` に float はなく、`legacyBase` は float に `none` を返す。
@@ -199,8 +201,10 @@ sourceからsiteとassembly codeを作るpass、固定field/defaultの宣言検�
 `data_typed_views` は同じ前提から、具体list値・nominal metadataを持つ構築結果・Fold順序・
 全自然数位置のcursorと内部Indexが同じ要素列を観測することまで導く。
 空spread・連続spread・途中のspreadでも順序と重複を保ち、source失敗後は後続を評価しない。
-任意のFold値をsource spread対象にするか（Q13）、既存listの各要素へ新しい保留cast位置を
-作るか（Q14）は決めていない。sourceのsite抽出・変換選択と保留planへの自動接続も残る。
+回答済みQ13・決定45は任意のFold値をsource spread対象とし、forと同じ辞書・effectを使う。
+この有限list核を保ったまま、一般の走査と要素型union、非停止を含む実行を接続する義務が残る。
+既存listの各要素へ新しい保留cast位置を作るか（Q14）は未回答である。
+sourceのsite抽出・変換選択と保留planへの自動接続も残る。
 
 `NominalListViews.index_exact` は任意の有限list・自然数位置・要素について、内部lookupの成功と
 独立な位置判断 `At` を同値にする。`cursor_index` と `fold_records_order` により、
@@ -210,8 +214,9 @@ Indexの内部lookupとFold用cursorが同じ順序の要素を観測する。`l
 負数は末尾相対にせず、`integerIndex_cursor` が非負indexと同じFold cursorの観測を保つ。
 `effectIndex` は無効indexを既存の非再開error要求に変え、`wrap_effectIndex` が通常の
 error wrapperで成功値または指定された範囲外errorが得られることを示す。
-effect名とpayloadは仕様でも下書きのため、任意の `ErrorEffects.Encoding` と
-`Int → Error` を引数に取る。sourceのrole辞書選択・宣言の確定・Index本文のelaborationは示さない。
+汎用定理は任意の `ErrorEffects.Encoding` と `Int → Error` を引数に取る。
+回答済みQ12は `error index_err: out_of_range int` と無効だったindexのpayloadを確定した。
+この宣言の具体化とsourceのrole辞書選択・Index本文のelaborationは別に接続する。
 `RunLiteralConstruction.lean` で大きな整数・範囲比較と実際のstruct/enum/list構築を実行できる。
 
 ## 複数 operation の shallow handler
@@ -763,14 +768,14 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.JointCaseCoverage` / `ScopedCaseCoverageSafety` / `ScopedJointCaseCoverage` / `ScopedJointCaseExamples` | 複数の反駁可能armによる同一tagのpayload cell被覆、独立判断との同値、旧受理の保存、全tag単位の残余、各scopeの型付けとdefault domain包含から具体caseのprogress、Q4とQ8が同時に働く量化例 | 一般pattern matrix、record/list/整数の既存未認証例、sourceの拒否完全性、effectfulな葉・CaseTree・統一ASTへの接続 |
 | `Yulang.CaseTree` / `CaseTreeExamples` | scrutinee/body・pair・letへの有限case入れ子、独立型付けから実評価の型安全性と未一致の不在、任意整数について値と訪問列を保持する入れ子例 | guard/default内部のcase、一般再帰・関数/application/effect/castの統合、source名解決とscope付きdefaultの統合 |
 | `Yulang.CasePresenceValidation` | 宣言presenceのoptional許可/required拒否/unknown未解決、具体recordの旧markerへのlookup保存、required/optional所属の対応、型付きlazy defaultからunionに入る実束縛 | sourceからpresence metadataを導出し全patternへ適用するpass、旧markerにないfloat/list/nominalの射影、source defaultのscopeを割り当てるpass |
-| `Yulang.LiteralValues` / `LiteralValueExamples` / `Binary64` / `Binary64Rounding` / `Binary64Decimal` | 内容つきliteral、整数範囲、64bit codecの相互逆、数値Eqと独立判断の同値、正負zeroの一致・NaNの不一致、任意tokenの厳密な分数化と範囲内での全有限binary64候補への最近接・偶数丸め | 範囲外tokenのsource方針（Q11）、数値演算、parser/escape、Rust f64との対応、非零巨大指数の資源最適化、既存base-marker ASTとの全体統合 |
+| `Yulang.LiteralValues` / `LiteralValueExamples` / `Binary64` / `Binary64Rounding` / `Binary64Decimal` | 内容つきliteral、整数範囲、64bit codecの相互逆、数値Eqと独立判断の同値、正負zeroの一致・NaNの不一致、任意tokenの厳密な分数化と範囲内での全有限binary64候補への最近接・偶数丸め | 回答済みQ11の全token入口への接続、数値演算、parser/escape、Rust f64との対応、非零巨大指数の資源最適化、既存base-marker ASTとの全体統合 |
 | `Yulang.PresenceLegacyBridge` | 任意の有限legacy型とmaskのdata意味を保存するpresence翻訳、Shadow部分型の包含保存、閉supported型判断の移送、finite-data planの全parameterを同じexact結果が一方向に包含、optionalの分解と旧width型の反例 | 逆向きの部分型完全性・scheme等価、regular型と自由row parameter、closure/effect行の意味、SourcePrincipalInference全体への統合 |
 | `Yulang.PresenceLayers` | required/optional/lacksを保つ有限layer、任意の子述語と正確なmembership checkerから全値で判定同値、mask合成とhidden field消去、field別optional化で相関が失われる反例 | 任意述語の決定可能性、全深さの部分型判定、closure/effect行の意味、拡張solverの主型性 |
 | `Yulang.PresenceRegularObservations` / `PresenceRegularLegacyBridge` | 任意graphの全有限観測判定、可換なrenameと有限block closureでの保存・反映、旧regular型のdata所属・data包含との同値、既存common carrierのblockへの接続 | 旧structural subtypingとの同値、arrow/closureと行の意味、全深さの判定算法、presence制約の飽和/coalescing、全source schemeのinstance同値 |
-| `Yulang.NominalConstructionRuntime` / `NominalConstructionExamples` | 不変parameterの元の構築位置の順序、適合時のcast抑制、純粋cast後の全request tree保存、EOFの実値保持、metadataとarity保存 | ground境界検査から値型に正しい変換codeの合成、固定struct field・宣言defaultを含むsource elaboration、具体data構築ASTとの統合 |
+| `Yulang.NominalConstructionRuntime` / `NominalConstructionExamples` | 不変parameterの元の構築位置の順序、適合時のcast抑制、純粋cast後の全request tree保存、EOFの実値保持、metadataとarity保存 | ground境界検査から値型に正しい変換codeの合成、固定struct field・宣言defaultを含むsource elaboration、sourceからのsite/構築AST生成 |
 | `Yulang.NominalDataAssembly` / `NominalDataAssemblyExamples` | site実行器から具体ASTへの完全等式、元のrequest treeとEOF値の保持、受理plan・局所CastContract・元site型・独立Code型判断から返却分岐の構築成功と結果型、struct/enum/listの実値例 | sourceのsite抽出・Code生成、固定field/defaultの宣言検査、cast code合成、Fold/Indexのsource辞書との対応 |
-| `Yulang.NominalListSpread` / `NominalListSpreadExamples` | 任意位置の有限list spread、独立data型判断と環境・変換契約から実評価と全要素型、記述順に各sourceを一度読む全訪問列、同じ列に対する具体list・nominal metadata・Fold・内部Indexの一致 | source対象をlist/Foldのどちらにするか（Q13）、spread要素の保留cast境界（Q14）、source site抽出・変換選択・保留planの自動生成 |
-| `Yulang.NominalListViews` / `NominalListIndex` | 同じlistに対するcursor・index・foldの一致、整数indexの成功と有効区間の同値、無効indexの非再開error要求、既存wrapとの一致 | sourceのFold/Index辞書の選択・署名と本文の対応、下書きのerror名/payloadの確定 |
+| `Yulang.NominalListSpread` / `NominalListSpreadExamples` | 任意位置の有限list spread、独立data型判断と環境・変換契約から実評価と全要素型、記述順に各sourceを一度読む全訪問列、同じ列に対する具体list・nominal metadata・Fold・内部Indexの一致 | 回答済みQ13の一般Fold・effect・要素型unionへの接続、spread要素の保留cast境界（Q14）、source site抽出・変換選択・保留planの自動生成 |
+| `Yulang.NominalListViews` / `NominalListIndex` | 同じlistに対するcursor・index・foldの一致、整数indexの成功と有効区間の同値、無効indexの非再開error要求、既存wrapとの一致 | sourceのFold/Index辞書の選択・署名と本文の対応、回答済みQ12の具体宣言から本文への接続 |
 | `Yulang.NominalDataConstructionExamples` | 解決済みnominal構築式、任意整数から計算するstruct/enum/list payloadの型付けと実評価・全訪問列 | 宣言のlookup・型引数・payload宣言型の検査、source constructor default・castの挿入 |
 | `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、source patternから束縛付きarm表への翻訳、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |
 | `Yulang.MultiOperationPayloadHandlers` / `MultiOperationPayloadInference` / `MultiOperationPayloadExamples` | 同一keyの順序付きpayload dispatch、missのforwardと残余保持、unguarded反駁不能armだけのkey減算、既存構文のchecker/型判断/安全性の拡張、旧全域表との一致、全armへの明示mask検査 | source patternの束縛、effectful default/guard、個別operation署名と多相、mask導出とfresh移送、全sourceの主型推論 |

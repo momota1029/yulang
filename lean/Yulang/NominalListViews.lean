@@ -11,9 +11,10 @@ next traversed value after any finite number of drops with that lookup.
 `loopMachine` installs this cursor in the existing loop evaluator, retaining
 its established `last` / `next` / `redo` behavior.
 
-These are views used to implement `Fold` and `Index`; they are not a chosen
-source dictionary or a decision about out-of-range/negative integer indexing.
-The public `Index` role still needs its integer-key and failure contract.
+These are views used to implement `Fold` and `Index`; they do not choose a
+source dictionary. NominalListIndex extends this internal lookup to arbitrary
+integer keys, rejects every negative/out-of-range position, and connects
+failure to the named abortive error protocol from answered Q9/Q10/Q12.
 The source role resolver and method-body elaborator are not replaced here.
 -/
 

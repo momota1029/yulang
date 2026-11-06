@@ -1479,7 +1479,8 @@ source AST・全型推論器への literal 内容の接続。旧 marker の定�
 符号保持・有限性・NaNでないことを示す。zeroの場合は巨大指数の累乗より先に短絡する。
 `LiteralValues.binary64OfDecimal_correct` は成功した任意のliteralが正しく丸められたfloatであることを示す。
 
-**残る義務:** sourceの最大有限値を超えるtokenの方針（Q11）、lexerとの対応、
+**残る義務:** 回答済みQ11の「丸めが有限なら受理、無限大へのoverflowは静的error」を
+最大有限値より大きいtokenにも接続すること、lexerとの対応、
 Rustの実際のf64変換との対応、極端な非零十進指数の資源最適化。
 内部結果 `outsideFiniteRange` はsourceの型エラーでもruntime errorでもなく、未接続の方針境界である。
 有限範囲内の証明を範囲外の受理完全性へ広げない。
@@ -1560,11 +1561,11 @@ source名解決・注釈・presence検査の全patternへの適用、defaultのs
 `checked_case_evaluates` / `checked_variants_evaluate` と `typed_no_unmatched` により、
 実行可能なcoverage検査から、型を満たす結果と未一致終了の不在を得る。
 
-**仮の核の方針（Q5）:** compound patternの先行不一致では後のdefaultを評価しない。
-既存の決定43からこの省略規則を追加で決定したとは扱わず、sourceへの意味保存は回答後に接続する。
-**仮のor方針（Q6）:** 最初に照合が成功した枝を選び、guardが偽でも別枝を再試行しない。
-sourceの普通のor patternへの意味保存はこの回答後に接続する。
-rawな重複binderのlookupも、sourceの名前解決・重複名の規則ではない（Q7）。
+**回答済みQ5:** compound patternの先行不一致では後のdefaultを評価しない。
+**回答済みQ6:** 最初に照合が成功したor枝を選び、guardが偽でも別枝を再試行せず次のarmへ進む。
+どちらもこの旧核の規則と一致する。Q4の累積環境とQ7の重複binder拒否は
+10.35.3以降のscope付き核と独立な名前検査で扱う。旧 `CaseTree` は環境に依存しない
+defaultを持つ特殊な場合として保ち、全sourceへのelaborationとは区別する。
 
 **残る義務:** guard/default内部のcase、関数再帰・application・effect・castとの統合、
 sourceの名前解決・束縛順序・default環境のelaboration、および10.35.1の完全なcoverage算法。
@@ -1676,7 +1677,7 @@ registryに受理されたground boundaryからそのcodeを合成・検証す�
 
 **残る義務:** source nominal宣言の存在・型引数・payload宣言型の検査、固定field/default/castのelaboration、
 sourceから保留siteと具体構築ASTを導出するpass、ground boundaryから型付きpure conversionの合成、
-Fold/Indexのsource辞書解決と本文の対応、下書きのindex error宣言の確定とその本文への接続。
+Fold/Indexのsource辞書解決と本文の対応、回答済みQ12のindex error宣言から本文への接続。
 内部の `Nat → Option Value` はsourceのAPIを選ぶための決定ではない。
 
 ### 10.36.1 回答済みQ9・Q10：整数indexとerror effect
@@ -1696,14 +1697,17 @@ Fold/Indexのsource辞書解決と本文の対応、下書きのindex error宣�
 `wrap_effectIndex` は既存のerror wrapperによる観測を
 `ok value` または `error (outOfRange i)` に一致させる。
 
-**残る義務:** `error index_err: out_of_range int` は3.2で下書きのため、名前・payloadを
-固定していない。sourceのIndex辞書・全型推論器へのeffect行の組込みと、宣言からこの
-encodingを作るelaborationは別の義務である。内部Optionをsourceの返り値にはしていない。
+回答済みQ12により、3.2の宣言は `error index_err: out_of_range int`、payloadは無効だったindexで確定した。
+ここまでの汎用定理は任意の正しいencodingとerror構成を扱うため、その主張は保つ。
+**残る義務:** 確定した宣言の具体化、sourceのIndex辞書・全型推論器へのeffect行の組込みと、
+宣言からencodingを作るelaboration。内部Optionをsourceの返り値にはしていない。
 
 ### 10.36.2 保留siteの実行から具体構築ASTへの接続
 
 `NominalDataAssembly.Code` はplanのconstructorにindexされ、enumのtagをそのまま保持し、
-structのconstructor identityは宣言解決から明示的に受け取る。listは具体 `Value.list` を作り、nominal identityをmetadataに保つ。
+structのconstructor identityは宣言解決から明示的に受け取る。独立な `Typing.list` を満たす
+list Codeは具体 `Value.list` を作り、nominal identityをmetadataに保つ。
+任意の未型付けCodeにlist形状を保証する主張ではない。
 `execute_runtime` は任意のruntime・plan・Codeについて、site実行器の結果へ具体AST評価を写像したものと完全に等しいことを示す。
 `execute_requestTree` は型前提なしで元instruction列の要求木と一致し、
 `accepted_requestTree` は任意registry・construction・expectation・planの `finish` 成功から
@@ -1742,11 +1746,12 @@ source評価器・変換・部分列・chunk列について、この判断から
 全自然数位置でcursorの次要素と内部Indexおよび残りsuffixが一致することを導く。
 公開Int indexの無効時errorは10.36.1の契約を保ち、この内部lookupへ置き換えない。
 
-**残る義務:** source spread対象をlistだけに限るか任意のFoldへ広げるか（Q13）、
-既存listのspread要素に新しい保留cast境界を設けるか（Q14）は仕様から決定していない。
-`notes/questions/2026-11-06-list-spread-questions.md` に例・選択肢・推奨を分けて記録した。
-ここでの核は既に有限listへ解決された内容を扱い、その二つのsource方針を確定しない。
-sourceの構築位置抽出・変換選択・保留plan生成・role辞書選択との接続は残る。
+回答済みQ13・決定45により、sourceのspread対象は任意のFoldであり、forと同じ辞書・effectを使う。
+ここでの核は既に有限listへ解決された特別な場合であり、一般のFoldの有限性は要求しない。
+**残る義務:** 一般のFold辞書・走査effect・要素型union・非停止を含む実行との接続、
+sourceの構築位置抽出・変換選択・保留plan生成・role辞書選択。
+既存listのspread要素に新しい保留cast境界を設けるか（Q14）は未回答であり、
+`notes/questions/2026-11-06-list-spread-questions.md` に例・選択肢・推奨を記録した。
 
 ## 10.37 Presence型と有限legacy data推論の橋
 

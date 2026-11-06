@@ -9,9 +9,10 @@ element has an explicitly supplied pure conversion; a resolved list spread
 contributes its already typed contents without inserting a hidden map. The
 result is the concatenation of those chunks, retaining order and duplicates.
 
-This is a common finite-list stage, not a source rule deciding whether any
-Fold value may be spread or whether spreading an existing nominal list
-creates fresh deferred cast sites. Those questions are recorded separately.
+This is the finite-list special case of answered Q13, whose source rule
+allows any Fold value and preserves its traversal effects. The general
+Fold traversal is a separate integration obligation. Whether spreading an
+existing nominal list creates fresh deferred cast sites remains Q14.
 The conversion-value contract is explicit; conversion selection, weak-variable
 solving and generation of source construction sites are not inferred here.
 The observation bridge uses the existing finite-list Fold/Index views; it

@@ -8,7 +8,8 @@ Rust 実装の中心になる desugar / elaboration の一覧。**下書き**で
 旧核は `Inference.Expr` と `RecursiveEffects.Expr`。追加の解決済みcase/handler核は下記の
 専用AST・評価器として置き、旧ASTとの全体統合は別の証明義務として残す。
 追加した核の形と証明範囲を各行に記す。未決定のsource翻訳は備考と問いへ明記し、
-確定の印で拡張しない。特にpattern defaultのscope・不一致後の評価は下書きのまま残す。
+確定の印で拡張しない。pattern defaultのscope・不一致後の評価はQ4・Q5で回答済みであり、
+scope付き核へのsource名解決・elaborationの証明を残す。
 
 ```text
 var i        lit b        lam e        app f a       let v b
@@ -18,6 +19,7 @@ recordDefault l base fallback
 variant l e               request op e               boundary(protect|release, mask) e
 handler op action ret arm
 multiHandler operations action ret arms
+partialHandler payloadArms action ret arms
 ```
 
 旧 `lit` の `b` は base 型の印だけで、整数や文字列の中身を持たない。
@@ -42,7 +44,7 @@ regularな `SourcePrincipalInference` 全体の主型性・関数/行意味へ�
 | 表の構文 | 核 | 状態 | 出典・備考 |
 | --- | --- | --- | --- |
 | 整数・文字列・bool・unit literal | `LiteralValues.Literal` | 確定 | 内容とliteral/range比較を追加。source codecとの対応は未証明 |
-| float literal / literal pattern | `Binary64Decimal.convert`、`Binary64.Value`、`LiteralValues.binary64MatchCheck` | 確定 | 回答済みQ2・Q3。任意tokenを厳密な分数にし、最大有限値以下で全有限候補への最近接・偶数丸めを証明。数値Eqは正負zero一致・NaN不一致。literalは網羅性に数えない。lexer/Rust f64との対応と範囲外tokenのsource方針（新Q11）は別義務 |
+| float literal / literal pattern | `Binary64Decimal.convert`、`Binary64.Value`、`LiteralValues.binary64MatchCheck` | 確定 | 回答済みQ2・Q3。任意tokenを厳密な分数にし、最大有限値以下で全有限候補への最近接・偶数丸めを証明。数値Eqは正負zero一致・NaN不一致。literalは網羅性に数えない。回答済みQ11の全token入口、lexer/Rust f64との対応は別義務 |
 | 名前 `x`、path `a::b` | `var i`(束縛済み)、またはモジュールの宣言への参照 | 確定 | 名前解決は核の前。章3.2 |
 | `f x y` / `f(x, y)` / `x.m y` / `f: body` | `app (app f x) y` | 確定 | 章3.3。どれも同じカリー化 |
 | `f()` | `app f unit` | 確定 | `unit` は `lit unit` |
@@ -59,7 +61,8 @@ regularな `SourcePrincipalInference` 全体の主型性・関数/行意味へ�
 | `{..base, x: 3}` | `recordDefault x base 3` | 確定 | 決定44。核AST・presence-aware data推論・実評価を追加済み。surface翻訳passの証明とは区別する |
 | `{x, y}` | `{x: x, y: y}` と同じ | 確定 | 章3.1 |
 | `p.x`(field) | `field x p` | 確定 | field か method かは 6.4 の解決で決まる |
-| `:tag e` / `enum::v e` | `variant l e` | 確定 | |
+| `:tag e` | `variant l e` | 確定 | 構造的なpolyvariant tag |
+| `enum::v e` | `NominalDataAssembly.Code.enumeration` → `CaseDataTerms.Expr.nominal typeId ctorId payload` | 確定（解決済み核） | 解決済みenum identityとconstructor tagを保持。source宣言lookup・payload型検査・site抽出はDの別義務 |
 | `if c: a else: b` | `branch c a b` | 確定 | |
 | `if c: a`(else なし) | `branch c (variant just a) (variant nil ())` | 確定 | 章3.6。`opt` |
 | `elsif` | 入れ子の `branch` | 確定 | |
@@ -68,7 +71,7 @@ regularな `SourcePrincipalInference` 全体の主型性・関数/行意味へ�
 | `a and b` / `a or b` | `lazy infix` の本体に両辺を thunk として渡す | 確定 | 章1.5。短絡評価 |
 | `-x`、`not x` | prefix 宣言の本体の展開 | 確定 | |
 | `0..10` / `0..` | suffix/infix 宣言の本体(`std::data::range::...`) | 確定 | 閉区間 |
-| `xs[i]` | `app (app (method index) xs) i`、解決済みlist本文は `NominalListViews.effectIndex` | 確定 | 章3.2、回答済みQ9・Q10。整数の有効区間とerror要求への接続を証明。errorの名前/payloadは下書きのためencoding引数。role辞書から本文へのelaborationは残る |
+| `xs[i]` | `app (app (method index) xs) i`、解決済みlist本文は `NominalListViews.effectIndex` | 確定 | 章3.2、回答済みQ9・Q10。整数の有効区間と任意encodingのerror要求への接続を証明。Q12はindex_err/out_of_range intを確定。具体宣言とrole辞書から本文へのelaborationは残る |
 | `"a %{x} b"` | `Display` で `x` を文字列にして連結 | 下書き | 書式指定付きは `fmt` 相当の呼び出し。std 側 |
 | `do` | 後続の文を継続 lambda にして、最も内側の呼び出しの引数にする | 確定 | 章3c.7。純粋に構文 |
 
@@ -115,8 +118,8 @@ regularな `SourcePrincipalInference` 全体の主型性・関数/行意味へ�
 | --- | --- | --- | --- |
 | `struct p {x: int, y: int}` | `NominalDataAssembly.Code.structLiteral` → `CaseDataTerms.Expr.nominal` | 確定（解決済み核） | 保留cast siteから実record payload構築を接続。局所CastContractと独立Code型判断から値型を保存し、隠れるfieldの要求も残す。宣言lookup・固定field/default・source site抽出・cast合成は別義務 |
 | `enum e = a | b x` | `NominalDataAssembly.Code.enumeration` → `CaseDataTerms.Expr.nominal` | 確定（解決済み核） | planのidentity/tagを保ち、保留siteから具体payloadへ接続。受理planの全request treeとEOF元値を保持。source宣言検査・site抽出・cast合成は別義務 |
-| list literal の構築 | `NominalDataAssembly.Code.list` → `CaseDataTerms.Expr.nil/cons` | 確定（解決済み核） | 保留site実行器と実値構築を接続。Fold cursorと整数Indexが同じpayloadを観測し、無効indexは任意encodingのerror要求へ接続。source辞書・site抽出・error宣言（Q12）は別義務 |
-| `[1, ..xs, 3]`・連続/空spread | `NominalListSpread.Part` → 実list値・共通Fold/Index観測 | 確定（解決済み有限list核） | 独立data型判断・環境・純粋変換契約から、各sourceを記述順に一度読む訪問列と全要素型を証明。任意Foldを認めるか（Q13）、spread要素の新cast境界（Q14）、source site抽出・保留plan生成は別義務 |
+| list literal の構築 | `NominalDataAssembly.Code.list` → `CaseDataTerms.Expr.nil/cons` | 確定（解決済み核） | 保留site実行器と型付きCodeの実list構築を接続。Fold cursorと整数Indexが同じpayloadを観測し、無効indexは任意encodingのerror要求へ接続。source辞書・site抽出・確定error宣言からのelaborationは別義務 |
+| `[1, ..xs, 3]`・連続/空spread | `NominalListSpread.Part` → 実list値・共通Fold/Index観測 | 確定（解決済み有限list核） | 独立data型判断・環境・純粋変換契約から、各sourceを記述順に一度読む訪問列と全要素型を証明。回答済みQ13の任意Fold・effect・要素型union、spread要素の新cast境界（Q14）、source site抽出・保留plan生成は別義務 |
 | `type t = int`(alias) | 展開 | 確定 | 章4.4 |
 | `role R 'a: ...` / `impl R T: ...` | 辞書(dictionary)の型と値 | 確定 | 辞書渡しは `RoleDictionaries` に証明がある |
 | `where 'a: R` | 辞書引数 | 確定 | 具体化した場所で解く(決定 30) |
@@ -163,7 +166,7 @@ ChatGPT に依頼する核の拡張の候補。
 2. 複数 operation の核は `MultiOperationHandlerTyping` に追加済み。残るのは source payload-pattern arm の編成、個別署名、多相、mask の elaboration
 3. labelの値・methodと衛生的な境界をsourceから核へ対応させるelaboration。labelが値であること自体は章3c.2で確定
 4. nominal構築の核と保留site実行は追加済み。source宣言・default/cast・辞書と統一ASTへのelaborationは残る
-5. 整数・文字列・bool・unit の中身は `LiteralValues` に追加済み。小数の具体解釈と旧AST/sourceとの接続が残る
+5. 整数・文字列・bool・unitの中身とbinary64の数値Eq、最大有限値以下の小数の最近接偶数丸めを追加済み。回答済みQ11のoverflow規則、lexer・旧AST・Rust実装との接続が残る
 
 決定44の `recordDefault` は上記の通り追加済み。`error` と `junction` の要求木helperも
 `ErrorEffects` / `JunctionEffects` にあるが、ordinary strict applicationとの接続を含む
