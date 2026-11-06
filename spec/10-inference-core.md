@@ -1110,9 +1110,9 @@ instanceと新商モデルでの元 `Typing` を一致させる。graphの `Mode
 ことを示す。以前の `opaque_comparison_iff`・`source_has_incomparable_instances` は
 決定39の関係についての歴史的な定理として保持し、最新仕様の非比較とは扱わない。
 
-**このcheckpointの未完範囲:** 新関係の完全ground checker、cut elimination、
-実行可能な商等号判定、未知tailを含む一般graphの求解、全coreの自由parameter主型性・
-拒否完全性。制約生成の正確性を、残余制約のない推論算法の完成とは扱わない。
+**残る義務:** 未知tailを含む一般graphの求解、全coreの自由parameter主型性・拒否完全性、
+正則再帰値型との接続。有限ground checker・cut elimination・商等号判定は10.29.2で閉じた。
+制約生成の正確性を、残余制約のない全core推論算法の完成とは扱わない。
 
 
 ### 10.29.1 同じ実行可能算法の全instance主型性
@@ -1128,6 +1128,41 @@ parameterを回収するので、以前のinstanceの保存より強い。
 `infer_plan_sound` は実際に返ったplanの任意の商parameter tupleが元式の型付けを与えることを示す。
 `inferred_boundary_instances_equal` は以前のopaqueな二つの結果をschemeが保持し、型等号で一致させる。
 対象構文は10.28.4と同じで、一般lambda/application・let・effect式・正則再帰値型を含めない。
+
+### 10.29.2 有限ground型の完全checkerと商の実等号判定
+
+`ShadowRecordHeadViews.headView` は、tail全体が旧関係で相互部分型になる同名record atomを、
+入力型の有限なouter atomから探す。候補の残りtailは元のconstructor depthより真に小さい。
+意味的にproperなtailは保持し、それ以外で見つかった同名headだけを `strip` が除く。
+`headView_complete` と `headView_tails_equivalent` は、必要なheadを探せることと選択結果の
+旧等価性を示す。union/intersectionの各枝へ消去を配る操作は導入しない。
+
+`ShadowRecordNormalization.normalize` は、このsmart constructorを型全体へ構造再帰で適用する。
+`smartRecord_shadow` は追加した等式、`smartRecord_rigid_comparison` と
+`smartRecord_tail_mono` はrigid要求の比較と共変性を保持する。
+`normalize_equivalent` は元の型との新関係での等価を、`normalize_subtype` は新関係の
+全規則から正規化後の旧関係への保存を示す。したがって任意の有限型 `A,B` について
+
+```text
+RigidSemanticRecords.Subtype (normalize A) (normalize B)
+  ↔ ShadowSemanticRecords.Subtype A B
+```
+
+が成立する（`normalize_exact`）。前提は `DecidableEq Row`、正確なBoolean行checkerと
+行関係の反射性・推移性で、以前のground checkerと同じである。
+
+`ShadowRecordChecker.check` は正規化後の旧checkerを実行する。
+`check_true_iff`・`check_false_iff` は新しい最小関係の成立・不成立と実判定を一致させる。
+`cut_elimination` は計算済みnormal formsに対する既存のcut-free `Comparison` との同値で、
+構造atomの前提は実際の前層Boolean比較である。意味的oracle、外部fuel、成功cache、
+未知の中間型の推測は入力にしない。
+
+`ShadowRecordQuotientDecisions` は代表元不変性から比較を商へ降ろす。
+`equal_true_iff` の右辺は実際の商型の等号であり、`decideEq` もこのBoolean比較から構成する。
+canonicalな表示文字列や正則再帰型の判定は対象外である。
+`RunShadowRecordCheck.lean` はopaqueな二型の双方向比較、束の法則で隠れた重複の露出、
+関数・variant・pair内部の正規化、visible payloadの不一致を実行する。
+追加していない枝ごとの消去は、この最小関係の性質として別に検査し、言語全体の拒否とは扱わない。
 
 ## 10.30 決定41：handler armの許可検査と実際のcapture
 
@@ -1151,3 +1186,52 @@ parameterを回収するので、以前のinstanceの保存より強い。
 検査対象はその注釈付きincoming actionの境界契約であり、handler arm内で局所的に
 発生するeffectへ同じmaskを適用する規則ではない。source全体のelaboration、注釈からの
 mask抽出、mixed-origin actionの許可推論、全言語の型安全性はこの定理の対象外である。
+
+
+## 10.31 元core式の型付け・データ推論から実行安全性へ
+
+**状態:** 既存の元AST・Typingと4.3/決定40のrecord規則に対する実行接続。
+
+`SourceDataRuntime.eval` は元の `Inference.Expr` と値環境を入力とする全域関数である。
+literal・変数・pair/射影・record/field・variant・非再帰letを評価し、未束縛変数、
+非pairへの射影、非recordのtail、欠けたfieldはそれぞれ独立にエラーを返す。
+record構築では両式を評価した後に古い同名fieldを保存データから除く。
+`Fields.insert_shadow` はlookupだけでなく保存値そのものについての等号である。
+
+`DataTypeSemantics.Holds` は有限値と型の適合を定義する。recordのtailには隠れたlabelの
+maskを渡すが、headやpair/variantのpayloadではmaskをリセットする。
+`record_shadow` は任意のtail・mask・値について決定40の等式がこの値意味を保つことを示す。
+`ShadowDataSafety.subtype_preserves` は新しい部分型の全規則について意味保存を証明する。
+これは一方向のsoundnessで、意味的集合包含による部分型の完全な特徴付けではない。
+
+`SourceDataSafety.typing_evaluates` は上の対応構文にある任意の元式・型環境・適合する値環境・
+結果型に対し、独立な元Typingから評価成功と返り値の型適合を導く。
+多相letは右辺の一回評価値を固定し、別instanceの型付けから得られる評価値を決定性で
+同一視する。単相letも右辺を評価してからその値を格納する。
+shape certificate・intrinsically typed AST・評価成功・部分式のruntime安全性は前提にしない。
+
+`ShadowDataSafety.quotient_typing_evaluates` と `principal_evaluates` は、任意の行join algebra・
+対応する任意の元閉式・商の任意の結果型について、この保証を決定40の商と元principal formulaへ移す。
+商の値意味 `QuotientHolds` は部分型の意味保存から代表元に依存しない。
+
+`ShadowDataSafety.inferred_evaluates` は任意の元式・実際に返されたplanについて、
+`infer e = inferred plan` だけから次を導く。
+
+```text
+∃ v, eval [] e = ok v ∧
+  ∀ p : plan.Parameters QTy, QuotientHolds (plan.evalWith p) visible v
+```
+
+自由parameterへの残余制約はない。`instance_evaluates` は最後のsubsumptionを含む
+全instanceを扱う。`inferred_no_error` はこの実際の評価器のすべてのエラー結果を除く。
+推論成功からの入口はdata構文、元Typingからの入口は変数・let・field・射影を含む断片であり、
+二つの射程を同一視しない。
+
+**対象外:** literalの具体的payload、一般lambda/application・branch・effect・再帰sourceの実行、
+Rust runtime、parserから核へのelaboration、全言語のpreservation/progress・実行停止。
+`SourcePrincipalInference` の正則再帰型を扱うsource solverから、現在のshape解決済みの
+高階実行モデルへの全域elaborationも未接続である。型推論の停止とprogram実行の停止は別の義務である。
+
+`ShadowRecordFunctionScheme`・`ShadowRecordFunctionQuotient` は10.28.5の同じ有限descriptorと
+自由parameterを使い、決定40のraw/商モデルで全instance主型性を再証明する。
+その対象は明示したopen-record拡張関数族であり、上の第一階評価器へ関数を追加するものではない。

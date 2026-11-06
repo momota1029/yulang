@@ -27,8 +27,24 @@ unionと`never`で隠れた重複も `shadow_under_union_bottom` が扱う。
 
 旧 `Rigid*` 関係とその否定定理は、決定39時点の比較用として変更せず保持する。
 以下で記すopaque結果の別型性はこの旧関係についての事実であり、決定40後の言語の
-区別ではない。新関係の完全なground checker・cut elimination・商の等号判定、
-全coreの自由parameter主型推論は未完である。
+区別ではない。新関係の有限ground checker・cut elimination・商の等号判定も下記の通り完成した。
+未知変数を持つ一般graphの求解と全coreの自由parameter主型推論は未完である。
+
+`ShadowRecordNormalization.normalize_exact` は、計算された正規化結果どうしの旧rigid関係と、
+元の型どうしの新関係を双方向に一致させる。`normalize_equivalent` は各正規化結果が元の型と
+新関係で等価なことを別に示す。tail全体が同名headを持つrecord atomと旧関係で等価な場合だけ
+headを除き、残りtailのconstructor depthが真に減る。unionの枝ごとの消去や分配則を加えていない。
+
+`ShadowRecordChecker.check_true_iff`・`check_false_iff` は任意の有限型に対する実判定の
+完全性を示す。前提は正確なBoolean行checker・行preorder・`DecidableEq Row` である。
+`cut_elimination` は新関係のcutを計算済みnormal formsの既存cut-free判断へ接続する。
+`ShadowRecordQuotientDecisions.equal_true_iff`・`decideEq` は実際の商型等号を判定する。
+外部fuel・新関係の意味的oracle・未知の中間型は渡さない。表示用のcanonical文字列や
+正則再帰値型のcheckerを構成したという主張ではない。
+
+```sh
+lake env lean --trust=0 --run RunShadowRecordCheck.lean
+```
 
 ## 最新record関係でのデータ推論
 
@@ -41,6 +57,47 @@ unionと`never`で隠れた重複も `shadow_under_union_bottom` が扱う。
 `inferred_boundary_instances_equal` は以前のopaqueな両instanceを同じ商型として保持する。
 対象はliteral・emptyRecord・pair・variant・record構築と、不正なdata tailである。
 一般lambda/application・let・effect式はこの推論入口の対象外である。
+
+`ShadowRecordFunctionScheme`・`ShadowRecordFunctionQuotient` は、以前の
+`lam (record l (lit b) (var 0))` の同じdescriptorについて、決定40後の全instance主型性を
+再証明する。自由な3個の値型と1個の行を保ち、opaqueな入力tailも含める。
+これは当該関数族の推論schemaであり、一般関数の新しいdispatcherではない。
+
+## 元の型付け・推論結果から実際の評価へ
+
+`SourceDataRuntime.eval` は元の `Inference.Expr` と実行環境だけを受け取る。
+shapeで添字付けされた式、型付け導出、推論plan、fuelを渡さない。recordは実際の有限field列で、
+同名の古いfieldを保存データから消す。headとtailはその消去前に両方評価する。
+
+`SourceDataSafety.typing_evaluates` は、変数・literal・pair/射影・record/field・variant・
+非再帰letを含む元の宣言的Typingから、実際の評価成功と返り値の型適合を導く。
+単相letと値制限付き多相letの両方を扱う。多相letの右辺は一度だけ評価され、
+その同一の保存値が全instanceの意味を満たす。型ごとの再評価には置き換えない。
+
+`ShadowDataSafety.quotient_typing_evaluates` はこれを決定40の商モデルへ接続する。
+部分型の値意味保存は `subtype_preserves` で新規則の全ケースまで証明してあり、
+実行安全性を外部の仮定にはしない。`principal_evaluates` は元のprincipal formulaの解から
+同じ保証を導く。値意味は部分型についてsoundであり、意味的集合包含から部分型へ戻る
+完全性は主張しない。
+
+**`ShadowDataSafety.inferred_evaluates` は実際のデータ推論の成功だけから、単一の実行結果を
+構成し、全自由商parameterによる型がその同じ値を記述すると証明する。**
+`instance_evaluates` は最後のsubsumptionを含む全instanceを扱い、`inferred_no_error` は
+評価器の全エラー結果を排除する。
+
+| 入口 | 証明の対象構文 | 結論 |
+| --- | --- | --- |
+| 実際の `infer` の成功 | literal・emptyRecord・pair・variant・record構築 | 評価成功、全parameter/instanceで同じ返り値が型に適合 |
+| 元 `Typing` / principal formulaの解 | 上記に変数・let・field・fst/sndを加えた第一階断片 | 評価成功、宣言された値型に適合 |
+
+literal payloadは既存core ASTと同じbase tagへ抽象化している。lambda/application・branch・
+effect・再帰sourceの実行、Rust runtimeとparserからのelaborationは対象外である。
+未対応構文を評価器に渡すと明示的に `unsupported` を返す。全言語の実行停止や
+preservation/progressまで証明したとは扱わない。
+
+```sh
+lake env lean --trust=0 --run RunSourceDataSafety.lean
+```
 
 ## 決定41：incoming actionのhandler許可
 
@@ -287,6 +344,12 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.RigidRecordSourceBoundary` | 同じ元の閉record式に対するopaqueな2型の型付けとprincipal instance、両型の非比較と全rigid要求での一致 | opaqueな型を同一視する法則、主型schemeやsolverの不可能性 |
 | `Yulang.RigidRecordValueInference` / `Yulang.RigidRecordValueInferenceExamples` / `Yulang.RigidRecordValueQuotient` | 全Data構文から自由parameter schemeを実際に構成、有限raw型と商型での全instance主型性・拒否完全性・元principalとの同値、opaqueな代替instanceの保持 | 一般lambda/application・let・field access、正則再帰値型、一般の制約graphの求解、SourcePrincipalInferenceとの統合 |
 | `Yulang.RigidRecordFunctionScheme` / `Yulang.RigidRecordFunctionQuotient` | 引数recordにliteral fieldを足す関数族の有限descriptor構成、3自由値型と1自由行での全instance主型性、元principalと商モデルへの接続 | 任意の関数を推論するsource入口、正則再帰値型、全coreのRecordFree制限除去 |
+| `Yulang.ShadowSemanticRecords` / `Yulang.ShadowRecordQuotient` / `Yulang.ShadowRecordQuotientInference` | 決定40の任意tailでの隣接同名field消去の最小閉包、商の型等号、旧型付け保存、全core graphと元Typingの全instance一致 | 一般graphの求解、自由parameterによる全core推論 |
+| `Yulang.ShadowRecordNormalization` / `Yulang.ShadowRecordChecker` / `Yulang.ShadowRecordQuotientDecisions` | 新関係の有限ground完全checker、意味を保存する停止的正規化、計算されたnormal formsによるcut elimination、実行可能な商等号判定 | 未知graph変数、正則再帰値型、表示canonical化、row checker自体の構成 |
+| `Yulang.ShadowRecordValueInference` / `Yulang.ShadowRecordValueQuotient` | 既存の実データ推論算法について新raw/商モデルの全instance主型性、推論成功の完全性、拒否完全性 | 一般lambda/application・let・fieldを含む全core solver |
+| `Yulang.ShadowRecordFunctionScheme` / `Yulang.ShadowRecordFunctionQuotient` | 同じopen-record拡張関数族の自由parameter schemaを新関係の全Typingと一致させること | 任意の関数のsource dispatcher、正則再帰型 |
+| `Yulang.SourceDataRuntime` / `Yulang.SourceDataSafety` / `Yulang.ShadowDataSafety` | 元の第一階式のTyping・principal formulaから実eval成功と返り値の型適合、実データinfer成功から全商parameterで同じ値の適合、strict/poly letと実field lookup | 関数・branch・effect・再帰sourceの実行、literal具体payload、Rust/elaboration、意味論から部分型への完全性 |
+| `Yulang.HandlerPermissions` | incoming actionのarm許可の実検査と診断、fresh境界後の全treeでの非capture、許可requestのdispatch、shallow継続、検査付きruntime入口 | sourceのmask抽出、mixed-origin action全体の許可推論、局所effectへの一律mask適用 |
 | `Yulang.RigidRecordVarianceBoundary` | 前回の局所field存在代数がrigid要求への共変性を満たし、旧右辺unionがnonrigidであること | payloadや実行を含む言語全体のモデル |
 | `Yulang.JointConstraintInference` | 元の型・行制約から共有parameterのregular schemeを計算、全値型・行モデルおよび全出力instanceの一致、対応範囲での失敗の完全性 | right-join等の非対応行制約、一般のRowExpr求解 |
 | `Yulang.SourceConstraintSupport` / `Yulang.SourcePrincipalInference` | record構築以外の全既存Exprが対応範囲内である証明、元の式からの実際の推論、計算された全scheme instanceと元Typing/principalの一致、拒否と型付け不存在の同値 | record構築、surface elaboration、effect operation/handler・SCC・T3・role/castとの統合 |
