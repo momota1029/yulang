@@ -2021,3 +2021,10 @@ closureとeffect行の意味、全深さを一度に判定する算法、presenc
 [`lean/README.md` の M1 節](../lean/README.md#m1-型モデルの接続部分完了)を参照する。
 二つの入口は別モデルのままであり、presence/open-tail graph の自由 parameter 解構成・retraction・
 solver 完全性と統一入口は未完である。言語規則の追加や旧 `{}` の意味変更はない。
+
+## 10.38 M2 の接続状況
+
+共有 Core 上の effect 判断、意味的制約との一致、旧単相の有限生成器との接続と、
+残る有限制約生成・shape モデルの保存・高階境界の義務は
+[`lean/README.md` の M2 節](../lean/README.md#m2-effect-判断の統合部分完了)を参照する。
+M2 は部分完了であり、新しい言語規則を追加するものではない。

@@ -40,7 +40,7 @@ required-field と presence の carrier・判断は別に保持する（M1 の�
 | `Block.definition_conservative` / `scc_conservative` / `generate_exact` | SCC は式の外。宣言 head と Core body を分離し、任意の旧環境・slot 割当て・宣言列で全 body 検査が同値。実際の同時再帰環境と旧 `generateSCC` の充足にも接続（後者は `EnvRel` 前提）。全注釈の局所値型変数も全称量化 | SCC 発見・求解・closure・一般化の統合、effect/case body の SCC 推論（M3） |
 | `required_principal_exact` / `effects_principal_exact` / `qualified_principal_exact` | 既存の `EnvRel`（effect は `SigRel` も）の下で、任意の結果 computation について旧 principal scheme の充足 ⇔ 対応する Core 型付け | 混合 Core 全体の新しい scheme/solver ではない |
 
-機能の相互作用を扱う統一判断、`Core.infer`、混合断片の拒否完全性・unsupported の排除は未証明である。
+全断片の相互作用を扱う統一判断、`Core.infer`、混合断片の拒否完全性・unsupported の排除は未証明である。
 `cast` は site の構文のみで、統一した挿入/型付け規則は M4 に残す。
 literal の内容・presence・nominal の planner 結果を一つの値型 carrier に統合したとは主張しない。
 `Core.Expr.isValue` は旧 required/effect 判断用の構文検査であり、新構成子の値制限を決めない。
@@ -460,6 +460,74 @@ exact/presence/default と関数/行を含む具体的な共通モデル、open-
 公開型の一致である。後続 impl による曖昧化まで無条件に cache から省略できることを意味しない。
 依存 interface/key は公開型に加えて residual qualifier、可視 impl と辞書依存、nominal/effect identity、
 設定と規格化の version を含める。意味的同値を完全に決める全言語の標準形は依然として未証明である。
+
+### M2: effect 判断の統合（部分完了）
+
+`CoreEffectTyping.lean` の `Core.EffectTyping.Typing` は、共有 `Core.Expr` 上の独立判断である。
+`Core.Typing (Core.EffectTyping.model m view contract)` として使う。
+lambda/app、値制限付き let（捕捉した多相環境を含む）、branch/pair/variant/required record と、
+request/boundary/handler/multiHandler/partialHandler を同じ判断に置いた。
+旧判断や evaluator をこの判断の定義に含めない。既存の `Core.Effects` / `Core.Resolved` は変更しない。
+
+**モデルと内部表現:** 任意の `Inference.Model m`、`RowAlgebra` と、それらの空行・和・包含を
+整合させる `RowView m algebra` が入力である。モデルの部分型関係に新しい法則を仮定しない。
+符号付き重みを扱う具体例では `SignedStructural.model 1 Nat` と `signedAlgebra 1 Nat` を使う。
+署名の局所変数は有限個の値型だけを取り、key と追加行はその割当てによらない。
+`Contract.coherent` は request 用署名と同じ key の複数 handler 用署名の一致を要求する。
+各 handler の incoming mask は `Contract.permission : Core.Expr s → s.Key → Bool` で明示する。
+これはモデル入力の選択であり、source から mask を発見する算法ではない。
+同じ構文の複数 occurrence に異なる mask を割り当てる表現も、ここにはない。
+
+request では呼出しごとに局所型を存在具体化する。handler では外側環境・action 型・value arm 型・
+最終結果を先に固定し、全局所型割当てで operation arm を検査する。
+Lean の帰納的定義では arm 内部の結果を割当てから computation への関数として保持する。
+継続の出力は元の action computation のままである。
+複数 arm の型は value arm を末尾とする union、行は書かれた順の有限和で集約する。
+部分 handler は既存の `MultiOperationPayloadHandlers.removedKeys` を直接使い、
+guard なしの反駁不能 arm がある key だけを残余から引く。
+全 arm に許可検査を課し、照合が失敗する arm も検査対象とする。
+
+`CoreEffectGeneration.generate` は**モデル上の意味的制約（Prop）**を構造再帰で生成する。
+比較・許可検査・scheme lookup・量化から構成し、型判断や solver を呼ばない。
+値 let には生成済みの scheme 述語を保存する。有限の `RecursiveEffects.Formula` の拡張ではなく、
+slot/rename/substitution を持つモデル非依存の制約構文への変換は未完である。
+したがって、下の `principal_exact` を有限主型 scheme の構成・solver 完全性と読み替えない。
+
+定理名の接頭辞は `Yulang.Core.EffectTyping`。
+
+| theorem | what is proved | what is NOT proved |
+| --- | --- | --- |
+| `generate_models_iff_typing` | 任意の model/view/整合署名契約・Core 式・意味的 scheme 環境・捕捉 binding 環境・結果 computation で、lookup の `EnvRel` を前提に、生成した意味的制約 ⇔ 独立型判断。全5 effect constructor と値制限 let の両規則を含む | 複数/部分/多相 handler の有限 `Formula` 生成、solver 成功・完全性、M1 の型モデル統一 |
+| `principal_exact` | 任意の同じモデル入力・閉 Core 式・結果 computation で、空環境の意味的生成制約 ⇔ `Core.Typing`。solver/fuel/成功の前提なし | 有限な principal scheme の出力、最小解の計算。未対応 constructor は両辺とも偽であり、全 Core の support 完了ではない |
+| `legacy_conservative` | 任意の旧単相 `RecursiveEffects` 署名・式・捕捉環境・結果について、署名が key 別の局所署名に因子化できる前提で、旧判断 ⇔ 新 M2 モデルの Core 判断。mask は全許可、局所変数数は0 | 同じ key に無関係な署名を割り当てる旧入力への無条件な同値、shape 付き multi/payload 判断からの接続 |
+| `legacy_generate_models_iff_typing` | 任意の旧有限生成器の入力・model/view/割当て・結果で、旧 `EnvRel` / `SigRel` と上の署名一致を前提に、実際の旧 `RecursiveEffects.generate` の充足 ⇔ 新 M2 判断 | 有限生成器への multi/partial/operation-local 多相の追加 |
+| `Examples.two_operations_generated` / `partial_generated` / `partial_forwards` | 二 operation と value arm の閉式の生成解、部分 arm の key を残す生成解、同じ arm 表の既存 runtime による不一致 payload の forwarding | 新 Core evaluator の正しさ。forwarding は既存 payload runtime の実行等式であり、新 Core 型付けからの実行安全性ではない |
+| `Examples.forbidden_multi_rejected` / `forbidden_multi_no_solution` / `forbidden_partial_rejected` | 具体的な不許可契約で、任意の結果 computation に対する型付け拒否と multi の生成解不存在。常に失敗する部分 payload テストも許可検査を免れない | source annotation からの mask 導出、実行到達性の推論 |
+| `Examples.local_request_generated` / `local_escape_rejected` / `local_escape_no_solution` | caller による int への局所具体化と、任意局所 payload を固定 int 結果へ返す arm の拒否・生成解不存在 | 任意モデル・任意結果上界での payload return 拒否。role 制約付き局所型の辞書・method 接続 |
+| `Examples.callback_boundary_roundtrip_generated` / `callback_transport_roundtrip` | 実際の新 Core 判断で callback 本体の符号付き protect/release が相殺する生成解。別に、既存の明示的高階 transport が返された callback を元へ戻す実行等式 | Core.boundary が返り値内の callback を自動で transport する elaboration、両入口の統一 |
+
+**閉じていない補題と停止した項目:**
+
+1. 有限制約生成の拡張には、構文的な多相署名とその評価関係を先に与え、任意の model/view/割当て、
+   対応する環境・署名、式・結果 term について
+   `Holds (generateFinite … e out) ↔ generate view contract … e (eval out)` を証明する必要がある。
+   全称局所 binder と捕捉 scheme の具体化の可換性、有限個の arm の型・行集約まで含める。
+   任意の意味的署名関数を有限構文へ変換できるとは仮定しない。
+   これは未完成の構成・解釈補題であり、不可能性を主張していない。
+2. shape 付き旧 `MultiOperationHandlerTyping.Typing` / payload 判断から**同じ新モデル**への保存には、
+   `CTy` と型環境の具体的な解釈、および任意の旧型付けから解釈後の新型付けを得る補題が必要である。
+   現在の `Core.Resolved.multi` は `.atom` / `.strictApp` / 注釈の消去を使うが、
+   この M2 モデルには atom/strictApp/一般 widening の規則をまだ置いていない。
+   既存の `Core.Resolved.multi_core` は別モデルへの一方向保存としてのみ有効である。
+   同じ注釈付き旧式への反映は M0 の erasure 反例があるため主張しない。
+3. 高階境界には、Core 構文への wrapper 挿入・潜在行の型変換と評価の可換性が必要である。
+   既存 callback の実行等式をこの接続の代用にしない。
+
+**対象と仮の入力条件:** role を持たない operation 署名、解決済み key、明示された mask、
+既存の純粋な payload テスト/guard を扱う。仕様5.1/決定11の role 証拠は未統合である。
+source の pattern 束縛・effectful default/guard・mask 導出・fresh 化、M1 の型モデル統一、
+solver 完全性、全言語の主型推論・実行安全性は閉じていない。
+言語仕様の未決を新しく採用した箇所はなく、この作業で追加した仕様質問はない。
 
 ## Case の照合・順序・presence
 

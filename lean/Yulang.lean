@@ -392,3 +392,7 @@ import Yulang.CoreContextualSourceInference
 import Yulang.ContextualBranchCost
 import Yulang.ModuleScheduling
 import Yulang.MethodResolutionScheduling
+
+import Yulang.CoreEffectExactness
+import Yulang.CoreEffectLegacy
+import Yulang.CoreEffectRejections
