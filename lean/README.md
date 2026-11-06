@@ -21,6 +21,17 @@ baseのfieldが存在すれば保持し、なければfallbackを末尾へ追加
 baseの評価が失敗すればそこで止まり、baseが非recordの値まで評価された場合は
 fallbackを評価した後で `expectedRecord` とする。field選択による式の省略はない。
 
+`SourceDataOrder.Evaluates` は実行関数を参照しない独立な帰納判断である。
+子式への進入、左右の成功・失敗、最後の値操作を別規則にし、失敗前の訪問も保持する。
+`evaluates_iff_run` はtraced実装との双方向対応、`runtime_iff_evaluates` は元の
+`SourceDataRuntime.eval` との双方向対応を示す。`Evaluates.successful_order` は
+成功時に構文の全訪問列が書いた順に一致し、`run_trace_prefix` は失敗時もそのprefixだけを
+訪問することを示す。`EvaluationTrace` の値を捨てるsequencingの補題は、先に生じた
+観測を消さない。このdata評価器自体はeffect operationを実行する評価器ではない。
+`SourceDataOrderLaws` はhidden fieldの成功と失敗、present/absentなdefault、既存fieldに
+隠されないfallbackの失敗、未使用letの右辺、二回読まれても一回だけ評価されるletを扱う。
+`lake env lean --trust=0 --run RunSourceDataOrder.lean` で実際の結果と訪問列を確認できる。
+
 従来の `Inference.Model` / `Typing` / `generate` はrequired-field用の体系で、
 optional-fieldやfield不在の型を持たない。この判断での `recordDefault` は未対応であり、
 `Expr.requiredFieldsOnly` と `SourcePrincipalInference.infer_optional_unsupported` により
@@ -31,7 +42,34 @@ optional-fieldやfield不在の型を持たない。この判断での `recordDe
 決定43の一般的なstrict引数評価と、歴史的な `OperationalTyping` のcomputation引数渡しは
 区別する。`OperationalTypingExamples.unusedArgument_eval` は未使用の引数を実行しない
 旧模型の定理であり、現在のsurface言語の評価順を証明するものではない。
-旧定義や負例を消して仕様との不一致を隠さない。
+`StrictApplication.compile` はresolvedな式を再帰的に走査し、関数の評価、引数の評価、
+適用という順を二つのcomputed letで表現する。de Bruijn変数のshiftを含めて
+`compile_correct` が独立なstrict評価器との実行木全体の等号を証明する。
+lambda本体・handler両arm・返された関数・継続・符号付きweightも対象である。
+`infer_forceApplication` は結果行が関数の行、引数の行、戻りの行の順で合成されることを示す。
+`closed_inferred_bound` / `closed_inferred_values` は実checkerの成功からstrictな実行の上界と
+返却値の型適合を導き、`unused_argument_bound_iff` は任意の未使用引数の要求を保持する。
+`StrictApplicationPrincipal.principal_operationally_valid` は実際にloweringした式の
+既存principal formulaの解から同じ実行保証を導く。shape解決、注釈、surfaceの境界挿入や
+この一般formulaの求解を完了したという主張ではない。
+
+## errorのwrap・upとsignature付き要求木
+
+`SignatureRequests.Tree` はoperationごとにpayload型とresponse型を持ち、既存の
+`Directed.Occurrence` とcapture判定をそのまま使う。`toDirected_ofDirected` /
+`ofDirected_toDirected` と `ofDirected_shallowHandle` は、uniform signatureの場合に
+旧要求木との双方向同型と実shallow handler全体の等号を示す。
+
+`ErrorEffects.Cases` は宣言のoperationとerror値のconstructorを対応させる。
+error operationのresponseは `Empty` へ写せるため、`up_captured` は元の継続を使わずに
+変換先のabortive requestを構成する。任意の結果型の値を捏造しない。
+`raise_bind` はerrorの後のコードへ進まないこと、`wrap_returns` は全要求が捕捉可能な
+当該errorである任意の入力木から実際にresultを返すことを示す。
+`wrap_up_exact` は宣言keyの非重複とconstructorの対応だけから、任意の木について
+`target.wrap (source.up action)` と直接の `wrapFrom` が一致することを示す。
+外部のeffect、保護された要求、負のweightは転送される。
+複数の直接の `from` は対応表の合成で扱う。nominal宣言のelaboration、推移的なfrom探索や
+複数経路の選択規則はここで決めない。要求木はwell-foundedであり、一般再帰の停止定理ではない。
 
 ## 決定40：隠れたfieldの型等価
 

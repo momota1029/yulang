@@ -27,6 +27,27 @@ run_cmd do
 #print axioms Yulang.SourceDataRuntime.Fields.lookup_insertDefault_same
 #print axioms Yulang.SourceDataRuntime.Fields.lookup_insertDefault_other
 #print axioms Yulang.SourcePrincipalInference.infer_optional_unsupported
+#print axioms Yulang.SourceDataOrder.evaluates_iff_run
+#print axioms Yulang.SourceDataOrder.runtime_iff_evaluates
+#print axioms Yulang.SourceDataOrder.Evaluates.successful_order
+#print axioms Yulang.SourceDataOrder.run_trace_prefix
+#print axioms Yulang.SourceDataOrderLaws.shadowed_field_keeps_visits
+#print axioms Yulang.SourceDataOrderLaws.default_present_keeps_fallback_visits
+#print axioms Yulang.SourceDataOrderLaws.default_fallback_error
+#print axioms Yulang.SourceDataOrderLaws.let_two_reads_evaluates_rhs_once
+#print axioms Yulang.SignatureRequests.toDirected_ofDirected
+#print axioms Yulang.SignatureRequests.ofDirected_toDirected
+#print axioms Yulang.SignatureRequests.ofDirected_shallowHandle
+#print axioms Yulang.ErrorEffects.wrap_returns
+#print axioms Yulang.ErrorEffects.up_captured
+#print axioms Yulang.ErrorEffects.raise_bind
+#print axioms Yulang.ErrorEffects.wrap_up_exact
+#print axioms Yulang.StrictApplication.compile_correct
+#print axioms Yulang.StrictApplication.infer_forceApplication
+#print axioms Yulang.StrictApplication.closed_inferred_bound
+#print axioms Yulang.StrictApplication.closed_inferred_values
+#print axioms Yulang.StrictApplication.unused_argument_bound_iff
+#print axioms Yulang.StrictApplicationPrincipal.principal_operationally_valid
 
 #print axioms Yulang.RoleVisibility.resolved_mono
 #print axioms Yulang.Inference.ModelMap.formula_preserved
