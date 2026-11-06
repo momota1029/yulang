@@ -78,8 +78,8 @@ pair/variant/field を通る。parameter の root layer を同じ観測深さに
 
 | 定理（接頭辞 `PresenceRegularCoalescing`） | 示したこと | 示さないこと |
 | --- | --- | --- |
-| `coalesceGraph_satisfies_cache` / `coalesceGraph_satisfies` | 任意の有限 graph・入力/cache・`Closed` 証明について、任意の外部 parameter graph と全自由 parameter layer から構成した graph が、独立な constructor 等式と全 cache/入力辺を全観測深さで満たす。解の存在を仮定しない | `Closed` cache を生成する手続き、完全な inspector、非guardedな open tail、関数・行 |
-| `coalesceGraph_retract_at` / `coalesceGraph_retraction` | 任意の独立な **cache の解**を parameter として戻すと、全元 slot の全有限観測を回収し、data 部分型の両方向を得る | 入力だけの解が cache の解でもあること、旧 structural 部分型・関数の負位置での回収 |
+| `coalesceGraph_satisfies_cache` / `coalesceGraph_satisfies` | 任意の有限 graph・入力/cache・`Closed` 証明について、任意の外部 parameter graph と全自由 parameter layer から構成した graph が、独立な constructor 等式と全 cache/入力辺を全観測深さで満たす。解の存在を仮定しない | constructor を含む全入力からの `Closed` cache の生成、完全な inspector、非guardedな open tail、関数・行 |
+| `coalesceGraph_retract_at` / `coalesceGraph_retraction` | 任意の独立な **cache の解**を parameter として戻すと、全元 slot の全有限観測を回収し、data 部分型の両方向を得る | 任意の constructor 飽和での入力解の保存（flow のみは下記で証明）、旧 structural 部分型・関数の負位置での回収 |
 | `coalesceGraph_mask_retraction` | 任意の共通の出力 layer と mask の下で、回収した子観測を置換しても所属は変わらない | 生成 slot 自身の root と元解の root をそれぞれ mask して比較する、より強い回収 |
 
 `Closed` は入力辺の包含、変数を介した辺の伝播、rigid 同士の比較に対する有限の
@@ -93,7 +93,7 @@ pair/variant/field を通る。parameter の root layer を同じ観測深さに
 | 定理（接頭辞 `PresenceMaskedCoalescing`） | 示したこと | 示さないこと |
 | --- | --- | --- |
 | `coalesceGraph_satisfies_cache` / `coalesceGraph_satisfies` | 任意の有限 guarded presence graph・入力/cache・同じ `Closed` 証明について、任意の外部 graph と全自由 parameter layer が、全 root mask・全深さで constructor 等式と cache/入力辺を満たす解になる | 完全な飽和、非guardedな open tail、関数・行、旧 instance の保守性 |
-| `coalesceGraph_retract_at` / `coalesceGraph_retraction` / `coalesceGraph_root_mask_retraction` | 任意の独立な **mask つき cache の解**について、全 slot・全深さ・全 mask の観測を回収。実際の生成 root と元の root をそれぞれ mask した意味も一致し、新しい比較の両方向を得る | unmasked な解だけから同じ結論を得ること、入力解から cache 解への移送 |
+| `coalesceGraph_retract_at` / `coalesceGraph_retraction` / `coalesceGraph_root_mask_retraction` | 任意の独立な **mask つき cache の解**について、全 slot・全深さ・全 mask の観測を回収。実際の生成 root と元の root をそれぞれ mask した意味も一致し、新しい比較の両方向を得る | unmasked な解だけから同じ結論を得ること、任意の constructor 飽和での入力解の保存（flow のみは下記で証明） |
 
 この強い解の前提は必要である。`Core.PresenceMaskObstructions.no_extensional_mask` は、
 非空 mask を、unmasked な data 述語だけの関数として実装できないことを示す。
@@ -101,6 +101,16 @@ pair/variant/field を通る。parameter の root layer を同じ観測深さに
 `records` になる。`Counterexample.masked_root_retraction_fails` は、実際の二 node graph
 `x ≤ bottom` に対し、`Closed` と unmasked な独立解があっても root-mask 回収が失敗する
 具体例を示す。これを強いモデルへの暗黙の前提変換で隠さない。
+
+`PresenceFlowSaturation` は入力辺と変数を介した推移律を、既存の有限 Horn 飽和で全域に計算する。
+`n * n` は全 node 対の個数であり、呼出側が与える fuel や path 長の切捨てではない。
+
+| 定理（接頭辞 `PresenceFlowSaturation`） | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `saturate_exact` / `saturate_capacity` | 任意の有限 graph・入力辺・node 対について、計算した cache への所属 ⇔ 入力と変数経由の推移律からの独立な導出。cache の要素数は `n * n` 以下 | constructor の分解・矛盾検出・分岐付き飽和 |
+| `saturate_models_iff` / `saturate_masked_models_iff` | constructor を含む任意の graph・入力辺・独立な外部 graph/slot 割当てで、計算した flow cache の解 ⇔ 入力の解。後者は全 mask について成立 | constructor の逆向き分解を加えた別の飽和の完全性 |
+| `coalesce_saturated_retraction` | 任意の graph・入力辺と、その独立な mask つき **入力の解**について、実際に計算した cache で coalesce すると全元 slot を全深さ・全 mask で双方向に回収。cache の解や `Closed` を別途仮定しない | constructor を含む全入力で、任意の自由 parameter が解になること |
+| `variable_coalesce_satisfies` / `variable_satisfiable` / `variable_models_exact` | 全 node が変数である任意の graph・任意の入力辺で、全自由 parameter が解になり、任意の独立解と計算した解 family が全深さ・全 mask で正確に対応。成功・解の存在・cache・fuel を前提にしない | rigid bound や constructor のある入力。この変数のみの断片は全問題が充足可能で、constructor の拒否完全性を含まない |
 
 `CorePresenceGenerationModel` は既存 `Inference.Model` に独立な `exactEmpty`・`required`・
 `recordDefault` 演算を加えた interface である。継承した `emptyRecord` は width 上界用で、

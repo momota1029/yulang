@@ -21,6 +21,7 @@ import Yulang.CorePresenceAlternatives
 import Yulang.PresenceBoundCoalescing
 import Yulang.PresenceRegularCoalescing
 import Yulang.PresenceMaskedCoalescing
+import Yulang.PresenceFlowSaturation
 import Yulang.CorePresenceMaskObstructions
 import Yulang.CorePresenceLegacyObstructions
 import Yulang.PresenceLayerExpressiveness

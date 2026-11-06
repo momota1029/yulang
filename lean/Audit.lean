@@ -1697,3 +1697,14 @@ run_cmd do
 
 #print axioms Yulang.FoldListSpreadFinite.typed_finite_run_correspondence
 #print axioms Yulang.FoldListSpreadFinite.data_typed_finite_run_correspondence
+
+-- M1: actual finite flow saturation and mask-indexed input-solution recovery.
+#print axioms Yulang.PresenceFlowSaturation.saturate_exact
+#print axioms Yulang.PresenceFlowSaturation.saturate_capacity
+#print axioms Yulang.PresenceFlowSaturation.saturate_models_iff
+#print axioms Yulang.PresenceFlowSaturation.saturate_masked_models_iff
+#print axioms Yulang.PresenceFlowSaturation.coalesce_saturated_retraction
+#print axioms Yulang.PresenceFlowSaturation.variable_saturate_closed
+#print axioms Yulang.PresenceFlowSaturation.variable_coalesce_satisfies
+#print axioms Yulang.PresenceFlowSaturation.variable_satisfiable
+#print axioms Yulang.PresenceFlowSaturation.variable_models_exact

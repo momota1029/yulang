@@ -100,5 +100,9 @@ regular 表現は選択していない。既存の `{}` を exact empty に読�
    独立 `Typing [] e c` と、実際の `infer e` が返す有限 family の自由 parameter 具体化からの
    subsumption を同値にし、`.rejected` と型付け不能の同値・`.unsupported` の排除を導く。
 
-純粋な flow 飽和や固定された有限 presence bound の solver の完全性は、1 の
-constructor-rich な入力への完全性を置き換えない。README の表で完了範囲を区別する。
+`PresenceFlowSaturation.saturate_masked_models_iff` により、純粋な flow 飽和の計算した
+cache と元入力の独立解は、constructor を含む任意の graph で同値になった。
+`coalesce_saturated_retraction` はその入力解を全 mask で回収する。
+全 node が変数なら `variable_models_exact` で自由 parameter family 全体の exactness も閉じた。
+これらや固定された有限 presence bound の solver の完全性は、1 の constructor-rich な
+入力に対する `Closed` の生成・拒否完全性を置き換えない。README の表で完了範囲を区別する。
