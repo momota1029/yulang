@@ -1,4 +1,11 @@
 import Yulang.Variants
+import Yulang.CoreExpr
+import Yulang.CoreInference
+import Yulang.CoreEffects
+import Yulang.CoreQualified
+import Yulang.CorePresence
+import Yulang.CoreResolved
+import Yulang.CoreData
 import Yulang.VariantsMerged
 import Yulang.Effects
 import Yulang.EffectExamples

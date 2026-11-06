@@ -25,6 +25,15 @@ run_cmd do
   logInfo m!"Axiom allowlist passed for {checked} declarations from Yulang modules"
 
 #print axioms Yulang.SourceDataRuntime.Fields.lookup_insertDefault_same
+#print axioms Yulang.Core.Required.conservative
+#print axioms Yulang.Core.Effects.conservative
+#print axioms Yulang.Core.Qualified.conservative
+#print axioms Yulang.Core.Presence.conservative
+#print axioms Yulang.Core.Data.conservative
+#print axioms Yulang.Core.Resolved.operational_core
+#print axioms Yulang.Core.Resolved.multi_core
+#print axioms Yulang.Core.Resolved.annotation_erasure_typed
+#print axioms Yulang.Core.Resolved.annotated_not_pure
 #print axioms Yulang.SourceDataRuntime.Fields.lookup_insertDefault_other
 #print axioms Yulang.SourcePrincipalInference.infer_optional_unsupported
 #print axioms Yulang.SourceDataOrder.evaluates_iff_run
