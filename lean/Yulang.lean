@@ -400,6 +400,9 @@ import Yulang.CommonFiniteMask
 import Yulang.CommonDataReadout
 import Yulang.CommonLegacy
 import Yulang.CommonPresence
+import Yulang.CommonRecord
+import Yulang.CommonTailElimination
+import Yulang.CommonRecordTailElimination
 import Yulang.CommonDefault
 import Yulang.CommonFiniteParameters
 import Yulang.CommonFiniteEmbedding

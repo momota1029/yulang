@@ -76,3 +76,26 @@ whole default は既存 `Fields.insertDefault` の正確な像であり、presen
 必要なのは、field 要求だけを同深さの方程式へ移す独立な projection と、その完全な compiler bridge
 である。default の有限完全 inspector、型・行の simultaneous な自由 parameter family、全 source の
 公開 principal/rejected/unsupported、完全 interface canonical encoding は別々に検証する。
+
+`CommonRecord.common_record_iff` は、任意の同名 head の比較を payload と残る tail 要求に分ける。
+tail に渡すのは、先頭 label を除いた field と非自明 optional の観測だけである。optional の
+自明な payload は構築済み head が常に満たすため、tail に戻さない。required target なら tail の
+要求はすべて消える。構築時の tail ≤ width は生成器の別制約として残る。
+
+同深さ record 方程式には、次の正しい producer polynomial を採用した。
+
+```text
+record l A R ≈ inter (record l A top) (union (record l A bottom) R)
+```
+
+record の各観測は head／shape による定数か、そのまま tail に渡る観測である。観測の真偽に
+関して `F(false) ∨ (F(true) ∧ p)` に分解でき、任意の外側 mask でも同じ証明が成立する。
+代案は required-bottom と masked-tail を含む polynomial だが、採用案は新たな mask label を
+増やさず、二つの端点 atom だけを追加する。`CommonRecordTailElimination.compile_models_exact`
+は実際の record 構築を含む独立な方程式と変換結果の両方向を証明する。
+
+`CommonTailElimination` は全 mask 座標の有限 Boolean 方程式を、型の intersection による上昇と
+union による下降で解く。反転は producer union が観測の論理積になるためである。反復数は graph
+から計算する内部値であり、公開定理に fuel 前提を置かない。任意の Common 型 parameter が解に
+なり、任意の独立解をそのまま parameter に選ぶと回収できる。mask の単調性は fresh label の
+観測で別途証明済みなので、全 mask 下の同値と通常の Common.Equivalent は一致する。

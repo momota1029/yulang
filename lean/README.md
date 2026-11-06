@@ -64,6 +64,10 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 | `Common.common_mask_parameter` / `common_mask_composition` / `common_mask_required` | 同じ mask 法則を任意の共通 regular 型と任意の finite/regular 要求環境へ拡張する | record/default の未知 tail を含む全 compiler |
 | `Common.exactEmpty_below_width` / `width_not_below_exactEmpty` | exact empty は width 以下であり、逆は成立しない。構文の不一致だけでなく要求意味でも識別する | runtime 集合包含と producer 順序の一致 |
 | `Common.default_guarantees_field` / `default_exactEmpty` / `default_present_record` / `common_default_mono` | 任意の label・source・fallback で source が width 以下なら default は required label top 以下。exact source は構築へ、同名 head を持つ source は自身へ要求同値。全 source/fallback の比較で単調。payload/mask/regular graph を制限しない | 任意 target 比較の有限完全 inspector、present で strict fallback を実行しなくてよいという runtime 法則 |
+| `Common.common_record_iff` / `common_singleton_requirement_iff` / `common_shadowed_head_equivalent` | 任意の同名 record 比較は payload 比較と同じ深さの残りの field／非自明 optional 要求へ完全分解する。required target の場合、tail へ同名 field の要求を戻さない。同名の内側 head は要求同値で消せる | tail を whole `Subtype` で比較すること、strict な field 式の評価省略 |
+| `Common.common_mask_mono` / `common_mask_type_congr` / `common_equivalent_iff_masked` | 任意の共通型で mask は単調かつ合同。通常の要求同値と、全外側 mask 後の要求同値が一致し、自由 parameter に追加の mask 安定性条件を課さない | この法則だけによる全 source compiler |
+| `CommonTailElimination.common_solved_instances_exact` | 任意の有限 positive 同深さ graph（ref/union/inter/mask、任意 Common 型の atom）と任意の独立割当てで、方程式成立 ⇔ ある制約なし Common 型 parameter から計算した解と各 slot が要求同値。成功・fuel・closed を前提にしない | 任意の subtype 不等式や whole-default source 方程式の完全 compiler |
+| `CommonRecordTailElimination.compile_models_exact` / `solve_models` / `solved_instances_exact` | 上の graph に実際の record 構築を追加し、任意 payload と同深さ tail 循環を実 polynomial へ完全変換する。任意 parameter は解を与え、任意の独立解も回収する | payload 自体の未知 constructor 方程式、default source の未知参照、全 source principal theorem |
 
 回答済み Q5 に対応する新しい具体要求モデルを `ProducerContextual` / `ProducerContextualRegular` に追加した。
 型変数は任意の意味型が満たすすべての観測を表し、arrow の引数要求も同じ環境の型を名前で参照する。
