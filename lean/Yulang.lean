@@ -369,3 +369,5 @@ import Yulang.PositiveEquationElimination
 import Yulang.MethodResolutionCost
 import Yulang.MethodResolutionIndex
 import Yulang.InferenceSubstitutionCost
+import Yulang.ProducerContextualNormalForm
+import Yulang.ModuleInterfaceCache

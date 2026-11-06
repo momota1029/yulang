@@ -77,6 +77,24 @@ dirty の伝播は新 graph 上で行う。全体 build と増分 build の arti
 既存の Rust oracle plan §6.1 にある visible impl・辞書 body・設定・version まで key に保持し、
 公開型が変わらないことだけを理由に診断の再検査を飛ばさない。
 
+### interface が変わらない地点で再計算を止める
+
+`ModuleInterfaceCache.rebuild` は、dirty flag による保守的な再計算をさらに精密にする別の実行可能な手続きである。
+新旧 source/key の等号と、依存する完全な artifact 列の等号を実際に検査する。
+等しければ旧 cache を返し、異なればその node の compile を一回呼ぶ。
+新旧 source と graph は任意で、正しい旧 build が cache として与えられるだけで全体 build と一致する。
+caller が dirty set、推論成功、solver の解を与える必要はない。
+
+実際の compile 呼出し列は「完全な入力が異なる node」の昇順列であり、重複せず長さは node 数以下。
+変更 flag が自身の key と依存列の不変性を正しく表すなら、その逆依存範囲の外では呼ばない。
+範囲内でも依存 interface が変わらない地点で止まれることを、三 node の chain で計算して証明した。
+key/interface 比較の費用はこの compile-call 上界とは別である。
+
+採用理由は、不変の interface が得られた利用側を再コンパイルする必要がないことを、
+純粋性だけの標語でなく実際の branch を持つ手続きで示すため。
+型の意味的同値を仮定して検査を省略する代案は採らない。
+ここで使う decidable equality は完全な artifact/key の等号であり、未完成の型標準形を同値判定器として仮定していない。
+
 ## 4. 要求変数と全 arrow 分解: contextual モデル
 
 `ProducerContextual` は既存の `ProducerRanked` を変更せずに追加した具体モデルである。
@@ -155,6 +173,12 @@ instance は旧 scheme を同じ自由な値・行 parameter で評価してか�
 代案として (a) 旧 finite-rigid demand に戻す方法は Q5 の区別を失い、(b) arbitrary role predicate に
 分配等の法則を仮定する方法は必要な数学を前提に隠す。今回はいずれも採らず、具体的な head 観測と
 任意型を名前付けする要求変数を採った。これらは Lean 内部の設計判断なので新しいユーザー質問にはしない。
+
+`ProducerContextualNormalForm` は、既存の同一 constructor grouping 関数を変更せず、新しい順序でも
+全要求の受理を保存・反映すると証明する。有限型の全再帰処理は行の前順序を前提とし、
+arrow の負位置も新しい合同性を使う。
+`normalize_not_complete` は同値な `int | str` と `str | int` の出力が異なることを証明する。
+この関数の同値保存だけでは spec 7.4b の完全な canonical interface を得られない、という境界を形式化した。
 
 ## 5. 有限の正方程式を解く核
 

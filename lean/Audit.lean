@@ -2233,3 +2233,19 @@ run_cmd do
 #print axioms Yulang.InferenceSubstitutionCost.instantiate_bound
 #print axioms Yulang.InferenceSubstitutionCost.binderDepth_le_nodes
 #print axioms Yulang.InferenceSubstitutionCost.instantiate_size_bound
+
+-- Additional solver and operation-count kernels.
+#print axioms Yulang.ProducerContextualNormalForm.union_idempotent
+#print axioms Yulang.ProducerContextualNormalForm.merge_equivalent
+#print axioms Yulang.ProducerContextualNormalForm.normalize_equivalent
+#print axioms Yulang.ProducerContextualNormalForm.normalize_accept_iff
+#print axioms Yulang.ProducerContextualNormalForm.normalize_not_complete
+#print axioms Yulang.ModuleInterfaceCache.rebuild_exact
+#print axioms Yulang.ModuleInterfaceCache.rebuild_valid_cache
+#print axioms Yulang.ModuleInterfaceCache.rebuild_trace
+#print axioms Yulang.ModuleInterfaceCache.rebuild_called_iff
+#print axioms Yulang.ModuleInterfaceCache.rebuild_calls_le
+#print axioms Yulang.ModuleInterfaceCache.rebuild_calls_nodup
+#print axioms Yulang.ModuleInterfaceCache.clean_same_input
+#print axioms Yulang.ModuleInterfaceCache.called_implies_affected
+#print axioms Yulang.ModuleInterfaceCache.Examples.unchanged_interface_stops_recompilation
