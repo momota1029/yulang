@@ -72,7 +72,19 @@ presence 上下界の消去を扱う。任意の payload 述語・mask の下で
 | `expand_retraction` / `expand_retraction_eq` / `coalesce_retraction` | 同じ flat 制約の任意の独立な解を共有 parameter に戻すと、全元 slot の述語を回収。述語版は外延的に等しく、後続の観測に正位置性を要求しない | 循環 graph の同時構成・負位置を含む regular 型の回収 |
 | `consistent_iff_satisfiable` | 任意の固定境界解釈と、その包含を正確に決定する checker の下で、有限整合性検査の受理 ⇔ 独立な解の存在。fuel・solver 成功を仮定しない | 任意の述語境界に対する包含 checker の構成、presence graph 全体の拒否完全性 |
 
-flat な自由 parameter 消去は証明済みだが、以下の四つの regular/source 契約はまだ閉じていない。
+`PresenceRegularCoalescing` は同じ構成を guarded な presence graph へ持ち上げる。
+有限 graph の各 node は自由変数または既存の `PresenceLayers.Layer` であり、payload の参照は
+pair/variant/field を通る。parameter の root layer を同じ観測深さに埋め込み、共有した参照を保つ。
+
+| 定理（接頭辞 `PresenceRegularCoalescing`） | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `coalesceGraph_satisfies_cache` / `coalesceGraph_satisfies` | 任意の有限 graph・入力/cache・`Closed` 証明について、任意の外部 parameter graph と全自由 parameter layer から構成した graph が、独立な constructor 等式と全 cache/入力辺を全観測深さで満たす。解の存在を仮定しない | `Closed` cache を生成する手続き、完全な inspector、非guardedな open tail、関数・行 |
+| `coalesceGraph_retract_at` / `coalesceGraph_retraction` | 任意の独立な **cache の解**を parameter として戻すと、全元 slot の全有限観測を回収し、data 部分型の両方向を得る | 入力だけの解が cache の解でもあること、旧 structural 部分型・関数の負位置での回収 |
+| `coalesceGraph_mask_retraction` | 任意の共通の出力 layer と mask の下で、回収した子観測を置換しても所属は変わらない | 生成 slot 自身の root と元解の root をそれぞれ mask して比較する、より強い回収 |
+
+`Closed` は入力辺の包含、変数を介した辺の伝播、rigid 同士の比較に対する有限の
+`Derives` 証明からなる。`Derives.sound` は任意の子述語割当てについて健全性を示すが、
+その規則の完全性を主張しない。上記は以下の四つの regular/source 契約全体の完了ではない。
 
 `CorePresenceGenerationModel` は既存 `Inference.Model` に独立な `exactEmpty`・`required`・
 `recordDefault` 演算を加えた interface である。継承した `emptyRecord` は width 上界用で、

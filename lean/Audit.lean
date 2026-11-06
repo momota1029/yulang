@@ -59,6 +59,12 @@ run_cmd do
 #print axioms Yulang.PresenceBoundCoalescing.coalesce_exact
 #print axioms Yulang.PresenceBoundCoalescing.coalesce_satisfies
 #print axioms Yulang.PresenceBoundCoalescing.coalesce_retraction
+#print axioms Yulang.PresenceRegularCoalescing.Derives.sound
+#print axioms Yulang.PresenceRegularCoalescing.coalesceGraph_satisfies_cache
+#print axioms Yulang.PresenceRegularCoalescing.coalesceGraph_satisfies
+#print axioms Yulang.PresenceRegularCoalescing.coalesceGraph_retract_at
+#print axioms Yulang.PresenceRegularCoalescing.coalesceGraph_retraction
+#print axioms Yulang.PresenceRegularCoalescing.coalesceGraph_mask_retraction
 #print axioms Yulang.Core.PresenceGeneration.generate_models_iff_typing
 #print axioms Yulang.Core.PresenceGeneration.principal_exact
 #print axioms Yulang.Core.PresenceGeneration.CoreRules.conservative
