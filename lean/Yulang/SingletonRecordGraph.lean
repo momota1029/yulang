@@ -90,6 +90,62 @@ theorem compileSource_upper_record_shape (expression : Expr) (alternative : Sour
   rw [source] at good
   exact (SingletonRecordDemands.demand_record_iff label value rest).mp good
 
+/-! ## Singleton syntax determines the actual record-tail graph tag -/
+
+private theorem nodeOf_record_source (pool : Pool m) (term : TyTerm (Fin m))
+    (member : term ∈ pool.terms) (payload tail : Fin pool.size) (label : Nat)
+    (node : nodeOf pool term member = .recordExtend label payload tail) :
+    term = .record label (pool.termAt payload) (pool.termAt tail) := by
+  cases term with
+  | record name value rest =>
+      obtain ⟨rfl, rfl, rfl⟩ := Node.recordExtend.inj node
+      simp only [Pool.child, Pool.termAt_reference]
+  | _ => cases node
+
+/-- The actual record-node children retain exactly the original payload and
+tail terms. This is the converse direction of `compile_record_children`. -/
+theorem compile_record_source (problem : ConstraintProblems.Problem m)
+    (target payload tail : Fin (compile problem).size) (label : Nat)
+    (node : (compile problem).graph target = .recordExtend label payload tail) :
+    (compile problem).source target = .record label
+      ((compile problem).source payload) ((compile problem).source tail) :=
+  nodeOf_record_source (collect problem.types) _ _ payload tail label node
+
+private theorem nodeOf_empty (pool : Pool m) (term : TyTerm (Fin m))
+    (member : term ∈ pool.terms) (source : term = .emptyRecord) :
+    nodeOf pool term member = .emptyRecord := by
+  subst term
+  rfl
+
+theorem compile_empty_of_source (problem : ConstraintProblems.Problem m)
+    (index : Fin (compile problem).size) (source : (compile problem).source index = .emptyRecord) :
+    (compile problem).graph index = .emptyRecord :=
+  nodeOf_empty (collect problem.types) _ _ source
+
+/-- Every actual record node whose source is a demand has the original
+empty-record node as its tail; there is no semantic assignment premise. -/
+theorem compile_demand_record_tail (problem : ConstraintProblems.Problem m)
+    (target payload tail : Fin (compile problem).size) (label : Nat)
+    (good : demandTy ((compile problem).source target) = true)
+    (node : (compile problem).graph target = .recordExtend label payload tail) :
+    (compile problem).source tail = .emptyRecord ∧ (compile problem).graph tail = .emptyRecord := by
+  have source := compile_record_source problem target payload tail label node
+  rw [source] at good
+  have empty := ((SingletonRecordDemands.demand_record_iff label _ _).mp good).1
+  exact ⟨empty, compile_empty_of_source problem tail empty⟩
+
+/-- The demanded side of every original source constraint exposes the empty
+tail tag required by the singleton record inspector. -/
+theorem compileSource_upper_record_tail (expression : Expr) (alternative : SourceAlternative)
+    (member : alternative ∈ compileSource expression) (edge : Edge alternative.compiled.size)
+    (present : edge ∈ alternative.compiled.constraints) (label : Nat)
+    (payload tail : Fin alternative.compiled.size)
+    (node : alternative.compiled.graph edge.2 = .recordExtend label payload tail) :
+    alternative.compiled.source tail = .emptyRecord ∧ alternative.compiled.graph tail = .emptyRecord := by
+  have good := compileSource_upper_grammar expression alternative member edge present
+  obtain ⟨clause, _, rfl⟩ := List.mem_map.mp member
+  exact compile_demand_record_tail _ edge.2 payload tail label good node
+
 /-! ## Exact erasure without extending the finite reference universe -/
 
 /-- Syntactic counterpart of `RigidRecordFields.erase`; field payloads are
