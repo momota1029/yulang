@@ -7,9 +7,11 @@ The interpreter is deliberately eager: it checks both sides of each Boolean
 combination. It computes the same Boolean as `TypeSimplification.symbolicCheck`
 but gives a conservative reference cost even when the original short-circuits.
 Type equality, row equality and record-spine checks are traversed explicitly;
-they are not hidden unit-cost queries. Atom/identifier comparisons and each
-visited constructor or Boolean connective are abstract units. Identifier bit
-cost and allocation costs are outside this model.
+they are not hidden unit-cost queries. A constructor dispatch together with
+its bounded local atom/Boolean tests counts as one abstract unit. The explicit
+`conj` and `disj` combinators charge a separate unit. This is not an exact count
+of every primitive Boolean instruction. Identifier bit cost and allocation
+costs are outside this model.
 
 The public evaluator chooses its depth from the two finite input syntax trees.
 Its exactness and bounds require no supplied fuel or successful certificate.

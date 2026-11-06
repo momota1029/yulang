@@ -10,9 +10,10 @@ interpreter from `TypeSimplificationCheckCost` supplies a conservative cost.
 Value/row substitutions visit the actual syntax, and occurrence checks are
 charged again at every substitution lookup, as in the simple reference pass.
 
-The units count constructor visits, atom comparisons, Boolean dispatch and
-candidate processing. Identifier bit cost and allocator implementation costs
-are outside the model. The finite parameter inventory `List.finRange n` is
+The units count constructor visits with bounded local tests, explicitly
+charged lookup/dispatch work, and candidate processing. They do not count
+every primitive Boolean instruction separately. Identifier bit cost and
+allocator implementation costs are outside the model. The finite parameter inventory `List.finRange n` is
 the input table; copying that table and constructing/concatenating candidate
 lists are charged below. Its library-internal materialization is not charged.
 This is not a measured Rust runtime claim.

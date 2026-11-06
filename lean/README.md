@@ -60,7 +60,7 @@ literal の内容・presence・nominal の planner 結果を一つの値型 carr
 | `ProducerContextual.producerLe_arrow_iff` / `ProducerContextualRegular.producerLe_arrow_reference_iff` / `producerLe_arrow_iff` | 任意の有限型、任意の graph と state、引用した任意の regular 型について、行が前順序なら arrow 比較 ⇔ 引数反変・入力行反変・結果共変・出力行共変の4条件。closed `Negative` 制限・分離の仮定・成功・fuel は不要 | carrier の producer 構文自体には var/mask constructor がなく、要求側の変数/mask と任意の代入後の型を扱う。新 presence signature の自由 parameter/mask family をこの carrier へ評価する接続 |
 | `ProducerContextual.Examples.mixed_union_not_equivalent_top` / regular 版 / `mixed_arrow_not_equivalent_top_arrow` | 任意の行関係で int/str だけを許可する具体 role 要求が混合 union と top を分離し、任意引数の arrow 文脈でもこの区別を保持 | 条件付き impl・辞書探索の意味との一致 |
 | `Core.ProducerContextualInstances.legacy_instances_preserved` / `legacy_instances_reflected` / `legacy_instances_exact_modulo` | 任意の行代数・実際の旧 `Result`・結果値と行で、同じ scheme の直接評価による新 instance は旧 instance を保存し、同じ結果行を持つ要求同値な旧 instance へ反映する | presence の新 solver family との同一視 |
-| `Core.ProducerContextualInstances.source_instances_exact_modulo` / `source_instances_sound` | 任意の行代数・行反対称性・旧 supported 式・結果で、新 instance ⇔ ある要求同値な旧値型と同じ行での旧 `Typing`。新 instance から新 concrete model の独立 `Typing` も得る | 任意の新独立 `Typing` からの逆向き完全性、recordDefault を含む新入口 |
+| `Core.ProducerContextualInstances.source_instances_exact_modulo` / `source_instances_sound` | 任意の行代数・行反対称性・旧 supported 式・結果で、新 instance ⇔ ある要求同値な旧値型と同じ行での旧 `Typing`。新 instance から新 concrete model の独立 `Typing` も得る。逆向きは下の `ContextualRequiredInference` で接続 | recordDefault を含む presence の新入口 |
 | `ProducerContextualNormalForm.merge_equivalent` / `normalize_equivalent` / `normalize_accept_iff` / `normalize_not_complete` | 既存の実 grouping pass が新 contextual 順序でも全要求を保存・反映。全有限型の normalize は行の前順序を仮定し、負位置・role・要求変数・mask を含む。同値な `int \| str` と `str \| int` が異なる出力になる具体反例も証明 | 完全な interface 標準形。この pass の結果の不一致から型の非同値を判定すること |
 | `ProducerContextualRecord.producerLe_record_iff` / `fieldLe_record_iff` / `Regular.record_reference_iff` / `Regular.record_iff` | 任意の行関係・任意の同一 label の record について、比較 ⇔ payload の比較と、その label を除く tail の field 観測の比較。relative mask の下では head が隠れていると payload 比較も不要。任意の graph・引用した regular 型の全深さにも成立し、tail の深さを減らさない | whole tail の `ProducerLe` に置換すること、非guardedな node tail と presence 全体の新 carrier |
 | `ProducerContextualRecord.singleton_requirement_iff` / `Regular.singleton_requirement_iff` / `shadowed_head_equivalent` と regular 版 | 任意の同一 label の singleton required target では payload 比較だけが残り、tail への field 要求は空。同名の内側 head は任意の payload/tail で消しても要求同値 | hidden field 式の評価を省くこと、exact empty への `{}` の読み替え |
@@ -87,6 +87,11 @@ graph の文法は変数・base・bottom/top・pair・行を持つ arrow・有�
 | `ContextualRegularInference.models_exact` / `instances_exact` / `ContextualBranchInstances.models_exact` / `instances_exact` / `solve_nil_iff` | 任意の rigid graph・入力制約または有限分岐式・元割当て／任意出力 target について、独立の具体 regular model／上方出力 instance ⇔ 実受理枝と自由 parameter による実 `RegularInferenceModel.solution` の要求同値／target 以下。空結果 ⇔ 同じ carrier のモデル不存在。成功・Closed・解・fuel 前提なし | presence 専用 constructor の分解・lowering、完全な型同値 checker |
 | `ContextualTypeConstraintInference.infer_correct` / `infer_models_exact` / `infer_instances_exact` / `infer_rejected_iff` | 既存 fixed-row `infer`・scheme・具体化を alias としてそのまま再利用。行が前順序で rowCheck が正確なら、任意 supported 型制約・元割当て／target で実結果の自由 parameter family と元制約の充足／instance が一致。全入力の status も新意味に対して正確 | 型 compiler の既存 supported 境界を越える入力 |
 | `ContextualJointConstraintInference.infer_correct` / `infer_models_exact` / `infer_instances_exact` / `infer_rejected_iff` | 任意の反対称な行 join 代数と任意 supported paired 制約について、実 symbolic joint solver の全自由な行・値 parameter family と、新 contextual model での元の全行・値割当て／出力 instance が一致。推論に意味的 rowCheck・行割当て・解・fuel を渡さない。行を default しない | presence の exact/default/open-tail の simultaneous solver、全 source から supported を導く拡張 |
+| `ContextualSourcePrincipalInference.infer_instances_exact` / `infer_rejected_iff` / `Core.ContextualRequiredInference.principal_exact` | 任意の反対称な行 join 代数・旧 supported source/Core式・任意結果に対し、新しい独立 Typing ⇔ 実 infer が返す alternative と自由な行/値 parameter の実具体化 ≤ 結果。rejected ⇔ supported かつ型付け不能。実 collect/infer/evaluator は旧 algorithm の alias | 全 record 構築・recordDefault を構文だけで support する統合入口 |
+| `Core.ContextualRequiredInference.recordFree_principal` / `recordFree_rejected_iff` / `recordFree_ne_unsupported` と source 版 | 任意の反対称な行 join 代数と RecordFree 式・任意結果で、主型 iff・拒否 iff 型付け不能・unsupported 不出現。RecordFree は lambda/application/branch/let/pair/projection/variant/field/literal/旧 empty record を含み、推論成功・solver の解・support checker 成功・fuel を前提にしない | record 構築・recordDefault を含む source 全体の同じ定理 |
+| `Core.ContextualRequiredInference.producerInstance_iff` / `legacy_source_typing_exact` / `legacy_core_typing_exact` / `source_typing_exact_modulo` / `core_typing_exact_modulo` | 任意の旧 Result/target で前の直接 scheme 解釈と新 Instance は定義上同じ。任意の反対称な行 join 代数・旧 supported 式・任意結果について、新独立 Typing ⇔ 同じ行のある旧 Typing と要求同値。旧 family への逆向き完全性を閉じる | exactEmpty/default を含む共通 carrier への embedding と、その presence solver との保守性 |
+| `ContextualBranchCost.branches_length_le` / `branch_length_le` / `branches_total_edges_le` / `solve_length_le` / `accepted_total_cache_edges_le` | 任意の分岐式 F、either node 数 D、edge leaf 数 E、slot 数 n で、実 DNF 枝数≤2^D、各枝長≤E、総入力辺数≤2^D*E、実受理枝数≤2^D、総 cache 長≤2^D*n²。行検査の意味的正確性も不要 | 全 solver の実行時間、枝数の多項式性 |
+| `ContextualBranchCost.duplicateTruth_counts` | 任意の自然数 k で、k 個の `truth ∨ truth` の積は edge leaf を持たないのに、実枝リストの長さが正確に 2^k。現在の重複列挙の指数膨張を示す | 重複排除・DAG共有を導入した実装の費用 |
 
 以下は以前の有限 rigid 観測の候補の証明であり、Q5 対応の新モデルと区別する。
 決定46・47の要求順序の候補を `ProducerRanked` / `ProducerRankedRegular` に実装した。
@@ -121,7 +126,8 @@ mask を payload の下に置ける文法は、[Q4](../notes/questions/2026-11-0
 | `ProducerDemandExpressiveness.distinct_bases_union_equivalent_top` / `mixed_union_accept_iff` | 任意の行関係・相異なる base 2つの union はこの候補で top と同値。int/str の例では任意の rank・有限観測列を値に持つ環境・要求の受理が一致する | 言語全体でこの同一視を採用する判断。Q5 の変数解釈の選択とは区別する |
 
 補助の `ProducerDemand` / `ProducerRegular` にある初期の順序は、arrow 引数だけ旧構造順序で
-比較するため、新同値の arrow 合同性を保証しない。共通モデルへの接続には上の ranked 版を使う。
+比較するため、新同値の arrow 合同性を保証しない。ranked 版はこの初期候補を改めた歴史的な段階であり、
+現在の具体的な solver/source 接続先は本節冒頭の contextual 版である。
 `Core.ProducerLegacyInstances` はこの実際の scheme 解釈の一般補題であり、反映の witness を
 「具体化した値型 `a` と要求された結果 `c` の union `a | c`」として構成する。
 
@@ -368,7 +374,9 @@ effectful fallback の推論例、未知 base を持つ lambda の推論例は�
 
 **M1 は未完了。** 関数・行を含む具体的な要求順序と旧 family の新解釈は上記で構成したが、
 exact/absence/default を統合した具体 presence carrier と、そのモデル上の全入力 solved scheme はない。
-旧 family の同値を除く反映を、任意の新独立 `Typing` からの完全性へ読み替えない。
+旧 supported source の範囲では、新しい独立 `Typing` から同じ自由 parameter family への完全性も閉じた。
+RecordFree 断片には成功・support checker・fuel を前提にしない主型性／拒否完全性／unsupported 不出現がある。
+これを record 構築・recordDefault を含む presence source 全体へ拡大したとは主張しない。
 `Core.PresenceLegacyObstructions` はこの注意を実際の旧 supported 式で証明する。
 `int × (int | str)` は旧 instance になるが、`(int × int) | (int × str)` はどの結果行でもならず、
 data 包含では前者から後者へ移せる。`no_semantic_legacy_instance_exact` は、full data 包含で
@@ -401,11 +409,12 @@ field を追加しても所属が変わらないためであり、全観測深�
   未完なのは具体的な共通 regular モデルへの適用と、existential 制約を残さない solved family への接続である。
 - `presence_legacy_instances_exact`（決定46による新契約）: 共通モデルと埋込みを定義した上で、任意の旧 supported 式・任意の旧結果型について、旧 instance ⇒ 新 instance を示し、新 instance からはある旧 instance と要求で同値であることを示す。全 instance の文字通りの一致は要求しない。
   `ProducerContextualInstances` は、実際の旧 scheme を新しい具体 regular 順序で再解釈する境界ではこの両方向を閉じた。
-  未完なのは presence を含む新 solver/独立型判断との同値である。正確には、任意の行代数・行反対称性・
-  旧 supported `e`・結果 `c` について、新 model の `Typing [] e c` から同じ scheme の新 instance を得る補題がない。
+  `ContextualRequiredInference.legacy_source_typing_exact` / `source_typing_exact_modulo` により、任意の行代数・行反対称性・
+  旧 supported `e`・結果 `c` について、新 model の独立 `Typing [] e c` から同じ scheme の新 instance と、
+  同じ行を持つ要求同値な旧 Typing を回収する逆向きも閉じた。
+  未完なのは exactEmpty/default を含む具体共通モデルへの埋込みと、その新 presence solver/独立型判断での同値である。
   `LegacyPreservation` で仮定する presence の `Compatible` も具体モデルで構成する必要がある。
-  各枝の solver exactness があれば `collect` の証明は再利用できるが、現状の補題だけでは
-  そこから統一入口の全 instance exactness を導けない。
+  反映は元依頼の旧結果型の埋込みの範囲で量化し、新たな exact 型へ無条件に拡大しない。
 
 旧 `ProducerRanked` 候補では、任意の rank `k` と型 `S,T` について
 `(∀ N : Negative, ProducerLeAt k N.embed S → ProducerLeAt k N.embed T) → ProducerLeAt k S T`
@@ -422,6 +431,7 @@ presence の data 述語包含との同値はない。これらを既存 data �
 exact/presence/default と関数/行を含む具体的な共通モデル、open-tail・負位置・行を含む範囲への解構成と retraction の拡張は
 新たな数学的義務として残し、統一入口の公開を止めた。
 既存 `collect_instances_exact` の変更、既存 theorem・test expectation の変更、仕様の仮決定は行っていない。
+未実装部分の正確な量化と前提は [残契約の設計メモ](../notes/design/2026-11-07-m1-remaining-contracts.md) に記す。
 
 ### SCC 局所性と module cache・増分更新
 
@@ -443,6 +453,8 @@ exact/presence/default と関数/行を含む具体的な共通モデル、open-
 | `TypeSimplificationSize.simplifyAll_sizes` / `jointSubstitution_sizes` / `merge_candidate_count` / `sandwich_candidate_count` | 任意の parameter 数 `n` と入力項で、実 `simplifyAll` は値型 node 数と行込み全 node 数の両方を増やさない。merge certificate の一時置換は元の3倍以下。実候補列の長さは merge が `n*n`、scalar sandwich が `4*n` | 線形時間の簡約、完全な一意標準形 |
 | `TypeSimplificationCheckCost.symbolicCount_value` / `symbolicCount_bound` / `symbolicCount_size_bound` | 任意の型項二つについて、型・行の等号と record spine の走査も数える実参照 checker が既存 `symbolicCheck` と同じ Bool を返す。行込み node 数の和 `S` に対して費用 ≤ `(S+1)*128^S`。再帰深さは入力から決まり、外部 fuel・成功前提なし | 多項式時間の checker、ID の bit cost・メモリ割当て、canonical interface の完全性 |
 | `TypeSimplificationCost.simplifyAllCount_value` / `simplifyAllCount_bound` / `simplifyAllCount_instances_exact` | 任意の `TyTerm (Fin n)` で、計数付き4段階 pipeline は実 `simplifyAll` と同じ型項を返し、費用 ≤ `totalBudget n (tyNodes term)`。候補表のコピー・map/product/append と全候補検査を含む。行前順序の下で任意の行割当て・結果型に対する旧構造的 `Instances` を保存・反映 | 新 contextual instance への意味の移送、有限 parameter inventory `finRange` の library 内 materialization、ID bit cost・allocator、多項式時間や完全 canonical form |
+| `ModuleScheduling.run_legal` / `run_build_exact` / `schedule_independent` / `run_once_bound` | 任意の source/key・依存 graph・完全な局所入力を読む純粋 compile について、依存完了後に未処理 node を選ぶ任意合法 schedule は実依存 lookup を成功させ、同じ module 集合なら同じ artifact 表を返す。全体 build と一致し、実 compile 呼出 trace は schedule、各 node 高々1回・n個以内なら呼出≤n。完成した snapshot は入力にしない | source から SCC/dependency を抽出する証明、実型 solver が局所 compile 契約を満たす証明、compile 内部の時間上界 |
+| `MethodResolutionScheduling.schedule_independent` / `run_snapshots_and_answers` / `run_selection_exact` / `scheduled_once` | 任意の source/key と完成した依存 artifact 列から Site 群を作る純粋 prepare、任意の同一 node 集合を処理する二つの合法 schedule で、実行中に生成する snapshot・export・receiver/scope/fallback・実 resolve の三状態結果が一致。任意の位置の unique 結果 ⇔ 独立 Selects、compile trace は重複せず node 数以下。固定 snapshot や事前の SameFacts は不要 | concrete solver/名前解決が complete key と依存だけを読む prepare を実装する証明、source から SCC の抽出、条件付き impl 探索全体の費用 |
 
 `EOFNoDefaulting.accepted_export_independent` は同じ型情報・割当ての下で、**両方の EOF 検査が成功した場合**の
 公開型の一致である。後続 impl による曖昧化まで無条件に cache から省略できることを意味しない。

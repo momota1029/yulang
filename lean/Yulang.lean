@@ -387,3 +387,8 @@ import Yulang.ContextualRegularInference
 import Yulang.ContextualBranchInstances
 import Yulang.ContextualTypeConstraintInference
 import Yulang.ContextualJointConstraintInference
+import Yulang.ContextualSourcePrincipalInference
+import Yulang.CoreContextualSourceInference
+import Yulang.ContextualBranchCost
+import Yulang.ModuleScheduling
+import Yulang.MethodResolutionScheduling

@@ -404,6 +404,27 @@ slot 数、到達 node 数、具体化した edge 数、clone allocation bytes�
 その後の saturation/replay を別々に計測し、簡約前後で何を減らしたかを確認する。
 無限行や role obligation を含む保存形式全体への拡張は、それぞれの instance 保存を示した範囲だけ適用する。
 
+2026-11-07 追記: 参照簡約器の全四段階にも計数付きの実装を接続した。
+[`TypeSimplificationCheckCost.symbolicCount_value`](../../lean/Yulang/TypeSimplificationCheckCost.lean) は、
+任意の二つの `TyTerm (Fin n)` に対し、型・行の等号と record spine を内部で走査する計数付き checker が
+既存の `symbolicCheck` と同じ Bool を返すことを示す。全枝を先に評価するため、短絡評価より保守的な参照費用である。
+full node 数の合計を `S` とすると、`symbolicCount_size_bound` の上界は `E(S) = (S + 1) × 128^S`。
+これは指数時間の素朴な checker に対する安全な上界であり、最適な上界や速さの実測ではない。
+各 constructor と有界個の局所検査を一単位とし、明示した Boolean 合成を別に数える。
+型全体の等号を定数時間とみなす費用モデルではない。
+
+[`TypeSimplificationCost.simplifyAllCount_value` / `simplifyAllCount_bound`](../../lean/Yulang/TypeSimplificationCost.lean) は、
+任意の入力型について、計数付き処理が既存 `simplifyAll` と同じ型を返し、
+`totalBudget n M` 以下であることを示す。`n` は有限 parameter 領域の大きさ、`M` は arrow の行を含む入力 node 数。
+要求する成功・`supported`・外部 fuel の前提はない。内訳は二回の variance pass、`4n` 個の scalar sandwich、
+`n²` 個の merge と候補列の実際の生成・連結である。
+[`TypeSimplificationSize`](../../lean/Yulang/TypeSimplificationSize.lean) のサイズ非増大を使い、
+各検査を元の `M` で評価できる。merge 用の一時的な joint substitution だけは最大 `3M` となり、
+元の型との比較には `E(4M)` を使う。固定 parameter inventory の library 内部の materialization、
+識別子の bit cost、allocator の実装費用はこの計数に含めない。
+`simplifyAllCount_instances_exact` は既存 `StructuralBase` の instance 保存へも接続するが、
+これを presence・mask・regular graph・任意の scheme 制約の canonicalization まで広げるものではない。
+
 ### 6.6 最初の benchmark と計測条件
 
 **仮説 6 の通り、実装前に入力と観測を固定する。最初は小さな let/scheme とその scaling を選ぶ。**
@@ -534,6 +555,8 @@ SCC の確定点では、その SCC が所有する selection ID の列を一度
 |---|---|---|
 | [`MethodResolutionLocality.resolve_local`](../../lean/Yulang/MethodResolutionLocality.lean) | 任意の二つの site が `SameFacts` を満たせば、実際の `resolve` の三状態の答えが等しい。未知 receiver は対象名の可視候補が同じ、既知 receiver は対象 field の有無が同じで、欠如時に fallback が同じことが条件 | name、receiver 情報、可視候補、fallback |
 | `MethodResolutionLocality.scc_order_independent` | 任意の固定された site 表、SCC ごとの所有 site 列、初期回答表、同じ SCC を含む二つの順序について、実際の `resolve` を呼ぶ `runSCCs` の回答表が等しい | 各 SCC の最終 snapshot。SCC の求解・構築そのものは行わない |
+| [`ModuleScheduling.run_legal` / `run_build_exact`](../../lean/Yulang/ModuleScheduling.lean) | 任意の pure compile、source/key、有限 DAG の依存表に対し、依存を先に処理し各 node を一度だけ処理する合法 schedule は実際に完走し、既存の昇順 `ModuleIncremental.build` と同じ artifact を返す。呼出 trace は schedule 自体に等しく、重複しない | node は既に module/SCC にまとめられ、依存先の番号が小さい。compile の入力は source/key と完成済み依存 artifact の順序付き列に限る |
+| [`MethodResolutionScheduling.schedule_independent`](../../lean/Yulang/MethodResolutionScheduling.lean) | 任意の pure な snapshot 構築関数 `prepare`、source/key、依存表、同じ node 集合の二つの合法 schedule に対し、実行中に構築した snapshot と全三状態の selection が等しい。compile は `prepare` の返す各 site に既存 `MethodResolution.resolve` を適用する | 最終 snapshot 自体は前提にしない。`prepare` が source/key と完成済み依存 artifact だけから snapshot を作る契約が入力になる |
 | [`MethodResolutionCost.resolveCount_value` / `resolveCount_bound`](../../lean/Yulang/MethodResolutionCost.lean) | 任意の site で計数付き resolver の値が既存 `resolve` と等しい。未知 receiver は可視 role 数 `R` に対し `1 + 2R` 以下、既知 receiver は型の構文 node 数 `V` に対し `1 + V` 以下 | table query、候補比較、record spine の訪問、dispatcher を抽象単位とする |
 | [`MethodResolutionIndex.indexedResolve_exact`](../../lean/Yulang/MethodResolutionIndex.lean) | 任意の有限 declaration catalog、可視 role 列、名前、receiver、fallback について、同じ `(role, name)` の宣言が一致するなら、index による解決とその catalog を読む既存 `resolve` が等しい | catalog の関数性。重複 import と任意の列順を許す |
 | `MethodResolutionIndex.resolveNamesCount_exact` / `resolveNamesCount_bound` | 任意の名前列に対する一回の index 構築と全 query の値が元の `unknown` の結果列に一致する。可視宣言数 `D`、名前数 `N` に対し `3D + 2N` 抽象操作以下。上界自体は catalog の関数性や解決成功を仮定しない | 可視宣言に絞った入力。visibility filtering と map の内部実装費用は別 |
@@ -543,11 +566,18 @@ SCC の確定点では、その SCC が所有する selection ID の列を一度
 実際に一回だけにするには、Rust の site 所有表・queue が重複を入れないことを別に検査・証明する。
 
 したがって、**凍結済みの snapshot の selection を解くための全体固定点ループは不要**である。
-source からその snapshot を得る前段まで含めて不要とするには、なお次の接続が要る。
-完全な依存収集と対象 solver の確定を前提に、任意の二つの合法な SCC 処理順序で、同じ site の
-確定時 snapshot が `SameFacts` を満たすことを示す補題である。
-選択に伴う制約追加が既に固定した事実を変えないことも、この確定条件に含める。
-これを証明せずに、未確定 receiver を一回見ただけで selection を固定する最適化は適用しない。
+さらに `ModuleScheduling` / `MethodResolutionScheduling` によって、有限 DAG の抽象モデルでは
+依存 artifact の計算、そこからの snapshot 構築、実際の selection 解決まで処理順序に依らないことが得られた。
+各 step は依存 artifact の存在と自身の未処理を実検査してから compile を呼ぶ。
+合法性は ID と依存辺から定義し、推論成功や共通の最終 snapshot を仮定しない。
+
+source 全体へ適用するには、なお二つの接続が要る。第一に、source の参照先を列挙し SCC をまとめる処理が、
+後から確定済み SCC へ必要な依存辺を追加しない完全な依存表を返すこと。
+第二に、任意の source SCC と、その完全な依存 artifact を持つ solver state に対して、
+実際の SCC 確定処理の結果が、同じ source/key と順序付き依存 artifact を引数にした
+`prepare` の結果で表せること。他の SCC の処理履歴を入力として参照しない形へ移す必要がある。
+選択に伴う制約追加が既に固定した receiver・可視候補・fallback を変えないことも、この確定契約に含める。
+この具体実装との対応を示さずに、未確定 receiver を一回見ただけで selection を固定する最適化は適用しない。
 
 ### 7.4 module の量化・interface cache の境界
 

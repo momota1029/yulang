@@ -14,9 +14,10 @@ against every regular target type.
 The direct instance interpretation retains the original scheme evaluator and
 all free parameters. It is sound for independent typing in the new regular
 model, and preserves/reflects old instances modulo demand equality. The
-converse from arbitrary independent new typing to these same old solved
-families remains a separate completeness obligation. Presence defaults and
-exact empty records are not added by reinterpreting this legacy entry.
+converse from independent new typing to these same solved families, for every
+old supported source, is proved in `CoreContextualSourceInference` after the
+actual joint solver is connected. Presence defaults and exact empty records
+are not added by reinterpreting this legacy entry.
 -/
 
 namespace Yulang.Core.ProducerContextualInstances
@@ -81,7 +82,8 @@ theorem source_instances_exact_modulo (algebra : RowFlowSchemes.Algebra Row)
 
 /-- These new instances also produce an independent typing derivation in the
 concrete contextual regular model. No new typing derivation is used to define an
-instance. Completeness in the reverse direction is not claimed here. -/
+instance. The converse for old supported sources is supplied by
+`Core.ContextualRequiredInference.legacy_source_typing_exact`. -/
 theorem source_instances_sound (algebra : RowFlowSchemes.Algebra Row)
     (rowAntisymm : ∀ {a b}, algebra.le a b → algebra.le b a → a = b)
     (expression : Inference.Expr)

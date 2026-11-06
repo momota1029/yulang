@@ -31,6 +31,26 @@ SCC が確定した snapshot と、SCC が所有する selection site ID 列を�
 ただし receiver の最終知識を得る constraint solver、SCC の抽出、scope の整合性は別の前提であり、
 この定理から上流の求解そのものが一回で終わるとは結論しない。
 
+### 実行中に snapshot を作る合法 schedule
+
+`ModuleScheduling.step` は、自身が未処理であることと、全直接依存の artifact が現在の store に存在することを実際に検査し、
+その順序つき artifact 列と自身の source/key を compile に渡す。`Legal` は依存 ID と処理済 ID だけで定義し、
+compile の成功や最終 snapshot の存在を含めない。合法性から実 step/run が成功することを帰納で導く。
+任意の同一 node 集合を処理する二つの合法順序で artifact 表は一致し、完全な順序では既存の全体 build と一致する。
+実 compile 呼出 trace は order 自体であり、各 node は高々1回、node が n 個以内なら呼出も n 回以内となる。
+artifact には失敗診断も含められるため、型付け成功だけの比較ではない。
+
+`MethodResolutionScheduling.compile` は、source/key と依存 artifact 列から `prepare` が生成する snapshot の
+各 site に、実際の `MethodResolution.resolve` を適用する。
+scheduler は自身の実行で先に作った dependency artifact を渡すため、完成済み Site 表や事前の `SameFacts` は入力にない。
+上の schedule theorem をこの compiler へ接続し、二つの合法順序で snapshot の receiver/scope/fallback/export と、
+missing/unique/ambiguous の全 selection 結果が等しいことを証明した。
+任意の site 位置と reference について、unique となることは独立 `Selects` 判断と同値である。
+
+残る接続は、Yulang source からの SCC/dependency 抽出と、実際の型 solver・名前解決が完全な局所入力だけを読む
+純粋な `prepare` を実装すること。後続 SCC の結果を ambient state として読む実装に、この定理をそのまま適用してはならない。
+この条件が満たされた解決段階では、全体を再走査する固定点 loop を必要としない。
+
 ## 3. module cache と実際の増分手続き
 
 ### 表現
@@ -164,8 +184,9 @@ instance は旧 scheme を同じ自由な値・行 parameter で評価してか�
    特に自由 parameter とその各 mask family の評価を構成し、mask の各要求を保存・反映する補題。
 2. `exactEmpty`・`required`・全 `recordDefault` image を実装した同じモデルで、上記 arbitrary arrow iff
    が保存されること。現モデルは旧 record 幅上界を持ち、これらの演算を実装したモデルではない。
-3. 任意の独立した新 Typing から `Core.ProducerContextualInstances.Instance` へ戻る完全性。
-   証明済みの source sound と source_instances_exact_modulo を逆向き Typing completeness と取り違えない。
+3. 旧 supported source の新独立 Typing から同じ scheme family へ戻る完全性は、以下の
+   `Core.ContextualRequiredInference.legacy_source_typing_exact` で閉じた。
+   残るのは exact/default を含む共通 presence model と、その新 solver での保守性である。
 4. arbitrary target の分解は閉じ、以下の rigid graph 文法では実 inspector・全入力の branch saturation・
    拒否完全性・全 contextual 解の自由 parameter への retraction まで接続した。presence 文法への拡張は別に必要である。
 5. role head table の核から、条件付き role impl と辞書の実際の意味への対応。
@@ -233,9 +254,30 @@ constructor の合同性と観測深さの帰納を合わせ、`ContextualCoales
 `ContextualTypeConstraintInference` と `ContextualJointConstraintInference` は既存の実 algorithm・result・scheme・
 具体化を alias として再利用する。新しいのは独立した contextual `Models`/`Instance`/`Correct` とその証明である。
 固定した rows の全元割当てを保ったまま exactness を得てから、実際の symbolic row solver と合成する。
-任意の反対称な row join 代数に対して、元の型/行制約の充足は、自由な行/値 parameter の scheme family と同値となる。
+任意の反対称な row join 代数と任意の supported paired 制約について、元の型/行制約の充足は、
+自由な行/値 parameter の scheme family と同値となる。supported は既存の実行可能な support checker の結果である。
 意味的 rowCheck は証明内でのみ用い、algorithm の入力にしない。元の全行を文字通り回収するため反対称律を明記する。
 引き続き未完なのは presence 全体への lowering と、共通 carrier 上での exact/default/open-tail の求解である。
+
+### source/Core の完全性と旧入口の反映
+
+`ContextualSourcePrincipalInference` は実 `collect`/`infer`/alternative を再利用し、各枝の joint exactness を
+元の生成 formula・value-let の両枝・捕捉 slot に沿って組み合わせる。
+任意の行 join 代数と反対称律の下で、任意の旧 supported 式・任意の値/行結果について、
+新独立 `Typing` と、実返却 scheme の自由 parameter による新 instance が同値となる。
+`Core.ContextualRequiredInference.principal_exact` は Core の独立判断で同じ結論を、返却 principal・member alternative・
+全自由行 parameter・全自由値 parameter・最後の subsumption を明示した形で述べる。
+
+`RecordFree` は constructor を作らないという意味ではなく、record 構築と recordDefault だけを除く既存の構文断片である。
+lambda/application/let/branch/pair/projection/variant/field/literal/旧 emptyRecord は含む。
+この断片の全 source では support を別途仮定せず主型性・rejected iff 型付け不能・unsupported 不出現が成立する。
+一般の record 構築は旧 support checker が true の場合の定理に含まれ、全構築式への構文的保証はまだない。
+
+`producerInstance_iff` は前の `Core.ProducerContextualInstances.Instance` と新しい直接評価定義が文字通り一致することを示す。
+従って新独立 Typing から同じ family へ戻れ、決定46の既存 instance 反映と合わせて、
+新独立 source/Core Typing ⇔ 同じ結果行を持つある旧 Typing と要求同値、まで閉じた。
+旧 obstruction を変更する必要はなく、全 instance の文字通りの一致を結論していない。
+presence 共通 carrier への旧結果型の埋込み、exactEmpty/default を含む新 solver の保守性は別の残契約である。
 
 ## 5. 有限の正方程式を解く核
 
@@ -283,6 +325,14 @@ guarded payload の再帰 graph 化は次の接続で閉じた。関数・行・
 
 ## 6. 計数付きの参照実装
 
+`ContextualBranchCost` は実際の DNF 列と受理 cache 列を数える。
+formula の either node 数を D、edge leaf 数を E、slot 数を n とすると、
+枝数≤2^D、各枝長≤E、全入力辺 occurrence≤2^D E、全受理 cache 辺数≤2^D n² である。
+意味的な rowCheck exactness はこれらのサイズ上界には不要。
+`duplicateTruth_counts` は k 個の `truth ∨ truth` の conjunction が E=0 でも実際に 2^k 枝を列挙することを示す。
+このため DNF の全展開を高速な Rust 実装の最終表現とはせず、参照算法として保持する。
+共有 DAG・lazy branch・重複排除という代案には、それぞれこの実リストとの意味の保存と別の費用証明が必要となる。
+
 selection は元の `MethodResolution.resolve` と値が等しい計数付き実装を使う。
 visible role 数 R の scan は `1+2R`、型 node 数 V の既知 receiver lookup は `1+V` 以下。
 method-name index を一回構築して N 個の名前を引く場合は、可視 declaration 数 D に対して `3D+2N` 以下。
@@ -327,7 +377,9 @@ inventory `List.finRange n` 自体の library 内 materialization、ID bit cost�
   残るのはこの二つの family の共通解釈と、exact/default を含む同じ carrier への接続である。
 - Q5 対応 contextual モデルで任意 arrow 引数の分解は閉じた。残るのは exactEmpty/required/whole recordDefault image と自由 parameter/mask の評価を含む同じモデルへの統合。
 - 具体モデルで `presence_solve_complete` と `presence_generate_exact` を結合し、残余 existential 制約を持たない scheme family を得ること。
-- 新独立 `Typing` から旧 scheme の新 instance を得る完全性と、統一 `Core.infer` の主型性・拒否完全性・unsupported 排除。
+- 旧 supported source で新独立 `Typing` から旧 scheme の新 instance を得る完全性と、RecordFree の主型性・拒否完全性・unsupported 排除は閉じた。
+  残るのは record 構築・recordDefault を含む source 全体と、統一 `Core.infer` での同じ結論である。
 - role・nominal・effect・regular graph を含む全 interface の完全な標準形と、実 module compiler への cache kernel の接続。
 
 これらは定理の成功や自由 parameter の制約を前提にして閉じたことにはしない。
+全量化・前提を明示した未実装契約は [共通 presence carrier と全 source の残契約](2026-11-07-m1-remaining-contracts.md) に分けて記録する。
