@@ -94,6 +94,7 @@ my get_x(r: {x: int}) = r.x
 get_x { x: 1, y: 2 }       // OK: y が余分でも渡せる
 ```
 
+- **record の型は、意味が等しければ同じ型である**（確定, 2026-11-06）。record の tail（残りの field を表す型）も例外ではない。`never` は値を持たないものの印で、union の単位元（空の union）なので、tail に足しても型は変わらない。`{}` と `{} | never` は同じ型であり、tail の書き方の違いで record 型が別物になることはない。したがって `{ x: 1 }` の型は、有限に書ける record 型として一つに決まる。
 - 対して `struct`（4.4）は名前で区別される nominal な型で、部分型付けを持たない。
 - 型の表示では、省略可能な field は `?` 付きで出る。例: `{width?: 'a} -> 'a | int`。
 - record pattern の default（`{ width = 1 }`）が、省略可能な field を生む（章3b.3）。

@@ -138,6 +138,10 @@
     (5) 公開型の標準形(決定 35、7.4b)に、(2) の簡約を接続すること。任意。
     ユーザーの言葉: 「推論が計算可能か」の証明を、主型の算法の完成まで求めている。
 
+38. **record の型は、意味が等しければ同じ型**(`spec/04-types.md` 4.3、2026-11-06)。tail でも同じ。`never` は union の単位元(空の union)で、`{}` と `{} | never` は同じ型。ChatGPT が 10.25 で見つけた境界(`{x: 1}` の全インスタンスを一つの proper spine で表せない)への答え: **案A(意味的な同一視)**。
+    ChatGPT への指示: `RecordTailBoundary` が示した、構文的な `IsRecord` 条件を持つ参照モデルを、record の tail を束の法則の下で同一視するモデルに作り直す。checker・cut elimination・`StructuralDecisions`・compiler の接続を、そのモデルで再証明する。`Typing.record` の既存のインスタンスを落とさない(10.25 の末尾の方針どおり)。その上で、`SourceConstraintSupport.RecordFree` の制限を外し、record 構築を含む core の式まで、`recordFree_instances_exact` 相当を閉じる。
+    注意: 4.1 には「`never` は全ての型の部分型(bottom 型)で、注釈にも書ける」とある。「厳密には型ではない」というユーザーの言い方との表現の差は、実害はないが、4.1 の文言を後で揃えるかもしれない。
+
 ## Lean に入ったもの(commit 順)
 | commit | 内容 |
 | --- | --- |
