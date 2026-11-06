@@ -71,7 +71,7 @@ unguarded armを構成する。defaultの健全性は、arm構文に現れるコ
 variantの `residual_lookup` は、処理したtagを丸ごと除き、未処理tagのpayload全体をそのまま残す。
 `residual_empty_iff` はこの残余の空性と独立な `VariantsCovered` を一致させる。
 このcheckerは、一つのunguarded armでpayload全体を覆えることを十分条件としている。
-複数armを合成したpayload網羅性をsourceでどう扱うかの決定ではない。
+複数armを合成したpayload網羅性をsourceでどう扱うかの決定ではない（Q8）。
 
 **checkerのfalseは未認証であり、sourceの非網羅エラーとは同一視しない。**
 例えば整数の `..0` と `1..` は任意の整数を覆うと証明したが、現checkerは受理しない。

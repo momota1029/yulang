@@ -1462,7 +1462,7 @@ default・guard・body・scrutineeの実行成功を外から仮定する必要�
 merged variant行の `residual_lookup` は未処理tagのpayload全体を保持し、
 `residual_empty_iff` は残余の空性を `VariantsCovered` と同値にする。
 現在の「一armがpayload全体を覆う」は保守的な十分条件であり、
-複数armのpayload被覆をsourceで拒否する規則を新たに設けたものではない。
+複数armのpayload被覆をsourceで拒否する規則を新たに設けたものではない（Q8）。
 
 **残る義務:** このcheckerのfalseをsource拒否と同一視してはならない。
 `integer_split_semantically_exhaustive` は任意の整数に `..0` / `1..` のいずれかが合うことを示すが、

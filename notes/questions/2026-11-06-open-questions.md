@@ -145,3 +145,27 @@ sourceのor patternから解決済み核への翻訳。guard付きarmを網羅�
 影響する義務: sourceの名前解決、orの束縛順の整列、`BindingsHold`へのelaboration、guard/bodyの変数参照。
 現在の核は解決済みIDの位置付き列を扱い、lookupは先頭を返す。これはsourceのBを採用したことではない。
 sourceとの対応は重複の解決規則を決めるまで主張せず、既存の独立な束縛型判断の証明はそのまま保つ。
+
+## Q8. polyvariantの反駁可能なpayload patternを、複数armで網羅してよいか
+
+状態: **未回答**。`spec/04-types.md` 4.5と決定4による、tag一意・同一tagのpayload合流・
+残余にはpayload全体だけを残す規則は確定済みで、問い直さない。
+ここで問うのは、3b.4のRust相当coverageと4.5の「payloadの中まで入らない」の適用範囲である。
+
+入力`x`の型が閉じた`:flag bool`の場合:
+
+```yulang
+case x:
+    :flag true -> 1
+    :flag false -> 0
+```
+
+- **A（推奨）:** 反駁可能なpayload patternを許し、同じtagの複数armを合わせてpayload全体を覆えた場合にtagを丸ごと処理済みにする。残余型を部分payloadへ細分化しないことと、coverageの内部計算を区別して明文化する。
+- **B:** 反駁可能なpayload patternは書けるが、tagを処理済みにするにはpayload全体を覆うunguarded armまたは最後のwildcardを別に要求する。上の二armだけでは受理しない。
+
+補助例: `:flag true -> 1; rest -> 0`を許す場合でも、`rest`へ`:flag false`だけの残余型を与える案ではない。
+tagを残すなら元のbool payload全体を残す決定は、どちらの選択肢でも維持する。
+
+影響する義務: source polyvariantのcoverage、処理済みtag集合の生成、`VariantsMerged`残余とcase typingの接続。
+現在のcheckerは一つのarmがpayload全体を覆う場合を認証するだけで、falseをsource拒否と解釈しない。
+これはBを仕様として採用したことではない。nominal enumへ決定4を広げず、そのpayload分割は通常のcoverage算法の残る義務とする。
