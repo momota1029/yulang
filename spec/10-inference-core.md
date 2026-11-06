@@ -1025,4 +1025,55 @@ record(l,A,R) ≤ record(l,B,S) ↔ A ≃ B ∧ R ≃ S
 
 前回の局所field存在代数について、`RigidRecordVarianceBoundary.local_laws_rigid_covariant` は任意の `LocalRecordLaws` を満たす操作がprincipalな要求tailへの共変性を持つことを示す。旧反例の右辺unionはnonprincipalである。したがって前回の具体例は決定39の反例ではない。この確認も、payload・実行を含むYulang全体の意味モデルを構成したという主張ではない。
 
-**残る義務:** opaqueな型同士の同一視とhidden fieldの扱い、独立な正則再帰値型モデル・coalescing、新graphの実際の制約求解、全coreの自由parameter scheme・全instance主型性・拒否完全性への接続。`SourcePrincipalInference` の `RecordFree` は残る。effect式・再帰SCC・全注釈多相再帰・注釈確定・role/cast/EOFの統合、および表示標準形・`as`・一般の禁止点付き到達は引き続き未完である。
+`RigidRecordSourceBoundary` はこのunion-tailの境界を元の式へ接続する。異なるlabelを `x=0,y=1,z=2` とし、核ASTを
+
+```text
+record x (lit int) (record x (lit str) (record y (lit int) emptyRecord))
+```
+
+とする。任意のrow join algebraに対して、`source_has_incomparable_instances` と `principal_has_both_instances` は、`R={y:int}|{z:str}` を使った `record(x,int,record(x,str,R))` と `record(x,int,R)` の両方が、空行で同じ式の元Typing・principal formulaのinstanceになることを示す。前者は内側の `y` のrecordを `R` に広げ、後者は内側の `x` のrecord全体を `R` に広げて得られる。`same_rigid_results` は、任意のrigid要求型・任意の結果行に対して二つの結果計算型の包含検査が一致することを示す。これもsource拒否の例ではない。
+
+4.3のfirst-field-winsと決定38は既存の規則である。上の非比較は、今回明示した規則のみの最小形式関係についての境界を示す。この別型性を仕様全体の確定した意味とは扱わず、nonrigidな推論tailに隠れた同名fieldにも型等価としての消去を適用するかは、追加の等式を実装する前の確認事項とする。同じ式に二つのinstanceがあること自体は、両instanceが等価である根拠にはしない。
+
+### 10.28.4 recordを含むデータ式の実際の求解
+
+`RigidRecordValueInference.infer` は元の `Inference.Expr` を入力とし、再帰的な `Data` 構文（literal・emptyRecord・pair・variant・record構築）から有限のplanを構成する。不正なrecord tailも `Data` の範囲に含める。`infer_unsupported_iff` は、任意の式について `unsupported` と `¬ Data` の同値を示す。対応範囲では成功したplanか、型付け不可能を表す `rejected` を返す。
+
+planはrecordごとに2個の自由な値型parameterを導入する。子のschemeの値型が `H,T` なら、評価結果は
+
+```text
+record(l, H | α, (T | β) & {})
+```
+
+である。受理されたtailのplanは、任意の子parameterで `T ≤ {}` を満たすため、すべての `α,β` が有効な型付けを構成する。元の任意の型付けで実際に用いたhead `A` とtail `R` に対し、`H ≤ A`、`T ≤ R ≤ {}` から `H | A ≃ A`、`(T | R) & {} ≃ R` を導く。record合同性により、その元の型付けが使った構築型を回収する。型付けの導出やその中間型は完全性の証明に使い、推論関数の引数にはしない。一般のopaque要求tailへの共変性は使わない。
+
+任意の `Row` と `RowFlowSchemes.Algebra Row`、任意の式 `e` と前提 `Data e`、任意の結果計算型 `C` に対して、`infer_instances_exact` は
+
+```text
+(infer e).Instance algebra C ↔ Typing (model algebra) [] e C
+```
+
+を示す。成功側の `Instance` は、ある自由parameter tuple `p` が存在して `(plan.evaluate p, empty) ≤ C` となることだけである。残余制約・graphのモデル・可解性・成功cache・外部fuelは前提にない。`infer_plan_correct` がplanの適格性と元式との対応を内部で保証する。`infer_principal_formula_exact` は同じ結果を元のprincipal formulaへ接続する。同じ量化範囲で `infer_rejected_iff` は、実際の拒否と `¬ ∃ C, Typing [] e C` の同値を示す。
+
+`RigidRecordValueQuotient` はこのplanを決定39の商モデルへ移す。自由parameterは商の値型全体を動き、`infer_instances_exact`・`infer_principal_formula_exact`・`infer_rejected_iff` が商の任意の結果計算型について成立する。`infer_plan_sound` は、任意の式・実際に返されたplan・任意の商parameter tupleに対して、planの評価結果がその元式の型になることを示す。`inferred_boundary_has_both_instances` は10.28.3の同じ式に対するopaqueな両結果を実際のschemeが保持することを示し、`boundary_quotient_types_distinct` はその二型が現在の商でも異なることを示す。
+
+この断片では正則再帰値型を導入せず、値型の量化範囲は有限raw型とその商である。行は任意の上記代数でよく、有限性やBoolean包含checkerは仮定しない。sourceに変数・一般lambda/application・let・field access・effect式は含めない。`RunRigidRecordInference.lean` は受理、scalar/pair/variant tailの拒否、構文範囲外の区別、parameter個数を実際の関数で確認する。旧solverの期待値は変更しない。
+
+### 10.28.5 引数recordを拡張する関数族
+
+`RigidRecordFunctionScheme.scheme l b : CompTerm (Fin 4)` は、元の核式 `lam (record l (lit b) (var 0))` に対する有限descriptorを構成する。任意の自由値型 `α,β,γ` と自由行 `ρ` に対し、
+
+```text
+I = α & {}
+H = b | β
+T = (I | γ) & {}
+(I ! ρ) -> (record(l,H,T) ! ρ)     外側の行はempty
+```
+
+を評価結果とする。`instantiate_eq_eval` はこの計算とdescriptorの評価の一致を示す。`instantiate_sound` は任意のrow join algebra・label・base・全parameter tupleについて、元の関数の型付けを構成する。
+
+`instances_exact` と `principal_formula_exact` は、任意の同じ行代数・label・base・結果計算型 `C` について、descriptorの自由parameter instanceとsubsumptionの族を、元Typingと元principal formulaの全結果にそれぞれ一致させる。成功条件・parameterへの制約は前提にない。完全性の証明では元の導出から引数型・head・tail・入力行を回収し、上の束によるretractionを使う。入力行 `ρ` は出力行でも共有し、それより広い元の出力行はarrowの通常の部分型規則で保持する。値の入力を独立な `any` へ消して相関を失う簡約は行わない。
+
+`RigidRecordFunctionQuotient.instances_exact` と `principal_formula_exact` は同じ定理を商の任意の結果計算型へ移し、`instantiate_sound` は任意の商parameter tupleに対する型付けを示す。これはこの関数族の全instance主型性であり、任意のsource関数を推論するdispatcherを追加したものではない。値型carrierは引き続き有限raw型とその商である。
+
+**残る義務:** opaqueな型同士の同一視とhidden fieldの扱い、独立な正則再帰値型モデル・coalescing、新graphの一般の制約求解、全coreの自由parameter scheme・全instance主型性・拒否完全性への接続。10.28.4のデータ構文と10.28.5の関数族は閉じたが、`SourcePrincipalInference` の `RecordFree` 制限は残る。effect式・再帰SCC・全注釈多相再帰・注釈確定・role/cast/EOFの統合、および表示標準形・`as`・一般の禁止点付き到達は引き続き未完である。

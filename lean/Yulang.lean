@@ -179,6 +179,12 @@ import Yulang.RigidRecordCheckerExamples
 import Yulang.RigidRecordQuotientDecisions
 import Yulang.RigidRecordQuotientExamples
 import Yulang.RigidRecordOpaqueBoundary
+import Yulang.RigidRecordSourceBoundary
+import Yulang.RigidRecordValueInference
+import Yulang.RigidRecordValueInferenceExamples
+import Yulang.RigidRecordValueQuotient
+import Yulang.RigidRecordFunctionScheme
+import Yulang.RigidRecordFunctionQuotient
 import Yulang.JointConstraintInference
 import Yulang.JointConstraintInferenceExamples
 import Yulang.SourceConstraintSupport
