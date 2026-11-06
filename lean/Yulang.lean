@@ -396,3 +396,7 @@ import Yulang.MethodResolutionScheduling
 import Yulang.CoreEffectExactness
 import Yulang.CoreEffectLegacy
 import Yulang.CoreEffectRejections
+import Yulang.CommonFiniteMask
+import Yulang.CommonDataReadout
+import Yulang.CommonFiniteParameters
+import Yulang.CommonFiniteEmbedding

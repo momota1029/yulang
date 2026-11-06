@@ -150,3 +150,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [First HIR module resolution slice](2026-09-19-hir-simple-module-resolution-first-slice-draft.md) — Authoritative
 - [HIR direct-root expression slice](2026-09-20-hir-direct-root-expression-slice.md) — Authoritative; construction complete (2026-09-20)
 - [BracketRow close-error CST topology supersession](2026-09-20-successor-bracket-row-close-topology-supersession.md) — Authoritative; construction complete (2026-09-20)
+- [M1 concrete common carrier and compiler boundary](2026-11-07-m1-common-model.md) — Draft; concrete syntax, demand semantics, strict data readout, remaining compiler obligations

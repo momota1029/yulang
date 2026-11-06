@@ -47,6 +47,20 @@ literal の内容・presence・nominal の planner 結果を一つの値型 carr
 
 ### M1: 型モデルの接続（部分完了）
 
+`CommonFinite` / `CommonSyntax` / `Common` に、solver や型判断に依存しない具体的な
+finite/regular presence carrier を追加した。exactEmpty、whole default、mask、関数と両行を
+同じ構文に持つ。要求環境は任意の有限型または regular 型を名前で参照し、負位置でも同じ
+環境を使う。型の順序と、strict な runtime data の読取りは分離する。
+内部表現と代案は [共通モデルの設計](../notes/design/2026-11-07-m1-common-model.md) に記す。
+
+| 共通 carrier の定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `Common.common_subtype_exact` / `common_arrow_iff` / `common_pair_iff` / `common_variant_iff` | 任意の共通 regular 型について、順序は全深さ・全 rank・任意の具体型環境・union-free 要求の受理の反転包含。任意の arrow 引数/結果（mask/default/regular block・自由 parameter の代入を含む）を4成分へ完全分解する。具体行の前順序・反対称性も証明 | 全 presence constructor の完全 inspector、全 source の solved infer |
+| `CommonFiniteEmbedding.contextual_embedding_exact_at` / `contextual_embedding_exact` | 任意の行関係、旧有限型 S,T、任意 rank で、新環境の型を制限せず旧 contextual 比較との iff。新しい exact/default/mask 型を要求変数に割り当てても成立 | この有限定理単体での regular embedding や source 保守性 |
+| `CommonSyntax.block_observe_exact` | 任意の有限 block・外部型・全深さで、共有参照を閉じた graph が元の観測と等しい。tail/default source/mask は同深さ、payload は一段下。default の初期 payload も一段下にそろえる | 任意の同深さ tail 循環をこの block 文法へ解消する compiler |
+| `Common.exactEmpty_data_exact` / `width_data_exact` / `default_data_image` / `default_inhabited_iff` | 同じ common 構文上の独立 data 読取りで、exact empty と width を意味的に区別し、任意 source/fallback/result に対して whole default が既存 insertDefault の正確な strict image。present でも fallback を消さない | data 包含を producer 順序にすること、要求同値の data 集合への因数分解、関数 runtime の安全性 |
+| `CommonFinite.mask_parameter` / `mask_composition` / `mask_required` | 任意の具体有限型・全 rank/環境/要求で独立 mask 解釈と一致し、外側 mask の合成は label の和。隠れた required head は width へ移り、payload の mask と外側 mask は区別される | 二つの既存 solver family の全入力接続 |
+
 回答済み Q5 に対応する新しい具体要求モデルを `ProducerContextual` / `ProducerContextualRegular` に追加した。
 型変数は任意の意味型が満たすすべての観測を表し、arrow の引数要求も同じ環境の型を名前で参照する。
 要求の構文に union はない。role は許可された constructor head の有限表で観測し、
