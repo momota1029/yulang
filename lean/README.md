@@ -137,7 +137,13 @@ registryのground境界検査から正しい変換コードを合成する証明
 `NominalListViews.index_exact` は任意の有限list・自然数位置・要素について、内部lookupの成功と
 独立な位置判断 `At` を同値にする。`cursor_index` と `fold_records_order` により、
 Indexの内部lookupとFold用cursorが同じ順序の要素を観測する。`loopMachine` は既存loop評価器へ同じcursorを渡す。
-これはsourceのrole辞書を選ぶ証明ではなく、整数keyの負数規則（Q9）や無効indexの失敗規則（Q10）も決めない。
+回答済みQ9・Q10に対応する `NominalListIndex` は任意精度整数を受け取り、
+`integerIndex_some_iff` により成功と `0 ≤ i < length` を同値にする。
+負数は末尾相対にせず、`integerIndex_cursor` が非負indexと同じFold cursorの観測を保つ。
+`effectIndex` は無効indexを既存の非再開error要求に変え、`wrap_effectIndex` が通常の
+error wrapperで成功値または指定された範囲外errorが得られることを示す。
+effect名とpayloadは仕様でも下書きのため、任意の `ErrorEffects.Encoding` と
+`Int → Error` を引数に取る。sourceのrole辞書選択・宣言の確定・Index本文のelaborationは示さない。
 `RunLiteralConstruction.lean` で大きな整数・範囲比較と実際のstruct/enum/list構築を実行できる。
 
 ## 複数 operation の shallow handler

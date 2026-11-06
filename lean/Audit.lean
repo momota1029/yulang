@@ -1244,6 +1244,15 @@ run_cmd do
 #print axioms Yulang.NominalListViews.fold_records_order
 #print axioms Yulang.NominalListViews.loopMachine_enters_head
 #print axioms Yulang.NominalListViews.loopMachine_finishes_empty
+#print axioms Yulang.NominalListViews.integerIndex_exact
+#print axioms Yulang.NominalListViews.integerIndex_some_iff
+#print axioms Yulang.NominalListViews.integerIndex_none_iff
+#print axioms Yulang.NominalListViews.negative_index_invalid
+#print axioms Yulang.NominalListViews.integerIndex_cursor
+#print axioms Yulang.NominalListViews.effectIndex_returns_iff
+#print axioms Yulang.NominalListViews.effectIndex_invalid
+#print axioms Yulang.NominalListViews.effectIndex_bounded
+#print axioms Yulang.NominalListViews.wrap_effectIndex
 #print axioms Yulang.NominalConstructionExamples.casts_keep_order_and_skip_compatible_site
 #print axioms Yulang.NominalConstructionExamples.eof_retains_original_values_and_order
 #print axioms Yulang.NominalConstructionExamples.list_cursor_and_index_agree

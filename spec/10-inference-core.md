@@ -1523,8 +1523,29 @@ registryに受理されたground boundaryからそのcodeを合成・検証す�
 
 **残る義務:** source nominal宣言の存在・型引数・payload宣言型の検査、固定field/default/castのelaboration、
 保留site実行器と具体構築ASTの統合、ground boundaryから型付きpure conversionの合成、
-Fold/Indexのsource辞書解決と本文の対応、整数keyの負数解釈（Q9）と無効indexの失敗規則（Q10）。
+Fold/Indexのsource辞書解決と本文の対応、下書きのindex error宣言の確定とその本文への接続。
 内部の `Nat → Option Value` はsourceのAPIを選ぶための決定ではない。
+
+### 10.36.1 回答済みQ9・Q10：整数indexとerror effect
+
+`NominalListIndex` は既存のNat lookupを任意精度Intへ接続する。
+任意の値型・有限list・整数位置について、`integerIndex_some_iff` は成功値の存在を
+`0 ≤ i < length` と同値にする。任意の値について `integerIndex_exact` は成功を
+独立な位置判断 `At` と同値にし、`integerIndex_none_iff` は失敗をこの有効区間の否定と同値にする。
+`negative_index_invalid` はすべての負数を拒否し、機械整数の上限は導入しない。
+`integerIndex_cursor` は任意の自然数位置で同じFold cursorの次要素・残りsuffixと一致する。
+
+任意のoperation署名、非再開error宣言 `Cases` とその正しい `Encoding`、
+`outOfRange : Int → Error`、有限list、整数位置について、`effectIndex` は
+成功時に要素を返し、失敗時に指定されたerror要求を起こす。
+`effectIndex_returns_iff`、`effectIndex_invalid`、`effectIndex_bounded` は
+成功の必要十分条件、無効時の実際の要求木等号、error行による全要求の上界を示す。
+`wrap_effectIndex` は既存のerror wrapperによる観測を
+`ok value` または `error (outOfRange i)` に一致させる。
+
+**残る義務:** `error index_err: out_of_range int` は3.2で下書きのため、名前・payloadを
+固定していない。sourceのIndex辞書・全型推論器へのeffect行の組込みと、宣言からこの
+encodingを作るelaborationは別の義務である。内部Optionをsourceの返り値にはしていない。
 
 ## 10.37 Presence型と有限legacy data推論の橋
 
