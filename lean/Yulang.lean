@@ -251,3 +251,9 @@ import Yulang.MultiOperationHandlerInference
 import Yulang.MultiOperationHandlerExamples
 import Yulang.LiteralValues
 import Yulang.LiteralValueExamples
+import Yulang.CaseValues
+import Yulang.CasePatterns
+import Yulang.CasePatternSafety
+import Yulang.CasePresenceValidation
+import Yulang.CaseEvaluation
+import Yulang.CaseDataTerms

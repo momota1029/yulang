@@ -5,7 +5,8 @@ Rust 実装の中心になる desugar / elaboration の一覧。**下書き**で
 
 ## 核の式(ターゲット)
 
-Lean の `Inference.Expr` と `RecursiveEffects.Expr` が持つ形だけを使う。
+旧核は `Inference.Expr` と `RecursiveEffects.Expr`。追加の解決済みcase/handler核は下記の
+専用AST・評価器として置き、旧ASTとの全体統合は別の証明義務として残す。
 
 ```text
 var i        lit b        lam e        app f a       let v b
@@ -67,12 +68,12 @@ multiHandler operations action ret arms
 
 | 表の構文 | 核 | 状態 | 備考 |
 | --- | --- | --- | --- |
-| `case e: p1 -> a; p2 -> b` | 決定木(`branch` と分解の連鎖) | **欠** | variant を分解する式が核に無い。`case` に対応する核の形が要る |
-| guard `p if g -> a` | guard が偽なら次の arm に進む | 下書き | 網羅性の検査では guard 付き arm を数えない(章3b.4) |
-| or pattern、`as` | 分岐の複製、束縛の追加 | 下書き | |
-| record pattern の既定値 `{x = 1}` | `x?` と union(決定 44 と同じ道具) | 下書き | 章3b.3 |
-| 範囲 pattern `0..10` | 比較の連鎖 | 下書き | |
-| list pattern `[x, ..rest]` | `Fold`/list の分解 | **欠** | list が核に無い |
+| `case e: p1 -> a; p2 -> b` | `CaseEvaluation.eval` と順序付き `Arm` 列 | 確定 | 各分解形と独立な束縛型判断・具体data葉の安全性を追加。網羅性checkerからのprogressと全sourceへのelaborationは別義務 |
+| guard `p if g -> a` | pattern成功後にbool guard、偽なら次のarm | 確定 | 実行順を核に追加。網羅性には数えない（3b.4）。source guardの名前解決は別義務 |
+| or pattern、`as` | `CasePatterns.Pattern.or/as` | 確定 | 左から照合、全体値の束縛。orの名前集合検査。異なる束縛順のsource整列は未証明 |
+| record pattern の既定値 `{x = 1}` | `defaultField`、解決済みpresence検査とunion | 確定 | 欠如時のみfallbackを評価。required metadataを拒否。sourceからmetadataを求め全patternへ適用するpassは未証明 |
+| 範囲 pattern `0..10` | `LiteralValues.intRangeCheck` | 確定 | 整数の閉区間/片側区間を追加。裸`..`は禁止。区間の合併による一般網羅性は別義務 |
+| list pattern `[x, ..rest]` / `[..init, last]` | `CasePatterns.Pattern.cons/snoc` | 確定 | 残りの有限listを実際に渡す。nominal宣言・Fold/Indexのsource辞書への接続は別義務 |
 | `~"GET :resource"` | parser 値を入力文字列に適用し、capture を束縛 | 下書き | 章9。後で詳しく |
 
 ## C. effect と制御
@@ -146,7 +147,7 @@ error path_err:
 
 ChatGPT に依頼する核の拡張の候補。
 
-1. variant・literal・list を分解する `case` 相当の形(網羅性と残余の型付けを含む。決定 4)
+1. 分解するcase形は `CasePatterns` / `CaseEvaluation` に追加済み。網羅性checker・残余・統一sourceへの接続は別途追跡
 2. 複数 operation の核は `MultiOperationHandlerTyping` に追加済み。残るのは source payload-pattern arm の編成、個別署名、多相、mask の elaboration
 3. labelの値・methodと衛生的な境界をsourceから核へ対応させるelaboration。labelが値であること自体は章3c.2で確定
 4. nominal 型の構築子(struct・enum・list)

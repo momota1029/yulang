@@ -1389,3 +1389,36 @@ source の裸 `..` を許す規則ではない。source pattern 側でこれを�
 
 **残る義務:** float の具体解釈と比較、数値演算、lexer/文字列 escape とこの値の対応、
 source AST・全型推論器への literal 内容の接続。旧 marker の定理を変更していない。
+
+## 10.35 Case の照合と独立な束縛型判断
+
+`CasePatterns` は wildcard、名前、literal、整数範囲、pair、record、既定値、
+list nil/cons/snoc、variant、解決済みnominal identity、or、as の照合核を持つ。
+`Typing` は実行関数を参照しない。任意のその導出、型に適合する入力、
+default式の型付けに健全な実装から、`typing_matches` がruntime errorの不在と
+成功時の `BindingsHold` を導く。照合そのものの成功は前提ではない。
+
+`Typing.mergedVariant` は tag一意の `VariantsMerged.Row` を入力型に取り、
+対象tagのlookupが返すpayload全体で子patternを型付けする。他tagにはmissする。
+`Typing.aligned` は or の名前集合の一致と裸`..`の禁止を含む構文検査に成功することを示す。
+sourceで同じ名前集合を異なる順に束縛する場合の整列は、この位置付き束縛型判断の前段に残る。
+
+`mergedNominal` は同じnominal identityのconstructor行全体を入力とし、
+選んだconstructorのpayload全体に子patternを型付けする。
+
+`CaseEvaluation` はscrutinee、arm、guard、bodyの順を保持する。
+guardは照合成功後だけ、bodyは最初のguard成功後だけ評価する。
+`runArms_typed` と、合うunguarded armの存在からの `runArms_progress` を証明した。
+この存在を網羅性検査から構成する定理は別の義務である。
+`CaseDataTerms` は具体的なdata式の型付けから実評価を導き、抽象default/guard/body契約を充足する。
+型付け済みguardの実値はboolであり、外から成功結果を渡すoracleではない。
+
+pattern defaultは存在fieldではfallbackを実行せず、欠如時はfallbackの全観測を保持する。
+`CasePresenceValidation` は宣言metadataのrequiredを拒否し、optionalを許可する。
+旧markerへ射影できるrecordではoptional/required要求とlookupが一致する。
+許可されたmetadataと型付きfallbackから、実際の束縛がpayload/fallbackのunionに属することを示す。
+
+**残る義務:** 網羅性checkerとのprogress接続、一般のRust pattern matrix、source注釈・名前解決、
+optional metadataの導出と全patternへの適用、束縛順の整列、nominal宣言のlookup、
+関数・effect・再帰を含む統一source ASTとの接続。
+この値安全性判断の意味的包含を、sourceのnominal部分型・注釈拒否規則と同一視しない。

@@ -10,6 +10,39 @@ lake build --wfail
 lake env lean --trust=0 Audit.lean
 ```
 
+## Case の照合・順序・presence
+
+`CaseValues` は内容つき literal、pair、record、variant、解決済み nominal identity、有限listを持つ。
+`CasePatterns.Pattern` は wildcard、名前、literal、整数範囲、pair、record field/default、
+list nil/cons/snoc、variant、nominal、or、as を持つ。record の残りを照合するときは
+入力record全体を渡し、list tail には残りの要素だけを渡す。
+
+独立な `CasePatterns.Typing` は照合で得る束縛の値安全性を扱う。
+任意の型付け、入力型を満たす値、型付けに健全なdefault evaluatorについて、
+`typing_matches` は照合がruntime errorにならず、成功した場合は宣言された束縛型を満たすことを示す。
+`mergedVariant` は `VariantsMerged` のlookupが返す**payload全体**に子patternを型付けし、
+他tagを持つ入力はmissとする。`mergedNominal` は同じ形で、単一nominal identityの
+全constructor行を入力にして各constructorを分岐できる。orの名前集合と裸`..`の禁止は `Typing.aligned` に従う。
+同じ名前集合の異なる束縛順をそろえるsource passは未証明である。
+
+`CaseEvaluation` は上から順に照合し、成功したpatternのguardだけを評価し、guardが真の最初のbodyだけを評価する。
+訪問列はscrutinee、arm、guard、bodyと葉の評価を保持する。
+`runArms_typed` は束縛をguard/bodyへ渡す際の安全性、`runArms_progress` は型付きarm列と
+実際に合うunguarded armの存在から、型を満たす結果が返ることを示す。
+この段階の `runArms_progress` 単独では網羅性checkerの完成とは呼ばない。
+
+`CaseDataTerms` は具体的なdata葉のAST・評価器・独立型判断を持ち、
+`typing_evaluates` からdefault/guard/bodyの健全性契約を導く。
+guardは実際のbool値から判定する。構築のrecordDefaultはstrict、pattern defaultは欠如時のみである。
+現時点のdata葉には関数、再帰、effect handler、cast、nested caseを含めない。
+
+`CasePresenceValidation` はoptional宣言metadataを許可し、requiredを拒否、unknownを未解決とする。
+literal内容を旧marker値へ射影したrecordについて、lookupとrequired/optional要求の一致を示す。
+`validated_binding_evaluates` は許可されたoptional metadata、型付きfallback、射影済みの適合入力から、
+実際の束縛成功とpayload/fallbackのunion所属を導く。
+**意味的なrequired≤optionalだけでは、必須fieldへのdefaultを拒否したことにはならない。**
+sourceからmetadataを求めて全patternへ検査を適用するpassは残る。
+
 ## Literal の中身と比較
 
 `LiteralValues.Literal FloatValue` は任意精度の `Int`、decoded `String`、`Bool`、unit の中身を持つ。
@@ -500,6 +533,8 @@ lake env lean --trust=0 --run RunRegularInference.lean
 
 | モジュール | 閉じる主張 | それだけでは示さないこと |
 | --- | --- | --- |
+| `Yulang.CaseValues` / `CasePatterns` / `CasePatternSafety` / `CaseEvaluation` / `CaseDataTerms` | 具体値の分解、独立な束縛型判断から照合安全性、whole merged payloadの型付け、orの名前集合、上から順のarm/guard/body評価、具体data葉から健全性契約の導出 | この段階では網羅性checkerからのprogress接続、全Rust pattern matrix、sourceの名前解決・型注釈検査・束縛順の整列、関数/effect/再帰との統合 |
+| `Yulang.CasePresenceValidation` | 宣言presenceのoptional許可/required拒否/unknown未解決、具体recordの旧markerへのlookup保存、required/optional所属の対応、型付きlazy defaultからunionに入る実束縛 | sourceからpresence metadataを導出し全patternへ適用するpass、旧markerにないfloat/list/nominalの射影、source defaultのscope選択 |
 | `Yulang.LiteralValues` / `LiteralValueExamples` | 任意精度整数・文字列・bool・unitの内容、実行可能literal比較と独立判断の同値、整数閉区間/片側区間の正確性、明示的float比較契約 | float精度・丸め・比較規則の決定、数値演算、parser/escapeの正しさ、既存base-marker ASTとの全体統合 |
 | `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、同一operationのpayload-pattern編成と網羅性、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |
 | `Yulang.Types` / `Yulang.Inference` | 構造再帰する有限制約生成、独立な宣言的型付けとの双方向の一致、制約schemeの主性、非再帰の値制限付き多相let | 全制約の判定、再帰SCC、sourceのoperation/handlerのelaboration、公開型の正規化 |

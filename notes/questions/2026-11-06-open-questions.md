@@ -52,3 +52,17 @@ float の精度・丸めは書いていない。今回の依頼の「任意精�
 数値演算、float literal の解釈の一致。比較規則は精度と独立に次の問いへ分ける。
 現在どの案も採用していない。`DecimalToken` と明示的な解釈引数だけを追加し、
 整数・文字列・bool・unit と整数範囲の証明を先に閉じた。
+
+## Q3. float literal pattern の比較は数値比較か、表現の一致か
+
+状態: **未回答**。Q2の精度とは別の問い。
+例: `0.0` のpatternは `-0.0` に合うか。選んだfloatモデルにNaNがある場合、NaN同士は合うか。
+
+- **A（推奨）:** 選んだfloatの数値比較に合わせる。IEEEモデルなら正負の零は等しく、NaNは自分にも一致しない。
+- **B:** 保存表現の一致にする。IEEEモデルならbit patternを比較し、正負の零を区別する。
+- **C:** float literal pattern を静的に拒否し、必要ならguardで比較する。
+
+影響する義務: `LiteralValues.matchCheck` のfloat比較、独立関係 `Matches` の具体化、
+float patternの網羅性。保存値の構造的な等号 `eqCheck` と、言語のpattern比較は区別する。
+現在は比較関数と関係の正確性を明示的な引数に取り、反射性を仮定しない。
+整数・文字列・bool・unitの比較はこの回答に依存せず閉じている。
