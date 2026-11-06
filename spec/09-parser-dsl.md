@@ -13,6 +13,15 @@ my request(source: str): str = case source:
     _ -> "no match"
 ```
 
+
+- **parser pattern は、pattern の一種であり、pattern を書ける場所ならどこにでも書ける**（確定, 2026-11-06）。`case` の arm の最上位だけでなく、record の field、tuple の成分、variant の payload などの中にも入れ子にできる。その位置の値（文字列）全体を照合し、capture を束縛する。
+
+```yulang
+case req:
+    { method: "GET", path: ~"/users/:id" } -> user_page id    // record の field の中
+```
+
+  parser pattern は失敗しうる（refutable な）pattern なので、irrefutable な pattern だけを書ける場所（lambda の引数、`my` の分割代入。章3.4）には書けない。これは 3.4 の規則の帰結である。
 - parser pattern は文字列だけを入力に取る。parse に成功し、**入力が残らず**、guard があれば真のときに、その arm が選ばれる。失敗すれば次の arm へ進む。
 - `(request "GET users")` は `users`、`(request "GET users now")` は ` now` が残るので `no match`。
 
