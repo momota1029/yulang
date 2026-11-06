@@ -419,3 +419,6 @@ import Yulang.CommonDefault
 import Yulang.CommonFiniteParameters
 import Yulang.CommonFiniteEmbedding
 import Yulang.CommonPayloadProjection
+import Yulang.CommonRecordTailProfiles
+import Yulang.CommonRecordEnvelope
+import Yulang.CommonCanonicalInterface

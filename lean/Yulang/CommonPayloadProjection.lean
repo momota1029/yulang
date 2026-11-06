@@ -338,6 +338,21 @@ theorem profileBelow_exact (profile : Option Common.Ty) (target : Common.Ty) :
   | some payload =>
       exact forall_congr' fun depth => CommonFinite.producerLe_iff_probe _ _
 
+/-- Comparing profiles retains the distinction between no requirement and
+a requirement with top payload. -/
+def ProfileLe (source target : Option Common.Ty) : Prop :=
+  match target with
+  | none => True
+  | some payload => ProfileBelow source payload
+
+theorem profileLe_exact (source target : Option Common.Ty) :
+    ProfileLe source target ↔
+      ∀ depth rank env obs, ProfileAt depth rank env target obs →
+        ProfileAt depth rank env source obs := by
+  cases target with
+  | none => simp [ProfileLe, ProfileAt]
+  | some payload => exact profileBelow_exact source payload
+
 theorem optional_payload_exact (label : Nat) (source target : Common.Ty) :
     CommonDefaultRequired.OptionalPayload label source target ↔
       ProfileBelow (optionalType [] label source) target := by
