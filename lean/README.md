@@ -63,11 +63,21 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 | `CommonFinite.mask_parameter` / `mask_composition` / `mask_required` | 任意の具体有限型・全 rank/環境/要求で独立 mask 解釈と一致し、外側 mask の合成は label の和。隠れた required head は width へ移り、payload の mask と外側 mask は区別される | 二つの既存 solver family の全入力接続 |
 | `Common.common_mask_parameter` / `common_mask_composition` / `common_mask_required` | 同じ mask 法則を任意の共通 regular 型と任意の finite/regular 要求環境へ拡張する | record/default の未知 tail を含む全 compiler |
 | `Common.exactEmpty_below_width` / `width_not_below_exactEmpty` | exact empty は width 以下であり、逆は成立しない。構文の不一致だけでなく要求意味でも識別する | runtime 集合包含と producer 順序の一致 |
-| `Common.default_guarantees_field` / `default_exactEmpty` / `default_present_record` / `common_default_mono` | 任意の label・source・fallback で source が width 以下なら default は required label top 以下。exact source は構築へ、同名 head を持つ source は自身へ要求同値。全 source/fallback の比較で単調。payload/mask/regular graph を制限しない | 任意 target 比較の有限完全 inspector、present で strict fallback を実行しなくてよいという runtime 法則 |
+| `Common.default_guarantees_field` / `default_exactEmpty` / `default_present_record` / `common_default_mono` | 任意の label・source・fallback で source が width 以下なら default は required label top 以下。source が exactEmpty の場合は record 構築へ、同名 head を持つ source は自身へ要求同値。全 source/fallback の比較で単調。payload/mask/regular graph を制限しない | 任意 target 比較の有限完全 inspector、present で strict fallback を実行しなくてよいという runtime 法則 |
 | `Common.common_record_iff` / `common_singleton_requirement_iff` / `common_shadowed_head_equivalent` | 任意の同名 record 比較は payload 比較と同じ深さの残りの field／非自明 optional 要求へ完全分解する。required target の場合、tail へ同名 field の要求を戻さない。同名の内側 head は要求同値で消せる | tail を whole `Subtype` で比較すること、strict な field 式の評価省略 |
 | `Common.common_mask_mono` / `common_mask_type_congr` / `common_equivalent_iff_masked` | 任意の共通型で mask は単調かつ合同。通常の要求同値と、全外側 mask 後の要求同値が一致し、自由 parameter に追加の mask 安定性条件を課さない | この法則だけによる全 source compiler |
 | `CommonTailElimination.common_solved_instances_exact` | 任意の有限 positive 同深さ graph（ref/union/inter/mask、任意 Common 型の atom）と任意の独立割当てで、方程式成立 ⇔ ある制約なし Common 型 parameter から計算した解と各 slot が要求同値。成功・fuel・closed を前提にしない | 任意の subtype 不等式や whole-default source 方程式の完全 compiler |
 | `CommonRecordTailElimination.compile_models_exact` / `solve_models` / `solved_instances_exact` | 上の graph に実際の record 構築を追加し、任意 payload と同深さ tail 循環を実 polynomial へ完全変換する。任意 parameter は解を与え、任意の独立解も回収する | payload 自体の未知 constructor 方程式、default source の未知参照、全 source principal theorem |
+| `CommonPresenceTailElimination.solve_models` / `solve_retract` / `solved_instances_exact` | 任意の有限 graph の実 record/default/mask 方程式を解く。未知参照は同深さ tail と whole-default source に置け、循環も自由。payload/fallback は固定された任意 Common 型。Models ⇔ ある制約なし Common parameter の解と各 slot が要求同値で、どの parameter 割当てもモデルを与える。深さ・rank・外側 mask・観測をすべて量化し、内部反復数は有限座標から導出 | 同じ未知 graph の guarded payload/fallback/arrow 子への参照、任意の型不等式や全 source compiler |
+| `CommonRowTailInference.joint_instances_exact` / `solve_models` / `solve_retract` | 宣言した有限構文の任意入力・任意の独立行／値割当てで、Models ⇔ ある制約なし行・値 parameter の具体化が元の行と等しく、値が要求同値。別途、どの parameter 割当てもモデルを与える。行の右辺は構文上 var/empty、左辺は任意 join。record/default source の同深さ循環を含む。atom/payload/fallback は全有限 Common constructor と共有する symbolic arrow 行を持つ。無制約行も自由のまま | 任意の型不等式からこの構文への compiler、guarded な未知 payload、全 source の生成入力がこの構文へ完全変換されること |
+| `CommonPresenceInspection.common_inspect_exact` / `default_inspect_at_exact` | 任意の共通型・環境・深さ・rank・一つの観測について、実有限 DNF inspector が proper child 観測／負引数比較／行比較／role membership のみへ保存・反映する。default source を再帰展開し元の whole-default 比較を atom に残さない | 任意 target の全観測を一つの有限な subtype branch へ落とす `default_inspect_exact`、atom の全求解 |
+| `CommonDefaultBoundary.presence_does_not_erase_default` | 任意 label で、source が width 以下かつ required label top 以下でも、whole default を source へ要求同値で置換できない具体反例。optional payload の制約も残す必要がある | 正常な構文上の present head に対する `default_present_record` の否定 |
+| `PresenceNormalForm.presence_normalise_exact` / `principal_clauses_exact` / `Clause.pack_exact` | 任意 model・実 presence Formula・自由割当てで、Holds ⇔ 計算した有限 clause の一つと局所 computation 割当ての存在。値と行を同じ slot として保持し、捕捉環境の EnvRel の下で全 source の独立 Typing と一致 | 原子制約の解消、局所割当てに条件を残さない全自由 parameter family |
+| `PresenceNormalForm.closed_core_exact` / `closed_source_exact` | 任意 model・閉じた Core/source 式・任意結果について、型判断 ⇔ finite packed clause と全原子制約を満たす割当て。support checker・推論成功・fuel 前提は不要 | solved infer の principal/rejected/unsupported theorem。右辺の原子制約は未求解 |
+| `PresenceSourceConstraintSupport.generated_row_shapes` / `generated_explicit_rows_supported` / `generated_explicit_rows_models_exact` | record/default を含む全 source の実生成式の全 clause で、明示 row atom を実 RowFlowSchemes solver が扱える。任意行代数・任意独立行解に対し、自由 parameter scheme から相互包含で回収する | 新しい全 target 型 inspector が後から追加する行辺まで含む simultaneous support |
+| `CommonPresenceInspectionRows.inspect_preserves_rows` / `inspected_rows_supported` | 任意の行述語を満たす outer arrow 行と観測側の行から、inspector が生成する行 atom の両端も同じ述語を満たす。元の行が var/empty なら実 RowFlowSchemes.supported が true。mask/record/default の再帰も含む | 全 target の型比較を有限 branch へ変換する未実装手続きの行保存 |
+| `CommonLegacyTyping.formula_preserved` / `presence_typing_preserved` / `legacy_core_instances_preserved` | 具体旧モデルの任意 Formula と割当ての充足を、実 witness と同じ行を保って Common へ移す。任意の閉じた旧 Typing は独立 Common presence Typing に保存される。旧 infer 版は任意の旧 supported 式・任意旧結果・その旧 instance を前提に Core.Typing を得る。Compatible は具体的に証明し呼出側へ要求しない | 新 Core.infer の instance、反映、同じ行での旧 instance 回収 |
+| `CommonSyntax.Layer.evalAt_congr` / `evalAt_masked_probe_iff` | 任意の行前順序・payload index 型・深さ・Layer・二つの payload 割当てについて、各 payload が全 rank の有限要求同値なら Layer の評価も同値。負の arrow、default の深さ0、任意外側 mask を含む | 同じ未知 graph の guarded 子と同深さ tail を同時に閉じる block solver |
 
 回答済み Q5 に対応する新しい具体要求モデルを `ProducerContextual` / `ProducerContextualRegular` に追加した。
 型変数は任意の意味型が満たすすべての観測を表し、arrow の引数要求も同じ環境の型を名前で参照する。
@@ -350,7 +360,7 @@ constructor bottom strictness を仕様へ追加したりしたわけではな�
 `CorePresenceGenerationModel` は既存 `Inference.Model` に独立な `exactEmpty`・`required`・
 `recordDefault` 演算を加えた interface である。継承した `emptyRecord` は width 上界用で、
 空 record 式の精密な型とは同一視しない。`recordDefault` は結果全体の型の演算であり、
-選ばれる一 field の union だけに結果を縮めない。具体 regular model の定義は未完である。
+選ばれる一 field の union だけに結果を縮めない。具体 regular model は上記の `Common.model` で構成した。
 
 | 定理（接頭辞 `Core.PresenceGeneration`） | 示したこと | 示さないこと |
 | --- | --- | --- |
@@ -428,14 +438,16 @@ field を追加しても所属が変わらないためであり、全観測深�
   これを contextual constructor 不等式と同じ carrier に統合する義務は残る。
 - `presence_generate_exact`: 任意の拡張モデル・対応環境・式・値/行割当てについて、生成制約の充足 ⇔
   独立 presence 型付けは `Core.PresenceGeneration.generate_models_iff_typing` で閉じた。
-  未完なのは具体的な共通 regular モデルへの適用と、existential 制約を残さない solved family への接続である。
+  `PresenceNormalForm` により共通モデルを含む任意モデルで、全 source/Core を有限 packed clause に落とす接続も閉じた。
+  未完なのは原子制約を解消し、existential 制約を残さない solved family へ接続する部分である。
 - `presence_legacy_instances_exact`（決定46による新契約）: 共通モデルと埋込みを定義した上で、任意の旧 supported 式・任意の旧結果型について、旧 instance ⇒ 新 instance を示し、新 instance からはある旧 instance と要求で同値であることを示す。全 instance の文字通りの一致は要求しない。
   `ProducerContextualInstances` は、実際の旧 scheme を新しい具体 regular 順序で再解釈する境界ではこの両方向を閉じた。
   `ContextualRequiredInference.legacy_source_typing_exact` / `source_typing_exact_modulo` により、任意の行代数・行反対称性・
   旧 supported `e`・結果 `c` について、新 model の独立 `Typing [] e c` から同じ scheme の新 instance と、
   同じ行を持つ要求同値な旧 Typing を回収する逆向きも閉じた。
-  未完なのは exactEmpty/default を含む具体共通モデルへの埋込みと、その新 presence solver/独立型判断での同値である。
-  `LegacyPreservation` で仮定する presence の `Compatible` も具体モデルで構成する必要がある。
+  共通モデルへの regular 型埋込みは保存・反映を証明した。未完なのはその新 presence solver/独立型判断での instance 同値である。
+  `CommonLegacyTyping.compatible` は具体モデルの互換性を証明し、旧型付けと実旧 instance の新独立型判断への保存も閉じた。
+  新 solved instance への接続と、同じ行を持つ要求同値な旧 instance の回収は未完である。
   反映は元依頼の旧結果型の埋込みの範囲で量化し、新たな exact 型へ無条件に拡大しない。
 
 旧 `ProducerRanked` 候補では、任意の rank `k` と型 `S,T` について
@@ -444,16 +456,40 @@ field を追加しても所属が変わらないためであり、全観測深�
 成り立たない場合は要求文法を拡張する必要がある。`S` 自体が `Negative` の埋込みなら
 自身を要求に使えるため、上記の限定された arrow inversion はこの一般分離を仮定せず成立する。
 新 `ProducerContextual` は要求変数の解釈を変更し、この旧候補の分離補題を仮定せず任意引数の分解を証明した。
-残るのは exact/absence/default の具体的 acceptance と合同性、関数値を含む whole-image への橋、
-自由 parameter/mask family の評価接続であり、parameterized `Model` だけを埋めて完了とはしない。
+exact/optional/default の具体的 acceptance と合同性、独立 strict data image、同深さ record/default/mask の
+自由 family は上の共通モデルで構成した。残るのは全 constructor 不等式と全 source への接続である。
+runtime data 解釈に関数値は含めず、関数／行は独立した要求意味で観測する。
 
 旧 `Layer.record` の tail は有限 layer、open-record graph の tail は node 参照であり、
 単純な置換は観測深さを減らす位置を変える（spec 10.32.5）。さらに旧 regular 部分型は構造的関係で、
 presence の data 述語包含との同値はない。これらを既存 data 観測の橋だけで埋めることはできない。
-exact/presence/default と関数/行を含む具体的な共通モデル、open-tail・負位置・行を含む範囲への解構成と retraction の拡張は
-新たな数学的義務として残し、統一入口の公開を止めた。
+具体的な共通モデルと、宣言した同深さ record/default-tail・共有 symbolic 行の解構成／retraction は追加した。
+全 presence 不等式の完全 inspector/compiler と全 source の自由 family は数学的義務として残り、統一入口は未公開である。
 既存 `collect_instances_exact` の変更、既存 theorem・test expectation の変更、仕様の仮決定は行っていない。
 未実装部分の正確な量化と前提は [残契約の設計メモ](../notes/design/2026-11-07-m1-remaining-contracts.md) に記す。
+
+### M1 interface 標準形の有限断片
+
+旧 `ProducerContextualNormalForm.normalize_not_complete` は旧 pass の正しい反例として残す。
+新 pass は base の union を `bool`, `int`, `str`, `unit` の辞書順へ整列し、変数はその前に共有 ID 順で置く。
+`int | str` と `str | int` の出力を一致させ、`int | str` と `any` は区別する。
+
+| 定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `ProducerCanonicalClauses.canonicalEncoding_exact` / `normalize_exact` | 任意の行関係・base/bottom/top/union/intersection の二つの閉式で、contextual 要求同値 ⇔ 同じ最小 clause encoding ⇔ 同じ実 normalize 出力。保存と冪等性も証明 | 構成子や binder を含む全 interface |
+| `ProducerCanonicalOpenClauses.canonicalEncoding_exact` / `clause_variables_first` / `clauses_sorted` | 任意の共有 slot 数 n・二つの scalar 格子式で、同じ ID の任意有限 contextual 型割当てに対する要求同値 ⇔ 同じ整列 clause code。変数が先、具体型は辞書順。吸収・重複除去も同じ実正規化で扱う | parameter の再番号付け、存在的 instance 集合の一致 |
+| `CommonCanonicalOpen.common_scalar_profile_exact` / `canonicalEncoding_exact` / `normalize_exact` | 同じ scalar code を、同じ共有 ID の全 Common.Ty 割当てについて保存・反映する。割当ては任意の regular/mask/default/arrow 型でよい。実 PresenceGeneration.TyTerm の評価とも接続する | 任意 interface family の再parameter化を許す同値 |
+| `CommonCanonicalShapes.canonicalEncoding_exact` / `normalize_exact` / `collect_equivalent` | 任意 n、固定した共通 Shape と行 slot 割当て、二つの Term について、同じ ID の全 Common.Ty 割当てで要求同値 ⇔ 同じ code ⇔ 同じ normalize。Shape は nested pair、単一 required field、tag、scalar 引数と同じ行 ID の arrow を含み、正の union は成分ごとにまとめる。arrow の引数は intersection にまとめる | 異なる Shape／行 ID 間の比較、混合 head、一般 record/default/mask の正規化、nominal/role 義務、binder α 正規化、regular graph の一意化 |
+
+Shape 内部の `Code` は Shape 自体に保持された label・行 ID を省略するため、単体で任意 interface を
+比較する serialization ではない。全 interface 用には有限構文上の binder／行式／graph の正規化と
+自己完結した encoding が必要である。任意の concrete `Common.Row` は述語であるため、全 concrete 型を
+直接有限文字列へ計算可能に符号化するという主張にはしない。
+
+これらは参照用の追加アルゴリズムであり、既存 infer/display の呼出経路は変更していない。
+scalar 実装は n 個の共有 slot と4個の base の全 profile を列挙し、個数は `2^(n+4)` となる。
+最小 clause 選別は profile 間を走査するため、総計算量を線形・多項式とは主張しない。
+実際の interface 表示へ組み込む前に、未使用 slot の除去や共有表現を含む費用評価が必要である。
 
 ### SCC 局所性と module cache・増分更新
 

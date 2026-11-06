@@ -403,6 +403,16 @@ import Yulang.CommonPresence
 import Yulang.CommonRecord
 import Yulang.CommonTailElimination
 import Yulang.CommonRecordTailElimination
+import Yulang.CommonRowTailInference
+import Yulang.CommonPresenceInspection
+import Yulang.CommonDefaultBoundary
+import Yulang.PresenceNormalForm
+import Yulang.PresenceSourceConstraintSupport
+import Yulang.CommonPresenceInspectionRows
+import Yulang.CommonLegacyTyping
+import Yulang.ProducerCanonicalClauses
+import Yulang.CommonCanonicalShapes
+import Yulang.CommonLayerCongruence
 import Yulang.CommonDefault
 import Yulang.CommonFiniteParameters
 import Yulang.CommonFiniteEmbedding
