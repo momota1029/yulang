@@ -5,9 +5,10 @@ import Yulang.ErrorEffects
 # Integer list indices and abortive error effects
 
 The answers to Q9 and Q10 fix the valid interval to `0 ≤ i < length` and
-make failure an error effect.  The declaration's spelling and payload remain
-a draft, so the effect adapter takes an existing error encoding and a map
-from the rejected integer to its payload.  It does not choose an effect key.
+make failure an error effect. The effect adapter remains generic over an
+existing error encoding and a map from the rejected integer to its payload.
+Q12's concrete `index_err: out_of_range int` declaration is instantiated in
+`NominalListIndexError`, preserving this reusable API and its theorems.
 No machine integer bound is introduced.
 -/
 
@@ -70,7 +71,7 @@ theorem integerIndex_cursor (values : List Value) (position : Nat) :
         (fun value => (value, values.drop (position + 1))) := cursor_index values position
 
 /-- Failure is an abortive request, not an interpreter error or an optional
-source result.  The caller supplies the still-draft declaration encoding. -/
+source result. The caller supplies a resolved declaration encoding. -/
 def effectIndex {signature : Signature Key} {cases : Cases signature Error}
     (encoding : Encoding cases) (outOfRange : Int → Error)
     (values : List Value) (position : Int) : Tree n signature Value :=

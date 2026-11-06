@@ -8,10 +8,11 @@ proof over every finite binary64 magnitude. Decimal digits and exponents
 are arbitrary-precision input data. The binary search is over the fixed
 64-bit representation and is structurally terminating by interval width.
 
-Spec §3.1 fixes rounding for the finite range, but does not fix what the
-source frontend does outside it. `outsideFiniteRange` is therefore an
-internal boundary result, not a language runtime error or static rejection.
-See `notes/questions/2026-11-06-binary64-overflow-question.md`.
+This partial converter deliberately retains its original exact-magnitude
+domain. `outsideFiniteRange` is an internal boundary, not a static rejection:
+some larger exact values still round to the largest finite binary64 value.
+The complete source policy from spec §3.1 and answered Q11 is implemented
+separately in `Binary64SourceDecimal`, preserving this converter's contract.
 -/
 
 namespace Yulang.Binary64Decimal
@@ -62,8 +63,8 @@ inductive Boundary where
   | outsideFiniteRange
   deriving DecidableEq, Repr
 
-/-- A conversion result only; handling `outsideFiniteRange` is a frontend
-policy obligation. No host `Float`, external solver or supplied interpretation
+/-- A partial conversion result; `outsideFiniteRange` is not equivalent to
+source overflow. No host `Float`, external solver or supplied interpretation
 function participates in the finite-range result. -/
 def convert (token : DecimalToken) : Except Boundary Binary64.Value :=
   if within : WithinFiniteRange token then

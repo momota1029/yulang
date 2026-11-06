@@ -1456,7 +1456,7 @@ source の裸 `..` を許す規則ではない。source pattern 側でこれを�
 `nan_never_matches_left/right`、任意の値について `reflexive_iff_not_nan` を示す。
 `LiteralValues.binary64MatchCheck_exact` はこのEqを具体literal比較へ接続する。
 
-**残る義務:** 範囲外tokenのsource上の扱い、数値演算、lexer/文字列 escape とこの値の対応、
+**残る義務:** 数値演算、lexer/文字列 escape とこの値の対応、
 source AST・全型推論器への literal 内容の接続。旧 marker の定理を変更していない。
 
 ### 10.34.1 有限binary64の最近接・偶数丸め
@@ -1483,10 +1483,48 @@ source AST・全型推論器への literal 内容の接続。旧 marker の定�
 符号保持・有限性・NaNでないことを示す。zeroの場合は巨大指数の累乗より先に短絡する。
 `LiteralValues.binary64OfDecimal_correct` は成功した任意のliteralが正しく丸められたfloatであることを示す。
 
-**残る義務:** sourceの最大有限値を超えるtokenの方針（Q11）、lexerとの対応、
-Rustの実際のf64変換との対応、極端な非零十進指数の資源最適化。
-内部結果 `outsideFiniteRange` はsourceの型エラーでもruntime errorでもなく、未接続の方針境界である。
-有限範囲内の証明を範囲外の受理完全性へ広げない。
+**残る義務:** lexerとの対応、Rustの実際のf64変換との対応、極端な非零十進指数の資源最適化。
+内部結果 `outsideFiniteRange` はこの部分converterの境界であり、sourceの静的overflowと同一視しない。
+有限範囲内の証明を範囲外の受理完全性へ広げず、回答済みQ11の全token入口は10.34.2で別に接続する。
+
+### 10.34.2 回答済みQ11：有限丸めとoverflowの厳密な境界
+
+`Binary64Overflow` は最大有限値の次の2冪まで指数gridを拡張する。
+このsentinelは数学的な有限の実数であり、無限大との距離を定義していない。
+`nearest_below_even_boundary_iff` は任意の狭義単調な自然数grid・target・丸めrank・
+正の偶数境界rankについて、独立な全候補最近接偶数判断を前提に、
+結果が境界rank未満であることと、targetが直前点とのmidpointより厳密に下であることを同値にする。
+
+binary64に対して `midpoint_units` は境界をsubnormal単位で `2^2098 - 2^2044`、
+実数では `2^1024 - 2^970` と求める。`midpoint_rounds_to_sentinel` は任意の正分母について、
+境界そのものが偶数rankの上側sentinelへ丸まることを独立な最近接判断で示す。
+`finiteRounding_iff_exists_nearest` と `finiteRounding_iff_exists_value` は任意の分子・正分母
+（後者では任意の符号も）について、境界未満の条件と有限rank／有限値の最近接偶数結果の存在を同値にする。
+sentinelより大きい入力もこの全称範囲に含み、探索の事前bracketを呼出側へ要求しない。
+
+`round_correct` は任意の符号・分子・正分母と境界未満の条件から、実際の計算結果が有限で
+同じ符号を持ち、拡張gridの全候補に対して最近接偶数であることを示す。
+`Rounds.finite_contract` はこの判断から旧有限候補の丸め契約を導く。
+`round_agrees_with_finite` は旧 `InFiniteRange` を満たす任意入力で旧 `roundFinite` と完全一致する。
+`round_above_max` は最大有限値以上かつ境界未満の任意入力で、符号を保った最大有限値を返すことを示す。
+
+`Binary64SourceDecimal.convert` は任意のdecoded `DecimalToken` について全域であり、
+成功か静的 `overflow` を返す。`accepted_iff_rounds` はtokenの正確な十進解釈について、
+実行可能な境界判定と独立な全grid最近接偶数の有限値が存在することを同値にする。
+`convert_success_exact` と `convert_overflow_exact` は全tokenについて、成功とその存在、
+静的overflowとその不存在をそれぞれ同値にする。
+`convert_overflow_threshold` は拒否と厳密なmidpoint以上であることを同値にし、符号では分岐しない。
+`convert_correct`・`convert_retains_sign`・`convert_is_finite`・`convert_never_nan` は
+任意のtokenと実際の成功値について、全gridの丸め、符号保持、有限性、非NaNを導く。
+`convert_agrees_with_old` は任意の旧converterの成功から、新converterが同じ値を返すことを示す。
+旧拒否と新拒否の同値ではなく、最大有限値を少し超える受理域は意図的に広い。
+`LiteralValues.binary64SourceOfDecimal_correct` と `binary64SourceOfDecimal_overflow_exact` は
+これらをfloat literalの構成へ接続する。
+`Binary64SourceExamples` の両符号での回帰は、`1.7976931348623158e308`、midpoint直前、
+midpoint一致・直後、`1e309` をkernel検査し、`RunBinary64Source.lean` でも実行する。
+
+**残る義務:** lexer・source span/診断・無限大定数の名前との接続、Rust f64変換との対応、
+極端な非零十進指数の資源最適化。旧部分converterと旧成功範囲の定理・旧runnerの期待値は変更していない。
 
 ## 10.35 Case の照合と独立な束縛型判断
 
@@ -1564,11 +1602,11 @@ source名解決・注釈・presence検査の全patternへの適用、defaultのs
 `checked_case_evaluates` / `checked_variants_evaluate` と `typed_no_unmatched` により、
 実行可能なcoverage検査から、型を満たす結果と未一致終了の不在を得る。
 
-**仮の核の方針（Q5）:** compound patternの先行不一致では後のdefaultを評価しない。
-既存の決定43からこの省略規則を追加で決定したとは扱わず、sourceへの意味保存は回答後に接続する。
-**仮のor方針（Q6）:** 最初に照合が成功した枝を選び、guardが偽でも別枝を再試行しない。
-sourceの普通のor patternへの意味保存はこの回答後に接続する。
-rawな重複binderのlookupも、sourceの名前解決・重複名の規則ではない（Q7）。
+**回答済みQ5:** compound patternの先行不一致では後のdefaultを評価しない。
+**回答済みQ6:** 最初に照合が成功したor枝を選び、guardが偽でも別枝を再試行せず次のarmへ進む。
+どちらもこの旧核の規則と一致する。Q4の累積環境とQ7の重複binder拒否は
+10.35.3以降のscope付き核と独立な名前検査で扱う。旧 `CaseTree` は環境に依存しない
+defaultを持つ特殊な場合として保ち、全sourceへのelaborationとは区別する。
 
 **残る義務:** guard/default内部のcase、関数再帰・application・effect・castとの統合、
 sourceの名前解決・束縛順序・default環境のelaboration、および10.35.1の完全なcoverage算法。
@@ -1680,7 +1718,7 @@ registryに受理されたground boundaryからそのcodeを合成・検証す�
 
 **残る義務:** source nominal宣言の存在・型引数・payload宣言型の検査、固定field/default/castのelaboration、
 sourceから保留siteと具体構築ASTを導出するpass、ground boundaryから型付きpure conversionの合成、
-Fold/Indexのsource辞書解決と本文の対応、下書きのindex error宣言の確定とその本文への接続。
+Fold/Indexのsource辞書解決と本文の対応、sourceのindex error宣言identityから内部familyへの接続。
 内部の `Nat → Option Value` はsourceのAPIを選ぶための決定ではない。
 
 ### 10.36.1 回答済みQ9・Q10：整数indexとerror effect
@@ -1700,14 +1738,34 @@ Fold/Indexのsource辞書解決と本文の対応、下書きのindex error宣�
 `wrap_effectIndex` は既存のerror wrapperによる観測を
 `ok value` または `error (outOfRange i)` に一致させる。
 
-**残る義務:** `error index_err: out_of_range int` は3.2で下書きのため、名前・payloadを
-固定していない。sourceのIndex辞書・全型推論器へのeffect行の組込みと、宣言からこの
-encodingを作るelaborationは別の義務である。内部Optionをsourceの返り値にはしていない。
+回答済みQ12により、3.2の宣言は `error index_err: out_of_range int`、payloadは無効だったindexで確定した。
+ここまでの汎用定理は任意の正しいencodingとerror構成を扱うため、その主張は保つ。
+`NominalListIndexError` は任意の外部operation署名を保った直和familyに、PayloadがInt・ResponseがEmptyの
+`outOfRange` を加え、`Cases` と正しい `Encoding` を具体構成する。
+`encoded_operation`・`encoded_payload`・`encoding_roundtrip` は任意の外部署名と任意の整数/errorについて
+同じoperation、元の整数、宣言との往復を示す。
+任意の座標数・外部署名・有限list・整数に対し、`index_success_iff` は成功と有効区間を同値にする。
+`invalid_index` は有効区間の否定だけから、同じraw operation・元のInt payload・Empty responseの要求木等号を導く。
+`negative_index`・`empty_index`・`upper_index` はそれぞれの原因の全称的な系であり、
+`invalid_bind` は任意の後続が失敗後に実行されないことを示す。
+
+外部keyがdecidable equalityを持つとき、`wrap_index` は任意のlistとIntについて通常要素か
+`error (outOfRange i)` への完全等式を、`catch_index` は任意のreturn arm・範囲外armについて
+通常要素をreturn armへ渡すか元のiを範囲外armへ渡す完全等式を示す。
+`catch_index_via_wrap` は同じ観測をwrapとresultの分岐でも得ることを示す。
+`index_bounded` はsourceの要求を単一のraw error行で抑え、`wrap_index_bounded_empty` は捕捉後の空行を示す。
+`catch_index_bounded` は両armが共通行で有界という全値・全整数の前提から、捕捉結果もその行で有界と示す。
+
+**残る義務:** source文字列と宣言identityからこのlocal familyへの意味保存、
+sourceのIndex辞書・本文のelaboration、全型推論器へのeffect行の組込み。
+内部Optionをsourceの返り値にはしていない。
 
 ### 10.36.2 保留siteの実行から具体構築ASTへの接続
 
 `NominalDataAssembly.Code` はplanのconstructorにindexされ、enumのtagをそのまま保持し、
-structのconstructor identityは宣言解決から明示的に受け取る。listは具体 `Value.list` を作り、nominal identityをmetadataに保つ。
+structのconstructor identityは宣言解決から明示的に受け取る。独立な `Typing.list` を満たす
+list Codeは具体 `Value.list` を作り、nominal identityをmetadataに保つ。
+任意の未型付けCodeにlist形状を保証する主張ではない。
 `execute_runtime` は任意のruntime・plan・Codeについて、site実行器の結果へ具体AST評価を写像したものと完全に等しいことを示す。
 `execute_requestTree` は型前提なしで元instruction列の要求木と一致し、
 `accepted_requestTree` は任意registry・construction・expectation・planの `finish` 成功から
@@ -1746,11 +1804,147 @@ source評価器・変換・部分列・chunk列について、この判断から
 全自然数位置でcursorの次要素と内部Indexおよび残りsuffixが一致することを導く。
 公開Int indexの無効時errorは10.36.1の契約を保ち、この内部lookupへ置き換えない。
 
-**残る義務:** source spread対象をlistだけに限るか任意のFoldへ広げるか（Q13）、
-既存listのspread要素に新しい保留cast境界を設けるか（Q14）は仕様から決定していない。
-`notes/questions/2026-11-06-list-spread-questions.md` に例・選択肢・推奨を分けて記録した。
-ここでの核は既に有限listへ解決された内容を扱い、その二つのsource方針を確定しない。
-sourceの構築位置抽出・変換選択・保留plan生成・role辞書選択との接続は残る。
+回答済みQ13・決定45により、sourceのspread対象は任意のFoldであり、forと同じ辞書・effectを使う。
+ここでの核は既に有限listへ解決された特別な場合であり、一般のFoldの有限性は要求しない。
+**残る義務:** sourceの高階Fold本体から下記の解決済み走査protocolへの意味保存、
+sourceの構築位置抽出・変換選択・保留plan生成・全推論器での型/effect/role辞書選択。
+既存listのspread要素に新しい保留cast境界を設けるか（Q14）は未回答であり、
+`notes/questions/2026-11-06-list-spread-questions.md` に例・選択肢・推奨を記録した。
+
+### 10.36.4 回答済みQ13：非停止を含む解決済みFold走査protocol
+
+`FoldTraversal.View` はdone・内部tick・itemのyield・operation別のrequestを区別する。
+cursorは任意の型であり、有限listであることも、protocolが終わることも要求しない。
+requestはsigned occurrence・型付きpayload・そのoperationのResponseを受け取る継続をそのまま持つ。
+`Step` と独立な `Prefix` は有限な実行部分を記述し、未回答requestへ架空のresponseを与えない。
+この `Prefix` の出力はyield列と回答済みrequest occurrence列を別々に持つ。
+payloadや両者の相互順序を含む一つの完全trace、または全request treeの等価を主張する定理ではない。
+
+`Safe` は任意の有効stateで、一歩後の不変条件、yieldのitem型、要求の行所属、
+**すべてのresponse**の継続stateの不変条件を要求する局所契約である。
+`prefix_safe` は任意のprotocol・不変条件・item述語・行述語とこの契約、
+有効な開始state、任意の有限prefixから、最後のstateの不変条件・全yieldの型・全requestの行所属を導く。
+`progress` は同じ局所契約と有効stateから、done、有効なtick、有効なtyped yield、
+または行に属するrequestと全responseに対する有効な継続、の四通りを導く。
+`pending_after_prefix` は任意の有限prefixの後に残るrequestにもこの契約を与える。
+これらは完全な実行成功、有限性、停止を前提にも結論にもしていない。
+
+`repeat_safe` は任意の型付きitemを無限にyieldするprotocolの局所契約を与え、
+`repeat_prefix` は任意の自然数個のyieldを含むprefixを構成し、`repeat_never_done` はそのprotocolがdoneにならないことを示す。
+`ofNext_done`・`ofNext_yield` は任意の純粋cursorをprotocolへ移すexactな一歩の対応であり、
+`existing_for_enters`・`existing_for_finishes` は既存 `LoopEffects.Machine` のpull遷移に接続する。
+
+`accepted_plan_unique` は任意の可視impl列・rigid goalについて、
+`CheckedRoles.resolve = answer resolved` と同じgoalの任意の独立なDictionaryから、消去後planの一致を導く。
+`selected_driver_exact` はさらに任意の供給method tableを取り、検査で選んだdriverとそのDictionaryのdriverが同じことを示す。
+role受理だけから供給tableの型安全性やsource実装との一致を推論する定理ではない。
+
+**残る義務:** sourceの高階・accumulator多相な `Fold.fold` 本体からprotocolを生成すること、
+callback・effectとの意味保存、供給method tableの検証、sourceの型/effect一般化。
+既存forの純粋 `nextItem` 核を任意のsource Foldそのものとは同一視しない。
+`for_in` はUnit accumulatorでFoldを呼ぶため、将来の対応でも任意のFoldがcallbackの返却accumulatorを
+必ず採用するという未指定の律を追加しない。
+
+### 10.36.5 解決済みFoldからlist構築へ：型union・行・有限prefix
+
+`FoldListSpread.Engine` はsource評価のProcess、明示した純粋変換、選択済み辞書からFold driverへのtableを受け取る。
+machineは各source occurrenceを開始し、そのsourceと必要なFold走査が完了してから次のsourceへ進む。
+sourceと走査は内部tick・signed requestを持つことができ、循環や未回答requestを実行エラーへ変えない。
+普通の要素だけが明示変換を持ち、spreadに新しいcast境界を作るというQ14の判断は加えない。
+
+`Contracts` は独立なSourceTyped/ConversionTyped/FoldTypedと、sourceとFoldの局所state不変条件を分ける。
+型付きsource開始点の不変条件、各一歩の型と全response継続の不変条件、純粋変換の型保存、
+型付きcontainerから選択済みFoldを開始したstateの不変条件を要求する。
+いずれのfieldも全体の実行成功や有限性を要求しない。
+`PartTyping.spread` はcontainerのsource型・source行と、辞書のitem型・走査行を持ち、行は両者のunionになる。
+`Typing` は各partのitem型と行を別々に保持し、`typing_union` は任意のその導出から全partのunionを構成する。
+既存nominal listの共変性や全sourceの主型性を導く定理ではない。
+
+`observe_typed` と `engine_safe` は任意のEngine・Contracts・目標型述語・行述語・型付きconfigurationについて、
+返却値型、次stateの型、または行内requestと全response継続の型を導く。
+`typed_prefix` は任意のContracts・独立なpart列の型導出・開始点からの任意の有限prefixについて、
+最後のconfigurationの型と全requestのunion行所属を示す。
+`typed_prefix_progress` は同じ前提から、型付き返却・型付きtick・型付きpending requestのいずれかを導く。
+`returned_items_typed` はさらに最後の観測が返却である場合に、全要素の型union所属を導く。
+返ること自体を保証する主張ではなく、安全性/progressの前提に返却成功を渡してもいない。
+
+`source_prefix` は任意のsource内部prefixを、元のpartと後続構文を保って合成machineへ移す。
+`traversal_prefix` は任意の辞書・後続構文・既存の結果列・走査prefixについて、後続sourceを変更せず
+yield列だけを結果列へ順序通り追加する対応を示す。source/走査のrequest occurrence列も元順で保持する。
+`Meaning` は各sourceの返却と各Foldの終了を独立に記述する有限実行判断であり、
+`meaning_prefix`・`meaning_returns` は任意のその判断から全体の順序付き実行を構成する。
+この有限実行の合成を、型付きFoldが必ず終了するという定理には読み替えない。
+
+**残る義務:** sourceの高階Fold本体からprotocolへの意味保存、method tableの検証、
+source全体の型/effect推論と辞書elaboration、Q14のspread要素のcast境界。
+
+### 10.36.6 有限list spreadから同じ値・source traceへの一般対応
+
+`FoldListSpreadFinite` は旧Logged evaluatorの各eventをUnit responseの抽象requestへ、
+各errorをEmpty responseの抽象requestへ写す。sourceのoperation名はこの埋め込みから決めない。
+`source_trace_prefix` は任意のevent列・返却値について、同順同回数の `raw (inl event)` を応答して
+元の値へ到達するprefixを構成する。`list_traversal` は任意の有限listの全要素を順序通りyieldしてdoneへ到達し、
+`list_driver_cursor` は同じ観測を既存 `NominalListViews.nextItem` へ一致させる。
+
+`meaning` は任意のsource評価器・純粋変換・expectedList error・部分列・chunk列について、
+旧 `NominalListSpread.Meaning` を新machineの独立な `Meaning` へ移す。
+`finite_run_correspondence` は同じ任意の引数と旧Meaning導出について、
+旧runが元のsource traceとflatten列を返すこと、新machineがそのtraceを抽象request列へ写した
+prefixで同じflatten列へ到達すること、その最後の観測が同列の返却であることを同時に示す。
+特定の長さ・型・spread位置に制限した例ではない。
+
+`typed_finite_run_correspondence` は任意のsource型判断・source評価器・純粋変換・部分列・目標型について、
+旧 `SourceSound`、全通常変換の型保存契約、独立な旧 `Typing` から、
+型を満たす返却列の存在と、旧run・新machineの同じ値と同順同回数のsource traceへの対応を導く。
+一般のSourceSoundは有限sourceの成功を含む契約なので、一般protocolの局所Safeとは区別する。
+`data_typed_finite_run_correspondence` は任意の `CaseDataTerms` の独立型判断、
+純粋変換の型保存契約、任意の環境とその `BindingsHold` から、SourceSoundを既存の型安全性で満たす。
+結論は型付きの値列の存在、旧evalの `.list values` 成功、同じsource traceを写した新machineのprefix、
+最後の同じ値列の返却である。呼出側にSourceSoundや実行成功の証拠は要求しない。
+
+**残る義務:** 一般のsource Fold本体からこのprotocolへの意味保存、source effectとの対応、
+全推論器へのelaboration。独立Meaningを前提にする一般の対応と、型判断から導く具体dataの系を分け、
+10.36.4・10.36.5の一般prefix安全性/progressに有限性や成功の前提を加えていない。
+
+### 10.36.7 acceptedなFold slotと実際のspread型判断
+
+`FoldListSpreadRoles.Slot` はcontainer/itemのrigid termと、供給された `foldGoal` encodingに対する
+`CheckedRoles.resolve visible goal = answer resolved` の成功を保持する。
+`Body` は解決済みdriver、走査行、局所state不変条件、container型からの開始点適合性、
+item型と行についての局所 `Safe` を持つ。`Registry` は任意の供給denoteの下で、
+container/item/選択planをこの型付きbodyへ写す。source methodを推論して自動生成する関数ではない。
+
+`spread_typing` は任意のSourceLayer・Registry・Slot・source式・source行について、
+sourceがslotのcontainer意味を持つ独立な型判断を前提に、実際の `FoldListSpread.PartTyping` を導く。
+結果のitem型はslotのitem意味そのもの、行はsource行と選択されたBody行のunionとなる。
+SourceLayerには開始点適合性・一歩の安全性・全response継続の不変条件・純粋変換の型保存を要求し、
+全source実行の成功は要求しない。
+`spread_role_constraint` は任意のそのslotとFold型判断から、可視implのWellFormed、
+独立なrole解決判断、container/item/rowがslotと選択bodyに一致することを示す。
+`selected_exact` と `engine_uses_selected_dictionary` は任意の同goalの独立なDictionaryについて、
+選ばれたbody、実machineのdriver、その宣言行が同じであることを示す。
+
+**残る義務:** source Fold roleとassociated typeを `foldGoal` / `denote` へ写すこと、
+source methodから型付きRegistryを作ることと意味保存、既存evidenceを含む全辞書elaboration、
+source `for_in` と同じ高階実行への接続。任意の高階Foldがcallbackの返却accumulatorを必ず採用する律は仮定しない。
+
+### 10.36.8 非停止の走査と後続sourceの保留
+
+`FoldListSpreadDivergence.no_later_source_or_return` は任意のEngine、辞書、後続part列、
+Fold stateの不変条件、item述語、行述語、初期結果列、初期cursor、有限machine prefixを量化する。
+その辞書の局所 `Safe`、全有効cursorの観測がdoneでないこと、有効な初期cursorを前提に、
+prefixの最後も同じ辞書・同じ後続構文を走査中であり、cursorが有効で、全応答済requestが行内にあり、
+任意のlist結果に対して返却観測にならないことを示す。
+要求が応答されず保留される場合も含み、常に新しい一歩を実行できるとは主張しない。
+
+`Examples.literal_typed` は先行要素・無限repeat・後続要素を含む非空の解決済みliteral
+`[3, ..repeat 7, 11]` を、3/7/11の型unionと空のeffect行で独立に型付けする。
+`reaches_repeat` は先行3を評価してrepeat段階へ入る有限prefixを構成する。
+`repeat_stage_never_returns` はその段階から任意の有限prefixについて後続11を保持し、返却しないことを示し、
+`repeat_stage_safe` は同じprefixが一般の型/effect安全性定理の範囲にも含まれることを示す。
+
+**残る義務:** source高階Fold本体からprotocolへの意味保存。任意sourceの非停止を判定する算法は追加せず、
+この例や局所noEnd条件を全sourceの停止性定理・非停止判定へ広げない。
 
 ## 10.37 Presence型と有限legacy data推論の橋
 

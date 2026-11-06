@@ -11,15 +11,18 @@ Default code is abstract and is invoked only for a missing field. Its lexical
 environment, effects, and source name resolution belong to the caller.
 No rule about default-expression scope or effect rollback is chosen here.
 
-Provisional kernel policy (仮; open question Q5): matching proceeds from left
-to right and stops the remainder of a compound pattern on a miss. Thus a
-later missing-field default is skipped after an earlier mismatch. The source
-specification does not yet decide this interaction with effectful defaults;
-the source-to-kernel correctness claim remains conditional on that decision.
-Provisional or policy (仮; Q6): take the first matching branch; a later
-failed arm guard does not retry the other branch. This is not inferred from
-the parser DSL choice rule. Raw repeated binder identities are also not a
-source shadowing policy.
+Answered Q5 agrees with this kernel: matching proceeds from left to right
+and stops the remainder of a compound pattern on a miss, so a later
+missing-field default is skipped after an earlier mismatch. Answered Q6
+also agrees: take the first matching branch; a later failed arm guard does
+not retry the other branch. These are ordinary pattern rules, not an
+inference from the parser DSL choice rule.
+
+Q4's accumulated default environment is implemented by ScopedCasePatterns;
+this environment-independent evaluator remains its proved special case.
+Q7's rejection of repeated binders on one path is implemented separately
+by PatternBindingChecks. Raw repeated identities here do not constitute
+a source shadowing policy or bypass that check.
 -/
 
 namespace Yulang.CasePatterns
