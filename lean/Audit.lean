@@ -1356,3 +1356,17 @@ run_cmd do
 #print axioms Yulang.LiteralValues.binary64MatchCheck_exact
 #print axioms Yulang.LiteralValues.binary64_signed_zero_pattern
 #print axioms Yulang.LiteralValues.binary64_nan_pattern_rejected
+
+#print axioms Yulang.Binary64Rounding.floorSearch_spec
+#print axioms Yulang.Binary64Rounding.nearest_correct
+#print axioms Yulang.Binary64Rounding.roundBracket_correct
+#print axioms Yulang.Binary64Rounding.NearestEven.le_bound
+#print axioms Yulang.Binary64Rounding.magnitude_strict
+#print axioms Yulang.Binary64Rounding.rank_lt
+#print axioms Yulang.Binary64Rounding.rank_ofFiniteRank
+#print axioms Yulang.Binary64Rounding.ofFiniteRank_finite
+#print axioms Yulang.Binary64Rounding.magnitude_rank
+#print axioms Yulang.Binary64Rounding.rank_parity
+#print axioms Yulang.Binary64Rounding.roundedRank_correct
+#print axioms Yulang.Binary64Rounding.roundedRank_finite
+#print axioms Yulang.Binary64Rounding.roundFinite_correct

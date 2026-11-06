@@ -132,7 +132,12 @@ literal の `matchCheck_exact` は、任意の float 比較関数とその独立
 `signed_zeros_match` は正負のzeroが合うこと、`nan_never_matches_left/right` は
 任意の相手についてNaNが合わないことを示す。保存値の等号とは区別する。
 `LiteralValues.binary64MatchCheck_exact` はこの比較を内容つきliteralの独立判断に接続する。
-小数tokenからの最近接・偶数丸めは別の変換層で扱う。
+`Binary64Rounding.roundFinite_correct` は、任意の符号・分子 `n`・正の分母 `d` について、
+絶対値が最大有限値以下という前提から、二分探索の結果が全有限binary64候補に対して
+厳密な距離 `|n - units(candidate) * d|` を最小にし、異なるrankとの同距離では
+fractionの下位bitを偶数にすることを示す。符号はzeroへ丸める場合も保存する。
+`n/d` は `2^-1074` 単位の絶対値であり、有限サンプルとの比較ではない。
+小数tokenをこの厳密な分数へ変換する層とsourceの範囲外方針は別に扱う。
 既存 `Inference.Base` に float はなく、`legacyBase` は float に `none` を返す。
 旧 base-marker 評価器を具体 literal 評価器へ黙って置き換えていない。
 字句解析・escape の正しさ、数値演算、source への翻訳はこの定理群の対象外である。
@@ -699,15 +704,17 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | モジュール | 閉じる主張 | それだけでは示さないこと |
 | --- | --- | --- |
 | `Yulang.CaseValues` / `CasePatterns` / `CasePatternSafety` / `CaseEvaluation` / `CaseDataTerms` | 具体値の分解、独立な束縛型判断から照合安全性、whole merged payloadの型付け、orの名前集合、上から順のarm/guard/body評価、具体data葉から健全性契約の導出 | 全Rust pattern matrix、sourceの名前解決・型注釈検査・束縛順の整列、関数/effect/再帰との統合 |
+| `Yulang.ScopedCasePatterns` / `ScopedCasePatternSafety` / `ScopedCaseEvaluation` / `ScopedCaseTotal` / `ScopedCaseDataProgram` / `PatternBindingChecks` | 先行束縛を読むdefaultと同じ順の型環境、型判断から照合安全性、独立TotalTypingから具体caseのprogress、同一経路の重複binderの静的拒否、Q4–Q7の実値・訪問列 | 一般coverageとのscope付き接続、sourceの環境/presence導出、effectfulな葉、CaseTree・統一ASTへの接続 |
 | `Yulang.CaseCoverage` / `CaseCoverageSafety` / `CaseDataProgram` / `CaseCoverageExamples` / `CaseCoverageBoundaryExamples` | 保守的な網羅性checkerと独立判断の同値、guard除外、merged tag残余の正確性、具体programの型付けから実評価・全arm不一致の不在、順序/default/enum payloadの実値例 | false側のsource拒否完全性、record内の複数arm合成、list長さの深い分岐、整数区間合併、source全体のRust pattern matrix、source nominal構築子elaboration |
-| `Yulang.CaseTree` / `CaseTreeExamples` | scrutinee/body・pair・letへの有限case入れ子、独立型付けから実評価の型安全性と未一致の不在、任意整数について値と訪問列を保持する入れ子例 | guard/default内部のcase、一般再帰・関数/application/effect/castの統合、source名解決とdefault省略方針の決定 |
-| `Yulang.CasePresenceValidation` | 宣言presenceのoptional許可/required拒否/unknown未解決、具体recordの旧markerへのlookup保存、required/optional所属の対応、型付きlazy defaultからunionに入る実束縛 | sourceからpresence metadataを導出し全patternへ適用するpass、旧markerにないfloat/list/nominalの射影、source defaultのscope選択 |
-| `Yulang.LiteralValues` / `LiteralValueExamples` | 任意精度整数・文字列・bool・unitの内容、実行可能literal比較と独立判断の同値、整数閉区間/片側区間の正確性、明示的float比較契約 | float精度・丸め・比較規則の決定、数値演算、parser/escapeの正しさ、既存base-marker ASTとの全体統合 |
+| `Yulang.CaseTree` / `CaseTreeExamples` | scrutinee/body・pair・letへの有限case入れ子、独立型付けから実評価の型安全性と未一致の不在、任意整数について値と訪問列を保持する入れ子例 | guard/default内部のcase、一般再帰・関数/application/effect/castの統合、source名解決とscope付きdefaultの統合 |
+| `Yulang.CasePresenceValidation` | 宣言presenceのoptional許可/required拒否/unknown未解決、具体recordの旧markerへのlookup保存、required/optional所属の対応、型付きlazy defaultからunionに入る実束縛 | sourceからpresence metadataを導出し全patternへ適用するpass、旧markerにないfloat/list/nominalの射影、source defaultのscopeを割り当てるpass |
+| `Yulang.LiteralValues` / `LiteralValueExamples` / `Binary64` / `Binary64Rounding` | 内容つきliteral、整数範囲、64bit codecの相互逆、数値Eqと独立判断の同値、正負zeroの一致・NaNの不一致、任意の正分母と範囲内分子について全有限binary64候補への最近接・偶数丸め | DecimalToken変換、範囲外tokenのsource方針、数値演算、parser/escape、Rust f64との対応、既存base-marker ASTとの全体統合 |
 | `Yulang.PresenceLegacyBridge` | 任意の有限legacy型とmaskのdata意味を保存するpresence翻訳、Shadow部分型の包含保存、閉supported型判断の移送、finite-data planの全parameterを同じexact結果が一方向に包含、optionalの分解と旧width型の反例 | 逆向きの部分型完全性・scheme等価、regular型と自由row parameter、closure/effect行の意味、SourcePrincipalInference全体への統合 |
 | `Yulang.NominalConstructionRuntime` / `NominalConstructionExamples` | 不変parameterの元の構築位置の順序、適合時のcast抑制、純粋cast後の全request tree保存、EOFの実値保持、metadataとarity保存 | ground境界検査から値型に正しい変換codeの合成、固定struct field・宣言defaultを含むsource elaboration、具体data構築ASTとの統合 |
-| `Yulang.NominalListViews` | 同じ構築済みpayloadに対するcursor・自然数index・foldの一致、既存loop machineへのcursor接続 | sourceのFold/Index辞書の選択・署名と実装の対応、負数keyと無効indexの規則 |
+| `Yulang.NominalListViews` / `NominalListIndex` | 同じlistに対するcursor・index・foldの一致、整数indexの成功と有効区間の同値、無効indexの非再開error要求、既存wrapとの一致 | sourceのFold/Index辞書の選択・署名と本文の対応、下書きのerror名/payloadの確定 |
 | `Yulang.NominalDataConstructionExamples` | 解決済みnominal構築式、任意整数から計算するstruct/enum/list payloadの型付けと実評価・全訪問列 | 宣言のlookup・型引数・payload宣言型の検査、source constructor default・castの挿入 |
-| `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、同一operationのpayload-pattern編成と網羅性、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |
+| `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、source patternから束縛付きarm表への翻訳、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |
+| `Yulang.MultiOperationPayloadHandlers` / `MultiOperationPayloadInference` / `MultiOperationPayloadExamples` | 同一keyの順序付きpayload dispatch、missのforwardと残余保持、unguarded反駁不能armだけのkey減算、既存構文のchecker/型判断/安全性の拡張、旧全域表との一致、全armへの明示mask検査 | source patternの束縛、effectful default/guard、個別operation署名と多相、mask導出とfresh移送、全sourceの主型推論 |
 | `Yulang.MultiOperationIncomingInference` | 明示incoming maskを実構文checkerに合成、独立型付けとの同値、不許可armの静的拒否、推論成功と環境適合性から既存構文評価のValid、同一maskのruntime gate対応 | source maskの導出と入れ子handlerへの割当て、fresh座標へのclosure/潜在行の移送、構文評価とenterTree後の実行の意味保存 |
 | `Yulang.Types` / `Yulang.Inference` | 構造再帰する有限制約生成、独立な宣言的型付けとの双方向の一致、制約schemeの主性、非再帰の値制限付き多相let | 全制約の判定、再帰SCC、sourceのoperation/handlerのelaboration、公開型の正規化 |
 | `Yulang.StructuralBase` / `Yulang.Structural` | 行の解釈を共有する具体的な構造部分型モデル、`never`/`any`・union/intersection・幅部分型・関数の分散、生成制約の正例と反例 | 完全なMLsub意味論、再帰型。決定手続きは `StructuralDecisions` で扱う |

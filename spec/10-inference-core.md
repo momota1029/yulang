@@ -1455,6 +1455,25 @@ source の裸 `..` を許す規則ではない。source pattern 側でこれを�
 **残る義務:** 小数tokenの最近接・偶数丸め、数値演算、lexer/文字列 escape とこの値の対応、
 source AST・全型推論器への literal 内容の接続。旧 marker の定理を変更していない。
 
+### 10.34.1 有限binary64の最近接・偶数丸め
+
+`Binary64Rounding` は指数・仮数部の連結wordを自然数rankとして用いる。
+`floorSearch_spec` は任意のgrid・target・下端・上端について、入口の大小とbracket条件から
+二分探索の結果が隣接する二点でtargetを挟むことを示す。
+`nearest_correct` は任意の狭義単調gridとそのbracketについて、選択点が全自然数rankに対して
+距離を最小にし、異なるrankとの等距離では偶数rankを選ぶことを示す。
+停止は区間幅の減少によるもので、任意のfuelや列挙上限の仮定はない。
+
+`magnitude_strict` はbinary64のrankと厳密な絶対値の狭義単調性を示す。
+`roundFinite_correct` は任意の符号・自然数分子 `n`・分母 `d` について、
+`0 < d` と `n ≤ maxUnits * d` を前提に、計算結果 `r` が指定符号を持つ有限値であり、
+任意の有限候補 `c` に対し `|n - units(r)*d| ≤ |n - units(c)*d|` となることを示す。
+異なる指数・仮数rankとの距離が等しければ、結果のfraction下位bitは0である。
+`n/d` は最小subnormal `2^-1074` を単位とする絶対値で、符号は別に保持する。
+
+**残る義務:** DecimalTokenの解釈との接続、sourceの最大有限値を超えるtokenの方針、
+Rustの実際のf64変換との対応。有限範囲内のこの証明を範囲外の受理完全性へ広げない。
+
 ## 10.35 Case の照合と独立な束縛型判断
 
 `CasePatterns` は wildcard、名前、literal、整数範囲、pair、record、既定値、
