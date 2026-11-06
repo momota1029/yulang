@@ -1547,3 +1547,20 @@ run_cmd do
 #print axioms Yulang.FoldTraversal.repeat_never_done
 #print axioms Yulang.FoldTraversal.accepted_plan_unique
 #print axioms Yulang.FoldTraversal.selected_driver_exact
+
+#print axioms Yulang.FoldListSpread.Prefix.trans
+#print axioms Yulang.FoldListSpread.step_safe
+#print axioms Yulang.FoldListSpread.prefix_safe
+#print axioms Yulang.FoldListSpread.progress
+#print axioms Yulang.FoldListSpread.typing_union
+#print axioms Yulang.FoldListSpread.start_typed
+#print axioms Yulang.FoldListSpread.observe_typed
+#print axioms Yulang.FoldListSpread.engine_safe
+#print axioms Yulang.FoldListSpread.typed_prefix
+#print axioms Yulang.FoldListSpread.returned_items_typed
+#print axioms Yulang.FoldListSpread.typed_prefix_progress
+#print axioms Yulang.FoldListSpread.source_prefix
+#print axioms Yulang.FoldListSpread.traversal_prefix
+#print axioms Yulang.FoldListSpread.part_meaning_prefix
+#print axioms Yulang.FoldListSpread.meaning_prefix
+#print axioms Yulang.FoldListSpread.meaning_returns

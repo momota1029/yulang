@@ -1714,7 +1714,7 @@ registryに受理されたground boundaryからそのcodeを合成・検証す�
 
 **残る義務:** source nominal宣言の存在・型引数・payload宣言型の検査、固定field/default/castのelaboration、
 sourceから保留siteと具体構築ASTを導出するpass、ground boundaryから型付きpure conversionの合成、
-Fold/Indexのsource辞書解決と本文の対応、回答済みQ12のindex error宣言から本文への接続。
+Fold/Indexのsource辞書解決と本文の対応、sourceのindex error宣言identityから内部familyへの接続。
 内部の `Nat → Option Value` はsourceのAPIを選ぶための決定ではない。
 
 ### 10.36.1 回答済みQ9・Q10：整数indexとerror effect
@@ -1802,8 +1802,8 @@ source評価器・変換・部分列・chunk列について、この判断から
 
 回答済みQ13・決定45により、sourceのspread対象は任意のFoldであり、forと同じ辞書・effectを使う。
 ここでの核は既に有限listへ解決された特別な場合であり、一般のFoldの有限性は要求しない。
-**残る義務:** 一般のFold辞書・走査effect・要素型union・非停止を含む実行との接続、
-sourceの構築位置抽出・変換選択・保留plan生成・role辞書選択。
+**残る義務:** sourceの高階Fold本体から下記の解決済み走査protocolへの意味保存、
+sourceの構築位置抽出・変換選択・保留plan生成・全推論器での型/effect/role辞書選択。
 既存listのspread要素に新しい保留cast境界を設けるか（Q14）は未回答であり、
 `notes/questions/2026-11-06-list-spread-questions.md` に例・選択肢・推奨を記録した。
 
@@ -1836,10 +1836,43 @@ payloadや両者の相互順序を含む一つの完全trace、または全reque
 role受理だけから供給tableの型安全性やsource実装との一致を推論する定理ではない。
 
 **残る義務:** sourceの高階・accumulator多相な `Fold.fold` 本体からprotocolを生成すること、
-callback・effectとの意味保存、供給method tableの検証、sourceの型/effect一般化、一般spread構築との接続。
+callback・effectとの意味保存、供給method tableの検証、sourceの型/effect一般化。
 既存forの純粋 `nextItem` 核を任意のsource Foldそのものとは同一視しない。
 `for_in` はUnit accumulatorでFoldを呼ぶため、将来の対応でも任意のFoldがcallbackの返却accumulatorを
 必ず採用するという未指定の律を追加しない。
+
+### 10.36.5 解決済みFoldからlist構築へ：型union・行・有限prefix
+
+`FoldListSpread.Engine` はsource評価のProcess、明示した純粋変換、選択済み辞書からFold driverへのtableを受け取る。
+machineは各source occurrenceを開始し、そのsourceと必要なFold走査が完了してから次のsourceへ進む。
+sourceと走査は内部tick・signed requestを持つことができ、循環や未回答requestを実行エラーへ変えない。
+普通の要素だけが明示変換を持ち、spreadに新しいcast境界を作るというQ14の判断は加えない。
+
+`Contracts` は独立なSourceTyped/ConversionTyped/FoldTypedと、sourceとFoldの局所state不変条件を分ける。
+型付きsource開始点の不変条件、各一歩の型と全response継続の不変条件、純粋変換の型保存、
+型付きcontainerから選択済みFoldを開始したstateの不変条件を要求する。
+いずれのfieldも全体の実行成功や有限性を要求しない。
+`PartTyping.spread` はcontainerのsource型・source行と、辞書のitem型・走査行を持ち、行は両者のunionになる。
+`Typing` は各partのitem型と行を別々に保持し、`typing_union` は任意のその導出から全partのunionを構成する。
+既存nominal listの共変性や全sourceの主型性を導く定理ではない。
+
+`observe_typed` と `engine_safe` は任意のEngine・Contracts・目標型述語・行述語・型付きconfigurationについて、
+返却値型、次stateの型、または行内requestと全response継続の型を導く。
+`typed_prefix` は任意のContracts・独立なpart列の型導出・開始点からの任意の有限prefixについて、
+最後のconfigurationの型と全requestのunion行所属を示す。
+`typed_prefix_progress` は同じ前提から、型付き返却・型付きtick・型付きpending requestのいずれかを導く。
+`returned_items_typed` はさらに最後の観測が返却である場合に、全要素の型union所属を導く。
+返ること自体を保証する主張ではなく、安全性/progressの前提に返却成功を渡してもいない。
+
+`source_prefix` は任意のsource内部prefixを、元のpartと後続構文を保って合成machineへ移す。
+`traversal_prefix` は任意の辞書・後続構文・既存の結果列・走査prefixについて、後続sourceを変更せず
+yield列だけを結果列へ順序通り追加する対応を示す。source/走査のrequest occurrence列も元順で保持する。
+`Meaning` は各sourceの返却と各Foldの終了を独立に記述する有限実行判断であり、
+`meaning_prefix`・`meaning_returns` は任意のその判断から全体の順序付き実行を構成する。
+この有限実行の合成を、型付きFoldが必ず終了するという定理には読み替えない。
+
+**残る義務:** sourceの高階Fold本体からprotocolへの意味保存、method tableの検証、
+source全体の型/effect推論と辞書elaboration、有限list核との一般対応、Q14のspread要素のcast境界。
 
 ## 10.37 Presence型と有限legacy data推論の橋
 

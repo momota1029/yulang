@@ -215,7 +215,8 @@ sourceからsiteとassembly codeを作るpass、固定field/defaultの宣言検�
 全自然数位置のcursorと内部Indexが同じ要素列を観測することまで導く。
 空spread・連続spread・途中のspreadでも順序と重複を保ち、source失敗後は後続を評価しない。
 回答済みQ13・決定45は任意のFold値をsource spread対象とし、forと同じ辞書・effectを使う。
-この有限list核を保ったまま、一般の走査と要素型union、非停止を含む実行を接続する義務が残る。
+一般の走査と要素型union、非停止を含む実行は下記の解決済みprotocol核へ接続する。
+sourceの高階Fold本体からこの核への意味保存と推論全体への統合は残る。
 既存listの各要素へ新しい保留cast位置を作るか（Q14）は未回答である。
 sourceのsite抽出・変換選択と保留planへの自動接続も残る。
 
@@ -227,7 +228,17 @@ sourceのsite抽出・変換選択と保留planへの自動接続も残る。
 `selected_driver_exact` はrigid role検査の成功から得た一意な辞書planが、供給された実装tableの
 同じdriverを選ぶことを示す。tableのmethod実装が正しいことは別の契約である。
 既存forの純粋cursorとの一歩の一致もあるが、高階でaccumulator多相なsource `Fold.fold` の
-method本体からこのprotocolを作ること、そのcallback/effectの意味保存、一般spread構築への接続は残る。
+method本体からこのprotocolを作ること、そのcallback/effectの意味保存は残る。
+
+`FoldListSpread` はsource評価の開始・内部step・requestと、選択済み辞書の走査を一つのmachineにする。
+各partの独立な型判断が通常要素の型、spreadのitem型、source行、走査行を持ち、
+`typing_union` が全partの要素型と行のunionを構成する。
+`typed_prefix` と `typed_prefix_progress` はsourceと辞書の局所不変条件、純粋変換契約、
+独立なpart列の型判断から、任意の有限prefixの型・行保存とtypedな次の観測を導く。
+sourceもFoldも有限であることや全体の成功を仮定せず、返る場合の全要素型は `returned_items_typed` が導く。
+`traversal_prefix` は途中の任意prefixでも後続sourceを保持し、yield列だけを元順で結果列へ追加する。
+`meaning_prefix` は各sourceとFoldが有限に完了した独立な実行判断から、記述順の合成を示す。
+これは終了の型定理ではなく、有限list版との一般対応は別の橋として接続する。
 
 `NominalListViews.index_exact` は任意の有限list・自然数位置・要素について、内部lookupの成功と
 独立な位置判断 `At` を同値にする。`cursor_index` と `fold_records_order` により、
@@ -804,9 +815,10 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.PresenceRegularObservations` / `PresenceRegularLegacyBridge` | 任意graphの全有限観測判定、可換なrenameと有限block closureでの保存・反映、旧regular型のdata所属・data包含との同値、既存common carrierのblockへの接続 | 旧structural subtypingとの同値、arrow/closureと行の意味、全深さの判定算法、presence制約の飽和/coalescing、全source schemeのinstance同値 |
 | `Yulang.NominalConstructionRuntime` / `NominalConstructionExamples` | 不変parameterの元の構築位置の順序、適合時のcast抑制、純粋cast後の全request tree保存、EOFの実値保持、metadataとarity保存 | ground境界検査から値型に正しい変換codeの合成、固定struct field・宣言defaultを含むsource elaboration、sourceからのsite/構築AST生成 |
 | `Yulang.NominalDataAssembly` / `NominalDataAssemblyExamples` | site実行器から具体ASTへの完全等式、元のrequest treeとEOF値の保持、受理plan・局所CastContract・元site型・独立Code型判断から返却分岐の構築成功と結果型、struct/enum/listの実値例 | sourceのsite抽出・Code生成、固定field/defaultの宣言検査、cast code合成、Fold/Indexのsource辞書との対応 |
-| `Yulang.NominalListSpread` / `NominalListSpreadExamples` | 任意位置の有限list spread、独立data型判断と環境・変換契約から実評価と全要素型、記述順に各sourceを一度読む全訪問列、同じ列に対する具体list・nominal metadata・Fold・内部Indexの一致 | 回答済みQ13の一般Fold・effect・要素型unionへの接続、spread要素の保留cast境界（Q14）、source site抽出・変換選択・保留planの自動生成 |
-| `Yulang.FoldTraversal` | 任意stateの走査protocol、局所契約から全有限prefixのitem型・signed request行・有効state保存、終了を仮定しないprogress、無限yield例、rigid roleの一意辞書planと供給driverの一致、純粋cursorと既存forの一歩の対応 | source高階Fold.fold本体からのprotocol生成・意味保存、供給method tableの検証、sourceの型/effect一般化、一般spread構築との接続 |
-| `Yulang.NominalListViews` / `NominalListIndex` | 同じlistに対するcursor・index・foldの一致、整数indexの成功と有効区間の同値、無効indexの非再開error要求、既存wrapとの一致 | sourceのFold/Index辞書の選択・署名と本文の対応、回答済みQ12の具体宣言から本文への接続 |
+| `Yulang.NominalListSpread` / `NominalListSpreadExamples` | 任意位置の有限list spread、独立data型判断と環境・変換契約から実評価と全要素型、記述順に各sourceを一度読む全訪問列、同じ列に対する具体list・nominal metadata・Fold・内部Indexの一致 | 回答済みQ13のsource Fold本体からの意味保存、spread要素の保留cast境界（Q14）、source site抽出・変換選択・保留planの自動生成 |
+| `Yulang.FoldTraversal` | 任意stateの走査protocol、局所契約から全有限prefixのitem型・signed request行・有効state保存、終了を仮定しないprogress、無限yield例、rigid roleの一意辞書planと供給driverの一致、純粋cursorと既存forの一歩の対応 | source高階Fold.fold本体からのprotocol生成・意味保存、供給method tableの検証、sourceの型/effect一般化 |
+| `Yulang.FoldListSpread` | source評価と辞書走査の順序付け、各partのitem型とsource/走査行のunion、局所契約と独立型判断から全有限prefixの安全性/progress、返る場合の要素型、任意の途中走査で後続source保持、独立有限実行の合成 | 高階source Foldからの意味保存・method table検証、source推論/辞書elaboration、有限list版との一般対応、Q14のcast境界 |
+| `Yulang.NominalListViews` / `NominalListIndex` | 同じlistに対するcursor・index・foldの一致、整数indexの成功と有効区間の同値、無効indexの非再開error要求、既存wrapとの一致 | sourceのFold/Index辞書の選択・署名と本文の対応、source名/宣言identityから解決済みerror familyへのelaboration |
 | `Yulang.NominalListIndexError` | Q12の解決済みInt/Empty宣言・Cases・Encoding、任意Intの成功区間、全無効原因で同一operation/原index payload、abortiveなbind、wrap/catchとの完全等式と残余行上界 | source名と宣言identityの解決、source Index辞書・本文へのelaboration、統一推論器への行の組込み |
 | `Yulang.NominalDataConstructionExamples` | 解決済みnominal構築式、任意整数から計算するstruct/enum/list payloadの型付けと実評価・全訪問列 | 宣言のlookup・型引数・payload宣言型の検査、source constructor default・castの挿入 |
 | `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、source patternから束縛付きarm表への翻訳、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |

@@ -302,3 +302,4 @@ import Yulang.NominalListSpreadExamples
 import Yulang.NominalListIndexError
 
 import Yulang.FoldTraversal
+import Yulang.FoldListSpread
