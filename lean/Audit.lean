@@ -2028,3 +2028,31 @@ run_cmd do
 #print axioms Yulang.ProducerRankedArrowInversion.arrow_output_row_inversion
 #print axioms Yulang.ProducerRankedArrowInversion.arrow_negative_argument_inversion
 #print axioms Yulang.ProducerRankedArrowInversion.arrow_negative_argument_iff
+
+-- Frozen SCC selection and dependency-local module rebuilding.
+#print axioms Yulang.MethodResolutionLocality.resolve_local
+#print axioms Yulang.MethodResolutionLocality.freeze_local
+#print axioms Yulang.MethodResolutionLocality.finalize_local
+#print axioms Yulang.MethodResolutionLocality.run_apply
+#print axioms Yulang.MethodResolutionLocality.run_same_sites
+#print axioms Yulang.MethodResolutionLocality.run_permutation
+#print axioms Yulang.MethodResolutionLocality.run_append
+#print axioms Yulang.MethodResolutionLocality.runSCCs_flatMap
+#print axioms Yulang.MethodResolutionLocality.runSCCs_apply
+#print axioms Yulang.MethodResolutionLocality.scc_order_independent
+#print axioms Yulang.MethodResolutionLocality.scc_permutation
+#print axioms Yulang.MethodResolutionLocality.resolved_site_exact
+#print axioms Yulang.MethodResolutionLocality.unprocessed_site_unchanged
+#print axioms Yulang.MethodResolutionLocality.scc_input_locality
+#print axioms Yulang.ModuleIncremental.affected_iff
+#print axioms Yulang.ModuleIncremental.dirty_exact
+#print axioms Yulang.ModuleIncremental.clean_build_equal
+#print axioms Yulang.ModuleIncremental.rebuild_exact
+#print axioms Yulang.ModuleIncremental.rebuild_valid_cache
+#print axioms Yulang.ModuleIncremental.rebuild_trace
+#print axioms Yulang.ModuleIncremental.rebuild_calls_le
+#print axioms Yulang.ModuleIncremental.rebuild_called_iff
+#print axioms Yulang.ModuleIncremental.clean_build_changed_graph
+#print axioms Yulang.ModuleIncremental.rebuild_changed_graph_exact
+#print axioms Yulang.ModuleIncremental.rebuild_normal_forms
+#print axioms Yulang.ModuleIncremental.module_cache_sound

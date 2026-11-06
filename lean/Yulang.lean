@@ -360,3 +360,5 @@ import Yulang.PresenceConstructorDefaultBoundary
 import Yulang.PresenceProducerDataBoundary
 import Yulang.ProducerDemandExpressiveness
 import Yulang.ProducerRankedArrowInversion
+import Yulang.MethodResolutionLocality
+import Yulang.ModuleIncremental

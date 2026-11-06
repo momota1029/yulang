@@ -50,9 +50,11 @@ literal の内容・presence・nominal の planner 結果を一つの値型 carr
 決定46・47の要求順序の候補を `ProducerRanked` / `ProducerRankedRegular` に実装した。
 `ProducerDemand.Demand` は union を持たず、intersection、rigid な pair/field/tag、型変数、
 mask、関数の引数・返り値・両行の要求を持つ。変数の割当ては任意の有限観測列である。
-この変数解釈では `int | str` と `any` も同値になるため、決定46がこの解釈まで確定したとは扱わない。
-変数の意味の選択を [Q5](../notes/questions/2026-11-07-demand-model-contracts.md) に分け、以下の定理は
-この明示した具体的な要求文法・解釈に対する結果とする。arrow-domain probe の `Negative` は閉じた型で、
+この変数解釈では `int | str` と `any` も同値になる。
+[Q5 の回答](../notes/questions/2026-11-07-demand-model-contracts.md) は両者を区別し、
+要求変数を有限 rigid 観測に制限せず role 制約も観測するため、これは最終モデルの候補から外れる。
+以下の既存定理はこの明示した具体的な要求文法・解釈に対する結果として保持する。
+arrow-domain probe の `Negative` は閉じた型で、
 その内部には変数/mask を持たず、任意の引数を分離できることは未証明である。
 `ProducerLe S T` は全要求環境・全要求で `T` の受理から `S` の受理が従う関係で、
 関数の負位置を観測する全有限 rank も量化する。regular 版はさらに全展開深さを量化する。
@@ -334,7 +336,7 @@ field を追加しても所属が変わらないためであり、全観測深�
 という閉要求による分離補題が未証明である。必要な行の法則を明示してこの主張を示すか、
 成り立たない場合は要求文法を拡張する必要がある。`S` 自体が `Negative` の埋込みなら
 自身を要求に使えるため、上記の限定された arrow inversion はこの一般分離を仮定せず成立する。
-Q5 の変数解釈、exact/absence/default の具体的 acceptance と合同性、関数値を含む whole-image への橋も
+回答済み Q5 を実装する変数・role 解釈、exact/absence/default の具体的 acceptance と合同性、関数値を含む whole-image への橋も
 未完であり、現在の parameterized `Model` だけを埋めて完了とはしない。
 
 旧 `Layer.record` の tail は有限 layer、open-record graph の tail は node 参照であり、
@@ -343,6 +345,24 @@ presence の data 述語包含との同値はない。これらを既存 data �
 exact/presence/default と関数/行を含む具体的な共通モデル、open-tail・負位置・行を含む範囲への解構成と retraction の拡張は
 新たな数学的義務として残し、統一入口の公開を止めた。
 既存 `collect_instances_exact` の変更、既存 theorem・test expectation の変更、仕様の仮決定は行っていない。
+
+### SCC 局所性と module cache・増分更新
+
+以下は実際の selection 関数と、独立した逐次 module build の証明である。
+内部表現の選択と未接続の境界は [設計メモ](../notes/design/2026-11-07-m1-solver-and-locality.md) に記録する。
+
+| 定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `MethodResolutionLocality.resolve_local` / `freeze_local` / `finalize_local` | 任意の二つの SCC 確定 snapshot で、問合せ中の名前が同じで、未知 receiver ならその名前の可視候補集合、既知 receiver なら field の有無と不在時の typed fallback が同じなら、実際の解決・凍結・elaboration 結果が等しい | SCC の receiver 知識を solver が確定する過程、全 source の elaboration |
+| `MethodResolutionLocality.scc_order_independent` / `scc_input_locality` / `resolved_site_exact` | 任意の確定 snapshot 表・SCC ごとの site 列・初期回答表で、同じ SCC 集合を処理する任意の順序は全 site の回答を一致させる。処理外の snapshot は自由に変更でき、処理した一意解は既存の独立 `Selects` と同値 | 未確定 snapshot を処理してよいこと。重複は無害だが、上流の constraint 求解の再走査を不要とする主張ではない |
+| `ModuleIncremental.dirty_exact` / `rebuild_called_iff` / `rebuild_calls_le` | 任意の有限 topological dependency 表と変更フラグで、計算した dirty 集合は独立な有限依存経路での影響範囲と同じ。実際の rebuild 分岐はその範囲だけ compile を呼び、呼出し数は module/SCC 数 `n` 以下 | dependency graph の抽出・SCC 発見、各 compile 内部のコスト、dirty 判定の総実行時間 |
+| `ModuleIncremental.rebuild_exact` / `rebuild_valid_cache` / `rebuild_changed_graph_exact` | 任意の pure compile 関数・新旧 source/key・新旧 dependency 表・変更フラグについて、変更なしとした node の key と依存列が同じなら、正しい旧 cache を使った増分 build の全結果は新しい全体 build と等しい。import の変更も対象で、エラーを含む任意の結果型を量化 | 不完全な key での cache 再利用、node identity/topological 番号の対応付け、実 Yulang module compiler への接続 |
+| `ModuleIncremental.module_cache_sound` / `rebuild_normal_forms` | pure compile に渡す source/key と依存 interface 列が等しければ同じ artifact になる。上記の増分一致は任意の決定的な表示・正規化関数の後も保たれる | interface の意味的同値 ⇔ 同じ標準形、完全な標準化関数の構成 |
+
+`EOFNoDefaulting.accepted_export_independent` は同じ型情報・割当ての下で、**両方の EOF 検査が成功した場合**の
+公開型の一致である。後続 impl による曖昧化まで無条件に cache から省略できることを意味しない。
+依存 interface/key は公開型に加えて residual qualifier、可視 impl と辞書依存、nominal/effect identity、
+設定と規格化の version を含める。意味的同値を完全に決める全言語の標準形は依然として未証明である。
 
 ## Case の照合・順序・presence
 
