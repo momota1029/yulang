@@ -1577,3 +1577,11 @@ run_cmd do
 #print axioms Yulang.FoldListSpreadRoles.spread_typing
 #print axioms Yulang.FoldListSpreadRoles.spread_role_constraint
 #print axioms Yulang.FoldListSpreadRoles.engine_uses_selected_dictionary
+
+#print axioms Yulang.FoldListSpreadDivergence.perpetual_observe
+#print axioms Yulang.FoldListSpreadDivergence.perpetual_safe
+#print axioms Yulang.FoldListSpreadDivergence.no_later_source_or_return
+#print axioms Yulang.FoldListSpreadDivergence.Examples.literal_typed
+#print axioms Yulang.FoldListSpreadDivergence.Examples.reaches_repeat
+#print axioms Yulang.FoldListSpreadDivergence.Examples.repeat_stage_never_returns
+#print axioms Yulang.FoldListSpreadDivergence.Examples.repeat_stage_safe

@@ -1915,6 +1915,24 @@ SourceLayerには開始点適合性・一歩の安全性・全response継続の�
 source methodから型付きRegistryを作ることと意味保存、既存evidenceを含む全辞書elaboration、
 source `for_in` と同じ高階実行への接続。任意の高階Foldがcallbackの返却accumulatorを必ず採用する律は仮定しない。
 
+### 10.36.8 非停止の走査と後続sourceの保留
+
+`FoldListSpreadDivergence.no_later_source_or_return` は任意のEngine、辞書、後続part列、
+Fold stateの不変条件、item述語、行述語、初期結果列、初期cursor、有限machine prefixを量化する。
+その辞書の局所 `Safe`、全有効cursorの観測がdoneでないこと、有効な初期cursorを前提に、
+prefixの最後も同じ辞書・同じ後続構文を走査中であり、cursorが有効で、全応答済requestが行内にあり、
+任意のlist結果に対して返却観測にならないことを示す。
+要求が応答されず保留される場合も含み、常に新しい一歩を実行できるとは主張しない。
+
+`Examples.literal_typed` は先行要素・無限repeat・後続要素を含む非空の解決済みliteral
+`[3, ..repeat 7, 11]` を、3/7/11の型unionと空のeffect行で独立に型付けする。
+`reaches_repeat` は先行3を評価してrepeat段階へ入る有限prefixを構成する。
+`repeat_stage_never_returns` はその段階から任意の有限prefixについて後続11を保持し、返却しないことを示し、
+`repeat_stage_safe` は同じprefixが一般の型/effect安全性定理の範囲にも含まれることを示す。
+
+**残る義務:** source高階Fold本体からprotocolへの意味保存。任意sourceの非停止を判定する算法は追加せず、
+この例や局所noEnd条件を全sourceの停止性定理・非停止判定へ広げない。
+
 ## 10.37 Presence型と有限legacy data推論の橋
 
 `PresenceLegacyBridge.translate` は有限な `StructuralBase.Ty Row` をhidden label列とともに

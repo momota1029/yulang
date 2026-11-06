@@ -249,6 +249,11 @@ slot・container型を持つsourceから、slotのitem型とsource行/選択body
 `engine_uses_selected_dictionary` は同じgoalの任意の独立なDictionaryについて、driverと宣言行が一致することを示す。
 registry内のbodyは開始stateと局所 `Safe` の契約を持ち、role受理だけからmethodの意味を仮定していない。
 Fold goalのsource encoding、source methodからのregistry生成、実際の `for_in` との意味保存は残る。
+`FoldListSpreadDivergence.no_later_source_or_return` は任意の辞書・後続構文・有効state不変条件について、
+局所 `Safe` と全有効stateでdoneにならない条件を前提に、任意の有限machine prefixでも
+同じ辞書と後続構文が走査中に保たれ、どのlist値も返さないことを示す。
+独立に型付けされた `[3, ..repeat 7, 11]` の解決済み例では、repeat段階へ到達した後も
+型安全性を保ち、後続の11を始めず返却しない。停止を型安全性の前提にはしない。
 
 `NominalListViews.index_exact` は任意の有限list・自然数位置・要素について、内部lookupの成功と
 独立な位置判断 `At` を同値にする。`cursor_index` と `fold_records_order` により、
@@ -829,6 +834,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.FoldTraversal` | 任意stateの走査protocol、局所契約から全有限prefixのitem型・signed request行・有効state保存、終了を仮定しないprogress、無限yield例、rigid roleの一意辞書planと供給driverの一致、純粋cursorと既存forの一歩の対応 | source高階Fold.fold本体からのprotocol生成・意味保存、供給method tableの検証、sourceの型/effect一般化 |
 | `Yulang.FoldListSpread` / `FoldListSpreadFinite` | source評価と辞書走査の順序付け、各partのitem型とsource/走査行のunion、局所契約と独立型判断から全有限prefixの安全性/progress、返る場合の要素型、任意の途中走査で後続source保持、旧有限Meaningから同じflatten値・抽象signatureへ写した全source traceへの対応 | 高階source Foldからの意味保存・method table検証、source推論/辞書elaboration、観測signatureからsource effectへの翻訳、Q14のcast境界 |
 | `Yulang.FoldListSpreadRoles` | acceptedなrigid container/item slotから実spread型判断へ、型付きregistryの選択bodyによるitem型・source/走査行union、任意の同goal Dictionaryとのdriver/行の一致 | source Fold goal/associated typeのencoding、source methodから型付きregistryへの生成・意味保存、既存evidenceの再利用、source for_inと全推論器への接続 |
+| `Yulang.FoldListSpreadDivergence` | 局所Safe・有効stateでdoneにならない条件から全有限prefixで後続source保持・行保存・非返却、型付き非空literal内の無限repeatと安全性の共存 | 任意のsource Fold本体の非停止判定、source method/protocol対応、停止性を含む全sourceの主張 |
 | `Yulang.NominalListViews` / `NominalListIndex` | 同じlistに対するcursor・index・foldの一致、整数indexの成功と有効区間の同値、無効indexの非再開error要求、既存wrapとの一致 | sourceのFold/Index辞書の選択・署名と本文の対応、source名/宣言identityから解決済みerror familyへのelaboration |
 | `Yulang.NominalListIndexError` | Q12の解決済みInt/Empty宣言・Cases・Encoding、任意Intの成功区間、全無効原因で同一operation/原index payload、abortiveなbind、wrap/catchとの完全等式と残余行上界 | source名と宣言identityの解決、source Index辞書・本文へのelaboration、統一推論器への行の組込み |
 | `Yulang.NominalDataConstructionExamples` | 解決済みnominal構築式、任意整数から計算するstruct/enum/list payloadの型付けと実評価・全訪問列 | 宣言のlookup・型引数・payload宣言型の検査、source constructor default・castの挿入 |
