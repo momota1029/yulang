@@ -282,3 +282,4 @@ import Yulang.PatternBindingChecks
 import Yulang.ScopedCaseTotal
 import Yulang.ScopedCaseDataProgram
 import Yulang.ScopedCaseExamples
+import Yulang.Binary64

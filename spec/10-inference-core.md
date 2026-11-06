@@ -1441,10 +1441,18 @@ float の比較の反射性は仮定しない。float のない具体部分で�
 source の裸 `..` を許す規則ではない。source pattern 側でこれを拒否する。
 
 `DecimalToken` は符号・任意精度仮数・十進指数を保持する syntax data であり、
-`ofDecimal` の float 解釈は引数である。精度と丸めは Q2 の回答前に決定しない。
+旧 `ofDecimal` の float 解釈は引数である。回答済みQ2・Q3は次の具体値層で反映する。
 旧 `Inference.Base` に float を追加したという主張でもない。
 
-**残る義務:** float の具体解釈と比較、数値演算、lexer/文字列 escape とこの値の対応、
+`Binary64.Value` は符号1bit・指数11bit・仮数52bitを持つ。
+`ofWord_toWord` と `toWord_ofWord` は任意の値および64bit wordについてcodecの逆写像性を示す。
+有限値の意味は `2^-1074` 単位の符号付き整数、無限大は符号付きの別構成子、NaNには数値の意味を与えない。
+`eqCheck_exact` は任意の二値の数値比較成功を、この意味を共有することと同値にする。
+任意のzeroの符号について `signed_zeros_match`、任意のNaNと相手について
+`nan_never_matches_left/right`、任意の値について `reflexive_iff_not_nan` を示す。
+`LiteralValues.binary64MatchCheck_exact` はこのEqを具体literal比較へ接続する。
+
+**残る義務:** 小数tokenの最近接・偶数丸め、数値演算、lexer/文字列 escape とこの値の対応、
 source AST・全型推論器への literal 内容の接続。旧 marker の定理を変更していない。
 
 ## 10.35 Case の照合と独立な束縛型判断

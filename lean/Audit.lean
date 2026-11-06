@@ -1338,3 +1338,21 @@ run_cmd do
 #print axioms Yulang.ScopedCaseExamples.failed_branch_does_not_leak
 #print axioms Yulang.ScopedCaseExamples.preceding_miss_skips_default
 #print axioms Yulang.ScopedCaseExamples.false_guard_moves_to_next_arm
+
+#print axioms Yulang.Binary64.ofWord_toWord
+#print axioms Yulang.Binary64.toWord_ofWord
+#print axioms Yulang.Binary64.toWord_injective
+#print axioms Yulang.Binary64.eqCheck_exact
+#print axioms Yulang.Binary64.number_none_iff
+#print axioms Yulang.Binary64.nan_never_matches_left
+#print axioms Yulang.Binary64.nan_never_matches_right
+#print axioms Yulang.Binary64.reflexive_iff_not_nan
+#print axioms Yulang.Binary64.signed_zeros_match
+#print axioms Yulang.Binary64.signed_zeros_distinct
+#print axioms Yulang.Binary64.infinity_matches_iff
+#print axioms Yulang.Binary64.nan_not_reflexive
+#print axioms Yulang.Binary64.eqCheck_symmetric
+#print axioms Yulang.Binary64.finite_number
+#print axioms Yulang.LiteralValues.binary64MatchCheck_exact
+#print axioms Yulang.LiteralValues.binary64_signed_zero_pattern
+#print axioms Yulang.LiteralValues.binary64_nan_pattern_rejected

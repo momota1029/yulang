@@ -1,10 +1,11 @@
 import Yulang.Types
 
 /-!
-# Literal payloads without a floating-point policy hidden in the kernel
+# Literal payloads and parameterized pattern comparison
 
-Spec §3.1 fixes arbitrary-precision integers and classifies decimal tokens as
-`float`; it does not yet fix float precision, rounding or pattern equality.
+Spec §3.1 fixes arbitrary-precision integers and IEEE binary64 decimal values;
+§3b.1 fixes numeric float equality. `Binary64` provides that concrete model.
+This generic layer also remains useful for the existing float-free proofs.
 Integers below use `Int`, strings use decoded `String`, and booleans and unit
 retain their values. `FloatValue` is an explicit parameter. The executable
 pattern comparison has a supplied float comparator with a separately stated
@@ -67,7 +68,7 @@ def ofDecimal (interpret : DecimalToken → FloatValue) (token : DecimalToken) :
 @[simp] theorem ofDecimal_kind (interpret : DecimalToken → FloatValue)
     (token : DecimalToken) : (ofDecimal interpret token).kind = .float := rfl
 
-/-- Equality of stored payloads, not an unchosen language float comparison. -/
+/-- Equality of stored payloads, separate from the language float comparison. -/
 def eqCheck [DecidableEq FloatValue] (left right : Literal FloatValue) : Bool :=
   decide (left = right)
 

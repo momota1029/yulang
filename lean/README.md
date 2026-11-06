@@ -124,7 +124,15 @@ literal の `matchCheck_exact` は、任意の float 比較関数とその独立
 `FloatValue = Empty` の整数・文字列・bool・unit では通常の値の等号に一致する。
 
 小数 token は符号・任意精度仮数・十進指数を保持する `DecimalToken` とし、
-`ofDecimal` に解釈関数を明示して渡す。float の精度・丸めは Q2 に残す。
+旧 `ofDecimal` は解釈関数を明示して渡す入口として残す。
+回答済みQ2・Q3の具体値は `Binary64.Value` とし、符号1bit・指数11bit・仮数52bitを保存する。
+`ofWord_toWord` と `toWord_ofWord` は任意の値と64bit wordの相互変換を示す。
+有限値は最小subnormalの単位 `2^-1074` による符号付き整数として厳密に解釈し、
+数値比較 `eqCheck_exact` をこの独立な意味と一致させる。
+`signed_zeros_match` は正負のzeroが合うこと、`nan_never_matches_left/right` は
+任意の相手についてNaNが合わないことを示す。保存値の等号とは区別する。
+`LiteralValues.binary64MatchCheck_exact` はこの比較を内容つきliteralの独立判断に接続する。
+小数tokenからの最近接・偶数丸めは別の変換層で扱う。
 既存 `Inference.Base` に float はなく、`legacyBase` は float に `none` を返す。
 旧 base-marker 評価器を具体 literal 評価器へ黙って置き換えていない。
 字句解析・escape の正しさ、数値演算、source への翻訳はこの定理群の対象外である。
