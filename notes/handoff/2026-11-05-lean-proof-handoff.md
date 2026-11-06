@@ -148,6 +148,9 @@
 40. **隠れた field は、型の上でも無かったことになる**(`spec/04-types.md` 4.3、2026-11-06)。first-field-wins で隠れた同名 field は値にも残らないので、`{x:int, x:str, ..R}` と `{x:int, ..R}` は同じ型。rigid な tail でも、推論された未知 tail(union など)でも同じ。10.28.3 の確認事項(「nonrigid な推論 tail に隠れた同名 field にも型等価としての消去を適用するか」)への回答。
     ChatGPT への指示: (1) モデルの合同関係に、隠れた同名 field の消去 `record(l,A,record(l,B,R)) ≡ record(l,A,R)` を足す。tail が rigid でない場合も含む。(2) 10.28.3 の `opaque_comparison_iff` と `source_has_incomparable_instances` が、この等式の下で「二つの instance が等価」に変わることを示す(旧関係の定理は歴史として保持し、書き換えて消さない)。(3) checker・cut elimination・商の等号判定を、この等式を含む関係で再証明する。(4) `RecordFree` の制限を外し、opaque な tail を含む全 core 式まで、自由 parameter scheme・全 instance 主型性・拒否完全性を閉じる。
 
+41. **引けない effect の arm を handler に書くとエラー**(`spec/05-effects.md` 5.5、`spec/traps.md` T2、2026-11-06)。許可のマスクに含まれない effect の arm は静的に報告する。引ける arm は普通に動く。
+    証明してほしい主張: (a) 許可のマスクに effect key が含まれないとき、その key を扱う arm は決して実行されないこと(`Directed` の「重みが 0 でなければ捕まらない」と、マスクが重みを +1 する定義から)。(b) 逆に、マスクに含まれ、かつ重みが 0 の出現は、対応する arm に必ず捕まること。(c) 静的な検査(マスクに key が無ければエラー)が、(a) と正確に対応すること。
+
 ## Lean に入ったもの(commit 順)
 | commit | 内容 |
 | --- | --- |

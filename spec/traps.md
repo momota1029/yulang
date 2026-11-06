@@ -68,7 +68,16 @@
 - `undet` 以外の effect を渡してもよい。`var 'b` を持つ関数を渡すと `'c = var 'b` になる。
   ただし `f` の中で `var 'b` を引こうとしても**引けず**、handler に捕まらず素通りして、
   型変数 `'c` として結果の型に現れる。
-- 要確認: 上の `catch` の例の正確な構文と、引けないときに handler の他の分岐がどうなるか。実行して確かめる。
+- （確定, 2026-11-06）引けない effect の arm を handler に書くと、**エラー**になる。引けるかどうかは注釈（許可のマスク）だけで静的に決まる。注釈に無い effect の arm は決して実行されないので、「この handler は `io` を引けない（`a` の注釈に `io` が無い）」と報告する。引ける arm は、他の arm のエラーにかかわらず、普通に動く（捕まえる）。
+
+  ```yulang
+  my f(a: [console] _) =
+      catch a:
+          console::print s, k -> ...        // 引ける
+          io::write x, k -> ...             // エラー: io は a の注釈に無く、引けない
+  ```
+
+- 要確認: 上の `catch` の例の正確な構文。実行して確かめる。
 - 関連: 章5 effect と handler、`main:spec/2026-05-31-effect-variable-subtractable.md`、`main:notes/design/handler-row-subtraction.md`
 
 ### T3. 共変位置の effect 注釈は「今は具体的な型が見えない」を許す
