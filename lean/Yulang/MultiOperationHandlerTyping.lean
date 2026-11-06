@@ -1,11 +1,14 @@
 import Yulang.MultiOperationHandlers
+import Yulang.MultiOperationPayloadHandlers
 import Yulang.StrictApplication
 
 /-!
 # A resolved expression kernel with multi-operation shallow handlers
 
-Each handler has a finite table of distinct operation identities, a body for
-each operation and exactly one value arm. Its operation bodies receive the
+Total handlers have a finite table of distinct operation identities. Partial
+handlers have an ordered table of resolved payload tests, may repeat a key,
+and subtract only keys with an unguarded irrefutable arm (Q1). Both have a
+body for each table entry and exactly one value arm. Operation bodies receive the
 payload and original continuation through the same de Bruijn environment as
 `OperationalTyping`; the continuation keeps the entire input row. The typing
 judgement is defined independently of both evaluation and semantic bounds.
@@ -78,6 +81,49 @@ theorem handle_valid [DecidableEq Key] (operations : Operations Key count)
         left
         simpa [residual, captured] using inputValid.1.1
 
+/-- Partial payload dispatch removes only certified total keys. In particular,
+the missed request belongs to the residual even though its key has an arm. -/
+theorem partial_handle_valid [DecidableEq Key]
+    (arms : Fin count → MultiOperationPayloadHandlers.Arm Key Atom)
+    (input : CTy n Key a) (output : VTy n Key b)
+    (returnRow : Row n Key) (operationRows : Fin count → Row n Key)
+    (onReturn : Value n Key Atom a → Tree n Key Atom b)
+    (onArm : Fin count → Atom → (Atom → Tree n Key Atom a) → Tree n Key Atom b)
+    (returnValid : ∀ value, ValidValue input.value value →
+      Valid (⟨output, returnRow⟩ : CTy n Key b) (onReturn value))
+    (armValid : ∀ index payload resume,
+      (∀ response, Valid input (resume response)) →
+      Valid (⟨output, operationRows index⟩ : CTy n Key b) (onArm index payload resume))
+    (action : Tree n Key Atom a) (inputValid : Valid input action) :
+    Valid (⟨output, residual (MultiOperationPayloadHandlers.removedKeys arms) input.row ++
+        (returnRow ++ collectRows operationRows)⟩ : CTy n Key b)
+      (MultiOperationPayloadHandlers.handle arms onReturn onArm action) := by
+  induction action with
+  | pure value =>
+      exact valid_mono_values (left := ⟨output, returnRow⟩)
+        (right := ⟨output, residual (MultiOperationPayloadHandlers.removedKeys arms) input.row ++
+          (returnRow ++ collectRows operationRows)⟩) (fun _ good => good)
+        (fun _ member => List.mem_append.mpr (Or.inr (List.mem_append.mpr (Or.inl member))))
+        (returnValid value inputValid.2)
+  | request occurrence payload resume ih =>
+      have resumeValid (response : Atom) : Valid input (resume response) :=
+        ⟨inputValid.1.2 response, inputValid.2 response⟩
+      cases selected : MultiOperationPayloadHandlers.select arms occurrence payload with
+      | some index =>
+          simp only [MultiOperationPayloadHandlers.handle, selected]
+          exact valid_mono_values (left := ⟨output, operationRows index⟩)
+            (right := ⟨output, residual (MultiOperationPayloadHandlers.removedKeys arms) input.row ++
+              (returnRow ++ collectRows operationRows)⟩) (fun _ good => good)
+            (fun occurrence member => List.mem_append.mpr (Or.inr (List.mem_append.mpr
+              (Or.inr ((mem_collectRows operationRows occurrence).mpr ⟨index, member⟩)))))
+            (armValid index payload resume resumeValid)
+      | none =>
+          simp only [MultiOperationPayloadHandlers.handle, selected]
+          refine ⟨⟨?_, fun response => (ih response (resumeValid response)).1⟩,
+            fun response => (ih response (resumeValid response)).2⟩
+          exact List.mem_append.mpr (Or.inl
+            (MultiOperationPayloadHandlers.missed_retained arms input.row occurrence payload inputValid.1.1 selected))
+
 inductive Expr (n : Nat) (Key Atom : Type) : List Shape → Shape → Type where
   | core : OperationalTyping.Expr n Key Atom Γ s → Expr n Key Atom Γ s
   | lam : CTy n Key a → Expr n Key Atom (a :: Γ) b → Expr n Key Atom Γ (.arrow a b)
@@ -90,6 +136,9 @@ inductive Expr (n : Nat) (Key Atom : Type) : List Shape → Shape → Type where
   | boundary : Boundary n Key → Expr n Key Atom Γ s → Expr n Key Atom Γ s
   | handler {count : Nat} : Operations Key count → VTy n Key b → Expr n Key Atom Γ a →
       Expr n Key Atom (a :: Γ) b →
+      (Fin count → Expr n Key Atom (.atom :: .arrow .atom a :: Γ) b) → Expr n Key Atom Γ b
+  | partialHandler {count : Nat} : (Fin count → MultiOperationPayloadHandlers.Arm Key Atom) →
+      VTy n Key b → Expr n Key Atom Γ a → Expr n Key Atom (a :: Γ) b →
       (Fin count → Expr n Key Atom (.atom :: .arrow .atom a :: Γ) b) → Expr n Key Atom Γ b
   | widen : CTy n Key s → Expr n Key Atom Γ s → Expr n Key Atom Γ s
 
@@ -117,6 +166,14 @@ def eval [DecidableEq Key] (runtime : Env (Tree n Key Atom) Γ) :
           eval (Env.cons (s := .atom) (.pure payload)
             (Env.cons (s := .arrow .atom _) (.pure (fun argument => argument.bind resume)) runtime))
             (onOperation index))
+        (eval runtime action)
+  | .partialHandler arms _ action onReturn onArm =>
+      MultiOperationPayloadHandlers.handle arms
+        (fun value => eval (Env.cons (.pure value) runtime) onReturn)
+        (fun index payload resume =>
+          eval (Env.cons (s := .atom) (.pure payload)
+            (Env.cons (s := .arrow .atom _) (.pure (fun argument => argument.bind resume)) runtime))
+            (onArm index))
         (eval runtime action)
   | .widen _ body => eval runtime body
 
@@ -151,6 +208,16 @@ inductive Typing [DecidableEq Key] : {Γ : List Shape} →
       VLe returned.value target → (∀ index, VLe (operated index).value target) →
       Typing types (.handler operations target action onReturn onOperation)
         ⟨target, residual operations.keys input.row ++
+          (returned.row ++ collectRows (fun index => (operated index).row))⟩
+  | partialHandler {count : Nat} {arms : Fin count → MultiOperationPayloadHandlers.Arm Key Atom}
+      {onArm : Fin count → Expr n Key Atom (.atom :: .arrow .atom a :: Γ) b}
+      {operated : Fin count → CTy n Key b} :
+      Typing types action input →
+      Typing (Env.cons (CTy.pure input.value) types) onReturn returned →
+      (∀ index, Typing (operationTypes types input) (onArm index) (operated index)) →
+      VLe returned.value target → (∀ index, VLe (operated index).value target) →
+      Typing types (.partialHandler arms target action onReturn onArm)
+        ⟨target, residual (MultiOperationPayloadHandlers.removedKeys arms) input.row ++
           (returned.row ++ collectRows (fun index => (operated index).row))⟩
   | widen : Typing types body input → CLe input target →
       Typing types (.widen target body) target
@@ -196,6 +263,19 @@ theorem typing_evaluates [DecidableEq Key] {types : Env (CTy n Key) Γ}
   | handler actionTyped returnTyped operationTyped returnSubtype operationSubtype iha ihr iho =>
       intro runtime good
       apply handle_valid
+      · intro value valueValid
+        exact valid_mono_values (fun v hv => value_subtype_sound _ _ returnSubtype v hv)
+          (SignedStructural.row_refl _) (ihr _ (good.cons (valid_pure _ _ valueValid)))
+      · intro index payload resume resumeGood
+        have continuation := valid_pure _ _ (valid_resumption _ resume resumeGood)
+        have payloadGood := valid_pure (.atom : VTy n Key .atom) payload trivial
+        exact valid_mono_values (fun v hv => value_subtype_sound _ _ (operationSubtype index) v hv)
+          (SignedStructural.row_refl _)
+          (iho index _ (EnvValid.cons (EnvValid.cons good continuation) payloadGood))
+      · exact iha runtime good
+  | partialHandler actionTyped returnTyped operationTyped returnSubtype operationSubtype iha ihr iho =>
+      intro runtime good
+      apply partial_handle_valid
       · intro value valueValid
         exact valid_mono_values (fun v hv => value_subtype_sound _ _ returnSubtype v hv)
           (SignedStructural.row_refl _) (ihr _ (good.cons (valid_pure _ _ valueValid)))

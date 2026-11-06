@@ -1367,7 +1367,7 @@ operation 0 を捕まえて元の継続を再開すると、一つの二operatio
 同じbody/value armのsingleton handlerを入れ子にすると、外側が1を捕まえて99を返す。
 operationごとの入れ子化を一般の翻訳として採用できない。
 
-**残る義務:** source の operation 名解決と同一operationのpayload-pattern armの編成、
+**残る義務:** source の operation 名解決と解決済みpayload arm表への翻訳、
 payload-patternの実際の照合と束縛（Q1の規則は回答済みで10.33.2に接続）、
 operation-local多相・個別payload/response署名との接続、sourceからpermission maskを発見するelaboration。
 このcheckerはshape解決済み・lambda入力型/handler目標型を持つ単相核のcheckerであり、
@@ -1411,9 +1411,23 @@ boolの両値を別々のrefutable armが覆う場合でも、caseのQ8と異な
 `checkedIncoming_success_iff` は全armの許可と実行結果を成功の必要十分条件にする。
 payloadが合わないarmも決定41の静的許可検査から除外しない。
 
+`MultiOperationHandlerTyping.Expr.partialHandler` はこの実行器を既存の構文核に加える。
+独立な型判断の行は、action行から `removedKeys` だけを引いた残余と、
+value body・全operation bodyの行との和である。既存の `infer_exact` は任意の型環境・
+この構文を含む式・出力型についてchecker成功と型判断を同値にし、`typing_evaluates` は
+型判断と整合する任意の実行環境から評価の `Valid` を導く。armやactionの実行時上界は仮定しない。
+旧表を反駁不能armへ移した場合、`eval_total_as_partial`、`infer_total_as_partial`、
+`typing_total_as_partial` が完全な実行等号・checker等号・型判断の同値を示す。
+
+`MultiOperationPayloadInference` は同じ構文に明示incoming maskを与える。
+その `infer_exact` は全armの許可を含む独立な型判断とcheckerを一致させる。
+`denied_arm_rejected` は任意の不許可armから拒否を導き、
+`inferred_operationally_valid` はchecker成功と環境整合だけから実行安全性を示す。
+`closed_empty_row_returns` は空環境で空の出力行を得た任意のhandlerが型に合う値へ返ることを示す。
+
 **残る義務:** sourceのpayload pattern・束縛のelaboration、effectful default/guard、
 operationごとの個別署名とoperation-local多相、fresh境界の全構文移送。
-この節のruntime定理だけではsource全体の主型推論や実行安全性を主張しない。
+この核はshape・payloadテスト・目標型が解決済みの単相checkerであり、source全体の主型推論や安全性ではない。
 
 ## 10.34 Literal の内容と独立な比較判断
 

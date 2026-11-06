@@ -103,6 +103,15 @@ def infer [DecidableEq Key] (types : Env (CTy n Key) Γ) :
         return ⟨target, residual operations.keys input.row ++
           (returned.row ++ collectRows (fun index => (operated index).row))⟩
       else none
+  | .partialHandler (count := count) arms target action onReturn onArm => do
+      let input ← infer types action
+      let returned ← infer (Env.cons (CTy.pure input.value) types) onReturn
+      let operated ← collectOptions (fun index => infer (operationTypes types input) (onArm index))
+      if checkV returned.value target &&
+          (List.finRange count).all (fun index => checkV (operated index).value target) then
+        return ⟨target, residual (MultiOperationPayloadHandlers.removedKeys arms) input.row ++
+          (returned.row ++ collectRows (fun index => (operated index).row))⟩
+      else none
   | .widen target body => do
       let input ← infer types body
       if checkC input target then return target else none
@@ -122,6 +131,10 @@ theorem infer_complete [DecidableEq Key] {types : Env (CTy n Key) Γ}
   | request _ ih => simp [infer, ih]
   | boundary _ ih => simp [infer, ih]
   | handler _ _ _ returned operated iha ihr iho =>
+      have allArms := collectOptions_complete _ _ iho
+      have checks : ∀ index, checkV _ _ = true := fun index => (checkV_exact _ _).mpr (operated index)
+      simp [infer, iha, ihr, allArms, (checkV_exact _ _).mpr returned, checks]
+  | partialHandler _ _ _ returned operated iha ihr iho =>
       have allArms := collectOptions_complete _ _ iho
       have checks : ∀ index, checkV _ _ = true := fun index => (checkV_exact _ _).mpr (operated index)
       simp [infer, iha, ihr, allArms, (checkV_exact _ _).mpr returned, checks]
@@ -241,6 +254,32 @@ theorem infer_sound [DecidableEq Key] (expression : Expr n Key Atom Γ s)
                           ∀ index, checkV (operated index).value target = true := by
                         simpa only [Bool.and_eq_true, List.all_eq_true, List.mem_finRange, forall_const] using compatible
                       exact .handler (iha _ _ ha) (ihr _ _ hr)
+                        (fun index => iho index _ _ (collectOptions_sound _ _ ho index))
+                        ((checkV_exact _ _).mp both.1)
+                        (fun index => (checkV_exact _ _).mp (both.2 index))
+  | partialHandler arms target action onReturn onArm iha ihr iho =>
+      cases ha : infer types action with
+      | none => simp [infer, ha] at accepted
+      | some input =>
+          cases hr : infer (Env.cons (CTy.pure input.value) types) onReturn with
+          | none => simp [infer, ha, hr] at accepted
+          | some returned =>
+              cases ho : collectOptions (fun index => infer (operationTypes types input) (onArm index)) with
+              | none => simp [infer, ha, hr, ho] at accepted
+              | some operated =>
+                  cases compatible : checkV returned.value target &&
+                      (List.finRange _).all (fun index => checkV (operated index).value target) with
+                  | false => simp [infer, ha, hr, ho, compatible] at accepted
+                  | true =>
+                      have equal : (⟨target, residual (MultiOperationPayloadHandlers.removedKeys arms) input.row ++
+                          (returned.row ++ collectRows (fun index => (operated index).row))⟩ : CTy n Key _) =
+                            output := by
+                        simpa [infer, ha, hr, ho, compatible] using accepted
+                      cases equal
+                      have both : checkV returned.value target = true ∧
+                          ∀ index, checkV (operated index).value target = true := by
+                        simpa only [Bool.and_eq_true, List.all_eq_true, List.mem_finRange, forall_const] using compatible
+                      exact .partialHandler (iha _ _ ha) (ihr _ _ hr)
                         (fun index => iho index _ _ (collectOptions_sound _ _ ho index))
                         ((checkV_exact _ _).mp both.1)
                         (fun index => (checkV_exact _ _).mp (both.2 index))

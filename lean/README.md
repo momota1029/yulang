@@ -157,6 +157,15 @@ guardなしの反駁不能armがあるものだけとする。`missed_retained` 
 許可maskは全armのkeyへ検査する。純粋payloadテストと純粋guardの解決済み層であり、
 effectfulなpattern default/guard・source束縛のelaborationは示さない。
 
+`Expr.partialHandler` はこのdispatchを既存の構文核へ接続する。
+出力行は `residual removedKeys action.row` にvalue bodyと全operation bodyの行を加えたものとなる。
+`MultiOperationHandlerTyping.infer_exact` と `typing_evaluates` は入れ子のpartial handlerも含む
+同じ量化された主張を保つ。`eval_total_as_partial`、`infer_total_as_partial`、
+`typing_total_as_partial` は旧全域表との実行・checker・型判断の一致を示す。
+`MultiOperationPayloadInference.infer_exact` は明示incoming maskを全armに検査するwrapperと
+独立な型判断を一致させ、`inferred_operationally_valid` は推論成功と整合する外部環境から
+評価の全response分岐の安全性を導く。不許可keyは到達不能なpayload armでも拒否される。
+
 `MultiOperationHandlerTyping.Expr.handler` は、相異なる解決済み operation key の有限表、
 各 operation body、1つの value body を持つ。ordinary application は左から右へ strict に評価し、
 再開する継続には action の元の行を保つ。`MultiOperationHandlerTyping.infer_exact` は
@@ -188,10 +197,10 @@ singleton handler の入れ子では外側の 1 が残り、同じ arm が 99 �
 従って operation ごとの入れ子化は一般に意味を保存しない。
 
 この核の payload/response は既存の一様な `Atom` carrier である。
-source の名前解決、同じ operation の複数 payload-pattern arm の編成、operation-local 多相署名、
+source の名前解決、payload patternから解決済みarm表と束縛への翻訳、operation-local 多相署名、
 source から mask を求めて checker に渡す elaboration は残る。
-非網羅 payload arm の扱いは [Q1](../notes/questions/2026-11-06-open-questions.md) に記録した。
-表の key 一意性は核の表現条件であり、source の重複 arm を拒否する仕様ではない。
+回答済み [Q1](../notes/questions/2026-11-06-open-questions.md) の残余規則は上のpartial handlerへ反映した。
+旧 `Operations` 表のkey一意性は旧核の表現条件であり、新しいpayload arm表には要求しない。
 
 ## Presenceと旧required-field推論の橋
 

@@ -249,6 +249,8 @@ import Yulang.MultiOperationHandlers
 import Yulang.MultiOperationPayloadHandlers
 import Yulang.MultiOperationHandlerTyping
 import Yulang.MultiOperationHandlerInference
+import Yulang.MultiOperationPayloadInference
+import Yulang.MultiOperationPayloadExamples
 import Yulang.MultiOperationHandlerExamples
 import Yulang.LiteralValues
 import Yulang.LiteralValueExamples
