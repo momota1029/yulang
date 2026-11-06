@@ -13,6 +13,12 @@ import Yulang.CoreConstruction
 import Yulang.CoreLiteral
 import Yulang.CoreSCC
 import Yulang.CorePrincipal
+import Yulang.CoreRequiredDemands
+import Yulang.CoreInferenceSyntax
+import Yulang.CoreSourceInference
+import Yulang.CorePresenceInference
+import Yulang.CorePresenceAlternatives
+import Yulang.CoreInferenceExamples
 import Yulang.VariantsMerged
 import Yulang.Effects
 import Yulang.EffectExamples

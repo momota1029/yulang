@@ -2013,3 +2013,11 @@ regular graphの全有限data観測への橋は10.37.2で与える。
 **残る義務:** このdata投影でarrowはneverとなる。旧structural subtypingの同値、
 closureとeffect行の意味、全深さを一度に判定する算法、presence制約の飽和/coalescing、
 旧/新schemeの全instance対応と統一source入口は未完である。旧support gateと主型定理の量化子は変更しない。
+
+### 10.37.3 M1 の接続状況
+
+有限 required demand の双方向の所属対応、相関を保つ有限 alternative の正規化、
+既存の required/presence 推論器への Core 入口とその正確性は
+[`lean/README.md` の M1 節](../lean/README.md#m1-型モデルの接続部分完了)を参照する。
+二つの入口は別モデルのままであり、presence/open-tail graph の自由 parameter 解構成・retraction・
+solver 完全性と統一入口は未完である。言語規則の追加や旧 `{}` の意味変更はない。

@@ -40,10 +40,73 @@ required-field と presence の carrier・判断は別に保持する（M1 の�
 | `Block.definition_conservative` / `scc_conservative` / `generate_exact` | SCC は式の外。宣言 head と Core body を分離し、任意の旧環境・slot 割当て・宣言列で全 body 検査が同値。実際の同時再帰環境と旧 `generateSCC` の充足にも接続（後者は `EnvRel` 前提）。全注釈の局所値型変数も全称量化 | SCC 発見・求解・closure・一般化の統合、effect/case body の SCC 推論（M3） |
 | `required_principal_exact` / `effects_principal_exact` / `qualified_principal_exact` | 既存の `EnvRel`（effect は `SigRel` も）の下で、任意の結果 computation について旧 principal scheme の充足 ⇔ 対応する Core 型付け | 混合 Core 全体の新しい scheme/solver ではない |
 
-機能の相互作用を扱う統一判断、`Core.infer`、拒否完全性・unsupported の排除は未証明である。
+機能の相互作用を扱う統一判断、`Core.infer`、混合断片の拒否完全性・unsupported の排除は未証明である。
 `cast` は site の構文のみで、統一した挿入/型付け規則は M4 に残す。
 literal の内容・presence・nominal の planner 結果を一つの値型 carrier に統合したとは主張しない。
 `Core.Expr.isValue` は旧 required/effect 判断用の構文検査であり、新構成子の値制限を決めない。
+
+### M1: 型モデルの接続（部分完了）
+
+`CoreRequiredDemands` は有限の required demand が一致する断片を明示する。
+`Required` は optional/lacks を除き、union/intersection・pair・variant・任意の payload 参照を許す。
+`encode_exact` は任意の payload 述語割当て・mask・data 値について、presence demand を
+legacy layer へ戻して再翻訳した意味が元の意味と同値であることを示す。
+`finite_exact` は任意の有限 legacy payload 型割当てについて、独立な
+`DataTypeSemantics.Holds` との保存・反映を与える。
+`translate_required` により全旧 layer の data 投影がこの断片に入り、`required_mask` により
+shadow 操作でも閉じる。旧 `{}` は引き続き全 record の上界であり、exact empty ではない。
+
+`CorePresenceAlternatives.normalise` は有限 layer を相関を保つ選言標準形へ移す。
+`normalise_exact` は任意の payload 述語・mask・data 値で所属を保存・反映し、
+`mask_exact` は各枝全体への mask 適用を独立意味と一致させる。
+これは presence 述語上の分配であり、旧構造的部分型に分配則を追加しない。
+工程3の有限表現までで、矛盾検出・飽和・regular 解の抽出は示していない。
+
+Core 上で実行する二つの既存入口への接続も追加した。**統一入口ではない。**
+`InferenceSyntax.embed_decode` が入口の構文検査から round trip を保証し、対応外の Core 構文が
+`Required.decode` の既定 literal として推論されることを防ぐ。
+
+| 接続・定理（接頭辞 `Core`） | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `RequiredInference.infer_embed` / `legacy_instances_exact` | 任意の legacy 式で推論結果そのものが旧入口と等しい。全 scheme・全自由 parameter・拒否・unsupported を保存 | presence モデルとの scheme 等価 |
+| `RequiredInference.legacy_inferred_exact` | 任意の旧式・旧入口が返した principal・任意の結果型について、その全 instance と Required Core 型付けが同値。行反対称性を仮定 | 新 presence 規則を含む型付けへの反映 |
+| `RequiredInference.recordFree_principal` / `recordFree_instances_exact` / `recordFree_rejected_iff` / `recordFree_ne_unsupported` | 任意の `RecordFree` Core 式・任意の regular 値型/行結果について、独立型付け ⇔ 実際の返却 scheme の全 parameter instance からの subsumption。拒否 ⇔ 型付けなし、unsupported を排除。行反対称性のみを代数の追加仮定とする | record 構築・default を含む断片の solver 完全性 |
+| `PresenceInference.infer_instances_exact` / `infer_rejected_iff` / `data_ne_unsupported` | 任意の Core 式・任意の data 述語結果について型付け ⇔ 推論した exact Shape の包含。構文的 `Data` で拒否 ⇔ 型付けなし、unsupported を排除 | lambda・branch・regular parameter・effect 行の統合 |
+
+`RequiredInference.RecordFree` は var/lit/lam/app/let/branch/pair/fst/snd/emptyRecord/field/variant を許す。
+`PresenceInference.Data` は var/lit/let/pair/fst/snd/emptyRecord/record/recordDefault/field/variant を許す。
+いずれも let の hint は `none` で、不正な射影・未束縛添字・不正な record 操作も断片に含める。
+型付け可能性・solver 成功・fuel はこれらの構文断片の条件ではない。
+Core の M0 model が `Type` に固定されているため、Required Core 定理の行 carrier も `Row : Type` である。
+
+`CoreInferenceExamples` は実際の Core data 入口で present/absent、shadowed payload の消去、
+採用されない不正 fallback の拒否を計算し、同じ fallback が既存 data runtime で評価されることも示す。
+`unknown_default_principal` / `unknown_default_union` は任意の payload/fallback 述語に対する
+開いた default operator の Core **型判断**であり、未知 base を推論した実行例ではない。
+effectful fallback の推論例、未知 base を持つ lambda の推論例は未完である。
+
+**M1 は未完了。** 関数・行を含む共通 carrier/部分型と presence 制約生成の exactness がないため、
+所属の同値を `SourcePrincipalInference` と presence 推論の全 instance の同値へ読み替えない。
+統合メモ5節の工程3〜5で必要な未証明の補題は次の通りである（以下は契約であり、Lean の定理名ではない）。
+
+- `presence_coalesce_satisfies`: 任意の有限 presence/open-tail 制約 graph と入力制約について、
+  飽和手続きが整合する閉 cache を返したなら、**すべての自由な値/行 parameter 割当て**から構成した
+  regular 解が全 constructor・入力制約を満たす。旧 `coalesceGraph_satisfies` の拡張が必要。
+- `presence_coalesce_retraction`: 同じ graph/cache の**任意の独立な解**について、その解を parameter として
+  coalesce すると、**すべての元 slot** が新部分型の双方向比較で回収され、共有関係・負位置・mask を保つ。
+  旧 `coalesceGraph_retraction` は fixed record spine のみで、この主張を与えない。
+- `presence_solve_complete`: 宣言する入力 graph 断片の**すべての graph**で飽和が停止し unsupported を返さず、
+  rejected ⇔ 解が存在しない。上の二補題とともに、自由 parameter に残余制約を課さない全 instance 抽出に必要。
+- `presence_generate_exact` と `presence_legacy_instances_exact`: 共通モデルを定義した上で、任意の対応環境・式・
+  値/行割当てについて生成制約の充足 ⇔ 独立 presence 型付けを示し、任意の旧 supported 式・任意の旧結果型で
+  旧 instance ⇔ 埋込み後の新 instance を示す。各枝の solver exactness があれば `collect` の証明は再利用できるが、
+  現状の補題だけではそこから統一入口の全 instance exactness を導けない。
+
+旧 `Layer.record` の tail は有限 layer、open-record graph の tail は node 参照であり、
+単純な置換は観測深さを減らす位置を変える（spec 10.32.5）。さらに旧 regular 部分型は構造的関係で、
+presence の data 述語包含との同値はない。これらを既存 data 観測の橋だけで埋めることはできない。
+関数/行の意味、上記の解構成と retraction は新たな数学的義務として残し、統一入口の公開を止めた。
+既存 `collect_instances_exact` の変更、既存 theorem・test expectation の変更、仕様の仮決定は行っていない。
 
 ## Case の照合・順序・presence
 
