@@ -32,6 +32,11 @@ for x in 0..:
 
 - `last` は現在のループから抜ける。`next` は次の反復へ進む。`redo` は同じ反復をやり直す。
 - これらは prelude で定義された演算子で、`loop` effect の操作を呼ぶ。予約語ではない。
+- `for x in xs: body` は、標準ライブラリの `loop::for_in xs (\x -> body)` に展開される（確定, 2026-11-06。実装は `main:lib/std/control/flow.yu`）。`for_in` が `last` / `next` / `redo` の handler を持ち、`xs.fold` で各要素を走査する。
+  - `last`: 走査全体を抜ける。
+  - `next`: 今回の反復を終えて、次の要素へ進む。
+  - `redo`: **同じ要素 `x` で、本体を最初から**やり直す。それまでの副作用は巻き戻さない。
+- label 付きの `for 'outer x in xs: body` は `label_loop::for_in` に展開され、label は `last` / `next` / `redo` を持つ値として本体に渡される。
 - **使える場所の制限はない。** `last` などは普通の effect の操作で、**handler を作れば捕まえられる**。
   `for` は自分用の handler を持っているので `for` の中で効くだけ。`sub:` は `return` だけを捕まえ、`last` / `next` / `redo` は**捕まえない**。
   （確定, 2026-11-04）

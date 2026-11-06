@@ -76,9 +76,11 @@ handler op action ret arm
 | `catch e: op p, k -> body; v -> ret` | `handler op e (lam ret) (lam (lam body))` | **欠** | 核の `handler` は operation を 1 つしか取れない。複数 arm の handler が要る |
 | `catch` の value arm 省略 | `v -> v` と同じ | 確定 | 章5.2 |
 | 高階の境界の保護・解除 | `boundary(protect/release, mask) e` | 下書き | 型から elaboration が挿入する。利用者は書かない |
-| `for x in xs: body` | `loop` の handler の下で `xs.fold (\x -> body)` | 下書き | `last`/`next`/`redo` は `loop` effect の operation。値は常に `()` |
+| `for x in xs: body` | `loop::for_in xs (\x -> body)` | 確定 | std の `for_in`(`main:lib/std/control/flow.yu`)。`last`/`next`/`redo` は `loop` の operation。値は常に `()` |
 | `last` / `next` / `redo` | `request loop::last ()` など | 確定 | 章3c.2 |
-| `'outer.last` / `last 'outer` | label で指名した `loop` の操作 | **欠** | label は値(handler の instance を指す)。核に instance の同一性が無い |
+| `for 'outer x in xs: body` | `label_loop::for_in xs (\'outer x -> body)`。label は `last`/`next`/`redo` を field に持つ struct の値 | 確定 | std。label は値として本体に渡される |
+| `'outer.last` / `last 'outer` | label の値のメソッド `last` / `next` / `redo`(role `LoopLabel`) | 確定 | 衛生性(callback の effect は内側の handler から守られる)で外側へ届く |
+| (旧)`'outer.last` の instance | label で指名した `loop` の操作 | 取消 | label は値(handler の instance を指す)。核に instance の同一性が無い |
 | `sub: body` | `sub::sub body`(computation 引数) | 下書き | `sub` は std の `act`。`pub sub(x: [_] 'a) = catch x: return a, _ -> a; a -> a` |
 | `return v` | `request sub::return v` | 確定 | |
 | `'done.return v` / `sub 'done:` | label 付き `sub` | **欠** | label と同じ |
@@ -147,4 +149,4 @@ ChatGPT に依頼する核の拡張の候補。
 ## 確認したいこと(ユーザーへ)
 
 - `for` の `redo` の意味(同じ反復のやり直し)の実装方針
-- 書式付き文字列の `fmt` の境界(言語か std か)
+- 書式付き文字列の `fmt` の境界(std 側。`main:web/docs/ja/reference/strings.md` が素材。言語としては `Display` を呼ぶところまで)
