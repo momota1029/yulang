@@ -148,6 +148,15 @@ effect名とpayloadは仕様でも下書きのため、任意の `ErrorEffects.E
 
 ## 複数 operation の shallow handler
 
+回答済みQ1に対応する `MultiOperationPayloadHandlers` は、同一keyを複数回書ける
+順序付きpayload armを追加する。実際のdispatchは最初に合うarmを選び、行から引くkeyは
+guardなしの反駁不能armがあるものだけとする。`missed_retained` と `partial_key_retained` は
+照合できない要求、またはその証明を持たないkeyの出現が残余に残ることを示す。
+`handle_selected` は捕捉armへ元の継続を渡し、`handle_missed` は元の要求・payload・重みを
+外に保ち、再開後に未完のhandlerとvalue armを続ける。`handle_ofOperations` により旧全域表は特別な場合になる。
+許可maskは全armのkeyへ検査する。純粋payloadテストと純粋guardの解決済み層であり、
+effectfulなpattern default/guard・source束縛のelaborationは示さない。
+
 `MultiOperationHandlerTyping.Expr.handler` は、相異なる解決済み operation key の有限表、
 各 operation body、1つの value body を持つ。ordinary application は左から右へ strict に評価し、
 再開する継続には action の元の行を保つ。`MultiOperationHandlerTyping.infer_exact` は

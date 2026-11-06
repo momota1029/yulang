@@ -246,6 +246,7 @@ import Yulang.LoopEffects
 import Yulang.LoopEffectLaws
 import Yulang.LoopEffectExamples
 import Yulang.MultiOperationHandlers
+import Yulang.MultiOperationPayloadHandlers
 import Yulang.MultiOperationHandlerTyping
 import Yulang.MultiOperationHandlerInference
 import Yulang.MultiOperationHandlerExamples

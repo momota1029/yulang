@@ -1273,3 +1273,15 @@ run_cmd do
 #print axioms Yulang.PresenceLegacyBridge.optional_never_iff_absent
 #print axioms Yulang.PresenceLegacyBridge.legacy_emptyRecord_not_absence
 #print axioms Yulang.PresenceLegacyBridge.legacy_emptyRecord_not_exactEmpty
+#print axioms Yulang.MultiOperationPayloadHandlers.Arm.total_iff
+#print axioms Yulang.MultiOperationPayloadHandlers.select_first_iff
+#print axioms Yulang.MultiOperationPayloadHandlers.missed_not_removed
+#print axioms Yulang.MultiOperationPayloadHandlers.missed_retained
+#print axioms Yulang.MultiOperationPayloadHandlers.partial_key_retained
+#print axioms Yulang.MultiOperationPayloadHandlers.handle_selected
+#print axioms Yulang.MultiOperationPayloadHandlers.handle_missed
+#print axioms Yulang.MultiOperationPayloadHandlers.handle_multishot
+#print axioms Yulang.MultiOperationPayloadHandlers.handle_ofOperations
+#print axioms Yulang.MultiOperationPayloadHandlers.checkedIncoming_success_iff
+#print axioms Yulang.MultiOperationPayloadHandlers.checkedIncoming_rejected
+#print axioms Yulang.MultiOperationPayloadHandlers.incoming_denied_forwarded

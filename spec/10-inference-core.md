@@ -1368,7 +1368,7 @@ operation 0 を捕まえて元の継続を再開すると、一つの二operatio
 operationごとの入れ子化を一般の翻訳として採用できない。
 
 **残る義務:** source の operation 名解決と同一operationのpayload-pattern armの編成、
-payload非網羅時の規則（`notes/questions/2026-11-06-open-questions.md` Q1）、
+payload-patternの実際の照合と束縛（Q1の規則は回答済みで10.33.2に接続）、
 operation-local多相・個別payload/response署名との接続、sourceからpermission maskを発見するelaboration。
 このcheckerはshape解決済み・lambda入力型/handler目標型を持つ単相核のcheckerであり、
 全sourceの主型推論器ではない。再帰を含む全言語のpreservation/progressも残る。
@@ -1391,6 +1391,29 @@ operation-local多相・個別payload/response署名との接続、sourceからp
 任意のruntime callbacksを、型検査した構文のbodyと関係づける定理ではない。
 fresh座標へaction・closure・型の潜在行を移し、actionのみを保護してarm内のeffectを外に保つ
 elaboration、および構文評価と `enterTree` の可換性・移送後の `Valid` はまだ示していない。
+
+### 10.33.2 回答済みQ1：payloadのdispatchと残余
+
+`MultiOperationPayloadHandlers` は有限の順序付きarm表を入力とする。同一keyの重複を許す。
+各armは反駁不能または純粋なpayloadテストと、optionalな純粋guardを持つ。
+`select_first_iff` は任意の表・occurrence・payload・indexについて、選択がそのindexになることを、
+そのarmの捕捉可能性・照合成功と、先行する全armの不適格性に一致させる。
+
+`removedKeys` はguardなしの反駁不能armがあるkeyだけを列挙する。
+`missed_retained` は任意の元行内の要求がdispatchできなければ残余に含まれることを示す。
+`partial_key_retained` はそのkeyの全armが非全域なら、実payloadが合っても元行内の出現が残ることを示す。
+boolの両値を別々のrefutable armが覆う場合でも、caseのQ8と異なり、この集合へkeyを入れない。
+
+`handle_selected` は任意の選択済み要求について元の継続をそのままarmへ渡し、
+`handle_missed` は元のoccurrence・payloadを外へ渡して、応答後に残りの計算と未完のvalue armを続ける。
+`handle_multishot` は元の継続を二回使う実行等式である。
+`handle_ofOperations` は任意の旧全域operation表・callback・計算について旧handlerとの完全な計算等号を示す。
+`checkedIncoming_success_iff` は全armの許可と実行結果を成功の必要十分条件にする。
+payloadが合わないarmも決定41の静的許可検査から除外しない。
+
+**残る義務:** sourceのpayload pattern・束縛のelaboration、effectful default/guard、
+operationごとの個別署名とoperation-local多相、fresh境界の全構文移送。
+この節のruntime定理だけではsource全体の主型推論や実行安全性を主張しない。
 
 ## 10.34 Literal の内容と独立な比較判断
 
