@@ -1889,8 +1889,17 @@ source全体の型/effect推論と辞書elaboration、Q14のspread要素のcast�
 prefixで同じflatten列へ到達すること、その最後の観測が同列の返却であることを同時に示す。
 特定の長さ・型・spread位置に制限した例ではない。
 
+`typed_finite_run_correspondence` は任意のsource型判断・source評価器・純粋変換・部分列・目標型について、
+旧 `SourceSound`、全通常変換の型保存契約、独立な旧 `Typing` から、
+型を満たす返却列の存在と、旧run・新machineの同じ値と同順同回数のsource traceへの対応を導く。
+一般のSourceSoundは有限sourceの成功を含む契約なので、一般protocolの局所Safeとは区別する。
+`data_typed_finite_run_correspondence` は任意の `CaseDataTerms` の独立型判断、
+純粋変換の型保存契約、任意の環境とその `BindingsHold` から、SourceSoundを既存の型安全性で満たす。
+結論は型付きの値列の存在、旧evalの `.list values` 成功、同じsource traceを写した新machineのprefix、
+最後の同じ値列の返却である。呼出側にSourceSoundや実行成功の証拠は要求しない。
+
 **残る義務:** 一般のsource Fold本体からこのprotocolへの意味保存、source effectとの対応、
-全推論器へのelaboration。ここで成功した有限実行を前提にするのは旧実行との対応定理であり、
+全推論器へのelaboration。独立Meaningを前提にする一般の対応と、型判断から導く具体dataの系を分け、
 10.36.4・10.36.5の一般prefix安全性/progressに有限性や成功の前提を加えていない。
 
 ### 10.36.7 acceptedなFold slotと実際のspread型判断

@@ -129,4 +129,48 @@ theorem finite_run_correspondence (source : Source → Logged Event Error (Value
   ⟨NominalListSpread.meaning_evaluates source convert expectedList finiteMeaning,
     meaning_returns (meaning source convert expectedList finiteMeaning)⟩
 
+/-- The finite source typing contract produces the successful meaning;
+callers do not supply a successful list evaluation. -/
+theorem typed_finite_run_correspondence (source : Source → Logged Event Error (Value F))
+    (convert : Conversion → Value F → Value F) (expectedList : Error)
+    (sources : NominalListSpread.SourceSound SourceTyped source)
+    (conversions : NominalListSpread.ConversionSound ConversionTyped convert)
+    (typed : NominalListSpread.Typing SourceTyped ConversionTyped parts target) :
+    ∃ values, (∀ value ∈ values, target value) ∧
+      NominalListSpread.run source convert expectedList parts =
+        ⟨NominalListSpread.sourceTrace source parts, .ok values⟩ ∧
+      Prefix (engine (n := n) source convert expectedList).observe (start (parts.map liftPart))
+        (requests (NominalListSpread.sourceTrace source parts)) ⟨values, .ready []⟩ ∧
+      (engine (n := n) source convert expectedList).observe ⟨values, .ready []⟩ = .value values := by
+  obtain ⟨chunks, finiteMeaning⟩ := NominalListSpread.typing_has_meaning source convert sources typed
+  obtain ⟨values, evaluated, valueTyped⟩ :=
+    NominalListSpread.typing_evaluates source convert expectedList sources conversions typed
+  have correspondence := finite_run_correspondence (n := n) source convert expectedList finiteMeaning
+  have equal : values = chunks.flatten := Except.ok.inj
+    (congrArg Logged.result (evaluated.symm.trans correspondence.1))
+  subst values
+  exact ⟨chunks.flatten, valueTyped, correspondence⟩
+
+/-- In the concrete finite data syntax, independent typing and the typed
+environment discharge the source contract. Evaluation success is a conclusion. -/
+theorem data_typed_finite_run_correspondence (convert : Conversion → Value F → Value F)
+    (conversions : NominalListSpread.ConversionSound ConversionTyped convert)
+    (typed : NominalListSpread.Typing (CaseDataTerms.Typing outerTypes) ConversionTyped parts target)
+    (environment : Bindings F) (valid : BindingsHold outerTypes environment) :
+    ∃ values, (∀ value ∈ values, target value) ∧
+      NominalListSpread.eval convert environment parts =
+        ⟨NominalListSpread.sourceTrace (CaseDataTerms.eval environment) parts, .ok (.list values)⟩ ∧
+      Prefix (engine (n := n) (CaseDataTerms.eval environment) convert CaseDataTerms.Error.expectedList).observe
+        (start (parts.map liftPart))
+        (requests (NominalListSpread.sourceTrace (CaseDataTerms.eval environment) parts)) ⟨values, .ready []⟩ ∧
+      (engine (n := n) (CaseDataTerms.eval environment) convert CaseDataTerms.Error.expectedList).observe
+        ⟨values, .ready []⟩ = .value values := by
+  obtain ⟨values, valueTyped, evaluated, trace, returned⟩ :=
+    typed_finite_run_correspondence (n := n) (CaseDataTerms.eval environment) convert
+      CaseDataTerms.Error.expectedList
+      (fun _ _ expressionTyped => CaseDataTerms.typing_evaluates expressionTyped environment valid)
+      conversions typed
+  refine ⟨values, valueTyped, ?_, trace, returned⟩
+  simp [NominalListSpread.eval, evaluated, Logged.bind, CaseDataTerms.pure, Logged.ofResult]
+
 end Yulang.FoldListSpreadFinite

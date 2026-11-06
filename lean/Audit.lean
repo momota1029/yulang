@@ -1585,3 +1585,6 @@ run_cmd do
 #print axioms Yulang.FoldListSpreadDivergence.Examples.reaches_repeat
 #print axioms Yulang.FoldListSpreadDivergence.Examples.repeat_stage_never_returns
 #print axioms Yulang.FoldListSpreadDivergence.Examples.repeat_stage_safe
+
+#print axioms Yulang.FoldListSpreadFinite.typed_finite_run_correspondence
+#print axioms Yulang.FoldListSpreadFinite.data_typed_finite_run_correspondence

@@ -243,6 +243,10 @@ sourceもFoldも有限であることや全体の成功を仮定せず、返る�
 旧source traceが同順・同回数の `raw (inl event)` の要求列として観測されることを示す。
 この有限実行の対応だけが成功した各sourceと有限走査を使い、一般prefix安全性の前提にはしない。
 観測eventと既存errorの埋め込みは抽象signature上のもので、sourceのoperation名を追加しない。
+`typed_finite_run_correspondence` は旧独立型判断・SourceSound・純粋変換契約からこの有限対応を導く。
+`data_typed_finite_run_correspondence` は任意の具体 `CaseDataTerms` 型判断・環境適合性・変換契約から、
+旧evalの成功と全要素型、新machineの同一返却列と同じsource traceを導く。
+具体data版ではSourceSoundと実行成功を呼出側から受け取らず、既存の型安全性から充足する。
 `FoldListSpreadRoles.Slot` はcontainer/itemのrigid termと、供給されたFold goal encodingに対する
 `CheckedRoles.resolve` の成功を持つ。`spread_typing` は任意の型付きprotocol registry・局所SourceLayer・
 slot・container型を持つsourceから、slotのitem型とsource行/選択body行のunionを持つ実際のspread型判断を導く。
@@ -832,7 +836,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.NominalDataAssembly` / `NominalDataAssemblyExamples` | site実行器から具体ASTへの完全等式、元のrequest treeとEOF値の保持、受理plan・局所CastContract・元site型・独立Code型判断から返却分岐の構築成功と結果型、struct/enum/listの実値例 | sourceのsite抽出・Code生成、固定field/defaultの宣言検査、cast code合成、Fold/Indexのsource辞書との対応 |
 | `Yulang.NominalListSpread` / `NominalListSpreadExamples` | 任意位置の有限list spread、独立data型判断と環境・変換契約から実評価と全要素型、記述順に各sourceを一度読む全訪問列、同じ列に対する具体list・nominal metadata・Fold・内部Indexの一致 | 回答済みQ13のsource Fold本体からの意味保存、spread要素の保留cast境界（Q14）、source site抽出・変換選択・保留planの自動生成 |
 | `Yulang.FoldTraversal` | 任意stateの走査protocol、局所契約から全有限prefixのitem型・signed request行・有効state保存、終了を仮定しないprogress、無限yield例、rigid roleの一意辞書planと供給driverの一致、純粋cursorと既存forの一歩の対応 | source高階Fold.fold本体からのprotocol生成・意味保存、供給method tableの検証、sourceの型/effect一般化 |
-| `Yulang.FoldListSpread` / `FoldListSpreadFinite` | source評価と辞書走査の順序付け、各partのitem型とsource/走査行のunion、局所契約と独立型判断から全有限prefixの安全性/progress、返る場合の要素型、任意の途中走査で後続source保持、旧有限Meaningから同じflatten値・抽象signatureへ写した全source traceへの対応 | 高階source Foldからの意味保存・method table検証、source推論/辞書elaboration、観測signatureからsource effectへの翻訳、Q14のcast境界 |
+| `Yulang.FoldListSpread` / `FoldListSpreadFinite` | source評価と辞書走査の順序付け、各partのitem型とsource/走査行のunion、局所契約と独立型判断から全有限prefixの安全性/progress、返る場合の要素型、任意の途中走査で後続source保持、独立data型判断・環境・変換契約から旧/新の同一返却列・同順同回数のsource trace | 高階source Foldからの意味保存・method table検証、source推論/辞書elaboration、観測signatureからsource effectへの翻訳、Q14のcast境界 |
 | `Yulang.FoldListSpreadRoles` | acceptedなrigid container/item slotから実spread型判断へ、型付きregistryの選択bodyによるitem型・source/走査行union、任意の同goal Dictionaryとのdriver/行の一致 | source Fold goal/associated typeのencoding、source methodから型付きregistryへの生成・意味保存、既存evidenceの再利用、source for_inと全推論器への接続 |
 | `Yulang.FoldListSpreadDivergence` | 局所Safe・有効stateでdoneにならない条件から全有限prefixで後続source保持・行保存・非返却、型付き非空literal内の無限repeatと安全性の共存 | 任意のsource Fold本体の非停止判定、source method/protocol対応、停止性を含む全sourceの主張 |
 | `Yulang.NominalListViews` / `NominalListIndex` | 同じlistに対するcursor・index・foldの一致、整数indexの成功と有効区間の同値、無効indexの非再開error要求、既存wrapとの一致 | sourceのFold/Index辞書の選択・署名と本文の対応、source名/宣言identityから解決済みerror familyへのelaboration |
