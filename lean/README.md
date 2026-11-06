@@ -47,6 +47,27 @@ literal の内容・presence・nominal の planner 結果を一つの値型 carr
 
 ### M1: 型モデルの接続（部分完了）
 
+回答済み Q5 に対応する新しい具体要求モデルを `ProducerContextual` / `ProducerContextualRegular` に追加した。
+型変数は任意の意味型が満たすすべての観測を表し、arrow の引数要求も同じ環境の型を名前で参照する。
+要求の構文に union はない。role は許可された constructor head の有限表で観測し、
+`int | str` と `any` を区別する。辞書や条件付き impl の全意味はこの head 観測には含めない。
+全 constructor depth・負文脈 rank・環境・要求を量化し、solver の fuel や有限サンプルは用いない。
+
+| 新モデルの定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `ProducerContextual.producerLe_refl` / `producerLe_trans` / `structural_subtype_preserved` と regular 版 | 任意の行関係で前順序。行の推移律の下で任意の旧構造部分型を保存する。role の保存則を公理として仮定しない | subtyping の完全な checker、条件付き role の全解釈 |
+| `ProducerContextual.pair_union_group` / `record_union_group` / `variant_union` と regular 版 | 任意の行関係と全成分で同じ constructor の union をまとめる要求同値。pair/variant は成分比較への完全分解、record は単調性と合同性も示す | 異なる tag の tag row、exact/default の意味、全表示標準形の一意性 |
+| `ProducerContextual.producerLe_arrow_iff` / `ProducerContextualRegular.producerLe_arrow_reference_iff` / `producerLe_arrow_iff` | 任意の有限型、任意の graph と state、引用した任意の regular 型について、行が前順序なら arrow 比較 ⇔ 引数反変・入力行反変・結果共変・出力行共変の4条件。closed `Negative` 制限・分離の仮定・成功・fuel は不要 | carrier の producer 構文自体には var/mask constructor がなく、要求側の変数/mask と任意の代入後の型を扱う。新 presence signature の自由 parameter/mask family をこの carrier へ評価する接続 |
+| `ProducerContextual.Examples.mixed_union_not_equivalent_top` / regular 版 / `mixed_arrow_not_equivalent_top_arrow` | 任意の行関係で int/str だけを許可する具体 role 要求が混合 union と top を分離し、任意引数の arrow 文脈でもこの区別を保持 | 条件付き impl・辞書探索の意味との一致 |
+| `Core.ProducerContextualInstances.legacy_instances_preserved` / `legacy_instances_reflected` / `legacy_instances_exact_modulo` | 任意の行代数・実際の旧 `Result`・結果値と行で、同じ scheme の直接評価による新 instance は旧 instance を保存し、同じ結果行を持つ要求同値な旧 instance へ反映する | presence の新 solver family との同一視 |
+| `Core.ProducerContextualInstances.source_instances_exact_modulo` / `source_instances_sound` | 任意の行代数・行反対称性・旧 supported 式・結果で、新 instance ⇔ ある要求同値な旧値型と同じ行での旧 `Typing`。新 instance から新 concrete model の独立 `Typing` も得る | 任意の新独立 `Typing` からの逆向き完全性、recordDefault を含む新入口 |
+
+要求側の `Demand.mask` は隠す label の field 観測を record-kind 観測に写す。
+上記 arrow iff はその全要求を含むが、これを producer の concrete mask family の構成とは数えない。
+regular graph の payload は既存 `Layer` の guarded 参照であり、同深さの tail 循環は下の別の核で扱う。
+旧 `{}` は任意の record の上界のままである。
+
+以下は以前の有限 rigid 観測の候補の証明であり、Q5 対応の新モデルと区別する。
 決定46・47の要求順序の候補を `ProducerRanked` / `ProducerRankedRegular` に実装した。
 `ProducerDemand.Demand` は union を持たず、intersection、rigid な pair/field/tag、型変数、
 mask、関数の引数・返り値・両行の要求を持つ。変数の割当ては任意の有限観測列である。
@@ -82,6 +103,16 @@ mask を payload の下に置ける文法は、[Q4](../notes/questions/2026-11-0
 比較するため、新同値の arrow 合同性を保証しない。共通モデルへの接続には上の ranked 版を使う。
 `Core.ProducerLegacyInstances` はこの実際の scheme 解釈の一般補題であり、反映の witness を
 「具体化した値型 `a` と要求された結果 `c` の union `a | c`」として構成する。
+
+同深さの循環を解く核として `PositiveEquationElimination` を加えた。
+未知変数・任意の外部 atom・bottom/top・union/inter からなる任意の有限正方程式を扱う。
+全座標を含む列の長さ `N` だけ `x ↦ x ∨ F(x)`、続いて `x ↦ x ∧ F(x)` を展開し、
+再帰方程式を持たない有限式を実際に返す。`N` は有限 lattice の高さの上界であり、呼出側の search fuel ではない。
+
+| 定理（接頭辞 `PositiveEquationElimination`） | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `solve_sound` / `solve_retract` / `solved_instances_exact` | 任意の有限座標全列・任意の正方程式・任意の atom 命題割当てで、全自由 parameter から計算した式が不動点になり、任意の独立不動点を同じ parameter で回収する。任意の割当て `v` で `F(v)=v` ⇔ ある parameter の計算結果が `v`。成功・解の存在・guardedness・fuel を前提にしない | 任意の producer subtyping 制約、負の自己参照、関数・行・whole default を含む具体 presence solver |
+| `project_natural` | 任意の座標列・非単射も許す座標写像・写像と可換な二つの step・任意の parameter について、実際の有限消去と座標写像が可換 | 具体的な mask 状態系とその可換性の構成 |
 
 `CoreRequiredDemands` は有限の required demand が一致する断片を明示する。
 `Required` は optional/lacks を除き、union/intersection・pair・variant・任意の payload 参照を許す。
@@ -331,13 +362,14 @@ field を追加しても所属が変わらないためであり、全観測深�
   各枝の solver exactness があれば `collect` の証明は再利用できるが、現状の補題だけでは
   そこから統一入口の全 instance exactness を導けない。
 
-要求順序側では、任意の rank `k` と型 `S,T` について
+旧 `ProducerRanked` 候補では、任意の rank `k` と型 `S,T` について
 `(∀ N : Negative, ProducerLeAt k N.embed S → ProducerLeAt k N.embed T) → ProducerLeAt k S T`
 という閉要求による分離補題が未証明である。必要な行の法則を明示してこの主張を示すか、
 成り立たない場合は要求文法を拡張する必要がある。`S` 自体が `Negative` の埋込みなら
 自身を要求に使えるため、上記の限定された arrow inversion はこの一般分離を仮定せず成立する。
-回答済み Q5 を実装する変数・role 解釈、exact/absence/default の具体的 acceptance と合同性、関数値を含む whole-image への橋も
-未完であり、現在の parameterized `Model` だけを埋めて完了とはしない。
+新 `ProducerContextual` は要求変数の解釈を変更し、この旧候補の分離補題を仮定せず任意引数の分解を証明した。
+残るのは exact/absence/default の具体的 acceptance と合同性、関数値を含む whole-image への橋、
+自由 parameter/mask family の評価接続であり、parameterized `Model` だけを埋めて完了とはしない。
 
 旧 `Layer.record` の tail は有限 layer、open-record graph の tail は node 参照であり、
 単純な置換は観測深さを減らす位置を変える（spec 10.32.5）。さらに旧 regular 部分型は構造的関係で、
@@ -358,6 +390,9 @@ exact/presence/default と関数/行を含む具体的な共通モデル、open-
 | `ModuleIncremental.dirty_exact` / `rebuild_called_iff` / `rebuild_calls_le` | 任意の有限 topological dependency 表と変更フラグで、計算した dirty 集合は独立な有限依存経路での影響範囲と同じ。実際の rebuild 分岐はその範囲だけ compile を呼び、呼出し数は module/SCC 数 `n` 以下 | dependency graph の抽出・SCC 発見、各 compile 内部のコスト、dirty 判定の総実行時間 |
 | `ModuleIncremental.rebuild_exact` / `rebuild_valid_cache` / `rebuild_changed_graph_exact` | 任意の pure compile 関数・新旧 source/key・新旧 dependency 表・変更フラグについて、変更なしとした node の key と依存列が同じなら、正しい旧 cache を使った増分 build の全結果は新しい全体 build と等しい。import の変更も対象で、エラーを含む任意の結果型を量化 | 不完全な key での cache 再利用、node identity/topological 番号の対応付け、実 Yulang module compiler への接続 |
 | `ModuleIncremental.module_cache_sound` / `rebuild_normal_forms` | pure compile に渡す source/key と依存 interface 列が等しければ同じ artifact になる。上記の増分一致は任意の決定的な表示・正規化関数の後も保たれる | interface の意味的同値 ⇔ 同じ標準形、完全な標準化関数の構成 |
+| `MethodResolutionCost.resolveCount_value` / `resolveCount_bound` / `runCount_bound` | 任意の site で計数付き実装の値が既存 resolver と一致。未知 receiver は可視 role 数 `R` で `1+2R` 以下、既知 receiver は型 node 数 `V` で `1+V` 以下。任意の処理列は各 site 上界の和以下 | map lookup/update の内部費用、ID の bit cost、solver 全体の時間 |
+| `MethodResolutionIndex.indexedResolve_exact` / `resolveNamesCount_exact` / `resolveNamesCount_bound` | 任意の有限 catalog・可視 role 列・名前・receiver・fallback で、同じ role/name の宣言が一致するなら index と既存解決の結果が等しい。任意の可視宣言列 `D` 件と名前列 `N` 件の計数付き一括解決は `3D+2N` 以下。上界自体は catalog の関数性も成功も仮定しない | visibility filtering、永続 map の実装費用、未確定 SCC の依存構築 |
+| `InferenceSubstitutionCost.formulaSubst_value` / `instantiate_value` / `instantiate_bound` / `instantiate_size_bound` | 任意の scheme と具体化先で計数付き置換の値が実際の `Scheme.instantiate` と等しい。scheme の型・行を含む全 node 数 `N`、binder 深さ `H`、具体化先の型・行 node 数 `K` に対して syntax work は `N*(1+max(2,K)*H)`、従って `N*(1+max(2,K)*N)` 以下。束縛下の型・行の rename も数える | source body の再推論、identifier の bit cost、メモリ allocator、scheme を使う solver 全体の時間 |
 
 `EOFNoDefaulting.accepted_export_independent` は同じ型情報・割当ての下で、**両方の EOF 検査が成功した場合**の
 公開型の一致である。後続 impl による曖昧化まで無条件に cache から省略できることを意味しない。

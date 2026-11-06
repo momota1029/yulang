@@ -77,11 +77,119 @@ dirty の伝播は新 graph 上で行う。全体 build と増分 build の arti
 既存の Rust oracle plan §6.1 にある visible impl・辞書 body・設定・version まで key に保持し、
 公開型が変わらないことだけを理由に診断の再検査を飛ばさない。
 
-## 4. 残る統合義務
+## 4. 要求変数と全 arrow 分解: contextual モデル
+
+`ProducerContextual` は既存の `ProducerRanked` を変更せずに追加した具体モデルである。
+Q5 の回答に合わせて、型変数を有限の rigid observation の列としては解釈しない。
+`Environment.types : Nat → StructuralBase.Ty Row` により任意の有限意味型を割り当て、
+`Demand.var n` はその型が満たすすべての観測を要求する。要求の構文には型 union を追加しない。
+意味型への代入と、負の位置に union のソース構文を書くことは別である。
+
+`Observation.arrowArgument n` も同じ型環境の `n` を使う。負の文脈の深さを `rank` とすると、
+rank `k+1` の引数要求は rank `k` の全環境・全観測による producer order で比較する。
+全 rank を量化するため、これは solver の fuel ではない。
+任意の target 引数 `B` を環境の `0` に割り当て、要求 `arrowArgument 0` を選べるので、
+`(A → C) ≤ (B → D)` から `B ≤ A` を取り出せる。closed `Negative` の稠密性の仮定はない。
+逆向きも同じ比較で証明され、行の前順序の仮定の下で四成分の完全な iff を得る。
+
+role 要求は具体的な有限 head table で解釈する。head は base・pair・record・variant の tag・arrow
+であり、role 名ごとに許可する head の列を環境が持つ。型の union は両方で role が成立することを要求する。
+`[base int, base str]` を許可する role は `int | str` で成立し `any` では成立しない。
+この区別が arrow の引数文脈でも失われないことを証明した。
+許可表に抽象的な monotonicity/distribution 公理は課さず、構造的部分型の保存と grouping を直接証明した。
+ただし、これは実装 head による role 観測の核であり、条件付き impl の探索・辞書・method selection
+全体のモデルではない。payload の rigid 要求は別の観測パスとして保持する。
+
+mask は要求側の演算 `Demand.mask` である。隠す label の field 観測を record-kind 観測に写す。
+`AcceptAt` におけるこの意味を `acceptAt_mask` がそのまま記述する。
+有限型 carrier `StructuralBase.Ty Row` 自体には `var` / `mask` の constructor を追加していない。
+任意の代入後の値に対して arrow の分解は適用できるが、これだけで新 solver の自由 parameter・
+mask family を評価する関数を構成したとは言わない。
+
+### regular graph への拡張
+
+`ProducerContextualRegular.ProducerLe graph leRow a b` は、任意の
+`Graph Row State` とその `Layer Row State` に対して、すべての constructor depth における有限展開を
+上記の全 rank・全環境の順序で比較する。有限性・非循環性・solver 成功・fuel は前提にない。
+`ReferenceLe graph leRow s t` は任意の graph state の全展開について同じ比較をする。
+
+`producerLe_arrow_reference_iff` は、任意の graph、任意の四つの graph state、任意の四つの行に対し、
+行関係が反射的かつ推移的なら、arrow の比較が引数の反変比較・入力行の反変比較・結果の共変比較・
+出力行の共変比較と同値であることを示す。さらに既存の
+`RegularInferenceModel.Ty Row` に引用した具体的 carrier の `producerLe_arrow_iff` を証明した。
+ここでの symbolic unknown は要求環境の意味値として表し、regular 値は graph state として表す。
+producer syntax の `mask` を graph state に変換する新しい解釈はまだない。
+また、graph の payload 参照は既存 `Layer` 文法で guard される。この定理から、由来のない
+非 guarded な tail の循環の求解が得られるわけではない。
+
+既存の `IsRecord`・lookup を使った旧部分型保存、pair/variant の完全な分解、record の単調性、
+union/inter の単調性、同じ構成子の grouping、引用後の全 constructor congruence も保持する。
+`emptyRecord` は既存の record 幅の上界のままである。
+
+### 旧 solved family の具体接続
+
+`Core.ProducerContextualInstances.order` は、上記 regular 順序を実際に
+`Core.ProducerLegacyInstances.OrderExtension` へ代入したものとなる。
+旧比較の保存、推移律、union 上界則はすべて具体的な証明から供給する。
+instance は旧 scheme を同じ自由な値・行 parameter で評価してから、新しい順序で結果を比較する。
+旧 instance や旧 Typing の存在量化を instance の定義として使わない。
+
+任意の旧 `Result`・任意の結果値と行に対して、旧 instance はこの直接評価による instance に入り、
+新 instance からは同じ結果行を持つ旧 instance と要求同値な値が得られる。
+任意の旧 supported 式では、行代数の反対称律を前提として旧独立 Typing を使った同値定理と、
+新 concrete model の独立 Typing への健全性が得られる。
+これは旧入口の solved family の再解釈であり、独立した presence solver の completeness ではない。
+
+### 未接続の補題
+
+1. 新しい presence signature の評価を、この carrier（または拡張 carrier）へ結ぶ具体解釈。
+   特に自由 parameter とその各 mask family の評価を構成し、mask の各要求を保存・反映する補題。
+2. `exactEmpty`・`required`・全 `recordDefault` image を実装した同じモデルで、上記 arbitrary arrow iff
+   が保存されること。現モデルは旧 record 幅上界を持ち、これらの演算を実装したモデルではない。
+3. 任意の独立した新 Typing から `Core.ProducerContextualInstances.Instance` へ戻る完全性。
+   証明済みの source sound と source_instances_exact_modulo を逆向き Typing completeness と取り違えない。
+4. arbitrary target の分解は閉じたが、それを solver の transition・branch saturation・solved parameter
+   の全入力完全性へ接続する補題は別に必要である。
+5. role head table の核から、条件付き role impl と辞書の実際の意味への対応。
+
+代案として (a) 旧 finite-rigid demand に戻す方法は Q5 の区別を失い、(b) arbitrary role predicate に
+分配等の法則を仮定する方法は必要な数学を前提に隠す。今回はいずれも採らず、具体的な head 観測と
+任意型を名前付けする要求変数を採った。これらは Lean 内部の設計判断なので新しいユーザー質問にはしない。
+
+## 5. 有限の正方程式を解く核
+
+`PositiveEquationElimination` は、未知変数と任意の atom に union/inter を適用する有限方程式系を扱う。
+同じ観測深さでの循環を許す。全座標列の長さ N 回の上昇 `x ∨ F(x)` の後、N 回の下降 `x ∧ F(x)` を行う。
+任意の parameter で結果が不動点となり、既に不動点だった parameter はそのまま返る。
+この有限回数は座標数から証明された lattice の高さであり、探索 fuel の増減によって正しさを変えない。
+
+実際の返却値は union/inter の有限式である。atoms は任意の命題であり、有限サンプルにしない。
+`solve_sound` と `solved_instances_exact` は解の存在も solver 成功も仮定しない。
+非単射の座標写像と step が可換なら `project_natural` によって消去結果も可換となる。
+具体的な mask family では、この step の可換性と有限座標化を別に構成する必要がある。
+また一般の producer subtyping の負位置の循環や、guarded payload をこの Boolean 系と同一視しない。
+
+## 6. 計数付きの参照実装
+
+selection は元の `MethodResolution.resolve` と値が等しい計数付き実装を使う。
+visible role 数 R の scan は `1+2R`、型 node 数 V の既知 receiver lookup は `1+V` 以下。
+method-name index を一回構築して N 個の名前を引く場合は、可視 declaration 数 D に対して `3D+2N` 以下。
+catalog の role/name ごとの関数性の下で元の解決結果と一致し、列順や重複 entry は意味を変えない。
+上界自体は関数性も成功も仮定しない。map 操作は抽象単位で、visibility filtering と map 実装の費用は別である。
+
+`InferenceSubstitutionCost` は stored scheme の実際の substitution と同じ値を計算する。
+formula だけでなく、その中の値型・行のすべての constructor を数える。
+binder の下では捕捉された置換値の両成分を rename する費用を加える。
+全 node 数 N、binder 深さ H、具体化先 computation の node 数 K なら、
+`N * (1 + max(2,K) * H)` 以下、従って `N * (1 + max(2,K) * N)` 以下である。
+旧 `Scheme.instantiation_nodes` が論理 node 数だけを保っていたことを、定数時間性と読み替えない。
+参照実装には source body の再推論を含めない。ID bit cost、allocator、後続 solver の費用も別である。
+
+## 7. 残る統合義務
 
 - 任意の constructor 制約から、意味を失わない分岐と受理枝の閉 cache を構成すること。
   旧 cache の子辺まで全 mask に閉じる表現には既存の反例がある。別の obligation 表現が必要。
-- Q5 を満たす要求モデルでの任意の arrow 引数の分解と、exactEmpty/required/whole recordDefault image の統合。
+- Q5 対応 contextual モデルで任意 arrow 引数の分解は閉じた。残るのは exactEmpty/required/whole recordDefault image と自由 parameter/mask の評価を含む同じモデルへの統合。
 - 具体モデルで `presence_solve_complete` と `presence_generate_exact` を結合し、残余 existential 制約を持たない scheme family を得ること。
 - 新独立 `Typing` から旧 scheme の新 instance を得る完全性と、統一 `Core.infer` の主型性・拒否完全性・unsupported 排除。
 - role・nominal・effect・regular graph を含む全 interface の完全な標準形と、実 module compiler への cache kernel の接続。

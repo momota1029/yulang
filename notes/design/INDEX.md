@@ -10,7 +10,7 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Presence 型と required-field 主型推論の統合](2026-11-06-presence-inference-integration.md) — Draft。有限data型の意味と全parameterの一方向の橋、presence layer、旧regular graphの全有限data観測とblock closureの保存・反映を実装。関数/行意味、presence制約の飽和・coalescing、全source instance同値は残る。
 - [M1 solver の内部契約と局所更新](2026-11-07-m1-solver-and-locality.md) — Draft。要求モデル・tail/cache の内部選択、確定した SCC selection の順序独立性、実際の増分 module build と全体 build の一致、完全な標準形との未接続境界。
 - [Scoped pattern defaults と joint payload coverage](2026-11-06-scoped-pattern-defaults.md) — 解決済みkernelの設計。Q4の累積環境、Q5〜Q7の順序・名前検査、Q8と同じ具体evaluatorへの型付き網羅性契約、source接続の残る境界。
-- [Rust AST oracle の段階的導入計画](2026-11-06-rust-oracle-plan.md) — Draft。Lean data evaluatorとの値・訪問列の差分試験から始め、関数・handler・辞書・cast・推論、Perceus/evidence passing/Craneliftの導入境界を分ける。§6は過去の計測と既存定理に基づくcache・let選言・疎な飽和・行判定・scheme共有・benchmarkの性能設計。
+- [Rust AST oracle の段階的導入計画](2026-11-06-rust-oracle-plan.md) — Draft。Lean data evaluatorとの値・訪問列の差分試験から始め、関数・handler・辞書・cast・推論、Perceus/evidence passing/Craneliftの導入境界を分ける。§6はcache・let選言・疎な飽和・行判定・scheme共有、§7はarena/path intern・依存収集・module量化・SCC単位のselectionとrole索引・三つの初期benchmarkの設計。
 - [Parser gap closure: forms promised by `spec/` that yu-syntax does not yet read](2026-11-04-parser-gap-closure-addendum.md) — Authoritative (approved 2026-11-04)
 - [Phase 2 parser compatibility fixture schema](2026-08-20-phase2-parser-fixture-schema.md) — Authoritative。実 fixture case の投入と population 前の Open questions の解消は、次スライス以降で進める。
 - [`yu-syntax` chasa-based parsing architecture](2026-08-20-yu-syntax-chasa-architecture.md) — Proposal。実装、dependency 追加、grammar の拡張はこの文書の scope 外とする。

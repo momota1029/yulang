@@ -362,3 +362,10 @@ import Yulang.ProducerDemandExpressiveness
 import Yulang.ProducerRankedArrowInversion
 import Yulang.MethodResolutionLocality
 import Yulang.ModuleIncremental
+import Yulang.ProducerContextual
+import Yulang.ProducerContextualRegular
+import Yulang.CoreProducerContextualInstances
+import Yulang.PositiveEquationElimination
+import Yulang.MethodResolutionCost
+import Yulang.MethodResolutionIndex
+import Yulang.InferenceSubstitutionCost
