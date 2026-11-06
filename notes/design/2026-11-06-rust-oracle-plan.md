@@ -189,3 +189,280 @@ runner 追加後は、実行ファイルの build・固定 seed・生成差分�
 最初の実装完了条件は data-v1 の runner、独立 Rust evaluator、
 上記の成功・失敗 seed、trace/result 一致、再現可能な縮小反例の保存までとする。
 関数・effect・role・cast・型推論の未接続部分は、この完了条件に含めない。
+
+## 6. 推論の性能設計
+
+この節は型推論器を Rust へ接続する際の実装・証明・計測の計画である。
+Rust 推論器、cache、worklist の実装や新しい benchmark 結果を追加したものではない。
+以下の Yulang2 の数値はすべて過去の記録であり、Yulang3 の性能予測ではない。
+歴史的資料と fixture の参照先は、読んだ `main` の
+`d4c8bc8fc8a49173180932cd25921a2c41057354` に固定する。
+
+### 6.1 標準ライブラリの再推論と module scheme cache
+
+**仮説 1 は、標準ライブラリを source から処理する計測では支持される。
+cache hit 後の遅さまで標準ライブラリの再推論で説明することはできない。**
+
+| 過去の条件 | 記録 | 読み取れる範囲 |
+|---|---|---|
+| 6/23、local WSL2/debug、36 files の `check-poly-std examples/showcase.yu` | infer 2.854 s、total 3.215 s | この条件では推論が大半を占める。release の絶対時間とは比較しない |
+| 6/26、native、実際の `lib` と二つの entry file、std prefix cache なし | `build_poly` 2.914 s、total 2.956 s | source からの静的解析が大きい |
+| 同じ cache 検証の std prefix hit | `build_poly` 215.2 ms、total 256.0 ms | 変わらない prefix の再利用が大きく効く |
+| 同じ検証の初回 cache build | `build_poly` 3.216 s、total 3.258 s | artifact の生成・保存があり、初回が速くなる保証はない |
+
+出典は [6/23 baseline][perf-main-baseline] と [6/26 compiled-unit cache][perf-main-cache]。
+後者は source unit の dependency closure と std prefix の再利用であり、
+単一の「型推論時間」だけを切り取った比較ではない。
+同資料には clean な infer 484.8 ms、constraint drain 202.9 ms、
+replay accepted 62,792 / duplicate 584,369 も残る。
+したがって cache は「同じ処理をしない」対策、solver 改善は「必要な処理を安くする」対策として両方必要になる。
+[static-analysis speed plan][perf-main-static] も cache 後の principal unification、
+root/body rewrite、名前解決の重複を別に計測し、request を intern して work queue へ送る案を挙げる。
+この案を Yulang3 で実装済みとは扱わない。
+
+Lean の根拠を使える場所は次のように限定する。
+
+- [`Inference.Scheme`](../../lean/Yulang/Inference.lean) は `Formula (Option α)` であり、
+  `Scheme.instantiate` は保存済み formula の substitution である。
+  `Scheme.holds_instantiate` は、任意の model、assignment、scheme、結果の項に対し、
+  具体化した formula の充足と、結果 slot をその項の評価値で埋めた元の scheme の充足が同値であることを示す。
+  以前の RHS の AST を再び推論しない構成の根拠になるが、制約の複製・freshening・解決が定数時間になる定理ではない。
+- [`EOFNoDefaulting.accepted_export_independent`](../../lean/Yulang/EOFNoDefaulting.lean) は、
+  **同じ model、型から role term への decode、assignment、interface** と、
+  well-formed な二つの impl database を取り、**両方の `finish` が成功したなら**返す closed interface が等しい。
+  任意の import/impl 変更後にも module が受理されるとは述べない。
+  `accepted_with_more_impls` でも、可視 impl を包含関係に沿って増やすと、
+  同じ export で成功する場合と concrete goal が ambiguous になる場合が残る。
+- [決定 33](../handoff/2026-11-05-lean-proof-handoff.md) の
+  「impl 候補から未確定の型を補わない」を保ち、型 scheme の保存と、
+  定義側・呼出側それぞれの scope で必要な role 検査・辞書選択を区別する。
+  export が同じであることを理由に、変更された可視 impl での受理検査や辞書の選択を省略しない。
+- [`AnnotationFinalization.later_instantiation`](../../lean/Yulang/AnnotationFinalization.lean) は、
+  key と slot に decidable equality があり、ある facts/problem/pending が
+  `finalize = some history` を満たす場合、任意の formula、substitution、
+  model、assignment に対し、保存した history を付けた formula の具体化と、元 formula の代入後の充足が同値である。
+  cache に一般化時の検査済み snapshot を保存し、将来の具体化で正の注釈を再検査しない設計の根拠になる。
+  本体/SCC の制約が揃う前に snapshot を採ることは許さない。
+
+最初の cache artifact は、exported scheme と qualifier、束縛 slot と捕捉 slot の区別、
+nominal/effect の参照先、検査済み annotation snapshot、辞書に関する依存情報を持つ不変の template とする案である。
+具体化ごとに量化 slot を fresh にし、捕捉した単相 slot は元の環境との共有を保つ。
+module の既存 nominal 宣言の identity は import ごとに別物にせず、
+新しいローカル effect family を生成する構築点では、その都度別 identity を割り当てる。
+この対応を relocation/freshening 表で明示し、保存した solver の可変ポインタをそのまま復活させない。
+この serializer と新旧 module 実行の同値は、上記定理とは別の未完了の義務である。
+
+最初は以下を cache key または検証対象に含め、依存 closure を保守的に無効化する。
+依存変更後も再利用できるという細粒度化は、別に十分条件を証明してから行う。
+
+| 変化 | 無効化・再検査するもの |
+|---|---|
+| module source、構文を変える設定、名前解決・module path、std source | 対応する resolved AST、推論結果と依存 module |
+| compiler/IR/scheme encoding の version、型・行・一般化規則、正規化規則 | 解釈が変わる artifact。version 不一致は cache miss とする |
+| import の export interface、捕捉環境、SCC 境界・注釈、宣言の identity | 依存 scheme、snapshot、nominal/effect relocation の検証 |
+| 定義側または呼出側の可視 impl、impl pattern/制約・辞書本体 | その scope の受理検査と選択済み辞書。型 scheme だけを残せるかは別に判定する |
+| generative な構築点の対応、fresh slot 名前空間 | template の freshening 対応。異なる変数・effect family を同一視しない |
+| dependency hash、長さ、参照先など artifact 検証の不一致 | cache を使わず source/有効な依存から再構築する |
+
+### 6.2 let の選言を一本へ減らせるか
+
+**仮説 2 の「純粋なら多相」は、そのままでは仕様と一致しない。
+構文値の条件を加えても、現在の全 instance 同値の証明から直ちに mono 枝を削除することはできない。**
+
+[spec 4.7](../../spec/04-types.md) は構文上の値だけを一般化する。
+`my id = \x -> x` と、純粋でも application である
+`my id2 = (\f -> f) (\x -> x)` を区別し、後者は単相のままである。
+SCC 内の単相性、全部注釈した binding の例外、再帰中に共有する effect 行も保持する。
+
+[`Inference.generate` と `Typing.letValue_iff`](../../lean/Yulang/Inference.lean) は、
+任意の model `m`、環境 `Γ`、RHS `v`、本体 `body`、結果の計算型 `c` に対し、
+`v.isValue = true` なら let の型付けが次の**選言**と同値になることを示す。
+
+- `v` に純粋な型が少なくとも一つ存在し、`v` とその捕捉環境を持つ多相 binding で `body` が `c` を持つ。
+- ある計算型 `a, b` が存在し、`v` が `a`、その値型を共有する単相 binding の下で `body` が `b` を持ち、
+  `b` の値型と `a`・`b` の行の join が `c` 以下になる。
+
+`v.isValue = false` の場合は `Typing.letComputed_iff` により後者だけになる。
+参照 generator は選言を formula として保存する。これを DNF へ展開するコストを避けることと、
+意味を持つ選言の片方を消すことは別の変更である。
+一つ選んだ RHS の型や行だけを見て「pure」と判定しても、RHS の全 instance や捕捉 slot の関係を代表するとは限らない。
+
+最初の Rust 案では RHS の生成結果を不変 DAG/template として共有し、
+`isValue` gate を先に適用する。選言は遅延して保持し、分配による eager な DNF の複製を避ける。
+template の使用時には fresh slot と捕捉 slot の対応を維持する。
+一本化は、対象の具体 model と環境の前提の下で
+「mono 枝のすべての instance が poly 枝に含まれる」という subsumption と、
+RHS を先に解く手順の principal instance 保存を証明した後の最適化候補に残す。
+必要な結論は、任意の対象環境・式・結果型に対する最適化前後の instance 集合の同値であり、
+選んだ一つの ground type の一致や数個の利用例の成功では代用しない。
+現在この枝削除の証明と Rust 実装は存在しない。
+
+### 6.3 型 node 対の飽和を疎な worklist にする
+
+**仮説 3 は実装方針として妥当だが、hash による同じ仕事の排除と、
+union-find による異なる型変数の同一視を分ける。**
+
+[`FiniteHorn.saturate_exact`](../../lean/Yulang/FiniteHorn.lean) は、任意の decidable equality を持つ fact 型、
+rule 列、**すべての fact を含む有限の列**、fact に対し、飽和結果への所属と rule からの導出を同値にする。
+Rust の sparse worklist は、型 node 対などの同じ有限 universe・同じ規則に対して
+`edge ∈ sparseResult ↔ Derives rules edge` を満たすことを目標にする。
+node 対の全表や全 rule を実行時に前もって作る必要はないが、未生成の必要な規則を落としてよいという意味ではない。
+
+[`RegularNestedModels.saturate_models_iff`](../../lean/Yulang/RegularNestedModels.lean) は、
+反射的・推移的な行関係、任意の有限入力 graph と制約、任意の再帰 model graph と valuation に対し、
+飽和後の制約を満たすことと元の制約を満たすことを同値にする。
+model graph の観測深さを制限しない。この模型集合の保存を、疎な実装への置換後も要求する。
+row checker の exactness や全推論器の principal theorem は、これとは別の接続条件として保持する。
+
+実装は入力 edge を queue へ入れ、既知の ordered node pair を hash set で管理する案とする。
+新しい下界・上界が入った pivot の隣接関係、constructor の子、反変位置など、
+影響を受ける規則だけを逆引きする。同じ pair の登録は一度でも、後で新しい隣接 edge が来たときの
+新しい組合せは処理する。終了時に全規則について閉じていることが completeness の要点になる。
+hash collision は実際の key 比較で解決し、可変 graph/row に対する memo は revision/epoch を管理する。
+queue の順序を変えても導出集合が変わらないことを先に縛り、replay 回数に上限を設けて受理へ進む変更は行わない。
+疎な実装も、必要な node 対自体が密になる入力では二乗個の pair を持ちうる。
+worklist を使ったことだけから入力サイズに対する線形時間を主張しない。
+
+union-find は、対象 model で同一視してよい等号と substitution 保存が得られた slot に限る。
+単なる subtype edge、同じ bounds の見た目、有限深さで似た graph、局所的な α-renaming を等号扱いしない。
+例えば一つの共有変数を二度使う `(a, a)` と、独立した `(b, c)` は同じ template shape でも同じ制約ではない。
+不変 constructor node の hash-consing でも、子の identity・捕捉関係・nominal/effect identity を key に含める。
+
+[8/4 調査の最終節 7][perf-main-mutable] は、この区別を直接裏付ける。
+warm compiled std/release の mutable reference で、初めは `var` の合成 act を繰り返し推論する費用もあったが、
+最終節では template の具体化へ変更済みであり、`var` 27.139 ms → 0.237 ms、
+`label_sub` 2.857 ms → 0.359 ms へ改善している。この問題を未修正のままと記述しない。
+一方、残る pair 調査では 10,744 候補のうち exact duplicate/trivial が 9,818、
+locally-isomorphic-but-globally-distinct が 898、global-alpha-equivalent が 0、novel が 28 だった。
+受理された 926 は 898 + 28 であり、「形が似た 898 をまとめる」ことは既存の sharing を失う。
+同節で残る replay graph の解決設計は未完了である。
+この結果は重複仕事の削減を否定するものではなく、形だけの union-find 統合を正当化しない根拠になる。
+
+### 6.4 無限行の判定に有限行・ray の速い道を置く
+
+**仮説 4 は既存の Lean に一部実現している。追加の速い道も重い判定と同じ意味で縛る。**
+
+[`SemilinearDecisions.checkSpan`](../../lean/Yulang/SemilinearDecisions.lean) は正規化後の空 generator と
+単一 generator を先に処理し、一般の場合を carry solver に送る。
+`checkSpan_preserves_result` は任意の generator 列と整数重み vector に対して raw 判定との Bool の一致を示す。
+[`SemilinearFastInclusion.check`](../../lean/Yulang/SemilinearFastInclusion.lean) は安い十分条件を試し、
+[`SemilinearAutomata.checkSubset`](../../lean/Yulang/SemilinearAutomata.lean) はその**成功時だけ**採用する。
+十分条件に失敗した場合は NFA の完全な包含判定へ進む。
+`checkSubset_preserves_result` は任意の二つの semilinear 集合について fallback と同じ Bool を返すことを示す。
+これらは有限個の sample weight だけの一致ではない。
+
+追加する有限集合・単純な ray の checker は `fast : Row → Row → Option Bool` とし、
+任意の `left, right, b` について `fast left right = some b` なら
+`b = true ↔ Included left right` を要求する。
+これにより `some false` も本当の非包含でなければ返せない。対象外は `none` として exact な fallback へ送る。
+`SemilinearRowAlgebra.checkSubset_exact` の `Included` は**すべての operation key と整数重み vector**を量化する。
+fallback の exactness と合わせて、合成 checker の結果が元の checker と等しいことを証明する。
+正の答えだけを証明できる高速検査は、`some true` / `none` だけを返す形で使える。
+
+有限集合は正規化した key/weight の集合照合、単一 ray は base・period の算術で扱う候補とする。
+signed weight、零 period、逆向きの ray、多次元、同一 key の成分の union を保存する。
+例えば自然数 ray は偶数 ray と奇数 ray の union に含まれるので、
+source ray が target のどの一成分にも丸ごと入らないことを理由に false を返してはいけない。
+この例は [`SemilinearAutomataExamples.infinite_union_comparison_accepts`](../../lean/Yulang/SemilinearAutomataExamples.lean) にある。
+有限な列への切り詰めや、探索 budget 超過を false にする方法は exact checker の代用にならない。
+計測では fast hit/未対応、fallback 数、NFA state 数、到達した冪集合 state 数・peak memory を分け、
+資源不足は試験の失敗として報告する。言語上の拒否へ読み替えない。
+NFA の state 数を `q` とすると、部分集合構成の候補は最大 `2^q` 個になる。
+速い道はその構成を避ける対象を増やすためのもので、一般の fallback の最悪計算量を改善する証明ではない。
+
+### 6.5 scheme の簡約と具体化のコピー費用
+
+**仮説 5 は削減の可能性を述べるものとして支持できるが、削減率はまだ分からない。
+mutable reference の遅さを scheme clone だけで説明する仮説は、過去の記録と合わない。**
+
+[`TypeSimplification.simplify_instances_exact`](../../lean/Yulang/TypeSimplification.lean) は、
+任意の empty/join、反射的・推移的な行関係、固定された行 assignment、
+`supported term = true` を満たす型項、期待型に対し、簡約前後の**全 upward instance 集合**が同じことを示す。
+値 parameter に独立な行を固定し、record tail は既存の固定 spine の範囲に限る。
+正の位置だけにある自由な値 parameter は `never`、負の位置だけなら `any` に置き換え、
+両方に現れる parameter の共有は保つ。行 variable を削除する定理や、任意の scheme 制約・presence 型全体の簡約定理ではない。
+
+この簡約で不要になる parameter 出現は、具体化で訪問する参照や生成する slot/制約を減らせる候補になる。
+ただし型項を簡約しても `Fin n` の領域そのものが縮むとは限らない。
+到達しない slot の除去や再番号付けを行うなら、capture と substitution を保つ対応を別に証明する。
+一般化時に一度簡約し、不変 DAG を保存し、具体化では fresh parameter 表と必要な差分だけを作る案を採る。
+同じ具体化の中の共有を保ち、別々の具体化の量化 slot は区別する。
+捕捉 slot は元の環境との共有を保ち、mutable solver state を別の具体化と共有しない。
+
+コピー費用だけの単純なモデルでは、各具体化が到達 node `m` 個を訪れ、具体化回数が `k` なら
+訪問数は `k × m` になる。簡約後に到達 node が `m'` 個なら、同じコピー方式では `k × m'` まで減る。
+これは測定した削減率ではなく、共有もsolver処理も含めない費用モデルである。
+不変DAG共有はこの全コピーを避ける別の施策であり、残るfresh slot・edge生成と解決の費用を別に測る。
+簡約後の具体化を定数時間と呼ぶ根拠にはしない。
+
+[8/4 調査][perf-main-mutable] の get scheme clone は 0.015–0.024 ms、
+late stale probe は 0–0.002 ms だった。intrusive tracing 下の後続 get の subtype 処理は
+60.658 ms、210.379 ms に達していた。
+同じ lower-bound graph と新しい不変位置の変数の接続で replay が増えており、
+clone cache の追加だけでこの差を消せる根拠はない。
+slot 数、到達 node 数、具体化した edge 数、clone allocation bytes、substitution 時間、
+その後の saturation/replay を別々に計測し、簡約前後で何を減らしたかを確認する。
+無限行や role obligation を含む保存形式全体への拡張は、それぞれの instance 保存を示した範囲だけ適用する。
+
+### 6.6 最初の benchmark と計測条件
+
+**仮説 6 の通り、実装前に入力と観測を固定する。最初は小さな let/scheme とその scaling を選ぶ。**
+以下の個数は固定 SHA の fixture を実読した結果であり、実行時間の新規計測ではない。
+
+| 導入順 | 固定する過去の入力 | 推論で見るもの／接続条件 |
+|---|---|---|
+| 1 | [`infer_simple.yu`][perf-main-infer-simple]：301 個の identity 関数と 301 個の integer alias、計 602 binding | 関数値の一般化、単相/捕捉 slot、scheme 保存・具体化。未使用 binding も通常の検査対象として残す |
+| 2 | [`chain_1000.yu`][perf-main-chain-1000]：2,000 binding → [`chain_2000.yu`][perf-main-chain-2000]：4,000 binding | 定義数を倍にしたときの時間・memory・生成 node/edge/replay の増え方。前半は独立した identity、後半は alias chain |
+| 3 | [`loop_recursive_sum_20_discard.yu`][perf-main-recursive-sum] と [`loop_for_no_ref_20_discard.yu`][perf-main-for-no-ref] | SCC、算術/比較 role、range/for の接続後。再帰と for の制御に必要な推論を測り、mutable reference を先に混ぜない |
+| 4 | [`loop_for_sum_ref_20_discard.yu`][perf-main-for-sum-ref] と順 3 の二例 | 同じ規模の加算で reference の生成・get/set・effect family と invariant 制約の増分を分ける |
+| 5 | [`loop_recursive_20_discard.yu`][perf-main-recursive-list]、[`loop_for_20_discard.yu`][perf-main-for-list] | list/append と mutable list を追加。nominal list、literal、対応する role/constructor の接続後に測る |
+
+loop の `20` は実行時の反復回数であり、推論で body を 400 回展開する規約を追加しない。
+最初の二組は inference-only の試験とし、後続 loop でも型推論時間と実行時間を分離する。
+Yulang2 の source をそのまま Yulang3 の受理対象だと仮定せず、必要な adapter と対象構文を明記する。
+未接続の機能は `unsupported` とし、型エラーや benchmark の成功へ読み替えない。
+元の fixture と期待値は保存し、互換入力や追加の反例が必要なら別 fixture として由来と対応を記録する。
+
+計測 harness は次を別々のケースとして持つ案とする。
+
+- cold：std/module cache miss、warm std：std だけ hit、warm module：利用 module も hit、
+  invalidation：依存 module 一つまたは可視 impl を変更した後の再検査。
+  hit 数、再推論した module/式数、辞書の再選択数を併記する。
+- build 済み release binary、compiler/std/fixture の固定 SHA、同じ実行環境を使う。
+  compiler 自体の build 時間を推論時間に混ぜず、warm-up と反復数を記録し、中央値・分布を残す。
+- parse/name resolution、constraint generation、value saturation、row comparison、role resolution、
+  SCC finalization/generalization、simplification、serialize/deserialize を計測する。
+  包含関係にある phase の時間は足し合わせない。
+- 入力 binding 数、fresh slot/node/edge 数、queue の追加・重複・最大長、bound/replay 数、
+  row fast/fallback 数、scheme の共有率と allocation bytes、peak memory を保存する。
+  1,000 → 2,000 の名前だけから線形性を仮定せず、実際の binding 数と counter の比を比較する。
+- 受理/拒否/unsupported、exported scheme の instance に関する検査、role の選択と曖昧性、
+  annotation snapshot、fresh identity の回帰を性能とは別の gate にする。
+  ground な例の一致を全 instance 同値の証明と呼ばない。
+
+過去の [`infer_bench.sh`][perf-main-infer-harness] は finalize/commit/compact/instantiate を、
+[`static_analysis_bench.sh`][perf-main-static-harness] は `--infer-only` と多数の work/replay counter を分けている。
+これらを観測項目の出発点にし、Yulang3 の未実装 CLI を既に動かしたとは記録しない。
+[6/23 baseline][perf-main-baseline] では typeclass method の時間に後続 SCC routing が重複計上され、
+修正後の method apply は 17.6 ms だった。また drain 呼出を 17,623 → 17,432 に減らしても
+work 91,664 は変わらず、時間には揺らぎがあった。
+名前の似た counter や単発の wall time だけで原因・改善率を判断しない。
+
+この節で新しい言語仕様の決定は置かない。未完了の中心は module cache の保存/復元の同値、
+let の枝削除に必要な全 instance の subsumption、疎な solver と追加 fast path の exactness、
+scheme 全体の共有・freshening の保存、そして Rust 推論器の実測である。
+
+[perf-main-baseline]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/notes/benchmarks/2026-06-23-hardening-baseline.md
+[perf-main-cache]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/notes/benchmarks/2026-06-26-compiled-unit-cache-speedup.md
+[perf-main-static]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/notes/design/static-analysis-speed-plan.md
+[perf-main-mutable]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/notes/design/2026-08-04-mutable-reference-performance-investigation.md
+[perf-main-infer-simple]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/bench/infer_simple.yu
+[perf-main-chain-1000]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/bench/chain_1000.yu
+[perf-main-chain-2000]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/bench/chain_2000.yu
+[perf-main-recursive-sum]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/bench/loop_recursive_sum_20_discard.yu
+[perf-main-for-no-ref]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/bench/loop_for_no_ref_20_discard.yu
+[perf-main-for-sum-ref]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/bench/loop_for_sum_ref_20_discard.yu
+[perf-main-recursive-list]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/bench/loop_recursive_20_discard.yu
+[perf-main-for-list]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/bench/loop_for_20_discard.yu
+[perf-main-infer-harness]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/bench/infer_bench.sh
+[perf-main-static-harness]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/bench/static_analysis_bench.sh
