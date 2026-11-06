@@ -398,5 +398,8 @@ import Yulang.CoreEffectLegacy
 import Yulang.CoreEffectRejections
 import Yulang.CommonFiniteMask
 import Yulang.CommonDataReadout
+import Yulang.CommonLegacy
+import Yulang.CommonPresence
+import Yulang.CommonDefault
 import Yulang.CommonFiniteParameters
 import Yulang.CommonFiniteEmbedding

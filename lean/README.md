@@ -57,9 +57,13 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 | --- | --- | --- |
 | `Common.common_subtype_exact` / `common_arrow_iff` / `common_pair_iff` / `common_variant_iff` | 任意の共通 regular 型について、順序は全深さ・全 rank・任意の具体型環境・union-free 要求の受理の反転包含。任意の arrow 引数/結果（mask/default/regular block・自由 parameter の代入を含む）を4成分へ完全分解する。具体行の前順序・反対称性も証明 | 全 presence constructor の完全 inspector、全 source の solved infer |
 | `CommonFiniteEmbedding.contextual_embedding_exact_at` / `contextual_embedding_exact` | 任意の行関係、旧有限型 S,T、任意 rank で、新環境の型を制限せず旧 contextual 比較との iff。新しい exact/default/mask 型を要求変数に割り当てても成立 | この有限定理単体での regular embedding や source 保守性 |
+| `Common.contextual_embedding_exact` / `contextual_equivalence_exact` | 任意の旧 regular 型 S,T を新共通 carrier へ埋め込むと、全深さ・全 rank・全環境の新順序／同値が旧 contextual 順序／同値と一致する。旧 graph の有限観測を文字通り保存する | 新 presence solver の instance に対する旧入口の保存・反映 |
 | `CommonSyntax.block_observe_exact` | 任意の有限 block・外部型・全深さで、共有参照を閉じた graph が元の観測と等しい。tail/default source/mask は同深さ、payload は一段下。default の初期 payload も一段下にそろえる | 任意の同深さ tail 循環をこの block 文法へ解消する compiler |
 | `Common.exactEmpty_data_exact` / `width_data_exact` / `default_data_image` / `default_inhabited_iff` | 同じ common 構文上の独立 data 読取りで、exact empty と width を意味的に区別し、任意 source/fallback/result に対して whole default が既存 insertDefault の正確な strict image。present でも fallback を消さない | data 包含を producer 順序にすること、要求同値の data 集合への因数分解、関数 runtime の安全性 |
 | `CommonFinite.mask_parameter` / `mask_composition` / `mask_required` | 任意の具体有限型・全 rank/環境/要求で独立 mask 解釈と一致し、外側 mask の合成は label の和。隠れた required head は width へ移り、payload の mask と外側 mask は区別される | 二つの既存 solver family の全入力接続 |
+| `Common.common_mask_parameter` / `common_mask_composition` / `common_mask_required` | 同じ mask 法則を任意の共通 regular 型と任意の finite/regular 要求環境へ拡張する | record/default の未知 tail を含む全 compiler |
+| `Common.exactEmpty_below_width` / `width_not_below_exactEmpty` | exact empty は width 以下であり、逆は成立しない。構文の不一致だけでなく要求意味でも識別する | runtime 集合包含と producer 順序の一致 |
+| `Common.default_guarantees_field` / `default_exactEmpty` / `default_present_record` / `common_default_mono` | 任意の label・source・fallback で source が width 以下なら default は required label top 以下。exact source は構築へ、同名 head を持つ source は自身へ要求同値。全 source/fallback の比較で単調。payload/mask/regular graph を制限しない | 任意 target 比較の有限完全 inspector、present で strict fallback を実行しなくてよいという runtime 法則 |
 
 回答済み Q5 に対応する新しい具体要求モデルを `ProducerContextual` / `ProducerContextualRegular` に追加した。
 型変数は任意の意味型が満たすすべての観測を表し、arrow の引数要求も同じ環境の型を名前で参照する。
@@ -386,8 +390,8 @@ Core の M0 model が `Type` に固定されているため、Required Core 定�
 開いた default operator の Core **型判断**であり、未知 base を推論した実行例ではない。
 effectful fallback の推論例、未知 base を持つ lambda の推論例は未完である。
 
-**M1 は未完了。** 関数・行を含む具体的な要求順序と旧 family の新解釈は上記で構成したが、
-exact/absence/default を統合した具体 presence carrier と、そのモデル上の全入力 solved scheme はない。
+**M1 は未完了。** 関数・行・exact/optional/default/mask を統合した独立な具体 presence carrier と、
+旧 regular carrier からの順序の保存・反映は構成した。一方、このモデル上の全入力 solved scheme は未完である。
 旧 supported source の範囲では、新しい独立 `Typing` から同じ自由 parameter family への完全性も閉じた。
 RecordFree 断片には成功・support checker・fuel を前提にしない主型性／拒否完全性／unsupported 不出現がある。
 これを record 構築・recordDefault を含む presence source 全体へ拡大したとは主張しない。

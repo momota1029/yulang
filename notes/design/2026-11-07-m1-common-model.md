@@ -33,6 +33,10 @@ optional 要求は「field が存在すれば payload 要求を満たす」を�
 それらの旧 intersection を witness とする。rank ごとの保存・反映を帰納することで、
 新環境を旧型に限定せず有限 embedding の iff を示す。
 
+`CommonLegacy` では旧 graph の各有限観測と埋め込みの交換を証明し、この有限定理を全深さへ
+持ち上げる。`Common.contextual_embedding_exact` は任意の旧 regular 型の比較を保存・反映する。
+これは新 infer の instance 保存・反映を定義だけで置き換えるものではない。
+
 素朴な「構文にその label がない」という absence 判定は採用しない。例えば旧モデルで同値な
 `record 0 bottom bottom` と `record 1 bottom bottom` を区別してしまうためである。
 この選択は集合論的包含を導入するものではない。
