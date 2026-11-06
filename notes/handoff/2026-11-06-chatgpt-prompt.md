@@ -54,6 +54,12 @@ Q3〜Q8 は 03b-patterns)。仮の前提と答えが違うものだけ、証明�
   Q9(負の list index は無効)、Q10(無効な index は名前つき error effect:
   error index_err: out_of_range int は下書き)は、新しい義務です。
   LiteralValues の float、case の網羅性、NominalListViews の index に反映してください。
+- 後のスレッドで積まれた問い(notes/questions/ の 3 ファイル)も、すべて回答済みです:
+  - Q11(binary64 を超える小数 literal): A。丸めた結果が有限なら受理し、無限大へ溢れる literal は静的に拒否。
+  - Q12(index_err): A。`error index_err: out_of_range int` を確定。payload は無効だった index。
+  - Q13(list spread): **B**(推奨と違う)。対象は任意の `Fold`。走査順に新しい list へ入れる。
+    `for` と同じ role 解決・辞書・effect。無限の Fold なら終わらない。
+    → list spread の型判断に `Fold 'item` の制約を足し、辞書選択・effect 行・評価順を接続する。
 - 追加の仕様(質問ファイルの外で決まったもの):
   - parser pattern は pattern を書ける場所ならどこにでも書ける(spec/09-parser-dsl.md 9.1)。
   - `case:`(対象の式なし)は `\x -> case x:` の略(spec/03-expressions.md 3.7)。
