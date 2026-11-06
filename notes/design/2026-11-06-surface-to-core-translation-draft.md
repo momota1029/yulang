@@ -119,7 +119,7 @@ regularな `SourcePrincipalInference` 全体の主型性・関数/行意味へ�
 | `struct p {x: int, y: int}` | `NominalDataAssembly.Code.structLiteral` → `CaseDataTerms.Expr.nominal` | 確定（解決済み核） | 保留cast siteから実record payload構築を接続。局所CastContractと独立Code型判断から値型を保存し、隠れるfieldの要求も残す。宣言lookup・固定field/default・source site抽出・cast合成は別義務 |
 | `enum e = a | b x` | `NominalDataAssembly.Code.enumeration` → `CaseDataTerms.Expr.nominal` | 確定（解決済み核） | planのidentity/tagを保ち、保留siteから具体payloadへ接続。受理planの全request treeとEOF元値を保持。source宣言検査・site抽出・cast合成は別義務 |
 | list literal の構築 | `NominalDataAssembly.Code.list` → `CaseDataTerms.Expr.nil/cons` | 確定（解決済み核） | 保留site実行器と型付きCodeの実list構築を接続。Fold cursorと整数Indexが同じpayloadを観測し、無効indexは任意encodingのerror要求へ接続。source辞書・site抽出・確定error宣言からのelaborationは別義務 |
-| `[1, ..xs, 3]`・連続/空spread（有限listに解決済み） | `NominalListSpread.Part` → 実list値・共通Fold/Index観測 | 確定（解決済み有限list核） | 独立data型判断・環境・純粋変換契約から、各sourceを記述順に一度読む訪問列と全要素型を証明。一般Fold protocolとの対応、spread要素の新cast境界（Q14）、source site抽出・保留plan生成は別義務 |
+| `[1, ..xs, 3]`・連続/空spread（有限listに解決済み） | `NominalListSpread.Part` → 実list値・共通Fold/Index観測、`FoldListSpreadFinite` でprotocolへ | 確定（解決済み有限list核） | 独立data型判断・環境・純粋変換契約から、各sourceを記述順に一度読む訪問列と全要素型を証明。任意の旧有限Meaningから同じflatten値・抽象requestへ写した全source traceのprotocol対応も証明。spread要素の新cast境界（Q14）、source site抽出・保留plan生成は別義務 |
 | 任意の `Fold` を使うlist spread | `FoldTraversal.Driver`・`FoldListSpread.Engine` | 確定（解決済みprotocol核） | 回答済みQ13。rigid roleの一意辞書plan→供給driver、item型/source行/走査行のunion、局所契約から非停止を許す全有限prefix安全性/progress、走査完了後だけ次sourceへ進む合成。高階source Fold本体の生成・意味保存と全推論器への接続は別義務 |
 | `type t = int`(alias) | 展開 | 確定 | 章4.4 |
 | `role R 'a: ...` / `impl R T: ...` | 辞書(dictionary)の型と値 | 確定 | 辞書渡しは `RoleDictionaries` に証明がある |

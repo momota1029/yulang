@@ -1564,3 +1564,11 @@ run_cmd do
 #print axioms Yulang.FoldListSpread.part_meaning_prefix
 #print axioms Yulang.FoldListSpread.meaning_prefix
 #print axioms Yulang.FoldListSpread.meaning_returns
+
+#print axioms Yulang.FoldListSpreadFinite.source_trace_prefix
+#print axioms Yulang.FoldListSpreadFinite.source_result_prefix
+#print axioms Yulang.FoldListSpreadFinite.list_traversal
+#print axioms Yulang.FoldListSpreadFinite.list_driver_cursor
+#print axioms Yulang.FoldListSpreadFinite.part_meaning
+#print axioms Yulang.FoldListSpreadFinite.meaning
+#print axioms Yulang.FoldListSpreadFinite.finite_run_correspondence

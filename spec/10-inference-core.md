@@ -1872,7 +1872,26 @@ yield列だけを結果列へ順序通り追加する対応を示す。source/�
 この有限実行の合成を、型付きFoldが必ず終了するという定理には読み替えない。
 
 **残る義務:** sourceの高階Fold本体からprotocolへの意味保存、method tableの検証、
-source全体の型/effect推論と辞書elaboration、有限list核との一般対応、Q14のspread要素のcast境界。
+source全体の型/effect推論と辞書elaboration、Q14のspread要素のcast境界。
+
+### 10.36.6 有限list spreadから同じ値・source traceへの一般対応
+
+`FoldListSpreadFinite` は旧Logged evaluatorの各eventをUnit responseの抽象requestへ、
+各errorをEmpty responseの抽象requestへ写す。sourceのoperation名はこの埋め込みから決めない。
+`source_trace_prefix` は任意のevent列・返却値について、同順同回数の `raw (inl event)` を応答して
+元の値へ到達するprefixを構成する。`list_traversal` は任意の有限listの全要素を順序通りyieldしてdoneへ到達し、
+`list_driver_cursor` は同じ観測を既存 `NominalListViews.nextItem` へ一致させる。
+
+`meaning` は任意のsource評価器・純粋変換・expectedList error・部分列・chunk列について、
+旧 `NominalListSpread.Meaning` を新machineの独立な `Meaning` へ移す。
+`finite_run_correspondence` は同じ任意の引数と旧Meaning導出について、
+旧runが元のsource traceとflatten列を返すこと、新machineがそのtraceを抽象request列へ写した
+prefixで同じflatten列へ到達すること、その最後の観測が同列の返却であることを同時に示す。
+特定の長さ・型・spread位置に制限した例ではない。
+
+**残る義務:** 一般のsource Fold本体からこのprotocolへの意味保存、source effectとの対応、
+全推論器へのelaboration。ここで成功した有限実行を前提にするのは旧実行との対応定理であり、
+10.36.4・10.36.5の一般prefix安全性/progressに有限性や成功の前提を加えていない。
 
 ## 10.37 Presence型と有限legacy data推論の橋
 
