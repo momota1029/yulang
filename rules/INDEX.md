@@ -11,5 +11,6 @@
 - [`testing.md`](testing.md) — focused verification, expected-output protection, heavy-suite safety.
 - [`documentation.md`](documentation.md) — public documentation and style-guide routing.
 - [`codex-quirks.md`](codex-quirks.md) — observed agent failure patterns and countermeasures.
+- [`codex-delegation.md`](codex-delegation.md) — dispatching Codex workers asynchronously: parameters, collecting, waking on completion.
 
 Design documents: [`notes/design/INDEX.md`](../notes/design/INDEX.md).
