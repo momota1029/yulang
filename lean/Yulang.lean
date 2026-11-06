@@ -294,3 +294,5 @@ import Yulang.PresenceRegularObservations
 import Yulang.PresenceRegularLegacyBridge
 import Yulang.NominalDataAssembly
 import Yulang.NominalDataAssemblyExamples
+import Yulang.NominalListSpread
+import Yulang.NominalListSpreadExamples

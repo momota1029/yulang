@@ -116,6 +116,7 @@ regularな `SourcePrincipalInference` 全体の主型性・関数/行意味へ�
 | `struct p {x: int, y: int}` | `NominalDataAssembly.Code.structLiteral` → `CaseDataTerms.Expr.nominal` | 確定（解決済み核） | 保留cast siteから実record payload構築を接続。局所CastContractと独立Code型判断から値型を保存し、隠れるfieldの要求も残す。宣言lookup・固定field/default・source site抽出・cast合成は別義務 |
 | `enum e = a | b x` | `NominalDataAssembly.Code.enumeration` → `CaseDataTerms.Expr.nominal` | 確定（解決済み核） | planのidentity/tagを保ち、保留siteから具体payloadへ接続。受理planの全request treeとEOF元値を保持。source宣言検査・site抽出・cast合成は別義務 |
 | list literal の構築 | `NominalDataAssembly.Code.list` → `CaseDataTerms.Expr.nil/cons` | 確定（解決済み核） | 保留site実行器と実値構築を接続。Fold cursorと整数Indexが同じpayloadを観測し、無効indexは任意encodingのerror要求へ接続。source辞書・site抽出・error宣言（Q12）は別義務 |
+| `[1, ..xs, 3]`・連続/空spread | `NominalListSpread.Part` → 実list値・共通Fold/Index観測 | 確定（解決済み有限list核） | 独立data型判断・環境・純粋変換契約から、各sourceを記述順に一度読む訪問列と全要素型を証明。任意Foldを認めるか（Q13）、spread要素の新cast境界（Q14）、source site抽出・保留plan生成は別義務 |
 | `type t = int`(alias) | 展開 | 確定 | 章4.4 |
 | `role R 'a: ...` / `impl R T: ...` | 辞書(dictionary)の型と値 | 確定 | 辞書渡しは `RoleDictionaries` に証明がある |
 | `where 'a: R` | 辞書引数 | 確定 | 具体化した場所で解く(決定 30) |

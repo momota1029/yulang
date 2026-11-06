@@ -192,6 +192,16 @@ registryのground境界検査から正しい変換コードを合成する証明
 隠れるstruct fieldも要求を残し、実際のstruct/enum/list値を構築する等式を含む。
 sourceからsiteとassembly codeを作るpass、固定field/defaultの宣言検査、cast code合成は残る。
 
+`NominalListSpread` は解決済みの有限listについて、通常要素と任意位置のspreadを記述順に評価する。
+通常要素の純粋変換は明示的に受け取り、spreadは既に型付けされた内容をそのまま連結する。
+`data_typing_evaluates` は独立なsource型判断・環境適合性・変換の値型保存契約から、
+各sourceの訪問列を一度ずつ左から右へつなぎ、全要素が指定型に属する実listを得る。
+`data_typed_views` は同じ前提から、具体list値・nominal metadataを持つ構築結果・Fold順序・
+全自然数位置のcursorと内部Indexが同じ要素列を観測することまで導く。
+空spread・連続spread・途中のspreadでも順序と重複を保ち、source失敗後は後続を評価しない。
+任意のFold値をsource spread対象にするか（Q13）、既存listの各要素へ新しい保留cast位置を
+作るか（Q14）は決めていない。sourceのsite抽出・変換選択と保留planへの自動接続も残る。
+
 `NominalListViews.index_exact` は任意の有限list・自然数位置・要素について、内部lookupの成功と
 独立な位置判断 `At` を同値にする。`cursor_index` と `fold_records_order` により、
 Indexの内部lookupとFold用cursorが同じ順序の要素を観測する。`loopMachine` は既存loop評価器へ同じcursorを渡す。
@@ -759,6 +769,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 | `Yulang.PresenceRegularObservations` / `PresenceRegularLegacyBridge` | 任意graphの全有限観測判定、可換なrenameと有限block closureでの保存・反映、旧regular型のdata所属・data包含との同値、既存common carrierのblockへの接続 | 旧structural subtypingとの同値、arrow/closureと行の意味、全深さの判定算法、presence制約の飽和/coalescing、全source schemeのinstance同値 |
 | `Yulang.NominalConstructionRuntime` / `NominalConstructionExamples` | 不変parameterの元の構築位置の順序、適合時のcast抑制、純粋cast後の全request tree保存、EOFの実値保持、metadataとarity保存 | ground境界検査から値型に正しい変換codeの合成、固定struct field・宣言defaultを含むsource elaboration、具体data構築ASTとの統合 |
 | `Yulang.NominalDataAssembly` / `NominalDataAssemblyExamples` | site実行器から具体ASTへの完全等式、元のrequest treeとEOF値の保持、受理plan・局所CastContract・元site型・独立Code型判断から返却分岐の構築成功と結果型、struct/enum/listの実値例 | sourceのsite抽出・Code生成、固定field/defaultの宣言検査、cast code合成、Fold/Indexのsource辞書との対応 |
+| `Yulang.NominalListSpread` / `NominalListSpreadExamples` | 任意位置の有限list spread、独立data型判断と環境・変換契約から実評価と全要素型、記述順に各sourceを一度読む全訪問列、同じ列に対する具体list・nominal metadata・Fold・内部Indexの一致 | source対象をlist/Foldのどちらにするか（Q13）、spread要素の保留cast境界（Q14）、source site抽出・変換選択・保留planの自動生成 |
 | `Yulang.NominalListViews` / `NominalListIndex` | 同じlistに対するcursor・index・foldの一致、整数indexの成功と有効区間の同値、無効indexの非再開error要求、既存wrapとの一致 | sourceのFold/Index辞書の選択・署名と本文の対応、下書きのerror名/payloadの確定 |
 | `Yulang.NominalDataConstructionExamples` | 解決済みnominal構築式、任意整数から計算するstruct/enum/list payloadの型付けと実評価・全訪問列 | 宣言のlookup・型引数・payload宣言型の検査、source constructor default・castの挿入 |
 | `Yulang.MultiOperationHandlers` / `MultiOperationHandlerTyping` / `MultiOperationHandlerInference` / `MultiOperationHandlerExamples` | 有限の複数operation表と1つのvalue arm、shallow/multi-shot、重みを保つdispatch、incoming maskの静的拒否、独立型判断とcheckerの同値、型付けから全request/returnの安全性、入れ子化で意味が変わる反例 | 一様Atom以外のoperation署名、operation-local多相、source patternから束縛付きarm表への翻訳、sourceからmaskを求めるelaboration、全言語の主型推論・再帰の安全性 |

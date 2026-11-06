@@ -1720,6 +1720,34 @@ structのconstructor identityは宣言解決から明示的に受け取る。lis
 **残る義務:** sourceの全siteの抽出とCode生成、固定field/defaultの宣言検査、
 registry境界から正しい変換codeを合成すること、Fold/Indexのsource辞書と本文の対応。
 
+### 10.36.3 任意位置の有限list spreadと同じ要素列の観測
+
+`NominalListSpread.Part` は通常要素と解決済みの有限list spreadを区別する。
+通常要素は明示的な純粋変換を一つ持ち、spreadは既に型付けされたlistの内容をそのまま寄与する。
+`Meaning` は各sourceの値と各部分の寄与を独立に記述し、`meaning_evaluates` は任意の
+source評価器・変換・部分列・chunk列について、この判断から完全な評価等式を導く。
+訪問列は各source occurrenceの訪問列を記述順に一度ずつ連結し、結果値はchunkの連結となる。
+
+`typing_evaluates` は任意のsource型判断・変換型判断・source評価器・純粋変換について、
+型付きsourceの成功と値型所属を保証する `SourceSound`、全型付き変換の値型保存を保証する
+`ConversionSound`、独立な部分列の `Typing` を前提に、完全な訪問列と全要素型を導く。
+`data_typing_evaluates` はsourceを実際の `CaseDataTerms` に固定し、独立な式の型判断と
+`BindingsHold` からsourceの契約を充足する。呼出側が実行成功を別途仮定する必要はない。
+任意の有限listに対する `middle_spread`、`spread_values_unchanged` と実値例により、
+空・途中・連続spreadでも要素順と重複を保持する。`failed_source_skips_rest` は
+任意のsource失敗について、後続部分を評価せず失敗前の訪問列だけを返すことを示す。
+
+`data_typed_views` は同じdata型判断・環境適合性・変換契約と任意の解決済みnominal metadataから、
+具体list評価とnominal構築結果が同一の要素列を持つこと、Foldがその順を保つこと、
+全自然数位置でcursorの次要素と内部Indexおよび残りsuffixが一致することを導く。
+公開Int indexの無効時errorは10.36.1の契約を保ち、この内部lookupへ置き換えない。
+
+**残る義務:** source spread対象をlistだけに限るか任意のFoldへ広げるか（Q13）、
+既存listのspread要素に新しい保留cast境界を設けるか（Q14）は仕様から決定していない。
+`notes/questions/2026-11-06-list-spread-questions.md` に例・選択肢・推奨を分けて記録した。
+ここでの核は既に有限listへ解決された内容を扱い、その二つのsource方針を確定しない。
+sourceの構築位置抽出・変換選択・保留plan生成・role辞書選択との接続は残る。
+
 ## 10.37 Presence型と有限legacy data推論の橋
 
 `PresenceLegacyBridge.translate` は有限な `StructuralBase.Ty Row` をhidden label列とともに
