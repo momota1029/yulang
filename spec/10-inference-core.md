@@ -1522,5 +1522,5 @@ registryに受理されたground boundaryからそのcodeを合成・検証す�
 
 **残る義務:** source nominal宣言の存在・型引数・payload宣言型の検査、固定field/default/castのelaboration、
 保留site実行器と具体構築ASTの統合、ground boundaryから型付きpure conversionの合成、
-Fold/Indexのsource辞書解決と本文の対応、整数keyの負数解釈（Q9）と無効indexの失敗規則。
+Fold/Indexのsource辞書解決と本文の対応、整数keyの負数解釈（Q9）と無効indexの失敗規則（Q10）。
 内部の `Nat → Option Value` はsourceのAPIを選ぶための決定ではない。

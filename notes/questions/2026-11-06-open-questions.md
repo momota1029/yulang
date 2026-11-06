@@ -184,3 +184,21 @@ tagを残すなら元のbool payload全体を残す決定は、どちらの選�
 
 影響する義務: sourceの任意精度Intから内部Nat indexへの変換、`NominalListViews.index_exact`との接続、
 Index辞書とRust oracleの一致。現在は内部Nat indexと独立な位置判断だけを証明し、A/Bのどちらも選んでいない。
+
+## Q10. 無効なlist indexの結果を、どの失敗として表すか
+
+状態: **未回答**。負数の解釈（Q9）とは独立に、`[10,20][2]`や`[][0]`の結果を定める必要がある。
+`spec/06-roles.md`と`spec/08-errors-std.md`は、その失敗の型・effectをまだ確定していない。
+
+- **A（推奨）:** 名前つきerror effectにし、sourceの型とhandlerで扱えるようにする。effect key・payload・署名とIndexのeffect行への反映を定める。
+- **B:** interpreterの実行時失敗にし、通常のsource catchの対象にはしない。
+- **C:** `opt A`を返す。Indexのassociated valueが`A`のAPIからは変更になるので、安全な別methodを追加する案とは区別する。
+
+旧素材: [listのIndex実装](https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/lib/std/data/list.yu)
+は返り値を要素型そのものとし、[旧list説明](https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/web/docs/ja/reference/std/list.md)
+は範囲外を実行時失敗とする。旧runtimeのListIndexはhost側のRuntimeErrorを返し、
+名前つきbounds effectは導入していない。Aはこの素材からの変更案であり、採用済みではない。
+
+影響する義務: source Indexの値型・effect行、progressが保証する結果、Rust oracleと速い実装の失敗観測。
+現在の`NominalListViews.index`のOptionは内部lookupの成否だけを表し、sourceにCを採用した意味ではない。
+構築値とcursor/index/foldの一致はこの回答に依存せず証明済みである。

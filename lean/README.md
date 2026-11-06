@@ -137,7 +137,7 @@ registryのground境界検査から正しい変換コードを合成する証明
 `NominalListViews.index_exact` は任意の有限list・自然数位置・要素について、内部lookupの成功と
 独立な位置判断 `At` を同値にする。`cursor_index` と `fold_records_order` により、
 Indexの内部lookupとFold用cursorが同じ順序の要素を観測する。`loopMachine` は既存loop評価器へ同じcursorを渡す。
-これはsourceのrole辞書を選ぶ証明ではなく、整数keyの負数規則（Q9）や無効indexの失敗規則も決めない。
+これはsourceのrole辞書を選ぶ証明ではなく、整数keyの負数規則（Q9）や無効indexの失敗規則（Q10）も決めない。
 `RunLiteralConstruction.lean` で大きな整数・範囲比較と実際のstruct/enum/list構築を実行できる。
 
 ## 複数 operation の shallow handler
