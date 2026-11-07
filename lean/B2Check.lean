@@ -1,7 +1,7 @@
-import Yulang.CoreScopedPatterns
-import Yulang.CoreCommonSyntax
-#check @Yulang.Core.Patterns.names_map
-#check @Yulang.Core.Scoped.names_embed
-#check Bool.and_eq_true
-#check Bool.and_eq_true_iff
-#print Yulang.Core.Patterns.names_map
+import Std
+#check Bool.eq_iff_iff
+#check Bool.eq_iff_iff_eq_true
+#check decide_congr
+#check decide_eq_decide
+#check decide_eq_true_eq
+#check Option.isSome_iff_exists

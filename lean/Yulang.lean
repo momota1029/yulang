@@ -634,3 +634,7 @@ import Yulang.CommonPatternConcreteCaseSafety
 import Yulang.CommonPatternCapturedEvaluation
 import Yulang.CommonAlignedPatternSafeDefaults
 import Yulang.CommonPatternConcreteCaseTotal
+import Yulang.CommonPatternSourceProgramEnvironments
+import Yulang.CommonCaseIntegerCells
+import Yulang.CommonCaseIntegerCoverage
+import Yulang.CommonCaseIntegerOrdered

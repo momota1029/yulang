@@ -4276,3 +4276,12 @@ run_cmd do
 #print axioms Yulang.CommonPatternConcreteCaseTotal.actual_runArms_safe
 #print axioms Yulang.CommonPatternConcreteCaseTotal.returned_scheme_safe
 #print axioms Yulang.CommonPatternConcreteCaseTotal.program_safe
+#print axioms Yulang.CommonPatternSourceProgramEnvironments.generateEnvironments_exact
+#print axioms Yulang.CommonPatternSourceProgramEnvironments.premises_instances_exact
+#print axioms Yulang.CommonPatternSourceProgramEnvironments.no_environment_solution_exact
+#print axioms Yulang.CommonPatternSourceProgramEnvironments.returned_program_safe
+#print axioms Yulang.CommonCaseIntegerCells.representative_exact
+#print axioms Yulang.CommonCaseIntegerCoverage.run_integer_exact
+#print axioms Yulang.CommonCaseIntegerCoverage.checkInteger_matches_exact
+#print axioms Yulang.CommonCaseIntegerOrdered.integer_runArms_progress
+#print axioms Yulang.CommonCaseIntegerOrdered.integer_program_progress
