@@ -577,3 +577,4 @@ import Yulang.CommonPatternTyping
 import Yulang.CommonRoleRegularObstructions
 import Yulang.CommonEffectRequestGeneration
 import Yulang.CommonCanonicalQualifiedFamilies
+import Yulang.CanonicalComputability

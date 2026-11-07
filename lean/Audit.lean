@@ -7,6 +7,8 @@ import Lean
 #print axioms Yulang.CommonCanonicalQualifiedFamilies.interface_inclusion_iff
 #print axioms Yulang.CommonCanonicalQualifiedFamilies.interface_equivalent_iff
 #print axioms Yulang.CommonCanonicalQualifiedFamilies.finished_instances_exact
+#print axioms Yulang.CanonicalComputability.executes_deterministic
+#print axioms Yulang.CanonicalComputability.divergeOnTrue_step
 
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/
