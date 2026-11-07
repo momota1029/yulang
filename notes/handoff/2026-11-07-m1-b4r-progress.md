@@ -804,3 +804,56 @@ N全grammar完全性、全regular resolver/exact dictionary、finite-tree/nomina
 一問 `2026-11-07-b4r5-capture-before-size.md` のtiming決定なしに、capture-safe宣言条件や新use-site拒否を採用しない。
 実captureは既存extractorにより決定しているが、宣言checkがcapture後mergeをどう保証するかが未指定であり、
 この点を勝手に決めたE2や追加hypothesis付き同名E1は出していない。
+
+# B4r6 開始（2026-11-07）
+
+開始HEAD d39ff4c8abd1db80af0e7e5de3095f56211140e8。第五回の作業treeの追記を保存したまま開始。
+ユーザーがcapture後mergeにも安全な宣言条件（利用時の新規拒否なし）を承認したspec6.3を読んだ。
+前回の局所9/5→5/5例は宣言時拒否として扱い、現規則へのE2としない。
+有限十分checkerとしてheadの安定rigid位置のlower envelopeとchildのupper envelopeを比較する分解を進める。
+merge下のhead variableはlower係数に使わず、canonical record residualのlabel不在はmatcherから得る。
+prover roleは今回も不在。primaryが構成し、別agentの独立design auditを得た。
+
+独立auditは新しい強い条件を通るrobust E2を見つけていない。
+残る実matching policyとして、terminal implの非同一payload内にだけ現れる変数の決め方がspec未指定。
+一問に記録し、勝手な存在Common代入を置いたE2は出さない。checkerの局所soundness構成は並行して継続する。
+
+## B4r6 checkpoint 1: substitution-stable lower/upper envelope checker
+
+新規 `CommonRoleStablePaterson`。現在の形式化範囲はrecursive idempotence stageの有限Form grammarであり、full Common/source checkerの完成ではない。
+閉じた主張:
+
+- `normalize_idempotent`: 任意FormでN(Nf)=Nf。
+- `normalize_subst` / `normalize_before_subst`: 任意Form,任意Form代入について、代入像の事前N、およびtemplateの事前Nは、最後のN結果を変えない。
+- `normalize_size_le` / `normalize_occurrences_le`: 任意Form（後者は任意name）で、N後の実size/occは元以下。
+- `lower_size` / `lower_occurrences`: 任意Form,任意代入（後者は任意name）で安定rigid lower boundへN済代入像を入れたsize/occは実capture後N以下。
+- `upper_size` / `upper_occurrences`: 同任意入力で実capture後Nのsize/occはraw upper templateへN済代入像を入れた値以下。
+- `term_subst_occurrences` / `args_subst_occurrences`: 任意実Term/引数列,実代入,変数bound,nameで、元boundが指定bound以下なら代入後occは全元変数occ×代入像occの有限sumBelowに等しい。
+- `occurrence_mono`: 任意実head/child引数列で全変数occ(child)≤occ(head)なら、任意実代入とnameで代入後もocc(child)≤occ(head)。
+- `head_size_bound` / `child_size_bound` / `head_occurrences_bound` / `child_occurrences_bound`: 任意Form列,任意代入（occは任意name）に対してN済lower/upper list boundsが実capture後Nを挟む。
+- `check_comparison_exact`: 任意有限Declarationで実Boolcheck=true iff有限comparison Roles.Impl.WellFormed。
+- `check_sound`: 任意Declaration,check=true,任意実requirements所属child,任意Form代入で、実N後child size<head sizeかつ任意nameの実N後child occ≤head occ。late拒否や成功前提なし。
+- `subst_identity` / `instantiated_identity`: 任意Form/列についてidentity代入は構文を保ち、N後引数列はchildBoundに等しい。
+- `accepted_wellFormed`: 任意Declarationでcheck=trueなら実toImpl.WellFormed。
+- `unary_accepted` / `rebuilding_accepted` / `repeated_accepted` / `constant_accepted`: 固定通常unary下降、pair再構築、同一payload重複、merged headから定数childの各実check=true。
+- `previous_rejected`: 固定第五回例の実check=false。
+- `terminal_accepted`: 任意role,key,任意Form headについてwhereなし宣言の実check=true。terminalを形制限で除外していない。
+
+検証: `cd lean && lake build --wfail` exit0（686 jobs）。追加strengtheningは次checkpointの687 jobsにも含まれる。
+独立reviewは全Form代入のsandwich証明とactual toImpl WFを確認、focused trust0/warning-as-error exit0。
+
+## B4r6 checkpoint 2: terminal merged headの未決capture boundary
+
+新規 `CommonRoleMergedCaptureBoundary`。運用上のcaptureやfull E2を定義していない。
+閉じた主張:
+
+- `stable_checked` / `wellFormed`: 固定二terminal declarationは実stable checker=true、実visible impl列はWF。
+- `environment_cores`: 固定実AssocEnvのcoresは同visible列。
+- `associated_determined`: 固定実AssocEnvは任意二Common代入の実HeadDeterminesAssociated。
+- `merged_head_interpreted` / `concrete_head_interpreted`: 任意Common解釈で実stored headはtick(union(σ0,σ1)) / tick intの意味を正確に返す。
+- `full_payload_head` / `separated_payload_head`: 固定二つの数学的completion（int,intとnever,int）はいずれも同tick intとCommon同値。
+- `bottom_not_int` / `completions_differ`: bottomとintは非同値、二completionの変数0像も非同値。
+- `distinct_declarations`: 固定二actual toImplは異なる。
+
+検証: `cd lean && lake build --wfail` exit0（687 jobs）。独立focused trust0/warning-as-error exit0。
+これはcanonical solverがどちらのcompletionを選ぶかを仮定した定理ではない。question一問に記録した未指定の運用判断を勝手に埋めていない。

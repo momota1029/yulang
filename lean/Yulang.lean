@@ -675,3 +675,6 @@ import Yulang.CommonRoleMergedObstruction
 import Yulang.CommonRoleMergedSemantic
 import Yulang.CommonRoleMergedExamples
 import Yulang.CommonRoleCaptureNormalization
+import Yulang.CommonRoleStablePaterson
+import Yulang.CommonRoleMergedCaptureBoundary
+import Yulang.CommonRoleStableRecordResidual
