@@ -4370,3 +4370,14 @@ run_cmd do
 #print axioms Yulang.CommonEffectNormalHandler.generate_partial_exact
 #print axioms Yulang.CommonEffectNormalHandler.generate_partial_same_holds
 #print axioms Yulang.CommonEffectPartialIntegration.resolved_keys_exact
+
+#print axioms Yulang.CommonEffectScopedRegular.compile_models
+#print axioms Yulang.CommonEffectScopedRegular.all_parameters_models
+#print axioms Yulang.CommonEffectScopedRegular.model_retraction
+#print axioms Yulang.CommonEffectScopedRegular.uniform_canonical_models
+#print axioms Yulang.CommonEffectScopedRegular.all_instances_exact
+#print axioms Yulang.CommonEffectScopedRegular.scoped_all_instances_exact
+
+#print axioms Yulang.CommonEffectScopedClamping.residualFormula_exact
+#print axioms Yulang.CommonEffectScopedClamping.factor_exact
+#print axioms Yulang.CommonEffectScopedClamping.original_retraction
