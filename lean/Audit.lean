@@ -3941,3 +3941,7 @@ run_cmd do
 #print axioms Yulang.Core.CommonSyntax.lower_embed
 #print axioms Yulang.Core.CommonSyntax.lower_isValue
 #print axioms Yulang.Core.CommonSyntax.typing_covered
+#print axioms Yulang.CommonCoreStrictApplication.forceApplication_typing_exact
+#print axioms Yulang.CommonCoreStrictApplication.all_parameters_typed
+#print axioms Yulang.CommonCoreStrictApplication.principal
+#print axioms Yulang.CommonCoreStrictApplication.empty_iff_untypable
