@@ -1924,3 +1924,12 @@ constructor ごとに新 carrier へ保持する。旧 block は `State.common` 
 `CommonNominalCarrierConstraints.compile_nominal_comparison_exact` は、新 carrier 自身の任意 regular nominal 型引数と
 任意行を持つ比較を、共有 slot を保持した実有限の双方向 presence atoms に生成する。
 旧 source typing / solver の接続は、順序保存とは別の残る義務である。
+
+`CommonNominalModelMap` は node を再帰翻訳して旧 model の constructor と文字どおり可換な embedding を構成し、
+`CommonNominalTypingPreservation` が旧 presence / CommonSyntax の任意捕捉環境・prescribed signature を含む Typing を保存する。
+`old_solver_all_parameters` / `old_solver_instances_exact` は実 `Core.infer` の同じ返却 scheme・同じ無制約 Parameters を使い、
+旧結果像上の全 instance を保存・反映する。`CommonNominalFoundations` はこの旧範囲保存と任意 regular nominal invariance をまとめる。
+
+`CommonNominalSlotSolver` は任意有限の既知 nominal head 比較列を、値型/行の共有 ID を保って同時に解く。
+全 slot の無制約な新 regular 型・行 parameter product を使い、全元モデルを全 slot で回収する（値は要求同値、行は等号）。
+一般 structural bound / nominal constructor 方程式との混合 solver と、construction source 全体の生成はこの theorem の対象ではない。

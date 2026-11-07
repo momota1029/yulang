@@ -598,3 +598,4 @@ import Yulang.CommonNominalConservativity
 import Yulang.CommonNominalModelMap
 import Yulang.CommonNominalTypingPreservation
 import Yulang.CommonNominalFoundations
+import Yulang.CommonNominalSlotSolver

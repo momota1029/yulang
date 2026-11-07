@@ -4214,3 +4214,8 @@ run_cmd do
 #print axioms Yulang.CommonNominalTypingPreservation.old_solver_instances_exact
 #print axioms Yulang.CommonNominalFoundations.common_nominal_invariant_exact
 #print axioms Yulang.CommonNominalFoundations.old_common_extension
+#print axioms Yulang.CommonNominalSlotSolver.all_parameter_sound
+#print axioms Yulang.CommonNominalSlotSolver.all_models_exact
+#print axioms Yulang.CommonNominalSlotSolver.compile_all_exact
+#print axioms Yulang.CommonNominalSlotSolver.solve_nominal_family_all_parameters
+#print axioms Yulang.CommonNominalSlotSolver.solve_nominal_family_all_instances_exact
