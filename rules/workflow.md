@@ -14,6 +14,7 @@ Historical material from the 2026-10 proof sprint is in tag `archive/proof-sprin
 ## Work shape
 
 - One request, one bounded piece of work. No resident loops, no self-selected next sprint.
+  Exception (user decision, 2026-11-07): the long-running Lean workers for M1 A1/A2 described in `notes/handoff/2026-11-07-m1-completion-contract.md`. They run until a stated end condition (a proof, or a theorem that the target cannot hold), never until they feel like reporting. The exception covers those workers only.
 - State the objective, scope, constraints, and stop condition before a non-trivial change.
 - Diagnose before editing (see `bug-fixing.md`). Fix at the owning responsibility.
 - When a language-semantics or architecture decision is needed, stop and give the user the options with a recommendation. Do not decide it locally.
