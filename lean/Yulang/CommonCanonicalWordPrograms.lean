@@ -69,6 +69,14 @@ def repeatTokens (tokens : Word) : Nat → Word
   | 0 => []
   | count + 1 => tokens ++ repeatTokens tokens count
 
+theorem natural_add_tokens (first last : Nat) :
+    natural (first + last) = repeatTokens [.natSucc] first ++ natural last := by
+  induction first with
+  | zero => simp [repeatTokens]
+  | succ first ih =>
+      simpa only [Nat.succ_add, natural, repeatTokens, List.singleton_append,
+        List.cons_append, List.nil_append] using congrArg (List.cons Token.natSucc) ih
+
 def repeatEmit {registers : Nat} (counter word temporary : Fin (registers + 1))
     (tokens : Word) : Routine registers :=
   append (clear temporary) (loop counter (emit word temporary tokens))

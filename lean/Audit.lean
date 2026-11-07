@@ -46,12 +46,16 @@ import Lean
 #print axioms Yulang.CanonicalRegisterMachine.Routine.atomic_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.branch_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.dispatch_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.call_trace
 #print axioms Yulang.CanonicalRegisterMachine.Routine.clear_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.incrementList_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.drain_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.copy_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.pushDigit_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.setConstant_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.clearList_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.comparisonLoop_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.compareCounters_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.wordTick_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.wordStore_write_frame
 #print axioms Yulang.CanonicalRegisterMachine.Routine.wordStore_update_frame
@@ -86,6 +90,7 @@ import Lean
 #print axioms Yulang.CommonCanonicalSerialization.interfaces_stream_exact
 #print axioms Yulang.CommonCanonicalWordPrograms.wordPop_token
 #print axioms Yulang.CommonCanonicalWordPrograms.emit_runs
+#print axioms Yulang.CommonCanonicalWordPrograms.natural_add_tokens
 #print axioms Yulang.CommonCanonicalWordPrograms.repeatEmit_runs
 #print axioms Yulang.CommonCanonicalWordPrograms.emitNatural_runs
 #print axioms Yulang.CommonCanonicalWordPrograms.readNaturalToken_runs

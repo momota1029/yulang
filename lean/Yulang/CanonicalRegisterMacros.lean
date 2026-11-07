@@ -210,4 +210,24 @@ theorem setConstant_runs {registers : Nat} (register : Fin (registers + 1))
     · simp [write, equal, Ne.symm equal, List.count_replicate]
   exact same ▸ execution
 
+def clearList {registers : Nat} : List (Fin (registers + 1)) → Routine registers
+  | [] => skip
+  | register :: rest => append (clear register) (clearList rest)
+
+theorem clearList_runs {registers : Nat} (targets : List (Fin (registers + 1)))
+    (values : Store registers) :
+    Runs (clearList targets) values (fun register => if register ∈ targets then 0 else values register) := by
+  induction targets generalizing values with
+  | nil =>
+      simpa only [clearList, skip, List.not_mem_nil, ↓reduceIte, Op.eval] using atomic_runs (.jump ()) values
+  | cons target rest ih =>
+      have combined := append_runs (clear_runs target values) (ih (write values target 0))
+      have same : (fun register => if register ∈ rest then 0 else write values target 0 register) =
+          (fun register => if register ∈ target :: rest then 0 else values register) := by
+        funext register
+        by_cases equal : register = target
+        <;> by_cases present : register ∈ rest
+        <;> simp_all [write]
+      exact same ▸ combined
+
 end Yulang.CanonicalRegisterMachine.Routine
