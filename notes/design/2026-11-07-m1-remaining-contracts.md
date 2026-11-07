@@ -1,5 +1,10 @@
 # 共通 presence carrier と全 source の M1 残契約
 
+2026-11-07 追記: 以下の契約の量化子と前提は維持する。後続作業で有限飽和・全 parameter soundness・
+実生成 clause の全 instance exactness、および残余のない公開 `Core.infer`・拒否 iff・unsupported 不出現・
+旧 instance の保存を閉じた。決定46の一般反映と全 public interface 標準形は残る。
+現在の theorem と不足する補題は [有限飽和・公開入口の結果](../handoff/2026-11-07-m1-common-saturation-results.md) を参照。
+
 Status: Draft — implementation contracts, no new language decisions.
 
 Date: 2026-11-07

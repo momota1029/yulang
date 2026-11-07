@@ -540,3 +540,84 @@ compile や Models 自体を solver の成立で定義し直す方法は採用�
 `Core.infer` を Formula.Holds の別名にする案や、初期成功・closed cache・fuel・残比較を引数に加える案は採用しない。
 対象のモデルは `PresenceGeneration.CoreRules.model Common.model` であり、全 Core モデルの統合とは区別する。
 決定46の旧 supported source 全体への反映と、§21 を超える完全な public interface 標準形は別の残契約である。
+
+## 23. 並行した求解経路と公開範囲
+
+`CommonBoundRefSolved` は atom 列から実 worklist と行宣言を呼び、有限 edge/row 構文を返す。
+`CommonBoundRefSolver` は実 `Compiled` の origin 構文から同じ有限 worklist を呼び、clamped family と
+元 node の readout を返す。両方に全 parameter 健全性と、実生成 source/Core の全独立モデルの回収がある。
+行は文字どおり等しく、値は元の全 node について要求同値であり、output だけに結論を狭めない。
+
+並行更新を取り込む際、確認済み theorem を削って一方へ統一する方法は採用しなかった。
+公開 `Core.infer` の所有者は `CommonSolvedSource` / `CommonBoundRefSolver` とし、
+別経路の syntax-gated 入口は `Core.SyntaxGatedCommonInference.infer` に分離した。
+公開入口は presence 判断の全 Core 項を分類し、規則がない構文では空 scheme 列から rejected となる。
+syntax-gated 版は同じ構文を unsupported と区別する。両方の principal statement は独立 presence Typing に相対的であり、
+この相違を effect/qualified/case の全モデルへの統合として報告しない。
+
+`CommonSolvedLegacyPreservation` は既存旧 instance の保存を実新入口まで接続し、
+単なる subtype だけでなく同じ結果行と要求同値な具体化を回収する。
+`Compiled.origin` を信用する手書き API の全入力へ correctness を拡大する案も採用しない。
+実公開経路は常に正規の compile を使い、任意の `compile atoms` について任意返却 scheme の全 parameters が健全である。
+
+## 24. 決定46の反映: 固定境界と共有構成子の区別
+
+有限個の旧 regular 上限から、Common witness が満たすものを取り、その intersection を旧型として選ぶ
+`CommonLegacyReflection.envelope` を構成した。同じ有限 test 列を全 slot に使うことで、
+すべての旧下限、列挙した上限、未知 slot 同士の flow、任意に指定した旧出力 target を同時に保つ。
+下限は test 列に含まれていなくてもよい。型の構文を scalar や有限木に制限する必要もない。
+これは存在証明用の非計算的補間であり、solver/canonicalizer の実装に意味的決定手続きを導入しない。
+
+構成子境界では、pair/tag の上限の子を test に含めれば反映できる。
+arrow の上限では旧 result の test、下限では旧 input の test が必要で、負位置の向きに従って使い分ける。
+行は独立な四つの値をそのまま使う。
+
+各 node を独立に envelope すれば全方程式も保つという代案は採用しない。
+tests が旧 top のみの場合、親も子も top 同値へ移るが、top は pair top top 以下ではない。
+`envelope_does_not_preserve_pair_equation` で任意 Common child に対するこの反例を証明した。
+有限な出力 target の全 subterm を集めるだけでは、この問題を解消しない。
+
+一方、新旧 generator の構文的接続は `CommonLegacyGeneratedErasure` /
+`CommonLegacyGenerationTranslation` で閉じた。旧 supported source の実 presence clause を
+同じ locals/共有 ID/row term の実旧 clause へ変換でき、共有旧割当てに対して atom 充足が同値である。
+`CommonLegacyEmbeddedWitnesses` は required-only source の旧 contextual Typing を、
+実 presence clause と共有旧割当ての存在に正確に特徴付ける。結果 computation は指定結果と等しい。
+
+不足する意味的補題は、任意の Common 生成 witness が埋込み旧結果を与えるとき、
+いずれかの実生成 clause を満たす共有旧 witness を同じ結果へ回収することである。
+元の clause や全内部 rows まで固定して回収することは十分な強い補題だが、決定46そのものには必要ない。
+元 input slot だけを旧値に選び直し、constructor nodes は Common で再評価すればよい。
+exactEmpty rigid node まで旧 embedding と要求同値にする誤った条件を追加しない。
+
+## 25. Parameter の完全 code と一回の簡約を区別する
+
+`CommonCanonicalIntervals` と `CommonCanonicalScalarFamilies` は、同じ有限 scalar 格子文法について
+別経路で完全な型族の特徴付けを証明する。前者は有限 profile の polynomial identity、後者は probe の直接証明を使う。
+一般化 slot をすべて同時に bottom/top にした二端点が exact instance の閉区間を定め、
+subtype で広げる instance では下端だけが必要となる。固定 slot は任意の同じ Common 割当てを保つ。
+異なる一般化 arity を許し、再parameter化候補や全単射の存在を前提に置かない。
+
+`CommonCanonicalPositive` は、一般化 slot がすべて正である有限 Form について、
+全 rows・全固定割当て・全 target の subtype-instance 集合一致を、lower Form の有限 code 一致で完全に判定する。
+同時置換なので別々の pair/field 出現の共有を保つ。arrow domain は固定 slot だけを許すが、
+固定 slot は負位置と結果に繰り返し共有できる。構文条件を任意 Common parameter への意味条件に置き換えない。
+
+exact instance を構成子ごとの区間に分解する代案は採用しない。
+`pair p p` の二端点の間に `pair top bottom` があるが、同じ p ではその型を回収できない。
+また `'a → 'a` の負/正 slot を分割すると `top → bottom` を余分に許す。
+同じ arity の二変数を両方使う union と intersection も同じ exact family を持つが非 α である。
+これらの obstruction は、標準形の仕様を α 同値へ狭めない理由を具体的にする。
+
+`CommonCanonicalPolarity` はより広い Form で、明示 frozen slot と正負共有を保ち、
+非 frozen の正のみの slot を bottom、負のみを top にする一回の subtype-family 保存簡約である。
+出現を消しても arity は縮めない。`normalize` はこの pass と既存の格子/構成子正規化を一回ずつ行う。
+`CommonCanonicalPolarityBoundary.normalize_not_idempotent` は、`a → (a & bottom)` が一回で
+`a → bottom`、二回で `top → bottom` になることを示す。完全 code、固定点、冪等性とは区別する。
+反復すれば完全になることも、完全化が不可能であることも、この反例からは結論しない。
+
+`CommonCanonicalScalarExports` は qualifier が空の scalar 式を既存の `QualifiedInference.Interface` にし、
+実 `scheme.Holds` の全 role theory/ambient/target に関する同値を有限 code 一致へ接続する。
+role theory を全称量化していても、正規化する interface の obligations は空である。
+role 義務付きの正の変数まで bottom にしてよいという案は `positive_role_cannot_be_erased` で排除した。
+weak/captured/role metadata から frozen を完全に導出すること、一般行式や regular/nominal を含む
+一つの有限 interface、実 inference→export→display の全経路は、引き続き §7.5 の契約に残す。
