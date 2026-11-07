@@ -68,4 +68,18 @@ theorem monomorphic_prefix_environment_exact
         List.cons_append, CompTerm.eval, CompTerm.pure, RowTerm.eval, Comp.pure]
         using ih.mono (CompTerm.pure binding.2)
 
+/-- A later default sees the preceding pattern prefix before its original
+captured environment. This is the Q4 environment, for every source expression,
+every assignment and every requested value/row result. -/
+theorem cumulative_default_generation_exact
+    (ρ : α → Comp Common.model) (bindings : NamedTerms α)
+    (symbolic : SchemeEnv α) (semantic : List (Binding Common.model))
+    (outer : EnvRel Common.model ρ symbolic semantic)
+    (fallback : Inference.Expr) (result : CompTerm α) :
+    (generate (symbolicPrefix bindings ++ symbolic) fallback result).Holds Common.model ρ ↔
+      Typing Common.model (semanticPrefix (evalTypes ρ bindings) ++ semantic)
+        fallback (result.eval Common.model ρ) :=
+  generate_models_iff_typing Common.model fallback _ _ ρ result
+    (monomorphic_prefix_environment_exact ρ bindings symbolic semantic outer)
+
 end Yulang.CommonPatternEnvironment
