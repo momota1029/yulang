@@ -613,3 +613,5 @@ import Yulang.CommonEffectRecursiveSource
 import Yulang.CommonEffectRecursiveGeneration
 import Yulang.CommonEffectRecursiveExact
 import Yulang.CommonEffectPolarity
+import Yulang.CommonEffectPolarityElimination
+import Yulang.CommonEffectOutputWeakening

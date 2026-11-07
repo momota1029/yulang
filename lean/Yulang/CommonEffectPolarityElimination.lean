@@ -10,10 +10,12 @@ open CommonEffectPolarity
 
 variable {scopes : Nat}
 
+def prepend (bit : Bool) (tail : Fin count → Bool) : Fin (count + 1) → Bool := Fin.cases bit tail
+
 def directionsList : (count : Nat) → List (Fin count → Bool)
   | 0 => [Fin.elim0]
   | count + 1 => (directionsList count).flatMap fun tail =>
-      [Fin.cases false tail, Fin.cases true tail]
+      [prepend false tail, prepend true tail]
 
 theorem directionsList_complete (directions : Fin count → Bool) : directions ∈ directionsList count := by
   induction count with
@@ -23,12 +25,12 @@ theorem directionsList_complete (directions : Fin count → Bool) : directions �
   | succ count ih =>
     let tail : Fin count → Bool := fun index => directions index.succ
     have member := ih tail
-    have same : Fin.cases (directions 0) tail = directions := by
+    have same : prepend (directions 0) tail = directions := by
       funext index
       exact Fin.cases rfl (fun _ => rfl) index
     apply List.mem_flatMap.mpr
     refine ⟨tail, member, ?_⟩
-    have bit : Fin.cases (directions 0) tail ∈ [Fin.cases false tail, Fin.cases true tail] := by
+    have bit : prepend (directions 0) tail ∈ [prepend false tail, prepend true tail] := by
       cases directions 0 <;> simp
     exact same ▸ bit
 
@@ -37,7 +39,8 @@ def select (formula : Formula scopes (α ⊕ Fin count)) : Option (Fin count →
 
 theorem select_sound (formula : Formula scopes (α ⊕ Fin count)) (directions : Fin count → Bool)
     (selected : select formula = some directions) :
-    goodFormula (localsOrientation directions) formula = true := List.find?_some selected
+    goodFormula (localsOrientation directions) formula = true :=
+  List.find?_some (p := fun chosen => goodFormula (localsOrientation chosen) formula) selected
 
 theorem select_complete (formula : Formula scopes (α ⊕ Fin count)) :
     (select formula).isSome = true ↔

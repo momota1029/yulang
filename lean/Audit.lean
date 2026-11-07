@@ -4288,3 +4288,16 @@ run_cmd do
 #print axioms Yulang.CommonEffectPolarity.type_ordered
 #print axioms Yulang.CommonEffectPolarity.formula_ordered
 #print axioms Yulang.CommonEffectPolarity.forall_extremal_exact
+
+#print axioms Yulang.CommonEffectPolarityElimination.select_complete
+#print axioms Yulang.CommonEffectPolarityElimination.eliminate_exact
+#print axioms Yulang.CommonEffectPolarityElimination.selected_binder_removed
+
+#print axioms Yulang.CommonEffectOutputWeakening.typing_weaken
+#print axioms Yulang.CommonEffectOutputWeakening.binding_weaken
+#print axioms Yulang.CommonEffectOutputWeakening.arm_result_exact
+#print axioms Yulang.CommonEffectOutputWeakening.generated_arm_result_exact
+
+#print axioms Yulang.CommonEffectOutputWeakening.generated_arm_formula_exact
+#print axioms Yulang.CommonEffectOutputWeakening.handler_at_output_iff
+#print axioms Yulang.CommonEffectOutputWeakening.multi_handler_at_output_iff
