@@ -71,4 +71,24 @@ theorem locked_rows_subtype_iff (first last : Common.Row) :
   exact ⟨fun both => Common.rowLe_antisymm both.2 both.1,
     fun same => same ▸ ⟨Common.rowLe_refl _, Common.rowLe_refl _⟩⟩
 
+/-- Equality of the full upward instance families detects an unrestricted
+existential assignment. The parameter carrier may have any cardinality,
+including zero; no residual constraint is imposed on its elements. -/
+theorem family_equality_iff_satisfiable {Parameters : Type} (fixed : Common.Ty)
+    (values : Parameters → Common.Ty) :
+    (∀ target, Common.Subtype fixed target ↔
+      ∃ parameters, Common.Subtype (.union fixed (values parameters)) target) ↔
+    ∃ parameters, Common.Subtype (values parameters) fixed := by
+  constructor
+  · intro same
+    obtain ⟨parameters, below⟩ := (same fixed).mp (Common.subtype_refl fixed)
+    exact ⟨parameters, ((Common.common_union_is_join _ _ _).mp below).2⟩
+  · rintro ⟨parameters, below⟩ target
+    constructor
+    · intro upper
+      exact ⟨parameters, (Common.common_union_is_join _ _ _).mpr
+        ⟨upper, Common.subtype_trans below upper⟩⟩
+    · rintro ⟨parameters, upper⟩
+      exact ((Common.common_union_is_join _ _ _).mp upper).1
+
 end Yulang.CommonCanonicalRowConstraints
