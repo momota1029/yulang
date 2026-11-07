@@ -5921,3 +5921,14 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredNominalSlots.AllSlots.append
 #print axioms Yulang.CommonDeclaredNominalSlots.inspect_all_slots
 #print axioms Yulang.CommonDeclaredNominalSlots.inspect_all_grammar
+
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.compile_models_exact
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.compiled_grammar
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.mem_solve
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.rows_eval_congr
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.atoms_congr
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.models_congr
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.all_parameters_models
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.solve_all_instances_exact
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.generated_models_exact
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.generated_core_models_exact

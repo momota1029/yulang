@@ -56,3 +56,42 @@ full nominal source の構築や、再帰 nominal carrier の実装を完了し�
 
 検証: 対象 module の `lake build --wfail` と全体 build が成功。
 上の二定理の直接 `trust=0` 監査は `[propext, Quot.sound]` のみ。
+
+## 3. 元 source の全共有 slot と既存 solved worklist への接続
+
+`lean/Yulang/CommonDeclaredNominalSourceFamily.lean`。
+実 `inspectAll` の atom を元 clause に追記し、全体を **一回の既存 Common graph compiler / solved worklist** に渡す。
+別の scalar solver、nominal 専用 semantic carrier、外部 compatibility oracle を増設しない。
+scheme に格納するのは、実有限 atom 列と既存 solved scheme の有限構文だけである。
+
+主要定理:
+
+- `all_parameters_models`: 任意の有限宣言表、任意の元有限 Common atom 列、任意の元共有 slot 上の
+  nominal 比較列、実 `solve` が返す任意の scheme、任意の全 row parameter vector と
+  その scheme の全 value parameter tuple に対して、実 instantiate の **全元 slot** は、
+  元 atom 列と全 declaration-aware nominal 比較を同時に満たす。
+  parameter に Models・Consistent・ResidualHolds・support の条件を課さない。
+- `solve_all_instances_exact`: 同じ任意の表／atom 列／比較列について、元 atom 列が既存 child grammar・
+  width atoms・row shape の三つを満たすとき、任意の独立な元 computation assignment が
+  元 atom と全 nominal 比較を同時に満たすこと iff 実返却 scheme と無制約の parameter が存在し、
+  **全元行を literal equality、全元型を Common の要求同値で同時に回収する**。
+  nominal inspector 側の三つの文法条件は §2 から内部で導く。
+- `generated_models_exact`: 任意の実 `Inference.Expr`、その元 principal generator の normalise が返す
+  任意の clause、任意の有限宣言表、任意の元 packed slot 上の nominal 比較列、任意の独立な全元
+  computation assignment について、上の全 model／全 scheme-instance の iff。
+  元 clause の三つの文法条件も、実生成の事実から内部で導く。
+- `generated_core_models_exact`: 同じ主張を、任意の元 `Core.Required.Term` と実 `principalCore` が
+  生成する任意の clause に対して証明する。unsupported な source を成功扱いする変更はない。
+
+`AssignmentEquivalent` は出力一個だけでなく、元のすべての局所型 slot とすべての行 slot を比較する。
+同じ slot を複数の nominal 引数／異なる比較で使う共有は変えない。
+旧 `Common` の record/default/arrow の相関を、別々の scalar family に分解して失わない。
+
+範囲の限界: 元 source clause の Common 型 slot に declaration-aware nominal **metadata 制約**を追加する橋である。
+nominal 値を `Common.Ty` の中に新設したり、list/struct の source AST を元 generator が処理できるようにしたりしたわけではない。
+open 不変区間の具体的な source 生成、宣言からの variance 導出、full nominal carrier、source construction/cast/EOF は残る。
+この部分結果を B5/B1 の E1/E2 とは数えない。
+
+検証: 対象 module の `lake build --wfail`（190 jobs）と全体 build（1009 jobs）が終了コード 0。
+直接 `trust=0` 監査では、compile の主要定理は `[propext, Quot.sound]`、solver/source の主要定理は
+`[propext, Classical.choice, Quot.sound]` のみ。追加の公理・`sorry`・`native_decide` は導入していない。
