@@ -35,6 +35,15 @@ import Lean
 #print axioms Yulang.CanonicalRegisterMachine.invariant_iff_nonhalting
 #print axioms Yulang.CanonicalRegisterMachine.reaches_execution_iff
 #print axioms Yulang.CanonicalRegisterMachine.subroutine_reaches
+#print axioms Yulang.CanonicalRegisterMachine.Routine.op_map_eval
+#print axioms Yulang.CanonicalRegisterMachine.Routine.trace_trans
+#print axioms Yulang.CanonicalRegisterMachine.Routine.trace_map
+#print axioms Yulang.CanonicalRegisterMachine.Routine.append_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.loop_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.trace_compiled
+#print axioms Yulang.CanonicalRegisterMachine.Routine.atomic_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.clear_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.incrementList_runs
 #print axioms Yulang.CommonCanonicalRowSyntax.binding_instances_exact
 #print axioms Yulang.CommonCanonicalRowSyntax.rename_eval
 #print axioms Yulang.CommonCanonicalRowGeometry.closed_row_exact
@@ -58,6 +67,8 @@ import Lean
 #print axioms Yulang.CommonCanonicalCounterConstraints.constraints_iff_nonhalting
 #print axioms Yulang.CommonCanonicalCounterConstraints.public_instances_iff_nonhalting
 #print axioms Yulang.CommonCanonicalCounterConstraints.no_compiled_public_instance_semidecider
+#print axioms Yulang.CommonCanonicalSerialization.form_rename_zero_serializes
+#print axioms Yulang.CommonCanonicalSerialization.wordCode_injective
 
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/
