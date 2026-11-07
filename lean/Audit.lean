@@ -4485,3 +4485,7 @@ run_cmd do
 #print axioms Yulang.CommonEffectArrowFamily.subtype_components
 #print axioms Yulang.CommonEffectArrowFamily.components_subtype
 #print axioms Yulang.CommonEffectArrowFamily.family_subtype_exact
+
+#print axioms Yulang.CommonEffectArrowInspection.inspect_exact
+#print axioms Yulang.CommonEffectArrowInspection.extract_exact
+#print axioms Yulang.CommonEffectArrowInspection.inspect_collected_exact

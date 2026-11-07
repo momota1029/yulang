@@ -2005,3 +2005,21 @@ pure/head checks、union upper の choice routing、返却 scheme 列、全 inst
 Boolean safety と parameter guards の真偽も保持し、preimage readback は全元 row IDs を文字どおり保つ。
 元 row parameters は無制約で、新 carrier の任意行を old image と同一視しない。
 whole source の boundary 挿入と一般 universal/value solver は未完のままである。
+
+## M1 B3 追補: rank compactness と depth-wise inter-arrow inspection
+
+`CommonSignedFreshCompilation` は実 fresh expression compiler/choice solver の任意新 row parameters を
+preimage readback し、元 row 制約の all-parameter soundness と全元行の literal recovery を証明する。
+新 parameters が old image に属するという条件は不要である。
+
+`CommonEffectRankMonotonicity` / `CommonEffectRankCompactness` は任意 finite Common 型の負の rank 比較を
+有限 domain tests による環境再構成で下げ、固定有限候補の一つを全 rank に共通化する。
+`CommonEffectDepthBoundary` / `CommonEffectDepthChoiceBoundary` は、その結果を constructor-depth に
+流用できない明示反例を持つ。任意 Common 型の default 近似により、同じ source と二つの targets が
+全 depth を分担しても、どちらも whole Common subtype にならない。これを親 B3 の E2 と数えない。
+
+`CommonEffectArrowCover` / `CommonEffectArrowFamily` は depth ごとの domain 選択を残した正しい
+finite inter-arrow inspection を証明する。入力行・出力行の担当 member は別でもよく、result は全出力型の inter を保つ。
+`CommonEffectArrowInspection.inspect_collected_exact` はこれを実 shared Pool の finite child/row IDs へ compile する。
+任意独立 rows/全値 nodes と元 constructor equations の下で exact であり、whole-source subtype を atom に持たない。
+残る depth-cover/result-inter の自由 scheme 化と一般 universal relative solving が必要で、親二契約は未完である。
