@@ -142,4 +142,20 @@ theorem chain_fresh (count : Nat) :
   have before := List.mem_range.mp inside
   omega
 
+/-- No replacement natural-number size can strictly decrease on every
+regular instance of this accepted declaration. This concerns direct child
+descent, not a finite symbolic decision procedure for its evidence. -/
+theorem no_natural_descent_measure :
+    ¬ ∃ measure : Ty → Nat, ∀ source target,
+      InstanceStep source target → measure target < measure source := by
+  rintro ⟨measure, decreases⟩
+  have bound (count : Nat) : measure (chain count) + count ≤ measure (chain 0) := by
+    induction count with
+    | zero => omega
+    | succ count ih =>
+      have less := decreases _ _ (chain_step count)
+      omega
+  have impossible := bound (measure (chain 0) + 1)
+  omega
+
 end Yulang.CommonRoleRegularObstructions
