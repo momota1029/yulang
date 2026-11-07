@@ -76,4 +76,50 @@ theorem all_parameters_models (registry : Registry) (original : List (Atom (Fin 
     (CommonDeclaredNominalSourceFamily.all_parameters_models registry (original ++ bounds) comparisons
       scheme member rowParameters parameters)
 
+private theorem inspected_grammar (registry : Registry) (occurrences : List (Occurrence α))
+    (atoms : List (Atom α)) (returned : inspectAll registry occurrences = some atoms) :
+    PresenceGeneratedChildGrammar.GoodAtoms atoms ∧ PresenceGeneratedWidth.WidthAtoms atoms ∧
+      PresenceSourceConstraintSupport.GoodAtoms atoms := by
+  have sharedSlots := CommonDeclaredInvariantBounds.inspect_all_slots registry occurrences atoms returned
+  refine ⟨?_, ?_, ?_⟩
+  · intro atom member
+    cases sharedSlots atom member <;> trivial
+  · intro source target member tail required
+    cases sharedSlots (.tyLe source target) member
+    cases required
+  · intro atom member
+    cases sharedSlots atom member <;> trivial
+
+/-- Every original model is recovered simultaneously at every original
+slot. Only the original clause has syntactic premises; the two inspectors'
+outputs satisfy the existing solver grammar by construction. -/
+theorem solve_all_instances_exact (registry : Registry) (original : List (Atom (Fin slots)))
+    (comparisons : List (Comparison (Fin slots))) (occurrences : List (Occurrence (Fin slots)))
+    (child : PresenceGeneratedChildGrammar.GoodAtoms original)
+    (width : PresenceGeneratedWidth.WidthAtoms original)
+    (rows : PresenceSourceConstraintSupport.GoodAtoms original)
+    (assignment : Fin slots → Comp Common.model) :
+    Models registry original comparisons occurrences assignment ↔
+      ∃ scheme ∈ solve registry original comparisons occurrences,
+        ∃ rowParameters : Fin slots → Row, ∃ parameters : scheme.Parameters,
+          AssignmentEquivalent (scheme.instantiate rowParameters parameters) assignment := by
+  constructor
+  · intro model
+    obtain ⟨bounds, inspected, _⟩ :=
+      (CommonDeclaredInvariantBounds.inspect_all_exact registry occurrences assignment).mpr model.2
+    obtain ⟨boundsChild, boundsWidth, boundsRows⟩ := inspected_grammar registry occurrences bounds inspected
+    have compiledModel := (compiled_models_exact registry original comparisons occurrences bounds inspected assignment).mpr model
+    obtain ⟨scheme, member, rowParameters, parameters, same⟩ :=
+      (CommonDeclaredNominalSourceFamily.solve_all_instances_exact registry (original ++ bounds) comparisons
+        (child.append boundsChild) (width.append boundsWidth) (rows.append boundsRows) assignment).mp compiledModel
+    exact ⟨scheme, (mem_solve registry original comparisons occurrences scheme).mpr ⟨bounds, inspected, member⟩,
+      rowParameters, parameters, same⟩
+  · rintro ⟨scheme, returned, rowParameters, parameters, same⟩
+    obtain ⟨bounds, inspected, member⟩ := (mem_solve registry original comparisons occurrences scheme).mp returned
+    obtain ⟨boundsChild, boundsWidth, boundsRows⟩ := inspected_grammar registry occurrences bounds inspected
+    apply (compiled_models_exact registry original comparisons occurrences bounds inspected assignment).mp
+    exact (CommonDeclaredNominalSourceFamily.solve_all_instances_exact registry (original ++ bounds) comparisons
+      (child.append boundsChild) (width.append boundsWidth) (rows.append boundsRows) assignment).mpr
+        ⟨scheme, member, rowParameters, parameters, same⟩
+
 end Yulang.CommonDeclaredInvariantSourceFamily

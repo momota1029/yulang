@@ -143,3 +143,21 @@ attachment を生成するかを定義しない。同じ元 slot を複数 occur
 
 検証: 対象 module の `lake build --wfail`（194 jobs）成功。
 主要定理の直接 `trust=0` 監査は `[propext, Classical.choice, Quot.sound]` のみ。
+
+## 6. 不変区間を含む全元 model の同時回収
+
+同 module の `solve_all_instances_exact`:
+
+> 任意の有限宣言表、任意の元 atom 列、任意の元 slot 上の nominal 比較列と interval
+> occurrence 列について、元 atom 列が既存 solver の child grammar・width atoms・row shape
+> を満たすとき、任意の独立な元 computation assignment が元 atom と全比較／全不変区間を
+> 同時に満たすこと iff 実返却 scheme と無制約の row/value parameter が存在し、その実
+> instantiate が全元行を literal equality、全元型を Common の要求同値で同時に回収する。
+
+追加された interval atom の三つの文法条件は実 inspector 返却から内部で導き、nominal
+比較も §2 の同じ結果を使う。生成したものを別の fresh slot にコピーしてから全称化する操作はない。
+元 source の全 assignment を回収し、区間ごとに別々の actual を選ぶこともない。
+
+検証: 対象 module の `lake build --wfail` 成功。主要定理の直接 `trust=0` 監査は
+`[propext, Classical.choice, Quot.sound]` のみ。未証明の source attachment provenance と
+full nominal carrier の範囲は §3–§4 のままである。
