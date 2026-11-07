@@ -178,4 +178,64 @@ theorem reorder_bindings_hold (names : List Nat) (typed : CaseValues.BindingsHol
       · cases paired
       · simpa only [reorder, first, last] using CaseValues.BindingsHold.cons paired ih
 
+theorem reorder_congr (names : List Nat) (first last : List (Nat × A))
+    (same : ∀ name ∈ names, lookup name first = lookup name last) :
+    reorder names first = reorder names last := by
+  induction names with
+  | nil => rfl
+  | cons name rest ih =>
+      have head := same name List.mem_cons_self
+      have tail := ih (fun n member => same n (List.mem_cons_of_mem _ member))
+      simp only [reorder, head]
+      cases lookup name last <;> first | exact tail | exact congrArg (List.cons _) tail
+
+theorem reorder_self (bindings : List (Nat × A)) (distinct : (bindings.map Prod.fst).Nodup) :
+    reorder (bindings.map Prod.fst) bindings = bindings := by
+  induction bindings with
+  | nil => rfl
+  | cons binding rest ih =>
+      rcases binding with ⟨name, value⟩
+      have apart := List.nodup_cons.mp distinct
+      simp only [List.map_cons, reorder, lookup, ↓reduceIte]
+      congr 1
+      rw [reorder_congr (rest.map Prod.fst) ((name, value) :: rest) rest (by
+        intro current member
+        have different : current ≠ name := by intro equal; subst current; exact apart.1 member
+        simp only [lookup, different, ↓reduceIte])]
+      exact ih apart.2
+
+theorem reorder_roundtrip (first last : List Nat) (bindings : List (Nat × A))
+    (names : bindings.map Prod.fst = first) (distinct : first.Nodup)
+    (retained : ∀ name ∈ first, name ∈ last) :
+    reorder first (reorder last bindings) = bindings := by
+  have same := reorder_lookup_eq last bindings (by simpa only [names] using retained)
+  rw [reorder_congr first (reorder last bindings) bindings (fun name _ => same name), ← names]
+  exact reorder_self bindings (names ▸ distinct)
+
+theorem lookup_mem (name : Nat) (bindings : List (Nat × A)) (found : lookup name bindings = some value) :
+    (name, value) ∈ bindings := by
+  induction bindings with
+  | nil => cases found
+  | cons binding rest ih =>
+      rcases binding with ⟨current, item⟩
+      by_cases same : name = current
+      · subst current
+        have equal : item = value := by simpa [lookup] using found
+        subst item
+        exact List.mem_cons_self
+      · exact List.mem_cons_of_mem _ (ih (by simpa [lookup, same] using found))
+
+theorem reorder_mem (names : List Nat) (bindings : List (Nat × A)) : reorder names bindings ⊆ bindings := by
+  induction names with
+  | nil => intro binding member; cases member
+  | cons name rest ih =>
+      intro binding member
+      cases found : lookup name bindings with
+      | none => exact ih (by simpa only [reorder, found] using member)
+      | some value =>
+          simp only [reorder, found] at member
+          rcases List.mem_cons.mp member with rfl | member
+          · exact lookup_mem name bindings found
+          · exact ih member
+
 end Yulang.CommonPatternBindingAlignment

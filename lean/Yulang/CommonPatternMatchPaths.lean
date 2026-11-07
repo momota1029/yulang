@@ -15,7 +15,7 @@ theorem andThen_success (first : Observation F E R) (last : Bindings F → Obser
     ∃ left right, first.result = .ok (some left) ∧ (last left).result = .ok (some right) ∧ output = left ++ right := by
   simp only [ScopedCasePatterns.andThen, Logged.bind_result] at returned
   cases firstResult : first.result with
-  | error error => simp [Except.bind] at returned
+  | error error => rw [firstResult] at returned; cases returned
   | ok option =>
       rw [firstResult] at returned
       cases option with
@@ -105,24 +105,24 @@ theorem run_binding_path (floatCheck : F → F → Bool)
                   exact .defaultField (ihp _ _ _ first) (ihr _ _ _ last)
       | _ => simp only [ScopedCasePatterns.run] at matched; cases matched
   | nil =>
-      cases value <;> simp only [ScopedCasePatterns.run] at matched
-      all_goals first
-      | (split at matched
-         · have equal : output = [] := by simpa [success, Logged.ofResult] using matched.symm
-           subst output; exact .nil
-         · cases matched)
-      | (have equal : output = [] := by simpa [success, Logged.ofResult] using matched.symm
-         subst output; exact .nil)
-      | cases matched
+      cases value with
+      | list values =>
+          cases values with
+          | nil =>
+              have equal : output = [] := by simpa [ScopedCasePatterns.run, success, Logged.ofResult] using matched.symm
+              subst output; exact .nil
+          | cons => cases matched
+      | _ => cases matched
   | cons p q ihp ihq =>
-      cases value <;> simp only [ScopedCasePatterns.run] at matched
-      all_goals first
-      | (split at matched
-         · obtain ⟨left, right, first, last, rfl⟩ := andThen_success _ _ matched
-           rw [List.map_append]
-           exact .cons (ihp _ _ _ first) (ihq _ _ _ last)
-         · cases matched)
-      | cases matched
+      cases value with
+      | list values =>
+          cases values with
+          | nil => cases matched
+          | cons first tail =>
+              obtain ⟨left, right, first, last, rfl⟩ := andThen_success _ _ matched
+              rw [List.map_append]
+              exact .cons (ihp _ _ _ first) (ihq _ _ _ last)
+      | _ => cases matched
   | snoc p q ihp ihq =>
       cases value <;> simp only [ScopedCasePatterns.run] at matched
       all_goals first
@@ -170,5 +170,53 @@ theorem run_binding_path (floatCheck : F → F → Bool)
               have equal : output = (name, value) :: prior := by simpa [success, Logged.ofResult, Except.bind] using matched.symm
               subst output
               exact .as (ih _ _ _ observed)
+
+/-- A source-valid raw match can be aligned to the source interface's names.
+Every original lookup is preserved, even if a right or branch wrote the
+same binders in a different order. No default success contract is needed. -/
+theorem matched_alignment (floatCheck : F → F → Bool)
+    (defaultEval : Bindings F → D → Logged E R (Value F)) (pattern : Pattern F D)
+    (valid : NamesValid pattern) (environment : Bindings F) (value : Value F) (output : Bindings F)
+    (matched : (ScopedCasePatterns.run floatCheck defaultEval environment pattern value).result = .ok (some output)) :
+    (reorder pattern.names output).map Prod.fst = pattern.names ∧
+      LookupEq (reorder pattern.names output) output := by
+  have names := (run_binding_path floatCheck defaultEval pattern environment value output matched).names valid
+  exact ⟨CommonPatternBindingAlignment.reorder_names _ _ (fun name member => (names name).mpr member),
+    CommonPatternBindingAlignment.reorder_lookup_eq _ _ (fun name member => (names name).mp member)⟩
+
+/-- The next concrete named default/guard/body sees exactly the same values
+after interface alignment, including errors and the entire evaluation trace.
+This is local to a completed matching part, so it can also apply at nested
+or boundaries rather than only at the final arm output. -/
+theorem following_data_eval_alignment (floatCheck : F → F → Bool)
+    (defaultEval : Bindings F → D → Logged E R (Value F)) (pattern : Pattern F D)
+    (valid : NamesValid pattern) (environment : Bindings F) (value : Value F) (output : Bindings F)
+    (matched : (ScopedCasePatterns.run floatCheck defaultEval environment pattern value).result = .ok (some output))
+    (next : CaseDataTerms.Expr F) :
+    CaseDataTerms.eval (reorder pattern.names output ++ environment) next =
+      CaseDataTerms.eval (output ++ environment) next :=
+  CommonPatternBindingAlignment.data_eval_lookup_eq next _ _
+    ((matched_alignment floatCheck defaultEval pattern valid environment value output matched).2.append environment)
+
+theorem canonical_binding_path (pattern : Pattern F D) : BindingPath pattern pattern.names := by
+  induction pattern with
+  | wildcard => exact .wildcard
+  | bind => exact .bind
+  | literal => exact .literal
+  | intRange => exact .intRange
+  | pair p q ihp ihq => exact .pair ihp ihq
+  | recordEnd => exact .recordEnd
+  | field name p q ihp ihq => exact .field ihp ihq
+  | defaultField name fallback p q ihp ihq => exact .defaultField ihp ihq
+  | nil => exact .nil
+  | cons p q ihp ihq => exact .cons ihp ihq
+  | snoc p q ihp ihq => exact .snoc ihp ihq
+  | variant tag p ih => exact .variant ih
+  | nominal typeId ctorId p ih => exact .nominal ih
+  | or p q ihp ihq => exact .orLeft ihp
+  | as p name ih => exact .as ih
+
+theorem source_names_nodup (pattern : Pattern F D) (valid : NamesValid pattern) : pattern.names.Nodup :=
+  valid.path_nodup (canonical_binding_path pattern)
 
 end Yulang.CommonPatternMatchPaths

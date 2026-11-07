@@ -603,3 +603,8 @@ import Yulang.CommonPatternGenerationProvenance
 import Yulang.CommonPatternSolvedGeneration
 import Yulang.CommonPatternBindingAlignment
 import Yulang.CommonPatternScopeRenaming
+import Yulang.CommonPatternMatchPaths
+import Yulang.CommonPatternAlignedObservations
+import Yulang.CommonPatternAlignedMatcher
+import Yulang.CommonAlignedPatternTyping
+import Yulang.CommonAlignedPatternInversion

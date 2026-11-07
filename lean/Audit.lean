@@ -4207,3 +4207,9 @@ run_cmd do
 #print axioms Yulang.CommonPatternBindingAlignment.reorder_bindings_hold
 #print axioms Yulang.CommonPatternScopeRenaming.typing_rename_exact
 #print axioms Yulang.CommonPatternScopeRenaming.generation_rename_exact
+#print axioms Yulang.CommonPatternMatchPaths.run_binding_path
+#print axioms Yulang.CommonPatternMatchPaths.following_data_eval_alignment
+#print axioms Yulang.CommonPatternAlignedObservations.alignResult_equivalent
+#print axioms Yulang.CommonPatternAlignedMatcher.run_equivalent
+#print axioms Yulang.CommonAlignedPatternTyping.RawTyping.binding_names
+#print axioms Yulang.CommonAlignedPatternInversion.typing_root_exact
