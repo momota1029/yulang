@@ -1,0 +1,38 @@
+# B4r2: 禁止された head 検査と曖昧性の優先順位
+
+状態: **未決。拒否を優先する案を作業上の選択として形式化する。**
+head 検査時の再帰型拒否そのものは承認済み（spec 6 K2）。この問いは優先順位だけを扱う。
+
+## 一問
+
+**推奨: 同じ role の visible head の一つでも禁止された再帰 constructor 検査が必要なら、
+曖昧性より先に「再帰型のため解決できない」と拒否する。** 次の例で、`list μ`
+（μ は名前の無い再帰型 μ={next:μ}）への解決結果を、この優先順位にしてよいか。
+
+```yulang
+role Check 't:
+    type value
+
+impl Check (list 'a):
+    type value = int
+
+impl Check (list 'b):
+    type value = int
+
+impl Check (list {next: 'a}):
+    type value = int
+```
+
+最初の二つの別 impl は、型 μ の中身を見ずに変数で捕まえられる。
+三つ目は `{next:'a}` を μ に当てるため、承認された禁止検査に当たる。
+μ の等式は推論済み型 graph の数学的表示であり、新しい注釈構文ではない。
+
+1. **推奨案: 拒否を先にする。** 禁止検査を要求する候補があれば、他の安全な候補の個数にかかわらず拒否する。
+   visible の列挙順に依存せず、禁止検査を避けて候補を選ぶこともない。
+2. **曖昧性を先にする。** 安全に一致すると分かった異なる impl が二つ以上あれば曖昧性とし、
+   それ以外の場合に禁止検査による拒否を報告する。
+
+新規 `CommonRoleInspectedSemantics.HeadOutcome` は案1を作業上の選択にする。
+Ready は root 非再帰かつ全 visible same-role head の禁止検査なしを要求し、selection と ambiguity は
+Ready を必要とする。案2へ変更しても、今回の有限木 E2 ではどの候補にも再帰型検査がないため結果は変わらない。
+仕様へ案1を確定事項として追記していない。

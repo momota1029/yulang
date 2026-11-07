@@ -192,3 +192,38 @@ ok 1 / recovery 0。最初の省略表記は recovery だったので、source �
 全 statement、build/Audit 末尾、正確な未証明項目を `2026-11-07-m1-b4r-results.md` に記録した。
 README の未証明欄も追記済み。既存 Lean は許可された import/Audit の追記のみ。
 RoleRank・fuel・無限辞書・公開入口の変更なし。commit / push なし。
+
+# B4 redo 第2継続（head constructor 検査拒否の承認後）
+
+旧 E2 の module・結果は保存する。開始時 HEAD は 2c75ac510143e14a4f32674c707ef0e1f9d02789。
+承認済み spec K2 と completion contract を読み、初期 build は exit 0（628 jobs）。
+prover の登録/config/呼出 role は引き続き無い。主担当が構成し、独立 read-only agent に反例を検討させる。
+
+## B4r2 checkpoint 1: constructor 検査拒否を含む独立 semantics
+
+新規 `CommonRoleInspectedSemantics`。int/pair/variant、単一 field 名0の record、有限 data tree、
+一 node variant clock の有限 countergrammar。head/where の固定実 Term 解釈を置く。
+`blocked` は非変数 pattern が循環 root の constructor を検査する場合と、pattern が必要とする子で検査する場合。
+明示的に隠れた同名 field は検査対象から除く。変数による捕捉は検査しない。
+`Ready` は root 非再帰かつ全 visible same-role head に禁止検査なし。
+`HeadOutcome` は拒否を曖昧性より先にする作業上の選択を明示し、成功辞書も Ready を要求する。
+priority は別の一問として記録する。この有限木反例には priority の選択は影響しない。
+
+閉じた主張:
+
+- `lift_eval`: 任意旧有限 data Pattern、任意 Common 代入について、新固定 grammar へ埋めた解釈は元と等しい。
+- `decode_encode`: 任意新 Pattern について実 Term の decode(encode p)=some p。
+- `interpret_encode`: 任意新 Pattern、任意 Common 代入について、実 Term 解釈はその Pattern の解釈を返す。
+- `finite_root`: 任意 Description について、finite=true なら recursiveRoot=false。
+- `finite_view`: 任意 Description について、finite=true なら実 view の全直接 child も finite=true、clock view はない。
+- `finite_not_blocked_raw` / `finite_not_blocked`: 任意 Pattern,Description について、Description が有限木なら
+  その head pattern の禁止再帰 constructor 検査は起きない。
+- `variable_capture_allowed`: 任意変数名と任意 Description について変数で捕まえるだけなら blocked=false。
+- `constructor_on_clock_rejected`: variant 7 の非変数 head を clock に当てると blocked=true。
+- `finite_ready`: 任意有限 visible、任意 goal について、その引数が有限木なら Ready。
+- `instantiate_eval`: 任意 Pattern と任意 Description 代入について、有限構文代入後の Common 解釈と
+  代入像の Common 解釈で元 Pattern を解釈することは等しい。
+- `interpretDescription_encode`: 任意 Pattern と任意 Description 代入について、実 Term の有限記述解釈は
+  その Pattern の構文代入を some で返す。
+
+検証: `cd lean && lake build --wfail` exit 0（629 jobs）。

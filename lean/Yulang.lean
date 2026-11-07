@@ -614,3 +614,4 @@ import Yulang.CommonRolePackedHalting
 import Yulang.CommonRoleReachedRootObstruction
 import Yulang.CommonRolePackedSemanticReflection
 import Yulang.CommonRoleReachedRootExamples
+import Yulang.CommonRoleInspectedSemantics
