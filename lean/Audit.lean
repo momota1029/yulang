@@ -4022,6 +4022,13 @@ run_cmd do
 #print axioms Yulang.CommonLegacyWitnessSource.typing_exact
 #print axioms Yulang.CommonLegacyWitnessSource.shared_witness_recovery
 #print axioms Yulang.CommonLegacyWitnessSource.legacy_instances_reflected
+#print axioms Yulang.CommonLegacyRecordErasure.recordView_probe
+#print axioms Yulang.CommonLegacyFiniteErasure.presence_exact
+#print axioms Yulang.CommonLegacyFiniteErasure.erase_probe
+#print axioms Yulang.CommonLegacyFiniteErasure.erase_compare
+#print axioms Yulang.CommonLegacyTruncation.truncate_probe
+#print axioms Yulang.CommonLegacyTruncation.truncate_compare
+#print axioms Yulang.CommonLegacyGraphSupport.finite_extension
 
 #print axioms Yulang.CommonRowHeadFlow.check_exact
 #print axioms Yulang.CommonRowHeadFlow.models_check
@@ -4131,3 +4138,38 @@ run_cmd do
 #print axioms Yulang.CommonEffectRequestGeneration.generate_request_exact
 #print axioms Yulang.CommonEffectRequestGeneration.generate_declared_request_exact
 #print axioms Yulang.CommonEffectRequestGeneration.checked_request_exact
+
+#print axioms Yulang.CommonLegacyGraphSupport.refs_map
+
+#print axioms Yulang.CommonLegacyGraphSupport.oldRefs_map
+
+#print axioms Yulang.CommonLegacyGraphSupport.finite_block
+
+#print axioms Yulang.CommonLegacyGraphSupport.old_finite_support
+
+#print axioms Yulang.CommonLegacyGraphSupport.common_finite_support
+
+#print axioms Yulang.CommonLegacyGraphSupport.old_representative
+#print axioms Yulang.CommonLegacyLayerErasure.eval_erasure
+
+#print axioms Yulang.CommonLegacyLayerErasure.erase_support
+#print axioms Yulang.CommonLegacyRegularErasure.observe_erasure
+
+#print axioms Yulang.CommonLegacyRegularErasure.graph_finite_support
+
+#print axioms Yulang.CommonLegacyRegularErasure.eraseType_observe
+
+#print axioms Yulang.CommonLegacyRegularErasure.eraseType_mono
+
+#print axioms Yulang.CommonLegacyRegularErasure.eraseType_embed_observe
+#print axioms Yulang.CommonLegacySharedWitnesses.row_eval
+
+#print axioms Yulang.CommonLegacySharedWitnesses.eval_translation_observe
+
+#print axioms Yulang.CommonLegacySharedWitnesses.formula_reflected
+
+#print axioms Yulang.CommonLegacySharedWitnesses.typing_reflected
+
+#print axioms Yulang.CommonLegacySharedWitnesses.legacy_generated_shared_witnesses
+
+#print axioms Yulang.CommonLegacySharedWitnesses.legacy_instances_reflected

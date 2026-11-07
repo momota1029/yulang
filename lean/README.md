@@ -60,6 +60,10 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 [全自由 scheme・共有 witness・標準形の統合結果](../notes/handoff/2026-11-07-m1-symbolic-results.md) と
 [共通 Core 構文と関数 interface の拡張結果](../notes/handoff/2026-11-07-core-common-coverage-results.md) にまとめる。
 
+2026-11-07 の [A1 完了結果](../notes/handoff/2026-11-07-m1-a1-results.md) で、
+`CommonLegacySharedWitnesses.legacy_generated_shared_witnesses` と全旧 supported source の
+`legacy_instances_reflected` を証明した。constructor 部分言語の前提はなく、指定された旧結果行を保持する。
+
 復旧記録 §7 の現在の残りは次の通りである。下の歴史的な部品定理の表で「示さないこと」と
 記す項目は、その定理単独の範囲であり、後続の統合定理で閉じたものを含む。
 
@@ -68,7 +72,7 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 | 7.1 symbolic rigid 分解 | source/Core の全実生成 clause、独立 rows/values、同じ共有 ID で exact | この契約は完了 |
 | 7.2 有限飽和・全 parameter soundness | optional 境界を含む実 worklist の停止・全 rigid 分解と、返却 scheme の任意行・型 parameter による全 Models | この契約は完了。分岐数・総実行時間の多項式上限は主張しない |
 | 7.3 全 instance exactness | 全実生成 clause の任意独立 rows/values を、行の等号と全 compiled node の要求同値で回収 | この契約は完了。任意の手書き atom 列には別途明示した構文条件が必要 |
-| 7.4 公開入口・決定46 | 残余のない拡張 `Core.infer` の主型性・拒否 iff / unsupported 不出現、旧 presence 入口の保存、旧 instance ⇒ 新 solved instance。closed constructor 部分言語では新 instance から同じ行の旧 instance を回収 | 任意の旧 supported source 全体での共有・負位置・constructor 方程式を同時に保つ反映。closed constructor 条件の除去 |
+| 7.4 公開入口・決定46 | 残余のない拡張 `Core.infer` の主型性・拒否 iff / unsupported 不出現、旧 presence 入口の保存、旧 instance ⇒ 新 solved instance。全旧 supported source と任意旧結果で共有旧 witness を構成し、新 instance から同じ行・要求同値な旧 instance を回収 | A1 の契約は完了。任意の新 exact/default target への反映はこの契約の対象外 |
 | 7.5 全 public interface 標準形 | 既存有限 constructor/scalar 文法に加え、任意の共通 curried depth・任意 arity・引数の正負共有を持つ variable-domain/scalar-result family の完全 code。実公開 instance と partial EOF も接続 | 一般 domain/constructor 結果、異なる depth、一般行式・弱さ・regular graph・nominal/role 義務をまとめた完全 encoding と全 inference/export/display 接続 |
 
 | 共通 carrier の定理 | 示したこと | 示さないこと |
@@ -120,8 +124,8 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 続いて、復旧記録 §7.1 の **代入前に固定する symbolic rigid 分解**を source/Core の両方で閉じた。
 §7.2 の有限飽和と全 parameter soundness、§7.3 の全解回収も、実生成 clause について閉じた。
 §7.4 のうち、旧 presence モデル（現在の `Core.PresenceOnly.infer`）と、その構文拡張を扱う実 `Core.infer`、
-残余のない principal theorem、拒否 iff、unsupported 不出現まで接続した。旧 supported source 全体への決定46の反映と、§7.5 の完全な
-public interface 標準形は残る。以下の局所定理と、その後の統合定理を区別する。
+残余のない principal theorem、拒否 iff、unsupported 不出現まで接続した。旧 supported source 全体への決定46の反映は
+`CommonLegacySharedWitnesses` で閉じた。§7.5 の完全な public interface 標準形は残る。以下の局所定理と、その後の統合定理を区別する。
 
 | Symbolic compiler の定理 | 示したこと | 示さないこと |
 | --- | --- | --- |
@@ -182,6 +186,7 @@ N は元 pool の node 数であり、`(5N+3)²` は**一つの branch の処理
 | `CommonLegacyEmbeddedWitnesses.embedded_witnesses_iff_typing` / `contextual_typing_preserved` | 任意 required-only source・任意旧結果で、実生成 presence clause と出力がその旧結果に等しい共有旧割当ての存在 iff 旧 contextual Typing。旧 contextual Typing の Common への保存も証明。旧 solver support は不要 | 任意 Common witness からこの旧割当ての存在を導く反映 |
 | `CommonLegacyWitnessPositive.Agrees.record` / `arrow` / `upper_reflected` | 任意全 depth/rank/旧観測での agreement を、record の同深さ tail と任意旧入力・両行の arrow へ保存。agreement がある任意 source/legacy と任意旧 target で、source ≤ embed target なら legacy ≤ target | 任意未知の負位置を旧入力へ置換すること、全 shared constructor 方程式の interpolation |
 | `CommonLegacyWitnessSource.typing_exact` / `shared_witness_recovery` / `legacy_instances_reflected` | lit/emptyRecord/pair/record/variant/branch/引数を使わない lam の閉じた文法と任意旧結果で、新 Common typing iff 旧 contextual typing。実生成 clause の一つの共有旧割当てを回収し、さらに旧 supported を仮定すると実新 infer instance から同じ行・要求同値な旧 instance を回収 | ClosedConstructors 条件の除去。var/application/let/projection/field を含む全旧 supported source の反映、任意の新 exact/default target への拡大 |
+| `CommonLegacySharedWitnesses.typing_reflected` / `legacy_generated_shared_witnesses` / `legacy_instances_reflected` | 任意 required-field source と任意旧結果で Common typing から同じ旧結果の contextual typing を回収。全旧 supported source について、実 clause の一つの共有旧割当てと指定出力を構成し、公開新 infer instance から同じ行・要求同値な旧 infer instance を回収 | 任意の新 exact/default target への拡大、A2 と B1〜B5 の完了 |
 
 この `Core.infer` の型判断は `Core.CommonSyntax.model Common.model` である。
 旧 presence 判断 `PresenceGeneration.CoreRules.model Common.model` の入口は `Core.PresenceOnly.infer` に残す。
@@ -219,7 +224,7 @@ literal / strictApp / leaf を加えた 17 個と、data / caseE の明示した
 設計理由・段階の依存・未証明の量化付き契約は
 [共通構文の設計](../notes/design/2026-11-07-core-common-coverage.md) と
 [前回の結果 §7–8](../notes/handoff/2026-11-07-core-common-coverage-results.md) に記す。
-後続の [今回の基礎と要求駆動計算の結果](../notes/handoff/2026-11-07-common-demand-and-foundations-results.md) は、元の未閉 statement の量化を維持した到達状況と不足をまとめる。B1〜B5 と A1/A2 全体は未完である。
+後続の [今回の基礎と要求駆動計算の結果](../notes/handoff/2026-11-07-common-demand-and-foundations-results.md) は、その時点の未閉 statement の量化を維持した到達状況と不足をまとめる。A1 は上記の完了結果で閉じた。B1〜B5 と A2 は未完である。
 
 #### 要求駆動の bound 計算と全完了の refinement（C）
 
@@ -561,8 +566,9 @@ effectful fallback の推論例、未知 base を持つ lambda の推論例は�
 旧 regular carrier からの順序の保存・反映を構成し、record 構築・whole recordDefault・値制限 let を含む
 全 presence source の実生成制約を、任意 parameter が型付く有限 solved scheme 列へ接続した。
 `Core.infer_principal` と、対象断片の拒否 iff / unsupported 不出現に残余・成功・fuel 前提はない。
-残る M1 の義務は、決定46の旧 supported source 全体への逆向きの instance 回収と、全 public interface の標準形である。
-前者は closed constructor grammar、後者は同深さ curried family の公開 instance と partial EOF まで拡張したが、全体は未完。
+決定46の旧 supported source 全体への逆向きの instance 回収（A1）は完了した。
+全 public interface の標準形（A2）は同深さ curried family の公開 instance と partial EOF までであり、
+全体は未完。完了契約に含まれる B1〜B5 も別に残る。
 
 以下の過去の obstruction は維持する。共通 producer 順序と data 包含を取り違えないための境界である。
 `Core.PresenceLegacyObstructions` は実際の旧 supported 式について次を証明する。
