@@ -653,3 +653,14 @@ import Yulang.CommonNominalClampedFiniteEdges
 import Yulang.CommonNominalRigidClampedSoundness
 import Yulang.CommonNominalRigidGraphSolver
 import Yulang.CommonNominalDefaultRequired
+import Yulang.CommonNominalRecord
+import Yulang.CommonNominalDefaultRecord
+import Yulang.CommonNominalPayloadProjection
+import Yulang.CommonNominalRecordTailProfiles
+import Yulang.CommonNominalRecordTargetProfiles
+import Yulang.CommonNominalOptionalBound
+import Yulang.CommonNominalDefaultBounds
+import Yulang.CommonNominalOptionalInspection
+import Yulang.CommonNominalBoundInspection
+import Yulang.CommonNominalOuterLabels
+import Yulang.CommonNominalFiniteRecordTail

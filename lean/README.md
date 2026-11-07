@@ -2038,3 +2038,14 @@ Checkpoint: `lake build --wfail` passes (660 jobs); full trust-zero Audit passes
 This covers the full displayed rigid-head pool grammar, including cyclic nominal/arrow arguments and flexible-to-constructed inequalities. Record/default/lattice root inspection, full original field/source graph lowering and runtime cast bridges remain open. No B5/B1 END is claimed.
 
 Checkpoint: 666-job warning-as-error build and full trust-zero Audit passed (55239 declarations). Fresh independent trust-zero/axiom review passed for the constructor/worklist and family modules.
+
+
+### B5: record/default inspection over full nominal payloads
+
+New `CommonNominalDefaultRequired`, `CommonNominalRecord`, `CommonNominalDefaultRecord`, `CommonNominalPayloadProjection`, `CommonNominalRecordTailProfiles` and `CommonNominalRecordTargetProfiles` prove record/default presence, payload projection and target decomposition against the full new regular carrier and all its observations. Initial cutoff and positive-depth presence remain distinct. Profiles retain absence versus top, and every original payload reference.
+
+`CommonNominalOptionalBound` proves exact finite ordinary-subtype alternatives for optional payload obligations without porting the old role-based top checker. Classical reasoning about a nontrivial arbitrary demand stays inside the completeness proof; executable branches contain only positive subtype edges. `CommonNominalDefaultBounds` derives the three exact whole-default branches.
+
+`CommonNominalOptionalInspection` and `CommonNominalBoundInspection` provide actual finite ordinary shared-ID inspections for required/optional/width targets, including nominal/float mismatch. Optional inspection explicitly retains local record-tail/default-source width premises; a generated-source family must derive them. Finite visible-label inventory, general upper-union saturation and full source-family integration remain open. These modules are not B5 END.
+
+The first eight modules passed fresh independent trust-zero/warning-as-error and axiom review (10766 imported declarations). Build checkpoints through 674 jobs passed; the two constructor-inspection additions are checked next.
