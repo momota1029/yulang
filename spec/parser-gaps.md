@@ -7,11 +7,8 @@
 
 **なし**（2026-11-04）。`spec/` の章 1〜9 に載せた構文例 80 個は、すべて `Error` / `Missing` / `Invalid` なしで読める。
 
-**例外（2026-11-07、構文ガイドの例の検査で見つかった。未対応）**:
-
-- 対象なしの `case:`（`\x -> case x:` の略。`spec/03-expressions.md` 3.7、2026-11-06 確定）。`case x:` は読める。
-
-いずれも、`syntax-guide/ja/src/expressions.md` の例が根拠。パーサ側の対応は、設計判断（構文の確定）を確かめてから。
+**2026-11-07 に見つかった 3 件は閉じた**: lambda の record 引数（`\{x, y} -> x`）、式としての record の spread（`{x: 1, ..rest}`）、対象なしの `case:`。
+構文ガイドの例の検査で見つかり、`notes/design/2026-11-07-parser-gap-closure-addendum-2.md`（Authoritative）の WP-12〜14 で直した。
 経緯と設計判断は `notes/design/2026-11-04-parser-gap-closure-addendum.md`（Authoritative）に残してある。
 
 ## 意図的に残している未完了

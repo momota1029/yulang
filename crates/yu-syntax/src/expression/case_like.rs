@@ -136,6 +136,30 @@ fn case_like_head_normalized(
     );
     item_origin = next_origin;
     line_entry = next_line_entry;
+    // WP-14: only a same-line colon immediately after `case` omits the
+    // scrutinee. NUD scanning may classify `:name` as a symbol opener; here
+    // that colon belongs to the case block instead. Catch keeps its head.
+    if matches!(family, CaseLikeFamily::Case)
+        && !item.payload_view().is_boundary()
+        && !item.leading_view().contains_line_break()
+        && matches!(
+            token_kind(&item),
+            Some(TokenKind::Colon | TokenKind::ExpressionSymbolColon)
+        )
+    {
+        return colon_block_normalized(
+            i,
+            family,
+            item,
+            baseline,
+            outer_stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+    }
     if item.payload_view().token_kind() == Some(TokenKind::SigilIdentifier)
         && !crate::lexical::stops::lambda_recovery_boundary(
             scrutinee_stops,

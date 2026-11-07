@@ -25,7 +25,7 @@ cargo run --offline -p yu-syntax --example syntax_guide_check -- syntax-guide/ja
 
 ## 確認できること、できないこと
 
-2026-11-07 時点の結果: 33 ブロック中、31 が `ok`、1 が `placeholder`、1 が `recovery`。lambda の record 引数と、record の式の spread は `ok`。`recovery` の 1 件は、パーサがまだ読めない形(対象なしの `case:`)で、`spec/parser-gaps.md` に台帳がある。ガイドの該当箇所にも注記してある。
+2026-11-07 時点の結果: 33 ブロック中、32 が `ok`、1 が `placeholder`。失敗は無い。検査で見つかったパーサの穴 3 件(lambda の record 引数、record の式の spread、対象なしの `case:`)は直して、`ok` になった(`notes/design/2026-11-07-parser-gap-closure-addendum-2.md`)。
 
 | 確認できる | 確認できない |
 | --- | --- |
