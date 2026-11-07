@@ -4197,3 +4197,29 @@ run_cmd do
 #print axioms Yulang.CommonSignedSafetyPreimage.Fiber.capturable_iff
 #print axioms Yulang.CommonSignedSafetyPreimage.run_preserves
 #print axioms Yulang.CommonSignedSafetyPreimage.preimage_exact
+
+#print axioms Yulang.CommonSignedSafetyPreparation.prepare_finished
+#print axioms Yulang.CommonSignedSafetyPreparation.prepare_invariant
+#print axioms Yulang.CommonSignedSafetyPreparation.advance_covers_safe
+
+#print axioms Yulang.CommonSignedSafetyRefinement.refine_finished
+#print axioms Yulang.CommonSignedSafetyRefinement.prune_covers_safe
+#print axioms Yulang.CommonSignedSafetyRefinement.prune_no_discovery
+
+#print axioms Yulang.CommonSignedSafetyDecision.settle_models
+#print axioms Yulang.CommonSignedSafetyDecision.settle_exact
+#print axioms Yulang.CommonSignedSafetyDecision.check_exact
+
+#print axioms Yulang.CommonSignedGraphSolver.checkHeads_exact
+#print axioms Yulang.CommonSignedGraphSolver.all_parameters_models
+#print axioms Yulang.CommonSignedGraphSolver.solve_all_instances_exact
+#print axioms Yulang.CommonSignedGraphSolver.rejected_iff_head_path
+#print axioms Yulang.CommonSignedGraphSolver.Examples.captured_checked
+#print axioms Yulang.CommonSignedGraphSolver.Examples.negative_debt_checked
+#print axioms Yulang.CommonSignedGraphSolver.Examples.cycle_checked
+
+#print axioms Yulang.CommonSignedOrdinaryRows.augment_models
+
+#print axioms Yulang.CommonSignedValueSolver.all_parameters_models
+#print axioms Yulang.CommonSignedValueSolver.solve_all_instances_exact
+#print axioms Yulang.CommonSignedValueSolver.generated_all_instances_exact
