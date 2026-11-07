@@ -698,3 +698,5 @@ import Yulang.CommonPureCastTotalityBoundary
 import Yulang.CommonNominalFullSourceSubsumption
 import Yulang.CommonNominalFullStrictApplication
 import Yulang.CommonNominalFullNamedCase
+import Yulang.CommonNominalFullCoreSource
+import Yulang.CommonNominalFiniteErasure

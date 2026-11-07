@@ -4492,3 +4492,7 @@ run_cmd do
 #print axioms Yulang.CommonNominalFullSourceSubsumption.typing_subsume
 #print axioms Yulang.CommonNominalFullStrictApplication.forceApplication_typing_exact
 #print axioms Yulang.CommonNominalFullNamedCase.lowering_exact
+#print axioms Yulang.CommonNominalFullCoreSource.lowering_exact
+#print axioms Yulang.CommonNominalFullCoreSource.generate_nominal_core_exact
+#print axioms Yulang.CommonNominalFiniteErasure.finite_rank_monotone
+#print axioms Yulang.CommonNominalFiniteErasure.finite_monotone
