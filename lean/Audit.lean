@@ -4432,3 +4432,13 @@ run_cmd do
 
 #print axioms Yulang.CommonEffectPreparedGeneration.prepare_exact
 #print axioms Yulang.CommonEffectPreparedGeneration.generate_prepared_recursive_exact
+
+#print axioms Yulang.CommonEffectLatticeUniversals.term_read_congr
+#print axioms Yulang.CommonEffectLatticeUniversals.comparison_corners_exact
+#print axioms Yulang.CommonEffectLatticeUniversals.cornerFormula_exact
+#print axioms Yulang.CommonEffectLatticeUniversals.eliminate_exact
+
+#print axioms Yulang.CommonEffectFreshExpression.lift_rowLe_exact
+#print axioms Yulang.CommonEffectFreshExpression.lift_transport
+#print axioms Yulang.CommonEffectFreshExpression.eval_lift
+#print axioms Yulang.CommonEffectFreshExpression.inclusion_lift_exact
