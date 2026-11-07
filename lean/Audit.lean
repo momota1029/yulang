@@ -6008,3 +6008,14 @@ run_cmd do
 #print axioms Yulang.CommonCaseCoreDataGate.arm_check_exact
 #print axioms Yulang.CommonCaseCoreDataGate.check_exact
 #print axioms Yulang.CommonCaseCoreDataGate.arm_typing
+
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.principal_exact
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.principal_safe
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.all_parameter_premises
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.premises_instances_exact
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.no_premises_exact
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.defaults_sound
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.guards_sound
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.bodies_sound
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.case_prefixes
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.all_parameter_case_prefixes

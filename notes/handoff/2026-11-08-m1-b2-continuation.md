@@ -163,6 +163,27 @@ guard、body に対する有限 Bool 検査を、独立した `Supported` fragme
 検証: 新 module の warnings-as-errors build と `trust=0` 監査が成功。
 主要三定理は `propext` / `Quot.sound` のみ。
 
+## 9. 限定 Core data family から EvaluationSound premise を除く
+
+`CommonCaseCoreDataPrefixSolved.principal` は §8 の実 source gate を §4 の同じ実有限 formula の
+前に置き、unsupported な subject/default/guard/body を solver の前で除く。
+`principal_exact` / `premises_instances_exact` / `no_premises_exact` は、独立した bounded Core
+record premise と `Supported` judgment の conjunction に対する、同じ unrestricted family の
+厳密性・完全性・空性を証明する。returned parameter に新たな述語は課さない。
+
+`all_parameter_case_prefixes` は任意の実返却 scheme と任意のその parameter、任意の error 行を
+量化する。source evaluator は §6–7 の実 evaluator に固定し、guard は同じ値を Bool として読み、
+無効値では実 expectedBool error を返す。型付けからその無効枝を内部で排除する。
+元 arm 列を同じ canonical prefix matcher で順に実行した全有限観測について、返却 cap 以下の行と、
+終了成功時に `some` に入った返却 target 型の値を得る。
+
+この限定された source fragment では **EvaluationSound は前提から除かれた**。
+source support・default 成功・selected arm・coverage・domain・ResidualHolds を外部に要求しない。
+一般式・効果・関数・再帰の evaluator／adequacy を解決したとは主張しない。
+
+検証: 新 module の warnings-as-errors build と主要四定理の `trust=0` 監査が成功。
+許可された `propext` / `Classical.choice` / `Quot.sound` 以外の公理は使わない。
+
 ## 未完の範囲
 
 これは既存の十分な coverage 証明書の運用上の意味を拡張する定理であり、
@@ -171,6 +192,8 @@ record に対する coverage/environment/row-upper-bound factor と返却 scheme
 元 B2 の残りは次のとおり。
 
 - source 一般式から実 prefix producer を構成し、`EvaluationSound` と実実行の adequacy を証明する。
+  §6–9 の有限な純粋 Core data fragment については実 producer と局所安全性を構成し、
+  対応する実 family の theorem から外部 `EvaluationSound` を除いた。
   現在の data-only value carrier では関数などをまだ表さないため、B3/B5 の橋が必要。
 - required field の default 拒否を含む、source presence metadata の合法性を有限生成へ接続する。
 - list/nominal/float/merged-row を含む declaration-aware carrier と全 pattern judgment を接続する。
