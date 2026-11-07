@@ -5867,3 +5867,5 @@ run_cmd do
 #print axioms Yulang.CommonRoleIntervalRecordGeneration.generated_fit_exact
 #print axioms Yulang.CommonRoleIntervalRecordGeneration.generate_exact
 #print axioms Yulang.CommonRoleIntervalRecordGeneration.compile_exact
+
+#print axioms Yulang.CommonEffectFieldTable.construct_fields_exact

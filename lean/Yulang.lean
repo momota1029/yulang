@@ -1010,3 +1010,5 @@ import Yulang.CommonRoleIntervalRecordResidual
 import Yulang.CommonPatternPrefixNoMiss
 
 import Yulang.CommonRoleIntervalRecordGeneration
+
+import Yulang.CommonEffectFieldTable
