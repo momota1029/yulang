@@ -569,3 +569,4 @@ import Yulang.CommonNominalHeads
 import Yulang.CommonNominalConstraints
 import Yulang.CommonNominalRoots
 import Yulang.CommonGroundScalarCasts
+import Yulang.CommonGroundNominalCasts

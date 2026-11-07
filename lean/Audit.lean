@@ -4102,3 +4102,8 @@ run_cmd do
 #print axioms Yulang.CommonGroundScalarCasts.scalar_canonical_exact
 #print axioms Yulang.CommonGroundScalarCasts.scalar_normalized_quote_exact
 #print axioms Yulang.CommonGroundScalarCasts.check_exact
+#print axioms Yulang.CommonGroundNominalCasts.arguments_normalized_exact
+#print axioms Yulang.CommonGroundNominalCasts.normalized_ground_compatibility_exact
+#print axioms Yulang.CommonGroundNominalCasts.normalized_ground_check_exact
+#print axioms Yulang.CommonGroundNominalCasts.Examples.reordered_union_arguments
+#print axioms Yulang.CommonGroundNominalCasts.Examples.invariant_argument_not_widened
