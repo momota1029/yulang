@@ -3998,3 +3998,10 @@ run_cmd do
 #print axioms Yulang.CommonCanonicalCurriedTransfer.spine_below_iff
 #print axioms Yulang.CommonCanonicalCurriedTransfer.applyTransfer_eq
 #print axioms Yulang.CommonCanonicalCurriedTransfer.instances_spine_exact
+
+#print axioms Yulang.CommonCanonicalCurriedFamilies.family_rows_equal
+#print axioms Yulang.CommonCanonicalCurriedFamilies.family_transfer_equal
+#print axioms Yulang.CommonCanonicalCurriedFamilies.familyEquivalent_iff_transfer
+#print axioms Yulang.CommonCanonicalCurriedFamilies.canonicalEncoding_exact
+#print axioms Yulang.CommonCanonicalCurriedFamilies.Examples.shared_joined_instances
+#print axioms Yulang.CommonCanonicalCurriedFamilies.Examples.second_argument_sharing_matters

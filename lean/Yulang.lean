@@ -543,3 +543,5 @@ import Yulang.CoreCommonSyntaxExact
 import Yulang.CommonSolvedCoreSyntax
 
 import Yulang.CommonCanonicalCurriedTransfer
+
+import Yulang.CommonCanonicalCurriedFamilies
