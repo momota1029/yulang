@@ -1006,3 +1006,5 @@ import Yulang.CommonEffectFieldInstances
 import Yulang.CommonDeclaredNominalInspection
 
 import Yulang.CommonRoleIntervalRecordResidual
+
+import Yulang.CommonPatternPrefixNoMiss

@@ -5850,3 +5850,16 @@ run_cmd do
 #print axioms Yulang.CommonRoleIntervalRecordResidual.normalize_map
 #print axioms Yulang.CommonRoleIntervalRecordResidual.capture_map
 #print axioms Yulang.CommonRoleIntervalRecordResidual.residual_endpoints
+
+#print axioms Yulang.CommonPatternPrefixNoMiss.returns_ret
+#print axioms Yulang.CommonPatternPrefixNoMiss.returns_bind
+#print axioms Yulang.CommonPatternPrefixNoMiss.ret_some_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.bind_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.andThen_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.align_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.or_left_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.or_right_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.as_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.everyValue_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.supported_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.record_noMiss
