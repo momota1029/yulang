@@ -116,6 +116,8 @@ my twice(x: 'a) =
   具体的な検査（有限で決められる十分条件）の形は、実装側で決める。
   **合流前の変数は、合流した後の payload をそのまま捕捉する**（確定, 2026-11-07, ユーザーの決定）。`impl R (:{tick 'a, tick 'b})` のように、同じ tag を別々の変数で重ねた head は、確定した goal `R :{tick int}` に対して、合流後の payload `int` を `'a` と `'b` の**両方**に捕捉する（`'a := int, 'b := int`）。合流前の値を型の同値から復元して分けたり（`'a := never, 'b := int` など）、任意に分割したりしない。
   そのため、この `impl` は goal の候補になり、`impl R (:{tick int})` も候補なら、二候補の曖昧性として報告される（6.2: 曖昧時の扱い）。
+  **plain の型変数以外は、合流後の payload を分割しない**（確定, 2026-11-07, ユーザーの決定）。head の同じ tag を `box('a)` と `box('b)` のように別々の nominal の枝で重ねても、goal 側で合流して残った `box int` と `box bool` に別々に当てることはしない。この head は、そのような goal の候補にならない（`impl R (:{tick 'c})` のように plain 変数で受ける impl だけが当たる）。
+  理由: 要求は union を含まない（4.7b）ので、合流後の payload を要求の枝に分割して当てると、要求に union を持ち込むことになる。nominal の引数は不変なので、`box int` と `box bool` は `box (int | bool)` にまとめられない（6.5）。
 
   ```yulang
   impl Display (list 'a):
