@@ -717,3 +717,26 @@ Semanticを追加強化した。
 
 検証: `cd lean && lake build --wfail` exit0（684 jobs）。追加のHeadDeterminesRequirementsだけでも今回のfamilyは除外できない。
 全98新規theoremをAuditへ登録した。独立reviewもglobal量化を確認し、trust0 Audit exit0/56333 declarations。
+
+## B4r4 最終gateと終了
+
+E2: `CommonRoleMergedObstruction.canonical_merged_registry_undecidable`。
+canonical residualを守るtail-free実registryで、実variant merge後の同一payload unionがPaterson sizeを膨らませる。
+任意CodeについてN固定/WF/実checker/HDA/AssocWF、全finite goalでReady、実全where辞書存在iff停止、全域有限machine非存在を証明。
+任意Common代入での強いHeadDeterminesRequirementsも全registryについて証明したため、その追加だけでは除外できない。
+
+最終 `cd lean && lake build --wfail` exit0（684 jobs）。
+最終 `cd lean && lake env lean --trust=0 Audit.lean` exit0、allowlist56333 declarations。
+全98新規theoremを登録。主定理とglobal HDRはpropext/Quot.soundのみ。
+独立fresh reviewもfocused trust0/warning-as-error、full build/Audit、最終4文書のscopeを確認し阻害事項なし。
+parserの重複variant tag例はok1/recovery0。実merge→実head bridgeは証明済み、full source elaboratorは未証明。
+
+結果は新 `2026-11-07-m1-b4r4-results.md`。全定理名/全日本語量化/前提、build/Audit末尾、正確な残りを記載。
+新設計noteにcanonical record subtraction、Common候補iff、K2/priorityの範囲、qualifiedの正確な未証明lemmaを記載。
+新question一問へpayload冪等縮約後のsize/occ checker案を置いた。未承認のまま、specへ採用していない。
+旧tail E2は旧意味の定理として保存し、現在の意味の証拠にしていない。
+
+既存Leanの差分は許可されたYulang.lean import8行/Audit追記/README節追記だけ。
+開始HEADからのappend-onlyと既存proof無変更を機械検査した。公開入口/spec/旧結果の変更、commit/push/networkなし。
+全E1、全Common N/regular matcher、一般finite-tree/nominal agreement、qualified実生成と全family、source/B6統合は残る。
+これらを前提へ移して同名E1を閉じていない。元全称core-registry契約へのE2として終了する。
