@@ -614,3 +614,6 @@ import Yulang.CommonNominalGuardedRowSolver
 import Yulang.CommonParametricCastRegularObstruction
 import Yulang.CommonNominalInvariantGraphSolver
 import Yulang.CommonNominalFieldTemplates
+import Yulang.CommonNominalSourceRegistry
+import Yulang.CommonNominalSiteGeneration
+import Yulang.CommonNominalFieldGeneration

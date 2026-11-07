@@ -4259,3 +4259,11 @@ run_cmd do
 #print axioms Yulang.CommonNominalInvariantGraphSolver.solve_all_instances_exact
 #print axioms Yulang.CommonNominalFieldTemplates.Term.eval_rename
 #print axioms Yulang.CommonNominalFieldTemplates.Formula.models_rename
+#print axioms Yulang.CommonNominalSourceRegistry.Registry.generate_exact
+#print axioms Yulang.CommonNominalSourceRegistry.generate_boundary_exact
+#print axioms Yulang.CommonNominalSiteGeneration.sites_typing_rename
+#print axioms Yulang.CommonNominalSiteGeneration.generate_sites_exact
+#print axioms Yulang.CommonNominalFieldGeneration.result_template_exact
+#print axioms Yulang.CommonNominalFieldGeneration.prepare_sites_exact
+#print axioms Yulang.CommonNominalFieldGeneration.prepare_sites_retains_all
+#print axioms Yulang.CommonNominalFieldGeneration.generate_fields_exact

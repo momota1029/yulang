@@ -1961,3 +1961,11 @@ guarded mixed constructor graph と row-head/flow/pure family を組み合わせ
 全 row/type parameter は無制約であり、全元行を等号、全自由型と全 node を要求同値で同時に回収する。
 `CommonNominalGuardedClosure.parameter_congr` が negative/invariant 引数を含む再帰閉包の合同性を保証する。
 一般 subtype bounds と任意 constructed-node 等価辺、および実 source construction generator は別の未完義務である。
+
+
+`CommonNominalFieldTemplates` は一 field 内に複数共有型/行 parameter を含む任意有限 regular template を表す。
+`CommonNominalSourceRegistry` は固定有限 graph の実 presence source 本体を元捕捉環境と pure endpoints で制約生成する。
+`CommonNominalSiteGeneration` は元全式と行、deferred boundary を保つ独立判断との iff を示す。
+`CommonNominalFieldGeneration.generate_fields_exact` は全 registry body 制約を一度合流し、全 field、共有 arguments、
+nominal 結果、arity 不一致を同じ Formula で扱う。`prepare_sites_retains_all` が元位置/式/field/template の全列を保存する。
+これらは有限生成の定理であり、全 Core source・実宣言検証・parametric/structural cast 全探索・全 model の solved family・weak EOF は未完である。

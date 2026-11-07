@@ -16,16 +16,52 @@ namespace Yulang.CommonNominalFieldTemplates
 open CommonNominalCarrier
 open Core.PresenceGeneration (Comp TyTerm RowTerm extend)
 
+inductive TemplateRow (rows : Nat) where
+  | var : Fin rows → TemplateRow rows
+  | empty : TemplateRow rows
+  | heads : List Common.Occurrence → TemplateRow rows
+  | join : TemplateRow rows → TemplateRow rows → TemplateRow rows
+
+def TemplateRow.eval (arguments : Fin rows → Row) : TemplateRow rows → Row
+  | .var index => arguments index
+  | .empty => Common.rowEmpty
+  | .heads occurrences => fun occurrence => occurrence ∈ occurrences
+  | .join first last => Common.rowJoin (first.eval arguments) (last.eval arguments)
+
+/-- Signed literal heads remain concrete finite syntax; arbitrary row
+parameters remain arbitrary occurrence sets. -/
+@[simp] theorem TemplateRow.heads_eval (arguments : Fin rows → Row)
+    (occurrences : List Common.Occurrence) (occurrence : Common.Occurrence) :
+    (TemplateRow.heads occurrences).eval arguments occurrence ↔ occurrence ∈ occurrences := Iff.rfl
+
+def rowsLayer (rows : Fin count → Row) :
+    CommonNominalSyntax.Layer (TemplateRow count) Index → CommonNominalSyntax.Layer Row Index
+  | .base scalar => .base scalar
+  | .float => .float
+  | .bottom => .bottom
+  | .top => .top
+  | .union first last => .union (rowsLayer rows first) (rowsLayer rows last)
+  | .inter first last => .inter (rowsLayer rows first) (rowsLayer rows last)
+  | .pair first last => .pair first last
+  | .emptyRecord => .emptyRecord
+  | .exactEmpty => .exactEmpty
+  | .record label payload rest => .record label payload (rowsLayer rows rest)
+  | .recordDefault label source fallback => .recordDefault label (rowsLayer rows source) fallback
+  | .variant label payload => .variant label payload
+  | .arrow input incoming output outgoing => .arrow input (incoming.eval rows) output (outgoing.eval rows)
+  | .mask hidden source => .mask hidden (rowsLayer rows source)
+  | .nominal name arguments => .nominal name (arguments.map (Sum.map id (TemplateRow.eval rows)))
+
 structure Template (types rows : Nat) where
   nodes : Nat
-  body : Fin nodes → CommonNominalSyntax.Layer (RowTerm (Fin rows)) (Fin nodes ⊕ Fin types)
+  body : Fin nodes → CommonNominalSyntax.Layer (TemplateRow rows) (Fin nodes ⊕ Fin types)
   root : Fin nodes ⊕ Fin types
 
 def Template.eval (template : Template types rows) (arguments : Fin types → Ty)
     (rowArguments : Fin rows → Row) : Ty :=
   match template.root with
   | .inl node => CommonNominalGuardedClosure.instantiate
-      (fun index => CommonNominalGuardedRowSolver.rowsLayer rowArguments (template.body index)) arguments node
+      (fun index => rowsLayer rowArguments (template.body index)) arguments node
   | .inr parameter => arguments parameter
 
 def Template.parameter (index : Fin types) : Template types rows :=
