@@ -5,24 +5,28 @@
 This page defines `BracedStatementBlockExpression` in `syntax-v0`.
 The 2026-08-20 `yu-syntax` architecture defines its accepted grammar and direct Rowan CST.
 The Authoritative 2026-09-08 braced canonical Statement-sequence recovery record defines its required-statement, separator, and local-close recovery.
+The Authoritative 2026-11-07 parser gap closure addendum 2, WP-13, adds spread items inside brace expressions.
 
-The page covers an operand-starting brace block, its direct canonical statements, separators, close, and recovery CST.
-It does not define record literals or fields, control-flow brace bodies, `CatchBlock`, brace-local spread syntax, HIR interpretation, types, diagnostics wording, or formatting.
+The page covers an operand-starting brace block, its direct canonical statements and spread items, separators, close, and recovery CST.
+It does not define record semantics or field validation, control-flow brace bodies, `CatchBlock`, HIR interpretation, types, diagnostics wording, or formatting.
 
 ## 2. Accepted syntax
 
 ```text
 BracedStatementBlockExpression :=
     "{" G*
-    [ Statement { BraceStatementSeparator Statement } [ BraceStatementSeparator ] ]
+    [ BraceExpressionItem { BraceStatementSeparator BraceExpressionItem } [ BraceStatementSeparator ] ]
     G0 "}"
+BraceExpressionItem := Statement | RecordExpressionSpreadItem
+RecordExpressionSpreadItem := ".." G* OperatorChain
 BraceStatementSeparator := G0 ("," | ";") G* | qualifying current-depth newline
 ```
 
 The block may be empty.
-Comma, semicolon, and qualifying current-depth newline separate completed statements.
-A deeper newline stays within the current statement.
+Comma, semicolon, and qualifying current-depth newline separate completed items.
+A deeper newline stays within the current item.
 Each separator form may be trailing and does not create an empty statement.
+A spread may also have a trailing comma, as in `{x: 1, ..rest,}`.
 
 ## 3. Admission and boundaries
 
@@ -34,17 +38,24 @@ Before a required statement and after a separator, matching `}` is a local block
 Nested delimiters and lexical regions cannot donate a separator or close to the outer block.
 Within `{x: 1, y: 2}`, the block-owned comma ends the first statement, so each statement may contain an ordinary one-argument colon application.
 
+Exact `..` at an item start is a spread and takes priority over a declared prefix operator.
+The spread RHS is an `OperatorChain` read with `MlMode::All`, as in `ListExpressionSpreadItem`.
+Elsewhere, `..` retains its ordinary range or suffix operator reading, including inside the parentheses of `{..(1..3)}`.
+
 ## 4. Direct Rowan CST
 
 `BracedStatementBlockExpression` is a direct primary child of `OperatorChain`.
-It contains `LBrace`, opening trivia, direct `Statement` children, `BlockStatementSeparator` children, closing trivia, and `RBrace` in source order.
+It contains `LBrace`, opening trivia, direct `Statement` or `RecordExpressionSpreadItem` children, `BlockStatementSeparator` children, closing trivia, and `RBrace` in source order.
 Every comma, semicolon, and qualifying newline separator has one `BlockStatementSeparator` wrapper.
 A comma or semicolon wrapper owns its `G0`, literal punctuation, and following trivia.
 A newline wrapper contains its native trivia leaf and creates no synthetic token.
 The node contains neither a record wrapper nor an empty `Statement` node.
+Each `RecordExpressionSpreadItem` directly contains `DotDot` and its RHS `OperatorChain`, without a `Statement` wrapper.
+Reading `{..rest}` as a record belongs to a later phase; the CST adds no node that distinguishes records from blocks.
 
 ```text
-BracedStatementBlockExpression := LBrace { Statement | BlockStatementSeparator | trivia } RBrace
+BracedStatementBlockExpression := LBrace { Statement | RecordExpressionSpreadItem | BlockStatementSeparator | trivia } RBrace
+RecordExpressionSpreadItem := DotDot G* OperatorChain
 BlockStatementSeparator := G0 (Comma | Semicolon) G* | qualifying current-depth newline trivia
 Statement := OperatorChain | canonical statement form
 ```
@@ -62,6 +73,11 @@ Every nonlocal close remains unconsumed for its actual owner.
 
 Initial leading before an error remains native block content, interior leading belongs to `Error`, and retry or protected-boundary leading remains pending.
 Nested statements retain their own recovery roles.
+
+Spread RHS recovery belongs to the shared parser used by [list expressions](list-expression.md).
+An absent RHS places one zero-width `Missing` inside the spread node and leaves the separator and close to the brace owner.
+A malformed RHS is one maximal non-empty raw `Error` group, and a later expression may retry the same RHS slot.
+An admitted spread item may also retry the item slot after a brace-item error run.
 
 ## 6. Source/CST examples
 
@@ -88,6 +104,22 @@ Nested statements retain their own recovery roles.
 `{x,}` is valid: it has one `Statement`, one trailing `BlockStatementSeparator`, and no `Missing` node.
 
 `{x: 1, y: 2}` has two direct statements; its comma is the block separator, while each statement contains its own ordinary `ColonApplicationTail`.
+
+`{..rest}` places one spread item directly in the brace node.
+
+```xml
+<BracedStatementBlockExpression>
+  <LBrace text="{" />
+  <RecordExpressionSpreadItem>
+    <DotDot text=".." />
+    <OperatorChain><IdentifierExpression><Identifier text="rest" /></IdentifierExpression></OperatorChain>
+  </RecordExpressionSpreadItem>
+  <RBrace text="}" />
+</BracedStatementBlockExpression>
+```
+
+`{x: 1, ..rest}`, `{..rest, x: 1}`, and `{x, ..rest}` use the same spread node.
+The CST of `{x: 1}`, `{x}`, and `{;}` remains unchanged.
 
 ## 7. Composition
 

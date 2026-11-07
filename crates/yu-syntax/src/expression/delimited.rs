@@ -390,7 +390,7 @@ fn delimited_baseline_from_source(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn spread_item_normalized(
+pub(crate) fn spread_item_normalized(
     mut i: SyntaxIn,
     marker: Item,
     node: SyntaxKind,

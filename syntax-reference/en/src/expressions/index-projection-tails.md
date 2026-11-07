@@ -41,7 +41,7 @@ ProjectionRecordSeparator := "," | ";" | qualifying current-depth newline
 `ChainContinuingTrivia` is empty, same-line, or deeper-line trivia at the outer-chain level.
 A projection has an adjacent dot and opener after `ChainContinuingTrivia`.
 Thus `a.(x)` and `a.{x}` are projections, while `a. (x)` and `a. {x}` are not.
-Only a record-projection item position gives exact `..` spread authority.
+Among these tails, only a record-projection item position gives exact `..` spread authority.
 Index and tuple-projection items do not admit a spread item.
 
 ## 3. Admission and boundaries
