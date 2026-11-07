@@ -4181,3 +4181,10 @@ run_cmd do
 #print axioms Yulang.CommonCastRouteExecution.compiled_run_pure
 #print axioms Yulang.CommonCastRouteExecution.compiled_insert_requestTree
 #print axioms Yulang.CommonNominalFinite.nominal_finite_invariant_exact
+#print axioms Yulang.CommonNominalSyntax.block_observe_exact
+#print axioms Yulang.CommonNominalCarrier.argument_equivalent_exact
+#print axioms Yulang.CommonNominalCarrier.nominal_regular_invariant_exact
+#print axioms Yulang.CommonNominalGroundAdapter.scalar_subtype_exact
+#print axioms Yulang.CommonNominalGroundAdapter.common_ground_cast_compatibility_exact
+#print axioms Yulang.CommonNominalGroundAdapter.ground_check_exact
+#print axioms Yulang.CommonNominalGroundAdapter.ground_adapter_preserved

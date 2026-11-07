@@ -58,19 +58,12 @@ def map {Target : Type w} (rename : Index → Target) : Layer Row Index → Laye
 
 @[simp] theorem map_id (layer : Layer Row Index) : layer.map id = layer := by
   induction layer <;> simp [map, *]
-  case nominal name arguments =>
-    congr 1
-    apply List.map_id
 
 @[simp] theorem map_comp {Middle : Type w} {Target : Type z}
     (first : Index → Middle) (last : Middle → Target) (layer : Layer Row Index) :
     (layer.map first).map last = layer.map (last ∘ first) := by
   induction layer <;> simp [map, Function.comp_def, *, List.map_map]
-  case nominal name arguments =>
-    congr 1
-    apply List.map_congr_left
-    intro argument _
-    cases argument <;> rfl
+  case nominal name arguments => intro argument _; rfl
 
 def evalAt (depth : Nat) (assignment : Index → CommonNominalFinite.Ty Row) : Layer Row Index → CommonNominalFinite.Ty Row
   | .base scalar => .base scalar
@@ -96,12 +89,7 @@ def evalAt (depth : Nat) (assignment : Index → CommonNominalFinite.Ty Row) : L
     (layer.map rename).evalAt depth assignment = layer.evalAt depth (assignment ∘ rename) := by
   induction layer <;> simp [map, evalAt, Function.comp_def, *]
   case recordDefault => cases depth <;> simp_all [Function.comp_def]
-  case nominal name arguments =>
-    congr 1
-    simp only [List.map_map]
-    apply List.map_congr_left
-    intro argument _
-    cases argument <;> rfl
+  case nominal name arguments => intro argument _; rfl
 
 end Layer
 
