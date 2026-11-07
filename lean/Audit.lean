@@ -4123,3 +4123,5 @@ run_cmd do
 #print axioms Yulang.CommonRoleRegularObstructions.declaration_sizes
 #print axioms Yulang.CommonRoleRegularObstructions.declaration_accepted
 #print axioms Yulang.CommonRoleRegularObstructions.declaration_wellFormed
+#print axioms Yulang.CommonRoleRegularObstructions.loop_unfold
+#print axioms Yulang.CommonRoleRegularObstructions.chain_step
