@@ -4077,3 +4077,8 @@ run_cmd do
 #print axioms Yulang.CommonSignedRows.nonzero_retained
 #print axioms Yulang.CommonSignedRows.rowExpr_interpretation_exact
 #print axioms Yulang.CommonSignedRows.rowExpr_le_exact
+#print axioms Yulang.CommonDemandRoots.upper_variables_exact
+#print axioms Yulang.CommonDemandRoots.all_roots_exact
+#print axioms Yulang.CommonDemandRoots.snapshot_roots_exact
+#print axioms Yulang.CommonDemandRoots.rowRootVariables_exact
+#print axioms Yulang.CommonDemandRoots.finish_clauses_exact
