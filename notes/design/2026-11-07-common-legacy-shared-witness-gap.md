@@ -1,6 +1,10 @@
 # A1: 全旧 supported source の共有 witness に残る構成
 
-日付: 2026-11-07。状態: **Draft — 調査結果。元の A1 statement は未証明。**
+日付: 2026-11-07。状態: **調査時点の gap 記録。元の A1 は後続作業で E1 達成。**
+
+追記: 以下は構成前の分析を保存したものである。
+量化子・前提を変更しない証明と全 `legacy_instances_reflected` は
+[A1 最終結果](../handoff/2026-11-07-m1-a1-results.md) を参照。
 
 対象は [前回の引継ぎ](../handoff/2026-11-07-core-common-coverage-results.md) §7.1 の
 `legacy_generated_shared_witnesses` そのもの。このメモは新しい部分言語 theorem を追加せず、

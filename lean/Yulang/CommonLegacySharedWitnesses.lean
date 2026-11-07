@@ -184,4 +184,35 @@ theorem typing_reflected (expression : Inference.Expr)
   rw [show oldObservation depth (eraseType (Common.embedOld target.1)) = oldObservation depth target.1 from same]
   exact ProducerContextual.producerLe_refl _
 
+/-- A1 with exactly the requested quantifiers and premises. An actual
+normalised generated clause and one shared old assignment are recovered,
+with the output slot equal to the requested old computation. -/
+theorem legacy_generated_shared_witnesses (expression : Inference.Expr)
+    (supported : SourcePrincipalInference.supported expression = true)
+    (target : Inference.Comp legacyModel)
+    (typed : Typing Common.model [] expression (Common.embedComp target)) :
+    ∃ clause ∈ PresenceNormalForm.normalise (principal ([] : SchemeEnv Empty) expression),
+      ∃ values : Fin (clause.locals + 1) → Inference.Comp legacyModel,
+        values (Fin.last clause.locals) = target ∧
+          PresenceNormalForm.All Common.model (CommonLegacyTyping.assignment values) clause.pack := by
+  have required : expression.requiredFieldsOnly = true := (Bool.and_eq_true_iff.mp supported).1
+  exact (CommonLegacyEmbeddedWitnesses.embedded_witnesses_iff_typing expression required target).mpr
+    (typing_reflected expression required target typed)
+
+/-- Full supported-source reflection at the public Common inference entry.
+Only the value changes by demand equivalence; the old result row is exactly
+the requested row. No closed-constructor or successful-old-solver premise. -/
+theorem legacy_instances_reflected (expression : Inference.Expr)
+    (supported : SourcePrincipalInference.supported expression = true)
+    (target : Inference.Comp legacyModel)
+    (accepted : (Core.infer (Core.Required.embed expression)).Instance (Common.embedComp target)) :
+    ∃ old : Inference.Comp legacyModel,
+      (SourcePrincipalInference.infer expression).Instance Common.rowAlgebra old ∧
+        Common.Equivalent (Common.embedOld target.1) (Common.embedOld old.1) ∧ target.2 = old.2 := by
+  have sourceTyped := (CommonSolvedSource.source_principal expression (Common.embedComp target)).mpr
+    (by simpa only [Core.infer_embed, Core.CommonInference.Result.Instance,
+      Core.CommonInference.Result.mem_schemes, Core.CommonInference.finish_schemes] using accepted)
+  exact CommonLegacyEmptyReflection.contextual_typing_legacy_reflected expression supported target
+    (typing_reflected expression (Bool.and_eq_true_iff.mp supported).1 target sourceTyped)
+
 end Yulang.CommonLegacySharedWitnesses

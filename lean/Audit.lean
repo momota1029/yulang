@@ -4167,3 +4167,9 @@ run_cmd do
 #print axioms Yulang.CommonLegacySharedWitnesses.eval_translation_observe
 
 #print axioms Yulang.CommonLegacySharedWitnesses.formula_reflected
+
+#print axioms Yulang.CommonLegacySharedWitnesses.typing_reflected
+
+#print axioms Yulang.CommonLegacySharedWitnesses.legacy_generated_shared_witnesses
+
+#print axioms Yulang.CommonLegacySharedWitnesses.legacy_instances_reflected
