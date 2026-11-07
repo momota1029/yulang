@@ -1016,3 +1016,5 @@ import Yulang.CommonEffectFieldTable
 import Yulang.CommonEffectRefRunField
 
 import Yulang.CommonRoleIntervalReadyChain
+
+import Yulang.CommonPurePatternPrefixNoMiss
