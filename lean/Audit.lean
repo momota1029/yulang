@@ -4371,3 +4371,14 @@ run_cmd do
 #print axioms Yulang.CommonCaseLiteralOrdered.covered_not_unmatched
 #print axioms Yulang.CommonCaseLiteralOrdered.literal_runArms_progress
 #print axioms Yulang.CommonCaseLiteralOrdered.literal_program_progress
+#print axioms Yulang.CommonCaseBaseCells.representative_complete
+#print axioms Yulang.CommonCaseBaseMatching.run_supported_exact
+#print axioms Yulang.CommonCaseBaseMatching.accepts_congr
+#print axioms Yulang.CommonCaseBaseCoverage.check_matches_exact
+#print axioms Yulang.CommonCaseBaseOrdered.Tree.readout
+#print axioms Yulang.CommonCaseBaseOrdered.tree_program_progress
+#print axioms Yulang.CommonCaseShapeChecks.check_exact
+#print axioms Yulang.CommonCaseShapeChecks.shape_iff
+#print axioms Yulang.CommonCaseRecordCells.checkDomain_exact
+#print axioms Yulang.CommonCaseRecordCells.EntriesRelated.lookup_related
+#print axioms Yulang.CommonCaseRecordCells.representative_complete

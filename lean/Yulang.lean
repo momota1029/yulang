@@ -664,3 +664,9 @@ import Yulang.CommonCaseCoreBoundedSolved
 import Yulang.CommonCaseLiteralCells
 import Yulang.CommonCaseLiteralCoverage
 import Yulang.CommonCaseLiteralOrdered
+import Yulang.CommonCaseBaseCells
+import Yulang.CommonCaseBaseMatching
+import Yulang.CommonCaseBaseCoverage
+import Yulang.CommonCaseBaseOrdered
+import Yulang.CommonCaseShapeChecks
+import Yulang.CommonCaseRecordCells
