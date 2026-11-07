@@ -1,6 +1,6 @@
 # B4r3: verified core 宣言に未知の record tail を許す範囲
 
-状態: **列挙された core 前提への E2 証明済み。以下の修正は未承認**。
+状態: **列挙された core 前提への E2 証明済み。ユーザー決定（2026-11-07）: record の tail は引き算を遅らせて解く（`spec/06-roles.md` 6.3）。下の案2の『tail の捕捉を canonical residual に限定する』方向を採り、案1（source との bridge）は不要になった。**
 主定理は `CommonRoleFiniteTailObstruction.normalized_registry_undecidable`。
 既存の E2、承認済み N、K2 は変更しない。
 

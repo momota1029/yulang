@@ -103,6 +103,11 @@ my twice(x: 'a) =
   `impl R {x: int, x: int}` の 2 つ目の `x` は数えないので、`where {x: int}: R` は「真に小さい」にならず、宣言時に拒否される。隠れた field の無い普通の `impl` の扱いは変わらない。
   理由: 書いたままの大きさで数えると、隠れた field を好きなだけ足して「小さい」ことにでき、解決が停止しない registry が作れる（Lean: `CommonRoleFiniteShadowObstruction.finite_tree_registry_undecidable`）。
 
+  **record の tail（`..'a`）を持つ head は、引き算を遅らせて解く**（確定, 2026-11-07, ユーザーの決定）。`impl R {x: int, ..'a} where 'a: R` のような head の `..'a` は、「head と要求同値になる任意の代入」ではなく、**record の引き算の結果として決まる残り**である。
+  `R {x: int, ..'a}` の形の goal は、`'a` が未解決のうちは**解かずに保留する**（解いてはいけない）。具体的な record が来て、`{x: int, y: str} <: {x: int, ..'a}` のような判定で先頭の field が引かれたときに初めて、`'a` が `{y: str}` のように決まる（4.3: 受ける側の要求を残りに回すとき、先頭で書いた field の要求だけを取り除く）。
+  そのため、`'a` を「head が隠れた同名 field を作るように」選び直すことはできず、`where` の各条件の意味は head と具体的な goal から一つに決まる。保留した goal は、具体化されるまで解決の対象にならないので、解決は止まらないことがある形にならない。
+  理由: 任意の核の registry に対する Lean の反例（`CommonRoleFiniteTailObstruction.normalized_registry_undecidable`: `R {x:int, ..a} where R a` で `a := {x:int}` と捕まえると head が同値になる）は、この「任意の代入」の読みに依存していた。
+
   ```yulang
   impl Display (list 'a):
       where 'a: Display          // 良い: 'a は list 'a より小さい。list (list int) → list int → int と降りて止まる
