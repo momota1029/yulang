@@ -860,7 +860,7 @@ fn scan_lambda_backslash(
         } else if let Some((_, after_identifier)) = source_identifier(suffix) {
             after_identifier
         } else {
-            lambda_parenthesized_suffix(suffix, suffix_origin, fence)?
+            lambda_pattern_group_suffix(suffix, suffix_origin, fence)?
         };
         parameters = parameters.checked_add(1)?;
         suffix_origin = suffix_origin.checked_add(suffix.len().checked_sub(next.len())?)?;
@@ -881,15 +881,20 @@ fn lambda_reference_suffix(source: &str) -> Option<&str> {
     source_identifier(suffix).map(|(_, remainder)| remainder)
 }
 
-/// Balance one parenthesized lambda parameter using source-only evidence.
-/// Literal and trivia bodies are opaque so their parentheses cannot affect the
+/// Balance one parenthesized or record lambda parameter using source-only evidence.
+/// Literal and trivia bodies are opaque so their delimiters cannot affect the
 /// header decision. The real Pattern parser still owns all accepted contents.
-fn lambda_parenthesized_suffix<'source>(
+fn lambda_pattern_group_suffix<'source>(
     mut source: &'source str,
     mut origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> Option<&'source str> {
-    source = source.strip_prefix('(')?;
+    let (open, close) = match source.chars().next()? {
+        '(' => ('(', ')'),
+        '{' => ('{', '}'),
+        _ => return None,
+    };
+    source = source.strip_prefix(open)?;
     origin = origin.checked_add(1)?;
     let mut depth = 1usize;
 
@@ -915,8 +920,8 @@ fn lambda_parenthesized_suffix<'source>(
         source = &source[character.len_utf8()..];
         origin = origin.checked_add(character.len_utf8())?;
         match character {
-            '(' => depth = depth.checked_add(1)?,
-            ')' => {
+            character if character == open => depth = depth.checked_add(1)?,
+            character if character == close => {
                 depth -= 1;
                 if depth == 0 {
                     return Some(source);
@@ -927,7 +932,7 @@ fn lambda_parenthesized_suffix<'source>(
     }
 }
 
-/// Skip one rule/string literal while balancing a parenthesized parameter.
+/// Skip one rule/string literal while balancing a lambda parameter group.
 /// This recognizes the literal delimiters only; literal CST and recovery stay
 /// with the committed Pattern parser.
 fn lambda_literal_suffix<'source>(

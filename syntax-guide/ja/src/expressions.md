@@ -128,11 +128,11 @@ x.foo::bar     // foo::bar x(path の先を method として x に適用する)
 
 ```yulang
 \(a, b) -> a + b
-\{x, y} -> x + y     // 現在のパーサは、この行を読めない(下の注を見る)
+\{x, y} -> x + y
 \_ -> 0
 ```
 
-状態: 仮採用。`\(a, b)` と `\_` はパース検査済み。**`\{x, y} -> ...`(record の分解)は、現在のパーサがまだ読めない**(`spec/parser-gaps.md`)。出典: `spec/03-expressions.md` 3.4。
+状態: 仮採用・パース検査済み。出典: `spec/03-expressions.md` 3.4。
 
 ## ブロックと `with`
 

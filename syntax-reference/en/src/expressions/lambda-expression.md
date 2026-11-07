@@ -3,7 +3,7 @@
 ## 1. Authority and scope
 
 This page defines `LambdaExpression` in `syntax-v0`.
-Its accepted syntax, admission, and direct Rowan CST follow WP-10 of the Authoritative parser gap closure addendum dated 2026-11-04.
+Its accepted syntax, admission, and direct Rowan CST follow WP-10 of the Authoritative parser gap closure addendum dated 2026-11-04 and WP-12 of its second addendum dated 2026-11-07.
 See [dynamic operator chains](operator-chain.md) for the body's operator and application rules.
 See the [syntax content model](../conventions/syntax-content-model.md), [Rowan CST notation](../conventions/rowan-cst.md), and [recovery `Error` and `Invalid` topology](../conventions/recovery-error-invalid-topology.md) for shared notation and recovery elements.
 
@@ -17,18 +17,22 @@ LambdaExpression := "\\" LambdaHeaderGap LambdaParameter
                     { LambdaHeaderGap LambdaParameter }
                     LambdaHeaderGap ExactArrow OperatorChain
 
-LambdaParameter := Identifier | ParenthesizedPattern
+LambdaParameter := Identifier | ParenthesizedPattern | RecordPattern
 ExactArrow := "->"
 ```
 
 `LambdaHeaderGap` is empty or existing inline trivia with no logical layout newline.
 At least one parameter is required, and a bare parameter must be an identifier.
-Any other pattern must be enclosed in parentheses.
+A record pattern can use its braces directly.
+Other patterns must be enclosed in parentheses.
 
 ```yulang
 \x -> x + 1
 \x y -> x + y
 \(a, b) -> a
+\{x, y} -> x + y
+\{x, ..rest} -> x
+\x {a, b} (c, d) -> x
 \x (just y) -> y
 \(x: int) -> x
 ```
@@ -40,11 +44,12 @@ Only an explicitly nested source form such as `\x -> \y -> x` has another `Lambd
 
 In value position, the parser examines the whole header from source before dynamic operator selection.
 It commits to a lambda only when the backslash, one or more admitted parameters, and the exact `->` are all present.
-Lookahead for a parenthesized parameter balances parentheses and ignores parentheses inside nested parentheses, literals, line comments, and nested block comments.
+Lookahead balances parentheses for a parenthesized parameter and braces for a record parameter.
+It counts nested occurrences of the same delimiters but skips delimiters inside literals, line comments, and nested block comments.
 The lookahead does not recursively run the parser or create CST and diagnostics.
 
-If the header has no arrow, has unbalanced parentheses, or contains a parameter outside the admitted forms, the backslash does not become a lambda token.
-For example, `\x y`, `\(a, b -> a`, `\1 -> x`, `\x.y -> x`, and `\x ->> x` are not lambdas.
+If the header has no arrow, has unbalanced parameter delimiters, or contains a parameter outside the admitted forms, the backslash does not become a lambda token.
+For example, `\x y`, `\{x, y}`, `\(a, b -> a`, `\{x, y -> x`, `\1 -> x`, `\x.y -> x`, and `\x ->> x` are not lambdas.
 Ordinary operator selection and recovery then start at the same position, so a declared `\` operator remains available.
 A complete header takes precedence over an operator with the same spelling.
 
@@ -64,6 +69,8 @@ Trivia remains in the same source order.
 
 A bare identifier parameter is a direct `Identifier` token with no `Pattern` wrapper.
 A parenthesized parameter is a direct `Pattern` node containing `ParenthesizedPattern`.
+A record parameter is also a direct `Pattern` node containing the existing `RecordPattern`.
+A spread uses the existing `RecordPatternSpreadItem` within that `RecordPattern`.
 There is no extra parameter-sequence wrapper and no synthetic lambda for currying.
 
 ```xml
@@ -86,7 +93,7 @@ There is no extra parameter-sequence wrapper and no synthetic lambda for curryin
 
 ## 5. Recovery CST
 
-After a complete header commits, the ordinary Pattern parser reads each parenthesized parameter.
+After a complete header commits, the ordinary Pattern parser reads each parenthesized or record parameter.
 Its local comma, missing-item, foreign-close, and type-annotation recovery therefore follow the [pattern forms](../patterns/pattern-core.md).
 For example, the trailing comma in `\(a,) -> a` is accepted, while `\(,) x -> x` has `Missing` inside its parameter `Pattern`.
 
