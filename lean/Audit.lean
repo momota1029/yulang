@@ -38,7 +38,17 @@ import Lean
 #print axioms Yulang.CommonCanonicalRowGeometry.closed_row_exact
 #print axioms Yulang.CommonCanonicalRowGeometry.closed_meaning_exact
 #print axioms Yulang.CommonCanonicalRowGeometry.commonPoint_injective
+#print axioms Yulang.CommonCanonicalRowGeometry.closed_meaning_point
+#print axioms Yulang.CommonCanonicalRowGeometry.counter_transport_exact
+#print axioms Yulang.CommonCanonicalRowGeometry.universe_exact
+#print axioms Yulang.CommonCanonicalRowGeometry.zeroAt_point
+#print axioms Yulang.CommonCanonicalRowGeometry.positiveAt_point
 #print axioms Yulang.CommonCanonicalRowTests.meetForm_exact
+#print axioms Yulang.CommonCanonicalRowTests.test_exact
+#print axioms Yulang.CommonCanonicalRowTests.problem_exact
+#print axioms Yulang.CommonCanonicalRowTests.problem_interfaces_exact
+#print axioms Yulang.CommonCanonicalCounterConstraints.seed_exact
+#print axioms Yulang.CommonCanonicalCounterConstraints.constraints_split
 
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/

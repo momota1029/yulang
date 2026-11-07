@@ -158,4 +158,82 @@ theorem commonPoint_injective (first last : Fin n → Nat)
   funext coordinate
   exact Int.ofNat.inj (congrArg (fun occurrence : Occurrence n Nat => occurrence.weights coordinate) signed)
 
+theorem closed_meaning_point (closed : ClosedRow n) (values : Fin n → Nat) :
+    closed.meaning (commonPoint values) ↔
+      ∀ coordinate, coordinate ∉ closed.enabled → values coordinate = 0 := by
+  rw [closed_meaning_exact]
+  constructor
+  · rintro ⟨other, supported, same⟩
+    exact commonPoint_injective other values same ▸ supported
+  · intro supported
+    exact ⟨values, supported, rfl⟩
+
+/-- Actual Common signed transport agrees with counter increment, and with
+counter decrement whenever the selected natural counter is positive. -/
+theorem counter_transport_exact (scope : Fin n) (values : Fin n → Nat) :
+    CommonSignedRows.shiftOccurrence scope.val allowNone 1 (commonPoint values) =
+      commonPoint (write values scope (values scope + 1)) ∧
+    (0 < values scope →
+      CommonSignedRows.shiftOccurrence scope.val allowNone (-1) (commonPoint values) =
+        commonPoint (write values scope (values scope - 1))) := by
+  have shiftExact (delta : Int) (before after : Fin n → Nat)
+      (coordinates : ∀ coordinate, (after coordinate : Int) =
+        if coordinate = scope then (before coordinate : Int) + delta else before coordinate) :
+      CommonSignedRows.shiftOccurrence scope.val allowNone delta (commonPoint before) =
+        commonPoint after := by
+    rw [commonPoint, ← CommonSignedRows.encode_shift]
+    apply congrArg CommonSignedRows.encodeOccurrence
+    apply Occurrence.ext
+    · rfl
+    intro coordinate
+    simpa [Directed.shift, point, allowNone] using (coordinates coordinate).symm
+  constructor
+  · apply shiftExact
+    intro coordinate
+    by_cases same : coordinate = scope <;> simp [write, same]
+  · intro positive
+    apply shiftExact
+    intro coordinate
+    by_cases same : coordinate = scope
+    · subst coordinate
+      simp only [write, ↓reduceIte]
+      omega
+    · simp [write, same]
+
+def gridUniverse (n : Nat) : ClosedRow n := ⟨List.finRange n⟩
+
+def zeroAt (scope : Fin n) : ClosedRow n :=
+  ⟨(List.finRange n).filter (fun coordinate => coordinate != scope)⟩
+
+theorem universe_exact (occurrence : Common.Occurrence) :
+    (gridUniverse n).meaning occurrence ↔ ∃ values : Fin n → Nat, commonPoint values = occurrence := by
+  rw [closed_meaning_exact]
+  simp [gridUniverse]
+
+theorem zeroAt_point (scope : Fin n) (values : Fin n → Nat) :
+    (zeroAt scope).meaning (commonPoint values) ↔ values scope = 0 := by
+  rw [closed_meaning_point]
+  simp [zeroAt]
+
+/-- The positive-counter guard is an ordinary protection of the closed
+quadrant row. It is not a new row predicate in the interface syntax. -/
+theorem positiveAt_point (scope : Fin n) (values : Fin n → Nat) :
+    CommonSignedRows.commonProtect scope.val allowNone (gridUniverse n).meaning (commonPoint values) ↔
+      0 < values scope := by
+  rw [CommonSignedRows.commonProtect, CommonSignedRows.transport_member_iff]
+  constructor
+  · rintro ⟨before, present, moved⟩
+    obtain ⟨previous, rfl⟩ := (universe_exact before).mp present
+    have same := commonPoint_injective (write previous scope (previous scope + 1)) values
+      ((counter_transport_exact scope previous).1.symm.trans moved)
+    have coordinate := congrFun same scope
+    simp only [write, ↓reduceIte] at coordinate
+    omega
+  · intro positive
+    let previous := write values scope (values scope - 1)
+    refine ⟨commonPoint previous, (universe_exact _).mpr ⟨previous, rfl⟩, ?_⟩
+    have down := (counter_transport_exact scope values).2 positive
+    exact (congrArg (CommonSignedRows.shiftOccurrence scope.val allowNone 1) down.symm).trans
+      (by simpa using CommonSignedRows.shiftOccurrence_inverse scope.val allowNone (-1) (commonPoint values))
+
 end Yulang.CommonCanonicalRowGeometry

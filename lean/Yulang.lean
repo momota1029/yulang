@@ -589,3 +589,4 @@ import Yulang.CanonicalRegisterMachine
 import Yulang.CommonCanonicalRowSyntax
 import Yulang.CommonCanonicalRowGeometry
 import Yulang.CommonCanonicalRowTests
+import Yulang.CommonCanonicalCounterConstraints
