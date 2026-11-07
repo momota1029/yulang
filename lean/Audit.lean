@@ -4256,3 +4256,11 @@ run_cmd do
 #print axioms Yulang.CommonPatternSourceArmsSolved.environments_instances_exact
 #print axioms Yulang.CommonPatternSourceArmsSolved.environments_rejected_exact
 #print axioms Yulang.CommonPatternSourceArmsSolved.returned_scheme_actual_partial
+#print axioms Yulang.CommonPatternConcreteRecordTypes.record_swap
+#print axioms Yulang.CommonPatternConcreteRecordTypes.insert_exact
+#print axioms Yulang.CommonPatternConcreteRecordTypes.default_record_other
+#print axioms Yulang.CommonPatternConcreteRecordTypes.insertDefault_exact
+#print axioms Yulang.CommonPatternConcreteValueTypes.value_typing_exact
+#print axioms Yulang.CommonPatternConcreteValueTypes.insertion_typed
+#print axioms Yulang.CommonPatternConcreteValueTypes.default_insertion_typed
+#print axioms Yulang.CommonPatternDataSafety.typing_evaluates

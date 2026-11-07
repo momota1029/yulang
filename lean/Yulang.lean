@@ -627,3 +627,6 @@ import Yulang.CommonPatternFormulaEquivalence
 import Yulang.CommonPatternSourceArmSolved
 import Yulang.CommonPatternSourceCasePartial
 import Yulang.CommonPatternSourceArmsSolved
+import Yulang.CommonPatternConcreteRecordTypes
+import Yulang.CommonPatternConcreteValueTypes
+import Yulang.CommonPatternDataSafety
