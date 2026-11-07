@@ -6022,3 +6022,6 @@ run_cmd do
 
 #print axioms Yulang.CommonCaseCoreDataPrefixExamples.source_gate
 #print axioms Yulang.CommonCaseCoreDataPrefixExamples.real_scheme_instance
+
+#print axioms Yulang.CommonCaseCoreDataPrefixExamples.returns_logged
+#print axioms Yulang.CommonCaseCoreDataPrefixExamples.actual_result

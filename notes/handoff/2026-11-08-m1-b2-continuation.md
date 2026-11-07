@@ -205,6 +205,22 @@ embedded data は runtime ではそのまま返し、型 fragment 外の値は s
 
 検証: 対象 build と `real_scheme_instance` の `trust=0` 監査が成功。
 
+## 11. 同じ固定 evaluator の実終了成功 witness
+
+`CommonCaseCoreDataPrefixExamples.actual_result` は、§10 と同じ元 Core subject／arm に対する
+固定された `CommonCaseCoreDataPrefixSolved.run` に、`some (literal 7)` を返す実終了成功の
+有限 trace が存在することを証明する。actual prefix computation を展開し、元の subject、
+lazy default、generated binder を読む body の具体的計算から witness を作る。
+evaluator、成功する callback、selected arm は引数にも仮定にも持たない。
+
+`returns_logged` は、元 Logged result が `.ok value` であることと、その全 prefix 表現に
+value を返す終了観測があることを同値にする補助定理である。
+§10 の実 solver 非空性と §11 の実終了 trace は、両方とも同じ concrete original Core case を使う。
+
+検証: 最終対象 build（296 jobs）と `trust=0` 監査が成功。
+`actual_result` は `propext` / `Quot.sound` のみ、`real_scheme_instance` はそれらと
+`Classical.choice` のみ。この時点で新たな scope 拡張を止め、統合側の全体 gate に渡す。
+
 ## 未完の範囲
 
 これは既存の十分な coverage 証明書の運用上の意味を拡張する定理であり、
