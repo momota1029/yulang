@@ -4257,3 +4257,17 @@ run_cmd do
 #print axioms Yulang.CommonCanonicalConstraintPrograms.testScript_tokens
 
 #print axioms Yulang.CommonCanonicalConstraintPrograms.seed_script_exact
+
+#print axioms Yulang.CommonCanonicalConstraintPrograms.partition_script_exact
+
+#print axioms Yulang.CommonCanonicalConstraintPrograms.instruction_script_exact
+
+#print axioms Yulang.CommonCanonicalReductionMachine.prepared_exact
+
+#print axioms Yulang.CommonCanonicalReductionMachine.readBlock_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.block_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.scan_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.scanTests_exact

@@ -608,3 +608,7 @@ import Yulang.CommonCanonicalTemplatePrograms
 import Yulang.CommonCanonicalGridPrograms
 
 import Yulang.CommonCanonicalConstraintPrograms
+
+import Yulang.CommonCanonicalReductionMachine
+
+import Yulang.CommonCanonicalScanPrograms

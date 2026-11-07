@@ -114,4 +114,66 @@ theorem seed_script_exact (source : Program) (input : Nat) (mode : Mode) (enviro
     Script.tokens, literal, Template.tokens, row, complementRow, seedWord, inputEq, statesEq, entryEq,
     Fin.val_natAdd, List.map_cons, List.map_nil, List.singleton_append]
 
+def partitionScript (mode : Mode) : Script 10 :=
+  testScript mode (literal [.rowUnion] <+> reachScript <+> complementScript pcField) [] (gridScript none) <+>
+    testScript mode reachScript [complementScript pcField] emptyRowScript
+
+theorem partition_script_exact {states : Nat} (registers : Nat) (pc : Fin states) (mode : Mode)
+    (environment : Environment 10) (registersEq : environment registersField = registers)
+    (statesEq : environment statesField = states) (pcEq : environment pcField = pc.val) :
+    (partitionScript mode).tokens environment = stream mode (partitionTests registers pc) := by
+  have gridExact := (grid_serialization_exact (registers + 1) 0).1
+  simp only [partitionScript, Script.tokens, testScript_tokens]
+  cases mode <;> simp only [stream, partitionTests, fixedStream, valueStream, List.flatMap_cons,
+    List.flatMap_nil, List.append_nil, forbidden, emptyRowScript, gridScript, reachScript, complementScript,
+    Script.tokens, literal, Template.tokens, gridExact, row, reachRow, complementRow,
+    registersEq, statesEq, pcEq, Fin.val_castAdd, Fin.val_natAdd, List.map_cons, List.map_nil,
+    List.singleton_append] <;> rfl
+
+inductive Kind where
+  | halt | increment | decrement | jump
+
+def kind {registers states : Nat} : Instruction registers states → Kind
+  | .halt => .halt
+  | .increment _ _ => .increment
+  | .decrement _ _ _ => .decrement
+  | .goto _ => .jump
+
+def operandValues {registers states : Nat} (environment : Environment 10) : Instruction registers states → Prop
+  | .halt => True
+  | .increment register next => environment operandFirst = register.val ∧ environment operandSecond = next.val
+  | .decrement register zero positive => environment operandFirst = register.val ∧
+      environment operandSecond = zero.val ∧ environment operandThird = positive.val
+  | .goto next => environment operandFirst = next.val
+
+def instructionScript (mode : Mode) : Kind → Script 10
+  | .halt => testScript mode reachScript [] emptyRowScript
+  | .increment => testScript mode (protectScript operandFirst reachScript)
+      [complementScript operandSecond] emptyRowScript
+  | .decrement =>
+      testScript mode reachScript [gridScript (some operandFirst), complementScript operandSecond] emptyRowScript <+>
+      testScript mode (releaseScript operandFirst reachScript)
+        [releaseScript operandFirst (protectScript operandFirst (gridScript none)), complementScript operandThird]
+        emptyRowScript
+  | .jump => testScript mode reachScript [complementScript operandFirst] emptyRowScript
+
+/-- Every instruction handler emits exactly its original constraint stream.
+The decrement case keeps the literal release(protect(grid)) expression. -/
+theorem instruction_script_exact {registers states : Nat} (pc : Fin states)
+    (instruction : Instruction registers states) (mode : Mode) (environment : Environment 10)
+    (registersEq : environment registersField = registers) (statesEq : environment statesField = states)
+    (pcEq : environment pcField = pc.val) (operands : operandValues environment instruction) :
+    (instructionScript mode (kind instruction)).tokens environment = stream mode (instructionTests pc instruction) := by
+  have gridExact := (grid_serialization_exact (registers + 1) (states + states)).1
+  have zeroExact := (grid_serialization_exact (registers + 1) (states + states)).2
+  cases instruction <;> cases mode <;>
+    simp_all only [kind, operandValues, instructionScript, Script.tokens, testScript_tokens,
+      stream, instructionTests, fixedStream, valueStream, List.flatMap_cons, List.flatMap_nil,
+      List.append_nil, forbidden, emptyRowScript, gridScript, reachScript, complementScript,
+      protectScript, releaseScript, Script.tokens, literal, Template.tokens,
+      positiveRow, row, permission, list, reachRow, complementRow, Fin.val_castAdd, Fin.val_natAdd,
+      List.map_cons, List.map_nil, List.singleton_append, List.append_assoc]
+  unfold gridEntry
+  simp_all only []
+
 end Yulang.CommonCanonicalConstraintPrograms
