@@ -500,4 +500,41 @@ theorem run_models_exact_invariant [DecidableEq Edge] (inventory : List Edge)
   explore_models_exact_invariant inventory rigid inspect P preserve edgeHolds auxHolds rigidSound inspectionExact
     inventory.length (initial edges aux) initialGood
 
+private theorem explore_aux_origin [DecidableEq Edge] (inventory : List Edge)
+    (rigid : List Edge → List Edge) (inspect : Edge → List (Branch Edge Aux))
+    (capacity : Nat) (state final : State Edge Aux)
+    (returned : final ∈ explore inventory rigid inspect capacity state)
+    (item : Aux) (present : item ∈ final.aux) :
+    item ∈ state.aux ∨ ∃ edge branch, branch ∈ inspect edge ∧ item ∈ branch.aux := by
+  induction capacity generalizing state with
+  | zero =>
+      have same : final = state := List.mem_singleton.mp returned
+      subst final
+      exact Or.inl present
+  | succ capacity ih =>
+      cases found : pending inventory rigid state with
+      | none =>
+          have same : final = state := by simpa only [explore, found, List.mem_singleton] using returned
+          subst final
+          exact Or.inl present
+      | some edge =>
+          simp only [explore, found] at returned
+          obtain ⟨branch, included, later⟩ := List.mem_flatMap.mp returned
+          rcases ih (advance state edge branch) later with immediate | previous
+          · rcases List.mem_append.mp immediate with added | original
+            · exact Or.inr ⟨edge, branch, included, added⟩
+            · exact Or.inl original
+          · exact Or.inr previous
+
+/-- Every final auxiliary constraint comes from the original auxiliary list
+or from an actual inspection branch. This reverse provenance direction is
+independent of models, inventory support, grammar invariants, and fuel. -/
+theorem run_aux_origin [DecidableEq Edge] (inventory : List Edge)
+    (rigid : List Edge → List Edge) (inspect : Edge → List (Branch Edge Aux))
+    (edges : List Edge) (aux : List Aux) (final : State Edge Aux)
+    (returned : final ∈ run inventory rigid inspect edges aux)
+    (item : Aux) (present : item ∈ final.aux) :
+    item ∈ aux ∨ ∃ edge branch, branch ∈ inspect edge ∧ item ∈ branch.aux :=
+  explore_aux_origin inventory rigid inspect inventory.length (initial edges aux) final returned item present
+
 end Yulang.FiniteBranchingWorklist
