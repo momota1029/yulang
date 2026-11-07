@@ -45,7 +45,7 @@ Monitor timeout_ms: 1800000
 - A Monitor lives at most 30 minutes; the script stops after about 29 and prints `codex-timeout pending: ...`. Re-arm for longer jobs.
 - It sees normal completion only. A worker that crashes or is interrupted may never write `task_complete` (unverified); confirm the event names before relying on the watch for those cases.
 - The wake-up reaches the session, not the user's phone. Add `PushNotification` for long work.
-- Reliability (2026-11-07): a single-worker watch and a two-worker watch with `tools/codex-watch.sh` each woke the session, one notice per finished worker. An earlier three-worker watch written as an inline loop under zsh never delivered a notice; that run is explained by the word-splitting problem above only in part (the watch process had also disappeared), so check `agent_result` when the user returns after a long job.
+- Reliability (2026-11-07): a single-worker watch and a two-worker watch with `tools/codex-watch.sh` each woke the session, one notice per finished worker. An earlier three-worker watch written as an inline loop under zsh watched the wrong worker and only reported `codex-timeout` when its 30 minutes ran out; that failure is the word-splitting problem above. Still check `agent_result` when the user returns after a long job.
 
 ## Capacity
 
