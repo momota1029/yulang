@@ -2,11 +2,25 @@
 
 Navigation aid. Each document is authoritative only for its own text and scope; read its Status line.
 
+- [要求駆動計算と B2/B3/B5 の今回の結果](../handoff/2026-11-07-common-demand-and-foundations-results.md) — 全量化した主要 theorem、元 §7 の未閉契約、B/C の到達、実根一覧、最終検証と次の着手。
+
 - [共通 Core.infer の構文拡張](2026-11-07-core-common-coverage.md) — 部分言語を実装・証明。literal/structural data/strictApp/単一 bind case/leaf を公開 principal・全 parameter・拒否完全性へ接続し、旧 PresenceOnly 入口を保存。一般署名・B1〜B6 全体の残りを明示。
 
-- [Common への effect・role・nominal 統合: 残る契約](2026-11-07-common-effect-role-nominal-contracts.md) — Draft。有限 verified declaration と任意の意味関数を分け、signed row・handler の全称・実辞書・nominal invariance・pure cast・construction sites の不足補題を量化つきで記録。head-row family だけは実装済み。
+- [Common nominal head と ground cast の基礎](2026-11-07-common-nominal-head-ground-foundations.md) — 任意 Common 型/行引数の不変性、共有 slot の有限比較、外側の根の旧順序保存、明示した scalar/nominal ground 文法の実 compatibility。全 carrier・site・pure plan の残りを区別。
 
-- [共通推論の高速化と参照実装からの refinement](2026-11-07-common-inference-refinement.md) — Draft。bound 集合共有と変数同一視を分離し、全独立モデル回収・全自由 parameter 健全性を将来の Lean 関数の契約にする。B1〜B6 の生成と solver の境界、費用モデルの残作業。高速化の実装・証明・測定は行わない。
+- [Common signed row 解釈の基礎](2026-11-07-common-signed-row-foundations.md) — 任意 scope 数で包含を保存・反映し protect/release/residual と可換。任意 Common row の可逆 transport と有限 row 式の一致を証明。全 effect 生成・solver は未完。
+
+- [Common pattern の環境・実照合への橋](2026-11-07-common-pattern-environment.md) — 順序・共有・単相の環境拡張と default 入力の有限生成、実 lookup と構造 matcher の型保存。外部の default 成功契約と、全生成・部分正当性・行・coverage の未完を明示。
+
+- [Common role と全公開 interface の残る境界](2026-11-07-common-role-canonical-boundaries.md) — 実 checker が受理する規則の regular goal 列が要求同値でも再訪しないことを証明。B4 の停止手続きと A2 の全 family canonicalizer の不足を元の量化で記録。
+
+- [Common の有限 operation 宣言と request 生成](2026-11-07-common-effect-request-generation.md) — 有限 table、局所型変数、kind 検査と request 一段の生成 iff。再帰的 effect、全称 handler、見える effect、全 solver の未完を明示。
+
+- [A1 の全旧 source 共有 witness に残る構成](2026-11-07-common-legacy-shared-witness-gap.md) — 全 supported source の元 statement と、共有 constructor・負位置・行・旧出力を同時回収する不足を記録。既存の envelope/erasure 反例を A1 の反証とは扱わない。
+
+- [Common への effect・role・nominal 統合: 残る契約](2026-11-07-common-effect-role-nominal-contracts.md) — Draft。有限 verified declaration と任意の意味関数を分けた B3/B4/B5 の原契約。後続で閉じた signed row 解釈と request/nominal の独立基礎は各メモへリンクし、未完の公開統合契約は量化を維持。
+
+- [共通推論の高速化と参照実装からの refinement](2026-11-07-common-inference-refinement.md) — Draft。実 clause の要求根と逆向き bound 計算、任意 snapshot の要求同値、全検査後の solveAll / Core.infer との一致を実装・証明。要求した成分の飽和、関数/SCC の実行前検査、memo と費用評価は未完。速度は未測定。
 
 **2026-11-04:** the 2026-10 inference-proof sprint documents were removed from the working tree.
 They remain in tag `archive/proof-sprint-2026-11-04`. What remains here is the

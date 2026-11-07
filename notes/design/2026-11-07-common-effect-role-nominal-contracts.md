@@ -4,7 +4,7 @@
 
 `Core.infer` の全構文への拡張に向け、既存の別モデルと Common の実生成 solver の接点を確認した。B3 の有限 occurrence 定数を持つ row flow は、この記録に先行する `CommonRowHeadFlow` / `CommonRowHeadSolver` で閉じた。request、handler、method、nominal、cast、construction の公開入口への統合は、この row 補題からは従わない。
 
-以下の未実装契約名は設計上の名前であり、同名の Lean 宣言が実装済みであることを意味しない。A1/A2 の残りは別記録に委ねる。今回、新しい利用者向けの仕様質問は生じていない。
+以下は初期調査時点の契約記録であり、設計上の名前を実装済み theorem として扱わない。後続作業で `CommonSignedRows.common_effect_row_interpretation_exact` は元の契約を閉じた。到達点は [signed row 解釈](2026-11-07-common-signed-row-foundations.md)、[有限 request 生成](2026-11-07-common-effect-request-generation.md)、[nominal / ground 基礎](2026-11-07-common-nominal-head-ground-foundations.md)、[role / 全 canonical の境界](2026-11-07-common-role-canonical-boundaries.md) に分けて記録した。B3/B4/B5 全体は未完で、以下の公開契約の前提と量化は変更しない。A1/A2 の残りは別記録に委ねる。新しい利用者向けの仕様質問は生じていない。
 
 ## 1. 全段階で保つ完了条件
 
