@@ -2016,3 +2016,14 @@ whole default source と任意混在 guarded payload / positive same-depth tail 
 `CommonNominalOpenTailSolver` はこの実閉包へ symbolic signed literal rows の全 inequality solver と自由型 directed flows を合流し、
 無制約 row/type/node parameter product で全元行を等号、全自由型/全 node を要求同値で回収する。
 constructed-node type edges、自由 slot と constructed-node の等価、full source bound solver は未完である。
+
+
+### B5: original-node recovery and rigid nominal inspection
+
+`CommonNominalClampedGraphFamily` retains every original node, closes mixed guarded/same-depth constructor equations, and recovers every original complete edge model at every node. All parameters satisfy constructor equations and edges with flexible sources. Soundness for rigid-source lower/check edges remains open; this is not a complete solved family.
+
+`CommonNominalRigidHeadInspection` and `CommonNominalRigidInspection` establish static head mismatch and finite ordinary-child/row decomposition for bottom/top/float/base/pair/variant/arrow/nominal heads over unrestricted regular children. Nominal IDs, arities, argument kinds and bidirectional comparisons are retained. Source union / target intersection eliminations are exact. Record/default/mask inspection and source saturation remain separate obligations.
+
+Field templates now admit whole shared parameters inside positive union/mask/default source positions; literal preservation of previous Layer templates and the corresponding direct constructor equalities are proved. All original source generation and atomic normalization statements still build unchanged.
+
+Checkpoint: `lake build --wfail` passes (660 jobs); full trust-zero Audit passes, allowlist 54879 declarations. These are partial B5 results, not B5/B1 END.

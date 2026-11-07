@@ -4348,3 +4348,12 @@ run_cmd do
 #print axioms Yulang.CommonNominalRigidHeadInspection.rigid_heads
 #print axioms Yulang.CommonNominalRigidHeadInspection.rigid_mismatch
 #print axioms Yulang.CommonNominalRigidHeadInspection.variant_iff
+#print axioms Yulang.CommonNominalRigidInspection.inspect_exact
+#print axioms Yulang.CommonNominalRigidInspection.union_left_exact
+#print axioms Yulang.CommonNominalRigidInspection.inter_right_exact
+#print axioms Yulang.CommonNominalFiniteRigidInspection.compile_nominal_exact
+#print axioms Yulang.CommonNominalFiniteRigidInspection.inspect_finite_sound
+#print axioms Yulang.CommonNominalFiniteRigidInspection.inspect_at_sound
+#print axioms Yulang.CommonNominalPlainInspection.encode_inspect
+#print axioms Yulang.CommonNominalPlainInspection.inspect_exact
+#print axioms Yulang.CommonNominalPlainInspection.inspect_at_sound

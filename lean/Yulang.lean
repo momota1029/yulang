@@ -645,3 +645,6 @@ import Yulang.CommonNominalPresenceTailRegular
 import Yulang.CommonNominalOpenTailSolver
 import Yulang.CommonNominalClampedGraphFamily
 import Yulang.CommonNominalRigidHeadInspection
+import Yulang.CommonNominalRigidInspection
+import Yulang.CommonNominalFiniteRigidInspection
+import Yulang.CommonNominalPlainInspection
