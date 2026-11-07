@@ -2854,3 +2854,17 @@ run_cmd do
 #print axioms Yulang.CommonPresenceCoalescedSource.clause_instantiation_models
 #print axioms Yulang.CommonPresenceCoalescedSource.residual_source_principal
 #print axioms Yulang.CommonPresenceCoalescedSource.residual_core_principal
+#print axioms Yulang.CommonSymbolicTailView.Finite.tail_record_both_iff
+#print axioms Yulang.CommonSymbolicTailView.Finite.tail_two_heads_iff
+#print axioms Yulang.CommonSymbolicTailView.tail_record_both_iff
+#print axioms Yulang.CommonSymbolicTailView.tail_cover_iff
+#print axioms Yulang.CommonSymbolicTailView.tail_two_heads_iff
+#print axioms Yulang.CommonSymbolicTailView.tail_view_exact
+#print axioms Yulang.CommonSymbolicTailView.view_equivalent_iff
+#print axioms Yulang.CommonSymbolicTailView.termCover_eval
+#print axioms Yulang.CommonSymbolicTailView.termView_eval
+#print axioms Yulang.CommonSymbolicTailView.termCover_rename
+#print axioms Yulang.CommonSymbolicTailView.termView_rename
+#print axioms Yulang.CommonSymbolicTailView.termCover_subst
+#print axioms Yulang.CommonSymbolicTailView.termView_subst
+#print axioms Yulang.CommonSymbolicTailView.symbolic_tail_exact

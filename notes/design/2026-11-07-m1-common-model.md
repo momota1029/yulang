@@ -269,3 +269,26 @@ semantic model certificate は持たない。具体化は行・元型変数・re
 任意閉式と任意結果について残余条件付き principal iff を証明し、GoodAtoms は実生成器から内部で供給する。
 残余の両端が元 pool の非変数 node であることも証明する。具体化後の型比較を推論時に実行したと見なす案は採用せず、
 この明示的な残余を除く symbolic saturation を最終公開入口の前に残す。
+
+## 13. 未知 slot の全 label を保持する symbolic tail view
+
+入力の有限構文に現れる label だけを調べる案は採用しない。未知 slot の具体化には、入力にない label を持つ
+任意の Common 型も許すためである。§9 の concrete `inspectLabels` は実際の具体型を走査した結果であり、
+その有限支持を代入前の推論 scheme にそのまま移すことはできない。
+
+`CommonSymbolicTailView` は、任意の hidden list H と任意の型 S/T に対し、同深さの `RecordTailLe H S T` を
+有限の型構文による通常の subtype 比較へ正確に符号化する。H の各 label を同じ top payload の record head で
+覆った型を `cover H S` とし、次の二つの head を組にする。
+
+```text
+view H S = pair (record 0 top (cover H S)) (record 1 top (cover H S))
+```
+
+head 0 が隠す label 0 はもう一方の成分で観測でき、head 1 についても同様である。両方の成分を比べるため、
+H 以外のすべての label の field と非自明 optional を保持する。未知 slot の型から fresh label を探す必要はない。
+`tail_view_exact` は任意 H/S/T でこの iff を証明する。通常の subtype 比較へ移すだけでなく、
+実 `TyTerm` の `termView` を構成し、任意 slot 割当てでの `symbolic_tail_exact`、rename/subst の可換性を証明する。
+元 slot は同じ ID で参照し、型代入を compile の引数に取らない。
+
+これは tail 義務の有限表現であり、同じ義務を view に包んで再展開することを saturation の進行とは数えない。
+7.2 では、この表現を含む共有 graph の閉性と、全 parameter での比較成立を別途証明する必要がある。

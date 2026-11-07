@@ -430,3 +430,4 @@ import Yulang.CommonCanonicalNames
 import Yulang.CommonBoundCoalescing
 import Yulang.CommonPresenceVariableBounds
 import Yulang.CommonPresenceCoalescedSource
+import Yulang.CommonSymbolicTailView
