@@ -512,3 +512,6 @@ import Yulang.CommonPresenceSolvedSource
 import Yulang.CoreSyntaxGatedCommonInference
 import Yulang.CommonLegacyReflection
 import Yulang.CommonCanonicalIntervals
+import Yulang.CommonLegacyReflectionConstructors
+import Yulang.CommonCanonicalPositive
+import Yulang.CommonCanonicalObstructions
