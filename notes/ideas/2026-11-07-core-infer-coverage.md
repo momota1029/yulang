@@ -1,5 +1,14 @@
 # `Core.infer` が覆う構文と、全構文への距離 (2026-11-07)
 
+追記（同日の構文統合後）: 以下の本文は `42d023f78` 時点の棚卸しを保持する。
+構成子総数は実 `CoreExpr.lean` で **32 個**だったため、元の 31 という数え方を訂正する。
+現在の公開入口は `Core.CommonSyntax.model Common.model` に進み、旧入口を `Core.PresenceOnly.infer` に残した。
+空署名の literal、structural data、strictApp、単一 unguarded bind case、leaf が再帰的に載ったが、
+全構文ではない。現在の量化・証明範囲・B1〜B6 状態は
+[統合結果](../handoff/2026-11-07-core-common-coverage-results.md) と
+[設計](../design/2026-11-07-core-common-coverage.md) を参照。
+高速化の実装は行わず、[refinement 契約](../design/2026-11-07-common-inference-refinement.md) だけを記録した。
+
 状態: **棚卸し。決定は無い。** ユーザーの要望: 「すべての構文に対応してほしい」。
 署名: Claude (Sonnet 5.5)。根拠は `integration/m1-common` の先頭 `42d023f78` の Lean ソース（`lean/Yulang/CoreExpr.lean`、`CoreInference.lean`、`CorePresenceGenerationCore.lean`）。
 証明の中身は読んでいない。宣言（構文の定義と型付け規則）と、ビルド・Audit の通過だけを確かめた。

@@ -63,8 +63,8 @@ theorem legacy_core_parameters (expression : Expr)
   obtain ⟨scheme, member, parameters, same, rowSame⟩ :=
     legacy_source_parameters expression supported result accepted
   refine ⟨scheme, ?_, parameters, same, rowSame⟩
-  simpa only [Core.CommonInference.Result.mem_schemes, Core.infer_schemes,
-    CommonSolvedSource.inferCore_embed] using member
+  simpa only [Core.infer_embed, Core.CommonInference.Result.mem_schemes,
+    Core.CommonInference.finish_schemes] using member
 
 theorem legacy_instances_preserved (expression : Expr)
     (supported : SourcePrincipalInference.supported expression = true)

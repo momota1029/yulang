@@ -526,3 +526,34 @@ import Yulang.CommonLegacyGenerationTranslation
 import Yulang.CommonLegacyEmbeddedWitnesses
 import Yulang.CommonCanonicalPolarity
 import Yulang.CommonCanonicalPolarityBoundary
+import Yulang.CommonCanonicalArrowFamilies
+import Yulang.CoreCommonSyntax
+import Yulang.CommonCoreStrictApplication
+
+import Yulang.CommonCanonicalArrowExports
+
+import Yulang.CommonCanonicalArrowModule
+
+import Yulang.CommonCoreStrictRuntime
+
+import Yulang.CoreCommonData
+
+import Yulang.CommonCoreNamedCase
+import Yulang.CoreCommonSyntaxExact
+import Yulang.CommonSolvedCoreSyntax
+
+import Yulang.CommonCanonicalCurriedTransfer
+
+import Yulang.CommonCanonicalCurriedFamilies
+
+import Yulang.CommonCanonicalCurriedExports
+
+import Yulang.CommonLegacyWitnessPositive
+
+import Yulang.CommonLegacyWitnessSource
+
+import Yulang.CommonRowHeadFlow
+
+import Yulang.CommonRowHeadSolver
+
+import Yulang.CommonCanonicalCurriedModule

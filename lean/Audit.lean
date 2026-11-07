@@ -3932,3 +3932,116 @@ run_cmd do
 #print axioms Yulang.CommonCanonicalPolarityBoundary.second_pass_exact
 #print axioms Yulang.CommonCanonicalPolarityBoundary.successive_passes_different
 #print axioms Yulang.CommonCanonicalPolarityBoundary.normalize_not_idempotent
+#print axioms Yulang.CommonCanonicalArrowFamilies.instances_arrow_exact
+#print axioms Yulang.CommonCanonicalArrowFamilies.family_rows_equal
+#print axioms Yulang.CommonCanonicalArrowFamilies.family_transfer_equal
+#print axioms Yulang.CommonCanonicalArrowFamilies.familyEquivalent_iff_transfer
+#print axioms Yulang.CommonCanonicalArrowFamilies.canonicalEncoding_exact
+#print axioms Yulang.Core.CommonSyntax.literalBase_exact
+#print axioms Yulang.Core.CommonSyntax.lower_embed
+#print axioms Yulang.Core.CommonSyntax.lower_isValue
+#print axioms Yulang.Core.CommonSyntax.typing_covered
+#print axioms Yulang.CommonCoreStrictApplication.forceApplication_typing_exact
+#print axioms Yulang.CommonCoreStrictApplication.all_parameters_typed
+#print axioms Yulang.CommonCoreStrictApplication.principal
+#print axioms Yulang.CommonCoreStrictApplication.empty_iff_untypable
+
+#print axioms Yulang.CommonCanonicalArrowExports.toValue_eval
+#print axioms Yulang.CommonCanonicalArrowExports.binding_instances_exact
+#print axioms Yulang.CommonCanonicalArrowExports.scheme_instances_exact
+#print axioms Yulang.CommonCanonicalArrowExports.interface_canonicalEncoding_exact
+#print axioms Yulang.CommonCanonicalArrowExports.finishModule_exact
+
+#print axioms Yulang.CommonCanonicalArrowModule.supportCode_exact
+#print axioms Yulang.CommonCanonicalArrowModule.finished_instances_exact
+#print axioms Yulang.CommonCanonicalArrowModule.finished_total_instances_exact
+#print axioms Yulang.CommonCanonicalArrowModule.export_canonicalEncoding_exact
+#print axioms Yulang.CommonCanonicalArrowModule.Examples.absorbed_captured_changes_EOF
+
+#print axioms Yulang.CommonCoreStrictRuntime.source_erasure
+#print axioms Yulang.CommonCoreStrictRuntime.operational_erasure
+#print axioms Yulang.CommonCoreStrictRuntime.eval_forceApplication
+#print axioms Yulang.CommonCoreStrictRuntime.eval_agrees_with_two_lets
+#print axioms Yulang.CommonCoreStrictRuntime.infer_forceApplication
+
+#print axioms Yulang.Core.CommonData.typing_covered
+#print axioms Yulang.Core.CommonData.valueLower_isValue
+#print axioms Yulang.Core.CommonData.typing_lower_exact
+#print axioms Yulang.Core.CommonData.typing_lower_iff
+#print axioms Yulang.Core.CommonData.lower_context_independent
+
+#print axioms Yulang.CommonCoreNamedCase.forceValue_typing_exact
+#print axioms Yulang.CommonCoreNamedCase.caseName_typing_exact
+#print axioms Yulang.CommonCoreNamedCase.lowering_exact
+#print axioms Yulang.CommonCoreNamedCase.principal
+#print axioms Yulang.CommonCoreNamedCase.all_parameter_sound
+#print axioms Yulang.CommonCoreNamedCase.rejected_iff
+#print axioms Yulang.Core.CommonSyntax.covered_case_iff
+#print axioms Yulang.Core.CommonSyntax.lowering_exact
+#print axioms Yulang.CommonSolvedCoreSyntax.infer_embed
+#print axioms Yulang.CommonSolvedCoreSyntax.all_parameter_sound
+#print axioms Yulang.CommonSolvedCoreSyntax.principal
+#print axioms Yulang.CommonSolvedCoreSyntax.empty_iff_untypable
+#print axioms Yulang.CommonSolvedCoreSyntax.presence_schemes
+#print axioms Yulang.CommonSolvedCoreSyntax.presence_typing_preserved
+#print axioms Yulang.Core.PresenceOnly.infer_schemes
+#print axioms Yulang.Core.PresenceOnly.infer_embed
+#print axioms Yulang.Core.PresenceOnly.infer_ne_unsupported
+#print axioms Yulang.Core.PresenceOnly.infer_rejected_iff_nil
+#print axioms Yulang.Core.PresenceOnly.infer_instantiates
+#print axioms Yulang.Core.PresenceOnly.infer_principal
+#print axioms Yulang.Core.PresenceOnly.infer_instances_exact
+#print axioms Yulang.Core.PresenceOnly.infer_rejected_iff
+#print axioms Yulang.Core.infer_presence
+#print axioms Yulang.Core.infer_presence_typing_preserved
+
+#print axioms Yulang.CommonCanonicalCurriedTransfer.spine_below_iff
+#print axioms Yulang.CommonCanonicalCurriedTransfer.applyTransfer_eq
+#print axioms Yulang.CommonCanonicalCurriedTransfer.instances_spine_exact
+
+#print axioms Yulang.CommonCanonicalCurriedFamilies.family_rows_equal
+#print axioms Yulang.CommonCanonicalCurriedFamilies.family_transfer_equal
+#print axioms Yulang.CommonCanonicalCurriedFamilies.familyEquivalent_iff_transfer
+#print axioms Yulang.CommonCanonicalCurriedFamilies.canonicalEncoding_exact
+#print axioms Yulang.CommonCanonicalCurriedFamilies.Examples.shared_joined_instances
+#print axioms Yulang.CommonCanonicalCurriedFamilies.Examples.second_argument_sharing_matters
+
+#print axioms Yulang.CommonCanonicalCurriedExports.toSpine_eval
+#print axioms Yulang.CommonCanonicalCurriedExports.toValue_eval
+#print axioms Yulang.CommonCanonicalCurriedExports.binding_instances_exact
+#print axioms Yulang.CommonCanonicalCurriedExports.scheme_instances_exact
+#print axioms Yulang.CommonCanonicalCurriedExports.interface_canonicalEncoding_exact
+#print axioms Yulang.CommonCanonicalCurriedExports.finishModule_exact
+
+#print axioms Yulang.CommonLegacyWitnessPositive.Agrees.record
+#print axioms Yulang.CommonLegacyWitnessPositive.Agrees.arrow
+#print axioms Yulang.CommonLegacyWitnessPositive.Agrees.upper_reflected
+
+#print axioms Yulang.CommonLegacyWitnessSource.value_agrees
+#print axioms Yulang.CommonLegacyWitnessSource.reconstruct
+#print axioms Yulang.CommonLegacyWitnessSource.typing_exact
+#print axioms Yulang.CommonLegacyWitnessSource.shared_witness_recovery
+#print axioms Yulang.CommonLegacyWitnessSource.legacy_instances_reflected
+
+#print axioms Yulang.CommonRowHeadFlow.check_exact
+#print axioms Yulang.CommonRowHeadFlow.models_check
+#print axioms Yulang.CommonRowHeadFlow.mem_propagated
+#print axioms Yulang.CommonRowHeadFlow.coalesce_models
+#print axioms Yulang.CommonRowHeadFlow.coalesce_retraction
+#print axioms Yulang.CommonRowHeadFlow.no_heads_instantiate
+
+#print axioms Yulang.CommonRowHeadSolver.all_parameters_models
+#print axioms Yulang.CommonRowHeadSolver.model_retraction
+#print axioms Yulang.CommonRowHeadSolver.solve_all_instances_exact
+#print axioms Yulang.CommonRowHeadSolver.rejected_iff
+#print axioms Yulang.CommonRowHeadSolver.rejected_iff_head_reaches_pure
+#print axioms Yulang.CommonRowHeadSolver.Examples.signed_head_propagates
+#print axioms Yulang.CommonRowHeadSolver.Examples.transitive_head_conflict_rejected
+
+#print axioms Yulang.CommonCanonicalCurriedModule.supportCode_exact
+#print axioms Yulang.CommonCanonicalCurriedModule.known_missing_iff
+#print axioms Yulang.CommonCanonicalCurriedModule.finished_instances_exact
+#print axioms Yulang.CommonCanonicalCurriedModule.finished_total_instances_exact
+#print axioms Yulang.CommonCanonicalCurriedModule.finished_top_iff_known
+#print axioms Yulang.CommonCanonicalCurriedModule.export_canonicalEncoding_exact
+#print axioms Yulang.CommonCanonicalCurriedModule.Examples.shared_joined_finished_instances
