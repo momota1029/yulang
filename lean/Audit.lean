@@ -3963,3 +3963,9 @@ run_cmd do
 #print axioms Yulang.CommonCoreStrictRuntime.eval_forceApplication
 #print axioms Yulang.CommonCoreStrictRuntime.eval_agrees_with_two_lets
 #print axioms Yulang.CommonCoreStrictRuntime.infer_forceApplication
+
+#print axioms Yulang.Core.CommonData.typing_covered
+#print axioms Yulang.Core.CommonData.valueLower_isValue
+#print axioms Yulang.Core.CommonData.typing_lower_exact
+#print axioms Yulang.Core.CommonData.typing_lower_iff
+#print axioms Yulang.Core.CommonData.lower_context_independent

@@ -535,3 +535,5 @@ import Yulang.CommonCanonicalArrowExports
 import Yulang.CommonCanonicalArrowModule
 
 import Yulang.CommonCoreStrictRuntime
+
+import Yulang.CoreCommonData
