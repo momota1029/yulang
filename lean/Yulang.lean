@@ -1048,3 +1048,5 @@ import Yulang.CommonCoreDataPrefixes
 import Yulang.CommonCaseCoreDataGate
 
 import Yulang.CommonCaseCoreDataPrefixSolved
+
+import Yulang.CommonCaseCoreDataPrefixExamples

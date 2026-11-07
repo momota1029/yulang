@@ -184,6 +184,27 @@ source support・default 成功・selected arm・coverage・domain・ResidualHol
 検証: 新 module の warnings-as-errors build と主要四定理の `trust=0` 監査が成功。
 許可された `propext` / `Classical.choice` / `Quot.sound` 以外の公理は使わない。
 
+## 10. source gate を入れた実 family の非空性
+
+`CommonCaseCoreDataPrefixExamples.real_scheme_instance` は、§5 と同じ実 Core default-only case が
+§8 の source gate を通り、§9 の実有限 solver が scheme と具体的 model を表す parameter を
+返すことを証明する。空 family に対する全称定理ではない。追加の callback／実行成功 premise は無い。
+
+厳密な source 範囲は、literal、`CommonData.covered` に入る embedded data、indexed var、pair、
+fst/snd、emptyRecord、record、recordDefault、field、variant、leaf の有限な再帰的閉包。
+let、関数、適用、再帰、effect、nested case はこの family の gate が除く。
+listed constructor 以外は evaluator が unsupported error を返す。
+embedded data は runtime ではそのまま返し、型 fragment 外の値は source gate が拒否するため、
+`supported = false` と runtime unsupported error を一般に同一視しない。
+
+§9 の最終定理は、任意の有限 record 仕様・任意の元 Core subject と元有限 arm 列、
+実 solver が返す任意の scheme、**無制約の任意 parameter**、任意の error 行解釈を量化する。
+ただし source visit の行はこの純粋 fragment に対応する空行に固定される。
+成功 default、selected arm、静的 support predicate、外部 EvaluationSound を caller に要求しない。
+この純粋 fragment で外部実行契約を除いたことを、一般 effectful source の E2 と呼ばない。
+
+検証: 対象 build と `real_scheme_instance` の `trust=0` 監査が成功。
+
 ## 未完の範囲
 
 これは既存の十分な coverage 証明書の運用上の意味を拡張する定理であり、

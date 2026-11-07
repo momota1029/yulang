@@ -6019,3 +6019,6 @@ run_cmd do
 #print axioms Yulang.CommonCaseCoreDataPrefixSolved.bodies_sound
 #print axioms Yulang.CommonCaseCoreDataPrefixSolved.case_prefixes
 #print axioms Yulang.CommonCaseCoreDataPrefixSolved.all_parameter_case_prefixes
+
+#print axioms Yulang.CommonCaseCoreDataPrefixExamples.source_gate
+#print axioms Yulang.CommonCaseCoreDataPrefixExamples.real_scheme_instance

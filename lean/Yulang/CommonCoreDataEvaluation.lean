@@ -3,8 +3,10 @@ import Yulang.CommonPatternDataSafety
 /-! An actual evaluator for the original indexed Core data fragment.
 Every source visit is retained, projections use the real value, and record
 operands run in written order. Pattern defaults remain lazy in the separate
-canonical matcher. Unsupported Core syntax reports an explicit error; it is
-never represented by a silent computation to discharge a safety contract.
+canonical matcher. Core constructors without an evaluation clause report an
+explicit unsupported error; they are never represented by silent computation
+to discharge a safety contract. The source gate also rejects embedded values
+outside the Common data fragment, although their runtime clause returns them.
 
 This fragment includes literals, embedded data, indexed variables, products,
 records, projections, variants and transparent leaves. It does not implement
