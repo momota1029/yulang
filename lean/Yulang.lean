@@ -422,3 +422,11 @@ import Yulang.CommonPayloadProjection
 import Yulang.CommonRecordTailProfiles
 import Yulang.CommonRecordEnvelope
 import Yulang.CommonCanonicalInterface
+import Yulang.CommonDefaultInspection
+import Yulang.CommonPresenceSourceFamily
+import Yulang.CommonCanonicalAlpha
+import Yulang.CommonRecordInspection
+import Yulang.CommonCanonicalNames
+import Yulang.CommonBoundCoalescing
+import Yulang.CommonPresenceVariableBounds
+import Yulang.CommonPresenceCoalescedSource
