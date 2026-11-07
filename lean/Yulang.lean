@@ -1054,3 +1054,5 @@ import Yulang.CommonCaseCoreDataPrefixExamples
 import Yulang.CommonCasePrefixCompletion
 
 import Yulang.CommonCaseCoreDataCompletion
+
+import Yulang.CommonRoleClosedRecordComparison

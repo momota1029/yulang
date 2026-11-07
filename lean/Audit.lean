@@ -6038,3 +6038,5 @@ run_cmd do
 #print axioms Yulang.CommonCaseCoreDataCompletion.case_returns
 
 #print axioms Yulang.CommonCaseCoreDataCompletion.all_parameter_returns
+
+#print axioms Yulang.CommonRoleClosedRecordComparison.subtype_lookup_exact
