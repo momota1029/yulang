@@ -1933,3 +1933,14 @@ constructor ごとに新 carrier へ保持する。旧 block は `State.common` 
 `CommonNominalSlotSolver` は任意有限の既知 nominal head 比較列を、値型/行の共有 ID を保って同時に解く。
 全 slot の無制約な新 regular 型・行 parameter product を使い、全元モデルを全 slot で回収する（値は要求同値、行は等号）。
 一般 structural bound / nominal constructor 方程式との混合 solver と、construction source 全体の生成はこの theorem の対象ではない。
+
+`CommonConstructionResolved` は実 resolved source 式を保持した固定/共有 target site 列を全て検査し、
+実 source registry から pure cast plan を合成して、元 source を同じ順で評価する。
+`code_requestTree` は全 request/payload/response branch の保存を示す。
+一般 Common source からの field-type template 抽出と有限 Formula / all-instance family の橋は未完である。
+
+`CommonListNil` は nominal list の element invariance、元 `nil` / 空 list data の独立判断、
+実 finite Formula と全自由 regular element parameter の scheme family を接続する。
+`CommonRegularCastObstruction` は、固定 regular chain の全長を有限非再帰・データ非依存 plan で変換できないことを示す。
+全 source からの実生成と旧 `PureCasts.Plan` への完全な橋は未証明なので、この障害を B5 全体の E2 とは扱わない。
+再帰 plan の方針は [`正則 structural cast の問い`](../notes/questions/2026-11-07-b5-regular-structural-cast-plans.md) に残した。
