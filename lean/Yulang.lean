@@ -578,3 +578,4 @@ import Yulang.CommonRoleRegularObstructions
 import Yulang.CommonEffectRequestGeneration
 import Yulang.CommonCanonicalQualifiedFamilies
 import Yulang.CanonicalComputability
+import Yulang.CommonRoleSemanticPadding

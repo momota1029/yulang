@@ -9,6 +9,11 @@ import Lean
 #print axioms Yulang.CommonCanonicalQualifiedFamilies.finished_instances_exact
 #print axioms Yulang.CanonicalComputability.executes_deterministic
 #print axioms Yulang.CanonicalComputability.divergeOnTrue_step
+#print axioms Yulang.CanonicalComputability.divergeOnTrue_trap
+#print axioms Yulang.CanonicalComputability.executes_divergeOnTrue_iff
+#print axioms Yulang.CanonicalComputability.no_self_halting_decider
+#print axioms Yulang.CommonRoleSemanticPadding.padded_declaration_accepted
+#print axioms Yulang.CommonRoleSemanticPadding.padded_head_exact
 
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/
