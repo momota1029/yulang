@@ -5960,3 +5960,5 @@ run_cmd do
 
 #print axioms Yulang.CommonEffectRowIntervalConstraints.Bounds.eval_merge
 #print axioms Yulang.CommonEffectRowIntervalConstraints.merge_check_exact
+
+#print axioms Yulang.CommonRoleIntervalReadyChain.declared_child_endpoints

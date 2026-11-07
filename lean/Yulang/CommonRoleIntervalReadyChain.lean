@@ -67,4 +67,18 @@ theorem no_readiness_rank :
   have impossible := bounded (rank (bounds 0) + 1)
   omega
 
+def childTemplate : CommonRoleCaptureNormalization.Form := .pair .int (.var 0)
+
+/-- The illustrative source template is `R a where R (int, a)`.
+Its admissibility is checked separately below; readiness does not admit it. -/
+def growingDeclaration : CommonRoleStablePaterson.Declaration :=
+  ⟨0, 0, [.var 0], [(0, [childTemplate])]⟩
+
+/-- The one fixed child template acts on the two endpoints separately.
+No arbitrary point is captured between them to manufacture this sequence. -/
+theorem declared_child_endpoints (count : Nat) :
+    evaluate (eval Empty.elim) (bounds (count + 1)) =
+      (childTemplate.eval (fun _ => eval Empty.elim (bounds count).1),
+       childTemplate.eval (fun _ => eval Empty.elim (bounds count).2)) := rfl
+
 end Yulang.CommonRoleIntervalReadyChain
