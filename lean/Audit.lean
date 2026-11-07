@@ -4507,3 +4507,12 @@ run_cmd do
 #print axioms Yulang.CommonInvariantIntervals.shared_bound_variables_equal
 #print axioms Yulang.CommonInvariantIntervals.compile_models_exact
 #print axioms Yulang.CommonInvariantIntervals.models_family_exact
+#print axioms Yulang.CommonGroundIntervalSolver.check_exact
+#print axioms Yulang.CommonGroundIntervalSolver.all_parameters_models
+#print axioms Yulang.CommonGroundIntervalSolver.solve_all_instances_exact
+#print axioms Yulang.CommonGroundIntervalSolver.interval_solve_all_instances_exact
+#print axioms Yulang.CommonGroundIntervalSolver.rejected_iff
+#print axioms Yulang.CommonNominalIntervalReconciliation.row_merge_exact
+#print axioms Yulang.CommonNominalIntervalReconciliation.nominal_merge_models_exact
+#print axioms Yulang.CommonNominalIntervalReconciliation.arguments_holds_length
+#print axioms Yulang.CommonNominalIntervalReconciliation.point_head_holds_exact
