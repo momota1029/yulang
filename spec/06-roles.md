@@ -108,6 +108,10 @@ my twice(x: 'a) =
   そのため、`'a` を「head が隠れた同名 field を作るように」選び直すことはできず、`where` の各条件の意味は head と具体的な goal から一つに決まる。保留した goal は、具体化されるまで解決の対象にならないので、解決は止まらないことがある形にならない。
   理由: 任意の核の registry に対する Lean の反例（`CommonRoleFiniteTailObstruction.normalized_registry_undecidable`: `R {x:int, ..a} where R a` で `a := {x:int}` と捕まえると head が同値になる）は、この「任意の代入」の読みに依存していた。
 
+  **variant の行で同じ tag を重ねて書いたときは、合流した後の形で数える**（確定, 2026-11-07, ユーザーの決定）。`impl R :{tick 'a, tick 'a}` のように同じ tag を重ねると、payload は合流して `union('a, 'a)` になり、型の意味は `:{tick 'a}` と同じである。大きさと出現回数は、`union(P, P) → P` のように縮約した後の形で数える。重ねて書くこと自体は、宣言のエラーにしない。
+  合流は、型が分かるまで遅らせる（goal は型が確定した記述なので、照合の時点で合流済みの形になる）。別の tag を足すと要求が増えて型の意味が変わるので、見えない膨らみにはならない。見えない膨らみを作れるのは、同じ tag の重ね書きと、record の隠れた同名 field だけである。
+  理由: 生の大きさで数えると、同じ tag を重ねて「小さい」ことにでき、解決が停止しない registry が作れる（Lean: `CommonRoleMergedObstruction.canonical_merged_registry_undecidable`）。
+
   ```yulang
   impl Display (list 'a):
       where 'a: Display          // 良い: 'a は list 'a より小さい。list (list int) → list int → int と降りて止まる
