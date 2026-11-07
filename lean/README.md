@@ -1959,3 +1959,34 @@ E2 は修正後 registry exactness の必要成分に対するもの。単独の
 K1 はこの還元に関係しない。K2 の修正案は
 [未承認の提案](../notes/questions/2026-11-07-b4-regular-resolution-decidability.md)に記録した。
 主定理を Audit に登録し、全体 build 622 jobs と trust=0 allowlist 52025 declarations が通過した。
+
+## B4 redo E2: 到達した型 root だけの拒否では全域解決にならない（2026-11-07）
+
+K2 の最終決定では、再帰型が型引数の深い位置にあるだけなら拒否せず、その再帰型を
+引数とする role goal に到達したときに拒否する。この拒否位置の下でも、
+`CommonRoleReachedRootObstruction.reached_root_registry_undecidable` が **E2** を示す。
+
+旧二引数の計算還元を一引数 `pair(clock,data)` に包むと、head/where の両サイズに同じ 1 が加わり、
+実 Paterson 検査を通る。全 where child の root は pair のままで、循環 clock そのものの
+role goal へは降りない。`CommonRolePackedHalting.no_rejection` は任意有限 path で再帰型拒否が
+起きないことを示す。それでも guarded 有限辞書の存在は元の有限 program の停止と同値であり、
+必ず停止して成功 bit を正確に返す有限 tape machine は存在しない。
+
+実環境の WellFormed、HeadDeterminesAssociated、AssocWellFormed と全 where の宣言済み一引数 arity は
+前提なしで証明した。associated RHS は定数 int であり、HDA は任意 Common 代入を量化する。
+任意 Common 代入での head 候補の一意性も `unique_at_configuration` で明示した。
+`arbitrary_common_exact` / `guarded_iff_arbitrary_common` により、Description で表現できない代入を
+除いたための反例ではない。辞書は同じ visible を全 child に使い、実 impl ID と全 child を
+既存 `RoleDictionaries.Plan` に保持する。
+
+| 項目 | 今回証明したこと | 何が未証明か |
+| --- | --- | --- |
+| 修正後 registry exactness | 全有限 description を扱う全域実 resolver の必要な成功 bit の非存在（E2） | E1 の全 status exactness / 実 resolver は得ていない |
+| K2 の拒否 | 反例に必要な有限 grammar の独立 root 拒否・where 経路・辞書 semantics。全反例で拒否経路なし | 全 Common 型・行の graph 再帰検査器、finite-tree agreement の一般定理、nominal agreement の一般定理 |
+| 実宣言と辞書 | 実 checker、HDA、関連型 scope/completeness、全 where arity、任意 Common 候補一意性、全有限 plan | 全宣言言語の HDA checker 完全性、公開入口や Rust への統合 |
+| qualified | 今回の E2 は registry 成分に対するもの | 単独 finite qualified generator、ordinary equations / method ID / weak-captured-generalized の full Common 橋、全自由 parameter family。これらの非存在は証明していない |
+
+型の内部を照合する時点にも拒否を広げる案は [未承認の一問](../notes/questions/2026-11-07-b4r-nested-clock.md) に置く。
+RoleRank、fuel、無限辞書は採用していない。定義の理由と qualified の正確な未証明 lemma は
+[設計 note](../notes/design/2026-11-07-b4r-reached-root-semantics.md)、定理の全主張と検証は
+[B4 redo 結果](../notes/handoff/2026-11-07-m1-b4r-results.md) に記す。
