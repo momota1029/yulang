@@ -48,9 +48,10 @@ def generateEnvironment (outerNames : List Nat) (environment : SchemeEnv α) (pr
   else .bot
 
 /-- Arbitrary source patterns/defaults, cumulative prefixes, captured
-environments, Common assignments, actual subject and literal returned values.
-One allocation witnesses both the independent typing and real-value type
-compatibility. A runtime-match equality is neither hidden nor inferred. -/
+environments, Common assignments, actual subject and the canonical projection
+of supplied returned values. Extra names and hidden duplicate payloads are
+not checked by this projection. A runtime-match equality is neither hidden
+nor inferred. -/
 theorem generateEnvironment_exact (pattern : Pattern Empty (CaseDataTerms.Expr Empty)) (outerNames : List Nat)
     (ρ : α → Comp Common.model) (symbolic : SchemeEnv α)
     (environment : List (CommonSyntax.Binding Common.model)) (semantic : List (Binding Common.model))
@@ -132,8 +133,9 @@ def solveEnvironments (outerNames : List Nat) (pattern : Pattern Empty (CaseData
   CommonPatternFiniteSchemes.infer (principal outerNames pattern subject returned)
 
 /-- Every returned unrestricted instance checks the same actual subject and
-literal returned values; its binder references are not independently chosen
-between typing, defaults and runtime value constraints. -/
+canonical projection of the supplied returned values; its binder references
+are not independently chosen between typing, defaults and value constraints.
+This statement alone does not validate the unprojected returned name list. -/
 theorem all_parameter_witness (outerNames : List Nat) (pattern : Pattern Empty (CaseDataTerms.Expr Empty))
     (subject : CommonData.Value) (returned : CaseValues.Bindings Empty) (scheme : CommonPatternFiniteSchemes.Scheme 1)
     (member : scheme ∈ solveEnvironments outerNames pattern subject returned) (parameters : scheme.Parameters) :

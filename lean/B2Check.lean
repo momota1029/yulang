@@ -1,7 +1,7 @@
-import Std
-#check Bool.eq_iff_iff
-#check Bool.eq_iff_iff_eq_true
-#check decide_congr
-#check decide_eq_decide
-#check decide_eq_true_eq
-#check Option.isSome_iff_exists
+import Yulang
+#check List.perm_ext_iff_of_nodup
+#check List.Nodup.of_map
+#check List.perm_of_subset_of_length_le
+#check List.Perm.ext
+#check List.perm_ext
+#check List.Pairwise.imp_of_mem

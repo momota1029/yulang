@@ -646,3 +646,6 @@ import Yulang.CommonCaseStructuralOrdered
 import Yulang.CommonPatternRuntimeValueConstraints
 import Yulang.CommonPatternSourceRuntimeEnvironment
 import Yulang.CommonPatternSourceRuntimeMatch
+import Yulang.CommonPatternReturnedNames
+import Yulang.CommonPatternCheckedRuntimeEnvironment
+import Yulang.CommonPatternCoreDefaults

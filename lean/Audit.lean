@@ -4303,3 +4303,16 @@ run_cmd do
 #print axioms Yulang.CommonPatternSourceRuntimeEnvironment.no_witness_exact
 #print axioms Yulang.CommonPatternSourceRuntimeMatch.actual_returns_typed
 #print axioms Yulang.CommonPatternSourceRuntimeMatch.actual_match_models_exact
+#print axioms Yulang.CommonPatternReturnedNames.reorder_perm
+#print axioms Yulang.CommonPatternReturnedNames.actual_return_valid
+#print axioms Yulang.CommonPatternCheckedRuntimeEnvironment.generateEnvironment_exact
+#print axioms Yulang.CommonPatternCheckedRuntimeEnvironment.actual_match_models_exact
+#print axioms Yulang.CommonPatternCheckedRuntimeEnvironment.witness_instances_exact
+#print axioms Yulang.CommonPatternCheckedRuntimeEnvironment.all_parameter_values_preserved
+#print axioms Yulang.CommonPatternCheckedRuntimeEnvironment.no_witness_exact
+#print axioms Yulang.CommonPatternCheckedRuntimeEnvironment.wildcard_extra_rejected
+#print axioms Yulang.CommonPatternCoreDefaults.default_exact
+#print axioms Yulang.CommonPatternCoreDefaults.raw_typing_exact
+#print axioms Yulang.CommonPatternCoreDefaults.typing_exact
+#print axioms Yulang.CommonPatternCoreDefaults.generatePattern_exact
+#print axioms Yulang.CommonPatternCoreDefaults.safe_generatePattern
