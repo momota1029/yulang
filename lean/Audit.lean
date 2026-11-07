@@ -4394,3 +4394,13 @@ run_cmd do
 
 #print axioms Yulang.CommonEffectConstructorNormalisation.atom_exact
 #print axioms Yulang.CommonEffectConstructorNormalisation.normalise_exact
+
+#print axioms Yulang.CommonEffectBoundExtraction.rigid_value_irrelevant
+#print axioms Yulang.CommonEffectBoundExtraction.inspectType_exact
+#print axioms Yulang.CommonEffectBoundExtraction.inspect_exact
+#print axioms Yulang.CommonEffectBoundExtraction.eraseExists_exact
+#print axioms Yulang.CommonEffectBoundExtraction.eliminate_exact
+
+#print axioms Yulang.CommonEffectBoundTemplates.canonical_exact
+#print axioms Yulang.CommonEffectBoundTemplates.finite_candidates_exact
+#print axioms Yulang.CommonEffectBoundTemplates.universal_finite_candidates_exact

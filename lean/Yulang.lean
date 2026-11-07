@@ -636,3 +636,5 @@ import Yulang.CommonEffectScopedClamping
 import Yulang.CommonEffectScopedCompilation
 import Yulang.CommonEffectCapturedCompilation
 import Yulang.CommonEffectConstructorNormalisation
+import Yulang.CommonEffectBoundExtraction
+import Yulang.CommonEffectBoundTemplates
