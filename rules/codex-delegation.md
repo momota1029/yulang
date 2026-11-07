@@ -37,10 +37,11 @@ No completion notice arrives by itself.
 A worker's log is `~/.codex/sessions/YYYY/MM/DD/rollout-*-<threadId>.jsonl`; it gains an `event_msg` with `"type":"task_complete"` when the turn ends. `tools/codex-watch.sh` polls for it and prints one line per finished worker. Run it from a `Monitor`; the notice wakes the session, which then calls `agent_result`.
 
 ```text
-Monitor command: bash tools/codex-watch.sh <threadId>:<label> [<threadId>:<label> ...]
+Monitor command: bash tools/codex-watch.sh <threadId>:<label>[@N] [<threadId>:<label>[@N] ...]
 Monitor timeout_ms: 1800000
 ```
 
+- After `agent_send` to a finished worker, its log already holds the earlier `task_complete`. Count them (`grep -c '"type":"task_complete"' <log>`) and pass `@<count+1>` so the watch waits for the new turn.
 - Use the script, not an inline shell loop. The login shell can be zsh, which does not split an unquoted `$pending` into words; an inline loop over it silently watches the wrong worker.
 - A Monitor lives at most 30 minutes; the script stops after about 29 and prints `codex-timeout pending: ...`. Re-arm for longer jobs.
 - It sees normal completion only. A worker that crashes or is interrupted may never write `task_complete` (unverified); confirm the event names before relying on the watch for those cases.
