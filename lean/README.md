@@ -2603,3 +2603,67 @@ checked 入口は新 local の有限 kind 検査を実行する。captured 名�
 `CommonEffectKindedHandler` は ∃outer input/returned、∀型・行 locals、∃operated の順序を保ち、
 元 action 行を持つ shallow continuation と元環境を固定したまま、実再帰 body の生成と独立 handler 判断を対応させる。
 旧 declaration table 自体の mixed 化、一般 universal elimination と親 B3 二契約は引き続き未完である。
+
+## B4r5: payload合流後のsize規則と、捕捉の順序（2026-11-07）
+
+ユーザーが承認した repeated variant tag の合流後size/occurrence規則を読み、旧B4r4 E2を現規則へ流用していない。
+`CommonRoleCaptureNormalization` は、roleの直接引数捕捉によって新たにpayloadが一致する局所例を形式化する。
+symbolic checkでは実size9/5、occ3/3で受理するが、直接捕捉後Nではhead/childともsize5。
+既存実extractorによる捕捉を証明し、任意Common同値解を選んでいない。
+pair成分合流を先行しても同じ結果。capture-safe宣言checkの提案と、具体化後checkの各場合では小例を拒否する。
+
+| 項目 | 今回証明したこと | 何が未証明か |
+| --- | --- | --- |
+| payloadの捕捉/合流 | 実直接捕捉、局所N意味保存、symbolic size9/5からcapture後5/5、両check時点の実結果 | 全Common grammarのN完全性、捕捉後にも安全な現declaration checkerの定義と下降lemma |
+| 全registry目標 | タイミングの異なる三場合を切り分ける局所定理 | E1/E2のどちらにも未到達。total resolver/exact dictionary、一般finite-tree/nominal agreement |
+| qualified | canonical residualと保留を保つ正確な未証明interfaceを設計noteに記載 | 全実生成iff独立typing、全自由parameter family |
+
+spec6.3の宣言時checkと遅延merge後checkの接続を [一問](../notes/questions/2026-11-07-b4r5-capture-before-size.md) に置いた。
+この点を独断で決めてE2にしていない。拒否先行も従来どおり未決の作業上の選択。
+[局所結果と全量化](../notes/handoff/2026-11-07-m1-b4r5-results.md)、
+[head grammar監査と正確な不足](../notes/design/2026-11-07-b4r5-head-grammar-and-capture.md)。
+
+## B4r6: substitution-stable checker component（2026-11-07）
+
+承認済みの「捕捉後mergeにも安全な宣言check」を、head lower / child upper boundで形式化した。
+`CommonRoleStablePaterson.check_sound` はrecursive idempotence-stageの任意有限Form代入について、
+N後のsize真下降と全occurrence非増加を証明する。Boolcheckは実CheckedRolesを計算し、実toImplのWFも導く。
+unary下降、pair再構築、同一payload重複、定数child、任意terminal headを受理し、第五回例を宣言時に拒否する。
+`CommonRoleStableRecordResidual.checked_residual_decreases` は任意payload/重みで、実lookupから計算したcanonical残余の真下降とocc非増加を示す。
+
+| 項目 | 今回証明したこと | 何が未証明か |
+| --- | --- | --- |
+| stable checker | finite Form全代入のN後size/occ soundness、実WF、普通の下降/再構築/重複を受理 | full Common/source Nとchecker、全regular captureへの統合 |
+| record tail | actual label lookupとcanonical residualで任意payload重みの真下降、occ非増加 | 全payload照合・rebuilding whereとfull checkerへの統合 |
+| head matching | terminal二宣言が新条件/WF/HDAを通り、固定二数学的completionが同head意味を与えること | 合流前impl変数の実capture規則、全候補集合の有限計算と独立iff |
+| 全B4 / qualified | 正確なmissing matcher/下降/qualified lemmaを設計noteに記載 | E1/E2未到達。全域resolver/全実dictionary、一般finite-tree/nominal agreement、qualified実生成と全family |
+
+合流前のimpl変数をどう決めるかで曖昧性/保留が変わる [一問](../notes/questions/2026-11-07-b4r6-merged-head-capture.md) を置いた。
+任意Common completion存在を実captureへ読み替えて新E2にしていない。拒否先行は依然working choice。
+[第六回の全量化・検証・残り](../notes/handoff/2026-11-07-m1-b4r6-results.md)、
+[checker設計と代案](../notes/design/2026-11-07-b4r6-stable-envelopes-and-capture.md)。
+
+## B4r7: 承認済み共有capture、non-variable nominalは一問（2026-11-08）
+
+plain変数branchは合流後payloadをそのまま全変数へ捕捉する承認を実装した。
+`CommonRoleSharedPayloadCapture` は任意opaque Payloadの実有限表と独立lookup仕様のiff/一意性を証明する。
+実tag mergeのhead解釈も、この計算済captureで元payloadと同値になる。
+`CommonRoleCanonicalPayloadCandidates` は実格納fieldsから承認例の二候補/曖昧性を計算し、
+一意なfinite Groundの場合のterminal実Planと独立evidenceをiffにする。
+未知compoundは明示unsupportedであり、言語のnoImplや新拒否へ読み替えない。
+`CommonRoleSharedPayloadAgreement` は同finite familyで旧Common候補/一意性/Planとの一致を証明する。
+`CommonRoleSharedCaptureDescent` はfinite Formの計算済captureから実N済goalへの下降をstable checkerへ接続する。
+
+| 項目 | 今回証明したこと | 何が未証明か |
+| --- | --- | --- |
+| plain-variable捕捉 | 任意opaque payloadのas-is有限binding、独立iff/一意性、実merge head意味保存 | 他head位置の拘束との結合、全head grammar/regular matcher |
+| 承認例の候補/辞書 | 実二impl/intは曖昧、全finite Ground familyのterminal Plan iff独立evidence、旧Common head/Plan一致 | 一般nested where辞書、全有限木/nominal agreement |
+| stable descent | finite Form/idempotence stageで計算済captureから実N済goalへ真下降/occ非増加 | full Common N/checker、全regular graph measure |
+| non-variable nominal | 実invariance、三codeの有限cover実験、size-only nominal frameの全Term代入下降 | cover操作/where決定性は未決。全nominal-union carrierやmatching small-model theoremではない |
+| 全B4/qualified | exact missing matcher/下降/qualified lemmaを設計noteに記録 | E1/E2未到達。全域resolver/全実nested dictionary、qualified実生成と全自由family |
+
+nominal引数は不変なので、保持されたbox int/box boolをbox(int|bool)へまとめられない。
+その有限coverをnon-variable branchがどう捕捉するかは [一問](../notes/questions/2026-11-07-b4r7-nominal-alternative-capture.md) に置いた。
+推奨のwhere決定性追加も未承認。任意Common splitや追加hypothesis付き同名E1を採用していない。
+[全67定理の量化・検証・残り](../notes/handoff/2026-11-07-m1-b4r7-results.md)、
+[全branch地図と設計](../notes/design/2026-11-07-b4r7-shared-capture-and-nominal-cover.md)。

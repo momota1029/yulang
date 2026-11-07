@@ -740,3 +740,383 @@ parserの重複variant tag例はok1/recovery0。実merge→実head bridgeは証�
 開始HEADからのappend-onlyと既存proof無変更を機械検査した。公開入口/spec/旧結果の変更、commit/push/networkなし。
 全E1、全Common N/regular matcher、一般finite-tree/nominal agreement、qualified実生成と全family、source/B6統合は残る。
 これらを前提へ移して同名E1を閉じていない。元全称core-registry契約へのE2として終了する。
+
+# B4r5 開始（2026-11-07）
+
+開始HEAD 0579a6caccb212ecc8934e6e20d3e1c930e6db10。
+承認済みのvariant payload合流後size/occurrenceと、existential substitution addendumを読んだ。
+旧B4r4 E2は旧size ruleへの定理として保存し、現規則のE2として使わない。
+独立grammar auditはaliasesの事前展開、rigid pair/arrow/variantのCommon injectivity、
+nominal opaque/invariant、effect rowのextensional表現、associated projection禁止、
+record first-wins/orderとvariant tag合流を点検した。
+optional-anyのsemantic vacuityは既存定理にあるが、optional表示をsource head構文と勝手に読み替えない。
+
+新しい局所候補は、直接role引数で'a=intを捕捉した後に、以前は異なった二variant payloadが一致する場合。
+これは恣意的なexistential substitutionでないが、宣言時checkと遅延merge後checkの接続がspecで未指定。
+E2とは扱わず、質問を一つ `2026-11-07-b4r5-capture-before-size.md` に置いた。
+その間、symbolic check / instance再check / capture-safe declaration checkの各場合を分けて形式化する。
+prover role設定とcallable schemaは今回も不在。primaryが構成し、別agentへ独立auditを依頼した。
+
+## B4r5 checkpoint 1: 直接捕捉後の新しい合流を局所形式化
+
+新規 `CommonRoleCaptureNormalization`。E1/E2の終了ではない。
+閉じた主張:
+
+- `subst_encode` / `subst_eval`: 任意Form,任意Form代入（後者は任意Common解釈も）で実Term substitutionとencode、および意味解釈が可換。
+- `join_congr`: 任意四Common型でa≈bかつc≈dならunion(a,c)≈union(b,d)。
+- `normalize_meaning`: 任意Form,任意Common解釈について局所idempotence stageの前後は要求同値。
+- `capture_zero_actual`: 固定実impl/goalについて既存Roles.matchingSubstの変数0像は固定capture0=intのencodeと等しい。存在代入の選択ではない。
+- `symbolic_checked` / `symbolic_sizes` / `symbolic_occurrences`: 固定symbolic implは実checker=true、実head/child size9/5、変数0occ3/3。
+- `captured_head` / `captured_child` / `captured_sizes`: 固定実capture後Nのhead/childは共に実goal.args、sizeは共に5。
+- `normalization_capture_noncommute`: 固定headについてN後captureのencode列とcapture後Nのencode列は異なる。
+- `symbolic_check_does_not_imply_captured_descent`: 固定symbolic implの実checker=trueかつcapture後の真下降は成立しない。
+- `late_check_rejects`: 固定capture後実implは実checker=false。
+- `capture_safe_rejects`: 提案条件CaptureSafe（任意Form割当てでN後child size<head size）は固定宣言では偽。現checkerだとは扱わず、decidabilityも主張しない。
+- `actual_merge_entries` / `actual_merge_unique`: 固定二payload rowの実Variants.Merged.normalize結果は指定singleton joinと等しく、tag列Nodup。
+
+検証: `cd lean && lake build --wfail` exit0（685 jobs）。局所counterlemmaを現承認規則へのE2と呼ばない。
+
+## B4r5 checkpoint 2: pair成分合流による別分解
+
+同moduleへ追加。
+閉じた主張:
+
+- `coalesced_meaning`: 任意Common解釈について、固定元head payloadのunion of pairsとpair of unionsのsingle-tag variantは要求同値。
+- `coalesced_checked` / `coalesced_size`: 固定coalesced実implも実checker=true、実head size9。
+- `coalesced_captured`: 固定coalesced headも直接capture後Nで実goal.argsに等しい。
+- `coalesced_late_check_rejects`: 固定coalesced headと実childをcapture後にcheckするとfalse。
+
+検証: `cd lean && lake build --wfail` exit0（685 jobs）。
+独立reviewもtrust0/warning-as-error exit0。source質問例の実parser probeはok1/recovery0、role/where引数順を確認。
+全22新規theoremをAuditへ登録した。任意Common代入のlemmaはcongruence/意味保存であり、実captureを任意解にしていない。
+
+## B4r5 現在のgateと設計判断境界
+
+`cd lean && lake build --wfail` exit0（685 jobs）。
+`cd lean && lake env lean --trust=0 Audit.lean` exit0、allowlist56505 declarations。
+全22新規theorem登録、追加公理/sorry/native_decideなし。
+独立reviewはfocused trust0/warning-as-errorと全22日本語量化、question/design/results/READMEのscopeを確認。
+optional表示についてのsource意味を断定しないよう、一箇所の表現を修正した。
+開始HEADに対して既存Leanの許可外変更なし、Yulang.lean/Audit/READMEはappend-onlyを機械確認。
+
+新results `2026-11-07-m1-b4r5-results.md` はE1/E2未到達と明記。
+N全grammar完全性、全regular resolver/exact dictionary、finite-tree/nominal agreement、qualified実生成と全familyは残る。
+一問 `2026-11-07-b4r5-capture-before-size.md` のtiming決定なしに、capture-safe宣言条件や新use-site拒否を採用しない。
+実captureは既存extractorにより決定しているが、宣言checkがcapture後mergeをどう保証するかが未指定であり、
+この点を勝手に決めたE2や追加hypothesis付き同名E1は出していない。
+
+# B4r6 開始（2026-11-07）
+
+開始HEAD d39ff4c8abd1db80af0e7e5de3095f56211140e8。第五回の作業treeの追記を保存したまま開始。
+ユーザーがcapture後mergeにも安全な宣言条件（利用時の新規拒否なし）を承認したspec6.3を読んだ。
+前回の局所9/5→5/5例は宣言時拒否として扱い、現規則へのE2としない。
+有限十分checkerとしてheadの安定rigid位置のlower envelopeとchildのupper envelopeを比較する分解を進める。
+merge下のhead variableはlower係数に使わず、canonical record residualのlabel不在はmatcherから得る。
+prover roleは今回も不在。primaryが構成し、別agentの独立design auditを得た。
+
+独立auditは新しい強い条件を通るrobust E2を見つけていない。
+残る実matching policyとして、terminal implの非同一payload内にだけ現れる変数の決め方がspec未指定。
+一問に記録し、勝手な存在Common代入を置いたE2は出さない。checkerの局所soundness構成は並行して継続する。
+
+## B4r6 checkpoint 1: substitution-stable lower/upper envelope checker
+
+新規 `CommonRoleStablePaterson`。現在の形式化範囲はrecursive idempotence stageの有限Form grammarであり、full Common/source checkerの完成ではない。
+閉じた主張:
+
+- `normalize_idempotent`: 任意FormでN(Nf)=Nf。
+- `normalize_subst` / `normalize_before_subst`: 任意Form,任意Form代入について、代入像の事前N、およびtemplateの事前Nは、最後のN結果を変えない。
+- `normalize_size_le` / `normalize_occurrences_le`: 任意Form（後者は任意name）で、N後の実size/occは元以下。
+- `lower_size` / `lower_occurrences`: 任意Form,任意代入（後者は任意name）で安定rigid lower boundへN済代入像を入れたsize/occは実capture後N以下。
+- `upper_size` / `upper_occurrences`: 同任意入力で実capture後Nのsize/occはraw upper templateへN済代入像を入れた値以下。
+- `term_subst_occurrences` / `args_subst_occurrences`: 任意実Term/引数列,実代入,変数bound,nameで、元boundが指定bound以下なら代入後occは全元変数occ×代入像occの有限sumBelowに等しい。
+- `occurrence_mono`: 任意実head/child引数列で全変数occ(child)≤occ(head)なら、任意実代入とnameで代入後もocc(child)≤occ(head)。
+- `head_size_bound` / `child_size_bound` / `head_occurrences_bound` / `child_occurrences_bound`: 任意Form列,任意代入（occは任意name）に対してN済lower/upper list boundsが実capture後Nを挟む。
+- `check_comparison_exact`: 任意有限Declarationで実Boolcheck=true iff有限comparison Roles.Impl.WellFormed。
+- `check_sound`: 任意Declaration,check=true,任意実requirements所属child,任意Form代入で、実N後child size<head sizeかつ任意nameの実N後child occ≤head occ。late拒否や成功前提なし。
+- `subst_identity` / `instantiated_identity`: 任意Form/列についてidentity代入は構文を保ち、N後引数列はchildBoundに等しい。
+- `accepted_wellFormed`: 任意Declarationでcheck=trueなら実toImpl.WellFormed。
+- `unary_accepted` / `rebuilding_accepted` / `repeated_accepted` / `constant_accepted`: 固定通常unary下降、pair再構築、同一payload重複、merged headから定数childの各実check=true。
+- `previous_rejected`: 固定第五回例の実check=false。
+- `terminal_accepted`: 任意role,key,任意Form headについてwhereなし宣言の実check=true。terminalを形制限で除外していない。
+
+検証: `cd lean && lake build --wfail` exit0（686 jobs）。追加strengtheningは次checkpointの687 jobsにも含まれる。
+独立reviewは全Form代入のsandwich証明とactual toImpl WFを確認、focused trust0/warning-as-error exit0。
+
+## B4r6 checkpoint 2: terminal merged headの未決capture boundary
+
+新規 `CommonRoleMergedCaptureBoundary`。運用上のcaptureやfull E2を定義していない。
+閉じた主張:
+
+- `stable_checked` / `wellFormed`: 固定二terminal declarationは実stable checker=true、実visible impl列はWF。
+- `environment_cores`: 固定実AssocEnvのcoresは同visible列。
+- `associated_determined`: 固定実AssocEnvは任意二Common代入の実HeadDeterminesAssociated。
+- `merged_head_interpreted` / `concrete_head_interpreted`: 任意Common解釈で実stored headはtick(union(σ0,σ1)) / tick intの意味を正確に返す。
+- `full_payload_head` / `separated_payload_head`: 固定二つの数学的completion（int,intとnever,int）はいずれも同tick intとCommon同値。
+- `bottom_not_int` / `completions_differ`: bottomとintは非同値、二completionの変数0像も非同値。
+- `distinct_declarations`: 固定二actual toImplは異なる。
+
+検証: `cd lean && lake build --wfail` exit0（687 jobs）。独立focused trust0/warning-as-error exit0。
+これはcanonical solverがどちらのcompletionを選ぶかを仮定した定理ではない。question一問に記録した未指定の運用判断を勝手に埋めていない。
+
+## B4r6 checkpoint 3: canonical record residualのstable branch
+
+新規 `CommonRoleStableRecordResidual`。payload型と重みは任意。
+閉じた主張:
+
+- `lookup_member`: 任意label,row,payloadで実lookup=some payloadならentryはrow所属。
+- `matching_explicit_entry`: 任意labels,具体goalで宣言check=trueかつ実label headMatches=trueなら、normalize goal所属かつlabels内labelのentryが存在。
+- `capture_is_normal`: 任意labels,goalで実canonical captureはfirst-wins N固定。
+- `residual_count_le`: 任意payload occurrence重み,labels,rowで実residual filterはcount非増加。
+- `checked_residual_decreases`: 任意labels,具体goal,check=true,実label headMatches=true、任意size重み/任意name別occurrence重みで、実canonical captureのsizeは元goalより真に小さく、全nameのoccurrenceは非増加。
+- `repeated_label_allowed` / `empty_head_rejected`: 任意labelの重複label列はbranch check=true、空label列はfalse。
+
+検証: `cd lean && lake build --wfail` exit0（688 jobs）。fresh independent auditはtrust0/warning-as-error exit0。
+これはpayload照合全体やfull source checkerではなく、実残余計算のdescent component。tailを任意のmasked Common代入としていない。
+
+## B4r6 gateと未指定capture境界
+
+`cd lean && lake build --wfail` exit0（688 jobs）。
+`cd lean && lake env lean --trust=0 Audit.lean` exit0、allowlist56666 declarations。
+全45新規theoremを登録、追加公理/sorry/native_decideなし。
+二つの独立reviewはchecker sandwich proof、全Form代入の量化、実WF、実record lookup/capture、固定completionと運用captureの区別を確認。
+terminal例のparser probeはok1/recovery0。
+
+新results `2026-11-07-m1-b4r6-results.md`、設計note、README追記はcomponent/full目標の境界とE1/E2未到達を明記。
+新questionは一問のみ。二択を曖昧性（推奨canonical共有捕捉）と全体保留に分け、ユーザー判断が一回答で定まる形にした。
+未指定のhead captureを任意Common存在代入で埋めず、現語へのE2を出していない。
+fullCommon/source checker、全regular matcher/resolver/exact dictionary、finite-tree/nominal agreement、qualified実生成/全familyは残る。
+prover role不在、primary構成/別agent監査。既存proof/spec/公開入口/旧結果は変更せず、許可追記と新moduleのみ。
+
+B4r6最終文書reviewも通過。全45定理の名前/日本語量化/前提とAudit登録、688jobs/56666allowlistの記録を独立確認。
+componentをfull E1にせず、固定completionを運用上の存在captureにせず、未決一問を勝手に採用しない境界に阻害事項なし。
+第六回もE1/E2には未到達。元contractのexistential-substitution addendumに従い、操作的capture規則のユーザー判断が必要。
+
+# B4r7 開始（2026-11-08、成果物名は原契約の2026-11-07を維持）
+
+開始HEAD 0216852d96a3fc88f29a0a615ab74baf587b0802、clean tree。
+spec6.3のplain variable branchは両方へ合流payloadをそのまま捕捉する承認を読んだ。
+旧数学的completionの存在をruntime選択とせず、有限で計算する共有captureと承認済み曖昧性を新moduleで形式化する。
+prover設定/live roleは不在のためprimary構成、別agentへnonvariable branchの独立auditを依頼した。
+
+tupleの共有component projectionとwhole再構築チェックはCommon意味の完全性に必要だが、
+より強い未指定点として、invariant nominalの複数alternativeは引数合流で一つにまとめられない。
+保持されたnominal alternativeへの有限coverをhead matcherが許すかを一問候補として点検する。
+任意Common splitやE2は仮定しない。
+
+## B4r7 checkpoint 1: opaque payloadのcanonical共有捕捉
+
+新規 `CommonRoleSharedPayloadCapture`。任意Payload型をopaqueのまま扱い、実有限binding表を計算する。
+閉じた主張:
+
+- `lookup_repeated_payload` / `assignment_exact`: 任意names,payload,nameで、raw/実normalized binding表lookupは名前所属ならsome同payload、それ以外none。
+- `captured_as_is` / `unmentioned`: 任意同入力で所属/不在から上のlookup結果。
+- `bindings_unique`: 任意names,payloadで実binding表のlabel列はNodup。
+- `capture_sound` / `capture_complete` / `capture_exact` / `capture_unique`: 任意names,payload,任意Option像について、独立Capturesは計算済assignmentとiff、指定された像は一意。
+- `both_same` / `duplicate_unchanged`: 任意二所属nameの像は同じ、任意nameの重複追加はassignmentを変えない。
+- `total_captured_as_is`: 任意fallbackを用いてtotal化しても、所属名の像は同payload。
+- `actual_merge`: 任意tag,first,restについて実Variants.Merged.normalizeはsingle tagの右結合variablePayloadを返す。
+- `interpret_payload`: 任意first,rest,Common像,payloadで全所属像=payloadなら、実格納payload解釈は反復union(payload)に等しい。
+- `approved_head_meaning`: 任意tag,first,rest,任意Common payload/fallbackについて実計算captureで格納headを解釈すると反復unionのvariantを返し、それはvariant tag payloadとCommon同値。
+- `approved_two`: 任意payloadで固定名0/1は共に同payloadを捕捉。
+- `no_bottom_split`: 固定int payloadの実capture0はbottomと要求同値でない。
+
+検証: `cd lean && lake build --wfail` exit0（689 jobs）。任意Common意味への比較であり、任意payload goalのK2 Readyを主張しない。
+
+## B4r7 checkpoint 2: actual candidate / ambiguity / terminal Plan
+
+新規 `CommonRoleCanonicalPayloadCandidates`。readableなvariable/int head componentで実Roles.Impl fieldsを読む。
+閉じた主張:
+
+- `finite_ready`: 任意visible,有限Ground Goalでdescriptionは両K2のReady。
+- `payload_capture_exact` / `head_capture_exact`: 任意実Term/Impl,有限Ground goal,Option像について、このcomponentの計算済capture table存在 iff独立に指定されたCaptures。headではrole/tag照合を含む。
+- `head_matches_exact` / `mem_candidates`: 任意同入力で実Bool候補iff独立prescribed capture像存在、任意visibleでcandidate membership iff visible所属と同capture存在。
+- `merged_capture` / `concrete_capture`: 任意Ground payloadで承認例の実第一implは両名へ同payload、第二implはpayload=intの場合だけ空capture。
+- `actual_candidate_list`: 任意Ground payloadで実候補列はintなら第一/第二、他なら第一のみ。
+- `approved_ambiguous` / `other_payload_selected`: 固定intでは実head分類=ambiguous、任意payload≠intでは第一selected。
+- `actual_two_images` / `approved_independent_overlap`: 任意payloadの両lookup同値と、固定intの独立二候補（実impl相異）を証明。
+- `TerminalEvidence.all_visible`: 任意同componentの独立terminal evidence,任意実Plan宣言所属からvisible所属。全実where=[]を必須とする。
+- `approved_no_dictionary`: 固定intの独立terminal辞書は存在しない。
+- `other_payload_dictionary` / `example_dictionary_exact`: 任意payloadについて独立terminal辞書存在 iff payload≠int。
+- `approved_no_plan` / `other_payload_plan` / `example_plan_exact`: 固定intでは実Planなし、任意payload≠intでは実第一impl leaf、任意payloadで実Plan存在 iff独立terminal辞書存在。
+
+検証: `cd lean && lake build --wfail` exit0（690 jobs）。unsupported compound headsをfull languageのnoImplとしない。
+
+## B4r7 checkpoint 3: invariant nominal coverの判断境界
+
+新規 `CommonRoleNominalCoverBoundary`。運用上のcover/captureを採用していない有限case analysis。
+閉じた主張:
+
+- `argument_equivalent_exact`: 任意二ArgumentCode（int/bool/int|boolの三code）でCommon意味同値 iff code等号。
+- `box_invariant`: 任意二Common引数で実nominal box subtype iff引数Common同値。
+- `coded_box_exact`: 任意二codeの実box subtype iff code等号。
+- `boxes_distinct` / `joined_not_integer` / `joined_not_boolean`: 固定int/boolのboxは別で、box(int|bool)はbox int/boolのいずれへのsubtypeでもない。
+- `no_single_box_upper`: 任意Common引数Aでbox intとbox boolの両方をbox A以下にはできない。
+- `cover_exact`: 任意有限code列source/targetで実有限cover Bool=true iff提案した有限support関係Covers。
+- `covers_enumerated`: 固定三code空間での実有限探索結果は(int,bool),(bool,int)の二つだけ。
+- `forward_cover` / `reverse_cover` / `joined_fails`: 固定二coverは提案関係を満たし、両方joinedにするものは満たさない。
+- `covers_change_child`: 固定二coverが変数0へ与えるint/boolはCommon非同値。
+- `private_child_decreases` / `all_term_substitutions_decrease`: 任意unary nominal constructor番号,任意有限実引数Term（後者は任意実代入0/1像）で、同一alternativeのみを縮約したsize frameは第一引数より真に大きく、全occは第一引数以上。size-only componentでfull nominal loweringとはしない。
+- `allow_cover_two_candidates` / `forbid_cover_one_candidate`: 固定提案kernelはcover許可ならkeys[0,1]、不許可なら[1]。
+
+検証: `cd lean && lake build --wfail` exit0（691 jobs）。三code探索を全Common matchingのsmall-model theoremとは呼ばない。
+
+## B4r7 checkpoint 4: 旧独立Common head/Planとの有限family一致
+
+新規 `CommonRoleSharedPayloadAgreement`。
+閉じた主張:
+
+- `previous_merged_matches`: 任意Ground payloadで、計算済canonical共有captureをCommonへ写した明示像が、旧実head解釈のmerged一致を与える。
+- `previous_concrete_exact` / `canonical_concrete_exact`: 任意Ground payloadで旧任意Common一致存在 / 新canonical capture存在は共にpayload=intとiff。
+- `finite_head_agreement`: 任意Ground payload,任意承認例visible実implについて、新canonical候補存在 iff旧独立Common一致存在。
+- `previous_no_unique_at_int`: 任意実implについて固定intで旧候補一意性は成り立たない。
+- `previous_unique_other`: 任意payload≠intで旧候補は第一implに一意。
+- `previous_selected_plan`: 任意payloadで旧第一impl一致存在かつ一意 iff payload≠int。
+- `actual_plan_agrees_previous`: 任意payloadで実terminal Plan存在 iff旧第一impl一致存在かつ一意。
+
+検証: `cd lean && lake build --wfail` exit0（692 jobs）。旧側の任意Common代入は比較定理だけに現れ、実captureを定義しない。
+
+## B4r7 checkpoint 5: stable checkerと実shared captureのgoal下降を接続
+
+新規 `CommonRoleSharedCaptureDescent`。finite Form/idempotence stageのglueでありfullCommon Nとはしない。
+閉じた主張:
+
+- `encode_variables`: 任意first,restについて再帰的variableForm.encode=実variablePayload。
+- `normalized_variables`: 任意first,rest,任意Form像,payloadで全所属像=payloadならN(variableForm[像])=N payload。
+- `actual_head_is_goal`: 任意first,rest,任意Form payload/fallbackで、計算済total shared capture後の実N head引数列はN済single-tag goal引数列に等しい。
+- `canonical_capture_strictly_decreases`: 任意role,key,first,rest,実where列、同宣言の実stable check=true、任意所属child、任意Form payload/fallbackについて、計算済shared capture後のN child sizeはN済goal sizeより真に小さく、任意nameのoccはN済goal以下。
+
+検証: `cd lean && lake build --wfail` exit0（693 jobs）。全67新規theoremをAuditへ登録。
+追加の `unsupported_explicit` / `example_supported` も全visible/goalでcomponent範囲外ならunsupported、承認例visibleは範囲内を証明した。
+unsupported compoundを言語のnoImplへ読み替えない。
+
+## B4r7 最終gateと未決non-variable branch
+
+`cd lean && lake build --wfail` exit0（693 jobs）。
+`cd lean && lake env lean --trust=0 Audit.lean` exit0、allowlist56986 declarations。
+全67新規theoremを登録。追加公理/sorry/native_decideなし。
+独立fresh reviewは全五moduleのtrust0/warning-as-error、全67日本語statement/Audit登録、最終文書scopeを確認。
+独立最終Auditもexit0/56986 declarations。
+開始HEADから既存Leanの許可外変更なし、Yulang.lean/Audit/READMEのappend-onlyを機械確認。
+questionのsource blockは独立parser probeと完全一致、ok1/recovery0。型をbox int/box boolへ先に確定させた経路を使う。
+
+新results `2026-11-07-m1-b4r7-results.md` と設計note/README追記に全量化、build/Audit末尾、正確な不足を記録。
+新questionは `2026-11-07-b4r7-nominal-alternative-capture.md` 一問のみ。
+推奨finite cover/where決定性は未承認で、現在のtheoremへ採用しない。
+三codeのcover実験やsize-only nominalFrameを全Common carrier/全matchingの証明としない。
+component classifierのunsupportedを言語のnoImpl/新拒否にしない。
+
+E1/E2には未到達。今回の明示指示とcontract addendumに従い、未指定のnon-variable nominal captureを一問へ置いた。
+full stable checker/N、全regular matcher/resolver/exact nested dictionary、一般finite-tree/nominal agreement、qualified実生成/全familyは残る。
+これらを外部support/fuel/success仮定へ移した同名E1や、任意Common splitを仮定したE2は出していない。
+prover role不在、primary構成/別agent監査。公開入口/spec/旧結果を変更せず、commit/push/networkなし。
+
+## B4r8 開始（2026-11-08）
+
+開始HEAD `3f9adabdce5f5152c0c85c1eb8757dc64b9ccb3c`、開始時tree clean。
+第七回の問いの選択肢3（non-variable payloadをsplit/coverしない）がspec6.3の確定本文へ入ったことを確認。
+既存のE2、component証明、旧resultsを保持する。拒否先行は未決のworking choiceのまま。
+prover roleの登録・callable surfaceは今回も無く、primaryによる構成と独立read-only監査を使う。
+
+全regular型を単なるgraph IDの等号で比較する置換は採用しない。
+同じplain変数が複数箇所に現れると、捕捉値の要求同値を検査する必要があるためである。
+また、同tag payload内のNはsyntactic idempotenceだけでは足りず、any/neverのunion則、
+tuple/arrow等の既存Common coalescingを保つ必要がある。
+これらは追加E2ではなく、全matcherとfinite-view下降への証明義務として扱う。
+
+## B4r9 interval訂正: 証明再開前の設計監査（2026-11-08）
+
+ユーザー訂正を受け、点capture matcherの構成を停止。未コンパイル草案CommonRoleCaptureMachineを削除し、既存証明は変更しない。
+非空のreference二ファイル（role124行/sandwich168行）と現spec6.5を全文再読。
+`notes/design/2026-11-08-b4r8-interval-model.md` を新規作成してから証明再開へ移る。
+中心なしendpoint、mergeと交差制約、主型＋全rolesのreadiness/sandwich、variance/level、全where/associated再投入を記した。
+全CommonRole 65moduleの明示theorem733件を索引し、元statementの真理と新intervalモデルへの移送を区別した。
+旧五E2はいずれも現在のinterval/Yulang障害として未証明。特にfinite-tailの任意像は実subtractionと食い違う。
+既存CommonBoundCoalescing/CanonicalIntervals/BoundRef*/DemandBoundPropagation/CommonDemand*のAPIと前提を調査。
+候補の区間整合とlower anchor固定の未確定点は `2026-11-08-b4r9-interval-candidate-anchor.md` 一問に限定。
+その回答に依存しない区間代数/通常制約生成を先に閉じる。新しいE1/E2はまだ主張しない。
+
+## B4r9 checkpoint 1: 中心なし区間と実交差制約（16定理）
+
+新規 `CommonRoleIntervals`。carrierは既存Boundのpairのみ、endpointの意味は既存Common。
+全ての以下の任意入力は全称量化し、明記していない成功・有限木・support前提はない。
+
+- `fits_merge`: 任意二Common endpoint区間A,Bと任意実型Tで、merge(A,B)がTを挟む iff AとBがともにTを挟む。
+- `valid_iff_nonempty`: 任意Common区間Iでlo≤up iff ある実型TをIが挟む。証人は数学上のみで、中心fieldやruntime選択は作らない。
+- `valid_merge_exact`: 任意二Common区間で、mergeのlo≤up iff 元二区間の整合かつ両交差loA≤upB・loB≤upA。
+- `fits_pin`: 任意二Common型T,Uでpin(T)がUを挟む iff U≈T。
+- `valid_pin`: 任意Common型Tでpin(T)は整合。
+- `fits_congr`: 任意二区間のlower同士・upper同士がそれぞれCommon同値、任意実型Tなら、両区間がTを挟むことはiff。
+- `merge_pin_valid`: 任意二Common型A,Bでpin(A)/pin(B)のmergeが整合 iff A≈B。
+- `two_sided_equality`: 任意Common型A,B,Tでpin(A)/pin(B)のmergeがTを挟むならA≈B。他の主型位置から変数を削除する操作ではない。
+- `fits_coalesce`: 任意有限Common区間列Is,任意Tでjoin lowers/meet uppersのcoalesceがTを挟む iff 全所属区間がTを挟む。
+- `valid_coalesce`: 任意同列でcoalesce整合 iff 任意二所属I,JのloI≤upJ。
+- `mem_checks`: 任意Bound型、有限区間列Is、有限slot数n、既存Constraint cで、実checks所属 iff ある所属I,Jでc=check(loI,upJ)。
+- `checks_exact`: 任意Bound型/eval:Bound→Common.Ty/有限区間列/有限slot数n/任意slot割当てvaluesで、実checksの既存Models iff 全所属I,Jでeval(loI)≤eval(upJ)。
+- `checks_valid_exact`: 任意同入力で実checksの既存Models iff eval済coalesceの整合。
+- `checks_real_argument_exact`: 任意同入力で実checksの既存Models iff ある実型Tがeval済全所属区間に挟まれる。これは独立意味の全model族の存在であり、head捕捉の任意点選択ではない。
+- `checks_length`: 任意Bound型/有限区間列/有限slot数nで、生成checks長=区間数の二乗。
+- `append_checks_exact`: 任意同Bound/eval/Is/n/valuesと任意既存problemで、problem++checksのModels iff 元problemのModelsかつeval済coalesce整合。
+
+検証: `cd lean && lake build --wfail` exit0（694 jobs）。全16定理をAuditへ追記登録。
+候補確定・readiness・interval全resolver/全辞書のE1ではない。設計note完成後に構成した最初の新component。
+
+## B4r9 checkpoint 2: 既存ordinary atom/shared graphへの実生成（8定理）
+
+新規 `CommonRoleIntervalGeneration`。endpointは既存Presence TyTerm、出力は既存tyLe atom列。
+全ての任意入力は全称量化する。
+
+- `atom_exact`: 任意名前型α、任意Common computation割当てρ、任意既存Constraint 0 (TyTerm α) cで、実atom変換後のHolds iff 元既存templateのHolds。slotは0で中心を作らない。
+- `generate_exact`: 任意α/ρ/有限endpoint区間列Isで、実生成atom列のAll iff eval済coalesce区間のlo≤up。
+- `generate_real_argument_exact`: 任意同入力で実All iff ある実Common型Tがeval済全所属区間に挟まれる。独立意味の存在でありruntime捕捉の選択ではない。
+- `generate_length`: 任意α/Isで実生成atom数=区間数の二乗。
+- `append_exact`: 任意α/ρ/Is/既存finite atom列Aで、A++generate IsのAll iff AのAllかつeval済coalesce整合。
+- `compile_exact`: 任意有限slot数m/既存TyTerm(Fin m) endpoint区間列Is/任意Common computation割当てρで、eval済coalesce整合 iff 既存compile(generate Is)のある全node割当てがModelsを満たし、既存readbackがρと**等しい**。成功solver・grammar/support前提なし。元graphの未解消edgeは残す。
+- `compile_append_exact`: 任意m/Is/ρ/既存atom列Aで、AのAllかつcoalesce整合 iff 既存compile(A++generate Is)にModelsとρの同一readbackを持つ全node割当てが存在。
+- `compiled_reflects`: 任意m/A/Is/独立row割当て/全compiled node割当てについて、実compiled Modelsなら、その実readbackでAのAllとeval済coalesce整合が成立。arbitrary regular realizerを含む。
+
+検証: `cd lean && lake build --wfail` exit0（695 jobs）。全8定理をAuditへ追記登録。
+checkpoint1の独立reviewもtrust0/warningAsError exit0、全16量化と中心なし/既存生成を確認済み。
+これらはinterval整合・交差の実生成とgraph反映。candidate確定/readiness/全branch matcher/resolverの完成ではない。
+
+## B4r9 checkpoint 3: interval由来の変数等式を全ordinary構文へ運ぶ（16定理）
+
+新規 `CommonRoleIntervalCongruence`。全入力の任意は全称量化する。
+Relatedは同じ名前でtypeがCommon同値、rowがliteral等号という関係。型は任意Common regular値を含む。
+
+- `related_refl` / `related_symm`: 任意名前型とCommon computation割当てでRelatedの反射・対称性。
+- `related_extend`: 任意Related二割当て・同じfresh computationでextend後もRelated。ambient共有を保つ。
+- `row_eval_equal`: 任意Related二割当て・任意既存RowTermでevalはliteral等号。
+- `type_eval_equivalent`: 任意Related二割当て・任意既存TyTermでevalはCommon同値。全既存branch（union/inter/pair/arrow/record/default/variant等）、負arrow子も含む。nested nominalは既存TyTermに無いため別。
+- `subtype_congr`: 任意四Common型A,B,C,D、A≈BとC≈DならA≤C iff B≤D。
+- `atom_holds_congr` / `all_holds_congr`: 任意Related二割当て・任意既存atom/有限atom列でHolds/Allがiff。
+- `formula_holds_congr`: 任意Related二割当て・任意既存Formula（全existsSlotを含む）でHoldsがiff。同じfresh computationを共有して量化する。
+- `identify_related`: 任意DecidableEq付き名前型、任意代表名r/除去名d/割当てρ、pin(ρr.ty)とpin(ρd.ty)のmerge整合なら、dのtypeだけをρr.tyへ更新し全rowを保持する実identify後とρはRelated。
+- `identified_equal`: 任意同名前/ρで実identify後のr/dのtypeはliteral等号。整合前提不要で、更新の定義の事実。
+- `global_formula_identification` / `global_atoms_identification`: 任意同名前/ρ・任意Formula/atom列、上のmerge整合なら、全体でidentify前後のHolds/Allがiff。
+- `interval_checks_identification`: 任意同名前/ρ・任意既存TyTerm endpoint区間列、上のmerge整合なら全区間coalesceの整合がidentify前後でiff。
+- `generated_variables_equal`: 任意名前r,d/ρで、実generate[(var r,var r),(var d,var d)]のAllが成立すればρr.ty≈ρd.ty。等式発見を外部から仮定せず、生成交差制約から導く。
+- `global_formula_from_generated`: 任意DecidableEq付き名前型/同r,d,ρ/任意Formulaで、同実生成Allが成立すれば全体のidentify前後でHoldsがiff。
+
+検証: `cd lean && lake build --wfail` exit0（696 jobs）。全16定理をAuditへ登録。
+interval由来の変数-変数等式の全ordinary contextへの保存であり、具体構造liftの全体sandwichやlevel実装を証明したとはしない。
+checkpoint2の独立reviewもtrust0/warningAsError exit0。Fin0で排除するのは新template slotだけで、endpointのambient変数は保持していることを確認済み。
+
+## B4r9 追加訂正: nominal variance（2026-11-08）
+
+spec6.5の更新を再読し、設計noteを同日ユーザー訂正へ合わせた。
+boxは共変でbox(int|bool)へ合流。不変区間は無限に入れ子になりうるlist/木等の引数に使い、varianceは型宣言時metadata。
+旧一律nominal不変APIやbox_invariantを現source boxへ移送しないと明記。
+全head branchの方向表を追加し、non-variable no-split決定を要確認へ戻した。
+未確認のnon-variable規則を新しい証明へ採用しない。plain-variable承認は維持する。
+既存40新規定理はCommon区間・既存ordinary構文だけの事実であり、nominal全引数不変やno-splitを前提にしていない。
+checkpoint3独立reviewもtrust0/warningAsError exit0。全型/row共有、同fresh量化、type-only identifyを確認済み。
+
+## B4r9 方向付け: interval制約＋lower-head deferral（2026-11-08）
+
+最新ユーザー指示に従い、設計note§3/6/7/8を再記述。
+独立意味はinterval制約・伝播・遅延とし、候補を存在代入探索で定義しない。
+lower head未確定はpending、既知なら伝播後の残存候補一/多/零をselected/ambiguous/rejectedへ分類する。
+whereはhead選択後だけ新しいinterval制約として投入、全child完成時だけ実有限辞書を返す。
+Mark/int/anyの旧anchor質問は取り下げ。sourceの具体分類は実伝播から導くので、新たなpoint前提へ戻らない。
+Patersonは選択後の無限where生成を防ぐため引き続き必要。pendingを残すだけでは、全lower head既知のgrowing chainは止まらない。
+全旧E2は各旧モデルでは真だが、deferred interval/Yulangへの移送は未証明。最新全承認に対するE2として数えない。

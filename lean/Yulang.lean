@@ -987,3 +987,16 @@ import Yulang.CommonEffectKindedFormula
 import Yulang.CommonEffectKindedGeneration
 import Yulang.CommonEffectKindedHandler
 import Yulang.CommonSignedFiniteBounds
+import Yulang.CommonRoleCaptureNormalization
+import Yulang.CommonRoleStablePaterson
+import Yulang.CommonRoleMergedCaptureBoundary
+import Yulang.CommonRoleStableRecordResidual
+import Yulang.CommonRoleSharedPayloadCapture
+import Yulang.CommonRoleCanonicalPayloadCandidates
+import Yulang.CommonRoleNominalCoverBoundary
+import Yulang.CommonRoleSharedPayloadAgreement
+import Yulang.CommonRoleSharedCaptureDescent
+import Yulang.CommonRoleIntervals
+import Yulang.CommonRoleIntervalGeneration
+import Yulang.CommonRoleIntervalCongruence
+import Yulang.CommonRoleDeferredBounds
