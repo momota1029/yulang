@@ -4,6 +4,10 @@ import Yulang
 import Yulang.EOFRoleInference
 import Lean
 
+#print axioms Yulang.CommonCanonicalQualifiedFamilies.interface_inclusion_iff
+#print axioms Yulang.CommonCanonicalQualifiedFamilies.interface_equivalent_iff
+#print axioms Yulang.CommonCanonicalQualifiedFamilies.finished_instances_exact
+
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/
 open Lean Elab Command in
