@@ -48,7 +48,9 @@ pub(super) fn lambda_nud_normalized(
                 (item, item_origin, line_entry) =
                     lambda_header_item(i.rb(), item_origin, line_entry, fence, pattern_stops);
             }
-            Some(crate::lexical::item::TokenKind::LParen) => {
+            Some(
+                crate::lexical::item::TokenKind::LParen | crate::lexical::item::TokenKind::LBrace,
+            ) => {
                 item.emit_all_remaining_leading(&mut *i.state);
                 let entry = suffix_marker(i.rb());
                 let exit = pattern_from_entry_item_normalized(

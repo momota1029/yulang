@@ -5,14 +5,15 @@
 This page defines `CaseExpression` and `CatchExpression` in `syntax-v0`.
 The 2026-08-20 `yu-syntax` architecture defines their accepted grammar and direct Rowan CST.
 The Authoritative 2026-09-08 CaseLike structural and Arrow/Body recovery records, and the 2026-09-09 separator and Catch-close record, define their recovery CST.
+Admission and CST for scrutinee-less `case:` follow WP-14 of the Authoritative `2026-11-07-parser-gap-closure-addendum-2.md`.
 
 The page covers expression primaries, labels, scrutinees, arm families, patterns, optional guards and Catch handlers, exact arrows, bodies, separators, and Catch braces.
-It does not define lambda forms, exhaustiveness, guard, handler, label, exception, or value semantics; HIR; types; diagnostics wording; or formatting.
+It does not define exhaustiveness, guard, handler, label, exception, or value semantics; function desugaring; HIR; types; diagnostics wording; or formatting.
 
 ## 2. Accepted syntax
 
 ```text
-CaseExpression  := CaseKw  CaseHead CaseBlock
+CaseExpression  := CaseKw (CaseHead | G*) CaseBlock
 CatchExpression := CatchKw CatchHead CatchBlock
 CaseHead := G* [ CaseLabel G* ] CaseScrutinee
 CatchHead := G* [ CatchLabel G* ] CatchScrutinee
@@ -45,11 +46,21 @@ Only exact maximal contextual `case` and `catch` words admit the corresponding p
 The case scrutinee stops at `:`.
 The catch scrutinee stops at `:` or `{`, allowing only Catch to own a direct braced block.
 
+A `:` immediately after `case`, or after trivia on the same line, opens the arm block without a scrutinee.
+This form has no label either.
+Without `:`, an absent scrutinee keeps its existing recovery.
+`catch:` does not admit this omission and retains a `Missing` inside `CatchScrutinee`.
+
 The apostrophe and identifier in a label are adjacent; whitespace cannot split `SigilIdentifier`.
 `->` is exact fixed punctuation, not a dynamically associated operator.
 A Catch handler comma is a direct `CatchArm` child; an arm-list comma belongs to the selected arm family.
 Current-depth Catch-brace newlines and indented arm-indent newlines belong to that family, while an indented body block owns its statement newlines.
 The active arm owner returns nested colon, comma, arrow, brace, guard word, and close spelling to their immediate owners.
+
+A line at the arm baseline starts a new arm even when it begins with a sign, as in `-1 -> 2`.
+The `-` must touch the integer; the negative integer remains one `Integer` token inside `Pattern`.
+A line continuing the preceding arm body must be indented more deeply (WP-15, `spec/01-lexical.md` §1.3).
+Neither `+1` nor `- 1` is admitted as a pattern.
 
 An `ArmPattern` whose application head is a bare identifier admits same-line Pattern arguments.
 For example, `just x -> x` and `op x, k -> k x` place `x` in a `PatternMlApplicationTail`; the Catch comma still belongs to `CatchArm`.
@@ -60,7 +71,9 @@ The Authoritative parser-gap design memo WP-9 supersedes R280's earlier qualifie
 ## 4. Direct Rowan CST
 
 `CaseExpression` and `CatchExpression` are direct primary children of `OperatorChain`.
-`CaseExpression` contains its keyword, optional `CaseLabel`, direct `CaseScrutinee`, and direct case block in source order.
+With a scrutinee, `CaseExpression` contains its keyword, optional `CaseLabel`, direct `CaseScrutinee`, and direct case block in source order.
+In scrutinee-less `case:`, the keyword is followed by a direct `CaseBlock`, with no `CaseScrutinee` node.
+The absence of `CaseScrutinee` identifies this form.
 `CatchExpression` contains its keyword, optional `CatchLabel`, direct `CatchScrutinee`, and direct catch block in source order.
 Each label contains one `SigilIdentifier` token, whose apostrophe and identifier are adjacent.
 Each scrutinee directly contains its `OperatorChain`.
@@ -74,7 +87,7 @@ Catch-braced arm commas occur in direct `CatchArmSeparator` wrappers.
 An arm body contains either one direct `OperatorChain` or one direct `IndentedStatementBlock`.
 
 ```text
-CaseExpression := CaseKw [ CaseLabel ] CaseScrutinee CaseBlock
+CaseExpression := CaseKw [ CaseLabel ] CaseScrutinee CaseBlock | CaseKw CaseBlock
 CatchExpression := CatchKw [ CatchLabel ] CatchScrutinee CatchBlock
 CaseInlineArms := CaseArm { CaseArmSeparator CaseArm } [ CaseArmSeparator ]
 CatchBracedArms := CatchArm { CatchArmSeparator CatchArm } [ CatchArmSeparator ]
@@ -100,6 +113,20 @@ After every Catch arm-sequence exit, `CatchBlock` emits its matching `}` or one 
 Nested pattern, guard, and body recovery is never duplicated by the arm family.
 
 ## 6. Source/CST examples
+
+`case: 0 -> 1` has an inline arm without a scrutinee.
+
+```xml
+<CaseExpression>
+  <CaseKw text="case" />
+  <CaseBlock>
+    <Colon text=":" /><Whitespace text=" " />
+    <CaseArm><Pattern><IntegerPattern><Integer text="0" /></IntegerPattern></Pattern><Whitespace text=" " /><Arrow text="->" /><Whitespace text=" " /><OperatorChain><IntegerLiteral><Integer text="1" /></IntegerLiteral></OperatorChain></CaseArm>
+  </CaseBlock>
+</CaseExpression>
+```
+
+Indented arms use the same `CaseBlock`; the CST of `case n:` is unchanged.
 
 `case 'go x: 1 if ok -> yes, _ -> no` places its label, scrutinee, two direct arms, and arm separator in source order.
 

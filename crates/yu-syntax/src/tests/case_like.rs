@@ -3,6 +3,332 @@ use crate::{ExpectedSyntax, structural_diagnostic::StructuralKind};
 use crate::{ambient_claim::AmbientClaimView, handoff::MlMode, statement::StatementLineHandoff};
 use std::ops::Range;
 
+mod signed_arm_layout;
+
+#[test]
+fn case_with_scrutinee_keeps_exact_cst() {
+    let root = case_like_literal_production("case n: 0 -> 1\n");
+    assert_eq!(
+        format!("{root:#?}"),
+        r#"Root@0..15
+  OperatorChain@0..14
+    CaseExpression@0..14
+      CaseKw@0..4 "case"
+      CaseScrutinee@4..6
+        OperatorChain@4..6
+          IdentifierExpression@4..6
+            Whitespace@4..5 " "
+            Identifier@5..6 "n"
+      CaseBlock@6..14
+        Colon@6..7 ":"
+        Whitespace@7..8 " "
+        CaseArm@8..14
+          Pattern@8..9
+            IntegerPattern@8..9
+              Integer@8..9 "0"
+          Whitespace@9..10 " "
+          Arrow@10..12 "->"
+          Whitespace@12..13 " "
+          OperatorChain@13..14
+            IntegerLiteral@13..14
+              Integer@13..14 "1"
+  Newline@14..15 "\n"
+"#
+    );
+}
+
+#[test]
+fn case_head_unchanged_recovery_fixtures() {
+    // Recorded against the pre-WP-14 parser. These heads are outside the
+    // admitted same-line, scrutinee-less `case:` form and keep their CST.
+    for (source, expected) in [
+        (
+            "case",
+            r#"Root@0..4
+  OperatorChain@0..4
+    CaseExpression@0..4
+      CaseKw@0..4 "case"
+      CaseScrutinee@4..4
+        OperatorChain@4..4
+          Missing@4..4
+      CaseBlock@4..4
+        Missing@4..4
+"#,
+        ),
+        (
+            "case\n",
+            r#"Root@0..5
+  OperatorChain@0..5
+    CaseExpression@0..5
+      CaseKw@0..4 "case"
+      CaseScrutinee@4..5
+        OperatorChain@4..5
+          Newline@4..5 "\n"
+          Missing@5..5
+      CaseBlock@5..5
+        Missing@5..5
+"#,
+        ),
+        (
+            "case\n    0 -> 1\n",
+            r#"Root@0..16
+  OperatorChain@0..11
+    CaseExpression@0..11
+      CaseKw@0..4 "case"
+      CaseScrutinee@4..10
+        OperatorChain@4..10
+          IntegerLiteral@4..10
+            Newline@4..5 "\n"
+            Whitespace@5..9 "    "
+            Integer@9..10 "0"
+      CaseBlock@10..11
+        Whitespace@10..11 " "
+        Missing@11..11
+  Error@11..12 "-"
+  Error@12..13 ">"
+  Error@13..14 " "
+  Error@14..15 "1"
+  Newline@15..16 "\n"
+"#,
+        ),
+        (
+            "catch:\n    0 -> 1\n",
+            r#"Root@0..18
+  OperatorChain@0..17
+    CatchExpression@0..17
+      CatchKw@0..5 "catch"
+      CatchScrutinee@5..5
+        OperatorChain@5..5
+          Missing@5..5
+      CatchBlock@5..17
+        Colon@5..6 ":"
+        Newline@6..7 "\n"
+        Whitespace@7..11 "    "
+        CatchArm@11..17
+          Pattern@11..12
+            IntegerPattern@11..12
+              Integer@11..12 "0"
+          Whitespace@12..13 " "
+          Arrow@13..15 "->"
+          Whitespace@15..16 " "
+          OperatorChain@16..17
+            IntegerLiteral@16..17
+              Integer@16..17 "1"
+  Newline@17..18 "\n"
+"#,
+        ),
+        (
+            "catch: 0 -> 1\n",
+            r#"Root@0..14
+  OperatorChain@0..13
+    CatchExpression@0..13
+      CatchKw@0..5 "catch"
+      CatchScrutinee@5..5
+        OperatorChain@5..5
+          Missing@5..5
+      CatchBlock@5..13
+        Colon@5..6 ":"
+        Whitespace@6..7 " "
+        CatchArm@7..13
+          Pattern@7..8
+            IntegerPattern@7..8
+              Integer@7..8 "0"
+          Whitespace@8..9 " "
+          Arrow@9..11 "->"
+          Whitespace@11..12 " "
+          OperatorChain@12..13
+            IntegerLiteral@12..13
+              Integer@12..13 "1"
+  Newline@13..14 "\n"
+"#,
+        ),
+        (
+            "case\n    : 0 -> 1\n",
+            r#"Root@0..18
+  OperatorChain@0..17
+    CaseExpression@0..17
+      CaseKw@0..4 "case"
+      CaseScrutinee@4..4
+        OperatorChain@4..4
+          Missing@4..4
+      CaseBlock@4..17
+        Newline@4..5 "\n"
+        Whitespace@5..9 "    "
+        Colon@9..10 ":"
+        Whitespace@10..11 " "
+        CaseArm@11..17
+          Pattern@11..12
+            IntegerPattern@11..12
+              Integer@11..12 "0"
+          Whitespace@12..13 " "
+          Arrow@13..15 "->"
+          Whitespace@15..16 " "
+          OperatorChain@16..17
+            IntegerLiteral@16..17
+              Integer@16..17 "1"
+  Newline@17..18 "\n"
+"#,
+        ),
+    ] {
+        let text: std::sync::Arc<crate::SourceText> = std::sync::Arc::from(source);
+        let parsed = crate::parse_file(
+            text.clone(),
+            std::sync::Arc::new(crate::scan_header(text)),
+            std::sync::Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        assert_eq!(parsed.green().to_string(), source);
+        assert!(!parsed.structural_recoveries().is_empty());
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        assert_eq!(format!("{root:#?}"), expected, "{source:?}");
+    }
+}
+
+#[test]
+fn case_without_scrutinee_has_exact_inline_cst() {
+    let root = case_like_literal_production("case: 0 -> 1\n");
+    assert_eq!(
+        format!("{root:#?}"),
+        r#"Root@0..13
+  OperatorChain@0..12
+    CaseExpression@0..12
+      CaseKw@0..4 "case"
+      CaseBlock@4..12
+        Colon@4..5 ":"
+        Whitespace@5..6 " "
+        CaseArm@6..12
+          Pattern@6..7
+            IntegerPattern@6..7
+              Integer@6..7 "0"
+          Whitespace@7..8 " "
+          Arrow@8..10 "->"
+          Whitespace@10..11 " "
+          OperatorChain@11..12
+            IntegerLiteral@11..12
+              Integer@11..12 "1"
+  Newline@12..13 "\n"
+"#
+    );
+}
+
+#[test]
+fn case_without_scrutinee_composes_in_expression_contexts() {
+    for (source, ancestor_kind, expected_arm_counts) in [
+        (
+            "case:\n    ok res -> res\n    err e -> fail_page e",
+            SyntaxKind::Root,
+            vec![2],
+        ),
+        (
+            "my handle = case:\n    ok res -> res\n    err e  -> fail_page e",
+            SyntaxKind::BindingBody,
+            vec![2],
+        ),
+        (
+            "my handle=case:\n    ok res -> res\n    err e -> fail_page e",
+            SyntaxKind::BindingBody,
+            vec![2],
+        ),
+        (
+            "infix (|) 1 2 = pipe\nroute req | http_err::wrap | case:\n    ok res -> res\n    err e -> fail_page e",
+            SyntaxKind::OperatorChain,
+            vec![2],
+        ),
+        (
+            "apply (case:\n    ok res -> res\n    err e -> fail_page e\n)",
+            SyntaxKind::MlArgument,
+            vec![2],
+        ),
+        ("apply(case: 0 -> 1)", SyntaxKind::CallTail, vec![1]),
+        (
+            "case n:\n    0 -> case:\n        1 -> 2\n    _ -> fallback",
+            SyntaxKind::CaseArm,
+            vec![1],
+        ),
+        (
+            "case:\n    0 -> case:\n        1 -> 2\n    _ -> fallback",
+            SyntaxKind::Root,
+            vec![2, 1],
+        ),
+    ] {
+        let root = case_like_literal_production(source);
+        let cases = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::CaseExpression)
+            .filter(|node| {
+                !node
+                    .children()
+                    .any(|child| child.kind() == SyntaxKind::CaseScrutinee)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(cases.len(), expected_arm_counts.len(), "{source:?}");
+        for (case, expected_arms) in cases.iter().zip(expected_arm_counts) {
+            assert_eq!(
+                case.children_with_tokens()
+                    .map(|child| child.kind())
+                    .collect::<Vec<_>>(),
+                [SyntaxKind::CaseKw, SyntaxKind::CaseBlock],
+                "{source:?}"
+            );
+            let block = case.children().next().expect("CaseBlock");
+            assert_eq!(
+                block
+                    .children()
+                    .filter(|child| child.kind() == SyntaxKind::CaseArm)
+                    .count(),
+                expected_arms,
+                "{source:?}"
+            );
+            assert!(
+                case.ancestors()
+                    .skip(1)
+                    .any(|node| node.kind() == ancestor_kind),
+                "{source:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn case_without_scrutinee_admits_same_line_trivia_and_adjacent_arm_patterns() {
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "case",
+        OperatorFixities::new().with_prefix(BindingPower::scalar(40)),
+    )])
+    .expect("contextual case keyword wins over a dynamic operator");
+    for source in [
+        "case: 0 -> 1",
+        "case \t: 0 -> 1",
+        "case /* arms */ : 0 -> 1",
+        "case:ok res -> res",
+        "case /* arms */ :ok res -> res",
+    ] {
+        let root = case_like_literal_production(source);
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::CaseScrutinee),
+            "{source:?}"
+        );
+        let (green, _) = run_with(source, &operators);
+        assert_eq!(green.to_string(), source);
+        assert!(structural_facts(&green).is_empty(), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::CaseExpression)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::CaseScrutinee),
+            "{source:?}"
+        );
+    }
+}
+
 /// Test-only labels for slots independently located through the asserted CST
 /// parent/child topology below. They carry no parser output or diagnostic data.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -951,6 +1277,20 @@ fn case_schema_expression_and_pattern_slots_use_ordered_rowan_children() {
             ] {
                 let root = SyntaxNode::new_root(run(&source).0);
                 assert_eq!(root.to_string(), source);
+                if head == "case" && payload.is_empty() && owner == scrutinee {
+                    // WP-14 replaces the old `case :` missing-scrutinee pin:
+                    // the colon opens CaseBlock with no CaseScrutinee node.
+                    assert_eq!(
+                        case_schema_children(&expression(&root, CaseExpression)),
+                        [CaseKw, CaseBlock],
+                        "{source}"
+                    );
+                    assert!(
+                        crate::structural_diagnostic::collect(&root).is_empty(),
+                        "{source}"
+                    );
+                    continue;
+                }
                 let slot = expression(&root, owner);
                 let mut children = case_schema_children(&slot);
                 if owner == guard {

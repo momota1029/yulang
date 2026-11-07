@@ -27,6 +27,17 @@ impl Eq int:
     our x.eq y = ...                   // ne は書かない
 ```
 
+- **receiver の無い member を書ける**（確定, 2026-11-07）。header に `a.` を付けず、`our name: 型` と書く。role の型引数は、呼び出しの**戻り値の型**で決まる（6.3 の `default ()` と同じ性質）。tagless final のように、値を作る命令を role に並べたいときに使う。
+  - member の型は**必ず関数型**で、少なくとも 1 つ引数を取る。値だけの member は書けない（章3.3 の「引数なしの関数という概念は無い」と同じ。引数が要らないときは `()` を受ける）。
+  - 呼び出しは companion module の名前か、`use` で入れた名前で、普通の関数として書く（`doc::text "x"`）。receiver が無いので、`x.text` の形では呼べず、6.4 の method 解決には入らない。
+
+```yulang
+role Doc 'r:
+    our text: str -> 'r
+    our section: str -> 'r -> 'r
+    our rule: () -> 'r
+```
+
 - `role` も companion module を作る。
 
 出典: `main:web/docs/ja/reference/structs.md` §Role
@@ -250,4 +261,7 @@ enum app_err:
 
 ## 確認してほしい点
 
-なし（I1〜I6 は反映済み。J4 で cast の有効範囲を確定）。
+- **K1** receiver の無い member（6.1）の整合条件。role の型引数が、member の型の**戻り値**に現れないと、呼び出しで型引数が決まらず、いつも曖昧になる（例: `our size: str -> int` は `'r` を決めない）。
+  推奨: 宣言の時点で、role の型引数が戻り値の型に現れない receiver 無しの member を拒否する（`impl` の `where` を宣言時に拒否する規則と同じ流儀）。引数にだけ現れる場合の扱いは、ユーザーが決める。
+
+（I1〜I6 は反映済み。J4 で cast の有効範囲を確定。）

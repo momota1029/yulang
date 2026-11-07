@@ -101,6 +101,142 @@ fn multiple_identifier_and_parenthesized_pattern_parameters_parse_cleanly() {
 }
 
 #[test]
+fn record_parameters_parse_in_production_and_internal_entry() {
+    for source in [
+        r"\{x, y} -> x + y",
+        r"\{x, ..rest} -> x",
+        r"\x {a, b} (c, d) -> x",
+        r"f (\{x, y} -> x + y)",
+        r"f \{x, y} -> x + y",
+    ] {
+        let root = production(&format!("infix (+) 40 41 = add\n{source}"));
+        assert_clean(&root);
+        assert_eq!(lambdas(&root).len(), 1, "{source}: {root:#?}");
+
+        let (green, _) = run_with(source, &dynamic_operator_table());
+        assert_eq!(green.to_string(), source);
+        let root = SyntaxNode::new_root(green);
+        assert_clean(&root);
+        assert_eq!(lambdas(&root).len(), 1, "{source}: {root:#?}");
+    }
+}
+
+#[test]
+fn record_parameters_keep_direct_pattern_children_and_spread_items() {
+    for (source, parameter_text, spread_count) in [
+        (r"\{x, y} -> x", "{x, y}", 0),
+        (r"\{x, ..rest} -> x", "{x, ..rest}", 1),
+    ] {
+        let root = production(source);
+        assert_clean(&root);
+        let lambda = lambdas(&root).remove(0);
+        assert_eq!(
+            lambda
+                .children_with_tokens()
+                .filter(|element| element.kind() != SyntaxKind::Whitespace)
+                .map(|element| element.kind())
+                .collect::<Vec<_>>(),
+            [
+                SyntaxKind::Backslash,
+                SyntaxKind::Pattern,
+                SyntaxKind::Arrow,
+                SyntaxKind::OperatorChain,
+            ]
+        );
+        let parameter = lambda
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Pattern)
+            .expect("record parameter Pattern");
+        assert_eq!(parameter.to_string(), parameter_text);
+        let record = parameter.first_child().expect("RecordPattern");
+        assert_eq!(record.kind(), SyntaxKind::RecordPattern);
+        assert_eq!(
+            record
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::RecordPatternSpreadItem)
+                .count(),
+            spread_count
+        );
+    }
+
+    let lambda = lambdas(&production(r"\x {a, b} (c, d) -> x")).remove(0);
+    assert_eq!(
+        lambda
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Pattern)
+            .map(|node| node.first_child().unwrap().kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::RecordPattern, SyntaxKind::ParenthesizedPattern]
+    );
+}
+
+#[test]
+fn record_header_lookahead_balances_nested_braces_and_skips_literals_and_comments() {
+    for source in [
+        r"\{outer: {x, y}, z} -> x",
+        r#"\{text: "}"} -> 0"#,
+        r#"\{text: "{value}"} -> 0"#,
+        r#"\{text: ~"}"} -> 0"#,
+        r#"\{outer: {text: "}"}, x} -> x"#,
+        r#"\{text: """{"""} -> 0"#,
+        r"\{/* outer /* } */ { still */ x} -> x",
+        "\\{x, // }\n  y} -> x",
+    ] {
+        let root = production(source);
+        assert_clean(&root);
+        assert_eq!(lambdas(&root).len(), 1, "{source}: {root:#?}");
+    }
+}
+
+#[test]
+fn nonmatching_record_headers_do_not_create_lambda_nodes() {
+    for source in [
+        r"\{x, y}",
+        r"\x {a, b} (c, d)",
+        r"\{outer: {x}, y -> x",
+        r"\{x, y} ->> x",
+        r"\{x, y} - > x",
+        r#"\{text: "}" -> x"#,
+        r"\{x /* } -> x */",
+        "\\{x, y}\n-> x",
+    ] {
+        assert!(lambdas(&production(source)).is_empty(), "{source}");
+    }
+}
+
+#[test]
+fn record_headers_preserve_declared_backslash_operator_selection() {
+    let table = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "\\",
+        OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+    )])
+    .unwrap();
+    for source in [r"\{x, y} -> x", r"g \{x, y} -> x"] {
+        let (green, _) = run_with(source, &table);
+        assert_eq!(green.to_string(), source);
+        let root = SyntaxNode::new_root(green);
+        assert_clean(&root);
+        assert_eq!(lambdas(&root).len(), 1);
+        assert!(!root.descendants().any(|node| matches!(
+            node.kind(),
+            SyntaxKind::PrefixOperatorUse
+                | SyntaxKind::InfixOperatorUse
+                | SyntaxKind::SuffixOperatorUse
+        )));
+    }
+    let source = r"\{x, y}";
+    let (green, _) = run_with(source, &table);
+    assert_eq!(green.to_string(), source);
+    let root = SyntaxNode::new_root(green);
+    assert_clean(&root);
+    assert!(lambdas(&root).is_empty());
+    assert!(
+        root.descendants()
+            .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse)
+    );
+}
+
+#[test]
 fn bare_reference_patterns_are_clean_lambda_parameters() {
     let sources = [
         r"my x = \&a -> 1",

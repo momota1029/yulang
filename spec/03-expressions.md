@@ -21,6 +21,7 @@ true         // bool
   理由は、`;` は式の意味を変える（文の区切り）が `,` は変えないため。
   field が 1 つの record は末尾に `,` を付けて `{x: 1,}` と書く。`{x: 1}` は block（値は `x: 1`、つまり `x 1` の application）。
   値を省略した field（`{x, y}` は `{x: x, y: y}`）を認める。1 つだけなら `{x,}`。`{x}` は block で、値は `x`。
+  spread だけが入った波括弧（`{..rest}`）は record（確定, 2026-11-07。spread は文としては意味を持たない）。
 
 ```yulang
 {x: 1, y: 2}     // record

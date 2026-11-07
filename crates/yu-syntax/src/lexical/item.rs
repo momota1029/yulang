@@ -730,12 +730,12 @@ impl Item {
         }
     }
 
-    pub(crate) fn promote_pattern_range_start(&mut self) {
-        debug_assert!(matches!(self.payload_view().spelling(), Some("." | "..")));
-        self.payload = Payload::Token(Token {
-            kind: TokenKind::PatternRangeStart,
-            text: "..".into(),
-        });
+    pub(crate) fn promote_pattern_start(&mut self, token: Token) {
+        debug_assert!(matches!(
+            self.payload_view().spelling(),
+            Some("." | ".." | "-")
+        ));
+        self.payload = Payload::Token(token);
     }
 
     /// Derives the recovery extent from the threaded successor coordinate and

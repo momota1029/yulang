@@ -3,7 +3,7 @@
 ## 1. 権威と対象範囲
 
 このページは、`syntax-v0`における`LambdaExpression`を定める。
-受理構文、admission、直接Rowan CSTは、2026年11月4日のAuthoritativeなparser gap closure追補のWP-10に従う。
+受理構文、admission、直接Rowan CSTは、Authoritativeなparser gap closure追補のWP-10（2026年11月4日）と第2追補のWP-12（2026年11月7日）に従う。
 bodyのoperatorおよびapplication規則は、[dynamic operator chain](operator-chain.md)を参照する。
 共通の表記とrecovery要素は、[構文の内容モデル](../conventions/syntax-content-model.md)、[Rowan CST表記](../conventions/rowan-cst.md)、[回復の`Error`と`Invalid`のtopology](../conventions/recovery-error-invalid-topology.md)を参照する。
 
@@ -17,18 +17,22 @@ LambdaExpression := "\\" LambdaHeaderGap LambdaParameter
                     { LambdaHeaderGap LambdaParameter }
                     LambdaHeaderGap ExactArrow OperatorChain
 
-LambdaParameter := Identifier | ParenthesizedPattern
+LambdaParameter := Identifier | ParenthesizedPattern | RecordPattern
 ExactArrow := "->"
 ```
 
 `LambdaHeaderGap`は空、またはlogical layout newlineを含まない既存のinline triviaである。
 parameterは1個以上必要であり、bare parameterはidentifierに限る。
-identifier以外のpatternは丸括弧で囲む。
+record patternは波括弧のまま書ける。
+それ以外のpatternは丸括弧で囲む。
 
 ```yulang
 \x -> x + 1
 \x y -> x + y
 \(a, b) -> a
+\{x, y} -> x + y
+\{x, ..rest} -> x
+\x {a, b} (c, d) -> x
 \x (just y) -> y
 \(x: int) -> x
 ```
@@ -40,11 +44,12 @@ identifier以外のpatternは丸括弧で囲む。
 
 value positionでは、parserはdynamic operatorを選ぶ前にheader全体をsource-onlyで調べる。
 headerは、backslash、1個以上のadmitted parameter、およびexact `->`がそろったときだけlambdaとしてcommitする。
-parenthesized parameterの先読みは丸括弧を釣り合わせ、入れ子の丸括弧、literal、line comment、nested block comment内の丸括弧を数えない。
+parenthesized parameterの先読みは丸括弧を、record parameterの先読みは波括弧を釣り合わせる。
+入れ子の同じ括弧も数えるが、literal、line comment、nested block comment内の括弧は数えない。
 この先読みはparserを再帰的に実行せず、CSTまたはdiagnosticを作らない。
 
-headerにarrowがない場合、丸括弧が閉じない場合、またはparameterがadmitted formでない場合、backslashはlambda tokenにならない。
-たとえば、`\x y`、`\(a, b -> a`、`\1 -> x`、`\x.y -> x`、`\x ->> x`はlambdaではない。
+headerにarrowがない場合、parameterの括弧が閉じない場合、またはparameterがadmitted formでない場合、backslashはlambda tokenにならない。
+たとえば、`\x y`、`\{x, y}`、`\(a, b -> a`、`\{x, y -> x`、`\1 -> x`、`\x.y -> x`、`\x ->> x`はlambdaではない。
 このときは通常のoperator selectionとrecoveryが同じ位置から動き、宣言済みの`\`演算子を選べる。
 反対に、complete headerは同じ綴りの演算子より先にlambdaを選ぶ。
 
@@ -64,6 +69,8 @@ triviaも同じsource orderに残る。
 
 bare identifier parameterはdirect `Identifier` tokenであり、`Pattern` wrapperを持たない。
 parenthesized parameterはdirect `Pattern` nodeであり、その内側に`ParenthesizedPattern`を持つ。
+record parameterもdirect `Pattern` nodeであり、その内側に既存の`RecordPattern`を持つ。
+spreadは、その`RecordPattern`内の既存の`RecordPatternSpreadItem`となる。
 parameter列を表す追加wrapperと、カリー化を表すsynthetic lambdaは置かない。
 
 ```xml
@@ -86,7 +93,7 @@ parameter列を表す追加wrapperと、カリー化を表すsynthetic lambdaは
 
 ## 5. Recovery CST
 
-complete headerへcommitした後は、各parenthesized parameterを通常のPattern parserが読む。
+complete headerへcommitした後は、各parenthesized parameterとrecord parameterを通常のPattern parserが読む。
 そのため、local comma、missing item、foreign close、およびtype annotationのrecoveryは[patternの形式](../patterns/pattern-core.md)に従う。
 たとえば、`\(a,) -> a`のtrailing commaは受理され、`\(,) x -> x`はparameterの`Pattern`内に`Missing`を持つ。
 

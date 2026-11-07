@@ -25,7 +25,9 @@ cargo run --offline -p yu-syntax --example syntax_guide_check -- syntax-guide/ja
 
 ## 確認できること、できないこと
 
-2026-11-07 時点の結果: 16 ブロック中、15 が `ok`、1 が `placeholder`。失敗は無い。
+2026-11-07 時点の結果: 60 ブロック中、58 が `ok`、2 が `placeholder`、`recovery` は 0 件。
+最後に残っていた、`case` の 2 番目以降の arm が隣接した `-` と整数で始まる形も、WP-15 の修正で `ok` になった。
+先に見つかった 3 件(lambda の record 引数、record の式の spread、対象なしの `case:`)と合わせて、`notes/design/2026-11-07-parser-gap-closure-addendum-2.md` の WP-12〜15 は検査を通った。
 
 | 確認できる | 確認できない |
 | --- | --- |

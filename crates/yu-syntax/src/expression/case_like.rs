@@ -22,7 +22,7 @@ use crate::{
         },
         item::{Item, LeadingTrivia, TokenKind},
         lexer::{
-            introduced_body_indentation_normalized, pattern_range_after_expression_item,
+            introduced_body_indentation_normalized, pattern_start_after_expression_item,
             scan_case_label_payload, scan_pattern_nud_payload,
         },
         observation::{
@@ -136,6 +136,30 @@ fn case_like_head_normalized(
     );
     item_origin = next_origin;
     line_entry = next_line_entry;
+    // WP-14: only a same-line colon immediately after `case` omits the
+    // scrutinee. NUD scanning may classify `:name` as a symbol opener; here
+    // that colon belongs to the case block instead. Catch keeps its head.
+    if matches!(family, CaseLikeFamily::Case)
+        && !item.payload_view().is_boundary()
+        && !item.leading_view().contains_line_break()
+        && matches!(
+            token_kind(&item),
+            Some(TokenKind::Colon | TokenKind::ExpressionSymbolColon)
+        )
+    {
+        return colon_block_normalized(
+            i,
+            family,
+            item,
+            baseline,
+            outer_stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+    }
     if item.payload_view().token_kind() == Some(TokenKind::SigilIdentifier)
         && !crate::lexical::stops::lambda_recovery_boundary(
             scrutinee_stops,
@@ -1109,10 +1133,11 @@ impl ArmSequencePolicy {
     ) -> Result<(Item, LineEntry), NormalizedExit> {
         if !matches!(self, Self::CatchInline)
             && self.accepts_arm_entry(i.rb(), &item, outer_stops)
-            && let Some(additional) =
-                pattern_range_after_expression_item(&i, &item, item_origin, fence, first_stops)
+            && let Some(token) =
+                pattern_start_after_expression_item(&i, &item, item_origin, fence, first_stops)
         {
-            item.promote_pattern_range_start();
+            let additional = token.text.len() - item.payload_view().spelling().unwrap().len();
+            item.promote_pattern_start(token);
             i.advance_bytes(additional);
             item_origin += additional;
         }
