@@ -2003,3 +2003,21 @@ aggregate/failure row、独立full case Typingと公開三契約の統合は引�
 採用するsource規則は [optional fieldの問い](../notes/questions/2026-11-07-b2-optional-field-case-pattern.md) に分離してある。
 両childは既存構造判断のままで、fullsource再帰規則を置換した証明ではない。
 元B2の完了条件・公開入口・既存required判断は変更していない。
+
+## B2 追加: Core row cap・実束縛・全有限prefix
+
+`CommonPatternCoreRuntimeEnvironment` / `CommonPatternCoreRuntimeMatch` は、同じ共有allocatorに
+Core defaultのrow上限、実subject、raw returnedの全payload/name検査を載せる。
+実成功を仮定する定理ではreturned適合を内部で導くが、任意supplied bindingsから実match identityは推論しない。
+positional Coreにnamed lookup-invarianceを仮定せず、canonical matcherを使う。
+
+`CommonPatternComputations` はret/bindを引数にした同じ実traversalを持ち、Logged具体化の全観測等号を証明する。
+`CommonPatternComputationSafety` / `CommonPatternFinitePrefixes` は非停止・error・複数実行も表せる
+観測集合の計算に対し、全有限prefixの行上限と終了成功bindingsの型保存を示す。
+未終了prefixと終了pattern missを区別し、defaultの成功や停止を前提にしない。
+一般Core source実行のadequacyは明示の未閉義務で、source effectful判断の完成を意味しない。
+
+追加仕様のinvariant argumentは一般lower/upper区間である。現B2構造判断のCommon.pair分解や
+モデル回収のvalue demand-equivalenceは一般区間を一点へ畳む規則ではない。
+point-invariant nominal補題を使えるのはcollapsed lower=upper=Tの場合だけで、一般区間のsource橋は未証明。
+pattern restのwhole-record照合と、型/roleのdeferred subtraction tailも別の義務として保持する。

@@ -688,3 +688,9 @@ import Yulang.CommonOptionalFieldSafety
 import Yulang.CommonOptionalFieldBoundary
 import Yulang.CommonPatternCoreRuntimeEnvironment
 import Yulang.CommonPatternCoreRuntimeMatch
+import Yulang.CommonPatternComputations
+import Yulang.CommonPatternComputationSafety
+import Yulang.CommonPatternFinitePrefixes
+import Yulang.CommonCaseComputations
+import Yulang.CommonCaseComputationSafety
+import Yulang.CommonCaseFinitePrefixes

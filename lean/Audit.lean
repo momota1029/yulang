@@ -4438,3 +4438,15 @@ run_cmd do
 #print axioms Yulang.CommonPatternCoreRuntimeMatch.canonical_returns_witness
 #print axioms Yulang.CommonPatternCoreRuntimeMatch.canonical_match_models_exact
 #print axioms Yulang.CommonPatternCoreRuntimeMatch.all_parameter_matches_partial_and_bound
+#print axioms Yulang.CommonPatternComputations.run_logged
+#print axioms Yulang.CommonPatternComputationSafety.typing_safe
+#print axioms Yulang.CommonPatternFinitePrefixes.bind_safe
+#print axioms Yulang.CommonPatternFinitePrefixes.silent_safe
+#print axioms Yulang.CommonPatternFinitePrefixes.silent_has_no_completion
+#print axioms Yulang.CommonPatternFinitePrefixes.typing_finite_prefixes
+#print axioms Yulang.CommonCaseComputations.runArms_logged
+#print axioms Yulang.CommonCaseComputations.eval_logged
+#print axioms Yulang.CommonCaseComputationSafety.runArms_safe
+#print axioms Yulang.CommonCaseComputationSafety.eval_safe
+#print axioms Yulang.CommonCaseFinitePrefixes.visits_safe
+#print axioms Yulang.CommonCaseFinitePrefixes.eval_finite_prefixes

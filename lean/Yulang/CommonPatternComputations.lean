@@ -114,19 +114,26 @@ theorem run_logged (floatCheck : F → F → Bool)
   | pair p q ihp ihq =>
       cases value <;> simp [run, CommonPatternAlignedMatcher.run, andThen_logged, ihp, ihq, CasePatterns.miss]
   | field name p rest ihp ihr =>
-      cases value <;> simp [run, CommonPatternAlignedMatcher.run, CasePatterns.miss]
-      split <;> first | rfl | simp [andThen_logged, ihp, ihr]
+      cases value with
+      | record fields =>
+          simp only [run, CommonPatternAlignedMatcher.run]
+          cases lookup name fields <;> simp only [andThen_logged, ihp, ihr] <;> rfl
+      | _ => rfl
   | defaultField name fallback p rest ihp ihr =>
       cases value <;> simp [run, CommonPatternAlignedMatcher.run, CasePatterns.miss]
       simp only [andThen_logged, ihp, ihr]
       rfl
   | nil => cases value <;> first | rfl | (rename_i values; cases values <;> rfl)
   | cons p q ihp ihq =>
-      cases value <;> simp [run, CommonPatternAlignedMatcher.run, CasePatterns.miss]
-      split <;> first | rfl | simp [andThen_logged, ihp, ihq]
+      cases value with
+      | list values => cases values <;> simp only [run, CommonPatternAlignedMatcher.run, andThen_logged, ihp, ihq] <;> rfl
+      | _ => rfl
   | snoc p q ihp ihq =>
-      cases value <;> simp [run, CommonPatternAlignedMatcher.run, CasePatterns.miss]
-      split <;> first | rfl | simp [andThen_logged, ihp, ihq]
+      cases value with
+      | list values =>
+          simp only [run, CommonPatternAlignedMatcher.run]
+          cases values.reverse <;> simp only [andThen_logged, ihp, ihq] <;> rfl
+      | _ => rfl
   | variant tag p ih => cases value <;> simp [run, CommonPatternAlignedMatcher.run, ih, CasePatterns.miss]
   | nominal typeId ctorId p ih => cases value <;> simp [run, CommonPatternAlignedMatcher.run, ih, CasePatterns.miss]
   | or p q ihp ihq =>
