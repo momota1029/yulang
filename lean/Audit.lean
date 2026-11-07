@@ -4280,3 +4280,11 @@ run_cmd do
 #print axioms Yulang.CommonEffectRecursiveGeneration.handlerChecks_holds
 
 #print axioms Yulang.CommonEffectRecursiveExact.generate_recursive_single_exact
+
+#print axioms Yulang.CommonEffectRecursiveSource.Typing.multiHandler_iff
+#print axioms Yulang.CommonEffectRecursiveSource.Typing.multiHandler_separate_iff
+#print axioms Yulang.CommonEffectRecursiveExact.generate_recursive_effect_exact
+
+#print axioms Yulang.CommonEffectPolarity.type_ordered
+#print axioms Yulang.CommonEffectPolarity.formula_ordered
+#print axioms Yulang.CommonEffectPolarity.forall_extremal_exact

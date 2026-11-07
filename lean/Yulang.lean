@@ -612,3 +612,4 @@ import Yulang.CommonSignedValueExpressionSolver
 import Yulang.CommonEffectRecursiveSource
 import Yulang.CommonEffectRecursiveGeneration
 import Yulang.CommonEffectRecursiveExact
+import Yulang.CommonEffectPolarity

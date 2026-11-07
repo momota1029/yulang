@@ -1,9 +1,10 @@
 import Yulang.CommonEffectRecursiveGeneration
 
-/-! Finite generation exactness for the recursive single-effect nucleus.
+/-! Finite generation exactness for the recursive effect nucleus.
 The independent source has all presence constructors and recursively nested
-requests, finite boundaries and single universal handlers. This is not the
-full multi/partial/visibility B3 theorem. -/
+requests, finite boundaries and single or multiple universal handlers. This
+is not the full partial/visibility B3 theorem. The original theorem name is
+retained; the generalized entry below also includes zero-arm handlers. -/
 namespace Yulang.CommonEffectRecursiveExact
 open Core.PresenceGeneration (Comp CompTerm TyTerm RowTerm extend extend_none extend_some extend_comp_some
   exists_comp_row exists_comp_ty)
@@ -365,4 +366,80 @@ theorem generate_recursive_single_exact (signatures : List SemanticSignature) (e
           rfl
         rw [finiteShape, Typing.handler_iff]
         simp [resolved, interpret, allowed]
+  | multiHandler permission operations action onReturn bodies iha ihr ihb =>
+    have actionExact (a b : Computation) :
+        (generate (decl₂ declarations) (env₂ sΓ) action fresh₀).Holds (extend (extend ρ a) b) ↔
+          Typing signatures Γ action a := by
+      simpa only [decl₂, env₂, fresh₀, CompTerm.eval_var, extend_none, extend_some] using
+        iha _ _ _ fresh₀ ((henv.lift a).lift b)
+    have returnExact (a b : Computation) :
+        (generate (decl₂ declarations) (Scheme.mono (CompTerm.pure fresh₀.ty) :: env₂ sΓ) onReturn fresh₁).Holds
+          (extend (extend ρ a) b) ↔
+          Typing signatures (.mono (Comp.pure Common.model a.1) :: Γ) onReturn b := by
+      simpa [decl₂, env₂, fresh₀, fresh₁, CompTerm.eval, CompTerm.pure, CompTerm.var, TyTerm.eval, RowTerm.eval, Comp.pure] using
+        ihr _ _ _ fresh₁ (((henv.lift a).lift b).mono (CompTerm.pure fresh₀.ty))
+    have keys : handlerKeys signatures operations = declarationKeys declarations operations := by
+      rw [← henv.declarations, declarationKeys_interpret]
+    rw [Typing.multiHandler_separate_iff]
+    simp only [generate, Formula.Holds]
+    apply exists_congr; intro a
+    apply exists_congr; intro b
+    simp only [actionExact, returnExact]
+    apply and_congr_right; intro _
+    apply and_congr_right; intro _
+    simp only [Formula.holds_tyLe, TyTerm.eval, fresh₁, fresh₀, lift₂, CompTerm.rename,
+      CompTerm.var, TyTerm.eval_rename, extend_none, extend_some, Function.comp_def,
+      RowExpr.eval, RowExpr.eval_fromPresence, RowTerm.eval_rename, RowTerm.eval, keys]
+    apply and_congr_right; intro _
+    apply and_congr_right; intro _
+    rw [andAll_fin]
+    apply forall_congr'; intro i
+    cases found : declarations[operations i]? with
+    | none =>
+      have absent : signatures[operations i]? = none := by
+        rw [← henv.declarations, lookup_interpretAll, found]
+        rfl
+      simp [Formula.Holds, Core.PresenceGeneration.Formula.Holds, absent]
+    | some declaration =>
+      have resolved : signatures[operations i]? = some (interpret ρ declaration) := by
+        rw [← henv.declarations, lookup_interpretAll, found]
+        rfl
+      have armTyped (locals : Fin declaration.locals → Common.Ty) (operated : Computation) :=
+        ihb i _ _ _ (CompTerm.var none)
+          ((((((henv.lift a).lift b).rename Sum.inl (localEnv (extend (extend ρ a) b) locals) rfl).mono
+            (CompTerm.pure (CompTerm.arrow
+              (CompTerm.pure (declaration.output.rename (Sum.map (fun name => some (some name)) id)))
+              (fresh₀.rename Sum.inl)))).mono
+            (CompTerm.pure (declaration.input.rename (Sum.map (fun name => some (some name)) id)))).lift operated)
+      simp only [CompTerm.eval_var, extend_none, CompTerm.eval_pure, arrow_eval,
+        TyTerm.eval_rename, local_names, CompTerm.eval_rename, localEnv_comp_inl,
+        fresh₀, CompTerm.eval_var, extend_some] at armTyped
+      cases allowed : permission.allows declaration.key with
+      | false => simp [allowed, Formula.Holds, Core.PresenceGeneration.Formula.Holds, resolved, interpret]
+      | true =>
+        simp only [allowed, ↓reduceIte, Formula.Holds]
+        simp only [decl₂, env₂]
+        constructor
+        · intro held
+          refine ⟨interpret ρ declaration, resolved, allowed, ?_⟩
+          intro locals
+          obtain ⟨operated, bodyTyped, bound⟩ := held locals
+          refine ⟨operated, (armTyped locals operated).mp bodyTyped, ?_⟩
+          simpa [Formula.holds_compLe, CompTerm.eval, TyTerm.eval_rename,
+            RowTerm.eval_rename, TyTerm.eval, RowTerm.eval, Function.comp_def, localEnv] using bound
+        · rintro ⟨signature, signatureFound, _, arms⟩
+          have same : signature = interpret ρ declaration := Option.some.inj (signatureFound.symm.trans resolved)
+          subst signature
+          intro locals
+          obtain ⟨operated, bodyTyped, bound⟩ := arms locals
+          refine ⟨operated, (armTyped locals operated).mpr bodyTyped, ?_⟩
+          simpa [Formula.holds_compLe, CompTerm.eval, TyTerm.eval_rename,
+            RowTerm.eval_rename, TyTerm.eval, RowTerm.eval, Function.comp_def, localEnv] using bound
+/-- General recursive entry, including finite heterogeneous multi-handlers. -/
+theorem generate_recursive_effect_exact (signatures : List SemanticSignature) (e : Expr scopes)
+    {declarations : Declarations α}
+    (sΓ : SchemeEnv scopes α) (Γ : List (Binding scopes)) (ρ : α → Comp Common.model)
+    (out : CompTerm α) (henv : ContextRel signatures declarations ρ sΓ Γ) :
+    (generate declarations sΓ e out).Holds ρ ↔ Typing signatures Γ e (out.eval Common.model ρ) :=
+  generate_recursive_single_exact signatures e sΓ Γ ρ out henv
 end Yulang.CommonEffectRecursiveExact

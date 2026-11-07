@@ -62,6 +62,11 @@ theorem handlerChecks_holds (key : Nat) (input returned out : CompTerm α)
     Core.PresenceGeneration.RowTerm.eval_rename, extend_none, extend_comp_some]
   rfl
 
+theorem andAll_fin (formulas : Fin count → Formula scopes α) (assignment : α → Computation) :
+    (CommonEffectUniversalArms.andAll ((List.finRange count).map formulas)).Holds assignment ↔
+      ∀ i, (formulas i).Holds assignment := by
+  simp
+
 def generate (declarations : Declarations α) (Γ : SchemeEnv scopes α) : Expr scopes → CompTerm α → Formula scopes α
   | .var n, out => Scheme.lookup Γ n out
   | .lit b, out => Formula.compLe (CompTerm.pure (.base b)) out
