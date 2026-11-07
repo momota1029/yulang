@@ -287,4 +287,24 @@ mutual
     | .cons _ _ _ _ dictionary children => dictionary.erase :: children.erase
 end
 
+theorem not_ready_no_dictionary (visible : List Roles.Impl) (goal : Goal) (failure : ¬ Ready visible goal) :
+    ¬ Nonempty (Dictionary visible goal) := by
+  rintro ⟨dictionary⟩
+  cases dictionary with
+  | impl ready => exact failure ready
+
+theorem Dictionary.all_visible {visible : List Roles.Impl} {goal : Goal} (dictionary : Dictionary visible goal) :
+    ∀ implementation ∈ dictionary.erase.declarations, implementation ∈ visible := by
+  induction dictionary using Dictionary.rec (motive_2 := fun _ _ children =>
+    ∀ implementation ∈ children.erase.flatMap RoleDictionaries.Plan.declarations, implementation ∈ visible) with
+  | impl ready implementation assignment member matched unique children ih =>
+      intro wanted present
+      simp only [Dictionary.erase, RoleDictionaries.Plan.declarations, List.mem_cons] at present
+      exact present.elim (fun same => same ▸ member) (ih wanted)
+  | nil => contradiction
+  | cons requirement child rest interpreted dictionary children ihChild ihRest =>
+      rename_i wanted present
+      simp only [Children.erase, List.flatMap_cons, List.mem_append] at present
+      exact present.elim (ihChild wanted) (ihRest wanted)
+
 end Yulang.CommonRoleInspectedSemantics

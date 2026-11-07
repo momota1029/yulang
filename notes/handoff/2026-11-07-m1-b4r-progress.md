@@ -227,3 +227,140 @@ priority は別の一問として記録する。この有限木反例には prio
   その Pattern の構文代入を some で返す。
 
 検証: `cd lean && lake build --wfail` exit 0（629 jobs）。
+
+## B4r2 checkpoint 2: 同名 field で実宣言サイズを padding する
+
+新規 `CommonRoleFiniteShadowRegistry`。実 head は `{x:left,x:G^k int}`、実 where は `{x:right}`。
+全変数は可視 left/right にしか現れず、padding は閉じた有限木。既存 checker を強化せず使う。
+
+閉じた主張:
+
+- `lift_size` / `lift_occurrences`: 任意旧有限 data Pattern、任意変数名について、固定新 grammar の実 encode は
+  元 encode と同じ size / 変数出現回数を持つ。
+- `compile_wellFormed` / `compile_accepted`: 任意 key,有限線形 rule について、その実 padded impl は
+  WellFormed を満たし、実 CheckedRoles.checkImpl=true。前提は元 rule の全変数の線形性だけ。
+- `declarations_wellFormed` / `declarations_accepted`: 任意有限 Code について、生成した有限 visible は
+  実 WellFormed と実 checkDatabase=true を満たす。追加前提なし。
+- `environment_cores` / `environment_checked`: 任意 Code について、実関連型環境の cores は visible と等しく、
+  既存 CommonRoleRegularResolutionObstruction.checkEnvironment=true。新規 size gate はない。
+- `head_determines_associated`: 任意 Code について、実 stored head/RHS を固定新 grammar で解釈した
+  HeadDeterminesAssociated が、任意二つの Common 代入に対して成り立つ。RHS は定数 int。
+- `visible_declared`: 任意 Code,visible 所属 impl について role<5 かつ head.length=1。
+- `constraints_declared`: 任意 Code,visible 所属 impl,その where child について child.role<5、
+  child.args.length=(roles child.role).arity=1。
+- `associated_wellFormed`: 任意 Code について、実環境は既存 Roles.AssocWellFormed を満たす。
+- `head_equivalent`: 任意 rule,任意 Common 代入について、実 head の解釈は required x (leftの解釈) と同値。
+- `matches_compile`: 任意 key,rule,role,value Description,任意 Common 代入について、実 head の独立照合 iff
+  source role が一致し、可視 left が value と Common 同値。
+- `matches_terminal`: 任意 role,value Description,任意 Common 代入について、実 terminal head の独立照合 iff
+  role=0 かつ代入0が value と Common 同値。
+- `child_interpreted`: 任意 rule,任意 Description 代入について、実 child の独立解釈は
+  right の構文代入を payload に持つ実 target role の required record goal。
+
+検証: `cd lean && lake build --wfail` exit 0（630 jobs）。
+
+## B4r2 checkpoint 3: 有限木の guarded 辞書 iff program の停止
+
+新規 `CommonRoleFiniteShadowHalting`。旧有限線形 interpreter の実 rule.Step と MachineHalts に接続した。
+
+閉じた主張:
+
+- `matched_step`: 任意線形 rule、任意有限 configuration、任意 Common 代入について、source role が一致し
+  left が source.value と要求同値なら、有限 target と実 rule.Step が存在し、right は target.value と同値。
+- `unique_terminal`: 任意 Code,source,role,value Description について、role/source.role が一致し、value が
+  source.value と Common 同値で role=0 なら、terminal impl が任意 Common 代入の head 照合で一意。
+- `unique_compile`: 任意 Code,source,target,registry 所属 entry、その実 rule.Step、role,value Description に対し、
+  role/source.role と value/source.value が一致すれば、その compiled impl は任意 Common 代入の head 照合で一意。
+  no-overlap を外部前提として渡さず、実 compiler の既存独立 no_overlap から導く。
+- `instantiate_lift_finite`: 任意旧有限 data Pattern と全代入像が finite=true の Description 代入について、
+  埋め込み Pattern の構文代入も finite=true。
+- `machine_to_dictionary`: 任意 Code,有限 source,その MachineHalts 証拠、任意 role,value Description に対し、
+  value が有限木で role/source.role と value/source.value が一致すれば、amended semantics の有限辞書が存在。
+  構成は全代入像を ground Description とし、全 child で有限性と Ready を証明する。
+- `dictionary_to_machine`: 任意 Code,goal,独立 amended Dictionary、任意有限 source,role,value Description について、
+  goal=dataGoal(role,value)、role=source.role、value が source.value と Common 同値なら MachineHalts。
+  反映方向では value の有限性を追加前提にしていない。
+- `dictionary_iff_machine`: 任意 Code,有限 configuration について、実 canonical finite goal の独立 guarded 辞書 iff
+  その configuration の MachineHalts。追加前提なし。
+- `start_finite`: 任意 Code,input について初期実有限 goal description は有限木。
+- `dictionary_exact`: 任意有限 Code,input について、実 visible と初期有限 goal の独立 amended 辞書が存在 iff
+  `∃ output, CommonRoleComputation.Eval Code input output`。追加前提なし。
+
+検証: `cd lean && lake build --wfail` exit 0（631 jobs）。
+
+## B4r2 checkpoint 4: 有限木だけでも全域成功判定は不可能（E2）
+
+新規 `CommonRoleFiniteShadowObstruction`。実 registry の全 head/where/key/associated fields、一引数 signature、
+初期有限木 goal を有限 Tree に wire 化し、既存の実 finite binary-tape machine と結ぶ。
+
+閉じた主張:
+
+- `eval_queryCode`: 任意有限 Code,input について固定有限 queryCode は node(descriptor Code,input) から
+  実 queryWire(Code,input) を有限に計算する。
+- `queryCode_exact`: 任意 Code,input,output について、その評価 iff output=queryWire(Code,input)。
+- `signature_actual`: 任意 role<5 について serialized signature の arity は実 role の arity=1 と等しく、
+  associated 宣言は [(0,none)]。
+- `configuration_ready`: 任意 Code,任意有限 configuration について、canonical goal は有限木かつ Ready。
+  したがって root 拒否も head の再帰 constructor 検査拒否も、どの有限 machine configuration にも作用しない。
+- `no_total_finite_shadow_resolver`: 追加前提なしで、任意有限 Code,input の実 queryWire に対し必ず有限停止し、
+  終了 bit が true iff その実 visible と初期 goal の独立 amended 有限 Dictionary が存在する、という
+  finite transition-table binary-tape machine は存在しない。
+- `finite_tree_registry_undecidable`: 追加前提なしで、(1) 任意 Code について実既存 checker=true、
+  実 WellFormed、任意 Common 代入に対する HeadDeterminesAssociated、実 AssocWellFormed、
+  (2) 任意 Code,input について初期 goal は有限木かつ Ready、
+  (3) 上の全域 machine は存在しない、の連言。
+
+検証: `cd lean && lake build --wfail` exit 0（632 jobs）。
+主定理は閉じた。任意 Common 代入の上位 evidence、最小例、独立レビュー、Audit、最終 note を続ける。
+
+## B4r2 checkpoint 5: 任意 Common 代入、実 plan、拒否の優先順位
+
+新規 `CommonRoleFiniteShadowSemantic`。任意 Common 型・行を代入像とし、両拒否 gate と候補一意性を
+取り除いた大きい独立 Derives を実 head/where fields から定義する。
+
+閉じた主張:
+
+- `CommonRoleInspectedSemantics.not_ready_no_dictionary`: 任意 visible,goal に対し Ready が成り立たなければ辞書は存在しない。
+  root 拒否または禁止検査がある場合、成功を優先しないことを明示する。
+- `Dictionary.all_visible`: 任意 visible,goal と独立 amended 辞書について、全消去 plan 内の任意 impl は同じ visible に属する。
+- `CommonRoleFiniteShadowHalting.actual_plan_exact`: 任意有限 Code,input について、独立 amended 辞書で全実 plan 宣言が
+  同じ visible に属するものが存在 iff `∃ output, Eval Code input output`。追加前提なし。
+- `CommonRoleFiniteShadowSemantic.child_interpreted`: 任意有限 rule と任意 Common 代入について、実 where field の
+  解釈は、target role と required x (rightの解釈) を正確に返す。
+- `reflect`: 任意 Code,semantic goal,その大きい Derives、任意有限 source について、role が source と等しく
+  goal.argument が required x source.value と Common 同値なら MachineHalts。
+- `of_machine`: 任意 Code,有限 source とその MachineHalts について、実 visible の canonical semantic goal の
+  大きい独立 Derives が成り立つ。
+- `arbitrary_common_exact`: 任意有限 Code,input に対し、任意 Common 代入を許す大きい独立 Derives iff
+  `∃ output, Eval Code input output`。追加前提なし。
+- `guarded_iff_arbitrary_common`: 任意有限 Code,input に対し、有限 Description 代入の guarded 実辞書の存在 iff
+  上の任意 Common 代入を許す大きい独立 Derives。Description の表現可能性を制約したための障害ではない。
+
+検証: `cd lean && lake build --wfail` exit 0（633 jobs）。
+独立レビューは初期4 module を E2 と判定し、trust=0 / 全体 build / Audit を通した。
+新定理は Common record の既存 lemma を使うため Classical.choice にも依存する。許可された公理の範囲内。
+
+## B4r2 checkpoint 6: 最小の有限例と cache を超える有限 growing chain
+
+新規 `CommonRoleFiniteShadowExamples`。同名 field に隠れる ground int だけで size を稼ぐ。
+
+閉じた主張:
+
+- `loop_sizes`: 一 role・一 impl・型変数なしの `{x:int,x:int}` requires `{x:int}` の実サイズは5/3。
+- `loop_accepted`: その実 impl は既存 checker を通る。
+- `loop_ready`: singleton visible の初期有限木 goal は Ready。
+- `loop_matches`: 任意 Common 代入に対し、その実 head は `{x:int}` に独立に一致する。
+- `loop_child`: 任意 Description 代入に対し、実 where の解釈は同じ初期 goal を返す。
+- `growing_sizes` / `growing_accepted`: 一変数の `{x:'a,x:int}` requires `{x::g 'a}` の実サイズは5/4、既存 checker は受理する。
+- `normalized_examples_rejected`: 明示的 hidden field を除いてから既存 checker を呼ぶと、上の二例はともに拒否される。
+  未承認修正案の probe であり、実 checker は変更していない。
+- `payload_finite`: 任意 n に対し G^n int の有限記述は finite=true。
+- `chain_ready`: 任意 n に対し `{x:G^n int}` は同じ singleton visible で Ready。
+- `growing_step`: 任意 n に対し、全変数を G^n int に写す有限記述代入で実 head が chain(n) に一致し、
+  実 where 解釈は正確に chain(n+1) を返す。
+- `payload_eval`: 任意 n に対し、その有限 payload の Common 解釈は既存 growing(n) と等しい。
+- `chain_equivalent_iff`: 任意 m,n に対し chain(m),chain(n) の引数が Common 同値 iff m=n。
+- `no_natural_descent_measure`: 任意 n で chain(n+1) の値が chain(n) より小さくなる Goal→Nat 関数は存在しない。
+
+検証: `cd lean && lake build --wfail` exit 0（634 jobs）。
+上の最小ループや growing chain だけを算法不可能性と呼ばず、主 E2 は任意 program の停止問題還元に置く。
