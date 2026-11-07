@@ -44,4 +44,37 @@ theorem typing_change_result {value : Value} {source : Comp Common.model}
       exact .variant (childIH (Comp.pure Common.model a.1) (Common.subtype_refl _))
         ⟨Common.subtype_trans bounded.1 below, Common.rowEmpty_le _⟩
 
+/-- A required Common observation finds the actual first stored field. Every
+Common subject and payload type, all result rows and duplicate record labels
+are admitted. The selected value is typed by the independent data judgment. -/
+theorem required_lookup (fields : CaseValues.Bindings Empty)
+    (source : Comp Common.model) (label : Nat) (payload : Common.Ty)
+    (typed : ValueTyping Common.model (.record fields) source)
+    (required : Common.Subtype source.1 (Common.required label payload)) :
+    ∃ value, CaseValues.lookup label fields = some value ∧
+      ValueTyping Common.model value (Comp.pure Common.model payload) := by
+  induction fields generalizing source with
+  | nil =>
+      cases typed with
+      | emptyRecord bounded =>
+          have impossible := (CommonRecordTargetProfiles.subtype_required_iff
+            Common.exactEmpty payload label).mp (Common.subtype_trans bounded.1 required)
+          simp [CommonPayloadProjection.ProfileBelow, CommonPayloadProjection.fieldType,
+            CommonPayloadProjection.fieldProject, Common.exactEmpty] at impossible
+  | cons field rest ih =>
+      rcases field with ⟨current, item⟩
+      cases typed with
+      | record head tail width bounded =>
+          have selected := Common.subtype_trans bounded.1 required
+          by_cases same : label = current
+          · subst current
+            refine ⟨item, by simp [CaseValues.lookup], ?_⟩
+            exact typing_change_result head (Comp.pure Common.model payload)
+              ((Common.common_singleton_requirement_iff label _ payload _).mp selected)
+          · have tailRequired := fun depth =>
+              (CommonFiniteOptionalInspection.record_other_required_at_iff
+                depth current label _ _ payload same).mp (selected depth)
+            obtain ⟨value, found, valid⟩ := ih _ tail tailRequired
+            exact ⟨value, by simpa [CaseValues.lookup, same] using found, valid⟩
+
 end Yulang.CommonPatternLookup
