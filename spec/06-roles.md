@@ -284,6 +284,9 @@ enum app_err:
   **決定（2026-11-07, ユーザー）: 拒否の位置。** 再帰型が型引数の深い位置（例: `list` の中）にあるだけなら、呼び出しは拒否しない。解決が**その再帰型を head とする goal に到達したとき**に拒否する。
   例: `impl Len (list 'a)`（where なし）に対する `len [loop 1]` は通り、`impl Show (list 'a) where Show 'a` に対する `show [loop 1]` は `Show μ`（μ は再帰型）に降りたところで拒否される。報告では、どの impl の where で到達したかを示す。
   **決定（2026-11-07, ユーザー）: 名前の付いた再帰型は対象外。** `enum tree` のように名前で終わる再帰型は、通常どおり解決する（`impl Show tree` に名前で当たる）。拒否されるのは、名前の無い構造的な再帰型だけ。
+  **決定（2026-11-07, ユーザー）: 拒否の場所を一つ足す。** impl の head を goal に照合するとき、head の非変数 pattern が名前の無い構造的な再帰型の constructor を調べる必要が出た時点でも、「再帰型のため解決できない」と拒否する。
+  例: `impl Check {box: {tick: 'a}} where Check {box: 'a}` に、`μ = {tick: μ}` を使う `Check {box: μ}` を解決させると、`{tick: 'a}` を μ の中身に当てる時点で拒否される（goal の根 `{box: …}` は再帰型ではないので、根の規則だけでは拒否できなかった）。
+  `'a` のように再帰型を変数で捕まえるだけの照合（`Len (list μ)`）は通る。理由: 根の規則だけでは、再帰型を `pair` などの中に残したまま、互いに同値でない goal を無限に作る registry が作れ、解決の停止が停止問題と同じ難しさになる（Lean: `CommonRoleReachedRootObstruction.reached_root_registry_undecidable`）。
   K2 は、これで **確定**。B4 の修正 statement は「goal の型・行から構造的な再帰型を除いた有限木」を前提に書き直す（`notes/questions/2026-11-07-b4-regular-resolution-decidability.md`）。
 
 （I1〜I6 は反映済み。J4 で cast の有効範囲を確定。）

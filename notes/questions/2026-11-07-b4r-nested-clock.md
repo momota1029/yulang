@@ -1,6 +1,6 @@
 # B4 redo: role goal の root に到達しない再帰型
 
-状態: **E2 証明済み、修正案は未承認**。spec の K2 を書き換えていない。
+状態: **E2 証明済み。ユーザー承認済み（2026-11-07）: 推奨案 1（head 照合で再帰型の constructor を調べる時点で拒否）を採用。** `spec/06-roles.md` の K2 に反映済み。
 主定理は `CommonRoleReachedRootObstruction.reached_root_registry_undecidable`。
 定義の理由は [reached-root semantics](../design/2026-11-07-b4r-reached-root-semantics.md)。
 
