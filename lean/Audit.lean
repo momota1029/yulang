@@ -14,6 +14,13 @@ import Lean
 #print axioms Yulang.CanonicalComputability.no_self_halting_decider
 #print axioms Yulang.CommonRoleSemanticPadding.padded_declaration_accepted
 #print axioms Yulang.CommonRoleSemanticPadding.padded_head_exact
+#print axioms Yulang.CommonRoleSemanticPadding.pattern_match_reflects
+#print axioms Yulang.CanonicalRewriteComputability.diverge_valid
+#print axioms Yulang.CanonicalRewriteComputability.runs_diverge_iff
+#print axioms Yulang.CanonicalRewriteComputability.no_self_halting_decider
+#print axioms Yulang.CommonRoleRewrite.compile_checked
+#print axioms Yulang.CommonRoleRewrite.compiled_head_iff
+#print axioms Yulang.CommonRoleRewrite.compiled_matches_iff
 
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/

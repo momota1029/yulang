@@ -579,3 +579,6 @@ import Yulang.CommonEffectRequestGeneration
 import Yulang.CommonCanonicalQualifiedFamilies
 import Yulang.CanonicalComputability
 import Yulang.CommonRoleSemanticPadding
+import Yulang.CommonRoleTreeReflection
+import Yulang.CanonicalRewriteComputability
+import Yulang.CommonRoleRewrite
