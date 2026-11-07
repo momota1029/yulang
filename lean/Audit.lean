@@ -45,6 +45,7 @@ import Lean
 #print axioms Yulang.CanonicalRegisterMachine.Routine.trace_compiled
 #print axioms Yulang.CanonicalRegisterMachine.Routine.atomic_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.branch_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.dispatch_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.clear_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.incrementList_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.drain_runs
@@ -53,6 +54,7 @@ import Lean
 #print axioms Yulang.CanonicalRegisterMachine.Routine.setConstant_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.wordTick_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.wordStore_write_frame
+#print axioms Yulang.CanonicalRegisterMachine.Routine.wordStore_update_frame
 #print axioms Yulang.CanonicalRegisterMachine.Routine.wordDivisionLoop_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.wordPop_runs
 #print axioms Yulang.CommonCanonicalRowSyntax.binding_instances_exact
@@ -81,6 +83,7 @@ import Lean
 #print axioms Yulang.CommonCanonicalSerialization.form_rename_zero_serializes
 #print axioms Yulang.CommonCanonicalSerialization.wordCode_injective
 #print axioms Yulang.CommonCanonicalSerialization.problem_stream_exact
+#print axioms Yulang.CommonCanonicalSerialization.interfaces_stream_exact
 #print axioms Yulang.CommonCanonicalWordPrograms.wordPop_token
 #print axioms Yulang.CommonCanonicalWordPrograms.emit_runs
 #print axioms Yulang.CommonCanonicalWordPrograms.repeatEmit_runs
@@ -88,6 +91,8 @@ import Lean
 #print axioms Yulang.CommonCanonicalWordPrograms.readNaturalToken_runs
 #print axioms Yulang.CommonCanonicalWordPrograms.readNaturalLoop_runs
 #print axioms Yulang.CommonCanonicalWordPrograms.readNatural_runs
+#print axioms Yulang.CommonCanonicalProgramReader.readTriple_runs
+#print axioms Yulang.CommonCanonicalProgramReader.readHeader_runs
 
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/

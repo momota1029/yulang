@@ -178,19 +178,36 @@ theorem problem_stream_exact (tests : List (Test scopes parameters)) :
   have meetExact (first : Row scopes parameters) (rest : List (Row scopes parameters)) :
       form (meetForm first rest) = meetWord (row first) (rest.map row) := by
     induction rest with
-    | nil => rfl
+    | nil => simp only [meetForm, rowForm, form, row, meetWord, rowTypeWord, List.map_nil,
+        List.cons_append, List.nil_append, List.append_assoc]
     | cons next rest ih =>
-        simp only [meetForm, form, rowForm, List.map_cons, meetWord, rowTypeWord,
-          List.singleton_append, List.cons_append, List.nil_append, List.append_assoc, ih]
+        simp only [meetForm, form, rowForm, row, List.map_cons, meetWord, rowTypeWord,
+          List.cons_append, List.nil_append, List.append_assoc, ih]
   induction tests with
   | nil => exact ⟨rfl, rfl⟩
   | cons test tests ih =>
       constructor
-      · simp only [problemFixed, form, Test.fixed, lockForm, rowForm, fixedStream,
-          List.flatMap_cons, rowTypeWord, lockWord, List.singleton_append,
-          List.cons_append, List.nil_append, List.append_assoc, ih.1]
-      · simp only [problemValue, form, Test.value, lockForm, valueStream,
-          List.flatMap_cons, lockWord, List.singleton_append, List.cons_append,
+      · simp only [problemFixed, form, Test.fixed, lockForm, rowForm, row, fixedStream,
+          List.flatMap_cons, rowTypeWord, lockWord, List.cons_append, List.nil_append, List.append_assoc, ih.1]
+      · simp only [problemValue, form, Test.value, lockForm, row, valueStream,
+          List.flatMap_cons, lockWord, List.cons_append,
           List.nil_append, List.append_assoc, ih.2, meetExact]
+
+def fixedWord (tests : List (Test scopes parameters)) : Word :=
+  [.interface] ++ natural scopes ++ natural 0 ++ fixedStream tests ++ [.typeUnit]
+
+def familyWord (tests : List (Test scopes parameters)) : Word :=
+  [.interface] ++ natural scopes ++ natural parameters ++ [.typeUnion] ++
+    fixedStream tests ++ [.typeUnit] ++ valueStream tests ++ [.typeUnit]
+
+theorem interfaces_stream_exact (tests : List (Test scopes parameters)) :
+    interface (fixedInterface tests) = fixedWord tests ∧
+    interface (familyInterface tests) = familyWord tests := by
+  have tuples := problem_stream_exact tests
+  constructor
+  · simp only [interface, fixedInterface, fixedWord, tuples.1, List.cons_append,
+      List.nil_append, List.append_assoc]
+  · simp only [interface, familyInterface, familyWord, form, form_rename_zero_serializes,
+      tuples.1, tuples.2, List.cons_append, List.nil_append, List.append_assoc]
 
 end Yulang.CommonCanonicalSerialization

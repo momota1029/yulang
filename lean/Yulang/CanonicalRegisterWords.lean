@@ -27,6 +27,36 @@ theorem wordStore_write_frame {registers : Nat} (bank : WordBank registers)
   <;> by_cases atOutput : current = output
   <;> simp_all [wordStore, write]
 
+def updateAll {registers : Nat} (values : Store registers)
+    (updates : List (Fin (registers + 1) × Nat)) : Store registers :=
+  updates.foldl (fun current update => write current update.1 update.2) values
+
+theorem wordStore_update_frame {registers : Nat} (bank : WordBank registers)
+    (frame : Store registers) (updates : List (Fin (registers + 1) × Nat))
+    (oldWord oldQuotient oldRemainder oldCountdown newWord newQuotient newRemainder newCountdown : Nat) :
+    wordStore bank (updateAll (wordStore bank frame oldWord oldQuotient oldRemainder oldCountdown) updates)
+        newWord newQuotient newRemainder newCountdown =
+      wordStore bank (updateAll frame updates) newWord newQuotient newRemainder newCountdown := by
+  have pointwise (current : Fin (registers + 1)) (first last : Store registers)
+      (equal : first current = last current) : updateAll first updates current = updateAll last updates current := by
+    induction updates generalizing first last with
+    | nil => exact equal
+    | cons update updates ih =>
+        apply ih
+        simp only [write, equal]
+  funext current
+  by_cases at3 : current = bank 3
+  · simp only [wordStore, write, at3, ↓reduceIte]
+  · by_cases at2 : current = bank 2
+    · simp only [wordStore, write, at2, ↓reduceIte]
+    · by_cases at1 : current = bank 1
+      · simp only [wordStore, write, at1, ↓reduceIte]
+      · by_cases at0 : current = bank 0
+        · simp only [wordStore, write, at0, ↓reduceIte]
+        · simp only [wordStore, write, at3, at2, at1, at0, ↓reduceIte]
+          apply pointwise
+          simp only [write, at3, at2, at1, at0, ↓reduceIte]
+
 def wordTick {registers : Nat} (bank : WordBank registers) : Routine registers :=
   branch (bank 3)
     (append (setConstant (bank 3) 63) (append (clear (bank 2)) (increment (bank 1))))

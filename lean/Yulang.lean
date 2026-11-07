@@ -596,3 +596,4 @@ import Yulang.CommonCanonicalRowTests
 import Yulang.CommonCanonicalCounterConstraints
 import Yulang.CommonCanonicalSerialization
 import Yulang.CommonCanonicalWordPrograms
+import Yulang.CommonCanonicalProgramReader

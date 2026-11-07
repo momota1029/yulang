@@ -273,6 +273,44 @@ theorem branch_runs {registers : Nat} (register : Fin (registers + 1))
       (nextValues := write values register (values register - 1)) ?_ bodyTrace
     simp only [branch, Fin.cases_zero, Op.eval, empty, ↓reduceIte]
 
+def dispatch {registers : Nat} (register : Fin (registers + 1))
+    (fallback : Routine registers) : List (Routine registers) → Routine registers
+  | [] => fallback
+  | choice :: rest => branch register choice (dispatch register fallback rest)
+
+/-- Dispatch through an explicitly finite list of routines. A valid tag is
+consumed to zero before its selected routine starts. -/
+theorem dispatch_runs {registers : Nat} (register : Fin (registers + 1))
+    (fallback : Routine registers) (choices : List (Routine registers))
+    (tag : Nat) (selected : Routine registers) (found : choices[tag]? = some selected)
+    (values finalValues : Store registers) (input : values register = tag)
+    (execution : Runs selected (write values register 0) finalValues) :
+    Runs (dispatch register fallback choices) values finalValues := by
+  induction choices generalizing tag values with
+  | nil => simp only [List.getElem?_nil] at found; cases found
+  | cons choice rest ih =>
+      cases tag with
+      | zero =>
+          have same : choice = selected := by simpa only [List.getElem?_cons_zero, Option.some.injEq] using found
+          subst selected
+          apply branch_runs
+          rw [ite_eq_left input]
+          have storeEq : write values register 0 = values := by
+            funext current
+            by_cases equal : current = register
+            · subst current
+              simp only [write, ↓reduceIte, input]
+            · simp only [write, equal, ↓reduceIte]
+          exact storeEq ▸ execution
+      | succ tag =>
+          have restFound : rest[tag]? = some selected := by
+            simpa only [List.getElem?_cons_succ] using found
+          apply branch_runs
+          rw [ite_eq_right (by omega : values register ≠ 0)]
+          apply ih tag restFound (write values register (values register - 1))
+          · simp only [write, ↓reduceIte, input, Nat.add_sub_cancel]
+          · simpa only [write_shadow] using execution
+
 end Routine
 
 end Yulang.CanonicalRegisterMachine
