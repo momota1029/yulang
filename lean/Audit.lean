@@ -4510,3 +4510,6 @@ run_cmd do
 #print axioms Yulang.CommonEffectKindedGeneration.construct_checked_field_exact
 #print axioms Yulang.CommonEffectKindedGeneration.use_checked_field_exact
 #print axioms Yulang.CommonEffectKindedHandler.generate_checked_handler_exact
+#print axioms Yulang.CommonSignedFiniteBounds.initial_allowed
+#print axioms Yulang.CommonSignedFiniteBounds.settle_models
+#print axioms Yulang.CommonSignedFiniteBounds.check_exact

@@ -660,3 +660,4 @@ import Yulang.CommonEffectInvariantIntervals
 import Yulang.CommonEffectKindedFormula
 import Yulang.CommonEffectKindedGeneration
 import Yulang.CommonEffectKindedHandler
+import Yulang.CommonSignedFiniteBounds
