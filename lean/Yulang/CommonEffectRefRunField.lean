@@ -51,4 +51,36 @@ theorem construct_ref_run_exact (signatures : List SemanticSignature) (declarati
   · intro rigid locals
     exact rigid (locals.effects 0)
 
+/-- Each use chooses its own arbitrary Common row; the captured `e` is never
+freshened along with `f`. No row-local condition is moved to the caller. -/
+theorem use_ref_run_exact (assignment : α → Computation) (value effect : α) (out : CompTerm α) :
+    (useCheckedField (scopes := scopes) (refRun value effect) out).Holds assignment ↔
+      ∃ fresh : Common.Row, Comp.le Common.model
+        (Comp.pure Common.model (runType (assignment value).1 (assignment effect).2 fresh))
+        (out.eval Common.model assignment) := by
+  rw [use_checked_field_exact]
+  simp only [refRun_wellKinded, true_and]
+  constructor
+  · intro used
+    cases used with
+    | intro locals below =>
+      exact ⟨locals.effects (⟨0, by decide⟩ : Fin 1), below⟩
+  · rintro ⟨fresh, below⟩
+    exact .intro (⟨Fin.elim0, fun _ => fresh⟩ : Locals 0 1) below
+
+def declaration (value effect : α) (nominalName fieldName : Nat) :
+    CommonEffectFieldTable.Declaration α :=
+  ⟨nominalName, [⟨fieldName, refRun value effect⟩]⟩
+
+/-- The resolved `ref` table has exactly the `run` field. Projection from that
+table implements fresh row instantiation while retaining both outer captures. -/
+theorem project_ref_run_exact (assignment : α → Computation) (value effect : α)
+    (nominalName fieldName : Nat) (out : CompTerm α) :
+    (CommonEffectFieldTable.project (scopes := scopes)
+      (declaration value effect nominalName fieldName) 0 out).Holds assignment ↔
+      ∃ fresh : Common.Row, Comp.le Common.model
+        (Comp.pure Common.model (runType (assignment value).1 (assignment effect).2 fresh))
+        (out.eval Common.model assignment) :=
+  use_ref_run_exact assignment value effect out
+
 end Yulang.CommonEffectRefRunField
