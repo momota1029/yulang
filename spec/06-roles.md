@@ -99,6 +99,10 @@ my twice(x: 'a) =
   1. 条件の型の大きさの合計が、`impl` の head の型の大きさの合計より**真に小さい**（型構築子と型変数を一個ずつ数える）。
   2. どの型変数も、条件の中での出現回数が head の中での出現回数を超えない。
 
+  **大きさの数え方（確定, 2026-11-07, ユーザーの決定）**: 大きさと出現回数は、**隠れた同名 field を取り除いた後の型**で数える（4.3: 隠れた field は型の上でも無かったことになる）。
+  `impl R {x: int, x: int}` の 2 つ目の `x` は数えないので、`where {x: int}: R` は「真に小さい」にならず、宣言時に拒否される。隠れた field の無い普通の `impl` の扱いは変わらない。
+  理由: 書いたままの大きさで数えると、隠れた field を好きなだけ足して「小さい」ことにでき、解決が停止しない registry が作れる（Lean: `CommonRoleFiniteShadowObstruction.finite_tree_registry_undecidable`）。
+
   ```yulang
   impl Display (list 'a):
       where 'a: Display          // 良い: 'a は list 'a より小さい。list (list int) → list int → int と降りて止まる

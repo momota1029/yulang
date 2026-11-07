@@ -1,6 +1,6 @@
 # B4r2: Paterson のサイズ検査から、型の意味で消える部分を除く案
 
-状態: **E2 証明済み。以下の宣言検査変更は未承認**。
+状態: **E2 証明済み。ユーザー承認済み（2026-11-07）: 推奨案（隠れた同名 field を除いてから大きさ・出現回数を数える）を採用。** `spec/06-roles.md` 6.3 に反映済み。
 主定理は `CommonRoleFiniteShadowObstruction.finite_tree_registry_undecidable`。
 承認済みの再帰型 root / head constructor 検査拒否と、旧 root-only E2 は変更していない。
 
