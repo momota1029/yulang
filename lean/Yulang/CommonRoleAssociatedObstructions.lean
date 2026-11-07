@@ -65,7 +65,16 @@ def roleDeclaration : Roles.RoleDecl where
     intro name rhs equality
     split at equality <;> simp_all
 
-def roles : Roles.RoleDecls := fun _ => roleDeclaration
+/-- The old total signature API is filled from a one-element finite table.
+Unused identifiers have no associated declarations. -/
+def roleDeclarations : List Roles.RoleDecl := [roleDeclaration]
+
+def undeclaredRole : Roles.RoleDecl where
+  arity := 0
+  assoc := fun _ => none
+  defaultsScoped := by intro _ _ impossible; cases impossible
+
+def roles : Roles.RoleDecls := fun name => (roleDeclarations[name]?).getD undeclaredRole
 
 theorem declaration_accepted : CheckedRoles.checkDatabase environment.cores = true := by
   decide +kernel
@@ -92,7 +101,7 @@ theorem associated_wellFormed : Roles.AssocWellFormed environment roles := by
         have eq : name = 0 := by
           by_cases same : name = 0
           · exact same
-          · simp [roles, roleDeclaration, same] at declared
+          · simp [roles, roleDeclarations, annotated, implementation, roleDeclaration, same] at declared
         subst name
         exact Or.inl ⟨rhsPattern.encode, rfl⟩
     · intro name rhs body

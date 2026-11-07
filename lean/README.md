@@ -1879,3 +1879,47 @@ lake env lean --trust=0 --run RunRegularInference.lean
 `sorry`、追加の公理、`native_decide` での証明を使わない。Lean が通常使う公理と、未証明の主張を公理化することを区別する。GitHubの`Lean inference kernel` workflowも、ビルドとこの監査を実行する。
 
 構文例の計算確認と一般定理も区別する。全言語の推論器、Rust との接続、公開型の表示、実行時の型安全性については、対応する定理を持つまでは完了と呼ばない。
+
+## B4 E2: Common の型同値と既存の関連型計算の障害（2026-11-07）
+
+`CommonRoleAssociatedObstructions` と `CommonRoleAssociatedExactness` は、元の B4 の
+関連型証拠保存と Common 型同値を同時に満たせない、有限の反例を与える。
+正則 goal の停止不能性や決定不能性を証明したものではない。
+
+一つの宣言 `R {x:int,x:'a}`、関連型 `value='a`、空 where を実 `Roles.AssocEnv` に符号化する。
+型構文は変数・int・bool・空 record・record field だけで、constructor の意味は固定されている。
+任意 decoder / arbitrary Theory、一般 union annotation、任意述語の行を受ける checker は使わない。
+`declaration_accepted` / `declaration_wellFormed` / `associated_wellFormed` は、前提なしで
+実 `CheckedRoles.checkDatabase`・`Roles.WellFormed`・`Roles.AssocWellFormed` を確認する。
+
+任意の有限 `hidden : Pattern` に対し、`first_order_selected` / `first_order_resolved` /
+`first_order_associated` は、head の変数を hidden で置換した実 goal の候補が一宣言であり、
+実 resolver が成功し、実 `assocOf ... 0 = some hidden.encode` となることを示す。
+`first_order_derivation` は同じ任意 hidden の実 `Roles.AssocDerives`、
+`first_order_dictionary_plan` は実辞書の消去が `.node implementation []` となることを示す。
+これらに追加の前提はない。
+
+`every_head_instance` は任意の `Nat → Common.Ty` 代入で head が `{x:int}` と要求同値になること、
+`finite_ground_associated_conflict` は int / bool の二つの実導出と同値な head、非同値な関連型を示す。
+`no_associated_value_agrees` は、全 head-matching Common 代入の関連型に一致する一つの Common 型が
+存在しないことを示す。
+
+主定理 `CommonRoleAssociatedExactness.no_common_associated_registry_extension` は、
+次の二条件を満たす関数 `select : Pattern → Option Common.Ty` が存在しないことを、前提なしで示す。
+
+1. 任意の有限 hidden/value について、hidden が ground で、実 `assocOf` が
+   `some value.encode` を返すなら、select はその有限 head に成功し、value の Common 解釈と
+   要求同値な値を返す（`PreservesComputedAssociated`）。
+2. 任意の二つの ground な有限 goal と任意の二つの成功返却値について、goal の Common 解釈が
+   要求同値なら、返却された関連型も要求同値になる（`CommonExtensional`）。
+
+`checked_registry_counterexample` は現行の全上記宣言条件と二 goal の groundness をこの不可能性と束ねる。
+一つ目の条件は既存証拠・実計算の保存、二つ目は spec 4.3 の型同値と spec 6.3 の
+「関連型は head 引数から決まる一つの型」に由来する。元 B4 のこの必要な部分が矛盾するため E2 であり、
+有限部分言語の E1 として扱わない。
+
+ordinary equation の store への連言追加は反例の対象ではない。矛盾する bounds を拒否する規則は維持する。
+qualified generator 単体の不可能性、全 parameter family の E1、K2 の停止／決定不能性、
+source semantic elaborator の完成は証明していない。修正案は
+[未承認の質問](../notes/questions/2026-11-07-b4-associated-head-recovery.md)、詳細と検証結果は
+[B4 結果](../notes/handoff/2026-11-07-m1-b4-results.md)に記す。
