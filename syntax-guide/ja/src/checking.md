@@ -25,9 +25,9 @@ cargo run --offline -p yu-syntax --example syntax_guide_check -- syntax-guide/ja
 
 ## 確認できること、できないこと
 
-2026-11-07 時点の結果: 114 ブロック中、109 が `ok`、4 が `placeholder`(`...` を含む断片)、1 が `recovery`。`recovery` の 1 件は、`act` の operation の署名の下の `where`(パーサの穴。`notes/design/2026-11-07-parser-gap-closure-addendum-2.md` の WP-17)。先に見つかった穴(lambda の record 引数、record の式の spread、対象なしの `case:` と `catch:`、後ろの arm の `-1`)は、直して `ok` になった。
-最後に残っていた、`case` の 2 番目以降の arm が隣接した `-` と整数で始まる形も、WP-15 の修正で `ok` になった。
-先に見つかった 3 件(lambda の record 引数、record の式の spread、対象なしの `case:`)と合わせて、`notes/design/2026-11-07-parser-gap-closure-addendum-2.md` の WP-12〜15 は検査を通った。
+2026-11-07 時点の結果: 114 ブロック中、110 が `ok`、4 が `placeholder`(`...` を含む断片)、`recovery` は 0。
+`act` の operation の署名の下の `where` も、WP-17 の修正で `ok` になった。
+先に見つかった穴(lambda の record 引数、record の式の spread、対象なしの `case:` と `catch:`、後ろの arm の `-1`)と合わせて、`notes/design/2026-11-07-parser-gap-closure-addendum-2.md` の WP-12〜17 は検査を通った。
 
 | 確認できる | 確認できない |
 | --- | --- |

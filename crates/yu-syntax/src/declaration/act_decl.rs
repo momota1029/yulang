@@ -628,6 +628,7 @@ fn body_from_item_normalized(
                 line_entry,
                 fence,
                 ambient,
+                crate::sequence::SequenceOwner::BracedActOperation,
             );
             let item_origin = advanced_origin(item_origin, child_entry, i.rb());
             match exit {
@@ -737,6 +738,7 @@ fn colon_body_normalized(
             line_entry,
             fence,
             ambient,
+            crate::sequence::SequenceOwner::IndentedActOperation,
         ),
         Some(_) => {
             let (item, origin, line_entry) = act_item_normalized(
@@ -910,7 +912,7 @@ fn inline_statement_normalized(
         line_entry,
         fence,
         ambient,
-        Some(crate::sequence::SequenceOwner::OwnerField),
+        Some(crate::sequence::SequenceOwner::ActOperation),
     );
     let item_origin = advanced_origin(item_origin, child_entry, i.rb());
     match exit {

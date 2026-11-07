@@ -349,6 +349,7 @@ fn body_from_item_normalized(
                 line_entry,
                 fence,
                 ambient,
+                crate::sequence::SequenceOwner::BracedOwnerField,
             );
             let item_origin = advanced_origin(item_origin, child_entry, i.rb());
             match exit {
@@ -451,6 +452,7 @@ fn colon_body_normalized(
             line_entry,
             fence,
             ambient,
+            crate::sequence::SequenceOwner::IndentedOwnerField,
         ),
         Some(_) => {
             let (item, origin, line_entry) = role_item_normalized(

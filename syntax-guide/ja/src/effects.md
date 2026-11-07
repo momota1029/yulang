@@ -25,7 +25,7 @@ act ref_update 'a:
         where 'b: Display          // handler でも 'b に Display の method が使える
 ```
 
-状態: 補完は確定。他は仮採用。**署名の下の `where` は、現在のパーサがまだ読めない**(`notes/design/2026-11-07-parser-gap-closure-addendum-2.md` の WP-17)。他の行はパース検査済み。出典: `spec/05-effects.md` 5.1。
+状態: 補完は確定。他は仮採用・パース検査済み。出典: `spec/05-effects.md` 5.1。
 
 ## `catch`(handler)
 

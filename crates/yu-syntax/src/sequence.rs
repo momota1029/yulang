@@ -26,6 +26,9 @@ pub(crate) enum SequenceOwner {
     IndentedOwnerField,
     BracedOwnerField,
     OwnerField,
+    IndentedActOperation,
+    BracedActOperation,
+    ActOperation,
     WithDeclarationDoc {
         owner: &'static SequenceOwner,
         doc: DeclarationDocContext,
@@ -76,6 +79,9 @@ impl SequenceOwner {
             Self::IndentedOwnerField => &Self::IndentedOwnerField,
             Self::BracedOwnerField => &Self::BracedOwnerField,
             Self::OwnerField => &Self::OwnerField,
+            Self::IndentedActOperation => &Self::IndentedActOperation,
+            Self::BracedActOperation => &Self::BracedActOperation,
+            Self::ActOperation => &Self::ActOperation,
             Self::WithDeclarationDoc { .. } => unreachable!(),
         };
         Self::WithDeclarationDoc { owner, doc }
@@ -105,6 +111,13 @@ impl SequenceOwner {
                 | Self::CaseInline
                 | Self::CatchInline
                 | Self::If
+        )
+    }
+
+    pub(crate) fn admits_operation_where(self) -> bool {
+        matches!(
+            self.without_declaration_doc(),
+            Self::IndentedActOperation | Self::BracedActOperation | Self::ActOperation
         )
     }
 }
