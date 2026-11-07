@@ -147,6 +147,39 @@ theorem splitBranch_child_origin (pool : Pool m) (queries : List (Query pool))
       · exact List.mem_cons.mpr (Or.inl (splitCheck_child_origin pool queries check _ edge here).symm)
       · exact List.mem_cons_of_mem _ (ih _ remaining)
 
+theorem splitBranch_child_complete (pool : Pool m) (queries : List (Query pool))
+    (branch : List (InputCheck pool)) (supported : BranchSupported queries branch)
+    (source target : BoundRef (Fin pool.size))
+    (member : Check.childBelow (.ref source) (.ref target) ∈ branch) :
+    (⟨source, (supported _ member).1⟩, ⟨target, (supported _ member).2⟩) ∈
+      (splitBranch pool queries branch supported).children := by
+  induction branch with
+  | nil => cases member
+  | cons check rest ih =>
+      rcases List.mem_cons.mp member with same | remaining
+      · subst check
+        exact List.mem_append_left _ List.mem_cons_self
+      · exact List.mem_append_right _ (ih _ remaining)
+
+theorem splitBranch_aux_complete (pool : Pool m) (queries : List (Query pool))
+    (branch : List (InputCheck pool)) (supported : BranchSupported queries branch)
+    (check : InputCheck pool) (member : check ∈ branch) (auxiliary : Auxiliary check) :
+    check ∈ (splitBranch pool queries branch supported).aux := by
+  induction branch with
+  | nil => cases member
+  | cons first rest ih =>
+      rcases List.mem_cons.mp member with same | remaining
+      · subst first
+        apply List.mem_append_left
+        cases check with
+        | rowBelow => exact List.mem_cons_self
+        | flag expression =>
+            cases expression
+            case literal => exact List.mem_cons_self
+            all_goals exact False.elim auxiliary
+        | childBelow | profileBelow => exact False.elim auxiliary
+      · exact List.mem_append_right _ (ih _ remaining)
+
 theorem splitCheck_aux_origin (pool : Pool m) (queries : List (Query pool))
     (check : InputCheck pool) (supported : CheckSupported queries check)
     (actual : InputCheck pool) (member : actual ∈ (splitCheck pool queries check supported).aux) :
