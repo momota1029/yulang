@@ -4092,3 +4092,10 @@ run_cmd do
 #print axioms Yulang.CommonNominalHeads.nominal_head_invariant_exact
 #print axioms Yulang.CommonNominalHeads.nominal_head_subtype_symmetric
 #print axioms Yulang.CommonNominalConstraints.compile_nominal_comparison_exact
+#print axioms Yulang.CommonNominalRoots.common_subtype_exact
+#print axioms Yulang.CommonNominalRoots.common_equivalent_exact
+#print axioms Yulang.CommonNominalRoots.nominal_root_invariant_exact
+#print axioms Yulang.CommonNominalRoots.common_nominal_exact
+#print axioms Yulang.CommonNominalRoots.nominal_common_exact
+#print axioms Yulang.CommonNominalRoots.bottom_le
+#print axioms Yulang.CommonNominalRoots.le_top
