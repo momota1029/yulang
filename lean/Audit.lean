@@ -3957,3 +3957,9 @@ run_cmd do
 #print axioms Yulang.CommonCanonicalArrowModule.finished_total_instances_exact
 #print axioms Yulang.CommonCanonicalArrowModule.export_canonicalEncoding_exact
 #print axioms Yulang.CommonCanonicalArrowModule.Examples.absorbed_captured_changes_EOF
+
+#print axioms Yulang.CommonCoreStrictRuntime.source_erasure
+#print axioms Yulang.CommonCoreStrictRuntime.operational_erasure
+#print axioms Yulang.CommonCoreStrictRuntime.eval_forceApplication
+#print axioms Yulang.CommonCoreStrictRuntime.eval_agrees_with_two_lets
+#print axioms Yulang.CommonCoreStrictRuntime.infer_forceApplication
