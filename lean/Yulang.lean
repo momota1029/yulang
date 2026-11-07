@@ -1004,3 +1004,5 @@ import Yulang.CommonRoleDeferredBounds
 import Yulang.CommonEffectFieldInstances
 
 import Yulang.CommonDeclaredNominalInspection
+
+import Yulang.CommonRoleIntervalRecordResidual

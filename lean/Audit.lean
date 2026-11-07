@@ -5846,3 +5846,7 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredNominalInspection.inspect_arguments_exact
 #print axioms Yulang.CommonDeclaredNominalInspection.declared_subtype_exact
 #print axioms Yulang.CommonDeclaredNominalInspection.inspect_exact
+
+#print axioms Yulang.CommonRoleIntervalRecordResidual.normalize_map
+#print axioms Yulang.CommonRoleIntervalRecordResidual.capture_map
+#print axioms Yulang.CommonRoleIntervalRecordResidual.residual_endpoints
