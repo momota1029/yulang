@@ -2069,3 +2069,14 @@ Checkpoints through 684 jobs passed; 683-job trust-zero Audit passed (56262 decl
 `CommonNominalSourceTemplateApplication` compiles every packed ordinary/full-template term with every original argument subterm and recovers the source meaning from every compiled model. `CommonNominalAtomicGraph` compiles arbitrary finite packed atom lists into a single finite template plus ordinary directed edges and symbolic row inequalities. `CommonNominalAtomicPool` lowers this to a real mixed pool and reads back all original computations literally.
 
 Checkpoints through 691 jobs passed. The 690-job full trust-zero Audit passed (56580 declarations); fresh independent trust-zero/axiom review passed for the full argument and atom-pool bridges (16889 imported declarations for the final packet). General emitted bounds remain unsolved, runtime/weak EOF bridges remain open, and B5/B1 END is not claimed.
+
+
+### B5: full nominal and Float role observations
+
+`CommonNominalUnionObservationBoundary` isolates a deficiency of the earlier nominal candidate: unions of distinct nullary nominals collapse to top. It is a candidate boundary, not a counterexample to the original B5 contract.
+
+`CommonNominalFullDemand` and `CommonNominalFullCarrier` share the actual dedicated nominal syntax and add nominal ID/arity and Float heads to arbitrary finite role environments. Their finite and regular invariance theorems quantify every depth/rank/environment and arbitrary same-carrier nested arguments. Mixed nominal/Float unions remain distinct from top, including inside invariant boxes. `CommonNominalFullFiniteConstructors` reproves structural grouping, variance and congruence.
+
+`CommonNominalFullConservativity` proves exact old Common order preservation/reflection against these arbitrary new environments, using one finite meet witness for all old arrow inputs. `CommonNominalFullModelMap` and `CommonNominalFullTypingPreservation` retain old captured typings, the exact actual `Core.infer` schemes and all their original parameters/instances. They do not prove reflection from arbitrary new typing witnesses.
+
+`CommonNominalFullGroundAdapter` keeps the actual existing ground normalization/checker exact in this refined regular carrier. Full source generation, solved families and runtime casts for the earlier candidate are not automatically transferred. Checkpoints through 702 jobs passed; the 701-job full trust-zero Audit checked 57400 declarations. Fresh independent trust-zero/axiom reviews passed. No B5/B1 END is claimed.

@@ -688,3 +688,13 @@ import Yulang.CommonNominalFullModel
 import Yulang.CommonNominalFullModelMap
 import Yulang.CommonNominalFullTypingPreservation
 import Yulang.CommonNominalFullGroundAdapter
+import Yulang.CommonNominalFullFiniteMask
+import Yulang.CommonNominalFullFinitePresence
+import Yulang.CommonNominalFullFiniteMaskOrder
+import Yulang.CommonNominalFullLayerCongruence
+import Yulang.CommonNominalFullConstructors
+import Yulang.CommonNominalFullGuardedClosure
+import Yulang.CommonPureCastTotalityBoundary
+import Yulang.CommonNominalFullSourceSubsumption
+import Yulang.CommonNominalFullStrictApplication
+import Yulang.CommonNominalFullNamedCase
