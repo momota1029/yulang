@@ -679,3 +679,5 @@ import Yulang.CommonRoleStablePaterson
 import Yulang.CommonRoleMergedCaptureBoundary
 import Yulang.CommonRoleStableRecordResidual
 import Yulang.CommonRoleSharedPayloadCapture
+import Yulang.CommonRoleCanonicalPayloadCandidates
+import Yulang.CommonRoleNominalCoverBoundary
