@@ -529,3 +529,5 @@ import Yulang.CommonCanonicalPolarityBoundary
 import Yulang.CommonCanonicalArrowFamilies
 import Yulang.CoreCommonSyntax
 import Yulang.CommonCoreStrictApplication
+
+import Yulang.CommonCanonicalArrowExports

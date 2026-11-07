@@ -3945,3 +3945,9 @@ run_cmd do
 #print axioms Yulang.CommonCoreStrictApplication.all_parameters_typed
 #print axioms Yulang.CommonCoreStrictApplication.principal
 #print axioms Yulang.CommonCoreStrictApplication.empty_iff_untypable
+
+#print axioms Yulang.CommonCanonicalArrowExports.toValue_eval
+#print axioms Yulang.CommonCanonicalArrowExports.binding_instances_exact
+#print axioms Yulang.CommonCanonicalArrowExports.scheme_instances_exact
+#print axioms Yulang.CommonCanonicalArrowExports.interface_canonicalEncoding_exact
+#print axioms Yulang.CommonCanonicalArrowExports.finishModule_exact
