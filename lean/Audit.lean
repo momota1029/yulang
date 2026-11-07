@@ -4489,3 +4489,8 @@ run_cmd do
 #print axioms Yulang.CommonEffectArrowInspection.inspect_exact
 #print axioms Yulang.CommonEffectArrowInspection.extract_exact
 #print axioms Yulang.CommonEffectArrowInspection.inspect_collected_exact
+#print axioms Yulang.CommonEffectInvariantIntervals.Value.merge_consistent
+#print axioms Yulang.CommonEffectInvariantIntervals.Value.all_instances_exact
+#print axioms Yulang.CommonEffectInvariantIntervals.EffectRow.merge_consistent
+#print axioms Yulang.CommonEffectInvariantIntervals.EffectRow.all_instances_exact
+#print axioms Yulang.CommonEffectInvariantIntervals.ValueTerms.merge_check_exact

@@ -656,3 +656,4 @@ import Yulang.CommonEffectDepthChoiceBoundary
 import Yulang.CommonEffectArrowCover
 import Yulang.CommonEffectArrowFamily
 import Yulang.CommonEffectArrowInspection
+import Yulang.CommonEffectInvariantIntervals
