@@ -4357,3 +4357,17 @@ run_cmd do
 #print axioms Yulang.CommonCaseCoreBoundedGeneration.environment_arm_exact
 #print axioms Yulang.CommonCaseCoreBoundedGeneration.generateAll_exact
 #print axioms Yulang.CommonCaseCoreBoundedGeneration.safe_generateAll
+#print axioms Yulang.CommonCaseCoreBoundedSolved.generatePremises_exact
+#print axioms Yulang.CommonCaseCoreBoundedSolved.all_parameter_premises
+#print axioms Yulang.CommonCaseCoreBoundedSolved.premises_instances_exact
+#print axioms Yulang.CommonCaseCoreBoundedSolved.no_premises_exact
+#print axioms Yulang.CommonCaseCoreBoundedSolved.canonical_case_partial_and_bound
+#print axioms Yulang.CommonCaseCoreBoundedSolved.all_parameter_canonical_case_bound
+#print axioms Yulang.CommonCaseLiteralCells.freshText_not_mem
+#print axioms Yulang.CommonCaseLiteralCells.representative_complete
+#print axioms Yulang.CommonCaseLiteralCoverage.run_literal_exact
+#print axioms Yulang.CommonCaseLiteralCoverage.accepts_congr
+#print axioms Yulang.CommonCaseLiteralCoverage.checkBase_matches_exact
+#print axioms Yulang.CommonCaseLiteralOrdered.covered_not_unmatched
+#print axioms Yulang.CommonCaseLiteralOrdered.literal_runArms_progress
+#print axioms Yulang.CommonCaseLiteralOrdered.literal_program_progress

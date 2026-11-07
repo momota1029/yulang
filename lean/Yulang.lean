@@ -660,3 +660,7 @@ import Yulang.CommonPatternCoreBoundedSolved
 import Yulang.CommonCaseBoundedObservations
 import Yulang.CommonPatternIndexedDefaultBoundary
 import Yulang.CommonCaseCoreBoundedGeneration
+import Yulang.CommonCaseCoreBoundedSolved
+import Yulang.CommonCaseLiteralCells
+import Yulang.CommonCaseLiteralCoverage
+import Yulang.CommonCaseLiteralOrdered
