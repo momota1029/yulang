@@ -68,10 +68,48 @@ subject の型付けと生成した record 上界から内部で導く。
 合わせ、終了成功なら必ず `some` に入った型付きの選択結果を持つことを示す。
 返却自体の存在／停止を結論に加えていない。
 
+## 4. 実 Core 生成・record 上界・coverage・全 parameter を一つにつなぐ
+
+`CommonCaseCoreRecordPrefixSolved.generatePremises_exact` は、任意の Core subject、有限 arm 列、
+record 仕様、任意の型／行 assignment と captured 環境を量化する。通常の二つの環境解釈関係を
+前提に、実際の有限生成が満たされることと、次の独立した前提の conjunction を同値にする。
+
+1. 元の subject と全 arm の共有環境・default/guard/body の row 上界の型付け。
+2. subject 型が指定された record 型以下であること。
+3. 全実 record に対する pure witness、または guard 無しの独立した default no-miss 証明書。
+
+`PureCoverage` は、pure pattern が source pattern の literal map image であることと、
+実 pure matcher が各 record を受理することで定義する。finite checker／solver の別名ではない。
+
+`premises_instances_exact` は、空 captured 環境と任意の `Fin 3` assignment について、
+この conjunction の全 model と、実 `solvePremises` が返す scheme の全 parameter による
+instance を同値にする。各 value slot は Common 要求同値まで、各 row は文字通り同じ値へ戻す。
+`no_premises_exact` は空の返却 list と model 不存在を同値にする。
+
+`all_parameter_case_prefixes` は、任意の実返却 scheme と**任意の**その parameter、
+任意の source/event/error 行解釈と prefix evaluator を量化する。
+既存の独立した全域契約 `CommonPatternCorePrefixBridge.EvaluationSound` を前提に、元順序の
+実 `CommonCaseComputations.eval` の全有限観測で行が返却 cap 以下となり、終了成功なら
+必ず `some` に入った、返却 target 型を持つ値になることを示す。
+domain、coverage、selected arm、default の成功、ResidualHolds は返却後の前提に置かない。
+subject の domain は、その実成功 prefix の型保存と、同じ有限生成の record 上界から導く。
+
+この結果は、既存の `all_parameter_case_prefixes` が許していた「終了成功だが全 arm miss」
+を、同じ solver family の内部で排除したもの。一般式の実 prefix producer を構成した、
+またはその adequacy を証明した、という意味ではない。
+
 ## 未完の範囲
 
 これは既存の十分な coverage 証明書の運用上の意味を拡張する定理であり、
 すべての default 依存 pattern matrix の被覆を決める算法ではない。
-全 case と返却 scheme への接続、source 一般式からの実 prefix producer と adequacy、
-source presence の合法性、list/nominal/float/merged-row の新 carrier、
-独立した全 case 型付けと公開三契約は依然区別する。B2 の E1/E2 完了とは数えない。
+record に対する coverage/environment/row-upper-bound factor と返却 scheme の接続は閉じた。
+元 B2 の残りは次のとおり。
+
+- source 一般式から実 prefix producer を構成し、`EvaluationSound` と実実行の adequacy を証明する。
+  現在の data-only value carrier では関数などをまだ表さないため、B3/B5 の橋が必要。
+- required field の default 拒否を含む、source presence metadata の合法性を有限生成へ接続する。
+- list/nominal/float/merged-row を含む declaration-aware carrier と全 pattern judgment を接続する。
+- すべての default 依存 matrix を扱う coverage と、guard／failure／静的行の全 case 規則を確定・証明する。
+- その独立した full case 型付けと実生成の iff、同一の公開三契約を閉じる。
+
+B2 の E1/E2 完了とは数えない。optional field と到達不能 arm の静的行の既存の問いは変更していない。

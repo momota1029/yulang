@@ -5894,3 +5894,14 @@ run_cmd do
 #print axioms Yulang.CommonCasePrefixCoverage.covered_noMiss
 #print axioms Yulang.CommonCasePrefixCoverage.eval_noMiss
 #print axioms Yulang.CommonCasePrefixCoverage.safe_selected_result
+
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.pure_coverage_exact
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.coverage_exact
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.generatePremises_exact
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.principal_safe
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.principal_exact
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.all_parameter_premises
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.premises_instances_exact
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.no_premises_exact
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.case_prefixes
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.all_parameter_case_prefixes

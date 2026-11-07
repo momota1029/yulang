@@ -1020,3 +1020,5 @@ import Yulang.CommonRoleIntervalReadyChain
 import Yulang.CommonPurePatternPrefixNoMiss
 
 import Yulang.CommonCasePrefixCoverage
+
+import Yulang.CommonCaseCoreRecordPrefixSolved
