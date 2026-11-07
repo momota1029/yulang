@@ -674,3 +674,4 @@ import Yulang.CommonRoleMergedHalting
 import Yulang.CommonRoleMergedObstruction
 import Yulang.CommonRoleMergedSemantic
 import Yulang.CommonRoleMergedExamples
+import Yulang.CommonRoleCaptureNormalization

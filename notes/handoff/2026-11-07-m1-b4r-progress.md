@@ -740,3 +740,19 @@ parserの重複variant tag例はok1/recovery0。実merge→実head bridgeは証�
 開始HEADからのappend-onlyと既存proof無変更を機械検査した。公開入口/spec/旧結果の変更、commit/push/networkなし。
 全E1、全Common N/regular matcher、一般finite-tree/nominal agreement、qualified実生成と全family、source/B6統合は残る。
 これらを前提へ移して同名E1を閉じていない。元全称core-registry契約へのE2として終了する。
+
+# B4r5 開始（2026-11-07）
+
+開始HEAD 0579a6caccb212ecc8934e6e20d3e1c930e6db10。
+承認済みのvariant payload合流後size/occurrenceと、existential substitution addendumを読んだ。
+旧B4r4 E2は旧size ruleへの定理として保存し、現規則のE2として使わない。
+独立grammar auditはaliasesの事前展開、rigid pair/arrow/variantのCommon injectivity、
+nominal opaque/invariant、effect rowのextensional表現、associated projection禁止、
+record first-wins/orderとvariant tag合流を点検した。
+optional-anyのsemantic vacuityは既存定理にあるが、optional表示をsource head構文と勝手に読み替えない。
+
+新しい局所候補は、直接role引数で'a=intを捕捉した後に、以前は異なった二variant payloadが一致する場合。
+これは恣意的なexistential substitutionでないが、宣言時checkと遅延merge後checkの接続がspecで未指定。
+E2とは扱わず、質問を一つ `2026-11-07-b4r5-capture-before-size.md` に置いた。
+その間、symbolic check / instance再check / capture-safe declaration checkの各場合を分けて形式化する。
+prover role設定とcallable schemaは今回も不在。primaryが構成し、別agentへ独立auditを依頼した。
