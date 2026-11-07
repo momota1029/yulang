@@ -5991,3 +5991,7 @@ run_cmd do
 #print axioms Yulang.CommonRoleClosedIntervalRecordGeneration.compile_exact
 
 #print axioms Yulang.CommonRoleClosedRecordResidual.capture_tail_exact
+
+#print axioms Yulang.CommonCoreDataEvaluation.supported_of_check
+#print axioms Yulang.CommonCoreDataEvaluation.supported_exact
+#print axioms Yulang.CommonCoreDataEvaluation.typing_evaluates

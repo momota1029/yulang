@@ -115,6 +115,26 @@ source presence annotation を解決したという主張も加えていない�
 `--trust=0` による `real_generated_model` / `real_scheme_instance` の監査で、許可された
 `propext` / `Classical.choice` / `Quot.sound` 以外の公理は使わない。
 
+## 6. 元の indexed Core data を実行する有限 evaluator
+
+`CommonCoreDataEvaluation` は、元の `Required.Term` の literal/data/var/pair/fst/snd/
+emptyRecord/record/recordDefault/field/variant/leaf を直接評価する。
+Core index をそのまま環境の添字に使い、shadow された名前で再解決しない。
+全 source visit を trace に記録し、record の二項は既存 data evaluator と同じ書かれた順序で
+評価する。pattern default の遅延は、引き続き元 canonical matcher 側が決める。
+関数・再帰・effect・let・nested case などは、明示的な `unsupported` error になる。
+unsupported を silent computation に変えて全域安全性を得る方法は取らない。
+
+`typing_evaluates` は、上の独立した `Supported` fragment の任意の元 Core term、
+任意の indexed captured environment と全 result computation について、通常の独立した
+Common constructor typing と環境内各 binding instance の値型から、実 evaluator の成功と
+返却値型を導く。成功・停止・interpreter soundness を前提にしない。
+`supported_exact` は有限 Bool gate と独立した fragment 構文を同値にする。
+この局所での停止は有限で効果のない選択済み fragment の性質であり、一般 default には課さない。
+
+検証: 新 module の warnings-as-errors build と `trust=0` 監査が成功。
+この packet の時点では source gate と prefix family の接続は次の作業である。
+
 ## 未完の範囲
 
 これは既存の十分な coverage 証明書の運用上の意味を拡張する定理であり、
