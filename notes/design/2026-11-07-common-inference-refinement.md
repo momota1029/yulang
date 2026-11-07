@@ -126,7 +126,10 @@ r₁ = p₀ ∪ p₁
 `RowFlowSchemes.solve_models_exact` と共通 family の `build_retract` は、このように共有を残した全解の契約を持つ。
 型でも一つの最小型だけを返して、負位置を含む全 parameter family の代わりにはしない。
 
-現在の row-flow solver には、operation head、protect/release、handler 境界の変換は入っていない。
+`RowFlowSchemes` 本体には、operation head、protect/release、handler 境界の変換は入っていない。
+今回の [CommonRowHeadSolver](../../lean/Yulang/CommonRowHeadSolver.lean) は、その上に有限の occurrence head を追加し、
+全 independent rows の literal retraction と全自由 parameter の健全性まで閉じた参照拡張である。
+head の追加は高速化ではなく、protect/release/residual と handler 全称は依然としてその範囲外である。
 それらには [Directed](../../lean/Yulang/Directed.lean)、[RowInference](../../lean/Yulang/RowInference.lean)、
 [CoreEffectTyping](../../lean/Yulang/CoreEffectTyping.lean) の別の意味と規則がある。
 将来は変換を辺のラベルや専用 node として保持し、各変換と包含の保存を示した範囲で同じ伝播基盤を使う。
@@ -183,7 +186,7 @@ solver の成功や fuel を型判断側の前提にしない。
 現段階の接続先は [Core.CommonSyntax](../../lean/Yulang/CoreCommonSyntax.lean) と
 [CommonSolvedCoreSyntax](../../lean/Yulang/CommonSolvedCoreSyntax.lean) である。
 後者の `principal` / `all_parameter_sound` は実 finite source solver との合成になっている。
-公開 `Core.infer` をこの経路へつなぐ際も、独立判断の範囲を同じように表示する。
+公開 `Core.infer` はこの経路につながり、独立判断の範囲を同じように表示する。旧入口は `Core.PresenceOnly.infer` に保持する。
 現 `Signature.empty` では literal の int/str/bool/unit、構造的 data、strict application、
 singleton unguarded bind-pattern case、leaf が presence 構文の内部へ再帰的に接続される。
 float、nil/cons・nominal data、一般 case、effect/handler、role/method、nominal/cast 全体の接続を含めない。
