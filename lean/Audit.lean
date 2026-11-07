@@ -5916,3 +5916,8 @@ run_cmd do
 #print axioms Yulang.CommonCaseCoreRecordPrefixExamples.premises
 #print axioms Yulang.CommonCaseCoreRecordPrefixExamples.real_generated_model
 #print axioms Yulang.CommonCaseCoreRecordPrefixExamples.real_scheme_instance
+
+#print axioms Yulang.CommonDeclaredNominalSlots.inspect_all_exact
+#print axioms Yulang.CommonDeclaredNominalSlots.AllSlots.append
+#print axioms Yulang.CommonDeclaredNominalSlots.inspect_all_slots
+#print axioms Yulang.CommonDeclaredNominalSlots.inspect_all_grammar

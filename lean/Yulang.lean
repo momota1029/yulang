@@ -1024,3 +1024,5 @@ import Yulang.CommonCasePrefixCoverage
 import Yulang.CommonCaseCoreRecordPrefixSolved
 
 import Yulang.CommonCaseCoreRecordPrefixExamples
+
+import Yulang.CommonDeclaredNominalSlots

@@ -36,3 +36,23 @@ open bounds は元共有 slot に別途積む。再帰的な source 宣言から
 検証: `lake build --wfail Yulang.CommonDeclaredNominalInspection` と
 `lake build --wfail` は終了コード 0。新主要 theorem 三つの直接 `trust=0` 公理監査は
 すべて `[propext, Quot.sound]` のみ。共有 `Audit.lean` への登録と統合後の全体監査は親が行う。
+
+## 2. 元共有 slot への特殊化と solver 文法の内部導出
+
+`lean/Yulang/CommonDeclaredNominalSlots.lean` は、上の実 inspector に、元の型／行変数を
+そのまま引数として渡す。別の比較アルゴリズムへ置き換えていない。
+
+- `inspect_all_exact`: 任意の有限宣言表、任意の有限 nominal 比較列、任意の独立な元 computation
+  assignment について、実 `inspectAll` の返す有限 atom 列の全充足 iff 同じ assignment での
+  全元比較の declaration-validated demand 順序。複数比較と複数引数に同じ slot が現れれば、
+  一つの値／行をそのまま共有する。
+- `inspect_all_grammar`: 任意の有限宣言表・任意の元 slot 比較列・任意の実返却 atom 列について、
+  返却 atom は既存 `CommonBoundRefSolvedExact` が要求する child grammar・width atoms・row shape
+  の三つをすべて満たす。これらは inspector の出力から証明され、parameter への条件ではない。
+
+このため、既存 source が生成した clause に宣言 variance の slot 制約を追加しても、
+既存の Common worklist と全 parameter family を再利用できる。次の packet で接続する。
+full nominal source の構築や、再帰 nominal carrier の実装を完了したとは主張しない。
+
+検証: 対象 module の `lake build --wfail` と全体 build が成功。
+上の二定理の直接 `trust=0` 監査は `[propext, Quot.sound]` のみ。
