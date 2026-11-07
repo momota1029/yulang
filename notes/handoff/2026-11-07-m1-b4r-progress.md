@@ -890,3 +890,15 @@ prover role不在、primary構成/別agent監査。既存proof/spec/公開入口
 B4r6最終文書reviewも通過。全45定理の名前/日本語量化/前提とAudit登録、688jobs/56666allowlistの記録を独立確認。
 componentをfull E1にせず、固定completionを運用上の存在captureにせず、未決一問を勝手に採用しない境界に阻害事項なし。
 第六回もE1/E2には未到達。元contractのexistential-substitution addendumに従い、操作的capture規則のユーザー判断が必要。
+
+# B4r7 開始（2026-11-08、成果物名は原契約の2026-11-07を維持）
+
+開始HEAD 0216852d96a3fc88f29a0a615ab74baf587b0802、clean tree。
+spec6.3のplain variable branchは両方へ合流payloadをそのまま捕捉する承認を読んだ。
+旧数学的completionの存在をruntime選択とせず、有限で計算する共有captureと承認済み曖昧性を新moduleで形式化する。
+prover設定/live roleは不在のためprimary構成、別agentへnonvariable branchの独立auditを依頼した。
+
+tupleの共有component projectionとwhole再構築チェックはCommon意味の完全性に必要だが、
+より強い未指定点として、invariant nominalの複数alternativeは引数合流で一つにまとめられない。
+保持されたnominal alternativeへの有限coverをhead matcherが許すかを一問候補として点検する。
+任意Common splitやE2は仮定しない。

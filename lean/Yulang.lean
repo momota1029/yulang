@@ -678,3 +678,4 @@ import Yulang.CommonRoleCaptureNormalization
 import Yulang.CommonRoleStablePaterson
 import Yulang.CommonRoleMergedCaptureBoundary
 import Yulang.CommonRoleStableRecordResidual
+import Yulang.CommonRoleSharedPayloadCapture
