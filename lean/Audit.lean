@@ -4005,3 +4005,10 @@ run_cmd do
 #print axioms Yulang.CommonCanonicalCurriedFamilies.canonicalEncoding_exact
 #print axioms Yulang.CommonCanonicalCurriedFamilies.Examples.shared_joined_instances
 #print axioms Yulang.CommonCanonicalCurriedFamilies.Examples.second_argument_sharing_matters
+
+#print axioms Yulang.CommonCanonicalCurriedExports.toSpine_eval
+#print axioms Yulang.CommonCanonicalCurriedExports.toValue_eval
+#print axioms Yulang.CommonCanonicalCurriedExports.binding_instances_exact
+#print axioms Yulang.CommonCanonicalCurriedExports.scheme_instances_exact
+#print axioms Yulang.CommonCanonicalCurriedExports.interface_canonicalEncoding_exact
+#print axioms Yulang.CommonCanonicalCurriedExports.finishModule_exact
