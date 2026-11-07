@@ -4150,3 +4150,20 @@ run_cmd do
 #print axioms Yulang.CommonLegacyGraphSupport.common_finite_support
 
 #print axioms Yulang.CommonLegacyGraphSupport.old_representative
+#print axioms Yulang.CommonLegacyLayerErasure.eval_erasure
+
+#print axioms Yulang.CommonLegacyLayerErasure.erase_support
+#print axioms Yulang.CommonLegacyRegularErasure.observe_erasure
+
+#print axioms Yulang.CommonLegacyRegularErasure.graph_finite_support
+
+#print axioms Yulang.CommonLegacyRegularErasure.eraseType_observe
+
+#print axioms Yulang.CommonLegacyRegularErasure.eraseType_mono
+
+#print axioms Yulang.CommonLegacyRegularErasure.eraseType_embed_observe
+#print axioms Yulang.CommonLegacySharedWitnesses.row_eval
+
+#print axioms Yulang.CommonLegacySharedWitnesses.eval_translation_observe
+
+#print axioms Yulang.CommonLegacySharedWitnesses.formula_reflected

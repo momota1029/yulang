@@ -555,6 +555,9 @@ import Yulang.CommonLegacyRecordErasure
 import Yulang.CommonLegacyFiniteErasure
 import Yulang.CommonLegacyTruncation
 import Yulang.CommonLegacyGraphSupport
+import Yulang.CommonLegacyLayerErasure
+import Yulang.CommonLegacyRegularErasure
+import Yulang.CommonLegacySharedWitnesses
 
 import Yulang.CommonRowHeadFlow
 
