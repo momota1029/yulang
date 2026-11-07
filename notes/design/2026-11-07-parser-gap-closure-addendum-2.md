@@ -10,7 +10,7 @@ Approved-by: user, 2026-11-07 (decision to fix the three gaps; the three answers
 
 Extends: `2026-11-04-parser-gap-closure-addendum.md` (same common rules, §2 there, apply unchanged).
 
-Scope: grammar and CST for three forms (WP-12 to WP-14, WP-16) and one layout boundary (WP-15) that `spec/` promises and the parser rejects. Recorded in `spec/parser-gaps.md` on 2026-11-07. This memo changes no semantics, name resolution or HIR. The meaning of each form is in `spec/03-expressions.md` (3.1, 3.4, 3.7).
+Scope: grammar and CST for three forms (WP-12 to WP-14, WP-16, WP-17) and one layout boundary (WP-15) that `spec/` promises and the parser rejects. Recorded in `spec/parser-gaps.md` on 2026-11-07. This memo changes no semantics, name resolution or HIR. The meaning of each form is in `spec/03-expressions.md` (3.1, 3.4, 3.7).
 
 ## 1. User decisions (fixed)
 
@@ -78,6 +78,19 @@ Admission: as WP-14, only for `catch` followed directly (same line) by `:`; `cat
 Contexts to cover: after `=` in a `my` binding, as a pipeline target (`x | catch:` followed by indented arms), inside parentheses, nested in an arm.
 Pins that may change: tests that pin `catch:` as `CatchScrutinee` with a `Missing`. WP-14 added fixtures stating that `catch:` keeps its old CST; those fixtures change, and each must be named with its reason in the report.
 Out of scope: the meaning of `x | catch:` (spec E7), arms with several arguments.
+
+### WP-17 `where` under an `act` operation signature
+
+Found on 2026-11-07 by the syntax-guide example check. `spec/05-effects.md` 5.1 (confirmed 2026-11-05): "an `act` operation's signature can have a `where` written below the signature".
+```yulang
+act ref_update 'a:
+    our log: 'b -> ()
+        where 'b: Display
+```
+Today every variant fails (`RawError ": Display"` at the colon after `'b`): the line is read as an ordinary expression (`where 'b`) followed by a colon application, because the operation member has no `where` admission. A `where` clause on a `my` binding (spec 6.3) already parses, so a `WhereClause` node exists.
+CST (by analogy with the existing binding `where`, for review): reuse the existing `WhereClause` node; no new kind. It becomes the last child of the node that holds the operation signature, after the signature type, with its own layout (a deeper-indented line below the signature). Use whatever node and trivia ownership the binding/role/impl `where` already uses; do not invent a second shape.
+Scope: the `where` below an operation signature inside `act` (indented, own line). The same-line form (`our log: 'b -> () where 'b: Display`) follows whatever the binding `where` does on one line; do not add a form the binding `where` lacks. A `where` below a `role` method signature is NOT promised by the spec (a `role` body `where` is inherited by its methods, spec 6.3) and is out of scope: report what it does today, do not change it.
+A nested-block `where` must keep building no `WhereClause` (see the contract in the WP-5 result of the 2026-11-04 addendum: `nested_statement_blocks_do_not_enable_declaration_where_prefixes`). Pins that may change: tests that pin an operation signature followed by an indented `where` line as a recovery case. Name each and its reason.
 
 ## 4. Order
 
