@@ -4422,3 +4422,11 @@ run_cmd do
 #print axioms Yulang.CommonCaseRecordDefaultExamples.real_generated_model
 #print axioms Yulang.CommonCaseRecordDefaultExamples.real_scheme_instance
 #print axioms Yulang.CommonCaseRecordDefaultExamples.actual_result
+#print axioms Yulang.CommonOptionalField.generate_exact
+#print axioms Yulang.CommonOptionalField.safe_generate
+#print axioms Yulang.CommonOptionalFieldSafety.typing_matches_partial
+#print axioms Yulang.CommonOptionalFieldSafety.actual_returns_typed
+#print axioms Yulang.CommonOptionalFieldBoundary.permissive_typed
+#print axioms Yulang.CommonOptionalFieldBoundary.strict_rejects
+#print axioms Yulang.CommonOptionalFieldBoundary.generated_model
+#print axioms Yulang.CommonOptionalFieldBoundary.real_scheme_instance

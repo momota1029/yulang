@@ -1989,3 +1989,17 @@ default-containing armsは元実行列に残り、source first-matchの順序・
 全返却schemeの任意parameterで、追加の残余条件なしに元finite-data Programの型付きok some返却まで導く。
 これもfull B2の代用ではない。全default寄与coverage、presence、B5全carrier、一般Core/effect実行、
 aggregate/failure row、独立full case Typingと公開三契約の統合は引き続き未閉である。
+
+## B2 追加: default no-miss証明書と局所field規則の境界
+
+`CommonPatternNoMiss` / `CommonRecordNoMiss` はerrorを許しok-noneだけを除く独立十分証明書を扱う。
+欠損fieldのdefaultが任意値を返しても子patternが合う場合、成功・停止を仮定せず、その有限実観測はmissしない。
+`CommonCaseRecordDefaultCoverage` は純粋joint cellsと証明書を併用し、元ordered evaluatorの未一致を除く。
+`CommonCaseRecordDefaultFamily` は同じ制約・全Models・任意parameter・source data実行progressを結ぶ。
+`CommonCaseRecordDefaultExamples` のdefault-only例はpure armなしで実model/実scheme instanceと実fallback返却を持つ。
+これらは全default依存matrixの拒否完全性を主張しない。
+
+`CommonOptionalField*` はoptional入力を許す局所field規則の有限生成・部分正当性と、既存required規則との差を示す。
+採用するsource規則は [optional fieldの問い](../notes/questions/2026-11-07-b2-optional-field-case-pattern.md) に分離してある。
+両childは既存構造判断のままで、fullsource再帰規則を置換した証明ではない。
+元B2の完了条件・公開入口・既存required判断は変更していない。

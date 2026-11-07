@@ -683,3 +683,6 @@ import Yulang.CommonRecordNoMiss
 import Yulang.CommonCaseRecordDefaultCoverage
 import Yulang.CommonCaseRecordDefaultFamily
 import Yulang.CommonCaseRecordDefaultExamples
+import Yulang.CommonOptionalField
+import Yulang.CommonOptionalFieldSafety
+import Yulang.CommonOptionalFieldBoundary
