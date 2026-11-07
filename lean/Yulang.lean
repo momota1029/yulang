@@ -495,3 +495,5 @@ import Yulang.CommonClampedRowFamily
 import Yulang.CommonBoundRefSolvedRows
 import Yulang.CommonBoundRefSolved
 import Yulang.CommonBoundRefSolvedExact
+import Yulang.CommonPresenceSolvedSource
+import Yulang.CoreCommonInference
