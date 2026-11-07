@@ -4338,3 +4338,6 @@ run_cmd do
 #print axioms Yulang.CommonNominalOpenTailSolver.graph_models_types_congr
 #print axioms Yulang.CommonNominalOpenTailSolver.all_parameters_models
 #print axioms Yulang.CommonNominalOpenTailSolver.solve_all_instances_exact
+#print axioms Yulang.CommonNominalClampedGraphFamily.all_parameters_realizes
+#print axioms Yulang.CommonNominalClampedGraphFamily.all_parameters_flexible_edges
+#print axioms Yulang.CommonNominalClampedGraphFamily.all_models_retraction

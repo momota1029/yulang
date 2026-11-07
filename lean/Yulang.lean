@@ -643,3 +643,4 @@ import Yulang.CommonNominalPresenceTailElimination
 import Yulang.CommonNominalPresenceTailLayers
 import Yulang.CommonNominalPresenceTailRegular
 import Yulang.CommonNominalOpenTailSolver
+import Yulang.CommonNominalClampedGraphFamily

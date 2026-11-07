@@ -2008,3 +2008,11 @@ source は元 CommonSyntax/Signature.empty 判断の対象範囲であり、comp
 `CommonNominalTailElimination` / `CommonNominalRecordTailElimination` は任意新 regular nominal/float atoms と
 非 guarded ref/union/inter/mask/record-tail equations の全無制約 parameter family と全元 slot 回収を示す。
 `CommonNominalDefault` は全新 source/fallback に対する whole default congruence と demand 保持を補う。
+
+
+`CommonNominalPresenceTailElimination` / `CommonNominalPresenceTailLayers` / `CommonNominalPresenceTailRegular` は
+whole default source と任意混在 guarded payload / positive same-depth tail equations を同じ node IDs で実際に閉じる。
+全自由新 Ty parameter が元 Models、全元 node は要求同値で同時回収される。深さ零の default と負/不変引数も保持する。
+`CommonNominalOpenTailSolver` はこの実閉包へ symbolic signed literal rows の全 inequality solver と自由型 directed flows を合流し、
+無制約 row/type/node parameter product で全元行を等号、全自由型/全 node を要求同値で回収する。
+constructed-node type edges、自由 slot と constructed-node の等価、full source bound solver は未完である。
