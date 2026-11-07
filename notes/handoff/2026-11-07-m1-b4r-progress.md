@@ -857,3 +857,36 @@ prover roleは今回も不在。primaryが構成し、別agentの独立design au
 
 検証: `cd lean && lake build --wfail` exit0（687 jobs）。独立focused trust0/warning-as-error exit0。
 これはcanonical solverがどちらのcompletionを選ぶかを仮定した定理ではない。question一問に記録した未指定の運用判断を勝手に埋めていない。
+
+## B4r6 checkpoint 3: canonical record residualのstable branch
+
+新規 `CommonRoleStableRecordResidual`。payload型と重みは任意。
+閉じた主張:
+
+- `lookup_member`: 任意label,row,payloadで実lookup=some payloadならentryはrow所属。
+- `matching_explicit_entry`: 任意labels,具体goalで宣言check=trueかつ実label headMatches=trueなら、normalize goal所属かつlabels内labelのentryが存在。
+- `capture_is_normal`: 任意labels,goalで実canonical captureはfirst-wins N固定。
+- `residual_count_le`: 任意payload occurrence重み,labels,rowで実residual filterはcount非増加。
+- `checked_residual_decreases`: 任意labels,具体goal,check=true,実label headMatches=true、任意size重み/任意name別occurrence重みで、実canonical captureのsizeは元goalより真に小さく、全nameのoccurrenceは非増加。
+- `repeated_label_allowed` / `empty_head_rejected`: 任意labelの重複label列はbranch check=true、空label列はfalse。
+
+検証: `cd lean && lake build --wfail` exit0（688 jobs）。fresh independent auditはtrust0/warning-as-error exit0。
+これはpayload照合全体やfull source checkerではなく、実残余計算のdescent component。tailを任意のmasked Common代入としていない。
+
+## B4r6 gateと未指定capture境界
+
+`cd lean && lake build --wfail` exit0（688 jobs）。
+`cd lean && lake env lean --trust=0 Audit.lean` exit0、allowlist56666 declarations。
+全45新規theoremを登録、追加公理/sorry/native_decideなし。
+二つの独立reviewはchecker sandwich proof、全Form代入の量化、実WF、実record lookup/capture、固定completionと運用captureの区別を確認。
+terminal例のparser probeはok1/recovery0。
+
+新results `2026-11-07-m1-b4r6-results.md`、設計note、README追記はcomponent/full目標の境界とE1/E2未到達を明記。
+新questionは一問のみ。二択を曖昧性（推奨canonical共有捕捉）と全体保留に分け、ユーザー判断が一回答で定まる形にした。
+未指定のhead captureを任意Common存在代入で埋めず、現語へのE2を出していない。
+fullCommon/source checker、全regular matcher/resolver/exact dictionary、finite-tree/nominal agreement、qualified実生成/全familyは残る。
+prover role不在、primary構成/別agent監査。既存proof/spec/公開入口/旧結果は変更せず、許可追記と新moduleのみ。
+
+B4r6最終文書reviewも通過。全45定理の名前/日本語量化/前提とAudit登録、688jobs/56666allowlistの記録を独立確認。
+componentをfull E1にせず、固定completionを運用上の存在captureにせず、未決一問を勝手に採用しない境界に阻害事項なし。
+第六回もE1/E2には未到達。元contractのexistential-substitution addendumに従い、操作的capture規則のユーザー判断が必要。

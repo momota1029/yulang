@@ -2122,3 +2122,23 @@ spec6.3の宣言時checkと遅延merge後checkの接続を [一問](../notes/que
 この点を独断で決めてE2にしていない。拒否先行も従来どおり未決の作業上の選択。
 [局所結果と全量化](../notes/handoff/2026-11-07-m1-b4r5-results.md)、
 [head grammar監査と正確な不足](../notes/design/2026-11-07-b4r5-head-grammar-and-capture.md)。
+
+## B4r6: substitution-stable checker component（2026-11-07）
+
+承認済みの「捕捉後mergeにも安全な宣言check」を、head lower / child upper boundで形式化した。
+`CommonRoleStablePaterson.check_sound` はrecursive idempotence-stageの任意有限Form代入について、
+N後のsize真下降と全occurrence非増加を証明する。Boolcheckは実CheckedRolesを計算し、実toImplのWFも導く。
+unary下降、pair再構築、同一payload重複、定数child、任意terminal headを受理し、第五回例を宣言時に拒否する。
+`CommonRoleStableRecordResidual.checked_residual_decreases` は任意payload/重みで、実lookupから計算したcanonical残余の真下降とocc非増加を示す。
+
+| 項目 | 今回証明したこと | 何が未証明か |
+| --- | --- | --- |
+| stable checker | finite Form全代入のN後size/occ soundness、実WF、普通の下降/再構築/重複を受理 | full Common/source Nとchecker、全regular captureへの統合 |
+| record tail | actual label lookupとcanonical residualで任意payload重みの真下降、occ非増加 | 全payload照合・rebuilding whereとfull checkerへの統合 |
+| head matching | terminal二宣言が新条件/WF/HDAを通り、固定二数学的completionが同head意味を与えること | 合流前impl変数の実capture規則、全候補集合の有限計算と独立iff |
+| 全B4 / qualified | 正確なmissing matcher/下降/qualified lemmaを設計noteに記載 | E1/E2未到達。全域resolver/全実dictionary、一般finite-tree/nominal agreement、qualified実生成と全family |
+
+合流前のimpl変数をどう決めるかで曖昧性/保留が変わる [一問](../notes/questions/2026-11-07-b4r6-merged-head-capture.md) を置いた。
+任意Common completion存在を実captureへ読み替えて新E2にしていない。拒否先行は依然working choice。
+[第六回の全量化・検証・残り](../notes/handoff/2026-11-07-m1-b4r6-results.md)、
+[checker設計と代案](../notes/design/2026-11-07-b4r6-stable-envelopes-and-capture.md)。
