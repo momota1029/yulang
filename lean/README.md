@@ -2445,3 +2445,161 @@ positional Coreにnamed lookup-invarianceを仮定せず、canonical matcherを�
 モデル回収のvalue demand-equivalenceは一般区間を一点へ畳む規則ではない。
 point-invariant nominal補題を使えるのはcollapsed lower=upper=Tの場合だけで、一般区間のsource橋は未証明。
 pattern restのwhole-record照合と、型/roleのdeferred subtraction tailも別の義務として保持する。
+
+## M1 B3: signed row 求解と全称生成の補助結果（親契約は未完）
+
+2026-11-07 の B3 作業は、新しいモジュールだけで以下を追加した。公開 `Core.infer`、
+`Core.CommonSyntax`、既存の型判断は変更していない。二つの親契約
+`generate_common_effect_finite_exact` / `solve_common_effect_all_instances_exact` は未完である。
+進行中の量化・前提と残りは [B3 作業記録](../notes/handoff/2026-11-07-m1-b3-progress.md) に記す。
+
+- `CommonSignedSafetyDecision.check_exact` は、任意 finite signed/residual graph、任意 slot、
+  任意 Common occurrence について、pure sink に到達しないことの停止する Boolean 判定と iff。
+  key と座標数ごとの候補準備・削除を使い、重みや cycle を打ち切らない。
+  特定の target occurrence への path membership の判定ではない。
+- `CommonSignedGraphSolver.solve_all_instances_exact` / `all_parameters_models` は、任意 finite
+  signed graph、required heads、pure sinks を同時に解く。返却 scheme は finite graph で、
+  任意の無制約 row parameters が Models を満たし、全 original rows を文字どおり回収する。
+- `CommonSignedConstraintCompilation.compile_exact` / `solve_all_instances_exact` は、実際の
+  finite signed RowExpr の lower bounds を共有 graph に compile して解く。upper は元変数/空行。
+  `CommonSignedValueExpressionSolver.generated_all_instances_exact` は、その実 row 求解を
+  presence-generated clause の値 solver と合成し、独立 rows と全 value nodes を回収する。
+- `CommonEffectFormula` / `CommonEffectPresence` は、signed rows と local 型の存在/全称 binder を
+  持つ有限 scheme の rename/substitution/具体化と、通常 presence 構文での再帰生成を扱う。
+  exact empty、required field、strict default と captured poly let を保つ。
+- `CommonEffectHandlerGeneration` / `CommonEffectArmGeneration` は、一段の handler と
+  ragged な複数 operation arm を有限構文へ生成する。外側 input/returned/環境/結果を固定し、
+  `∀ joint locals, ∃ operated` の順を保つ。shallow resumption は元 action の行を持つ。
+- `CommonEffectUniversalPayload` / `CommonEffectUniversalResumption` /
+  `CommonEffectUniversalSelfResponse` は、実生成された特定 arm の local 全称検査を有限比較へ消す。
+  self-response の `k payload` は任意個の arm、任意 local 数、任意 finite 型本体を許す。
+  `CommonEffectRowQuantifiers` は row-only formula の local 型 binder を全て消す。
+
+これらから一般の coupled value/row arm の全称消去は従わない。再帰的 effect source/binding 判断、
+有限注釈からの permission 抽出、一般化直前の visible effect 検査も未接続である。
+既存 `Core.Expr.boundary` の任意関数 mask を finite input として取り込むことはしない。
+また、kind-correct な finite 宣言でも旧 presence の child grammar に入るとは限らない。
+`CommonEffectGrammarBoundary` が top-input の実反例を示し、`CommonEffectTypeNormalisation` は
+その例を意味保存で前処理するが、全宣言の grammar 完了ではない。
+
+## M1 B3 追補: 再帰 effect 判断と量化の有限前処理
+
+`CommonEffectRecursiveSource` / `CommonEffectRecursiveGeneration` /
+`CommonEffectRecursiveExact.generate_recursive_effect_exact` は、同じ独立判断と有限 generator で
+通常 presence の全構成子、request、finite protect/release boundary、single/multi universal handler、
+その再帰 source を保存する poly let を扱う。宣言解釈一致と新旧環境対応以外の意味条件を加えない。
+multi-handler の return 値と残余行の包含は全称 arm の外にあり、0-arm でも残る。
+注釈から抽出済みの finite permission が入力であり、可視性の source 抽出を証明したものではない。
+
+`CommonEffectPolarity` / `CommonEffectPolarityElimination` は、型と行が結合する有限 Formula 全体で
+構文的な local 型の極性を検査し、最厳の top/bottom substitution により全称 binder を消す。
+全 orientation の有限探索は完全で、失敗時には全称を syntax のまま残す。
+`CommonEffectOutputWeakening` は全再帰 Typing と captured binding の output weakening を証明し、
+任意 arm 本体の `∃ operated, body : operated ∧ operated ≤ out` を固定 `out` での判断へ置き換える。
+`CommonEffectNormalHandler` はこれを使う実有限 handler 生成式を与える。
+
+これらは意味を保つ projection であり、除去した内部 witnesses の全 valuation を回収する定理ではない。
+mixed-polarity local 型の一般の求解、partial pattern と B2 の接続、注釈の boundary/permission 抽出、
+binding/SCC 終了時の visible effect 検査、および全実生成 Formula の all-instance solver は未完である。
+二つの親契約は引き続き閉じていない。
+
+## M1 B3 追補: union 行、partial metadata、固定 captured 型の分解
+
+`CommonSignedChoiceDecision` / `CommonSignedChoiceSolver` は、有限 signed action graph の
+複数 destination のうち一つへ流れる行制約を、有限候補の準備・削除で停止判定する。
+返却 scheme は有限 graph と parameter-row の Boolean guards であり、任意の無制約行 parameters に対して
+全制約を満たし、元の全 independent rows を文字どおり回収する。
+`CommonSignedUnionCompilation` は任意 signed lower と普通の union upper の実構文をそこへ compile する。
+`CommonSignedValueUnionSolver` は同じ行解を値 solver と共有し、全値 node の回収も証明する。
+後者の完全性には値の child/width grammar 条件が残るが、以前の simple-rowShapes 条件は不要になった。
+
+再帰判断・生成・output weakening は finite resolved partial-handler metadata も扱う。
+key の減算は unguarded irrefutable arm だけであり、全 arm の許可と local 全称検査を保つ。
+実 pattern binders・effectful guards/default の B2 接続は別の未完義務である。
+`CommonEffectFreshRows` は任意長・負の重みも含む Common 行に fresh scope 座標を実挿入し、
+既存座標の保持と unannotated callback の handler 非捕捉を証明する。
+`CommonEffectAnnotations` / `CommonEffectAnnotationGeneration` は有限注釈の mask/許可抽出と
+完了済み有限 snapshot の visible 判定を持つ。source/SCC 完了から snapshot を導くことは未完である。
+
+`CommonEffectScopedRegular` は whole captured 型を葉として保持する有限 regular equation templates を扱う。
+任意 parameters の equation model と、全元 node values の要求同値での回収を証明する。
+`CommonEffectScopedClamping` / `CommonEffectScopedCompilation` /
+`CommonEffectCapturedCompilation` は、全 TyTerm の実 finite source inequalities を、
+captured 型と全行を固定した flexible/rigid partition に compile し、clamped equations と
+実有限 residual comparisons へ正確に分解する。exactEmpty、負の arrow、default を erase しない。
+この residual は未解決の元制約であり、返却 scheme の parameters 条件として完了扱いしない。
+残余比較の有限 saturation、mixed-polarity local 型の一般全称消去、全 source の annotation/hygiene 接続が残る。
+親二契約の E1/E2 は未達である。
+
+## M1 B3 追補: scoped 前処理と whole-type signed transport
+
+`CommonEffectConstructorNormalisation` は既知 arrow/pair/variant/required 比較を、負の子も含めた
+実 finite 子比較へ分解する。`CommonEffectBoundExtraction` / `CommonEffectBoundTemplates` は、
+実検査で抽出できた flexible bounds から有限の scoped witness 候補を計算する。
+候補列は operation-local 全称より前に固定し、その有限列からの選択は各 local assignment の内側に保つ。
+失敗した検査を unsatisfiable と扱わず、元 binder を保持する。
+
+`CommonEffectComputationSplit` / `CommonEffectClauseSplit` は、元の全 computation row slots を保持し、
+型だけを pure local tuple へ分離して共同 bound 抽出に渡す。
+rigid endpoint の arrow row に現れる元 local row も空行へ消さない。
+これらは存在充足の保存であり、canonical witnesses だけで任意の元 internal node valuation を回収するとは主張しない。
+`CommonEffectPreparedGeneration.generate_prepared_recursive_exact` はこの前処理と実 recursive generator を、
+元 ContextRel だけの下で独立 effect Typing に接続する。未解決 universal は syntax に残る。
+
+`CommonEffectTypeRowMap` は全 Common regular/legacy 型の全 latent rows を実構文で変換する。
+fresh enter/exit の片側 literal roundtrip と signed protect/release の両側 literal roundtrip を持つ。
+`CommonEffectFiniteRowMap` / `CommonEffectRegularRowMap` は任意 negative rank/constructor depth で
+観測との可換性を証明し、実 signed transport による whole-type Subtype/Equivalent の保存反映を示す。
+static action は arrow input を含む全 row 位置で同じであり、runtime input wrapper の方向反転と混同しない。
+fresh enter は片側 inverse なので、signed automorphism の順序 iff の対象としていない。
+source boundary 挿入、SCC 完了時点の visible freeze、一般 constructor-cycle saturation と rigid 全称消去、
+および全元 node valuations を回収する最終 solver family が残る。親 B3 は未完である。
+
+## M1 B3 追補: mixed lattice 全称と fresh scope の実 row solver 可換性
+
+`CommonEffectLatticeUniversals` は、operation-local 型が union/intersection の骨格に現れる
+conjunctive 比較を、実有限 Boolean tuple の top/bottom substitutions へ完全に全称消去する。
+同じ local の mixed occurrences を許し、captured whole 型を固定する。
+任意の depth/rank/環境/観測を扱うが、constraint OR、残る存在 witness、非 lattice constructor 内の local は対象としない。
+失敗時には元全称を保持する。`CommonEffectPreparedGeneration` の実 pipeline に接続済みである。
+
+`CommonEffectFreshExpression` は旧 scope ID を一つずらす実 signed RowExpr 変換と、
+任意 Common rows の明示 leading-zero embedding が評価と可換であることを証明する。
+`CommonSignedFreshGraph` / `CommonSignedFreshChoice` は、この extension を実 cyclic graph、
+pure/head checks、union upper の choice routing、返却 scheme 列、全 instantiation へ接続する。
+Boolean safety と parameter guards の真偽も保持し、preimage readback は全元 row IDs を文字どおり保つ。
+元 row parameters は無制約で、新 carrier の任意行を old image と同一視しない。
+whole source の boundary 挿入と一般 universal/value solver は未完のままである。
+
+## M1 B3 追補: rank compactness と depth-wise inter-arrow inspection
+
+`CommonSignedFreshCompilation` は実 fresh expression compiler/choice solver の任意新 row parameters を
+preimage readback し、元 row 制約の all-parameter soundness と全元行の literal recovery を証明する。
+新 parameters が old image に属するという条件は不要である。
+
+`CommonEffectRankMonotonicity` / `CommonEffectRankCompactness` は任意 finite Common 型の負の rank 比較を
+有限 domain tests による環境再構成で下げ、固定有限候補の一つを全 rank に共通化する。
+`CommonEffectDepthBoundary` / `CommonEffectDepthChoiceBoundary` は、その結果を constructor-depth に
+流用できない明示反例を持つ。任意 Common 型の default 近似により、同じ source と二つの targets が
+全 depth を分担しても、どちらも whole Common subtype にならない。これを親 B3 の E2 と数えない。
+
+`CommonEffectArrowCover` / `CommonEffectArrowFamily` は depth ごとの domain 選択を残した正しい
+finite inter-arrow inspection を証明する。入力行・出力行の担当 member は別でもよく、result は全出力型の inter を保つ。
+`CommonEffectArrowInspection.inspect_collected_exact` はこれを実 shared Pool の finite child/row IDs へ compile する。
+任意独立 rows/全値 nodes と元 constructor equations の下で exact であり、whole-source subtype を atom に持たない。
+残る depth-cover/result-inter の自由 scheme 化と一般 universal relative solving が必要で、親二契約は未完である。
+
+### B3 2026-11-08: invariant interval と kinded local の追加基礎
+
+`CommonEffectInvariantIntervals` は centre-less な lower/upper の型・行区間を保持し、
+併合時の二つの交差制約、全 unrestricted parameter の健全性、全型の要求同値回収・全行の literal 回収を証明する。
+整合性の型比較は実有限 Formula に出す。effect family/tail の interval dispatch との接続は未完である。
+既存 signed-row 結果は解決済み Nat key に対する元の定理として有効である。
+
+`CommonEffectKindedFormula` は型と行の local を別々に束縛し、captured assignment を固定する。
+代入保存、旧 type-only binder への zero-row 保守性、well-kinded 型の row placeholder 非依存を証明する。
+`CommonEffectKindedGeneration` は実 recursive generator を使った rigid field 構築と使用時 instantiate の有限橋を持つ。
+checked 入口は新 local の有限 kind 検査を実行する。captured 名の source kind validation、nominal field 格納・射影は別義務である。
+`CommonEffectKindedHandler` は ∃outer input/returned、∀型・行 locals、∃operated の順序を保ち、
+元 action 行を持つ shallow continuation と元環境を固定したまま、実再帰 body の生成と独立 handler 判断を対応させる。
+旧 declaration table 自体の mixed 化、一般 universal elimination と親 B3 二契約は引き続き未完である。

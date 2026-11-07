@@ -5307,3 +5307,342 @@ run_cmd do
 #print axioms Yulang.CommonCaseCorePrefixSolved.case_finite_prefixes
 #print axioms Yulang.CommonCaseCorePrefixSolved.all_parameter_case_prefixes
 #print axioms Yulang.CommonCaseCorePrefixSolved.all_parameter_pattern_prefixes
+#print axioms Yulang.CommonEffectHandlerGeneration.armBody_exact
+#print axioms Yulang.CommonEffectHandlerGeneration.generate_handler_exact
+
+#print axioms Yulang.CommonSignedFlowFamily.solve_all_instances_exact
+#print axioms Yulang.CommonSignedFlowFamily.returned_all_parameters
+#print axioms Yulang.CommonSignedFlowFamily.residual_edge_exact
+#print axioms Yulang.CommonSignedFlowFamily.shift_edge_exact
+
+#print axioms Yulang.CommonEffectFormula.Formula.holds_subst
+#print axioms Yulang.CommonEffectFormula.Formula.holds_rename
+#print axioms Yulang.CommonEffectFormula.Scheme.instantiate_exact
+#print axioms Yulang.CommonEffectFormula.ofConstraint_exact
+
+#print axioms Yulang.CommonSignedSeedFamily.solve_all_instances_exact
+#print axioms Yulang.CommonSignedSeedFamily.returned_all_parameters
+#print axioms Yulang.CommonSignedSeedFamily.satisfiable_iff_heads_safe
+#print axioms Yulang.CommonSignedSeedFamily.inconsistent_iff_head_path
+#print axioms Yulang.CommonSignedSeedFamily.Examples.growing_all_weights
+#print axioms Yulang.CommonSignedSeedFamily.Examples.growing_no_finite_model
+
+#print axioms Yulang.CommonSignedSafetyPreimage.Fiber.capturable_iff
+#print axioms Yulang.CommonSignedSafetyPreimage.run_preserves
+#print axioms Yulang.CommonSignedSafetyPreimage.preimage_exact
+
+#print axioms Yulang.CommonSignedSafetyPreparation.prepare_finished
+#print axioms Yulang.CommonSignedSafetyPreparation.prepare_invariant
+#print axioms Yulang.CommonSignedSafetyPreparation.advance_covers_safe
+
+#print axioms Yulang.CommonSignedSafetyRefinement.refine_finished
+#print axioms Yulang.CommonSignedSafetyRefinement.prune_covers_safe
+#print axioms Yulang.CommonSignedSafetyRefinement.prune_no_discovery
+
+#print axioms Yulang.CommonSignedSafetyDecision.settle_models
+#print axioms Yulang.CommonSignedSafetyDecision.settle_exact
+#print axioms Yulang.CommonSignedSafetyDecision.check_exact
+
+#print axioms Yulang.CommonSignedGraphSolver.checkHeads_exact
+#print axioms Yulang.CommonSignedGraphSolver.all_parameters_models
+#print axioms Yulang.CommonSignedGraphSolver.solve_all_instances_exact
+#print axioms Yulang.CommonSignedGraphSolver.rejected_iff_head_path
+#print axioms Yulang.CommonSignedGraphSolver.Examples.captured_checked
+#print axioms Yulang.CommonSignedGraphSolver.Examples.negative_debt_checked
+#print axioms Yulang.CommonSignedGraphSolver.Examples.cycle_checked
+
+#print axioms Yulang.CommonSignedOrdinaryRows.augment_models
+
+#print axioms Yulang.CommonSignedValueSolver.all_parameters_models
+#print axioms Yulang.CommonSignedValueSolver.solve_all_instances_exact
+#print axioms Yulang.CommonSignedValueSolver.generated_all_instances_exact
+
+#print axioms Yulang.CommonEffectUniversalArms.joint_locals_iff
+#print axioms Yulang.CommonEffectUniversalArms.universalArms_exact
+#print axioms Yulang.CommonEffectUniversalArms.fold_types_le_iff
+
+#print axioms Yulang.CommonEffectArmGeneration.generate_arms_exact
+#print axioms Yulang.CommonEffectArmGeneration.aggregate_bounds_iff
+
+#print axioms Yulang.CommonEffectPresence.generate_presence_exact
+
+#print axioms Yulang.CommonEffectDeclarationInterpretation.interpret_rename
+#print axioms Yulang.CommonEffectDeclarationInterpretation.interpretAll_extend
+#print axioms Yulang.CommonEffectDeclarationInterpretation.interpretAll_local
+#print axioms Yulang.CommonEffectDeclarationInterpretation.wellKinded_renameAll
+
+#print axioms Yulang.CommonEffectGrammarBoundary.generated_request_not_old_child_grammar
+#print axioms Yulang.CommonEffectGrammarBoundary.acceptsAny_request_typable
+
+#print axioms Yulang.CommonEffectTypeNormalisation.normaliseAtom_exact
+#print axioms Yulang.CommonEffectTypeNormalisation.normalise_exact
+#print axioms Yulang.CommonEffectTypeNormalisation.top_request_normalises_into_old_grammar
+
+#print axioms Yulang.CommonEffectUniversalPayload.eliminate_payload_arm
+
+#print axioms Yulang.CommonEffectUniversalResumption.resume_payload_iff
+#print axioms Yulang.CommonEffectUniversalResumption.eliminate_resumption_arm
+
+#print axioms Yulang.CommonEffectUniversalSelfResponse.eliminate_exact
+
+#print axioms Yulang.CommonEffectRowQuantifiers.eliminate_exact
+#print axioms Yulang.CommonEffectRowQuantifiers.eliminate_no_type_binders
+
+#print axioms Yulang.CommonSignedExpressionPool.restrict_extend
+#print axioms Yulang.CommonSignedExpressionPool.input_injective
+
+#print axioms Yulang.CommonSignedExpressionGraph.lowerScheme_exact
+#print axioms Yulang.CommonSignedExpressionGraph.extend_lower
+#print axioms Yulang.CommonSignedExpressionGraph.evaluate_below_node
+
+#print axioms Yulang.CommonSignedConstraintCompilation.compile_exact
+#print axioms Yulang.CommonSignedConstraintCompilation.all_parameters_models
+#print axioms Yulang.CommonSignedConstraintCompilation.solve_all_instances_exact
+#print axioms Yulang.CommonSignedConstraintCompilation.rejected_iff
+
+#print axioms Yulang.CommonSignedValueExpressionSolver.all_parameters_models
+#print axioms Yulang.CommonSignedValueExpressionSolver.solve_all_instances_exact
+#print axioms Yulang.CommonSignedValueExpressionSolver.generated_all_instances_exact
+
+#print axioms Yulang.CommonEffectRecursiveSource.Typing.handler_iff
+#print axioms Yulang.CommonEffectRecursiveSource.Typing.request_iff
+
+#print axioms Yulang.CommonEffectRecursiveGeneration.ContextRel.lift
+#print axioms Yulang.CommonEffectRecursiveGeneration.ContextRel.rename
+
+#print axioms Yulang.CommonEffectRecursiveGeneration.handlerChecks_holds
+
+#print axioms Yulang.CommonEffectRecursiveExact.generate_recursive_single_exact
+
+#print axioms Yulang.CommonEffectRecursiveSource.Typing.multiHandler_iff
+#print axioms Yulang.CommonEffectRecursiveSource.Typing.multiHandler_separate_iff
+#print axioms Yulang.CommonEffectRecursiveExact.generate_recursive_effect_exact
+
+#print axioms Yulang.CommonEffectPolarity.type_ordered
+#print axioms Yulang.CommonEffectPolarity.formula_ordered
+#print axioms Yulang.CommonEffectPolarity.forall_extremal_exact
+
+#print axioms Yulang.CommonEffectPolarityElimination.select_complete
+#print axioms Yulang.CommonEffectPolarityElimination.eliminate_exact
+#print axioms Yulang.CommonEffectPolarityElimination.selected_binder_removed
+
+#print axioms Yulang.CommonEffectOutputWeakening.typing_weaken
+#print axioms Yulang.CommonEffectOutputWeakening.binding_weaken
+#print axioms Yulang.CommonEffectOutputWeakening.arm_result_exact
+#print axioms Yulang.CommonEffectOutputWeakening.generated_arm_result_exact
+
+#print axioms Yulang.CommonEffectOutputWeakening.generated_arm_formula_exact
+#print axioms Yulang.CommonEffectOutputWeakening.handler_at_output_iff
+#print axioms Yulang.CommonEffectOutputWeakening.multi_handler_at_output_iff
+
+#print axioms Yulang.CommonEffectNormalHandler.generateArm_exact
+#print axioms Yulang.CommonEffectNormalHandler.generate_handler_exact
+
+#print axioms Yulang.CommonEffectNormalHandler.generate_many_exact
+#print axioms Yulang.CommonEffectNormalHandler.generate_many_same_holds
+
+#print axioms Yulang.CommonSignedChoicePreparation.prepare_finished
+#print axioms Yulang.CommonSignedChoicePreparation.advance_covers
+
+#print axioms Yulang.CommonSignedChoiceRefinement.refine_finished
+#print axioms Yulang.CommonSignedChoiceRefinement.prune_covers
+
+#print axioms Yulang.CommonSignedChoiceDecision.settle_models
+#print axioms Yulang.CommonSignedChoiceDecision.check_exact
+
+#print axioms Yulang.CommonSignedChoiceSolver.all_parameters_models
+#print axioms Yulang.CommonSignedChoiceSolver.solve_all_instances_exact
+#print axioms Yulang.CommonSignedChoiceSolver.rejected_iff
+
+#print axioms Yulang.CommonSignedUnionCompilation.compile_exact
+#print axioms Yulang.CommonSignedUnionCompilation.all_parameters_models
+#print axioms Yulang.CommonSignedUnionCompilation.solve_all_instances_exact
+
+#print axioms Yulang.CommonSignedValueUnionSolver.all_parameters_models
+#print axioms Yulang.CommonSignedValueUnionSolver.solve_all_instances_exact
+#print axioms Yulang.CommonSignedValueUnionSolver.generated_all_instances_exact
+
+#print axioms Yulang.CommonEffectClauses.Clause.combine_exact
+#print axioms Yulang.CommonEffectClauses.Clause.close_exact
+#print axioms Yulang.CommonEffectClauses.Clause.closeTypes_exact
+
+#print axioms Yulang.CommonEffectClauseNormalisation.normaliseCore_exact
+#print axioms Yulang.CommonEffectClauseNormalisation.normalise_exact
+
+#print axioms Yulang.CommonEffectPackedClauses.pack_exact
+#print axioms Yulang.CommonEffectPackedClauses.compile_exact
+#print axioms Yulang.CommonEffectPackedClauses.solve_all_instances_exact
+#print axioms Yulang.CommonEffectPackedClauses.all_parameters_models
+
+#print axioms Yulang.CommonEffectFreshRows.exit_enter
+#print axioms Yulang.CommonEffectFreshRows.enter_capture_iff
+#print axioms Yulang.CommonEffectFreshRows.lift_shift
+#print axioms Yulang.CommonEffectFreshRows.residual_incoming
+#print axioms Yulang.CommonEffectFreshRows.unannotated_never_subtracted
+
+#print axioms Yulang.CommonEffectAnnotations.incoming_exact
+#print axioms Yulang.CommonEffectAnnotations.permission_capture_exact
+#print axioms Yulang.CommonEffectAnnotations.known_meaning
+#print axioms Yulang.CommonEffectAnnotations.Frozen.emit_exact
+#print axioms Yulang.CommonEffectAnnotations.Frozen.later_instantiation
+
+#print axioms Yulang.CommonEffectScopedBounds.eliminate_exact
+#print axioms Yulang.CommonEffectScopedBounds.uniform_witness_exact
+#print axioms Yulang.CommonEffectScopedBounds.universal_elimination_exact
+
+#print axioms Yulang.CommonEffectAnnotationGeneration.generate_annotated_handler_exact
+#print axioms Yulang.CommonEffectAnnotationGeneration.annotated_handler_permission
+#print axioms Yulang.CommonEffectAnnotationGeneration.generated_frozen_check_exact
+
+#print axioms Yulang.CommonEffectArmCoverage.resolved_removedKeys
+
+#print axioms Yulang.CommonEffectRecursiveSource.Typing.partialHandler_iff
+#print axioms Yulang.CommonEffectRecursiveSource.Typing.partialHandler_separate_iff
+
+#print axioms Yulang.CommonEffectOutputWeakening.partial_handler_at_output_iff
+#print axioms Yulang.CommonEffectNormalHandler.generate_partial_exact
+#print axioms Yulang.CommonEffectNormalHandler.generate_partial_same_holds
+#print axioms Yulang.CommonEffectPartialIntegration.resolved_keys_exact
+
+#print axioms Yulang.CommonEffectScopedRegular.compile_models
+#print axioms Yulang.CommonEffectScopedRegular.all_parameters_models
+#print axioms Yulang.CommonEffectScopedRegular.model_retraction
+#print axioms Yulang.CommonEffectScopedRegular.uniform_canonical_models
+#print axioms Yulang.CommonEffectScopedRegular.all_instances_exact
+#print axioms Yulang.CommonEffectScopedRegular.scoped_all_instances_exact
+
+#print axioms Yulang.CommonEffectScopedClamping.residualFormula_exact
+#print axioms Yulang.CommonEffectScopedClamping.factor_exact
+#print axioms Yulang.CommonEffectScopedClamping.original_retraction
+
+#print axioms Yulang.CommonEffectScopedCompilation.lowerNode_exact
+#print axioms Yulang.CommonEffectScopedCompilation.equations_exact
+#print axioms Yulang.CommonEffectScopedCompilation.compile_models
+
+#print axioms Yulang.CommonEffectCapturedCompilation.term_congr
+#print axioms Yulang.CommonEffectCapturedCompilation.compile_extends
+#print axioms Yulang.CommonEffectCapturedCompilation.compile_reflects
+#print axioms Yulang.CommonEffectCapturedCompilation.source_models_exact
+#print axioms Yulang.CommonEffectCapturedCompilation.source_clamped_exact
+
+#print axioms Yulang.CommonEffectConstructorNormalisation.atom_exact
+#print axioms Yulang.CommonEffectConstructorNormalisation.normalise_exact
+
+#print axioms Yulang.CommonEffectBoundExtraction.rigid_value_irrelevant
+#print axioms Yulang.CommonEffectBoundExtraction.inspectType_exact
+#print axioms Yulang.CommonEffectBoundExtraction.inspect_exact
+#print axioms Yulang.CommonEffectBoundExtraction.eraseExists_exact
+#print axioms Yulang.CommonEffectBoundExtraction.eliminate_exact
+
+#print axioms Yulang.CommonEffectBoundTemplates.canonical_exact
+#print axioms Yulang.CommonEffectBoundTemplates.finite_candidates_exact
+#print axioms Yulang.CommonEffectBoundTemplates.universal_finite_candidates_exact
+
+#print axioms Yulang.CommonEffectTypeRowMap.state_inverse
+#print axioms Yulang.CommonEffectTypeRowMap.type_inverse
+#print axioms Yulang.CommonEffectTypeRowMap.exit_enter_type
+#print axioms Yulang.CommonEffectTypeRowMap.release_protect_type
+#print axioms Yulang.CommonEffectTypeRowMap.protect_release_type
+
+#print axioms Yulang.CommonEffectFiniteRowMap.probe_exact
+#print axioms Yulang.CommonEffectFiniteRowMap.producerLe_exact
+
+#print axioms Yulang.CommonEffectRegularRowMap.state_graph
+#print axioms Yulang.CommonEffectRegularRowMap.observe_type
+#print axioms Yulang.CommonEffectRegularRowMap.subtype_exact
+#print axioms Yulang.CommonEffectRegularRowMap.transport_subtype_exact
+#print axioms Yulang.CommonEffectRegularRowMap.transport_equivalent_exact
+
+#print axioms Yulang.CommonEffectComputationSplit.split_exact
+#print axioms Yulang.CommonEffectComputationSplit.exists_split_exact
+#print axioms Yulang.CommonEffectComputationSplit.projectSlot_exact
+#print axioms Yulang.CommonEffectComputationSplit.project_exact
+
+#print axioms Yulang.CommonEffectClauseSplit.closeSlots_exact
+#print axioms Yulang.CommonEffectClauseSplit.clause_split_exact
+#print axioms Yulang.CommonEffectClauseSplit.projectClause_exact
+#print axioms Yulang.CommonEffectClauseSplit.prepare_exact
+
+#print axioms Yulang.CommonEffectPreparedGeneration.prepare_exact
+#print axioms Yulang.CommonEffectPreparedGeneration.generate_prepared_recursive_exact
+
+#print axioms Yulang.CommonEffectLatticeUniversals.term_read_congr
+#print axioms Yulang.CommonEffectLatticeUniversals.comparison_corners_exact
+#print axioms Yulang.CommonEffectLatticeUniversals.cornerFormula_exact
+#print axioms Yulang.CommonEffectLatticeUniversals.eliminate_exact
+
+#print axioms Yulang.CommonEffectFreshExpression.lift_rowLe_exact
+#print axioms Yulang.CommonEffectFreshExpression.lift_transport
+#print axioms Yulang.CommonEffectFreshExpression.eval_lift
+#print axioms Yulang.CommonEffectFreshExpression.inclusion_lift_exact
+
+#print axioms Yulang.CommonSignedFreshGraph.path_exact
+#print axioms Yulang.CommonSignedFreshGraph.safe_exact
+#print axioms Yulang.CommonSignedFreshGraph.safety_check
+#print axioms Yulang.CommonSignedFreshGraph.scheme_models_exact
+#print axioms Yulang.CommonSignedFreshGraph.solve_lift
+#print axioms Yulang.CommonSignedFreshGraph.instantiate_lift
+
+#print axioms Yulang.CommonSignedFreshChoice.supported_exact
+#print axioms Yulang.CommonSignedFreshChoice.safety_check
+#print axioms Yulang.CommonSignedFreshChoice.problem_models_exact
+#print axioms Yulang.CommonSignedFreshChoice.solve_lift
+#print axioms Yulang.CommonSignedFreshChoice.instantiate_lift
+#print axioms Yulang.CommonSignedFreshChoice.instantiate_pullback
+
+#print axioms Yulang.CommonSignedFreshCompilation.eval_pullback
+#print axioms Yulang.CommonSignedFreshCompilation.models_pullback
+#print axioms Yulang.CommonSignedFreshCompilation.models_image_exact
+#print axioms Yulang.CommonSignedFreshCompilation.all_parameters_models
+#print axioms Yulang.CommonSignedFreshCompilation.solve_all_instances_exact
+
+#print axioms Yulang.CommonEffectRankMonotonicity.step_environment
+#print axioms Yulang.CommonEffectRankMonotonicity.compare_rank_drop
+#print axioms Yulang.CommonEffectRankMonotonicity.compare_rank_add_drop
+
+#print axioms Yulang.CommonEffectRankCompactness.finite_decreasing_choice
+#print axioms Yulang.CommonEffectRankCompactness.finite_rank_exact
+#print axioms Yulang.CommonEffectDepthBoundary.at_one
+#print axioms Yulang.CommonEffectDepthBoundary.not_at_zero
+#print axioms Yulang.CommonEffectDepthBoundary.depth_drop_fails
+
+#print axioms Yulang.CommonEffectDepthChoiceBoundary.each_depth
+#print axioms Yulang.CommonEffectDepthChoiceBoundary.no_uniform_target
+#print axioms Yulang.CommonEffectDepthChoiceBoundary.finite_depth_compactness_fails
+#print axioms Yulang.CommonEffectDepthChoiceBoundary.overloaded_callable
+#print axioms Yulang.CommonEffectDepthChoiceBoundary.inter_arrow_disjunction_fails
+
+#print axioms Yulang.CommonEffectArrowCover.argument_family
+#print axioms Yulang.CommonEffectArrowCover.family_subtype_exact
+
+#print axioms Yulang.CommonEffectArrowFamily.subtype_components
+#print axioms Yulang.CommonEffectArrowFamily.components_subtype
+#print axioms Yulang.CommonEffectArrowFamily.family_subtype_exact
+
+#print axioms Yulang.CommonEffectArrowInspection.inspect_exact
+#print axioms Yulang.CommonEffectArrowInspection.extract_exact
+#print axioms Yulang.CommonEffectArrowInspection.inspect_collected_exact
+#print axioms Yulang.CommonEffectInvariantIntervals.Value.merge_consistent
+#print axioms Yulang.CommonEffectInvariantIntervals.Value.all_instances_exact
+#print axioms Yulang.CommonEffectInvariantIntervals.EffectRow.merge_consistent
+#print axioms Yulang.CommonEffectInvariantIntervals.EffectRow.all_instances_exact
+#print axioms Yulang.CommonEffectInvariantIntervals.ValueTerms.merge_check_exact
+#print axioms Yulang.CommonEffectKindedFormula.Formula.holds_subst
+#print axioms Yulang.CommonEffectKindedFormula.Formula.holds_rename
+#print axioms Yulang.CommonEffectKindedFormula.value_only_env
+#print axioms Yulang.CommonEffectKindedFormula.value_only_exists_exact
+#print axioms Yulang.CommonEffectKindedFormula.value_only_forall_exact
+#print axioms Yulang.CommonEffectKindedGeneration.generate_local_exact
+#print axioms Yulang.CommonEffectKindedGeneration.generate_rigid_exact
+#print axioms Yulang.CommonEffectKindedGeneration.generate_instance_exact
+#print axioms Yulang.CommonEffectKindedGeneration.construct_field_exact
+#print axioms Yulang.CommonEffectKindedGeneration.use_field_exact
+#print axioms Yulang.CommonEffectKindedHandler.arm_body_exact
+#print axioms Yulang.CommonEffectKindedHandler.generate_handler_exact
+#print axioms Yulang.CommonEffectKindedFormula.type_placeholder_irrelevant
+#print axioms Yulang.CommonEffectKindedGeneration.construct_checked_field_exact
+#print axioms Yulang.CommonEffectKindedGeneration.use_checked_field_exact
+#print axioms Yulang.CommonEffectKindedHandler.generate_checked_handler_exact
+#print axioms Yulang.CommonSignedFiniteBounds.initial_allowed
+#print axioms Yulang.CommonSignedFiniteBounds.settle_models
+#print axioms Yulang.CommonSignedFiniteBounds.check_exact
