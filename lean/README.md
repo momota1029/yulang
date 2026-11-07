@@ -1879,3 +1879,41 @@ lake env lean --trust=0 --run RunRegularInference.lean
 `sorry`、追加の公理、`native_decide` での証明を使わない。Lean が通常使う公理と、未証明の主張を公理化することを区別する。GitHubの`Lean inference kernel` workflowも、ビルドとこの監査を実行する。
 
 構文例の計算確認と一般定理も区別する。全言語の推論器、Rust との接続、公開型の表示、実行時の型安全性については、対応する定理を持つまでは完了と呼ばない。
+
+## 2026-11-07 B5 → B1: nested nominal と実 cast route の追加基盤
+
+この節の追加は独立 feature module であり、公開 `Core.infer` / `Core.CommonSyntax` を変更しない。
+B5 全体および B1 の list/nominal-data 全体の完了を表さない。
+詳細な量化子と残る統合点は
+[`2026-11-07-m1-b5-progress.md`](../notes/handoff/2026-11-07-m1-b5-progress.md) に記録する。
+
+- `CommonNominalFinite` / `CommonNominalSyntax` / `CommonNominalCarrier` は専用 nominal ID・引数種別・順序を保持する。
+  nominal は全 structural constructor の内部、同じ carrier の nominal 型引数、有限相互再帰 block に置ける。
+  `nominal_regular_invariant_exact` は任意 ID・arity・この新 carrier の任意 regular 型引数・任意 Common 行引数について、
+  subtype iff ID/arity 一致と全対応値型の要求同値・行の等号を示す。
+  全観測深さ・negative rank・独立環境を量化する。旧 Common 全型の順序・typing・solver の保守拡張は未証明である。
+- `CommonNominalGroundAdapter.common_ground_cast_compatibility_exact` は、既存の閉 scalar / scalar 引数の一段 nominal という
+  明示 ground 文法の全 source/target を、新 regular nominal carrier に接続する。
+  実際の旧 checker と計算した引数正規化を維持し、`ground_adapter_preserved` が旧 root-only 解釈との iff を示す。
+  この有限 checker の対象を文法外の未正規化 `Casts.Ty` や全 regular 型へ広げたとは主張しない。
+- `CommonCastRoutes.search_exact` は任意有限 graph の独立 Reach iff 実経路の返却を示す。
+  経路は全辺の列を持ち、循環を許し、caller fuel を使わず未訪問頂点列の減少で停止する。
+  `search_agrees_with_closure` は既存 Boolean checker と一致する。
+- `CommonCastRouteExecution.compile_exact` は実経路から checked declaration body の型付き plan を合成する。
+  `CommonCastSourceBodies.source_registry_synthesize_exact` はさらに、実 source 式・endpoint 注釈を持つ有限 registry を
+  既存 shape-resolved operational checker で検査してから plan を作る。
+  source body の空行 bound と出力型は既存 source 型安全性から導き、外部 Plan / CastContract / body bound は受け取らない。
+  `Source.declaration_executes_source` は型証拠を消した実行が元 source 評価と request tree 全体で一致することを示す。
+  任意 Common endpoint と実 Core source judgment の接続、keep/structural conversion の全生成は未完である。
+- `CommonNominalModel` は新 carrier の presence 操作を供給する。
+  `CommonFloatBase` は旧四基底を保持して専用 float 基底を追加する。
+  `generate_literal_exact` / `literal_all_models` / `literal_all_parameters` は任意の実 signature・環境・literal payload と
+  任意結果について独立 literal 判断、有限 base/row 制約、実返却する自由 parameter family を接続する。
+  `binary64_word_typing` は全 `2^64` storage word を扱い、NaN・無限大・負の zero を型から除外しない。
+  list/nominal data と construction source 全体の有限生成・全 Models 回収は未証明である。
+
+`CommonNominalEmbedding.observe_common` / `observe_embed` は、任意旧 Common 型・graph の全深さの観測を
+constructor ごとに新 carrier へ保持する。旧 block は `State.common` で共有する。
+`FiniteOrderConservative` は未証明の命題を名前にした定義であり、公理でも theorem でもない。
+`old_order_of_finite_conservativity` はこの未証明命題を前提にする条件付き補題に限る。
+任意の新 nominal を含む negative 環境に対する旧順序保存を証明済みとは記録しない。

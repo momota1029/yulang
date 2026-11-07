@@ -1,5 +1,6 @@
 import Yulang.CommonNominalFinite
 import Yulang.RegularInferenceModel
+import Yulang.CommonSyntax
 
 /-!
 # Finite layers and closed regular blocks for the common carrier
@@ -22,6 +23,7 @@ universe u v w z
 
 inductive Layer (Row : Type u) (Index : Type v) where
   | base : Base → Layer Row Index
+  | float : Layer Row Index
   | bottom : Layer Row Index
   | top : Layer Row Index
   | union : Layer Row Index → Layer Row Index → Layer Row Index
@@ -42,6 +44,7 @@ variable {Row : Type u} {Index : Type v}
 
 def map {Target : Type w} (rename : Index → Target) : Layer Row Index → Layer Row Target
   | .base scalar => .base scalar
+  | .float => .float
   | .bottom => .bottom
   | .top => .top
   | .union first last => .union (map rename first) (map rename last)
@@ -67,6 +70,7 @@ def map {Target : Type w} (rename : Index → Target) : Layer Row Index → Laye
 
 def evalAt (depth : Nat) (assignment : Index → CommonNominalFinite.Ty Row) : Layer Row Index → CommonNominalFinite.Ty Row
   | .base scalar => .base scalar
+  | .float => .float
   | .bottom => .bottom
   | .top => .top
   | .union first last => .union (evalAt depth assignment first) (evalAt depth assignment last)
@@ -134,10 +138,26 @@ def ofOldLayer : RegularValueTypes.Layer Row Index → Layer Row Index
   | .variant label payload => .variant label payload
   | .arrow arg argRow result resultRow => .arrow arg argRow result resultRow
 
+def ofCommonLayer : CommonSyntax.Layer Row Index → Layer Row Index
+  | .base scalar => .base scalar
+  | .bottom => .bottom
+  | .top => .top
+  | .union first last => .union (ofCommonLayer first) (ofCommonLayer last)
+  | .inter first last => .inter (ofCommonLayer first) (ofCommonLayer last)
+  | .pair first last => .pair first last
+  | .emptyRecord => .emptyRecord
+  | .exactEmpty => .exactEmpty
+  | .record label payload rest => .record label payload (ofCommonLayer rest)
+  | .recordDefault label source fallback => .recordDefault label (ofCommonLayer source) fallback
+  | .variant label payload => .variant label payload
+  | .arrow arg argRow result resultRow => .arrow arg argRow result resultRow
+  | .mask hidden source => .mask hidden (ofCommonLayer source)
+
 inductive State (Row : Type u) where
   | node : Layer Row (State Row) → State Row
   | block : List (Layer Row (Nat ⊕ State Row)) → Nat → State Row
   | legacy : RegularInferenceModel.State Row → State Row
+  | common : CommonSyntax.State Row → State Row
 
 abbrev Ty (Row : Type u) := Layer Row (State Row)
 
@@ -148,6 +168,7 @@ def graph (Row : Type u) : Graph Row (State Row)
   | .node layer => layer
   | .block body root => (body[root]?.getD .bottom).map (rawRef body)
   | .legacy state => (ofOldLayer (RegularInferenceModel.graph Row state)).map State.legacy
+  | .common state => (ofCommonLayer (CommonSyntax.graph Row state)).map State.common
 
 @[simp] theorem graph_node {Row : Type u} (layer : Ty Row) : graph Row (.node layer) = layer := rfl
 

@@ -4188,3 +4188,17 @@ run_cmd do
 #print axioms Yulang.CommonNominalGroundAdapter.common_ground_cast_compatibility_exact
 #print axioms Yulang.CommonNominalGroundAdapter.ground_check_exact
 #print axioms Yulang.CommonNominalGroundAdapter.ground_adapter_preserved
+#print axioms Yulang.CommonCastSourceBodies.Source.check_exact
+#print axioms Yulang.CommonCastSourceBodies.Source.run_valid
+#print axioms Yulang.CommonCastSourceBodies.Source.declaration_executes_source
+#print axioms Yulang.CommonCastSourceBodies.Registry.check_exact
+#print axioms Yulang.CommonCastSourceBodies.source_registry_synthesize_exact
+#print axioms Yulang.CommonFloatBase.base_subtype_exact
+#print axioms Yulang.CommonFloatBase.float_distinct_from_legacy
+#print axioms Yulang.CommonFloatBase.generate_literal_exact
+#print axioms Yulang.CommonFloatBase.literal_all_parameters
+#print axioms Yulang.CommonFloatBase.literal_all_models
+#print axioms Yulang.CommonFloatBase.binary64_word_typing
+#print axioms Yulang.CommonNominalEmbedding.observe_common
+#print axioms Yulang.CommonNominalEmbedding.observe_embed
+#print axioms Yulang.CommonNominalEmbedding.old_order_of_finite_conservativity

@@ -20,6 +20,7 @@ variable {Row : Type u}
 
 inductive Ty (Row : Type u) where
   | base : Base → Ty Row
+  | float : Ty Row
   | bottom : Ty Row
   | top : Ty Row
   | union : Ty Row → Ty Row → Ty Row
@@ -46,6 +47,7 @@ inductive Observation (Row : Type u) where
   | trivial : Observation Row
   | impossible : Observation Row
   | base : Base → Observation Row
+  | float : Observation Row
   | records : Observation Row
   | role : Nat → Observation Row
   | pairFirst : Observation Row → Observation Row
@@ -89,6 +91,7 @@ def MaskedProbeStep (leRow : Row → Row → Prop) (env : Environment Row)
   | .mask more source, obs =>
       MaskedProbeStep leRow env argumentOrder (hidden ++ more) source obs
   | .base actual, .base expected => actual = expected
+  | .float, .float => True
   | .base actual, .role name => .base actual ∈ env.roles name
   | .pair _ _, .role name => .pair ∈ env.roles name
   | .emptyRecord, .role name => .records ∈ env.roles name

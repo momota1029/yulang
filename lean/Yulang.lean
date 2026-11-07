@@ -589,3 +589,7 @@ import Yulang.CommonNominalFinite
 import Yulang.CommonNominalSyntax
 import Yulang.CommonNominalCarrier
 import Yulang.CommonNominalGroundAdapter
+import Yulang.CommonCastSourceBodies
+import Yulang.CommonNominalModel
+import Yulang.CommonFloatBase
+import Yulang.CommonNominalEmbedding
