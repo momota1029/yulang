@@ -3994,3 +3994,7 @@ run_cmd do
 #print axioms Yulang.Core.PresenceOnly.infer_rejected_iff
 #print axioms Yulang.Core.infer_presence
 #print axioms Yulang.Core.infer_presence_typing_preserved
+
+#print axioms Yulang.CommonCanonicalCurriedTransfer.spine_below_iff
+#print axioms Yulang.CommonCanonicalCurriedTransfer.applyTransfer_eq
+#print axioms Yulang.CommonCanonicalCurriedTransfer.instances_spine_exact
