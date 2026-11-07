@@ -35,3 +35,23 @@ A1（`legacy_generated_shared_witnesses`）、A2（`public_interface_canonical_e
 ## 例外の範囲
 
 この例外は、2026-11-07 時点の A1・A2 のワーカーに限る。他の仕事で常駐ループを使う場合は、そのつどユーザーが決める。
+
+## 追記 (2026-11-07 夜): B の割り当てと、追加の規則
+
+ユーザーの決定: 同時に走らせる本数の上限はなし。B を次のように割り当てる。
+
+| 目標 | ワーカー | 内容（statement は `common-demand-and-foundations-results.md` §7 と `core-common-coverage-results.md` §7） |
+| --- | --- | --- |
+| B5 → B1 | Sol (`gpt-6.1-sol` xhigh) | nominal invariance、ground cast、cast plan、construction site（§7.7）→ list / nominal data / float の共通生成（§7.3） |
+| B2 | Sol xhigh | 実 pattern から有限制約を作る共有 allocator、`common_pattern_environment_exact`、`generate_common_case_exact`（§7.4） |
+| B3 | Sol xhigh | effect の有限宣言、全称 handler（∃ 外側 ∀ operation-local な型 ∃ arm の量化順）、全 instance の solver（§7.5） |
+| B4 | Astra (`gpt-6-astra` xhigh) | role の有限 registry と dictionary、qualified の全 family（§7.6）。K2（再帰型での停止）に当たるので、E2 で終わる可能性がある |
+| B6 | 最後に、B1〜B5 の後 | 上の機能を、公開入口 `Core.infer` の一つの型付け判断へ統合する |
+
+追加の規則（並列の衝突を避けるため）:
+
+- **既存の Lean ファイルは変更しない。** 許されるのは、`lean/Yulang.lean` への `import` の追記、`lean/Audit.lean` への `#print axioms` の追記、`lean/README.md` への節の追記だけ。
+- **公開入口（`Core.infer`、`Core.CommonSyntax`、`CoreCommonInference` など）は、各ワーカーは書き換えない。** 自分の機能を独立のモジュールで証明し、公開入口への統合を主張する補題は、自分のモジュールに置く（統合は B6 で一度にやる）。
+- `.git` は sandbox で読み取り専用。commit は免除。監督者（Claude）が 10 分ごとに外からスナップショットする。チェックポイントの関門は `cd lean && lake build --wfail` が通ること。
+- 各ワーカーは、進捗を `notes/handoff/2026-11-07-m1-<目標>-progress.md` に書く。終わりに達したら、`…-results.md` に最終報告を書く。
+- Sol のワーカーが、終わり（E1/E2）の前に行き詰まったときは、**欠けている補題を正確な statement で書いて**、その時点の状態を残す。監督者がその残りを Astra に引き継ぐ。止まって報告するだけでは、終わりにならない。
