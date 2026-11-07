@@ -40,4 +40,29 @@ theorem normalize_equivalent (type : Payload → Common.Ty) (fields : Row Payloa
         (CommonPatternConcreteRecordTypes.record_congr label
           (Common.equivalent_refl _) ih)
 
+/-- A required observation reads the original first field at every
+constructor depth and every negative rank, with the same environment. -/
+theorem field_probe_exact (type : Payload → Common.Ty) (fields : Row Payload)
+    (label depth rank : Nat) (environment : CommonFinite.Environment Common.Row)
+    (observation : CommonFinite.Observation Common.Row) :
+    CommonFinite.ProbeAt Common.rowLe rank environment
+        (Common.observeTy depth (recordTypeOf type fields)) (.field label observation) ↔
+      ∃ payload, lookup label fields = some payload ∧
+        CommonFinite.ProbeAt Common.rowLe rank environment
+          (CommonSyntax.observe (CommonSyntax.graph Common.Row) depth (.node (type payload)))
+          observation := by
+  induction fields with
+  | nil =>
+      cases rank <;> simp [lookup, recordTypeOf, Common.exactEmpty, Common.observeTy,
+        CommonSyntax.Layer.evalAt, CommonFinite.ProbeAt, CommonFinite.ProbeStep,
+        CommonFinite.MaskedProbeStep]
+  | cons entry rest ih =>
+      rcases entry with ⟨current, item⟩
+      simp only [recordTypeOf, Common.record, Common.observeTy, CommonSyntax.Layer.evalAt,
+        CommonFinite.probeAt_record_field]
+      by_cases same : label = current
+      · subst current
+        simp [lookup]
+      · simpa only [Common.observeTy, lookup, same, ite_false] using ih
+
 end Yulang.CommonRoleClosedRecordResidual
