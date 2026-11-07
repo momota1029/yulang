@@ -2142,3 +2142,28 @@ unary下降、pair再構築、同一payload重複、定数child、任意terminal
 任意Common completion存在を実captureへ読み替えて新E2にしていない。拒否先行は依然working choice。
 [第六回の全量化・検証・残り](../notes/handoff/2026-11-07-m1-b4r6-results.md)、
 [checker設計と代案](../notes/design/2026-11-07-b4r6-stable-envelopes-and-capture.md)。
+
+## B4r7: 承認済み共有capture、non-variable nominalは一問（2026-11-08）
+
+plain変数branchは合流後payloadをそのまま全変数へ捕捉する承認を実装した。
+`CommonRoleSharedPayloadCapture` は任意opaque Payloadの実有限表と独立lookup仕様のiff/一意性を証明する。
+実tag mergeのhead解釈も、この計算済captureで元payloadと同値になる。
+`CommonRoleCanonicalPayloadCandidates` は実格納fieldsから承認例の二候補/曖昧性を計算し、
+一意なfinite Groundの場合のterminal実Planと独立evidenceをiffにする。
+未知compoundは明示unsupportedであり、言語のnoImplや新拒否へ読み替えない。
+`CommonRoleSharedPayloadAgreement` は同finite familyで旧Common候補/一意性/Planとの一致を証明する。
+`CommonRoleSharedCaptureDescent` はfinite Formの計算済captureから実N済goalへの下降をstable checkerへ接続する。
+
+| 項目 | 今回証明したこと | 何が未証明か |
+| --- | --- | --- |
+| plain-variable捕捉 | 任意opaque payloadのas-is有限binding、独立iff/一意性、実merge head意味保存 | 他head位置の拘束との結合、全head grammar/regular matcher |
+| 承認例の候補/辞書 | 実二impl/intは曖昧、全finite Ground familyのterminal Plan iff独立evidence、旧Common head/Plan一致 | 一般nested where辞書、全有限木/nominal agreement |
+| stable descent | finite Form/idempotence stageで計算済captureから実N済goalへ真下降/occ非増加 | full Common N/checker、全regular graph measure |
+| non-variable nominal | 実invariance、三codeの有限cover実験、size-only nominal frameの全Term代入下降 | cover操作/where決定性は未決。全nominal-union carrierやmatching small-model theoremではない |
+| 全B4/qualified | exact missing matcher/下降/qualified lemmaを設計noteに記録 | E1/E2未到達。全域resolver/全実nested dictionary、qualified実生成と全自由family |
+
+nominal引数は不変なので、保持されたbox int/box boolをbox(int|bool)へまとめられない。
+その有限coverをnon-variable branchがどう捕捉するかは [一問](../notes/questions/2026-11-07-b4r7-nominal-alternative-capture.md) に置いた。
+推奨のwhere決定性追加も未承認。任意Common splitや追加hypothesis付き同名E1を採用していない。
+[全67定理の量化・検証・残り](../notes/handoff/2026-11-07-m1-b4r7-results.md)、
+[全branch地図と設計](../notes/design/2026-11-07-b4r7-shared-capture-and-nominal-cover.md)。

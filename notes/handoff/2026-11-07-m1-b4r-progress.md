@@ -988,3 +988,24 @@ tupleの共有component projectionとwhole再構築チェックはCommon意味�
 検証: `cd lean && lake build --wfail` exit0（693 jobs）。全67新規theoremをAuditへ登録。
 追加の `unsupported_explicit` / `example_supported` も全visible/goalでcomponent範囲外ならunsupported、承認例visibleは範囲内を証明した。
 unsupported compoundを言語のnoImplへ読み替えない。
+
+## B4r7 最終gateと未決non-variable branch
+
+`cd lean && lake build --wfail` exit0（693 jobs）。
+`cd lean && lake env lean --trust=0 Audit.lean` exit0、allowlist56986 declarations。
+全67新規theoremを登録。追加公理/sorry/native_decideなし。
+独立fresh reviewは全五moduleのtrust0/warning-as-error、全67日本語statement/Audit登録、最終文書scopeを確認。
+独立最終Auditもexit0/56986 declarations。
+開始HEADから既存Leanの許可外変更なし、Yulang.lean/Audit/READMEのappend-onlyを機械確認。
+questionのsource blockは独立parser probeと完全一致、ok1/recovery0。型をbox int/box boolへ先に確定させた経路を使う。
+
+新results `2026-11-07-m1-b4r7-results.md` と設計note/README追記に全量化、build/Audit末尾、正確な不足を記録。
+新questionは `2026-11-07-b4r7-nominal-alternative-capture.md` 一問のみ。
+推奨finite cover/where決定性は未承認で、現在のtheoremへ採用しない。
+三codeのcover実験やsize-only nominalFrameを全Common carrier/全matchingの証明としない。
+component classifierのunsupportedを言語のnoImpl/新拒否にしない。
+
+E1/E2には未到達。今回の明示指示とcontract addendumに従い、未指定のnon-variable nominal captureを一問へ置いた。
+full stable checker/N、全regular matcher/resolver/exact nested dictionary、一般finite-tree/nominal agreement、qualified実生成/全familyは残る。
+これらを外部support/fuel/success仮定へ移した同名E1や、任意Common splitを仮定したE2は出していない。
+prover role不在、primary構成/別agent監査。公開入口/spec/旧結果を変更せず、commit/push/networkなし。
