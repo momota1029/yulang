@@ -619,3 +619,6 @@ import Yulang.CommonEffectNormalHandler
 import Yulang.CommonSignedChoicePreparation
 import Yulang.CommonSignedChoiceRefinement
 import Yulang.CommonSignedChoiceDecision
+import Yulang.CommonSignedChoiceSolver
+import Yulang.CommonSignedUnionCompilation
+import Yulang.CommonSignedValueUnionSolver

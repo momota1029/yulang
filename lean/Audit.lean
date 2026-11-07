@@ -4316,3 +4316,15 @@ run_cmd do
 
 #print axioms Yulang.CommonSignedChoiceDecision.settle_models
 #print axioms Yulang.CommonSignedChoiceDecision.check_exact
+
+#print axioms Yulang.CommonSignedChoiceSolver.all_parameters_models
+#print axioms Yulang.CommonSignedChoiceSolver.solve_all_instances_exact
+#print axioms Yulang.CommonSignedChoiceSolver.rejected_iff
+
+#print axioms Yulang.CommonSignedUnionCompilation.compile_exact
+#print axioms Yulang.CommonSignedUnionCompilation.all_parameters_models
+#print axioms Yulang.CommonSignedUnionCompilation.solve_all_instances_exact
+
+#print axioms Yulang.CommonSignedValueUnionSolver.all_parameters_models
+#print axioms Yulang.CommonSignedValueUnionSolver.solve_all_instances_exact
+#print axioms Yulang.CommonSignedValueUnionSolver.generated_all_instances_exact
