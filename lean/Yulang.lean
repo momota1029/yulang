@@ -704,3 +704,4 @@ import Yulang.CommonNominalRegularErasure
 import Yulang.CommonInvariantIntervals
 import Yulang.CommonGroundIntervalSolver
 import Yulang.CommonNominalIntervalReconciliation
+import Yulang.CommonDeclaredNominalVariance

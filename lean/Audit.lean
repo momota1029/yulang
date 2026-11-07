@@ -4516,3 +4516,8 @@ run_cmd do
 #print axioms Yulang.CommonNominalIntervalReconciliation.nominal_merge_models_exact
 #print axioms Yulang.CommonNominalIntervalReconciliation.arguments_holds_length
 #print axioms Yulang.CommonNominalIntervalReconciliation.point_head_holds_exact
+#print axioms Yulang.CommonDeclaredNominalVariance.nominal_head_variance_exact
+#print axioms Yulang.CommonDeclaredNominalVariance.covariant_box_subtype_exact
+#print axioms Yulang.CommonDeclaredNominalVariance.contravariant_singleton_exact
+#print axioms Yulang.CommonDeclaredNominalVariance.all_invariant_special_case
+#print axioms Yulang.CommonDeclaredNominalVariance.covariant_box_union_grouping

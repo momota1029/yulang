@@ -35,8 +35,9 @@ my choose(c: bool, x: box int, y: box bool) =
 不変の `list int` と `list bool` の対応する合流は `(int | bool, int & bool)` の区間になり、整合性を満たせない。
 この区別は 2026-11-08 の二回目のユーザー説明に従う。古い spec 内の box を不変としていた例を根拠に戻さない。
 
-**deferred 境界**: 対象は不変引数の構築位置に限る。spec はこの範囲の記述を「要確認」としているため、
-不変 list 側の既定規則から先に進め、共変 box に旧 deferred 弱変数ルールを無条件に再適用しない。
+**deferred 境界**: 今回の証明の作業対象を不変 list の構築位置に絞る。spec が適用範囲を「要確認」としているため、
+言語一般で不変位置だけに限られると断定したり、共変 box の包含／排除を確定したりしない。
+不変 list 側の既定規則から先に進め、旧 box deferred 弱変数ルールを無条件に再適用しない。
 有限で共変の box は、構築後にも宣言の有限 wrapper を一段変換できる。
 この pending な source 規則を、任意 substitution の theorem や E2 で代用しない。
 
@@ -189,9 +190,9 @@ nil/cons の list element は、不変の interval/未解決 slot を保つ。�
 | --- | --- |
 | `CommonBoundCoalescing`, `DemandBoundPropagation`, `CommonBoundRef*` | 元の量化・grammar・前提のまま有効。宣言 variance、nominal endpoints、実 source 閉性は追加の接続義務。 |
 | `CommonCanonicalIntervals` | 元の scalar/captured/generalized interval theorem として有効。一般 nominal の canonical code ではない。 |
-| `nominal_regular_invariant_exact`, `nominal_finite_invariant_exact`, `nominal_head_invariant_exact`（Full 系も含む） | 全引数を不変とした point interpreter の定理。宣言の対応位置が **Invariant** で、上下が同じ T に collapse した場合の補助。共変 box の一般 rule としては誤りであり、流用しない。 |
+| `nominal_regular_invariant_exact`, `nominal_finite_invariant_exact`, `nominal_head_invariant_exact`（Full 系も含む） | 全引数を不変とした point interpreter の定理。whole nominal iff は **全引数が Invariant** かつ上下が同じ T に collapse した宣言だけ。引数同値の補助は mixed table の Invariant 位置に限り再利用できる。共変 box の一般 rule としては誤りであり、流用しない。 |
 | `list_invariant_exact` | list の不変引数の collapsed case として使う。open interval/弱変数の全判断を表してはいない。 |
-| nominal slot equality solver / point ground adapters | **不変と宣言された位置の collapsed case**だけ。covariant/contravariant の宣言へ無条件に拡張しない。 |
+| nominal slot equality solver / point ground adapters | whole ground adapter は **all-Invariant 宣言の collapsed case**だけ。個別の equality 補助は mixed table の Invariant 位置でのみ使える。covariant/contravariant 宣言の whole rule に流用しない。 |
 | FullDemand / FullCarrier 等の旧 point 候補 | 全 nominal 引数を invariant にするため、一般 Yulang carrier ではない。旧 theorem の意味を変更しないが、今後の一般 model として採用しない。 |
 | 旧型埋込み・旧 `Core.infer` 像の保存 | 各旧 point model 上の theorem として有効。declaration-aware interval solver の保存拡張は別途必要。 |
 | graph/AST allocator、order/位置の literal equality | 再利用候補。point Models の意味や全 family を新 variance/interval Models へ無証明で移さない。 |
@@ -209,12 +210,13 @@ nil/cons の list element は、不変の interval/未解決 slot を保つ。�
 1. 不変 slot の区間代数・cross constraints・collapse と、既存 bounds generation / solver family を閉じる。
 2. **宣言済み variance 表を参照する** finite nominal inspector を作り、共変・反変・不変の出力制約を区別する。
    任意の表を読む局所 exactness と、実 finite declaration の recursive parameter 解析から正しい表を導く theorem は別に記録する。
-3. ground checker を declaration-aware に接続する。既存 all-invariant checker の保存 theorem はその正しい部分だけに限定する。
-4. interval constraint の再 collect では、元 slot/path と原因の有限 key に新規の制約があるときだけ回す。
+3. per-argument subtype theorem とは別に、宣言ごとの constructor union/grouping、元 branch 生成と同じ結果への readback を証明する。特に `box int | box bool` が `box (int | bool)` として得られる実 source の合流橋を残す。head の局所比較だけから source join の完了を主張しない。
+4. ground checker を declaration-aware に接続する。既存 all-invariant checker の保存 theorem はその正しい部分だけに限定する。
+5. interval constraint の再 collect では、元 slot/path と原因の有限 key に新規の制約があるときだけ回す。
    合算済み bounds 全体を key にしない。global sandwich は全出現・captured/level 保護を保ち、区間由来変数等式との区別を証明する。
-5. 元全 fields/sites を保つ declaration-aware generation、実全 family、弱変数の後の利用／EOF を接続する。
-6. 必要な B5 基盤が閉じたところから B1 nil/cons/list/nominal-data へ進み、有限 wrapper の runtime cast / pure row / order を接続する。
-7. 各 closed packet を `lake build --wfail`、fresh review、trust=0 Audit / 公理 allowlist で検査する。
+6. 元全 fields/sites を保つ declaration-aware generation、実全 family、弱変数の後の利用／EOF を接続する。
+7. 必要な B5 基盤が閉じたところから B1 nil/cons/list/nominal-data へ進み、有限 wrapper の runtime cast / pure row / order を接続する。
+8. 各 closed packet を `lake build --wfail`、fresh review、trust=0 Audit / 公理 allowlist で検査する。
 
 結果は [2026-11-08 interval results](../handoff/2026-11-08-m1-b5-interval-results.md)、
 進捗は [既存 progress](../handoff/2026-11-07-m1-b5-progress.md) に訂正後の状態を明示する。
