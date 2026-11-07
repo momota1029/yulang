@@ -139,4 +139,31 @@ theorem capture_optional_probe_exact (type : Payload → Common.Ty) (labels : Li
   rw [optional_probe_exact, capture_lookup]
   by_cases removed : label ∈ labels <;> simp [removed]
 
+/-- Subtraction preserves exactly the ordinary Common tail obligations
+outside the explicit head labels, even against an arbitrary regular target.
+The removed labels' new absence is not inspected by these tail obligations. -/
+theorem capture_tail_exact (type : Payload → Common.Ty) (labels : List Nat)
+    (fields : Row Payload) (target : Common.Ty) :
+    Common.RecordTailLe labels (recordTypeOf type (capture labels fields)) target ↔
+      Common.RecordTailLe labels (recordTypeOf type fields) target := by
+  constructor <;> intro below depth <;> constructor
+  · intro rank environment label visible observation accepted
+    have remaining := (below depth).1 rank environment label visible observation accepted
+    exact (field_probe_exact type fields label depth rank environment observation).mpr
+      ((capture_field_probe_exact type labels fields label depth rank environment observation).mp
+        remaining).2
+  · intro rank environment label visible observation nontrivial accepted
+    have remaining := (below depth).2 rank environment label visible observation nontrivial accepted
+    exact (optional_probe_exact type fields label depth rank environment observation).mpr
+      (((capture_optional_probe_exact type labels fields label depth rank environment observation).mp
+        remaining).resolve_left visible)
+  · intro rank environment label visible observation accepted
+    have original := (below depth).1 rank environment label visible observation accepted
+    exact (capture_field_probe_exact type labels fields label depth rank environment observation).mpr
+      ⟨visible, (field_probe_exact type fields label depth rank environment observation).mp original⟩
+  · intro rank environment label visible observation nontrivial accepted
+    have original := (below depth).2 rank environment label visible observation nontrivial accepted
+    exact (capture_optional_probe_exact type labels fields label depth rank environment observation).mpr
+      (Or.inr ((optional_probe_exact type fields label depth rank environment observation).mp original))
+
 end Yulang.CommonRoleClosedRecordResidual

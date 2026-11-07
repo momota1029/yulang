@@ -5989,3 +5989,5 @@ run_cmd do
 #print axioms Yulang.CommonRoleClosedIntervalRecordGeneration.generate_exact
 
 #print axioms Yulang.CommonRoleClosedIntervalRecordGeneration.compile_exact
+
+#print axioms Yulang.CommonRoleClosedRecordResidual.capture_tail_exact
