@@ -41,4 +41,43 @@ theorem recordTerm_eval (assignment : α → Comp Common.model)
       simp only [recordTerm, TyTerm.eval, recordTypeOf]
       exact congrArg (Common.record label (payload.eval Common.model assignment)) ih
 
+def bounds (labels : List Nat) (fields : Fields α) : Argument α :=
+  (recordTerm (lowerFields (capture labels fields)),
+    recordTerm (upperFields (capture labels fields)))
+
+def evaluated (assignment : α → Comp Common.model) (argument : Argument α) :
+    Interval Common.Ty := evaluate (CommonRoleIntervalGeneration.eval assignment) argument
+
+def Compatible (assignment : α → Comp Common.model) (labels : List Nat)
+    (fields : Fields α) (requested : Argument α) : Prop :=
+  Valid (evaluated assignment (bounds labels fields)) ∧
+    Valid (evaluated assignment requested) ∧
+    Common.Subtype (evaluated assignment (bounds labels fields)).1
+      (evaluated assignment requested).2 ∧
+    Common.Subtype (evaluated assignment requested).1
+      (evaluated assignment (bounds labels fields)).2
+
+def generate (labels : List Nat) (fields : Fields α) (requested : Argument α) :
+    List (Atom α) :=
+  CommonRoleIntervalGeneration.generate [bounds labels fields, requested]
+
+/-- Both self checks and both cross checks for the actual computed closed
+residual. The proof's semantic membership witness is not a head substitution
+chosen by the generator, which emits only ordinary finite comparison atoms. -/
+theorem generate_exact (assignment : α → Comp Common.model)
+    (labels : List Nat) (fields : Fields α) (requested : Argument α) :
+    All Common.model assignment (generate labels fields requested) ↔
+      Compatible assignment labels fields requested := by
+  have generated : All Common.model assignment (generate labels fields requested) ↔
+      ∃ actual, Fits (evaluated assignment (bounds labels fields)) actual ∧
+        Fits (evaluated assignment requested) actual := by
+    unfold generate
+    rw [CommonRoleIntervalGeneration.generate_real_argument_exact]
+    simp [evaluated]
+  rw [generated]
+  exact (exists_congr fun actual =>
+    (CommonRoleIntervals.fits_merge _ _ actual).symm).trans
+      ((CommonRoleIntervals.valid_iff_nonempty _).symm.trans
+        (CommonRoleIntervals.valid_merge_exact _ _))
+
 end Yulang.CommonRoleClosedIntervalRecordGeneration
