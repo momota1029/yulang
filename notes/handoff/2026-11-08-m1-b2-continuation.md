@@ -219,7 +219,27 @@ value を返す終了観測があることを同値にする補助定理であ�
 
 検証: 最終対象 build（296 jobs）と `trust=0` 監査が成功。
 `actual_result` は `propext` / `Quot.sound` のみ、`real_scheme_instance` はそれらと
-`Classical.choice` のみ。この時点で新たな scope 拡張を止め、統合側の全体 gate に渡す。
+`Classical.choice` のみ。この checkpoint を統合側に渡した後、下の更新された契約に従って継続する。
+
+## 12. 更新された契約と、実終了 trace を構成する case logic
+
+remote `6c346dace` の completion contract と handoff の追記を読んだ。
+E2 だけを終点とせず、元規則に忠実な定義の上で E1 を進める。
+optional-field と到達不能 arm の静的行の既存 question は、Yulang 例つきの二候補を既に持つ。
+その選択は保留したまま、固定された有限 data evaluator の**全返却 instance**について
+成功終了を構成する共通部分を進める。
+
+`CommonCasePrefixCompletion.eval_completes` は、既存 computation logic の `Safe` を
+「postcondition を満たす値を返す実終了 trace が存在する」と解釈する。
+ret/bind/visit の証明がその trace を実際に組み合わせるため、同じ元 structural matcher と
+順序付き case traversal の定理から、元の任意の有限 arm 列の成功終了を導く。
+pattern miss と偽の guard を通って後続へ進む場合も含み、選択済み arm を仮定しない。
+
+この generic lemma の leaf 契約は次の source-specific 定理で実 syntax 型付けから導く。
+coverage は別途接続するので、この段階の返却 option はまだ none を許す。
+row 引数は completion logic では使わず、既存の全 prefix 行安全性と最後に組み合わせる。
+
+検証: 対象 build と `eval_completes` の `trust=0` 監査が成功。
 
 ## 未完の範囲
 

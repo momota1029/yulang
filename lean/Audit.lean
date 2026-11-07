@@ -6025,3 +6025,8 @@ run_cmd do
 
 #print axioms Yulang.CommonCaseCoreDataPrefixExamples.returns_logged
 #print axioms Yulang.CommonCaseCoreDataPrefixExamples.actual_result
+
+#print axioms Yulang.CommonCasePrefixCompletion.ret_completes
+#print axioms Yulang.CommonCasePrefixCompletion.bind_completes
+#print axioms Yulang.CommonCasePrefixCompletion.visits_complete
+#print axioms Yulang.CommonCasePrefixCompletion.eval_completes
