@@ -1,7 +1,7 @@
-import Yulang.CommonPatternInversion
-#check Inference.Expr
-#check Yulang.Inference.Expr
-#check Yulang.CommonPatternInversion.wildcard_iff
-#print Yulang.CommonPatternInversion.wildcard_iff
-#check Yulang.CommonPatternInversion.pair_iff
-#check Yulang.CommonPatternInversion.typing_root_exact
+import Yulang.CoreScopedPatterns
+import Yulang.CoreCommonSyntax
+#check @Yulang.Core.Patterns.names_map
+#check @Yulang.Core.Scoped.names_embed
+#check Bool.and_eq_true
+#check Bool.and_eq_true_iff
+#print Yulang.Core.Patterns.names_map

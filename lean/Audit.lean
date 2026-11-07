@@ -4228,3 +4228,11 @@ run_cmd do
 #print axioms Yulang.CommonPatternVariantRowBoundary.no_old_upper_bound_payload_safety
 #print axioms Yulang.CommonPatternConcreteScope.reordered_instances
 #print axioms Yulang.CommonPatternConcreteScope.generation_reordered_exact
+#print axioms Yulang.CommonPatternSourceScope.concrete_scope
+#print axioms Yulang.CommonPatternSourceScope.lower_embed_rename
+#print axioms Yulang.CommonPatternSourceScope.named_typing_exact
+#print axioms Yulang.CommonPatternSourceScope.generateData_exact
+#print axioms Yulang.CommonPatternSourceScope.named_generation_exact
+#print axioms Yulang.CommonPatternSourceElaboration.preserved
+#print axioms Yulang.CommonPatternSourceElaboration.raw_typing_exact
+#print axioms Yulang.CommonPatternSourceElaboration.generateSourcePattern_exact

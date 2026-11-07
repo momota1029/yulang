@@ -618,3 +618,5 @@ import Yulang.CommonAlignedPatternEnvironment
 import Yulang.CommonAlignedCaseEvaluation
 import Yulang.CommonPatternVariantRowBoundary
 import Yulang.CommonPatternConcreteScope
+import Yulang.CommonPatternSourceScope
+import Yulang.CommonPatternSourceElaboration
