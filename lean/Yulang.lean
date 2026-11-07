@@ -678,3 +678,6 @@ import Yulang.CommonPurePatternErasure
 import Yulang.CommonCaseRecordSourceCoverage
 import Yulang.CommonCaseConstructorBounds
 import Yulang.CommonCaseRecordEnvironmentFamily
+import Yulang.CommonPatternNoMiss
+import Yulang.CommonRecordNoMiss
+import Yulang.CommonCaseRecordDefaultCoverage

@@ -4407,3 +4407,10 @@ run_cmd do
 #print axioms Yulang.CommonCaseRecordEnvironmentFamily.premises_instances_exact
 #print axioms Yulang.CommonCaseRecordEnvironmentFamily.no_premises_exact
 #print axioms Yulang.CommonCaseRecordEnvironmentFamily.all_parameter_program_progress
+#print axioms Yulang.CommonPatternNoMiss.everyCheck_exact
+#print axioms Yulang.CommonPatternNoMiss.EveryValue.run_noMiss
+#print axioms Yulang.CommonRecordNoMiss.check_exact
+#print axioms Yulang.CommonRecordNoMiss.Total.run_noMiss
+#print axioms Yulang.CommonCaseRecordDefaultCoverage.source_coverage_exact
+#print axioms Yulang.CommonCaseRecordDefaultCoverage.covered_not_unmatched
+#print axioms Yulang.CommonCaseRecordDefaultCoverage.record_program_progress
