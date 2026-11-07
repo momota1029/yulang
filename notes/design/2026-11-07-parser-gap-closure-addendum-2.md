@@ -10,7 +10,7 @@ Approved-by: user, 2026-11-07 (decision to fix the three gaps; the three answers
 
 Extends: `2026-11-04-parser-gap-closure-addendum.md` (same common rules, §2 there, apply unchanged).
 
-Scope: grammar and CST for three forms (WP-12 to WP-14) and one layout boundary (WP-15) that `spec/` promises and the parser rejects. Recorded in `spec/parser-gaps.md` on 2026-11-07. This memo changes no semantics, name resolution or HIR. The meaning of each form is in `spec/03-expressions.md` (3.1, 3.4, 3.7).
+Scope: grammar and CST for three forms (WP-12 to WP-14, WP-16) and one layout boundary (WP-15) that `spec/` promises and the parser rejects. Recorded in `spec/parser-gaps.md` on 2026-11-07. This memo changes no semantics, name resolution or HIR. The meaning of each form is in `spec/03-expressions.md` (3.1, 3.4, 3.7).
 
 ## 1. User decisions (fixed)
 
@@ -64,6 +64,20 @@ Out of scope (correct as they are): `+1 -> 2` and `- 1 -> 2` are not patterns. `
 CST: unchanged (`CaseArm(Pattern(...) "->" ...)`, the pattern holding the signed literal or range as it does for a first arm).
 Scope: `case` arms first. Check the same position for `catch` arms and for any other arm-list owner that shares the arm-boundary logic; fix them together only if one shared boundary check is the cause, otherwise stop and report. The worker's first report located the shared check in `expression/operator_chain.rs` (~line 647, currently limited to range starts); extend it to an adjacent `-` followed by an integer in the arm-start position.
 Pins that may change: any test that pins a same-indentation line beginning with an adjacent `-` and an integer as a continuation of an arm body. Name each and its reason. A deeper-indented `- x` continuation line must keep continuing (`1\n        - 2` as a body).
+
+### WP-16 `catch:` without a target
+
+Decision (user, 2026-11-07): `catch:` with no target is a one-argument function, `\a -> catch a:`, like `case:` (WP-14). Recorded in `spec/03-expressions.md` 3.7. Today `catch:` fails with a `Missing` inside `CatchScrutinee`.
+```yulang
+my h = catch:
+    flip::coin(), k -> k true
+    v -> v
+```
+CST (by analogy with the user's decision 3 in §1, for review): no `CatchScrutinee` node. `CatchExpression("catch" <the arm-block node used by `catch a:`>(":" arms ...))`. Use whatever block node `catch a:` already builds; do not add a kind.
+Admission: as WP-14, only for `catch` followed directly (same line) by `:`; `catch a:` keeps its exact CST; a missing target with no `:` stays a recovery case; `case:` is unchanged. The inline form `catch: v -> v` follows `case: 0 -> 1` if that works for `case`.
+Contexts to cover: after `=` in a `my` binding, as a pipeline target (`x | catch:` followed by indented arms), inside parentheses, nested in an arm.
+Pins that may change: tests that pin `catch:` as `CatchScrutinee` with a `Missing`. WP-14 added fixtures stating that `catch:` keeps its old CST; those fixtures change, and each must be named with its reason in the report.
+Out of scope: the meaning of `x | catch:` (spec E7), arms with several arguments.
 
 ## 4. Order
 
