@@ -4427,3 +4427,10 @@ run_cmd do
 #print axioms Yulang.CommonNominalTemplateAllocation.evaluate_rename
 #print axioms Yulang.CommonNominalTemplateAllocation.models_merge
 #print axioms Yulang.CommonNominalTemplateAllocation.model_roots_recovered
+#print axioms Yulang.CommonNominalTemplateArgumentSubstitution.models_exact
+#print axioms Yulang.CommonNominalTemplateArgumentSubstitution.extend_source_model
+#print axioms Yulang.CommonNominalTemplateArgumentSubstitution.model_source_root_recovery
+#print axioms Yulang.CommonNominalSourceTemplateApplication.models_exact
+#print axioms Yulang.CommonNominalSourceTemplateApplication.extend_source_model
+#print axioms Yulang.CommonNominalSourceTemplateApplication.compile_eval
+#print axioms Yulang.CommonNominalSourceTemplateApplication.term_model_root_recovery

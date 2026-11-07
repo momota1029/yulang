@@ -673,3 +673,5 @@ import Yulang.CommonNominalConstraintCongruence
 import Yulang.CommonNominalPoolMerge
 import Yulang.CommonNominalTemplateRowSubstitution
 import Yulang.CommonNominalTemplateAllocation
+import Yulang.CommonNominalTemplateArgumentSubstitution
+import Yulang.CommonNominalSourceTemplateApplication

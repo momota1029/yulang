@@ -112,7 +112,7 @@ theorem body_evaluate (arguments : Fin types → TyTerm (Fin inputs)) (assignmen
       have equation := argumentModel (root arguments parameter)
       simp only [body, CommonNominalTemplateAllocation.evaluate_rename, CommonNominalTemplateAllocation.merged_right,
         evaluate]
-      simpa only [root, Pool.termAt_reference] using equation
+      simpa only [root, provided, Pool.termAt_reference, ambient, rows] using equation
   | union first last ihFirst ihLast =>
       exact ⟨common_union_mono ihFirst.1 ihLast.1, common_union_mono ihFirst.2 ihLast.2⟩
   | inter first last ihFirst ihLast =>
@@ -139,5 +139,108 @@ theorem body_evaluate (arguments : Fin types → TyTerm (Fin inputs)) (assignmen
   | _ =>
       apply equivalent_of_eq
       simp only [body, evaluate, reference_value]
+
+def template (original : Template types inputs) (arguments : Fin types → TyTerm (Fin inputs)) : Template inputs inputs where
+  nodes := original.nodes + (argumentPool arguments).size
+  body := Fin.addCases
+    (fun index => body arguments (original.body index))
+    (fun index => CommonNominalTemplateAllocation.rename (Fin.natAdd original.nodes)
+      (CommonNominalOrdinaryTemplates.body (argumentPool arguments)
+        ((argumentPool arguments).termAt index) ((argumentPool arguments).at_mem index)))
+  root := reference original.nodes arguments original.root
+
+/-- Exact independent equation models of the actual combined graph. Every
+original argument node, ambient slot and template node is retained. -/
+theorem models_exact (original : Template types inputs) (arguments : Fin types → TyTerm (Fin inputs))
+    (assignment : Fin inputs → Comp model) (originalValues : Fin original.nodes → Ty)
+    (argumentValues : Fin (argumentPool arguments).size → Ty) :
+    CommonNominalTemplateEquations.Models (template original arguments)
+      (fun index => (assignment index).1) (fun index => (assignment index).2)
+      (CommonNominalTemplateAllocation.mergedValues originalValues argumentValues) ↔
+        OrdinaryModels (argumentPool arguments) assignment argumentValues ∧
+        CommonNominalTemplateEquations.Models original (provided arguments argumentValues)
+          (fun index => (assignment index).2) originalValues := by
+  let ambient : Fin inputs → Ty := fun index => (assignment index).1
+  let rows : Fin inputs → Row := fun index => (assignment index).2
+  constructor
+  · intro combined
+    have ordinaryModel : OrdinaryModels (argumentPool arguments) assignment argumentValues := by
+      intro index
+      have equation := combined (Fin.natAdd original.nodes index)
+      change Equivalent (evaluate ambient rows _
+        ((template original arguments).body (Fin.natAdd original.nodes index))) _ at equation
+      simp only [template, Fin.addCases_right] at equation
+      rw [CommonNominalTemplateAllocation.evaluate_rename, CommonNominalTemplateAllocation.merged_right] at equation
+      simpa only [CommonNominalTemplateAllocation.mergedValues, Fin.addCases_right, ambient, rows] using equation
+    refine ⟨ordinaryModel, ?_⟩
+    intro index
+    have equation := combined (Fin.castAdd (argumentPool arguments).size index)
+    change Equivalent (evaluate ambient rows _
+      ((template original arguments).body (Fin.castAdd (argumentPool arguments).size index))) _ at equation
+    simp only [template, Fin.addCases_left, CommonNominalTemplateAllocation.mergedValues, Fin.addCases_left] at equation
+    exact equivalent_trans (equivalent_symm
+      (body_evaluate arguments assignment originalValues argumentValues ordinaryModel (original.body index))) equation
+  · rintro ⟨ordinaryModel, originalModel⟩ index
+    refine Fin.addCases ?_ ?_ index
+    · intro index
+      change Equivalent (evaluate ambient rows _
+        ((template original arguments).body (Fin.castAdd (argumentPool arguments).size index))) _
+      simp only [template, Fin.addCases_left, CommonNominalTemplateAllocation.mergedValues, Fin.addCases_left]
+      exact equivalent_trans (body_evaluate arguments assignment originalValues argumentValues ordinaryModel (original.body index))
+        (originalModel index)
+    · intro index
+      change Equivalent (evaluate ambient rows _
+        ((template original arguments).body (Fin.natAdd original.nodes index))) _
+      simp only [template, Fin.addCases_right]
+      rw [CommonNominalTemplateAllocation.evaluate_rename, CommonNominalTemplateAllocation.merged_right]
+      simpa only [CommonNominalTemplateAllocation.mergedValues, Fin.addCases_right, ambient, rows] using ordinaryModel index
+
+theorem provided_actual (arguments : Fin types → TyTerm (Fin inputs)) (assignment : Fin inputs → Comp model)
+    (values : Fin (argumentPool arguments).size → Ty) (model : OrdinaryModels (argumentPool arguments) assignment values) :
+    ∀ parameter, Equivalent (provided arguments values parameter) ((arguments parameter).eval CommonNominalCarrier.model assignment) := by
+  intro parameter
+  have recovered := (ordinary_values_exact (argumentPool arguments) assignment values).mp model (root arguments parameter)
+  simpa only [provided, root, Pool.termAt_reference] using recovered
+
+theorem provided_canonical (arguments : Fin types → TyTerm (Fin inputs)) (assignment : Fin inputs → Comp model) :
+    provided arguments (CommonNominalOrdinaryTemplates.canonical (argumentPool arguments) assignment) =
+      fun parameter => (arguments parameter).eval model assignment := by
+  funext parameter
+  simp only [provided, root, CommonNominalOrdinaryTemplates.canonical_reference]
+  rfl
+
+/-- Every original template model over the real original argument terms
+extends without changing any original template-node value or ambient row. -/
+theorem extend_source_model (original : Template types inputs) (arguments : Fin types → TyTerm (Fin inputs))
+    (assignment : Fin inputs → Comp model) (originalValues : Fin original.nodes → Ty)
+    (sourceModel : CommonNominalTemplateEquations.Models original
+      (fun parameter => (arguments parameter).eval model assignment) (fun index => (assignment index).2) originalValues) :
+    CommonNominalTemplateEquations.Models (template original arguments)
+      (fun index => (assignment index).1) (fun index => (assignment index).2)
+      (CommonNominalTemplateAllocation.mergedValues originalValues
+        (CommonNominalOrdinaryTemplates.canonical (argumentPool arguments) assignment)) := by
+  apply (models_exact original arguments assignment originalValues _).mpr
+  refine ⟨canonical_ordinary_models _ assignment, ?_⟩
+  simpa only [provided_canonical] using sourceModel
+
+theorem model_source_root_recovery (original : Template types inputs) (arguments : Fin types → TyTerm (Fin inputs))
+    (assignment : Fin inputs → Comp model) (originalValues : Fin original.nodes → Ty)
+    (argumentValues : Fin (argumentPool arguments).size → Ty)
+    (combined : CommonNominalTemplateEquations.Models (template original arguments)
+      (fun index => (assignment index).1) (fun index => (assignment index).2)
+      (CommonNominalTemplateAllocation.mergedValues originalValues argumentValues)) :
+    Equivalent (original.eval (fun parameter => (arguments parameter).eval model assignment) (fun index => (assignment index).2))
+      (chosen (CommonNominalTemplateAllocation.mergedValues originalValues argumentValues)
+        (fun index => (assignment index).1) (template original arguments).root) := by
+  have parts := (models_exact original arguments assignment originalValues argumentValues).mp combined
+  have parametersSame := provided_actual arguments assignment argumentValues parts.1
+  have sourceSame := CommonNominalTemplateCongruence.template_eval_congr original (fun index => (assignment index).2)
+    _ _ parametersSame
+  have rootSame := CommonNominalTemplateEquations.model_root_recovery original (provided arguments argumentValues)
+    (fun index => (assignment index).2) originalValues parts.2
+  change Equivalent _ (chosen _ _ (reference original.nodes arguments original.root))
+  have same := reference_value arguments originalValues argumentValues (fun index => (assignment index).1) original.root
+  rw [same]
+  exact equivalent_trans (equivalent_symm sourceSame) rootSame
 
 end Yulang.CommonNominalTemplateArgumentSubstitution
