@@ -102,8 +102,9 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 | `CommonPresenceCoalescedSource.residual_source_principal` / `residual_core_principal` | 上の任意閉式・任意結果の iff を実変数辺消去まで接続。row/type/recursive の3 parameter family を実同時 solver に代入し、残る条件は元 pool の非変数 node 間比較だけ。clause 回収は結果値の要求同値と結果行の等号を保ち、GoodAtoms は生成不変量から内部で供給 | rigid 比較の symbolic saturation と、残余を除いた公開 `Core.infer`・拒否完全性・unsupported 不出現 |
 
 続いて、復旧記録 §7.1 の **代入前に固定する symbolic rigid 分解**を source/Core の両方で閉じた。
-§7.2 では元 pool の普通の node 比較の有限閉包と、profile の有限支持、optional/default の境界への変換まで
-進めた。以下の局所的な全 parameter 定理を、全制約を解いた最終 principal theorem と同一視しない。
+§7.2 では元 pool の普通の node 比較の有限閉包、上限 clamp の全 parameter 性、non-child 条件の下での
+全辺 soundness、および optional/default の有限境界と共有 pool 拡張まで進めた。以下の局所的な定理を、
+全制約を解いた最終 principal theorem と同一視しない。
 
 | Symbolic compiler の定理 | 示したこと | 示さないこと |
 | --- | --- | --- |
@@ -118,6 +119,14 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 | `CommonSymbolicTailView.symbolic_tail_exact` | 任意 H/S/T と任意 slot 割当てで、同深さ tail 比較 iff 二つの異なる record head を持つ有限 `TyTerm` view の通常比較。入力にない未知 label も保存し、rename/subst と可換 | view の再展開を進行と数えた tail 循環の解消 |
 | `CommonTopTest.top_iff` / `CommonOptionalBound.optional_payload_branches_exact` / `narrow_instances_exact` | 任意 Common 型の top 同値を有限 outer 構文で判定。任意 label/source/payload の optional 義務を、top/width と exactEmpty-required union への通常比較の二枝へ完全変換。単独 optional 義務には制約なし parameter family と全解回収を構成 | その境界を未知共有 graph 全体へ伝播する完全 solver、元 unmasked 型の独立 masked 値からの回収 |
 | `CommonDefaultBounds.default_required_branches_exact` | 任意 label/source/fallback/payload で、whole default の required 比較 iff 通常の型比較だけからなる固定三枝。shape/presence 前提なし、元 source/payload を共有し、深さ0を保持 | 新しい union 形の optional 上界の有限飽和と最終公開入口 |
+| `CommonOptionalGraphExtension.exists_extension_exact` / `CommonOptionalPool.exists_extension_exact` / `CommonOptionalPoolQueries.extended_size_bound` | 任意共有 graph/pool と任意有限 query 列の constructor model を optional 境界用 node へ正確に拡張・制限。実 Pool 版は元 ID の数値を保持し、実生成 query の在庫は元 N node に対して高々 5N+3 node | 拡張 pool の全比較を処理する分岐 worklist の閉性 |
+| `CommonSameDepthUpperObstruction.solver_recovers_counterexample` | 任意の異なる label a/b と任意 payload P/Q に対し、同 depth の独立方程式の現 solver 解に、元方程式を満たすが上限 required b Q を破る値がある | その独立 graph が実 source の完全な生成 clause であるとの主張 |
+| `CommonPresenceClampedBounds.solve_realizes` / `all_parameters_below_bound` / `all_parameters_along_path` / `solve_retract` | 変数右辺全体を propagated upper で clamp する新 variant。任意 parameter で元 constructor 方程式、全 propagated upper、全 variable-flow path を満たす。元方程式と全辺を満たす任意モデルを全 node の要求同値まで回収 | 下限・rigid 比較の無条件な全 parameter 成立 |
+| `CommonClampedClosureSoundness.conditional_soundness` / `solve_sound_of_nonChild` | 任意 pool/edges の recursive endpoint grammar・ordinary closure・clamped graph model・row/profile/flag 条件の下で全辺が成立。rigid 比較の成立を前提にせず、有限観測 depth と source weight で帰納 | non-child 条件の消去、optional 上界の追加後にも成り立つ拡張版 |
+| `PresenceGeneratedWidth.generated_width_atoms` / `CommonGeneratedWidth.generated_pool_width` / `CommonGeneratedBoundWidth.optional_exact_of_poolWidth` | 全実生成 record/default の tail/source に同一 clause の width atom が付随することを、全生成・置換・packing で保存。元 model から局所 width を得て、固定 optional inspector の意味と元 node の比較を接続 | この定理単独で、全辺 model を仮定せず任意 solver parameter から width を導くこと |
+| `CommonSymbolicBoundInspection.inspect_required_exact` / `inspect_optional_exact` / `CommonGeneratedBoundInspection.inspect_exact` | required/default/optional の固定分岐を、元共有参照・有限 required/optional 境界・行比較・literal flag だけへ変換。optional には明示した局所 width が必要。profile と動的 Bool を出力しない | 新境界を含む全 worklist と同深さ tail の全 parameter soundness |
+| `CommonGeneratedBoundSupport.inspect_supported` / `optional_query_supported` | 任意元 pool の通常 target と選択済み optional query の全分岐は、同じ有限 query inventory 内の bound reference だけを使う。型代入・model・endpoint shape・成功を前提にしない | 追加 pool 全体の再 inspection と全 worklist の閉包 |
+| `CommonGeneratedClampedWidth.generated_all_parameters_pool_width` / `generated_core_all_parameters_pool_width` | 任意実生成 clause と、元 rigid 分解で静的に残った任意 branch について、任意 rows/type/recursive parameters の clamped solve は全 record tail/default source の width を満たす。branch.Holds・全辺 model・solver 成功を前提にしない | 追加 pool への transport と他の全 branch 条件の同時消去 |
 
 回答済み Q5 に対応する新しい具体要求モデルを `ProducerContextual` / `ProducerContextualRegular` に追加した。
 型変数は任意の意味型が満たすすべての観測を表し、arrow の引数要求も同じ環境の型を名前で参照する。

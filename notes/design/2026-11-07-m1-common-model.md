@@ -391,3 +391,56 @@ default(l,S,F) ≤ required l P
 
 この rawOpt は一般の target union とは別の有限 template として扱う。共有 graph への追加と再分解の閉性、
 同深さ循環を含めた全 parameter soundness は、上の局所 iff から自動的には従わない。
+
+## 18. 同深さ循環に必要な上限 clamp
+
+ordinary 比較の有限固定点だけから、従来の recursive equation solver の任意 parameter が上限を満たすと
+推論する案は採用しない。異なる label a/b、任意 payload P/Q に対し、W = required a P は
+`X = record a P X | (bottom & required b Q)` の独立モデルになるが、required b Q 以下ではない。
+`CommonSameDepthUpperObstruction` は実 solver が W を要求同値まで回収することも証明する。
+この graph を特定 source の完全な生成 clause と同一視してはいない。
+
+`CommonPresenceClampedBounds` は旧 solver を保持したまま、各変数の旧展開全体と伝播済み上限との
+intersection を新しい右辺にする。任意の行・型・recursive parameter で、元 constructor 方程式、
+全 propagated upper、全 variable-flow path が成立する。元 constructor 方程式と全辺を満たす任意モデルは、
+元変数と元全 node 値を parameter に選ぶと要求同値まで回収される。下限の無条件成立はここに含めない。
+
+`CommonClampedClosureSoundness` は endpoint grammar と ordinary closure を持つ任意 pool/edge 列で、
+clamped graph model と残りの row/profile/flag 条件から全辺を証明する。pair/arrow 子では観測 depth を減らし、
+同 depth の source union では source 構文 weight を減らす。lower edge を propagated upper へ戻す補題は
+source を保持するため、帰納法は元 rigid 比較の成立を前提にしない。non-child 条件は公開 principal theorem
+の前提へ移すためのものではなく、後続 compiler で消去すべき内部義務として明示する。
+
+## 19. 元 ID を保持する有限 optional 境界
+
+projection の自由 table を別々に求解する代わりに、§17 の固定分岐を通常の共有 node 比較へ移す。
+`CommonSymbolicBoundInspection.BoundRef` は original ID、top、width、exactEmpty、required、rawOpt の六形を持つ。
+payload は元 node ID または top であり、任意 Common 型を推論時に inspector へ渡すことはない。
+出力は ref/ref の child 比較、行比較、literal Bool のみで、field/optional projection と動的 presence test は残さない。
+ordinary target の exactness は元 constructor 方程式だけで成立し、rawOpt target の局所分解には source の
+record tail/default source が width 以下であることを使う。
+
+`PresenceGeneratedWidth` は、実生成した record/default の同じ clause にこの width atom が付随することを、
+scheme 置換、全 let 分岐、packing まで保存する。`CommonGeneratedWidth` は元 model から pool 全体の
+局所 width を回収し、`CommonGeneratedBoundWidth` は optional inspector の明示的前提へ接続する。
+全辺 model を前提にしたこの接続だけを、任意 parameter の soundness と読み替えない。
+
+`CommonOptionalGraphExtension` は一般の共有 graph を直接拡張する独立構成を与える。
+実 coalescing/solver の再利用には `CommonOptionalPool` の構文 pool を用いる。元 term 列を初期区間に保ち、
+重複を除いた新しい境界だけを後ろへ加えるため、元 ID の数値は変化しない。元 model と拡張 model の存在は同値で、
+制限は元値を literal equality で回収する。型変数・行変数も同じ ID を参照する。
+
+query は元の required node ごとに、その payload ID と同 label の top の二つを取ればよい。
+`CommonOptionalPoolQueries` は query 数が高々 2N、拡張 pool が高々 5N+3 node であることを証明する。
+すべての label と node の直積を取る案は不要である。新しい optional/default 分解から生じる query の支持と、
+lower/upper 伝播後にも同じ有限 inventory にとどまる全 worklist の閉性は、別々の証明義務として扱う。
+
+`CommonGeneratedBoundSupport` は元 pool の通常 target と選択済み optional query の全出力について、
+同じ inventory の支持を無条件に証明する。default 分解が増やす query は同 label の top だけであり、
+別 label・別 payload の追加はない。行比較も元 row AST と向きをそのまま保持する。
+
+局所 width の全 parameter 性は `CommonGeneratedClampedWidth` で補う。元 clause の初回 symbolic 分解に
+静的な残存 branch が一つあれば、任意 rows/type/recursive parameters の clamped 解は PoolWidth を満たす。
+branch.Holds や全辺の model は前提にしない。width seed の source が var なら上限 clamp、width/required
+なら constructor 方程式を用い、base/pair/arrow なら literal false による静的 branch 消去と矛盾する。
+これは元 pool/edge 列への結果であり、追加 pool への輸送と全 worklist の統合は別の義務である。
