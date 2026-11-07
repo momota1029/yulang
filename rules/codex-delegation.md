@@ -14,7 +14,7 @@ Put these in the tool call itself. Model names written only in the prompt have n
 - `cwd`, absolute. Omitted, it is the MCP server's start directory.
 - `sandbox`: `read-only` for investigation and review, `workspace-write` only for workers meant to edit.
 - `approvalPolicy: "never"` for unattended workers, so they do not stall on an approval nobody answers.
-- `watchdogSeconds` so an abandoned worker stops; `label` for the fleet listing.
+- `label` for the fleet listing. **Do not set `watchdogSeconds` on a long-running worker** (2026-11-07): the watchdog counts only the supervisor's MCP reads (`agent_result` / `agent_status` / `agent_send`...), not `tools/codex-watch.sh`, so it interrupted three B-track workers after ~4.7 hours while their watchers saw nothing. If you do set it, call `agent_result` more often than the window. The watcher now prints `codex-aborted` when a turn ends with `turn_aborted`; resume with `agent_send` (mode followup).
 
 Before sending, check the actual call parameters (not the prompt) for `model`, `effort`, `cwd` and `sandbox`.
 

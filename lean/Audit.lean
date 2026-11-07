@@ -4435,3 +4435,6 @@ run_cmd do
 #print axioms Yulang.CommonPatternCoreRuntimeEnvironment.witness_instances_exact
 #print axioms Yulang.CommonPatternCoreRuntimeEnvironment.no_witness_exact
 #print axioms Yulang.CommonPatternCoreRuntimeEnvironment.all_parameter_values_preserved
+#print axioms Yulang.CommonPatternCoreRuntimeMatch.canonical_returns_witness
+#print axioms Yulang.CommonPatternCoreRuntimeMatch.canonical_match_models_exact
+#print axioms Yulang.CommonPatternCoreRuntimeMatch.all_parameter_matches_partial_and_bound

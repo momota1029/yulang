@@ -99,6 +99,26 @@ my twice(x: 'a) =
   1. 条件の型の大きさの合計が、`impl` の head の型の大きさの合計より**真に小さい**（型構築子と型変数を一個ずつ数える）。
   2. どの型変数も、条件の中での出現回数が head の中での出現回数を超えない。
 
+  **大きさの数え方（確定, 2026-11-07, ユーザーの決定）**: 大きさと出現回数は、**隠れた同名 field を取り除いた後の型**で数える（4.3: 隠れた field は型の上でも無かったことになる）。
+  `impl R {x: int, x: int}` の 2 つ目の `x` は数えないので、`where {x: int}: R` は「真に小さい」にならず、宣言時に拒否される。隠れた field の無い普通の `impl` の扱いは変わらない。
+  理由: 書いたままの大きさで数えると、隠れた field を好きなだけ足して「小さい」ことにでき、解決が停止しない registry が作れる（Lean: `CommonRoleFiniteShadowObstruction.finite_tree_registry_undecidable`）。
+
+  **record の tail（`..'a`）を持つ head は、引き算を遅らせて解く**（確定, 2026-11-07, ユーザーの決定）。`impl R {x: int, ..'a} where 'a: R` のような head の `..'a` は、「head と要求同値になる任意の代入」ではなく、**record の引き算の結果として決まる残り**である。
+  `R {x: int, ..'a}` の形の goal は、`'a` が未解決のうちは**解かずに保留する**（解いてはいけない）。具体的な record が来て、`{x: int, y: str} <: {x: int, ..'a}` のような判定で先頭の field が引かれたときに初めて、`'a` が `{y: str}` のように決まる（4.3: 受ける側の要求を残りに回すとき、先頭で書いた field の要求だけを取り除く）。
+  そのため、`'a` を「head が隠れた同名 field を作るように」選び直すことはできず、`where` の各条件の意味は head と具体的な goal から一つに決まる。保留した goal は、具体化されるまで解決の対象にならないので、解決は止まらないことがある形にならない。
+  理由: 任意の核の registry に対する Lean の反例（`CommonRoleFiniteTailObstruction.normalized_registry_undecidable`: `R {x:int, ..a} where R a` で `a := {x:int}` と捕まえると head が同値になる）は、この「任意の代入」の読みに依存していた。
+
+  **variant の行で同じ tag を重ねて書いたときは、合流した後の形で数える**（確定, 2026-11-07, ユーザーの決定）。`impl R :{tick 'a, tick 'a}` のように同じ tag を重ねると、payload は合流して `union('a, 'a)` になり、型の意味は `:{tick 'a}` と同じである。大きさと出現回数は、`union(P, P) → P` のように縮約した後の形で数える。重ねて書くこと自体は、宣言のエラーにしない。
+  合流は、型が分かるまで遅らせる（goal は型が確定した記述なので、照合の時点で合流済みの形になる）。別の tag を足すと要求が増えて型の意味が変わるので、見えない膨らみにはならない。見えない膨らみを作れるのは、同じ tag の重ね書きと、record の隠れた同名 field だけである。
+  理由: 生の大きさで数えると、同じ tag を重ねて「小さい」ことにでき、解決が停止しない registry が作れる（Lean: `CommonRoleMergedObstruction.canonical_merged_registry_undecidable`）。
+  **型変数の捕捉の後に初めて合流が起きる impl は、宣言時に拒否する**（確定, 2026-11-07, ユーザーの決定）。`where` が head より小さいことは、「型変数に何が入っても」成り立たなければならない。宣言の時点の大きさで小さく見えても、型変数が具体的な型に決まった後で、head の payload が合流して `where` が小さくなくなる `impl` は、宣言でエラーにする（利用時のエラーを増やさない）。
+  例: `impl R 'a (:{tick (int, 'a), tick ('a, int)})` where `'a: R (:{tick ('a, 'a)})` は、`'a := int` の後で 2 つの payload が `(int, int)` に合流し、head と where が同じ大きさになる。この `impl` は宣言で拒否される。
+  具体的な検査（有限で決められる十分条件）の形は、実装側で決める。
+  **合流前の変数は、合流した後の payload をそのまま捕捉する**（確定, 2026-11-07, ユーザーの決定）。`impl R (:{tick 'a, tick 'b})` のように、同じ tag を別々の変数で重ねた head は、確定した goal `R :{tick int}` に対して、合流後の payload `int` を `'a` と `'b` の**両方**に捕捉する（`'a := int, 'b := int`）。合流前の値を型の同値から復元して分けたり（`'a := never, 'b := int` など）、任意に分割したりしない。
+  そのため、この `impl` は goal の候補になり、`impl R (:{tick int})` も候補なら、二候補の曖昧性として報告される（6.2: 曖昧時の扱い）。
+  **plain の型変数以外は、合流後の payload を分割しない**（確定, 2026-11-07, ユーザーの決定）。head の同じ tag を `box('a)` と `box('b)` のように別々の nominal の枝で重ねても、goal 側で合流して残った `box int` と `box bool` に別々に当てることはしない。この head は、そのような goal の候補にならない（`impl R (:{tick 'c})` のように plain 変数で受ける impl だけが当たる）。
+  理由: 要求は union を含まない（4.7b）ので、合流後の payload を要求の枝に分割して当てると、要求に union を持ち込むことになる。nominal の引数は不変なので、`box int` と `box bool` は `box (int | bool)` にまとめられない（6.5）。
+
   ```yulang
   impl Display (list 'a):
       where 'a: Display          // 良い: 'a は list 'a より小さい。list (list int) → list int → int と降りて止まる
@@ -109,6 +129,11 @@ my twice(x: 'a) =
 
   この条件のもとで、role の解決は必ず停止する。
 - **`impl` の `type name = ...` の右辺は、他の role の associated type を参照できない**（確定, 2026-11-05）。右辺に書けるのは具体的な型・型構築子・その `impl` の head に現れる型変数だけで、associated type は head の型引数から決まる一つの型になる。解決の途中で別の associated type を展開する必要は生じない。他の role の associated type を右辺で引ける構文は、必要が出てから足す。
+- **`impl` の関連型の右辺は、head から決まらなければならない**（確定, 2026-11-07。ユーザーの決定）。head の**隠れた同名 field**（`{x: int, x: 'a}` の 2 つ目の `x`。型の上では無かったことになる。章4.3）を除いた head から、右辺が使う型変数が決まらない `impl` は、宣言時に拒否される。
+  例: `impl R ({x: int, x: 'a}): type value = 'a`。goal `R {x: int}` に対して `'a` は任意の型で成り立つので、関連型 `value` が `int` にも `bool` にもなり、同じ `impl` のため「候補の impl が複数ある」曖昧さの検査にも当たらない。
+  必要な条件は `HeadDeterminesAssociated`（任意の `impl` と、head が要求同値になる任意の二つの代入について、関連型の右辺も要求同値になる）。具体的な検査の形（隠れた field を先に除く、など）と、その十分性は未証明。
+  出典: Lean の反例 `CommonRoleAssociatedExactness.checked_registry_counterexample`（B4 の E2）。
+
 - `role` の body の `where` は、その role の method に継承される。`impl` の body の `where` は、その `impl` が候補になるための前提になる。
 
 ## 6.4 `x.method` の解決　〔確定〕
@@ -222,6 +247,13 @@ my q: (int, str) = p              // 成分ごとに cast: (int, str)
 ```
 
 - **nominal な型の型引数（`list 'a`・`ref`・`box 'a` など）は不変で、cast も通らない**（確定, 2026-11-05）。不変な引数は `(lower, upper)` の区間として持ち、実際の引数は一つの型に決まる。すでに型が決まった `list user_id` は `list int` の場所には渡せない。
+- **不変な引数は、中心を持たない区間 `(lower, upper)` で持つ**（確定, 2026-11-08, ユーザーの説明。出典は旧世代の `main:spec/2026-06-02-role-system.md`「不変区間規則」。role の解決の土台はこの区間で、型の同値で点として扱わない）。
+  - 型変数は、下界と上界の組を持つ。表示では `bool | int | 'a & float & complex` のように、真ん中に型変数を置いて書く。内部では `(bool | int | 'a, 'a & float & complex)` で、`lower = bool | int | 'a`、`upper = 'a & float & complex`。lower と upper の両方に出る変数は、表示のときだけ重複を隠す。
+  - **同じ実引数を 2 つの区間で満たすときは、両区間の下界を lower 側へ、上界を upper 側へ足す。** `'a <: box 'b` と `'a <: box 'c` があれば、`'a <: box ('b | 'c, 'c & 'b)` として扱う。共起分析（lower と upper の両方に現れる変数の併合）にかけると、たいていは `'b = 'c` が結論されて、不変になる。
+  - 区間は、実際の引数が `lower ≤ 実型 ≤ upper` を満たすことを要求する。そのため `lower <: upper` を制約として戻す。両側が同じ単一の具体型 `T` の区間は、`T` に畳む。
+  - **型変数の極性は、型宣言のときに決める**（確定, 2026-11-08, ユーザーの説明。推論時には要らない）。型宣言の中で、型変数が**入れ子**になっていれば不変、そうでなければ通常の見方（位置による共変・反変）。
+    - **要確認（Claude の読み）**: 「入れ子」を、別の型構築子（`list 'a`、`box 'a` など）の引数の中に現れることと読んでいる。field の型や関数の引数・結果に直接現れる変数は、通常の共変・反変で見る。
+  - **要確認（上の規則から Claude が導いた帰結。ユーザーの言葉ではない）**: `box int` と `box bool` を合流させると `box (int | bool, int & bool)` の区間になり、`int | bool ≤ int & bool` を満たせず、型エラーになる（`box (int | bool)` にはまとまらない）。
 - **配列（list）の literal の要素型は `int | '_a` のように、後で決まる部分を持つ**（確定, 2026-11-05）。`'_a` は値制限で一般化されない弱多相の変数で、後の使い方で決まる。`my e = []` の `'a` が後で決まるのと同じ仕組み。`'_a` が決まったとき、literal の要素は**構築位置に遡って**、その型への境界として cast される。literal の各要素は、`'_a` が決まるまで保留された境界を持つ。
 
 ```yulang
@@ -269,5 +301,19 @@ enum app_err:
   既存の宣言 checker が受理する規則 `R(F(G(G a), b)) requires R(F(a, G b))` と、再帰型 `A ≈ G A` から、要求同値でも再訪しない goal の無限列が作れ（`chain_fresh`）、
   自然数の減少による停止の議論は不可能（`no_natural_descent_measure`）と証明された。
   ただし、Yulang のソースからこの goal が実際に生成できるかは未確認で、B4 自体が偽とも決定不能とも示されていない。決める話ではなく、未決として書き残す。
+  **2026-11-07 の更新**: B4 の Lean 検証（`CommonRoleRegularResolutionObstruction.amended_registry_undecidable`）で、宣言 checker を通る registry から、再帰型の goal の解決可否が停止問題と同じ難しさになることが証明された。
+  つまり「構造的に小さい」という宣言時の規則だけでは、再帰型を含む goal の停止は保証できない。
+  ユーザーの決定（2026-11-07）: role 単位の非巡回の検査（`Display (list 'a)` が `Display 'a` を要求する宣言まで弾く案）は**採らない**。引数が小さくなる再帰は許す。
+  残る未決（Yulang のコードに現れる）: 再帰型を role の型引数に渡す goal を、どう扱うか。選択肢は、(a) 再帰型を含む goal の解決を拒否または曖昧として報告する、(b) 再帰型でも停止を保証する追加の宣言検査を設ける（その十分性は未証明）。ユーザーに 1 問ずつ聞く。
+  **決定（2026-11-07, ユーザー, 確定）: 構造的な再帰型（自分自身を指す無名の型）が role の型引数に現れる goal は、解決に入る前に拒否する。**
+  「再帰型のため role を解決できない」と報告する。解決の深さに上限は置かない（6.3 の「解決の深さに上限は置かない」は変えない）。辞書は常に有限で、coinductive は採らない。
+  これで、Lean の反例（同じ goal に戻らず新しい goal が無限に続く形）も、同じ goal に戻る形も、解決に入る前に除かれる。解決に入る goal は有限の木だけになるので、6.3 の「where が head より構造的に小さければ停止する」の議論がそのまま成り立つ。
+  **決定（2026-11-07, ユーザー）: 拒否の位置。** 再帰型が型引数の深い位置（例: `list` の中）にあるだけなら、呼び出しは拒否しない。解決が**その再帰型を head とする goal に到達したとき**に拒否する。
+  例: `impl Len (list 'a)`（where なし）に対する `len [loop 1]` は通り、`impl Show (list 'a) where Show 'a` に対する `show [loop 1]` は `Show μ`（μ は再帰型）に降りたところで拒否される。報告では、どの impl の where で到達したかを示す。
+  **決定（2026-11-07, ユーザー）: 名前の付いた再帰型は対象外。** `enum tree` のように名前で終わる再帰型は、通常どおり解決する（`impl Show tree` に名前で当たる）。拒否されるのは、名前の無い構造的な再帰型だけ。
+  **決定（2026-11-07, ユーザー）: 拒否の場所を一つ足す。** impl の head を goal に照合するとき、head の非変数 pattern が名前の無い構造的な再帰型の constructor を調べる必要が出た時点でも、「再帰型のため解決できない」と拒否する。
+  例: `impl Check {box: {tick: 'a}} where Check {box: 'a}` に、`μ = {tick: μ}` を使う `Check {box: μ}` を解決させると、`{tick: 'a}` を μ の中身に当てる時点で拒否される（goal の根 `{box: …}` は再帰型ではないので、根の規則だけでは拒否できなかった）。
+  `'a` のように再帰型を変数で捕まえるだけの照合（`Len (list μ)`）は通る。理由: 根の規則だけでは、再帰型を `pair` などの中に残したまま、互いに同値でない goal を無限に作る registry が作れ、解決の停止が停止問題と同じ難しさになる（Lean: `CommonRoleReachedRootObstruction.reached_root_registry_undecidable`）。
+  K2 は、これで **確定**。B4 の修正 statement は「goal の型・行から構造的な再帰型を除いた有限木」を前提に書き直す（`notes/questions/2026-11-07-b4-regular-resolution-decidability.md`）。
 
 （I1〜I6 は反映済み。J4 で cast の有効範囲を確定。）

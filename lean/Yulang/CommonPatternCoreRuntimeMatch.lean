@@ -53,8 +53,9 @@ theorem canonical_returns_witness (source : E → Common.Row) (failure : R → C
   rw [self]
   exact safe
 
-/-- A real successful canonical match supplies every runtime value check
-internally. Core indices stay at their Q4/canonical scope throughout. -/
+/-- Given a typed prefix and subject, a real successful canonical match
+supplies the returned-name and returned-value checks internally.
+Core indices stay at their Q4/canonical scope throughout. -/
 theorem canonical_match_models_exact (pattern : Pattern Empty Required.Term)
     (ρ : α → Comp Common.model) (symbolic : SchemeEnv α)
     (environment : List (CommonSyntax.Binding Common.model)) (semantic : List (Binding Common.model))
