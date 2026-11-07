@@ -7,7 +7,8 @@
 # A worker thread that was resumed with a follow-up already holds the earlier
 # task_complete lines. "@N" waits until the log holds at least N of them: use the
 # number already present plus one (`grep -c '"type":"task_complete"' <log>`).
-# Without "@N" the count is 1.
+# Without "@N" the count is 1. N counts ended turns (completed or aborted); use the number
+# of `task_complete`/`turn_aborted` lines already in the log plus one.
 #
 # Meant for the Monitor tool (see rules/codex-delegation.md). It is a bash script
 # on purpose: the login shell may be zsh, which does not split an unquoted
@@ -36,7 +37,7 @@ for _ in $(seq 1 580); do
       end_count=$(grep -c -E '"type":"(task_complete|turn_aborted)"' "$log")
       last_end=$(grep -o -E '"type":"(task_complete|turn_aborted)"' "$log" | tail -n 1)
     fi
-    if [ "$done_count" -ge "$want" ]; then
+    if [ "$end_count" -ge "$want" ] && [ "$last_end" = '"type":"task_complete"' ]; then
       echo "codex-done ${label} ${tid}"
     elif [ "$end_count" -ge "$want" ] && [ "$last_end" = '"type":"turn_aborted"' ]; then
       echo "codex-aborted ${label} ${tid} (turn interrupted: resume with agent_send)"
