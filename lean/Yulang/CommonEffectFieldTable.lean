@@ -69,4 +69,30 @@ theorem construct_fields_exact (signatures : List SemanticSignature) (declaratio
         (construct_checked_field_exact signatures declarations environment bindings assignment related field.scheme body)
         (ih bodies)
 
+/-- A field position is resolved before this rule. Its scheme is opened anew
+by useCheckedField; no instantiation is stored back into the declaration. -/
+def project (declaration : Declaration α) (index : Nat) (out : CompTerm α) : Formula scopes α :=
+  match declaration.fields[index]? with
+  | none => .old (.core .bot)
+  | some field => useCheckedField field.scheme out
+
+def ProjectionTyping (assignment : α → Computation) (declaration : Declaration α)
+    (index : Nat) (out : Computation) : Prop :=
+  ∃ field, declaration.fields[index]? = some field ∧
+    field.scheme.wellKinded = true ∧ FieldUse assignment field.scheme out
+
+/-- Exact checked elimination for a field of any local arity and either kind,
+including a missing-position rejection. The ambient assignment stays fixed. -/
+theorem project_exact (assignment : α → Computation) (declaration : Declaration α)
+    (index : Nat) (out : CompTerm α) :
+    (project (scopes := scopes) declaration index out).Holds assignment ↔
+      ProjectionTyping assignment declaration index (out.eval Common.model assignment) := by
+  cases found : declaration.fields[index]? with
+  | none =>
+    simp [project, ProjectionTyping, found, Formula.Holds,
+      CommonEffectFormula.Formula.Holds, Core.PresenceGeneration.Formula.Holds]
+  | some field =>
+    simpa only [project, ProjectionTyping, found, Option.some.injEq, exists_eq_left', true_and] using
+      use_checked_field_exact (scopes := scopes) assignment field.scheme out
+
 end Yulang.CommonEffectFieldTable
