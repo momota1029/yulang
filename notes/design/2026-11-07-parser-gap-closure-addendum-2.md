@@ -48,9 +48,9 @@ Pins that may change: any test that pins `..` inside braces as an error. Name ea
 Admission: after `case`, a `:` that follows immediately (or after layout trivia) with no scrutinee expression opens the arms. `case n:` keeps its exact CST. A missing scrutinee with no `:` after it (for example `case` alone, or `case` followed by an arm) stays a recovery case, as today.
 Pins that may change: tests that pin `case:` as `CaseScrutinee` with a `Missing`. Name each and its reason. This memo does not extend the form to `catch:` (spec marks that as open).
 
-### WP-15 an arm whose pattern starts with `-` or `+`
+### WP-15 an arm whose pattern starts with a signed integer
 
-Found on 2026-11-07 by the syntax-guide example check. `case n:` with a first arm followed by a second arm that begins with a signed literal fails:
+Found on 2026-11-07 by the syntax-guide example check. `case n:` with a first arm followed by a second arm whose pattern is a negative integer (or a range starting with one) fails:
 
 ```yulang
 case n:
@@ -58,11 +58,12 @@ case n:
     -1 -> 2
 ```
 
-The second line is read as a continuation of the first arm's body (`1 - 1 -> 2`) and recovery follows (`RawError ">"`). `+1 -> 2` and `- 1 -> 2` fail the same way; `(-1) -> 2` parses. A statement line `-1` at the same indentation as the previous statement already starts a new statement, and a first arm `-1..5 -> "a"` parses, so only an arm line that follows an arm body is wrong.
+The second line is read as a continuation of the first arm's body (`1 - 1 -> 2`) and recovery follows (`RawError ">"`). The same pattern as the FIRST arm parses (`-1 -> 2`, `-1..5 -> 2`, `..-1 -> 2`, `-1 | 1 -> 2`), and `(-1) -> 2` parses as a later arm. A statement line `-1` at the same indentation as the previous statement already starts a new statement. So only a later arm that starts with an adjacent `-` and an integer is wrong.
 Rule (not a new decision): `spec/01-lexical.md` 1.3 — a line at the same indentation as the block's baseline starts a new item, never a continuation. An arm line is a new arm even when its first token could also be an infix operator. A continuation needs a deeper indentation, as everywhere else.
+Out of scope (correct as they are): `+1 -> 2` and `- 1 -> 2` are not patterns. `spec/03b-patterns.md` 3b.1 allows a negative integer only with the `-` adjacent to the integer, and defines no `+` form. They are syntax errors as a first arm and as a later arm; keep them errors. Do not add pattern admission for them.
 CST: unchanged (`CaseArm(Pattern(...) "->" ...)`, the pattern holding the signed literal or range as it does for a first arm).
-Scope: `case` arms first. Check the same position for `catch` arms and for any other arm-list owner that shares the arm-boundary logic; fix them together only if one shared boundary check is the cause, otherwise stop and report.
-Pins that may change: any test that pins a same-indentation line beginning with `-` or `+` as a continuation of an arm body. Name each and its reason. A deeper-indented `- x` continuation line must keep continuing (`1\n        - 2` as a body).
+Scope: `case` arms first. Check the same position for `catch` arms and for any other arm-list owner that shares the arm-boundary logic; fix them together only if one shared boundary check is the cause, otherwise stop and report. The worker's first report located the shared check in `expression/operator_chain.rs` (~line 647, currently limited to range starts); extend it to an adjacent `-` followed by an integer in the arm-start position.
+Pins that may change: any test that pins a same-indentation line beginning with an adjacent `-` and an integer as a continuation of an arm body. Name each and its reason. A deeper-indented `- x` continuation line must keep continuing (`1\n        - 2` as a body).
 
 ## 4. Order
 

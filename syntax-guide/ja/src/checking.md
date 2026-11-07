@@ -25,7 +25,7 @@ cargo run --offline -p yu-syntax --example syntax_guide_check -- syntax-guide/ja
 
 ## 確認できること、できないこと
 
-2026-11-07 時点の結果: 60 ブロック中、57 が `ok`、2 が `placeholder`、1 が `recovery`。`recovery` の 1 件は、`case` の 2 番目以降の arm が `-1` で始まる形(パーサの穴。`notes/design/2026-11-07-parser-gap-closure-addendum-2.md` の WP-15)。先に見つかった 3 件(lambda の record 引数、record の式の spread、対象なしの `case:`)は直して `ok` になった。
+2026-11-07 時点の結果: 60 ブロック中、57 が `ok`、2 が `placeholder`、1 が `recovery`。`recovery` の 1 件は、`case` の 2 番目以降の arm が `-1` のように `-` と整数で始まる形(パーサの穴。`notes/design/2026-11-07-parser-gap-closure-addendum-2.md` の WP-15)。先に見つかった 3 件(lambda の record 引数、record の式の spread、対象なしの `case:`)は直して `ok` になった。
 
 | 確認できる | 確認できない |
 | --- | --- |
