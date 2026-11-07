@@ -4496,3 +4496,7 @@ run_cmd do
 #print axioms Yulang.CommonNominalFullCoreSource.generate_nominal_core_exact
 #print axioms Yulang.CommonNominalFiniteErasure.finite_rank_monotone
 #print axioms Yulang.CommonNominalFiniteErasure.finite_monotone
+#print axioms Yulang.CommonNominalRegularErasure.graph_commutes
+#print axioms Yulang.CommonNominalRegularErasure.state_observe
+#print axioms Yulang.CommonNominalRegularErasure.subtype_monotone
+#print axioms Yulang.CommonNominalRegularErasure.layer_value
