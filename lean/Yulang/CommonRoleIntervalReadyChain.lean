@@ -1,0 +1,42 @@
+import Yulang.CommonRoleDeferredBounds
+import Yulang.CommonRoleIntervalGeneration
+import Yulang.CommonRoleStablePaterson
+
+/-!
+# Lower-head readiness alone is not a descent argument
+
+Every snapshot below has ordinary finite, centre-less endpoint syntax and a
+known pair lower head. A covariant pair wrapper produces the next bounds.
+The corresponding growing declaration is rejected by the existing stable
+Paterson check. This is a boundary for readiness alone, not a role resolver,
+an accepted-program counterexample, or an E2 for the current language.
+-/
+
+namespace Yulang.CommonRoleIntervalReadyChain
+
+open Core.PresenceGeneration (TyTerm)
+open CommonRoleIntervals (Valid evaluate)
+open CommonRoleIntervalGeneration (Argument eval)
+
+def tower (last : TyTerm Empty) : Nat → TyTerm Empty
+  | 0 => .pair (.base .int) last
+  | count + 1 => .pair (.base .int) (tower last count)
+
+def bounds (count : Nat) : Argument Empty :=
+  (tower (.base .int) count, tower .top count)
+
+/-- The projection reads a real syntax constructor, not an oracle for a
+candidate or a putative solution of a matching equation. -/
+def pairHead : TyTerm Empty → Option Unit
+  | .pair _ _ => some ()
+  | _ => none
+
+def snapshot (count : Nat) : LayerBoundTemplates.Problem 1 (TyTerm Empty) :=
+  [.lower (bounds count).1 0, .upper 0 (bounds count).2]
+
+theorem always_known (count : Nat) :
+    CommonRoleDeferredBounds.observe pairHead (snapshot count) 0 = .known () [] := by
+  apply CommonRoleDeferredBounds.lower_arrives
+  cases count <;> rfl
+
+end Yulang.CommonRoleIntervalReadyChain

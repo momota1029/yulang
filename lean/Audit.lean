@@ -5881,3 +5881,5 @@ run_cmd do
 
 #print axioms Yulang.CommonEffectRefRunField.use_ref_run_exact
 #print axioms Yulang.CommonEffectRefRunField.project_ref_run_exact
+
+#print axioms Yulang.CommonRoleIntervalReadyChain.always_known
