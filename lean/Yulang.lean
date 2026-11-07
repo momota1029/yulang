@@ -1012,3 +1012,5 @@ import Yulang.CommonPatternPrefixNoMiss
 import Yulang.CommonRoleIntervalRecordGeneration
 
 import Yulang.CommonEffectFieldTable
+
+import Yulang.CommonEffectRefRunField
