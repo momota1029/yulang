@@ -132,7 +132,8 @@ theorem eval_eq (floatCheck : F → F → Bool)
     runArms_eq floatCheck defaultEval defaults first last same guardEval guards bodyEval bodies _ _ arms valid]
 
 theorem data_body_invariant (outer : Bindings F) : NamedInvariant (CaseDataTerms.bodyEval outer) :=
-  fun code first last same => CommonPatternBindingAlignment.data_eval_lookup_eq code _ _ (same.append outer)
+  fun code first last same => CommonPatternBindingAlignment.data_eval_lookup_eq code
+    (first ++ outer) (last ++ outer) (same.append outer)
 
 theorem data_guard_invariant (outer : Bindings F) : NamedInvariant (CaseDataTerms.guardEval outer) := by
   intro code first last same

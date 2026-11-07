@@ -4224,3 +4224,7 @@ run_cmd do
 #print axioms Yulang.CommonAlignedPatternEnvironment.generated_match_bindings
 #print axioms Yulang.CommonAlignedCaseEvaluation.runArms_eq
 #print axioms Yulang.CommonAlignedCaseEvaluation.data_evaluation_eq
+#print axioms Yulang.CommonPatternVariantRowBoundary.distinct_tag_union_payload_erased
+#print axioms Yulang.CommonPatternVariantRowBoundary.no_old_upper_bound_payload_safety
+#print axioms Yulang.CommonPatternConcreteScope.reordered_instances
+#print axioms Yulang.CommonPatternConcreteScope.generation_reordered_exact
