@@ -625,3 +625,6 @@ import Yulang.CommonSignedValueUnionSolver
 import Yulang.CommonEffectClauses
 import Yulang.CommonEffectClauseNormalisation
 import Yulang.CommonEffectPackedClauses
+import Yulang.CommonEffectFreshRows
+import Yulang.CommonEffectAnnotations
+import Yulang.CommonEffectScopedBounds

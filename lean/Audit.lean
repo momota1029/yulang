@@ -4340,3 +4340,19 @@ run_cmd do
 #print axioms Yulang.CommonEffectPackedClauses.compile_exact
 #print axioms Yulang.CommonEffectPackedClauses.solve_all_instances_exact
 #print axioms Yulang.CommonEffectPackedClauses.all_parameters_models
+
+#print axioms Yulang.CommonEffectFreshRows.exit_enter
+#print axioms Yulang.CommonEffectFreshRows.enter_capture_iff
+#print axioms Yulang.CommonEffectFreshRows.lift_shift
+#print axioms Yulang.CommonEffectFreshRows.residual_incoming
+#print axioms Yulang.CommonEffectFreshRows.unannotated_never_subtracted
+
+#print axioms Yulang.CommonEffectAnnotations.incoming_exact
+#print axioms Yulang.CommonEffectAnnotations.permission_capture_exact
+#print axioms Yulang.CommonEffectAnnotations.known_meaning
+#print axioms Yulang.CommonEffectAnnotations.Frozen.emit_exact
+#print axioms Yulang.CommonEffectAnnotations.Frozen.later_instantiation
+
+#print axioms Yulang.CommonEffectScopedBounds.eliminate_exact
+#print axioms Yulang.CommonEffectScopedBounds.uniform_witness_exact
+#print axioms Yulang.CommonEffectScopedBounds.universal_elimination_exact
