@@ -1008,3 +1008,5 @@ import Yulang.CommonDeclaredNominalInspection
 import Yulang.CommonRoleIntervalRecordResidual
 
 import Yulang.CommonPatternPrefixNoMiss
+
+import Yulang.CommonRoleIntervalRecordGeneration

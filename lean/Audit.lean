@@ -5863,3 +5863,7 @@ run_cmd do
 #print axioms Yulang.CommonPatternPrefixNoMiss.everyValue_noMiss
 #print axioms Yulang.CommonPatternPrefixNoMiss.supported_noMiss
 #print axioms Yulang.CommonPatternPrefixNoMiss.record_noMiss
+
+#print axioms Yulang.CommonRoleIntervalRecordGeneration.generated_fit_exact
+#print axioms Yulang.CommonRoleIntervalRecordGeneration.generate_exact
+#print axioms Yulang.CommonRoleIntervalRecordGeneration.compile_exact
