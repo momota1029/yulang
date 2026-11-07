@@ -175,10 +175,34 @@ theorem mem_functions (mapping : Fin n → Fin m) : mapping ∈ functions n m :=
       funext index
       refine Fin.cases ?_ (fun index => ?_) index <;> rfl
 
+theorem functions_length (source target : Nat) : (functions source target).length = target ^ source := by
+  induction source with
+  | zero => simp [functions]
+  | succ source ih =>
+      simp [functions, List.length_flatMap, ih, List.map_const', List.sum_replicate_nat,
+        Nat.pow_succ, Nat.mul_comm]
+
+/-- The inverse is looked up, not independently enumerated. The fallback is
+unreachable for a valid permutation, including the empty-domain case. -/
+def inverseLookup (forward : Fin n → Fin n) (target : Fin n) : Fin n :=
+  ((List.finRange n).find? fun source => decide (forward source = target)).getD target
+
+theorem inverseLookup_exact (permutation : Permutation n) (valid : permutation.Valid) (target : Fin n) :
+    inverseLookup permutation.forward target = permutation.backward target := by
+  unfold inverseLookup
+  cases found : (List.finRange n).find? (fun source => decide (permutation.forward source = target)) with
+  | none =>
+      have absent := (List.find?_eq_none.mp found) (permutation.backward target) (by simp)
+      exact False.elim (absent (by simpa only [decide_eq_true_eq] using valid.2 target))
+  | some source =>
+      have accepted : decide (permutation.forward source = target) = true :=
+        List.find?_some (p := fun candidate => decide (permutation.forward candidate = target)) found
+      have equation : permutation.forward source = target := of_decide_eq_true accepted
+      exact (valid.1 source).symm.trans (congrArg permutation.backward equation)
+
 def permutations (n : Nat) : List (Permutation n) :=
-  ((functions n n).flatMap fun forward =>
-    (functions n n).map fun backward => Permutation.mk forward backward).filter fun permutation =>
-      decide permutation.Valid
+  ((functions n n).map fun forward => Permutation.mk forward (inverseLookup forward)).filter fun permutation =>
+    decide permutation.Valid
 
 theorem mem_permutations (permutation : Permutation n) : permutation ∈ permutations n ↔ permutation.Valid := by
   simp only [permutations, List.mem_filter, decide_eq_true_eq]
@@ -186,8 +210,18 @@ theorem mem_permutations (permutation : Permutation n) : permutation ∈ permuta
   · exact fun member => member.2
   · intro valid
     refine ⟨?_, valid⟩
-    simp only [List.mem_flatMap, List.mem_map]
-    exact ⟨permutation.forward, mem_functions _, permutation.backward, mem_functions _, rfl⟩
+    apply List.mem_map.mpr
+    refine ⟨permutation.forward, mem_functions _, ?_⟩
+    have inverse : inverseLookup permutation.forward = permutation.backward :=
+      funext (inverseLookup_exact permutation valid)
+    rw [inverse]
+
+/-- The reference pass checks one inverse lookup per forward candidate; it
+does not take the Cartesian square of the finite function enumeration. -/
+theorem permutations_length_le (n : Nat) : (permutations n).length ≤ n ^ n := by
+  have bound := List.length_filter_le (fun permutation : Permutation n => decide permutation.Valid)
+    ((functions n n).map fun forward => Permutation.mk forward (inverseLookup forward))
+  simpa only [permutations, List.length_map, functions_length] using bound
 
 def scalarKey (code : List (List (Atom n))) : List (List Nat) :=
   code.map (List.map ProducerCanonicalOpenClauses.atomKey)
