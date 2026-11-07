@@ -4223,3 +4223,10 @@ run_cmd do
 #print axioms Yulang.CommonSignedValueSolver.all_parameters_models
 #print axioms Yulang.CommonSignedValueSolver.solve_all_instances_exact
 #print axioms Yulang.CommonSignedValueSolver.generated_all_instances_exact
+
+#print axioms Yulang.CommonEffectUniversalArms.joint_locals_iff
+#print axioms Yulang.CommonEffectUniversalArms.universalArms_exact
+#print axioms Yulang.CommonEffectUniversalArms.fold_types_le_iff
+
+#print axioms Yulang.CommonEffectArmGeneration.generate_arms_exact
+#print axioms Yulang.CommonEffectArmGeneration.aggregate_bounds_iff
