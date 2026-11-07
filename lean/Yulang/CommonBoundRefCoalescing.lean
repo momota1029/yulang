@@ -144,6 +144,44 @@ theorem rigid_encode (pool : Pool m) (queries : List (Query pool)) (edges : List
   rw [template_encode, CommonBoundMap.rigidComparisons_map]
   rfl
 
+def EdgesHold (pool : Pool m) (queries : List (Query pool))
+    (values : Fin (extend pool queries).size → Common.Ty) (edges : List (Edge pool queries)) : Prop :=
+  ∀ edge ∈ edges, Common.Subtype (values (encode pool queries edge.1)) (values (encode pool queries edge.2))
+
+theorem edges_encode (pool : Pool m) (queries : List (Query pool))
+    (values : Fin (extend pool queries).size → Common.Ty) (edges : List (Edge pool queries)) :
+    CommonPresenceConstraintGraph.EdgesHold (edges.map (encodeEdge pool queries)) values ↔
+      EdgesHold pool queries values edges := by
+  simp only [CommonPresenceConstraintGraph.EdgesHold, List.forall_mem_map, encodeEdge, EdgesHold]
+
+/-- Rigid discovery is sound for every independent node assignment. It does
+not need the graph equations or a successful parameter construction. -/
+theorem rigid_sound (pool : Pool m) (queries : List (Query pool))
+    (values : Fin (extend pool queries).size → Common.Ty) (edges : List (Edge pool queries))
+    (valid : EdgesHold pool queries values edges) : EdgesHold pool queries values (rigid pool queries edges) := by
+  have original := (edges_encode pool queries values edges).mpr valid
+  have model := CommonPresenceVariableBounds.models_of_edges (extend pool queries)
+    (edges.map (encodeEdge pool queries)) values original
+  have consistent := (CommonBoundCoalescing.rigid_comparisons_exact values _).mpr
+    (CommonBoundCoalescing.lower_models_of_models model)
+  change CommonPresenceConstraintGraph.EdgesHold
+    (CommonBoundCoalescing.rigidComparisons
+      (CommonPresenceVariableBounds.template (extend pool queries) (edges.map (encodeEdge pool queries)))) values
+    at consistent
+  rw [rigid_encode] at consistent
+  exact (edges_encode pool queries values (rigid pool queries edges)).mp consistent
+
+theorem rigid_endpoints (pool : Pool m) (queries : List (Query pool))
+    (edges : List (Edge pool queries)) (edge : Edge pool queries) (member : edge ∈ rigid pool queries edges) :
+    inputAt pool queries edge.1 = none ∧ inputAt pool queries edge.2 = none := by
+  have encoded : encodeEdge pool queries edge ∈ CommonBoundCoalescing.rigidComparisons
+      (CommonPresenceVariableBounds.template (extend pool queries) (edges.map (encodeEdge pool queries))) := by
+    rw [rigid_encode]
+    exact List.mem_map.mpr ⟨edge, member, rfl⟩
+  have rigid := CommonPresenceVariableBounds.residuals_rigid (extend pool queries)
+    (edges.map (encodeEdge pool queries)) _ encoded
+  simpa only [encodeEdge, inputAt_encode] using rigid
+
 /-- Shared original IDs are not changed by passing through the bounded
 reference index or by variable propagation. -/
 @[simp] theorem original_encode_val (pool : Pool m) (queries : List (Query pool)) (slot : Fin pool.size) :
