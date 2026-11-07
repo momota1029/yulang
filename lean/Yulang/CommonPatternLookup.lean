@@ -198,4 +198,36 @@ theorem literal_of_base {value : Value} {source : Comp Common.model}
       exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
         (bounded.1 0) 0 env (.base scalar) observed)
 
+/-- A single-tag Common variant demand reflects the actual tag and payload.
+A multi-tag variant row is not encoded here as a producer-type union. -/
+theorem variant_payload {value : Value} {source : Comp Common.model}
+    (typed : ValueTyping Common.model value source) (tag : Nat) (payload : Common.Ty)
+    (below : Common.Subtype source.1 (Common.variant tag payload)) :
+    ∃ item, value = .variant tag item ∧
+      ValueTyping Common.model item (Comp.pure Common.model payload) := by
+  let env : CommonFinite.Environment Common.Row := ⟨fun _ => .bottom, fun _ => []⟩
+  have observed : CommonFinite.ProbeAt Common.rowLe 0 env
+      (Common.observeTy 0 source.1) (.variant tag .trivial) :=
+    (CommonFinite.producerLe_iff_probe _ _).mp (below 0) 0 env (.variant tag .trivial) ⟨rfl, trivial⟩
+  cases typed with
+  | literal bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.variant tag .trivial) observed)
+  | pair _ _ bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.variant tag .trivial) observed)
+  | emptyRecord bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.variant tag .trivial) observed)
+  | record _ _ _ bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.variant tag .trivial) observed)
+  | @variant item a actual result child bounded =>
+      have head := (CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.variant tag .trivial) observed
+      have same : actual = tag := head.1
+      subst actual
+      exact ⟨item, rfl, typing_change_result child _
+        ((Common.common_variant_iff tag _ payload).mp (Common.subtype_trans bounded.1 below))⟩
+
 end Yulang.CommonPatternLookup
