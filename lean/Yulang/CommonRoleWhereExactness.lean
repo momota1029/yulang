@@ -9,9 +9,11 @@ condition, and has actual successful dictionary elaborations at two finite
 ground goals. Their Common interpretations are equivalent, but their full
 plans differ in the selected where-child implementation.
 
-An exact extension preserving the existing full dictionaries cannot identify
-those goals while retaining unique dictionary selection. This is not a
-claim about nontermination or a negative result for bare role-status checking.
+An extension preserving the existing full dictionaries cannot identify those
+goals while retaining unique dictionary selection. The full-plan coherence
+clause is stronger than status exactness plus returning one valid dictionary;
+its necessity for amended B4 is not asserted here. This is not a claim about
+nontermination or a negative result for bare role-status checking.
 -/
 
 namespace Yulang.CommonRoleWhereExactness
@@ -57,7 +59,7 @@ theorem no_common_dictionary_registry_extension :
 including the new check at declaration time and the independent old signature
 and associated-body checks. Neither success nor head determination is supplied
 as a free input to this theorem. -/
-theorem amended_registry_counterexample :
+theorem checked_dictionary_transport_counterexample :
     declarations.all CommonRoleHeadDetermination.Declaration.check = true ∧
     Roles.WellFormed visible ∧
     Roles.AssocWellFormed environment roles ∧

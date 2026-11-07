@@ -588,3 +588,4 @@ import Yulang.CommonRoleAssociatedExactness
 import Yulang.CommonRoleWhereObstructions
 import Yulang.CommonRoleHeadDetermination
 import Yulang.CommonRoleWhereExactness
+import Yulang.CommonRoleComputation
