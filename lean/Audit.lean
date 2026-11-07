@@ -5934,3 +5934,11 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredNominalSourceFamily.generated_core_models_exact
 
 #print axioms Yulang.CommonRoleIntervalReadyChain.bounds_consistent
+
+#print axioms Yulang.CommonDeclaredInvariantBounds.select_exact
+#print axioms Yulang.CommonDeclaredInvariantBounds.interval_atoms_exact
+#print axioms Yulang.CommonDeclaredInvariantBounds.value_interval_exact
+#print axioms Yulang.CommonDeclaredInvariantBounds.inspect_exact
+#print axioms Yulang.CommonDeclaredInvariantBounds.inspect_all_exact
+#print axioms Yulang.CommonDeclaredInvariantBounds.inspect_slots
+#print axioms Yulang.CommonDeclaredInvariantBounds.inspect_all_slots

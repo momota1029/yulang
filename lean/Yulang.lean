@@ -1028,3 +1028,5 @@ import Yulang.CommonCaseCoreRecordPrefixExamples
 import Yulang.CommonDeclaredNominalSlots
 
 import Yulang.CommonDeclaredNominalSourceFamily
+
+import Yulang.CommonDeclaredInvariantBounds

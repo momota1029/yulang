@@ -95,3 +95,34 @@ open 不変区間の具体的な source 生成、宣言からの variance 導出
 検証: 対象 module の `lake build --wfail`（190 jobs）と全体 build（1009 jobs）が終了コード 0。
 直接 `trust=0` 監査では、compile の主要定理は `[propext, Quot.sound]`、solver/source の主要定理は
 `[propext, Classical.choice, Quot.sound]` のみ。追加の公理・`sorry`・`native_decide` は導入していない。
+
+## 4. 宣言上 invariant の元引数だけへの中心なし区間 attachment
+
+`lean/Yulang/CommonDeclaredInvariantBounds.lean`。
+有限 occurrence 記述は元 head、引数位置、下限と上限の元 slot 参照だけを持つ。
+actual はその head のその位置から読み、区間の中心を別に選んだり保存したりしない。
+
+主要定理 `inspect_all_exact`:
+
+> 任意の有限宣言表、任意の元 slot を参照する有限 occurrence 列、任意の独立な元 computation
+> assignment について、実 interval inspector の返却 atom 列を同じ assignment がすべて
+> 満たすこと iff 各 occurrence の宣言／位置が実表に存在し、その位置の宣言 variance が
+> invariant であり、head 全体の arity/kind が宣言と一致し、同じ元 actual が同じ kind の
+> 下限以上かつ上限以下にある。
+
+covariant・contravariant・unused の位置にこの操作を適用すると `none` になる。
+head 全体を同じ既存 declaration-aware inspector で検査するため、選ばれた一位置だけが
+正しくて残りの arity/kind が壊れた head を受理しない。
+補助 `select_exact` は実有限 lookup と独立な selection 判断の同値、`value_interval_exact` は
+値引数について旧世代の中心なし `CommonInvariantIntervals.Holds` と同じ不等式であることを示す。
+返却 atom はすべて元型／行変数二つの通常の不等式である（`inspect_all_slots`）。
+
+occurrence の出所は外部であり、この packet は source がどこで deferred cast や interval
+attachment を生成するかを定義しない。同じ元 slot を複数 occurrence が参照する共有は保持する。
+未確定の cast 適用範囲、recursive variance 判定、full nominal source を新たに決定した結果ではない。
+§3 の Core 系の corollary は legacy `CoreRules.principalCore` / `InferenceSyntax.supported`
+の境界であり、より新しい `CommonSyntax` の default/case generator を扱ったとは主張しない。
+
+検証: 対象 module の warning-as-error build と全体 build が成功。
+`select_exact`・`interval_atoms_exact`・`inspect_all_exact`・`inspect_all_slots` の直接 `trust=0`
+監査は `[propext, Quot.sound]` のみ。
