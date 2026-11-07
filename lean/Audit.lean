@@ -4173,3 +4173,11 @@ run_cmd do
 #print axioms Yulang.CommonLegacySharedWitnesses.legacy_generated_shared_witnesses
 
 #print axioms Yulang.CommonLegacySharedWitnesses.legacy_instances_reflected
+
+#print axioms Yulang.CommonEffectHandlerGeneration.armBody_exact
+#print axioms Yulang.CommonEffectHandlerGeneration.generate_handler_exact
+
+#print axioms Yulang.CommonSignedFlowFamily.solve_all_instances_exact
+#print axioms Yulang.CommonSignedFlowFamily.returned_all_parameters
+#print axioms Yulang.CommonSignedFlowFamily.residual_edge_exact
+#print axioms Yulang.CommonSignedFlowFamily.shift_edge_exact
