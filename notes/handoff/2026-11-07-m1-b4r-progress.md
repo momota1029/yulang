@@ -414,3 +414,131 @@ N=Pattern.visible false を用いて payload 内も含め隠れた同名 field �
 
 検証: `cd lean && lake build --wfail` exit 0（670 jobs）。
 これらはE2のcountergrammarの結果であり、全Common grammarのNを完成したとは主張しない。
+
+## B4r3 checkpoint 2: 明示的duplicateを持たない有限 tail clock
+
+新規 `CommonRoleFiniteTailClock`。一つの atom C={x:int} と、pair で独立に並べた有限個の C を clock にする。
+head の各 slot は {x:int,..fresh}、child の各 slot は fresh。同じspineで同名fieldを二度書かない。
+実 substitution fresh:=C 後だけ first-field-wins の重複が生じ、{x:int,..C}≈C となる。
+これで prefix の異なるlabelやrecord順序の同値を追加せず、任意個のslotによって任意の構文サイズ差を稼げる。
+
+閉じた主張:
+
+- `fork_size` / `fork_occurrences`: 任意slot数 n,Pattern,変数名について、fork のsize=n*(size(pattern)+1)+1、occ=n*occ(pattern)。
+- `lift_normal`: 任意旧data Patternの新grammar埋め込みはNで変わらない。
+- `clock_normal`: 任意n,freshについてhead/child clock PatternはNで変わらない。
+- `fork_instantiate`: 任意n,Pattern,Description代入でforkの構文代入は各slotを代入したforkDescriptionと等しい。
+- `fork_equivalent`: 任意n,Pattern,Common代入,Descriptionについて、slotの解釈が同値ならfork全体も同値。
+- `atom_absorbs`: Cは有限木であり、Common.record0 int CはCと同値。
+- `head_clock_matches`: 任意n,fresh,Description代入でfreshをCへ写すならhead clockは固定有限clock(n)にCommon一致。
+- `clock_finite`: 任意nについてclock(n)は有限木。
+- `capacity_positive` / `member_below_capacity`: 任意有限rule列のcapacityは正、任意所属ruleのright raw sizeはcapacity未満。
+- `compile_normal`: 任意n,key,ruleの実compiled implはNで変わらない。
+- `compile_wellFormed` / `compiled_checked`: 任意n,key,線形ruleについてright.size<nなら、実WellFormedかつ新normalized checker=true。
+- `assignment_fresh` / `assignment_finite`: 任意rule,有限Ground代入について、生成したDescription代入はfreshをCへ写し、全像が有限木。
+- `assignment_data`: 任意rule,旧data Pattern,有限Ground代入について、Pattern.bound≤freshなら、
+  上の代入によるPatternのCommon解釈は元Ground代入による構文代入の解釈とCommon同値。
+
+検証: `cd lean && lake build --wfail` exit 0（671 jobs）。
+独立調査は、型注釈にspreadを直接書けないsurface grammarとの境界を指摘した。
+本反例は既存Roles.Term/WellFormed/AssocWellFormedが許すcore registryへの反例であり、source到達可能性は主張しない。
+元の普遍量化にsource生成可能性の前提はない。その前提を追加する場合は別のamended statementとして扱う。
+
+## B4r3 checkpoint 3: normalized checker を通る実registry
+
+新規 `CommonRoleFiniteTailRegistry`。任意有限Codeの全ruleに同じ有限slot数capacityを使う。
+閉じた主張:
+
+- `declarations_wellFormed` / `declarations_accepted`: 任意Codeについて、実visibleはraw WellFormedと既存raw checkerを満たす。
+- `environment_cores`: 任意Codeについて実関連型環境のcoresはvisibleに等しい。
+- `environment_checked`: 任意Codeについて、Nでサイズ/出現回数を数える新checkerは実環境を受理する。
+- `head_determines_associated`: 任意Codeについて、元実stored head/RHSに対するHDAが任意二Common代入について成り立つ。
+- `normalized_wellFormed`: 任意CodeについてN(cores)は実WellFormed。checker soundnessから追加前提なしで導く。
+- `visible_declared`: 任意Code,visible所属implについてrole<5、head.length=1。
+- `constraints_declared`: 任意Code,visible所属impl,実where childについてchild.role<5、arity=1。
+- `associated_wellFormed`: 任意Codeについて実関連型signature/scope/completenessが既存AssocWellFormedを満たす。
+- `declarations_normal`: 任意Code,visible所属実implについてN(impl)=impl。
+- `matches_compile`: 任意slot,key,rule,role,clock Description,data Description,任意Common代入について、
+  実head一致 iff source role一致、head clockのCommon一致、left dataのCommon一致。
+- `matches_terminal`: 任意role,clock/data Description,任意Common代入について、実terminal head一致 iff
+  role=0、代入0とclockのCommon一致、代入1とdataのCommon一致。
+- `child_interpreted`: 任意slot,rule,Description代入について、実where fieldは、freshの代入像をslot数だけ並べた
+  clockとrightの構文代入をdataに持つ実target roleのpair goalを返す。
+
+検証: `cd lean && lake build --wfail` exit 0（672 jobs）。
+最初の試行にlocal名clockのlinter warningが出たためclockTypeへ直し、wfailで再検証した。
+
+## B4r3 checkpoint 4: N-stableな有限tail clockの辞書 iff 停止
+
+新規 `CommonRoleFiniteTailHalting`。既存independent Dictionaryの両K2 gate、全実where、任意Common候補一意性を使う。
+
+閉じた主張:
+
+- `unique_terminal`: 任意Code,有限source,role,clock/data Descriptionについて、role=source.role、data≈source.value、
+  role=0なら、同じvisibleのterminalは任意Common代入のhead照合で一意。
+- `unique_compile`: 任意Code,source,target,registry所属entryと実Step、role,clock/data Descriptionについて、
+  role/source.roleとdata/source.valueが一致すれば、そのcompiled implは任意Common代入のhead照合で一意。
+- `machine_to_dictionary`: 任意Code,sourceとMachineHalts証拠、任意role,有限data Descriptionについて、
+  role/source.roleとdata/source.valueが一致すれば、固定有限clockとdataの独立amended辞書が存在する。
+  全代入像・全子の有限性とReadyを証明し、freshを有限Cへ捕まえる。
+- `dictionary_to_machine`: 任意Code,goal,その実Dictionary、任意有限source,role,clock/data Descriptionについて、
+  goal=pairGoal(role,clock,data)、role=source.role、data≈source.valueならMachineHalts。
+  clockの有限性・同値・成功を反映方向の追加前提にしていない。
+- `dictionary_iff_machine`: 任意Code,有限configurationについて、固定有限clockのcanonical goalの辞書 iff MachineHalts。
+- `start_finite`: 任意Code,inputについて初期descriptionは有限木。
+- `dictionary_exact`: 任意有限Code,inputについて、実N-stable registryの独立amended有限辞書の存在 iff ∃output,Eval Code input output。
+- `actual_plan_exact`: 任意Code,inputについて、全消去Plan内実implが同じvisibleに属する独立辞書が存在 iff 上記停止。
+
+検証: `cd lean && lake build --wfail` exit 0（673 jobs）。
+capacityの定義展開でproof elaboratorが既定heartbeatに達したため、このmodule内でcountをlocal irreducibleにした。
+これは証明探索の展開制御であり、resolverのfuel・意味的深さ制限ではない。
+
+## B4r3 checkpoint 5: normalized core registryの全域resolver非存在（E2）
+
+新規 `CommonRoleFiniteTailObstruction`。実declaration fields、associated RHS、unary signature、有限clock description、
+有限data goalをwireへ保存する。clock wireは有限descriptorから実queryCodeがコピーする。
+
+閉じた主張:
+
+- `eval_queryCode`: 任意有限Code,inputについて、固定有限queryCodeは実queryWireを有限計算する。
+- `queryCode_exact`: 任意Code,input,outputについて、その評価 iff output=queryWire(Code,input)。
+- `configuration_ready`: 任意Code,有限configurationについて、実canonical goalは有限木かつReady。
+- `no_total_normalized_resolver`: 追加前提なしで、任意Code,inputの実有限queryで必ず停止し、終了bit=true iff
+  実normalized-checked registryの独立amended有限Dictionaryが存在するfinite tape machineは存在しない。
+- `normalized_registry_undecidable`: 追加前提なしで、(1) 任意Codeについて新checker=true、N(cores)の実WellFormed、
+  任意Common代入の実HDA、実AssocWF、全visible実implのN固定性、(2) 任意Code,inputについて初期goalは有限木かつReady、
+  (3) 上の全域machine非存在、を示す。
+
+検証: `cd lean && lake build --wfail` exit 0（674 jobs）。
+このE2はlisted core premisesに対するもの。source-generated閉spineに限定した別定理を反証したとは言わない。
+独立reviewはこの量化境界でE2を支持し、build674/Audit55745の初期gateと主定理公理を確認した。
+
+## B4r3 checkpoint 6: 任意Common代入と、既存VerifiedDeclarationの最小反例
+
+新規 `CommonRoleFiniteTailSemantic` と `CommonRoleFiniteTailExamples`。
+
+閉じた主張:
+
+- `NormalizedDeclarations.union_padding_scope`: 任意Common代入について、既存の別union grammarでunion(unit,unit)を
+  表す有限Termは同じunitに解釈され、raw sizeが増え、record用Nでは変わらない一方、今回のcheckPatternsには拒否される。
+  実decoderを越えた別grammarの意味を混ぜた反例にしないよう、scopeを明示した。
+- `interpretGoal_commutes`: 任意実where goalとDescription代入について、有限記述解釈後のCommon意味と、
+  代入像をCommonへ写して実fieldを直接解釈することは等しい。
+- `forget`: 任意visible,goal,独立amended辞書について、両gate/一意性を除いた既存上位semantic Derivesが成り立つ。
+- `child_interpreted`: 任意slot,rule,任意Common代入について、実child fieldはclockChildとrightをpairにした意味を返す。
+- `reflect`: 任意Code,semantic goalと上位Derives、任意有限source,任意Common clockTypeについて、
+  role一致かつgoal.argument≈pair(clockType,source.value)ならMachineHalts。
+- `arbitrary_common_exact`: 任意Code,inputについて、任意Common代入の上位Derives iff ∃output,Eval Code input output。
+- `guarded_iff_arbitrary_common`: 任意Code,inputについて、有限Description代入のguarded辞書存在 iff 上位Derives。
+- `old_verified_api_accepts`: 最小DeclarationのtoImplは実反例implと等しく、既存verify.isSome=true。
+- `normalized_checked` / `declaration_fixed` / `declaration_sizes`: 最小実implは新checkerを通り、N固定、N前後head size3、child size1。
+- `goal_ready` / `head_matches` / `child_returns`: 最小有限goalはReady、有限C捕捉で実head一致し、実childは同じgoalへ戻る。
+- `normalization_does_not_commute_with_capture`: このheadをNしてからCを捕捉する構文と、捕捉してからNした構文は等しくない。
+- `post_capture_sizes`: 捕捉後raw head size5、N後size3、childの捕捉後size3。
+- `finite_children_differ`: 有限CとemptyRecordはCommon同値でない。
+- `requirements_not_determined`: 最小implは、headのCommon意味からwhere引数のCommon意味が決まる条件を満たさない。
+  σtail=Cとτtail=emptyでheadは同値、childは非同値になる。
+
+検証: `cd lean && lake build --wfail` exit 0（676 jobs）。
+これで全72新規theoremをAuditに登録した。source到達可能性は主張しないが、既存のnamed VerifiedDeclaration APIまで
+明示的に受理するため、listed core前提の外に暗黙のclosed-spine条件があるとは扱わない。

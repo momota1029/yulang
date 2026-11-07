@@ -130,4 +130,13 @@ theorem another_size_erasure :
       CommonBoundCoalescing.le_union_left _ _⟩
   · decide +kernel
 
+theorem union_padding_scope (assignment : Nat → Common.Ty) :
+    let repeated := CommonRoleSemanticPadding.padded 1 CommonRoleSemanticPadding.Pattern.nil.toTerm
+    (∃ type, CommonRoleSemanticPadding.interpret assignment repeated = some type ∧
+      Common.Equivalent type (.base .unit)) ∧
+      repeated.size > CommonRoleSemanticPadding.Pattern.nil.toTerm.size ∧
+      normalizeTerm repeated = repeated ∧ checkPatterns [repeated] = false := by
+  refine ⟨CommonRoleSemanticPadding.padded_head_exact 1 .nil assignment, ?_⟩
+  decide +kernel
+
 end Yulang.CommonRoleNormalizedDeclarations

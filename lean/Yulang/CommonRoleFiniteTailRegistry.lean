@@ -111,4 +111,52 @@ theorem associated_wellFormed (code : CommonRoleComputation.Code) :
       exact ⟨none, by change (roles implementation.role).assoc 0 = _; rw [signature]; rfl⟩
 
 
+theorem declarations_normal (code : CommonRoleComputation.Code) (implementation : Roles.Impl)
+    (member : implementation ∈ visible code) : CommonRoleNormalizedDeclarations.normalizeImpl implementation = implementation := by
+  rcases List.mem_cons.mp member with rfl | member
+  · simp [CommonRoleNormalizedDeclarations.normalizeImpl, terminalImpl, Pattern.visible]
+  · obtain ⟨entry, _, rfl⟩ := List.mem_map.mp member
+    exact compile_normal _ _ _
+
+def pairGoal (role : Nat) (clockType value : Description) : Goal := ⟨role, .pair clockType value⟩
+
+theorem matches_compile (slots key : Nat) (rule : CommonRoleLinearClock.Rule) (role : Nat)
+    (clockType value : Description) (assignment : Nat → Common.Ty) :
+    Matches (compile slots key rule) (pairGoal role clockType value) assignment ↔
+      rule.source = role ∧ Common.Equivalent ((clockHead slots rule.fresh).eval assignment) clockType.eval ∧
+        Common.Equivalent (rule.left.eval assignment) value.eval := by
+  constructor
+  · rintro ⟨sameRole, term, type, head, interpreted, same⟩
+    have termEqual : term = (headPattern slots rule).encode := (List.cons.inj head).1.symm
+    subst term
+    have typeEqual := Option.some.inj ((interpret_encode (headPattern slots rule) assignment).symm.trans interpreted)
+    subst type
+    have split := (CommonCanonicalShapes.pair_equivalent_iff _ _ _ _).mp same
+    exact ⟨sameRole, split.1, by simpa [headPattern, Pattern.eval, lift_eval] using split.2⟩
+  · rintro ⟨sameRole, first, last⟩
+    refine ⟨sameRole, _, _, rfl, interpret_encode (headPattern slots rule) assignment, ?_⟩
+    exact (CommonCanonicalShapes.pair_equivalent_iff _ _ _ _).mpr ⟨first, by
+      simpa [headPattern, Pattern.eval, lift_eval] using last⟩
+
+theorem matches_terminal (role : Nat) (clockType value : Description) (assignment : Nat → Common.Ty) :
+    Matches terminalImpl (pairGoal role clockType value) assignment ↔
+      0 = role ∧ Common.Equivalent (assignment 0) clockType.eval ∧ Common.Equivalent (assignment 1) value.eval := by
+  constructor
+  · rintro ⟨sameRole, term, type, head, interpreted, same⟩
+    have termEqual : term = (Pattern.pair (.var 0) (.var 1)).encode := (List.cons.inj head).1.symm
+    subst term
+    have typeEqual := Option.some.inj
+      ((interpret_encode (Pattern.pair (.var 0) (.var 1)) assignment).symm.trans interpreted)
+    subst type
+    exact ⟨sameRole, (CommonCanonicalShapes.pair_equivalent_iff _ _ _ _).mp same⟩
+  · rintro ⟨sameRole, same⟩
+    exact ⟨sameRole, _, _, rfl, interpret_encode (Pattern.pair (.var 0) (.var 1)) assignment,
+      (CommonCanonicalShapes.pair_equivalent_iff _ _ _ _).mpr same⟩
+
+@[simp] theorem child_interpreted (slots : Nat) (rule : CommonRoleLinearClock.Rule) (assignment : Nat → Description) :
+    interpretGoal ⟨rule.target, [(childPattern slots rule).encode]⟩ assignment =
+      some (pairGoal rule.target (forkDescription slots (assignment rule.fresh))
+        (instantiate (liftPattern rule.right) assignment)) := by
+  simp [interpretGoal, childPattern, pairGoal, instantiate, clockChild, fork_instantiate]
+
 end Yulang.CommonRoleFiniteTailRegistry
