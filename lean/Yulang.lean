@@ -649,3 +649,9 @@ import Yulang.CommonPatternSourceRuntimeMatch
 import Yulang.CommonPatternReturnedNames
 import Yulang.CommonPatternCheckedRuntimeEnvironment
 import Yulang.CommonPatternCoreDefaults
+import Yulang.CommonCaseCoreEnvironments
+import Yulang.CommonCaseCoreSolvedEnvironments
+import Yulang.CommonPatternObservationBounds
+import Yulang.CommonPatternBoundedGeneration
+import Yulang.CommonPatternBoundedAllocation
+import Yulang.CommonPatternBoundedProvenance
