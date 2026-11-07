@@ -435,3 +435,9 @@ import Yulang.CommonSymbolicRecordProfiles
 import Yulang.PresenceGeneratedRigidShape
 import Yulang.CommonGeneratedRigidPool
 import Yulang.CommonRecordTargetProfiles
+import Yulang.CommonSymbolicSourceProfiles
+import Yulang.CommonRigidHeadInspection
+import Yulang.CommonSymbolicConstraints
+import Yulang.CommonSymbolicRigidInspection
+import Yulang.CommonGeneratedPoolRows
+import Yulang.CommonSymbolicRowConstraints
