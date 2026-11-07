@@ -594,3 +594,9 @@ import Yulang.CommonPatternBoundPolarity
 import Yulang.CommonPatternBoundWorklist
 import Yulang.CommonPatternFiniteInspection
 import Yulang.CommonPatternClosedSoundness
+import Yulang.CommonPatternSolvedConstraints
+import Yulang.CommonPatternBoundRows
+import Yulang.CommonPatternConstraintGrammar
+import Yulang.CommonPatternSolvedExact
+import Yulang.CommonPatternFormulaGrammar
+import Yulang.CommonPatternGenerationProvenance

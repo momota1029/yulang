@@ -4195,3 +4195,9 @@ run_cmd do
 #print axioms Yulang.CommonPatternFiniteInspection.encoded_inspect_at_sound
 #print axioms Yulang.CommonPatternFiniteInspection.encoded_inspect_current_decreases
 #print axioms Yulang.CommonPatternClosedSoundness.returned_solve_soundness
+#print axioms Yulang.CommonPatternSolvedConstraints.all_parameter_sound
+#print axioms Yulang.CommonPatternBoundRows.run_declare_checks_some
+#print axioms Yulang.CommonPatternConstraintGrammar.compiled_run_models_exact
+#print axioms Yulang.CommonPatternSolvedConstraints.compiled_models_exact
+#print axioms Yulang.CommonPatternFormulaGrammar.good_pack
+#print axioms Yulang.CommonPatternGenerationProvenance.safe_generatePattern

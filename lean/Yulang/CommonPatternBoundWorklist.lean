@@ -46,6 +46,11 @@ theorem run_closed (pool : Pool m) (edges : List (Edge pool)) (final : State poo
     (CommonBoundRefWorklist.edges_supported pool edges) (inspection_supported pool)
     (CommonBoundRefWorklist.rigid_supported pool) final returned
 
+theorem run_retains (pool : Pool m) (edges : List (Edge pool)) (final : State pool)
+    (returned : final ∈ run pool edges) : edges ⊆ final.edges :=
+  (FiniteBranchingWorklist.run_retains (inventory pool) (rigid pool) (inspect pool)
+    edges [] final returned).1
+
 theorem run_bound (pool : Pool m) (edges : List (Edge pool)) (final : State pool)
     (returned : final ∈ run pool edges) :
     final.processed.Nodup ∧ final.trace.length = final.processed.length ∧
