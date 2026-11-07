@@ -50,4 +50,21 @@ theorem bounds_consistent (count : Nat) :
   | succ count ih =>
       exact (Common.common_pair_iff _ _ _ _).mpr ⟨Common.subtype_refl _, ih⟩
 
+/-- No natural-valued measure decreases along this everywhere-ready,
+everywhere-consistent sequence. Readiness therefore supplies no termination
+argument on its own; an admissibility/descent condition remains necessary. -/
+theorem no_readiness_rank :
+    ¬ ∃ rank : Argument Empty → Nat,
+      ∀ count, rank (bounds (count + 1)) < rank (bounds count) := by
+  rintro ⟨rank, decreases⟩
+  have bounded : ∀ count, rank (bounds count) + count ≤ rank (bounds 0) := by
+    intro count
+    induction count with
+    | zero => omega
+    | succ count ih =>
+        have step := decreases count
+        omega
+  have impossible := bounded (rank (bounds 0) + 1)
+  omega
+
 end Yulang.CommonRoleIntervalReadyChain

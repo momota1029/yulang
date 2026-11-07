@@ -5950,3 +5950,5 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredInvariantSourceFamily.solve_all_instances_exact
 
 #print axioms Yulang.CommonDeclaredInvariantSourceFamily.generated_models_exact
+
+#print axioms Yulang.CommonRoleIntervalReadyChain.no_readiness_rank
