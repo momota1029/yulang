@@ -5978,3 +5978,6 @@ run_cmd do
 #print axioms Yulang.CommonRoleClosedRecordResidual.field_probe_exact
 
 #print axioms Yulang.CommonRoleClosedRecordResidual.optional_probe_exact
+
+#print axioms Yulang.CommonRoleClosedRecordResidual.capture_lookup
+#print axioms Yulang.CommonRoleClosedRecordResidual.capture_field_probe_exact

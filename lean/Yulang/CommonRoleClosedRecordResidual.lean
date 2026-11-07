@@ -101,4 +101,26 @@ theorem optional_probe_exact (type : Payload → Common.Ty) (fields : Row Payloa
             exact CommonFinite.probeAt_trivial rank _
         · exact Or.inl
 
+theorem capture_lookup (labels : List Nat) (fields : Row Payload) (label : Nat) :
+    lookup label (capture labels fields) =
+      if label ∈ labels then none else lookup label fields := by
+  rw [capture, CommonRoleCanonicalRows.lookup_residual,
+    CommonRoleCanonicalRows.lookup_normalize]
+
+/-- The computed closed residual reads exactly the original unremoved
+first fields. In particular, no removed label can reappear from a duplicate. -/
+theorem capture_field_probe_exact (type : Payload → Common.Ty) (labels : List Nat)
+    (fields : Row Payload) (label depth rank : Nat)
+    (environment : CommonFinite.Environment Common.Row)
+    (observation : CommonFinite.Observation Common.Row) :
+    CommonFinite.ProbeAt Common.rowLe rank environment
+        (Common.observeTy depth (recordTypeOf type (capture labels fields)))
+        (.field label observation) ↔
+      label ∉ labels ∧ ∃ payload, lookup label fields = some payload ∧
+        CommonFinite.ProbeAt Common.rowLe rank environment
+          (CommonSyntax.observe (CommonSyntax.graph Common.Row) depth (.node (type payload)))
+          observation := by
+  rw [field_probe_exact, capture_lookup]
+  by_cases removed : label ∈ labels <;> simp [removed]
+
 end Yulang.CommonRoleClosedRecordResidual
