@@ -58,4 +58,41 @@ theorem collect_contains_exact (slot : Slot) (occurrences : List (Occurrence sco
         EffectRow.Member (occurrence.bounds.eval assignment) (actual.eval assignment) :=
   (contains_exact _ _ _).trans (collect_member_exact _ _ _ _)
 
+def slots (occurrences : List (Occurrence scopes α)) : List Slot :=
+  (occurrences.map (·.slot)).eraseDups
+
+/-- Only the finite occurring slots are queried from the allocator. Each is
+checked once, retaining all cross comparisons from its original endpoints. -/
+def generate (occurrences : List (Occurrence scopes α))
+    (actual : Slot → RowExpr scopes α) : Formula scopes α :=
+  andAll ((slots occurrences).map (fun slot =>
+    .and (check (collect slot occurrences))
+      (contains (collect slot occurrences) (actual slot))))
+
+/-- No original occurrence is lost by collection. The actual argument at
+each slot is supplied by syntax, with all its sharing intact. The returned
+formula contains finite ordinary comparisons, not this semantic predicate. -/
+theorem generate_exact (occurrences : List (Occurrence scopes α))
+    (actual : Slot → RowExpr scopes α) (assignment : α → Computation) :
+    (generate occurrences actual).Holds assignment ↔
+      ∀ occurrence ∈ occurrences,
+        EffectRow.Member (occurrence.bounds.eval assignment) ((actual occurrence.slot).eval assignment) := by
+  simp only [generate, andAll_exact, List.forall_mem_map]
+  change (∀ slot ∈ slots occurrences,
+    (check (collect slot occurrences)).Holds assignment ∧
+      (contains (collect slot occurrences) (actual slot)).Holds assignment) ↔ _
+  constructor
+  · intro checked occurrence included
+    have present : occurrence.slot ∈ slots occurrences :=
+      List.mem_eraseDups.mpr (List.mem_map.mpr ⟨occurrence, included, rfl⟩)
+    exact ((collect_contains_exact occurrence.slot occurrences assignment (actual occurrence.slot)).mp
+      (checked occurrence.slot present).2) occurrence included rfl
+  · intro original slot _
+    have members : EffectRow.Member ((collect slot occurrences).eval assignment) ((actual slot).eval assignment) :=
+      (collect_member_exact slot occurrences assignment _).mpr (by
+        intro occurrence included same
+        simpa only [same] using original occurrence included)
+    exact ⟨(check_exact _ _).mpr (Common.rowLe_trans members.1 members.2),
+      (contains_exact _ _ _).mpr members⟩
+
 end Yulang.CommonEffectFamilyRowSlots
