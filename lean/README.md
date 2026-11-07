@@ -2103,3 +2103,203 @@ source variant の parser probe と実 merge → core head の橋は確認した
 仕様、RoleRank、fuel、nominal body の扱いは変更していない。
 全量化、検証、残りは [B4r4 結果](../notes/handoff/2026-11-07-m1-b4r4-results.md)、
 定義と qualified の正確な残りは [設計 note](../notes/design/2026-11-07-b4r4-canonical-residual-and-merged-payload.md)。
+## 2026-11-07 B5 → B1: nested nominal と実 cast route の追加基盤
+
+この節の追加は独立 feature module であり、公開 `Core.infer` / `Core.CommonSyntax` を変更しない。
+B5 全体および B1 の list/nominal-data 全体の完了を表さない。
+詳細な量化子と残る統合点は
+[`2026-11-07-m1-b5-progress.md`](../notes/handoff/2026-11-07-m1-b5-progress.md) に記録する。
+
+- `CommonNominalFinite` / `CommonNominalSyntax` / `CommonNominalCarrier` は専用 nominal ID・引数種別・順序を保持する。
+  nominal は全 structural constructor の内部、同じ carrier の nominal 型引数、有限相互再帰 block に置ける。
+  `nominal_regular_invariant_exact` は任意 ID・arity・この新 carrier の任意 regular 型引数・任意 Common 行引数について、
+  subtype iff ID/arity 一致と全対応値型の要求同値・行の等号を示す。
+  全観測深さ・negative rank・独立環境を量化する。旧 Common 全型の順序・typing・solver の保守拡張は未証明である。
+- `CommonNominalGroundAdapter.common_ground_cast_compatibility_exact` は、既存の閉 scalar / scalar 引数の一段 nominal という
+  明示 ground 文法の全 source/target を、新 regular nominal carrier に接続する。
+  実際の旧 checker と計算した引数正規化を維持し、`ground_adapter_preserved` が旧 root-only 解釈との iff を示す。
+  この有限 checker の対象を文法外の未正規化 `Casts.Ty` や全 regular 型へ広げたとは主張しない。
+- `CommonCastRoutes.search_exact` は任意有限 graph の独立 Reach iff 実経路の返却を示す。
+  経路は全辺の列を持ち、循環を許し、caller fuel を使わず未訪問頂点列の減少で停止する。
+  `search_agrees_with_closure` は既存 Boolean checker と一致する。
+- `CommonCastRouteExecution.compile_exact` は実経路から checked declaration body の型付き plan を合成する。
+  `CommonCastSourceBodies.source_registry_synthesize_exact` はさらに、実 source 式・endpoint 注釈を持つ有限 registry を
+  既存 shape-resolved operational checker で検査してから plan を作る。
+  source body の空行 bound と出力型は既存 source 型安全性から導き、外部 Plan / CastContract / body bound は受け取らない。
+  `Source.declaration_executes_source` は型証拠を消した実行が元 source 評価と request tree 全体で一致することを示す。
+  任意 Common endpoint と実 Core source judgment の接続、keep/structural conversion の全生成は未完である。
+- `CommonNominalModel` は新 carrier の presence 操作を供給する。
+  `CommonFloatBase` は旧四基底を保持して専用 float 基底を追加する。
+  `generate_literal_exact` / `literal_all_models` / `literal_all_parameters` は任意の実 signature・環境・literal payload と
+  任意結果について独立 literal 判断、有限 base/row 制約、実返却する自由 parameter family を接続する。
+  `binary64_word_typing` は全 `2^64` storage word を扱い、NaN・無限大・負の zero を型から除外しない。
+  list/nominal data と construction source 全体の有限生成・全 Models 回収は未証明である。
+
+`CommonNominalEmbedding.observe_common` / `observe_embed` は、任意旧 Common 型・graph の全深さの観測を
+constructor ごとに新 carrier へ保持する。旧 block は `State.common` で共有する。
+`FiniteOrderConservative` は未証明の命題を名前にした定義であり、公理でも theorem でもない。
+`old_order_of_finite_conservativity` はこの未証明命題を前提にする条件付き補題に限る。
+任意の新 nominal を含む negative 環境に対する旧順序保存を証明済みとは記録しない。
+
+その後の `CommonNominalConservativity.finite_order_rank_exact` / `finite_order_conservative` が、上記の未証明だった
+有限保守性命題を追加前提なしで閉じた。`common_subtype_exact` は任意旧 Common 型の旧順序 iff 新順序を示す。
+両端の全 arrow input に対し一つの旧 intersection witness を共有し、全 negative rank に帰納する。
+`CommonNominalCarrierConstraints.compile_nominal_comparison_exact` は、新 carrier 自身の任意 regular nominal 型引数と
+任意行を持つ比較を、共有 slot を保持した実有限の双方向 presence atoms に生成する。
+旧 source typing / solver の接続は、順序保存とは別の残る義務である。
+
+`CommonNominalModelMap` は node を再帰翻訳して旧 model の constructor と文字どおり可換な embedding を構成し、
+`CommonNominalTypingPreservation` が旧 presence / CommonSyntax の任意捕捉環境・prescribed signature を含む Typing を保存する。
+`old_solver_all_parameters` / `old_solver_instances_exact` は実 `Core.infer` の同じ返却 scheme・同じ無制約 Parameters を使い、
+旧結果像上の全 instance を保存・反映する。`CommonNominalFoundations` はこの旧範囲保存と任意 regular nominal invariance をまとめる。
+
+`CommonNominalSlotSolver` は任意有限の既知 nominal head 比較列を、値型/行の共有 ID を保って同時に解く。
+全 slot の無制約な新 regular 型・行 parameter product を使い、全元モデルを全 slot で回収する（値は要求同値、行は等号）。
+一般 structural bound / nominal constructor 方程式との混合 solver と、construction source 全体の生成はこの theorem の対象ではない。
+
+`CommonConstructionResolved` は実 resolved source 式を保持した固定/共有 target site 列を全て検査し、
+実 source registry から pure cast plan を合成して、元 source を同じ順で評価する。
+`code_requestTree` は全 request/payload/response branch の保存を示す。
+一般 Common source からの field-type template 抽出と有限 Formula / all-instance family の橋は未完である。
+
+`CommonListNil` は nominal list の element invariance、元 `nil` / 空 list data の独立判断、
+実 finite Formula と全自由 regular element parameter の scheme family を接続する。
+`CommonRegularCastObstruction` は、固定 regular chain の全長を有限非再帰・データ非依存 plan で変換できないことを示す。
+全 source からの実生成と旧 `PureCasts.Plan` への完全な橋は未証明なので、この障害を B5 全体の E2 とは扱わない。
+再帰 plan の方針は [`正則 structural cast の問い`](../notes/questions/2026-11-07-b5-regular-structural-cast-plans.md) に残した。
+
+`CommonNominalFiniteConstructors` / `CommonNominalFiniteMask` / `CommonNominalFinitePresence` と regular 側の
+`CommonNominalConstructors` / `CommonNominalMaskOrder` は、全 nominal/float 子型を含む structural variance と mask 法則を再証明する。
+`CommonNominalLayerCongruence` は任意行 preorder・同値な全 payload assignment について、nominal を含む全 Layer の評価合同性を示す。
+
+`CommonNominalGuardedClosure.models_exact` は、任意有限の guarded mixed constructor 方程式・任意自由型 parameter で、
+全元 node Models iff 実 regular closeBlock の全 node と要求同値を示す。
+`CommonNominalGuardedRowSolver` は有限 RowTerm、実 row-head/flow/pure solver、その mixed graph を組み合わせる。
+全無制約 parameter が元 Models を満たし、元全行・自由型 assignment を等号、全 node 値を要求同値で回収する。
+任意 subtype inequality / unguarded equation / 実 construction source 生成を含む全 solver の完了は主張しない。
+
+
+`CommonNominalInvariantGraphSolver` は、共有自由型 slot の有限等価辺を代表元により実際に求解してから、
+guarded mixed constructor graph と row-head/flow/pure family を組み合わせる。
+全 row/type parameter は無制約であり、全元行を等号、全自由型と全 node を要求同値で同時に回収する。
+`CommonNominalGuardedClosure.parameter_congr` が negative/invariant 引数を含む再帰閉包の合同性を保証する。
+一般 subtype bounds と任意 constructed-node 等価辺、および実 source construction generator は別の未完義務である。
+
+
+`CommonNominalFieldTemplates` は一 field 内に複数共有型/行 parameter を含む任意有限 regular template を表す。
+`CommonNominalSourceRegistry` は固定有限 graph の実 presence source 本体を元捕捉環境と pure endpoints で制約生成する。
+`CommonNominalSiteGeneration` は元全式と行、deferred boundary を保つ独立判断との iff を示す。
+`CommonNominalFieldGeneration.generate_fields_exact` は全 registry body 制約を一度合流し、全 field、共有 arguments、
+nominal 結果、arity 不一致を同じ Formula で扱う。`prepare_sites_retains_all` が元位置/式/field/template の全列を保存する。
+これらは有限生成の定理であり、全 Core source・実宣言検証・parametric/structural cast 全探索・全 model の solved family・weak EOF は未完である。
+
+
+field 宣言の `parameters` は型/行の任意混在順を保持し、`TemplateRow.heads` は非空の固定 signed row literal も表す。
+`CommonNominalFieldNormalForm.construction_atomic_exact` は実全 field 生成から有限の numeric-slot 原子列へ接続し、
+元 ambient の全 computation を等号で固定して、全 fresh slot の model を回収する。
+原子は full field-template subtype と row inequality で、source Typing を原子として隠さない。
+原子を解く unrestricted scheme family、実 declaration checker と全 Core source/runtime/weak EOF は未完である。
+
+
+`CommonNominalTemplateRowSolver` は var/empty/有限 signed heads/join の任意有限行不等式を実 truth-table で求解する。
+join の両辺・固定非空上界・row invariance・pure を含み、全無制約 row parameters は Models、元全行は literal equality で回収される。
+scheme は有限 Boolean vector tables だけで、元 Models/constraints を残余 check として具体化時に参照しない。
+内部 partition/complement masks は Common.Row の set expressions であり、surface/export syntax の追加を主張しない。
+`CommonNominalTemplateGraphSolver` と `CommonNominalHeadGraphSolver` はこの実 family、共有自由型代表元、
+全 mixed guarded regular graph、実 nominal 比較列コンパイルを接続する。
+一般 type subtype inequalities・constructed-node equality・signed transform・actual source 全原子の求解と weak EOF は未完である。
+
+
+`CommonNominalCoreSource` は元 literal-bearing Common Core source の lowering/finite generation を任意新 carrier 環境・結果へ接続する。
+`CommonNominalCoreCastRegistry` は元 actual Core cast 本体を finite generation で検証し、実経路から同じ本体を保持する
+actual Core nested-let code を生成する。生成制約 Models の下で元入力行を等号で保ち、pure 入力では出力も pure になる。
+`CommonNominalCoreSiteGeneration` / `CommonNominalCoreFieldGeneration` は同じ actual Core の元全 field 式を保持し、
+全 body/field constraints と nominal 結果の独立 Typing iff、および元 ambient を固定する numeric atomic model iff を示す。
+source は元 CommonSyntax/Signature.empty 判断の対象範囲であり、compile 成功だけでは型付けを保証しない。
+全一般型制約 solver、Common evaluator/typed Plan/request-tree の解釈、全 feature source、実 declaration validation、weak EOF は未完である。
+
+
+`CommonNominalTypeFlow` / `CommonNominalFlowGraphSolver` は任意の共有自由型 slot 不等式を predecessor joins で求解する。
+`CommonNominalTypeBounds` は任意固定新 Ty bounds の clamp/retraction 補題、`CommonNominalGroundBoundsSolver` は
+既存明示 Ground 文法の実 checker によりその固定 consistency を解いて全自由 parameters の family/rejection を示す。
+動的 constructed-node bounds と full source solver は未完である。
+
+`CommonNominalFiniteShapeObstruction` は、実 Common 型付け/registry body 生成を持つ `λx.x x` が
+既存 finite OperationalTyping.Expr へ同じ構文で消去できないことを示す。pure arrow/要求同値を全保存する finite Shape 写像も存在しない。
+将来の別表現/Common evaluator や B5 全体の不可能性は主張せず、この lambda 値の発散も主張しない。
+
+`CommonNominalTailElimination` / `CommonNominalRecordTailElimination` は任意新 regular nominal/float atoms と
+非 guarded ref/union/inter/mask/record-tail equations の全無制約 parameter family と全元 slot 回収を示す。
+`CommonNominalDefault` は全新 source/fallback に対する whole default congruence と demand 保持を補う。
+
+
+`CommonNominalPresenceTailElimination` / `CommonNominalPresenceTailLayers` / `CommonNominalPresenceTailRegular` は
+whole default source と任意混在 guarded payload / positive same-depth tail equations を同じ node IDs で実際に閉じる。
+全自由新 Ty parameter が元 Models、全元 node は要求同値で同時回収される。深さ零の default と負/不変引数も保持する。
+`CommonNominalOpenTailSolver` はこの実閉包へ symbolic signed literal rows の全 inequality solver と自由型 directed flows を合流し、
+無制約 row/type/node parameter product で全元行を等号、全自由型/全 node を要求同値で回収する。
+constructed-node type edges、自由 slot と constructed-node の等価、full source bound solver は未完である。
+
+
+### B5: original-node recovery and rigid nominal inspection
+
+`CommonNominalClampedGraphFamily` retains every original node, closes mixed guarded/same-depth constructor equations, and recovers every original complete edge model at every node. All parameters satisfy constructor equations and edges with flexible sources. Soundness for rigid-source lower/check edges remains open; this is not a complete solved family.
+
+`CommonNominalRigidHeadInspection` and `CommonNominalRigidInspection` establish static head mismatch and finite ordinary-child/row decomposition for bottom/top/float/base/pair/variant/arrow/nominal heads over unrestricted regular children. Nominal IDs, arities, argument kinds and bidirectional comparisons are retained. Source union / target intersection eliminations are exact. Record/default/mask inspection and source saturation remain separate obligations.
+
+Field templates now admit whole shared parameters inside positive union/mask/default source positions; literal preservation of previous Layer templates and the corresponding direct constructor equalities are proved. All original source generation and atomic normalization statements still build unchanged.
+
+Checkpoint: `lake build --wfail` passes (660 jobs); full trust-zero Audit passes, allowlist 54879 declarations. These are partial B5 results, not B5/B1 END.
+
+
+### B5: finite nominal saturation and unrestricted rigid-graph families
+
+`CommonNominalFiniteRigidInspection` interprets the unchanged nominal/arrow inspector at preceding constructor depth, with full signed rows and all finite negative environments. `CommonNominalPlainInspection` preserves its literal finite output in child-ID/row-ID-only checks.
+
+`CommonNominalRigidWorklist` saturates every reachable defined-node pair over a fixed n² inventory, retaining all original edges and rows, with exact independent-model preservation. `CommonNominalClampedFiniteEdges` and `CommonNominalRigidClampedSoundness` discharge rigid-source lower/check edges by simultaneous depth induction. `CommonNominalRigidGraphSolver` composes that actual worklist, the actual row table solver and the clamped regular graph family: every unrestricted parameter satisfies all original equations/edges/rows; every original model is recovered at every node and row; rejection is exactly model absence.
+
+This covers the full displayed rigid-head pool grammar, including cyclic nominal/arrow arguments and flexible-to-constructed inequalities. Record/default/lattice root inspection, full original field/source graph lowering and runtime cast bridges remain open. No B5/B1 END is claimed.
+
+Checkpoint: 666-job warning-as-error build and full trust-zero Audit passed (55239 declarations). Fresh independent trust-zero/axiom review passed for the constructor/worklist and family modules.
+
+
+### B5: record/default inspection over full nominal payloads
+
+New `CommonNominalDefaultRequired`, `CommonNominalRecord`, `CommonNominalDefaultRecord`, `CommonNominalPayloadProjection`, `CommonNominalRecordTailProfiles` and `CommonNominalRecordTargetProfiles` prove record/default presence, payload projection and target decomposition against the full new regular carrier and all its observations. Initial cutoff and positive-depth presence remain distinct. Profiles retain absence versus top, and every original payload reference.
+
+`CommonNominalOptionalBound` proves exact finite ordinary-subtype alternatives for optional payload obligations without porting the old role-based top checker. Classical reasoning about a nontrivial arbitrary demand stays inside the completeness proof; executable branches contain only positive subtype edges. `CommonNominalDefaultBounds` derives the three exact whole-default branches.
+
+`CommonNominalOptionalInspection` and `CommonNominalBoundInspection` provide actual finite ordinary shared-ID inspections for required/optional/width targets, including nominal/float mismatch. Optional inspection explicitly retains local record-tail/default-source width premises; a generated-source family must derive them. Finite visible-label inventory, general upper-union saturation and full source-family integration remain open. These modules are not B5 END.
+
+The first eight modules passed fresh independent trust-zero/warning-as-error and axiom review (10766 imported declarations). Build checkpoints through 674 jobs passed; the two constructor-inspection additions are checked next.
+
+
+### B5: full template/source-term graph bridges and model congruence
+
+`CommonNominalOuterLabels`/`CommonNominalFiniteRecordTail` reduce all record-tail labels to original outer syntax plus a fresh representative. `CommonNominalClosedBlock` and `CommonNominalTemplateEquations` retain arbitrary external regular states and every original internal template node, including whole shared parameters in same-depth positions.
+
+`CommonNominalTemplateLowering` lowers every full template constructor to an actual shared OpenTail pool, with a finite mask inventory derived only from original syntax. It preserves the independent equation models in both directions and recovers the original root for every full pool assignment.
+
+`CommonNominalOrdinaryTemplates` reuses the real TyTerm collector, preserving all original subterms/ambient variables and their row identifiers. `CommonNominalTemplateCongruence` and `CommonNominalConstraintCongruence` permit all recovered types to be demand-equivalent and all recovered rows literally equal, preserving every full template/formula/packed atom, including fresh binders.
+
+Checkpoints through 684 jobs passed; 683-job trust-zero Audit passed (56262 declarations). Fresh independent trust-zero/axiom reviews passed. Combining all original clauses into one allocator, general bound saturation, executable Common runtime casts and weak EOF remain open; no B5/B1 END is claimed.
+
+
+### B5: actual full argument applications and one packed-atom pool
+
+`CommonNominalPoolMerge`, `CommonNominalTemplateAllocation`, `CommonNominalTemplateRowSubstitution` and `CommonNominalTemplateArgumentSubstitution` preserve every original node and share ambient parameters during disjoint allocation. Actual finite source type/row arguments are included; arbitrary original outer models extend without changing their values or rows.
+
+`CommonNominalSourceTemplateApplication` compiles every packed ordinary/full-template term with every original argument subterm and recovers the source meaning from every compiled model. `CommonNominalAtomicGraph` compiles arbitrary finite packed atom lists into a single finite template plus ordinary directed edges and symbolic row inequalities. `CommonNominalAtomicPool` lowers this to a real mixed pool and reads back all original computations literally.
+
+Checkpoints through 691 jobs passed. The 690-job full trust-zero Audit passed (56580 declarations); fresh independent trust-zero/axiom review passed for the full argument and atom-pool bridges (16889 imported declarations for the final packet). General emitted bounds remain unsolved, runtime/weak EOF bridges remain open, and B5/B1 END is not claimed.
+
+
+### B5: full nominal and Float role observations
+
+`CommonNominalUnionObservationBoundary` isolates a deficiency of the earlier nominal candidate: unions of distinct nullary nominals collapse to top. It is a candidate boundary, not a counterexample to the original B5 contract.
+
+`CommonNominalFullDemand` and `CommonNominalFullCarrier` share the actual dedicated nominal syntax and add nominal ID/arity and Float heads to arbitrary finite role environments. Their finite and regular invariance theorems quantify every depth/rank/environment and arbitrary same-carrier nested arguments. Mixed nominal/Float unions remain distinct from top, including inside invariant boxes. `CommonNominalFullFiniteConstructors` reproves structural grouping, variance and congruence.
+
+`CommonNominalFullConservativity` proves exact old Common order preservation/reflection against these arbitrary new environments, using one finite meet witness for all old arrow inputs. `CommonNominalFullModelMap` and `CommonNominalFullTypingPreservation` retain old captured typings, the exact actual `Core.infer` schemes and all their original parameters/instances. They do not prove reflection from arbitrary new typing witnesses.
+
+`CommonNominalFullGroundAdapter` keeps the actual existing ground normalization/checker exact in this refined regular carrier. Full source generation, solved families and runtime casts for the earlier candidate are not automatically transferred. Checkpoints through 702 jobs passed; the 701-job full trust-zero Audit checked 57400 declarations. Fresh independent trust-zero/axiom reviews passed. No B5/B1 END is claimed.
