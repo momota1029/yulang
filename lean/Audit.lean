@@ -5972,3 +5972,5 @@ run_cmd do
 #print axioms Yulang.CommonEffectFamilyRowSlots.collect_contains_exact
 
 #print axioms Yulang.CommonEffectFamilyRowSlots.generate_exact
+
+#print axioms Yulang.CommonRoleClosedRecordResidual.normalize_equivalent
