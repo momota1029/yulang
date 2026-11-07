@@ -101,6 +101,24 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 | `CommonPresenceSourceFamily.residual_source_principal` / `residual_core_principal` | 任意閉式・任意結果について、独立 Typing ⇔ 実 normalize/pack/graph/行・方程式 solver が返す有限 scheme と row/value parameter があり、明示された residual edge を満たし、その出力が結果以下。support・成功・fuel の公開前提はない | residual を除いた公開 `Core.infer`、拒否 iff、対象断片の unsupported 不出現 |
 | `CommonPresenceCoalescedSource.residual_source_principal` / `residual_core_principal` | 上の任意閉式・任意結果の iff を実変数辺消去まで接続。row/type/recursive の3 parameter family を実同時 solver に代入し、残る条件は元 pool の非変数 node 間比較だけ。clause 回収は結果値の要求同値と結果行の等号を保ち、GoodAtoms は生成不変量から内部で供給 | rigid 比較の symbolic saturation と、残余を除いた公開 `Core.infer`・拒否完全性・unsupported 不出現 |
 
+続いて、復旧記録 §7.1 の **代入前に固定する symbolic rigid 分解**を source/Core の両方で閉じた。
+§7.2 では元 pool の普通の node 比較の有限閉包と、profile の有限支持、optional/default の境界への変換まで
+進めた。以下の局所的な全 parameter 定理を、全制約を解いた最終 principal theorem と同一視しない。
+
+| Symbolic compiler の定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `CommonGeneratedRigidInspection.saturate_common_rigid_exact` / `saturate_common_core_rigid_exact` | 任意の実生成 packed clause、独立 rows/values に対し、元 constructor 方程式の下で rigid 比較列が成立する iff 推論時に計算した有限 branch の一つの child/row/profile/presence 制約が成立。生成・束縛・上下限伝播から構文条件を内部で証明し、元共有 ID を保持。compiler は型代入・solver 成功・fuel を受け取らない | 返した branch の全 parameter 求解、拡張した projection/optional node を含む全飽和の閉性 |
+| `CommonGeneratedRigidDescent.residual_omits_original` / `residual_child_decreases` / `residual_profile_decreases` | 任意有限 pool/edge の実 rigid 残余について、元比較を同じ child 比較に包み直さない。返却 branch の全 child 比較は元共有参照を使い、由来の比較より構文 weight 和が厳密に減る。profile target も proper child | 同深さ tail 循環や変数上下限伝播を含む全体の減少性 |
+| `PresenceGeneratedChildGrammar.generated_child_grammar` / `CommonGeneratedChildClosure.generated_reinspection_grammar` | 全 source/Core の生成・scheme 置換・binder packing を通し、子位置の再帰的文法を証明。負の arrow 引数を逆向きに比較し、子辺を追加して再 coalesce しても文法が保存される。変数へ代入する Common 型は任意 | 新しい optional 境界を加えた文法の閉性 |
+| `CommonOrdinaryEdgeClosure.ordinary_edge_closure_closed` / `ordinary_edge_closure_bound` / `generated_closure_exact` | 元 pool の N² 個の比較候補を構成し、変数上下限伝播と child 辺追加を、非停止 round ごとの厳密な辺数増加で有限固定点まで計算。全生成 clause の元方程式の下で元辺と閉包辺の充足が同値。公開 fuel/closed 前提なし | row/profile/presence の解消、閉包から任意 recursive parameter の全比較成立を導くこと |
+| `CommonSymbolicRecordProfiles.compile_exact` / `CommonSymbolicSourceProfiles.compileNode_exact` | 任意の独立 row/node/child 割当てで、固定した symbolic 式の七項目の意味が元構文と一致。実 pool と全 regular realizer へ接続し、未知 field/optional/presence、初期層、外側 mask を別々に保持 | projection を元 node と無関係な自由 parameter にすること |
+| `CommonGeneratedProfileSupport.saturate_support` / `universe_length_le` | 任意 pool/edge と任意の first-pass 返却 branch の全型参照は、代入前に構成する高々 8N(N+1) 個の表に入る。label、mask、guarded child の元 ID を保存 | 新しい query/node を追加する全 worklist の閉性 |
+| `CommonSymbolicProfileCoherence.compileNode_reconstruction` / `independent_projection_not_sound` | 任意の独立 table が有限支持上で一つの元 values と一致するなら七項目の意味を回収。coherence を落とすと scalar が required を満たす偽解になる反例も証明 | coherence 自体を全自由 parameter で構成する solver |
+| `CommonGeneratedRigidRows.generated_rows_supported` / `CommonSymbolicRowConstraints.row_definitions_all_parameters` / `row_definitions_instances_exact` | 全実生成 branch の arrow 行を既存行 solver へ接続。元行と追加行、任意の共有 constructor 方程式を同時に解き、すべての行・型 parameter がこの部分のモデルを与える。任意の独立解を行の等号・全 node の要求同値で回収 | branch の child/profile/presence 条件も全 parameter で成立すること |
+| `CommonSymbolicTailView.symbolic_tail_exact` | 任意 H/S/T と任意 slot 割当てで、同深さ tail 比較 iff 二つの異なる record head を持つ有限 `TyTerm` view の通常比較。入力にない未知 label も保存し、rename/subst と可換 | view の再展開を進行と数えた tail 循環の解消 |
+| `CommonTopTest.top_iff` / `CommonOptionalBound.optional_payload_branches_exact` / `narrow_instances_exact` | 任意 Common 型の top 同値を有限 outer 構文で判定。任意 label/source/payload の optional 義務を、top/width と exactEmpty-required union への通常比較の二枝へ完全変換。単独 optional 義務には制約なし parameter family と全解回収を構成 | その境界を未知共有 graph 全体へ伝播する完全 solver、元 unmasked 型の独立 masked 値からの回収 |
+| `CommonDefaultBounds.default_required_branches_exact` | 任意 label/source/fallback/payload で、whole default の required 比較 iff 通常の型比較だけからなる固定三枝。shape/presence 前提なし、元 source/payload を共有し、深さ0を保持 | 新しい union 形の optional 上界の有限飽和と最終公開入口 |
+
 回答済み Q5 に対応する新しい具体要求モデルを `ProducerContextual` / `ProducerContextualRegular` に追加した。
 型変数は任意の意味型が満たすすべての観測を表し、arrow の引数要求も同じ環境の型を名前で参照する。
 要求の構文に union はない。role は許可された constructor head の有限表で観測し、

@@ -320,3 +320,74 @@ polarity 保存が必要である。例えば arrow の反変引数では `arrow
 `C ≤ A | B` が生じるため、元 endpoint の head 不変量だけで飽和後の全状態を尽くしたとは主張しない。
 projection を元 source と無関係な自由 slot に置き換える案も採用しない。7.2 の全 parameter soundness には、
 各 projection と元共有 node の再構成の整合性、および同深さ tail 比較の全自由 family が必要である。
+
+## 15. 全生成 rigid 分解と元 node 比較の有限閉包
+
+`CommonGeneratedRigidInspection.saturate` は共有 pool と有限 edge 列だけを受け取り、行・型代入は受け取らない。
+全実生成 clause の上下限伝播後の rigid 比較を、child/row/Bool/profile の有限構文へ分解する。
+source/Core の `saturate_common_rigid_exact` は、元 constructor 方程式だけを前提に、任意の独立 rows/values で
+元 rigid 列の充足と有限 branch の存在が同値であることを示す。required/width target の分解には §14 の
+任意 source に対する定理を使う。known default は profile 式へ展開し、元 whole 比較を atom に残さない。
+
+generic inspector の var fallback は、実 rigid 列では両端が非変数であることから到達しない。
+`CommonGeneratedRigidDescent` はこの事実と、各 child 比較が由来の構文 weight 和を厳密に減らすことを示す。
+同じ比較を単に child atom へ包み直して完全分解と呼ぶ案は採用しない。
+
+§14 の negative arrow の懸念に対し、`PresenceGeneratedChildGrammar` は子位置の文法を強化した。
+実生成器は upper を var/base/width/pair/arrow/required から再帰的に作り、source-only の構成子の子もこの
+upper 文法に置く。全 scheme 置換・let 分岐・pack を通して保存される。したがって、任意構文では問題になる
+arrow 直下の型 union は、この実生成構文には現れない。変数に代入する Common 型には union/regular を許す。
+`CommonGeneratedChildClosure` は子辺追加と再 coalesce 後にも同じ文法を保存する。
+
+`CommonOrdinaryEdgeClosure` は元 N node の全 N² pair を実際に列挙し、元辺へ分解由来の child 辺を追加する。
+重複を除いた辺数が増えないときに停止し、それ以外の round は辺数が厳密に増えるため、内部 N² 上限で
+固定点に達する。元辺を含み、実生成 clause の元方程式の下で全独立割当ての充足を保存・反映する。
+この閉包は普通の node 比較だけの閉包である。row/profile/Bool 条件は別に残り、固定点という事実だけから
+任意の recursive parameter が全比較を満たすとは主張しない。
+
+## 16. Profile の有限支持と一つの共有値からの再構成
+
+`CommonSymbolicProfileSupport` は guard/projection/payload の参照一覧を構文から計算する。
+固定 query `(H,l)` の表は七 query mode と一 guarded payload mode を元 N node ごとに持つため、長さは 8N。
+実 first-pass 全体では 0 と pool の required label を inventory にし、`CommonGeneratedProfileSupport` が
+任意の返却 branch の全参照を高々 8N(N+1) 個の表に収める。外側 mask は元 query のまま、guarded child から
+新しい query mask を読み出さない。これは新 node/query 追加後の full saturation の上界ではない。
+
+`CommonSymbolicProfileCoherence` は補助 table を独立に解釈し、その有限支持上の各 entry が一つの元 values から
+得たものと一致する条件を明示する。この条件から元 node の七項目の意味と required 比較を回収する。
+coherence は公理や scheme の law field ではなく、ここで検証する再構成条件である。別々の自由 projection を
+そのまま元 node と同一視する案には、元 node が scalar なのに required 比較が成立する具体反例がある。
+全自由 family へ移る際には、この条件を任意 parameter から構成するか、projection を通常の境界へ消去する必要がある。
+
+## 17. Optional の深さ0を保持する普通の型境界
+
+`CommonTopTest.nontrivial` は outer 構文だけを読む有限 Bool であり、false iff top と要求同値である。
+true の場合は、同じ有限 role 環境が全 depth/rank で非自明な要求を受理する witness になる。
+payload/regular state を展開したり subtype solver を呼んだりしない。
+
+`rawOpt(l,P) = exactEmpty | required l P` と置くと、これへの subtype は正の optional 義務だけでなく
+初期層の optional 条件も要求する。P が top と等しい場合、正の optional 義務は width だけなので、rawOpt に
+一律に置き換える案は採用しない。`CommonOptionalBound.bound l P` は P が top なら width、それ以外は rawOpt を
+選ぶ。非topの role witness が source の初期 optional 条件を導くため、任意 S/P で正確な境界となる。
+`narrow l P parameter = parameter & bound l P` は、単独 optional 義務の全自由 family と全解回収を与える。
+
+推論時の構文は payload の代入を受け取らないため、さらに次の固定二枝へ変換する。
+
+```text
+OptionalPayload l S P
+  ↔ (top ≤ P ∧ S ≤ width) ∨ S ≤ rawOpt(l,P)
+```
+
+「P が非top」という否定条件を parameter に残す必要はない。top の場合も右第二枝は sound な部分 family で、
+第一枝が width 全体を回収する。positive presence も `S ≤ required l top` と同値なので、whole default は
+任意 S/F/P、shape 前提なしで通常比較だけの三枝になる。
+
+```text
+default(l,S,F) ≤ required l P
+  ↔ (top ≤ P ∧ S ≤ width)
+     ∨ (S ≤ rawOpt(l,P) ∧ S ≤ required l top)
+     ∨ (S ≤ rawOpt(l,P) ∧ F ≤ P)
+```
+
+この rawOpt は一般の target union とは別の有限 template として扱う。共有 graph への追加と再分解の閉性、
+同深さ循環を含めた全 parameter soundness は、上の局所 iff から自動的には従わない。
