@@ -76,6 +76,21 @@ theorem finishWorklist_exact (pool : Pool m) (edges : List (Edge pool)) :
   have same : rigid pool = CommonBoundRefWorklist.rigid pool := funext (rigid_exact pool)
   simp only [finishWorklist, CommonBoundRefWorklist.run, same]
 
+/-- At every state actually returned by completion, every requested bound
+agrees with the reference at that state and no rigid comparison is pending.
+This is still a statement about the same snapshot, not a global family
+projection for a partially checked source. -/
+theorem finished_request_exact (pool : Pool m) (edges : List (Edge pool))
+    (state : State pool) (returned : state ∈ finishWorklist pool edges)
+    (root : DemandBoundPropagation.Root m) :
+    request pool state.edges root = DemandBoundPropagation.reference
+        (CommonBoundRefCoalescing.template pool (queries pool) state.edges) root ∧
+      FiniteBranchingWorklist.pending (CommonBoundRefWorklist.inventory pool)
+        (CommonBoundRefWorklist.rigid pool) state = none := by
+  rw [finishWorklist_exact] at returned
+  exact ⟨request_exact pool state.edges root,
+    CommonBoundRefWorklist.run_finished pool edges state returned⟩
+
 def finishProblem (problem : CommonPresenceConstraintGraph.Problem m) :
     List (Scheme m problem.pool.size) :=
   match CommonRowDeclarations.declareRows problem.rows with
