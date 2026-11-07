@@ -570,3 +570,4 @@ import Yulang.CommonNominalConstraints
 import Yulang.CommonNominalRoots
 import Yulang.CommonGroundScalarCasts
 import Yulang.CommonGroundNominalCasts
+import Yulang.CommonPatternEnvironment
