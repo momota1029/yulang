@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Print one line per Codex worker whose session log shows task_complete, then exit.
+# Print one line per Codex worker whose session log shows task_complete (codex-done) or an
+# aborted turn (codex-aborted), then exit.
 #
 # usage: tools/codex-watch.sh <threadId>:<label>[@N] [<threadId>:<label>[@N] ...]
 #
@@ -28,8 +29,17 @@ for _ in $(seq 1 580); do
     log=$(find "$HOME/.codex/sessions" -name "*${tid}*.jsonl" 2>/dev/null | head -n 1)
     done_count=0
     [ -n "$log" ] && done_count=$(grep -c '"type":"task_complete"' "$log")
+    # An interrupted turn (watchdog, user stop) logs turn_aborted, never task_complete.
+    last_end=""
+    end_count=0
+    if [ -n "$log" ]; then
+      end_count=$(grep -c -E '"type":"(task_complete|turn_aborted)"' "$log")
+      last_end=$(grep -o -E '"type":"(task_complete|turn_aborted)"' "$log" | tail -n 1)
+    fi
     if [ "$done_count" -ge "$want" ]; then
       echo "codex-done ${label} ${tid}"
+    elif [ "$end_count" -ge "$want" ] && [ "$last_end" = '"type":"turn_aborted"' ]; then
+      echo "codex-aborted ${label} ${tid} (turn interrupted: resume with agent_send)"
     else
       next+=("$entry")
     fi
