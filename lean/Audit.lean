@@ -4099,3 +4099,6 @@ run_cmd do
 #print axioms Yulang.CommonNominalRoots.nominal_common_exact
 #print axioms Yulang.CommonNominalRoots.bottom_le
 #print axioms Yulang.CommonNominalRoots.le_top
+#print axioms Yulang.CommonGroundScalarCasts.scalar_canonical_exact
+#print axioms Yulang.CommonGroundScalarCasts.scalar_normalized_quote_exact
+#print axioms Yulang.CommonGroundScalarCasts.check_exact
