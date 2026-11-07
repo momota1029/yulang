@@ -10,6 +10,24 @@ arbitrary complete execution, including one allegedly ending after a trap.
 
 namespace Yulang.CanonicalRegisterMachine
 
+theorem write_shadow {registers : Nat} (values : Fin (registers + 1) → Nat)
+    (register : Fin (registers + 1)) (first last : Nat) :
+    write (write values register first) register last = write values register last := by
+  funext current
+  by_cases equal : current = register <;> simp only [write, equal, ↓reduceIte]
+
+theorem write_commute {registers : Nat} (values : Fin (registers + 1) → Nat)
+    (first last : Fin (registers + 1)) (distinct : first ≠ last) (a b : Nat) :
+    write (write values first a) last b = write (write values last b) first a := by
+  funext current
+  by_cases atFirst : current = first
+  · subst current
+    simp only [write, distinct, ↓reduceIte]
+  · by_cases atLast : current = last
+    · subst current
+      simp only [write, atFirst, ↓reduceIte]
+    · simp only [write, atFirst, atLast, ↓reduceIte]
+
 inductive Reaches (program : Program) :
     State program.registers program.states → State program.registers program.states → Prop where
   | refl : Reaches program state state

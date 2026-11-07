@@ -234,6 +234,45 @@ theorem atomic_runs {registers : Nat} (op : Op registers Unit) (values : Store r
   apply Trace.next (following := none) (nextValues := _) ?_ .refl
   exact op_map_eval (fun _ => none) op values
 
+def branchZeroLabel {firstStates lastStates : Nat} :
+    Option (Fin firstStates) → Option (Fin (firstStates + lastStates + 1)) :=
+  Option.map (fun location => (location.castAdd lastStates).succ)
+
+def branchPositiveLabel (firstStates : Nat) {lastStates : Nat} :
+    Option (Fin lastStates) → Option (Fin (firstStates + lastStates + 1)) :=
+  Option.map (fun location => (Fin.natAdd firstStates location).succ)
+
+/-- Test a counter and, on the positive branch, consume one unit. -/
+def branch {registers : Nat} (register : Fin (registers + 1))
+    (zero positive : Routine registers) : Routine registers where
+  states := zero.states + positive.states + 1
+  entry := some 0
+  code := Fin.cases
+    (.decrement register (branchZeroLabel zero.entry) (branchPositiveLabel zero.states positive.entry))
+    (Fin.addCases
+      (fun location => (zero.code location).map branchZeroLabel)
+      (fun location => (positive.code location).map (branchPositiveLabel zero.states)))
+
+theorem branch_runs {registers : Nat} (register : Fin (registers + 1))
+    (zero positive : Routine registers) (values finalValues : Store registers)
+    (execution : if values register = 0 then Runs zero values finalValues
+      else Runs positive (write values register (values register - 1)) finalValues) :
+    Runs (branch register zero positive) values finalValues := by
+  by_cases empty : values register = 0
+  · rw [ite_eq_left empty] at execution
+    have bodyTrace := trace_map (target := branch register zero positive) branchZeroLabel
+      (fun location => ⟨(location.castAdd positive.states).succ, rfl, by
+        simp only [branch, Fin.cases_succ, Fin.addCases_left]⟩) execution
+    apply Trace.next (following := branchZeroLabel zero.entry) (nextValues := values) ?_ bodyTrace
+    simp only [branch, Fin.cases_zero, Op.eval, empty, ↓reduceIte]
+  · rw [ite_eq_right empty] at execution
+    have bodyTrace := trace_map (target := branch register zero positive) (branchPositiveLabel zero.states)
+      (fun location => ⟨(Fin.natAdd zero.states location).succ, rfl, by
+        simp only [branch, Fin.cases_succ, Fin.addCases_right]⟩) execution
+    apply Trace.next (following := branchPositiveLabel zero.states positive.entry)
+      (nextValues := write values register (values register - 1)) ?_ bodyTrace
+    simp only [branch, Fin.cases_zero, Op.eval, empty, ↓reduceIte]
+
 end Routine
 
 end Yulang.CanonicalRegisterMachine

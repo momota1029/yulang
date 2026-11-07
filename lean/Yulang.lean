@@ -589,8 +589,10 @@ import Yulang.CanonicalRegisterMachine
 import Yulang.CanonicalRegisterComposition
 import Yulang.CanonicalRegisterRoutines
 import Yulang.CanonicalRegisterMacros
+import Yulang.CanonicalRegisterWords
 import Yulang.CommonCanonicalRowSyntax
 import Yulang.CommonCanonicalRowGeometry
 import Yulang.CommonCanonicalRowTests
 import Yulang.CommonCanonicalCounterConstraints
 import Yulang.CommonCanonicalSerialization
+import Yulang.CommonCanonicalWordPrograms

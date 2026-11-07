@@ -34,6 +34,8 @@ import Lean
 #print axioms Yulang.CanonicalRegisterMachine.no_nonhalting_semidecider
 #print axioms Yulang.CanonicalRegisterMachine.invariant_iff_nonhalting
 #print axioms Yulang.CanonicalRegisterMachine.reaches_execution_iff
+#print axioms Yulang.CanonicalRegisterMachine.write_shadow
+#print axioms Yulang.CanonicalRegisterMachine.write_commute
 #print axioms Yulang.CanonicalRegisterMachine.subroutine_reaches
 #print axioms Yulang.CanonicalRegisterMachine.Routine.op_map_eval
 #print axioms Yulang.CanonicalRegisterMachine.Routine.trace_trans
@@ -42,8 +44,16 @@ import Lean
 #print axioms Yulang.CanonicalRegisterMachine.Routine.loop_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.trace_compiled
 #print axioms Yulang.CanonicalRegisterMachine.Routine.atomic_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.branch_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.clear_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.incrementList_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.drain_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.copy_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.pushDigit_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.setConstant_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.wordTick_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.wordDivisionLoop_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.wordPop_runs
 #print axioms Yulang.CommonCanonicalRowSyntax.binding_instances_exact
 #print axioms Yulang.CommonCanonicalRowSyntax.rename_eval
 #print axioms Yulang.CommonCanonicalRowGeometry.closed_row_exact
@@ -69,6 +79,7 @@ import Lean
 #print axioms Yulang.CommonCanonicalCounterConstraints.no_compiled_public_instance_semidecider
 #print axioms Yulang.CommonCanonicalSerialization.form_rename_zero_serializes
 #print axioms Yulang.CommonCanonicalSerialization.wordCode_injective
+#print axioms Yulang.CommonCanonicalWordPrograms.wordPop_token
 
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/
