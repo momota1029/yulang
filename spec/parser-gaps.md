@@ -6,6 +6,14 @@
 ## 読めない形
 
 **なし**（2026-11-04）。`spec/` の章 1〜9 に載せた構文例 80 個は、すべて `Error` / `Missing` / `Invalid` なしで読める。
+
+**例外（2026-11-07、構文ガイドの例の検査で見つかった。未対応）**:
+
+- lambda の引数に record pattern を書く形: `\{x, y} -> x + y`（`spec/03-expressions.md` 3.4）。`\(a, b)` と `\_` は読める。`my {x, y} = p` は読める。
+- 式としての record の spread: `{x: 1, ..rest}`、`{..rest, x: 1}`（`spec/03-expressions.md` 3.1、`spec/04-types.md` の例にも出る）。構文木に対応する種類が無い。list の spread（`[1, ..xs, 3]`）と、pattern の spread は読める。
+- 対象なしの `case:`（`\x -> case x:` の略。`spec/03-expressions.md` 3.7、2026-11-06 確定）。`case x:` は読める。
+
+いずれも、`syntax-guide/ja/src/expressions.md` の例が根拠。パーサ側の対応は、設計判断（構文の確定）を確かめてから。
 経緯と設計判断は `notes/design/2026-11-04-parser-gap-closure-addendum.md`（Authoritative）に残してある。
 
 ## 意図的に残している未完了

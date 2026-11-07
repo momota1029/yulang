@@ -25,7 +25,7 @@ cargo run --offline -p yu-syntax --example syntax_guide_check -- syntax-guide/ja
 
 ## 確認できること、できないこと
 
-2026-11-07 時点の結果: 16 ブロック中、15 が `ok`、1 が `placeholder`。失敗は無い。
+2026-11-07 時点の結果: 33 ブロック中、29 が `ok`、1 が `placeholder`、3 が `recovery`。`recovery` の 3 件は、パーサがまだ読めない形(lambda の record 引数、式としての record の spread、対象なしの `case:`)で、`spec/parser-gaps.md` に台帳がある。ガイドの該当箇所にも注記してある。
 
 | 確認できる | 確認できない |
 | --- | --- |

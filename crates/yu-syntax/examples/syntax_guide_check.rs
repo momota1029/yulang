@@ -59,6 +59,7 @@ pub lazy infix (or) 2.0.0 2.0.1 = or
 pub lazy infix (and) 3.0.0 3.0.1 = and
 pub infix (==) 4.0.0 4.0.1 = eq
 pub infix (<) 4.0.0 4.0.1 = lt
+pub infix (>) 4.0.0 4.0.1 = gt
 pub infix (..) 4.5.0 4.5.1 = range
 pub infix (+) 5.0.0 5.0.1 = add
 pub infix (-) 5.0.0 5.0.1 = sub
