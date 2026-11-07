@@ -611,3 +611,6 @@ import Yulang.CommonRoleRegularResolutionObstruction
 import Yulang.CommonRoleReachedRoot
 import Yulang.CommonRolePackedRegistry
 import Yulang.CommonRolePackedHalting
+import Yulang.CommonRoleReachedRootObstruction
+import Yulang.CommonRolePackedSemanticReflection
+import Yulang.CommonRoleReachedRootExamples

@@ -91,6 +91,15 @@ def requiredRole : Roles.RoleDecl := ⟨1, fun name => if name = 0 then some non
 def roles : Roles.RoleDecls := fun name =>
   if name < 5 then requiredRole else CommonRoleRegularRegistry.undeclaredRole
 
+theorem constraints_declared (code : CommonRoleComputation.Code) (implementation : Roles.Impl)
+    (member : implementation ∈ visible code) (child : Roles.Goal)
+    (required : child ∈ implementation.constraints) :
+    child.role < 5 ∧ child.args.length = (roles child.role).arity := by
+  obtain ⟨original, originalMember, rfl⟩ := List.mem_map.mp member
+  obtain ⟨requirement, present, rfl⟩ := List.mem_map.mp required
+  have declared := CommonRoleRegularRegistry.constraints_declared code originalMember present
+  exact ⟨declared.1, by simp [packGoal, roles, declared.1, requiredRole]⟩
+
 theorem associated_wellFormed (code : CommonRoleComputation.Code) :
     Roles.AssocWellFormed (environment code) roles := by
   intro annotated member
