@@ -75,4 +75,36 @@ theorem merge_check_exact (first last : Bounds scopes α) (assignment : α → C
   rw [check_exact, check_exact, check_exact, cross_checks_exact, cross_checks_exact, Bounds.eval_merge]
   exact EffectRow.merge_consistent (first.eval assignment) (last.eval assignment)
 
+/-- Bounds around an already allocated shared argument. The argument is a
+syntax term supplied by the allocator, never an existentially guessed match. -/
+def contains (bounds : Bounds scopes α) (actual : RowExpr scopes α) : Formula scopes α :=
+  .and (andAll (bounds.lower.map (fun lower => .rowLe lower actual)))
+    (andAll (bounds.upper.map (fun upper => .rowLe actual upper)))
+
+theorem contains_exact (bounds : Bounds scopes α) (actual : RowExpr scopes α)
+    (assignment : α → Computation) :
+    (contains bounds actual).Holds assignment ↔
+      EffectRow.Member (bounds.eval assignment) (actual.eval assignment) := by
+  change _ ↔ rowLe (bounds.eval assignment).lower (actual.eval assignment) ∧
+    rowLe (actual.eval assignment) (bounds.eval assignment).upper
+  simp only [contains, Formula.Holds, andAll_exact, List.forall_mem_map]
+  constructor
+  · rintro ⟨lower, upper⟩
+    constructor
+    · rintro occurrence ⟨endpoint, member, present⟩
+      exact lower endpoint member occurrence present
+    · intro occurrence present endpoint member
+      exact upper endpoint member occurrence present
+  · rintro ⟨lower, upper⟩
+    exact ⟨fun endpoint member occurrence present => lower occurrence ⟨endpoint, member, present⟩,
+      fun endpoint member occurrence present => upper occurrence present endpoint member⟩
+
+theorem merge_contains_exact (first last : Bounds scopes α) (actual : RowExpr scopes α)
+    (assignment : α → Computation) :
+    (contains (first.merge last) actual).Holds assignment ↔
+      (Formula.and (contains first actual) (contains last actual)).Holds assignment := by
+  change _ ↔ (contains first actual).Holds assignment ∧ (contains last actual).Holds assignment
+  rw [contains_exact, contains_exact, contains_exact, Bounds.eval_merge]
+  exact EffectRow.merge_member (first.eval assignment) (last.eval assignment) (actual.eval assignment)
+
 end Yulang.CommonEffectRowIntervalConstraints
