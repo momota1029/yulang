@@ -2037,3 +2037,34 @@ RoleRank、fuel、無限辞書は採用していない。定義の理由と qual
 定義の理由と qualified の正確な未証明 lemma は
 [設計 note](../notes/design/2026-11-07-b4r2-constructor-inspection-and-shadow-size.md)、
 主定理の全主張・検証・レビューは [B4r2 結果](../notes/handoff/2026-11-07-m1-b4r2-results.md) に記す。
+
+## B4r3 E2: Nで固定されたcore宣言でも、未知tailの捕捉後にfieldが隠れる（2026-11-07）
+
+`CommonRoleFiniteTailObstruction.normalized_registry_undecidable` は、承認された normalized Paterson と両K2規則の下でも、
+**列挙された任意core-registry前提**に対する全域 exact resolver が存在しないことを示す。
+最小core head `R {x:int,..a}` / where `R a` はN固定で、サイズ3/1。
+有限C={x:int}をaへ捕まえると、headはCとCommon同値、childはCになる。
+fieldは宣言構文では一度だけ現れ、重複は代入後に初めて生じる。
+
+この未知tailは既存の実VerifiedDeclaration APIも受理する。
+一方でsurface record型注釈はspreadを含まないため、直接書けるsource implの反例やsource到達可能性は主張しない。
+source-generated/closed-spineに狭めた定理は別の未証明対象であり、その条件を元の前提へ黙って足していない。
+
+`CommonRoleNormalizedDeclarations` は固定countergrammarについてNのCommon意味保存、head matchingのiff、
+decidable normalized checkerのWellFormed/HDA soundnessを証明する。
+有限Cの独立pair slotを並べると、全stored head/whereがN固定のまま任意有限programを符号化できる。
+実辞書存在iff停止、任意Common代入での候補一意性、全where子を含む実Plan、有限tapeへの実query構築を証明した。
+任意Common代入の上位evidenceでも成功集合は同じ。全goalは有限木なのでpriorityや再帰型拒否の選択には依存しない。
+
+| 項目 | 今回証明したこと | 何が未証明か |
+| --- | --- | --- |
+| normalized registry | N固定・normalized checker/WF/HDA/AssocWFを満たす任意core registry契約へのE2 | E1の全域resolver、source-generatedな閉spine定理 |
+| Nとmatching | 固定countergrammarの意味保存、head一致iff、checker soundness、N/capture非可換性 | 全Common型・rowのN、source loweringと全source headのrigidity bridge |
+| 実辞書 | 任意Common候補一意性、全実impl IDと全where子、実finite tape成功判定の非存在 | 一般finite-tree agreement、nominal agreement、公開入口/Rust統合 |
+| 他の同値 | union idempotenceにもサイズ消去があること、別encodingが本checkerには拒否されること | source-validなunion/variant-row追加反例や全normalization完全性は主張しない |
+| qualified | 全称代入を含む正確な残りを設計noteへ記録 | full実generatorと独立typingのiff、全自由parameter family。単独generator非存在は証明していない |
+
+型同値とsource/core境界の理由は [設計note](../notes/design/2026-11-07-b4r3-normalization-and-tail-capture.md)、
+量化範囲またはtail捕捉を変える未承認案は [一問](../notes/questions/2026-11-07-b4r3-core-tail-capture.md)、
+完全な定理statementと検証は [B4r3結果](../notes/handoff/2026-11-07-m1-b4r3-results.md) にある。
+旧E2は保存し、spec・既存checker・公開入口は変更していない。

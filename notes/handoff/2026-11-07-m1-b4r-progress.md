@@ -542,3 +542,21 @@ capacityの定義展開でproof elaboratorが既定heartbeatに達したため�
 検証: `cd lean && lake build --wfail` exit 0（676 jobs）。
 これで全72新規theoremをAuditに登録した。source到達可能性は主張しないが、既存のnamed VerifiedDeclaration APIまで
 明示的に受理するため、listed core前提の外に暗黙のclosed-spine条件があるとは扱わない。
+
+## B4r3 最終 gate と終了
+
+E2: `CommonRoleFiniteTailObstruction.normalized_registry_undecidable`。
+任意有限Codeの実core registryは新normalized checker/WF/HDA/AssocWF、全declのN固定性を満たす。
+全canonical goalは有限木でReady。それでも全実finite queryで必ず停止してtrue iff実有限Dictionaryを返すmachineはない。
+
+最終 `cd lean && lake build --wfail` exit0、676 jobs。
+最終 `cd lean && lake env lean --trust=0 Audit.lean` exit0、allowlist55785 declarations。
+主定理の公理はpropext/Classical.choice/Quot.sound。全72新規theoremを登録した。
+二つの独立最終reviewも同じbuild/Auditとfocused trust0 warning-as-errorを通し、E2と判定した。
+source ..tail不可、closed-spine/source bridge未証明という境界も独立reviewした。
+
+全statement、build/Audit末尾、残りを新 `2026-11-07-m1-b4r3-results.md` に記録した。
+設計noteにNと代入の非可換性、別union encodingの範囲、qualifiedの正確な未証明lemmaを記録。
+source量化/closed-spine bridgeまたはtail意味の変更は一問へ置き、仕様へ採用していない。
+実source比較例のparser probeはok1/recovery0。core反例を直接書けるsource例にしていない。
+既存Leanはimport7行/Audit72行の追記のみ。既存proof、旧E2、spec、公開入口の変更なし。commit/pushなし。
