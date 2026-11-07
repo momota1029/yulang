@@ -694,3 +694,5 @@ import Yulang.CommonPatternFinitePrefixes
 import Yulang.CommonCaseComputations
 import Yulang.CommonCaseComputationSafety
 import Yulang.CommonCaseFinitePrefixes
+import Yulang.CommonPatternCorePrefixBridge
+import Yulang.CommonCaseCorePrefixSolved

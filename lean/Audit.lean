@@ -4450,3 +4450,9 @@ run_cmd do
 #print axioms Yulang.CommonCaseComputationSafety.eval_safe
 #print axioms Yulang.CommonCaseFinitePrefixes.visits_safe
 #print axioms Yulang.CommonCaseFinitePrefixes.eval_finite_prefixes
+#print axioms Yulang.CommonPatternCorePrefixBridge.boolean_readout
+#print axioms Yulang.CommonPatternCorePrefixBridge.guard_sound
+#print axioms Yulang.CommonPatternCorePrefixBridge.model_pattern_prefixes
+#print axioms Yulang.CommonCaseCorePrefixSolved.case_finite_prefixes
+#print axioms Yulang.CommonCaseCorePrefixSolved.all_parameter_case_prefixes
+#print axioms Yulang.CommonCaseCorePrefixSolved.all_parameter_pattern_prefixes
