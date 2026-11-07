@@ -4257,3 +4257,16 @@ run_cmd do
 
 #print axioms Yulang.CommonSignedExpressionPool.restrict_extend
 #print axioms Yulang.CommonSignedExpressionPool.input_injective
+
+#print axioms Yulang.CommonSignedExpressionGraph.lowerScheme_exact
+#print axioms Yulang.CommonSignedExpressionGraph.extend_lower
+#print axioms Yulang.CommonSignedExpressionGraph.evaluate_below_node
+
+#print axioms Yulang.CommonSignedConstraintCompilation.compile_exact
+#print axioms Yulang.CommonSignedConstraintCompilation.all_parameters_models
+#print axioms Yulang.CommonSignedConstraintCompilation.solve_all_instances_exact
+#print axioms Yulang.CommonSignedConstraintCompilation.rejected_iff
+
+#print axioms Yulang.CommonSignedValueExpressionSolver.all_parameters_models
+#print axioms Yulang.CommonSignedValueExpressionSolver.solve_all_instances_exact
+#print axioms Yulang.CommonSignedValueExpressionSolver.generated_all_instances_exact

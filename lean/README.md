@@ -1879,3 +1879,40 @@ lake env lean --trust=0 --run RunRegularInference.lean
 `sorry`、追加の公理、`native_decide` での証明を使わない。Lean が通常使う公理と、未証明の主張を公理化することを区別する。GitHubの`Lean inference kernel` workflowも、ビルドとこの監査を実行する。
 
 構文例の計算確認と一般定理も区別する。全言語の推論器、Rust との接続、公開型の表示、実行時の型安全性については、対応する定理を持つまでは完了と呼ばない。
+
+
+## M1 B3: signed row 求解と全称生成の補助結果（親契約は未完）
+
+2026-11-07 の B3 作業は、新しいモジュールだけで以下を追加した。公開 `Core.infer`、
+`Core.CommonSyntax`、既存の型判断は変更していない。二つの親契約
+`generate_common_effect_finite_exact` / `solve_common_effect_all_instances_exact` は未完である。
+進行中の量化・前提と残りは [B3 作業記録](../notes/handoff/2026-11-07-m1-b3-progress.md) に記す。
+
+- `CommonSignedSafetyDecision.check_exact` は、任意 finite signed/residual graph、任意 slot、
+  任意 Common occurrence について、pure sink に到達しないことの停止する Boolean 判定と iff。
+  key と座標数ごとの候補準備・削除を使い、重みや cycle を打ち切らない。
+  特定の target occurrence への path membership の判定ではない。
+- `CommonSignedGraphSolver.solve_all_instances_exact` / `all_parameters_models` は、任意 finite
+  signed graph、required heads、pure sinks を同時に解く。返却 scheme は finite graph で、
+  任意の無制約 row parameters が Models を満たし、全 original rows を文字どおり回収する。
+- `CommonSignedConstraintCompilation.compile_exact` / `solve_all_instances_exact` は、実際の
+  finite signed RowExpr の lower bounds を共有 graph に compile して解く。upper は元変数/空行。
+  `CommonSignedValueExpressionSolver.generated_all_instances_exact` は、その実 row 求解を
+  presence-generated clause の値 solver と合成し、独立 rows と全 value nodes を回収する。
+- `CommonEffectFormula` / `CommonEffectPresence` は、signed rows と local 型の存在/全称 binder を
+  持つ有限 scheme の rename/substitution/具体化と、通常 presence 構文での再帰生成を扱う。
+  exact empty、required field、strict default と captured poly let を保つ。
+- `CommonEffectHandlerGeneration` / `CommonEffectArmGeneration` は、一段の handler と
+  ragged な複数 operation arm を有限構文へ生成する。外側 input/returned/環境/結果を固定し、
+  `∀ joint locals, ∃ operated` の順を保つ。shallow resumption は元 action の行を持つ。
+- `CommonEffectUniversalPayload` / `CommonEffectUniversalResumption` /
+  `CommonEffectUniversalSelfResponse` は、実生成された特定 arm の local 全称検査を有限比較へ消す。
+  self-response の `k payload` は任意個の arm、任意 local 数、任意 finite 型本体を許す。
+  `CommonEffectRowQuantifiers` は row-only formula の local 型 binder を全て消す。
+
+これらから一般の coupled value/row arm の全称消去は従わない。再帰的 effect source/binding 判断、
+有限注釈からの permission 抽出、一般化直前の visible effect 検査も未接続である。
+既存 `Core.Expr.boundary` の任意関数 mask を finite input として取り込むことはしない。
+また、kind-correct な finite 宣言でも旧 presence の child grammar に入るとは限らない。
+`CommonEffectGrammarBoundary` が top-input の実反例を示し、`CommonEffectTypeNormalisation` は
+その例を意味保存で前処理するが、全宣言の grammar 完了ではない。
