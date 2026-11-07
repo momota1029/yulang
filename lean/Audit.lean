@@ -33,6 +33,8 @@ import Lean
 #print axioms Yulang.CanonicalCounterComputability.executes_deterministic
 #print axioms Yulang.CanonicalRegisterMachine.no_nonhalting_semidecider
 #print axioms Yulang.CanonicalRegisterMachine.invariant_iff_nonhalting
+#print axioms Yulang.CanonicalRegisterMachine.reaches_execution_iff
+#print axioms Yulang.CanonicalRegisterMachine.subroutine_reaches
 #print axioms Yulang.CommonCanonicalRowSyntax.binding_instances_exact
 #print axioms Yulang.CommonCanonicalRowSyntax.rename_eval
 #print axioms Yulang.CommonCanonicalRowGeometry.closed_row_exact
@@ -54,6 +56,8 @@ import Lean
 #print axioms Yulang.CommonCanonicalCounterConstraints.constraints_imply_invariant
 #print axioms Yulang.CommonCanonicalCounterConstraints.invariant_has_constraints
 #print axioms Yulang.CommonCanonicalCounterConstraints.constraints_iff_nonhalting
+#print axioms Yulang.CommonCanonicalCounterConstraints.public_instances_iff_nonhalting
+#print axioms Yulang.CommonCanonicalCounterConstraints.no_compiled_public_instance_semidecider
 
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/

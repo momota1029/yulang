@@ -377,4 +377,36 @@ theorem constraints_iff_nonhalting (program : Program) (input : Nat) :
     obtain ⟨safe, invariant⟩ := (CanonicalRegisterMachine.invariant_iff_nonhalting program input).mpr nonhalting
     exact invariant_has_constraints program input safe invariant
 
+/-- A direct reduction to equality of the existing public-instance meaning.
+Both interface inputs are finite symbolic syntax computed from the finite
+counter program and the natural input. No EOF or role-resolution semantics
+is used in this reduction. -/
+theorem public_instances_iff_nonhalting (program : Program) (input : Nat) :
+    (∀ theory : RoleConstraints.Theory model, ∀ target : Inference.Comp model,
+      QualifiedInference.BindingTyping model theory
+        (fixedInterface (constraints program input)).binding target ↔
+      QualifiedInference.BindingTyping model theory
+        (familyInterface (constraints program input)).binding target) ↔
+    ¬ CanonicalRegisterMachine.Halts program input :=
+  (problem_interfaces_exact (constraints program input)).trans (constraints_iff_nonhalting program input)
+
+/-- No finite counter program recognizes equality on this compiled family
+when fed the source representation. The explicit machine construction that
+would compose a general interface encoder with the finite compiler is a
+separate computational obligation. -/
+theorem no_compiled_public_instance_semidecider
+    (encoding : CanonicalRegisterMachine.Program → Nat) :
+    ¬ ∃ recognizer : CanonicalRegisterMachine.Program,
+      ∀ program : CanonicalRegisterMachine.Program,
+        CanonicalRegisterMachine.Halts recognizer (encoding program) ↔
+          (∀ theory : RoleConstraints.Theory model, ∀ target : Inference.Comp model,
+            QualifiedInference.BindingTyping model theory
+              (fixedInterface (constraints program (encoding program))).binding target ↔
+            QualifiedInference.BindingTyping model theory
+              (familyInterface (constraints program (encoding program))).binding target) := by
+  rintro ⟨recognizer, exactness⟩
+  apply CanonicalRegisterMachine.no_nonhalting_semidecider encoding
+  exact ⟨recognizer, fun program =>
+    (exactness program).trans (public_instances_iff_nonhalting program (encoding program))⟩
+
 end Yulang.CommonCanonicalCounterConstraints
