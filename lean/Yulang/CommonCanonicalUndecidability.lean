@@ -56,4 +56,28 @@ theorem no_computable_canonical_encoding :
     public_instances_iff_nonhalting source (programCode source)
   exact (recognizes source).trans ((exactness _ _).symm.trans semantic)
 
+/-- Empty obligations make the obstruction independent of the ambient role
+registry. It already applies at any one fixed existing theory. -/
+theorem no_computable_canonical_encoding_at_theory (theory : RoleConstraints.Theory model) :
+    ¬ ∃ encoding : Interface → Nat, ∃ machine : Program,
+      ComputesEncoding machine encoding ∧
+      ∀ first last : Interface,
+        (∀ target : Inference.Comp model,
+          QualifiedInference.BindingTyping model theory first.binding target ↔
+            QualifiedInference.BindingTyping model theory last.binding target) ↔ encoding first = encoding last := by
+  rintro ⟨encoding, machine, computes, exactness⟩
+  apply no_computable_canonical_encoding
+  refine ⟨encoding, machine, computes, fun first last => ?_⟩
+  have theoryIndependent : PublicEquivalent first last ↔
+      (∀ target : Inference.Comp model,
+        QualifiedInference.BindingTyping model theory first.binding target ↔
+          QualifiedInference.BindingTyping model theory last.binding target) := by
+    constructor
+    · intro same target
+      exact same theory target
+    · intro same ambient target
+      have atTheory := same target
+      simpa only [binding_instances_exact] using atTheory
+  exact theoryIndependent.trans (exactness first last)
+
 end Yulang.CommonCanonicalUndecidability

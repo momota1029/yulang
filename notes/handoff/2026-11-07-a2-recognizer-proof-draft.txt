@@ -337,4 +337,3 @@ theorem recognizer_exact {Index : Type} (first last coder : Program)
 
 #print axioms recognizer_exact
 end ReviewComposition
-

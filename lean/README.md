@@ -624,6 +624,21 @@ presence の data 述語包含との同値はない。これらを既存 data �
 
 ### M1 interface 標準形の有限断片
 
+A2 の全有限文法に対する計算可能な完全 code には、
+`CommonCanonicalUndecidability.no_computable_canonical_encoding` と
+`no_computable_canonical_encoding_at_theory` の障害がある。
+有限 signed-row 式・有限閉再帰 grid・無制約 row parameters・general-arrow の正負共有を持つ
+小さい symbolic interface 族だけで、既存 `QualifiedInference.BindingTyping` の family 等価性に
+counter machine の非停止を帰着した。`builder_program_runs` は二つの実有限 compiler を構成し、
+`CanonicalRegisterRecognizer.recognizer_exact` は仮の canonicalizer との実合成を与える。
+`Occurrence → Prop` の有限文字列化や compiler 実現可能性の仮定は使わない。
+計算可能性は明示した有限 counter-program model と普通の有限構文 serialization で形式化した。
+元 A2 の statement・既存の部分文法定理は変更していない。
+[修正提案](../notes/questions/2026-11-07-a2-canonical-computability.md) は未承認であり、
+全 inference/readback/export/EOF/display の意味保存が完成したという主張ではない。
+詳細は [A2 results](../notes/handoff/2026-11-07-m1-a2-results.md) を参照。
+
+
 旧 `ProducerContextualNormalForm.normalize_not_complete` は旧 pass の正しい反例として残す。
 新 pass は base の union を `bool`, `int`, `str`, `unit` の辞書順へ整列し、変数はその前に共有 ID 順で置く。
 `int | str` と `str | int` の出力を一致させ、`int | str` と `any` は区別する。

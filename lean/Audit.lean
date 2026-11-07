@@ -4331,3 +4331,5 @@ run_cmd do
 #print axioms Yulang.CommonCanonicalReductionMachine.builder_program_runs
 
 #print axioms Yulang.CommonCanonicalUndecidability.no_computable_canonical_encoding
+
+#print axioms Yulang.CommonCanonicalUndecidability.no_computable_canonical_encoding_at_theory
