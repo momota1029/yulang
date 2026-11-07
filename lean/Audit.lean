@@ -4173,3 +4173,11 @@ run_cmd do
 #print axioms Yulang.CommonLegacySharedWitnesses.legacy_generated_shared_witnesses
 
 #print axioms Yulang.CommonLegacySharedWitnesses.legacy_instances_reflected
+
+#print axioms Yulang.CommonCastRoutes.search_exact
+#print axioms Yulang.CommonCastRoutes.search_eq_none_iff
+#print axioms Yulang.CommonCastRoutes.search_agrees_with_closure
+#print axioms Yulang.CommonCastRouteExecution.compile_exact
+#print axioms Yulang.CommonCastRouteExecution.compiled_run_pure
+#print axioms Yulang.CommonCastRouteExecution.compiled_insert_requestTree
+#print axioms Yulang.CommonNominalFinite.nominal_finite_invariant_exact
