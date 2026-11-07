@@ -1879,3 +1879,25 @@ lake env lean --trust=0 --run RunRegularInference.lean
 `sorry`、追加の公理、`native_decide` での証明を使わない。Lean が通常使う公理と、未証明の主張を公理化することを区別する。GitHubの`Lean inference kernel` workflowも、ビルドとこの監査を実行する。
 
 構文例の計算確認と一般定理も区別する。全言語の推論器、Rust との接続、公開型の表示、実行時の型安全性については、対応する定理を持つまでは完了と呼ばない。
+## B2: Common structural pattern の共有有限生成（2026-11-07 worker）
+
+`CommonPatternGeneration` / `CommonPatternAllocation` は、実 pattern と default 式から、
+順序を保つ単相 binder slot を共有して有限制約を作り、既存の独立
+`CommonPatternTyping.Typing` との iff を示す。Q4 の先行束縛は後続 default の環境へ渡す。
+`CommonArmEnvironmentGeneration` は同じ slot を guard/body の実生成にも渡す。
+この段階の default 判断は値型についての `∃ row, Typing … (type,row)` である。
+
+`CommonPatternPartialSafety` は default の成功時だけの型保存を仮定し、
+実 `ScopedCasePatterns.run` の成功束縛の型を示す。error/miss を許し、default の停止成功は結論しない。
+`CommonPatternSourceChecks` は既存 Q7 名前検査への有限生成 gate と、この部分正当性への接続を持つ。
+
+`CommonPatternBoundInspection` / `CommonPatternBoundWorklist` は、右辺の variant と dedicated optional union を
+扱う実有限検査を追加する。finite-depth soundness、同深さ source descent、clamped soundness、
+実 row 宣言を経て、`CommonPatternSolvedConstraints` が無条件の全 parameter soundness を示す。
+`CommonPatternGenerationProvenance` / `CommonPatternSolvedGeneration.generated_models_exact` は、
+実 pattern の全生成 clause の全独立 Models を、行を文字どおり・全 node 値を要求同値まで回収する。
+必要な有限構文条件は生成器から証明し、parameters に残余条件を付けない。
+
+**B2 全体は未完。** 上記中間判断には list/nominal/merged variant/float/presence/annotation の橋がなく、
+source の名前集合による or の整列、default/guard の行と失敗、ordered coverage、
+全 case Typing と公開三契約への接続も残る。公開入口と既存定理は変更していない。

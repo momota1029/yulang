@@ -600,3 +600,6 @@ import Yulang.CommonPatternConstraintGrammar
 import Yulang.CommonPatternSolvedExact
 import Yulang.CommonPatternFormulaGrammar
 import Yulang.CommonPatternGenerationProvenance
+import Yulang.CommonPatternSolvedGeneration
+import Yulang.CommonPatternBindingAlignment
+import Yulang.CommonPatternScopeRenaming

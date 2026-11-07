@@ -4201,3 +4201,9 @@ run_cmd do
 #print axioms Yulang.CommonPatternSolvedConstraints.compiled_models_exact
 #print axioms Yulang.CommonPatternFormulaGrammar.good_pack
 #print axioms Yulang.CommonPatternGenerationProvenance.safe_generatePattern
+#print axioms Yulang.CommonPatternGenerationProvenance.generated_invariants
+#print axioms Yulang.CommonPatternSolvedGeneration.generated_models_exact
+#print axioms Yulang.CommonPatternBindingAlignment.data_eval_reorder
+#print axioms Yulang.CommonPatternBindingAlignment.reorder_bindings_hold
+#print axioms Yulang.CommonPatternScopeRenaming.typing_rename_exact
+#print axioms Yulang.CommonPatternScopeRenaming.generation_rename_exact
