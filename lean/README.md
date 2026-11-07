@@ -2049,3 +2049,14 @@ New `CommonNominalDefaultRequired`, `CommonNominalRecord`, `CommonNominalDefault
 `CommonNominalOptionalInspection` and `CommonNominalBoundInspection` provide actual finite ordinary shared-ID inspections for required/optional/width targets, including nominal/float mismatch. Optional inspection explicitly retains local record-tail/default-source width premises; a generated-source family must derive them. Finite visible-label inventory, general upper-union saturation and full source-family integration remain open. These modules are not B5 END.
 
 The first eight modules passed fresh independent trust-zero/warning-as-error and axiom review (10766 imported declarations). Build checkpoints through 674 jobs passed; the two constructor-inspection additions are checked next.
+
+
+### B5: full template/source-term graph bridges and model congruence
+
+`CommonNominalOuterLabels`/`CommonNominalFiniteRecordTail` reduce all record-tail labels to original outer syntax plus a fresh representative. `CommonNominalClosedBlock` and `CommonNominalTemplateEquations` retain arbitrary external regular states and every original internal template node, including whole shared parameters in same-depth positions.
+
+`CommonNominalTemplateLowering` lowers every full template constructor to an actual shared OpenTail pool, with a finite mask inventory derived only from original syntax. It preserves the independent equation models in both directions and recovers the original root for every full pool assignment.
+
+`CommonNominalOrdinaryTemplates` reuses the real TyTerm collector, preserving all original subterms/ambient variables and their row identifiers. `CommonNominalTemplateCongruence` and `CommonNominalConstraintCongruence` permit all recovered types to be demand-equivalent and all recovered rows literally equal, preserving every full template/formula/packed atom, including fresh binders.
+
+Checkpoints through 684 jobs passed; 683-job trust-zero Audit passed (56262 declarations). Fresh independent trust-zero/axiom reviews passed. Combining all original clauses into one allocator, general bound saturation, executable Common runtime casts and weak EOF remain open; no B5/B1 END is claimed.

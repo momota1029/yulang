@@ -669,3 +669,7 @@ import Yulang.CommonNominalTemplateEquations
 import Yulang.CommonNominalTemplateLowering
 import Yulang.CommonNominalOrdinaryTemplates
 import Yulang.CommonNominalTemplateCongruence
+import Yulang.CommonNominalConstraintCongruence
+import Yulang.CommonNominalPoolMerge
+import Yulang.CommonNominalTemplateRowSubstitution
+import Yulang.CommonNominalTemplateAllocation

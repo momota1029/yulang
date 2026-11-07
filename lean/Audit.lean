@@ -4413,3 +4413,17 @@ run_cmd do
 #print axioms Yulang.CommonNominalTemplateCongruence.body_evaluate_congr
 #print axioms Yulang.CommonNominalTemplateCongruence.all_nodes_congr
 #print axioms Yulang.CommonNominalTemplateCongruence.template_eval_congr
+#print axioms Yulang.CommonNominalConstraintCongruence.type_eval
+#print axioms Yulang.CommonNominalConstraintCongruence.term_eval
+#print axioms Yulang.CommonNominalConstraintCongruence.formula_congr
+#print axioms Yulang.CommonNominalConstraintCongruence.all_atoms_congr
+#print axioms Yulang.CommonNominalPoolMerge.rename_evaluate
+#print axioms Yulang.CommonNominalPoolMerge.realizes_merge
+#print axioms Yulang.CommonNominalPoolMerge.renamed_edges_exact
+#print axioms Yulang.CommonNominalTemplateRowSubstitution.body_instantiate
+#print axioms Yulang.CommonNominalTemplateRowSubstitution.template_eval
+#print axioms Yulang.CommonNominalTemplateRowSubstitution.actual_row_arguments
+#print axioms Yulang.CommonNominalTemplateRowSubstitution.models_exact
+#print axioms Yulang.CommonNominalTemplateAllocation.evaluate_rename
+#print axioms Yulang.CommonNominalTemplateAllocation.models_merge
+#print axioms Yulang.CommonNominalTemplateAllocation.model_roots_recovered
