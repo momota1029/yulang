@@ -2,6 +2,8 @@
 
 Navigation aid. Each document is authoritative only for its own text and scope; read its Status line.
 
+- [Common への effect・role・nominal 統合: 残る契約](2026-11-07-common-effect-role-nominal-contracts.md) — Draft。有限 verified declaration と任意の意味関数を分け、signed row・handler の全称・実辞書・nominal invariance・pure cast・construction sites の不足補題を量化つきで記録。head-row family だけは実装済み。
+
 - [共通推論の高速化と参照実装からの refinement](2026-11-07-common-inference-refinement.md) — Draft。bound 集合共有と変数同一視を分離し、全独立モデル回収・全自由 parameter 健全性を将来の Lean 関数の契約にする。B1〜B6 の生成と solver の境界、費用モデルの残作業。高速化の実装・証明・測定は行わない。
 
 **2026-11-04:** the 2026-10 inference-proof sprint documents were removed from the working tree.
