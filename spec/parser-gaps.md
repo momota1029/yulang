@@ -7,6 +7,8 @@
 
 **なし**（2026-11-04）。`spec/` の章 1〜9 に載せた構文例 80 個は、すべて `Error` / `Missing` / `Invalid` なしで読める。
 
+**未対応（2026-11-07）**: `case` の 2 番目以降の arm が `-1` / `+1` で始まる形（`0 -> 1` の次の行の `-1 -> 2`）は、前の arm の本体の続きと読まれて落ちる。`(-1) ->` と、1 番目の arm の `-1..5 ->` は読める。`spec/01` 1.3 に反する不具合で、`notes/design/2026-11-07-parser-gap-closure-addendum-2.md` の WP-15 で直す。
+
 **2026-11-07 に見つかった 3 件は閉じた**: lambda の record 引数（`\{x, y} -> x`）、式としての record の spread（`{x: 1, ..rest}`）、対象なしの `case:`。
 構文ガイドの例の検査で見つかり、`notes/design/2026-11-07-parser-gap-closure-addendum-2.md`（Authoritative）の WP-12〜14 で直した。
 経緯と設計判断は `notes/design/2026-11-04-parser-gap-closure-addendum.md`（Authoritative）に残してある。

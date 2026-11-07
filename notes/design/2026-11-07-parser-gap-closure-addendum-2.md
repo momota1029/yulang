@@ -10,7 +10,7 @@ Approved-by: user, 2026-11-07 (decision to fix the three gaps; the three answers
 
 Extends: `2026-11-04-parser-gap-closure-addendum.md` (same common rules, §2 there, apply unchanged).
 
-Scope: grammar and CST for three forms that `spec/` promises and the parser rejects. Recorded in `spec/parser-gaps.md` on 2026-11-07. This memo changes no semantics, name resolution or HIR. The meaning of each form is in `spec/03-expressions.md` (3.1, 3.4, 3.7).
+Scope: grammar and CST for three forms (WP-12 to WP-14) and one layout boundary (WP-15) that `spec/` promises and the parser rejects. Recorded in `spec/parser-gaps.md` on 2026-11-07. This memo changes no semantics, name resolution or HIR. The meaning of each form is in `spec/03-expressions.md` (3.1, 3.4, 3.7).
 
 ## 1. User decisions (fixed)
 
@@ -48,9 +48,25 @@ Pins that may change: any test that pins `..` inside braces as an error. Name ea
 Admission: after `case`, a `:` that follows immediately (or after layout trivia) with no scrutinee expression opens the arms. `case n:` keeps its exact CST. A missing scrutinee with no `:` after it (for example `case` alone, or `case` followed by an arm) stays a recovery case, as today.
 Pins that may change: tests that pin `case:` as `CaseScrutinee` with a `Missing`. Name each and its reason. This memo does not extend the form to `catch:` (spec marks that as open).
 
+### WP-15 an arm whose pattern starts with `-` or `+`
+
+Found on 2026-11-07 by the syntax-guide example check. `case n:` with a first arm followed by a second arm that begins with a signed literal fails:
+
+```yulang
+case n:
+    0 -> 1
+    -1 -> 2
+```
+
+The second line is read as a continuation of the first arm's body (`1 - 1 -> 2`) and recovery follows (`RawError ">"`). `+1 -> 2` and `- 1 -> 2` fail the same way; `(-1) -> 2` parses. A statement line `-1` at the same indentation as the previous statement already starts a new statement, and a first arm `-1..5 -> "a"` parses, so only an arm line that follows an arm body is wrong.
+Rule (not a new decision): `spec/01-lexical.md` 1.3 — a line at the same indentation as the block's baseline starts a new item, never a continuation. An arm line is a new arm even when its first token could also be an infix operator. A continuation needs a deeper indentation, as everywhere else.
+CST: unchanged (`CaseArm(Pattern(...) "->" ...)`, the pattern holding the signed literal or range as it does for a first arm).
+Scope: `case` arms first. Check the same position for `catch` arms and for any other arm-list owner that shares the arm-boundary logic; fix them together only if one shared boundary check is the cause, otherwise stop and report.
+Pins that may change: any test that pins a same-indentation line beginning with `-` or `+` as a continuation of an arm body. Name each and its reason. A deeper-indented `- x` continuation line must keep continuing (`1\n        - 2` as a body).
+
 ## 4. Order
 
-WP-12, WP-13 and WP-14 are independent. Only WP-13 touches `syntax_kind.rs`. Land them as separate commits.
+WP-12, WP-13, WP-14 and WP-15 are independent. Only WP-13 touches `syntax_kind.rs`. WP-15 was added after WP-12 to WP-14 had landed. Land them as separate commits.
 
 ## 5. Verification
 
