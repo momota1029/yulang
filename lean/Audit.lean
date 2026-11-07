@@ -4071,3 +4071,9 @@ run_cmd do
 #print axioms Yulang.CommonDemandSolver.finishCore_principal
 #print axioms Yulang.CommonDemandSolver.finishCore_instantiates
 #print axioms Yulang.CommonDemandSolver.finishCore_rejected_iff
+#print axioms Yulang.CommonSignedRows.encode_capturable_iff
+#print axioms Yulang.CommonSignedRows.embedRow_residual
+#print axioms Yulang.CommonSignedRows.common_effect_row_interpretation_exact
+#print axioms Yulang.CommonSignedRows.nonzero_retained
+#print axioms Yulang.CommonSignedRows.rowExpr_interpretation_exact
+#print axioms Yulang.CommonSignedRows.rowExpr_le_exact
