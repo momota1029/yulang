@@ -633,3 +633,6 @@ import Yulang.CommonNominalCoreSiteGeneration
 import Yulang.CommonNominalCoreFieldGeneration
 import Yulang.CommonNominalTypeFlow
 import Yulang.CommonNominalFlowGraphSolver
+import Yulang.CommonNominalTypeBounds
+import Yulang.CommonNominalGroundBoundsSolver
+import Yulang.CommonNominalFiniteShapeObstruction

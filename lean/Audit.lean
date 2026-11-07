@@ -4309,3 +4309,16 @@ run_cmd do
 #print axioms Yulang.CommonNominalTypeFlow.solve_all_instances_exact
 #print axioms Yulang.CommonNominalFlowGraphSolver.all_parameters_models
 #print axioms Yulang.CommonNominalFlowGraphSolver.solve_all_instances_exact
+#print axioms Yulang.CommonNominalTypeBounds.all_parameters_models
+#print axioms Yulang.CommonNominalTypeBounds.models_consistent
+#print axioms Yulang.CommonNominalTypeBounds.model_retraction
+#print axioms Yulang.CommonNominalGroundBoundsSolver.check_exact
+#print axioms Yulang.CommonNominalGroundBoundsSolver.all_parameters_models
+#print axioms Yulang.CommonNominalGroundBoundsSolver.solve_all_instances_exact
+#print axioms Yulang.CommonNominalGroundBoundsSolver.rejected_iff
+#print axioms Yulang.CommonNominalFiniteShapeObstruction.recursive_unfold
+#print axioms Yulang.CommonNominalFiniteShapeObstruction.delta_core_typed
+#print axioms Yulang.CommonNominalFiniteShapeObstruction.registry_valid
+#print axioms Yulang.CommonNominalFiniteShapeObstruction.registry_generated_models
+#print axioms Yulang.CommonNominalFiniteShapeObstruction.no_finite_operational_delta
+#print axioms Yulang.CommonNominalFiniteShapeObstruction.no_equivalence_preserving_arrow_shapes
