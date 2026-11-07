@@ -666,3 +666,4 @@ import Yulang.CommonRoleFiniteTailHalting
 import Yulang.CommonRoleFiniteTailObstruction
 import Yulang.CommonRoleFiniteTailSemantic
 import Yulang.CommonRoleFiniteTailExamples
+import Yulang.CommonRoleCanonicalRows
