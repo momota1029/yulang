@@ -4466,3 +4466,15 @@ run_cmd do
 #print axioms Yulang.CommonEffectRankMonotonicity.step_environment
 #print axioms Yulang.CommonEffectRankMonotonicity.compare_rank_drop
 #print axioms Yulang.CommonEffectRankMonotonicity.compare_rank_add_drop
+
+#print axioms Yulang.CommonEffectRankCompactness.finite_decreasing_choice
+#print axioms Yulang.CommonEffectRankCompactness.finite_rank_exact
+#print axioms Yulang.CommonEffectDepthBoundary.at_one
+#print axioms Yulang.CommonEffectDepthBoundary.not_at_zero
+#print axioms Yulang.CommonEffectDepthBoundary.depth_drop_fails
+
+#print axioms Yulang.CommonEffectDepthChoiceBoundary.each_depth
+#print axioms Yulang.CommonEffectDepthChoiceBoundary.no_uniform_target
+#print axioms Yulang.CommonEffectDepthChoiceBoundary.finite_depth_compactness_fails
+#print axioms Yulang.CommonEffectDepthChoiceBoundary.overloaded_callable
+#print axioms Yulang.CommonEffectDepthChoiceBoundary.inter_arrow_disjunction_fails

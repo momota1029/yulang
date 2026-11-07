@@ -650,3 +650,6 @@ import Yulang.CommonSignedFreshGraph
 import Yulang.CommonSignedFreshChoice
 import Yulang.CommonSignedFreshCompilation
 import Yulang.CommonEffectRankMonotonicity
+import Yulang.CommonEffectRankCompactness
+import Yulang.CommonEffectDepthBoundary
+import Yulang.CommonEffectDepthChoiceBoundary
