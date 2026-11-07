@@ -4057,3 +4057,9 @@ run_cmd do
 #print axioms Yulang.CommonSignedRows.commonProtect_release
 #print axioms Yulang.CommonSignedRows.embedRow_protect
 #print axioms Yulang.CommonSignedRows.embedRow_release
+#print axioms Yulang.DemandBoundPropagation.ancestors_exact
+#print axioms Yulang.DemandBoundPropagation.lowerBounds_exact
+#print axioms Yulang.DemandBoundPropagation.upperBounds_exact
+#print axioms Yulang.DemandBoundPropagation.request_exact
+#print axioms Yulang.DemandBoundPropagation.lower_exact
+#print axioms Yulang.DemandBoundPropagation.upper_exact
