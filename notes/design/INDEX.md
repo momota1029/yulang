@@ -12,6 +12,8 @@ Navigation aid. Each document is authoritative only for its own text and scope; 
 
 - [Common role と全公開 interface の残る境界](2026-11-07-common-role-canonical-boundaries.md) — 実 checker が受理する規則の regular goal 列が要求同値でも再訪しないことを証明。B4 の停止手続きと A2 の全 family canonicalizer の不足を元の量化で記録。
 
+- [Common の有限 operation 宣言と request 生成](2026-11-07-common-effect-request-generation.md) — 有限 table、局所型変数、kind 検査と request 一段の生成 iff。再帰的 effect、全称 handler、見える effect、全 solver の未完を明示。
+
 - [Common への effect・role・nominal 統合: 残る契約](2026-11-07-common-effect-role-nominal-contracts.md) — Draft。有限 verified declaration と任意の意味関数を分け、signed row・handler の全称・実辞書・nominal invariance・pure cast・construction sites の不足補題を量化つきで記録。head-row family だけは実装済み。
 
 - [共通推論の高速化と参照実装からの refinement](2026-11-07-common-inference-refinement.md) — Draft。実 clause の要求根と逆向き bound 計算、任意 snapshot の要求同値、全検査後の solveAll / Core.infer との一致を実装・証明。要求した成分の飽和、関数/SCC の実行前検査、memo と費用評価は未完。速度は未測定。
