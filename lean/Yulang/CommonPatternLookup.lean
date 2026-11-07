@@ -117,4 +117,27 @@ theorem optional_lookup (fields : CaseValues.Bindings Empty)
                 cases rank <;> rfl
             exact ih _ tail tailOptional (by simpa [CaseValues.lookup, same] using found)
 
+/-- A width-record observation of a typed concrete value reflects its actual
+outer runtime shape. The subject type may otherwise be any Common producer. -/
+theorem records_of_width {value : Value} {source : Comp Common.model}
+    (typed : ValueTyping Common.model value source)
+    (width : Common.Subtype source.1 Common.emptyRecord) :
+    ∃ fields, value = .record fields := by
+  let env : CommonFinite.Environment Common.Row := ⟨fun _ => .bottom, fun _ => []⟩
+  have observed : CommonFinite.ProbeAt Common.rowLe 0 env
+      (Common.observeTy 0 source.1) .records :=
+    (CommonFinite.producerLe_iff_probe _ _).mp (width 0) 0 env .records trivial
+  cases typed with
+  | literal bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env .records observed)
+  | pair _ _ bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env .records observed)
+  | emptyRecord => exact ⟨[], rfl⟩
+  | record => exact ⟨_, rfl⟩
+  | variant _ bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env .records observed)
+
 end Yulang.CommonPatternLookup

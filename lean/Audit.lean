@@ -4114,3 +4114,4 @@ run_cmd do
 #print axioms Yulang.CommonPatternLookup.typing_change_result
 #print axioms Yulang.CommonPatternLookup.required_lookup
 #print axioms Yulang.CommonPatternLookup.optional_lookup
+#print axioms Yulang.CommonPatternLookup.records_of_width
