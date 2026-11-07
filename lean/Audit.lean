@@ -3969,3 +3969,10 @@ run_cmd do
 #print axioms Yulang.Core.CommonData.typing_lower_exact
 #print axioms Yulang.Core.CommonData.typing_lower_iff
 #print axioms Yulang.Core.CommonData.lower_context_independent
+
+#print axioms Yulang.CommonCoreNamedCase.forceValue_typing_exact
+#print axioms Yulang.CommonCoreNamedCase.caseName_typing_exact
+#print axioms Yulang.CommonCoreNamedCase.lowering_exact
+#print axioms Yulang.CommonCoreNamedCase.principal
+#print axioms Yulang.CommonCoreNamedCase.all_parameter_sound
+#print axioms Yulang.CommonCoreNamedCase.rejected_iff

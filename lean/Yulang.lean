@@ -537,3 +537,5 @@ import Yulang.CommonCanonicalArrowModule
 import Yulang.CommonCoreStrictRuntime
 
 import Yulang.CoreCommonData
+
+import Yulang.CommonCoreNamedCase
