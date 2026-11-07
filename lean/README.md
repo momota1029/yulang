@@ -2303,3 +2303,145 @@ Checkpoints through 691 jobs passed. The 690-job full trust-zero Audit passed (5
 `CommonNominalFullConservativity` proves exact old Common order preservation/reflection against these arbitrary new environments, using one finite meet witness for all old arrow inputs. `CommonNominalFullModelMap` and `CommonNominalFullTypingPreservation` retain old captured typings, the exact actual `Core.infer` schemes and all their original parameters/instances. They do not prove reflection from arbitrary new typing witnesses.
 
 `CommonNominalFullGroundAdapter` keeps the actual existing ground normalization/checker exact in this refined regular carrier. Full source generation, solved families and runtime casts for the earlier candidate are not automatically transferred. Checkpoints through 702 jobs passed; the 701-job full trust-zero Audit checked 57400 declarations. Fresh independent trust-zero/axiom reviews passed. No B5/B1 END is claimed.
+## B2: Common structural pattern の共有有限生成（2026-11-07 worker）
+
+`CommonPatternGeneration` / `CommonPatternAllocation` は、実 pattern と default 式から、
+順序を保つ単相 binder slot を共有して有限制約を作り、既存の独立
+`CommonPatternTyping.Typing` との iff を示す。Q4 の先行束縛は後続 default の環境へ渡す。
+`CommonArmEnvironmentGeneration` は同じ slot を guard/body の実生成にも渡す。
+この段階の default 判断は値型についての `∃ row, Typing … (type,row)` である。
+
+`CommonPatternPartialSafety` は default の成功時だけの型保存を仮定し、
+実 `ScopedCasePatterns.run` の成功束縛の型を示す。error/miss を許し、default の停止成功は結論しない。
+`CommonPatternSourceChecks` は既存 Q7 名前検査への有限生成 gate と、この部分正当性への接続を持つ。
+
+`CommonPatternBoundInspection` / `CommonPatternBoundWorklist` は、右辺の variant と dedicated optional union を
+扱う実有限検査を追加する。finite-depth soundness、同深さ source descent、clamped soundness、
+実 row 宣言を経て、`CommonPatternSolvedConstraints` が無条件の全 parameter soundness を示す。
+`CommonPatternGenerationProvenance` / `CommonPatternSolvedGeneration.generated_models_exact` は、
+実 pattern の全生成 clause の全独立 Models を、行を文字どおり・全 node 値を要求同値まで回収する。
+必要な有限構文条件は生成器から証明し、parameters に残余条件を付けない。
+
+**B2 全体は未完。** 上記中間判断には list/nominal/merged variant/float/presence/annotation の橋がなく、
+source の名前集合による or の整列、default/guard の行と失敗、ordered coverage、
+全 case Typing と公開三契約への接続も残る。公開入口と既存定理は変更していない。
+
+## B2 追加: source 環境整列・実埋込み・全有限 slot の solved family
+
+`CommonPatternAlignedMatcher` と `CommonAlignedPattern*` は、各 nested or の成功出口を
+canonical な名前列へ整列する。元 scoped matcher と trace/error/miss が一致し、成功時の全 lookup が一致する。
+右枝の型付けと有限生成は、その枝の記述順へ同じ型参照を並べ替える。
+`CommonAlignedCaseEvaluation.data_evaluation_eq` は具体 data callback を使う全有限 case の観測全体の等号まで接続する。
+
+`CommonPatternConcreteScope` / `CommonPatternSourceScope` は、実名前 lookup と `Core.Data.resolve`、
+実 `Data.embed` / `CommonSyntax.lower` の index reindexing を証明する。外側の任意 captured poly binding を保つ。
+coverage gate を内部で検査し、unsupported lowering の fallback を受理に使わない。
+`CommonPatternSourceElaboration.generateSourcePattern_exact` は名前付き source default を含む実 pattern に
+既存 `Core.Scoped.embed` を適用し、Q4 の累積環境・Q7・default coverage と共有 allocator の iff を示す。
+`CommonPatternSourceArmGeneration.generateEnvironments_exact` は同じ実 slot 列で、名前付き guard/body の
+実埋込みと独立 CommonSyntax 型判断も有限生成に接続する。default の aggregate row は依然含まない。
+
+`CommonCaseOrderedPaths.runArms_exact` / `eval_exact` は、任意実 default/guard/body callback と全有限 arm 列について、
+既存 scoped evaluator の全 trace/result iff 独立有限 path を示す。最初の error または選択 body で止まり、
+false guard は次 arm へ進む。`runArms_unmatched_exact` は `.ok none` と全 arm の順序付き miss の iff。
+これらは型付け・coverage・effect 上界の定理ではない。
+
+`CommonPatternFiniteSchemes` は任意 `Formula (Fin n)` の全 ambient/local slot を実 pack して実 solver list を作る。
+全返却 scheme の任意 unrestricted parameter が元 formula を満たす。
+`CommonPatternFormulaEquivalence` は負の arrow 位置も含む割当て同値の下で Holds の iff を示し、
+`formula_instances_exact` が全モデルの row 等号・value 要求同値での回収を閉じる。
+内部の `SafeFormula` は source generation provenance が証明する有限構文 invariant である。
+
+`CommonPatternVariantRowBoundary` は、旧 Common の異なる二 tag の通常 union が payload 情報を失い、
+その両 singleton variant を受け入れる任意旧上界も任意 payload を受け入れることを証明する。
+merged variant row は専用表現が必要であり、通常 union への置換は使えない。
+これは元 B2 全体の反証ではない。
+
+**元 B2 は引き続き未完。** source presence/annotation、aggregate default/guard/failure rows、
+ordered coverage、専用 merged row、B5 list/nominal/float と、全 case の公開三契約の統合が残る。
+詳しい量化・前提・検査状態は `notes/handoff/2026-11-07-m1-b2-progress.md` を参照する。
+
+## B2 追加: 実データ評価・coverage cells・返却値制約・Core default行上界
+
+`CommonPatternDataSafety` は有限の名前付きdata式の独立Common型付けから実評価を証明し、
+`CommonPatternConcreteCaseTotal` はこのcallback契約を内部充足して実caseの値安全性・error不在を示す。
+unmatched結果はcoverageとは別に残る。recordの実insert/default操作には独立した型保存補題を使う。
+
+`CommonCaseIntegerCoverage` は有限整数境界の代表点で全整数を検査し、
+`CommonCaseStructuralCoverage` はpair/variant/choiceの有限domainへ持ち上げる。
+unguarded実patternの被覆とのiffと、typed constructor treeからの実case progressを証明する。
+これはrecord/list/nominal/floatを含む全Rust matrixではない。choice domainを旧Commonの異tag通常unionに置換しない。
+
+`CommonPatternCheckedRuntimeEnvironment` は実subjectとraw返却列全体の名前・型制約を、同じbinder slotへ結ぶ。
+raw名の過不足・重複をfinite gateで拒否し、canonical化が全literal `(name,value)` のPermであることを示す。
+型互換性だけから実match identityは推測せず、runtime橋では実match等号を明記する。
+
+`CommonPatternCoreDefaults` / `CommonCaseCoreEnvironments` / `CommonCaseCoreSolvedEnvironments` は、
+Q4/最終prefixの添字に解決済みのCore subject/default/guard/bodyを同じ有限環境factorへ結び、
+全Modelsの実solved list化・任意parameter成立・拒否iffを示す。
+`CommonPatternBoundedGeneration` / `CommonPatternBoundedAllocation` / `CommonPatternCoreBoundedSolved` は、
+各defaultの実計算row≤自由な共通capをfinite formula内で保持し、同じ全Models契約へ接続する。
+この共通上界を全caseのprincipal row規則として採用したとは主張しない。
+
+`CommonPatternObservationBounds` / `CommonCaseBoundedObservations` は、明示した部分的callback契約から、
+任意有限ordered実行の成功値型と全trace/error行上界を合成する。失敗するdefault/guard/bodyも許す。
+一般Coreの式実行・function値・divergenceをこの契約から構成したとは扱わない。
+固定Core添字は環境の並べ替えに不変ではない（`CommonPatternIndexedDefaultBoundary`）。
+Coreの観測接続にはcanonical matcherを用い、元named matcherへの移送では名前不変性または添字の移送が別途必要である。
+
+**元B2は未完。** source presence/annotationの生成、B5全carrier、B3の式実行と行の対応、
+全ordered coverageと失敗行、独立full case Typing、および公開三契約への統合が残る。
+現在の正確な量化・前提・検査結果は上記progress noteを参照する。
+
+## B2 追加: 全base・recordのjoint coverageと実source solved family
+
+`CommonCaseLiteralCells` / `CommonCaseLiteralCoverage` は全int/str/bool/unitを有限cellsで覆い、
+`CommonCaseBase*` はそれをnested pair/single-variant/choice domainへ持ち上げる。
+文字列は全照合定数と、それらより長いfresh値で残りの等値classを代表する。
+これらの実checker iffとCommon constructor-tree readoutから、実source data Programのprogressへ接続する。
+
+`CommonCaseRecordCells` / `CommonCaseRecordReadout` は任意extra/重複fieldsと順序を許すrecordのfinite代表を作る。
+specificationの重複labelも全要求を保持し、最初のlookup値に対する全Shape要求をfilterする。
+`CommonCaseRecordCoverage` はpure patternのjoint被覆について、実finite checker iff 全Domain実recordの実照合を示す。
+`CommonPurePatternErasure` / `CommonCaseRecordSourceCoverage` は任意source arm列からpure witnessを内部抽出する。
+default-containing armsは元実行列に残り、source first-matchの順序・indexは変えない。
+このcheckerはdefault自体の被覆寄与を数えないため、全source coverageの拒否完全性は主張しない。
+
+`CommonCaseConstructorBounds` はrecord/constructor-tree input上界もfresh参照で有限生成する。
+`CommonCaseRecordEnvironmentFamily` はsource subject/全armの独立環境前提・record型上界・semantic pure coverageを
+同じ有限formulaへ結び、全Modelsの実solved family化・全parameter成立・拒否iffを示す。
+全返却schemeの任意parameterで、追加の残余条件なしに元finite-data Programの型付きok some返却まで導く。
+これもfull B2の代用ではない。全default寄与coverage、presence、B5全carrier、一般Core/effect実行、
+aggregate/failure row、独立full case Typingと公開三契約の統合は引き続き未閉である。
+
+## B2 追加: default no-miss証明書と局所field規則の境界
+
+`CommonPatternNoMiss` / `CommonRecordNoMiss` はerrorを許しok-noneだけを除く独立十分証明書を扱う。
+欠損fieldのdefaultが任意値を返しても子patternが合う場合、成功・停止を仮定せず、その有限実観測はmissしない。
+`CommonCaseRecordDefaultCoverage` は純粋joint cellsと証明書を併用し、元ordered evaluatorの未一致を除く。
+`CommonCaseRecordDefaultFamily` は同じ制約・全Models・任意parameter・source data実行progressを結ぶ。
+`CommonCaseRecordDefaultExamples` のdefault-only例はpure armなしで実model/実scheme instanceと実fallback返却を持つ。
+これらは全default依存matrixの拒否完全性を主張しない。
+
+`CommonOptionalField*` はoptional入力を許す局所field規則の有限生成・部分正当性と、既存required規則との差を示す。
+採用するsource規則は [optional fieldの問い](../notes/questions/2026-11-07-b2-optional-field-case-pattern.md) に分離してある。
+両childは既存構造判断のままで、fullsource再帰規則を置換した証明ではない。
+元B2の完了条件・公開入口・既存required判断は変更していない。
+
+## B2 追加: Core row cap・実束縛・全有限prefix
+
+`CommonPatternCoreRuntimeEnvironment` / `CommonPatternCoreRuntimeMatch` は、同じ共有allocatorに
+Core defaultのrow上限、実subject、raw returnedの全payload/name検査を載せる。
+実成功を仮定する定理ではreturned適合を内部で導くが、任意supplied bindingsから実match identityは推論しない。
+positional Coreにnamed lookup-invarianceを仮定せず、canonical matcherを使う。
+
+`CommonPatternComputations` はret/bindを引数にした同じ実traversalを持ち、Logged具体化の全観測等号を証明する。
+`CommonPatternComputationSafety` / `CommonPatternFinitePrefixes` は非停止・error・複数実行も表せる
+観測集合の計算に対し、全有限prefixの行上限と終了成功bindingsの型保存を示す。
+未終了prefixと終了pattern missを区別し、defaultの成功や停止を前提にしない。
+一般Core source実行のadequacyは明示の未閉義務で、source effectful判断の完成を意味しない。
+
+追加仕様のinvariant argumentは一般lower/upper区間である。現B2構造判断のCommon.pair分解や
+モデル回収のvalue demand-equivalenceは一般区間を一点へ畳む規則ではない。
+point-invariant nominal補題を使えるのはcollapsed lower=upper=Tの場合だけで、一般区間のsource橋は未証明。
+pattern restのwhole-record照合と、型/roleのdeferred subtraction tailも別の義務として保持する。
