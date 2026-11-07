@@ -4500,3 +4500,10 @@ run_cmd do
 #print axioms Yulang.CommonNominalRegularErasure.state_observe
 #print axioms Yulang.CommonNominalRegularErasure.subtype_monotone
 #print axioms Yulang.CommonNominalRegularErasure.layer_value
+#print axioms Yulang.CommonInvariantIntervals.holds_merge_exact
+#print axioms Yulang.CommonInvariantIntervals.merge_consistent_exact
+#print axioms Yulang.CommonInvariantIntervals.shared_actual_exact
+#print axioms Yulang.CommonInvariantIntervals.collapsed_merge_exact
+#print axioms Yulang.CommonInvariantIntervals.shared_bound_variables_equal
+#print axioms Yulang.CommonInvariantIntervals.compile_models_exact
+#print axioms Yulang.CommonInvariantIntervals.models_family_exact

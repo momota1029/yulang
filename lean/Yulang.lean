@@ -701,3 +701,4 @@ import Yulang.CommonNominalFullNamedCase
 import Yulang.CommonNominalFullCoreSource
 import Yulang.CommonNominalFiniteErasure
 import Yulang.CommonNominalRegularErasure
+import Yulang.CommonInvariantIntervals
