@@ -69,4 +69,46 @@ theorem subtype_lookup_exact (firstType : A → Common.Ty) (lastType : B → Com
             CommonSyntax.Layer.evalAt, CommonFinite.ProbeAt, CommonFinite.ProbeStep,
             CommonFinite.MaskedProbeStep] at accepted ⊢ <;> exact accepted
 
+private theorem lookup_present (label : Nat) (fields : Row A) :
+    (lookup label fields).isSome = true ↔ ∃ payload, (label, payload) ∈ fields := by
+  induction fields with
+  | nil => simp [lookup]
+  | cons entry rest ih =>
+      rcases entry with ⟨current, item⟩
+      by_cases same : label = current
+      · subst current
+        simp [lookup]
+      · simp [lookup, same, ih]
+
+def checkSameLabels (first : Row A) (last : Row B) : Bool :=
+  first.all (fun entry => (lookup entry.1 last).isSome) &&
+    last.all (fun entry => (lookup entry.1 first).isSome)
+
+/-- This checks the finite input component's known field labels. A failure
+is outside this same-spine component, not a general Common subtype failure. -/
+theorem check_same_labels_exact (first : Row A) (last : Row B) :
+    checkSameLabels first last = true ↔ SameLabels first last := by
+  simp only [checkSameLabels, Bool.and_eq_true, List.all_eq_true]
+  constructor
+  · rintro ⟨forward, backward⟩ label
+    cases firstAt : lookup label first with
+    | none =>
+        cases lastAt : lookup label last with
+        | none => rfl
+        | some item =>
+            obtain ⟨payload, member⟩ := (lookup_present label last).mp (by simp [lastAt])
+            have present := backward (label, payload) member
+            simp [firstAt] at present
+    | some item =>
+        obtain ⟨payload, member⟩ := (lookup_present label first).mp (by simp [firstAt])
+        exact (forward (label, payload) member).symm
+  · intro shape
+    constructor
+    · rintro ⟨label, payload⟩ member
+      rw [← shape label]
+      exact (lookup_present label first).mpr ⟨payload, member⟩
+    · rintro ⟨label, payload⟩ member
+      rw [shape label]
+      exact (lookup_present label last).mpr ⟨payload, member⟩
+
 end Yulang.CommonRoleClosedRecordComparison
