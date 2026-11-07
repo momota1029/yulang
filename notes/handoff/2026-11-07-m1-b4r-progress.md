@@ -174,3 +174,21 @@ role、impl、型変数、正則 graph node がそれぞれ一つの最小構成
 
 検証: `cd lean && lake build --wfail` exit 0（628 jobs）。
 Audit の登録を全56 theorem に拡張した。再検証と最終報告を続ける。
+
+## 最終 gate と終了
+
+E2: `CommonRoleReachedRootObstruction.reached_root_registry_undecidable`。
+任意有限 Code に対する実 checker/WF/HDA/AssocWF を満たし、任意有限 Code,input,path で新 K2 拒否は起きず、
+それでも全 query で有限停止し true iff 実 guarded 有限辞書の存在を返す finite tape machine は存在しない。
+
+最終 `cd lean && lake build --wfail` exit 0、628 jobs。
+最終 `cd lean && lake env lean --trust=0 Audit.lean` exit 0、allowlist 52454 declarations。
+主定理の依存公理は propext / Quot.sound のみ。新規全56 theorem を Audit に登録した。
+二つの独立レビューは E2 を支持し、最後の named arity/任意 Common 一意性の追加も再レビューを通った。
+
+質問 note の Yulang 宣言例を `:{box :{tick 'a}}` の構文へ修正して、offline parser probe は
+ok 1 / recovery 0。最初の省略表記は recovery だったので、source 到達可能性の証明として扱わない。
+
+全 statement、build/Audit 末尾、正確な未証明項目を `2026-11-07-m1-b4r-results.md` に記録した。
+README の未証明欄も追記済み。既存 Lean は許可された import/Audit の追記のみ。
+RoleRank・fuel・無限辞書・公開入口の変更なし。commit / push なし。

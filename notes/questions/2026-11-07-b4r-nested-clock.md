@@ -14,8 +14,8 @@
 role R 't:
     type value
 
-impl R (:box (:tick 'a)):
-    where (:box 'a): R
+impl R (:{box :{tick 'a}}):
+    where (:{box 'a}): R
     type value = int
 ```
 
