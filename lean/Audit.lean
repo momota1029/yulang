@@ -4219,3 +4219,13 @@ run_cmd do
 #print axioms Yulang.CommonNominalSlotSolver.compile_all_exact
 #print axioms Yulang.CommonNominalSlotSolver.solve_nominal_family_all_parameters
 #print axioms Yulang.CommonNominalSlotSolver.solve_nominal_family_all_instances_exact
+#print axioms Yulang.CommonConstructionResolved.Site.check_exact
+#print axioms Yulang.CommonConstructionResolved.compile_site_exact
+#print axioms Yulang.CommonConstructionResolved.compile_exact
+#print axioms Yulang.CommonConstructionResolved.compiled_site_requestTree
+#print axioms Yulang.CommonConstructionResolved.code_requestTree
+#print axioms Yulang.CommonRegularCastObstruction.chain_requires_each_conversion
+#print axioms Yulang.CommonRegularCastObstruction.plan_fails_at_successor_budget
+#print axioms Yulang.CommonRegularCastObstruction.no_finite_structural_plan_for_all_chains
+#print axioms Yulang.CommonRegularCastObstruction.no_data_independent_conversion_bound
+#print axioms Yulang.CommonRegularCastObstruction.each_length_converts

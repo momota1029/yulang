@@ -599,3 +599,5 @@ import Yulang.CommonNominalModelMap
 import Yulang.CommonNominalTypingPreservation
 import Yulang.CommonNominalFoundations
 import Yulang.CommonNominalSlotSolver
+import Yulang.CommonConstructionResolved
+import Yulang.CommonRegularCastObstruction

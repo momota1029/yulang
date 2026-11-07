@@ -175,3 +175,129 @@ theorem compiled_site_requestTree {context : List Shape} {shape : Fin vertices �
   exact (mapValue_comp _ _ _).symm.trans (congrArg requestTree same)
 
 end Yulang.CommonConstructionResolved
+
+namespace Yulang.CommonConstructionResolved
+
+open Directed PureCasts
+open OperationalTyping (Shape VTy CTy Expr Env Tree Value ValidValue)
+
+variable {vertices parameters scopes : Nat} {Key Atom : Type} [DecidableEq Key]
+variable {context : List Shape} {shape : Fin vertices → Shape}
+variable {types : (vertex : Fin vertices) → VTy scopes Key (shape vertex)}
+variable {adj : FiniteReachability.Adj vertices}
+
+inductive Code (registry : CommonCastSourceBodies.Registry adj shape types (Atom := Atom))
+    (environment : Env (CTy scopes Key) context) (assignment : Fin parameters → Fin vertices) :
+    List (Site parameters vertices scopes Key Atom context shape) → Type 1 where
+  | nil : Code registry environment assignment []
+  | cons {site rest} : Compiled registry environment assignment site →
+      Code registry environment assignment rest → Code registry environment assignment (site :: rest)
+
+def compile (registry : CommonCastSourceBodies.Registry adj shape types (Atom := Atom))
+    (environment : Env (CTy scopes Key) context) (assignment : Fin parameters → Fin vertices) :
+    (sites : List (Site parameters vertices scopes Key Atom context shape)) →
+      Option (Code registry environment assignment sites)
+  | [] => some .nil
+  | site :: rest => do
+      return .cons (← compileSite registry environment assignment site)
+        (← compile registry environment assignment rest)
+
+/-- Every source site is checked, including fixed fields and repeated shared
+parameters, and the compiled vector has exactly the original ordered index. -/
+theorem compile_exact (registry : CommonCastSourceBodies.Registry adj shape types (Atom := Atom))
+    (environment : Env (CTy scopes Key) context) (assignment : Fin parameters → Fin vertices)
+    (sites : List (Site parameters vertices scopes Key Atom context shape)) :
+    (compile registry environment assignment sites).isSome = true ↔
+      ∀ site ∈ sites, site.Valid types environment ∧ registry.Valid ∧
+        FiniteReachability.Reach adj [site.source] (site.target.resolve assignment) := by
+  induction sites with
+  | nil => simp [compile]
+  | cons site rest ih =>
+      have pair : (compile registry environment assignment (site :: rest)).isSome =
+          ((compileSite registry environment assignment site).isSome &&
+            (compile registry environment assignment rest).isSome) := by
+        rw [compile]
+        cases compileSite registry environment assignment site <;>
+          cases compile registry environment assignment rest <;> rfl
+      rw [pair, Bool.and_eq_true, compile_site_exact, ih]
+      simp
+
+abbrev BuiltValues (scopes : Nat) (Key Atom : Type) {vertices : Nat}
+    (shape : Fin vertices → Shape) (types : (vertex : Fin vertices) → VTy scopes Key (shape vertex)) :=
+  List ((vertex : Fin vertices) × Carrier scopes Key Atom shape types vertex)
+
+def Code.run {registry : CommonCastSourceBodies.Registry adj shape types (Atom := Atom)}
+    {environment : Env (CTy scopes Key) context} {assignment : Fin parameters → Fin vertices}
+    {sites : List (Site parameters vertices scopes Key Atom context shape)}
+    (code : Code registry environment assignment sites)
+    (runtime : Env (Tree scopes Key Atom) context) (valid : OperationalTyping.EnvValid environment runtime) :
+    Computation scopes Key Atom Atom (BuiltValues scopes Key Atom shape types) :=
+  match code with
+  | .nil => .pure []
+  | .cons (site := site) first rest =>
+      (first.run runtime valid).bind fun value =>
+        (rest.run runtime valid).bind fun values =>
+          .pure (⟨site.target.resolve assignment, value⟩ :: values)
+
+/-- Reference evaluation of the original sources, in their original order.
+A nonreturning source prevents later sites from being reached. -/
+def originalRequests (runtime : Env (Tree scopes Key Atom) context) :
+    List (Site parameters vertices scopes Key Atom context shape) →
+      Computation scopes Key Atom Atom PUnit
+  | [] => .pure ⟨⟩
+  | site :: rest => (OperationalTyping.eval runtime site.expression).bind fun _ => originalRequests runtime rest
+
+omit [DecidableEq Key] in
+private theorem erase_bind {A B : Type} (source : Computation scopes Key Atom Atom A)
+    (next : A → Computation scopes Key Atom Atom B) :
+    requestTree (source.bind next) = source.bind (fun value => requestTree (next value)) := by
+  induction source with
+  | pure value => rfl
+  | request occurrence payload resume ih =>
+      exact congrArg (Computation.request occurrence payload) (funext ih)
+
+omit [DecidableEq Key] in
+private theorem constant_bind {A B : Type} (source : Computation scopes Key Atom Atom A)
+    (next : Computation scopes Key Atom Atom B) :
+    source.bind (fun _ => next) = (requestTree source).bind (fun _ => next) := by
+  induction source with
+  | pure value => rfl
+  | request occurrence payload resume ih =>
+      exact congrArg (Computation.request occurrence payload) (funext ih)
+
+omit [DecidableEq Key] in
+private theorem erase_pure_bind {A B : Type} (source : Computation scopes Key Atom Atom A) (f : A → B) :
+    requestTree (source.bind (fun value => .pure (f value))) = requestTree source := by
+  rw [bind_pure_map]
+  exact mapValue_comp _ _ _
+
+/-- All fixed and parameter fields retain their entire source request tree.
+Each reached site is evaluated once; after a source returns, its synthesized
+pure conversion runs before the next source. No successful-evaluation premise
+is needed, and no later source is forced after a nonreturning one. -/
+theorem code_requestTree {registry : CommonCastSourceBodies.Registry adj shape types (Atom := Atom)}
+    {environment : Env (CTy scopes Key) context} {assignment : Fin parameters → Fin vertices}
+    {sites : List (Site parameters vertices scopes Key Atom context shape)}
+    (code : Code registry environment assignment sites)
+    (runtime : Env (Tree scopes Key Atom) context) (valid : OperationalTyping.EnvValid environment runtime) :
+    requestTree (code.run runtime valid) = originalRequests runtime sites := by
+  induction code with
+  | nil => rfl
+  | @cons site rest first tail ih =>
+      change requestTree ((first.run runtime valid).bind (fun value =>
+        (tail.run runtime valid).bind (fun values =>
+          .pure (⟨site.target.resolve assignment, value⟩ :: values)))) = _
+      rw [erase_bind]
+      simp only [erase_pure_bind]
+      rw [constant_bind, compiled_site_requestTree, ih]
+      exact (constant_bind _ _).symm
+
+@[simp] theorem fixed_field_target (assignment : Fin parameters → Fin vertices) (target : Fin vertices) :
+    Target.resolve assignment (.fixed target) = target := rfl
+
+/-- Every occurrence of the same invariant parameter reads the same resolved
+endpoint, without duplicating its source expression into separate sites. -/
+@[simp] theorem shared_parameter_target (assignment : Fin parameters → Fin vertices) (index : Fin parameters) :
+    Target.resolve assignment (.parameter index) = assignment index := rfl
+
+end Yulang.CommonConstructionResolved
