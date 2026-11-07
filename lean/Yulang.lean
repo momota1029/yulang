@@ -566,3 +566,4 @@ import Yulang.CommonSignedResidual
 import Yulang.CommonDemandRoots
 import Yulang.CommonDemandBoundary
 import Yulang.CommonNominalHeads
+import Yulang.CommonNominalConstraints

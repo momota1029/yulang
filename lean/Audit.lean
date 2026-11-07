@@ -4091,3 +4091,4 @@ run_cmd do
 #print axioms Yulang.CommonNominalHeads.argumentsEquivalent_iff
 #print axioms Yulang.CommonNominalHeads.nominal_head_invariant_exact
 #print axioms Yulang.CommonNominalHeads.nominal_head_subtype_symmetric
+#print axioms Yulang.CommonNominalConstraints.compile_nominal_comparison_exact
