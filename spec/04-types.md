@@ -220,7 +220,7 @@ type meters = int                        // alias: meters は int の別名
 type list 'a                             // 名前だけの nominal 型
 type ref 'e 'a with:                     // companion を伴う nominal 型
     struct self:
-        get: () -> ['e] 'a
+        run: ('a -> ['f] 'a) -> ['e, 'f] ()    // 'f は struct の引数に無いので、run の中で ∀'f（下の rank 2 の規則）
 ```
 
 - `type T = ...` は **alias**（別名）。新しい型は作らない。
@@ -232,10 +232,15 @@ type ref 'e 'a with:                     // companion を伴う nominal 型
 
 - **struct の field の型にだけ現れる型変数は、その field の中で全称量化される**（確定, 2026-11-07, ユーザーの決定。対象は、ユーザーが書く struct すべて）。`struct` の型引数に無い型変数が field の型に出てきたら、その field は多相である（rank 2）。
 
+  例は上の `ref` の `run`: `'f` は struct の引数 `'e 'a` に無いので、`run` の中で `∀'f` になる。
+
+  `ref` の field は `run` **だけ**である（確定, 2026-11-07, ユーザーの決定）。`get` は field にせず、`run` から作る。`sub:` で包み、更新の関数の中で値を `return` で取り出して、後ろを `...`（YadaYada）で埋める（`sub` は要る: `return` を受け取るのは直近の `sub:` だけ。3c.4）。
+
   ```yulang
-  struct ref 'e 'a:
-      run: ('a -> ['f] 'a) -> ['e, 'f] ()      // 'f は struct の引数に無い: run の中で ∀'f
+  sub: r.run \a -> { return a; ... }
   ```
+
+  旧世代の `update_effect` と補助の `act ref_update` は持ち込まない。
 
   - struct を**作る**ときは、`'f` を rigid（何の型か分からない）として field の本体を検査する。どんな `'f` で使われても動く本体でなければならない。
   - field を**取り出して使う**ときは、使うたびに `'f` を好きな型で具体化できる。

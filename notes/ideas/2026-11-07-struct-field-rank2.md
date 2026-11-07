@@ -1,13 +1,14 @@
 # struct の field に出る全称量化（rank 2）
 
 状態: ユーザーの決定（2026-11-07）の記録。署名: Claude (Sonnet 5.5)。
-規則は `spec/04-types.md` 4.6 に追加した: struct の型引数に無い型変数が field の型に出てきたら、その field の中で全称量化される。対象はユーザーが書く struct すべて。
+規則は `spec/04-types.md` 4.6 に追加した（`ref` の field は `run` だけで、`get` は `sub: r.run \a -> { return a; ... }` で作る。2026-11-07）: struct の型引数に無い型変数が field の型に出てきたら、その field の中で全称量化される。対象はユーザーが書く struct すべて。
 
 例（ユーザーの例）:
 
 ```yulang
-struct ref 'e 'a:
-    run: ('a -> ['f] 'a) -> ['e, 'f] ()
+type ref 'e 'a with:
+    struct self:
+        run: ('a -> ['f] 'a) -> ['e, 'f] ()
 ```
 
 ## 何が起きるか
