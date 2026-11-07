@@ -124,7 +124,8 @@ invariance と construction/cast を伴うためである。`nil`/`cons` を閉�
 `CommonCoreStrictRuntime.eval_forceApplication` は任意の runtime operands に対し、
 値だけでなく request tree 全体の等号を示し、記述順を保つ。
 
-`leaf` は `CoreData` が保持する透明な wrapper であり、lowering は中身へ進む。
+`leaf` は `CoreCase` が data 部分を包む透明な wrapper であり、lowering は中身へ進む。
+`Core.Case.embed` が `CaseTree.Expr.leaf code` を `.leaf (Core.Data.embed scope code)` に写す。
 `free` は historical named syntax の翻訳で残った未束縛名を表す。ローカル束縛を参照するのは `var`。
 closed inference に自由名を勝手に割り当てる規則は追加しない。
 `atom` は model ごとの resolved payload のための carrier であり、現在の empty signature では inhabit しない。
