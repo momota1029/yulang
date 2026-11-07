@@ -4173,3 +4173,8 @@ run_cmd do
 #print axioms Yulang.CommonLegacySharedWitnesses.legacy_generated_shared_witnesses
 
 #print axioms Yulang.CommonLegacySharedWitnesses.legacy_instances_reflected
+
+#print axioms Yulang.CommonPatternInversion.typing_root_exact
+#print axioms Yulang.CommonPatternInversion.defaultField_iff
+#print axioms Yulang.CommonPatternInversion.or_iff
+#print axioms Yulang.CommonPatternGeneration.generatePattern_exact
