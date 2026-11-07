@@ -5886,3 +5886,11 @@ run_cmd do
 
 #print axioms Yulang.CommonPurePatternPrefixNoMiss.pure_noMiss
 #print axioms Yulang.CommonPurePatternPrefixNoMiss.joint_record_witness
+
+#print axioms Yulang.CommonCasePrefixCoverage.returns_prepend
+#print axioms Yulang.CommonCasePrefixCoverage.prepend_noMiss
+#print axioms Yulang.CommonCasePrefixCoverage.unguarded_noMiss
+#print axioms Yulang.CommonCasePrefixCoverage.witness_noMiss
+#print axioms Yulang.CommonCasePrefixCoverage.covered_noMiss
+#print axioms Yulang.CommonCasePrefixCoverage.eval_noMiss
+#print axioms Yulang.CommonCasePrefixCoverage.safe_selected_result

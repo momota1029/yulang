@@ -47,6 +47,27 @@ pure witness の抽出と source 構文への戻しは、既存の `erase_exact`
 
 検証: 新 module の warnings-as-errors build 成功。
 
+## 3. 元の first-match case 全体で、終了した全 arm miss を除く
+
+`CommonCasePrefixCoverage.covered_noMiss`:
+
+- 任意のイベント／エラー型、default・guard・body コード型とその任意の有限 prefix callback、
+  元環境、有限 arm 列、開始 index を量化する。
+- 既存の `CommonCaseRecordDefaultCoverage.check` が真であり、実 record が指定された
+  `Domain` に入ることだけを前提に、その元 arm 列を `CommonCaseComputations.runArms` で
+  順番どおり実行した計算には、終了した全 arm miss の観測が存在しない。
+- guard は coverage の witness に数えない。先行 arm の default／guard のエラーや非停止、
+  選択後の body のエラーや非停止を認める。後続 arm に進むのは実際に終了した miss／偽の
+  guard の後だけである。
+
+`eval_noMiss` は、返った subject がその record domain に入るという前提の下で、
+subject の評価を含む同じ結論を示す。次の solved-family 接続では、この前提を
+subject の型付けと生成した record 上界から内部で導く。
+
+`safe_selected_result` は既存の全有限 prefix の行上界・成功時の型保存と、この no-miss 性を
+合わせ、終了成功なら必ず `some` に入った型付きの選択結果を持つことを示す。
+返却自体の存在／停止を結論に加えていない。
+
 ## 未完の範囲
 
 これは既存の十分な coverage 証明書の運用上の意味を拡張する定理であり、
