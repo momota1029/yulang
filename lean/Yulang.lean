@@ -679,3 +679,6 @@ import Yulang.CommonNominalAtomicGraph
 import Yulang.CommonNominalAtomicPool
 import Yulang.CommonNominalFormulaPool
 import Yulang.CommonNominalConstructionPool
+import Yulang.CommonNominalUnionObservationBoundary
+import Yulang.CommonNominalFullDemand
+import Yulang.CommonNominalFullCarrier
