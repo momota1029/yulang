@@ -4120,3 +4120,6 @@ run_cmd do
 #print axioms Yulang.CommonPatternLookup.variant_payload
 #print axioms Yulang.CommonPatternTyping.Typing.binding_names
 #print axioms Yulang.CommonPatternTyping.typing_matches
+#print axioms Yulang.CommonRoleRegularObstructions.declaration_sizes
+#print axioms Yulang.CommonRoleRegularObstructions.declaration_accepted
+#print axioms Yulang.CommonRoleRegularObstructions.declaration_wellFormed

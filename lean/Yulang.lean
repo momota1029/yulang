@@ -574,3 +574,4 @@ import Yulang.CommonPatternEnvironment
 import Yulang.CommonPatternDefaults
 import Yulang.CommonPatternLookup
 import Yulang.CommonPatternTyping
+import Yulang.CommonRoleRegularObstructions
