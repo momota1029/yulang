@@ -608,3 +608,6 @@ import Yulang.CommonRoleRegularWire
 import Yulang.CommonRoleRegularUndecidability
 import Yulang.CommonRoleActualEvidence
 import Yulang.CommonRoleRegularResolutionObstruction
+import Yulang.CommonRoleReachedRoot
+import Yulang.CommonRolePackedRegistry
+import Yulang.CommonRolePackedHalting
