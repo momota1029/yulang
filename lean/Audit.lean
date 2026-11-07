@@ -4022,3 +4022,10 @@ run_cmd do
 #print axioms Yulang.CommonLegacyWitnessSource.typing_exact
 #print axioms Yulang.CommonLegacyWitnessSource.shared_witness_recovery
 #print axioms Yulang.CommonLegacyWitnessSource.legacy_instances_reflected
+
+#print axioms Yulang.CommonRowHeadFlow.check_exact
+#print axioms Yulang.CommonRowHeadFlow.models_check
+#print axioms Yulang.CommonRowHeadFlow.mem_propagated
+#print axioms Yulang.CommonRowHeadFlow.coalesce_models
+#print axioms Yulang.CommonRowHeadFlow.coalesce_retraction
+#print axioms Yulang.CommonRowHeadFlow.no_heads_instantiate
