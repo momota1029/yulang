@@ -100,6 +100,23 @@ theorem readHeader_runs {registers : Nat} (bank : WordBank registers)
   rw [wordStore_update_frame] at fieldsRun
   exact append_runs popRun fieldsRun
 
+theorem pop_dispatch_runs {registers : Nat} (bank : WordBank registers)
+    (distinct : Function.Injective bank) (fallback : Routine registers)
+    (choices : List (Routine registers)) (token : Token) (tail : Word) (chosen : Routine registers)
+    (found : choices[token.digit]? = some chosen) (values finalValues : Store registers)
+    (input : values (bank 0) = wordCode (token :: tail))
+    (execution : Runs chosen (wordStore bank values (wordCode tail) 0 0 (63 - token.digit)) finalValues) :
+    Runs (append (wordPop bank) (dispatch (bank 2) fallback choices)) values finalValues := by
+  let popped := wordStore bank values (wordCode tail) 0 token.digit (63 - token.digit)
+  have popRun := wordPop_token bank distinct values token tail input
+  have poppedDigit : popped (bank 2) = token.digit := by simp [popped, wordStore, write, distinct.eq_iff]
+  have reset : write popped (bank 2) 0 = wordStore bank values (wordCode tail) 0 0 (63 - token.digit) := by
+    simp only [popped, wordStore]
+    rw [write_commute _ (bank 3) (bank 2) (by simp [distinct.eq_iff]), write_shadow]
+  have choiceRun := dispatch_runs (bank 2) fallback choices token.digit chosen found popped finalValues poppedDigit
+    (by rw [reset]; exact execution)
+  exact append_runs popRun choiceRun
+
 structure InstructionHandlers (registers : Nat) where
   halt : Routine registers
   increment : Routine registers
@@ -203,5 +220,64 @@ theorem readInstruction_runs {registers sourceRegisters sourceStates : Nat}
           (outputs 0) next.val) (wordCode rest) 0 0 62) at fieldsRun
       rw [wordStore_write_frame] at fieldsRun
       exact append_runs fieldsRun execution
+
+def missingInstruction {registers : Nat} (bank : WordBank registers)
+    (haltHandler : Routine registers) : Routine registers :=
+  append (setConstant (bank 0) Token.nil.digit) (append (setConstant (bank 3) 62) haltHandler)
+
+def nextChoices {registers : Nat} (bank : WordBank registers)
+    (outputs : Fin 3 → Fin (registers + 1)) (handlers : InstructionHandlers registers) : List (Routine registers) :=
+  List.replicate 3 skip ++ [missingInstruction bank handlers.halt, readInstruction bank outputs handlers]
+
+def readNext {registers : Nat} (bank : WordBank registers)
+    (outputs : Fin 3 → Fin (registers + 1)) (handlers : InstructionHandlers registers) : Routine registers :=
+  append (wordPop bank) (dispatch (bank 2) skip (nextChoices bank outputs handlers))
+
+/-- A missing entry selects the default halt and restores the serialized nil
+cursor. Consequently repeated reads of a short table keep selecting halt;
+nonempty tables consume exactly one instruction and retain their exact tail. -/
+theorem readNext_runs {registers sourceRegisters sourceStates : Nat}
+    (bank : WordBank registers) (distinct : Function.Injective bank)
+    (outputs : Fin 3 → Fin (registers + 1)) (outside : ∀ field index, outputs field ≠ bank index)
+    (handlers : InstructionHandlers registers) (code : List (Instruction sourceRegisters sourceStates))
+    (values finalValues : Store registers) (input : values (bank 0) = wordCode (list instruction code))
+    (execution : Runs (handlers.select (code.head?.getD .halt))
+      (wordStore bank (updateAll values (operandUpdates outputs (code.head?.getD .halt)))
+        (wordCode (list instruction code.tail)) 0 0 62) finalValues) :
+    Runs (readNext bank outputs handlers) values finalValues := by
+  cases code with
+  | nil =>
+      apply pop_dispatch_runs bank distinct skip (nextChoices bank outputs handlers) .nil []
+        (missingInstruction bank handlers.halt) rfl values finalValues input
+      let emptyStore := wordStore bank values (wordCode []) 0 0 (63 - Token.nil.digit)
+      let restored := write emptyStore (bank 0) Token.nil.digit
+      have restoreRun := setConstant_runs (bank 0) Token.nil.digit emptyStore
+      have clockRun := setConstant_runs (bank 3) 62 restored
+      have same : write restored (bank 3) 62 = wordStore bank values 3 0 0 62 := by
+        funext current
+        by_cases at0 : current = bank 0
+        <;> by_cases at1 : current = bank 1
+        <;> by_cases at2 : current = bank 2
+        <;> by_cases at3 : current = bank 3
+        <;> simp_all [restored, emptyStore, wordStore, write, wordCode, Token.digit, distinct.eq_iff]
+      rw [same] at clockRun
+      exact append_runs restoreRun (append_runs clockRun execution)
+  | cons source tail =>
+      apply pop_dispatch_runs bank distinct skip (nextChoices bank outputs handlers) .cons
+        (instruction source ++ list instruction tail) (readInstruction bank outputs handlers) rfl values finalValues input
+      let prepared := wordStore bank values (wordCode (instruction source ++ list instruction tail)) 0 0 (63 - Token.cons.digit)
+      have preparedInput : prepared (bank 0) = wordCode (instruction source ++ list instruction tail) := by
+        simp [prepared, wordStore, write, distinct.eq_iff]
+      have callback : Runs (handlers.select source)
+          (wordStore bank (updateAll prepared (operandUpdates outputs source))
+            (wordCode (list instruction tail)) 0 0 62) finalValues := by
+        change Runs (handlers.select source)
+          (wordStore bank (updateAll (wordStore bank values
+            (wordCode (instruction source ++ list instruction tail)) 0 0 (63 - Token.cons.digit))
+            (operandUpdates outputs source)) (wordCode (list instruction tail)) 0 0 62) finalValues
+        rw [wordStore_update_frame]
+        exact execution
+      exact readInstruction_runs bank distinct outputs outside handlers source (list instruction tail)
+        prepared finalValues preparedInput callback
 
 end Yulang.CommonCanonicalProgramReader

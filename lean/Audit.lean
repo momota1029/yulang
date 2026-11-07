@@ -102,13 +102,18 @@ import Lean
 #print axioms Yulang.CommonCanonicalEmitters.emits_literal
 #print axioms Yulang.CommonCanonicalEmitters.emits_natural
 #print axioms Yulang.CommonCanonicalEmitters.emits_sum
+#print axioms Yulang.CommonCanonicalEmitters.emits_repeat_literal
+#print axioms Yulang.CommonCanonicalEmitters.emits_choose_equal
+#print axioms Yulang.CommonCanonicalRangeEmitters.rangeLoop_runs
 #print axioms Yulang.CommonCanonicalWordReverse.reverseBody_runs
 #print axioms Yulang.CommonCanonicalWordReverse.reverseLoop_runs
 #print axioms Yulang.CommonCanonicalWordReverse.reverseWord_runs
 #print axioms Yulang.CommonCanonicalProgramReader.readTriple_runs
 #print axioms Yulang.CommonCanonicalProgramReader.readPair_runs
 #print axioms Yulang.CommonCanonicalProgramReader.readHeader_runs
+#print axioms Yulang.CommonCanonicalProgramReader.pop_dispatch_runs
 #print axioms Yulang.CommonCanonicalProgramReader.readInstruction_runs
+#print axioms Yulang.CommonCanonicalProgramReader.readNext_runs
 
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/
