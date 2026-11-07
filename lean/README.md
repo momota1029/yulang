@@ -1985,3 +1985,12 @@ scheme は有限 Boolean vector tables だけで、元 Models/constraints を残
 `CommonNominalTemplateGraphSolver` と `CommonNominalHeadGraphSolver` はこの実 family、共有自由型代表元、
 全 mixed guarded regular graph、実 nominal 比較列コンパイルを接続する。
 一般 type subtype inequalities・constructed-node equality・signed transform・actual source 全原子の求解と weak EOF は未完である。
+
+
+`CommonNominalCoreSource` は元 literal-bearing Common Core source の lowering/finite generation を任意新 carrier 環境・結果へ接続する。
+`CommonNominalCoreCastRegistry` は元 actual Core cast 本体を finite generation で検証し、実経路から同じ本体を保持する
+actual Core nested-let code を生成する。生成制約 Models の下で元入力行を等号で保ち、pure 入力では出力も pure になる。
+`CommonNominalCoreSiteGeneration` / `CommonNominalCoreFieldGeneration` は同じ actual Core の元全 field 式を保持し、
+全 body/field constraints と nominal 結果の独立 Typing iff、および元 ambient を固定する numeric atomic model iff を示す。
+source は元 CommonSyntax/Signature.empty 判断の対象範囲であり、compile 成功だけでは型付けを保証しない。
+全一般型制約 solver、Common evaluator/typed Plan/request-tree の解釈、全 feature source、実 declaration validation、weak EOF は未完である。

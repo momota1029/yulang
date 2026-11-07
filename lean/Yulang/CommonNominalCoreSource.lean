@@ -188,4 +188,33 @@ theorem nominal_lowering_exact (expression : Term) (within : covered expression 
   | _ => simp [covered] at within
 termination_by expression
 
+
+def generateNominalCore (symbolic : PresenceGeneration.SchemeEnv α) (expression : Term)
+    (output : PresenceGeneration.CompTerm α) : PresenceGeneration.Formula α :=
+  if covered expression then PresenceGeneration.generate symbolic (lower expression) output else .bot
+
+/-- Every actual original common Core source expression and arbitrary full
+nominal environment/result, with syntax rejection discharged internally. -/
+theorem generate_nominal_core_exact (symbolic : PresenceGeneration.SchemeEnv α)
+    (environment : List (Binding CommonNominalCarrier.model))
+    (source : List (PresenceGeneration.Binding CommonNominalCarrier.model))
+    (assignment : α → Comp CommonNominalCarrier.model) (expression : Term)
+    (output : PresenceGeneration.CompTerm α)
+    (actualRelated : EnvRel CommonNominalCarrier.model environment source)
+    (symbolicRelated : PresenceGeneration.EnvRel CommonNominalCarrier.model assignment symbolic source) :
+    (generateNominalCore symbolic expression output).Holds CommonNominalCarrier.model assignment ↔
+      Typing CommonNominalCarrier.model environment expression (output.eval CommonNominalCarrier.model assignment) := by
+  cases within : covered expression with
+  | false =>
+      constructor
+      · simp [generateNominalCore, within, PresenceGeneration.Formula.Holds]
+      · intro typed
+        have supported := typing_covered typed
+        simp [within] at supported
+  | true =>
+      rw [generateNominalCore, ite_eq_left within]
+      exact (PresenceGeneration.generate_models_iff_typing CommonNominalCarrier.model _ symbolic source
+        assignment output symbolicRelated).trans
+        (nominal_lowering_exact expression within actualRelated _).symm
+
 end Yulang.Core.CommonSyntax

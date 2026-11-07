@@ -627,3 +627,9 @@ import Yulang.CommonNominalCastSourceCode
 import Yulang.CommonNominalSourceSubsumption
 import Yulang.CommonNominalStrictApplication
 import Yulang.CommonNominalNamedCase
+import Yulang.CommonNominalCoreSource
+import Yulang.CommonNominalCoreCastRegistry
+import Yulang.CommonNominalCoreSiteGeneration
+import Yulang.CommonNominalCoreFieldGeneration
+import Yulang.CommonNominalTypeFlow
+import Yulang.CommonNominalFlowGraphSolver
