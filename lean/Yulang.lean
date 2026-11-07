@@ -571,3 +571,4 @@ import Yulang.CommonNominalRoots
 import Yulang.CommonGroundScalarCasts
 import Yulang.CommonGroundNominalCasts
 import Yulang.CommonPatternEnvironment
+import Yulang.CommonPatternDefaults

@@ -4109,3 +4109,4 @@ run_cmd do
 #print axioms Yulang.CommonGroundNominalCasts.Examples.invariant_argument_not_widened
 #print axioms Yulang.CommonPatternEnvironment.monomorphic_prefix_environment_exact
 #print axioms Yulang.CommonPatternEnvironment.cumulative_default_generation_exact
+#print axioms Yulang.CommonPatternDefaults.optional_constraints_exact
