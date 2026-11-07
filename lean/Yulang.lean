@@ -602,3 +602,9 @@ import Yulang.CommonCanonicalEmitters
 import Yulang.CommonCanonicalRangeEmitters
 import Yulang.CommonCanonicalWordReverse
 import Yulang.CommonCanonicalProgramReader
+
+import Yulang.CommonCanonicalTemplatePrograms
+
+import Yulang.CommonCanonicalGridPrograms
+
+import Yulang.CommonCanonicalConstraintPrograms

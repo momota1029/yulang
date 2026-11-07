@@ -4243,3 +4243,17 @@ run_cmd do
 #print axioms Yulang.CommonEffectRequestGeneration.generate_request_exact
 #print axioms Yulang.CommonEffectRequestGeneration.generate_declared_request_exact
 #print axioms Yulang.CommonEffectRequestGeneration.checked_request_exact
+
+#print axioms Yulang.CommonCanonicalTemplatePrograms.fourBank_injective
+
+#print axioms Yulang.CommonCanonicalTemplatePrograms.template_emits
+
+#print axioms Yulang.CommonCanonicalGridPrograms.gridList_emits
+
+#print axioms Yulang.CommonCanonicalGridPrograms.grid_serialization_exact
+
+#print axioms Yulang.CommonCanonicalGridPrograms.script_emits
+
+#print axioms Yulang.CommonCanonicalConstraintPrograms.testScript_tokens
+
+#print axioms Yulang.CommonCanonicalConstraintPrograms.seed_script_exact
