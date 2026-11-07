@@ -4110,3 +4110,4 @@ run_cmd do
 #print axioms Yulang.CommonPatternEnvironment.monomorphic_prefix_environment_exact
 #print axioms Yulang.CommonPatternEnvironment.cumulative_default_generation_exact
 #print axioms Yulang.CommonPatternDefaults.optional_constraints_exact
+#print axioms Yulang.CommonPatternDefaults.default_input_generation_exact
