@@ -4050,3 +4050,10 @@ run_cmd do
 #print axioms Yulang.CommonSignedRows.embedRow_le_iff
 #print axioms Yulang.CommonSignedRows.embedRow_join
 #print axioms Yulang.CommonSignedRows.embedRow_coordinate_length
+#print axioms Yulang.CommonSignedRows.shiftOccurrence_inverse
+#print axioms Yulang.CommonSignedRows.encode_shift
+#print axioms Yulang.CommonSignedRows.transport_member_iff
+#print axioms Yulang.CommonSignedRows.commonRelease_protect
+#print axioms Yulang.CommonSignedRows.commonProtect_release
+#print axioms Yulang.CommonSignedRows.embedRow_protect
+#print axioms Yulang.CommonSignedRows.embedRow_release
