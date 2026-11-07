@@ -382,3 +382,35 @@ priority と宣言 checker 正規化の提案はそれぞれ questions に記録
 全3 Yulang block の offline parser probe は ok 3 / recovery 0。
 既存 Lean は import6行/Audit65行の追記のみ。旧 E2 と旧結果、公開入口、既存 checker の変更なし。
 commit / push なし。
+
+# B4r3: duplicate-field 正規化承認後の継続（2026-11-07）
+
+開始 HEAD f0f5ecd1d4d79757531f8035c68b0f90d34c6379。spec 6.3 の新しい大きさの数え方と K2 を読んだ。
+初期全体 build は exit 0（669 jobs）。旧 E2 とその source は変更しない。
+
+## B4r3 checkpoint 1: 正規化の意味保存と decidable checker
+
+新規 `CommonRoleNormalizedDeclarations`。既存固定 countergrammar（int/pair/variant、field名0の record、変数）で、
+N=Pattern.visible false を用いて payload 内も含め隠れた同名 field を除く。未知の tail は変数のまま残す。
+
+閉じた主張:
+
+- `tail_of_equivalent`: 任意 Common 型の同値から、label0を隠した双方向 RecordTailLe が成り立つ。
+- `tail_trans`: 任意三 Common 型について、その双方向 tail 関係は推移的。
+- `hidden_tail`: 任意 Common payload,rest について、rest と record0 payload rest は label0を隠した tail 関係で同値。
+- `record_congr`: 任意 payload の Common 同値と任意 rest の双方向 masked-tail 関係から、全 record の Common 同値。
+- `normalize_meaning`: 任意 Pattern、任意 Common 代入について Nfalseの解釈は元と Common 同値、
+  Ntrueの解釈は元と label0を隠した tail 関係で同値。
+- `normalizeTerm_encode`: 任意 Pattern について、実 Term の正規化は normalized Pattern の encode と等しい。
+- `normalizeTerm_meaning`: 任意実Term、任意Common代入について、固定grammarでdecode可能なら、
+  N前後の両実解釈が存在して Common 同値。
+- `normalized_head_match_exact`: 同じ任意Term/代入/decode前提と任意Common goalについて、
+  N後の実head解釈がgoalに要求同値 iff N前の実head解釈がgoalに要求同値。
+- `checkImpl_sound`: 任意実implについて新decidable checker=trueなら、N(impl)の実 WellFormed。
+- `checkEnvironment_sound`: 任意実有限関連型環境について新checker=trueなら、N(cores)はWellFormedかつ
+  元の実stored head/RHS に対する HeadDeterminesAssociated。HDAは任意二Common代入を量化し、RHS=intの十分検査を使う。
+- `another_size_erasure`: Common の union(int,int) は int と同値だが、その固定raw構文サイズは大きい。
+  一般union注釈はsurfaceで禁止されるため、この lemma 単独を source-valid impl 反例とは扱わない。
+
+検証: `cd lean && lake build --wfail` exit 0（670 jobs）。
+これらはE2のcountergrammarの結果であり、全Common grammarのNを完成したとは主張しない。
