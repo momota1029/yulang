@@ -621,3 +621,9 @@ import Yulang.CommonNominalFieldNormalForm
 import Yulang.CommonNominalRowCells
 import Yulang.CommonNominalTemplateRowPatterns
 import Yulang.CommonNominalTemplateRowSolver
+import Yulang.CommonNominalTemplateGraphSolver
+import Yulang.CommonNominalHeadGraphSolver
+import Yulang.CommonNominalCastSourceCode
+import Yulang.CommonNominalSourceSubsumption
+import Yulang.CommonNominalStrictApplication
+import Yulang.CommonNominalNamedCase

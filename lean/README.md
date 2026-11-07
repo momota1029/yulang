@@ -1976,3 +1976,12 @@ field 宣言の `parameters` は型/行の任意混在順を保持し、`Templat
 元 ambient の全 computation を等号で固定して、全 fresh slot の model を回収する。
 原子は full field-template subtype と row inequality で、source Typing を原子として隠さない。
 原子を解く unrestricted scheme family、実 declaration checker と全 Core source/runtime/weak EOF は未完である。
+
+
+`CommonNominalTemplateRowSolver` は var/empty/有限 signed heads/join の任意有限行不等式を実 truth-table で求解する。
+join の両辺・固定非空上界・row invariance・pure を含み、全無制約 row parameters は Models、元全行は literal equality で回収される。
+scheme は有限 Boolean vector tables だけで、元 Models/constraints を残余 check として具体化時に参照しない。
+内部 partition/complement masks は Common.Row の set expressions であり、surface/export syntax の追加を主張しない。
+`CommonNominalTemplateGraphSolver` と `CommonNominalHeadGraphSolver` はこの実 family、共有自由型代表元、
+全 mixed guarded regular graph、実 nominal 比較列コンパイルを接続する。
+一般 type subtype inequalities・constructed-node equality・signed transform・actual source 全原子の求解と weak EOF は未完である。

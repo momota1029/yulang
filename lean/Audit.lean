@@ -4279,3 +4279,15 @@ run_cmd do
 #print axioms Yulang.CommonNominalTemplateRowSolver.model_retraction
 #print axioms Yulang.CommonNominalTemplateRowSolver.solve_all_instances_exact
 #print axioms Yulang.CommonNominalTemplateRowSolver.pure_row_empty
+#print axioms Yulang.CommonNominalTemplateGraphSolver.all_parameters_models
+#print axioms Yulang.CommonNominalTemplateGraphSolver.solve_all_instances_exact
+#print axioms Yulang.CommonNominalHeadGraphSolver.compile_exact
+#print axioms Yulang.CommonNominalHeadGraphSolver.all_parameters_models
+#print axioms Yulang.CommonNominalHeadGraphSolver.solve_all_instances_exact
+#print axioms Yulang.CommonNominalCastSourceCode.compile_exact
+#print axioms Yulang.CommonNominalCastSourceCode.generated_compile_typed
+#print axioms Yulang.CommonNominalCastSourceCode.generated_compile_pure
+#print axioms Yulang.CommonNominalCastSourceCode.generated_compile_core_typed
+#print axioms Yulang.CommonNominalSourceSubsumption.typing_subsume
+#print axioms Yulang.CommonNominalStrictApplication.forceApplication_typing_exact
+#print axioms Yulang.CommonNominalNamedCase.lowering_exact
