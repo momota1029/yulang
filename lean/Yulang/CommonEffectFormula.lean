@@ -28,6 +28,7 @@ theorem rowSubst_eval (assignment : β → Computation) (substitution : α → C
     (row : RowExpr scopes α) :
     (rowSubst substitution row).eval assignment = row.eval (fun name => (substitution name).eval Common.model assignment) := by
   induction row <;> simp_all [rowSubst, RowExpr.subst, RowExpr.eval, CompTerm.eval]
+  all_goals rfl
 
 /-- Local types have value kind and are injected with empty rows. -/
 def liftTypes (substitution : α → CompTerm β) : α ⊕ Fin count → CompTerm (β ⊕ Fin count)
@@ -40,7 +41,7 @@ theorem liftTypes_eval (assignment : β → Computation) (substitution : α → 
       localEnv (fun name => (substitution name).eval Common.model assignment) locals := by
   funext name
   cases name with
-  | inl name => simp [liftTypes, CompTerm.eval_rename, CommonEffectRequestGeneration.localEnv_comp_inl]
+  | inl name => simp [liftTypes, CompTerm.eval_rename, localEnv]
   | inr name => rfl
 
 inductive Formula (scopes : Nat) : Type → Type 1 where
@@ -93,12 +94,12 @@ def Formula.subst (substitution : α → CompTerm β) : Formula scopes α → Fo
   | forallTypes count body ih =>
     simp only [subst, Holds, ih, liftTypes_eval]
 
-def Formula.rename (renaming : α → β) (formula : Formula scopes α) : Formula scopes β :=
-  formula.subst (fun name => CompTerm.var (renaming name))
+def Formula.rename (names : α → β) (formula : Formula scopes α) : Formula scopes β :=
+  formula.subst (fun name => CompTerm.var (names name))
 
-@[simp] theorem Formula.holds_rename (assignment : β → Computation) (renaming : α → β)
+@[simp] theorem Formula.holds_rename (assignment : β → Computation) (names : α → β)
     (formula : Formula scopes α) :
-    (formula.rename renaming).Holds assignment ↔ formula.Holds (assignment ∘ renaming) := by
+    (formula.rename names).Holds assignment ↔ formula.Holds (assignment ∘ names) := by
   simp only [rename, holds_subst, CompTerm.eval_var]
   rfl
 
@@ -112,7 +113,11 @@ def Scheme.instantiate (scheme : Scheme scopes α) (out : CompTerm α) : Formula
     (assignment : α → Computation) :
     (scheme.instantiate out).Holds assignment ↔ scheme.Holds (extend assignment (out.eval Common.model assignment)) := by
   simp only [instantiate, Formula.holds_subst]
-  rfl
+  have same : (fun name => ((fun | none => out | some name => CompTerm.var name) name).eval Common.model assignment) =
+      extend assignment (out.eval Common.model assignment) := by
+    funext name
+    cases name <;> rfl
+  exact (congrArg (fun env => scheme.Holds env) same).to_iff
 
 /-- The old finite request/handler constraints embed without semantic leaves. -/
 def ofConstraint : CommonEffectRequestGeneration.Constraint scopes α → Formula scopes α

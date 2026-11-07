@@ -4181,3 +4181,19 @@ run_cmd do
 #print axioms Yulang.CommonSignedFlowFamily.returned_all_parameters
 #print axioms Yulang.CommonSignedFlowFamily.residual_edge_exact
 #print axioms Yulang.CommonSignedFlowFamily.shift_edge_exact
+
+#print axioms Yulang.CommonEffectFormula.Formula.holds_subst
+#print axioms Yulang.CommonEffectFormula.Formula.holds_rename
+#print axioms Yulang.CommonEffectFormula.Scheme.instantiate_exact
+#print axioms Yulang.CommonEffectFormula.ofConstraint_exact
+
+#print axioms Yulang.CommonSignedSeedFamily.solve_all_instances_exact
+#print axioms Yulang.CommonSignedSeedFamily.returned_all_parameters
+#print axioms Yulang.CommonSignedSeedFamily.satisfiable_iff_heads_safe
+#print axioms Yulang.CommonSignedSeedFamily.inconsistent_iff_head_path
+#print axioms Yulang.CommonSignedSeedFamily.Examples.growing_all_weights
+#print axioms Yulang.CommonSignedSeedFamily.Examples.growing_no_finite_model
+
+#print axioms Yulang.CommonSignedSafetyPreimage.Fiber.capturable_iff
+#print axioms Yulang.CommonSignedSafetyPreimage.run_preserves
+#print axioms Yulang.CommonSignedSafetyPreimage.preimage_exact
