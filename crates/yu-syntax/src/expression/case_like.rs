@@ -136,11 +136,10 @@ fn case_like_head_normalized(
     );
     item_origin = next_origin;
     line_entry = next_line_entry;
-    // WP-14: only a same-line colon immediately after `case` omits the
-    // scrutinee. NUD scanning may classify `:name` as a symbol opener; here
-    // that colon belongs to the case block instead. Catch keeps its head.
-    if matches!(family, CaseLikeFamily::Case)
-        && !item.payload_view().is_boundary()
+    // WP-14/WP-16: only a same-line colon immediately after `case` or `catch`
+    // omits the scrutinee. NUD scanning may classify `:name` as a symbol
+    // opener; here that colon belongs to the arm block instead.
+    if !item.payload_view().is_boundary()
         && !item.leading_view().contains_line_break()
         && matches!(
             token_kind(&item),

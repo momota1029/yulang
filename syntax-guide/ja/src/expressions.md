@@ -213,6 +213,16 @@ my handle = case:
 
 状態: `case:` は確定、パース検査済み。他の `case` はパース検査済み(仮採用)。出典: `spec/03-expressions.md` 3.7。
 
+### `catch:`（対象なし）
+
+```yulang
+my h = catch:
+    flip::coin(), k -> k true
+    v -> v
+```
+
+`catch:`は`\a -> catch a:`の略であり、`x | catch:`の左辺のeffectがhandlerに届くかは未確定（`spec/03-expressions.md`のE7）である。
+
 ## パイプライン `|`
 
 ```yulang

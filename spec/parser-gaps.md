@@ -9,6 +9,7 @@
 
 **2026-11-07 に見つかった 4 件は閉じた**: lambda の record 引数（`\{x, y} -> x`）、式としての record の spread（`{x: 1, ..rest}`）、対象なしの `case:`、`case` と `catch` の 2 番目以降の arm が隣接した `-` と整数で始まる形（`-1 -> 2`）。
 構文ガイドの例の検査で見つかり、`notes/design/2026-11-07-parser-gap-closure-addendum-2.md`（Authoritative）の WP-12〜15 で直した。
+同日確定した対象なしの`catch:`も、同じ追補のWP-16で対応した。
 経緯と設計判断は `notes/design/2026-11-04-parser-gap-closure-addendum.md`（Authoritative）に残してある。
 
 ## 意図的に残している未完了
