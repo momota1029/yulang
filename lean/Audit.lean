@@ -4244,3 +4244,16 @@ run_cmd do
 #print axioms Yulang.CommonEffectTypeNormalisation.normaliseAtom_exact
 #print axioms Yulang.CommonEffectTypeNormalisation.normalise_exact
 #print axioms Yulang.CommonEffectTypeNormalisation.top_request_normalises_into_old_grammar
+
+#print axioms Yulang.CommonEffectUniversalPayload.eliminate_payload_arm
+
+#print axioms Yulang.CommonEffectUniversalResumption.resume_payload_iff
+#print axioms Yulang.CommonEffectUniversalResumption.eliminate_resumption_arm
+
+#print axioms Yulang.CommonEffectUniversalSelfResponse.eliminate_exact
+
+#print axioms Yulang.CommonEffectRowQuantifiers.eliminate_exact
+#print axioms Yulang.CommonEffectRowQuantifiers.eliminate_no_type_binders
+
+#print axioms Yulang.CommonSignedExpressionPool.restrict_extend
+#print axioms Yulang.CommonSignedExpressionPool.input_injective
