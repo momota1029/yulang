@@ -111,6 +111,9 @@ my twice(x: 'a) =
   **variant の行で同じ tag を重ねて書いたときは、合流した後の形で数える**（確定, 2026-11-07, ユーザーの決定）。`impl R :{tick 'a, tick 'a}` のように同じ tag を重ねると、payload は合流して `union('a, 'a)` になり、型の意味は `:{tick 'a}` と同じである。大きさと出現回数は、`union(P, P) → P` のように縮約した後の形で数える。重ねて書くこと自体は、宣言のエラーにしない。
   合流は、型が分かるまで遅らせる（goal は型が確定した記述なので、照合の時点で合流済みの形になる）。別の tag を足すと要求が増えて型の意味が変わるので、見えない膨らみにはならない。見えない膨らみを作れるのは、同じ tag の重ね書きと、record の隠れた同名 field だけである。
   理由: 生の大きさで数えると、同じ tag を重ねて「小さい」ことにでき、解決が停止しない registry が作れる（Lean: `CommonRoleMergedObstruction.canonical_merged_registry_undecidable`）。
+  **型変数の捕捉の後に初めて合流が起きる impl は、宣言時に拒否する**（確定, 2026-11-07, ユーザーの決定）。`where` が head より小さいことは、「型変数に何が入っても」成り立たなければならない。宣言の時点の大きさで小さく見えても、型変数が具体的な型に決まった後で、head の payload が合流して `where` が小さくなくなる `impl` は、宣言でエラーにする（利用時のエラーを増やさない）。
+  例: `impl R 'a (:{tick (int, 'a), tick ('a, int)})` where `'a: R (:{tick ('a, 'a)})` は、`'a := int` の後で 2 つの payload が `(int, int)` に合流し、head と where が同じ大きさになる。この `impl` は宣言で拒否される。
+  具体的な検査（有限で決められる十分条件）の形は、実装側で決める。
 
   ```yulang
   impl Display (list 'a):
