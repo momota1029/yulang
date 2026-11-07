@@ -444,3 +444,63 @@ lower/upper 伝播後にも同じ有限 inventory にとどまる全 worklist �
 branch.Holds や全辺の model は前提にしない。width seed の source が var なら上限 clamp、width/required
 なら constructor 方程式を用い、base/pair/arrow なら literal false による静的 branch 消去と矛盾する。
 これは元 pool/edge 列への結果であり、追加 pool への輸送と全 worklist の統合は別の義務である。
+
+## 20. Bound 符号化、有限分岐 worklist、有限観測の接続
+
+`CommonOptionalBoundEncoding` は支持された BoundRef を拡張 Pool の実 ID へ符号化する。
+任意の拡張 constructor realizer で、各 reference と各 branch の意味を要求同値まで保存・反映する。
+`CommonBoundRefCoalescing.Index` が持つ証拠は有限 query への構文的所属だけであり、model や残比較を含まない。
+この Index の明示的 inventory は元 node と三定数、各 query の required/rawOpt からなり、
+実 query 列では全 pair 数が高々 (5N+3)² となる。
+
+`CommonBoundMap` は任意の bound map について、変数 flow、lower/upper 伝播、rigid comparison の計算が
+literal equality で可換であることを示す。写像の単射性は不要であり、同じ境界 term を共有する際にも使える。
+`CommonBoundRefCoalescing.rigid_encode` はこの性質を実拡張 Pool の変数分類まで接続する。
+
+`FiniteBranchingWorklist` は独立した有限アルゴリズムである。state に現在の edge、処理済み edge、補助制約と、
+選んだ (edge, branch) の trace を持つ。現在 rigid で未処理の edge を一つ選び、各分岐の子 edge と補助制約を加える。
+各 step が未処理の有限 inventory 要素を一つ消費するため、内部で inventory.length を上限として停止する。
+最後の rigid 比較ごとに選択 branch とその全制約の保持を回収する。rigid discovery の単調性は仮定しない。
+support と分解 exactness を定理の明示的前提に持つ generic component であり、それらを実生成から供給する接続を
+省略して公開の saturation_closed と同一視しない。意味定義は独立な edge/aux の解釈だけで、trace の法則を含まない。
+
+有限観測で default の全 branch を同 depth の比較として扱う案も採用しない。
+`CommonFiniteOptionalInspection` と `CommonFiniteBoundInspection` は payload/fallback を一段浅く、
+record tail と presence/width/optional 上限を同じ深さで扱う。実 symbolic inspector の選択 branch から親の
+有限比較を導く soundness 方向では、必要な width を子比較から導くため追加 PoolWidth は不要となる。
+depth 0 で rawOpt が width と異なること、width なしでは default 三分岐の有限 iff が偽になることも証明する。
+`BranchAtSource` は共通の十分条件として全 child の guarded 比較を要求し、non-rigid source では
+全 child の同深さ比較も要求する。各 payload edge に必要な最小の深さだけを抽出した条件ではない。
+後続の source weight 帰納では、この追加の同深さ前提も proper child から供給する必要がある。
+
+`CommonOptionalPoolWidth.pool_width_iff` は任意 extended values で拡張前後の width 義務が同値であることを示す。
+追加候補に record/default はないため、新たな幅 seed は必要ない。
+`CommonOptionalPoolClampedWidth` は元 width seed を保持する任意の拡張 edge 列に対して、width target の
+静的 false がないことと clamp の全上限保証から、全 parameter の PoolWidth を回収する。
+この局所的な静的条件まで実 worklist が内部で供給することは、なお別の統合義務である。
+
+`CommonBoundRefInspection` は source を元 lower node または synthetic top、target を元 upper node と
+選択済み required/rawOpt query に限定した実 dispatcher を構成する。元 required の意味は width tail を持つ
+record なので、別 label への再分解では synthetic width source が現れる。この比較は required/rawOpt target に
+対して常に偽であり、literal false とともに静的に branch を除く。支持・polarity の保存と、元 Realizes/PoolWidth
+の下での exactness を証明する。一般の target union を文法へ加える必要はない。
+
+`CommonBoundInspectionDescent` は non-rigid source の全同深さ child が元 proper child または top/width leaf
+であることを示す。`CommonClampedSelectedSoundness` は任意の有限 branch 選択について、この減少と child closure、
+実有限 inspection、row/literal 条件から、depth/source measure の二重帰納で全辺を導く。
+selection は構文と構造的証拠だけを持ち、assignment に依存する選択や model は持たない。
+これを実 worklist の trace から構成し、row/literal 条件も内部で供給する接続を次の統合義務とする。
+
+## 21. 異なる parameter 数を保つ正規化の独立部分
+
+`CommonCanonicalParameters` は既存有限 Form の意味的等価性を変更しない。
+全出現に同じ scalar substitution を適用し、負の arrow 引数でも共有を保持する。
+実使用 k 個への compact は任意旧 parameter の評価を k 個で literal equality まで回収し、
+任意の k 個の新 parameter も旧 n 個へ拡張して同じ評価を得る。k=0 でも dummy parameter を残さない。
+normalize 後に compact すれば、格子の吸収により使われなくなった slot も削除できる。
+
+未使用 slot 除去と同数 parameter の全単射だけを一般的な interface 同値とする案は採用しない。
+scalar の `'a | 'b` は二つの slot を実際に使うが、一つの slot `'c` と全具体化の family が一致する。
+この例と、任意 arity の両方向の有限 scalar substitution による family 同値を証明した。
+置換が存在することの完全探索や、弱い変数・一般行式・regular/nominal/role を含む全 public interface の
+canonical encoding はこの結果には含めない。実 inference/export/display の呼出経路もまだ接続していない。

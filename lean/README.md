@@ -127,6 +127,12 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 | `CommonSymbolicBoundInspection.inspect_required_exact` / `inspect_optional_exact` / `CommonGeneratedBoundInspection.inspect_exact` | required/default/optional の固定分岐を、元共有参照・有限 required/optional 境界・行比較・literal flag だけへ変換。optional には明示した局所 width が必要。profile と動的 Bool を出力しない | 新境界を含む全 worklist と同深さ tail の全 parameter soundness |
 | `CommonGeneratedBoundSupport.inspect_supported` / `optional_query_supported` | 任意元 pool の通常 target と選択済み optional query の全分岐は、同じ有限 query inventory 内の bound reference だけを使う。型代入・model・endpoint shape・成功を前提にしない | 追加 pool 全体の再 inspection と全 worklist の閉包 |
 | `CommonGeneratedClampedWidth.generated_all_parameters_pool_width` / `generated_core_all_parameters_pool_width` | 任意実生成 clause と、元 rigid 分解で静的に残った任意 branch について、任意 rows/type/recursive parameters の clamped solve は全 record tail/default source の width を満たす。branch.Holds・全辺 model・solver 成功を前提にしない | 追加 pool への transport と他の全 branch 条件の同時消去 |
+| `CommonOptionalPoolWidth.pool_width_iff` / `CommonOptionalPoolClampedWidth.generated_all_parameters_pool_width` | 任意 query 列・任意 extended values で拡張前後の PoolWidth が同値。任意実生成 clause の width seed を保つ任意拡張 edge 列に対し、width target の静的失敗がなければ、全 extended parameter で PoolWidth が成立 | width の静的条件も内部で供給する実 worklist 接続 |
+| `CommonOptionalBoundEncoding.encodeOutput_exact` / `CommonBoundRefCoalescing.rigid_encode` | 任意支持された symbolic branch を実拡張 pool の ID に変換し、任意 constructor realizer で意味を保存・反映。変数分類、lower/upper 伝播、rigid 比較列は符号化と literal equality で可換。元 node ID の数値を保持 | 拡張した全比較の全 parameter soundness |
+| `FiniteBranchingWorklist.run_closed` / `run_bound` / `run_models_exact_selected` | 任意有限 universe と支持された inspector/rigid discovery の分岐 worklist が、各枝で universe 長以下の処理により停止。最後の各 rigid 比較の選択 branch と全追加制約を保持。独立な解釈と明示的な分解 exactness の下でモデルを保存・反映 | この汎用定理だけで実生成の拡張文法・分解 exactness を供給すること、閉包から無条件の全自由解を得ること |
+| `CommonFiniteOptionalInspection.default_branches_at_sound` / `CommonFiniteBoundInspection.required_at_sound` / `optional_at_sound` | 任意 depth/rows/values と実返却 branch に対し、有限観測の子比較から親比較を導く。`BranchAtSource` は全 child の guarded 比較と、non-rigid source では全 child の同深さ比較も前提とする。局所 default 三分岐では payload/fallback と tail の深さを分ける。soundness 方向には PoolWidth を仮定しない | 全 worklist の source 減少と、clamped 任意 parameter への統合 |
+| `CommonBoundRefInspection.inspect_supported_refs` / `inspect_polarity` / `inspect_exact` | 元 lower/top source と、元 upper・有限 required/optional query target を同じ inventory で反復分解。全返却 child の向きの文法を保存し、任意 Realizes/PoolWidth で元 subtype と同値。literal false と width→required/optional の失敗枝を静的に除去 | worklist 全体から全自由 parameter family への統合 |
+| `CommonBoundInspectionDescent.node_current_sources_smaller` / `CommonClampedSelectedSoundness.conditional_soundness` | 元非変数 node の同深さ child source が proper child/top/width として厳密に小さくなることを証明。任意 finite selection の ordinary/childClosed/currentDecreases と実有限 inspection、clamped model、row/literal 条件の下で全辺を導く | その selection と全補助条件を実 worklist から内部構成すること |
 
 回答済み Q5 に対応する新しい具体要求モデルを `ProducerContextual` / `ProducerContextualRegular` に追加した。
 型変数は任意の意味型が満たすすべての観測を表し、arrow の引数要求も同じ環境の型を名前で参照する。
@@ -540,6 +546,8 @@ presence の data 述語包含との同値はない。これらを既存 data �
 | `CommonCanonicalInterface.canonicalEncoding_exact` / `interface_canonicalEncoding_exact` / `normalize_exact` | 任意 n・異なる Shape を許す二つの有限 constructor interface で、全行割当て・同じ共有 ID の全 Common 型割当てに対する要求同値 ⇔ 自己完結 code の一致 ⇔ 正規化構文の一致。構成子・label・共有行 ID の違いを実観測で反映。`int \| str` の順序の反例も新 pass で解消 | mixed-head lattice、一般 record/default/mask、nominal/role、regular interface、parameter の再parameter化 |
 | `CommonCanonicalAlpha.canonicalEncoding_exact` / `normalize_exact` / `alpha_instances_exact` | 任意 n・上記 Form 二つで、ある一つの同時全単射の後の全行・全 Common 型割当てでの要求同値 ⇔ 実有限探索で選んだ同じ code。任意固定行・任意 target について、target と要求同値な具体化の存在を両方向で保存 | slot 数にかかわらない正負位置による消去・共起/併合と一般の再parameter化、異なる slot 数の比較、弱い変数、行 ID の名前変更、全 instance 同値からの完全反映 |
 | `CommonCanonicalNames.normalize_exact` / `normalize_first_occurrence_order` / `normalize_instances_exact` | 任意 n・上記 Form 二つで、独立な意味的 α 同値 ⇔ 同じ実 normalize 出力。出力 Form 内の異なる変数を最初の出現順に並べた番号は `List.range k`。任意固定行・target に対する要求同値な具体化の存在を保存・反映 | weak variable の metadata、非単射の消去/併合、行の α 同値、実 display renderer への接続 |
+| `CommonCanonicalParameters.compact_project_exact` / `compact_expand_exact` / `compact_instances_exact` / `compact_subtype_instances_exact` | 任意 n/Form・任意行割当てで、実使用 k 個への未使用 parameter 除去が全旧/新 parameter の具体化を literal equality で相互回収。要求同値な instance family と subsumption 後の family を保存・反映し、k≤n、全新 slot の使用も証明。normalize 後の版では吸収で消えた slot も除去 | 使用中 slot の一般併合、弱い変数の metadata、全文法への標準形の完全性 |
+| `CommonCanonicalParameters.reparameterization_instances_exact` / `reparameterization_subtype_instances_exact` / `Examples.union_parameters_merge` | 任意の異なる arity を許す二つの Form と有限 scalar substitution 二つについて、両方向の pointwise 要求同値から全 instance family の一致を導く。置換は全単射を要求しない。使用中の二変数の union と一変数の family が一致する例も証明 | 一般再parameter化の計算・存在の完全判定、任意 public interface の canonical encoding |
 
 任意の concrete `Common.Row` は述語であるため、全 concrete 型を直接有限文字列へ計算可能に符号化する
 という主張にはしない。完全な interface では有限行式・regular graph・nominal/role 義務までの正規化が残る。
@@ -549,7 +557,8 @@ scalar 実装は n 個の共有 slot と4個の base の全 profile を列挙し
 最小 clause 選別は profile 間を走査するため、総計算量を線形・多項式とは主張しない。
 α pass は forward map を列挙し、逆写像を有限 lookup で回収する。候補数の上界 `n^n` を証明したが、
 この全探索を実用的な一般化変数の正規化アルゴリズムとは主張しない。
-実際の interface 表示へ組み込む前に、未使用 slot の除去や共有表現を含む費用評価が必要である。
+未使用 slot の除去は上の `compact` で構成した。実際の interface 表示へ組み込む前に、共有表現を含む費用評価と
+一般再parameter化・全文法への接続が必要である。
 
 ### SCC 局所性と module cache・増分更新
 
