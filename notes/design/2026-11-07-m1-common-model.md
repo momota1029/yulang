@@ -292,3 +292,31 @@ H 以外のすべての label の field と非自明 optional を保持する。
 
 これは tail 義務の有限表現であり、同じ義務を view に包んで再展開することを saturation の進行とは数えない。
 7.2 では、この表現を含む共有 graph の閉性と、全 parameter での比較成立を別途証明する必要がある。
+
+## 14. 実生成の比較文法と symbolic record profile
+
+`PresenceGeneratedRigidShape` は、実生成器の右辺が var/base/pair/arrow/required/width record のいずれかで、
+左辺の union を再帰的に取り除いても intersection が現れないことを証明する。scheme の捕捉変数置換、
+値制限 let の両分岐、binder packing、全 source constructor を含む。`CommonGeneratedRigidPool` はこの性質を
+共有 pool と変数上下限消去後の rigid 比較列へ移す。未知 slot への Common 型割当ては一切制限しない。
+一般の source intersection や target union を一方の成分との比較へ分岐する案は、その同値が成り立たないため採用しない。
+実生成の構文不変量を用いることは、公開定理に support checker や成功の前提を足すこととは区別する。
+
+`CommonSymbolicRecordProfiles` の compiler は row/node/child の代入を引数に取らない。
+未知 slot の問い合わせを `(共有 node ID, 外側 hidden list, label, field/optional/presence の種別)` として保持し、
+record/default/mask の既知構文だけを有限な Bool/Profile 式へ展開する。初期層の field/optional 判定も別に保持する。
+profile の `none`（自明な payload 要求さえ受理しない）と `some top`（自明要求は受理する）を同一視しない。
+`compile_exact` は任意の独立 row/node/child 割当てについて七つの成分の literal equality を同時に示す。
+profile の意味を定める際に未知 node の具体型を参照することと、推論時に具体化した型を inspector へ渡すことは異なる。
+前者は固定した symbolic 構文の独立な再帰的意味であり、後者はこの compiler の実装には用いない。
+
+`CommonRecordTargetProfiles` は任意 Common source S と任意 payload P/label l について、
+`S ≤ required l P` が抽出 field profile の P 以下と同値であり、`S ≤ emptyRecord` が record shape の受理と
+同値であることを示す。source は mixed lattice/mask/default/regular を含めて任意である。
+required の初期層条件は正の深さの field presence から導き、仮定として省略しない。
+
+これらは元 rigid 比較の有限な symbolic 分解に使う。新しい child 比較の再帰的分解には、さらに子位置での
+polarity 保存が必要である。例えば arrow の反変引数では `arrow (A | B) X ≤ arrow C Y` から
+`C ≤ A | B` が生じるため、元 endpoint の head 不変量だけで飽和後の全状態を尽くしたとは主張しない。
+projection を元 source と無関係な自由 slot に置き換える案も採用しない。7.2 の全 parameter soundness には、
+各 projection と元共有 node の再構成の整合性、および同深さ tail 比較の全自由 family が必要である。

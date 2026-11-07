@@ -431,3 +431,7 @@ import Yulang.CommonBoundCoalescing
 import Yulang.CommonPresenceVariableBounds
 import Yulang.CommonPresenceCoalescedSource
 import Yulang.CommonSymbolicTailView
+import Yulang.CommonSymbolicRecordProfiles
+import Yulang.PresenceGeneratedRigidShape
+import Yulang.CommonGeneratedRigidPool
+import Yulang.CommonRecordTargetProfiles
