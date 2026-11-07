@@ -612,3 +612,11 @@ import Yulang.CommonCanonicalConstraintPrograms
 import Yulang.CommonCanonicalReductionMachine
 
 import Yulang.CommonCanonicalScanPrograms
+
+import Yulang.CommonCanonicalBuilderPrograms
+
+import Yulang.CanonicalRegisterGuard
+
+import Yulang.CanonicalRegisterRecognizer
+
+import Yulang.CommonCanonicalUndecidability

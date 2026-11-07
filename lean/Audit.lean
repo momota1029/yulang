@@ -4271,3 +4271,63 @@ run_cmd do
 #print axioms Yulang.CommonCanonicalReductionMachine.scan_runs
 
 #print axioms Yulang.CommonCanonicalReductionMachine.scanTests_exact
+
+#print axioms Yulang.CommonCanonicalReductionMachine.scanAll_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.tupleBody_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.reload_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.startBuilder_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.reversedBuilder_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.builderRoutine_runs
+
+#print axioms Yulang.CanonicalRegisterGuard.compiled_lookup
+
+#print axioms Yulang.CanonicalRegisterGuard.compiled_step
+
+#print axioms Yulang.CanonicalRegisterGuard.compiled_return
+
+#print axioms Yulang.CanonicalRegisterGuard.executes_not_self_loop
+
+#print axioms Yulang.CanonicalRegisterGuard.append_prefix_trace
+
+#print axioms Yulang.CanonicalRegisterGuard.guard_check
+
+#print axioms Yulang.CanonicalRegisterGuard.guard_trap
+
+#print axioms Yulang.CanonicalRegisterGuard.guarded_prefix_halts_iff
+
+#print axioms Yulang.CanonicalRegisterGuard.routine_runs_compiled
+
+#print axioms Yulang.CanonicalRegisterGuard.routine_program_runs
+
+#print axioms Yulang.CanonicalRegisterRecognizer.invoke_runs
+
+#print axioms Yulang.CanonicalRegisterRecognizer.global_injective
+
+#print axioms Yulang.CanonicalRegisterRecognizer.bank_injective
+
+#print axioms Yulang.CanonicalRegisterRecognizer.bank_zero
+
+#print axioms Yulang.CanonicalRegisterRecognizer.global_outside
+
+#print axioms Yulang.CanonicalRegisterRecognizer.global_work_ne
+
+#print axioms Yulang.CanonicalRegisterRecognizer.evaluate_runs
+
+#print axioms Yulang.CanonicalRegisterRecognizer.first_bound
+
+#print axioms Yulang.CanonicalRegisterRecognizer.last_bound
+
+#print axioms Yulang.CanonicalRegisterRecognizer.coder_bound
+
+#print axioms Yulang.CanonicalRegisterRecognizer.preparation_runs
+
+#print axioms Yulang.CanonicalRegisterRecognizer.recognizer_exact
+
+#print axioms Yulang.CommonCanonicalReductionMachine.builder_program_runs
+
+#print axioms Yulang.CommonCanonicalUndecidability.no_computable_canonical_encoding

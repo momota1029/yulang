@@ -135,4 +135,37 @@ theorem scanTests_exact (source : Program) :
   rw [interval]
   simp only [Nat.zero_add, instructionAt]
 
+def scanAll (mode : Mode) : Routine 16 :=
+  append (clear 13) (append (copy 8 14 5) (scan mode))
+
+theorem scanAll_runs (source : Program) (mode : Mode) (values : Values) (prior : Word)
+    (cursor : values 0 = wordCode (list instruction source.code)) (encoded : values 1 = wordCode prior)
+    (registersEq : environment values registersField = source.registers)
+    (statesEq : environment values statesField = source.states) :
+    ∃ finalValues, Runs (scanAll mode) values finalValues ∧
+      finalValues 1 = wordCode ((stream mode ((List.finRange source.states).flatMap
+        (fun pc => partitionTests source.registers pc ++ instructionTests pc (instructionAt source pc)))).reverse ++ prior) ∧
+      ∀ field, HeaderField field → environment finalValues field = environment values field := by
+  let cleared := write values 13 0
+  let ready := write (write cleared 14 (values 8)) 5 0
+  have clearing := clear_runs (13 : Register) values
+  have copying := copy_runs (8 : Register) 14 5 (by decide) (by decide) (by decide) cleared
+  have readyCursor : ready 0 = wordCode (list instruction source.code) := cursor
+  have readyWord : ready 1 = wordCode prior := encoded
+  have readyRegisters : environment ready registersField = source.registers := registersEq
+  have readyStates : environment ready statesField = source.states := statesEq
+  have readyPc : ready 13 = 0 := rfl
+  have readyFuel : ready 14 = source.states := statesEq
+  obtain ⟨finalValues, scanning, word, _, _, _, frame⟩ := scan_runs source.states 0 (by omega)
+    source.code mode ready prior readyCursor readyWord readyRegisters readyStates readyPc readyFuel
+  rw [scanTests_exact] at word
+  refine ⟨finalValues, append_runs clearing (append_runs copying scanning), word, ?_⟩
+  intro field kept
+  have preserved : environment ready field = environment values field := by
+    have alternatives : field = 1 ∨ field = 2 ∨ field = 3 ∨ field = 4 := by
+      obtain ⟨positive, small⟩ := kept
+      omega
+    rcases alternatives with rfl | rfl | rfl | rfl <;> rfl
+  exact (frame field kept).trans preserved
+
 end Yulang.CommonCanonicalReductionMachine
