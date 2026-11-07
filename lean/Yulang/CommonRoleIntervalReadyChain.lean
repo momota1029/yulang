@@ -39,4 +39,15 @@ theorem always_known (count : Nat) :
   apply CommonRoleDeferredBounds.lower_arrives
   cases count <;> rfl
 
+/-- These open bounds are consistent at every stage. No matching
+substitution or successful candidate resolver is a premise. -/
+theorem bounds_consistent (count : Nat) :
+    Valid (evaluate (eval Empty.elim) (bounds count)) := by
+  induction count with
+  | zero =>
+      exact (Common.common_pair_iff _ _ _ _).mpr
+        ⟨Common.subtype_refl _, CommonBoundCoalescing.le_top _⟩
+  | succ count ih =>
+      exact (Common.common_pair_iff _ _ _ _).mpr ⟨Common.subtype_refl _, ih⟩
+
 end Yulang.CommonRoleIntervalReadyChain

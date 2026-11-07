@@ -5932,3 +5932,5 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredNominalSourceFamily.solve_all_instances_exact
 #print axioms Yulang.CommonDeclaredNominalSourceFamily.generated_models_exact
 #print axioms Yulang.CommonDeclaredNominalSourceFamily.generated_core_models_exact
+
+#print axioms Yulang.CommonRoleIntervalReadyChain.bounds_consistent
