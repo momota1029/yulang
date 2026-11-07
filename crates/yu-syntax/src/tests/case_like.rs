@@ -3,6 +3,8 @@ use crate::{ExpectedSyntax, structural_diagnostic::StructuralKind};
 use crate::{ambient_claim::AmbientClaimView, handoff::MlMode, statement::StatementLineHandoff};
 use std::ops::Range;
 
+mod signed_arm_layout;
+
 #[test]
 fn case_with_scrutinee_keeps_exact_cst() {
     let root = case_like_literal_production("case n: 0 -> 1\n");

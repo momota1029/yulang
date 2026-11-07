@@ -22,7 +22,7 @@ use crate::{
         },
         item::{Item, LeadingTrivia, TokenKind},
         lexer::{
-            introduced_body_indentation_normalized, pattern_range_after_expression_item,
+            introduced_body_indentation_normalized, pattern_start_after_expression_item,
             scan_case_label_payload, scan_pattern_nud_payload,
         },
         observation::{
@@ -1133,10 +1133,11 @@ impl ArmSequencePolicy {
     ) -> Result<(Item, LineEntry), NormalizedExit> {
         if !matches!(self, Self::CatchInline)
             && self.accepts_arm_entry(i.rb(), &item, outer_stops)
-            && let Some(additional) =
-                pattern_range_after_expression_item(&i, &item, item_origin, fence, first_stops)
+            && let Some(token) =
+                pattern_start_after_expression_item(&i, &item, item_origin, fence, first_stops)
         {
-            item.promote_pattern_range_start();
+            let additional = token.text.len() - item.payload_view().spelling().unwrap().len();
+            item.promote_pattern_start(token);
             i.advance_bytes(additional);
             item_origin += additional;
         }
