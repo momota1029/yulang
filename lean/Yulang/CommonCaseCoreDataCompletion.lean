@@ -84,4 +84,25 @@ theorem case_returns (specification : CommonCaseRecordReadout.Specification)
   | none => exact False.elim selected
   | some value => exact ⟨value, ⟨trace, present⟩, selected⟩
 
+/-- Every scheme actually returned by the unchanged finite solver and every
+unrestricted parameter produce an actual completed successful observation,
+with its typed selected result and row bound. Source support, leaf success,
+coverage and input readout are all discharged inside this theorem. -/
+theorem all_parameter_returns (specification : CommonCaseRecordReadout.Specification)
+    (subject : Required.Term) (arms : List Arm) (scheme : CommonPatternFiniteSchemes.Scheme 3)
+    (member : scheme ∈ CommonCaseCoreDataPrefixSolved.solvePremises specification subject arms)
+    (parameters : scheme.Parameters) (failure : Error → Common.Row) :
+    ∃ trace value,
+      run subject arms ⟨trace, some (.ok (some value))⟩ ∧
+        valueAt (scheme.instantiate parameters 1).1 value ∧
+        Common.rowLe
+          (CommonPatternFinitePrefixes.observationRow (fun _ => Common.rowEmpty) failure
+            ⟨trace, some (.ok (some value))⟩)
+          (scheme.instantiate parameters 2).2 := by
+  obtain ⟨value, ⟨trace, present⟩, typed⟩ := case_returns specification subject arms _ _ _
+    (CommonCaseCoreDataPrefixSolved.all_parameter_premises specification subject arms scheme member parameters)
+  refine ⟨trace, value, present, typed, ?_⟩
+  exact (CommonCaseCoreDataPrefixSolved.all_parameter_case_prefixes specification subject arms scheme member
+    parameters failure ⟨trace, some (.ok (some value))⟩ present).1
+
 end Yulang.CommonCaseCoreDataCompletion

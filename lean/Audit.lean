@@ -6036,3 +6036,5 @@ run_cmd do
 #print axioms Yulang.CommonCaseCoreDataCompletion.guards_complete
 #print axioms Yulang.CommonCaseCoreDataCompletion.bodies_complete
 #print axioms Yulang.CommonCaseCoreDataCompletion.case_returns
+
+#print axioms Yulang.CommonCaseCoreDataCompletion.all_parameter_returns

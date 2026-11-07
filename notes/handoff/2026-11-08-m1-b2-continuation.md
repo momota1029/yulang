@@ -255,6 +255,31 @@ guard も同じ実値 evaluator から Bool を読み、その実 Bool で後続
 
 検証: 対象 build（296 jobs）と `case_returns` の `trust=0` 監査が成功。
 
+## 14. 実返却 family の全 parameter に対する終了・readout・行
+
+`CommonCaseCoreDataCompletion.all_parameter_returns` は次を量化する。
+
+- 任意の有限 record 仕様、元 Core subject、元有限 arm 列。
+- 実 `CommonCaseCoreDataPrefixSolved.solvePremises` が返した任意の scheme。
+- その scheme の**任意の無制約 parameter**。
+- 任意の runtime error 行解釈。
+
+このとき、元の固定 `run` には `some value` を返す実終了成功の有限 trace が存在し、
+その value は同じ scheme/parameter の target 型を持ち、同じ実終了観測の行は同じ
+scheme/parameter の cap 以下である。source visit の行は純粋 fragment の空行。
+source support、入力 domain、coverage、default 成功、selected arm、EvaluationSound、
+ResidualHolds のいずれも caller premise にしていない。
+それらのうち必要な静的条件は同じ実有限生成の model から、実終了は同じ source 型付けと
+元の有限順序付き traversal から内部で導く。
+
+したがって、この family の operational 結果はもはや「返ったなら安全」だけでも、
+例一つの停止だけでもない。全返却 instance の実成功終了と readout まで進んだ。
+未回答の presence/principal-row 選択を含む full B2 の E1 完了とは呼ばない。
+E2 を終点にする扱いも採らない。
+
+検証: 対象 build（296 jobs）と `all_parameter_returns` の `trust=0` 監査が成功。
+許可された `propext` / `Classical.choice` / `Quot.sound` 以外は使わない。
+
 ## 未完の範囲
 
 これは既存の十分な coverage 証明書の運用上の意味を拡張する定理であり、
@@ -271,4 +296,5 @@ record に対する coverage/environment/row-upper-bound factor と返却 scheme
 - すべての default 依存 matrix を扱う coverage と、guard／failure／静的行の全 case 規則を確定・証明する。
 - その独立した full case 型付けと実生成の iff、同一の公開三契約を閉じる。
 
-B2 の E1/E2 完了とは数えない。optional field と到達不能 arm の静的行の既存の問いは変更していない。
+B2 全体の E1 完了とは数えない。E2 単独は更新された契約でも完了にならない。
+optional field と到達不能 arm の静的行の既存の問いは変更していない。
