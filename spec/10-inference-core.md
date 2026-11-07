@@ -2,6 +2,10 @@
 
 状態: **構成案・形式化対象を明記**（2026-11-04）。この章は現行の章2〜7を計算体系へ移すための仕様である。新しい注釈構文を追加せず、旧実装の挙動を言語仕様に昇格させない。Lean の対応物は [`../lean/`](../lean/) に置く。
 
+統合の工程は [2026-11-06 統合推論計画](../notes/design/2026-11-06-integrated-inference-plan.md)、
+共有 AST と保守的な接続（M0）の証明範囲は [Lean README の Core (M0)](../lean/README.md#core-m0) を参照する。
+M0 は既存の型判断をそれぞれのモデルで保存する接続であり、本章に新しい言語規則を追加しない。
+
 ## 10.1 権威と対象
 
 今回の構成では、次の順で根拠を扱う。
@@ -2009,3 +2013,18 @@ regular graphの全有限data観測への橋は10.37.2で与える。
 **残る義務:** このdata投影でarrowはneverとなる。旧structural subtypingの同値、
 closureとeffect行の意味、全深さを一度に判定する算法、presence制約の飽和/coalescing、
 旧/新schemeの全instance対応と統一source入口は未完である。旧support gateと主型定理の量化子は変更しない。
+
+### 10.37.3 M1 の接続状況
+
+有限 required demand の双方向の所属対応、相関を保つ有限 alternative の正規化、
+既存の required/presence 推論器への Core 入口とその正確性は
+[`lean/README.md` の M1 節](../lean/README.md#m1-型モデルの接続部分完了)を参照する。
+二つの入口は別モデルのままであり、presence/open-tail graph の自由 parameter 解構成・retraction・
+solver 完全性と統一入口は未完である。言語規則の追加や旧 `{}` の意味変更はない。
+
+## 10.38 M2 の接続状況
+
+共有 Core 上の effect 判断、意味的制約との一致、旧単相の有限生成器との接続と、
+残る有限制約生成・shape モデルの保存・高階境界の義務は
+[`lean/README.md` の M2 節](../lean/README.md#m2-effect-判断の統合部分完了)を参照する。
+M2 は部分完了であり、新しい言語規則を追加するものではない。

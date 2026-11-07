@@ -404,6 +404,27 @@ slot 数、到達 node 数、具体化した edge 数、clone allocation bytes�
 その後の saturation/replay を別々に計測し、簡約前後で何を減らしたかを確認する。
 無限行や role obligation を含む保存形式全体への拡張は、それぞれの instance 保存を示した範囲だけ適用する。
 
+2026-11-07 追記: 参照簡約器の全四段階にも計数付きの実装を接続した。
+[`TypeSimplificationCheckCost.symbolicCount_value`](../../lean/Yulang/TypeSimplificationCheckCost.lean) は、
+任意の二つの `TyTerm (Fin n)` に対し、型・行の等号と record spine を内部で走査する計数付き checker が
+既存の `symbolicCheck` と同じ Bool を返すことを示す。全枝を先に評価するため、短絡評価より保守的な参照費用である。
+full node 数の合計を `S` とすると、`symbolicCount_size_bound` の上界は `E(S) = (S + 1) × 128^S`。
+これは指数時間の素朴な checker に対する安全な上界であり、最適な上界や速さの実測ではない。
+各 constructor と有界個の局所検査を一単位とし、明示した Boolean 合成を別に数える。
+型全体の等号を定数時間とみなす費用モデルではない。
+
+[`TypeSimplificationCost.simplifyAllCount_value` / `simplifyAllCount_bound`](../../lean/Yulang/TypeSimplificationCost.lean) は、
+任意の入力型について、計数付き処理が既存 `simplifyAll` と同じ型を返し、
+`totalBudget n M` 以下であることを示す。`n` は有限 parameter 領域の大きさ、`M` は arrow の行を含む入力 node 数。
+要求する成功・`supported`・外部 fuel の前提はない。内訳は二回の variance pass、`4n` 個の scalar sandwich、
+`n²` 個の merge と候補列の実際の生成・連結である。
+[`TypeSimplificationSize`](../../lean/Yulang/TypeSimplificationSize.lean) のサイズ非増大を使い、
+各検査を元の `M` で評価できる。merge 用の一時的な joint substitution だけは最大 `3M` となり、
+元の型との比較には `E(4M)` を使う。固定 parameter inventory の library 内部の materialization、
+識別子の bit cost、allocator の実装費用はこの計数に含めない。
+`simplifyAllCount_instances_exact` は既存 `StructuralBase` の instance 保存へも接続するが、
+これを presence・mask・regular graph・任意の scheme 制約の canonicalization まで広げるものではない。
+
 ### 6.6 最初の benchmark と計測条件
 
 **仮説 6 の通り、実装前に入力と観測を固定する。最初は小さな let/scheme とその scaling を選ぶ。**
@@ -451,6 +472,161 @@ work 91,664 は変わらず、時間には揺らぎがあった。
 この節で新しい言語仕様の決定は置かない。未完了の中心は module cache の保存/復元の同値、
 let の枝削除に必要な全 instance の subsumption、疎な solver と追加 fast path の exactness、
 scheme 全体の共有・freshening の保存、そして Rust 推論器の実測である。
+
+## 7. 名前解決・lowering と SCC ごとの selection 確定
+
+追記日: 2026-11-07。Rust 前段の内部設計案であり、surface の意味を追加しない。
+根拠は [Yulang2 の lowering 調査](2026-11-07-yulang2-lowering-hotspots.md)、
+[決定 29](../handoff/2026-11-05-lean-proof-handoff.md)、上の 6.1・6.6 とする。
+Yulang2 の `lower.resolve` は selection の固定点処理であり、名前・path・演算子の解決とは別の段階である。
+調査メモの時間は過去の記録であり、以下の設計を実装・測定した結果ではない。
+
+### 7.1 先に宣言と依存を揃え、本体は必要な単位で lowering する
+
+SCC は相互に依存する binding のまとまりである。量化前にこのまとまりを確定する必要があるが、
+それは「標準ライブラリ全体の本体制約を先に生成する」ことを要求しない。
+次の二段階を分ける。
+
+| 段階 | 保存するもの | 次へ進める条件 |
+|---|---|---|
+| 宣言・依存の収集 | module/header、宣言 ID、import、可視名、演算子規則、body 内の参照先と依存辺 | 前方参照も含め、その単位から外へ出る依存が列挙されている |
+| module/SCC の本体 lowering | resolved body、制約、未確定 selection、注釈の検査対象 | 依存 module の有効な interface があり、依存 binding と同時に解く範囲が確定している |
+| SCC の求解と確定 | receiver の最終情報、可視 role index、typed fallback、選択した宣言 ID | 本体・依存・注釈の制約が揃い、確定を後から無効にする依存追加が残っていない |
+| 一般化・export | 不変 scheme、捕捉 slot、snapshot、辞書依存、canonical interface の保存候補 | 仕様の値制限・SCC 内の単相性・注釈の条件を満たす |
+
+依存収集では body の**参照**も調べる。header の宣言名だけを登録し、body の forward ref を
+未発見のまま量化してよいとはしない。構文 arena 上の軽い参照走査を body lowering と分け、
+その結果を後段へ渡す。本体を後で再走査して同じ名前解決をやり直すことを避ける。
+module 内の後方宣言は先に割り当てた ID へ結ぶ。相互 import が許される場合は module の循環群を
+一つの処理単位とし、循環内の module を個別に先行量化しない。
+
+selection や未確定 path が依存先を持ちうるなら、その依存を未解決のまま SCC を閉じない。
+宣言情報で確定できる依存は先に登録し、残る依存を解消するまで該当する確定点を保留する。
+既に量化した SCC へ後から辺を足して repair する全体ループは初期設計に置かない。
+一方、候補を無条件に全て相互依存辺へ変換すると、不要な SCC 統合で一般化範囲を変えるおそれがある。
+依存抽出と SCC 境界の正しさは別に示す必要があり、以下の局所性定理だけからは得られない。
+
+ここまでの依存準備ができた module から本体を処理する。std 全体の body lowering 完了を待たず、
+依存 module の確定済み interface を使って量化へ進める設計である。
+「header だけなら常に量化できる」という短縮は採らない。
+
+### 7.2 arena・path の intern・持続的な module map
+
+構文、resolved body、型/制約の不変 node をそれぞれ arena に保存し、参照は用途別の ID とする。
+source span と元の occurrence ID を node に残し、同じ形の別の式を同じ評価位置とみなさない。
+solver が更新する slot/edge は別領域とし、保存済み scheme の node を破壊的に書き換えない。
+revision をまたぐ cache は arena の生ポインタでなく、6.1 の relocation/freshening 対応を使う。
+
+識別子の文字列と path の各 segment を intern し、path 全体も segment ID の列として共有する。
+同じ綴りの名前でも scope が違えば解決結果は違うため、解決 memo の key には module/scope の
+version と必要な import・演算子環境を含める。nominal/effect/role の宣言 ID を文字列だけで同一視しない。
+演算子は綴りの intern と fixity/結合順位の解決を分け、構文を変える演算子環境を依存に記録する。
+局所変数は resolved binding ID まで落とし、後段で path の文字列探索を繰り返さない。
+
+module と lexical scope の map は、不変 snapshot 間で node を共有する持続的な構造を初期案とする。
+binding を追加するたびに module 全体の map を clone する構成を避ける。
+更新用の builder は使ってもよいが、公開した snapshot を後から変更しない。
+代案は mutable map と rollback log である。単一走査では安い可能性がある一方、並行 module、
+注釈の snapshot、cache 再利用との lifetime を別に管理する必要があるため、最初は共有可能な不変境界を優先する。
+arena 解放は module/revision 単位に行い、古い snapshot の到達可能性と peak memory を計測する。
+
+hash table の検索を無条件に最悪 `O(1)` とは呼ばない。collision 時も実際の key を比較する。
+Lean の抽象コストは table query/update の回数を数えるだけである。
+Rust では hash 品質・再配置・key の長さを含めて測る。決定的な最悪上界が必要なら、
+balanced tree による `O(log D)` の map 操作などを選び、抽象操作数にその実装費用を掛ける。
+
+### 7.3 method 名の index と、一度だけの selection 解決
+
+可視 scope の snapshot ごとに method 名から候補を引く index を作り、同じ scope の SCC 間でも共有する。
+候補は `(role ID, declaration ID)` であり、同じ role の同じ宣言を複数回 import しても一候補である。
+解決用の summary は「候補なし・一候補・二つ以上」の三状態を持つ。
+診断に必要な宣言位置は別に保持し、複数候補を一覧順の先頭で決めない。
+新しい scope snapshot は親 index を持続的に拡張する案とし、各 selection で index を再構築しない。
+
+未知 receiver では index を一度引き、候補なしなら field、一候補ならその role method、二つ以上なら曖昧エラーとする。
+既知 receiver では先に field を調べ、存在しない場合だけ既知型用の fallback を使う。
+未確定の solver state を途中で覗いた結果を「最終的に未知」と判定しない。
+SCC の確定点では、その SCC が所有する selection ID の列を一度走査し、選択した参照を保存する。
+後続の scheme 具体化はその参照を使い、receiver が後から具体化したことを理由に選び直さない。
+
+今回加えた Lean の根拠と、その入力境界は次の通り。
+
+| 根拠 | 量化した主張と前提 | この定理が入力として受け取るもの |
+|---|---|---|
+| [`MethodResolutionLocality.resolve_local`](../../lean/Yulang/MethodResolutionLocality.lean) | 任意の二つの site が `SameFacts` を満たせば、実際の `resolve` の三状態の答えが等しい。未知 receiver は対象名の可視候補が同じ、既知 receiver は対象 field の有無が同じで、欠如時に fallback が同じことが条件 | name、receiver 情報、可視候補、fallback |
+| `MethodResolutionLocality.scc_order_independent` | 任意の固定された site 表、SCC ごとの所有 site 列、初期回答表、同じ SCC を含む二つの順序について、実際の `resolve` を呼ぶ `runSCCs` の回答表が等しい | 各 SCC の最終 snapshot。SCC の求解・構築そのものは行わない |
+| [`ModuleScheduling.run_legal` / `run_build_exact`](../../lean/Yulang/ModuleScheduling.lean) | 任意の pure compile、source/key、有限 DAG の依存表に対し、依存を先に処理し各 node を一度だけ処理する合法 schedule は実際に完走し、既存の昇順 `ModuleIncremental.build` と同じ artifact を返す。呼出 trace は schedule 自体に等しく、重複しない | node は既に module/SCC にまとめられ、依存先の番号が小さい。compile の入力は source/key と完成済み依存 artifact の順序付き列に限る |
+| [`MethodResolutionScheduling.schedule_independent`](../../lean/Yulang/MethodResolutionScheduling.lean) | 任意の pure な snapshot 構築関数 `prepare`、source/key、依存表、同じ node 集合の二つの合法 schedule に対し、実行中に構築した snapshot と全三状態の selection が等しい。compile は `prepare` の返す各 site に既存 `MethodResolution.resolve` を適用する | 最終 snapshot 自体は前提にしない。`prepare` が source/key と完成済み依存 artifact だけから snapshot を作る契約が入力になる |
+| [`MethodResolutionCost.resolveCount_value` / `resolveCount_bound`](../../lean/Yulang/MethodResolutionCost.lean) | 任意の site で計数付き resolver の値が既存 `resolve` と等しい。未知 receiver は可視 role 数 `R` に対し `1 + 2R` 以下、既知 receiver は型の構文 node 数 `V` に対し `1 + V` 以下 | table query、候補比較、record spine の訪問、dispatcher を抽象単位とする |
+| [`MethodResolutionIndex.indexedResolve_exact`](../../lean/Yulang/MethodResolutionIndex.lean) | 任意の有限 declaration catalog、可視 role 列、名前、receiver、fallback について、同じ `(role, name)` の宣言が一致するなら、index による解決とその catalog を読む既存 `resolve` が等しい | catalog の関数性。重複 import と任意の列順を許す |
+| `MethodResolutionIndex.resolveNamesCount_exact` / `resolveNamesCount_bound` | 任意の名前列に対する一回の index 構築と全 query の値が元の `unknown` の結果列に一致する。可視宣言数 `D`、名前数 `N` に対し `3D + 2N` 抽象操作以下。上界自体は catalog の関数性や解決成功を仮定しない | 可視宣言に絞った入力。visibility filtering と map の内部実装費用は別 |
+
+`buildIndex_ext` / `buildIndex_perm` は、catalog の順序と同じ entry の重複が答えを変えないことも示す。
+`runCount_bound` は schedule の各 site の上界の和を取り、同じ site を二度処理すれば二度分を数える。
+実際に一回だけにするには、Rust の site 所有表・queue が重複を入れないことを別に検査・証明する。
+
+したがって、**凍結済みの snapshot の selection を解くための全体固定点ループは不要**である。
+さらに `ModuleScheduling` / `MethodResolutionScheduling` によって、有限 DAG の抽象モデルでは
+依存 artifact の計算、そこからの snapshot 構築、実際の selection 解決まで処理順序に依らないことが得られた。
+各 step は依存 artifact の存在と自身の未処理を実検査してから compile を呼ぶ。
+合法性は ID と依存辺から定義し、推論成功や共通の最終 snapshot を仮定しない。
+
+source 全体へ適用するには、なお二つの接続が要る。第一に、source の参照先を列挙し SCC をまとめる処理が、
+後から確定済み SCC へ必要な依存辺を追加しない完全な依存表を返すこと。
+第二に、任意の source SCC と、その完全な依存 artifact を持つ solver state に対して、
+実際の SCC 確定処理の結果が、同じ source/key と順序付き依存 artifact を引数にした
+`prepare` の結果で表せること。他の SCC の処理履歴を入力として参照しない形へ移す必要がある。
+選択に伴う制約追加が既に固定した receiver・可視候補・fallback を変えないことも、この確定契約に含める。
+この具体実装との対応を示さずに、未確定 receiver を一回見ただけで selection を固定する最適化は適用しない。
+
+### 7.4 module の量化・interface cache の境界
+
+量化済み module は scheme と qualifier、捕捉 slot、注釈 snapshot、宣言 identity、辞書依存を保存する。
+6.1 の cache key・無効化表をすべて維持し、依存 interface の hash だけへ縮小しない。
+依存の変更で影響を受ける module の判定には、import 先を指す辺と、その逆向きに保持した利用者の辺を区別する。
+変更 module から利用者側へ到達する範囲を再検査候補にし、同じ interface が得られた場合の伝播停止は
+source、scope、impl/辞書、設定など別の依存も不変である場合にだけ認める。
+
+公開型の等しさは [4.7b](../../spec/04-types.md) の要求による等価と
+[7.4b](../../spec/07-display.md) の標準形を基準にする。
+同じ構成子の union を成分ごとにまとめるだけでは、型変数・mask・regular graph・scheme 制約全体の
+等価を決める canonical interface が完成したことにはならない。
+全 interface に対する「要求で等価であることと canonical encoding が一致することの同値」は、
+serializer の保存性とともに別の未完了の接続として残す。
+hash は canonical encoding の参照を探す手段であり、collision を型の等価とみなさない。
+
+`accepted_export_independent` の適用条件は 6.1 のままとする。
+同じ model・decode・assignment・interface に対し、well-formed な二つの impl database の
+**両方で `finish` が accepted** なら closed interface が等しい。
+可視 impl の追加が新たな曖昧性を作る可能性は残るので、この定理だけで受理検査や辞書再選択を省かない。
+module 単位の量化をこの定理だけで導くこともせず、7.1 の依存/SCC の条件を別途満たす。
+
+### 7.5 前段を導入するときの最初の benchmark
+
+6.6 の let/scheme fixture を維持し、その次に lowering 調査の 4 節に対応する次の三群を加える。
+これらは入力生成と観測の設計であり、Rust runner や新しい測定値を追加したものではない。
+
+| benchmark 群 | 最初に変える入力軸 | counter と判定したいこと |
+|---|---|---|
+| `selection-scaling` | selection 数 `N = 128, 256, 512, 1024`。可視 role/宣言数はまず固定し、必要なら次に `R` / `D` を変える | 解決した site 数、候補走査・比較数、index 構築数、query 数、全 selection 再走査数、時間・allocation。`N` を倍にしたとき、処理回数が二倍か四倍かを識別する |
+| `lowering-components` | 同じ binding/body 数で、繰り返す path と異なる path、path 長、import alias 数を変える | parse、名前/path/演算子解決、制約生成の時間を別々に記録。intern の hit/miss、共有 map の追加 node、解決済み参照の再利用、生成 node/edge 数も取る |
+| `module-invalidation` | chain・fan-out・独立 sibling を持つ module 群の一 module だけを変更する | body を再処理した module 数、interface を再検査した module 数、辞書再選択数、cache hit/miss。全再計算と増分再計算の受理結果・interface を照合する |
+
+selection 群は、未知 receiver の候補 0 / 1 / 複数、重複 import、既知 receiver の field 優先と
+欠如時 fallback を含める。既知 receiver の field spine 長は別の入力軸にする。
+SCC 列を入れ替えたときも答えを保存し、重複のない所有表で「処理 site 数 = 入力 site 数」を検査する。
+`3D + 2N` は index 構築と未知 receiver query の抽象計数に対する定理であり、
+parser、dependency collection、可視性の絞り込み、nominal/inherent lookup、solver 全体の時間上界ではない。
+
+増分群は、(a) export を変えない body 編集、(b) export を変える編集、(c) 可視 impl/辞書だけの変更を分ける。
+独立 sibling の本体再処理が増えていないか、変更を必要な利用者へ伝えたかを別々に数える。
+canonical interface が未接続の段階は、接続済み断片の構造一致と結果の検査だけを行い、
+全言語の interface 同値を実証したとは扱わない。
+
+計時は 6.6 と `rules/performance.md` に従い、最初は一つの比較 harness で baseline/candidate を組にする。
+通常は warm-up 一回と測定三組、中央値と範囲を残す。最初から全入力軸の直積を測らない。
+上の四つの `N` は二次走査との区別が必要な場合の scaling 用であり、counter で解ける問題は計時を増やさない。
+包含する phase の時間を足さず、Rust の高速化を Lean の抽象操作数だけから実測済みと結論しない。
 
 [perf-main-baseline]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/notes/benchmarks/2026-06-23-hardening-baseline.md
 [perf-main-cache]: https://github.com/momota1029/yulang/blob/d4c8bc8fc8a49173180932cd25921a2c41057354/notes/benchmarks/2026-06-26-compiled-unit-cache-speedup.md

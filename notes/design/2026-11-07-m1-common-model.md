@@ -1,0 +1,642 @@
+# M1 の具体共通 carrier と残る compiler 境界
+
+Status: Draft — concrete implementation choices; no new language decision.
+
+Date: 2026-11-07
+
+Scope: `integration/m1-common`。正本は spec 4.3・4.7b、決定46・47。
+
+## 1. 構文と要求意味
+
+`CommonFinite.Ty` は base、bottom/top、union/intersection、pair、width/exact record、
+record head/tail、whole default、variant、両行を持つ arrow、外側 mask の有限構文である。
+`CommonSyntax.Layer` と有限 `State.block` が regular 表現を与える。要求、環境、観測は
+solver や Typing に依存せず、型構文と負文脈 rank による再帰で定義する。
+
+要求の変数は任意の型構文を名前で参照する。`Common.Parameter` は finite と regular の
+二つの具体構文の和である。finite はその有限型全体を保持し、regular は producer と同じ
+constructor depth で展開する。`Environment.atDepth` の同じ環境を負の arrow 観測にも渡す。
+有限 rigid 観測列や任意の述語を parameter の代用品にはしない。
+
+regular だけを環境に許す案もあるが、各 depth における任意有限環境の実現補題が余分に必要に
+なる。二つの構文を明示する案では、その実現は `.finite` により直接得られ、任意 regular 型の
+割当ても `.regular` で保持できる。source/scheme の自由変数は `TyTerm.var` の代入として扱う。
+
+## 2. optional と旧型の保存
+
+optional 要求は「field が存在すれば payload 要求を満たす」を表す。未知 width 型に対しては
+自明な payload 要求だけが成立し、exact empty にはすべて成立する。record head が要求 label と
+同じなら payload へ降り、それ以外は tail の optional 観測と自明要求へ分解する。
+
+旧型への新 optional 観測は、payload が自明なら旧 records 観測、そうでなければ旧 field 観測へ
+射影できる。負位置では、新しい任意 parameter が満たす関連 arrow 引数の有限リストを取り、
+それらの旧 intersection を witness とする。rank ごとの保存・反映を帰納することで、
+新環境を旧型に限定せず有限 embedding の iff を示す。
+
+`CommonLegacy` では旧 graph の各有限観測と埋め込みの交換を証明し、この有限定理を全深さへ
+持ち上げる。`Common.contextual_embedding_exact` は任意の旧 regular 型の比較を保存・反映する。
+これは新 infer の instance 保存・反映を定義だけで置き換えるものではない。
+
+素朴な「構文にその label がない」という absence 判定は採用しない。例えば旧モデルで同値な
+`record 0 bottom bottom` と `record 1 bottom bottom` を区別してしまうためである。
+この選択は集合論的包含を導入するものではない。
+
+## 3. mask、record tail、default の深さ
+
+producer mask は要求の mask と異なる。隠れた field の要求を消し、payload 内の mask と外側の
+mask を混同しない。外側の hidden-label 集合は tail と default source へ同深さで渡し、
+payload へ降りるときには空へ戻す。合成は hidden-label の和集合に一致する。
+
+record/default の型判断は、tail/source が width record 以下であることを別途要求する。
+head の比較のために tail へ同名 field の要求を追加しない。
+
+default は新しい field を構築するので、その payload も普通の record と同じ深さを消費する。
+`Layer.evalAt 0` では default の head を bottom に置き、source の残りの観測は同深さで保持する。
+正の深さでは具体的な finite default 演算を使う。この初期層を設けず finite default を全深さで
+そのまま使うと、`default l width F ≤ required l any` が深さ0で壊れる。
+旧構文には default がないため、旧 graph の観測保存には影響しない。
+
+## 4. 行と独立した data readout
+
+`Common.Row` は `(key : Nat, signedWeights : List Int)` の集合である。行自体は無限でもよく、
+負の重みも各座標も捨てない。M1 の空行・join・包含をこの具体集合演算で定義し、前順序、
+反対称性、空行と join の法則を証明する。これは M2 の全 source scope 解決の統合ではない。
+行を有限集合や空行に固定する案は、自由 parameter と無限行を失うため採用しない。
+
+`Common.DataReadout` は同じ構文上で、既存 `SourceDataRuntime.Value` の有限値を読む独立な
+帰納的解釈である。exactEmpty は空の field 列だけ、width は任意の record を受ける。
+whole default は既存 `Fields.insertDefault` の正確な像であり、present source でも fallback の
+値の存在を残す。要求同値な型の data 集合が等しいとは仮定しない。
+
+## 5. solver との残る接続
+
+上の構文と constructor 法則だけで、残契約の全入力 compiler や公開 infer が完成したとはしない。
+特に、既存の positive data-demand `Body.record` を producer record へそのまま移すことはできない。
+`inter(required l A)(mask [l] bottom)` と producer の `record l A bottom` は同じ意味ではない。
+必要なのは、field 要求だけを同深さの方程式へ移す独立な projection と、その完全な compiler bridge
+である。default の有限完全 inspector、型・行の simultaneous な自由 parameter family、全 source の
+公開 principal/rejected/unsupported、完全 interface canonical encoding は別々に検証する。
+
+`Common.common_record_iff` は、任意の同名 head の比較を payload と残る tail 要求に分ける。
+tail に渡すのは、先頭 label を除いた field と非自明 optional の観測だけである。optional の
+自明な payload は構築済み head が常に満たすため、tail に戻さない。required target なら tail の
+要求はすべて消える。構築時の tail ≤ width は生成器の別制約として残る。
+
+同深さ record 方程式には、次の正しい producer polynomial を採用した。
+
+```text
+record l A R ≈ inter (record l A top) (union (record l A bottom) R)
+```
+
+record の各観測は head／shape による定数か、そのまま tail に渡る観測である。観測の真偽に
+関して `F(false) ∨ (F(true) ∧ p)` に分解でき、任意の外側 mask でも同じ証明が成立する。
+代案は required-bottom と masked-tail を含む polynomial だが、採用案は新たな mask label を
+増やさず、二つの端点 atom だけを追加する。`CommonRecordTailElimination.compile_models_exact`
+は実際の record 構築を含む独立な方程式と変換結果の両方向を証明する。
+
+`CommonTailElimination` は全 mask 座標の有限 Boolean 方程式を、型の intersection による上昇と
+union による下降で解く。反転は producer union が観測の論理積になるためである。反復数は graph
+から計算する内部値であり、公開定理に fuel 前提を置かない。任意の Common 型 parameter が解に
+なり、任意の独立解をそのまま parameter に選ぶと回収できる。mask の単調性は fresh label の
+観測で別途証明済みなので、全 mask 下の同値と通常の Common.Equivalent は一致する。
+
+## 6. whole default の同深さ方程式
+
+default は source の一つの観測だけで決まらない。選択 label の optional payload と、存在または
+fallback の観測を組み合わせる。そのため record と同じ一観測 polynomial へ無理に縮めず、
+元の型構文のまま反復する。証明側では、元の query、optional query、存在、optional な存在の
+4モードを追う。default は label を変えず、このモード集合の中だけで遷移する。
+
+`CommonPresenceTailElimination` は各 slot × 全構文内 mask × 4モードの有限座標を使う。
+外側 mask は任意の List Nat のままであり、深さ・rank・環境・元の観測もすべて量化する。
+反復回数は座標数から決まり、有限個の要求をサンプルするものではない。独立な Models は
+元の Body.eval による各 constructor 方程式そのもので、solve を参照しない。
+
+この有限反復単体の payload と fallback は任意の固定された Common 型でよく、型自身は
+regular/mask/arrow/default を含められる。さらに `CommonPresenceTailLayers` で payload を index に戻し、
+Layer 構文上で同じ反復を行う。引用・rename・有限評価と実反復の交換を文字通りの等号で示した。
+
+`CommonPresenceTailRegular` はその symbolic 解を `CommonSyntax.closeBlock` で閉じる。同じ未知 slot を
+guarded payload／fallback／負の arrow 子と同深さ tail に代入する独立 Models を定義し、任意 parameter の
+健全性と、任意独立解の retraction を証明する。`Layer.evalAt_congr` は前の constructor depth の全 rank の
+payload 同値を保存するため、負位置に単調性を仮定する必要がない。default の初期層もそのまま保つ。
+
+presence だけを見て default を source に消す案は採用しない。
+`inter exactEmpty (required l int)` は width 以下かつ required l top 以下だが、default 後の str field
+要求を元の source が満たさない。`CommonDefaultBoundary.presence_does_not_erase_default` が任意 label
+についてこの境界を証明する。source が構文上同名 record head である場合の既存法則とは区別する。
+
+`CommonDefaultRequired` は required target をさらに有限2 branch へ分ける。正の全深さの field 存在は
+outer Layer から計算でき、payload index の名前変更に依存しない。source の optional payload は深さ d+1、
+target payload と fallback は d で比較する。深さ0の record-bottom 近似は別に処理する。
+同名 record target には、先頭 label を除いた `RecordTailLe` を追加する。この規則でも optional/presence
+条件は独立な義務であり、未知 source slot を含む全 compiler が解消したと数えない。
+
+## 7. 行・formula・旧型付け
+
+`CommonRowTailInference` の入力は有限 syntax であり、行右辺を var/empty、左辺を var/empty/join とする。
+型 atom、record payload、default fallback の両 arrow 行も同じ symbolic row ID を共有する。
+`.layer` は同じ未知 Fin slot を guarded 子／負の arrow 引数へ置き、`.recordRef`／`.recordDefaultRef` は
+未知 payload/fallback を同深さ tail/source と共有する。実 Body.eval は両位置へ同じ values を代入する。
+まず実 RowFlowSchemes の有限 scheme を作り、その行代入で実 presence-tail solver を実行する。
+任意 parameter が元の独立 Models を満たし、任意解は行を文字通りの等号、型を要求同値で回収する。
+元の行を保持できるため、型内部の行を交換する法則を model の前提として追加しない。
+
+実生成 Formula の正規化では、局所 existential を有限 slot に移し、値と行を同じ computation slot と
+して保持する。捕捉環境を一般化し直さず、value-let の両枝と strict fallback の全制約を残す。
+`PresenceNormalForm.closed_core_exact` は全 Core 式・任意結果の型判断との iff だが、右辺に原子制約の
+充足を残すので solved family ではない。explicit row と新観測 inspector の row 保存もこの区別を保つ。
+
+旧モデルへの transport で、literal な ModelMap の構成子等号を強制する案は採用しない。
+`.legacy (.node A)` と `.node (embedOld A)` は構文上異なるが、全深さの観測は等しい。
+`CommonLegacyTyping` はこれを使い、評価の観測等号、実 existential witness の移送、旧 Typing と
+旧 infer instance の独立 Common Typing への保存を証明する。新 infer の instance や反映は未完である。
+
+## 8. 標準形の実装範囲
+
+scalar lattice は最小 Boolean clause の有限表へ正規化する。共有 variable ID を先に並べ、具体 base は
+bool/int/str/unit の辞書順とする。同じ ID の全 Common 型割当てについて、要求同値 iff 同じ encoding を
+証明した。有限の固定 Shape 内では pair/required/tag/同じ行 ID の arrow の union を成分ごとにまとめる。
+
+この節の `CommonCanonicalOpen` / `CommonCanonicalShapes` の equality は同一割当てでの pointwise equality
+であり、存在的 instance 集合の equality や binder の α 同値ではない。Shape の code は label・行 ID を
+Shape 側に保持する。自己完結 code と α 正規化への拡張は §11 を参照する。全 interface の混合 head、
+一般 record/default/mask、役割・nominal の義務、regular graph の一意化は残る。
+全 concrete Common.Row は任意の述語なので、正規化対象は有限 interface 構文にする必要がある。
+
+参照アルゴリズムは n+4 atom の全 profile を列挙する。最小性判定はその表を繰り返し走査し、
+出力も指数的になり得る。既存 infer/display の呼出経路は変更せず、完全な interface encoder への統合時に
+共有表現・未使用 parameter・費用を別途検討する。
+
+## 9. Optional payload の実射影と有限 outer inspector
+
+`CommonPayloadProjection` は outer Layer を実際に再帰走査する。結果は
+`Option (Payload Index)` であり、`Payload` は元の子参照、bottom、top、union、intersection の有限構文である。
+`none` は自明な観測さえ持たない状態、`some top` は自明な観測だけを持つ状態である。
+この区別を Bool 一つや top への既定値化で失う案は、未知 width、非 record、optional を誤って同一視するため採用しない。
+mask は outer の label 集合に蓄積し、payload に降りるときは既存の解釈どおり空に戻す。
+
+任意の payload 割当て、正の深さ、負文脈 rank、要求環境で、元の field/optional 観測と射影後の
+子型の観測が一致する。Common への持上げでは参照 state の実 `graph` を一度読む。
+これにより source の深さ d+1 と payload の深さ d が正確に対応し、`OptionalPayload` を通常の
+`Common.Subtype` へ置き換えられる。regular state を有限深さのサンプルに置き換えることはない。
+
+`CommonRecordTailProfiles` は深さ0を別に処理する。このとき全 guarded payload は bottom であり、
+default は record head になるため、field と非自明 optional の二つの Bool がすべての初期観測を決める。
+正の深さは射影後の子比較へ移る。tail の optional は自明要求を渡さないので、両側の欠けた profile を
+top で埋める操作はここだけで正当化する。通常の field 比較では `none` と `some top` を引き続き区別する。
+
+`CommonOuterLabels` と `CommonRecordTailFinite` は、source/target の outer record/default/mask に現れる
+label と、そこにない新しい label 一つを調べれば十分であることを証明する。payload 内の label は現在の
+層に混ぜない。有限表の外で field/optional の射影と初期 Bool が不変であることから、全 label の量化を除く。
+`CommonRecordEnvelope.outsideRecords` は role 観測を使って非 record head の要求を正確に判定する。
+
+`CommonDefaultInspection.inspectDefault` の返す最終 branch は `List (Common.Ty × Common.Ty)` だけである。
+head/presence/初期層の Bool は実行して除き、`OptionalPayload`、`RecordTailLe`、元の whole-default 比較を
+最終 atom に残さない。任意 source/fallback/target の subtype と branch の子比較の充足が同値となる。
+これは **outer 一層の完全分解** であり、子が regular graph の元の state に戻る場合の有限飽和・停止性や、
+未知 source slot の射影を推論時の symbolic graph に取り込む定理とは区別する。
+
+`CommonRecordInspection` は通常の record 構築も head、実 payload、head を隠した残りの tail に分解する。
+実装は default への付替えではなく、この三部分を直接 compile する。present default の同値は証明内だけで
+利用する。required は rest を width empty record にした場合であり、exact empty へ読み替えない。
+
+## 10. 実際の生成 clause からの方程式消去
+
+`CommonPresenceConstraintGraph` は既存の実 subterm collector を使い、生成された `TyTerm` ごとに
+共有 node を割り当てる。record tail/default source は同深さ参照、payload と負の arrow 引数は guarded
+参照へ置く。型変数には一つの node、行変数には元の ID を保つ。定義方程式の任意の意味的実現から
+元の TyTerm 評価を要求同値で回収するため、単に一つの標準評価だけを正しいとするモデルではない。
+
+`CommonPresenceClauseFamily` は実 packed clause の定義方程式と明示行制約を、既存の simultaneous
+solver へ渡す。どの自由 row/value parameter でもこの部分は解になる。元の独立解を parameter に選べば、
+行は等号、すべての値は要求同値で戻る。source の生成不変量から row support を証明し、呼出側に要求しない。
+
+`CommonPresenceSourceFamily` は normalize、binder packing、graph construction、行/方程式求解を
+実際につなぐ。任意の閉 source/Core 式と任意結果に対する iff を得たが、有限の subtype edge は
+`Scheme.ResidualHolds` として明示的に残る。この述語は元の Typing/Formula.Holds/Models の別名ではなく、
+node 間の比較の有限リストである。それでも制約なしの family ではないので、入口名は `inferSource`/`inferCore`
+をこの専用 namespace に置き、公開 `Core.infer` と呼ばない。
+
+具体化した後の Common 型を完全に inspect できることだけでは、推論時に固定した有限 scheme を構成できない。
+未知 slot の profile/presence と同じ型・行 ID を symbolic graph 上で保持し、残る比較を有限に飽和させる
+完全な compiler が必要である。これを row/definition solver の定理の前提や scheme の law field に隠さない。
+
+## 11. 自己完結した有限 code と型パラメータの名前変更
+
+`CommonCanonicalInterface` は固定 Shape の code を、構成子、label、arrow の共有行 ID を含む
+自己完結した `Code` に拡張する。二つの入力で Shape が等しいことは仮定しない。実際の role/field/row
+観測で root、label、行 ID の違いを識別し、同じ code iff 全行・全 Common 型割当てでの要求同値を示す。
+対象構文は scalar lattice、nested pair、単一 required、tag、scalar domain の arrow と同じ Shape の union である。
+
+`CommonCanonicalAlpha` は generalized type slot の同時全単射を有限に列挙して code を選ぶ。
+同値は encoding の等号で定義せず、「一つの同時全単射の後、全行・全 Common 型割当てで要求同値」とする。
+同じ parameter の全出現を一緒に移し、任意の固定行割当て・任意 target について、target と要求同値な具体化の
+存在を両方向で保つ。slot 数にかかわらない正負位置による消去・共起/併合と一般の再parameter化、異なる
+slot 数の比較、弱い変数、行変数の α 同値、nominal/role 義務、一般の regular interface は対象ではない。
+forward map と backward map の直積列挙は避け、forward map を列挙して逆写像を有限 lookup で回収する。
+候補数の上界は n^n と証明した。参照用の全探索であり、既存 infer/display の実行経路には追加しない。
+
+`CommonCanonicalNames` はこの意味的代表を選んだ後、異なる型変数の最初の出現を左から数え直す。
+未使用 slot は逆写像を完成させるために末尾へ置くが、表示する新しい名前は生まない。出力 Form 内で
+最初の出現順に並べた番号が `List.range k` であること、α 同値 iff 同じ正規化出力、冪等性、任意固定行と
+target に対する要求同値な具体化の存在の保存・反映を証明した。weak variable の metadata や renderer は別である。
+
+## 12. 変数の上下限と実 source pool の接続
+
+`CommonBoundCoalescing` は有限の lower/flow/upper/check を、固定した境界型の比較へ消去する。
+祖先の lower を union で集め、到達先の upper を intersection で集める。変数 i の展開は
+`lower(i) | join [parameter(j) & upper(j) | j reaches i]` である。固定比較の成立を仮定したとき、
+すべての Common 型 parameter が元の問題の解を与える。任意の独立解は、その全 slot を parameter に
+選べば要求同値で回収される。証明は join/meet の普遍性を用い、負位置の単調性や未証明の分配律を仮定しない。
+変数間の循環は有限 reachability が扱い、呼出側の fuel や非循環性は不要である。
+
+`CommonPresenceVariableBounds` は実 pool の `.var` node を同定し、var-var を flow、rigid-var を lower、
+var-rigid を upper、rigid-rigid を check に分類する。rigid はここでは「元 pool の非変数 node」という意味であり、
+未知型の参照を持たないという意味ではない。元の node/row ID を保持し、変数 node の方程式を上の展開へ置き換える。
+実 record/default/mask の同深さ参照と payload/arrow の guarded 参照を同じ regular solver で閉じる。
+別々に求解して共有 slot を失う案は採用しない。
+
+`compiled_joint_elimination_exact` は任意の実 atom 列（行右辺は var/empty）で、全明示行制約、定義方程式、
+変数辺を消去する。任意の元モデルを同じ行・要求同値な全値で回収し、逆向きも成立する。最終の条件は
+元 pool の非変数 node どうしの比較の有限リストである。境界型は未知 graph node を読み、その解が parameter に
+依存するため、この条件まで成立することを自由 parameter の定義に隠さない。次に必要なのは、同じ共有 graph 上で
+この rigid 比較を分解し、有限に閉じた分岐へ飽和させる compiler である。
+
+`CommonPresenceCoalescedSource` はこの変数辺消去を、実 source/Core の生成器、binder packing、
+shared pool、行 solver に接続する。Scheme が持つのは有限 pool、元 edge、行 scheme、結果 ID だけであり、
+semantic model certificate は持たない。具体化は行・元型変数・recursive equation の三 parameter family を取る。
+任意閉式と任意結果について残余条件付き principal iff を証明し、GoodAtoms は実生成器から内部で供給する。
+残余の両端が元 pool の非変数 node であることも証明する。具体化後の型比較を推論時に実行したと見なす案は採用せず、
+この明示的な残余を除く symbolic saturation を最終公開入口の前に残す。
+
+## 13. 未知 slot の全 label を保持する symbolic tail view
+
+入力の有限構文に現れる label だけを調べる案は採用しない。未知 slot の具体化には、入力にない label を持つ
+任意の Common 型も許すためである。§9 の concrete `inspectLabels` は実際の具体型を走査した結果であり、
+その有限支持を代入前の推論 scheme にそのまま移すことはできない。
+
+`CommonSymbolicTailView` は、任意の hidden list H と任意の型 S/T に対し、同深さの `RecordTailLe H S T` を
+有限の型構文による通常の subtype 比較へ正確に符号化する。H の各 label を同じ top payload の record head で
+覆った型を `cover H S` とし、次の二つの head を組にする。
+
+```text
+view H S = pair (record 0 top (cover H S)) (record 1 top (cover H S))
+```
+
+head 0 が隠す label 0 はもう一方の成分で観測でき、head 1 についても同様である。両方の成分を比べるため、
+H 以外のすべての label の field と非自明 optional を保持する。未知 slot の型から fresh label を探す必要はない。
+`tail_view_exact` は任意 H/S/T でこの iff を証明する。通常の subtype 比較へ移すだけでなく、
+実 `TyTerm` の `termView` を構成し、任意 slot 割当てでの `symbolic_tail_exact`、rename/subst の可換性を証明する。
+元 slot は同じ ID で参照し、型代入を compile の引数に取らない。
+
+これは tail 義務の有限表現であり、同じ義務を view に包んで再展開することを saturation の進行とは数えない。
+7.2 では、この表現を含む共有 graph の閉性と、全 parameter での比較成立を別途証明する必要がある。
+
+## 14. 実生成の比較文法と symbolic record profile
+
+`PresenceGeneratedRigidShape` は、実生成器の右辺が var/base/pair/arrow/required/width record のいずれかで、
+左辺の union を再帰的に取り除いても intersection が現れないことを証明する。scheme の捕捉変数置換、
+値制限 let の両分岐、binder packing、全 source constructor を含む。`CommonGeneratedRigidPool` はこの性質を
+共有 pool と変数上下限消去後の rigid 比較列へ移す。未知 slot への Common 型割当ては一切制限しない。
+一般の source intersection や target union を一方の成分との比較へ分岐する案は、その同値が成り立たないため採用しない。
+実生成の構文不変量を用いることは、公開定理に support checker や成功の前提を足すこととは区別する。
+
+`CommonSymbolicRecordProfiles` の compiler は row/node/child の代入を引数に取らない。
+未知 slot の問い合わせを `(共有 node ID, 外側 hidden list, label, field/optional/presence の種別)` として保持し、
+record/default/mask の既知構文だけを有限な Bool/Profile 式へ展開する。初期層の field/optional 判定も別に保持する。
+profile の `none`（自明な payload 要求さえ受理しない）と `some top`（自明要求は受理する）を同一視しない。
+`compile_exact` は任意の独立 row/node/child 割当てについて七つの成分の literal equality を同時に示す。
+profile の意味を定める際に未知 node の具体型を参照することと、推論時に具体化した型を inspector へ渡すことは異なる。
+前者は固定した symbolic 構文の独立な再帰的意味であり、後者はこの compiler の実装には用いない。
+
+`CommonRecordTargetProfiles` は任意 Common source S と任意 payload P/label l について、
+`S ≤ required l P` が抽出 field profile の P 以下と同値であり、`S ≤ emptyRecord` が record shape の受理と
+同値であることを示す。source は mixed lattice/mask/default/regular を含めて任意である。
+required の初期層条件は正の深さの field presence から導き、仮定として省略しない。
+
+これらは元 rigid 比較の有限な symbolic 分解に使う。新しい child 比較の再帰的分解には、さらに子位置での
+polarity 保存が必要である。例えば arrow の反変引数では `arrow (A | B) X ≤ arrow C Y` から
+`C ≤ A | B` が生じるため、元 endpoint の head 不変量だけで飽和後の全状態を尽くしたとは主張しない。
+projection を元 source と無関係な自由 slot に置き換える案も採用しない。7.2 の全 parameter soundness には、
+各 projection と元共有 node の再構成の整合性、および同深さ tail 比較の全自由 family が必要である。
+
+## 15. 全生成 rigid 分解と元 node 比較の有限閉包
+
+`CommonGeneratedRigidInspection.saturate` は共有 pool と有限 edge 列だけを受け取り、行・型代入は受け取らない。
+全実生成 clause の上下限伝播後の rigid 比較を、child/row/Bool/profile の有限構文へ分解する。
+source/Core の `saturate_common_rigid_exact` は、元 constructor 方程式だけを前提に、任意の独立 rows/values で
+元 rigid 列の充足と有限 branch の存在が同値であることを示す。required/width target の分解には §14 の
+任意 source に対する定理を使う。known default は profile 式へ展開し、元 whole 比較を atom に残さない。
+
+generic inspector の var fallback は、実 rigid 列では両端が非変数であることから到達しない。
+`CommonGeneratedRigidDescent` はこの事実と、各 child 比較が由来の構文 weight 和を厳密に減らすことを示す。
+同じ比較を単に child atom へ包み直して完全分解と呼ぶ案は採用しない。
+
+§14 の negative arrow の懸念に対し、`PresenceGeneratedChildGrammar` は子位置の文法を強化した。
+実生成器は upper を var/base/width/pair/arrow/required から再帰的に作り、source-only の構成子の子もこの
+upper 文法に置く。全 scheme 置換・let 分岐・pack を通して保存される。したがって、任意構文では問題になる
+arrow 直下の型 union は、この実生成構文には現れない。変数に代入する Common 型には union/regular を許す。
+`CommonGeneratedChildClosure` は子辺追加と再 coalesce 後にも同じ文法を保存する。
+
+`CommonOrdinaryEdgeClosure` は元 N node の全 N² pair を実際に列挙し、元辺へ分解由来の child 辺を追加する。
+重複を除いた辺数が増えないときに停止し、それ以外の round は辺数が厳密に増えるため、内部 N² 上限で
+固定点に達する。元辺を含み、実生成 clause の元方程式の下で全独立割当ての充足を保存・反映する。
+この閉包は普通の node 比較だけの閉包である。row/profile/Bool 条件は別に残り、固定点という事実だけから
+任意の recursive parameter が全比較を満たすとは主張しない。
+
+## 16. Profile の有限支持と一つの共有値からの再構成
+
+`CommonSymbolicProfileSupport` は guard/projection/payload の参照一覧を構文から計算する。
+固定 query `(H,l)` の表は七 query mode と一 guarded payload mode を元 N node ごとに持つため、長さは 8N。
+実 first-pass 全体では 0 と pool の required label を inventory にし、`CommonGeneratedProfileSupport` が
+任意の返却 branch の全参照を高々 8N(N+1) 個の表に収める。外側 mask は元 query のまま、guarded child から
+新しい query mask を読み出さない。これは新 node/query 追加後の full saturation の上界ではない。
+
+`CommonSymbolicProfileCoherence` は補助 table を独立に解釈し、その有限支持上の各 entry が一つの元 values から
+得たものと一致する条件を明示する。この条件から元 node の七項目の意味と required 比較を回収する。
+coherence は公理や scheme の law field ではなく、ここで検証する再構成条件である。別々の自由 projection を
+そのまま元 node と同一視する案には、元 node が scalar なのに required 比較が成立する具体反例がある。
+全自由 family へ移る際には、この条件を任意 parameter から構成するか、projection を通常の境界へ消去する必要がある。
+
+## 17. Optional の深さ0を保持する普通の型境界
+
+`CommonTopTest.nontrivial` は outer 構文だけを読む有限 Bool であり、false iff top と要求同値である。
+true の場合は、同じ有限 role 環境が全 depth/rank で非自明な要求を受理する witness になる。
+payload/regular state を展開したり subtype solver を呼んだりしない。
+
+`rawOpt(l,P) = exactEmpty | required l P` と置くと、これへの subtype は正の optional 義務だけでなく
+初期層の optional 条件も要求する。P が top と等しい場合、正の optional 義務は width だけなので、rawOpt に
+一律に置き換える案は採用しない。`CommonOptionalBound.bound l P` は P が top なら width、それ以外は rawOpt を
+選ぶ。非topの role witness が source の初期 optional 条件を導くため、任意 S/P で正確な境界となる。
+`narrow l P parameter = parameter & bound l P` は、単独 optional 義務の全自由 family と全解回収を与える。
+
+推論時の構文は payload の代入を受け取らないため、さらに次の固定二枝へ変換する。
+
+```text
+OptionalPayload l S P
+  ↔ (top ≤ P ∧ S ≤ width) ∨ S ≤ rawOpt(l,P)
+```
+
+「P が非top」という否定条件を parameter に残す必要はない。top の場合も右第二枝は sound な部分 family で、
+第一枝が width 全体を回収する。positive presence も `S ≤ required l top` と同値なので、whole default は
+任意 S/F/P、shape 前提なしで通常比較だけの三枝になる。
+
+```text
+default(l,S,F) ≤ required l P
+  ↔ (top ≤ P ∧ S ≤ width)
+     ∨ (S ≤ rawOpt(l,P) ∧ S ≤ required l top)
+     ∨ (S ≤ rawOpt(l,P) ∧ F ≤ P)
+```
+
+この rawOpt は一般の target union とは別の有限 template として扱う。共有 graph への追加と再分解の閉性、
+同深さ循環を含めた全 parameter soundness は、上の局所 iff から自動的には従わない。
+
+## 18. 同深さ循環に必要な上限 clamp
+
+ordinary 比較の有限固定点だけから、従来の recursive equation solver の任意 parameter が上限を満たすと
+推論する案は採用しない。異なる label a/b、任意 payload P/Q に対し、W = required a P は
+`X = record a P X | (bottom & required b Q)` の独立モデルになるが、required b Q 以下ではない。
+`CommonSameDepthUpperObstruction` は実 solver が W を要求同値まで回収することも証明する。
+この graph を特定 source の完全な生成 clause と同一視してはいない。
+
+`CommonPresenceClampedBounds` は旧 solver を保持したまま、各変数の旧展開全体と伝播済み上限との
+intersection を新しい右辺にする。任意の行・型・recursive parameter で、元 constructor 方程式、
+全 propagated upper、全 variable-flow path が成立する。元 constructor 方程式と全辺を満たす任意モデルは、
+元変数と元全 node 値を parameter に選ぶと要求同値まで回収される。下限の無条件成立はここに含めない。
+
+`CommonClampedClosureSoundness` は endpoint grammar と ordinary closure を持つ任意 pool/edge 列で、
+clamped graph model と残りの row/profile/flag 条件から全辺を証明する。pair/arrow 子では観測 depth を減らし、
+同 depth の source union では source 構文 weight を減らす。lower edge を propagated upper へ戻す補題は
+source を保持するため、帰納法は元 rigid 比較の成立を前提にしない。non-child 条件は公開 principal theorem
+の前提へ移すためのものではなく、後続 compiler で消去すべき内部義務として明示する。
+
+## 19. 元 ID を保持する有限 optional 境界
+
+projection の自由 table を別々に求解する代わりに、§17 の固定分岐を通常の共有 node 比較へ移す。
+`CommonSymbolicBoundInspection.BoundRef` は original ID、top、width、exactEmpty、required、rawOpt の六形を持つ。
+payload は元 node ID または top であり、任意 Common 型を推論時に inspector へ渡すことはない。
+出力は ref/ref の child 比較、行比較、literal Bool のみで、field/optional projection と動的 presence test は残さない。
+ordinary target の exactness は元 constructor 方程式だけで成立し、rawOpt target の局所分解には source の
+record tail/default source が width 以下であることを使う。
+
+`PresenceGeneratedWidth` は、実生成した record/default の同じ clause にこの width atom が付随することを、
+scheme 置換、全 let 分岐、packing まで保存する。`CommonGeneratedWidth` は元 model から pool 全体の
+局所 width を回収し、`CommonGeneratedBoundWidth` は optional inspector の明示的前提へ接続する。
+全辺 model を前提にしたこの接続だけを、任意 parameter の soundness と読み替えない。
+
+`CommonOptionalGraphExtension` は一般の共有 graph を直接拡張する独立構成を与える。
+実 coalescing/solver の再利用には `CommonOptionalPool` の構文 pool を用いる。元 term 列を初期区間に保ち、
+重複を除いた新しい境界だけを後ろへ加えるため、元 ID の数値は変化しない。元 model と拡張 model の存在は同値で、
+制限は元値を literal equality で回収する。型変数・行変数も同じ ID を参照する。
+
+query は元の required node ごとに、その payload ID と同 label の top の二つを取ればよい。
+`CommonOptionalPoolQueries` は query 数が高々 2N、拡張 pool が高々 5N+3 node であることを証明する。
+すべての label と node の直積を取る案は不要である。新しい optional/default 分解から生じる query の支持と、
+lower/upper 伝播後にも同じ有限 inventory にとどまる全 worklist の閉性は、別々の証明義務として扱う。
+
+`CommonGeneratedBoundSupport` は元 pool の通常 target と選択済み optional query の全出力について、
+同じ inventory の支持を無条件に証明する。default 分解が増やす query は同 label の top だけであり、
+別 label・別 payload の追加はない。行比較も元 row AST と向きをそのまま保持する。
+
+局所 width の全 parameter 性は `CommonGeneratedClampedWidth` で補う。元 clause の初回 symbolic 分解に
+静的な残存 branch が一つあれば、任意 rows/type/recursive parameters の clamped 解は PoolWidth を満たす。
+branch.Holds や全辺の model は前提にしない。width seed の source が var なら上限 clamp、width/required
+なら constructor 方程式を用い、base/pair/arrow なら literal false による静的 branch 消去と矛盾する。
+これは元 pool/edge 列への結果であり、追加 pool への輸送と全 worklist の統合は別の義務である。
+
+## 20. Bound 符号化、有限分岐 worklist、有限観測の接続
+
+`CommonOptionalBoundEncoding` は支持された BoundRef を拡張 Pool の実 ID へ符号化する。
+任意の拡張 constructor realizer で、各 reference と各 branch の意味を要求同値まで保存・反映する。
+`CommonBoundRefCoalescing.Index` が持つ証拠は有限 query への構文的所属だけであり、model や残比較を含まない。
+この Index の明示的 inventory は元 node と三定数、各 query の required/rawOpt からなり、
+実 query 列では全 pair 数が高々 (5N+3)² となる。
+
+`CommonBoundMap` は任意の bound map について、変数 flow、lower/upper 伝播、rigid comparison の計算が
+literal equality で可換であることを示す。写像の単射性は不要であり、同じ境界 term を共有する際にも使える。
+`CommonBoundRefCoalescing.rigid_encode` はこの性質を実拡張 Pool の変数分類まで接続する。
+
+`FiniteBranchingWorklist` は独立した有限アルゴリズムである。state に現在の edge、処理済み edge、補助制約と、
+選んだ (edge, branch) の trace を持つ。現在 rigid で未処理の edge を一つ選び、各分岐の子 edge と補助制約を加える。
+各 step が未処理の有限 inventory 要素を一つ消費するため、内部で inventory.length を上限として停止する。
+最後の rigid 比較ごとに選択 branch とその全制約の保持を回収する。rigid discovery の単調性は仮定しない。
+support と分解 exactness を定理の明示的前提に持つ generic component であり、それらを実生成から供給する接続を
+省略して公開の saturation_closed と同一視しない。意味定義は独立な edge/aux の解釈だけで、trace の法則を含まない。
+
+有限観測で default の全 branch を同 depth の比較として扱う案も採用しない。
+`CommonFiniteOptionalInspection` と `CommonFiniteBoundInspection` は payload/fallback を一段浅く、
+record tail と presence/width/optional 上限を同じ深さで扱う。実 symbolic inspector の選択 branch から親の
+有限比較を導く soundness 方向では、必要な width を子比較から導くため追加 PoolWidth は不要となる。
+depth 0 で rawOpt が width と異なること、width なしでは default 三分岐の有限 iff が偽になることも証明する。
+`BranchAtSource` は共通の十分条件として全 child の guarded 比較を要求し、non-rigid source では
+全 child の同深さ比較も要求する。各 payload edge に必要な最小の深さだけを抽出した条件ではない。
+後続の source weight 帰納では、この追加の同深さ前提も proper child から供給する必要がある。
+
+`CommonOptionalPoolWidth.pool_width_iff` は任意 extended values で拡張前後の width 義務が同値であることを示す。
+追加候補に record/default はないため、新たな幅 seed は必要ない。
+`CommonOptionalPoolClampedWidth` は元 width seed を保持する任意の拡張 edge 列に対して、width target の
+静的 false がないことと clamp の全上限保証から、全 parameter の PoolWidth を回収する。
+この局所的な静的条件まで実 worklist が内部で供給することは、なお別の統合義務である。
+
+`CommonBoundRefInspection` は source を元 lower node または synthetic top、target を元 upper node と
+選択済み required/rawOpt query に限定した実 dispatcher を構成する。元 required の意味は width tail を持つ
+record なので、別 label への再分解では synthetic width source が現れる。この比較は required/rawOpt target に
+対して常に偽であり、literal false とともに静的に branch を除く。支持・polarity の保存と、元 Realizes/PoolWidth
+の下での exactness を証明する。一般の target union を文法へ加える必要はない。
+
+`CommonBoundInspectionDescent` は non-rigid source の全同深さ child が元 proper child または top/width leaf
+であることを示す。`CommonClampedSelectedSoundness` は任意の有限 branch 選択について、この減少と child closure、
+実有限 inspection、row/literal 条件から、depth/source measure の二重帰納で全辺を導く。
+selection は構文と構造的証拠だけを持ち、assignment に依存する選択や model は持たない。
+これを実 worklist の trace から構成し、row/literal 条件も内部で供給する接続を次の統合義務とする。
+
+## 21. 異なる parameter 数を保つ正規化の独立部分
+
+`CommonCanonicalParameters` は既存有限 Form の意味的等価性を変更しない。
+全出現に同じ scalar substitution を適用し、負の arrow 引数でも共有を保持する。
+実使用 k 個への compact は任意旧 parameter の評価を k 個で literal equality まで回収し、
+任意の k 個の新 parameter も旧 n 個へ拡張して同じ評価を得る。k=0 でも dummy parameter を残さない。
+normalize 後に compact すれば、格子の吸収により使われなくなった slot も削除できる。
+
+未使用 slot 除去と同数 parameter の全単射だけを一般的な interface 同値とする案は採用しない。
+scalar の `'a | 'b` は二つの slot を実際に使うが、一つの slot `'c` と全具体化の family が一致する。
+この例と、任意 arity の両方向の有限 scalar substitution による family 同値を証明した。
+置換が存在することの完全探索や、弱い変数・一般行式・regular/nominal/role を含む全 public interface の
+canonical encoding はこの結果には含めない。実 inference/export/display の呼出経路もまだ接続していない。
+
+## 22. 実有限 worklist から残余のない公開入口への接続
+
+§20 の局所接続義務を `CommonBoundRefWorklist` と `CommonBoundRefClosedSoundness` で閉じた。
+追加する状態は元 node、top/width/exactEmpty と固定 query の required/rawOpt に収まり、
+各 trace は高々 (5N+3)² step で終わる。これは分岐数・実行時間の多項式保証ではない。
+実 dispatcher の child grammar と simple row 文法は各 step で保存される。
+最終 state の trace から finite selection を回収し、有限 depth と source weight の二重帰納に渡す。
+符号化は同じ構文境界を共有できるため、単射性を仮定せず各 encoded 比較の元参照を選ぶ。
+
+`CommonClampedRowFamily` は元行と追加行を同じ row scheme で解き、その行を clamped graph に渡す。
+`CommonBoundRefAllParameters` は実 worklist の閉性と、この任意 parameter の行健全性を合わせ、
+元 constructor 方程式・全型比較・全行比較を同時に満たすことを示す。parameter に row/model/closure 条件はない。
+元モデルの回収では、元 row assignment 自体を row parameter とし、optional pool の拡張を経由して
+元 ID の値を保存する。全 node の要求同値を回収するので、負の arrow child の共有も失わない。
+
+`CommonPresenceConstraintGraph.Compiled` に `origin : Option (Problem inputs)` を加えた。
+既定値は none、実 compile は some で元の有限構文を保持する。既存 `Models` はこの欄を参照せず、
+`models_origin_irrelevant` で任意 metadata の置換に対する不変性を証明する。
+代案として、具体化後の graph から source pool を再構成する方法、semantic certificate を Compiled に加える方法、
+compile や Models 自体を solver の成立で定義し直す方法は採用しない。固定 finite inventory を作るために
+必要なのは元の構文であり、solver の法則ではない。任意の手製 Compiled に無関係な origin を付けたときの
+健全性は主張しない。公開の全 parameter 健全性と完全性は、実 `compile atoms` について述べる。
+
+`CommonBoundRefSolver.Scheme` は finite clamped family と元 node の readout だけを保存する。
+`solveAll` は実 worklist と構文的 Option 行宣言から有限 List を計算する。
+実生成 clause では行宣言が必ず成功することを別途証明し、公開 theorem の前提から除く。
+任意の返却 scheme の任意 parameter は元 Models を満たし、任意の実生成 clause の元モデルも、
+同じ rows と全元 node の要求同値を保って回収される。parameters の型は行・型・再帰 node の普通の積である。
+
+`CommonSolvedSource` は実 normalise/pack/compile/solveAll の有限和を計算し、結果の型 ID と行 ID を読む。
+`Core.infer` はその実有限 List を空なら rejected、非空なら inferred と分類する。
+独立な presence Typing との principal iff、rejected iff 型付け不能、unsupported 不出現を閉じた。
+`Core.infer` を Formula.Holds の別名にする案や、初期成功・closed cache・fuel・残比較を引数に加える案は採用しない。
+対象のモデルは `PresenceGeneration.CoreRules.model Common.model` であり、全 Core モデルの統合とは区別する。
+決定46の旧 supported source 全体への反映と、§21 を超える完全な public interface 標準形は別の残契約である。
+
+## 23. 旧入口への保存、構文対応と反映の境界
+
+`CommonSolvedLegacyPreservation` は実際の旧 supported source の旧 instance を受け取り、
+実 `Core.infer` 内の scheme と自由 parameter を回収する。値は旧結果の埋込みと要求同値、結果行は等号である。
+旧 Core entry 自体の Instance を前提にする版もあり、旧型付けだけへ前提を置き換えていない。
+
+反映側では `CommonLegacyEmptyReflection` により、任意の旧 regular target に対する exactEmpty の
+正側の比較が旧 width の比較と同値であることを示す。empty-record source の型付けと実旧 instance の
+反映まで閉じるが、これを任意 source の witness 回収と同一視しない。
+`CommonLegacyGeneratedAtoms` は、旧型の共有 assignment を一度に埋め込んだ場合、生成 lower/upper 文法の
+type atom と row atom の意味が旧 contextual 解釈と一致することを証明する。required は旧 record と width、
+exactEmpty は旧 width へ変換する。default を含まないことは `CommonLegacyGeneratedErasure` が
+旧 supported source の実生成・captured scheme・rename/subst・normalise/pack から内部供給する。
+`CommonLegacyGenerationTranslation` は変換後の formula が実旧 generator と literal equality で一致し、
+normalise した clause 列、局所 slot 数、pack 後の ID も保存することを証明する。
+
+残るのは、任意の Common assignment を持つ実 clause model から、旧結果を固定したまま
+共有した全 witness を旧 carrier の assignment へ同時に選び直すこと。
+同じ source の別の生成 clause を選んでもよく、中間 Common 値との slot ごとの要求同値は要求しない。
+最初から旧 assignment を与えた atom exactness、旧 solver の旧 carrier に対する完全性、
+両端が旧像の場合の embedding exactness のどれも、この存在量化の回収を供給しない。
+`CommonLegacyEmbeddedWitnesses.embedded_witnesses_iff_typing` は、任意 requiredFieldsOnly source と
+任意旧結果について、この共有旧 assignment の存在そのものが旧 contextual Typing と同値であることを示す。
+同じ式と結果で contextual Typing を Common Typing へ保存する向きには、旧 solver support すら不要である。
+
+全 Common 型を一つの関数で旧型へ消し、任意旧 target と任意旧 source の比較を両方向に
+保存・反映する案は `CommonLegacyErasureBoundary.no_uniform_two_sided_erasure` で否定した。
+exactEmpty と width は全旧 target に対する上限比較が同じだが、width ≤ exactEmpty は偽である。
+これは一様な証明方法の不可能性であり、旧 supported source の反映自体の反例ではない。
+
+## 24. 固定した弱い変数と異なる arity の scalar interface
+
+`CommonCanonicalScalarFamilies` は scalar lattice の先頭 w slot を固定した ambient/weak parameter、
+残る n slot を一般化 parameter として区別する。w/n はゼロも許し、比較する相手の一般化数 m は n と異なってよい。
+全一般化 slot を bottom/top にした二つの端点 L/U を計算すると、任意の固定 ambient assignment と
+任意 Common target T について、exact instance の存在は L ≤ T ≤ U と同値になる。
+回収は全一般化 slot に同じ T を代入する対角置換で構成し、存在だけを公理にしない。
+上への subsumption を含む instance family は下端 L だけで決まる。
+
+このため exact family は二端点の canonical code、通常の instance family は下端の code によって
+完全に比較できる。全 slot を使う `'a | 'b` と一つの `'c` のような異 arity も扱い、固定 arity の α 同値へ
+等価性を定義し直さない。弱い slot は同じ ID と割当てを保持し、一般化 slot と同じようには消さない。
+
+`CommonCanonicalScalarExports.toInterface` は既存 `QualifiedInference.Interface` の実構文を構成する。
+obligations=[] の scalar 断片について、既存 `scheme.Holds` / `BindingTyping` の意味を変えず、
+任意 role theory、任意固定 ambient computation assignment、任意 target computation を量化した
+instance 同値 iff canonical code の等号へ接続する。
+
+この scalar 結果を各葉に独立適用して一般の interface を正規化する案は採用しない。
+共有変数の `'a -> 'a` の instance は引数 ≤ 結果という関係を要求するが、独立な `'a -> 'b` は要求しない。
+int→str が両者を区別する。また出力側だけの変数でも role 義務を消すと instance 集合が変わる。
+両方を実 Common / qualified interface の定理として示した。
+全負位置共有、一般行式、regular graph、nominal/role 義務、実 inference からの読み出しと display を含む
+完全な canonical encoding は、これらの正確な部分結果から分離した残契約である。
+
+`CommonCanonicalPolarity` は既存 Form の全構成子に対し、正負の出現を実際に計算する。
+指定された固定 slot と正負両方の slot を保持し、正だけの非固定 slot を bottom、負だけを top にする。
+任意の Common parameter、任意行割当て、任意固定 ambient 値で、subsumption 後の全 instance family を
+変換前後で保存・反映する。任意の反変引数を `common_arrow_iff` から扱う。
+role 義務などから固定する slot を完全に発見する手続きは、この pass の呼出側に残る。
+この Form pass 自体は role obligations を持たず、実 qualified Interface への意味保存接続も未証明である。
+role 依存の一般化 slot は各具体化の値を保持して外側の存在量化を残す必要があり、弱い変数へ変更するわけではない。
+この保存 theorem を、一般再parameter化についての canonical completeness と呼ばない。
+
+## 25. 同時に届いた二つの入口の保持
+
+作業中に integration/m1-common に別の有限 solver/source 接続が入り、公開 `Core.infer` が競合した。
+`CommonBoundRefSolvedRows` / `CommonBoundRefSolved` / `CommonBoundRefSolvedExact` と
+`CommonPresenceSolvedSource` の証明はそのまま保持した。
+構文 gate を持つ入口と全定理は `Core.SyntaxGatedCommonInference` に保存し、
+scheme、具体化、型付けの主張と量化子は変更していない。
+
+公開 `Core.infer` は `CommonSolvedSource` を用いる方を採用した。この入口は presence モデルの全入力を
+inferred/rejected に分類し、拒否 iff と unsupported 不出現にも caller の support 証明を要求しない。
+混合言語全体の型付けを判定する入口であるとは主張しない。別案は presence 構文外を unsupported とするため、
+拒否 iff には構文所属の前提がある。入口の違いを隠して片方の定理を他方へ読み替えない。
+従来からの required/effect/qualified 等の入口は変更していない。
+
+## 26. 固定した旧境界の補間と正の constructor family
+
+並行して追加された定理群の量化と境界は
+[有限飽和の実装結果](../handoff/2026-11-07-m1-common-saturation-results.md) にも記録する。
+本節と §23–24 はその内容を統合し、元の共有 witness と public interface の未完の義務を維持する。
+
+追加の並行更新では `CommonLegacyReflection` が、同じ有限な旧 test 型の表から全未知型の envelope を取る。
+全深さの Common.Subtype による意味的な選択を用い、旧 upper test と全 lower/flow を同時に保ち、
+任意旧 target への出力比較も保存・反映する。固定旧境界の問題には完全だが、実行可能な subtype inspector ではない。
+`CommonLegacyReflectionConstructors` は pair/variant/arrow 境界への成分ごとの接続を示す一方、
+top だけの test では envelope が pair 方程式を保存しないことも証明する。
+unknown 同士の constructor 方程式を持つ実生成 graph への simultaneous witness 回収は、依然として別の義務である。
+
+`CommonCanonicalIntervals` は §24 と同じ固定 captured slot を持つ scalar family の別構成である。
+`CommonCanonicalPositive` は一般化 slot が共変位置だけに現れる Form を定義し、その lower の実 code により
+全 upward instance family を完全比較する。captured slot は負位置に使ってよく、正負で共有してもよい。
+全行割当てと任意 captured Common 型を量化し、比較する一般化数も異なってよい。
+この Positive 前提を一般の負位置共有へ広げるには、§24 の scalar/polarity の保存だけでは足りない。
+`CommonCanonicalPolarityBoundary` は、constructor 正規化が正負共有の片方を消した後に
+次の polarity pass で追加消去が起きる例を示す。一回の normalize の instance 保存を、
+冪等性や完全 canonicality に読み替えない。
