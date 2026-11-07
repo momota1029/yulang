@@ -4029,3 +4029,11 @@ run_cmd do
 #print axioms Yulang.CommonRowHeadFlow.coalesce_models
 #print axioms Yulang.CommonRowHeadFlow.coalesce_retraction
 #print axioms Yulang.CommonRowHeadFlow.no_heads_instantiate
+
+#print axioms Yulang.CommonRowHeadSolver.all_parameters_models
+#print axioms Yulang.CommonRowHeadSolver.model_retraction
+#print axioms Yulang.CommonRowHeadSolver.solve_all_instances_exact
+#print axioms Yulang.CommonRowHeadSolver.rejected_iff
+#print axioms Yulang.CommonRowHeadSolver.rejected_iff_head_reaches_pure
+#print axioms Yulang.CommonRowHeadSolver.Examples.signed_head_propagates
+#print axioms Yulang.CommonRowHeadSolver.Examples.transitive_head_conflict_rejected
