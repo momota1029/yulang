@@ -515,3 +515,9 @@ import Yulang.CommonCanonicalIntervals
 import Yulang.CommonLegacyReflectionConstructors
 import Yulang.CommonCanonicalPositive
 import Yulang.CommonCanonicalObstructions
+import Yulang.CommonCanonicalScalarExports
+import Yulang.CommonLegacyGeneratedErasure
+import Yulang.CommonLegacyGenerationTranslation
+import Yulang.CommonLegacyEmbeddedWitnesses
+import Yulang.CommonCanonicalPolarity
+import Yulang.CommonCanonicalPolarityBoundary
