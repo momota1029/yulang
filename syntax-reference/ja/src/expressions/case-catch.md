@@ -5,14 +5,15 @@
 このページは、`syntax-v0`の`CaseExpression`と`CatchExpression`を定める。
 2026年8月20日の`yu-syntax` architectureが、受理構文と直接 Rowan CSTを定める。
 Authoritativeな2026年9月8日のCaseLike structuralとArrow/Body recoveryの記録、および2026年9月9日のseparatorとCatch-closeの記録が、recovery CSTを定める。
+対象なしの`case:`の受理とCSTは、Authoritativeな`2026-11-07-parser-gap-closure-addendum-2.md`のWP-14に従う。
 
 対象は、expression primary、label、scrutinee、arm family、pattern、任意のguardとCatch handler、exact arrow、body、separator、Catch braceである。
-lambda form、exhaustiveness、guard、handler、label、exception、valueの意味、HIR、型、diagnostic wording、formattingは定めない。
+exhaustiveness、guard、handler、label、exception、valueの意味、関数への脱糖、HIR、型、diagnostic wording、formattingは定めない。
 
 ## 2. 受理構文
 
 ```text
-CaseExpression  := CaseKw  CaseHead CaseBlock
+CaseExpression  := CaseKw (CaseHead | G*) CaseBlock
 CatchExpression := CatchKw CatchHead CatchBlock
 CaseHead := G* [ CaseLabel G* ] CaseScrutinee
 CatchHead := G* [ CatchLabel G* ] CatchScrutinee
@@ -46,6 +47,11 @@ Caseはbrace arm blockを受理しない。
 caseのscrutineeは`:`で停止する。
 catchのscrutineeは`:`または`{`で停止するため、direct braced blockを所有できるのはCatchだけである。
 
+`case`の直後、または同じ行のtriviaの後に`:`があれば、scrutineeを省略してarm blockを開く。
+この形ではlabelも置かない。
+`:`がなければ、scrutinee不在は従来どおりrecoveryとなる。
+`catch:`はこの省略形を受理せず、`CatchScrutinee`内に`Missing`を残す。
+
 label内のapostropheとidentifierはadjacentであり、whitespaceで`SigilIdentifier`を分けられない。
 `->`は動的にassociationするoperatorではなく、exactなfixed punctuationである。
 Catch handlerのcommaは直接の`CatchArm` childであり、arm-list commaは選んだarm familyに属する。
@@ -61,7 +67,9 @@ Authoritative な parser-gap design memo WP-9 は、この arm context におけ
 ## 4. 直接 Rowan CST
 
 `CaseExpression`と`CatchExpression`は、`OperatorChain`の直接のprimary childである。
-`CaseExpression`は、keyword、任意の`CaseLabel`、direct `CaseScrutinee`、direct case blockをsource orderで持つ。
+対象の式がある場合、`CaseExpression`はkeyword、任意の`CaseLabel`、direct `CaseScrutinee`、direct case blockをsource orderで持つ。
+対象なしの`case:`では、keywordの次にdirect `CaseBlock`を持ち、`CaseScrutinee`を作らない。
+`CaseScrutinee`の不在が、この省略形の印となる。
 `CatchExpression`は、keyword、任意の`CatchLabel`、direct `CatchScrutinee`、direct catch blockをsource orderで持つ。
 各labelは、adjacentなapostropheとidentifierを持つ`SigilIdentifier` token一つを含む。
 各scrutineeは、その`OperatorChain`を直接含む。
@@ -75,7 +83,7 @@ Catch-braced armのcommaは、direct `CatchArmSeparator` wrapperに入る。
 arm bodyは、直接の`OperatorChain`一つまたは直接の`IndentedStatementBlock`一つを持つ。
 
 ```text
-CaseExpression := CaseKw [ CaseLabel ] CaseScrutinee CaseBlock
+CaseExpression := CaseKw [ CaseLabel ] CaseScrutinee CaseBlock | CaseKw CaseBlock
 CatchExpression := CatchKw [ CatchLabel ] CatchScrutinee CatchBlock
 CaseInlineArms := CaseArm { CaseArmSeparator CaseArm } [ CaseArmSeparator ]
 CatchBracedArms := CatchArm { CatchArmSeparator CatchArm } [ CatchArmSeparator ]
@@ -102,6 +110,20 @@ Catchのarm sequenceが終了するたびに、`CatchBlock`は対応する`}`ま
 nested pattern、guard、bodyのrecoveryをarm familyが重複して記録することはない。
 
 ## 6. Source/CSTの例
+
+`case: 0 -> 1`は、scrutineeなしでinline armを持つ。
+
+```xml
+<CaseExpression>
+  <CaseKw text="case" />
+  <CaseBlock>
+    <Colon text=":" /><Whitespace text=" " />
+    <CaseArm><Pattern><IntegerPattern><Integer text="0" /></IntegerPattern></Pattern><Whitespace text=" " /><Arrow text="->" /><Whitespace text=" " /><OperatorChain><IntegerLiteral><Integer text="1" /></IntegerLiteral></OperatorChain></CaseArm>
+  </CaseBlock>
+</CaseExpression>
+```
+
+字下げしたarmも同じ`CaseBlock`に入り、`case n:`のCSTは変わらない。
 
 `case 'go x: 1 if ok -> yes, _ -> no`は、label、scrutinee、直接のarm二つ、arm separatorをsource orderで置く。
 

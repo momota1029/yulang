@@ -211,7 +211,7 @@ my handle = case:
 
 パイプライン(次の節)の右辺や、関数を渡す場所に置ける。
 
-状態: `case:` は確定。ただし、**対象なしの `case:` は現在のパーサがまだ読めない**(`spec/parser-gaps.md`)。他の `case` はパース検査済み(仮採用)。出典: `spec/03-expressions.md` 3.7。
+状態: `case:` は確定、パース検査済み。他の `case` はパース検査済み(仮採用)。出典: `spec/03-expressions.md` 3.7。
 
 ## パイプライン `|`
 
