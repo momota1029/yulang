@@ -1000,3 +1000,5 @@ import Yulang.CommonRoleIntervals
 import Yulang.CommonRoleIntervalGeneration
 import Yulang.CommonRoleIntervalCongruence
 import Yulang.CommonRoleDeferredBounds
+
+import Yulang.CommonEffectFieldInstances

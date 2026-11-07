@@ -5835,3 +5835,5 @@ run_cmd do
 #print axioms Yulang.CommonRoleDeferredBounds.known_exact
 #print axioms Yulang.CommonRoleDeferredBounds.upper_only_pending
 #print axioms Yulang.CommonRoleDeferredBounds.lower_arrives
+
+#print axioms Yulang.CommonEffectFieldInstances.construct_use_sound
