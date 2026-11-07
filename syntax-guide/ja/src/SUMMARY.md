@@ -6,6 +6,7 @@
 - [式の基本](expressions.md)
 - [宣言と可視性](declarations.md)
 - [pattern](patterns.md)
+- [型の書き方](types.md)
 - [制御構文と参照](control.md)
 - [parser DSL](parser-dsl.md)
 - [ブロックと字下げ](layout.md)
