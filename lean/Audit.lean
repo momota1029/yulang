@@ -4244,3 +4244,15 @@ run_cmd do
 #print axioms Yulang.CommonPatternFiniteSchemes.all_parameter_holds
 #print axioms Yulang.CommonPatternFiniteSchemes.parameter_retraction
 #print axioms Yulang.CommonPatternFiniteSchemes.infer_empty_iff
+#print axioms Yulang.CommonPatternFormulaEquivalence.holds_exact
+#print axioms Yulang.CommonPatternFiniteSchemes.formula_instances_exact
+#print axioms Yulang.CommonPatternSourceArmSolved.all_parameter_environments
+#print axioms Yulang.CommonPatternSourceArmSolved.environments_instances_exact
+#print axioms Yulang.CommonPatternSourceArmSolved.environments_rejected_exact
+#print axioms Yulang.CommonPatternSourceCasePartial.runArms_partial
+#print axioms Yulang.CommonPatternSourceCasePartial.actual_runArms_partial
+#print axioms Yulang.CommonPatternSourceArmsSolved.generateAll_exact
+#print axioms Yulang.CommonPatternSourceArmsSolved.all_parameter_environments
+#print axioms Yulang.CommonPatternSourceArmsSolved.environments_instances_exact
+#print axioms Yulang.CommonPatternSourceArmsSolved.environments_rejected_exact
+#print axioms Yulang.CommonPatternSourceArmsSolved.returned_scheme_actual_partial

@@ -1901,3 +1901,38 @@ lake env lean --trust=0 --run RunRegularInference.lean
 **B2 全体は未完。** 上記中間判断には list/nominal/merged variant/float/presence/annotation の橋がなく、
 source の名前集合による or の整列、default/guard の行と失敗、ordered coverage、
 全 case Typing と公開三契約への接続も残る。公開入口と既存定理は変更していない。
+
+## B2 追加: source 環境整列・実埋込み・全有限 slot の solved family
+
+`CommonPatternAlignedMatcher` と `CommonAlignedPattern*` は、各 nested or の成功出口を
+canonical な名前列へ整列する。元 scoped matcher と trace/error/miss が一致し、成功時の全 lookup が一致する。
+右枝の型付けと有限生成は、その枝の記述順へ同じ型参照を並べ替える。
+`CommonAlignedCaseEvaluation.data_evaluation_eq` は具体 data callback を使う全有限 case の観測全体の等号まで接続する。
+
+`CommonPatternConcreteScope` / `CommonPatternSourceScope` は、実名前 lookup と `Core.Data.resolve`、
+実 `Data.embed` / `CommonSyntax.lower` の index reindexing を証明する。外側の任意 captured poly binding を保つ。
+coverage gate を内部で検査し、unsupported lowering の fallback を受理に使わない。
+`CommonPatternSourceElaboration.generateSourcePattern_exact` は名前付き source default を含む実 pattern に
+既存 `Core.Scoped.embed` を適用し、Q4 の累積環境・Q7・default coverage と共有 allocator の iff を示す。
+`CommonPatternSourceArmGeneration.generateEnvironments_exact` は同じ実 slot 列で、名前付き guard/body の
+実埋込みと独立 CommonSyntax 型判断も有限生成に接続する。default の aggregate row は依然含まない。
+
+`CommonCaseOrderedPaths.runArms_exact` / `eval_exact` は、任意実 default/guard/body callback と全有限 arm 列について、
+既存 scoped evaluator の全 trace/result iff 独立有限 path を示す。最初の error または選択 body で止まり、
+false guard は次 arm へ進む。`runArms_unmatched_exact` は `.ok none` と全 arm の順序付き miss の iff。
+これらは型付け・coverage・effect 上界の定理ではない。
+
+`CommonPatternFiniteSchemes` は任意 `Formula (Fin n)` の全 ambient/local slot を実 pack して実 solver list を作る。
+全返却 scheme の任意 unrestricted parameter が元 formula を満たす。
+`CommonPatternFormulaEquivalence` は負の arrow 位置も含む割当て同値の下で Holds の iff を示し、
+`formula_instances_exact` が全モデルの row 等号・value 要求同値での回収を閉じる。
+内部の `SafeFormula` は source generation provenance が証明する有限構文 invariant である。
+
+`CommonPatternVariantRowBoundary` は、旧 Common の異なる二 tag の通常 union が payload 情報を失い、
+その両 singleton variant を受け入れる任意旧上界も任意 payload を受け入れることを証明する。
+merged variant row は専用表現が必要であり、通常 union への置換は使えない。
+これは元 B2 全体の反証ではない。
+
+**元 B2 は引き続き未完。** source presence/annotation、aggregate default/guard/failure rows、
+ordered coverage、専用 merged row、B5 list/nominal/float と、全 case の公開三契約の統合が残る。
+詳しい量化・前提・検査状態は `notes/handoff/2026-11-07-m1-b2-progress.md` を参照する。

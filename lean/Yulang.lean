@@ -623,3 +623,7 @@ import Yulang.CommonPatternSourceElaboration
 import Yulang.CommonPatternSourceArmGeneration
 import Yulang.CommonCaseOrderedPaths
 import Yulang.CommonPatternFiniteSchemes
+import Yulang.CommonPatternFormulaEquivalence
+import Yulang.CommonPatternSourceArmSolved
+import Yulang.CommonPatternSourceCasePartial
+import Yulang.CommonPatternSourceArmsSolved
