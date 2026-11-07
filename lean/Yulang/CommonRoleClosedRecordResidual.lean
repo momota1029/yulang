@@ -123,4 +123,20 @@ theorem capture_field_probe_exact (type : Payload → Common.Ty) (labels : List 
   rw [field_probe_exact, capture_lookup]
   by_cases removed : label ∈ labels <;> simp [removed]
 
+/-- Removed labels are known absent, not merely hidden by a producer mask.
+Surviving optional observations retain the original first payload exactly. -/
+theorem capture_optional_probe_exact (type : Payload → Common.Ty) (labels : List Nat)
+    (fields : Row Payload) (label depth rank : Nat)
+    (environment : CommonFinite.Environment Common.Row)
+    (observation : CommonFinite.Observation Common.Row) :
+    CommonFinite.ProbeAt Common.rowLe rank environment
+        (Common.observeTy depth (recordTypeOf type (capture labels fields)))
+        (.optional label observation) ↔
+      label ∈ labels ∨ ∀ payload, lookup label fields = some payload →
+        CommonFinite.ProbeAt Common.rowLe rank environment
+          (CommonSyntax.observe (CommonSyntax.graph Common.Row) depth (.node (type payload)))
+          observation := by
+  rw [optional_probe_exact, capture_lookup]
+  by_cases removed : label ∈ labels <;> simp [removed]
+
 end Yulang.CommonRoleClosedRecordResidual
