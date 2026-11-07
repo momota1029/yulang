@@ -108,6 +108,8 @@ embedRow (expression.eval (signedAlgebra n Nat) assignment)
 assignments を任意 Common row に広げたときも commonAlgebra の演算自体は定義済みだが、
 finite signed 側への全射性や solver の完全性をこの theorem から結論しない。
 
+後続の [有限 operation 宣言と request 生成](2026-11-07-common-effect-request-generation.md) は、この Common 行代数を用い、local 型を存在量化する request 一段の実有限生成を独立 Typing へ接続した。全称 handler と全 instance solver はその追加後も未完である。
+
 ## 5. 残る B3 契約と作業順
 
 この row 解釈は nominal / pattern の本体と独立なので、B5・B2 と並行して先に閉じた。

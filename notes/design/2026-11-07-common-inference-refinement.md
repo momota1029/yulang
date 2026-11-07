@@ -421,8 +421,11 @@ bool ≤ str    -- 別の固定比較。矛盾する
 閉性や solver 成功を入力に要求する theorem では代用しない。
 根に無関係な新しい辺が生成されないという仮定をユーザーへ移さず、実生成/inspection から証明する必要がある。
 
-残る `demand_snapshot_invalidation_exact` は、任意の異なる snapshot 間で、
-辺や branch の追加後に以前の bound を再利用してよい iff 必要な依存の観測が変化しないことを扱う。
+残る `demand_snapshot_invalidation_exact` は、任意二つの snapshot と同じ要求根について、
+実際に追跡した完全な依存記録が両方で一致すれば、以前の bound を再利用しても要求結果が等しいことを示す。
+まずはこの十分条件を目標とする。依存の support が上界なら、観測が変わっても答えは変わらない場合がある。
+例えば `r ≤ r` の真偽は r の値が変わっても同じなので、依存の不変性を再利用の必要条件にはしない。
+無効化判定そのものの必要十分性を主張する場合は、結果同値を正確に反映する別の predicate と証明が必要になる。
 今回は mutable cache 自体を作っておらず、各 `request` は渡された snapshot を直接読む。
 従って stale cache を用いているわけではないが、memo の正当性も未証明である。
 

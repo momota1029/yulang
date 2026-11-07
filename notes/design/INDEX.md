@@ -16,7 +16,7 @@ Navigation aid. Each document is authoritative only for its own text and scope; 
 
 - [A1 の全旧 source 共有 witness に残る構成](2026-11-07-common-legacy-shared-witness-gap.md) — 全 supported source の元 statement と、共有 constructor・負位置・行・旧出力を同時回収する不足を記録。既存の envelope/erasure 反例を A1 の反証とは扱わない。
 
-- [Common への effect・role・nominal 統合: 残る契約](2026-11-07-common-effect-role-nominal-contracts.md) — Draft。有限 verified declaration と任意の意味関数を分け、signed row・handler の全称・実辞書・nominal invariance・pure cast・construction sites の不足補題を量化つきで記録。head-row family だけは実装済み。
+- [Common への effect・role・nominal 統合: 残る契約](2026-11-07-common-effect-role-nominal-contracts.md) — Draft。有限 verified declaration と任意の意味関数を分けた B3/B4/B5 の原契約。後続で閉じた signed row 解釈と request/nominal の独立基礎は各メモへリンクし、未完の公開統合契約は量化を維持。
 
 - [共通推論の高速化と参照実装からの refinement](2026-11-07-common-inference-refinement.md) — Draft。実 clause の要求根と逆向き bound 計算、任意 snapshot の要求同値、全検査後の solveAll / Core.infer との一致を実装・証明。要求した成分の飽和、関数/SCC の実行前検査、memo と費用評価は未完。速度は未測定。
 
