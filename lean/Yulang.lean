@@ -1022,3 +1022,5 @@ import Yulang.CommonPurePatternPrefixNoMiss
 import Yulang.CommonCasePrefixCoverage
 
 import Yulang.CommonCaseCoreRecordPrefixSolved
+
+import Yulang.CommonCaseCoreRecordPrefixExamples

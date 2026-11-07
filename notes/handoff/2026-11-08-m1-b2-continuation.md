@@ -98,6 +98,23 @@ subject の domain は、その実成功 prefix の型保存と、同じ有限�
 を、同じ solver family の内部で排除したもの。一般式の実 prefix producer を構成した、
 またはその adequacy を証明した、という意味ではない。
 
+## 5. default-only の実 Core family が空でないこと
+
+`CommonCaseCoreRecordPrefixExamples.real_scheme_instance` は、subject が Core の空 record、
+唯一の arm が `defaultField 0 (literal 7) (bind 0) recordEnd`、body が Core の `var 0`
+である実入力について、上の `solvePremises` が scheme を返し、具体的な assignment を
+表す parameter が存在することを示す。input は exact-empty、result は int、cap は空行。
+default result と absent-field payload の union が同じ生成済み monomorphic binder に入り、
+その binder を body が参照する。pure arm 列は空なので、pure coverage による例ではない。
+
+この実例は independent constructor judgment から model を構成し、有限 solver の
+完全性で scheme を得る。終了／default 成功を仮定して family を作っていない。
+source presence annotation を解決したという主張も加えていない。
+
+検証: `lake build --wfail Yulang.CommonCaseCoreRecordPrefixExamples` 成功。
+`--trust=0` による `real_generated_model` / `real_scheme_instance` の監査で、許可された
+`propext` / `Classical.choice` / `Quot.sound` 以外の公理は使わない。
+
 ## 未完の範囲
 
 これは既存の十分な coverage 証明書の運用上の意味を拡張する定理であり、

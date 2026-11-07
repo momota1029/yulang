@@ -5905,3 +5905,14 @@ run_cmd do
 #print axioms Yulang.CommonCaseCoreRecordPrefixSolved.no_premises_exact
 #print axioms Yulang.CommonCaseCoreRecordPrefixSolved.case_prefixes
 #print axioms Yulang.CommonCaseCoreRecordPrefixSolved.all_parameter_case_prefixes
+
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.pure_arms_empty
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.default_coverage
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.exact_empty_width
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.binder_below_int
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.fallback_typed
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.pattern_typed
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.arm_typed
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.premises
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.real_generated_model
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.real_scheme_instance
