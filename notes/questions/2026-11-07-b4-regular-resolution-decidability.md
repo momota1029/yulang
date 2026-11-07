@@ -94,3 +94,9 @@ rejection の意味を変える。停止修正の名目で無言に採用しな�
 この還元には receiver のない method を使わないので、K1 の選択に依存しない。
 qualified generator の有限制約生成単体の不可能性は示していない。
 実 use-site resolution を含む B4 全体には、ここで示す registry 成分の障害が残る。
+
+## 決定（2026-11-07, ユーザー）
+
+構造的な再帰型が role の型引数に現れる goal は、解決に入る前に拒否する（`spec/06-roles.md` K2）。
+B4 の修正 statement は、`RoleRank` ではなく「goal の型・行が有限木であること」を前提にする形に書き直す必要がある。
+この前提の下で、全域の実 resolver が存在するかは未証明（E1 の候補）。深い位置の再帰型と nominal な再帰型の扱いは、上の spec の「要確認」を待つ。
