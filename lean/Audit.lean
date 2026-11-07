@@ -3984,3 +3984,13 @@ run_cmd do
 #print axioms Yulang.CommonSolvedCoreSyntax.empty_iff_untypable
 #print axioms Yulang.CommonSolvedCoreSyntax.presence_schemes
 #print axioms Yulang.CommonSolvedCoreSyntax.presence_typing_preserved
+#print axioms Yulang.Core.PresenceOnly.infer_schemes
+#print axioms Yulang.Core.PresenceOnly.infer_embed
+#print axioms Yulang.Core.PresenceOnly.infer_ne_unsupported
+#print axioms Yulang.Core.PresenceOnly.infer_rejected_iff_nil
+#print axioms Yulang.Core.PresenceOnly.infer_instantiates
+#print axioms Yulang.Core.PresenceOnly.infer_principal
+#print axioms Yulang.Core.PresenceOnly.infer_instances_exact
+#print axioms Yulang.Core.PresenceOnly.infer_rejected_iff
+#print axioms Yulang.Core.infer_presence
+#print axioms Yulang.Core.infer_presence_typing_preserved
