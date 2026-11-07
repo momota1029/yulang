@@ -205,7 +205,7 @@ pub(crate) fn binding_statement_normalized(
     emit_visibility(&mut i, visibility);
 
     let entry = suffix_marker(i.rb());
-    let exit = binding_target_normalized(
+    let (exit, signature_type_found) = binding_target_normalized(
         i.rb(),
         baseline,
         stops,
@@ -214,6 +214,7 @@ pub(crate) fn binding_statement_normalized(
         line_entry,
         fence,
         ambient,
+        sequence.is_some_and(crate::sequence::SequenceOwner::admits_operation_where),
     );
     item_origin = advanced_origin(item_origin, entry, i.rb());
     let mut item = match exit {
@@ -236,6 +237,7 @@ pub(crate) fn binding_statement_normalized(
         || implicit_delimited_newline(baseline, item.leading_view())
     {
         i.state.finish_node();
+        let entry = suffix_marker(i.rb());
         let exit = binding_trailing_doc(
             i.rb(),
             complete(handoff(item), line_entry),
@@ -245,6 +247,22 @@ pub(crate) fn binding_statement_normalized(
             baseline,
             stops,
         );
+        let item_origin = advanced_origin(item_origin, entry, i.rb());
+        let exit = if signature_type_found
+            && sequence.is_some_and(crate::sequence::SequenceOwner::admits_operation_where)
+        {
+            operation_where_clauses_normalized(
+                i.rb(),
+                exit,
+                baseline,
+                stops,
+                item_origin,
+                fence,
+                ambient,
+            )
+        } else {
+            exit
+        };
         i.state.finish_node();
         return exit;
     }
@@ -279,6 +297,44 @@ pub(crate) fn binding_statement_normalized(
     exit
 }
 
+/// The operation member owns signature clauses after its header and any
+/// attached start-line document. Nested statement blocks have no admission.
+#[allow(clippy::too_many_arguments)]
+fn operation_where_clauses_normalized(
+    mut i: SyntaxIn,
+    mut exit: NormalizedExit,
+    baseline: usize,
+    stops: Stops,
+    mut item_origin: usize,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    while let NormalizedExit::Complete(Err(Either::Left(mut item)), line_entry) = exit {
+        let Some(indentation) = item.leading_view().indentation_after_newline() else {
+            return complete(handoff(item), line_entry);
+        };
+        if indentation <= baseline || !crate::statement::is_where_clause_keyword(&item) {
+            return complete(handoff(item), line_entry);
+        }
+        // Binding preambles also leave layout with the parent and start the
+        // shared WhereClause at the contextual keyword itself.
+        item.emit_all_remaining_leading(&mut *i.state);
+        let (item, origin, line_entry) = crate::statement::where_clause_normalized(
+            i.rb(),
+            item,
+            indentation,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+        item_origin = origin;
+        exit = complete(handoff(item), line_entry);
+    }
+    exit
+}
+
 #[allow(clippy::too_many_arguments)]
 fn binding_target_normalized(
     mut i: SyntaxIn,
@@ -289,11 +345,17 @@ fn binding_target_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
-) -> NormalizedExit {
+    operation_where: bool,
+) -> (NormalizedExit, bool) {
     let stops = pattern_stops_from_owner(owner_stops)
         | crate::pattern::PATTERN_STOP_COMMA
         | crate::pattern::PATTERN_STOP_SEMICOLON
-        | PATTERN_STOP_EQUALS;
+        | PATTERN_STOP_EQUALS
+        | if operation_where {
+            crate::pattern::PATTERN_STOP_OPERATION_WHERE
+        } else {
+            0
+        };
     let entry = suffix_marker(i.rb());
     let CurrentItem {
         mut item,
@@ -321,7 +383,7 @@ fn binding_target_normalized(
         i.state.start_node(SyntaxKind::Pattern.into());
         emit_binding_missing(&mut i, &item, item_origin);
         i.state.finish_node();
-        return complete(handoff(item), next_line_entry);
+        return (complete(handoff(item), next_line_entry), false);
     }
     item.emit_all_remaining_leading(&mut *i.state);
     binding_target_from_entry_item_normalized(

@@ -92,6 +92,7 @@ statement列のラッパーは加えない。
 | `type`宣言: 付加した`impl` | type header継続。type宣言境界 | `TypeDeclaration` | header、任意のderives、`ImplKw`、headの`TypeExpression`、任意の説明、本体。最大1個。入れ子の`ImplDeclaration`は置かない | `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` §§ `TAI-G`, “AST / direct-CST shape” |
 | Rootのみ: 演算子定義 | 演算子headerと式本体の境界 | `Root` | `Root > OperatorHeader, OperatorChain`。`OperatorHeader`、次に兄弟の`OperatorChain`。headerと本体の組は1組。`Statement`にはならない | `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` §§ “Root statement loop”, “Operator definition body full-only continuation” |
 | Rootまたは入れ子になったStatement: `role`、`act`、`enum`、`error`、または`for` | 宣言またはstatement固有の本体境界 | R: `Root`。S: `Statement` | 対応する`RoleDeclaration`、`ActDeclaration`、`EnumDeclaration`、`ErrorDeclaration`、または`ForStatement`。header、次に直接の形式または本体の子。ちょうど1個 | `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` §§ `RLD-G`, `ACT-G`, `ENUM-G`, `ERROR-G`, `FOR-G` and their “AST / direct-CST shape” sections |
+| `act`のoperation signature: 署名の下の`where` | 署名より深い字下げの行にあるexactな`where`。次のmemberとdedentは外側に残す | operationの`BindingStatement` | `BindingHeader`と付与した開始行docの後に`WhereClause`を置く。複数の制約は`where`行を繰り返す | `notes/design/2026-11-07-parser-gap-closure-addendum-2.md` WP-17、`spec/05-effects.md` 5.1、`spec/06-roles.md` 6.3 |
 | Rootまたは入れ子になったStatement: Yumarkを持つ[doc-comment宣言](../statements/doc-comment-declaration.md) | [Yumark document grammar](../statements/yumark-document.md)を持つline/block envelope。canonical Statement startだけで`---`を`--`より先に選ぶ | R: `Root`。S: `Statement` | `DocCommentDeclaration`。marker、`YmDoc`内容、block formではrecovered closeをソース順に置く。documentごとに1個。memberの先行行とbindingおよびmemberに付与するline docの所有者はリンク先のschemaに従う | `notes/design/2026-09-01-doc-comment-yumark-addendum.md` §§ 2 “Envelope and dispatch”, 8 “AST, CST, and recovery vocabulary” |
 
 `derives`のhostと位置は正確に定める。
@@ -107,6 +108,32 @@ owner固有の出典はarchitecture recordのそれぞれの“Derives compositi
 trailingはactual-completeなbraced closeの後にだけ置ける。
 owner固有の出典は`ACTDRV-G`/`ACTDRV-J`である。
 `Role`、`Impl`、`Cast`、`Mod`、binding、use、演算子定義は`derives`のhostではない。
+
+### `act`のoperation signature
+
+operationは既存の`BindingStatement`を使い、署名の型は`BindingHeader`内の`PatternTypeAnnotation`に残る。
+署名より深い字下げの`where`は、その型の続きを止める。
+`WhereClause`はoperationの`BindingStatement`の最後の子になる。
+改行と字下げは、bindingのpreambleと同じく`WhereClause`の親が所有する。
+
+```text
+BindingStatement(
+  BindingHeader(OurKw Pattern(IdentifierPattern PatternTypeAnnotation(Colon TypeExpression)))
+  Newline Whitespace
+  WhereClause(WhereKw TypeExpression Colon TypeExpression)
+)
+```
+
+`WhereClause`内の最初の`TypeExpression`は制約の対象、二つ目はroleの型である。
+複数の制約は、bindingと同じく`where`行を繰り返して書く。
+commaで制約を並べる形式は追加しない。
+先行docはmemberの兄弟として残り、開始行末尾のdocは`BindingStatement`内でclauseより前に置く。
+次のmemberはactの本体に残る。
+
+同じ行の`where`は、bindingと同じく`WhereClause`を作らない。
+operationの署名と同じ行に置くと、従来どおりrecoveryになる。
+`role`のmethod署名の下の`where`もrecoveryのままであり、入れ子のstatement block内の`where`は通常の式として読む。
+この変更は`SyntaxKind`を追加しない。
 
 ### Expression
 
