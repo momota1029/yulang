@@ -95,4 +95,51 @@ theorem chain_step (count : Nat) : InstanceStep (chain count) (chain (count + 1)
   exact Common.equivalent_symm (Common.equivalent_trans loop_unfold
     ((CommonCanonicalShapes.variant_equivalent_iff 7 _ _).mpr loop_unfold))
 
+private theorem int_not_wrap (value : Ty) : ¬ Equivalent (.base .int) (wrap value) := by
+  intro same
+  have observed := (CommonCanonicalShapes.equivalent_iff_probes _ _).mp same
+    0 0 ⟨fun _ => .bottom, fun _ => []⟩ (.base .int)
+  simp [wrap, Common.variant, Common.observeTy, CommonSyntax.Layer.evalAt,
+    CommonSyntax.observe, CommonFinite.ProbeAt, CommonFinite.ProbeStep,
+    CommonFinite.MaskedProbeStep] at observed
+
+theorem growing_equivalent_iff (first last : Nat) :
+    Equivalent (growing first) (growing last) ↔ first = last := by
+  constructor
+  · intro same
+    induction first generalizing last with
+    | zero =>
+      cases last with
+      | zero => rfl
+      | succ last => exact False.elim (int_not_wrap (growing last) same)
+    | succ first ih =>
+      cases last with
+      | zero => exact False.elim (int_not_wrap (growing first) (Common.equivalent_symm same))
+      | succ last =>
+        exact congrArg Nat.succ (ih last
+          ((CommonCanonicalShapes.variant_equivalent_iff 7 _ _).mp same))
+  · intro same
+    subst last
+    exact Common.equivalent_refl _
+
+/-- Even demand-equivalence normalization cannot identify two different
+stages of this chain; this is stronger than raw syntax inequality. -/
+theorem chain_equivalent_iff (first last : Nat) :
+    Equivalent (chain first) (chain last) ↔ first = last := by
+  constructor
+  · intro same
+    exact (growing_equivalent_iff first last).mp
+      ((CommonCanonicalShapes.pair_equivalent_iff _ _ _ _).mp same).2
+  · intro same
+    subst last
+    exact Common.equivalent_refl _
+
+theorem chain_fresh (count : Nat) :
+    ∀ earlier ∈ (List.range count).map chain, ¬ Equivalent earlier (chain count) := by
+  intro earlier member same
+  obtain ⟨index, inside, rfl⟩ := List.mem_map.mp member
+  have equal := (chain_equivalent_iff index count).mp same
+  have before := List.mem_range.mp inside
+  omega
+
 end Yulang.CommonRoleRegularObstructions
