@@ -51,8 +51,8 @@ theorem result_template_exact (declaration : Declaration types rows) (arguments 
     (rowArguments : Fin rows → Row) :
     (resultTemplate declaration.name declaration.parameters).eval arguments rowArguments =
       resultType declaration arguments rowArguments := by
-  simp only [Template.eval, resultTemplate, CommonNominalGuardedClosure.instantiate_graph,
-    CommonNominalFieldTemplates.rowsLayer, CommonNominalSyntax.Layer.map,
+  simp only [Template.eval, resultTemplate, CommonNominalFieldTemplates.Body.instantiate,
+    CommonNominalSyntax.graph_closeBlock, CommonNominalSyntax.Layer.map,
     resultType, nominal, List.map_map]
   congr 1
   apply List.map_congr_left

@@ -4341,3 +4341,10 @@ run_cmd do
 #print axioms Yulang.CommonNominalClampedGraphFamily.all_parameters_realizes
 #print axioms Yulang.CommonNominalClampedGraphFamily.all_parameters_flexible_edges
 #print axioms Yulang.CommonNominalClampedGraphFamily.all_models_retraction
+#print axioms Yulang.CommonNominalFieldTemplates.old_layer_template_eval
+#print axioms Yulang.CommonNominalFieldTemplates.union_parameters_eval
+#print axioms Yulang.CommonNominalFieldTemplates.masked_parameter_eval
+#print axioms Yulang.CommonNominalFieldTemplates.default_parameters_eval
+#print axioms Yulang.CommonNominalRigidHeadInspection.rigid_heads
+#print axioms Yulang.CommonNominalRigidHeadInspection.rigid_mismatch
+#print axioms Yulang.CommonNominalRigidHeadInspection.variant_iff

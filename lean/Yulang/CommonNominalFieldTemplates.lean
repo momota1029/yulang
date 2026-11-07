@@ -52,16 +52,82 @@ def rowsLayer (rows : Fin count → Row) :
   | .mask hidden source => .mask hidden (rowsLayer rows source)
   | .nominal name arguments => .nominal name (arguments.map (Sum.map id (TemplateRow.eval rows)))
 
+/-- Whole shared parameters may occur in positive same-depth positions,
+including union/intersection, record tails, masks and default sources.
+Internal graph references occur only at the original guarded payload sites. -/
+inductive Body (nodes types rows : Nat) where
+  | parameter : Fin types → Body nodes types rows
+  | base : Inference.Base → Body nodes types rows
+  | float : Body nodes types rows
+  | bottom : Body nodes types rows
+  | top : Body nodes types rows
+  | union : Body nodes types rows → Body nodes types rows → Body nodes types rows
+  | inter : Body nodes types rows → Body nodes types rows → Body nodes types rows
+  | pair : (Fin nodes ⊕ Fin types) → (Fin nodes ⊕ Fin types) → Body nodes types rows
+  | emptyRecord : Body nodes types rows
+  | exactEmpty : Body nodes types rows
+  | record : Nat → (Fin nodes ⊕ Fin types) → Body nodes types rows → Body nodes types rows
+  | recordDefault : Nat → Body nodes types rows → (Fin nodes ⊕ Fin types) → Body nodes types rows
+  | variant : Nat → (Fin nodes ⊕ Fin types) → Body nodes types rows
+  | arrow : (Fin nodes ⊕ Fin types) → TemplateRow rows → (Fin nodes ⊕ Fin types) → TemplateRow rows → Body nodes types rows
+  | mask : List Nat → Body nodes types rows → Body nodes types rows
+  | nominal : Nat → List ((Fin nodes ⊕ Fin types) ⊕ TemplateRow rows) → Body nodes types rows
+
+def reference (arguments : Fin types → Ty) : Fin nodes ⊕ Fin types → Fin nodes ⊕ CommonNominalSyntax.State Row :=
+  Sum.map id (fun index => CommonNominalSyntax.State.node (arguments index))
+
+def Body.instantiate (arguments : Fin types → Ty) (rows : Fin rowCount → Row) :
+    Body nodes types rowCount → CommonNominalSyntax.Layer Row (Fin nodes ⊕ CommonNominalSyntax.State Row)
+  | .parameter index => (arguments index).map Sum.inr
+  | .base scalar => .base scalar
+  | .float => .float
+  | .bottom => .bottom
+  | .top => .top
+  | .union first last => .union (first.instantiate arguments rows) (last.instantiate arguments rows)
+  | .inter first last => .inter (first.instantiate arguments rows) (last.instantiate arguments rows)
+  | .pair first last => .pair (reference arguments first) (reference arguments last)
+  | .emptyRecord => .emptyRecord
+  | .exactEmpty => .exactEmpty
+  | .record label payload tail => .record label (reference arguments payload) (tail.instantiate arguments rows)
+  | .recordDefault label source fallback => .recordDefault label (source.instantiate arguments rows) (reference arguments fallback)
+  | .variant label payload => .variant label (reference arguments payload)
+  | .arrow input incoming output outgoing => .arrow (reference arguments input) (incoming.eval rows)
+      (reference arguments output) (outgoing.eval rows)
+  | .mask hidden source => .mask hidden (source.instantiate arguments rows)
+  | .nominal name arguments' => .nominal name (arguments'.map (Sum.map (reference arguments) (TemplateRow.eval rows)))
+
+def Body.ofLayer : CommonNominalSyntax.Layer (TemplateRow rows) (Fin nodes ⊕ Fin types) → Body nodes types rows
+  | .base scalar => .base scalar
+  | .float => .float
+  | .bottom => .bottom
+  | .top => .top
+  | .union first last => .union (ofLayer first) (ofLayer last)
+  | .inter first last => .inter (ofLayer first) (ofLayer last)
+  | .pair first last => .pair first last
+  | .emptyRecord => .emptyRecord
+  | .exactEmpty => .exactEmpty
+  | .record label payload tail => .record label payload (ofLayer tail)
+  | .recordDefault label source fallback => .recordDefault label (ofLayer source) fallback
+  | .variant label payload => .variant label payload
+  | .arrow input incoming output outgoing => .arrow input incoming output outgoing
+  | .mask hidden source => .mask hidden (ofLayer source)
+  | .nominal name arguments => .nominal name arguments
+
+theorem of_layer_instantiate (arguments : Fin types → Ty) (rows : Fin rowCount → Row)
+    (layer : CommonNominalSyntax.Layer (TemplateRow rowCount) (Fin nodes ⊕ Fin types)) :
+    (Body.ofLayer layer).instantiate arguments rows = (rowsLayer rows layer).map (reference arguments) := by
+  induction layer <;> simp_all [Body.ofLayer, Body.instantiate, rowsLayer, CommonNominalSyntax.Layer.map]
+
 structure Template (types rows : Nat) where
   nodes : Nat
-  body : Fin nodes → CommonNominalSyntax.Layer (TemplateRow rows) (Fin nodes ⊕ Fin types)
+  body : Fin nodes → Body nodes types rows
   root : Fin nodes ⊕ Fin types
 
 def Template.eval (template : Template types rows) (arguments : Fin types → Ty)
     (rowArguments : Fin rows → Row) : Ty :=
   match template.root with
-  | .inl node => CommonNominalGuardedClosure.instantiate
-      (fun index => rowsLayer rowArguments (template.body index)) arguments node
+  | .inl node => CommonNominalSyntax.graph Row (CommonNominalSyntax.closeBlock
+      (fun index => (template.body index).instantiate arguments rowArguments) node)
   | .inr parameter => arguments parameter
 
 def Template.parameter (index : Fin types) : Template types rows :=
@@ -70,6 +136,55 @@ def Template.parameter (index : Fin types) : Template types rows :=
 @[simp] theorem parameter_eval (index : Fin types) (arguments : Fin types → Ty)
     (rowArguments : Fin rows → Row) :
     (Template.parameter index).eval arguments rowArguments = arguments index := rfl
+
+def Template.ofLayers (body : Fin nodeCount → CommonNominalSyntax.Layer (TemplateRow rows) (Fin nodeCount ⊕ Fin types))
+    (root : Fin nodeCount ⊕ Fin types) : Template types rows :=
+  ⟨nodeCount, fun index => Body.ofLayer (body index), root⟩
+
+/-- The earlier layer-only template grammar embeds with exactly its original
+regular interpretation; whole-parameter support adds no observation delay. -/
+theorem old_layer_template_eval (body : Fin nodes → CommonNominalSyntax.Layer (TemplateRow rows) (Fin nodes ⊕ Fin types))
+    (root : Fin nodes ⊕ Fin types) (arguments : Fin types → Ty) (rowArguments : Fin rows → Row) :
+    (Template.ofLayers body root).eval arguments rowArguments =
+      match root with
+      | .inl index => CommonNominalGuardedClosure.instantiate (fun index => rowsLayer rowArguments (body index)) arguments index
+      | .inr parameter => arguments parameter := by
+  cases root with
+  | inr parameter => rfl
+  | inl index =>
+      simp only [Template.ofLayers, Template.eval, of_layer_instantiate, reference,
+        CommonNominalGuardedClosure.instantiate, CommonNominalGuardedClosure.node]
+      rfl
+
+def Template.unionParameters (first last : Fin types) : Template types rows :=
+  ⟨1, fun _ => .union (.parameter first) (.parameter last), .inl 0⟩
+
+theorem union_parameters_eval (first last : Fin types) (arguments : Fin types → Ty) (rowArguments : Fin rows → Row) :
+    (Template.unionParameters first last).eval arguments rowArguments = .union (arguments first) (arguments last) := by
+  simp [Template.unionParameters, Template.eval, Body.instantiate, CommonNominalSyntax.graph_closeBlock,
+    CommonNominalSyntax.Layer.map, CommonNominalSyntax.Layer.map_comp, CommonNominalSyntax.blockRef, Function.comp_def]
+  exact ⟨CommonNominalSyntax.Layer.map_id _, CommonNominalSyntax.Layer.map_id _⟩
+
+def Template.maskedParameter (hidden : List Nat) (index : Fin types) : Template types rows :=
+  ⟨1, fun _ => .mask hidden (.parameter index), .inl 0⟩
+
+theorem masked_parameter_eval (hidden : List Nat) (index : Fin types) (arguments : Fin types → Ty) (rowArguments : Fin rows → Row) :
+    (Template.maskedParameter hidden index).eval arguments rowArguments = .mask hidden (arguments index) := by
+  simp [Template.maskedParameter, Template.eval, Body.instantiate, CommonNominalSyntax.graph_closeBlock,
+    CommonNominalSyntax.Layer.map, CommonNominalSyntax.Layer.map_comp, CommonNominalSyntax.blockRef, Function.comp_def]
+  exact CommonNominalSyntax.Layer.map_id _
+
+def Template.defaultParameters (label : Nat) (source fallback : Fin types) : Template types rows :=
+  ⟨1, fun _ => .recordDefault label (.parameter source) (.inr fallback), .inl 0⟩
+
+theorem default_parameters_eval (label : Nat) (source fallback : Fin types) (arguments : Fin types → Ty)
+    (rowArguments : Fin rows → Row) :
+    (Template.defaultParameters label source fallback).eval arguments rowArguments =
+      recordDefault label (arguments source) (arguments fallback) := by
+  simp [Template.defaultParameters, Template.eval, Body.instantiate, CommonNominalSyntax.graph_closeBlock,
+    CommonNominalSyntax.Layer.map, CommonNominalSyntax.Layer.map_comp, CommonNominalSyntax.blockRef, reference,
+    recordDefault, Function.comp_def]
+  exact CommonNominalSyntax.Layer.map_id _
 
 /-- Finite symbolic applications retain every shared parameter occurrence.
 The regular graph itself is syntax, not a residual model proof. -/
