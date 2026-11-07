@@ -4860,3 +4860,10 @@ run_cmd do
 #print axioms Yulang.CommonRoleIntervalCongruence.interval_checks_identification
 #print axioms Yulang.CommonRoleIntervalCongruence.generated_variables_equal
 #print axioms Yulang.CommonRoleIntervalCongruence.global_formula_from_generated
+#print axioms Yulang.CommonRoleDeferredBounds.interval_exact
+#print axioms Yulang.CommonRoleDeferredBounds.model_fits
+#print axioms Yulang.CommonRoleDeferredBounds.lowerHeads_exact
+#print axioms Yulang.CommonRoleDeferredBounds.pending_exact
+#print axioms Yulang.CommonRoleDeferredBounds.known_exact
+#print axioms Yulang.CommonRoleDeferredBounds.upper_only_pending
+#print axioms Yulang.CommonRoleDeferredBounds.lower_arrives
