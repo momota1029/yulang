@@ -427,15 +427,27 @@ fn pattern_range_upper_starts(
         && next.item.payload_view().token_kind() == Some(TokenKind::Integer)
 }
 
-/// An expression tail can hand the first dot of a following arm to its owner.
-pub(crate) fn pattern_range_after_expression_item(
+/// Recover a Pattern opener handed back by an arm body's expression scanner.
+pub(crate) fn pattern_start_after_expression_item(
     i: &SyntaxIn,
     item: &Item,
     origin: usize,
     fence: Option<&FenceBoundary>,
     stops: crate::pattern::PatternStops,
-) -> Option<usize> {
+) -> Option<Token> {
     let (suffix, additional) = match item.payload_view().spelling()? {
+        "-" if item.leading_view().indentation_after_newline().is_some() => {
+            // Use the same integer scanner as first-arm patterns, without
+            // skipping trivia: only an adjacent negative integer is a pattern.
+            let mut source = i.remainder();
+            let mut recover = LexRecover::new(i.operators());
+            let mut probe = chasa_recover::In::<_, _, ()>::new(&mut source, &mut recover, ());
+            let integer = probe.token(scan_integer)?;
+            return Some(Token {
+                kind: TokenKind::Integer,
+                text: format!("-{}", integer.text).into(),
+            });
+        }
         "." => {
             let suffix = i.remainder().strip_prefix('.')?;
             if suffix
@@ -450,8 +462,12 @@ pub(crate) fn pattern_range_after_expression_item(
         ".." => (i.remainder(), 0),
         _ => return None,
     };
-    pattern_range_upper_starts(suffix, i.operators(), origin + additional, fence, stops)
-        .then_some(additional)
+    pattern_range_upper_starts(suffix, i.operators(), origin + additional, fence, stops).then(
+        || Token {
+            kind: TokenKind::PatternRangeStart,
+            text: "..".into(),
+        },
+    )
 }
 
 /// Raw successor vocabulary for one normalized Pattern Item.

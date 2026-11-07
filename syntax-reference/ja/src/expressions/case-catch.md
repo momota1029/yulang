@@ -58,6 +58,11 @@ Catch handlerのcommaは直接の`CatchArm` childであり、arm-list commaは�
 current-depthのCatch-brace newlineとindented arm-indent newlineはそのfamilyに属し、indented body blockがstatement newlineを所有する。
 active arm ownerは、nested colon、comma、arrow、brace、guard word、closeの表記を、それぞれのimmediate ownerへ戻す。
 
+armの基準と同じ字下げの行は、`-1 -> 2`のように符号で始まっても新しいarmとなる。
+`-`は整数に隣接し、負の整数は従来どおり`Pattern`内の一つの`Integer` tokenとなる。
+前のarm本体を継続する行には、基準より深い字下げが必要である（WP-15、`spec/01-lexical.md` §1.3）。
+`+1`と`- 1`はpatternとして受理しない。
+
 application head が bare identifier である `ArmPattern` は、同一行の Pattern 引数を受理する。
 たとえば、`just x -> x` と `op x, k -> k x` では、`x` が `PatternMlApplicationTail` に入る。
 Catch comma は、引き続き `CatchArm` に属する。

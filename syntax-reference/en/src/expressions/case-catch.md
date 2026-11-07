@@ -57,6 +57,11 @@ A Catch handler comma is a direct `CatchArm` child; an arm-list comma belongs to
 Current-depth Catch-brace newlines and indented arm-indent newlines belong to that family, while an indented body block owns its statement newlines.
 The active arm owner returns nested colon, comma, arrow, brace, guard word, and close spelling to their immediate owners.
 
+A line at the arm baseline starts a new arm even when it begins with a sign, as in `-1 -> 2`.
+The `-` must touch the integer; the negative integer remains one `Integer` token inside `Pattern`.
+A line continuing the preceding arm body must be indented more deeply (WP-15, `spec/01-lexical.md` §1.3).
+Neither `+1` nor `- 1` is admitted as a pattern.
+
 An `ArmPattern` whose application head is a bare identifier admits same-line Pattern arguments.
 For example, `just x -> x` and `op x, k -> k x` place `x` in a `PatternMlApplicationTail`; the Catch comma still belongs to `CatchArm`.
 The parser records only this structure.

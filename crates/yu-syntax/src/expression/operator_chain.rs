@@ -30,7 +30,7 @@ use crate::{
     lexical::{
         current_item::LineEntry,
         item::{Item, LeadingView, OperatorUse, TokenKind},
-        lexer::pattern_range_after_expression_item,
+        lexer::pattern_start_after_expression_item,
         stops::Stops,
         yumark::FenceBoundary,
     },
@@ -647,6 +647,8 @@ pub(crate) fn tail_normalized(
     if is_active_stop(i.rb(), &item, stops) || is_line_stop(&item, stops) {
         return complete(handoff(item), line_entry);
     }
+    // At the arm baseline, a Pattern opener belongs to the next arm even
+    // when the expression scanner selected an infix operator (WP-15).
     if matches!(
         sequence.map(crate::sequence::SequenceOwner::without_declaration_doc),
         Some(
@@ -654,7 +656,7 @@ pub(crate) fn tail_normalized(
                 | crate::sequence::SequenceOwner::CatchIndented
         )
     ) && indentation_after_newline(item.leading_view()) == Some(baseline)
-        && pattern_range_after_expression_item(&i, &item, item_origin, fence, 0).is_some()
+        && pattern_start_after_expression_item(&i, &item, item_origin, fence, 0).is_some()
     {
         return complete(handoff(item), line_entry);
     }
