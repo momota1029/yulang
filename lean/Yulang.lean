@@ -655,3 +655,8 @@ import Yulang.CommonPatternObservationBounds
 import Yulang.CommonPatternBoundedGeneration
 import Yulang.CommonPatternBoundedAllocation
 import Yulang.CommonPatternBoundedProvenance
+import Yulang.CommonPatternCoreBoundedDefaults
+import Yulang.CommonPatternCoreBoundedSolved
+import Yulang.CommonCaseBoundedObservations
+import Yulang.CommonPatternIndexedDefaultBoundary
+import Yulang.CommonCaseCoreBoundedGeneration

@@ -4,8 +4,8 @@ import Yulang.CommonPatternObservationBounds
 import Yulang.CommonPatternFormulaEquivalence
 import Yulang.CommonAlignedPatternGenerationProvenance
 
-/-! Independent Core defaults with explicit row caps and their real finite
-solved family. Arbitrary rows remain free solver parameters. This is an
+/-! Independent Core defaults with explicit row caps and real finite
+generation. Arbitrary rows remain free solver parameters. This is an
 upper-bound factor, not the aggregate case row policy. -/
 
 namespace Yulang.CommonPatternCoreBoundedDefaults

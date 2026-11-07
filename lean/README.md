@@ -1936,3 +1936,35 @@ merged variant row は専用表現が必要であり、通常 union への置換
 **元 B2 は引き続き未完。** source presence/annotation、aggregate default/guard/failure rows、
 ordered coverage、専用 merged row、B5 list/nominal/float と、全 case の公開三契約の統合が残る。
 詳しい量化・前提・検査状態は `notes/handoff/2026-11-07-m1-b2-progress.md` を参照する。
+
+## B2 追加: 実データ評価・coverage cells・返却値制約・Core default行上界
+
+`CommonPatternDataSafety` は有限の名前付きdata式の独立Common型付けから実評価を証明し、
+`CommonPatternConcreteCaseTotal` はこのcallback契約を内部充足して実caseの値安全性・error不在を示す。
+unmatched結果はcoverageとは別に残る。recordの実insert/default操作には独立した型保存補題を使う。
+
+`CommonCaseIntegerCoverage` は有限整数境界の代表点で全整数を検査し、
+`CommonCaseStructuralCoverage` はpair/variant/choiceの有限domainへ持ち上げる。
+unguarded実patternの被覆とのiffと、typed constructor treeからの実case progressを証明する。
+これはrecord/list/nominal/floatを含む全Rust matrixではない。choice domainを旧Commonの異tag通常unionに置換しない。
+
+`CommonPatternCheckedRuntimeEnvironment` は実subjectとraw返却列全体の名前・型制約を、同じbinder slotへ結ぶ。
+raw名の過不足・重複をfinite gateで拒否し、canonical化が全literal `(name,value)` のPermであることを示す。
+型互換性だけから実match identityは推測せず、runtime橋では実match等号を明記する。
+
+`CommonPatternCoreDefaults` / `CommonCaseCoreEnvironments` / `CommonCaseCoreSolvedEnvironments` は、
+Q4/最終prefixの添字に解決済みのCore subject/default/guard/bodyを同じ有限環境factorへ結び、
+全Modelsの実solved list化・任意parameter成立・拒否iffを示す。
+`CommonPatternBoundedGeneration` / `CommonPatternBoundedAllocation` / `CommonPatternCoreBoundedSolved` は、
+各defaultの実計算row≤自由な共通capをfinite formula内で保持し、同じ全Models契約へ接続する。
+この共通上界を全caseのprincipal row規則として採用したとは主張しない。
+
+`CommonPatternObservationBounds` / `CommonCaseBoundedObservations` は、明示した部分的callback契約から、
+任意有限ordered実行の成功値型と全trace/error行上界を合成する。失敗するdefault/guard/bodyも許す。
+一般Coreの式実行・function値・divergenceをこの契約から構成したとは扱わない。
+固定Core添字は環境の並べ替えに不変ではない（`CommonPatternIndexedDefaultBoundary`）。
+Coreの観測接続にはcanonical matcherを用い、元named matcherへの移送では名前不変性または添字の移送が別途必要である。
+
+**元B2は未完。** source presence/annotationの生成、B5全carrier、B3の式実行と行の対応、
+全ordered coverageと失敗行、独立full case Typing、および公開三契約への統合が残る。
+現在の正確な量化・前提・検査結果は上記progress noteを参照する。
