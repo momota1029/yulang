@@ -2,6 +2,8 @@
 
 Navigation aid. Each document is authoritative only for its own text and scope; read its Status line.
 
+- [共通推論の高速化と参照実装からの refinement](2026-11-07-common-inference-refinement.md) — Draft。bound 集合共有と変数同一視を分離し、全独立モデル回収・全自由 parameter 健全性を将来の Lean 関数の契約にする。B1〜B6 の生成と solver の境界、費用モデルの残作業。高速化の実装・証明・測定は行わない。
+
 **2026-11-04:** the 2026-10 inference-proof sprint documents were removed from the working tree.
 They remain in tag `archive/proof-sprint-2026-11-04`. What remains here is the
 parser, syntax, Yumark and declaration designs from 2026-08 and 2026-09, plus `oracles/`.
