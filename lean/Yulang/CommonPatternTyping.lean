@@ -89,4 +89,115 @@ theorem Typing.binding_names (typed : Typing DefaultTyped types pattern input bi
     pattern.names = bindings.map Prod.fst := by
   induction typed <;> simp_all [Pattern.names]
 
+/-- The actual scoped matcher preserves all declared Common binding types.
+The premise on default evaluation quantifies over every admitted accumulated
+environment. A refutable pattern may miss; success is not assumed, and an
+error is excluded only by that explicit default-evaluation contract. -/
+theorem typing_matches (floatCheck : Empty → Empty → Bool)
+    (defaultEval : CaseValues.Bindings Empty → D → Logged E R Value)
+    (defaults : DefaultSound DefaultTyped defaultEval)
+    (typed : Typing DefaultTyped types pattern input bindings) :
+    ∀ environment, CaseValues.BindingsHold (bindingTypes types) environment →
+      ∀ value, valueAt input value →
+        Holds (bindingTypes bindings)
+          (ScopedCasePatterns.run floatCheck defaultEval environment pattern value).result := by
+  induction typed with
+  | wildcard => intro environment valid value valueValid; exact .nil
+  | bind => intro environment valid value valueValid; exact .cons valueValid .nil
+  | literal admissible =>
+      intro environment valid value valueValid
+      cases value <;> simp only [ScopedCasePatterns.run]
+      all_goals first
+        | (split <;> simp [CasePatterns.success, CasePatterns.miss, Logged.ofResult,
+            Holds, bindingTypes, CaseValues.BindingsHold.nil])
+        | (exact True.intro)
+  | intRange admissible bound =>
+      intro environment valid value valueValid
+      cases value <;> simp only [ScopedCasePatterns.run]
+      all_goals first
+        | (split <;> simp [CasePatterns.success, CasePatterns.miss, Logged.ofResult,
+            Holds, bindingTypes, CaseValues.BindingsHold.nil])
+        | (exact True.intro)
+  | pair left right leftIH rightIH =>
+      intro environment valid value valueValid
+      obtain ⟨first, last, rfl, firstValid, lastValid⟩ :=
+        pair_components valueValid _ _ (Common.subtype_refl _)
+      simp only [ScopedCasePatterns.run, bindingTypes_append]
+      refine ScopedCasePatterns.andThen_holds _ _ (leftIH environment valid first firstValid) ?_
+      intro prior priorValid
+      exact rightIH (prior ++ environment)
+        (by simpa only [bindingTypes_append] using priorValid.append valid) last lastValid
+  | recordEnd =>
+      intro environment valid value valueValid
+      obtain ⟨fields, rfl⟩ := records_of_width valueValid (Common.subtype_refl _)
+      exact .nil
+  | field admissible child rest childIH restIH =>
+      intro environment valid value valueValid
+      have width := Common.subtype_trans admissible
+        ((CommonRecordTargetProfiles.subtype_emptyRecord_iff _).mpr rfl)
+      obtain ⟨fields, rfl⟩ := records_of_width valueValid width
+      obtain ⟨item, found, itemValid⟩ := required_lookup fields _ _ _ valueValid admissible
+      simp only [ScopedCasePatterns.run, found, bindingTypes_append]
+      refine ScopedCasePatterns.andThen_holds _ _ (childIH environment valid item itemValid) ?_
+      intro prior priorValid
+      exact restIH (prior ++ environment)
+        (by simpa only [bindingTypes_append] using priorValid.append valid) (.record fields) valueValid
+  | @defaultField name input payload types fallback fallbackType p left rest right
+      optional fallbackTyped child restTyped childIH restIH =>
+      intro environment valid value valueValid
+      have width := (CommonRecordTargetProfiles.subtype_emptyRecord_iff input).mpr
+        (CommonOptionalBound.optional_payload_shape name input payload optional)
+      obtain ⟨fields, rfl⟩ := records_of_width valueValid width
+      simp only [bindingTypes_append]
+      cases found : CaseValues.lookup name fields with
+      | some item =>
+          have itemValid := optional_lookup fields _ name payload item valueValid optional found
+          rw [ScopedCasePatterns.default_present _ _ _ _ _ _ _ _ _ found]
+          refine ScopedCasePatterns.andThen_holds _ _ (childIH environment valid item ?_) ?_
+          · exact typing_change_result itemValid _ (CommonBoundCoalescing.le_union_left _ _)
+          · intro prior priorValid
+            exact restIH (prior ++ environment)
+              (by simpa only [bindingTypes_append] using priorValid.append valid)
+              (.record fields) valueValid
+      | none =>
+          obtain ⟨item, evaluated, itemValid⟩ :=
+            defaults types fallback fallbackType fallbackTyped environment valid
+          rw [ScopedCasePatterns.default_absent _ _ _ _ _ _ _ _ found,
+            Logged.bind_result, evaluated]
+          refine ScopedCasePatterns.andThen_holds _ _ (childIH environment valid item ?_) ?_
+          · exact typing_change_result itemValid _ (CommonBoundCoalescing.le_union_right _ _)
+          · intro prior priorValid
+            exact restIH (prior ++ environment)
+              (by simpa only [bindingTypes_append] using priorValid.append valid)
+              (.record fields) valueValid
+  | variant child childIH =>
+      intro environment valid value valueValid
+      obtain ⟨item, rfl, itemValid⟩ := variant_payload valueValid _ _ (Common.subtype_refl _)
+      simpa [ScopedCasePatterns.run] using childIH environment valid item itemValid
+  | or left right leftIH rightIH =>
+      intro environment valid value valueValid
+      have first := leftIH environment valid value valueValid
+      simp only [ScopedCasePatterns.run, Logged.bind_result]
+      cases observed : (ScopedCasePatterns.run floatCheck defaultEval environment _ value).result with
+      | error error => rw [observed] at first; cases first
+      | ok option =>
+          rw [observed] at first
+          cases option with
+          | none => exact rightIH environment valid value valueValid
+          | some values => exact first
+  | as child childIH =>
+      intro environment valid value valueValid
+      have matched := childIH environment valid value valueValid
+      simp only [ScopedCasePatterns.run, Logged.bind_result]
+      cases observed : (ScopedCasePatterns.run floatCheck defaultEval environment _ value).result with
+      | error error => rw [observed] at matched; cases matched
+      | ok option =>
+          rw [observed] at matched
+          cases option with
+          | none => trivial
+          | some values => exact CaseValues.BindingsHold.cons valueValid matched
+  | narrow below child childIH =>
+      intro environment valid value valueValid
+      exact childIH environment valid value (typing_change_result valueValid _ below)
+
 end Yulang.CommonPatternTyping
