@@ -622,3 +622,6 @@ import Yulang.CommonSignedChoiceDecision
 import Yulang.CommonSignedChoiceSolver
 import Yulang.CommonSignedUnionCompilation
 import Yulang.CommonSignedValueUnionSolver
+import Yulang.CommonEffectClauses
+import Yulang.CommonEffectClauseNormalisation
+import Yulang.CommonEffectPackedClauses

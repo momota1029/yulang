@@ -4328,3 +4328,15 @@ run_cmd do
 #print axioms Yulang.CommonSignedValueUnionSolver.all_parameters_models
 #print axioms Yulang.CommonSignedValueUnionSolver.solve_all_instances_exact
 #print axioms Yulang.CommonSignedValueUnionSolver.generated_all_instances_exact
+
+#print axioms Yulang.CommonEffectClauses.Clause.combine_exact
+#print axioms Yulang.CommonEffectClauses.Clause.close_exact
+#print axioms Yulang.CommonEffectClauses.Clause.closeTypes_exact
+
+#print axioms Yulang.CommonEffectClauseNormalisation.normaliseCore_exact
+#print axioms Yulang.CommonEffectClauseNormalisation.normalise_exact
+
+#print axioms Yulang.CommonEffectPackedClauses.pack_exact
+#print axioms Yulang.CommonEffectPackedClauses.compile_exact
+#print axioms Yulang.CommonEffectPackedClauses.solve_all_instances_exact
+#print axioms Yulang.CommonEffectPackedClauses.all_parameters_models
