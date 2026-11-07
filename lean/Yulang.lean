@@ -643,3 +643,6 @@ import Yulang.CommonCaseStructuralCells
 import Yulang.CommonCaseStructuralMatching
 import Yulang.CommonCaseStructuralCoverage
 import Yulang.CommonCaseStructuralOrdered
+import Yulang.CommonPatternRuntimeValueConstraints
+import Yulang.CommonPatternSourceRuntimeEnvironment
+import Yulang.CommonPatternSourceRuntimeMatch

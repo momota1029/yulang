@@ -4295,3 +4295,11 @@ run_cmd do
 #print axioms Yulang.CommonCaseStructuralCoverage.check_matches_exact
 #print axioms Yulang.CommonCaseStructuralOrdered.Tree.readout
 #print axioms Yulang.CommonCaseStructuralOrdered.tree_program_progress
+#print axioms Yulang.CommonPatternRuntimeValueConstraints.value_constraints_exact
+#print axioms Yulang.CommonPatternRuntimeValueConstraints.binding_constraints_exact
+#print axioms Yulang.CommonPatternSourceRuntimeEnvironment.generateEnvironment_exact
+#print axioms Yulang.CommonPatternSourceRuntimeEnvironment.all_parameter_witness
+#print axioms Yulang.CommonPatternSourceRuntimeEnvironment.witness_instances_exact
+#print axioms Yulang.CommonPatternSourceRuntimeEnvironment.no_witness_exact
+#print axioms Yulang.CommonPatternSourceRuntimeMatch.actual_returns_typed
+#print axioms Yulang.CommonPatternSourceRuntimeMatch.actual_match_models_exact
