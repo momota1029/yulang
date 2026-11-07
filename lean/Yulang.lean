@@ -667,3 +667,8 @@ import Yulang.CommonRoleFiniteTailObstruction
 import Yulang.CommonRoleFiniteTailSemantic
 import Yulang.CommonRoleFiniteTailExamples
 import Yulang.CommonRoleCanonicalRows
+import Yulang.CommonRoleMergedPayload
+import Yulang.CommonRoleMergedRegistry
+import Yulang.CommonRoleCanonicalMergedEvidence
+import Yulang.CommonRoleMergedHalting
+import Yulang.CommonRoleMergedObstruction
