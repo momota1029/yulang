@@ -2023,3 +2023,18 @@ finite inter-arrow inspection を証明する。入力行・出力行の担当 m
 `CommonEffectArrowInspection.inspect_collected_exact` はこれを実 shared Pool の finite child/row IDs へ compile する。
 任意独立 rows/全値 nodes と元 constructor equations の下で exact であり、whole-source subtype を atom に持たない。
 残る depth-cover/result-inter の自由 scheme 化と一般 universal relative solving が必要で、親二契約は未完である。
+
+### B3 2026-11-08: invariant interval と kinded local の追加基礎
+
+`CommonEffectInvariantIntervals` は centre-less な lower/upper の型・行区間を保持し、
+併合時の二つの交差制約、全 unrestricted parameter の健全性、全型の要求同値回収・全行の literal 回収を証明する。
+整合性の型比較は実有限 Formula に出す。effect family/tail の interval dispatch との接続は未完である。
+既存 signed-row 結果は解決済み Nat key に対する元の定理として有効である。
+
+`CommonEffectKindedFormula` は型と行の local を別々に束縛し、captured assignment を固定する。
+代入保存、旧 type-only binder への zero-row 保守性、well-kinded 型の row placeholder 非依存を証明する。
+`CommonEffectKindedGeneration` は実 recursive generator を使った rigid field 構築と使用時 instantiate の有限橋を持つ。
+checked 入口は新 local の有限 kind 検査を実行する。captured 名の source kind validation、nominal field 格納・射影は別義務である。
+`CommonEffectKindedHandler` は ∃outer input/returned、∀型・行 locals、∃operated の順序を保ち、
+元 action 行を持つ shallow continuation と元環境を固定したまま、実再帰 body の生成と独立 handler 判断を対応させる。
+旧 declaration table 自体の mixed 化、一般 universal elimination と親 B3 二契約は引き続き未完である。
