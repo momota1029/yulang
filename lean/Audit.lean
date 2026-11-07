@@ -4045,3 +4045,8 @@ run_cmd do
 #print axioms Yulang.CommonCanonicalCurriedModule.finished_top_iff_known
 #print axioms Yulang.CommonCanonicalCurriedModule.export_canonicalEncoding_exact
 #print axioms Yulang.CommonCanonicalCurriedModule.Examples.shared_joined_finished_instances
+
+#print axioms Yulang.CommonSignedRows.encodeOccurrence_injective
+#print axioms Yulang.CommonSignedRows.embedRow_le_iff
+#print axioms Yulang.CommonSignedRows.embedRow_join
+#print axioms Yulang.CommonSignedRows.embedRow_coordinate_length
