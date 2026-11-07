@@ -210,6 +210,55 @@ theorem emitNatural_runs {registers : Nat} (bank : WordBank registers)
     <;> simp_all [second, first, write, distinct.eq_iff]
   exact same ▸ combined
 
+def emitSum {registers : Nat} (bank : WordBank registers)
+    (first : Fin (registers + 1)) : Routine registers :=
+  append (copy first (bank 2) (bank 3))
+    (append (repeatEmit (bank 2) (bank 0) (bank 3) [.natSucc]) (emitNatural bank))
+
+/-- Emit the sum of two runtime values by their unary syntax. The first
+source may equal the second; the work registers must be distinct from it. -/
+theorem emitSum_runs {registers : Nat} (bank : WordBank registers)
+    (distinct : Function.Injective bank) (first : Fin (registers + 1))
+    (firstCounter : first ≠ bank 2) (firstTemporary : first ≠ bank 3)
+    (prior : Word) (values : Store registers) (input : values (bank 0) = wordCode prior) :
+    Runs (emitSum bank first) values
+      (write (write (write values (bank 0)
+        (wordCode ((natural (values first + values (bank 1))).reverse ++ prior))) (bank 2) 0) (bank 3) 0) := by
+  let copied := write (write values (bank 2) (values first)) (bank 3) 0
+  have copyRun := copy_runs first (bank 2) (bank 3) firstCounter firstTemporary
+    (by simp [distinct.eq_iff]) values
+  have copiedInput : copied (bank 0) = wordCode prior := by
+    simpa only [copied, write, distinct.eq_iff, Fin.isValue, Fin.reduceEq, ↓reduceIte] using input
+  have copiedCount : copied (bank 2) = values first := by simp [copied, write, distinct.eq_iff]
+  have repeatRun := repeatEmit_runs (bank 2) (bank 0) (bank 3)
+    (by simp [distinct.eq_iff]) (by simp [distinct.eq_iff]) (by simp [distinct.eq_iff])
+    [.natSucc] prior copied copiedInput
+  rw [copiedCount] at repeatRun
+  let repeatedWord := (repeatTokens [.natSucc] (values first)).reverse ++ prior
+  let repeated := write (write (write copied (bank 2) 0) (bank 0) (wordCode repeatedWord)) (bank 3) 0
+  have repeatedInput : repeated (bank 0) = wordCode repeatedWord := by
+    simp [repeated, write, distinct.eq_iff]
+  have repeatedLast : repeated (bank 1) = values (bank 1) := by
+    simp [repeated, copied, write, distinct.eq_iff]
+  have lastRun := emitNatural_runs bank distinct repeatedWord repeated repeatedInput
+  rw [repeatedLast] at lastRun
+  have combined := append_runs copyRun (append_runs repeatRun lastRun)
+  have order : (natural (values (bank 1))).reverse ++ repeatedWord =
+      (natural (values first + values (bank 1))).reverse ++ prior := by
+    simp only [natural_add_tokens, repeatedWord, List.reverse_append, List.append_assoc]
+  have same : write (write (write repeated (bank 0)
+        (wordCode ((natural (values (bank 1))).reverse ++ repeatedWord))) (bank 2) 0) (bank 3) 0 =
+      write (write (write values (bank 0)
+        (wordCode ((natural (values first + values (bank 1))).reverse ++ prior))) (bank 2) 0) (bank 3) 0 := by
+    rw [order]
+    funext current
+    by_cases at0 : current = bank 0
+    <;> by_cases at1 : current = bank 1
+    <;> by_cases at2 : current = bank 2
+    <;> by_cases at3 : current = bank 3
+    <;> simp_all [repeated, copied, write, distinct.eq_iff]
+  exact same ▸ combined
+
 def readNaturalToken {registers : Nat} (bank : WordBank registers) : Routine registers :=
   append (wordPop bank) (atomic (.decrement (bank 2) () ()))
 

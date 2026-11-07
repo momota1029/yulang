@@ -54,6 +54,7 @@ import Lean
 #print axioms Yulang.CanonicalRegisterMachine.Routine.pushDigit_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.setConstant_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.clearList_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.pushCounter_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.comparisonLoop_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.compareCounters_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.wordTick_runs
@@ -93,10 +94,15 @@ import Lean
 #print axioms Yulang.CommonCanonicalWordPrograms.natural_add_tokens
 #print axioms Yulang.CommonCanonicalWordPrograms.repeatEmit_runs
 #print axioms Yulang.CommonCanonicalWordPrograms.emitNatural_runs
+#print axioms Yulang.CommonCanonicalWordPrograms.emitSum_runs
 #print axioms Yulang.CommonCanonicalWordPrograms.readNaturalToken_runs
 #print axioms Yulang.CommonCanonicalWordPrograms.readNaturalLoop_runs
 #print axioms Yulang.CommonCanonicalWordPrograms.readNatural_runs
+#print axioms Yulang.CommonCanonicalWordReverse.reverseBody_runs
+#print axioms Yulang.CommonCanonicalWordReverse.reverseLoop_runs
+#print axioms Yulang.CommonCanonicalWordReverse.reverseWord_runs
 #print axioms Yulang.CommonCanonicalProgramReader.readTriple_runs
+#print axioms Yulang.CommonCanonicalProgramReader.readPair_runs
 #print axioms Yulang.CommonCanonicalProgramReader.readHeader_runs
 
 /- The allowlist applies to every declaration from a Yulang module, including

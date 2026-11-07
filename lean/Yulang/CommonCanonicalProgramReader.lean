@@ -9,6 +9,30 @@ open CanonicalRegisterMachine.Routine
 open CommonCanonicalSerialization
 open CommonCanonicalWordPrograms
 
+def readPair {registers : Nat} (bank : WordBank registers)
+    (firstOutput lastOutput : Fin (registers + 1)) : Routine registers :=
+  append (readNatural bank firstOutput) (readNatural bank lastOutput)
+
+theorem readPair_runs {registers : Nat} (bank : WordBank registers)
+    (distinct : Function.Injective bank) (firstOutput lastOutput : Fin (registers + 1))
+    (firstOutside : ∀ index, firstOutput ≠ bank index) (lastOutside : ∀ index, lastOutput ≠ bank index)
+    (first last : Nat) (rest : Word) (values : Store registers)
+    (input : values (bank 0) = wordCode (natural first ++ natural last ++ rest)) :
+    Runs (readPair bank firstOutput lastOutput) values
+      (wordStore bank (write (write values firstOutput first) lastOutput last) (wordCode rest) 0 0 62) := by
+  let firstFrame := write values firstOutput first
+  let middle := wordStore bank firstFrame (wordCode (natural last ++ rest)) 0 0 62
+  have firstRun := readNatural_runs bank distinct firstOutput firstOutside first (natural last ++ rest) values
+    (by simpa only [List.append_assoc] using input)
+  have middleInput : middle (bank 0) = wordCode (natural last ++ rest) := by
+    simp [middle, wordStore, write, distinct.eq_iff]
+  have lastRun := readNatural_runs bank distinct lastOutput lastOutside last rest middle middleInput
+  change Runs (readNatural bank lastOutput) middle
+    (wordStore bank (write (wordStore bank firstFrame (wordCode (natural last ++ rest)) 0 0 62)
+      lastOutput last) (wordCode rest) 0 0 62) at lastRun
+  rw [wordStore_write_frame] at lastRun
+  exact append_runs firstRun lastRun
+
 def readTriple {registers : Nat} (bank : WordBank registers)
     (outputs : Fin 3 → Fin (registers + 1)) : Routine registers :=
   append (readNatural bank (outputs 0))

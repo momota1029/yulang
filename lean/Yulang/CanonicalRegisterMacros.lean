@@ -230,4 +230,30 @@ theorem clearList_runs {registers : Nat} (targets : List (Fin (registers + 1)))
         <;> simp_all [write]
       exact same ▸ combined
 
+def pushCounter {registers : Nat} (base : Nat)
+    (digit word temporary : Fin (registers + 1)) : Routine registers :=
+  append (pushDigit base 0 word temporary) (drain digit [word])
+
+/-- Append a digit supplied at runtime, consuming that digit counter. -/
+theorem pushCounter_runs {registers : Nat} (base : Nat)
+    (digit word temporary : Fin (registers + 1)) (digitWord : digit ≠ word)
+    (digitTemporary : digit ≠ temporary) (wordTemporary : word ≠ temporary)
+    (values : Store registers) :
+    Runs (pushCounter base digit word temporary) values
+      (write (write (write values word (base * values word + values digit)) digit 0) temporary 0) := by
+  let scaled := write (write values word (base * values word + 0)) temporary 0
+  have scaleRun := pushDigit_runs base 0 word temporary wordTemporary values
+  have drainRun := drain_runs digit [word] (by simpa only [List.mem_singleton] using digitWord) scaled
+  have combined := append_runs scaleRun drainRun
+  have same : (fun register => if register = digit then 0
+        else scaled register + [word].count register * scaled digit) =
+      write (write (write values word (base * values word + values digit)) digit 0) temporary 0 := by
+    funext current
+    by_cases atDigit : current = digit
+    <;> by_cases atWord : current = word
+    <;> by_cases atTemporary : current = temporary
+    <;> simp_all [scaled, write]
+    simp [Ne.symm atWord]
+  exact same ▸ combined
+
 end Yulang.CanonicalRegisterMachine.Routine
