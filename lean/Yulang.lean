@@ -585,3 +585,7 @@ import Yulang.CommonRoleRegularObstructions
 import Yulang.CommonEffectRequestGeneration
 import Yulang.CommonPatternInversion
 import Yulang.CommonPatternGeneration
+import Yulang.CommonPatternAllocation
+import Yulang.CommonArmEnvironmentGeneration
+import Yulang.CommonPatternPartialSafety
+import Yulang.CommonPatternSourceChecks

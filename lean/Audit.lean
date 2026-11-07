@@ -4178,3 +4178,12 @@ run_cmd do
 #print axioms Yulang.CommonPatternInversion.defaultField_iff
 #print axioms Yulang.CommonPatternInversion.or_iff
 #print axioms Yulang.CommonPatternGeneration.generatePattern_exact
+#print axioms Yulang.CommonPatternAllocation.close_exact
+#print axioms Yulang.CommonPatternAllocation.generateAllocatedPattern_exact
+#print axioms Yulang.CommonPatternAllocation.allocated_bindings_exact
+#print axioms Yulang.CommonPatternAllocation.withPattern_exact
+#print axioms Yulang.CommonArmEnvironmentGeneration.generateEnvironments_exact
+#print axioms Yulang.CommonPatternPartialSafety.typing_matches_partial
+#print axioms Yulang.CommonPatternSourceChecks.generateCheckedPattern_exact
+#print axioms Yulang.CommonPatternSourceChecks.generated_matches_partial
+#print axioms Yulang.CommonPatternSourceChecks.returned_bindings_exact
