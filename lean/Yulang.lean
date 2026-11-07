@@ -685,3 +685,4 @@ import Yulang.CommonRoleSharedPayloadAgreement
 import Yulang.CommonRoleSharedCaptureDescent
 import Yulang.CommonRoleIntervals
 import Yulang.CommonRoleIntervalGeneration
+import Yulang.CommonRoleIntervalCongruence

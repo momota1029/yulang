@@ -2,6 +2,12 @@
 
 状態: 2026-11-08 のユーザー訂正を受けた設計・既存結果の再分類。E1/E2 の完了報告ではない。
 本書を書き終えるまでは新しい証明を追加しない。未コンパイルの第八回matcher草案は削除した。
+**同日追補:** ユーザーの追加訂正に従い、nominal全引数を不変とする読みを撤回する。
+型引数のvarianceは型宣言時のmetadataであり、boxは共変、無限に入れ子になりうるlist等の引数は不変。
+non-variable payloadのno-split決定も要確認へ戻った。以下はこの最新の状態を反映する。
+**同日方向付け:** roleはintervalに対する制約を作り、lowerのheadが分かるまで遅延する。
+候補は区間の伝播により残ったものから一つ/複数/零を分類し、代入を探索しない。
+下記の旧anchor質問はこの方向付けにより取り下げ、点照合の二者択一を新たな前提にしない。
 既存の証明・結果文書・仕様本文は変更しない。
 
 ## 1. 読み直した正本と、訂正する前提
@@ -14,6 +20,7 @@
 
 後二者は空だった最初のコピーではなく、ユーザーが配置し直した非空ファイルである。
 旧文書は区間規則の出典として読み、現行specの新しい決定と衝突する箇所には現行決定を使う。
+特に旧文書のconstructor引数を一律不変として記録する箇所は、2026-11-08の型宣言ごとのvariance決定で訂正される。
 例えば旧文書の「曖昧なら残す」は、未確定demandの保留と、現spec6.2の確定後の複数implによる曖昧エラーを混同する根拠にしない。
 K1のreceiver-less memberの整合条件は、本作業の根拠にしない。
 
@@ -24,7 +31,9 @@ raw demand、candidate、関連型、qualified residualを区間と通常制約�
 
 ## 2. 中心を持たないcarrierと意味
 
-rawな引数は既存の型項または共有referenceの**二つ組** `(lower, upper)` とする。
+raw role demandのboundsを表す入力は既存の型項または共有referenceの**二つ組** `(lower, upper)` とする。
+この二境界の入力形式と、各constructor引数を不変とすることは別である。
+headの子slotは宣言済varianceに従い、共変なら正側、反変なら負側、不変なら両境界を読む。
 中心・代表となる実型・捕捉pointをfieldに追加しない。
 
 意味の説明には、任意のCommon割当てρと任意の実型Tに対して
@@ -76,16 +85,19 @@ member bodyの局所変数をcandidate headへ直接共有しない。
 candidate側もdemand側と同じcompact規則で簡約し、同じ実引数のboundsをmergeして交差制約を生成する。
 各候補の試行で生じた制約は区別し、別の候補を試す前にambient stateへ混ぜない。
 
-独立意味の基本単位は「この候補が作る有限拡張制約と、その**全model family**」とする。
+独立意味の基本単位は「roleが課すinterval制約と、その伝播・遅延・選択の有限step」とする。
+lower headが未確定の間はpendingであり、候補を求めるための代入探索は行わない。
+この通常制約生成の意味保存は**全model family**について証明する。
 新しいlocal割当てを意味上で量化する場合も、実生成器が作ったslotと制約への割当てに限る。
 `∃ arbitrary Common σ, head[σ]≈goal` をruntimeの操作的定義へ戻さない。
 実生成のiffは、固定したambient割当てごとに、独立なinterval/head制約の拡張model iff
 実生成制約を満たすfresh local割当て、という形で証明する。
 
-ただし、**整合する候補の制約familyから、解決可能なdemandに対する「候補」をどの条件で確定するか**は、
-旧文書のcompact比較の説明だけでは完全な関係式になっていない。
-区間の非空な重なり、全demand familyの被覆、lower優先で選んだanchorによるcandidate headの選別は別の条件である。
-この差が利用者のコードへ現れる一問を末尾で切り出す。承認前にどれかをYulangの定理と呼ばない。
+候補は、有限registryの各宣言を実propagation ruleへ接続し、現在のboundsの伝播で矛盾・head不適合が判明したものを除いた残存宣言である。
+候補の意味を `∃ point σ`、あるいは「候補区間とdemand区間にどれかの共通pointがある」だけで定義しない。
+生成制約のmodel存在のiffはconstraint machineとの意味保存に使う数学的定理であり、候補探索アルゴリズムではない。
+§8のMark/int/anyを使った旧質問も、この点を曖昧にする枠組みだったため退ける。
+具体例の最終分類は新しいhead propagationの実生成から導き、旧point matcherへケースを戻さない。
 
 ### 3.2 captureを点代入と呼び換えない
 
@@ -98,45 +110,83 @@ captureは、headの各位置を有限に分解し、fresh slotへ上下のbound
   非退化intervalの残余bounds接続は新しく証明し、lowerをpointに固定しない。
   任意のmasked-equation解をtail像として選ばない。first-field-winsのNはこの操作と別に維持する。
 - 同じtagのpayloadは合流後のboundsを使う。消えたpre-merge枝を復元しない。
-- non-variable branchはpayloadをsplit/coverしないという既存承認を維持する。
-  ただし、点のnominal alternativesを保持する旧第七回の説明は新carrierの説明にしない。
-- 同じnominal path、effect family pathは一つのentryにし、引数slotを不変区間としてmergeする。
-  `box int` と `box bool` を二つの独立point alternativeとして残すことを前提にしない。
+- **non-variable branchのsplit/cover不許可は要確認へ戻った。** plain変数の承認から、
+  box/list/tuple等のnon-variable全般を一律に候補外とする規則を導かない。
+  旧第七回のbox不変性に依存する理由と第八回のno-split前提を、確定事項として新証明へ入れない。
+- 同じnominal pathは一つのentryへ集め、子slotは**その型宣言で決まったvariance**に従って処理する。
+  共変boxの子はunionで合流し、不変listの子はlowerのjoin/upperのmeetと交差制約を使う。
+  effect familyにも既存のkind/variance宣言を参照する。旧referenceの一律不変を無断で一般化しない。
 
-現在spec6.5は `box int` / `box bool` の不整合をClaudeによる「要確認の帰結」と記している。
-今回のユーザー指示はこの帰結を明示しており、その指示を現在の作業前提とする。
-既存のpoint nominal APIの別型性だけからsourceでそのgoalが生成されると推論した旧説明は撤回する。
-通常の二つのpinされたboundsをmergeすれば `int|bool ≤ int&bool` が必要になる、という代数的事実と、
-source loweringが本当にその同一slotへ入れることのbridgeは別々に記録する。
+2026-11-08の**最新のユーザー訂正**を現在の作業前提とする。
+共変boxでは `box int` と `box bool` が `box (int | bool)` へ合流し、この理由では型エラーにならない。
+不変listでは、既に引数が確定した `list int` と `list bool` を同じslotへ合わせると
+`list (int | bool, int & bool)` となり、整合に必要な `int | bool ≤ int & bool` が成立しない。
+前版の「boxの合流が不整合」という記述はユーザーが撤回した説明に基づくので、本版では使わない。
+source loweringが実際に同一slotへ入れるbridgeと、一般区間の交差条件の代数定理は別々に記録する。
+
+### 3.2a head grammarで読む方向
+
+varianceは型宣言時に決め、推論時に型bodyを見直して都合のよい方向を選ばない。
+無限に入れ子になりうる引数の不変性は、構造全体を再構築するcastを避けるための規則。
+単に別constructorの内側に現れるだけで不変とする旧解釈は使わない。
+型宣言からvariance metadataを導出する有限算法とそのsoundnessは、新しい独立証明義務である。
+
+| head branch/slot | 読み・生成する制約 | 状態 |
+|---|---|---|
+| plain型変数 | 供給されたmerged payloadのboundsをそのまま接続。消えた枝へsplitしない | 承認済み。新interval生成器への全bridgeは別 |
+| base/any/never/unit | 現在のbound snapshotと通常の順序制約で比較 | lower head判明後のcandidate伝播へ接続。点代入探索にしない |
+| tupleの成分 | 外側と同じ共変方向。負の外側に入れば向きを反転 | 既存Common pair構造則を再利用 |
+| recordの可視field・variantのpayload | 共変。first-field-wins、tag合流とpayload全体を保持 | record残余は具体化まで保留。non-variable splitの一般規則は未確定 |
+| arrowの引数/結果 | 引数で反転、結果は同方向 | 両effect rowの方向も既存arrow則に従う |
+| 有限構造のnominal共変引数（box等） | 宣言の正方向を使い、同pathのproducer合流は子のunion | boxを不変区間の例にしない |
+| nominal反変引数 | 宣言の負方向を使い、必要な箇所で向きを反転 | constructor名だけから不変と決めない |
+| 無限に入れ子になりうるnominal引数（list/木等） | 中心なし(lower,upper)。同じ実引数のmergeと交差制約 | castで無限データ全体を再構築しない |
+| named再帰型 | nominal IDと宣言済varianceの引数を読む。bodyは展開しない | 匿名再帰型のK2拒否と区別 |
+| alias/associated | aliasは透明なlowering、associatedは通常の新変数と等式 | 他role projectionを勝手に展開しない |
+
+`list('a), list('b)` を使ったnon-variableの問いへ置き換える場合も、
+既に確定したlist int/list boolの矛盾した合流を「生成可能なwell-typed goal」として例示しない。
+再確認が必要なことを記録する一方、実際に成立するsourceのloweringとpending/整合を先に調べる。
+今回のplain変数以外に新しいcapture規則を確定したとはしない。
 
 ### 3.3 pending、selection、ambiguity
 
-`Valid I` は解決開始の十分条件ではない。旧role文書の解決可否は、主型と全rolesを一括でcompact簡約した後、
-各通常引数の一方の境界に単一具体成分があり、主型側に現れる変数の極性が適切であることを読む。
-両側が使える場合のlower優先も含む。roleの中だけに残る共通変数を「主型に現れる」と数えない。
-この判定を、全自由名の消失・局所区間の整合・単なるsingle-constructor head checkへ置き換えない。
+ユーザーの最新の方向付けを規範とする。role goalは引数intervalへの制約を作る。
+通常machineのbound propagationが進み、**lowerのheadが分かるまでpending**にする。
+`Valid I` だけ、または上界だけが具体的というだけで、代入を選んで解決を開始しない。
+旧referenceのsingle-concrete/main-polarity/upper-anchorの記述を、この最新のlower-head deferralを迂回する許可にしない。
+主型＋全rolesの共有、level、全出現sandwichは必要な通常制約・scheme生成の情報として保持する。
 
-解決開始できないdemandはpending/residualとして残す。
-新しいordinary/associated制約を返した場合は現在のmachineから再collectし、解決可能性を再評価する。
-原因keyは合算済みbounds全体ではなく、元のslot/path/子slotで取る。
-「同じ形のboundsがまた増えた」ことを新しい原因と数え続ける実装を避ける。
+lower headが分かれば、propagationが残した可視宣言を数える。
 
-解決可能なdemandの候補確定規則は下記の一問の対象とする。
-確定後の複数の可視implは現行6.2の曖昧エラー。関連型の適合やwhereの成功を後から見て一候補へ絞らない。
-一候補を選んだら、実where列の全条件を同じcaller-visible集合へ投入し、関連型等式を通常制約へ返す。
-辞書はactual declaration identityと全where childrenを保持する有限treeであり、coinductiveな循環証拠にはしない。
+- 一つ: そのactual impl headを選択する。annotation slotの接続から関連型等式を返し、実where列の**全条件**を新しいinterval制約として投入する。
+- 複数: ambiguous。whereの結果を見て後から候補を選び直さない。
+- 零: rejected/noImpl。K2によるrecursive-type rejectionとは診断理由を分ける。
+- lower head未確定: pending。未対応や失敗をpendingへ偽装しない。
 
-K2の二拒否、named recursionの非展開、depth/fuel/RoleRankを足さない条件は維持する。
-ただし、新しい区間stateに対する「到達」「head constructorを調べる」の正確な実操作との対応は新しい証明義務であり、
-旧pointモデルのReady/Rejectsをそのままintervalへ適用したとはしない。
-拒否先行も未承認のworking choiceのまま。
+ここでの分類は同じconstraint snapshotの観測であり、一つのopen入力のstatusが全将来割当てで変わらないという命題ではない。
+新しいordinary/associated制約を受けたら、実machineの現在のboundsから再collect/propagateする。
+局所queryが返っただけで全componentが整合すると判断しない（CommonDemandBoundary）。
+実行に必要な検査を終える境界の義務も、単一snapshotのquery定理とは区別する。
+
+where-childは**headの選択後だけ**作る。未選択の候補のwhereを解くための探索木を作らない。
+同じcaller-visible集合を全childへ使う。
+head選択と辞書完成は別であり、childがpendingなら親には未解消義務が残る。
+全childに有限evidenceが揃ったときだけ、actual declaration identityと全childを持つ完成dictionaryを返す。
+coinductiveな辞書、fuel、深さ上限、RoleRankは追加しない。
+
+K2の二拒否を維持する。pendingのintervalに匿名再帰記述が含まれるだけでは拒否しない。
+実際にresolutionがその再帰型のrootへ到達、または選択のためのhead伝播がそのconstructorのinspectionを必要とした所を拒否位置として形式化する。
+plain変数でpayloadをそのまま保持できる位置を、一律のrecursive inspectionへ変えない。
+named recursionのbodyは展開しない。拒否先行は従来のworking choiceのままで、ユーザー承認済みと書き換えない。
 
 ### 3.4 residualのvarianceとlevel
 
-resolution中の通常引数は常に不変区間。
+raw role resolutionは中心なしの上下boundsを入力として扱う。
+これは、内側のnominal引数が全て不変という意味ではない。constructorの子へ降りる向きは型宣言済varianceに従う。
 宣言method型から導出したvarianceを反転して、schemeへ残すwhere引数を読む段階だけで
 Covariantはlower、Contravariantはupper、Invariant/Unusedは全区間を使う。
-関連型は常に不変。再instantiateはCovariant(pos)を `(pos,top)`、Contravariant(neg)を `(bottom,neg)`、
+旧role referenceの関連型のraw接続は上下boundsを保持する。再instantiateはCovariant(pos)を `(pos,top)`、Contravariant(neg)を `(bottom,neg)`、
 Invariantを元のboundsへ戻す。主型の全出現・他role・ambient/captured/weak共有を保存する。
 
 sandwichは主型全体と全rolesを読む。一つの区間で具体型が同伴しただけで変数を他の位置から消さない。
@@ -197,6 +247,8 @@ CompactBoundsのlift済variantが必要ならendpointへのreadoutと意味保�
 全interval capture後のhead/where下降定理ではなくB。
 `CommonRoleNominalCoverBoundary` の有限cover探索・旧point nominal APIの別型性も真だが、
 同pathを複数point alternativeとして保持するYulangモデルには移送しない。
+特に `box_invariant` のboxは旧API内の固定IDの不変headであり、現仕様の共変struct boxの定理ではない。
+既存CommonNominalHeadsの一律不変APIも、宣言済invariant constructorへの新bridgeなしにnominal全般へ使わない。
 単なる「全称σが現れる」ことを誤りと呼ばない。HDAやcongruenceの全称割当ては意味保存の検査であり、
 runtimeの任意代入選択とは異なる。
 
@@ -210,7 +262,7 @@ runtimeの任意代入選択とは異なる。
 | `CommonRoleFiniteTailObstruction.normalized_registry_undecidable` | `{x:int,..a}` にa:={x:int}を選び、head同値を保ったままchildへclockを戻すモデル | **実subtractionと食い違う**。正準残余は{}。旧assignmentが実solverから生成される事実がなく、interval化で復活しない |
 | `CommonRoleMergedObstruction.canonical_merged_registry_undecidable` | matcherは冪等contractするがcheckerは重複tag payloadを数えるモデル | そのまま不可。tailの任意像には依存しないが、承認済tag N/stable checkでpadding消失。小例拒否は既存 `proposed_rejects_minimal/growing`。intervalへの新bridgeなし |
 
-従って、**現在のinterval規則に対するE2として数えられる旧定理はまだない**。
+従って、**現在のdeferred interval規則に対するE2として数えられる旧定理はまだない**。
 root/constructor・shadow・mergedは旧弱いモデルの数学的反例として保持する。
 finite-tailは特に実生成から外れた存在代入を用いたため、実Yulangの不可能性の証拠にしない。
 associatedの旧 `checked_registry_counterexample` も、隠れたfieldからRHSを選べる旧定義の事実であり、
@@ -219,48 +271,87 @@ head/where関連の旧obstructionを同じ理由で新E2に数えない。
 
 ## 6. B4 registry exactness の改訂statement
 
-元7.6の「任意有限verified D・visible V・型/行確定description・実選択/拒否/曖昧性iff独立証拠・実辞書」を保ち、
-点goalから実interval demandを含む有限stateへ入力表現を訂正する。
-open stateではpendingと返したordinary/associated制約も結果に含める。
-これは有限木・support・成功・fuelを新前提へ押し出す変更ではない。
+元7.6の任意有限verified D・caller-visible V・全finite regular descriptionを保ち、
+独立意味を **interval制約＋伝播＋lower-head deferral＋選択後のwhere投入** として訂正する。
+実resolverは代入探索器ではなく、既存DemandBoundPropagation/CommonDemand*のqueryと通常constraint machineを使う遅延resolverである。
 
-目標statementは、以下の**全入力を全称量化**する。
+目標statementの全入力を次の通り全称量化する。
 
 ```text
-任意の有限kind付きrole/method/impl宣言D、根のcaller-visible集合V、
+任意の有限kind付きrole/method/impl宣言D、caller-visible集合V、
 Dの現行WellFormed・HeadDeterminesAssociated・承認済N/stable Paterson check、
+型宣言時に確定したconstructor引数のvariance metadata、
 任意の有限共有型/行constraint snapshot G、主型root M、
-有限通常/associated interval demand列Q、正しい既存slot/kind/level入力metadataに対して、
+通常/associated引数のinterval demand有限列Q、既存slot/kind/level入力metadataに対して、
 
-実有限interval resolver run(D,V,G,M,Q)は停止し、
-selection / K2 rejection / ambiguity / pendingと生成したordinary/associated制約を返す。
-任意のambient Common型/行割当てρと所定のoutcome/planに対して、
-「ある返却制約付き分岐Bとfresh local割当てιがあり、Bのordinary/associated制約をρ⊕ιが満たし、
-Bのoutcome/planが所定のものになる」 iff 同じρでの独立IntervalResolution、を要求する。
-一つの確定statusが全ての将来ρで変わらない、とは要求しない。
-成功分岐のactual declaration identity・全where children・同一caller visibilityを持つ
-実有限dictionary Planが、独立有限interval evidenceの消去とちょうど対応する。
+実deferred resolver propagateRoles(D,V,G,M,Q)は有限に停止して、
+更新したordinary/associated制約・各demandのpending/selected/ambiguous/rejected・
+選択されたactual implと生成した全where-child制約を返す。
 
-型/行が確定し解決開始可能な入力では、pendingを未対応の代用品として返さず、
-現行仕様どおりのselection/rejection/ambiguity/noImplへ分類する。
-通常整合制約の型エラーはK2 rejectionやambiguityと混同しない。
+lower headが未確定のdemandはpending、既知なら実伝播後の残存候補が
+一つ/複数/零でselected/ambiguous/rejectedとなることが、
+同じsnapshotに対する独立DeferredIntervalResolutionとiff。
+K2拒否は実際の到達/inspectionに対応し、通常の不整合・候補零・曖昧性と区別する。
+
+任意のambient Common型/行割当てρと所定outcome/planについて、
+ある実返却制約付き分岐B・実生成fresh slot割当てιがBの制約をρ⊕ιで満たし、
+所定のstatus/planを与えること iff 同じρでの独立interval evidence。
+この存在割当ては実生成した制約の意味であり、candidateを発見する代入探索ではない。
+
+全where-childが完成したselected demandについて、返される実有限dictionary Planと
+独立有限dictionary evidenceの消去がちょうど一致する。
+head選択だけでpending childを消した完成辞書を作らない。
 ```
 
-候補確定の関係式は次節の一問の回答を入れて完成する。承認前のschemaを閉じたLean定理として数えない。
-HDAは同じimplのannotation slot接続が関連型の等式を決める条件として再定式化する。
-非退化interval中の**全ての実型に対してRHSが同じ**という過剰な新条件を足さない。
+raw goalに未解決名があることを新しいsupport/fuel/成功前提にしない。
+pendingはresolverの正当な結果であり、lower headが既知の未実装branchをpendingで隠さない。
+旧point matcherとの一致はB4の独立意味の定義ではない。
+必要なら、実loweringと伝播がpinされたboundsに退化する範囲の保守拡張lemmaとして別途証明する。
 
-旧モデルとの一致は、実lowering/compact/通常制約がpinされたpoint boundsへ退化する入力について、
-その生成過程と全whereを保存するembeddingを**新しく証明した範囲**で述べる。
-「全有限木のpoint Matchesと新interval候補が無条件に同じ」とは要求し直さない。
-有限木を新resolverの入力制限にはせず、全regular入力と二K2拒否を引き続き対象にする。
-named recursionはIDとinvariant argument slotで処理し、nominal bodyを展開しないことの実定理を別に示す。
+HDAは同じimplのannotation slot接続が関連型等式を決める条件として扱う。
+非退化interval中の全実型に対してRHSが同じという新しい過剰条件を足さない。
+named recursionはIDと宣言済varianceの引数を読むだけでbodyを展開しないことを示す。
 
-qualifiedの目標も、任意verified D/V/method表・kind付き自由名A・scheme環境Γ・全式e・結果outに対し、
+qualifiedの正確な不足lemmaは、任意verified D/V/method表・kind付き自由名A・scheme環境Γ・全式e・結果outについて、
 実有限packageがmethod ID、ordinary/associated制約、interval demand、pending、weak/captured/generalized共有を保存し、
-任意kind保存ambientρで独立QualifiedTyping iff 実生成local制約のmodelと全独立有限interval dictionariesを持つこと。
-任意返却schemeの**無制約parameter全て**がmodelを与え、任意元modelを全type slotの要求同値・同一rowまで回収すること。
-Satisfies/残余条件を自由parameterの追加前提にはしない。
+任意kind保存ambientρで独立QualifiedTyping iff 実生成local制約のmodelと全必要な独立有限interval dictionariesを持つこと。
+未確定lowerのrole制約は消さずにscheme/residualへ保持する。
+任意返却schemeの無制約parameter全てがmodelを与え、任意元modelを全type slotの要求同値・同一rowまで回収する。
+Satisfies/残余条件を自由parameterへの追加条件にしない。
+
+### 6.1 停止とPaterson check
+
+pendingは「解けるまで再帰して待つ」操作ではない。有限queueの義務として保持し、そのsnapshotの処理は終了する。
+通常bound propagationの有限worklist停止と、head選択に伴う新where生成の停止を分ける。
+既存DemandBoundPropagation.request_exactは有限snapshotの実queryとreferenceの一致を与え、
+それだけで新しいrole義務を無限に生成しないとは結論しない。
+
+**Paterson-styleの宣言検査は今も必要な停止根拠であり、deferralだけでは置き換わらない。**
+例えば既にheadが分かるintから始め、もし `impl R 'a where (list 'a): R` を許せば、
+選択のたびにR(list int)、R(list(list int))、…のlower headも分かっており、pendingで止まる理由がない。
+このimplは現行の「whereが小さい」という検査で宣言時に拒否する。
+roleレベルacyclicityやdepth制限を導入する理由にはしない。
+
+新しい下降lemmaは、任意の承認済宣言・実lower-head伝播による選択・任意の実where条件について、
+そのchildが解決開始可能なら、Nと宣言varianceを反映した有限inspection/resource measureが親より真に小さいこと。
+childのlower headが未確定ならpendingで処理を終える。
+K2は匿名regular cycleをconstructor inspectionの無限な資源として使うことを禁止する。
+この全体measureの構成と、実宣言checkからその下降を導く証明は**まだ未完成**である。
+旧Form点代入の算術だけで証明済みとしない。
+
+### 6.2 既存決定の必要性
+
+| 既存決定 | deferred intervalモデルでの位置 |
+|---|---|
+| record tailの遅延・canonical subtraction | 基本deferralの具体例として残る。具体recordが来るまでtailを選ばない。単なるpending規則だけでは残余の正準性までは導かない |
+| plain変数がmerged payload全体を受ける | plain変数への制約接続として残る。unionへの任意splitを導入しない |
+| Nと宣言時stable Paterson拒否 | 選択後whereの生成停止を支える。intervalで保留するだけでは、全head既知の無限生成を除けない |
+| K2 reached-root/constructor-inspection拒否 | 伝播・選択が再帰型を実際に要求する時に残る。pending型に再帰があるだけの拒否にはしない |
+| named recursion対象外 | 維持。declared varianceを読み、bodyを展開しない |
+| non-variable no-split | 最新variance訂正で要確認。box不変性を根拠に確定扱いしない |
+| 拒否先行 | working choiceのまま。確定規則と混同しない |
+
+区間化で上記決定が全て冗長になったとは判断しない。冗長性を主張するなら、同じ実propagation/evidenceでの保存定理が別に必要である。
 
 ## 7. 証明の順序と停止根拠
 
@@ -268,10 +359,11 @@ Satisfies/残余条件を自由parameterの追加前提にはしない。
    これは任意Common endpointで証明し、有限木への制限を付けない。
 2. 既存LayerBoundTemplatesへ整合・交差制約を実生成し、任意ambient/local assignmentで生成iffと全model回収を閉じる。
    型代数、bound propagation、free-parameter familyを既存CommonBound*から再利用する。
-3. 主型＋全roleのcompact入力、共有slot/kind/level、variance読出しとreinstantiateを定義する。
+3. 型宣言のvariance metadataと、主型＋全roleのcompact入力、共有slot/kind/level、variance読出しとreinstantiateを定義する。
    局所sandwichを使わず、旧referenceの全出現条件を独立意味で明示する。
-4. 実head annotationからcandidate制約を生成し、全branchの有限inspectionとcanonical record subtractionを接続する。
-   下記の一問の解決後、候補の確定・曖昧性・pendingと全where投入の独立iffを証明する。
+4. 実head annotationから宣言済varianceに従ってcandidate制約を生成し、全branchの有限inspectionとcanonical record subtractionを接続する。
+   non-variable splitは要確認のままにし、plain変数の承認をそれ以外へ一般化しない。
+   lower headが分かるまでpending、伝播後の残存宣言の分類、選択後の全where投入の独立iffを証明する。
 5. N/stable checkを「実interval接続が作る全bound family」に対して証明する。
    旧Form点代入のcheck_soundだけでこの全称命題を済ませない。
 6. 共有slot/path原因の有限性とK2で許される有限inspectionを使い、通常制約の再collectとrole再帰の停止を分けて証明する。
@@ -283,11 +375,17 @@ Satisfies/残余条件を自由parameterの追加前提にはしない。
 反例候補を探す場合も、実interval lowering・交差制約・readiness・全where再投入が生成することを先に証明する。
 未指定の存在代入を反例の代わりに置かない。
 
-## 8. 一問だけの未確定点
+## 8. 旧質問の取り下げと残る仕様境界
 
-[候補の区間整合とlower anchor](../questions/2026-11-08-b4r9-interval-candidate-anchor.md)。
-旧文書のlower優先readinessと、candidate自身が返すbounds/交差制約との順序についての問いである。
-区間代数・交差制約生成・既存結果再分類は、この回答に依存せず進める。
+[Mark/int/anyの旧anchor質問](../questions/2026-11-08-b4r9-interval-candidate-anchor.md) は、
+今回の「interval制約とdeferral・候補の伝播・代入を探索しない」というユーザー方向付けを受けて取り下げる。
+任意代入の探索とlowerへの点固定の二択を、作業の土台や承認待ちとして残さない。
+source例の具体的分類は、実際のlower生成とcandidate伝播から導く。
+
+同日のvariance訂正によりnon-variable payloadの旧no-split決定は要確認へ戻った。
+boxを使った旧例は撤回し、invariant例へ置き換える場合にも、矛盾したlist int/list bool合流を
+well-typedな確定goalと偽って使わない。plain変数以外の新capture規則を勝手に確定しない。
+この境界に依存しないinterval制約・伝播・pending・変数等式・where生成の証明を続ける。
 
 ## 付録: 既存CommonRole定理の全件索引
 
@@ -336,7 +434,7 @@ A/B/Pは§5の分類。混在moduleでは安全に再利用できる独立成分
 | `CommonRoleMergedPayload` | A/P: 有限構文/N/Common意味の事実と点時計/captureが混在。実interval還元は未証明 | `merged_entries`, `merged_tag_unique`, `interpret_data`, `interpret_padded`, `padded_equivalent`, `interpret_head`, `head_meaning`, `unlift_lift`, `decode_data`, `contract_data`, `contract_padded`, `decode_head`, `data_size`, `data_occurrences`, `padded_size`, `padded_occurrences` |
 | `CommonRoleMergedRegistry` | P/B: 当該点/first-order/evidence/checkerモデルで真。実interval候補/辞書/E2への移送なし | `normalize_head`, `compile_normal`, `compile_wellFormed`, `checkImpl_sound`, `compile_checked`, `merged_head`, `all_heads_from_merge`, `declarations_wellFormed`, `declarations_normal`, `environment_cores`, `checkEnvironment_sound`, `environment_checked`, `visible_declared`, `constraints_declared`, `associated_wellFormed` |
 | `CommonRoleMergedSemantic` | P/B: 当該点/first-order/evidence/checkerモデルで真。実interval候補/辞書/E2への移送なし | `generated_match_exact`, `requirements_determined_common`, `pattern_determines_used`, `requirements_determined_all_common`, `generated_candidate_exact`, `visible_candidate_exact`, `unique_common`, `child_interpreted`, `head_determines_requirements`, `reflect`, `of_machine`, `arbitrary_common_exact`, `canonical_iff_arbitrary_common` |
-| `CommonRoleNominalCoverBoundary` | P/A: 旧point nominal API・有限cover提案実験・有限term算術。新same-path intervalモデルには移送しない | `argument_equivalent_exact`, `box_invariant`, `coded_box_exact`, `boxes_distinct`, `joined_not_integer`, `joined_not_boolean`, `no_single_box_upper`, `cover_exact`, `covers_enumerated`, `forward_cover`, `reverse_cover`, `joined_fails`, `covers_change_child`, `private_child_decreases`, `all_term_substitutions_decrease`, `allow_cover_two_candidates`, `forbid_cover_one_candidate` |
+| `CommonRoleNominalCoverBoundary` | P/A: 旧point nominal API・有限cover提案実験・有限term算術。宣言variance付きの新same-pathモデルには移送しない | `argument_equivalent_exact`, `box_invariant`, `coded_box_exact`, `boxes_distinct`, `joined_not_integer`, `joined_not_boolean`, `no_single_box_upper`, `cover_exact`, `covers_enumerated`, `forward_cover`, `reverse_cover`, `joined_fails`, `covers_change_child`, `private_child_decreases`, `all_term_substitutions_decrease`, `allow_cover_two_candidates`, `forbid_cover_one_candidate` |
 | `CommonRoleNormalizedDeclarations` | A/B: 明示文法の意味保存/点HDA/有限算術。endpoint事実は再利用可、実interval生成へのbridgeなし | `tail_of_equivalent`, `tail_trans`, `hidden_tail`, `record_congr`, `normalize_meaning`, `normalizeTerm_encode`, `normalizeTerm_meaning`, `normalized_head_match_exact`, `checkImpl_sound`, `checkEnvironment_sound`, `another_size_erasure`, `union_padding_scope` |
 | `CommonRolePackedHalting` | P/B: 当該点/first-order/evidence/checkerモデルで真。実interval候補/辞書/E2への移送なし | `descriptionAssignment_eval`, `finite_step_description`, `machine_to_dictionary`, `derives_to_old`, `dictionary_iff_machine`, `dictionary_exact`, `no_rejection`, `actual_plan_exact` |
 | `CommonRolePackedRegistry` | P/B: 当該点/first-order/evidence/checkerモデルで真。実interval候補/辞書/E2への移送なし | `packGoal_injective`, `packImpl_injective`, `packImpl_wellFormed`, `declarations_wellFormed`, `declarations_accepted`, `environment_cores`, `environment_checked`, `head_determines_associated`, `constraints_declared`, `associated_wellFormed`, `packed_head`, `packed_child`, `matches_compile`, `terminal_head`, `matches_to_actual`, `unique_of_actual` |

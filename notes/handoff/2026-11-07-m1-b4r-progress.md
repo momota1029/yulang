@@ -1077,3 +1077,46 @@ tuple/arrow等の既存Common coalescingを保つ必要がある。
 検証: `cd lean && lake build --wfail` exit0（695 jobs）。全8定理をAuditへ追記登録。
 checkpoint1の独立reviewもtrust0/warningAsError exit0、全16量化と中心なし/既存生成を確認済み。
 これらはinterval整合・交差の実生成とgraph反映。candidate確定/readiness/全branch matcher/resolverの完成ではない。
+
+## B4r9 checkpoint 3: interval由来の変数等式を全ordinary構文へ運ぶ（16定理）
+
+新規 `CommonRoleIntervalCongruence`。全入力の任意は全称量化する。
+Relatedは同じ名前でtypeがCommon同値、rowがliteral等号という関係。型は任意Common regular値を含む。
+
+- `related_refl` / `related_symm`: 任意名前型とCommon computation割当てでRelatedの反射・対称性。
+- `related_extend`: 任意Related二割当て・同じfresh computationでextend後もRelated。ambient共有を保つ。
+- `row_eval_equal`: 任意Related二割当て・任意既存RowTermでevalはliteral等号。
+- `type_eval_equivalent`: 任意Related二割当て・任意既存TyTermでevalはCommon同値。全既存branch（union/inter/pair/arrow/record/default/variant等）、負arrow子も含む。nested nominalは既存TyTermに無いため別。
+- `subtype_congr`: 任意四Common型A,B,C,D、A≈BとC≈DならA≤C iff B≤D。
+- `atom_holds_congr` / `all_holds_congr`: 任意Related二割当て・任意既存atom/有限atom列でHolds/Allがiff。
+- `formula_holds_congr`: 任意Related二割当て・任意既存Formula（全existsSlotを含む）でHoldsがiff。同じfresh computationを共有して量化する。
+- `identify_related`: 任意DecidableEq付き名前型、任意代表名r/除去名d/割当てρ、pin(ρr.ty)とpin(ρd.ty)のmerge整合なら、dのtypeだけをρr.tyへ更新し全rowを保持する実identify後とρはRelated。
+- `identified_equal`: 任意同名前/ρで実identify後のr/dのtypeはliteral等号。整合前提不要で、更新の定義の事実。
+- `global_formula_identification` / `global_atoms_identification`: 任意同名前/ρ・任意Formula/atom列、上のmerge整合なら、全体でidentify前後のHolds/Allがiff。
+- `interval_checks_identification`: 任意同名前/ρ・任意既存TyTerm endpoint区間列、上のmerge整合なら全区間coalesceの整合がidentify前後でiff。
+- `generated_variables_equal`: 任意名前r,d/ρで、実generate[(var r,var r),(var d,var d)]のAllが成立すればρr.ty≈ρd.ty。等式発見を外部から仮定せず、生成交差制約から導く。
+- `global_formula_from_generated`: 任意DecidableEq付き名前型/同r,d,ρ/任意Formulaで、同実生成Allが成立すれば全体のidentify前後でHoldsがiff。
+
+検証: `cd lean && lake build --wfail` exit0（696 jobs）。全16定理をAuditへ登録。
+interval由来の変数-変数等式の全ordinary contextへの保存であり、具体構造liftの全体sandwichやlevel実装を証明したとはしない。
+checkpoint2の独立reviewもtrust0/warningAsError exit0。Fin0で排除するのは新template slotだけで、endpointのambient変数は保持していることを確認済み。
+
+## B4r9 追加訂正: nominal variance（2026-11-08）
+
+spec6.5の更新を再読し、設計noteを同日ユーザー訂正へ合わせた。
+boxは共変でbox(int|bool)へ合流。不変区間は無限に入れ子になりうるlist/木等の引数に使い、varianceは型宣言時metadata。
+旧一律nominal不変APIやbox_invariantを現source boxへ移送しないと明記。
+全head branchの方向表を追加し、non-variable no-split決定を要確認へ戻した。
+未確認のnon-variable規則を新しい証明へ採用しない。plain-variable承認は維持する。
+既存40新規定理はCommon区間・既存ordinary構文だけの事実であり、nominal全引数不変やno-splitを前提にしていない。
+checkpoint3独立reviewもtrust0/warningAsError exit0。全型/row共有、同fresh量化、type-only identifyを確認済み。
+
+## B4r9 方向付け: interval制約＋lower-head deferral（2026-11-08）
+
+最新ユーザー指示に従い、設計note§3/6/7/8を再記述。
+独立意味はinterval制約・伝播・遅延とし、候補を存在代入探索で定義しない。
+lower head未確定はpending、既知なら伝播後の残存候補一/多/零をselected/ambiguous/rejectedへ分類する。
+whereはhead選択後だけ新しいinterval制約として投入、全child完成時だけ実有限辞書を返す。
+Mark/int/anyの旧anchor質問は取り下げ。sourceの具体分類は実伝播から導くので、新たなpoint前提へ戻らない。
+Patersonは選択後の無限where生成を防ぐため引き続き必要。pendingを残すだけでは、全lower head既知のgrowing chainは止まらない。
+全旧E2は各旧モデルでは真だが、deferred interval/Yulangへの移送は未証明。最新全承認に対するE2として数えない。
