@@ -31,6 +31,14 @@ import Lean
 #print axioms Yulang.CommonCanonicalRowGrid.axis_exact
 #print axioms Yulang.CommonCanonicalRowGrid.embedSet_le_iff
 #print axioms Yulang.CanonicalCounterComputability.executes_deterministic
+#print axioms Yulang.CanonicalRegisterMachine.no_nonhalting_semidecider
+#print axioms Yulang.CanonicalRegisterMachine.invariant_iff_nonhalting
+#print axioms Yulang.CommonCanonicalRowSyntax.binding_instances_exact
+#print axioms Yulang.CommonCanonicalRowSyntax.rename_eval
+#print axioms Yulang.CommonCanonicalRowGeometry.closed_row_exact
+#print axioms Yulang.CommonCanonicalRowGeometry.closed_meaning_exact
+#print axioms Yulang.CommonCanonicalRowGeometry.commonPoint_injective
+#print axioms Yulang.CommonCanonicalRowTests.meetForm_exact
 
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/

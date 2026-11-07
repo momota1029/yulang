@@ -585,3 +585,7 @@ import Yulang.CommonRoleRewrite
 import Yulang.CommonCanonicalRowConstraints
 import Yulang.CommonCanonicalRowGrid
 import Yulang.CanonicalCounterComputability
+import Yulang.CanonicalRegisterMachine
+import Yulang.CommonCanonicalRowSyntax
+import Yulang.CommonCanonicalRowGeometry
+import Yulang.CommonCanonicalRowTests
