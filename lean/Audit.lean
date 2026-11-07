@@ -4187,3 +4187,11 @@ run_cmd do
 #print axioms Yulang.CommonPatternSourceChecks.generateCheckedPattern_exact
 #print axioms Yulang.CommonPatternSourceChecks.generated_matches_partial
 #print axioms Yulang.CommonPatternSourceChecks.returned_bindings_exact
+#print axioms Yulang.CommonPatternBoundInspection.dispatchOriginal_exact
+#print axioms Yulang.CommonPatternBoundInspection.inspect_exact
+#print axioms Yulang.CommonPatternBoundInspection.inspected_child_polarity
+#print axioms Yulang.CommonPatternBoundWorklist.run_models_exact
+#print axioms Yulang.CommonPatternBoundWorklist.run_bound
+#print axioms Yulang.CommonPatternFiniteInspection.encoded_inspect_at_sound
+#print axioms Yulang.CommonPatternFiniteInspection.encoded_inspect_current_decreases
+#print axioms Yulang.CommonPatternClosedSoundness.returned_solve_soundness

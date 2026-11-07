@@ -589,3 +589,8 @@ import Yulang.CommonPatternAllocation
 import Yulang.CommonArmEnvironmentGeneration
 import Yulang.CommonPatternPartialSafety
 import Yulang.CommonPatternSourceChecks
+import Yulang.CommonPatternBoundInspection
+import Yulang.CommonPatternBoundPolarity
+import Yulang.CommonPatternBoundWorklist
+import Yulang.CommonPatternFiniteInspection
+import Yulang.CommonPatternClosedSoundness
