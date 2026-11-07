@@ -151,8 +151,43 @@ role Output 'o:
   - (1) 対応しない node は、`render` のときの実行時の扱い（エラー値、または代替の表示）にする。
   - (2) 案 K のように、文書の型に出力の集合を持たせる（`doc(html, latex)`）。
   - (3) 初期表現を、終端表現から作る（AST を `Doc` の自由な instance にする）。著者は終端表現で書き、能力の制約は終端側で検査し、AST は解析（目次・脚注・相互参照）のために使う。
-- **私の推奨**: 最初は (1)。(2) は型の核に新しい種類を足すので、必要になってから足す。(3) は後から重ねられる。
+- **私の推奨（取り下げ, 2026-11-07）**: 最初は (1) としたが、ユーザーが「型を消す」方向に納得していない。下の「型を消さない案」を先に検証する。
 - 初期表現には、見出しを集めて目次を作る、脚注を番号づけする、のような**文書全体の解析**が書きやすい利点がある。
+
+### 型を消さない案: AST を polymorphic variant にする（私の案, 2026-11-07。検証前）
+
+ユーザーの懸念: 「この文書は latex に出せるか」が、実行するまで分からなくなるのは気に入らない（型で守れていたものを手放したくない）。
+上の (1)（実行時の扱いにする）は取り下げる。代わりの道:
+
+文書の node を、専用の `doc` 型の構成子ではなく、**polymorphic variant の tag** にする。文書の値の型は、使った tag の和（positive の位置の `|`）として、推論で自動的に決まる。
+バックエンドは、扱える tag だけを `case` の arm に並べた関数にする。spec 3b.4 のとおり、polyvariant の pattern だけの `case`（`_` なし）は、入力の型が**閉じる**ので、扱えない tag を含む文書を渡すと型エラーになる。
+
+```yulang
+my intro = :section "Access log" (:list [:item "a", :item "b"])
+my raw_note = :html_raw "<hr>"
+
+my render_latex d = case d:
+    :text s -> s
+    :section title body -> "\\section{%{title}}%{render_latex body}"
+    :list items -> "\\begin{itemize}%{render_latex items}\\end{itemize}"
+    :item s -> "\\item %{s}"
+
+my render_html d = case d:
+    :text s -> s
+    :section title body -> "<h2>%{title}</h2>%{render_html body}"
+    :list items -> "<ul>%{render_html items}</ul>"
+    :item s -> "<li>%{s}</li>"
+    :html_raw s -> s
+```
+
+期待する型（未検証）: `render_latex` は `:text` / `:section` / `:list` / `:item` だけを受ける。`raw_note` は `:html_raw` を含むので `render_latex raw_note` は型エラー、`render_html raw_note` は通る。
+
+- 新しい種類は要らない。spec が既に持つ variant の tag の行（4.7b）と、閉じた `case`（3b.4）だけで、案 K の「出せる出力の集合」が、使った tag の集合として自然に出る。
+- 開世界のまま、利用者が自分の node（tag）を足せる。バックエンドが `_` の arm を持てば、未知の tag を受ける（実行時の扱いを選ぶ道は、`_` として残る）。
+- 子の文書を含む node は、再帰する variant 型になる（spec 10.21 の正則な再帰型）。型の表示が長くなることはありうる。
+- **要確認**: role との関係。`impl Doc ... latex` の head に variant の行を置けるか（spec 6.2）。置けなければ、`render_latex` は role を介さない関数として並べる。出力ごとに関数名を持つ形でよいか。
+- **未検証**: 再帰する開いた variant の推論が、M1 で通るか。速いか。型の大きさ（使った tag の数）に比例して重くならないか。
+- 注意: 引数のない `my render_latex = case:` は自分を呼べない（spec 2.1）ので、引数 `d` を取る形で書いた。
 
 ## Yumark の TeX 風コマンドとの関係
 
