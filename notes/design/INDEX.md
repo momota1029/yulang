@@ -6,6 +6,8 @@ Navigation aid. Each document is authoritative only for its own text and scope; 
 
 - [Common nominal head と ground cast の基礎](2026-11-07-common-nominal-head-ground-foundations.md) — 任意 Common 型/行引数の不変性、共有 slot の有限比較、外側の根の旧順序保存、明示した scalar/nominal ground 文法の実 compatibility。全 carrier・site・pure plan の残りを区別。
 
+- [Common signed row 解釈の基礎](2026-11-07-common-signed-row-foundations.md) — 任意 scope 数で包含を保存・反映し protect/release/residual と可換。任意 Common row の可逆 transport と有限 row 式の一致を証明。全 effect 生成・solver は未完。
+
 - [Common への effect・role・nominal 統合: 残る契約](2026-11-07-common-effect-role-nominal-contracts.md) — Draft。有限 verified declaration と任意の意味関数を分け、signed row・handler の全称・実辞書・nominal invariance・pure cast・construction sites の不足補題を量化つきで記録。head-row family だけは実装済み。
 
 - [共通推論の高速化と参照実装からの refinement](2026-11-07-common-inference-refinement.md) — Draft。実 clause の要求根と逆向き bound 計算、任意 snapshot の要求同値、全検査後の solveAll / Core.infer との一致を実装・証明。要求した成分の飽和、関数/SCC の実行前検査、memo と費用評価は未完。速度は未測定。
