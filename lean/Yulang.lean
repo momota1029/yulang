@@ -681,3 +681,5 @@ import Yulang.CommonCaseRecordEnvironmentFamily
 import Yulang.CommonPatternNoMiss
 import Yulang.CommonRecordNoMiss
 import Yulang.CommonCaseRecordDefaultCoverage
+import Yulang.CommonCaseRecordDefaultFamily
+import Yulang.CommonCaseRecordDefaultExamples

@@ -4414,3 +4414,11 @@ run_cmd do
 #print axioms Yulang.CommonCaseRecordDefaultCoverage.source_coverage_exact
 #print axioms Yulang.CommonCaseRecordDefaultCoverage.covered_not_unmatched
 #print axioms Yulang.CommonCaseRecordDefaultCoverage.record_program_progress
+#print axioms Yulang.CommonCaseRecordDefaultFamily.generatePremises_exact
+#print axioms Yulang.CommonCaseRecordDefaultFamily.all_parameter_premises
+#print axioms Yulang.CommonCaseRecordDefaultFamily.premises_instances_exact
+#print axioms Yulang.CommonCaseRecordDefaultFamily.no_premises_exact
+#print axioms Yulang.CommonCaseRecordDefaultFamily.all_parameter_program_progress
+#print axioms Yulang.CommonCaseRecordDefaultExamples.real_generated_model
+#print axioms Yulang.CommonCaseRecordDefaultExamples.real_scheme_instance
+#print axioms Yulang.CommonCaseRecordDefaultExamples.actual_result
