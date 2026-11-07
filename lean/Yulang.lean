@@ -617,3 +617,7 @@ import Yulang.CommonNominalFieldTemplates
 import Yulang.CommonNominalSourceRegistry
 import Yulang.CommonNominalSiteGeneration
 import Yulang.CommonNominalFieldGeneration
+import Yulang.CommonNominalFieldNormalForm
+import Yulang.CommonNominalRowCells
+import Yulang.CommonNominalTemplateRowPatterns
+import Yulang.CommonNominalTemplateRowSolver

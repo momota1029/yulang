@@ -4267,3 +4267,15 @@ run_cmd do
 #print axioms Yulang.CommonNominalFieldGeneration.prepare_sites_exact
 #print axioms Yulang.CommonNominalFieldGeneration.prepare_sites_retains_all
 #print axioms Yulang.CommonNominalFieldGeneration.generate_fields_exact
+#print axioms Yulang.CommonNominalFieldNormalForm.normalise_exact
+#print axioms Yulang.CommonNominalFieldNormalForm.Clause.pack_exact
+#print axioms Yulang.CommonNominalFieldNormalForm.construction_atomic_exact
+#print axioms Yulang.CommonNominalRowCells.Cell.selects
+#print axioms Yulang.CommonNominalRowCells.Cell.recovers
+#print axioms Yulang.CommonNominalTemplateRowPatterns.compile_cell_exact
+#print axioms Yulang.CommonNominalTemplateRowPatterns.compiled_patterns
+#print axioms Yulang.CommonNominalTemplateRowPatterns.outside_patterns
+#print axioms Yulang.CommonNominalTemplateRowSolver.all_parameters_models
+#print axioms Yulang.CommonNominalTemplateRowSolver.model_retraction
+#print axioms Yulang.CommonNominalTemplateRowSolver.solve_all_instances_exact
+#print axioms Yulang.CommonNominalTemplateRowSolver.pure_row_empty

@@ -1969,3 +1969,10 @@ guarded mixed constructor graph と row-head/flow/pure family を組み合わせ
 `CommonNominalFieldGeneration.generate_fields_exact` は全 registry body 制約を一度合流し、全 field、共有 arguments、
 nominal 結果、arity 不一致を同じ Formula で扱う。`prepare_sites_retains_all` が元位置/式/field/template の全列を保存する。
 これらは有限生成の定理であり、全 Core source・実宣言検証・parametric/structural cast 全探索・全 model の solved family・weak EOF は未完である。
+
+
+field 宣言の `parameters` は型/行の任意混在順を保持し、`TemplateRow.heads` は非空の固定 signed row literal も表す。
+`CommonNominalFieldNormalForm.construction_atomic_exact` は実全 field 生成から有限の numeric-slot 原子列へ接続し、
+元 ambient の全 computation を等号で固定して、全 fresh slot の model を回収する。
+原子は full field-template subtype と row inequality で、source Typing を原子として隠さない。
+原子を解く unrestricted scheme family、実 declaration checker と全 Core source/runtime/weak EOF は未完である。
