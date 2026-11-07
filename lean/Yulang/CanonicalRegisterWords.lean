@@ -11,6 +11,22 @@ def wordStore {registers : Nat} (bank : WordBank registers) (frame : Store regis
   write (write (write (write frame (bank 0) input) (bank 1) quotient)
     (bank 2) remainder) (bank 3) countdown
 
+/-- Reinitializing the same four bank locations discards their old contents
+even when an ordinary register write occurs between the two initializations. -/
+theorem wordStore_write_frame {registers : Nat} (bank : WordBank registers)
+    (frame : Store registers) (output : Fin (registers + 1)) (value : Nat)
+    (oldWord oldQuotient oldRemainder oldCountdown newWord newQuotient newRemainder newCountdown : Nat) :
+    wordStore bank (write (wordStore bank frame oldWord oldQuotient oldRemainder oldCountdown) output value)
+        newWord newQuotient newRemainder newCountdown =
+      wordStore bank (write frame output value) newWord newQuotient newRemainder newCountdown := by
+  funext current
+  by_cases at0 : current = bank 0
+  <;> by_cases at1 : current = bank 1
+  <;> by_cases at2 : current = bank 2
+  <;> by_cases at3 : current = bank 3
+  <;> by_cases atOutput : current = output
+  <;> simp_all [wordStore, write]
+
 def wordTick {registers : Nat} (bank : WordBank registers) : Routine registers :=
   branch (bank 3)
     (append (setConstant (bank 3) 63) (append (clear (bank 2)) (increment (bank 1))))

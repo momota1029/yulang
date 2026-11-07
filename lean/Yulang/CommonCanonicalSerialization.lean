@@ -153,4 +153,44 @@ theorem form_rename_zero_serializes (value : Form scopes 0) (parameters : Nat) :
   | arrow input incoming output outgoing ihi iho =>
       simp only [Form.rename, form, rows, ihi, iho]
 
+def rowTypeWord (encodedRow : Word) : Word :=
+  [.typeArrow, .typeUnit] ++ encodedRow ++ [.typeUnit, .rowEmpty]
+
+def lockWord (encodedType : Word) : Word :=
+  [.typeArrow] ++ encodedType ++ [.rowEmpty] ++ encodedType ++ [.rowEmpty]
+
+def meetWord (first : Word) : List Word → Word
+  | [] => rowTypeWord first
+  | next :: rest => [.typeUnion] ++ rowTypeWord next ++ meetWord first rest
+
+def fixedStream (tests : List (Test scopes parameters)) : Word :=
+  tests.flatMap (fun test => [.typePair] ++ lockWord (rowTypeWord (row test.expected)))
+
+def valueStream (tests : List (Test scopes parameters)) : Word :=
+  tests.flatMap (fun test => [.typePair] ++ lockWord (meetWord (row test.first) (test.rest.map row)))
+
+/-- The two tuple compilers are exactly finite streams of the displayed
+templates. In particular, `meetForm` emits each rest-row first and the
+distinguished first row last, preserving their original order. -/
+theorem problem_stream_exact (tests : List (Test scopes parameters)) :
+    form (problemFixed tests) = fixedStream tests ++ [.typeUnit] ∧
+    form (problemValue tests) = valueStream tests ++ [.typeUnit] := by
+  have meetExact (first : Row scopes parameters) (rest : List (Row scopes parameters)) :
+      form (meetForm first rest) = meetWord (row first) (rest.map row) := by
+    induction rest with
+    | nil => rfl
+    | cons next rest ih =>
+        simp only [meetForm, form, rowForm, List.map_cons, meetWord, rowTypeWord,
+          List.singleton_append, List.cons_append, List.nil_append, List.append_assoc, ih]
+  induction tests with
+  | nil => exact ⟨rfl, rfl⟩
+  | cons test tests ih =>
+      constructor
+      · simp only [problemFixed, form, Test.fixed, lockForm, rowForm, fixedStream,
+          List.flatMap_cons, rowTypeWord, lockWord, List.singleton_append,
+          List.cons_append, List.nil_append, List.append_assoc, ih.1]
+      · simp only [problemValue, form, Test.value, lockForm, valueStream,
+          List.flatMap_cons, lockWord, List.singleton_append, List.cons_append,
+          List.nil_append, List.append_assoc, ih.2, meetExact]
+
 end Yulang.CommonCanonicalSerialization

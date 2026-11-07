@@ -52,6 +52,7 @@ import Lean
 #print axioms Yulang.CanonicalRegisterMachine.Routine.pushDigit_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.setConstant_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.wordTick_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.wordStore_write_frame
 #print axioms Yulang.CanonicalRegisterMachine.Routine.wordDivisionLoop_runs
 #print axioms Yulang.CanonicalRegisterMachine.Routine.wordPop_runs
 #print axioms Yulang.CommonCanonicalRowSyntax.binding_instances_exact
@@ -79,7 +80,14 @@ import Lean
 #print axioms Yulang.CommonCanonicalCounterConstraints.no_compiled_public_instance_semidecider
 #print axioms Yulang.CommonCanonicalSerialization.form_rename_zero_serializes
 #print axioms Yulang.CommonCanonicalSerialization.wordCode_injective
+#print axioms Yulang.CommonCanonicalSerialization.problem_stream_exact
 #print axioms Yulang.CommonCanonicalWordPrograms.wordPop_token
+#print axioms Yulang.CommonCanonicalWordPrograms.emit_runs
+#print axioms Yulang.CommonCanonicalWordPrograms.repeatEmit_runs
+#print axioms Yulang.CommonCanonicalWordPrograms.emitNatural_runs
+#print axioms Yulang.CommonCanonicalWordPrograms.readNaturalToken_runs
+#print axioms Yulang.CommonCanonicalWordPrograms.readNaturalLoop_runs
+#print axioms Yulang.CommonCanonicalWordPrograms.readNatural_runs
 
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/
