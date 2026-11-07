@@ -4278,3 +4278,5 @@ run_cmd do
 #print axioms Yulang.CommonEffectRecursiveGeneration.ContextRel.rename
 
 #print axioms Yulang.CommonEffectRecursiveGeneration.handlerChecks_holds
+
+#print axioms Yulang.CommonEffectRecursiveExact.generate_recursive_single_exact

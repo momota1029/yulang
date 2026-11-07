@@ -1,4 +1,5 @@
 import Yulang.CommonEffectRecursiveSource
+import Yulang.CommonEffectUniversalArms
 
 /-! Actual finite structural generation for the recursive single-effect
 source. All stored schemes, declarations and masks are finite syntax.
@@ -18,6 +19,18 @@ def decl₂ (declarations : Declarations α) : Declarations (Option (Option α))
 
 def decl₃ (declarations : Declarations α) : Declarations (Option (Option (Option α))) :=
   renameAll some (renameAll some (renameAll some declarations))
+
+def declarationKeys (declarations : Declarations α) (operations : Fin count → Nat) : List Nat :=
+  (List.finRange count).filterMap (fun i => (declarations[operations i]?).map (·.key))
+
+theorem declarationKeys_interpret (declarations : Declarations α) (operations : Fin count → Nat)
+    (assignment : α → Computation) :
+    handlerKeys (interpretAll assignment declarations) operations = declarationKeys declarations operations := by
+  unfold handlerKeys declarationKeys
+  congr 1
+  funext i
+  rw [CommonEffectDeclarationInterpretation.lookup_interpretAll]
+  cases declarations[operations i]? <;> rfl
 
 def boundaryRow (boundary : Boundary scopes) (row : RowExpr scopes α) : RowExpr scopes α :=
   match boundary with
@@ -150,6 +163,30 @@ def generate (declarations : Declarations α) (Γ : SchemeEnv scopes α) : Expr 
               (.and (generate (decl₂ declarations) (Scheme.mono (CompTerm.pure fresh₀.ty) :: env₂ Γ) onReturn fresh₁)
                 (.forallTypes declaration.locals (.existsSlot arm)))))
           else .core .bot
+  | .multiHandler permission operations action onReturn bodies, out =>
+      .existsSlot (.existsSlot (.and
+        (generate (decl₂ declarations) (env₂ Γ) action fresh₀)
+        (.and (generate (decl₂ declarations) (Scheme.mono (CompTerm.pure fresh₀.ty) :: env₂ Γ) onReturn fresh₁)
+          (.and (.tyLe fresh₁.ty (lift₂ out).ty)
+            (.and (.rowLe (.union (.residual (declarationKeys declarations operations) (RowExpr.fromPresence fresh₀.row))
+              (RowExpr.fromPresence fresh₁.row)) (RowExpr.fromPresence (lift₂ out).row))
+              (CommonEffectUniversalArms.andAll ((List.finRange _).map (fun i =>
+                match declarations[operations i]? with
+                | none => .core .bot
+                | some declaration =>
+                  if permission.allows declaration.key then
+                    let armInput := fresh₀.rename (β := Option (Option α) ⊕ Fin declaration.locals) Sum.inl
+                    let armOut := (lift₂ out).rename (β := Option (Option α) ⊕ Fin declaration.locals) Sum.inl
+                    let payload := declaration.input.rename (Sum.map (fun name => some (some name)) id)
+                    let response := declaration.output.rename (Sum.map (fun name => some (some name)) id)
+                    let armEnv : SchemeEnv scopes (Option (Option α) ⊕ Fin declaration.locals) :=
+                      Scheme.mono (CompTerm.pure payload) ::
+                      Scheme.mono (CompTerm.pure (CompTerm.arrow (CompTerm.pure response) armInput)) :: (env₂ Γ).rename Sum.inl
+                    .forallTypes declaration.locals (.existsSlot (.and
+                      (generate (renameAll some (renameAll Sum.inl (decl₂ declarations))) armEnv.lift
+                        (bodies i) (CompTerm.var none))
+                      (Formula.compLe (CompTerm.var none) (armOut.rename some))))
+                  else .core .bot))))))))
 
 def SchemeLookup (assignment : α → Computation) (environment : SchemeEnv scopes α) (index : Nat) (out : Computation) : Prop :=
   match environment[index]? with

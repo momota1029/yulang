@@ -611,3 +611,4 @@ import Yulang.CommonSignedConstraintCompilation
 import Yulang.CommonSignedValueExpressionSolver
 import Yulang.CommonEffectRecursiveSource
 import Yulang.CommonEffectRecursiveGeneration
+import Yulang.CommonEffectRecursiveExact

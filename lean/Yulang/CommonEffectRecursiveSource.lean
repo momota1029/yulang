@@ -45,7 +45,8 @@ inductive Expr (scopes : Nat) where
   | request : Nat → Expr scopes → Expr scopes
   | boundary : Boundary scopes → Expr scopes → Expr scopes
   | handler : Permission → Nat → Expr scopes → Expr scopes → Expr scopes → Expr scopes
-  deriving Repr, DecidableEq
+  | multiHandler {count : Nat} : Permission → (Fin count → Nat) →
+      Expr scopes → Expr scopes → (Fin count → Expr scopes) → Expr scopes
 
 /-- The core's nonexpansive syntax. A variable is generalizable only if its
 scheme also permits a pure typing; a computation argument is not made pure. -/
@@ -57,6 +58,9 @@ def Expr.isValue : Expr scopes → Bool
 
 
 abbrev SemanticSignature := Core.EffectTyping.OperationSignature Common.model.toModel Nat
+
+def handlerKeys (signatures : List SemanticSignature) (operations : Fin count → Nat) : List Nat :=
+  (List.finRange count).filterMap (fun i => (signatures[operations i]?).map (·.key))
 
 variable {scopes : Nat}
 
@@ -129,6 +133,23 @@ mutual
         (∀ locals, Common.rowLe (Common.rowJoin (CommonSignedRows.commonResidual [signature.key] input.2)
           (Common.rowJoin returned.2 (operated locals).2)) c.2) →
         Typing signatures Γ (.handler permission operation action onReturn onOperation) c
+    | multiHandler {count : Nat} {operations : Fin count → Nat} {bodies : Fin count → Expr scopes}
+        {armSignatures : Fin count → SemanticSignature}
+        {operated : (i : Fin count) → (Fin (armSignatures i).locals → Common.Ty) → Computation} :
+        (∀ i, signatures[operations i]? = some (armSignatures i)) →
+        (∀ i, permission.allows (armSignatures i).key = true) →
+        Typing signatures Γ action input →
+        Typing signatures (.mono (Comp.pure Common.model input.1) :: Γ) onReturn returned →
+        (∀ i locals, Typing signatures
+          (.mono (Comp.pure Common.model ((armSignatures i).input locals)) ::
+           .mono (Comp.pure Common.model (Comp.arrow Common.model
+             (Comp.pure Common.model ((armSignatures i).output locals)) input)) :: Γ)
+          (bodies i) (operated i locals)) →
+        Common.Subtype returned.1 c.1 →
+        Common.rowLe (Common.rowJoin (CommonSignedRows.commonResidual (handlerKeys signatures operations) input.2)
+          returned.2) c.2 →
+        (∀ i locals, Comp.le Common.model (operated i locals) c) →
+        Typing signatures Γ (.multiHandler permission operations action onReturn bodies) c
 
   inductive BindingTyping (signatures : List SemanticSignature) : Binding scopes → Computation → Prop where
     | mono : Comp.le Common.model a c → BindingTyping signatures (.mono a) c
@@ -351,4 +372,60 @@ theorem Typing.boundary_iff (signatures : List SemanticSignature) (environment :
     cases typed with | boundary typed value row => exact ⟨_, typed, value, row⟩
   · rintro ⟨input, typed, value, row⟩
     exact .boundary typed value row
+/-- The return and residual bounds stay outside the universal arms, including
+the zero-arm case. Each local type may choose only its own arm result. -/
+theorem Typing.multiHandler_iff (signatures : List SemanticSignature) (environment : List (Binding scopes))
+    (permission : Permission) (operations : Fin count → Nat) (action onReturn : Expr scopes)
+    (bodies : Fin count → Expr scopes) (out : Computation) :
+    Typing signatures environment (.multiHandler permission operations action onReturn bodies) out ↔
+      ∃ armSignatures : Fin count → SemanticSignature,
+      (∀ i, signatures[operations i]? = some (armSignatures i)) ∧
+      (∀ i, permission.allows (armSignatures i).key = true) ∧
+      ∃ input returned,
+        Typing signatures environment action input ∧
+        Typing signatures (.mono (Comp.pure Common.model input.1) :: environment) onReturn returned ∧
+        Common.Subtype returned.1 out.1 ∧
+        Common.rowLe (Common.rowJoin (CommonSignedRows.commonResidual (handlerKeys signatures operations) input.2)
+          returned.2) out.2 ∧
+        ∀ i, ∀ locals : Fin (armSignatures i).locals → Common.Ty, ∃ operated : Computation,
+          Typing signatures
+            (.mono (Comp.pure Common.model ((armSignatures i).input locals)) ::
+             .mono (Comp.pure Common.model (Comp.arrow Common.model
+               (Comp.pure Common.model ((armSignatures i).output locals)) input)) :: environment) (bodies i) operated ∧
+          Comp.le Common.model operated out := by
+  constructor
+  · intro typed
+    cases typed with
+    | multiHandler found allowed actionTyped returnTyped arms values rows bounds =>
+      exact ⟨_, found, allowed, _, _, actionTyped, returnTyped, values, rows,
+        fun i locals => ⟨_, arms i locals, bounds i locals⟩⟩
+  · rintro ⟨armSignatures, found, allowed, input, returned, actionTyped, returnTyped, values, rows, arms⟩
+    exact Typing.multiHandler (operated := fun i locals => Classical.choose (arms i locals))
+      found allowed actionTyped returnTyped (fun i locals => (Classical.choose_spec (arms i locals)).1)
+      values rows (fun i locals => (Classical.choose_spec (arms i locals)).2)
+theorem Typing.multiHandler_separate_iff (signatures : List SemanticSignature) (environment : List (Binding scopes))
+    (permission : Permission) (operations : Fin count → Nat) (action onReturn : Expr scopes)
+    (bodies : Fin count → Expr scopes) (out : Computation) :
+    Typing signatures environment (.multiHandler permission operations action onReturn bodies) out ↔
+      ∃ input returned,
+        Typing signatures environment action input ∧
+        Typing signatures (.mono (Comp.pure Common.model input.1) :: environment) onReturn returned ∧
+        Common.Subtype returned.1 out.1 ∧
+        Common.rowLe (Common.rowJoin (CommonSignedRows.commonResidual (handlerKeys signatures operations) input.2)
+          returned.2) out.2 ∧
+        ∀ i, ∃ signature, signatures[operations i]? = some signature ∧ permission.allows signature.key = true ∧
+          ∀ locals : Fin signature.locals → Common.Ty, ∃ operated : Computation,
+            Typing signatures
+              (.mono (Comp.pure Common.model (signature.input locals)) ::
+               .mono (Comp.pure Common.model (Comp.arrow Common.model
+                 (Comp.pure Common.model (signature.output locals)) input)) :: environment) (bodies i) operated ∧
+            Comp.le Common.model operated out := by
+  rw [Typing.multiHandler_iff]
+  constructor
+  · rintro ⟨sigs, found, allowed, input, returned, ha, hr, hv, he, arms⟩
+    exact ⟨input, returned, ha, hr, hv, he, fun i => ⟨sigs i, found i, allowed i, arms i⟩⟩
+  · rintro ⟨input, returned, ha, hr, hv, he, arms⟩
+    refine ⟨fun i => Classical.choose (arms i), fun i => (Classical.choose_spec (arms i)).1,
+      fun i => (Classical.choose_spec (arms i)).2.1, input, returned, ha, hr, hv, he, ?_⟩
+    exact fun i => (Classical.choose_spec (arms i)).2.2
 end Yulang.CommonEffectRecursiveSource
