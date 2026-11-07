@@ -6,20 +6,20 @@ head 検査時の再帰型拒否そのものは承認済み（spec 6 K2）。こ
 ## 一問
 
 **推奨: 同じ role の visible head の一つでも禁止された再帰 constructor 検査が必要なら、
-曖昧性より先に「再帰型のため解決できない」と拒否する。** 次の例で、`list μ`
+曖昧性より先に「再帰型のため解決できない」と拒否する。** 次の例で、`{box:μ}`
 （μ は名前の無い再帰型 μ={next:μ}）への解決結果を、この優先順位にしてよいか。
 
 ```yulang
 role Check 't:
     type value
 
-impl Check (list 'a):
+impl Check ({box: 'a}):
     type value = int
 
-impl Check (list 'b):
+impl Check ({box: 'b}):
     type value = int
 
-impl Check (list {next: 'a}):
+impl Check ({box: {next: 'a}}):
     type value = int
 ```
 

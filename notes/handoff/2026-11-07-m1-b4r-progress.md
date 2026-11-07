@@ -364,3 +364,21 @@ priority は別の一問として記録する。この有限木反例には prio
 
 検証: `cd lean && lake build --wfail` exit 0（634 jobs）。
 上の最小ループや growing chain だけを算法不可能性と呼ばず、主 E2 は任意 program の停止問題還元に置く。
+
+## B4r2 最終 gate と終了
+
+E2: `CommonRoleFiniteShadowObstruction.finite_tree_registry_undecidable`。
+任意有限 Code の実既存 checker/WF/HDA/AssocWF を満たし、初期 goal と全 canonical machine goal は有限木で Ready。
+それでも任意有限 Code,input の実 query で必ず停止して true iff 実 guarded 有限辞書の存在を返す finite tape machine はない。
+
+最終 `cd lean && lake build --wfail` exit 0、634 jobs。
+最終 `cd lean && lake env lean --trust=0 Audit.lean` exit 0、allowlist 53240 declarations。
+主 theorem の公理は propext / Classical.choice / Quot.sound、全65 theorem を Audit に登録。
+二つの独立最終レビューも全6 module と同じ build/Audit を確認し、E2 と判定した。
+
+全 statement、build/Audit 末尾、正確な残りを `2026-11-07-m1-b4r2-results.md` に記録した。
+新設計 note に priority の作業上の選択と qualified の正確な未証明 lemma を置いた。
+priority と宣言 checker 正規化の提案はそれぞれ questions に記録し、いずれも仕様へ黙って採用していない。
+全3 Yulang block の offline parser probe は ok 3 / recovery 0。
+既存 Lean は import6行/Audit65行の追記のみ。旧 E2 と旧結果、公開入口、既存 checker の変更なし。
+commit / push なし。

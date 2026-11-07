@@ -1990,3 +1990,35 @@ role goal へは降りない。`CommonRolePackedHalting.no_rejection` は任意�
 RoleRank、fuel、無限辞書は採用していない。定義の理由と qualified の正確な未証明 lemma は
 [設計 note](../notes/design/2026-11-07-b4r-reached-root-semantics.md)、定理の全主張と検証は
 [B4 redo 結果](../notes/handoff/2026-11-07-m1-b4r-results.md) に記す。
+
+## B4r2 E2: 再帰型の constructor 検査を拒否しても、有限木の raw サイズに障害（2026-11-07）
+
+ユーザーが承認した K2 の追加規則を独立 semantics に入れた。
+非変数 head pattern が構造的再帰型の constructor を調べると拒否し、変数での捕捉は許す。
+優先順位は [未決の一問](../notes/questions/2026-11-07-b4r2-rejection-priority.md) に置き、作業上は拒否を曖昧性より先にする。
+
+`CommonRoleFiniteShadowObstruction.finite_tree_registry_undecidable` は、新規則の下でも **E2** を示す。
+実 head `{x:left,x:G^k int}` の第二 field は Common で消えるが、既存の raw Paterson checker はそのサイズを数える。
+実 where `{x:right}` に対し十分大きな有限 k を使うと、任意の線形 data rule が宣言検査を通る。
+全 machine goal は有限木 `{x:finiteData}` であり、K2 の両拒否は作用しない。
+それでも実 guarded 有限辞書の存在 iff 任意有限 program の停止となるので、全域の実成功判定は存在しない。
+
+実 WellFormed、既存 checker=true、任意 Common 代入に対する非空虚な HeadDeterminesAssociated、
+実 AssocWellFormed、全 where の宣言済み arity を証明した。Unique は任意 Common 代入を量化する。
+`arbitrary_common_exact` / `guarded_iff_arbitrary_common` は、両拒否と一意性を取り除いて任意 Common 代入を許す
+大きい evidence でも同じ成功集合になることを示す。`actual_plan_exact` は実 impl ID と全 where child を保持する。
+これは Common 同値を読む matching の障害であり、旧 raw syntactic matcher を実行したという主張ではない。
+
+| 項目 | 今回証明したこと | 何が未証明か |
+| --- | --- | --- |
+| 承認後 K2 と registry | 有限木の入力部分集合で、全域 exact resolver の必要な成功 bit が決定不能（E2） | E1 の全 selection/rejection/ambiguity resolver |
+| 拒否 semantics | 固定 countergrammar の root / constructor 検査、変数捕捉、有限木では Ready | full Common 型・row の matching / graph classifier、一般的 finite-tree agreement、nominal agreement の一般定理 |
+| 実宣言・辞書 | 実 checker/WF/HDA/AssocWF/where arity、任意 Common head 一意性、全実 finite Plan | 全宣言言語の checker 完全性、source inference / 公開入口 / Rust への橋 |
+| qualified | 正確な残りの全称 lemma を設計 note に記録 | full method ID / ordinary equations / weak-captured-generalized の実生成と独立 typing の iff、全自由 parameter family。単独生成器の非存在は主張しない |
+
+既存の root-only E2 は保存した。raw サイズに代えて、意味的に消える同名 field を除いてから検査する案は
+[未承認の修正 statement](../notes/questions/2026-11-07-b4r2-shadowed-paterson-size.md) に置く。
+修正案の full E1 は未証明で、RoleRank や fuel は導入していない。
+定義の理由と qualified の正確な未証明 lemma は
+[設計 note](../notes/design/2026-11-07-b4r2-constructor-inspection-and-shadow-size.md)、
+主定理の全主張・検証・レビューは [B4r2 結果](../notes/handoff/2026-11-07-m1-b4r2-results.md) に記す。
