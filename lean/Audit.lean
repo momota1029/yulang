@@ -4434,3 +4434,13 @@ run_cmd do
 #print axioms Yulang.CommonNominalSourceTemplateApplication.extend_source_model
 #print axioms Yulang.CommonNominalSourceTemplateApplication.compile_eval
 #print axioms Yulang.CommonNominalSourceTemplateApplication.term_model_root_recovery
+#print axioms Yulang.CommonNominalAtomicGraph.models_merge_all
+#print axioms Yulang.CommonNominalAtomicGraph.atom_exact
+#print axioms Yulang.CommonNominalAtomicGraph.compile_atoms_exact
+#print axioms Yulang.CommonNominalAtomicPool.models_graph_exact
+#print axioms Yulang.CommonNominalAtomicPool.compile_atoms_exact
+#print axioms Yulang.CommonNominalAtomicPool.all_pool_models_recover
+#print axioms Yulang.CommonNominalFormulaPool.compile_exact
+#print axioms Yulang.CommonNominalFormulaPool.all_returned_models_recover
+#print axioms Yulang.CommonNominalConstructionPool.presence_generation_pool_exact
+#print axioms Yulang.CommonNominalConstructionPool.core_generation_pool_exact

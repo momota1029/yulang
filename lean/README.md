@@ -2060,3 +2060,12 @@ The first eight modules passed fresh independent trust-zero/warning-as-error and
 `CommonNominalOrdinaryTemplates` reuses the real TyTerm collector, preserving all original subterms/ambient variables and their row identifiers. `CommonNominalTemplateCongruence` and `CommonNominalConstraintCongruence` permit all recovered types to be demand-equivalent and all recovered rows literally equal, preserving every full template/formula/packed atom, including fresh binders.
 
 Checkpoints through 684 jobs passed; 683-job trust-zero Audit passed (56262 declarations). Fresh independent trust-zero/axiom reviews passed. Combining all original clauses into one allocator, general bound saturation, executable Common runtime casts and weak EOF remain open; no B5/B1 END is claimed.
+
+
+### B5: actual full argument applications and one packed-atom pool
+
+`CommonNominalPoolMerge`, `CommonNominalTemplateAllocation`, `CommonNominalTemplateRowSubstitution` and `CommonNominalTemplateArgumentSubstitution` preserve every original node and share ambient parameters during disjoint allocation. Actual finite source type/row arguments are included; arbitrary original outer models extend without changing their values or rows.
+
+`CommonNominalSourceTemplateApplication` compiles every packed ordinary/full-template term with every original argument subterm and recovers the source meaning from every compiled model. `CommonNominalAtomicGraph` compiles arbitrary finite packed atom lists into a single finite template plus ordinary directed edges and symbolic row inequalities. `CommonNominalAtomicPool` lowers this to a real mixed pool and reads back all original computations literally.
+
+Checkpoints through 691 jobs passed. The 690-job full trust-zero Audit passed (56580 declarations); fresh independent trust-zero/axiom review passed for the full argument and atom-pool bridges (16889 imported declarations for the final packet). General emitted bounds remain unsolved, runtime/weak EOF bridges remain open, and B5/B1 END is not claimed.

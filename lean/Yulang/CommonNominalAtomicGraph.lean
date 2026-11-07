@@ -181,7 +181,10 @@ theorem atom_exact (original : Atom (Fin inputs)) (assignment : Fin inputs → C
           ] at comparison
         have beforeRoot := CommonNominalTemplateAllocation.chosen_rename (Fin.castAdd after.nodes) values arguments before.root
         have afterRoot := CommonNominalTemplateAllocation.chosen_rename (Fin.natAdd before.nodes) values arguments after.root
-        have moved := Eq.mp (congrArg2 Subtype beforeRoot afterRoot) comparison
+        have firstProp := congrArg (fun first : Ty =>
+          Subtype first (chosen values arguments (Sum.map (Fin.natAdd before.nodes) id after.root))) beforeRoot
+        have lastProp := congrArg (fun last : Ty => Subtype (chosen firstValues arguments before.root) last) afterRoot
+        have moved := Eq.mp (firstProp.trans lastProp) comparison
         exact subtype_trans firstSame.1 (subtype_trans moved lastSame.2)
 
 def compile : List (Atom (Fin inputs)) → Graph inputs

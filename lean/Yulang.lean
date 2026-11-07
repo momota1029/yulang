@@ -675,3 +675,7 @@ import Yulang.CommonNominalTemplateRowSubstitution
 import Yulang.CommonNominalTemplateAllocation
 import Yulang.CommonNominalTemplateArgumentSubstitution
 import Yulang.CommonNominalSourceTemplateApplication
+import Yulang.CommonNominalAtomicGraph
+import Yulang.CommonNominalAtomicPool
+import Yulang.CommonNominalFormulaPool
+import Yulang.CommonNominalConstructionPool
