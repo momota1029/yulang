@@ -29,6 +29,20 @@ pub(super) enum NormalizedExit {
     Deferred(Item, LineEntry),
 }
 
+impl NormalizedExit {
+    pub(crate) fn restore_unmatched_boundary(&mut self, baseline: Option<usize>) {
+        match self {
+            Self::Complete(Err(Either::Left(item)), _) | Self::Deferred(item, _) => {
+                item.restore_unmatched_boundary(baseline)
+            }
+            Self::Complete(Err(Either::Right(end)), _) => {
+                end.item.restore_unmatched_boundary(baseline)
+            }
+            _ => {}
+        }
+    }
+}
+
 pub(super) fn complete(exit: TailExit, line_entry: LineEntry) -> NormalizedExit {
     NormalizedExit::Complete(exit, line_entry)
 }

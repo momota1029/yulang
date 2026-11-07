@@ -136,6 +136,35 @@ pub(crate) fn parenthesized_nud_normalized(
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn delimited_items_normalized(
+    i: SyntaxIn,
+    owner: DelimitedOwner,
+    inherited_stops: Stops,
+    incoming_baseline: usize,
+    item_ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    i.with_delimiter(item_origin, |i, _| {
+        delimited_items_normalized_contents(
+            i,
+            owner,
+            inherited_stops,
+            incoming_baseline,
+            item_ml_mode,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn delimited_items_normalized_contents(
     mut i: SyntaxIn,
     owner: DelimitedOwner,
     inherited_stops: Stops,

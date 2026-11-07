@@ -56,6 +56,26 @@ This topology schematic is not a construct schema:
 `Invalid` retains nested source order and nested recovery elements. No other
 owner may add an `Invalid` node by analogy.
 
+## Unmatched delimiters
+
+WP-18 of the Authoritative parser-gap-closure addendum (2026-11-07) adds a
+recovery boundary for an unmatched `(`, `[` or `{`. A later line closes the
+unmatched delimiters opened in the enclosing statement when its first token
+is a declaration keyword and its indentation is no deeper than the indentation
+of the line where that statement starts. Each owner emits its existing close
+`Missing` before the pending leading trivia. The declaration line resumes at
+statement level.
+
+The declaration keywords are `my`, `our`, `pub`, `use`, `mod`, `struct`, `enum`,
+`type`, `act`, `role`, `impl`, `cast`, `error`, `lazy`, `prefix`, `infix`,
+`suffix`, and `nullfix`. `for` does not trigger this boundary.
+
+Source matching skips literals, comments, doc comments, and Yumark fences.
+A mismatched closer matches the nearest opener of its own kind, leaving skipped
+openers unmatched; a stray closer has no matching effect. Matched delimiters
+keep their ordinary recovery and never close early at a declaration line.
+Indentation alone does not trigger this rule.
+
 ## Structural diagnostic interpretation
 
 Structural diagnostic interpretation reads structural recovery from the CST in

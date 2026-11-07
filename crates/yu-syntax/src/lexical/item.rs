@@ -323,10 +323,14 @@ pub(crate) enum Payload {
 #[derive(Clone, Copy)]
 pub(crate) struct PayloadView<'item> {
     payload: &'item Payload,
+    unmatched_boundary: Option<&'item PendingBoundary>,
 }
 
 impl<'item> PayloadView<'item> {
     pub(crate) fn token_kind(self) -> Option<TokenKind> {
+        if self.unmatched_boundary.is_some() {
+            return None;
+        }
         match self.payload {
             Payload::Token(token) => Some(token.kind),
             Payload::Operator(_) | Payload::Boundary(_) | Payload::Eof => None,
@@ -334,6 +338,9 @@ impl<'item> PayloadView<'item> {
     }
 
     pub(crate) fn operator_use(self) -> Option<&'item OperatorUse> {
+        if self.unmatched_boundary.is_some() {
+            return None;
+        }
         match self.payload {
             Payload::Operator(operator) => Some(&operator.use_),
             Payload::Token(_) | Payload::Boundary(_) | Payload::Eof => None,
@@ -341,6 +348,9 @@ impl<'item> PayloadView<'item> {
     }
 
     pub(crate) fn spelling(self) -> Option<&'item str> {
+        if self.unmatched_boundary.is_some() {
+            return None;
+        }
         match self.payload {
             Payload::Token(token) => Some(&token.text),
             Payload::Operator(operator) => Some(&operator.text),
@@ -349,7 +359,7 @@ impl<'item> PayloadView<'item> {
     }
 
     pub(crate) fn is_boundary(self) -> bool {
-        matches!(self.payload, Payload::Boundary(_))
+        self.unmatched_boundary.is_some() || matches!(self.payload, Payload::Boundary(_))
     }
 
     pub(crate) fn is_eof(self) -> bool {
@@ -364,6 +374,9 @@ impl<'item> PayloadView<'item> {
     }
 
     pub(crate) fn pending_boundary(self) -> Option<&'item PendingBoundary> {
+        if self.unmatched_boundary.is_some() {
+            return self.unmatched_boundary;
+        }
         match self.payload {
             Payload::Boundary(boundary) => Some(boundary),
             Payload::Token(_) | Payload::Operator(_) | Payload::Eof => None,
@@ -627,6 +640,7 @@ pub(crate) struct Item {
     payload: Payload,
     fragments: Option<PendingFragments>,
     first_unemitted_leading: usize,
+    unmatched_boundary: Option<PendingBoundary>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -689,6 +703,7 @@ impl Item {
             payload,
             fragments: None,
             first_unemitted_leading: 0,
+            unmatched_boundary: None,
         }
     }
 
@@ -712,6 +727,7 @@ impl Item {
             payload,
             fragments,
             first_unemitted_leading: 0,
+            unmatched_boundary: None,
         };
         item.validate_fragments()?;
         Ok(item)
@@ -727,6 +743,46 @@ impl Item {
     pub(crate) fn payload_view(&self) -> PayloadView<'_> {
         PayloadView {
             payload: &self.payload,
+            unmatched_boundary: self.unmatched_boundary.as_ref(),
+        }
+    }
+
+    /// Hide the retained keyword only while an unmatched delimiter unwinds.
+    /// The Item and its trivia are handed back intact; no token is rescanned.
+    pub(crate) fn mark_unmatched_boundary(&mut self, baseline: Option<usize>, origin: usize) {
+        let Some(baseline) = baseline else {
+            return;
+        };
+        let Some(indentation) =
+            crate::lexical::observation::indentation_after_newline(self.leading_view())
+        else {
+            return;
+        };
+        if indentation <= baseline
+            && self
+                .payload_view()
+                .spelling()
+                .is_some_and(crate::lexical::lexer::is_recovery_declaration_starter_word)
+        {
+            let at = self.extent(origin).recovery_range().start;
+            self.unmatched_boundary = Some(PendingBoundary::new(
+                at..at,
+                Boundary::Dedent(LayoutEvidence {
+                    baseline,
+                    indentation,
+                }),
+            ));
+        }
+    }
+
+    pub(crate) fn restore_unmatched_boundary(&mut self, baseline: Option<usize>) {
+        if let Some(boundary) = &self.unmatched_boundary {
+            let Boundary::Dedent(evidence) = boundary.kind() else {
+                unreachable!()
+            };
+            if baseline.is_none_or(|baseline| evidence.indentation > baseline) {
+                self.unmatched_boundary = None;
+            }
         }
     }
 

@@ -157,6 +157,7 @@ where
         });
     }
 
+    let unmatched_baseline = i.recovery().unmatched_baseline;
     let payload_origin = suffix_coordinate(source, item_origin, i.remainder());
     let AcceptedPayload {
         payload,
@@ -166,11 +167,13 @@ where
         CurrentPayload::Token(token) => Payload::Token(token),
         CurrentPayload::Operator(operator) => Payload::Operator(operator),
     };
-    let item = match fence {
+    let mut item = match fence {
         None => Item::plain(leading.into_ordinary(), payload),
         Some(_) => Item::finish(leading, payload, foreign, item_origin)
             .expect("one current Item owns ordered in-range foreign splits"),
     };
+    let successor = payload_origin + item.payload_view().spelling().map_or(0, str::len);
+    item.mark_unmatched_boundary(unmatched_baseline, successor);
     Some(CurrentItem {
         item,
         next_line_entry,

@@ -36,6 +36,39 @@ pub(super) enum TypeDelimitedOwner {
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn type_delimited_normalized(
+    i: SyntaxIn,
+    close: TokenKind,
+    incoming_baseline: usize,
+    owner: TypeDelimitedOwner,
+    type_ml: TypeMlContext,
+    outer_closes: u8,
+    caller_stops: Stops,
+    pipe_lexical: bool,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    i.with_delimiter(item_origin, |i, _| {
+        type_delimited_normalized_contents(
+            i,
+            close,
+            incoming_baseline,
+            owner,
+            type_ml,
+            outer_closes,
+            caller_stops,
+            pipe_lexical,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn type_delimited_normalized_contents(
     mut i: SyntaxIn,
     close: TokenKind,
     incoming_baseline: usize,

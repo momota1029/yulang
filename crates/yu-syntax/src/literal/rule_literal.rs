@@ -103,6 +103,20 @@ pub(crate) fn rule_literal_witness(
 }
 
 pub(crate) fn rule_literal_normalized(
+    i: SyntaxIn,
+    opener: Item,
+    part_origin: usize,
+    _line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedRuleLiteralExit {
+    i.without_unmatched_recovery(|i| {
+        rule_literal_normalized_contents(i, opener, part_origin, _line_entry, fence, ambient)
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn rule_literal_normalized_contents(
     mut i: SyntaxIn,
     opener: Item,
     mut part_origin: usize,

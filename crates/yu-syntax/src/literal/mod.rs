@@ -213,27 +213,29 @@ pub(super) fn string_literal_with_virtual_statements_normalized(
     fence: Option<&FenceBoundary>,
     ambient: crate::ambient_claim::AmbientClaimContext<'_>,
 ) -> NormalizedStringLiteralExit {
-    string_literal_with_interpolation_body(
-        i,
-        opener,
-        mode,
-        part_origin,
-        fence,
-        |child, body_origin, line_entry| match virtual_statement_block_normalized(
-            child,
-            body_origin,
-            line_entry,
+    i.without_unmatched_recovery(|i| {
+        string_literal_with_interpolation_body(
+            i,
+            opener,
+            mode,
+            part_origin,
             fence,
-            ambient.unavailable(),
-        ) {
-            VirtualStatementBlockExit::Close(item, line_entry) => {
-                InterpolationBodyExit::Close { item, line_entry }
-            }
-            VirtualStatementBlockExit::Boundary(item, line_entry) => {
-                InterpolationBodyExit::Boundary { item, line_entry }
-            }
-        },
-    )
+            |child, body_origin, line_entry| match virtual_statement_block_normalized(
+                child,
+                body_origin,
+                line_entry,
+                fence,
+                ambient.unavailable(),
+            ) {
+                VirtualStatementBlockExit::Close(item, line_entry) => {
+                    InterpolationBodyExit::Close { item, line_entry }
+                }
+                VirtualStatementBlockExit::Boundary(item, line_entry) => {
+                    InterpolationBodyExit::Boundary { item, line_entry }
+                }
+            },
+        )
+    })
 }
 
 fn string_literal_with_interpolation_body<'source, 'operators, 'frozen>(

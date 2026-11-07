@@ -78,6 +78,21 @@ pub(crate) enum RuleExpressionExit {
 
 /// Commits the contextual word and its already accepted brace successor.
 pub(crate) fn rule_expression_normalized(
+    i: SyntaxIn,
+    keyword: Item,
+    opener: Item,
+    origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> RuleExpressionExit {
+    i.without_unmatched_recovery(|i| {
+        rule_expression_normalized_contents(i, keyword, opener, origin, line_entry, fence, ambient)
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn rule_expression_normalized_contents(
     mut i: SyntaxIn,
     keyword: Item,
     opener: Item,

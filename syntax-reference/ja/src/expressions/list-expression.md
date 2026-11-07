@@ -103,3 +103,4 @@ inner chainのoperator role、ML application、fixed tailは[dynamic operator ch
 list式の後のouter continuationも、そのouter chainが所有する。
 対応するlist patternは[list pattern](../patterns/list-pattern.md)が定める。
 
+未対応の開き区切りから宣言行で回復する規則は、[対応する閉じ区切りがない場合](../conventions/recovery-error-invalid-topology.md#対応する閉じ区切りがない場合)を参照する。

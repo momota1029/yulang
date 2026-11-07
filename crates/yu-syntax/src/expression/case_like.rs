@@ -361,6 +361,31 @@ fn wrong_indent_block_normalized(
 
 #[allow(clippy::too_many_arguments)]
 fn catch_braced_block_normalized(
+    i: SyntaxIn,
+    open: Item,
+    baseline: usize,
+    outer_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    i.with_delimiter(item_origin, |i, _| {
+        catch_braced_block_normalized_contents(
+            i,
+            open,
+            baseline,
+            outer_stops,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn catch_braced_block_normalized_contents(
     mut i: SyntaxIn,
     open: Item,
     baseline: usize,

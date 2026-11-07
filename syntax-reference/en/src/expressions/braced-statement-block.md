@@ -126,3 +126,5 @@ The CST of `{x: 1}`, `{x}`, and `{;}` remains unchanged.
 [Dynamic operator chains](operator-chain.md) define the block's primary position.
 The [layout-aware separator authority](../cross-cutting/layout-aware-separator-authority.md) defines qualifying current-depth newline boundaries.
 [Colon application](colon-application.md) operates inside an individual statement and returns block separators to this block.
+
+For declaration-line recovery at an unmatched opener, see [unmatched delimiters](../conventions/recovery-error-invalid-topology.md#unmatched-delimiters).
