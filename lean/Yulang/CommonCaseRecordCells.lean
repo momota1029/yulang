@@ -95,8 +95,8 @@ theorem representatives_sound (bounds : List Int) (texts : List String) (specifi
 
 /-- Every real record in the domain, with arbitrary extra/duplicate fields,
 has a finite representative preserving every declared first lookup. The
-actual record is not rearranged and its hidden entries are not discarded by
-the matching theorem; this theorem describes a coverage abstraction only. -/
+relation describes declared lookups up to cell equivalence. Full raw-record
+or returned-payload identity is a separate matching interface. -/
 theorem representative_complete (bounds : List Int) (texts : List String) (specification : Specification)
     (actual : Bindings Empty) (valid : Domain specification actual) :
     ∃ samples ∈ representatives bounds texts specification, EntriesRelated bounds texts actual specification samples := by

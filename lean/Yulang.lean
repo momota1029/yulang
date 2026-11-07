@@ -670,3 +670,7 @@ import Yulang.CommonCaseBaseCoverage
 import Yulang.CommonCaseBaseOrdered
 import Yulang.CommonCaseShapeChecks
 import Yulang.CommonCaseRecordCells
+import Yulang.CommonCaseRecordReadout
+import Yulang.CommonPurePatternMatching
+import Yulang.CommonCaseRecordMatching
+import Yulang.CommonCaseRecordCoverage

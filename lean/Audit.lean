@@ -4382,3 +4382,13 @@ run_cmd do
 #print axioms Yulang.CommonCaseRecordCells.checkDomain_exact
 #print axioms Yulang.CommonCaseRecordCells.EntriesRelated.lookup_related
 #print axioms Yulang.CommonCaseRecordCells.representative_complete
+#print axioms Yulang.CommonCaseRecordReadout.readout
+#print axioms Yulang.CommonCaseRecordReadout.finite_representative
+#print axioms Yulang.CommonPurePatternMatching.run_unscoped_exact
+#print axioms Yulang.CommonPurePatternMatching.run_exact
+#print axioms Yulang.CommonCaseRecordMatching.record_accepts_transfer
+#print axioms Yulang.CommonCaseRecordMatching.matches_exact
+#print axioms Yulang.CommonPurePatternMatching.run_map
+#print axioms Yulang.CommonPurePatternMatching.run_embed_exact
+#print axioms Yulang.CommonCaseRecordCoverage.check_exact
+#print axioms Yulang.CommonCaseRecordCoverage.check_matches_exact
