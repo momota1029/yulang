@@ -41,7 +41,7 @@ index tailの`[`はcompleted operandにadjacentである。
 `ChainContinuingTrivia`はouter-chain levelのempty、same-line、またはdeeper-line triviaである。
 projectionは`ChainContinuingTrivia`の後でdotとopenerがadjacentである。
 したがって、`a.(x)`と`a.{x}`はprojectionであり、`a. (x)`と`a. {x}`はprojectionではない。
-exactな`..`のspread authorityはrecord projection item positionだけが持つ。
+このページのtailのうち、exactな`..`のspread authorityはrecord projection item positionだけが持つ。
 Indexとtuple projectionのitemはspread itemを受理しない。
 
 ## 3. Admissionとboundary

@@ -298,6 +298,7 @@ pub enum SyntaxKind {
     ListExpression,
     ListExpressionSpreadItem,
     RangePattern,
+    RecordExpressionSpreadItem,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -324,6 +325,9 @@ impl Language for YulangLanguage {
                 SyntaxKind::ListExpressionSpreadItem
             }
             value if value == SyntaxKind::RangePattern as u16 => SyntaxKind::RangePattern,
+            value if value == SyntaxKind::RecordExpressionSpreadItem as u16 => {
+                SyntaxKind::RecordExpressionSpreadItem
+            }
             value if value == SyntaxKind::Root as u16 => SyntaxKind::Root,
             value if value == SyntaxKind::Missing as u16 => SyntaxKind::Missing,
             value if value == SyntaxKind::Error as u16 => SyntaxKind::Error,
@@ -813,6 +817,15 @@ mod tests {
             let raw = <YulangLanguage as Language>::kind_to_raw(kind);
             assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);
         }
+    }
+
+    #[test]
+    fn record_expression_spread_appends_after_range_pattern_and_round_trips() {
+        assert_eq!(SyntaxKind::RangePattern as u16, 295);
+        assert_eq!(SyntaxKind::RecordExpressionSpreadItem as u16, 296);
+        let kind = SyntaxKind::RecordExpressionSpreadItem;
+        let raw = <YulangLanguage as Language>::kind_to_raw(kind);
+        assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);
     }
 
     #[test]

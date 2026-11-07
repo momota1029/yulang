@@ -45,7 +45,7 @@ true         // 真偽値
 ```
 
 list の spread は、list だけでなく、走査できる値(`Fold` を実装した値)なら何でも受ける。
-状態: 確定。list の spread はパース検査済み。**record の式の spread(`{x: 1, ..rest}`)は、現在のパーサがまだ読めない**(`spec/parser-gaps.md`)。出典: `spec/03-expressions.md` 3.1。
+状態: 確定。list と record の式の spread はパース検査済み。出典: `spec/03-expressions.md` 3.1。
 
 ### 文字列
 

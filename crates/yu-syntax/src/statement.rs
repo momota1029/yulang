@@ -27,7 +27,9 @@ use crate::{
         use_declaration_selected_lexical,
     },
     expression::{
-        continue_normalized_tail, expr_from_nud_normalized,
+        continue_normalized_tail,
+        delimited::spread_item_normalized,
+        expr_from_nud_normalized,
         for_decl::{for_statement_normalized, for_statement_selected},
         is_nud_item,
     },
@@ -42,7 +44,7 @@ use crate::{
             is_active_stop, is_active_stop_lex, is_close, is_separator, token_kind,
         },
         position::{advanced_origin, suffix_marker},
-        stops::{STOP_COLON, Stops, stops_for},
+        stops::{STOP_COLON, STOP_RECORD_SPREAD, Stops, stops_for},
         yumark::FenceBoundary,
     },
     yumark::judge::StatementPosition,
@@ -838,7 +840,7 @@ pub(super) fn braced_nud_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
-    let exit = braced_statement_block_with_recovery_normalized(
+    let exit = braced_statement_block_inner_normalized(
         i.rb(),
         open,
         incoming_baseline,
@@ -847,6 +849,8 @@ pub(super) fn braced_nud_normalized(
         line_entry,
         fence,
         ambient,
+        true,
+        true,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     continue_normalized_tail(
@@ -883,6 +887,7 @@ pub(super) fn braced_statement_block_normalized(
         fence,
         ambient,
         true,
+        false,
     )
 }
 
@@ -904,6 +909,7 @@ pub(super) fn braced_owner_field_block_normalized(
         line_entry,
         fence,
         ambient,
+        false,
         false,
     )
 }
@@ -929,6 +935,7 @@ pub(super) fn braced_statement_block_with_recovery_normalized(
         fence,
         ambient,
         true,
+        false,
     )
 }
 
@@ -943,6 +950,7 @@ fn braced_statement_block_inner_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
     allow_doc_comment: bool,
+    allow_record_spread: bool,
 ) -> NormalizedExit {
     let sequence = Some(if allow_doc_comment {
         crate::sequence::SequenceOwner::BracedStatement
@@ -954,7 +962,12 @@ fn braced_statement_block_inner_normalized(
         .start_node(SyntaxKind::BracedStatementBlockExpression.into());
     emit_token_item(&mut i, open);
     let stops = stops_for(TokenKind::RBrace)
-        | (inherited_stops & crate::lexical::stops::LAMBDA_RECOVERY_BOUNDARY);
+        | (inherited_stops & crate::lexical::stops::LAMBDA_RECOVERY_BOUNDARY)
+        | if allow_record_spread {
+            STOP_RECORD_SPREAD
+        } else {
+            0
+        };
     let (mut item, item_origin, line_entry) = statement_item_normalized(
         i.rb(),
         item_origin,
@@ -1395,6 +1408,24 @@ fn braced_statement_slot_normalized(
         emit_braced_missing(i.rb(), &item, item_origin);
         return complete(handoff(item), line_entry);
     }
+    if is_braced_spread_item(&item, stops) {
+        if !first && implicit_delimited_newline(baseline, item.leading_view()) {
+            emit_separator_leading(&mut i, &mut item);
+        }
+        return spread_item_normalized(
+            i,
+            item,
+            SyntaxKind::RecordExpressionSpreadItem,
+            baseline,
+            stops,
+            StatementLineHandoff::BracedStatementSequence,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+            sequence,
+        );
+    }
     let member_doc_position = if first {
         first_position
     } else {
@@ -1464,6 +1495,20 @@ fn braced_statement_slot_normalized(
     );
     if braced_statement_boundary(&item, baseline) {
         complete(handoff(item), line_entry)
+    } else if is_braced_spread_item(&item, stops) {
+        spread_item_normalized(
+            i,
+            item,
+            SyntaxKind::RecordExpressionSpreadItem,
+            baseline,
+            stops,
+            StatementLineHandoff::BracedStatementSequence,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+            sequence,
+        )
     } else if let Some(admission) = admission {
         canonical_statement_from_admission_normalized(
             i,
@@ -1514,7 +1559,7 @@ fn retry_braced_statement_normalized(
                     )
                 })
             };
-            if boundary || admission.is_some() {
+            if boundary || admission.is_some() || is_braced_spread_item(&item, stops) {
                 return (item, admission, item_origin, line_entry);
             }
         }
@@ -1527,6 +1572,12 @@ fn braced_statement_boundary(item: &Item, baseline: usize) -> bool {
         || is_separator(item)
         || is_close(item)
         || implicit_delimited_newline(baseline, item.leading_view())
+}
+
+fn is_braced_spread_item(item: &Item, stops: Stops) -> bool {
+    // Only an operand-starting brace enables the scanner's exact spread marker.
+    // Canonical statements and control/declaration bodies keep their admission.
+    stops & STOP_RECORD_SPREAD != 0 && token_kind(item) == Some(TokenKind::DotDot)
 }
 
 fn braced_statement_successor_normalized(
@@ -1596,7 +1647,7 @@ fn braced_statement_successor_normalized(
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => {
             let admission =
                 classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence);
-            if admission.is_some() {
+            if admission.is_some() || is_braced_spread_item(&item, stops) {
                 emit_braced_missing(i.rb(), &item, item_origin);
             }
             Ok((item, line_entry, item_origin, Some(admission)))

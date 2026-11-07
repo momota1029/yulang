@@ -9,7 +9,6 @@
 
 **例外（2026-11-07、構文ガイドの例の検査で見つかった。未対応）**:
 
-- 式としての record の spread: `{x: 1, ..rest}`、`{..rest, x: 1}`（`spec/03-expressions.md` 3.1、`spec/04-types.md` の例にも出る）。構文木に対応する種類が無い。list の spread（`[1, ..xs, 3]`）と、pattern の spread は読める。
 - 対象なしの `case:`（`\x -> case x:` の略。`spec/03-expressions.md` 3.7、2026-11-06 確定）。`case x:` は読める。
 
 いずれも、`syntax-guide/ja/src/expressions.md` の例が根拠。パーサ側の対応は、設計判断（構文の確定）を確かめてから。

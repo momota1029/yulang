@@ -25,6 +25,7 @@ mod output;
 mod owners;
 mod pattern;
 mod public_boundary;
+mod record_expression_spread;
 mod recovery_output;
 mod root;
 mod rule;
