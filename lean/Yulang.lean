@@ -636,3 +636,10 @@ import Yulang.CommonNominalFlowGraphSolver
 import Yulang.CommonNominalTypeBounds
 import Yulang.CommonNominalGroundBoundsSolver
 import Yulang.CommonNominalFiniteShapeObstruction
+import Yulang.CommonNominalTailElimination
+import Yulang.CommonNominalRecordTailElimination
+import Yulang.CommonNominalDefault
+import Yulang.CommonNominalPresenceTailElimination
+import Yulang.CommonNominalPresenceTailLayers
+import Yulang.CommonNominalPresenceTailRegular
+import Yulang.CommonNominalOpenTailSolver

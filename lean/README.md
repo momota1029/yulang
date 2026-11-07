@@ -1994,3 +1994,17 @@ actual Core nested-let code を生成する。生成制約 Models の下で元�
 全 body/field constraints と nominal 結果の独立 Typing iff、および元 ambient を固定する numeric atomic model iff を示す。
 source は元 CommonSyntax/Signature.empty 判断の対象範囲であり、compile 成功だけでは型付けを保証しない。
 全一般型制約 solver、Common evaluator/typed Plan/request-tree の解釈、全 feature source、実 declaration validation、weak EOF は未完である。
+
+
+`CommonNominalTypeFlow` / `CommonNominalFlowGraphSolver` は任意の共有自由型 slot 不等式を predecessor joins で求解する。
+`CommonNominalTypeBounds` は任意固定新 Ty bounds の clamp/retraction 補題、`CommonNominalGroundBoundsSolver` は
+既存明示 Ground 文法の実 checker によりその固定 consistency を解いて全自由 parameters の family/rejection を示す。
+動的 constructed-node bounds と full source solver は未完である。
+
+`CommonNominalFiniteShapeObstruction` は、実 Common 型付け/registry body 生成を持つ `λx.x x` が
+既存 finite OperationalTyping.Expr へ同じ構文で消去できないことを示す。pure arrow/要求同値を全保存する finite Shape 写像も存在しない。
+将来の別表現/Common evaluator や B5 全体の不可能性は主張せず、この lambda 値の発散も主張しない。
+
+`CommonNominalTailElimination` / `CommonNominalRecordTailElimination` は任意新 regular nominal/float atoms と
+非 guarded ref/union/inter/mask/record-tail equations の全無制約 parameter family と全元 slot 回収を示す。
+`CommonNominalDefault` は全新 source/fallback に対する whole default congruence と demand 保持を補う。
