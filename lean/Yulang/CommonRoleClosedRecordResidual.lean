@@ -65,4 +65,40 @@ theorem field_probe_exact (type : Payload → Common.Ty) (fields : Row Payload)
         simp [lookup]
       · simpa only [Common.observeTy, lookup, same, ite_false] using ih
 
+/-- A missing field in a closed spine satisfies every optional payload
+observation. A present field tests exactly its original first payload. -/
+theorem optional_probe_exact (type : Payload → Common.Ty) (fields : Row Payload)
+    (label depth rank : Nat) (environment : CommonFinite.Environment Common.Row)
+    (observation : CommonFinite.Observation Common.Row) :
+    CommonFinite.ProbeAt Common.rowLe rank environment
+        (Common.observeTy depth (recordTypeOf type fields)) (.optional label observation) ↔
+      ∀ payload, lookup label fields = some payload →
+        CommonFinite.ProbeAt Common.rowLe rank environment
+          (CommonSyntax.observe (CommonSyntax.graph Common.Row) depth (.node (type payload)))
+          observation := by
+  induction fields with
+  | nil =>
+      cases rank <;> simp [lookup, recordTypeOf, Common.exactEmpty, Common.observeTy,
+        CommonSyntax.Layer.evalAt, CommonFinite.ProbeAt, CommonFinite.ProbeStep,
+        CommonFinite.MaskedProbeStep]
+  | cons entry rest ih =>
+      rcases entry with ⟨current, item⟩
+      simp only [recordTypeOf, Common.record, Common.observeTy, CommonSyntax.Layer.evalAt,
+        CommonFinite.probeAt_record_optional]
+      by_cases same : label = current
+      · subst current
+        simp [lookup]
+      · simp only [lookup, same, ite_false]
+        change (CommonFinite.ProbeAt Common.rowLe rank environment
+          (Common.observeTy depth (recordTypeOf type rest)) (.optional label observation) ∨
+          observation = .trivial) ↔ _
+        rw [ih]
+        constructor
+        · rintro (valid | trivial)
+          · exact valid
+          · intro payload _
+            subst observation
+            exact CommonFinite.probeAt_trivial rank _
+        · exact Or.inl
+
 end Yulang.CommonRoleClosedRecordResidual

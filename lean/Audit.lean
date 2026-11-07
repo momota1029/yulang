@@ -5976,3 +5976,5 @@ run_cmd do
 #print axioms Yulang.CommonRoleClosedRecordResidual.normalize_equivalent
 
 #print axioms Yulang.CommonRoleClosedRecordResidual.field_probe_exact
+
+#print axioms Yulang.CommonRoleClosedRecordResidual.optional_probe_exact
