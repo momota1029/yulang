@@ -5837,3 +5837,12 @@ run_cmd do
 #print axioms Yulang.CommonRoleDeferredBounds.lower_arrives
 
 #print axioms Yulang.CommonEffectFieldInstances.construct_use_sound
+
+#print axioms Yulang.CommonDeclaredNominalInspection.argument_kind_eval
+#print axioms Yulang.CommonDeclaredNominalInspection.wellKinded_length
+#print axioms Yulang.CommonDeclaredNominalInspection.arguments_relation_exact
+#print axioms Yulang.CommonDeclaredNominalInspection.arguments_demand_exact
+#print axioms Yulang.CommonDeclaredNominalInspection.inspect_argument_exact
+#print axioms Yulang.CommonDeclaredNominalInspection.inspect_arguments_exact
+#print axioms Yulang.CommonDeclaredNominalInspection.declared_subtype_exact
+#print axioms Yulang.CommonDeclaredNominalInspection.inspect_exact
