@@ -1916,3 +1916,24 @@ lake env lean --trust=0 --run RunRegularInference.lean
 また、kind-correct な finite 宣言でも旧 presence の child grammar に入るとは限らない。
 `CommonEffectGrammarBoundary` が top-input の実反例を示し、`CommonEffectTypeNormalisation` は
 その例を意味保存で前処理するが、全宣言の grammar 完了ではない。
+
+## M1 B3 追補: 再帰 effect 判断と量化の有限前処理
+
+`CommonEffectRecursiveSource` / `CommonEffectRecursiveGeneration` /
+`CommonEffectRecursiveExact.generate_recursive_effect_exact` は、同じ独立判断と有限 generator で
+通常 presence の全構成子、request、finite protect/release boundary、single/multi universal handler、
+その再帰 source を保存する poly let を扱う。宣言解釈一致と新旧環境対応以外の意味条件を加えない。
+multi-handler の return 値と残余行の包含は全称 arm の外にあり、0-arm でも残る。
+注釈から抽出済みの finite permission が入力であり、可視性の source 抽出を証明したものではない。
+
+`CommonEffectPolarity` / `CommonEffectPolarityElimination` は、型と行が結合する有限 Formula 全体で
+構文的な local 型の極性を検査し、最厳の top/bottom substitution により全称 binder を消す。
+全 orientation の有限探索は完全で、失敗時には全称を syntax のまま残す。
+`CommonEffectOutputWeakening` は全再帰 Typing と captured binding の output weakening を証明し、
+任意 arm 本体の `∃ operated, body : operated ∧ operated ≤ out` を固定 `out` での判断へ置き換える。
+`CommonEffectNormalHandler` はこれを使う実有限 handler 生成式を与える。
+
+これらは意味を保つ projection であり、除去した内部 witnesses の全 valuation を回収する定理ではない。
+mixed-polarity local 型の一般の求解、partial pattern と B2 の接続、注釈の boundary/permission 抽出、
+binding/SCC 終了時の visible effect 検査、および全実生成 Formula の all-instance solver は未完である。
+二つの親契約は引き続き閉じていない。

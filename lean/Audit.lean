@@ -4301,3 +4301,18 @@ run_cmd do
 #print axioms Yulang.CommonEffectOutputWeakening.generated_arm_formula_exact
 #print axioms Yulang.CommonEffectOutputWeakening.handler_at_output_iff
 #print axioms Yulang.CommonEffectOutputWeakening.multi_handler_at_output_iff
+
+#print axioms Yulang.CommonEffectNormalHandler.generateArm_exact
+#print axioms Yulang.CommonEffectNormalHandler.generate_handler_exact
+
+#print axioms Yulang.CommonEffectNormalHandler.generate_many_exact
+#print axioms Yulang.CommonEffectNormalHandler.generate_many_same_holds
+
+#print axioms Yulang.CommonSignedChoicePreparation.prepare_finished
+#print axioms Yulang.CommonSignedChoicePreparation.advance_covers
+
+#print axioms Yulang.CommonSignedChoiceRefinement.refine_finished
+#print axioms Yulang.CommonSignedChoiceRefinement.prune_covers
+
+#print axioms Yulang.CommonSignedChoiceDecision.settle_models
+#print axioms Yulang.CommonSignedChoiceDecision.check_exact
