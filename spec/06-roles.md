@@ -264,4 +264,10 @@ enum app_err:
 - **K1** receiver の無い member（6.1）の整合条件。role の型引数が、member の型の**戻り値**に現れないと、呼び出しで型引数が決まらず、いつも曖昧になる（例: `our size: str -> int` は `'r` を決めない）。
   推奨: 宣言の時点で、role の型引数が戻り値の型に現れない receiver 無しの member を拒否する（`impl` の `where` を宣言時に拒否する規則と同じ流儀）。引数にだけ現れる場合の扱いは、ユーザーが決める。
 
+- **K2** 再帰型（正則）を含めたときの、role の解決の停止（6.3）。6.3 は「`impl` の `where` が head より構造的に小さければ、解決は必ず停止する」と述べるが、
+  これは有限の木を前提にした議論に見える。Lean の記録（`notes/handoff/2026-11-07-common-demand-and-foundations-results.md` §6、`CommonRoleRegularObstructions`）では、
+  既存の宣言 checker が受理する規則 `R(F(G(G a), b)) requires R(F(a, G b))` と、再帰型 `A ≈ G A` から、要求同値でも再訪しない goal の無限列が作れ（`chain_fresh`）、
+  自然数の減少による停止の議論は不可能（`no_natural_descent_measure`）と証明された。
+  ただし、Yulang のソースからこの goal が実際に生成できるかは未確認で、B4 自体が偽とも決定不能とも示されていない。決める話ではなく、未決として書き残す。
+
 （I1〜I6 は反映済み。J4 で cast の有効範囲を確定。）
