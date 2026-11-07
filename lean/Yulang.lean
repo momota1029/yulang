@@ -520,11 +520,6 @@ import Yulang.CommonCanonicalIntervals
 import Yulang.CommonLegacyReflectionConstructors
 import Yulang.CommonCanonicalPositive
 import Yulang.CommonCanonicalObstructions
-import Yulang.CommonCanonicalScalarExports
-import Yulang.CommonLegacyGeneratedErasure
-import Yulang.CommonLegacyGenerationTranslation
-import Yulang.CommonLegacyEmbeddedWitnesses
-import Yulang.CommonCanonicalPolarity
 import Yulang.CommonCanonicalPolarityBoundary
 import Yulang.CommonCanonicalArrowFamilies
 import Yulang.CoreCommonSyntax
@@ -620,3 +615,47 @@ import Yulang.CommonRoleFiniteShadowHalting
 import Yulang.CommonRoleFiniteShadowObstruction
 import Yulang.CommonRoleFiniteShadowSemantic
 import Yulang.CommonRoleFiniteShadowExamples
+import Yulang.CommonCanonicalQualifiedFamilies
+import Yulang.CanonicalComputability
+import Yulang.CommonRoleSemanticPadding
+import Yulang.CommonRoleTreeReflection
+import Yulang.CanonicalRewriteComputability
+import Yulang.CommonRoleRewrite
+import Yulang.CommonCanonicalRowConstraints
+import Yulang.CommonCanonicalRowGrid
+import Yulang.CanonicalCounterComputability
+import Yulang.CanonicalRegisterMachine
+import Yulang.CanonicalRegisterComposition
+import Yulang.CanonicalRegisterRoutines
+import Yulang.CanonicalRegisterCalls
+import Yulang.CanonicalRegisterMacros
+import Yulang.CanonicalRegisterComparison
+import Yulang.CanonicalRegisterWords
+import Yulang.CommonCanonicalRowSyntax
+import Yulang.CommonCanonicalRowGeometry
+import Yulang.CommonCanonicalRowTests
+import Yulang.CommonCanonicalCounterConstraints
+import Yulang.CommonCanonicalSerialization
+import Yulang.CommonCanonicalWordPrograms
+import Yulang.CommonCanonicalEmitters
+import Yulang.CommonCanonicalRangeEmitters
+import Yulang.CommonCanonicalWordReverse
+import Yulang.CommonCanonicalProgramReader
+
+import Yulang.CommonCanonicalTemplatePrograms
+
+import Yulang.CommonCanonicalGridPrograms
+
+import Yulang.CommonCanonicalConstraintPrograms
+
+import Yulang.CommonCanonicalReductionMachine
+
+import Yulang.CommonCanonicalScanPrograms
+
+import Yulang.CommonCanonicalBuilderPrograms
+
+import Yulang.CanonicalRegisterGuard
+
+import Yulang.CanonicalRegisterRecognizer
+
+import Yulang.CommonCanonicalUndecidability

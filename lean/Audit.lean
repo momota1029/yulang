@@ -4,6 +4,118 @@ import Yulang
 import Yulang.EOFRoleInference
 import Lean
 
+#print axioms Yulang.CommonCanonicalQualifiedFamilies.interface_inclusion_iff
+#print axioms Yulang.CommonCanonicalQualifiedFamilies.interface_equivalent_iff
+#print axioms Yulang.CommonCanonicalQualifiedFamilies.finished_instances_exact
+#print axioms Yulang.CanonicalComputability.executes_deterministic
+#print axioms Yulang.CanonicalComputability.divergeOnTrue_step
+#print axioms Yulang.CanonicalComputability.divergeOnTrue_trap
+#print axioms Yulang.CanonicalComputability.executes_divergeOnTrue_iff
+#print axioms Yulang.CanonicalComputability.no_self_halting_decider
+#print axioms Yulang.CommonRoleSemanticPadding.padded_declaration_accepted
+#print axioms Yulang.CommonRoleSemanticPadding.padded_head_exact
+#print axioms Yulang.CommonRoleSemanticPadding.pattern_match_reflects
+#print axioms Yulang.CanonicalRewriteComputability.diverge_valid
+#print axioms Yulang.CanonicalRewriteComputability.runs_diverge_iff
+#print axioms Yulang.CanonicalRewriteComputability.no_self_halting_decider
+#print axioms Yulang.CommonRoleRewrite.compile_checked
+#print axioms Yulang.CommonRoleRewrite.compiled_head_iff
+#print axioms Yulang.CommonRoleRewrite.compiled_matches_iff
+#print axioms Yulang.CommonRoleRewrite.evidence_iff_halting
+#print axioms Yulang.CommonRoleRewrite.no_compiled_evidence_decider
+#print axioms Yulang.CommonCanonicalRowConstraints.arrow_union_input_rows
+#print axioms Yulang.CommonCanonicalRowConstraints.lock_subtype_iff
+#print axioms Yulang.CommonCanonicalRowConstraints.locked_rows_subtype_iff
+#print axioms Yulang.CommonCanonicalRowConstraints.family_equality_iff_satisfiable
+#print axioms Yulang.CommonCanonicalRowGrid.quadrant_exact
+#print axioms Yulang.CommonCanonicalRowGrid.axis_exact
+#print axioms Yulang.CommonCanonicalRowGrid.embedSet_le_iff
+#print axioms Yulang.CanonicalCounterComputability.executes_deterministic
+#print axioms Yulang.CanonicalRegisterMachine.no_nonhalting_semidecider
+#print axioms Yulang.CanonicalRegisterMachine.invariant_iff_nonhalting
+#print axioms Yulang.CanonicalRegisterMachine.reaches_execution_iff
+#print axioms Yulang.CanonicalRegisterMachine.write_shadow
+#print axioms Yulang.CanonicalRegisterMachine.write_commute
+#print axioms Yulang.CanonicalRegisterMachine.subroutine_reaches
+#print axioms Yulang.CanonicalRegisterMachine.Routine.op_map_eval
+#print axioms Yulang.CanonicalRegisterMachine.Routine.trace_trans
+#print axioms Yulang.CanonicalRegisterMachine.Routine.trace_map
+#print axioms Yulang.CanonicalRegisterMachine.Routine.append_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.loop_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.trace_compiled
+#print axioms Yulang.CanonicalRegisterMachine.Routine.atomic_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.branch_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.dispatch_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.call_trace
+#print axioms Yulang.CanonicalRegisterMachine.Routine.clear_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.incrementList_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.drain_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.copy_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.pushDigit_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.setConstant_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.clearList_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.pushCounter_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.comparisonLoop_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.compareCounters_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.wordTick_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.wordStore_write_frame
+#print axioms Yulang.CanonicalRegisterMachine.Routine.wordStore_update_frame
+#print axioms Yulang.CanonicalRegisterMachine.Routine.wordDivisionLoop_runs
+#print axioms Yulang.CanonicalRegisterMachine.Routine.wordPop_runs
+#print axioms Yulang.CommonCanonicalRowSyntax.binding_instances_exact
+#print axioms Yulang.CommonCanonicalRowSyntax.rename_eval
+#print axioms Yulang.CommonCanonicalRowGeometry.closed_row_exact
+#print axioms Yulang.CommonCanonicalRowGeometry.closed_meaning_exact
+#print axioms Yulang.CommonCanonicalRowGeometry.commonPoint_injective
+#print axioms Yulang.CommonCanonicalRowGeometry.closed_meaning_point
+#print axioms Yulang.CommonCanonicalRowGeometry.counter_transport_exact
+#print axioms Yulang.CommonCanonicalRowGeometry.universe_exact
+#print axioms Yulang.CommonCanonicalRowGeometry.zeroAt_point
+#print axioms Yulang.CommonCanonicalRowGeometry.positiveAt_point
+#print axioms Yulang.CommonCanonicalRowTests.meetForm_exact
+#print axioms Yulang.CommonCanonicalRowTests.test_exact
+#print axioms Yulang.CommonCanonicalRowTests.problem_exact
+#print axioms Yulang.CommonCanonicalRowTests.problem_interfaces_exact
+#print axioms Yulang.CommonCanonicalCounterConstraints.seed_exact
+#print axioms Yulang.CommonCanonicalCounterConstraints.constraints_split
+#print axioms Yulang.CommonCanonicalCounterConstraints.forbidden_exact
+#print axioms Yulang.CommonCanonicalCounterConstraints.partition_exact
+#print axioms Yulang.CommonCanonicalCounterConstraints.constraints_imply_invariant
+#print axioms Yulang.CommonCanonicalCounterConstraints.invariant_has_constraints
+#print axioms Yulang.CommonCanonicalCounterConstraints.constraints_iff_nonhalting
+#print axioms Yulang.CommonCanonicalCounterConstraints.public_instances_iff_nonhalting
+#print axioms Yulang.CommonCanonicalCounterConstraints.no_compiled_public_instance_semidecider
+#print axioms Yulang.CommonCanonicalSerialization.form_rename_zero_serializes
+#print axioms Yulang.CommonCanonicalSerialization.wordCode_injective
+#print axioms Yulang.CommonCanonicalSerialization.problem_stream_exact
+#print axioms Yulang.CommonCanonicalSerialization.interfaces_stream_exact
+#print axioms Yulang.CommonCanonicalWordPrograms.wordPop_token
+#print axioms Yulang.CommonCanonicalWordPrograms.emit_runs
+#print axioms Yulang.CommonCanonicalWordPrograms.natural_add_tokens
+#print axioms Yulang.CommonCanonicalWordPrograms.repeatEmit_runs
+#print axioms Yulang.CommonCanonicalWordPrograms.emitNatural_runs
+#print axioms Yulang.CommonCanonicalWordPrograms.emitSum_runs
+#print axioms Yulang.CommonCanonicalWordPrograms.readNaturalToken_runs
+#print axioms Yulang.CommonCanonicalWordPrograms.readNaturalLoop_runs
+#print axioms Yulang.CommonCanonicalWordPrograms.readNatural_runs
+#print axioms Yulang.CommonCanonicalEmitters.emits_append
+#print axioms Yulang.CommonCanonicalEmitters.emits_literal
+#print axioms Yulang.CommonCanonicalEmitters.emits_natural
+#print axioms Yulang.CommonCanonicalEmitters.emits_sum
+#print axioms Yulang.CommonCanonicalEmitters.emits_repeat_literal
+#print axioms Yulang.CommonCanonicalEmitters.emits_choose_equal
+#print axioms Yulang.CommonCanonicalRangeEmitters.rangeLoop_runs
+#print axioms Yulang.CommonCanonicalRangeEmitters.emits_range
+#print axioms Yulang.CommonCanonicalWordReverse.reverseBody_runs
+#print axioms Yulang.CommonCanonicalWordReverse.reverseLoop_runs
+#print axioms Yulang.CommonCanonicalWordReverse.reverseWord_runs
+#print axioms Yulang.CommonCanonicalProgramReader.readTriple_runs
+#print axioms Yulang.CommonCanonicalProgramReader.readPair_runs
+#print axioms Yulang.CommonCanonicalProgramReader.readHeader_runs
+#print axioms Yulang.CommonCanonicalProgramReader.pop_dispatch_runs
+#print axioms Yulang.CommonCanonicalProgramReader.readInstruction_runs
+#print axioms Yulang.CommonCanonicalProgramReader.readNext_runs
+
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/
 open Lean Elab Command in
@@ -3864,70 +3976,6 @@ run_cmd do
 #print axioms Yulang.CommonCanonicalObstructions.capturedArrow_positive
 #print axioms Yulang.CommonCanonicalObstructions.capturedArrowLower_positive
 #print axioms Yulang.CommonCanonicalObstructions.positive_constructor_elimination_keeps_captured_sharing
-#print axioms Yulang.CommonCanonicalScalarExports.toValue_eval
-#print axioms Yulang.CommonCanonicalScalarExports.binding_instances_exact
-#print axioms Yulang.CommonCanonicalScalarExports.scheme_instances_exact
-#print axioms Yulang.CommonCanonicalScalarExports.interface_canonicalEncoding_exact
-#print axioms Yulang.CommonCanonicalScalarExports.Examples.shared_arrow_instances_iff
-#print axioms Yulang.CommonCanonicalScalarExports.Examples.independent_arrow_instances
-#print axioms Yulang.CommonCanonicalScalarExports.Examples.negative_sharing_cannot_be_split
-#print axioms Yulang.CommonCanonicalScalarExports.Examples.qualified_output_instances_iff
-#print axioms Yulang.CommonCanonicalScalarExports.Examples.positive_role_cannot_be_erased
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanComp.rename
-#print axioms Yulang.CommonLegacyGeneratedErasure.clean_var
-#print axioms Yulang.CommonLegacyGeneratedErasure.clean_subst
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanFormula.rename
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanFormula.subst
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanEnv.rename
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanEnv.lift
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanEnv.cons
-#print axioms Yulang.CommonLegacyGeneratedErasure.clean_compLe
-#print axioms Yulang.CommonLegacyGeneratedErasure.clean_mono
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanFormula.instantiate
-#print axioms Yulang.CommonLegacyGeneratedErasure.clean_lookup
-#print axioms Yulang.CommonLegacyGeneratedErasure.clean_generate
-#print axioms Yulang.CommonLegacyGeneratedErasure.clean_principal
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanAtom.rename
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanAtoms.rename
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanAtoms.append
-#print axioms Yulang.CommonLegacyGeneratedErasure.clean_empty
-#print axioms Yulang.CommonLegacyGeneratedErasure.clean_singleton
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanClause.combine
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanClause.close
-#print axioms Yulang.CommonLegacyGeneratedErasure.clean_normalise
-#print axioms Yulang.CommonLegacyGeneratedErasure.generated_clean
-#print axioms Yulang.CommonLegacyGeneratedErasure.clean_erases
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanAtom.erases
-#print axioms Yulang.CommonLegacyGeneratedErasure.CleanAtoms.erases
-#print axioms Yulang.CommonLegacyGeneratedErasure.generated_erases
-#print axioms Yulang.CommonLegacyGeneratedErasure.legacy_generated_exact
-#print axioms Yulang.CommonLegacyGenerationTranslation.translated_liftSubst
-#print axioms Yulang.CommonLegacyGenerationTranslation.clean_translation
-#print axioms Yulang.CommonLegacyGenerationTranslation.generate_translation
-#print axioms Yulang.CommonLegacyGenerationTranslation.principal_translation
-#print axioms Yulang.CommonLegacyGenerationTranslation.normalise_translation
-#print axioms Yulang.CommonLegacyGenerationTranslation.clause_pack
-#print axioms Yulang.CommonLegacyGenerationTranslation.clean_atom_translation
-#print axioms Yulang.CommonLegacyGenerationTranslation.clean_atoms_translation
-#print axioms Yulang.CommonLegacyGenerationTranslation.generated_clause
-#print axioms Yulang.CommonLegacyGenerationTranslation.generated_pack_translation
-#print axioms Yulang.CommonLegacyGenerationTranslation.legacy_generated_clause_exact
-#print axioms Yulang.CommonLegacyEmbeddedWitnesses.embedded_witnesses_iff_typing
-#print axioms Yulang.CommonLegacyEmbeddedWitnesses.contextual_typing_preserved
-#print axioms Yulang.CommonCanonicalPolarity.scalar_ordered
-#print axioms Yulang.CommonCanonicalPolarity.instantiate_ordered
-#print axioms Yulang.CommonCanonicalPolarity.replacement_eval
-#print axioms Yulang.CommonCanonicalPolarity.instantiate_simplify
-#print axioms Yulang.CommonCanonicalPolarity.selected_frozen
-#print axioms Yulang.CommonCanonicalPolarity.selected_mixed
-#print axioms Yulang.CommonCanonicalPolarity.simplified_below
-#print axioms Yulang.CommonCanonicalPolarity.selected_fixed
-#print axioms Yulang.CommonCanonicalPolarity.simplify_instances_exact
-#print axioms Yulang.CommonCanonicalPolarity.normalize_instances_exact
-#print axioms Yulang.CommonCanonicalPolarity.Examples.positive_generalized_removed
-#print axioms Yulang.CommonCanonicalPolarity.Examples.negative_generalized_removed
-#print axioms Yulang.CommonCanonicalPolarity.Examples.shared_identity_retained
-#print axioms Yulang.CommonCanonicalPolarity.Examples.positive_weak_retained
 #print axioms Yulang.CommonCanonicalPolarityBoundary.first_pass_exact
 #print axioms Yulang.CommonCanonicalPolarityBoundary.second_pass_exact
 #print axioms Yulang.CommonCanonicalPolarityBoundary.successive_passes_different
@@ -4369,3 +4417,92 @@ run_cmd do
 #print axioms Yulang.CommonRoleFiniteShadowExamples.payload_eval
 #print axioms Yulang.CommonRoleFiniteShadowExamples.chain_equivalent_iff
 #print axioms Yulang.CommonRoleFiniteShadowExamples.no_natural_descent_measure
+#print axioms Yulang.CommonCanonicalTemplatePrograms.fourBank_injective
+
+#print axioms Yulang.CommonCanonicalTemplatePrograms.template_emits
+
+#print axioms Yulang.CommonCanonicalGridPrograms.gridList_emits
+
+#print axioms Yulang.CommonCanonicalGridPrograms.grid_serialization_exact
+
+#print axioms Yulang.CommonCanonicalGridPrograms.script_emits
+
+#print axioms Yulang.CommonCanonicalConstraintPrograms.testScript_tokens
+
+#print axioms Yulang.CommonCanonicalConstraintPrograms.seed_script_exact
+
+#print axioms Yulang.CommonCanonicalConstraintPrograms.partition_script_exact
+
+#print axioms Yulang.CommonCanonicalConstraintPrograms.instruction_script_exact
+
+#print axioms Yulang.CommonCanonicalReductionMachine.prepared_exact
+
+#print axioms Yulang.CommonCanonicalReductionMachine.readBlock_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.block_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.scan_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.scanTests_exact
+
+#print axioms Yulang.CommonCanonicalReductionMachine.scanAll_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.tupleBody_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.reload_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.startBuilder_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.reversedBuilder_runs
+
+#print axioms Yulang.CommonCanonicalReductionMachine.builderRoutine_runs
+
+#print axioms Yulang.CanonicalRegisterGuard.compiled_lookup
+
+#print axioms Yulang.CanonicalRegisterGuard.compiled_step
+
+#print axioms Yulang.CanonicalRegisterGuard.compiled_return
+
+#print axioms Yulang.CanonicalRegisterGuard.executes_not_self_loop
+
+#print axioms Yulang.CanonicalRegisterGuard.append_prefix_trace
+
+#print axioms Yulang.CanonicalRegisterGuard.guard_check
+
+#print axioms Yulang.CanonicalRegisterGuard.guard_trap
+
+#print axioms Yulang.CanonicalRegisterGuard.guarded_prefix_halts_iff
+
+#print axioms Yulang.CanonicalRegisterGuard.routine_runs_compiled
+
+#print axioms Yulang.CanonicalRegisterGuard.routine_program_runs
+
+#print axioms Yulang.CanonicalRegisterRecognizer.invoke_runs
+
+#print axioms Yulang.CanonicalRegisterRecognizer.global_injective
+
+#print axioms Yulang.CanonicalRegisterRecognizer.bank_injective
+
+#print axioms Yulang.CanonicalRegisterRecognizer.bank_zero
+
+#print axioms Yulang.CanonicalRegisterRecognizer.global_outside
+
+#print axioms Yulang.CanonicalRegisterRecognizer.global_work_ne
+
+#print axioms Yulang.CanonicalRegisterRecognizer.evaluate_runs
+
+#print axioms Yulang.CanonicalRegisterRecognizer.first_bound
+
+#print axioms Yulang.CanonicalRegisterRecognizer.last_bound
+
+#print axioms Yulang.CanonicalRegisterRecognizer.coder_bound
+
+#print axioms Yulang.CanonicalRegisterRecognizer.preparation_runs
+
+#print axioms Yulang.CanonicalRegisterRecognizer.recognizer_exact
+
+#print axioms Yulang.CommonCanonicalReductionMachine.builder_program_runs
+
+#print axioms Yulang.CommonCanonicalUndecidability.no_computable_canonical_encoding
+
+#print axioms Yulang.CommonCanonicalUndecidability.no_computable_canonical_encoding_at_theory
