@@ -551,6 +551,8 @@ import Yulang.CommonCanonicalCurriedExports
 import Yulang.CommonLegacyWitnessPositive
 
 import Yulang.CommonLegacyWitnessSource
+import Yulang.CommonLegacyRecordErasure
+import Yulang.CommonLegacyFiniteErasure
 
 import Yulang.CommonRowHeadFlow
 
