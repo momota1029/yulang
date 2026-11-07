@@ -4270,3 +4270,11 @@ run_cmd do
 #print axioms Yulang.CommonSignedValueExpressionSolver.all_parameters_models
 #print axioms Yulang.CommonSignedValueExpressionSolver.solve_all_instances_exact
 #print axioms Yulang.CommonSignedValueExpressionSolver.generated_all_instances_exact
+
+#print axioms Yulang.CommonEffectRecursiveSource.Typing.handler_iff
+#print axioms Yulang.CommonEffectRecursiveSource.Typing.request_iff
+
+#print axioms Yulang.CommonEffectRecursiveGeneration.ContextRel.lift
+#print axioms Yulang.CommonEffectRecursiveGeneration.ContextRel.rename
+
+#print axioms Yulang.CommonEffectRecursiveGeneration.handlerChecks_holds

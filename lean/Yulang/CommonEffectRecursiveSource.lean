@@ -1,0 +1,354 @@
+import Yulang.CommonEffectDeclarationInterpretation
+
+/-!
+# Independent recursive Common effect syntax and judgment
+
+All ordinary constructors preserve the presence rules. Resolved request,
+finite signed boundary and single-handler nodes recur through this same
+syntax, including stored value schemes. Incoming permission is explicit finite
+annotation data at this layer; source extraction and multi/partial handlers
+remain separate. The semantic signature table is interpreted from finite
+syntax by the generator layer, never stored as an opaque formula leaf.
+-/
+namespace Yulang.CommonEffectRecursiveSource
+open Core.PresenceGeneration (Comp CompTerm TyTerm RowTerm)
+open CommonEffectRequestGeneration (Computation Permission)
+open Inference (Base)
+
+inductive Boundary (scopes : Nat) where
+  | protect : Fin scopes → Permission → Boundary scopes
+  | release : Fin scopes → Permission → Boundary scopes
+  deriving DecidableEq, Repr
+
+def Boundary.eval (boundary : Boundary scopes) (row : Common.Row) : Common.Row :=
+  match boundary with
+  | .protect scope permission => CommonSignedRows.commonProtect scope.val permission.allows row
+  | .release scope permission => CommonSignedRows.commonRelease scope.val permission.allows row
+
+inductive Expr (scopes : Nat) where
+  | var : Nat → Expr scopes
+  | lit : Base → Expr scopes
+  | lam : Expr scopes → Expr scopes
+  | app : Expr scopes → Expr scopes → Expr scopes
+  | letE : Expr scopes → Expr scopes → Expr scopes
+  | branch : Expr scopes → Expr scopes → Expr scopes → Expr scopes
+  | pair : Expr scopes → Expr scopes → Expr scopes
+  | fst : Expr scopes → Expr scopes
+  | snd : Expr scopes → Expr scopes
+  | emptyRecord : Expr scopes
+  | record : Nat → Expr scopes → Expr scopes → Expr scopes
+  /-- Spread-first default extension: evaluate the base, then the fallback.
+  The base's existing field wins, but the fallback is still evaluated. -/
+  | recordDefault : Nat → Expr scopes → Expr scopes → Expr scopes
+  | field : Nat → Expr scopes → Expr scopes
+  | variant : Nat → Expr scopes → Expr scopes
+  | request : Nat → Expr scopes → Expr scopes
+  | boundary : Boundary scopes → Expr scopes → Expr scopes
+  | handler : Permission → Nat → Expr scopes → Expr scopes → Expr scopes → Expr scopes
+  deriving Repr, DecidableEq
+
+/-- The core's nonexpansive syntax. A variable is generalizable only if its
+scheme also permits a pure typing; a computation argument is not made pure. -/
+def Expr.isValue : Expr scopes → Bool
+  | .var _ | .lit _ | .lam _ | .emptyRecord => true
+  | .pair a b | .record _ a b | .recordDefault _ a b => a.isValue && b.isValue
+  | .variant _ a => a.isValue
+  | _ => false
+
+
+abbrev SemanticSignature := Core.EffectTyping.OperationSignature Common.model.toModel Nat
+
+variable {scopes : Nat}
+
+inductive Binding (scopes : Nat) where
+  | mono : Computation → Binding scopes
+  | poly : Expr scopes → List (Binding scopes) → Binding scopes
+  /-- An independently prescribed signature quantifies value types only.
+  Inferred row assignments and the lexical environment are captured by
+  `instantiate`; no fresh row assignment is supplied at a call. -/
+  | signature (n : Nat) (instantiate : (Fin n → Common.Ty) → Computation) : Binding scopes
+mutual
+  inductive Typing (signatures : List SemanticSignature) : List (Binding scopes) → Expr scopes → Computation → Prop where
+    | var : Γ[n]? = some b → BindingTyping signatures b c → Typing signatures Γ (.var n) c
+    | lit : Comp.le Common.model (Comp.pure Common.model (Common.model.base b)) c → Typing signatures Γ (.lit b) c
+    | lam : Typing signatures (.mono a :: Γ) body b →
+        Comp.le Common.model (Comp.pure Common.model (Comp.arrow Common.model a b)) c → Typing signatures Γ (.lam body) c
+    | app : Typing signatures Γ f (Comp.arrow Common.model a b, ef) → Typing signatures Γ x a →
+        Comp.le Common.model (b.1, Common.model.join ef b.2) c → Typing signatures Γ (.app f x) c
+    | letValue : v.isValue = true → Typing signatures Γ v (Comp.pure Common.model a) →
+        Typing signatures (.poly v Γ :: Γ) body c → Typing signatures Γ (.letE v body) c
+    | letComputed : Typing signatures Γ v a →
+        Typing signatures (.mono (Comp.pure Common.model a.1) :: Γ) body b →
+        Comp.le Common.model (b.1, Common.model.join a.2 b.2) c → Typing signatures Γ (.letE v body) c
+    | branch : Typing signatures Γ condition (Common.model.base .bool, eg) →
+        Typing signatures Γ yes a → Typing signatures Γ no b →
+        Comp.le Common.model (Common.model.union a.1 b.1, Common.model.join eg (Common.model.join a.2 b.2)) c →
+        Typing signatures Γ (.branch condition yes no) c
+    | pair : Typing signatures Γ x a → Typing signatures Γ y b →
+        Comp.le Common.model (Common.model.pair a.1 b.1, Common.model.join a.2 b.2) c → Typing signatures Γ (.pair x y) c
+    | fst : Typing signatures Γ x (Common.model.pair a b, er) →
+        Comp.le Common.model (a, er) c → Typing signatures Γ (.fst x) c
+    | snd : Typing signatures Γ x (Common.model.pair a b, er) →
+        Comp.le Common.model (b, er) c → Typing signatures Γ (.snd x) c
+    | emptyRecord : Comp.le Common.model (Comp.pure Common.model Common.model.exactEmpty) c →
+        Typing signatures Γ .emptyRecord c
+    | record : Typing signatures Γ x a → Typing signatures Γ rest b → Common.model.subTy b.1 Common.model.emptyRecord →
+        Comp.le Common.model (Common.model.record l a.1 b.1, Common.model.join a.2 b.2) c →
+        Typing signatures Γ (.record l x rest) c
+    /-- Both operands are checked; the base and fallback rows are joined even
+    when the base already supplies the field. -/
+    | recordDefault : Typing signatures Γ source a → Typing signatures Γ fallback b →
+        Common.model.subTy a.1 Common.model.emptyRecord →
+        Comp.le Common.model (Common.model.recordDefault l a.1 b.1, Common.model.join a.2 b.2) c →
+        Typing signatures Γ (.recordDefault l source fallback) c
+    | field : Typing signatures Γ x (Common.model.required l a, er) →
+        Comp.le Common.model (a, er) c → Typing signatures Γ (.field l x) c
+    | variant : Typing signatures Γ x a →
+        Comp.le Common.model (Common.model.variant l a.1, a.2) c → Typing signatures Γ (.variant l x) c
+
+    | request {signature : SemanticSignature} {locals : Fin signature.locals → Common.Ty} :
+        signatures[operation]? = some signature →
+        Typing signatures Γ payload (signature.input locals, payloadRow) →
+        Common.Subtype (signature.output locals) c.1 →
+        Common.rowLe (Common.rowJoin payloadRow (Common.rowJoin
+          ((CommonSignedRows.commonAlgebra scopes).head signature.key)
+          (RowInference.keysRow (CommonSignedRows.commonAlgebra scopes) signature.extra))) c.2 →
+        Typing signatures Γ (.request operation payload) c
+    | boundary : Typing signatures Γ body input → Common.Subtype input.1 c.1 →
+        Common.rowLe (boundary.eval input.2) c.2 → Typing signatures Γ (.boundary boundary body) c
+    | handler {signature : SemanticSignature}
+        {operated : (Fin signature.locals → Common.Ty) → Computation} :
+        signatures[operation]? = some signature → permission.allows signature.key = true →
+        Typing signatures Γ action input →
+        Typing signatures (.mono (Comp.pure Common.model input.1) :: Γ) onReturn returned →
+        (∀ locals, Typing signatures
+          (.mono (Comp.pure Common.model (signature.input locals)) ::
+           .mono (Comp.pure Common.model (Comp.arrow Common.model
+             (Comp.pure Common.model (signature.output locals)) input)) :: Γ) onOperation (operated locals)) →
+        (∀ locals, Common.Subtype (.union returned.1 (operated locals).1) c.1) →
+        (∀ locals, Common.rowLe (Common.rowJoin (CommonSignedRows.commonResidual [signature.key] input.2)
+          (Common.rowJoin returned.2 (operated locals).2)) c.2) →
+        Typing signatures Γ (.handler permission operation action onReturn onOperation) c
+
+  inductive BindingTyping (signatures : List SemanticSignature) : Binding scopes → Computation → Prop where
+    | mono : Comp.le Common.model a c → BindingTyping signatures (.mono a) c
+    | poly : Typing signatures Γ v (Comp.pure Common.model c.1) → Common.model.subRow Common.model.empty c.2 →
+        BindingTyping signatures (.poly v Γ) c
+    | signature {n : Nat} {instantiate : (Fin n → Common.model.Ty) → Computation} {ι : Fin n → Common.model.Ty} :
+        Comp.le Common.model (instantiate ι) c →
+        BindingTyping signatures (.signature n instantiate) c
+end
+
+def BindingLookup (signatures : List SemanticSignature) (bindings : List (Binding scopes))
+    (index : Nat) (out : Computation) : Prop :=
+  ∃ binding, bindings[index]? = some binding ∧ BindingTyping signatures binding out
+
+@[simp] theorem BindingTyping.mono_iff (signatures : List SemanticSignature) (a c : Computation) :
+    BindingTyping (scopes := scopes) signatures (.mono a) c ↔ Comp.le Common.model a c := by
+  constructor
+  · intro h; cases h with | mono h => exact h
+  · exact BindingTyping.mono
+
+@[simp] theorem BindingTyping.poly_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes))
+    (v : Expr scopes) (c : Computation) :
+    BindingTyping signatures (.poly v Γ) c ↔
+      Typing signatures Γ v (Comp.pure Common.model c.1) ∧ Common.model.subRow Common.model.empty c.2 := by
+  constructor
+  · intro h; cases h with | poly hv he => exact ⟨hv, he⟩
+  · rintro ⟨hv, he⟩; exact BindingTyping.poly hv he
+
+@[simp] theorem BindingTyping.signature_iff (signatures : List SemanticSignature) (n : Nat)
+    (instantiate : (Fin n → Common.model.Ty) → Computation) (c : Computation) :
+    BindingTyping (scopes := scopes) signatures (.signature n instantiate) c ↔ ∃ ι, Comp.le Common.model (instantiate ι) c := by
+  constructor
+  · intro h; cases h with | signature hc => exact ⟨_, hc⟩
+  · rintro ⟨ι, hc⟩; exact BindingTyping.signature hc
+
+@[simp] theorem Typing.var_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes)) (n : Nat) (c : Computation) :
+    Typing signatures Γ (.var n) c ↔ BindingLookup signatures Γ n c := by
+  constructor
+  · intro h
+    cases h with | var hget hb => exact ⟨_, hget, hb⟩
+  · rintro ⟨b, hget, hb⟩
+    exact Typing.var hget hb
+
+/-- Strict default extension retains the full constructor result and both rows. -/
+@[simp] theorem Typing.recordDefault_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes))
+    (l : Nat) (source fallback : Expr scopes) (c : Computation) :
+    Typing signatures Γ (.recordDefault l source fallback) c ↔ ∃ a b,
+      Typing signatures Γ source a ∧ Typing signatures Γ fallback b ∧ Common.model.subTy a.1 Common.model.emptyRecord ∧
+      Comp.le Common.model (Common.model.recordDefault l a.1 b.1, Common.model.join a.2 b.2) c := by
+  constructor
+  · intro h; cases h with | recordDefault ha hb hs hc => exact ⟨_, _, ha, hb, hs, hc⟩
+  · rintro ⟨a, b, ha, hb, hs, hc⟩; exact Typing.recordDefault ha hb hs hc
+
+@[simp] theorem Typing.lit_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes)) (b : Base) (c : Computation) :
+    Typing signatures Γ (.lit b) c ↔ Comp.le Common.model (Comp.pure Common.model (Common.model.base b)) c := by
+  constructor
+  · intro h; cases h with | lit h => exact h
+  · exact Typing.lit
+
+@[simp] theorem Typing.lam_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes)) (body : Expr scopes) (c : Computation) :
+    Typing signatures Γ (.lam body) c ↔ ∃ a b,
+      Typing signatures (.mono a :: Γ) body b ∧
+      Comp.le Common.model (Comp.pure Common.model (Comp.arrow Common.model a b)) c := by
+  constructor
+  · intro h; cases h with | lam hb hc => exact ⟨_, _, hb, hc⟩
+  · rintro ⟨a, b, hb, hc⟩; exact Typing.lam hb hc
+
+@[simp] theorem Typing.app_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes)) (f x : Expr scopes) (c : Computation) :
+    Typing signatures Γ (.app f x) c ↔ ∃ a b ef,
+      Typing signatures Γ f (Comp.arrow Common.model a b, ef) ∧ Typing signatures Γ x a ∧
+      Comp.le Common.model (b.1, Common.model.join ef b.2) c := by
+  constructor
+  · intro h; cases h with | app hf hx hc => exact ⟨_, _, _, hf, hx, hc⟩
+  · rintro ⟨a, b, ef, hf, hx, hc⟩; exact Typing.app hf hx hc
+
+theorem Typing.letValue_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes)) (v body : Expr scopes) (c : Computation)
+    (hv : v.isValue = true) :
+    Typing signatures Γ (.letE v body) c ↔
+      ((∃ a, Typing signatures Γ v (Comp.pure Common.model a)) ∧ Typing signatures (.poly v Γ :: Γ) body c) ∨
+      ∃ a b, Typing signatures Γ v a ∧ Typing signatures (.mono (Comp.pure Common.model a.1) :: Γ) body b ∧
+        Comp.le Common.model (b.1, Common.model.join a.2 b.2) c := by
+  constructor
+  · intro h
+    cases h with
+    | letValue _ ha hb => exact Or.inl ⟨⟨_, ha⟩, hb⟩
+    | letComputed ha hb hc => exact Or.inr ⟨_, _, ha, hb, hc⟩
+  · intro h
+    rcases h with ⟨⟨a, ha⟩, hb⟩ | ⟨a, b, ha, hb, hc⟩
+    · exact Typing.letValue hv ha hb
+    · exact Typing.letComputed ha hb hc
+
+theorem Typing.letComputed_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes)) (v body : Expr scopes) (c : Computation)
+    (hv : v.isValue = false) :
+    Typing signatures Γ (.letE v body) c ↔ ∃ a b,
+      Typing signatures Γ v a ∧ Typing signatures (.mono (Comp.pure Common.model a.1) :: Γ) body b ∧
+      Comp.le Common.model (b.1, Common.model.join a.2 b.2) c := by
+  constructor
+  · intro h
+    cases h with
+    | letValue hn _ _ => simp [hv] at hn
+    | letComputed ha hb hc => exact ⟨_, _, ha, hb, hc⟩
+  · rintro ⟨a, b, ha, hb, hc⟩
+    exact Typing.letComputed ha hb hc
+
+@[simp] theorem Typing.branch_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes)) (g y n : Expr scopes) (c : Computation) :
+    Typing signatures Γ (.branch g y n) c ↔ ∃ eg a b,
+      Typing signatures Γ g (Common.model.base .bool, eg) ∧ Typing signatures Γ y a ∧ Typing signatures Γ n b ∧
+      Comp.le Common.model (Common.model.union a.1 b.1, Common.model.join eg (Common.model.join a.2 b.2)) c := by
+  constructor
+  · intro h; cases h with | branch hg hy hn hc => exact ⟨_, _, _, hg, hy, hn, hc⟩
+  · rintro ⟨eg, a, b, hg, hy, hn, hc⟩; exact Typing.branch hg hy hn hc
+
+@[simp] theorem Typing.pair_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes)) (x y : Expr scopes) (c : Computation) :
+    Typing signatures Γ (.pair x y) c ↔ ∃ a b,
+      Typing signatures Γ x a ∧ Typing signatures Γ y b ∧
+      Comp.le Common.model (Common.model.pair a.1 b.1, Common.model.join a.2 b.2) c := by
+  constructor
+  · intro h; cases h with | pair hx hy hc => exact ⟨_, _, hx, hy, hc⟩
+  · rintro ⟨a, b, hx, hy, hc⟩; exact Typing.pair hx hy hc
+
+@[simp] theorem Typing.fst_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes)) (x : Expr scopes) (c : Computation) :
+    Typing signatures Γ (.fst x) c ↔ ∃ a b er,
+      Typing signatures Γ x (Common.model.pair a b, er) ∧ Comp.le Common.model (a, er) c := by
+  constructor
+  · intro h; cases h with | fst hx hc => exact ⟨_, _, _, hx, hc⟩
+  · rintro ⟨a, b, er, hx, hc⟩; exact Typing.fst hx hc
+
+@[simp] theorem Typing.snd_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes)) (x : Expr scopes) (c : Computation) :
+    Typing signatures Γ (.snd x) c ↔ ∃ a b er,
+      Typing signatures Γ x (Common.model.pair a b, er) ∧ Comp.le Common.model (b, er) c := by
+  constructor
+  · intro h; cases h with | snd hx hc => exact ⟨_, _, _, hx, hc⟩
+  · rintro ⟨a, b, er, hx, hc⟩; exact Typing.snd hx hc
+
+@[simp] theorem Typing.emptyRecord_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes)) (c : Computation) :
+    Typing signatures Γ .emptyRecord c ↔ Comp.le Common.model (Comp.pure Common.model Common.model.exactEmpty) c := by
+  constructor
+  · intro h; cases h with | emptyRecord h => exact h
+  · exact Typing.emptyRecord
+
+@[simp] theorem Typing.record_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes))
+    (l : Nat) (x r : Expr scopes) (c : Computation) :
+    Typing signatures Γ (.record l x r) c ↔ ∃ a b,
+      Typing signatures Γ x a ∧ Typing signatures Γ r b ∧ Common.model.subTy b.1 Common.model.emptyRecord ∧
+      Comp.le Common.model (Common.model.record l a.1 b.1, Common.model.join a.2 b.2) c := by
+  constructor
+  · intro h; cases h with | record hx hr hs hc => exact ⟨_, _, hx, hr, hs, hc⟩
+  · rintro ⟨a, b, hx, hr, hs, hc⟩; exact Typing.record hx hr hs hc
+
+@[simp] theorem Typing.field_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes))
+    (l : Nat) (x : Expr scopes) (c : Computation) :
+    Typing signatures Γ (.field l x) c ↔ ∃ a er,
+      Typing signatures Γ x (Common.model.required l a, er) ∧ Comp.le Common.model (a, er) c := by
+  constructor
+  · intro h; cases h with | field hx hc => exact ⟨_, _, hx, hc⟩
+  · rintro ⟨a, er, hx, hc⟩; exact Typing.field hx hc
+
+@[simp] theorem Typing.variant_iff (signatures : List SemanticSignature) (Γ : List (Binding scopes))
+    (l : Nat) (x : Expr scopes) (c : Computation) :
+    Typing signatures Γ (.variant l x) c ↔ ∃ a,
+      Typing signatures Γ x a ∧ Comp.le Common.model (Common.model.variant l a.1, a.2) c := by
+  constructor
+  · intro h; cases h with | variant hx hc => exact ⟨_, hx, hc⟩
+  · rintro ⟨a, hx, hc⟩; exact Typing.variant hx hc
+
+
+/-- Constructor inversion exposes exactly the intended quantifier order.
+The function in the inductive rule is only a choice of these arm witnesses. -/
+theorem Typing.handler_iff (signatures : List SemanticSignature) (environment : List (Binding scopes))
+    (permission : Permission) (operation : Nat) (action onReturn onOperation : Expr scopes) (out : Computation) :
+    Typing signatures environment (.handler permission operation action onReturn onOperation) out ↔
+      ∃ signature, signatures[operation]? = some signature ∧ permission.allows signature.key = true ∧
+      ∃ input returned,
+        Typing signatures environment action input ∧
+        Typing signatures (.mono (Comp.pure Common.model input.1) :: environment) onReturn returned ∧
+        ∀ locals : Fin signature.locals → Common.Ty, ∃ operated : Computation,
+          Typing signatures
+            (.mono (Comp.pure Common.model (signature.input locals)) ::
+             .mono (Comp.pure Common.model (Comp.arrow Common.model
+               (Comp.pure Common.model (signature.output locals)) input)) :: environment) onOperation operated ∧
+          Common.Subtype (.union returned.1 operated.1) out.1 ∧
+          Common.rowLe (Common.rowJoin (CommonSignedRows.commonResidual [signature.key] input.2)
+            (Common.rowJoin returned.2 operated.2)) out.2 := by
+  constructor
+  · intro typed
+    cases typed with
+    | handler found permitted actionTyped returnTyped armTyped values rows =>
+      exact ⟨_, found, permitted, _, _, actionTyped, returnTyped,
+        fun locals => ⟨_, armTyped locals, values locals, rows locals⟩⟩
+  · rintro ⟨signature, found, permitted, input, returned, actionTyped, returnTyped, arms⟩
+    exact Typing.handler (operated := fun locals => Classical.choose (arms locals)) found permitted actionTyped returnTyped
+      (fun locals => (Classical.choose_spec (arms locals)).1)
+      (fun locals => (Classical.choose_spec (arms locals)).2.1)
+      (fun locals => (Classical.choose_spec (arms locals)).2.2)
+
+theorem Typing.request_iff (signatures : List SemanticSignature) (environment : List (Binding scopes))
+    (operation : Nat) (payload : Expr scopes) (out : Computation) :
+    Typing signatures environment (.request operation payload) out ↔
+      ∃ signature, signatures[operation]? = some signature ∧
+      ∃ locals : Fin signature.locals → Common.Ty, ∃ row : Common.Row,
+        Typing signatures environment payload (signature.input locals, row) ∧
+        Common.Subtype (signature.output locals) out.1 ∧
+        Common.rowLe (Common.rowJoin row (Common.rowJoin
+          ((CommonSignedRows.commonAlgebra scopes).head signature.key)
+          (RowInference.keysRow (CommonSignedRows.commonAlgebra scopes) signature.extra))) out.2 := by
+  constructor
+  · intro typed
+    cases typed with
+    | request found payloadTyped value row => exact ⟨_, found, _, _, payloadTyped, value, row⟩
+  · rintro ⟨signature, found, locals, row, payloadTyped, valueBound, rowBound⟩
+    exact .request (locals := locals) found payloadTyped valueBound rowBound
+
+theorem Typing.boundary_iff (signatures : List SemanticSignature) (environment : List (Binding scopes))
+    (boundary : Boundary scopes) (body : Expr scopes) (out : Computation) :
+    Typing signatures environment (.boundary boundary body) out ↔
+      ∃ input, Typing signatures environment body input ∧ Common.Subtype input.1 out.1 ∧
+        Common.rowLe (boundary.eval input.2) out.2 := by
+  constructor
+  · intro typed
+    cases typed with | boundary typed value row => exact ⟨_, typed, value, row⟩
+  · rintro ⟨input, typed, value, row⟩
+    exact .boundary typed value row
+end Yulang.CommonEffectRecursiveSource

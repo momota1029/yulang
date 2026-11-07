@@ -609,3 +609,5 @@ import Yulang.CommonSignedExpressionPool
 import Yulang.CommonSignedExpressionGraph
 import Yulang.CommonSignedConstraintCompilation
 import Yulang.CommonSignedValueExpressionSolver
+import Yulang.CommonEffectRecursiveSource
+import Yulang.CommonEffectRecursiveGeneration
