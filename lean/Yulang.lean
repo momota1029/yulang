@@ -659,3 +659,10 @@ import Yulang.CanonicalRegisterGuard
 import Yulang.CanonicalRegisterRecognizer
 
 import Yulang.CommonCanonicalUndecidability
+import Yulang.CommonRoleNormalizedDeclarations
+import Yulang.CommonRoleFiniteTailClock
+import Yulang.CommonRoleFiniteTailRegistry
+import Yulang.CommonRoleFiniteTailHalting
+import Yulang.CommonRoleFiniteTailObstruction
+import Yulang.CommonRoleFiniteTailSemantic
+import Yulang.CommonRoleFiniteTailExamples
