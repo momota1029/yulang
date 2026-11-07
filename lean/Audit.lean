@@ -4419,3 +4419,16 @@ run_cmd do
 #print axioms Yulang.CommonEffectRegularRowMap.subtype_exact
 #print axioms Yulang.CommonEffectRegularRowMap.transport_subtype_exact
 #print axioms Yulang.CommonEffectRegularRowMap.transport_equivalent_exact
+
+#print axioms Yulang.CommonEffectComputationSplit.split_exact
+#print axioms Yulang.CommonEffectComputationSplit.exists_split_exact
+#print axioms Yulang.CommonEffectComputationSplit.projectSlot_exact
+#print axioms Yulang.CommonEffectComputationSplit.project_exact
+
+#print axioms Yulang.CommonEffectClauseSplit.closeSlots_exact
+#print axioms Yulang.CommonEffectClauseSplit.clause_split_exact
+#print axioms Yulang.CommonEffectClauseSplit.projectClause_exact
+#print axioms Yulang.CommonEffectClauseSplit.prepare_exact
+
+#print axioms Yulang.CommonEffectPreparedGeneration.prepare_exact
+#print axioms Yulang.CommonEffectPreparedGeneration.generate_prepared_recursive_exact

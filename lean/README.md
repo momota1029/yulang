@@ -1965,3 +1965,27 @@ captured 型と全行を固定した flexible/rigid partition に compile し、
 この residual は未解決の元制約であり、返却 scheme の parameters 条件として完了扱いしない。
 残余比較の有限 saturation、mixed-polarity local 型の一般全称消去、全 source の annotation/hygiene 接続が残る。
 親二契約の E1/E2 は未達である。
+
+## M1 B3 追補: scoped 前処理と whole-type signed transport
+
+`CommonEffectConstructorNormalisation` は既知 arrow/pair/variant/required 比較を、負の子も含めた
+実 finite 子比較へ分解する。`CommonEffectBoundExtraction` / `CommonEffectBoundTemplates` は、
+実検査で抽出できた flexible bounds から有限の scoped witness 候補を計算する。
+候補列は operation-local 全称より前に固定し、その有限列からの選択は各 local assignment の内側に保つ。
+失敗した検査を unsatisfiable と扱わず、元 binder を保持する。
+
+`CommonEffectComputationSplit` / `CommonEffectClauseSplit` は、元の全 computation row slots を保持し、
+型だけを pure local tuple へ分離して共同 bound 抽出に渡す。
+rigid endpoint の arrow row に現れる元 local row も空行へ消さない。
+これらは存在充足の保存であり、canonical witnesses だけで任意の元 internal node valuation を回収するとは主張しない。
+`CommonEffectPreparedGeneration.generate_prepared_recursive_exact` はこの前処理と実 recursive generator を、
+元 ContextRel だけの下で独立 effect Typing に接続する。未解決 universal は syntax に残る。
+
+`CommonEffectTypeRowMap` は全 Common regular/legacy 型の全 latent rows を実構文で変換する。
+fresh enter/exit の片側 literal roundtrip と signed protect/release の両側 literal roundtrip を持つ。
+`CommonEffectFiniteRowMap` / `CommonEffectRegularRowMap` は任意 negative rank/constructor depth で
+観測との可換性を証明し、実 signed transport による whole-type Subtype/Equivalent の保存反映を示す。
+static action は arrow input を含む全 row 位置で同じであり、runtime input wrapper の方向反転と混同しない。
+fresh enter は片側 inverse なので、signed automorphism の順序 iff の対象としていない。
+source boundary 挿入、SCC 完了時点の visible freeze、一般 constructor-cycle saturation と rigid 全称消去、
+および全元 node valuations を回収する最終 solver family が残る。親 B3 は未完である。

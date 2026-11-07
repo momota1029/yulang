@@ -641,3 +641,6 @@ import Yulang.CommonEffectBoundTemplates
 import Yulang.CommonEffectTypeRowMap
 import Yulang.CommonEffectFiniteRowMap
 import Yulang.CommonEffectRegularRowMap
+import Yulang.CommonEffectComputationSplit
+import Yulang.CommonEffectClauseSplit
+import Yulang.CommonEffectPreparedGeneration
