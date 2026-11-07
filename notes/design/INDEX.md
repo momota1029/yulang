@@ -2,6 +2,8 @@
 
 Navigation aid. Each document is authoritative only for its own text and scope; read its Status line.
 
+- [要求駆動計算と B2/B3/B5 の今回の結果](../handoff/2026-11-07-common-demand-and-foundations-results.md) — 全量化した主要 theorem、元 §7 の未閉契約、B/C の到達、実根一覧、最終検証と次の着手。
+
 - [共通 Core.infer の構文拡張](2026-11-07-core-common-coverage.md) — 部分言語を実装・証明。literal/structural data/strictApp/単一 bind case/leaf を公開 principal・全 parameter・拒否完全性へ接続し、旧 PresenceOnly 入口を保存。一般署名・B1〜B6 全体の残りを明示。
 
 - [Common nominal head と ground cast の基礎](2026-11-07-common-nominal-head-ground-foundations.md) — 任意 Common 型/行引数の不変性、共有 slot の有限比較、外側の根の旧順序保存、明示した scalar/nominal ground 文法の実 compatibility。全 carrier・site・pure plan の残りを区別。

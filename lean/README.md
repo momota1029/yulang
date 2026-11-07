@@ -206,14 +206,31 @@ literal / strictApp / leaf を加えた 17 個と、data / caseE の明示した
 | `Core.CommonSyntax.lowering_exact` / `CommonSolvedCoreSyntax.principal` / `all_parameter_sound` | 任意 covered term・任意の全 binding instances が対応する captured 環境・任意結果で独立 constructor typing iff 既存 presence typing。coverage を内部供給して、任意閉式・任意結果の実有限 list 主型性と任意返却 scheme の全自由 parameter 健全性に接続 | coverage を公開 principal の前提にすること、未対応 fallback を受理すること、一般署名の全構文 |
 | B1 / `Core.CommonData.typing_lower_exact` | 任意 model、covered structural data、任意環境・結果で独立 ValueTyping iff lowered typing。int/str/bool/unit の全 literal 内容と、再帰的 pair/record/variant を実公開入口へ接続。全 field を検査し first-wins を保持 | float carrier、list/nominal data とそれらを含む内部値、nil/cons。これらは B5 の接続も必要 |
 | B2 / `CommonCoreNamedCase.lowering_exact` / `principal` | 任意環境・subject/body・結果で単一 unguarded `.bind name` case を exact lowering。subject が値でも pure value を単相で束縛し、実公開 principal / rejection / 全 parameter へ接続 | 他の pattern、guard、複数 arm、default の累積環境、照合順序・coverage・失敗行の全統合 |
-| B3 / `CommonRowHeadSolver.solve_all_instances_exact` / `all_parameters_models` / `rejected_iff` | 任意有限 slot 数・head/flow/pure problem・任意独立 Common rows について Models iff 実返却 scheme の無制約 parameters が全 rows と等しい。任意返却 scheme の任意 parameters が Models。拒否 iff モデルなしで、head が pure sink へ届くこととも同値 | protect/release/residual、operation-local 全称、実 request/handler generator、公開 Core.infer の effect 対応 |
-| B4 role / B5 nominal | 既存モデルとの接点・有限 registry・実辞書・nominal invariance・ground cast・site 推論の不足契約を設計メモに固定 | これらの共通推論は未着手。既存の別モデルの theorem だけで public 統合完了とはしない |
+| B3 / `CommonRowHeadSolver.solve_all_instances_exact` / `all_parameters_models` / `rejected_iff` | 任意有限 slot 数・head/flow/pure problem・任意独立 Common rows について Models iff 実返却 scheme の無制約 parameters が全 rows と等しい。任意返却 scheme の任意 parameters が Models。拒否 iff モデルなしで、head が pure sink へ届くこととも同値 | protect/release/residual を含む全 instance 求解、operation-local 全称 handler、再帰的 effect generator、公開 Core.infer の effect 対応 |
+| B2 / `CommonPatternEnvironment` / `CommonPatternDefaults` | 任意 EnvRel と任意共有型 prefix で順序・単相・捕捉 scheme を保持。Q4 default 式、optional 観測、default 入力前提の有限生成 iff | 実 pattern の共有 allocator と全生成、presence metadata、全 case の guard/default/失敗行 |
+| B2 / `CommonPatternLookup` / `CommonPatternTyping` | 任意に型付いた実 structural data と Common 型で shape・first-wins lookup・payload 型を反映。独立構造 pattern 導出と明示 DefaultSound の下、実 scoped matcher の miss/成功束縛の型を保存 | DefaultSound は外部の全環境成功契約。一般 default の停止は導かず、return/error/trace と行の部分正当性、逆生成完全性、nominal/list/merged variant/coverage は未完 |
+| B3 / `CommonSignedRows.common_effect_row_interpretation_exact` / `rowExpr_interpretation_exact` | 任意 scope 数の実 signed rows の包含を保存・反映し protect/release/residual と可換。全有限 row 式でも評価・包含が一致。任意 Common row で protect/release の逆作用 | 任意 Common row の有限 signed 表現への全射性、変換付き row の全 instance solver、source scope 割当て・全称 handler |
+| B3 / `CommonEffectRequestGeneration.generate_request_exact` / `generate_declared_request_exact` / `checked_request_exact` | 任意 scope 数・有限宣言表・EnvRel・任意 Common assignment・presence payload/out で request 一段の実有限生成 iff 独立判断。局所型を同じ input/output で共有し、実 lookup と table 全体の kind 検査も接続 | key coherence・全宣言 Valid・source permission/visible effect、入れ子 request/handler と effect scheme、全称 handler の生成、solved family と公開 Core 統合 |
+| B4 / `CommonRoleRegularObstructions` | 実 Paterson checker が受理する宣言から、要求同値でも互いに異なる regular goal の一段展開列を構成。任意段階の step、全段階の非同値、全 step で減る自然数 measure の不存在 | 全 regular goal の finite resolver、実 dictionary・associated equations・qualified family。B4 自体の偽や決定不能は示さない |
+| B5 / `CommonNominalHeads` / `CommonNominalConstraints` / `CommonNominalRoots` | 任意 Common 値型・行引数で ID/arity/全引数同値 iff 独立 head 順序、共有 slot の双方向 finite atoms への比較生成、外側の根で旧 Common 順序を保存・反映 | nominal を全 constructor 内部・regular graph へ入れる carrier、旧 typing/solver の保存、新 source の全 instance family |
+| B5 / `CommonGroundScalarCasts` / `CommonGroundNominalCasts` | 閉 scalar と scalar 引数を持つ一段 nominal の全入力で、計算した引数正規化を通した実 cast compatibility / Bool iff Common nominal root subtype。外部 compatibility oracle なし | nested nominal・row 引数・構造型の内部 nominal・regular graph、typed/pure plan と construction site の生成 |
 | B6 / `CommonCoreStrictApplication.forceApplication_typing_exact` / `CommonCoreStrictRuntime.eval_forceApplication` | 任意 captured 環境の strict rule と pair-capture lowering の iff、任意 resolved operands/runtime の function→argument→pure application の request tree 等号。strictApp と透明 leaf を公開入口に接続。free は未束縛名、atom は署名 carrier と分類 | 一般 Atom の型表・意味との接続。Empty Atom の不在を全 atom 対応とは数えない |
 
 設計理由・段階の依存・未証明の量化付き契約は
 [共通構文の設計](../notes/design/2026-11-07-core-common-coverage.md) と
-[今回の結果 §7–8](../notes/handoff/2026-11-07-core-common-coverage-results.md) に記す。
-高速化は実装せず、[refinement の設計](../notes/design/2026-11-07-common-inference-refinement.md) だけを追加した。
+[前回の結果 §7–8](../notes/handoff/2026-11-07-core-common-coverage-results.md) に記す。
+後続の [今回の基礎と要求駆動計算の結果](../notes/handoff/2026-11-07-common-demand-and-foundations-results.md) は、元の未閉 statement の量化を維持した到達状況と不足をまとめる。B1〜B5 と A1/A2 全体は未完である。
+
+#### 要求駆動の bound 計算と全完了の refinement（C）
+
+| 定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `DemandBoundPropagation.request_exact` / `lowerBounds_exact` / `upperBounds_exact` | 任意有限 template・任意 node/方向で、一つの根から逆/順方向に探索する bound 列が参照列と順序・重複まで等しい。任意 Common 型解釈の join/meet も等しい。成功・closedness・caller fuel の前提なし | 異なる snapshot 間の再利用、後の inspector が追加する義務を先取りすること、速度改善 |
+| `CommonDemandRoots.all_roots_exact` / `snapshot_roots_exact` / `upper_variables_exact` / `rowRootVariables_exact` | 実 clause/snapshot の上界・固定比較・行比較から根を有限に抽出。flow の訪問 iff 到達、全根の要求列 = 参照 rigid 比較。列挙した row ID で一致する割当ては同じ行比較結果 | inspector 後の義務の要求単位 scheduler、source span と slot の provenance、関数/SCC の実行前検査 |
+| `CommonDemandSolver.finishAll_exact` / `finished_request_exact` | 任意 Compiled graph で、新 collector を使う実全完了の scheme 列が solveAll と同じ。実返却 state では同じ snapshot の要求一致と pending 不在 | 一成分だけを飽和させた最終情報の完全性、未検査の別成分を含む accepted family の射影との同一視 |
+| `CommonDemandSolver.finishCore_exact` / `finishCore_principal` / `finishCore_instantiates` / `finishCore_rejected_iff` | 任意現 Core 入力で finishCore = Core.infer。同じ独立 Typing の principal iff、任意返却 scheme/任意 parameter の型付け、rejected iff 結果なし。元公開 theorem を変更しない | 新しい Core 構文の受理、実行の許可を出す scheduler、B の未完統合 |
+
+`CommonDemandBoundary` は実 atoms `[int ≤ α, bool ≤ str]` により、局所の nonempty bound と全体の拒否が両立することを検証する。C2 は同じ snapshot の要求同値と全完了の等号までで、局所飽和・関数/SCC の実行前保証は未完。根の一覧と変数範囲は [refinement 設計 §10–15](../notes/design/2026-11-07-common-inference-refinement.md#10-今回の決定-遅延するのは計算の時点)。性能は測定も主張もしていない。
 
 回答済み Q5 に対応する新しい具体要求モデルを `ProducerContextual` / `ProducerContextualRegular` に追加した。
 型変数は任意の意味型が満たすすべての観測を表し、arrow の引数要求も同じ環境の型を名前で参照する。
@@ -1746,7 +1763,7 @@ lake env lean --trust=0 --run RunRegularInference.lean
 
 `Casts.accepts_exact` は、与えられた普通の適合性の判定と明示castの探索を用い、独立な `Boundary` 判断と実行可能な追加変換の検査を対応させる。適合すればそのまま通し、不一致の場合だけ構造に沿った変換を調べる。recordはfield名で照合し、既存の構造型モデルと同じく最初のfieldが後の同名fieldを隠す。`union_mismatch_iff` は不一致の場合に全memberの検査が必要なことを示す。無条件の `union_boundary_iff` では、普通の適合性がunionの除去則を満たすことを明示的に要求する。`structural_union_boundary_iff` は既存の `StructuralBase.Subtype` と一致する適合性からこの前提を導くが、本層自体は部分型判定器を実装しない。有限構造型の判定は `StructuralDecisions` で別に実装・証明する。
 
-このground型構文で、登録先の同一性と固定nominal引数には構文的等号を用いる。nominal引数内のunionの並べ替えなど、意味的に等価な型を同じ表現にする正規化は前段の課題である。`equalityCompatibility` は検査の具体例用の適合性であり、Yulangの部分型solverを置き換えるものではない。
+このground型構文で、登録先の同一性と固定nominal引数には構文的等号を用いる。後続の `CommonGroundScalarCasts` / `CommonGroundNominalCasts` は、閉 scalar と scalar 引数を持つ一段 nominal の文法に限り、実正規化した引数の構文等号 iff Common 要求同値、および実 compatibility iff 外側 nominal root の部分型を示す。全構造型・nested/regular nominal の正規化と source への接続はなお前段の課題である。`equalityCompatibility` は検査の具体例用の適合性であり、Yulangの部分型solverを置き換えるものではない。
 
 `CastGraph.Registry.find_exact` は、有限のground型の登録と、先に証明した有限経路判断を結ぶ。登録は型ごとに一つの頂点を持ち、同じ直接のsource/target対の重複を拒否する。異なる間接経路が合流するdiamondは許容する。`compatible_kept` は適合する境界で変換探索を使わないことを示す。`Methods.checkCall_exact` はmethodを持つ相異なる型がちょうど一つであり、すべてのreceiver memberからその型への境界変換が成立することを要求する。`checkCall_perm` はこの変換検査まで含めた結果の順序不変性を示す。例は固定した`list user_id`から`list int`への要素castの不許可と、list全体の明示規則による許可を区別する。 `cast(x: box 'a): 'a` の具体化ではtargetがpair・関数・unionにもなり得るため、直接sourceのnominal/base条件を保ちつつtarget制限を外した。`nominal_mismatch_iff` は任意のtargetについて外側全体の規則を要求する。source unionは引き続き全memberを個別に検査し、whole-unionだけのoracleでは欠けたmemberを隠せない。
 
