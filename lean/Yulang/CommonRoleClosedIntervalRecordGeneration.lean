@@ -80,4 +80,22 @@ theorem generate_exact (assignment : α → Comp Common.model)
       ((CommonRoleIntervals.valid_iff_nonempty _).symm.trans
         (CommonRoleIntervals.valid_merge_exact _ _))
 
+/-- Actual finite graph compilation preserves all earlier constraints and
+the literal original value/row assignment, including exact absence. The
+graph still contains comparisons; this is not a solved role candidate. -/
+theorem compile_exact (existing : List (Atom (Fin m))) (labels : List Nat)
+    (fields : Fields (Fin m)) (requested : Argument (Fin m))
+    (assignment : Fin m → Comp Common.model) :
+    (All Common.model assignment existing ∧ Compatible assignment labels fields requested) ↔
+      ∃ values : Fin (CommonPresenceConstraintGraph.compile
+          (existing ++ generate labels fields requested)).size → Common.Ty,
+        (CommonPresenceConstraintGraph.compile
+          (existing ++ generate labels fields requested)).Models
+            (fun index => (assignment index).2) values ∧
+        (CommonPresenceConstraintGraph.compile
+          (existing ++ generate labels fields requested)).readback
+            (fun index => (assignment index).2) values = assignment := by
+  rw [← generate_exact, ← PresenceNormalForm.all_append]
+  exact CommonPresenceConstraintGraph.compile_atoms_exact _ assignment
+
 end Yulang.CommonRoleClosedIntervalRecordGeneration
