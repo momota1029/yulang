@@ -4244,3 +4244,6 @@ run_cmd do
 #print axioms Yulang.CommonNominalGuardedClosure.all_parameter_sound
 #print axioms Yulang.CommonNominalGuardedClosure.all_models_recovered
 #print axioms Yulang.CommonNominalGuardedClosure.models_exact
+#print axioms Yulang.CommonNominalGuardedRowSolver.all_parameters_models
+#print axioms Yulang.CommonNominalGuardedRowSolver.pure_row_empty
+#print axioms Yulang.CommonNominalGuardedRowSolver.solve_all_instances_exact

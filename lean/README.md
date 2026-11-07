@@ -1944,3 +1944,13 @@ constructor ごとに新 carrier へ保持する。旧 block は `State.common` 
 `CommonRegularCastObstruction` は、固定 regular chain の全長を有限非再帰・データ非依存 plan で変換できないことを示す。
 全 source からの実生成と旧 `PureCasts.Plan` への完全な橋は未証明なので、この障害を B5 全体の E2 とは扱わない。
 再帰 plan の方針は [`正則 structural cast の問い`](../notes/questions/2026-11-07-b5-regular-structural-cast-plans.md) に残した。
+
+`CommonNominalFiniteConstructors` / `CommonNominalFiniteMask` / `CommonNominalFinitePresence` と regular 側の
+`CommonNominalConstructors` / `CommonNominalMaskOrder` は、全 nominal/float 子型を含む structural variance と mask 法則を再証明する。
+`CommonNominalLayerCongruence` は任意行 preorder・同値な全 payload assignment について、nominal を含む全 Layer の評価合同性を示す。
+
+`CommonNominalGuardedClosure.models_exact` は、任意有限の guarded mixed constructor 方程式・任意自由型 parameter で、
+全元 node Models iff 実 regular closeBlock の全 node と要求同値を示す。
+`CommonNominalGuardedRowSolver` は有限 RowTerm、実 row-head/flow/pure solver、その mixed graph を組み合わせる。
+全無制約 parameter が元 Models を満たし、元全行・自由型 assignment を等号、全 node 値を要求同値で回収する。
+任意 subtype inequality / unguarded equation / 実 construction source 生成を含む全 solver の完了は主張しない。

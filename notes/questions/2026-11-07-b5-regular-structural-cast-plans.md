@@ -19,17 +19,21 @@
 struct user_id { raw: int }
 cast(x: user_id): int = x.raw
 
-my make(n) =
+my make(n: int) =
     if n == 0: :nil
     else: :cons (user_id { raw: n }, make(n - 1))
+
+my use_int(x: int) = x
 
 my sum(xs) =
     case xs:
         :nil -> 0
-        :cons (x, tail) -> x.add (sum tail)
+        :cons (x, tail) -> use_int x + sum tail
 
 sum (make 100)
 ```
+
+`use_int` の注釈を介して int の期待を明示した。未知 payload の `.add` を role 制約へ freeze するだけで int が決まるとは仮定しない。
 
 想定する regular graph は次の二つで、いずれも graph の節点数は固定である。
 

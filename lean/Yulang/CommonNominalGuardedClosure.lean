@@ -147,3 +147,39 @@ theorem models_exact (body : Body nodes parameters) (arguments : Fin parameters 
         (equation_congr body arguments _ _ recovered index))
 
 end Yulang.CommonNominalGuardedClosure
+
+namespace Yulang.CommonNominalGuardedClosure
+
+open CommonNominalCarrier
+
+private theorem equation_parameter_congr (body : Body nodes parameters)
+    (first last : Fin parameters → Ty) (same : ∀ index, Equivalent (first index) (last index))
+    (values : Fin nodes → Ty) (index : Fin nodes) :
+    Equivalent (equation body first values index) (equation body last values index) := by
+  have finite (depth : Nat) : CommonNominalFinite.ProducerEq Common.rowLe
+      (observeTy depth (equation body first values index))
+      (observeTy depth (equation body last values index)) := by
+    simp only [equation, observeTy, CommonNominalSyntax.Layer.evalAt_map]
+    apply CommonNominalSyntax.Layer.evalAt_congr Common.rowLe Common.rowLe_refl Common.rowLe_trans
+    intro reference
+    cases reference with
+    | inl index => exact CommonNominalFinite.producerEq_refl _
+    | inr parameter =>
+        cases depth with
+        | zero => exact CommonNominalFinite.producerEq_refl _
+        | succ depth => exact ⟨(same parameter).1 depth, (same parameter).2 depth⟩
+  exact ⟨fun depth => (finite depth).1, fun depth => (finite depth).2⟩
+
+/-- The entire recursive closure respects demand-equivalent shared free type
+parameters, including parameters appearing in nominal arguments or arrows. -/
+theorem parameter_congr (body : Body nodes parameters) (first last : Fin parameters → Ty)
+    (same : ∀ index, Equivalent (first index) (last index)) :
+    ∀ index, Equivalent (instantiate body first index) (instantiate body last index) := by
+  have original := all_parameter_sound body first
+  have moved : Models body last (instantiate body first) := by
+    intro index
+    exact equivalent_trans (original index) (equation_parameter_congr body first last same _ index)
+  intro index
+  exact equivalent_symm (all_models_recovered body last _ moved index)
+
+end Yulang.CommonNominalGuardedClosure

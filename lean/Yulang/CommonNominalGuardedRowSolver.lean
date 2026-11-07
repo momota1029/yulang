@@ -107,11 +107,11 @@ theorem solve_all_instances_exact (problem : Problem nodes types rows) (rowValue
   · rintro ⟨scheme, returned, parameters, rowsSame, typesSame, recovered⟩
     obtain ⟨rowScheme, rowReturned, rfl⟩ := List.mem_map.mp returned
     have rowModel := CommonRowHeadSolver.all_parameters_models problem.rowConstraints rowScheme rowReturned parameters.1
+    have sameRows : rowScheme.instantiate parameters.1 = rowValues := rowsSame
     refine ⟨?_, ?_⟩
-    · simpa only [Scheme.instantiateRows, rowsSame] using rowModel
+    · simpa only [sameRows] using rowModel
     · apply (CommonNominalGuardedClosure.models_exact _ typeValues nodeValues).mpr
       intro index
-      have sameRows : rowScheme.instantiate parameters.1 = rowValues := rowsSame
       simpa only [Scheme.instantiateValues, Scheme.instantiateRows, sameRows, typesSame] using recovered index
 
 end Yulang.CommonNominalGuardedRowSolver
