@@ -171,4 +171,31 @@ theorem pair_components {value : Value} {source : Comp Common.model}
       exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
         (bounded.1 0) 0 env (.pairFirst .trivial) observed)
 
+/-- A scalar Common demand reflects the kind of the actual stored literal;
+its payload (integer/string/bool value) remains intact. -/
+theorem literal_of_base {value : Value} {source : Comp Common.model}
+    (typed : ValueTyping Common.model value source) (scalar : Inference.Base)
+    (below : Common.Subtype source.1 (.base scalar)) :
+    ∃ literal, value = .literal literal ∧ Core.CommonData.literalBase literal = scalar := by
+  let env : CommonFinite.Environment Common.Row := ⟨fun _ => .bottom, fun _ => []⟩
+  have observed : CommonFinite.ProbeAt Common.rowLe 0 env
+      (Common.observeTy 0 source.1) (.base scalar) :=
+    (CommonFinite.producerLe_iff_probe _ _).mp (below 0) 0 env (.base scalar) rfl
+  cases typed with
+  | literal bounded =>
+      exact ⟨_, rfl, (CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.base scalar) observed⟩
+  | pair _ _ bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.base scalar) observed)
+  | emptyRecord bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.base scalar) observed)
+  | record _ _ _ bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.base scalar) observed)
+  | variant _ bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.base scalar) observed)
+
 end Yulang.CommonPatternLookup
