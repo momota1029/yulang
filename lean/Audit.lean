@@ -21,6 +21,11 @@ import Lean
 #print axioms Yulang.CommonRoleRewrite.compile_checked
 #print axioms Yulang.CommonRoleRewrite.compiled_head_iff
 #print axioms Yulang.CommonRoleRewrite.compiled_matches_iff
+#print axioms Yulang.CommonRoleRewrite.evidence_iff_halting
+#print axioms Yulang.CommonRoleRewrite.no_compiled_evidence_decider
+#print axioms Yulang.CommonCanonicalRowConstraints.arrow_union_input_rows
+#print axioms Yulang.CommonCanonicalRowConstraints.lock_subtype_iff
+#print axioms Yulang.CommonCanonicalRowConstraints.locked_rows_subtype_iff
 
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/

@@ -582,3 +582,4 @@ import Yulang.CommonRoleSemanticPadding
 import Yulang.CommonRoleTreeReflection
 import Yulang.CanonicalRewriteComputability
 import Yulang.CommonRoleRewrite
+import Yulang.CommonCanonicalRowConstraints
