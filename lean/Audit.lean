@@ -5967,3 +5967,6 @@ run_cmd do
 
 #print axioms Yulang.CommonEffectRowIntervalConstraints.contains_exact
 #print axioms Yulang.CommonEffectRowIntervalConstraints.merge_contains_exact
+
+#print axioms Yulang.CommonEffectFamilyRowSlots.collect_member_exact
+#print axioms Yulang.CommonEffectFamilyRowSlots.collect_contains_exact

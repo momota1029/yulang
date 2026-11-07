@@ -1034,3 +1034,5 @@ import Yulang.CommonDeclaredInvariantBounds
 import Yulang.CommonDeclaredInvariantSourceFamily
 
 import Yulang.CommonEffectRowIntervalConstraints
+
+import Yulang.CommonEffectFamilyRowSlots
