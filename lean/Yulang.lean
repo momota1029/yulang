@@ -686,3 +686,4 @@ import Yulang.CommonCaseRecordDefaultExamples
 import Yulang.CommonOptionalField
 import Yulang.CommonOptionalFieldSafety
 import Yulang.CommonOptionalFieldBoundary
+import Yulang.CommonPatternCoreRuntimeEnvironment

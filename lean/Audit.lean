@@ -4430,3 +4430,8 @@ run_cmd do
 #print axioms Yulang.CommonOptionalFieldBoundary.strict_rejects
 #print axioms Yulang.CommonOptionalFieldBoundary.generated_model
 #print axioms Yulang.CommonOptionalFieldBoundary.real_scheme_instance
+#print axioms Yulang.CommonPatternCoreRuntimeEnvironment.generateEnvironment_exact
+#print axioms Yulang.CommonPatternCoreRuntimeEnvironment.all_parameter_witness
+#print axioms Yulang.CommonPatternCoreRuntimeEnvironment.witness_instances_exact
+#print axioms Yulang.CommonPatternCoreRuntimeEnvironment.no_witness_exact
+#print axioms Yulang.CommonPatternCoreRuntimeEnvironment.all_parameter_values_preserved
