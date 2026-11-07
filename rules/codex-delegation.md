@@ -34,23 +34,18 @@ No completion notice arrives by itself.
 
 ## Wake on completion (across turns)
 
-A worker's log is `~/.codex/sessions/YYYY/MM/DD/rollout-*-<threadId>.jsonl`; it gains an `event_msg` with `"type":"task_complete"` when the turn ends. Start a `Monitor` that prints one line when it appears. The notice wakes the session, which then calls `agent_result`.
+A worker's log is `~/.codex/sessions/YYYY/MM/DD/rollout-*-<threadId>.jsonl`; it gains an `event_msg` with `"type":"task_complete"` when the turn ends. `tools/codex-watch.sh` polls for it and prints one line per finished worker. Run it from a `Monitor`; the notice wakes the session, which then calls `agent_result`.
 
-```sh
-tid=<threadId from agent_start>
-for i in $(seq 1 600); do
-  f=$(find ~/.codex/sessions -name "*$tid*" 2>/dev/null | head -1)
-  if [ -n "$f" ] && grep -q '"type":"task_complete"' "$f"; then
-    echo "codex-done <agentId> <label>"; exit 0
-  fi
-  sleep 3
-done
-echo "codex-timeout <agentId>"
+```text
+Monitor command: bash tools/codex-watch.sh <threadId>:<label> [<threadId>:<label> ...]
+Monitor timeout_ms: 1800000
 ```
 
-- A Monitor lives at most 30 minutes (`timeout_ms` up to 1800000); re-arm for longer jobs. Keep the timeout line so silence is distinguishable from a quiet wait.
+- Use the script, not an inline shell loop. The login shell can be zsh, which does not split an unquoted `$pending` into words; an inline loop over it silently watches the wrong worker.
+- A Monitor lives at most 30 minutes; the script stops after about 29 and prints `codex-timeout pending: ...`. Re-arm for longer jobs.
 - It sees normal completion only. A worker that crashes or is interrupted may never write `task_complete` (unverified); confirm the event names before relying on the watch for those cases.
 - The wake-up reaches the session, not the user's phone. Add `PushNotification` for long work.
+- Reliability: a single-worker watch woke the session once (2026-11-07). A three-worker watch started in the same session never delivered a notice, but it ran the zsh-broken inline loop above, so that failure is not yet explained. Until a script-based multi-worker watch has been seen to wake the session, also check `agent_result` when the user returns.
 
 ## Capacity
 
