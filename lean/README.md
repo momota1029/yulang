@@ -52,7 +52,8 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 同じ構文に持つ。要求環境は任意の有限型または regular 型を名前で参照し、負位置でも同じ
 環境を使う。型の順序と、strict な runtime data の読取りは分離する。
 内部表現と代案は [共通モデルの設計](../notes/design/2026-11-07-m1-common-model.md) に記す。
-定理の量化・前提と未完の補題、検証結果は [今回の実装結果](../notes/handoff/2026-11-07-m1-common-results.md) にまとめる。
+定理の量化・前提と未完の補題、検証結果は [初回の実装結果](../notes/handoff/2026-11-07-m1-common-results.md) と
+[復旧後の実装結果](../notes/handoff/2026-11-07-m1-common-recovery-results.md) にまとめる。
 
 | 共通 carrier の定理 | 示したこと | 示さないこと |
 | --- | --- | --- |
@@ -82,6 +83,23 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 | `CommonPresenceInspectionRows.inspect_preserves_rows` / `inspected_rows_supported` | 任意の行述語を満たす outer arrow 行と観測側の行から、inspector が生成する行 atom の両端も同じ述語を満たす。元の行が var/empty なら実 RowFlowSchemes.supported が true。mask/record/default の再帰も含む | 全 target の型比較を有限 branch へ変換する未実装手続きの行保存 |
 | `CommonLegacyTyping.formula_preserved` / `presence_typing_preserved` / `legacy_core_instances_preserved` | 具体旧モデルの任意 Formula と割当ての充足を、実 witness と同じ行を保って Common へ移す。任意の閉じた旧 Typing は独立 Common presence Typing に保存される。旧 infer 版は任意の旧 supported 式・任意旧結果・その旧 instance を前提に Core.Typing を得る。Compatible は具体的に証明し呼出側へ要求しない | 新 Core.infer の instance、反映、同じ行での旧 instance 回収 |
 | `CommonSyntax.Layer.evalAt_congr` / `evalAt_masked_probe_iff` | 任意の行前順序・payload index 型・深さ・Layer・二つの payload 割当てについて、各 payload が全 rank の有限要求同値なら Layer の評価も同値。負の arrow、default の深さ0、任意外側 mask を含む。上記 block retraction の深さ帰納で使用 | 片方向の payload 単調性、全 target inspector |
+
+復旧後、outer default の完全分解と、実生成 clause から行・構成子方程式の消去を追加した。
+上表の「示さないこと」は各定理単独の範囲であり、任意 target の outer inspector は次の追加定理で閉じた。
+全 source の残る subtype edge を制約なしの自由 family に変換する compiler は、引き続き未完である。
+
+| 復旧後の定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `CommonPayloadProjection.optional_type_exact` / `field_type_exact` / `optional_payload_exact` | 任意 source、外側 mask、label、深さ、rank、有限要求環境で、正の深さの field/optional を一段下の実子型の有限格子式へ完全に射影する。参照する regular/負の arrow 子を制限しない。optional の深さ付き義務を通常の子 subtype へ消去 | 未知 source slot の射影を共有 symbolic solver に取り込む定理 |
+| `CommonRecordEnvelope.envelope_below_iff` / `CommonRecordTailProfiles.tail_profiles_exact` / `CommonRecordTailFinite.tail_finite_exact` | 任意 Common target の head 制約を実 Bool で判定し、任意 source/target/hidden の同深さ tail 比較を初期 Bool と正の子比較へ変換する。outer の有限 label 表と fresh label 一つで全 label を尽くす | 子比較の再帰的飽和と全入力の求解 |
+| `CommonDefaultInspection.default_inspect_exact` | 任意 label/source/fallback/target で、whole default の subtype ⇔ 実有限 inspector が返す branch の子比較がすべて成立。最終 atom は `Common.Ty × Common.Ty` の比較だけで、元の whole-default、OptionalPayload、RecordTailLe、Formula を残さない。任意 regular/mask/mixed head を含む | 固定した推論 scheme の自由 parameter 全体に対する symbolic 分解、全 source solver の停止性・完全性 |
+| `CommonRecordInspection.record_inspect_exact` / `required_inspect_exact` | 任意 label/payload/rest/target で、通常 record または required の subtype ⇔ 有限 inspector の子比較がすべて成立。head の要求を取り除いた残りの tail を調べ、任意の mask/default/regular 子を許す | 未知 source slot の shape 分岐と子比較の全求解 |
+| `CommonBoundCoalescing.rigid_comparisons_exact` / `expand_satisfies` / `expand_retraction` / `all_instances_exact` | 任意の有限 lower/flow/upper/check 問題と固定した境界型で、変数辺を有限な境界型間比較へ消去する。残る固定比較が成立すれば全 Common 型 parameter が解を与え、任意の独立解を全 slot で要求同値に回収する。循環を許す | 未知 constructor 子に境界型が依存するときの比較の求解、全 source の自由 family |
+| `CommonPresenceVariableBounds.eliminate_variable_edges_exact` / `compiled_joint_elimination_exact` / `residuals_rigid` | 任意の実 source pool/edge と行割当てで、変数辺を同じ ID の共有方程式へ置き換えて regular solver で閉じる。行右辺が var/empty の実 atom 列では明示行制約も消去。元モデル ⇔ 行が等しく全値が要求同値な具体化が存在し、残る有限な rigid-rigid 比較が成立。比較の両端が元 pool の非変数 node であることも証明 | 境界型は未知 graph node を読むため、残る比較は parameter に依存する。その symbolic 分解・飽和と制約なし source family |
+| `CommonPresenceConstraintGraph.compile_atoms_exact` / `realizes_evaluate` | 任意の実 packed presence atom 列・独立 computation 割当てで、元制約 ⇔ 実共有 graph のモデルと元 slot の等号 readback。任意の意味的 realizer から全 subterm の評価を要求同値で回収。record/default/負の arrow 子と元行 ID を保存 | 比較 edge の消去、全自由 solved family |
+| `CommonPresenceClauseFamily.family_instantiates` / `family_retracts` / `eliminate_definitions_exact` | 行右辺が構文上 var/empty の任意 atom 列で、任意自由 parameter が定義方程式・明示行制約を満たす。任意元モデルを、同じ行と要求同値な全値で回収。source の全生成 clause はこの行文法を満たす | 残る subtype edge の任意 parameter での充足 |
+| `CommonPresenceSourceFamily.residual_source_principal` / `residual_core_principal` | 任意閉式・任意結果について、独立 Typing ⇔ 実 normalize/pack/graph/行・方程式 solver が返す有限 scheme と row/value parameter があり、明示された residual edge を満たし、その出力が結果以下。support・成功・fuel の公開前提はない | residual を除いた公開 `Core.infer`、拒否 iff、対象断片の unsupported 不出現 |
+| `CommonPresenceCoalescedSource.residual_source_principal` / `residual_core_principal` | 上の任意閉式・任意結果の iff を実変数辺消去まで接続。row/type/recursive の3 parameter family を実同時 solver に代入し、残る条件は元 pool の非変数 node 間比較だけ。clause 回収は結果値の要求同値と結果行の等号を保ち、GoodAtoms は生成不変量から内部で供給 | rigid 比較の symbolic saturation と、残余を除いた公開 `Core.infer`・拒否完全性・unsupported 不出現 |
 
 回答済み Q5 に対応する新しい具体要求モデルを `ProducerContextual` / `ProducerContextualRegular` に追加した。
 型変数は任意の意味型が満たすすべての観測を表し、arrow の引数要求も同じ環境の型を名前で参照する。
@@ -469,7 +487,8 @@ runtime data 解釈に関数値は含めず、関数／行は独立した要求�
 presence の data 述語包含との同値はない。これらを既存 data 観測の橋だけで埋めることはできない。
 具体的な共通モデル、guarded 子と同深さ record/default-tail を共有する regular block の解構成／retraction、
 宣言した共有 symbolic 行の simultaneous family は追加した。
-全 presence 不等式の完全 inspector/compiler と全 source の自由 family は数学的義務として残り、統一入口は未公開である。
+任意 target に対する record/default の outer inspector は上表で閉じた。全 presence 不等式の symbolic compiler と
+その有限飽和・全 source の自由 family は数学的義務として残り、統一入口は未公開である。
 既存 `collect_instances_exact` の変更、既存 theorem・test expectation の変更、仕様の仮決定は行っていない。
 未実装部分の正確な量化と前提は [残契約の設計メモ](../notes/design/2026-11-07-m1-remaining-contracts.md) に記す。
 
@@ -486,14 +505,23 @@ presence の data 述語包含との同値はない。これらを既存 data �
 | `CommonCanonicalOpen.common_scalar_profile_exact` / `canonicalEncoding_exact` / `normalize_exact` | 同じ scalar code を、同じ共有 ID の全 Common.Ty 割当てについて保存・反映する。割当ては任意の regular/mask/default/arrow 型でよい。実 PresenceGeneration.TyTerm の評価とも接続する | 任意 interface family の再parameter化を許す同値 |
 | `CommonCanonicalShapes.canonicalEncoding_exact` / `normalize_exact` / `collect_equivalent` | 任意 n、固定した共通 Shape と行 slot 割当て、二つの Term について、同じ ID の全 Common.Ty 割当てで要求同値 ⇔ 同じ code ⇔ 同じ normalize。Shape は nested pair、単一 required field、tag、scalar 引数と同じ行 ID の arrow を含み、正の union は成分ごとにまとめる。arrow の引数は intersection にまとめる | 異なる Shape／行 ID 間の比較、混合 head、一般 record/default/mask の正規化、nominal/role 義務、binder α 正規化、regular graph の一意化 |
 
-Shape 内部の `Code` は Shape 自体に保持された label・行 ID を省略するため、単体で任意 interface を
-比較する serialization ではない。全 interface 用には有限構文上の binder／行式／graph の正規化と
-自己完結した encoding が必要である。任意の concrete `Common.Row` は述語であるため、全 concrete 型を
-直接有限文字列へ計算可能に符号化するという主張にはしない。
+`CommonCanonicalShapes.Code` は Shape の情報を省略する。復旧後の `CommonCanonicalInterface.Code` は
+構成子・label・arrow の行 ID を含め、この制限を有限 constructor 構文について除いた。
+
+| 復旧後の標準形定理 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `CommonCanonicalInterface.canonicalEncoding_exact` / `interface_canonicalEncoding_exact` / `normalize_exact` | 任意 n・異なる Shape を許す二つの有限 constructor interface で、全行割当て・同じ共有 ID の全 Common 型割当てに対する要求同値 ⇔ 自己完結 code の一致 ⇔ 正規化構文の一致。構成子・label・共有行 ID の違いを実観測で反映。`int \| str` の順序の反例も新 pass で解消 | mixed-head lattice、一般 record/default/mask、nominal/role、regular interface、parameter の再parameter化 |
+| `CommonCanonicalAlpha.canonicalEncoding_exact` / `normalize_exact` / `alpha_instances_exact` | 任意 n・上記 Form 二つで、ある一つの同時全単射の後の全行・全 Common 型割当てでの要求同値 ⇔ 実有限探索で選んだ同じ code。任意固定行・任意 target について、target と要求同値な具体化の存在を両方向で保存 | slot 数にかかわらない正負位置による消去・共起/併合と一般の再parameter化、異なる slot 数の比較、弱い変数、行 ID の名前変更、全 instance 同値からの完全反映 |
+| `CommonCanonicalNames.normalize_exact` / `normalize_first_occurrence_order` / `normalize_instances_exact` | 任意 n・上記 Form 二つで、独立な意味的 α 同値 ⇔ 同じ実 normalize 出力。出力 Form 内の異なる変数を最初の出現順に並べた番号は `List.range k`。任意固定行・target に対する要求同値な具体化の存在を保存・反映 | weak variable の metadata、非単射の消去/併合、行の α 同値、実 display renderer への接続 |
+
+任意の concrete `Common.Row` は述語であるため、全 concrete 型を直接有限文字列へ計算可能に符号化する
+という主張にはしない。完全な interface では有限行式・regular graph・nominal/role 義務までの正規化が残る。
 
 これらは参照用の追加アルゴリズムであり、既存 infer/display の呼出経路は変更していない。
 scalar 実装は n 個の共有 slot と4個の base の全 profile を列挙し、個数は `2^(n+4)` となる。
 最小 clause 選別は profile 間を走査するため、総計算量を線形・多項式とは主張しない。
+α pass は forward map を列挙し、逆写像を有限 lookup で回収する。候補数の上界 `n^n` を証明したが、
+この全探索を実用的な一般化変数の正規化アルゴリズムとは主張しない。
 実際の interface 表示へ組み込む前に、未使用 slot の除去や共有表現を含む費用評価が必要である。
 
 ### SCC 局所性と module cache・増分更新

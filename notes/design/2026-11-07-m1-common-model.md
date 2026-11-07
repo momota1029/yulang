@@ -158,11 +158,114 @@ scalar lattice は最小 Boolean clause の有限表へ正規化する。共有 
 bool/int/str/unit の辞書順とする。同じ ID の全 Common 型割当てについて、要求同値 iff 同じ encoding を
 証明した。有限の固定 Shape 内では pair/required/tag/同じ行 ID の arrow の union を成分ごとにまとめる。
 
-この equality は同一割当てでの pointwise equality であり、存在的 instance 集合の equality や binder の
-α 同値ではない。Shape の code は label・行 ID を Shape 側に保持する。全 interface の standalone
-encoding、混合 head、一般 record/default/mask、役割・nominal の義務、regular graph の一意化は残る。
+この節の `CommonCanonicalOpen` / `CommonCanonicalShapes` の equality は同一割当てでの pointwise equality
+であり、存在的 instance 集合の equality や binder の α 同値ではない。Shape の code は label・行 ID を
+Shape 側に保持する。自己完結 code と α 正規化への拡張は §11 を参照する。全 interface の混合 head、
+一般 record/default/mask、役割・nominal の義務、regular graph の一意化は残る。
 全 concrete Common.Row は任意の述語なので、正規化対象は有限 interface 構文にする必要がある。
 
 参照アルゴリズムは n+4 atom の全 profile を列挙する。最小性判定はその表を繰り返し走査し、
 出力も指数的になり得る。既存 infer/display の呼出経路は変更せず、完全な interface encoder への統合時に
 共有表現・未使用 parameter・費用を別途検討する。
+
+## 9. Optional payload の実射影と有限 outer inspector
+
+`CommonPayloadProjection` は outer Layer を実際に再帰走査する。結果は
+`Option (Payload Index)` であり、`Payload` は元の子参照、bottom、top、union、intersection の有限構文である。
+`none` は自明な観測さえ持たない状態、`some top` は自明な観測だけを持つ状態である。
+この区別を Bool 一つや top への既定値化で失う案は、未知 width、非 record、optional を誤って同一視するため採用しない。
+mask は outer の label 集合に蓄積し、payload に降りるときは既存の解釈どおり空に戻す。
+
+任意の payload 割当て、正の深さ、負文脈 rank、要求環境で、元の field/optional 観測と射影後の
+子型の観測が一致する。Common への持上げでは参照 state の実 `graph` を一度読む。
+これにより source の深さ d+1 と payload の深さ d が正確に対応し、`OptionalPayload` を通常の
+`Common.Subtype` へ置き換えられる。regular state を有限深さのサンプルに置き換えることはない。
+
+`CommonRecordTailProfiles` は深さ0を別に処理する。このとき全 guarded payload は bottom であり、
+default は record head になるため、field と非自明 optional の二つの Bool がすべての初期観測を決める。
+正の深さは射影後の子比較へ移る。tail の optional は自明要求を渡さないので、両側の欠けた profile を
+top で埋める操作はここだけで正当化する。通常の field 比較では `none` と `some top` を引き続き区別する。
+
+`CommonOuterLabels` と `CommonRecordTailFinite` は、source/target の outer record/default/mask に現れる
+label と、そこにない新しい label 一つを調べれば十分であることを証明する。payload 内の label は現在の
+層に混ぜない。有限表の外で field/optional の射影と初期 Bool が不変であることから、全 label の量化を除く。
+`CommonRecordEnvelope.outsideRecords` は role 観測を使って非 record head の要求を正確に判定する。
+
+`CommonDefaultInspection.inspectDefault` の返す最終 branch は `List (Common.Ty × Common.Ty)` だけである。
+head/presence/初期層の Bool は実行して除き、`OptionalPayload`、`RecordTailLe`、元の whole-default 比較を
+最終 atom に残さない。任意 source/fallback/target の subtype と branch の子比較の充足が同値となる。
+これは **outer 一層の完全分解** であり、子が regular graph の元の state に戻る場合の有限飽和・停止性や、
+未知 source slot の射影を推論時の symbolic graph に取り込む定理とは区別する。
+
+`CommonRecordInspection` は通常の record 構築も head、実 payload、head を隠した残りの tail に分解する。
+実装は default への付替えではなく、この三部分を直接 compile する。present default の同値は証明内だけで
+利用する。required は rest を width empty record にした場合であり、exact empty へ読み替えない。
+
+## 10. 実際の生成 clause からの方程式消去
+
+`CommonPresenceConstraintGraph` は既存の実 subterm collector を使い、生成された `TyTerm` ごとに
+共有 node を割り当てる。record tail/default source は同深さ参照、payload と負の arrow 引数は guarded
+参照へ置く。型変数には一つの node、行変数には元の ID を保つ。定義方程式の任意の意味的実現から
+元の TyTerm 評価を要求同値で回収するため、単に一つの標準評価だけを正しいとするモデルではない。
+
+`CommonPresenceClauseFamily` は実 packed clause の定義方程式と明示行制約を、既存の simultaneous
+solver へ渡す。どの自由 row/value parameter でもこの部分は解になる。元の独立解を parameter に選べば、
+行は等号、すべての値は要求同値で戻る。source の生成不変量から row support を証明し、呼出側に要求しない。
+
+`CommonPresenceSourceFamily` は normalize、binder packing、graph construction、行/方程式求解を
+実際につなぐ。任意の閉 source/Core 式と任意結果に対する iff を得たが、有限の subtype edge は
+`Scheme.ResidualHolds` として明示的に残る。この述語は元の Typing/Formula.Holds/Models の別名ではなく、
+node 間の比較の有限リストである。それでも制約なしの family ではないので、入口名は `inferSource`/`inferCore`
+をこの専用 namespace に置き、公開 `Core.infer` と呼ばない。
+
+具体化した後の Common 型を完全に inspect できることだけでは、推論時に固定した有限 scheme を構成できない。
+未知 slot の profile/presence と同じ型・行 ID を symbolic graph 上で保持し、残る比較を有限に飽和させる
+完全な compiler が必要である。これを row/definition solver の定理の前提や scheme の law field に隠さない。
+
+## 11. 自己完結した有限 code と型パラメータの名前変更
+
+`CommonCanonicalInterface` は固定 Shape の code を、構成子、label、arrow の共有行 ID を含む
+自己完結した `Code` に拡張する。二つの入力で Shape が等しいことは仮定しない。実際の role/field/row
+観測で root、label、行 ID の違いを識別し、同じ code iff 全行・全 Common 型割当てでの要求同値を示す。
+対象構文は scalar lattice、nested pair、単一 required、tag、scalar domain の arrow と同じ Shape の union である。
+
+`CommonCanonicalAlpha` は generalized type slot の同時全単射を有限に列挙して code を選ぶ。
+同値は encoding の等号で定義せず、「一つの同時全単射の後、全行・全 Common 型割当てで要求同値」とする。
+同じ parameter の全出現を一緒に移し、任意の固定行割当て・任意 target について、target と要求同値な具体化の
+存在を両方向で保つ。slot 数にかかわらない正負位置による消去・共起/併合と一般の再parameter化、異なる
+slot 数の比較、弱い変数、行変数の α 同値、nominal/role 義務、一般の regular interface は対象ではない。
+forward map と backward map の直積列挙は避け、forward map を列挙して逆写像を有限 lookup で回収する。
+候補数の上界は n^n と証明した。参照用の全探索であり、既存 infer/display の実行経路には追加しない。
+
+`CommonCanonicalNames` はこの意味的代表を選んだ後、異なる型変数の最初の出現を左から数え直す。
+未使用 slot は逆写像を完成させるために末尾へ置くが、表示する新しい名前は生まない。出力 Form 内で
+最初の出現順に並べた番号が `List.range k` であること、α 同値 iff 同じ正規化出力、冪等性、任意固定行と
+target に対する要求同値な具体化の存在の保存・反映を証明した。weak variable の metadata や renderer は別である。
+
+## 12. 変数の上下限と実 source pool の接続
+
+`CommonBoundCoalescing` は有限の lower/flow/upper/check を、固定した境界型の比較へ消去する。
+祖先の lower を union で集め、到達先の upper を intersection で集める。変数 i の展開は
+`lower(i) | join [parameter(j) & upper(j) | j reaches i]` である。固定比較の成立を仮定したとき、
+すべての Common 型 parameter が元の問題の解を与える。任意の独立解は、その全 slot を parameter に
+選べば要求同値で回収される。証明は join/meet の普遍性を用い、負位置の単調性や未証明の分配律を仮定しない。
+変数間の循環は有限 reachability が扱い、呼出側の fuel や非循環性は不要である。
+
+`CommonPresenceVariableBounds` は実 pool の `.var` node を同定し、var-var を flow、rigid-var を lower、
+var-rigid を upper、rigid-rigid を check に分類する。rigid はここでは「元 pool の非変数 node」という意味であり、
+未知型の参照を持たないという意味ではない。元の node/row ID を保持し、変数 node の方程式を上の展開へ置き換える。
+実 record/default/mask の同深さ参照と payload/arrow の guarded 参照を同じ regular solver で閉じる。
+別々に求解して共有 slot を失う案は採用しない。
+
+`compiled_joint_elimination_exact` は任意の実 atom 列（行右辺は var/empty）で、全明示行制約、定義方程式、
+変数辺を消去する。任意の元モデルを同じ行・要求同値な全値で回収し、逆向きも成立する。最終の条件は
+元 pool の非変数 node どうしの比較の有限リストである。境界型は未知 graph node を読み、その解が parameter に
+依存するため、この条件まで成立することを自由 parameter の定義に隠さない。次に必要なのは、同じ共有 graph 上で
+この rigid 比較を分解し、有限に閉じた分岐へ飽和させる compiler である。
+
+`CommonPresenceCoalescedSource` はこの変数辺消去を、実 source/Core の生成器、binder packing、
+shared pool、行 solver に接続する。Scheme が持つのは有限 pool、元 edge、行 scheme、結果 ID だけであり、
+semantic model certificate は持たない。具体化は行・元型変数・recursive equation の三 parameter family を取る。
+任意閉式と任意結果について残余条件付き principal iff を証明し、GoodAtoms は実生成器から内部で供給する。
+残余の両端が元 pool の非変数 node であることも証明する。具体化後の型比較を推論時に実行したと見なす案は採用せず、
+この明示的な残余を除く symbolic saturation を最終公開入口の前に残す。

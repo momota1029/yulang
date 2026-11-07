@@ -4,6 +4,10 @@ Status: Partial — proved concrete model and declared solver fragments; full so
 
 Date: 2026-11-07
 
+Snapshot: 初回作業の `e4c12b9` までの記録。中断からの復旧後に閉じた outer inspector、生成 graph の接続、
+標準形の拡張と現在の残契約は [復旧後の実装結果](2026-11-07-m1-common-recovery-results.md) を参照する。
+以下の到達点・未完欄は初回 snapshot の内容を保存する。
+
 Branch: `integration/m1-common`, starting from `integration/types` at `1b9361b`.
 
 `origin/yulang3` は作業中に `a50f015`、続いて `89004af` まで merge した。
