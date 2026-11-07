@@ -2,13 +2,30 @@
 #[path = "../../examples/support/recovery_corpus.rs"]
 mod corpus;
 
+/// The fingerprint key is `file:line`, where the line is where a code block starts.
+/// It moves whenever a document above the block is edited, which says nothing about the
+/// parser. The contract is on (file, source hash, CST hash), so compare without the line.
+fn without_block_lines(rows: &str) -> Vec<String> {
+    let mut rows: Vec<String> = rows
+        .lines()
+        .filter(|line| !line.starts_with('#') && !line.trim().is_empty())
+        .map(|line| {
+            let (key, hashes) = line.split_once('\t').expect("fingerprint row has tabs");
+            let file = key.rsplit_once(':').map_or(key, |(file, _)| file);
+            format!("{file}\t{hashes}")
+        })
+        .collect();
+    rows.sort();
+    rows
+}
+
 #[test]
 fn valid_corpus_cst_matches_phase_1_fingerprints() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let cases = corpus::corpus(&root);
     assert_eq!(
-        corpus::fingerprints(&cases),
-        include_str!("recovery_mutation_fingerprints.tsv")
+        without_block_lines(&corpus::fingerprints(&cases)),
+        without_block_lines(include_str!("recovery_mutation_fingerprints.tsv"))
     );
 }
 
