@@ -6,6 +6,7 @@
 2026年8月20日の`yu-syntax` architectureが、受理構文と直接 Rowan CSTを定める。
 Authoritativeな2026年9月8日のCaseLike structuralとArrow/Body recoveryの記録、および2026年9月9日のseparatorとCatch-closeの記録が、recovery CSTを定める。
 対象なしの`case:`の受理とCSTは、Authoritativeな`2026-11-07-parser-gap-closure-addendum-2.md`のWP-14に従う。
+対象なしの`catch:`は、同じ追補のWP-16に従う。
 
 対象は、expression primary、label、scrutinee、arm family、pattern、任意のguardとCatch handler、exact arrow、body、separator、Catch braceである。
 exhaustiveness、guard、handler、label、exception、valueの意味、関数への脱糖、HIR、型、diagnostic wording、formattingは定めない。
@@ -14,7 +15,7 @@ exhaustiveness、guard、handler、label、exception、valueの意味、関数�
 
 ```text
 CaseExpression  := CaseKw (CaseHead | G*) CaseBlock
-CatchExpression := CatchKw CatchHead CatchBlock
+CatchExpression := CatchKw (CatchHead CatchBlock | G* ":" (CatchInlineArm | CatchIndentedArms))
 CaseHead := G* [ CaseLabel G* ] CaseScrutinee
 CatchHead := G* [ CatchLabel G* ] CatchScrutinee
 CaseLabel := SigilIdentifier
@@ -47,10 +48,10 @@ Caseはbrace arm blockを受理しない。
 caseのscrutineeは`:`で停止する。
 catchのscrutineeは`:`または`{`で停止するため、direct braced blockを所有できるのはCatchだけである。
 
-`case`の直後、または同じ行のtriviaの後に`:`があれば、scrutineeを省略してarm blockを開く。
+`case`か`catch`の直後、または同じ行のtriviaの後に`:`があれば、scrutineeを省略してarm blockを開く。
 この形ではlabelも置かない。
 `:`がなければ、scrutinee不在は従来どおりrecoveryとなる。
-`catch:`はこの省略形を受理せず、`CatchScrutinee`内に`Missing`を残す。
+この省略形はcolon blockだけを対象とし、direct braced Catch blockには引き続き対象の式が必要となる。
 
 label内のapostropheとidentifierはadjacentであり、whitespaceで`SigilIdentifier`を分けられない。
 `->`は動的にassociationするoperatorではなく、exactなfixed punctuationである。
@@ -75,7 +76,10 @@ Authoritative な parser-gap design memo WP-9 は、この arm context におけ
 対象の式がある場合、`CaseExpression`はkeyword、任意の`CaseLabel`、direct `CaseScrutinee`、direct case blockをsource orderで持つ。
 対象なしの`case:`では、keywordの次にdirect `CaseBlock`を持ち、`CaseScrutinee`を作らない。
 `CaseScrutinee`の不在が、この省略形の印となる。
-`CatchExpression`は、keyword、任意の`CatchLabel`、direct `CatchScrutinee`、direct catch blockをsource orderで持つ。
+対象の式がある場合、`CatchExpression`はkeyword、任意の`CatchLabel`、direct `CatchScrutinee`、direct catch blockをsource orderで持つ。
+対象なしの`catch:`では、keywordの次にdirect `CatchBlock`を持ち、`CatchScrutinee`を作らない。
+inline armも字下げしたarmも、この同じ`CatchBlock`に入る。
+`catch a:`とdirect braced Catch blockのCSTは変わらない。
 各labelは、adjacentなapostropheとidentifierを持つ`SigilIdentifier` token一つを含む。
 各scrutineeは、その`OperatorChain`を直接含む。
 `CaseArm`は、direct `Pattern`、任意の`CaseGuard`、exactな`Arrow`、body、任意のsemicolonを持つ。
@@ -89,7 +93,7 @@ arm bodyは、直接の`OperatorChain`一つまたは直接の`IndentedStatement
 
 ```text
 CaseExpression := CaseKw [ CaseLabel ] CaseScrutinee CaseBlock | CaseKw CaseBlock
-CatchExpression := CatchKw [ CatchLabel ] CatchScrutinee CatchBlock
+CatchExpression := CatchKw [ CatchLabel ] CatchScrutinee CatchBlock | CatchKw CatchBlock
 CaseInlineArms := CaseArm { CaseArmSeparator CaseArm } [ CaseArmSeparator ]
 CatchBracedArms := CatchArm { CatchArmSeparator CatchArm } [ CatchArmSeparator ]
 CaseArm := ArmPattern [ CaseGuard ] Arrow ArmBody [ Semicolon ]
@@ -129,6 +133,21 @@ nested pattern、guard、bodyのrecoveryをarm familyが重複して記録する
 ```
 
 字下げしたarmも同じ`CaseBlock`に入り、`case n:`のCSTは変わらない。
+
+`catch: v -> v`は、対象の式なしでinline armを一つ持つ。
+
+```xml
+<CatchExpression>
+  <CatchKw text="catch" />
+  <CatchBlock>
+    <Colon text=":" /><Whitespace text=" " />
+    <CatchArm><Pattern><IdentifierPattern><Identifier text="v" /></IdentifierPattern></Pattern><Whitespace text=" " /><Arrow text="->" /><Whitespace text=" " /><OperatorChain><IdentifierExpression><Identifier text="v" /></IdentifierExpression></OperatorChain></CatchArm>
+  </CatchBlock>
+</CatchExpression>
+```
+
+字下げしたarmでも、`catch:`はhandler patternの既存の位置を保つ。
+`flip::coin(), k -> k true`では、handlerのcommaを挟む二つの`Pattern`が`CatchArm`の直接の子となる。
 
 `case 'go x: 1 if ok -> yes, _ -> no`は、label、scrutinee、直接のarm二つ、arm separatorをsource orderで置く。
 

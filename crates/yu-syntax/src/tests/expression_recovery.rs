@@ -459,7 +459,6 @@ fn direct_missing_in_required_chain(slot: &SyntaxNode) -> SyntaxNode {
 fn required_operand_cst_slots_select_initial_callers() {
     for (source, slot) in [
         ("if : x", SyntaxKind::Condition),
-        ("catch : _ -> x", SyntaxKind::CatchScrutinee),
         ("case x: _ if -> y", SyntaxKind::CaseGuard),
         ("catch x: _ if -> y", SyntaxKind::CatchGuard),
         ("for x in ]", SyntaxKind::ForIterable),
@@ -475,26 +474,36 @@ fn required_operand_cst_slots_select_initial_callers() {
         );
     }
 
-    // WP-14: the former `case :` CaseScrutinee(OperatorChain(Missing)) pin
-    // becomes a direct CaseBlock; the CatchScrutinee row above is unchanged.
-    let (green, _, _) = run_statement_normalized("case : _ -> x", 0, LineEntry::InLine, None);
-    assert!(structural_facts(&green).is_empty());
-    let root = SyntaxNode::new_root(green);
-    assert!(
-        !root
+    // WP-14/WP-16: the former missing-scrutinee pins become direct blocks.
+    // A same-line colon now admits target-less catch just like case.
+    for (source, expression, scrutinee, block, arm) in [
+        (
+            "case : _ -> x",
+            SyntaxKind::CaseExpression,
+            SyntaxKind::CaseScrutinee,
+            SyntaxKind::CaseBlock,
+            SyntaxKind::CaseArm,
+        ),
+        (
+            "catch : _ -> x",
+            SyntaxKind::CatchExpression,
+            SyntaxKind::CatchScrutinee,
+            SyntaxKind::CatchBlock,
+            SyntaxKind::CatchArm,
+        ),
+    ] {
+        let (green, _, _) = run_statement_normalized(source, 0, LineEntry::InLine, None);
+        assert!(structural_facts(&green).is_empty());
+        let root = SyntaxNode::new_root(green);
+        assert!(!root.descendants().any(|node| node.kind() == scrutinee));
+        let expression = root
             .descendants()
-            .any(|node| node.kind() == SyntaxKind::CaseScrutinee)
-    );
-    let case = root
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::CaseExpression)
-        .unwrap();
-    let block = direct_child(&case, SyntaxKind::CaseBlock);
-    assert_eq!(block.to_string(), " : _ -> x");
-    assert_eq!(
-        direct_child(&block, SyntaxKind::CaseArm).to_string(),
-        "_ -> x"
-    );
+            .find(|node| node.kind() == expression)
+            .unwrap();
+        let block = direct_child(&expression, block);
+        assert_eq!(block.to_string(), " : _ -> x");
+        assert_eq!(direct_child(&block, arm).to_string(), "_ -> x");
+    }
 
     let (green, _, _) = run_statement_normalized(
         "for x in\r\n> > ```\nouter",

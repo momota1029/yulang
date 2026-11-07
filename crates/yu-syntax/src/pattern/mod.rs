@@ -44,7 +44,7 @@ use crate::pattern::delimited::{list_pattern, parenthesized_pattern, record_patt
 /// Caller-owned Pattern grammar boundaries. Nested delimiters replace its
 /// non-close bits with their local comma/close mask; only the separate,
 /// explicitly filtered caller-close capability is carried inward.
-pub(super) type PatternStops = u16;
+pub(super) type PatternStops = u32;
 
 pub(super) const PATTERN_STOP_COLON: PatternStops = 1 << 0;
 pub(super) const PATTERN_STOP_ARROW: PatternStops = 1 << 1;
@@ -67,6 +67,9 @@ pub(super) const PATTERN_STOP_PRIMARY_COLON: PatternStops = 1 << 13;
 /// Pattern ML-application argument.
 pub(super) const PATTERN_STOP_ITEM: PatternStops = 1 << 14;
 const PATTERN_STOP_RECOVERED_PRIMARY: PatternStops = 1 << 15;
+/// Only an act's immediate member signature admits a deeper where clause.
+/// Nested pattern delimiters replace this caller boundary with their own stops.
+pub(super) const PATTERN_STOP_OPERATION_WHERE: PatternStops = 1 << 16;
 pub(crate) const PATTERN_ARM_APPLICATION_STOPS: PatternStops = PATTERN_STOP_ITEM
     | PATTERN_STOP_ARROW
     | PATTERN_STOP_ARM_GUARD_IF
@@ -256,6 +259,7 @@ struct PatternState {
     identifier_receiver: bool,
     explicit_constructor: bool,
     bare_identifier_head: bool,
+    signature_type_found: bool,
 }
 
 impl PatternState {
@@ -266,6 +270,7 @@ impl PatternState {
             identifier_receiver: false,
             explicit_constructor: false,
             bare_identifier_head: false,
+            signature_type_found: false,
         }
     }
 
@@ -1522,8 +1527,9 @@ pub(super) fn binding_target_from_entry_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
-) -> NormalizedExit {
-    pattern_from_item_recording_with_policy_normalized(
+) -> (NormalizedExit, bool) {
+    let mut completion = PatternState::new(PatternCompletion::Incomplete);
+    let exit = pattern_from_item_recording_with_policy_normalized(
         i,
         item,
         PatternPrecedence::Lowest,
@@ -1532,12 +1538,13 @@ pub(super) fn binding_target_from_entry_item_normalized(
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         PatternCallerCloses::NONE,
-        &mut PatternState::new(PatternCompletion::Incomplete),
+        &mut completion,
         item_origin,
         line_entry,
         fence,
         ambient,
-    )
+    );
+    (exit, completion.signature_type_found)
 }
 
 fn emit_initial_pattern_missing(i: &mut SyntaxIn, item: &Item, item_origin: usize) {
@@ -1647,6 +1654,9 @@ fn pattern_type_annotation_rhs_normalized(
     if stops & PATTERN_STOP_ARM_GUARD_WHERE != 0 {
         outer_boundary = outer_boundary.with(TypeOuterBoundary::ARM_GUARD_WHERE);
     }
+    if stops & PATTERN_STOP_OPERATION_WHERE != 0 {
+        outer_boundary = outer_boundary.with(TypeOuterBoundary::OPERATION_WHERE);
+    }
     let (exit, primary_found) =
         required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
             i,
@@ -1662,6 +1672,7 @@ fn pattern_type_annotation_rhs_normalized(
     if stops & PATTERN_STOP_IN == 0 || primary_found {
         completion.native = PatternCompletion::Complete;
     }
+    completion.signature_type_found = primary_found;
     exit
 }
 

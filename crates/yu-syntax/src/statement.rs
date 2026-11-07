@@ -562,7 +562,7 @@ pub(super) fn indented_statement_block_normalized(
         fence,
         ambient,
         false,
-        true,
+        crate::sequence::SequenceOwner::IndentedStatement,
     )
 }
 
@@ -574,6 +574,7 @@ pub(super) fn indented_owner_field_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: crate::sequence::SequenceOwner,
 ) -> NormalizedExit {
     indented_statement_block_inner_normalized(
         i,
@@ -584,7 +585,7 @@ pub(super) fn indented_owner_field_body_normalized(
         fence,
         ambient,
         false,
-        false,
+        sequence,
     )
 }
 
@@ -606,7 +607,7 @@ pub(super) fn indented_declaration_body_normalized(
         fence,
         ambient,
         true,
-        true,
+        crate::sequence::SequenceOwner::IndentedStatement,
     )
 }
 
@@ -620,13 +621,10 @@ fn indented_statement_block_inner_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
     where_prefix: bool,
-    allow_doc_comment: bool,
+    sequence: crate::sequence::SequenceOwner,
 ) -> NormalizedExit {
-    let sequence = Some(if allow_doc_comment {
-        crate::sequence::SequenceOwner::IndentedStatement
-    } else {
-        crate::sequence::SequenceOwner::IndentedOwnerField
-    });
+    let allow_doc_comment = sequence.admits_doc_comment();
+    let sequence = Some(sequence);
     let (mut item, mut item_origin, mut line_entry) =
         statement_item_normalized(i.rb(), item_origin, line_entry, fence, base_indent, stops);
     i.state
@@ -684,13 +682,13 @@ fn indented_statement_block_inner_normalized(
     exit
 }
 
-fn is_where_clause_keyword(item: &Item) -> bool {
+pub(super) fn is_where_clause_keyword(item: &Item) -> bool {
     token_kind(item) == Some(TokenKind::Identifier)
         && item.payload_view().spelling() == Some("where")
 }
 
 #[allow(clippy::too_many_arguments)]
-fn where_clause_normalized(
+pub(super) fn where_clause_normalized(
     mut i: SyntaxIn,
     keyword: Item,
     baseline: usize,
@@ -849,7 +847,7 @@ pub(super) fn braced_nud_normalized(
         line_entry,
         fence,
         ambient,
-        true,
+        crate::sequence::SequenceOwner::BracedStatement,
         true,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
@@ -886,7 +884,7 @@ pub(super) fn braced_statement_block_normalized(
         line_entry,
         fence,
         ambient,
-        true,
+        crate::sequence::SequenceOwner::BracedStatement,
         false,
     )
 }
@@ -899,6 +897,7 @@ pub(super) fn braced_owner_field_block_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: crate::sequence::SequenceOwner,
 ) -> NormalizedExit {
     braced_statement_block_inner_normalized(
         i,
@@ -909,7 +908,7 @@ pub(super) fn braced_owner_field_block_normalized(
         line_entry,
         fence,
         ambient,
-        false,
+        sequence,
         false,
     )
 }
@@ -934,7 +933,7 @@ pub(super) fn braced_statement_block_with_recovery_normalized(
         line_entry,
         fence,
         ambient,
-        true,
+        crate::sequence::SequenceOwner::BracedStatement,
         false,
     )
 }
@@ -949,14 +948,11 @@ fn braced_statement_block_inner_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
-    allow_doc_comment: bool,
+    sequence: crate::sequence::SequenceOwner,
     allow_record_spread: bool,
 ) -> NormalizedExit {
-    let sequence = Some(if allow_doc_comment {
-        crate::sequence::SequenceOwner::BracedStatement
-    } else {
-        crate::sequence::SequenceOwner::BracedOwnerField
-    });
+    let allow_doc_comment = sequence.admits_doc_comment();
+    let sequence = Some(sequence);
     let ambient = ambient.map(AmbientClaimView::braced);
     i.state
         .start_node(SyntaxKind::BracedStatementBlockExpression.into());

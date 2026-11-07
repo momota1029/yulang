@@ -1,4 +1,4 @@
-# ChatGPT Pro への依頼: M1 の残り — symbolic 飽和・全 instance の求解・公開入口 (2026-11-07)
+# ChatGPT Pro への依頼: M1 の残り — symbolic 飽和・全 instance の求解・公開入口 (2026-11-07、スレッド落ち後の再開版)
 
 `integration/m1-common` で、共通 carrier、有限な outer inspector、実 source の変数辺の消去、α 正規化までが通った
 (`lake build --wfail` と `Audit.lean` が通過。公開 commit `316e899b6`、記録は `7d4c0b58a`)。
@@ -14,6 +14,14 @@ integration/m1-common をそのまま続ける。新しいブランチは切ら�
 integration/types と yulang3 には push しない。
 origin/yulang3 に仕様の更新が入ることがあるので、時々 merge して、ビルドと Audit が通ることを確かめる。
 
+## 現在地(前のスレッドが落ちた時点。2026-11-07 10:51、先頭 `5c5969d68`)
+前のスレッドは途中で落ちた。ブランチの先頭が、閉じた状態か、途中の状態か、まだ確かめていない。**最初に次を確認すること。**
+1. `cd lean && lake build --wfail` と `lake env lean --trust=0 Audit.lean` が先頭で通るか。通らなければ、まずそれを直す(直前の数コミットの未完を疑う)。
+2. `lean/README.md` の表の右の列(残り)と、`notes/design/2026-11-07-m1-common-model.md` の追記を読み、どの補題が閉じていて、どれが残っているかを自分の目で確かめる。
+読んだ範囲では、7.1 の `CommonGeneratedRigidInspection.saturate_common_rigid_exact` / `saturate_common_core_rigid_exact` の最初の版は入っている。残りの列には、
+「返した branch の全 parameter 求解」「拡張した projection / optional node を含む全飽和の閉性」「新しい query / node を追加する全 worklist の閉性」が書かれている。
+つまり、**7.2(閉性と全 parameter soundness)から続けるのが自然**。ただし README の記述が正かどうかは、上の確認で自分で判断すること。
+
 ## 読むもの
 1. notes/handoff/2026-11-07-m1-common-recovery-results.md(特に 7 節「閉じていない補題」。この依頼の設計)
 2. notes/design/2026-11-07-m1-common-model.md の 9〜12 節(採用しなかった案と理由)
@@ -23,7 +31,7 @@ origin/yulang3 に仕様の更新が入ることがあるので、時々 merge �
 6. spec/04-types.md の 4.3 と 4.7b、spec/07-display.md の 7.4b
 
 ## 作業(順番どおり)
-復旧記録の 7 節の補題を、番号どおりに閉じる。各補題の statement は、7 節に書かれた量化子と前提のまま変えない。
+復旧記録の 7 節の補題を、番号どおりに閉じる。ただし上の「現在地」のとおり、7.1 の最初の版は入っているので、README と実コードで残りを確かめて、そこから続ける。各補題の statement は、7 節に書かれた量化子と前提のまま変えない。
 
 1. 7.1 `saturate_common_rigid_exact`: 実生成 packed clause の共有 graph G と rigid 比較列 E について、
    有限の symbolic branch 列 `saturate G E` を計算し、「G の constructor 方程式の下で E が成立する ⇔ 計算した

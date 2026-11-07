@@ -92,6 +92,7 @@ literal tokens and trivia; named children below list its structural children.
 | `type` declaration: attached `impl` | Type header continuation; type-declaration boundary | `TypeDeclaration` | header, optional derives, `ImplKw`, head `TypeExpression`, optional description, body; at most 1; no nested `ImplDeclaration` | `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` §§ `TAI-G`, “AST / direct-CST shape” |
 | Root only: operator definition | Operator header and expression-body boundary | `Root` | `OperatorHeader`, then sibling `OperatorChain`; one header/body pair; never `Statement` | `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` §§ “Root statement loop”, “Operator definition body full-only continuation” |
 | Root or nested Statement: `role`, `act`, `enum`, `error`, or `for` | Declaration/statement-specific body boundary | R: `Root`; S: `Statement` | Respective `RoleDeclaration`, `ActDeclaration`, `EnumDeclaration`, `ErrorDeclaration`, or `ForStatement`; header then direct form/body children; exactly 1 | `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` §§ `RLD-G`, `ACT-G`, `ENUM-G`, `ERROR-G`, `FOR-G` and their “AST / direct-CST shape” sections |
+| `act` operation signature: `where` below the signature | Exact `where` on a more deeply indented line; the next member and dedent remain outside the operation | Operation `BindingStatement` | `WhereClause` follows `BindingHeader` and any attached start-line doc; repeat `where` lines for multiple constraints | `notes/design/2026-11-07-parser-gap-closure-addendum-2.md` WP-17, `spec/05-effects.md` 5.1, `spec/06-roles.md` 6.3 |
 | Root or nested Statement: [doc-comment declaration](../statements/doc-comment-declaration.md) with Yumark | Line/block envelope containing [Yumark document grammar](../statements/yumark-document.md); only canonical Statement start selects `---` before `--` | R: `Root`; S: `Statement` | `DocCommentDeclaration`: marker, `YmDoc` content, and a recovered close for block form in source order; one node per document; leading member lines and attached binding/member line docs follow the linked owner schema | `notes/design/2026-09-01-doc-comment-yumark-addendum.md` §§ 2 “Envelope and dispatch”, 8 “AST, CST, and recovery vocabulary” |
 
 `derives` hosts and positions are exact. `StructDeclaration` admits header
@@ -107,6 +108,32 @@ after a complete Head, then, when an actual Source is complete, after Source;
 it admits trailing derives only after an actual-complete braced close. Its
 owner-specific authority is `ACTDRV-G`/`ACTDRV-J`. `Role`, `Impl`, `Cast`,
 `Mod`, binding, use, and operator definitions are not `derives` hosts.
+
+### `act` operation signatures
+
+An operation uses the existing `BindingStatement`; its signature type stays in the `PatternTypeAnnotation` inside `BindingHeader`.
+A more deeply indented `where` line stops continuation of that type.
+The `WhereClause` becomes the last child of the operation's `BindingStatement`.
+As with a binding preamble, the clause's parent owns the newline and indentation.
+
+```text
+BindingStatement(
+  BindingHeader(OurKw Pattern(IdentifierPattern PatternTypeAnnotation(Colon TypeExpression)))
+  Newline Whitespace
+  WhereClause(WhereKw TypeExpression Colon TypeExpression)
+)
+```
+
+The first `TypeExpression` inside `WhereClause` is the constraint subject; the second is the role type.
+Multiple constraints use repeated `where` lines, as in a binding.
+No comma-separated constraint form is added.
+Leading docs remain member siblings, and an attached start-line doc stays inside `BindingStatement` before the clause.
+The next member remains in the act body.
+
+A same-line `where` builds no `WhereClause`, just as in a binding.
+Placing it on the operation signature's line retains the existing recovery behavior.
+A `where` below a role method signature also retains recovery, while a `where` inside a nested statement block remains an ordinary expression.
+This change adds no `SyntaxKind`.
 
 ### Expression
 

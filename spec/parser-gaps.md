@@ -7,9 +7,15 @@
 
 **なし**（2026-11-04）。`spec/` の章 1〜9 に載せた構文例 80 個は、すべて `Error` / `Missing` / `Invalid` なしで読める。
 
-**2026-11-07 に見つかった 4 件は閉じた**: lambda の record 引数（`\{x, y} -> x`）、式としての record の spread（`{x: 1, ..rest}`）、対象なしの `case:`、`case` と `catch` の 2 番目以降の arm が隣接した `-` と整数で始まる形（`-1 -> 2`）。
-構文ガイドの例の検査で見つかり、`notes/design/2026-11-07-parser-gap-closure-addendum-2.md`（Authoritative）の WP-12〜15 で直した。
+**2026-11-07 に見つかった 5 件は閉じた**: lambda の record 引数（`\{x, y} -> x`）、式としての record の spread（`{x: 1, ..rest}`）、対象なしの `case:`、`case` と `catch` の 2 番目以降の arm が隣接した `-` と整数で始まる形（`-1 -> 2`）、`act` の operation の署名の下の `where`。
+構文ガイドの例の検査で見つかり、`notes/design/2026-11-07-parser-gap-closure-addendum-2.md`（Authoritative）の WP-12〜15 と WP-17 で直した。
+同日確定した対象なしの`catch:`も、同じ追補のWP-16で対応した。
 経緯と設計判断は `notes/design/2026-11-04-parser-gap-closure-addendum.md`（Authoritative）に残してある。
+
+## 回復の弱点（2026-11-07 に観測、未対応）
+
+閉じていない括弧が、後ろの文を全部その中の項目として吸う。列 0 の宣言のキーワード（`my`）は、開いている括弧を閉じる合図になっていない。
+再現と影響、直す案は `notes/ideas/2026-11-07-error-tolerance-status.md`。文法と回復の設計判断なので、ユーザーの承認と追補が要る。
 
 ## 意図的に残している未完了
 

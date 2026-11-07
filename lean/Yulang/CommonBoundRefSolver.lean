@@ -66,8 +66,10 @@ def castScheme {first last : Nat} (same : first = last) (scheme : Scheme m first
 
 @[simp] theorem castScheme_refl (scheme : Scheme m originalSlots) : castScheme rfl scheme = scheme := rfl
 
-/-- Arbitrary hand-built graphs without matching finite source metadata
-return no schemes. Every actual compiled graph has matching metadata. -/
+/-- Recover the finite source problem from metadata and check its slot count.
+The solver does not compare hand-built graph fields with that metadata.
+Soundness below is for actual `compile atoms`, whose metadata and fields
+are constructed together. Missing metadata or a size mismatch returns no schemes. -/
 def solveAll (compiled : Compiled m) : List (Scheme m compiled.size) :=
   match compiled.origin with
   | none => []

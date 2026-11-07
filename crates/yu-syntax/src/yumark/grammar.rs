@@ -1587,7 +1587,11 @@ where
         }
     }
 
-    fn parse_embedded_pattern(&mut self, stops: u16, limit: usize) -> bool {
+    fn parse_embedded_pattern(
+        &mut self,
+        stops: crate::pattern::PatternStops,
+        limit: usize,
+    ) -> bool {
         let start = self.position;
         let mut remaining = &self.source[start..limit];
         let mut recover = Recover::new(self.operators);

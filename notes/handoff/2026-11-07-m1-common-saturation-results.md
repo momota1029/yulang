@@ -324,7 +324,9 @@ Axiom allowlist passed for 47115 declarations from Yulang modules
 ```
 
 上の省略記号より後は Audit の実際の末尾である。allowlist の位置だけを併記した。
-最終確認時の `origin/yulang3` は上記 `0530434f8` のままで、統合済みである。
+この記録の確認後、`origin/yulang3` の `6a4cf521ac8472f1629c7f70b5f2fcfd7a8719dd` まで追加で統合し、
+両 gate が引き続き exit 0（554 jobs、47,115 declarations）となることを確認した。
+最終同期の記録は [全自由 scheme の統合結果](2026-11-07-m1-symbolic-results.md) §9 に記す。
 
 ## 10. 新しい仕様の問い
 

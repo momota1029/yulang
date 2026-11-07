@@ -1,5 +1,7 @@
 use crate::tests::support::*;
 
+mod operation_where;
+
 #[test]
 fn public_host_act_parses_its_operation_members_as_source_nodes() {
     use SyntaxKind::*;

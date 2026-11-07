@@ -55,7 +55,8 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 内部表現と代案は [共通モデルの設計](../notes/design/2026-11-07-m1-common-model.md) に記す。
 定理の量化・前提と未完の補題、検証結果は [初回の実装結果](../notes/handoff/2026-11-07-m1-common-results.md) と
 [復旧後の実装結果](../notes/handoff/2026-11-07-m1-common-recovery-results.md) と
-[有限飽和・公開入口の実装結果](../notes/handoff/2026-11-07-m1-common-saturation-results.md) にまとめる。
+[有限飽和・公開入口の実装結果](../notes/handoff/2026-11-07-m1-common-saturation-results.md) と
+[全自由 scheme・共有 witness・標準形の統合結果](../notes/handoff/2026-11-07-m1-symbolic-results.md) にまとめる。
 
 復旧記録 §7 の現在の残りは次の通りである。下の歴史的な部品定理の表で「示さないこと」と
 記す項目は、その定理単独の範囲であり、後続の統合定理で閉じたものを含む。
@@ -602,9 +603,14 @@ presence の data 述語包含との同値はない。これらを既存 data �
 | `CommonCanonicalIntervals.subtype_instances_lower` / `subtypeCanonicalEncoding_exact` | 同じ全 scalar 文法で任意固定割当て・任意 target に対し、ある任意 parameter の instance が target 以下 iff bottom 代入の下端が target 以下。その全 target family の一致を一つの有限 code で完全判定し、正位置だけの一般化変数を共有を保ったまま同時消去する | exact instance の上端の消去、負位置を含む interface への無条件な適用 |
 | `CommonCanonicalPositive.subtype_instances_lower` / `canonicalEncoding_exact` | 任意固定 slot 数 k・任意一般化 arity n/m・任意二つの有限 Form について、一般化された全出現が正であるという構文条件の下、全 rows・全固定 Common 割当て・全 target の subtype-instance 集合一致 iff 同じ lower Form の完全 code。pair/required/variant/arrow result を含み、固定 slot は正負に共有してよい。行 ID を保つ | 一般化 slot が負にも出現する Form、exact constructor instance の区間化、行式・regular/nominal/role・全 export/display |
 | `CommonCanonicalPolarity.simplify_instances_exact` / `normalize_instances_exact` | 任意 Form・任意 frozen 指定・任意固定 Common 割当て・任意 rows/target で、非 frozen の正だけの slot を bottom、負だけを top にする一回の簡約が subtype-instance 集合を保存・反映。正負共有と frozen の値は同じ ID のまま保持 | exact instance 集合の保存、arity の縮小、frozen の自動導出、role 義務を含む変換、完全 canonical encoding。normalize は固定点ではない |
-| `CommonCanonicalScalarExports.interface_canonicalEncoding_exact` / `scheme_instances_exact` | 任意 weak slot 数 k・異なる一般化 arity n/m の scalar 式二つについて、任意 role theory・ambient computation 割当て・target に対する実 `QualifiedInference.Interface.scheme.Holds` の同値 iff 下端の有限 code 一致。既存公開意味を使い、固定 slot を保持 | 義務付き interface、一般行式の正規化、実 `Core.infer` の全返却 family から export/display への経路 |
+| `CommonCanonicalScalarFamilies.exact_instances_iff_bounds` / `exactCanonicalEncoding_exact` / `canonicalEncoding_exact` | 任意 weak slot 数 k・独立に異なる一般化 arity n/m の scalar 式二つについて、全固定 Common 割当て・全 target に対する exact instance family は二端点、subsumption 後の family は下端の有限 code で完全に比較できる。固定 slot は同じ値を保ち、再parameter化の候補・全単射・同 arity を前提にしない | constructor をまたぐ共有、正負の共起、一般行式、regular/nominal/role を含む全 interface |
+| `CommonCanonicalScalarExports.interface_canonicalEncoding_exact` / `scheme_instances_exact` | 任意 weak slot 数 k・異なる一般化 arity n/m の scalar 式二つから作る `obligations = []` の interface について、任意 role theory・ambient computation 割当て・target に対する実 `QualifiedInference.Interface.scheme.Holds` の同値 iff 下端の有限 code 一致。既存公開意味を使い、固定 slot を保持 | 義務付き interface、一般行式の正規化、実 `Core.infer` の全返却 family から export/display への経路 |
 | `CommonCanonicalObstructions.same_arity_used_parameters_not_alpha` / `positive_pair_image_not_interval` / `mixed_polarity_sharing_matters` / `captured_slot_cannot_be_generalized` | 同 arity・全 slot 使用でも instance 等価な union/intersection は非 α。共有 pair の exact image は区間ではなく、arrow の正負共有や固定 slot の分類は instance を変える。正の一般化変数だけを共有を保って 2→0 個へ消す正例も証明 | 全 interface の正規化が不可能・決定不能という主張 |
 | `CommonCanonicalScalarExports.Examples.positive_role_cannot_be_erased` / `CommonCanonicalPolarityBoundary.normalize_not_idempotent` | 正位置でも role 義務を消せない実公開 interface の反例。一回の polarity normalize は、正負共有した変数の正の出現が格子簡約で消える例により非冪等 | role-aware 正規化や、今後の反復正規化の不可能性 |
+
+polarity pass は Form の定理であり、role 義務を持つ実 qualified Interface への意味保存の接続は未証明である。
+role に依存する一般化 slot を変換中に frozen とする場合も、その値を保った上で元の外側の存在量化を残す必要がある。
+frozen の指定だけで一般化 slot を weak slot へ変更するものではない。
 
 任意の concrete `Common.Row` は述語であるため、全 concrete 型を直接有限文字列へ計算可能に符号化する
 という主張にはしない。完全な interface では有限行式・regular graph・nominal/role 義務までの正規化が残る。

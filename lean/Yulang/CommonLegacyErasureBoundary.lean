@@ -1,6 +1,7 @@
 import Yulang.CommonLegacyEmptyReflection
 
-/-!+# Why legacy witness recovery cannot use one two-sided erasure
+/-!
+# Why legacy witness recovery cannot use one two-sided erasure
 
 Exact empty and width have the same upper comparisons against all embedded
 legacy targets, while width is not below exact empty. Consequently no single

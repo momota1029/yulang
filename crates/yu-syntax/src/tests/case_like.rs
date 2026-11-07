@@ -3,6 +3,7 @@ use crate::{ExpectedSyntax, structural_diagnostic::StructuralKind};
 use crate::{ambient_claim::AmbientClaimView, handoff::MlMode, statement::StatementLineHandoff};
 use std::ops::Range;
 
+mod catch_without_target;
 mod signed_arm_layout;
 
 #[test]
@@ -89,57 +90,6 @@ fn case_head_unchanged_recovery_fixtures() {
   Error@13..14 " "
   Error@14..15 "1"
   Newline@15..16 "\n"
-"#,
-        ),
-        (
-            "catch:\n    0 -> 1\n",
-            r#"Root@0..18
-  OperatorChain@0..17
-    CatchExpression@0..17
-      CatchKw@0..5 "catch"
-      CatchScrutinee@5..5
-        OperatorChain@5..5
-          Missing@5..5
-      CatchBlock@5..17
-        Colon@5..6 ":"
-        Newline@6..7 "\n"
-        Whitespace@7..11 "    "
-        CatchArm@11..17
-          Pattern@11..12
-            IntegerPattern@11..12
-              Integer@11..12 "0"
-          Whitespace@12..13 " "
-          Arrow@13..15 "->"
-          Whitespace@15..16 " "
-          OperatorChain@16..17
-            IntegerLiteral@16..17
-              Integer@16..17 "1"
-  Newline@17..18 "\n"
-"#,
-        ),
-        (
-            "catch: 0 -> 1\n",
-            r#"Root@0..14
-  OperatorChain@0..13
-    CatchExpression@0..13
-      CatchKw@0..5 "catch"
-      CatchScrutinee@5..5
-        OperatorChain@5..5
-          Missing@5..5
-      CatchBlock@5..13
-        Colon@5..6 ":"
-        Whitespace@6..7 " "
-        CatchArm@7..13
-          Pattern@7..8
-            IntegerPattern@7..8
-              Integer@7..8 "0"
-          Whitespace@8..9 " "
-          Arrow@9..11 "->"
-          Whitespace@11..12 " "
-          OperatorChain@12..13
-            IntegerLiteral@12..13
-              Integer@12..13 "1"
-  Newline@13..14 "\n"
 "#,
         ),
         (
@@ -1277,12 +1227,17 @@ fn case_schema_expression_and_pattern_slots_use_ordered_rowan_children() {
             ] {
                 let root = SyntaxNode::new_root(run(&source).0);
                 assert_eq!(root.to_string(), source);
-                if head == "case" && payload.is_empty() && owner == scrutinee {
-                    // WP-14 replaces the old `case :` missing-scrutinee pin:
-                    // the colon opens CaseBlock with no CaseScrutinee node.
+                if payload.is_empty() && owner == scrutinee {
+                    // WP-14/WP-16 replace the missing-scrutinee pins: the
+                    // same-line colon opens the block without a scrutinee.
+                    let (expression_kind, keyword, block) = if head == "case" {
+                        (CaseExpression, CaseKw, CaseBlock)
+                    } else {
+                        (CatchExpression, CatchKw, CatchBlock)
+                    };
                     assert_eq!(
-                        case_schema_children(&expression(&root, CaseExpression)),
-                        [CaseKw, CaseBlock],
+                        case_schema_children(&expression(&root, expression_kind)),
+                        [keyword, block],
                         "{source}"
                     );
                     assert!(
