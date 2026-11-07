@@ -4237,3 +4237,10 @@ run_cmd do
 #print axioms Yulang.CommonEffectDeclarationInterpretation.interpretAll_extend
 #print axioms Yulang.CommonEffectDeclarationInterpretation.interpretAll_local
 #print axioms Yulang.CommonEffectDeclarationInterpretation.wellKinded_renameAll
+
+#print axioms Yulang.CommonEffectGrammarBoundary.generated_request_not_old_child_grammar
+#print axioms Yulang.CommonEffectGrammarBoundary.acceptsAny_request_typable
+
+#print axioms Yulang.CommonEffectTypeNormalisation.normaliseAtom_exact
+#print axioms Yulang.CommonEffectTypeNormalisation.normalise_exact
+#print axioms Yulang.CommonEffectTypeNormalisation.top_request_normalises_into_old_grammar
