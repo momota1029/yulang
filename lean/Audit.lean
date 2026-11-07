@@ -4456,3 +4456,13 @@ run_cmd do
 #print axioms Yulang.CommonSignedFreshChoice.solve_lift
 #print axioms Yulang.CommonSignedFreshChoice.instantiate_lift
 #print axioms Yulang.CommonSignedFreshChoice.instantiate_pullback
+
+#print axioms Yulang.CommonSignedFreshCompilation.eval_pullback
+#print axioms Yulang.CommonSignedFreshCompilation.models_pullback
+#print axioms Yulang.CommonSignedFreshCompilation.models_image_exact
+#print axioms Yulang.CommonSignedFreshCompilation.all_parameters_models
+#print axioms Yulang.CommonSignedFreshCompilation.solve_all_instances_exact
+
+#print axioms Yulang.CommonEffectRankMonotonicity.step_environment
+#print axioms Yulang.CommonEffectRankMonotonicity.compare_rank_drop
+#print axioms Yulang.CommonEffectRankMonotonicity.compare_rank_add_drop

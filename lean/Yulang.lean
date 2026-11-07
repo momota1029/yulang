@@ -648,3 +648,5 @@ import Yulang.CommonEffectLatticeUniversals
 import Yulang.CommonEffectFreshExpression
 import Yulang.CommonSignedFreshGraph
 import Yulang.CommonSignedFreshChoice
+import Yulang.CommonSignedFreshCompilation
+import Yulang.CommonEffectRankMonotonicity
