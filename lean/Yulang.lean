@@ -620,3 +620,6 @@ import Yulang.CommonPatternVariantRowBoundary
 import Yulang.CommonPatternConcreteScope
 import Yulang.CommonPatternSourceScope
 import Yulang.CommonPatternSourceElaboration
+import Yulang.CommonPatternSourceArmGeneration
+import Yulang.CommonCaseOrderedPaths
+import Yulang.CommonPatternFiniteSchemes

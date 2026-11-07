@@ -4236,3 +4236,11 @@ run_cmd do
 #print axioms Yulang.CommonPatternSourceElaboration.preserved
 #print axioms Yulang.CommonPatternSourceElaboration.raw_typing_exact
 #print axioms Yulang.CommonPatternSourceElaboration.generateSourcePattern_exact
+#print axioms Yulang.CommonPatternSourceArmGeneration.consumer_exact
+#print axioms Yulang.CommonPatternSourceArmGeneration.generateEnvironments_exact
+#print axioms Yulang.CommonCaseOrderedPaths.runArms_exact
+#print axioms Yulang.CommonCaseOrderedPaths.runArms_unmatched_exact
+#print axioms Yulang.CommonCaseOrderedPaths.eval_exact
+#print axioms Yulang.CommonPatternFiniteSchemes.all_parameter_holds
+#print axioms Yulang.CommonPatternFiniteSchemes.parameter_retraction
+#print axioms Yulang.CommonPatternFiniteSchemes.infer_empty_iff
