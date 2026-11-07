@@ -683,3 +683,5 @@ import Yulang.CommonRoleCanonicalPayloadCandidates
 import Yulang.CommonRoleNominalCoverBoundary
 import Yulang.CommonRoleSharedPayloadAgreement
 import Yulang.CommonRoleSharedCaptureDescent
+import Yulang.CommonRoleIntervals
+import Yulang.CommonRoleIntervalGeneration

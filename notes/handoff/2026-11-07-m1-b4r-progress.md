@@ -1022,3 +1022,58 @@ prover roleの登録・callable surfaceは今回も無く、primaryによる構�
 また、同tag payload内のNはsyntactic idempotenceだけでは足りず、any/neverのunion則、
 tuple/arrow等の既存Common coalescingを保つ必要がある。
 これらは追加E2ではなく、全matcherとfinite-view下降への証明義務として扱う。
+
+## B4r9 interval訂正: 証明再開前の設計監査（2026-11-08）
+
+ユーザー訂正を受け、点capture matcherの構成を停止。未コンパイル草案CommonRoleCaptureMachineを削除し、既存証明は変更しない。
+非空のreference二ファイル（role124行/sandwich168行）と現spec6.5を全文再読。
+`notes/design/2026-11-08-b4r8-interval-model.md` を新規作成してから証明再開へ移る。
+中心なしendpoint、mergeと交差制約、主型＋全rolesのreadiness/sandwich、variance/level、全where/associated再投入を記した。
+全CommonRole 65moduleの明示theorem733件を索引し、元statementの真理と新intervalモデルへの移送を区別した。
+旧五E2はいずれも現在のinterval/Yulang障害として未証明。特にfinite-tailの任意像は実subtractionと食い違う。
+既存CommonBoundCoalescing/CanonicalIntervals/BoundRef*/DemandBoundPropagation/CommonDemand*のAPIと前提を調査。
+候補の区間整合とlower anchor固定の未確定点は `2026-11-08-b4r9-interval-candidate-anchor.md` 一問に限定。
+その回答に依存しない区間代数/通常制約生成を先に閉じる。新しいE1/E2はまだ主張しない。
+
+## B4r9 checkpoint 1: 中心なし区間と実交差制約（16定理）
+
+新規 `CommonRoleIntervals`。carrierは既存Boundのpairのみ、endpointの意味は既存Common。
+全ての以下の任意入力は全称量化し、明記していない成功・有限木・support前提はない。
+
+- `fits_merge`: 任意二Common endpoint区間A,Bと任意実型Tで、merge(A,B)がTを挟む iff AとBがともにTを挟む。
+- `valid_iff_nonempty`: 任意Common区間Iでlo≤up iff ある実型TをIが挟む。証人は数学上のみで、中心fieldやruntime選択は作らない。
+- `valid_merge_exact`: 任意二Common区間で、mergeのlo≤up iff 元二区間の整合かつ両交差loA≤upB・loB≤upA。
+- `fits_pin`: 任意二Common型T,Uでpin(T)がUを挟む iff U≈T。
+- `valid_pin`: 任意Common型Tでpin(T)は整合。
+- `fits_congr`: 任意二区間のlower同士・upper同士がそれぞれCommon同値、任意実型Tなら、両区間がTを挟むことはiff。
+- `merge_pin_valid`: 任意二Common型A,Bでpin(A)/pin(B)のmergeが整合 iff A≈B。
+- `two_sided_equality`: 任意Common型A,B,Tでpin(A)/pin(B)のmergeがTを挟むならA≈B。他の主型位置から変数を削除する操作ではない。
+- `fits_coalesce`: 任意有限Common区間列Is,任意Tでjoin lowers/meet uppersのcoalesceがTを挟む iff 全所属区間がTを挟む。
+- `valid_coalesce`: 任意同列でcoalesce整合 iff 任意二所属I,JのloI≤upJ。
+- `mem_checks`: 任意Bound型、有限区間列Is、有限slot数n、既存Constraint cで、実checks所属 iff ある所属I,Jでc=check(loI,upJ)。
+- `checks_exact`: 任意Bound型/eval:Bound→Common.Ty/有限区間列/有限slot数n/任意slot割当てvaluesで、実checksの既存Models iff 全所属I,Jでeval(loI)≤eval(upJ)。
+- `checks_valid_exact`: 任意同入力で実checksの既存Models iff eval済coalesceの整合。
+- `checks_real_argument_exact`: 任意同入力で実checksの既存Models iff ある実型Tがeval済全所属区間に挟まれる。これは独立意味の全model族の存在であり、head捕捉の任意点選択ではない。
+- `checks_length`: 任意Bound型/有限区間列/有限slot数nで、生成checks長=区間数の二乗。
+- `append_checks_exact`: 任意同Bound/eval/Is/n/valuesと任意既存problemで、problem++checksのModels iff 元problemのModelsかつeval済coalesce整合。
+
+検証: `cd lean && lake build --wfail` exit0（694 jobs）。全16定理をAuditへ追記登録。
+候補確定・readiness・interval全resolver/全辞書のE1ではない。設計note完成後に構成した最初の新component。
+
+## B4r9 checkpoint 2: 既存ordinary atom/shared graphへの実生成（8定理）
+
+新規 `CommonRoleIntervalGeneration`。endpointは既存Presence TyTerm、出力は既存tyLe atom列。
+全ての任意入力は全称量化する。
+
+- `atom_exact`: 任意名前型α、任意Common computation割当てρ、任意既存Constraint 0 (TyTerm α) cで、実atom変換後のHolds iff 元既存templateのHolds。slotは0で中心を作らない。
+- `generate_exact`: 任意α/ρ/有限endpoint区間列Isで、実生成atom列のAll iff eval済coalesce区間のlo≤up。
+- `generate_real_argument_exact`: 任意同入力で実All iff ある実Common型Tがeval済全所属区間に挟まれる。独立意味の存在でありruntime捕捉の選択ではない。
+- `generate_length`: 任意α/Isで実生成atom数=区間数の二乗。
+- `append_exact`: 任意α/ρ/Is/既存finite atom列Aで、A++generate IsのAll iff AのAllかつeval済coalesce整合。
+- `compile_exact`: 任意有限slot数m/既存TyTerm(Fin m) endpoint区間列Is/任意Common computation割当てρで、eval済coalesce整合 iff 既存compile(generate Is)のある全node割当てがModelsを満たし、既存readbackがρと**等しい**。成功solver・grammar/support前提なし。元graphの未解消edgeは残す。
+- `compile_append_exact`: 任意m/Is/ρ/既存atom列Aで、AのAllかつcoalesce整合 iff 既存compile(A++generate Is)にModelsとρの同一readbackを持つ全node割当てが存在。
+- `compiled_reflects`: 任意m/A/Is/独立row割当て/全compiled node割当てについて、実compiled Modelsなら、その実readbackでAのAllとeval済coalesce整合が成立。arbitrary regular realizerを含む。
+
+検証: `cd lean && lake build --wfail` exit0（695 jobs）。全8定理をAuditへ追記登録。
+checkpoint1の独立reviewもtrust0/warningAsError exit0、全16量化と中心なし/既存生成を確認済み。
+これらはinterval整合・交差の実生成とgraph反映。candidate確定/readiness/全branch matcher/resolverの完成ではない。
