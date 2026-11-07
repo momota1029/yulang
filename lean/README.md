@@ -1989,3 +1989,19 @@ static action は arrow input を含む全 row 位置で同じであり、runtim
 fresh enter は片側 inverse なので、signed automorphism の順序 iff の対象としていない。
 source boundary 挿入、SCC 完了時点の visible freeze、一般 constructor-cycle saturation と rigid 全称消去、
 および全元 node valuations を回収する最終 solver family が残る。親 B3 は未完である。
+
+## M1 B3 追補: mixed lattice 全称と fresh scope の実 row solver 可換性
+
+`CommonEffectLatticeUniversals` は、operation-local 型が union/intersection の骨格に現れる
+conjunctive 比較を、実有限 Boolean tuple の top/bottom substitutions へ完全に全称消去する。
+同じ local の mixed occurrences を許し、captured whole 型を固定する。
+任意の depth/rank/環境/観測を扱うが、constraint OR、残る存在 witness、非 lattice constructor 内の local は対象としない。
+失敗時には元全称を保持する。`CommonEffectPreparedGeneration` の実 pipeline に接続済みである。
+
+`CommonEffectFreshExpression` は旧 scope ID を一つずらす実 signed RowExpr 変換と、
+任意 Common rows の明示 leading-zero embedding が評価と可換であることを証明する。
+`CommonSignedFreshGraph` / `CommonSignedFreshChoice` は、この extension を実 cyclic graph、
+pure/head checks、union upper の choice routing、返却 scheme 列、全 instantiation へ接続する。
+Boolean safety と parameter guards の真偽も保持し、preimage readback は全元 row IDs を文字どおり保つ。
+元 row parameters は無制約で、新 carrier の任意行を old image と同一視しない。
+whole source の boundary 挿入と一般 universal/value solver は未完のままである。

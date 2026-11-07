@@ -4442,3 +4442,17 @@ run_cmd do
 #print axioms Yulang.CommonEffectFreshExpression.lift_transport
 #print axioms Yulang.CommonEffectFreshExpression.eval_lift
 #print axioms Yulang.CommonEffectFreshExpression.inclusion_lift_exact
+
+#print axioms Yulang.CommonSignedFreshGraph.path_exact
+#print axioms Yulang.CommonSignedFreshGraph.safe_exact
+#print axioms Yulang.CommonSignedFreshGraph.safety_check
+#print axioms Yulang.CommonSignedFreshGraph.scheme_models_exact
+#print axioms Yulang.CommonSignedFreshGraph.solve_lift
+#print axioms Yulang.CommonSignedFreshGraph.instantiate_lift
+
+#print axioms Yulang.CommonSignedFreshChoice.supported_exact
+#print axioms Yulang.CommonSignedFreshChoice.safety_check
+#print axioms Yulang.CommonSignedFreshChoice.problem_models_exact
+#print axioms Yulang.CommonSignedFreshChoice.solve_lift
+#print axioms Yulang.CommonSignedFreshChoice.instantiate_lift
+#print axioms Yulang.CommonSignedFreshChoice.instantiate_pullback

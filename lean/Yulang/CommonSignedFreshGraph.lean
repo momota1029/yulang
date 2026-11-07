@@ -57,7 +57,7 @@ theorem path_reflect {original : Graph n} {source target : Fin n} {first last : 
     rw [same] at runs
     obtain ⟨middle, originalRun, middleSame⟩ := action_reflect originalEdge.action before next runs
     obtain ⟨after, afterSame, afterPath⟩ := ih middle middleSame.symm
-    exact ⟨after, afterSame, .cons originalMember originalRun afterPath⟩
+    exact ⟨after, afterSame, .cons (edge := originalEdge) originalMember originalRun afterPath⟩
 
 theorem path_exact (original : Graph n) (source target : Fin n) (first last : Occurrence) :
     Path (graph original) source (liftOccurrence first) target (liftOccurrence last) ↔ Path original source first target last := by
@@ -109,7 +109,7 @@ def scheme (original : CommonSignedGraphSolver.Scheme n) : CommonSignedGraphSolv
 
 theorem scheme_models_exact (original : CommonSignedGraphSolver.Scheme n) (rows : Fin n → Row) :
     CommonSignedGraphSolver.Models (scheme original) (fun index => liftRow (rows index)) ↔ CommonSignedGraphSolver.Models original rows := by
-  change (_ ∧ _) ↔ (_ ∧ _)
+  change (CommonSignedFlowFamily.Models (graph original.graph) (fun index => liftRow (rows index)) ∧ _) ↔ (_ ∧ _)
   rw [models_exact]
   apply and_congr_right
   intro _
@@ -129,5 +129,42 @@ theorem solve_lift (original : CommonSignedGraphSolver.Scheme n) :
     CommonSignedGraphSolver.solve (scheme original) = (CommonSignedGraphSolver.solve original).map scheme := by
   simp only [CommonSignedGraphSolver.solve, heads_check]
   cases CommonSignedGraphSolver.checkHeads original <;> rfl
+
+theorem forced_lift (original : CommonSignedGraphSolver.Scheme n) (target : Fin n) :
+    CommonSignedSeedFamily.forced (scheme original) target = liftRow (CommonSignedSeedFamily.forced original target) := by
+  funext occurrence
+  apply propext
+  constructor
+  · rintro ⟨head, member, path⟩
+    obtain ⟨oldHead, oldMember, rfl⟩ := List.mem_map.mp member
+    obtain ⟨after, same, oldPath⟩ := path_reflect path oldHead.2 rfl
+    exact ⟨after, ⟨oldHead, oldMember, oldPath⟩, same.symm⟩
+  · rintro ⟨after, ⟨head, member, path⟩, rfl⟩
+    exact ⟨(head.1, liftOccurrence head.2), List.mem_map.mpr ⟨head, member, rfl⟩, path_lift path⟩
+
+theorem parameter_lift (original : Graph n) (parameters : Fin n → Row) :
+    (CommonSignedFlowFamily.Scheme.mk (graph original)).instantiate (fun index => liftRow (parameters index)) =
+      fun index => liftRow ((CommonSignedFlowFamily.Scheme.mk original).instantiate parameters index) := by
+  funext slot occurrence
+  apply propext
+  constructor
+  · rintro ⟨source, seed, ⟨oldSeed, present, rfl⟩, safe, path⟩
+    obtain ⟨after, same, oldPath⟩ := path_reflect path oldSeed rfl
+    exact ⟨after, ⟨source, oldSeed, present, (safe_exact original source oldSeed).mp safe, oldPath⟩, same.symm⟩
+  · rintro ⟨after, ⟨source, seed, present, safe, path⟩, rfl⟩
+    exact ⟨source, liftOccurrence seed, ⟨seed, present, rfl⟩, (safe_exact original source seed).mpr safe, path_lift path⟩
+
+/-- Real computed-safety scheme interpretation, all unrestricted original
+parameters. No safety/model condition is imposed on those parameters. -/
+theorem instantiate_lift (original : CommonSignedGraphSolver.Scheme n) (parameters : Fin n → Row) :
+    CommonSignedGraphSolver.instantiate (scheme original) (fun index => liftRow (parameters index)) =
+      fun index => liftRow (CommonSignedGraphSolver.instantiate original parameters index) := by
+  rw [CommonSignedGraphSolver.instantiate_exact, CommonSignedGraphSolver.instantiate_exact]
+  funext slot
+  change Common.rowJoin (CommonSignedSeedFamily.forced (scheme original) slot)
+      ((CommonSignedFlowFamily.Scheme.mk (graph original.graph)).instantiate (fun index => liftRow (parameters index)) slot) =
+    liftRow (Common.rowJoin (CommonSignedSeedFamily.forced original slot)
+      ((CommonSignedFlowFamily.Scheme.mk original.graph).instantiate parameters slot))
+  rw [forced_lift, parameter_lift, CommonEffectFreshExpression.lift_join]
 
 end Yulang.CommonSignedFreshGraph
