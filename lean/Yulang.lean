@@ -628,3 +628,6 @@ import Yulang.CommonEffectPackedClauses
 import Yulang.CommonEffectFreshRows
 import Yulang.CommonEffectAnnotations
 import Yulang.CommonEffectScopedBounds
+import Yulang.CommonEffectAnnotationGeneration
+import Yulang.CommonEffectArmCoverage
+import Yulang.CommonEffectPartialIntegration

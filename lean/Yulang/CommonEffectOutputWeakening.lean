@@ -65,6 +65,11 @@ theorem typing_weaken {signatures : List SemanticSignature} {environment : List 
     exact .multiHandler found allowed actionTyped returnTyped arms
       (Common.subtype_trans values below.1) (Common.rowLe_trans rows below.2)
       (fun index types => comp_trans (bounds index types) below)
+  | partialHandler found allowed actionTyped returnTyped arms values rows bounds _ _ _ =>
+    intro target below
+    exact .partialHandler found allowed actionTyped returnTyped arms
+      (Common.subtype_trans values below.1) (Common.rowLe_trans rows below.2)
+      (fun index types => comp_trans (bounds index types) below)
   | mono bound => rename_i target below; exact .mono (comp_trans bound below)
   | poly pureTyped rows ih =>
     rename_i target below
@@ -176,4 +181,21 @@ theorem multi_handler_at_output_iff (signatures : List SemanticSignature) (envir
                .mono (Comp.pure Common.model (Comp.arrow Common.model
                  (Comp.pure Common.model (signature.output locals)) input)) :: environment) (bodies i) out := by
   simp only [Typing.multiHandler_separate_iff, arm_result_exact]
+theorem partial_handler_at_output_iff (signatures : List SemanticSignature) (environment : List (Binding scopes))
+    (permission : CommonEffectRequestGeneration.Permission) (operations : Fin count → CommonEffectArmCoverage.Arm)
+    (action onReturn : Expr scopes) (bodies : Fin count → Expr scopes) (out : Computation) :
+    Typing signatures environment (.partialHandler permission operations action onReturn bodies) out ↔
+      ∃ input returned,
+        Typing signatures environment action input ∧
+        Typing signatures (.mono (Comp.pure Common.model input.1) :: environment) onReturn returned ∧
+        Common.Subtype returned.1 out.1 ∧
+        Common.rowLe (Common.rowJoin (CommonSignedRows.commonResidual (partialKeys signatures operations) input.2)
+          returned.2) out.2 ∧
+        ∀ i, ∃ signature, signatures[(operations i).operation]? = some signature ∧ permission.allows signature.key = true ∧
+          ∀ locals : Fin signature.locals → Common.Ty,
+            Typing signatures
+              (.mono (Comp.pure Common.model (signature.input locals)) ::
+               .mono (Comp.pure Common.model (Comp.arrow Common.model
+                 (Comp.pure Common.model (signature.output locals)) input)) :: environment) (bodies i) out := by
+  simp only [Typing.partialHandler_separate_iff, arm_result_exact]
 end Yulang.CommonEffectOutputWeakening

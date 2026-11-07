@@ -224,4 +224,52 @@ theorem generate_many_same_holds (signatures : List SemanticSignature) {declarat
   (generate_many_exact signatures schemes environment assignment related permission operations action onReturn bodies out).trans
     (CommonEffectRecursiveExact.generate_recursive_effect_exact signatures
       (.multiHandler permission operations action onReturn bodies) schemes environment assignment out related).symm
+def generatePartial (declarations : Declarations α) (schemes : SchemeEnv scopes α)
+    (permission : CommonEffectRequestGeneration.Permission) (operations : Fin count → CommonEffectArmCoverage.Arm)
+    (action onReturn : Expr scopes) (bodies : Fin count → Expr scopes) (out : CompTerm α) : Formula scopes α :=
+  .existsSlot (.existsSlot (.and
+    (generate (decl₂ declarations) (env₂ schemes) action fresh₀)
+    (.and (generate (decl₂ declarations) (Scheme.mono (CompTerm.pure fresh₀.ty) :: env₂ schemes) onReturn fresh₁)
+      (.and (baseChecks (declarationPartialKeys declarations operations) fresh₀ fresh₁ (lift₂ out))
+        (CommonEffectUniversalArms.andAll ((List.finRange count).map (fun i =>
+          checkedArm (decl₂ declarations) (env₂ schemes) permission ((operations i).operation) fresh₀ (lift₂ out) (bodies i))))))))
+
+theorem generate_partial_exact (signatures : List SemanticSignature) {declarations : Declarations α}
+    (schemes : SchemeEnv scopes α) (environment : List (Binding scopes)) (assignment : α → Computation)
+    (related : ContextRel signatures declarations assignment schemes environment)
+    (permission : CommonEffectRequestGeneration.Permission) (operations : Fin count → CommonEffectArmCoverage.Arm)
+    (action onReturn : Expr scopes) (bodies : Fin count → Expr scopes) (out : CompTerm α) :
+    (generatePartial declarations schemes permission operations action onReturn bodies out).Holds assignment ↔
+      Typing signatures environment (.partialHandler permission operations action onReturn bodies) (out.eval Common.model assignment) := by
+  have actionExact (a b : Computation) :=
+    CommonEffectRecursiveExact.generate_recursive_effect_exact signatures action
+      (env₂ schemes) environment (extend (extend assignment a) b) fresh₀ ((related.lift a).lift b)
+  have returnExact (a b : Computation) :=
+    CommonEffectRecursiveExact.generate_recursive_effect_exact signatures onReturn
+      (Scheme.mono (CompTerm.pure fresh₀.ty) :: env₂ schemes) _ (extend (extend assignment a) b) fresh₁
+      (((related.lift a).lift b).mono (CompTerm.pure fresh₀.ty))
+  have armExact (a b : Computation) (i : Fin count) :=
+    checkedArm_exact signatures (env₂ schemes) environment (extend (extend assignment a) b)
+      ((related.lift a).lift b) permission ((operations i).operation) fresh₀ (lift₂ out) (bodies i)
+  have keys : partialKeys signatures operations = declarationPartialKeys declarations operations := by
+    rw [← related.declarations, declarationPartialKeys_interpret]
+  have same (a b : Computation) : extend (extend assignment a) b ∘ (fun name => some (some name)) = assignment := rfl
+  rw [CommonEffectOutputWeakening.partial_handler_at_output_iff]
+  simp only [generatePartial, Formula.Holds, andAll_fin]
+  simp only [decl₂, env₂, fresh₀, fresh₁, lift₂] at actionExact returnExact armExact ⊢
+  simp only [actionExact, returnExact, armExact, baseChecks_exact]
+  simp only [CompTerm.eval_var, CompTerm.eval_rename, extend_none, extend_some,
+    same, and_assoc, keys]
+  rfl
+
+theorem generate_partial_same_holds (signatures : List SemanticSignature) {declarations : Declarations α}
+    (schemes : SchemeEnv scopes α) (environment : List (Binding scopes)) (assignment : α → Computation)
+    (related : ContextRel signatures declarations assignment schemes environment)
+    (permission : CommonEffectRequestGeneration.Permission) (operations : Fin count → CommonEffectArmCoverage.Arm)
+    (action onReturn : Expr scopes) (bodies : Fin count → Expr scopes) (out : CompTerm α) :
+    (generatePartial declarations schemes permission operations action onReturn bodies out).Holds assignment ↔
+      (generate declarations schemes (.partialHandler permission operations action onReturn bodies) out).Holds assignment :=
+  (generate_partial_exact signatures schemes environment assignment related permission operations action onReturn bodies out).trans
+    (CommonEffectRecursiveExact.generate_recursive_effect_exact signatures
+      (.partialHandler permission operations action onReturn bodies) schemes environment assignment out related).symm
 end Yulang.CommonEffectNormalHandler

@@ -4356,3 +4356,17 @@ run_cmd do
 #print axioms Yulang.CommonEffectScopedBounds.eliminate_exact
 #print axioms Yulang.CommonEffectScopedBounds.uniform_witness_exact
 #print axioms Yulang.CommonEffectScopedBounds.universal_elimination_exact
+
+#print axioms Yulang.CommonEffectAnnotationGeneration.generate_annotated_handler_exact
+#print axioms Yulang.CommonEffectAnnotationGeneration.annotated_handler_permission
+#print axioms Yulang.CommonEffectAnnotationGeneration.generated_frozen_check_exact
+
+#print axioms Yulang.CommonEffectArmCoverage.resolved_removedKeys
+
+#print axioms Yulang.CommonEffectRecursiveSource.Typing.partialHandler_iff
+#print axioms Yulang.CommonEffectRecursiveSource.Typing.partialHandler_separate_iff
+
+#print axioms Yulang.CommonEffectOutputWeakening.partial_handler_at_output_iff
+#print axioms Yulang.CommonEffectNormalHandler.generate_partial_exact
+#print axioms Yulang.CommonEffectNormalHandler.generate_partial_same_holds
+#print axioms Yulang.CommonEffectPartialIntegration.resolved_keys_exact
