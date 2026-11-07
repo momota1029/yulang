@@ -4016,3 +4016,9 @@ run_cmd do
 #print axioms Yulang.CommonLegacyWitnessPositive.Agrees.record
 #print axioms Yulang.CommonLegacyWitnessPositive.Agrees.arrow
 #print axioms Yulang.CommonLegacyWitnessPositive.Agrees.upper_reflected
+
+#print axioms Yulang.CommonLegacyWitnessSource.value_agrees
+#print axioms Yulang.CommonLegacyWitnessSource.reconstruct
+#print axioms Yulang.CommonLegacyWitnessSource.typing_exact
+#print axioms Yulang.CommonLegacyWitnessSource.shared_witness_recovery
+#print axioms Yulang.CommonLegacyWitnessSource.legacy_instances_reflected
