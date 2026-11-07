@@ -3978,3 +3978,9 @@ run_cmd do
 #print axioms Yulang.CommonCoreNamedCase.rejected_iff
 #print axioms Yulang.Core.CommonSyntax.covered_case_iff
 #print axioms Yulang.Core.CommonSyntax.lowering_exact
+#print axioms Yulang.CommonSolvedCoreSyntax.infer_embed
+#print axioms Yulang.CommonSolvedCoreSyntax.all_parameter_sound
+#print axioms Yulang.CommonSolvedCoreSyntax.principal
+#print axioms Yulang.CommonSolvedCoreSyntax.empty_iff_untypable
+#print axioms Yulang.CommonSolvedCoreSyntax.presence_schemes
+#print axioms Yulang.CommonSolvedCoreSyntax.presence_typing_preserved

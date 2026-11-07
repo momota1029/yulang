@@ -540,3 +540,4 @@ import Yulang.CoreCommonData
 
 import Yulang.CommonCoreNamedCase
 import Yulang.CoreCommonSyntaxExact
+import Yulang.CommonSolvedCoreSyntax
