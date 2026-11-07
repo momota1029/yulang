@@ -127,6 +127,33 @@ role Doc 'output:
 - **速さは未検証。** 一つの型変数に積む制約が、能力の role の数に比例する形になる。数を小さく保てば軽いはずだが、M1 の求解が出るまで測れない。
 - **文書の持ち方。** `self` 型の値（初期表現）と、`'r: Doc` を満たす多相な式（終端表現、B1）は、同型。AST の型を `Doc` の自由な `impl` にすれば、両方が使える。どちらを主にするかは、ユーザーに確認したい。
 
+### 確認（ユーザー, 2026-11-07）: 文書は自分の型を持つ値（初期表現）
+
+`render: self -> 'output` の `self` は、AST のような初期表現の文書の型。`render` が、出力 `'output` への解釈になる。
+
+**今の spec の構文でも書ける。** `self` を新しい型の書き方にしなくても、role の最初の型引数を文書の型にすればよい（`Index 'container 'key` の `'container` が receiver なのと同じ）。
+
+```yulang
+role Doc 'doc 'output:
+    our doc.render: 'output
+
+role Output 'o:
+    our empty: () -> 'o
+    our o.push: str -> 'o
+```
+
+`doc.render: 'output` は、receiver を適用した後の型（`Add` の `a.add: 'a -> 'a` と同じ読み）。`impl Doc my_doc html` と `impl Doc my_doc latex` を別々に書き、`my s: html = d.render` のように、結果の型で選ぶ。
+出力を組み立てる側（`concat` に当たる部分）は、`Output 'o` のような別の role にすると、`empty` に **B1（receiver の無い member）がそのまま使える**。`'output` の操作は、`'output: Output` の制約として、最後の型解決で決まる。
+
+**初期表現にしたことで変わる点。**
+
+- **出力ごとの能力が、型に自動では出ない。** 終端表現（B1）なら、`HtmlRaw` のような命令を使うと `'r: HtmlRaw` の制約が積まれた。初期表現では、html 専用の node も同じ AST の構成子で、`latex` への `render` が、その node をどうするかが型に現れない。
+  - (1) 対応しない node は、`render` のときの実行時の扱い（エラー値、または代替の表示）にする。
+  - (2) 案 K のように、文書の型に出力の集合を持たせる（`doc(html, latex)`）。
+  - (3) 初期表現を、終端表現から作る（AST を `Doc` の自由な instance にする）。著者は終端表現で書き、能力の制約は終端側で検査し、AST は解析（目次・脚注・相互参照）のために使う。
+- **私の推奨**: 最初は (1)。(2) は型の核に新しい種類を足すので、必要になってから足す。(3) は後から重ねられる。
+- 初期表現には、見出しを集めて目次を作る、脚注を番号づけする、のような**文書全体の解析**が書きやすい利点がある。
+
 ## Yumark の TeX 風コマンドとの関係
 
 Yumark の command（`\emph{...}` のような形。`notes/design/2026-09-01-doc-comment-yumark-addendum.md`）は、文書の中の呼び出しとして読める。
