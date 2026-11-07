@@ -4478,3 +4478,10 @@ run_cmd do
 #print axioms Yulang.CommonEffectDepthChoiceBoundary.finite_depth_compactness_fails
 #print axioms Yulang.CommonEffectDepthChoiceBoundary.overloaded_callable
 #print axioms Yulang.CommonEffectDepthChoiceBoundary.inter_arrow_disjunction_fails
+
+#print axioms Yulang.CommonEffectArrowCover.argument_family
+#print axioms Yulang.CommonEffectArrowCover.family_subtype_exact
+
+#print axioms Yulang.CommonEffectArrowFamily.subtype_components
+#print axioms Yulang.CommonEffectArrowFamily.components_subtype
+#print axioms Yulang.CommonEffectArrowFamily.family_subtype_exact

@@ -653,3 +653,5 @@ import Yulang.CommonEffectRankMonotonicity
 import Yulang.CommonEffectRankCompactness
 import Yulang.CommonEffectDepthBoundary
 import Yulang.CommonEffectDepthChoiceBoundary
+import Yulang.CommonEffectArrowCover
+import Yulang.CommonEffectArrowFamily
