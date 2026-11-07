@@ -81,4 +81,9 @@ theorem declared_child_endpoints (count : Nat) :
       (childTemplate.eval (fun _ => eval Empty.elim (bounds count).1),
        childTemplate.eval (fun _ => eval Empty.elim (bounds count).2)) := rfl
 
+/-- The approved sort of declaration descent check rejects this growing
+template. The sequence is not a counterexample to an accepted program. -/
+theorem growing_rejected :
+    CommonRoleStablePaterson.check growingDeclaration = false := by decide +kernel
+
 end Yulang.CommonRoleIntervalReadyChain
