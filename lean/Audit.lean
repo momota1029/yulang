@@ -4063,3 +4063,11 @@ run_cmd do
 #print axioms Yulang.DemandBoundPropagation.request_exact
 #print axioms Yulang.DemandBoundPropagation.lower_exact
 #print axioms Yulang.DemandBoundPropagation.upper_exact
+#print axioms Yulang.CommonDemandSolver.request_exact
+#print axioms Yulang.CommonDemandSolver.finishAll_exact
+#print axioms Yulang.CommonDemandSolver.finishAll_rejected_iff
+#print axioms Yulang.CommonDemandSolver.all_parameter_sound
+#print axioms Yulang.CommonDemandSolver.finishCore_exact
+#print axioms Yulang.CommonDemandSolver.finishCore_principal
+#print axioms Yulang.CommonDemandSolver.finishCore_instantiates
+#print axioms Yulang.CommonDemandSolver.finishCore_rejected_iff
