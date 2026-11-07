@@ -589,3 +589,10 @@ import Yulang.CommonRoleWhereObstructions
 import Yulang.CommonRoleHeadDetermination
 import Yulang.CommonRoleWhereExactness
 import Yulang.CommonRoleComputation
+import Yulang.CommonRoleLinearClock
+import Yulang.CommonRoleLinearMatching
+import Yulang.CommonRoleLinearSimulation
+import Yulang.CommonRoleLinearEvidence
+import Yulang.CommonRoleLinearInterpreter
+import Yulang.CommonRoleTuringBridge
+import Yulang.CommonRoleLinearDictionaries
