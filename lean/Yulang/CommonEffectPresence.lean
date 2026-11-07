@@ -266,7 +266,8 @@ theorem generate_presence_exact (e : Expr)
           simpa [env₂, fresh₀, fresh₁, CompTerm.pure, Comp.pure,
             CompTerm.var, CompTerm.eval, TyTerm.eval, RowTerm.eval]
             using ihb _ _ _ fresh₁ (((henv.lift a).lift b).mono (CompTerm.pure fresh₀.ty))
-        simp only [mono, Formula.Holds,         apply exists_congr; intro a
+        simp only [mono, Formula.Holds, ]
+        apply exists_congr; intro a
         apply exists_congr; intro b
         rw [ha, hb]
         simp [Formula.compLe, Core.PresenceGeneration.Formula.compLe, Formula.Holds, Core.PresenceGeneration.Formula.Holds, Comp.le, CompTerm.eval, CompTerm.var,

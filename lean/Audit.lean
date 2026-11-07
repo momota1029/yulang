@@ -4230,3 +4230,10 @@ run_cmd do
 
 #print axioms Yulang.CommonEffectArmGeneration.generate_arms_exact
 #print axioms Yulang.CommonEffectArmGeneration.aggregate_bounds_iff
+
+#print axioms Yulang.CommonEffectPresence.generate_presence_exact
+
+#print axioms Yulang.CommonEffectDeclarationInterpretation.interpret_rename
+#print axioms Yulang.CommonEffectDeclarationInterpretation.interpretAll_extend
+#print axioms Yulang.CommonEffectDeclarationInterpretation.interpretAll_local
+#print axioms Yulang.CommonEffectDeclarationInterpretation.wellKinded_renameAll
