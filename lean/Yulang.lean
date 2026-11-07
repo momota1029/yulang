@@ -664,3 +664,8 @@ import Yulang.CommonNominalOptionalInspection
 import Yulang.CommonNominalBoundInspection
 import Yulang.CommonNominalOuterLabels
 import Yulang.CommonNominalFiniteRecordTail
+import Yulang.CommonNominalClosedBlock
+import Yulang.CommonNominalTemplateEquations
+import Yulang.CommonNominalTemplateLowering
+import Yulang.CommonNominalOrdinaryTemplates
+import Yulang.CommonNominalTemplateCongruence
