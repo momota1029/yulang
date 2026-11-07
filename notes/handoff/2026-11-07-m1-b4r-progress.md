@@ -1009,3 +1009,16 @@ E1/E2には未到達。今回の明示指示とcontract addendumに従い、未�
 full stable checker/N、全regular matcher/resolver/exact nested dictionary、一般finite-tree/nominal agreement、qualified実生成/全familyは残る。
 これらを外部support/fuel/success仮定へ移した同名E1や、任意Common splitを仮定したE2は出していない。
 prover role不在、primary構成/別agent監査。公開入口/spec/旧結果を変更せず、commit/push/networkなし。
+
+## B4r8 開始（2026-11-08）
+
+開始HEAD `3f9adabdce5f5152c0c85c1eb8757dc64b9ccb3c`、開始時tree clean。
+第七回の問いの選択肢3（non-variable payloadをsplit/coverしない）がspec6.3の確定本文へ入ったことを確認。
+既存のE2、component証明、旧resultsを保持する。拒否先行は未決のworking choiceのまま。
+prover roleの登録・callable surfaceは今回も無く、primaryによる構成と独立read-only監査を使う。
+
+全regular型を単なるgraph IDの等号で比較する置換は採用しない。
+同じplain変数が複数箇所に現れると、捕捉値の要求同値を検査する必要があるためである。
+また、同tag payload内のNはsyntactic idempotenceだけでは足りず、any/neverのunion則、
+tuple/arrow等の既存Common coalescingを保つ必要がある。
+これらは追加E2ではなく、全matcherとfinite-view下降への証明義務として扱う。
