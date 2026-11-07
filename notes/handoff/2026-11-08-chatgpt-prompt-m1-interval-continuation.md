@@ -4,6 +4,17 @@ ChatGPT は回数制のため、**この 1 回の依頼で、できる限り先�
 前回の Pro の依頼(`2026-11-07-chatgpt-prompt-m1-next.md` ほか)の後、Codex のワーカー(Astra・Sol)が約 1 日、M1 の各目標を並行で進めた。
 ユーザーの判断で、**その状態のまま(死んだところまで)ここで打ち切り、続きを Pro に渡す**。ワーカーの結果は、ビルドと Audit を再実行して確認した統合ブランチに入っている。
 
+## 貼る用のブロック
+
+```text
+yulang の integration/m1-final ブランチ(https://github.com/momota1029/yulang)を pull して、続きを進めてください。
+最初に notes/handoff/2026-11-08-chatgpt-prompt-m1-interval-continuation.md を読み、そこに書いてあるとおりに進めてください。
+途中で私に確認を取らずに、できるところまで自走し、こまめに push してください(小さな単位、定理一つ・補題一つごとに commit と push)。
+新しいブランチは切らず、integration/m1-final をそのまま続けてください。yulang3 と integration/types には push しないでください。
+最初に、cd lean && lake build --wfail && lake env lean --trust=0 Audit.lean が通ることを確かめてください。
+最初の作業は「作業 0: モデルの忠実性の監査」です。notes/reference/ の旧世代の文書(不変区間規則)を、最初に読んでください。
+```
+
 ## 一番大事なこと(これまでの誤りと、正しいモデル)
 
 Codex のワーカーは、**role の解決と nominal の不変性を、「型を点として扱う」モデル**(`Common.Equivalent` と「∃ 代入」)で、大量に証明した。ビルドも Audit も通るが、**モデルが実際の規則と違った**。
