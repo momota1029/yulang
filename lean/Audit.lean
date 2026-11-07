@@ -4012,3 +4012,7 @@ run_cmd do
 #print axioms Yulang.CommonCanonicalCurriedExports.scheme_instances_exact
 #print axioms Yulang.CommonCanonicalCurriedExports.interface_canonicalEncoding_exact
 #print axioms Yulang.CommonCanonicalCurriedExports.finishModule_exact
+
+#print axioms Yulang.CommonLegacyWitnessPositive.Agrees.record
+#print axioms Yulang.CommonLegacyWitnessPositive.Agrees.arrow
+#print axioms Yulang.CommonLegacyWitnessPositive.Agrees.upper_reflected

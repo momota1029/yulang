@@ -547,3 +547,5 @@ import Yulang.CommonCanonicalCurriedTransfer
 import Yulang.CommonCanonicalCurriedFamilies
 
 import Yulang.CommonCanonicalCurriedExports
+
+import Yulang.CommonLegacyWitnessPositive
