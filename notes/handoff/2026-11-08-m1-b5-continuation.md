@@ -161,3 +161,18 @@ attachment を生成するかを定義しない。同じ元 slot を複数 occur
 検証: 対象 module の `lake build --wfail` 成功。主要定理の直接 `trust=0` 監査は
 `[propext, Classical.choice, Quot.sound]` のみ。未証明の source attachment provenance と
 full nominal carrier の範囲は §3–§4 のままである。
+
+## 7. 実 source 生成 clause の不変区間つき全-instance iff
+
+同 module の `generated_models_exact`:
+
+> 任意の元 `Inference.Expr`、実 presence principal generator の normalise が返す任意の
+> clause、任意の有限宣言表、任意の元 packed slot 上の比較列／occurrence 列、任意の
+> 独立な元 computation assignment に対して、元 clause と全宣言比較／不変区間の同時
+> 充足 iff 実返却 scheme と無制約の parameter による全元 slot の同時回収。
+
+§6 の元 clause 文法条件を実生成の事実からすべて内部で導く。
+nominal 比較と occurrence は引き続き元 slot を参照する外部 metadata であり、source
+構文がこの metadata を生成するとの主張には拡張していない。
+検証: 対象 warning-as-error build 成功、直接 `trust=0` 監査は
+`[propext, Classical.choice, Quot.sound]` のみ。

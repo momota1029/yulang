@@ -18,7 +18,7 @@ namespace Yulang.CommonDeclaredInvariantSourceFamily
 
 open Common (Row)
 open Core.PresenceGeneration (Comp)
-open PresenceNormalForm (Atom All)
+open PresenceNormalForm (Atom All Clause normalise)
 open CommonDeclaredNominalInspection (Registry)
 open CommonDeclaredNominalSlots (Comparison)
 open CommonDeclaredInvariantBounds (Occurrence inspectAll)
@@ -121,5 +121,22 @@ theorem solve_all_instances_exact (registry : Registry) (original : List (Atom (
     exact (CommonDeclaredNominalSourceFamily.solve_all_instances_exact registry (original ++ bounds) comparisons
       (child.append boundsChild) (width.append boundsWidth) (rows.append boundsRows) assignment).mpr
         ⟨scheme, member, rowParameters, parameters, same⟩
+
+/-- Actual clauses from the existing inference source generator discharge
+all original-clause grammar premises. Occurrence provenance is still external. -/
+theorem generated_models_exact (expression : Inference.Expr) (clause : Clause (Option Empty))
+    (generated : clause ∈ normalise (Core.PresenceGeneration.principal
+      ([] : Core.PresenceGeneration.SchemeEnv Empty) expression))
+    (registry : Registry) (comparisons : List (Comparison (Fin (clause.locals + 1))))
+    (occurrences : List (Occurrence (Fin (clause.locals + 1))))
+    (assignment : Fin (clause.locals + 1) → Comp Common.model) :
+    Models registry clause.pack comparisons occurrences assignment ↔
+      ∃ scheme ∈ solve registry clause.pack comparisons occurrences,
+        ∃ rowParameters : Fin (clause.locals + 1) → Row, ∃ parameters : scheme.Parameters,
+          AssignmentEquivalent (scheme.instantiate rowParameters parameters) assignment :=
+  solve_all_instances_exact registry clause.pack comparisons occurrences
+    (PresenceGeneratedChildGrammar.generated_child_grammar expression clause generated)
+    (PresenceGeneratedWidth.generated_width_atoms expression clause generated)
+    (PresenceSourceConstraintSupport.generated_row_shapes expression clause generated) assignment
 
 end Yulang.CommonDeclaredInvariantSourceFamily

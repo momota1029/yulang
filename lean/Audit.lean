@@ -5948,3 +5948,5 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredInvariantSourceFamily.all_parameters_models
 
 #print axioms Yulang.CommonDeclaredInvariantSourceFamily.solve_all_instances_exact
+
+#print axioms Yulang.CommonDeclaredInvariantSourceFamily.generated_models_exact
