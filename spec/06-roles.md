@@ -274,5 +274,9 @@ enum app_err:
   既存の宣言 checker が受理する規則 `R(F(G(G a), b)) requires R(F(a, G b))` と、再帰型 `A ≈ G A` から、要求同値でも再訪しない goal の無限列が作れ（`chain_fresh`）、
   自然数の減少による停止の議論は不可能（`no_natural_descent_measure`）と証明された。
   ただし、Yulang のソースからこの goal が実際に生成できるかは未確認で、B4 自体が偽とも決定不能とも示されていない。決める話ではなく、未決として書き残す。
+  **2026-11-07 の更新**: B4 の Lean 検証（`CommonRoleRegularResolutionObstruction.amended_registry_undecidable`）で、宣言 checker を通る registry から、再帰型の goal の解決可否が停止問題と同じ難しさになることが証明された。
+  つまり「構造的に小さい」という宣言時の規則だけでは、再帰型を含む goal の停止は保証できない。
+  ユーザーの決定（2026-11-07）: role 単位の非巡回の検査（`Display (list 'a)` が `Display 'a` を要求する宣言まで弾く案）は**採らない**。引数が小さくなる再帰は許す。
+  残る未決（Yulang のコードに現れる）: 再帰型を role の型引数に渡す goal を、どう扱うか。選択肢は、(a) 再帰型を含む goal の解決を拒否または曖昧として報告する、(b) 再帰型でも停止を保証する追加の宣言検査を設ける（その十分性は未証明）。ユーザーに 1 問ずつ聞く。
 
 （I1〜I6 は反映済み。J4 で cast の有効範囲を確定。）
