@@ -77,4 +77,44 @@ theorem required_lookup (fields : CaseValues.Bindings Empty)
             obtain ⟨value, found, valid⟩ := ih _ tail tailRequired
             exact ⟨value, by simpa [CaseValues.lookup, same] using found, valid⟩
 
+/-- Optional Common observations constrain the actual value when lookup finds
+one. The premise preserves known absence separately: it does not invent a
+field or execute a fallback. All Common source/payload assignments are allowed. -/
+theorem optional_lookup (fields : CaseValues.Bindings Empty)
+    (source : Comp Common.model) (label : Nat) (payload : Common.Ty) (value : Value)
+    (typed : ValueTyping Common.model (.record fields) source)
+    (optional : OptionalPayload label source.1 payload)
+    (found : CaseValues.lookup label fields = some value) :
+    ValueTyping Common.model value (Comp.pure Common.model payload) := by
+  induction fields generalizing source with
+  | nil => simp [CaseValues.lookup] at found
+  | cons field rest ih =>
+      rcases field with ⟨current, item⟩
+      cases typed with
+      | @record _ a _ b _ _ head tail width bounded =>
+          have selected : OptionalPayload label (Common.record current a.1 b.1) payload := by
+            intro depth rank env obs accepted
+            exact (CommonFinite.producerLe_iff_probe _ _).mp (bounded.1 (depth + 1))
+              rank env (.optional label obs) (optional depth rank env obs accepted)
+          by_cases same : label = current
+          · subst current
+            have equal : item = value := by simpa [CaseValues.lookup] using found
+            subst item
+            exact typing_change_result head (Comp.pure Common.model payload)
+              ((CommonDefaultRequired.optionalPayload_record_same label _ _ payload).mp selected)
+          · have tailOptional : OptionalPayload label b.1 payload := by
+              intro depth rank env obs accepted
+              have observed := selected depth rank env obs accepted
+              change CommonFinite.ProbeAt _ rank env (.record current _ _)
+                (.optional label obs) at observed
+              rw [CommonFinite.probeAt_record_optional] at observed
+              simp only [same, ↓reduceIte] at observed
+              rcases observed with observed | trivial
+              · exact observed
+              · subst obs
+                apply (CommonFinite.producerLe_iff_probe _ _).mp (width (depth + 1))
+                  rank env (.optional label .trivial)
+                cases rank <;> rfl
+            exact ih _ tail tailOptional (by simpa [CaseValues.lookup, same] using found)
+
 end Yulang.CommonPatternLookup

@@ -4113,3 +4113,4 @@ run_cmd do
 #print axioms Yulang.CommonPatternDefaults.default_input_generation_exact
 #print axioms Yulang.CommonPatternLookup.typing_change_result
 #print axioms Yulang.CommonPatternLookup.required_lookup
+#print axioms Yulang.CommonPatternLookup.optional_lookup
