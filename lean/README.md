@@ -1923,3 +1923,39 @@ qualified generator 単体の不可能性、全 parameter family の E1、K2 の
 source semantic elaborator の完成は証明していない。修正案は
 [未承認の質問](../notes/questions/2026-11-07-b4-associated-head-recovery.md)、詳細と検証結果は
 [B4 結果](../notes/handoff/2026-11-07-m1-b4-results.md)に記す。
+
+## B4 継続 E2: 承認済み関連型条件の下でも正則 role 解決は決定不能（2026-11-07）
+
+初回の関連型 E2 を受け、ユーザーは意味的宣言条件 `HeadDeterminesAssociated` を承認した。
+今回の `CommonRoleRegularResolutionObstruction.amended_registry_undecidable` は、
+修正後の `WellFormed D ∧ HeadDeterminesAssociated D` の下でも、全有限正則 goal の
+成功／拒否／曖昧性を必ず停止して正確に返す resolver が存在しないことを示す。
+
+任意の有限 Code program と有限 Tree input を、五 role、二引数、有限個の実 `Roles.Impl` に翻訳する。
+各 transition impl は一つの where child を持ち、実 Paterson checker を通る。
+第一引数は既存の一 node / 一 back edge の正則 clock である。
+コピーも明示的な有限の線形 rewrite に分解し、実変数出現回数検査を回避していない。
+重複 rule を除去し declaration key を共有するため、候補 ambiguity は生じない。
+すべての実 associated RHS は `int` であり、実宣言時 checker から
+任意 Common 代入に対する承認済み条件を導く。
+
+`CommonRoleActualEvidence` は、固定 int/pair/variant 解釈によって実 Impl の head / where を直接読む
+独立 evidence と Type Dictionary を定義する。同じ visible 集合を全 child に使い、
+消去先は既存 `RoleDictionaries.Plan` である。
+`actual_dictionary_exact` は任意 code/input で、追加前提なしに、その有限辞書の存在 iff
+独立した program の有限停止評価を示す。
+
+`CommonRoleRegularWire` は実 registry・associated bodies・有限 signature・正則 goal を有限 Tree に保持する。
+固定 `queryCode` がその query を構成する。
+`CommonRoleTuringDelimited` の入力は終端付きの binary tape で、EOF や list 長の oracle を持たない。
+`no_total_actual_regular_resolver` は、この具体的な有限入力の全 code/input に対して停止し、
+成功 iff 実有限辞書の存在を判定する有限 tape machine の存在を否定する。
+任意 `Theory`、任意 decoder、semantic row predicate を入力とする Bool checker は使わない。
+
+E2 は修正後 registry exactness の必要成分に対するもの。単独の finite qualified constraint generator の
+不可能性、qualified 全 parameter family の E1、公開 `Core.infer` への統合は主張しない。
+`CommonRoleHeadDetermination` と実 associated-field checker は decidable な十分条件であり、
+全宣言言語の checker 完全性は証明していない。
+K1 はこの還元に関係しない。K2 の修正案は
+[未承認の提案](../notes/questions/2026-11-07-b4-regular-resolution-decidability.md)に記録した。
+主定理を Audit に登録し、全体 build 622 jobs と trust=0 allowlist 52025 declarations が通過した。

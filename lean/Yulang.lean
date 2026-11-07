@@ -604,3 +604,7 @@ import Yulang.CommonRoleLinearRepresentation
 import Yulang.CommonRoleRegularRegistry
 import Yulang.CommonRoleLinearExecution
 import Yulang.CommonRoleRegularHalting
+import Yulang.CommonRoleRegularWire
+import Yulang.CommonRoleRegularUndecidability
+import Yulang.CommonRoleActualEvidence
+import Yulang.CommonRoleRegularResolutionObstruction
