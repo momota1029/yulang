@@ -1954,3 +1954,10 @@ constructor ごとに新 carrier へ保持する。旧 block は `State.common` 
 `CommonNominalGuardedRowSolver` は有限 RowTerm、実 row-head/flow/pure solver、その mixed graph を組み合わせる。
 全無制約 parameter が元 Models を満たし、元全行・自由型 assignment を等号、全 node 値を要求同値で回収する。
 任意 subtype inequality / unguarded equation / 実 construction source 生成を含む全 solver の完了は主張しない。
+
+
+`CommonNominalInvariantGraphSolver` は、共有自由型 slot の有限等価辺を代表元により実際に求解してから、
+guarded mixed constructor graph と row-head/flow/pure family を組み合わせる。
+全 row/type parameter は無制約であり、全元行を等号、全自由型と全 node を要求同値で同時に回収する。
+`CommonNominalGuardedClosure.parameter_congr` が negative/invariant 引数を含む再帰閉包の合同性を保証する。
+一般 subtype bounds と任意 constructed-node 等価辺、および実 source construction generator は別の未完義務である。

@@ -168,6 +168,25 @@ theorem all_models_recovered (problem : Problem size) (assignment : Fin size →
     (representative_related problem.rowEdges index)
   exact ⟨⟨types.2, types.1⟩, rows.symm⟩
 
+/-- The original assignment itself supplies parameters for the component
+retraction. This explicit witness composes with guarded constructor closure. -/
+theorem direct_retraction (problem : Problem size) (assignment : Fin size → Comp model)
+    (models : problem.Models assignment) (index : Fin size) :
+    Equivalent
+      (problem.instantiate ⟨fun slot => (assignment slot).1, fun slot => (assignment slot).2⟩ index).1
+      (assignment index).1 ∧
+    (problem.instantiate ⟨fun slot => (assignment slot).1, fun slot => (assignment slot).2⟩ index).2 =
+      (assignment index).2 := by
+  have types := related_property Equivalent (fun _ => ⟨subtype_refl _, subtype_refl _⟩)
+    (fun same => ⟨same.2, same.1⟩)
+    (fun before after => ⟨subtype_trans before.1 after.1, subtype_trans after.2 before.2⟩)
+    problem.valueEdges (fun slot => (assignment slot).1) models.1
+    (representative_related problem.valueEdges index)
+  have rows := related_property Eq (fun _ => rfl) Eq.symm Eq.trans
+    problem.rowEdges (fun slot => (assignment slot).2) models.2
+    (representative_related problem.rowEdges index)
+  exact ⟨⟨types.2, types.1⟩, rows.symm⟩
+
 end Yulang.CommonNominalSlotSolver
 
 namespace Yulang.CommonNominalSlotSolver

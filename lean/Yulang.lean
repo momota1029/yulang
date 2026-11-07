@@ -611,3 +611,6 @@ import Yulang.CommonNominalMaskOrder
 import Yulang.CommonNominalLayerCongruence
 import Yulang.CommonNominalGuardedClosure
 import Yulang.CommonNominalGuardedRowSolver
+import Yulang.CommonParametricCastRegularObstruction
+import Yulang.CommonNominalInvariantGraphSolver
+import Yulang.CommonNominalFieldTemplates

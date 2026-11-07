@@ -4247,3 +4247,15 @@ run_cmd do
 #print axioms Yulang.CommonNominalGuardedRowSolver.all_parameters_models
 #print axioms Yulang.CommonNominalGuardedRowSolver.pure_row_empty
 #print axioms Yulang.CommonNominalGuardedRowSolver.solve_all_instances_exact
+#print axioms Yulang.CommonParametricCastRegularObstruction.declaration_accepted
+#print axioms Yulang.CommonParametricCastRegularObstruction.loop_unfold
+#print axioms Yulang.CommonParametricCastRegularObstruction.fire_chain
+#print axioms Yulang.CommonParametricCastRegularObstruction.chain_step
+#print axioms Yulang.CommonParametricCastRegularObstruction.chain_equivalent_iff
+#print axioms Yulang.CommonParametricCastRegularObstruction.no_finite_regular_endpoint_universe
+#print axioms Yulang.CommonNominalSlotSolver.direct_retraction
+#print axioms Yulang.CommonNominalGuardedClosure.parameter_congr
+#print axioms Yulang.CommonNominalInvariantGraphSolver.all_parameters_models
+#print axioms Yulang.CommonNominalInvariantGraphSolver.solve_all_instances_exact
+#print axioms Yulang.CommonNominalFieldTemplates.Term.eval_rename
+#print axioms Yulang.CommonNominalFieldTemplates.Formula.models_rename
