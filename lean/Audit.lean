@@ -5942,3 +5942,7 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredInvariantBounds.inspect_all_exact
 #print axioms Yulang.CommonDeclaredInvariantBounds.inspect_slots
 #print axioms Yulang.CommonDeclaredInvariantBounds.inspect_all_slots
+
+#print axioms Yulang.CommonDeclaredInvariantSourceFamily.mem_solve
+#print axioms Yulang.CommonDeclaredInvariantSourceFamily.compiled_models_exact
+#print axioms Yulang.CommonDeclaredInvariantSourceFamily.all_parameters_models

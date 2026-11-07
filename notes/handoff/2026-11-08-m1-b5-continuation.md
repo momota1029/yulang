@@ -126,3 +126,20 @@ attachment を生成するかを定義しない。同じ元 slot を複数 occur
 検証: 対象 module の warning-as-error build と全体 build が成功。
 `select_exact`・`interval_atoms_exact`・`inspect_all_exact`・`inspect_all_slots` の直接 `trust=0`
 監査は `[propext, Quot.sound]` のみ。
+
+## 5. 宣言 variance と不変区間を同じ source family で同時に充足
+
+`lean/Yulang/CommonDeclaredInvariantSourceFamily.lean` の `all_parameters_models`:
+
+> 任意の有限宣言表、任意の元有限 atom 列、任意の元 slot 上の nominal 比較列と interval
+> occurrence 列、実 `solve` が返す任意の scheme、任意の row parameter vector とその scheme の
+> value parameter tuple に対して、実 instantiate の全元 slot は、元 atom、全宣言 variance
+> 比較、全宣言上 invariant の同じ actual に対する下限／上限を同時に満たす。
+
+元の nominal source family に実 interval inspector の返却 atom を渡すだけであり、全体が
+一つの既存 Common graph compiler / solved worklist に入る。二つ目の solver や parameter
+条件は追加しない。元 source、比較、区間の間で同じ slot が共有されることも変わらない。
+この packet は全 parameter の健全性であり、全元 model の回収は次の補題で結ぶ。
+
+検証: 対象 module の `lake build --wfail`（194 jobs）成功。
+主要定理の直接 `trust=0` 監査は `[propext, Classical.choice, Quot.sound]` のみ。

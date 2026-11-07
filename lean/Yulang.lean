@@ -1030,3 +1030,5 @@ import Yulang.CommonDeclaredNominalSlots
 import Yulang.CommonDeclaredNominalSourceFamily
 
 import Yulang.CommonDeclaredInvariantBounds
+
+import Yulang.CommonDeclaredInvariantSourceFamily
