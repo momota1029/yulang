@@ -4128,3 +4128,6 @@ run_cmd do
 #print axioms Yulang.CommonRoleRegularObstructions.chain_equivalent_iff
 #print axioms Yulang.CommonRoleRegularObstructions.chain_fresh
 #print axioms Yulang.CommonRoleRegularObstructions.no_natural_descent_measure
+#print axioms Yulang.CommonEffectRequestGeneration.generate_request_exact
+#print axioms Yulang.CommonEffectRequestGeneration.generate_declared_request_exact
+#print axioms Yulang.CommonEffectRequestGeneration.checked_request_exact
