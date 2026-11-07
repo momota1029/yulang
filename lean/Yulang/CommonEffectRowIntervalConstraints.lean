@@ -48,4 +48,31 @@ theorem check_exact (bounds : Bounds scopes α) (assignment : α → Computation
     (check bounds).Holds assignment ↔ EffectRow.Consistent (bounds.eval assignment) :=
   cross_checks_exact bounds bounds assignment
 
+def Bounds.merge (first last : Bounds scopes α) : Bounds scopes α :=
+  ⟨first.lower ++ last.lower, first.upper ++ last.upper⟩
+
+theorem Bounds.eval_merge (first last : Bounds scopes α) (assignment : α → Computation) :
+    (first.merge last).eval assignment = EffectRow.merge (first.eval assignment) (last.eval assignment) := by
+  change Interval.mk _ _ = Interval.mk _ _
+  congr 1
+  · funext occurrence
+    apply propext
+    simp only [Bounds.eval, Bounds.merge, Common.rowJoin, List.mem_append,
+      or_and_right, exists_or]
+  · funext occurrence
+    apply propext
+    simp only [Bounds.eval, Bounds.merge, EffectRow.meet, List.mem_append,
+      or_imp, forall_and]
+
+/-- Merging emits both original checks and both cross checks. This remains
+true for arbitrary signed endpoints and does not presume consistency. -/
+theorem merge_check_exact (first last : Bounds scopes α) (assignment : α → Computation) :
+    (check (first.merge last)).Holds assignment ↔
+      (Formula.and (check first) (.and (check last)
+        (.and (crossChecks first last) (crossChecks last first)))).Holds assignment := by
+  change _ ↔ (check first).Holds assignment ∧ (check last).Holds assignment ∧
+    (crossChecks first last).Holds assignment ∧ (crossChecks last first).Holds assignment
+  rw [check_exact, check_exact, check_exact, cross_checks_exact, cross_checks_exact, Bounds.eval_merge]
+  exact EffectRow.merge_consistent (first.eval assignment) (last.eval assignment)
+
 end Yulang.CommonEffectRowIntervalConstraints

@@ -5957,3 +5957,6 @@ run_cmd do
 
 #print axioms Yulang.CommonEffectRowIntervalConstraints.cross_checks_exact
 #print axioms Yulang.CommonEffectRowIntervalConstraints.check_exact
+
+#print axioms Yulang.CommonEffectRowIntervalConstraints.Bounds.eval_merge
+#print axioms Yulang.CommonEffectRowIntervalConstraints.merge_check_exact
