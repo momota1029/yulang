@@ -4264,3 +4264,15 @@ run_cmd do
 #print axioms Yulang.CommonPatternConcreteValueTypes.insertion_typed
 #print axioms Yulang.CommonPatternConcreteValueTypes.default_insertion_typed
 #print axioms Yulang.CommonPatternDataSafety.typing_evaluates
+#print axioms Yulang.CommonPatternDataSafety.prefix_environment
+#print axioms Yulang.CommonPatternConcreteCaseSafety.default_partial_sound
+#print axioms Yulang.CommonPatternConcreteCaseSafety.body_partial_sound
+#print axioms Yulang.CommonPatternConcreteCaseSafety.returned_scheme_partial
+#print axioms Yulang.CommonPatternCapturedEvaluation.run_capture
+#print axioms Yulang.CommonPatternCapturedEvaluation.runArms_capture
+#print axioms Yulang.CommonPatternConcreteCaseSafety.actual_runArms_partial
+#print axioms Yulang.CommonPatternCapturedEvaluation.eval_capture
+#print axioms Yulang.CommonAlignedPatternSafeDefaults.typing_matches
+#print axioms Yulang.CommonPatternConcreteCaseTotal.actual_runArms_safe
+#print axioms Yulang.CommonPatternConcreteCaseTotal.returned_scheme_safe
+#print axioms Yulang.CommonPatternConcreteCaseTotal.program_safe

@@ -1,5 +1,6 @@
 import Yulang.CommonPatternConcreteValueTypes
 import Yulang.CommonPatternSourceScope
+import Yulang.CommonPatternTyping
 
 /-! Logical environments for the concrete finite data evaluator. A captured
 binding retains all of its Common instances, including captured poly lets.
