@@ -139,4 +139,22 @@ theorem generated_models_exact (expression : Inference.Expr) (clause : Clause (O
     (PresenceGeneratedWidth.generated_width_atoms expression clause generated)
     (PresenceSourceConstraintSupport.generated_row_shapes expression clause generated) assignment
 
+/-- This uses the legacy `CoreRules.principalCore` generator and therefore
+its existing supported-syntax boundary, not the newer CommonSyntax generator. -/
+theorem generated_legacy_core_models_exact (expression : Core.Required.Term)
+    (clause : Clause (Option Empty))
+    (generated : clause ∈ normalise (Core.PresenceGeneration.CoreRules.principalCore
+      ([] : Core.PresenceGeneration.SchemeEnv Empty) expression))
+    (registry : Registry) (comparisons : List (Comparison (Fin (clause.locals + 1))))
+    (occurrences : List (Occurrence (Fin (clause.locals + 1))))
+    (assignment : Fin (clause.locals + 1) → Comp Common.model) :
+    Models registry clause.pack comparisons occurrences assignment ↔
+      ∃ scheme ∈ solve registry clause.pack comparisons occurrences,
+        ∃ rowParameters : Fin (clause.locals + 1) → Row, ∃ parameters : scheme.Parameters,
+          AssignmentEquivalent (scheme.instantiate rowParameters parameters) assignment :=
+  solve_all_instances_exact registry clause.pack comparisons occurrences
+    (PresenceGeneratedChildGrammar.generated_core_child_grammar expression clause generated)
+    (PresenceGeneratedWidth.generated_core_width_atoms expression clause generated)
+    (CommonPresenceSourceFamily.generated_core_row_shapes expression clause generated) assignment
+
 end Yulang.CommonDeclaredInvariantSourceFamily

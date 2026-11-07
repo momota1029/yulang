@@ -176,3 +176,13 @@ nominal 比較と occurrence は引き続き元 slot を参照する外部 metad
 構文がこの metadata を生成するとの主張には拡張していない。
 検証: 対象 warning-as-error build 成功、直接 `trust=0` 監査は
 `[propext, Classical.choice, Quot.sound]` のみ。
+
+## 8. Legacy Core generator の同じ全-instance iff
+
+同 module の `generated_legacy_core_models_exact` は、§7 の同じ量化と全元 slot の回収を、
+任意の `Core.Required.Term` の実 `CoreRules.principalCore` 生成 clause に対して証明する。
+legacy `InferenceSyntax.supported` の境界を保つ。unsupported な list/nominal/case 等を
+受理する定義変更はなく、新しい `CommonSyntax` generator への定理とは区別する。
+
+検証: 対象 warning-as-error build 成功、直接 `trust=0` 監査は
+`[propext, Classical.choice, Quot.sound]` のみ。
