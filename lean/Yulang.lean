@@ -1032,3 +1032,5 @@ import Yulang.CommonDeclaredNominalSourceFamily
 import Yulang.CommonDeclaredInvariantBounds
 
 import Yulang.CommonDeclaredInvariantSourceFamily
+
+import Yulang.CommonEffectRowIntervalConstraints
