@@ -553,6 +553,8 @@ import Yulang.CommonLegacyWitnessPositive
 import Yulang.CommonLegacyWitnessSource
 import Yulang.CommonLegacyRecordErasure
 import Yulang.CommonLegacyFiniteErasure
+import Yulang.CommonLegacyTruncation
+import Yulang.CommonLegacyGraphSupport
 
 import Yulang.CommonRowHeadFlow
 

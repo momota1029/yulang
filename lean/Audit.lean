@@ -4026,6 +4026,9 @@ run_cmd do
 #print axioms Yulang.CommonLegacyFiniteErasure.presence_exact
 #print axioms Yulang.CommonLegacyFiniteErasure.erase_probe
 #print axioms Yulang.CommonLegacyFiniteErasure.erase_compare
+#print axioms Yulang.CommonLegacyTruncation.truncate_probe
+#print axioms Yulang.CommonLegacyTruncation.truncate_compare
+#print axioms Yulang.CommonLegacyGraphSupport.finite_extension
 
 #print axioms Yulang.CommonRowHeadFlow.check_exact
 #print axioms Yulang.CommonRowHeadFlow.models_check
@@ -4135,3 +4138,15 @@ run_cmd do
 #print axioms Yulang.CommonEffectRequestGeneration.generate_request_exact
 #print axioms Yulang.CommonEffectRequestGeneration.generate_declared_request_exact
 #print axioms Yulang.CommonEffectRequestGeneration.checked_request_exact
+
+#print axioms Yulang.CommonLegacyGraphSupport.refs_map
+
+#print axioms Yulang.CommonLegacyGraphSupport.oldRefs_map
+
+#print axioms Yulang.CommonLegacyGraphSupport.finite_block
+
+#print axioms Yulang.CommonLegacyGraphSupport.old_finite_support
+
+#print axioms Yulang.CommonLegacyGraphSupport.common_finite_support
+
+#print axioms Yulang.CommonLegacyGraphSupport.old_representative
