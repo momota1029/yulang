@@ -4087,3 +4087,7 @@ run_cmd do
 #print axioms Yulang.CommonDemandBoundary.reference_solver_rejects
 #print axioms Yulang.CommonDemandBoundary.no_completed_node_instance
 #print axioms Yulang.CommonDemandSolver.finished_request_exact
+#print axioms Yulang.CommonNominalHeads.Argument.equivalent_row
+#print axioms Yulang.CommonNominalHeads.argumentsEquivalent_iff
+#print axioms Yulang.CommonNominalHeads.nominal_head_invariant_exact
+#print axioms Yulang.CommonNominalHeads.nominal_head_subtype_symmetric
