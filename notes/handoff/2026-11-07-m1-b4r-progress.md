@@ -560,3 +560,183 @@ source ..tail不可、closed-spine/source bridge未証明という境界も独�
 source量化/closed-spine bridgeまたはtail意味の変更は一問へ置き、仕様へ採用していない。
 実source比較例のparser probeはok1/recovery0。core反例を直接書けるsource例にしていない。
 既存Leanはimport7行/Audit72行の追記のみ。既存proof、旧E2、spec、公開入口の変更なし。commit/pushなし。
+
+# B4r4: canonical residual 捕捉の承認後（2026-11-07）
+
+開始HEAD ab93202a61ad091aae567127dd97a14a507dedf4。spec6.3の新しいtail引き算規則を読んだ。
+旧tail-clock E2は任意Common代入という旧解釈に対する定理であり、承認後のsemanticsには適用しない。
+record tailはcanonical residual以外へ捕まえず、未解決goalを解決しない。
+
+## B4r4 checkpoint 1: 任意labelのcanonical row subtraction
+
+新規 `CommonRoleCanonicalRows`。payload型を任意に保ち、first-field-wins正規化とcanonical residualを実関数で定義。
+閉じた主張（Payload型は任意）:
+
+- `mem_residual` / `mem_selected`: 任意label列,row,entryについて、残る/選ばれる iff 元row所属かつlabelが未選択/選択。
+- `residual_excludes`: 任意所属entryのlabelは取り除いたlabel列にない。
+- `residual_commute` / `residual_idempotent`: 任意二label列とrowで引き算が可換、同じ引き算は冪等。
+- `residual_map`: 任意payload写像について、引き算はpayloadの写像と可換。自由Common代入の成功性を前提にしない。
+- `lookup_residual`: 任意row,labelについて、引き算後lookupは取り除いたlabelならnone、それ以外は元lookup。
+- `lookup_normalize`: 任意row,labelについてfirst-field-wins正規化はlookupを保存。
+- `normalize_unique`: 任意rowについて正規化後のtag/field名はNodup。
+- `normalize_of_unique` / `normalize_idempotent`: もとがNodupなら正規化は恒等、一般rowで正規化は冪等。
+- `capture_unique`: 任意label列,row,二tailについて、両方canonical captureなら等しい。
+- `capture_no_hidden`: 任意canonical capture所属entryのlabelは引いたlabelにない。
+- `capture_normalize`: 任意label列,rowについて事前row正規化でcaptureは変わらない。
+- `former_clock_removed`: 任意payloadについてcapture [0] [(0,payload)]=[]。旧Cへの再捕捉は認めない。
+- `mass_partition`: 任意payload重み,row,label列について、selected質量+residual質量=元質量。
+- `residual_mass_le`: 任意payload重みと引き算で質量は増えない。
+- `selected_positive` / `residual_mass_lt`: 元rowに引かれるentryがあればselected質量は正、residual質量は真に小さい。
+
+検証: `cd lean && lake build --wfail` exit0（677 jobs）。これはglobal E1の完了ではない。
+
+## B4r4 checkpoint 2: 実variant tag mergeが残すpayload union
+
+新規 `CommonRoleMergedPayload`。surfaceに一般unionを書くのではなく、同じtagと同じdata Patternを繰り返し、
+実 `Variants.Merged.normalize joinTerm` を呼ぶ。tagは一意になるがpayloadは右結合unionのまま。
+
+閉じた主張:
+
+- `merged_entries`: 任意コピー数とdata Patternについて実normalize後entriesは一要素(0,padded payload)に正確に等しい。
+- `merged_tag_unique`: 同じ任意入力について実merged rowのtag列はNodup。
+- `interpret_data` / `interpret_padded` / `interpret_head`: 任意data Pattern,コピー数,任意Common代入に対し、
+  固定codecの実解釈は元data、反復payload union、single-tag variantの意味を正確に返す。
+- `padded_equivalent` / `head_meaning`: 任意Common型,任意コピー数について反復unionは元と同値、single-tag headも同値。
+- `unlift_lift` / `decode_data` / `contract_data` / `contract_padded` / `decode_head`: 任意data Patternとコピー数について、
+  実encodeのdata decodingと同一branchだけのcanonical contractionは元Patternを返す。
+- `data_size` / `data_occurrences`: 任意data Pattern,変数名について実codecは既存data grammarとsize/出現回数が等しい。
+- `padded_size` / `padded_occurrences`: 任意Term,コピー数n,変数名についてraw size=(n+1)*元size+n、occ=(n+1)*元occ。
+
+検証: `cd lean && lake build --wfail` exit0（678 jobs）。
+独立調査はspec10の実mergeにpayload冪等則の前提がなく、sourceの重複tag例もparserが読むことを確認した。
+row区切りをproducer unionと取り違えず、実mergeが作ったpayload内部のunionだけを扱う。
+
+## B4r4 checkpoint 3: 実merged-row declarationとnormalized checker
+
+新規 `CommonRoleMergedRegistry`。任意有限Codeを既存linear machine registryから実Roles.Implへcompileする。
+閉じた主張:
+
+- `normalize_head` / `compile_normal`: 任意コピー数,Pattern / 任意key,Ruleについてrecord用Nはhead/implを変えない。
+- `compile_wellFormed` / `compile_checked`: 任意key,RuleについてLinear Ruleなら実whereのsize/occ条件と実checker成功。
+- `declarations_wellFormed` / `declarations_normal`: 任意Codeの全実visible implはWellFormedかつN固定。
+- `checkImpl_sound`: 任意implについて新decoderと既存checkImplの合成がtrueならN implはWellFormed。
+- `environment_cores`: 任意Codeについて実AssocEnvのcoresはvisible Codeと等しい。
+- `checkEnvironment_sound`: 任意AssocEnvについて実checker=trueなら全N coresのWellFormedと任意Common代入のHDA。
+- `environment_checked`: 任意Codeの実AssocEnvはchecker=true。
+- `visible_declared` / `constraints_declared`: 任意Code,visible実impl,実whereについてrole<5、実arity=1。
+- `associated_wellFormed`: 任意Codeについて既存Roles.AssocWellFormed。associated RHSは常にint。
+
+検証: `cd lean && lake build --wfail` exit0（679 jobs）。
+旧limited checkPatternsにunion構文を紛れ込ませていない。新decoderは実mergeが作る同一payload反復を明示的に扱う。
+
+## B4r4 checkpoint 4: canonical payload captureと独立finite dictionary
+
+新規 `CommonRoleCanonicalMergedEvidence`。
+閉じた主張:
+
+- `goal_finite` / `goal_ready`: 任意有限Ground goal,任意visibleについてdescriptionはfiniteかつ両K2 gateを通る。
+- `capture_reconstructs`: 任意Pattern,Ground,有限代入でinstantiate=goalならcanonical captureも同じgoalを再構成。
+- `capture_agrees` / `captures_unique_on_used`: 同じ任意premiseにおいてheadに現れる任意変数の捕捉はcanonical値と等しく一意。
+- `head_matches_exact`: 任意実impl,有限goalについて実Bool headMatches=true iff 独立structural Matchesの有限代入が存在。
+- `requirements_determined`: 任意Linear Rule,Ground,二有限代入でhead instantiateが共にgoalならright instantiateも等しい。
+- `matches_compile` / `matches_terminal`: 任意実compiled/terminal impl,goal,代入について独立Matchesは元rigid data一致とrole一致に正確に等しい。
+- `child_interpreted`: 任意Rule,有限代入について実where fieldの解釈はright instantiateを正確に返す。
+- `Dictionary.all_visible`: 任意visible,goal,独立finite Dictionaryについて実Plan中の全implはvisible所属。
+
+検証: `cd lean && lake build --wfail` exit0（680 jobs）。record tailは存在せず、任意Common同値代入を選ぶ定義ではない。
+
+## B4r4 checkpoint 5: 実normalized rowからのbridgeとHalts iff
+
+新規 `CommonRoleMergedHalting`。Registryへ実row/head bridgeを追加した。
+閉じた主張:
+
+- `merged_head`: 任意コピー数,Patternについて実Variants.Merged.normalize後のRowから実headTermが得られる。
+- `all_heads_from_merge`: 任意Code,visible実implについて、そのheadが実normalized rowから得られるコピー数,Patternが存在。
+- `unique_terminal` / `unique_compile`: 任意Code,有限sourceについて終了role=0 / 実registry所属entryによるsource→target stepなら実候補は一意。
+- `machine_to_dictionary` / `dictionary_to_machine`: 任意Code,有限configuration / goalについてMachineHaltsから実全where Dictionary存在、逆も成り立つ。
+- `dictionary_iff_machine`: 任意Code,有限configurationについて実Dictionary存在 iff MachineHalts。
+- `dictionary_exact` / `actual_plan_exact`: 任意Code,inputについて実Dictionary存在（全実Plan宣言がvisibleという性質を含めても）iff ∃output,Eval Code input output。
+
+検証: `cd lean && lake build --wfail` exit0（681 jobs）。有限Dictionaryだけを使い、coinductive evidenceやfuelは導入しない。
+
+## B4r4 checkpoint 6: 全有限resolver非存在
+
+新規 `CommonRoleMergedObstruction`。
+閉じた主張:
+
+- `start_description`: 任意Code,inputについて有限wire用記述の解釈は実startGoalに等しい。
+- `eval_queryCode` / `queryCode_exact`: 任意Code,input,outputについて固定有限programの評価は実queryWireを返し、その出力だけ。
+- `no_total_canonical_merged_resolver`: 追加前提なしで、全Code,inputの実有限queryで停止し終了bit=true iff実canonical有限Dictionary存在を返す有限tape machineは存在しない。
+- `canonical_merged_registry_undecidable`: 追加前提なしで、任意Codeの実registryは新checker、NWF、raw WF、任意Common代入のHDA、AssocWF、全implのN固定性と実normalized variant row由来を満たし、任意Ground goalはfiniteかつ両K2 gateを通る。それでも上の全域machineは存在しない。
+
+検証: `cd lean && lake build --wfail` exit0（682 jobs）。成功bitだけで既存Halts非決定性に還元した。
+これは現在の任意core registry量化へのE2であり、source全elaborationの正確性を新たに証明したとは言わない。
+
+## B4r4 checkpoint 7: 任意Common代入との独立比較
+
+新規 `CommonRoleMergedSemantic` 初版。
+閉じた主張:
+
+- `generated_match_exact`: 任意コピー数,Pattern,Groundについて、構造的有限捕捉存在 iff 実head解釈をgoalのsingle-tag variantとCommon同値にする任意Common代入と型が存在。
+- `requirements_determined_common`: 任意Linear Rule,Ground,二Common代入について、両left解釈がGroundと同値ならright解釈も同値。
+- `child_interpreted`: 任意Rule,任意Common代入について実where field解釈はvariant tick(right.eval)を返す。
+- `reflect`: 任意Code,上位Derives,有限sourceについてrole一致とvariant payloadの要求同値からMachineHalts。
+- `of_machine`: 任意Code,有限sourceについてMachineHaltsから上位Derives。
+- `arbitrary_common_exact` / `canonical_iff_arbitrary_common`: 任意Code,inputについて上位任意Common evidence iff Halts、またcanonical有限Dictionary存在 iff同上位evidence。
+
+検証: `cd lean && lake build --wfail` exit0（683 jobs）。上位比較はcanonical record tailを任意代入へ戻す定義ではない。
+
+## B4r4 checkpoint 8: 小例と提案の局所検査
+
+新規 `CommonRoleMergedExamples`。
+閉じた主張:
+
+- `minimal_checked` / `growing_checked`: 固定self-loop / growing implは新checker=true。
+- `minimal_sizes`: 固定self-loopの実head size4、実child size2。
+- `growing_sizes_occurrences`: 固定growingの実head/child size4/3、変数0の出現2/1。
+- `minimal_normal` / `minimal_from_merge`: 固定self-loopはN固定、実duplicate-tag mergeから実headが得られる。
+- `minimal_matches`: 固定finite selfGoalに実headMatches=true。
+- `minimal_child`: 任意有限代入について固定実childはselfGoalへ戻る。
+- `no_finite_self_dictionary`: 任意finite Goalについてsingleton selfImpl環境の有限Dictionaryは存在しない。
+- `no_self_descent_measure`: measure selfGoal < measure selfGoalとなるGoal→Natは存在しない。
+- `proposed_rejects_minimal` / `proposed_rejects_growing`: 固定各小例のheadを提案縮約してから実checkerへ渡すとfalse。
+
+検証: `cd lean && lake build --wfail` exit0（684 jobs）。小例だけを全域アルゴリズム非存在の代用にしない。
+
+## B4r4 checkpoint 9: 全Commonでのrequirements決定性と候補一致
+
+Semanticを追加強化した。
+閉じた主張:
+
+- `pattern_determines_used`: 任意rigid Pattern,二Common代入,変数について、両pattern解釈同値かつ当該変数出現なら変数像も同値。
+- `requirements_determined_all_common`: 任意Linear Rule,二Common代入について、両left解釈同値ならright解釈も同値。有限target前提なし。
+- `generated_candidate_exact`: 任意role,key,コピー数,Pattern,実child列,有限goalについて、canonical Matches代入存在 iff実格納headの任意Common Matches代入存在。
+- `visible_candidate_exact`: 任意Code,visible実impl,有限goalについて同candidate iff。
+- `unique_common`: 任意Code,実impl,有限goalについてcanonical Uniqueなら全任意Common一致候補も同じimpl。
+- `head_determines_requirements`: 任意Codeの全実visible implについて、任意二Common代入の全実head同値から全実whereのrole一致と引数同値。定義されることも含む。
+
+検証: `cd lean && lake build --wfail` exit0（684 jobs）。追加のHeadDeterminesRequirementsだけでも今回のfamilyは除外できない。
+全98新規theoremをAuditへ登録した。独立reviewもglobal量化を確認し、trust0 Audit exit0/56333 declarations。
+
+## B4r4 最終gateと終了
+
+E2: `CommonRoleMergedObstruction.canonical_merged_registry_undecidable`。
+canonical residualを守るtail-free実registryで、実variant merge後の同一payload unionがPaterson sizeを膨らませる。
+任意CodeについてN固定/WF/実checker/HDA/AssocWF、全finite goalでReady、実全where辞書存在iff停止、全域有限machine非存在を証明。
+任意Common代入での強いHeadDeterminesRequirementsも全registryについて証明したため、その追加だけでは除外できない。
+
+最終 `cd lean && lake build --wfail` exit0（684 jobs）。
+最終 `cd lean && lake env lean --trust=0 Audit.lean` exit0、allowlist56333 declarations。
+全98新規theoremを登録。主定理とglobal HDRはpropext/Quot.soundのみ。
+独立fresh reviewもfocused trust0/warning-as-error、full build/Audit、最終4文書のscopeを確認し阻害事項なし。
+parserの重複variant tag例はok1/recovery0。実merge→実head bridgeは証明済み、full source elaboratorは未証明。
+
+結果は新 `2026-11-07-m1-b4r4-results.md`。全定理名/全日本語量化/前提、build/Audit末尾、正確な残りを記載。
+新設計noteにcanonical record subtraction、Common候補iff、K2/priorityの範囲、qualifiedの正確な未証明lemmaを記載。
+新question一問へpayload冪等縮約後のsize/occ checker案を置いた。未承認のまま、specへ採用していない。
+旧tail E2は旧意味の定理として保存し、現在の意味の証拠にしていない。
+
+既存Leanの差分は許可されたYulang.lean import8行/Audit追記/README節追記だけ。
+開始HEADからのappend-onlyと既存proof無変更を機械検査した。公開入口/spec/旧結果の変更、commit/push/networkなし。
+全E1、全Common N/regular matcher、一般finite-tree/nominal agreement、qualified実生成と全family、source/B6統合は残る。
+これらを前提へ移して同名E1を閉じていない。元全称core-registry契約へのE2として終了する。
