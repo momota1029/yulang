@@ -5871,3 +5871,6 @@ run_cmd do
 #print axioms Yulang.CommonEffectFieldTable.construct_fields_exact
 
 #print axioms Yulang.CommonEffectFieldTable.project_exact
+
+#print axioms Yulang.CommonEffectFieldTable.FieldsTyping.lookup
+#print axioms Yulang.CommonEffectFieldTable.constructed_projection_sound

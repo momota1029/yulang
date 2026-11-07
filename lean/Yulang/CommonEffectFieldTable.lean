@@ -95,4 +95,42 @@ theorem project_exact (assignment : α → Computation) (declaration : Declarati
     simpa only [project, ProjectionTyping, found, Option.some.injEq, exists_eq_left', true_and] using
       use_checked_field_exact (scopes := scopes) assignment field.scheme out
 
+theorem FieldsTyping.lookup (signatures : List SemanticSignature) (bindings : List (Binding scopes))
+    (assignment : α → Computation) (fields : List (Field α)) (bodies : List (Expr scopes))
+    (typed : FieldsTyping signatures bindings assignment fields bodies)
+    (index : Nat) (field : Field α) (found : fields[index]? = some field) :
+    ∃ body, bodies[index]? = some body ∧ FieldTyping signatures bindings assignment field body := by
+  induction fields generalizing bodies index with
+  | nil => simp at found
+  | cons head tail ih =>
+    cases bodies with
+    | nil => exact False.elim typed
+    | cons body bodies =>
+      cases index with
+      | zero =>
+        simp only [List.getElem?_cons_zero, Option.some.injEq] at found
+        subst field
+        exact ⟨body, rfl, typed.1⟩
+      | succ index => exact ih bodies typed.2 index found
+
+/-- A use of a field from a successfully checked table is justified by its
+original source body, at the same original position and captured environment.
+The conclusion is about that field body, not an unimplemented struct runtime. -/
+theorem constructed_projection_sound (signatures : List SemanticSignature) (declarations : Declarations α)
+    (environment : CommonEffectFormula.SchemeEnv scopes α) (bindings : List (Binding scopes))
+    (assignment : α → Computation) (related : ContextRel signatures declarations assignment environment bindings)
+    (declaration : Declaration α) (bodies : List (Expr scopes)) (index : Nat) (out : CompTerm α)
+    (constructed : (constructFields declarations environment declaration.fields bodies).Holds assignment)
+    (projected : (project (scopes := scopes) declaration index out).Holds assignment) :
+    ∃ body, bodies[index]? = some body ∧ Typing signatures bindings body (out.eval Common.model assignment) := by
+  have checked := (construct_fields_exact signatures declarations environment bindings assignment related
+    declaration.fields bodies).mp constructed
+  obtain ⟨field, found, _, used⟩ := (project_exact assignment declaration index out).mp projected
+  obtain ⟨body, source, _, rigid⟩ := FieldsTyping.lookup signatures bindings assignment
+    declaration.fields bodies checked index field found
+  refine ⟨body, source, ?_⟩
+  cases used with
+  | intro locals below =>
+    exact CommonEffectOutputWeakening.typing_weaken (rigid locals) _ below
+
 end Yulang.CommonEffectFieldTable
