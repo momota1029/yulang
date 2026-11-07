@@ -1917,3 +1917,10 @@ constructor ごとに新 carrier へ保持する。旧 block は `State.common` 
 `FiniteOrderConservative` は未証明の命題を名前にした定義であり、公理でも theorem でもない。
 `old_order_of_finite_conservativity` はこの未証明命題を前提にする条件付き補題に限る。
 任意の新 nominal を含む negative 環境に対する旧順序保存を証明済みとは記録しない。
+
+その後の `CommonNominalConservativity.finite_order_rank_exact` / `finite_order_conservative` が、上記の未証明だった
+有限保守性命題を追加前提なしで閉じた。`common_subtype_exact` は任意旧 Common 型の旧順序 iff 新順序を示す。
+両端の全 arrow input に対し一つの旧 intersection witness を共有し、全 negative rank に帰納する。
+`CommonNominalCarrierConstraints.compile_nominal_comparison_exact` は、新 carrier 自身の任意 regular nominal 型引数と
+任意行を持つ比較を、共有 slot を保持した実有限の双方向 presence atoms に生成する。
+旧 source typing / solver の接続は、順序保存とは別の残る義務である。

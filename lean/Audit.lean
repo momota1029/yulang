@@ -4202,3 +4202,15 @@ run_cmd do
 #print axioms Yulang.CommonNominalEmbedding.observe_common
 #print axioms Yulang.CommonNominalEmbedding.observe_embed
 #print axioms Yulang.CommonNominalEmbedding.old_order_of_finite_conservativity
+#print axioms Yulang.CommonNominalCarrierConstraints.compile_nominal_comparison_exact
+#print axioms Yulang.CommonNominalConservativity.finite_order_rank_exact
+#print axioms Yulang.CommonNominalConservativity.finite_order_conservative
+#print axioms Yulang.CommonNominalConservativity.common_subtype_exact
+#print axioms Yulang.CommonNominalModelMap.observe_value
+#print axioms Yulang.CommonNominalModelMap.subtype_exact
+#print axioms Yulang.CommonNominalTypingPreservation.typing_preserved
+#print axioms Yulang.CommonNominalTypingPreservation.core_typing_preserved_in_environment
+#print axioms Yulang.CommonNominalTypingPreservation.old_solver_all_parameters
+#print axioms Yulang.CommonNominalTypingPreservation.old_solver_instances_exact
+#print axioms Yulang.CommonNominalFoundations.common_nominal_invariant_exact
+#print axioms Yulang.CommonNominalFoundations.old_common_extension
