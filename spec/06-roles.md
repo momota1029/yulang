@@ -109,6 +109,11 @@ my twice(x: 'a) =
 
   この条件のもとで、role の解決は必ず停止する。
 - **`impl` の `type name = ...` の右辺は、他の role の associated type を参照できない**（確定, 2026-11-05）。右辺に書けるのは具体的な型・型構築子・その `impl` の head に現れる型変数だけで、associated type は head の型引数から決まる一つの型になる。解決の途中で別の associated type を展開する必要は生じない。他の role の associated type を右辺で引ける構文は、必要が出てから足す。
+- **`impl` の関連型の右辺は、head から決まらなければならない**（確定, 2026-11-07。ユーザーの決定）。head の**隠れた同名 field**（`{x: int, x: 'a}` の 2 つ目の `x`。型の上では無かったことになる。章4.3）を除いた head から、右辺が使う型変数が決まらない `impl` は、宣言時に拒否される。
+  例: `impl R ({x: int, x: 'a}): type value = 'a`。goal `R {x: int}` に対して `'a` は任意の型で成り立つので、関連型 `value` が `int` にも `bool` にもなり、同じ `impl` のため「候補の impl が複数ある」曖昧さの検査にも当たらない。
+  必要な条件は `HeadDeterminesAssociated`（任意の `impl` と、head が要求同値になる任意の二つの代入について、関連型の右辺も要求同値になる）。具体的な検査の形（隠れた field を先に除く、など）と、その十分性は未証明。
+  出典: Lean の反例 `CommonRoleAssociatedExactness.checked_registry_counterexample`（B4 の E2）。
+
 - `role` の body の `where` は、その role の method に継承される。`impl` の body の `where` は、その `impl` が候補になるための前提になる。
 
 ## 6.4 `x.method` の解決　〔確定〕
