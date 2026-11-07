@@ -141,6 +141,8 @@ fn root_statement_sequence(
                 scanned.0
             }
         };
+        // Operator headers also return directly to this statement-level owner.
+        item.restore_unmatched_boundary(None);
         // Only the source wrapper or cell terminal adapter may emit
         // terminal leading. Root layout and recovery must not inspect it first.
         if item.payload_view().is_eof() || item.payload_view().is_boundary() {

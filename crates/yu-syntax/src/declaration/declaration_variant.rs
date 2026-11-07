@@ -77,6 +77,53 @@ impl VariantSequenceForm {
 /// close.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn declaration_variant_sequence_normalized(
+    i: SyntaxIn,
+    owner: VariantOwner,
+    form: VariantSequenceForm,
+    introducer: Item,
+    yield_with: bool,
+    declaration_baseline: usize,
+    stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    if form == VariantSequenceForm::Braced {
+        i.with_delimiter(item_origin, |i, _| {
+            declaration_variant_sequence_normalized_contents(
+                i,
+                owner,
+                form,
+                introducer,
+                yield_with,
+                declaration_baseline,
+                stops,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            )
+        })
+    } else {
+        declaration_variant_sequence_normalized_contents(
+            i,
+            owner,
+            form,
+            introducer,
+            yield_with,
+            declaration_baseline,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        )
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn declaration_variant_sequence_normalized_contents(
     mut i: SyntaxIn,
     owner: VariantOwner,
     form: VariantSequenceForm,

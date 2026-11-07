@@ -334,3 +334,107 @@ fn matching_close(c: char) -> Option<char> {
         _ => None,
     }
 }
+
+/// Source matching reuses the committed lexer's opaque-body scanner. It does
+/// not tokenize or build a second literal/comment grammar.
+pub(crate) fn skip_source_opaque(mut i: LexIn, origin: usize, line_indent: Option<usize>) -> bool {
+    let mut scan = Scan {
+        origin,
+        initial_len: i.remainder().len(),
+        fence: None,
+        foreign: None,
+        pending: None,
+        line: LineEntry::InLine,
+    };
+    if scan.opaque(i.rb()) {
+        return true;
+    }
+    if let Some(("rule", suffix)) = super::lexer::source_identifier(i.remainder()) {
+        use super::trivia::{TriviaObservation, observe_logical_fenced_trivia};
+        if let TriviaObservation::Visible(visible) =
+            observe_logical_fenced_trivia(suffix, 0, LineEntry::InLine, None)
+            && visible.source.starts_with('{')
+        {
+            let length = i.remainder().len() - visible.source.len() + 1;
+            let end = i.remainder().len() - length;
+            while i.remainder().len() > end {
+                scan.next(i.rb());
+            }
+            scan.code(i, '}');
+            return true;
+        }
+    }
+    use crate::yumark::judge::{
+        ActiveClose, BlockCloseContext, BlockCloseDecision, ChunkContext, ChunkKind,
+        DocumentMarkerKind, StatementPosition, judge_block_close, judge_chunk,
+        judge_document_marker, judge_line_document,
+    };
+    let position = match line_indent {
+        Some(base_col) => StatementPosition::CanonicalLineStart { base_col },
+        None if i.recovery().operators().definition("--").is_none() => {
+            StatementPosition::CanonicalSameLine
+        }
+        None => return false,
+    };
+    let Some(marker) = judge_document_marker(i.remainder(), origin, position) else {
+        return false;
+    };
+    if marker.kind == DocumentMarkerKind::Line {
+        let extent = judge_line_document(i.remainder(), origin).unwrap();
+        let end = i.remainder().len() - (extent.end.start - origin);
+        while i.remainder().len() > end {
+            scan.next(i.rb());
+        }
+        return true;
+    }
+    let base_col = line_indent.unwrap();
+    while let Some(ch) = scan.next(i.rb()) {
+        if ch == '\n' {
+            break;
+        }
+    }
+    while scan.ready(i.rb()) {
+        let mut indent = 0;
+        while i.remainder().starts_with([' ', '\t']) {
+            scan.next(i.rb());
+            indent += 1;
+        }
+        if matches!(
+            judge_block_close(
+                i.remainder(),
+                0,
+                BlockCloseContext {
+                    after_opening_line: true,
+                    at_physical_line_start: true,
+                    indent_col: indent,
+                    base_col,
+                }
+            ),
+            BlockCloseDecision::Close(_)
+        ) {
+            scan.take(i, 3);
+            return true;
+        }
+        let chunk = judge_chunk(
+            i.remainder(),
+            0,
+            ChunkContext {
+                at_line_start: true,
+                indent_col: indent,
+                base_col,
+                active_close: Some(ActiveClose::BlockDocument {
+                    after_opening_line: true,
+                }),
+            },
+        );
+        if chunk.kind == ChunkKind::RawFence {
+            scan.nested_fence(i.rb(), 0);
+        }
+        while let Some(ch) = scan.next(i.rb()) {
+            if ch == '\n' {
+                break;
+            }
+        }
+    }
+    true
+}

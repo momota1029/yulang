@@ -205,6 +205,44 @@ pub(super) fn record_pattern(
 
 #[allow(clippy::too_many_arguments)]
 fn pattern_delimited(
+    i: SyntaxIn,
+    open: Item,
+    owner: Owner,
+    minimum: PatternPrecedence,
+    incoming_baseline: usize,
+    outer_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    recovered_primary_tail_stops: PatternStops,
+    caller_closes: PatternCallerCloses,
+    completion: &mut PatternState,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    i.with_delimiter(item_origin, |i, previous_delimiter| {
+        pattern_delimited_contents(
+            i,
+            open,
+            owner,
+            minimum,
+            incoming_baseline,
+            outer_stops,
+            line_handoff,
+            recovered_primary_tail_stops,
+            caller_closes,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+            previous_delimiter,
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn pattern_delimited_contents(
     mut i: SyntaxIn,
     open: Item,
     owner: Owner,
@@ -219,6 +257,7 @@ fn pattern_delimited(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    previous_delimiter: crate::cursor::DelimiterScope,
 ) -> NormalizedExit {
     i.state.start_node(owner.node().into());
     emit_token_item(&mut i, open);
@@ -246,6 +285,7 @@ fn pattern_delimited(
         if token_kind(&item) == Some(owner.close()) {
             emit_token_item(&mut i, item);
             i.state.finish_node();
+            i.restore_delimiter_scope(previous_delimiter);
             return finish_delimited_pattern(
                 i,
                 minimum,

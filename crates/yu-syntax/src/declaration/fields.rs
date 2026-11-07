@@ -116,10 +116,12 @@ fn declaration_field_error_run(
                     pipe_lexical,
                 )
             });
-            let colon = token_kind(&item) == Some(TokenKind::Colon)
+            let colon = !item.payload_view().is_boundary()
+                && token_kind(&item) == Some(TokenKind::Colon)
                 && indentation_after_newline(item.leading_view()).is_none();
-            let type_retry =
-                type_starter(&item) && indentation_after_newline(item.leading_view()).is_none();
+            let type_retry = !item.payload_view().is_boundary()
+                && type_starter(&item)
+                && indentation_after_newline(item.leading_view()).is_none();
             let boundary = item.payload_view().is_boundary()
                 || item.payload_view().is_eof()
                 || run.lexical(|lex| is_active_stop_lex(lex, &item, stops))
@@ -197,6 +199,46 @@ pub(crate) fn declaration_fields_normalized(
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn declaration_fields_with_defaults_normalized(
+    i: SyntaxIn,
+    open: Item,
+    owner_baseline: usize,
+    stops: Stops,
+    list: FieldList,
+    outer_close: FieldOuterClose,
+    pipe_lexical: bool,
+    defaults: Option<FieldDefaults>,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> DeclarationFieldExit {
+    let mut successor = item_origin;
+    let exit = i.with_delimiter(item_origin, |i, _| {
+        let result = declaration_fields_with_defaults_normalized_contents(
+            i,
+            open,
+            owner_baseline,
+            stops,
+            list,
+            outer_close,
+            pipe_lexical,
+            defaults,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+        successor = result.item_origin;
+        result.exit
+    });
+    DeclarationFieldExit {
+        exit,
+        item_origin: successor,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn declaration_fields_with_defaults_normalized_contents(
     mut i: SyntaxIn,
     open: Item,
     owner_baseline: usize,

@@ -1242,6 +1242,12 @@ pub(crate) fn is_declaration_starter_word(word: &str) -> bool {
     )
 }
 
+/// Statement declaration dispatch plus the root operator-header dispatch use
+/// this vocabulary. `for` belongs to control expressions, not declarations.
+pub(crate) fn is_recovery_declaration_starter_word(word: &str) -> bool {
+    is_declaration_starter_word(word) && word != "for"
+}
+
 pub(crate) fn scan_integer(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut number| {
         let radix = number.token(|mut prefix| {

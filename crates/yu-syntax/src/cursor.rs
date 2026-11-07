@@ -171,11 +171,15 @@ pub(crate) type LexIn<'a, 'source, 'recover, 'operators> =
 /// Temporary lexical observation of the immutable operator environment.
 pub(crate) struct LexRecover<'operators> {
     operators: &'operators OperatorTable,
+    pub(crate) unmatched_baseline: Option<usize>,
 }
 
 impl<'operators> LexRecover<'operators> {
     pub(crate) fn new(operators: &'operators OperatorTable) -> Self {
-        Self { operators }
+        Self {
+            operators,
+            unmatched_baseline: None,
+        }
     }
 
     #[cfg(test)]
@@ -214,6 +218,75 @@ impl<'a, 'source, 'operators> SyntaxIn<'a, 'source, 'operators> {
         self.source
     }
 
+    pub(crate) fn statement_indentation(
+        &self,
+        item: &crate::lexical::item::Item,
+        origin: usize,
+        fallback: usize,
+    ) -> usize {
+        self.recover.unmatched.as_ref().map_or(fallback, |source| {
+            source.line_indentation(item.extent(origin).payload().start)
+        })
+    }
+
+    pub(crate) fn with_statement(
+        mut self,
+        indentation: usize,
+        body: impl FnOnce(SyntaxIn<'_, 'source, 'operators>) -> crate::handoff::NormalizedExit,
+    ) -> crate::handoff::NormalizedExit {
+        let previous = self.recover.statement_indent;
+        self.recover.statement_indent = indentation;
+        self.recover.statement_depth += 1;
+        let mut exit = body(self.rb());
+        self.recover.statement_depth -= 1;
+        self.recover.statement_indent = previous;
+        exit.restore_unmatched_boundary(self.recover.delimiter.baseline);
+        exit
+    }
+
+    pub(crate) fn without_unmatched_recovery<R>(
+        mut self,
+        body: impl FnOnce(SyntaxIn<'_, 'source, 'operators>) -> R,
+    ) -> R {
+        let previous = self.recover.delimiter.baseline.take();
+        let result = body(self.rb());
+        self.recover.delimiter.baseline = previous;
+        result
+    }
+
+    pub(crate) fn restore_delimiter_scope(&mut self, previous: DelimiterScope) {
+        self.recover.delimiter = previous;
+    }
+
+    pub(crate) fn with_delimiter(
+        mut self,
+        opener_end: usize,
+        body: impl FnOnce(
+            SyntaxIn<'_, 'source, 'operators>,
+            DelimiterScope,
+        ) -> crate::handoff::NormalizedExit,
+    ) -> crate::handoff::NormalizedExit {
+        let previous = self.recover.delimiter;
+        let unmatched = self.recover.unmatched.as_ref().is_some_and(|openers| {
+            opener_end
+                .checked_sub(1)
+                .is_some_and(|at| openers.contains(at))
+        });
+        self.recover.delimiter = DelimiterScope {
+            baseline: unmatched.then_some(self.recover.statement_indent),
+            statement_depth: Some(self.recover.statement_depth),
+        };
+        let mut exit = body(self.rb(), previous);
+        self.recover.delimiter = previous;
+        // A matched parent in the same statement shields its contents. Across
+        // statement nesting, retain the boundary until that statement returns;
+        // otherwise its expression tail could consume the declaration again.
+        if previous.statement_depth == Some(self.recover.statement_depth) {
+            exit.restore_unmatched_boundary(previous.baseline);
+        }
+        exit
+    }
+
     pub(crate) fn advance_bytes(&mut self, length: usize) {
         assert!(self.source.is_char_boundary(length));
         *self.source = &self.source[length..];
@@ -228,6 +301,7 @@ impl<'a, 'source, 'operators> SyntaxIn<'a, 'source, 'operators> {
         operation: impl FnOnce(LexIn<'_, 'source, '_, 'operators>) -> Option<O>,
     ) -> Option<O> {
         let mut view = LexRecover::new(self.recover.operators);
+        view.unmatched_baseline = self.recover.delimiter.baseline;
         let mut i: LexIn = In::new(self.source, &mut view, ());
         i.token(operation)
     }
@@ -238,13 +312,26 @@ impl<'a, 'source, 'operators> SyntaxIn<'a, 'source, 'operators> {
         F: FnOnce(O1) -> O2,
     {
         let mut view = LexRecover::new(self.recover.operators);
+        view.unmatched_baseline = self.recover.delimiter.baseline;
         let mut i: LexIn = In::new(self.source, &mut view, ());
         i.check(parser).map(map)
     }
 }
 
+/// A matched delimiter still shields an outer unmatched delimiter. Depth
+/// distinguishes that shield from returning to the enclosing statement owner.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct DelimiterScope {
+    baseline: Option<usize>,
+    statement_depth: Option<usize>,
+}
+
 pub(crate) struct Recover<'operators> {
     operators: &'operators OperatorTable,
+    unmatched: Option<crate::lexical::unmatched::UnmatchedOpeners>,
+    delimiter: DelimiterScope,
+    statement_indent: usize,
+    statement_depth: usize,
 }
 
 /// Own the recovery state for the complete source-file construction.
@@ -259,6 +346,9 @@ pub(crate) fn parse_root_with_depth(
 ) -> (rowan::GreenNode, usize) {
     let mut remaining = source;
     let mut recover = Recover::new(operators);
+    recover.unmatched = Some(crate::lexical::unmatched::UnmatchedOpeners::scan(
+        source, operators,
+    ));
     let mut output = RootOutput::new();
     output.start_node(crate::SyntaxKind::Root.into());
     crate::root_statement::parse_root_statements(
@@ -283,7 +373,13 @@ pub(crate) fn discover_header(source: &str) -> crate::header::HeaderDiscovery {
 
 impl<'operators> Recover<'operators> {
     pub(crate) fn new(operators: &'operators OperatorTable) -> Self {
-        Self { operators }
+        Self {
+            operators,
+            unmatched: None,
+            delimiter: DelimiterScope::default(),
+            statement_indent: 0,
+            statement_depth: 0,
+        }
     }
 
     #[cfg(test)]

@@ -178,6 +178,38 @@ pub(super) fn canonical_statement_from_admission_normalized(
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn canonical_statement_contents_from_admission_normalized(
+    i: SyntaxIn,
+    item: Item,
+    admission: StatementAdmission,
+    baseline: usize,
+    stops: Stops,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+    sequence: crate::sequence::SequenceContext,
+) -> NormalizedExit {
+    let indentation = i.statement_indentation(&item, item_origin, baseline);
+    i.with_statement(indentation, |i| {
+        dispatch_statement_normalized(
+            i,
+            item,
+            admission,
+            baseline,
+            stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+            sequence,
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn dispatch_statement_normalized(
     mut i: SyntaxIn,
     item: Item,
     admission: StatementAdmission,
@@ -940,6 +972,35 @@ pub(super) fn braced_statement_block_with_recovery_normalized(
 
 #[allow(clippy::too_many_arguments)]
 fn braced_statement_block_inner_normalized(
+    i: SyntaxIn,
+    open: Item,
+    incoming_baseline: usize,
+    inherited_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+    sequence: crate::sequence::SequenceOwner,
+    allow_record_spread: bool,
+) -> NormalizedExit {
+    i.with_delimiter(item_origin, |i, _| {
+        braced_statement_block_inner_normalized_contents(
+            i,
+            open,
+            incoming_baseline,
+            inherited_stops,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+            sequence,
+            allow_record_spread,
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn braced_statement_block_inner_normalized_contents(
     mut i: SyntaxIn,
     open: Item,
     incoming_baseline: usize,

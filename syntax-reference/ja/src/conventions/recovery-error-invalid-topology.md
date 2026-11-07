@@ -51,6 +51,26 @@ raw recoveryの外側にあるaccepted tokenと通常のtriviaはnative token ki
 `Invalid`はnested source orderとnested recovery elementを保つ。
 ほかのownerが類推だけで`Invalid` nodeを加えてはならない。
 
+## 対応する閉じ区切りがない場合
+
+Authoritativeな2026年11月7日のparser-gap-closure追補のWP-18は、対応する閉じ区切りがない`(`、`[`、`{`の回復境界を定める。
+後続行の先頭トークンが宣言キーワードで、その字下げが外側の文の開始行以下なら、その文の中で開いた未対応の区切りを閉じる。
+各ownerは、保留中のleading triviaの先頭に、既存のclose `Missing`を置く。
+宣言の行から文の解析を再開する。
+
+対象の宣言キーワードは、次のとおりである。
+
+- `my`、`our`、`pub`
+- `use`、`mod`、`struct`、`enum`、`type`、`act`、`role`、`impl`、`cast`、`error`
+- `lazy`、`prefix`、`infix`、`suffix`、`nullfix`
+
+`for`はこの境界を作らない。
+事前の対応付けは、リテラル、コメント、docコメント、Yumarkのfenceを読み飛ばす。
+種類の異なる閉じ区切りは、同じ種類の最も近い開き区切りと対応し、間の開き区切りを未対応として残す。
+開き区切りがない閉じ区切りは、対応付けに影響しない。
+対応する閉じ区切りがある場合は、宣言行でも早く閉じず、従来の回復規則を保つ。
+字下げだけでは、この規則を適用しない。
+
 ## Structural diagnostic interpretation
 
 structural diagnostic interpretationは、CSTからstructural recoveryをsource orderで読む。

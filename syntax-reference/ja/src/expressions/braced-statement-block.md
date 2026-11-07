@@ -127,3 +127,5 @@ spreadを含まない`{x: 1}`、`{x}`、`{;}`のCSTは変わらない。
 [動的演算子列](operator-chain.md)がblockのprimary positionを定める。
 [layout-aware separator authority](../cross-cutting/layout-aware-separator-authority.md)が、qualifying current-depth newline boundaryを定める。
 [colon application](colon-application.md)は個々のstatement内で動作し、block separatorをこのblockへ戻す。
+
+未対応の開き区切りから宣言行で回復する規則は、[対応する閉じ区切りがない場合](../conventions/recovery-error-invalid-topology.md#対応する閉じ区切りがない場合)を参照する。

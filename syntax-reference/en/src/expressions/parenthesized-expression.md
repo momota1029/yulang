@@ -110,3 +110,5 @@ In `(;)`, the semicolon marks the separator-recovery slot.
 [Dynamic operator chains](operator-chain.md) define the operator roles and fixed tails of an inner chain.
 The outer chain owns continuations after the parenthesized expression.
 The shared recovery topology defines the diagnostic interpretation of direct `Error`, `ExpressionDelimitedSeparator`, and `ExpressionDelimitedForeignClose` groups.
+
+For declaration-line recovery at an unmatched opener, see [unmatched delimiters](../conventions/recovery-error-invalid-topology.md#unmatched-delimiters).

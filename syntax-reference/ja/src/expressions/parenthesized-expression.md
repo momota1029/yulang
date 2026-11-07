@@ -111,3 +111,5 @@ protected boundaryに達したgroupはboundaryを残し、同じ原因の`Missin
 inner chainのoperator roleとfixed tailは[dynamic operator chain](operator-chain.md)が定める。
 丸括弧の後のouter continuationも、そのouter chainが所有する。
 direct `Error`、`ExpressionDelimitedSeparator`、`ExpressionDelimitedForeignClose`の診断上の読み方は、共通recovery topologyに従う。
+
+未対応の開き区切りから宣言行で回復する規則は、[対応する閉じ区切りがない場合](../conventions/recovery-error-invalid-topology.md#対応する閉じ区切りがない場合)を参照する。

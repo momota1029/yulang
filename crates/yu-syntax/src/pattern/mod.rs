@@ -805,7 +805,8 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
             completion.bare_identifier_head = false;
             let (next, next_origin, next_line_entry) =
                 pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
-            let is_range = token_kind(&next) == Some(TokenKind::DotDot)
+            let is_range = !next.payload_view().is_boundary()
+                && token_kind(&next) == Some(TokenKind::DotDot)
                 && !implicit_delimited_newline(baseline, next.leading_view());
             if is_range {
                 i.state.start_node(SyntaxKind::RangePattern.into());

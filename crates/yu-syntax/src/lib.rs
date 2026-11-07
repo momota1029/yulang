@@ -367,3 +367,10 @@ pub fn scan_header(source: Arc<SourceText>) -> HeaderInfo {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+extern crate self as yu_syntax;
+
+#[cfg(test)]
+#[path = "tests/recovery_mutation.rs"]
+mod recovery_mutation_tests;

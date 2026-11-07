@@ -103,3 +103,4 @@ For example, in `[1)]`, `)` is foreign-close recovery and the following `]` rema
 The outer chain owns continuations after the list expression.
 The corresponding pattern form is defined by [list patterns](../patterns/list-pattern.md).
 
+For declaration-line recovery at an unmatched opener, see [unmatched delimiters](../conventions/recovery-error-invalid-topology.md#unmatched-delimiters).
