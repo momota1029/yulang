@@ -902,3 +902,89 @@ tupleの共有component projectionとwhole再構築チェックはCommon意味�
 より強い未指定点として、invariant nominalの複数alternativeは引数合流で一つにまとめられない。
 保持されたnominal alternativeへの有限coverをhead matcherが許すかを一問候補として点検する。
 任意Common splitやE2は仮定しない。
+
+## B4r7 checkpoint 1: opaque payloadのcanonical共有捕捉
+
+新規 `CommonRoleSharedPayloadCapture`。任意Payload型をopaqueのまま扱い、実有限binding表を計算する。
+閉じた主張:
+
+- `lookup_repeated_payload` / `assignment_exact`: 任意names,payload,nameで、raw/実normalized binding表lookupは名前所属ならsome同payload、それ以外none。
+- `captured_as_is` / `unmentioned`: 任意同入力で所属/不在から上のlookup結果。
+- `bindings_unique`: 任意names,payloadで実binding表のlabel列はNodup。
+- `capture_sound` / `capture_complete` / `capture_exact` / `capture_unique`: 任意names,payload,任意Option像について、独立Capturesは計算済assignmentとiff、指定された像は一意。
+- `both_same` / `duplicate_unchanged`: 任意二所属nameの像は同じ、任意nameの重複追加はassignmentを変えない。
+- `total_captured_as_is`: 任意fallbackを用いてtotal化しても、所属名の像は同payload。
+- `actual_merge`: 任意tag,first,restについて実Variants.Merged.normalizeはsingle tagの右結合variablePayloadを返す。
+- `interpret_payload`: 任意first,rest,Common像,payloadで全所属像=payloadなら、実格納payload解釈は反復union(payload)に等しい。
+- `approved_head_meaning`: 任意tag,first,rest,任意Common payload/fallbackについて実計算captureで格納headを解釈すると反復unionのvariantを返し、それはvariant tag payloadとCommon同値。
+- `approved_two`: 任意payloadで固定名0/1は共に同payloadを捕捉。
+- `no_bottom_split`: 固定int payloadの実capture0はbottomと要求同値でない。
+
+検証: `cd lean && lake build --wfail` exit0（689 jobs）。任意Common意味への比較であり、任意payload goalのK2 Readyを主張しない。
+
+## B4r7 checkpoint 2: actual candidate / ambiguity / terminal Plan
+
+新規 `CommonRoleCanonicalPayloadCandidates`。readableなvariable/int head componentで実Roles.Impl fieldsを読む。
+閉じた主張:
+
+- `finite_ready`: 任意visible,有限Ground Goalでdescriptionは両K2のReady。
+- `payload_capture_exact` / `head_capture_exact`: 任意実Term/Impl,有限Ground goal,Option像について、このcomponentの計算済capture table存在 iff独立に指定されたCaptures。headではrole/tag照合を含む。
+- `head_matches_exact` / `mem_candidates`: 任意同入力で実Bool候補iff独立prescribed capture像存在、任意visibleでcandidate membership iff visible所属と同capture存在。
+- `merged_capture` / `concrete_capture`: 任意Ground payloadで承認例の実第一implは両名へ同payload、第二implはpayload=intの場合だけ空capture。
+- `actual_candidate_list`: 任意Ground payloadで実候補列はintなら第一/第二、他なら第一のみ。
+- `approved_ambiguous` / `other_payload_selected`: 固定intでは実head分類=ambiguous、任意payload≠intでは第一selected。
+- `actual_two_images` / `approved_independent_overlap`: 任意payloadの両lookup同値と、固定intの独立二候補（実impl相異）を証明。
+- `TerminalEvidence.all_visible`: 任意同componentの独立terminal evidence,任意実Plan宣言所属からvisible所属。全実where=[]を必須とする。
+- `approved_no_dictionary`: 固定intの独立terminal辞書は存在しない。
+- `other_payload_dictionary` / `example_dictionary_exact`: 任意payloadについて独立terminal辞書存在 iff payload≠int。
+- `approved_no_plan` / `other_payload_plan` / `example_plan_exact`: 固定intでは実Planなし、任意payload≠intでは実第一impl leaf、任意payloadで実Plan存在 iff独立terminal辞書存在。
+
+検証: `cd lean && lake build --wfail` exit0（690 jobs）。unsupported compound headsをfull languageのnoImplとしない。
+
+## B4r7 checkpoint 3: invariant nominal coverの判断境界
+
+新規 `CommonRoleNominalCoverBoundary`。運用上のcover/captureを採用していない有限case analysis。
+閉じた主張:
+
+- `argument_equivalent_exact`: 任意二ArgumentCode（int/bool/int|boolの三code）でCommon意味同値 iff code等号。
+- `box_invariant`: 任意二Common引数で実nominal box subtype iff引数Common同値。
+- `coded_box_exact`: 任意二codeの実box subtype iff code等号。
+- `boxes_distinct` / `joined_not_integer` / `joined_not_boolean`: 固定int/boolのboxは別で、box(int|bool)はbox int/boolのいずれへのsubtypeでもない。
+- `no_single_box_upper`: 任意Common引数Aでbox intとbox boolの両方をbox A以下にはできない。
+- `cover_exact`: 任意有限code列source/targetで実有限cover Bool=true iff提案した有限support関係Covers。
+- `covers_enumerated`: 固定三code空間での実有限探索結果は(int,bool),(bool,int)の二つだけ。
+- `forward_cover` / `reverse_cover` / `joined_fails`: 固定二coverは提案関係を満たし、両方joinedにするものは満たさない。
+- `covers_change_child`: 固定二coverが変数0へ与えるint/boolはCommon非同値。
+- `private_child_decreases` / `all_term_substitutions_decrease`: 任意unary nominal constructor番号,任意有限実引数Term（後者は任意実代入0/1像）で、同一alternativeのみを縮約したsize frameは第一引数より真に大きく、全occは第一引数以上。size-only componentでfull nominal loweringとはしない。
+- `allow_cover_two_candidates` / `forbid_cover_one_candidate`: 固定提案kernelはcover許可ならkeys[0,1]、不許可なら[1]。
+
+検証: `cd lean && lake build --wfail` exit0（691 jobs）。三code探索を全Common matchingのsmall-model theoremとは呼ばない。
+
+## B4r7 checkpoint 4: 旧独立Common head/Planとの有限family一致
+
+新規 `CommonRoleSharedPayloadAgreement`。
+閉じた主張:
+
+- `previous_merged_matches`: 任意Ground payloadで、計算済canonical共有captureをCommonへ写した明示像が、旧実head解釈のmerged一致を与える。
+- `previous_concrete_exact` / `canonical_concrete_exact`: 任意Ground payloadで旧任意Common一致存在 / 新canonical capture存在は共にpayload=intとiff。
+- `finite_head_agreement`: 任意Ground payload,任意承認例visible実implについて、新canonical候補存在 iff旧独立Common一致存在。
+- `previous_no_unique_at_int`: 任意実implについて固定intで旧候補一意性は成り立たない。
+- `previous_unique_other`: 任意payload≠intで旧候補は第一implに一意。
+- `previous_selected_plan`: 任意payloadで旧第一impl一致存在かつ一意 iff payload≠int。
+- `actual_plan_agrees_previous`: 任意payloadで実terminal Plan存在 iff旧第一impl一致存在かつ一意。
+
+検証: `cd lean && lake build --wfail` exit0（692 jobs）。旧側の任意Common代入は比較定理だけに現れ、実captureを定義しない。
+
+## B4r7 checkpoint 5: stable checkerと実shared captureのgoal下降を接続
+
+新規 `CommonRoleSharedCaptureDescent`。finite Form/idempotence stageのglueでありfullCommon Nとはしない。
+閉じた主張:
+
+- `encode_variables`: 任意first,restについて再帰的variableForm.encode=実variablePayload。
+- `normalized_variables`: 任意first,rest,任意Form像,payloadで全所属像=payloadならN(variableForm[像])=N payload。
+- `actual_head_is_goal`: 任意first,rest,任意Form payload/fallbackで、計算済total shared capture後の実N head引数列はN済single-tag goal引数列に等しい。
+- `canonical_capture_strictly_decreases`: 任意role,key,first,rest,実where列、同宣言の実stable check=true、任意所属child、任意Form payload/fallbackについて、計算済shared capture後のN child sizeはN済goal sizeより真に小さく、任意nameのoccはN済goal以下。
+
+検証: `cd lean && lake build --wfail` exit0（693 jobs）。全67新規theoremをAuditへ登録。
+追加の `unsupported_explicit` / `example_supported` も全visible/goalでcomponent範囲外ならunsupported、承認例visibleは範囲内を証明した。
+unsupported compoundを言語のnoImplへ読み替えない。

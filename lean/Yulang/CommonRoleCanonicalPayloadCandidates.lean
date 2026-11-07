@@ -114,22 +114,36 @@ theorem mem_candidates (visible : List Roles.Impl) (goal : Goal) (implementation
   simp [candidates, head_matches_exact]
 
 inductive HeadOutcome where
+  | unsupported
   | absent
   | selected : Roles.Impl → HeadOutcome
   | ambiguous
   deriving DecidableEq, Repr
 
+def supportedHead (implementation : Roles.Impl) : Bool :=
+  match headView implementation.head with
+  | none => false
+  | some (_, term) => decide (term = .app 0 []) || (variableNames term).isSome
+
 def classifyHeads (visible : List Roles.Impl) (goal : Goal) : HeadOutcome :=
-  match candidates visible goal with
-  | [] => .absent
-  | [implementation] => .selected implementation
-  | _ :: _ :: _ => .ambiguous
+  if visible.all supportedHead then
+    match candidates visible goal with
+    | [] => .absent
+    | [implementation] => .selected implementation
+    | _ :: _ :: _ => .ambiguous
+  else .unsupported
+
+theorem unsupported_explicit (visible : List Roles.Impl) (goal : Goal)
+    (outside : visible.all supportedHead = false) : classifyHeads visible goal = .unsupported := by
+  simp [classifyHeads, outside]
 
 abbrev merged := CommonRoleMergedCaptureBoundary.merged.toImpl
 abbrev concrete := CommonRoleMergedCaptureBoundary.concrete.toImpl
 abbrev visible := CommonRoleMergedCaptureBoundary.visible
 
 def exampleGoal (payload : Ground) : Goal := ⟨1, 0, payload⟩
+
+theorem example_supported : visible.all supportedHead = true := by decide +kernel
 
 theorem merged_capture (payload : Ground) : tryCapture merged (exampleGoal payload) = some (bindings [0, 1] payload) := rfl
 
@@ -145,11 +159,11 @@ theorem actual_candidate_list (payload : Ground) :
   by_cases integer : payload = .int <;> simp [integer]
 
 theorem approved_ambiguous : classifyHeads visible (exampleGoal .int) = .ambiguous := by
-  simp [classifyHeads, actual_candidate_list]
+  simp [classifyHeads, example_supported, actual_candidate_list]
 
 theorem other_payload_selected (payload : Ground) (different : payload ≠ .int) :
     classifyHeads visible (exampleGoal payload) = .selected merged := by
-  simp [classifyHeads, actual_candidate_list, different]
+  simp [classifyHeads, example_supported, actual_candidate_list, different]
 
 theorem actual_two_images (payload : Ground) :
     lookup 0 (bindings [0, 1] payload) = some payload ∧ lookup 1 (bindings [0, 1] payload) = some payload :=

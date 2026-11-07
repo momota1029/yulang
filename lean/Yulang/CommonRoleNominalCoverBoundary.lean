@@ -100,6 +100,29 @@ theorem covers_change_child : ¬ Common.Equivalent
   rw [argument_equivalent_exact]
   decide +kernel
 
+/-- Size-only representation of a normalized single-tag frame with two
+invariant unary nominal alternatives. Argument terms are supplied as-is;
+only identical alternatives are contracted. This is not a full nominal
+lowering or a new operational capture rule. -/
+def nominalFrame (constructor : Nat) (first last : Roles.Term) : Roles.Term :=
+  if first = last then .app 3 [.app constructor [first]]
+  else .app 3 [.app 4 [.app constructor [first], .app constructor [last]]]
+
+theorem private_child_decreases (constructor : Nat) (first last : Roles.Term) :
+    first.size < (nominalFrame constructor first last).size ∧
+      ∀ name, first.occurrences name ≤ (nominalFrame constructor first last).occurrences name := by
+  constructor
+  · by_cases same : first = last <;>
+      simp [nominalFrame, same, Roles.Term.size, Roles.argsSize] <;> omega
+  · intro name
+    by_cases same : first = last <;>
+      simp [nominalFrame, same, Roles.Term.occurrences, Roles.argsOccurrences]
+
+theorem all_term_substitutions_decrease (constructor : Nat) (image : Roles.Subst) :
+    (image 0).size < (nominalFrame constructor (image 0) (image 1)).size ∧
+      ∀ name, (image 0).occurrences name ≤
+        (nominalFrame constructor (image 0) (image 1)).occurrences name := private_child_decreases _ _ _
+
 def proposedCandidateKeys (permitCover : Bool) : List Nat :=
   (if permitCover && !finiteCovers.isEmpty then [0] else []) ++ [1]
 
