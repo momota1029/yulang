@@ -648,3 +648,8 @@ import Yulang.CommonNominalRigidHeadInspection
 import Yulang.CommonNominalRigidInspection
 import Yulang.CommonNominalFiniteRigidInspection
 import Yulang.CommonNominalPlainInspection
+import Yulang.CommonNominalRigidWorklist
+import Yulang.CommonNominalClampedFiniteEdges
+import Yulang.CommonNominalRigidClampedSoundness
+import Yulang.CommonNominalRigidGraphSolver
+import Yulang.CommonNominalDefaultRequired

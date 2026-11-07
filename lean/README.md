@@ -2027,3 +2027,14 @@ constructed-node type edges、自由 slot と constructed-node の等価、full 
 Field templates now admit whole shared parameters inside positive union/mask/default source positions; literal preservation of previous Layer templates and the corresponding direct constructor equalities are proved. All original source generation and atomic normalization statements still build unchanged.
 
 Checkpoint: `lake build --wfail` passes (660 jobs); full trust-zero Audit passes, allowlist 54879 declarations. These are partial B5 results, not B5/B1 END.
+
+
+### B5: finite nominal saturation and unrestricted rigid-graph families
+
+`CommonNominalFiniteRigidInspection` interprets the unchanged nominal/arrow inspector at preceding constructor depth, with full signed rows and all finite negative environments. `CommonNominalPlainInspection` preserves its literal finite output in child-ID/row-ID-only checks.
+
+`CommonNominalRigidWorklist` saturates every reachable defined-node pair over a fixed n² inventory, retaining all original edges and rows, with exact independent-model preservation. `CommonNominalClampedFiniteEdges` and `CommonNominalRigidClampedSoundness` discharge rigid-source lower/check edges by simultaneous depth induction. `CommonNominalRigidGraphSolver` composes that actual worklist, the actual row table solver and the clamped regular graph family: every unrestricted parameter satisfies all original equations/edges/rows; every original model is recovered at every node and row; rejection is exactly model absence.
+
+This covers the full displayed rigid-head pool grammar, including cyclic nominal/arrow arguments and flexible-to-constructed inequalities. Record/default/lattice root inspection, full original field/source graph lowering and runtime cast bridges remain open. No B5/B1 END is claimed.
+
+Checkpoint: 666-job warning-as-error build and full trust-zero Audit passed (55239 declarations). Fresh independent trust-zero/axiom review passed for the constructor/worklist and family modules.
