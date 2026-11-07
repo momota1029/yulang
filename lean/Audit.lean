@@ -105,6 +105,7 @@ import Lean
 #print axioms Yulang.CommonCanonicalEmitters.emits_repeat_literal
 #print axioms Yulang.CommonCanonicalEmitters.emits_choose_equal
 #print axioms Yulang.CommonCanonicalRangeEmitters.rangeLoop_runs
+#print axioms Yulang.CommonCanonicalRangeEmitters.emits_range
 #print axioms Yulang.CommonCanonicalWordReverse.reverseBody_runs
 #print axioms Yulang.CommonCanonicalWordReverse.reverseLoop_runs
 #print axioms Yulang.CommonCanonicalWordReverse.reverseWord_runs
