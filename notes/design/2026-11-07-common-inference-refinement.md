@@ -1,6 +1,6 @@
 # 共通推論の高速化と、参照実装からの refinement
 
-状態: **Draft。内部の実装置換計画。高速化の実装・正当性証明・性能測定は未実施。**
+状態: **Draft。要求された bound の計算と、全検査後の solver 置換定理を実装済み（§10–15）。関数/SCC 単位の遅延検査 scheduler と要求ごとの飽和完了は未実装。性能は未測定。**
 日付: 2026-11-07。
 対象: 現在の共通 carrier の全 instance 契約を維持する bounds 伝播と、今後の B 段階への接続。
 
@@ -249,5 +249,188 @@ row 変換・比較、具体化・readout の各費用を明示する。
 branch 数や出力が増える場合も計測対象に含める。
 意味の一致だけから高速化を達成したとは言わず、数例の速さだけから全入力の計算量改善とも言わない。
 
-本書の追加に伴う solver/code の変更、benchmark、速度に関する新しい theorem はない。
-残っているのは内部表現・証明・費用モデルの選択であり、`notes/questions/` へ新しい言語仕様の問いは追加しない。
+以上の §1–9 は要求駆動の追加前の設計記録である。そこで挙げた全範囲の高速化・費用評価は未実施。
+今回の限定した計算と証明、および依然として未完の境界を以下に追記する。
+
+## 10. 今回の決定: 遅延するのは計算の時点
+
+根拠は [着想の訂正とユーザーの決定](../ideas/2026-11-07-fast-propagation-idea.md) と、今回の直接の依頼である。
+上界・下界の伝播の**計算を要求時まで遅延する**。残余条件を scheme に残して、
+その条件を満たす parameter だけを受理する方式には変更しない。
+
+実行する関数は、実行前にその関数全体を検査する。相互再帰なら SCC が単位になる。
+その関数内で今回通らない分岐も検査範囲に含む。未要求の別関数の診断を後へ回すことと、
+実行する関数の不整合を放置することを区別する。
+method 等の実装選択が必要な位置では、それが依存する型・行と候補の選択を先に確定する。
+
+今回の Lean 変更は、次の順で積む。
+
+1. 実 template の一変数を根とする bound 計算を作り、参照 bound 列との等号を示す。
+2. その計算を実際の rigid 分解 worklist に使い、全検査が終わった返却 scheme 列を比較する。
+3. 現在の Core generator から根の有限記述を抽出し、途中の問い合わせと最終結果の差を明示する。
+
+この順序なら B の nominal/pattern/effect の追加と衝突せず、公開 theorem の前提を増やさずに済む。
+完全な関数/SCC scheduler を先に導入する案は、まだ存在しない source 位置と実行到達性の対応まで
+同時に証明対象にしてしまうため、今回の最小の変更には含めない。
+
+## 11. 一つの根からの実 bound 計算
+
+[`DemandBoundPropagation`](../../lean/Yulang/DemandBoundPropagation.lean) は
+既存の `LayerBoundTemplates.Problem n Bound` をそのまま入力に取る。
+入力は有限の lower / flow / upper / check 列で、型値や model の証拠ではない。
+
+`lowerBounds problem target` は `target` から flow を逆にたどる。
+`α ≤ β` があるとき、β の lower 要求は α を訪れる。
+`FiniteWorklist.reachable` が既訪問点を記録するため、循環があっても同じ点を再処理しない。
+内部 capacity は変数数 `n` から決まり、利用者が選ぶ fuel や観測深さではない。
+根へ到達しない変数について、順方向探索を起動しない。
+lower seed 列の走査自体は残し、元の順序と重複を保持する。
+
+`upperBounds problem source` は `source` から順方向に一回探索し、その訪問集合で upper seed を選ぶ。
+既存の upper 計算と同じ意味であり、この一回の定義変更から速度向上は主張しない。
+`Root n` は元の `Fin n` ID と lower / upper の方向を持ち、`request` は要求した片側だけを計算する。
+二つの変数を同一視したり、一方の余分な lower を逆方向へ伝播したりしない。
+
+### 閉じた theorem
+
+| theorem | 全量化・前提・結論 |
+| --- | --- |
+| `ancestors_exact` | 任意の `n`、任意 `Bound`、任意有限 `problem`、任意 `source/target : Fin n` について、逆 worklist が source を訪れる iff 元 flow に source→target の有限 path がある。成功、model、acyclicity の前提なし |
+| `lowerBounds_exact` / `upperBounds_exact` | 同じ任意 problem と任意 node について、新 bound 列と既存の `LayerBoundTemplates` の列が文字どおり等しい。順序・重複も保持 |
+| `request_exact` | 任意 problem と任意 root に対し、選んだ方向の要求結果が参照 bound 計算と等しい。未要求の反対方向を計算する必要はない |
+| `lower_exact` / `upper_exact` | 任意の `evaluate : Bound → Common.Ty`、任意 problem、任意 node で、得た bound 列を join/meet した Common 型が参照型と文字どおり等しい。regular/default/mask/負位置の観測を制限しない |
+
+これらは**同じ有限制約 snapshot**についての theorem である。
+snapshot 自体が satisfiable である必要はない。
+一方、後の rigid 分解で追加された辺や別の分岐を、以前の snapshot の問い合わせが先取りしたという主張でもない。
+
+## 12. 現在の Core の根と、各根が読む ID
+
+[`CommonDemandRoots`](../../lean/Yulang/CommonDemandRoots.lean) の `corePlans` は、
+実際の `covered` → `lower` → `principal` → `normalise` を通る有限 clause 列を準備する。
+各 clause は既存の `pack` / `splitAtoms` に渡し、元の共有型 ID・行 ID を変えない。
+この準備では solver は呼ばない。現在の Core が扱う 17 構成子と data / case の既存の部分を覆い、
+未対応構文を受理する新しい規則は加えていない。
+
+根は AST に仮の型を貼るのではなく、実生成後の制約から次の有限データとして抽出する。
+
+| 実装済みの根 | 直接問う範囲 | 保持する意味 |
+| --- | --- | --- |
+| `Root.upper node bound` | node へ flow で到達する元変数の lower seed。`upper_variables_exact` がこの訪問範囲を iff で特徴付ける | 各 lower と固定 upper bound の比較を作る。upper の中の constructor 子・row ID は bound reference のまま残す |
+| `Root.fixed lower upper` | 二つの固定 bound reference。変数-flow の探索は不要 | constructor/payload/record tail 等を inspector が分解し、必要な child 比較・row 比較を追加する |
+| `clauseRowRoots` の行比較 | 二つの有限 `RowTerm` に現れる元 row ID。`rowRootVariables` が列挙する | `rowRootVariables_exact` は、その全 ID が等しければ任意二つの row assignment で比較の真偽が一致することを示す |
+| `DemandBoundPropagation.Root` の upper 要求 | 根から順方向へ到達する変数に置かれた upper seed | hover/readout 等の一変数問い合わせに使える。これは source の実行許可ではない |
+
+`all_roots_exact` は、任意 template で全 upper/fixed 根を問うと参照 `rigidComparisons` と同じ列になることを示す。
+`snapshot_roots_exact` は、任意の実 pool と任意の edge snapshot へ同じ等号を接続する。
+`finish_clauses_exact` は任意 Core 式で、この clause 列を最後まで処理する計算と今回の full completion が同じことを示す。
+
+row の theorem が示すのは有限 row term の直接の読取り範囲である。
+row solver の伝播や、effect の protect/release/residual の要求駆動版を実装したという意味ではない。
+型の固定 bound の中にも元変数・負位置・row ID が現れ得る。
+`Root.fixed` の flow 変数列が空であることを、内部の子が依存を持たないという意味にしない。
+子の義務は実 inspector が返した edge と auxiliary row に残る。
+
+### source 構文との対応
+
+以下は現 generator の制約が何を検査するかの対応であり、source span から各 packed ID への provenance theorem は未追加である。
+
+| 現在の構文 | 要求される検査 |
+| --- | --- |
+| `app` / `strictApp` | function が arrow を満たすこと、引数と domain の比較、入力・出力・実引数の行。strictApp の実引数は pure value として domain に渡す |
+| `branch` | 条件が bool、両枝の型と行。今回実行しない枝の制約も現在の関数の検査から消さない |
+| `fst` / `snd` | 対象が pair の要求を満たすことと、選んだ成分の出力制約 |
+| `field` | 対象の required-field 要求と payload の比較。source の同名 head が隠した要求を tail へ戻さない |
+| `record` / `recordDefault` | tail/source の record-width 制約、head/fallback、結果への比較と全 strict 評価行。optional/default 分解で追加される根も保持 |
+| `lam` / `letE` | body と captured/mono/poly の既存制約。value-let の pure 検査も残す。lambda body を実行単位として後回しにする scheduler は未追加 |
+| `var` / `lit` / `literal` / `data` / `emptyRecord` / `pair` / `variant` | 既存の値・constructor と利用側の要求をつなぐ制約。新しい overload 選択はしない。data の隠れた field も検査 |
+| 単一 bind の `caseE` / `leaf` | 既存の単相 subject 束縛・body・行の制約／透明な内側式の制約。全 pattern/guard/coverage の根ではない |
+
+### 今後の source 統合で追加する根
+
+ユーザーが挙げた六つは、現在の公開判断の外にあるものを含む。以下を実装済みとして数えない。
+
+| 将来の根 | 実装選択の前に確定させる範囲 |
+| --- | --- |
+| method 解決 | receiver の型と行、SCC 終了時の receiver snapshot、可視な候補と固定する reference |
+| role 辞書 | 有限 goal の全型/行引数、関連型の普通の等式、根の呼出し側で見える impl 集合、入れ子の where |
+| cast | 境界の source/target、共有 invariant 引数、検証済み registry と元 construction site。nominal の内部へ勝手に持ち上げない |
+| handler と衛生性 | incoming action row、permission、scope/key/符号付き座標、外側 capture と operation-local 全称型の範囲 |
+| junction | 条件の row に junction が現れるか、その row に影響する全制約。挿入する handler を実行前に固定 |
+| `xs[i]` | container/index の型、Index 辞書と associated result、挿入される error effect の行 |
+
+関数または SCC 全体の検査が必要なことは、これらの局所的な実装選択の根とは別の条件である。
+この表だけから、根のない関数は無検査で実行できるとは結論しない。
+
+## 13. 全検査後の実 `solveAll` との同値
+
+[`CommonDemandSolver`](../../lean/Yulang/CommonDemandSolver.lean) は新しい lower collector を
+`rigidComparisons` に使い、既存の finite inventory / inspector / branch 順序を保って `finishWorklist` を実行する。
+そこから実 row declaration と clamped family を通る `finishProblem` / `finishAll` を作った。
+これらの本体は参照 `solveAll` を呼ばない。bound の計算を置き換えた実算法である。
+ただし `finishAll` は名前どおり**全ての検査を完了する操作**であり、要求された一成分だけを検査して打ち切る操作ではない。
+
+- `finishWorklist_exact`: 任意 pool・初期 edges で、終了 state 列が参照 worklist と文字どおり等しい。
+- `finished_request_exact`: 任意 pool・初期 edges、実際に `finishWorklist` が返した任意 state、任意 root について、その state の要求 bound は参照 snapshot と一致し、参照 worklist の pending rigid 比較は残っていない。返却 membership はこの終了性のための前提であり、途中の問い合わせに課す前提ではない。
+- `finishAll_exact`: 任意 `m` と任意 `Compiled m` で、`finishAll G = CommonBoundRefSolver.solveAll G`。
+  origin がない入力や slot 数不一致も含む計算の等号である。独立 Models との健全性を、無関係な origin を持つ手作り graph に広げたものではない。
+- `all_parameter_sound`: 任意 atoms、任意実返却 scheme、任意 row parameters と任意 type/recursive parameters で、元 compile の Models。
+  前提はその scheme の実 membership だけで、parameter 領域は元のまま。
+- `finishCore_exact`: 任意 `e : Core.Required.Term` で `finishCore e = Core.infer e`。
+- `finishCore_principal`: 任意の同じ e、任意 Common computation c で、独立 `Core.Typing M [] e c` iff
+  `∃ S ∈ finishCore e, ∃ p : S.Parameters, S.instantiate p ≤ c`。
+- `finishCore_instantiates`: 任意 e、任意 `S ∈ finishCore e`、任意 p で `Core.Typing M [] e (S.instantiate p)`。
+- `finishCore_rejected_iff`: 任意 e で、`finishCore e = rejected` iff `¬∃c, Core.Typing M [] e c`。
+
+ここで M は今回も `Core.CommonSyntax.model Common.model`。
+公開 `Core.infer` 自体や `Core.PresenceOnly` 以下の theorem は変更しない。
+同じ全検査後の意味を保つ別の計算として追加している。
+
+## 14. 途中結果と最終 family を混同しない
+
+[`CommonDemandBoundary`](../../lean/Yulang/CommonDemandBoundary.lean) に、実 compile / solveAll を使う例を置いた。
+
+```text
+int ≤ α       -- 今回の lower 要求
+bool ≤ str    -- 別の固定比較。矛盾する
+```
+
+`requested_lower_nonempty` は α への lower 要求に実際の bound が返ることを示す。
+`completed_solver_rejects` / `reference_solver_rejects` は新旧の実 solver の返却列が空であることを示す。
+`no_completed_node_instance` は、任意の元 graph node と任意 Common 型に対し、最終 scheme の instance は存在しないことを示す。
+全て kernel で検査しており、`native_decide` は使わない。
+
+したがって「途中の局所結果」を「全体の solveAll が返す scheme family のその node への射影」と読むと、
+未要求の矛盾を残したまま無条件に等しいとは言えない。
+今回閉じた要求同値は、**同じ snapshot の bound を問う計算**の等号である。
+全検査後には、scheme 列そのものが参照計算と一致する。
+エラーがある全体から部分情報を返すための結果型と、その意味はまだ別に必要になる。
+これは内部の結果の区別であり、新しい言語上の受理規則を選ぶ理由にはしない。
+
+## 15. C の到達状況と残る正確な補題
+
+| 項目 | 到達 |
+| --- | --- |
+| C1: 根と bound 計算 | 現在の生成 clause と snapshot に対する有限関数を実装。source/SCC と runtime 到達性の対応は未実装 |
+| C2: 最小の要求同値 | 任意 snapshot / node / direction に対する bound 列の等号、全検査後の実 solveAll と Core.infer の等号を証明。要求した一成分だけの飽和で最終情報を返す theorem は未完 |
+| C3: 根の一覧と変数の範囲 | 上記の実制約根と将来の実装選択の根を記録。速度・起動時間・memory の改善は主張しない |
+
+残る補題 `demand_saturation_locality` は、任意の現在の Core 入力から生成した任意 clause と任意の要求根について、
+実際の要求駆動の飽和が、必要な全 constructor 子・負位置・default/optional 分解・行条件・選言枝を追跡し、
+その根に影響する義務を一つも残さず閉じることを示すものである。
+閉性や solver 成功を入力に要求する theorem では代用しない。
+根に無関係な新しい辺が生成されないという仮定をユーザーへ移さず、実生成/inspection から証明する必要がある。
+
+残る `demand_snapshot_invalidation_exact` は、任意の異なる snapshot 間で、
+辺や branch の追加後に以前の bound を再利用してよい iff 必要な依存の観測が変化しないことを扱う。
+今回は mutable cache 自体を作っておらず、各 `request` は渡された snapshot を直接読む。
+従って stale cache を用いているわけではないが、memo の正当性も未証明である。
+
+残る `executed_scc_checked_before_run` は、任意 source の実行する関数/SCC について、
+その全体の型と実装選択に必要な検査が終了し、以後の実行で未検査の根を使わないことを示す必要がある。
+現在の Core 入口は module の SCC 発見や runtime scheduler を入力に持たず、この theorem は今回のコードからは出ない。
+「通らない分岐」だけを落として関数全体が検査済みとする変更もしない。
+
+これらの未完を補うために public parameter に `ResidualHolds` 等を加えていない。
+B の theorem の形を壊す変更はなく、今回の C から新しい `notes/questions/` は発生しない。
+実行する経路の先行検査というユーザーの決定を撤回する選択肢も置かない。
