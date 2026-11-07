@@ -638,3 +638,6 @@ import Yulang.CommonEffectCapturedCompilation
 import Yulang.CommonEffectConstructorNormalisation
 import Yulang.CommonEffectBoundExtraction
 import Yulang.CommonEffectBoundTemplates
+import Yulang.CommonEffectTypeRowMap
+import Yulang.CommonEffectFiniteRowMap
+import Yulang.CommonEffectRegularRowMap

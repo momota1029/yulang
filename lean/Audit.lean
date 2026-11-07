@@ -4404,3 +4404,18 @@ run_cmd do
 #print axioms Yulang.CommonEffectBoundTemplates.canonical_exact
 #print axioms Yulang.CommonEffectBoundTemplates.finite_candidates_exact
 #print axioms Yulang.CommonEffectBoundTemplates.universal_finite_candidates_exact
+
+#print axioms Yulang.CommonEffectTypeRowMap.state_inverse
+#print axioms Yulang.CommonEffectTypeRowMap.type_inverse
+#print axioms Yulang.CommonEffectTypeRowMap.exit_enter_type
+#print axioms Yulang.CommonEffectTypeRowMap.release_protect_type
+#print axioms Yulang.CommonEffectTypeRowMap.protect_release_type
+
+#print axioms Yulang.CommonEffectFiniteRowMap.probe_exact
+#print axioms Yulang.CommonEffectFiniteRowMap.producerLe_exact
+
+#print axioms Yulang.CommonEffectRegularRowMap.state_graph
+#print axioms Yulang.CommonEffectRegularRowMap.observe_type
+#print axioms Yulang.CommonEffectRegularRowMap.subtype_exact
+#print axioms Yulang.CommonEffectRegularRowMap.transport_subtype_exact
+#print axioms Yulang.CommonEffectRegularRowMap.transport_equivalent_exact
