@@ -49,6 +49,11 @@ import Lean
 #print axioms Yulang.CommonCanonicalRowTests.problem_interfaces_exact
 #print axioms Yulang.CommonCanonicalCounterConstraints.seed_exact
 #print axioms Yulang.CommonCanonicalCounterConstraints.constraints_split
+#print axioms Yulang.CommonCanonicalCounterConstraints.forbidden_exact
+#print axioms Yulang.CommonCanonicalCounterConstraints.partition_exact
+#print axioms Yulang.CommonCanonicalCounterConstraints.constraints_imply_invariant
+#print axioms Yulang.CommonCanonicalCounterConstraints.invariant_has_constraints
+#print axioms Yulang.CommonCanonicalCounterConstraints.constraints_iff_nonhalting
 
 /- The allowlist applies to every declaration from a Yulang module, including
 private implementation declarations, not only the principal theorems below. -/
