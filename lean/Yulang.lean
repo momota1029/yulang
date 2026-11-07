@@ -539,3 +539,4 @@ import Yulang.CommonCoreStrictRuntime
 import Yulang.CoreCommonData
 
 import Yulang.CommonCoreNamedCase
+import Yulang.CoreCommonSyntaxExact

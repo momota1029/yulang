@@ -3976,3 +3976,5 @@ run_cmd do
 #print axioms Yulang.CommonCoreNamedCase.principal
 #print axioms Yulang.CommonCoreNamedCase.all_parameter_sound
 #print axioms Yulang.CommonCoreNamedCase.rejected_iff
+#print axioms Yulang.Core.CommonSyntax.covered_case_iff
+#print axioms Yulang.Core.CommonSyntax.lowering_exact
