@@ -510,3 +510,5 @@ import Yulang.CommonLegacyErasureBoundary
 import Yulang.CommonLegacyGeneratedAtoms
 import Yulang.CommonPresenceSolvedSource
 import Yulang.CoreSyntaxGatedCommonInference
+import Yulang.CommonLegacyReflection
+import Yulang.CommonCanonicalIntervals
