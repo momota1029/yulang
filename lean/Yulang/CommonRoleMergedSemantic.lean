@@ -41,6 +41,37 @@ theorem requirements_determined_common (rule : Rule) (linear : CommonRoleLinearC
   obtain ⟨_, b⟩ := CommonRoleLinearClock.finite_match_reflection rule linear value τ last
   exact Common.equivalent_trans a (Common.equivalent_symm b)
 
+theorem pattern_determines_used (pattern : Pattern) (σ τ : Nat → Common.Ty)
+    (same : Common.Equivalent (pattern.eval σ) (pattern.eval τ)) (name : Nat)
+    (used : 0 < pattern.encode.occurrences name) : Common.Equivalent (σ name) (τ name) := by
+  induction pattern with
+  | var variableName =>
+      have equal : variableName = name := by
+        by_cases equal : variableName = name
+        · exact equal
+        · simp [CommonRoleLinearClock.Pattern.encode, Roles.Term.occurrences, Ne.symm equal] at used
+      subst variableName
+      exact same
+  | int => simp [CommonRoleLinearClock.Pattern.encode, Roles.Term.occurrences, Roles.argsOccurrences] at used
+  | pair first last ihFirst ihLast =>
+      obtain ⟨firstSame, lastSame⟩ := (CommonCanonicalShapes.pair_equivalent_iff _ _ _ _).mp same
+      have occurs : 0 < first.encode.occurrences name + last.encode.occurrences name := by
+        simpa [CommonRoleLinearClock.Pattern.encode, Roles.Term.occurrences, Roles.argsOccurrences] using used
+      by_cases firstUsed : 0 < first.encode.occurrences name
+      · exact ihFirst firstSame firstUsed
+      · exact ihLast lastSame (by omega)
+  | variant tag payload ih =>
+      exact ih ((CommonCanonicalShapes.variant_equivalent_iff tag _ _).mp same)
+        (by simpa [CommonRoleLinearClock.Pattern.encode, Roles.Term.occurrences, Roles.argsOccurrences] using used)
+
+theorem requirements_determined_all_common (rule : Rule) (linear : CommonRoleLinearClock.Linear rule)
+    (σ τ : Nat → Common.Ty) (same : Common.Equivalent (rule.left.eval σ) (rule.left.eval τ)) :
+    Common.Equivalent (rule.right.eval σ) (rule.right.eval τ) := by
+  apply CommonRoleLinearClock.Pattern.eval_congr
+  intro name used
+  have covered := linear name
+  exact pattern_determines_used rule.left σ τ same name (by omega)
+
 structure Goal where
   role : Nat
   argument : Common.Ty
@@ -52,6 +83,43 @@ def interpretGoal (requirement : Roles.Goal) (assignment : Nat → Common.Ty) : 
 def Matches (implementation : Roles.Impl) (goal : Goal) (assignment : Nat → Common.Ty) : Prop :=
   implementation.role = goal.role ∧ ∃ term type, implementation.head = [term] ∧
     interpret term assignment = some type ∧ Common.Equivalent type goal.argument
+
+def meaning (goal : CommonRoleCanonicalMergedEvidence.Goal) : Goal :=
+  ⟨goal.role, Common.variant 0 goal.value.eval⟩
+
+theorem generated_candidate_exact (role key copies : Nat) (pattern : Pattern) (children : List Roles.Goal)
+    (goal : CommonRoleCanonicalMergedEvidence.Goal) :
+    (∃ assignment, CommonRoleCanonicalMergedEvidence.Matches
+      ⟨role, [headTerm copies pattern], children, key⟩ goal assignment) ↔
+    ∃ assignment, Matches ⟨role, [headTerm copies pattern], children, key⟩ (meaning goal) assignment := by
+  constructor
+  · rintro ⟨assignment, sameRole, decoded, read, matched⟩
+    have samePattern := Option.some.inj ((decode_head copies pattern).symm.trans read)
+    subst decoded
+    obtain ⟨semantic, type, interpreted, same⟩ := (generated_match_exact copies pattern goal.value).mp ⟨assignment, matched⟩
+    exact ⟨semantic, sameRole, headTerm copies pattern, type, rfl, interpreted, same⟩
+  · rintro ⟨semantic, sameRole, term, type, head, interpreted, same⟩
+    have sameTerm : term = headTerm copies pattern := (List.cons.inj head).1.symm
+    subst term
+    obtain ⟨assignment, matched⟩ := (generated_match_exact copies pattern goal.value).mpr
+      ⟨semantic, type, interpreted, same⟩
+    exact ⟨assignment, sameRole, pattern, decode_head copies pattern, matched⟩
+
+theorem visible_candidate_exact (code : CommonRoleComputation.Code) (implementation : Roles.Impl)
+    (member : implementation ∈ visible code) (goal : CommonRoleCanonicalMergedEvidence.Goal) :
+    (∃ assignment, CommonRoleCanonicalMergedEvidence.Matches implementation goal assignment) ↔
+      ∃ assignment, Matches implementation (meaning goal) assignment := by
+  rcases List.mem_cons.mp member with rfl | member
+  · exact generated_candidate_exact 0 0 0 (.var 0) [] goal
+  · obtain ⟨entry, _, rfl⟩ := List.mem_map.mp member
+    exact generated_candidate_exact entry.2.source (entry.1 + 1) entry.2.padding entry.2.left _ goal
+
+theorem unique_common (code : CommonRoleComputation.Code) (implementation : Roles.Impl)
+    (goal : CommonRoleCanonicalMergedEvidence.Goal)
+    (unique : CommonRoleCanonicalMergedEvidence.Unique (visible code) implementation goal) :
+    ∀ other ∈ visible code, (∃ assignment, Matches other (meaning goal) assignment) → other = implementation := by
+  intro other member matched
+  exact unique other member ((visible_candidate_exact code other member goal).mpr matched)
 
 mutual
   inductive Derives (visible : List Roles.Impl) : Goal → Prop where
@@ -72,6 +140,34 @@ def goalOf (configuration : Configuration) : Goal := ⟨configuration.role, Comm
     interpretGoal ⟨rule.target, [plainTerm rule.right]⟩ assignment =
       some ⟨rule.target, Common.variant 0 (rule.right.eval assignment)⟩ := by
   simp [interpretGoal, plainTerm, paddedType]
+
+def HeadDeterminesRequirements (declarations : List Roles.Impl) : Prop :=
+  ∀ implementation ∈ declarations, ∀ σ τ : Nat → Common.Ty,
+    (∀ term ∈ implementation.head, ∃ first last,
+      interpret term σ = some first ∧ interpret term τ = some last ∧ Common.Equivalent first last) →
+    ∀ child ∈ implementation.constraints, ∃ first last,
+      interpretGoal child σ = some first ∧ interpretGoal child τ = some last ∧
+      first.role = last.role ∧ Common.Equivalent first.argument last.argument
+
+theorem head_determines_requirements (code : CommonRoleComputation.Code) : HeadDeterminesRequirements (visible code) := by
+  intro implementation member σ τ heads child required
+  rcases List.mem_cons.mp member with rfl | member
+  · cases required
+  · obtain ⟨entry, present, rfl⟩ := List.mem_map.mp member
+    have childEqual : child = ⟨entry.2.target, [plainTerm entry.2.right]⟩ := by simpa [compile] using required
+    subst child
+    obtain ⟨first, last, firstRead, lastRead, same⟩ := heads _ (List.mem_singleton_self _)
+    have firstEqual := Option.some.inj ((interpret_head entry.2.padding entry.2.left σ).symm.trans firstRead)
+    have lastEqual := Option.some.inj ((interpret_head entry.2.padding entry.2.left τ).symm.trans lastRead)
+    subst first
+    subst last
+    have dataSame : Common.Equivalent (entry.2.left.eval σ) (entry.2.left.eval τ) := by
+      apply (CommonCanonicalShapes.variant_equivalent_iff 0 _ _).mp
+      exact Common.equivalent_trans (Common.equivalent_symm (head_meaning entry.2.padding entry.2.left σ))
+        (Common.equivalent_trans same (head_meaning entry.2.padding entry.2.left τ))
+    exact ⟨_, _, child_interpreted entry.2 σ, child_interpreted entry.2 τ, rfl,
+      (CommonCanonicalShapes.variant_equivalent_iff 0 _ _).mpr
+        (requirements_determined_all_common entry.2 (registry_linear code entry present) σ τ dataSame)⟩
 
 theorem reflect (code : CommonRoleComputation.Code) {goal : Goal} (derivation : Derives (visible code) goal) :
     ∀ source, goal.role = source.role → Common.Equivalent goal.argument (Common.variant 0 source.value.eval) →

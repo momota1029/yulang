@@ -672,3 +672,5 @@ import Yulang.CommonRoleMergedRegistry
 import Yulang.CommonRoleCanonicalMergedEvidence
 import Yulang.CommonRoleMergedHalting
 import Yulang.CommonRoleMergedObstruction
+import Yulang.CommonRoleMergedSemantic
+import Yulang.CommonRoleMergedExamples

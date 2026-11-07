@@ -658,3 +658,62 @@ row区切りをproducer unionと取り違えず、実mergeが作ったpayload内
 - `dictionary_exact` / `actual_plan_exact`: 任意Code,inputについて実Dictionary存在（全実Plan宣言がvisibleという性質を含めても）iff ∃output,Eval Code input output。
 
 検証: `cd lean && lake build --wfail` exit0（681 jobs）。有限Dictionaryだけを使い、coinductive evidenceやfuelは導入しない。
+
+## B4r4 checkpoint 6: 全有限resolver非存在
+
+新規 `CommonRoleMergedObstruction`。
+閉じた主張:
+
+- `start_description`: 任意Code,inputについて有限wire用記述の解釈は実startGoalに等しい。
+- `eval_queryCode` / `queryCode_exact`: 任意Code,input,outputについて固定有限programの評価は実queryWireを返し、その出力だけ。
+- `no_total_canonical_merged_resolver`: 追加前提なしで、全Code,inputの実有限queryで停止し終了bit=true iff実canonical有限Dictionary存在を返す有限tape machineは存在しない。
+- `canonical_merged_registry_undecidable`: 追加前提なしで、任意Codeの実registryは新checker、NWF、raw WF、任意Common代入のHDA、AssocWF、全implのN固定性と実normalized variant row由来を満たし、任意Ground goalはfiniteかつ両K2 gateを通る。それでも上の全域machineは存在しない。
+
+検証: `cd lean && lake build --wfail` exit0（682 jobs）。成功bitだけで既存Halts非決定性に還元した。
+これは現在の任意core registry量化へのE2であり、source全elaborationの正確性を新たに証明したとは言わない。
+
+## B4r4 checkpoint 7: 任意Common代入との独立比較
+
+新規 `CommonRoleMergedSemantic` 初版。
+閉じた主張:
+
+- `generated_match_exact`: 任意コピー数,Pattern,Groundについて、構造的有限捕捉存在 iff 実head解釈をgoalのsingle-tag variantとCommon同値にする任意Common代入と型が存在。
+- `requirements_determined_common`: 任意Linear Rule,Ground,二Common代入について、両left解釈がGroundと同値ならright解釈も同値。
+- `child_interpreted`: 任意Rule,任意Common代入について実where field解釈はvariant tick(right.eval)を返す。
+- `reflect`: 任意Code,上位Derives,有限sourceについてrole一致とvariant payloadの要求同値からMachineHalts。
+- `of_machine`: 任意Code,有限sourceについてMachineHaltsから上位Derives。
+- `arbitrary_common_exact` / `canonical_iff_arbitrary_common`: 任意Code,inputについて上位任意Common evidence iff Halts、またcanonical有限Dictionary存在 iff同上位evidence。
+
+検証: `cd lean && lake build --wfail` exit0（683 jobs）。上位比較はcanonical record tailを任意代入へ戻す定義ではない。
+
+## B4r4 checkpoint 8: 小例と提案の局所検査
+
+新規 `CommonRoleMergedExamples`。
+閉じた主張:
+
+- `minimal_checked` / `growing_checked`: 固定self-loop / growing implは新checker=true。
+- `minimal_sizes`: 固定self-loopの実head size4、実child size2。
+- `growing_sizes_occurrences`: 固定growingの実head/child size4/3、変数0の出現2/1。
+- `minimal_normal` / `minimal_from_merge`: 固定self-loopはN固定、実duplicate-tag mergeから実headが得られる。
+- `minimal_matches`: 固定finite selfGoalに実headMatches=true。
+- `minimal_child`: 任意有限代入について固定実childはselfGoalへ戻る。
+- `no_finite_self_dictionary`: 任意finite Goalについてsingleton selfImpl環境の有限Dictionaryは存在しない。
+- `no_self_descent_measure`: measure selfGoal < measure selfGoalとなるGoal→Natは存在しない。
+- `proposed_rejects_minimal` / `proposed_rejects_growing`: 固定各小例のheadを提案縮約してから実checkerへ渡すとfalse。
+
+検証: `cd lean && lake build --wfail` exit0（684 jobs）。小例だけを全域アルゴリズム非存在の代用にしない。
+
+## B4r4 checkpoint 9: 全Commonでのrequirements決定性と候補一致
+
+Semanticを追加強化した。
+閉じた主張:
+
+- `pattern_determines_used`: 任意rigid Pattern,二Common代入,変数について、両pattern解釈同値かつ当該変数出現なら変数像も同値。
+- `requirements_determined_all_common`: 任意Linear Rule,二Common代入について、両left解釈同値ならright解釈も同値。有限target前提なし。
+- `generated_candidate_exact`: 任意role,key,コピー数,Pattern,実child列,有限goalについて、canonical Matches代入存在 iff実格納headの任意Common Matches代入存在。
+- `visible_candidate_exact`: 任意Code,visible実impl,有限goalについて同candidate iff。
+- `unique_common`: 任意Code,実impl,有限goalについてcanonical Uniqueなら全任意Common一致候補も同じimpl。
+- `head_determines_requirements`: 任意Codeの全実visible implについて、任意二Common代入の全実head同値から全実whereのrole一致と引数同値。定義されることも含む。
+
+検証: `cd lean && lake build --wfail` exit0（684 jobs）。追加のHeadDeterminesRequirementsだけでも今回のfamilyは除外できない。
+全98新規theoremをAuditへ登録した。独立reviewもglobal量化を確認し、trust0 Audit exit0/56333 declarations。

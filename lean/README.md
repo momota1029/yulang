@@ -2068,3 +2068,38 @@ decidable normalized checkerのWellFormed/HDA soundnessを証明する。
 量化範囲またはtail捕捉を変える未承認案は [一問](../notes/questions/2026-11-07-b4r3-core-tail-capture.md)、
 完全な定理statementと検証は [B4r3結果](../notes/handoff/2026-11-07-m1-b4r3-results.md) にある。
 旧E2は保存し、spec・既存checker・公開入口は変更していない。
+
+## B4r4 E2: canonical residual を守っても、合流 payload の冪等性が size に残る（2026-11-07）
+
+承認済み canonical residual は `CommonRoleCanonicalRows` に実関数として定義した。
+具体的な record から明示可視 label を引いた残りだけを tail へ束縛し、旧 `{x:int}` の自己捕捉は認めない。
+直前の B4r3 E2 は旧 arbitrary-assignment 意味に対する定理として保存し、現在の意味へ適用しない。
+
+新しい E2 は `CommonRoleMergedObstruction.canonical_merged_registry_undecidable`。
+実 `Variants.Merged.normalize` に同じ tag/payload を繰り返し渡すと、tag は一意になるが payload に union の反復が残る。
+Common ではその反復が元 payload と同値である一方、承認済み record 用 N はこのサイズを減らさない。
+この tail-free な実 head と全 where child に、任意有限 program の停止を符号化した。
+全宣言が実 normalized checker/WF/HDA/AssocWF を満たし、全 goal は有限木で両 K2 拒否が起きない。
+それでも全実有限辞書の存在を正確に答える全域 finite tape machine は存在しない。
+
+`generated_match_exact` / `visible_candidate_exact` は canonical 捕捉と任意 Common 候補の一致を示し、
+`canonical_iff_arbitrary_common` は上位 Common evidence と有限辞書の成功集合を同一にする。
+`head_determines_requirements` は全 Common 二代入について実 where の決定性も証明するため、
+その条件の追加だけではこの障害を除外できない。
+新 checker は生成された merged-payload grammar に対する decidable 十分条件と実 `CheckedRoles` の合成であり、
+旧 Pattern 限定 `VerifiedDeclaration` API がこの新 grammar を受理するという主張ではない。
+
+| 項目 | 今回証明したこと | 何が未証明か |
+| --- | --- | --- |
+| canonical record tail | 任意 label/payload 有限行で一意な引き算、正規化との一致、質量分割と真下降 | 全 Common record/union/複数 tail の matcher と source lowering |
+| 任意 verified core registry | 実 tag merge 由来、N 固定、WF/HDA/AssocWF の finite family で全域 exact resolver の必要成功bitが決定不能（E2） | E1 の全 selection/rejection/ambiguity resolver、全 regular graph の classifier |
+| 実辞書と Common 比較 | 全実 impl/key/where child、canonical 候補 iff Common 候補、全 Common `HeadDeterminesRequirements` | 全言語の finite-tree agreement、nominal agreement、全 source elaborator / 公開入口 / Rust 統合 |
+| size と型同値 | 実合流 payload union の冪等性も size を消す。record duplicate 除去だけでは足りない | 全 union/row 正規化の完全性、提案した payload 縮約後の full E1 |
+| qualified | canonical residual を反映した正確な未証明 lemma を設計 note に記載 | 実 generator と独立 typing の iff、全自由 parameter family。単独 generator の非存在は証明していない |
+
+source variant の parser probe と実 merge → core head の橋は確認したが、全 source elaboration 定理は主張しない。
+拒否先行は [未決の作業上の選択](../notes/questions/2026-11-07-b4r2-rejection-priority.md) のまま。
+新規の payload 縮約案は [承認用の一問](../notes/questions/2026-11-07-b4r4-merged-payload-size.md) に置いた。
+仕様、RoleRank、fuel、nominal body の扱いは変更していない。
+全量化、検証、残りは [B4r4 結果](../notes/handoff/2026-11-07-m1-b4r4-results.md)、
+定義と qualified の正確な残りは [設計 note](../notes/design/2026-11-07-b4r4-canonical-residual-and-merged-payload.md)。
