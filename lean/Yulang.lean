@@ -608,3 +608,11 @@ import Yulang.CommonPatternAlignedObservations
 import Yulang.CommonPatternAlignedMatcher
 import Yulang.CommonAlignedPatternTyping
 import Yulang.CommonAlignedPatternInversion
+import Yulang.CommonAlignedPatternGeneration
+import Yulang.CommonAlignedPatternAllocation
+import Yulang.CommonAlignedPatternPartialSafety
+import Yulang.CommonAlignedPatternGenerationProvenance
+import Yulang.CommonAlignedPatternSolvedGeneration
+import Yulang.CommonAlignedArmGeneration
+import Yulang.CommonAlignedPatternEnvironment
+import Yulang.CommonAlignedCaseEvaluation

@@ -215,4 +215,23 @@ theorem run_equivalent (floatCheck : F → F → Bool)
 theorem data_defaults_invariant : DefaultInvariant (F := F) CaseDataTerms.defaultEval :=
   fun first last same code => CommonPatternBindingAlignment.data_eval_lookup_eq code first last same
 
+theorem default_present (floatCheck : F → F → Bool)
+    (defaultEval : Bindings F → D → Logged E R (Value F)) (environment : Bindings F)
+    (name : Nat) (fallback : D) (p rest : Pattern F D) (fields : Bindings F) (value : Value F)
+    (present : lookup name fields = some value) :
+    run floatCheck defaultEval environment (.defaultField name fallback p rest) (.record fields) =
+      andThen (run floatCheck defaultEval environment p value)
+        (fun prior => run floatCheck defaultEval (prior ++ environment) rest (.record fields)) := by
+  simp [run, present, Logged.ofResult, Logged.bind]
+
+theorem default_absent (floatCheck : F → F → Bool)
+    (defaultEval : Bindings F → D → Logged E R (Value F)) (environment : Bindings F)
+    (name : Nat) (fallback : D) (p rest : Pattern F D) (fields : Bindings F)
+    (absent : lookup name fields = none) :
+    run floatCheck defaultEval environment (.defaultField name fallback p rest) (.record fields) =
+      (defaultEval environment fallback).bind fun value =>
+        andThen (run floatCheck defaultEval environment p value)
+          (fun prior => run floatCheck defaultEval (prior ++ environment) rest (.record fields)) := by
+  simp [run, absent]
+
 end Yulang.CommonPatternAlignedMatcher

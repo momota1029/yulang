@@ -4213,3 +4213,14 @@ run_cmd do
 #print axioms Yulang.CommonPatternAlignedMatcher.run_equivalent
 #print axioms Yulang.CommonAlignedPatternTyping.RawTyping.binding_names
 #print axioms Yulang.CommonAlignedPatternInversion.typing_root_exact
+#print axioms Yulang.CommonAlignedPatternGeneration.generatePattern_exact
+#print axioms Yulang.CommonAlignedPatternAllocation.generateCheckedPattern_exact
+#print axioms Yulang.CommonAlignedPatternAllocation.Examples.reversed_or_generated
+#print axioms Yulang.CommonAlignedPatternPartialSafety.typing_matches_partial
+#print axioms Yulang.CommonAlignedPatternGenerationProvenance.generated_invariants
+#print axioms Yulang.CommonAlignedPatternSolvedGeneration.generated_models_exact
+#print axioms Yulang.CommonAlignedArmGeneration.generateEnvironments_exact
+#print axioms Yulang.CommonAlignedPatternEnvironment.checked_bindings_exact
+#print axioms Yulang.CommonAlignedPatternEnvironment.generated_match_bindings
+#print axioms Yulang.CommonAlignedCaseEvaluation.runArms_eq
+#print axioms Yulang.CommonAlignedCaseEvaluation.data_evaluation_eq

@@ -37,6 +37,21 @@ theorem logged_equal (value : Logged E R A) : LoggedRel Eq value value := by
   | error => exact .error
   | ok => exact .ok rfl
 
+theorem logged_prepend {first : Logged E R A} {last : Logged E R B}
+    (same : LoggedRel relation first last) (events : List E) :
+    LoggedRel relation (Logged.prepend events first) (Logged.prepend events last) :=
+  ⟨by simp only [Logged.prepend, same.1], same.2⟩
+
+theorem logged_eq_of_rel {first last : Logged E R A} (same : LoggedRel Eq first last) : first = last := by
+  rcases first with ⟨firstTrace, firstResult⟩
+  rcases last with ⟨lastTrace, lastResult⟩
+  rcases same with ⟨traceSame, results⟩
+  change firstTrace = lastTrace at traceSame
+  cases traceSame
+  cases results with
+  | error => rfl
+  | ok equal => cases equal; rfl
+
 inductive MatchRel : Option (Bindings F) → Option (Bindings F) → Prop where
   | miss : MatchRel none none
   | hit : LookupEq first last → MatchRel (some first) (some last)
