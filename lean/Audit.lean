@@ -4285,3 +4285,7 @@ run_cmd do
 #print axioms Yulang.CommonCaseIntegerCoverage.checkInteger_matches_exact
 #print axioms Yulang.CommonCaseIntegerOrdered.integer_runArms_progress
 #print axioms Yulang.CommonCaseIntegerOrdered.integer_program_progress
+#print axioms Yulang.CommonCaseEffectPaths.usedRows_le_allRows
+#print axioms Yulang.CommonCaseEffectPaths.runArms_bound
+#print axioms Yulang.CommonCaseEffectPaths.eval_bound
+#print axioms Yulang.CommonCaseEffectPaths.usedCaseRows_le_static

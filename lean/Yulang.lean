@@ -638,3 +638,4 @@ import Yulang.CommonPatternSourceProgramEnvironments
 import Yulang.CommonCaseIntegerCells
 import Yulang.CommonCaseIntegerCoverage
 import Yulang.CommonCaseIntegerOrdered
+import Yulang.CommonCaseEffectPaths
