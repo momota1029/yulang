@@ -269,6 +269,10 @@ structure Compiled (inputs : Nat) where
   edges : List (Fin size × Fin size)
   rows : List (RowTerm (Fin inputs) × RowTerm (Fin inputs))
   input : Fin inputs → Fin size
+  /-- Finite source syntax for subsequent symbolic saturation. This is data,
+  not a model certificate, and is ignored by the independent graph meaning.
+  Older hand-built graphs may omit it. -/
+  origin : Option (Problem inputs) := none
 
 def compileProblem (problem : Problem m) : Compiled m where
   size := problem.pool.size
@@ -276,6 +280,7 @@ def compileProblem (problem : Problem m) : Compiled m where
   edges := problem.edges
   rows := problem.rows
   input := problem.pool.input
+  origin := some problem
 
 def Compiled.Realizes (compiled : Compiled m) (rows : Fin m → Row)
     (values : Fin compiled.size → Ty) : Prop :=
@@ -284,6 +289,14 @@ def Compiled.Realizes (compiled : Compiled m) (rows : Fin m → Row)
 def Compiled.Models (compiled : Compiled m) (rows : Fin m → Row)
     (values : Fin compiled.size → Ty) : Prop :=
   compiled.Realizes rows values ∧ EdgesHold compiled.edges values ∧ RowsHold compiled.rows rows
+
+/-- Source metadata cannot change the graph's independent constraints. -/
+theorem Compiled.models_origin_irrelevant (compiled : Compiled m) (origin : Option (Problem m))
+    (rows : Fin m → Row) (values : Fin compiled.size → Ty) :
+    ({ compiled with origin := origin } : Compiled m).Models rows values ↔ compiled.Models rows values := Iff.rfl
+
+@[simp] theorem compileProblem_origin (problem : Problem m) :
+    (compileProblem problem).origin = some problem := rfl
 
 def Compiled.restrict (compiled : Compiled m) (values : Fin compiled.size → Ty) : Fin m → Ty :=
   fun index => values (compiled.input index)

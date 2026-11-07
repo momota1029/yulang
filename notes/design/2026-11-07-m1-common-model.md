@@ -504,3 +504,39 @@ scalar の `'a | 'b` は二つの slot を実際に使うが、一つの slot `'
 この例と、任意 arity の両方向の有限 scalar substitution による family 同値を証明した。
 置換が存在することの完全探索や、弱い変数・一般行式・regular/nominal/role を含む全 public interface の
 canonical encoding はこの結果には含めない。実 inference/export/display の呼出経路もまだ接続していない。
+
+## 22. 実有限 worklist から残余のない公開入口への接続
+
+§20 の局所接続義務を `CommonBoundRefWorklist` と `CommonBoundRefClosedSoundness` で閉じた。
+追加する状態は元 node、top/width/exactEmpty と固定 query の required/rawOpt に収まり、
+各 trace は高々 (5N+3)² step で終わる。これは分岐数・実行時間の多項式保証ではない。
+実 dispatcher の child grammar と simple row 文法は各 step で保存される。
+最終 state の trace から finite selection を回収し、有限 depth と source weight の二重帰納に渡す。
+符号化は同じ構文境界を共有できるため、単射性を仮定せず各 encoded 比較の元参照を選ぶ。
+
+`CommonClampedRowFamily` は元行と追加行を同じ row scheme で解き、その行を clamped graph に渡す。
+`CommonBoundRefAllParameters` は実 worklist の閉性と、この任意 parameter の行健全性を合わせ、
+元 constructor 方程式・全型比較・全行比較を同時に満たすことを示す。parameter に row/model/closure 条件はない。
+元モデルの回収では、元 row assignment 自体を row parameter とし、optional pool の拡張を経由して
+元 ID の値を保存する。全 node の要求同値を回収するので、負の arrow child の共有も失わない。
+
+`CommonPresenceConstraintGraph.Compiled` に `origin : Option (Problem inputs)` を加えた。
+既定値は none、実 compile は some で元の有限構文を保持する。既存 `Models` はこの欄を参照せず、
+`models_origin_irrelevant` で任意 metadata の置換に対する不変性を証明する。
+代案として、具体化後の graph から source pool を再構成する方法、semantic certificate を Compiled に加える方法、
+compile や Models 自体を solver の成立で定義し直す方法は採用しない。固定 finite inventory を作るために
+必要なのは元の構文であり、solver の法則ではない。任意の手製 Compiled に無関係な origin を付けたときの
+健全性は主張しない。公開の全 parameter 健全性と完全性は、実 `compile atoms` について述べる。
+
+`CommonBoundRefSolver.Scheme` は finite clamped family と元 node の readout だけを保存する。
+`solveAll` は実 worklist と構文的 Option 行宣言から有限 List を計算する。
+実生成 clause では行宣言が必ず成功することを別途証明し、公開 theorem の前提から除く。
+任意の返却 scheme の任意 parameter は元 Models を満たし、任意の実生成 clause の元モデルも、
+同じ rows と全元 node の要求同値を保って回収される。parameters の型は行・型・再帰 node の普通の積である。
+
+`CommonSolvedSource` は実 normalise/pack/compile/solveAll の有限和を計算し、結果の型 ID と行 ID を読む。
+`Core.infer` はその実有限 List を空なら rejected、非空なら inferred と分類する。
+独立な presence Typing との principal iff、rejected iff 型付け不能、unsupported 不出現を閉じた。
+`Core.infer` を Formula.Holds の別名にする案や、初期成功・closed cache・fuel・残比較を引数に加える案は採用しない。
+対象のモデルは `PresenceGeneration.CoreRules.model Common.model` であり、全 Core モデルの統合とは区別する。
+決定46の旧 supported source 全体への反映と、§21 を超える完全な public interface 標準形は別の残契約である。

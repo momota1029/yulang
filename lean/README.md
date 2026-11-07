@@ -40,7 +40,8 @@ required-field と presence の carrier・判断は別に保持する（M1 の�
 | `Block.definition_conservative` / `scc_conservative` / `generate_exact` | SCC は式の外。宣言 head と Core body を分離し、任意の旧環境・slot 割当て・宣言列で全 body 検査が同値。実際の同時再帰環境と旧 `generateSCC` の充足にも接続（後者は `EnvRel` 前提）。全注釈の局所値型変数も全称量化 | SCC 発見・求解・closure・一般化の統合、effect/case body の SCC 推論（M3） |
 | `required_principal_exact` / `effects_principal_exact` / `qualified_principal_exact` | 既存の `EnvRel`（effect は `SigRel` も）の下で、任意の結果 computation について旧 principal scheme の充足 ⇔ 対応する Core 型付け | 混合 Core 全体の新しい scheme/solver ではない |
 
-全断片の相互作用を扱う統一判断、`Core.infer`、混合断片の拒否完全性・unsupported の排除は未証明である。
+全断片の相互作用を扱う統一判断、混合断片の拒否完全性・unsupported の排除は未証明である。
+下の M1 では presence モデルに対する実 `Core.infer` と、その主性・拒否完全性を証明した。
 `cast` は site の構文のみで、統一した挿入/型付け規則は M4 に残す。
 literal の内容・presence・nominal の planner 結果を一つの値型 carrier に統合したとは主張しない。
 `Core.Expr.isValue` は旧 required/effect 判断用の構文検査であり、新構成子の値制限を決めない。
@@ -102,9 +103,10 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 | `CommonPresenceCoalescedSource.residual_source_principal` / `residual_core_principal` | 上の任意閉式・任意結果の iff を実変数辺消去まで接続。row/type/recursive の3 parameter family を実同時 solver に代入し、残る条件は元 pool の非変数 node 間比較だけ。clause 回収は結果値の要求同値と結果行の等号を保ち、GoodAtoms は生成不変量から内部で供給 | rigid 比較の symbolic saturation と、残余を除いた公開 `Core.infer`・拒否完全性・unsupported 不出現 |
 
 続いて、復旧記録 §7.1 の **代入前に固定する symbolic rigid 分解**を source/Core の両方で閉じた。
-§7.2 では元 pool の普通の node 比較の有限閉包、上限 clamp の全 parameter 性、non-child 条件の下での
-全辺 soundness、および optional/default の有限境界と共有 pool 拡張まで進めた。以下の局所的な定理を、
-全制約を解いた最終 principal theorem と同一視しない。
+§7.2 の有限飽和と全 parameter soundness、§7.3 の全解回収も、実生成 clause について閉じた。
+§7.4 のうち、presence モデルの実 `Core.infer`、残余のない principal theorem、拒否 iff、
+unsupported 不出現まで接続した。旧 supported source 全体への決定46の反映と、§7.5 の完全な
+public interface 標準形は残る。以下の局所定理と、その後の統合定理を区別する。
 
 | Symbolic compiler の定理 | 示したこと | 示さないこと |
 | --- | --- | --- |
@@ -133,6 +135,20 @@ finite/regular presence carrier を追加した。exactEmpty、whole default、m
 | `CommonFiniteOptionalInspection.default_branches_at_sound` / `CommonFiniteBoundInspection.required_at_sound` / `optional_at_sound` | 任意 depth/rows/values と実返却 branch に対し、有限観測の子比較から親比較を導く。`BranchAtSource` は全 child の guarded 比較と、non-rigid source では全 child の同深さ比較も前提とする。局所 default 三分岐では payload/fallback と tail の深さを分ける。soundness 方向には PoolWidth を仮定しない | 全 worklist の source 減少と、clamped 任意 parameter への統合 |
 | `CommonBoundRefInspection.inspect_supported_refs` / `inspect_polarity` / `inspect_exact` | 元 lower/top source と、元 upper・有限 required/optional query target を同じ inventory で反復分解。全返却 child の向きの文法を保存し、任意 Realizes/PoolWidth で元 subtype と同値。literal false と width→required/optional の失敗枝を静的に除去 | worklist 全体から全自由 parameter family への統合 |
 | `CommonBoundInspectionDescent.node_current_sources_smaller` / `CommonClampedSelectedSoundness.conditional_soundness` | 元非変数 node の同深さ child source が proper child/top/width として厳密に小さくなることを証明。任意 finite selection の ordinary/childClosed/currentDecreases と実有限 inspection、clamped model、row/literal 条件の下で全辺を導く | その selection と全補助条件を実 worklist から内部構成すること |
+
+| 実飽和・全自由 scheme・公開入口 | 示したこと | 示さないこと |
+| --- | --- | --- |
+| `CommonBoundRefWorklist.run_closed` / `run_bound` / `generated_run_models_exact` / `generated_core_run_models_exact` | 任意 pool の実 bound-reference worklist は有限 inventory 内で停止し、各返却 branch の全 rigid 比較を分解済みにする。元 N node に対して各 trace は高々 (5N+3)² step。実生成 clause の任意独立 constructor model について、元比較列の成立 iff いずれかの返却 branch の比較・行制約の成立。構文条件は生成から供給 | この局所 theorem 単独での自由 parameter 化、返却 branch 総数の多項式上界 |
+| `CommonBoundRefAllParameters.saturation_closed` / `generated_all_parameters_models` / `generated_core_all_parameters_models` | 任意の実生成 clause、任意の返却 state、任意の行・型・再帰 parameter について、同時 row/clamped family が元 graph の constructor 方程式・全比較辺・全行制約を満たす。閉性・有限 inspector・row/literal 条件を内部供給。型 parameter は mask/regular を含む任意 Common.Ty | 全 public interface の標準化、一般の手書き atom 列に対する完全性 |
+| `CommonBoundRefSolver.all_parameter_sound` / `generated_models_exact` / `generated_core_models_exact` | 実計算 `solveAll (compile atoms)` の各返却 scheme と任意 parameter は元 Models を与える（健全性には atom 文法の前提も不要）。任意の実生成 clause と独立 rows/values では、元 Models iff ある返却 scheme の自由具体化が同じ rows と全元 node の要求同値を回収する。scheme は有限構文と元 ID の readout、parameter は普通の積だけを持つ | 任意に手作りした Compiled と無関係な origin metadata の組に対する保証、一般 atom 文法の全解回収 |
+| `CommonSolvedSource.source_principal` / `core_principal` / `Core.infer_principal` / `infer_rejected_iff` / `infer_ne_unsupported` | 任意 source/Core 式 e と任意結果 c について、独立 presence Typing [] e c iff 実生成・pack・compile・solveAll が返す S と任意型の parameter の存在により S.instantiate ≤ c。rejected iff いかなる結果でも型付け不能、unsupported は返らない。結果行を等号、値を要求同値で回収する強い版も証明。support・成功・Closed・fuel・残比較の公開前提なし | effect/qualified/case 等の混合モデルとの統合、parser からの全 source elaboration、決定46の一般的な旧 instance 反映、export/display の完全標準形 |
+| `CommonLegacyEmptyReflection.exact_empty_upper_old_iff` / `empty_record_typing_exact` / `empty_record_legacy_instances_reflected` | 任意旧 regular target への exact empty 比較は旧 width 比較と同値。旧 empty-record source の新型付けを旧型付けへ反映し、同じ結果行の要求同値な実旧 instance を回収 | 任意旧 supported source の共有 witness を同時に旧 carrier へ回収すること、任意の新 exact/default target への反映 |
+
+この `Core.infer` の型判断は `PresenceGeneration.CoreRules.model Common.model` である。
+対象の record 構築・whole recordDefault・lambda/application・束縛を同じ carrier で扱う。
+他の Core モデルをこの presence モデルと同一視せず、従来の入口と定理は変更していない。
+`Compiled.origin` は元の有限 pool/edge/row 構文を保持する metadata であり、`Models` の意味には使わない。
+`solveAll` はこの構文から有限 inventory を構成し、具体化した型を inspector に渡して分岐を選ばない。
 
 回答済み Q5 に対応する新しい具体要求モデルを `ProducerContextual` / `ProducerContextualRegular` に追加した。
 型変数は任意の意味型が満たすすべての観測を表し、arrow の引数要求も同じ環境の型を名前で参照する。
