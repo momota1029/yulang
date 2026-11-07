@@ -4289,3 +4289,9 @@ run_cmd do
 #print axioms Yulang.CommonCaseEffectPaths.runArms_bound
 #print axioms Yulang.CommonCaseEffectPaths.eval_bound
 #print axioms Yulang.CommonCaseEffectPaths.usedCaseRows_le_static
+#print axioms Yulang.CommonCaseStructuralCells.representative_complete
+#print axioms Yulang.CommonCaseStructuralMatching.run_supported_exact
+#print axioms Yulang.CommonCaseStructuralMatching.accepts_congr
+#print axioms Yulang.CommonCaseStructuralCoverage.check_matches_exact
+#print axioms Yulang.CommonCaseStructuralOrdered.Tree.readout
+#print axioms Yulang.CommonCaseStructuralOrdered.tree_program_progress

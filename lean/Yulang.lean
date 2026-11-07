@@ -639,3 +639,7 @@ import Yulang.CommonCaseIntegerCells
 import Yulang.CommonCaseIntegerCoverage
 import Yulang.CommonCaseIntegerOrdered
 import Yulang.CommonCaseEffectPaths
+import Yulang.CommonCaseStructuralCells
+import Yulang.CommonCaseStructuralMatching
+import Yulang.CommonCaseStructuralCoverage
+import Yulang.CommonCaseStructuralOrdered
