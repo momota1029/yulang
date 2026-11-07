@@ -583,3 +583,5 @@ import Yulang.CommonPatternLookup
 import Yulang.CommonPatternTyping
 import Yulang.CommonRoleRegularObstructions
 import Yulang.CommonEffectRequestGeneration
+import Yulang.CommonRoleAssociatedObstructions
+import Yulang.CommonRoleAssociatedExactness
