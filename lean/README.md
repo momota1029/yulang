@@ -2103,3 +2103,22 @@ source variant の parser probe と実 merge → core head の橋は確認した
 仕様、RoleRank、fuel、nominal body の扱いは変更していない。
 全量化、検証、残りは [B4r4 結果](../notes/handoff/2026-11-07-m1-b4r4-results.md)、
 定義と qualified の正確な残りは [設計 note](../notes/design/2026-11-07-b4r4-canonical-residual-and-merged-payload.md)。
+
+## B4r5: payload合流後のsize規則と、捕捉の順序（2026-11-07）
+
+ユーザーが承認した repeated variant tag の合流後size/occurrence規則を読み、旧B4r4 E2を現規則へ流用していない。
+`CommonRoleCaptureNormalization` は、roleの直接引数捕捉によって新たにpayloadが一致する局所例を形式化する。
+symbolic checkでは実size9/5、occ3/3で受理するが、直接捕捉後Nではhead/childともsize5。
+既存実extractorによる捕捉を証明し、任意Common同値解を選んでいない。
+pair成分合流を先行しても同じ結果。capture-safe宣言checkの提案と、具体化後checkの各場合では小例を拒否する。
+
+| 項目 | 今回証明したこと | 何が未証明か |
+| --- | --- | --- |
+| payloadの捕捉/合流 | 実直接捕捉、局所N意味保存、symbolic size9/5からcapture後5/5、両check時点の実結果 | 全Common grammarのN完全性、捕捉後にも安全な現declaration checkerの定義と下降lemma |
+| 全registry目標 | タイミングの異なる三場合を切り分ける局所定理 | E1/E2のどちらにも未到達。total resolver/exact dictionary、一般finite-tree/nominal agreement |
+| qualified | canonical residualと保留を保つ正確な未証明interfaceを設計noteに記載 | 全実生成iff独立typing、全自由parameter family |
+
+spec6.3の宣言時checkと遅延merge後checkの接続を [一問](../notes/questions/2026-11-07-b4r5-capture-before-size.md) に置いた。
+この点を独断で決めてE2にしていない。拒否先行も従来どおり未決の作業上の選択。
+[局所結果と全量化](../notes/handoff/2026-11-07-m1-b4r5-results.md)、
+[head grammar監査と正確な不足](../notes/design/2026-11-07-b4r5-head-grammar-and-capture.md)。

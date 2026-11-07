@@ -756,3 +756,51 @@ optional-anyのsemantic vacuityは既存定理にあるが、optional表示をso
 E2とは扱わず、質問を一つ `2026-11-07-b4r5-capture-before-size.md` に置いた。
 その間、symbolic check / instance再check / capture-safe declaration checkの各場合を分けて形式化する。
 prover role設定とcallable schemaは今回も不在。primaryが構成し、別agentへ独立auditを依頼した。
+
+## B4r5 checkpoint 1: 直接捕捉後の新しい合流を局所形式化
+
+新規 `CommonRoleCaptureNormalization`。E1/E2の終了ではない。
+閉じた主張:
+
+- `subst_encode` / `subst_eval`: 任意Form,任意Form代入（後者は任意Common解釈も）で実Term substitutionとencode、および意味解釈が可換。
+- `join_congr`: 任意四Common型でa≈bかつc≈dならunion(a,c)≈union(b,d)。
+- `normalize_meaning`: 任意Form,任意Common解釈について局所idempotence stageの前後は要求同値。
+- `capture_zero_actual`: 固定実impl/goalについて既存Roles.matchingSubstの変数0像は固定capture0=intのencodeと等しい。存在代入の選択ではない。
+- `symbolic_checked` / `symbolic_sizes` / `symbolic_occurrences`: 固定symbolic implは実checker=true、実head/child size9/5、変数0occ3/3。
+- `captured_head` / `captured_child` / `captured_sizes`: 固定実capture後Nのhead/childは共に実goal.args、sizeは共に5。
+- `normalization_capture_noncommute`: 固定headについてN後captureのencode列とcapture後Nのencode列は異なる。
+- `symbolic_check_does_not_imply_captured_descent`: 固定symbolic implの実checker=trueかつcapture後の真下降は成立しない。
+- `late_check_rejects`: 固定capture後実implは実checker=false。
+- `capture_safe_rejects`: 提案条件CaptureSafe（任意Form割当てでN後child size<head size）は固定宣言では偽。現checkerだとは扱わず、decidabilityも主張しない。
+- `actual_merge_entries` / `actual_merge_unique`: 固定二payload rowの実Variants.Merged.normalize結果は指定singleton joinと等しく、tag列Nodup。
+
+検証: `cd lean && lake build --wfail` exit0（685 jobs）。局所counterlemmaを現承認規則へのE2と呼ばない。
+
+## B4r5 checkpoint 2: pair成分合流による別分解
+
+同moduleへ追加。
+閉じた主張:
+
+- `coalesced_meaning`: 任意Common解釈について、固定元head payloadのunion of pairsとpair of unionsのsingle-tag variantは要求同値。
+- `coalesced_checked` / `coalesced_size`: 固定coalesced実implも実checker=true、実head size9。
+- `coalesced_captured`: 固定coalesced headも直接capture後Nで実goal.argsに等しい。
+- `coalesced_late_check_rejects`: 固定coalesced headと実childをcapture後にcheckするとfalse。
+
+検証: `cd lean && lake build --wfail` exit0（685 jobs）。
+独立reviewもtrust0/warning-as-error exit0。source質問例の実parser probeはok1/recovery0、role/where引数順を確認。
+全22新規theoremをAuditへ登録した。任意Common代入のlemmaはcongruence/意味保存であり、実captureを任意解にしていない。
+
+## B4r5 現在のgateと設計判断境界
+
+`cd lean && lake build --wfail` exit0（685 jobs）。
+`cd lean && lake env lean --trust=0 Audit.lean` exit0、allowlist56505 declarations。
+全22新規theorem登録、追加公理/sorry/native_decideなし。
+独立reviewはfocused trust0/warning-as-errorと全22日本語量化、question/design/results/READMEのscopeを確認。
+optional表示についてのsource意味を断定しないよう、一箇所の表現を修正した。
+開始HEADに対して既存Leanの許可外変更なし、Yulang.lean/Audit/READMEはappend-onlyを機械確認。
+
+新results `2026-11-07-m1-b4r5-results.md` はE1/E2未到達と明記。
+N全grammar完全性、全regular resolver/exact dictionary、finite-tree/nominal agreement、qualified実生成と全familyは残る。
+一問 `2026-11-07-b4r5-capture-before-size.md` のtiming決定なしに、capture-safe宣言条件や新use-site拒否を採用しない。
+実captureは既存extractorにより決定しているが、宣言checkがcapture後mergeをどう保証するかが未指定であり、
+この点を勝手に決めたE2や追加hypothesis付き同名E1は出していない。

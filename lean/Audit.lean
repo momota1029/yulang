@@ -4678,3 +4678,27 @@ run_cmd do
 #print axioms Yulang.CommonRoleMergedExamples.no_self_descent_measure
 #print axioms Yulang.CommonRoleMergedExamples.proposed_rejects_minimal
 #print axioms Yulang.CommonRoleMergedExamples.proposed_rejects_growing
+
+-- B4r5: local capture/merge timing case analysis, not E1/E2
+#print axioms Yulang.CommonRoleCaptureNormalization.subst_encode
+#print axioms Yulang.CommonRoleCaptureNormalization.subst_eval
+#print axioms Yulang.CommonRoleCaptureNormalization.join_congr
+#print axioms Yulang.CommonRoleCaptureNormalization.normalize_meaning
+#print axioms Yulang.CommonRoleCaptureNormalization.capture_zero_actual
+#print axioms Yulang.CommonRoleCaptureNormalization.symbolic_checked
+#print axioms Yulang.CommonRoleCaptureNormalization.symbolic_sizes
+#print axioms Yulang.CommonRoleCaptureNormalization.symbolic_occurrences
+#print axioms Yulang.CommonRoleCaptureNormalization.captured_head
+#print axioms Yulang.CommonRoleCaptureNormalization.captured_child
+#print axioms Yulang.CommonRoleCaptureNormalization.captured_sizes
+#print axioms Yulang.CommonRoleCaptureNormalization.normalization_capture_noncommute
+#print axioms Yulang.CommonRoleCaptureNormalization.symbolic_check_does_not_imply_captured_descent
+#print axioms Yulang.CommonRoleCaptureNormalization.late_check_rejects
+#print axioms Yulang.CommonRoleCaptureNormalization.capture_safe_rejects
+#print axioms Yulang.CommonRoleCaptureNormalization.actual_merge_entries
+#print axioms Yulang.CommonRoleCaptureNormalization.actual_merge_unique
+#print axioms Yulang.CommonRoleCaptureNormalization.coalesced_meaning
+#print axioms Yulang.CommonRoleCaptureNormalization.coalesced_checked
+#print axioms Yulang.CommonRoleCaptureNormalization.coalesced_size
+#print axioms Yulang.CommonRoleCaptureNormalization.coalesced_captured
+#print axioms Yulang.CommonRoleCaptureNormalization.coalesced_late_check_rejects

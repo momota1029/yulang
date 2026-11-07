@@ -43,4 +43,4 @@ where の goal も `R int (:{tick (int,int)})` になる。
 
 spec6.3 の「合流は型が分かるまで遅らせる」と「宣言時に拒否する」との接続が未指定であるため、この一問を先に置く。
 前回の same-tag padding を承認後の意味へそのまま当ててはいない。
-一般 union 型注釈や、source に書けない optional field を反例の前提にしていない。
+一般 union 型注釈や、source の head としての意味を確認していない optional field を反例の前提にしていない。
