@@ -4037,3 +4037,11 @@ run_cmd do
 #print axioms Yulang.CommonRowHeadSolver.rejected_iff_head_reaches_pure
 #print axioms Yulang.CommonRowHeadSolver.Examples.signed_head_propagates
 #print axioms Yulang.CommonRowHeadSolver.Examples.transitive_head_conflict_rejected
+
+#print axioms Yulang.CommonCanonicalCurriedModule.supportCode_exact
+#print axioms Yulang.CommonCanonicalCurriedModule.known_missing_iff
+#print axioms Yulang.CommonCanonicalCurriedModule.finished_instances_exact
+#print axioms Yulang.CommonCanonicalCurriedModule.finished_total_instances_exact
+#print axioms Yulang.CommonCanonicalCurriedModule.finished_top_iff_known
+#print axioms Yulang.CommonCanonicalCurriedModule.export_canonicalEncoding_exact
+#print axioms Yulang.CommonCanonicalCurriedModule.Examples.shared_joined_finished_instances

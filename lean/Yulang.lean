@@ -555,3 +555,5 @@ import Yulang.CommonLegacyWitnessSource
 import Yulang.CommonRowHeadFlow
 
 import Yulang.CommonRowHeadSolver
+
+import Yulang.CommonCanonicalCurriedModule
