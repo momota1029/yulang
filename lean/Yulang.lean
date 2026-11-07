@@ -527,3 +527,4 @@ import Yulang.CommonLegacyEmbeddedWitnesses
 import Yulang.CommonCanonicalPolarity
 import Yulang.CommonCanonicalPolarityBoundary
 import Yulang.CommonCanonicalArrowFamilies
+import Yulang.CoreCommonSyntax

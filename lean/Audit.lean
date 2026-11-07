@@ -3937,3 +3937,7 @@ run_cmd do
 #print axioms Yulang.CommonCanonicalArrowFamilies.family_transfer_equal
 #print axioms Yulang.CommonCanonicalArrowFamilies.familyEquivalent_iff_transfer
 #print axioms Yulang.CommonCanonicalArrowFamilies.canonicalEncoding_exact
+#print axioms Yulang.Core.CommonSyntax.literalBase_exact
+#print axioms Yulang.Core.CommonSyntax.lower_embed
+#print axioms Yulang.Core.CommonSyntax.lower_isValue
+#print axioms Yulang.Core.CommonSyntax.typing_covered
