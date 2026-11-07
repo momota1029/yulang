@@ -405,4 +405,99 @@ theorem run_closed_models_exact [DecidableEq Edge] (inventory : List Edge)
     exact (run_models_exact inventory rigid inspect edgeHolds auxHolds rigidSound inspectionExact edges aux).mpr
       ⟨final, returned, valid⟩
 
+private theorem explore_preserves [DecidableEq Edge] (inventory : List Edge)
+    (rigid : List Edge → List Edge) (inspect : Edge → List (Branch Edge Aux))
+    (P : List Edge → Prop)
+    (preserve : ∀ current, P current → ∀ edge ∈ rigid current, ∀ branch ∈ inspect edge,
+      P (branch.children ++ current))
+    (capacity : Nat) (state final : State Edge Aux) (good : P state.edges)
+    (returned : final ∈ explore inventory rigid inspect capacity state) : P final.edges := by
+  induction capacity generalizing state with
+  | zero =>
+      have same : final = state := List.mem_singleton.mp returned
+      subst final
+      exact good
+  | succ capacity ih =>
+      cases found : pending inventory rigid state with
+      | none =>
+          have same : final = state := by simpa only [explore, found, List.mem_singleton] using returned
+          subst final
+          exact good
+      | some edge =>
+          simp only [explore, found] at returned
+          obtain ⟨branch, included, later⟩ := List.mem_flatMap.mp returned
+          have chosen := pending_some inventory rigid state edge found
+          exact ih (advance state edge branch)
+            (preserve state.edges good edge chosen.2.1 branch included) later
+
+/-- Any explicit edge-list invariant that holds initially and is preserved
+by inspection branches holds at every returned state. No semantic law,
+inventory-support premise, successful branch, or caller fuel is required. -/
+theorem run_preserves [DecidableEq Edge] (inventory : List Edge)
+    (rigid : List Edge → List Edge) (inspect : Edge → List (Branch Edge Aux))
+    (P : List Edge → Prop)
+    (preserve : ∀ current, P current → ∀ edge ∈ rigid current, ∀ branch ∈ inspect edge,
+      P (branch.children ++ current))
+    (edges : List Edge) (aux : List Aux) (initialGood : P edges)
+    (final : State Edge Aux) (returned : final ∈ run inventory rigid inspect edges aux) : P final.edges :=
+  explore_preserves inventory rigid inspect P preserve inventory.length (initial edges aux) final initialGood returned
+
+private theorem explore_models_exact_invariant [DecidableEq Edge] (inventory : List Edge)
+    (rigid : List Edge → List Edge) (inspect : Edge → List (Branch Edge Aux))
+    (P : List Edge → Prop)
+    (preserve : ∀ current, P current → ∀ edge ∈ rigid current, ∀ branch ∈ inspect edge,
+      P (branch.children ++ current))
+    (edgeHolds : Edge → Prop) (auxHolds : Aux → Prop)
+    (rigidSound : ∀ current, P current → (∀ edge ∈ current, edgeHolds edge) →
+      ∀ edge ∈ rigid current, edgeHolds edge)
+    (inspectionExact : ∀ current, P current → ∀ edge ∈ inventory, edge ∈ rigid current →
+      (edgeHolds edge ↔ ∃ branch ∈ inspect edge, branch.Models edgeHolds auxHolds))
+    (capacity : Nat) (state : State Edge Aux) (good : P state.edges) :
+    state.Models edgeHolds auxHolds ↔
+      ∃ final ∈ explore inventory rigid inspect capacity state, final.Models edgeHolds auxHolds := by
+  induction capacity generalizing state with
+  | zero => simp [explore]
+  | succ capacity ih =>
+      cases found : pending inventory rigid state with
+      | none => simp [explore, found]
+      | some edge =>
+          have chosen := pending_some inventory rigid state edge found
+          constructor
+          · intro models
+            have valid := rigidSound state.edges good models.1 edge chosen.2.1
+            obtain ⟨branch, included, branchModels⟩ :=
+              (inspectionExact state.edges good edge chosen.1 chosen.2.1).mp valid
+            have nextGood := preserve state.edges good edge chosen.2.1 branch included
+            have extended := (models_advance edgeHolds auxHolds state edge branch).mpr ⟨models, branchModels⟩
+            obtain ⟨final, returned, finalModels⟩ := (ih (advance state edge branch) nextGood).mp extended
+            refine ⟨final, ?_, finalModels⟩
+            simp only [explore, found]
+            exact List.mem_flatMap.mpr ⟨branch, included, returned⟩
+          · rintro ⟨final, returned, finalModels⟩
+            simp only [explore, found] at returned
+            obtain ⟨branch, included, later⟩ := List.mem_flatMap.mp returned
+            have nextGood := preserve state.edges good edge chosen.2.1 branch included
+            have extended := (ih (advance state edge branch) nextGood).mpr ⟨final, later, finalModels⟩
+            exact (models_advance edgeHolds auxHolds state edge branch).mp extended |>.1
+
+/-- Inspection need only be exact on states satisfying the supplied invariant.
+The invariant is a theorem premise, not part of `State.Models`, `Branch.Models`,
+the executable state, or the interpretation. Both rigid entailment and
+inspection exactness may use it. -/
+theorem run_models_exact_invariant [DecidableEq Edge] (inventory : List Edge)
+    (rigid : List Edge → List Edge) (inspect : Edge → List (Branch Edge Aux))
+    (P : List Edge → Prop)
+    (preserve : ∀ current, P current → ∀ edge ∈ rigid current, ∀ branch ∈ inspect edge,
+      P (branch.children ++ current))
+    (edgeHolds : Edge → Prop) (auxHolds : Aux → Prop)
+    (rigidSound : ∀ current, P current → (∀ edge ∈ current, edgeHolds edge) →
+      ∀ edge ∈ rigid current, edgeHolds edge)
+    (inspectionExact : ∀ current, P current → ∀ edge ∈ inventory, edge ∈ rigid current →
+      (edgeHolds edge ↔ ∃ branch ∈ inspect edge, branch.Models edgeHolds auxHolds))
+    (edges : List Edge) (aux : List Aux) (initialGood : P edges) :
+    ((∀ edge ∈ edges, edgeHolds edge) ∧ ∀ item ∈ aux, auxHolds item) ↔
+      ∃ final ∈ run inventory rigid inspect edges aux, final.Models edgeHolds auxHolds :=
+  explore_models_exact_invariant inventory rigid inspect P preserve edgeHolds auxHolds rigidSound inspectionExact
+    inventory.length (initial edges aux) initialGood
+
 end Yulang.FiniteBranchingWorklist
