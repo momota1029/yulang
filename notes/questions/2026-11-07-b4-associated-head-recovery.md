@@ -2,6 +2,12 @@
 
 状態: Lean / build / Audit で確認した E2 障害と、未承認の修正案。K1 / K2 の回答ではない。
 
+**追記（監督者からの継続指示）:** ユーザーは下記の意味的 `HeadDeterminesAssociated` と
+関連型が head から決まらない impl の宣言時拒否を承認した。
+upstream の決定は `spec: an impl's associated type must be determined by its head` に記録されたとの通知を受けた。
+具体的な syntactic checker とその十分性は未承認・未証明であり、この二つを区別して継続する。
+以下の「未承認」は初回報告時点の履歴。初回 E2 の証明は変更しない。
+
 出典: `spec/04-types.md` §4.3 の隠れた同名 field の型同値（決定40）、
 `spec/06-roles.md` §6.3 の「associated type は head の型引数から決まる一つの型」、
 `Roles.AssocHeadVars` / `AssocWellFormed` / `assoc_derivation_agrees`、

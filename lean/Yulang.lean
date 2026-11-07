@@ -585,3 +585,6 @@ import Yulang.CommonRoleRegularObstructions
 import Yulang.CommonEffectRequestGeneration
 import Yulang.CommonRoleAssociatedObstructions
 import Yulang.CommonRoleAssociatedExactness
+import Yulang.CommonRoleWhereObstructions
+import Yulang.CommonRoleHeadDetermination
+import Yulang.CommonRoleWhereExactness
