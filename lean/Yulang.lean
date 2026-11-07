@@ -1052,3 +1052,5 @@ import Yulang.CommonCaseCoreDataPrefixSolved
 import Yulang.CommonCaseCoreDataPrefixExamples
 
 import Yulang.CommonCasePrefixCompletion
+
+import Yulang.CommonCaseCoreDataCompletion

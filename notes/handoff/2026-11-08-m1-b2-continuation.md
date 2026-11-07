@@ -241,6 +241,20 @@ row 引数は completion logic では使わず、既存の全 prefix 行安全�
 
 検証: 対象 build と `eval_completes` の `trust=0` 監査が成功。
 
+## 13. 任意の型付き有限 Core record case の実成功終了
+
+`CommonCaseCoreDataCompletion.case_returns` は、任意の有限 record 仕様、元 Core subject、
+元有限 arm 列、任意の input 型／target 型／cap について、§9 の独立した `Premises` から、
+固定された元 `run` が `some value` を返す実終了 trace と、その value の target 型付けを構成する。
+
+source/default/body の完了は、実 indexed source evaluator の `typing_evaluates` から導く。
+guard も同じ実値 evaluator から Bool を読み、その実 Bool で後続へ進む。
+§12 の completion logic が元 arm 列を順番どおり有限に辿ることを構成し、同じ有限 coverage
+から終了した全 arm miss を排除する。外部 EvaluationSound、default 成功、selected arm は仮定しない。
+これは例一つの停止ではなく、この有限で純粋な source fragment の任意の型付き case の停止である。
+
+検証: 対象 build（296 jobs）と `case_returns` の `trust=0` 監査が成功。
+
 ## 未完の範囲
 
 これは既存の十分な coverage 証明書の運用上の意味を拡張する定理であり、

@@ -6030,3 +6030,9 @@ run_cmd do
 #print axioms Yulang.CommonCasePrefixCompletion.bind_completes
 #print axioms Yulang.CommonCasePrefixCompletion.visits_complete
 #print axioms Yulang.CommonCasePrefixCompletion.eval_completes
+
+#print axioms Yulang.CommonCaseCoreDataCompletion.source_completes
+#print axioms Yulang.CommonCaseCoreDataCompletion.defaults_complete
+#print axioms Yulang.CommonCaseCoreDataCompletion.guards_complete
+#print axioms Yulang.CommonCaseCoreDataCompletion.bodies_complete
+#print axioms Yulang.CommonCaseCoreDataCompletion.case_returns
