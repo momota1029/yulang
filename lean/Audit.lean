@@ -4082,3 +4082,7 @@ run_cmd do
 #print axioms Yulang.CommonDemandRoots.snapshot_roots_exact
 #print axioms Yulang.CommonDemandRoots.rowRootVariables_exact
 #print axioms Yulang.CommonDemandRoots.finish_clauses_exact
+#print axioms Yulang.CommonDemandBoundary.requested_lower_nonempty
+#print axioms Yulang.CommonDemandBoundary.completed_solver_rejects
+#print axioms Yulang.CommonDemandBoundary.reference_solver_rejects
+#print axioms Yulang.CommonDemandBoundary.no_completed_node_instance
