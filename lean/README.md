@@ -1937,3 +1937,31 @@ multi-handler の return 値と残余行の包含は全称 arm の外にあり�
 mixed-polarity local 型の一般の求解、partial pattern と B2 の接続、注釈の boundary/permission 抽出、
 binding/SCC 終了時の visible effect 検査、および全実生成 Formula の all-instance solver は未完である。
 二つの親契約は引き続き閉じていない。
+
+## M1 B3 追補: union 行、partial metadata、固定 captured 型の分解
+
+`CommonSignedChoiceDecision` / `CommonSignedChoiceSolver` は、有限 signed action graph の
+複数 destination のうち一つへ流れる行制約を、有限候補の準備・削除で停止判定する。
+返却 scheme は有限 graph と parameter-row の Boolean guards であり、任意の無制約行 parameters に対して
+全制約を満たし、元の全 independent rows を文字どおり回収する。
+`CommonSignedUnionCompilation` は任意 signed lower と普通の union upper の実構文をそこへ compile する。
+`CommonSignedValueUnionSolver` は同じ行解を値 solver と共有し、全値 node の回収も証明する。
+後者の完全性には値の child/width grammar 条件が残るが、以前の simple-rowShapes 条件は不要になった。
+
+再帰判断・生成・output weakening は finite resolved partial-handler metadata も扱う。
+key の減算は unguarded irrefutable arm だけであり、全 arm の許可と local 全称検査を保つ。
+実 pattern binders・effectful guards/default の B2 接続は別の未完義務である。
+`CommonEffectFreshRows` は任意長・負の重みも含む Common 行に fresh scope 座標を実挿入し、
+既存座標の保持と unannotated callback の handler 非捕捉を証明する。
+`CommonEffectAnnotations` / `CommonEffectAnnotationGeneration` は有限注釈の mask/許可抽出と
+完了済み有限 snapshot の visible 判定を持つ。source/SCC 完了から snapshot を導くことは未完である。
+
+`CommonEffectScopedRegular` は whole captured 型を葉として保持する有限 regular equation templates を扱う。
+任意 parameters の equation model と、全元 node values の要求同値での回収を証明する。
+`CommonEffectScopedClamping` / `CommonEffectScopedCompilation` /
+`CommonEffectCapturedCompilation` は、全 TyTerm の実 finite source inequalities を、
+captured 型と全行を固定した flexible/rigid partition に compile し、clamped equations と
+実有限 residual comparisons へ正確に分解する。exactEmpty、負の arrow、default を erase しない。
+この residual は未解決の元制約であり、返却 scheme の parameters 条件として完了扱いしない。
+残余比較の有限 saturation、mixed-polarity local 型の一般全称消去、全 source の annotation/hygiene 接続が残る。
+親二契約の E1/E2 は未達である。

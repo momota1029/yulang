@@ -633,3 +633,6 @@ import Yulang.CommonEffectArmCoverage
 import Yulang.CommonEffectPartialIntegration
 import Yulang.CommonEffectScopedRegular
 import Yulang.CommonEffectScopedClamping
+import Yulang.CommonEffectScopedCompilation
+import Yulang.CommonEffectCapturedCompilation
+import Yulang.CommonEffectConstructorNormalisation

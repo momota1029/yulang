@@ -4381,3 +4381,16 @@ run_cmd do
 #print axioms Yulang.CommonEffectScopedClamping.residualFormula_exact
 #print axioms Yulang.CommonEffectScopedClamping.factor_exact
 #print axioms Yulang.CommonEffectScopedClamping.original_retraction
+
+#print axioms Yulang.CommonEffectScopedCompilation.lowerNode_exact
+#print axioms Yulang.CommonEffectScopedCompilation.equations_exact
+#print axioms Yulang.CommonEffectScopedCompilation.compile_models
+
+#print axioms Yulang.CommonEffectCapturedCompilation.term_congr
+#print axioms Yulang.CommonEffectCapturedCompilation.compile_extends
+#print axioms Yulang.CommonEffectCapturedCompilation.compile_reflects
+#print axioms Yulang.CommonEffectCapturedCompilation.source_models_exact
+#print axioms Yulang.CommonEffectCapturedCompilation.source_clamped_exact
+
+#print axioms Yulang.CommonEffectConstructorNormalisation.atom_exact
+#print axioms Yulang.CommonEffectConstructorNormalisation.normalise_exact
