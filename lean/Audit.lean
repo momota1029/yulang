@@ -4118,3 +4118,4 @@ run_cmd do
 #print axioms Yulang.CommonPatternLookup.pair_components
 #print axioms Yulang.CommonPatternLookup.literal_of_base
 #print axioms Yulang.CommonPatternLookup.variant_payload
+#print axioms Yulang.CommonPatternTyping.Typing.binding_names

@@ -573,3 +573,4 @@ import Yulang.CommonGroundNominalCasts
 import Yulang.CommonPatternEnvironment
 import Yulang.CommonPatternDefaults
 import Yulang.CommonPatternLookup
+import Yulang.CommonPatternTyping
