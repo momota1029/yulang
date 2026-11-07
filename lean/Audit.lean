@@ -4115,3 +4115,4 @@ run_cmd do
 #print axioms Yulang.CommonPatternLookup.required_lookup
 #print axioms Yulang.CommonPatternLookup.optional_lookup
 #print axioms Yulang.CommonPatternLookup.records_of_width
+#print axioms Yulang.CommonPatternLookup.pair_components

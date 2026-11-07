@@ -140,4 +140,35 @@ theorem records_of_width {value : Value} {source : Comp Common.model}
       exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
         (bounded.1 0) 0 env .records observed)
 
+/-- Pair demands reflect both actual component values and their Common types;
+no separate constructor-support or successful-match premise is needed. -/
+theorem pair_components {value : Value} {source : Comp Common.model}
+    (typed : ValueTyping Common.model value source) (first last : Common.Ty)
+    (below : Common.Subtype source.1 (Common.pair first last)) :
+    ∃ left right, value = .pair left right ∧
+      ValueTyping Common.model left (Comp.pure Common.model first) ∧
+      ValueTyping Common.model right (Comp.pure Common.model last) := by
+  let env : CommonFinite.Environment Common.Row := ⟨fun _ => .bottom, fun _ => []⟩
+  have observed : CommonFinite.ProbeAt Common.rowLe 0 env
+      (Common.observeTy 0 source.1) (.pairFirst .trivial) :=
+    (CommonFinite.producerLe_iff_probe _ _).mp (below 0) 0 env (.pairFirst .trivial) trivial
+  cases typed with
+  | literal bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.pairFirst .trivial) observed)
+  | pair left right bounded =>
+      have components := (Common.common_pair_iff _ _ first last).mp
+        (Common.subtype_trans bounded.1 below)
+      exact ⟨_, _, rfl,
+        typing_change_result left _ components.1, typing_change_result right _ components.2⟩
+  | emptyRecord bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.pairFirst .trivial) observed)
+  | record _ _ _ bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.pairFirst .trivial) observed)
+  | variant _ bounded =>
+      exact False.elim ((CommonFinite.producerLe_iff_probe _ _).mp
+        (bounded.1 0) 0 env (.pairFirst .trivial) observed)
+
 end Yulang.CommonPatternLookup
