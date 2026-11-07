@@ -149,6 +149,20 @@ Common constructor typing と環境内各 binding instance の値型から、実
 
 検証: 新 module の warnings-as-errors build と `trust=0` 監査が成功。
 
+## 8. subject/default/guard/body 全出現の実 source gate
+
+`CommonCaseCoreDataGate.check_exact` は、実 subject と元 arm 列のすべての default 出現、
+guard、body に対する有限 Bool 検査を、独立した `Supported` fragment judgment の全成立と
+同値にする。両側の or pattern と、後続の到達不能かもしれない arm も検査する。
+これは静的 effect policy の選択ではなく、この限定された evaluator を使うための source 範囲である。
+
+`strengthen_defaults` / `arm_typing` は、元の aligned pattern／Core arm の独立型付けから、
+各実 source code の fragment judgment を伴う型付けを導く。
+元の binder order、同じ slot、Q4 累積環境、right-or の name alignment は変えない。
+
+検証: 新 module の warnings-as-errors build と `trust=0` 監査が成功。
+主要三定理は `propext` / `Quot.sound` のみ。
+
 ## 未完の範囲
 
 これは既存の十分な coverage 証明書の運用上の意味を拡張する定理であり、

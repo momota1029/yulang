@@ -1044,3 +1044,5 @@ import Yulang.CommonRoleClosedIntervalRecordGeneration
 import Yulang.CommonCoreDataEvaluation
 
 import Yulang.CommonCoreDataPrefixes
+
+import Yulang.CommonCaseCoreDataGate

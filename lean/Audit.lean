@@ -6002,3 +6002,9 @@ run_cmd do
 #print axioms Yulang.CommonCoreDataPrefixes.pure_trace
 #print axioms Yulang.CommonCoreDataPrefixes.typing_prefixes
 #print axioms Yulang.CommonCoreDataPrefixes.binding_prefixes
+
+#print axioms Yulang.CommonCaseCoreDataGate.strengthen_defaults
+#print axioms Yulang.CommonCaseCoreDataGate.guard_check_exact
+#print axioms Yulang.CommonCaseCoreDataGate.arm_check_exact
+#print axioms Yulang.CommonCaseCoreDataGate.check_exact
+#print axioms Yulang.CommonCaseCoreDataGate.arm_typing
