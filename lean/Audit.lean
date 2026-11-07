@@ -3932,3 +3932,8 @@ run_cmd do
 #print axioms Yulang.CommonCanonicalPolarityBoundary.second_pass_exact
 #print axioms Yulang.CommonCanonicalPolarityBoundary.successive_passes_different
 #print axioms Yulang.CommonCanonicalPolarityBoundary.normalize_not_idempotent
+#print axioms Yulang.CommonCanonicalArrowFamilies.instances_arrow_exact
+#print axioms Yulang.CommonCanonicalArrowFamilies.family_rows_equal
+#print axioms Yulang.CommonCanonicalArrowFamilies.family_transfer_equal
+#print axioms Yulang.CommonCanonicalArrowFamilies.familyEquivalent_iff_transfer
+#print axioms Yulang.CommonCanonicalArrowFamilies.canonicalEncoding_exact
