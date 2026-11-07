@@ -5983,3 +5983,5 @@ run_cmd do
 #print axioms Yulang.CommonRoleClosedRecordResidual.capture_field_probe_exact
 
 #print axioms Yulang.CommonRoleClosedRecordResidual.capture_optional_probe_exact
+
+#print axioms Yulang.CommonRoleClosedIntervalRecordGeneration.recordTerm_eval

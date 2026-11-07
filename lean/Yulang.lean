@@ -1038,3 +1038,5 @@ import Yulang.CommonEffectRowIntervalConstraints
 import Yulang.CommonEffectFamilyRowSlots
 
 import Yulang.CommonRoleClosedRecordResidual
+
+import Yulang.CommonRoleClosedIntervalRecordGeneration
