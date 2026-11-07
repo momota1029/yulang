@@ -5995,3 +5995,10 @@ run_cmd do
 #print axioms Yulang.CommonCoreDataEvaluation.supported_of_check
 #print axioms Yulang.CommonCoreDataEvaluation.supported_exact
 #print axioms Yulang.CommonCoreDataEvaluation.typing_evaluates
+
+#print axioms Yulang.CommonCoreDataPrefixes.pending_exact
+#print axioms Yulang.CommonCoreDataPrefixes.completed_exact
+#print axioms Yulang.CommonCoreDataPrefixes.prefix_environment
+#print axioms Yulang.CommonCoreDataPrefixes.pure_trace
+#print axioms Yulang.CommonCoreDataPrefixes.typing_prefixes
+#print axioms Yulang.CommonCoreDataPrefixes.binding_prefixes

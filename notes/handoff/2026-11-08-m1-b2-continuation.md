@@ -135,6 +135,20 @@ Common constructor typing と環境内各 binding instance の値型から、実
 検証: 新 module の warnings-as-errors build と `trust=0` 監査が成功。
 この packet の時点では source gate と prefix family の接続は次の作業である。
 
+## 7. 実 source trace の全有限 prefix
+
+`CommonCoreDataPrefixes.ofLogged` は、未終了観測を実 trace の prefix とし、終了観測を
+実 trace 全体と元の厳密な result とする。`pending_exact` / `completed_exact` は、
+この対応を両方向に示す。source visit を削ったり、unsupported error を未終了に変えたりしない。
+
+`typing_prefixes` は §6 の独立した型付けから、固定された実 evaluator の全 prefix に対する
+安全性を導く。source fragment の visit は純粋であり、その行解釈は空行。error 行は任意。
+成功時には result 型を保持し、型付きの supported source は §6 により error を返さない。
+`binding_prefixes` は実 pattern の pure monomorphic prefix 環境を indexed logical environment に
+接続する。どちらも `EvaluationSound` という外部 premise は持たない。
+
+検証: 新 module の warnings-as-errors build と `trust=0` 監査が成功。
+
 ## 未完の範囲
 
 これは既存の十分な coverage 証明書の運用上の意味を拡張する定理であり、
