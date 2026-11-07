@@ -1968,3 +1968,24 @@ Coreの観測接続にはcanonical matcherを用い、元named matcherへの移�
 **元B2は未完。** source presence/annotationの生成、B5全carrier、B3の式実行と行の対応、
 全ordered coverageと失敗行、独立full case Typing、および公開三契約への統合が残る。
 現在の正確な量化・前提・検査結果は上記progress noteを参照する。
+
+## B2 追加: 全base・recordのjoint coverageと実source solved family
+
+`CommonCaseLiteralCells` / `CommonCaseLiteralCoverage` は全int/str/bool/unitを有限cellsで覆い、
+`CommonCaseBase*` はそれをnested pair/single-variant/choice domainへ持ち上げる。
+文字列は全照合定数と、それらより長いfresh値で残りの等値classを代表する。
+これらの実checker iffとCommon constructor-tree readoutから、実source data Programのprogressへ接続する。
+
+`CommonCaseRecordCells` / `CommonCaseRecordReadout` は任意extra/重複fieldsと順序を許すrecordのfinite代表を作る。
+specificationの重複labelも全要求を保持し、最初のlookup値に対する全Shape要求をfilterする。
+`CommonCaseRecordCoverage` はpure patternのjoint被覆について、実finite checker iff 全Domain実recordの実照合を示す。
+`CommonPurePatternErasure` / `CommonCaseRecordSourceCoverage` は任意source arm列からpure witnessを内部抽出する。
+default-containing armsは元実行列に残り、source first-matchの順序・indexは変えない。
+このcheckerはdefault自体の被覆寄与を数えないため、全source coverageの拒否完全性は主張しない。
+
+`CommonCaseConstructorBounds` はrecord/constructor-tree input上界もfresh参照で有限生成する。
+`CommonCaseRecordEnvironmentFamily` はsource subject/全armの独立環境前提・record型上界・semantic pure coverageを
+同じ有限formulaへ結び、全Modelsの実solved family化・全parameter成立・拒否iffを示す。
+全返却schemeの任意parameterで、追加の残余条件なしに元finite-data Programの型付きok some返却まで導く。
+これもfull B2の代用ではない。全default寄与coverage、presence、B5全carrier、一般Core/effect実行、
+aggregate/failure row、独立full case Typingと公開三契約の統合は引き続き未閉である。

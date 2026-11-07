@@ -674,3 +674,7 @@ import Yulang.CommonCaseRecordReadout
 import Yulang.CommonPurePatternMatching
 import Yulang.CommonCaseRecordMatching
 import Yulang.CommonCaseRecordCoverage
+import Yulang.CommonPurePatternErasure
+import Yulang.CommonCaseRecordSourceCoverage
+import Yulang.CommonCaseConstructorBounds
+import Yulang.CommonCaseRecordEnvironmentFamily
