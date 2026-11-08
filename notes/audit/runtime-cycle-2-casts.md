@@ -2955,3 +2955,17 @@ test lowering::tests::ordinary_cast_characterization::repository_std_infer_and_p
 [runner timeout240s; no test executable exit code]
 
 ```
+
+## Isolated retry of bounded standard registry test
+
+Command: target/debug/deps/infer-dfea53230aacf9c4 lowering::tests::ordinary_cast_characterization::repository_std_infer_and_poly_classification_are_unique --exact --nocapture --test-threads=1
+
+Start: 2026-11-08T13:07:41.169827+00:00; elapsed: 420.18262444500215 s; exit: none (external timeout420s)
+
+```text
+
+running 1 test
+test lowering::tests::ordinary_cast_characterization::repository_std_infer_and_poly_classification_are_unique ... 
+[runner timeout420s; no test executable exit code]
+
+```
