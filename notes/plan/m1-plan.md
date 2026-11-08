@@ -116,3 +116,15 @@ M1 が閉じてから着手する。前提が閉じていない間は `blocked`�
 - 目標: 型推論の実装（Rust）。Lean の reference solver と**差分テスト**で結ぶ: 適合例 X1〜X24 と、spec の確定した例を、Rust と Lean（`#eval` または抽出）に同じ入力で与え、結果が一致することを CI で確かめる。実装は、型表現と制約の生成、solver、role 解決、診断の順に、小さく分けて入れる。意味論の判断は決めず、質問ノートに積む。
 - 受け入れ: 適合例が全部一致。パーサ（`crates/yu-syntax`）との接続。`cargo test` と差分テストが通る。
 - 注意: dots は GitHub アプリ経由でファイル単位に公開する。Rust の複数 crate のような多数のファイルの公開が現実的か、T2 の 16 ファイルより大きい規模で先に試す。
+
+### T11 label を受け取る値 `labeled` を核へ (Lean)
+- 状態: blocked / 依存: T6（B6 の `Core.infer`）の後。モデル化の部分（下の (1)(2)）は、T1c の後で先行してよい。
+- 仕様: `spec/03c-control.md` 3c.3b（確定した考え方と、仮採用の記法）。経緯は `notes/ideas/2026-11-08-label-receiving-values.md`。
+- 目標（dots に証明させる、2026-11-08 ユーザー）: 核の計算体系に、普通の enum `labeled('l, 'a)` と、型が求められたときにだけ入る cast `'a → labeled('l, 'a)`（`raw` に包む）、および label を identity で区別する effect と handler を導入し、次を証明する。
+  1. **保存的拡張**: `labeled` を使わない式の型付けと、推論の結果は変わらない。
+  2. **cast の需要駆動**: cast が入るのは、`labeled` が上界の位置で求められたときだけ。それ以外の位置に `labeled` は現れない（二重 cast が起きない）。
+  3. **label の衛生性**: label の操作の effect は、その label の identity を持つ handler にだけ受けられる。同じ型の別の `sub` の内側で、前の `sub` の label を使っても、そちらには受けられない。
+  4. **持ち出しの静的な報告**: handler の外へ持ち出した label の操作は、処理されない effect として静的に報告される（行に残る）。
+  5. **消去**: `raw` への cast は、型が静的に分かる場合、実行時の費用が 0（消去しても意味が変わらない）。cast の費用上界（variance の流儀）の形で述べる。
+  6. `sub`・`for` の展開（`sub \'done -> body`）が、既存の意味と一致する。
+- 受け入れ: 上の各項が、仮定を明示した定理として証明される。`verify-lean.sh` が PASS。`Main.lean` に再掲する。
