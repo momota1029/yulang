@@ -1210,3 +1210,10 @@ import Yulang.CommonSourceArmSolved
 import Yulang.CommonSourceArmsSolved
 
 import Yulang.CommonSourceOptionalX22
+
+import Yulang.CommonRoleOpenConstraints
+import Yulang.CommonRoleOpenDescent
+import Yulang.CommonRoleOpenState
+
+import Yulang.CommonRoleOpenNormalization
+import Yulang.CommonRoleOpenExamples
