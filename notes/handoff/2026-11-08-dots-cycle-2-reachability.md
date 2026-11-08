@@ -128,3 +128,43 @@ preserved here. Rerun after imports or root statements change.
   retention analysis beyond the declaration bit.
 - T7b is a useful provisional analysis; a justified deletion list and owner approval
   remain absent. T7c is not performed.
+
+## T7a draft added after the baseline analysis
+
+A new `lean/Yulang/MainStatementsDraft.lean` now reprints seven existing proved
+statements with Japanese quantifiers, premises, entry names and scope limits:
+settled role exactness/accessibility, open one-pass exactness, variance registry
+exactness, checked finite cast cost, X22, and current Core principal inference.
+It also defines (does not prove) the local `OpenPassSemanticStabilization` Prop.
+The approved general source B4/B6 statement is not replaced with this local Prop.
+
+Root-level `lean/Main*.lean` was not retained: the supervisor verify gate rejects
+new Lean files outside `lean/Yulang/`. The placement conflict and missing complete
+source judgment are recorded in `notes/questions/2026-11-08-main-statements-placement.md`.
+
+The analyzer imports that draft explicitly and was rerun with all seven theorem
+aliases plus the local unproved Prop as eight roots:
+
+```text
+Yulang.MainStatements.settled_role_exact
+Yulang.MainStatements.settled_role_accessible
+Yulang.MainStatements.open_pass_exact
+Yulang.MainStatements.declaration_variance_registry_exact
+Yulang.MainStatements.optional_source_x22
+Yulang.MainStatements.current_core_principal
+Yulang.MainStatements.OpenPassSemanticStabilization
+Yulang.MainStatements.checked_cast_cost_bound
+```
+
+Actual output: `REACH: 8 roots; 5352/82389 non-system declarations reachable`.
+The extra 15 declarations come from this draft (including generated definitions).
+The earlier 82,374-declaration counts describe the explicitly recorded pre-draft
+snapshot, not this enlarged environment. The draft root list is provisional,
+not an owner-approved deletion/retention list. With the operational aggregators
+retained there are still no deletion candidates.
+
+Validation of the draft: `lake build Yulang.MainStatementsDraft --wfail`
+PASS, 384 jobs; `lake env lean --trust=0 Yulang/MainStatementsDraft.lean`
+exit 0. A temporary audit imported the draft and printed axioms for all eight
+roots, each depending only on propext/Classical.choice/Quot.sound. Printing the
+axioms of a Prop definition is not a proof of that Prop.
