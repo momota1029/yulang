@@ -36,7 +36,7 @@
 ### T1c 飽和 (saturation) と最終 resolve_exact (B4)
 - 状態: running（dots が `work/dots-main` で毎時のサイクル実行中。サイクル 1・2 は部分達成、統合済み。指示は `notes/plan/dots-inbox.md`）
 - 依存: T1b
-- 決定済みの規則（spec 6.3、2026-11-08）: where の子の解決は、兄弟の更新が安定するまで遅らせる。更新のたびに兄弟と親を再生成し、状態が変わらなくなってから初めて保留・曖昧・拒否を最終結果にする（最終化はファイルの終わりの安定時）。絞り込みは impl が一つしかないことからは起きず、関連型の等式を通して流れ込んだ型で起きる。兄弟の順序独立は未回答（仮定しない）。
+- 決定済みの規則（spec 6.3、2026-11-08）: where の子の解決は、兄弟の更新が安定するまで遅らせる。更新のたびに兄弟と親を再生成し、状態が変わらなくなってから初めて保留・曖昧・拒否を最終結果にする（最終化はファイルの終わりの安定時）。絞り込みは impl が一つしかないことからは起きず、関連型の等式を通して流れ込んだ型で起きる。兄弟の順序独立は確定（where は連言、順序で結果は変わらない。spec 6.3、2026-11-08）。証明の対象。
 - 目標（T1b 報告の「次の正確な残件」）: (1) 候補ごとの state 更新と、その後に集計する source frontier（narrowing を扱う）。(2) Ty 端点・nominal 意味・slot/source identity を保存する実 allocator と capture provenance（`Allocation` は現在、証明されていない外部入力）。(3) 再生成で現れた child をさらに解く saturation の driver と、その進捗・停止性（宣言時の Paterson 検査と K2 から導く尺度）。(4) driver の最終結果と独立な source Classify の iff、外側の無条件 `resolve_exact`、X13〜X16 を外側の入口で PROVED。
 - 受け入れ: 開いた区間を含む断片で、最終 `resolve_exact` が仮定なし（`Allocation` の保存性を含めて）で成り立つ。X13〜X16 の少なくとも一つが外側の入口を通って PROVED。`verify-lean.sh` が PASS。
 - 注意: 関連型の等式を通した絞り込みの例を、具体例として一つ以上、外側の入口で通すこと。選択が要る点は質問ノート（遅延案を先頭）。E2 が出ても止まらず、定義を直す。
@@ -128,3 +128,9 @@ M1 が閉じてから着手する。前提が閉じていない間は `blocked`�
   5. **消去**: `raw` への cast は、型が静的に分かる場合、実行時の費用が 0（消去しても意味が変わらない）。cast の費用上界（variance の流儀）の形で述べる。
   6. `sub`・`for` の展開（`sub \'done -> body`）が、既存の意味と一致する。
 - 受け入れ: 上の各項が、仮定を明示した定理として証明される。`verify-lean.sh` が PASS。`Main.lean` に再掲する。
+
+### T12 A2 の修正した契約の E1 (小)
+- 状態: todo / 依存: なし（随時。余り時間の仕事に向く）
+- 仕様: `notes/questions/2026-11-07-a2-canonical-computability.md`（案1を採用、2026-11-08）。契約の追記は `notes/handoff/2026-11-07-m1-completion-contract.md` の末尾。
+- 目標: 修正した A2 を証明する。(1) `∃ computableEncoding, ∀ I J, computableEncoding I = computableEncoding J → PublicEquivalent I J`（既存の `interfaceCode` が単射なら、構文が等しい ⇒ 意味が等しい、で足りる見込み）。(2) 表示・readback の契約: 任意の有限 interface `I` について、decoded/exported 表現の public-instance 意味が `I` と一致する。(3) 実 inference scheme などを保存する義務（A2 results/progress の既存の補題を再利用）。
+- 受け入れ: 上の (1)(2)(3) が定理として証明され、元の障害定理は保存される。`verify-lean.sh` が PASS。

@@ -1,6 +1,6 @@
 # A2: 全有限 interface の表示 code に要求する完全性
 
-状態: **未回答の提案。仕様・元の A2 statement は変更していない。**
+状態: **解消(2026-11-08, ユーザーの回答): 案1を採用する。** 「証明の契約としては、外したほうが楽なら外してよい」。計算可能 code の完全性（`PublicEquivalent I J → encode I = encode J`）を外し、`encode I = encode J → PublicEquivalent I J` と、表示・readback の契約を残す。以下は提案時の記録。
 
 問いは一つ：全有限公開文法と既存の公開 instance 意味を維持し、code 等号の契約を下記の案1へ変更するか。
 
