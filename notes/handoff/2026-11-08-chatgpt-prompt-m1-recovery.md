@@ -30,6 +30,8 @@ yulang の integration/m1-final ブランチ(https://github.com/momota1029/yulan
 
 ## 前のセッションの後に決まったこと(ユーザーの決定。文書に書いてある)
 
+- **K1(receiver の無い role member の整合条件)は、宣言で何も拒否しない**: 型引数を決める手がかりは呼び出しの引数と戻り値であり、型が分かるまで遅らせる。未解決の制約は、既存の規則（6.3）どおり、ファイルの終わりまで待ち、決まらなければそこでエラー。(`spec/06-roles.md` の K1)
+
 - **case の静的 effect 行は、全 arm の guard と body の行を合流する(保守的)**: 先行する arm が必ず合って到達しない arm の effect も、行に含める。(`spec/03-expressions.md` 3.7、`notes/questions/2026-11-07-b2-unreachable-case-effect-row.md`)
 
 - **optional field の照合は合法**: 入力の型で field が optional でも、default なしの `{port: p}` で照合してよい。field が無ければ miss して次の arm へ進む。(`spec/03b-patterns.md` 3b.3、`notes/questions/2026-11-07-b2-optional-field-case-pattern.md`)
@@ -47,7 +49,7 @@ yulang の integration/m1-final ブランチ(https://github.com/momota1029/yulan
 
 ## ユーザーに残っている問い(決めずに、局所の補題や場合分けで進める)
 
-- A2 の契約の修正案(`2026-11-07-a2-canonical-computability.md`)、K1(receiver の無い role member)、E7(`x | catch:`)。
+- A2 の契約の修正案(`2026-11-07-a2-canonical-computability.md`)、E7(`x | catch:`)。
 - 区間 resolver の停止の尺度: 遅延だけでは、子の下界の head が毎回分かっている増大鎖は止まらない。Paterson 的な下降が区間モデルで要るかを示す(前のセッションの監査に書いてある)。これは問いではなく、証明の課題。
 
 ## 続きの作業(前のセッションの「正確な残り」から)
