@@ -3163,3 +3163,7 @@ new generated-constraint correctness, saturation termination, or full B4.
 
 ## Cycle12: finite structural source positions
 `CommonRoleSourcePositions` proves exact path selection, finite position bounds, and all-descendant provenance for every actual variable-bearing producer child in the unary fragment. No lower=upper premise. This is auxiliary B4 work, not global source IDs, dynamic allocation, saturation, or outer resolve_exact. Eight theorems passed focused build and axiom inspection.
+
+## Cycle13: state-dependent materialization domain
+
+`CommonRoleMaterializedDomain` computes a finite overapproximation for arbitrary source templates with int-only ordinary-evidence materialization. Actual filtered, state-gated children remain inside it after arbitrary source state changes; consistent atom extension preserves known int. Independent `InDomain` is exact for enumerated-root reachability, not semantic feasibility. General narrowing, dynamically created source templates, source identity allocation, saturation and B4 remain open.
