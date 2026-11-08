@@ -102,6 +102,74 @@ decreasing_by
   · simpa [shape, Node.immediate] using child.property
   · simp [shape, Node.immediate]
 
+theorem evaluate_keep (plan : Plan n) (accepted : check plan = true) (leaf : Leaf n)
+    (node : Fin n) (shape : plan node = .keep) (input : Value n) :
+    evaluate plan accepted leaf node input = some ⟨input, 1, .keep shape⟩ := by
+  rw [evaluate]
+  split <;> rename_i nodeEq
+  all_goals rw [shape] at nodeEq
+  all_goals cases nodeEq
+  all_goals rfl
+
+theorem evaluate_leaf (plan : Plan n) (accepted : check plan = true) (leaf : Leaf n)
+    (node : Fin n) (shape : plan node = .leaf) (input : Value n) :
+    evaluate plan accepted leaf node input =
+      (leaf node input).map (fun output => ⟨output, 1, .leaf shape⟩) := by
+  rw [evaluate]
+  split <;> rename_i nodeEq
+  all_goals rw [shape] at nodeEq
+  all_goals cases nodeEq
+  all_goals rfl
+
+theorem evaluate_nominal (plan : Plan n) (accepted : check plan = true) (leaf : Leaf n)
+    (node child : Fin n) (shape : plan node = .nominal child) (input : Value n) :
+    evaluate plan accepted leaf node (.nominal input) =
+      (evaluate plan accepted leaf child input).map (fun output =>
+        ⟨.nominal output.value, 1 + output.cost, .nominal shape output.execution⟩) := by
+  rw [evaluate]
+  split <;> rename_i nodeEq
+  all_goals rw [shape] at nodeEq
+  all_goals cases nodeEq
+  all_goals rfl
+
+theorem evaluate_product (plan : Plan n) (accepted : check plan = true) (leaf : Leaf n)
+    (node : Fin n) (parts : List (Fin n)) (shape : plan node = .product parts)
+    (inputs : List (Value n)) :
+    evaluate plan accepted leaf node (.product inputs) =
+      (evaluateParts plan parts inputs (fun child _ => evaluate plan accepted leaf child)).map (fun output =>
+        ⟨.product output.values, 1 + output.costs.sum, .product shape output.executions⟩) := by
+  rw [evaluate]
+  split <;> rename_i nodeEq
+  all_goals rw [shape] at nodeEq
+  all_goals cases nodeEq
+  all_goals rfl
+
+theorem evaluate_variant (plan : Plan n) (accepted : check plan = true) (leaf : Leaf n)
+    (node : Fin n) (branches : List (Fin n)) (shape : plan node = .variant branches)
+    (tag : Nat) (input : Value n) :
+    evaluate plan accepted leaf node (.variant tag input) =
+      match branches.attach[tag]? with
+      | none => none
+      | some child =>
+          (evaluate plan accepted leaf child.val input).map (fun output =>
+            ⟨.variant tag output.value, 1 + output.cost,
+              .variant shape child.property output.execution⟩) := by
+  rw [evaluate]
+  split <;> rename_i nodeEq
+  all_goals rw [shape] at nodeEq
+  all_goals cases nodeEq
+  all_goals rfl
+
+theorem evaluate_function (plan : Plan n) (accepted : check plan = true) (leaf : Leaf n)
+    (node argument result : Fin n) (shape : plan node = .function argument result) (input : Value n) :
+    evaluate plan accepted leaf node input =
+      if input.callable then some ⟨.wrapper node input, 1, .function shape⟩ else none := by
+  rw [evaluate]
+  split <;> rename_i nodeEq
+  all_goals rw [shape] at nodeEq
+  all_goals cases nodeEq
+  all_goals rfl
+
 def execute (plan : Plan n) (accepted : check plan = true) (leaf : Leaf n)
     (node : Fin n) (input : Value n) : Option (Value n × Nat) :=
   (evaluate plan accepted leaf node input).map fun result => (result.value, result.cost)

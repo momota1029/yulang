@@ -6218,3 +6218,7 @@ run_cmd do
 #print axioms Yulang.CommonDeclarationVarianceTable.covariant_has_no_negative
 
 #print axioms Yulang.CommonDeclarationVarianceTable.invariant_propagates
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.box_executes
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.box_budget

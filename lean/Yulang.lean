@@ -1126,3 +1126,5 @@ import Yulang.CommonDeclarationVarianceRecursion
 import Yulang.CommonDeclarationVarianceGraph
 
 import Yulang.CommonDeclarationVarianceTable
+
+import Yulang.CommonDeclaredCastEvaluationExamples
