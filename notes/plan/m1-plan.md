@@ -175,7 +175,7 @@ M1 が閉じてから着手する。前提が閉じていない間は `blocked`�
 - 注意: 意味論の選択は決めない。曖昧に見える点は質問ノート（遅延案を先頭）。
 
 ### F2 引数の効果の変換 (F1 の cast) を Lean にモデル化する (B5/B6)
-- 状態: todo / 依存: F1 の報告（監査 dot のサイクル 1 で提出済み: `work/dots-audit` の `notes/audit/f1-effect-passthrough.md`）。T1c と並行できる
+- 状態: partial（dot サイクル 4 が変換の核 `CommonArgumentEffectCast`・`ArgumentEffectCastRuntime` を証明、統合済み。挿入の位置は決着: ユーザー 2026-11-09 選択肢 3、型が求められたとき自動で入れる。残りは、ソースの省略された引数の行（全能）から核の矢印への橋、挿入の判断と X25 の PROVED）/ 依存: F1 の報告（監査 dot のサイクル 1 で提出済み: `work/dots-audit` の `notes/audit/f1-effect-passthrough.md`）。T1c と並行できる
 - 仕様: `spec/05-effects.md` 5.5c（2026-11-08 確定: 部分型に入れず、型が求められたときに入る明示的な変換の判断）。
 - 目標: (1) 変換 `'a -> ['e] 'b` ⇒ `'a ['f] -> ['e, 'f] 'b` を、独立な coercion の判断として定義する（矢印の部分型 `Common.common_arrow_iff` は変更しない）。(2) 起動時の効果の伝播（引数の計算の効果を戻りの行に合流する）と、意味の保存を証明する。(3) 既存の `strictApp` の独立判断・生成器接続との関係（重複しない、または一致する）を示す。(4) 適合例 X25（`x | f`、高階の引数に普通の関数）を、この判断を通して PROVED にする。
 - 受け入れ: coercion の判断と、効果の伝播・意味保存の定理。X25 が PROVED。`verify-lean.sh` が PASS。`Main.lean` に再掲。
