@@ -1,9 +1,9 @@
 cycle: 3
 status: running
 started: 2026-11-08T13:29:24Z
-updated: 2026-11-08T13:38:40Z
-elapsed_min: 9.27
-activity: F1の高階適用・効果順序対照と完全性受理例を検査中。標準prelude対照をバックグラウンド実行。
+updated: 2026-11-08T13:48:52Z
+elapsed_min: 19.47
+activity: 中間公開22ファイル照合済。標準preludeでF1 direct11/high22/eta11を再現、list/guard対照と監査表レビュー中。
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-audit-cycle3
-last_local_commit: 9b521380c
-resume_hint: /tmp/audit3/*.jsonとcompleteness原ログを監査ノートへ保存し、標準prelude session 76805の終了を確認。
+last_local_commit: e77b17345
+resume_hint: 前回中間commit 4ca5e6352。追加ノートと/tmp/audit3のrawを保存、standard-more session42901とguard-standard session77925を確認。
