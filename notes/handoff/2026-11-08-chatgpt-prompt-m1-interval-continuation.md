@@ -87,7 +87,7 @@ A2 は E2 で終わっている(`no_computable_canonical_encoding`)。`notes/que
 
 ## ユーザーに残っている問い(進めるうえで決めずに、局所の補題で進める)
 
-- K1(receiver の無い role member の整合条件)、K2 の残り、E7(`x | catch:`)。
+- E7(`x | catch:`)。(K1 と K2 の残りは決まった。K1 は宣言で何も拒否しない。)
 - 「無限に入れ子」の正確な定義(再帰的に定義された型が自分を通して際限なく深くなる所、と読んでいる)。
 - 「plain 変数以外は合流後の payload を分割しない」の理由の見直し(`box` は共変なので、`list('a), list('b)` のような不変な例で聞き直す予定)。
 - 拒否と曖昧性の優先順位(`2026-11-07-b4r2-rejection-priority.md`)。
