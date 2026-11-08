@@ -5,7 +5,7 @@
 - Base: `c6bdf6b3c8e4b3362096b0e499a1e28b9aeebd41` (`integration/m1-final`).
 - Code verified at local commit `ce14754c5`; publication uses separate contents-API commits.
 - Branch: `work/dots-main` only. No writes to integration/m1-final, yulang3, main, spec/, notes/plan/, or lakefile.
-- Clone filesystem creation recorded 2026-11-08 08:13:14 UTC. First 8-file publication and exact tree comparison completed 08:24:50 UTC: **11 minutes 36 seconds** to that point. Final report publication follows this record.
+- Clone filesystem creation recorded 2026-11-08 08:13:14 UTC. First 8-file publication and exact tree comparison completed 08:24:50 UTC: **11 minutes 36 seconds** to that point. All 9 files including this report were published and fetched with full tree comparison exit 0 at 08:26:25 UTC: **13 minutes 11 seconds** from the recorded clone creation. This timing sentence is a subsequent report-only amendment.
 - Final verification: 08:21:33.711–08:22:20.742 UTC, **47.031 seconds**, incremental build.
 
 ## Acceptance status
