@@ -1,10 +1,9 @@
-cycle: 15
-status: completed
-started: 2026-11-08T21:25:08Z
-updated: 2026-11-08T21:31:00Z
-elapsed_min: 5.9
-activity: computed finite source-template closure; 283 focused jobs PASS; 10 theorem axioms standard; 7 artifacts readback verified
+cycle: 16
+status: running
+started: 2026-11-08T21:54:16Z
+updated: 2026-11-08T21:55:00Z
+elapsed_min: 0.7
+activity: fetched integration 0605a0b66; reading finite source closure for saturation bridge
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-cycle6
 last_local_commit: 5e14a3396
-report: notes/handoff/dots-cycle-15.md
-resume_hint: I-7 max24; next general interval adapter or finite-new-fact saturation excluding same-parent no-information revisit. Int-only unary source closure done; general B4 remains open. Full verify not run.
+resume_hint: Cycle15 completed verified via API; local remote-tracking ref stale until explicit fetch refspec. Deadline 22:19Z. Focused builds only.
