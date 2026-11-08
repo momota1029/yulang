@@ -2897,3 +2897,51 @@ All X1–X24 statuses in `SpecExamples.lean` remain unchanged. B4 E1 remains ope
 
 The design and precise missing bridges are in
 [`2026-11-08-b4-outermost-resolver.md`](../notes/design/2026-11-08-b4-outermost-resolver.md).
+
+## Concrete settled role fragment (2026-11-08)
+
+`CommonRoleSettledFrontier.frontier_exact` discharges `FrontierExact` for a
+concrete request type and an independent local judgment. The executable
+frontier checks lower-head readiness, graph K2, generated ordinary family
+constraints, surviving identities, and every substituted where template.
+`CommonRoleSettledResolver.accessible` derives accessibility for every request
+from the registry's actual stable Paterson check and successful inspection.
+`resolve_exact` therefore has **no frontier-exactness or accessibility
+hypothesis**. It uses the existing single outer recursion.
+
+The domain is deliberately settled: one argument; known endpoints stored as
+a pair with equality evidence; arbitrary-depth unary variant, one-field
+record and nominal spines; int, opaque named nominal atoms, anonymous
+variant/record self-loop leaves and finite unrollings; plain/merged-plain
+head variables; all ordered unary where templates admitted by stable Paterson
+and name coverage; a finite registry with distinct declaration identities.
+Missing lower endpoints and unresolved required decompositions defer. All
+ordinary atoms in the existing family grammar are supported in a **disjoint
+auxiliary namespace**. A fresh capture slot retains every self/cross atom;
+all captures at the unary leaf have equal endpoint pairs. This is not the
+general non-singleton interval fragment and does not share inference variables
+between role types and auxiliary ordinary state.
+
+`generated_state_exact` preserves every original model and row, for every
+actual captured Common payload. `every_where_substituted` checks actual named
+lookups in the deduplicated binding table. `where_state_recollection` proves
+that each generated child's ordinary state is unchanged and added capture
+constraints have no effect on any original model. This closure relies on the
+fragment's absence of associated equations and shared mutable role slots.
+General child-to-parent/sibling updates are still open.
+
+`CommonRoleSettledExamples` proves X6 and X8–X12 through this entry, including
+X9's actual rejected child. The replacement status table is additive in
+`SpecExamplesSettled.lean`; the existing `SpecExamples.lean` was not edited.
+Regressions cover duplicate where clauses, upper-only deferral, ordinary
+inconsistency, incompatibility before K2, repeated self/cross checks, and K2
+on folded and explicitly unrolled graphs. `CommonRoleSettledGraphBridge`
+connects structural loop/boxed graphs to all-depth Common observations and
+lowers X6's repeated-tag plain variables. Nominal shells are matched by name;
+a full nominal-body/source-inference bridge is not claimed.
+
+Full B4 E1 remains open: non-singleton nested intervals, general finite
+regular graphs, multiple arguments and nontrivial repeated captures, source
+constraint/slot provenance and sharing, associated equations, state updates,
+row subtraction, levels/generalization and qualified-family/source adequacy
+are outside this result. See the [detailed report](../notes/handoff/2026-11-08-astra-settled-frontier-results.md).

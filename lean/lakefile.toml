@@ -8,3 +8,6 @@ name = "Yulang"
 
 [[lean_lib]]
 name = "SpecExamples"
+
+[[lean_lib]]
+name = "SpecExamplesSettled"

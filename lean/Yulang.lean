@@ -1184,3 +1184,5 @@ import Yulang.CommonRoleCandidateConstraintExamples
 import Yulang.CommonRoleOutermostResolver
 
 import Yulang.CommonRoleOutermostResolverChecks
+
+import SpecExamplesSettled
