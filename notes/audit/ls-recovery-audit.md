@@ -160,6 +160,14 @@ prefix are not counted as missing recovery: a completed identifier, for example,
 does not require a fabricated error. This metric does not decide all possible
 continuations or prove that every genuinely incomplete prefix is marked.
 
+## After P0 (partial)
+
+The malformed Yumark recovery fix was measured with the same audit probe:
+91,310 parses, 0 panics, 0 losses, 0 token-range errors, and 0 diagnostic
+errors, versus 20 panics and zero of the other three errors before. The raw
+output is in `ls-recovery-results-after-p0.txt`. The deep-recursion P0 remains
+open; this probe result does not establish stack safety.
+
 ## Five concrete problem groups
 
 **E1 — no CST for malformed Yumark; stack exhaustion.** Minimal reproducer:

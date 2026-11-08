@@ -2037,6 +2037,18 @@ where
                 self.sink.exit();
             } else {
                 self.missing(owner, RecoverySlot::BodyIntroducer, self.position);
+                if self.position < line.content_end {
+                    let start = self.position;
+                    self.advance_to(line.content_end);
+                    self.sink.recovery(
+                        Recovery {
+                            kind: SyntaxKind::Error,
+                            owner,
+                            slot: RecoverySlot::BodyIntroducer,
+                        },
+                        start..self.position,
+                    );
+                }
                 self.finish_line(line);
             }
             self.sink.exit();
