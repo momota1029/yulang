@@ -1080,3 +1080,5 @@ import Yulang.CommonEffectMixedExact
 import Yulang.CommonEffectMixedKinds
 
 import Yulang.CommonEffectMixedChecked
+
+import Yulang.CommonRoleIntervalDictionaries

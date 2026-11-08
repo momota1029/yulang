@@ -6098,3 +6098,5 @@ run_cmd do
 #print axioms Yulang.CommonEffectMixedChecked.generate_checked_exact
 
 #print axioms Yulang.CommonEffectMixedChecked.generate_closed_checked_exact
+
+#print axioms Yulang.CommonRoleIntervalDictionaries.complete_iff_dictionary
