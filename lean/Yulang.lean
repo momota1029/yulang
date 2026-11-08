@@ -1276,3 +1276,5 @@ import Yulang.CommonRoleNamedAssociatedGraph
 import Yulang.CommonRoleAssociatedDeclarationExact
 
 import Yulang.CommonRoleFiniteAssociatedDeclaration
+
+import Yulang.CommonRolePotentialChildClosure
