@@ -18,11 +18,19 @@
 ## タスク
 
 ### T1 開いた区間への拡張 (B4)
-- 状態: todo / 依存: なし
+- 状態: partial（2026-11-08 16:40、dots が実施。`work/dots-T1` を統合。verify-lean.sh PASS、1125 jobs）。**受け入れは未達**: 非単一区間での `resolve_exact` と、外側の入口を通る X13〜X16 は未達。続きは T1b。
+- 得られたこと: Astra の断片の `where_state_recollection`（子の更新は no-op）は、開いた区間では**偽**（`open_capture_not_noop`: 空状態は整合だが、2 つの fresh slot に lower=int, upper=str を与えると不整合）。修正版の状態 accumulator（`OpenState.add/recollect/solve`、実 family solver と iff）と、同頭 constructor の持ち上げと異頭の区間保持の正規化、独立な二端点 Inspect の Step での下降（`checked_child_decreases`、`accessible`）を証明。更新列は事前入力で、兄弟の再生成と親 frontier の再計算を行う driver ではない。
 - 目標: Astra の断片（`CommonRoleSettled*`）を、`lower ≠ upper` の区間と、その伝播・併合・下降へ広げる。`frontier_exact` と accessibility を仮定にせず、拡張した断片でも証明する。同じ頭の端点は constructor に単純化し、違う頭は区間のまま残す（spec 6.5）。入れ子は深さの上限なし。
 - 受け入れ: 拡張した断片で `resolve_exact` が仮定なしで成り立つ。X13・X14・X15・X16 の少なくとも一つが外側の入口を通って PROVED。`verify-lean.sh` が PASS。
 - 注意: 子の更新が親や兄弟に及ぶ問題（`where_state_recollection`）が、この断片で空にならない可能性が高い。そのときは、更新を伝える形を設計して証明する（E2 は終わりではない）。選択が要るなら質問ノートを 1 本。
 - 参照: `notes/handoff/2026-11-08-astra-settled-frontier-results.md`、`notes/design/2026-11-08-b4-outermost-resolver.md`。
+
+### T1b 開いた区間: 実 producer と driver で resolve_exact (B4)
+- 状態: todo / 依存: T1（部分達成を前提に続ける）
+- 目標: T1 の残り。(1) 実 producer の全 child が、独立な二端点 Inspect の Step に含まれること（accessibility を producer の child へ接続）。(2) 更新後に各兄弟を再生成し、親 frontier を再計算する driver を作り、`where_state_recollection` に当たる定理を、開いた区間の断片で証明する（no-op ではなく、accumulator との対応として）。(3) 開いた区間の断片で `FrontierExact` と accessibility を仮定なしにし、外側の `resolve_exact` を無条件にする。
+- 受け入れ: 開いた区間を含む断片で `resolve_exact` が仮定なしで成り立つ。X13〜X16 の少なくとも一つが外側の入口を通って PROVED（`lean/SpecExamplesSettled.lean` か新しい表に反映）。`verify-lean.sh` が PASS。
+- 注意: 設計の選択が要る点（兄弟の更新順など）は、決めずに質問ノート（遅延案を先頭）を 1 本。E2 が出ても止まらず、定義を直す。
+- 参照: `notes/handoff/2026-11-08-dots-T1-results.md`、`notes/design/2026-11-08-dots-T1-open-intervals.md`。
 
 ### T2 optional field の統合 (B2, X22)
 - 状態: done（2026-11-08 16:30、dots が実施。`work/dots-T2` を `integration/m1-final` に統合、commit `92edfa967`）。検証: verify-lean.sh PASS（1120 jobs）。新しい source structural 入口で X22 が PROVED。旧生成器は既存ファイル不変の規則のため置き換えていない（旧入口の MISMATCH 表示は残る）。
