@@ -471,6 +471,7 @@ fn precise_missing(
     });
     canonical
         .or_else(|| statement_delimiter_missing(path, children, index))
+        .or_else(|| completion_missing(path, children, index))
         .or_else(|| precise_yumark_missing(path, children, index))
 }
 
@@ -501,6 +502,49 @@ fn statement_delimiter_missing(
         GrammarSlot::new(parent, GrammarSlotRole::Close),
         expected,
     ))
+}
+
+// These owners publish a single unambiguous required child at this site.
+fn completion_missing(
+    path: &[SyntaxKind],
+    children: &[NodeOrToken<SyntaxNode, SyntaxToken>],
+    index: usize,
+) -> Option<CatalogSlot> {
+    use GrammarSlotRole as R;
+    use SchemaExpectedSyntax as E;
+    use SyntaxKind as K;
+    let parent = *path.last()?;
+    let (owner, role, expected) = match parent {
+        K::FieldTail | K::PathTail | K::UsePath => (parent, R::Name, E::Identifier),
+        K::Pattern => (parent, R::Head, E::Pattern),
+        K::StringLiteral => (parent, R::Terminator, E::Terminator),
+        K::StringInterpolation
+            if previous_significant(children, index) == Some(K::StringInterpolationBody) =>
+        {
+            (parent, R::Close, E::ClosingBrace)
+        }
+        K::StringInterpolation => (parent, R::BodyIntroducer, E::OpeningBrace),
+        K::CaseArm | K::CatchArm if previous_significant(children, index).is_none() => {
+            (parent, R::Head, E::Pattern)
+        }
+        K::CaseArm | K::CatchArm if previous_significant(children, index) == Some(K::Arrow) => {
+            (parent, R::Body, E::Expression)
+        }
+        K::CaseArm | K::CatchArm if previous_significant(children, index) == Some(K::Pattern) => {
+            (parent, R::BodyIntroducer, E::Arrow)
+        }
+        K::TypeExpression => (parent, R::Item, E::TypeExpression),
+        K::OperatorChain => match path.iter().rev().nth(1).copied() {
+            Some(K::ForIterable) => (K::ForIterable, R::Item, E::Expression),
+            Some(K::Condition) => (K::Condition, R::Condition, E::Condition),
+            Some(K::StringInterpolationBody) => {
+                (K::StringInterpolationBody, R::ExpressionBody, E::Expression)
+            }
+            _ => (parent, R::Item, E::Expression),
+        },
+        _ => return None,
+    };
+    Some(CatalogSlot::new(GrammarSlot::new(owner, role), expected))
 }
 
 /// Precise raw `Error` group slot for the mapped expression-delimited row.
