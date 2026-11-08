@@ -322,6 +322,8 @@ enum app_err:
   **決定（2026-11-07, ユーザー）: 拒否の場所を一つ足す。** impl の head を goal に照合するとき、head の非変数 pattern が名前の無い構造的な再帰型の constructor を調べる必要が出た時点でも、「再帰型のため解決できない」と拒否する。
   例: `impl Check {box: {tick: 'a}} where Check {box: 'a}` に、`μ = {tick: μ}` を使う `Check {box: μ}` を解決させると、`{tick: 'a}` を μ の中身に当てる時点で拒否される（goal の根 `{box: …}` は再帰型ではないので、根の規則だけでは拒否できなかった）。
   `'a` のように再帰型を変数で捕まえるだけの照合（`Len (list μ)`）は通る。理由: 根の規則だけでは、再帰型を `pair` などの中に残したまま、互いに同値でない goal を無限に作る registry が作れ、解決の停止が停止問題と同じ難しさになる（Lean: `CommonRoleReachedRootObstruction.reached_root_registry_undecidable`）。
+  **拒否と曖昧性の優先順位（確定, 2026-11-08, ユーザーの決定）: 拒否が先。** goal に当たる impl の候補のうち、どれか一つでも「名前の無い構造的な再帰型の constructor を調べる」必要があるなら、他の安全な候補がいくつあっても、「再帰型のため解決できない」と拒否する。安全な候補が 2 つ以上あっても、1 つだけでも、曖昧性や選択より先に拒否する。impl の宣言の順に依存せず、調べる候補を避けて選ぶこともしない。
+  例: `impl Check ({box: 'a})`（変数で受ける）と `impl Check ({box: {next: 'b}})`（中身を見る）が同時に見えるとき、`check {box: loop 0}`（`loop 0` の型は再帰型 μ = {next: μ}）は、前者が当たるだけでは通らず、後者のために拒否される。
   K2 は、これで **確定**。B4 の修正 statement は「goal の型・行から構造的な再帰型を除いた有限木」を前提に書き直す（`notes/questions/2026-11-07-b4-regular-resolution-decidability.md`）。
 
 （I1〜I6 は反映済み。J4 で cast の有効範囲を確定。）
