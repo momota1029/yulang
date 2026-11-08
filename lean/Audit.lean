@@ -7099,3 +7099,17 @@ run_cmd do
 #print axioms Yulang.CommonRoleSourceTemplateClosure.actual_child_closed
 #print axioms Yulang.CommonRoleSourceTemplateClosure.all_states_present
 #print axioms Yulang.CommonRoleSourceTemplateClosure.actual_child_all_states
+
+-- Cycle16: actual source worklist, fixed state only
+#print axioms Yulang.CommonRoleSourceWorklist.actual_next_generated
+#print axioms Yulang.CommonRoleSourceWorklist.nodes_complete
+#print axioms Yulang.CommonRoleSourceWorklist.edge_rule_present
+#print axioms Yulang.CommonRoleSourceWorklist.derives_sound
+#print axioms Yulang.CommonRoleSourceWorklist.derives_complete
+#print axioms Yulang.CommonRoleSourceWorklist.saturate_exact
+#print axioms Yulang.CommonRoleSourceWorklist.saturate_nodup
+#print axioms Yulang.CommonRoleSourceWorklist.saturate_capacity
+#print axioms Yulang.CommonRoleSourceWorklist.saturate_actual_closed
+#print axioms Yulang.CommonRoleSourceWorklist.concrete_child_visited
+#print axioms Yulang.CommonRoleSourceWorklist.root_visited
+#print axioms Yulang.CommonRoleSourceWorklist.saturate_least
