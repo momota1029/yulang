@@ -50,3 +50,8 @@ applicable interface. Defer the source elaboration model first; possible models
 include a distinguished source omission marker elaborated through this adapter,
 or an explicit row-polymorphic source scheme. These are model choices to be
 justified, not changes made by this patch.
+
+
+## 回答（ユーザー, 2026-11-09）
+
+**選択肢 3**: 型が求められたとき、変換を自動で入れる（需要駆動。注釈の有無によらない。`labeled` の cast と同じ流儀）。`spec/05-effects.md` 5.5c に反映。X25 は、この挿入の判断を通して PROVED にする。ユーザーの `cast` 宣言との優先順位は `labeled` と同じ扱い。「ソースの省略された引数の行」は空の行ではなく全能、という点は、ソースから核の矢印への橋として別に必要（上の「Source omission is not an empty row」）。
