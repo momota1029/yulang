@@ -1,3 +1,4 @@
+import Yulang.CommonRoleNamedPath
 import Yulang.CommonRoleStatefulPathParent
 import Yulang.CommonRoleSettledResolver
 import Yulang.CommonRoleOpenRecursivePass
@@ -193,4 +194,16 @@ theorem stateful_reverse_siblings_exact (out : CommonRoleSettledConstraints.Stat
       CommonRoleStatefulParentExample.Final out argument answer :=
   CommonRoleStatefulParentExample.outer_exact out argument answer
 
+end Yulang.Main
+
+namespace Yulang.Main
+/-- 名前付き有限pathについて、slotと同一性制約を入口自身が計算する。
+任意の旧状態・結果に対する iff であり、成功・model・allocation の外部前提はない。
+固定 Index(box str) seed の断片で、一般source parserの定理ではない。 -/
+theorem named_finite_path_exact (seed : Nat) (names : List Nat)
+    (s out : CommonRoleSettledConstraints.State (CommonRoleNamedPath.table seed names).length)
+    (argument : Roles.Term) (answer : RoleDictionaries.Answer) :
+    CommonRoleNamedPath.run seed names s = some (out, argument, answer) ↔
+      CommonRoleNamedPath.Final seed names s out argument answer :=
+  CommonRoleNamedPath.outer_exact ..
 end Yulang.Main
