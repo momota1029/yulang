@@ -6928,3 +6928,8 @@ run_cmd do
 #print axioms Yulang.CommonRoleSiblingOrders.forward_materialized
 #print axioms Yulang.CommonRoleSiblingOrders.forward_value
 #print axioms Yulang.CommonRoleSiblingOrders.orders_observable
+#print axioms Yulang.CommonRolePathOrder.expected_same_models
+#print axioms Yulang.CommonRolePathOrder.models_equivalent
+#print axioms Yulang.CommonRolePathOrder.no_models_none
+#print axioms Yulang.CommonRolePathOrder.observable_order_independent
+#print axioms Yulang.CommonRolePathOrder.permutation_observable
