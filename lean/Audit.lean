@@ -6616,3 +6616,36 @@ run_cmd do
 #print axioms Yulang.CommonSourceOptionalX22.x22_any_absent_field_misses
 #print axioms Yulang.CommonSourceOptionalX22.nested_source_generated
 #print axioms Yulang.CommonSourceOptionalX22.x22_proved
+
+#print axioms Yulang.CommonRoleOpenConstraints.bounds_slots
+#print axioms Yulang.CommonRoleOpenConstraints.bounds_present
+#print axioms Yulang.CommonRoleOpenConstraints.compatible_exact
+#print axioms Yulang.CommonRoleOpenConstraints.generated_state_exact
+#print axioms Yulang.CommonRoleOpenConstraints.merged_binding_exact
+#print axioms Yulang.CommonRoleOpenConstraints.open_capture_not_noop
+#print axioms Yulang.CommonRoleOpenDescent.checked_child_decreases
+#print axioms Yulang.CommonRoleOpenDescent.step_decreases
+#print axioms Yulang.CommonRoleOpenDescent.accessible
+#print axioms Yulang.CommonRoleOpenState.add_exact
+#print axioms Yulang.CommonRoleOpenState.recollect_sound
+#print axioms Yulang.CommonRoleOpenState.recollect_complete
+#print axioms Yulang.CommonRoleOpenState.recollect_exact
+#print axioms Yulang.CommonRoleOpenState.recollect_models
+#print axioms Yulang.CommonRoleOpenState.recollect_atoms
+#print axioms Yulang.CommonRoleOpenState.recollect_preserves_prefix
+#print axioms Yulang.CommonRoleOpenState.solve_all_instances_exact
+#print axioms Yulang.CommonRoleOpenState.solve_empty_exact
+
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_same
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_different
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_interval
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_sound
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_complete
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_exact
+#print axioms Yulang.CommonRoleOpenNormalization.endpoints_preserved
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_lower
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_upper
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_prefix
+#print axioms Yulang.CommonRoleOpenExamples.x15_local
+#print axioms Yulang.CommonRoleOpenExamples.x16_local
+#print axioms Yulang.CommonRoleOpenExamples.unequal_endpoint_example
