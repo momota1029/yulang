@@ -6192,3 +6192,9 @@ run_cmd do
 #print axioms Yulang.CommonDeclarationVarianceSyntax.supports_derivation
 
 #print axioms Yulang.CommonDeclarationVarianceSyntax.Derivation.supported
+
+#print axioms Yulang.CommonDeclarationVarianceOccurrences.occurrences_exact
+
+#print axioms Yulang.CommonDeclarationVarianceOccurrences.expression_occurs_exact
+
+#print axioms Yulang.CommonDeclarationVarianceOccurrences.used_exact
