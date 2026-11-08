@@ -6347,3 +6347,80 @@ run_cmd do
 #print axioms Yulang.CommonRoleRepeatedCaptureChecks.merged_eval
 #print axioms Yulang.CommonRoleRepeatedCaptureChecks.merged_valid_iff
 #print axioms Yulang.CommonRoleRepeatedCaptureChecks.repeated_example
+
+#print axioms Yulang.CommonRoleRegularGraph.returns_to_exact
+#print axioms Yulang.CommonRoleRegularGraph.recursive_at_exact
+#print axioms Yulang.CommonRoleRegularGraph.nominal_not_recursive
+#print axioms Yulang.CommonRoleRegularGraph.unresolved_not_recursive
+
+#print axioms Yulang.CommonRoleGraphInspection.variable_opaque
+#print axioms Yulang.CommonRoleGraphInspection.shared_opaque
+#print axioms Yulang.CommonRoleGraphInspection.shared_capture
+#print axioms Yulang.CommonRoleGraphInspection.shared_lookup
+#print axioms Yulang.CommonRoleGraphInspection.cyclic_structural_encounter
+#print axioms Yulang.CommonRoleGraphInspection.unresolved_structural
+#print axioms Yulang.CommonRoleGraphInspection.inspect_cycle_sound
+#print axioms Yulang.CommonRoleGraphInspection.inspect_children_cycle_sound
+#print axioms Yulang.CommonRoleGraphInspection.inspect_visible_exact
+#print axioms Yulang.CommonRoleGraphInspection.inspect_visible_append
+#print axioms Yulang.CommonRoleGraphInspection.inspect_all_children_cons
+#print axioms Yulang.CommonRoleGraphInspection.inspect_all_visible_exact
+#print axioms Yulang.CommonRoleGraphInspection.inspect_all_cycle_sound
+#print axioms Yulang.CommonRoleGraphInspection.inspect_all_children_cycle_sound
+#print axioms Yulang.CommonRoleGraphInspection.snapshot_unknown_exact
+#print axioms Yulang.CommonRoleGraphInspection.snapshot_cycle_sound
+
+#print axioms Yulang.CommonRoleGraphBisimulation.children_check_exact
+#print axioms Yulang.CommonRoleGraphBisimulation.node_check_exact
+#print axioms Yulang.CommonRoleGraphBisimulation.check_bisimulation_exact
+#print axioms Yulang.CommonRoleGraphBisimulation.bisimilar_exact
+#print axioms Yulang.CommonRoleGraphBisimulation.unresolved_bisimilar_same
+#print axioms Yulang.CommonRoleGraphBisimulation.children_map_equal
+#print axioms Yulang.CommonRoleGraphBisimulation.bisimulation_observations
+#print axioms Yulang.CommonRoleGraphBisimulation.bisimilar_observations
+#print axioms Yulang.CommonRoleGraphBisimulation.mem_all_pairs
+#print axioms Yulang.CommonRoleGraphBisimulation.observed_children_related
+#print axioms Yulang.CommonRoleGraphBisimulation.observations_bisimilar
+#print axioms Yulang.CommonRoleGraphBisimulation.bisimilar_iff_observations
+#print axioms Yulang.CommonRoleGraphBisimulation.regular_at_exact
+#print axioms Yulang.CommonRoleGraphBisimulation.identity_cycle_misses_unrolling
+#print axioms Yulang.CommonRoleGraphBisimulation.bisimulation_detects_unrolling
+#print axioms Yulang.CommonRoleGraphBisimulation.graph_update_changes_regularity
+#print axioms Yulang.CommonRoleGraphBisimulation.direct_cycle_with_unresolved
+#print axioms Yulang.CommonRoleGraphBisimulation.unrolled_shared_unknown_detected
+#print axioms Yulang.CommonRoleGraphBisimulation.distinct_unknowns_not_bisimilar
+#print axioms Yulang.CommonRoleGraphBisimulation.nominal_not_regular
+
+#print axioms Yulang.CommonRoleUnaryGraphBridge.graph_observe
+#print axioms Yulang.CommonRoleUnaryGraphBridge.block_observe
+#print axioms Yulang.CommonRoleUnaryGraphBridge.common_observe
+#print axioms Yulang.CommonRoleUnaryGraphBridge.bisimilar_common
+#print axioms Yulang.CommonRoleUnaryGraphBridge.unrolled_loop_common
+
+#print axioms Yulang.CommonRoleGraphInspectionExamples.merged_payload_observations
+#print axioms Yulang.CommonRoleGraphInspectionExamples.list_captures_loop
+#print axioms Yulang.CommonRoleGraphInspectionExamples.boxed_loop_observations
+#print axioms Yulang.CommonRoleGraphInspectionExamples.boxed_loop_all_observations
+#print axioms Yulang.CommonRoleGraphInspectionExamples.sibling_evidence_retained
+#print axioms Yulang.CommonRoleGraphInspectionExamples.named_tree_observation
+#print axioms Yulang.CommonRoleGraphInspectionExamples.requested_head_snapshots
+
+#print axioms Yulang.CommonRoleRecordGraphBridge.graph_observe
+#print axioms Yulang.CommonRoleRecordGraphBridge.block_observe
+#print axioms Yulang.CommonRoleRecordGraphBridge.common_observe
+#print axioms Yulang.CommonRoleRecordGraphBridge.common_unfold
+#print axioms Yulang.CommonRoleRecordGraphBridge.bisimilar_common
+#print axioms Yulang.CommonRoleRecordGraphBridge.unrolled_loop_common
+#print axioms Yulang.CommonRoleRecordGraphBridge.boxed_loop_graph
+#print axioms Yulang.CommonRoleRecordGraphBridge.boxed_loop_unfolds
+
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.lower_head_origin
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.inspect_lower_heads_exact
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.upper_only_has_no_lower_heads
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.lower_contribution_origin
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.inspect_all_contributions_exact
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.unresolved_contribution_retained
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.mixed_contributions_retained
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.lower_origins_exact
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.lower_origins_project
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.inspect_origin_snapshots_exact

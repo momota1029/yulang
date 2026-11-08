@@ -2817,3 +2817,35 @@ presence before substitution. Its exactness theorems do not
 extend the scanner: repeated names and merged heads remain outside its
 supported grammar. The merged terms have not been substituted into `where`
 children or connected to the full resolver and ordinary solver.
+
+## Regular graph inspection for role heads
+
+`CommonRoleRegularGraph` detects nonempty cycles in finite graph identities.
+`CommonRoleGraphBisimulation` also recognizes finite unrollings of those
+cycles. Its executable bisimulation search enumerates the powerset of node
+pairs; for a completely determined graph it is equivalent to equality of all
+finite ordered graph observations. Identical unresolved nodes may be related;
+distinct unresolved nodes are not. This assumes source solver aliases have
+already been represented by the same graph identity, a bridge not yet proved.
+Graph updates can change regularity and require revalidation.
+
+`CommonRoleUnaryGraphBridge` proves a connection to Common equivalence for
+finite unary variant graphs. `CommonRoleRecordGraphBridge` proves the same
+for one-required-field record graphs, including the recursive K2 record shape.
+The analogous bridge for the full Common carrier, including multi-field
+records, merged rows, and nominal metadata, remains open.
+`CommonRoleGraphInspection.inspectSnapshot` checks a known graph root and
+retains all lower-head observations of visible declarations.
+`CommonRoleGraphDemandSnapshots` connects the existing actual lower-bound
+collector to these snapshots with a fixed graph-based projection; every
+reported head has a reachable original lower seed. It retains all known
+heads and does not reconcile them. The known-head projection omits unresolved
+seeds; a separate all-contributions pass retains them as unknown snapshots.
+The origin-preserving pass also retains the original lower seed's slot; flow
+paths are characterized by reachability but are not stored in the output.
+None of these lists decides whether a source role is pending. These snapshots are not
+the whole resolver:
+source graph construction, candidate propagation, ordinary upper-bound
+constraints, all where-children, finite dictionaries, and an actual source
+termination measure remain unimplemented. Consequently the X6 and X8–X12
+whole-resolver conformance statuses remain unchanged.

@@ -1162,3 +1162,17 @@ import Yulang.CommonRecursiveNominalIntervalContextAdmission
 import SpecExamples
 
 import Yulang.CommonRoleRepeatedCaptureChecks
+
+import Yulang.CommonRoleRegularGraph
+
+import Yulang.CommonRoleGraphInspection
+
+import Yulang.CommonRoleGraphBisimulation
+
+import Yulang.CommonRoleUnaryGraphBridge
+
+import Yulang.CommonRoleGraphInspectionExamples
+
+import Yulang.CommonRoleRecordGraphBridge
+
+import Yulang.CommonRoleGraphDemandSnapshots
