@@ -1249,3 +1249,8 @@ import Yulang.CommonRoleAssociatedParentExact
 
 import Yulang.CommonRoleSourceDescent
 import Main
+import Yulang.CommonRoleStatefulIndexSweep
+import Yulang.CommonRoleStatefulIndexPath
+import Yulang.CommonRoleStatefulParentExample
+import Yulang.CommonRoleStatefulPathComplete
+import Yulang.CommonRoleStatefulPathParent
