@@ -11,3 +11,6 @@ name = "SpecExamples"
 
 [[lean_lib]]
 name = "SpecExamplesSettled"
+
+[[lean_lib]]
+name = "Main"
