@@ -6921,3 +6921,10 @@ run_cmd do
 #print axioms Yulang.CommonRoleNamedPath.success_domain
 #print axioms Yulang.CommonRoleNamedPath.empty_success
 #print axioms Yulang.CommonRoleNamedPath.rejects_inconsistent
+#print axioms Yulang.CommonRoleSiblingOrders.forward_sweep
+#print axioms Yulang.CommonRoleSiblingOrders.forward_models
+#print axioms Yulang.CommonRoleSiblingOrders.orders_models
+#print axioms Yulang.CommonRoleSiblingOrders.forward_consistent
+#print axioms Yulang.CommonRoleSiblingOrders.forward_materialized
+#print axioms Yulang.CommonRoleSiblingOrders.forward_value
+#print axioms Yulang.CommonRoleSiblingOrders.orders_observable
