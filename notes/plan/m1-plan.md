@@ -25,7 +25,8 @@
 - 参照: `notes/handoff/2026-11-08-astra-settled-frontier-results.md`、`notes/design/2026-11-08-b4-outermost-resolver.md`。
 
 ### T2 optional field の統合 (B2, X22)
-- 状態: todo / 依存: なし
+- 状態: done（2026-11-08 16:30、dots が実施。`work/dots-T2` を `integration/m1-final` に統合、commit `92edfa967`）。検証: verify-lean.sh PASS（1120 jobs）。新しい source structural 入口で X22 が PROVED。旧生成器は既存ファイル不変の規則のため置き換えていない（旧入口の MISMATCH 表示は残る）。
+- 依存: なし
 - 目標: `notes/questions/2026-11-08-x22-mismatch.md` の推奨案 1。既存の optional 用の規則とその生成器を、主の pattern 生成器へ統合し、照合が miss して次の arm へ進む経路を保ったまま、生成と case の結果を証明する。
 - 受け入れ: X22 が PROVED（主の生成器が `{port: p}` を受理し、フィールドが無ければ miss）。既存の `strict_rejects` などの定理は削除せず、新しい規則の定理として追加する。`verify-lean.sh` が PASS。
 
