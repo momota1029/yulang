@@ -128,18 +128,39 @@ theorem summarize_complete (h : Decision q results result) : summarize q results
           | cons => rfl
 
 def frontier (visible : List Declaration) (q : Request) : Frontier Request :=
-  summarize q (scan q.role q.lower q.upper visible)
+  if q.lower = .unknown then .pending
+  else if q.lower.regular then .rejected
+  else summarize q (scan q.role q.lower q.upper visible)
 
 inductive Local (visible : List Declaration) (q : Request) : Frontier Request → Prop where
-  | ready : Scan q.role q.lower q.upper visible results → Decision q results result →
+  | unknown : q.lower = .unknown → Local visible q .pending
+  | root_cycle : q.lower.Regular → Local visible q .rejected
+  | ready : q.lower ≠ .unknown → ¬ q.lower.Regular →
+      Scan q.role q.lower q.upper visible results → Decision q results result →
       Local visible q result
 
-theorem frontier_sound (visible : List Declaration) (q : Request) : Local visible q (frontier visible q) :=
-  .ready (scan_sound ..) (summarize_sound ..)
+theorem frontier_sound (visible : List Declaration) (q : Request) : Local visible q (frontier visible q) := by
+  unfold frontier
+  split
+  · exact .unknown ‹_›
+  · rename_i known
+    split
+    · exact .root_cycle ((regular_exact _).mp ‹_›)
+    · rename_i finite
+      exact .ready known (mt (regular_exact _).mpr finite) (scan_sound ..) (summarize_sound ..)
 
 theorem frontier_complete (h : Local visible q result) : frontier visible q = result := by
   cases h with
-  | ready scanned decision => simp [frontier, scan_complete scanned, summarize_complete decision]
+  | unknown h => simp [frontier, h]
+  | root_cycle regular =>
+      have known : q.lower ≠ Ty.unknown := by
+        intro same
+        have h := (regular_exact _).mpr regular
+        rw [same] at h
+        cases h
+      simp [frontier, known, (regular_exact _).mpr regular]
+  | ready known finite scanned decision =>
+      simp [frontier, known, regular_false finite, scan_complete scanned, summarize_complete decision]
 
 abbrev protocol (visible : List Declaration) : CommonRoleOutermostResolver.Protocol Request :=
   ⟨frontier visible, Local visible⟩
