@@ -2779,3 +2779,8 @@ Nominal expression lowering, recursive carrier/cast synthesis, and B5/B1 E1 rema
 ## Recursive nominal interval admission
 
 `CommonRecursiveNominalIntervals.admit_exact` and `compile_exact` validate every nested constructor identity, arity and ordered argument kind, including unused subtrees, before reference expansion. For every registry, assignment and finite pair of descriptions, successful atom satisfaction is equivalent to both independent well-formedness judgments and the independent recursive derivation. This is the context-free reference layer; inherited invariance and the full declaration-aware regular nominal carrier remain separate obligations.
+
+
+## Inherited invariant context
+
+`CommonRecursiveNominalIntervalContext` implements spec 6.5's updated covariance and contravariance rule. Once inside an invariant argument, every used nested position has effective invariant variance; unused positions remain unused. Each emitted obligation carries the original declaration's propagated context. Decomposition is exact and recursive child sizes strictly decrease, for arbitrary finite endpoint depth. This reference expander does not itself eliminate duplicate endpoint-pair work.

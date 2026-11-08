@@ -6292,3 +6292,6 @@ run_cmd do
 
 #print axioms Yulang.CommonRecursiveNominalIntervals.admit_exact
 #print axioms Yulang.CommonRecursiveNominalIntervals.compile_exact
+
+#print axioms Yulang.CommonRecursiveNominalIntervals.decompose_context_arguments_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.decompose_context_arguments_size_lt
