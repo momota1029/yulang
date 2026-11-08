@@ -182,7 +182,8 @@ M1 が閉じてから着手する。前提が閉じていない間は `blocked`�
 - 注意: Yulang2 の「明示した高階の注釈で check は通るが run が失敗する」不一致（`conflicting type candidates: [ping] vs []`）は、新仕様に持ち込まない。選択が要る点は質問ノート（遅延案を先頭）。
 
 ### T17 パーサの回復: P0 (panic と stack abort) (yu-syntax)
-- 状態: todo / 依存: なし。LS の前提（全入力で木が出る）なので優先
+- 状態: done（2026-11-08。欠陥 1 は Terra、欠陥 2 は Sol。`cargo test -p yu-syntax --offline` 終了コード 0、1667 passed、フィンガープリント変更なし。監査の probe は 91,310 回の解析で panic 0、以前 abort した 4096 段の括弧も正常終了。stack の予算ガード 256 KiB、深さの代替 8 項目、Yumark は 16,384。ガードの余裕はデバッグ 7.21 倍、リリース 29.61 倍（512 KiB 基準）。10 万段の字句どおりのインデントは 4 GiB を超えて表せないので 1,024 段で試験）
+- 依存: なし。LS の前提（全入力で木が出る）なので優先
 - 出典: `notes/audit/ls-recovery-audit.md`（2026-11-08、Sol の監査）。750 の入力・91,310 回の解析で、**panic が 20 件**（壊れた Yumark の経路: 例 `---\n\if@(c){yes}\n---\n`）、**深い入れ子の括弧 4096 で stack の abort**（SIGABRT。2048 は通る）。
 - 目標: (1) 壊れた Yumark の panic の経路を除く。LS 側で panic を握りつぶす形にしない。最小の入力と、記録された 19 件の単一編集をテストにする。DocCommentDeclaration を損失なしで返し、後続の宣言を保つ。(2) 再帰する式の解析に上限を設ける（反復化、または回復可能な入れ子の上限。上限に達した領域もテキストを失わない）。釣り合いのある入れ子と釣り合わない入れ子を、別プロセスで、通常の LS のスレッドの stack で試す。
 - 受け入れ: 監査の probe（`cargo run -p yu-syntax --example ls_recovery_audit --release --offline`）が panic 0、abort 0 で終わる。`cargo test -p yu-syntax --offline` が通る。既存の fixture とフィンガープリントは変えない。
