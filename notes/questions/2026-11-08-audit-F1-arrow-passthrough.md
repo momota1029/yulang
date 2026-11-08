@@ -21,3 +21,9 @@ Y2のno-prelude実行は7。fに`[ping] int -> [ping] int`を明示した変種�
 3. Y2に近いpassthroughをarrow orderへ組み込み、新carrierに対する推移性・finite producer/solver exactnessを再証明する。現行Commonのiffとは違うrelationとなり、既存定理をそのまま新意味論の完成として扱えない。
 
 監査では選ばない。確定した意味論に合わせるための形式化境界の質問であり、F1を撤回する提案ではない。
+
+## cycle2追加観測（2026-11-08、決定はしない）
+
+`notes/audit/f1-cycle-2-boundaries.md` の12入力matrixを追加した。両row明示版のconflictはdump --mono / --runtime-irでも再現し、runtime以前のspecialization境界。引数rowだけなら7、wildarg直接版はunhandledだがeta版は7。直接適用/pipe/推論高階の成功だけで全F1完了とはできない。既存の遅延案と未決定点はそのまま。
+
+また `notes/audit/default-effect-boundary-cycle-2.md` にdefaultのeffectが関数の表示行から落ち、外側明示handlerではunhandledとなる例を記録した。直接catchでは7になるため、任意defaultの不可処理と一般化しない。新specはeffectful defaultを認めており、これを旧失敗へ戻す提案ではない。source→carrier→実行入口が同じeffectを保持することを、まだ完成と呼ばない。
