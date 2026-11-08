@@ -2867,3 +2867,33 @@ root-interval constraints are not generated here, and the stored mismatch,
 unresolved and cycle observations are not classified. A nonempty ordinary
 family is not a selected role candidate. No where-child or dictionary is
 constructed by this component.
+
+## Conditional outer role protocol (2026-11-08)
+
+`CommonRoleOutermostResolver.resolve` is a single proof-directed recursive
+entry for a fixed-frontier protocol. Its independent `Resolves` judgment
+checks each selected declaration identity and the complete ordered list of
+where derivations. `resolve_tree_exact_of_frontier_exact` proves equality
+with that finite tree judgment. `resolve_exact_of_frontier_exact` proves
+the four-outcome projection equivalent to independent `Classify`, building
+a finite dictionary only when all children succeed.
+
+Both theorems quantify every request type, protocol, exact correspondence
+between its executable frontier and independent local judgment, accessible
+request, and proposed output. **The frontier correspondence and accessibility
+are explicit hypotheses.** Neither has been discharged for the full source
+interval carrier. No interval candidates, merged where substitutions, K2
+priority, or source graph/slot provenance have been connected to this entry.
+Children return trees, not updated ordinary states; sibling/parent propagation
+and recollection still require a state-threading driver or a proved stable
+shared snapshot. The rejection/ambiguity/pending order across different
+children is a generic summary policy, not the spec's single-demand K2 rule.
+
+`CommonRoleOutermostResolverChecks` executes an artificial protocol with two
+identical children, preserving both and building the finite dictionary. It
+also constructs the independent derivation through the exactness theorem.
+These are protocol checks, **not** X6 or X8–X12 source conformance theorems.
+All X1–X24 statuses in `SpecExamples.lean` remain unchanged. B4 E1 remains open.
+
+The design and precise missing bridges are in
+[`2026-11-08-b4-outermost-resolver.md`](../notes/design/2026-11-08-b4-outermost-resolver.md).

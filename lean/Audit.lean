@@ -6447,3 +6447,21 @@ run_cmd do
 #print axioms Yulang.CommonRoleCandidateConstraintExamples.solver_rejects_cross_conflict
 #print axioms Yulang.CommonRoleCandidateConstraintExamples.prepared_bindings
 #print axioms Yulang.CommonRoleCandidateConstraintExamples.inspected_candidate_conflict
+
+#print axioms Yulang.CommonRoleOutermostResolver.resolve_unfold
+#print axioms Yulang.CommonRoleOutermostResolver.resolve_tree_exact_of_frontier_exact
+#print axioms Yulang.CommonRoleOutermostResolver.any_rejected_exact
+#print axioms Yulang.CommonRoleOutermostResolver.any_ambiguous_exact
+#print axioms Yulang.CommonRoleOutermostResolver.any_pending_exact
+#print axioms Yulang.CommonRoleOutermostResolver.all_successful
+#print axioms Yulang.CommonRoleOutermostResolver.combine_exact
+#print axioms Yulang.CommonRoleOutermostResolver.classification_exact
+#print axioms Yulang.CommonRoleOutermostResolver.classifications_exact
+#print axioms Yulang.CommonRoleOutermostResolver.resolve_exact_of_frontier_exact
+
+#print axioms Yulang.CommonRoleOutermostResolverChecks.frontier_exact
+#print axioms Yulang.CommonRoleOutermostResolverChecks.leaf_accessible
+#print axioms Yulang.CommonRoleOutermostResolverChecks.root_accessible
+#print axioms Yulang.CommonRoleOutermostResolverChecks.duplicate_children_retained
+#print axioms Yulang.CommonRoleOutermostResolverChecks.complete_finite_dictionary
+#print axioms Yulang.CommonRoleOutermostResolverChecks.independent_classification
