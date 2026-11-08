@@ -1288,3 +1288,5 @@ import Yulang.CommonRoleCaptureOrigin
 import Yulang.CommonRoleSourcePositions
 
 import Yulang.CommonRoleMaterializedDomain
+
+import Yulang.CommonRoleChildTemplates

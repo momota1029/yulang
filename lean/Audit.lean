@@ -7073,3 +7073,17 @@ run_cmd do
 #print axioms Yulang.CommonRoleMaterializedDomain.filtered_child_closed
 #print axioms Yulang.CommonRoleMaterializedDomain.state_child_closed
 #print axioms Yulang.CommonRoleMaterializedDomain.materialized_child_present
+
+-- Cycle14: source-preserving child generation and derived descent.
+#print axioms Yulang.CommonRoleChildTemplates.extract_eval
+#print axioms Yulang.CommonRoleChildTemplates.extract_exists
+#print axioms Yulang.CommonRoleChildTemplates.plug_eval
+#print axioms Yulang.CommonRoleChildTemplates.child_eval
+#print axioms Yulang.CommonRoleChildTemplates.production_lifts
+#print axioms Yulang.CommonRoleChildTemplates.every_child_lifts
+#print axioms Yulang.CommonRoleChildTemplates.replay_children
+#print axioms Yulang.CommonRoleChildTemplates.eval_form
+#print axioms Yulang.CommonRoleChildTemplates.eval_weight
+#print axioms Yulang.CommonRoleChildTemplates.generated_decreases
+#print axioms Yulang.CommonRoleChildTemplates.generated_accessible
+#print axioms Yulang.CommonRoleChildTemplates.every_child_generated
