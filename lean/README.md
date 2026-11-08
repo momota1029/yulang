@@ -3053,3 +3053,19 @@ not general sibling order independence. `CommonRoleOpenFiniteClosure` computes
 the finite closure of actual structural-producer children from Paterson descent.
 General source narrowing, graph-derived identities, state-dependent new-child
 saturation, final resolve_exact and X13-X16 outer proof remain incomplete.
+
+Cycle 2 continuation: `CommonRoleOpenClosureAllocation` computes the structural
+closure's payload-slot map (syntactic Ty identity, not shared source graph).
+`CommonRoleOpenPassStability.run_models_exact` characterizes every model after
+the real fixed structural pass and proves semantic idempotence after one pass.
+The computed allocator specializes that result without caller-supplied slots.
+This is NOT the narrowing-aware saturation driver or its final classification.
+`CommonRoleOrdinaryKnownness` recovers explicit scalar evidence from original
+atoms, preserves all old constraints, and checks consistency with the actual
+ordinary solver. `CommonRoleAssociatedParentPipeline` composes declaration
+computation, source equation generation, ordinary solver, receiver materialization,
+and actual ground Parent dictionary in the specified Right-str example. The
+associated output-to-parent binding is explicit, not parsed from arbitrary source.
+`SpecConformanceIndex` unifies the entry-sensitive X1-X24 table; X13-X16 outer
+conformance remains open. `MainStatementsDraft` reprints actual theorem scopes
+and proves only the local fixed-producer stabilization goal, not full B4/B6.
