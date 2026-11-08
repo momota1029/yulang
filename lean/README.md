@@ -2761,3 +2761,16 @@ application at its original (row, family, argument) slot. No successful-admissio
 or support premise is assumed. Unknown families and wrong arities are rejected,
 including nullary unknown applications. General source name/visibility lowering
 and quantified solver elimination remain outside this generation theorem.
+
+
+## B5: source-mode comparisons and invariant bounds in solved families (2026-11-08)
+
+`CommonDeclarationVarianceSourceFamily` uses one registry computed from the source
+program for both nominal comparisons and centreless invariant attachments.
+`all_parameters_models` holds for every returned scheme and unrestricted value/row
+parameter. `solve_all_instances_exact` recovers every original shared-slot model;
+`generated_models_exact` obtains the ordinary grammar hypotheses from actual source
+generation. This bridge is exact against the structural source `Mode` judgment.
+Semantic removal of hidden record fields needs the additive visibility-normalized
+producer; raw field bodies must not be reported as complete variance semantics.
+Nominal expression lowering, recursive carrier/cast synthesis, and B5/B1 E1 remain open.

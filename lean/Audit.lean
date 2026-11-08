@@ -6284,3 +6284,8 @@ run_cmd do
 #print axioms Yulang.CommonEffectFamilyApplicationGeneration.generate_captured_exact
 #print axioms Yulang.CommonEffectFamilyApplicationGeneration.unknown_family_rejected
 #print axioms Yulang.CommonEffectFamilyApplicationGeneration.wrong_arity_rejected
+
+#print axioms Yulang.CommonDeclarationVarianceSourceFamily.bounds_exact
+#print axioms Yulang.CommonDeclarationVarianceSourceFamily.all_parameters_models
+#print axioms Yulang.CommonDeclarationVarianceSourceFamily.solve_all_instances_exact
+#print axioms Yulang.CommonDeclarationVarianceSourceFamily.generated_models_exact
