@@ -1254,3 +1254,5 @@ import Yulang.CommonRoleStatefulIndexPath
 import Yulang.CommonRoleStatefulParentExample
 import Yulang.CommonRoleStatefulPathComplete
 import Yulang.CommonRoleStatefulPathParent
+
+import Yulang.CommonRoleNamedPath
