@@ -1,10 +1,7 @@
-cycle: 6
-status: completed
-started: 2026-11-08T14:53:28Z
-updated: 2026-11-08T14:58:50Z
-elapsed_min: 5.37
-activity: four integration files restored and checked; focused build PASS; further local work blocked by disk full
+cycle: 12
+status: running
+started: 2026-11-08T17:53:06Z
+updated: 2026-11-08T17:57:00Z
+activity: finite source positions and copied-subtree provenance; focused build in progress
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-cycle6
-last_local_commit: see local merged cycle6 tree; recovered source da4cebca4
-report: notes/handoff/dots-cycle-6.md
-resume_hint: Public Lean tree matches recovered local tree; integration ancestor merge is 5517d7e11. Read cycle6 report. Shell launch failed with No space left on device; preserve commits and resolve workspace capacity before further local work. No full verification was run in this cycle.
+resume_hint: new CommonRoleSourcePositions.lean and cycle12 design local; max12 reached after this cycle.
