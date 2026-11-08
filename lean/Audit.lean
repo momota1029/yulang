@@ -7060,3 +7060,16 @@ run_cmd do
 #print axioms Yulang.CommonRoleSourcePositions.copied_subtree_origin
 #print axioms Yulang.CommonRoleSourcePositions.copied_positions_exact
 #print axioms Yulang.CommonRoleSourcePositions.child_subtree_origin
+
+-- Cycle13: state-dependent int materialization domain (not full B4).
+#print axioms Yulang.CommonRoleMaterializedDomain.eval_present
+#print axioms Yulang.CommonRoleMaterializedDomain.int_materialized
+#print axioms Yulang.CommonRoleMaterializedDomain.evidence_int_materializes
+#print axioms Yulang.CommonRoleMaterializedDomain.materialized_int_persists
+#print axioms Yulang.CommonRoleMaterializedDomain.root_present
+#print axioms Yulang.CommonRoleMaterializedDomain.domain_exact
+#print axioms Yulang.CommonRoleMaterializedDomain.materialized_root_present
+#print axioms Yulang.CommonRoleMaterializedDomain.materialized_reach_present
+#print axioms Yulang.CommonRoleMaterializedDomain.filtered_child_closed
+#print axioms Yulang.CommonRoleMaterializedDomain.state_child_closed
+#print axioms Yulang.CommonRoleMaterializedDomain.materialized_child_present
