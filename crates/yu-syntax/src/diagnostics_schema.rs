@@ -60,6 +60,8 @@ impl GrammarSlot {
 pub enum ExpectedSyntax {
     Expression,
     DelimitedSequenceSeparator,
+    OpeningBrace,
+    Arrow,
     ClosingParenthesis,
     ClosingBracket,
     ClosingBrace,

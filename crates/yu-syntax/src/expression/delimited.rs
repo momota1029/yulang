@@ -226,6 +226,12 @@ fn delimited_items_normalized_contents(
                 .start_node(SyntaxKind::ExpressionDelimitedForeignClose.into());
             error_item(i.rb(), item, item_origin);
             i.state.finish_node();
+            // The wrong closer already records this opener's close failure.
+            // When no matching closer exists, seal the group here instead of
+            // adding a second missing-close failure at the next statement.
+            if i.delimiter_is_unmatched() {
+                return complete(Ok(()), line_entry);
+            }
             (item, item_origin, line_entry) = expression_item(
                 i.rb(),
                 OperatorSite::Nud,

@@ -76,6 +76,14 @@ pub(crate) enum RuleExpressionExit {
     Boundary(Item, LineEntry),
 }
 
+impl crate::cursor::DelimiterExit for RuleExpressionExit {
+    fn restore_delimiter_boundary(&mut self, baseline: Option<usize>) {
+        if let Self::Boundary(item, _) = self {
+            item.restore_unmatched_boundary(baseline);
+        }
+    }
+}
+
 /// Commits the contextual word and its already accepted brace successor.
 pub(crate) fn rule_expression_normalized(
     i: SyntaxIn,
@@ -86,7 +94,7 @@ pub(crate) fn rule_expression_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> RuleExpressionExit {
-    i.without_unmatched_recovery(|i| {
+    i.with_delimiter(origin, |i, _| {
         rule_expression_normalized_contents(i, keyword, opener, origin, line_entry, fence, ambient)
     })
 }

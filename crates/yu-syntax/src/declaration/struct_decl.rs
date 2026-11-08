@@ -18,7 +18,7 @@ use crate::{
         type_parameters::{ParameterForm, parameters_normalized},
     },
     expression::if_expr::active_statement_companion,
-    handoff::{NormalizedExit, complete, handoff},
+    handoff::{Either, NormalizedExit, complete, handoff},
     lexical::{
         current_item::LineEntry,
         item::{Item, LeadingTrivia, TokenKind},
@@ -595,6 +595,20 @@ fn parse_delimited_fields_normalized(
             ambient,
             sequence,
         ),
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry) if is_word(&item, "with") => {
+            trailing_from_item_normalized(
+                i,
+                item,
+                owner_baseline,
+                stops,
+                line_handoff,
+                result.item_origin,
+                line_entry,
+                fence,
+                ambient,
+                sequence,
+            )
+        }
         exit => exit,
     }
 }
