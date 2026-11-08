@@ -6158,3 +6158,7 @@ run_cmd do
 #print axioms Yulang.CommonEffectMixedWitness.checked_nested_model
 
 #print axioms Yulang.CommonRoleClosedResidualSourceFamily.solve_all_instances_exact
+
+#print axioms Yulang.CommonDeclaredCastCostGraph.check_exact
+
+#print axioms Yulang.CommonDeclaredCastCostGraph.rank_decreases
