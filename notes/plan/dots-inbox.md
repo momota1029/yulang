@@ -1,20 +1,18 @@
 # dots への現在の指示 (監督役が書く)
 
-更新: 2026-11-08 17:30（監督役）。dots は編集しない。変わったら、更新時刻と「指示の ID」が変わる。
+更新: 2026-11-08 17:45（監督役、サイクル 1 の検証後）。dots は編集しない。変わったら、更新時刻と「指示の ID」が変わる。
 
-- 指示の ID: I-1
+- 指示の ID: I-2
 - 状態: ACTIVE（`STOP` と書き換えたら、dots は次のサイクルで止まる）
 - 最大サイクル数: 12（これを超えたら、dots は作業を止めて待機の報告を書く）
 
 ## 現在の指示
 
-計画表 `notes/plan/m1-plan.md` の **T1c** を担当する（開いた区間の断片で、飽和の driver と停止性、実 allocator、最終 `resolve_exact`、X13〜X16 の外側入口での証明）。T1b の続きで、`work/dots-T1b` は統合済み（`integration/m1-final` に含まれる）。
-
-優先順位（上から。1 サイクルでは終わらない）:
-1. **narrowing を扱う候補ごとの state 更新と、その後に集計する source frontier**。関連型の等式を通して別の子が決めた型が流れ込む具体例（`impl Parent (box 'a) where Left 'a, Right 'a` で、`Right` の関連型が `'a` を絞る形）を、外側の入口で通す。impl が一つしかないことから絞り込みが起きる、とはしない（spec 6.3）。
-2. **実 allocator**: `Allocation n := Ty → Fin n` を外部入力にせず、Ty 端点・nominal 意味・slot/source identity を保存することを証明する。
-3. **飽和の driver と停止性**: 再生成で現れた child をさらに解き、状態が安定するまで繰り返す。進捗の尺度は宣言時の Paterson 検査と K2 から導く。兄弟の順序独立は未回答なので仮定しない（成り立つなら証明の対象にしてよいが、成り立たなくても止まらない）。
-4. 最終結果と独立な source Classify の iff、外側の無条件 `resolve_exact`、X13〜X16 の少なくとも一つを外側の入口で PROVED（`lean/SpecExamplesSettled.lean` か、新しい表に反映）。
+計画表の **T1c** の続き（サイクル 1 は部分達成）。サイクル 1 で、候補ごとの局所の伝播（候補ごとに lower ≤ head ≤ upper の ordinary atoms を、直前の状態へ足して、実 ordinary solver を回し、そのあと実行可能な候補を集める）と、有限な source occurrence の allocator（`2 * row + side`）まで来た。残りは、上位の橋。優先順位（上から。今回は **50 分近く使う**こと）:
+1. **宣言から制約を導く**: `impl Parent (box 'a) where Left 'a, Right 'a` で、`Right` の関連型が `'a` を絞る、という具体例を、ordinary 制約を手で渡さずに、宣言から導いて外側の入口で通す。絞り込みは impl の一意性ではなく、関連型の等式を通した型の流入（spec 6.3）。
+2. **source identity**: 別々の occurrence の endpoint を、共通の source 変数へ統合する橋（graph/source identity）と、動的に生成される child への allocator の閉包。
+3. **飽和の driver と停止性**: 再生成で現れた child をさらに解き、状態が安定するまで繰り返す。進捗の尺度は宣言時の Paterson 検査と K2 から導く。兄弟の順序独立は未回答（仮定しない）。
+4. K2 / knownness と、language-visible な pending / selected / ambiguous / rejected の最終分類。外側の無条件 `resolve_exact`、X13〜X16 の少なくとも一つを外側の入口で PROVED。
 
 ## 参照
 
@@ -26,4 +24,5 @@
 
 ## 監督役からの前回サイクルへのコメント
 
-（サイクル報告を読んだあとに、監督役がここに書く。）
+- サイクル 1（`work/dots-main`）: `verify-lean.sh` PASS（1134 jobs、Audit、公理ゲート 82,152 宣言）、`integration/m1-final` に統合。部分達成の自己評価は正確で、「ordinary 制約を手で渡した例は、要求された完全な source 例ではない」と区別して書いた点がよい。
+- サイクルの早期終了（約 12 分で待機）をやめること。標準の指示に手順 8 を足した。
