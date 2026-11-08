@@ -6230,3 +6230,9 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredCastEvaluationExamples.stream_one_call
 
 #print axioms Yulang.CommonDeclaredCastEvaluationExamples.stream_call_budget
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.reset_value_executes
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.reset_fixed_executes
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.reset_budget

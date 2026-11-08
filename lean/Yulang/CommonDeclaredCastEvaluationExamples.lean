@@ -169,4 +169,61 @@ theorem stream_call_budget : callBudget stream stream_checked 3 4 = 7 := by
     rw [element, stream_creation_budget]
   simp [callBudget, argument, result]
 
+/-- The parameter-changing branch is a leaf conversion. The other branch
+already has the same concrete recursive type on both sides, so it is kept. -/
+def reset : Plan 4 := fun node =>
+  match node.val with
+  | 0 => .nominal 1
+  | 1 => .variant [2, 3]
+  | 2 => .leaf
+  | _ => .keep
+
+theorem reset_checked : check reset = true := by decide
+
+private theorem reset_root : reset 0 = .nominal 1 := rfl
+private theorem reset_branches : reset 1 = .variant [2, 3] := rfl
+private theorem reset_element : reset 2 = .leaf := rfl
+private theorem reset_fixed : reset 3 = .keep := rfl
+
+theorem reset_value_executes (token : Nat) :
+    executeChecked reset increment 0 (.nominal (.variant 0 (.atom token))) =
+      some (.nominal (.variant 0 (.atom (token + 1))), 3) := by
+  unfold executeChecked
+  rw [dite_eq_left reset_checked]
+  unfold execute
+  rw [evaluate_nominal _ _ _ 0 1 reset_root]
+  rw [evaluate_variant _ _ _ 1 [2, 3] reset_branches]
+  simp only [List.attach_cons, List.getElem?_cons_zero]
+  rw [evaluate_leaf _ _ _ 2 reset_element]
+  rfl
+
+/-- Every original recursive payload is retained literally. There is no
+premise or cost term involving its depth, size or number of constructors. -/
+theorem reset_fixed_executes (leaf : Leaf 4) (original : Value 4) :
+    executeChecked reset leaf 0 (.nominal (.variant 1 original)) =
+      some (.nominal (.variant 1 original), 3) := by
+  unfold executeChecked
+  rw [dite_eq_left reset_checked]
+  unfold execute
+  rw [evaluate_nominal _ _ _ 0 1 reset_root]
+  rw [evaluate_variant _ _ _ 1 [2, 3] reset_branches]
+  simp only [List.attach_cons, List.attach_nil, List.map_cons, List.map_nil,
+    List.getElem?_cons_succ, List.getElem?_cons_zero]
+  rw [evaluate_keep _ _ _ 3 reset_fixed]
+  rfl
+
+theorem reset_budget : budget reset reset_checked 0 = 4 := by
+  have first : budget reset reset_checked 2 = 1 := by
+    rw [CommonDeclaredCastCost.budget_eq]
+    rfl
+  have last : budget reset reset_checked 3 = 1 := by
+    rw [CommonDeclaredCastCost.budget_eq]
+    rfl
+  rw [CommonDeclaredCastCost.budget_eq]
+  change 1 + budget reset reset_checked 1 = 4
+  rw [CommonDeclaredCastCost.budget_eq]
+  change 1 + (1 + (budget reset reset_checked 2 + (budget reset reset_checked 3 + 0))) = 4
+  rw [first, last]
+
+
 end Yulang.CommonDeclaredCastEvaluationExamples
