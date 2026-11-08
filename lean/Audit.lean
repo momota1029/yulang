@@ -6305,3 +6305,45 @@ run_cmd do
 #print axioms Yulang.CommonRecursiveNominalIntervals.admit_context_exact
 #print axioms Yulang.CommonRecursiveNominalIntervals.compile_in_context_exact
 #print axioms Yulang.CommonRecursiveNominalIntervals.compile_context_exact
+
+#print axioms Yulang.SpecExamples.x1_declaration_accepted
+#print axioms Yulang.SpecExamples.x2_declaration_rejected
+#print axioms Yulang.SpecExamples.x3_shadow_rejected
+#print axioms Yulang.SpecExamples.x5_rejected
+#print axioms Yulang.SpecExamples.x18_box_covariant
+#print axioms Yulang.SpecExamples.x18_reset_covariant
+#print axioms Yulang.SpecExamples.x18_box2_covariant
+#print axioms Yulang.SpecExamples.x18_stream_covariant
+#print axioms Yulang.SpecExamples.x19_chain_invariant
+#print axioms Yulang.SpecExamples.x19_mutual_invariant
+#print axioms Yulang.SpecExamples.x20_phantom_unused
+#print axioms Yulang.SpecExamples.x22_strict_rejects
+#print axioms Yulang.SpecExamples.x22_main_generator_rejects
+#print axioms Yulang.SpecExamples.x22_missing_field_misses
+
+/- `SpecExamples` is a separate top-level Lake library, so the Yulang-module
+allowlist above does not include it. Audit every declaration in it as well. -/
+open Lean Elab Command in
+run_cmd do
+  let environment ← getEnv
+  let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
+  let mut checked : Nat := 0
+  for (name, _) in environment.constants.toList do
+    if let some index := environment.getModuleIdxFor? name then
+      let moduleName := environment.header.moduleNames[index.toNat]!
+      if (`SpecExamples).isPrefixOf moduleName then
+        checked := checked + 1
+        let axioms ← collectAxioms name
+        for dependency in axioms do
+          unless allowed.contains dependency do
+            throwError "Forbidden axiom dependency: {name} depends on {dependency}"
+  if checked = 0 then
+    throwError "The audit did not find any SpecExamples declarations"
+  logInfo m!"Axiom allowlist passed for {checked} declarations from SpecExamples modules"
+
+#print axioms Yulang.CommonRoleRepeatedCaptureChecks.generate_exact
+#print axioms Yulang.CommonRoleRepeatedCaptureChecks.capture_checks_exact
+#print axioms Yulang.CommonRoleRepeatedCaptureChecks.term_eval
+#print axioms Yulang.CommonRoleRepeatedCaptureChecks.merged_eval
+#print axioms Yulang.CommonRoleRepeatedCaptureChecks.merged_valid_iff
+#print axioms Yulang.CommonRoleRepeatedCaptureChecks.repeated_example

@@ -2799,3 +2799,21 @@ Nominal expression lowering, recursive carrier/cast synthesis, and B5/B1 E1 rema
 ## Checked contextual comparison entry
 
 `compile_in_context_exact` validates both full descriptions, including subtrees under unused parameters, then proves atom satisfaction equivalent to independent contextual well-formedness and `ContextDerives`, for either starting context and arbitrary finite depth. Nested open bounds in an effective invariant position are admitted. The entry compares complete descriptions; it is a reference component, not the directional equal-head interval-envelope construction required by the latest spec 6.5 update.
+
+## Specification examples and repeated capture checks
+
+`SpecExamples` records the status of X1–X24, with concrete declaration and
+variance computations where available. X22 exposes a mismatch between the
+main aligned pattern generator and the decided optional-field rule; the
+separate optional-field component is not yet integrated into that generator.
+The remaining unexpressible cases require the source-level components named
+in the file, and none of these checks establishes public `Core.infer` behavior.
+
+`CommonRoleRepeatedCaptureChecks` lowers the existing raw structural capture
+table into original shared-slot terms and provides separate operations to
+construct a centerless merged pair or emit all self and cross checks. A name
+absent from the table yields `(bottom, top)` and must still be checked for
+presence before substitution. Its exactness theorems do not
+extend the scanner: repeated names and merged heads remain outside its
+supported grammar. The merged terms have not been substituted into `where`
+children or connected to the full resolver and ordinary solver.

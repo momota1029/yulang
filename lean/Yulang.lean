@@ -1158,3 +1158,7 @@ import Yulang.CommonRecursiveNominalIntervalContextExact
 import Yulang.CommonEffectFamilySourceGeneration
 
 import Yulang.CommonRecursiveNominalIntervalContextAdmission
+
+import SpecExamples
+
+import Yulang.CommonRoleRepeatedCaptureChecks
