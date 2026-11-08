@@ -3133,3 +3133,14 @@ matching declaration, including alternatives not currently selected.
 subset of the checked registry. The finite list is computed, not assumed.
 This does not cover endpoint narrowing, general where/capture materialization,
 dictionary observations, or full B4.
+
+### Cycle 9: potential structural allocation
+
+`CommonRolePotentialAllocation` computes one finite syntactic-type table from every
+matching candidate in `CommonRolePotentialChildClosure`. Any declaration subset
+uses the same table: actual producer payloads remain present, selected `prepare`
+retains exact models of original payload meanings, and actual state-gated child
+endpoints decode to their original syntax. Theorems quantify over the registry,
+subset, reachable request, ordinary state, and arbitrary interpretation as applicable.
+This is fixed structural syntax, **not** distinct unknown-source identity allocation,
+endpoint narrowing, whole state saturation, or the general B4 statement.

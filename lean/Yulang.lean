@@ -1278,3 +1278,5 @@ import Yulang.CommonRoleAssociatedDeclarationExact
 import Yulang.CommonRoleFiniteAssociatedDeclaration
 
 import Yulang.CommonRolePotentialChildClosure
+
+import Yulang.CommonRolePotentialAllocation
