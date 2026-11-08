@@ -1286,3 +1286,5 @@ import Yulang.CommonRoleSourceGrowth
 import Yulang.CommonRoleCaptureOrigin
 
 import Yulang.CommonRoleSourcePositions
+
+import Yulang.CommonRoleMaterializedDomain
