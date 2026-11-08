@@ -1239,3 +1239,7 @@ import Yulang.CommonRoleAssociatedBatch
 import Yulang.CommonRoleAssociatedParentGround
 import Yulang.CommonRoleOpenPassStability
 import Yulang.MainStatementsDraft
+import Yulang.CommonRoleOpenClosureAllocation
+import Yulang.CommonRoleOrdinaryKnownness
+import Yulang.CommonRoleAssociatedParentPipeline
+import Yulang.SpecConformanceIndex
