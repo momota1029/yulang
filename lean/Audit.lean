@@ -6142,3 +6142,11 @@ run_cmd do
 #print axioms Yulang.CommonRoleClosedResidualSourceFamily.compile_models_exact
 
 #print axioms Yulang.CommonRoleClosedResidualSourceFamily.compiled_grammar
+
+#print axioms Yulang.CommonEffectMixedFamilyAllocation.reference_eq_iff
+
+#print axioms Yulang.CommonEffectMixedFamilyAllocation.valueAt_encode
+
+#print axioms Yulang.CommonEffectMixedFamilyAllocation.rowAt_encode
+
+#print axioms Yulang.CommonEffectMixedFamilyAllocation.encode_decode

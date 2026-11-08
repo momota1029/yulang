@@ -1100,3 +1100,5 @@ import Yulang.CommonPatternDeclaredPresence
 import Yulang.CommonCasePresenceGeneration
 
 import Yulang.CommonRoleClosedResidualSourceFamily
+
+import Yulang.CommonEffectMixedFamilyAllocation
