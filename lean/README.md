@@ -3175,3 +3175,7 @@ new generated-constraint correctness, saturation termination, or full B4.
 ## Cycle15: computed source-template closure
 
 `CommonRoleSourceTemplateClosure` computes a finite list of source requests, with no supplied fuel/domain/Acc. Every actual capture-bearing child of a member at any ordinary state has a source witness in that list. All future materializations of that witness lie in a computed finite request domain. Scope: int-only/unary adapter, overapproximate structural alternatives, not candidate selection; child creation only, not same-parent saturation. `closure_exact` characterizes the structural enumeration path judgment, not actual language reachability. General B4/T1c/X13–X16 remain open.
+
+## Cycle16: actual source worklist at a fixed state
+
+`CommonRoleSourceWorklist` computes a duplicate-free least closure under actual first-hit producer edges. The source domain is computed from checked declarations; no caller fuel or closed domain is assumed. `saturate_exact` characterizes independent actual-source paths; `concrete_child_visited` retains source witnesses for concrete generated children. Arbitrary registry, root and fixed ordinary state; int-only/unary/capture-bearing adapter. This does not perform ordinary-state updates, candidate uniqueness/classification or same-parent revisits after new evidence. General B4 remains open.
