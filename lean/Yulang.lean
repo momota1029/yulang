@@ -1148,3 +1148,5 @@ import Yulang.CommonRecursiveNominalIntervalExact
 import Yulang.CommonEffectFamilyApplicationGeneration
 
 import Yulang.CommonDeclarationVarianceSourceFamily
+
+import Yulang.CommonRecursiveNominalIntervalAdmission

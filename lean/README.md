@@ -2774,3 +2774,8 @@ generation. This bridge is exact against the structural source `Mode` judgment.
 Semantic removal of hidden record fields needs the additive visibility-normalized
 producer; raw field bodies must not be reported as complete variance semantics.
 Nominal expression lowering, recursive carrier/cast synthesis, and B5/B1 E1 remain open.
+
+
+## Recursive nominal interval admission
+
+`CommonRecursiveNominalIntervals.admit_exact` and `compile_exact` validate every nested constructor identity, arity and ordered argument kind, including unused subtrees, before reference expansion. For every registry, assignment and finite pair of descriptions, successful atom satisfaction is equivalent to both independent well-formedness judgments and the independent recursive derivation. This is the context-free reference layer; inherited invariance and the full declaration-aware regular nominal carrier remain separate obligations.

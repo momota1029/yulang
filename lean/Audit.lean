@@ -6289,3 +6289,6 @@ run_cmd do
 #print axioms Yulang.CommonDeclarationVarianceSourceFamily.all_parameters_models
 #print axioms Yulang.CommonDeclarationVarianceSourceFamily.solve_all_instances_exact
 #print axioms Yulang.CommonDeclarationVarianceSourceFamily.generated_models_exact
+
+#print axioms Yulang.CommonRecursiveNominalIntervals.admit_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.compile_exact
