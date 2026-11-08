@@ -59,6 +59,24 @@
 - 目標: `lean/SpecExamples.lean` と `lean/SpecExamplesSettled.lean` の状態表を一つにまとめる（既存の定理は削除しない）。X1〜X24 それぞれの状態（PROVED / MISMATCH / NOT-EXPRESSIBLE-YET）と、通っている入口の名前を一覧にする。
 - 受け入れ: 一覧が実際の定理の存在と一致している（`verify-lean.sh` が PASS）。
 
+### T7a 主定理の主張だけのファイル (読むための窓口)
+- 状態: todo / 依存: なし（随時）
+- 目標: `lean/MainStatements.lean`（新規）に、M1 の最終的な主張を、**証明なし**で並べる。`theorem ... := sorry` は使わない（Audit が落ちる）。各主張は `def B4Statement : Prop := ∀ ..., ...` のように **Prop の定義**として書き、量化子と前提を省かず、日本語の docstring で「何を言っているか」「どの spec の節か」「現在の到達状況（証明済みの定理の名前、または未証明）」を添える。対象: B4（区間 role 解決の無条件 `resolve_exact` と停止）、B5/B1（variance 表と nominal carrier・cast の費用）、B2（source 式の producer と adequacy）、B3（source 宣言全体の iff）、B6（公開入口 `Core.infer` の主張、`Typing ↔ ∃ S ∈ Core.infer e, ...` の区間・遅延・宣言別 variance を明示した版）。
+- 受け入れ: ファイルがビルドを通る。各 Statement が、承認済みの全体 statement の更新（`notes/questions/2026-11-08-m1-interval-statement-alignment.md`）と一致する。**ユーザーが読んで「自分の言語の型推論の主張だ」と言える形**であること。主張の選択や強さに迷う点は、決めずに質問ノート（遅延案を先頭）。
+- 注意: この主張はユーザーの承認が要る。作業者は草稿を書き、監督役がユーザーに読んでもらう。
+
+### T7b 不要な証明の到達可能性の解析 (読み取りのみ)
+- 状態: todo / 依存: T7a の草稿があると精度が上がるが、なくても着手できる
+- 目標: `tools/Reach.lean` のような Lean のメタプログラムで、**主定理（T7a の Statement が依存する定理と、現在証明済みで残したい定理）から到達できる宣言**の閉包を計算し、モジュール単位で「どのモジュールのどの宣言も到達されず、残るモジュールにも import されていない」ものを列挙する。結果を `notes/handoff/` の報告にまとめる。**削除はしない**。
+- 受け入れ: 候補モジュール一覧（旧い点モデルの B4、E2 の障害定理群、置き換えられた局所版など）に、各モジュールの行数と、残す理由／消してよい理由を付ける。
+- 注意: 反例の定理（E2 の障害）は、過去の発見の記録としては価値がある。消す前に、git のタグで保存する（T7c）。
+
+### T7c 不要な証明の削除 (要承認)
+- 状態: needs-owner / 依存: T7b と、ユーザーの承認
+- 目標: T7b が承認した候補だけを削除する。先に `git tag archive/m1-pre-prune-2026-11-08` で現状を保存する。削除は、承認した一覧のファイルとそれを参照する `Yulang.lean`・`Audit.lean`・`README.md` の行に限る。
+- 受け入れ: 削除後に `lake build --wfail` と Audit が通る。T7a の Statement ファイルがビルドを通る。残した主定理の公理の監査が変わらない。`tools/verify-lean.sh` は、承認した一覧を `--allow-removed` として渡して実行する（現在は削除行を一律 FAIL にする規則。この規則はこのタスクに限り、承認つきで緩める）。
+- 注意: 既存の定理を弱めない規則の例外になるので、必ずユーザーの承認を得てから。
+
 ### T5 B2・B3 の source 側 (後続)
 - 状態: blocked / 依存: T1, T2
 - 目標: 一般の source 式から実行 prefix を作る producer と adequacy（B2）、検証済み source 宣言全体の iff（返却 scheme の回収、arrow の cover、visible effect・permission・hygiene の lowering）（B3）。詳細は復旧文書の「続きの作業」。着手するときに、小さなタスクへ分割して、この表に書き足す。
