@@ -19,6 +19,7 @@ mod indented_recovery;
 mod lexical;
 mod list_expression;
 mod literal;
+mod nesting;
 mod normalized;
 mod operators;
 mod output;

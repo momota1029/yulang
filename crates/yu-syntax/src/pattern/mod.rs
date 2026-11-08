@@ -664,6 +664,11 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() && crate::nesting::may_descend(&item) {
+        return i.recover_nesting(item, item_origin, line_entry, fence);
+    }
+
     completion.identifier_receiver = false;
     completion.bare_identifier_head = false;
     if token_kind(&item) == Some(TokenKind::Identifier)
@@ -1097,6 +1102,10 @@ fn pattern_tail_normalized(
     }
     if implicit_delimited_newline(baseline, item.leading_view()) {
         return complete(handoff(item), line_entry);
+    }
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() && crate::nesting::may_descend(&item) {
+        return i.recover_nesting(item, item_origin, line_entry, fence);
     }
     if token_kind(&item) == Some(TokenKind::PathSeparator) {
         item.emit_all_remaining_leading(&mut *i.state);

@@ -155,6 +155,11 @@ pub(super) fn append_nud(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() && crate::nesting::may_descend(&nud) {
+        return i.recover_nesting(nud, item_origin, line_entry, fence);
+    }
+
     if token_kind(&nud) == Some(TokenKind::Identifier)
         && nud.payload_view().spelling() == Some("rule")
     {
@@ -665,6 +670,14 @@ pub(crate) fn tail_normalized(
     if matches!(ml_mode, MlMode::None) && !item.leading_view().is_grammar_empty() {
         return complete(handoff(item), line_entry);
     }
+    // A same-line guard must return to its enclosing statement owner.
+    if postfix_if_candidate(i.rb(), &item) {
+        return complete(handoff(item), line_entry);
+    }
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() && crate::nesting::may_descend(&item) {
+        return i.recover_nesting(item, item_origin, line_entry, fence);
+    }
     let assignment = token_kind(&item) == Some(TokenKind::Equals);
     let annotation = is_contextual_word(i.rb(), &item, "as");
     if assignment || annotation {
@@ -1130,3 +1143,11 @@ fn operator_use(item: &Item) -> Option<&OperatorUse> {
 
 #[cfg(test)]
 use crate::handoff::ordinary_exit;
+
+// A continuation keyword is returned to the owner of the complete expression.
+pub(crate) fn postfix_if_candidate(_i: SyntaxIn, item: &Item) -> bool {
+    item.payload_view().token_kind() == Some(TokenKind::Identifier)
+        && item.payload_view().spelling() == Some("if")
+        && !item.leading_view().is_grammar_empty()
+        && indentation_after_newline(item.leading_view()).is_none()
+}

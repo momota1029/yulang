@@ -100,6 +100,11 @@ pub struct StructuralDiagnostic {
 }
 
 impl StructuralDiagnostic {
+    /// Short diagnostic text for a resource-limited opaque recovery.
+    pub fn message(&self) -> Option<&'static str> {
+        (self.parent() == SyntaxKind::NestingTooDeep).then_some("nesting too deep")
+    }
+
     pub fn kind(&self) -> StructuralKind {
         self.kind
     }
@@ -211,116 +216,168 @@ impl<'a> Walk<'a> {
         direct_root_ordinal: Option<u32>,
         suppress_direct_error_tokens: bool,
     ) -> Result<(), StructuralProjectionError> {
-        if (self.enter)(node, occurrence_path, self.ordinal) {
-            self.ordinal = self
-                .ordinal
-                .checked_add(1)
-                .ok_or(StructuralProjectionError::OrdinalExhausted)?;
+        // Yumark's grammar is heap-driven; its CST can be much deeper than a
+        // native Rust stack. Keep the diagnostic projection heap-driven too.
+        struct Frame {
+            node: SyntaxNode,
+            children: Vec<rowan::SyntaxElement<crate::YulangLanguage>>,
+            index: usize,
+            run: Option<(Range<usize>, usize)>,
+            next_root_ordinal: u32,
+            direct_root_ordinal: Option<u32>,
+            suppress_errors: bool,
         }
-        let children = node.children_with_tokens().collect::<Vec<_>>();
-        let mut run: Option<(Range<usize>, usize)> = None;
-        let mut next_root_ordinal = 0u32;
-        for (index, child) in children.iter().enumerate() {
+        let frame = |node: &SyntaxNode, direct_root_ordinal, suppress_errors| Frame {
+            node: node.clone(),
+            children: node.children_with_tokens().collect(),
+            index: 0,
+            run: None,
+            next_root_ordinal: 0,
+            direct_root_ordinal,
+            suppress_errors,
+        };
+        self.enter_node(node, occurrence_path)?;
+        let mut stack = vec![frame(
+            node,
+            direct_root_ordinal,
+            suppress_direct_error_tokens,
+        )];
+        while let Some(current) = stack.last_mut() {
+            let Some(child) = current.children.get(current.index).cloned() else {
+                self.flush(
+                    &mut current.run,
+                    path,
+                    occurrence_path,
+                    current.direct_root_ordinal,
+                )?;
+                stack.pop();
+                if !stack.is_empty() {
+                    path.pop();
+                    occurrence_path.pop();
+                }
+                continue;
+            };
+            let index = current.index;
+            current.index += 1;
+            let root_ordinal = current.direct_root_ordinal;
             match child {
                 NodeOrToken::Node(child) => {
-                    self.flush(&mut run, path, occurrence_path, direct_root_ordinal)?;
-                    let child_root_ordinal = if node.kind() == SyntaxKind::Root {
-                        let ordinal = next_root_ordinal;
-                        next_root_ordinal = ordinal
+                    self.flush(&mut current.run, path, occurrence_path, root_ordinal)?;
+                    let child_root_ordinal = if current.node.kind() == SyntaxKind::Root {
+                        let ordinal = current.next_root_ordinal;
+                        current.next_root_ordinal = ordinal
                             .checked_add(1)
                             .ok_or(StructuralProjectionError::OrdinalExhausted)?;
                         Some(ordinal)
                     } else {
-                        direct_root_ordinal
+                        root_ordinal
                     };
-                    match child.kind() {
-                        SyntaxKind::Missing => {
-                            let range = byte_range(child.text_range());
-                            if !range.is_empty() {
-                                return Err(StructuralProjectionError::StructuralInvariant);
-                            }
-                            let slot = precise_missing(path, &children, index);
-                            self.push(
-                                StructuralKind::Missing,
-                                range,
-                                path,
-                                occurrence_path,
-                                index,
-                                slot,
-                                direct_root_ordinal,
-                            )?;
+                    let kind = child.kind();
+                    if kind == SyntaxKind::NestingTooDeep {
+                        // Foreign Yumark prefixes can split the raw Error tokens.
+                        // The resource-limited node still owns one opaque region
+                        // and therefore one diagnostic over its complete extent.
+                        let range = byte_range(child.text_range());
+                        if range.is_empty() {
+                            return Err(StructuralProjectionError::StructuralInvariant);
                         }
-                        SyntaxKind::Invalid => {
-                            let range = byte_range(child.text_range());
-                            if range.is_empty() {
-                                return Err(StructuralProjectionError::StructuralInvariant);
-                            }
-                            self.push(
-                                StructuralKind::Invalid,
-                                range,
-                                path,
-                                occurrence_path,
-                                index,
-                                None,
-                                direct_root_ordinal,
-                            )?;
-                            path.push(SyntaxKind::Invalid);
-                            occurrence_path.push(index as u32);
-                            self.visit(child, path, occurrence_path, child_root_ordinal, false)?;
-                            occurrence_path.pop();
-                            path.pop();
-                        }
-                        SyntaxKind::Error => {
-                            let range = byte_range(child.text_range());
-                            if range.is_empty() {
-                                return Err(StructuralProjectionError::StructuralInvariant);
-                            }
-                            self.push(
-                                StructuralKind::ErrorGroup,
-                                range,
-                                path,
-                                occurrence_path,
-                                index,
-                                precise_yumark_error(path),
-                                direct_root_ordinal,
-                            )?;
-                            path.push(SyntaxKind::Error);
-                            occurrence_path.push(index as u32);
-                            self.visit(child, path, occurrence_path, child_root_ordinal, true)?;
-                            occurrence_path.pop();
-                            path.pop();
-                        }
-                        kind => {
-                            path.push(kind);
-                            occurrence_path.push(index as u32);
-                            self.visit(child, path, occurrence_path, child_root_ordinal, false)?;
-                            occurrence_path.pop();
-                            path.pop();
-                        }
+                        path.push(kind);
+                        occurrence_path.push(index as u32);
+                        self.enter_node(&child, occurrence_path)?;
+                        self.push(
+                            StructuralKind::ErrorGroup,
+                            range,
+                            path,
+                            occurrence_path,
+                            0,
+                            None,
+                            child_root_ordinal,
+                        )?;
+                        occurrence_path.pop();
+                        path.pop();
+                        continue;
                     }
+                    if kind == SyntaxKind::Missing {
+                        let range = byte_range(child.text_range());
+                        if !range.is_empty() {
+                            return Err(StructuralProjectionError::StructuralInvariant);
+                        }
+                        let slot = precise_missing(path, &current.children, index);
+                        self.push(
+                            StructuralKind::Missing,
+                            range,
+                            path,
+                            occurrence_path,
+                            index,
+                            slot,
+                            root_ordinal,
+                        )?;
+                        continue;
+                    }
+                    if matches!(kind, SyntaxKind::Invalid | SyntaxKind::Error) {
+                        let range = byte_range(child.text_range());
+                        if range.is_empty() {
+                            return Err(StructuralProjectionError::StructuralInvariant);
+                        }
+                        let (structural, slot) = if kind == SyntaxKind::Invalid {
+                            (StructuralKind::Invalid, None)
+                        } else {
+                            (StructuralKind::ErrorGroup, precise_yumark_error(path))
+                        };
+                        self.push(
+                            structural,
+                            range,
+                            path,
+                            occurrence_path,
+                            index,
+                            slot,
+                            root_ordinal,
+                        )?;
+                    }
+                    path.push(kind);
+                    occurrence_path.push(index as u32);
+                    self.enter_node(&child, occurrence_path)?;
+                    stack.push(frame(&child, child_root_ordinal, kind == SyntaxKind::Error));
                 }
                 NodeOrToken::Token(token) if token.kind() == SyntaxKind::Error => {
-                    if suppress_direct_error_tokens {
-                        self.flush(&mut run, path, occurrence_path, direct_root_ordinal)?;
+                    if current.suppress_errors {
+                        self.flush(&mut current.run, path, occurrence_path, root_ordinal)?;
                         continue;
                     }
                     let range = byte_range(token.text_range());
                     if token.text().is_empty() || range.end - range.start != token.text().len() {
                         return Err(StructuralProjectionError::StructuralInvariant);
                     }
-                    let adjacent = run.as_ref().is_some_and(|(run, _)| run.end == range.start);
-                    if !adjacent {
-                        self.flush(&mut run, path, occurrence_path, direct_root_ordinal)?;
+                    if !current
+                        .run
+                        .as_ref()
+                        .is_some_and(|(run, _)| run.end == range.start)
+                    {
+                        self.flush(&mut current.run, path, occurrence_path, root_ordinal)?;
                     }
-                    match &mut run {
+                    match &mut current.run {
                         Some((run, _)) => run.end = range.end,
-                        None => run = Some((range, index)),
+                        None => current.run = Some((range, index)),
                     }
                 }
-                _ => self.flush(&mut run, path, occurrence_path, direct_root_ordinal)?,
+                _ => self.flush(&mut current.run, path, occurrence_path, root_ordinal)?,
             }
         }
-        self.flush(&mut run, path, occurrence_path, direct_root_ordinal)
+        Ok(())
+    }
+
+    fn enter_node(
+        &mut self,
+        node: &SyntaxNode,
+        occurrence_path: &[u32],
+    ) -> Result<(), StructuralProjectionError> {
+        if (self.enter)(node, occurrence_path, self.ordinal) {
+            self.ordinal = self
+                .ordinal
+                .checked_add(1)
+                .ok_or(StructuralProjectionError::OrdinalExhausted)?;
+        }
+        Ok(())
     }
 
     fn flush(

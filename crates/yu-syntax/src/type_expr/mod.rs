@@ -781,6 +781,11 @@ fn type_expr_from_nud_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() && crate::nesting::may_descend(&primary) {
+        return i.recover_nesting(primary, item_origin, line_entry, fence);
+    }
+
     if primary.payload_view().is_boundary() {
         return complete(handoff(primary), line_entry);
     }
@@ -878,6 +883,11 @@ fn type_expr_from_primary_started_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() && crate::nesting::may_descend(&primary) {
+        return i.recover_nesting(primary, item_origin, line_entry, fence);
+    }
+
     match token_kind(&primary) {
         Some(TokenKind::Identifier | TokenKind::SigilIdentifier | TokenKind::Integer) => {
             emit_token_item(&mut i, primary);
@@ -1211,7 +1221,7 @@ fn scan_type_tail_normalized(
 #[allow(clippy::too_many_arguments)]
 fn type_tail_normalized(
     mut i: SyntaxIn,
-    item: Item,
+    mut item: Item,
     baseline: usize,
     type_ml: TypeMlContext,
     apply_boundary: Option<TypeApplyBoundary>,
@@ -1220,142 +1230,171 @@ fn type_tail_normalized(
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
     pipe_lexical: bool,
-    item_origin: usize,
-    line_entry: LineEntry,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    if item.payload_view().is_boundary() {
-        return complete(handoff(item), line_entry);
-    }
-    if !type_chain_trivia(item.leading_view(), baseline) {
-        return complete(handoff(item), line_entry);
-    }
-    if is_type_caller_boundary(&item, caller_stops) || is_type_outer_boundary(&item, outer_boundary)
-    {
-        return complete(handoff(item), line_entry);
-    }
-    if type_ml.stops_tail() && !item.leading_view().is_grammar_empty() {
-        return complete(handoff(item), line_entry);
-    }
-    match token_kind(&item) {
-        Some(TokenKind::Arrow) => {
-            return type_arrow_tail_normalized(
-                i.rb(),
-                item,
-                baseline,
-                type_ml,
-                apply_boundary,
-                outer_separators,
-                outer_closes,
-                caller_stops,
-                outer_boundary,
-                pipe_lexical,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
+    // ML arguments are siblings in the CST. Advancing to the next sibling
+    // must not retain a Rust frame for every argument in a flat application.
+    loop {
+        if item.payload_view().is_boundary() {
+            return complete(handoff(item), line_entry);
         }
-        Some(TokenKind::LParen) if item.leading_view().is_grammar_empty() => {
-            return type_call_tail_normalized(
-                i.rb(),
-                item,
-                baseline,
-                type_ml,
-                apply_boundary,
-                outer_separators,
-                outer_closes,
-                caller_stops,
-                outer_boundary,
-                pipe_lexical,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
+        if !type_chain_trivia(item.leading_view(), baseline) {
+            return complete(handoff(item), line_entry);
         }
-        Some(TokenKind::PathSeparator) => {
-            return type_path_tail_normalized(
-                i.rb(),
-                item,
-                baseline,
-                type_ml,
-                apply_boundary,
-                outer_separators,
-                outer_closes,
-                caller_stops,
-                outer_boundary,
-                pipe_lexical,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
+        if is_type_caller_boundary(&item, caller_stops)
+            || is_type_outer_boundary(&item, outer_boundary)
+        {
+            return complete(handoff(item), line_entry);
         }
-        Some(TokenKind::LBracket) => {
-            return type_bracket_arrow_tail_normalized(
-                i.rb(),
-                item,
-                baseline,
-                type_ml,
-                apply_boundary,
-                outer_separators,
-                outer_closes,
-                caller_stops,
-                outer_boundary,
-                pipe_lexical,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
+        if type_ml.stops_tail() && !item.leading_view().is_grammar_empty() {
+            return complete(handoff(item), line_entry);
         }
-        _ => {}
-    }
-    if match apply_boundary {
-        Some(TypeApplyBoundary::NamedRecord(base)) => type_record_next_field_normalized(
-            i.rb(),
-            &item,
-            base,
-            item_origin,
-            line_entry,
-            fence,
-            pipe_lexical,
-            ambient,
-        ),
-        Some(TypeApplyBoundary::DeclarationNamedFields) => {
-            crate::declaration::fields::named_declaration_fields_next_field_candidate(
+        let nesting = crate::nesting::Guard::enter();
+        if nesting.exhausted() && crate::nesting::may_descend(&item) {
+            return i.recover_nesting(item, item_origin, line_entry, fence);
+        }
+        match token_kind(&item) {
+            Some(TokenKind::Arrow) => {
+                return type_arrow_tail_normalized(
+                    i.rb(),
+                    item,
+                    baseline,
+                    type_ml,
+                    apply_boundary,
+                    outer_separators,
+                    outer_closes,
+                    caller_stops,
+                    outer_boundary,
+                    pipe_lexical,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    ambient,
+                );
+            }
+            Some(TokenKind::LParen) if item.leading_view().is_grammar_empty() => {
+                return type_call_tail_normalized(
+                    i.rb(),
+                    item,
+                    baseline,
+                    type_ml,
+                    apply_boundary,
+                    outer_separators,
+                    outer_closes,
+                    caller_stops,
+                    outer_boundary,
+                    pipe_lexical,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    ambient,
+                );
+            }
+            Some(TokenKind::PathSeparator) => {
+                return type_path_tail_normalized(
+                    i.rb(),
+                    item,
+                    baseline,
+                    type_ml,
+                    apply_boundary,
+                    outer_separators,
+                    outer_closes,
+                    caller_stops,
+                    outer_boundary,
+                    pipe_lexical,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    ambient,
+                );
+            }
+            Some(TokenKind::LBracket) => {
+                return type_bracket_arrow_tail_normalized(
+                    i.rb(),
+                    item,
+                    baseline,
+                    type_ml,
+                    apply_boundary,
+                    outer_separators,
+                    outer_closes,
+                    caller_stops,
+                    outer_boundary,
+                    pipe_lexical,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    ambient,
+                );
+            }
+            _ => {}
+        }
+        if match apply_boundary {
+            Some(TypeApplyBoundary::NamedRecord(base)) => type_record_next_field_normalized(
                 i.rb(),
                 &item,
+                base,
                 item_origin,
                 line_entry,
                 fence,
-            )
+                pipe_lexical,
+                ambient,
+            ),
+            Some(TypeApplyBoundary::DeclarationNamedFields) => {
+                crate::declaration::fields::named_declaration_fields_next_field_candidate(
+                    i.rb(),
+                    &item,
+                    item_origin,
+                    line_entry,
+                    fence,
+                )
+            }
+            None => false,
+        } {
+            return complete(handoff(item), line_entry);
         }
-        None => false,
-    } {
+        if !item.leading_view().is_grammar_empty() && is_type_primary(&item) {
+            let entry = suffix_marker(i.rb());
+            let exit = type_apply_argument_normalized(
+                i.rb(),
+                item,
+                baseline,
+                outer_separators,
+                outer_closes,
+                caller_stops,
+                pipe_lexical,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            );
+            item_origin = advanced_origin(item_origin, entry, i.rb());
+            match exit {
+                NormalizedExit::Complete(Err(Either::Left(next)), line) => {
+                    item = next;
+                    line_entry = line;
+                }
+                NormalizedExit::Complete(Ok(()), line) => {
+                    (item, item_origin, line_entry) = type_item_with_pipe_lexical_normalized(
+                        i.rb(),
+                        item_origin,
+                        line,
+                        fence,
+                        pipe_lexical,
+                        ambient,
+                    );
+                }
+                NormalizedExit::Complete(Err(Either::Right(end)), line) => {
+                    return complete(Err(Either::Right(end)), line);
+                }
+                _ => unreachable!("normalized Type owners do not defer"),
+            }
+            continue;
+        }
         return complete(handoff(item), line_entry);
     }
-    if !item.leading_view().is_grammar_empty() && is_type_primary(&item) {
-        return type_apply_argument_normalized(
-            i,
-            item,
-            baseline,
-            type_ml,
-            apply_boundary,
-            outer_separators,
-            outer_closes,
-            caller_stops,
-            outer_boundary,
-            pipe_lexical,
-            item_origin,
-            line_entry,
-            fence,
-            ambient,
-        );
-    }
-    complete(handoff(item), line_entry)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2151,12 +2190,9 @@ fn type_apply_argument_normalized(
     mut i: SyntaxIn,
     mut argument: Item,
     baseline: usize,
-    type_ml: TypeMlContext,
-    apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
     outer_closes: u8,
     caller_stops: Stops,
-    outer_boundary: TypeOuterBoundary,
     pipe_lexical: bool,
     item_origin: usize,
     line_entry: LineEntry,
@@ -2165,7 +2201,6 @@ fn type_apply_argument_normalized(
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeApplyArgument.into());
     argument.emit_all_remaining_leading(&mut *i.state);
-    let entry = suffix_marker(i.rb());
     let exit = type_expr_from_nud_normalized(
         i.rb(),
         argument,
@@ -2182,23 +2217,8 @@ fn type_apply_argument_normalized(
         fence,
         ambient,
     );
-    let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
-    continue_type_tail_normalized(
-        i,
-        baseline,
-        type_ml,
-        apply_boundary,
-        outer_separators,
-        outer_closes,
-        caller_stops,
-        outer_boundary,
-        pipe_lexical,
-        exit,
-        item_origin,
-        fence,
-        ambient,
-    )
+    exit
 }
 
 #[allow(clippy::too_many_arguments)]

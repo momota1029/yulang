@@ -265,6 +265,11 @@ fn definition_from_item_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() && crate::nesting::may_descend(&item) {
+        return i.recover_nesting(item, item_origin, line_entry, fence);
+    }
+
     if item.payload_view().is_boundary() {
         return complete(handoff(item), line_entry);
     }
@@ -573,6 +578,11 @@ fn trailing_from_item_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() && crate::nesting::may_descend(&item) {
+        return i.recover_nesting(item, item_origin, line_entry, fence);
+    }
+
     if item.payload_view().is_boundary() {
         return complete(handoff(item), line_entry);
     }

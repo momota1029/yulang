@@ -157,6 +157,18 @@ impl Scan<'_> {
     }
 
     fn opaque(&mut self, mut i: LexIn) -> bool {
+        let mut frames = Vec::new();
+        if !self.open_opaque(i.rb(), &mut frames) {
+            return false;
+        }
+        self.drive(i, frames);
+        true
+    }
+
+    // The opaque scanner is used before grammar guards (source matching) and
+    // inside recovery. String interpolation / code / Yumark / fence cycles
+    // therefore use explicit frames instead of the native stack.
+    fn open_opaque(&mut self, mut i: LexIn, frames: &mut Vec<OpaqueFrame>) -> bool {
         if !self.ready(i.rb()) {
             return false;
         }
@@ -166,7 +178,7 @@ impl Scan<'_> {
             }
         } else if i.remainder().starts_with("/*") {
             self.take(i.rb(), 2);
-            let mut depth = 1;
+            let mut depth = 1usize;
             while depth > 0 && self.ready(i.rb()) {
                 if i.remainder().starts_with("/*") {
                     self.take(i.rb(), 2);
@@ -181,112 +193,46 @@ impl Scan<'_> {
         } else if i.remainder().starts_with("'[") || i.remainder().starts_with("'{") {
             self.next(i.rb());
             let close = matching_close(self.next(i.rb()).unwrap()).unwrap();
-            self.yumark(i, close);
+            frames.push(OpaqueFrame::Yumark {
+                close,
+                closes: vec![close],
+                line_start: close == '}',
+            });
         } else if i.remainder().starts_with("~\"") {
             self.take(i.rb(), 2);
-            while let Some(c) = self.next(i.rb()) {
-                if c == '"' {
-                    break;
-                }
-                if c == '{' {
-                    self.code(i.rb(), '}');
-                }
-            }
+            frames.push(OpaqueFrame::RuleString);
         } else if i.remainder().starts_with('"') {
             let quotes = i.remainder().bytes().take_while(|c| *c == b'"').count();
             let count = if quotes >= 3 { quotes } else { 1 };
             self.take(i.rb(), count);
-            self.string(i, count);
+            frames.push(OpaqueFrame::String(count));
         } else {
             return false;
         }
         true
     }
 
-    fn string(&mut self, mut i: LexIn, count: usize) {
-        while self.ready(i.rb()) {
-            if i.remainder().starts_with('"') {
-                let run = i.remainder().bytes().take_while(|c| *c == b'"').count();
-                self.take(i.rb(), if count == 1 { 1 } else { run });
-                if count == 1 || run == count {
-                    break;
-                }
-                continue;
-            }
-            match self.next(i.rb()).unwrap() {
-                '\\' => {
-                    self.next(i.rb());
-                }
-                '%' => {
-                    while let Some(c) = self.next(i.rb()) {
-                        if c == '{' {
-                            self.code(i.rb(), '}');
-                            break;
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
+    fn string(&mut self, i: LexIn, count: usize) {
+        self.drive(i, vec![OpaqueFrame::String(count)]);
     }
-
-    fn code(&mut self, mut i: LexIn, close: char) {
-        let mut closes = vec![close];
-        while self.ready(i.rb()) {
-            if self.opaque(i.rb()) {
-                continue;
-            }
-            let Some(c) = self.next(i.rb()) else {
-                break;
-            };
-            if closes.last() == Some(&c) {
-                closes.pop();
-                if closes.is_empty() {
-                    break;
-                }
-            } else if let Some(close) = matching_close(c) {
-                closes.push(close);
-            }
-        }
+    fn code(&mut self, i: LexIn, close: char) {
+        self.drive(i, vec![OpaqueFrame::Code(vec![close])]);
     }
-
-    fn yumark(&mut self, mut i: LexIn, close: char) {
-        let mut closes = vec![close];
-        let mut line_start = close == '}';
-        while self.ready(i.rb()) {
-            if line_start && close == '}' {
-                while self.ready(i.rb()) && matches!(i.remainder().chars().next(), Some(' ' | '\t'))
-                {
-                    self.next(i.rb());
-                }
-                let mut depth = 0;
-                while self.ready(i.rb()) && i.remainder().starts_with('>') {
-                    self.next(i.rb());
-                    depth += 1;
-                    if matches!(i.remainder().chars().next(), Some(' ' | '\t')) {
-                        self.next(i.rb());
-                    }
-                }
-                if self.ready(i.rb()) && i.remainder().starts_with("```") {
-                    self.nested_fence(i.rb(), depth);
-                }
-            }
-            let Some(c) = self.next(i.rb()) else {
-                break;
-            };
-            line_start = matches!(c, '\r' | '\n');
-            if closes.last() == Some(&c) {
-                closes.pop();
-                if closes.is_empty() {
-                    break;
-                }
-            } else if let Some(close) = matching_close(c) {
-                closes.push(close);
-            }
-        }
+    fn yumark(&mut self, i: LexIn, close: char) {
+        self.drive(
+            i,
+            vec![OpaqueFrame::Yumark {
+                close,
+                closes: vec![close],
+                line_start: close == '}',
+            }],
+        );
     }
-
     fn nested_fence(&mut self, mut i: LexIn, depth: usize) {
+        let frame = self.open_fence(i.rb(), depth);
+        self.drive(i, vec![frame]);
+    }
+    fn open_fence(&mut self, mut i: LexIn, depth: usize) -> OpaqueFrame {
         self.take(i.rb(), 3);
         let yulang = i.remainder().starts_with("yulang");
         while let Some(c) = self.next(i.rb()) {
@@ -294,36 +240,200 @@ impl Scan<'_> {
                 break;
             }
         }
-        let mut line_start = true;
-        while self.ready(i.rb()) {
-            if line_start {
-                while self.ready(i.rb()) && matches!(i.remainder().chars().next(), Some(' ' | '\t'))
-                {
-                    self.next(i.rb());
-                }
-                let mut matched = true;
-                for _ in 0..depth {
-                    if !i.remainder().starts_with('>') {
-                        matched = false;
-                        break;
-                    }
-                    self.next(i.rb());
-                    if matches!(i.remainder().chars().next(), Some(' ' | '\t')) {
-                        self.next(i.rb());
-                    }
-                }
-                if self.ready(i.rb()) && matched && i.remainder().starts_with("```") {
-                    self.take(i, 3);
-                    return;
-                }
-            }
-            if yulang && self.opaque(i.rb()) {
-                line_start = false;
-                continue;
-            }
-            line_start = self.next(i.rb()).is_some_and(|c| matches!(c, '\r' | '\n'));
+        OpaqueFrame::Fence {
+            depth,
+            yulang,
+            line_start: true,
         }
     }
+
+    fn drive(&mut self, mut i: LexIn, mut frames: Vec<OpaqueFrame>) {
+        while self.ready(i.rb()) {
+            let Some(frame) = frames.pop() else {
+                break;
+            };
+            match frame {
+                OpaqueFrame::RuleString => match self.next(i.rb()) {
+                    Some('"') | None => {}
+                    Some('{') => {
+                        frames.push(OpaqueFrame::RuleString);
+                        frames.push(OpaqueFrame::Code(vec!['}']));
+                    }
+                    _ => frames.push(OpaqueFrame::RuleString),
+                },
+                OpaqueFrame::String(count) => {
+                    if i.remainder().starts_with('"') {
+                        let run = i.remainder().bytes().take_while(|c| *c == b'"').count();
+                        self.take(i.rb(), if count == 1 { 1 } else { run });
+                        if count != 1 && run != count {
+                            frames.push(OpaqueFrame::String(count));
+                        }
+                    } else {
+                        let c = self.next(i.rb()).unwrap();
+                        if c == '\\' {
+                            self.next(i.rb());
+                        }
+                        frames.push(OpaqueFrame::String(count));
+                        if c == '%' {
+                            while let Some(c) = self.next(i.rb()) {
+                                if c == '{' {
+                                    frames.push(OpaqueFrame::Code(vec!['}']));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                OpaqueFrame::Code(mut closes) => {
+                    // Leave the parent frame in place while an opaque child runs.
+                    let parent = frames.len();
+                    frames.push(OpaqueFrame::Code(Vec::new()));
+                    if self.open_opaque(i.rb(), &mut frames) {
+                        frames[parent] = OpaqueFrame::Code(closes);
+                        continue;
+                    }
+                    frames.pop();
+                    let Some(c) = self.next(i.rb()) else {
+                        break;
+                    };
+                    if closes.last() == Some(&c) {
+                        closes.pop();
+                    } else if let Some(close) = matching_close(c) {
+                        closes.push(close);
+                    }
+                    if !closes.is_empty() {
+                        frames.push(OpaqueFrame::Code(closes));
+                    }
+                }
+                OpaqueFrame::Yumark {
+                    close,
+                    mut closes,
+                    mut line_start,
+                } => {
+                    if line_start && close == '}' {
+                        while self.ready(i.rb())
+                            && matches!(i.remainder().chars().next(), Some(' ' | '\t'))
+                        {
+                            self.next(i.rb());
+                        }
+                        let mut depth = 0;
+                        while self.ready(i.rb()) && i.remainder().starts_with('>') {
+                            self.next(i.rb());
+                            depth += 1;
+                            if matches!(i.remainder().chars().next(), Some(' ' | '\t')) {
+                                self.next(i.rb());
+                            }
+                        }
+                        if self.ready(i.rb()) && i.remainder().starts_with("```") {
+                            frames.push(OpaqueFrame::YumarkAfterFence { close, closes });
+                            frames.push(self.open_fence(i.rb(), depth));
+                            continue;
+                        }
+                    }
+                    let Some(c) = self.next(i.rb()) else {
+                        break;
+                    };
+                    line_start = matches!(c, '\r' | '\n');
+                    if closes.last() == Some(&c) {
+                        closes.pop();
+                    } else if let Some(close) = matching_close(c) {
+                        closes.push(close);
+                    }
+                    if !closes.is_empty() {
+                        frames.push(OpaqueFrame::Yumark {
+                            close,
+                            closes,
+                            line_start,
+                        });
+                    }
+                }
+                OpaqueFrame::YumarkAfterFence { close, mut closes } => {
+                    let Some(c) = self.next(i.rb()) else {
+                        break;
+                    };
+                    if closes.last() == Some(&c) {
+                        closes.pop();
+                    } else if let Some(close) = matching_close(c) {
+                        closes.push(close);
+                    }
+                    if !closes.is_empty() {
+                        frames.push(OpaqueFrame::Yumark {
+                            close,
+                            closes,
+                            line_start: matches!(c, '\r' | '\n'),
+                        });
+                    }
+                }
+                OpaqueFrame::Fence {
+                    depth,
+                    yulang,
+                    mut line_start,
+                } => {
+                    if line_start {
+                        while self.ready(i.rb())
+                            && matches!(i.remainder().chars().next(), Some(' ' | '\t'))
+                        {
+                            self.next(i.rb());
+                        }
+                        let mut matched = true;
+                        for _ in 0..depth {
+                            if !i.remainder().starts_with('>') {
+                                matched = false;
+                                break;
+                            }
+                            self.next(i.rb());
+                            if matches!(i.remainder().chars().next(), Some(' ' | '\t')) {
+                                self.next(i.rb());
+                            }
+                        }
+                        if self.ready(i.rb()) && matched && i.remainder().starts_with("```") {
+                            self.take(i.rb(), 3);
+                            continue;
+                        }
+                    }
+                    if yulang {
+                        let parent = frames.len();
+                        frames.push(OpaqueFrame::Fence {
+                            depth,
+                            yulang,
+                            line_start: false,
+                        });
+                        if self.open_opaque(i.rb(), &mut frames) {
+                            continue;
+                        }
+                        frames.truncate(parent);
+                    }
+                    line_start = self.next(i.rb()).is_some_and(|c| matches!(c, '\r' | '\n'));
+                    frames.push(OpaqueFrame::Fence {
+                        depth,
+                        yulang,
+                        line_start,
+                    });
+                }
+            }
+        }
+    }
+}
+
+// Continuations of the source-backed scanner; none owns syntax output.
+enum OpaqueFrame {
+    String(usize),
+    RuleString,
+    Code(Vec<char>),
+    Yumark {
+        close: char,
+        closes: Vec<char>,
+        line_start: bool,
+    },
+    YumarkAfterFence {
+        close: char,
+        closes: Vec<char>,
+    },
+    Fence {
+        depth: usize,
+        yulang: bool,
+        line_start: bool,
+    },
 }
 
 fn matching_close(c: char) -> Option<char> {
@@ -437,4 +547,18 @@ pub(crate) fn skip_source_opaque(mut i: LexIn, origin: usize, line_indent: Optio
         }
     }
     true
+}
+
+/// Header body scanning shares the same iterative literal/comment owner, but
+/// does not enable source-matching's rule/document recognition.
+pub(crate) fn skip_literal(i: LexIn) -> bool {
+    let mut scan = Scan {
+        origin: 0,
+        initial_len: i.remainder().len(),
+        fence: None,
+        foreign: None,
+        pending: None,
+        line: LineEntry::InLine,
+    };
+    scan.opaque(i)
 }
