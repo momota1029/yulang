@@ -6697,3 +6697,34 @@ run_cmd do
 #print axioms Yulang.CommonRoleOpenRecursivePass.runs_preserves
 #print axioms Yulang.CommonRoleOpenRecursivePass.run_preserves
 #print axioms Yulang.CommonRoleOpenRecursivePass.run_recollects
+
+-- Instruction I-1, cycle 1.
+#print axioms Yulang.CommonRoleEndpointSlots.decode_allocate
+#print axioms Yulang.CommonRoleEndpointSlots.allocate_decode
+#print axioms Yulang.CommonRoleEndpointSlots.allocate_injective
+#print axioms Yulang.CommonRoleEndpointSlots.endpoint_preserved
+#print axioms Yulang.CommonRoleEndpointSlots.interpretation_preserved
+#print axioms Yulang.CommonRoleEndpointSlots.nominal_preserved
+#print axioms Yulang.CommonRoleEndpointSlots.wrapped_nominal_preserved
+#print axioms Yulang.CommonRoleEndpointSlots.distinct_sources_distinct_slots
+#print axioms Yulang.CommonRoleEndpointSlots.request_lower_preserved
+#print axioms Yulang.CommonRoleEndpointSlots.request_upper_preserved
+#print axioms Yulang.CommonRoleCandidateStateFrontier.equality_grammar
+#print axioms Yulang.CommonRoleCandidateStateFrontier.extend_exact
+#print axioms Yulang.CommonRoleCandidateStateFrontier.accepts_exact
+#print axioms Yulang.CommonRoleCandidateStateFrontier.collect_exact
+#print axioms Yulang.CommonRoleCandidateStateFrontier.collect_antitone
+#print axioms Yulang.CommonRoleCandidateStateFrontier.fits_after_equation
+#print axioms Yulang.CommonRoleCandidateStateFrontier.collect_after_equation
+#print axioms Yulang.CommonRoleCandidateStateFrontier.empty_fits
+#print axioms Yulang.CommonRoleCandidateStateFrontier.singleton_remains_feasible
+#print axioms Yulang.CommonRoleCandidateStateFrontier.before_associated_equation
+#print axioms Yulang.CommonRoleCandidateStateFrontier.after_associated_equation
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.constraints_grammar
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.prepare_exact
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.accepts_exact
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.collect_exact
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.collect_antitone
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.same_slot_exact
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.solutions_exact
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.source_bounds_preserved

@@ -3023,3 +3023,20 @@ T1b remains PARTIAL: source endpoint/slot provenance, narrowing-aware candidate
 filtering, fixed-point/finalization adequacy and `resolve_exact` are not closed.
 X13–X16 have not been promoted to outer-entry PROVED. See the T1b design, question
 and result notes. No existing Lean theorem, specification or plan was changed.
+
+## I-1 cycle 1: candidate-local ordinary feasibility (partial)
+
+`CommonRoleIntervalCandidateFrontier.collect` runs the ordinary solver for each
+scalar candidate on the same old state plus that candidate's original
+lower/head/upper inequalities, and only then collects viable candidates.
+`solutions_exact` retains all solution families, not a selected point.
+`CommonRoleCandidateStateFrontier` proves that a separately supplied shared
+equality can eliminate candidates; a unique visible candidate does not write
+its hypothesized equality into shared state. The before/after example is an
+ordinary-slot boundary, NOT a Parent/Left/Right source conformance proof.
+
+`CommonRoleEndpointSlots` computes occurrence-preserving slots from a finite
+actual Request list; interval `source_bounds_preserved` connects them to the
+original endpoints under any supplied interpretation. Dynamic child closure
+and full nominal semantic adequacy are still unproved. No full allocator,
+saturation, final resolve_exact, or X13–X16 completion is claimed.
