@@ -1246,3 +1246,17 @@ import Yulang.SpecConformanceIndex
 
 import Yulang.CommonRoleAssociatedParentSuccess
 import Yulang.CommonRoleAssociatedParentExact
+
+import Yulang.CommonRoleSourceDescent
+import Main
+import Yulang.CommonRoleStatefulIndexSweep
+import Yulang.CommonRoleStatefulIndexPath
+import Yulang.CommonRoleStatefulParentExample
+import Yulang.CommonRoleStatefulPathComplete
+import Yulang.CommonRoleStatefulPathParent
+
+import Yulang.CommonRoleNamedPath
+
+import Yulang.CommonRoleSiblingOrders
+
+import Yulang.CommonRolePathOrder
