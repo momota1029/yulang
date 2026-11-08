@@ -1102,3 +1102,5 @@ import Yulang.CommonCasePresenceGeneration
 import Yulang.CommonRoleClosedResidualSourceFamily
 
 import Yulang.CommonEffectMixedFamilyAllocation
+
+import Yulang.CommonEffectMixedFamilyConstraints

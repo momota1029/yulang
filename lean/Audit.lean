@@ -6150,3 +6150,5 @@ run_cmd do
 #print axioms Yulang.CommonEffectMixedFamilyAllocation.rowAt_encode
 
 #print axioms Yulang.CommonEffectMixedFamilyAllocation.encode_decode
+
+#print axioms Yulang.CommonEffectMixedFamilyConstraints.generate_exact
