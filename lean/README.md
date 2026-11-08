@@ -3179,3 +3179,7 @@ new generated-constraint correctness, saturation termination, or full B4.
 ## Cycle16: actual source worklist at a fixed state
 
 `CommonRoleSourceWorklist` computes a duplicate-free least closure under actual first-hit producer edges. The source domain is computed from checked declarations; no caller fuel or closed domain is assumed. `saturate_exact` characterizes independent actual-source paths; `concrete_child_visited` retains source witnesses for concrete generated children. Arbitrary registry, root and fixed ordinary state; int-only/unary/capture-bearing adapter. This does not perform ordinary-state updates, candidate uniqueness/classification or same-parent revisits after new evidence. General B4 remains open.
+
+## Cycle17: dependency-directed cache invalidation
+
+`CommonRoleCacheInvalidation` computes source-slot dependencies and dirty slots for int-only materialization. Clean dependencies preserve actual producer children and fixed-state reachability; consistent monotone growth makes every dirty slot newly int-known. Across a consistent monotone trace with a producer change at every step, the number of such steps is at most the source-slot count. This does not bound arbitrary ordinary updates or complete B4 saturation.
