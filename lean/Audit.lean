@@ -6842,3 +6842,8 @@ run_cmd do
 #print axioms Yulang.CommonRoleAssociatedParentSuccess.argument_int
 #print axioms Yulang.CommonRoleAssociatedParentSuccess.answer_elaborate
 #print axioms Yulang.CommonRoleAssociatedParentSuccess.success_resolved
+#print axioms Yulang.CommonRoleAssociatedParentExact.source_generated
+#print axioms Yulang.CommonRoleAssociatedParentExact.materialized_int
+#print axioms Yulang.CommonRoleAssociatedParentExact.run_of_models
+#print axioms Yulang.CommonRoleAssociatedParentExact.success_exact
+#print axioms Yulang.CommonRoleAssociatedParentExact.successful_state
