@@ -125,7 +125,7 @@ sub 'done:
 
 ## 3c.5 `case` と `catch` の label（再帰）　〔仮採用〕
 
-`case 'label value:` と `catch 'label action:` は、arm の集合全体に再帰の名前を付ける。body から `'label next` を呼ぶと、同じ arm 集合が `next` に再適用される。
+`case 'label value:` と `catch 'label action:` は、arm の集合全体に再帰の名前を付ける。body から label の操作 `'label.again` を呼ぶと、同じ arm 集合が引数に再適用される。
 
 ```yulang
 my result = case 'count 3:
