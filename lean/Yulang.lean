@@ -1108,3 +1108,5 @@ import Yulang.CommonEffectMixedFamilyConstraints
 import Yulang.CommonEffectMixedWitness
 
 import Yulang.CommonDeclaredCastCostGraph
+
+import Yulang.CommonDeclaredCastCost

@@ -6162,3 +6162,9 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredCastCostGraph.check_exact
 
 #print axioms Yulang.CommonDeclaredCastCostGraph.rank_decreases
+
+#print axioms Yulang.CommonDeclaredCastCost.run_bound
+
+#print axioms Yulang.CommonDeclaredCastCost.wrapper_creation
+
+#print axioms Yulang.CommonDeclaredCastCost.invocation_bound
