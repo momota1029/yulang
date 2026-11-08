@@ -1260,3 +1260,17 @@ import Yulang.CommonRoleNamedPath
 import Yulang.CommonRoleSiblingOrders
 
 import Yulang.CommonRolePathOrder
+
+import Yulang.CommonRoleFiniteAssociatedClosure
+
+import Yulang.CommonRoleFiniteAssociatedModels
+
+import Yulang.CommonRoleFiniteAssociatedStable
+
+import Yulang.CommonArgumentEffectCast
+
+import Yulang.ArgumentEffectCastRuntime
+
+import Yulang.CommonRoleNamedAssociatedGraph
+
+import Yulang.CommonRoleAssociatedDeclarationExact
