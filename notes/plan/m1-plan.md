@@ -188,7 +188,7 @@ M1 が閉じてから着手する。前提が閉じていない間は `blocked`�
 - 受け入れ: 監査の probe（`cargo run -p yu-syntax --example ls_recovery_audit --release --offline`）が panic 0、abort 0 で終わる。`cargo test -p yu-syntax --offline` が通る。既存の fixture とフィンガープリントは変えない。
 
 ### T18 パーサの回復: P1 (局所性と連鎖の抑制) (yu-syntax)
-- 状態: needs-owner（ambiguity の方針に承認が要る） / 依存: T17
+- 状態: needs-owner（質問ノート `notes/questions/2026-11-08-recovery-unmatched-delimiter-policy.md`、推奨は選択肢 1: 閉じが存在しない区切りだけ、後ろの文の先頭で再同期） / 依存: T17
 - 目標: (1) 宣言の field の回復を、companion/layout の境界で封じる（`}` の欠落と `with:`: 21 個の診断を、局所的な閉じの失敗 1 つに）。(2) 釣り合わない区切りの再同期を、宣言以外へ広げる（`say`、`for` の行、閉じ括弧、入れ子のインデント）。文法は複数行の項目を許すので、曖昧さの扱い（改行で区切りを止めるか）は**ユーザーの承認が要る**: 質問ノート（遅延案を先頭）を作る。
 - 受け入れ: 監査の例 E2・E3 の診断の数と再同期が改善する。釣り合う区切りの保護と、有効な複数行の制御は保つ。
 
