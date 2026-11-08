@@ -55,12 +55,18 @@ presence が確定して許可された後に通常の型制約が不整合な�
 1. 有限な各位置の入力 record 宣言表を、一般 source 宣言・注釈・推論から導くこと。
    特に default payload の union と fallback による入れ子入力の presence、open tail、polymorphic source は未接続。
    新しい表を受け取る theorem は、この lowering を仮定不要にしたものではない。
-2. optional field を default なしで照合する規則、到達不能 arm の静的 effect 行は既存の未回答の二問のまま。
+2. **作業中の追補（ユーザー決定 `9ee79a0d8` / `1ace30e8e`）**:
+   optional な入力を default なしで照合することは合法であり、field が無ければ miss して次の arm へ進む。
+   この問いは解消した。既存の Common 全 arm 判断は required 入力を要求するため、
+   `CommonOptionalField` 系を用いた新しい全体判断・実生成への接続が必要である。
+   本 packet の default 付き field の検査には影響しない。
+   到達不能 arm の静的 effect 行だけが未回答のまま残る。
 3. 関数・再帰・effect・nominal/list/float/merged-row を含む source producer / adequacy と、
    全 pattern judgment・一般 coverage・実 source generator の iff を閉じること。
 4. 同じ公開三契約への統合。B6 は着手しない。
 
-新しい意味論の問いは追加していない。既存二問を局所的に決めていない。
+新しい意味論の問いは追加していない。optional の問いは上記のユーザー決定を尊重し、
+未回答の静的 effect 行を局所的に決めていない。
 
 ## 検証
 
