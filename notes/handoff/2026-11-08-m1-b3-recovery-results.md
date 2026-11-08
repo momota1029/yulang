@@ -201,7 +201,41 @@ source 全体からの出現列生成、宣言表と式中の family reference �
 `F` は既に不変位置として区別された family 引数の kind metadata であり、
 nominal 全引数を不変と仮定する新しい規則ではない。
 
-## 7. 検証と commit
+## 7. 実際の mixed 宣言と再帰式を持つ非空の model
+
+`CommonEffectMixedWitness` に、単なる metadata の成功ではない具体例を追加した。
+有限宣言表は一つの operation を位置 `0` に持ち、その effect key は `7` である。
+captured kind 表は `[value, row]` であり、元位置 `0` の captured 型 `a` と、
+元位置 `1` の captured 行 `e` を署名で使用する。
+さらに operation 独自の型 local `b` と行 local `f` を持つ。
+input と output は、どちらも有限構文で書いた `a -> [e, f] b` である。
+両方の local は実際に出現し、unused binder の例ではない。
+
+元の再帰式は、identity lambda を inner request の payload とし、その request の結果を
+outer request の payload としたものを、一つの handler で囲む。
+return arm と operation arm は unit を返し、handler の permission は `[7]` である。
+table index と effect key も混同していない。
+
+`identity_typed`、`action_typed`、`body_typed` は独立 `Typing` の constructor から証明した。
+action に元の signed head `7` があり、その全零 weight を handler が引いて、
+handler 全体が pure unit を返すところまで示している。
+handler の `input`、`returned`、結果は local の全称量化の外側で固定される。
+全ての local 型と任意 signed local 行に対する operation arm の検査を明示的に構築した。
+
+主定理 `CommonEffectMixedWitness.checked_nested_model` は、
+**任意 `ρ : Nat → Computation` に対して、前提なし**に、
+
+```text
+Holds ρ (generateChecked capturedKinds declarations [] body output)
+```
+
+を示す。捕捉された型が unit に限られる、捕捉行が空である、行が有限である、
+といった制約はない。実 computed kind checker の exactness と上記の実 typing tree を、
+`generate_closed_checked_exact` に渡している。
+したがって checked generator の成功例が空であることや、handler の local 量化子を
+誤って外側の capture に束縛したことによる空虚な iff に頼っていない。
+
+## 8. 検証と commit
 
 基準 `a019f8e09` で、監督側が最初に全 build と trust-zero Audit を実行し、
 `Build completed successfully (1037 jobs)` と
@@ -216,13 +250,19 @@ Build completed successfully (90 jobs).
 
 lake build --wfail Yulang.CommonEffectMixedFamilyConstraints
 Build completed successfully (97 jobs).
+
+lake build --wfail Yulang.CommonEffectMixedChecked \
+  Yulang.CommonEffectMixedFamilyConstraints Yulang.CommonEffectMixedWitness
+Build completed successfully (102 jobs).
 ```
 
 独立した監査ファイルを `lake env lean --trust=0 <監査ファイル>` で実行し、
 宣言解釈、全再帰 exactness、captured kind check、checked source exactness、
 有限 slot recovery、family generation の主要 theorem を `#print axioms` で検査した。
 全て `{propext, Classical.choice, Quot.sound}` の部分集合である。
-family の `generate_exact` は `[propext, Quot.sound]` だけに依存する。
+family の `generate_exact` と concrete witness の `body_typed` は
+`[propext, Quot.sound]` だけに依存する。
+`checked_nested_model` は `[propext, Classical.choice, Quot.sound]` に依存する。
 `sorry`、追加公理、`native_decide`、warning 抑止は追加していない。
 
 共有 `Yulang.lean` / `Audit.lean` / `README.md` の追記と統合ブランチの全 gate は監督側が行う。
@@ -241,8 +281,9 @@ Rust/runtime の検査は今回の Lean-only 変更に対して実行してい�
 | `cb7575cc4` | kind admission を前提にしない checked source exactness |
 | `61fd6726f` | 元 family slot の実 finite allocation と全割当て回収 |
 | `c0ad30363` | mixed family 引数の全元区間・交差制約の実生成 exactness |
+| `701627a6e` | 両 local kind を実際に使う nested request/handler の checked model |
 
-## 8. E1 までの正確な残り
+## 9. E1 までの正確な残り
 
 1. **raw source 宣言/式からの lowering 全体。** 元の再帰 `Expr` は再利用したが、
    operation/family key は解決済み自然数、permission は有限 metadata、partial handler の
