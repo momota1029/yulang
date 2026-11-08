@@ -1060,3 +1060,5 @@ import Yulang.CommonRoleClosedRecordComparison
 import Yulang.CommonRoleIntervalPaterson
 
 import Yulang.CommonRoleIntervalCapture
+
+import Yulang.CommonRoleIntervalCandidates

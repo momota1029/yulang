@@ -67,3 +67,28 @@ total lookup に記した fallback は、この検査後の template から観�
 
 検証: 対象 warning-as-error build（123 jobs）成功。
 主要 capture 定理の直接 `trust=0` 監査は `[propext, Quot.sound]` のみ。
+
+## 3. 外部 oracle を持たない finite candidate scan
+
+`CommonRoleIntervalCandidates.scan_exact`:
+
+> 任意の有限 declaration 列、任意の元 endpoint 対を持つ goal、任意の有限 candidate 列に対し、
+> 実 `scan` がその列を返すこと iff 独立した `Selection` 導出が、元 declaration 列の全要素を
+> 同じ goal で検査し、同じ有限 endpoint 捕捉表を持つ候補を元順序で残す。
+
+両境界を既存の局所正規化に通し、実構造から捕捉し、head と **全 where** の全使用名を有限表で
+検査し、その同じ二境界置換で head を replay する。主張は linear structural kernel に限定する。
+repeat-variable head や join head は実 grammar check により outside となる。
+rigid head 位置の未確定 endpoint、片側だけ異なる構造、捕捉／replay に足りない情報も outside であり、
+意味論的な `noImpl` や source の pending として誤報しない。
+plain variable の head 位置は任意の元 endpoint 対をそのまま捕捉するため、両境界が異なる場合や
+整合していない場合も構造捕捉自体は成功する。この成功は通常の区間整合性を証明しない。
+`Rejects` は異なる role/arity、または両 endpoint が揃った rigid constructor の衝突だけを扱う。
+
+`all_where_bindings_exist` は、受理された候補の任意の元 where に現れる任意の名前について、
+実 lookup が元有限表の endpoint 対を返し、total extension の fallback を使わないことを証明する。
+`accepted_child_decreases` は、実宣言検査と同じ候補の endpoint replay から、元 goal の
+二境界サイズに対する child の真の下降を導く。replay は点の同値ではなく、元二境界の有限構文確認である。
+
+検証: 対象 warning-as-error build（124 jobs）成功。
+主要 scan と下降補題の直接 `trust=0` 監査は `[propext, Quot.sound]` のみ。

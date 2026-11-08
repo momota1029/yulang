@@ -6050,3 +6050,13 @@ run_cmd do
 #print axioms Yulang.CommonRoleIntervalCapture.capture_exact
 
 #print axioms Yulang.CommonRoleIntervalCapture.capture_arguments_exact
+
+#print axioms Yulang.CommonRoleIntervalCandidates.inspect_accepts_exact
+
+#print axioms Yulang.CommonRoleIntervalCandidates.inspect_rejects_exact
+
+#print axioms Yulang.CommonRoleIntervalCandidates.scan_exact
+
+#print axioms Yulang.CommonRoleIntervalCandidates.all_where_bindings_exist
+
+#print axioms Yulang.CommonRoleIntervalCandidates.accepted_child_decreases
