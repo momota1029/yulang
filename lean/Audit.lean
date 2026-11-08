@@ -7020,3 +7020,8 @@ run_cmd do
 #print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.declaration_congr
 #print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.saturate_membership_congr
 #print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.declaration_stable
+
+#print axioms Yulang.CommonRolePotentialChildClosure.mem_next
+#print axioms Yulang.CommonRolePotentialChildClosure.closure_exact
+#print axioms Yulang.CommonRolePotentialChildClosure.filtered_child_step
+#print axioms Yulang.CommonRolePotentialChildClosure.filtered_children_closed
