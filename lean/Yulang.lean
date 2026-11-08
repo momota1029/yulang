@@ -1096,3 +1096,5 @@ import Yulang.CommonRoleClosedResidualSlots
 import Yulang.CommonPatternSourcePresence
 
 import Yulang.CommonPatternDeclaredPresence
+
+import Yulang.CommonCasePresenceGeneration

@@ -6126,3 +6126,7 @@ run_cmd do
 #print axioms Yulang.CommonPatternDeclaredPresence.required_report_exact
 
 #print axioms Yulang.CommonPatternDeclaredPresence.unresolved_report_exact
+
+#print axioms Yulang.CommonCasePresenceGeneration.generate_exact
+
+#print axioms Yulang.CommonCasePresenceGeneration.generated_safe
