@@ -43,6 +43,12 @@ OpenAI の dots（常時稼働の定期エージェント。不安定な新シ�
 - `Audit.lean` の出力は長く折り返されるため、`#print axioms` の集計は出力を連結してから行う（出力形式が変わると誤判定しうる）。
 - `--no-build` は差分の検査だけで、PASS に「NO build」と表示する。
 
+## 見張りの長さ
+
+- Monitor は 1 回 30 分が上限。cycle 報告の待機は `tools/wait-dots-cycle.sh <last-known-N> [max-minutes]` を `Bash run_in_background`（上限 2 時間）で回す。新しい `notes/handoff/dots-cycle-<N>.md` が `work/dots-main` に現れたら 1 行を出して終わる。中間公開ごとの通知は要らない場合に向く。
+- 各公開のたびに知りたいときは Monitor の `tools/watch-work-branches.sh`（30 分ごとに張り直す）。
+- どちらも**セッションが生きている間だけ**動く。セッションをまたぐ定期実行は、CronCreate（セッション内、7 日で失効）か、リモートの scheduled task（`create_trigger` / `send_later`、コンテナの再起動を越えて残る）が候補。
+
 ## 次
 
 - 検証を、取得した commit の新しい worktree で行う形にする（`.lake` は監督役の `base` のビルドから複製）。
