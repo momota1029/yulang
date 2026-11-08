@@ -7025,3 +7025,10 @@ run_cmd do
 #print axioms Yulang.CommonRolePotentialChildClosure.closure_exact
 #print axioms Yulang.CommonRolePotentialChildClosure.filtered_child_step
 #print axioms Yulang.CommonRolePotentialChildClosure.filtered_children_closed
+
+#print axioms Yulang.CommonRolePotentialAllocation.decode_allocate
+#print axioms Yulang.CommonRolePotentialAllocation.allocate_injective_on_table
+#print axioms Yulang.CommonRolePotentialAllocation.filtered_hit_present
+#print axioms Yulang.CommonRolePotentialAllocation.production_payloads_present
+#print axioms Yulang.CommonRolePotentialAllocation.filtered_prepare_exact
+#print axioms Yulang.CommonRolePotentialAllocation.filtered_state_child_endpoints
