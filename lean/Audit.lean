@@ -7113,3 +7113,17 @@ run_cmd do
 #print axioms Yulang.CommonRoleSourceWorklist.concrete_child_visited
 #print axioms Yulang.CommonRoleSourceWorklist.root_visited
 #print axioms Yulang.CommonRoleSourceWorklist.saturate_least
+
+-- Cycle17: int-only source cache invalidation; not full saturation
+#print axioms Yulang.CommonRoleCacheInvalidation.dirty_exact
+#print axioms Yulang.CommonRoleCacheInvalidation.endpoint_unchanged
+#print axioms Yulang.CommonRoleCacheInvalidation.request_unchanged
+#print axioms Yulang.CommonRoleCacheInvalidation.clean_iff
+#print axioms Yulang.CommonRoleCacheInvalidation.actual_next_cache_valid
+#print axioms Yulang.CommonRoleCacheInvalidation.changed_producer_has_dirty_dependency
+#print axioms Yulang.CommonRoleCacheInvalidation.dirty_is_new_evidence
+#print axioms Yulang.CommonRoleCacheInvalidation.changed_producer_has_new_evidence
+#print axioms Yulang.CommonRoleCacheInvalidation.dirty_cannot_repeat
+#print axioms Yulang.CommonRoleCacheInvalidation.reach_cache_valid
+#print axioms Yulang.CommonRoleCacheInvalidation.saturated_membership_cache_valid
+#print axioms Yulang.CommonRoleCacheInvalidation.producer_change_events_bounded

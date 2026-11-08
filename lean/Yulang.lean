@@ -1294,3 +1294,5 @@ import Yulang.CommonRoleChildTemplates
 import Yulang.CommonRoleSourceTemplateClosure
 
 import Yulang.CommonRoleSourceWorklist
+
+import Yulang.CommonRoleCacheInvalidation

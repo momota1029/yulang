@@ -1,8 +1,10 @@
 cycle: 17
-status: running
+status: completed
 started: 2026-11-08T22:40:04Z
-updated: 2026-11-08T22:42:00Z
-elapsed_min: 2
-activity: manual cycle; latest integration 2ec533cd1 merged; investigating state-change cache invalidation
+updated: 2026-11-08T22:53:00Z
+elapsed_min: 13
+activity: recovered authorized publication; cache invalidation and producer-change bound; focused 285 jobs PASS; full verify not run
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-cycle6
-resume_hint: Cycle16 completed; max24; focused builds only; deadline22:65 corrected23:05Z
+last_local_commit: 0edd01ce0
+report: notes/handoff/dots-cycle-17.md
+resume_hint: General state-changing saturation remains open. Use finite dependency invalidation and producer-change bound; full verification is supervisor responsibility.
