@@ -1243,3 +1243,5 @@ import Yulang.CommonRoleOpenClosureAllocation
 import Yulang.CommonRoleOrdinaryKnownness
 import Yulang.CommonRoleAssociatedParentPipeline
 import Yulang.SpecConformanceIndex
+
+import Yulang.CommonRoleAssociatedParentSuccess
