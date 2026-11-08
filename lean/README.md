@@ -3087,3 +3087,5 @@ The stateful Index sweep/finite path and same-parameter Parent example execute a
 `CommonRoleStatefulPathComplete` removes the constant-str-model premise for checked finite paths: arbitrary old states succeed exactly when the generated equations have a model. `CommonRoleStatefulPathParent.outer_exact` connects this to actual Parent dictionaries for every finite output path and old state. Main exposes this scoped unconditional iff, not general B4.
 
 NamedPath: 有限の名前列から occurrence table、root slot、残りのslot列、同一source名のtype等価制約を計算して有限path入口へ渡す。`outer_exact` は任意の旧状態に対して前提なし iff。`source_factorization` は実成功と最終ordinary modelを前提として、旧制約保持とsource名ごとのtype valuationへの降下を示す（effectsは同一視しない）。固定Index(box str) seedにより全slotがstrとなる狭い断片であり、一般source parser・branching graph・動的child生成のallocatorではない。
+
+SiblingOrders: 固定Right seedから、forward `[0→1,1→2]` の1 sweepとreverse `[1→2,0→1]` の2 sweepsを実行し、任意assignmentで同じ最終モデル集合、実外側入口で同じ `(argument, dictionary answer)` を証明。atom列は重複の差があるため等号を主張しない。任意graph・任意schedulerの停止性ではない。
