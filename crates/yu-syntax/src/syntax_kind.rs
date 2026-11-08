@@ -299,6 +299,7 @@ pub enum SyntaxKind {
     ListExpressionSpreadItem,
     RangePattern,
     RecordExpressionSpreadItem,
+    PostfixIfExpression,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -327,6 +328,9 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::RangePattern as u16 => SyntaxKind::RangePattern,
             value if value == SyntaxKind::RecordExpressionSpreadItem as u16 => {
                 SyntaxKind::RecordExpressionSpreadItem
+            }
+            value if value == SyntaxKind::PostfixIfExpression as u16 => {
+                SyntaxKind::PostfixIfExpression
             }
             value if value == SyntaxKind::Root as u16 => SyntaxKind::Root,
             value if value == SyntaxKind::Missing as u16 => SyntaxKind::Missing,

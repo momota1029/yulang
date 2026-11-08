@@ -191,9 +191,12 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     let indentation = i.statement_indentation(&item, item_origin, baseline);
-    i.with_statement(indentation, |i| {
-        dispatch_statement_normalized(
-            i,
+    i.with_statement(indentation, |mut i| {
+        let expression = matches!(admission.0, StatementKind::Expression | StatementKind::For);
+        let checkpoint = i.state.checkpoint();
+        let entry = suffix_marker(i.rb());
+        let exit = dispatch_statement_normalized(
+            i.rb(),
             item,
             admission,
             baseline,
@@ -204,7 +207,24 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
             fence,
             ambient,
             sequence,
-        )
+        );
+        let origin = advanced_origin(item_origin, entry, i.rb());
+        if expression {
+            crate::expression::postfix_if::finish_postfix_if(
+                i,
+                checkpoint,
+                exit,
+                baseline,
+                stops,
+                line_handoff,
+                origin,
+                fence,
+                ambient,
+                sequence,
+            )
+        } else {
+            exit
+        }
     })
 }
 

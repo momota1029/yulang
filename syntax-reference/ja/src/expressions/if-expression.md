@@ -105,3 +105,9 @@ dedentした`else`は、enclosing `IfExpression`へ戻る。
 [動的演算子列](operator-chain.md)は、primaryのvalue positionとbody chainを定める。
 [colon application](colon-application.md)はbody chain内で使えるが、armのcolonを所有しない。
 [layout-aware separator authority](../cross-cutting/layout-aware-separator-authority.md)と共有indented blockが、current-depthのbody boundaryを定める。
+
+## 8. 後置`if`
+
+同じ行で式の後に条件を置く`式 if 条件`を、後置guardとして書ける。`if 条件: 式`と同じ意味の式であり、結果はoptional valueになる。後置guardはpipelineやinline colon bodyより弱く結合する。`say: 1 + 2 if ready`は呼び出し全体を、`for x in xs: last if done`はloop全体をguardする。`(x if ready)`のように括弧の中にも書ける。
+
+CSTは`PostfixIfExpression(operand, IfKw, Condition(OperatorChain))`である。連続するguardは左に入れ子になり、`a if b if c`は`(a if b) if c`となる。後置guardは`else`を持たず、後続の`else`、`:`、`{`はenclosing recoveryに残る。条件がなければcondition内に`Missing`を置く。
