@@ -1,6 +1,8 @@
 # B4r7: non-variable branch は、保持された nominal alternative を有限照合できるか
 
-状態: **未決の一問**（2026-11-08、契約上のファイル日付は2026-11-07）。E2ではない。
+状態: **解消(2026-11-08, ユーザー確認)。この問いは起きない。** 共変の `box` は、`box int` と `box bool` の合流で `box (int | bool)` の一つの型になり、head の `box('a) | box('b)` も `box('a | 'b)` になる。plain 変数が合流後の payload を丸ごと捕捉する規則を、共変な引数の中の変数にもそのまま当てる(`'a := int | bool`、`'b := int | bool`)。不変の `list` で別々の型を合流させると、構築の時点で型エラー(`int | bool ≤ int & bool` が満たせない)。したがって、「合流して残った 2 つの別々の nominal に分割して当てる」場面は起きない。`spec/06-roles.md` 6.3 に確定として書いた。下の本文は原文(有限 cover の案は不要)。
+
+(原文)状態: **未決の一問**（2026-11-08、契約上のファイル日付は2026-11-07）。E2ではない。
 plain変数branchが合流済payload全体を捕捉する承認、全instance Paterson、record残余、K2は変更しない。
 
 ## 問い
