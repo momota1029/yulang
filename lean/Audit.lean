@@ -6847,3 +6847,22 @@ run_cmd do
 #print axioms Yulang.CommonRoleAssociatedParentExact.run_of_models
 #print axioms Yulang.CommonRoleAssociatedParentExact.success_exact
 #print axioms Yulang.CommonRoleAssociatedParentExact.successful_state
+
+#print axioms Yulang.CommonRoleSourceDescent.representative_source
+#print axioms Yulang.CommonRoleSourceDescent.representative_exists
+#print axioms Yulang.CommonRoleSourceDescent.descend_factors
+#print axioms Yulang.CommonRoleSourceDescent.factors_coherent
+#print axioms Yulang.CommonRoleSourceDescent.factorization_exact
+#print axioms Yulang.CommonRoleSourceDescent.atoms_factorization_exact
+#print axioms Yulang.CommonRoleSourceDescent.fallback_independent
+#print axioms Yulang.CommonRoleSourceDescent.solver_factorization_exact
+#print axioms Yulang.CommonRoleSourceDescent.factor_unique_on_occurrence
+#print axioms Yulang.CommonRoleSourceDescent.source_equation_exact
+#print axioms Yulang.Main.settled_role_exact
+#print axioms Yulang.Main.settled_role_accessible
+#print axioms Yulang.Main.open_pass_exact
+#print axioms Yulang.Main.declaration_variance_registry_exact
+#print axioms Yulang.Main.checked_cast_cost_bound
+#print axioms Yulang.Main.optional_source_x22
+#print axioms Yulang.Main.current_core_principal
+#print axioms Yulang.Main.open_pass_stabilizes
