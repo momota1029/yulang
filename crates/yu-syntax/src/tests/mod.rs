@@ -44,3 +44,5 @@ mod virtual_statement_block;
 mod yumark;
 mod yumark_cell;
 mod yumark_cell_witness;
+
+mod completion_context;
