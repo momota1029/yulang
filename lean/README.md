@@ -3006,3 +3006,20 @@ independent judgment exactness, and preservation of both endpoint projections.
 It leaves equal atomic endpoints as interval leaves, so it is not a full
 canonicalizer. `CommonRoleOpenExamples.x15_local` and `x16_local` exercise the
 spec shapes locally only; X15 and X16 are NOT declared outer-entry PROVED.
+
+## T1b: producer accessibility and recursive state pass (partial, 2026-11-08)
+
+`CommonRoleOpenProducer{,Access}` gives independent exactness and declaration-derived
+accessibility for an executable dual-endpoint structural inspector.
+`CommonRoleOpenPropagation` generates captures from actual selected payloads and
+checks the retained state with the existing ordinary solver. The explicit finite
+`Allocation` is not yet a source graph allocator. `CommonRoleOpenRecursivePass.run`
+threads returned states through all descendants and siblings and then regenerates
+every sibling and the parent with the final state. `run_exact` is an iff with the
+independent `Runs` judgment, with no external FrontierExact, Acc, fuel, or success
+premise. It proves ONE recursive pass, not saturation or a final four-way resolver.
+
+T1b remains PARTIAL: source endpoint/slot provenance, narrowing-aware candidate
+filtering, fixed-point/finalization adequacy and `resolve_exact` are not closed.
+X13–X16 have not been promoted to outer-entry PROVED. See the T1b design, question
+and result notes. No existing Lean theorem, specification or plan was changed.
