@@ -1122,3 +1122,5 @@ import Yulang.CommonDeclarationVarianceLowering
 import Yulang.CommonDeclarationVarianceCalls
 
 import Yulang.CommonDeclarationVarianceRecursion
+
+import Yulang.CommonDeclarationVarianceGraph

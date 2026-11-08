@@ -6208,3 +6208,7 @@ run_cmd do
 #print axioms Yulang.CommonDeclarationVarianceCalls.edge_exact
 
 #print axioms Yulang.CommonDeclarationVarianceRecursion.analyze_exact
+
+#print axioms Yulang.CommonDeclarationVarianceGraph.next_exact
+
+#print axioms Yulang.CommonDeclarationVarianceGraph.analyze_exact
