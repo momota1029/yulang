@@ -1,9 +1,10 @@
 cycle: 3
-status: running
+status: completed
 started: 2026-11-08T11:31:16Z
-updated: 2026-11-08T12:21:01Z
-elapsed_min: 49.8
-activity: final 1157-job verification PASS; 24 deliverable files published; final cycle report being assembled
+updated: 2026-11-08T12:23:50Z
+elapsed_min: 52.57
+activity: completed; verify PASS 1157 jobs; 25 deliverable files matched; T1c remains partial
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-restart
-last_local_commit: 708ad7ee6
-resume_hint: /tmp/restart-last.log exit 0, parser source and 15 where tests passed. Finish dots-cycle-3.md and completed heartbeat; verify all changed files again.
+last_local_commit: 98abda253
+report: notes/handoff/dots-cycle-3.md
+resume_hint: Read current integration standing orders/inbox and cycle-3 report. 9 new modules, finite source/path fragments only; general saturation and X13-X16 not complete. No cycle still running here.
