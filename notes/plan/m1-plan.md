@@ -26,11 +26,20 @@
 - 参照: `notes/handoff/2026-11-08-astra-settled-frontier-results.md`、`notes/design/2026-11-08-b4-outermost-resolver.md`。
 
 ### T1b 開いた区間: 実 producer と driver で resolve_exact (B4)
-- 状態: todo / 依存: T1（部分達成を前提に続ける）
+- 状態: partial（2026-11-08 17:15、dots が実施、32 分。`work/dots-T1b` を統合。verify-lean.sh PASS、1131 jobs）。受け入れは未達（最終 `resolve_exact`、X13〜X16）。得られたこと: 具体 structural producer の child を二端点 Step に含めて Acc を導出、更新を返す再帰 pass（各子の戻り state を次の子へ渡し、全子の後に全兄弟と親を再生成）と独立判断 `Runs` の無条件 iff（`run_exact`）。これは**1 回の再帰 pass**で、source worklist の飽和ではない。続きは T1c。
+- 依存: T1（部分達成を前提に続ける）
 - 目標: T1 の残り。(1) 実 producer の全 child が、独立な二端点 Inspect の Step に含まれること（accessibility を producer の child へ接続）。(2) 更新後に各兄弟を再生成し、親 frontier を再計算する driver を作り、`where_state_recollection` に当たる定理を、開いた区間の断片で証明する（no-op ではなく、accumulator との対応として）。(3) 開いた区間の断片で `FrontierExact` と accessibility を仮定なしにし、外側の `resolve_exact` を無条件にする。
 - 受け入れ: 開いた区間を含む断片で `resolve_exact` が仮定なしで成り立つ。X13〜X16 の少なくとも一つが外側の入口を通って PROVED（`lean/SpecExamplesSettled.lean` か新しい表に反映）。`verify-lean.sh` が PASS。
 - 注意: 設計の選択が要る点（兄弟の更新順など）は、決めずに質問ノート（遅延案を先頭）を 1 本。E2 が出ても止まらず、定義を直す。
 - 参照: `notes/handoff/2026-11-08-dots-T1-results.md`、`notes/design/2026-11-08-dots-T1-open-intervals.md`。
+
+### T1c 飽和 (saturation) と最終 resolve_exact (B4)
+- 状態: todo / 依存: T1b
+- 決定済みの規則（spec 6.3、2026-11-08）: where の子の解決は、兄弟の更新が安定するまで遅らせる。更新のたびに兄弟と親を再生成し、状態が変わらなくなってから初めて保留・曖昧・拒否を最終結果にする（最終化はファイルの終わりの安定時）。絞り込みは impl が一つしかないことからは起きず、関連型の等式を通して流れ込んだ型で起きる。兄弟の順序独立は未回答（仮定しない）。
+- 目標（T1b 報告の「次の正確な残件」）: (1) 候補ごとの state 更新と、その後に集計する source frontier（narrowing を扱う）。(2) Ty 端点・nominal 意味・slot/source identity を保存する実 allocator と capture provenance（`Allocation` は現在、証明されていない外部入力）。(3) 再生成で現れた child をさらに解く saturation の driver と、その進捗・停止性（宣言時の Paterson 検査と K2 から導く尺度）。(4) driver の最終結果と独立な source Classify の iff、外側の無条件 `resolve_exact`、X13〜X16 を外側の入口で PROVED。
+- 受け入れ: 開いた区間を含む断片で、最終 `resolve_exact` が仮定なし（`Allocation` の保存性を含めて）で成り立つ。X13〜X16 の少なくとも一つが外側の入口を通って PROVED。`verify-lean.sh` が PASS。
+- 注意: 関連型の等式を通した絞り込みの例を、具体例として一つ以上、外側の入口で通すこと。選択が要る点は質問ノート（遅延案を先頭）。E2 が出ても止まらず、定義を直す。
+- 参照: `notes/handoff/2026-11-08-dots-T1b-results.md`、`notes/design/2026-11-08-dots-T1b-producer-driver.md`、`notes/questions/2026-11-08-T1b-sibling-recollection.md`（回答済み: 選択肢 1）。
 
 ### T2 optional field の統合 (B2, X22)
 - 状態: done（2026-11-08 16:30、dots が実施。`work/dots-T2` を `integration/m1-final` に統合、commit `92edfa967`）。検証: verify-lean.sh PASS（1120 jobs）。新しい source structural 入口で X22 が PROVED。旧生成器は既存ファイル不変の規則のため置き換えていない（旧入口の MISMATCH 表示は残る）。
