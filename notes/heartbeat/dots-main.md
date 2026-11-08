@@ -1,10 +1,8 @@
-cycle: 9
-status: completed
-started: 2026-11-08T16:24:42Z
-updated: 2026-11-08T16:31:54Z
-elapsed_min: 7.2
-activity: published and readback-verified structural allocation proofs; focused build and axiom checks passed
+cycle: 10
+status: running
+started: 2026-11-08T16:55:33Z
+updated: 2026-11-08T16:56:16Z
+elapsed_min: 0.7
+activity: read latest instructions and cycle9; inspect source identity bridge
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-cycle6
-last_local_commit: 84fd81036
-resume_hint: Read cycle 9 report; fixed structural allocation across all candidate subsets is proved, source identity and narrowing remain open. Reuse existing cache.
-report: notes/handoff/dots-cycle-9.md
+resume_hint: Keep existing cache. Focused builds only. Deadline 17:20 UTC.
