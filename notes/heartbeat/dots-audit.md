@@ -1,9 +1,9 @@
 cycle: 4
-status: running
+status: completed
 started: 2026-11-08T14:25:12Z
-updated: 2026-11-08T14:27:10Z
-elapsed_min: 1.97
-activity: cycle3の未公開commit 80e0d0455を保全・照合し、欠損報告を復元中。新規の重い試験は実行しない。
+updated: 2026-11-08T14:56:00Z
+activity: 中断後の短い復旧を終了。14ファイルを保全・照合。全成果の公開は未完。
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-audit-cycle3
-last_local_commit: 80e0d0455
-resume_hint: notes/audit のcycle3実ログと表をremoteと比較。cycle3は心拍13:48:52で停止、報告なし。既存ログを検証しbatch公開、25分以内にcycle4報告を残す。
+last_local_commit: 1794212d8
+report: notes/audit/cycle-4.md
+resume_hint: notes/audit/2026-11-08-short-recovery-checkpoint.mdを読み、local1794212d8とremoteの残差分を小分け保全。巨大rawログ約2.86MBあり。別担当成果や他branch心拍を混ぜない。
