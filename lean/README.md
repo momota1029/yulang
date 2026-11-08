@@ -3124,3 +3124,12 @@ after actual emission. This is not general B4: dynamic where/capture provenance,
 interval knownness, final diagnostic classification and dictionary equivalence
 remain outside the theorem. Focused build only; full verification is delegated
 to the supervisor.
+
+### Potential structural child closure (cycle 8)
+`CommonRolePotentialChildClosure` computes all descendants of every dual-endpoint
+matching declaration, including alternatives not currently selected.
+`closure_exact` equates membership with independent `OpenDescent.Step` reachability.
+`filtered_children_closed` covers actual selected producer children for any visible
+subset of the checked registry. The finite list is computed, not assumed.
+This does not cover endpoint narrowing, general where/capture materialization,
+dictionary observations, or full B4.
