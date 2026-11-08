@@ -6279,3 +6279,8 @@ run_cmd do
 #print axioms Yulang.CommonRecursiveNominalIntervals.derives_argument_exact
 #print axioms Yulang.CommonRecursiveNominalIntervals.derives_arguments_exact
 #print axioms Yulang.CommonRecursiveNominalIntervals.inspect_exact
+
+#print axioms Yulang.CommonEffectFamilyApplicationGeneration.generate_exact
+#print axioms Yulang.CommonEffectFamilyApplicationGeneration.generate_captured_exact
+#print axioms Yulang.CommonEffectFamilyApplicationGeneration.unknown_family_rejected
+#print axioms Yulang.CommonEffectFamilyApplicationGeneration.wrong_arity_rejected

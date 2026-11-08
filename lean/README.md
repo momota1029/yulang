@@ -2749,3 +2749,15 @@ self/cross premises for arbitrary nondegenerate bounds; no actual centre or
 semantic oracle is an algorithm input. This is the declaration-directed
 reference component. The newer inherited-invariant-context rule, whole-tree
 admission, and full source/regular carrier remain separate connections.
+
+
+## B3: complete applications generate exact shared argument constraints (2026-11-08)
+
+`CommonEffectFamilyApplicationGeneration.generate_exact` covers every complete
+resolved application list, captured kind table, and original assignment. Its
+finite producer computes whole-application admission, allocation, and interval
+constraints; these hold iff one shared value/row assignment fits every original
+application at its original (row, family, argument) slot. No successful-admission
+or support premise is assumed. Unknown families and wrong arities are rejected,
+including nullary unknown applications. General source name/visibility lowering
+and quantified solver elimination remain outside this generation theorem.
