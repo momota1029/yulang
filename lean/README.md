@@ -3167,3 +3167,7 @@ new generated-constraint correctness, saturation termination, or full B4.
 ## Cycle13: state-dependent materialization domain
 
 `CommonRoleMaterializedDomain` computes a finite overapproximation for arbitrary source templates with int-only ordinary-evidence materialization. Actual filtered, state-gated children remain inside it after arbitrary source state changes; consistent atom extension preserves known int. Independent `InDomain` is exact for enumerated-root reachability, not semantic feasibility. General narrowing, dynamically created source templates, source identity allocation, saturation and B4 remain open.
+
+## Cycle14: source-preserving child templates
+
+`CommonRoleChildTemplates` lifts actual structural captures into source templates without replacing source slots by their current values. Evaluation commutes with extraction and substitution. The int-only adapter has state-independent Paterson weight, so generated child templates are accessible even when each generation edge uses an unrelated state. This is child-creation termination, not same-parent saturation, general interval inference, finite-domain enumeration, or full B4. `production` means first-hit candidate data, not unique selection.
