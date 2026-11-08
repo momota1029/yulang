@@ -6172,3 +6172,9 @@ run_cmd do
 #print axioms Yulang.CommonRoleClosedResidualSourceFamily.generated_models_exact
 
 #print axioms Yulang.CommonRoleClosedResidualSourceFamily.generated_core_models_exact
+
+#print axioms Yulang.CommonDeclaredCastEvaluation.execute_run
+
+#print axioms Yulang.CommonDeclaredCastEvaluation.execute_bound
+
+#print axioms Yulang.CommonDeclaredCastEvaluation.execute_function
