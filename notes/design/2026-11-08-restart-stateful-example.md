@@ -89,3 +89,13 @@ Toolchain recovery: `command -v cargo` initially found nothing in PATH. An exist
 This parser result does not check types or prove source-to-Lean lowering. The formal requests below the snippet are encoded as checked Lean data, not extracted by a source compiler. The relationship between the source binding sequence and the reverse worklist is described but not formally proved. No source semantic choice is asserted by the notation correction.
 
 CST inspection also showed that expression-level `("known": str)` is parsed as colon application, not a type annotation. The final example therefore uses the binding annotation `my known: str = "known"` before the method call. The final CST contains `PatternTypeAnnotation` for known and the two separate Parent where clauses. Parser success alone was not treated as typing correctness.
+
+The existing parser regression subset was also executed, without modifying Rust files:
+
+```text
+cargo test --offline -p yu-syntax --lib where
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 1633 filtered out
+exit 0
+```
+
+This includes repeated impl where prerequisites and where/body-frontier recovery. It tests parser structure, not the Lean semantic correspondence.
