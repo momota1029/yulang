@@ -173,3 +173,10 @@ M1 が閉じてから着手する。前提が閉じていない間は `blocked`�
 - 受け入れ: `cargo test -p yu-syntax --offline` が通る。`say: 1 + 2 + 3 if 6 < 7`、`return x if c`、`last 'outer if done`、`(x if c)`、前置 `if c: x`・`if c { x }` が期待どおりに解析される。曖昧な入力（`if` が連なる、`for x in xs: last if done`）の CST が spec の読みと一致する。
 - 注意: 意味論の選択は決めない。曖昧に見える点は質問ノート（遅延案を先頭）。
 
+### F2 引数の効果の変換 (F1 の cast) を Lean にモデル化する (B5/B6)
+- 状態: todo / 依存: F1 の報告（監査 dot のサイクル 1 で提出済み: `work/dots-audit` の `notes/audit/f1-effect-passthrough.md`）。T1c と並行できる
+- 仕様: `spec/05-effects.md` 5.5c（2026-11-08 確定: 部分型に入れず、型が求められたときに入る明示的な変換の判断）。
+- 目標: (1) 変換 `'a -> ['e] 'b` ⇒ `'a ['f] -> ['e, 'f] 'b` を、独立な coercion の判断として定義する（矢印の部分型 `Common.common_arrow_iff` は変更しない）。(2) 起動時の効果の伝播（引数の計算の効果を戻りの行に合流する）と、意味の保存を証明する。(3) 既存の `strictApp` の独立判断・生成器接続との関係（重複しない、または一致する）を示す。(4) 適合例 X25（`x | f`、高階の引数に普通の関数）を、この判断を通して PROVED にする。
+- 受け入れ: coercion の判断と、効果の伝播・意味保存の定理。X25 が PROVED。`verify-lean.sh` が PASS。`Main.lean` に再掲。
+- 注意: Yulang2 の「明示した高階の注釈で check は通るが run が失敗する」不一致（`conflicting type candidates: [ping] vs []`）は、新仕様に持ち込まない。選択が要る点は質問ノート（遅延案を先頭）。
+

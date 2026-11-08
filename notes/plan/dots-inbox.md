@@ -35,7 +35,8 @@ M1 の主張は、健全性・完全性・主型性の三つ組（`Typing ↔ �
 
 ## 余り時間の仕事（現在の優先事項が止まったときに、順に取る。独立で、競合しない）
 
-- **忠実性の確認 F1（優先して取ってよい）**: spec 5.5c（2026-11-08、ユーザー）の規則 `'a -> ['e] 'b` を `'a ['f] -> ['e, 'f] 'b` に cast できる（引数の行は空でなく全能。効果は関数の起動時に放出される）が、現在の Lean の核に入っているかを調べる。調べること: `Common.common_arrow_iff`（矢印の部分型は標準の反変・共変）、application の型付け規則、`Core.infer` の lambda・application が、この規則と整合するか。入っていなければ、反例の式（Yulang の例つき）と、定義を直す案（遅延する案を先頭に、2〜3 個）を `notes/handoff/` に報告する。Lean の既存の定理は変更せず、報告と質問ノートだけ。これは B4/B5/B6 の定義に響くので、結果を監督役が確認する。
+- **F2: 引数の効果の変換を Lean にモデル化する（F1 の続き。T1c と並行して取ってよい）**: `notes/plan/m1-plan.md` の F2。監査 dot の F1 の報告（`git fetch origin work/dots-audit` の `notes/audit/f1-effect-passthrough.md`、質問ノート `2026-11-08-audit-F1-arrow-passthrough.md`）と、spec 5.5c の確定した位置づけ（部分型に入れず、明示的な変換の判断）に従う。
+- **忠実性の確認 F1（優先して取ってよい）**: spec 5.5c（2026-11-08、ユーザー）の規則 `'a -> ['e] 'b` を `'a ['f] -> ['e, 'f] 'b` に cast できる（引数の行は空でなく全能。効果は関数の起動時に放出される）が、現在の Lean の核に入っているかを調べる。調べること: `Common.common_arrow_iff`（矢印の部分型は標準の反変・共変）、application の型付け規則、`Core.infer` の lambda・application が、この規則と整合するか。入っていなければ、反例の式（Yulang の例つき）と、定義を直す案（遅延する案を先頭に、2〜3 個）を `notes/handoff/` に報告する。Lean の既存の定理は変更せず、報告と質問ノートだけ。これは B4/B5/B6 の定義に響くので、結果を監督役が確認する。 （F1 の確認は監査 dot が実施済み。上の F2 に進む。）
 
 - **T7b 到達可能性の解析（読み取りのみ・削除しない）**: `notes/plan/m1-plan.md` の T7b。Lean のメタプログラム（新規の `tools/Reach.lean` など、`lean/Yulang/` の外に置く）で、残したい定理から到達できない宣言とモジュールを列挙し、報告を `notes/handoff/` に出す。T7a の草稿（`lean/MainStatements.lean`）があれば、その Statement を根に加える。
 - **T7a 主定理のファイル（文芸的 Lean）の草稿**: T7a。主定理を一つのファイル（`lean/Main.lean`）に再掲し、補題は別ファイルのまま。証明済みの定理は短い証明で、未完成は `def ... : Prop` で置き、日本語の docstring を付ける。主張の選択に迷う点は質問ノート。
