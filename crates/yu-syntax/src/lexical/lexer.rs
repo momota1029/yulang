@@ -1248,6 +1248,12 @@ pub(crate) fn is_recovery_declaration_starter_word(word: &str) -> bool {
     is_declaration_starter_word(word) && word != "for"
 }
 
+/// Unmatched groups yield to executable statement heads as well as declarations.
+/// Matched groups never consult this recovery-only vocabulary.
+pub(crate) fn is_recovery_statement_starter_word(word: &str) -> bool {
+    is_recovery_declaration_starter_word(word) || matches!(word, "for" | "if" | "case" | "catch")
+}
+
 pub(crate) fn scan_integer(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut number| {
         let radix = number.token(|mut prefix| {

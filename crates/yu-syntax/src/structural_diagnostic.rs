@@ -100,9 +100,19 @@ pub struct StructuralDiagnostic {
 }
 
 impl StructuralDiagnostic {
-    /// Short diagnostic text for a resource-limited opaque recovery.
+    /// Short diagnostic text for recognized structural failures.
     pub fn message(&self) -> Option<&'static str> {
-        (self.parent() == SyntaxKind::NestingTooDeep).then_some("nesting too deep")
+        if self.parent() == SyntaxKind::NestingTooDeep {
+            Some("nesting too deep")
+        } else if self
+            .slot
+            .as_ref()
+            .is_some_and(|slot| slot.slot.role() == GrammarSlotRole::Close)
+        {
+            Some("delimiter not closed")
+        } else {
+            None
+        }
     }
 
     pub fn kind(&self) -> StructuralKind {
@@ -459,7 +469,38 @@ fn precise_missing(
         Some(_) => None,
         None => Some(close_slot(owner)),
     });
-    canonical.or_else(|| precise_yumark_missing(path, children, index))
+    canonical
+        .or_else(|| statement_delimiter_missing(path, children, index))
+        .or_else(|| precise_yumark_missing(path, children, index))
+}
+
+fn statement_delimiter_missing(
+    path: &[SyntaxKind],
+    children: &[NodeOrToken<SyntaxNode, SyntaxToken>],
+    index: usize,
+) -> Option<CatalogSlot> {
+    let parent = *path.last()?;
+    let expected = match (parent, next_significant(children, index)) {
+        (SyntaxKind::BracedStatementBlockExpression, None) => SchemaExpectedSyntax::ClosingBrace,
+        (SyntaxKind::StructDeclaration, None | Some(SyntaxKind::DeclarationCompanion)) => {
+            // Header/separator Missing nodes have a following field/body slot.
+            // Only the final unclosed direct field delimiter owns this slot.
+            children[..index]
+                .iter()
+                .rev()
+                .find_map(|child| match child.kind() {
+                    SyntaxKind::LBrace => Some(Some(SchemaExpectedSyntax::ClosingBrace)),
+                    SyntaxKind::LParen => Some(Some(SchemaExpectedSyntax::ClosingParenthesis)),
+                    SyntaxKind::RBrace | SyntaxKind::RParen => Some(None),
+                    _ => None,
+                })??
+        }
+        _ => return None,
+    };
+    Some(CatalogSlot::new(
+        GrammarSlot::new(parent, GrammarSlotRole::Close),
+        expected,
+    ))
 }
 
 /// Precise raw `Error` group slot for the mapped expression-delimited row.
@@ -474,7 +515,15 @@ fn precise_error_group(path: &[SyntaxKind]) -> Option<CatalogSlot> {
             Some(separator_slot(raw_row_owner(grandparent(path)?)?))
         }
         SyntaxKind::ExpressionDelimitedForeignClose => {
-            Some(close_slot(raw_row_owner(grandparent(path)?)?))
+            let parent = grandparent(path)?;
+            if parent == SyntaxKind::BracedStatementBlockExpression {
+                Some(CatalogSlot::new(
+                    GrammarSlot::new(parent, GrammarSlotRole::Close),
+                    SchemaExpectedSyntax::ClosingBrace,
+                ))
+            } else {
+                Some(close_slot(raw_row_owner(parent)?))
+            }
         }
         kind => raw_row_owner(kind).map(item_slot),
     };
