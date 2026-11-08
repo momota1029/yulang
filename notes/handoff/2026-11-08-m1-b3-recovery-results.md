@@ -27,6 +27,10 @@ family の不変区間についても、外部 `actual : Slot → RowExpr` を�
   family 名が同じだけの異なる row 位置は統一しない。
 - nominal の共変引数に不変区間を適用する規則は追加していない。
   family モジュールの入力は、既に不変位置として区別された引数出現である。
+- 作業中のユーザー決定 `a5e19c92d` により E7 は確定した。
+  `spec/03-expressions.md` 3.7/3.9 の `x | catch: ...` は `catch x: ...` と同じである。
+  左辺を先に実行せず computation として渡し、その effect は handler に届く。
+  これは未回答の意味論上の問いではなく、元 source pipeline lowering に接続すべき証明義務である。
 
 区間の `∃ actual` は「同一の不変引数が全上下界を満たす」という解釈であり、
 role の照合時に任意代入を探索する規則ではない。実 slot は有限入力から計算し、
@@ -289,6 +293,7 @@ Rust/runtime の検査は今回の Lean-only 変更に対して実行してい�
    operation/family key は解決済み自然数、permission は有限 metadata、partial handler の
    coverage は解決済み metadata である。名前解決、可視性、permission 抽出、
    hygiene boundary の配置、正しい SCC snapshot の生成を含む whole-source iff は未完。
+   E7 の pipeline-to-catch は確定済みの規則どおり、左辺を先に実行しない lowering を証明する。
 2. **family allocation への source 接続。** 任意の mixed resolved occurrence 列から
    実 allocator と制約生成は閉じた。raw family application の完全な arity/kind 検査、
    全出現の収集、pop 前の family 出現の保存、正しい元 row 位置への照合、
