@@ -65,4 +65,18 @@ theorem solve_eq_some (original : List (Atom (Fin slots)))
         CommonDeclaredNominalSourceFamily.solve [] atoms [] = family :=
   Option.map_eq_some_iff
 
+/-- Every returned scheme and every unrestricted value/row parameter satisfies
+the original clause and all four comparisons of the actual record remainders.
+No grammar, supportedness, or residual-model premise is put on parameters. -/
+theorem all_parameters_models (original : List (Atom (Fin slots)))
+    (comparisons : List (Comparison (Fin slots))) (family : List (Scheme slots))
+    (generated : solve original comparisons = some family) (scheme : Scheme slots)
+    (member : scheme ∈ family) (rowParameters : Fin slots → Row)
+    (parameters : scheme.Parameters) :
+    Models original comparisons (scheme.instantiate rowParameters parameters) := by
+  obtain ⟨atoms, compiled, rfl⟩ := (solve_eq_some original comparisons family).mp generated
+  have model := CommonDeclaredNominalSourceFamily.all_parameters_models [] atoms []
+    scheme member rowParameters parameters
+  exact (compile_models_exact original comparisons _).mp ⟨atoms, compiled, model.1⟩
+
 end Yulang.CommonRoleClosedResidualSourceFamily
