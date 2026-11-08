@@ -1,0 +1,11 @@
+# Cycle 4: declaration-derived finite associated saturation
+
+I-4 B4 bridge B, not full B4. Generalize the previous input-path examples to a finite source graph: source slots, equality identities, and associated receiver/output occurrences. Each occurrence supplies a receiver template parameterized by a scalar head; the output is computed by the actual checked `Roles.assocOf` through `AssociatedStateFlow.value`. No output equation, successful model, fuel, Acc, or caller-supplied finite fact universe is assumed.
+
+Finite facts are `(source slot, scalar head)`, enumerated from all slots and all existing Base constructors. Rules: initial explicit paired-atom evidence; equal source identity propagation; successful actual associated computation with a known receiver head. Independent `Derives` uses these three declarative constructors, never `saturate`. The executable repeatedly inserts a fresh fact and rescans until closure. Bound is computed from slot count times scalar constructors, not a fixed number of sweeps or dependency path length.
+
+Target: for every checked associated environment, every finite source graph, every initial ordinary state, and every fact, executable membership iff independent derivability. Additional goals: closure, ordinary output-model iff old model plus all derived equations, and order independence for semantically equal source graphs.
+
+Scope limitations: source graph is explicit input, not yet constructed from arbitrary dynamic where/capture expansion; scalar fragment only; initial evidence is explicit paired atoms, not complete semantic entailment. Unknown/unsupported receiver/result stays unproductive. This is not general `resolve_exact`, not a proof of Paterson-derived finite *dynamic* graph, and not X13-X16. I-4's source carrier and final dictionary/classification bridges remain separate.
+
+Yulang2 crosscheck: `work/dots-audit/notes/audit/x-oracle.md` X1/X2 and role additional audit distinguish old delayed where behavior and new declaration-time Paterson policy. New saturation does not import old candidate-uniqueness inference. It only propagates an associated equation after an actual known receiver has been computed. No semantic choice is made.

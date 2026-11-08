@@ -1,6 +1,8 @@
 # optional fieldをdefaultなしのcase patternで照合できるか
 
-状態: 要確認。既存の構造Common判断は後述の選択肢2に相当する。full B2の判断へどちらを採用するかは未承認。
+状態: **解消(2026-11-08, ユーザーの決定): 選択肢 1 を採用する。** optional な入力に、default なしの `{port: p}` で照合するのは合法。field が無ければ pattern は miss して、次の arm へ進む。「必須」は、その pattern が成功するために field の存在が要る、という意味(入力の型の全値に field があることは要求しない)。irrefutable な位置(関数の引数、`my` など)の規則は変えない。`spec/03b-patterns.md` 3b.3 に書いた。証明側は、局所の optional 規則(`CommonOptionalField` 系)を、元の B2 の判断として使ってよい。
+
+(原文)状態: 要確認。既存の構造Common判断は後述の選択肢2に相当する。full B2の判断へどちらを採用するかは未承認。
 
 ## 根拠と境界
 
