@@ -46,6 +46,7 @@ yulang の integration/m1-final ブランチ(https://github.com/momota1029/yulan
 - **合流した payload の分割の問いは起きない**: 共変の引数(`box`)は合流して一つの型になる(`box int | box bool` は `box (int | bool)`)。不変の引数(`list`)で別々の型を合流させると、構築の時点で型エラー(区間が矛盾する)。head の変数は、合流後の payload を丸ごと捕捉する。したがって、有限 cover などの案は不要。(`spec/06-roles.md` 6.3、`…-b4r7-nominal-alternative-capture.md`)
 - **拒否と曖昧性の優先順位**: 拒否が先。一つでも再帰型の中身を見る候補があれば、他の安全な候補がいくつあっても、「再帰型のため解決できない」と拒否する。(`spec/06-roles.md` 6.3 の K2、`…-b4r2-rejection-priority.md`)
 - **E2(反例)は終わりではない**: 反例が出たら、反例を排除して実際の solver の規則に合う定義を設計し、その定義の上で証明する。終わりに数えるのは、元の statement の E1、または設計し直した statement の E1(修正の根拠つき)。設計が決まっていない選択を含むときは、候補を 2〜3 個、Yulang の例つきで `notes/questions/` に出し、決めずに進められる部分を証明し続ける。
+- **区間の端点が不変な引数を持つときは、内側でも同じ規則を再帰的に適用する**(2026-11-08, 復旧後に確定): 併合で生まれる交差条件は通常の部分型制約として解き、端点の `list (list int)` と `list (list float)` のような入れ子では、内側の `list` の区間がまた併合される。深さの上限はない。B4 の区間生成が入れ子を再帰で扱うかを確かめる。(`spec/06-roles.md` 6.5)
 - **record の尾**: `..'a` は、具体的な record が来て、先頭の field が引かれたときに決まる引き算の結果。未解決のうちは解かず保留する。
 - **rank 2 の struct field**: struct の型引数に無い型変数が field の型に出ると、その field の中で全称量化される。`ref` の field は `run` だけで、`get` は `sub: r.run \a -> { return a; ... }` で作る。(`spec/04-types.md` 4.6)
 
