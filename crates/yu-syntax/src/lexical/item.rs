@@ -749,7 +749,12 @@ impl Item {
 
     /// Hide the retained keyword only while an unmatched delimiter unwinds.
     /// The Item and its trivia are handed back intact; no token is rescanned.
-    pub(crate) fn mark_unmatched_boundary(&mut self, baseline: Option<usize>, origin: usize) {
+    pub(crate) fn mark_unmatched_boundary(
+        &mut self,
+        baseline: Option<usize>,
+        origin: usize,
+        colon_head: bool,
+    ) {
         let Some(baseline) = baseline else {
             return;
         };
@@ -759,10 +764,11 @@ impl Item {
             return;
         };
         if indentation <= baseline
-            && self
-                .payload_view()
-                .spelling()
-                .is_some_and(crate::lexical::lexer::is_recovery_declaration_starter_word)
+            && (colon_head
+                || self
+                    .payload_view()
+                    .spelling()
+                    .is_some_and(crate::lexical::lexer::is_recovery_statement_starter_word))
         {
             let at = self.extent(origin).recovery_range().start;
             self.unmatched_boundary = Some(PendingBoundary::new(

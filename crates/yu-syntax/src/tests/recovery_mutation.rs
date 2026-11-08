@@ -160,13 +160,9 @@ fn wp18_stray_closer_does_not_match_an_unrelated_opener() {
         .find(|node| node.kind() == SyntaxKind::ExpressionDelimitedForeignClose)
         .unwrap();
     assert_eq!(foreign.to_string().trim(), "]");
-    assert_eq!(
-        missing_closes(&root),
-        [(
-            SyntaxKind::ParenthesizedExpression,
-            source.find('\n').unwrap()
-        )]
-    );
+    // T18: the foreign-close Error is the single close failure, without a
+    // second Missing for the same unmatched opener.
+    assert!(missing_closes(&root).is_empty());
 }
 
 #[test]
@@ -270,14 +266,10 @@ fn wp18_prepass_matches_down_the_stack_and_ignores_stray_closers() {
 }
 
 #[test]
-fn wp18_dedent_requires_a_declaration_and_uses_the_enclosing_statement_indent() {
-    // A control expression or ordinary name at the baseline is not a closing
-    // signal. A deeper declaration also remains inside the unmatched group.
-    for source in [
-        "my a = (1\nx\n",
-        "my a = (1\nfor x in xs: x\n",
-        "my a = (1\n    my b = 2\n",
-    ] {
+fn wp18_plain_names_and_deeper_declarations_do_not_resynchronize() {
+    // Ordinary names and deeper declarations remain inside the unmatched group.
+    // T18 separately covers control heads as statement boundaries.
+    for source in ["my a = (1\nx\n", "my a = (1\n    my b = 2\n"] {
         assert_eq!(
             binding_names(production(source).children()),
             ["a"],

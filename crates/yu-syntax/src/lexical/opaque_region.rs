@@ -156,13 +156,12 @@ impl Scan<'_> {
         }
     }
 
-    fn opaque(&mut self, mut i: LexIn) -> bool {
+    fn opaque(&mut self, mut i: LexIn) -> Option<bool> {
         let mut frames = Vec::new();
         if !self.open_opaque(i.rb(), &mut frames) {
-            return false;
+            return None;
         }
-        self.drive(i, frames);
-        true
+        Some(self.drive(i, frames))
     }
 
     // The opaque scanner is used before grammar guards (source matching) and
@@ -215,8 +214,8 @@ impl Scan<'_> {
     fn string(&mut self, i: LexIn, count: usize) {
         self.drive(i, vec![OpaqueFrame::String(count)]);
     }
-    fn code(&mut self, i: LexIn, close: char) {
-        self.drive(i, vec![OpaqueFrame::Code(vec![close])]);
+    fn code(&mut self, i: LexIn, close: char) -> bool {
+        self.drive(i, vec![OpaqueFrame::Code(vec![close])])
     }
     fn yumark(&mut self, i: LexIn, close: char) {
         self.drive(
@@ -247,7 +246,7 @@ impl Scan<'_> {
         }
     }
 
-    fn drive(&mut self, mut i: LexIn, mut frames: Vec<OpaqueFrame>) {
+    fn drive(&mut self, mut i: LexIn, mut frames: Vec<OpaqueFrame>) -> bool {
         while self.ready(i.rb()) {
             let Some(frame) = frames.pop() else {
                 break;
@@ -412,6 +411,7 @@ impl Scan<'_> {
                 }
             }
         }
+        frames.is_empty()
     }
 }
 
@@ -447,7 +447,12 @@ fn matching_close(c: char) -> Option<char> {
 
 /// Source matching reuses the committed lexer's opaque-body scanner. It does
 /// not tokenize or build a second literal/comment grammar.
-pub(crate) fn skip_source_opaque(mut i: LexIn, origin: usize, line_indent: Option<usize>) -> bool {
+pub(crate) fn skip_source_opaque(
+    mut i: LexIn,
+    origin: usize,
+    line_indent: Option<usize>,
+    unmatched: &mut [bool],
+) -> bool {
     let mut scan = Scan {
         origin,
         initial_len: i.remainder().len(),
@@ -456,7 +461,14 @@ pub(crate) fn skip_source_opaque(mut i: LexIn, origin: usize, line_indent: Optio
         pending: None,
         line: LineEntry::InLine,
     };
-    if scan.opaque(i.rb()) {
+    let apostrophe_bracket = i.remainder().starts_with("'[") || i.remainder().starts_with("'{");
+    if let Some(closed) = scan.opaque(i.rb()) {
+        // `'[` is shared by effect rows and Yumark. The committed scanner
+        // supplies closure evidence without exposing literal contents to the
+        // outer delimiter stack; the grammar owner still chooses its meaning.
+        if apostrophe_bracket && !closed {
+            unmatched[origin + 1] = true;
+        }
         return true;
     }
     if let Some(("rule", suffix)) = super::lexer::source_identifier(i.remainder()) {
@@ -470,7 +482,10 @@ pub(crate) fn skip_source_opaque(mut i: LexIn, origin: usize, line_indent: Optio
             while i.remainder().len() > end {
                 scan.next(i.rb());
             }
-            scan.code(i, '}');
+            let opener = origin + length - 1;
+            if !scan.code(i, '}') {
+                unmatched[opener] = true;
+            }
             return true;
         }
     }
@@ -560,5 +575,5 @@ pub(crate) fn skip_literal(i: LexIn) -> bool {
         pending: None,
         line: LineEntry::InLine,
     };
-    scan.opaque(i)
+    scan.opaque(i).is_some()
 }
