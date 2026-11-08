@@ -3069,3 +3069,7 @@ associated output-to-parent binding is explicit, not parsed from arbitrary sourc
 `SpecConformanceIndex` unifies the entry-sensitive X1-X24 table; X13-X16 outer
 conformance remains open. `MainStatementsDraft` reprints actual theorem scopes
 and proves only the local fixed-producer stabilization goal, not full B4/B6.
+
+`CommonRoleAssociatedParentSuccess` strengthens the concrete entry: for every
+starting state, any successful return has the int argument and a resolved
+actual visible dictionary. It does not classify the none branch.
