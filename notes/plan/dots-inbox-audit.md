@@ -17,6 +17,10 @@
 4. **制御構文・パターン・record・構文**: `control-flow.md`、`patterns.md`、`structs.md`、`operators.md`、`idioms.md`、`syntax-style.md`、`errors.md`、`main:spec/2026-06-06-syntax-design.md`、`2026-06-25-act-copy.md`（`notes/audit/y2-claims-control-patterns.md`）。
 5. 後回し: モジュール、標準ライブラリ、資源 API（file/server/instant）、runtime/mono/VM の文書（型推論の核とは別の層）。
 
+## 完全性の側の例も集める（ユーザーとの話から, 2026-11-08）
+
+正しさは、健全性（誤った型を付けない）、完全性（宣言した範囲の正しいプログラムを拒否しない）、主型性の三つ組。適合例は拒否の例に偏っているので、監査では**Yulang2 が受理して意味のあるプログラム**を、「通るべき例」の候補として積極的に拾う（`notes/audit/x-oracle.md` に、列「通る／拒否」を足す）。拒否の例には、**なぜ拒否されるか**（仕様の決定として、どの節の規則か）を必ず書く。仕様にない理由で拒否されている例（実装の都合のように見えるもの）は、質問ノートにする。
+
 ## 参照
 
 `spec/00-sources.md`（素材の所在）、`spec/` 全体（新 spec）、`lean/README.md`（Lean の定理の一覧）、`notes/handoff/2026-11-08-m1-model-fidelity-audit.md`（作業 0 の監査。先行する監査の形式）、`notes/reference/`（旧世代の区間規則の写し）、`notes/handoff/2026-11-08-m1-spec-examples-conformance.md`（適合例 X1〜X25）。
