@@ -6222,3 +6222,11 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredCastEvaluationExamples.box_executes
 
 #print axioms Yulang.CommonDeclaredCastEvaluationExamples.box_budget
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.stream_creation
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.stream_creation_budget
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.stream_one_call
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.stream_call_budget
