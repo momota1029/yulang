@@ -79,4 +79,44 @@ theorem all_parameters_models (original : List (Atom (Fin slots)))
     scheme member rowParameters parameters
   exact (compile_models_exact original comparisons _).mp ⟨atoms, compiled, model.1⟩
 
+theorem models_congr (original : List (Atom (Fin slots)))
+    (comparisons : List (Comparison (Fin slots))) (first last : Fin slots → Comp Common.model)
+    (same : AssignmentEquivalent first last) :
+    Models original comparisons first ↔ Models original comparisons last := by
+  rw [← compile_models_exact, ← compile_models_exact]
+  unfold CommonNominalConstraints.Satisfied
+  exact exists_congr fun atoms => and_congr Iff.rfl
+    (CommonDeclaredNominalSourceFamily.atoms_congr atoms first last same)
+
+/-- Every independent original assignment is recovered simultaneously at all
+value and row slots. The only grammar premises concern the original clause;
+the actual residual inspector establishes its own premises internally. -/
+theorem solve_all_instances_exact (original : List (Atom (Fin slots)))
+    (comparisons : List (Comparison (Fin slots)))
+    (child : PresenceGeneratedChildGrammar.GoodAtoms original)
+    (width : PresenceGeneratedWidth.WidthAtoms original)
+    (rows : PresenceSourceConstraintSupport.GoodAtoms original)
+    (assignment : Fin slots → Comp Common.model) :
+    Models original comparisons assignment ↔
+      ∃ family, solve original comparisons = some family ∧
+        ∃ scheme ∈ family, ∃ rowParameters : Fin slots → Row,
+          ∃ parameters : scheme.Parameters,
+            AssignmentEquivalent (scheme.instantiate rowParameters parameters) assignment := by
+  constructor
+  · intro model
+    obtain ⟨atoms, compiled, accepted⟩ :=
+      (compile_models_exact original comparisons assignment).mpr model
+    obtain ⟨newChild, newWidth, newRows⟩ :=
+      compiled_grammar original comparisons child width rows atoms compiled
+    have emptyComparisons : CommonDeclaredNominalSlots.Models [] [] assignment := by
+      simp [CommonDeclaredNominalSlots.Models]
+    obtain ⟨scheme, member, rowParameters, parameters, same⟩ :=
+      (CommonDeclaredNominalSourceFamily.solve_all_instances_exact [] atoms []
+        newChild newWidth newRows assignment).mp ⟨accepted, emptyComparisons⟩
+    exact ⟨_, (solve_eq_some original comparisons _).mpr ⟨atoms, compiled, rfl⟩,
+      scheme, member, rowParameters, parameters, same⟩
+  · rintro ⟨family, generated, scheme, member, rowParameters, parameters, same⟩
+    exact (models_congr original comparisons _ assignment same).mp
+      (all_parameters_models original comparisons family generated scheme member rowParameters parameters)
+
 end Yulang.CommonRoleClosedResidualSourceFamily
