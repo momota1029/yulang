@@ -647,3 +647,13 @@ Yulang.CommonRoleOpenNormalization.normalize_prefix : ∀
                 (@List.instMembership.{0} (Yulang.CommonRoleCandidateConstraints.Bindings n)) updates bindings →
               @Yulang.CommonRoleCandidateConstraints.Compatible n bindings assignment)))
 ```
+
+## 公開の検証と所要時間
+
+全10ファイル公開後の commit `c4591299ff1bbd105475c9b62f4aa16ed0f19987` を fetch し、
+`git diff --exit-code HEAD origin/work/dots-T1` が終了コード0、working tree clean を確認した。
+base からの差分は記載した10ファイルだけ。既存3ファイルは追記のみ。
+
+clone の `.git` 作成記録は 2026-11-08 07:11:46 UTC、最初の全成果公開と照合完了は
+07:28:36 UTC。**測定できた作業全体は16分50秒**（この所要時間の追記・再公開はその後）。
+設計・実装の開始を明示記録した時刻は07:15:04 UTC。最終コード検証は40秒の差分ビルド。
