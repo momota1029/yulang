@@ -2945,3 +2945,43 @@ regular graphs, multiple arguments and nontrivial repeated captures, source
 constraint/slot provenance and sharing, associated equations, state updates,
 row subtraction, levels/generalization and qualified-family/source adequacy
 are outside this result. See the [detailed report](../notes/handoff/2026-11-08-astra-settled-frontier-results.md).
+
+## T2: optional input fields integrated into source structural patterns (2026-11-08)
+
+`CommonSourcePatternTyping` / `Inversion` / `Generation` / `Allocation` are an
+additive successor to `CommonAlignedPattern*`. The no-default `.field` rule
+now requires `OptionalPayload`, recursively at every pattern position. All
+other constructors, Q4 scopes, Q7 checks and source or-name alignment remain
+unchanged. `legacy_preserved` embeds every old derivation without changing its
+input, defaults or output bindings; old `strict_rejects` remains untouched.
+`CommonSourcePatternElaboration.generateSourcePattern_exact` connects the real
+source lowering and checks to this new independent judgment.
+
+`CommonSourceArmGeneration`, `CommonSourceArmSolved` and `CommonSourceArmsSolved`
+connect the same allocated binders to guards/bodies and the finite solver.
+`environments_instances_exact` recovers all independent arm-environment models
+up to assignment equivalence; `all_parameter_environments` has no residual
+predicate on returned scheme parameters. The accompanying partial safety
+modules retain the unchanged actual matcher and ordered case evaluator.
+
+**X22: PROVED at these new source entries (not `Core.infer`).**
+`CommonSourceOptionalX22.x22_source_generated` accepts `{port: p}` on the
+existing optional subject (`exactEmpty | required port int`).
+`x22_case_generated` and `x22_real_scheme_instance` pass both original arms
+(`{port: p} -> p`, `_ -> 80`) through one generated/solved environment family.
+`x22_absent_case_result` computes the actual source evaluator, with trace
+arm 0, arm 1, body 1, and result 80. `x22_present_case_result` returns the
+supplied integer for every integer port. `x22_any_absent_field_misses` covers
+any record field list whose lookup is absent. `nested_source_generated`
+checks that optional fields nested beneath a required field use the new
+recursive rule. Existing SpecExamples entries describe the historical entry
+and are not edited; their old rejection theorems are still true there.
+
+Not proved: full B2 or B6, public `Core.infer` integration, lists/nominal
+patterns in this structural carrier, general source-case coverage/termination,
+principal aggregate effect rows, or general presence-metadata validation.
+In particular, the pre-existing `defaultField` rule is not changed here; its
+separate prohibition on defaults for declared-required fields is not supplied
+by `OptionalPayload` alone. The general case partial-safety theorems still
+assume successful-return soundness/name invariance of leaf callbacks; the
+concrete X22 evaluator equalities have no such callbacks or assumptions.

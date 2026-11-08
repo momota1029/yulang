@@ -6552,3 +6552,67 @@ run_cmd do
 #print axioms Yulang.CommonRoleSettledSyntax.substitute_all_names
 #print axioms Yulang.CommonRoleSettledSyntax.every_where_substituted
 #print axioms Yulang.CommonRoleSettledConstraints.merged_binding_exact
+
+-- T2: CommonSourcePatternTyping
+#print axioms Yulang.CommonSourcePatternTyping.required_optional
+#print axioms Yulang.CommonSourcePatternTyping.legacy_preserved
+#print axioms Yulang.CommonSourcePatternTyping.RawTyping.binding_names
+
+-- T2: CommonSourcePatternInversion
+#print axioms Yulang.CommonSourcePatternInversion.typing_root_exact
+#print axioms Yulang.CommonSourcePatternInversion.field_iff
+
+-- T2: CommonSourcePatternGeneration
+#print axioms Yulang.CommonSourcePatternGeneration.generatePattern_exact
+
+-- T2: CommonSourcePatternAllocation
+#print axioms Yulang.CommonSourcePatternAllocation.generateAllocatedPattern_exact
+#print axioms Yulang.CommonSourcePatternAllocation.allocated_bindings_exact
+#print axioms Yulang.CommonSourcePatternAllocation.withPattern_exact
+#print axioms Yulang.CommonSourcePatternAllocation.generateCheckedPattern_exact
+
+-- T2: CommonSourcePatternGenerationProvenance
+#print axioms Yulang.CommonSourcePatternGenerationProvenance.safe_generatePattern
+#print axioms Yulang.CommonSourcePatternGenerationProvenance.principal_safe
+#print axioms Yulang.CommonSourcePatternGenerationProvenance.generated_invariants
+
+-- T2: CommonSourcePatternElaboration
+#print axioms Yulang.CommonSourcePatternElaboration.raw_typing_exact
+#print axioms Yulang.CommonSourcePatternElaboration.source_typing_exact
+#print axioms Yulang.CommonSourcePatternElaboration.generateSourcePattern_exact
+
+-- T2: CommonSourceArmGeneration
+#print axioms Yulang.CommonSourceArmGeneration.generateEnvironments_exact
+
+-- T2: CommonSourcePatternPartialSafety
+#print axioms Yulang.CommonSourcePatternPartialSafety.typing_matches_partial
+
+-- T2: CommonSourceCasePartial
+#print axioms Yulang.CommonSourceCasePartial.testArm_partial
+#print axioms Yulang.CommonSourceCasePartial.runArms_partial
+#print axioms Yulang.CommonSourceCasePartial.actual_runArms_partial
+
+-- T2: CommonSourceArmSolved
+#print axioms Yulang.CommonSourceArmSolved.principal_exact
+#print axioms Yulang.CommonSourceArmSolved.environments_instances_exact
+#print axioms Yulang.CommonSourceArmSolved.all_parameter_environments
+
+-- T2: CommonSourceArmsSolved
+#print axioms Yulang.CommonSourceArmsSolved.generateAll_exact
+#print axioms Yulang.CommonSourceArmsSolved.principal_exact
+#print axioms Yulang.CommonSourceArmsSolved.environments_instances_exact
+#print axioms Yulang.CommonSourceArmsSolved.returned_scheme_actual_partial
+
+-- T2: CommonSourceOptionalX22
+#print axioms Yulang.CommonSourceOptionalX22.pattern_typed
+#print axioms Yulang.CommonSourceOptionalX22.x22_source_generated
+#print axioms Yulang.CommonSourceOptionalX22.first_arm_typed
+#print axioms Yulang.CommonSourceOptionalX22.last_arm_typed
+#print axioms Yulang.CommonSourceOptionalX22.x22_case_generated
+#print axioms Yulang.CommonSourceOptionalX22.x22_real_scheme_instance
+#print axioms Yulang.CommonSourceOptionalX22.x22_missing_field_misses
+#print axioms Yulang.CommonSourceOptionalX22.x22_absent_case_result
+#print axioms Yulang.CommonSourceOptionalX22.x22_present_case_result
+#print axioms Yulang.CommonSourceOptionalX22.x22_any_absent_field_misses
+#print axioms Yulang.CommonSourceOptionalX22.nested_source_generated
+#print axioms Yulang.CommonSourceOptionalX22.x22_proved
