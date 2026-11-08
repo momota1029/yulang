@@ -138,4 +138,20 @@ theorem all_parameter_returns (specification : Specification) (subject : Require
   exact ⟨legal, CommonCaseCoreDataCompletion.all_parameter_returns specification subject
     (original arms) scheme member parameters failure⟩
 
+/-- A required-field default in any original arm blocks generation before
+inference, independently of ordinary semantic subtyping or run success. -/
+theorem required_blocks (specification : Specification) (subject : Required.Term)
+    (arms : List AnnotatedArm) (arm : AnnotatedArm) (member : arm ∈ arms)
+    (path : CommonPatternSourcePresence.Path) (name : Nat)
+    (atSource : CommonPatternSourcePresence.DefaultAt arm.2.1 path name)
+    (required : CommonPatternDeclaredPresence.resolve arm.1 (path, name) = .required) :
+    generate specification subject arms = none ∧ solve specification subject arms = none := by
+  have illegal : ¬ SourceLegal arms := fun legal =>
+    CommonPatternDeclaredPresence.required_not_legal arm.1 arm.2.1 path name atSource required (legal arm member)
+  have rejected : checkAll arms = false := by
+    cases checked : checkAll arms with
+    | false => rfl
+    | true => exact False.elim (illegal ((check_all_exact arms).mp checked))
+  simp [generate, solve, rejected]
+
 end Yulang.CommonCasePresenceGeneration
