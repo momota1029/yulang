@@ -1072,3 +1072,5 @@ import Yulang.CommonEffectMixedDeclarations
 import Yulang.CommonEffectMixedSource
 
 import Yulang.CommonEffectMixedFormula
+
+import Yulang.CommonEffectMixedGeneration

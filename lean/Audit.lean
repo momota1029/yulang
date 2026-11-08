@@ -6082,3 +6082,7 @@ run_cmd do
 #print axioms Yulang.CommonEffectMixedSource.Typing.partialHandler_separate_iff
 
 #print axioms Yulang.CommonEffectKindedFormula.Scheme.instantiate_exact
+
+#print axioms Yulang.CommonEffectMixedGeneration.handlerChecks_holds
+
+#print axioms Yulang.CommonEffectMixedGeneration.ContextRel.rename
