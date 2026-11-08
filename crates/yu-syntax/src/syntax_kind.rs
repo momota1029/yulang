@@ -300,6 +300,8 @@ pub enum SyntaxKind {
     RangePattern,
     RecordExpressionSpreadItem,
     PostfixIfExpression,
+    /// Opaque, lossless recovery after exhausting the parser stack budget.
+    NestingTooDeep,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -317,6 +319,7 @@ impl Language for YulangLanguage {
 
     fn kind_from_raw(raw: RowanSyntaxKind) -> Self::Kind {
         match raw.0 {
+            value if value == SyntaxKind::NestingTooDeep as u16 => SyntaxKind::NestingTooDeep,
             value if value == SyntaxKind::SymbolExpression as u16 => SyntaxKind::SymbolExpression,
             value if value == SyntaxKind::LambdaExpression as u16 => SyntaxKind::LambdaExpression,
             value if value == SyntaxKind::FloatLiteral as u16 => SyntaxKind::FloatLiteral,

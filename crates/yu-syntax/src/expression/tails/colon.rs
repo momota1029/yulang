@@ -107,6 +107,16 @@ fn inline_colon_argument_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
+    let nesting = crate::nesting::Guard::enter();
+    // Empty comma slots recurse here without parsing an expression primary.
+    if nesting.exhausted()
+        && !item.payload_view().is_boundary()
+        && !item.payload_view().is_eof()
+        && !is_close(&item)
+    {
+        return i.recover_nesting(item, item_origin, line_entry, fence);
+    }
+
     if item.payload_view().is_boundary() {
         emit_inline_slot_missing(i.rb(), &mut item, item_origin, stops);
         return complete(handoff(item), line_entry);

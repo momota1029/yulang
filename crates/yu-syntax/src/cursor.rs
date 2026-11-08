@@ -214,6 +214,25 @@ impl<'a, 'source, 'operators> SyntaxIn<'a, 'source, 'operators> {
         SyntaxIn::new(self.source, self.recover, self.state)
     }
 
+    pub(crate) fn nesting_indentation(&self) -> usize {
+        self.recover.statement_indent
+    }
+
+    pub(crate) fn mark_nesting_boundary(
+        &mut self,
+        item: &mut crate::lexical::item::Item,
+        origin: usize,
+    ) {
+        if self.recover.statement_depth == 0 {
+            return;
+        }
+        let baseline = self.recover.statement_indent;
+        item.mark_unmatched_boundary(Some(baseline), origin);
+        if item.payload_view().is_boundary() {
+            self.recover.nesting_boundary = Some(baseline);
+        }
+    }
+
     pub(crate) fn remainder(&self) -> &'source str {
         self.source
     }
@@ -240,7 +259,17 @@ impl<'a, 'source, 'operators> SyntaxIn<'a, 'source, 'operators> {
         let mut exit = body(self.rb());
         self.recover.statement_depth -= 1;
         self.recover.statement_indent = previous;
-        exit.restore_unmatched_boundary(self.recover.delimiter.baseline);
+        let boundary = if self.recover.statement_depth == 0 {
+            // A resource-limit handoff survives every nested owner, then becomes
+            // an ordinary unread statement again at the root sequence.
+            self.recover.nesting_boundary = None;
+            self.recover.delimiter.baseline
+        } else {
+            self.recover
+                .nesting_boundary
+                .or(self.recover.delimiter.baseline)
+        };
+        exit.restore_unmatched_boundary(boundary);
         exit
     }
 
@@ -282,7 +311,7 @@ impl<'a, 'source, 'operators> SyntaxIn<'a, 'source, 'operators> {
         // statement nesting, retain the boundary until that statement returns;
         // otherwise its expression tail could consume the declaration again.
         if previous.statement_depth == Some(self.recover.statement_depth) {
-            exit.restore_unmatched_boundary(previous.baseline);
+            exit.restore_unmatched_boundary(self.recover.nesting_boundary.or(previous.baseline));
         }
         exit
     }
@@ -332,6 +361,7 @@ pub(crate) struct Recover<'operators> {
     delimiter: DelimiterScope,
     statement_indent: usize,
     statement_depth: usize,
+    nesting_boundary: Option<usize>,
 }
 
 /// Own the recovery state for the complete source-file construction.
@@ -344,6 +374,7 @@ pub(crate) fn parse_root_with_depth(
     source: &str,
     operators: &OperatorTable,
 ) -> (rowan::GreenNode, usize) {
+    let _nesting = crate::nesting::Guard::enter();
     let mut remaining = source;
     let mut recover = Recover::new(operators);
     recover.unmatched = Some(crate::lexical::unmatched::UnmatchedOpeners::scan(
@@ -363,6 +394,7 @@ pub(crate) fn parse_root_with_depth(
 
 /// Header discovery borrows its cursor but cannot replace or finalize it.
 pub(crate) fn discover_header(source: &str) -> crate::header::HeaderDiscovery {
+    let _nesting = crate::nesting::Guard::enter();
     let operators = OperatorTable::empty();
     let mut recover = Recover::new(&operators);
     let mut builder = rowan::GreenNodeBuilder::new();
@@ -379,6 +411,7 @@ impl<'operators> Recover<'operators> {
             delimiter: DelimiterScope::default(),
             statement_indent: 0,
             statement_depth: 0,
+            nesting_boundary: None,
         }
     }
 

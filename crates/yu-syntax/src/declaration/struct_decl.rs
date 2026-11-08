@@ -214,6 +214,11 @@ fn header_from_item_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() && crate::nesting::may_descend(&item) {
+        return i.recover_nesting(item, item_origin, line_entry, fence);
+    }
+
     if stops & STOP_WITH != 0 && is_word(&item, "with") {
         return complete(handoff(item), line_entry);
     }
@@ -664,6 +669,11 @@ fn trailing_from_item_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() && crate::nesting::may_descend(&item) {
+        return i.recover_nesting(item, item_origin, line_entry, fence);
+    }
+
     if derives_attachment_start(i.rb(), &item, baseline, stops, line_handoff) {
         let (next, next_origin, next_entry) = derives_clause_normalized(
             i.rb(),

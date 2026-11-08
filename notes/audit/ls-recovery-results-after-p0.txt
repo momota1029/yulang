@@ -2187,4 +2187,4 @@ EOF_EXPECTATION count=1 Some(GrammarSlot { owner: YmIf, role: Condition }) expec
 EOF_EXPECTATION count=2 Some(GrammarSlot { owner: YmInlineGroup, role: ClosingDelimiter }) expected=Some([ClosingDelimiter])
 EOF_EXPECTATION count=2 Some(GrammarSlot { owner: YmInlineLink, role: ClosingDelimiter }) expected=Some([ClosingDelimiter])
 EOF_EXPECTATION count=2 Some(GrammarSlot { owner: YmStrong, role: ClosingDelimiter }) expected=Some([ClosingDelimiter])
-TOTAL parses=91310 panics=0 loss=0 token_range_errors=0 diagnostic_errors=0 over100ms=0 max_us=991 max_case="syntax-reference/en/src/statements/yumark-document.md:139:yulang delete@44" elapsed_s=8.522
+TOTAL parses=91310 panics=0 loss=0 token_range_errors=0 diagnostic_errors=0 over100ms=0 max_us=2462 max_case="spec/06-roles.md:9:yulang }@38" elapsed_s=9.970

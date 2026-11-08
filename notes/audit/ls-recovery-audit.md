@@ -160,13 +160,170 @@ prefix are not counted as missing recovery: a completed identifier, for example,
 does not require a fabricated error. This metric does not decide all possible
 continuations or prove that every genuinely incomplete prefix is marked.
 
-## After P0 (partial)
+## After P0
 
-The malformed Yumark recovery fix was measured with the same audit probe:
-91,310 parses, 0 panics, 0 losses, 0 token-range errors, and 0 diagnostic
-errors, versus 20 panics and zero of the other three errors before. The raw
-output is in `ls-recovery-results-after-p0.txt`. The deep-recursion P0 remains
-open; this probe result does not establish stack safety.
+The final offline release rerun makes 91,310 parses with **0 panics, 0 losses,
+0 token-range errors, and 0 diagnostic errors**, versus 20 panics and zero of
+those other errors before. It exits 0. The exact probe output is in
+[`ls-recovery-results-after-p0.txt`](ls-recovery-results-after-p0.txt).
+The 4,096-parenthesis stress case, previously SIGABRT, now exits 0 and retains
+all 8,193 bytes. No abort occurs in the nesting subprocess matrix below.
+These measurements supplement, rather than rewrite, the historical findings
+in the remainder of this report.
+
+### T17 defect 2: one stack budget across recursive paths
+
+`crates/yu-syntax/src/nesting.rs` owns `STACK_BUDGET = 256 * 1024` bytes.
+A non-inlined check records a local marker address at the outer parser scope
+and compares later markers using integer `abs_diff`: it neither dereferences
+an expired marker nor assumes downward stack growth. RAII restores the scope
+on return or unwind. Thread-local scope is deliberate: embedded Yumark creates
+new `Recover` values, but must not reset the budget while the enclosing parser
+is still on the same native stack. Header discovery and full parsing start
+separate outer scopes. Known native-stack targets use address differences;
+other targets (including Wasm) use `FALLBACK_DEPTH = 8` active guarded entries,
+shared across grammar families. Both address directions and the address-free
+fallback boundary have a unit test.
+
+The budget is intentionally below the smallest tested 512 KiB stack. The first
+128 KiB candidate clipped existing complex fixtures; it also exposed native
+recursion between *sibling* type-application arguments. That continuation is
+now a loop, preserving its CST and allowing 100,000 flat arguments without a
+nesting diagnostic. The final 256 KiB budget retains all existing fixtures and
+fingerprints while leaving more than four worst measured unchecked segments.
+No existing expected value or fingerprint was changed or regenerated.
+
+The guarded recursive entries are:
+
+- Expression `append_nud` and `tail_normalized`: direct lambda operands,
+  operator operands, delimited primaries, if/case/catch/for bodies, access and
+  application tails, and bodies reached through statements/interpolation.
+- Statement `dispatch_statement_normalized`: braced and indented statement
+  recursion, nested modules, declarations, and their expression bodies.
+- Pattern primary construction and `pattern_tail_normalized`: delimited,
+  constructor, alias/alternation, access, annotation, and default-value paths.
+- Type `type_expr_from_nud_normalized`,
+  `type_expr_from_primary_started_normalized`, and `type_tail_normalized`:
+  bracket rows, groups/calls, arrows, records, variants, and applications.
+- `use_decl::parse_group`, including header discovery and exclusion groups;
+  `rule::rule_item`, including rule parentheses and recursive captures;
+  `inline_colon_argument_normalized`, including empty slots that never parse
+  a primary.
+- Header/trailing attachment continuations of Struct, Enum, Error, and Type
+  declarations: repeated `derives` clauses can recurse after a type child has
+  returned, without entering another Statement.
+- Yumark document scopes, `parse_block_iterative`, and
+  `parse_inline_owned_until`, retaining the same budget through embedded
+  Yulang. Its ordinary group/command/block drivers remain iterative.
+
+The source-matching opaque scanner runs *before* grammar checks, so its
+string/interpolation/code/Yumark/fence cycles now use explicit heap frames.
+Header opaque scanning shares that owner instead of a second recursive copy.
+The CST diagnostic walk is also iterative, preserving preorder, occurrence
+identities and suppression rules. Each resource node projects once over its
+whole extent, so foreign quote prefixes cannot split its diagnostic. Otherwise a safely constructed deep Yumark
+CST could overflow during diagnostic projection. The syntactic call-cycle
+review also checked body-introducer/form recovery retries: those retry at a
+recognized starter and are bounded, rather than unbounded nesting paths.
+
+On exhaustion the parser emits a `NestingTooDeep` node containing the exact
+accepted item and skipped bytes as error content, retaining foreign Yumark
+prefixes. Its single structural
+ErrorGroup exposes `message() == Some("nesting too deep")`. The skipper uses
+explicit delimiter storage and stops at its matched close or a synchronization
+line. A declaration boundary survives nested owners until the root statement
+sequence can resume. Tests check later root bindings and call arguments as
+recognized syntax, in addition to lossless byte/token ranges. Distinct limited
+regions can each produce a diagnostic; ordinary missing-close diagnostics are
+not misreported as nesting diagnostics.
+
+Heap-driven Yumark nesting has a separate `ITERATIVE_LIMIT = 16_384` frame
+threshold (32,768 block work items because a list level owns two items). This
+preserves the existing clean 10,000-level contracts while bounding hostile
+unclosed-frame recovery. At that threshold the remaining document region is
+opaque, the document envelope remains with its owner, and descendant missing
+closes do not produce a cascade. Unwinding unclosed nested command bodies also
+now closes each nested Command node, matching the balanced unwind path.
+
+### Measured guard margin and acceptance runs
+
+Environment: Linux `x86_64-unknown-linux-gnu`, rustc 1.95.0
+(`59807616e`, LLVM 22.1.2). Test-only instrumentation records the largest
+address difference between a guarded frame and its active guarded parent,
+and the largest checked distance from the outer base. The final boundary
+matrix measures:
+
+| Build | Largest guard gap (bytes) | Largest checked use (bytes) | 512 KiB minus checked use | Reserve / largest gap |
+| --- | ---: | ---: | ---: | ---: |
+| Debug tests | 33,472 | 282,992 | 241,296 | 7.21x |
+| Release tests | 8,640 | 268,496 | 255,792 | 29.61x |
+
+Even charging an entire maximum gap beyond the 262,144-byte budget leaves
+228,672 debug / 253,504 release bytes before caller/recovery costs: 6.83x /
+29.34x the respective maximum gap. After reserving four such gaps, another
+94,784 debug / 218,944 release bytes remain. The fallback's conservative eight
+gaps plus four-gap reserve total 401,664 debug bytes, below 512 KiB. These are
+measurements of these builds and exercised paths, not architecture-independent
+proofs of compiler frame sizes. Real 512 KiB threads pass in both test and
+non-test builds; other targets/toolchains were not run.
+
+The in-process matrix finds each build's first limited depth and checks the
+adjacent accepted/limited inputs, balanced and unclosed. It covers all 34
+families in `examples/support/nesting_cases.rs`, including parentheses,
+brackets, braces, mixed nesting, lambdas, if/else, indentation, lists/records/
+tuples, type applications/arrows/tuples/records, patterns, Yumark inline groups,
+commands and embedded Yulang, modules/imports, interpolation, rules/captures,
+for/case/catch, access chains and declaration attachments. It also checks the
+heap-frame threshold directly. Every opaque region must produce exactly one
+nesting diagnostic, and every token must retain its exact source bytes/range.
+
+The subprocess test respawns the test binary and exercises 100,000 levels of
+each compact family, balanced and unclosed, first on an ordinary test thread
+and then on a 512 KiB thread. It also exercises 100,000 flat type arguments,
+empty Yumark argument slots, and the private colon parser's empty-slot recursion.
+The standalone `nesting_stress` example repeats public parsing on explicit
+2 MiB and 512 KiB threads, without test instrumentation. Both debug and release
+runs exit normally. The small unclosed nested-command regression verifies output
+balance below the resource limit.
+
+**Indentation exception awaiting owner decision:** 100,000 strictly increasing
+indentation levels require at least 4,999,950,000 indentation bytes, beyond
+Rowan's 32-bit TextSize, before any statement text. The stress matrix uses
+1,024 real indentation levels (plus adjacent budget-boundary tests) and retains
+100,000 for every compact family. This does not claim the literal 100,000-level
+indentation acceptance case passed. Options and the example are in
+[`2026-11-08-recovery-p0-indentation-stress.md`](../questions/2026-11-08-recovery-p0-indentation-stress.md).
+
+Final commands, all exit 0:
+
+- `cargo test -p yu-syntax --offline`: 1,667 unit tests and 11 integration tests
+  pass; the pre-existing manual companion performance harness remains ignored;
+  no doctests. Includes the
+  unchanged fingerprint comparison and subprocess regressions.
+- `cargo test -p yu-syntax --release --offline --lib tests::nesting -- --nocapture`:
+  all seven nesting tests pass, including the subprocess matrix and guard margins.
+- `cargo fmt --all --check`.
+- `cargo --offline xtask check-graph`.
+- `cargo run -p yu-syntax --example ls_recovery_audit --release --offline`:
+  91,310 parses, all four error counters zero, 9.970 s measured probe time.
+- `target/release/examples/ls_recovery_audit --stress 4096`: parsed, lossless,
+  normal exit (formerly SIGABRT).
+- `cargo run -p yu-syntax --example nesting_stress --offline` and the same command
+  with `--release`: both stack sizes pass in each build.
+
+The extra hot-path work is constant-size TLS/guard bookkeeping, with no guard
+allocation. The opaque scanner and diagnostic traversal replace native stack
+storage with heap storage proportional to nesting. The existing whole-tree
+walk already collected each node's children; it now retains those collections
+in explicit frames. The flat type-argument loop removes retained sibling call
+frames. The audit rerun is a correctness probe, not a paired timing benchmark;
+its elapsed-time difference does not establish a performance improvement.
+
+For historical context, the earlier exploratory eight-level measurements were
+15,760 / 3,392 bytes per level for parentheses/lists, 26,656 / 7,712 for braces,
+16,352 / 5,872 for inline if, and 13,680 / 2,624 for lambdas (debug / release).
+Those removed-instrumentation measurements motivated checking multiple paths;
+the final guard-gap measurements above include the new guards and continuations.
 
 ## Five concrete problem groups
 
