@@ -30,6 +30,8 @@ yulang の integration/m1-final ブランチ(https://github.com/momota1029/yulan
 
 ## 前のセッションの後に決まったこと(ユーザーの決定。文書に書いてある)
 
+- **case の静的 effect 行は、全 arm の guard と body の行を合流する(保守的)**: 先行する arm が必ず合って到達しない arm の effect も、行に含める。(`spec/03-expressions.md` 3.7、`notes/questions/2026-11-07-b2-unreachable-case-effect-row.md`)
+
 - **optional field の照合は合法**: 入力の型で field が optional でも、default なしの `{port: p}` で照合してよい。field が無ければ miss して次の arm へ進む。(`spec/03b-patterns.md` 3b.3、`notes/questions/2026-11-07-b2-optional-field-case-pattern.md`)
 
 - **保留された境界は、不変な型引数にだけ付く**: 共変の `box { value: id_value }` は保留せず `box user_id` になり、後から共変で cast される。`list` のような不変な引数は、`'_a` を保留して構築位置へ遡って cast する。(`spec/06-roles.md` 6.5)
@@ -45,7 +47,6 @@ yulang の integration/m1-final ブランチ(https://github.com/momota1029/yulan
 
 ## ユーザーに残っている問い(決めずに、局所の補題や場合分けで進める)
 
-- B2 の 1 つ: 到達不能な arm の静的 effect 行(`notes/questions/2026-11-07-b2-unreachable-case-effect-row.md`)。
 - A2 の契約の修正案(`2026-11-07-a2-canonical-computability.md`)、K1(receiver の無い role member)、E7(`x | catch:`)。
 - 区間 resolver の停止の尺度: 遅延だけでは、子の下界の head が毎回分かっている増大鎖は止まらない。Paterson 的な下降が区間モデルで要るかを示す(前のセッションの監査に書いてある)。これは問いではなく、証明の課題。
 
