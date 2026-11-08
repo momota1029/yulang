@@ -6204,3 +6204,5 @@ run_cmd do
 #print axioms Yulang.CommonDeclarationVarianceLowering.lower_arguments_exact
 
 #print axioms Yulang.CommonDeclarationVarianceLowering.lower_arguments_preserves_every_kind
+
+#print axioms Yulang.CommonDeclarationVarianceCalls.edge_exact
