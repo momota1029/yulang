@@ -6064,3 +6064,7 @@ run_cmd do
 #print axioms Yulang.CommonRoleIntervalExpansion.expand_exact
 
 #print axioms Yulang.CommonRoleIntervalExpansion.run_tree_exact
+
+#print axioms Yulang.CommonRoleIntervalExpansionChecks.constraints_exact
+
+#print axioms Yulang.CommonRoleIntervalExpansionChecks.original_goal_checks
