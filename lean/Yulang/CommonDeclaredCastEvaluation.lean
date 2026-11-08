@@ -137,4 +137,79 @@ theorem execute_function (plan : Plan n) (accepted : check plan = true) (leaf : 
   rw [evaluate]
   split <;> simp_all
 
+/-- The original callable is opaque at this layer. Calling it once is one
+unit, excluding all execution inside that callable, as in `Invocation`. -/
+abbrev Body (n : Nat) := Value n → Value n → Option (Value n)
+
+structure InvocationResult (plan : Plan n) (node : Fin n) where
+  value : Value n
+  cost : Nat
+  execution : CommonDeclaredCastCost.Invocation plan node cost
+
+/-- Convert the actual argument, call the retained original callable once,
+then convert the returned value. No result is invented for a failed step. -/
+def invokeWrapper (plan : Plan n) (accepted : check plan = true) (leaf : Leaf n) (body : Body n)
+    (node : Fin n) (original input : Value n) : Option (InvocationResult plan node) :=
+  match shape : plan node with
+  | .function argument result =>
+      if original.callable then do
+        let before ← evaluate plan accepted leaf argument input
+        let middle ← body original before.value
+        let after ← evaluate plan accepted leaf result middle
+        pure ⟨after.value, before.cost + 1 + after.cost,
+          .call shape before.execution after.execution⟩
+      else none
+  | _ => none
+
+def invoke (plan : Plan n) (accepted : check plan = true) (leaf : Leaf n) (body : Body n)
+    (callable input : Value n) : Option (Value n × Nat) :=
+  match callable with
+  | .wrapper node original =>
+      (invokeWrapper plan accepted leaf body node original input).map fun result =>
+        (result.value, result.cost)
+  | _ => none
+
+theorem invoke_run (plan : Plan n) (accepted : check plan = true) (leaf : Leaf n) (body : Body n)
+    (node : Fin n) (original input output : Value n) (cost : Nat)
+    (returned : invoke plan accepted leaf body (.wrapper node original) input = some (output, cost)) :
+    CommonDeclaredCastCost.Invocation plan node cost := by
+  obtain ⟨result, _, same⟩ := Option.map_eq_some_iff.mp returned
+  have equalCost : result.cost = cost := congrArg Prod.snd same
+  rw [← equalCost]
+  exact result.execution
+
+def invocationBudget (plan : Plan n) (accepted : check plan = true) (node : Fin n) : Nat :=
+  match plan node with
+  | .function argument result => CommonDeclaredCastCost.callBudget plan accepted argument result
+  | _ => 0
+
+/-- Every successful call has the one-call plan bound. The function-node
+shape is checked inside the evaluator, rather than supplied as a premise. -/
+theorem invoke_bound (plan : Plan n) (accepted : check plan = true) (leaf : Leaf n) (body : Body n)
+    (node : Fin n) (original input output : Value n) (cost : Nat)
+    (returned : invoke plan accepted leaf body (.wrapper node original) input = some (output, cost)) :
+    cost ≤ invocationBudget plan accepted node := by
+  have execution := invoke_run plan accepted leaf body node original input output cost returned
+  cases execution with
+  | call shape before after =>
+      simp only [invocationBudget, shape]
+      exact CommonDeclaredCastCost.invocation_bound plan accepted node _ _ shape
+        (.call shape before after)
+
+/-- Successful computation recovers both the actual wrapper reference and
+the plan shape, without assuming either in the public call. -/
+theorem invoke_shape (plan : Plan n) (accepted : check plan = true) (leaf : Leaf n) (body : Body n)
+    (callable input output : Value n) (cost : Nat)
+    (returned : invoke plan accepted leaf body callable input = some (output, cost)) :
+    ∃ node original argument result, callable = .wrapper node original ∧
+      plan node = .function argument result ∧ cost ≤ invocationBudget plan accepted node := by
+  cases callable with
+  | wrapper node original =>
+      have execution := invoke_run plan accepted leaf body node original input output cost returned
+      cases execution with
+      | @call argument result before after shape _ _ =>
+          exact ⟨node, original, argument, result, rfl, shape,
+            invoke_bound plan accepted leaf body node original input output (before + 1 + after) returned⟩
+  | _ => simp [invoke] at returned
+
 end Yulang.CommonDeclaredCastEvaluation

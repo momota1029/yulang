@@ -6178,3 +6178,9 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredCastEvaluation.execute_bound
 
 #print axioms Yulang.CommonDeclaredCastEvaluation.execute_function
+
+#print axioms Yulang.CommonDeclaredCastEvaluation.invoke_run
+
+#print axioms Yulang.CommonDeclaredCastEvaluation.invoke_bound
+
+#print axioms Yulang.CommonDeclaredCastEvaluation.invoke_shape
