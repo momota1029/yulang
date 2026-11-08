@@ -66,10 +66,20 @@ case config:
 ```
 
 - 明示した field は、default がなければ必須。`field: name` で別名に束縛し、`field = value` で default を与える。
+  - **「必須」の意味（確定, 2026-11-08, ユーザーの決定）**: その pattern が**成功するために field の存在が要る**、という意味である。入力の型で field が optional（`{port?: int}`）でも、default なしの `{port: p}` は合法で、field が無ければ pattern は合わず（miss）、次の arm へ進む。入力の型の全値に field があることは要求しない。
+    （例は、このすぐ下の箇条書きの外に置いた。）関数の引数や `my` のように、外れてはいけない位置（irrefutable）の規則は、これで変わらない。存在時の payload は、optional の payload の型で束縛される。
 - default（`port = 80`）は、その field が型の上で省略可能（`port?: int`）なときだけ書ける。必須の field に default を書いたらエラー（欠けることがないため）。
   pattern に default を書くと、推論が自動的にその field を省略可能（`port?: int`）にする（確定, 2026-11-04）。省略可能な field の型表記は章4.3・章7.5 で扱う。
 - default は field が欠けているときに評価される。そのため pattern の照合そのものが effect を持ちうる。
 - **default の式からは、同じ pattern でそれまでに照合して束縛した名前が見える**（確定, 2026-11-06）。照合は field の記述順（左から右）に進み、先に束縛された名前は、後ろの default の式で使える。同名なら、pattern の束縛が外側の名前を隠す。field の記述順が名前解決にも影響するが、未使用の束縛の警告や型エラーで気づける。or pattern の各枝は、それぞれ自分の枝の束縛だけを見る。 **pattern は記述順に照合され、先行する部分が合わなければ、その arm の残りは打ち切られる**（確定, 2026-11-06）。後ろの default の式は評価されず、その effect も起きない。
+
+必須の意味の例（optional な入力に、default なしの field で照合する）:
+
+```yulang
+my read_port(config: {port?: int}): int = case config:
+    {port: p} -> p          // port が無ければ miss して、次の arm へ
+    _ -> 80
+```
 
 ```yulang
 my outer = 10
