@@ -3077,3 +3077,7 @@ actual visible dictionary. It does not classify the none branch.
 fixed known-Right-str entry exactly by a model of the original state together
 with slot 0 equivalent to int. It does not add a success/knownness premise or
 claim general source inference or final classification of none.
+
+## Restart cycle 3: identity descent and Main
+
+`CommonRoleSourceDescent` constructs first-occurrence source type valuations and proves factorization exactly under existing identity atoms. Effects are not identified. `Main.lean` promotes the existing eight scoped statements without changing their assumptions; this is not full B4/B6.
