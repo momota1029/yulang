@@ -74,3 +74,9 @@ The action was not executed because automatic approval review could not be compl
 ## 最終追加実行
 
 `enum-from-cast` の標準prelude付きrunは終了値1、308.048秒。出力はruntime-cycle-1.md。
+
+## 公開復旧の追記（2026-11-08）
+
+上記「公開0件」はサイクル終了時点の記録。ユーザーの指摘を受け、接続不足とは断定できないため、最新standing orders、対象ブランチ、許可されたパス、既存remote状態を再確認した。同じgithub_create_fileを再試行したところ成功（a549bfad）。続いて正規GitHub blob/tree/commit/ref APIで残りを一括公開した（197e9641）。forceは使わずexpected-head leaseを指定した。
+
+公開後にwork/dots-auditをfetchし、ローカルの元成果commit 4b081e577とtree全体を比較してexit 0を確認。成果11ファイルを公開・照合済み。接続の再認証や権限の追加・拡張、承認チェックの迂回は行っていない。元エラーの内部原因は不明だが、同じ公開操作の再試行が成功したため、恒常的なGitHub接続不足ではない。
