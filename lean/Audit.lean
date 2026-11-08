@@ -6110,3 +6110,7 @@ run_cmd do
 #print axioms Yulang.CommonRoleClosedRecordInspection.inspect_exact
 
 #print axioms Yulang.CommonRoleClosedIntervalInspection.reconcile_exact
+
+#print axioms Yulang.CommonRoleClosedResidualInspection.inspect_exact
+
+#print axioms Yulang.CommonRoleClosedResidualInspection.inspect_generation_exact
