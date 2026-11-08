@@ -3081,3 +3081,7 @@ claim general source inference or final classification of none.
 ## Restart cycle 3: identity descent and Main
 
 `CommonRoleSourceDescent` constructs first-occurrence source type valuations and proves factorization exactly under existing identity atoms. Effects are not identified. `Main.lean` promotes the existing eight scoped statements without changing their assumptions; this is not full B4/B6.
+
+The stateful Index sweep/finite path and same-parameter Parent example execute actual associated producers. A known Right-str declaration seeds the example; reverse-order dependencies require two sweeps before a real Parent dictionary. The fixed example exactness is unconditional, while general Paterson/K2 saturation and X13-X16 remain unproved.
+
+`CommonRoleStatefulPathComplete` removes the constant-str-model premise for checked finite paths: arbitrary old states succeed exactly when the generated equations have a model. `CommonRoleStatefulPathParent.outer_exact` connects this to actual Parent dictionaries for every finite output path and old state. Main exposes this scoped unconditional iff, not general B4.
