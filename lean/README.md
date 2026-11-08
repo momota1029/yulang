@@ -2849,3 +2849,21 @@ source graph construction, candidate propagation, ordinary upper-bound
 constraints, all where-children, finite dictionaries, and an actual source
 termination measure remain unimplemented. Consequently the X6 and X8–X12
 whole-resolver conformance statuses remain unchanged.
+
+## Candidate capture constraint preparation
+
+`CommonRoleCandidateConstraints.prepare` retains the actual graph inspection
+observations, maps every captured graph node to the supplied original lower
+and upper source slots, emits all repeated-name self and cross comparisons,
+and passes those atoms together with the original ordinary atoms to the
+existing family solver. The generated constraints agree semantically with
+`CommonRoleRepeatedCaptureChecks`; all returned parameters satisfy them, and
+all original models are recovered for clauses in the solver's grammar. For an
+actual generated ordinary source clause, those grammar facts are derived.
+
+This is not candidate applicability or the whole resolver. The source
+provenance of the graph and slot table is not yet established, head/goal and
+root-interval constraints are not generated here, and the stored mismatch,
+unresolved and cycle observations are not classified. A nonempty ordinary
+family is not a selected role candidate. No where-child or dictionary is
+constructed by this component.

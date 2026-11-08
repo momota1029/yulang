@@ -1176,3 +1176,7 @@ import Yulang.CommonRoleGraphInspectionExamples
 import Yulang.CommonRoleRecordGraphBridge
 
 import Yulang.CommonRoleGraphDemandSnapshots
+
+import Yulang.CommonRoleCandidateConstraints
+
+import Yulang.CommonRoleCandidateConstraintExamples
