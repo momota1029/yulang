@@ -6839,3 +6839,6 @@ run_cmd do
 #print axioms Yulang.CommonRoleAssociatedParentPipeline.result_materialized
 #print axioms Yulang.CommonRoleAssociatedParentPipeline.empty_source_result
 #print axioms Yulang.SpecConformanceIndex.ids_exact
+#print axioms Yulang.CommonRoleAssociatedParentSuccess.argument_int
+#print axioms Yulang.CommonRoleAssociatedParentSuccess.answer_elaborate
+#print axioms Yulang.CommonRoleAssociatedParentSuccess.success_resolved
