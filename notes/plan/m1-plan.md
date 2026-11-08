@@ -34,7 +34,8 @@
 - 参照: `notes/handoff/2026-11-08-dots-T1-results.md`、`notes/design/2026-11-08-dots-T1-open-intervals.md`。
 
 ### T1c 飽和 (saturation) と最終 resolve_exact (B4)
-- 状態: todo / 依存: T1b
+- 状態: running（dots が `work/dots-main` で毎時のサイクル実行中。サイクル 1 は部分達成、統合済み。指示は `notes/plan/dots-inbox.md`）
+- 依存: T1b
 - 決定済みの規則（spec 6.3、2026-11-08）: where の子の解決は、兄弟の更新が安定するまで遅らせる。更新のたびに兄弟と親を再生成し、状態が変わらなくなってから初めて保留・曖昧・拒否を最終結果にする（最終化はファイルの終わりの安定時）。絞り込みは impl が一つしかないことからは起きず、関連型の等式を通して流れ込んだ型で起きる。兄弟の順序独立は未回答（仮定しない）。
 - 目標（T1b 報告の「次の正確な残件」）: (1) 候補ごとの state 更新と、その後に集計する source frontier（narrowing を扱う）。(2) Ty 端点・nominal 意味・slot/source identity を保存する実 allocator と capture provenance（`Allocation` は現在、証明されていない外部入力）。(3) 再生成で現れた child をさらに解く saturation の driver と、その進捗・停止性（宣言時の Paterson 検査と K2 から導く尺度）。(4) driver の最終結果と独立な source Classify の iff、外側の無条件 `resolve_exact`、X13〜X16 を外側の入口で PROVED。
 - 受け入れ: 開いた区間を含む断片で、最終 `resolve_exact` が仮定なし（`Allocation` の保存性を含めて）で成り立つ。X13〜X16 の少なくとも一つが外側の入口を通って PROVED。`verify-lean.sh` が PASS。
