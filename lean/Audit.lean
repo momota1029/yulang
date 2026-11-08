@@ -7032,3 +7032,12 @@ run_cmd do
 #print axioms Yulang.CommonRolePotentialAllocation.production_payloads_present
 #print axioms Yulang.CommonRolePotentialAllocation.filtered_prepare_exact
 #print axioms Yulang.CommonRolePotentialAllocation.filtered_state_child_endpoints
+
+#print axioms Yulang.CommonRoleSourceGrowth.restrict_grow
+#print axioms Yulang.CommonRoleSourceGrowth.restrict_coherent
+#print axioms Yulang.CommonRoleSourceGrowth.grow_factors
+#print axioms Yulang.CommonRoleSourceGrowth.grow_coherent
+#print axioms Yulang.CommonRoleSourceGrowth.extension_exact
+#print axioms Yulang.CommonRoleSourceGrowth.constrained_atoms_exact
+#print axioms Yulang.CommonRoleSourceGrowth.growState_models_exact
+#print axioms Yulang.CommonRoleSourceGrowth.solver_growth_exact
