@@ -1225,3 +1225,8 @@ import Yulang.CommonRoleOpenThreading
 import Yulang.CommonRoleOpenPropagation
 import Yulang.CommonRoleOpenPropagationOrigin
 import Yulang.CommonRoleOpenRecursivePass
+
+-- Instruction I-1, cycle 1: candidate-local ordinary frontier.
+import Yulang.CommonRoleEndpointSlots
+import Yulang.CommonRoleCandidateStateFrontier
+import Yulang.CommonRoleIntervalCandidateFrontier
