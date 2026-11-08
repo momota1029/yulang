@@ -1,0 +1,3 @@
+# Cycle18 publication recovery
+
+23:25:03 UTC rescue inspection: last remote heartbeat 23:00:00 UTC (running), cycle18 report absent. Parent interrupted the stalled worker. Cause not established. Local committed proof and logs survived at 2f190c119; no known source loss. Rescued 5 artifact files using sequential contents API; focused 286-job build and 15-declaration axiom check exit 0. Original 25-minute deadline missed. Rescue publication completed within ten minutes; see dots-cycle-18.md and completed heartbeat. Next cycle must fetch latest branches and retain integration updates; inherited spec/plan paths were not overwritten by rescue.
