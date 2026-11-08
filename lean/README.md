@@ -3187,3 +3187,15 @@ new generated-constraint correctness, saturation termination, or full B4.
 ### Cycle18: actual producer cache refresh over changing ordinary states
 
 `CommonRoleRefreshDriver` refreshes dirty parent rows on the computed finite source domain and recomputes the least final-state closure. `run_exact` is an iff with independent actual-producer `Reach` for every finite input state trace, with no consistency or monotonicity premise. Clean rows are reused and obsolete reachability is not accumulated. `run_observational_independent` compares histories with equal final known bits. This remains the int-only unary-template fragment. State updates are supplied externally: autonomous ordinary-fact generation/termination, general intervals, B4 classification and X13–X16 remain unproved.
+
+## Cycle19: finite associated feedback (partial B4 bridge2)
+
+`CommonRoleFiniteFeedback` recomputes actual source reachability after each new
+finite update identifier, stopping after at most k additions without a supplied
+state trace. It proves final emitted-update closure, no duplicates and capacity.
+`CommonRoleAssociatedFeedback` instantiates ordinary state reconstruction with
+real declaration-computed associated equations. Every final reachable emitted
+request has its equation in every model of the final state. The finite request
+table, fixed receivers and source-node association are explicit inputs, not yet
+derived from all source declarations. General intervals, leastness/order
+independence and full B4 classification remain unproved.
