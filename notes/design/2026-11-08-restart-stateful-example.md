@@ -34,7 +34,8 @@ struct box 'a { value: 'a } with:
         our x.parent () = ()
 
 my example () =
-    my a0 = ("known": str).right ()
+    my known: str = "known"
+    my a0 = known.right ()
     my a1 = (box { value: a0 }).index 0
     my a2 = (box { value: a1 }).index 0
     (box { value: a2 }).parent ()
@@ -86,3 +87,5 @@ A first parser run rejected standalone `impl Parent (box 'a)` and comma-separate
 Toolchain recovery: `command -v cargo` initially found nothing in PATH. An existing `audit-cargo`/`audit-rustup` installation was then found outside PATH and reused. Offline cargo first failed for uncached `anyhow`; normal cargo fetched dependencies and built the existing parser example, using a separate `/tmp/yulang-restart-parser-target` output directory. No existing Rust source changed.
 
 This parser result does not check types or prove source-to-Lean lowering. The formal requests below the snippet are encoded as checked Lean data, not extracted by a source compiler. The relationship between the source binding sequence and the reverse worklist is described but not formally proved. No source semantic choice is asserted by the notation correction.
+
+CST inspection also showed that expression-level `("known": str)` is parsed as colon application, not a type annotation. The final example therefore uses the binding annotation `my known: str = "known"` before the method call. The final CST contains `PatternTypeAnnotation` for known and the two separate Parent where clauses. Parser success alone was not treated as typing correctness.
