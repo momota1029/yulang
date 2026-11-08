@@ -68,6 +68,8 @@ yulang の integration/m1-final ブランチ(https://github.com/momota1029/yulan
 
 ## 進め方
 
+- **spec の例を Lean の具体例にする**(2026-11-08, ユーザー承認): `notes/handoff/2026-11-08-m1-spec-examples-conformance.md` の X1〜X24 を、`lean/SpecExamples.lean` に具体的な theorem として置き、Audit に登録する。一般論の証明より先に通す。通らない例は、定義のずれか spec の書き漏れかを示して `notes/questions/` に積む。
+
 - sorry、追加の公理、`native_decide` を使わない。既存の定理の主張を弱めない。`lake build --wfail` と `Audit.lean` を通す。新しい主要 theorem は Audit に登録する。README の「示さないこと」の列を、証明した範囲と一致させる。
 - 既存の Lean ファイルを変更しない(`Yulang.lean`・`Audit.lean`・`README.md` への追記だけ可)。公開入口は触らない。
 - 「∃ 代入」や「任意の代入」を含む statement を置くときは、実際の solver がその代入をどう決めるかが spec に書かれているかを先に確かめ、書かれていなければ、E2 を出す前に `notes/questions/` に 1 問(Yulang の例つき、選択肢つき、推奨を先頭)を積む。
