@@ -1082,3 +1082,5 @@ import Yulang.CommonEffectMixedKinds
 import Yulang.CommonEffectMixedChecked
 
 import Yulang.CommonRoleIntervalDictionaries
+
+import Yulang.CommonRoleIntervalDictionaryCompilation
