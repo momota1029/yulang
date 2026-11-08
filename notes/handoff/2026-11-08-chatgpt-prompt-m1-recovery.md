@@ -30,6 +30,8 @@ yulang の integration/m1-final ブランチ(https://github.com/momota1029/yulan
 
 ## 前のセッションの後に決まったこと(ユーザーの決定。文書に書いてある)
 
+- **保留された境界は、不変な型引数にだけ付く**: 共変の `box { value: id_value }` は保留せず `box user_id` になり、後から共変で cast される。`list` のような不変な引数は、`'_a` を保留して構築位置へ遡って cast する。(`spec/06-roles.md` 6.5)
+
 - **全体 statement の更新(承認)**: 旧定理(点モデル)は保存し、区間・遅延・宣言別 variance を明示した別の全体 statement を、B4 と B5/B1 の E1 の対象にする。その E1 は、元の B4・B5/B1 の完了として数える。(`…-interval-statement-alignment.md`)
 - **「無限に入れ子」の判定規則(候補 1)**: 宣言群から引数ごとに、使われなければ `unused`。使われる引数は、cast が値を今その場で辿る道(field・variant payload・tuple)の上に反復できる nominal 展開の cycle があれば不変。関数を包む位置で即時に辿る道を切る。結果: `box`・`box2`・`reset`・`stream` は共変、`chain`・`left`/`right` は不変、`phantom` は `unused`。理由は型変換のコスト。(`spec/06-roles.md` 6.5、`…-b5-declaration-recursive-variance.md`)
   - 証明義務: (1) 宣言から表を求める `deriveVariance` が、独立した使用・極性・再帰の判断と iff。手渡しの表を正しいと仮定する形は不可。(2) その表に従う構造 cast の費用上界(wrapper の作成と一回の呼び出しを区別する)。
@@ -41,7 +43,6 @@ yulang の integration/m1-final ブランチ(https://github.com/momota1029/yulan
 
 ## ユーザーに残っている問い(決めずに、局所の補題や場合分けで進める)
 
-- 保留された境界(`box { value: id_value }` の `'_a` など)の適用範囲。`box` が共変と訂正されたので、不変な引数(`list` など)に限るかの確認待ち(`spec/06-roles.md` 6.5 末尾の「要確認」)。
 - B2 の 2 つ: optional field を default なしの case pattern で照合できるか、到達不能な arm の静的 effect 行(`notes/questions/2026-11-07-b2-*.md`)。
 - A2 の契約の修正案(`2026-11-07-a2-canonical-computability.md`)、K1(receiver の無い role member)、E7(`x | catch:`)。
 - 区間 resolver の停止の尺度: 遅延だけでは、子の下界の head が毎回分かっている増大鎖は止まらない。Paterson 的な下降が区間モデルで要るかを示す(前のセッションの監査に書いてある)。これは問いではなく、証明の課題。
