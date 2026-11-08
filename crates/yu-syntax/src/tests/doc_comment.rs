@@ -427,3 +427,51 @@ fn whole_file_docs_are_lossless_and_recover_one_unterminated_envelope() {
         &(unterminated.len()..unterminated.len())
     );
 }
+
+#[test]
+fn malformed_if_command_minimal_recovery() {
+    let source = "---\n\\if@(c){yes}\n---\nmy after = 1\n";
+    let parsed = parse(source);
+    assert_eq!(parsed.green().to_string(), source);
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    assert_eq!(count(&root, SyntaxKind::DocCommentDeclaration), 1);
+    assert_eq!(count(&root, SyntaxKind::BindingStatement), 1);
+}
+
+#[test]
+fn malformed_if_command_is_lossless_and_keeps_following_declaration() {
+    let cases = [
+        "---\n\\if@(c){yes}\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if(condition)shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if@(condition){shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if)(condition){shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if](condition){shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if}(condition){shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if[(condition){shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if()condition){shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if(]condition){shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if(}condition){shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if(condition@){shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if(condition)){shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if(condition]){shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if(condition}){shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if(condition)@{shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if(condition)){shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if(condition)]{shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if(condition)}{shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if(condition)({shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+        "---\n# Section\n- first\n- second with **strong** and [link](target)\n> quote\n\\note[document argument]\n\\if(condition)[{shown}\\else{fallback}\n```text\nraw *not emphasis*\n```\n---\n",
+    ];
+    for case in cases {
+        let source = format!("{case}my after = 1\n");
+        let parsed = parse(&source);
+        assert_eq!(parsed.green().to_string(), source);
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        assert_eq!(
+            count(&root, SyntaxKind::DocCommentDeclaration),
+            1,
+            "{case:?}"
+        );
+        assert_eq!(count(&root, SyntaxKind::BindingStatement), 1, "{case:?}");
+    }
+}
