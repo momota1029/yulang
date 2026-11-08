@@ -912,6 +912,37 @@ fn parse_operator_name(
 #[allow(clippy::too_many_arguments)]
 fn parse_group(
     projection: &mut Projection,
+    i: SyntaxIn,
+    open: Item,
+    close: char,
+    kind: SyntaxKind,
+    baseline: usize,
+    stops: Stops,
+    outer_close: Option<char>,
+    item_origin: &mut usize,
+    line_entry: &mut LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> UseResult {
+    i.with_delimiter(*item_origin, |i, _| {
+        parse_group_contents(
+            projection,
+            i,
+            open,
+            close,
+            kind,
+            baseline,
+            stops,
+            outer_close,
+            item_origin,
+            line_entry,
+            fence,
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn parse_group_contents(
+    projection: &mut Projection,
     mut i: SyntaxIn,
     open: Item,
     close: char,
