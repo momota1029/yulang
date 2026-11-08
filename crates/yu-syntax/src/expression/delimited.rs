@@ -325,6 +325,7 @@ fn delimited_items_normalized_contents(
             if matches!(owner, DelimitedOwner::Index) {
                 i.state.start_node(SyntaxKind::IndexItem.into());
             }
+            let checkpoint = i.state.checkpoint();
             let exit = expr_from_nud_normalized(
                 i.rb(),
                 item,
@@ -335,6 +336,19 @@ fn delimited_items_normalized_contents(
                 line_handoff,
                 item_origin,
                 line_entry,
+                fence,
+                ambient,
+                sequence,
+            );
+            let origin = advanced_origin(item_origin, entry, i.rb());
+            let exit = crate::expression::postfix_if::finish_postfix_if(
+                i.rb(),
+                checkpoint,
+                exit,
+                baseline,
+                stops,
+                line_handoff,
+                origin,
                 fence,
                 ambient,
                 sequence,

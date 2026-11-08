@@ -104,3 +104,9 @@ The first arm has one direct `IndentedStatementBlock` with two direct `Statement
 [Dynamic operator chains](operator-chain.md) define the primary's value position and body chains.
 [Colon application](colon-application.md) remains available inside a body chain but does not own an arm colon.
 The [layout-aware separator authority](../cross-cutting/layout-aware-separator-authority.md) and shared indented block define current-depth body boundaries.
+
+## 8. Postfix `if`
+
+A same-line postfix guard has the form `expression if condition`. It is an expression equivalent to `if condition: expression` and produces an optional value. The guard binds more weakly than a pipeline and an inline colon body: `say: 1 + 2 if ready` guards the whole call, and `for x in xs: last if done` guards the whole loop. Parentheses can contain a guarded expression, as in `(x if ready)`.
+
+The CST is `PostfixIfExpression(operand, IfKw, Condition(OperatorChain))`. Chains nest to the left: `a if b if c` is `(a if b) if c`. A postfix guard has no `else`; a following `else`, `:`, or `{` is left to the enclosing recovery. A missing condition produces `Missing` in the condition.

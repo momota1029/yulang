@@ -475,7 +475,7 @@ fn inline_binding_body_normalized(
     }
     item.emit_all_remaining_leading(&mut *i.state);
     if is_nud_item(&item) {
-        return expr_from_nud_normalized(
+        return binding_guarded_expr_normalized(
             i,
             item,
             None,
@@ -506,7 +506,7 @@ fn inline_binding_body_normalized(
     }
     item.emit_all_remaining_leading(&mut *i.state);
     debug_assert!(is_nud_item(&item));
-    expr_from_nud_normalized(
+    binding_guarded_expr_normalized(
         i,
         item,
         None,
@@ -516,6 +516,52 @@ fn inline_binding_body_normalized(
         line_handoff,
         item_origin,
         line_entry,
+        fence,
+        ambient,
+        sequence,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn binding_guarded_expr_normalized(
+    mut i: SyntaxIn,
+    item: Item,
+    threshold: Option<&crate::operator_table::BindingPower>,
+    baseline: usize,
+    stops: Stops,
+    ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+    sequence: crate::sequence::SequenceContext,
+) -> NormalizedExit {
+    let checkpoint = i.state.checkpoint();
+    let entry = suffix_marker(i.rb());
+    let exit = expr_from_nud_normalized(
+        i.rb(),
+        item,
+        threshold,
+        baseline,
+        stops,
+        ml_mode,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+        sequence,
+    );
+    let origin = advanced_origin(item_origin, entry, i.rb());
+    crate::expression::postfix_if::finish_postfix_if(
+        i,
+        checkpoint,
+        exit,
+        baseline,
+        stops,
+        line_handoff,
+        origin,
         fence,
         ambient,
         sequence,
