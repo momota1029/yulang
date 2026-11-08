@@ -1,3 +1,4 @@
+import Yulang.CommonRoleStatefulPathParent
 import Yulang.CommonRoleSettledResolver
 import Yulang.CommonRoleOpenRecursivePass
 import Yulang.CommonRoleOpenPassStability
@@ -169,5 +170,27 @@ theorem open_pass_stabilizes : OpenPassSemanticStabilization := by
   intro assignment
   exact (CommonRoleOpenPassStability.run_semantically_idempotent
     registry allocate q s assignment).symm
+
+end Yulang.Main
+
+namespace Yulang.Main
+
+/-- 任意の旧 ordinary state、任意の有限 dependency path、任意の結果について、
+実 source seed・状態更新・solver・Parent 辞書の入口と独立 Final が同値。
+成功・Models・fuel の外部前提はない。有限 path は入力で、一般 B4 飽和ではない。 -/
+theorem stateful_finite_path_parent_exact (outputs : List (Fin n)) (receiver : Fin n)
+    (s out : CommonRoleSettledConstraints.State n) (argument : Roles.Term)
+    (answer : RoleDictionaries.Answer) :
+    CommonRoleStatefulPathParent.run outputs receiver s = some (out, argument, answer) ↔
+      CommonRoleStatefulPathParent.Final outputs receiver s out argument answer :=
+  CommonRoleStatefulPathParent.outer_exact outputs receiver s out argument answer
+
+/-- 固定した Right seed と逆順の兄弟更新の具体例。全ての結果について実入口と
+独立した辞書判断が iff。2 pass はこの例の bound で、一般停止性を表さない。 -/
+theorem stateful_reverse_siblings_exact (out : CommonRoleSettledConstraints.State 3)
+    (argument : Roles.Term) (answer : RoleDictionaries.Answer) :
+    CommonRoleStatefulParentExample.run = some (out, argument, answer) ↔
+      CommonRoleStatefulParentExample.Final out argument answer :=
+  CommonRoleStatefulParentExample.outer_exact out argument answer
 
 end Yulang.Main
