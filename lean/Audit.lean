@@ -7041,3 +7041,12 @@ run_cmd do
 #print axioms Yulang.CommonRoleSourceGrowth.constrained_atoms_exact
 #print axioms Yulang.CommonRoleSourceGrowth.growState_models_exact
 #print axioms Yulang.CommonRoleSourceGrowth.solver_growth_exact
+
+#print axioms Yulang.CommonRoleCaptureOrigin.inspect_origin
+#print axioms Yulang.CommonRoleCaptureOrigin.inspect_origin_exec
+#print axioms Yulang.CommonRoleCaptureOrigin.instantiate_origin
+#print axioms Yulang.CommonRoleCaptureOrigin.production_origin
+#print axioms Yulang.CommonRoleCaptureOrigin.child_origin
+#print axioms Yulang.CommonRoleCaptureOrigin.named_capture
+#print axioms Yulang.CommonRoleCaptureOrigin.named_variable
+#print axioms Yulang.CommonRoleCaptureOrigin.checked_requirement_origin
