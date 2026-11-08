@@ -6253,3 +6253,7 @@ run_cmd do
 #print axioms Yulang.CommonDeclarationVarianceRegistry.registry_exact
 #print axioms Yulang.CommonDeclarationVarianceRegistry.declaration_preserves_kinds
 #print axioms Yulang.CommonDeclarationVarianceRegistry.registry_preserves_arity
+
+#print axioms Yulang.CommonEffectFamilyArgumentKinds.check_signed_row_exact
+#print axioms Yulang.CommonEffectFamilyArgumentKinds.check_bounds_exact
+#print axioms Yulang.CommonEffectFamilyArgumentKinds.check_argument_exact

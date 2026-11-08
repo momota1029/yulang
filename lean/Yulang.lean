@@ -1132,3 +1132,5 @@ import Yulang.CommonDeclaredCastEvaluationExamples
 import Yulang.CommonDeclarationVarianceExamples
 
 import Yulang.CommonDeclarationVarianceRegistry
+
+import Yulang.CommonEffectFamilyArgumentKinds

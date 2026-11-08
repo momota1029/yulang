@@ -2681,3 +2681,13 @@ parameters; no caller-supplied variance-correctness hypothesis is used.
 This connects computed modes to the existing inspector's metadata type. It does not
 yet establish checked original declaration-body assembly, the recursive nominal
 carrier, source construction/cast exactness, or the full B5/B1 E1.
+
+
+## B3: kind checks inside original family intervals (2026-11-08)
+
+`CommonEffectFamilyArgumentKinds.check_argument_exact` equates the executable
+check with an independent kind judgment for every finite original family argument
+and every captured-name kind table. Both value endpoints and all signed row
+endpoints are traversed, including protect/release/residual and nested function
+row positions. Missing names and wrong kinds are rejected. This is endpoint
+admission, not full family declaration lookup, source lowering, or B3 completion.
