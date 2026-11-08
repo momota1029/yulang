@@ -1120,3 +1120,5 @@ import Yulang.CommonDeclarationVarianceOccurrences
 import Yulang.CommonDeclarationVarianceLowering
 
 import Yulang.CommonDeclarationVarianceCalls
+
+import Yulang.CommonDeclarationVarianceRecursion
