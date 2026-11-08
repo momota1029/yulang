@@ -181,3 +181,18 @@ M1 が閉じてから着手する。前提が閉じていない間は `blocked`�
 - 受け入れ: coercion の判断と、効果の伝播・意味保存の定理。X25 が PROVED。`verify-lean.sh` が PASS。`Main.lean` に再掲。
 - 注意: Yulang2 の「明示した高階の注釈で check は通るが run が失敗する」不一致（`conflicting type candidates: [ping] vs []`）は、新仕様に持ち込まない。選択が要る点は質問ノート（遅延案を先頭）。
 
+### T17 パーサの回復: P0 (panic と stack abort) (yu-syntax)
+- 状態: todo / 依存: なし。LS の前提（全入力で木が出る）なので優先
+- 出典: `notes/audit/ls-recovery-audit.md`（2026-11-08、Sol の監査）。750 の入力・91,310 回の解析で、**panic が 20 件**（壊れた Yumark の経路: 例 `---\n\if@(c){yes}\n---\n`）、**深い入れ子の括弧 4096 で stack の abort**（SIGABRT。2048 は通る）。
+- 目標: (1) 壊れた Yumark の panic の経路を除く。LS 側で panic を握りつぶす形にしない。最小の入力と、記録された 19 件の単一編集をテストにする。DocCommentDeclaration を損失なしで返し、後続の宣言を保つ。(2) 再帰する式の解析に上限を設ける（反復化、または回復可能な入れ子の上限。上限に達した領域もテキストを失わない）。釣り合いのある入れ子と釣り合わない入れ子を、別プロセスで、通常の LS のスレッドの stack で試す。
+- 受け入れ: 監査の probe（`cargo run -p yu-syntax --example ls_recovery_audit --release --offline`）が panic 0、abort 0 で終わる。`cargo test -p yu-syntax --offline` が通る。既存の fixture とフィンガープリントは変えない。
+
+### T18 パーサの回復: P1 (局所性と連鎖の抑制) (yu-syntax)
+- 状態: needs-owner（ambiguity の方針に承認が要る） / 依存: T17
+- 目標: (1) 宣言の field の回復を、companion/layout の境界で封じる（`}` の欠落と `with:`: 21 個の診断を、局所的な閉じの失敗 1 つに）。(2) 釣り合わない区切りの再同期を、宣言以外へ広げる（`say`、`for` の行、閉じ括弧、入れ子のインデント）。文法は複数行の項目を許すので、曖昧さの扱い（改行で区切りを止めるか）は**ユーザーの承認が要る**: 質問ノート（遅延案を先頭）を作る。
+- 受け入れ: 監査の例 E2・E3 の診断の数と再同期が改善する。釣り合う区切りの保護と、有効な複数行の制御は保つ。
+
+### T19 パーサの回復: P1/P2 (補完のためのスロットとカーソルの文脈) (yu-syntax)
+- 状態: todo / 依存: T17
+- 目標: (1) 通常の補完スロットを、既存の期待スキーマに写す（FieldTail、PathTail、UsePath、演算子のオペランド、ForIterable、Pattern/TypeExpression、case/catch、文字列、後置 if の Condition）。受理する構文は変えない。(2) 部分的な sigil（`my '`、`type T = '`、`$`、`&`）の文脈を保つ（受理の変更は承認が要る）。(3) CST のカーソルの文脈のアクセサ（空白、幅 0、トークンの間、空ファイル）。(4) EOF の `---`・演算子の暫定の扱いを決める。
+
