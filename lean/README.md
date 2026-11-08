@@ -3091,3 +3091,22 @@ NamedPath: 有限の名前列から occurrence table、root slot、残りのslot
 SiblingOrders: 固定Right seedから、forward `[0→1,1→2]` の1 sweepとreverse `[1→2,0→1]` の2 sweepsを実行し、任意assignmentで同じ最終モデル集合、実外側入口で同じ `(argument, dictionary answer)` を証明。atom列は重複の差があるため等号を主張しない。任意graph・任意schedulerの停止性ではない。
 
 PathOrder: 固定str seedの任意有限pathについて、outputの集合が等しい2列（順序・重複を変えてよい）なら、任意の旧状態から実Parent入口のobservable `(argument,answer)` は一致する。成功/Modelsの外部前提なしでnoneのケースも含む。入力pathの断片に限定され、sourceから生成された一般where graphの飽和ではない。
+
+### Cycle 4: general finite associated closure and B4 target (partial)
+
+`CommonRoleFiniteAssociatedClosure/Models/Stable` compute a fresh-fact fixed
+point for arbitrary finite source associated graphs (including branching and
+cycles), not a fixed path. Every rule output is computed by actual checked
+`Roles.assocOf` via the existing adapter. Membership is iff independent
+`Derives`; at most `4*n` facts are inserted. Final ordinary models and concrete
+paired-atom evidence are stable, and occurrence order/duplication do not change
+model sets. Restrictions: source graph is input, scalar heads only, initial
+knownness is explicit paired atoms. Dynamic where provenance, general B4,
+final four-way classification and X13–X16 remain unproved.
+
+`Main.B4Statement` records the approved five-part target with explicitly
+unconnected source boundary/executor parameters. It is not a proof or a fully
+instantiated source theorem. Questions record child-failure classification and
+dictionary equality boundaries. F2 adds an explicit argument-effect conversion
+judgment and strict-runtime soundness; ordinary arrow subtype is unchanged.
+Expected-type source insertion and X25 remain unproved.
