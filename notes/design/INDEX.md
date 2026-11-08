@@ -176,3 +176,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [B4 outer interval resolver](2026-11-08-b4-outermost-resolver.md) — Draft; conditional fixed-frontier recursion only, source propagation and descent bridges open
 
 - [Cycle12 finite source positions](2026-11-08-cycle12-source-positions.md) — Draft; finite unary structural provenance, not full B4
+
+- [Cycle13 materialized domain](2026-11-08-cycle13-materialized-domain.md): Draft; int-only state-dependent source template closure, not general B4.
