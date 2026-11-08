@@ -1,10 +1,9 @@
-cycle: 14
-status: completed
-started: 2026-11-08T20:55:28Z
-updated: 2026-11-08T21:04:30Z
-elapsed_min: 9.0
-activity: source-preserving child templates; 282 focused jobs PASS; 12 axioms audited; 7 artifacts verified
+cycle: 15
+status: running
+started: 2026-11-08T21:25:08Z
+updated: 2026-11-08T21:27:00Z
+elapsed_min: 1.9
+activity: read current I-7 and cycle14; computed source-template closure
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-cycle6
-last_local_commit: 02a08d471
-report: notes/handoff/dots-cycle-14.md
-resume_hint: I-7 max24. Next computed source-template closure, general interval adapter, same-parent saturation. Generated accessibility is child creation only. No full verify run.
+last_local_commit: 9471107b6
+resume_hint: cycle15 branch dots-cycle15-local; focused builds only; deadline 21:48Z; prior cycle14 completed.
