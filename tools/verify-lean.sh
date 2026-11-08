@@ -16,7 +16,7 @@
 #   6. base exists and is an ancestor of HEAD; lean/ has no uncommitted or untracked files
 #   7. lake config (lakefile.*, lake-manifest.json, lean-toolchain) unchanged, except the
 #      allowed pattern: new `[[lean_lib]]` blocks are NOT allowed here (report to the owner)
-#   8. new files are only lean/Yulang/*.lean or lean/SpecExamples*.lean, and each new module is imported
+#   8. new files are only lean/Yulang/*.lean, lean/SpecExamples*.lean or lean/Main*.lean, and each new module is imported
 #   9. Audit.lean: new lines only appended at the end of the file
 #  10. supervisor-owned gate tools/AxiomGate.lean over every non-system module
 #
@@ -72,14 +72,14 @@ if ! git diff --quiet "$base"..HEAD -- lean/lakefile.lean lean/lake-manifest.jso
   echo "FAIL: lake config changed (lakefile.lean / manifest / toolchain); needs the owner's approval"; fail=1
 else
   badlake=$(git diff -U0 "$base"..HEAD -- lean/lakefile.toml | grep -E '^[-+]' | grep -vE '^(\+\+\+|---)' \
-            | grep -vE '^\+(\[\[lean_lib\]\]|name = "SpecExamples[A-Za-z0-9]*"|)$')
+            | grep -vE '^\+(\[\[lean_lib\]\]|name = "(SpecExamples|Main)[A-Za-z0-9]*"|)$')
   if [ -n "$badlake" ]; then echo "FAIL: lakefile.toml changed beyond SpecExamples* lean_lib additions:"; echo "$badlake"; fail=1
-  else echo "ok: lake config unchanged (or only SpecExamples* libs added)"; fi
+  else echo "ok: lake config unchanged (or only SpecExamples*/Main* libs added)"; fi
 fi
 
 # 8. new files
 newfiles=$(git diff --diff-filter=A --name-only "$base"..HEAD -- lean)
-badnew=$(echo "$newfiles" | grep -v '^$' | grep -vE '^lean/(Yulang/[A-Za-z0-9_]+|SpecExamples[A-Za-z0-9]*)\.lean$')
+badnew=$(echo "$newfiles" | grep -v '^$' | grep -vE '^lean/(Yulang/[A-Za-z0-9_]+|(SpecExamples|Main)[A-Za-z0-9]*)\.lean$')
 if [ -n "$badnew" ]; then echo "FAIL: unexpected new files:"; echo "$badnew"; fail=1; else echo "ok: new files are Yulang modules only"; fi
 for f in $(echo "$newfiles" | grep -E '^lean/Yulang/[A-Za-z0-9_]+\.lean$'); do
   m=$(basename "$f" .lean)

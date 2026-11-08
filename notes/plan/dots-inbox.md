@@ -18,6 +18,7 @@
 
 - 優先事項 1〜4 は I-2 のまま続ける（T1c は未達）。
 - **例の完成**: 元の `impl Parent (box 'a) where Left 'a, Right 'a` の例は監督役の素描で、関連型の名前・右辺・出力 binding・既知の receiver が省かれていた。サイクル 2 が勝手に意味論を決めなかったのは正しい。**既存の spec の構文（6.1〜6.3 の associated type、`impl ... : type value = ...`、関連型の変数と等式）の範囲で、完全な具体例を自分で書き下す**こと（名前は自由）。意味論の選択が避けられない点だけ、質問ノート（遅延案を先頭）。
+- **Main ファイルの配置（質問 `main-statements-placement` への回答）**: 監督役が検証 gate を調整した。`lean/Main*.lean`（root の新規ファイル）と、その `lean_lib`（`name = "Main*"`）の追加を `verify-lean.sh` が許可する。遅延案（`lean/Yulang/MainStatementsDraft.lean`）のまま進めず、`lean/Main.lean` に昇格してよい。全体 B4/B6 の Prop は、質問の遅延案（推奨）どおり、source carrier と独立 Classify がそろってから足す。
 - **T7a**: 草稿 `MainStatementsDraft` を、`lean/Main.lean`（読むための主定理のファイル）に昇格させる作業を、余り時間ではなく**優先事項 4 の前に**進めてよい。現在証明済みの範囲（断片・仮定つき）は、そう明記して載せる。
 - 「固定 pass の意味的冪等性」は飽和の完成ではない、と報告に書いたのは正確。これを維持すること。
 
