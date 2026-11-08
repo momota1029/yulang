@@ -7144,3 +7144,19 @@ run_cmd do
 #print axioms Yulang.CommonRoleRefreshDriver.run_capacity
 #print axioms Yulang.CommonRoleRefreshDriver.run_least
 #print axioms Yulang.CommonRoleRefreshDriver.run_observational_independent
+
+-- Cycle19 finite feedback: explicit finite request adapter
+#print axioms Yulang.CommonRoleFiniteFeedback.loop_nodup
+#print axioms Yulang.CommonRoleFiniteFeedback.loop_closed
+#print axioms Yulang.CommonRoleFiniteFeedback.feedback_enabled
+#print axioms Yulang.CommonRoleFiniteFeedback.collect_nodup
+#print axioms Yulang.CommonRoleFiniteFeedback.collect_capacity
+#print axioms Yulang.CommonRoleFiniteFeedback.collect_closed
+#print axioms Yulang.CommonRoleFiniteFeedback.visits_exact
+
+-- Cycle19 finite feedback: explicit finite request adapter
+#print axioms Yulang.CommonRoleAssociatedFeedback.decode_models
+#print axioms Yulang.CommonRoleAssociatedFeedback.collected_bounded
+#print axioms Yulang.CommonRoleAssociatedFeedback.final_models
+#print axioms Yulang.CommonRoleAssociatedFeedback.reachable_equation
+#print axioms Yulang.CommonRoleAssociatedFeedback.final_visits_exact
