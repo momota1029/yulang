@@ -3156,3 +3156,7 @@ acceptance by the executable ordinary solver in both directions. Repeated old
 and new source identities are allowed. Effects of old slots are unchanged, not
 equated. This is allocation conservativity, not source provenance inference,
 new generated-constraint correctness, saturation termination, or full B4.
+
+### Cycle 11: checked producer capture provenance
+
+`CommonRoleCaptureOrigin.checked_requirement_origin` derives parent capture depth and child variable depth for every used where variable in an accepted declaration of an actual production. Literal sentinels are excluded. Lower and upper are tracked separately; no singleton interval premise. Eight auxiliary theorems, focused build only. This does not identify parser source nodes, connect graph labels to growState, or prove general B4/X13–X16.
