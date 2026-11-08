@@ -13,15 +13,19 @@ last=${1:?usage: wait-dots-cycle.sh <last-known-N> [max-minutes] [interval-secon
 maxmin=${2:-110}
 interval=${3:-60}
 dot=${4:-dots-main}
+case "$dot" in
+  dots-audit) branch=work/dots-audit; rx='^notes/audit/cycle-\([0-9][0-9]*\)\.md$'; lsdir=notes/audit ;;
+  *)          branch=work/$dot;       rx='^notes/handoff/dots-cycle-\([0-9][0-9]*\)\.md$'; lsdir=notes/handoff ;;
+esac
 stale=${5:-25}
 here=$(cd "$(dirname "$0")" && pwd)
 end=$(( $(date +%s) + maxmin * 60 ))
 while [ "$(date +%s)" -lt "$end" ]; do
-  if git fetch -q origin work/dots-main 2>/dev/null; then
-    top=$(git ls-tree -r --name-only origin/work/dots-main notes/handoff 2>/dev/null \
-          | sed -n 's#.*dots-cycle-\([0-9][0-9]*\)\.md#\1#p' | sort -n | tail -1)
+  if git fetch -q origin "$branch" 2>/dev/null; then
+    top=$(git ls-tree -r --name-only "origin/$branch" "$lsdir" 2>/dev/null \
+          | sed -n "s#$rx#\\1#p" | sort -n | tail -1)
     if [ -n "${top:-}" ] && [ "$top" -gt "$last" ]; then
-      echo "dots-cycle-report $top $(git rev-parse --short origin/work/dots-main)"; exit 0
+      echo "dots-cycle-report $dot $top $(git rev-parse --short "origin/$branch")"; exit 0
     fi
   fi
   hb=$("$here/check-dots-heartbeat.sh" "origin/work/$dot" "$dot" "$stale" 2>/dev/null); rc=$?
