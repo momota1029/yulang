@@ -2794,3 +2794,8 @@ Nominal expression lowering, recursive carrier/cast synthesis, and B5/B1 E1 rema
 ## Shared family arguments in the mixed source generator
 
 `CommonEffectFamilySourceGeneration.generate_exact` quantifies complete resolved family applications, operation declarations, the original closed mixed source expression, its fixed outer result, and every outer assignment. The actual generator is equivalent to independent application/kind checks and existence of one shared value/row assignment satisfying all original intervals and the independent typing judgment for that same expression and declarations. Operation signatures use the actual allocated family locals under the same binder. No caller-supplied typing, success, support or fuel premise occurs. Raw name/visibility resolution, discovery of these applications, and an unrestricted solved family for the general mixed quantified formula remain open B3 obligations.
+
+
+## Checked contextual comparison entry
+
+`compile_in_context_exact` validates both full descriptions, including subtrees under unused parameters, then proves atom satisfaction equivalent to independent contextual well-formedness and `ContextDerives`, for either starting context and arbitrary finite depth. Nested open bounds in an effective invariant position are admitted. The entry compares complete descriptions; it is a reference component, not the directional equal-head interval-envelope construction required by the latest spec 6.5 update.

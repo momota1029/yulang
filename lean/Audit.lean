@@ -6301,3 +6301,7 @@ run_cmd do
 #print axioms Yulang.CommonEffectFamilySourceGeneration.check_declarations_exact
 #print axioms Yulang.CommonEffectFamilySourceGeneration.emit_applications_exact
 #print axioms Yulang.CommonEffectFamilySourceGeneration.generate_exact
+
+#print axioms Yulang.CommonRecursiveNominalIntervals.admit_context_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.compile_in_context_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.compile_context_exact
