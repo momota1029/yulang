@@ -3085,3 +3085,5 @@ claim general source inference or final classification of none.
 The stateful Index sweep/finite path and same-parameter Parent example execute actual associated producers. A known Right-str declaration seeds the example; reverse-order dependencies require two sweeps before a real Parent dictionary. The fixed example exactness is unconditional, while general Paterson/K2 saturation and X13-X16 remain unproved.
 
 `CommonRoleStatefulPathComplete` removes the constant-str-model premise for checked finite paths: arbitrary old states succeed exactly when the generated equations have a model. `CommonRoleStatefulPathParent.outer_exact` connects this to actual Parent dictionaries for every finite output path and old state. Main exposes this scoped unconditional iff, not general B4.
+
+NamedPath: 有限の名前列から occurrence table、root slot、残りのslot列、同一source名のtype等価制約を計算して有限path入口へ渡す。`outer_exact` は任意の旧状態に対して前提なし iff。`source_factorization` は実成功と最終ordinary modelを前提として、旧制約保持とsource名ごとのtype valuationへの降下を示す（effectsは同一視しない）。固定Index(box str) seedにより全slotがstrとなる狭い断片であり、一般source parser・branching graph・動的child生成のallocatorではない。
