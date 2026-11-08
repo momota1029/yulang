@@ -2703,3 +2703,15 @@ lists, assignment, and interpretation of recursive value obligations, and checks
 ordered arity/kind without selecting a centre. Covariant/contravariant children
 are ordinary point descriptions in this component. This decomposition theorem
 is a component of recursive generation, not the full nominal carrier or B4 E1.
+
+
+## B4: terminating recursive nominal interval generation (2026-11-08)
+
+`CommonRecursiveNominalIntervals.inspect` re-enters the same nominal decomposition
+for every generated value obligation until it reaches ordinary value/row atoms.
+There is no caller-supplied fuel or depth limit. `decompose_arguments_size_lt`
+proves strict decrease of the maximum of the two endpoint syntax sizes for every
+emitted recursive obligation, including self checks that reuse the larger side.
+This is the internal finite structural compiler; independent comparison exactness
+and admission of all unused subtrees are separate parts of the public boundary.
+It does not implement the full regular carrier or general role resolution.
