@@ -7013,3 +7013,10 @@ run_cmd do
 #print axioms Yulang.CommonRoleAssociatedDeclarationExact.assocOf_sound
 #print axioms Yulang.CommonRoleAssociatedDeclarationExact.assocOf_exact
 #print axioms Yulang.CommonRoleAssociatedDeclarationExact.computed_iff_declarative
+
+#print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.derives_exact
+#print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.saturate_declaration_exact
+#print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.run_declaration_exact
+#print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.declaration_congr
+#print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.saturate_membership_congr
+#print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.declaration_stable
