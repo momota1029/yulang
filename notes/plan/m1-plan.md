@@ -137,7 +137,7 @@ M1 が閉じてから着手する。前提が閉じていない間は `blocked`�
 - 受け入れ: 上の (1)(2)(3) が定理として証明され、元の障害定理は保存される。`verify-lean.sh` が PASS。
 
 ### T13 関連型の右辺で他の role の関連型を参照できるようにする (B4/B3, 設計と Lean)
-- 状態: needs-owner（設計の詰めが要る） / 依存: T1c の後が望ましい
+- 状態: 設計は決着（ユーザー 2026-11-09: 右辺の参照は、新しい型変数と `where` の子（`Container('a, item = 'b)` の形の関連型の等式つき）への糖衣。専用の仕組みは足さない。`spec/06-roles.md` 6.3）。残りは Lean: 右辺が作る子を Paterson 条件の対象に数えること、`HeadDeterminesAssociated` を「子の関連型の等式で決まる変数」まで広げること、右辺の参照の循環の扱い。T1c の後 / 依存: T1c の後が望ましい
 - 仕様: `spec/06-roles.md` 6.3（2026-11-08、方向は確定: 一般化する）。参照は新しい型変数と等式で表し、受け手が分かるまで遅らせる。
 - 設計課題: (1) 停止性: 右辺が作る goal を where の子と同様に数え、Paterson 的な条件の対象にする。(2) `HeadDeterminesAssociated` との関係。(3) 右辺の参照の循環。
 - 目標: 設計メモ（選択肢は遅延案を先頭に、Yulang の例つき）→ ユーザーの確認 → Lean のモデル（`impl` の宣言と associated equations）の拡張と、解決器の exactness・停止性の維持の証明。
@@ -175,7 +175,7 @@ M1 が閉じてから着手する。前提が閉じていない間は `blocked`�
 - 注意: 意味論の選択は決めない。曖昧に見える点は質問ノート（遅延案を先頭）。
 
 ### F2 引数の効果の変換 (F1 の cast) を Lean にモデル化する (B5/B6)
-- 状態: todo / 依存: F1 の報告（監査 dot のサイクル 1 で提出済み: `work/dots-audit` の `notes/audit/f1-effect-passthrough.md`）。T1c と並行できる
+- 状態: partial（dot サイクル 4 が変換の核 `CommonArgumentEffectCast`・`ArgumentEffectCastRuntime` を証明、統合済み。挿入の位置は決着: ユーザー 2026-11-09 選択肢 3、型が求められたとき自動で入れる。残りは、ソースの省略された引数の行（全能）から核の矢印への橋、挿入の判断と X25 の PROVED）/ 依存: F1 の報告（監査 dot のサイクル 1 で提出済み: `work/dots-audit` の `notes/audit/f1-effect-passthrough.md`）。T1c と並行できる
 - 仕様: `spec/05-effects.md` 5.5c（2026-11-08 確定: 部分型に入れず、型が求められたときに入る明示的な変換の判断）。
 - 目標: (1) 変換 `'a -> ['e] 'b` ⇒ `'a ['f] -> ['e, 'f] 'b` を、独立な coercion の判断として定義する（矢印の部分型 `Common.common_arrow_iff` は変更しない）。(2) 起動時の効果の伝播（引数の計算の効果を戻りの行に合流する）と、意味の保存を証明する。(3) 既存の `strictApp` の独立判断・生成器接続との関係（重複しない、または一致する）を示す。(4) 適合例 X25（`x | f`、高階の引数に普通の関数）を、この判断を通して PROVED にする。
 - 受け入れ: coercion の判断と、効果の伝播・意味保存の定理。X25 が PROVED。`verify-lean.sh` が PASS。`Main.lean` に再掲。
