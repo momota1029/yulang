@@ -1230,3 +1230,9 @@ import Yulang.CommonRoleOpenRecursivePass
 import Yulang.CommonRoleEndpointSlots
 import Yulang.CommonRoleCandidateStateFrontier
 import Yulang.CommonRoleIntervalCandidateFrontier
+
+-- I-2 cycle 2: declaration equations, source identity, finite closure.
+import Yulang.CommonRoleSourceIdentity
+import Yulang.CommonRoleAssociatedStateFlow
+import Yulang.CommonRoleOpenFiniteClosure
+import Yulang.CommonRoleAssociatedBatch
