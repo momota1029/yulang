@@ -118,7 +118,7 @@ my twice(x: 'a) =
   そのため、この `impl` は goal の候補になり、`impl R (:{tick int})` も候補なら、二候補の曖昧性として報告される（6.2: 曖昧時の扱い）。
   **plain の型変数以外は、合流後の payload を分割しない**（確定, 2026-11-07, ユーザーの決定）。head の同じ tag を `box('a)` と `box('b)` のように別々の nominal の枝で重ねても、goal 側で合流して残った `box int` と `box bool` に別々に当てることはしない。この head は、そのような goal の候補にならない（`impl R (:{tick 'c})` のように plain 変数で受ける impl だけが当たる）。
   理由: 要求は union を含まない（4.7b）ので、合流後の payload を要求の枝に分割して当てると、要求に union を持ち込むことになる。
-  **要確認（2026-11-08）**: この決定の理由の一部（`box` の引数が不変なので `box int` と `box bool` を `box (int | bool)` にまとめられない）は誤りだった。`box` は共変なので、合流すると `box (int | bool)` になる。決定は、不変な `list` など（例: `list('a), list('b)` の枝）に置き換えて、維持するかをユーザーに再確認する。
+  **確定（2026-11-08, ユーザーの確認）: 「別々の nominal を分割して当てる」問いは起きない。** 共変の `box` は、`box int` と `box bool` を合流させると `box (int | bool)` の**一つの型**になる。head の `box('a) | box('b)` も `box('a | 'b)` になるので、plain 変数が合流後の payload を丸ごと捕捉する規則（上）を、共変な引数の中の変数にもそのまま当てる（`'a := int | bool`、`'b := int | bool`）。不変の `list` で別々の型を合流させると、`list (int | bool, int & bool)` の区間が `int | bool ≤ int & bool` を満たせず、**構築の時点で型エラー**になる。したがって、合流して残った 2 つの別々の nominal に分割して当てる場面は、共変でも不変でも起きない。上の「分割しない」の決定は、この理由で維持する（`box` が不変だから、という前の理由は取り下げ済み）。
 
   ```yulang
   impl Display (list 'a):
