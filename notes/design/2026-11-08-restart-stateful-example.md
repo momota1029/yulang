@@ -2,7 +2,7 @@
 
 Status: bounded formal fragment. This is not general source parsing/lowering or B4 saturation.
 
-## Complete source-level intent
+## Source-level intent (parser/lowering not verified)
 
 The known receiver is a supplied value of type `str`, not inferred from the uniqueness of `Right`.
 The following declarations give the complete intended finite constraint example:
@@ -11,24 +11,32 @@ The following declarations give the complete intended finite constraint example:
 role Index 'container 'key:
     type value
     our container.index: 'key -> value
-impl Index (box 'a) int:
-    type value = 'a
+struct box 'a { value: 'a } with:
+    impl Index int:
+        type value = 'a
+        our b.index i = b.value
 
 role Left 'a:
     our x.left: () -> ()
 role Right 'a:
     type value
-    our x.right: () -> ()
+    our x.right: () -> value
 role Parent 'a:
     our x.parent: () -> ()
 impl Left str:
     our x.left () = ()
 impl Right str:
     type value = str
-    our x.right () = ()
+    our x.right () = x
 impl Parent (box 'a):
     where 'a: Left, Right
     our x.parent () = ()
+
+my example () =
+    my a0 = ("known": str).right ()
+    my a1 = (box { value: a0 }).index 0
+    my a2 = (box { value: a1 }).index 0
+    (box { value: a2 }).parent ()
 ```
 
 The associated requests are `Right(str, value = a0)`,
@@ -67,3 +75,7 @@ Paterson/K2-derived saturation termination, syntax-level source lowering,
 classification of every none result, and the requested X13–X16 outer entry remain open.
 Path termination is finite-list structural recursion. Idempotence is semantic
 (model sets), not syntactic equality of accumulated atom lists.
+
+## Review correction and testing boundary
+
+Independent review caught an omitted required Index method body and omitted box declaration in the first draft. The displayed snippet now follows spec 6.2's struct-with impl exactly for those parts, and the Right method returns its associated value so the output binding carries the equality. The explicit function shows the known receiver and each output binding. This is a documented source-level intent, not a proved parser/lowering correspondence: `command -v cargo` found no cargo executable in the environment, and no Rust toolchain installation or parser/typechecker run was performed. The formal requests below the snippet are encoded as checked Lean data, not extracted by a source compiler. No source semantic choice is asserted by this correction.
