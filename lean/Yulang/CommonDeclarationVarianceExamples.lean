@@ -67,4 +67,14 @@ theorem phantom_checked : LoweringVerified phantomBody (fun _ => 0) oneHeader �
   unfold LoweringVerified
   decide
 
+def chainBody : Fin 2 → Body 2 1 0 := fun index =>
+  if index = 0 then .union .emptyRecord (.pair (.inr 0) (.inl 1))
+  else .nominal 0 [.inl (.inr 0)]
+def chain := fromBodies chainBody (fun _ => 0) oneHeader
+
+theorem chain_checked : LoweringVerified chainBody (fun _ => 0) oneHeader ∧
+    deriveVariance chain (pool 2 1) = [(0, .invariant)] := by
+  unfold LoweringVerified
+  decide
+
 end Yulang.CommonDeclarationVarianceExamples
