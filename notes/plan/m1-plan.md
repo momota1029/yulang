@@ -95,3 +95,22 @@
 - 書き込みは GitHub アプリ経由のファイル単位。報告は `work/dots-verify-<タスクID>` のようなブランチの新規ファイルに公開させる。統合（`integration/m1-final` への push）は監督役が行う。
 - 長い処理は、実行を保持するセッションで回させる（`nohup` の切り離しは完了を取れなかった）。
 - 定期実行（Scheduled、分単位）は未検証。次の試し: 30 分間隔で「`integration/m1-final` の先頭を取得し、前回検証済みの commit から変化があれば `verify-lean.sh` を回して報告する」を設定できるか。
+
+## M1 のあと (計画に含める。2026-11-08、ユーザーの提案)
+
+M1 が閉じてから着手する。前提が閉じていない間は `blocked`。担当は dots を第一候補（Rust の大きな実装は Codex でもよい）。いずれも、Lean の核が正本で、Rust は正本ではない（`AGENTS.md`）。旧スプリントの実装は、必要になった時点でタグ `archive/proof-sprint-2026-11-04` から**一つずつ**サルベージする。まとめて戻さない。
+
+### T8 速い solver の refinement (Lean)
+- 状態: blocked / 依存: T1c（B4 の無条件 `resolve_exact`）以降、できれば T6
+- 目標: 速い solver（境界を伝播し、量化を遅らせる Simple-sub 流）の定義と、reference solver と同じ結果（主型、受理・拒否）を返す refinement の証明。構想は `notes/ideas/2026-11-08-post-m1-fast-inference.md`。
+- 先に決めること: 「同じ答え」の定義（主型が構文的に同じか、同値か）、let 多相との関係。ユーザーに聞く。
+
+### T9 費用の上界 (Lean)
+- 状態: blocked / 依存: T8
+- 目標: 費用モデル（何を 1 ステップと数えるか）を先に決め、solver の時間・メモリの上界を証明する。cast の費用上界（variance 表に従う構造 cast）と同じ流儀。漸近か具体的な上界かは、着手時にユーザーに聞く。
+
+### T10 Rust 実装を核から導く
+- 状態: blocked / 依存: T6（または、実装する範囲に必要な部分の T1c・T3）
+- 目標: 型推論の実装（Rust）。Lean の reference solver と**差分テスト**で結ぶ: 適合例 X1〜X24 と、spec の確定した例を、Rust と Lean（`#eval` または抽出）に同じ入力で与え、結果が一致することを CI で確かめる。実装は、型表現と制約の生成、solver、role 解決、診断の順に、小さく分けて入れる。意味論の判断は決めず、質問ノートに積む。
+- 受け入れ: 適合例が全部一致。パーサ（`crates/yu-syntax`）との接続。`cargo test` と差分テストが通る。
+- 注意: dots は GitHub アプリ経由でファイル単位に公開する。Rust の複数 crate のような多数のファイルの公開が現実的か、T2 の 16 ファイルより大きい規模で先に試す。
