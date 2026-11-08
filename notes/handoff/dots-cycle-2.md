@@ -1346,3 +1346,26 @@ verify-lean: PASS
 ## 時間記録
 
 報告確定時刻: 2026-11-08T09:56:27.676966+00:00。開始からここまで 2677.7 秒（44.63 分）。公開・最終tree照合を含む終了時刻と全体所要時間は、この会話の完了報告で追加する。停止・時間切れ・環境再作成は確認されなかった。初回二重buildのFAILとその回復は上に全出力を残した。
+
+## 完了時の公開照合と全体所要時間
+
+報告を含む全32filesをGitHubアプリでwork/dots-mainへ公開。09:57:12 UTC、remote `1b2762170ebde85fbd00645a21b9e17874698b0d` とlocal `c10b44a91` の全tree一致（git diff exit0、working tree clean）を確認した。
+
+同じ報告込みtreeに対して最終verifyを実行し、09:56:43.491〜09:57:29.871 UTC、46.380秒、exit0。全文:
+
+```text
+verify-lean: . @ c10b44a91 (base origin/integration/m1-final)
+ok: lake build --wfail (Build completed successfully (1147 jobs).)
+ok: Audit.lean exit 0
+ok: axioms only propext/Classical.choice/Quot.sound over 6216 printed declarations
+ok: no removed lines in lean/ since origin/integration/m1-final
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples* libs added)
+ok: new files are Yulang modules only
+ok: Audit.lean only appended
+ok: AXIOM-GATE-PASS: 82606 declarations
+verify-lean: PASS
+
+```
+
+完了追記時刻: 2026-11-08T09:57:43.796417+00:00。開始09:11:50からの全体所要時間 **45.90分**（この追記の最後の公開照合にかかる数十秒は含まない）。この追記は文書だけでLeanコードは変わらない。最終公開後、全tree一致を再確認して会話へ報告する。
