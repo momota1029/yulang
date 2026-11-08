@@ -1,8 +1,8 @@
 # dots への現在の指示 (監督役が書く)
 
-更新: 2026-11-08 19:05（監督役、サイクル 2 の検証後）。dots は編集しない。変わったら、更新時刻と「指示の ID」が変わる。
+更新: 2026-11-08 21:35（監督役、サイクル 3 の検証後）。dots は編集しない。変わったら、更新時刻と「指示の ID」が変わる。
 
-- 指示の ID: I-3
+- 指示の ID: I-4
 - 状態: ACTIVE（`STOP` と書き換えたら、dots は次のサイクルで止まる）
 - 最大サイクル数: 12（これを超えたら、dots は作業を止めて待機の報告を書く）
 
@@ -54,6 +54,7 @@ M1 の主張は、健全性・完全性・主型性の三つ組（`Typing ↔ �
 
 ## 監督役からの前回サイクルへのコメント
 
-- サイクル 2（`work/dots-main`）: `verify-lean.sh` PASS（1147 jobs、Audit、公理ゲート 82,606 宣言）、`integration/m1-final` に統合。117 の公開定理、新しい Lean モジュール 13。T1c は部分達成、と正確に書いている。次のことが特によい: 関連型宣言 `Right str`（value = int）から、source store → ordinary 制約生成 → 実 solver → Parent 引数の再構成 → 実 Parent 辞書、までの入口を作ったこと。許される制約の範囲の明記（既知性は両向きの atom のみ完全、など）。独立に T7a/T7b/T4/T3 を進めたこと。
-- 不満点: T1c の核心（飽和、最終 resolve_exact、X13〜X16 の外側 PROVED）は 2 サイクル連続で未達。次のサイクルで、優先事項 1（例の完成）から実際に外側の入口まで通すこと。部品の追加で終えない。
-- T7b の数字 `REACH: 8 roots; 5373/82820 non-system declarations reachable` は、根が 8 個の主定理だけなので、残りが全部不要という意味ではない。根を増やして（Audit の主要な定理、X の適合例）精度を上げること。
+- サイクル 3（再起動後、約 51 分）: `verify-lean.sh` PASS（1157 jobs、Audit、公理ゲート 82,887 宣言）、`integration/m1-final` に統合。73 の公開定理、新規 9 モジュール。**T1c の本命（四方向の分類、一般 `resolve_exact`、X13〜X16）は 3 サイクル連続で未達**だが、報告は正確で、未達と書いている。
+- 特に良かった点: (1) **兄弟の順序独立**（`CommonRolePathOrder.observable_order_independent`: 任意の有限 2 path で実 Parent 入口の observable が一致）と、`CommonRoleSiblingOrders` で forward / reverse の最終モデル集合が等しいことを証明した。確定した where の連言の性質（spec 6.3）に合う。(2) `Main.lean` に 11 定理を昇格した（従来の 8 定理は草稿と同じ型）。「全言語完成を宣言する Prop は追加していない」という線引きが正しい。(3) T7b の根を、全 Audit・Main・X の入口へ拡張して実測した（削除なし）。(4) ハートビートを 10 分ごとに出し、復旧ではなく再開を選んだ記録も明確。
+- 次の 1〜3 補題候補は dot 自身が `notes/design/2026-11-08-restart-next-saturation.md` に記録した: (A) 実生成 child の source provenance と有限仕事領域、(B) 新情報のない再訪を除いた driver の停止と意味的閉包、など。**I-4 の最優先はこの (A)(B)**。部品の追加で終えず、四方向の分類へ向かうこと。
+- 注意: 「source parser から Lean request を作る生成の意味保存は未証明」と報告にある。ここは、Yulang2 の実機との照合（監査 dot の `x-oracle.md`）と合わせて、橋が本当に必要かを確かめること。
