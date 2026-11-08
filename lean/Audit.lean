@@ -6236,3 +6236,7 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredCastEvaluationExamples.reset_fixed_executes
 
 #print axioms Yulang.CommonDeclaredCastEvaluationExamples.reset_budget
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.eager_chain_rejected
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.eager_chain_refused

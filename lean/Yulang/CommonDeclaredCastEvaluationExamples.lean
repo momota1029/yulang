@@ -225,5 +225,22 @@ theorem reset_budget : budget reset reset_checked 0 = 4 := by
   change 1 + (1 + (budget reset reset_checked 2 + (budget reset reset_checked 3 + 0))) = 4
   rw [first, last]
 
+/-- Eager traversal follows the recursive tail immediately. Unlike stream,
+the path back to node 0 has no function barrier. -/
+def eagerChain : Plan 5 := fun node =>
+  match node.val with
+  | 0 => .nominal 1
+  | 1 => .variant [2, 3]
+  | 2 => .keep
+  | 3 => .product [4, 0]
+  | _ => .leaf
+
+theorem eager_chain_rejected : check eagerChain = false := by decide
+
+/-- The public evaluator computes rejection for every actual input; this
+does not merely posit an impossible acceptance certificate. -/
+theorem eager_chain_refused (leaf : Leaf 5) (input : Value 5) :
+    executeChecked eagerChain leaf 0 input = none := by
+  simp [executeChecked, eager_chain_rejected]
 
 end Yulang.CommonDeclaredCastEvaluationExamples
