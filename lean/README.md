@@ -2691,3 +2691,15 @@ and every captured-name kind table. Both value endpoints and all signed row
 endpoints are traversed, including protect/release/residual and nested function
 row positions. Missing names and wrong kinds are rejected. This is endpoint
 admission, not full family declaration lookup, source lowering, or B3 completion.
+
+
+## B4: open bounds inside nested nominal endpoints (2026-11-08)
+
+`CommonRecursiveNominalIntervals` describes finite nested nominal endpoints with
+ordinary original-slot leaves. Invariant children retain separate lower/upper
+endpoints; the decomposition emits both original consistency checks and both
+cross checks. `decompose_arguments_exact` holds for every declaration, argument
+lists, assignment, and interpretation of recursive value obligations, and checks
+ordered arity/kind without selecting a centre. Covariant/contravariant children
+are ordinary point descriptions in this component. This decomposition theorem
+is a component of recursive generation, not the full nominal carrier or B4 E1.

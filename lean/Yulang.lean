@@ -1134,3 +1134,5 @@ import Yulang.CommonDeclarationVarianceExamples
 import Yulang.CommonDeclarationVarianceRegistry
 
 import Yulang.CommonEffectFamilyArgumentKinds
+
+import Yulang.CommonRecursiveNominalIntervals

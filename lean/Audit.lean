@@ -6257,3 +6257,7 @@ run_cmd do
 #print axioms Yulang.CommonEffectFamilyArgumentKinds.check_signed_row_exact
 #print axioms Yulang.CommonEffectFamilyArgumentKinds.check_bounds_exact
 #print axioms Yulang.CommonEffectFamilyArgumentKinds.check_argument_exact
+
+#print axioms Yulang.CommonRecursiveNominalIntervals.Bounds.checks_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.decompose_argument_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.decompose_arguments_exact
