@@ -6060,3 +6060,7 @@ run_cmd do
 #print axioms Yulang.CommonRoleIntervalCandidates.all_where_bindings_exist
 
 #print axioms Yulang.CommonRoleIntervalCandidates.accepted_child_decreases
+
+#print axioms Yulang.CommonRoleIntervalExpansion.expand_exact
+
+#print axioms Yulang.CommonRoleIntervalExpansion.run_tree_exact

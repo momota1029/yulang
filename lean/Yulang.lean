@@ -1062,3 +1062,5 @@ import Yulang.CommonRoleIntervalPaterson
 import Yulang.CommonRoleIntervalCapture
 
 import Yulang.CommonRoleIntervalCandidates
+
+import Yulang.CommonRoleIntervalExpansion

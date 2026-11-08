@@ -92,3 +92,35 @@ plain variable の head 位置は任意の元 endpoint 対をそのまま捕捉�
 
 検証: 対象 warning-as-error build（124 jobs）成功。
 主要 scan と下降補題の直接 `trust=0` 監査は `[propext, Quot.sound]` のみ。
+
+## 4. 実検査から停止する全 where 展開と独立 traversal
+
+`CommonRoleIntervalExpansion.run_tree_exact`:
+
+> 任意の有限 declaration 列、任意の元有限 endpoint goal、任意の有限出力 tree について、
+> 実 `run` がその tree を返すこと iff 全 declaration が既存の安定 Paterson 検査に通り、
+> 独立した `Traversal` が同じ registry、同じ元 goal、同じ tree を導く。
+
+`run` は宣言列の有限検査を内部で実行する。`expand` の停止は、選ばれた実候補に対する
+`accepted_child_decreases` から導く。呼び出し側が fuel、rank law、探索成功、全子の成功を
+与える必要はない。registry の同一 declaration 値の重複は既存 `Roles.distinct` で除き、
+異なる declaration 値は別候補として保持する。
+
+出力は **構造展開 trace** であり、typed role dictionary の完成ではない。唯一候補の node は
+元 goal、その候補の元 declaration と有限 endpoint 束縛表、および元 `requirements` の
+**全列を同じ順番で**再帰展開した children を保存する。where の重複も残る。
+`outside` / `noHead` / `overlap` は明示的な leaf として残し、兄弟を捨てない。
+候補 head が複数ある場合は where を試す前に `overlap` とする。これは head 段階の分類である。
+未規定の outside と兄弟 error の優先順をこの核で決めないため、単一のエラーへ畳み込まない。
+
+`Traversal` は独立した有限構文の `Selection` と全子の導出を使い、`expand` 自身を前提にしない。
+`outside` はこの有限 capture 文法で全 declaration を分類できないことを表し、一般言語の
+pending や noImpl と同一視しない。たとえば rigid head `int` と `(int, int | pair int int)`
+の組は、一般機械では上界を狭める余地があるため、この核は noHead とせず outside に置く。
+
+任意 endpoint は不整合でもよい。tree に元 goal と捕捉表が残ることは、通常の
+`lower <: upper` が成立したことを意味しない。次段で、全 node と全捕捉区間の整合性を
+既存 `.check` 制約列へ返し、その Models iff を証明する。Parameters に条件を隠さない。
+
+検証: 対象 warning-as-error build（125 jobs）成功。
+公開 run の直接 `trust=0` 監査は `[propext, Quot.sound]` のみ。
