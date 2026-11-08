@@ -3040,3 +3040,16 @@ actual Request list; interval `source_bounds_preserved` connects them to the
 original endpoints under any supplied interpretation. Dynamic child closure
 and full nominal semantic adequacy are still unproved. No full allocator,
 saturation, final resolve_exact, or X13–X16 completion is claimed.
+
+## I-2 cycle 2 (partial): associated state flow and finite closure
+
+New `CommonRoleAssociatedStateFlow` lowers actual `Roles.assocOf` /
+`RoleConstraints.addAssociated` results into ordinary equations (int/str only,
+known first-order receivers). Different occurrence slots with explicitly shared
+source IDs transfer the equation via `CommonRoleSourceIdentity`.
+`CommonRoleAssociatedBatch` preserves pending fixed requests, proves all-model
+fold exactness and semantic stabilization for this FIXED request list; this is
+not general sibling order independence. `CommonRoleOpenFiniteClosure` computes
+the finite closure of actual structural-producer children from Paterson descent.
+General source narrowing, graph-derived identities, state-dependent new-child
+saturation, final resolve_exact and X13-X16 outer proof remain incomplete.
