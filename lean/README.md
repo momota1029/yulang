@@ -3160,3 +3160,6 @@ new generated-constraint correctness, saturation termination, or full B4.
 ### Cycle 11: checked producer capture provenance
 
 `CommonRoleCaptureOrigin.checked_requirement_origin` derives parent capture depth and child variable depth for every used where variable in an accepted declaration of an actual production. Literal sentinels are excluded. Lower and upper are tracked separately; no singleton interval premise. Eight auxiliary theorems, focused build only. This does not identify parser source nodes, connect graph labels to growState, or prove general B4/X13–X16.
+
+## Cycle12: finite structural source positions
+`CommonRoleSourcePositions` proves exact path selection, finite position bounds, and all-descendant provenance for every actual variable-bearing producer child in the unary fragment. No lower=upper premise. This is auxiliary B4 work, not global source IDs, dynamic allocation, saturation, or outer resolve_exact. Eight theorems passed focused build and axiom inspection.

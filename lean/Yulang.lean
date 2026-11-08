@@ -1284,3 +1284,5 @@ import Yulang.CommonRolePotentialAllocation
 import Yulang.CommonRoleSourceGrowth
 
 import Yulang.CommonRoleCaptureOrigin
+
+import Yulang.CommonRoleSourcePositions

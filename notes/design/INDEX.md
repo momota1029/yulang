@@ -174,3 +174,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [HIR direct-root expression slice](2026-09-20-hir-direct-root-expression-slice.md) — Authoritative; construction complete (2026-09-20)
 - [BracketRow close-error CST topology supersession](2026-09-20-successor-bracket-row-close-topology-supersession.md) — Authoritative; construction complete (2026-09-20)
 - [B4 outer interval resolver](2026-11-08-b4-outermost-resolver.md) — Draft; conditional fixed-frontier recursion only, source propagation and descent bridges open
+
+- [Cycle12 finite source positions](2026-11-08-cycle12-source-positions.md) — Draft; finite unary structural provenance, not full B4

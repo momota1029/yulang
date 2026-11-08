@@ -7050,3 +7050,13 @@ run_cmd do
 #print axioms Yulang.CommonRoleCaptureOrigin.named_capture
 #print axioms Yulang.CommonRoleCaptureOrigin.named_variable
 #print axioms Yulang.CommonRoleCaptureOrigin.checked_requirement_origin
+
+-- Cycle12: finite structural source positions; not full B4.
+#print axioms Yulang.CommonRoleSourcePositions.position_exact
+#print axioms Yulang.CommonRoleSourcePositions.position_bound
+#print axioms Yulang.CommonRoleSourcePositions.position_exists
+#print axioms Yulang.CommonRoleSourcePositions.atDepth_add
+#print axioms Yulang.CommonRoleSourcePositions.production_positions
+#print axioms Yulang.CommonRoleSourcePositions.copied_subtree_origin
+#print axioms Yulang.CommonRoleSourcePositions.copied_positions_exact
+#print axioms Yulang.CommonRoleSourcePositions.child_subtree_origin
