@@ -3183,3 +3183,7 @@ new generated-constraint correctness, saturation termination, or full B4.
 ## Cycle17: dependency-directed cache invalidation
 
 `CommonRoleCacheInvalidation` computes source-slot dependencies and dirty slots for int-only materialization. Clean dependencies preserve actual producer children and fixed-state reachability; consistent monotone growth makes every dirty slot newly int-known. Across a consistent monotone trace with a producer change at every step, the number of such steps is at most the source-slot count. This does not bound arbitrary ordinary updates or complete B4 saturation.
+
+### Cycle18: actual producer cache refresh over changing ordinary states
+
+`CommonRoleRefreshDriver` refreshes dirty parent rows on the computed finite source domain and recomputes the least final-state closure. `run_exact` is an iff with independent actual-producer `Reach` for every finite input state trace, with no consistency or monotonicity premise. Clean rows are reused and obsolete reachability is not accumulated. `run_observational_independent` compares histories with equal final known bits. This remains the int-only unary-template fragment. State updates are supplied externally: autonomous ordinary-fact generation/termination, general intervals, B4 classification and X13–X16 remain unproved.
