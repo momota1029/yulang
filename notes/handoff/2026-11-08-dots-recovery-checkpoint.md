@@ -15,3 +15,22 @@ At inspection the remote cycle5 report was absent and heartbeat was still runnin
 3. Publish new cycle4 Lean modules and design/question notes in small, verified steps to work/dots-main only. Avoid overwriting existing remote changes.
 4. Integrate the small append-only additions to Yulang.lean, Main.lean, Audit.lean, and README.md separately. Audit and README are large and were not loaded by this short recovery.
 5. Compare the public code with the verified local code before claiming complete recovery. General T1c/B4, dynamic source work closure, and X13–X16 outer PROVED remain uncompleted.
+
+## Short recovery publication result
+
+The following 12 new files were created one at a time and each fetched back with byte-for-byte UTF-8 content equality. Existing remote files were not overwritten:
+
+- `lean/Yulang/ArgumentEffectCastRuntime.lean`
+- `lean/Yulang/CommonArgumentEffectCast.lean`
+- `lean/Yulang/CommonRoleAssociatedDeclarationExact.lean`
+- `lean/Yulang/CommonRoleFiniteAssociatedClosure.lean`
+- `lean/Yulang/CommonRoleFiniteAssociatedModels.lean`
+- `lean/Yulang/CommonRoleFiniteAssociatedStable.lean`
+- `lean/Yulang/CommonRoleNamedAssociatedGraph.lean`
+- `notes/design/2026-11-08-cycle4-F2-argument-effect.md`
+- `notes/design/2026-11-08-cycle4-b4-statement-translation.md`
+- `notes/design/2026-11-08-cycle4-finite-associated-saturation.md`
+- `notes/questions/2026-11-08-cycle4-F2-source-insertion.md`
+- `notes/questions/2026-11-08-cycle4-b4-classification-boundary.md`
+
+Remaining unpublished integration changes: `lean/Yulang.lean`, `lean/Main.lean`, `lean/Audit.lean`, `lean/README.md`; cycle5 report/type appendix and crash note. The remote tree is therefore NOT claimed to be the fully verified local tree. No new build was run in this short recovery. The large files were deliberately left untouched to keep the recovery bounded.
