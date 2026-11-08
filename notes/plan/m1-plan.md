@@ -166,3 +166,10 @@ M1 が閉じてから着手する。前提が閉じていない間は `blocked`�
 - 受け入れ: 文書ごとに、抽出した主張の数、一致・違う・欠落・未確認の数を出した報告。欠落・違うのうち、型推論の核（B4/B5/B6）に響くものの一覧。
 - 分担の案: 文書のグループごとに別の作業者（types / effects / roles と cast / control 構文 / patterns と records / modules と標準ライブラリは後回し）。読み取り中心で、書くのは `notes/audit/` だけ。
 
+### T16 後置 `if` のパーサ (yu-syntax)
+- 状態: todo / 依存: なし（Lean の証明とは独立）
+- 仕様: `spec/03-expressions.md` 3.7（2026-11-08、確定）。糖衣。`else` なし、結果は `opt`、結合力は最も弱い（`|` よりも、インライン `:` の本体よりも弱い）。前置との区別は、条件の後に `:`/`{` が来るか、文の終わりが来るか。
+- 手順: (1) 文法の文書（`notes/design/` の該当する Authoritative 文書、`syntax-reference/` 英日）に後置 `if` を足す。(2) `crates/yu-syntax` に、後置 `if` の CST と解析を足す。既存の fixture は変えない。パーサのテストとフィンガープリントは、**一括再生成せず、変わった行だけ**置き換える（`recovery_mutation_tests::valid_corpus_cst_matches_phase_1_fingerprints`）。(3) spec に例のコードブロックを足す（パーサが対応してから。それまで spec は文章だけ）。(4) 誤り回復（recover）の挙動を確かめる。
+- 受け入れ: `cargo test -p yu-syntax --offline` が通る。`say: 1 + 2 + 3 if 6 < 7`、`return x if c`、`last 'outer if done`、`(x if c)`、前置 `if c: x`・`if c { x }` が期待どおりに解析される。曖昧な入力（`if` が連なる、`for x in xs: last if done`）の CST が spec の読みと一致する。
+- 注意: 意味論の選択は決めない。曖昧に見える点は質問ノート（遅延案を先頭）。
+
