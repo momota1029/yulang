@@ -1056,3 +1056,5 @@ import Yulang.CommonCasePrefixCompletion
 import Yulang.CommonCaseCoreDataCompletion
 
 import Yulang.CommonRoleClosedRecordComparison
+
+import Yulang.CommonRoleIntervalPaterson

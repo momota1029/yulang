@@ -6042,3 +6042,5 @@ run_cmd do
 #print axioms Yulang.CommonRoleClosedRecordComparison.subtype_lookup_exact
 
 #print axioms Yulang.CommonRoleClosedRecordComparison.check_same_labels_exact
+
+#print axioms Yulang.CommonRoleIntervalPaterson.every_where_decreases
