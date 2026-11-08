@@ -155,6 +155,11 @@ pub(super) fn append_nud(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() && crate::nesting::may_descend(&nud) {
+        return i.recover_nesting(nud, item_origin, line_entry, fence);
+    }
+
     if token_kind(&nud) == Some(TokenKind::Identifier)
         && nud.payload_view().spelling() == Some("rule")
     {
@@ -668,6 +673,10 @@ pub(crate) fn tail_normalized(
     // A same-line guard must return to its enclosing statement owner.
     if postfix_if_candidate(i.rb(), &item) {
         return complete(handoff(item), line_entry);
+    }
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() && crate::nesting::may_descend(&item) {
+        return i.recover_nesting(item, item_origin, line_entry, fence);
     }
     let assignment = token_kind(&item) == Some(TokenKind::Equals);
     let annotation = is_contextual_word(i.rb(), &item, "as");

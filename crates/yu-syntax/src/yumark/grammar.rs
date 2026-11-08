@@ -170,6 +170,7 @@ pub(crate) fn parse_at_document_base<S: Sink>(
 where
     S::Checkpoint: 'static,
 {
+    let _nesting = crate::nesting::Guard::enter();
     let mut parser = Parser {
         source,
         position: 0,
@@ -177,6 +178,7 @@ where
         column: 0,
         at_line_start: true,
         byte_visits: 0,
+        limited: false,
         stop_at_document_close: mode == Mode::BlockDocument,
         document_base_col,
         operators,
@@ -213,6 +215,7 @@ where
 
 struct Parser<'source, 'sink, 'operators, S> {
     source: &'source str,
+    limited: bool,
     position: usize,
     line: usize,
     column: usize,
@@ -544,8 +547,18 @@ where
     /// The production Gate-3 block path. All structural nesting is represented
     /// by `open`; it never calls a Yumark block parser through Rust recursion.
     fn parse_block_iterative(&mut self, stop_at_document_close: bool) {
+        let nesting = crate::nesting::Guard::enter();
+        if nesting.exhausted() {
+            self.recover_nesting_until(self.source.len());
+            return;
+        }
         let mut open = Vec::new();
         while self.position < self.source.len() {
+            // A list level owns both a List and a ListItem frame.
+            if open.len() >= 2 * crate::nesting::ITERATIVE_LIMIT {
+                self.recover_nesting_until(self.source.len());
+                break;
+            }
             let line = physical_line(&self.source[self.position..], self.position);
             if stop_at_document_close
                 && matches!(
@@ -1422,6 +1435,10 @@ where
         self.sink.enter(SyntaxKind::YmDoc);
         let mut owners = vec![recovery_owner];
         while self.position < limit && !owners.is_empty() {
+            if owners.len() >= crate::nesting::ITERATIVE_LIMIT {
+                self.recover_nesting_until(limit);
+                break;
+            }
             match self.source.as_bytes()[self.position] {
                 b'}' => {
                     self.sink.exit();
@@ -1491,11 +1508,14 @@ where
             }
         }
         if !owners.is_empty() {
-            for owner in owners.into_iter().rev() {
+            while let Some(owner) = owners.pop() {
                 self.missing(owner, RecoverySlot::ClosingDelimiter, self.position);
                 self.sink.exit();
                 self.sink.exit();
                 self.frames.pop();
+                if !owners.is_empty() {
+                    self.sink.exit();
+                }
             }
             false
         } else {
@@ -2359,8 +2379,17 @@ where
     }
 
     fn parse_inline_owned_until(&mut self, limit: usize, outer_close: Option<u8>) {
+        let nesting = crate::nesting::Guard::enter();
+        if nesting.exhausted() {
+            self.recover_nesting_until(limit);
+            return;
+        }
         let mut inline: Vec<InlineFrame<S::Checkpoint>> = Vec::new();
         while self.position < limit {
+            if inline.len() >= crate::nesting::ITERATIVE_LIMIT {
+                self.recover_nesting_until(limit);
+                break;
+            }
             if inline.is_empty()
                 && outer_close.is_some_and(|close| self.source.as_bytes()[self.position] == close)
             {
@@ -2616,7 +2645,40 @@ where
         }
     }
 
+    fn recover_nesting_until(&mut self, limit: usize) {
+        // The document envelope remains with the caller, even on exhaustion.
+        let mut end = limit;
+        if self.stop_at_document_close {
+            let mut at = self.position;
+            for line in self.source[self.position..limit].split_inclusive('\n') {
+                let indent = line
+                    .bytes()
+                    .take_while(|b| matches!(b, b' ' | b'\t'))
+                    .count();
+                if at > self.position
+                    && indent == self.document_base_col
+                    && line[indent..].trim_end() == "---"
+                {
+                    end = at;
+                    break;
+                }
+                at += line.len();
+            }
+        }
+        if end > self.position {
+            self.sink.enter(SyntaxKind::NestingTooDeep);
+            self.emit_token(SyntaxKind::Error, self.position..end);
+            self.sink.exit();
+        }
+        self.limited = true;
+    }
+
     fn missing(&mut self, owner: RecoveryOwner, slot: RecoverySlot, position: usize) {
+        // The opaque region already explains the missing descendant closes;
+        // avoid a recovery cascade while unwinding its heap frames.
+        if self.limited {
+            return;
+        }
         self.sink.recovery(
             Recovery {
                 kind: SyntaxKind::Missing,

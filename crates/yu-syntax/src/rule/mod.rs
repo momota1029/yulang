@@ -400,6 +400,14 @@ fn rule_item(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> ItemExit {
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() {
+        *origin += i.skip_nesting(current);
+        let (mut next, line) = next_rule_item(i.rb(), origin, line_entry, fence);
+        i.mark_nesting_boundary(&mut next, *origin);
+        return ItemExit::Continue(next, line);
+    }
+
     i.state.start_node(SyntaxKind::RuleItem.into());
     let (mut current, mut line_entry) = if is_token(&current, TokenKind::LParen) {
         emit_item_as(&mut i, current, SyntaxKind::LParen);

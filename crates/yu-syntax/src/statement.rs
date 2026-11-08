@@ -242,6 +242,11 @@ fn dispatch_statement_normalized(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() && crate::nesting::may_descend(&item) {
+        return i.recover_nesting(item, item_origin, line_entry, fence);
+    }
+
     match admission.0 {
         StatementKind::DocComment(doc) => {
             return doc_comment_declaration_normalized(

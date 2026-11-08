@@ -923,6 +923,16 @@ fn parse_group(
     line_entry: &mut LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> UseResult {
+    let nesting = crate::nesting::Guard::enter();
+    if nesting.exhausted() {
+        let entry = crate::lexical::position::suffix_marker(i.rb());
+        i.skip_nesting(open);
+        *item_origin = crate::lexical::position::advanced_origin(*item_origin, entry, i.rb());
+        let mut next = next_use_item(i.rb(), item_origin, line_entry, fence);
+        i.mark_nesting_boundary(&mut next, *item_origin);
+        return Ok(next);
+    }
+
     projection.frames.last_mut().unwrap().terminal = Terminal::Group;
     i.state.start_node(kind.into());
     emit_item_as(&mut i, open, open_kind(close));
