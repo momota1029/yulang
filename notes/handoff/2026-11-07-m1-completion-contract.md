@@ -86,3 +86,7 @@ B4 の role 解決が「点の同値」のモデルで証明されていた件�
 ## 追記 (2026-11-08): spec の例を適合例にする
 
 一般論の証明が通っても、ユーザーが書く型の話をしていないことがある。`notes/handoff/2026-11-08-m1-spec-examples-conformance.md` の例(X1〜)を、Lean の具体的な theorem として置き、Audit と一緒に通す。通らない例は、一般論の証明より先に直す。B6 の前の監査の条件に、この全例が通ることを入れる。
+
+## 追記 (2026-11-08): A2 の契約の修正（ユーザーの承認）
+
+A2 の「全有限 interface の表示 code の完全性」は、計算可能 code では不可能（`CommonCanonicalUndecidability.no_computable_canonical_encoding_at_theory`）。ユーザーの回答（2026-11-08）で、案1 を採用する: `PublicEquivalent I J → encode I = encode J` の方向を契約から外す。残す契約は、(1) `∃ computableEncoding, ∀ I J, computableEncoding I = computableEncoding J → PublicEquivalent I J`、(2) 表示・readback: 任意 `I` について decoded/exported 表現の public-instance 意味が `I` と一致する、(3) 実 inference scheme・全 ambient/row/generalized assignments・全 target・実 EOF の成功・失敗・raw support を保存する義務。個別の変形には意味保存を証明し、code が異なることから意味の相違は推論しない。
