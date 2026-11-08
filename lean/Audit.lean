@@ -6933,3 +6933,83 @@ run_cmd do
 #print axioms Yulang.CommonRolePathOrder.no_models_none
 #print axioms Yulang.CommonRolePathOrder.observable_order_independent
 #print axioms Yulang.CommonRolePathOrder.permutation_observable
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.facts_complete
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.facts_length
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.initial_exact
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.saturate_exact
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.saturate_capacity
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.saturate_nodup
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.associated_closed
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.emit_models
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.run_models_exact
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.solver_exact
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.derives_transport
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.derives_order_independent
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.models_order_independent
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.cache_order_independent
+
+#print axioms Yulang.CommonRoleFiniteAssociatedStable.extend_evidence
+
+#print axioms Yulang.CommonRoleFiniteAssociatedStable.emit_evidence
+
+#print axioms Yulang.CommonRoleFiniteAssociatedStable.run_evidence
+
+#print axioms Yulang.CommonRoleFiniteAssociatedStable.derives_stable
+
+#print axioms Yulang.CommonRoleFiniteAssociatedStable.cache_stable
+
+#print axioms Yulang.CommonRoleFiniteAssociatedStable.models_stable
+
+#print axioms Yulang.CommonArgumentEffectCast.argumentCast_iff
+
+#print axioms Yulang.CommonArgumentEffectCast.nonempty_cast_not_subtype
+
+#print axioms Yulang.CommonArgumentEffectCast.rowJoin_comm
+
+#print axioms Yulang.CommonArgumentEffectCast.ordinary_application_preserved
+
+#print axioms Yulang.ArgumentEffectCastRuntime.converted_valid
+
+#print axioms Yulang.ArgumentEffectCastRuntime.resolved_cast_sound
+
+#print axioms Yulang.ArgumentEffectCastRuntime.pure_call
+
+#print axioms Yulang.ArgumentEffectCastRuntime.force_idempotent
+
+#print axioms Yulang.ArgumentEffectCastRuntime.strict_application_agrees
+
+#print axioms Yulang.ArgumentEffectCastRuntime.checker_retains_incoming
+
+#print axioms Yulang.ArgumentEffectCastRuntime.higher_order_consumer_valid
+
+#print axioms Yulang.B4Target.statement_sound
+#print axioms Yulang.B4Target.statement_complete
+
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.table_length
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.receiver_identity
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.output_identity
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.occurrence_present
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.occurrence_origin
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.slot_origin
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.table_source
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.generated_fact_origin
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.named_exact
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.named_capacity
+
+#print axioms Yulang.CommonRoleAssociatedDeclarationExact.assocOf_sound
+#print axioms Yulang.CommonRoleAssociatedDeclarationExact.assocOf_exact
+#print axioms Yulang.CommonRoleAssociatedDeclarationExact.computed_iff_declarative
