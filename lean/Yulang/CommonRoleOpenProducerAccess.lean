@@ -49,7 +49,7 @@ theorem selected_origin (visible : List Declaration) (q : Request) (key : Nat)
       Inspect d.head q.lower (.hit lp) ∧ Inspect d.head q.upper (.hit hp) ∧
       key = d.key ∧ cs = children q d lp hp := by
   cases h with
-  | @ready results _ scanned decision =>
+  | @ready results _ _ _ scanned decision =>
       cases decision with
       | @selected d lp hp _ _ chosen =>
           have present : Trial.hit d lp hp ∈ results :=
@@ -63,7 +63,7 @@ theorem selected_production (visible : List Declaration) (q : Request) (key : Na
     ∃ d lp hp, production visible q = some (d, lp, hp) ∧
       key = d.key ∧ cs = children q d lp hp := by
   cases h with
-  | @ready results _ scanned decision =>
+  | @ready results _ _ _ scanned decision =>
       cases decision with
       | @selected d lp hp _ _ chosen =>
           refine ⟨d, lp, hp, ?_, rfl, rfl⟩
