@@ -171,4 +171,3 @@ theorem open_pass_stabilizes : OpenPassSemanticStabilization := by
     registry allocate q s assignment).symm
 
 end Yulang.MainStatements
-
