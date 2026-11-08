@@ -2,7 +2,7 @@
 
 Status: bounded formal fragment. This is not general source parsing/lowering or B4 saturation.
 
-## Source-level intent (parser/lowering not verified)
+## Source-level example (parser checked; lowering not proved)
 
 The known receiver is a supplied value of type `str`, not inferred from the uniqueness of `Right`.
 The following declarations give the complete intended finite constraint example:
@@ -11,10 +11,6 @@ The following declarations give the complete intended finite constraint example:
 role Index 'container 'key:
     type value
     our container.index: 'key -> value
-struct box 'a { value: 'a } with:
-    impl Index int:
-        type value = 'a
-        our b.index i = b.value
 
 role Left 'a:
     our x.left: () -> ()
@@ -28,9 +24,14 @@ impl Left str:
 impl Right str:
     type value = str
     our x.right () = x
-impl Parent (box 'a):
-    where 'a: Left, Right
-    our x.parent () = ()
+struct box 'a { value: 'a } with:
+    impl Index int:
+        type value = 'a
+        our b.index i = b.value
+    impl Parent:
+        where 'a: Left
+        where 'a: Right
+        our x.parent () = ()
 
 my example () =
     my a0 = ("known": str).right ()
@@ -78,4 +79,10 @@ Path termination is finite-list structural recursion. Idempotence is semantic
 
 ## Review correction and testing boundary
 
-Independent review caught an omitted required Index method body and omitted box declaration in the first draft. The displayed snippet now follows spec 6.2's struct-with impl exactly for those parts, and the Right method returns its associated value so the output binding carries the equality. The explicit function shows the known receiver and each output binding. This is a documented source-level intent, not a proved parser/lowering correspondence: `command -v cargo` found no cargo executable in the environment, and no Rust toolchain installation or parser/typechecker run was performed. The formal requests below the snippet are encoded as checked Lean data, not extracted by a source compiler. No source semantic choice is asserted by this correction.
+Independent review caught an omitted required Index method body and omitted box declaration in the first draft. The displayed snippet now follows spec 6.2's struct-with impl form, and the Right method returns its associated value so the output binding carries the equality. The explicit function shows the known receiver and each output binding.
+
+A first parser run rejected standalone `impl Parent (box 'a)` and comma-separated `where 'a: Left, Right` (six recovery/diagnostic entries). The displayed form instead uses the already specified struct-with `impl Parent` and two where clauses. No meaning was changed: both requirements concern the same enclosing `'a`. The real `syntax_guide_check` parser then passed: `total 1: ok 1, recovery 0, unexpected-ok 0, expected-error 0, placeholder 0`, exit 0.
+
+Toolchain recovery: `command -v cargo` initially found nothing in PATH. An existing `audit-cargo`/`audit-rustup` installation was then found outside PATH and reused. Offline cargo first failed for uncached `anyhow`; normal cargo fetched dependencies and built the existing parser example, using a separate `/tmp/yulang-restart-parser-target` output directory. No existing Rust source changed.
+
+This parser result does not check types or prove source-to-Lean lowering. The formal requests below the snippet are encoded as checked Lean data, not extracted by a source compiler. The relationship between the source binding sequence and the reverse worklist is described but not formally proved. No source semantic choice is asserted by the notation correction.
