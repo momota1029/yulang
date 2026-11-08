@@ -41,3 +41,24 @@ X1の子Display実使用、X12名前付き再帰、X20のphantom retag、X22のd
 ## 差の扱い
 
 X2の静的停止性、X18–20の宣言varianceは新specの明示的選択であり、旧挙動に合わせて戻す提案はしない。X22のoptionalは既に決定済みで、旧実装の制約とは切り分ける。X25境界は既存F1質問ノートとcycle2補足にまとめ、意味論を決めない。
+
+## Cycle 3: 完全性側の追加受理候補（X1〜X25の定理判定とは別）
+
+全入力は `completeness-cycle-3.md` と各 `runtime-cycle-3-*.md` の同名caseに全文保存。旧表記を新specのparserへそのまま渡した検証ではない。XのPROVED状態は変更しない。
+
+| 候補ID | 入力のコード/原ログcase | Yulang2の結果 | specの期待 | 一致・違う・実機で表せない | 通る／拒否 | 備考 |
+|---|---|---|---|---|---|---|
+| C3-ACCEPT-01 | poly-value: idをint/textで使用 | (7,"seven") | 4.7 関数値一般化 | 一致 | 通る | check/poly/run0 |
+| C3-ACCEPT-02 | width-record: field projectionを異なるrecordへ | (7,"seven") | 4.3 幅部分型 | 一致 | 通る | source-to-Lean未検証 |
+| C3-ACCEPT-03 | default-union: optional幅fallbackとtext payload | (1,"wide") | 3b.3、4.3 | 一致 | 通る | 元X22 optional注釈そのものではない |
+| C3-ACCEPT-04 | curried-pair | ((7,"seven"),(1,true)) | 3.3/3.4 | 一致 | 通る | 全binding一般化とは別 |
+| C3-ACCEPT-05 | composed-poly | (7,"seven") | 3.3/4.7 | 一致 | 通る | 高階の具体成功 |
+| C3-ACCEPT-06 | nominal-recursive-case | 7 | 4.5/4.7 | 一致 | 通る | 実際のtree再帰、一般停止性ではない |
+| C3-ACCEPT-07 | record-first-wins | (7,9) | 4.3先勝ち/default | 一致 | 通る | runtime field値を確認 |
+| C3-ACCEPT-08 | phantom-text | next(next(end)) | 6.5 unused parameter | 一致 | 通る | no-prelude型textを明示 |
+| C3-ACCEPT-09 | variant-case-join | (7,0) | 4.5/3.7 | 一致 | 通る | ifではなくself-contained case |
+| C3-ACCEPT-10 | record-pair-pattern | (7,"kept") | 3.4/3b.1 | 一致 | 通る | 具体patternの成功 |
+| C3-PARENT | parent-left-right/right-left/generic-function | (11,22) | 6.3/6.4 子whereと実producer | 一致 | 通る | X3/X4のsource受理補助。全区間安定性の証拠でない |
+| C3-PARENT-NEG | parent-missing-child | no role implementation | 6.3 必須Left/Right前提が欠ける | 一致 | 拒否 | 仕様上の前提不成立を明記 |
+
+whole-record返値の名前付き境界越しの追加field射影は、この受理済み表とは別に `record-rest-boundary-cycle-3.md` と質問ノートに候補として保存。checkだけの成功をrun成功と数えない。

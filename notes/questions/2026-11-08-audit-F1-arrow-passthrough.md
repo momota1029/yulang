@@ -1,4 +1,6 @@
-# F1 の関数型変換を Lean carrier へ接続する位置（未決定）
+# F1 の関数型変換を Lean carrier へ接続する位置（配置は解決済み）
+
+**cycle3更新: 最新 `spec/05-effects.md` §5.5c は、F1を標準矢印部分型と分けた独立の明示cast判断に置くと確定した。以下のcycle1/2の選択肢は履歴であり、現在の未決定事項ではない。同じ設計判断を再質問しない。**
 
 監査cycle1。新spec §5.5cの意味論は変更しない。Y2にはstructural subtypeのpure-argument passthrough分岐があるが、現行Common.common_arrow_iffは独立の反変row条件で、strictAppの効果合流とは別である。
 
@@ -27,3 +29,7 @@ Y2のno-prelude実行は7。fに`[ping] int -> [ping] int`を明示した変種�
 `notes/audit/f1-cycle-2-boundaries.md` の12入力matrixを追加した。両row明示版のconflictはdump --mono / --runtime-irでも再現し、runtime以前のspecialization境界。引数rowだけなら7、wildarg直接版はunhandledだがeta版は7。直接適用/pipe/推論高階の成功だけで全F1完了とはできない。既存の遅延案と未決定点はそのまま。
 
 また `notes/audit/default-effect-boundary-cycle-2.md` にdefaultのeffectが関数の表示行から落ち、外側明示handlerではunhandledとなる例を記録した。直接catchでは7になるため、任意defaultの不可処理と一般化しない。新specはeffectful defaultを認めており、これを旧失敗へ戻す提案ではない。source→carrier→実行入口が同じeffectを保持することを、まだ完成と呼ばない。
+
+## cycle3: 配置の決定を反映、実装の相違は別に残す
+
+`Common.common_arrow_iff` の標準関係は現在の決定と整合する。そこにF1の特例を足す提案は取り下げ、独立cast/source接続の検証と区別する。`notes/audit/y2-claims-f1-cycle-3.md` に普通のunused argumentがdirectでは起動し、高階経由では起動しない対照を追加した。これは旧処理系の観測で、起動時放出という新仕様を変更する理由にしない。動的solver provenanceと修正は未実施。
