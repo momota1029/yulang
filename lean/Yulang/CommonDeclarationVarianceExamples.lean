@@ -77,4 +77,14 @@ theorem chain_checked : LoweringVerified chainBody (fun _ => 0) oneHeader ∧
   unfold LoweringVerified
   decide
 
+def resetBody : Fin 2 → Body 2 1 0 := fun index =>
+  if index = 0 then .union (.parameter 0) (.nominal 0 [.inl (.inl 1)])
+  else .base .int
+def reset := fromBodies resetBody (fun _ => 0) oneHeader
+
+theorem reset_checked : LoweringVerified resetBody (fun _ => 0) oneHeader ∧
+    deriveVariance reset (pool 2 1) = [(0, .covariant)] := by
+  unfold LoweringVerified
+  decide
+
 end Yulang.CommonDeclarationVarianceExamples

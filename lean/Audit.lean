@@ -6246,3 +6246,5 @@ run_cmd do
 #print axioms Yulang.CommonDeclarationVarianceExamples.phantom_checked
 
 #print axioms Yulang.CommonDeclarationVarianceExamples.chain_checked
+
+#print axioms Yulang.CommonDeclarationVarianceExamples.reset_checked
