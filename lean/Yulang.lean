@@ -1130,3 +1130,5 @@ import Yulang.CommonDeclarationVarianceTable
 import Yulang.CommonDeclaredCastEvaluationExamples
 
 import Yulang.CommonDeclarationVarianceExamples
+
+import Yulang.CommonDeclarationVarianceRegistry

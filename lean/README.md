@@ -2667,3 +2667,17 @@ nominal引数は不変なので、保持されたbox int/box boolをbox(int|bool
 推奨のwhere決定性追加も未承認。任意Common splitや追加hypothesis付き同名E1を採用していない。
 [全67定理の量化・検証・残り](../notes/handoff/2026-11-07-m1-b4r7-results.md)、
 [全branch地図と設計](../notes/design/2026-11-07-b4r7-shared-capture-and-nominal-cover.md)。
+
+
+## B5: original declaration modes connected to nominal metadata (2026-11-08)
+
+`CommonDeclarationVarianceRegistry.registry_exact` computes each parameter mode from
+the original finite declaration program's occurrence and recursive-use analyses.
+For every program, analysis universe, ordered source headers, and proposed registry,
+the result equals that registry iff every original position satisfies the independent
+source `Mode` judgment. Original kinds and arities are preserved, including unused
+parameters; no caller-supplied variance-correctness hypothesis is used.
+
+This connects computed modes to the existing inspector's metadata type. It does not
+yet establish checked original declaration-body assembly, the recursive nominal
+carrier, source construction/cast exactness, or the full B5/B1 E1.
