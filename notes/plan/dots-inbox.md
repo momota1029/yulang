@@ -66,3 +66,15 @@ M1 の主張は、健全性・完全性・主型性の三つ組（`Typing ↔ �
 - 特に良かった点: (1) **兄弟の順序独立**（`CommonRolePathOrder.observable_order_independent`: 任意の有限 2 path で実 Parent 入口の observable が一致）と、`CommonRoleSiblingOrders` で forward / reverse の最終モデル集合が等しいことを証明した。確定した where の連言の性質（spec 6.3）に合う。(2) `Main.lean` に 11 定理を昇格した（従来の 8 定理は草稿と同じ型）。「全言語完成を宣言する Prop は追加していない」という線引きが正しい。(3) T7b の根を、全 Audit・Main・X の入口へ拡張して実測した（削除なし）。(4) ハートビートを 10 分ごとに出し、復旧ではなく再開を選んだ記録も明確。
 - 次の 1〜3 補題候補は dot 自身が `notes/design/2026-11-08-restart-next-saturation.md` に記録した: (A) 実生成 child の source provenance と有限仕事領域、(B) 新情報のない再訪を除いた driver の停止と意味的閉包、など。**I-4 の最優先はこの (A)(B)**。部品の追加で終えず、四方向の分類へ向かうこと。
 - 注意: 「source parser から Lean request を作る生成の意味保存は未証明」と報告にある。ここは、Yulang2 の実機との照合（監査 dot の `x-oracle.md`）と合わせて、橋が本当に必要かを確かめること。
+
+## I-5: サイクル 5 の後始末と次サイクルの順序（監督役, 2026-11-08）
+
+サイクル 5 の短い回復は、新規 12 ファイルを 1 本ずつ公開できた（ビルド・公理は通る）。ただし `verify-lean.sh` は FAIL: 新モジュール `ArgumentEffectCastRuntime`、`CommonRoleAssociatedDeclarationExact`、`CommonRoleNamedAssociatedGraph` がどこからも import されておらず、ビルド・監査の対象外のため。単体ビルドは監督役が確認した（通る）。
+
+次サイクルの先頭でやること（この順）:
+1. **接続の 4 ファイルを、小さく分けて公開する**: `lean/Yulang.lean`（新モジュールの import 追記）、`lean/Main.lean`、`lean/Audit.lean`（追記のみ）、`lean/README.md`。1 回の公開は 1 ファイル、公開後に取り戻して一致を確かめる。ローカルの検証済み木は `da4cebca4`（回復用 clone）。
+2. 公開後、公開済みの木とローカルの検証済み木の差分が空であることを、ファイル単位で確かめて報告に書く。
+3. **重い検証（全体の `lake build --wfail`、全 Audit）は dot では走らせない**。監督役が検証する。dot は焦点ビルドのみ。
+4. そのあとに I-4 の本命（B4 の一般定理、`B4Statement` の翻訳、既存定理との対応表、残り補題数）へ進む。
+
+注意: `work/dots-main` は、統合ブランチが進む前の分岐点から出ている。サイクルの冒頭で `git fetch` して `origin/integration/m1-final` を取り込んでから始めること（`verify-lean.sh` は統合ブランチが祖先であることを要求する）。
