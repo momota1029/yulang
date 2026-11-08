@@ -6094,3 +6094,7 @@ run_cmd do
 #print axioms Yulang.CommonEffectMixedKinds.check_type_exact
 
 #print axioms Yulang.CommonEffectMixedKinds.check_declarations_exact
+
+#print axioms Yulang.CommonEffectMixedChecked.generate_checked_exact
+
+#print axioms Yulang.CommonEffectMixedChecked.generate_closed_checked_exact

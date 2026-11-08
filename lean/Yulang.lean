@@ -1078,3 +1078,5 @@ import Yulang.CommonEffectMixedGeneration
 import Yulang.CommonEffectMixedExact
 
 import Yulang.CommonEffectMixedKinds
+
+import Yulang.CommonEffectMixedChecked
