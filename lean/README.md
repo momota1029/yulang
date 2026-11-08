@@ -3073,3 +3073,7 @@ and proves only the local fixed-producer stabilization goal, not full B4/B6.
 `CommonRoleAssociatedParentSuccess` strengthens the concrete entry: for every
 starting state, any successful return has the int argument and a resolved
 actual visible dictionary. It does not classify the none branch.
+`CommonRoleAssociatedParentExact.success_exact` characterizes success of this
+fixed known-Right-str entry exactly by a model of the original state together
+with slot 0 equivalent to int. It does not add a success/knownness premise or
+claim general source inference or final classification of none.
