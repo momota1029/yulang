@@ -6910,3 +6910,14 @@ run_cmd do
 #print axioms Yulang.CommonRoleStatefulPathParent.success_visible
 #print axioms Yulang.Main.stateful_finite_path_parent_exact
 #print axioms Yulang.Main.stateful_reverse_siblings_exact
+
+#print axioms Yulang.CommonRoleNamedPath.output_exact
+#print axioms Yulang.CommonRoleNamedPath.slot_covered
+#print axioms Yulang.CommonRoleNamedPath.seed_identity
+#print axioms Yulang.CommonRoleNamedPath.expected_models
+#print axioms Yulang.CommonRoleNamedPath.outer_exact
+#print axioms Yulang.CommonRoleNamedPath.source_factorization
+#print axioms Yulang.Main.named_finite_path_exact
+#print axioms Yulang.CommonRoleNamedPath.success_domain
+#print axioms Yulang.CommonRoleNamedPath.empty_success
+#print axioms Yulang.CommonRoleNamedPath.rejects_inconsistent
