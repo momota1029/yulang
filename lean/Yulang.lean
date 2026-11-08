@@ -1186,3 +1186,27 @@ import Yulang.CommonRoleOutermostResolver
 import Yulang.CommonRoleOutermostResolverChecks
 
 import SpecExamplesSettled
+
+import Yulang.CommonSourcePatternTyping
+
+import Yulang.CommonSourcePatternInversion
+
+import Yulang.CommonSourcePatternGeneration
+
+import Yulang.CommonSourcePatternAllocation
+
+import Yulang.CommonSourcePatternGenerationProvenance
+
+import Yulang.CommonSourcePatternElaboration
+
+import Yulang.CommonSourceArmGeneration
+
+import Yulang.CommonSourcePatternPartialSafety
+
+import Yulang.CommonSourceCasePartial
+
+import Yulang.CommonSourceArmSolved
+
+import Yulang.CommonSourceArmsSolved
+
+import Yulang.CommonSourceOptionalX22
