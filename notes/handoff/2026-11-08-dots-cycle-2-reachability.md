@@ -168,3 +168,12 @@ PASS, 384 jobs; `lake env lean --trust=0 Yulang/MainStatementsDraft.lean`
 exit 0. A temporary audit imported the draft and printed axioms for all eight
 roots, each depending only on propext/Classical.choice/Quot.sound. Printing the
 axioms of a Prop definition is not a proof of that Prop.
+
+### Later cycle-2 proof update
+
+After the draft snapshot above, the fixed structural pass's local stabilization
+was proved by `CommonRoleOpenPassStability.run_semantically_idempotent`, and
+`MainStatements.open_pass_stabilizes` supplies k=1. This does not close the general
+source narrowing/saturation target. The earlier root-count measurements are
+explicit historical snapshots. A final rerun including the new proof is recorded
+in the cycle report; no unreachable declaration is removed or declared obsolete.
