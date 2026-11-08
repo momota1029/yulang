@@ -1217,3 +1217,11 @@ import Yulang.CommonRoleOpenState
 
 import Yulang.CommonRoleOpenNormalization
 import Yulang.CommonRoleOpenExamples
+
+-- T1b: concrete producer and state-returning pass (not saturation).
+import Yulang.CommonRoleOpenProducer
+import Yulang.CommonRoleOpenProducerAccess
+import Yulang.CommonRoleOpenThreading
+import Yulang.CommonRoleOpenPropagation
+import Yulang.CommonRoleOpenPropagationOrigin
+import Yulang.CommonRoleOpenRecursivePass
