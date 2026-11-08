@@ -177,3 +177,17 @@ was proved by `CommonRoleOpenPassStability.run_semantically_idempotent`, and
 source narrowing/saturation target. The earlier root-count measurements are
 explicit historical snapshots. A final rerun including the new proof is recorded
 in the cycle report; no unreachable declaration is removed or declared obsolete.
+
+### Final candidate b8312811c
+
+After the final successful-return strengthening, all 112 new public theorems
+were type-checked and audited. Read-only reachability was rerun:
+
+- Eight draft main-theorem roots: `REACH: 8 roots; 5373/82820 non-system declarations reachable`.
+- All unique `#print axioms` roots extracted from current Audit.lean:
+  `REACH: 6363 roots; 40013/82820 non-system declarations reachable`.
+- Both commands exited 0. The larger environment is intentional; historical
+  measurements above are not silently overwritten.
+- These counts do not prove that unreachable declarations are obsolete. No
+  declaration, module, or import was removed. The full T7a source statement
+  remains incomplete, so its eventual roots may reach more declarations.
