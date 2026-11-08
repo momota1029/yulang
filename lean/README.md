@@ -3144,3 +3144,15 @@ endpoints decode to their original syntax. Theorems quantify over the registry,
 subset, reachable request, ordinary state, and arbitrary interpretation as applicable.
 This is fixed structural syntax, **not** distinct unknown-source identity allocation,
 endpoint narrowing, whole state saturation, or the general B4 statement.
+
+### Cycle 10: conservative source-occurrence growth
+
+`CommonRoleSourceGrowth` appends any finite list of source identities without
+collapsing equal syntactic types. `grow` preserves old full computation values
+literally; new occurrences inherit the type meaning of their source identity.
+`solver_growth_exact` proves that renaming an arbitrary old ordinary state into
+retained slots and adding the expanded table's real identity atoms preserves
+acceptance by the executable ordinary solver in both directions. Repeated old
+and new source identities are allowed. Effects of old slots are unchanged, not
+equated. This is allocation conservativity, not source provenance inference,
+new generated-constraint correctness, saturation termination, or full B4.
