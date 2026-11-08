@@ -1290,3 +1290,5 @@ import Yulang.CommonRoleSourcePositions
 import Yulang.CommonRoleMaterializedDomain
 
 import Yulang.CommonRoleChildTemplates
+
+import Yulang.CommonRoleSourceTemplateClosure
