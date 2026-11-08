@@ -1084,3 +1084,5 @@ import Yulang.CommonEffectMixedChecked
 import Yulang.CommonRoleIntervalDictionaries
 
 import Yulang.CommonRoleIntervalDictionaryCompilation
+
+import Yulang.CommonRoleClosedRecordInspection

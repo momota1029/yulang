@@ -6106,3 +6106,5 @@ run_cmd do
 #print axioms Yulang.CommonRoleIntervalDictionaryCompilation.compile_trace_exact
 
 #print axioms Yulang.CommonRoleIntervalDictionaryCompilation.compiled_reflects
+
+#print axioms Yulang.CommonRoleClosedRecordInspection.inspect_exact
