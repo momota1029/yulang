@@ -10,7 +10,9 @@ existing Common worklist solves those atoms together with the original
 source clause. Its value and row parameters remain unrestricted.
 
 `none` preserves failure of the finite same-spine preparation; `some []` is
-ordinary unsatisfiability after successful preparation. This component does
+an empty returned family. For grammar-admissible original clauses, including
+actual generated source clauses, it characterizes ordinary unsatisfiability
+after successful preparation. This component does
 not resolve unknown spines, provide pending wakeup, or implement full role
 candidate selection.
 -/

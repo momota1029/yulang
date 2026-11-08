@@ -75,3 +75,12 @@ presence が確定して許可された後に通常の型制約が不整合な�
 使用公理は `{propext, Classical.choice, Quot.sound}` の部分集合である。
 `sorry`・追加公理・`native_decide` はない。
 集約 import / Audit / README への追記と統合後の全体 gate は親作業が行う。
+
+## 統合時の仕様更新（2026-11-08）
+
+上の作業記録の後、`e55a27a34` / `2caaf3a6d` で到達不能 arm の問いも確定した。
+静的 effect 行は、到達不能な arm を含む全 arm の guard と body の行の合流である。
+したがって B2 の二つの既存質問はどちらも解決済みであり、再質問しない。
+残るのは、optional 入力で default なしの pattern が field 不在時に miss する規則と、
+この全 arm の静的行規則を、独立した全体 case 型付け・実生成・一般 source adequacy へ接続する証明である。
+本追補の純粋 data fragment の定理を、effect を持つ一般式の E1 と呼ばない。
