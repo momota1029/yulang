@@ -3110,3 +3110,17 @@ instantiated source theorem. Questions record child-failure classification and
 dictionary equality boundaries. F2 adds an explicit argument-effect conversion
 judgment and strict-runtime soundness; ordinary arrow subtype is unchanged.
 Expected-type source insertion and X25 remain unproved.
+
+
+### Cycle 7: independent finite associated-graph declaration closure
+
+`CommonRoleFiniteAssociatedDeclaration` replaces the graph-level executable
+`Computed` premise by independent `DeclarativeComputed` evidence. For every
+finite scalar source graph and old state, with checked core and associated
+registries, saturation and its emitted ordinary evidence are exact for this
+inductive judgment. Membership is invariant under occurrence reordering and
+duplication, when source identity equality is unchanged; the judgment is stable
+after actual emission. This is not general B4: dynamic where/capture provenance,
+interval knownness, final diagnostic classification and dictionary equivalence
+remain outside the theorem. Focused build only; full verification is delegated
+to the supervisor.

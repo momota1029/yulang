@@ -1,10 +1,10 @@
-cycle: 6
+cycle: 7
 status: completed
-started: 2026-11-08T14:53:28Z
-updated: 2026-11-08T14:58:50Z
-elapsed_min: 5.37
-activity: four integration files restored and checked; focused build PASS; further local work blocked by disk full
+started: 2026-11-08T15:24:58Z
+updated: 2026-11-08T15:33:23Z
+elapsed_min: 8.42
+activity: published and byte-verified independent finite graph declaration bridge; focused 282 jobs PASS; reclaimed 14.9GB caches
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-cycle6
-last_local_commit: see local merged cycle6 tree; recovered source da4cebca4
-report: notes/handoff/dots-cycle-6.md
-resume_hint: Public Lean tree matches recovered local tree; integration ancestor merge is 5517d7e11. Read cycle6 report. Shell launch failed with No space left on device; preserve commits and resolve workspace capacity before further local work. No full verification was run in this cycle.
+last_local_commit: f9cee4afc
+report: notes/handoff/dots-cycle-7.md
+resume_hint: Reuse this worktree and its cache. All new Lean/report files match published branch. Five major B4 bridges remain; dynamic where/capture provenance is next. Old source worktrees are retained to preserve local commits; do not copy caches.
