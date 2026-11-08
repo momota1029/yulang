@@ -6212,3 +6212,9 @@ run_cmd do
 #print axioms Yulang.CommonDeclarationVarianceGraph.next_exact
 
 #print axioms Yulang.CommonDeclarationVarianceGraph.analyze_exact
+
+#print axioms Yulang.CommonDeclarationVarianceTable.derive_variance_exact
+
+#print axioms Yulang.CommonDeclarationVarianceTable.covariant_has_no_negative
+
+#print axioms Yulang.CommonDeclarationVarianceTable.invariant_propagates
