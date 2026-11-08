@@ -118,4 +118,24 @@ theorem instances_exact (specification : Specification) (subject : Required.Term
     obtain ⟨legal, rfl⟩ := (solve_exact specification subject arms schemes).mp generated
     exact ⟨legal, scheme, member, parameters, equal⟩
 
+/-- Every returned family, and every unrestricted parameter of every member,
+has lawful original defaults and an actual successful typed observation of
+the unchanged evaluator. No run success or source adequacy callback is a
+premise for this proved finite data fragment. -/
+theorem all_parameter_returns (specification : Specification) (subject : Required.Term)
+    (arms : List AnnotatedArm) (schemes : List (CommonPatternFiniteSchemes.Scheme 3))
+    (generated : solve specification subject arms = some schemes)
+    (scheme : CommonPatternFiniteSchemes.Scheme 3) (member : scheme ∈ schemes)
+    (parameters : scheme.Parameters) (failure : CommonCoreDataEvaluation.Error → Common.Row) :
+    SourceLegal arms ∧ ∃ trace value,
+      CommonCaseCoreDataPrefixSolved.run subject (original arms) ⟨trace, some (.ok (some value))⟩ ∧
+        CommonPatternTyping.valueAt (scheme.instantiate parameters 1).1 value ∧
+        Common.rowLe
+          (CommonPatternFinitePrefixes.observationRow (fun _ => Common.rowEmpty) failure
+            ⟨trace, some (.ok (some value))⟩)
+          (scheme.instantiate parameters 2).2 := by
+  obtain ⟨legal, rfl⟩ := (solve_exact specification subject arms schemes).mp generated
+  exact ⟨legal, CommonCaseCoreDataCompletion.all_parameter_returns specification subject
+    (original arms) scheme member parameters failure⟩
+
 end Yulang.CommonCasePresenceGeneration
