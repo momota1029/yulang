@@ -6118,3 +6118,5 @@ run_cmd do
 #print axioms Yulang.CommonRoleClosedResidualSlots.inspect_all_exact
 
 #print axioms Yulang.CommonRoleClosedResidualSlots.inspect_all_grammar
+
+#print axioms Yulang.CommonPatternSourcePresence.sites_exact
