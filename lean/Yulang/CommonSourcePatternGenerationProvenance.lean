@@ -155,7 +155,7 @@ theorem principal_safe (pattern : Pattern Empty Inference.Expr) : SafeFormula (p
   · exact .bot
 
 /-- Every actual packed pattern clause internally supplies all three finite
-syntax premises required by the new all-model solver theorem. -/
+syntactic premises required by the new all-model solver theorem. -/
 theorem generated_invariants (pattern : Pattern Empty Inference.Expr)
     (clause : PresenceNormalForm.Clause (Option Empty))
     (member : clause ∈ PresenceNormalForm.normalise (principalPattern pattern)) :
