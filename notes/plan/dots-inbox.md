@@ -1,8 +1,8 @@
 # dots への現在の指示 (監督役が書く)
 
-更新: 2026-11-08 17:45（監督役、サイクル 1 の検証後）。dots は編集しない。変わったら、更新時刻と「指示の ID」が変わる。
+更新: 2026-11-08 19:05（監督役、サイクル 2 の検証後）。dots は編集しない。変わったら、更新時刻と「指示の ID」が変わる。
 
-- 指示の ID: I-2
+- 指示の ID: I-3
 - 状態: ACTIVE（`STOP` と書き換えたら、dots は次のサイクルで止まる）
 - 最大サイクル数: 12（これを超えたら、dots は作業を止めて待機の報告を書く）
 
@@ -13,6 +13,13 @@
 2. **source identity**: 別々の occurrence の endpoint を、共通の source 変数へ統合する橋（graph/source identity）と、動的に生成される child への allocator の閉包。
 3. **飽和の driver と停止性**: 再生成で現れた child をさらに解き、状態が安定するまで繰り返す。進捗の尺度は宣言時の Paterson 検査と K2 から導く。兄弟の順序独立は未回答（仮定しない）。
 4. K2 / knownness と、language-visible な pending / selected / ambiguous / rejected の最終分類。外側の無条件 `resolve_exact`、X13〜X16 の少なくとも一つを外側の入口で PROVED。
+
+## I-3 の補足（サイクル 2 を受けて）
+
+- 優先事項 1〜4 は I-2 のまま続ける（T1c は未達）。
+- **例の完成**: 元の `impl Parent (box 'a) where Left 'a, Right 'a` の例は監督役の素描で、関連型の名前・右辺・出力 binding・既知の receiver が省かれていた。サイクル 2 が勝手に意味論を決めなかったのは正しい。**既存の spec の構文（6.1〜6.3 の associated type、`impl ... : type value = ...`、関連型の変数と等式）の範囲で、完全な具体例を自分で書き下す**こと（名前は自由）。意味論の選択が避けられない点だけ、質問ノート（遅延案を先頭）。
+- **T7a**: 草稿 `MainStatementsDraft` を、`lean/Main.lean`（読むための主定理のファイル）に昇格させる作業を、余り時間ではなく**優先事項 4 の前に**進めてよい。現在証明済みの範囲（断片・仮定つき）は、そう明記して載せる。
+- 「固定 pass の意味的冪等性」は飽和の完成ではない、と報告に書いたのは正確。これを維持すること。
 
 ## 余り時間の仕事（現在の優先事項が止まったときに、順に取る。独立で、競合しない）
 
@@ -33,5 +40,6 @@
 
 ## 監督役からの前回サイクルへのコメント
 
-- サイクル 1（`work/dots-main`）: `verify-lean.sh` PASS（1134 jobs、Audit、公理ゲート 82,152 宣言）、`integration/m1-final` に統合。部分達成の自己評価は正確で、「ordinary 制約を手で渡した例は、要求された完全な source 例ではない」と区別して書いた点がよい。
-- サイクルの早期終了（約 12 分で待機）をやめること。標準の指示に手順 8 を足した。
+- サイクル 2（`work/dots-main`）: `verify-lean.sh` PASS（1147 jobs、Audit、公理ゲート 82,606 宣言）、`integration/m1-final` に統合。117 の公開定理、新しい Lean モジュール 13。T1c は部分達成、と正確に書いている。次のことが特によい: 関連型宣言 `Right str`（value = int）から、source store → ordinary 制約生成 → 実 solver → Parent 引数の再構成 → 実 Parent 辞書、までの入口を作ったこと。許される制約の範囲の明記（既知性は両向きの atom のみ完全、など）。独立に T7a/T7b/T4/T3 を進めたこと。
+- 不満点: T1c の核心（飽和、最終 resolve_exact、X13〜X16 の外側 PROVED）は 2 サイクル連続で未達。次のサイクルで、優先事項 1（例の完成）から実際に外側の入口まで通すこと。部品の追加で終えない。
+- T7b の数字 `REACH: 8 roots; 5373/82820 non-system declarations reachable` は、根が 8 個の主定理だけなので、残りが全部不要という意味ではない。根を増やして（Audit の主要な定理、X の適合例）精度を上げること。
