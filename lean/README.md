@@ -3171,3 +3171,7 @@ new generated-constraint correctness, saturation termination, or full B4.
 ## Cycle14: source-preserving child templates
 
 `CommonRoleChildTemplates` lifts actual structural captures into source templates without replacing source slots by their current values. Evaluation commutes with extraction and substitution. The int-only adapter has state-independent Paterson weight, so generated child templates are accessible even when each generation edge uses an unrelated state. This is child-creation termination, not same-parent saturation, general interval inference, finite-domain enumeration, or full B4. `production` means first-hit candidate data, not unique selection.
+
+## Cycle15: computed source-template closure
+
+`CommonRoleSourceTemplateClosure` computes a finite list of source requests, with no supplied fuel/domain/Acc. Every actual capture-bearing child of a member at any ordinary state has a source witness in that list. All future materializations of that witness lie in a computed finite request domain. Scope: int-only/unary adapter, overapproximate structural alternatives, not candidate selection; child creation only, not same-parent saturation. `closure_exact` characterizes the structural enumeration path judgment, not actual language reachability. General B4/T1c/X13–X16 remain open.
