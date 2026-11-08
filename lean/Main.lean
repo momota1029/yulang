@@ -207,3 +207,179 @@ theorem named_finite_path_exact (seed : Nat) (names : List Nat)
       CommonRoleNamedPath.Final seed names s out argument answer :=
   CommonRoleNamedPath.outer_exact ..
 end Yulang.Main
+
+/-!
+# 承認済み B4 主張の未証明ターゲット
+
+**これは一般 B4 の証明でも、具体 source carrier の実装でもない。**
+草稿の量化子と五項を落とさず、まだ存在しない source/graph/propagation の境界を
+明示的なパラメータにした target schema である。`SourceBoundary` の具体的な実装は未接続。
+caller 提供の oracle をこの境界に入れた定理を「全 B4 完了」と呼んではならない。
+
+`Classify` は実行関数を参照しない帰納的判断。草稿にない親子failure伝播は追加しない。
+このため、唯一候補の子が非selectedのときの全体分類は質問ノートの未決事項であり、
+現状のschemaが一般sourceについて証明可能だとは主張しない。
+
+`Executor` に fuel/Acc/成功前提はない。`B4Statement` 自身は未証明の Prop で、
+以下にはその定義の射影補題だけを置く。未証明の穴は置かない。
+-/
+namespace Yulang.B4Target
+
+open CommonRoleOutermostResolver
+universe u
+
+/-- 一般source carrierの未接続境界。registryは可視有限宣言、stateはordinary制約と
+共有graph、demandは正規化済み区間引数、modelはsource割当を表す予定。
+これらを旧settled carrierで代用した全体完成宣言はしない。 -/
+structure Vocabulary where
+  Registry : Type u
+  State : Type u
+  Demand : Type u
+  Model : Type u
+
+/-- 実行版を参照しない独立境界。各フィールドの具体sourceインスタンスは未実装。
+`Step` は再生成を含む実情報更新の進行stepとして接続する必要があり、任意rankや
+fuelを仮定するためのフィールドではない。`Reorders` はvisible順/where順の変更だけ。
+`DictionaryEquivalent` は義務に対応した証拠の観察同値であり、全辞書を同一視しない。 -/
+structure SourceBoundary (v : Vocabulary) where
+  Checked : v.Registry → Prop
+  Models : v.State → v.Model → Prop
+  Step : v.Registry → v.Demand → v.State → v.State → Prop
+  Stable : v.Registry → v.State → v.Demand → Prop
+  Generated : v.Registry → v.State → v.Demand → v.Demand → Prop
+  RootPending : v.Registry → v.State → v.Demand → Prop
+  RootK2 : v.Registry → v.State → v.Demand → Prop
+  CandidateK2 : v.Registry → v.State → v.Demand → Prop
+  InspectionPending : v.Registry → v.State → v.Demand → Prop
+  Survivor : v.Registry → v.State → v.Demand → Nat → List v.Demand → Prop
+  Evidence : v.Registry → v.State → v.Model → v.Demand → Dictionary → Prop
+  Reorders : v.Registry → v.Registry → Prop
+  DictionaryEquivalent : Dictionary → Dictionary → Prop
+
+/-- 草稿の拒否理由だけ。where子の失敗を勝手に第四の理由に加えない。 -/
+def RejectReason (b : SourceBoundary v) (r : v.Registry) (s : v.State)
+    (d : v.Demand) : Prop :=
+  b.RootK2 r s d ∨ b.CandidateK2 r s d ∨
+    (∀ key children, ¬ b.Survivor r s d key children)
+
+/-- 検査完了とK2優先。普通の曖昧性より先にK2を排除する。 -/
+def SafeKnown (b : SourceBoundary v) (r : v.Registry) (s : v.State)
+    (d : v.Demand) : Prop :=
+  ¬ b.RootPending r s d ∧ ¬ b.RootK2 r s d ∧
+  ¬ b.CandidateK2 r s d ∧ ¬ b.InspectionPending r s d
+
+/-- 実行版を使わない唯一候補。子は捕捉・同一source変数併合後の全where需要を
+`Survivor` が供給する義務を負う。フィールドの忠実性はまだ未接続。 -/
+def Unique (b : SourceBoundary v) (r : v.Registry) (s : v.State)
+    (d : v.Demand) (key : Nat) (children : List v.Demand) : Prop :=
+  b.Survivor r s d key children ∧
+    ∀ key' children', b.Survivor r s d key' children' →
+      key' = key ∧ children' = children
+
+/-- 独立な四方向分類。唯一候補の全where子がselectedの場合だけ有限辞書を構成。
+親に辞書がない場合の追加規則は未決のまま。`run`/solverの返値を定義に埋め込まない。 -/
+inductive Classify (b : SourceBoundary v) (r : v.Registry) (s : v.State) :
+    v.Demand → Result → Prop where
+  | pending : b.RootPending r s d → Classify b r s d .pending
+  | rejected : RejectReason b r s d → Classify b r s d .rejected
+  | ambiguous : SafeKnown b r s d →
+      b.Survivor r s d key₁ children₁ → b.Survivor r s d key₂ children₂ →
+      key₁ ≠ key₂ → Classify b r s d .ambiguous
+  | selected : SafeKnown b r s d → Unique b r s d key children →
+      All₂ (fun child dictionary => Classify b r s child (.selected dictionary))
+        children dictionaries →
+      Classify b r s d (.selected (.node key dictionaries))
+
+/-- 実step列の有限到達。外部から与えるfuelはない。 -/
+inductive Steps (step : α → α → Prop) : α → α → Prop where
+  | refl : Steps step s s
+  | tail : Steps step s t → step t u → Steps step s u
+
+/-- 実飽和入口を接続する場所。全registry/state/demandに対して結果を返し、
+checked・fuel・Acc・成功・Models証明をcallerへ要求しない。具体実装は未接続。 -/
+structure Executor (v : Vocabulary) where
+  run : v.Registry → v.State → v.Demand → v.State × Result
+
+/-- 各結果のtagを保存し、selectedは独立な辞書観察同値で比較する。
+where順が変われば子Listのliteral equalityとは一般には違うため、同値の具体定義は未接続。 -/
+def SameOutcome (b : SourceBoundary v) : Result → Result → Prop
+  | .pending, .pending => True
+  | .rejected, .rejected => True
+  | .ambiguous, .ambiguous => True
+  | .selected first, .selected second => b.DictionaryEquivalent first second
+  | _, _ => False
+
+/-- (1)停止・存在・安定閉包・モデル減少。全checked registry、全旧state、全需要に対し、
+実進行stepのAcc、返値への有限実到達、rootと全生成需要の安定、全modelの包含を要求。
+Paterson/K2からこれを示す必要があり、任意のrankを前提に追加していない。 -/
+def SaturationTotal (b : SourceBoundary v) (e : Executor v) : Prop :=
+  ∀ (r : v.Registry), b.Checked r → ∀ (s : v.State) (d : v.Demand),
+    Acc (fun next current => b.Step r d current next) s ∧
+    Steps (b.Step r d) s (e.run r s d).1 ∧
+    b.Stable r (e.run r s d).1 d ∧
+    (∀ child, b.Generated r (e.run r s d).1 d child →
+      b.Stable r (e.run r s d).1 child) ∧
+    (∀ model, b.Models (e.run r s d).1 model → b.Models s model)
+
+/-- (2)健全性/完全性。任意のchecked registry、旧state、需要、四方向結果について、
+実返値と独立分類がiff。成功・Models・FrontierExact・Accは外部仮定にない。 -/
+def Exact (b : SourceBoundary v) (e : Executor v) : Prop :=
+  ∀ (r : v.Registry), b.Checked r → ∀ (s : v.State) (d : v.Demand) (outcome : Result),
+    (e.run r s d).2 = outcome ↔ Classify b r (e.run r s d).1 d outcome
+
+/-- (3)順序独立。可視宣言/whereのみを並べ替えた任意のchecked registry同士で、
+同じ旧state・需要の最終結果が独立な観察同値を満たす。辞書内容の同値は明示境界。 -/
+def OrderIndependent (b : SourceBoundary v) (e : Executor v) : Prop :=
+  ∀ (r r' : v.Registry), b.Checked r → b.Checked r' → b.Reorders r r' →
+    ∀ (s : v.State) (d : v.Demand),
+      SameOutcome b (e.run r s d).2 (e.run r' s d).2
+
+/-- (4)辞書健全性。任意の最終モデルにおいて、selected辞書はroot headへの代入と
+全where子を整合して証明する。Evidenceは実行版と独立にsourceから実装すべき境界。 -/
+def DictionarySound (b : SourceBoundary v) (e : Executor v) : Prop :=
+  ∀ (r : v.Registry), b.Checked r → ∀ (s : v.State) (d : v.Demand)
+    (dictionary : Dictionary),
+    Classify b r (e.run r s d).1 d (.selected dictionary) →
+    ∀ model, b.Models (e.run r s d).1 model →
+      b.Evidence r (e.run r s d).1 model d dictionary
+
+/-- (5)偽拒否なし。任意のchecked registry、旧state、需要について、実rejectedなら
+草稿のroot K2・candidate K2・全候補消滅の少なくとも一つが最終状態で実際に成立。 -/
+def NoFalseRejection (b : SourceBoundary v) (e : Executor v) : Prop :=
+  ∀ (r : v.Registry), b.Checked r → ∀ (s : v.State) (d : v.Demand),
+    (e.run r s d).2 = .rejected → RejectReason b r (e.run r s d).1 d
+
+/-- 未証明targetの5項。全B4の証明を表す定理定数ではない。
+必要な具体sourceインスタンスを外部oracleで置換した成果を完成と称しない。 -/
+def Statement (b : SourceBoundary v) (e : Executor v) : Prop :=
+  SaturationTotal b e ∧ Exact b e ∧ OrderIndependent b e ∧
+    DictionarySound b e ∧ NoFalseRejection b e
+
+/-- 補助のみ：targetを仮定すればその健全性方向を取り出せる。
+`Statement b e` 自体を証明したという主張ではない。 -/
+theorem statement_sound (b : SourceBoundary v) (e : Executor v)
+    (target : Statement b e) (r : v.Registry) (checked : b.Checked r)
+    (s : v.State) (d : v.Demand) (outcome : Result)
+    (returned : (e.run r s d).2 = outcome) :
+    Classify b r (e.run r s d).1 d outcome :=
+  (target.2.1 r checked s d outcome).mp returned
+
+/-- 補助のみ：targetを仮定すればその完全性方向を取り出せる。
+一般sourceの完全性の新証明ではない。 -/
+theorem statement_complete (b : SourceBoundary v) (e : Executor v)
+    (target : Statement b e) (r : v.Registry) (checked : b.Checked r)
+    (s : v.State) (d : v.Demand) (outcome : Result)
+    (derived : Classify b r (e.run r s d).1 d outcome) :
+    (e.run r s d).2 = outcome :=
+  (target.2.1 r checked s d outcome).mpr derived
+
+end Yulang.B4Target
+
+namespace Yulang.Main
+/-- **未証明 B4 ターゲットschema。** 承認済み素描の五項を全量化して記述する。
+具体source boundary/executorの構成と忠実性は未接続であり、これらを任意oracleで
+埋めて完成とするものではない。質問ノートの親子分類と辞書同値を未決のまま明示する。 -/
+def B4Statement (boundary : B4Target.SourceBoundary vocabulary)
+    (executor : B4Target.Executor vocabulary) : Prop :=
+  B4Target.Statement boundary executor
+end Yulang.Main
