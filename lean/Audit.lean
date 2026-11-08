@@ -6088,3 +6088,9 @@ run_cmd do
 #print axioms Yulang.CommonEffectMixedGeneration.ContextRel.rename
 
 #print axioms Yulang.CommonEffectMixedExact.generate_recursive_mixed_exact
+
+#print axioms Yulang.CommonEffectMixedKinds.check_row_exact
+
+#print axioms Yulang.CommonEffectMixedKinds.check_type_exact
+
+#print axioms Yulang.CommonEffectMixedKinds.check_declarations_exact

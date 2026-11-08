@@ -1076,3 +1076,5 @@ import Yulang.CommonEffectMixedFormula
 import Yulang.CommonEffectMixedGeneration
 
 import Yulang.CommonEffectMixedExact
+
+import Yulang.CommonEffectMixedKinds
