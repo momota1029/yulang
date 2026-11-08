@@ -153,3 +153,15 @@ M1 が閉じてから着手する。前提が閉じていない間は `blocked`�
 - 目標: 現在の Lean の核（`Common.common_arrow_iff` の矢印の部分型、application の型付け、`Core.infer` の lambda・application、effect の行の規則）が、この規則と整合するかを調べ、報告する。入っていなければ、反例の式と、定義を直す案を出す。**B6 の前の忠実性の監査に入れる**（`notes/handoff/2026-11-08-m1-model-fidelity-audit.md` の続き）。
 - 受け入れ: 報告（結論: 入っている／入っていない／部分的、その根拠となる定理名または反例）。適合例 X25 を状態表に加える。
 
+### T15 Yulang2 の再現監査 (記憶でなく Yulang2 そのものを素材にする)
+- 状態: todo / 依存: なし。最優先の一つ（B6 の前の忠実性の監査の本体。F1 を含む）
+- 狙い（ユーザー、2026-11-08）: 旧世代 Yulang2 にあった規則が、新しい spec と Lean に持ち込まれていない取りこぼしは、区間、`box` の共変、引数の行（5.5c）と、今日だけで3回出た。ユーザーの記憶に頼らず、Yulang2 を**十分に再現**して突き合わせる。権威はユーザーの決定で、Yulang2 の挙動は素材（`spec/00-sources.md`）。
+- 素材: 文書（`web/docs/ja/reference/*.md` 約30、`spec/*` 約20、`notes/design/yulang-language-report.md` 1638 行、`docs/`）、実装（`main` の crates、約400 ファイル）、**動く処理系**。Yulang2 の処理系は、`main` の worktree で `cargo build --release -p yulang --offline` により約1.5分で build できる（2026-11-08 に確認）。CLI: `yulang --std-root lib check|dump --poly|run <file>`。注意: 初回の `dump --poly` は標準ライブラリの処理で約10分かかった（2026-11-08、キャッシュ前）。以後は `yulang cache` のキャッシュが効くはず。型の表示で効果の行が省かれることがあるので、効果の規則の確認には、診断（`check`）や `run` の挙動と併せて使う。
+- 手順:
+  1. **主張の抽出（読み取り）**: 各文書・テストの規則を、1 行 1 主張（ID、出典、規則、例）で表にする（`notes/audit/y2-claims.md` など）。
+  2. **実機の記録**: 各主張の例を Yulang2 に通し、推論された型・診断・実行結果を記録する（`notes/audit/y2-oracle/`）。実機が文書と食い違う点は、そのまま記録する。
+  3. **突き合わせ**: 各主張を、新しい spec と Lean の核に対して、一致／違う／欠落／未確認に分類する。違う・欠落は、ユーザーへの質問（Yulang の例つき、遅延案を先頭）か、spec への追記案にする。意味論は作業者が決めない。
+  4. **適合例への昇格**: 確定した主張の例は、適合例（`notes/handoff/2026-11-08-m1-spec-examples-conformance.md`）に X26 以降として加え、Lean の `SpecExamples` と、将来の Rust の差分テストの入力にする。
+- 受け入れ: 文書ごとに、抽出した主張の数、一致・違う・欠落・未確認の数を出した報告。欠落・違うのうち、型推論の核（B4/B5/B6）に響くものの一覧。
+- 分担の案: 文書のグループごとに別の作業者（types / effects / roles と cast / control 構文 / patterns と records / modules と標準ライブラリは後回し）。読み取り中心で、書くのは `notes/audit/` だけ。
+
