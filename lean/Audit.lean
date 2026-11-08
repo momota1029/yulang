@@ -6154,3 +6154,5 @@ run_cmd do
 #print axioms Yulang.CommonEffectMixedFamilyConstraints.generate_exact
 
 #print axioms Yulang.CommonRoleClosedResidualSourceFamily.all_parameters_models
+
+#print axioms Yulang.CommonEffectMixedWitness.checked_nested_model

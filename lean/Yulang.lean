@@ -1104,3 +1104,5 @@ import Yulang.CommonRoleClosedResidualSourceFamily
 import Yulang.CommonEffectMixedFamilyAllocation
 
 import Yulang.CommonEffectMixedFamilyConstraints
+
+import Yulang.CommonEffectMixedWitness
