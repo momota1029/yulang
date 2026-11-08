@@ -44,3 +44,7 @@ handle(higher plain)
 この実機conflictを新specの「拒否すべき例」として採用しない。型検査成功を実行可能性の確認としない。X25全体を旧実機と一致済み/Lean統合済みとも言わない。
 
 全入力・出力は `runtime-cycle-2-effects-patterns.md`。本文の表は解釈を含む要約である。
+
+## 標準prelude対照
+
+標準prelude有りでも、明示両row版はspecialization conflict（155.151秒）、wildarg直接版はunhandled（0.207秒）、wildarg eta版は7（0.224秒）。no-preludeだけが原因という説明にはならない。標準preludeは指定Y2のlibから読み、実装は変更していない。

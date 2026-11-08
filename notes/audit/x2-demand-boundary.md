@@ -282,3 +282,9 @@ STDOUT:
 STDERR:
 
 ```
+
+## X8/X9 の再帰型生成に関する追加限定
+
+cycle2後半にsourceでμを作る試行を7入力・21 check/poly/poly-raw呼出追加した（`runtime-cycle-2-effects-patterns.md` のk2-*）。caseのbase branch、self-return、self-application、record引数増大、全注釈、名前付きlist recursionを試した。表示は `{}`、`int | {next:never}`、関数交差、`any->never`、有限変数、nominal listとなり、要求された構造的μの同定には至らなかった。潜在的に発散する値を実際に評価するrunは行っていない。
+
+旧 `poly::Scheme` は `recursive_bounds: Vec<SchemeRecursiveBound>` を持ち、`compact/finalize.rs` はそれを生成する経路を持つ。従ってこのsource試行の不成功だけで「旧Y2には構造再帰型がない」と断定しない。X8/X9は引き続き表現/観測の不足として未確認であり、K2の一致とは認定しない。

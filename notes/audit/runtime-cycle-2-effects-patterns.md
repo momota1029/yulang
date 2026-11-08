@@ -7944,7 +7944,2581 @@ detached {
 error: catch expression is missing the computation to handle
 ```
 
-## 118. x25-explicit-direct / --poly-raw
+## 118. x24-pipe-catch-standard / run
+
+```yulang
+act ping:
+    our get: () -> int
+ping::get() | catch:
+    ping::get(), k -> k 7
+    value -> value
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib run --print-roots /tmp/audit2-case/x24-pipe-catch.yu
+```
+
+UTC start: 2026-11-08T12:43:43.632659+00:00; elapsed: 183.632 s; exit: 1
+
+```text
+compile error [yulang.lowering]: source has lowering errors
+  detail: catch expression is missing the computation to handle
+  hint: run `yulang check` to see source ranges before running
+```
+
+## 119. x22-optional-missing-standard / check
+
+```yulang
+our read_port(config: {port?: int}): int = case config:
+    {port: p} -> p
+    _ -> 80
+read_port {}
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib check /tmp/audit2-case/x22-optional-missing.yu
+```
+
+UTC start: 2026-11-08T12:46:47.268838+00:00; elapsed: 160.909 s; exit: 1
+
+```text
+diagnostics:
+  error [yulang.unsupported-type-syntax]: read_port: unsupported type annotation syntax: record type annotation
+    --> line 1, column 23
+    1 | our read_port(config: {port?: int}): int = case config:
+      |                       ^^^^^^^^^^^^
+    hint: use a supported type annotation form and keep effect rows in effect position
+```
+
+## 120. x22-optional-missing-standard / dump
+
+```yulang
+our read_port(config: {port?: int}): int = case config:
+    {port: p} -> p
+    _ -> 80
+read_port {}
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib dump --poly /tmp/audit2-case/x22-optional-missing.yu
+```
+
+UTC start: 2026-11-08T12:49:28.182834+00:00; elapsed: 151.629 s; exit: 0
+
+```text
+roots d0:std d1:read_port
+d0:std mod {
+  pub d2:"std.core" mod {
+    pub d22:"std.core.cmp" mod {
+      pub d248:"std.core.cmp.Eq" mod {
+        pub d249:"std.core.cmp.Eq.eq": 'a -> 'a -> bool where 'a: std::core::cmp::Eq = <missing>
+      }
+      pub d250:"std.core.cmp.Ord" mod {
+        pub d251:"std.core.cmp.Ord.lt": 'a -> 'a -> bool where 'a: std::core::cmp::Ord = <missing>
+        pub d252:"std.core.cmp.Ord.le": 'a -> 'a -> bool where 'a: std::core::cmp::Ord = <missing>
+        pub d253:"std.core.cmp.Ord.gt": 'a -> 'a -> bool where 'a: std::core::cmp::Ord = <missing>
+        pub d254:"std.core.cmp.Ord.ge": 'a -> 'a -> bool where 'a: std::core::cmp::Ord = <missing>
+      }
+      my d255 mod {
+        d256: int -> int -> bool = e1444:(fn p333:d1211:x -> e1443:(fn p334:d1212:y -> e1442:(e1440:(e1438:r521:"std::int::eq"->d46:"std.int.eq" e1439:r522:x->d1211:x) e1441:r523:y->d1212:y)))
+      }
+      my d257 mod {
+        d258: int -> int -> bool = e1451:(fn p335:d1213:x -> e1450:(fn p336:d1214:y -> e1449:(e1447:(e1445:r524:"std::int::lt"->d47:"std.int.lt" e1446:r525:x->d1213:x) e1448:r526:y->d1214:y)))
+        d259: int -> int -> bool = e1458:(fn p337:d1215:x -> e1457:(fn p338:d1216:y -> e1456:(e1454:(e1452:r527:"std::int::le"->d48:"std.int.le" e1453:r528:x->d1215:x) e1455:r529:y->d1216:y)))
+        d260: int -> int -> bool = e1465:(fn p339:d1217:x -> e1464:(fn p340:d1218:y -> e1463:(e1461:(e1459:r530:"std::int::gt"->d49:"std.int.gt" e1460:r531:x->d1217:x) e1462:r532:y->d1218:y)))
+        d261: int -> int -> bool = e1472:(fn p341:d1219:x -> e1471:(fn p342:d1220:y -> e1470:(e1468:(e1466:r533:"std::int::ge"->d50:"std.int.ge" e1467:r534:x->d1219:x) e1469:r535:y->d1220:y)))
+      }
+      my d262 mod {
+        d263: float -> float -> bool = e1479:(fn p343:d1221:x -> e1478:(fn p344:d1222:y -> e1477:(e1475:(e1473:r536:"std::float::eq"->d35:"std.float.eq" e1474:r537:x->d1221:x) e1476:r538:y->d1222:y)))
+      }
+      my d264 mod {
+        d265: float -> float -> bool = e1486:(fn p345:d1223:x -> e1485:(fn p346:d1224:y -> e1484:(e1482:(e1480:r539:"std::float::lt"->d36:"std.float.lt" e1481:r540:x->d1223:x) e1483:r541:y->d1224:y)))
+        d266: float -> float -> bool = e1493:(fn p347:d1225:x -> e1492:(fn p348:d1226:y -> e1491:(e1489:(e1487:r542:"std::float::le"->d37:"std.float.le" e1488:r543:x->d1225:x) e1490:r544:y->d1226:y)))
+        d267: float -> float -> bool = e1500:(fn p349:d1227:x -> e1499:(fn p350:d1228:y -> e1498:(e1496:(e1494:r545:"std::float::gt"->d38:"std.float.gt" e1495:r546:x->d1227:x) e1497:r547:y->d1228:y)))
+        d268: float -> float -> bool = e1507:(fn p351:d1229:x -> e1506:(fn p352:d1230:y -> e1505:(e1503:(e1501:r548:"std::float::ge"->d39:"std.float.ge" e1502:r549:x->d1229:x) e1504:r550:y->d1230:y)))
+      }
+      my d269 mod {
+        d270: std::num::frac::frac -> std::num::frac::frac -> bool = e1514:(fn p353:d1231:x -> e1513:(fn p354:d1232:y -> e1512:(e1510:(e1508:r551:"std::num::frac::eq"->d647:"std.num.frac.eq" e1509:r552:x->d1231:x) e1511:r553:y->d1232:y)))
+      }
+      my d271 mod {
+        d272: std::num::frac::frac -> std::num::frac::frac -> bool = e1521:(fn p355:d1233:x -> e1520:(fn p356:d1234:y -> e1519:(e1517:(e1515:r554:"std::num::frac::lt"->d648:"std.num.frac.lt" e1516:r555:x->d1233:x) e1518:r556:y->d1234:y)))
+        d273: std::num::frac::frac -> std::num::frac::frac -> bool = e1528:(fn p357:d1235:x -> e1527:(fn p358:d1236:y -> e1526:(e1524:(e1522:r557:"std::num::frac::le"->d649:"std.num.frac.le" e1523:r558:x->d1235:x) e1525:r559:y->d1236:y)))
+        d274: std::num::frac::frac -> std::num::frac::frac -> bool = e1535:(fn p359:d1237:x -> e1534:(fn p360:d1238:y -> e1533:(e1531:(e1529:r560:"std::num::frac::gt"->d650:"std.num.frac.gt" e1530:r561:x->d1237:x) e1532:r562:y->d1238:y)))
+        d275: std::num::frac::frac -> std::num::frac::frac -> bool = e1542:(fn p361:d1239:x -> e1541:(fn p362:d1240:y -> e1540:(e1538:(e1536:r563:"std::num::frac::ge"->d651:"std.num.frac.ge" e1537:r564:x->d1239:x) e1539:r565:y->d1240:y)))
+      }
+      my d276 mod {
+        d277: bool -> bool -> bool = e1549:(fn p363:d1241:x -> e1548:(fn p364:d1242:y -> e1547:(e1545:(e1543:r566:"std::bool::eq"->d14:"std.bool.eq" e1544:r567:x->d1241:x) e1546:r568:y->d1242:y)))
+      }
+      my d278 mod {
+        d279: std::text::str::str -> std::text::str::str -> bool = e1556:(fn p365:d1243:x -> e1555:(fn p366:d1244:y -> e1554:(e1552:(e1550:r569:"std::text::str::eq"->d786:"std.text.str.eq" e1551:r570:x->d1243:x) e1553:r571:y->d1244:y)))
+      }
+      my d280 mod {
+        d281: std::text::char::char -> std::text::char::char -> bool = e1563:(fn p367:d1245:x -> e1562:(fn p368:d1246:y -> e1561:(e1559:(e1557:r572:"std::text::char::eq"->d672:"std.text.char.eq" e1558:r573:x->d1245:x) e1560:r574:y->d1246:y)))
+      }
+      my d282 mod {
+        d283: std::data::list::list int -> std::data::list::list int -> bool = e1592:(fn p369:d1247:xs -> e1591:(fn p370:d1248:ys -> e1590:case e1570:(e1566:(e1564:r575:"std::data::list::view_raw"->d478:"std.data.list.view_raw" e1565:r576:xs->d1247:xs), e1569:(e1567:r577:"std::data::list::view_raw"->d478:"std.data.list.view_raw" e1568:r578:ys->d1248:ys)) { p373:(p371:r579:"std::data::list::list_view::empty"->d457:"std.data.list.list_view.empty", p372:r580:"std::data::list::list_view::empty"->d457:"std.data.list.list_view.empty") -> e1571:true; p378:(p375:r581:"std::data::list::list_view::leaf"->d458:"std.data.list.list_view.leaf"(p374:d1249:x), p377:r582:"std::data::list::list_view::leaf"->d458:"std.data.list.list_view.leaf"(p376:d1250:y)) -> e1576:(e1574:(e1572:r583:"std::int::eq"->d46:"std.int.eq" e1573:r584:x->d1249:x) e1575:r585:y->d1250:y); p385:(p381:r586:"std::data::list::list_view::node"->d459:"std.data.list.list_view.node"(p379:d1251:xl, p380:d1252:xr), p384:r587:"std::data::list::list_view::node"->d459:"std.data.list.list_view.node"(p382:d1253:yl, p383:d1254:yr)) -> e1588:case e1582:(e1581:r590:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1580:(e1578:(e1577:r588:xl->d1251:xl.s44.eq=>d249:"std.core.cmp.Eq.eq") e1579:r589:yl->d1253:yl)) { p386:true -> e1586:(e1584:(e1583:r591:xr->d1252:xr.s45.eq=>d249:"std.core.cmp.Eq.eq") e1585:r592:yr->d1254:yr); p387:false -> e1587:false }; p388:_ -> e1589:false }))
+      }
+    }
+    pub d23:"std.core.convert" mod {
+      pub d284:"std.core.convert.Cast" mod {
+        pub d285:"std.core.convert.Cast.cast": 'a -> 'b where 'a: std::core::convert::Cast(to = 'b) = <missing>
+      }
+    }
+    pub d24:"std.core.fmt" mod {
+      pub d290:"std.core.fmt.format_kind" mod {
+        pub d291:"std.core.fmt.format_kind.display": std::core::fmt::format_kind = <missing>
+        pub d292:"std.core.fmt.format_kind.debug": std::core::fmt::format_kind = <missing>
+        pub d293:"std.core.fmt.format_kind.lower_hex": std::core::fmt::format_kind = <missing>
+        pub d294:"std.core.fmt.format_kind.upper_hex": std::core::fmt::format_kind = <missing>
+      }
+      pub d295:"std.core.fmt.format_align" mod {
+        pub d296:"std.core.fmt.format_align.left": std::core::fmt::format_align = <missing>
+        pub d297:"std.core.fmt.format_align.right": std::core::fmt::format_align = <missing>
+        pub d298:"std.core.fmt.format_align.center": std::core::fmt::format_align = <missing>
+      }
+      pub d299:"std.core.fmt.format_sign" mod {
+        pub d300:"std.core.fmt.format_sign.plus": std::core::fmt::format_sign = <missing>
+        pub d301:"std.core.fmt.format_sign.minus": std::core::fmt::format_sign = <missing>
+      }
+      pub d302:"std.core.fmt.format_spec": {kind: std::core::fmt::format_kind, align: std::data::opt::opt std::core::fmt::format_align, sign: std::data::opt::opt std::core::fmt::format_sign, fill: std::data::opt::opt std::text::str::str, width: std::data::opt::opt int, precision: std::data::opt::opt int, alternate: bool, zero_pad: bool} -> std::core::fmt::format_spec = <missing>
+      pub d319:"std.core.fmt.Display" mod {
+        pub d320:"std.core.fmt.Display.show": 'a -> std::text::str::str where 'a: std::core::fmt::Display = <missing>
+        pub d321:"std.core.fmt.Display.say": 'a -> [std::io::console::out] () where 'a: std::core::fmt::Display = e1619:(fn p393:d1259:a -> e1618:(e1611:r600:"std::io::out::write"->d539:"std.io.console.out.write" e1617:(e1616:(e1614:r602:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1613:(e1612:r601:a->d1259:a.s46.show=>d320:"std.core.fmt.Display.show")) e1615:"\n")))
+        pub d322:"std.core.fmt.Display.note": 'a -> [std::io::console::err] () where 'a: std::core::fmt::Display = e1628:(fn p394:d1260:a -> e1627:(e1620:r603:"std::io::err::write"->d544:"std.io.console.err.write" e1626:(e1625:(e1623:r605:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1622:(e1621:r604:a->d1260:a.s47.show=>d320:"std.core.fmt.Display.show")) e1624:"\n")))
+      }
+      pub d323:"std.core.fmt.Debug" mod {
+        pub d324:"std.core.fmt.Debug.debug": 'a -> std::text::str::str where 'a: std::core::fmt::Debug = <missing>
+        pub d325:"std.core.fmt.Debug.dd": 'a -> [std::io::console::err] () where 'a: std::core::fmt::Debug = e1637:(fn p395:d1261:a -> e1636:(e1629:r606:"std::io::err::write"->d544:"std.io.console.err.write" e1635:(e1634:(e1632:r608:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1631:(e1630:r607:a->d1261:a.s48.debug=>d324:"std.core.fmt.Debug.debug")) e1633:"\n")))
+      }
+      my d326:"std.core.fmt.repeat": std::text::str::str -> int -> std::text::str::str = e1661:(fn p396:d1262:text -> e1660:(fn p397:d1263:count -> e1659:case e1644:(e1643:r611:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1642:(e1641:(e1639:r610:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e1638:r609:count->d1263:count) e1640:0)) { p398:true -> e1645:""; p399:false -> e1658:(e1657:(e1647:r613:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1646:r612:text->d1262:text) e1656:(e1650:(e1648:r614:repeat->d326:"std.core.fmt.repeat" e1649:r615:text->d1262:text) e1655:(e1654:(e1652:r617:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e1651:r616:count->d1263:count) e1653:1))) }))
+      my d327:"std.core.fmt.format_fill": std::core::fmt::format_spec -> std::text::str::str = e1673:(fn p400:d1264:spec -> e1672:case e1663:(e1662:r618:spec->d1264:spec.s49.fill->d309) { p402:r619:"opt::just"->d505:"std.data.opt.opt.just"(p401:d1265:fill) -> e1664:r620:fill->d1265:fill; p403:r621:"opt::nil"->d504:"std.data.opt.opt.nil" -> e1671:case e1668:(e1667:r623:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1666:(e1665:r622:spec->d1264:spec.s50.zero_pad->d317)) { p404:true -> e1669:"0"; p405:false -> e1670:" " } })
+      my d328:"std.core.fmt.format_body": std::core::fmt::format_spec -> std::text::str::str -> std::text::str::str = e1696:(fn p406:d1266:spec -> e1695:(fn p407:d1267:body -> e1694:case e1675:(e1674:r624:spec->d1266:spec.s51.precision->d313) { p409:r625:"opt::just"->d505:"std.data.opt.opt.just"(p408:d1268:limit) -> e1692:case e1683:(e1682:r629:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1681:(e1680:(e1678:r627:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e1677:(e1676:r626:body->d1267:body.s52.len->d839:"std.text.str.str.len")) e1679:r628:limit->d1268:limit)) { p410:true -> e1684:r630:body->d1267:body; p411:false -> e1691:(e1689:(e1687:(e1685:r631:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e1686:r632:body->d1267:body) e1688:0) e1690:r633:limit->d1268:limit) }; p412:r634:"opt::nil"->d504:"std.data.opt.opt.nil" -> e1693:r635:body->d1267:body }))
+      my d329:"std.core.fmt.starts_with_minus": std::text::str::str -> bool = e1718:(fn p413:d1269:body -> e1717:case e1704:(e1703:r638:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1702:(e1701:(e1699:r637:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e1698:(e1697:r636:body->d1269:body.s53.len->d839:"std.text.str.str.len")) e1700:0)) { p414:true -> e1705:false; p415:false -> e1716:(e1715:(e1713:r641:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e1712:(e1710:(e1708:(e1706:r639:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e1707:r640:body->d1269:body) e1709:0) e1711:1)) e1714:"-") })
+      my d330:"std.core.fmt.format_sign_prefix": std::core::fmt::format_spec -> std::text::str::str -> std::text::str::str -> std::text::str::str = e1738:(fn p416:d1270:spec -> e1737:(fn p417:d1271:head -> e1736:(fn p418:d1272:body -> e1735:case e1720:(e1719:r642:spec->d1270:spec.s54.sign->d307) { p420:r643:"opt::just"->d505:"std.data.opt.opt.just"(p419:r644:"format_sign::plus"->d300:"std.core.fmt.format_sign.plus") -> e1732:case e1725:(e1724:r647:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1723:(e1721:r645:starts_with_minus->d329:"std.core.fmt.starts_with_minus" e1722:r646:body->d1272:body)) { p421:true -> e1726:r648:head->d1271:head; p422:false -> e1731:(e1730:(e1728:r649:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1727:"+") e1729:r650:head->d1271:head) }; p424:r651:"opt::just"->d505:"std.data.opt.opt.just"(p423:r652:"format_sign::minus"->d301:"std.core.fmt.format_sign.minus") -> e1733:r653:head->d1271:head; p425:r654:"opt::nil"->d504:"std.data.opt.opt.nil" -> e1734:r655:head->d1271:head })))
+      my d331:"std.core.fmt.format_with_padding": std::core::fmt::format_spec -> std::text::str::str -> std::text::str::str -> std::text::str::str = e1875:(fn p426:d1273:spec -> e1874:(fn p427:d1274:head -> e1873:(fn p428:d1275:body -> e1872:case e1740:(e1739:r656:spec->d1273:spec.s55.width->d311) { p429:r657:"opt::nil"->d504:"std.data.opt.opt.nil" -> e1759:block { let my p430:d1276:clipped = e1745:(e1743:(e1741:r658:format_body->d328:"std.core.fmt.format_body" e1742:r659:spec->d1273:spec) e1744:r660:body->d1275:body); e1758:block { let my p431:d1277:body_prefix = e1752:(e1750:(e1748:(e1746:r661:format_sign_prefix->d330:"std.core.fmt.format_sign_prefix" e1747:r662:spec->d1273:spec) e1749:r663:head->d1274:head) e1751:r664:clipped->d1276:clipped); e1757:(e1756:(e1754:r666:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1753:r665:body_prefix->d1277:body_prefix) e1755:r667:clipped->d1276:clipped) } }; p433:r668:"opt::just"->d505:"std.data.opt.opt.just"(p432:d1278:width) -> e1871:block { let my p434:d1279:clipped = e1764:(e1762:(e1760:r669:format_body->d328:"std.core.fmt.format_body" e1761:r670:spec->d1273:spec) e1763:r671:body->d1275:body); e1870:block { let my p435:d1280:body_prefix = e1771:(e1769:(e1767:(e1765:r672:format_sign_prefix->d330:"std.core.fmt.format_sign_prefix" e1766:r673:spec->d1273:spec) e1768:r674:head->d1274:head) e1770:r675:clipped->d1279:clipped); e1869:block { let my p436:d1281:text = e1776:(e1775:(e1773:r677:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1772:r676:body_prefix->d1280:body_prefix) e1774:r678:clipped->d1279:clipped); e1868:block { let my p437:d1282:missing = e1782:(e1781:(e1778:r680:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e1777:r679:width->d1278:width) e1780:(e1779:r681:text->d1281:text.s56.len->d839:"std.text.str.str.len")); e1867:case e1789:(e1788:r684:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1787:(e1786:(e1784:r683:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e1783:r682:missing->d1282:missing) e1785:0)) { p450:true -> e1790:r685:text->d1281:text; p451:false -> e1866:block { let my p438:d1283:fill = e1793:(e1791:r686:format_fill->d327:"std.core.fmt.format_fill" e1792:r687:spec->d1273:spec); e1865:case e1795:(e1794:r688:spec->d1273:spec.s57.align->d305) { p440:r689:"opt::just"->d505:"std.data.opt.opt.just"(p439:r690:"format_align::left"->d296:"std.core.fmt.format_align.left") -> e1804:(e1803:(e1797:r692:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1796:r691:text->d1281:text) e1802:(e1800:(e1798:r693:repeat->d326:"std.core.fmt.repeat" e1799:r694:fill->d1283:fill) e1801:r695:missing->d1282:missing)); p442:r696:"opt::just"->d505:"std.data.opt.opt.just"(p441:r697:"format_align::center"->d298:"std.core.fmt.format_align.center") -> e1833:block { let my p443:d1284:left = e1809:(e1808:(e1806:r699:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e1805:r698:missing->d1282:missing) e1807:2); e1832:block { let my p444:d1285:right = e1814:(e1813:(e1811:r701:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e1810:r700:missing->d1282:missing) e1812:r702:left->d1284:left); e1831:(e1830:(e1824:r708:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1823:(e1822:(e1820:r706:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1819:(e1817:(e1815:r703:repeat->d326:"std.core.fmt.repeat" e1816:r704:fill->d1283:fill) e1818:r705:left->d1284:left)) e1821:r707:text->d1281:text)) e1829:(e1827:(e1825:r709:repeat->d326:"std.core.fmt.repeat" e1826:r710:fill->d1283:fill) e1828:r711:right->d1285:right)) } }; p445:_ -> e1864:case e1837:(e1836:r713:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1835:(e1834:r712:spec->d1273:spec.s58.zero_pad->d317)) { p448:true -> e1854:block { let my p446:d1286:padding = e1842:(e1840:(e1838:r714:repeat->d326:"std.core.fmt.repeat" e1839:r715:fill->d1283:fill) e1841:r716:missing->d1282:missing); e1853:block { let my p447:d1287:padded_prefix = e1847:(e1846:(e1844:r718:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1843:r717:body_prefix->d1280:body_prefix) e1845:r719:padding->d1286:padding); e1852:(e1851:(e1849:r721:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1848:r720:padded_prefix->d1287:padded_prefix) e1850:r722:clipped->d1279:clipped) } }; p449:false -> e1863:(e1862:(e1860:r726:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1859:(e1857:(e1855:r723:repeat->d326:"std.core.fmt.repeat" e1856:r724:fill->d1283:fill) e1858:r725:missing->d1282:missing)) e1861:r727:text->d1281:text) } } } } } } } } })))
+      pub d332:"std.core.fmt.format_display": std::core::fmt::format_spec -> 'a -> std::text::str::str where 'a: std::core::fmt::Display = e1885:(fn p452:d1288:spec -> e1884:(fn p453:d1289:value -> e1883:(e1880:(e1878:(e1876:r728:format_with_padding->d331:"std.core.fmt.format_with_padding" e1877:r729:spec->d1288:spec) e1879:"") e1882:(e1881:r730:value->d1289:value.s59.show=>d320:"std.core.fmt.Display.show"))))
+      pub d333:"std.core.fmt.format_debug": std::core::fmt::format_spec -> 'a -> std::text::str::str where 'a: std::core::fmt::Debug = e1895:(fn p454:d1290:spec -> e1894:(fn p455:d1291:value -> e1893:(e1890:(e1888:(e1886:r731:format_with_padding->d331:"std.core.fmt.format_with_padding" e1887:r732:spec->d1290:spec) e1889:"") e1892:(e1891:r733:value->d1291:value.s60.debug=>d324:"std.core.fmt.Debug.debug"))))
+      pub d334:"std.core.fmt.format_lower_hex": std::core::fmt::format_spec -> 'a -> std::text::str::str where 'a: std::num::LowerHex = e1913:(fn p456:d1292:spec -> e1912:(fn p457:d1293:value -> e1911:block { let my p458:d1294:head = e1902:case e1899:(e1898:r735:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1897:(e1896:r734:spec->d1292:spec.s61.alternate->d315)) { p459:true -> e1900:"0x"; p460:false -> e1901:"" }; e1910:(e1907:(e1905:(e1903:r736:format_with_padding->d331:"std.core.fmt.format_with_padding" e1904:r737:spec->d1292:spec) e1906:r738:head->d1294:head) e1909:(e1908:r739:value->d1293:value.s62.lower_hex=>d71:"std.num.LowerHex.lower_hex")) }))
+      pub d335:"std.core.fmt.format_upper_hex": std::core::fmt::format_spec -> 'a -> std::text::str::str where 'a: std::num::UpperHex = e1931:(fn p461:d1295:spec -> e1930:(fn p462:d1296:value -> e1929:block { let my p463:d1297:head = e1920:case e1917:(e1916:r741:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1915:(e1914:r740:spec->d1295:spec.s63.alternate->d315)) { p464:true -> e1918:"0X"; p465:false -> e1919:"" }; e1928:(e1925:(e1923:(e1921:r742:format_with_padding->d331:"std.core.fmt.format_with_padding" e1922:r743:spec->d1295:spec) e1924:r744:head->d1297:head) e1927:(e1926:r745:value->d1296:value.s64.upper_hex=>d73:"std.num.UpperHex.upper_hex")) }))
+      my d336 mod {
+        d337: int -> std::text::str::str = e1935:(fn p466:d1298:x -> e1934:(e1932:r746:"std::int::to_string"->d55:"std.int.to_string" e1933:r747:x->d1298:x))
+      }
+      my d338 mod {
+        d339: int -> std::text::str::str = e1938:(fn p467:d1299:x -> e1937:(e1936:r748:x->d1299:x.s65.show=>d320:"std.core.fmt.Display.show"))
+      }
+      my d340 mod {
+        d341: float -> std::text::str::str = e1942:(fn p468:d1300:x -> e1941:(e1939:r749:"std::float::to_string"->d44:"std.float.to_string" e1940:r750:x->d1300:x))
+      }
+      my d342 mod {
+        d343: float -> std::text::str::str = e1945:(fn p469:d1301:x -> e1944:(e1943:r751:x->d1301:x.s66.show=>d320:"std.core.fmt.Display.show"))
+      }
+      my d344 mod {
+        d345: std::num::frac::frac -> std::text::str::str = e1949:(fn p470:d1302:x -> e1948:(e1946:r752:"std::num::frac::to_string"->d653:"std.num.frac.to_string" e1947:r753:x->d1302:x))
+      }
+      my d346 mod {
+        d347: std::num::frac::frac -> std::text::str::str = e1952:(fn p471:d1303:x -> e1951:(e1950:r754:x->d1303:x.s67.show=>d320:"std.core.fmt.Display.show"))
+      }
+      my d348 mod {
+        d349: bool -> std::text::str::str = e1956:(fn p472:d1304:x -> e1955:(e1953:r755:"std::bool::to_string"->d16:"std.bool.to_string" e1954:r756:x->d1304:x))
+      }
+      my d350 mod {
+        d351: bool -> std::text::str::str = e1959:(fn p473:d1305:x -> e1958:(e1957:r757:x->d1305:x.s68.show=>d320:"std.core.fmt.Display.show"))
+      }
+      my d352 mod {
+        d353: std::text::str::str -> std::text::str::str = e1961:(fn p474:d1306:x -> e1960:r758:x->d1306:x)
+      }
+      my d354 mod {
+        d355: std::text::char::char -> std::text::str::str = e1965:(fn p475:d1307:x -> e1964:(e1962:r759:"std::text::char::to_string"->d673:"std.text.char.to_string" e1963:r760:x->d1307:x))
+      }
+      my d356 mod {
+        d357: () -> std::text::str::str = e1967:(fn p476:d1308:x -> e1966:"()")
+      }
+      my d358:"std.core.fmt.show_list_items": std::data::list::list 'a -> std::text::str::str where 'a: std::core::fmt::Display = e1992:(fn p477:d1309:xs -> e1991:case e1970:(e1968:r761:"std::data::list::view_raw"->d478:"std.data.list.view_raw" e1969:r762:xs->d1309:xs) { p478:r763:"std::data::list::list_view::empty"->d457:"std.data.list.list_view.empty" -> e1971:""; p480:r764:"std::data::list::list_view::leaf"->d458:"std.data.list.list_view.leaf"(p479:d1310:item) -> e1973:(e1972:r765:item->d1310:item.s69.show=>d320:"std.core.fmt.Display.show"); p483:r766:"std::data::list::list_view::node"->d459:"std.data.list.list_view.node"(p481:d1311:left, p482:d1312:right) -> e1990:block { let my p484:d1313:left_text = e1976:(e1974:r767:show_list_items->d358:"std.core.fmt.show_list_items" e1975:r768:left->d1311:left); e1989:block { let my p485:d1314:right_text = e1979:(e1977:r769:show_list_items->d358:"std.core.fmt.show_list_items" e1978:r770:right->d1312:right); e1988:(e1987:(e1985:r773:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1984:(e1983:(e1981:r772:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1980:r771:left_text->d1313:left_text) e1982:", ")) e1986:r774:right_text->d1314:right_text) } } })
+      my d359 mod {
+        d360: std::data::list::list 'a -> std::text::str::str where 'a: std::core::fmt::Display = e2004:(fn p486:d1315:xs -> e2003:(e2002:(e2000:r778:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1999:(e1998:(e1994:r775:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1993:"[") e1997:(e1995:r776:show_list_items->d358:"std.core.fmt.show_list_items" e1996:r777:xs->d1315:xs))) e2001:"]"))
+      }
+      my d361 mod {
+        d362: std::data::opt::opt 'a -> std::text::str::str where 'a: std::core::fmt::Display = e2014:(fn p487:d1316:value -> e2013:case e2005:r779:value->d1316:value { p488:r780:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil" -> e2006:"nil"; p490:r781:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just"(p489:d1317:inner) -> e2012:(e2011:(e2008:r782:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2007:"just ") e2010:(e2009:r783:inner->d1317:inner.s70.show=>d320:"std.core.fmt.Display.show")) })
+      }
+      my d363 mod {
+        d364: std::data::result::result 'a 'b -> std::text::str::str where 'a: std::core::fmt::Display, 'b: std::core::fmt::Display = e2029:(fn p491:d1318:value -> e2028:case e2015:r784:value->d1318:value { p493:r785:"std::data::result::result::ok"->d530:"std.data.result.result.ok"(p492:d1319:inner) -> e2021:(e2020:(e2017:r786:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2016:"ok ") e2019:(e2018:r787:inner->d1319:inner.s71.show=>d320:"std.core.fmt.Display.show")); p495:r788:"std::data::result::result::err"->d531:"std.data.result.result.err"(p494:d1320:inner) -> e2027:(e2026:(e2023:r789:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2022:"err ") e2025:(e2024:r790:inner->d1320:inner.s72.show=>d320:"std.core.fmt.Display.show")) })
+      }
+      my d365 mod {
+        d366: ('a, 'b) -> std::text::str::str where 'a: std::core::fmt::Display, 'b: std::core::fmt::Display = e2051:(fn p496:d1321:value -> e2050:case e2030:r791:value->d1321:value { p499:(p497:d1322:a, p498:d1323:b) -> e2049:(e2048:(e2046:r797:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2045:(e2044:(e2041:r795:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2040:(e2039:(e2037:r794:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2036:(e2035:(e2032:r792:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2031:"(") e2034:(e2033:r793:a->d1322:a.s73.show=>d320:"std.core.fmt.Display.show"))) e2038:", ")) e2043:(e2042:r796:b->d1323:b.s74.show=>d320:"std.core.fmt.Display.show"))) e2047:")") })
+      }
+      my d367 mod {
+        d368: ('a, 'b, 'c) -> std::text::str::str where 'a: std::core::fmt::Display, 'b: std::core::fmt::Display, 'c: std::core::fmt::Display = e2082:(fn p500:d1324:value -> e2081:case e2052:r798:value->d1324:value { p504:(p501:d1325:a, p502:d1326:b, p503:d1327:c) -> e2080:(e2079:(e2077:r807:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2076:(e2075:(e2072:r805:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2071:(e2070:(e2068:r804:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2067:(e2066:(e2063:r802:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2062:(e2061:(e2059:r801:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2058:(e2057:(e2054:r799:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2053:"(") e2056:(e2055:r800:a->d1325:a.s75.show=>d320:"std.core.fmt.Display.show"))) e2060:", ")) e2065:(e2064:r803:b->d1326:b.s76.show=>d320:"std.core.fmt.Display.show"))) e2069:", ")) e2074:(e2073:r806:c->d1327:c.s77.show=>d320:"std.core.fmt.Display.show"))) e2078:")") })
+      }
+      my d369 mod {
+        d370: ('a, 'b, 'c, 'd) -> std::text::str::str where 'a: std::core::fmt::Display, 'b: std::core::fmt::Display, 'c: std::core::fmt::Display, 'd: std::core::fmt::Display = e2122:(fn p505:d1328:value -> e2121:case e2083:r808:value->d1328:value { p510:(p506:d1329:a, p507:d1330:b, p508:d1331:c, p509:d1332:d) -> e2120:(e2119:(e2117:r820:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2116:(e2115:(e2112:r818:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2111:(e2110:(e2108:r817:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2107:(e2106:(e2103:r815:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2102:(e2101:(e2099:r814:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2098:(e2097:(e2094:r812:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2093:(e2092:(e2090:r811:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2089:(e2088:(e2085:r809:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2084:"(") e2087:(e2086:r810:a->d1329:a.s78.show=>d320:"std.core.fmt.Display.show"))) e2091:", ")) e2096:(e2095:r813:b->d1330:b.s79.show=>d320:"std.core.fmt.Display.show"))) e2100:", ")) e2105:(e2104:r816:c->d1331:c.s80.show=>d320:"std.core.fmt.Display.show"))) e2109:", ")) e2114:(e2113:r819:d->d1332:d.s81.show=>d320:"std.core.fmt.Display.show"))) e2118:")") })
+      }
+      my d371 mod {
+        d372: ('a, 'b, 'c, 'd, 'e) -> std::text::str::str where 'a: std::core::fmt::Display, 'b: std::core::fmt::Display, 'c: std::core::fmt::Display, 'd: std::core::fmt::Display, 'e: std::core::fmt::Display = e2171:(fn p511:d1333:value -> e2170:case e2123:r821:value->d1333:value { p517:(p512:d1334:a, p513:d1335:b, p514:d1336:c, p515:d1337:d, p516:d1338:e) -> e2169:(e2168:(e2166:r836:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2165:(e2164:(e2161:r834:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2160:(e2159:(e2157:r833:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2156:(e2155:(e2152:r831:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2151:(e2150:(e2148:r830:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2147:(e2146:(e2143:r828:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2142:(e2141:(e2139:r827:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2138:(e2137:(e2134:r825:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2133:(e2132:(e2130:r824:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2129:(e2128:(e2125:r822:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2124:"(") e2127:(e2126:r823:a->d1334:a.s82.show=>d320:"std.core.fmt.Display.show"))) e2131:", ")) e2136:(e2135:r826:b->d1335:b.s83.show=>d320:"std.core.fmt.Display.show"))) e2140:", ")) e2145:(e2144:r829:c->d1336:c.s84.show=>d320:"std.core.fmt.Display.show"))) e2149:", ")) e2154:(e2153:r832:d->d1337:d.s85.show=>d320:"std.core.fmt.Display.show"))) e2158:", ")) e2163:(e2162:r835:e->d1338:e.s86.show=>d320:"std.core.fmt.Display.show"))) e2167:")") })
+      }
+      my d373 mod {
+        d374: std::text::str::str -> std::text::str::str = e2181:(fn p518:d1339:x -> e2180:(e2179:(e2177:r839:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2176:(e2175:(e2173:r837:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2172:"\"") e2174:r838:x->d1339:x)) e2178:"\""))
+      }
+      my d375 mod {
+        d376: std::text::char::char -> std::text::str::str = e2193:(fn p519:d1340:x -> e2192:(e2191:(e2189:r843:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2188:(e2187:(e2183:r840:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2182:"'") e2186:(e2184:r841:"std::text::char::to_string"->d673:"std.text.char.to_string" e2185:r842:x->d1340:x))) e2190:"'"))
+      }
+      my d377 mod {
+        d378: () -> std::text::str::str = e2195:(fn p520:d1341:x -> e2194:"()")
+      }
+      my d379:"std.core.fmt.debug_list_items": std::data::list::list 'a -> std::text::str::str where 'a: std::core::fmt::Debug = e2220:(fn p521:d1342:xs -> e2219:case e2198:(e2196:r844:"std::data::list::view_raw"->d478:"std.data.list.view_raw" e2197:r845:xs->d1342:xs) { p522:r846:"std::data::list::list_view::empty"->d457:"std.data.list.list_view.empty" -> e2199:""; p524:r847:"std::data::list::list_view::leaf"->d458:"std.data.list.list_view.leaf"(p523:d1343:item) -> e2201:(e2200:r848:item->d1343:item.s87.debug=>d324:"std.core.fmt.Debug.debug"); p527:r849:"std::data::list::list_view::node"->d459:"std.data.list.list_view.node"(p525:d1344:left, p526:d1345:right) -> e2218:block { let my p528:d1346:left_text = e2204:(e2202:r850:debug_list_items->d379:"std.core.fmt.debug_list_items" e2203:r851:left->d1344:left); e2217:block { let my p529:d1347:right_text = e2207:(e2205:r852:debug_list_items->d379:"std.core.fmt.debug_list_items" e2206:r853:right->d1345:right); e2216:(e2215:(e2213:r856:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2212:(e2211:(e2209:r855:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2208:r854:left_text->d1346:left_text) e2210:", ")) e2214:r857:right_text->d1347:right_text) } } })
+      my d380 mod {
+        d381: std::data::list::list 'a -> std::text::str::str where 'a: std::core::fmt::Debug = e2232:(fn p530:d1348:xs -> e2231:(e2230:(e2228:r861:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2227:(e2226:(e2222:r858:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2221:"[") e2225:(e2223:r859:debug_list_items->d379:"std.core.fmt.debug_list_items" e2224:r860:xs->d1348:xs))) e2229:"]"))
+      }
+      my d382 mod {
+        d383: std::data::opt::opt 'a -> std::text::str::str where 'a: std::core::fmt::Debug = e2242:(fn p531:d1349:value -> e2241:case e2233:r862:value->d1349:value { p532:r863:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil" -> e2234:"nil"; p534:r864:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just"(p533:d1350:inner) -> e2240:(e2239:(e2236:r865:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2235:"just ") e2238:(e2237:r866:inner->d1350:inner.s88.debug=>d324:"std.core.fmt.Debug.debug")) })
+      }
+      my d384 mod {
+        d385: std::data::result::result 'a 'b -> std::text::str::str where 'a: std::core::fmt::Debug, 'b: std::core::fmt::Debug = e2257:(fn p535:d1351:value -> e2256:case e2243:r867:value->d1351:value { p537:r868:"std::data::result::result::ok"->d530:"std.data.result.result.ok"(p536:d1352:inner) -> e2249:(e2248:(e2245:r869:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2244:"ok ") e2247:(e2246:r870:inner->d1352:inner.s89.debug=>d324:"std.core.fmt.Debug.debug")); p539:r871:"std::data::result::result::err"->d531:"std.data.result.result.err"(p538:d1353:inner) -> e2255:(e2254:(e2251:r872:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2250:"err ") e2253:(e2252:r873:inner->d1353:inner.s90.debug=>d324:"std.core.fmt.Debug.debug")) })
+      }
+      my d386 mod {
+        d387: ('a, 'b) -> std::text::str::str where 'a: std::core::fmt::Debug, 'b: std::core::fmt::Debug = e2279:(fn p540:d1354:value -> e2278:case e2258:r874:value->d1354:value { p543:(p541:d1355:a, p542:d1356:b) -> e2277:(e2276:(e2274:r880:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2273:(e2272:(e2269:r878:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2268:(e2267:(e2265:r877:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2264:(e2263:(e2260:r875:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2259:"(") e2262:(e2261:r876:a->d1355:a.s91.debug=>d324:"std.core.fmt.Debug.debug"))) e2266:", ")) e2271:(e2270:r879:b->d1356:b.s92.debug=>d324:"std.core.fmt.Debug.debug"))) e2275:")") })
+      }
+      my d388 mod {
+        d389: ('a, 'b, 'c) -> std::text::str::str where 'a: std::core::fmt::Debug, 'b: std::core::fmt::Debug, 'c: std::core::fmt::Debug = e2310:(fn p544:d1357:value -> e2309:case e2280:r881:value->d1357:value { p548:(p545:d1358:a, p546:d1359:b, p547:d1360:c) -> e2308:(e2307:(e2305:r890:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2304:(e2303:(e2300:r888:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2299:(e2298:(e2296:r887:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2295:(e2294:(e2291:r885:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2290:(e2289:(e2287:r884:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2286:(e2285:(e2282:r882:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2281:"(") e2284:(e2283:r883:a->d1358:a.s93.debug=>d324:"std.core.fmt.Debug.debug"))) e2288:", ")) e2293:(e2292:r886:b->d1359:b.s94.debug=>d324:"std.core.fmt.Debug.debug"))) e2297:", ")) e2302:(e2301:r889:c->d1360:c.s95.debug=>d324:"std.core.fmt.Debug.debug"))) e2306:")") })
+      }
+      my d390 mod {
+        d391: ('a, 'b, 'c, 'd) -> std::text::str::str where 'a: std::core::fmt::Debug, 'b: std::core::fmt::Debug, 'c: std::core::fmt::Debug, 'd: std::core::fmt::Debug = e2350:(fn p549:d1361:value -> e2349:case e2311:r891:value->d1361:value { p554:(p550:d1362:a, p551:d1363:b, p552:d1364:c, p553:d1365:d) -> e2348:(e2347:(e2345:r903:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2344:(e2343:(e2340:r901:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2339:(e2338:(e2336:r900:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2335:(e2334:(e2331:r898:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2330:(e2329:(e2327:r897:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2326:(e2325:(e2322:r895:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2321:(e2320:(e2318:r894:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2317:(e2316:(e2313:r892:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2312:"(") e2315:(e2314:r893:a->d1362:a.s96.debug=>d324:"std.core.fmt.Debug.debug"))) e2319:", ")) e2324:(e2323:r896:b->d1363:b.s97.debug=>d324:"std.core.fmt.Debug.debug"))) e2328:", ")) e2333:(e2332:r899:c->d1364:c.s98.debug=>d324:"std.core.fmt.Debug.debug"))) e2337:", ")) e2342:(e2341:r902:d->d1365:d.s99.debug=>d324:"std.core.fmt.Debug.debug"))) e2346:")") })
+      }
+      my d392 mod {
+        d393: ('a, 'b, 'c, 'd, 'e) -> std::text::str::str where 'a: std::core::fmt::Debug, 'b: std::core::fmt::Debug, 'c: std::core::fmt::Debug, 'd: std::core::fmt::Debug, 'e: std::core::fmt::Debug = e2399:(fn p555:d1366:value -> e2398:case e2351:r904:value->d1366:value { p561:(p556:d1367:a, p557:d1368:b, p558:d1369:c, p559:d1370:d, p560:d1371:e) -> e2397:(e2396:(e2394:r919:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2393:(e2392:(e2389:r917:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2388:(e2387:(e2385:r916:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2384:(e2383:(e2380:r914:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2379:(e2378:(e2376:r913:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2375:(e2374:(e2371:r911:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2370:(e2369:(e2367:r910:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2366:(e2365:(e2362:r908:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2361:(e2360:(e2358:r907:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2357:(e2356:(e2353:r905:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2352:"(") e2355:(e2354:r906:a->d1367:a.s100.debug=>d324:"std.core.fmt.Debug.debug"))) e2359:", ")) e2364:(e2363:r909:b->d1368:b.s101.debug=>d324:"std.core.fmt.Debug.debug"))) e2368:", ")) e2373:(e2372:r912:c->d1369:c.s102.debug=>d324:"std.core.fmt.Debug.debug"))) e2377:", ")) e2382:(e2381:r915:d->d1370:d.s103.debug=>d324:"std.core.fmt.Debug.debug"))) e2386:", ")) e2391:(e2390:r918:e->d1371:e.s104.debug=>d324:"std.core.fmt.Debug.debug"))) e2395:")") })
+      }
+    }
+    pub d25:"std.core.ops" mod {
+      pub d394:"std.core.ops.#op:nullfix:return": () -> [std::control::flow::sub('a | ())] never = e2403:(fn p562:() -> e2402:(e2400:r920:"std::control::flow::sub::return"->d173:"std.control.flow.sub.return" e2401:()))
+      pub d395:"std.core.ops.#op:prefix:return": 'a -> [std::control::flow::sub 'a] never = e2404:r921:"std::control::flow::sub::return"->d173:"std.control.flow.sub.return"
+      pub d396:"std.core.ops.#op:prefix:fail": 'a -> ['b] never where 'a: std::control::throw::Throw(throws = 'b) = e2407:(fn p563:d1372:e -> e2406:(e2405:r922:e->d1372:e.s105.throw=>d233:"std.control.throw.Throw.throw"))
+      pub d397:"std.core.ops.#op:nullfix:last": () -> [std::control::flow::loop] never = e2411:(fn p564:() -> e2410:(e2408:r923:loop_last->d428:"std.core.ops.loop_last" e2409:()))
+      pub d398:"std.core.ops.#op:nullfix:next": () -> [std::control::flow::loop] never = e2415:(fn p565:() -> e2414:(e2412:r924:loop_next->d429:"std.core.ops.loop_next" e2413:()))
+      pub d399:"std.core.ops.#op:nullfix:redo": () -> [std::control::flow::loop] never = e2419:(fn p566:() -> e2418:(e2416:r925:loop_redo->d430:"std.core.ops.loop_redo" e2417:()))
+      pub d400:"std.core.ops.#op:prefix:last": 'a -> never where 'a: std::control::flow::LoopLabel = e2420:r926:label_last->d431:"std.core.ops.label_last"
+      pub d401:"std.core.ops.#op:prefix:next": 'a -> never where 'a: std::control::flow::LoopLabel = e2421:r927:label_next->d432:"std.core.ops.label_next"
+      pub d402:"std.core.ops.#op:prefix:redo": 'a -> never where 'a: std::control::flow::LoopLabel = e2422:r928:label_redo->d433:"std.core.ops.label_redo"
+      pub d403:"std.core.ops.#op:nullfix:..": () -> std::data::range::range = e2426:(fn p567:() -> e2425:(e2423:r929:"std::data::range::full"->d520:"std.data.range.full" e2424:()))
+      pub d404:"std.core.ops.#op:prefix:..": int -> std::data::range::range = e2427:r930:"std::data::range::to_included"->d518:"std.data.range.to_included"
+      pub d405:"std.core.ops.#op:prefix:..<": int -> std::data::range::range = e2428:r931:"std::data::range::to_excluded"->d519:"std.data.range.to_excluded"
+      pub d406:"std.core.ops.#op:suffix:..": int -> std::data::range::range = e2429:r932:"std::data::range::from_included"->d516:"std.data.range.from_included"
+      pub d407:"std.core.ops.#op:suffix:<..": int -> std::data::range::range = e2430:r933:"std::data::range::from_excluded"->d517:"std.data.range.from_excluded"
+      pub d408:"std.core.ops.#op:infix:..": int -> int -> std::data::range::range = e2431:r934:"std::data::range::inclusive"->d513:"std.data.range.inclusive"
+      pub d409:"std.core.ops.#op:infix:..<": int -> int -> std::data::range::range = e2432:r935:"std::data::range::range"->d512:"std.data.range.range"
+      pub d410:"std.core.ops.#op:infix:<..": int -> int -> std::data::range::range = e2433:r936:"std::data::range::from_exclusive_to_inclusive"->d515:"std.data.range.from_exclusive_to_inclusive"
+      pub d411:"std.core.ops.#op:infix:<..<": int -> int -> std::data::range::range = e2434:r937:"std::data::range::exclusive"->d514:"std.data.range.exclusive"
+      pub d412:"std.core.ops.#op:prefix:not": bool -> bool = e2435:r938:"std::bool::not"->d15:"std.bool.not"
+      pub d413:"std.core.ops.#op:prefix:-": int -> int = e2441:(fn p568:d1373:x -> e2440:(e2438:(e2436:r939:"std::int::sub"->d52:"std.int.sub" e2437:0) e2439:r940:x->d1373:x))
+      pub d414:"std.core.ops.#op:infix:+": 'a -> 'a -> 'a where 'a: std::num::Add = e2447:(fn p569:d1374:x -> e2446:(fn p570:d1375:y -> e2445:(e2443:(e2442:r941:x->d1374:x.s106.add=>d63:"std.num.Add.add") e2444:r942:y->d1375:y)))
+      pub d415:"std.core.ops.#op:infix:-": 'a -> 'a -> 'a where 'a: std::num::Sub = e2453:(fn p571:d1376:x -> e2452:(fn p572:d1377:y -> e2451:(e2449:(e2448:r943:x->d1376:x.s107.sub=>d65:"std.num.Sub.sub") e2450:r944:y->d1377:y)))
+      pub d416:"std.core.ops.#op:infix:*": 'a -> 'a -> 'a where 'a: std::num::Mul = e2459:(fn p573:d1378:x -> e2458:(fn p574:d1379:y -> e2457:(e2455:(e2454:r945:x->d1378:x.s108.mul=>d67:"std.num.Mul.mul") e2456:r946:y->d1379:y)))
+      pub d417:"std.core.ops.#op:infix:/": 'a -> 'a -> 'b where 'a: std::num::Div(out = 'b) = e2465:(fn p575:d1380:x -> e2464:(fn p576:d1381:y -> e2463:(e2461:(e2460:r947:x->d1380:x.s109.div=>d69:"std.num.Div.div") e2462:r948:y->d1381:y)))
+      pub d418:"std.core.ops.#op:infix:div": int -> int -> int = e2466:r949:"std::int::div"->d54:"std.int.div"
+      pub d419:"std.core.ops.#op:infix:mod": int -> int -> int = e2467:r950:"std::int::mod"->d45:"std.int.mod"
+      pub d420:"std.core.ops.#op:infix:==": 'a -> 'a -> bool where 'a: std::core::cmp::Eq = e2473:(fn p577:d1382:x -> e2472:(fn p578:d1383:y -> e2471:(e2469:(e2468:r951:x->d1382:x.s110.eq=>d249:"std.core.cmp.Eq.eq") e2470:r952:y->d1383:y)))
+      pub d421:"std.core.ops.#op:infix:!=": 'a -> 'a -> bool where 'a: std::core::cmp::Eq = e2481:(fn p579:d1384:x -> e2480:(fn p580:d1385:y -> e2479:(e2474:r953:"std::bool::not"->d15:"std.bool.not" e2478:(e2476:(e2475:r954:x->d1384:x.s111.eq=>d249:"std.core.cmp.Eq.eq") e2477:r955:y->d1385:y))))
+      pub d422:"std.core.ops.#op:infix:<": 'a -> 'a -> bool where 'a: std::core::cmp::Ord = e2487:(fn p581:d1386:x -> e2486:(fn p582:d1387:y -> e2485:(e2483:(e2482:r956:x->d1386:x.s112.lt=>d251:"std.core.cmp.Ord.lt") e2484:r957:y->d1387:y)))
+      pub d423:"std.core.ops.#op:infix:<=": 'a -> 'a -> bool where 'a: std::core::cmp::Ord = e2493:(fn p583:d1388:x -> e2492:(fn p584:d1389:y -> e2491:(e2489:(e2488:r958:x->d1388:x.s113.le=>d252:"std.core.cmp.Ord.le") e2490:r959:y->d1389:y)))
+      pub d424:"std.core.ops.#op:infix:>": 'a -> 'a -> bool where 'a: std::core::cmp::Ord = e2499:(fn p585:d1390:x -> e2498:(fn p586:d1391:y -> e2497:(e2495:(e2494:r960:x->d1390:x.s114.gt=>d253:"std.core.cmp.Ord.gt") e2496:r961:y->d1391:y)))
+      pub d425:"std.core.ops.#op:infix:>=": 'a -> 'a -> bool where 'a: std::core::cmp::Ord = e2505:(fn p587:d1392:x -> e2504:(fn p588:d1393:y -> e2503:(e2501:(e2500:r962:x->d1392:x.s115.ge=>d254:"std.core.cmp.Ord.ge") e2502:r963:y->d1393:y)))
+      pub d426:"std.core.ops.#op:infix:and": (() -> ['a & [std::control::junction::junction; 'a]] bool) -> (() -> ['a] 'b) -> ['a] 'b | bool = e2517:(fn p589:d1394:a -> e2516:(fn p590:d1395:b -> e2515:case e2510:(e2509:r965:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e2508:(e2506:r964:a->d1394:a e2507:())) { p591:true -> e2513:(e2511:r966:b->d1395:b e2512:()); p592:false -> e2514:false }))
+      pub d427:"std.core.ops.#op:infix:or": (() -> ['a & [std::control::junction::junction; 'a]] bool) -> (() -> ['a] 'b) -> ['a] 'b | bool = e2529:(fn p593:d1396:a -> e2528:(fn p594:d1397:b -> e2527:case e2522:(e2521:r968:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e2520:(e2518:r967:a->d1396:a e2519:())) { p595:true -> e2523:true; p596:false -> e2526:(e2524:r969:b->d1397:b e2525:()) }))
+      my d428:"std.core.ops.loop_last": () -> [std::control::flow::loop] never = e2533:(fn p597:() -> e2532:(e2530:r970:"std::control::flow::loop::last"->d183:"std.control.flow.loop.last" e2531:()))
+      my d429:"std.core.ops.loop_next": () -> [std::control::flow::loop] never = e2537:(fn p598:() -> e2536:(e2534:r971:"std::control::flow::loop::next"->d184:"std.control.flow.loop.next" e2535:()))
+      my d430:"std.core.ops.loop_redo": () -> [std::control::flow::loop] never = e2541:(fn p599:() -> e2540:(e2538:r972:"std::control::flow::loop::redo"->d185:"std.control.flow.loop.redo" e2539:()))
+      my d431:"std.core.ops.label_last": 'a -> never where 'a: std::control::flow::LoopLabel = e2546:(fn p600:d1398:label -> e2545:(e2543:(e2542:r973:label->d1398:label.s116.last=>d192:"std.control.flow.LoopLabel.last") e2544:()))
+      my d432:"std.core.ops.label_next": 'a -> never where 'a: std::control::flow::LoopLabel = e2551:(fn p601:d1399:label -> e2550:(e2548:(e2547:r974:label->d1399:label.s117.next=>d193:"std.control.flow.LoopLabel.next") e2549:()))
+      my d433:"std.core.ops.label_redo": 'a -> never where 'a: std::control::flow::LoopLabel = e2556:(fn p602:d1400:label -> e2555:(e2553:(e2552:r975:label->d1400:label.s118.redo=>d194:"std.control.flow.LoopLabel.redo") e2554:()))
+    }
+    pub d26:"std.core.seq" mod {
+      pub d434:"std.core.seq.Len" mod {
+        pub d435:"std.core.seq.Len.len": 'a -> int where 'a: std::core::seq::Len = <missing>
+      }
+      pub d436:"std.core.seq.IsEmpty" mod {
+        pub d437:"std.core.seq.IsEmpty.is_empty": 'a -> bool where 'a: std::core::seq::IsEmpty = <missing>
+      }
+      my d438 mod {
+        d439: std::text::str::str -> int = e2560:(fn p603:d1401:s -> e2559:(e2557:r976:"std::text::str::len"->d787:"std.text.str.len" e2558:r977:s->d1401:s))
+      }
+      my d440 mod {
+        d441: std::data::list::list 'a -> int = e2564:(fn p604:d1402:xs -> e2563:(e2561:r978:"std::data::list::len"->d480:"std.data.list.len" e2562:r979:xs->d1402:xs))
+      }
+      my d442 mod {
+        d443: std::text::str::str -> bool = e2572:(fn p605:d1403:s -> e2571:(e2569:(e2565:r980:"std::int::eq"->d46:"std.int.eq" e2568:(e2566:r981:"std::text::str::len"->d787:"std.text.str.len" e2567:r982:s->d1403:s)) e2570:0))
+      }
+      my d444 mod {
+        d445: std::data::list::list 'a -> bool = e2580:(fn p606:d1404:xs -> e2579:(e2577:(e2573:r983:"std::int::eq"->d46:"std.int.eq" e2576:(e2574:r984:"std::data::list::len"->d480:"std.data.list.len" e2575:r985:xs->d1404:xs)) e2578:0))
+      }
+      my d446 mod {
+        d447: std::text::bytes::bytes -> bool = e2588:(fn p607:d1405:b -> e2587:(e2585:(e2581:r986:"std::int::eq"->d46:"std.int.eq" e2584:(e2582:r987:"std::text::bytes::len"->d654:"std.text.bytes.len" e2583:r988:b->d1405:b)) e2586:0))
+      }
+      pub d448:"std.core.seq.len": 'a -> int where 'a: std::core::seq::Len = e2591:(fn p608:d1406:x -> e2590:(e2589:r989:x->d1406:x.s119.len=>d435:"std.core.seq.Len.len"))
+    }
+    pub d27:"std.core.id": 'a -> 'a = e7:(fn p0:d1012:x -> e6:r1:x->d1012:x)
+    pub d28:"std.core.compose": ('a ['b#0[Empty]] -> ['c] 'd) -> ('e -> ['b#0[Empty]] 'a) -> 'e -> ['c#0] 'd#0 = e15:(fn p1:d1013:f -> e14:(fn p2:d1014:g -> e13:(fn p3:d1015:x -> e12:(e8:r2:f->d1013:f e11:(e9:r3:g->d1014:g e10:r4:x->d1015:x)))))
+  }
+  pub d3:"std.int" mod {
+    pub d45:"std.int.mod": int -> int -> int = e26:builtin_op::int_mod
+    pub d46:"std.int.eq": int -> int -> bool = e27:builtin_op::int_eq
+    pub d47:"std.int.lt": int -> int -> bool = e28:builtin_op::int_lt
+    pub d48:"std.int.le": int -> int -> bool = e29:builtin_op::int_le
+    pub d49:"std.int.gt": int -> int -> bool = e30:builtin_op::int_gt
+    pub d50:"std.int.ge": int -> int -> bool = e31:builtin_op::int_ge
+    pub d51:"std.int.add": int -> int -> int = e32:builtin_op::int_add
+    pub d52:"std.int.sub": int -> int -> int = e33:builtin_op::int_sub
+    pub d53:"std.int.mul": int -> int -> int = e34:builtin_op::int_mul
+    pub d54:"std.int.div": int -> int -> int = e35:builtin_op::int_div
+    pub d55:"std.int.to_string": int -> std::text::str::str = e36:builtin_op::int_to_string
+    pub d56:"std.int.to_hex": int -> std::text::str::str = e37:builtin_op::int_to_hex
+    pub d57:"std.int.to_upper_hex": int -> std::text::str::str = e38:builtin_op::int_to_upper_hex
+  }
+  pub d4:"std.float" mod {
+    pub d35:"std.float.eq": float -> float -> bool = e16:builtin_op::float_eq
+    pub d36:"std.float.lt": float -> float -> bool = e17:builtin_op::float_lt
+    pub d37:"std.float.le": float -> float -> bool = e18:builtin_op::float_le
+    pub d38:"std.float.gt": float -> float -> bool = e19:builtin_op::float_gt
+    pub d39:"std.float.ge": float -> float -> bool = e20:builtin_op::float_ge
+    pub d40:"std.float.add": float -> float -> float = e21:builtin_op::float_add
+    pub d41:"std.float.sub": float -> float -> float = e22:builtin_op::float_sub
+    pub d42:"std.float.mul": float -> float -> float = e23:builtin_op::float_mul
+    pub d43:"std.float.div": float -> float -> float = e24:builtin_op::float_div
+    pub d44:"std.float.to_string": float -> std::text::str::str = e25:builtin_op::float_to_string
+  }
+  pub d5:"std.bool" mod {
+    pub d14:"std.bool.eq": bool -> bool -> bool = e3:builtin_op::bool_eq
+    pub d15:"std.bool.not": bool -> bool = e4:builtin_op::bool_not
+    pub d16:"std.bool.to_string": bool -> std::text::str::str = e5:builtin_op::bool_to_string
+  }
+  pub d6:"std.num" mod {
+    pub d61:"std.num.frac" mod {
+      pub d634:"std.num.frac.frac": {num: int, den: int} -> std::num::frac::frac = <missing>
+      my d639:"std.num.frac.abs": int -> int = e3706:(fn p943:d1632:x -> e3705:case e3698:(e3697:r1530:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e3696:(e3694:(e3692:r1528:"std::int::lt"->d47:"std.int.lt" e3693:r1529:x->d1632:x) e3695:0)) { p944:true -> e3703:(e3701:(e3699:r1531:"std::int::sub"->d52:"std.int.sub" e3700:0) e3702:r1532:x->d1632:x); p945:false -> e3704:r1533:x->d1632:x })
+      my d640:"std.num.frac.gcd_positive": int -> int -> int = e3726:(fn p946:d1633:a -> e3725:(fn p947:d1634:b -> e3724:case e3713:(e3712:r1536:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e3711:(e3709:(e3707:r1534:"std::int::eq"->d46:"std.int.eq" e3708:r1535:b->d1634:b) e3710:0)) { p948:true -> e3714:r1537:a->d1633:a; p949:false -> e3723:(e3717:(e3715:r1538:gcd_positive->d640:"std.num.frac.gcd_positive" e3716:r1539:b->d1634:b) e3722:(e3720:(e3718:r1540:"std::int::mod"->d45:"std.int.mod" e3719:r1541:a->d1633:a) e3721:r1542:b->d1634:b)) }))
+      my d641:"std.num.frac.gcd": int -> int -> int = e3737:(fn p950:d1635:a -> e3736:(fn p951:d1636:b -> e3735:(e3731:(e3727:r1543:gcd_positive->d640:"std.num.frac.gcd_positive" e3730:(e3728:r1544:abs->d639:"std.num.frac.abs" e3729:r1545:a->d1635:a)) e3734:(e3732:r1546:abs->d639:"std.num.frac.abs" e3733:r1547:b->d1636:b))))
+      pub d642:"std.num.frac.new": int -> int -> std::num::frac::frac = e3783:(fn p952:d1637:n -> e3782:(fn p953:d1638:d -> e3781:block { let my p954:d1639:divisor = e3742:(e3740:(e3738:r1548:gcd->d641:"std.num.frac.gcd" e3739:r1549:n->d1637:n) e3741:r1550:d->d1638:d); e3780:block { let my p955:d1640:normalized_num = e3747:(e3745:(e3743:r1551:"std::int::div"->d54:"std.int.div" e3744:r1552:n->d1637:n) e3746:r1553:divisor->d1639:divisor); e3779:block { let my p956:d1641:normalized_den = e3752:(e3750:(e3748:r1554:"std::int::div"->d54:"std.int.div" e3749:r1555:d->d1638:d) e3751:r1556:divisor->d1639:divisor); e3778:case e3759:(e3758:r1559:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e3757:(e3755:(e3753:r1557:"std::int::lt"->d47:"std.int.lt" e3754:r1558:normalized_den->d1641:normalized_den) e3756:0)) { p957:true -> e3772:(e3760:r1560:frac->d634:"std.num.frac.frac" e3771:{num: e3765:(e3763:(e3761:r1561:"std::int::sub"->d52:"std.int.sub" e3762:0) e3764:r1562:normalized_num->d1640:normalized_num), den: e3770:(e3768:(e3766:r1563:"std::int::sub"->d52:"std.int.sub" e3767:0) e3769:r1564:normalized_den->d1641:normalized_den)}); p958:false -> e3777:(e3773:r1565:frac->d634:"std.num.frac.frac" e3776:{num: e3774:r1566:normalized_num->d1640:normalized_num, den: e3775:r1567:normalized_den->d1641:normalized_den}) } } } }))
+      pub d643:"std.num.frac.add": std::num::frac::frac -> std::num::frac::frac -> std::num::frac::frac = e3812:(fn p959:d1642:x -> e3811:(fn p960:d1643:y -> e3810:(e3802:(e3784:r1568:new->d642:"std.num.frac.new" e3801:(e3793:(e3785:r1569:"std::int::add"->d51:"std.int.add" e3792:(e3789:(e3786:r1570:"std::int::mul"->d53:"std.int.mul" e3788:(e3787:r1571:x->d1642:x.s144.num->d635)) e3791:(e3790:r1572:y->d1643:y.s145.den->d637))) e3800:(e3797:(e3794:r1573:"std::int::mul"->d53:"std.int.mul" e3796:(e3795:r1574:y->d1643:y.s146.num->d635)) e3799:(e3798:r1575:x->d1642:x.s147.den->d637)))) e3809:(e3806:(e3803:r1576:"std::int::mul"->d53:"std.int.mul" e3805:(e3804:r1577:x->d1642:x.s148.den->d637)) e3808:(e3807:r1578:y->d1643:y.s149.den->d637)))))
+      pub d644:"std.num.frac.sub": std::num::frac::frac -> std::num::frac::frac -> std::num::frac::frac = e3841:(fn p961:d1644:x -> e3840:(fn p962:d1645:y -> e3839:(e3831:(e3813:r1579:new->d642:"std.num.frac.new" e3830:(e3822:(e3814:r1580:"std::int::sub"->d52:"std.int.sub" e3821:(e3818:(e3815:r1581:"std::int::mul"->d53:"std.int.mul" e3817:(e3816:r1582:x->d1644:x.s150.num->d635)) e3820:(e3819:r1583:y->d1645:y.s151.den->d637))) e3829:(e3826:(e3823:r1584:"std::int::mul"->d53:"std.int.mul" e3825:(e3824:r1585:y->d1645:y.s152.num->d635)) e3828:(e3827:r1586:x->d1644:x.s153.den->d637)))) e3838:(e3835:(e3832:r1587:"std::int::mul"->d53:"std.int.mul" e3834:(e3833:r1588:x->d1644:x.s154.den->d637)) e3837:(e3836:r1589:y->d1645:y.s155.den->d637)))))
+      pub d645:"std.num.frac.mul": std::num::frac::frac -> std::num::frac::frac -> std::num::frac::frac = e3860:(fn p963:d1646:x -> e3859:(fn p964:d1647:y -> e3858:(e3850:(e3842:r1590:new->d642:"std.num.frac.new" e3849:(e3846:(e3843:r1591:"std::int::mul"->d53:"std.int.mul" e3845:(e3844:r1592:x->d1646:x.s156.num->d635)) e3848:(e3847:r1593:y->d1647:y.s157.num->d635))) e3857:(e3854:(e3851:r1594:"std::int::mul"->d53:"std.int.mul" e3853:(e3852:r1595:x->d1646:x.s158.den->d637)) e3856:(e3855:r1596:y->d1647:y.s159.den->d637)))))
+      pub d646:"std.num.frac.div": std::num::frac::frac -> std::num::frac::frac -> std::num::frac::frac = e3879:(fn p965:d1648:x -> e3878:(fn p966:d1649:y -> e3877:(e3869:(e3861:r1597:new->d642:"std.num.frac.new" e3868:(e3865:(e3862:r1598:"std::int::mul"->d53:"std.int.mul" e3864:(e3863:r1599:x->d1648:x.s160.num->d635)) e3867:(e3866:r1600:y->d1649:y.s161.den->d637))) e3876:(e3873:(e3870:r1601:"std::int::mul"->d53:"std.int.mul" e3872:(e3871:r1602:x->d1648:x.s162.den->d637)) e3875:(e3874:r1603:y->d1649:y.s163.num->d635)))))
+      pub d647:"std.num.frac.eq": std::num::frac::frac -> std::num::frac::frac -> bool = e3899:(fn p967:d1650:x -> e3898:(fn p968:d1651:y -> e3897:case e3888:(e3887:r1607:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e3886:(e3883:(e3880:r1604:"std::int::eq"->d46:"std.int.eq" e3882:(e3881:r1605:x->d1650:x.s164.num->d635)) e3885:(e3884:r1606:y->d1651:y.s165.num->d635))) { p969:true -> e3895:(e3892:(e3889:r1608:"std::int::eq"->d46:"std.int.eq" e3891:(e3890:r1609:x->d1650:x.s166.den->d637)) e3894:(e3893:r1610:y->d1651:y.s167.den->d637)); p970:false -> e3896:false }))
+      pub d648:"std.num.frac.lt": std::num::frac::frac -> std::num::frac::frac -> bool = e3918:(fn p971:d1652:x -> e3917:(fn p972:d1653:y -> e3916:(e3908:(e3900:r1611:"std::int::lt"->d47:"std.int.lt" e3907:(e3904:(e3901:r1612:"std::int::mul"->d53:"std.int.mul" e3903:(e3902:r1613:x->d1652:x.s168.num->d635)) e3906:(e3905:r1614:y->d1653:y.s169.den->d637))) e3915:(e3912:(e3909:r1615:"std::int::mul"->d53:"std.int.mul" e3911:(e3910:r1616:y->d1653:y.s170.num->d635)) e3914:(e3913:r1617:x->d1652:x.s171.den->d637)))))
+      pub d649:"std.num.frac.le": std::num::frac::frac -> std::num::frac::frac -> bool = e3934:(fn p973:d1654:x -> e3933:(fn p974:d1655:y -> e3932:case e3925:(e3924:r1621:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e3923:(e3921:(e3919:r1618:lt->d648:"std.num.frac.lt" e3920:r1619:x->d1654:x) e3922:r1620:y->d1655:y)) { p975:true -> e3926:true; p976:false -> e3931:(e3929:(e3927:r1622:eq->d647:"std.num.frac.eq" e3928:r1623:x->d1654:x) e3930:r1624:y->d1655:y) }))
+      pub d650:"std.num.frac.gt": std::num::frac::frac -> std::num::frac::frac -> bool = e3941:(fn p977:d1656:x -> e3940:(fn p978:d1657:y -> e3939:(e3937:(e3935:r1625:lt->d648:"std.num.frac.lt" e3936:r1626:y->d1657:y) e3938:r1627:x->d1656:x)))
+      pub d651:"std.num.frac.ge": std::num::frac::frac -> std::num::frac::frac -> bool = e3957:(fn p979:d1658:x -> e3956:(fn p980:d1659:y -> e3955:case e3948:(e3947:r1631:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e3946:(e3944:(e3942:r1628:gt->d650:"std.num.frac.gt" e3943:r1629:x->d1658:x) e3945:r1630:y->d1659:y)) { p981:true -> e3949:true; p982:false -> e3954:(e3952:(e3950:r1632:eq->d647:"std.num.frac.eq" e3951:r1633:x->d1658:x) e3953:r1634:y->d1659:y) }))
+      pub d652:"std.num.frac.to_float": std::num::frac::frac -> float = e3965:(fn p983:d1660:x -> e3964:(e3961:(e3958:r1635:"std::float::div"->d43:"std.float.div" e3960:(e3959:r1636:x->d1660:x.s172.num->d635)) e3963:(e3962:r1637:x->d1660:x.s173.den->d637)))
+      pub d653:"std.num.frac.to_string": std::num::frac::frac -> std::text::str::str = e3994:(fn p984:d1661:x -> e3993:case e3973:(e3972:r1640:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e3971:(e3969:(e3966:r1638:"std::int::eq"->d46:"std.int.eq" e3968:(e3967:r1639:x->d1661:x.s174.den->d637)) e3970:1)) { p985:true -> e3977:(e3974:r1641:"std::int::to_string"->d55:"std.int.to_string" e3976:(e3975:r1642:x->d1661:x.s175.num->d635)); p986:false -> e3992:(e3987:(e3978:r1643:"std::text::str::concat"->d785:"std.text.str.concat" e3986:(e3984:(e3979:r1644:"std::text::str::concat"->d785:"std.text.str.concat" e3983:(e3980:r1645:"std::int::to_string"->d55:"std.int.to_string" e3982:(e3981:r1646:x->d1661:x.s176.num->d635))) e3985:"/")) e3991:(e3988:r1647:"std::int::to_string"->d55:"std.int.to_string" e3990:(e3989:r1648:x->d1661:x.s177.den->d637))) })
+    }
+    pub d62:"std.num.Add" mod {
+      pub d63:"std.num.Add.add": 'a -> 'a -> 'a where 'a: std::num::Add = <missing>
+    }
+    pub d64:"std.num.Sub" mod {
+      pub d65:"std.num.Sub.sub": 'a -> 'a -> 'a where 'a: std::num::Sub = <missing>
+    }
+    pub d66:"std.num.Mul" mod {
+      pub d67:"std.num.Mul.mul": 'a -> 'a -> 'a where 'a: std::num::Mul = <missing>
+    }
+    pub d68:"std.num.Div" mod {
+      pub d69:"std.num.Div.div": 'a -> 'a -> 'b where 'a: std::num::Div(out = 'b) = <missing>
+    }
+    pub d70:"std.num.LowerHex" mod {
+      pub d71:"std.num.LowerHex.lower_hex": 'a -> std::text::str::str where 'a: std::num::LowerHex = <missing>
+    }
+    pub d72:"std.num.UpperHex" mod {
+      pub d73:"std.num.UpperHex.upper_hex": 'a -> std::text::str::str where 'a: std::num::UpperHex = <missing>
+    }
+    my d74 mod {
+      d75: int -> int -> int = e45:(fn p4:d1016:x -> e44:(fn p5:d1017:y -> e43:(e41:(e39:r5:"std::int::add"->d51:"std.int.add" e40:r6:x->d1016:x) e42:r7:y->d1017:y)))
+    }
+    my d76 mod {
+      d77: int -> int -> int = e52:(fn p6:d1018:x -> e51:(fn p7:d1019:y -> e50:(e48:(e46:r8:"std::int::sub"->d52:"std.int.sub" e47:r9:x->d1018:x) e49:r10:y->d1019:y)))
+    }
+    my d78 mod {
+      d79: int -> int -> int = e59:(fn p8:d1020:x -> e58:(fn p9:d1021:y -> e57:(e55:(e53:r11:"std::int::mul"->d53:"std.int.mul" e54:r12:x->d1020:x) e56:r13:y->d1021:y)))
+    }
+    my d80 mod {
+      d81: int -> int -> std::num::frac::frac = e66:(fn p10:d1022:x -> e65:(fn p11:d1023:y -> e64:(e62:(e60:r14:"std::num::frac::new"->d642:"std.num.frac.new" e61:r15:x->d1022:x) e63:r16:y->d1023:y)))
+    }
+    my d82 mod {
+      d83: int -> std::text::str::str = e70:(fn p12:d1024:x -> e69:(e67:r17:"std::int::to_hex"->d56:"std.int.to_hex" e68:r18:x->d1024:x))
+    }
+    my d84 mod {
+      d85: int -> std::text::str::str = e74:(fn p13:d1025:x -> e73:(e71:r19:"std::int::to_upper_hex"->d57:"std.int.to_upper_hex" e72:r20:x->d1025:x))
+    }
+    my d86 mod {
+      d87: float -> float -> float = e81:(fn p14:d1026:x -> e80:(fn p15:d1027:y -> e79:(e77:(e75:r21:"std::float::add"->d40:"std.float.add" e76:r22:x->d1026:x) e78:r23:y->d1027:y)))
+    }
+    my d88 mod {
+      d89: float -> float -> float = e88:(fn p16:d1028:x -> e87:(fn p17:d1029:y -> e86:(e84:(e82:r24:"std::float::sub"->d41:"std.float.sub" e83:r25:x->d1028:x) e85:r26:y->d1029:y)))
+    }
+    my d90 mod {
+      d91: float -> float -> float = e95:(fn p18:d1030:x -> e94:(fn p19:d1031:y -> e93:(e91:(e89:r27:"std::float::mul"->d42:"std.float.mul" e90:r28:x->d1030:x) e92:r29:y->d1031:y)))
+    }
+    my d92 mod {
+      d93: float -> float -> float = e102:(fn p20:d1032:x -> e101:(fn p21:d1033:y -> e100:(e98:(e96:r30:"std::float::div"->d43:"std.float.div" e97:r31:x->d1032:x) e99:r32:y->d1033:y)))
+    }
+    my d94 mod {
+      d95: std::num::frac::frac -> std::num::frac::frac -> std::num::frac::frac = e109:(fn p22:d1034:x -> e108:(fn p23:d1035:y -> e107:(e105:(e103:r33:"std::num::frac::add"->d643:"std.num.frac.add" e104:r34:x->d1034:x) e106:r35:y->d1035:y)))
+    }
+    my d96 mod {
+      d97: std::num::frac::frac -> std::num::frac::frac -> std::num::frac::frac = e116:(fn p24:d1036:x -> e115:(fn p25:d1037:y -> e114:(e112:(e110:r36:"std::num::frac::sub"->d644:"std.num.frac.sub" e111:r37:x->d1036:x) e113:r38:y->d1037:y)))
+    }
+    my d98 mod {
+      d99: std::num::frac::frac -> std::num::frac::frac -> std::num::frac::frac = e123:(fn p26:d1038:x -> e122:(fn p27:d1039:y -> e121:(e119:(e117:r39:"std::num::frac::mul"->d645:"std.num.frac.mul" e118:r40:x->d1038:x) e120:r41:y->d1039:y)))
+    }
+    my d100 mod {
+      d101: std::num::frac::frac -> std::num::frac::frac -> std::num::frac::frac = e130:(fn p28:d1040:x -> e129:(fn p29:d1041:y -> e128:(e126:(e124:r42:"std::num::frac::div"->d646:"std.num.frac.div" e125:r43:x->d1040:x) e127:r44:y->d1041:y)))
+    }
+    my d102 mod {
+      d103: std::text::str::str -> std::text::str::str -> std::text::str::str = e137:(fn p30:d1042:x -> e136:(fn p31:d1043:y -> e135:(e133:(e131:r45:"std::text::str::concat"->d785:"std.text.str.concat" e132:r46:x->d1042:x) e134:r47:y->d1043:y)))
+    }
+    my d104 mod {
+      d105: std::data::list::list 'a -> std::data::list::list 'a -> std::data::list::list 'a = e144:(fn p32:d1044:xs -> e143:(fn p33:d1045:ys -> e142:(e140:(e138:r48:"std::data::list::merge"->d479:"std.data.list.merge" e139:r49:xs->d1044:xs) e141:r50:ys->d1045:ys)))
+    }
+  }
+  pub d7:"std.data" mod {
+    pub d29:"std.data.fold" mod {
+      pub d449:"std.data.fold.Fold" mod {
+        pub d450:"std.data.fold.Fold.fold": 'a -> 'b -> ('b -> 'c -> ['d] 'b) -> ['d] 'b where 'a: std::data::fold::Fold(item = 'c) = <missing>
+        pub d451:"std.data.fold.Fold.find": 'a -> ('b -> ['c & [std::control::junction::junction; 'c]] bool) -> ['c] std::data::opt::opt 'b where 'a: std::data::fold::Fold(item = 'b) = e2616:(fn p609:d1407:container -> e2615:(fn p610:d1408:f -> e2614:(e2592:r990:"std::control::flow::sub::sub"->d174:"std.control.flow.sub.sub" e2613:block { let my p611:d1409:nil = e2593:r991:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil"; e2612:(e2597:(e2595:(e2594:r992:container->d1407:container.s120.fold=>d450:"std.data.fold.Fold.fold") e2596:r993:nil->d1409:nil) e2611:(fn p612:_ -> e2610:(fn p613:d1410:x -> e2609:case e2602:(e2601:r996:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e2600:(e2598:r994:f->d1408:f e2599:r995:x->d1410:x)) { p614:true -> e2607:(e2603:r997:"std::control::flow::sub::return"->d173:"std.control.flow.sub.return" e2606:(e2604:r998:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just" e2605:r999:x->d1410:x)); p615:false -> e2608:r1000:nil->d1409:nil }))) })))
+        pub d452:"std.data.fold.Fold.contains": 'a -> 'b -> bool where 'a: std::data::fold::Fold(item = 'b), 'b: std::core::cmp::Eq = e2632:(fn p616:d1411:container -> e2631:(fn p617:d1412:target -> e2630:block { let my p618:d1413:found = e2625:(e2618:(e2617:r1001:container->d1411:container.s121.find=>d451:"std.data.fold.Fold.find") e2624:(fn p619:d1414:x -> e2623:(e2622:(e2620:r1003:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e2619:r1002:x->d1414:x) e2621:r1004:target->d1412:target))); e2629:case e2626:r1005:found->d1413:found { p620:r1006:"opt::nil"->d504:"std.data.opt.opt.nil" -> e2627:false; p622:r1007:"opt::just"->d505:"std.data.opt.opt.just"(p621:_) -> e2628:true } }))
+        pub d453:"std.data.fold.Fold.each": 'a -> [std::control::nondet::nondet] 'b where 'a: std::data::fold::Fold(item = 'b) = e2636:(fn p623:d1415:container -> e2635:(e2633:r1008:"std::control::nondet::each"->d225:"std.control.nondet.nondet.each" e2634:r1009:container->d1415:container))
+      }
+    }
+    pub d30:"std.data.index" mod {
+      pub d454:"std.data.index.Index" mod {
+        pub d455:"std.data.index.Index.index": 'a -> 'b -> 'c where 'a: std::data::index::Index('b, value = 'c) = <missing>
+      }
+    }
+    pub d31:"std.data.list" mod {
+      pub d456:"std.data.list.list_view" mod {
+        pub d457:"std.data.list.list_view.empty": std::data::list::list_view 'a = <missing>
+        pub d458:"std.data.list.list_view.leaf": 'a -> std::data::list::list_view 'a = <missing>
+        pub d459:"std.data.list.list_view.node": std::data::list::list 'a -> std::data::list::list 'a -> std::data::list::list_view 'a = <missing>
+      }
+      pub d460:"std.data.list.list" mod {
+        pub d461:"std.data.list.list.append": std::data::list::list 'a -> std::data::list::list 'a -> std::data::list::list 'a = e2643:(fn p624:d1416:xs -> e2642:(fn p625:d1417:ys -> e2641:(e2639:(e2637:r1010:"std::data::list::append"->d498:"std.data.list.append" e2638:r1011:xs->d1416:xs) e2640:r1012:ys->d1417:ys)))
+        pub d462:"std.data.list.list.map": std::data::list::list 'a -> ('a -> ['b] 'c) -> ['b] std::data::list::list 'c = e2650:(fn p626:d1418:xs -> e2649:(fn p627:d1419:f -> e2648:(e2646:(e2644:r1013:"std::data::list::map"->d496:"std.data.list.map" e2645:r1014:xs->d1418:xs) e2647:r1015:f->d1419:f)))
+        pub d463:"std.data.list.list.filter": std::data::list::list 'a -> ('a -> ['b & 'b] bool) -> ['b] std::data::list::list 'a = e2657:(fn p628:d1420:xs -> e2656:(fn p629:d1421:pred -> e2655:(e2653:(e2651:r1016:"std::data::list::filter"->d497:"std.data.list.filter" e2652:r1017:xs->d1420:xs) e2654:r1018:pred->d1421:pred)))
+        pub d464:"std.data.list.list.splice": std::data::list::list 'a -> std::data::range::range -> std::data::list::list 'a -> std::data::list::list 'a = e2667:(fn p630:d1422:xs -> e2666:(fn p631:d1423:r -> e2665:(fn p632:d1424:ys -> e2664:(e2662:(e2660:(e2658:r1019:"std::data::list::splice"->d484:"std.data.list.splice" e2659:r1020:xs->d1422:xs) e2661:r1021:r->d1423:r) e2663:r1022:ys->d1424:ys))))
+        pub d465:"std.data.list.list.join": std::data::list::list std::text::str::str -> std::text::str::str -> std::text::str::str = e2674:(fn p633:d1425:xs -> e2673:(fn p634:d1426:separator -> e2672:(e2670:(e2668:r1023:"std::text::str::join"->d866:"std.text.str.join" e2669:r1024:xs->d1425:xs) e2671:r1025:separator->d1426:separator)))
+        pub d466:"std.data.list.list.is_empty": std::data::list::list 'a -> bool = e2678:(fn p635:d1427:xs -> e2677:(e2675:r1026:"std::data::list::is_empty"->d491:"std.data.list.is_empty" e2676:r1027:xs->d1427:xs))
+        pub d467:"std.data.list.list.first": std::data::list::list 'a -> std::data::opt::opt 'a = e2682:(fn p636:d1428:xs -> e2681:(e2679:r1028:"std::data::list::first"->d499:"std.data.list.first" e2680:r1029:xs->d1428:xs))
+        pub d468:"std.data.list.list.last": std::data::list::list 'a -> std::data::opt::opt 'a = e2686:(fn p637:d1429:xs -> e2685:(e2683:r1030:"std::data::list::last"->d500:"std.data.list.last" e2684:r1031:xs->d1429:xs))
+        pub d469:"std.data.list.list.rev": std::data::list::list 'a -> std::data::list::list 'a = e2690:(fn p638:d1430:xs -> e2689:(e2687:r1032:"std::data::list::rev"->d495:"std.data.list.rev" e2688:r1033:xs->d1430:xs))
+        pub d470:"std.data.list.list.sort": std::data::list::list 'a -> std::data::list::list 'a where std::num::Add('b & std::data::list::list 'a), 'a: std::core::cmp::Ord = e2694:(fn p639:d1431:xs -> e2693:(e2691:r1034:"std::data::list::sort"->d502:"std.data.list.sort" e2692:r1035:xs->d1431:xs))
+        pub d471:"std.data.list.list.push!": std::control::var::ref('a, std::data::list::list 'b) -> 'b -> ['a] () = e2707:(fn p640:d1432:"&xs" -> e2706:(fn p641:d1433:x -> e2705:(e2695:r1036:"&xs"->d1432:"&xs" := e2704:(e2700:(e2699:(e2697:(e2696:r1037:"&xs"->d1432:"&xs".s122.get->d237) e2698:()).s123.append->d461:"std.data.list.list.append") e2703:(e2702:builtin_op::list_singleton e2701:r1038:x->d1433:x)))))
+      }
+      my d472 mod {
+        d473: std::data::list::list('a & 'b) -> int -> 'a = e2714:(fn p642:d1434:xs -> e2713:(fn p643:d1435:i -> e2712:(e2710:(e2708:r1039:"std::data::list::index_raw"->d481:"std.data.list.index_raw" e2709:r1040:xs->d1434:xs) e2711:r1041:i->d1435:i)))
+      }
+      my d474 mod {
+        d475: std::data::list::list 'a -> std::data::range::range -> std::data::list::list 'a = e2721:(fn p644:d1436:xs -> e2720:(fn p645:d1437:r -> e2719:(e2717:(e2715:r1042:"std::data::list::index_range"->d482:"std.data.list.index_range" e2716:r1043:xs->d1436:xs) e2718:r1044:r->d1437:r)))
+      }
+      my d476 mod {
+        d477: std::control::var::ref('a & 'b, std::data::list::list('c & 'd)) -> int -> std::control::var::ref('b | 'a, 'd | 'c) = e2773:(fn p646:d1438:r -> e2772:(fn p647:d1439:i -> e2771:(e2722:r1045:ref->d236:"std.control.var.ref" e2770:{get: e2731:(fn p648:() -> e2730:(e2728:(e2723:r1046:"std::data::list::index_raw"->d481:"std.data.list.index_raw" e2727:(e2725:(e2724:r1047:r->d1438:r.s124.get->d237) e2726:())) e2729:r1048:i->d1439:i)), update_effect: e2769:(fn p649:() -> e2768:block { let my p650:d1440:loop = e2761:(fn p651:d1441:x -> e2760:catch e2732:r1049:x->d1441:x { std::control::var::ref_update::update p652:d1442:old, p653:d1443:k -> e2759:block { let my p654:d1444:new_item = e2739:(e2733:r1050:"ref_update::update"->d235:"std.control.var.ref_update.update" e2738:(e2736:(e2734:r1051:"std::data::list::index_raw"->d481:"std.data.list.index_raw" e2735:r1052:old->d1442:old) e2737:r1053:i->d1439:i)); e2758:(e2740:r1054:loop->d1440:loop e2757:(e2741:r1055:k->d1443:k e2756:(e2752:(e2746:(e2744:(e2742:r1056:"std::data::list::splice_raw"->d485:"std.data.list.splice_raw" e2743:r1057:old->d1442:old) e2745:r1058:i->d1439:i) e2751:(e2750:(e2748:r1060:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2747:r1059:i->d1439:i) e2749:1)) e2755:(e2754:builtin_op::list_singleton e2753:r1061:new_item->d1444:new_item)))) } }); e2767:(e2762:r1062:loop->d1440:loop e2766:(e2764:(e2763:r1063:r->d1438:r.s125.update_effect->d239) e2765:())) })})))
+      }
+      pub d478:"std.data.list.view_raw": std::data::list::list 'a -> std::data::list::list_view 'a = e2774:builtin_op::list_view_raw
+      pub d479:"std.data.list.merge": std::data::list::list 'a -> std::data::list::list 'a -> std::data::list::list 'a = e2775:builtin_op::list_merge
+      pub d480:"std.data.list.len": std::data::list::list 'a -> int = e2776:builtin_op::list_len
+      pub d481:"std.data.list.index_raw": std::data::list::list 'a -> int -> 'a = e2777:builtin_op::list_index
+      pub d482:"std.data.list.index_range": std::data::list::list 'a -> std::data::range::range -> std::data::list::list 'a = e2778:builtin_op::list_index_range
+      pub d483:"std.data.list.index_range_raw": std::data::list::list 'a -> int -> int -> std::data::list::list 'a = e2779:builtin_op::list_index_range_raw
+      pub d484:"std.data.list.splice": std::data::list::list 'a -> std::data::range::range -> std::data::list::list 'a -> std::data::list::list 'a = e2780:builtin_op::list_splice
+      pub d485:"std.data.list.splice_raw": std::data::list::list 'a -> int -> int -> std::data::list::list 'a -> std::data::list::list 'a = e2781:builtin_op::list_splice_raw
+      my d486:"std.data.list.fold_impl": std::data::list::list 'a -> ('b & 'c) -> ('b -> ['d] 'a -> ['e] 'c) -> ['e, 'd] 'c | 'b = e2807:(fn p655:d1445:xs -> e2806:(fn p656:d1446:z -> e2805:(fn p657:d1447:f -> e2804:case e2784:(e2782:r1064:"std::data::list::view_raw"->d478:"std.data.list.view_raw" e2783:r1065:xs->d1445:xs) { p658:r1066:"list_view::empty"->d457:"std.data.list.list_view.empty" -> e2785:r1067:z->d1446:z; p660:r1068:"list_view::leaf"->d458:"std.data.list.list_view.leaf"(p659:d1448:x) -> e2790:(e2788:(e2786:r1069:f->d1447:f e2787:r1070:z->d1446:z) e2789:r1071:x->d1448:x); p663:r1072:"list_view::node"->d459:"std.data.list.list_view.node"(p661:d1449:left, p662:d1450:right) -> e2803:(e2801:(e2793:(e2791:r1073:fold_impl->d486:"std.data.list.fold_impl" e2792:r1074:right->d1450:right) e2800:(e2798:(e2796:(e2794:r1075:fold_impl->d486:"std.data.list.fold_impl" e2795:r1076:left->d1449:left) e2797:r1077:z->d1446:z) e2799:r1078:f->d1447:f)) e2802:r1079:f->d1447:f) })))
+      my d487 mod {
+        d488: std::data::list::list 'a -> 'b -> ('b -> ['c] ('d | 'a) -> ['c] 'b) -> ['c] 'b = e2817:(fn p664:d1451:xs -> e2816:(fn p665:d1452:z -> e2815:(fn p666:d1453:f -> e2814:(e2812:(e2810:(e2808:r1080:fold_impl->d486:"std.data.list.fold_impl" e2809:r1081:xs->d1451:xs) e2811:r1082:z->d1452:z) e2813:r1083:f->d1453:f))))
+      }
+      pub d489:"std.data.list.empty": () -> std::data::list::list 'a = e2821:(fn p667:() -> e2820:(e2818:builtin_op::list_empty e2819:()))
+      pub d490:"std.data.list.singleton": 'a -> std::data::list::list 'a = e2825:(fn p668:d1454:x -> e2824:(e2823:builtin_op::list_singleton e2822:r1084:x->d1454:x))
+      pub d491:"std.data.list.is_empty": std::data::list::list 'a -> bool = e2833:(fn p669:d1455:xs -> e2832:(e2830:(e2826:r1085:"std::int::eq"->d46:"std.int.eq" e2829:(e2827:r1086:"std::data::list::len"->d480:"std.data.list.len" e2828:r1087:xs->d1455:xs)) e2831:0))
+      pub d492:"std.data.list.cons": 'a -> std::data::list::list 'a -> std::data::list::list 'a = e2842:(fn p670:d1456:x -> e2841:(fn p671:d1457:xs -> e2840:(e2838:(e2834:r1088:"std::data::list::merge"->d479:"std.data.list.merge" e2837:(e2835:r1089:singleton->d490:"std.data.list.singleton" e2836:r1090:x->d1456:x)) e2839:r1091:xs->d1457:xs)))
+      pub d493:"std.data.list.uncons": std::data::list::list 'a -> std::data::opt::opt ('a, std::data::list::list 'a) = e2871:(fn p672:d1458:xs -> e2870:block { let my p673:d1459:n = e2845:(e2843:r1092:"std::data::list::len"->d480:"std.data.list.len" e2844:r1093:xs->d1458:xs); e2869:case e2852:(e2851:r1096:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e2850:(e2848:(e2846:r1094:"std::int::eq"->d46:"std.int.eq" e2847:r1095:n->d1459:n) e2849:0)) { p674:true -> e2853:r1097:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil"; p675:false -> e2868:(e2854:r1098:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just" e2867:(e2859:(e2857:(e2855:r1099:"std::data::list::index_raw"->d481:"std.data.list.index_raw" e2856:r1100:xs->d1458:xs) e2858:0), e2866:(e2864:(e2862:(e2860:r1101:"std::data::list::index_range_raw"->d483:"std.data.list.index_range_raw" e2861:r1102:xs->d1458:xs) e2863:1) e2865:r1103:n->d1459:n))) } })
+      pub d494:"std.data.list.fold": std::data::list::list 'a -> ('b & 'c) -> ('b -> ['d] 'a -> ['d] 'c) -> ['d] 'c | 'b = e2881:(fn p676:d1460:xs -> e2880:(fn p677:d1461:z -> e2879:(fn p678:d1462:f -> e2878:(e2876:(e2874:(e2872:r1104:fold_impl->d486:"std.data.list.fold_impl" e2873:r1105:xs->d1460:xs) e2875:r1106:z->d1461:z) e2877:r1107:f->d1462:f))))
+      pub d495:"std.data.list.rev": std::data::list::list 'a -> std::data::list::list 'a = e2901:(fn p679:d1463:xs -> e2900:case e2884:(e2882:r1108:"std::data::list::view_raw"->d478:"std.data.list.view_raw" e2883:r1109:xs->d1463:xs) { p680:r1110:"list_view::empty"->d457:"std.data.list.list_view.empty" -> e2887:(e2885:r1111:empty->d489:"std.data.list.empty" e2886:()); p682:r1112:"list_view::leaf"->d458:"std.data.list.list_view.leaf"(p681:d1464:x) -> e2890:(e2888:r1113:singleton->d490:"std.data.list.singleton" e2889:r1114:x->d1464:x); p685:r1115:"list_view::node"->d459:"std.data.list.list_view.node"(p683:d1465:left, p684:d1466:right) -> e2899:(e2895:(e2891:r1116:append->d498:"std.data.list.append" e2894:(e2892:r1117:rev->d495:"std.data.list.rev" e2893:r1118:right->d1466:right)) e2898:(e2896:r1119:rev->d495:"std.data.list.rev" e2897:r1120:left->d1465:left)) })
+      pub d496:"std.data.list.map": std::data::list::list 'a -> ('a -> ['b] 'c) -> ['b] std::data::list::list 'c = e2928:(fn p686:d1467:xs -> e2927:(fn p687:d1468:f -> e2926:case e2904:(e2902:r1121:"std::data::list::view_raw"->d478:"std.data.list.view_raw" e2903:r1122:xs->d1467:xs) { p688:r1123:"list_view::empty"->d457:"std.data.list.list_view.empty" -> e2907:(e2905:r1124:empty->d489:"std.data.list.empty" e2906:()); p690:r1125:"list_view::leaf"->d458:"std.data.list.list_view.leaf"(p689:d1469:x) -> e2912:(e2908:r1126:singleton->d490:"std.data.list.singleton" e2911:(e2909:r1127:f->d1468:f e2910:r1128:x->d1469:x)); p693:r1129:"list_view::node"->d459:"std.data.list.list_view.node"(p691:d1470:left, p692:d1471:right) -> e2925:(e2919:(e2913:r1130:append->d498:"std.data.list.append" e2918:(e2916:(e2914:r1131:map->d496:"std.data.list.map" e2915:r1132:left->d1470:left) e2917:r1133:f->d1468:f)) e2924:(e2922:(e2920:r1134:map->d496:"std.data.list.map" e2921:r1135:right->d1471:right) e2923:r1136:f->d1468:f)) }))
+      pub d497:"std.data.list.filter": std::data::list::list 'a -> ('a -> ['b & 'b] bool) -> ['b] std::data::list::list 'a = e2962:(fn p694:d1472:xs -> e2961:(fn p695:d1473:pred -> e2960:case e2931:(e2929:r1137:"std::data::list::view_raw"->d478:"std.data.list.view_raw" e2930:r1138:xs->d1472:xs) { p696:r1139:"list_view::empty"->d457:"std.data.list.list_view.empty" -> e2934:(e2932:r1140:empty->d489:"std.data.list.empty" e2933:()); p698:r1141:"list_view::leaf"->d458:"std.data.list.list_view.leaf"(p697:d1474:x) -> e2946:case e2939:(e2938:r1144:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e2937:(e2935:r1142:pred->d1473:pred e2936:r1143:x->d1474:x)) { p699:true -> e2942:(e2940:r1145:singleton->d490:"std.data.list.singleton" e2941:r1146:x->d1474:x); p700:false -> e2945:(e2943:r1147:empty->d489:"std.data.list.empty" e2944:()) }; p703:r1148:"list_view::node"->d459:"std.data.list.list_view.node"(p701:d1475:left, p702:d1476:right) -> e2959:(e2953:(e2947:r1149:append->d498:"std.data.list.append" e2952:(e2950:(e2948:r1150:filter->d497:"std.data.list.filter" e2949:r1151:left->d1475:left) e2951:r1152:pred->d1473:pred)) e2958:(e2956:(e2954:r1153:filter->d497:"std.data.list.filter" e2955:r1154:right->d1476:right) e2957:r1155:pred->d1473:pred)) }))
+      pub d498:"std.data.list.append": std::data::list::list 'a -> std::data::list::list 'a -> std::data::list::list 'a = e2969:(fn p704:d1477:xs -> e2968:(fn p705:d1478:ys -> e2967:(e2965:(e2963:r1156:"std::data::list::merge"->d479:"std.data.list.merge" e2964:r1157:xs->d1477:xs) e2966:r1158:ys->d1478:ys)))
+      pub d499:"std.data.list.first": std::data::list::list 'a -> std::data::opt::opt 'a = e2978:(fn p706:d1479:xs -> e2977:case e2972:(e2970:r1159:uncons->d493:"std.data.list.uncons" e2971:r1160:xs->d1479:xs) { p707:r1161:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil" -> e2973:r1162:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil"; p711:r1163:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just"(p710:(p708:d1480:head, p709:_)) -> e2976:(e2974:r1164:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just" e2975:r1165:head->d1480:head) })
+      pub d500:"std.data.list.last": std::data::list::list 'a -> std::data::opt::opt 'a = e2996:(fn p712:d1481:xs -> e2995:case e2981:(e2979:r1166:uncons->d493:"std.data.list.uncons" e2980:r1167:xs->d1481:xs) { p713:r1168:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil" -> e2982:r1169:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil"; p717:r1170:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just"(p716:(p714:d1482:head, p715:d1483:tail)) -> e2994:case e2987:(e2986:r1173:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e2985:(e2983:r1171:is_empty->d491:"std.data.list.is_empty" e2984:r1172:tail->d1483:tail)) { p718:true -> e2990:(e2988:r1174:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just" e2989:r1175:head->d1482:head); p719:false -> e2993:(e2991:r1176:"std::data::list::last"->d500:"std.data.list.last" e2992:r1177:tail->d1483:tail) } })
+      my d501:"std.data.list.sort_split": std::data::list::list('a & 'b) -> 'b -> ('c | std::data::list::list('a & 'b), 'd | std::data::list::list('a & 'b)) where 'c: std::num::Add, 'd: std::num::Add, std::core::cmp::Ord('b | 'a) = e3053:(fn p720:d1484:xs -> e3052:(fn p721:d1485:x -> e3051:case e2999:(e2997:r1178:"std::data::list::view_raw"->d478:"std.data.list.view_raw" e2998:r1179:xs->d1484:xs) { p722:r1180:"list_view::empty"->d457:"std.data.list.list_view.empty" -> e3006:(e3002:(e3000:builtin_op::list_empty e3001:()), e3005:(e3003:builtin_op::list_empty e3004:())); p724:r1181:"list_view::leaf"->d458:"std.data.list.list_view.leaf"(p723:d1486:y) if e3013:(e3012:r1185:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e3011:(e3010:(e3008:r1183:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e3007:r1182:y->d1486:y) e3009:r1184:x->d1485:x)) -> e3020:(e3016:(e3015:builtin_op::list_singleton e3014:r1186:y->d1486:y), e3019:(e3017:builtin_op::list_empty e3018:())); p726:r1187:"list_view::leaf"->d458:"std.data.list.list_view.leaf"(p725:d1487:y) -> e3027:(e3023:(e3021:builtin_op::list_empty e3022:()), e3026:(e3025:builtin_op::list_singleton e3024:r1188:y->d1487:y)); p729:r1189:"list_view::node"->d459:"std.data.list.list_view.node"(p727:d1488:l, p728:d1489:r) -> e3050:block { let my p736:(p732:(p730:d1490:ll, p731:d1491:lr), p735:(p733:d1492:rl, p734:d1493:rr)) = e3038:(e3032:(e3030:(e3028:r1190:sort_split->d501:"std.data.list.sort_split" e3029:r1191:l->d1488:l) e3031:r1192:x->d1485:x), e3037:(e3035:(e3033:r1193:sort_split->d501:"std.data.list.sort_split" e3034:r1194:r->d1489:r) e3036:r1195:x->d1485:x)); e3049:(e3043:(e3042:(e3040:r1197:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3039:r1196:ll->d1490:ll) e3041:r1198:rl->d1492:rl), e3048:(e3047:(e3045:r1200:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3044:r1199:lr->d1491:lr) e3046:r1201:rr->d1493:rr)) } }))
+      pub d502:"std.data.list.sort": std::data::list::list 'a -> std::data::list::list 'a where std::num::Add('b & std::data::list::list 'a), 'a: std::core::cmp::Ord = e3080:(fn p737:d1494:xs -> e3079:case e3054:r1202:xs->d1494:xs { p738:[] -> e3057:(e3055:builtin_op::list_empty e3056:()); p741:[p739:d1495:x, ..p740:d1496:xs] -> e3078:block { let my p744:(p742:d1497:l, p743:d1498:r) = e3062:(e3060:(e3058:r1203:sort_split->d501:"std.data.list.sort_split" e3059:r1204:xs->d1496:xs) e3061:r1205:x->d1495:x); e3077:(e3076:(e3075:builtin_op::list_merge e3065:(e3063:r1206:sort->d502:"std.data.list.sort" e3064:r1207:l->d1497:l)) e3074:(e3073:(e3072:builtin_op::list_merge e3068:(e3067:builtin_op::list_singleton e3066:r1208:x->d1495:x)) e3071:(e3069:r1209:sort->d502:"std.data.list.sort" e3070:r1210:r->d1498:r))) } })
+    }
+    pub d32:"std.data.opt" mod {
+      pub d503:"std.data.opt.opt" mod {
+        pub d504:"std.data.opt.opt.nil": std::data::opt::opt 'a = <missing>
+        pub d505:"std.data.opt.opt.just": 'a -> std::data::opt::opt 'a = <missing>
+      }
+    }
+    pub d33:"std.data.range" mod {
+      pub d506:"std.data.range.bound" mod {
+        pub d507:"std.data.range.bound.unbounded": std::data::range::bound = <missing>
+        pub d508:"std.data.range.bound.included": int -> std::data::range::bound = <missing>
+        pub d509:"std.data.range.bound.excluded": int -> std::data::range::bound = <missing>
+      }
+      pub d510:"std.data.range.range" mod {
+        pub d511:"std.data.range.range.within": std::data::range::bound -> std::data::range::bound -> std::data::range::range = <missing>
+      }
+      pub d512:"std.data.range.range": int -> int -> std::data::range::range = e3091:(fn p745:d1499:start -> e3090:(fn p746:d1500:end -> e3089:(e3085:(e3081:r1211:"range::within"->d511:"std.data.range.range.within" e3084:(e3082:r1212:"bound::included"->d508:"std.data.range.bound.included" e3083:r1213:start->d1499:start)) e3088:(e3086:r1214:"bound::excluded"->d509:"std.data.range.bound.excluded" e3087:r1215:end->d1500:end))))
+      pub d513:"std.data.range.inclusive": int -> int -> std::data::range::range = e3102:(fn p747:d1501:start -> e3101:(fn p748:d1502:end -> e3100:(e3096:(e3092:r1216:"range::within"->d511:"std.data.range.range.within" e3095:(e3093:r1217:"bound::included"->d508:"std.data.range.bound.included" e3094:r1218:start->d1501:start)) e3099:(e3097:r1219:"bound::included"->d508:"std.data.range.bound.included" e3098:r1220:end->d1502:end))))
+      pub d514:"std.data.range.exclusive": int -> int -> std::data::range::range = e3113:(fn p749:d1503:start -> e3112:(fn p750:d1504:end -> e3111:(e3107:(e3103:r1221:"range::within"->d511:"std.data.range.range.within" e3106:(e3104:r1222:"bound::excluded"->d509:"std.data.range.bound.excluded" e3105:r1223:start->d1503:start)) e3110:(e3108:r1224:"bound::excluded"->d509:"std.data.range.bound.excluded" e3109:r1225:end->d1504:end))))
+      pub d515:"std.data.range.from_exclusive_to_inclusive": int -> int -> std::data::range::range = e3124:(fn p751:d1505:start -> e3123:(fn p752:d1506:end -> e3122:(e3118:(e3114:r1226:"range::within"->d511:"std.data.range.range.within" e3117:(e3115:r1227:"bound::excluded"->d509:"std.data.range.bound.excluded" e3116:r1228:start->d1505:start)) e3121:(e3119:r1229:"bound::included"->d508:"std.data.range.bound.included" e3120:r1230:end->d1506:end))))
+      pub d516:"std.data.range.from_included": int -> std::data::range::range = e3132:(fn p753:d1507:start -> e3131:(e3129:(e3125:r1231:"range::within"->d511:"std.data.range.range.within" e3128:(e3126:r1232:"bound::included"->d508:"std.data.range.bound.included" e3127:r1233:start->d1507:start)) e3130:r1234:"bound::unbounded"->d507:"std.data.range.bound.unbounded"))
+      pub d517:"std.data.range.from_excluded": int -> std::data::range::range = e3140:(fn p754:d1508:start -> e3139:(e3137:(e3133:r1235:"range::within"->d511:"std.data.range.range.within" e3136:(e3134:r1236:"bound::excluded"->d509:"std.data.range.bound.excluded" e3135:r1237:start->d1508:start)) e3138:r1238:"bound::unbounded"->d507:"std.data.range.bound.unbounded"))
+      pub d518:"std.data.range.to_included": int -> std::data::range::range = e3148:(fn p755:d1509:end -> e3147:(e3143:(e3141:r1239:"range::within"->d511:"std.data.range.range.within" e3142:r1240:"bound::unbounded"->d507:"std.data.range.bound.unbounded") e3146:(e3144:r1241:"bound::included"->d508:"std.data.range.bound.included" e3145:r1242:end->d1509:end)))
+      pub d519:"std.data.range.to_excluded": int -> std::data::range::range = e3156:(fn p756:d1510:end -> e3155:(e3151:(e3149:r1243:"range::within"->d511:"std.data.range.range.within" e3150:r1244:"bound::unbounded"->d507:"std.data.range.bound.unbounded") e3154:(e3152:r1245:"bound::excluded"->d509:"std.data.range.bound.excluded" e3153:r1246:end->d1510:end)))
+      pub d520:"std.data.range.full": () -> std::data::range::range = e3162:(fn p757:() -> e3161:(e3159:(e3157:r1247:"range::within"->d511:"std.data.range.range.within" e3158:r1248:"bound::unbounded"->d507:"std.data.range.bound.unbounded") e3160:r1249:"bound::unbounded"->d507:"std.data.range.bound.unbounded"))
+      pub d521:"std.data.range.start": std::data::range::range -> std::data::range::bound = e3166:(fn p758:d1511:r -> e3165:case e3163:r1250:r->d1511:r { p761:r1251:"range::within"->d511:"std.data.range.range.within"(p759:d1512:start, p760:_) -> e3164:r1252:start->d1512:start })
+      pub d522:"std.data.range.end": std::data::range::range -> std::data::range::bound = e3170:(fn p762:d1513:r -> e3169:case e3167:r1253:r->d1513:r { p765:r1254:"range::within"->d511:"std.data.range.range.within"(p763:_, p764:d1514:end) -> e3168:r1255:end->d1514:end })
+      my d523:"std.data.range.first_int": std::data::range::bound -> int = e3180:(fn p766:d1515:b -> e3179:case e3171:r1256:b->d1515:b { p767:r1257:"bound::unbounded"->d507:"std.data.range.bound.unbounded" -> e3172:0; p769:r1258:"bound::included"->d508:"std.data.range.bound.included"(p768:d1516:x) -> e3173:r1259:x->d1516:x; p771:r1260:"bound::excluded"->d509:"std.data.range.bound.excluded"(p770:d1517:x) -> e3178:(e3177:(e3175:r1262:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3174:r1261:x->d1517:x) e3176:1) })
+      my d524:"std.data.range.last_exclusive_int": std::data::range::bound -> int = e3190:(fn p772:d1518:b -> e3189:case e3181:r1263:b->d1518:b { p773:r1264:"bound::unbounded"->d507:"std.data.range.bound.unbounded" -> e3182:0; p775:r1265:"bound::included"->d508:"std.data.range.bound.included"(p774:d1519:x) -> e3187:(e3186:(e3184:r1267:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3183:r1266:x->d1519:x) e3185:1); p777:r1268:"bound::excluded"->d509:"std.data.range.bound.excluded"(p776:d1520:x) -> e3188:r1269:x->d1520:x })
+      my d525:"std.data.range.fold_ints": ('a -> ['b] int -> ['b] 'a) -> int -> int -> 'a -> ['b] 'a = e3220:(fn p778:d1521:f -> e3219:(fn p779:d1522:i -> e3218:(fn p780:d1523:end -> e3217:(fn p781:d1524:acc -> e3216:case e3197:(e3196:r1273:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e3195:(e3194:(e3192:r1271:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e3191:r1270:i->d1522:i) e3193:r1272:end->d1523:end)) { p782:true -> e3214:(e3208:(e3206:(e3200:(e3198:r1274:fold_ints->d525:"std.data.range.fold_ints" e3199:r1275:f->d1521:f) e3205:(e3204:(e3202:r1277:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3201:r1276:i->d1522:i) e3203:1)) e3207:r1278:end->d1523:end) e3213:(e3211:(e3209:r1279:f->d1521:f e3210:r1280:acc->d1524:acc) e3212:r1281:i->d1522:i)); p783:false -> e3215:r1282:acc->d1524:acc }))))
+      my d526:"std.data.range.fold_from": ('a -> ['b] int -> ['b] 'a) -> int -> 'a -> ['b] 'a = e3243:(fn p784:d1525:f -> e3242:(fn p785:d1526:i -> e3241:(fn p786:d1527:acc -> e3240:case e3223:(e3222:r1283:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e3221:true) { p787:true -> e3238:(e3232:(e3226:(e3224:r1284:fold_from->d526:"std.data.range.fold_from" e3225:r1285:f->d1525:f) e3231:(e3230:(e3228:r1287:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3227:r1286:i->d1526:i) e3229:1)) e3237:(e3235:(e3233:r1288:f->d1525:f e3234:r1289:acc->d1527:acc) e3236:r1290:i->d1526:i)); p788:false -> e3239:r1291:acc->d1527:acc })))
+      my d527 mod {
+        d528: std::data::range::range -> 'a -> ('a -> ['b] int -> ['b] 'a) -> ['b] 'a = e3270:(fn p789:d1528:r -> e3269:(fn p790:d1529:z -> e3268:(fn p791:d1530:f -> e3267:case e3244:r1292:r->d1528:r { p794:r1293:"range::within"->d511:"std.data.range.range.within"(p792:d1531:start, p793:r1294:"bound::unbounded"->d507:"std.data.range.bound.unbounded") -> e3253:(e3251:(e3247:(e3245:r1295:fold_from->d526:"std.data.range.fold_from" e3246:r1296:f->d1530:f) e3250:(e3248:r1297:first_int->d523:"std.data.range.first_int" e3249:r1298:start->d1531:start)) e3252:r1299:z->d1529:z); p797:r1300:"range::within"->d511:"std.data.range.range.within"(p795:d1532:start, p796:d1533:end) -> e3266:(e3264:(e3260:(e3256:(e3254:r1301:fold_ints->d525:"std.data.range.fold_ints" e3255:r1302:f->d1530:f) e3259:(e3257:r1303:first_int->d523:"std.data.range.first_int" e3258:r1304:start->d1532:start)) e3263:(e3261:r1305:last_exclusive_int->d524:"std.data.range.last_exclusive_int" e3262:r1306:end->d1533:end)) e3265:r1307:z->d1529:z) })))
+      }
+    }
+    pub d34:"std.data.result" mod {
+      pub d529:"std.data.result.result" mod {
+        pub d530:"std.data.result.result.ok": 'a -> std::data::result::result 'a 'b = <missing>
+        pub d531:"std.data.result.result.err": 'a -> std::data::result::result 'b 'a = <missing>
+        pub d532:"std.data.result.result.map": std::data::result::result 'a 'b -> ('a -> ['c] 'd) -> ['c] std::data::result::result 'd 'b = e3277:(fn p798:d1534:r -> e3276:(fn p799:d1535:f -> e3275:(e3273:(e3271:r1308:"std::data::result::map"->d535:"std.data.result.map" e3272:r1309:r->d1534:r) e3274:r1310:f->d1535:f)))
+        pub d533:"std.data.result.result.and_then": std::data::result::result 'a 'b -> ('a -> ['c] std::data::result::result 'd 'b) -> ['c] std::data::result::result 'd 'b = e3284:(fn p800:d1536:r -> e3283:(fn p801:d1537:f -> e3282:(e3280:(e3278:r1311:"std::data::result::and_then"->d536:"std.data.result.and_then" e3279:r1312:r->d1536:r) e3281:r1313:f->d1537:f)))
+        pub d534:"std.data.result.result.unwrap_or": std::data::result::result 'a 'b -> 'a -> 'a = e3291:(fn p802:d1538:r -> e3290:(fn p803:d1539:fallback -> e3289:(e3287:(e3285:r1314:"std::data::result::unwrap_or"->d537:"std.data.result.unwrap_or" e3286:r1315:r->d1538:r) e3288:r1316:fallback->d1539:fallback)))
+      }
+      pub d535:"std.data.result.map": std::data::result::result 'a 'b -> ('a -> ['c] 'd) -> ['c] std::data::result::result 'd 'b = e3303:(fn p804:d1540:r -> e3302:(fn p805:d1541:f -> e3301:case e3292:r1317:r->d1540:r { p807:r1318:"result::ok"->d530:"std.data.result.result.ok"(p806:d1542:value) -> e3297:(e3293:r1319:"result::ok"->d530:"std.data.result.result.ok" e3296:(e3294:r1320:f->d1541:f e3295:r1321:value->d1542:value)); p809:r1322:"result::err"->d531:"std.data.result.result.err"(p808:d1543:err) -> e3300:(e3298:r1323:"result::err"->d531:"std.data.result.result.err" e3299:r1324:err->d1543:err) }))
+      pub d536:"std.data.result.and_then": std::data::result::result 'a 'b -> ('a -> ['c] std::data::result::result 'd 'b) -> ['c] std::data::result::result 'd 'b = e3313:(fn p810:d1544:r -> e3312:(fn p811:d1545:f -> e3311:case e3304:r1325:r->d1544:r { p813:r1326:"result::ok"->d530:"std.data.result.result.ok"(p812:d1546:value) -> e3307:(e3305:r1327:f->d1545:f e3306:r1328:value->d1546:value); p815:r1329:"result::err"->d531:"std.data.result.result.err"(p814:d1547:err) -> e3310:(e3308:r1330:"result::err"->d531:"std.data.result.result.err" e3309:r1331:err->d1547:err) }))
+      pub d537:"std.data.result.unwrap_or": std::data::result::result 'a 'b -> 'a -> 'a = e3319:(fn p816:d1548:r -> e3318:(fn p817:d1549:fallback -> e3317:case e3314:r1332:r->d1548:r { p819:r1333:"result::ok"->d530:"std.data.result.result.ok"(p818:d1550:value) -> e3315:r1334:value->d1550:value; p821:r1335:"result::err"->d531:"std.data.result.result.err"(p820:_) -> e3316:r1336:fallback->d1549:fallback }))
+    }
+  }
+  pub d8:"std.text" mod {
+    pub d111:"std.text.bytes" mod {
+      pub d654:"std.text.bytes.len": std::text::bytes::bytes -> int = e3995:builtin_op::bytes_len
+      pub d655:"std.text.bytes.eq": std::text::bytes::bytes -> std::text::bytes::bytes -> bool = e3996:builtin_op::bytes_eq
+      pub d656:"std.text.bytes.concat": std::text::bytes::bytes -> std::text::bytes::bytes -> std::text::bytes::bytes = e3997:builtin_op::bytes_concat
+      pub d657:"std.text.bytes.index_raw": std::text::bytes::bytes -> int -> int = e3998:builtin_op::bytes_index
+      pub d658:"std.text.bytes.index_range": std::text::bytes::bytes -> std::data::range::range -> std::text::bytes::bytes = e3999:builtin_op::bytes_index_range
+      pub d659:"std.text.bytes.to_utf8_raw": std::text::bytes::bytes -> (std::text::str::str, int) = e4000:builtin_op::bytes_to_utf8_raw
+      pub d660:"std.text.bytes.bytes" mod {
+        pub d661:"std.text.bytes.bytes.len": std::text::bytes::bytes -> int = e4004:(fn p987:d1662:b -> e4003:(e4001:r1649:"std::text::bytes::len"->d654:"std.text.bytes.len" e4002:r1650:b->d1662:b))
+        pub d662:"std.text.bytes.bytes.is_empty": std::text::bytes::bytes -> bool = e4008:(fn p988:d1663:b -> e4007:(e4005:r1651:"std::text::bytes::is_empty"->d666:"std.text.bytes.is_empty" e4006:r1652:b->d1663:b))
+        pub d663:"std.text.bytes.bytes.concat": std::text::bytes::bytes -> std::text::bytes::bytes -> std::text::bytes::bytes = e4015:(fn p989:d1664:b -> e4014:(fn p990:d1665:other -> e4013:(e4011:(e4009:r1653:"std::text::bytes::concat"->d656:"std.text.bytes.concat" e4010:r1654:b->d1664:b) e4012:r1655:other->d1665:other)))
+        pub d664:"std.text.bytes.bytes.to_utf8_raw": std::text::bytes::bytes -> (std::text::str::str, int) = e4019:(fn p991:d1666:b -> e4018:(e4016:r1656:"std::text::bytes::to_utf8_raw"->d659:"std.text.bytes.to_utf8_raw" e4017:r1657:b->d1666:b))
+        pub d665:"std.text.bytes.bytes.to_utf8_lossy": std::text::bytes::bytes -> std::text::str::str = e4023:(fn p992:d1667:b -> e4022:(e4020:r1658:"std::text::bytes::to_utf8_lossy"->d667:"std.text.bytes.to_utf8_lossy" e4021:r1659:b->d1667:b))
+      }
+      pub d666:"std.text.bytes.is_empty": std::text::bytes::bytes -> bool = e4031:(fn p993:d1668:b -> e4030:(e4028:(e4024:r1660:"std::int::eq"->d46:"std.int.eq" e4027:(e4025:r1661:"std::text::bytes::len"->d654:"std.text.bytes.len" e4026:r1662:b->d1668:b)) e4029:0))
+      pub d667:"std.text.bytes.to_utf8_lossy": std::text::bytes::bytes -> std::text::str::str = e4037:(fn p994:d1669:b -> e4036:case e4034:(e4032:r1663:"std::text::bytes::to_utf8_raw"->d659:"std.text.bytes.to_utf8_raw" e4033:r1664:b->d1669:b) { p997:(p995:d1670:text, p996:_) -> e4035:r1665:text->d1670:text })
+      my d668 mod {
+        d669: std::text::bytes::bytes -> int -> int = e4044:(fn p998:d1671:b -> e4043:(fn p999:d1672:i -> e4042:(e4040:(e4038:r1666:"std::text::bytes::index_raw"->d657:"std.text.bytes.index_raw" e4039:r1667:b->d1671:b) e4041:r1668:i->d1672:i)))
+      }
+      my d670 mod {
+        d671: std::text::bytes::bytes -> std::data::range::range -> std::text::bytes::bytes = e4051:(fn p1000:d1673:b -> e4050:(fn p1001:d1674:r -> e4049:(e4047:(e4045:r1669:"std::text::bytes::index_range"->d658:"std.text.bytes.index_range" e4046:r1670:b->d1673:b) e4048:r1671:r->d1674:r)))
+      }
+    }
+    pub d112:"std.text.char" mod {
+      pub d672:"std.text.char.eq": std::text::char::char -> std::text::char::char -> bool = e4052:builtin_op::char_eq
+      pub d673:"std.text.char.to_string": std::text::char::char -> std::text::str::str = e4053:builtin_op::char_to_string
+      pub d674:"std.text.char.is_whitespace": std::text::char::char -> bool = e4054:builtin_op::char_is_whitespace
+      pub d675:"std.text.char.is_punctuation": std::text::char::char -> bool = e4055:builtin_op::char_is_punctuation
+      pub d676:"std.text.char.is_word": std::text::char::char -> bool = e4056:builtin_op::char_is_word
+      pub d677:"std.text.char.char" mod {
+        pub d678:"std.text.char.char.to_string": std::text::char::char -> std::text::str::str = e4060:(fn p1002:d1675:c -> e4059:(e4057:r1672:"std::text::char::to_string"->d673:"std.text.char.to_string" e4058:r1673:c->d1675:c))
+        pub d679:"std.text.char.char.is_whitespace": std::text::char::char -> bool = e4064:(fn p1003:d1676:c -> e4063:(e4061:r1674:"std::text::char::is_whitespace"->d674:"std.text.char.is_whitespace" e4062:r1675:c->d1676:c))
+        pub d680:"std.text.char.char.is_punctuation": std::text::char::char -> bool = e4068:(fn p1004:d1677:c -> e4067:(e4065:r1676:"std::text::char::is_punctuation"->d675:"std.text.char.is_punctuation" e4066:r1677:c->d1677:c))
+        pub d681:"std.text.char.char.is_word": std::text::char::char -> bool = e4072:(fn p1005:d1678:c -> e4071:(e4069:r1678:"std::text::char::is_word"->d676:"std.text.char.is_word" e4070:r1679:c->d1678:c))
+      }
+    }
+    pub d113:"std.text.config" mod {
+      pub d682:"std.text.config.section": {name: std::text::str::str, entries: std::data::list::list (std::text::str::str, std::text::str::str)} -> std::text::config::section = <missing>
+      pub d687:"std.text.config.config": {sections_: std::data::list::list std::text::config::section} -> std::text::config::config = <missing>
+      pub d690:"std.text.config.config" mod {
+        pub d691:"std.text.config.config.get": std::text::config::config -> std::text::str::str -> std::text::str::str -> std::data::opt::opt std::text::str::str = e4082:(fn p1006:d1679:c -> e4081:(fn p1007:d1680:section_name -> e4080:(fn p1008:d1681:key -> e4079:(e4077:(e4075:(e4073:r1680:"std::text::config::get"->d707:"std.text.config.get" e4074:r1681:c->d1679:c) e4076:r1682:section_name->d1680:section_name) e4078:r1683:key->d1681:key))))
+        pub d692:"std.text.config.config.sections": std::text::config::config -> std::data::list::list std::text::config::section = e4086:(fn p1009:d1682:c -> e4085:(e4083:r1684:"std::text::config::sections"->d695:"std.text.config.sections" e4084:r1685:c->d1682:c))
+      }
+      my d693:"std.text.config.empty_section": std::text::str::str -> std::text::config::section = e4094:(fn p1010:d1683:name -> e4093:(e4087:r1686:section->d682:"std.text.config.section" e4092:{name: e4088:r1687:name->d1683:name, entries: e4091:(e4089:builtin_op::list_empty e4090:())}))
+      my d694:"std.text.config.empty": () -> std::text::config::config = e4103:(fn p1011:() -> e4102:(e4095:r1688:config->d687:"std.text.config.config" e4101:{sections_: e4100:(e4099:builtin_op::list_singleton e4098:(e4096:r1689:empty_section->d693:"std.text.config.empty_section" e4097:""))}))
+      pub d695:"std.text.config.sections": std::text::config::config -> std::data::list::list std::text::config::section = e4106:(fn p1012:d1684:c -> e4105:(e4104:r1690:c->d1684:c.s178.sections_->d688))
+      my d696:"std.text.config.ensure_section_list": std::data::list::list std::text::config::section -> std::text::str::str -> std::data::list::list std::text::config::section = e4135:(fn p1013:d1685:sections -> e4134:(fn p1014:d1686:name -> e4133:case e4107:r1691:sections->d1685:sections { p1015:[] -> e4112:(e4111:builtin_op::list_singleton e4110:(e4108:r1692:empty_section->d693:"std.text.config.empty_section" e4109:r1693:name->d1686:name)); p1018:[p1016:d1687:head, ..p1017:d1688:tail] if e4120:(e4119:r1697:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4118:(e4117:(e4115:r1695:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e4114:(e4113:r1694:head->d1687:head.s179.name->d683)) e4116:r1696:name->d1686:name)) -> e4121:r1698:sections->d1685:sections; p1021:[p1019:d1689:head, ..p1020:d1690:tail] -> e4132:(e4131:(e4130:builtin_op::list_merge e4124:(e4123:builtin_op::list_singleton e4122:r1699:head->d1689:head)) e4129:(e4127:(e4125:r1700:ensure_section_list->d696:"std.text.config.ensure_section_list" e4126:r1701:tail->d1690:tail) e4128:r1702:name->d1686:name)) }))
+      my d697:"std.text.config.ensure_section": std::text::config::config -> std::text::str::str -> std::text::config::config = e4146:(fn p1022:d1691:c -> e4145:(fn p1023:d1692:name -> e4144:(e4136:r1703:config->d687:"std.text.config.config" e4143:{sections_: e4142:(e4140:(e4137:r1704:ensure_section_list->d696:"std.text.config.ensure_section_list" e4139:(e4138:r1705:c->d1691:c.s180.sections_->d688)) e4141:r1706:name->d1692:name)})))
+      my d698:"std.text.config.put_entry_list": std::data::list::list std::text::config::section -> std::text::str::str -> (std::text::str::str, std::text::str::str) -> std::data::list::list std::text::config::section = e4200:(fn p1024:d1693:sections -> e4199:(fn p1025:d1694:section_name -> e4198:(fn p1026:d1695:entry -> e4197:case e4147:r1707:sections->d1693:sections { p1027:[] -> e4156:(e4155:builtin_op::list_singleton e4154:(e4148:r1708:section->d682:"std.text.config.section" e4153:{name: e4149:r1709:section_name->d1694:section_name, entries: e4152:(e4151:builtin_op::list_singleton e4150:r1710:entry->d1695:entry)})); p1030:[p1028:d1696:head, ..p1029:d1697:tail] if e4164:(e4163:r1714:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4162:(e4161:(e4159:r1712:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e4158:(e4157:r1711:head->d1696:head.s181.name->d683)) e4160:r1713:section_name->d1694:section_name)) -> e4183:(e4182:(e4181:builtin_op::list_merge e4179:(e4178:builtin_op::list_singleton e4177:(e4165:r1715:section->d682:"std.text.config.section" e4176:{name: e4167:(e4166:r1716:head->d1696:head.s182.name->d683), entries: e4175:(e4174:(e4170:r1718:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4169:(e4168:r1717:head->d1696:head.s183.entries->d685)) e4173:(e4172:builtin_op::list_singleton e4171:r1719:entry->d1695:entry))}))) e4180:r1720:tail->d1697:tail); p1033:[p1031:d1698:head, ..p1032:d1699:tail] -> e4196:(e4195:(e4194:builtin_op::list_merge e4186:(e4185:builtin_op::list_singleton e4184:r1721:head->d1698:head)) e4193:(e4191:(e4189:(e4187:r1722:put_entry_list->d698:"std.text.config.put_entry_list" e4188:r1723:tail->d1699:tail) e4190:r1724:section_name->d1694:section_name) e4192:r1725:entry->d1695:entry)) })))
+      my d699:"std.text.config.put_entry": std::text::config::config -> std::text::str::str -> (std::text::str::str, std::text::str::str) -> std::text::config::config = e4214:(fn p1034:d1700:c -> e4213:(fn p1035:d1701:section_name -> e4212:(fn p1036:d1702:entry -> e4211:(e4201:r1726:config->d687:"std.text.config.config" e4210:{sections_: e4209:(e4207:(e4205:(e4202:r1727:put_entry_list->d698:"std.text.config.put_entry_list" e4204:(e4203:r1728:c->d1700:c.s184.sections_->d688)) e4206:r1729:section_name->d1701:section_name) e4208:r1730:entry->d1702:entry)}))))
+      my d700:"std.text.config.header_name": std::text::str::str -> std::data::opt::opt std::text::str::str = e4247:(fn p1037:d1703:clean -> e4246:case e4229:(e4228:r1734:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4227:(e4226:(e4219:r1732:"#op:infix:and"->d426:"std.core.ops.#op:infix:and" e4224:(fn p1038:() -> e4218:(e4216:(e4215:r1731:clean->d1703:clean.s185.starts_with->d821:"std.text.str.str.starts_with") e4217:"["))) e4225:(fn p1039:() -> e4223:(e4221:(e4220:r1733:clean->d1703:clean.s186.ends_with->d822:"std.text.str.str.ends_with") e4222:"]")))) { p1040:true -> e4244:(e4230:r1735:just->d505:"std.data.opt.opt.just" e4243:(e4242:(e4235:(e4233:(e4231:r1736:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e4232:r1737:clean->d1703:clean) e4234:1) e4241:(e4240:(e4238:r1739:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e4237:(e4236:r1738:clean->d1703:clean.s187.len->d839:"std.text.str.str.len")) e4239:1)).s188.trim->d827:"std.text.str.str.trim")); p1041:false -> e4245:r1740:nil->d504:"std.data.opt.opt.nil" })
+      my d701:"std.text.config.trim_entry": (std::text::str::str, std::text::str::str) -> (std::text::str::str, std::text::str::str) = e4255:(fn p1042:d1704:pair -> e4254:case e4248:r1741:pair->d1704:pair { p1045:(p1043:d1705:key, p1044:d1706:value) -> e4253:(e4250:(e4249:r1742:key->d1705:key.s189.trim->d827:"std.text.str.str.trim"), e4252:(e4251:r1743:value->d1706:value.s190.trim->d827:"std.text.str.str.trim")) })
+      my d702:"std.text.config.parse_line": (std::text::config::config, std::text::str::str) -> std::text::str::str -> (std::text::config::config, std::text::str::str) = e4307:(fn p1046:d1707:state -> e4306:(fn p1047:d1708:line -> e4305:case e4256:r1744:state->d1707:state { p1050:(p1048:d1709:cfg, p1049:d1710:current_section) -> e4304:block { let my p1051:d1711:clean = e4258:(e4257:r1745:line->d1708:line.s191.trim->d827:"std.text.str.str.trim"); e4303:case e4265:(e4264:r1748:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4263:(e4262:(e4260:r1747:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e4259:r1746:clean->d1711:clean) e4261:"")) { p1060:true -> e4266:r1749:state->d1707:state; p1061:false -> e4302:case e4272:(e4271:r1751:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4270:(e4268:(e4267:r1750:clean->d1711:clean.s192.starts_with->d821:"std.text.str.str.starts_with") e4269:"#")) { p1058:true -> e4273:r1752:state->d1707:state; p1059:false -> e4301:case e4276:(e4274:r1753:header_name->d700:"std.text.config.header_name" e4275:r1754:clean->d1711:clean) { p1053:r1755:just->d505:"std.data.opt.opt.just"(p1052:d1712:name) -> e4283:(e4281:(e4279:(e4277:r1756:ensure_section->d697:"std.text.config.ensure_section" e4278:r1757:cfg->d1709:cfg) e4280:r1758:name->d1712:name), e4282:r1759:name->d1712:name); p1054:r1760:nil->d504:"std.data.opt.opt.nil" -> e4300:case e4287:(e4285:(e4284:r1761:clean->d1711:clean.s193.split_once->d824:"std.text.str.str.split_once") e4286:"=") { p1056:r1762:just->d505:"std.data.opt.opt.just"(p1055:d1713:pair) -> e4298:(e4296:(e4292:(e4290:(e4288:r1763:put_entry->d699:"std.text.config.put_entry" e4289:r1764:cfg->d1709:cfg) e4291:r1765:current_section->d1710:current_section) e4295:(e4293:r1766:trim_entry->d701:"std.text.config.trim_entry" e4294:r1767:pair->d1713:pair)), e4297:r1768:current_section->d1710:current_section); p1057:r1769:nil->d504:"std.data.opt.opt.nil" -> e4299:r1770:state->d1707:state } } } } } }))
+      pub d703:"std.text.config.parse": std::text::str::str -> std::text::config::config = e4323:(fn p1062:d1714:source -> e4322:block { let my p1065:(p1063:d1715:cfg, p1064:_) = e4320:(e4318:(e4312:(e4311:(e4309:(e4308:r1771:source->d1714:source.s194.split->d823:"std.text.str.str.split") e4310:"\n").s195.fold=>d450:"std.data.fold.Fold.fold") e4317:(e4315:(e4313:r1772:empty->d694:"std.text.config.empty" e4314:()), e4316:"")) e4319:r1773:parse_line->d702:"std.text.config.parse_line"); e4321:r1774:cfg->d1715:cfg })
+      my d704:"std.text.config.get_entry_rev": std::data::list::list (std::text::str::str, std::text::str::str) -> std::text::str::str -> std::data::opt::opt std::text::str::str = e4343:(fn p1066:d1716:entries -> e4342:(fn p1067:d1717:key -> e4341:case e4324:r1775:entries->d1716:entries { p1068:[] -> e4325:r1776:nil->d504:"std.data.opt.opt.nil"; p1073:[p1071:(p1069:d1718:candidate, p1070:d1719:value), ..p1072:d1720:rest] if e4332:(e4331:r1780:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4330:(e4329:(e4327:r1778:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e4326:r1777:candidate->d1718:candidate) e4328:r1779:key->d1717:key)) -> e4335:(e4333:r1781:just->d505:"std.data.opt.opt.just" e4334:r1782:value->d1719:value); p1076:[p1074:_, ..p1075:d1721:rest] -> e4340:(e4338:(e4336:r1783:get_entry_rev->d704:"std.text.config.get_entry_rev" e4337:r1784:rest->d1721:rest) e4339:r1785:key->d1717:key) }))
+      my d705:"std.text.config.get_entry": std::data::list::list (std::text::str::str, std::text::str::str) -> std::text::str::str -> std::data::opt::opt std::text::str::str = e4352:(fn p1077:d1722:entries -> e4351:(fn p1078:d1723:key -> e4350:(e4348:(e4344:r1786:get_entry_rev->d704:"std.text.config.get_entry_rev" e4347:(e4345:r1787:"std::data::list::rev"->d495:"std.data.list.rev" e4346:r1788:entries->d1722:entries)) e4349:r1789:key->d1723:key)))
+      my d706:"std.text.config.get_section_rev": std::data::list::list std::text::config::section -> std::text::str::str -> std::text::str::str -> std::data::opt::opt std::text::str::str = e4379:(fn p1079:d1724:sections -> e4378:(fn p1080:d1725:section_name -> e4377:(fn p1081:d1726:key -> e4376:case e4353:r1790:sections->d1724:sections { p1082:[] -> e4354:r1791:nil->d504:"std.data.opt.opt.nil"; p1085:[p1083:d1727:head, ..p1084:d1728:rest] if e4362:(e4361:r1795:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4360:(e4359:(e4357:r1793:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e4356:(e4355:r1792:head->d1727:head.s196.name->d683)) e4358:r1794:section_name->d1725:section_name)) -> e4368:(e4366:(e4363:r1796:get_entry->d705:"std.text.config.get_entry" e4365:(e4364:r1797:head->d1727:head.s197.entries->d685)) e4367:r1798:key->d1726:key); p1088:[p1086:_, ..p1087:d1729:rest] -> e4375:(e4373:(e4371:(e4369:r1799:get_section_rev->d706:"std.text.config.get_section_rev" e4370:r1800:rest->d1729:rest) e4372:r1801:section_name->d1725:section_name) e4374:r1802:key->d1726:key) })))
+      pub d707:"std.text.config.get": std::text::config::config -> std::text::str::str -> std::text::str::str -> std::data::opt::opt std::text::str::str = e4392:(fn p1089:d1730:c -> e4391:(fn p1090:d1731:section_name -> e4390:(fn p1091:d1732:key -> e4389:(e4387:(e4385:(e4380:r1803:get_section_rev->d706:"std.text.config.get_section_rev" e4384:(e4381:r1804:"std::data::list::rev"->d495:"std.data.list.rev" e4383:(e4382:r1805:c->d1730:c.s198.sections_->d688))) e4386:r1806:section_name->d1731:section_name) e4388:r1807:key->d1732:key))))
+      pub d708:"std.text.config.load": std::text::str::str -> [std::io::file::file, std::io::file::io_err] std::text::config::config = e4402:(fn p1092:d1733:path -> e4401:(e4393:r1808:parse->d703:"std.text.config.parse" e4400:(e4394:r1809:"std::io::file::read_text"->d595:"std.io.file.read_text" e4399:(e4395:r1810:"std::text::path::of_bytes"->d782:"std.text.path.of_bytes" e4398:(e4396:r1811:"std::text::str::to_bytes"->d795:"std.text.str.to_bytes" e4397:r1812:path->d1733:path)))))
+    }
+    pub d114:"std.text.parse" mod {
+      pub d709:"std.text.parse.parse" mod {
+      }
+      pub d718:"std.text.parse.ParseError" mod {
+        pub d719:"std.text.parse.ParseError.merge": 'a -> 'a -> 'a where 'a: std::text::parse::ParseError(item = 'b, pos = 'c) = <missing>
+        pub d720:"std.text.parse.ParseError.unexpected": std::data::opt::opt 'a -> 'b -> 'c where 'c: std::text::parse::ParseError(item = 'a, pos = 'b) = <missing>
+        pub d721:"std.text.parse.ParseError.expected": std::text::str::str -> 'a -> 'b where 'b: std::text::parse::ParseError(item = 'c, pos = 'a) = <missing>
+        pub d722:"std.text.parse.ParseError.label": 'a -> std::text::str::str -> 'a where 'a: std::text::parse::ParseError(item = 'b, pos = 'c) = <missing>
+      }
+      pub d723:"std.text.parse.str_error": {line: int, column: int, unexpected: std::data::opt::opt std::text::char::char, expected: std::data::list::list std::text::str::str, message: std::data::list::list std::text::str::str} -> std::text::parse::str_error = <missing>
+      pub d734:"std.text.parse.str_error" mod {
+        my d735 mod {
+          d736: std::text::parse::str_error -> std::text::parse::str_error -> std::text::parse::str_error = e4471:(fn p1093:d1734:e -> e4470:(fn p1094:d1735:f -> e4469:case e4411:(e4410:r1816:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4409:(e4408:(e4405:r1814:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e4404:(e4403:r1813:e->d1734:e.s199.line->d724)) e4407:(e4406:r1815:f->d1735:f.s200.line->d724))) { p1101:true -> e4412:r1817:f->d1735:f; p1102:false -> e4468:case e4421:(e4420:r1821:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4419:(e4418:(e4415:r1819:"#op:infix:>"->d424:"std.core.ops.#op:infix:>" e4414:(e4413:r1818:e->d1734:e.s201.line->d724)) e4417:(e4416:r1820:f->d1735:f.s202.line->d724))) { p1099:true -> e4422:r1822:e->d1734:e; p1100:false -> e4467:case e4431:(e4430:r1826:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4429:(e4428:(e4425:r1824:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e4424:(e4423:r1823:e->d1734:e.s203.column->d726)) e4427:(e4426:r1825:f->d1735:f.s204.column->d726))) { p1097:true -> e4432:r1827:f->d1735:f; p1098:false -> e4466:case e4441:(e4440:r1831:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4439:(e4438:(e4435:r1829:"#op:infix:>"->d424:"std.core.ops.#op:infix:>" e4434:(e4433:r1828:e->d1734:e.s205.column->d726)) e4437:(e4436:r1830:f->d1735:f.s206.column->d726))) { p1095:true -> e4442:r1832:e->d1734:e; p1096:false -> e4465:(e4443:r1833:str_error->d723:"std.text.parse.str_error" e4464:{line: e4445:(e4444:r1834:e->d1734:e.s207.line->d724), column: e4447:(e4446:r1835:e->d1734:e.s208.column->d726), unexpected: e4449:(e4448:r1836:e->d1734:e.s209.unexpected->d728), expected: e4456:(e4455:(e4452:r1838:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4451:(e4450:r1837:e->d1734:e.s210.expected->d730)) e4454:(e4453:r1839:f->d1735:f.s211.expected->d730)), message: e4463:(e4462:(e4459:r1841:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4458:(e4457:r1840:e->d1734:e.s212.message->d732)) e4461:(e4460:r1842:f->d1735:f.s213.message->d732))}) } } } }))
+          d737: std::data::opt::opt std::text::char::char -> (int, int) -> std::text::parse::str_error = e4485:(fn p1103:d1736:u -> e4484:(fn p1106:(p1104:d1737:l, p1105:d1738:c) -> e4483:(e4472:r1843:str_error->d723:"std.text.parse.str_error" e4482:{line: e4473:r1844:l->d1737:l, column: e4474:r1845:c->d1738:c, unexpected: e4475:r1846:u->d1736:u, expected: e4478:(e4476:builtin_op::list_empty e4477:()), message: e4481:(e4479:builtin_op::list_empty e4480:())})))
+          d738: std::text::str::str -> (int, int) -> std::text::parse::str_error = e4499:(fn p1107:d1739:label -> e4498:(fn p1110:(p1108:d1740:l, p1109:d1741:c) -> e4497:(e4486:r1847:str_error->d723:"std.text.parse.str_error" e4496:{line: e4487:r1848:l->d1740:l, column: e4488:r1849:c->d1741:c, unexpected: e4489:r1850:nil->d504:"std.data.opt.opt.nil", expected: e4492:(e4491:builtin_op::list_singleton e4490:r1851:label->d1739:label), message: e4495:(e4493:builtin_op::list_empty e4494:())})))
+          d739: std::text::parse::str_error -> std::text::str::str -> std::text::parse::str_error = e4515:(fn p1111:d1742:e -> e4514:(fn p1112:d1743:label -> e4513:(e4500:r1852:str_error->d723:"std.text.parse.str_error" e4512:{line: e4502:(e4501:r1853:e->d1742:e.s214.line->d724), column: e4504:(e4503:r1854:e->d1742:e.s215.column->d726), unexpected: e4506:(e4505:r1855:e->d1742:e.s216.unexpected->d728), expected: e4509:(e4508:builtin_op::list_singleton e4507:r1856:label->d1743:label), message: e4511:(e4510:r1857:e->d1742:e.s217.message->d732)})))
+        }
+      }
+      pub d740:"std.text.parse.prefix_result": {value: 'a, rest: std::text::str::str} -> std::text::parse::prefix_result 'a = <missing>
+      pub d745:"std.text.parse.match_result": {value: 'a, start: int, end: int, text: std::text::str::str} -> std::text::parse::match_result 'a = <missing>
+      my d754:"std.text.parse.advance_position": std::text::str::str -> int -> int -> int -> (int, int) = e4556:(fn p1113:d1744:input -> e4555:(fn p1114:d1745:count -> e4554:(fn p1115:d1746:line -> e4553:(fn p1116:d1747:column -> e4552:block { let my p1117:d1748:data = e4518:(e4516:r1858:"std::text::str::to_bytes"->d795:"std.text.str.to_bytes" e4517:r1859:input->d1744:input); e4551:case e4528:(e4527:r1864:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4526:(e4525:(e4522:r1862:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e4521:(e4519:r1860:"std::text::bytes::len"->d654:"std.text.bytes.len" e4520:r1861:data->d1748:data)) e4524:(e4523:r1863:input->d1744:input.s218.len->d839:"std.text.str.str.len"))) { p1118:true -> e4539:(e4537:(e4535:(e4533:(e4531:(e4529:r1865:advance_position_ascii_chunks->d755:"std.text.parse.advance_position_ascii_chunks" e4530:r1866:data->d1748:data) e4532:r1867:count->d1745:count) e4534:0) e4536:r1868:line->d1746:line) e4538:r1869:column->d1747:column); p1119:false -> e4550:(e4548:(e4546:(e4544:(e4542:(e4540:r1870:advance_position_slow_chunks->d757:"std.text.parse.advance_position_slow_chunks" e4541:r1871:input->d1744:input) e4543:r1872:count->d1745:count) e4545:0) e4547:r1873:line->d1746:line) e4549:r1874:column->d1747:column) } }))))
+      my d755:"std.text.parse.advance_position_ascii_chunks": std::text::bytes::bytes -> int -> int -> int -> int -> (int, int) = e4614:(fn p1120:d1749:data -> e4613:(fn p1121:d1750:count -> e4612:(fn p1122:d1751:i -> e4611:(fn p1123:d1752:line -> e4610:(fn p1124:d1753:column -> e4609:case e4563:(e4562:r1878:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4561:(e4560:(e4558:r1876:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e4557:r1875:i->d1751:i) e4559:r1877:count->d1750:count)) { p1131:true -> e4605:block { let my p1125:d1754:chunk_end = e4581:case e4574:(e4573:r1883:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4572:(e4571:(e4569:r1881:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e4568:(e4567:(e4565:r1880:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4564:r1879:i->d1751:i) e4566:1024)) e4570:r1882:count->d1750:count)) { p1126:true -> e4579:(e4578:(e4576:r1885:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4575:r1884:i->d1751:i) e4577:1024); p1127:false -> e4580:r1886:count->d1750:count }; e4604:case e4592:(e4590:(e4588:(e4586:(e4584:(e4582:r1887:advance_position_ascii_loop->d756:"std.text.parse.advance_position_ascii_loop" e4583:r1888:data->d1749:data) e4585:r1889:chunk_end->d1754:chunk_end) e4587:r1890:i->d1751:i) e4589:r1891:line->d1752:line) e4591:r1892:column->d1753:column) { p1130:(p1128:d1755:line, p1129:d1756:column) -> e4603:(e4601:(e4599:(e4597:(e4595:(e4593:r1893:advance_position_ascii_chunks->d755:"std.text.parse.advance_position_ascii_chunks" e4594:r1894:data->d1749:data) e4596:r1895:count->d1750:count) e4598:r1896:chunk_end->d1754:chunk_end) e4600:r1897:line->d1755:line) e4602:r1898:column->d1756:column) } }; p1132:false -> e4608:(e4606:r1899:line->d1752:line, e4607:r1900:column->d1753:column) })))))
+      my d756:"std.text.parse.advance_position_ascii_loop": std::text::bytes::bytes -> int -> int -> int -> int -> (int, int) = e4674:(fn p1133:d1757:data -> e4673:(fn p1134:d1758:count -> e4672:(fn p1135:d1759:i -> e4671:(fn p1136:d1760:line -> e4670:(fn p1137:d1761:column -> e4669:case e4621:(e4620:r1904:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4619:(e4618:(e4616:r1902:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e4615:r1901:i->d1759:i) e4617:r1903:count->d1758:count)) { p1142:true -> e4665:case e4626:(e4624:(e4622:r1905:"std::text::bytes::index_raw"->d657:"std.text.bytes.index_raw" e4623:r1906:data->d1757:data) e4625:r1907:i->d1759:i) { p1140:(p1138:10 | p1139:13) -> e4645:(e4643:(e4637:(e4631:(e4629:(e4627:r1908:advance_position_ascii_loop->d756:"std.text.parse.advance_position_ascii_loop" e4628:r1909:data->d1757:data) e4630:r1910:count->d1758:count) e4636:(e4635:(e4633:r1912:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4632:r1911:i->d1759:i) e4634:1)) e4642:(e4641:(e4639:r1914:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4638:r1913:line->d1760:line) e4640:1)) e4644:1); p1141:_ -> e4664:(e4658:(e4656:(e4650:(e4648:(e4646:r1915:advance_position_ascii_loop->d756:"std.text.parse.advance_position_ascii_loop" e4647:r1916:data->d1757:data) e4649:r1917:count->d1758:count) e4655:(e4654:(e4652:r1919:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4651:r1918:i->d1759:i) e4653:1)) e4657:r1920:line->d1760:line) e4663:(e4662:(e4660:r1922:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4659:r1921:column->d1761:column) e4661:1)) }; p1143:false -> e4668:(e4666:r1923:line->d1760:line, e4667:r1924:column->d1761:column) })))))
+      my d757:"std.text.parse.advance_position_slow_chunks": std::text::str::str -> int -> int -> int -> int -> (int, int) = e4732:(fn p1144:d1762:input -> e4731:(fn p1145:d1763:count -> e4730:(fn p1146:d1764:i -> e4729:(fn p1147:d1765:line -> e4728:(fn p1148:d1766:column -> e4727:case e4681:(e4680:r1928:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4679:(e4678:(e4676:r1926:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e4675:r1925:i->d1764:i) e4677:r1927:count->d1763:count)) { p1155:true -> e4723:block { let my p1149:d1767:chunk_end = e4699:case e4692:(e4691:r1933:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4690:(e4689:(e4687:r1931:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e4686:(e4685:(e4683:r1930:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4682:r1929:i->d1764:i) e4684:1024)) e4688:r1932:count->d1763:count)) { p1150:true -> e4697:(e4696:(e4694:r1935:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4693:r1934:i->d1764:i) e4695:1024); p1151:false -> e4698:r1936:count->d1763:count }; e4722:case e4710:(e4708:(e4706:(e4704:(e4702:(e4700:r1937:advance_position_slow_loop->d758:"std.text.parse.advance_position_slow_loop" e4701:r1938:input->d1762:input) e4703:r1939:chunk_end->d1767:chunk_end) e4705:r1940:i->d1764:i) e4707:r1941:line->d1765:line) e4709:r1942:column->d1766:column) { p1154:(p1152:d1768:line, p1153:d1769:column) -> e4721:(e4719:(e4717:(e4715:(e4713:(e4711:r1943:advance_position_slow_chunks->d757:"std.text.parse.advance_position_slow_chunks" e4712:r1944:input->d1762:input) e4714:r1945:count->d1763:count) e4716:r1946:chunk_end->d1767:chunk_end) e4718:r1947:line->d1768:line) e4720:r1948:column->d1769:column) } }; p1156:false -> e4726:(e4724:r1949:line->d1765:line, e4725:r1950:column->d1766:column) })))))
+      my d758:"std.text.parse.advance_position_slow_loop": std::text::str::str -> int -> int -> int -> int -> (int, int) = e4795:(fn p1157:d1770:input -> e4794:(fn p1158:d1771:count -> e4793:(fn p1159:d1772:i -> e4792:(fn p1160:d1773:line -> e4791:(fn p1161:d1774:column -> e4790:case e4739:(e4738:r1954:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4737:(e4736:(e4734:r1952:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e4733:r1951:i->d1772:i) e4735:r1953:count->d1771:count)) { p1169:true -> e4786:block { let my p1162:d1775:item = e4744:(e4742:(e4740:r1955:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e4741:r1956:input->d1770:input) e4743:r1957:i->d1772:i); e4785:case e4746:(e4745:r1958:item->d1775:item.s219.to_string->d678:"std.text.char.char.to_string") { p1167:(p1163:"\\r" | p1166:(p1164:"\\r\\n" | p1165:"\\n")) -> e4765:(e4763:(e4757:(e4751:(e4749:(e4747:r1959:advance_position_slow_loop->d758:"std.text.parse.advance_position_slow_loop" e4748:r1960:input->d1770:input) e4750:r1961:count->d1771:count) e4756:(e4755:(e4753:r1963:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4752:r1962:i->d1772:i) e4754:1)) e4762:(e4761:(e4759:r1965:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4758:r1964:line->d1773:line) e4760:1)) e4764:1); p1168:_ -> e4784:(e4778:(e4776:(e4770:(e4768:(e4766:r1966:advance_position_slow_loop->d758:"std.text.parse.advance_position_slow_loop" e4767:r1967:input->d1770:input) e4769:r1968:count->d1771:count) e4775:(e4774:(e4772:r1970:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4771:r1969:i->d1772:i) e4773:1)) e4777:r1971:line->d1773:line) e4783:(e4782:(e4780:r1973:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4779:r1972:column->d1774:column) e4781:1)) } }; p1170:false -> e4789:(e4787:r1974:line->d1773:line, e4788:r1975:column->d1774:column) })))))
+      pub d759:"std.text.parse.run_str": std::text::str::str -> int -> int -> 'a [std::text::parse::parse std::text::char::char std::text::parse::str_error (int, int) (std::text::str::str, int, int); 'b] -> ['b] std::data::result::result 'a std::text::parse::str_error = e4984:(fn p1171:d1776:input -> e4983:(fn p1172:d1777:line -> e4982:(fn p1173:d1778:column -> e4981:(fn p1174:d1779:parser -> e4980:catch e4796:r1976:parser->d1779:parser { std::text::parse::parse::item p1175:_, p1176:d1780:k if e4804:(e4803:r1979:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4802:(e4801:(e4799:r1978:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e4798:(e4797:r1977:input->d1776:input.s220.len->d839:"std.text.str.str.len")) e4800:0)) -> e4818:(e4805:r1980:"result::err"->d531:"std.data.result.result.err" e4817:(e4806:r1981:str_error->d723:"std.text.parse.str_error" e4816:{line: e4807:r1982:line->d1777:line, column: e4808:r1983:column->d1778:column, unexpected: e4809:r1984:nil->d504:"std.data.opt.opt.nil", expected: e4812:(e4810:builtin_op::list_empty e4811:()), message: e4815:(e4813:builtin_op::list_empty e4814:())})); std::text::parse::parse::item p1177:_, p1178:d1781:k -> e4865:block { let my p1179:d1782:item = e4823:(e4821:(e4819:r1985:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e4820:r1986:input->d1776:input) e4822:0); e4864:block { let my p1180:d1783:rest = e4830:(e4826:(e4824:r1987:"std::text::str::index_range"->d791:"std.text.str.index_range" e4825:r1988:input->d1776:input) e4829:(e4827:r1989:"std::data::range::from_excluded"->d517:"std.data.range.from_excluded" e4828:0)); e4863:case e4832:(e4831:r1990:item->d1782:item.s221.to_string->d678:"std.text.char.char.to_string") { p1185:(p1181:"\\r" | p1184:(p1182:"\\r\\n" | p1183:"\\n")) -> e4847:(e4843:(e4841:(e4835:(e4833:r1991:run_str->d759:"std.text.parse.run_str" e4834:r1992:rest->d1783:rest) e4840:(e4839:(e4837:r1994:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4836:r1993:line->d1777:line) e4838:1)) e4842:1) e4846:(e4844:r1995:k->d1781:k e4845:r1996:item->d1782:item)); p1186:_ -> e4862:(e4858:(e4852:(e4850:(e4848:r1997:run_str->d759:"std.text.parse.run_str" e4849:r1998:rest->d1783:rest) e4851:r1999:line->d1777:line) e4857:(e4856:(e4854:r2001:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4853:r2000:column->d1778:column) e4855:1)) e4861:(e4859:r2002:k->d1781:k e4860:r2003:item->d1782:item)) } } }; std::text::parse::parse::fail p1187:d1784:e, p1188:_ -> e4868:(e4866:r2004:"result::err"->d531:"std.data.result.result.err" e4867:r2005:e->d1784:e); std::text::parse::parse::eof p1189:_, p1190:d1785:k -> e4884:(e4875:(e4873:(e4871:(e4869:r2006:run_str->d759:"std.text.parse.run_str" e4870:r2007:input->d1776:input) e4872:r2008:line->d1777:line) e4874:r2009:column->d1778:column) e4883:(e4876:r2010:k->d1785:k e4882:(e4881:(e4879:r2012:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e4878:(e4877:r2011:input->d1776:input.s222.len->d839:"std.text.str.str.len")) e4880:0))); std::text::parse::parse::pos p1191:_, p1192:d1786:k -> e4897:(e4891:(e4889:(e4887:(e4885:r2013:run_str->d759:"std.text.parse.run_str" e4886:r2014:input->d1776:input) e4888:r2015:line->d1777:line) e4890:r2016:column->d1778:column) e4896:(e4892:r2017:k->d1786:k e4895:(e4893:r2018:line->d1777:line, e4894:r2019:column->d1778:column))); std::text::parse::parse::cut p1193:_, p1194:d1787:k -> e4908:(e4904:(e4902:(e4900:(e4898:r2020:run_str->d759:"std.text.parse.run_str" e4899:r2021:input->d1776:input) e4901:r2022:line->d1777:line) e4903:r2023:column->d1778:column) e4907:(e4905:r2024:k->d1787:k e4906:())); std::text::parse::parse::snapshot p1195:_, p1196:d1788:k -> e4922:(e4915:(e4913:(e4911:(e4909:r2025:run_str->d759:"std.text.parse.run_str" e4910:r2026:input->d1776:input) e4912:r2027:line->d1777:line) e4914:r2028:column->d1778:column) e4921:(e4916:r2029:k->d1788:k e4920:(e4917:r2030:input->d1776:input, e4918:r2031:line->d1777:line, e4919:r2032:column->d1778:column))); std::text::parse::parse::restore p1200:(p1197:d1789:input, p1198:d1790:line, p1199:d1791:column), p1201:d1792:k -> e4933:(e4929:(e4927:(e4925:(e4923:r2033:run_str->d759:"std.text.parse.run_str" e4924:r2034:input->d1789:input) e4926:r2035:line->d1790:line) e4928:r2036:column->d1791:column) e4932:(e4930:r2037:k->d1792:k e4931:())); std::text::parse::parse::advance p1202:d1793:count, p1203:d1794:k -> e4976:block { let my p1204:d1795:input_len = e4935:(e4934:r2038:input->d1776:input.s223.len->d839:"std.text.str.str.len"); e4975:block { let my p1205:d1796:end = e4945:case e4942:(e4941:r2042:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4940:(e4939:(e4937:r2040:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e4936:r2039:count->d1793:count) e4938:r2041:input_len->d1795:input_len)) { p1206:true -> e4943:r2043:count->d1793:count; p1207:false -> e4944:r2044:input_len->d1795:input_len }; e4974:block { let my p1208:d1797:rest = e4952:(e4950:(e4948:(e4946:r2045:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e4947:r2046:input->d1776:input) e4949:r2047:end->d1796:end) e4951:r2048:input_len->d1795:input_len); e4973:block { let my p1211:(p1209:d1798:line, p1210:d1799:column) = e4961:(e4959:(e4957:(e4955:(e4953:r2049:advance_position->d754:"std.text.parse.advance_position" e4954:r2050:input->d1776:input) e4956:r2051:end->d1796:end) e4958:r2052:line->d1777:line) e4960:r2053:column->d1778:column); e4972:(e4968:(e4966:(e4964:(e4962:r2054:run_str->d759:"std.text.parse.run_str" e4963:r2055:rest->d1797:rest) e4965:r2056:line->d1798:line) e4967:r2057:column->d1799:column) e4971:(e4969:r2058:k->d1794:k e4970:())) } } } }; p1212:d1800:v -> e4979:(e4977:r2059:"result::ok"->d530:"std.data.result.result.ok" e4978:r2060:v->d1800:v) }))))
+      pub d760:"std.text.parse.run_prefix_str": std::text::str::str -> int -> int -> 'a [std::text::parse::parse std::text::char::char std::text::parse::str_error (int, int) (std::text::str::str, int, int); 'b] -> ['b] std::data::result::result(std::text::parse::prefix_result 'a, std::text::parse::str_error) = e5177:(fn p1213:d1801:input -> e5176:(fn p1214:d1802:line -> e5175:(fn p1215:d1803:column -> e5174:(fn p1216:d1804:parser -> e5173:catch e4985:r2061:parser->d1804:parser { std::text::parse::parse::item p1217:_, p1218:d1805:k if e4993:(e4992:r2064:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4991:(e4990:(e4988:r2063:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e4987:(e4986:r2062:input->d1801:input.s224.len->d839:"std.text.str.str.len")) e4989:0)) -> e5007:(e4994:r2065:"result::err"->d531:"std.data.result.result.err" e5006:(e4995:r2066:str_error->d723:"std.text.parse.str_error" e5005:{line: e4996:r2067:line->d1802:line, column: e4997:r2068:column->d1803:column, unexpected: e4998:r2069:nil->d504:"std.data.opt.opt.nil", expected: e5001:(e4999:builtin_op::list_empty e5000:()), message: e5004:(e5002:builtin_op::list_empty e5003:())})); std::text::parse::parse::item p1219:_, p1220:d1806:k -> e5054:block { let my p1221:d1807:item = e5012:(e5010:(e5008:r2070:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e5009:r2071:input->d1801:input) e5011:0); e5053:block { let my p1222:d1808:rest = e5019:(e5015:(e5013:r2072:"std::text::str::index_range"->d791:"std.text.str.index_range" e5014:r2073:input->d1801:input) e5018:(e5016:r2074:"std::data::range::from_excluded"->d517:"std.data.range.from_excluded" e5017:0)); e5052:case e5021:(e5020:r2075:item->d1807:item.s225.to_string->d678:"std.text.char.char.to_string") { p1227:(p1223:"\\r" | p1226:(p1224:"\\r\\n" | p1225:"\\n")) -> e5036:(e5032:(e5030:(e5024:(e5022:r2076:run_prefix_str->d760:"std.text.parse.run_prefix_str" e5023:r2077:rest->d1808:rest) e5029:(e5028:(e5026:r2079:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e5025:r2078:line->d1802:line) e5027:1)) e5031:1) e5035:(e5033:r2080:k->d1806:k e5034:r2081:item->d1807:item)); p1228:_ -> e5051:(e5047:(e5041:(e5039:(e5037:r2082:run_prefix_str->d760:"std.text.parse.run_prefix_str" e5038:r2083:rest->d1808:rest) e5040:r2084:line->d1802:line) e5046:(e5045:(e5043:r2086:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e5042:r2085:column->d1803:column) e5044:1)) e5050:(e5048:r2087:k->d1806:k e5049:r2088:item->d1807:item)) } } }; std::text::parse::parse::fail p1229:d1809:e, p1230:_ -> e5057:(e5055:r2089:"result::err"->d531:"std.data.result.result.err" e5056:r2090:e->d1809:e); std::text::parse::parse::eof p1231:_, p1232:d1810:k -> e5073:(e5064:(e5062:(e5060:(e5058:r2091:run_prefix_str->d760:"std.text.parse.run_prefix_str" e5059:r2092:input->d1801:input) e5061:r2093:line->d1802:line) e5063:r2094:column->d1803:column) e5072:(e5065:r2095:k->d1810:k e5071:(e5070:(e5068:r2097:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e5067:(e5066:r2096:input->d1801:input.s226.len->d839:"std.text.str.str.len")) e5069:0))); std::text::parse::parse::pos p1233:_, p1234:d1811:k -> e5086:(e5080:(e5078:(e5076:(e5074:r2098:run_prefix_str->d760:"std.text.parse.run_prefix_str" e5075:r2099:input->d1801:input) e5077:r2100:line->d1802:line) e5079:r2101:column->d1803:column) e5085:(e5081:r2102:k->d1811:k e5084:(e5082:r2103:line->d1802:line, e5083:r2104:column->d1803:column))); std::text::parse::parse::cut p1235:_, p1236:d1812:k -> e5097:(e5093:(e5091:(e5089:(e5087:r2105:run_prefix_str->d760:"std.text.parse.run_prefix_str" e5088:r2106:input->d1801:input) e5090:r2107:line->d1802:line) e5092:r2108:column->d1803:column) e5096:(e5094:r2109:k->d1812:k e5095:())); std::text::parse::parse::snapshot p1237:_, p1238:d1813:k -> e5111:(e5104:(e5102:(e5100:(e5098:r2110:run_prefix_str->d760:"std.text.parse.run_prefix_str" e5099:r2111:input->d1801:input) e5101:r2112:line->d1802:line) e5103:r2113:column->d1803:column) e5110:(e5105:r2114:k->d1813:k e5109:(e5106:r2115:input->d1801:input, e5107:r2116:line->d1802:line, e5108:r2117:column->d1803:column))); std::text::parse::parse::restore p1242:(p1239:d1814:input, p1240:d1815:line, p1241:d1816:column), p1243:d1817:k -> e5122:(e5118:(e5116:(e5114:(e5112:r2118:run_prefix_str->d760:"std.text.parse.run_prefix_str" e5113:r2119:input->d1814:input) e5115:r2120:line->d1815:line) e5117:r2121:column->d1816:column) e5121:(e5119:r2122:k->d1817:k e5120:())); std::text::parse::parse::advance p1244:d1818:count, p1245:d1819:k -> e5165:block { let my p1246:d1820:input_len = e5124:(e5123:r2123:input->d1801:input.s227.len->d839:"std.text.str.str.len"); e5164:block { let my p1247:d1821:end = e5134:case e5131:(e5130:r2127:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e5129:(e5128:(e5126:r2125:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e5125:r2124:count->d1818:count) e5127:r2126:input_len->d1820:input_len)) { p1248:true -> e5132:r2128:count->d1818:count; p1249:false -> e5133:r2129:input_len->d1820:input_len }; e5163:block { let my p1250:d1822:rest = e5141:(e5139:(e5137:(e5135:r2130:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5136:r2131:input->d1801:input) e5138:r2132:end->d1821:end) e5140:r2133:input_len->d1820:input_len); e5162:block { let my p1253:(p1251:d1823:line, p1252:d1824:column) = e5150:(e5148:(e5146:(e5144:(e5142:r2134:advance_position->d754:"std.text.parse.advance_position" e5143:r2135:input->d1801:input) e5145:r2136:end->d1821:end) e5147:r2137:line->d1802:line) e5149:r2138:column->d1803:column); e5161:(e5157:(e5155:(e5153:(e5151:r2139:run_prefix_str->d760:"std.text.parse.run_prefix_str" e5152:r2140:rest->d1822:rest) e5154:r2141:line->d1823:line) e5156:r2142:column->d1824:column) e5160:(e5158:r2143:k->d1819:k e5159:())) } } } }; p1254:d1825:v -> e5172:(e5166:r2144:"result::ok"->d530:"std.data.result.result.ok" e5171:(e5167:r2145:prefix_result->d740:"std.text.parse.prefix_result" e5170:{value: e5168:r2146:v->d1825:v, rest: e5169:r2147:input->d1801:input})) }))))
+      pub d761:"std.text.parse.read_prefix": std::text::str::str -> (() -> [std::text::parse::parse std::text::char::char std::text::parse::str_error (int, int) (std::text::str::str, int, int)] 'a) -> std::data::result::result(std::text::parse::prefix_result 'a, std::text::parse::str_error) = e5190:(fn p1255:d1826:source -> e5189:(fn p1256:d1827:parser -> e5188:(e5184:(e5182:(e5180:(e5178:r2148:run_prefix_str->d760:"std.text.parse.run_prefix_str" e5179:r2149:source->d1826:source) e5181:1) e5183:1) e5187:(e5185:r2150:parser->d1827:parser e5186:()))))
+      my d762:"std.text.parse.find_from": std::text::str::str -> int -> (() -> [std::text::parse::parse std::text::char::char std::text::parse::str_error (int, int) (std::text::str::str, int, int)] 'a) -> std::data::opt::opt(std::text::parse::match_result 'a) = e5291:(fn p1257:d1828:source -> e5290:(fn p1258:d1829:start -> e5289:(fn p1259:d1830:parser -> e5288:case e5198:(e5197:r2154:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e5196:(e5195:(e5192:r2152:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e5191:r2151:start->d1829:start) e5194:(e5193:r2153:source->d1828:source.s228.len->d839:"std.text.str.str.len"))) { p1268:true -> e5286:block { let my p1260:d1831:rest = e5206:(e5203:(e5201:(e5199:r2155:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5200:r2156:source->d1828:source) e5202:r2157:start->d1829:start) e5205:(e5204:r2158:source->d1828:source.s229.len->d839:"std.text.str.str.len")); e5285:case e5221:(e5217:(e5211:(e5209:(e5207:r2159:run_prefix_str->d760:"std.text.parse.run_prefix_str" e5208:r2160:rest->d1831:rest) e5210:1) e5216:(e5215:(e5213:r2162:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e5212:r2161:start->d1829:start) e5214:1)) e5220:(e5218:r2163:parser->d1830:parser e5219:())) { p1262:r2164:"result::ok"->d530:"std.data.result.result.ok"(p1261:d1832:found) -> e5273:block { let my p1263:d1833:consumed = e5229:(e5228:(e5224:r2166:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e5223:(e5222:r2165:rest->d1831:rest.s230.len->d839:"std.text.str.str.len")) e5227:(e5226:(e5225:r2167:found->d1832:found.s231.rest->d743).s232.len->d839:"std.text.str.str.len")); e5272:case e5236:(e5235:r2170:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e5234:(e5233:(e5231:r2169:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e5230:r2168:consumed->d1833:consumed) e5232:0)) { p1264:true -> e5247:(e5245:(e5239:(e5237:r2171:find_from->d762:"std.text.parse.find_from" e5238:r2172:source->d1828:source) e5244:(e5243:(e5241:r2174:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e5240:r2173:start->d1829:start) e5242:1)) e5246:r2175:parser->d1830:parser); p1265:false -> e5271:(e5248:r2176:just->d505:"std.data.opt.opt.just" e5270:(e5249:r2177:match_result->d745:"std.text.parse.match_result" e5269:{value: e5251:(e5250:r2178:found->d1832:found.s233.value->d741), start: e5252:r2179:start->d1829:start, end: e5257:(e5256:(e5254:r2181:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e5253:r2180:start->d1829:start) e5255:r2182:consumed->d1833:consumed), text: e5268:(e5262:(e5260:(e5258:r2183:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5259:r2184:source->d1828:source) e5261:r2185:start->d1829:start) e5267:(e5266:(e5264:r2187:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e5263:r2186:start->d1829:start) e5265:r2188:consumed->d1833:consumed))})) } }; p1267:r2189:"result::err"->d531:"std.data.result.result.err"(p1266:_) -> e5284:(e5282:(e5276:(e5274:r2190:find_from->d762:"std.text.parse.find_from" e5275:r2191:source->d1828:source) e5281:(e5280:(e5278:r2193:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e5277:r2192:start->d1829:start) e5279:1)) e5283:r2194:parser->d1830:parser) } }; p1269:false -> e5287:r2195:nil->d504:"std.data.opt.opt.nil" })))
+      pub d763:"std.text.parse.find": std::text::str::str -> (() -> [std::text::parse::parse std::text::char::char std::text::parse::str_error (int, int) (std::text::str::str, int, int)] 'a) -> std::data::opt::opt(std::text::parse::match_result 'a) = e5300:(fn p1270:d1834:source -> e5299:(fn p1271:d1835:parser -> e5298:(e5296:(e5294:(e5292:r2196:find_from->d762:"std.text.parse.find_from" e5293:r2197:source->d1834:source) e5295:0) e5297:r2198:parser->d1835:parser)))
+      pub d764:"std.text.parse.edit_once": std::text::str::str -> (() -> [std::text::parse::parse std::text::char::char std::text::parse::str_error (int, int) (std::text::str::str, int, int)] 'a) -> ('a -> ['b] std::text::str::str) -> ['b] std::text::str::str = e5339:(fn p1272:d1836:source -> e5338:(fn p1273:d1837:parser -> e5337:(fn p1274:d1838:replacement -> e5336:case e5307:(e5305:(e5303:(e5301:r2199:find_from->d762:"std.text.parse.find_from" e5302:r2200:source->d1836:source) e5304:0) e5306:r2201:parser->d1837:parser) { p1276:r2202:just->d505:"std.data.opt.opt.just"(p1275:d1839:found) -> e5334:(e5324:(e5308:r2203:"std::text::str::concat"->d785:"std.text.str.concat" e5323:(e5318:(e5309:r2204:"std::text::str::concat"->d785:"std.text.str.concat" e5317:(e5314:(e5312:(e5310:r2205:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5311:r2206:source->d1836:source) e5313:0) e5316:(e5315:r2207:found->d1839:found.s234.start->d748))) e5322:(e5319:r2208:replacement->d1838:replacement e5321:(e5320:r2209:found->d1839:found.s235.value->d746)))) e5333:(e5330:(e5327:(e5325:r2210:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5326:r2211:source->d1836:source) e5329:(e5328:r2212:found->d1839:found.s236.end->d750)) e5332:(e5331:r2213:source->d1836:source.s237.len->d839:"std.text.str.str.len"))); p1277:r2214:nil->d504:"std.data.opt.opt.nil" -> e5335:r2215:source->d1836:source })))
+      pub d765:"std.text.parse.edit": std::text::str::str -> (() -> [std::text::parse::parse std::text::char::char std::text::parse::str_error (int, int) (std::text::str::str, int, int)] 'a) -> ('a -> ['b] std::text::str::str) -> ['b] std::text::str::str = e5394:(fn p1278:d1840:source -> e5393:(fn p1279:d1841:parser -> e5392:(fn p1280:d1842:replacement -> e5391:block { let my p1281:d1843:loop = e5385:(fn p1282:d1844:start -> e5384:(fn p1283:d1845:out -> e5383:case e5346:(e5344:(e5342:(e5340:r2216:find_from->d762:"std.text.parse.find_from" e5341:r2217:source->d1840:source) e5343:r2218:start->d1844:start) e5345:r2219:parser->d1841:parser) { p1285:r2220:just->d505:"std.data.opt.opt.just"(p1284:d1846:found) -> e5370:(e5350:(e5347:r2221:loop->d1843:loop e5349:(e5348:r2222:found->d1846:found.s238.end->d750)) e5369:(e5364:(e5351:r2223:"std::text::str::concat"->d785:"std.text.str.concat" e5363:(e5354:(e5352:r2224:"std::text::str::concat"->d785:"std.text.str.concat" e5353:r2225:out->d1845:out) e5362:(e5359:(e5357:(e5355:r2226:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5356:r2227:source->d1840:source) e5358:r2228:start->d1844:start) e5361:(e5360:r2229:found->d1846:found.s239.start->d748)))) e5368:(e5365:r2230:replacement->d1842:replacement e5367:(e5366:r2231:found->d1846:found.s240.value->d746)))); p1286:r2232:nil->d504:"std.data.opt.opt.nil" -> e5382:(e5373:(e5371:r2233:"std::text::str::concat"->d785:"std.text.str.concat" e5372:r2234:out->d1845:out) e5381:(e5378:(e5376:(e5374:r2235:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5375:r2236:source->d1840:source) e5377:r2237:start->d1844:start) e5380:(e5379:r2238:source->d1840:source.s241.len->d839:"std.text.str.str.len"))) })); e5390:(e5388:(e5386:r2239:loop->d1843:loop e5387:0) e5389:"") })))
+      pub d766:"std.text.parse.replace_once": std::text::str::str -> (() -> [std::text::parse::parse std::text::char::char std::text::parse::str_error (int, int) (std::text::str::str, int, int)] any) -> std::text::str::str -> std::text::str::str = e5430:(fn p1287:d1847:source -> e5429:(fn p1288:d1848:parser -> e5428:(fn p1289:d1849:replacement -> e5427:case e5401:(e5399:(e5397:(e5395:r2240:find_from->d762:"std.text.parse.find_from" e5396:r2241:source->d1847:source) e5398:0) e5400:r2242:parser->d1848:parser) { p1291:r2243:just->d505:"std.data.opt.opt.just"(p1290:d1850:found) -> e5425:(e5415:(e5402:r2244:"std::text::str::concat"->d785:"std.text.str.concat" e5414:(e5412:(e5403:r2245:"std::text::str::concat"->d785:"std.text.str.concat" e5411:(e5408:(e5406:(e5404:r2246:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5405:r2247:source->d1847:source) e5407:0) e5410:(e5409:r2248:found->d1850:found.s242.start->d748))) e5413:r2249:replacement->d1849:replacement)) e5424:(e5421:(e5418:(e5416:r2250:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5417:r2251:source->d1847:source) e5420:(e5419:r2252:found->d1850:found.s243.end->d750)) e5423:(e5422:r2253:source->d1847:source.s244.len->d839:"std.text.str.str.len"))); p1292:r2254:nil->d504:"std.data.opt.opt.nil" -> e5426:r2255:source->d1847:source })))
+      pub d767:"std.text.parse.replace": std::text::str::str -> (() -> [std::text::parse::parse std::text::char::char std::text::parse::str_error (int, int) (std::text::str::str, int, int)] any) -> std::text::str::str -> std::text::str::str = e5482:(fn p1293:d1851:source -> e5481:(fn p1294:d1852:parser -> e5480:(fn p1295:d1853:replacement -> e5479:block { let my p1296:d1854:loop = e5473:(fn p1297:d1855:start -> e5472:(fn p1298:d1856:out -> e5471:case e5437:(e5435:(e5433:(e5431:r2256:find_from->d762:"std.text.parse.find_from" e5432:r2257:source->d1851:source) e5434:r2258:start->d1855:start) e5436:r2259:parser->d1852:parser) { p1300:r2260:just->d505:"std.data.opt.opt.just"(p1299:d1857:found) -> e5458:(e5441:(e5438:r2261:loop->d1854:loop e5440:(e5439:r2262:found->d1857:found.s245.end->d750)) e5457:(e5455:(e5442:r2263:"std::text::str::concat"->d785:"std.text.str.concat" e5454:(e5445:(e5443:r2264:"std::text::str::concat"->d785:"std.text.str.concat" e5444:r2265:out->d1856:out) e5453:(e5450:(e5448:(e5446:r2266:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5447:r2267:source->d1851:source) e5449:r2268:start->d1855:start) e5452:(e5451:r2269:found->d1857:found.s246.start->d748)))) e5456:r2270:replacement->d1853:replacement)); p1301:r2271:nil->d504:"std.data.opt.opt.nil" -> e5470:(e5461:(e5459:r2272:"std::text::str::concat"->d785:"std.text.str.concat" e5460:r2273:out->d1856:out) e5469:(e5466:(e5464:(e5462:r2274:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5463:r2275:source->d1851:source) e5465:r2276:start->d1855:start) e5468:(e5467:r2277:source->d1851:source.s247.len->d839:"std.text.str.str.len"))) })); e5478:(e5476:(e5474:r2278:loop->d1854:loop e5475:0) e5477:"") })))
+      pub d768:"std.text.parse.translate": (() -> [std::text::parse::parse std::text::char::char std::text::parse::str_error (int, int) (std::text::str::str, int, int)] 'a) -> ('a -> ['b] std::text::str::str) -> std::text::str::str -> ['b] std::text::str::str = e5492:(fn p1302:d1858:parser -> e5491:(fn p1303:d1859:replacement -> e5490:(fn p1304:d1860:source -> e5489:(e5487:(e5485:(e5483:r2279:edit->d765:"std.text.parse.edit" e5484:r2280:source->d1860:source) e5486:r2281:parser->d1858:parser) e5488:r2282:replacement->d1859:replacement))))
+      pub d769:"std.text.parse.choice": (() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> (() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> () -> [std::text::parse::parse 'a 'b 'c 'd] 'e where 'b: std::text::parse::ParseError(item = 'f, pos = 'g) = e5528:(fn p1305:d1861:p -> e5527:(fn p1306:d1862:q -> e5526:(fn p1307:() -> e5525:block { let my p1308:d1863:snap = e5495:(e5493:r2283:"parse::snapshot"->d715:"std.text.parse.parse.snapshot" e5494:()); e5524:catch e5498:(e5496:r2284:p->d1861:p e5497:()) { std::text::parse::parse::cut p1309:_, p1310:d1864:k -> e5509:block { e5501:(e5499:r2285:"parse::cut"->d714:"std.text.parse.parse.cut" e5500:()); e5508:catch e5504:(e5502:r2286:k->d1864:k e5503:()) { std::text::parse::parse::fail p1311:d1865:e, p1312:_ -> e5507:(e5505:r2287:"parse::fail"->d711:"std.text.parse.parse.fail" e5506:r2288:e->d1865:e) } }; std::text::parse::parse::fail p1313:d1866:e1, p1314:_ -> e5523:block { e5512:(e5510:r2289:"parse::restore"->d716:"std.text.parse.parse.restore" e5511:r2290:snap->d1863:snap); e5522:catch e5515:(e5513:r2291:q->d1862:q e5514:()) { std::text::parse::parse::fail p1315:d1867:e2, p1316:_ -> e5521:(e5516:r2292:"parse::fail"->d711:"std.text.parse.parse.fail" e5520:(e5518:(e5517:r2293:e1->d1866:e1.s248.merge=>d719:"std.text.parse.ParseError.merge") e5519:r2294:e2->d1867:e2)) } } } })))
+      pub d770:"std.text.parse.satisfy": ('a -> ['b & 'b] bool) -> () -> [std::text::parse::parse('a & 'c, 'd | 'e, 'g & 'f, 'h), 'b] 'a where std::text::parse::ParseError('e & 'd, item = 'a | 'c, pos = 'g | 'f) = e5567:(fn p1317:d1868:p -> e5566:(fn p1318:() -> e5565:block { let my p1319:d1869:pos = e5531:(e5529:r2295:"parse::pos"->d713:"std.text.parse.parse.pos" e5530:()); e5564:case e5536:(e5535:r2297:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e5534:(e5532:r2296:"parse::eof"->d712:"std.text.parse.parse.eof" e5533:())) { p1323:true -> e5543:(e5537:r2298:"parse::fail"->d711:"std.text.parse.parse.fail" e5542:(e5540:(e5538:r2299:"ParseError::unexpected"->d720:"std.text.parse.ParseError.unexpected" e5539:r2300:nil->d504:"std.data.opt.opt.nil") e5541:r2301:pos->d1869:pos)); p1324:false -> e5563:block { let my p1320:d1870:item = e5546:(e5544:r2302:"parse::item"->d710:"std.text.parse.parse.item" e5545:()); e5562:case e5551:(e5550:r2305:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e5549:(e5547:r2303:p->d1868:p e5548:r2304:item->d1870:item)) { p1321:true -> e5552:r2306:item->d1870:item; p1322:false -> e5561:(e5553:r2307:"parse::fail"->d711:"std.text.parse.parse.fail" e5560:(e5558:(e5554:r2308:"ParseError::unexpected"->d720:"std.text.parse.ParseError.unexpected" e5557:(e5555:r2309:just->d505:"std.data.opt.opt.just" e5556:r2310:item->d1870:item)) e5559:r2311:pos->d1869:pos)) } } } }))
+      pub d771:"std.text.parse.token": std::text::str::str -> () -> [std::text::parse::parse(std::text::char::char, 'a | 'b, 'c, 'd & (std::text::str::str, any, any))] () where std::text::parse::ParseError('b & 'a, item = 'e, pos = 'f) = e5620:(fn p1325:d1871:expected -> e5619:(fn p1326:() -> e5618:block { let my p1330:(p1327:d1872:input, p1328:_, p1329:_) = e5570:(e5568:r2312:"parse::snapshot"->d715:"std.text.parse.parse.snapshot" e5569:()); e5617:case e5579:(e5578:r2316:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e5577:(e5576:(e5573:r2314:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e5572:(e5571:r2313:expected->d1871:expected.s249.len->d839:"std.text.str.str.len")) e5575:(e5574:r2315:input->d1872:input.s250.len->d839:"std.text.str.str.len"))) { p1333:true -> e5607:case e5593:(e5592:r2322:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e5591:(e5590:(e5588:r2320:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e5587:(e5584:(e5582:(e5580:r2317:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5581:r2318:input->d1872:input) e5583:0) e5586:(e5585:r2319:expected->d1871:expected.s251.len->d839:"std.text.str.str.len"))) e5589:r2321:expected->d1871:expected)) { p1331:true -> e5597:(e5594:r2323:"parse::advance"->d717:"std.text.parse.parse.advance" e5596:(e5595:r2324:expected->d1871:expected.s252.len->d839:"std.text.str.str.len")); p1332:false -> e5606:(e5598:r2325:"parse::fail"->d711:"std.text.parse.parse.fail" e5605:(e5601:(e5599:r2326:"ParseError::expected"->d721:"std.text.parse.ParseError.expected" e5600:r2327:expected->d1871:expected) e5604:(e5602:r2328:"parse::pos"->d713:"std.text.parse.parse.pos" e5603:()))) }; p1334:false -> e5616:(e5608:r2329:"parse::fail"->d711:"std.text.parse.parse.fail" e5615:(e5611:(e5609:r2330:"ParseError::expected"->d721:"std.text.parse.ParseError.expected" e5610:r2331:expected->d1871:expected) e5614:(e5612:r2332:"parse::pos"->d713:"std.text.parse.parse.pos" e5613:()))) } }))
+      pub d772:"std.text.parse.rest": () -> [std::text::parse::parse std::text::char::char 'a (int, int) (std::text::str::str, int, int)] std::text::str::str = e5631:(fn p1335:() -> e5630:block { let my p1339:(p1336:d1873:input, p1337:_, p1338:_) = e5623:(e5621:r2333:"parse::snapshot"->d715:"std.text.parse.parse.snapshot" e5622:()); e5629:block { e5627:(e5624:r2334:"parse::advance"->d717:"std.text.parse.parse.advance" e5626:(e5625:r2335:input->d1873:input.s253.len->d839:"std.text.str.str.len")); e5628:r2336:input->d1873:input } })
+      pub d773:"std.text.parse.optional": (() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> () -> [std::text::parse::parse 'a 'b 'c 'd] std::data::opt::opt 'e where 'b: std::text::parse::ParseError(item = 'f, pos = 'g) = e5646:(fn p1340:d1874:p -> e5645:(fn p1341:() -> e5644:(e5642:(e5639:(e5632:r2337:choice->d769:"std.text.parse.choice" e5638:(fn p1342:() -> e5637:(e5633:r2338:just->d505:"std.data.opt.opt.just" e5636:(e5634:r2339:p->d1874:p e5635:())))) e5641:(fn p1343:() -> e5640:r2340:nil->d504:"std.data.opt.opt.nil")) e5643:())))
+      pub d774:"std.text.parse.many": (() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> () -> [std::text::parse::parse 'a 'b 'c 'd] std::data::list::list 'e where 'b: std::text::parse::ParseError(item = 'f, pos = 'g) = e5671:(fn p1344:d1875:p -> e5670:(fn p1345:() -> e5669:(e5667:(e5662:(e5647:r2341:choice->d769:"std.text.parse.choice" e5661:(fn p1346:() -> e5660:(e5659:(e5658:builtin_op::list_merge e5652:(e5651:builtin_op::list_singleton e5650:(e5648:r2342:p->d1875:p e5649:()))) e5657:(e5655:(e5653:r2343:many->d774:"std.text.parse.many" e5654:r2344:p->d1875:p) e5656:())))) e5666:(fn p1347:() -> e5665:(e5663:builtin_op::list_empty e5664:()))) e5668:())))
+      pub d775:"std.text.parse.some": (() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> () -> [std::text::parse::parse 'a 'b 'c 'd] std::data::list::list 'e where 'b: std::text::parse::ParseError(item = 'f, pos = 'g) = e5686:(fn p1348:d1876:p -> e5685:(fn p1349:() -> e5684:(e5683:(e5682:builtin_op::list_merge e5676:(e5675:builtin_op::list_singleton e5674:(e5672:r2345:p->d1876:p e5673:()))) e5681:(e5679:(e5677:r2346:many->d774:"std.text.parse.many" e5678:r2347:p->d1876:p) e5680:()))))
+      pub d776:"std.text.parse.label": (() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> std::text::str::str -> () -> [std::text::parse::parse 'a 'b 'c 'd] 'e where 'b: std::text::parse::ParseError(item = 'f, pos = 'g) = e5699:(fn p1350:d1877:p -> e5698:(fn p1351:d1878:label_text -> e5697:(fn p1352:() -> e5696:catch e5689:(e5687:r2348:p->d1877:p e5688:()) { std::text::parse::parse::fail p1353:d1879:e, p1354:_ -> e5695:(e5690:r2349:"parse::fail"->d711:"std.text.parse.parse.fail" e5694:(e5692:(e5691:r2350:e->d1879:e.s254.label=>d722:"std.text.parse.ParseError.label") e5693:r2351:label_text->d1878:label_text)) })))
+      pub d777:"std.text.parse.word": () -> [std::text::parse::parse(std::text::char::char, 'a | 'b, (int, int), (std::text::str::str, int, int))] std::text::str::str where std::text::parse::ParseError('b & 'a, item = 'c, pos = 'd) = e5734:(fn p1355:() -> e5733:block { let my p1359:(p1356:d1880:input, p1357:_, p1358:_) = e5702:(e5700:r2352:"parse::snapshot"->d715:"std.text.parse.parse.snapshot" e5701:()); e5732:block { let my p1360:d1881:found = e5707:(e5705:(e5703:r2353:"std::text::str::word_prefix_at"->d880:"std.text.str.word_prefix_at" e5704:r2354:input->d1880:input) e5706:0); e5731:case e5715:(e5714:r2357:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e5713:(e5712:(e5710:r2356:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e5709:(e5708:r2355:found->d1881:found.s255.len->d839:"std.text.str.str.len")) e5711:0)) { p1361:true -> e5724:(e5716:r2358:"parse::fail"->d711:"std.text.parse.parse.fail" e5723:(e5719:(e5717:r2359:"ParseError::expected"->d721:"std.text.parse.ParseError.expected" e5718:"word") e5722:(e5720:r2360:"parse::pos"->d713:"std.text.parse.parse.pos" e5721:()))); p1362:false -> e5730:block { e5728:(e5725:r2361:"parse::advance"->d717:"std.text.parse.parse.advance" e5727:(e5726:r2362:found->d1881:found.s256.len->d839:"std.text.str.str.len")); e5729:r2363:found->d1881:found } } } })
+    }
+    pub d115:"std.text.path" mod {
+      pub d778:"std.text.path.of_bytes_raw": std::text::bytes::bytes -> std::text::path::path = e5735:builtin_op::bytes_to_path
+      pub d779:"std.text.path.to_bytes": std::text::path::path -> std::text::bytes::bytes = e5736:builtin_op::path_to_bytes
+      pub d780:"std.text.path.path" mod {
+        pub d781:"std.text.path.path.to_bytes": std::text::path::path -> std::text::bytes::bytes = e5740:(fn p1363:d1882:p -> e5739:(e5737:r2364:"std::text::path::to_bytes"->d779:"std.text.path.to_bytes" e5738:r2365:p->d1882:p))
+      }
+      pub d782:"std.text.path.of_bytes": std::text::bytes::bytes -> std::text::path::path = e5744:(fn p1364:d1883:b -> e5743:(e5741:r2366:"std::text::path::of_bytes_raw"->d778:"std.text.path.of_bytes_raw" e5742:r2367:b->d1883:b))
+      my d783 mod {
+        d784: std::text::path::path -> std::text::str::str = e5750:(fn p1365:d1884:p -> e5749:(e5745:r2368:"std::text::bytes::to_utf8_lossy"->d667:"std.text.bytes.to_utf8_lossy" e5748:(e5746:r2369:"std::text::path::to_bytes"->d779:"std.text.path.to_bytes" e5747:r2370:p->d1884:p)))
+      }
+    }
+    pub d116:"std.text.str" mod {
+      pub d785:"std.text.str.concat": std::text::str::str -> std::text::str::str -> std::text::str::str = e5751:builtin_op::string_concat
+      pub d786:"std.text.str.eq": std::text::str::str -> std::text::str::str -> bool = e5752:builtin_op::string_eq
+      pub d787:"std.text.str.len": std::text::str::str -> int = e5753:builtin_op::string_len
+      pub d788:"std.text.str.line_count": std::text::str::str -> int = e5754:builtin_op::string_line_count
+      pub d789:"std.text.str.line_range": std::text::str::str -> int -> std::data::range::range = e5755:builtin_op::string_line_range
+      pub d790:"std.text.str.index_raw": std::text::str::str -> int -> std::text::char::char = e5756:builtin_op::string_index
+      pub d791:"std.text.str.index_range": std::text::str::str -> std::data::range::range -> std::text::str::str = e5757:builtin_op::string_index_range
+      pub d792:"std.text.str.index_range_raw": std::text::str::str -> int -> int -> std::text::str::str = e5758:builtin_op::string_index_range_raw
+      pub d793:"std.text.str.splice": std::text::str::str -> std::data::range::range -> std::text::str::str -> std::text::str::str = e5759:builtin_op::string_splice
+      pub d794:"std.text.str.splice_raw": std::text::str::str -> int -> int -> std::text::str::str -> std::text::str::str = e5760:builtin_op::string_splice_raw
+      pub d795:"std.text.str.to_bytes": std::text::str::str -> std::text::bytes::bytes = e5761:builtin_op::string_to_bytes
+      pub d796:"std.text.str.lines": {source: std::text::str::str} -> std::text::str::lines = <missing>
+      pub d799:"std.text.str.lines" mod {
+      }
+      pub d800:"std.text.str.ref_lines": {source: std::control::var::ref 'a std::text::str::str} -> std::text::str::ref_lines 'a = <missing>
+      pub d803:"std.text.str.ref_lines" mod {
+        pub d804:"std.text.str.ref_lines.index": std::text::str::ref_lines('a & 'b) -> int -> std::control::var::ref('b | 'a, 'c | std::text::str::str) = e5823:(fn p1366:d1885:ls -> e5822:(fn p1367:d1886:i -> e5821:(e5762:r2371:ref->d236:"std.control.var.ref" e5820:{get: e5782:(fn p1368:() -> e5781:block { let my p1369:d1887:line_range = e5771:(e5769:(e5763:r2372:"std::text::str::line_range"->d789:"std.text.str.line_range" e5768:(e5766:(e5765:(e5764:r2373:ls->d1885:ls.s257.source->d801).s258.get->d237) e5767:())) e5770:r2374:i->d1886:i); e5780:(e5778:(e5772:r2375:"std::text::str::index_range"->d791:"std.text.str.index_range" e5777:(e5775:(e5774:(e5773:r2376:ls->d1885:ls.s259.source->d801).s260.get->d237) e5776:())) e5779:r2377:line_range->d1887:line_range) }), update_effect: e5819:(fn p1370:() -> e5818:block { let my p1371:d1888:loop = e5810:(fn p1372:d1889:x -> e5809:catch e5783:r2378:x->d1889:x { std::control::var::ref_update::update p1373:d1890:old, p1374:d1891:k -> e5808:block { let my p1375:d1892:line_range = e5788:(e5786:(e5784:r2379:"std::text::str::line_range"->d789:"std.text.str.line_range" e5785:r2380:old->d1890:old) e5787:r2381:i->d1886:i); e5807:block { let my p1376:d1893:new_item = e5795:(e5789:r2382:"ref_update::update"->d235:"std.control.var.ref_update.update" e5794:(e5792:(e5790:r2383:"std::text::str::index_range"->d791:"std.text.str.index_range" e5791:r2384:old->d1890:old) e5793:r2385:line_range->d1892:line_range)); e5806:(e5796:r2386:loop->d1888:loop e5805:(e5797:r2387:k->d1891:k e5804:(e5802:(e5800:(e5798:r2388:"std::text::str::splice"->d793:"std.text.str.splice" e5799:r2389:old->d1890:old) e5801:r2390:line_range->d1892:line_range) e5803:r2391:new_item->d1893:new_item))) } } }); e5817:(e5811:r2392:loop->d1888:loop e5816:(e5814:(e5813:(e5812:r2393:ls->d1885:ls.s261.source->d801).s262.update_effect->d239) e5815:())) })})))
+      }
+      pub d805:"std.text.str.str_line_view": std::text::str::str -> std::text::str::lines = e5828:(fn p1377:d1894:source -> e5827:(e5824:r2394:lines->d796:"std.text.str.lines" e5826:{source: e5825:r2395:source->d1894:source}))
+      pub d806:"std.text.str.line_view": std::control::var::ref 'a std::text::str::str -> std::text::str::ref_lines 'a = e5833:(fn p1378:d1895:source -> e5832:(e5829:r2396:ref_lines->d800:"std.text.str.ref_lines" e5831:{source: e5830:r2397:source->d1895:source}))
+      my d807 mod {
+        d808: std::text::str::lines -> int -> std::text::str::str = e5848:(fn p1379:d1896:ls -> e5847:(fn p1380:d1897:i -> e5846:block { let my p1381:d1898:line_range = e5839:(e5837:(e5834:r2398:"std::text::str::line_range"->d789:"std.text.str.line_range" e5836:(e5835:r2399:ls->d1896:ls.s263.source->d797)) e5838:r2400:i->d1897:i); e5845:(e5843:(e5840:r2401:"std::text::str::index_range"->d791:"std.text.str.index_range" e5842:(e5841:r2402:ls->d1896:ls.s264.source->d797)) e5844:r2403:line_range->d1898:line_range) }))
+      }
+      my d809 mod {
+        d810: std::text::str::ref_lines('a & 'b) -> int -> std::control::var::ref('b | 'a, 'c | std::text::str::str) = e5910:(fn p1382:d1899:ls -> e5909:(fn p1383:d1900:i -> e5908:(e5849:r2404:ref->d236:"std.control.var.ref" e5907:{get: e5869:(fn p1384:() -> e5868:block { let my p1385:d1901:line_range = e5858:(e5856:(e5850:r2405:"std::text::str::line_range"->d789:"std.text.str.line_range" e5855:(e5853:(e5852:(e5851:r2406:ls->d1899:ls.s265.source->d801).s266.get->d237) e5854:())) e5857:r2407:i->d1900:i); e5867:(e5865:(e5859:r2408:"std::text::str::index_range"->d791:"std.text.str.index_range" e5864:(e5862:(e5861:(e5860:r2409:ls->d1899:ls.s267.source->d801).s268.get->d237) e5863:())) e5866:r2410:line_range->d1901:line_range) }), update_effect: e5906:(fn p1386:() -> e5905:block { let my p1387:d1902:loop = e5897:(fn p1388:d1903:x -> e5896:catch e5870:r2411:x->d1903:x { std::control::var::ref_update::update p1389:d1904:old, p1390:d1905:k -> e5895:block { let my p1391:d1906:line_range = e5875:(e5873:(e5871:r2412:"std::text::str::line_range"->d789:"std.text.str.line_range" e5872:r2413:old->d1904:old) e5874:r2414:i->d1900:i); e5894:block { let my p1392:d1907:new_item = e5882:(e5876:r2415:"ref_update::update"->d235:"std.control.var.ref_update.update" e5881:(e5879:(e5877:r2416:"std::text::str::index_range"->d791:"std.text.str.index_range" e5878:r2417:old->d1904:old) e5880:r2418:line_range->d1906:line_range)); e5893:(e5883:r2419:loop->d1902:loop e5892:(e5884:r2420:k->d1905:k e5891:(e5889:(e5887:(e5885:r2421:"std::text::str::splice"->d793:"std.text.str.splice" e5886:r2422:old->d1904:old) e5888:r2423:line_range->d1906:line_range) e5890:r2424:new_item->d1907:new_item))) } } }); e5904:(e5898:r2425:loop->d1902:loop e5903:(e5901:(e5900:(e5899:r2426:ls->d1899:ls.s269.source->d801).s270.update_effect->d239) e5902:())) })})))
+      }
+      my d811:"std.text.str.fold_lines": std::text::str::lines -> int -> int -> 'a -> ('a -> ['b] std::text::str::str -> ['c] 'a) -> ['c, 'b] 'a = e5946:(fn p1393:d1908:ls -> e5945:(fn p1394:d1909:i -> e5944:(fn p1395:d1910:end -> e5943:(fn p1396:d1911:acc -> e5942:(fn p1397:d1912:f -> e5941:case e5917:(e5916:r2430:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e5915:(e5914:(e5912:r2428:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e5911:r2427:i->d1909:i) e5913:r2429:end->d1910:end)) { p1398:true -> e5939:(e5937:(e5928:(e5926:(e5920:(e5918:r2431:fold_lines->d811:"std.text.str.fold_lines" e5919:r2432:ls->d1908:ls) e5925:(e5924:(e5922:r2434:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e5921:r2433:i->d1909:i) e5923:1)) e5927:r2435:end->d1910:end) e5936:(e5931:(e5929:r2436:f->d1912:f e5930:r2437:acc->d1911:acc) e5935:(e5933:(e5932:r2438:ls->d1908:ls.s271.index=>d455:"std.data.index.Index.index") e5934:r2439:i->d1909:i))) e5938:r2440:f->d1912:f); p1399:false -> e5940:r2441:acc->d1911:acc })))))
+      my d812:"std.text.str.fold_ref_lines": std::text::str::ref_lines('a & 'b) -> int -> int -> 'c -> ('c -> ['d] std::control::var::ref('b | 'a, 'e | std::text::str::str) -> ['f] 'c) -> ['f, 'd] 'c = e5982:(fn p1400:d1913:ls -> e5981:(fn p1401:d1914:i -> e5980:(fn p1402:d1915:end -> e5979:(fn p1403:d1916:acc -> e5978:(fn p1404:d1917:f -> e5977:case e5953:(e5952:r2445:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e5951:(e5950:(e5948:r2443:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e5947:r2442:i->d1914:i) e5949:r2444:end->d1915:end)) { p1405:true -> e5975:(e5973:(e5964:(e5962:(e5956:(e5954:r2446:fold_ref_lines->d812:"std.text.str.fold_ref_lines" e5955:r2447:ls->d1913:ls) e5961:(e5960:(e5958:r2449:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e5957:r2448:i->d1914:i) e5959:1)) e5963:r2450:end->d1915:end) e5972:(e5967:(e5965:r2451:f->d1917:f e5966:r2452:acc->d1916:acc) e5971:(e5969:(e5968:r2453:ls->d1913:ls.s272.index->d804:"std.text.str.ref_lines.index") e5970:r2454:i->d1914:i))) e5974:r2455:f->d1917:f); p1406:false -> e5976:r2456:acc->d1916:acc })))))
+      my d813 mod {
+        d814: std::text::str::lines -> 'a -> ('a -> ['b] std::text::str::str -> ['b] 'a) -> ['b] 'a = e5999:(fn p1407:d1918:ls -> e5998:(fn p1408:d1919:z -> e5997:(fn p1409:d1920:f -> e5996:(e5994:(e5992:(e5987:(e5985:(e5983:r2457:fold_lines->d811:"std.text.str.fold_lines" e5984:r2458:ls->d1918:ls) e5986:0) e5991:(e5988:r2459:"std::text::str::line_count"->d788:"std.text.str.line_count" e5990:(e5989:r2460:ls->d1918:ls.s273.source->d797))) e5993:r2461:z->d1919:z) e5995:r2462:f->d1920:f))))
+      }
+      my d815 mod {
+        d816: std::text::str::ref_lines('a & 'b) -> 'c -> ('c -> ['a & 'b] std::control::var::ref('b | 'a, 'd | std::text::str::str) -> ['a & 'b] 'c) -> ['a] 'c = e6019:(fn p1410:d1921:ls -> e6018:(fn p1411:d1922:z -> e6017:(fn p1412:d1923:f -> e6016:(e6014:(e6012:(e6004:(e6002:(e6000:r2463:fold_ref_lines->d812:"std.text.str.fold_ref_lines" e6001:r2464:ls->d1921:ls) e6003:0) e6011:(e6005:r2465:"std::text::str::line_count"->d788:"std.text.str.line_count" e6010:(e6008:(e6007:(e6006:r2466:ls->d1921:ls.s274.source->d801).s275.get->d237) e6009:()))) e6013:r2467:z->d1922:z) e6015:r2468:f->d1923:f))))
+      }
+      pub d817:"std.text.str.str" mod {
+        pub d818:"std.text.str.str.splice": std::text::str::str -> std::data::range::range -> std::text::str::str -> std::text::str::str = e6029:(fn p1413:d1924:s -> e6028:(fn p1414:d1925:r -> e6027:(fn p1415:d1926:insert -> e6026:(e6024:(e6022:(e6020:r2469:"std::text::str::splice"->d793:"std.text.str.splice" e6021:r2470:s->d1924:s) e6023:r2471:r->d1925:r) e6025:r2472:insert->d1926:insert))))
+        pub d819:"std.text.str.str.find": std::text::str::str -> std::text::str::str -> std::data::opt::opt std::data::range::range = e6036:(fn p1416:d1927:s -> e6035:(fn p1417:d1928:needle -> e6034:(e6032:(e6030:r2473:"std::text::str::find"->d853:"std.text.str.find" e6031:r2474:s->d1927:s) e6033:r2475:needle->d1928:needle)))
+        pub d820:"std.text.str.str.contains": std::text::str::str -> std::text::str::str -> bool = e6043:(fn p1418:d1929:s -> e6042:(fn p1419:d1930:needle -> e6041:(e6039:(e6037:r2476:"std::text::str::contains"->d854:"std.text.str.contains" e6038:r2477:s->d1929:s) e6040:r2478:needle->d1930:needle)))
+        pub d821:"std.text.str.str.starts_with": std::text::str::str -> std::text::str::str -> bool = e6050:(fn p1420:d1931:s -> e6049:(fn p1421:d1932:prefix -> e6048:(e6046:(e6044:r2479:"std::text::str::starts_with"->d855:"std.text.str.starts_with" e6045:r2480:s->d1931:s) e6047:r2481:prefix->d1932:prefix)))
+        pub d822:"std.text.str.str.ends_with": std::text::str::str -> std::text::str::str -> bool = e6057:(fn p1422:d1933:s -> e6056:(fn p1423:d1934:suffix -> e6055:(e6053:(e6051:r2482:"std::text::str::ends_with"->d856:"std.text.str.ends_with" e6052:r2483:s->d1933:s) e6054:r2484:suffix->d1934:suffix)))
+        pub d823:"std.text.str.str.split": std::text::str::str -> std::text::str::str -> std::data::list::list std::text::str::str = e6064:(fn p1424:d1935:s -> e6063:(fn p1425:d1936:separator -> e6062:(e6060:(e6058:r2485:"std::text::str::split"->d858:"std.text.str.split" e6059:r2486:s->d1935:s) e6061:r2487:separator->d1936:separator)))
+        pub d824:"std.text.str.str.split_once": std::text::str::str -> std::text::str::str -> std::data::opt::opt (std::text::str::str, std::text::str::str) = e6071:(fn p1426:d1937:s -> e6070:(fn p1427:d1938:separator -> e6069:(e6067:(e6065:r2488:"std::text::str::split_once"->d864:"std.text.str.split_once" e6066:r2489:s->d1937:s) e6068:r2490:separator->d1938:separator)))
+        pub d825:"std.text.str.str.replace_once": std::text::str::str -> std::text::str::str -> std::text::str::str -> std::text::str::str = e6081:(fn p1428:d1939:s -> e6080:(fn p1429:d1940:from -> e6079:(fn p1430:d1941:to -> e6078:(e6076:(e6074:(e6072:r2491:"std::text::str::replace_once"->d876:"std.text.str.replace_once" e6073:r2492:s->d1939:s) e6075:r2493:from->d1940:from) e6077:r2494:to->d1941:to))))
+        pub d826:"std.text.str.str.replace": std::text::str::str -> std::text::str::str -> std::text::str::str -> std::text::str::str = e6091:(fn p1431:d1942:s -> e6090:(fn p1432:d1943:from -> e6089:(fn p1433:d1944:to -> e6088:(e6086:(e6084:(e6082:r2495:"std::text::str::replace_all"->d878:"std.text.str.replace_all" e6083:r2496:s->d1942:s) e6085:r2497:from->d1943:from) e6087:r2498:to->d1944:to))))
+        pub d827:"std.text.str.str.trim": std::text::str::str -> std::text::str::str = e6095:(fn p1434:d1945:s -> e6094:(e6092:r2499:"std::text::str::trim"->d871:"std.text.str.trim" e6093:r2500:s->d1945:s))
+        pub d828:"std.text.str.str.trim_start": std::text::str::str -> std::text::str::str = e6099:(fn p1435:d1946:s -> e6098:(e6096:r2501:"std::text::str::trim_start"->d869:"std.text.str.trim_start" e6097:r2502:s->d1946:s))
+        pub d829:"std.text.str.str.trim_end": std::text::str::str -> std::text::str::str = e6103:(fn p1436:d1947:s -> e6102:(e6100:r2503:"std::text::str::trim_end"->d870:"std.text.str.trim_end" e6101:r2504:s->d1947:s))
+        pub d830:"std.text.str.str.replace_once!": std::control::var::ref 'a std::text::str::str -> std::text::str::str -> std::text::str::str -> ['a] () = e6117:(fn p1437:d1948:"&r" -> e6116:(fn p1438:d1949:pattern -> e6115:(fn p1439:d1950:replacement -> e6114:(e6105:(e6104:r2505:"&r"->d1948:"&r".s276.update->d242:"std.control.var.ref.update") e6113:(fn p1440:d1951:s -> e6112:(e6110:(e6108:(e6106:r2506:"std::text::str::replace_once"->d876:"std.text.str.replace_once" e6107:r2507:s->d1951:s) e6109:r2508:pattern->d1949:pattern) e6111:r2509:replacement->d1950:replacement))))))
+        pub d831:"std.text.str.str.replace!": std::control::var::ref 'a std::text::str::str -> std::text::str::str -> std::text::str::str -> ['a] () = e6131:(fn p1441:d1952:"&r" -> e6130:(fn p1442:d1953:pattern -> e6129:(fn p1443:d1954:replacement -> e6128:(e6119:(e6118:r2510:"&r"->d1952:"&r".s277.update->d242:"std.control.var.ref.update") e6127:(fn p1444:d1955:s -> e6126:(e6124:(e6122:(e6120:r2511:"std::text::str::replace"->d877:"std.text.str.replace" e6121:r2512:s->d1955:s) e6123:r2513:pattern->d1953:pattern) e6125:r2514:replacement->d1954:replacement))))))
+        pub d832:"std.text.str.str.replace_all!": std::control::var::ref 'a std::text::str::str -> std::text::str::str -> std::text::str::str -> ['a] () = e6145:(fn p1445:d1956:"&r" -> e6144:(fn p1446:d1957:pattern -> e6143:(fn p1447:d1958:replacement -> e6142:(e6133:(e6132:r2515:"&r"->d1956:"&r".s278.update->d242:"std.control.var.ref.update") e6141:(fn p1448:d1959:s -> e6140:(e6138:(e6136:(e6134:r2516:"std::text::str::replace_all"->d878:"std.text.str.replace_all" e6135:r2517:s->d1959:s) e6137:r2518:pattern->d1957:pattern) e6139:r2519:replacement->d1958:replacement))))))
+        pub d833:"std.text.str.str.splice!": std::control::var::ref 'a std::text::str::str -> std::data::range::range -> std::text::str::str -> ['a] () = e6159:(fn p1449:d1960:"&r" -> e6158:(fn p1450:d1961:range -> e6157:(fn p1451:d1962:replacement -> e6156:(e6147:(e6146:r2520:"&r"->d1960:"&r".s279.update->d242:"std.control.var.ref.update") e6155:(fn p1452:d1963:s -> e6154:(e6152:(e6150:(e6148:r2521:"std::text::str::splice"->d793:"std.text.str.splice" e6149:r2522:s->d1963:s) e6151:r2523:range->d1961:range) e6153:r2524:replacement->d1962:replacement))))))
+        pub d834:"std.text.str.str.trim!": std::control::var::ref 'a std::text::str::str -> ['a] () = e6167:(fn p1453:d1964:"&r" -> e6166:(e6161:(e6160:r2525:"&r"->d1964:"&r".s280.update->d242:"std.control.var.ref.update") e6165:(fn p1454:d1965:s -> e6164:(e6162:r2526:"std::text::str::trim"->d871:"std.text.str.trim" e6163:r2527:s->d1965:s))))
+        pub d835:"std.text.str.str.trim_start!": std::control::var::ref 'a std::text::str::str -> ['a] () = e6175:(fn p1455:d1966:"&r" -> e6174:(e6169:(e6168:r2528:"&r"->d1966:"&r".s281.update->d242:"std.control.var.ref.update") e6173:(fn p1456:d1967:s -> e6172:(e6170:r2529:"std::text::str::trim_start"->d869:"std.text.str.trim_start" e6171:r2530:s->d1967:s))))
+        pub d836:"std.text.str.str.trim_end!": std::control::var::ref 'a std::text::str::str -> ['a] () = e6183:(fn p1457:d1968:"&r" -> e6182:(e6177:(e6176:r2531:"&r"->d1968:"&r".s282.update->d242:"std.control.var.ref.update") e6181:(fn p1458:d1969:s -> e6180:(e6178:r2532:"std::text::str::trim_end"->d870:"std.text.str.trim_end" e6179:r2533:s->d1969:s))))
+        pub d837:"std.text.str.str.repeat": std::text::str::str -> int -> std::text::str::str = e6190:(fn p1459:d1970:s -> e6189:(fn p1460:d1971:count -> e6188:(e6186:(e6184:r2534:"std::text::str::repeat"->d872:"std.text.str.repeat" e6185:r2535:s->d1970:s) e6187:r2536:count->d1971:count)))
+        pub d838:"std.text.str.str.to_int": std::text::str::str -> std::data::opt::opt int = e6194:(fn p1461:d1972:s -> e6193:(e6191:r2537:"std::text::str::to_int"->d875:"std.text.str.to_int" e6192:r2538:s->d1972:s))
+        pub d839:"std.text.str.str.len": std::text::str::str -> int = e6198:(fn p1462:d1973:s -> e6197:(e6195:r2539:"std::text::str::len"->d787:"std.text.str.len" e6196:r2540:s->d1973:s))
+        pub d840:"std.text.str.str.is_empty": std::text::str::str -> bool = e6202:(fn p1463:d1974:s -> e6201:(e6199:r2541:"std::text::str::is_empty"->d847:"std.text.str.is_empty" e6200:r2542:s->d1974:s))
+        pub d841:"std.text.str.str.lines": std::text::str::str -> std::text::str::lines = e6206:(fn p1464:d1975:s -> e6205:(e6203:r2543:str_line_view->d805:"std.text.str.str_line_view" e6204:r2544:s->d1975:s))
+        pub d842:"std.text.str.str.lines!": std::control::var::ref 'a std::text::str::str -> std::text::str::ref_lines 'a = e6210:(fn p1465:d1976:"&s" -> e6209:(e6207:r2545:line_view->d806:"std.text.str.line_view" e6208:r2546:"&s"->d1976:"&s"))
+        pub d843:"std.text.str.str.print": std::text::str::str -> [std::io::console::out] () = e6214:(fn p1466:d1977:s -> e6213:(e6211:r2547:"std::io::print"->d540:"std.io.console.print" e6212:r2548:s->d1977:s))
+        pub d844:"std.text.str.str.println": std::text::str::str -> [std::io::console::out] () = e6218:(fn p1467:d1978:s -> e6217:(e6215:r2549:"std::io::println"->d542:"std.io.console.println" e6216:r2550:s->d1978:s))
+        pub d845:"std.text.str.str.eprint": std::text::str::str -> [std::io::console::err] () = e6222:(fn p1468:d1979:s -> e6221:(e6219:r2551:"std::io::eprint"->d546:"std.io.console.eprint" e6220:r2552:s->d1979:s))
+        pub d846:"std.text.str.str.eprintln": std::text::str::str -> [std::io::console::err] () = e6226:(fn p1469:d1980:s -> e6225:(e6223:r2553:"std::io::eprintln"->d547:"std.io.console.eprintln" e6224:r2554:s->d1980:s))
+      }
+      pub d847:"std.text.str.is_empty": std::text::str::str -> bool = e6234:(fn p1470:d1981:s -> e6233:(e6231:(e6227:r2555:"std::int::eq"->d46:"std.int.eq" e6230:(e6228:r2556:"std::text::str::len"->d787:"std.text.str.len" e6229:r2557:s->d1981:s)) e6232:0))
+      my d848:"std.text.str.starts_with_at_len": std::text::str::str -> int -> std::text::str::str -> int -> int -> bool = e6265:(fn p1471:d1982:source -> e6264:(fn p1472:d1983:source_len -> e6263:(fn p1473:d1984:needle -> e6262:(fn p1474:d1985:needle_len -> e6261:(fn p1475:d1986:start -> e6260:block { let my p1476:d1987:end = e6239:(e6237:(e6235:r2558:"std::int::add"->d51:"std.int.add" e6236:r2559:start->d1986:start) e6238:r2560:needle_len->d1985:needle_len); e6259:case e6246:(e6245:r2564:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6244:(e6242:(e6240:r2561:"std::int::le"->d48:"std.int.le" e6241:r2562:end->d1987:end) e6243:r2563:source_len->d1983:source_len)) { p1477:true -> e6257:(e6256:(e6254:r2569:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e6253:(e6251:(e6249:(e6247:r2565:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e6248:r2566:source->d1982:source) e6250:r2567:start->d1986:start) e6252:r2568:end->d1987:end)) e6255:r2570:needle->d1984:needle); p1478:false -> e6258:false } })))))
+      my d849:"std.text.str.starts_with_at": std::text::str::str -> std::text::str::str -> int -> bool = e6283:(fn p1479:d1988:source -> e6282:(fn p1480:d1989:needle -> e6281:(fn p1481:d1990:start -> e6280:(e6278:(e6274:(e6272:(e6268:(e6266:r2571:starts_with_at_len->d848:"std.text.str.starts_with_at_len" e6267:r2572:source->d1988:source) e6271:(e6269:r2573:"std::text::str::len"->d787:"std.text.str.len" e6270:r2574:source->d1988:source)) e6273:r2575:needle->d1989:needle) e6277:(e6275:r2576:"std::text::str::len"->d787:"std.text.str.len" e6276:r2577:needle->d1989:needle)) e6279:r2578:start->d1990:start))))
+      my d850:"std.text.str.find_at_len": std::text::str::str -> int -> std::text::str::str -> int -> int -> std::data::opt::opt int = e6316:(fn p1482:d1991:source -> e6315:(fn p1483:d1992:source_len -> e6314:(fn p1484:d1993:needle -> e6313:(fn p1485:d1994:needle_len -> e6312:(fn p1486:d1995:start -> e6311:case e6290:(e6289:r2581:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6288:(e6286:(e6284:r2579:"std::int::eq"->d46:"std.int.eq" e6285:r2580:needle_len->d1994:needle_len) e6287:0)) { p1487:true -> e6293:(e6291:r2582:just->d505:"std.data.opt.opt.just" e6292:r2583:start->d1995:start); p1488:false -> e6310:(e6308:(e6302:(e6300:(e6298:(e6296:(e6294:r2584:find_at_loop->d851:"std.text.str.find_at_loop" e6295:r2585:source->d1991:source) e6297:r2586:source_len->d1992:source_len) e6299:r2587:needle->d1993:needle) e6301:r2588:needle_len->d1994:needle_len) e6307:(e6305:(e6303:r2589:"std::int::sub"->d52:"std.int.sub" e6304:r2590:source_len->d1992:source_len) e6306:r2591:needle_len->d1994:needle_len)) e6309:r2592:start->d1995:start) })))))
+      my d851:"std.text.str.find_at_loop": std::text::str::str -> int -> std::text::str::str -> int -> int -> int -> std::data::opt::opt int = e6365:(fn p1489:d1996:source -> e6364:(fn p1490:d1997:source_len -> e6363:(fn p1491:d1998:needle -> e6362:(fn p1492:d1999:needle_len -> e6361:(fn p1493:d2000:limit -> e6360:(fn p1494:d2001:i -> e6359:case e6323:(e6322:r2596:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6321:(e6319:(e6317:r2593:"std::int::le"->d48:"std.int.le" e6318:r2594:i->d2001:i) e6320:r2595:limit->d2000:limit)) { p1497:true -> e6357:case e6336:(e6335:r2603:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6334:(e6332:(e6330:(e6328:(e6326:(e6324:r2597:starts_with_at_len->d848:"std.text.str.starts_with_at_len" e6325:r2598:source->d1996:source) e6327:r2599:source_len->d1997:source_len) e6329:r2600:needle->d1998:needle) e6331:r2601:needle_len->d1999:needle_len) e6333:r2602:i->d2001:i)) { p1495:true -> e6339:(e6337:r2604:just->d505:"std.data.opt.opt.just" e6338:r2605:i->d2001:i); p1496:false -> e6356:(e6350:(e6348:(e6346:(e6344:(e6342:(e6340:r2606:find_at_loop->d851:"std.text.str.find_at_loop" e6341:r2607:source->d1996:source) e6343:r2608:source_len->d1997:source_len) e6345:r2609:needle->d1998:needle) e6347:r2610:needle_len->d1999:needle_len) e6349:r2611:limit->d2000:limit) e6355:(e6353:(e6351:r2612:"std::int::add"->d51:"std.int.add" e6352:r2613:i->d2001:i) e6354:1)) }; p1498:false -> e6358:r2614:nil->d504:"std.data.opt.opt.nil" }))))))
+      my d852:"std.text.str.find_at": std::text::str::str -> std::text::str::str -> int -> std::data::opt::opt int = e6383:(fn p1499:d2002:source -> e6382:(fn p1500:d2003:needle -> e6381:(fn p1501:d2004:start -> e6380:(e6378:(e6374:(e6372:(e6368:(e6366:r2615:find_at_len->d850:"std.text.str.find_at_len" e6367:r2616:source->d2002:source) e6371:(e6369:r2617:"std::text::str::len"->d787:"std.text.str.len" e6370:r2618:source->d2002:source)) e6373:r2619:needle->d2003:needle) e6377:(e6375:r2620:"std::text::str::len"->d787:"std.text.str.len" e6376:r2621:needle->d2003:needle)) e6379:r2622:start->d2004:start))))
+      pub d853:"std.text.str.find": std::text::str::str -> std::text::str::str -> std::data::opt::opt std::data::range::range = e6407:(fn p1502:d2005:source -> e6406:(fn p1503:d2006:needle -> e6405:case e6390:(e6388:(e6386:(e6384:r2623:find_at->d852:"std.text.str.find_at" e6385:r2624:source->d2005:source) e6387:r2625:needle->d2006:needle) e6389:0) { p1505:r2626:just->d505:"std.data.opt.opt.just"(p1504:d2007:i) -> e6403:(e6391:r2627:just->d505:"std.data.opt.opt.just" e6402:(e6394:(e6392:r2628:range->d512:"std.data.range.range" e6393:r2629:i->d2007:i) e6401:(e6397:(e6395:r2630:"std::int::add"->d51:"std.int.add" e6396:r2631:i->d2007:i) e6400:(e6398:r2632:"std::text::str::len"->d787:"std.text.str.len" e6399:r2633:needle->d2006:needle)))); p1506:r2634:nil->d504:"std.data.opt.opt.nil" -> e6404:r2635:nil->d504:"std.data.opt.opt.nil" }))
+      pub d854:"std.text.str.contains": std::text::str::str -> std::text::str::str -> bool = e6419:(fn p1507:d2008:source -> e6418:(fn p1508:d2009:needle -> e6417:case e6414:(e6412:(e6410:(e6408:r2636:find_at->d852:"std.text.str.find_at" e6409:r2637:source->d2008:source) e6411:r2638:needle->d2009:needle) e6413:0) { p1510:r2639:just->d505:"std.data.opt.opt.just"(p1509:_) -> e6415:true; p1511:r2640:nil->d504:"std.data.opt.opt.nil" -> e6416:false }))
+      pub d855:"std.text.str.starts_with": std::text::str::str -> std::text::str::str -> bool = e6428:(fn p1512:d2010:source -> e6427:(fn p1513:d2011:prefix -> e6426:(e6424:(e6422:(e6420:r2641:starts_with_at->d849:"std.text.str.starts_with_at" e6421:r2642:source->d2010:source) e6423:r2643:prefix->d2011:prefix) e6425:0)))
+      pub d856:"std.text.str.ends_with": std::text::str::str -> std::text::str::str -> bool = e6458:(fn p1514:d2012:source -> e6457:(fn p1515:d2013:suffix -> e6456:block { let my p1516:d2014:source_len = e6431:(e6429:r2644:"std::text::str::len"->d787:"std.text.str.len" e6430:r2645:source->d2012:source); e6455:block { let my p1517:d2015:suffix_len = e6434:(e6432:r2646:"std::text::str::len"->d787:"std.text.str.len" e6433:r2647:suffix->d2013:suffix); e6454:case e6441:(e6440:r2651:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6439:(e6437:(e6435:r2648:"std::int::le"->d48:"std.int.le" e6436:r2649:suffix_len->d2015:suffix_len) e6438:r2650:source_len->d2014:source_len)) { p1518:true -> e6452:(e6446:(e6444:(e6442:r2652:starts_with_at->d849:"std.text.str.starts_with_at" e6443:r2653:source->d2012:source) e6445:r2654:suffix->d2013:suffix) e6451:(e6449:(e6447:r2655:"std::int::sub"->d52:"std.int.sub" e6448:r2656:source_len->d2014:source_len) e6450:r2657:suffix_len->d2015:suffix_len)); p1519:false -> e6453:false } } }))
+      my d857:"std.text.str.split_newline_byte_scan_min": int = e6459:2
+      pub d858:"std.text.str.split": std::text::str::str -> std::text::str::str -> std::data::list::list std::text::str::str = e6528:(fn p1520:d2016:source -> e6527:(fn p1521:d2017:separator -> e6526:block { let my p1522:d2018:source_len = e6462:(e6460:r2658:"std::text::str::len"->d787:"std.text.str.len" e6461:r2659:source->d2016:source); e6525:block { let my p1523:d2019:separator_len = e6465:(e6463:r2660:"std::text::str::len"->d787:"std.text.str.len" e6464:r2661:separator->d2017:separator); e6524:case e6472:(e6471:r2664:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6470:(e6468:(e6466:r2662:"std::int::eq"->d46:"std.int.eq" e6467:r2663:separator_len->d2019:separator_len) e6469:0)) { p1531:true -> e6475:(e6474:builtin_op::list_singleton e6473:r2665:source->d2016:source); p1532:false -> e6523:case e6482:(e6481:r2668:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6480:(e6479:(e6477:r2667:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e6476:r2666:separator->d2017:separator) e6478:"\n")) { p1529:true -> e6513:case e6489:(e6488:r2672:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6487:(e6486:(e6484:r2670:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e6483:r2669:source_len->d2018:source_len) e6485:r2671:split_newline_byte_scan_min->d857:"std.text.str.split_newline_byte_scan_min")) { p1527:true -> e6498:(e6496:(e6494:(e6492:(e6490:r2673:split_generic->d859:"std.text.str.split_generic" e6491:r2674:source->d2016:source) e6493:r2675:source_len->d2018:source_len) e6495:r2676:separator->d2017:separator) e6497:r2677:separator_len->d2019:separator_len); p1528:false -> e6512:case e6501:(e6499:r2678:split_newline_bytes->d861:"std.text.str.split_newline_bytes" e6500:r2679:source->d2016:source) { p1525:r2680:just->d505:"std.data.opt.opt.just"(p1524:d2020:parts) -> e6502:r2681:parts->d2020:parts; p1526:r2682:nil->d504:"std.data.opt.opt.nil" -> e6511:(e6509:(e6507:(e6505:(e6503:r2683:split_generic->d859:"std.text.str.split_generic" e6504:r2684:source->d2016:source) e6506:r2685:source_len->d2018:source_len) e6508:r2686:separator->d2017:separator) e6510:r2687:separator_len->d2019:separator_len) } }; p1530:false -> e6522:(e6520:(e6518:(e6516:(e6514:r2688:split_generic->d859:"std.text.str.split_generic" e6515:r2689:source->d2016:source) e6517:r2690:source_len->d2018:source_len) e6519:r2691:separator->d2017:separator) e6521:r2692:separator_len->d2019:separator_len) } } } }))
+      my d859:"std.text.str.split_generic": std::text::str::str -> int -> std::text::str::str -> int -> std::data::list::list std::text::str::str = e6547:(fn p1533:d2021:source -> e6546:(fn p1534:d2022:source_len -> e6545:(fn p1535:d2023:separator -> e6544:(fn p1536:d2024:separator_len -> e6543:(e6539:(e6537:(e6535:(e6533:(e6531:(e6529:r2693:split_generic_loop->d860:"std.text.str.split_generic_loop" e6530:r2694:source->d2021:source) e6532:r2695:source_len->d2022:source_len) e6534:r2696:separator->d2023:separator) e6536:r2697:separator_len->d2024:separator_len) e6538:0) e6542:(e6540:builtin_op::list_empty e6541:()))))))
+      my d860:"std.text.str.split_generic_loop": std::text::str::str -> int -> std::text::str::str -> int -> int -> std::data::list::list std::text::str::str -> std::data::list::list std::text::str::str = e6607:(fn p1537:d2025:source -> e6606:(fn p1538:d2026:source_len -> e6605:(fn p1539:d2027:separator -> e6604:(fn p1540:d2028:separator_len -> e6603:(fn p1541:d2029:start -> e6602:(fn p1542:d2030:out -> e6601:case e6558:(e6556:(e6554:(e6552:(e6550:(e6548:r2698:find_at_len->d850:"std.text.str.find_at_len" e6549:r2699:source->d2025:source) e6551:r2700:source_len->d2026:source_len) e6553:r2701:separator->d2027:separator) e6555:r2702:separator_len->d2028:separator_len) e6557:r2703:start->d2029:start) { p1544:r2704:just->d505:"std.data.opt.opt.just"(p1543:d2031:i) -> e6587:block { let my p1545:d2032:piece = e6565:(e6563:(e6561:(e6559:r2705:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e6560:r2706:source->d2025:source) e6562:r2707:start->d2029:start) e6564:r2708:i->d2031:i); e6586:(e6580:(e6574:(e6572:(e6570:(e6568:(e6566:r2709:split_generic_loop->d860:"std.text.str.split_generic_loop" e6567:r2710:source->d2025:source) e6569:r2711:source_len->d2026:source_len) e6571:r2712:separator->d2027:separator) e6573:r2713:separator_len->d2028:separator_len) e6579:(e6577:(e6575:r2714:"std::int::add"->d51:"std.int.add" e6576:r2715:i->d2031:i) e6578:r2716:separator_len->d2028:separator_len)) e6585:(e6583:(e6581:r2717:"std::data::list::cons"->d492:"std.data.list.cons" e6582:r2718:piece->d2032:piece) e6584:r2719:out->d2030:out)) }; p1546:r2720:nil->d504:"std.data.opt.opt.nil" -> e6600:(e6588:r2721:"std::data::list::rev"->d495:"std.data.list.rev" e6599:(e6597:(e6589:r2722:"std::data::list::cons"->d492:"std.data.list.cons" e6596:(e6594:(e6592:(e6590:r2723:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e6591:r2724:source->d2025:source) e6593:r2725:start->d2029:start) e6595:r2726:source_len->d2026:source_len)) e6598:r2727:out->d2030:out)) }))))))
+      my d861:"std.text.str.split_newline_bytes": std::text::str::str -> std::data::opt::opt(std::data::list::list std::text::str::str) = e6674:(fn p1547:d2033:source -> e6673:block { let my p1548:d2034:data = e6610:(e6608:r2728:"std::text::str::to_bytes"->d795:"std.text.str.to_bytes" e6609:r2729:source->d2033:source); e6672:block { let my p1549:d2035:end = e6613:(e6611:r2730:"std::text::bytes::len"->d654:"std.text.bytes.len" e6612:r2731:data->d2034:data); e6671:block { let my p1550:d2036:chunk_count = e6622:(e6620:(e6614:r2732:"std::int::div"->d54:"std.int.div" e6619:(e6618:(e6616:r2734:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e6615:r2733:end->d2035:end) e6617:1023)) e6621:1024); e6670:block { let my p1551:d2037:scan = e6647:(e6635:(e6628:(e6627:(e6626:(e6624:r2735:"#op:infix:..<"->d409:"std.core.ops.#op:infix:..<" e6623:0) e6625:r2736:chunk_count->d2036:chunk_count).s283.fold=>d450:"std.data.fold.Fold.fold") e6634:(e6629:0, e6632:(e6630:builtin_op::list_empty e6631:()), e6633:true)) e6646:(fn p1552:d2038:state -> e6645:(fn p1553:d2039:chunk -> e6644:(e6642:(e6640:(e6638:(e6636:r2737:split_newline_bytes_chunk->d862:"std.text.str.split_newline_bytes_chunk" e6637:r2738:data->d2034:data) e6639:r2739:end->d2035:end) e6641:r2740:state->d2038:state) e6643:r2741:chunk->d2039:chunk)))); e6669:case e6648:r2742:scan->d2037:scan { p1557:(p1554:d2040:start, p1555:d2041:out, p1556:true) -> e6667:(e6649:r2743:just->d505:"std.data.opt.opt.just" e6666:(e6650:r2744:"std::data::list::rev"->d495:"std.data.list.rev" e6665:(e6663:(e6651:r2745:"std::data::list::cons"->d492:"std.data.list.cons" e6662:(e6652:r2746:"std::text::bytes::to_utf8_lossy"->d667:"std.text.bytes.to_utf8_lossy" e6661:(e6655:(e6653:r2747:"std::text::bytes::index_range"->d658:"std.text.bytes.index_range" e6654:r2748:data->d2034:data) e6660:(e6658:(e6656:r2749:"std::data::range::range"->d512:"std.data.range.range" e6657:r2750:start->d2040:start) e6659:r2751:end->d2035:end)))) e6664:r2752:out->d2041:out))); p1558:_ -> e6668:r2753:nil->d504:"std.data.opt.opt.nil" } } } } })
+      my d862:"std.text.str.split_newline_bytes_chunk": std::text::bytes::bytes -> int -> (int, std::data::list::list std::text::str::str, bool) -> int -> (int, std::data::list::list std::text::str::str, bool) = e6724:(fn p1559:d2042:data -> e6723:(fn p1560:d2043:end -> e6722:(fn p1561:d2044:state -> e6721:(fn p1562:d2045:chunk -> e6720:case e6675:r2754:state->d2044:state { p1566:(p1563:_, p1564:_, p1565:false) -> e6676:r2755:state->d2044:state; p1567:_ -> e6719:block { let my p1568:d2046:i = e6681:(e6680:(e6678:r2757:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e6677:r2756:chunk->d2045:chunk) e6679:1024); e6718:block { let my p1569:d2047:chunk_end = e6699:case e6692:(e6691:r2762:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6690:(e6689:(e6687:r2760:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e6686:(e6685:(e6683:r2759:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e6682:r2758:i->d2046:i) e6684:1024)) e6688:r2761:end->d2043:end)) { p1570:true -> e6697:(e6696:(e6694:r2764:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e6693:r2763:i->d2046:i) e6695:1024); p1571:false -> e6698:r2765:end->d2043:end }; e6717:(e6707:(e6705:(e6704:(e6702:(e6700:r2766:"std::data::range::range"->d512:"std.data.range.range" e6701:r2767:i->d2046:i) e6703:r2768:chunk_end->d2047:chunk_end).s284.fold=>d450:"std.data.fold.Fold.fold") e6706:r2769:state->d2044:state) e6716:(fn p1572:d2048:state -> e6715:(fn p1573:d2049:j -> e6714:(e6712:(e6710:(e6708:r2770:split_newline_bytes_step->d863:"std.text.str.split_newline_bytes_step" e6709:r2771:data->d2042:data) e6711:r2772:state->d2048:state) e6713:r2773:j->d2049:j)))) } } }))))
+      my d863:"std.text.str.split_newline_bytes_step": std::text::bytes::bytes -> (int, std::data::list::list std::text::str::str, bool) -> int -> (int, std::data::list::list std::text::str::str, bool) = e6765:(fn p1574:d2050:data -> e6764:(fn p1575:d2051:state -> e6763:(fn p1576:d2052:i -> e6762:case e6725:r2774:state->d2051:state { p1580:(p1577:d2053:start, p1578:d2054:out, p1579:true) -> e6760:case e6730:(e6728:(e6726:r2775:"std::text::bytes::index_raw"->d657:"std.text.bytes.index_raw" e6727:r2776:data->d2050:data) e6729:r2777:i->d2052:i) { p1581:10 -> e6754:block { let my p1582:d2055:piece = e6741:(e6731:r2778:"std::text::bytes::to_utf8_lossy"->d667:"std.text.bytes.to_utf8_lossy" e6740:(e6734:(e6732:r2779:"std::text::bytes::index_range"->d658:"std.text.bytes.index_range" e6733:r2780:data->d2050:data) e6739:(e6737:(e6735:r2781:"std::data::range::range"->d512:"std.data.range.range" e6736:r2782:start->d2053:start) e6738:r2783:i->d2052:i))); e6753:(e6746:(e6745:(e6743:r2785:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e6742:r2784:i->d2052:i) e6744:1), e6751:(e6749:(e6747:r2786:"std::data::list::cons"->d492:"std.data.list.cons" e6748:r2787:piece->d2055:piece) e6750:r2788:out->d2054:out), e6752:true) }; p1583:13 -> e6758:(e6755:r2789:start->d2053:start, e6756:r2790:out->d2054:out, e6757:false); p1584:_ -> e6759:r2791:state->d2051:state }; p1585:_ -> e6761:r2792:state->d2051:state })))
+      pub d864:"std.text.str.split_once": std::text::str::str -> std::text::str::str -> std::data::opt::opt (std::text::str::str, std::text::str::str) = e6809:(fn p1586:d2056:source -> e6808:(fn p1587:d2057:separator -> e6807:block { let my p1588:d2058:source_len = e6768:(e6766:r2793:"std::text::str::len"->d787:"std.text.str.len" e6767:r2794:source->d2056:source); e6806:block { let my p1589:d2059:separator_len = e6771:(e6769:r2795:"std::text::str::len"->d787:"std.text.str.len" e6770:r2796:separator->d2057:separator); e6805:case e6782:(e6780:(e6778:(e6776:(e6774:(e6772:r2797:find_at_len->d850:"std.text.str.find_at_len" e6773:r2798:source->d2056:source) e6775:r2799:source_len->d2058:source_len) e6777:r2800:separator->d2057:separator) e6779:r2801:separator_len->d2059:separator_len) e6781:0) { p1591:r2802:just->d505:"std.data.opt.opt.just"(p1590:d2060:i) -> e6803:(e6783:r2803:just->d505:"std.data.opt.opt.just" e6802:(e6790:(e6788:(e6786:(e6784:r2804:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e6785:r2805:source->d2056:source) e6787:0) e6789:r2806:i->d2060:i), e6801:(e6799:(e6793:(e6791:r2807:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e6792:r2808:source->d2056:source) e6798:(e6796:(e6794:r2809:"std::int::add"->d51:"std.int.add" e6795:r2810:i->d2060:i) e6797:r2811:separator_len->d2059:separator_len)) e6800:r2812:source_len->d2058:source_len))); p1592:r2813:nil->d504:"std.data.opt.opt.nil" -> e6804:r2814:nil->d504:"std.data.opt.opt.nil" } } }))
+      my d865:"std.text.str.join_tail": std::data::list::list std::text::str::str -> std::text::str::str -> std::text::str::str -> std::text::str::str = e6832:(fn p1593:d2061:parts -> e6831:(fn p1594:d2062:separator -> e6830:(fn p1595:d2063:out -> e6829:case e6812:(e6810:r2815:"std::data::list::uncons"->d493:"std.data.list.uncons" e6811:r2816:parts->d2061:parts) { p1596:r2817:nil->d504:"std.data.opt.opt.nil" -> e6813:r2818:out->d2063:out; p1600:r2819:just->d505:"std.data.opt.opt.just"(p1599:(p1597:d2064:part, p1598:d2065:rest)) -> e6828:(e6818:(e6816:(e6814:r2820:join_tail->d865:"std.text.str.join_tail" e6815:r2821:rest->d2065:rest) e6817:r2822:separator->d2062:separator) e6827:(e6825:(e6819:r2823:"std::text::str::concat"->d785:"std.text.str.concat" e6824:(e6822:(e6820:r2824:"std::text::str::concat"->d785:"std.text.str.concat" e6821:r2825:out->d2063:out) e6823:r2826:separator->d2062:separator)) e6826:r2827:part->d2064:part)) })))
+      pub d866:"std.text.str.join": std::data::list::list std::text::str::str -> std::text::str::str -> std::text::str::str = e6846:(fn p1601:d2066:parts -> e6845:(fn p1602:d2067:separator -> e6844:case e6835:(e6833:r2828:"std::data::list::uncons"->d493:"std.data.list.uncons" e6834:r2829:parts->d2066:parts) { p1603:r2830:nil->d504:"std.data.opt.opt.nil" -> e6836:""; p1607:r2831:just->d505:"std.data.opt.opt.just"(p1606:(p1604:d2068:head, p1605:d2069:tail)) -> e6843:(e6841:(e6839:(e6837:r2832:join_tail->d865:"std.text.str.join_tail" e6838:r2833:tail->d2069:tail) e6840:r2834:separator->d2067:separator) e6842:r2835:head->d2068:head) }))
+      my d867:"std.text.str.trim_start_index": std::text::str::str -> int -> int = e6879:(fn p1608:d2070:source -> e6878:(fn p1609:d2071:i -> e6877:case e6855:(e6854:r2840:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6853:(e6849:(e6847:r2836:"std::int::lt"->d47:"std.int.lt" e6848:r2837:i->d2071:i) e6852:(e6850:r2838:"std::text::str::len"->d787:"std.text.str.len" e6851:r2839:source->d2070:source))) { p1612:true -> e6875:case e6864:(e6863:r2845:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6862:(e6856:r2841:"std::text::char::is_whitespace"->d674:"std.text.char.is_whitespace" e6861:(e6859:(e6857:r2842:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e6858:r2843:source->d2070:source) e6860:r2844:i->d2071:i))) { p1610:true -> e6873:(e6867:(e6865:r2846:trim_start_index->d867:"std.text.str.trim_start_index" e6866:r2847:source->d2070:source) e6872:(e6870:(e6868:r2848:"std::int::add"->d51:"std.int.add" e6869:r2849:i->d2071:i) e6871:1)); p1611:false -> e6874:r2850:i->d2071:i }; p1613:false -> e6876:r2851:i->d2071:i }))
+      my d868:"std.text.str.trim_end_index": std::text::str::str -> int -> int = e6912:(fn p1614:d2072:source -> e6911:(fn p1615:d2073:end -> e6910:case e6886:(e6885:r2854:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6884:(e6882:(e6880:r2852:"std::int::gt"->d49:"std.int.gt" e6881:r2853:end->d2073:end) e6883:0)) { p1619:true -> e6908:block { let my p1616:d2074:previous = e6891:(e6889:(e6887:r2855:"std::int::sub"->d52:"std.int.sub" e6888:r2856:end->d2073:end) e6890:1); e6907:case e6900:(e6899:r2861:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6898:(e6892:r2857:"std::text::char::is_whitespace"->d674:"std.text.char.is_whitespace" e6897:(e6895:(e6893:r2858:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e6894:r2859:source->d2072:source) e6896:r2860:previous->d2074:previous))) { p1617:true -> e6905:(e6903:(e6901:r2862:trim_end_index->d868:"std.text.str.trim_end_index" e6902:r2863:source->d2072:source) e6904:r2864:previous->d2074:previous); p1618:false -> e6906:r2865:end->d2073:end } }; p1620:false -> e6909:r2866:end->d2073:end }))
+      pub d869:"std.text.str.trim_start": std::text::str::str -> std::text::str::str = e6926:(fn p1621:d2075:source -> e6925:(e6921:(e6915:(e6913:r2867:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e6914:r2868:source->d2075:source) e6920:(e6918:(e6916:r2869:trim_start_index->d867:"std.text.str.trim_start_index" e6917:r2870:source->d2075:source) e6919:0)) e6924:(e6922:r2871:"std::text::str::len"->d787:"std.text.str.len" e6923:r2872:source->d2075:source)))
+      pub d870:"std.text.str.trim_end": std::text::str::str -> std::text::str::str = e6940:(fn p1622:d2076:source -> e6939:(e6931:(e6929:(e6927:r2873:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e6928:r2874:source->d2076:source) e6930:0) e6938:(e6934:(e6932:r2875:trim_end_index->d868:"std.text.str.trim_end_index" e6933:r2876:source->d2076:source) e6937:(e6935:r2877:"std::text::str::len"->d787:"std.text.str.len" e6936:r2878:source->d2076:source))))
+      pub d871:"std.text.str.trim": std::text::str::str -> std::text::str::str = e6971:(fn p1623:d2077:source -> e6970:block { let my p1624:d2078:start = e6945:(e6943:(e6941:r2879:trim_start_index->d867:"std.text.str.trim_start_index" e6942:r2880:source->d2077:source) e6944:0); e6969:block { let my p1625:d2079:end = e6952:(e6948:(e6946:r2881:trim_end_index->d868:"std.text.str.trim_end_index" e6947:r2882:source->d2077:source) e6951:(e6949:r2883:"std::text::str::len"->d787:"std.text.str.len" e6950:r2884:source->d2077:source)); e6968:case e6959:(e6958:r2888:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6957:(e6955:(e6953:r2885:"std::int::le"->d48:"std.int.le" e6954:r2886:start->d2078:start) e6956:r2887:end->d2079:end)) { p1626:true -> e6966:(e6964:(e6962:(e6960:r2889:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e6961:r2890:source->d2077:source) e6963:r2891:start->d2078:start) e6965:r2892:end->d2079:end); p1627:false -> e6967:"" } } })
+      pub d872:"std.text.str.repeat": std::text::str::str -> int -> std::text::str::str = e7012:(fn p1628:d2080:source -> e7011:(fn p1629:d2081:count -> e7010:block { let my p1630:d2082:loop = e6995:(fn p1631:d2083:i -> e6994:(fn p1632:d2084:out -> e6993:case e6978:(e6977:r2896:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6976:(e6974:(e6972:r2893:"std::int::lt"->d47:"std.int.lt" e6973:r2894:i->d2083:i) e6975:r2895:count->d2081:count)) { p1633:true -> e6991:(e6985:(e6979:r2897:loop->d2082:loop e6984:(e6982:(e6980:r2898:"std::int::add"->d51:"std.int.add" e6981:r2899:i->d2083:i) e6983:1)) e6990:(e6988:(e6986:r2900:"std::text::str::concat"->d785:"std.text.str.concat" e6987:r2901:out->d2084:out) e6989:r2902:source->d2080:source)); p1634:false -> e6992:r2903:out->d2084:out })); e7009:case e7002:(e7001:r2906:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7000:(e6998:(e6996:r2904:"std::int::le"->d48:"std.int.le" e6997:r2905:count->d2081:count) e6999:0)) { p1635:true -> e7003:""; p1636:false -> e7008:(e7006:(e7004:r2907:loop->d2082:loop e7005:0) e7007:"") } }))
+      my d873:"std.text.str.digit_value": std::text::char::char -> std::data::opt::opt int = e7048:(fn p1637:d2085:item -> e7047:case e7015:(e7013:r2908:"std::text::char::to_string"->d673:"std.text.char.to_string" e7014:r2909:item->d2085:item) { p1638:"0" -> e7018:(e7016:r2910:just->d505:"std.data.opt.opt.just" e7017:0); p1639:"1" -> e7021:(e7019:r2911:just->d505:"std.data.opt.opt.just" e7020:1); p1640:"2" -> e7024:(e7022:r2912:just->d505:"std.data.opt.opt.just" e7023:2); p1641:"3" -> e7027:(e7025:r2913:just->d505:"std.data.opt.opt.just" e7026:3); p1642:"4" -> e7030:(e7028:r2914:just->d505:"std.data.opt.opt.just" e7029:4); p1643:"5" -> e7033:(e7031:r2915:just->d505:"std.data.opt.opt.just" e7032:5); p1644:"6" -> e7036:(e7034:r2916:just->d505:"std.data.opt.opt.just" e7035:6); p1645:"7" -> e7039:(e7037:r2917:just->d505:"std.data.opt.opt.just" e7038:7); p1646:"8" -> e7042:(e7040:r2918:just->d505:"std.data.opt.opt.just" e7041:8); p1647:"9" -> e7045:(e7043:r2919:just->d505:"std.data.opt.opt.just" e7044:9); p1648:_ -> e7046:r2920:nil->d504:"std.data.opt.opt.nil" })
+      my d874:"std.text.str.parse_unsigned_int": std::text::str::str -> int -> int -> int -> std::data::opt::opt int = e7104:(fn p1649:d2086:source -> e7103:(fn p1650:d2087:start -> e7102:(fn p1651:d2088:i -> e7101:(fn p1652:d2089:acc -> e7100:case e7057:(e7056:r2925:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7055:(e7051:(e7049:r2921:"std::int::lt"->d47:"std.int.lt" e7050:r2922:i->d2088:i) e7054:(e7052:r2923:"std::text::str::len"->d787:"std.text.str.len" e7053:r2924:source->d2086:source))) { p1658:true -> e7087:case e7064:(e7058:r2926:digit_value->d873:"std.text.str.digit_value" e7063:(e7061:(e7059:r2927:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e7060:r2928:source->d2086:source) e7062:r2929:i->d2088:i)) { p1654:r2930:just->d505:"std.data.opt.opt.just"(p1653:d2090:digit) -> e7085:(e7075:(e7069:(e7067:(e7065:r2931:parse_unsigned_int->d874:"std.text.str.parse_unsigned_int" e7066:r2932:source->d2086:source) e7068:r2933:start->d2087:start) e7074:(e7072:(e7070:r2934:"std::int::add"->d51:"std.int.add" e7071:r2935:i->d2088:i) e7073:1)) e7084:(e7082:(e7076:r2936:"std::int::add"->d51:"std.int.add" e7081:(e7079:(e7077:r2937:"std::int::mul"->d53:"std.int.mul" e7078:r2938:acc->d2089:acc) e7080:10)) e7083:r2939:digit->d2090:digit)); p1655:r2940:nil->d504:"std.data.opt.opt.nil" -> e7086:r2941:nil->d504:"std.data.opt.opt.nil" }; p1659:false -> e7099:case e7094:(e7093:r2945:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7092:(e7090:(e7088:r2942:"std::int::eq"->d46:"std.int.eq" e7089:r2943:i->d2088:i) e7091:r2944:start->d2087:start)) { p1656:true -> e7095:r2946:nil->d504:"std.data.opt.opt.nil"; p1657:false -> e7098:(e7096:r2947:just->d505:"std.data.opt.opt.just" e7097:r2948:acc->d2089:acc) } }))))
+      pub d875:"std.text.str.to_int": std::text::str::str -> std::data::opt::opt int = e7160:(fn p1660:d2091:source -> e7159:case e7113:(e7112:r2952:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7111:(e7109:(e7105:r2949:"std::int::eq"->d46:"std.int.eq" e7108:(e7106:r2950:"std::text::str::len"->d787:"std.text.str.len" e7107:r2951:source->d2091:source)) e7110:0)) { p1667:true -> e7114:r2953:nil->d504:"std.data.opt.opt.nil"; p1668:false -> e7158:case e7121:(e7115:r2954:"std::text::char::to_string"->d673:"std.text.char.to_string" e7120:(e7118:(e7116:r2955:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e7117:r2956:source->d2091:source) e7119:0)) { p1661:"-" -> e7139:case e7130:(e7128:(e7126:(e7124:(e7122:r2957:parse_unsigned_int->d874:"std.text.str.parse_unsigned_int" e7123:r2958:source->d2091:source) e7125:1) e7127:1) e7129:0) { p1663:r2959:just->d505:"std.data.opt.opt.just"(p1662:d2092:value) -> e7137:(e7131:r2960:just->d505:"std.data.opt.opt.just" e7136:(e7134:(e7132:r2961:"std::int::sub"->d52:"std.int.sub" e7133:0) e7135:r2962:value->d2092:value)); p1664:r2963:nil->d504:"std.data.opt.opt.nil" -> e7138:r2964:nil->d504:"std.data.opt.opt.nil" }; p1665:"+" -> e7148:(e7146:(e7144:(e7142:(e7140:r2965:parse_unsigned_int->d874:"std.text.str.parse_unsigned_int" e7141:r2966:source->d2091:source) e7143:1) e7145:1) e7147:0); p1666:_ -> e7157:(e7155:(e7153:(e7151:(e7149:r2967:parse_unsigned_int->d874:"std.text.str.parse_unsigned_int" e7150:r2968:source->d2091:source) e7152:0) e7154:0) e7156:0) } })
+      pub d876:"std.text.str.replace_once": std::text::str::str -> std::text::str::str -> std::text::str::str -> std::text::str::str = e7212:(fn p1669:d2093:source -> e7211:(fn p1670:d2094:from -> e7210:(fn p1671:d2095:to -> e7209:case e7169:(e7168:r2972:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7167:(e7165:(e7161:r2969:"std::int::eq"->d46:"std.int.eq" e7164:(e7162:r2970:"std::text::str::len"->d787:"std.text.str.len" e7163:r2971:from->d2094:from)) e7166:0)) { p1675:true -> e7170:r2973:source->d2093:source; p1676:false -> e7208:case e7177:(e7175:(e7173:(e7171:r2974:find_at->d852:"std.text.str.find_at" e7172:r2975:source->d2093:source) e7174:r2976:from->d2094:from) e7176:0) { p1673:r2977:just->d505:"std.data.opt.opt.just"(p1672:d2096:i) -> e7206:(e7190:(e7178:r2978:"std::text::str::concat"->d785:"std.text.str.concat" e7189:(e7187:(e7179:r2979:"std::text::str::concat"->d785:"std.text.str.concat" e7186:(e7184:(e7182:(e7180:r2980:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e7181:r2981:source->d2093:source) e7183:0) e7185:r2982:i->d2096:i)) e7188:r2983:to->d2095:to)) e7205:(e7201:(e7193:(e7191:r2984:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e7192:r2985:source->d2093:source) e7200:(e7196:(e7194:r2986:"std::int::add"->d51:"std.int.add" e7195:r2987:i->d2096:i) e7199:(e7197:r2988:"std::text::str::len"->d787:"std.text.str.len" e7198:r2989:from->d2094:from))) e7204:(e7202:r2990:"std::text::str::len"->d787:"std.text.str.len" e7203:r2991:source->d2093:source))); p1674:r2992:nil->d504:"std.data.opt.opt.nil" -> e7207:r2993:source->d2093:source } })))
+      pub d877:"std.text.str.replace": std::text::str::str -> std::text::str::str -> std::text::str::str -> std::text::str::str = e7222:(fn p1677:d2097:source -> e7221:(fn p1678:d2098:from -> e7220:(fn p1679:d2099:to -> e7219:(e7217:(e7215:(e7213:r2994:replace_all->d878:"std.text.str.replace_all" e7214:r2995:source->d2097:source) e7216:r2996:from->d2098:from) e7218:r2997:to->d2099:to))))
+      pub d878:"std.text.str.replace_all": std::text::str::str -> std::text::str::str -> std::text::str::str -> std::text::str::str = e7292:(fn p1680:d2100:source -> e7291:(fn p1681:d2101:from -> e7290:(fn p1682:d2102:to -> e7289:case e7231:(e7230:r3001:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7229:(e7227:(e7223:r2998:"std::int::eq"->d46:"std.int.eq" e7226:(e7224:r2999:"std::text::str::len"->d787:"std.text.str.len" e7225:r3000:from->d2101:from)) e7228:0)) { p1690:true -> e7232:r3002:source->d2100:source; p1691:false -> e7288:block { let my p1683:d2103:loop = e7282:(fn p1684:d2104:start -> e7281:(fn p1685:d2105:out -> e7280:case e7239:(e7237:(e7235:(e7233:r3003:find_at->d852:"std.text.str.find_at" e7234:r3004:source->d2100:source) e7236:r3005:from->d2101:from) e7238:r3006:start->d2104:start) { p1687:r3007:just->d505:"std.data.opt.opt.just"(p1686:d2106:i) -> e7266:block { let my p1688:d2107:prefix = e7246:(e7244:(e7242:(e7240:r3008:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e7241:r3009:source->d2100:source) e7243:r3010:start->d2104:start) e7245:r3011:i->d2106:i); e7265:(e7255:(e7247:r3012:loop->d2103:loop e7254:(e7250:(e7248:r3013:"std::int::add"->d51:"std.int.add" e7249:r3014:i->d2106:i) e7253:(e7251:r3015:"std::text::str::len"->d787:"std.text.str.len" e7252:r3016:from->d2101:from))) e7264:(e7262:(e7256:r3017:"std::text::str::concat"->d785:"std.text.str.concat" e7261:(e7259:(e7257:r3018:"std::text::str::concat"->d785:"std.text.str.concat" e7258:r3019:out->d2105:out) e7260:r3020:prefix->d2107:prefix)) e7263:r3021:to->d2102:to)) }; p1689:r3022:nil->d504:"std.data.opt.opt.nil" -> e7279:(e7269:(e7267:r3023:"std::text::str::concat"->d785:"std.text.str.concat" e7268:r3024:out->d2105:out) e7278:(e7274:(e7272:(e7270:r3025:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e7271:r3026:source->d2100:source) e7273:r3027:start->d2104:start) e7277:(e7275:r3028:"std::text::str::len"->d787:"std.text.str.len" e7276:r3029:source->d2100:source))) })); e7287:(e7285:(e7283:r3030:loop->d2103:loop e7284:0) e7286:"") } })))
+      my d879:"std.text.str.word_prefix_small_scan_limit": int = e7293:512
+      pub d880:"std.text.str.word_prefix_at": std::text::str::str -> int -> std::text::str::str = e7387:(fn p1692:d2108:source -> e7386:(fn p1693:d2109:start -> e7385:block { let my p1694:d2110:source_len = e7296:(e7294:r3031:"std::text::str::len"->d787:"std.text.str.len" e7295:r3032:source->d2108:source); e7384:block { let my p1695:d2111:remaining = e7301:(e7300:(e7298:r3034:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e7297:r3033:source_len->d2110:source_len) e7299:r3035:start->d2109:start); e7383:case e7308:(e7307:r3039:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7306:(e7305:(e7303:r3037:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e7302:r3036:remaining->d2111:remaining) e7304:r3038:word_prefix_small_scan_limit->d879:"std.text.str.word_prefix_small_scan_limit")) { p1706:true -> e7354:block { let my p1696:d2112:loop = e7350:(fn p1697:d2113:i -> e7349:case e7315:(e7314:r3043:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7313:(e7312:(e7310:r3041:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e7309:r3040:i->d2113:i) e7311:r3042:source_len->d2110:source_len)) { p1701:true -> e7341:block { let my p1698:d2114:item = e7320:(e7318:(e7316:r3044:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e7317:r3045:source->d2108:source) e7319:r3046:i->d2113:i); e7340:case e7325:(e7324:r3049:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7323:(e7321:r3047:"std::text::char::is_word"->d676:"std.text.char.is_word" e7322:r3048:item->d2114:item)) { p1699:true -> e7332:(e7326:r3050:loop->d2112:loop e7331:(e7330:(e7328:r3052:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7327:r3051:i->d2113:i) e7329:1)); p1700:false -> e7339:(e7337:(e7335:(e7333:r3053:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e7334:r3054:source->d2108:source) e7336:r3055:start->d2109:start) e7338:r3056:i->d2113:i) } }; p1702:false -> e7348:(e7346:(e7344:(e7342:r3057:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e7343:r3058:source->d2108:source) e7345:r3059:start->d2109:start) e7347:r3060:i->d2113:i) }); e7353:(e7351:r3061:loop->d2112:loop e7352:r3062:start->d2109:start) }; p1707:false -> e7382:block { let my p1703:d2115:end = e7374:case e7361:(e7360:r3065:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7359:(e7358:(e7356:r3064:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e7355:r3063:start->d2109:start) e7357:0)) { p1704:true -> e7366:(e7364:(e7362:r3066:word_prefix_ascii_or_slow_end->d881:"std.text.str.word_prefix_ascii_or_slow_end" e7363:r3067:source->d2108:source) e7365:r3068:source_len->d2110:source_len); p1705:false -> e7373:(e7371:(e7369:(e7367:r3069:word_prefix_slow_end->d885:"std.text.str.word_prefix_slow_end" e7368:r3070:source->d2108:source) e7370:r3071:source_len->d2110:source_len) e7372:r3072:start->d2109:start) }; e7381:(e7379:(e7377:(e7375:r3073:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e7376:r3074:source->d2108:source) e7378:r3075:start->d2109:start) e7380:r3076:end->d2115:end) } } } }))
+      my d881:"std.text.str.word_prefix_ascii_or_slow_end": std::text::str::str -> int -> int = e7440:(fn p1708:d2116:source -> e7439:(fn p1709:d2117:source_len -> e7438:block { let my p1710:d2118:data = e7390:(e7388:r3077:"std::text::str::to_bytes"->d795:"std.text.str.to_bytes" e7389:r3078:source->d2116:source); e7437:block { let my p1711:d2119:data_len = e7393:(e7391:r3079:"std::text::bytes::len"->d654:"std.text.bytes.len" e7392:r3080:data->d2118:data); e7436:block { let my p1712:d2120:chunk_count = e7402:(e7400:(e7394:r3081:"std::int::div"->d54:"std.int.div" e7399:(e7398:(e7396:r3083:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7395:r3082:data_len->d2119:data_len) e7397:1023)) e7401:1024); e7435:block { let my p1713:d2121:scan = e7424:(e7412:(e7408:(e7407:(e7406:(e7404:r3084:"#op:infix:..<"->d409:"std.core.ops.#op:infix:..<" e7403:0) e7405:r3085:chunk_count->d2120:chunk_count).s285.fold=>d450:"std.data.fold.Fold.fold") e7411:(e7409:0, e7410:0)) e7423:(fn p1714:d2122:state -> e7422:(fn p1715:d2123:chunk -> e7421:(e7419:(e7417:(e7415:(e7413:r3086:word_prefix_ascii_chunk->d882:"std.text.str.word_prefix_ascii_chunk" e7414:r3087:data->d2118:data) e7416:r3088:data_len->d2119:data_len) e7418:r3089:state->d2122:state) e7420:r3090:chunk->d2123:chunk)))); e7434:case e7425:r3091:scan->d2121:scan { p1718:(p1716:d2124:end, p1717:2) -> e7432:(e7430:(e7428:(e7426:r3092:word_prefix_slow_end->d885:"std.text.str.word_prefix_slow_end" e7427:r3093:source->d2116:source) e7429:r3094:source_len->d2117:source_len) e7431:r3095:end->d2124:end); p1721:(p1719:d2125:end, p1720:_) -> e7433:r3096:end->d2125:end } } } } }))
+      my d882:"std.text.str.word_prefix_ascii_chunk": std::text::bytes::bytes -> int -> (int, int) -> int -> (int, int) = e7490:(fn p1722:d2126:data -> e7489:(fn p1723:d2127:data_len -> e7488:(fn p1724:d2128:state -> e7487:(fn p1725:d2129:chunk -> e7486:case e7441:r3097:state->d2128:state { p1728:(p1726:_, p1727:0) -> e7484:block { let my p1729:d2130:i = e7446:(e7445:(e7443:r3099:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e7442:r3098:chunk->d2129:chunk) e7444:1024); e7483:block { let my p1730:d2131:chunk_end = e7464:case e7457:(e7456:r3104:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7455:(e7454:(e7452:r3102:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e7451:(e7450:(e7448:r3101:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7447:r3100:i->d2130:i) e7449:1024)) e7453:r3103:data_len->d2127:data_len)) { p1731:true -> e7462:(e7461:(e7459:r3106:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7458:r3105:i->d2130:i) e7460:1024); p1732:false -> e7463:r3107:data_len->d2127:data_len }; e7482:(e7472:(e7470:(e7469:(e7467:(e7465:r3108:"std::data::range::range"->d512:"std.data.range.range" e7466:r3109:i->d2130:i) e7468:r3110:chunk_end->d2131:chunk_end).s286.fold=>d450:"std.data.fold.Fold.fold") e7471:r3111:state->d2128:state) e7481:(fn p1733:d2132:state -> e7480:(fn p1734:d2133:j -> e7479:(e7477:(e7475:(e7473:r3112:word_prefix_ascii_step->d883:"std.text.str.word_prefix_ascii_step" e7474:r3113:data->d2126:data) e7476:r3114:state->d2132:state) e7478:r3115:j->d2133:j)))) } }; p1735:_ -> e7485:r3116:state->d2128:state }))))
+      my d883:"std.text.str.word_prefix_ascii_step": std::text::bytes::bytes -> (int, int) -> int -> (int, int) = e7529:(fn p1736:d2134:data -> e7528:(fn p1737:d2135:state -> e7527:(fn p1738:d2136:i -> e7526:case e7491:r3117:state->d2135:state { p1741:(p1739:d2137:end, p1740:0) -> e7524:block { let my p1742:d2138:byte = e7496:(e7494:(e7492:r3118:"std::text::bytes::index_raw"->d657:"std.text.bytes.index_raw" e7493:r3119:data->d2134:data) e7495:r3120:i->d2136:i); e7523:case e7501:(e7500:r3123:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7499:(e7497:r3121:ascii_word_byte->d884:"std.text.str.ascii_word_byte" e7498:r3122:byte->d2138:byte)) { p1745:true -> e7508:(e7506:(e7505:(e7503:r3125:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7502:r3124:i->d2136:i) e7504:1), e7507:0); p1746:false -> e7522:case e7515:(e7514:r3128:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7513:(e7512:(e7510:r3127:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e7509:r3126:byte->d2138:byte) e7511:128)) { p1743:true -> e7518:(e7516:r3129:i->d2136:i, e7517:1); p1744:false -> e7521:(e7519:r3130:i->d2136:i, e7520:2) } } }; p1747:_ -> e7525:r3131:state->d2135:state })))
+      my d884:"std.text.str.ascii_word_byte": int -> bool = e7595:(fn p1748:d2139:byte -> e7594:(e7593:(e7575:r3146:"#op:infix:or"->d427:"std.core.ops.#op:infix:or" e7591:(fn p1759:() -> e7574:(e7573:(e7555:r3140:"#op:infix:or"->d427:"std.core.ops.#op:infix:or" e7571:(fn p1755:() -> e7554:(e7553:(e7535:r3134:"#op:infix:or"->d427:"std.core.ops.#op:infix:or" e7551:(fn p1751:() -> e7534:(e7533:(e7531:r3133:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e7530:r3132:byte->d2139:byte) e7532:95))) e7552:(fn p1752:() -> e7550:(e7549:(e7541:r3137:"#op:infix:and"->d426:"std.core.ops.#op:infix:and" e7547:(fn p1749:() -> e7540:(e7539:(e7537:r3135:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e7536:48) e7538:r3136:byte->d2139:byte))) e7548:(fn p1750:() -> e7546:(e7545:(e7543:r3139:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e7542:r3138:byte->d2139:byte) e7544:57))))))) e7572:(fn p1756:() -> e7570:(e7569:(e7561:r3143:"#op:infix:and"->d426:"std.core.ops.#op:infix:and" e7567:(fn p1753:() -> e7560:(e7559:(e7557:r3141:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e7556:65) e7558:r3142:byte->d2139:byte))) e7568:(fn p1754:() -> e7566:(e7565:(e7563:r3145:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e7562:r3144:byte->d2139:byte) e7564:90))))))) e7592:(fn p1760:() -> e7590:(e7589:(e7581:r3149:"#op:infix:and"->d426:"std.core.ops.#op:infix:and" e7587:(fn p1757:() -> e7580:(e7579:(e7577:r3147:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e7576:97) e7578:r3148:byte->d2139:byte))) e7588:(fn p1758:() -> e7586:(e7585:(e7583:r3151:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e7582:r3150:byte->d2139:byte) e7584:122))))))
+      my d885:"std.text.str.word_prefix_slow_end": std::text::str::str -> int -> int -> int = e7642:(fn p1761:d2140:source -> e7641:(fn p1762:d2141:source_len -> e7640:(fn p1763:d2142:i -> e7639:block { let my p1764:d2143:count = e7600:(e7599:(e7597:r3153:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e7596:r3152:source_len->d2141:source_len) e7598:r3154:i->d2142:i); e7638:block { let my p1765:d2144:chunk_count = e7609:(e7607:(e7601:r3155:"std::int::div"->d54:"std.int.div" e7606:(e7605:(e7603:r3157:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7602:r3156:count->d2143:count) e7604:1023)) e7608:1024); e7637:block { let my p1766:d2145:scan = e7633:(e7619:(e7615:(e7614:(e7613:(e7611:r3158:"#op:infix:..<"->d409:"std.core.ops.#op:infix:..<" e7610:0) e7612:r3159:chunk_count->d2144:chunk_count).s287.fold=>d450:"std.data.fold.Fold.fold") e7618:(e7616:r3160:i->d2142:i, e7617:true)) e7632:(fn p1767:d2146:state -> e7631:(fn p1768:d2147:chunk -> e7630:(e7628:(e7626:(e7624:(e7622:(e7620:r3161:word_prefix_slow_chunk->d886:"std.text.str.word_prefix_slow_chunk" e7621:r3162:source->d2140:source) e7623:r3163:source_len->d2141:source_len) e7625:r3164:state->d2146:state) e7627:r3165:i->d2142:i) e7629:r3166:chunk->d2147:chunk)))); e7636:case e7634:r3167:scan->d2145:scan { p1771:(p1769:d2148:end, p1770:_) -> e7635:r3168:end->d2148:end } } } })))
+      my d886:"std.text.str.word_prefix_slow_chunk": std::text::str::str -> int -> (int, bool) -> int -> int -> (int, bool) = e7697:(fn p1772:d2149:source -> e7696:(fn p1773:d2150:source_len -> e7695:(fn p1774:d2151:state -> e7694:(fn p1775:d2152:start -> e7693:(fn p1776:d2153:chunk -> e7692:case e7643:r3169:state->d2151:state { p1779:(p1777:_, p1778:true) -> e7690:block { let my p1780:d2154:i = e7652:(e7651:(e7645:r3171:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7644:r3170:start->d2152:start) e7650:(e7649:(e7647:r3173:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e7646:r3172:chunk->d2153:chunk) e7648:1024)); e7689:block { let my p1781:d2155:chunk_end = e7670:case e7663:(e7662:r3178:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7661:(e7660:(e7658:r3176:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e7657:(e7656:(e7654:r3175:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7653:r3174:i->d2154:i) e7655:1024)) e7659:r3177:source_len->d2150:source_len)) { p1782:true -> e7668:(e7667:(e7665:r3180:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7664:r3179:i->d2154:i) e7666:1024); p1783:false -> e7669:r3181:source_len->d2150:source_len }; e7688:(e7678:(e7676:(e7675:(e7673:(e7671:r3182:"std::data::range::range"->d512:"std.data.range.range" e7672:r3183:i->d2154:i) e7674:r3184:chunk_end->d2155:chunk_end).s288.fold=>d450:"std.data.fold.Fold.fold") e7677:r3185:state->d2151:state) e7687:(fn p1784:d2156:state -> e7686:(fn p1785:d2157:index -> e7685:(e7683:(e7681:(e7679:r3186:word_prefix_slow_step->d887:"std.text.str.word_prefix_slow_step" e7680:r3187:source->d2149:source) e7682:r3188:state->d2156:state) e7684:r3189:index->d2157:index)))) } }; p1786:_ -> e7691:r3190:state->d2151:state })))))
+      my d887:"std.text.str.word_prefix_slow_step": std::text::str::str -> (int, bool) -> int -> (int, bool) = e7723:(fn p1787:d2158:source -> e7722:(fn p1788:d2159:state -> e7721:(fn p1789:d2160:i -> e7720:case e7698:r3191:state->d2159:state { p1792:(p1790:d2161:end, p1791:true) -> e7718:case e7707:(e7706:r3196:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7705:(e7699:r3192:"std::text::char::is_word"->d676:"std.text.char.is_word" e7704:(e7702:(e7700:r3193:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e7701:r3194:source->d2158:source) e7703:r3195:i->d2160:i))) { p1793:true -> e7714:(e7712:(e7711:(e7709:r3198:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7708:r3197:i->d2160:i) e7710:1), e7713:true); p1794:false -> e7717:(e7715:r3199:i->d2160:i, e7716:false) }; p1795:_ -> e7719:r3200:state->d2159:state })))
+      my d888 mod {
+        d889: std::text::str::str -> int -> std::text::char::char = e7730:(fn p1796:d2162:s -> e7729:(fn p1797:d2163:i -> e7728:(e7726:(e7724:r3201:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e7725:r3202:s->d2162:s) e7727:r3203:i->d2163:i)))
+      }
+      my d890 mod {
+        d891: std::text::str::str -> std::data::range::range -> std::text::str::str = e7737:(fn p1798:d2164:s -> e7736:(fn p1799:d2165:r -> e7735:(e7733:(e7731:r3204:"std::text::str::index_range"->d791:"std.text.str.index_range" e7732:r3205:s->d2164:s) e7734:r3206:r->d2165:r)))
+      }
+      my d892 mod {
+        d893: std::control::var::ref('a & 'b, std::text::str::str) -> std::data::range::range -> std::control::var::ref('b | 'a, 'c | std::text::str::str) = e7781:(fn p1800:d2166:r -> e7780:(fn p1801:d2167:i -> e7779:(e7738:r3207:ref->d236:"std.control.var.ref" e7778:{get: e7747:(fn p1802:() -> e7746:(e7744:(e7739:r3208:"std::text::str::index_range"->d791:"std.text.str.index_range" e7743:(e7741:(e7740:r3209:r->d2166:r.s289.get->d237) e7742:())) e7745:r3210:i->d2167:i)), update_effect: e7777:(fn p1803:() -> e7776:block { let my p1804:d2168:loop = e7769:(fn p1805:d2169:x -> e7768:catch e7748:r3211:x->d2169:x { std::control::var::ref_update::update p1806:d2170:old, p1807:d2171:k -> e7767:block { let my p1808:d2172:new_item = e7755:(e7749:r3212:"ref_update::update"->d235:"std.control.var.ref_update.update" e7754:(e7752:(e7750:r3213:"std::text::str::index_range"->d791:"std.text.str.index_range" e7751:r3214:old->d2170:old) e7753:r3215:i->d2167:i)); e7766:(e7756:r3216:loop->d2168:loop e7765:(e7757:r3217:k->d2171:k e7764:(e7762:(e7760:(e7758:r3218:"std::text::str::splice"->d793:"std.text.str.splice" e7759:r3219:old->d2170:old) e7761:r3220:i->d2167:i) e7763:r3221:new_item->d2172:new_item))) } }); e7775:(e7770:r3222:loop->d2168:loop e7774:(e7772:(e7771:r3223:r->d2166:r.s290.update_effect->d239) e7773:())) })})))
+      }
+      my d894 mod {
+        d895: std::control::var::ref('a & 'b, std::text::str::str) -> int -> std::control::var::ref('b | 'a, 'c | std::text::char::char) = e7837:(fn p1809:d2173:r -> e7836:(fn p1810:d2174:i -> e7835:(e7782:r3224:ref->d236:"std.control.var.ref" e7834:{get: e7791:(fn p1811:() -> e7790:(e7788:(e7783:r3225:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e7787:(e7785:(e7784:r3226:r->d2173:r.s291.get->d237) e7786:())) e7789:r3227:i->d2174:i)), update_effect: e7833:(fn p1812:() -> e7832:block { let my p1813:d2175:loop = e7825:(fn p1814:d2176:x -> e7824:catch e7792:r3228:x->d2176:x { std::control::var::ref_update::update p1815:d2177:old, p1816:d2178:k -> e7823:block { let my p1817:d2179:new_item = e7799:(e7793:r3229:"ref_update::update"->d235:"std.control.var.ref_update.update" e7798:(e7796:(e7794:r3230:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e7795:r3231:old->d2177:old) e7797:r3232:i->d2174:i)); e7822:block { let my p1818:d2180:replacement = e7802:(e7800:r3233:"std::text::char::to_string"->d673:"std.text.char.to_string" e7801:r3234:new_item->d2179:new_item); e7821:(e7803:r3235:loop->d2175:loop e7820:(e7804:r3236:k->d2178:k e7819:(e7817:(e7807:(e7805:r3237:"std::text::str::splice"->d793:"std.text.str.splice" e7806:r3238:old->d2177:old) e7816:(e7810:(e7808:r3239:range->d512:"std.data.range.range" e7809:r3240:i->d2174:i) e7815:(e7814:(e7812:r3242:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7811:r3241:i->d2174:i) e7813:1))) e7818:r3243:replacement->d2180:replacement))) } } }); e7831:(e7826:r3244:loop->d2175:loop e7830:(e7828:(e7827:r3245:r->d2173:r.s292.update_effect->d239) e7829:())) })})))
+      }
+    }
+    pub d117:"std.text.yumark" mod {
+      pub d896:"std.text.yumark.yumark_algebra": {nil: () -> 'a, cons: 'a -> 'a -> 'a, text: std::text::str::str -> 'a, paragraph: 'a -> 'a, heading: std::text::str::str -> int -> 'a -> 'a, blank_line: std::text::str::str -> 'a, section_close: std::text::str::str -> 'a -> 'a, list_block: bool -> 'a -> 'a, list_item: std::text::str::str -> 'a -> 'a, list_item_body: 'a -> 'a, code_fence: std::text::str::str -> std::text::str::str -> 'a, quote_block: 'a -> 'a, emphasis: 'a -> 'a, strong: 'a -> 'a} -> std::text::yumark::yumark_algebra 'a = <missing>
+      pub d925:"std.text.yumark.html_format": {marker: std::text::str::str} -> std::text::yumark::html_format = <missing>
+      pub d928:"std.text.yumark.markdown_format": {marker: std::text::str::str} -> std::text::yumark::markdown_format = <missing>
+      pub d931:"std.text.yumark.html_node": {tag: std::text::str::str, body: std::text::str::str} -> std::text::yumark::html_node = <missing>
+      pub d936:"std.text.yumark.YumarkFormat" mod {
+        d937:"std.text.yumark.YumarkFormat.yumark_algebra": 'a -> () -> std::text::yumark::yumark_algebra 'b where 'a: std::text::yumark::YumarkFormat(repr = 'b) = <missing>
+      }
+      pub d938:"std.text.yumark.nil": any -> std::text::yumark::yumark_algebra 'a -> 'a = e7843:(fn p1819:d2181:format -> e7842:(fn p1820:d2182:algebra -> e7841:(e7839:(e7838:r3246:algebra->d2182:algebra.s293.nil->d897) e7840:())))
+      pub d939:"std.text.yumark.cons": ('a -> std::text::yumark::yumark_algebra 'b -> 'b) -> ('a -> std::text::yumark::yumark_algebra 'b -> 'b) -> 'a -> std::text::yumark::yumark_algebra 'b -> 'b = e7861:(fn p1821:d2183:head -> e7860:(fn p1822:d2184:tail -> e7859:(fn p1823:d2185:format -> e7858:(fn p1824:d2186:algebra -> e7857:(e7851:(e7845:(e7844:r3247:algebra->d2186:algebra.s294.cons->d899) e7850:(e7848:(e7846:r3248:head->d2183:head e7847:r3249:format->d2185:format) e7849:r3250:algebra->d2186:algebra)) e7856:(e7854:(e7852:r3251:tail->d2184:tail e7853:r3252:format->d2185:format) e7855:r3253:algebra->d2186:algebra))))))
+      pub d940:"std.text.yumark.text": std::text::str::str -> any -> std::text::yumark::yumark_algebra 'a -> 'a = e7868:(fn p1825:d2187:value -> e7867:(fn p1826:d2188:format -> e7866:(fn p1827:d2189:algebra -> e7865:(e7863:(e7862:r3254:algebra->d2189:algebra.s295.text->d901) e7864:r3255:value->d2187:value))))
+      pub d941:"std.text.yumark.paragraph": ('a -> std::text::yumark::yumark_algebra 'b -> 'b) -> 'a -> std::text::yumark::yumark_algebra 'b -> 'b = e7879:(fn p1828:d2190:children -> e7878:(fn p1829:d2191:format -> e7877:(fn p1830:d2192:algebra -> e7876:(e7870:(e7869:r3256:algebra->d2192:algebra.s296.paragraph->d903) e7875:(e7873:(e7871:r3257:children->d2190:children e7872:r3258:format->d2191:format) e7874:r3259:algebra->d2192:algebra)))))
+      pub d942:"std.text.yumark.heading": std::text::str::str -> int -> ('a -> std::text::yumark::yumark_algebra 'b -> 'b) -> 'a -> std::text::yumark::yumark_algebra 'b -> 'b = e7896:(fn p1831:d2193:marker -> e7895:(fn p1832:d2194:level -> e7894:(fn p1833:d2195:children -> e7893:(fn p1834:d2196:format -> e7892:(fn p1835:d2197:algebra -> e7891:(e7885:(e7883:(e7881:(e7880:r3260:algebra->d2197:algebra.s297.heading->d905) e7882:r3261:marker->d2193:marker) e7884:r3262:level->d2194:level) e7890:(e7888:(e7886:r3263:children->d2195:children e7887:r3264:format->d2196:format) e7889:r3265:algebra->d2197:algebra)))))))
+      pub d943:"std.text.yumark.blank_line": std::text::str::str -> any -> std::text::yumark::yumark_algebra 'a -> 'a = e7903:(fn p1836:d2198:marker -> e7902:(fn p1837:d2199:format -> e7901:(fn p1838:d2200:algebra -> e7900:(e7898:(e7897:r3266:algebra->d2200:algebra.s298.blank_line->d907) e7899:r3267:marker->d2198:marker))))
+      pub d944:"std.text.yumark.section_close": std::text::str::str -> ('a -> std::text::yumark::yumark_algebra 'b -> 'b) -> 'a -> std::text::yumark::yumark_algebra 'b -> 'b = e7917:(fn p1839:d2201:marker -> e7916:(fn p1840:d2202:children -> e7915:(fn p1841:d2203:format -> e7914:(fn p1842:d2204:algebra -> e7913:(e7907:(e7905:(e7904:r3268:algebra->d2204:algebra.s299.section_close->d909) e7906:r3269:marker->d2201:marker) e7912:(e7910:(e7908:r3270:children->d2202:children e7909:r3271:format->d2203:format) e7911:r3272:algebra->d2204:algebra))))))
+      pub d945:"std.text.yumark.list_block": bool -> ('a -> std::text::yumark::yumark_algebra 'b -> 'b) -> 'a -> std::text::yumark::yumark_algebra 'b -> 'b = e7931:(fn p1843:d2205:ordered -> e7930:(fn p1844:d2206:items -> e7929:(fn p1845:d2207:format -> e7928:(fn p1846:d2208:algebra -> e7927:(e7921:(e7919:(e7918:r3273:algebra->d2208:algebra.s300.list_block->d911) e7920:r3274:ordered->d2205:ordered) e7926:(e7924:(e7922:r3275:items->d2206:items e7923:r3276:format->d2207:format) e7925:r3277:algebra->d2208:algebra))))))
+      pub d946:"std.text.yumark.list_item": std::text::str::str -> ('a -> std::text::yumark::yumark_algebra 'b -> 'b) -> 'a -> std::text::yumark::yumark_algebra 'b -> 'b = e7945:(fn p1847:d2209:marker -> e7944:(fn p1848:d2210:children -> e7943:(fn p1849:d2211:format -> e7942:(fn p1850:d2212:algebra -> e7941:(e7935:(e7933:(e7932:r3278:algebra->d2212:algebra.s301.list_item->d913) e7934:r3279:marker->d2209:marker) e7940:(e7938:(e7936:r3280:children->d2210:children e7937:r3281:format->d2211:format) e7939:r3282:algebra->d2212:algebra))))))
+      pub d947:"std.text.yumark.list_item_body": ('a -> std::text::yumark::yumark_algebra 'b -> 'b) -> 'a -> std::text::yumark::yumark_algebra 'b -> 'b = e7956:(fn p1851:d2213:children -> e7955:(fn p1852:d2214:format -> e7954:(fn p1853:d2215:algebra -> e7953:(e7947:(e7946:r3283:algebra->d2215:algebra.s302.list_item_body->d915) e7952:(e7950:(e7948:r3284:children->d2213:children e7949:r3285:format->d2214:format) e7951:r3286:algebra->d2215:algebra)))))
+      pub d948:"std.text.yumark.code_fence": std::text::str::str -> std::text::str::str -> any -> std::text::yumark::yumark_algebra 'a -> 'a = e7966:(fn p1854:d2216:info -> e7965:(fn p1855:d2217:body -> e7964:(fn p1856:d2218:format -> e7963:(fn p1857:d2219:algebra -> e7962:(e7960:(e7958:(e7957:r3287:algebra->d2219:algebra.s303.code_fence->d917) e7959:r3288:info->d2216:info) e7961:r3289:body->d2217:body)))))
+      pub d949:"std.text.yumark.quote_block": ('a -> std::text::yumark::yumark_algebra 'b -> 'b) -> 'a -> std::text::yumark::yumark_algebra 'b -> 'b = e7977:(fn p1858:d2220:children -> e7976:(fn p1859:d2221:format -> e7975:(fn p1860:d2222:algebra -> e7974:(e7968:(e7967:r3290:algebra->d2222:algebra.s304.quote_block->d919) e7973:(e7971:(e7969:r3291:children->d2220:children e7970:r3292:format->d2221:format) e7972:r3293:algebra->d2222:algebra)))))
+      pub d950:"std.text.yumark.emphasis": ('a -> std::text::yumark::yumark_algebra 'b -> 'b) -> 'a -> std::text::yumark::yumark_algebra 'b -> 'b = e7988:(fn p1861:d2223:children -> e7987:(fn p1862:d2224:format -> e7986:(fn p1863:d2225:algebra -> e7985:(e7979:(e7978:r3294:algebra->d2225:algebra.s305.emphasis->d921) e7984:(e7982:(e7980:r3295:children->d2223:children e7981:r3296:format->d2224:format) e7983:r3297:algebra->d2225:algebra)))))
+      pub d951:"std.text.yumark.strong": ('a -> std::text::yumark::yumark_algebra 'b -> 'b) -> 'a -> std::text::yumark::yumark_algebra 'b -> 'b = e7999:(fn p1864:d2226:children -> e7998:(fn p1865:d2227:format -> e7997:(fn p1866:d2228:algebra -> e7996:(e7990:(e7989:r3298:algebra->d2228:algebra.s306.strong->d923) e7995:(e7993:(e7991:r3299:children->d2226:children e7992:r3300:format->d2227:format) e7994:r3301:algebra->d2228:algebra)))))
+      pub d952:"std.text.yumark.html_format_value": () -> std::text::yumark::html_format = e8004:(fn p1867:() -> e8003:(e8000:r3302:html_format->d925:"std.text.yumark.html_format" e8002:{marker: e8001:"html"}))
+      pub d953:"std.text.yumark.markdown_format_value": () -> std::text::yumark::markdown_format = e8009:(fn p1868:() -> e8008:(e8005:r3303:markdown_format->d928:"std.text.yumark.markdown_format" e8007:{marker: e8006:"markdown"}))
+      pub d954:"std.text.yumark.html_tag": std::text::yumark::html_node -> std::text::str::str = e8043:(fn p1869:d2229:node -> e8042:case e8017:(e8016:r3306:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e8015:(e8014:(e8012:r3305:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e8011:(e8010:r3304:node->d2229:node.s307.tag->d932)) e8013:"fragment")) { p1870:true -> e8019:(e8018:r3307:node->d2229:node.s308.body->d934); p1871:false -> e8041:(e8034:(e8032:(e8029:(e8020:r3308:cat4->d990:"std.text.yumark.cat4" e8028:(e8026:(e8023:(e8021:r3309:cat3->d989:"std.text.yumark.cat3" e8022:"<") e8025:(e8024:r3310:node->d2229:node.s309.tag->d932)) e8027:">")) e8031:(e8030:r3311:node->d2229:node.s310.body->d934)) e8033:"</") e8040:(e8038:(e8035:r3312:cat2->d988:"std.text.yumark.cat2" e8037:(e8036:r3313:node->d2229:node.s311.tag->d932)) e8039:">")) })
+      pub d955:"std.text.yumark.html_algebra": () -> std::text::yumark::yumark_algebra std::text::yumark::html_node = e8061:(fn p1872:() -> e8060:(e8044:r3314:yumark_algebra->d896:"std.text.yumark.yumark_algebra" e8059:{nil: e8045:r3315:html_nil->d960:"std.text.yumark.html_nil", cons: e8046:r3316:html_cons->d961:"std.text.yumark.html_cons", text: e8047:r3317:html_text->d962:"std.text.yumark.html_text", paragraph: e8048:r3318:html_paragraph->d963:"std.text.yumark.html_paragraph", heading: e8049:r3319:html_heading->d964:"std.text.yumark.html_heading", blank_line: e8050:r3320:html_blank_line->d965:"std.text.yumark.html_blank_line", section_close: e8051:r3321:html_section_close->d966:"std.text.yumark.html_section_close", list_block: e8052:r3322:html_list_block->d967:"std.text.yumark.html_list_block", list_item: e8053:r3323:html_list_item->d968:"std.text.yumark.html_list_item", list_item_body: e8054:r3324:html_list_item_body->d969:"std.text.yumark.html_list_item_body", code_fence: e8055:r3325:html_code_fence->d970:"std.text.yumark.html_code_fence", quote_block: e8056:r3326:html_quote_block->d971:"std.text.yumark.html_quote_block", emphasis: e8057:r3327:html_emphasis->d972:"std.text.yumark.html_emphasis", strong: e8058:r3328:html_strong->d973:"std.text.yumark.html_strong"}))
+      pub d956:"std.text.yumark.markdown_algebra": () -> std::text::yumark::yumark_algebra std::text::str::str = e8079:(fn p1873:() -> e8078:(e8062:r3329:yumark_algebra->d896:"std.text.yumark.yumark_algebra" e8077:{nil: e8063:r3330:markdown_nil->d974:"std.text.yumark.markdown_nil", cons: e8064:r3331:markdown_cons->d975:"std.text.yumark.markdown_cons", text: e8065:r3332:markdown_text->d976:"std.text.yumark.markdown_text", paragraph: e8066:r3333:markdown_paragraph->d977:"std.text.yumark.markdown_paragraph", heading: e8067:r3334:markdown_heading->d978:"std.text.yumark.markdown_heading", blank_line: e8068:r3335:markdown_blank_line->d979:"std.text.yumark.markdown_blank_line", section_close: e8069:r3336:markdown_section_close->d980:"std.text.yumark.markdown_section_close", list_block: e8070:r3337:markdown_list_block->d981:"std.text.yumark.markdown_list_block", list_item: e8071:r3338:markdown_list_item->d982:"std.text.yumark.markdown_list_item", list_item_body: e8072:r3339:markdown_list_item_body->d983:"std.text.yumark.markdown_list_item_body", code_fence: e8073:r3340:markdown_code_fence->d984:"std.text.yumark.markdown_code_fence", quote_block: e8074:r3341:markdown_quote_block->d985:"std.text.yumark.markdown_quote_block", emphasis: e8075:r3342:markdown_emphasis->d986:"std.text.yumark.markdown_emphasis", strong: e8076:r3343:markdown_strong->d987:"std.text.yumark.markdown_strong"}))
+      pub d957:"std.text.yumark.run_yumark": 'a -> ('a -> ['b] std::text::yumark::yumark_algebra 'c -> ['d] 'e) -> ['d, 'b] 'e where 'a: std::text::yumark::YumarkFormat(repr = 'c) = e8089:(fn p1874:d2230:format -> e8088:(fn p1875:d2231:document -> e8087:(e8082:(e8080:r3344:document->d2231:document e8081:r3345:format->d2230:format) e8086:(e8084:(e8083:r3346:format->d2230:format.s312.yumark_algebra=>d937:"std.text.yumark.YumarkFormat.yumark_algebra") e8085:()))))
+      pub d958:"std.text.yumark.render_html_doc": (std::text::yumark::html_format -> ['a] std::text::yumark::yumark_algebra std::text::yumark::html_node -> ['a] std::text::yumark::html_node) -> ['a] std::text::yumark::html_node = e8097:(fn p1876:d2232:document -> e8096:(e8094:(e8090:r3347:run_yumark->d957:"std.text.yumark.run_yumark" e8093:(e8091:r3348:html_format_value->d952:"std.text.yumark.html_format_value" e8092:())) e8095:r3349:document->d2232:document))
+      pub d959:"std.text.yumark.render_markdown_doc": (std::text::yumark::markdown_format -> ['a] std::text::yumark::yumark_algebra std::text::str::str -> ['a] std::text::str::str) -> ['a] std::text::str::str = e8105:(fn p1877:d2233:document -> e8104:(e8102:(e8098:r3350:run_yumark->d957:"std.text.yumark.run_yumark" e8101:(e8099:r3351:markdown_format_value->d953:"std.text.yumark.markdown_format_value" e8100:())) e8103:r3352:document->d2233:document))
+      my d960:"std.text.yumark.html_nil": () -> std::text::yumark::html_node = e8111:(fn p1878:() -> e8110:(e8106:r3353:html_node->d931:"std.text.yumark.html_node" e8109:{tag: e8107:"fragment", body: e8108:""}))
+      my d961:"std.text.yumark.html_cons": std::text::yumark::html_node -> std::text::yumark::html_node -> std::text::yumark::html_node = e8126:(fn p1879:d2234:head -> e8125:(fn p1880:d2235:tail -> e8124:(e8112:r3354:html_node->d931:"std.text.yumark.html_node" e8123:{tag: e8113:"fragment", body: e8122:(e8118:(e8114:r3355:cat2->d988:"std.text.yumark.cat2" e8117:(e8115:r3356:html_tag->d954:"std.text.yumark.html_tag" e8116:r3357:head->d2234:head)) e8121:(e8119:r3358:html_tag->d954:"std.text.yumark.html_tag" e8120:r3359:tail->d2235:tail))})))
+      my d962:"std.text.yumark.html_text": std::text::str::str -> std::text::yumark::html_node = e8132:(fn p1881:d2236:value -> e8131:(e8127:r3360:html_node->d931:"std.text.yumark.html_node" e8130:{tag: e8128:"span", body: e8129:r3361:value->d2236:value}))
+      my d963:"std.text.yumark.html_paragraph": std::text::yumark::html_node -> std::text::yumark::html_node = e8140:(fn p1882:d2237:children -> e8139:(e8133:r3362:html_node->d931:"std.text.yumark.html_node" e8138:{tag: e8134:"p", body: e8137:(e8135:r3363:html_tag->d954:"std.text.yumark.html_tag" e8136:r3364:children->d2237:children)}))
+      my d964:"std.text.yumark.html_heading": std::text::str::str -> int -> std::text::yumark::html_node -> std::text::yumark::html_node = e8156:(fn p1883:d2238:marker -> e8155:(fn p1884:d2239:level -> e8154:(fn p1885:d2240:children -> e8153:(e8141:r3365:html_node->d931:"std.text.yumark.html_node" e8152:{tag: e8148:(e8144:(e8142:r3366:cat2->d988:"std.text.yumark.cat2" e8143:"h") e8147:(e8145:r3367:"std::int::to_string"->d55:"std.int.to_string" e8146:r3368:level->d2239:level)), body: e8151:(e8149:r3369:html_tag->d954:"std.text.yumark.html_tag" e8150:r3370:children->d2240:children)}))))
+      my d965:"std.text.yumark.html_blank_line": std::text::str::str -> std::text::yumark::html_node = e8162:(fn p1886:d2241:marker -> e8161:(e8157:r3371:html_node->d931:"std.text.yumark.html_node" e8160:{tag: e8158:"br", body: e8159:r3372:marker->d2241:marker}))
+      my d966:"std.text.yumark.html_section_close": std::text::str::str -> std::text::yumark::html_node -> std::text::yumark::html_node = e8175:(fn p1887:d2242:marker -> e8174:(fn p1888:d2243:children -> e8173:(e8163:r3373:html_node->d931:"std.text.yumark.html_node" e8172:{tag: e8164:"section-close", body: e8171:(e8167:(e8165:r3374:cat2->d988:"std.text.yumark.cat2" e8166:r3375:marker->d2242:marker) e8170:(e8168:r3376:html_tag->d954:"std.text.yumark.html_tag" e8169:r3377:children->d2243:children))})))
+      my d967:"std.text.yumark.html_list_block": bool -> std::text::yumark::html_node -> std::text::yumark::html_node = e8189:(fn p1889:d2244:ordered -> e8188:(fn p1890:d2245:items -> e8187:(e8176:r3378:html_node->d931:"std.text.yumark.html_node" e8186:{tag: e8182:case e8179:(e8178:r3380:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e8177:r3379:ordered->d2244:ordered) { p1891:true -> e8180:"ol"; p1892:false -> e8181:"ul" }, body: e8185:(e8183:r3381:html_tag->d954:"std.text.yumark.html_tag" e8184:r3382:items->d2245:items)})))
+      my d968:"std.text.yumark.html_list_item": std::text::str::str -> std::text::yumark::html_node -> std::text::yumark::html_node = e8198:(fn p1893:d2246:marker -> e8197:(fn p1894:d2247:children -> e8196:(e8190:r3383:html_node->d931:"std.text.yumark.html_node" e8195:{tag: e8191:"li", body: e8194:(e8192:r3384:html_tag->d954:"std.text.yumark.html_tag" e8193:r3385:children->d2247:children)})))
+      my d969:"std.text.yumark.html_list_item_body": std::text::yumark::html_node -> std::text::yumark::html_node = e8206:(fn p1895:d2248:children -> e8205:(e8199:r3386:html_node->d931:"std.text.yumark.html_node" e8204:{tag: e8200:"item-body", body: e8203:(e8201:r3387:html_tag->d954:"std.text.yumark.html_tag" e8202:r3388:children->d2248:children)}))
+      my d970:"std.text.yumark.html_code_fence": std::text::str::str -> std::text::str::str -> std::text::yumark::html_node = e8233:(fn p1896:d2249:info -> e8232:(fn p1897:d2250:body -> e8231:block { let my p1898:d2251:info_node = e8211:(e8207:r3389:html_node->d931:"std.text.yumark.html_node" e8210:{tag: e8208:"code-info", body: e8209:r3390:info->d2249:info}); e8230:block { let my p1899:d2252:body_node = e8216:(e8212:r3391:html_node->d931:"std.text.yumark.html_node" e8215:{tag: e8213:"code", body: e8214:r3392:body->d2250:body}); e8229:(e8217:r3393:html_node->d931:"std.text.yumark.html_node" e8228:{tag: e8218:"pre", body: e8227:(e8223:(e8219:r3394:cat2->d988:"std.text.yumark.cat2" e8222:(e8220:r3395:html_tag->d954:"std.text.yumark.html_tag" e8221:r3396:info_node->d2251:info_node)) e8226:(e8224:r3397:html_tag->d954:"std.text.yumark.html_tag" e8225:r3398:body_node->d2252:body_node))}) } }))
+      my d971:"std.text.yumark.html_quote_block": std::text::yumark::html_node -> std::text::yumark::html_node = e8241:(fn p1900:d2253:children -> e8240:(e8234:r3399:html_node->d931:"std.text.yumark.html_node" e8239:{tag: e8235:"blockquote", body: e8238:(e8236:r3400:html_tag->d954:"std.text.yumark.html_tag" e8237:r3401:children->d2253:children)}))
+      my d972:"std.text.yumark.html_emphasis": std::text::yumark::html_node -> std::text::yumark::html_node = e8249:(fn p1901:d2254:children -> e8248:(e8242:r3402:html_node->d931:"std.text.yumark.html_node" e8247:{tag: e8243:"em", body: e8246:(e8244:r3403:html_tag->d954:"std.text.yumark.html_tag" e8245:r3404:children->d2254:children)}))
+      my d973:"std.text.yumark.html_strong": std::text::yumark::html_node -> std::text::yumark::html_node = e8257:(fn p1902:d2255:children -> e8256:(e8250:r3405:html_node->d931:"std.text.yumark.html_node" e8255:{tag: e8251:"strong", body: e8254:(e8252:r3406:html_tag->d954:"std.text.yumark.html_tag" e8253:r3407:children->d2255:children)}))
+      my d974:"std.text.yumark.markdown_nil": () -> std::text::str::str = e8259:(fn p1903:() -> e8258:"")
+      my d975:"std.text.yumark.markdown_cons": std::text::str::str -> std::text::str::str -> std::text::str::str = e8266:(fn p1904:d2256:head -> e8265:(fn p1905:d2257:tail -> e8264:(e8262:(e8260:r3408:cat2->d988:"std.text.yumark.cat2" e8261:r3409:head->d2256:head) e8263:r3410:tail->d2257:tail)))
+      my d976:"std.text.yumark.markdown_text": std::text::str::str -> std::text::str::str = e8268:(fn p1906:d2258:value -> e8267:r3411:value->d2258:value)
+      my d977:"std.text.yumark.markdown_paragraph": std::text::str::str -> std::text::str::str = e8274:(fn p1907:d2259:children -> e8273:(e8271:(e8269:r3412:cat2->d988:"std.text.yumark.cat2" e8270:r3413:children->d2259:children) e8272:"\n\n"))
+      my d978:"std.text.yumark.markdown_heading": std::text::str::str -> int -> std::text::str::str -> std::text::str::str = e8284:(fn p1908:d2260:marker -> e8283:(fn p1909:d2261:level -> e8282:(fn p1910:d2262:children -> e8281:(e8279:(e8277:(e8275:r3414:cat3->d989:"std.text.yumark.cat3" e8276:r3415:marker->d2260:marker) e8278:r3416:children->d2262:children) e8280:"\n\n"))))
+      my d979:"std.text.yumark.markdown_blank_line": std::text::str::str -> std::text::str::str = e8286:(fn p1911:d2263:marker -> e8285:r3417:marker->d2263:marker)
+      my d980:"std.text.yumark.markdown_section_close": std::text::str::str -> std::text::str::str -> std::text::str::str = e8295:(fn p1912:d2264:marker -> e8294:(fn p1913:d2265:children -> e8293:(e8291:(e8289:(e8287:r3418:cat3->d989:"std.text.yumark.cat3" e8288:r3419:marker->d2264:marker) e8290:r3420:children->d2265:children) e8292:"\n")))
+      my d981:"std.text.yumark.markdown_list_block": bool -> std::text::str::str -> std::text::str::str = e8302:(fn p1914:d2266:ordered -> e8301:(fn p1915:d2267:items -> e8300:(e8298:(e8296:r3421:cat2->d988:"std.text.yumark.cat2" e8297:r3422:items->d2267:items) e8299:"\n")))
+      my d982:"std.text.yumark.markdown_list_item": std::text::str::str -> std::text::str::str -> std::text::str::str = e8311:(fn p1916:d2268:marker -> e8310:(fn p1917:d2269:children -> e8309:(e8307:(e8305:(e8303:r3423:cat3->d989:"std.text.yumark.cat3" e8304:r3424:marker->d2268:marker) e8306:r3425:children->d2269:children) e8308:"\n")))
+      my d983:"std.text.yumark.markdown_list_item_body": std::text::str::str -> std::text::str::str = e8313:(fn p1918:d2270:children -> e8312:r3426:children->d2270:children)
+      my d984:"std.text.yumark.markdown_code_fence": std::text::str::str -> std::text::str::str -> std::text::str::str = e8328:(fn p1919:d2271:info -> e8327:(fn p1920:d2272:body -> e8326:(e8324:(e8314:r3427:cat2->d988:"std.text.yumark.cat2" e8323:(e8321:(e8319:(e8317:(e8315:r3428:cat4->d990:"std.text.yumark.cat4" e8316:"```") e8318:r3429:info->d2271:info) e8320:"\n") e8322:r3430:body->d2272:body)) e8325:"\n```\n\n")))
+      my d985:"std.text.yumark.markdown_quote_block": std::text::str::str -> std::text::str::str = e8336:(fn p1921:d2273:children -> e8335:(e8333:(e8331:(e8329:r3431:cat3->d989:"std.text.yumark.cat3" e8330:"> ") e8332:r3432:children->d2273:children) e8334:"\n"))
+      my d986:"std.text.yumark.markdown_emphasis": std::text::str::str -> std::text::str::str = e8344:(fn p1922:d2274:children -> e8343:(e8341:(e8339:(e8337:r3433:cat3->d989:"std.text.yumark.cat3" e8338:"*") e8340:r3434:children->d2274:children) e8342:"*"))
+      my d987:"std.text.yumark.markdown_strong": std::text::str::str -> std::text::str::str = e8352:(fn p1923:d2275:children -> e8351:(e8349:(e8347:(e8345:r3435:cat3->d989:"std.text.yumark.cat3" e8346:"**") e8348:r3436:children->d2275:children) e8350:"**"))
+      my d988:"std.text.yumark.cat2": std::text::str::str -> std::text::str::str -> std::text::str::str = e8359:(fn p1924:d2276:left -> e8358:(fn p1925:d2277:right -> e8357:(e8355:(e8353:r3437:"std::text::str::concat"->d785:"std.text.str.concat" e8354:r3438:left->d2276:left) e8356:r3439:right->d2277:right)))
+      my d989:"std.text.yumark.cat3": std::text::str::str -> std::text::str::str -> std::text::str::str -> std::text::str::str = e8371:(fn p1926:d2278:a -> e8370:(fn p1927:d2279:b -> e8369:(fn p1928:d2280:c -> e8368:(e8366:(e8360:r3440:cat2->d988:"std.text.yumark.cat2" e8365:(e8363:(e8361:r3441:cat2->d988:"std.text.yumark.cat2" e8362:r3442:a->d2278:a) e8364:r3443:b->d2279:b)) e8367:r3444:c->d2280:c))))
+      my d990:"std.text.yumark.cat4": std::text::str::str -> std::text::str::str -> std::text::str::str -> std::text::str::str -> std::text::str::str = e8386:(fn p1929:d2281:a -> e8385:(fn p1930:d2282:b -> e8384:(fn p1931:d2283:c -> e8383:(fn p1932:d2284:d -> e8382:(e8380:(e8372:r3445:cat2->d988:"std.text.yumark.cat2" e8379:(e8377:(e8375:(e8373:r3446:cat3->d989:"std.text.yumark.cat3" e8374:r3447:a->d2281:a) e8376:r3448:b->d2282:b) e8378:r3449:c->d2283:c)) e8381:r3450:d->d2284:d)))))
+      my d991 mod {
+        d992: std::text::yumark::html_format -> () -> std::text::yumark::yumark_algebra std::text::yumark::html_node = e8391:(fn p1933:d2285:format -> e8390:(fn p1934:_ -> e8389:(e8387:r3451:html_algebra->d955:"std.text.yumark.html_algebra" e8388:())))
+      }
+      my d993 mod {
+        d994: std::text::yumark::markdown_format -> () -> std::text::yumark::yumark_algebra std::text::str::str = e8396:(fn p1935:d2286:format -> e8395:(fn p1936:_ -> e8394:(e8392:r3452:markdown_algebra->d956:"std.text.yumark.markdown_algebra" e8393:())))
+      }
+    }
+  }
+  pub d9:"std.control" mod {
+    pub d17:"std.control.flow" mod {
+      pub d172:"std.control.flow.sub" mod {
+        pub d174:"std.control.flow.sub.sub": 'a [std::control::flow::sub('b & 'a); 'c] -> ['c] 'a | 'b = e932:(fn p145:d1132:x -> e931:catch e928:r346:x->d1132:x { std::control::flow::sub::return p146:d1133:a, p147:_ -> e929:r347:a->d1133:a; p148:d1134:a -> e930:r348:a->d1134:a })
+      }
+      pub d175:"std.control.flow.label_sub" mod {
+        pub d177:"std.control.flow.label_sub.label": {marker: ()} -> std::control::flow::label_sub::label = <missing>
+        d180:"std.control.flow.label_sub.control_label": std::control::flow::label_sub::label = e936:(e933:r349:label->d177:"std.control.flow.label_sub.label" e935:{marker: e934:()})
+        pub d181:"std.control.flow.label_sub.sub": 'a [std::control::flow::label_sub('b & 'a & 'c), std::control::flow::sub('c & 'a & 'b); 'd] -> ['d] 'a | 'b | 'c = e942:(fn p149:d1135:x -> e941:catch e937:r350:x->d1135:x { std::control::flow::label_sub::return p150:d1136:a, p151:_ -> e938:r351:a->d1136:a; std::control::flow::sub::return p152:d1137:a, p153:_ -> e939:r352:a->d1137:a; p154:d1138:a -> e940:r353:a->d1138:a })
+      }
+      pub d182:"std.control.flow.loop" mod {
+        my d186:"std.control.flow.loop.last" mod {
+          d188:"std.control.flow.loop.last.judge": any [std::control::flow::loop::last; 'a] -> ['a] bool = e947:(fn p155:d1139:x -> e946:catch e943:r354:x->d1139:x { std::control::flow::loop::last::break p156:_, p157:_ -> e944:true; p158:_ -> e945:false })
+          d189:"std.control.flow.loop.last.sub": any [std::control::flow::loop::last; 'a] -> ['a] () = e952:(fn p159:d1140:x -> e951:catch e948:r355:x->d1140:x { std::control::flow::loop::last::break p160:_, p161:_ -> e949:(); p162:_ -> e950:() })
+        }
+        pub d190:"std.control.flow.loop.for_in": 'a -> ('b -> [std::control::flow::loop; 'c] any) -> ['c] () where 'a: std::data::fold::Fold(item = 'b) = e1025:(fn p179:d1145:xs -> e1024:(fn p180:d1146:f -> e1023:(e973:r360:"last::sub"->d189:"std.control.flow.loop.last.sub" e1022:(e977:(e975:(e974:r361:xs->d1145:xs.s36.fold=>d450:"std.data.fold.Fold.fold") e976:()) e1021:(fn p181:() -> e1020:(fn p182:d1147:x -> e1019:(e978:r362:"next::sub"->d998:"std.control.flow.loop.next.sub" e1018:block { e1014:block { let my p183:d1148:loop = e1012:(fn p184:d1149:b -> e1011:case e981:(e980:r364:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e979:r363:b->d1149:b) { p197:true -> e1009:block { e1007:(e982:r365:loop->d1148:loop e1006:(e983:r366:"redo::judge"->d1005:"std.control.flow.loop.redo.judge" e1005:catch e986:(e984:r367:f->d1146:f e985:r368:x->d1147:x) { std::control::flow::loop::last p185:_, p186:_ -> e989:(e987:r369:"last::break"->d187:"std.control.flow.loop.last.break" e988:()); std::control::flow::loop::next p187:_, p188:_ -> e992:(e990:r370:"next::break"->d996:"std.control.flow.loop.next.break" e991:()); std::control::flow::loop::redo p189:_, p190:_ -> e995:(e993:r371:"redo::break"->d1004:"std.control.flow.loop.redo.break" e994:()); std::control::flow::loop::last p191:_, p192:_ -> e998:(e996:r372:"last::break"->d187:"std.control.flow.loop.last.break" e997:()); std::control::flow::loop::next p193:_, p194:_ -> e1001:(e999:r373:"next::break"->d996:"std.control.flow.loop.next.break" e1000:()); std::control::flow::loop::redo p195:_, p196:_ -> e1004:(e1002:r374:"redo::break"->d1004:"std.control.flow.loop.redo.break" e1003:()) })); e1008:() }; p198:false -> e1010:() }); e1013:() }; e1017:(e1015:r375:loop->d1148:loop e1016:true) })))))))
+        my d995:"std.control.flow.loop.next" mod {
+          d997:"std.control.flow.loop.next.judge": any [std::control::flow::loop::next; 'a] -> ['a] bool = e957:(fn p163:d1141:x -> e956:catch e953:r356:x->d1141:x { std::control::flow::loop::next::break p164:_, p165:_ -> e954:true; p166:_ -> e955:false })
+          d998:"std.control.flow.loop.next.sub": any [std::control::flow::loop::next; 'a] -> ['a] () = e962:(fn p167:d1142:x -> e961:catch e958:r357:x->d1142:x { std::control::flow::loop::next::break p168:_, p169:_ -> e959:(); p170:_ -> e960:() })
+        }
+        my d1003:"std.control.flow.loop.redo" mod {
+          d1005:"std.control.flow.loop.redo.judge": any [std::control::flow::loop::redo; 'a] -> ['a] bool = e967:(fn p171:d1143:x -> e966:catch e963:r358:x->d1143:x { std::control::flow::loop::redo::break p172:_, p173:_ -> e964:true; p174:_ -> e965:false })
+          d1006:"std.control.flow.loop.redo.sub": any [std::control::flow::loop::redo; 'a] -> ['a] () = e972:(fn p175:d1144:x -> e971:catch e968:r359:x->d1144:x { std::control::flow::loop::redo::break p176:_, p177:_ -> e969:(); p178:_ -> e970:() })
+        }
+      }
+      pub d191:"std.control.flow.LoopLabel" mod {
+        pub d192:"std.control.flow.LoopLabel.last": 'a -> () -> never where 'a: std::control::flow::LoopLabel = <missing>
+        pub d193:"std.control.flow.LoopLabel.next": 'a -> () -> never where 'a: std::control::flow::LoopLabel = <missing>
+        pub d194:"std.control.flow.LoopLabel.redo": 'a -> () -> never where 'a: std::control::flow::LoopLabel = <missing>
+      }
+      pub d195:"std.control.flow.label_loop" mod {
+        pub d199:"std.control.flow.label_loop.label": {last: () -> [std::control::flow::label_loop] never, next: () -> [std::control::flow::label_loop] never, redo: () -> [std::control::flow::label_loop] never} -> std::control::flow::label_loop::label = <missing>
+        my d206:"std.control.flow.label_loop.last" mod {
+          d208:"std.control.flow.label_loop.last.judge": any [std::control::flow::label_loop::last; 'a] -> ['a] bool = e1030:(fn p199:d1150:x -> e1029:catch e1026:r376:x->d1150:x { std::control::flow::label_loop::last::break p200:_, p201:_ -> e1027:true; p202:_ -> e1028:false })
+          d209:"std.control.flow.label_loop.last.sub": any [std::control::flow::label_loop::last; 'a] -> ['a] () = e1035:(fn p203:d1151:x -> e1034:catch e1031:r377:x->d1151:x { std::control::flow::label_loop::last::break p204:_, p205:_ -> e1032:(); p206:_ -> e1033:() })
+        }
+        my d210:"std.control.flow.label_loop.control_label": std::control::flow::label_loop::label = e1061:(e1056:r382:"label_loop::label"->d199:"std.control.flow.label_loop.label" e1060:{last: e1057:r383:"label_loop::last"->d196:"std.control.flow.label_loop.last", next: e1058:r384:"label_loop::next"->d197:"std.control.flow.label_loop.next", redo: e1059:r385:"label_loop::redo"->d198:"std.control.flow.label_loop.redo"})
+        pub d211:"std.control.flow.label_loop.for_in": 'a -> (std::control::flow::label_loop::label -> 'b -> [std::control::flow::label_loop, std::control::flow::loop; 'c] any) -> ['c] () where 'a: std::data::fold::Fold(item = 'b) = e1116:(fn p223:d1156:xs -> e1115:(fn p224:d1157:f -> e1114:(e1062:r386:"last::sub"->d209:"std.control.flow.label_loop.last.sub" e1113:(e1066:(e1064:(e1063:r387:xs->d1156:xs.s37.fold=>d450:"std.data.fold.Fold.fold") e1065:()) e1112:(fn p225:() -> e1111:(fn p226:d1158:x -> e1110:(e1067:r388:"next::sub"->d1010:"std.control.flow.label_loop.next.sub" e1109:block { e1105:block { let my p227:d1159:loop = e1103:(fn p228:d1160:b -> e1102:case e1070:(e1069:r390:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1068:r389:b->d1160:b) { p241:true -> e1100:block { e1098:(e1071:r391:loop->d1159:loop e1097:(e1072:r392:"redo::judge"->d1001:"std.control.flow.label_loop.redo.judge" e1096:catch e1077:(e1075:(e1073:r393:f->d1157:f e1074:r394:control_label->d210:"std.control.flow.label_loop.control_label") e1076:r395:x->d1158:x) { std::control::flow::label_loop::last p229:_, p230:_ -> e1080:(e1078:r396:"last::break"->d207:"std.control.flow.label_loop.last.break" e1079:()); std::control::flow::label_loop::next p231:_, p232:_ -> e1083:(e1081:r397:"next::break"->d1008:"std.control.flow.label_loop.next.break" e1082:()); std::control::flow::label_loop::redo p233:_, p234:_ -> e1086:(e1084:r398:"redo::break"->d1000:"std.control.flow.label_loop.redo.break" e1085:()); std::control::flow::loop::last p235:_, p236:_ -> e1089:(e1087:r399:"last::break"->d207:"std.control.flow.label_loop.last.break" e1088:()); std::control::flow::loop::next p237:_, p238:_ -> e1092:(e1090:r400:"next::break"->d1008:"std.control.flow.label_loop.next.break" e1091:()); std::control::flow::loop::redo p239:_, p240:_ -> e1095:(e1093:r401:"redo::break"->d1000:"std.control.flow.label_loop.redo.break" e1094:()) })); e1099:() }; p242:false -> e1101:() }); e1104:() }; e1108:(e1106:r402:loop->d1159:loop e1107:true) })))))))
+        my d999:"std.control.flow.label_loop.redo" mod {
+          d1001:"std.control.flow.label_loop.redo.judge": any [std::control::flow::label_loop::redo; 'a] -> ['a] bool = e1050:(fn p215:d1154:x -> e1049:catch e1046:r380:x->d1154:x { std::control::flow::label_loop::redo::break p216:_, p217:_ -> e1047:true; p218:_ -> e1048:false })
+          d1002:"std.control.flow.label_loop.redo.sub": any [std::control::flow::label_loop::redo; 'a] -> ['a] () = e1055:(fn p219:d1155:x -> e1054:catch e1051:r381:x->d1155:x { std::control::flow::label_loop::redo::break p220:_, p221:_ -> e1052:(); p222:_ -> e1053:() })
+        }
+        my d1007:"std.control.flow.label_loop.next" mod {
+          d1009:"std.control.flow.label_loop.next.judge": any [std::control::flow::label_loop::next; 'a] -> ['a] bool = e1040:(fn p207:d1152:x -> e1039:catch e1036:r378:x->d1152:x { std::control::flow::label_loop::next::break p208:_, p209:_ -> e1037:true; p210:_ -> e1038:false })
+          d1010:"std.control.flow.label_loop.next.sub": any [std::control::flow::label_loop::next; 'a] -> ['a] () = e1045:(fn p211:d1153:x -> e1044:catch e1041:r379:x->d1153:x { std::control::flow::label_loop::next::break p212:_, p213:_ -> e1042:(); p214:_ -> e1043:() })
+        }
+      }
+    }
+    pub d18:"std.control.junction" mod {
+      pub d212:"std.control.junction.junction" mod {
+        pub d216:"std.control.junction.junction.any": 'a -> [std::control::junction::junction] 'b where 'a: std::data::fold::Fold(item = 'b) = e1138:(fn p243:d1161:xs -> e1137:(e1117:r403:"sub::sub"->d174:"std.control.flow.sub.sub" e1136:block { e1132:(e1121:(e1119:(e1118:r404:xs->d1161:xs.s38.fold=>d450:"std.data.fold.Fold.fold") e1120:()) e1131:(fn p244:() -> e1130:(fn p245:d1162:x -> e1129:case e1124:(e1122:r405:or->d213:"std.control.junction.junction.or" e1123:()) { p246:true -> e1127:(e1125:r406:"sub::return"->d173:"std.control.flow.sub.return" e1126:r407:x->d1162:x); p247:false -> e1128:() }))); e1135:(e1133:r408:ret->d215:"std.control.junction.junction.ret" e1134:false) }))
+        pub d217:"std.control.junction.junction.all": 'a -> [std::control::junction::junction] 'b where 'a: std::data::fold::Fold(item = 'b) = e1160:(fn p248:d1163:xs -> e1159:(e1139:r409:"sub::sub"->d174:"std.control.flow.sub.sub" e1158:block { e1154:(e1143:(e1141:(e1140:r410:xs->d1163:xs.s39.fold=>d450:"std.data.fold.Fold.fold") e1142:()) e1153:(fn p249:() -> e1152:(fn p250:d1164:x -> e1151:case e1146:(e1144:r411:and->d214:"std.control.junction.junction.and" e1145:()) { p251:true -> e1149:(e1147:r412:"sub::return"->d173:"std.control.flow.sub.return" e1148:r413:x->d1164:x); p252:false -> e1150:() }))); e1157:(e1155:r414:ret->d215:"std.control.junction.junction.ret" e1156:true) }))
+        pub d218:"std.control.junction.junction.junction": bool [std::control::junction::junction; 'a] -> ['a] bool = e1188:(fn p253:d1165:x -> e1187:catch e1161:r415:x->d1165:x { std::control::junction::junction::or p254:_, p255:d1166:k -> e1173:case e1166:(e1162:r416:junction->d218:"std.control.junction.junction.junction" e1165:(e1163:r417:k->d1166:k e1164:true)) { p256:true -> e1167:true; p257:_ -> e1172:(e1168:r418:junction->d218:"std.control.junction.junction.junction" e1171:(e1169:r419:k->d1166:k e1170:false)) }; std::control::junction::junction::and p258:_, p259:d1167:k -> e1185:case e1178:(e1174:r420:junction->d218:"std.control.junction.junction.junction" e1177:(e1175:r421:k->d1167:k e1176:true)) { p260:true -> e1183:(e1179:r422:junction->d218:"std.control.junction.junction.junction" e1182:(e1180:r423:k->d1167:k e1181:false)); p261:_ -> e1184:false }; std::control::junction::junction::ret p262:d1168:b, p263:_ -> e1186:r424:b->d1168:b })
+      }
+      pub d219:"std.control.junction.any": 'a -> [std::control::junction::junction] 'b where 'a: std::data::fold::Fold(item = 'b) = e1192:(fn p264:d1169:xs -> e1191:(e1189:r425:"junction::any"->d216:"std.control.junction.junction.any" e1190:r426:xs->d1169:xs))
+      pub d220:"std.control.junction.all": 'a -> [std::control::junction::junction] 'b where 'a: std::data::fold::Fold(item = 'b) = e1196:(fn p265:d1170:xs -> e1195:(e1193:r427:"junction::all"->d217:"std.control.junction.junction.all" e1194:r428:xs->d1170:xs))
+    }
+    pub d19:"std.control.throw" mod {
+      pub d232:"std.control.throw.Throw" mod {
+        pub d233:"std.control.throw.Throw.throw": 'a -> ['b] never where 'a: std::control::throw::Throw(throws = 'b) = <missing>
+      }
+    }
+    pub d20:"std.control.nondet" mod {
+      pub d221:"std.control.nondet.nondet" mod {
+        pub d224:"std.control.nondet.nondet.guard": bool -> [std::control::nondet::nondet] () = e1205:(fn p266:d1171:b -> e1204:case e1199:(e1198:r430:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1197:r429:b->d1171:b) { p267:true -> e1200:(); p268:false -> e1203:(e1201:r431:reject->d223:"std.control.nondet.nondet.reject" e1202:()) })
+        pub d225:"std.control.nondet.nondet.each": 'a -> [std::control::nondet::nondet] 'b where 'a: std::data::fold::Fold(item = 'b) = e1229:(fn p269:d1172:xs -> e1228:(e1206:r432:"sub::sub"->d174:"std.control.flow.sub.sub" e1227:block { e1223:(e1210:(e1208:(e1207:r433:xs->d1172:xs.s40.fold=>d450:"std.data.fold.Fold.fold") e1209:()) e1222:(fn p270:() -> e1221:(fn p271:d1173:x -> e1220:case e1215:(e1214:r435:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1213:(e1211:r434:branch->d222:"std.control.nondet.nondet.branch" e1212:())) { p272:true -> e1218:(e1216:r436:"sub::return"->d173:"std.control.flow.sub.return" e1217:r437:x->d1173:x); p273:false -> e1219:() }))); e1226:(e1224:r438:reject->d223:"std.control.nondet.nondet.reject" e1225:()) }))
+        pub d226:"std.control.nondet.nondet.#act-method:list:226": 'a [std::control::nondet::nondet; 'b] -> ['b] std::data::list::list 'a = e1249:(fn p274:d1174:x -> e1248:catch e1230:r439:x->d1174:x { std::control::nondet::nondet::branch p275:_, p276:d1175:k -> e1241:(e1236:(e1231:r440:"std::data::list::merge"->d479:"std.data.list.merge" e1235:(e1234:(e1232:r441:k->d1175:k e1233:true).s41.list->d226:"std.control.nondet.nondet.#act-method:list:226")) e1240:(e1239:(e1237:r442:k->d1175:k e1238:false).s42.list->d226:"std.control.nondet.nondet.#act-method:list:226")); std::control::nondet::nondet::reject p277:_, p278:_ -> e1244:(e1242:builtin_op::list_empty e1243:()); p279:d1176:v -> e1247:(e1246:builtin_op::list_singleton e1245:r443:v->d1176:v) })
+        pub d227:"std.control.nondet.nondet.logic": any [std::control::nondet::nondet; 'a] -> ['a] std::data::list::list 'b = e1324:(fn p280:d1177:x -> e1323:block { e1311:block { let my p281:d1178:loop = e1309:(fn p282:d1179:x -> e1308:(fn p283:d1180:queue -> e1307:(fn p284:d1181:res -> e1306:catch e1250:r444:x->d1179:x { std::control::nondet::nondet::branch p285:_, p286:d1182:k -> e1265:(e1263:(e1255:(e1251:r445:loop->d1178:loop e1254:(e1252:r446:k->d1182:k e1253:true)) e1262:(e1258:(e1256:r447:"std::data::list::append"->d498:"std.data.list.append" e1257:r448:queue->d1180:queue) e1261:(e1260:builtin_op::list_singleton e1259:r449:k->d1182:k))) e1264:r450:res->d1181:res); std::control::nondet::nondet::reject p287:_, p288:_ -> e1279:case e1268:(e1266:r451:"std::data::list::uncons"->d493:"std.data.list.uncons" e1267:r452:queue->d1180:queue) { p289:r453:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil" -> e1269:r454:res->d1181:res; p293:r455:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just"(p292:(p290:d1183:k, p291:d1184:queue)) -> e1278:(e1276:(e1274:(e1270:r456:loop->d1178:loop e1273:(e1271:r457:k->d1183:k e1272:false)) e1275:r458:queue->d1184:queue) e1277:r459:res->d1181:res) }; p294:d1185:v -> e1305:case e1282:(e1280:r460:"std::data::list::uncons"->d493:"std.data.list.uncons" e1281:r461:queue->d1180:queue) { p295:r462:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil" -> e1289:(e1285:(e1283:r463:"std::data::list::append"->d498:"std.data.list.append" e1284:r464:res->d1181:res) e1288:(e1287:builtin_op::list_singleton e1286:r465:v->d1185:v)); p299:r466:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just"(p298:(p296:d1186:k, p297:d1187:queue)) -> e1304:(e1296:(e1294:(e1290:r467:loop->d1178:loop e1293:(e1291:r468:k->d1186:k e1292:false)) e1295:r469:queue->d1187:queue) e1303:(e1299:(e1297:r470:"std::data::list::append"->d498:"std.data.list.append" e1298:r471:res->d1181:res) e1302:(e1301:builtin_op::list_singleton e1300:r472:v->d1185:v))) } }))); e1310:() }; e1322:(e1318:(e1314:(e1312:r473:loop->d1178:loop e1313:r474:x->d1177:x) e1317:(e1315:builtin_op::list_empty e1316:())) e1321:(e1319:builtin_op::list_empty e1320:())) })
+        pub d228:"std.control.nondet.nondet.once": 'a [std::control::nondet::nondet; 'b] -> ['b] std::data::opt::opt 'a = e1367:(fn p300:d1188:x -> e1366:block { e1358:block { let my p301:d1189:loop = e1356:(fn p302:d1190:x -> e1355:(fn p303:d1191:queue -> e1354:catch e1325:r475:x->d1190:x { std::control::nondet::nondet::branch p304:_, p305:d1192:k -> e1338:(e1330:(e1326:r476:loop->d1189:loop e1329:(e1327:r477:k->d1192:k e1328:true)) e1337:(e1333:(e1331:r478:"std::data::list::append"->d498:"std.data.list.append" e1332:r479:queue->d1191:queue) e1336:(e1335:builtin_op::list_singleton e1334:r480:k->d1192:k))); std::control::nondet::nondet::reject p306:_, p307:_ -> e1350:case e1341:(e1339:r481:"std::data::list::uncons"->d493:"std.data.list.uncons" e1340:r482:queue->d1191:queue) { p308:r483:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil" -> e1342:r484:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil"; p312:r485:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just"(p311:(p309:d1193:k, p310:d1194:queue)) -> e1349:(e1347:(e1343:r486:loop->d1189:loop e1346:(e1344:r487:k->d1193:k e1345:false)) e1348:r488:queue->d1194:queue) }; p313:d1195:v -> e1353:(e1351:r489:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just" e1352:r490:v->d1195:v) })); e1357:() }; e1365:(e1361:(e1359:r491:loop->d1189:loop e1360:r492:x->d1188:x) e1364:(e1362:builtin_op::list_empty e1363:())) })
+        pub d229:"std.control.nondet.nondet.#act-method:logic:229": any [std::control::nondet::nondet; 'a] -> ['a] std::data::list::list 'b = e1371:(fn p314:d1196:x -> e1370:(e1368:r493:logic->d227:"std.control.nondet.nondet.logic" e1369:r494:x->d1196:x))
+        pub d230:"std.control.nondet.nondet.#act-method:once:230": 'a [std::control::nondet::nondet; 'b] -> ['b] std::data::opt::opt 'a = e1375:(fn p315:d1197:x -> e1374:(e1372:r495:once->d228:"std.control.nondet.nondet.once" e1373:r496:x->d1197:x))
+        pub d231:"std.control.nondet.nondet.#act-method:guard:231": 'a ['b] -> ('a ['b] -> ['c] bool) -> [std::control::nondet::nondet, 'b, 'c] 'a = e1384:(fn p316:d1198:x -> e1383:(fn p317:d1199:f -> e1382:block { e1380:(e1376:r497:guard->d224:"std.control.nondet.nondet.guard" e1379:(e1377:r498:f->d1199:f e1378:r499:x->d1198:x)); e1381:r500:x->d1198:x }))
+      }
+    }
+    pub d21:"std.control.var" mod {
+      pub d234:"std.control.var.ref_update" mod {
+      }
+      pub d236:"std.control.var.ref": {get: () -> ['a] 'b, update_effect: () -> [std::control::var::ref_update 'b; 'c] ()} -> std::control::var::ref('a | 'c, 'b) = <missing>
+      pub d241:"std.control.var.ref" mod {
+        pub d242:"std.control.var.ref.update": std::control::var::ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] () = e1403:(fn p318:d1200:r -> e1402:(fn p319:d1201:f -> e1401:block { let my p320:d1202:loop = e1394:(fn p321:d1203:x -> e1393:catch e1385:r501:x->d1203:x { std::control::var::ref_update::update p322:d1204:v, p323:d1205:k -> e1392:(e1386:r502:loop->d1202:loop e1391:(e1387:r503:k->d1205:k e1390:(e1388:r504:f->d1201:f e1389:r505:v->d1204:v))) }); e1400:(e1395:r506:loop->d1202:loop e1399:(e1397:(e1396:r507:r->d1200:r.s43.update_effect->d239) e1398:())) }))
+      }
+      pub d243:"std.control.var.var" mod {
+        my d246:"std.control.var.var.var_ref": () -> std::control::var::ref '[std::control::var::var 'a] 'a = e1419:(fn p324:() -> e1418:(e1404:r508:ref->d236:"std.control.var.ref" e1417:{get: e1408:(fn p325:() -> e1407:(e1405:r509:get->d244:"std.control.var.var.get" e1406:())), update_effect: e1416:(fn p326:() -> e1415:(e1409:r510:set->d245:"std.control.var.var.set" e1414:(e1410:r511:"ref_update::update"->d235:"std.control.var.ref_update.update" e1413:(e1411:r512:get->d244:"std.control.var.var.get" e1412:()))))}))
+        my d247:"std.control.var.var.run": 'a -> 'b [std::control::var::var 'a; 'c] -> ['c] 'b = e1437:(fn p327:d1206:v -> e1436:(fn p328:d1207:x -> e1435:catch e1420:r513:x->d1207:x { std::control::var::var::get p329:_, p330:d1208:k -> e1427:(e1423:(e1421:r514:run->d247:"std.control.var.var.run" e1422:r515:v->d1206:v) e1426:(e1424:r516:k->d1208:k e1425:r517:v->d1206:v)); std::control::var::var::set p331:d1209:v, p332:d1210:k -> e1434:(e1430:(e1428:r518:run->d247:"std.control.var.var.run" e1429:r519:v->d1209:v) e1433:(e1431:r520:k->d1210:k e1432:())) }))
+      }
+    }
+  }
+  pub d10:"std.io" mod {
+    pub d58:"std.io.console" mod {
+      pub d538:"std.io.console.out" mod {
+      }
+      pub d540:"std.io.console.print": std::text::str::str -> [std::io::console::out] () = e3323:(fn p822:d1551:value -> e3322:(e3320:r1337:"out::write"->d539:"std.io.console.out.write" e3321:r1338:value->d1551:value))
+      pub d541:"std.io.console.say": 'a -> [std::io::console::out] () where 'a: std::core::fmt::Display = e3332:(fn p823:d1552:value -> e3331:(e3324:r1339:"out::write"->d539:"std.io.console.out.write" e3330:(e3329:(e3327:r1341:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3326:(e3325:r1340:value->d1552:value.s126.show=>d320:"std.core.fmt.Display.show")) e3328:"\n")))
+      pub d542:"std.io.console.println": std::text::str::str -> [std::io::console::out] () = e3340:(fn p824:d1553:value -> e3339:(e3333:r1342:"out::write"->d539:"std.io.console.out.write" e3338:(e3337:(e3335:r1344:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3334:r1343:value->d1553:value) e3336:"\n")))
+      pub d543:"std.io.console.err" mod {
+      }
+      pub d545:"std.io.console.note": 'a -> [std::io::console::err] () where 'a: std::core::fmt::Display = e3349:(fn p825:d1554:value -> e3348:(e3341:r1345:"err::write"->d544:"std.io.console.err.write" e3347:(e3346:(e3344:r1347:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3343:(e3342:r1346:value->d1554:value.s127.show=>d320:"std.core.fmt.Display.show")) e3345:"\n")))
+      pub d546:"std.io.console.eprint": std::text::str::str -> [std::io::console::err] () = e3353:(fn p826:d1555:value -> e3352:(e3350:r1348:"err::write"->d544:"std.io.console.err.write" e3351:r1349:value->d1555:value))
+      pub d547:"std.io.console.eprintln": std::text::str::str -> [std::io::console::err] () = e3361:(fn p827:d1556:value -> e3360:(e3354:r1350:"err::write"->d544:"std.io.console.err.write" e3359:(e3358:(e3356:r1352:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3355:r1351:value->d1556:value) e3357:"\n")))
+      pub d548:"std.io.console.dd": 'a -> [std::io::console::err] () where 'a: std::core::fmt::Debug = e3370:(fn p828:d1557:value -> e3369:(e3362:r1353:"err::write"->d544:"std.io.console.err.write" e3368:(e3367:(e3365:r1355:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3364:(e3363:r1354:value->d1557:value.s128.debug=>d324:"std.core.fmt.Debug.debug")) e3366:"\n")))
+      pub d549:"std.io.console.warn" mod {
+      }
+      pub d551:"std.io.console.die" mod {
+      }
+    }
+    pub d59:"std.io.file" mod {
+      pub d553:"std.io.file.file_kind" mod {
+        pub d554:"std.io.file.file_kind.missing": std::io::file::file_kind = <missing>
+        pub d555:"std.io.file.file_kind.denied": std::io::file::file_kind = <missing>
+        pub d556:"std.io.file.file_kind.file": std::io::file::file_kind = <missing>
+        pub d557:"std.io.file.file_kind.dir": std::io::file::file_kind = <missing>
+        pub d558:"std.io.file.file_kind.symlink": std::io::file::file_kind = <missing>
+        pub d559:"std.io.file.file_kind.other": std::io::file::file_kind = <missing>
+      }
+      pub d560:"std.io.file.file_meta": {kind: std::io::file::file_kind, size: int, readonly: bool, modified: std::data::opt::opt std::time::instant} -> std::io::file::file_meta = <missing>
+      pub d569:"std.io.file.file" mod {
+      }
+      pub d578:"std.io.file.io_err" mod {
+        pub d579:"std.io.file.io_err.not_found": std::text::path::path -> std::io::file::io_err = <missing>
+        pub d581:"std.io.file.io_err.denied": std::text::path::path -> std::io::file::io_err = <missing>
+        pub d583:"std.io.file.io_err.invalid_path": std::text::path::path -> std::io::file::io_err = <missing>
+        pub d585:"std.io.file.io_err.failed": std::text::path::path -> std::text::str::str -> std::io::file::io_err = <missing>
+      }
+      my d588:"std.io.file.unwrap_io": std::data::result::result 'a 'b -> ['c] 'a where 'b: std::control::throw::Throw(throws = 'c) = e3461:(fn p861:d1581:result -> e3460:case e3456:r1403:result->d1581:result { p863:r1404:"result::ok"->d530:"std.data.result.result.ok"(p862:d1582:value) -> e3457:r1405:value->d1582:value; p865:r1406:"result::err"->d531:"std.data.result.result.err"(p864:d1583:err) -> e3459:(e3458:r1407:err->d1583:err.s134.throw=>d233:"std.control.throw.Throw.throw") })
+      pub d589:"std.io.file.meta": std::text::path::path -> [std::io::file::file] std::io::file::file_meta = e3465:(fn p866:d1584:path -> e3464:(e3462:r1408:"file::meta"->d572:"std.io.file.file.meta" e3463:r1409:path->d1584:path))
+      pub d590:"std.io.file.exists": std::text::path::path -> [std::io::file::file] bool = e3474:(fn p867:d1585:path -> e3473:case e3469:(e3468:(e3466:r1410:meta->d589:"std.io.file.meta" e3467:r1411:path->d1585:path).s135.kind->d561) { p868:r1412:"file_kind::missing"->d554:"std.io.file.file_kind.missing" -> e3470:false; p869:r1413:"file_kind::denied"->d555:"std.io.file.file_kind.denied" -> e3471:false; p870:_ -> e3472:true })
+      pub d591:"std.io.file.is_file": std::text::path::path -> [std::io::file::file] bool = e3482:(fn p871:d1586:path -> e3481:case e3478:(e3477:(e3475:r1414:meta->d589:"std.io.file.meta" e3476:r1415:path->d1586:path).s136.kind->d561) { p872:r1416:"file_kind::file"->d556:"std.io.file.file_kind.file" -> e3479:true; p873:_ -> e3480:false })
+      pub d592:"std.io.file.is_dir": std::text::path::path -> [std::io::file::file] bool = e3490:(fn p874:d1587:path -> e3489:case e3486:(e3485:(e3483:r1417:meta->d589:"std.io.file.meta" e3484:r1418:path->d1587:path).s137.kind->d561) { p875:r1419:"file_kind::dir"->d557:"std.io.file.file_kind.dir" -> e3487:true; p876:_ -> e3488:false })
+      pub d593:"std.io.file.read_at": std::text::path::path -> std::data::range::range -> [std::io::file::file, std::io::file::io_err] (std::text::str::str, std::data::range::range) = e3499:(fn p877:d1588:path -> e3498:(fn p878:d1589:r -> e3497:(e3491:r1420:unwrap_io->d588:"std.io.file.unwrap_io" e3496:(e3492:r1421:"file::read_at"->d576:"std.io.file.file.read_at" e3495:(e3493:r1422:path->d1588:path, e3494:r1423:r->d1589:r)))))
+      pub d594:"std.io.file.write_at": std::text::path::path -> std::data::range::range -> std::text::str::str -> [std::io::file::file, std::io::file::io_err] () = e3510:(fn p879:d1590:path -> e3509:(fn p880:d1591:r -> e3508:(fn p881:d1592:text -> e3507:(e3500:r1424:unwrap_io->d588:"std.io.file.unwrap_io" e3506:(e3501:r1425:"file::write_at"->d577:"std.io.file.file.write_at" e3505:(e3502:r1426:path->d1590:path, e3503:r1427:r->d1591:r, e3504:r1428:text->d1592:text))))))
+      pub d595:"std.io.file.read_text": std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::text::str::str = e3516:(fn p882:d1593:path -> e3515:(e3511:r1429:unwrap_io->d588:"std.io.file.unwrap_io" e3514:(e3512:r1430:"file::load"->d570:"std.io.file.file.load" e3513:r1431:path->d1593:path)))
+      pub d596:"std.io.file.write_text": std::text::path::path -> std::text::str::str -> [std::io::file::file, std::io::file::io_err] () = e3525:(fn p883:d1594:path -> e3524:(fn p884:d1595:text -> e3523:(e3517:r1432:unwrap_io->d588:"std.io.file.unwrap_io" e3522:(e3518:r1433:"file::store"->d571:"std.io.file.file.store" e3521:(e3519:r1434:path->d1594:path, e3520:r1435:text->d1595:text)))))
+      pub d597:"std.io.file.text": std::text::path::path -> [std::io::file::file, std::io::file::io_err] std::control::var::ref '[std::io::file::file] std::text::str::str = e3549:(fn p885:d1596:path -> e3548:block { e3530:(e3526:r1436:unwrap_io->d588:"std.io.file.unwrap_io" e3529:(e3527:r1437:"file::ambient_touch"->d573:"std.io.file.file.ambient_touch" e3528:r1438:path->d1596:path)); e3547:(e3531:r1439:ref->d236:"std.control.var.ref" e3546:{get: e3535:(fn p886:() -> e3534:(e3532:r1440:"file::ambient_get"->d574:"std.io.file.file.ambient_get" e3533:r1441:path->d1596:path)), update_effect: e3545:(fn p887:() -> e3544:(e3536:r1442:"file::ambient_set"->d575:"std.io.file.file.ambient_set" e3543:(e3537:r1443:path->d1596:path, e3542:(e3538:r1444:"ref_update::update"->d235:"std.control.var.ref_update.update" e3541:(e3539:r1445:"file::ambient_get"->d574:"std.io.file.file.ambient_get" e3540:r1446:path->d1596:path)))))}) })
+      pub d598:"std.io.file.text_with": std::text::path::path -> (std::text::str::str -> ['a] ('b, std::text::str::str)) -> [std::io::file::file, std::io::file::io_err, 'a] 'b = e3570:(fn p888:d1597:path -> e3569:(fn p889:d1598:f -> e3568:block { let my p890:d1599:initial = e3554:(e3550:r1447:unwrap_io->d588:"std.io.file.unwrap_io" e3553:(e3551:r1448:"file::load"->d570:"std.io.file.file.load" e3552:r1449:path->d1597:path)); e3567:block { let my p893:(p891:d1600:result, p892:d1601:final) = e3557:(e3555:r1450:f->d1598:f e3556:r1451:initial->d1599:initial); e3566:block { e3564:(e3558:r1452:unwrap_io->d588:"std.io.file.unwrap_io" e3563:(e3559:r1453:"file::store"->d571:"std.io.file.file.store" e3562:(e3560:r1454:path->d1597:path, e3561:r1455:final->d1601:final))); e3565:r1456:result->d1600:result } } }))
+    }
+    pub d60:"std.io.net" mod {
+      pub d599:"std.io.net.request": {meta: std::io::net::request_meta, payload: std::text::bytes::bytes, slot: std::io::net::respond_slot} -> std::io::net::request = <missing>
+      pub d606:"std.io.net.net_err" mod {
+        pub d607:"std.io.net.net_err.unreachable": std::text::str::str -> std::io::net::net_err = <missing>
+        pub d609:"std.io.net.net_err.refused": std::text::str::str -> std::io::net::net_err = <missing>
+        pub d611:"std.io.net.net_err.already_bound": std::text::str::str -> std::io::net::net_err = <missing>
+        pub d613:"std.io.net.net_err.closed": std::io::net::net_err = <missing>
+        pub d615:"std.io.net.net_err.timeout": std::io::net::net_err = <missing>
+        pub d617:"std.io.net.net_err.failed": std::text::str::str -> std::io::net::net_err = <missing>
+      }
+      pub d620:"std.io.net.net" mod {
+      }
+      pub d623:"std.io.net.server" mod {
+      }
+      my d626:"std.io.net.unwrap_net": std::data::result::result 'a 'b -> ['c] 'a where 'b: std::control::throw::Throw(throws = 'c) = e3658:(fn p930:d1622:result -> e3657:case e3653:r1508:result->d1622:result { p932:r1509:"result::ok"->d530:"std.data.result.result.ok"(p931:d1623:value) -> e3654:r1510:value->d1623:value; p934:r1511:"result::err"->d531:"std.data.result.result.err"(p933:d1624:err) -> e3656:(e3655:r1512:err->d1624:err.s142.throw=>d233:"std.control.throw.Throw.throw") })
+      pub d627:"std.io.net.listen": int -> [std::io::net::net, std::io::net::net_err] std::io::net::listener = e3664:(fn p935:d1625:port -> e3663:(e3659:r1513:unwrap_net->d626:"std.io.net.unwrap_net" e3662:(e3660:r1514:"net::listen"->d621:"std.io.net.net.listen" e3661:r1515:port->d1625:port)))
+      pub d628:"std.io.net.serve": int -> [std::io::net::net, std::io::net::net_err, std::io::net::server] std::io::net::request = e3672:(fn p936:d1626:port -> e3671:block { let my p937:d1627:listener = e3667:(e3665:r1516:listen->d627:"std.io.net.listen" e3666:r1517:port->d1626:port); e3670:(e3668:r1518:"server::accept"->d624:"std.io.net.server.accept" e3669:r1519:listener->d1627:listener) })
+      pub d629:"std.io.net.listener" mod {
+        pub d630:"std.io.net.listener.accept": std::io::net::listener -> () -> [std::io::net::server] std::io::net::request = e3677:(fn p938:d1628:l -> e3676:(fn p939:() -> e3675:(e3673:r1520:"server::accept"->d624:"std.io.net.server.accept" e3674:r1521:l->d1628:l)))
+        pub d631:"std.io.net.listener.port": std::io::net::listener -> [std::io::net::net] int = e3681:(fn p940:d1629:l -> e3680:(e3678:r1522:"net::port"->d622:"std.io.net.net.port" e3679:r1523:l->d1629:l))
+      }
+      pub d632:"std.io.net.request" mod {
+        pub d633:"std.io.net.request.respond": std::io::net::request -> std::text::bytes::bytes -> [std::io::net::net_err, std::io::net::server] () = e3691:(fn p941:d1630:req -> e3690:(fn p942:d1631:res -> e3689:(e3682:r1524:unwrap_net->d626:"std.io.net.unwrap_net" e3688:(e3683:r1525:"server::respond"->d625:"std.io.net.server.respond" e3687:(e3685:(e3684:r1526:req->d1630:req.s143.slot->d604), e3686:r1527:res->d1631:res)))))
+      }
+    }
+  }
+  pub d11:"std.time" mod {
+    pub d118:"std.time.instant": {epoch_nanos: int} -> std::time::instant = <missing>
+    pub d121:"std.time.duration": {nanos: int} -> std::time::duration = <missing>
+    pub d124:"std.time.clock" mod {
+    }
+    pub d126:"std.time.instant_add": std::time::instant -> std::time::duration -> std::time::instant = e173:(fn p39:d1051:t -> e172:(fn p40:d1052:delta -> e171:(e162:r58:instant->d118:"std.time.instant" e170:{epoch_nanos: e169:(e166:(e163:r59:"std::int::add"->d51:"std.int.add" e165:(e164:r60:t->d1051:t.s2.epoch_nanos->d119)) e168:(e167:r61:delta->d1052:delta.s3.nanos->d122))})))
+    pub d127:"std.time.instant_sub": std::time::instant -> std::time::duration -> std::time::instant = e185:(fn p41:d1053:t -> e184:(fn p42:d1054:delta -> e183:(e174:r62:instant->d118:"std.time.instant" e182:{epoch_nanos: e181:(e178:(e175:r63:"std::int::sub"->d52:"std.int.sub" e177:(e176:r64:t->d1053:t.s4.epoch_nanos->d119)) e180:(e179:r65:delta->d1054:delta.s5.nanos->d122))})))
+    pub d128:"std.time.instant_since": std::time::instant -> std::time::instant -> std::time::duration = e197:(fn p43:d1055:later -> e196:(fn p44:d1056:earlier -> e195:(e186:r66:duration->d121:"std.time.duration" e194:{nanos: e193:(e190:(e187:r67:"std::int::sub"->d52:"std.int.sub" e189:(e188:r68:later->d1055:later.s6.epoch_nanos->d119)) e192:(e191:r69:earlier->d1056:earlier.s7.epoch_nanos->d119))})))
+    pub d129:"std.time.duration_add": std::time::duration -> std::time::duration -> std::time::duration = e209:(fn p45:d1057:x -> e208:(fn p46:d1058:y -> e207:(e198:r70:duration->d121:"std.time.duration" e206:{nanos: e205:(e202:(e199:r71:"std::int::add"->d51:"std.int.add" e201:(e200:r72:x->d1057:x.s8.nanos->d122)) e204:(e203:r73:y->d1058:y.s9.nanos->d122))})))
+    pub d130:"std.time.duration_sub": std::time::duration -> std::time::duration -> std::time::duration = e221:(fn p47:d1059:x -> e220:(fn p48:d1060:y -> e219:(e210:r74:duration->d121:"std.time.duration" e218:{nanos: e217:(e214:(e211:r75:"std::int::sub"->d52:"std.int.sub" e213:(e212:r76:x->d1059:x.s10.nanos->d122)) e216:(e215:r77:y->d1060:y.s11.nanos->d122))})))
+    pub d131:"std.time.nanos": int -> std::time::duration = e226:(fn p49:d1061:count -> e225:(e222:r78:duration->d121:"std.time.duration" e224:{nanos: e223:r79:count->d1061:count}))
+    pub d132:"std.time.micros": int -> std::time::duration = e234:(fn p50:d1062:count -> e233:(e227:r80:nanos->d131:"std.time.nanos" e232:(e230:(e228:r81:"std::int::mul"->d53:"std.int.mul" e229:r82:count->d1062:count) e231:1000)))
+    pub d133:"std.time.millis": int -> std::time::duration = e242:(fn p51:d1063:count -> e241:(e235:r83:micros->d132:"std.time.micros" e240:(e238:(e236:r84:"std::int::mul"->d53:"std.int.mul" e237:r85:count->d1063:count) e239:1000)))
+    pub d134:"std.time.secs": int -> std::time::duration = e250:(fn p52:d1064:count -> e249:(e243:r86:millis->d133:"std.time.millis" e248:(e246:(e244:r87:"std::int::mul"->d53:"std.int.mul" e245:r88:count->d1064:count) e247:1000)))
+    pub d135:"std.time.mins": int -> std::time::duration = e258:(fn p53:d1065:count -> e257:(e251:r89:secs->d134:"std.time.secs" e256:(e254:(e252:r90:"std::int::mul"->d53:"std.int.mul" e253:r91:count->d1065:count) e255:60)))
+    pub d136:"std.time.hours": int -> std::time::duration = e266:(fn p54:d1066:count -> e265:(e259:r92:mins->d135:"std.time.mins" e264:(e262:(e260:r93:"std::int::mul"->d53:"std.int.mul" e261:r94:count->d1066:count) e263:60)))
+    pub d137:"std.time.days": int -> std::time::duration = e274:(fn p55:d1067:count -> e273:(e267:r95:hours->d136:"std.time.hours" e272:(e270:(e268:r96:"std::int::mul"->d53:"std.int.mul" e269:r97:count->d1067:count) e271:24)))
+    my d138:"std.time.floor_div": int -> int -> int = e302:(fn p56:d1068:x -> e301:(fn p57:d1069:y -> e300:block { let my p58:d1070:q = e279:(e278:(e276:r99:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e275:r98:x->d1068:x) e277:r100:y->d1069:y); e299:block { let my p59:d1071:r = e284:(e283:(e281:r102:"#op:infix:mod"->d419:"std.core.ops.#op:infix:mod" e280:r101:x->d1068:x) e282:r103:y->d1069:y); e298:case e291:(e290:r106:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e289:(e288:(e286:r105:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e285:r104:r->d1071:r) e287:0)) { p60:true -> e296:(e295:(e293:r108:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e292:r107:q->d1070:q) e294:1); p61:false -> e297:r109:q->d1070:q } } }))
+    my d139:"std.time.floor_mod": int -> int -> int = e317:(fn p62:d1072:x -> e316:(fn p63:d1073:y -> e315:(e314:(e304:r111:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e303:r110:x->d1072:x) e313:(e312:(e310:r115:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e309:(e307:(e305:r112:floor_div->d138:"std.time.floor_div" e306:r113:x->d1072:x) e308:r114:y->d1073:y)) e311:r116:y->d1073:y))))
+    my d140:"std.time.civil_from_epoch_days": int -> (int, int, int) = e476:(fn p64:d1074:days_since_epoch -> e475:block { let my p65:d1075:z = e322:(e321:(e319:r118:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e318:r117:days_since_epoch->d1074:days_since_epoch) e320:719468); e474:block { let my p66:d1076:era = e327:(e325:(e323:r119:floor_div->d138:"std.time.floor_div" e324:r120:z->d1075:z) e326:146097); e473:block { let my p67:d1077:doe = e336:(e335:(e329:r122:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e328:r121:z->d1075:z) e334:(e333:(e331:r124:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e330:r123:era->d1076:era) e332:146097)); e472:block { let my p68:d1078:yoe = e365:(e364:(e362:r135:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e361:(e360:(e354:r132:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e353:(e352:(e346:r129:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e345:(e344:(e338:r126:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e337:r125:doe->d1077:doe) e343:(e342:(e340:r128:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e339:r127:doe->d1077:doe) e341:1460))) e351:(e350:(e348:r131:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e347:r130:doe->d1077:doe) e349:36524))) e359:(e358:(e356:r134:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e355:r133:doe->d1077:doe) e357:146096))) e363:365); e471:block { let my p69:d1079:year = e374:(e373:(e367:r137:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e366:r136:yoe->d1078:yoe) e372:(e371:(e369:r139:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e368:r138:era->d1076:era) e370:400)); e470:block { let my p70:d1080:doy = e399:(e398:(e376:r141:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e375:r140:doe->d1077:doe) e397:(e396:(e390:r147:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e389:(e388:(e382:r144:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e381:(e380:(e378:r142:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e377:365) e379:r143:yoe->d1078:yoe)) e387:(e386:(e384:r146:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e383:r145:yoe->d1078:yoe) e385:4))) e395:(e394:(e392:r149:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e391:r148:yoe->d1078:yoe) e393:100))); e469:block { let my p71:d1081:mp = e412:(e411:(e409:r153:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e408:(e407:(e405:r152:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e404:(e403:(e401:r150:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e400:5) e402:r151:doy->d1080:doy)) e406:2)) e410:153); e468:block { let my p72:d1082:day = e433:(e432:(e430:r160:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e429:(e428:(e414:r155:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e413:r154:doy->d1080:doy) e427:(e426:(e424:r159:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e423:(e422:(e420:r158:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e419:(e418:(e416:r156:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e415:153) e417:r157:mp->d1081:mp)) e421:2)) e425:5))) e431:1); e467:block { let my p73:d1083:month = e449:(e448:(e435:r162:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e434:r161:mp->d1081:mp) e447:case e442:(e441:r165:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e440:(e439:(e437:r164:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e436:r163:mp->d1081:mp) e438:10)) { p74:true -> e443:3; p75:false -> e446:(e444:r166:"#op:prefix:-"->d413:"std.core.ops.#op:prefix:-" e445:9) }); e466:(e463:case e456:(e455:r169:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e454:(e453:(e451:r168:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e450:r167:month->d1083:month) e452:2)) { p76:true -> e461:(e460:(e458:r171:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e457:r170:year->d1079:year) e459:1); p77:false -> e462:r172:year->d1079:year }, e464:r173:month->d1083:month, e465:r174:day->d1082:day) } } } } } } } } })
+    my d141:"std.time.pad2": int -> std::text::str::str = e495:(fn p78:d1084:n -> e494:case e483:(e482:r177:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e481:(e480:(e478:r176:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e477:r175:n->d1084:n) e479:10)) { p79:true -> e490:(e489:(e485:r178:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e484:"0") e488:(e486:r179:"std::int::to_string"->d55:"std.int.to_string" e487:r180:n->d1084:n)); p80:false -> e493:(e491:r181:"std::int::to_string"->d55:"std.int.to_string" e492:r182:n->d1084:n) })
+    my d142:"std.time.pad3": int -> std::text::str::str = e529:(fn p81:d1085:n -> e528:case e502:(e501:r185:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e500:(e499:(e497:r184:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e496:r183:n->d1085:n) e498:10)) { p84:true -> e509:(e508:(e504:r186:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e503:"00") e507:(e505:r187:"std::int::to_string"->d55:"std.int.to_string" e506:r188:n->d1085:n)); p85:false -> e527:case e516:(e515:r191:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e514:(e513:(e511:r190:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e510:r189:n->d1085:n) e512:100)) { p82:true -> e523:(e522:(e518:r192:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e517:"0") e521:(e519:r193:"std::int::to_string"->d55:"std.int.to_string" e520:r194:n->d1085:n)); p83:false -> e526:(e524:r195:"std::int::to_string"->d55:"std.int.to_string" e525:r196:n->d1085:n) } })
+    my d143:"std.time.pad4": int -> std::text::str::str = e578:(fn p86:d1086:n -> e577:case e536:(e535:r199:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e534:(e533:(e531:r198:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e530:r197:n->d1086:n) e532:10)) { p91:true -> e543:(e542:(e538:r200:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e537:"000") e541:(e539:r201:"std::int::to_string"->d55:"std.int.to_string" e540:r202:n->d1086:n)); p92:false -> e576:case e550:(e549:r205:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e548:(e547:(e545:r204:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e544:r203:n->d1086:n) e546:100)) { p89:true -> e557:(e556:(e552:r206:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e551:"00") e555:(e553:r207:"std::int::to_string"->d55:"std.int.to_string" e554:r208:n->d1086:n)); p90:false -> e575:case e564:(e563:r211:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e562:(e561:(e559:r210:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e558:r209:n->d1086:n) e560:1000)) { p87:true -> e571:(e570:(e566:r212:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e565:"0") e569:(e567:r213:"std::int::to_string"->d55:"std.int.to_string" e568:r214:n->d1086:n)); p88:false -> e574:(e572:r215:"std::int::to_string"->d55:"std.int.to_string" e573:r216:n->d1086:n) } } })
+    my d144:"std.time.pad9": int -> std::text::str::str = e610:(fn p93:d1087:n -> e609:(e608:(e600:r225:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e599:(e598:(e586:r220:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e585:(e579:r217:pad3->d142:"std.time.pad3" e584:(e583:(e581:r219:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e580:r218:n->d1087:n) e582:1000000))) e597:(e587:r221:pad3->d142:"std.time.pad3" e596:(e595:(e593:r224:"#op:infix:mod"->d419:"std.core.ops.#op:infix:mod" e592:(e591:(e589:r223:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e588:r222:n->d1087:n) e590:1000)) e594:1000)))) e607:(e601:r226:pad3->d142:"std.time.pad3" e606:(e605:(e603:r228:"#op:infix:mod"->d419:"std.core.ops.#op:infix:mod" e602:r227:n->d1087:n) e604:1000))))
+    my d145:"std.time.trim_trailing_zeros": std::text::str::str -> std::text::str::str = e654:(fn p94:d1088:text -> e653:block { let my p95:d1089:len = e613:(e611:r229:"std::text::str::len"->d787:"std.text.str.len" e612:r230:text->d1088:text); e652:case e620:(e619:r233:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e618:(e617:(e615:r232:"#op:infix:<="->d423:"std.core.ops.#op:infix:<=" e614:r231:len->d1089:len) e616:0)) { p99:true -> e621:r234:text->d1088:text; p100:false -> e651:block { let my p96:d1090:end = e626:(e625:(e623:r236:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e622:r235:len->d1089:len) e624:1); e650:case e639:(e638:r242:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e637:(e636:(e634:r241:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e633:(e631:(e629:(e627:r237:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e628:r238:text->d1088:text) e630:r239:end->d1090:end) e632:r240:len->d1089:len)) e635:"0")) { p97:true -> e648:(e640:r243:trim_trailing_zeros->d145:"std.time.trim_trailing_zeros" e647:(e645:(e643:(e641:r244:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e642:r245:text->d1088:text) e644:0) e646:r246:end->d1090:end)); p98:false -> e649:r247:text->d1088:text } } } })
+    my d146:"std.time.fraction_text": int -> std::text::str::str = e673:(fn p101:d1091:nanos_in_second -> e672:case e661:(e660:r250:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e659:(e658:(e656:r249:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e655:r248:nanos_in_second->d1091:nanos_in_second) e657:0)) { p102:true -> e662:""; p103:false -> e671:(e670:(e664:r251:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e663:".") e669:(e665:r252:trim_trailing_zeros->d145:"std.time.trim_trailing_zeros" e668:(e666:r253:pad9->d144:"std.time.pad9" e667:r254:nanos_in_second->d1091:nanos_in_second))) })
+    my d147:"std.time.instant_rfc3339_utc": std::time::instant -> std::text::str::str = e793:(fn p104:d1092:x -> e792:block { let my p105:d1093:seconds = e679:(e677:(e674:r255:floor_div->d138:"std.time.floor_div" e676:(e675:r256:x->d1092:x.s12.epoch_nanos->d119)) e678:1000000000); e791:block { let my p106:d1094:nanos_in_second = e685:(e683:(e680:r257:floor_mod->d139:"std.time.floor_mod" e682:(e681:r258:x->d1092:x.s13.epoch_nanos->d119)) e684:1000000000); e790:block { let my p107:d1095:days = e690:(e688:(e686:r259:floor_div->d138:"std.time.floor_div" e687:r260:seconds->d1093:seconds) e689:86400); e789:block { let my p108:d1096:second_of_day = e695:(e693:(e691:r261:floor_mod->d139:"std.time.floor_mod" e692:r262:seconds->d1093:seconds) e694:86400); e788:block { let my p112:(p109:d1097:year, p110:d1098:month, p111:d1099:day) = e698:(e696:r263:civil_from_epoch_days->d140:"std.time.civil_from_epoch_days" e697:r264:days->d1095:days); e787:block { let my p113:d1100:hour = e703:(e702:(e700:r266:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e699:r265:second_of_day->d1096:second_of_day) e701:3600); e786:block { let my p114:d1101:minute = e712:(e711:(e709:r269:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e708:(e707:(e705:r268:"#op:infix:mod"->d419:"std.core.ops.#op:infix:mod" e704:r267:second_of_day->d1096:second_of_day) e706:3600)) e710:60); e785:block { let my p115:d1102:second = e717:(e716:(e714:r271:"#op:infix:mod"->d419:"std.core.ops.#op:infix:mod" e713:r270:second_of_day->d1096:second_of_day) e715:60); e784:block { let my p116:d1103:date = e740:(e739:(e735:r279:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e734:(e733:(e731:r278:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e730:(e729:(e725:r275:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e724:(e723:(e721:r274:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e720:(e718:r272:pad4->d143:"std.time.pad4" e719:r273:year->d1097:year)) e722:"-")) e728:(e726:r276:pad2->d141:"std.time.pad2" e727:r277:month->d1098:month))) e732:"-")) e738:(e736:r280:pad2->d141:"std.time.pad2" e737:r281:day->d1099:day)); e783:block { let my p117:d1104:clock = e763:(e762:(e758:r289:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e757:(e756:(e754:r288:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e753:(e752:(e748:r285:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e747:(e746:(e744:r284:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e743:(e741:r282:pad2->d141:"std.time.pad2" e742:r283:hour->d1100:hour)) e745:":")) e751:(e749:r286:pad2->d141:"std.time.pad2" e750:r287:minute->d1101:minute))) e755:":")) e761:(e759:r290:pad2->d141:"std.time.pad2" e760:r291:second->d1102:second)); e782:(e781:(e779:r299:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e778:(e777:(e773:r296:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e772:(e771:(e769:r294:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e768:(e767:(e765:r293:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e764:r292:date->d1103:date) e766:"T")) e770:r295:clock->d1104:clock)) e776:(e774:r297:fraction_text->d146:"std.time.fraction_text" e775:r298:nanos_in_second->d1094:nanos_in_second))) e780:"Z") } } } } } } } } } })
+    my d148 mod {
+      d149: std::time::instant -> std::time::instant -> bool = e802:(fn p118:d1105:x -> e801:(fn p119:d1106:y -> e800:(e797:(e794:r300:"std::int::eq"->d46:"std.int.eq" e796:(e795:r301:x->d1105:x.s14.epoch_nanos->d119)) e799:(e798:r302:y->d1106:y.s15.epoch_nanos->d119))))
+    }
+    my d150 mod {
+      d151: std::time::instant -> std::time::instant -> bool = e811:(fn p120:d1107:x -> e810:(fn p121:d1108:y -> e809:(e806:(e803:r303:"std::int::lt"->d47:"std.int.lt" e805:(e804:r304:x->d1107:x.s16.epoch_nanos->d119)) e808:(e807:r305:y->d1108:y.s17.epoch_nanos->d119))))
+      d152: std::time::instant -> std::time::instant -> bool = e820:(fn p122:d1109:x -> e819:(fn p123:d1110:y -> e818:(e815:(e812:r306:"std::int::le"->d48:"std.int.le" e814:(e813:r307:x->d1109:x.s18.epoch_nanos->d119)) e817:(e816:r308:y->d1110:y.s19.epoch_nanos->d119))))
+      d153: std::time::instant -> std::time::instant -> bool = e829:(fn p124:d1111:x -> e828:(fn p125:d1112:y -> e827:(e824:(e821:r309:"std::int::gt"->d49:"std.int.gt" e823:(e822:r310:x->d1111:x.s20.epoch_nanos->d119)) e826:(e825:r311:y->d1112:y.s21.epoch_nanos->d119))))
+      d154: std::time::instant -> std::time::instant -> bool = e838:(fn p126:d1113:x -> e837:(fn p127:d1114:y -> e836:(e833:(e830:r312:"std::int::ge"->d50:"std.int.ge" e832:(e831:r313:x->d1113:x.s22.epoch_nanos->d119)) e835:(e834:r314:y->d1114:y.s23.epoch_nanos->d119))))
+    }
+    my d155 mod {
+      d156: std::time::duration -> std::time::duration -> bool = e847:(fn p128:d1115:x -> e846:(fn p129:d1116:y -> e845:(e842:(e839:r315:"std::int::eq"->d46:"std.int.eq" e841:(e840:r316:x->d1115:x.s24.nanos->d122)) e844:(e843:r317:y->d1116:y.s25.nanos->d122))))
+    }
+    my d157 mod {
+      d158: std::time::duration -> std::time::duration -> bool = e856:(fn p130:d1117:x -> e855:(fn p131:d1118:y -> e854:(e851:(e848:r318:"std::int::lt"->d47:"std.int.lt" e850:(e849:r319:x->d1117:x.s26.nanos->d122)) e853:(e852:r320:y->d1118:y.s27.nanos->d122))))
+      d159: std::time::duration -> std::time::duration -> bool = e865:(fn p132:d1119:x -> e864:(fn p133:d1120:y -> e863:(e860:(e857:r321:"std::int::le"->d48:"std.int.le" e859:(e858:r322:x->d1119:x.s28.nanos->d122)) e862:(e861:r323:y->d1120:y.s29.nanos->d122))))
+      d160: std::time::duration -> std::time::duration -> bool = e874:(fn p134:d1121:x -> e873:(fn p135:d1122:y -> e872:(e869:(e866:r324:"std::int::gt"->d49:"std.int.gt" e868:(e867:r325:x->d1121:x.s30.nanos->d122)) e871:(e870:r326:y->d1122:y.s31.nanos->d122))))
+      d161: std::time::duration -> std::time::duration -> bool = e883:(fn p136:d1123:x -> e882:(fn p137:d1124:y -> e881:(e878:(e875:r327:"std::int::ge"->d50:"std.int.ge" e877:(e876:r328:x->d1123:x.s32.nanos->d122)) e880:(e879:r329:y->d1124:y.s33.nanos->d122))))
+    }
+    my d162 mod {
+      d163: std::time::instant -> std::text::str::str = e896:(fn p138:d1125:x -> e895:(e894:(e892:r333:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e891:(e890:(e885:r330:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e884:"instant { epoch_nanos: ") e889:(e886:r331:"std::int::to_string"->d55:"std.int.to_string" e888:(e887:r332:x->d1125:x.s34.epoch_nanos->d119)))) e893:" }"))
+    }
+    my d164 mod {
+      d165: std::time::duration -> std::text::str::str = e909:(fn p139:d1126:x -> e908:(e907:(e905:r337:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e904:(e903:(e898:r334:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e897:"duration { nanos: ") e902:(e899:r335:"std::int::to_string"->d55:"std.int.to_string" e901:(e900:r336:x->d1126:x.s35.nanos->d122)))) e906:" }"))
+    }
+    my d166 mod {
+      d167: std::time::instant -> std::text::str::str = e913:(fn p140:d1127:x -> e912:(e910:r338:instant_rfc3339_utc->d147:"std.time.instant_rfc3339_utc" e911:r339:x->d1127:x))
+    }
+    my d168 mod {
+      d169: std::time::duration -> std::time::duration -> std::time::duration = e920:(fn p141:d1128:x -> e919:(fn p142:d1129:y -> e918:(e916:(e914:r340:duration_add->d129:"std.time.duration_add" e915:r341:x->d1128:x) e917:r342:y->d1129:y)))
+    }
+    my d170 mod {
+      d171: std::time::duration -> std::time::duration -> std::time::duration = e927:(fn p143:d1130:x -> e926:(fn p144:d1131:y -> e925:(e923:(e921:r343:duration_sub->d130:"std.time.duration_sub" e922:r344:x->d1130:x) e924:r345:y->d1131:y)))
+    }
+  }
+  pub d12:"std.testing" mod {
+    pub d106:"std.testing.#op:prefix:assert": (() -> bool) -> [std::testing::assertion] () = e145:r51:"assertion::assert"->d109:"std.testing.assertion.assert"
+    pub d107:"std.testing.#op:infix:assert_eq": (() -> 'a) -> (() -> 'a) -> [std::testing::assertion] () where 'a: std::core::cmp::Eq, 'a: std::core::fmt::Debug = e161:(fn p34:d1046:left -> e160:(fn p35:d1047:right -> e159:(e146:r52:"assertion::assert_eq"->d110:"std.testing.assertion.assert_eq" e158:(e147:r53:left->d1046:left, e148:r54:right->d1047:right, e154:(fn p36:d1048:expected -> e153:(fn p37:d1049:actual -> e152:(e150:(e149:r55:expected->d1048:expected.s0.eq=>d249:"std.core.cmp.Eq.eq") e151:r56:actual->d1049:actual))), e157:(fn p38:d1050:value -> e156:(e155:r57:value->d1050:value.s1.debug=>d324:"std.core.fmt.Debug.debug"))))))
+    pub d108:"std.testing.assertion" mod {
+    }
+  }
+  pub d13:"std.prelude" mod {
+  }
+}
+d1:read_port: never = <missing>
+root exprs e2:(e0:r0:read_port->d1:read_port e1:{})
+runtime roots e2:(e0:r0:read_port->d1:read_port e1:{}) d180:"std.control.flow.label_sub.control_label" d210:"std.control.flow.label_loop.control_label"
+detached {
+  pub d109:"std.testing.assertion.assert": (() -> bool) -> [std::testing::assertion] () = <missing>
+  pub d110:"std.testing.assertion.assert_eq": (() -> 'a, () -> 'a, 'a -> 'a -> bool, 'a -> std::text::str::str) -> [std::testing::assertion] () = <missing>
+  pub d119: std::time::instant -> int = <missing>
+  pub d120: std::control::var::ref 'a std::time::instant -> std::control::var::ref 'a int = <missing>
+  pub d122: std::time::duration -> int = <missing>
+  pub d123: std::control::var::ref 'a std::time::duration -> std::control::var::ref 'a int = <missing>
+  pub d125:"std.time.clock.now": () -> [std::time::clock] std::time::instant = <missing>
+  pub d173:"std.control.flow.sub.return": 'a -> [std::control::flow::sub 'a] never = <missing>
+  pub d176:"std.control.flow.label_sub.return": 'a -> [std::control::flow::label_sub 'a] never = <missing>
+  pub d178: std::control::flow::label_sub::label -> () = <missing>
+  pub d179: std::control::var::ref 'a std::control::flow::label_sub::label -> std::control::var::ref 'a () = <missing>
+  pub d183:"std.control.flow.loop.last": () -> [std::control::flow::loop] never = <missing>
+  pub d184:"std.control.flow.loop.next": () -> [std::control::flow::loop] never = <missing>
+  pub d185:"std.control.flow.loop.redo": () -> [std::control::flow::loop] never = <missing>
+  d187:"std.control.flow.loop.last.break": () -> [std::control::flow::loop::last] never = <missing>
+  pub d196:"std.control.flow.label_loop.last": () -> [std::control::flow::label_loop] never = <missing>
+  pub d197:"std.control.flow.label_loop.next": () -> [std::control::flow::label_loop] never = <missing>
+  pub d198:"std.control.flow.label_loop.redo": () -> [std::control::flow::label_loop] never = <missing>
+  pub d200: std::control::flow::label_loop::label -> () -> [std::control::flow::label_loop] never = <missing>
+  pub d201: std::control::var::ref 'a std::control::flow::label_loop::label -> std::control::var::ref('a, () ['[]] -> ['[std::control::flow::label_loop]] never) = <missing>
+  pub d202: std::control::flow::label_loop::label -> () -> [std::control::flow::label_loop] never = <missing>
+  pub d203: std::control::var::ref 'a std::control::flow::label_loop::label -> std::control::var::ref('a, () ['[]] -> ['[std::control::flow::label_loop]] never) = <missing>
+  pub d204: std::control::flow::label_loop::label -> () -> [std::control::flow::label_loop] never = <missing>
+  pub d205: std::control::var::ref 'a std::control::flow::label_loop::label -> std::control::var::ref('a, () ['[]] -> ['[std::control::flow::label_loop]] never) = <missing>
+  d207:"std.control.flow.label_loop.last.break": () -> [std::control::flow::label_loop::last] never = <missing>
+  my d213:"std.control.junction.junction.or": () -> [std::control::junction::junction] bool = <missing>
+  my d214:"std.control.junction.junction.and": () -> [std::control::junction::junction] bool = <missing>
+  my d215:"std.control.junction.junction.ret": bool -> [std::control::junction::junction] never = <missing>
+  pub d222:"std.control.nondet.nondet.branch": () -> [std::control::nondet::nondet] bool = <missing>
+  pub d223:"std.control.nondet.nondet.reject": () -> [std::control::nondet::nondet] never = <missing>
+  pub d235:"std.control.var.ref_update.update": 'a -> [std::control::var::ref_update 'a] 'a = <missing>
+  pub d237: std::control::var::ref 'a 'b -> () -> ['a] 'b = <missing>
+  pub d238: std::control::var::ref('a, std::control::var::ref 'b 'c) -> std::control::var::ref('a, () ['[]] -> ['b] 'c) = <missing>
+  pub d239: std::control::var::ref 'a 'b -> () -> [std::control::var::ref_update 'b, 'a#0[AllExcept(std::control::var::ref_update)]] () = <missing>
+  pub d240: std::control::var::ref('a, std::control::var::ref 'b 'c) -> std::control::var::ref('a, () ['[]] -> ['[std::control::var::ref_update 'c, 'b] <: 'b & '[std::control::var::ref_update 'c; 'b]] ()) = <missing>
+  pub d244:"std.control.var.var.get": () -> [std::control::var::var 'a] 'a = <missing>
+  pub d245:"std.control.var.var.set": 'a -> [std::control::var::var 'a] () = <missing>
+  my d286:"#cast": std::text::path::path -> std::text::bytes::bytes = e1596:(fn p389:d1255:p -> e1595:(e1593:r593:"std::text::path::to_bytes"->d779:"std.text.path.to_bytes" e1594:r594:p->d1255:p))
+  my d287:"#cast": int -> std::num::frac::frac = e1602:(fn p390:d1256:x -> e1601:(e1599:(e1597:r595:"std::num::frac::new"->d642:"std.num.frac.new" e1598:r596:x->d1256:x) e1600:1))
+  my d288:"#cast": int -> float = e1606:(fn p391:d1257:x -> e1605:(e1603:builtin_op::int_to_float e1604:r597:x->d1257:x))
+  my d289:"#cast": std::num::frac::frac -> float = e1610:(fn p392:d1258:x -> e1609:(e1607:r598:"std::num::frac::to_float"->d652:"std.num.frac.to_float" e1608:r599:x->d1258:x))
+  pub d303: std::core::fmt::format_spec -> std::core::fmt::format_kind = <missing>
+  pub d304: std::control::var::ref 'a std::core::fmt::format_spec -> std::control::var::ref 'a std::core::fmt::format_kind = <missing>
+  pub d305: std::core::fmt::format_spec -> std::data::opt::opt std::core::fmt::format_align = <missing>
+  pub d306: std::control::var::ref 'a std::core::fmt::format_spec -> std::control::var::ref('a, std::data::opt::opt std::core::fmt::format_align) = <missing>
+  pub d307: std::core::fmt::format_spec -> std::data::opt::opt std::core::fmt::format_sign = <missing>
+  pub d308: std::control::var::ref 'a std::core::fmt::format_spec -> std::control::var::ref('a, std::data::opt::opt std::core::fmt::format_sign) = <missing>
+  pub d309: std::core::fmt::format_spec -> std::data::opt::opt std::text::str::str = <missing>
+  pub d310: std::control::var::ref 'a std::core::fmt::format_spec -> std::control::var::ref('a, std::data::opt::opt std::text::str::str) = <missing>
+  pub d311: std::core::fmt::format_spec -> std::data::opt::opt int = <missing>
+  pub d312: std::control::var::ref 'a std::core::fmt::format_spec -> std::control::var::ref('a, std::data::opt::opt int) = <missing>
+  pub d313: std::core::fmt::format_spec -> std::data::opt::opt int = <missing>
+  pub d314: std::control::var::ref 'a std::core::fmt::format_spec -> std::control::var::ref('a, std::data::opt::opt int) = <missing>
+  pub d315: std::core::fmt::format_spec -> bool = <missing>
+  pub d316: std::control::var::ref 'a std::core::fmt::format_spec -> std::control::var::ref 'a bool = <missing>
+  pub d317: std::core::fmt::format_spec -> bool = <missing>
+  pub d318: std::control::var::ref 'a std::core::fmt::format_spec -> std::control::var::ref 'a bool = <missing>
+  pub d539:"std.io.console.out.write": std::text::str::str -> [std::io::console::out] () = <missing>
+  pub d544:"std.io.console.err.write": std::text::str::str -> [std::io::console::err] () = <missing>
+  pub d550:"std.io.console.warn.warn": std::text::str::str -> [std::io::console::warn] () = <missing>
+  pub d552:"std.io.console.die.die": std::text::str::str -> [std::io::console::die] never = <missing>
+  pub d561: std::io::file::file_meta -> std::io::file::file_kind = <missing>
+  pub d562: std::control::var::ref 'a std::io::file::file_meta -> std::control::var::ref 'a std::io::file::file_kind = <missing>
+  pub d563: std::io::file::file_meta -> int = <missing>
+  pub d564: std::control::var::ref 'a std::io::file::file_meta -> std::control::var::ref 'a int = <missing>
+  pub d565: std::io::file::file_meta -> bool = <missing>
+  pub d566: std::control::var::ref 'a std::io::file::file_meta -> std::control::var::ref 'a bool = <missing>
+  pub d567: std::io::file::file_meta -> std::data::opt::opt std::time::instant = <missing>
+  pub d568: std::control::var::ref 'a std::io::file::file_meta -> std::control::var::ref('a, std::data::opt::opt std::time::instant) = <missing>
+  pub d570:"std.io.file.file.load": std::text::path::path -> [std::io::file::file] std::data::result::result std::text::str::str std::io::file::io_err = <missing>
+  pub d571:"std.io.file.file.store": (std::text::path::path, std::text::str::str) -> [std::io::file::file] std::data::result::result () std::io::file::io_err = <missing>
+  pub d572:"std.io.file.file.meta": std::text::path::path -> [std::io::file::file] std::io::file::file_meta = <missing>
+  pub d573:"std.io.file.file.ambient_touch": std::text::path::path -> [std::io::file::file] std::data::result::result () std::io::file::io_err = <missing>
+  pub d574:"std.io.file.file.ambient_get": std::text::path::path -> [std::io::file::file] std::text::str::str = <missing>
+  pub d575:"std.io.file.file.ambient_set": (std::text::path::path, std::text::str::str) -> [std::io::file::file] () = <missing>
+  pub d576:"std.io.file.file.read_at": (std::text::path::path, std::data::range::range) -> [std::io::file::file] std::data::result::result (std::text::str::str, std::data::range::range) std::io::file::io_err = <missing>
+  pub d577:"std.io.file.file.write_at": (std::text::path::path, std::data::range::range, std::text::str::str) -> [std::io::file::file] std::data::result::result () std::io::file::io_err = <missing>
+  my d580: std::text::path::path -> [std::io::file::io_err] never = <missing>
+  my d582: std::text::path::path -> [std::io::file::io_err] never = <missing>
+  my d584: std::text::path::path -> [std::io::file::io_err] never = <missing>
+  my d586: (std::text::path::path, std::text::str::str) -> [std::io::file::io_err] never = <missing>
+  pub d587:"std.io.file.io_err.wrap": 'a [std::io::file::io_err; 'b] -> ['b] std::data::result::result('a, 'c | std::io::file::io_err) = e3455:(fn p849:d1574:action -> e3454:catch e3428:r1387:action->d1574:action { std::io::file::io_err::not_found p850:d1575:__error_payload_0_0, p851:_ -> e3433:(e3429:r1388:"std::data::result::result::err"->d531:"std.data.result.result.err" e3432:(e3430:r1389:not_found->d579:"std.io.file.io_err.not_found" e3431:r1390:__error_payload_0_0->d1575:__error_payload_0_0)); std::io::file::io_err::denied p852:d1576:__error_payload_1_0, p853:_ -> e3438:(e3434:r1391:"std::data::result::result::err"->d531:"std.data.result.result.err" e3437:(e3435:r1392:denied->d581:"std.io.file.io_err.denied" e3436:r1393:__error_payload_1_0->d1576:__error_payload_1_0)); std::io::file::io_err::invalid_path p854:d1577:__error_payload_2_0, p855:_ -> e3443:(e3439:r1394:"std::data::result::result::err"->d531:"std.data.result.result.err" e3442:(e3440:r1395:invalid_path->d583:"std.io.file.io_err.invalid_path" e3441:r1396:__error_payload_2_0->d1577:__error_payload_2_0)); std::io::file::io_err::failed p858:(p856:d1578:__error_payload_3_0, p857:d1579:__error_payload_3_1), p859:_ -> e3450:(e3444:r1397:"std::data::result::result::err"->d531:"std.data.result.result.err" e3449:(e3447:(e3445:r1398:failed->d585:"std.io.file.io_err.failed" e3446:r1399:__error_payload_3_0->d1578:__error_payload_3_0) e3448:r1400:__error_payload_3_1->d1579:__error_payload_3_1)); p860:d1580:value -> e3453:(e3451:r1401:"std::data::result::result::ok"->d530:"std.data.result.result.ok" e3452:r1402:value->d1580:value) })
+  pub d600: std::io::net::request -> std::io::net::request_meta = <missing>
+  pub d601: std::control::var::ref 'a std::io::net::request -> std::control::var::ref 'a std::io::net::request_meta = <missing>
+  pub d602: std::io::net::request -> std::text::bytes::bytes = <missing>
+  pub d603: std::control::var::ref 'a std::io::net::request -> std::control::var::ref 'a std::text::bytes::bytes = <missing>
+  pub d604: std::io::net::request -> std::io::net::respond_slot = <missing>
+  pub d605: std::control::var::ref 'a std::io::net::request -> std::control::var::ref 'a std::io::net::respond_slot = <missing>
+  my d608: std::text::str::str -> [std::io::net::net_err] never = <missing>
+  my d610: std::text::str::str -> [std::io::net::net_err] never = <missing>
+  my d612: std::text::str::str -> [std::io::net::net_err] never = <missing>
+  my d614: () -> [std::io::net::net_err] never = <missing>
+  my d616: () -> [std::io::net::net_err] never = <missing>
+  my d618: std::text::str::str -> [std::io::net::net_err] never = <missing>
+  pub d619:"std.io.net.net_err.wrap": 'a [std::io::net::net_err; 'b] -> ['b] std::data::result::result('a, 'c | std::io::net::net_err) = e3652:(fn p916:d1616:action -> e3651:catch e3621:r1489:action->d1616:action { std::io::net::net_err::unreachable p917:d1617:__error_payload_0_0, p918:_ -> e3626:(e3622:r1490:"std::data::result::result::err"->d531:"std.data.result.result.err" e3625:(e3623:r1491:unreachable->d607:"std.io.net.net_err.unreachable" e3624:r1492:__error_payload_0_0->d1617:__error_payload_0_0)); std::io::net::net_err::refused p919:d1618:__error_payload_1_0, p920:_ -> e3631:(e3627:r1493:"std::data::result::result::err"->d531:"std.data.result.result.err" e3630:(e3628:r1494:refused->d609:"std.io.net.net_err.refused" e3629:r1495:__error_payload_1_0->d1618:__error_payload_1_0)); std::io::net::net_err::already_bound p921:d1619:__error_payload_2_0, p922:_ -> e3636:(e3632:r1496:"std::data::result::result::err"->d531:"std.data.result.result.err" e3635:(e3633:r1497:already_bound->d611:"std.io.net.net_err.already_bound" e3634:r1498:__error_payload_2_0->d1619:__error_payload_2_0)); std::io::net::net_err::closed p923:_, p924:_ -> e3639:(e3637:r1499:"std::data::result::result::err"->d531:"std.data.result.result.err" e3638:r1500:closed->d613:"std.io.net.net_err.closed"); std::io::net::net_err::timeout p925:_, p926:_ -> e3642:(e3640:r1501:"std::data::result::result::err"->d531:"std.data.result.result.err" e3641:r1502:timeout->d615:"std.io.net.net_err.timeout"); std::io::net::net_err::failed p927:d1620:__error_payload_5_0, p928:_ -> e3647:(e3643:r1503:"std::data::result::result::err"->d531:"std.data.result.result.err" e3646:(e3644:r1504:failed->d617:"std.io.net.net_err.failed" e3645:r1505:__error_payload_5_0->d1620:__error_payload_5_0)); p929:d1621:value -> e3650:(e3648:r1506:"std::data::result::result::ok"->d530:"std.data.result.result.ok" e3649:r1507:value->d1621:value) })
+  pub d621:"std.io.net.net.listen": int -> [std::io::net::net] std::data::result::result std::io::net::listener std::io::net::net_err = <missing>
+  pub d622:"std.io.net.net.port": std::io::net::listener -> [std::io::net::net] int = <missing>
+  pub d624:"std.io.net.server.accept": std::io::net::listener -> [std::io::net::server] std::io::net::request = <missing>
+  pub d625:"std.io.net.server.respond": (std::io::net::respond_slot, std::text::bytes::bytes) -> [std::io::net::server] std::data::result::result () std::io::net::net_err = <missing>
+  pub d635: std::num::frac::frac -> int = <missing>
+  pub d636: std::control::var::ref 'a std::num::frac::frac -> std::control::var::ref 'a int = <missing>
+  pub d637: std::num::frac::frac -> int = <missing>
+  pub d638: std::control::var::ref 'a std::num::frac::frac -> std::control::var::ref 'a int = <missing>
+  pub d683: std::text::config::section -> std::text::str::str = <missing>
+  pub d684: std::control::var::ref 'a std::text::config::section -> std::control::var::ref 'a std::text::str::str = <missing>
+  pub d685: std::text::config::section -> std::data::list::list (std::text::str::str, std::text::str::str) = <missing>
+  pub d686: std::control::var::ref 'a std::text::config::section -> std::control::var::ref('a, std::data::list::list (std::text::str::str, std::text::str::str)) = <missing>
+  pub d688: std::text::config::config -> std::data::list::list std::text::config::section = <missing>
+  pub d689: std::control::var::ref 'a std::text::config::config -> std::control::var::ref('a, std::data::list::list std::text::config::section) = <missing>
+  pub d710:"std.text.parse.parse.item": () -> [std::text::parse::parse 'a 'b 'c 'd] 'a = <missing>
+  pub d711:"std.text.parse.parse.fail": 'a -> [std::text::parse::parse 'b 'a 'c 'd] never = <missing>
+  pub d712:"std.text.parse.parse.eof": () -> [std::text::parse::parse 'a 'b 'c 'd] bool = <missing>
+  pub d713:"std.text.parse.parse.pos": () -> [std::text::parse::parse 'a 'b 'c 'd] 'c = <missing>
+  pub d714:"std.text.parse.parse.cut": () -> [std::text::parse::parse 'a 'b 'c 'd] () = <missing>
+  pub d715:"std.text.parse.parse.snapshot": () -> [std::text::parse::parse 'a 'b 'c 'd] 'd = <missing>
+  pub d716:"std.text.parse.parse.restore": 'a -> [std::text::parse::parse 'b 'c 'd 'a] () = <missing>
+  pub d717:"std.text.parse.parse.advance": int -> [std::text::parse::parse 'a 'b 'c 'd] () = <missing>
+  pub d724: std::text::parse::str_error -> int = <missing>
+  pub d725: std::control::var::ref 'a std::text::parse::str_error -> std::control::var::ref 'a int = <missing>
+  pub d726: std::text::parse::str_error -> int = <missing>
+  pub d727: std::control::var::ref 'a std::text::parse::str_error -> std::control::var::ref 'a int = <missing>
+  pub d728: std::text::parse::str_error -> std::data::opt::opt std::text::char::char = <missing>
+  pub d729: std::control::var::ref 'a std::text::parse::str_error -> std::control::var::ref('a, std::data::opt::opt std::text::char::char) = <missing>
+  pub d730: std::text::parse::str_error -> std::data::list::list std::text::str::str = <missing>
+  pub d731: std::control::var::ref 'a std::text::parse::str_error -> std::control::var::ref('a, std::data::list::list std::text::str::str) = <missing>
+  pub d732: std::text::parse::str_error -> std::data::list::list std::text::str::str = <missing>
+  pub d733: std::control::var::ref 'a std::text::parse::str_error -> std::control::var::ref('a, std::data::list::list std::text::str::str) = <missing>
+  pub d741: std::text::parse::prefix_result 'a -> 'a = <missing>
+  pub d742: std::control::var::ref('a, std::text::parse::prefix_result 'b) -> std::control::var::ref 'a 'b = <missing>
+  pub d743: std::text::parse::prefix_result 'a -> std::text::str::str = <missing>
+  pub d744: std::control::var::ref('a, std::text::parse::prefix_result 'b) -> std::control::var::ref 'a std::text::str::str = <missing>
+  pub d746: std::text::parse::match_result 'a -> 'a = <missing>
+  pub d747: std::control::var::ref('a, std::text::parse::match_result 'b) -> std::control::var::ref 'a 'b = <missing>
+  pub d748: std::text::parse::match_result 'a -> int = <missing>
+  pub d749: std::control::var::ref('a, std::text::parse::match_result 'b) -> std::control::var::ref 'a int = <missing>
+  pub d750: std::text::parse::match_result 'a -> int = <missing>
+  pub d751: std::control::var::ref('a, std::text::parse::match_result 'b) -> std::control::var::ref 'a int = <missing>
+  pub d752: std::text::parse::match_result 'a -> std::text::str::str = <missing>
+  pub d753: std::control::var::ref('a, std::text::parse::match_result 'b) -> std::control::var::ref 'a std::text::str::str = <missing>
+  pub d797: std::text::str::lines -> std::text::str::str = <missing>
+  pub d798: std::control::var::ref 'a std::text::str::lines -> std::control::var::ref 'a std::text::str::str = <missing>
+  pub d801: std::text::str::ref_lines 'a -> std::control::var::ref 'a std::text::str::str = <missing>
+  pub d802: std::control::var::ref('a, std::text::str::ref_lines 'b) -> std::control::var::ref('a, std::control::var::ref 'b std::text::str::str) = <missing>
+  pub d897: std::text::yumark::yumark_algebra 'a -> () -> 'a = <missing>
+  pub d898: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, () ['[]] -> ['[]] 'b) = <missing>
+  pub d899: std::text::yumark::yumark_algebra 'a -> 'a -> 'a -> 'a = <missing>
+  pub d900: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, 'b ['[]] -> ['[]] 'b ['[]] -> ['[]] 'b) = <missing>
+  pub d901: std::text::yumark::yumark_algebra 'a -> std::text::str::str -> 'a = <missing>
+  pub d902: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, std::text::str::str ['[]] -> ['[]] 'b) = <missing>
+  pub d903: std::text::yumark::yumark_algebra 'a -> 'a -> 'a = <missing>
+  pub d904: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, 'b ['[]] -> ['[]] 'b) = <missing>
+  pub d905: std::text::yumark::yumark_algebra 'a -> std::text::str::str -> int -> 'a -> 'a = <missing>
+  pub d906: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, std::text::str::str ['[]] -> ['[]] int ['[]] -> ['[]] 'b ['[]] -> ['[]] 'b) = <missing>
+  pub d907: std::text::yumark::yumark_algebra 'a -> std::text::str::str -> 'a = <missing>
+  pub d908: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, std::text::str::str ['[]] -> ['[]] 'b) = <missing>
+  pub d909: std::text::yumark::yumark_algebra 'a -> std::text::str::str -> 'a -> 'a = <missing>
+  pub d910: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, std::text::str::str ['[]] -> ['[]] 'b ['[]] -> ['[]] 'b) = <missing>
+  pub d911: std::text::yumark::yumark_algebra 'a -> bool -> 'a -> 'a = <missing>
+  pub d912: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, bool ['[]] -> ['[]] 'b ['[]] -> ['[]] 'b) = <missing>
+  pub d913: std::text::yumark::yumark_algebra 'a -> std::text::str::str -> 'a -> 'a = <missing>
+  pub d914: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, std::text::str::str ['[]] -> ['[]] 'b ['[]] -> ['[]] 'b) = <missing>
+  pub d915: std::text::yumark::yumark_algebra 'a -> 'a -> 'a = <missing>
+  pub d916: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, 'b ['[]] -> ['[]] 'b) = <missing>
+  pub d917: std::text::yumark::yumark_algebra 'a -> std::text::str::str -> std::text::str::str -> 'a = <missing>
+  pub d918: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, std::text::str::str ['[]] -> ['[]] std::text::str::str ['[]] -> ['[]] 'b) = <missing>
+  pub d919: std::text::yumark::yumark_algebra 'a -> 'a -> 'a = <missing>
+  pub d920: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, 'b ['[]] -> ['[]] 'b) = <missing>
+  pub d921: std::text::yumark::yumark_algebra 'a -> 'a -> 'a = <missing>
+  pub d922: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, 'b ['[]] -> ['[]] 'b) = <missing>
+  pub d923: std::text::yumark::yumark_algebra 'a -> 'a -> 'a = <missing>
+  pub d924: std::control::var::ref('a, std::text::yumark::yumark_algebra 'b) -> std::control::var::ref('a, 'b ['[]] -> ['[]] 'b) = <missing>
+  pub d926: std::text::yumark::html_format -> std::text::str::str = <missing>
+  pub d927: std::control::var::ref 'a std::text::yumark::html_format -> std::control::var::ref 'a std::text::str::str = <missing>
+  pub d929: std::text::yumark::markdown_format -> std::text::str::str = <missing>
+  pub d930: std::control::var::ref 'a std::text::yumark::markdown_format -> std::control::var::ref 'a std::text::str::str = <missing>
+  pub d932: std::text::yumark::html_node -> std::text::str::str = <missing>
+  pub d933: std::control::var::ref 'a std::text::yumark::html_node -> std::control::var::ref 'a std::text::str::str = <missing>
+  pub d934: std::text::yumark::html_node -> std::text::str::str = <missing>
+  pub d935: std::control::var::ref 'a std::text::yumark::html_node -> std::control::var::ref 'a std::text::str::str = <missing>
+  d996:"std.control.flow.loop.next.break": () -> [std::control::flow::loop::next] never = <missing>
+  d1000:"std.control.flow.label_loop.redo.break": () -> [std::control::flow::label_loop::redo] never = <missing>
+  d1004:"std.control.flow.loop.redo.break": () -> [std::control::flow::loop::redo] never = <missing>
+  d1008:"std.control.flow.label_loop.next.break": () -> [std::control::flow::label_loop::next] never = <missing>
+  d1012:x arg
+  d1013:f arg
+  d1014:g arg
+  d1015:x arg
+  d1016:x arg
+  d1017:y arg
+  d1018:x arg
+  d1019:y arg
+  d1020:x arg
+  d1021:y arg
+  d1022:x arg
+  d1023:y arg
+  d1024:x arg
+  d1025:x arg
+  d1026:x arg
+  d1027:y arg
+  d1028:x arg
+  d1029:y arg
+  d1030:x arg
+  d1031:y arg
+  d1032:x arg
+  d1033:y arg
+  d1034:x arg
+  d1035:y arg
+  d1036:x arg
+  d1037:y arg
+  d1038:x arg
+  d1039:y arg
+  d1040:x arg
+  d1041:y arg
+  d1042:x arg
+  d1043:y arg
+  d1044:xs arg
+  d1045:ys arg
+  d1046:left arg
+  d1047:right arg
+  d1048:expected arg
+  d1049:actual arg
+  d1050:value arg
+  d1051:t arg
+  d1052:delta arg
+  d1053:t arg
+  d1054:delta arg
+  d1055:later arg
+  d1056:earlier arg
+  d1057:x arg
+  d1058:y arg
+  d1059:x arg
+  d1060:y arg
+  d1061:count arg
+  d1062:count arg
+  d1063:count arg
+  d1064:count arg
+  d1065:count arg
+  d1066:count arg
+  d1067:count arg
+  d1068:x arg
+  d1069:y arg
+  my d1070:q: 'a = e279:(e278:(e276:r99:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e275:r98:x->d1068:x) e277:r100:y->d1069:y)
+  my d1071:r: 'a = e284:(e283:(e281:r102:"#op:infix:mod"->d419:"std.core.ops.#op:infix:mod" e280:r101:x->d1068:x) e282:r103:y->d1069:y)
+  d1072:x arg
+  d1073:y arg
+  d1074:days_since_epoch arg
+  my d1075:z: 'a = e322:(e321:(e319:r118:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e318:r117:days_since_epoch->d1074:days_since_epoch) e320:719468)
+  my d1076:era: 'a = e327:(e325:(e323:r119:floor_div->d138:"std.time.floor_div" e324:r120:z->d1075:z) e326:146097)
+  my d1077:doe: 'a = e336:(e335:(e329:r122:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e328:r121:z->d1075:z) e334:(e333:(e331:r124:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e330:r123:era->d1076:era) e332:146097))
+  my d1078:yoe: 'a = e365:(e364:(e362:r135:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e361:(e360:(e354:r132:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e353:(e352:(e346:r129:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e345:(e344:(e338:r126:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e337:r125:doe->d1077:doe) e343:(e342:(e340:r128:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e339:r127:doe->d1077:doe) e341:1460))) e351:(e350:(e348:r131:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e347:r130:doe->d1077:doe) e349:36524))) e359:(e358:(e356:r134:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e355:r133:doe->d1077:doe) e357:146096))) e363:365)
+  my d1079:year: 'a = e374:(e373:(e367:r137:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e366:r136:yoe->d1078:yoe) e372:(e371:(e369:r139:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e368:r138:era->d1076:era) e370:400))
+  my d1080:doy: 'a = e399:(e398:(e376:r141:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e375:r140:doe->d1077:doe) e397:(e396:(e390:r147:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e389:(e388:(e382:r144:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e381:(e380:(e378:r142:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e377:365) e379:r143:yoe->d1078:yoe)) e387:(e386:(e384:r146:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e383:r145:yoe->d1078:yoe) e385:4))) e395:(e394:(e392:r149:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e391:r148:yoe->d1078:yoe) e393:100)))
+  my d1081:mp: 'a = e412:(e411:(e409:r153:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e408:(e407:(e405:r152:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e404:(e403:(e401:r150:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e400:5) e402:r151:doy->d1080:doy)) e406:2)) e410:153)
+  my d1082:day: 'a = e433:(e432:(e430:r160:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e429:(e428:(e414:r155:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e413:r154:doy->d1080:doy) e427:(e426:(e424:r159:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e423:(e422:(e420:r158:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e419:(e418:(e416:r156:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e415:153) e417:r157:mp->d1081:mp)) e421:2)) e425:5))) e431:1)
+  my d1083:month: 'a = e449:(e448:(e435:r162:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e434:r161:mp->d1081:mp) e447:case e442:(e441:r165:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e440:(e439:(e437:r164:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e436:r163:mp->d1081:mp) e438:10)) { p74:true -> e443:3; p75:false -> e446:(e444:r166:"#op:prefix:-"->d413:"std.core.ops.#op:prefix:-" e445:9) })
+  d1084:n arg
+  d1085:n arg
+  d1086:n arg
+  d1087:n arg
+  d1088:text arg
+  my d1089:len: 'a = e613:(e611:r229:"std::text::str::len"->d787:"std.text.str.len" e612:r230:text->d1088:text)
+  my d1090:end: 'a = e626:(e625:(e623:r236:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e622:r235:len->d1089:len) e624:1)
+  d1091:nanos_in_second arg
+  d1092:x arg
+  my d1093:seconds: 'a = e679:(e677:(e674:r255:floor_div->d138:"std.time.floor_div" e676:(e675:r256:x->d1092:x.s12.epoch_nanos->d119)) e678:1000000000)
+  my d1094:nanos_in_second: 'a = e685:(e683:(e680:r257:floor_mod->d139:"std.time.floor_mod" e682:(e681:r258:x->d1092:x.s13.epoch_nanos->d119)) e684:1000000000)
+  my d1095:days: 'a = e690:(e688:(e686:r259:floor_div->d138:"std.time.floor_div" e687:r260:seconds->d1093:seconds) e689:86400)
+  my d1096:second_of_day: 'a = e695:(e693:(e691:r261:floor_mod->d139:"std.time.floor_mod" e692:r262:seconds->d1093:seconds) e694:86400)
+  d1097:year arg
+  d1098:month arg
+  d1099:day arg
+  my d1100:hour: 'a = e703:(e702:(e700:r266:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e699:r265:second_of_day->d1096:second_of_day) e701:3600)
+  my d1101:minute: 'a = e712:(e711:(e709:r269:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e708:(e707:(e705:r268:"#op:infix:mod"->d419:"std.core.ops.#op:infix:mod" e704:r267:second_of_day->d1096:second_of_day) e706:3600)) e710:60)
+  my d1102:second: 'a = e717:(e716:(e714:r271:"#op:infix:mod"->d419:"std.core.ops.#op:infix:mod" e713:r270:second_of_day->d1096:second_of_day) e715:60)
+  my d1103:date: 'a = e740:(e739:(e735:r279:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e734:(e733:(e731:r278:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e730:(e729:(e725:r275:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e724:(e723:(e721:r274:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e720:(e718:r272:pad4->d143:"std.time.pad4" e719:r273:year->d1097:year)) e722:"-")) e728:(e726:r276:pad2->d141:"std.time.pad2" e727:r277:month->d1098:month))) e732:"-")) e738:(e736:r280:pad2->d141:"std.time.pad2" e737:r281:day->d1099:day))
+  my d1104:clock: 'a = e763:(e762:(e758:r289:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e757:(e756:(e754:r288:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e753:(e752:(e748:r285:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e747:(e746:(e744:r284:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e743:(e741:r282:pad2->d141:"std.time.pad2" e742:r283:hour->d1100:hour)) e745:":")) e751:(e749:r286:pad2->d141:"std.time.pad2" e750:r287:minute->d1101:minute))) e755:":")) e761:(e759:r290:pad2->d141:"std.time.pad2" e760:r291:second->d1102:second))
+  d1105:x arg
+  d1106:y arg
+  d1107:x arg
+  d1108:y arg
+  d1109:x arg
+  d1110:y arg
+  d1111:x arg
+  d1112:y arg
+  d1113:x arg
+  d1114:y arg
+  d1115:x arg
+  d1116:y arg
+  d1117:x arg
+  d1118:y arg
+  d1119:x arg
+  d1120:y arg
+  d1121:x arg
+  d1122:y arg
+  d1123:x arg
+  d1124:y arg
+  d1125:x arg
+  d1126:x arg
+  d1127:x arg
+  d1128:x arg
+  d1129:y arg
+  d1130:x arg
+  d1131:y arg
+  d1132:x arg
+  d1133:a arg
+  d1134:a arg
+  d1135:x arg
+  d1136:a arg
+  d1137:a arg
+  d1138:a arg
+  d1139:x arg
+  d1140:x arg
+  d1141:x arg
+  d1142:x arg
+  d1143:x arg
+  d1144:x arg
+  d1145:xs arg
+  d1146:f arg
+  d1147:x arg
+  my d1148:loop: any -> ['a] () = e1012:(fn p184:d1149:b -> e1011:case e981:(e980:r364:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e979:r363:b->d1149:b) { p197:true -> e1009:block { e1007:(e982:r365:loop->d1148:loop e1006:(e983:r366:"redo::judge"->d1005:"std.control.flow.loop.redo.judge" e1005:catch e986:(e984:r367:f->d1146:f e985:r368:x->d1147:x) { std::control::flow::loop::last p185:_, p186:_ -> e989:(e987:r369:"last::break"->d187:"std.control.flow.loop.last.break" e988:()); std::control::flow::loop::next p187:_, p188:_ -> e992:(e990:r370:"next::break"->d996:"std.control.flow.loop.next.break" e991:()); std::control::flow::loop::redo p189:_, p190:_ -> e995:(e993:r371:"redo::break"->d1004:"std.control.flow.loop.redo.break" e994:()); std::control::flow::loop::last p191:_, p192:_ -> e998:(e996:r372:"last::break"->d187:"std.control.flow.loop.last.break" e997:()); std::control::flow::loop::next p193:_, p194:_ -> e1001:(e999:r373:"next::break"->d996:"std.control.flow.loop.next.break" e1000:()); std::control::flow::loop::redo p195:_, p196:_ -> e1004:(e1002:r374:"redo::break"->d1004:"std.control.flow.loop.redo.break" e1003:()) })); e1008:() }; p198:false -> e1010:() })
+  d1149:b arg
+  d1150:x arg
+  d1151:x arg
+  d1152:x arg
+  d1153:x arg
+  d1154:x arg
+  d1155:x arg
+  d1156:xs arg
+  d1157:f arg
+  d1158:x arg
+  my d1159:loop: any -> ['a] () = e1103:(fn p228:d1160:b -> e1102:case e1070:(e1069:r390:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1068:r389:b->d1160:b) { p241:true -> e1100:block { e1098:(e1071:r391:loop->d1159:loop e1097:(e1072:r392:"redo::judge"->d1001:"std.control.flow.label_loop.redo.judge" e1096:catch e1077:(e1075:(e1073:r393:f->d1157:f e1074:r394:control_label->d210:"std.control.flow.label_loop.control_label") e1076:r395:x->d1158:x) { std::control::flow::label_loop::last p229:_, p230:_ -> e1080:(e1078:r396:"last::break"->d207:"std.control.flow.label_loop.last.break" e1079:()); std::control::flow::label_loop::next p231:_, p232:_ -> e1083:(e1081:r397:"next::break"->d1008:"std.control.flow.label_loop.next.break" e1082:()); std::control::flow::label_loop::redo p233:_, p234:_ -> e1086:(e1084:r398:"redo::break"->d1000:"std.control.flow.label_loop.redo.break" e1085:()); std::control::flow::loop::last p235:_, p236:_ -> e1089:(e1087:r399:"last::break"->d207:"std.control.flow.label_loop.last.break" e1088:()); std::control::flow::loop::next p237:_, p238:_ -> e1092:(e1090:r400:"next::break"->d1008:"std.control.flow.label_loop.next.break" e1091:()); std::control::flow::loop::redo p239:_, p240:_ -> e1095:(e1093:r401:"redo::break"->d1000:"std.control.flow.label_loop.redo.break" e1094:()) })); e1099:() }; p242:false -> e1101:() })
+  d1160:b arg
+  d1161:xs arg
+  d1162:x arg
+  d1163:xs arg
+  d1164:x arg
+  d1165:x arg
+  d1166:k arg
+  d1167:k arg
+  d1168:b arg
+  d1169:xs arg
+  d1170:xs arg
+  d1171:b arg
+  d1172:xs arg
+  d1173:x arg
+  d1174:x arg
+  d1175:k arg
+  d1176:v arg
+  d1177:x arg
+  my d1178:loop: any [std::control::nondet::nondet; 'a] -> any -> 'b -> ['a] 'b = e1309:(fn p282:d1179:x -> e1308:(fn p283:d1180:queue -> e1307:(fn p284:d1181:res -> e1306:catch e1250:r444:x->d1179:x { std::control::nondet::nondet::branch p285:_, p286:d1182:k -> e1265:(e1263:(e1255:(e1251:r445:loop->d1178:loop e1254:(e1252:r446:k->d1182:k e1253:true)) e1262:(e1258:(e1256:r447:"std::data::list::append"->d498:"std.data.list.append" e1257:r448:queue->d1180:queue) e1261:(e1260:builtin_op::list_singleton e1259:r449:k->d1182:k))) e1264:r450:res->d1181:res); std::control::nondet::nondet::reject p287:_, p288:_ -> e1279:case e1268:(e1266:r451:"std::data::list::uncons"->d493:"std.data.list.uncons" e1267:r452:queue->d1180:queue) { p289:r453:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil" -> e1269:r454:res->d1181:res; p293:r455:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just"(p292:(p290:d1183:k, p291:d1184:queue)) -> e1278:(e1276:(e1274:(e1270:r456:loop->d1178:loop e1273:(e1271:r457:k->d1183:k e1272:false)) e1275:r458:queue->d1184:queue) e1277:r459:res->d1181:res) }; p294:d1185:v -> e1305:case e1282:(e1280:r460:"std::data::list::uncons"->d493:"std.data.list.uncons" e1281:r461:queue->d1180:queue) { p295:r462:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil" -> e1289:(e1285:(e1283:r463:"std::data::list::append"->d498:"std.data.list.append" e1284:r464:res->d1181:res) e1288:(e1287:builtin_op::list_singleton e1286:r465:v->d1185:v)); p299:r466:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just"(p298:(p296:d1186:k, p297:d1187:queue)) -> e1304:(e1296:(e1294:(e1290:r467:loop->d1178:loop e1293:(e1291:r468:k->d1186:k e1292:false)) e1295:r469:queue->d1187:queue) e1303:(e1299:(e1297:r470:"std::data::list::append"->d498:"std.data.list.append" e1298:r471:res->d1181:res) e1302:(e1301:builtin_op::list_singleton e1300:r472:v->d1185:v))) } })))
+  d1179:x arg
+  d1180:queue arg
+  d1181:res arg
+  d1182:k arg
+  d1183:k arg
+  d1184:queue arg
+  d1185:v arg
+  d1186:k arg
+  d1187:queue arg
+  d1188:x arg
+  my d1189:loop: any [std::control::nondet::nondet; 'a] -> any -> ['a] never = e1356:(fn p302:d1190:x -> e1355:(fn p303:d1191:queue -> e1354:catch e1325:r475:x->d1190:x { std::control::nondet::nondet::branch p304:_, p305:d1192:k -> e1338:(e1330:(e1326:r476:loop->d1189:loop e1329:(e1327:r477:k->d1192:k e1328:true)) e1337:(e1333:(e1331:r478:"std::data::list::append"->d498:"std.data.list.append" e1332:r479:queue->d1191:queue) e1336:(e1335:builtin_op::list_singleton e1334:r480:k->d1192:k))); std::control::nondet::nondet::reject p306:_, p307:_ -> e1350:case e1341:(e1339:r481:"std::data::list::uncons"->d493:"std.data.list.uncons" e1340:r482:queue->d1191:queue) { p308:r483:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil" -> e1342:r484:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil"; p312:r485:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just"(p311:(p309:d1193:k, p310:d1194:queue)) -> e1349:(e1347:(e1343:r486:loop->d1189:loop e1346:(e1344:r487:k->d1193:k e1345:false)) e1348:r488:queue->d1194:queue) }; p313:d1195:v -> e1353:(e1351:r489:"std::data::opt::opt::just"->d505:"std.data.opt.opt.just" e1352:r490:v->d1195:v) }))
+  d1190:x arg
+  d1191:queue arg
+  d1192:k arg
+  d1193:k arg
+  d1194:queue arg
+  d1195:v arg
+  d1196:x arg
+  d1197:x arg
+  d1198:x arg
+  d1199:f arg
+  d1200:r arg
+  d1201:f arg
+  my d1202:loop: 'a [[['b & 'c] & 'd] & [std::control::var::ref_update('e | 'f | 'g | 'h | 'i <: 'e & 'f & 'g & 'i & 'h); [[['j & 'k] & 'l] & 'm] & 'n]] -> ['p#0[AllExcept([std::control::var::ref_update 'e])], 'k, 'j, 'n, 'o, 'm, 'l] 'a = e1394:(fn p321:d1203:x -> e1393:catch e1385:r501:x->d1203:x { std::control::var::ref_update::update p322:d1204:v, p323:d1205:k -> e1392:(e1386:r502:loop->d1202:loop e1391:(e1387:r503:k->d1205:k e1390:(e1388:r504:f->d1201:f e1389:r505:v->d1204:v))) })
+  d1203:x arg
+  d1204:v arg
+  d1205:k arg
+  d1206:v arg
+  d1207:x arg
+  d1208:k arg
+  d1209:v arg
+  d1210:k arg
+  d1211:x arg
+  d1212:y arg
+  d1213:x arg
+  d1214:y arg
+  d1215:x arg
+  d1216:y arg
+  d1217:x arg
+  d1218:y arg
+  d1219:x arg
+  d1220:y arg
+  d1221:x arg
+  d1222:y arg
+  d1223:x arg
+  d1224:y arg
+  d1225:x arg
+  d1226:y arg
+  d1227:x arg
+  d1228:y arg
+  d1229:x arg
+  d1230:y arg
+  d1231:x arg
+  d1232:y arg
+  d1233:x arg
+  d1234:y arg
+  d1235:x arg
+  d1236:y arg
+  d1237:x arg
+  d1238:y arg
+  d1239:x arg
+  d1240:y arg
+  d1241:x arg
+  d1242:y arg
+  d1243:x arg
+  d1244:y arg
+  d1245:x arg
+  d1246:y arg
+  d1247:xs arg
+  d1248:ys arg
+  d1249:x arg
+  d1250:y arg
+  d1251:xl arg
+  d1252:xr arg
+  d1253:yl arg
+  d1254:yr arg
+  d1255:p arg
+  d1256:x arg
+  d1257:x arg
+  d1258:x arg
+  d1259:a arg
+  d1260:a arg
+  d1261:a arg
+  d1262:text arg
+  d1263:count arg
+  d1264:spec arg
+  d1265:fill arg
+  d1266:spec arg
+  d1267:body arg
+  d1268:limit arg
+  d1269:body arg
+  d1270:spec arg
+  d1271:head arg
+  d1272:body arg
+  d1273:spec arg
+  d1274:head arg
+  d1275:body arg
+  my d1276:clipped: 'a = e1745:(e1743:(e1741:r658:format_body->d328:"std.core.fmt.format_body" e1742:r659:spec->d1273:spec) e1744:r660:body->d1275:body)
+  my d1277:body_prefix: 'a = e1752:(e1750:(e1748:(e1746:r661:format_sign_prefix->d330:"std.core.fmt.format_sign_prefix" e1747:r662:spec->d1273:spec) e1749:r663:head->d1274:head) e1751:r664:clipped->d1276:clipped)
+  d1278:width arg
+  my d1279:clipped: 'a = e1764:(e1762:(e1760:r669:format_body->d328:"std.core.fmt.format_body" e1761:r670:spec->d1273:spec) e1763:r671:body->d1275:body)
+  my d1280:body_prefix: 'a = e1771:(e1769:(e1767:(e1765:r672:format_sign_prefix->d330:"std.core.fmt.format_sign_prefix" e1766:r673:spec->d1273:spec) e1768:r674:head->d1274:head) e1770:r675:clipped->d1279:clipped)
+  my d1281:text: 'a = e1776:(e1775:(e1773:r677:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1772:r676:body_prefix->d1280:body_prefix) e1774:r678:clipped->d1279:clipped)
+  my d1282:missing: 'a = e1782:(e1781:(e1778:r680:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e1777:r679:width->d1278:width) e1780:(e1779:r681:text->d1281:text.s56.len->d839:"std.text.str.str.len"))
+  my d1283:fill: 'a = e1793:(e1791:r686:format_fill->d327:"std.core.fmt.format_fill" e1792:r687:spec->d1273:spec)
+  my d1284:left: 'a = e1809:(e1808:(e1806:r699:"#op:infix:div"->d418:"std.core.ops.#op:infix:div" e1805:r698:missing->d1282:missing) e1807:2)
+  my d1285:right: 'a = e1814:(e1813:(e1811:r701:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e1810:r700:missing->d1282:missing) e1812:r702:left->d1284:left)
+  my d1286:padding: 'a = e1842:(e1840:(e1838:r714:repeat->d326:"std.core.fmt.repeat" e1839:r715:fill->d1283:fill) e1841:r716:missing->d1282:missing)
+  my d1287:padded_prefix: 'a = e1847:(e1846:(e1844:r718:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e1843:r717:body_prefix->d1280:body_prefix) e1845:r719:padding->d1286:padding)
+  d1288:spec arg
+  d1289:value arg
+  d1290:spec arg
+  d1291:value arg
+  d1292:spec arg
+  d1293:value arg
+  my d1294:head: 'a | std::text::str::str = e1902:case e1899:(e1898:r735:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1897:(e1896:r734:spec->d1292:spec.s61.alternate->d315)) { p459:true -> e1900:"0x"; p460:false -> e1901:"" }
+  d1295:spec arg
+  d1296:value arg
+  my d1297:head: 'a | std::text::str::str = e1920:case e1917:(e1916:r741:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e1915:(e1914:r740:spec->d1295:spec.s63.alternate->d315)) { p464:true -> e1918:"0X"; p465:false -> e1919:"" }
+  d1298:x arg
+  d1299:x arg
+  d1300:x arg
+  d1301:x arg
+  d1302:x arg
+  d1303:x arg
+  d1304:x arg
+  d1305:x arg
+  d1306:x arg
+  d1307:x arg
+  d1308:x arg
+  d1309:xs arg
+  d1310:item arg
+  d1311:left arg
+  d1312:right arg
+  my d1313:left_text: 'a | 'b | 'c = e1976:(e1974:r767:show_list_items->d358:"std.core.fmt.show_list_items" e1975:r768:left->d1311:left)
+  my d1314:right_text: 'a | 'b | 'c = e1979:(e1977:r769:show_list_items->d358:"std.core.fmt.show_list_items" e1978:r770:right->d1312:right)
+  d1315:xs arg
+  d1316:value arg
+  d1317:inner arg
+  d1318:value arg
+  d1319:inner arg
+  d1320:inner arg
+  d1321:value arg
+  d1322:a arg
+  d1323:b arg
+  d1324:value arg
+  d1325:a arg
+  d1326:b arg
+  d1327:c arg
+  d1328:value arg
+  d1329:a arg
+  d1330:b arg
+  d1331:c arg
+  d1332:d arg
+  d1333:value arg
+  d1334:a arg
+  d1335:b arg
+  d1336:c arg
+  d1337:d arg
+  d1338:e arg
+  d1339:x arg
+  d1340:x arg
+  d1341:x arg
+  d1342:xs arg
+  d1343:item arg
+  d1344:left arg
+  d1345:right arg
+  my d1346:left_text: 'a | 'b | 'c = e2204:(e2202:r850:debug_list_items->d379:"std.core.fmt.debug_list_items" e2203:r851:left->d1344:left)
+  my d1347:right_text: 'a | 'b | 'c = e2207:(e2205:r852:debug_list_items->d379:"std.core.fmt.debug_list_items" e2206:r853:right->d1345:right)
+  d1348:xs arg
+  d1349:value arg
+  d1350:inner arg
+  d1351:value arg
+  d1352:inner arg
+  d1353:inner arg
+  d1354:value arg
+  d1355:a arg
+  d1356:b arg
+  d1357:value arg
+  d1358:a arg
+  d1359:b arg
+  d1360:c arg
+  d1361:value arg
+  d1362:a arg
+  d1363:b arg
+  d1364:c arg
+  d1365:d arg
+  d1366:value arg
+  d1367:a arg
+  d1368:b arg
+  d1369:c arg
+  d1370:d arg
+  d1371:e arg
+  d1372:e arg
+  d1373:x arg
+  d1374:x arg
+  d1375:y arg
+  d1376:x arg
+  d1377:y arg
+  d1378:x arg
+  d1379:y arg
+  d1380:x arg
+  d1381:y arg
+  d1382:x arg
+  d1383:y arg
+  d1384:x arg
+  d1385:y arg
+  d1386:x arg
+  d1387:y arg
+  d1388:x arg
+  d1389:y arg
+  d1390:x arg
+  d1391:y arg
+  d1392:x arg
+  d1393:y arg
+  d1394:a arg
+  d1395:b arg
+  d1396:a arg
+  d1397:b arg
+  d1398:label arg
+  d1399:label arg
+  d1400:label arg
+  d1401:s arg
+  d1402:xs arg
+  d1403:s arg
+  d1404:xs arg
+  d1405:b arg
+  d1406:x arg
+  d1407:container arg
+  d1408:f arg
+  my d1409:nil: never = e2593:r991:"std::data::opt::opt::nil"->d504:"std.data.opt.opt.nil"
+  d1410:x arg
+  d1411:container arg
+  d1412:target arg
+  my d1413:found: 'a = e2625:(e2618:(e2617:r1001:container->d1411:container.s121.find=>d451:"std.data.fold.Fold.find") e2624:(fn p619:d1414:x -> e2623:(e2622:(e2620:r1003:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e2619:r1002:x->d1414:x) e2621:r1004:target->d1412:target)))
+  d1414:x arg
+  d1415:container arg
+  d1416:xs arg
+  d1417:ys arg
+  d1418:xs arg
+  d1419:f arg
+  d1420:xs arg
+  d1421:pred arg
+  d1422:xs arg
+  d1423:r arg
+  d1424:ys arg
+  d1425:xs arg
+  d1426:separator arg
+  d1427:xs arg
+  d1428:xs arg
+  d1429:xs arg
+  d1430:xs arg
+  d1431:xs arg
+  d1432:"&xs" arg
+  d1433:x arg
+  d1434:xs arg
+  d1435:i arg
+  d1436:xs arg
+  d1437:r arg
+  d1438:r arg
+  d1439:i arg
+  my d1440:loop: 'a [std::control::var::ref_update 'b; 'c] -> [std::control::var::ref_update 'd, 'c] 'a = e2761:(fn p651:d1441:x -> e2760:catch e2732:r1049:x->d1441:x { std::control::var::ref_update::update p652:d1442:old, p653:d1443:k -> e2759:block { let my p654:d1444:new_item = e2739:(e2733:r1050:"ref_update::update"->d235:"std.control.var.ref_update.update" e2738:(e2736:(e2734:r1051:"std::data::list::index_raw"->d481:"std.data.list.index_raw" e2735:r1052:old->d1442:old) e2737:r1053:i->d1439:i)); e2758:(e2740:r1054:loop->d1440:loop e2757:(e2741:r1055:k->d1443:k e2756:(e2752:(e2746:(e2744:(e2742:r1056:"std::data::list::splice_raw"->d485:"std.data.list.splice_raw" e2743:r1057:old->d1442:old) e2745:r1058:i->d1439:i) e2751:(e2750:(e2748:r1060:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e2747:r1059:i->d1439:i) e2749:1)) e2755:(e2754:builtin_op::list_singleton e2753:r1061:new_item->d1444:new_item)))) } })
+  d1441:x arg
+  d1442:old arg
+  d1443:k arg
+  my d1444:new_item: 'a = e2739:(e2733:r1050:"ref_update::update"->d235:"std.control.var.ref_update.update" e2738:(e2736:(e2734:r1051:"std::data::list::index_raw"->d481:"std.data.list.index_raw" e2735:r1052:old->d1442:old) e2737:r1053:i->d1439:i))
+  d1445:xs arg
+  d1446:z arg
+  d1447:f arg
+  d1448:x arg
+  d1449:left arg
+  d1450:right arg
+  d1451:xs arg
+  d1452:z arg
+  d1453:f arg
+  d1454:x arg
+  d1455:xs arg
+  d1456:x arg
+  d1457:xs arg
+  d1458:xs arg
+  my d1459:n: 'a = e2845:(e2843:r1092:"std::data::list::len"->d480:"std.data.list.len" e2844:r1093:xs->d1458:xs)
+  d1460:xs arg
+  d1461:z arg
+  d1462:f arg
+  d1463:xs arg
+  d1464:x arg
+  d1465:left arg
+  d1466:right arg
+  d1467:xs arg
+  d1468:f arg
+  d1469:x arg
+  d1470:left arg
+  d1471:right arg
+  d1472:xs arg
+  d1473:pred arg
+  d1474:x arg
+  d1475:left arg
+  d1476:right arg
+  d1477:xs arg
+  d1478:ys arg
+  d1479:xs arg
+  d1480:head arg
+  d1481:xs arg
+  d1482:head arg
+  d1483:tail arg
+  d1484:xs arg
+  d1485:x arg
+  d1486:y arg
+  d1487:y arg
+  d1488:l arg
+  d1489:r arg
+  d1490:ll arg
+  d1491:lr arg
+  d1492:rl arg
+  d1493:rr arg
+  d1494:xs arg
+  d1495:x arg
+  d1496:xs arg
+  d1497:l arg
+  d1498:r arg
+  d1499:start arg
+  d1500:end arg
+  d1501:start arg
+  d1502:end arg
+  d1503:start arg
+  d1504:end arg
+  d1505:start arg
+  d1506:end arg
+  d1507:start arg
+  d1508:start arg
+  d1509:end arg
+  d1510:end arg
+  d1511:r arg
+  d1512:start arg
+  d1513:r arg
+  d1514:end arg
+  d1515:b arg
+  d1516:x arg
+  d1517:x arg
+  d1518:b arg
+  d1519:x arg
+  d1520:x arg
+  d1521:f arg
+  d1522:i arg
+  d1523:end arg
+  d1524:acc arg
+  d1525:f arg
+  d1526:i arg
+  d1527:acc arg
+  d1528:r arg
+  d1529:z arg
+  d1530:f arg
+  d1531:start arg
+  d1532:start arg
+  d1533:end arg
+  d1534:r arg
+  d1535:f arg
+  d1536:r arg
+  d1537:f arg
+  d1538:r arg
+  d1539:fallback arg
+  d1540:r arg
+  d1541:f arg
+  d1542:value arg
+  d1543:err arg
+  d1544:r arg
+  d1545:f arg
+  d1546:value arg
+  d1547:err arg
+  d1548:r arg
+  d1549:fallback arg
+  d1550:value arg
+  d1551:value arg
+  d1552:value arg
+  d1553:value arg
+  d1554:value arg
+  d1555:value arg
+  d1556:value arg
+  d1557:value arg
+  my d1558 mod {
+    d1559:"io_err::throw#error": std::io::file::io_err -> [std::io::file::io_err] never = e3387:(fn p829:d1560:error -> e3386:case e3371:r1356:error->d1560:error { p831:r1357:not_found->d579:"std.io.file.io_err.not_found"(p830:d1561:__error_payload_0_0) -> e3374:(e3372:r1358:"std::io::file::io_err::not_found"->d580 e3373:r1359:__error_payload_0_0->d1561:__error_payload_0_0); p833:r1360:denied->d581:"std.io.file.io_err.denied"(p832:d1562:__error_payload_1_0) -> e3377:(e3375:r1361:"std::io::file::io_err::denied"->d582 e3376:r1362:__error_payload_1_0->d1562:__error_payload_1_0); p835:r1363:invalid_path->d583:"std.io.file.io_err.invalid_path"(p834:d1563:__error_payload_2_0) -> e3380:(e3378:r1364:"std::io::file::io_err::invalid_path"->d584 e3379:r1365:__error_payload_2_0->d1563:__error_payload_2_0); p838:r1366:failed->d585:"std.io.file.io_err.failed"(p836:d1564:__error_payload_3_0, p837:d1565:__error_payload_3_1) -> e3385:(e3381:r1367:"std::io::file::io_err::failed"->d586 e3384:(e3382:r1368:__error_payload_3_0->d1564:__error_payload_3_0, e3383:r1369:__error_payload_3_1->d1565:__error_payload_3_1)) })
+  }
+  d1560:error arg
+  d1561:__error_payload_0_0 arg
+  d1562:__error_payload_1_0 arg
+  d1563:__error_payload_2_0 arg
+  d1564:__error_payload_3_0 arg
+  d1565:__error_payload_3_1 arg
+  my d1566 mod {
+    d1567:"io_err::show#error": std::io::file::io_err -> std::text::str::str = e3427:(fn p839:d1568:__error_value -> e3426:case e3388:r1370:__error_value->d1568:__error_value { p841:r1371:not_found->d579:"std.io.file.io_err.not_found"(p840:d1569:__error_payload_0_0) -> e3394:(e3393:(e3390:r1372:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3389:"not_found: ") e3392:(e3391:r1373:__error_payload_0_0->d1569:__error_payload_0_0.s129.show=>d320:"std.core.fmt.Display.show")); p843:r1374:denied->d581:"std.io.file.io_err.denied"(p842:d1570:__error_payload_1_0) -> e3400:(e3399:(e3396:r1375:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3395:"denied: ") e3398:(e3397:r1376:__error_payload_1_0->d1570:__error_payload_1_0.s130.show=>d320:"std.core.fmt.Display.show")); p845:r1377:invalid_path->d583:"std.io.file.io_err.invalid_path"(p844:d1571:__error_payload_2_0) -> e3406:(e3405:(e3402:r1378:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3401:"invalid_path: ") e3404:(e3403:r1379:__error_payload_2_0->d1571:__error_payload_2_0.s131.show=>d320:"std.core.fmt.Display.show")); p848:r1380:failed->d585:"std.io.file.io_err.failed"(p846:d1572:__error_payload_3_0, p847:d1573:__error_payload_3_1) -> e3425:(e3424:(e3422:r1386:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3421:(e3420:(e3417:r1384:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3416:(e3415:(e3413:r1383:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3412:(e3411:(e3408:r1381:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3407:"failed(") e3410:(e3409:r1382:__error_payload_3_0->d1572:__error_payload_3_0.s132.show=>d320:"std.core.fmt.Display.show"))) e3414:", ")) e3419:(e3418:r1385:__error_payload_3_1->d1573:__error_payload_3_1.s133.show=>d320:"std.core.fmt.Display.show"))) e3423:")") })
+  }
+  d1568:__error_value arg
+  d1569:__error_payload_0_0 arg
+  d1570:__error_payload_1_0 arg
+  d1571:__error_payload_2_0 arg
+  d1572:__error_payload_3_0 arg
+  d1573:__error_payload_3_1 arg
+  d1574:action arg
+  d1575:__error_payload_0_0 arg
+  d1576:__error_payload_1_0 arg
+  d1577:__error_payload_2_0 arg
+  d1578:__error_payload_3_0 arg
+  d1579:__error_payload_3_1 arg
+  d1580:value arg
+  d1581:result arg
+  d1582:value arg
+  d1583:err arg
+  d1584:path arg
+  d1585:path arg
+  d1586:path arg
+  d1587:path arg
+  d1588:path arg
+  d1589:r arg
+  d1590:path arg
+  d1591:r arg
+  d1592:text arg
+  d1593:path arg
+  d1594:path arg
+  d1595:text arg
+  d1596:path arg
+  d1597:path arg
+  d1598:f arg
+  my d1599:initial: 'a = e3554:(e3550:r1447:unwrap_io->d588:"std.io.file.unwrap_io" e3553:(e3551:r1448:"file::load"->d570:"std.io.file.file.load" e3552:r1449:path->d1597:path))
+  d1600:result arg
+  d1601:final arg
+  my d1602 mod {
+    d1603:"net_err::throw#error": std::io::net::net_err -> [std::io::net::net_err] never = e3591:(fn p894:d1604:error -> e3590:case e3571:r1457:error->d1604:error { p896:r1458:unreachable->d607:"std.io.net.net_err.unreachable"(p895:d1605:__error_payload_0_0) -> e3574:(e3572:r1459:"std::io::net::net_err::unreachable"->d608 e3573:r1460:__error_payload_0_0->d1605:__error_payload_0_0); p898:r1461:refused->d609:"std.io.net.net_err.refused"(p897:d1606:__error_payload_1_0) -> e3577:(e3575:r1462:"std::io::net::net_err::refused"->d610 e3576:r1463:__error_payload_1_0->d1606:__error_payload_1_0); p900:r1464:already_bound->d611:"std.io.net.net_err.already_bound"(p899:d1607:__error_payload_2_0) -> e3580:(e3578:r1465:"std::io::net::net_err::already_bound"->d612 e3579:r1466:__error_payload_2_0->d1607:__error_payload_2_0); p901:r1467:closed->d613:"std.io.net.net_err.closed" -> e3583:(e3581:r1468:"std::io::net::net_err::closed"->d614 e3582:()); p902:r1469:timeout->d615:"std.io.net.net_err.timeout" -> e3586:(e3584:r1470:"std::io::net::net_err::timeout"->d616 e3585:()); p904:r1471:failed->d617:"std.io.net.net_err.failed"(p903:d1608:__error_payload_5_0) -> e3589:(e3587:r1472:"std::io::net::net_err::failed"->d618 e3588:r1473:__error_payload_5_0->d1608:__error_payload_5_0) })
+  }
+  d1604:error arg
+  d1605:__error_payload_0_0 arg
+  d1606:__error_payload_1_0 arg
+  d1607:__error_payload_2_0 arg
+  d1608:__error_payload_5_0 arg
+  my d1609 mod {
+    d1610:"net_err::show#error": std::io::net::net_err -> std::text::str::str = e3620:(fn p905:d1611:__error_value -> e3619:case e3592:r1474:__error_value->d1611:__error_value { p907:r1475:unreachable->d607:"std.io.net.net_err.unreachable"(p906:d1612:__error_payload_0_0) -> e3598:(e3597:(e3594:r1476:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3593:"unreachable: ") e3596:(e3595:r1477:__error_payload_0_0->d1612:__error_payload_0_0.s138.show=>d320:"std.core.fmt.Display.show")); p909:r1478:refused->d609:"std.io.net.net_err.refused"(p908:d1613:__error_payload_1_0) -> e3604:(e3603:(e3600:r1479:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3599:"refused: ") e3602:(e3601:r1480:__error_payload_1_0->d1613:__error_payload_1_0.s139.show=>d320:"std.core.fmt.Display.show")); p911:r1481:already_bound->d611:"std.io.net.net_err.already_bound"(p910:d1614:__error_payload_2_0) -> e3610:(e3609:(e3606:r1482:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3605:"already_bound: ") e3608:(e3607:r1483:__error_payload_2_0->d1614:__error_payload_2_0.s140.show=>d320:"std.core.fmt.Display.show")); p912:r1484:closed->d613:"std.io.net.net_err.closed" -> e3611:"closed"; p913:r1485:timeout->d615:"std.io.net.net_err.timeout" -> e3612:"timeout"; p915:r1486:failed->d617:"std.io.net.net_err.failed"(p914:d1615:__error_payload_5_0) -> e3618:(e3617:(e3614:r1487:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e3613:"failed: ") e3616:(e3615:r1488:__error_payload_5_0->d1615:__error_payload_5_0.s141.show=>d320:"std.core.fmt.Display.show")) })
+  }
+  d1611:__error_value arg
+  d1612:__error_payload_0_0 arg
+  d1613:__error_payload_1_0 arg
+  d1614:__error_payload_2_0 arg
+  d1615:__error_payload_5_0 arg
+  d1616:action arg
+  d1617:__error_payload_0_0 arg
+  d1618:__error_payload_1_0 arg
+  d1619:__error_payload_2_0 arg
+  d1620:__error_payload_5_0 arg
+  d1621:value arg
+  d1622:result arg
+  d1623:value arg
+  d1624:err arg
+  d1625:port arg
+  d1626:port arg
+  my d1627:listener: 'a = e3667:(e3665:r1516:listen->d627:"std.io.net.listen" e3666:r1517:port->d1626:port)
+  d1628:l arg
+  d1629:l arg
+  d1630:req arg
+  d1631:res arg
+  d1632:x arg
+  d1633:a arg
+  d1634:b arg
+  d1635:a arg
+  d1636:b arg
+  d1637:n arg
+  d1638:d arg
+  my d1639:divisor: 'a = e3742:(e3740:(e3738:r1548:gcd->d641:"std.num.frac.gcd" e3739:r1549:n->d1637:n) e3741:r1550:d->d1638:d)
+  my d1640:normalized_num: 'a = e3747:(e3745:(e3743:r1551:"std::int::div"->d54:"std.int.div" e3744:r1552:n->d1637:n) e3746:r1553:divisor->d1639:divisor)
+  my d1641:normalized_den: 'a = e3752:(e3750:(e3748:r1554:"std::int::div"->d54:"std.int.div" e3749:r1555:d->d1638:d) e3751:r1556:divisor->d1639:divisor)
+  d1642:x arg
+  d1643:y arg
+  d1644:x arg
+  d1645:y arg
+  d1646:x arg
+  d1647:y arg
+  d1648:x arg
+  d1649:y arg
+  d1650:x arg
+  d1651:y arg
+  d1652:x arg
+  d1653:y arg
+  d1654:x arg
+  d1655:y arg
+  d1656:x arg
+  d1657:y arg
+  d1658:x arg
+  d1659:y arg
+  d1660:x arg
+  d1661:x arg
+  d1662:b arg
+  d1663:b arg
+  d1664:b arg
+  d1665:other arg
+  d1666:b arg
+  d1667:b arg
+  d1668:b arg
+  d1669:b arg
+  d1670:text arg
+  d1671:b arg
+  d1672:i arg
+  d1673:b arg
+  d1674:r arg
+  d1675:c arg
+  d1676:c arg
+  d1677:c arg
+  d1678:c arg
+  d1679:c arg
+  d1680:section_name arg
+  d1681:key arg
+  d1682:c arg
+  d1683:name arg
+  d1684:c arg
+  d1685:sections arg
+  d1686:name arg
+  d1687:head arg
+  d1688:tail arg
+  d1689:head arg
+  d1690:tail arg
+  d1691:c arg
+  d1692:name arg
+  d1693:sections arg
+  d1694:section_name arg
+  d1695:entry arg
+  d1696:head arg
+  d1697:tail arg
+  d1698:head arg
+  d1699:tail arg
+  d1700:c arg
+  d1701:section_name arg
+  d1702:entry arg
+  d1703:clean arg
+  d1704:pair arg
+  d1705:key arg
+  d1706:value arg
+  d1707:state arg
+  d1708:line arg
+  d1709:cfg arg
+  d1710:current_section arg
+  my d1711:clean = e4258:(e4257:r1745:line->d1708:line.s191.trim->d827:"std.text.str.str.trim")
+  d1712:name arg
+  d1713:pair arg
+  d1714:source arg
+  d1715:cfg arg
+  d1716:entries arg
+  d1717:key arg
+  d1718:candidate arg
+  d1719:value arg
+  d1720:rest arg
+  d1721:rest arg
+  d1722:entries arg
+  d1723:key arg
+  d1724:sections arg
+  d1725:section_name arg
+  d1726:key arg
+  d1727:head arg
+  d1728:rest arg
+  d1729:rest arg
+  d1730:c arg
+  d1731:section_name arg
+  d1732:key arg
+  d1733:path arg
+  d1734:e arg
+  d1735:f arg
+  d1736:u arg
+  d1737:l arg
+  d1738:c arg
+  d1739:label arg
+  d1740:l arg
+  d1741:c arg
+  d1742:e arg
+  d1743:label arg
+  d1744:input arg
+  d1745:count arg
+  d1746:line arg
+  d1747:column arg
+  my d1748:data: 'a = e4518:(e4516:r1858:"std::text::str::to_bytes"->d795:"std.text.str.to_bytes" e4517:r1859:input->d1744:input)
+  d1749:data arg
+  d1750:count arg
+  d1751:i arg
+  d1752:line arg
+  d1753:column arg
+  my d1754:chunk_end: 'a | 'b | 'c | int = e4581:case e4574:(e4573:r1883:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4572:(e4571:(e4569:r1881:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e4568:(e4567:(e4565:r1880:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4564:r1879:i->d1751:i) e4566:1024)) e4570:r1882:count->d1750:count)) { p1126:true -> e4579:(e4578:(e4576:r1885:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4575:r1884:i->d1751:i) e4577:1024); p1127:false -> e4580:r1886:count->d1750:count }
+  d1755:line arg
+  d1756:column arg
+  d1757:data arg
+  d1758:count arg
+  d1759:i arg
+  d1760:line arg
+  d1761:column arg
+  d1762:input arg
+  d1763:count arg
+  d1764:i arg
+  d1765:line arg
+  d1766:column arg
+  my d1767:chunk_end: 'a | 'b | 'c | int = e4699:case e4692:(e4691:r1933:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4690:(e4689:(e4687:r1931:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e4686:(e4685:(e4683:r1930:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4682:r1929:i->d1764:i) e4684:1024)) e4688:r1932:count->d1763:count)) { p1150:true -> e4697:(e4696:(e4694:r1935:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e4693:r1934:i->d1764:i) e4695:1024); p1151:false -> e4698:r1936:count->d1763:count }
+  d1768:line arg
+  d1769:column arg
+  d1770:input arg
+  d1771:count arg
+  d1772:i arg
+  d1773:line arg
+  d1774:column arg
+  my d1775:item: 'a = e4744:(e4742:(e4740:r1955:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e4741:r1956:input->d1770:input) e4743:r1957:i->d1772:i)
+  d1776:input arg
+  d1777:line arg
+  d1778:column arg
+  d1779:parser arg
+  d1780:k arg
+  d1781:k arg
+  my d1782:item: 'a = e4823:(e4821:(e4819:r1985:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e4820:r1986:input->d1776:input) e4822:0)
+  my d1783:rest: 'a = e4830:(e4826:(e4824:r1987:"std::text::str::index_range"->d791:"std.text.str.index_range" e4825:r1988:input->d1776:input) e4829:(e4827:r1989:"std::data::range::from_excluded"->d517:"std.data.range.from_excluded" e4828:0))
+  d1784:e arg
+  d1785:k arg
+  d1786:k arg
+  d1787:k arg
+  d1788:k arg
+  d1789:input arg
+  d1790:line arg
+  d1791:column arg
+  d1792:k arg
+  d1793:count arg
+  d1794:k arg
+  my d1795:input_len = e4935:(e4934:r2038:input->d1776:input.s223.len->d839:"std.text.str.str.len")
+  my d1796:end: 'a | 'b | 'c | int = e4945:case e4942:(e4941:r2042:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e4940:(e4939:(e4937:r2040:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e4936:r2039:count->d1793:count) e4938:r2041:input_len->d1795:input_len)) { p1206:true -> e4943:r2043:count->d1793:count; p1207:false -> e4944:r2044:input_len->d1795:input_len }
+  my d1797:rest: 'a = e4952:(e4950:(e4948:(e4946:r2045:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e4947:r2046:input->d1776:input) e4949:r2047:end->d1796:end) e4951:r2048:input_len->d1795:input_len)
+  d1798:line arg
+  d1799:column arg
+  d1800:v arg
+  d1801:input arg
+  d1802:line arg
+  d1803:column arg
+  d1804:parser arg
+  d1805:k arg
+  d1806:k arg
+  my d1807:item: 'a = e5012:(e5010:(e5008:r2070:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e5009:r2071:input->d1801:input) e5011:0)
+  my d1808:rest: 'a = e5019:(e5015:(e5013:r2072:"std::text::str::index_range"->d791:"std.text.str.index_range" e5014:r2073:input->d1801:input) e5018:(e5016:r2074:"std::data::range::from_excluded"->d517:"std.data.range.from_excluded" e5017:0))
+  d1809:e arg
+  d1810:k arg
+  d1811:k arg
+  d1812:k arg
+  d1813:k arg
+  d1814:input arg
+  d1815:line arg
+  d1816:column arg
+  d1817:k arg
+  d1818:count arg
+  d1819:k arg
+  my d1820:input_len = e5124:(e5123:r2123:input->d1801:input.s227.len->d839:"std.text.str.str.len")
+  my d1821:end: 'a | 'b | 'c | int = e5134:case e5131:(e5130:r2127:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e5129:(e5128:(e5126:r2125:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e5125:r2124:count->d1818:count) e5127:r2126:input_len->d1820:input_len)) { p1248:true -> e5132:r2128:count->d1818:count; p1249:false -> e5133:r2129:input_len->d1820:input_len }
+  my d1822:rest: 'a = e5141:(e5139:(e5137:(e5135:r2130:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5136:r2131:input->d1801:input) e5138:r2132:end->d1821:end) e5140:r2133:input_len->d1820:input_len)
+  d1823:line arg
+  d1824:column arg
+  d1825:v arg
+  d1826:source arg
+  d1827:parser arg
+  d1828:source arg
+  d1829:start arg
+  d1830:parser arg
+  my d1831:rest: 'a = e5206:(e5203:(e5201:(e5199:r2155:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5200:r2156:source->d1828:source) e5202:r2157:start->d1829:start) e5205:(e5204:r2158:source->d1828:source.s229.len->d839:"std.text.str.str.len"))
+  d1832:found arg
+  my d1833:consumed: 'a = e5229:(e5228:(e5224:r2166:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e5223:(e5222:r2165:rest->d1831:rest.s230.len->d839:"std.text.str.str.len")) e5227:(e5226:(e5225:r2167:found->d1832:found.s231.rest->d743).s232.len->d839:"std.text.str.str.len"))
+  d1834:source arg
+  d1835:parser arg
+  d1836:source arg
+  d1837:parser arg
+  d1838:replacement arg
+  d1839:found arg
+  d1840:source arg
+  d1841:parser arg
+  d1842:replacement arg
+  my d1843:loop: int -> std::text::str::str -> std::text::str::str = e5385:(fn p1282:d1844:start -> e5384:(fn p1283:d1845:out -> e5383:case e5346:(e5344:(e5342:(e5340:r2216:find_from->d762:"std.text.parse.find_from" e5341:r2217:source->d1840:source) e5343:r2218:start->d1844:start) e5345:r2219:parser->d1841:parser) { p1285:r2220:just->d505:"std.data.opt.opt.just"(p1284:d1846:found) -> e5370:(e5350:(e5347:r2221:loop->d1843:loop e5349:(e5348:r2222:found->d1846:found.s238.end->d750)) e5369:(e5364:(e5351:r2223:"std::text::str::concat"->d785:"std.text.str.concat" e5363:(e5354:(e5352:r2224:"std::text::str::concat"->d785:"std.text.str.concat" e5353:r2225:out->d1845:out) e5362:(e5359:(e5357:(e5355:r2226:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5356:r2227:source->d1840:source) e5358:r2228:start->d1844:start) e5361:(e5360:r2229:found->d1846:found.s239.start->d748)))) e5368:(e5365:r2230:replacement->d1842:replacement e5367:(e5366:r2231:found->d1846:found.s240.value->d746)))); p1286:r2232:nil->d504:"std.data.opt.opt.nil" -> e5382:(e5373:(e5371:r2233:"std::text::str::concat"->d785:"std.text.str.concat" e5372:r2234:out->d1845:out) e5381:(e5378:(e5376:(e5374:r2235:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5375:r2236:source->d1840:source) e5377:r2237:start->d1844:start) e5380:(e5379:r2238:source->d1840:source.s241.len->d839:"std.text.str.str.len"))) }))
+  d1844:start arg
+  d1845:out arg
+  d1846:found arg
+  d1847:source arg
+  d1848:parser arg
+  d1849:replacement arg
+  d1850:found arg
+  d1851:source arg
+  d1852:parser arg
+  d1853:replacement arg
+  my d1854:loop: int -> std::text::str::str -> std::text::str::str = e5473:(fn p1297:d1855:start -> e5472:(fn p1298:d1856:out -> e5471:case e5437:(e5435:(e5433:(e5431:r2256:find_from->d762:"std.text.parse.find_from" e5432:r2257:source->d1851:source) e5434:r2258:start->d1855:start) e5436:r2259:parser->d1852:parser) { p1300:r2260:just->d505:"std.data.opt.opt.just"(p1299:d1857:found) -> e5458:(e5441:(e5438:r2261:loop->d1854:loop e5440:(e5439:r2262:found->d1857:found.s245.end->d750)) e5457:(e5455:(e5442:r2263:"std::text::str::concat"->d785:"std.text.str.concat" e5454:(e5445:(e5443:r2264:"std::text::str::concat"->d785:"std.text.str.concat" e5444:r2265:out->d1856:out) e5453:(e5450:(e5448:(e5446:r2266:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5447:r2267:source->d1851:source) e5449:r2268:start->d1855:start) e5452:(e5451:r2269:found->d1857:found.s246.start->d748)))) e5456:r2270:replacement->d1853:replacement)); p1301:r2271:nil->d504:"std.data.opt.opt.nil" -> e5470:(e5461:(e5459:r2272:"std::text::str::concat"->d785:"std.text.str.concat" e5460:r2273:out->d1856:out) e5469:(e5466:(e5464:(e5462:r2274:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e5463:r2275:source->d1851:source) e5465:r2276:start->d1855:start) e5468:(e5467:r2277:source->d1851:source.s247.len->d839:"std.text.str.str.len"))) }))
+  d1855:start arg
+  d1856:out arg
+  d1857:found arg
+  d1858:parser arg
+  d1859:replacement arg
+  d1860:source arg
+  d1861:p arg
+  d1862:q arg
+  my d1863:snap: 'a = e5495:(e5493:r2283:"parse::snapshot"->d715:"std.text.parse.parse.snapshot" e5494:())
+  d1864:k arg
+  d1865:e arg
+  d1866:e1 arg
+  d1867:e2 arg
+  d1868:p arg
+  my d1869:pos: 'a = e5531:(e5529:r2295:"parse::pos"->d713:"std.text.parse.parse.pos" e5530:())
+  my d1870:item: 'a = e5546:(e5544:r2302:"parse::item"->d710:"std.text.parse.parse.item" e5545:())
+  d1871:expected arg
+  d1872:input arg
+  d1873:input arg
+  d1874:p arg
+  d1875:p arg
+  d1876:p arg
+  d1877:p arg
+  d1878:label_text arg
+  d1879:e arg
+  d1880:input arg
+  my d1881:found: 'a = e5707:(e5705:(e5703:r2353:"std::text::str::word_prefix_at"->d880:"std.text.str.word_prefix_at" e5704:r2354:input->d1880:input) e5706:0)
+  d1882:p arg
+  d1883:b arg
+  d1884:p arg
+  d1885:ls arg
+  d1886:i arg
+  my d1887:line_range: 'a = e5771:(e5769:(e5763:r2372:"std::text::str::line_range"->d789:"std.text.str.line_range" e5768:(e5766:(e5765:(e5764:r2373:ls->d1885:ls.s257.source->d801).s258.get->d237) e5767:())) e5770:r2374:i->d1886:i)
+  my d1888:loop: 'a [std::control::var::ref_update 'b; 'c] -> [std::control::var::ref_update 'd, 'c] 'a = e5810:(fn p1372:d1889:x -> e5809:catch e5783:r2378:x->d1889:x { std::control::var::ref_update::update p1373:d1890:old, p1374:d1891:k -> e5808:block { let my p1375:d1892:line_range = e5788:(e5786:(e5784:r2379:"std::text::str::line_range"->d789:"std.text.str.line_range" e5785:r2380:old->d1890:old) e5787:r2381:i->d1886:i); e5807:block { let my p1376:d1893:new_item = e5795:(e5789:r2382:"ref_update::update"->d235:"std.control.var.ref_update.update" e5794:(e5792:(e5790:r2383:"std::text::str::index_range"->d791:"std.text.str.index_range" e5791:r2384:old->d1890:old) e5793:r2385:line_range->d1892:line_range)); e5806:(e5796:r2386:loop->d1888:loop e5805:(e5797:r2387:k->d1891:k e5804:(e5802:(e5800:(e5798:r2388:"std::text::str::splice"->d793:"std.text.str.splice" e5799:r2389:old->d1890:old) e5801:r2390:line_range->d1892:line_range) e5803:r2391:new_item->d1893:new_item))) } } })
+  d1889:x arg
+  d1890:old arg
+  d1891:k arg
+  my d1892:line_range: 'a = e5788:(e5786:(e5784:r2379:"std::text::str::line_range"->d789:"std.text.str.line_range" e5785:r2380:old->d1890:old) e5787:r2381:i->d1886:i)
+  my d1893:new_item: 'a = e5795:(e5789:r2382:"ref_update::update"->d235:"std.control.var.ref_update.update" e5794:(e5792:(e5790:r2383:"std::text::str::index_range"->d791:"std.text.str.index_range" e5791:r2384:old->d1890:old) e5793:r2385:line_range->d1892:line_range))
+  d1894:source arg
+  d1895:source arg
+  d1896:ls arg
+  d1897:i arg
+  my d1898:line_range: 'a = e5839:(e5837:(e5834:r2398:"std::text::str::line_range"->d789:"std.text.str.line_range" e5836:(e5835:r2399:ls->d1896:ls.s263.source->d797)) e5838:r2400:i->d1897:i)
+  d1899:ls arg
+  d1900:i arg
+  my d1901:line_range: 'a = e5858:(e5856:(e5850:r2405:"std::text::str::line_range"->d789:"std.text.str.line_range" e5855:(e5853:(e5852:(e5851:r2406:ls->d1899:ls.s265.source->d801).s266.get->d237) e5854:())) e5857:r2407:i->d1900:i)
+  my d1902:loop: 'a [std::control::var::ref_update 'b; 'c] -> [std::control::var::ref_update 'd, 'c] 'a = e5897:(fn p1388:d1903:x -> e5896:catch e5870:r2411:x->d1903:x { std::control::var::ref_update::update p1389:d1904:old, p1390:d1905:k -> e5895:block { let my p1391:d1906:line_range = e5875:(e5873:(e5871:r2412:"std::text::str::line_range"->d789:"std.text.str.line_range" e5872:r2413:old->d1904:old) e5874:r2414:i->d1900:i); e5894:block { let my p1392:d1907:new_item = e5882:(e5876:r2415:"ref_update::update"->d235:"std.control.var.ref_update.update" e5881:(e5879:(e5877:r2416:"std::text::str::index_range"->d791:"std.text.str.index_range" e5878:r2417:old->d1904:old) e5880:r2418:line_range->d1906:line_range)); e5893:(e5883:r2419:loop->d1902:loop e5892:(e5884:r2420:k->d1905:k e5891:(e5889:(e5887:(e5885:r2421:"std::text::str::splice"->d793:"std.text.str.splice" e5886:r2422:old->d1904:old) e5888:r2423:line_range->d1906:line_range) e5890:r2424:new_item->d1907:new_item))) } } })
+  d1903:x arg
+  d1904:old arg
+  d1905:k arg
+  my d1906:line_range: 'a = e5875:(e5873:(e5871:r2412:"std::text::str::line_range"->d789:"std.text.str.line_range" e5872:r2413:old->d1904:old) e5874:r2414:i->d1900:i)
+  my d1907:new_item: 'a = e5882:(e5876:r2415:"ref_update::update"->d235:"std.control.var.ref_update.update" e5881:(e5879:(e5877:r2416:"std::text::str::index_range"->d791:"std.text.str.index_range" e5878:r2417:old->d1904:old) e5880:r2418:line_range->d1906:line_range))
+  d1908:ls arg
+  d1909:i arg
+  d1910:end arg
+  d1911:acc arg
+  d1912:f arg
+  d1913:ls arg
+  d1914:i arg
+  d1915:end arg
+  d1916:acc arg
+  d1917:f arg
+  d1918:ls arg
+  d1919:z arg
+  d1920:f arg
+  d1921:ls arg
+  d1922:z arg
+  d1923:f arg
+  d1924:s arg
+  d1925:r arg
+  d1926:insert arg
+  d1927:s arg
+  d1928:needle arg
+  d1929:s arg
+  d1930:needle arg
+  d1931:s arg
+  d1932:prefix arg
+  d1933:s arg
+  d1934:suffix arg
+  d1935:s arg
+  d1936:separator arg
+  d1937:s arg
+  d1938:separator arg
+  d1939:s arg
+  d1940:from arg
+  d1941:to arg
+  d1942:s arg
+  d1943:from arg
+  d1944:to arg
+  d1945:s arg
+  d1946:s arg
+  d1947:s arg
+  d1948:"&r" arg
+  d1949:pattern arg
+  d1950:replacement arg
+  d1951:s arg
+  d1952:"&r" arg
+  d1953:pattern arg
+  d1954:replacement arg
+  d1955:s arg
+  d1956:"&r" arg
+  d1957:pattern arg
+  d1958:replacement arg
+  d1959:s arg
+  d1960:"&r" arg
+  d1961:range arg
+  d1962:replacement arg
+  d1963:s arg
+  d1964:"&r" arg
+  d1965:s arg
+  d1966:"&r" arg
+  d1967:s arg
+  d1968:"&r" arg
+  d1969:s arg
+  d1970:s arg
+  d1971:count arg
+  d1972:s arg
+  d1973:s arg
+  d1974:s arg
+  d1975:s arg
+  d1976:"&s" arg
+  d1977:s arg
+  d1978:s arg
+  d1979:s arg
+  d1980:s arg
+  d1981:s arg
+  d1982:source arg
+  d1983:source_len arg
+  d1984:needle arg
+  d1985:needle_len arg
+  d1986:start arg
+  my d1987:end: 'a = e6239:(e6237:(e6235:r2558:"std::int::add"->d51:"std.int.add" e6236:r2559:start->d1986:start) e6238:r2560:needle_len->d1985:needle_len)
+  d1988:source arg
+  d1989:needle arg
+  d1990:start arg
+  d1991:source arg
+  d1992:source_len arg
+  d1993:needle arg
+  d1994:needle_len arg
+  d1995:start arg
+  d1996:source arg
+  d1997:source_len arg
+  d1998:needle arg
+  d1999:needle_len arg
+  d2000:limit arg
+  d2001:i arg
+  d2002:source arg
+  d2003:needle arg
+  d2004:start arg
+  d2005:source arg
+  d2006:needle arg
+  d2007:i arg
+  d2008:source arg
+  d2009:needle arg
+  d2010:source arg
+  d2011:prefix arg
+  d2012:source arg
+  d2013:suffix arg
+  my d2014:source_len: 'a = e6431:(e6429:r2644:"std::text::str::len"->d787:"std.text.str.len" e6430:r2645:source->d2012:source)
+  my d2015:suffix_len: 'a = e6434:(e6432:r2646:"std::text::str::len"->d787:"std.text.str.len" e6433:r2647:suffix->d2013:suffix)
+  d2016:source arg
+  d2017:separator arg
+  my d2018:source_len: 'a = e6462:(e6460:r2658:"std::text::str::len"->d787:"std.text.str.len" e6461:r2659:source->d2016:source)
+  my d2019:separator_len: 'a = e6465:(e6463:r2660:"std::text::str::len"->d787:"std.text.str.len" e6464:r2661:separator->d2017:separator)
+  d2020:parts arg
+  d2021:source arg
+  d2022:source_len arg
+  d2023:separator arg
+  d2024:separator_len arg
+  d2025:source arg
+  d2026:source_len arg
+  d2027:separator arg
+  d2028:separator_len arg
+  d2029:start arg
+  d2030:out arg
+  d2031:i arg
+  my d2032:piece: 'a = e6565:(e6563:(e6561:(e6559:r2705:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e6560:r2706:source->d2025:source) e6562:r2707:start->d2029:start) e6564:r2708:i->d2031:i)
+  d2033:source arg
+  my d2034:data: 'a = e6610:(e6608:r2728:"std::text::str::to_bytes"->d795:"std.text.str.to_bytes" e6609:r2729:source->d2033:source)
+  my d2035:end: 'a = e6613:(e6611:r2730:"std::text::bytes::len"->d654:"std.text.bytes.len" e6612:r2731:data->d2034:data)
+  my d2036:chunk_count: 'a = e6622:(e6620:(e6614:r2732:"std::int::div"->d54:"std.int.div" e6619:(e6618:(e6616:r2734:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e6615:r2733:end->d2035:end) e6617:1023)) e6621:1024)
+  my d2037:scan: 'a = e6647:(e6635:(e6628:(e6627:(e6626:(e6624:r2735:"#op:infix:..<"->d409:"std.core.ops.#op:infix:..<" e6623:0) e6625:r2736:chunk_count->d2036:chunk_count).s283.fold=>d450:"std.data.fold.Fold.fold") e6634:(e6629:0, e6632:(e6630:builtin_op::list_empty e6631:()), e6633:true)) e6646:(fn p1552:d2038:state -> e6645:(fn p1553:d2039:chunk -> e6644:(e6642:(e6640:(e6638:(e6636:r2737:split_newline_bytes_chunk->d862:"std.text.str.split_newline_bytes_chunk" e6637:r2738:data->d2034:data) e6639:r2739:end->d2035:end) e6641:r2740:state->d2038:state) e6643:r2741:chunk->d2039:chunk))))
+  d2038:state arg
+  d2039:chunk arg
+  d2040:start arg
+  d2041:out arg
+  d2042:data arg
+  d2043:end arg
+  d2044:state arg
+  d2045:chunk arg
+  my d2046:i: 'a = e6681:(e6680:(e6678:r2757:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e6677:r2756:chunk->d2045:chunk) e6679:1024)
+  my d2047:chunk_end: 'a | 'b | 'c | int = e6699:case e6692:(e6691:r2762:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6690:(e6689:(e6687:r2760:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e6686:(e6685:(e6683:r2759:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e6682:r2758:i->d2046:i) e6684:1024)) e6688:r2761:end->d2043:end)) { p1570:true -> e6697:(e6696:(e6694:r2764:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e6693:r2763:i->d2046:i) e6695:1024); p1571:false -> e6698:r2765:end->d2043:end }
+  d2048:state arg
+  d2049:j arg
+  d2050:data arg
+  d2051:state arg
+  d2052:i arg
+  d2053:start arg
+  d2054:out arg
+  my d2055:piece: 'a = e6741:(e6731:r2778:"std::text::bytes::to_utf8_lossy"->d667:"std.text.bytes.to_utf8_lossy" e6740:(e6734:(e6732:r2779:"std::text::bytes::index_range"->d658:"std.text.bytes.index_range" e6733:r2780:data->d2050:data) e6739:(e6737:(e6735:r2781:"std::data::range::range"->d512:"std.data.range.range" e6736:r2782:start->d2053:start) e6738:r2783:i->d2052:i)))
+  d2056:source arg
+  d2057:separator arg
+  my d2058:source_len: 'a = e6768:(e6766:r2793:"std::text::str::len"->d787:"std.text.str.len" e6767:r2794:source->d2056:source)
+  my d2059:separator_len: 'a = e6771:(e6769:r2795:"std::text::str::len"->d787:"std.text.str.len" e6770:r2796:separator->d2057:separator)
+  d2060:i arg
+  d2061:parts arg
+  d2062:separator arg
+  d2063:out arg
+  d2064:part arg
+  d2065:rest arg
+  d2066:parts arg
+  d2067:separator arg
+  d2068:head arg
+  d2069:tail arg
+  d2070:source arg
+  d2071:i arg
+  d2072:source arg
+  d2073:end arg
+  my d2074:previous: 'a = e6891:(e6889:(e6887:r2855:"std::int::sub"->d52:"std.int.sub" e6888:r2856:end->d2073:end) e6890:1)
+  d2075:source arg
+  d2076:source arg
+  d2077:source arg
+  my d2078:start: 'a = e6945:(e6943:(e6941:r2879:trim_start_index->d867:"std.text.str.trim_start_index" e6942:r2880:source->d2077:source) e6944:0)
+  my d2079:end: 'a = e6952:(e6948:(e6946:r2881:trim_end_index->d868:"std.text.str.trim_end_index" e6947:r2882:source->d2077:source) e6951:(e6949:r2883:"std::text::str::len"->d787:"std.text.str.len" e6950:r2884:source->d2077:source))
+  d2080:source arg
+  d2081:count arg
+  my d2082:loop: int -> std::text::str::str -> std::text::str::str = e6995:(fn p1631:d2083:i -> e6994:(fn p1632:d2084:out -> e6993:case e6978:(e6977:r2896:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e6976:(e6974:(e6972:r2893:"std::int::lt"->d47:"std.int.lt" e6973:r2894:i->d2083:i) e6975:r2895:count->d2081:count)) { p1633:true -> e6991:(e6985:(e6979:r2897:loop->d2082:loop e6984:(e6982:(e6980:r2898:"std::int::add"->d51:"std.int.add" e6981:r2899:i->d2083:i) e6983:1)) e6990:(e6988:(e6986:r2900:"std::text::str::concat"->d785:"std.text.str.concat" e6987:r2901:out->d2084:out) e6989:r2902:source->d2080:source)); p1634:false -> e6992:r2903:out->d2084:out }))
+  d2083:i arg
+  d2084:out arg
+  d2085:item arg
+  d2086:source arg
+  d2087:start arg
+  d2088:i arg
+  d2089:acc arg
+  d2090:digit arg
+  d2091:source arg
+  d2092:value arg
+  d2093:source arg
+  d2094:from arg
+  d2095:to arg
+  d2096:i arg
+  d2097:source arg
+  d2098:from arg
+  d2099:to arg
+  d2100:source arg
+  d2101:from arg
+  d2102:to arg
+  my d2103:loop: int -> std::text::str::str -> std::text::str::str = e7282:(fn p1684:d2104:start -> e7281:(fn p1685:d2105:out -> e7280:case e7239:(e7237:(e7235:(e7233:r3003:find_at->d852:"std.text.str.find_at" e7234:r3004:source->d2100:source) e7236:r3005:from->d2101:from) e7238:r3006:start->d2104:start) { p1687:r3007:just->d505:"std.data.opt.opt.just"(p1686:d2106:i) -> e7266:block { let my p1688:d2107:prefix = e7246:(e7244:(e7242:(e7240:r3008:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e7241:r3009:source->d2100:source) e7243:r3010:start->d2104:start) e7245:r3011:i->d2106:i); e7265:(e7255:(e7247:r3012:loop->d2103:loop e7254:(e7250:(e7248:r3013:"std::int::add"->d51:"std.int.add" e7249:r3014:i->d2106:i) e7253:(e7251:r3015:"std::text::str::len"->d787:"std.text.str.len" e7252:r3016:from->d2101:from))) e7264:(e7262:(e7256:r3017:"std::text::str::concat"->d785:"std.text.str.concat" e7261:(e7259:(e7257:r3018:"std::text::str::concat"->d785:"std.text.str.concat" e7258:r3019:out->d2105:out) e7260:r3020:prefix->d2107:prefix)) e7263:r3021:to->d2102:to)) }; p1689:r3022:nil->d504:"std.data.opt.opt.nil" -> e7279:(e7269:(e7267:r3023:"std::text::str::concat"->d785:"std.text.str.concat" e7268:r3024:out->d2105:out) e7278:(e7274:(e7272:(e7270:r3025:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e7271:r3026:source->d2100:source) e7273:r3027:start->d2104:start) e7277:(e7275:r3028:"std::text::str::len"->d787:"std.text.str.len" e7276:r3029:source->d2100:source))) }))
+  d2104:start arg
+  d2105:out arg
+  d2106:i arg
+  my d2107:prefix: 'a = e7246:(e7244:(e7242:(e7240:r3008:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e7241:r3009:source->d2100:source) e7243:r3010:start->d2104:start) e7245:r3011:i->d2106:i)
+  d2108:source arg
+  d2109:start arg
+  my d2110:source_len: 'a = e7296:(e7294:r3031:"std::text::str::len"->d787:"std.text.str.len" e7295:r3032:source->d2108:source)
+  my d2111:remaining: 'a = e7301:(e7300:(e7298:r3034:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e7297:r3033:source_len->d2110:source_len) e7299:r3035:start->d2109:start)
+  my d2112:loop: int -> std::text::str::str = e7350:(fn p1697:d2113:i -> e7349:case e7315:(e7314:r3043:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7313:(e7312:(e7310:r3041:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e7309:r3040:i->d2113:i) e7311:r3042:source_len->d2110:source_len)) { p1701:true -> e7341:block { let my p1698:d2114:item = e7320:(e7318:(e7316:r3044:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e7317:r3045:source->d2108:source) e7319:r3046:i->d2113:i); e7340:case e7325:(e7324:r3049:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7323:(e7321:r3047:"std::text::char::is_word"->d676:"std.text.char.is_word" e7322:r3048:item->d2114:item)) { p1699:true -> e7332:(e7326:r3050:loop->d2112:loop e7331:(e7330:(e7328:r3052:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7327:r3051:i->d2113:i) e7329:1)); p1700:false -> e7339:(e7337:(e7335:(e7333:r3053:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e7334:r3054:source->d2108:source) e7336:r3055:start->d2109:start) e7338:r3056:i->d2113:i) } }; p1702:false -> e7348:(e7346:(e7344:(e7342:r3057:"std::text::str::index_range_raw"->d792:"std.text.str.index_range_raw" e7343:r3058:source->d2108:source) e7345:r3059:start->d2109:start) e7347:r3060:i->d2113:i) })
+  d2113:i arg
+  my d2114:item: 'a = e7320:(e7318:(e7316:r3044:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e7317:r3045:source->d2108:source) e7319:r3046:i->d2113:i)
+  my d2115:end: 'a = e7374:case e7361:(e7360:r3065:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7359:(e7358:(e7356:r3064:"#op:infix:=="->d420:"std.core.ops.#op:infix:==" e7355:r3063:start->d2109:start) e7357:0)) { p1704:true -> e7366:(e7364:(e7362:r3066:word_prefix_ascii_or_slow_end->d881:"std.text.str.word_prefix_ascii_or_slow_end" e7363:r3067:source->d2108:source) e7365:r3068:source_len->d2110:source_len); p1705:false -> e7373:(e7371:(e7369:(e7367:r3069:word_prefix_slow_end->d885:"std.text.str.word_prefix_slow_end" e7368:r3070:source->d2108:source) e7370:r3071:source_len->d2110:source_len) e7372:r3072:start->d2109:start) }
+  d2116:source arg
+  d2117:source_len arg
+  my d2118:data: 'a = e7390:(e7388:r3077:"std::text::str::to_bytes"->d795:"std.text.str.to_bytes" e7389:r3078:source->d2116:source)
+  my d2119:data_len: 'a = e7393:(e7391:r3079:"std::text::bytes::len"->d654:"std.text.bytes.len" e7392:r3080:data->d2118:data)
+  my d2120:chunk_count: 'a = e7402:(e7400:(e7394:r3081:"std::int::div"->d54:"std.int.div" e7399:(e7398:(e7396:r3083:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7395:r3082:data_len->d2119:data_len) e7397:1023)) e7401:1024)
+  my d2121:scan: 'a = e7424:(e7412:(e7408:(e7407:(e7406:(e7404:r3084:"#op:infix:..<"->d409:"std.core.ops.#op:infix:..<" e7403:0) e7405:r3085:chunk_count->d2120:chunk_count).s285.fold=>d450:"std.data.fold.Fold.fold") e7411:(e7409:0, e7410:0)) e7423:(fn p1714:d2122:state -> e7422:(fn p1715:d2123:chunk -> e7421:(e7419:(e7417:(e7415:(e7413:r3086:word_prefix_ascii_chunk->d882:"std.text.str.word_prefix_ascii_chunk" e7414:r3087:data->d2118:data) e7416:r3088:data_len->d2119:data_len) e7418:r3089:state->d2122:state) e7420:r3090:chunk->d2123:chunk))))
+  d2122:state arg
+  d2123:chunk arg
+  d2124:end arg
+  d2125:end arg
+  d2126:data arg
+  d2127:data_len arg
+  d2128:state arg
+  d2129:chunk arg
+  my d2130:i: 'a = e7446:(e7445:(e7443:r3099:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e7442:r3098:chunk->d2129:chunk) e7444:1024)
+  my d2131:chunk_end: 'a | 'b | 'c | int = e7464:case e7457:(e7456:r3104:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7455:(e7454:(e7452:r3102:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e7451:(e7450:(e7448:r3101:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7447:r3100:i->d2130:i) e7449:1024)) e7453:r3103:data_len->d2127:data_len)) { p1731:true -> e7462:(e7461:(e7459:r3106:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7458:r3105:i->d2130:i) e7460:1024); p1732:false -> e7463:r3107:data_len->d2127:data_len }
+  d2132:state arg
+  d2133:j arg
+  d2134:data arg
+  d2135:state arg
+  d2136:i arg
+  d2137:end arg
+  my d2138:byte: 'a = e7496:(e7494:(e7492:r3118:"std::text::bytes::index_raw"->d657:"std.text.bytes.index_raw" e7493:r3119:data->d2134:data) e7495:r3120:i->d2136:i)
+  d2139:byte arg
+  d2140:source arg
+  d2141:source_len arg
+  d2142:i arg
+  my d2143:count: 'a = e7600:(e7599:(e7597:r3153:"#op:infix:-"->d415:"std.core.ops.#op:infix:-" e7596:r3152:source_len->d2141:source_len) e7598:r3154:i->d2142:i)
+  my d2144:chunk_count: 'a = e7609:(e7607:(e7601:r3155:"std::int::div"->d54:"std.int.div" e7606:(e7605:(e7603:r3157:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7602:r3156:count->d2143:count) e7604:1023)) e7608:1024)
+  my d2145:scan: 'a = e7633:(e7619:(e7615:(e7614:(e7613:(e7611:r3158:"#op:infix:..<"->d409:"std.core.ops.#op:infix:..<" e7610:0) e7612:r3159:chunk_count->d2144:chunk_count).s287.fold=>d450:"std.data.fold.Fold.fold") e7618:(e7616:r3160:i->d2142:i, e7617:true)) e7632:(fn p1767:d2146:state -> e7631:(fn p1768:d2147:chunk -> e7630:(e7628:(e7626:(e7624:(e7622:(e7620:r3161:word_prefix_slow_chunk->d886:"std.text.str.word_prefix_slow_chunk" e7621:r3162:source->d2140:source) e7623:r3163:source_len->d2141:source_len) e7625:r3164:state->d2146:state) e7627:r3165:i->d2142:i) e7629:r3166:chunk->d2147:chunk))))
+  d2146:state arg
+  d2147:chunk arg
+  d2148:end arg
+  d2149:source arg
+  d2150:source_len arg
+  d2151:state arg
+  d2152:start arg
+  d2153:chunk arg
+  my d2154:i: 'a = e7652:(e7651:(e7645:r3171:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7644:r3170:start->d2152:start) e7650:(e7649:(e7647:r3173:"#op:infix:*"->d416:"std.core.ops.#op:infix:*" e7646:r3172:chunk->d2153:chunk) e7648:1024))
+  my d2155:chunk_end: 'a | 'b | 'c | int = e7670:case e7663:(e7662:r3178:"std::control::junction::junction::junction"->d218:"std.control.junction.junction.junction" e7661:(e7660:(e7658:r3176:"#op:infix:<"->d422:"std.core.ops.#op:infix:<" e7657:(e7656:(e7654:r3175:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7653:r3174:i->d2154:i) e7655:1024)) e7659:r3177:source_len->d2150:source_len)) { p1782:true -> e7668:(e7667:(e7665:r3180:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7664:r3179:i->d2154:i) e7666:1024); p1783:false -> e7669:r3181:source_len->d2150:source_len }
+  d2156:state arg
+  d2157:index arg
+  d2158:source arg
+  d2159:state arg
+  d2160:i arg
+  d2161:end arg
+  d2162:s arg
+  d2163:i arg
+  d2164:s arg
+  d2165:r arg
+  d2166:r arg
+  d2167:i arg
+  my d2168:loop: 'a [std::control::var::ref_update 'b; 'c] -> [std::control::var::ref_update 'd, 'c] 'a = e7769:(fn p1805:d2169:x -> e7768:catch e7748:r3211:x->d2169:x { std::control::var::ref_update::update p1806:d2170:old, p1807:d2171:k -> e7767:block { let my p1808:d2172:new_item = e7755:(e7749:r3212:"ref_update::update"->d235:"std.control.var.ref_update.update" e7754:(e7752:(e7750:r3213:"std::text::str::index_range"->d791:"std.text.str.index_range" e7751:r3214:old->d2170:old) e7753:r3215:i->d2167:i)); e7766:(e7756:r3216:loop->d2168:loop e7765:(e7757:r3217:k->d2171:k e7764:(e7762:(e7760:(e7758:r3218:"std::text::str::splice"->d793:"std.text.str.splice" e7759:r3219:old->d2170:old) e7761:r3220:i->d2167:i) e7763:r3221:new_item->d2172:new_item))) } })
+  d2169:x arg
+  d2170:old arg
+  d2171:k arg
+  my d2172:new_item: 'a = e7755:(e7749:r3212:"ref_update::update"->d235:"std.control.var.ref_update.update" e7754:(e7752:(e7750:r3213:"std::text::str::index_range"->d791:"std.text.str.index_range" e7751:r3214:old->d2170:old) e7753:r3215:i->d2167:i))
+  d2173:r arg
+  d2174:i arg
+  my d2175:loop: 'a [std::control::var::ref_update 'b; 'c] -> [std::control::var::ref_update 'd, 'c] 'a = e7825:(fn p1814:d2176:x -> e7824:catch e7792:r3228:x->d2176:x { std::control::var::ref_update::update p1815:d2177:old, p1816:d2178:k -> e7823:block { let my p1817:d2179:new_item = e7799:(e7793:r3229:"ref_update::update"->d235:"std.control.var.ref_update.update" e7798:(e7796:(e7794:r3230:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e7795:r3231:old->d2177:old) e7797:r3232:i->d2174:i)); e7822:block { let my p1818:d2180:replacement = e7802:(e7800:r3233:"std::text::char::to_string"->d673:"std.text.char.to_string" e7801:r3234:new_item->d2179:new_item); e7821:(e7803:r3235:loop->d2175:loop e7820:(e7804:r3236:k->d2178:k e7819:(e7817:(e7807:(e7805:r3237:"std::text::str::splice"->d793:"std.text.str.splice" e7806:r3238:old->d2177:old) e7816:(e7810:(e7808:r3239:range->d512:"std.data.range.range" e7809:r3240:i->d2174:i) e7815:(e7814:(e7812:r3242:"#op:infix:+"->d414:"std.core.ops.#op:infix:+" e7811:r3241:i->d2174:i) e7813:1))) e7818:r3243:replacement->d2180:replacement))) } } })
+  d2176:x arg
+  d2177:old arg
+  d2178:k arg
+  my d2179:new_item: 'a = e7799:(e7793:r3229:"ref_update::update"->d235:"std.control.var.ref_update.update" e7798:(e7796:(e7794:r3230:"std::text::str::index_raw"->d790:"std.text.str.index_raw" e7795:r3231:old->d2177:old) e7797:r3232:i->d2174:i))
+  my d2180:replacement: 'a = e7802:(e7800:r3233:"std::text::char::to_string"->d673:"std.text.char.to_string" e7801:r3234:new_item->d2179:new_item)
+  d2181:format arg
+  d2182:algebra arg
+  d2183:head arg
+  d2184:tail arg
+  d2185:format arg
+  d2186:algebra arg
+  d2187:value arg
+  d2188:format arg
+  d2189:algebra arg
+  d2190:children arg
+  d2191:format arg
+  d2192:algebra arg
+  d2193:marker arg
+  d2194:level arg
+  d2195:children arg
+  d2196:format arg
+  d2197:algebra arg
+  d2198:marker arg
+  d2199:format arg
+  d2200:algebra arg
+  d2201:marker arg
+  d2202:children arg
+  d2203:format arg
+  d2204:algebra arg
+  d2205:ordered arg
+  d2206:items arg
+  d2207:format arg
+  d2208:algebra arg
+  d2209:marker arg
+  d2210:children arg
+  d2211:format arg
+  d2212:algebra arg
+  d2213:children arg
+  d2214:format arg
+  d2215:algebra arg
+  d2216:info arg
+  d2217:body arg
+  d2218:format arg
+  d2219:algebra arg
+  d2220:children arg
+  d2221:format arg
+  d2222:algebra arg
+  d2223:children arg
+  d2224:format arg
+  d2225:algebra arg
+  d2226:children arg
+  d2227:format arg
+  d2228:algebra arg
+  d2229:node arg
+  d2230:format arg
+  d2231:document arg
+  d2232:document arg
+  d2233:document arg
+  d2234:head arg
+  d2235:tail arg
+  d2236:value arg
+  d2237:children arg
+  d2238:marker arg
+  d2239:level arg
+  d2240:children arg
+  d2241:marker arg
+  d2242:marker arg
+  d2243:children arg
+  d2244:ordered arg
+  d2245:items arg
+  d2246:marker arg
+  d2247:children arg
+  d2248:children arg
+  d2249:info arg
+  d2250:body arg
+  my d2251:info_node: 'a = e8211:(e8207:r3389:html_node->d931:"std.text.yumark.html_node" e8210:{tag: e8208:"code-info", body: e8209:r3390:info->d2249:info})
+  my d2252:body_node: 'a = e8216:(e8212:r3391:html_node->d931:"std.text.yumark.html_node" e8215:{tag: e8213:"code", body: e8214:r3392:body->d2250:body})
+  d2253:children arg
+  d2254:children arg
+  d2255:children arg
+  d2256:head arg
+  d2257:tail arg
+  d2258:value arg
+  d2259:children arg
+  d2260:marker arg
+  d2261:level arg
+  d2262:children arg
+  d2263:marker arg
+  d2264:marker arg
+  d2265:children arg
+  d2266:ordered arg
+  d2267:items arg
+  d2268:marker arg
+  d2269:children arg
+  d2270:children arg
+  d2271:info arg
+  d2272:body arg
+  d2273:children arg
+  d2274:children arg
+  d2275:children arg
+  d2276:left arg
+  d2277:right arg
+  d2278:a arg
+  d2279:b arg
+  d2280:c arg
+  d2281:a arg
+  d2282:b arg
+  d2283:c arg
+  d2284:d arg
+  d2285:format arg
+  d2286:format arg
+}
+error: unsupported type annotation syntax: record type annotation
+```
+
+## 121. x22-optional-missing-standard / run
+
+```yulang
+our read_port(config: {port?: int}): int = case config:
+    {port: p} -> p
+    _ -> 80
+read_port {}
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib run --print-roots /tmp/audit2-case/x22-optional-missing.yu
+```
+
+UTC start: 2026-11-08T12:51:59.818007+00:00; elapsed: 150.358 s; exit: 1
+
+```text
+compile error [yulang.lowering]: source has lowering errors
+  detail: unsupported type annotation syntax: record type annotation
+  hint: run `yulang check` to see source ranges before running
+```
+
+## 122. x25-explicit-direct / --poly-raw
 
 ```yulang
 act ping:
@@ -8068,7 +10642,7 @@ pats {
 }
 ```
 
-## 119. x25-explicit-direct / --mono
+## 123. x25-explicit-direct / --mono
 
 ```yulang
 act ping:
@@ -8091,7 +10665,7 @@ UTC start: 2026-11-08T12:41:26.232853+00:00; elapsed: 0.002757784001005348 s; ex
 conflicting type candidates: [ping] vs []
 ```
 
-## 120. x25-explicit-direct / --runtime-ir
+## 124. x25-explicit-direct / --runtime-ir
 
 ```yulang
 act ping:
@@ -8114,7 +10688,7 @@ UTC start: 2026-11-08T12:41:26.235749+00:00; elapsed: 0.002453204000630649 s; ex
 conflicting type candidates: [ping] vs []
 ```
 
-## 121. x25-argonly-direct / --poly-raw
+## 125. x25-argonly-direct / --poly-raw
 
 ```yulang
 act ping:
@@ -8239,7 +10813,7 @@ pats {
 }
 ```
 
-## 122. x25-argonly-direct / --mono
+## 126. x25-argonly-direct / --mono
 
 ```yulang
 act ping:
@@ -8268,7 +10842,7 @@ m2 = d2 : thunk[[ping], int] -> int
   adapter[thunk[[ping], int] -> thunk[[ping], int] => thunk[[ping], int] -> int; hygiene[add_id[0, ping, own]]](\d5 -> d5)
 ```
 
-## 123. x25-argonly-direct / --runtime-ir
+## 127. x25-argonly-direct / --runtime-ir
 
 ```yulang
 act ping:
@@ -8297,7 +10871,7 @@ m2 = d2 : thunk[[ping], int] -> int
   adapter[thunk[[ping], int] -> thunk[[ping], int] => thunk[[ping], int] -> int; hygiene[add_id[0, ping, own]]](\d5 -> d5)
 ```
 
-## 124. x25-wildarg-direct / --poly-raw
+## 128. x25-wildarg-direct / --poly-raw
 
 ```yulang
 act ping:
@@ -8428,7 +11002,7 @@ pats {
 }
 ```
 
-## 125. x25-wildarg-direct / --mono
+## 129. x25-wildarg-direct / --mono
 
 ```yulang
 act ping:
@@ -8457,7 +11031,7 @@ m2 = d2 : thunk[[ping], int] -> int
   adapter[thunk[[ping], int] -> thunk[[ping], int] => thunk[[ping], int] -> int; hygiene[add_id[0, ping, own]]](\d5 -> d5)
 ```
 
-## 126. x25-wildarg-direct / --runtime-ir
+## 130. x25-wildarg-direct / --runtime-ir
 
 ```yulang
 act ping:
@@ -8486,7 +11060,7 @@ m2 = d2 : thunk[[ping], int] -> int
   adapter[thunk[[ping], int] -> thunk[[ping], int] => thunk[[ping], int] -> int; hygiene[add_id[0, ping, own]]](\d5 -> d5)
 ```
 
-## 127. x25-wildarg-eta / --poly-raw
+## 131. x25-wildarg-eta / --poly-raw
 
 ```yulang
 act ping:
@@ -8622,7 +11196,7 @@ pats {
 }
 ```
 
-## 128. x25-wildarg-eta / --mono
+## 132. x25-wildarg-eta / --mono
 
 ```yulang
 act ping:
@@ -8651,7 +11225,7 @@ m2 = d2 : int -> int
   \d5 -> d5
 ```
 
-## 129. x25-wildarg-eta / --runtime-ir
+## 133. x25-wildarg-eta / --runtime-ir
 
 ```yulang
 act ping:
@@ -8680,7 +11254,7 @@ m2 = d2 : int -> int
   \d5 -> d5
 ```
 
-## 130. x22-inferred-missing / --poly-raw
+## 134. x22-inferred-missing / --poly-raw
 
 ```yulang
 our read_port(config) = case config:
@@ -8737,7 +11311,7 @@ pats {
 }
 ```
 
-## 131. x22-inferred-missing / --mono
+## 135. x22-inferred-missing / --mono
 
 ```yulang
 our read_port(config) = case config:
@@ -8758,7 +11332,7 @@ compile error [yulang.unsatisfied-subtype]: record is missing field `port`
   hint: add `port` to this record or use a value that provides it; actual record has no fields
 ```
 
-## 132. x22-inferred-missing / --runtime-ir
+## 136. x22-inferred-missing / --runtime-ir
 
 ```yulang
 our read_port(config) = case config:
@@ -8779,7 +11353,7 @@ compile error [yulang.unsatisfied-subtype]: record is missing field `port`
   hint: add `port` to this record or use a value that provides it; actual record has no fields
 ```
 
-## 133. default-function / check
+## 137. default-function / check
 
 ```yulang
 act ping:
@@ -8800,7 +11374,7 @@ UTC start: 2026-11-08T12:42:16.138851+00:00; elapsed: 0.009 s; exit: 0
 ```text
 ```
 
-## 134. default-function / dump
+## 138. default-function / dump
 
 ```yulang
 act ping:
@@ -8835,7 +11409,7 @@ detached {
 }
 ```
 
-## 135. default-function / run
+## 139. default-function / run
 
 ```yulang
 act ping:
@@ -8865,7 +11439,7 @@ runtime error [yulang.unhandled-effect]: unhandled effect request ping::get
       |               ^^^^^^^^^^^
 ```
 
-## 136. default-inline-catch / check
+## 140. default-inline-catch / check
 
 ```yulang
 act ping:
@@ -8886,7 +11460,7 @@ UTC start: 2026-11-08T12:42:16.161822+00:00; elapsed: 0.006 s; exit: 0
 ```text
 ```
 
-## 137. default-inline-catch / dump
+## 141. default-inline-catch / dump
 
 ```yulang
 act ping:
@@ -8918,7 +11492,7 @@ detached {
 }
 ```
 
-## 138. default-inline-catch / run
+## 142. default-inline-catch / run
 
 ```yulang
 act ping:
@@ -8940,7 +11514,7 @@ UTC start: 2026-11-08T12:42:16.175221+00:00; elapsed: 0.004 s; exit: 0
 run roots [<thunk>]
 ```
 
-## 139. default-function-directcatch / check
+## 143. default-function-directcatch / check
 
 ```yulang
 act ping:
@@ -8966,7 +11540,7 @@ diagnostics:
     hint: write an expression after `->`
 ```
 
-## 140. default-function-directcatch / dump
+## 144. default-function-directcatch / dump
 
 ```yulang
 act ping:
@@ -8995,7 +11569,7 @@ detached {
 error: catch arm is missing a body expression
 ```
 
-## 141. default-function-directcatch / run
+## 145. default-function-directcatch / run
 
 ```yulang
 act ping:
@@ -9018,7 +11592,7 @@ compile error [yulang.lowering]: source has lowering errors
   hint: run `yulang check` to see source ranges before running
 ```
 
-## 142. default-body-fallback / check
+## 146. default-body-fallback / check
 
 ```yulang
 act ping:
@@ -9039,7 +11613,7 @@ UTC start: 2026-11-08T12:42:16.196893+00:00; elapsed: 0.008 s; exit: 0
 ```text
 ```
 
-## 143. default-body-fallback / dump
+## 147. default-body-fallback / dump
 
 ```yulang
 act ping:
@@ -9074,7 +11648,7 @@ detached {
 }
 ```
 
-## 144. default-body-fallback / run
+## 148. default-body-fallback / run
 
 ```yulang
 act ping:
@@ -9096,7 +11670,7 @@ UTC start: 2026-11-08T12:42:16.214874+00:00; elapsed: 0.004 s; exit: 0
 run roots [7]
 ```
 
-## 145. default-explicit-result / check
+## 149. default-explicit-result / check
 
 ```yulang
 act ping:
@@ -9117,7 +11691,7 @@ UTC start: 2026-11-08T12:42:16.219503+00:00; elapsed: 0.008 s; exit: 0
 ```text
 ```
 
-## 146. default-explicit-result / dump
+## 150. default-explicit-result / dump
 
 ```yulang
 act ping:
@@ -9152,7 +11726,7 @@ detached {
 }
 ```
 
-## 147. default-explicit-result / run
+## 151. default-explicit-result / run
 
 ```yulang
 act ping:
@@ -9182,7 +11756,7 @@ runtime error [yulang.unhandled-effect]: unhandled effect request ping::get
       |               ^^^^^^^^^^^
 ```
 
-## 148. default-internal-handler / check
+## 152. default-internal-handler / check
 
 ```yulang
 act ping:
@@ -9203,7 +11777,7 @@ UTC start: 2026-11-08T12:42:16.242637+00:00; elapsed: 0.008 s; exit: 0
 ```text
 ```
 
-## 149. default-internal-handler / dump
+## 153. default-internal-handler / dump
 
 ```yulang
 act ping:
@@ -9238,7 +11812,7 @@ detached {
 }
 ```
 
-## 150. default-internal-handler / run
+## 154. default-internal-handler / run
 
 ```yulang
 act ping:
@@ -9260,7 +11834,7 @@ UTC start: 2026-11-08T12:42:16.260472+00:00; elapsed: 0.004 s; exit: 0
 run roots [7]
 ```
 
-## 151. default-pure-filter / check
+## 155. default-pure-filter / check
 
 ```yulang
 act ping:
@@ -9278,7 +11852,7 @@ UTC start: 2026-11-08T12:42:16.265138+00:00; elapsed: 0.004 s; exit: 0
 ```text
 ```
 
-## 152. default-pure-filter / dump
+## 156. default-pure-filter / dump
 
 ```yulang
 act ping:
@@ -9306,7 +11880,7 @@ detached {
 }
 ```
 
-## 153. default-pure-filter / run
+## 157. default-pure-filter / run
 
 ```yulang
 act ping:
@@ -9325,7 +11899,7 @@ UTC start: 2026-11-08T12:42:16.273267+00:00; elapsed: 0.003 s; exit: 0
 run roots [9]
 ```
 
-## 154. default-two-effects / check
+## 158. default-two-effects / check
 
 ```yulang
 act ping:
@@ -9346,7 +11920,7 @@ UTC start: 2026-11-08T12:42:16.276338+00:00; elapsed: 0.008 s; exit: 0
 ```text
 ```
 
-## 155. default-two-effects / dump
+## 159. default-two-effects / dump
 
 ```yulang
 act ping:
@@ -9382,7 +11956,7 @@ detached {
 }
 ```
 
-## 156. default-two-effects / run
+## 160. default-two-effects / run
 
 ```yulang
 act ping:
@@ -9412,7 +11986,7 @@ runtime error [yulang.unhandled-effect]: unhandled effect request ping::get
       |               ^^^^^^^^^^^
 ```
 
-## 157. default-case-function / check
+## 161. default-case-function / check
 
 ```yulang
 act ping:
@@ -9434,7 +12008,7 @@ UTC start: 2026-11-08T12:42:16.297738+00:00; elapsed: 0.008 s; exit: 0
 ```text
 ```
 
-## 158. default-case-function / dump
+## 162. default-case-function / dump
 
 ```yulang
 act ping:
@@ -9471,7 +12045,7 @@ detached {
 }
 ```
 
-## 159. default-case-function / run
+## 163. default-case-function / run
 
 ```yulang
 act ping:
@@ -9502,7 +12076,7 @@ runtime error [yulang.unhandled-effect]: unhandled effect request ping::get
       |          ^^^^^^^^^^^
 ```
 
-## 160. default-function-directcatch-fixed / check
+## 164. default-function-directcatch-fixed / check
 
 ```yulang
 act ping:
@@ -9522,7 +12096,7 @@ UTC start: 2026-11-08T12:43:22.239541+00:00; elapsed: 0.007 s; exit: 0
 ```text
 ```
 
-## 161. default-function-directcatch-fixed / dump
+## 165. default-function-directcatch-fixed / dump
 
 ```yulang
 act ping:
@@ -9554,7 +12128,7 @@ detached {
 }
 ```
 
-## 162. default-function-directcatch-fixed / run
+## 166. default-function-directcatch-fixed / run
 
 ```yulang
 act ping:
@@ -9575,7 +12149,7 @@ UTC start: 2026-11-08T12:43:22.254320+00:00; elapsed: 0.004 s; exit: 0
 run roots [7]
 ```
 
-## 163. default-pure-filter-fixed / check
+## 167. default-pure-filter-fixed / check
 
 ```yulang
 act ping:
@@ -9593,7 +12167,7 @@ UTC start: 2026-11-08T12:43:22.258634+00:00; elapsed: 0.004 s; exit: 0
 ```text
 ```
 
-## 164. default-pure-filter-fixed / dump
+## 168. default-pure-filter-fixed / dump
 
 ```yulang
 act ping:
@@ -9621,7 +12195,7 @@ detached {
 }
 ```
 
-## 165. default-pure-filter-fixed / run
+## 169. default-pure-filter-fixed / run
 
 ```yulang
 act ping:
@@ -9648,7 +12222,7 @@ runtime error [yulang.unhandled-effect]: unhandled effect request ping::get
       |               ^^^^^^^^^^^
 ```
 
-## 166. default-inline-catch-fixed / check
+## 170. default-inline-catch-fixed / check
 
 ```yulang
 act ping:
@@ -9676,7 +12250,7 @@ diagnostics:
       |  ^
 ```
 
-## 167. default-inline-catch-fixed / dump
+## 171. default-inline-catch-fixed / dump
 
 ```yulang
 act ping:
@@ -9712,7 +12286,7 @@ detached {
 }
 ```
 
-## 168. default-inline-catch-fixed / run
+## 172. default-inline-catch-fixed / run
 
 ```yulang
 act ping:
@@ -9738,4 +12312,930 @@ diagnostics:
     --> line 9, column 2
     9 |  )
       |  ^
+```
+
+## 173. default-function-standard2 / run
+
+```yulang
+act ping:
+    our get: () -> int
+our pick {a = ping::get()} = a
+our handle(action: [ping] _) = catch action:
+    ping::get(), k -> k 7
+    value -> value
+handle(pick {})
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib run --print-roots /tmp/audit2-case/default-function.yu
+```
+
+UTC start: 2026-11-08T12:54:37.423256+00:00; elapsed: 0.207 s; exit: 1
+
+```text
+runtime error [yulang.unhandled-effect]: unhandled effect request ping::get
+    --> line 3, column 15
+    3 | our pick {a = ping::get()} = a
+      |               ^^^^^^^^^
+  hint: handle this computation with a matching effect handler before running it
+  note: application occurs here
+    --> line 3, column 15
+    3 | our pick {a = ping::get()} = a
+      |               ^^^^^^^^^^^
+```
+
+## 174. default-function-directcatch-fixed-standard2 / run
+
+```yulang
+act ping:
+    our get: () -> int
+our pick {a = ping::get()} = a
+catch (pick {}):
+    ping::get(), k -> k 7
+    value -> value
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib run --print-roots /tmp/audit2-case/default-function-directcatch-fixed.yu
+```
+
+UTC start: 2026-11-08T12:54:37.630444+00:00; elapsed: 0.217 s; exit: 0
+
+```text
+run roots [7]
+```
+
+## 175. x25-explicit-direct-standard2 / run
+
+```yulang
+act ping:
+    our get: () -> int
+our plain(x: int): int = x
+our handle(action: [ping] int) = catch action:
+    ping::get(), k -> k 7
+    value -> value
+our higher(f: [ping] int -> [ping] int) = f(ping::get())
+handle(higher plain)
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib run --print-roots /tmp/audit2-case/x25-explicit-direct.yu
+```
+
+UTC start: 2026-11-08T12:54:37.848086+00:00; elapsed: 155.151 s; exit: 1
+
+```text
+conflicting type candidates: [ping] vs []
+```
+
+## 176. x25-wildarg-direct-standard2 / run
+
+```yulang
+act ping:
+    our get: () -> int
+our plain(x: int): int = x
+our handle(action: [ping] int) = catch action:
+    ping::get(), k -> k 7
+    value -> value
+our higher(f: [_] int -> [ping] int) = f(ping::get())
+handle(higher plain)
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib run --print-roots /tmp/audit2-case/x25-wildarg-direct.yu
+```
+
+UTC start: 2026-11-08T12:57:12.999591+00:00; elapsed: 0.207 s; exit: 1
+
+```text
+runtime error [yulang.unhandled-effect]: unhandled effect request ping::get
+    --> line 7, column 42
+    7 | our higher(f: [_] int -> [ping] int) = f(ping::get())
+      |                                          ^^^^^^^^^
+  hint: handle this computation with a matching effect handler before running it
+  note: application occurs here
+    --> line 7, column 42
+    7 | our higher(f: [_] int -> [ping] int) = f(ping::get())
+      |                                          ^^^^^^^^^^^
+```
+
+## 177. x25-wildarg-eta-standard2 / run
+
+```yulang
+act ping:
+    our get: () -> int
+our plain(x: int): int = x
+our handle(action: [ping] int) = catch action:
+    ping::get(), k -> k 7
+    value -> value
+our higher(f: [_] int -> [ping] int) = f(ping::get())
+handle(higher (\x -> plain x))
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib run --print-roots /tmp/audit2-case/x25-wildarg-eta.yu
+```
+
+UTC start: 2026-11-08T12:57:13.207202+00:00; elapsed: 0.224 s; exit: 0
+
+```text
+run roots [7]
+```
+
+## 178. k2-case-base / check
+
+```yulang
+our loop x = case x:
+    0 -> {}
+    _ -> {next: loop x}
+our result() = loop 1
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude check /tmp/audit2-case/k2-case-base.yu
+```
+
+UTC start: 2026-11-08T12:57:51.257538+00:00; elapsed: 0.006 s; exit: 0
+
+```text
+```
+
+## 179. k2-case-base / --poly
+
+```yulang
+our loop x = case x:
+    0 -> {}
+    _ -> {next: loop x}
+our result() = loop 1
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly /tmp/audit2-case/k2-case-base.yu
+```
+
+UTC start: 2026-11-08T12:57:51.263703+00:00; elapsed: 0.006 s; exit: 0
+
+```text
+roots d0:loop d1:result
+d0:loop: int -> {} = e7:(fn p0:d2:x -> e6:case e0:r0:x->d2:x { p1:0 -> e1:{}; p2:_ -> e5:{next: e4:(e2:r1:loop->d0:loop e3:r2:x->d2:x)} })
+d1:result: () -> {} = e11:(fn p3:() -> e10:(e8:r3:loop->d0:loop e9:1))
+detached {
+  d2:x arg
+}
+```
+
+## 180. k2-case-base / --poly-raw
+
+```yulang
+our loop x = case x:
+    0 -> {}
+    _ -> {next: loop x}
+our result() = loop 1
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly-raw /tmp/audit2-case/k2-case-base.yu
+```
+
+UTC start: 2026-11-08T12:57:51.269552+00:00; elapsed: 0.002 s; exit: 0
+
+```text
+raw roots [d0:loop, d1:result]
+defs {
+  d0:loop = Let { vis: our, body: e7, children: [] }
+    scheme:
+      scheme {
+        quantifiers: []
+        stack_quantifiers: []
+        predicate: p2
+        types:
+          p0 = Bot
+          p1 = Record()
+          p2 = Fun { arg: n0, arg_eff: n1, ret_eff: p0, ret: p1 }
+          n0 = Con(int, [])
+          n1 = Bot
+      }
+  d1:result = Let { vis: our, body: e11, children: [] }
+    scheme:
+      scheme {
+        quantifiers: []
+        stack_quantifiers: []
+        predicate: p3
+        types:
+          p0 = Bot
+          p1 = Record()
+          p3 = Fun { arg: n2, arg_eff: n1, ret_eff: p0, ret: p1 }
+          n1 = Bot
+          n2 = Con(unit, [])
+      }
+  d2:x = Arg
+}
+exprs {
+  e0 = Var(r0:x->d2:x)
+  e1 = Record(; spread: none)
+  e2 = Var(r1:loop->d0:loop)
+  e3 = Var(r2:x->d2:x)
+  e4 = App(e2, e3)
+  e5 = Record(next: e4; spread: none)
+  e6 = Case(e0, [{ pat: p1, guard: none, body: e1 }, { pat: p2, guard: none, body: e5 }])
+  e7 = Lambda(p0, e6)
+  e8 = Var(r3:loop->d0:loop)
+  e9 = Lit(Int(1))
+  e10 = App(e8, e9)
+  e11 = Lambda(p3, e10)
+}
+pats {
+  p0 = Var(d2:x)
+  p1 = Lit(Int(0))
+  p2 = Wild
+  p3 = Lit(Unit)
+}
+```
+
+## 181. k2-case-payload / check
+
+```yulang
+our loop x = case x:
+    0 -> x
+    _ -> {next: loop x}
+our result() = loop 1
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude check /tmp/audit2-case/k2-case-payload.yu
+```
+
+UTC start: 2026-11-08T12:57:51.271806+00:00; elapsed: 0.006 s; exit: 0
+
+```text
+```
+
+## 182. k2-case-payload / --poly
+
+```yulang
+our loop x = case x:
+    0 -> x
+    _ -> {next: loop x}
+our result() = loop 1
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly /tmp/audit2-case/k2-case-payload.yu
+```
+
+UTC start: 2026-11-08T12:57:51.277890+00:00; elapsed: 0.006 s; exit: 0
+
+```text
+roots d0:loop d1:result
+d0:loop: int -> int | {next: never} = e7:(fn p0:d2:x -> e6:case e0:r0:x->d2:x { p1:0 -> e1:r1:x->d2:x; p2:_ -> e5:{next: e4:(e2:r2:loop->d0:loop e3:r3:x->d2:x)} })
+d1:result: () -> int | {next: never} = e11:(fn p3:() -> e10:(e8:r4:loop->d0:loop e9:1))
+detached {
+  d2:x arg
+}
+```
+
+## 183. k2-case-payload / --poly-raw
+
+```yulang
+our loop x = case x:
+    0 -> x
+    _ -> {next: loop x}
+our result() = loop 1
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly-raw /tmp/audit2-case/k2-case-payload.yu
+```
+
+UTC start: 2026-11-08T12:57:51.284418+00:00; elapsed: 0.002 s; exit: 0
+
+```text
+raw roots [d0:loop, d1:result]
+defs {
+  d0:loop = Let { vis: our, body: e7, children: [] }
+    scheme:
+      scheme {
+        quantifiers: []
+        stack_quantifiers: []
+        predicate: p4
+        types:
+          p0 = Bot
+          p1 = Con(int, [])
+          p2 = Record(next: p0)
+          p3 = Union(p1, p2)
+          p4 = Fun { arg: n0, arg_eff: n1, ret_eff: p0, ret: p3 }
+          n0 = Con(int, [])
+          n1 = Bot
+      }
+  d1:result = Let { vis: our, body: e11, children: [] }
+    scheme:
+      scheme {
+        quantifiers: []
+        stack_quantifiers: []
+        predicate: p5
+        types:
+          p0 = Bot
+          p1 = Con(int, [])
+          p2 = Record(next: p0)
+          p3 = Union(p1, p2)
+          p5 = Fun { arg: n2, arg_eff: n1, ret_eff: p0, ret: p3 }
+          n1 = Bot
+          n2 = Con(unit, [])
+      }
+  d2:x = Arg
+}
+exprs {
+  e0 = Var(r0:x->d2:x)
+  e1 = Var(r1:x->d2:x)
+  e2 = Var(r2:loop->d0:loop)
+  e3 = Var(r3:x->d2:x)
+  e4 = App(e2, e3)
+  e5 = Record(next: e4; spread: none)
+  e6 = Case(e0, [{ pat: p1, guard: none, body: e1 }, { pat: p2, guard: none, body: e5 }])
+  e7 = Lambda(p0, e6)
+  e8 = Var(r4:loop->d0:loop)
+  e9 = Lit(Int(1))
+  e10 = App(e8, e9)
+  e11 = Lambda(p3, e10)
+}
+pats {
+  p0 = Var(d2:x)
+  p1 = Lit(Int(0))
+  p2 = Wild
+  p3 = Lit(Unit)
+}
+```
+
+## 184. k2-case-self / check
+
+```yulang
+our loop x = case x:
+    0 -> x
+    _ -> loop
+our result() = loop 1
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude check /tmp/audit2-case/k2-case-self.yu
+```
+
+UTC start: 2026-11-08T12:57:51.287069+00:00; elapsed: 0.005 s; exit: 0
+
+```text
+```
+
+## 185. k2-case-self / --poly
+
+```yulang
+our loop x = case x:
+    0 -> x
+    _ -> loop
+our result() = loop 1
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly /tmp/audit2-case/k2-case-self.yu
+```
+
+UTC start: 2026-11-08T12:57:51.292001+00:00; elapsed: 0.005 s; exit: 0
+
+```text
+roots d0:loop d1:result
+d0:loop: int -> int | (int -> never) = e4:(fn p0:d2:x -> e3:case e0:r0:x->d2:x { p1:0 -> e1:r1:x->d2:x; p2:_ -> e2:r2:loop->d0:loop })
+d1:result: () -> int | (int -> never) = e8:(fn p3:() -> e7:(e5:r3:loop->d0:loop e6:1))
+detached {
+  d2:x arg
+}
+```
+
+## 186. k2-case-self / --poly-raw
+
+```yulang
+our loop x = case x:
+    0 -> x
+    _ -> loop
+our result() = loop 1
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly-raw /tmp/audit2-case/k2-case-self.yu
+```
+
+UTC start: 2026-11-08T12:57:51.297536+00:00; elapsed: 0.002 s; exit: 0
+
+```text
+raw roots [d0:loop, d1:result]
+defs {
+  d0:loop = Let { vis: our, body: e4, children: [] }
+    scheme:
+      scheme {
+        quantifiers: []
+        stack_quantifiers: []
+        predicate: p4
+        types:
+          p0 = Bot
+          p1 = Con(int, [])
+          p2 = Fun { arg: n0, arg_eff: n1, ret_eff: p0, ret: p0 }
+          p3 = Union(p1, p2)
+          p4 = Fun { arg: n0, arg_eff: n1, ret_eff: p0, ret: p3 }
+          n0 = Con(int, [])
+          n1 = Bot
+      }
+  d1:result = Let { vis: our, body: e8, children: [] }
+    scheme:
+      scheme {
+        quantifiers: []
+        stack_quantifiers: []
+        predicate: p5
+        types:
+          p0 = Bot
+          p1 = Con(int, [])
+          p2 = Fun { arg: n0, arg_eff: n1, ret_eff: p0, ret: p0 }
+          p3 = Union(p1, p2)
+          p5 = Fun { arg: n2, arg_eff: n1, ret_eff: p0, ret: p3 }
+          n0 = Con(int, [])
+          n1 = Bot
+          n2 = Con(unit, [])
+      }
+  d2:x = Arg
+}
+exprs {
+  e0 = Var(r0:x->d2:x)
+  e1 = Var(r1:x->d2:x)
+  e2 = Var(r2:loop->d0:loop)
+  e3 = Case(e0, [{ pat: p1, guard: none, body: e1 }, { pat: p2, guard: none, body: e2 }])
+  e4 = Lambda(p0, e3)
+  e5 = Var(r3:loop->d0:loop)
+  e6 = Lit(Int(1))
+  e7 = App(e5, e6)
+  e8 = Lambda(p3, e7)
+}
+pats {
+  p0 = Var(d2:x)
+  p1 = Lit(Int(0))
+  p2 = Wild
+  p3 = Lit(Unit)
+}
+```
+
+## 187. k2-selfapply / check
+
+```yulang
+our omega x = x x
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude check /tmp/audit2-case/k2-selfapply.yu
+```
+
+UTC start: 2026-11-08T12:57:51.299369+00:00; elapsed: 0.003 s; exit: 0
+
+```text
+```
+
+## 188. k2-selfapply / --poly
+
+```yulang
+our omega x = x x
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly /tmp/audit2-case/k2-selfapply.yu
+```
+
+UTC start: 2026-11-08T12:57:51.302296+00:00; elapsed: 0.003 s; exit: 0
+
+```text
+roots d0:omega
+d0:omega: ('a & ('a -> ['b] 'c)) -> ['b] 'c = e3:(fn p0:d1:x -> e2:(e0:r0:x->d1:x e1:r1:x->d1:x))
+detached {
+  d1:x arg
+}
+```
+
+## 189. k2-selfapply / --poly-raw
+
+```yulang
+our omega x = x x
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly-raw /tmp/audit2-case/k2-selfapply.yu
+```
+
+UTC start: 2026-11-08T12:57:51.305462+00:00; elapsed: 0.002 s; exit: 0
+
+```text
+raw roots [d0:omega]
+defs {
+  d0:omega = Let { vis: our, body: e3, children: [] }
+    scheme:
+      scheme {
+        quantifiers: ['2, '8, '13]
+        stack_quantifiers: []
+        predicate: p4
+        types:
+          p0 = Var('2)
+          p1 = Bot
+          p2 = Var('13)
+          p3 = Var('8)
+          p4 = Fun { arg: n4, arg_eff: n5, ret_eff: p2, ret: p3 }
+          n0 = Var('2)
+          n1 = Var('13)
+          n2 = Var('8)
+          n3 = Fun { arg: p0, arg_eff: p1, ret_eff: n1, ret: n2 }
+          n4 = Intersection(n0, n3)
+          n5 = Bot
+      }
+  d1:x = Arg
+}
+exprs {
+  e0 = Var(r0:x->d1:x)
+  e1 = Var(r1:x->d1:x)
+  e2 = App(e0, e1)
+  e3 = Lambda(p0, e2)
+}
+pats {
+  p0 = Var(d1:x)
+}
+```
+
+## 190. k2-record-equation / check
+
+```yulang
+our loop x = loop {next: x}
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude check /tmp/audit2-case/k2-record-equation.yu
+```
+
+UTC start: 2026-11-08T12:57:51.307678+00:00; elapsed: 0.003 s; exit: 0
+
+```text
+```
+
+## 191. k2-record-equation / --poly
+
+```yulang
+our loop x = loop {next: x}
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly /tmp/audit2-case/k2-record-equation.yu
+```
+
+UTC start: 2026-11-08T12:57:51.310905+00:00; elapsed: 0.004 s; exit: 0
+
+```text
+roots d0:loop
+d0:loop: any -> never = e4:(fn p0:d1:x -> e3:(e0:r0:loop->d0:loop e2:{next: e1:r1:x->d1:x}))
+detached {
+  d1:x arg
+}
+```
+
+## 192. k2-record-equation / --poly-raw
+
+```yulang
+our loop x = loop {next: x}
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly-raw /tmp/audit2-case/k2-record-equation.yu
+```
+
+UTC start: 2026-11-08T12:57:51.314876+00:00; elapsed: 0.002 s; exit: 0
+
+```text
+raw roots [d0:loop]
+defs {
+  d0:loop = Let { vis: our, body: e4, children: [] }
+    scheme:
+      scheme {
+        quantifiers: []
+        stack_quantifiers: []
+        predicate: p1
+        types:
+          p0 = Bot
+          p1 = Fun { arg: n0, arg_eff: n1, ret_eff: p0, ret: p0 }
+          n0 = Top
+          n1 = Bot
+      }
+  d1:x = Arg
+}
+exprs {
+  e0 = Var(r0:loop->d0:loop)
+  e1 = Var(r1:x->d1:x)
+  e2 = Record(next: e1; spread: none)
+  e3 = App(e0, e2)
+  e4 = Lambda(p0, e3)
+}
+pats {
+  p0 = Var(d1:x)
+}
+```
+
+## 193. k2-as-type / check
+
+```yulang
+our loop(x: 'a): 'a = {next: loop x}
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude check /tmp/audit2-case/k2-as-type.yu
+```
+
+UTC start: 2026-11-08T12:57:51.316959+00:00; elapsed: 0.008 s; exit: 0
+
+```text
+```
+
+## 194. k2-as-type / --poly
+
+```yulang
+our loop(x: 'a): 'a = {next: loop x}
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly /tmp/audit2-case/k2-as-type.yu
+```
+
+UTC start: 2026-11-08T12:57:51.325289+00:00; elapsed: 0.009 s; exit: 0
+
+```text
+roots d0:loop
+d0:loop: ('a & 'b) -> 'a | {next: 'b | 'a} = e4:(fn p0:d1:x -> e3:{next: e2:(e0:r0:loop->d0:loop e1:r1:x->d1:x)})
+detached {
+  d1:x arg
+}
+```
+
+## 195. k2-as-type / --poly-raw
+
+```yulang
+our loop(x: 'a): 'a = {next: loop x}
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly-raw /tmp/audit2-case/k2-as-type.yu
+```
+
+UTC start: 2026-11-08T12:57:51.334199+00:00; elapsed: 0.002 s; exit: 0
+
+```text
+raw roots [d0:loop]
+defs {
+  d0:loop = Let { vis: our, body: e4, children: [] }
+    scheme:
+      scheme {
+        quantifiers: ['2, '13]
+        stack_quantifiers: []
+        predicate: p6
+        recursive_bounds:
+          '13 = u0
+        types:
+          p0 = Bot
+          p1 = Var('2)
+          p2 = Var('13)
+          p3 = Union(p2, p1)
+          p4 = Record(next: p3)
+          p5 = Union(p1, p4)
+          p6 = Fun { arg: n2, arg_eff: n3, ret_eff: p0, ret: p5 }
+          p7 = Union(p3, p4)
+          n0 = Var('2)
+          n1 = Var('13)
+          n2 = Intersection(n0, n1)
+          n3 = Bot
+          n4 = Top
+          u0 = Bounds(p7, n4)
+      }
+  d1:x = Arg
+}
+exprs {
+  e0 = Var(r0:loop->d0:loop)
+  e1 = Var(r1:x->d1:x)
+  e2 = App(e0, e1)
+  e3 = Record(next: e2; spread: none)
+  e4 = Lambda(p0, e3)
+}
+pats {
+  p0 = Var(d1:x)
+}
+```
+
+## 196. k2-list-return / check
+
+```yulang
+enum list 'a:
+    nil
+    cons 'a (list 'a)
+our loop x = list::cons x (loop x)
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude check /tmp/audit2-case/k2-list-return.yu
+```
+
+UTC start: 2026-11-08T12:57:51.336181+00:00; elapsed: 0.009 s; exit: 0
+
+```text
+```
+
+## 197. k2-list-return / --poly
+
+```yulang
+enum list 'a:
+    nil
+    cons 'a (list 'a)
+our loop x = list::cons x (loop x)
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly /tmp/audit2-case/k2-list-return.yu
+```
+
+UTC start: 2026-11-08T12:57:51.345519+00:00; elapsed: 0.006 s; exit: 0
+
+```text
+roots d0:list d3:loop
+d0:list mod {
+  d1:"list.nil": list 'a = <missing>
+  d2:"list.cons": 'a -> list 'a -> list 'a = <missing>
+}
+d3:loop: 'a -> list 'a = e7:(fn p0:d4:x -> e6:(e2:(e0:r0:"list::cons"->d2:"list.cons" e1:r1:x->d4:x) e5:(e3:r2:loop->d3:loop e4:r3:x->d4:x)))
+detached {
+  d4:x arg
+}
+```
+
+## 198. k2-list-return / --poly-raw
+
+```yulang
+enum list 'a:
+    nil
+    cons 'a (list 'a)
+our loop x = list::cons x (loop x)
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib --no-prelude dump --poly-raw /tmp/audit2-case/k2-list-return.yu
+```
+
+UTC start: 2026-11-08T12:57:51.352074+00:00; elapsed: 0.002 s; exit: 0
+
+```text
+raw roots [d0:list, d3:loop]
+defs {
+  d0:list = Mod { vis: our, children: [d1:"list.nil", d2:"list.cons"] }
+  d1:"list.nil" = Let { vis: our, body: <missing>, children: [] }
+    scheme:
+      scheme {
+        quantifiers: ['1]
+        stack_quantifiers: []
+        predicate: p1
+        types:
+          p0 = Var('1)
+          p1 = Con(list, [u0])
+          n0 = Var('1)
+          u0 = Bounds(p0, n0)
+      }
+  d2:"list.cons" = Let { vis: our, body: <missing>, children: [] }
+    scheme:
+      scheme {
+        quantifiers: ['3]
+        stack_quantifiers: []
+        predicate: p6
+        types:
+          p2 = Bot
+          p3 = Var('3)
+          p4 = Con(list, [u1])
+          p5 = Fun { arg: n3, arg_eff: n2, ret_eff: p2, ret: p4 }
+          p6 = Fun { arg: n1, arg_eff: n2, ret_eff: p2, ret: p5 }
+          n1 = Var('3)
+          n2 = Bot
+          n3 = Con(list, [u1])
+          u1 = Bounds(p3, n1)
+      }
+  d3:loop = Let { vis: our, body: e7, children: [] }
+    scheme:
+      scheme {
+        quantifiers: ['8]
+        stack_quantifiers: []
+        predicate: p9
+        types:
+          p2 = Bot
+          p7 = Var('8)
+          p8 = Con(list, [u2])
+          p9 = Fun { arg: n4, arg_eff: n2, ret_eff: p2, ret: p8 }
+          n2 = Bot
+          n4 = Var('8)
+          u2 = Bounds(p7, n4)
+      }
+  d4:x = Arg
+}
+exprs {
+  e0 = Var(r0:"list::cons"->d2:"list.cons")
+  e1 = Var(r1:x->d4:x)
+  e2 = App(e0, e1)
+  e3 = Var(r2:loop->d3:loop)
+  e4 = Var(r3:x->d4:x)
+  e5 = App(e3, e4)
+  e6 = App(e2, e5)
+  e7 = Lambda(p0, e6)
+}
+pats {
+  p0 = Var(d4:x)
+}
+```
+
+## 199. box-consumer-add-standard3 / run
+
+```yulang
+struct user_id {raw: int}
+cast(x: user_id): int = x.raw
+struct box 'a { value: 'a }
+my add: int -> int -> int = builtin_op::int_add
+my consume(x: box int) = add x.value 1
+consume (box {value: user_id {raw: 7}})
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib run --print-roots /tmp/audit2-cast-more/box-consumer-add.yu
+```
+
+UTC start: 2026-11-08T13:00:10.764620+00:00; elapsed: 0.239 s; exit: 1
+
+```text
+runtime error [yulang.unsupported-runtime-feature]: unsupported expression in runtime: non-int primitive argument
+  hint: try the interpreter oracle or reduce this source to a smaller report
+```
+
+## 200. box-fixed-producer-standard3 / run
+
+```yulang
+struct user_id {raw: int}
+cast(x: user_id): int = x.raw
+struct box 'a { value: 'a }
+my add: int -> int -> int = builtin_op::int_add
+my make(): box user_id = box {value: user_id {raw: 7}}
+my consume(x: box int) = add x.value 1
+consume (make())
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib run --print-roots /tmp/audit2-cast-more/box-fixed-producer.yu
+```
+
+UTC start: 2026-11-08T13:00:11.004299+00:00; elapsed: 158.763 s; exit: 1
+
+```text
+compile error [yulang.unsatisfied-subtype]: unsatisfied subtype constraint: box(user_id) <: box(int)
+  hint: check that the value provides the fields or shape required by this use
+```
+
+## 201. box-explicit-back-standard3 / run
+
+```yulang
+struct user_id {raw: int}
+cast(x: user_id): int = x.raw
+struct box 'a { value: 'a }
+my add: int -> int -> int = builtin_op::int_add
+my back(x: user_id): int = x
+my convert(x: box user_id): box int = box {value: back x.value}
+my consume(x: box int) = add x.value 1
+consume (convert (box {value: user_id {raw: 7}}))
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib run --print-roots /tmp/audit2-cast-more/box-explicit-back.yu
+```
+
+UTC start: 2026-11-08T13:02:49.767379+00:00; elapsed: 0.212 s; exit: 0
+
+```text
+run roots [8]
+```
+
+## 202. direct-callback-hidden-standard3 / run
+
+```yulang
+act ping:
+    our get: () -> int
+our inner(f) = catch f():
+    ping::get(), k -> k 2
+    value -> value
+catch inner(\() -> ping::get()):
+    ping::get(), k -> k 7
+    value -> value
+```
+
+```sh
+/workspace/scratch/1d0b4aaa3394/yulang-audit-y2/target/release/yulang --std-root /workspace/scratch/1d0b4aaa3394/yulang-audit-y2/lib run --print-roots /tmp/audit2-hygiene/direct-callback-hidden.yu
+```
+
+UTC start: 2026-11-08T13:02:49.979601+00:00; elapsed: 0.201 s; exit: 0
+
+```text
+run roots [2]
 ```

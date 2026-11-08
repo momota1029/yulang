@@ -28,3 +28,5 @@ Leanの `CommonAlignedPatternSafeDefaults.typing_matches` は任意effectful def
 新specの意味論を旧失敗に合わせて変更しない。B2/B6で取り込むべき回帰候補として残し、どの表面入口までeffectを保持するかは未確認。この監査はLeanビルドやsource-to-core意味保存を検証していない。
 
 全コマンド・出力と失敗した構文試行も `runtime-cycle-2-effects-patterns.md` に保存。
+
+標準prelude有りの対照でも外側handleはunhandled（0.207秒）、直接catchは7（0.217秒）。no-preludeによる未読込だけが原因とは説明できない。

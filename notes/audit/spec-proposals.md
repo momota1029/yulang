@@ -9,3 +9,7 @@
 - role residualのvariance反転・共起簡約は旧文書と既存unitの一致を確認したが、新spec/Leanの全接続の不存在は確定していない。次回に範囲を絞って確認する。
 
 - narrower errorの直接wrapは実機でunhandled、明示up→wrapは成功した。新specの意味核を書き換える理由にはせず、source生成と実行の境界差として継続監査する。
+
+## Cycle 2（2026-11-08）
+
+X1–X25 oracleと追加境界を照合した。確実な新規の仕様欠落として追記すべき条文は、このサイクルでは確定していない。X2/宣言where、未知receiver二roleの曖昧、宣言variance、optional field、field-local forallは新specに明示された選択で、旧実機との差を復元要求にしない。F1のcarrier接続は既存質問へ追記した。effectful defaultのsource境界は回帰候補として保存したが、既に許可された効果を旧実装の失敗に合わせて禁止する提案はしない。
