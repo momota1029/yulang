@@ -1090,3 +1090,5 @@ import Yulang.CommonRoleClosedRecordInspection
 import Yulang.CommonRoleClosedIntervalInspection
 
 import Yulang.CommonRoleClosedResidualInspection
+
+import Yulang.CommonRoleClosedResidualSlots

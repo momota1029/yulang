@@ -6114,3 +6114,7 @@ run_cmd do
 #print axioms Yulang.CommonRoleClosedResidualInspection.inspect_exact
 
 #print axioms Yulang.CommonRoleClosedResidualInspection.inspect_generation_exact
+
+#print axioms Yulang.CommonRoleClosedResidualSlots.inspect_all_exact
+
+#print axioms Yulang.CommonRoleClosedResidualSlots.inspect_all_grammar
