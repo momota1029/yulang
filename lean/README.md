@@ -2784,3 +2784,8 @@ Nominal expression lowering, recursive carrier/cast synthesis, and B5/B1 E1 rema
 ## Inherited invariant context
 
 `CommonRecursiveNominalIntervalContext` implements spec 6.5's updated covariance and contravariance rule. Once inside an invariant argument, every used nested position has effective invariant variance; unused positions remain unused. Each emitted obligation carries the original declaration's propagated context. Decomposition is exact and recursive child sizes strictly decrease, for arbitrary finite endpoint depth. This reference expander does not itself eliminate duplicate endpoint-pair work.
+
+
+## Contextual recursive comparison judgment
+
+`inspect_context_exact` proves the reference compiler equivalent to independent `ContextDerives` rules for every table, both contexts, every finite description pair and every Common assignment. The rules compare complete argument descriptions, including all four checks for invariant merging. They do not identify directional interval-bound construction with comparison of two point descriptions: the later 47e02a5c9 equal-head normalization rule requires a distinct envelope construction, since `(box A, box B)` preserves `A ≤ B`, not equality. This reference theorem is not completion of B4.

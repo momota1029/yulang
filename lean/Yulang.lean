@@ -1152,3 +1152,5 @@ import Yulang.CommonDeclarationVarianceSourceFamily
 import Yulang.CommonRecursiveNominalIntervalAdmission
 
 import Yulang.CommonRecursiveNominalIntervalContext
+
+import Yulang.CommonRecursiveNominalIntervalContextExact
