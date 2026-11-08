@@ -6072,3 +6072,11 @@ run_cmd do
 #print axioms Yulang.CommonEffectMixedDeclarations.lookup_interpretAll
 
 #print axioms Yulang.CommonEffectMixedDeclarations.interpretAll_local
+
+#print axioms Yulang.CommonEffectMixedSource.Typing.request_iff
+
+#print axioms Yulang.CommonEffectMixedSource.Typing.handler_iff
+
+#print axioms Yulang.CommonEffectMixedSource.Typing.multiHandler_separate_iff
+
+#print axioms Yulang.CommonEffectMixedSource.Typing.partialHandler_separate_iff
