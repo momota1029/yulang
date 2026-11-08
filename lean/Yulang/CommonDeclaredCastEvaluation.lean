@@ -126,6 +126,22 @@ theorem execute_bound (plan : Plan n) (accepted : check plan = true) (leaf : Lea
   CommonDeclaredCastCost.run_bound plan accepted
     (execute_run plan accepted leaf node input output cost returned)
 
+/-- Public execution computes the finite cycle check internally. -/
+def executeChecked (plan : Plan n) (leaf : Leaf n) (node : Fin n) (input : Value n) :
+    Option (Value n × Nat) :=
+  if accepted : check plan = true then execute plan accepted leaf node input else none
+
+theorem execute_checked_bound (plan : Plan n) (leaf : Leaf n)
+    (node : Fin n) (input output : Value n) (cost : Nat)
+    (returned : executeChecked plan leaf node input = some (output, cost)) :
+    ∃ accepted : check plan = true, Run plan node cost ∧ cost ≤ budget plan accepted node := by
+  unfold executeChecked at returned
+  split at returned
+  next accepted =>
+    exact ⟨accepted, execute_run plan accepted leaf node input output cost returned,
+      execute_bound plan accepted leaf node input output cost returned⟩
+  next _ => cases returned
+
 /-- A callable input is wrapped immediately; neither argument nor result
 conversion is executed during this allocation. Other value shapes fail. -/
 theorem execute_function (plan : Plan n) (accepted : check plan = true) (leaf : Leaf n)
