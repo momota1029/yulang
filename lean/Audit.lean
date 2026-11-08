@@ -6198,3 +6198,9 @@ run_cmd do
 #print axioms Yulang.CommonDeclarationVarianceOccurrences.expression_occurs_exact
 
 #print axioms Yulang.CommonDeclarationVarianceOccurrences.used_exact
+
+#print axioms Yulang.CommonDeclarationVarianceLowering.lower_exact
+
+#print axioms Yulang.CommonDeclarationVarianceLowering.lower_arguments_exact
+
+#print axioms Yulang.CommonDeclarationVarianceLowering.lower_arguments_preserves_every_kind

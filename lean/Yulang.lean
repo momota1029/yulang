@@ -1116,3 +1116,5 @@ import Yulang.CommonDeclaredCastEvaluation
 import Yulang.CommonDeclarationVarianceSyntax
 
 import Yulang.CommonDeclarationVarianceOccurrences
+
+import Yulang.CommonDeclarationVarianceLowering
