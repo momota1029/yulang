@@ -1246,3 +1246,6 @@ import Yulang.SpecConformanceIndex
 
 import Yulang.CommonRoleAssociatedParentSuccess
 import Yulang.CommonRoleAssociatedParentExact
+
+import Yulang.CommonRoleSourceDescent
+import Main
