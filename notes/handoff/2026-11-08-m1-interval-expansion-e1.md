@@ -124,3 +124,144 @@ pending や noImpl と同一視しない。たとえば rigid head `int` と `(i
 
 検証: 対象 warning-as-error build（125 jobs）成功。
 公開 run の直接 `trust=0` 監査は `[propext, Quot.sound]` のみ。
+
+## 5. 全 node の普通の区間制約を保持する
+
+`CommonRoleIntervalExpansionChecks.constraints_exact`:
+
+> 任意の endpoint 解釈、任意の元有限 trace、任意の template value assignment について、
+> 実 `constraints trace` の Models iff 同じ trace の各元 goal・各捕捉表・全 where 子で
+> lower <: upper が成り立つ独立した `Consistent` 判断。
+
+`original_goal_checks` は、元 goal の全 endpoint 対の self check が実列に入ることを示す。
+唯一候補の全子だけでなく、overlap leaf の全候補に記録された元捕捉表も保持する。
+構造 capture の成功から区間の整合を勝手に導くことはしない。
+
+検証: 対象 warning-as-error build（126 jobs）成功。直接 `trust=0` の公理は許可リスト内。
+
+## 6. 独立した有限 dictionary と実 preparation の iff
+
+`CommonRoleIntervalDictionaries.complete_iff_dictionary`:
+
+> 任意の有限 declaration 列、全宣言の実 Paterson 検査通過、任意の元 endpoint goal に対し、
+> 実展開の `complete` 検査が true iff 同じ元 registry と goal に対する独立 `Dictionary` が存在する。
+
+独立 dictionary は各 head で元 `Selection` の唯一候補と、元 `requirements` の全 child dictionary を持つ。
+実抽出は `accepted_child_decreases` による停止再帰である。既存 `RoleDictionaries.Plan` への
+`erase` は declaration identity、全 where の順番と重複を保持する。
+
+`CommonRoleIntervalDictionaries.elaborate_prepared_exact`:
+
+> 任意の有限 declaration 列、元 goal、出力 plan と trace について、実 `elaborate` が
+> `prepared plan trace` を返す iff 全宣言が実検査を通り、独立 dictionary の erase/trace が
+> その同じ plan/trace に文字どおり一致する。
+
+`elaborate` 自身が宣言検査、停止する全 where 展開、complete 検査を実行する。
+成功・fuel・子の成功・意味的な点置換は呼び出し側の仮定ではない。
+ただし **prepared は最終 selected ではない**。ordinary interval constraints は別に戻され、
+その solver 成功と full source typing はこの theorem の結論に入っていない。
+failure leaf は incomplete trace に保持し、一般 source の pending/rejected に読み替えない。
+
+検証: 対象 warning-as-error build（127 jobs）成功。主要 iff の直接 `trust=0` 公理は
+`[propext, Quot.sound]` のみ。
+
+## 7. 元 source slot と同じ ordinary graph へ全制約を返す
+
+`CommonRoleIntervalDictionaryCompilation.compile_trace_exact`:
+
+> 任意の元 slot 命名写像、元 ordinary atom 列、独立した元全 slot assignment、元 trace について、
+> 元 ordinary Models と trace の独立 Consistent の連言 iff、実 compiler に
+> `original ++ generate name trace` を渡して得た同じ graph にモデルがあり、その readback が
+> 全元 value/row assignment に文字どおり一致する。
+
+`compiled_reflects` は任意の実 graph model（正則な Common realizer も含む）から逆を示す。
+命名写像は既存 slot の識別であり、head capture を選ぶ semantic callback ではない。
+同名は元と同じ slot を読む。既存制約・row・共有を失わない。
+**graph はまだ subtype edge を持つ**。このコンパイルの exactness を、自由 parameter に
+条件のない solved family の回収や、区間 resolver 全体の E1 と呼ばない。
+
+検証: 対象 warning-as-error build（168 jobs）成功。主要 theorem の直接 `trust=0` 公理は
+`[propext, Quot.sound]` のみ。
+
+## 8. 確定した closed record の payload 検査と実 residual の接続
+
+`CommonRoleClosedRecordInspection.inspect_exact` は、任意の元有限 field spine 二つと
+任意 assignment について、実有限 inspector の返却 atom が成立 iff 同じラベル集合かつ
+元 first-field-wins payload から作った Common closed record の全 depth subtype が成立することを示す。
+元 spine に隠れた重複 field があっても、両側とも元 `lookup` の最初の payload を使う。
+異なるラベル集合はこの same-spine 部品の **outside** であり、一般 record subtype の不成立とは言わない。
+
+`CommonRoleClosedIntervalInspection.reconcile_exact` は、任意の元 lower/upper field 対列二つと
+任意 assignment について、実 `reconcile` が満たされた atom 列を返す iff 同じラベル集合であり、
+両方の self check と両向きの cross check が成り立つことを示す。
+中心や canonical actual type は保存・選択しない。
+
+`CommonRoleClosedResidualInspection.inspect_generation_exact`:
+
+> 任意の元 labels、元 endpoint-field spine、要求された endpoint-field spine、任意 assignment に対し、
+> 実 `capture labels fields` を検査した payload atom が成立 iff、計算された residual と要求の
+> ラベル集合が同じで、既存 `CommonRoleClosedIntervalRecordGeneration.generate` が同じ元
+> residual と要求に対して生成した全 ordinary checks が成立する。
+
+引き算の答えを別の自由入力として渡さず、既存の canonical subtraction を実行する。
+未知の spine を任意の row で埋めず、この部品は既に決まった閉じた spine に限定する。
+
+検証: 各 packet の対象 warning-as-error build は 199 / 200 / 201 jobs で成功。
+各主要 iff の直接 `trust=0` 公理は `[propext, Quot.sound]` のみ。
+
+## 9. 元 shared endpoint slot での実 ordinary grammar
+
+`CommonRoleClosedResidualSlots.inspect_all_exact` は、任意の有限 comparison 列と任意の
+元全 slot assignment について、各 lower/upper endpoint が元 slot を参照する実 inspector の出力が
+成立 iff、**全元 comparison** の計算した canonical residual と要求が同じラベル集合で、
+同じ二境界に対する独立四方向 compatibility が成り立つことを示す。
+endpoint の意味は任意の Common type（正則型も可）であり、有限木を意味論の仮定にしない。
+
+`inspect_all_grammar` は、任意の comparison 列と実返却 atom 列について、既存 solved worklist の
+三つの構文条件 `GoodAtoms` / `WidthAtoms` / row-shape `GoodAtoms` を内部で導く。
+payload 比較を元 variable-slot 間の ordinary atom に下ろすため、negative `exactEmpty`
+をそのまま既存 solver へ渡す障害を、この明示した局所領域では避けられる。
+**実 `solveAll` family・元 source clause・全 source generator との接続 theorem はまだ追加していない**。
+これは grammar までの部品であり、B4 全体を solved と主張しない。
+
+検証: 対象 warning-as-error build（208 jobs）成功。
+`inspect_all_exact` / `inspect_all_grammar` の直接 `trust=0` 公理は `[propext, Quot.sound]` のみ。
+
+## 10. 復旧時点の正確な残りと、最新の仕様決定
+
+**B4 の更新済み全体 E1 は未完。** 今回閉じたのは、明示した finite linear structural fragment の
+下降・全 where 展開・独立有限 dictionary preparation と、その元 interval obligations の graph 生成、
+および determined closed record residual の普通の payload 検査である。
+
+残る接続は次の通り。
+
+1. 反復 head 変数を全元 occurrence の lower join / upper meet と全 cross constraints で捕捉する実機械。
+   現行 `supported` は head 名の `Nodup` を要求する。反復変数を endpoint の構文一致や
+   existential point matcher で代用せず、より広い endpoint 表現と実合流後の下降を証明する。
+2. 現行 finite Form から、宣言別 variance を持つ nominal・共変 payload 合流・record の残りを含む
+   元 source head/where 表現へ拡張する。既存 record residual の局所下降と今回の検査は、まだ
+   candidate scanner に組み込まれていない。現行 replay の literal endpoint equality は
+   linear structural fragment の再構成に限り、一般 interval reconciliation ではない。
+3. 元 lower head が未確定な場合の pending、元 slot/level を保つ起床と再収集、全候補での
+   K2 再帰構造 inspection 検査と拒否優先、selected/ambiguous/rejected の独立した全体 iff。
+   現行 outside/noHead/overlap/prepared という局所状態を、その source 四分類と同一視しない。
+4. 全 where・associated constraints・元 ordinary constraints を同じ実 solver で処理した返却 family、
+   **全自由 parameter** の健全性、任意の元 assignment の回収、元 source typing と辞書実行の接続。
+   constraint graph の存在や返却 parameter 上の residual predicate を E1 と取り違えない。
+5. 上を一つの元 source resolver に接続し、実 declaration/候補検査から停止を導く。
+   利用側へ任意 rank、fuel、support、子成功、typed plan の成功仮定を移さない。
+
+最新の確定事項は `spec/06-roles.md` の決定節を優先する。古い設計本文に残る「未決」は
+現在の問いとして扱わない。
+
+- 更新済み interval 全体 statement は承認済みで、旧 point theorem を書き換えない。
+- 共変 `box` は合流後に一つの payload を持ち、head 変数がそれを丸ごと捕捉する。
+  不変 `list` の矛盾する合流は構築時に拒否する。nominal alternatives の有限 cover 案は不要。
+- K2 は **拒否が曖昧性・選択より先**。候補順や安全候補の個数に依存させない。
+- variance は承認済み候補 1。関数 wrapper で即時走査を切り、使用・極性自体は消さない。
+- **保留境界は不変な型引数だけ**（ユーザー決定 commit `4284375cf`）。共変 `box` は保留せず、
+  `box user_id` から必要な `box int` へ後の境界で構造 cast する。これはもう確認待ちではない。
+- record tail は元の確定 spine から明示 field を引いた結果。未確定なら pending を保持する。
+
+今回 B4 が追加した新しい仕様質問はない。上の残りは証明・実装の未接続であり、
+既に確定した意味論を再質問しない。B2 の既存二問など、別目標の未決はこの記録で解消した扱いにしない。
