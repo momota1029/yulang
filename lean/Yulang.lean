@@ -1098,3 +1098,5 @@ import Yulang.CommonPatternSourcePresence
 import Yulang.CommonPatternDeclaredPresence
 
 import Yulang.CommonCasePresenceGeneration
+
+import Yulang.CommonRoleClosedResidualSourceFamily

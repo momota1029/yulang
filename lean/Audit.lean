@@ -6138,3 +6138,7 @@ run_cmd do
 #print axioms Yulang.CommonCasePresenceGeneration.all_parameter_returns
 
 #print axioms Yulang.CommonCasePresenceGeneration.required_blocks
+
+#print axioms Yulang.CommonRoleClosedResidualSourceFamily.compile_models_exact
+
+#print axioms Yulang.CommonRoleClosedResidualSourceFamily.compiled_grammar
