@@ -7127,3 +7127,20 @@ run_cmd do
 #print axioms Yulang.CommonRoleCacheInvalidation.reach_cache_valid
 #print axioms Yulang.CommonRoleCacheInvalidation.saturated_membership_cache_valid
 #print axioms Yulang.CommonRoleCacheInvalidation.producer_change_events_bounded
+
+-- Cycle18: finite supplied-state trace refresh, not autonomous B4 saturation.
+#print axioms Yulang.CommonRoleRefreshDriver.initialCache_valid
+#print axioms Yulang.CommonRoleRefreshDriver.refresh_valid
+#print axioms Yulang.CommonRoleRefreshDriver.clean_row_reused
+#print axioms Yulang.CommonRoleRefreshDriver.dirty_row_recomputed
+#print axioms Yulang.CommonRoleRefreshDriver.cached_rules_exact
+#print axioms Yulang.CommonRoleRefreshDriver.cached_saturate_exact
+#print axioms Yulang.CommonRoleRefreshDriver.replay_valid
+#print axioms Yulang.CommonRoleRefreshDriver.replay_state
+#print axioms Yulang.CommonRoleRefreshDriver.run_exact
+#print axioms Yulang.CommonRoleRefreshDriver.run_root
+#print axioms Yulang.CommonRoleRefreshDriver.run_actual_closed
+#print axioms Yulang.CommonRoleRefreshDriver.run_nodup
+#print axioms Yulang.CommonRoleRefreshDriver.run_capacity
+#print axioms Yulang.CommonRoleRefreshDriver.run_least
+#print axioms Yulang.CommonRoleRefreshDriver.run_observational_independent

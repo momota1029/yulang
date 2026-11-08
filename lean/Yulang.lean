@@ -1296,3 +1296,5 @@ import Yulang.CommonRoleSourceTemplateClosure
 import Yulang.CommonRoleSourceWorklist
 
 import Yulang.CommonRoleCacheInvalidation
+
+import Yulang.CommonRoleRefreshDriver
