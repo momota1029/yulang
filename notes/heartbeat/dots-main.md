@@ -1,9 +1,9 @@
 cycle: 4
 status: running
 started: 2026-11-08T13:14:35Z
-updated: 2026-11-08T13:16:00Z
-elapsed_min: 1.42
-activity: reading I-4 main statement and source finite-work obligations
+updated: 2026-11-08T13:24:00Z
+elapsed_min: 9.42
+activity: general finite associated graph closure exactness built; operational stability and B4 target schema in progress
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-cycle4
-last_local_commit: b345a05aa
-resume_hint: Read I-4 and cycle-3 report. Fresh clone base b345a05aa; do not overlap writers. Next is B4Statement translation and finite-domain saturation.
+last_local_commit: 1e22c48d9
+resume_hint: Focused CommonRoleFiniteAssociatedModels passed 279 jobs. Finish stability, integrate Main B4 schema and F2, then full verify and publish.
