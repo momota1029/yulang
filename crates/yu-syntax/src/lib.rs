@@ -5,6 +5,7 @@ use std::{ops::Range, sync::Arc};
 mod ambient_claim;
 
 mod cursor;
+mod cursor_context;
 mod declaration;
 mod diagnostics_schema;
 mod expression;
@@ -29,6 +30,9 @@ mod type_expr;
 mod virtual_statement_block;
 mod yumark;
 
+pub use cursor_context::{
+    CursorContext, CursorSlot, PartialSigil, Sigil, SigilContext, cursor_context,
+};
 pub use diagnostics_schema::{
     ExpectedSyntax, GrammarSlot, GrammarSlotRole, SyntaxDiagnosticIdentity, SyntaxDiagnosticKind,
 };
