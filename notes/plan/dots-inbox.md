@@ -14,6 +14,13 @@
 3. **飽和の driver と停止性**: 再生成で現れた child をさらに解き、状態が安定するまで繰り返す。進捗の尺度は宣言時の Paterson 検査と K2 から導く。兄弟の順序独立は確定（where は連言、順序で結果は変わらない。spec 6.3）。証明の対象に入れてよい。
 4. K2 / knownness と、language-visible な pending / selected / ambiguous / rejected の最終分類。外側の無条件 `resolve_exact`、X13〜X16 の少なくとも一つを外側の入口で PROVED。
 
+## Yulang2 との照合（証明の前に必ず）
+
+証明を進める定義・規則が、旧世代 Yulang2 の挙動と合っているかを、ユーザーの記憶でなく**実機と文書**で確かめながら進める。
+- 新しい定義や定理に着手する前に、`work/dots-audit` の `notes/audit/`（`x-oracle.md`、`y2-claims-*.md`）に、関係する主張や適合例の Yulang2 の結果が出ていれば読む（`git fetch origin work/dots-audit` で取得できる。まだ出ていなければ無視してよい）。
+- 定義が Yulang2 の挙動と食い違う、または Yulang2 の規則を持ち込んでいない疑いがあれば、証明を積む前に、質問ノート（Yulang の例つき、遅延案を先頭）を 1 本書く。ユーザーの決定が権威で、Yulang2 は素材。
+- 報告に「Yulang2 との照合」の節を設け、どの定義を何で照合したか（実機の例、文書の節、または未照合）を書く。
+
 ## I-3 の補足（サイクル 2 を受けて）
 
 - 優先事項 1〜4 は I-2 のまま続ける（T1c は未達）。
