@@ -2667,3 +2667,460 @@ nominal引数は不変なので、保持されたbox int/box boolをbox(int|bool
 推奨のwhere決定性追加も未承認。任意Common splitや追加hypothesis付き同名E1を採用していない。
 [全67定理の量化・検証・残り](../notes/handoff/2026-11-07-m1-b4r7-results.md)、
 [全branch地図と設計](../notes/design/2026-11-07-b4r7-shared-capture-and-nominal-cover.md)。
+
+
+## B5: original declaration modes connected to nominal metadata (2026-11-08)
+
+`CommonDeclarationVarianceRegistry.registry_exact` computes each parameter mode from
+the original finite declaration program's occurrence and recursive-use analyses.
+For every program, analysis universe, ordered source headers, and proposed registry,
+the result equals that registry iff every original position satisfies the independent
+source `Mode` judgment. Original kinds and arities are preserved, including unused
+parameters; no caller-supplied variance-correctness hypothesis is used.
+
+This connects computed modes to the existing inspector's metadata type. It does not
+yet establish checked original declaration-body assembly, the recursive nominal
+carrier, source construction/cast exactness, or the full B5/B1 E1.
+
+
+## B3: kind checks inside original family intervals (2026-11-08)
+
+`CommonEffectFamilyArgumentKinds.check_argument_exact` equates the executable
+check with an independent kind judgment for every finite original family argument
+and every captured-name kind table. Both value endpoints and all signed row
+endpoints are traversed, including protect/release/residual and nested function
+row positions. Missing names and wrong kinds are rejected. This is endpoint
+admission, not full family declaration lookup, source lowering, or B3 completion.
+
+
+## B4: open bounds inside nested nominal endpoints (2026-11-08)
+
+`CommonRecursiveNominalIntervals` describes finite nested nominal endpoints with
+ordinary original-slot leaves. Invariant children retain separate lower/upper
+endpoints; the decomposition emits both original consistency checks and both
+cross checks. `decompose_arguments_exact` holds for every declaration, argument
+lists, assignment, and interpretation of recursive value obligations, and checks
+ordered arity/kind without selecting a centre. Covariant/contravariant children
+are ordinary point descriptions in this component. This decomposition theorem
+is a component of recursive generation, not the full nominal carrier or B4 E1.
+
+
+## B4: terminating recursive nominal interval generation (2026-11-08)
+
+`CommonRecursiveNominalIntervals.inspect` re-enters the same nominal decomposition
+for every generated value obligation until it reaches ordinary value/row atoms.
+There is no caller-supplied fuel or depth limit. `decompose_arguments_size_lt`
+proves strict decrease of the maximum of the two endpoint syntax sizes for every
+emitted recursive obligation, including self checks that reuse the larger side.
+This is the internal finite structural compiler; independent comparison exactness
+and admission of all unused subtrees are separate parts of the public boundary.
+It does not implement the full regular carrier or general role resolution.
+
+
+## B5: source-derived nominal inspection exactness (2026-11-08)
+
+`CommonDeclarationVarianceInspection.inspect_exact` quantifies every original
+finite declaration program, ordered headers, original nominal argument terms,
+and shared Common assignment. The actual inspector using the computed registry
+holds iff an independent source comparison uses the original header lookup,
+ordered kinds, and source `Mode` judgments. `inspect_all_exact` preserves every
+original shared comparison. The theorem covers collapsed head arguments; open
+recursive bounds and the full nominal carrier remain separate connections.
+
+
+## B3: whole family applications precede occurrence allocation (2026-11-08)
+
+`CommonEffectFamilyApplications.check_application_exact` validates original family
+lookup, exact ordered arity/kinds, and every captured endpoint name, including
+applications with no arguments. `collect_all_exact` proves flattening retains
+exactly every original row/family/argument index, origin, and bound. This prevents
+unknown nullary families or missing argument suffixes disappearing at the old
+occurrence-only interface. Family names and row locations are already resolved;
+full raw source lowering and the B3 E1 remain open.
+
+
+## B4: recursive interval generation iff independent derivations (2026-11-08)
+
+`CommonRecursiveNominalIntervals.inspect_exact` quantifies every finite pair of
+nested descriptions, every registry, and every original Common assignment.
+The actual terminating generator's ordinary atoms hold iff an independent
+mutual inductive derivation holds. The invariant rule has all four recursive
+self/cross premises for arbitrary nondegenerate bounds; no actual centre or
+semantic oracle is an algorithm input. This is the declaration-directed
+reference component. The newer inherited-invariant-context rule, whole-tree
+admission, and full source/regular carrier remain separate connections.
+
+
+## B3: complete applications generate exact shared argument constraints (2026-11-08)
+
+`CommonEffectFamilyApplicationGeneration.generate_exact` covers every complete
+resolved application list, captured kind table, and original assignment. Its
+finite producer computes whole-application admission, allocation, and interval
+constraints; these hold iff one shared value/row assignment fits every original
+application at its original (row, family, argument) slot. No successful-admission
+or support premise is assumed. Unknown families and wrong arities are rejected,
+including nullary unknown applications. General source name/visibility lowering
+and quantified solver elimination remain outside this generation theorem.
+
+
+## B5: source-mode comparisons and invariant bounds in solved families (2026-11-08)
+
+`CommonDeclarationVarianceSourceFamily` uses one registry computed from the source
+program for both nominal comparisons and centreless invariant attachments.
+`all_parameters_models` holds for every returned scheme and unrestricted value/row
+parameter. `solve_all_instances_exact` recovers every original shared-slot model;
+`generated_models_exact` obtains the ordinary grammar hypotheses from actual source
+generation. This bridge is exact against the structural source `Mode` judgment.
+Semantic removal of hidden record fields needs the additive visibility-normalized
+producer; raw field bodies must not be reported as complete variance semantics.
+Nominal expression lowering, recursive carrier/cast synthesis, and B5/B1 E1 remain open.
+
+
+## Recursive nominal interval admission
+
+`CommonRecursiveNominalIntervals.admit_exact` and `compile_exact` validate every nested constructor identity, arity and ordered argument kind, including unused subtrees, before reference expansion. For every registry, assignment and finite pair of descriptions, successful atom satisfaction is equivalent to both independent well-formedness judgments and the independent recursive derivation. This is the context-free reference layer; inherited invariance and the full declaration-aware regular nominal carrier remain separate obligations.
+
+
+## Inherited invariant context
+
+`CommonRecursiveNominalIntervalContext` implements spec 6.5's updated covariance and contravariance rule. Once inside an invariant argument, every used nested position has effective invariant variance; unused positions remain unused. Each emitted obligation carries the original declaration's propagated context. Decomposition is exact and recursive child sizes strictly decrease, for arbitrary finite endpoint depth. This reference expander does not itself eliminate duplicate endpoint-pair work.
+
+
+## Contextual recursive comparison judgment
+
+`inspect_context_exact` proves the reference compiler equivalent to independent `ContextDerives` rules for every table, both contexts, every finite description pair and every Common assignment. The rules compare complete argument descriptions, including all four checks for invariant merging. They do not identify directional interval-bound construction with comparison of two point descriptions: the later 47e02a5c9 equal-head normalization rule requires a distinct envelope construction, since `(box A, box B)` preserves `A ≤ B`, not equality. This reference theorem is not completion of B4.
+
+
+## Shared family arguments in the mixed source generator
+
+`CommonEffectFamilySourceGeneration.generate_exact` quantifies complete resolved family applications, operation declarations, the original closed mixed source expression, its fixed outer result, and every outer assignment. The actual generator is equivalent to independent application/kind checks and existence of one shared value/row assignment satisfying all original intervals and the independent typing judgment for that same expression and declarations. Operation signatures use the actual allocated family locals under the same binder. No caller-supplied typing, success, support or fuel premise occurs. Raw name/visibility resolution, discovery of these applications, and an unrestricted solved family for the general mixed quantified formula remain open B3 obligations.
+
+
+## Checked contextual comparison entry
+
+`compile_in_context_exact` validates both full descriptions, including subtrees under unused parameters, then proves atom satisfaction equivalent to independent contextual well-formedness and `ContextDerives`, for either starting context and arbitrary finite depth. Nested open bounds in an effective invariant position are admitted. The entry compares complete descriptions; it is a reference component, not the directional equal-head interval-envelope construction required by the latest spec 6.5 update.
+
+## Specification examples and repeated capture checks
+
+`SpecExamples` records the status of X1–X24, with concrete declaration and
+variance computations where available. X22 exposes a mismatch between the
+main aligned pattern generator and the decided optional-field rule; the
+separate optional-field component is not yet integrated into that generator.
+The remaining unexpressible cases require the source-level components named
+in the file, and none of these checks establishes public `Core.infer` behavior.
+
+`CommonRoleRepeatedCaptureChecks` lowers the existing raw structural capture
+table into original shared-slot terms and provides separate operations to
+construct a centerless merged pair or emit all self and cross checks. A name
+absent from the table yields `(bottom, top)` and must still be checked for
+presence before substitution. Its exactness theorems do not
+extend the scanner: repeated names and merged heads remain outside its
+supported grammar. The merged terms have not been substituted into `where`
+children or connected to the full resolver and ordinary solver.
+
+## Regular graph inspection for role heads
+
+`CommonRoleRegularGraph` detects nonempty cycles in finite graph identities.
+`CommonRoleGraphBisimulation` also recognizes finite unrollings of those
+cycles. Its executable bisimulation search enumerates the powerset of node
+pairs; for a completely determined graph it is equivalent to equality of all
+finite ordered graph observations. Identical unresolved nodes may be related;
+distinct unresolved nodes are not. This assumes source solver aliases have
+already been represented by the same graph identity, a bridge not yet proved.
+Graph updates can change regularity and require revalidation.
+
+`CommonRoleUnaryGraphBridge` proves a connection to Common equivalence for
+finite unary variant graphs. `CommonRoleRecordGraphBridge` proves the same
+for one-required-field record graphs, including the recursive K2 record shape.
+The analogous bridge for the full Common carrier, including multi-field
+records, merged rows, and nominal metadata, remains open.
+`CommonRoleGraphInspection.inspectSnapshot` checks a known graph root and
+retains all lower-head observations of visible declarations.
+`CommonRoleGraphDemandSnapshots` connects the existing actual lower-bound
+collector to these snapshots with a fixed graph-based projection; every
+reported head has a reachable original lower seed. It retains all known
+heads and does not reconcile them. The known-head projection omits unresolved
+seeds; a separate all-contributions pass retains them as unknown snapshots.
+The origin-preserving pass also retains the original lower seed's slot; flow
+paths are characterized by reachability but are not stored in the output.
+None of these lists decides whether a source role is pending. These snapshots are not
+the whole resolver:
+source graph construction, candidate propagation, ordinary upper-bound
+constraints, all where-children, finite dictionaries, and an actual source
+termination measure remain unimplemented. Consequently the X6 and X8–X12
+whole-resolver conformance statuses remain unchanged.
+
+## Candidate capture constraint preparation
+
+`CommonRoleCandidateConstraints.prepare` retains the actual graph inspection
+observations, maps every captured graph node to the supplied original lower
+and upper source slots, emits all repeated-name self and cross comparisons,
+and passes those atoms together with the original ordinary atoms to the
+existing family solver. The generated constraints agree semantically with
+`CommonRoleRepeatedCaptureChecks`; all returned parameters satisfy them, and
+all original models are recovered for clauses in the solver's grammar. For an
+actual generated ordinary source clause, those grammar facts are derived.
+
+This is not candidate applicability or the whole resolver. The source
+provenance of the graph and slot table is not yet established, head/goal and
+root-interval constraints are not generated here, and the stored mismatch,
+unresolved and cycle observations are not classified. A nonempty ordinary
+family is not a selected role candidate. No where-child or dictionary is
+constructed by this component.
+
+## Conditional outer role protocol (2026-11-08)
+
+`CommonRoleOutermostResolver.resolve` is a single proof-directed recursive
+entry for a fixed-frontier protocol. Its independent `Resolves` judgment
+checks each selected declaration identity and the complete ordered list of
+where derivations. `resolve_tree_exact_of_frontier_exact` proves equality
+with that finite tree judgment. `resolve_exact_of_frontier_exact` proves
+the four-outcome projection equivalent to independent `Classify`, building
+a finite dictionary only when all children succeed.
+
+Both theorems quantify every request type, protocol, exact correspondence
+between its executable frontier and independent local judgment, accessible
+request, and proposed output. **The frontier correspondence and accessibility
+are explicit hypotheses.** Neither has been discharged for the full source
+interval carrier. No interval candidates, merged where substitutions, K2
+priority, or source graph/slot provenance have been connected to this entry.
+Children return trees, not updated ordinary states; sibling/parent propagation
+and recollection still require a state-threading driver or a proved stable
+shared snapshot. The rejection/ambiguity/pending order across different
+children is a generic summary policy, not the spec's single-demand K2 rule.
+
+`CommonRoleOutermostResolverChecks` executes an artificial protocol with two
+identical children, preserving both and building the finite dictionary. It
+also constructs the independent derivation through the exactness theorem.
+These are protocol checks, **not** X6 or X8–X12 source conformance theorems.
+All X1–X24 statuses in `SpecExamples.lean` remain unchanged. B4 E1 remains open.
+
+The design and precise missing bridges are in
+[`2026-11-08-b4-outermost-resolver.md`](../notes/design/2026-11-08-b4-outermost-resolver.md).
+
+## Concrete settled role fragment (2026-11-08)
+
+`CommonRoleSettledFrontier.frontier_exact` discharges `FrontierExact` for a
+concrete request type and an independent local judgment. The executable
+frontier checks lower-head readiness, graph K2, generated ordinary family
+constraints, surviving identities, and every substituted where template.
+`CommonRoleSettledResolver.accessible` derives accessibility for every request
+from the registry's actual stable Paterson check and successful inspection.
+`resolve_exact` therefore has **no frontier-exactness or accessibility
+hypothesis**. It uses the existing single outer recursion.
+
+The domain is deliberately settled: one argument; known endpoints stored as
+a pair with equality evidence; arbitrary-depth unary variant, one-field
+record and nominal spines; int, opaque named nominal atoms, anonymous
+variant/record self-loop leaves and finite unrollings; plain/merged-plain
+head variables; all ordered unary where templates admitted by stable Paterson
+and name coverage; a finite registry with distinct declaration identities.
+Missing lower endpoints and unresolved required decompositions defer. All
+ordinary atoms in the existing family grammar are supported in a **disjoint
+auxiliary namespace**. A fresh capture slot retains every self/cross atom;
+all captures at the unary leaf have equal endpoint pairs. This is not the
+general non-singleton interval fragment and does not share inference variables
+between role types and auxiliary ordinary state.
+
+`generated_state_exact` preserves every original model and row, for every
+actual captured Common payload. `every_where_substituted` checks actual named
+lookups in the deduplicated binding table. `where_state_recollection` proves
+that each generated child's ordinary state is unchanged and added capture
+constraints have no effect on any original model. This closure relies on the
+fragment's absence of associated equations and shared mutable role slots.
+General child-to-parent/sibling updates are still open.
+
+`CommonRoleSettledExamples` proves X6 and X8–X12 through this entry, including
+X9's actual rejected child. The replacement status table is additive in
+`SpecExamplesSettled.lean`; the existing `SpecExamples.lean` was not edited.
+Regressions cover duplicate where clauses, upper-only deferral, ordinary
+inconsistency, incompatibility before K2, repeated self/cross checks, and K2
+on folded and explicitly unrolled graphs. `CommonRoleSettledGraphBridge`
+connects structural loop/boxed graphs to all-depth Common observations and
+lowers X6's repeated-tag plain variables. Nominal shells are matched by name;
+a full nominal-body/source-inference bridge is not claimed.
+
+Full B4 E1 remains open: non-singleton nested intervals, general finite
+regular graphs, multiple arguments and nontrivial repeated captures, source
+constraint/slot provenance and sharing, associated equations, state updates,
+row subtraction, levels/generalization and qualified-family/source adequacy
+are outside this result. See the [detailed report](../notes/handoff/2026-11-08-astra-settled-frontier-results.md).
+
+## T2: optional input fields integrated into source structural patterns (2026-11-08)
+
+`CommonSourcePatternTyping` / `Inversion` / `Generation` / `Allocation` are an
+additive successor to `CommonAlignedPattern*`. The no-default `.field` rule
+now requires `OptionalPayload`, recursively at every pattern position. All
+other constructors, Q4 scopes, Q7 checks and source or-name alignment remain
+unchanged. `legacy_preserved` embeds every old derivation without changing its
+input, defaults or output bindings; old `strict_rejects` remains untouched.
+`CommonSourcePatternElaboration.generateSourcePattern_exact` connects the real
+source lowering and checks to this new independent judgment.
+
+`CommonSourceArmGeneration`, `CommonSourceArmSolved` and `CommonSourceArmsSolved`
+connect the same allocated binders to guards/bodies and the finite solver.
+`environments_instances_exact` recovers all independent arm-environment models
+up to assignment equivalence; `all_parameter_environments` has no residual
+predicate on returned scheme parameters. The accompanying partial safety
+modules retain the unchanged actual matcher and ordered case evaluator.
+
+**X22: PROVED at these new source entries (not `Core.infer`).**
+`CommonSourceOptionalX22.x22_source_generated` accepts `{port: p}` on the
+existing optional subject (`exactEmpty | required port int`).
+`x22_case_generated` and `x22_real_scheme_instance` pass both original arms
+(`{port: p} -> p`, `_ -> 80`) through one generated/solved environment family.
+`x22_absent_case_result` computes the actual source evaluator, with trace
+arm 0, arm 1, body 1, and result 80. `x22_present_case_result` returns the
+supplied integer for every integer port. `x22_any_absent_field_misses` covers
+any record field list whose lookup is absent. `nested_source_generated`
+checks that optional fields nested beneath a required field use the new
+recursive rule. Existing SpecExamples entries describe the historical entry
+and are not edited; their old rejection theorems are still true there.
+
+Not proved: full B2 or B6, public `Core.infer` integration, lists/nominal
+patterns in this structural carrier, general source-case coverage/termination,
+principal aggregate effect rows, or general presence-metadata validation.
+In particular, the pre-existing `defaultField` rule is not changed here; its
+separate prohibition on defaults for declared-required fields is not supplied
+by `OptionalPayload` alone. The general case partial-safety theorems still
+assume successful-return soundness/name invariance of leaf callbacks; the
+concrete X22 evaluator equalities have no such callbacks or assumptions.
+
+### T1 open-interval groundwork (dots, 2026-11-08; PARTIAL)
+
+`CommonRoleOpenConstraints` uses two distinct fresh slots and proves exact
+retention of unequal capture endpoints. Generated self/cross constraints are
+not tautologies: `open_capture_not_noop` exhibits int/str inconsistency.
+`CommonRoleOpenState` repairs the local accumulator by retaining the original
+and all supplied updates under one assignment, with exactness through the
+actual family solver. Its update list is supplied, not generated by a dynamic
+sibling/parent recollection driver. `CommonRoleOpenDescent` derives descent and
+accessibility for the independent two-endpoint `Inspect` step from the actual
+declaration checker. It does not prove that every source-produced child is
+such a step. No new outer `resolve_exact`, general frontier exactness, or
+X13–X16 outer conformance status is claimed. Source/graph endpoint provenance,
+candidate narrowing, and dynamic parent/sibling recollection remain open.
+
+`CommonRoleOpenNormalization` proves constructor lifting at every finite depth,
+independent judgment exactness, and preservation of both endpoint projections.
+It leaves equal atomic endpoints as interval leaves, so it is not a full
+canonicalizer. `CommonRoleOpenExamples.x15_local` and `x16_local` exercise the
+spec shapes locally only; X15 and X16 are NOT declared outer-entry PROVED.
+
+## T1b: producer accessibility and recursive state pass (partial, 2026-11-08)
+
+`CommonRoleOpenProducer{,Access}` gives independent exactness and declaration-derived
+accessibility for an executable dual-endpoint structural inspector.
+`CommonRoleOpenPropagation` generates captures from actual selected payloads and
+checks the retained state with the existing ordinary solver. The explicit finite
+`Allocation` is not yet a source graph allocator. `CommonRoleOpenRecursivePass.run`
+threads returned states through all descendants and siblings and then regenerates
+every sibling and the parent with the final state. `run_exact` is an iff with the
+independent `Runs` judgment, with no external FrontierExact, Acc, fuel, or success
+premise. It proves ONE recursive pass, not saturation or a final four-way resolver.
+
+T1b remains PARTIAL: source endpoint/slot provenance, narrowing-aware candidate
+filtering, fixed-point/finalization adequacy and `resolve_exact` are not closed.
+X13–X16 have not been promoted to outer-entry PROVED. See the T1b design, question
+and result notes. No existing Lean theorem, specification or plan was changed.
+
+## I-1 cycle 1: candidate-local ordinary feasibility (partial)
+
+`CommonRoleIntervalCandidateFrontier.collect` runs the ordinary solver for each
+scalar candidate on the same old state plus that candidate's original
+lower/head/upper inequalities, and only then collects viable candidates.
+`solutions_exact` retains all solution families, not a selected point.
+`CommonRoleCandidateStateFrontier` proves that a separately supplied shared
+equality can eliminate candidates; a unique visible candidate does not write
+its hypothesized equality into shared state. The before/after example is an
+ordinary-slot boundary, NOT a Parent/Left/Right source conformance proof.
+
+`CommonRoleEndpointSlots` computes occurrence-preserving slots from a finite
+actual Request list; interval `source_bounds_preserved` connects them to the
+original endpoints under any supplied interpretation. Dynamic child closure
+and full nominal semantic adequacy are still unproved. No full allocator,
+saturation, final resolve_exact, or X13–X16 completion is claimed.
+
+## I-2 cycle 2 (partial): associated state flow and finite closure
+
+New `CommonRoleAssociatedStateFlow` lowers actual `Roles.assocOf` /
+`RoleConstraints.addAssociated` results into ordinary equations (int/str only,
+known first-order receivers). Different occurrence slots with explicitly shared
+source IDs transfer the equation via `CommonRoleSourceIdentity`.
+`CommonRoleAssociatedBatch` preserves pending fixed requests, proves all-model
+fold exactness and semantic stabilization for this FIXED request list; this is
+not general sibling order independence. `CommonRoleOpenFiniteClosure` computes
+the finite closure of actual structural-producer children from Paterson descent.
+General source narrowing, graph-derived identities, state-dependent new-child
+saturation, final resolve_exact and X13-X16 outer proof remain incomplete.
+
+Cycle 2 continuation: `CommonRoleOpenClosureAllocation` computes the structural
+closure's payload-slot map (syntactic Ty identity, not shared source graph).
+`CommonRoleOpenPassStability.run_models_exact` characterizes every model after
+the real fixed structural pass and proves semantic idempotence after one pass.
+The computed allocator specializes that result without caller-supplied slots.
+This is NOT the narrowing-aware saturation driver or its final classification.
+`CommonRoleOrdinaryKnownness` recovers explicit scalar evidence from original
+atoms, preserves all old constraints, and checks consistency with the actual
+ordinary solver. `CommonRoleAssociatedParentPipeline` composes declaration
+computation, source equation generation, ordinary solver, receiver materialization,
+and actual ground Parent dictionary in the specified Right-str example. The
+associated output-to-parent binding is explicit, not parsed from arbitrary source.
+`SpecConformanceIndex` unifies the entry-sensitive X1-X24 table; X13-X16 outer
+conformance remains open. `MainStatementsDraft` reprints actual theorem scopes
+and proves only the local fixed-producer stabilization goal, not full B4/B6.
+
+`CommonRoleAssociatedParentSuccess` strengthens the concrete entry: for every
+starting state, any successful return has the int argument and a resolved
+actual visible dictionary. It does not classify the none branch.
+`CommonRoleAssociatedParentExact.success_exact` characterizes success of this
+fixed known-Right-str entry exactly by a model of the original state together
+with slot 0 equivalent to int. It does not add a success/knownness premise or
+claim general source inference or final classification of none.
+
+## Restart cycle 3: identity descent and Main
+
+`CommonRoleSourceDescent` constructs first-occurrence source type valuations and proves factorization exactly under existing identity atoms. Effects are not identified. `Main.lean` promotes the existing eight scoped statements without changing their assumptions; this is not full B4/B6.
+
+The stateful Index sweep/finite path and same-parameter Parent example execute actual associated producers. A known Right-str declaration seeds the example; reverse-order dependencies require two sweeps before a real Parent dictionary. The fixed example exactness is unconditional, while general Paterson/K2 saturation and X13-X16 remain unproved.
+
+`CommonRoleStatefulPathComplete` removes the constant-str-model premise for checked finite paths: arbitrary old states succeed exactly when the generated equations have a model. `CommonRoleStatefulPathParent.outer_exact` connects this to actual Parent dictionaries for every finite output path and old state. Main exposes this scoped unconditional iff, not general B4.
+
+NamedPath: 有限の名前列から occurrence table、root slot、残りのslot列、同一source名のtype等価制約を計算して有限path入口へ渡す。`outer_exact` は任意の旧状態に対して前提なし iff。`source_factorization` は実成功と最終ordinary modelを前提として、旧制約保持とsource名ごとのtype valuationへの降下を示す（effectsは同一視しない）。固定Index(box str) seedにより全slotがstrとなる狭い断片であり、一般source parser・branching graph・動的child生成のallocatorではない。
+
+SiblingOrders: 固定Right seedから、forward `[0→1,1→2]` の1 sweepとreverse `[1→2,0→1]` の2 sweepsを実行し、任意assignmentで同じ最終モデル集合、実外側入口で同じ `(argument, dictionary answer)` を証明。atom列は重複の差があるため等号を主張しない。任意graph・任意schedulerの停止性ではない。
+
+PathOrder: 固定str seedの任意有限pathについて、outputの集合が等しい2列（順序・重複を変えてよい）なら、任意の旧状態から実Parent入口のobservable `(argument,answer)` は一致する。成功/Modelsの外部前提なしでnoneのケースも含む。入力pathの断片に限定され、sourceから生成された一般where graphの飽和ではない。
+
+### Cycle 4: general finite associated closure and B4 target (partial)
+
+`CommonRoleFiniteAssociatedClosure/Models/Stable` compute a fresh-fact fixed
+point for arbitrary finite source associated graphs (including branching and
+cycles), not a fixed path. Every rule output is computed by actual checked
+`Roles.assocOf` via the existing adapter. Membership is iff independent
+`Derives`; at most `4*n` facts are inserted. Final ordinary models and concrete
+paired-atom evidence are stable, and occurrence order/duplication do not change
+model sets. Restrictions: source graph is input, scalar heads only, initial
+knownness is explicit paired atoms. Dynamic where provenance, general B4,
+final four-way classification and X13–X16 remain unproved.
+
+`Main.B4Statement` records the approved five-part target with explicitly
+unconnected source boundary/executor parameters. It is not a proof or a fully
+instantiated source theorem. Questions record child-failure classification and
+dictionary equality boundaries. F2 adds an explicit argument-effect conversion
+judgment and strict-runtime soundness; ordinary arrow subtype is unchanged.
+Expected-type source insertion and X25 remain unproved.
+
+
+### Cycle 7: independent finite associated-graph declaration closure
+
+`CommonRoleFiniteAssociatedDeclaration` replaces the graph-level executable
+`Computed` premise by independent `DeclarativeComputed` evidence. For every
+finite scalar source graph and old state, with checked core and associated
+registries, saturation and its emitted ordinary evidence are exact for this
+inductive judgment. Membership is invariant under occurrence reordering and
+duplication, when source identity equality is unchanged; the judgment is stable
+after actual emission. This is not general B4: dynamic where/capture provenance,
+interval knownness, final diagnostic classification and dictionary equivalence
+remain outside the theorem. Focused build only; full verification is delegated
+to the supervisor.

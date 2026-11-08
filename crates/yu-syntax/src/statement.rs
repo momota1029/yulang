@@ -10,7 +10,9 @@ use crate::{
 };
 
 use crate::{
-    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
+    cursor::recovery::emit::{
+        emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
+    },
     cursor::{LexIn, SyntaxIn},
     declaration::{
         DocCommentAdmission, act_declaration_normalized, act_declaration_selected_lexical,
@@ -1769,6 +1771,20 @@ fn emit_separator_leading(i: &mut SyntaxIn, item: &mut Item) {
 }
 
 fn missing_brace_close(mut i: SyntaxIn, mut item: Item, origin: usize) -> TailExit {
+    if i.delimiter_is_unmatched()
+        && !item.payload_view().is_boundary()
+        && is_close(&item)
+        && token_kind(&item) != Some(TokenKind::RBrace)
+        && !i.closer_is_paired(origin)
+    {
+        // An unpaired foreign close is this group's one local close failure.
+        // A paired close stays unread for its enclosing delimiter owner.
+        i.state
+            .start_node(SyntaxKind::ExpressionDelimitedForeignClose.into());
+        emit_recovery_error_item(i.rb(), item, origin);
+        i.state.finish_node();
+        return Ok(());
+    }
     if item.payload_view().is_eof() {
         item.emit_all_remaining_leading(&mut *i.state);
     }

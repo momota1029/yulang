@@ -476,6 +476,31 @@ enum BracedSlot {
 
 #[allow(clippy::too_many_arguments)]
 fn braced_form(
+    i: SyntaxIn,
+    incoming_baseline: usize,
+    caller_stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+    sequence: crate::sequence::SequenceContext,
+) -> NormalizedExit {
+    i.with_delimiter(item_origin, |i, _| {
+        braced_form_contents(
+            i,
+            incoming_baseline,
+            caller_stops,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+            sequence,
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn braced_form_contents(
     mut i: SyntaxIn,
     incoming_baseline: usize,
     caller_stops: Stops,

@@ -162,7 +162,13 @@ where
     let AcceptedPayload {
         payload,
         next_line_entry,
-    } = payload(i, has_ordinary_leading, payload_origin, fence, &mut foreign)?;
+    } = payload(
+        i.rb(),
+        has_ordinary_leading,
+        payload_origin,
+        fence,
+        &mut foreign,
+    )?;
     let payload = match payload {
         CurrentPayload::Token(token) => Payload::Token(token),
         CurrentPayload::Operator(operator) => Payload::Operator(operator),
@@ -173,7 +179,13 @@ where
             .expect("one current Item owns ordered in-range foreign splits"),
     };
     let successor = payload_origin + item.payload_view().spelling().map_or(0, str::len);
-    item.mark_unmatched_boundary(unmatched_baseline, successor);
+    // A colon application such as `say:` is an executable statement head,
+    // independent of its callee's spelling. Only unmatched owners use it.
+    let suffix = i.remainder().trim_start_matches([' ', '\t']);
+    let colon_head = item.payload_view().token_kind() == Some(super::item::TokenKind::Identifier)
+        && suffix.starts_with(':')
+        && !suffix.starts_with("::");
+    item.mark_unmatched_boundary(unmatched_baseline, successor, colon_head);
     Some(CurrentItem {
         item,
         next_line_entry,

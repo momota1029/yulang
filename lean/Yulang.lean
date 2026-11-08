@@ -1000,3 +1000,279 @@ import Yulang.CommonRoleIntervals
 import Yulang.CommonRoleIntervalGeneration
 import Yulang.CommonRoleIntervalCongruence
 import Yulang.CommonRoleDeferredBounds
+
+import Yulang.CommonEffectFieldInstances
+
+import Yulang.CommonDeclaredNominalInspection
+
+import Yulang.CommonRoleIntervalRecordResidual
+
+import Yulang.CommonPatternPrefixNoMiss
+
+import Yulang.CommonRoleIntervalRecordGeneration
+
+import Yulang.CommonEffectFieldTable
+
+import Yulang.CommonEffectRefRunField
+
+import Yulang.CommonRoleIntervalReadyChain
+
+import Yulang.CommonPurePatternPrefixNoMiss
+
+import Yulang.CommonCasePrefixCoverage
+
+import Yulang.CommonCaseCoreRecordPrefixSolved
+
+import Yulang.CommonCaseCoreRecordPrefixExamples
+
+import Yulang.CommonDeclaredNominalSlots
+
+import Yulang.CommonDeclaredNominalSourceFamily
+
+import Yulang.CommonDeclaredInvariantBounds
+
+import Yulang.CommonDeclaredInvariantSourceFamily
+
+import Yulang.CommonEffectRowIntervalConstraints
+
+import Yulang.CommonEffectFamilyRowSlots
+
+import Yulang.CommonRoleClosedRecordResidual
+
+import Yulang.CommonRoleClosedIntervalRecordGeneration
+
+import Yulang.CommonCoreDataEvaluation
+
+import Yulang.CommonCoreDataPrefixes
+
+import Yulang.CommonCaseCoreDataGate
+
+import Yulang.CommonCaseCoreDataPrefixSolved
+
+import Yulang.CommonCaseCoreDataPrefixExamples
+
+import Yulang.CommonCasePrefixCompletion
+
+import Yulang.CommonCaseCoreDataCompletion
+
+import Yulang.CommonRoleClosedRecordComparison
+
+import Yulang.CommonRoleIntervalPaterson
+
+import Yulang.CommonRoleIntervalCapture
+
+import Yulang.CommonRoleIntervalCandidates
+
+import Yulang.CommonRoleIntervalExpansion
+
+import Yulang.CommonRoleIntervalExpansionChecks
+
+import Yulang.CommonEffectMixedDeclarations
+
+import Yulang.CommonEffectMixedSource
+
+import Yulang.CommonEffectMixedFormula
+
+import Yulang.CommonEffectMixedGeneration
+
+import Yulang.CommonEffectMixedExact
+
+import Yulang.CommonEffectMixedKinds
+
+import Yulang.CommonEffectMixedChecked
+
+import Yulang.CommonRoleIntervalDictionaries
+
+import Yulang.CommonRoleIntervalDictionaryCompilation
+
+import Yulang.CommonRoleClosedRecordInspection
+
+import Yulang.CommonRoleClosedIntervalInspection
+
+import Yulang.CommonRoleClosedResidualInspection
+
+import Yulang.CommonRoleClosedResidualSlots
+
+import Yulang.CommonPatternSourcePresence
+
+import Yulang.CommonPatternDeclaredPresence
+
+import Yulang.CommonCasePresenceGeneration
+
+import Yulang.CommonRoleClosedResidualSourceFamily
+
+import Yulang.CommonEffectMixedFamilyAllocation
+
+import Yulang.CommonEffectMixedFamilyConstraints
+
+import Yulang.CommonEffectMixedWitness
+
+import Yulang.CommonDeclaredCastCostGraph
+
+import Yulang.CommonDeclaredCastCost
+
+import Yulang.CommonDeclaredCastEvaluation
+
+import Yulang.CommonDeclarationVarianceSyntax
+
+import Yulang.CommonDeclarationVarianceOccurrences
+
+import Yulang.CommonDeclarationVarianceLowering
+
+import Yulang.CommonDeclarationVarianceCalls
+
+import Yulang.CommonDeclarationVarianceRecursion
+
+import Yulang.CommonDeclarationVarianceGraph
+
+import Yulang.CommonDeclarationVarianceTable
+
+import Yulang.CommonDeclaredCastEvaluationExamples
+
+import Yulang.CommonDeclarationVarianceExamples
+
+import Yulang.CommonDeclarationVarianceRegistry
+
+import Yulang.CommonEffectFamilyArgumentKinds
+
+import Yulang.CommonRecursiveNominalIntervals
+
+import Yulang.CommonRecursiveNominalIntervalGeneration
+
+import Yulang.CommonDeclarationVarianceInspection
+
+import Yulang.CommonEffectFamilyApplications
+
+import Yulang.CommonRecursiveNominalIntervalExact
+
+import Yulang.CommonEffectFamilyApplicationGeneration
+
+import Yulang.CommonDeclarationVarianceSourceFamily
+
+import Yulang.CommonRecursiveNominalIntervalAdmission
+
+import Yulang.CommonRecursiveNominalIntervalContext
+
+import Yulang.CommonRecursiveNominalIntervalContextExact
+
+import Yulang.CommonEffectFamilySourceGeneration
+
+import Yulang.CommonRecursiveNominalIntervalContextAdmission
+
+import SpecExamples
+
+import Yulang.CommonRoleRepeatedCaptureChecks
+
+import Yulang.CommonRoleRegularGraph
+
+import Yulang.CommonRoleGraphInspection
+
+import Yulang.CommonRoleGraphBisimulation
+
+import Yulang.CommonRoleUnaryGraphBridge
+
+import Yulang.CommonRoleGraphInspectionExamples
+
+import Yulang.CommonRoleRecordGraphBridge
+
+import Yulang.CommonRoleGraphDemandSnapshots
+
+import Yulang.CommonRoleCandidateConstraints
+
+import Yulang.CommonRoleCandidateConstraintExamples
+
+import Yulang.CommonRoleOutermostResolver
+
+import Yulang.CommonRoleOutermostResolverChecks
+
+import SpecExamplesSettled
+
+import Yulang.CommonSourcePatternTyping
+
+import Yulang.CommonSourcePatternInversion
+
+import Yulang.CommonSourcePatternGeneration
+
+import Yulang.CommonSourcePatternAllocation
+
+import Yulang.CommonSourcePatternGenerationProvenance
+
+import Yulang.CommonSourcePatternElaboration
+
+import Yulang.CommonSourceArmGeneration
+
+import Yulang.CommonSourcePatternPartialSafety
+
+import Yulang.CommonSourceCasePartial
+
+import Yulang.CommonSourceArmSolved
+
+import Yulang.CommonSourceArmsSolved
+
+import Yulang.CommonSourceOptionalX22
+
+import Yulang.CommonRoleOpenConstraints
+import Yulang.CommonRoleOpenDescent
+import Yulang.CommonRoleOpenState
+
+import Yulang.CommonRoleOpenNormalization
+import Yulang.CommonRoleOpenExamples
+
+-- T1b: concrete producer and state-returning pass (not saturation).
+import Yulang.CommonRoleOpenProducer
+import Yulang.CommonRoleOpenProducerAccess
+import Yulang.CommonRoleOpenThreading
+import Yulang.CommonRoleOpenPropagation
+import Yulang.CommonRoleOpenPropagationOrigin
+import Yulang.CommonRoleOpenRecursivePass
+
+-- Instruction I-1, cycle 1: candidate-local ordinary frontier.
+import Yulang.CommonRoleEndpointSlots
+import Yulang.CommonRoleCandidateStateFrontier
+import Yulang.CommonRoleIntervalCandidateFrontier
+
+-- I-2 cycle 2: declaration equations, source identity, finite closure.
+import Yulang.CommonRoleSourceIdentity
+import Yulang.CommonRoleAssociatedStateFlow
+import Yulang.CommonRoleOpenFiniteClosure
+import Yulang.CommonRoleAssociatedBatch
+import Yulang.CommonRoleAssociatedParentGround
+import Yulang.CommonRoleOpenPassStability
+import Yulang.MainStatementsDraft
+import Yulang.CommonRoleOpenClosureAllocation
+import Yulang.CommonRoleOrdinaryKnownness
+import Yulang.CommonRoleAssociatedParentPipeline
+import Yulang.SpecConformanceIndex
+
+import Yulang.CommonRoleAssociatedParentSuccess
+import Yulang.CommonRoleAssociatedParentExact
+
+import Yulang.CommonRoleSourceDescent
+import Main
+import Yulang.CommonRoleStatefulIndexSweep
+import Yulang.CommonRoleStatefulIndexPath
+import Yulang.CommonRoleStatefulParentExample
+import Yulang.CommonRoleStatefulPathComplete
+import Yulang.CommonRoleStatefulPathParent
+
+import Yulang.CommonRoleNamedPath
+
+import Yulang.CommonRoleSiblingOrders
+
+import Yulang.CommonRolePathOrder
+
+import Yulang.CommonRoleFiniteAssociatedClosure
+
+import Yulang.CommonRoleFiniteAssociatedModels
+
+import Yulang.CommonRoleFiniteAssociatedStable
+
+import Yulang.CommonArgumentEffectCast
+
+import Yulang.ArgumentEffectCastRuntime
+
+import Yulang.CommonRoleNamedAssociatedGraph
+
+import Yulang.CommonRoleAssociatedDeclarationExact
+
+import Yulang.CommonRoleFiniteAssociatedDeclaration

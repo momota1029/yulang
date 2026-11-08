@@ -124,6 +124,7 @@ fn declaration_field_error_run(
                 && indentation_after_newline(item.leading_view()).is_none();
             let boundary = item.payload_view().is_boundary()
                 || item.payload_view().is_eof()
+                || run.lexical(|lex| unmatched_companion_lex(lex, &item))
                 || run.lexical(|lex| is_active_stop_lex(lex, &item, stops))
                 || implicit_delimited_newline(baseline, item.leading_view())
                 || matches!(
@@ -375,6 +376,19 @@ fn field_sequence_normalized(
     let mut need_field = true;
     let mut after_comma = false;
     loop {
+        // Only a field list proven to lack its closer may yield early to a
+        // companion. Keep its current Item and layout intact for the shell.
+        if delimited.is_some()
+            && i.delimiter_is_unmatched()
+            && !item.payload_view().is_boundary()
+            && crate::lexical::observation::is_contextual_word(i.rb(), &item, "with")
+        {
+            emit_missing_close(&mut i, &item, item_origin);
+            return DeclarationFieldExit {
+                exit: complete(handoff(item), line_entry),
+                item_origin,
+            };
+        }
         if item.payload_view().is_boundary() {
             if let Some(list) = delimited {
                 if after_comma
@@ -962,11 +976,14 @@ fn named_type_normalized(
     // A malformed fresh type retains its existing recovery, including `x: =`.
     let defaults =
         defaults.filter(|_| !primary.payload_view().is_boundary() && type_starter(&primary));
-    let outer_boundary = if defaults.is_some() {
+    let mut outer_boundary = if defaults.is_some() {
         TypeOuterBoundary::EQUALS
     } else {
         TypeOuterBoundary::NONE
     };
+    if i.delimiter_is_unmatched() {
+        outer_boundary = outer_boundary.with(TypeOuterBoundary::WITH);
+    }
     let exit = required_type_expr_with_boundary_normalized(
         i.rb(),
         primary,
@@ -1148,6 +1165,7 @@ fn field_sequence_error_run(
                 )
             });
             if item.payload_view().is_boundary()
+                || run.lexical(|lex| unmatched_companion_lex(lex, &item))
                 || item.payload_view().is_eof()
                 || run.lexical(|lex| is_active_stop_lex(lex, &item, stops))
                 || implicit_delimited_newline(baseline, item.leading_view())
@@ -1375,6 +1393,7 @@ pub(super) fn field_boundary(
     delimited: Option<FieldList>,
 ) -> bool {
     item.payload_view().is_boundary()
+        || (i.delimiter_is_unmatched() && crate::declaration::derives::is_word(item, "with"))
         || item.payload_view().is_eof()
         || is_active_stop(i.rb(), item, stops)
         || implicit_delimited_newline(baseline, item.leading_view())
@@ -1388,6 +1407,12 @@ pub(super) fn field_boundary(
                 Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
             ) || token_kind(item) == Some(list.close())
         })
+}
+
+fn unmatched_companion_lex(mut i: LexIn, item: &Item) -> bool {
+    i.recovery().unmatched_baseline.is_some()
+        && !item.payload_view().is_boundary()
+        && crate::declaration::derives::is_word(item, "with")
 }
 
 pub(super) fn type_starter(item: &Item) -> bool {

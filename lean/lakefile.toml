@@ -5,3 +5,12 @@ moreLeanArgs = ["--trust=0"]
 
 [[lean_lib]]
 name = "Yulang"
+
+[[lean_lib]]
+name = "SpecExamples"
+
+[[lean_lib]]
+name = "SpecExamplesSettled"
+
+[[lean_lib]]
+name = "Main"

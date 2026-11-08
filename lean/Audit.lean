@@ -5835,3 +5835,1188 @@ run_cmd do
 #print axioms Yulang.CommonRoleDeferredBounds.known_exact
 #print axioms Yulang.CommonRoleDeferredBounds.upper_only_pending
 #print axioms Yulang.CommonRoleDeferredBounds.lower_arrives
+
+#print axioms Yulang.CommonEffectFieldInstances.construct_use_sound
+
+#print axioms Yulang.CommonDeclaredNominalInspection.argument_kind_eval
+#print axioms Yulang.CommonDeclaredNominalInspection.wellKinded_length
+#print axioms Yulang.CommonDeclaredNominalInspection.arguments_relation_exact
+#print axioms Yulang.CommonDeclaredNominalInspection.arguments_demand_exact
+#print axioms Yulang.CommonDeclaredNominalInspection.inspect_argument_exact
+#print axioms Yulang.CommonDeclaredNominalInspection.inspect_arguments_exact
+#print axioms Yulang.CommonDeclaredNominalInspection.declared_subtype_exact
+#print axioms Yulang.CommonDeclaredNominalInspection.inspect_exact
+
+#print axioms Yulang.CommonRoleIntervalRecordResidual.normalize_map
+#print axioms Yulang.CommonRoleIntervalRecordResidual.capture_map
+#print axioms Yulang.CommonRoleIntervalRecordResidual.residual_endpoints
+
+#print axioms Yulang.CommonPatternPrefixNoMiss.returns_ret
+#print axioms Yulang.CommonPatternPrefixNoMiss.returns_bind
+#print axioms Yulang.CommonPatternPrefixNoMiss.ret_some_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.bind_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.andThen_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.align_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.or_left_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.or_right_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.as_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.everyValue_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.supported_noMiss
+#print axioms Yulang.CommonPatternPrefixNoMiss.record_noMiss
+
+#print axioms Yulang.CommonRoleIntervalRecordGeneration.generated_fit_exact
+#print axioms Yulang.CommonRoleIntervalRecordGeneration.generate_exact
+#print axioms Yulang.CommonRoleIntervalRecordGeneration.compile_exact
+
+#print axioms Yulang.CommonEffectFieldTable.construct_fields_exact
+
+#print axioms Yulang.CommonEffectFieldTable.project_exact
+
+#print axioms Yulang.CommonEffectFieldTable.FieldsTyping.lookup
+#print axioms Yulang.CommonEffectFieldTable.constructed_projection_sound
+
+#print axioms Yulang.CommonEffectRefRunField.refRun_wellKinded
+#print axioms Yulang.CommonEffectRefRunField.refRun_eval
+#print axioms Yulang.CommonEffectRefRunField.construct_ref_run_exact
+
+#print axioms Yulang.CommonEffectRefRunField.use_ref_run_exact
+#print axioms Yulang.CommonEffectRefRunField.project_ref_run_exact
+
+#print axioms Yulang.CommonRoleIntervalReadyChain.always_known
+
+#print axioms Yulang.CommonPurePatternPrefixNoMiss.pure_noMiss
+#print axioms Yulang.CommonPurePatternPrefixNoMiss.joint_record_witness
+
+#print axioms Yulang.CommonCasePrefixCoverage.returns_prepend
+#print axioms Yulang.CommonCasePrefixCoverage.prepend_noMiss
+#print axioms Yulang.CommonCasePrefixCoverage.unguarded_noMiss
+#print axioms Yulang.CommonCasePrefixCoverage.witness_noMiss
+#print axioms Yulang.CommonCasePrefixCoverage.covered_noMiss
+#print axioms Yulang.CommonCasePrefixCoverage.eval_noMiss
+#print axioms Yulang.CommonCasePrefixCoverage.safe_selected_result
+
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.pure_coverage_exact
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.coverage_exact
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.generatePremises_exact
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.principal_safe
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.principal_exact
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.all_parameter_premises
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.premises_instances_exact
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.no_premises_exact
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.case_prefixes
+#print axioms Yulang.CommonCaseCoreRecordPrefixSolved.all_parameter_case_prefixes
+
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.pure_arms_empty
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.default_coverage
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.exact_empty_width
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.binder_below_int
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.fallback_typed
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.pattern_typed
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.arm_typed
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.premises
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.real_generated_model
+#print axioms Yulang.CommonCaseCoreRecordPrefixExamples.real_scheme_instance
+
+#print axioms Yulang.CommonDeclaredNominalSlots.inspect_all_exact
+#print axioms Yulang.CommonDeclaredNominalSlots.AllSlots.append
+#print axioms Yulang.CommonDeclaredNominalSlots.inspect_all_slots
+#print axioms Yulang.CommonDeclaredNominalSlots.inspect_all_grammar
+
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.compile_models_exact
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.compiled_grammar
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.mem_solve
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.rows_eval_congr
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.atoms_congr
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.models_congr
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.all_parameters_models
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.solve_all_instances_exact
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.generated_models_exact
+#print axioms Yulang.CommonDeclaredNominalSourceFamily.generated_core_models_exact
+
+#print axioms Yulang.CommonRoleIntervalReadyChain.bounds_consistent
+
+#print axioms Yulang.CommonDeclaredInvariantBounds.select_exact
+#print axioms Yulang.CommonDeclaredInvariantBounds.interval_atoms_exact
+#print axioms Yulang.CommonDeclaredInvariantBounds.value_interval_exact
+#print axioms Yulang.CommonDeclaredInvariantBounds.inspect_exact
+#print axioms Yulang.CommonDeclaredInvariantBounds.inspect_all_exact
+#print axioms Yulang.CommonDeclaredInvariantBounds.inspect_slots
+#print axioms Yulang.CommonDeclaredInvariantBounds.inspect_all_slots
+
+#print axioms Yulang.CommonDeclaredInvariantSourceFamily.mem_solve
+#print axioms Yulang.CommonDeclaredInvariantSourceFamily.compiled_models_exact
+#print axioms Yulang.CommonDeclaredInvariantSourceFamily.all_parameters_models
+
+#print axioms Yulang.CommonDeclaredInvariantSourceFamily.solve_all_instances_exact
+
+#print axioms Yulang.CommonDeclaredInvariantSourceFamily.generated_models_exact
+
+#print axioms Yulang.CommonRoleIntervalReadyChain.no_readiness_rank
+
+#print axioms Yulang.CommonDeclaredInvariantSourceFamily.generated_legacy_core_models_exact
+
+#print axioms Yulang.CommonEffectRowIntervalConstraints.cross_checks_exact
+#print axioms Yulang.CommonEffectRowIntervalConstraints.check_exact
+
+#print axioms Yulang.CommonEffectRowIntervalConstraints.Bounds.eval_merge
+#print axioms Yulang.CommonEffectRowIntervalConstraints.merge_check_exact
+
+#print axioms Yulang.CommonRoleIntervalReadyChain.declared_child_endpoints
+
+#print axioms Yulang.CommonRoleIntervalReadyChain.growing_rejected
+
+#print axioms Yulang.CommonEffectRowIntervalConstraints.contains_exact
+#print axioms Yulang.CommonEffectRowIntervalConstraints.merge_contains_exact
+
+#print axioms Yulang.CommonEffectFamilyRowSlots.collect_member_exact
+#print axioms Yulang.CommonEffectFamilyRowSlots.collect_contains_exact
+
+#print axioms Yulang.CommonEffectFamilyRowSlots.generate_exact
+
+#print axioms Yulang.CommonRoleClosedRecordResidual.normalize_equivalent
+
+#print axioms Yulang.CommonRoleClosedRecordResidual.field_probe_exact
+
+#print axioms Yulang.CommonRoleClosedRecordResidual.optional_probe_exact
+
+#print axioms Yulang.CommonRoleClosedRecordResidual.capture_lookup
+#print axioms Yulang.CommonRoleClosedRecordResidual.capture_field_probe_exact
+
+#print axioms Yulang.CommonRoleClosedRecordResidual.capture_optional_probe_exact
+
+#print axioms Yulang.CommonRoleClosedIntervalRecordGeneration.recordTerm_eval
+
+#print axioms Yulang.CommonRoleClosedIntervalRecordGeneration.generate_exact
+
+#print axioms Yulang.CommonRoleClosedIntervalRecordGeneration.compile_exact
+
+#print axioms Yulang.CommonRoleClosedRecordResidual.capture_tail_exact
+
+#print axioms Yulang.CommonCoreDataEvaluation.supported_of_check
+#print axioms Yulang.CommonCoreDataEvaluation.supported_exact
+#print axioms Yulang.CommonCoreDataEvaluation.typing_evaluates
+
+#print axioms Yulang.CommonCoreDataPrefixes.pending_exact
+#print axioms Yulang.CommonCoreDataPrefixes.completed_exact
+#print axioms Yulang.CommonCoreDataPrefixes.prefix_environment
+#print axioms Yulang.CommonCoreDataPrefixes.pure_trace
+#print axioms Yulang.CommonCoreDataPrefixes.typing_prefixes
+#print axioms Yulang.CommonCoreDataPrefixes.binding_prefixes
+
+#print axioms Yulang.CommonCaseCoreDataGate.strengthen_defaults
+#print axioms Yulang.CommonCaseCoreDataGate.guard_check_exact
+#print axioms Yulang.CommonCaseCoreDataGate.arm_check_exact
+#print axioms Yulang.CommonCaseCoreDataGate.check_exact
+#print axioms Yulang.CommonCaseCoreDataGate.arm_typing
+
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.principal_exact
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.principal_safe
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.all_parameter_premises
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.premises_instances_exact
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.no_premises_exact
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.defaults_sound
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.guards_sound
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.bodies_sound
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.case_prefixes
+#print axioms Yulang.CommonCaseCoreDataPrefixSolved.all_parameter_case_prefixes
+
+#print axioms Yulang.CommonCaseCoreDataPrefixExamples.source_gate
+#print axioms Yulang.CommonCaseCoreDataPrefixExamples.real_scheme_instance
+
+#print axioms Yulang.CommonCaseCoreDataPrefixExamples.returns_logged
+#print axioms Yulang.CommonCaseCoreDataPrefixExamples.actual_result
+
+#print axioms Yulang.CommonCasePrefixCompletion.ret_completes
+#print axioms Yulang.CommonCasePrefixCompletion.bind_completes
+#print axioms Yulang.CommonCasePrefixCompletion.visits_complete
+#print axioms Yulang.CommonCasePrefixCompletion.eval_completes
+
+#print axioms Yulang.CommonCaseCoreDataCompletion.source_completes
+#print axioms Yulang.CommonCaseCoreDataCompletion.defaults_complete
+#print axioms Yulang.CommonCaseCoreDataCompletion.guards_complete
+#print axioms Yulang.CommonCaseCoreDataCompletion.bodies_complete
+#print axioms Yulang.CommonCaseCoreDataCompletion.case_returns
+
+#print axioms Yulang.CommonCaseCoreDataCompletion.all_parameter_returns
+
+#print axioms Yulang.CommonRoleClosedRecordComparison.subtype_lookup_exact
+
+#print axioms Yulang.CommonRoleClosedRecordComparison.check_same_labels_exact
+
+#print axioms Yulang.CommonRoleIntervalPaterson.every_where_decreases
+
+#print axioms Yulang.CommonRoleIntervalCapture.bound_exact
+
+#print axioms Yulang.CommonRoleIntervalCapture.capture_exact
+
+#print axioms Yulang.CommonRoleIntervalCapture.capture_arguments_exact
+
+#print axioms Yulang.CommonRoleIntervalCandidates.inspect_accepts_exact
+
+#print axioms Yulang.CommonRoleIntervalCandidates.inspect_rejects_exact
+
+#print axioms Yulang.CommonRoleIntervalCandidates.scan_exact
+
+#print axioms Yulang.CommonRoleIntervalCandidates.all_where_bindings_exist
+
+#print axioms Yulang.CommonRoleIntervalCandidates.accepted_child_decreases
+
+#print axioms Yulang.CommonRoleIntervalExpansion.expand_exact
+
+#print axioms Yulang.CommonRoleIntervalExpansion.run_tree_exact
+
+#print axioms Yulang.CommonRoleIntervalExpansionChecks.constraints_exact
+
+#print axioms Yulang.CommonRoleIntervalExpansionChecks.original_goal_checks
+
+#print axioms Yulang.CommonEffectMixedDeclarations.lookup_interpretAll
+
+#print axioms Yulang.CommonEffectMixedDeclarations.interpretAll_local
+
+#print axioms Yulang.CommonEffectMixedSource.Typing.request_iff
+
+#print axioms Yulang.CommonEffectMixedSource.Typing.handler_iff
+
+#print axioms Yulang.CommonEffectMixedSource.Typing.multiHandler_separate_iff
+
+#print axioms Yulang.CommonEffectMixedSource.Typing.partialHandler_separate_iff
+
+#print axioms Yulang.CommonEffectKindedFormula.Scheme.instantiate_exact
+
+#print axioms Yulang.CommonEffectMixedGeneration.handlerChecks_holds
+
+#print axioms Yulang.CommonEffectMixedGeneration.ContextRel.rename
+
+#print axioms Yulang.CommonEffectMixedExact.generate_recursive_mixed_exact
+
+#print axioms Yulang.CommonEffectMixedKinds.check_row_exact
+
+#print axioms Yulang.CommonEffectMixedKinds.check_type_exact
+
+#print axioms Yulang.CommonEffectMixedKinds.check_declarations_exact
+
+#print axioms Yulang.CommonEffectMixedChecked.generate_checked_exact
+
+#print axioms Yulang.CommonEffectMixedChecked.generate_closed_checked_exact
+
+#print axioms Yulang.CommonRoleIntervalDictionaries.complete_iff_dictionary
+
+#print axioms Yulang.CommonRoleIntervalDictionaries.elaborate_prepared_exact
+
+#print axioms Yulang.CommonRoleIntervalDictionaryCompilation.compile_trace_exact
+
+#print axioms Yulang.CommonRoleIntervalDictionaryCompilation.compiled_reflects
+
+#print axioms Yulang.CommonRoleClosedRecordInspection.inspect_exact
+
+#print axioms Yulang.CommonRoleClosedIntervalInspection.reconcile_exact
+
+#print axioms Yulang.CommonRoleClosedResidualInspection.inspect_exact
+
+#print axioms Yulang.CommonRoleClosedResidualInspection.inspect_generation_exact
+
+#print axioms Yulang.CommonRoleClosedResidualSlots.inspect_all_exact
+
+#print axioms Yulang.CommonRoleClosedResidualSlots.inspect_all_grammar
+
+#print axioms Yulang.CommonPatternSourcePresence.sites_exact
+
+#print axioms Yulang.CommonPatternDeclaredPresence.check_exact
+
+#print axioms Yulang.CommonPatternDeclaredPresence.required_report_exact
+
+#print axioms Yulang.CommonPatternDeclaredPresence.unresolved_report_exact
+
+#print axioms Yulang.CommonCasePresenceGeneration.generate_exact
+
+#print axioms Yulang.CommonCasePresenceGeneration.generated_safe
+
+#print axioms Yulang.CommonCasePresenceGeneration.solve_exact
+
+#print axioms Yulang.CommonCasePresenceGeneration.instances_exact
+
+#print axioms Yulang.CommonCasePresenceGeneration.all_parameter_returns
+
+#print axioms Yulang.CommonCasePresenceGeneration.required_blocks
+
+#print axioms Yulang.CommonRoleClosedResidualSourceFamily.compile_models_exact
+
+#print axioms Yulang.CommonRoleClosedResidualSourceFamily.compiled_grammar
+
+#print axioms Yulang.CommonEffectMixedFamilyAllocation.reference_eq_iff
+
+#print axioms Yulang.CommonEffectMixedFamilyAllocation.valueAt_encode
+
+#print axioms Yulang.CommonEffectMixedFamilyAllocation.rowAt_encode
+
+#print axioms Yulang.CommonEffectMixedFamilyAllocation.encode_decode
+
+#print axioms Yulang.CommonEffectMixedFamilyConstraints.generate_exact
+
+#print axioms Yulang.CommonRoleClosedResidualSourceFamily.all_parameters_models
+
+#print axioms Yulang.CommonEffectMixedWitness.checked_nested_model
+
+#print axioms Yulang.CommonRoleClosedResidualSourceFamily.solve_all_instances_exact
+
+#print axioms Yulang.CommonDeclaredCastCostGraph.check_exact
+
+#print axioms Yulang.CommonDeclaredCastCostGraph.rank_decreases
+
+#print axioms Yulang.CommonDeclaredCastCost.run_bound
+
+#print axioms Yulang.CommonDeclaredCastCost.wrapper_creation
+
+#print axioms Yulang.CommonDeclaredCastCost.invocation_bound
+
+#print axioms Yulang.CommonRoleClosedResidualSourceFamily.generated_models_exact
+
+#print axioms Yulang.CommonRoleClosedResidualSourceFamily.generated_core_models_exact
+
+#print axioms Yulang.CommonDeclaredCastEvaluation.execute_run
+
+#print axioms Yulang.CommonDeclaredCastEvaluation.execute_bound
+
+#print axioms Yulang.CommonDeclaredCastEvaluation.execute_function
+
+#print axioms Yulang.CommonDeclaredCastEvaluation.invoke_run
+
+#print axioms Yulang.CommonDeclaredCastEvaluation.invoke_bound
+
+#print axioms Yulang.CommonDeclaredCastEvaluation.invoke_shape
+
+#print axioms Yulang.CommonDeclaredCastEvaluation.execute_checked_bound
+
+#print axioms Yulang.CommonDeclarationVarianceSyntax.clauses_exact
+
+#print axioms Yulang.CommonDeclarationVarianceSyntax.supports_derivation
+
+#print axioms Yulang.CommonDeclarationVarianceSyntax.Derivation.supported
+
+#print axioms Yulang.CommonDeclarationVarianceOccurrences.occurrences_exact
+
+#print axioms Yulang.CommonDeclarationVarianceOccurrences.expression_occurs_exact
+
+#print axioms Yulang.CommonDeclarationVarianceOccurrences.used_exact
+
+#print axioms Yulang.CommonDeclarationVarianceLowering.lower_exact
+
+#print axioms Yulang.CommonDeclarationVarianceLowering.lower_arguments_exact
+
+#print axioms Yulang.CommonDeclarationVarianceLowering.lower_arguments_preserves_every_kind
+
+#print axioms Yulang.CommonDeclarationVarianceCalls.edge_exact
+
+#print axioms Yulang.CommonDeclarationVarianceRecursion.analyze_exact
+
+#print axioms Yulang.CommonDeclarationVarianceGraph.next_exact
+
+#print axioms Yulang.CommonDeclarationVarianceGraph.analyze_exact
+
+#print axioms Yulang.CommonDeclarationVarianceTable.derive_variance_exact
+
+#print axioms Yulang.CommonDeclarationVarianceTable.covariant_has_no_negative
+
+#print axioms Yulang.CommonDeclarationVarianceTable.invariant_propagates
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.box_executes
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.box_budget
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.stream_creation
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.stream_creation_budget
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.stream_one_call
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.stream_call_budget
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.reset_value_executes
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.reset_fixed_executes
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.reset_budget
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.eager_chain_rejected
+
+#print axioms Yulang.CommonDeclaredCastEvaluationExamples.eager_chain_refused
+
+#print axioms Yulang.CommonDeclarationVarianceExamples.box_checked
+
+#print axioms Yulang.CommonDeclarationVarianceExamples.phantom_checked
+
+#print axioms Yulang.CommonDeclarationVarianceExamples.chain_checked
+
+#print axioms Yulang.CommonDeclarationVarianceExamples.reset_checked
+
+#print axioms Yulang.CommonDeclarationVarianceRegistry.modes_exact
+#print axioms Yulang.CommonDeclarationVarianceRegistry.registry_exact
+#print axioms Yulang.CommonDeclarationVarianceRegistry.declaration_preserves_kinds
+#print axioms Yulang.CommonDeclarationVarianceRegistry.registry_preserves_arity
+
+#print axioms Yulang.CommonEffectFamilyArgumentKinds.check_signed_row_exact
+#print axioms Yulang.CommonEffectFamilyArgumentKinds.check_bounds_exact
+#print axioms Yulang.CommonEffectFamilyArgumentKinds.check_argument_exact
+
+#print axioms Yulang.CommonRecursiveNominalIntervals.Bounds.checks_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.decompose_argument_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.decompose_arguments_exact
+
+#print axioms Yulang.CommonRecursiveNominalIntervals.Bounds.check_size_lt
+#print axioms Yulang.CommonRecursiveNominalIntervals.decompose_argument_size_lt
+#print axioms Yulang.CommonRecursiveNominalIntervals.decompose_arguments_size_lt
+#print axioms Yulang.CommonRecursiveNominalIntervals.inspect
+
+#print axioms Yulang.CommonDeclarationVarianceInspection.subtype_exact
+#print axioms Yulang.CommonDeclarationVarianceInspection.inspect_exact
+#print axioms Yulang.CommonDeclarationVarianceInspection.inspect_all_exact
+
+#print axioms Yulang.CommonEffectFamilyApplications.check_arguments_exact
+#print axioms Yulang.CommonEffectFamilyApplications.check_application_exact
+#print axioms Yulang.CommonEffectFamilyApplications.collect_all_exact
+#print axioms Yulang.CommonEffectFamilyApplications.collect_declared
+
+#print axioms Yulang.CommonRecursiveNominalIntervals.derives_argument_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.derives_arguments_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.inspect_exact
+
+#print axioms Yulang.CommonEffectFamilyApplicationGeneration.generate_exact
+#print axioms Yulang.CommonEffectFamilyApplicationGeneration.generate_captured_exact
+#print axioms Yulang.CommonEffectFamilyApplicationGeneration.unknown_family_rejected
+#print axioms Yulang.CommonEffectFamilyApplicationGeneration.wrong_arity_rejected
+
+#print axioms Yulang.CommonDeclarationVarianceSourceFamily.bounds_exact
+#print axioms Yulang.CommonDeclarationVarianceSourceFamily.all_parameters_models
+#print axioms Yulang.CommonDeclarationVarianceSourceFamily.solve_all_instances_exact
+#print axioms Yulang.CommonDeclarationVarianceSourceFamily.generated_models_exact
+
+#print axioms Yulang.CommonRecursiveNominalIntervals.admit_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.compile_exact
+
+#print axioms Yulang.CommonRecursiveNominalIntervals.decompose_context_arguments_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.decompose_context_arguments_size_lt
+
+#print axioms Yulang.CommonRecursiveNominalIntervals.inspect_context_exact
+
+#print axioms Yulang.CommonEffectFamilySourceGeneration.check_declarations_exact
+#print axioms Yulang.CommonEffectFamilySourceGeneration.emit_applications_exact
+#print axioms Yulang.CommonEffectFamilySourceGeneration.generate_exact
+
+#print axioms Yulang.CommonRecursiveNominalIntervals.admit_context_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.compile_in_context_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.compile_context_exact
+
+#print axioms Yulang.SpecExamples.x1_declaration_accepted
+#print axioms Yulang.SpecExamples.x2_declaration_rejected
+#print axioms Yulang.SpecExamples.x3_shadow_rejected
+#print axioms Yulang.SpecExamples.x5_rejected
+#print axioms Yulang.SpecExamples.x18_box_covariant
+#print axioms Yulang.SpecExamples.x18_reset_covariant
+#print axioms Yulang.SpecExamples.x18_box2_covariant
+#print axioms Yulang.SpecExamples.x18_stream_covariant
+#print axioms Yulang.SpecExamples.x19_chain_invariant
+#print axioms Yulang.SpecExamples.x19_mutual_invariant
+#print axioms Yulang.SpecExamples.x20_phantom_unused
+#print axioms Yulang.SpecExamples.x22_strict_rejects
+#print axioms Yulang.SpecExamples.x22_main_generator_rejects
+#print axioms Yulang.SpecExamples.x22_missing_field_misses
+
+/- `SpecExamples` is a separate top-level Lake library, so the Yulang-module
+allowlist above does not include it. Audit every declaration in it as well. -/
+open Lean Elab Command in
+run_cmd do
+  let environment ← getEnv
+  let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
+  let mut checked : Nat := 0
+  for (name, _) in environment.constants.toList do
+    if let some index := environment.getModuleIdxFor? name then
+      let moduleName := environment.header.moduleNames[index.toNat]!
+      if (`SpecExamples).isPrefixOf moduleName then
+        checked := checked + 1
+        let axioms ← collectAxioms name
+        for dependency in axioms do
+          unless allowed.contains dependency do
+            throwError "Forbidden axiom dependency: {name} depends on {dependency}"
+  if checked = 0 then
+    throwError "The audit did not find any SpecExamples declarations"
+  logInfo m!"Axiom allowlist passed for {checked} declarations from SpecExamples modules"
+
+#print axioms Yulang.CommonRoleRepeatedCaptureChecks.generate_exact
+#print axioms Yulang.CommonRoleRepeatedCaptureChecks.capture_checks_exact
+#print axioms Yulang.CommonRoleRepeatedCaptureChecks.term_eval
+#print axioms Yulang.CommonRoleRepeatedCaptureChecks.merged_eval
+#print axioms Yulang.CommonRoleRepeatedCaptureChecks.merged_valid_iff
+#print axioms Yulang.CommonRoleRepeatedCaptureChecks.repeated_example
+
+#print axioms Yulang.CommonRoleRegularGraph.returns_to_exact
+#print axioms Yulang.CommonRoleRegularGraph.recursive_at_exact
+#print axioms Yulang.CommonRoleRegularGraph.nominal_not_recursive
+#print axioms Yulang.CommonRoleRegularGraph.unresolved_not_recursive
+
+#print axioms Yulang.CommonRoleGraphInspection.variable_opaque
+#print axioms Yulang.CommonRoleGraphInspection.shared_opaque
+#print axioms Yulang.CommonRoleGraphInspection.shared_capture
+#print axioms Yulang.CommonRoleGraphInspection.shared_lookup
+#print axioms Yulang.CommonRoleGraphInspection.cyclic_structural_encounter
+#print axioms Yulang.CommonRoleGraphInspection.unresolved_structural
+#print axioms Yulang.CommonRoleGraphInspection.inspect_cycle_sound
+#print axioms Yulang.CommonRoleGraphInspection.inspect_children_cycle_sound
+#print axioms Yulang.CommonRoleGraphInspection.inspect_visible_exact
+#print axioms Yulang.CommonRoleGraphInspection.inspect_visible_append
+#print axioms Yulang.CommonRoleGraphInspection.inspect_all_children_cons
+#print axioms Yulang.CommonRoleGraphInspection.inspect_all_visible_exact
+#print axioms Yulang.CommonRoleGraphInspection.inspect_all_cycle_sound
+#print axioms Yulang.CommonRoleGraphInspection.inspect_all_children_cycle_sound
+#print axioms Yulang.CommonRoleGraphInspection.snapshot_unknown_exact
+#print axioms Yulang.CommonRoleGraphInspection.snapshot_cycle_sound
+
+#print axioms Yulang.CommonRoleGraphBisimulation.children_check_exact
+#print axioms Yulang.CommonRoleGraphBisimulation.node_check_exact
+#print axioms Yulang.CommonRoleGraphBisimulation.check_bisimulation_exact
+#print axioms Yulang.CommonRoleGraphBisimulation.bisimilar_exact
+#print axioms Yulang.CommonRoleGraphBisimulation.unresolved_bisimilar_same
+#print axioms Yulang.CommonRoleGraphBisimulation.children_map_equal
+#print axioms Yulang.CommonRoleGraphBisimulation.bisimulation_observations
+#print axioms Yulang.CommonRoleGraphBisimulation.bisimilar_observations
+#print axioms Yulang.CommonRoleGraphBisimulation.mem_all_pairs
+#print axioms Yulang.CommonRoleGraphBisimulation.observed_children_related
+#print axioms Yulang.CommonRoleGraphBisimulation.observations_bisimilar
+#print axioms Yulang.CommonRoleGraphBisimulation.bisimilar_iff_observations
+#print axioms Yulang.CommonRoleGraphBisimulation.regular_at_exact
+#print axioms Yulang.CommonRoleGraphBisimulation.identity_cycle_misses_unrolling
+#print axioms Yulang.CommonRoleGraphBisimulation.bisimulation_detects_unrolling
+#print axioms Yulang.CommonRoleGraphBisimulation.graph_update_changes_regularity
+#print axioms Yulang.CommonRoleGraphBisimulation.direct_cycle_with_unresolved
+#print axioms Yulang.CommonRoleGraphBisimulation.unrolled_shared_unknown_detected
+#print axioms Yulang.CommonRoleGraphBisimulation.distinct_unknowns_not_bisimilar
+#print axioms Yulang.CommonRoleGraphBisimulation.nominal_not_regular
+
+#print axioms Yulang.CommonRoleUnaryGraphBridge.graph_observe
+#print axioms Yulang.CommonRoleUnaryGraphBridge.block_observe
+#print axioms Yulang.CommonRoleUnaryGraphBridge.common_observe
+#print axioms Yulang.CommonRoleUnaryGraphBridge.bisimilar_common
+#print axioms Yulang.CommonRoleUnaryGraphBridge.unrolled_loop_common
+
+#print axioms Yulang.CommonRoleGraphInspectionExamples.merged_payload_observations
+#print axioms Yulang.CommonRoleGraphInspectionExamples.list_captures_loop
+#print axioms Yulang.CommonRoleGraphInspectionExamples.boxed_loop_observations
+#print axioms Yulang.CommonRoleGraphInspectionExamples.boxed_loop_all_observations
+#print axioms Yulang.CommonRoleGraphInspectionExamples.sibling_evidence_retained
+#print axioms Yulang.CommonRoleGraphInspectionExamples.named_tree_observation
+#print axioms Yulang.CommonRoleGraphInspectionExamples.requested_head_snapshots
+
+#print axioms Yulang.CommonRoleRecordGraphBridge.graph_observe
+#print axioms Yulang.CommonRoleRecordGraphBridge.block_observe
+#print axioms Yulang.CommonRoleRecordGraphBridge.common_observe
+#print axioms Yulang.CommonRoleRecordGraphBridge.common_unfold
+#print axioms Yulang.CommonRoleRecordGraphBridge.bisimilar_common
+#print axioms Yulang.CommonRoleRecordGraphBridge.unrolled_loop_common
+#print axioms Yulang.CommonRoleRecordGraphBridge.boxed_loop_graph
+#print axioms Yulang.CommonRoleRecordGraphBridge.boxed_loop_unfolds
+
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.lower_head_origin
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.inspect_lower_heads_exact
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.upper_only_has_no_lower_heads
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.lower_contribution_origin
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.inspect_all_contributions_exact
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.unresolved_contribution_retained
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.mixed_contributions_retained
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.lower_origins_exact
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.lower_origins_project
+#print axioms Yulang.CommonRoleGraphDemandSnapshots.inspect_origin_snapshots_exact
+
+#print axioms Yulang.CommonRoleCandidateConstraints.generated_slots
+#print axioms Yulang.CommonRoleCandidateConstraints.generated_grammar
+#print axioms Yulang.CommonRoleCandidateConstraints.solve_sound
+#print axioms Yulang.CommonRoleCandidateConstraints.generate_for_exact
+#print axioms Yulang.CommonRoleCandidateConstraints.generate_exact
+#print axioms Yulang.CommonRoleCandidateConstraints.form_names
+#print axioms Yulang.CommonRoleCandidateConstraints.form_intervals
+#print axioms Yulang.CommonRoleCandidateConstraints.repeated_checks_agree
+#print axioms Yulang.CommonRoleCandidateConstraints.solve_all_instances_exact
+#print axioms Yulang.CommonRoleCandidateConstraints.solve_empty_exact
+#print axioms Yulang.CommonRoleCandidateConstraints.from_observations_exact
+#print axioms Yulang.CommonRoleCandidateConstraints.prepare_observations
+#print axioms Yulang.CommonRoleCandidateConstraints.prepare_all_instances_exact
+#print axioms Yulang.CommonRoleCandidateConstraints.generated_prepare_all_instances_exact
+
+#print axioms Yulang.CommonRoleCandidateConstraintExamples.generated_cross_checks
+#print axioms Yulang.CommonRoleCandidateConstraintExamples.individual_intervals_consistent
+#print axioms Yulang.CommonRoleCandidateConstraintExamples.original_grammar
+#print axioms Yulang.CommonRoleCandidateConstraintExamples.cross_inconsistent
+#print axioms Yulang.CommonRoleCandidateConstraintExamples.solver_rejects_cross_conflict
+#print axioms Yulang.CommonRoleCandidateConstraintExamples.prepared_bindings
+#print axioms Yulang.CommonRoleCandidateConstraintExamples.inspected_candidate_conflict
+
+#print axioms Yulang.CommonRoleOutermostResolver.resolve_unfold
+#print axioms Yulang.CommonRoleOutermostResolver.resolve_tree_exact_of_frontier_exact
+#print axioms Yulang.CommonRoleOutermostResolver.any_rejected_exact
+#print axioms Yulang.CommonRoleOutermostResolver.any_ambiguous_exact
+#print axioms Yulang.CommonRoleOutermostResolver.any_pending_exact
+#print axioms Yulang.CommonRoleOutermostResolver.all_successful
+#print axioms Yulang.CommonRoleOutermostResolver.combine_exact
+#print axioms Yulang.CommonRoleOutermostResolver.classification_exact
+#print axioms Yulang.CommonRoleOutermostResolver.classifications_exact
+#print axioms Yulang.CommonRoleOutermostResolver.resolve_exact_of_frontier_exact
+
+#print axioms Yulang.CommonRoleOutermostResolverChecks.frontier_exact
+#print axioms Yulang.CommonRoleOutermostResolverChecks.leaf_accessible
+#print axioms Yulang.CommonRoleOutermostResolverChecks.root_accessible
+#print axioms Yulang.CommonRoleOutermostResolverChecks.duplicate_children_retained
+#print axioms Yulang.CommonRoleOutermostResolverChecks.complete_finite_dictionary
+#print axioms Yulang.CommonRoleOutermostResolverChecks.independent_classification
+
+-- Concrete settled frontier: every public theorem, plus the module-wide allowlist above.
+#print axioms Yulang.CommonRoleSettledConstraints.bounds_slots
+#print axioms Yulang.CommonRoleSettledConstraints.captures_compatible
+#print axioms Yulang.CommonRoleSettledConstraints.generated_state_exact
+#print axioms Yulang.CommonRoleSettledConstraints.rigid_sound
+#print axioms Yulang.CommonRoleSettledConstraints.rigid_complete
+#print axioms Yulang.CommonRoleSettledConstraints.rigid_exact
+#print axioms Yulang.CommonRoleSettledConstraints.clash_impossible
+#print axioms Yulang.CommonRoleSettledConstraints.clash_grammar
+#print axioms Yulang.CommonRoleSettledConstraints.original_grammar
+#print axioms Yulang.CommonRoleSettledConstraints.propagate_exact
+#print axioms Yulang.CommonRoleSettledConstraints.merged_captures_exact
+#print axioms Yulang.CommonRoleSettledExamples.propagate_empty
+#print axioms Yulang.CommonRoleSettledExamples.tick_finite
+#print axioms Yulang.CommonRoleSettledExamples.list_finite
+#print axioms Yulang.CommonRoleSettledExamples.box_finite
+#print axioms Yulang.CommonRoleSettledExamples.loop_cyclic
+#print axioms Yulang.CommonRoleSettledExamples.x6_merged_capture
+#print axioms Yulang.CommonRoleSettledExamples.x6_single_selected
+#print axioms Yulang.CommonRoleSettledExamples.x6_ambiguous
+#print axioms Yulang.CommonRoleSettledExamples.x8_len_selected
+#print axioms Yulang.CommonRoleSettledExamples.x9_where_tree
+#print axioms Yulang.CommonRoleSettledExamples.x9_show_rejected
+#print axioms Yulang.CommonRoleSettledExamples.x10_inspection_rejected
+#print axioms Yulang.CommonRoleSettledExamples.x11_rejection_before_ambiguity
+#print axioms Yulang.CommonRoleSettledExamples.x12_named_selected
+#print axioms Yulang.CommonRoleSettledExamples.all_six_independent
+#print axioms Yulang.CommonRoleSettledExamples.x6_source_lowered
+#print axioms Yulang.CommonRoleSettledExamples.upper_only_pending
+#print axioms Yulang.CommonRoleSettledExamples.all_where_children_retained
+#print axioms Yulang.CommonRoleSettledExamples.incompatible_eliminated_before_k2
+#print axioms Yulang.CommonRoleSettledExamples.folded_unrolled_k2
+#print axioms Yulang.CommonRoleSettledExamples.ordinary_conflict_rejected
+#print axioms Yulang.CommonRoleSettledExamples.repeated_self_and_cross_generated
+#print axioms Yulang.CommonRoleSettledFrontier.encode_exact
+#print axioms Yulang.CommonRoleSettledFrontier.trial_exact
+#print axioms Yulang.CommonRoleSettledFrontier.scan_sound
+#print axioms Yulang.CommonRoleSettledFrontier.scan_complete
+#print axioms Yulang.CommonRoleSettledFrontier.scan_exact
+#print axioms Yulang.CommonRoleSettledFrontier.summarize_sound
+#print axioms Yulang.CommonRoleSettledFrontier.summarize_complete
+#print axioms Yulang.CommonRoleSettledFrontier.summarize_exact
+#print axioms Yulang.CommonRoleSettledFrontier.frontier_sound
+#print axioms Yulang.CommonRoleSettledFrontier.frontier_complete
+#print axioms Yulang.CommonRoleSettledFrontier.frontier_exact
+#print axioms Yulang.CommonRoleSettledGraphBridge.lower_repeated_same_tag
+#print axioms Yulang.CommonRoleSettledGraphBridge.variant_graph
+#print axioms Yulang.CommonRoleSettledGraphBridge.record_graph
+#print axioms Yulang.CommonRoleSettledGraphBridge.variant_common_observations
+#print axioms Yulang.CommonRoleSettledGraphBridge.record_common_observations
+#print axioms Yulang.CommonRoleSettledGraphBridge.boxed_graph
+#print axioms Yulang.CommonRoleSettledGraphBridge.boxed_common_observations
+#print axioms Yulang.CommonRoleSettledGraphBridge.boxed_common_unfolds
+#print axioms Yulang.CommonRoleSettledGraphBridge.list_payload_graph
+#print axioms Yulang.CommonRoleSettledGraphBridge.named_body_opaque
+#print axioms Yulang.CommonRoleSettledResolver.trial_hit_origin
+#print axioms Yulang.CommonRoleSettledResolver.scan_hit_origin
+#print axioms Yulang.CommonRoleSettledResolver.mem_hits
+#print axioms Yulang.CommonRoleSettledResolver.selected_origin
+#print axioms Yulang.CommonRoleSettledResolver.child_decreases
+#print axioms Yulang.CommonRoleSettledResolver.accessible
+#print axioms Yulang.CommonRoleSettledResolver.resolve_tree_exact
+#print axioms Yulang.CommonRoleSettledResolver.resolve_exact
+#print axioms Yulang.CommonRoleSettledResolver.resolve_eq
+#print axioms Yulang.CommonRoleSettledResolver.child_state_unchanged
+#print axioms Yulang.CommonRoleSettledResolver.where_state_recollection
+#print axioms Yulang.CommonRoleSettledSyntax.Ty.nodes_pos
+#print axioms Yulang.CommonRoleSettledSyntax.regular_exact
+#print axioms Yulang.CommonRoleSettledSyntax.loop_regular
+#print axioms Yulang.CommonRoleSettledSyntax.unknown_not_regular
+#print axioms Yulang.CommonRoleSettledSyntax.atom_not_regular
+#print axioms Yulang.CommonRoleSettledSyntax.form_normal
+#print axioms Yulang.CommonRoleSettledSyntax.template_form
+#print axioms Yulang.CommonRoleSettledSyntax.merged_form_subst
+#print axioms Yulang.CommonRoleSettledSyntax.inspect_sound
+#print axioms Yulang.CommonRoleSettledSyntax.regular_false
+#print axioms Yulang.CommonRoleSettledSyntax.inspect_complete
+#print axioms Yulang.CommonRoleSettledSyntax.inspect_exact
+#print axioms Yulang.CommonRoleSettledSyntax.hit_form
+#print axioms Yulang.CommonRoleSettledSyntax.checked_names
+#print axioms Yulang.CommonRoleSettledSyntax.every_where_bound
+#print axioms Yulang.CommonRoleSettledSyntax.checked_child_decreases
+#print axioms Yulang.CommonRoleSettledSyntax.binding_lookup
+#print axioms Yulang.CommonRoleSettledSyntax.substitute_all_names
+#print axioms Yulang.CommonRoleSettledSyntax.every_where_substituted
+#print axioms Yulang.CommonRoleSettledConstraints.merged_binding_exact
+
+-- T2: CommonSourcePatternTyping
+#print axioms Yulang.CommonSourcePatternTyping.required_optional
+#print axioms Yulang.CommonSourcePatternTyping.legacy_preserved
+#print axioms Yulang.CommonSourcePatternTyping.RawTyping.binding_names
+
+-- T2: CommonSourcePatternInversion
+#print axioms Yulang.CommonSourcePatternInversion.typing_root_exact
+#print axioms Yulang.CommonSourcePatternInversion.field_iff
+
+-- T2: CommonSourcePatternGeneration
+#print axioms Yulang.CommonSourcePatternGeneration.generatePattern_exact
+
+-- T2: CommonSourcePatternAllocation
+#print axioms Yulang.CommonSourcePatternAllocation.generateAllocatedPattern_exact
+#print axioms Yulang.CommonSourcePatternAllocation.allocated_bindings_exact
+#print axioms Yulang.CommonSourcePatternAllocation.withPattern_exact
+#print axioms Yulang.CommonSourcePatternAllocation.generateCheckedPattern_exact
+
+-- T2: CommonSourcePatternGenerationProvenance
+#print axioms Yulang.CommonSourcePatternGenerationProvenance.safe_generatePattern
+#print axioms Yulang.CommonSourcePatternGenerationProvenance.principal_safe
+#print axioms Yulang.CommonSourcePatternGenerationProvenance.generated_invariants
+
+-- T2: CommonSourcePatternElaboration
+#print axioms Yulang.CommonSourcePatternElaboration.raw_typing_exact
+#print axioms Yulang.CommonSourcePatternElaboration.source_typing_exact
+#print axioms Yulang.CommonSourcePatternElaboration.generateSourcePattern_exact
+
+-- T2: CommonSourceArmGeneration
+#print axioms Yulang.CommonSourceArmGeneration.generateEnvironments_exact
+
+-- T2: CommonSourcePatternPartialSafety
+#print axioms Yulang.CommonSourcePatternPartialSafety.typing_matches_partial
+
+-- T2: CommonSourceCasePartial
+#print axioms Yulang.CommonSourceCasePartial.testArm_partial
+#print axioms Yulang.CommonSourceCasePartial.runArms_partial
+#print axioms Yulang.CommonSourceCasePartial.actual_runArms_partial
+
+-- T2: CommonSourceArmSolved
+#print axioms Yulang.CommonSourceArmSolved.principal_exact
+#print axioms Yulang.CommonSourceArmSolved.environments_instances_exact
+#print axioms Yulang.CommonSourceArmSolved.all_parameter_environments
+
+-- T2: CommonSourceArmsSolved
+#print axioms Yulang.CommonSourceArmsSolved.generateAll_exact
+#print axioms Yulang.CommonSourceArmsSolved.principal_exact
+#print axioms Yulang.CommonSourceArmsSolved.environments_instances_exact
+#print axioms Yulang.CommonSourceArmsSolved.returned_scheme_actual_partial
+
+-- T2: CommonSourceOptionalX22
+#print axioms Yulang.CommonSourceOptionalX22.pattern_typed
+#print axioms Yulang.CommonSourceOptionalX22.x22_source_generated
+#print axioms Yulang.CommonSourceOptionalX22.first_arm_typed
+#print axioms Yulang.CommonSourceOptionalX22.last_arm_typed
+#print axioms Yulang.CommonSourceOptionalX22.x22_case_generated
+#print axioms Yulang.CommonSourceOptionalX22.x22_real_scheme_instance
+#print axioms Yulang.CommonSourceOptionalX22.x22_missing_field_misses
+#print axioms Yulang.CommonSourceOptionalX22.x22_absent_case_result
+#print axioms Yulang.CommonSourceOptionalX22.x22_present_case_result
+#print axioms Yulang.CommonSourceOptionalX22.x22_any_absent_field_misses
+#print axioms Yulang.CommonSourceOptionalX22.nested_source_generated
+#print axioms Yulang.CommonSourceOptionalX22.x22_proved
+
+#print axioms Yulang.CommonRoleOpenConstraints.bounds_slots
+#print axioms Yulang.CommonRoleOpenConstraints.bounds_present
+#print axioms Yulang.CommonRoleOpenConstraints.compatible_exact
+#print axioms Yulang.CommonRoleOpenConstraints.generated_state_exact
+#print axioms Yulang.CommonRoleOpenConstraints.merged_binding_exact
+#print axioms Yulang.CommonRoleOpenConstraints.open_capture_not_noop
+#print axioms Yulang.CommonRoleOpenDescent.checked_child_decreases
+#print axioms Yulang.CommonRoleOpenDescent.step_decreases
+#print axioms Yulang.CommonRoleOpenDescent.accessible
+#print axioms Yulang.CommonRoleOpenState.add_exact
+#print axioms Yulang.CommonRoleOpenState.recollect_sound
+#print axioms Yulang.CommonRoleOpenState.recollect_complete
+#print axioms Yulang.CommonRoleOpenState.recollect_exact
+#print axioms Yulang.CommonRoleOpenState.recollect_models
+#print axioms Yulang.CommonRoleOpenState.recollect_atoms
+#print axioms Yulang.CommonRoleOpenState.recollect_preserves_prefix
+#print axioms Yulang.CommonRoleOpenState.solve_all_instances_exact
+#print axioms Yulang.CommonRoleOpenState.solve_empty_exact
+
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_same
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_different
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_interval
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_sound
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_complete
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_exact
+#print axioms Yulang.CommonRoleOpenNormalization.endpoints_preserved
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_lower
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_upper
+#print axioms Yulang.CommonRoleOpenNormalization.normalize_prefix
+#print axioms Yulang.CommonRoleOpenExamples.x15_local
+#print axioms Yulang.CommonRoleOpenExamples.x16_local
+#print axioms Yulang.CommonRoleOpenExamples.unequal_endpoint_example
+
+-- T1b new public theorems.
+#print axioms Yulang.CommonRoleOpenProducer.trial_exact
+#print axioms Yulang.CommonRoleOpenProducer.scan_sound
+#print axioms Yulang.CommonRoleOpenProducer.scan_complete
+#print axioms Yulang.CommonRoleOpenProducer.scan_exact
+#print axioms Yulang.CommonRoleOpenProducer.summarize_sound
+#print axioms Yulang.CommonRoleOpenProducer.summarize_complete
+#print axioms Yulang.CommonRoleOpenProducer.frontier_sound
+#print axioms Yulang.CommonRoleOpenProducer.frontier_complete
+#print axioms Yulang.CommonRoleOpenProducer.frontier_exact
+#print axioms Yulang.CommonRoleOpenProducerAccess.trial_hit_origin
+#print axioms Yulang.CommonRoleOpenProducerAccess.scan_hit_origin
+#print axioms Yulang.CommonRoleOpenProducerAccess.mem_hits
+#print axioms Yulang.CommonRoleOpenProducerAccess.selected_origin
+#print axioms Yulang.CommonRoleOpenProducerAccess.selected_production
+#print axioms Yulang.CommonRoleOpenProducerAccess.child_step
+#print axioms Yulang.CommonRoleOpenProducerAccess.child_decreases
+#print axioms Yulang.CommonRoleOpenProducerAccess.accessible
+#print axioms Yulang.CommonRoleOpenThreading.thread_exact
+#print axioms Yulang.CommonRoleOpenThreading.refresh_exact
+#print axioms Yulang.CommonRoleOpenThreading.drive_exact
+#print axioms Yulang.CommonRoleOpenThreading.thread_preserves
+#print axioms Yulang.CommonRoleOpenThreading.recollect_models_permutation
+#print axioms Yulang.CommonRoleOpenPropagation.prepare_exact
+#print axioms Yulang.CommonRoleOpenPropagation.consistent_exact
+#print axioms Yulang.CommonRoleOpenPropagation.produce_exact
+#print axioms Yulang.CommonRoleOpenPropagation.produced_child_step
+#print axioms Yulang.CommonRoleOpenPropagation.produced_child_decreases
+#print axioms Yulang.CommonRoleOpenPropagation.children_exact
+#print axioms Yulang.CommonRoleOpenPropagation.advance_exact
+#print axioms Yulang.CommonRoleOpenPropagation.pass_exact
+#print axioms Yulang.CommonRoleOpenPropagation.advance_preserves
+#print axioms Yulang.CommonRoleOpenPropagation.pass_preserves
+#print axioms Yulang.CommonRoleOpenPropagationOrigin.capture_bounds
+#print axioms Yulang.CommonRoleOpenPropagationOrigin.capture_present
+#print axioms Yulang.CommonRoleOpenPropagationOrigin.capture_exact
+#print axioms Yulang.CommonRoleOpenPropagationOrigin.selected_update_origin
+#print axioms Yulang.CommonRoleOpenPropagationOrigin.selected_prepare_exact
+#print axioms Yulang.CommonRoleOpenRecursivePass.child_origin
+#print axioms Yulang.CommonRoleOpenRecursivePass.runAcc_unfold
+#print axioms Yulang.CommonRoleOpenRecursivePass.runAcc_eq_run
+#print axioms Yulang.CommonRoleOpenRecursivePass.thread_attach
+#print axioms Yulang.CommonRoleOpenRecursivePass.run_unfold
+#print axioms Yulang.CommonRoleOpenRecursivePass.run_exact
+#print axioms Yulang.CommonRoleOpenRecursivePass.runs_preserves
+#print axioms Yulang.CommonRoleOpenRecursivePass.run_preserves
+#print axioms Yulang.CommonRoleOpenRecursivePass.run_recollects
+
+-- Instruction I-1, cycle 1.
+#print axioms Yulang.CommonRoleEndpointSlots.decode_allocate
+#print axioms Yulang.CommonRoleEndpointSlots.allocate_decode
+#print axioms Yulang.CommonRoleEndpointSlots.allocate_injective
+#print axioms Yulang.CommonRoleEndpointSlots.endpoint_preserved
+#print axioms Yulang.CommonRoleEndpointSlots.interpretation_preserved
+#print axioms Yulang.CommonRoleEndpointSlots.nominal_preserved
+#print axioms Yulang.CommonRoleEndpointSlots.wrapped_nominal_preserved
+#print axioms Yulang.CommonRoleEndpointSlots.distinct_sources_distinct_slots
+#print axioms Yulang.CommonRoleEndpointSlots.request_lower_preserved
+#print axioms Yulang.CommonRoleEndpointSlots.request_upper_preserved
+#print axioms Yulang.CommonRoleCandidateStateFrontier.equality_grammar
+#print axioms Yulang.CommonRoleCandidateStateFrontier.extend_exact
+#print axioms Yulang.CommonRoleCandidateStateFrontier.accepts_exact
+#print axioms Yulang.CommonRoleCandidateStateFrontier.collect_exact
+#print axioms Yulang.CommonRoleCandidateStateFrontier.collect_antitone
+#print axioms Yulang.CommonRoleCandidateStateFrontier.fits_after_equation
+#print axioms Yulang.CommonRoleCandidateStateFrontier.collect_after_equation
+#print axioms Yulang.CommonRoleCandidateStateFrontier.empty_fits
+#print axioms Yulang.CommonRoleCandidateStateFrontier.singleton_remains_feasible
+#print axioms Yulang.CommonRoleCandidateStateFrontier.before_associated_equation
+#print axioms Yulang.CommonRoleCandidateStateFrontier.after_associated_equation
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.constraints_grammar
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.prepare_exact
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.accepts_exact
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.collect_exact
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.collect_antitone
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.same_slot_exact
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.solutions_exact
+#print axioms Yulang.CommonRoleIntervalCandidateFrontier.source_bounds_preserved
+
+-- I-2 cycle 2.
+#print axioms Yulang.CommonRoleSourceIdentity.pair_exact
+#print axioms Yulang.CommonRoleSourceIdentity.mem_atoms
+#print axioms Yulang.CommonRoleSourceIdentity.atoms_exact
+#print axioms Yulang.CommonRoleSourceIdentity.pullback_coherent
+#print axioms Yulang.CommonRoleSourceIdentity.pullback_satisfies
+#print axioms Yulang.CommonRoleSourceIdentity.pair_grammar
+#print axioms Yulang.CommonRoleSourceIdentity.atoms_grammar
+#print axioms Yulang.CommonRoleSourceIdentity.extend_exact
+#print axioms Yulang.CommonRoleSourceIdentity.consistent_exact
+#print axioms Yulang.CommonRoleSourceIdentity.shared_source_equivalent
+#print axioms Yulang.CommonRoleSourceIdentity.fits_shared_source
+#print axioms Yulang.CommonRoleSourceIdentity.fits_after_shared_equation
+#print axioms Yulang.CommonRoleSourceIdentity.retain_source
+#print axioms Yulang.CommonRoleSourceIdentity.retain_shared
+#print axioms Yulang.CommonRoleAssociatedStateFlow.value_exact
+#print axioms Yulang.CommonRoleAssociatedStateFlow.source_store_agrees
+#print axioms Yulang.CommonRoleAssociatedStateFlow.produce_exact
+#print axioms Yulang.CommonRoleAssociatedStateFlow.models_exact
+#print axioms Yulang.CommonRoleAssociatedStateFlow.unknown_preserved
+#print axioms Yulang.CommonRoleAssociatedStateFlow.computed_of_derivation
+#print axioms Yulang.CommonRoleAssociatedStateFlow.unresolved_preserved
+#print axioms Yulang.CommonRoleAssociatedStateFlow.recollect_exact
+#print axioms Yulang.CommonRoleAssociatedStateFlow.recollect_shared_exact
+#print axioms Yulang.CommonRoleAssociatedStateFlow.Example.declaration_computes
+#print axioms Yulang.CommonRoleAssociatedStateFlow.Example.derived_narrowing
+#print axioms Yulang.CommonRoleAssociatedStateFlow.Example.shared_before
+#print axioms Yulang.CommonRoleAssociatedStateFlow.Example.shared_declaration_narrowing
+#print axioms Yulang.CommonRoleOpenFiniteClosure.mem_next
+#print axioms Yulang.CommonRoleOpenFiniteClosure.closure_complete
+#print axioms Yulang.CommonRoleOpenFiniteClosure.closure_sound
+#print axioms Yulang.CommonRoleOpenFiniteClosure.closure_exact
+#print axioms Yulang.CommonRoleOpenFiniteClosure.reach_trans
+#print axioms Yulang.CommonRoleOpenFiniteClosure.closure_children_closed
+#print axioms Yulang.CommonRoleOpenFiniteClosure.reachable_slots
+#print axioms Yulang.CommonRoleAssociatedBatch.advance_models
+#print axioms Yulang.CommonRoleAssociatedBatch.run_models
+#print axioms Yulang.CommonRoleAssociatedBatch.run_preserves
+#print axioms Yulang.CommonRoleAssociatedBatch.run_idempotent_models
+#print axioms Yulang.CommonRoleAssociatedBatch.run_permutation_models
+#print axioms Yulang.CommonRoleAssociatedBatch.pending_exact
+#print axioms Yulang.CommonRoleAssociatedBatch.candidate_stable
+#print axioms Yulang.CommonRoleAssociatedParentGround.declarations_checked
+#print axioms Yulang.CommonRoleAssociatedParentGround.declarations_wellFormed
+#print axioms Yulang.CommonRoleAssociatedParentGround.environment_cores
+#print axioms Yulang.CommonRoleAssociatedParentGround.right_wellFormed
+#print axioms Yulang.CommonRoleAssociatedParentGround.right_assocWellFormed
+#print axioms Yulang.CommonRoleAssociatedParentGround.right_resolved
+#print axioms Yulang.CommonRoleAssociatedParentGround.right_value
+#print axioms Yulang.CommonRoleAssociatedParentGround.equation_from_declaration
+#print axioms Yulang.CommonRoleAssociatedParentGround.left_int_resolved
+#print axioms Yulang.CommonRoleAssociatedParentGround.visible_right_resolved
+#print axioms Yulang.CommonRoleAssociatedParentGround.parent_int_resolved
+#print axioms Yulang.CommonRoleAssociatedParentGround.final_parent_resolved
+#print axioms Yulang.CommonRoleAssociatedParentGround.final_dictionary_provenance
+#print axioms Yulang.CommonRoleOpenPassStability.good_unfold
+#print axioms Yulang.CommonRoleOpenPassStability.produce_of_model
+#print axioms Yulang.CommonRoleOpenPassStability.thread_models
+#print axioms Yulang.CommonRoleOpenPassStability.run_state
+#print axioms Yulang.CommonRoleOpenPassStability.run_models_exact
+#print axioms Yulang.CommonRoleOpenPassStability.run_semantically_idempotent
+#print axioms Yulang.MainStatements.settled_role_exact
+#print axioms Yulang.MainStatements.settled_role_accessible
+#print axioms Yulang.MainStatements.open_pass_exact
+#print axioms Yulang.MainStatements.declaration_variance_registry_exact
+#print axioms Yulang.MainStatements.checked_cast_cost_bound
+#print axioms Yulang.MainStatements.optional_source_x22
+#print axioms Yulang.MainStatements.current_core_principal
+#print axioms Yulang.MainStatements.open_pass_stabilizes
+#print axioms Yulang.CommonRoleOpenClosureAllocation.table_nonempty
+#print axioms Yulang.CommonRoleOpenClosureAllocation.decode_allocate
+#print axioms Yulang.CommonRoleOpenClosureAllocation.allocate_injective_on_table
+#print axioms Yulang.CommonRoleOpenClosureAllocation.request_types_present
+#print axioms Yulang.CommonRoleOpenClosureAllocation.request_endpoints_present
+#print axioms Yulang.CommonRoleOpenClosureAllocation.production_payloads_present
+#print axioms Yulang.CommonRoleOpenClosureAllocation.production_payloads_preserved
+#print axioms Yulang.CommonRoleOpenClosureAllocation.assignment_preserved
+#print axioms Yulang.CommonRoleOpenClosureAllocation.selected_prepare_exact
+#print axioms Yulang.CommonRoleOpenClosureAllocation.state_children_closed
+#print axioms Yulang.CommonRoleOpenClosureAllocation.run_exact
+#print axioms Yulang.CommonRoleOpenClosureAllocation.run_models_exact
+#print axioms Yulang.CommonRoleOpenClosureAllocation.run_semantically_idempotent
+#print axioms Yulang.CommonRoleOrdinaryKnownness.upper_head_exact
+#print axioms Yulang.CommonRoleOrdinaryKnownness.lower_head_exact
+#print axioms Yulang.CommonRoleOrdinaryKnownness.upper_exact
+#print axioms Yulang.CommonRoleOrdinaryKnownness.lower_exact
+#print axioms Yulang.CommonRoleOrdinaryKnownness.candidates_exact
+#print axioms Yulang.CommonRoleOrdinaryKnownness.detect_evidence
+#print axioms Yulang.CommonRoleOrdinaryKnownness.evidence_models
+#print axioms Yulang.CommonRoleOrdinaryKnownness.detect_sound
+#print axioms Yulang.CommonRoleOrdinaryKnownness.detect_exists
+#print axioms Yulang.CommonRoleOrdinaryKnownness.evidence_unique
+#print axioms Yulang.CommonRoleOrdinaryKnownness.encode_scalar
+#print axioms Yulang.CommonRoleOrdinaryKnownness.materialize_sound
+#print axioms Yulang.CommonRoleOrdinaryKnownness.empty_pending
+#print axioms Yulang.CommonRoleOrdinaryKnownness.explicit_pair_detected
+#print axioms Yulang.CommonRoleOrdinaryKnownness.index_from_detected_str
+#print axioms Yulang.CommonRoleOrdinaryKnownness.index_preserves
+#print axioms Yulang.CommonRoleOrdinaryKnownness.index_empty_pending
+#print axioms Yulang.CommonRoleOrdinaryKnownness.recorded_receiver_to_associated
+#print axioms Yulang.CommonRoleOrdinaryKnownness.checked_exact
+#print axioms Yulang.CommonRoleOrdinaryKnownness.checked_models
+#print axioms Yulang.CommonRoleOrdinaryKnownness.checked_preserves
+#print axioms Yulang.CommonRoleOrdinaryKnownness.inconsistent_not_accepted
+#print axioms Yulang.CommonRoleAssociatedParentPipeline.run_models
+#print axioms Yulang.CommonRoleAssociatedParentPipeline.produced_state
+#print axioms Yulang.CommonRoleAssociatedParentPipeline.result_consistent
+#print axioms Yulang.CommonRoleAssociatedParentPipeline.result_materialized
+#print axioms Yulang.CommonRoleAssociatedParentPipeline.empty_source_result
+#print axioms Yulang.SpecConformanceIndex.ids_exact
+#print axioms Yulang.CommonRoleAssociatedParentSuccess.argument_int
+#print axioms Yulang.CommonRoleAssociatedParentSuccess.answer_elaborate
+#print axioms Yulang.CommonRoleAssociatedParentSuccess.success_resolved
+#print axioms Yulang.CommonRoleAssociatedParentExact.source_generated
+#print axioms Yulang.CommonRoleAssociatedParentExact.materialized_int
+#print axioms Yulang.CommonRoleAssociatedParentExact.run_of_models
+#print axioms Yulang.CommonRoleAssociatedParentExact.success_exact
+#print axioms Yulang.CommonRoleAssociatedParentExact.successful_state
+
+#print axioms Yulang.CommonRoleSourceDescent.representative_source
+#print axioms Yulang.CommonRoleSourceDescent.representative_exists
+#print axioms Yulang.CommonRoleSourceDescent.descend_factors
+#print axioms Yulang.CommonRoleSourceDescent.factors_coherent
+#print axioms Yulang.CommonRoleSourceDescent.factorization_exact
+#print axioms Yulang.CommonRoleSourceDescent.atoms_factorization_exact
+#print axioms Yulang.CommonRoleSourceDescent.fallback_independent
+#print axioms Yulang.CommonRoleSourceDescent.solver_factorization_exact
+#print axioms Yulang.CommonRoleSourceDescent.factor_unique_on_occurrence
+#print axioms Yulang.CommonRoleSourceDescent.source_equation_exact
+#print axioms Yulang.Main.settled_role_exact
+#print axioms Yulang.Main.settled_role_accessible
+#print axioms Yulang.Main.open_pass_exact
+#print axioms Yulang.Main.declaration_variance_registry_exact
+#print axioms Yulang.Main.checked_cast_cost_bound
+#print axioms Yulang.Main.optional_source_x22
+#print axioms Yulang.Main.current_core_principal
+#print axioms Yulang.Main.open_pass_stabilizes
+#print axioms Yulang.CommonRoleStatefulIndexSweep.produced_exact
+#print axioms Yulang.CommonRoleStatefulIndexSweep.visit_exact
+#print axioms Yulang.CommonRoleStatefulIndexSweep.sweep_exact
+#print axioms Yulang.CommonRoleStatefulIndexSweep.visit_preserves
+#print axioms Yulang.CommonRoleStatefulIndexSweep.sweep_preserves
+#print axioms Yulang.CommonRoleStatefulIndexPath.detect_of_str_evidence
+#print axioms Yulang.CommonRoleStatefulIndexPath.extend_str_model
+#print axioms Yulang.CommonRoleStatefulIndexPath.extended_detected
+#print axioms Yulang.CommonRoleStatefulIndexPath.run_expected
+#print axioms Yulang.CommonRoleStatefulIndexPath.expected_models
+#print axioms Yulang.CommonRoleStatefulIndexPath.expected_idempotent_models
+#print axioms Yulang.CommonRoleStatefulIndexPath.from_declaration_exact
+#print axioms Yulang.CommonRoleStatefulParentExample.declarations_checked
+#print axioms Yulang.CommonRoleStatefulParentExample.declarations_wellFormed
+#print axioms Yulang.CommonRoleStatefulParentExample.assoc_wellFormed
+#print axioms Yulang.CommonRoleStatefulParentExample.associated_checked
+#print axioms Yulang.CommonRoleStatefulParentExample.right_resolved
+#print axioms Yulang.CommonRoleStatefulParentExample.right_value
+#print axioms Yulang.CommonRoleStatefulParentExample.seed_from_declaration
+#print axioms Yulang.CommonRoleStatefulParentExample.first_pending
+#print axioms Yulang.CommonRoleStatefulParentExample.first_sweep
+#print axioms Yulang.CommonRoleStatefulParentExample.second_sweep
+#print axioms Yulang.CommonRoleStatefulParentExample.final_materialized
+#print axioms Yulang.CommonRoleStatefulParentExample.final_models
+#print axioms Yulang.CommonRoleStatefulParentExample.final_consistent
+#print axioms Yulang.CommonRoleStatefulParentExample.parent_str_resolved
+#print axioms Yulang.CommonRoleStatefulParentExample.run_value
+#print axioms Yulang.CommonRoleStatefulParentExample.outer_exact
+#print axioms Yulang.CommonRoleStatefulParentExample.resolved_visible
+#print axioms Yulang.CommonRoleStatefulPathComplete.detect_of_models
+#print axioms Yulang.CommonRoleStatefulPathComplete.extension_evidence
+#print axioms Yulang.CommonRoleStatefulPathComplete.path_preserves
+#print axioms Yulang.CommonRoleStatefulPathComplete.run_expected_of_models
+#print axioms Yulang.CommonRoleStatefulPathComplete.successful_state
+#print axioms Yulang.CommonRoleStatefulPathComplete.seed_exact
+#print axioms Yulang.CommonRoleStatefulPathComplete.checked_exact
+#print axioms Yulang.CommonRoleStatefulPathComplete.checked_models_exact
+#print axioms Yulang.CommonRoleStatefulPathParent.final_evidence
+#print axioms Yulang.CommonRoleStatefulPathParent.final_materialized
+#print axioms Yulang.CommonRoleStatefulPathParent.run_of_models
+#print axioms Yulang.CommonRoleStatefulPathParent.outer_exact
+#print axioms Yulang.CommonRoleStatefulPathParent.success_visible
+#print axioms Yulang.Main.stateful_finite_path_parent_exact
+#print axioms Yulang.Main.stateful_reverse_siblings_exact
+
+#print axioms Yulang.CommonRoleNamedPath.output_exact
+#print axioms Yulang.CommonRoleNamedPath.slot_covered
+#print axioms Yulang.CommonRoleNamedPath.seed_identity
+#print axioms Yulang.CommonRoleNamedPath.expected_models
+#print axioms Yulang.CommonRoleNamedPath.outer_exact
+#print axioms Yulang.CommonRoleNamedPath.source_factorization
+#print axioms Yulang.Main.named_finite_path_exact
+#print axioms Yulang.CommonRoleNamedPath.success_domain
+#print axioms Yulang.CommonRoleNamedPath.empty_success
+#print axioms Yulang.CommonRoleNamedPath.rejects_inconsistent
+#print axioms Yulang.CommonRoleSiblingOrders.forward_sweep
+#print axioms Yulang.CommonRoleSiblingOrders.forward_models
+#print axioms Yulang.CommonRoleSiblingOrders.orders_models
+#print axioms Yulang.CommonRoleSiblingOrders.forward_consistent
+#print axioms Yulang.CommonRoleSiblingOrders.forward_materialized
+#print axioms Yulang.CommonRoleSiblingOrders.forward_value
+#print axioms Yulang.CommonRoleSiblingOrders.orders_observable
+#print axioms Yulang.CommonRolePathOrder.expected_same_models
+#print axioms Yulang.CommonRolePathOrder.models_equivalent
+#print axioms Yulang.CommonRolePathOrder.no_models_none
+#print axioms Yulang.CommonRolePathOrder.observable_order_independent
+#print axioms Yulang.CommonRolePathOrder.permutation_observable
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.facts_complete
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.facts_length
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.initial_exact
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.saturate_exact
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.saturate_capacity
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.saturate_nodup
+
+#print axioms Yulang.CommonRoleFiniteAssociatedClosure.associated_closed
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.emit_models
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.run_models_exact
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.solver_exact
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.derives_transport
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.derives_order_independent
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.models_order_independent
+
+#print axioms Yulang.CommonRoleFiniteAssociatedModels.cache_order_independent
+
+#print axioms Yulang.CommonRoleFiniteAssociatedStable.extend_evidence
+
+#print axioms Yulang.CommonRoleFiniteAssociatedStable.emit_evidence
+
+#print axioms Yulang.CommonRoleFiniteAssociatedStable.run_evidence
+
+#print axioms Yulang.CommonRoleFiniteAssociatedStable.derives_stable
+
+#print axioms Yulang.CommonRoleFiniteAssociatedStable.cache_stable
+
+#print axioms Yulang.CommonRoleFiniteAssociatedStable.models_stable
+
+#print axioms Yulang.CommonArgumentEffectCast.argumentCast_iff
+
+#print axioms Yulang.CommonArgumentEffectCast.nonempty_cast_not_subtype
+
+#print axioms Yulang.CommonArgumentEffectCast.rowJoin_comm
+
+#print axioms Yulang.CommonArgumentEffectCast.ordinary_application_preserved
+
+#print axioms Yulang.ArgumentEffectCastRuntime.converted_valid
+
+#print axioms Yulang.ArgumentEffectCastRuntime.resolved_cast_sound
+
+#print axioms Yulang.ArgumentEffectCastRuntime.pure_call
+
+#print axioms Yulang.ArgumentEffectCastRuntime.force_idempotent
+
+#print axioms Yulang.ArgumentEffectCastRuntime.strict_application_agrees
+
+#print axioms Yulang.ArgumentEffectCastRuntime.checker_retains_incoming
+
+#print axioms Yulang.ArgumentEffectCastRuntime.higher_order_consumer_valid
+
+#print axioms Yulang.B4Target.statement_sound
+#print axioms Yulang.B4Target.statement_complete
+
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.table_length
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.receiver_identity
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.output_identity
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.occurrence_present
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.occurrence_origin
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.slot_origin
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.table_source
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.generated_fact_origin
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.named_exact
+#print axioms Yulang.CommonRoleNamedAssociatedGraph.named_capacity
+
+#print axioms Yulang.CommonRoleAssociatedDeclarationExact.assocOf_sound
+#print axioms Yulang.CommonRoleAssociatedDeclarationExact.assocOf_exact
+#print axioms Yulang.CommonRoleAssociatedDeclarationExact.computed_iff_declarative
+
+#print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.derives_exact
+#print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.saturate_declaration_exact
+#print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.run_declaration_exact
+#print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.declaration_congr
+#print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.saturate_membership_congr
+#print axioms Yulang.CommonRoleFiniteAssociatedDeclaration.declaration_stable

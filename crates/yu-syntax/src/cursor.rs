@@ -227,7 +227,7 @@ impl<'a, 'source, 'operators> SyntaxIn<'a, 'source, 'operators> {
             return;
         }
         let baseline = self.recover.statement_indent;
-        item.mark_unmatched_boundary(Some(baseline), origin);
+        item.mark_unmatched_boundary(Some(baseline), origin, false);
         if item.payload_view().is_boundary() {
             self.recover.nesting_boundary = Some(baseline);
         }
@@ -287,14 +287,23 @@ impl<'a, 'source, 'operators> SyntaxIn<'a, 'source, 'operators> {
         self.recover.delimiter = previous;
     }
 
-    pub(crate) fn with_delimiter(
+    pub(crate) fn delimiter_is_unmatched(&self) -> bool {
+        self.recover.delimiter.baseline.is_some()
+    }
+
+    pub(crate) fn closer_is_paired(&self, successor: usize) -> bool {
+        self.recover.unmatched.as_ref().is_some_and(|delimiters| {
+            successor
+                .checked_sub(1)
+                .is_some_and(|at| delimiters.closer_is_paired(at))
+        })
+    }
+
+    pub(crate) fn with_delimiter<R: DelimiterExit>(
         mut self,
         opener_end: usize,
-        body: impl FnOnce(
-            SyntaxIn<'_, 'source, 'operators>,
-            DelimiterScope,
-        ) -> crate::handoff::NormalizedExit,
-    ) -> crate::handoff::NormalizedExit {
+        body: impl FnOnce(SyntaxIn<'_, 'source, 'operators>, DelimiterScope) -> R,
+    ) -> R {
         let previous = self.recover.delimiter;
         let unmatched = self.recover.unmatched.as_ref().is_some_and(|openers| {
             opener_end
@@ -311,7 +320,7 @@ impl<'a, 'source, 'operators> SyntaxIn<'a, 'source, 'operators> {
         // statement nesting, retain the boundary until that statement returns;
         // otherwise its expression tail could consume the declaration again.
         if previous.statement_depth == Some(self.recover.statement_depth) {
-            exit.restore_unmatched_boundary(self.recover.nesting_boundary.or(previous.baseline));
+            exit.restore_delimiter_boundary(self.recover.nesting_boundary.or(previous.baseline));
         }
         exit
     }
@@ -344,6 +353,25 @@ impl<'a, 'source, 'operators> SyntaxIn<'a, 'source, 'operators> {
         view.unmatched_baseline = self.recover.delimiter.baseline;
         let mut i: LexIn = In::new(self.source, &mut view, ());
         i.check(parser).map(map)
+    }
+}
+
+/// Delimiter owners return different handoff types, but all retain the unread
+/// Item until their enclosing statement or delimiter restores its visibility.
+pub(crate) trait DelimiterExit {
+    fn restore_delimiter_boundary(&mut self, baseline: Option<usize>);
+}
+
+impl DelimiterExit for crate::handoff::NormalizedExit {
+    fn restore_delimiter_boundary(&mut self, baseline: Option<usize>) {
+        self.restore_unmatched_boundary(baseline);
+    }
+}
+
+impl DelimiterExit for Result<crate::lexical::item::Item, crate::lexical::item::Item> {
+    fn restore_delimiter_boundary(&mut self, baseline: Option<usize>) {
+        let (Ok(item) | Err(item)) = self;
+        item.restore_unmatched_boundary(baseline);
     }
 }
 
