@@ -29,7 +29,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
     fi
   fi
   hb=$("$here/check-dots-heartbeat.sh" "origin/work/$dot" "$dot" "$stale" 2>/dev/null); rc=$?
-  if [ "$rc" -eq 1 ]; then echo "dots-stale $hb"; exit 0; fi
+  if [ "$rc" -eq 1 ]; then echo "dots-stale: the cycle probably crashed or is blocked. $hb"; exit 0; fi
   sleep "$interval"
 done
 echo "dots-cycle-wait-timeout (last known $last)"
