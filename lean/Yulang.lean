@@ -1070,3 +1070,5 @@ import Yulang.CommonRoleIntervalExpansionChecks
 import Yulang.CommonEffectMixedDeclarations
 
 import Yulang.CommonEffectMixedSource
+
+import Yulang.CommonEffectMixedFormula

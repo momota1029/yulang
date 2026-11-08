@@ -6080,3 +6080,5 @@ run_cmd do
 #print axioms Yulang.CommonEffectMixedSource.Typing.multiHandler_separate_iff
 
 #print axioms Yulang.CommonEffectMixedSource.Typing.partialHandler_separate_iff
+
+#print axioms Yulang.CommonEffectKindedFormula.Scheme.instantiate_exact
