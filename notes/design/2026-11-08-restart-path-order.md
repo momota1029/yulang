@@ -1,0 +1,3 @@
+# Finite-path target-set order independence
+
+For the already specified fixed Index(box str) seed fragment, every associated path step transfers str. Thus arbitrary finite output lists with the same target membership have the same independent expected models, including arbitrary old type/effect constraints. Compare actual Parent observable `(argument, answer)` after dropping internal atom-list state. No success or Models premise is accepted; contradiction/none cases must agree as well. The entry's path may change when outputs are reordered. This is deliberately a finite-path theorem, not general sibling worklist saturation or arbitrary where permutation.
