@@ -3040,3 +3040,40 @@ actual Request list; interval `source_bounds_preserved` connects them to the
 original endpoints under any supplied interpretation. Dynamic child closure
 and full nominal semantic adequacy are still unproved. No full allocator,
 saturation, final resolve_exact, or X13–X16 completion is claimed.
+
+## I-2 cycle 2 (partial): associated state flow and finite closure
+
+New `CommonRoleAssociatedStateFlow` lowers actual `Roles.assocOf` /
+`RoleConstraints.addAssociated` results into ordinary equations (int/str only,
+known first-order receivers). Different occurrence slots with explicitly shared
+source IDs transfer the equation via `CommonRoleSourceIdentity`.
+`CommonRoleAssociatedBatch` preserves pending fixed requests, proves all-model
+fold exactness and semantic stabilization for this FIXED request list; this is
+not general sibling order independence. `CommonRoleOpenFiniteClosure` computes
+the finite closure of actual structural-producer children from Paterson descent.
+General source narrowing, graph-derived identities, state-dependent new-child
+saturation, final resolve_exact and X13-X16 outer proof remain incomplete.
+
+Cycle 2 continuation: `CommonRoleOpenClosureAllocation` computes the structural
+closure's payload-slot map (syntactic Ty identity, not shared source graph).
+`CommonRoleOpenPassStability.run_models_exact` characterizes every model after
+the real fixed structural pass and proves semantic idempotence after one pass.
+The computed allocator specializes that result without caller-supplied slots.
+This is NOT the narrowing-aware saturation driver or its final classification.
+`CommonRoleOrdinaryKnownness` recovers explicit scalar evidence from original
+atoms, preserves all old constraints, and checks consistency with the actual
+ordinary solver. `CommonRoleAssociatedParentPipeline` composes declaration
+computation, source equation generation, ordinary solver, receiver materialization,
+and actual ground Parent dictionary in the specified Right-str example. The
+associated output-to-parent binding is explicit, not parsed from arbitrary source.
+`SpecConformanceIndex` unifies the entry-sensitive X1-X24 table; X13-X16 outer
+conformance remains open. `MainStatementsDraft` reprints actual theorem scopes
+and proves only the local fixed-producer stabilization goal, not full B4/B6.
+
+`CommonRoleAssociatedParentSuccess` strengthens the concrete entry: for every
+starting state, any successful return has the int argument and a resolved
+actual visible dictionary. It does not classify the none branch.
+`CommonRoleAssociatedParentExact.success_exact` characterizes success of this
+fixed known-Right-str entry exactly by a model of the original state together
+with slot 0 equivalent to int. It does not add a success/knownness premise or
+claim general source inference or final classification of none.
