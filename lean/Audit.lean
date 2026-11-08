@@ -6168,3 +6168,7 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredCastCost.wrapper_creation
 
 #print axioms Yulang.CommonDeclaredCastCost.invocation_bound
+
+#print axioms Yulang.CommonRoleClosedResidualSourceFamily.generated_models_exact
+
+#print axioms Yulang.CommonRoleClosedResidualSourceFamily.generated_core_models_exact

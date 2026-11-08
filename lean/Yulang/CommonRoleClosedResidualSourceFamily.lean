@@ -119,4 +119,37 @@ theorem solve_all_instances_exact (original : List (Atom (Fin slots)))
     exact (models_congr original comparisons _ assignment same).mp
       (all_parameters_models original comparisons family generated scheme member rowParameters parameters)
 
+/-- All grammar premises are obtained from the actual original source
+generator. Arbitrary comparisons use its original slots, and every arbitrary
+assignment is recovered with all original rows literally equal. -/
+theorem generated_models_exact (expression : Inference.Expr) (clause : Clause (Option Empty))
+    (generated : clause ∈ normalise (Core.PresenceGeneration.principal
+      ([] : Core.PresenceGeneration.SchemeEnv Empty) expression))
+    (comparisons : List (Comparison (Fin (clause.locals + 1))))
+    (assignment : Fin (clause.locals + 1) → Comp Common.model) :
+    Models clause.pack comparisons assignment ↔
+      ∃ family, solve clause.pack comparisons = some family ∧
+        ∃ scheme ∈ family, ∃ rowParameters : Fin (clause.locals + 1) → Row,
+          ∃ parameters : scheme.Parameters,
+            AssignmentEquivalent (scheme.instantiate rowParameters parameters) assignment :=
+  solve_all_instances_exact clause.pack comparisons
+    (PresenceGeneratedChildGrammar.generated_child_grammar expression clause generated)
+    (PresenceGeneratedWidth.generated_width_atoms expression clause generated)
+    (PresenceSourceConstraintSupport.generated_row_shapes expression clause generated) assignment
+
+theorem generated_core_models_exact (expression : Core.Required.Term) (clause : Clause (Option Empty))
+    (generated : clause ∈ normalise (Core.PresenceGeneration.CoreRules.principalCore
+      ([] : Core.PresenceGeneration.SchemeEnv Empty) expression))
+    (comparisons : List (Comparison (Fin (clause.locals + 1))))
+    (assignment : Fin (clause.locals + 1) → Comp Common.model) :
+    Models clause.pack comparisons assignment ↔
+      ∃ family, solve clause.pack comparisons = some family ∧
+        ∃ scheme ∈ family, ∃ rowParameters : Fin (clause.locals + 1) → Row,
+          ∃ parameters : scheme.Parameters,
+            AssignmentEquivalent (scheme.instantiate rowParameters parameters) assignment :=
+  solve_all_instances_exact clause.pack comparisons
+    (PresenceGeneratedChildGrammar.generated_core_child_grammar expression clause generated)
+    (PresenceGeneratedWidth.generated_core_width_atoms expression clause generated)
+    (CommonPresenceSourceFamily.generated_core_row_shapes expression clause generated) assignment
+
 end Yulang.CommonRoleClosedResidualSourceFamily
