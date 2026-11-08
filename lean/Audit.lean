@@ -6186,3 +6186,9 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredCastEvaluation.invoke_shape
 
 #print axioms Yulang.CommonDeclaredCastEvaluation.execute_checked_bound
+
+#print axioms Yulang.CommonDeclarationVarianceSyntax.clauses_exact
+
+#print axioms Yulang.CommonDeclarationVarianceSyntax.supports_derivation
+
+#print axioms Yulang.CommonDeclarationVarianceSyntax.Derivation.supported

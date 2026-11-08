@@ -1112,3 +1112,5 @@ import Yulang.CommonDeclaredCastCostGraph
 import Yulang.CommonDeclaredCastCost
 
 import Yulang.CommonDeclaredCastEvaluation
+
+import Yulang.CommonDeclarationVarianceSyntax
