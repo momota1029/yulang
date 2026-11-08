@@ -136,4 +136,75 @@ theorem complete_iff_dictionary (declarations : List Declaration) (checked : Che
   exact ⟨fun finished => ⟨build declarations checked goal finished⟩,
     fun ⟨dictionary⟩ => dictionary.expansion_complete checked⟩
 
+theorem Dictionary.erase_unique {declarations : List Declaration} {goal : Goal}
+    (first second : Dictionary declarations goal) : first.erase = second.erase := by
+  induction first with
+  | node candidate unique children ih =>
+      cases second with
+      | node other otherUnique otherChildren =>
+          have both := ((scan_exact _ _ _).mpr unique).symm.trans
+            ((scan_exact _ _ _).mpr otherUnique)
+          have same : candidate = other := List.cons.inj (Option.some.inj both) |>.1
+          subst other
+          simp only [Dictionary.erase]
+          congr 1
+          apply List.map_congr_left
+          intro requirement _
+          exact ih requirement.val requirement.property
+            (otherChildren requirement.val requirement.property)
+
+inductive Answer where
+  | invalidDeclarations
+  | incomplete (trace : Tree)
+  | prepared (plan : RoleDictionaries.Plan) (trace : Tree)
+  deriving Repr
+
+/-- Declaration checking and complete-tree checking both happen inside the
+entry point. A prepared plan still retains its exact original trace, so all
+ordinary interval obligations can be returned to the shared constraint graph. -/
+def elaborate (declarations : List Declaration) (goal : Goal) : Answer :=
+  if accepted : checkDeclarations declarations = true then
+    let checked := (check_declarations_exact declarations).mp accepted
+    let trace := expand declarations checked goal
+    if finished : complete trace = true then
+      .prepared (build declarations checked goal finished).erase trace
+    else .incomplete trace
+  else .invalidDeclarations
+
+/-- A finite, fully checked public entry point exactly recovers independent
+dictionary evidence. No successful resolver run is a premise. -/
+theorem elaborate_prepared_exact (declarations : List Declaration) (goal : Goal)
+    (plan : RoleDictionaries.Plan) (trace : Tree) :
+    elaborate declarations goal = .prepared plan trace ↔
+      Checked declarations ∧ ∃ dictionary : Dictionary declarations goal,
+        dictionary.erase = plan ∧ dictionary.trace = trace := by
+  unfold elaborate
+  split
+  next accepted =>
+    let checked := (check_declarations_exact declarations).mp accepted
+    dsimp only
+    split
+    next finished =>
+      constructor
+      · intro result
+        obtain ⟨planEq, traceEq⟩ := Answer.prepared.inj result
+        refine ⟨checked, build declarations checked goal finished, planEq, ?_⟩
+        exact (Dictionary.expansion checked (build declarations checked goal finished)).symm.trans traceEq
+      · rintro ⟨_, dictionary, planEq, traceEq⟩
+        congr 1
+        · exact (Dictionary.erase_unique (build declarations checked goal finished) dictionary).trans planEq
+        · exact (dictionary.expansion checked).trans traceEq
+    next unfinished =>
+      constructor
+      · intro impossible
+        cases impossible
+      · rintro ⟨_, dictionary, _, _⟩
+        exact False.elim (unfinished (dictionary.expansion_complete checked))
+  next rejected =>
+    constructor
+    · intro impossible
+      cases impossible
+    · rintro ⟨checked, _⟩
+      exact False.elim (rejected ((check_declarations_exact declarations).mpr checked))
+
 end Yulang.CommonRoleIntervalDictionaries
