@@ -1086,3 +1086,5 @@ import Yulang.CommonRoleIntervalDictionaries
 import Yulang.CommonRoleIntervalDictionaryCompilation
 
 import Yulang.CommonRoleClosedRecordInspection
+
+import Yulang.CommonRoleClosedIntervalInspection
