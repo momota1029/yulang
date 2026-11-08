@@ -6044,3 +6044,9 @@ run_cmd do
 #print axioms Yulang.CommonRoleClosedRecordComparison.check_same_labels_exact
 
 #print axioms Yulang.CommonRoleIntervalPaterson.every_where_decreases
+
+#print axioms Yulang.CommonRoleIntervalCapture.bound_exact
+
+#print axioms Yulang.CommonRoleIntervalCapture.capture_exact
+
+#print axioms Yulang.CommonRoleIntervalCapture.capture_arguments_exact

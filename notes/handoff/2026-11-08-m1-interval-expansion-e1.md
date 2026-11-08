@@ -41,3 +41,29 @@ lower と upper は異なってよい。区間の中から点を選ばず、独�
 交差制約を通常機械へ戻す必要がある。単に二 endpoint の構文一致を要求する matcher を
 一般の role 照合の定義にしてはならない。構造が未確定なら pending のまま保持し、
 後の source / recollection の義務を明記する。
+
+## 2. 元 endpoint 対を読む実有限 structural capture
+
+`CommonRoleIntervalCapture.capture_arguments_exact`:
+
+> 任意の元有限 Form head 列、任意の元 endpoint 対列、任意の有限束縛表について、実
+> `captureArguments` の返却がその束縛表であること iff 独立した `CaptureArguments` 導出が
+> 同じ head と同じ endpoint 列の対応位置をたどり、その表を元順序で集める。
+
+`Capture` は plain 変数で二つの元 endpoint subtree を一つの対として捕捉し、int / pair /
+tick の一致する実構造を再帰的にたどる。型の同値を解いて代入を選ぶ規則はない。
+table は有限 `(変数名, lower/upper)` 列であり、点や semantic callback を保存しない。
+
+展開核の有限 `supported` 検査は、head が int/pair/tick/plain variable の構造であり、
+全 head における変数名列が `Nodup` であることを検査する。**繰り返される head 変数と
+join head は outside/unsupported** として扱う。これは一般 role 照合の拒否や pending と
+同じではない。前節の pending は full source scheduler の未実装義務を指すもので、
+この local kernel の結果名には使わない。
+
+`bound` は head と全 where に現れる名前が有限表に存在することを実検査する。
+total lookup に記した fallback は、この検査後の template から観測されない。
+元々の一般ルールでは繰り返し捕捉を lower join / upper meet と交差制約で和解させる必要があり、
+その拡張を literal endpoint equality で代用しない。
+
+検証: 対象 warning-as-error build（123 jobs）成功。
+主要 capture 定理の直接 `trust=0` 監査は `[propext, Quot.sound]` のみ。
