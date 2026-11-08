@@ -6068,3 +6068,7 @@ run_cmd do
 #print axioms Yulang.CommonRoleIntervalExpansionChecks.constraints_exact
 
 #print axioms Yulang.CommonRoleIntervalExpansionChecks.original_goal_checks
+
+#print axioms Yulang.CommonEffectMixedDeclarations.lookup_interpretAll
+
+#print axioms Yulang.CommonEffectMixedDeclarations.interpretAll_local

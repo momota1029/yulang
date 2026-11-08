@@ -1066,3 +1066,5 @@ import Yulang.CommonRoleIntervalCandidates
 import Yulang.CommonRoleIntervalExpansion
 
 import Yulang.CommonRoleIntervalExpansionChecks
+
+import Yulang.CommonEffectMixedDeclarations
