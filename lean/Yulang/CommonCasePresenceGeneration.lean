@@ -80,4 +80,42 @@ theorem generated_safe (specification : Specification) (subject : Required.Term)
     exact CommonCaseCoreDataPrefixSolved.principal_safe specification subject (original arms)
   · cases generated
 
+def solve (specification : Specification) (subject : Required.Term) (arms : List AnnotatedArm) :
+    Option (List (CommonPatternFiniteSchemes.Scheme 3)) :=
+  (generate specification subject arms).map CommonPatternFiniteSchemes.infer
+
+theorem solve_exact (specification : Specification) (subject : Required.Term)
+    (arms : List AnnotatedArm) (schemes : List (CommonPatternFiniteSchemes.Scheme 3)) :
+    solve specification subject arms = some schemes ↔
+      SourceLegal arms ∧ schemes =
+        CommonCaseCoreDataPrefixSolved.solvePremises specification subject (original arms) := by
+  cases checked : checkAll arms with
+  | false =>
+      have illegal : ¬ SourceLegal arms := by
+        intro legal
+        have accepted := (check_all_exact arms).mpr legal
+        simp [checked] at accepted
+      simp [solve, generate, checked, illegal]
+  | true =>
+      have legal := (check_all_exact arms).mp checked
+      simp [solve, generate, checked, legal, CommonCaseCoreDataPrefixSolved.solvePremises, eq_comm]
+
+/-- Every model of the independently stated, presence-checked problem is
+recovered by a returned scheme and unrestricted parameters, simultaneously
+at all three original roots. This is the existing Core record family. -/
+theorem instances_exact (specification : Specification) (subject : Required.Term)
+    (arms : List AnnotatedArm) (assignment : Fin 3 → Comp Common.model) :
+    Premises specification subject arms (assignment 0).1 (assignment 1).1 (assignment 2).2 ↔
+      ∃ schemes, solve specification subject arms = some schemes ∧
+        ∃ scheme ∈ schemes, ∃ parameters : scheme.Parameters,
+          CommonPatternFormulaEquivalence.AssignmentEquivalent (scheme.instantiate parameters) assignment := by
+  rw [Premises, CommonCaseCoreDataPrefixSolved.premises_instances_exact]
+  constructor
+  · rintro ⟨legal, scheme, member, parameters, equal⟩
+    exact ⟨_, (solve_exact specification subject arms _).mpr ⟨legal, rfl⟩,
+      scheme, member, parameters, equal⟩
+  · rintro ⟨schemes, generated, scheme, member, parameters, equal⟩
+    obtain ⟨legal, rfl⟩ := (solve_exact specification subject arms schemes).mp generated
+    exact ⟨legal, scheme, member, parameters, equal⟩
+
 end Yulang.CommonCasePresenceGeneration
