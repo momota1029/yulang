@@ -6266,3 +6266,7 @@ run_cmd do
 #print axioms Yulang.CommonRecursiveNominalIntervals.decompose_argument_size_lt
 #print axioms Yulang.CommonRecursiveNominalIntervals.decompose_arguments_size_lt
 #print axioms Yulang.CommonRecursiveNominalIntervals.inspect
+
+#print axioms Yulang.CommonDeclarationVarianceInspection.subtype_exact
+#print axioms Yulang.CommonDeclarationVarianceInspection.inspect_exact
+#print axioms Yulang.CommonDeclarationVarianceInspection.inspect_all_exact

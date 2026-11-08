@@ -2715,3 +2715,14 @@ emitted recursive obligation, including self checks that reuse the larger side.
 This is the internal finite structural compiler; independent comparison exactness
 and admission of all unused subtrees are separate parts of the public boundary.
 It does not implement the full regular carrier or general role resolution.
+
+
+## B5: source-derived nominal inspection exactness (2026-11-08)
+
+`CommonDeclarationVarianceInspection.inspect_exact` quantifies every original
+finite declaration program, ordered headers, original nominal argument terms,
+and shared Common assignment. The actual inspector using the computed registry
+holds iff an independent source comparison uses the original header lookup,
+ordered kinds, and source `Mode` judgments. `inspect_all_exact` preserves every
+original shared comparison. The theorem covers collapsed head arguments; open
+recursive bounds and the full nominal carrier remain separate connections.
