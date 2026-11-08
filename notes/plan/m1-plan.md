@@ -134,3 +134,16 @@ M1 が閉じてから着手する。前提が閉じていない間は `blocked`�
 - 仕様: `notes/questions/2026-11-07-a2-canonical-computability.md`（案1を採用、2026-11-08）。契約の追記は `notes/handoff/2026-11-07-m1-completion-contract.md` の末尾。
 - 目標: 修正した A2 を証明する。(1) `∃ computableEncoding, ∀ I J, computableEncoding I = computableEncoding J → PublicEquivalent I J`（既存の `interfaceCode` が単射なら、構文が等しい ⇒ 意味が等しい、で足りる見込み）。(2) 表示・readback の契約: 任意の有限 interface `I` について、decoded/exported 表現の public-instance 意味が `I` と一致する。(3) 実 inference scheme などを保存する義務（A2 results/progress の既存の補題を再利用）。
 - 受け入れ: 上の (1)(2)(3) が定理として証明され、元の障害定理は保存される。`verify-lean.sh` が PASS。
+
+### T13 関連型の右辺で他の role の関連型を参照できるようにする (B4/B3, 設計と Lean)
+- 状態: needs-owner（設計の詰めが要る） / 依存: T1c の後が望ましい
+- 仕様: `spec/06-roles.md` 6.3（2026-11-08、方向は確定: 一般化する）。参照は新しい型変数と等式で表し、受け手が分かるまで遅らせる。
+- 設計課題: (1) 停止性: 右辺が作る goal を where の子と同様に数え、Paterson 的な条件の対象にする。(2) `HeadDeterminesAssociated` との関係。(3) 右辺の参照の循環。
+- 目標: 設計メモ（選択肢は遅延案を先頭に、Yulang の例つき）→ ユーザーの確認 → Lean のモデル（`impl` の宣言と associated equations）の拡張と、解決器の exactness・停止性の維持の証明。
+- 注意: 現行の Lean（`Declaration` の associated equations、`HeadDeterminesAssociated`）は「右辺は head だけから決まる」を前提にしている。拡張はその前提を外す。
+
+### T14 パイプ `|` はあらゆる計算を流す (設計と Lean)
+- 状態: needs-owner（設計が要る） / 依存: なし（設計は随時。Lean は T6 の後）
+- 仕様: `spec/03-expressions.md` 3.9（2026-11-08、方向は確定: 左辺は計算として流れる）。構想と未決は `notes/ideas/2026-11-08-pipe-computations.md`。
+- 目標: 右辺が値を受け取る関数のときの受け渡し、計算どうしをつなぐ意味（conduit）、型を決める。決まったら、E7 の `x | catch:` が一般の規則の一例になることを核で証明する。
+
