@@ -6270,3 +6270,8 @@ run_cmd do
 #print axioms Yulang.CommonDeclarationVarianceInspection.subtype_exact
 #print axioms Yulang.CommonDeclarationVarianceInspection.inspect_exact
 #print axioms Yulang.CommonDeclarationVarianceInspection.inspect_all_exact
+
+#print axioms Yulang.CommonEffectFamilyApplications.check_arguments_exact
+#print axioms Yulang.CommonEffectFamilyApplications.check_application_exact
+#print axioms Yulang.CommonEffectFamilyApplications.collect_all_exact
+#print axioms Yulang.CommonEffectFamilyApplications.collect_declared

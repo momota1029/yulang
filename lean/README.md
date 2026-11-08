@@ -2726,3 +2726,14 @@ holds iff an independent source comparison uses the original header lookup,
 ordered kinds, and source `Mode` judgments. `inspect_all_exact` preserves every
 original shared comparison. The theorem covers collapsed head arguments; open
 recursive bounds and the full nominal carrier remain separate connections.
+
+
+## B3: whole family applications precede occurrence allocation (2026-11-08)
+
+`CommonEffectFamilyApplications.check_application_exact` validates original family
+lookup, exact ordered arity/kinds, and every captured endpoint name, including
+applications with no arguments. `collect_all_exact` proves flattening retains
+exactly every original row/family/argument index, origin, and bound. This prevents
+unknown nullary families or missing argument suffixes disappearing at the old
+occurrence-only interface. Family names and row locations are already resolved;
+full raw source lowering and the B3 E1 remain open.
