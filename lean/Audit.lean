@@ -7087,3 +7087,15 @@ run_cmd do
 #print axioms Yulang.CommonRoleChildTemplates.generated_decreases
 #print axioms Yulang.CommonRoleChildTemplates.generated_accessible
 #print axioms Yulang.CommonRoleChildTemplates.every_child_generated
+
+-- Cycle15: computed source templates and all-state materialization closure.
+#print axioms Yulang.CommonRoleSourceTemplateClosure.next_decreases
+#print axioms Yulang.CommonRoleSourceTemplateClosure.generated_present
+#print axioms Yulang.CommonRoleSourceTemplateClosure.closure_complete
+#print axioms Yulang.CommonRoleSourceTemplateClosure.closure_sound
+#print axioms Yulang.CommonRoleSourceTemplateClosure.closure_exact
+#print axioms Yulang.CommonRoleSourceTemplateClosure.reach_trans
+#print axioms Yulang.CommonRoleSourceTemplateClosure.generated_closed
+#print axioms Yulang.CommonRoleSourceTemplateClosure.actual_child_closed
+#print axioms Yulang.CommonRoleSourceTemplateClosure.all_states_present
+#print axioms Yulang.CommonRoleSourceTemplateClosure.actual_child_all_states

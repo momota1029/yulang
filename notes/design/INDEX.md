@@ -180,3 +180,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle13 materialized domain](2026-11-08-cycle13-materialized-domain.md): Draft; int-only state-dependent source template closure, not general B4.
 
 - [Cycle14 child templates](2026-11-08-cycle14-child-templates.md): Draft; source-preserving captures and state-independent child-creation descent.
+
+- [Cycle15 source-template closure](2026-11-08-cycle15-source-template-closure.md): Draft; computed source domain and all-state rematerialization, not saturation.
