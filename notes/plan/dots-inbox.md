@@ -101,3 +101,10 @@ M1 の主張は、健全性・完全性・主型性の三つ組（`Typing ↔ �
 2. 飽和の停止と意味的閉包（`saturate_terminates_and_closes`）。
 3. 最終診断の独立な分類（質問ノートの境界 1 は回答済み: 子結果を保持する未完成の診断 tree）と、辞書の同値（境界 2 は回答済み: 正準なソース義務順の方向）。
 4. 各サイクルの報告に「B4 の主定理にあと何本の橋が要るか」を書くこと（I-4）。
+
+## I-8: T13（関連型の右辺の参照）は糖衣と決まった（ユーザー, 2026-11-09）
+
+`impl Wrap (list 'a) where Container 'a: type out = list 'a::item` は、新しい型変数と、関連型の等式つきの `where` の子に展開される糖衣（`impl Wrap(list 'a, out = list 'b) where Container('a, item = 'b)`）。関連型は名前つきの role 引数で、名前なしの引数が決まれば名前つきの引数の制約は一度に決まる。`spec/06-roles.md` 6.3。**B4 の本命（T1c）を優先**し、その後で、次の 3 点を Lean に入れる:
+1. 右辺が作る子を、`where` の子と同じく Paterson 条件の数え方に入れる（既存の仕組みのまま）。
+2. `HeadDeterminesAssociated` を、「子の関連型の等式で決まる変数」まで広げる（上の `'b` は head に現れないが、`Container('a, item = 'b)` の等式で `'a` から決まる）。
+3. 右辺の参照の循環の扱い。
