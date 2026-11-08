@@ -58,4 +58,13 @@ theorem box_checked : LoweringVerified boxBody (fun _ => 0) oneHeader ∧
   unfold LoweringVerified
   decide
 
+def phantomBody : Fin 1 → Body 1 1 0 := fun _ =>
+  .union .emptyRecord (.nominal 0 [.inl (.inr 0)])
+def phantom := fromBodies phantomBody (fun _ => 0) oneHeader
+
+theorem phantom_checked : LoweringVerified phantomBody (fun _ => 0) oneHeader ∧
+    deriveVariance phantom (pool 1 1) = [(0, .unused)] := by
+  unfold LoweringVerified
+  decide
+
 end Yulang.CommonDeclarationVarianceExamples

@@ -6242,3 +6242,5 @@ run_cmd do
 #print axioms Yulang.CommonDeclaredCastEvaluationExamples.eager_chain_refused
 
 #print axioms Yulang.CommonDeclarationVarianceExamples.box_checked
+
+#print axioms Yulang.CommonDeclarationVarianceExamples.phantom_checked
