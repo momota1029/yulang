@@ -2789,3 +2789,8 @@ Nominal expression lowering, recursive carrier/cast synthesis, and B5/B1 E1 rema
 ## Contextual recursive comparison judgment
 
 `inspect_context_exact` proves the reference compiler equivalent to independent `ContextDerives` rules for every table, both contexts, every finite description pair and every Common assignment. The rules compare complete argument descriptions, including all four checks for invariant merging. They do not identify directional interval-bound construction with comparison of two point descriptions: the later 47e02a5c9 equal-head normalization rule requires a distinct envelope construction, since `(box A, box B)` preserves `A ≤ B`, not equality. This reference theorem is not completion of B4.
+
+
+## Shared family arguments in the mixed source generator
+
+`CommonEffectFamilySourceGeneration.generate_exact` quantifies complete resolved family applications, operation declarations, the original closed mixed source expression, its fixed outer result, and every outer assignment. The actual generator is equivalent to independent application/kind checks and existence of one shared value/row assignment satisfying all original intervals and the independent typing judgment for that same expression and declarations. Operation signatures use the actual allocated family locals under the same binder. No caller-supplied typing, success, support or fuel premise occurs. Raw name/visibility resolution, discovery of these applications, and an unrestricted solved family for the general mixed quantified formula remain open B3 obligations.

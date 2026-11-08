@@ -6297,3 +6297,7 @@ run_cmd do
 #print axioms Yulang.CommonRecursiveNominalIntervals.decompose_context_arguments_size_lt
 
 #print axioms Yulang.CommonRecursiveNominalIntervals.inspect_context_exact
+
+#print axioms Yulang.CommonEffectFamilySourceGeneration.check_declarations_exact
+#print axioms Yulang.CommonEffectFamilySourceGeneration.emit_applications_exact
+#print axioms Yulang.CommonEffectFamilySourceGeneration.generate_exact
