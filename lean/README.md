@@ -2737,3 +2737,15 @@ exactly every original row/family/argument index, origin, and bound. This preven
 unknown nullary families or missing argument suffixes disappearing at the old
 occurrence-only interface. Family names and row locations are already resolved;
 full raw source lowering and the B3 E1 remain open.
+
+
+## B4: recursive interval generation iff independent derivations (2026-11-08)
+
+`CommonRecursiveNominalIntervals.inspect_exact` quantifies every finite pair of
+nested descriptions, every registry, and every original Common assignment.
+The actual terminating generator's ordinary atoms hold iff an independent
+mutual inductive derivation holds. The invariant rule has all four recursive
+self/cross premises for arbitrary nondegenerate bounds; no actual centre or
+semantic oracle is an algorithm input. This is the declaration-directed
+reference component. The newer inherited-invariant-context rule, whole-tree
+admission, and full source/regular carrier remain separate connections.

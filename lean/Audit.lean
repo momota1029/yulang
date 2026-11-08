@@ -6275,3 +6275,7 @@ run_cmd do
 #print axioms Yulang.CommonEffectFamilyApplications.check_application_exact
 #print axioms Yulang.CommonEffectFamilyApplications.collect_all_exact
 #print axioms Yulang.CommonEffectFamilyApplications.collect_declared
+
+#print axioms Yulang.CommonRecursiveNominalIntervals.derives_argument_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.derives_arguments_exact
+#print axioms Yulang.CommonRecursiveNominalIntervals.inspect_exact
