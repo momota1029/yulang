@@ -48,7 +48,9 @@
 - 状態: blocked / 依存: T1〜T5 と、監査の不一致（`notes/handoff/2026-11-08-m1-model-fidelity-audit.md`）の解消
 - 目標: 公開入口 `Core.infer` への統合。着手前に、適合例 X1〜X24 がすべて外側の入口を通っていること、モデルの忠実性の監査を再実行することを条件にする。
 
-## dots 向けの最初の小さな試し（任意）
+## dots の役割（2026-11-08 の試しの結果）
 
-- ジョブ: 「`tools/branch-stall.sh origin/integration/m1-final 45` を回し、結果を `notes/handoff/` に報告する」。
-- 目的: dots が (1) リポジトリを取得できるか、(2) push できる権限の範囲、(3) Lean のビルド（数十分）を回せるか、を確かめる。結果を `notes/design/2026-11-08-research-harness.md` の「作業者ごとの運用メモ」に書き足す。
+- 取得、Lean 導入、`bash tools/verify-lean.sh . <base>` の全体実行（約 4.5 分）、報告の公開まで、一人でできる。`needs-verify` のタスクの検証役に使える。
+- 書き込みは GitHub アプリ経由のファイル単位。報告は `work/dots-verify-<タスクID>` のようなブランチの新規ファイルに公開させる。統合（`integration/m1-final` への push）は監督役が行う。
+- 長い処理は、実行を保持するセッションで回させる（`nohup` の切り離しは完了を取れなかった）。
+- 定期実行（Scheduled、分単位）は未検証。次の試し: 30 分間隔で「`integration/m1-final` の先頭を取得し、前回検証済みの commit から変化があれば `verify-lean.sh` を回して報告する」を設定できるか。
