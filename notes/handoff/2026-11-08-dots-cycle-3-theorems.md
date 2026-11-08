@@ -1,6 +1,6 @@
 # Cycle 3 新規定理の型と日本語の主張
 
-2026-11-08。対象は新規8モジュールと `lean/Main.lean`。実際のソースの theorem 宣言から型を抽出した。各項目のコードは証明本体を除いた宣言型であり、括弧内の引数・前提はすべて全称量化される。省略可能な暗黙引数 `n : Nat` も任意であり、特に固定値を仮定しない。コード中の `:=` 以降の証明は掲載しない。
+2026-11-08。対象は新規9モジュールと `lean/Main.lean`。実際のソースの theorem 宣言から型を抽出した。各項目のコードは証明本体を除いた宣言型であり、括弧内の引数・前提はすべて全称量化される。省略可能な暗黙引数 `n : Nat` も任意であり、特に固定値を仮定しない。コード中の `:=` 以降の証明は掲載しない。
 
 ## 共通記法と適用範囲
 
@@ -773,7 +773,7 @@ theorem named_finite_path_exact (seed : Nat) (names : List Nat)
 
 ## 件数と検証範囲
 
-掲載定理数: 72（新規8モジュールと Main の全 theorem 宣言）。この文書は定理の型・前提の説明であり、実行ログではない。ビルド、Audit、verify-lean の成否と所要時間は親のサイクル報告を参照。未証明の一般化をこの文書で PROVED に変更しない。
+掲載定理数: 72（新規9モジュールと Main の全 theorem 宣言）。この文書は定理の型・前提の説明であり、実行ログではない。ビルド、Audit、verify-lean の成否と所要時間は親のサイクル報告を参照。未証明の一般化をこの文書で PROVED に変更しない。
 
 ## CommonRoleSiblingOrders
 
@@ -840,4 +840,60 @@ theorem forward_value : forwardRun = some (s2, Roles.Examples.str,
 
 ```lean
 theorem orders_observable : observable forwardRun = observable CommonRoleStatefulParentExample.run
+```
+
+## CommonRolePathOrder
+
+`SameTargets left right` は任意slotのmembershipが同値であること。固定Index(box str) seedを使う有限pathの断片で、任意の旧状態（効果制約を含む）を保持する。
+
+### `expected_same_models`
+
+任意の同じtarget集合を持つ有限2列・旧状態・評価に対し、expected状態の充足は同値。
+
+```lean
+theorem expected_same_models (left right : List (Fin n)) (same : SameTargets left right)
+    (s : State n) (values : Fin n → Comp Common.model) :
+    All Common.model values (expected left s).atoms ↔
+      All Common.model values (expected right s).atoms
+```
+
+### `models_equivalent`
+
+同じ前提でexpected状態のモデル存在が同値。
+
+```lean
+theorem models_equivalent (left right : List (Fin n)) (same : SameTargets left right)
+    (s : State n) : (expected left s).Models ↔ (expected right s).Models
+```
+
+### `no_models_none`
+
+任意path・receiver・旧状態について、expected状態にモデルがなければ実Parent入口はnone。
+
+```lean
+theorem no_models_none (outputs : List (Fin n)) (receiver : Fin n) (s : State n)
+    (bad : ¬ (expected outputs (extend s receiver .str)).Models) :
+    CommonRoleStatefulPathParent.run outputs receiver s = none
+```
+
+### `observable_order_independent`
+
+任意の同じtarget集合を持つ有限2列・receiver・旧状態に対し、実Parent入口のobservableは等しい。成功やモデル存在の外部前提なし。
+
+```lean
+theorem observable_order_independent (left right : List (Fin n))
+    (same : SameTargets left right) (receiver : Fin n) (s : State n) :
+    observable (CommonRoleStatefulPathParent.run left receiver s) =
+      observable (CommonRoleStatefulPathParent.run right receiver s)
+```
+
+### `permutation_observable`
+
+任意の有限2列の置換・receiver・旧状態に対し、実Parent入口のobservableは等しい。
+
+```lean
+theorem permutation_observable (left right : List (Fin n)) (perm : left.Perm right)
+    (receiver : Fin n) (s : State n) :
+    observable (CommonRoleStatefulPathParent.run left receiver s) =
+      observable (CommonRoleStatefulPathParent.run right receiver s)
 ```
