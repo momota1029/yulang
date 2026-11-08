@@ -75,7 +75,7 @@ Raw TSV files remain in the cloud workspace's `/tmp`; they are reproducible, not
 - `/tmp/restart-audit-reach.tsv`: SHA256 `40dbca38984eba396369878542729d3f3eadf8d809b57612d7a8f9e08f1229c8`
 - `/tmp/restart-expanded-reach.tsv`: SHA256 `7f1c91578019428ca97b5073c2dc518522e0fe8c15b24ebcef9cc333df17d232`
 
-## Final code snapshot follow-up
+## Second code snapshot follow-up (before PathOrder)
 
 After adding the fixed dependency-order module (verified code commit `7432df4ab`; documentation-only commit `6c0cfc15a`), the same analysis was rerun. Both exit 0:
 
@@ -87,3 +87,15 @@ REACH: 6463 roots; 40204/83102 non-system declarations reachable
 Profile B leaves 42,898 expression-unreached declarations; the same 19 modules above still have zero reached declarations. This is again not a deletion recommendation. Final raw outputs:
 - `/tmp/restart-final-audit-reach.tsv` SHA256 `00cf66096ee150d289cba59e207082ce37f59c2c356178a978c88291534e699c`
 - `/tmp/restart-final-expanded-reach.tsv` SHA256 `f19e1c0ec22330719156b395961a06bbd875093cb667fb8cf7a0d09d3c8be82f`
+
+## Final PathOrder snapshot
+
+Verified code `514c65248`, expanded profile B rerun after the last 5 order-independence theorems. Exact output (exit 0):
+
+```text
+REACH: 6468 roots; 40211/83109 non-system declarations reachable
+```
+
+There are 42,898 expression-unreached declarations and the same 19 zero-reached modules. The count is still not a deletion recommendation. No declaration or module was removed.
+
+Raw TSV `/tmp/restart-last-expanded-reach.tsv`, SHA256 `c69443a947e228b1b56dc6e975b91f7707e15d7fc0e448daa168d6fe43fca781`.
