@@ -1,10 +1,9 @@
-cycle: 27
-status: completed
-started: 2026-11-09T04:57:58Z
-updated: 2026-11-09T05:09:57Z
-elapsed_min: 11.99
-activity: Self-output total certificates exact; focused304/17 axiom checks PASS
+cycle: 28
+status: running
+started: 2026-11-09T05:28:17Z
+updated: 2026-11-09T05:29:20Z
+elapsed_min: 1.05
+activity: Connect finite stable certificates to explicit child-preserving diagnostic trees
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-cycle6
-last_local_commit: c7cd9358e
-report: notes/handoff/dots-cycle-27.md
-resume_hint: Next: diagnostic-tree/source-lowering bridge; reference search not a language driver.
+last_local_commit: bf6030fe3
+resume_hint: Inspect cycle28 diagnostic tree module and focused logs; no full build.
