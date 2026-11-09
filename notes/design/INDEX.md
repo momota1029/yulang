@@ -196,3 +196,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle30: finite scalar evidence saturation](2026-11-09-cycle30-evidence-saturation.md) — Draft, reciprocal-variable fragment.
 
 - [Cycle31 normalized diagnostic](2026-11-09-cycle31-normalized-diagnostic.md)
+
+- [Cycle32 directed scalar-bound closure (Draft)](2026-11-09-cycle32-directed-bounds.md)
