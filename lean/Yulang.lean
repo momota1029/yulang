@@ -1322,3 +1322,8 @@ import Yulang.CommonRoleGuardedCandidates
 import Yulang.CommonRoleGuardedEquations
 
 import Yulang.CommonRoleGuardedCandidatesBoundary
+
+-- Cycle25: full ancestor-candidate histories and retained equation metadata.
+import Yulang.CommonRoleCorrelatedPaths
+import Yulang.CommonRoleCorrelatedCarrier
+import Yulang.CommonRoleCorrelatedEquations
