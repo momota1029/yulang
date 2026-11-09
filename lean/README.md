@@ -3433,3 +3433,20 @@ This is not arbitrary initial-state consistency, complete evidence propagation t
 
 ### Cycle49: independent finite string source semantics
 `CommonRoleDynamicIndexSourceSemantics.SourceModel` states seed, equality, alias, and conditional named-request clauses without referring to saturation, output atoms, or detection. The actual checked producer succeeds exactly when every source model forces its receiver to string; pending has two disagreeing source models. Successful replay of a named request preserves every saturated ordinary model. Source models and output atoms have the same string consequences, but a proved counterexample prevents identifying their full model classes: unresolved conditional requests are absent from the atoms. This is the finite positive string fragment, not general B4 or the existing int-only diagnostic tree.
+
+### Cycle50: residual model preservation and incremental continuation
+`CommonRoleDynamicIndexResidualSource` retains precisely the occurrence-pair
+requests whose actual checked producer remains pending. Its saturated atoms plus
+residual conditional clauses have exactly the independent `SourceModel` class,
+repairing cycle49's atom-only counterexample. The checked entrance reports absent
+endpoint names; all accepted named requests are pending or actually executable.
+Models are independent of named-request order and multiplicity.
+
+`CommonRoleDynamicIndexResidualResume` retains saturated facts and only pending
+request names, then accepts extra string seeds. Running the existing driver over
+that retained input preserves exactly the full rebuild's source models, checked
+success criterion, and underdetermination witnesses. A late seed reactivates an
+entire previously pending chain. This is a semantic incremental result; the
+adapter recomputes retained input, so no caching or runtime speedup is claimed.
+General payloads and initial states, source lowering, final language diagnostics,
+dictionaries, principal typing, and all five general B4 bridges remain open.

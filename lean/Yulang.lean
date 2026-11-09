@@ -1415,3 +1415,7 @@ import Yulang.CommonRoleDynamicIndexEqualitySource
 import Yulang.CommonRoleDynamicIndexSemanticSource
 
 import Yulang.CommonRoleDynamicIndexSourceSemantics
+
+import Yulang.CommonRoleDynamicIndexResidualSource
+
+import Yulang.CommonRoleDynamicIndexResidualResume
