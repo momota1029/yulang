@@ -1,3 +1,4 @@
+import Yulang.CommonRoleDynamicIndexConsistentSource
 import Yulang
 -- Historical, non-language defaulting experiment; audited without exporting it
 -- from the current inference kernel.
@@ -7691,3 +7692,15 @@ run_cmd do
 #print axioms Yulang.CommonRoleDynamicIndexCheckedSource.scope_example_valid
 #print axioms Yulang.CommonRoleDynamicIndexCheckedSource.scope_example_missing
 #print axioms Yulang.CommonRoleDynamicIndexCheckedSource.malformed_run
+
+#print axioms Yulang.CommonRoleDynamicIndexConsistentSource.addEqualities_models
+#print axioms Yulang.CommonRoleDynamicIndexConsistentSource.input_models
+#print axioms Yulang.CommonRoleDynamicIndexConsistentSource.input_has_model
+#print axioms Yulang.CommonRoleDynamicIndexConsistentSource.output_has_model
+#print axioms Yulang.CommonRoleDynamicIndexConsistentSource.output_consistent
+#print axioms Yulang.CommonRoleDynamicIndexConsistentSource.saturate_executes
+#print axioms Yulang.CommonRoleDynamicIndexConsistentSource.checked_success_iff
+#print axioms Yulang.CommonRoleDynamicIndexConsistentSource.reachable_checked_step
+#print axioms Yulang.CommonRoleDynamicIndexConsistentSource.shared_chain_reachable
+#print axioms Yulang.CommonRoleDynamicIndexConsistentSource.shared_chain_checked
+#print axioms Yulang.CommonRoleDynamicIndexConsistentSource.unseeded_still_pending
