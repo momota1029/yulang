@@ -98,3 +98,10 @@ verify-lean: PASS (diff checks only, NO build)
 - この記録時点（2026-11-09T19:24:33Z、開始後26.1分）は公開復旧中。公開完了時刻・commit・照合結果は確認後に追記する。
 
 開始時・検証終了時・復旧時の空き容量はいずれも48GB。全体ビルド・全Audit・全体公理gateは未実行のまま。使用量枠は不明。
+
+### 復旧完了
+成果公開commit: `1a3dc217d799e24034dae319fd58c9208d36df6f`、tree: `cf35bf61157a8a926e020f8360627490ee0396ed`。2026-11-09T19:27:18ZまでにGitHubからbranch headと全8ファイルを再取得し、ローカルのblob SHAおよび全文と一致した。個別blob作成後、SHAのみのtree作成、確認済みheadをparentにしたcommit作成、`expected_sha` と `force: false` によるref更新を行った。他branchには書き込んでいない。復旧前の未確定treeに相当する変更blobは、各SHAの取得がすべて404だったため、新規作成した。
+
+完了記録の更新: 2026-11-09T19:27:42Z（開始後29.3分）。10分・20分の心拍欠落と25分上限超過は上記のとおりで、取り消さない。開始時の部分目標は検証済みで、成果紛失なし。復旧ではコードを変更せず、報告・心拍のみを訂正したため、変わっていないfocused buildとtrust-0監査は再実行していない。記録の差分は `git diff --check` を通した。
+
+この成果commitに対するGitHub status一覧と、connectorが取得できるPR-triggered workflow run一覧はいずれも空。これはCI PASSの意味ではない。全体検証は引き続き監督役の確認待ち。以下の完了心拍を公開・読戻しして本復旧を閉じる。
