@@ -7842,3 +7842,22 @@ run_cmd do
 #print axioms Yulang.CommonRoleScalarSourceInspection.solve_snapshot_unknown_exact
 #print axioms Yulang.CommonRoleScalarSourceInspection.original_diagnostic_snapshot
 #print axioms Yulang.CommonRoleScalarSourceInspection.recorded_scalar_inspected
+
+-- Cycle56: canonical source-alias graph roots and exact capture routing
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.canonical_source
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.canonical_eq_iff
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.canonical_idempotent
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.root_identity_exact
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.forces_alias_iff
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.inspect_string_exact
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.snapshot_unknown_exact
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.checked_inspection_exact
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.diagnostic_snapshot_exact
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.unresolved_alias_regression
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.solve_detected_base_str
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.detect_alias_eq
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.canonical_node_preserved
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.inspect_routing_exact
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.variable_capture_identity
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.capture_type_sound
+#print axioms Yulang.CommonRoleCanonicalSourceGraph.shared_receiver_resume_regression

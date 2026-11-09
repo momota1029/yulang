@@ -227,3 +227,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle53 occurrence diagnostics](2026-11-09-cycle53-occurrence-diagnostics.md) — Draft; preserve original batch/request order, duplicates and missing names, with independent source meaning.
 
 - [Cycle54 scalar-preserving endpoints](2026-11-09-cycle54-scalar-endpoints.md) — Draft; ordinary scalar identity, finite observations, and original source meaning connected to the existing graph inspector.
+
+- [Cycle56: canonical source-alias graph references](2026-11-09-cycle56-source-alias-graph.md) — Draft. Exact finite source identity, unknown alias captures, and original-source scalar inspection; general B4 remains open.

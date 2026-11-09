@@ -3539,3 +3539,29 @@ remain open, and the existing int-only recursive role resolver is unchanged.
 bool/unit observation support does not extend the int/str first-order producer.
 All five general B4 bridges remain open. Both modules are imported and all 22
 named theorems are registered in Audit.
+
+## Cycle56: unknown aliases share actual graph roots
+
+`CommonRoleCanonicalSourceGraph` produces a graph together with executable
+first-occurrence root references. Two occurrences have the same root exactly when
+their source names agree, including before either is known. Distinct source names
+are not merged merely because both are unknown or have equal types. Storage is
+still occurrence-sized; this is canonical root routing, not physical compaction.
+
+For every finite positive-string/equality source table and supplied finite update
+list, `inspect_routing_exact` preserves every existing pattern's observation after
+routing its captured references. `inspect_string_exact` and `snapshot_unknown_exact`
+connect the canonical inspector to independent original source models.
+`checked_inspection_exact` and `diagnostic_snapshot_exact` preserve the actual
+Index success condition and original occurrence diagnostic leaves. Variable
+captures share exactly the declared source identity, and their types remain
+equivalent to original occurrence types in every original source model. A concrete
+regression checks unknown alias capture and a later seed at the second occurrence
+waking both the original receiver and its named target.
+
+The fixed table, flat graph, positive-string source construction and finite supplied
+updates remain explicit proof-fragment restrictions, not language rejection rules.
+General recursive source graphs, dynamic allocation, declaration-derived requests,
+applicability, dictionaries and four-way classification remain unproved. All five
+general B4 bridges remain open. The new module is imported and all 17 theorems are
+registered in Audit. Full build, full Audit and broad axiom gate are supervisor work.
