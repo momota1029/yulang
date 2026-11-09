@@ -223,3 +223,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle51 finite residual batches](2026-11-09-cycle51-residual-batches.md) — Draft; incremental seeds, equalities, and obligations preserve all source models.
 
 - [Cycle52 residual frontier](2026-11-09-cycle52-residual-frontier.md) — Draft: exact pending membership after finite update batches.
+
+- [Cycle53 occurrence diagnostics](2026-11-09-cycle53-occurrence-diagnostics.md) — Draft; preserve original batch/request order, duplicates and missing names, with independent source meaning.
