@@ -1383,3 +1383,10 @@ import Yulang.CommonRoleStructuralDecomposition
 import Yulang.CommonRoleDecomposedInference
 
 import Yulang.CommonRolePathDecomposition
+
+-- Cycle39 finite structural closure
+import Yulang.CommonRoleFiniteStructuralClosure
+import Yulang.CommonRoleAlternatingRegression
+import Yulang.CommonRoleSaturatedStructuralInference
+
+import Yulang.CommonRoleFiniteClosureRegression
