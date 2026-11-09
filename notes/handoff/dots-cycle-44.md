@@ -96,3 +96,8 @@ EXIT:0
 環境中断なし。初回source補題のnamespace/tauto/予約語エラーと、回帰例のFin数値instance・予約語・リスト所属簡約エラーを修正後buildを再実行した。失敗をPASSに数えていない。
 開始心拍でupdatedを誤って16:29:10とし、実時計16:30:10の時点で修正した。開始時刻は16:27:17を維持。最後の公開後時刻は下の照合追記とGit履歴が正本。
 利用枠への計上は不明。25分のサイクル上限内で公開・報告まで行う。
+
+## 公開検証
+2026-11-09T16:41:34Z、成果commit `d9a2142f2d2d672f14e870e5be6f32bb892f2ecd` をfetchし、ローカル成果と全tree差分なし（git diff --exit-code、exit0）。9ファイルをwork/dots-mainに公開できた。19定理の監査、281 jobs focused buildはいずれもexit0。
+この追記の作成時刻は2026-11-09T16:41:53Z、開始から約15分。GitHubはblob→tree→commit→expected-head指定・非force ref更新で一括公開した。integration等は更新していない。
+既存Audit/READMEの内容回収でtool出力上限によるJSON切断があり、文字列を小分けに読み直してから完全なblobを作成した。コードの欠落は全tree照合で否定した。この処理により10分心拍は16:38:19（開始11分2秒後）となり約1分遅れた。次回は大きい既存文書を最初から分割して取得する。
