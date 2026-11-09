@@ -1413,3 +1413,5 @@ import Yulang.CommonRoleDynamicIndexConsistentSource
 import Yulang.CommonRoleDynamicIndexEqualitySource
 
 import Yulang.CommonRoleDynamicIndexSemanticSource
+
+import Yulang.CommonRoleDynamicIndexSourceSemantics

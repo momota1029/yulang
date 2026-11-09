@@ -215,3 +215,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle47 slot equality feedback](2026-11-09-cycle47-index-equality.md): finite str evidence transport and actual producer execution.
 
 - [Cycle48 finite source semantic completeness](2026-11-09-cycle48-semantic-source.md)
+
+- [Cycle49 finite string source semantic bridge](2026-11-09-cycle49-source-semantic-bridge.md) — Draft; independent source clauses, semantic forcing, and checked readout, not general B4.

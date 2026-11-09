@@ -3429,3 +3429,7 @@ This is not arbitrary initial-state consistency, complete evidence propagation t
 
 ### Cycle48: semantic completeness of finite string saturation
 `CommonRoleDynamicIndexSemanticSource` constructs a separating output model assigning str exactly to derived slots and int otherwise. For arbitrary finite source tables, seeds, equality links and requests, semantic forcing of str, actual detection of str and checked producer success are equivalent to derivability. Non-derived receivers have two inequivalent output models and their producer remains pending. This closes semantic completeness of this constructed fragment, not general B4, arbitrary initial states, parser correctness, or language-visible diagnostics.
+
+
+### Cycle49: independent finite string source semantics
+`CommonRoleDynamicIndexSourceSemantics.SourceModel` states seed, equality, alias, and conditional named-request clauses without referring to saturation, output atoms, or detection. The actual checked producer succeeds exactly when every source model forces its receiver to string; pending has two disagreeing source models. Successful replay of a named request preserves every saturated ordinary model. Source models and output atoms have the same string consequences, but a proved counterexample prevents identifying their full model classes: unresolved conditional requests are absent from the atoms. This is the finite positive string fragment, not general B4 or the existing int-only diagnostic tree.
