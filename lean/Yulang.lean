@@ -1339,3 +1339,7 @@ import Yulang.CommonRoleStableGlobalModels
 -- Cycle28: child-preserving diagnostic certificates.
 import Yulang.CommonRoleDiagnosticTree
 import Yulang.CommonRoleDiagnosticTreeCheck
+
+import Yulang.CommonRoleDiagnosticCanonical
+import Yulang.CommonRoleDiagnosticCanonicalBoundary
+import Yulang.CommonRoleDiagnosticEvidenceTransfer

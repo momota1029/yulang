@@ -7309,3 +7309,32 @@ run_cmd do
 #print axioms Yulang.CommonRoleDiagnosticTree.searched_tree_models
 #print axioms Yulang.CommonRoleDiagnosticTreeCheck.missing_child_after_narrowing
 #print axioms Yulang.CommonRoleDiagnosticTreeCheck.partial_not_valid
+
+-- Cycle29: ordered evidence and checked equality transfer
+#print axioms Yulang.CommonRoleDiagnosticCanonical.active_test_eq
+#print axioms Yulang.CommonRoleDiagnosticCanonical.enabled_eq
+#print axioms Yulang.CommonRoleDiagnosticCanonical.children_eq
+#print axioms Yulang.CommonRoleDiagnosticCanonical.build_eq
+#print axioms Yulang.CommonRoleDiagnosticCanonical.diagnose_eq
+#print axioms Yulang.CommonRoleDiagnosticCanonical.diagnose_membership
+#print axioms Yulang.CommonRoleDiagnosticCanonical.valid_canonical_tree
+#print axioms Yulang.CommonRoleDiagnosticCanonical.endpoint_atoms
+#print axioms Yulang.CommonRoleDiagnosticCanonical.candidate_atoms
+#print axioms Yulang.CommonRoleDiagnosticCanonical.diagnose_atoms
+#print axioms Yulang.CommonRoleDiagnosticCanonical.output_membership
+#print axioms Yulang.CommonRoleDiagnosticCanonical.self_tree_membership
+#print axioms Yulang.CommonRoleDiagnosticCanonical.stable_canonical_tree
+#print axioms Yulang.CommonRoleDiagnosticCanonicalBoundary.linked_models
+#print axioms Yulang.CommonRoleDiagnosticCanonicalBoundary.same_models
+#print axioms Yulang.CommonRoleDiagnosticCanonicalBoundary.consistent
+#print axioms Yulang.CommonRoleDiagnosticCanonicalBoundary.indirect_unmaterialized
+#print axioms Yulang.CommonRoleDiagnosticCanonicalBoundary.direct_materialized
+#print axioms Yulang.CommonRoleDiagnosticCanonicalBoundary.endpoint_difference
+#print axioms Yulang.CommonRoleDiagnosticEvidenceTransfer.edgeTest_exact
+#print axioms Yulang.CommonRoleDiagnosticEvidenceTransfer.check_exact
+#print axioms Yulang.CommonRoleDiagnosticEvidenceTransfer.transferable_models
+#print axioms Yulang.CommonRoleDiagnosticEvidenceTransfer.normalize_models
+#print axioms Yulang.CommonRoleDiagnosticEvidenceTransfer.normalize_evidence
+#print axioms Yulang.CommonRoleDiagnosticEvidenceTransfer.normalize_materializes_int
+#print axioms Yulang.CommonRoleDiagnosticEvidenceTransfer.boundary_repaired
+#print axioms Yulang.CommonRoleDiagnosticEvidenceTransfer.boundary_repaired_endpoint

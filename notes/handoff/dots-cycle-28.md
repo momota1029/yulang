@@ -76,7 +76,3 @@ Build completed successfully (307 jobs).
 ## 公開
 
 9ファイル（新Lean2、root/Audit/README追記3、design/index2、report/heartbeat2）。個別blob後の小さいSHA tree/commitと、非force・expected-head付き更新でwork/dots-mainだけへ一括公開。照合結果・実際の終了時刻は公開後に報告する。部分目標が閉じ、検証が通ったため時間埋めの追加はしない。
-
-### 公開照合
-
-05:38:26 UTC、公開0d24e57ecをfetchし、全treeのremote/local差分空・cleanを確認。9ファイル公開、空き終了19GB。中断・承認待ちなし。開始公開後の成果公開は05:38頃、約10分の時点。最終照合記録とcompleted心拍を追加公開する。公開・照合まで約10分、25分上限内。

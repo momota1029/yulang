@@ -190,3 +190,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle27: own-output stable global certificates](2026-11-09-cycle27-stable-feedback.md) — diagnostic finite search; no language driver claim.
 
 - [Cycle28 diagnostic tree](2026-11-09-cycle28-diagnostic-tree.md): child-preserving finite certificates; no language classification.
+
+- [Cycle29 ordered diagnostic representation](2026-11-09-cycle29-ordered-diagnostic.md) (Draft; finite fragment and explicit decoder boundary)
