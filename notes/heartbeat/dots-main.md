@@ -1,9 +1,10 @@
 cycle: 37
-status: running
+status: completed
 started: 2026-11-09T11:56:57Z
-updated: 2026-11-09T11:58:30Z
-elapsed_min: 1
-activity: recursive same-head structural subtype refutation with model-preserving self-output pruning
+updated: 2026-11-09T12:03:23Z
+elapsed_min: 6
+activity: recursive pair/arrow/variant conflicts and path pruning verified; 322 jobs and 25 trust checks PASS
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 6729f4181
-resume_hint: check cycle37 focused logs and local commits before recovering
+last_local_commit: ac95db7ab
+report: notes/handoff/dots-cycle-37.md
+resume_hint: recursive structural certificates complete; source generation and general B4 remain open
