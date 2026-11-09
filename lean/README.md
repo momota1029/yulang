@@ -3398,3 +3398,20 @@ seed model. Actual declaration execution requires explicit ordinary consistency.
 and enabled by the first real associated output. General B4 remains open.
 
 Cycle43 additionally provides an actual-producer finite execution witness (under complete-output consistency) and unconditional re-saturation membership invariance.
+
+### Cycle44: named source identities and finite Index propagation
+
+`CommonRoleDynamicIndexSource` compiles arbitrary finite occurrence/name tables
+and named Index requests to the finite str closure. Its independent derivation
+has separate seed, alias, and request rules. Saturation membership and output
+models are exact for this represented-slot fragment. `WellScoped` separately
+ensures every named endpoint has an occurrence; absent endpoints otherwise
+produce no request edge. This is not a verified source parser.
+
+`CommonRoleDynamicIndexSourceExecution` interprets aliases by proved model
+preservation and request steps by actual checked `produceIndex`. The mixed
+execution theorem requires a model of the complete output; no model existence
+or unconditional success is claimed. Re-saturation preserves fact membership
+without that premise. `CommonRoleDynamicIndexSourceExamples` tests duplicate
+source occurrences and two actual downstream calls after alias recording.
+General B4 and arbitrary role declarations remain open.

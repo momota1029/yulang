@@ -7653,3 +7653,24 @@ run_cmd do
 #print axioms Yulang.CommonRoleDynamicIndexExamples.downstream_initially_pending
 #print axioms Yulang.CommonRoleDynamicIndexExamples.final_present
 #print axioms Yulang.CommonRoleDynamicIndexExamples.actual_two_steps
+
+-- Cycle44: named source aliases and actual checked Index transitions
+#print axioms Yulang.CommonRoleDynamicIndexSource.edges_exact
+#print axioms Yulang.CommonRoleDynamicIndexSource.derived_exact
+#print axioms Yulang.CommonRoleDynamicIndexSource.saturate_exact
+#print axioms Yulang.CommonRoleDynamicIndexSource.alias_closed
+#print axioms Yulang.CommonRoleDynamicIndexSource.request_closed
+#print axioms Yulang.CommonRoleDynamicIndexSource.output_models
+#print axioms Yulang.CommonRoleDynamicIndexSource.output_coherent
+#print axioms Yulang.CommonRoleDynamicIndexSource.capacity
+#print axioms Yulang.CommonRoleDynamicIndexSource.stopped
+#print axioms Yulang.CommonRoleDynamicIndexSource.scoped_request_present
+#print axioms Yulang.CommonRoleDynamicIndexSource.named_request_all_occurrences
+#print axioms Yulang.CommonRoleDynamicIndexSourceExecution.alias_models
+#print axioms Yulang.CommonRoleDynamicIndexSourceExecution.trace_executes
+#print axioms Yulang.CommonRoleDynamicIndexSourceExecution.saturate_executes
+#print axioms Yulang.CommonRoleDynamicIndexSourceExecution.output_fixed
+#print axioms Yulang.CommonRoleDynamicIndexSourceExamples.well_scoped
+#print axioms Yulang.CommonRoleDynamicIndexSourceExamples.alias_and_downstream_present
+#print axioms Yulang.CommonRoleDynamicIndexSourceExamples.downstream_initially_pending
+#print axioms Yulang.CommonRoleDynamicIndexSourceExamples.actual_named_steps

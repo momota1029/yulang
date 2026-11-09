@@ -1401,3 +1401,7 @@ import Yulang.CommonRoleScalarStructuralAbsorption
 
 import Yulang.CommonRoleDynamicIndexClosure
 import Yulang.CommonRoleDynamicIndexExamples
+
+import Yulang.CommonRoleDynamicIndexSource
+import Yulang.CommonRoleDynamicIndexSourceExecution
+import Yulang.CommonRoleDynamicIndexSourceExamples
