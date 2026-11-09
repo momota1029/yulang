@@ -1,10 +1,9 @@
-cycle: 44
-status: completed
-started: 2026-11-09T16:27:17Z
-updated: 2026-11-09T16:41:53Z
-elapsed_min: 15
-activity: cycle44 published; 281 jobs and 19-theorem audit passed; full tree readback matched
+cycle: 45
+status: running
+started: 2026-11-09T16:57:38Z
+updated: 2026-11-09T17:00:30Z
+elapsed_min: 3
+activity: checked named source entrance with explicit missing endpoint diagnostics and exact success semantics
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 24e0aa52b
-resume_hint: read dots-cycle-44.md; scoped source parser bridge and general B4 remain open
-report: notes/handoff/dots-cycle-44.md
+last_local_commit: pending
+resume_hint: read cycle44; complete checked source scope entrance and focused verification
