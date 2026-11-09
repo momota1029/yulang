@@ -142,3 +142,10 @@ verify-lean: PASS (diff checks only, NO build)
 ローカル実装commit `aec504980`、`93df7ecb4`。開始heartbeat公開commit `d181e116d54e269a2f88b922bbe41b536779bfdc`。
 個別blob作成とSHAだけのtree、非force・expected-head指定で、`work/dots-main`だけへ公開する。integration基点からの全差分10ファイルを対象に、公開後にblob SHAを照合する。内容入り一括treeは使わない。
 この記録時点は公開準備中。公開commitと読戻し結果は確認後に追記する。開始・検証時の空きはいずれも48GB。使用量の枠は不明。
+
+### 公開と照合の完了
+成果commit `fb7426cc9598b8ac9e1362cd94430cf65d76cbfe`、tree `b19a96ffbb085366e4a1b63e8d942cb92e2c67c2`。GitHub appで個別blobを作成し、SHAだけのtree、確認済みheadをparentにしたcommit、`force: false`・expected-head付きref更新を実行した。remote headと全10ファイルを再取得し、全てローカルのblob SHAと全文に一致した。公開中の未確定操作はない。
+
+10分heartbeatは `48c739c5b5471ab916d6c3cae1c70d88d76308e0` で公開済み。成果commitのstatus一覧・connectorが扱うPR-triggered workflow run一覧はいずれも空。CI PASSとはしない。全体検証は監督役のまま。
+
+最終記録時刻 2026-11-09T19:39:16Z、予定開始から12.0分。19:52:19Zの上限内で部分目標・焦点検証・成果公開・読戻しまで完了した。残り時間のためだけの補題は足さず終了する。前cycle49の復旧待ち以外の中断なし。最終空き48GB。ここから報告と完了心拍だけを公開して再照合する。

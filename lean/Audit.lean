@@ -7772,3 +7772,20 @@ run_cmd do
 #print axioms Yulang.CommonRoleDynamicIndexResidualResume.resume_pending_exact
 #print axioms Yulang.CommonRoleDynamicIndexResidualResume.resume_empty_models
 #print axioms Yulang.CommonRoleDynamicIndexResidualResume.delayed_chain_reactivates
+
+-- Cycle51: complete models under finite residual update batches
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.append_models
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.compact_models
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.advance_models
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.appendMany_models
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.advanceMany_models
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.solve_models_exact
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.solve_checked_exact
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.solve_pending_exact
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.run_ok_iff
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.run_success_iff
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.run_models_exact
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.run_has_model
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.update_order_models
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.equality_then_new_obligation
+#print axioms Yulang.CommonRoleDynamicIndexResidualBatches.missing_requests_survive_validation

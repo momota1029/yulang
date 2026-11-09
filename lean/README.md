@@ -3450,3 +3450,21 @@ entire previously pending chain. This is a semantic incremental result; the
 adapter recomputes retained input, so no caching or runtime speedup is claimed.
 General payloads and initial states, source lowering, final language diagnostics,
 dictionaries, principal typing, and all five general B4 bridges remain open.
+
+## Cycle51: incremental residual batches
+
+`CommonRoleDynamicIndexResidualBatches` extends the finite positive str/equality
+source fragment to arbitrary finite batches of string seeds, slot type equalities,
+and named conditional Index requests. Each round keeps derived facts and unresolved
+requests. `advanceMany_models` and `solve_models_exact` preserve the full independent
+source-model class of the original input plus every batch. `solve_checked_exact`
+and `solve_pending_exact` connect the actual checker to that uncompressed source.
+`run_models_exact` checks all original request endpoints before returning a packet;
+`update_order_models` proves model equality for reordered batches. A late equality
+and a later new request activate previously pending work in the kernel regression.
+
+This is a fixed finite source table with a supplied finite update list, not general
+child allocation, arbitrary ordinary-state refinement, or Paterson/K2 termination.
+No parser/lowering, four-way language classification, dictionary equivalence, or
+principalness result is added. The five general B4 bridges remain open. Existing
+Lean definitions and theorems are unchanged; the module is imported and audited.
