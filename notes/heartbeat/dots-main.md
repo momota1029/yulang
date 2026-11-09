@@ -1,10 +1,10 @@
-cycle: 16
+cycle: 20
 status: completed
-started: 2026-11-08T21:54:16Z
-updated: 2026-11-08T22:02:09Z
-elapsed_min: 7.9
-activity: actual fixed-state source worklist; 284 focused jobs PASS; 12 theorem axioms standard; 6 artifacts readback verified
+started: 2026-11-08T23:57:30Z
+updated: 2026-11-09T00:04:00Z
+elapsed_min: 6.5
+activity: Computed source-associated adapter and historical update provenance; focused291 and 11 axiom checks passed
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-cycle6
-last_local_commit: 749a13677
-report: notes/handoff/dots-cycle-16.md
-resume_hint: I-7 max24; next dynamic ordinary-fact saturation with parent-cache invalidation or general interval adapter. Fixed-state duplicate-free least actual-source closure done; state-changing B4 remains open. Full verify not run.
+last_local_commit: 93dba89e0
+report: notes/handoff/dots-cycle-20.md
+resume_hint: Fetch latest integration. No live writer. General B4 remains partial: derive source annotations, varying receivers/order independence, independent final diagnosis next.
