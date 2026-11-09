@@ -221,11 +221,3 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle50 residual source preservation](2026-11-09-cycle50-residual-source.md) — Draft; exact complete models with retained conditional requests.
 
 - [Cycle51 finite residual batches](2026-11-09-cycle51-residual-batches.md) — Draft; incremental seeds, equalities, and obligations preserve all source models.
-
-- [Cycle52 residual frontier](2026-11-09-cycle52-residual-frontier.md) — Draft: exact pending membership after finite update batches.
-
-- [Cycle53 occurrence diagnostics](2026-11-09-cycle53-occurrence-diagnostics.md) — Draft; preserve original batch/request order, duplicates and missing names, with independent source meaning.
-
-- [Cycle54 scalar-preserving endpoints](2026-11-09-cycle54-scalar-endpoints.md) — Draft; ordinary scalar identity, finite observations, and original source meaning connected to the existing graph inspector.
-
-- [Cycle56: canonical source-alias graph references](2026-11-09-cycle56-source-alias-graph.md) — Draft. Exact finite source identity, unknown alias captures, and original-source scalar inspection; general B4 remains open.
