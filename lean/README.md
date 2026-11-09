@@ -3377,3 +3377,11 @@ List order and multiplicity are not equated. General B4 remains open.
 ### Cycle41: 構造閉包と自己出力診断
 
 `CommonRoleStructuralStateGrammar` は既存 State の child/rows/width 証拠を構造分解・推移閉包が保存することを証明する。`CommonRoleStructuralGlobalChoices` はこの実 State 正規化を自己出力探索へ接続し、全新Stable表についてのモデルiffと宣言的関連型導出との接続を示す。充足モデルを前提に、再正規化でもendpoint・candidate・全順序付き診断treeは不変。旧Stableとの同値、解の存在、全言語選択、source生成、role feedback停止、一般B4は未達。
+
+### Cycle42: scalar/structural normalization comparison
+`CommonRoleScalarStructuralAbsorption` embeds every directed scalar derivation in
+the supported structural closure. Inserting scalar normalization before or after
+structural closure preserves atom membership and all models. Given a model of the
+actual generated batch, endpoint/candidate observations and the entire ordered
+diagnostic tree agree. No equality of the two raw normalizers is claimed.
+General B4, source generation, and feedback termination remain open.
