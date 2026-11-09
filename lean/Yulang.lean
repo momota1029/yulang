@@ -1421,3 +1421,5 @@ import Yulang.CommonRoleDynamicIndexResidualSource
 import Yulang.CommonRoleDynamicIndexResidualResume
 
 import Yulang.CommonRoleDynamicIndexResidualBatches
+
+import Yulang.CommonRoleDynamicIndexResidualFrontier

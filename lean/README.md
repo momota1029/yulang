@@ -3468,3 +3468,29 @@ child allocation, arbitrary ordinary-state refinement, or Paterson/K2 terminatio
 No parser/lowering, four-way language classification, dictionary equivalence, or
 principalness result is added. The five general B4 bridges remain open. Existing
 Lean definitions and theorems are unchanged; the module is imported and audited.
+
+## Cycle52: exact original-source residual frontier
+
+`CommonRoleDynamicIndexResidualFrontier` closes the pending-obligation gap in
+cycle51. For every fixed finite source table, initial problem, finite update list
+and represented slot pair, `solve_residual_exact` identifies pending membership
+with original accumulated request membership and lack of independent source
+forcing. `solve_pending_countermodels` gives two source models disagreeing on
+the receiver; `solve_residual_checked` connects this to actual checked failure.
+`run_covers_original_requests` prevents a successful checked entrance from losing
+an original request: it remains pending or its real checker succeeds.
+
+`solve_pending_rebuild` proves equality of the entire serialized pending list
+with a full rebuild from the original accumulated input. `update_order_pending_list`
+then proves exact residual-list equality for reordered batches, preserving the
+canonical slot-pair order. Duplicate source names retain distinct slot pairs;
+duplicate request list entries do not create extra pending pairs. An alias/cycle
+regression leaves precisely the unseeded cycle pending, then closes it after a
+late seed. Existing executable definitions and earlier theorems are unchanged.
+
+This remains the fixed-carrier positive str/equality fragment. The ordinary atom
+lists and dictionaries are not equated, and no runtime speedup is claimed. There
+is no general source lowering, generated-child allocation, arbitrary state
+refinement, final four-way classification, or principal typing theorem. All five
+general B4 bridges remain open. The new module is imported and all 14 theorems
+are registered in Audit; whole-tree verification remains with the supervisor.
