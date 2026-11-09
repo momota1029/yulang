@@ -1349,3 +1349,9 @@ import Yulang.CommonRoleEvidenceSaturation
 import Yulang.CommonRoleEvidenceNormalization
 
 import Yulang.CommonRoleEvidenceSaturationExamples
+
+import Yulang.CommonRoleNormalizedDiagnostic
+
+import Yulang.CommonRoleNormalizedGlobalChoices
+
+import Yulang.CommonRoleNormalizedDiagnosticCheck
