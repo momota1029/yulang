@@ -78,3 +78,6 @@ EXIT:0
 - work/dots-auditの新規fetchは権限審査でscope外として拒否された。再試行で迂回せず、既に取得済みの監査資料を参照。新しいYulang2実行比較は行っていない。
 - str-only、有限入力辺に限る。一般source/receiver生成、任意role宣言、各状態での整合性発見、一般B4の公平再訪/停止および大域意味論の同値は未達。openを閉じたとは扱わない。
 - 次の一手: 有限辺を既存source treeのIndex構文から生成し、この実行証人と接続する。一般roleの意味論を独断で追加しない。
+
+## 公開検証
+2026-11-09T16:10:14Z、成果commit f1e44ec81608689ee1eb9d16d7049daaa236411a を fetch しローカル成果との全tree差分なし（exit 0）。心拍completedもGitHub APIで読戻し。ここまで総所要12分25秒。8ファイル公開成功。監査対象15定理、build 279 jobs、いずれもexit 0。
