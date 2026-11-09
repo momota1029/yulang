@@ -1,10 +1,9 @@
-cycle: 20
-status: completed
-started: 2026-11-08T23:57:30Z
-updated: 2026-11-09T00:04:00Z
-elapsed_min: 6.5
-activity: Computed source-associated adapter and historical update provenance; focused291 and 11 axiom checks passed
+cycle: 21
+status: running
+started: 2026-11-09T00:29:56Z
+updated: 2026-11-09T00:32:20Z
+elapsed_min: 2.4
+activity: Reading current source feedback; deriving exactness boundary for order independence
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-cycle6
-last_local_commit: 93dba89e0
-report: notes/handoff/dots-cycle-20.md
-resume_hint: Fetch latest integration. No live writer. General B4 remains partial: derive source annotations, varying receivers/order independence, independent final diagnosis next.
+last_local_commit: fad5977ed
+resume_hint: Cycle20 complete; cycle21 starts from integration 490a9a7a2. Focused builds only.
