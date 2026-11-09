@@ -7173,3 +7173,13 @@ run_cmd do
 #print axioms Yulang.CommonRoleFeedbackTrace.loop_trace
 #print axioms Yulang.CommonRoleFeedbackTrace.trace_origin
 #print axioms Yulang.CommonRoleFeedbackTrace.collected_origin
+
+-- Cycle 21: conditional feedback confluence; actual adapter monotonicity remains unproved.
+#print axioms Yulang.CommonRoleFeedbackConfluence.trace_subset_closed
+#print axioms Yulang.CommonRoleFeedbackConfluence.closed_traces_same_facts
+#print axioms Yulang.CommonRoleFeedbackConfluence.collect_is_closed
+#print axioms Yulang.CommonRoleFeedbackConfluence.collect_least
+#print axioms Yulang.CommonRoleFeedbackConfluence.collect_exact_closed_trace
+#print axioms Yulang.CommonRoleAssociatedConfluence.same_facts_same_models
+#print axioms Yulang.CommonRoleAssociatedConfluence.closed_histories_same_models
+#print axioms Yulang.CommonRoleAssociatedConfluence.final_models_exact_closed_history

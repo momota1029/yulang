@@ -3208,3 +3208,6 @@ final reachable-equation theorems. `CommonRoleFeedbackTrace` proves every
 collected update has an actual reachable source at an earlier legal trace state.
 Annotations and fixed receivers remain supplied. General source lowering,
 interval inference, leastness/order independence and full B4 are not proved.
+
+## Cycle 21: conditional feedback confluence
+`CommonRoleFeedbackConfluence` proves least closure and agreement of every closed legal trace under explicitly named `EmissionMonotone`. `CommonRoleAssociatedConfluence` transports equal token membership to exact real associated-equation model-set equality. The actual source adapter has NOT been proved monotone; this is not general B4, unconditional resolve_exact, or X13–16 completion.
