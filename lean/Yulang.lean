@@ -1369,3 +1369,5 @@ import Yulang.CommonRoleConflictFilteredInference
 import Yulang.CommonRoleStructuralConflicts
 
 import Yulang.CommonRoleStructuralFilteredInference
+import Yulang.CommonRoleStructuralPaths
+import Yulang.CommonRolePathFilteredInference
