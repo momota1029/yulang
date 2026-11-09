@@ -1359,3 +1359,5 @@ import Yulang.CommonRoleNormalizedDiagnosticCheck
 import Yulang.CommonRoleDirectedBounds
 import Yulang.CommonRoleDirectedDiagnostic
 import Yulang.CommonRoleDirectedBoundsCheck
+
+import Yulang.CommonRoleDirectedGlobalChoices

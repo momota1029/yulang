@@ -3314,3 +3314,16 @@ semantic canonicalization, language selection or role feedback convergence.
 
 ### Cycle32: directed scalar-bound closure
 `CommonRoleDirectedBounds` computes upper and lower scalar facts separately along actual directed variable atoms, over an internal `8*n` universe. It is exact for an independent seed/transfer derivation, terminates, and appends only model-preserving bounds. Re-normalization preserves derived membership; no general role feedback theorem is claimed. `CommonRoleDirectedDiagnostic` connects paired derived int bounds to source endpoint, candidate and ordered diagnostic tree closure under re-normalization, explicitly assuming a model where needed. `CommonRoleDirectedBoundsCheck` checks `int ≤ x ≤ y ≤ z ≤ int`, where the old reciprocal engine has no seed but the new engine materializes the middle slot. General semantic entailment, structural types, source lowering and B4 remain open.
+
+
+### Cycle33: directed-normalized self-output certificates
+
+`CommonRoleDirectedGlobalChoices` connects the directed upper/lower scalar
+saturation to finite global-table search. Source registry, annotations and
+first-order receivers remain inputs. It preserves every associated-output model
+and searches all canonical directed-Stable certificates, including canonical
+representatives of arbitrary valid tables. This is diagnostic evidence, not
+a language classification, a satisfiability claim or a role-feedback driver.
+The reciprocal-edge and directed Stable notions are not asserted equivalent.
+General B4, source lowering, state-dependent receiver generation, principality
+and role-feedback convergence remain open.
