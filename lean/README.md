@@ -3362,3 +3362,14 @@ Actual lower/upper bounds connected by finite variable paths are first joined wi
 
 ### Cycle39: finite indexed structural closure
 `CommonRoleFiniteStructuralClosure` computes seed/decomposition/transitivity closure inside an explicit syntax-derived atom carrier. Internal capacity counts carrier indices; finite-rule derivation exactness and all-assignment model preservation are proved. `CommonRoleSaturatedStructuralInference` connects it to model-preserving diagnostic filtering. `CommonRoleAlternatingRegression` preserves a real two-round dependency. This is not complete structural satisfiability, full carrier coverage, re-normalization idempotence, or role-feedback termination. Rule generation has cubic carrier scanning; large-input performance is unverified.
+
+## Cycle40: computed structural closure coverage
+
+`CommonRoleStructuralCarrierCoverage` removes the explicit carrier side condition
+from completeness for the existing seed/structural-split/transitivity rules.
+For all finite slot counts, seed lists and atoms, membership in the existing
+computed normalization is equivalent to the independent atom derivation. The
+computed syntax carrier contains every such derivation, and normalization is
+membership-idempotent, least, and insensitive to seed order or duplicates.
+This is not semantic subtype completeness or role-feedback termination.
+List order and multiplicity are not equated. General B4 remains open.

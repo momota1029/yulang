@@ -209,3 +209,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle37 recursive structural refutation](2026-11-09-cycle37-recursive-structural.md) — Draft, same-head recursive certificates and model-preserving filtering.
 
 - [Cycle39 finite structural closure](2026-11-09-cycle39-structural-closure.md) — Draft, finite-rule exactness rather than unrestricted ordinary completeness.
+
+- [Cycle40 structural carrier coverage](2026-11-09-cycle40-carrier.md): supported-rule completeness and membership fixed point.

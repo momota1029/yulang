@@ -1390,3 +1390,5 @@ import Yulang.CommonRoleAlternatingRegression
 import Yulang.CommonRoleSaturatedStructuralInference
 
 import Yulang.CommonRoleFiniteClosureRegression
+
+import Yulang.CommonRoleStructuralCarrierCoverage

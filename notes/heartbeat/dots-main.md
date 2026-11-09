@@ -1,9 +1,10 @@
 cycle: 40
-status: running
+status: completed
 started: 2026-11-09T13:31:49Z
-updated: 2026-11-09T13:33:00Z
-elapsed_min: 1
-activity: prove computed structural carrier covers decomposition and transitivity closure
+updated: 2026-11-09T13:42:23Z
+elapsed_min: 10
+activity: computed carrier coverage and rule-complete membership fixed point verified; 323 jobs / 17 trust checks PASS
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 8b181a625
-resume_hint: inspect new carrier coverage module and focused logs; do not run whole build
+last_local_commit: 610b33e65
+report: notes/handoff/dots-cycle-40.md
+resume_hint: supported-rule carrier completeness closed; full semantic solver and role feedback remain open
