@@ -85,3 +85,6 @@ Build completed successfully (311 jobs).
 
 ## 公開
 新Lean3・root/Audit/README追記3・design/index2・report/heartbeat2の10自身変更ファイル。公開時は最新remoteと全tree差分を確認し、統合版の差分も必要なら含める。個別blobと小さなSHA tree、非force・expected-headでwork/dots-mainだけ更新。最終時刻・照合は公開後に記録。
+
+### 公開照合
+2026-11-09T06:39:02Z、work/dots-main@f54c7bd02 を明示refspecでfetchし、全tree差分空・clean確認。11ファイル公開（自身10＋統合版報告29）。この最終記録とcompleted心拍を追加公開。開始から約10分半。大きなblob公開により10分心拍は約30秒遅延。コード変更・再検証は不要な記録のみ。
