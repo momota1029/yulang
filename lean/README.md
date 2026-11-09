@@ -3494,3 +3494,23 @@ is no general source lowering, generated-child allocation, arbitrary state
 refinement, final four-way classification, or principal typing theorem. All five
 general B4 bridges remain open. The new module is imported and all 14 theorems
 are registered in Audit; whole-tree verification remains with the supervisor.
+
+## Cycle53: original occurrence diagnostics
+
+`CommonRoleDynamicIndexOccurrenceDiagnostics.diagnose_represents` connects the
+actual incremental result to an independent nested source relation for every
+finite table, initial problem and update list. The relation preserves batch and
+request order/multiplicity, and every represented leaf is waiting exactly when
+the original source models do not force its receiver to str. Missing names remain
+visible in a request node with an empty endpoint list. No scope-success or model
+premise is supplied. `original_order` proves literal recovery of the nested source
+request lists, including repeated requests that canonical residuals coalesce.
+`inspect_checked`, `inspect_rebuild`, and `update_order_inspect` connect these
+observations to actual checked failure, full rebuilds, and reordered updates.
+
+This is a diagnostic adapter for the existing fixed finite str/equality fragment,
+not the general recursive role tree or language-visible selected/rejected result.
+`legacy_endpoint_erases_string` proves a specific remaining boundary: the old
+int-only diagnostic endpoint decoder loses known str observations. No scalar is
+relabeled to hide that mismatch. All five general B4 bridges remain open.
+The new module is imported and all 11 theorems are registered in Audit.
