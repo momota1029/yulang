@@ -3300,3 +3300,14 @@ records exactly those scalar facts, and has membership-idempotent resaturation.
 `CommonRoleEvidenceSaturationExamples` checks a real three-slot chain with cycles.
 Only explicit paired variable edges and scalar pairs are covered. This is not arbitrary
 semantic entailment, role selection, source lowering, or the general feedback driver.
+
+### Cycle31: normalized self-output diagnostic certificates
+`CommonRoleNormalizedGlobalChoices` integrates finite reciprocal-variable scalar
+closure into the actual associated-output certificate search. The reference
+search is sound and complete for its normalized Stable judgment, with model iff
+and independent associated declarations under explicit environment wellformedness.
+`CommonRoleNormalizedDiagnostic` proves that scalar re-normalization preserves
+all endpoint observations, guards and the full ordered tree when ordinary models
+exist. `CommonRoleNormalizedDiagnosticCheck` repairs the earlier direct/indirect
+scalar presentation example for every registry/source/table. This is not general
+semantic canonicalization, language selection or role feedback convergence.

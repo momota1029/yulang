@@ -7365,3 +7365,31 @@ run_cmd do
 #print axioms Yulang.CommonRoleEvidenceSaturationExamples.all_int_model
 #print axioms Yulang.CommonRoleEvidenceSaturationExamples.same_models
 #print axioms Yulang.CommonRoleEvidenceSaturationExamples.second_pass
+
+-- Cycle31 normalized diagnostic closure
+#print axioms Yulang.CommonRoleNormalizedDiagnostic.materialize_exact
+#print axioms Yulang.CommonRoleNormalizedDiagnostic.endpoint_derived
+#print axioms Yulang.CommonRoleNormalizedDiagnostic.endpoint_fixedpoint
+#print axioms Yulang.CommonRoleNormalizedDiagnostic.candidate_fixedpoint
+#print axioms Yulang.CommonRoleNormalizedDiagnostic.tree_fixedpoint
+#print axioms Yulang.CommonRoleNormalizedDiagnostic.tree_derived
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.requests_exact
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.output_canonical
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.output_evidence
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.output_models_raw
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.check_exact
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.search_exact
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.complete
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.search_capacity
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.resolved
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.unknown_request_excluded
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.output_models
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.infer_models_exact
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.searched_tree_complete
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.stable_declarative
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.infer_declarative_models_exact
+#print axioms Yulang.CommonRoleNormalizedGlobalChoices.searched_tree_models
+#print axioms Yulang.CommonRoleNormalizedDiagnosticCheck.indirect_derived
+#print axioms Yulang.CommonRoleNormalizedDiagnosticCheck.direct_derived
+#print axioms Yulang.CommonRoleNormalizedDiagnosticCheck.repaired_tree
+#print axioms Yulang.CommonRoleNormalizedDiagnosticCheck.normalized_candidate_repairs
