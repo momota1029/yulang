@@ -3211,3 +3211,12 @@ interval inference, leastness/order independence and full B4 are not proved.
 
 ## Cycle 21: conditional feedback confluence
 `CommonRoleFeedbackConfluence` proves least closure and agreement of every closed legal trace under explicitly named `EmissionMonotone`. `CommonRoleAssociatedConfluence` transports equal token membership to exact real associated-equation model-set equality. The actual source adapter has NOT been proved monotone; this is not general B4, unconditional resolve_exact, or X13–16 completion.
+
+## Cycle 22: final source support
+
+`CommonRoleFeedbackSupport` computes a final-reachable equation view and proves its
+model exactness. An executable unsupported-token check certifies agreement with
+the persistent collector. This is not a convergent replacement driver.
+`CommonRoleFirstHitSupportBoundary` proves an earlier literal can displace a capture
+child after ordinary narrowing while the frontier was never selected. General B4
+and associated-decoder monotonicity remain open; see cycle22 report.

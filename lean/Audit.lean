@@ -7183,3 +7183,16 @@ run_cmd do
 #print axioms Yulang.CommonRoleAssociatedConfluence.same_facts_same_models
 #print axioms Yulang.CommonRoleAssociatedConfluence.closed_histories_same_models
 #print axioms Yulang.CommonRoleAssociatedConfluence.final_models_exact_closed_history
+
+-- Cycle 22: source support audit, not full B4.
+#print axioms Yulang.CommonRoleFeedbackSupport.Adapter.emitted_owner
+#print axioms Yulang.CommonRoleFeedbackSupport.Adapter.monotone_iff
+#print axioms Yulang.CommonRoleFeedbackSupport.supported_exact
+#print axioms Yulang.CommonRoleFeedbackSupport.revalidate_exact
+#print axioms Yulang.CommonRoleFeedbackSupport.certified_final_models
+#print axioms Yulang.CommonRoleFeedbackSupport.checked_final_models
+#print axioms Yulang.CommonRoleFirstHitSupportBoundary.atoms_included
+#print axioms Yulang.CommonRoleFirstHitSupportBoundary.child_disappears
+#print axioms Yulang.CommonRoleFirstHitSupportBoundary.frontier_not_selected
+#print axioms Yulang.CommonRoleFirstHitSupportBoundary.not_universal_child_monotone
+#print axioms Yulang.CommonRoleFirstHitSupportBoundary.reachable_disappears
