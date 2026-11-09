@@ -7215,3 +7215,27 @@ run_cmd do
 #print axioms Yulang.CommonRoleSupportSearchBoundary.no_emission_after
 #print axioms Yulang.CommonRoleSupportSearchBoundary.no_supported_candidate
 #print axioms Yulang.CommonRoleSupportSearchBoundary.associated_not_monotone
+
+-- Cycle24: candidate-preserving guarded carrier, not language selection.
+#print axioms Yulang.CommonRoleGuardedCandidates.candidate_decreases
+#print axioms Yulang.CommonRoleGuardedCandidates.candidate_in_structural
+#print axioms Yulang.CommonRoleGuardedCandidates.next_exact
+#print axioms Yulang.CommonRoleGuardedCandidates.edge_closed
+#print axioms Yulang.CommonRoleGuardedCandidates.rule_present
+#print axioms Yulang.CommonRoleGuardedCandidates.derives_sound
+#print axioms Yulang.CommonRoleGuardedCandidates.derives_complete
+#print axioms Yulang.CommonRoleGuardedCandidates.collect_exact
+#print axioms Yulang.CommonRoleGuardedCandidates.collect_capacity
+#print axioms Yulang.CommonRoleGuardedCandidates.candidate_child_collected
+#print axioms Yulang.CommonRoleGuardedEquations.entries_exact
+#print axioms Yulang.CommonRoleGuardedEquations.candidate_exact
+#print axioms Yulang.CommonRoleGuardedEquations.candidate_children_exact
+#print axioms Yulang.CommonRoleGuardedEquations.reach_iff_path
+#print axioms Yulang.CommonRoleGuardedEquations.active_exact
+#print axioms Yulang.CommonRoleGuardedEquations.activate_exact
+#print axioms Yulang.CommonRoleGuardedEquations.retained
+#print axioms Yulang.CommonRoleGuardedEquations.view_exact
+#print axioms Yulang.CommonRoleGuardedEquations.view_declarative_exact
+#print axioms Yulang.CommonRoleGuardedCandidatesBoundary.capture_children_survive
+#print axioms Yulang.CommonRoleGuardedCandidatesBoundary.child_collected_both
+#print axioms Yulang.CommonRoleGuardedCandidatesBoundary.actual_associated_child_retained

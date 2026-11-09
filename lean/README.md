@@ -3240,3 +3240,14 @@ not universally emission-monotone. The association is a supplied child-to-token 
 source parser lowering is not modeled. This is not a language counterexample:
 the first-hit frontier is pending before narrowing and ambiguous after narrowing.
 The exhaustive search is useful for detecting this boundary, not for resolving it.
+
+### Cycle24: candidate-preserving guarded carrier (partial B4 work)
+
+`CommonRoleGuardedCandidates` computes finite all-enabled-candidate source closure.
+`CommonRoleGuardedEquations` retains source/candidate/request metadata independently
+of observation and branch mask; its active equation view is exact against independent
+source paths and checked associated declarations. `CommonRoleGuardedCandidatesBoundary`
+shows the cycle23 later-capture child survives actual associated narrowing.
+Explicit mask and observation are inputs, not a language choice or stable solution.
+Int-only capture-bearing templates, fixed receivers, supplied annotations remain.
+No feedback convergence, general B4, existence, uniqueness, or X13–X16 completion.

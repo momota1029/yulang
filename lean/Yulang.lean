@@ -1316,3 +1316,9 @@ import Yulang.CommonRoleFirstHitSupportBoundary
 import Yulang.CommonRoleSupportSearch
 
 import Yulang.CommonRoleSupportSearchBoundary
+
+import Yulang.CommonRoleGuardedCandidates
+
+import Yulang.CommonRoleGuardedEquations
+
+import Yulang.CommonRoleGuardedCandidatesBoundary
