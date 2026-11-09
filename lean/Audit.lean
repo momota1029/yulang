@@ -7818,3 +7818,27 @@ run_cmd do
 #print axioms Yulang.CommonRoleDynamicIndexOccurrenceDiagnostics.inspect_rebuild
 #print axioms Yulang.CommonRoleDynamicIndexOccurrenceDiagnostics.repeated_and_missing
 #print axioms Yulang.CommonRoleDynamicIndexOccurrenceDiagnostics.legacy_endpoint_erases_string
+
+-- Cycle54: scalar-preserving endpoints and existing graph inspection
+#print axioms Yulang.CommonRoleScalarSourceEndpoint.eval_present
+#print axioms Yulang.CommonRoleScalarSourceEndpoint.eval_sound
+#print axioms Yulang.CommonRoleScalarSourceEndpoint.observe_exact
+#print axioms Yulang.CommonRoleScalarSourceEndpoint.observe_detect
+#print axioms Yulang.CommonRoleScalarSourceEndpoint.observe_unknown
+#print axioms Yulang.CommonRoleScalarSourceEndpoint.scalar_persists
+#print axioms Yulang.CommonRoleScalarSourceEndpoint.eval_order_independent
+#print axioms Yulang.CommonRoleScalarSourceEndpoint.materialize_string_iff
+#print axioms Yulang.CommonRoleScalarSourceEndpoint.solve_string_exact
+#print axioms Yulang.CommonRoleScalarSourceEndpoint.solve_unknown_exact
+#print axioms Yulang.CommonRoleScalarSourceEndpoint.solve_checked_iff
+#print axioms Yulang.CommonRoleScalarSourceEndpoint.diagnostic_waiting_iff
+#print axioms Yulang.CommonRoleScalarSourceInspection.code_injective
+#print axioms Yulang.CommonRoleScalarSourceInspection.graph_scalar_exact
+#print axioms Yulang.CommonRoleScalarSourceInspection.graph_unknown_exact
+#print axioms Yulang.CommonRoleScalarSourceInspection.inspect_scalar_exact
+#print axioms Yulang.CommonRoleScalarSourceInspection.inspect_evidence_exact
+#print axioms Yulang.CommonRoleScalarSourceInspection.snapshot_unknown_exact
+#print axioms Yulang.CommonRoleScalarSourceInspection.solve_inspect_string_exact
+#print axioms Yulang.CommonRoleScalarSourceInspection.solve_snapshot_unknown_exact
+#print axioms Yulang.CommonRoleScalarSourceInspection.original_diagnostic_snapshot
+#print axioms Yulang.CommonRoleScalarSourceInspection.recorded_scalar_inspected

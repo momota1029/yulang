@@ -225,3 +225,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle52 residual frontier](2026-11-09-cycle52-residual-frontier.md) — Draft: exact pending membership after finite update batches.
 
 - [Cycle53 occurrence diagnostics](2026-11-09-cycle53-occurrence-diagnostics.md) — Draft; preserve original batch/request order, duplicates and missing names, with independent source meaning.
+
+- [Cycle54 scalar-preserving endpoints](2026-11-09-cycle54-scalar-endpoints.md) — Draft; ordinary scalar identity, finite observations, and original source meaning connected to the existing graph inspector.
