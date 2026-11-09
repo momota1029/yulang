@@ -1377,3 +1377,9 @@ import Yulang.CommonRoleRecursiveConflicts
 import Yulang.CommonRoleRecursivePaths
 
 import Yulang.CommonRoleRecursiveFilteredInference
+
+import Yulang.CommonRoleStructuralDecomposition
+
+import Yulang.CommonRoleDecomposedInference
+
+import Yulang.CommonRolePathDecomposition

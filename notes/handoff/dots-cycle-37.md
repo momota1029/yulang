@@ -93,3 +93,6 @@ AUDIT_EXIT=0
 ## 公開・制限
 work/dots-mainのみへ個別blobからSHA treeを一括・非force・expected-head更新。公開後に取得treeを照合する。
 使用量枠は不明。中断・承認待ちは現時点なし。部分目標が閉じたので一般source生成へ範囲を広げず終了する。
+
+## 公開照合
+2026-11-09T12:06:51Z: work/dots-main@1afbae21c取得後、ローカル全treeとの差分空・clean確認。11ファイル公開。空き49GB。実作業9分54秒。最終記録と心拍を追記公開する。
