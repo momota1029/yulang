@@ -1396,3 +1396,5 @@ import Yulang.CommonRoleStructuralCarrierCoverage
 import Yulang.CommonRoleStructuralStateGrammar
 
 import Yulang.CommonRoleStructuralGlobalChoices
+
+import Yulang.CommonRoleScalarStructuralAbsorption

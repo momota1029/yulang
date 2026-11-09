@@ -7616,3 +7616,23 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralGlobalChoices.stable_declarative
 #print axioms Yulang.CommonRoleStructuralGlobalChoices.infer_declarative_models_exact
 #print axioms Yulang.CommonRoleStructuralGlobalChoices.searched_tree_models
+
+-- Cycle42: directed scalar propagation absorbed by structural closure
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.directed_derives
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.directed_subset
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.structural_after_directed
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.directed_after_structural
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.structural_evidence
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.materializes_int
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.models_pre
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.models_post
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.endpoint_pre
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.endpoint_post
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.candidate_pre
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.candidate_post
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.tree_pre
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.tree_post
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.self_output_models_pre
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.self_output_models_post
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.self_tree_pre
+#print axioms Yulang.CommonRoleScalarStructuralAbsorption.self_tree_post
