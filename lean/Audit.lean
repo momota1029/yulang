@@ -7528,3 +7528,26 @@ run_cmd do
 #print axioms Yulang.CommonRoleRecursiveFilteredInference.infer_models_preserved
 #print axioms Yulang.CommonRoleRecursiveFilteredInference.infer_models_exact
 #print axioms Yulang.CommonRoleRecursiveFilteredInference.empty_excludes_stable_model
+
+-- Cycle38 structural decomposition
+#print axioms Yulang.CommonRoleStructuralDecomposition.expandFuel_exact
+#print axioms Yulang.CommonRoleStructuralDecomposition.expand_exact
+#print axioms Yulang.CommonRoleStructuralDecomposition.atom_exact
+#print axioms Yulang.CommonRoleStructuralDecomposition.normalize_exact
+#print axioms Yulang.CommonRoleStructuralDecomposition.pair_variable_exposed
+#print axioms Yulang.CommonRoleStructuralDecomposition.payload_old_check_false
+#print axioms Yulang.CommonRoleStructuralDecomposition.payload_checked
+#print axioms Yulang.CommonRoleStructuralDecomposition.payload_no_model
+#print axioms Yulang.CommonRoleDecomposedInference.check_exact
+#print axioms Yulang.CommonRoleDecomposedInference.checked_no_model
+#print axioms Yulang.CommonRoleDecomposedInference.prune_models
+#print axioms Yulang.CommonRoleDecomposedInference.infer_models_preserved
+#print axioms Yulang.CommonRoleDecomposedInference.infer_models_exact
+#print axioms Yulang.CommonRoleDecomposedInference.empty_excludes_original_model
+#print axioms Yulang.CommonRolePathDecomposition.join_exact
+#print axioms Yulang.CommonRolePathDecomposition.generated_exact
+#print axioms Yulang.CommonRolePathDecomposition.generated_entailed
+#print axioms Yulang.CommonRolePathDecomposition.normalize_exact
+#print axioms Yulang.CommonRolePathDecomposition.hidden_old_false
+#print axioms Yulang.CommonRolePathDecomposition.hidden_checked
+#print axioms Yulang.CommonRolePathDecomposition.hidden_no_model

@@ -3355,3 +3355,7 @@ variable paths and handles direct constraints; its combined check is equivalent 
 independent certificate. `CommonRoleRecursiveFilteredInference` preserves the complete
 existing directed-Stable output model family. Records and effect rows are not decomposed;
 absence of a certificate does not show satisfiability. General B4 remains open.
+
+### Cycle38: structural payload decomposition
+Pair/arrow/same-tag variant constraints are finitely decomposed with exact model preservation, exposing payload variables to path conflict pruning. Rows and unsupported constructors remain residual. No terminal-normal-form, idempotence, or full satisfiability claim; general B4 remains open.
+Actual lower/upper bounds connected by finite variable paths are first joined with model-exact entailment, then decomposed; this detects hidden payload contradictions across intermediate slots. It is one pass, not an alternating closure.
