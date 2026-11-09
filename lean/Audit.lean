@@ -7239,3 +7239,19 @@ run_cmd do
 #print axioms Yulang.CommonRoleGuardedCandidatesBoundary.capture_children_survive
 #print axioms Yulang.CommonRoleGuardedCandidatesBoundary.child_collected_both
 #print axioms Yulang.CommonRoleGuardedCandidatesBoundary.actual_associated_child_retained
+
+-- Cycle25: correlated path metadata, not language choice.
+#print axioms Yulang.CommonRoleCorrelatedPaths.children_exact
+#print axioms Yulang.CommonRoleCorrelatedPaths.pathsUpTo_exact
+#print axioms Yulang.CommonRoleCorrelatedPaths.path_measure
+#print axioms Yulang.CommonRoleCorrelatedPaths.collect_exact
+#print axioms Yulang.CommonRoleCorrelatedPaths.extend_history_injective
+#print axioms Yulang.CommonRoleCorrelatedCarrier.active_child_retained
+#print axioms Yulang.CommonRoleCorrelatedCarrier.pathsUpTo_retained
+#print axioms Yulang.CommonRoleCorrelatedCarrier.path_retained
+#print axioms Yulang.CommonRoleCorrelatedEquations.entries_exact
+#print axioms Yulang.CommonRoleCorrelatedEquations.activate_exact
+#print axioms Yulang.CommonRoleCorrelatedEquations.entry_retained
+#print axioms Yulang.CommonRoleCorrelatedEquations.disabled_history_excluded
+#print axioms Yulang.CommonRoleCorrelatedEquations.view_exact
+#print axioms Yulang.CommonRoleCorrelatedEquations.view_declarative_exact

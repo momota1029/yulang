@@ -3251,3 +3251,22 @@ shows the cycle23 later-capture child survives actual associated narrowing.
 Explicit mask and observation are inputs, not a language choice or stable solution.
 Int-only capture-bearing templates, fixed receivers, supplied annotations remain.
 No feedback convergence, general B4, existence, uniqueness, or X13–X16 completion.
+
+### Cycle25: 祖先候補の相関を保持する metadata
+
+`CommonRoleCorrelatedPaths` は (祖先 source node, candidate) の全逆順履歴と
+現在の node を組にし、同じ node に合流した候補履歴を潰さない。
+checked registry の Paterson 減少から `sourceWeight root` の深さ上限を導き、
+実行可能な有限列挙と独立 `Inspect`/source 置換による `Path` の iff を証明。
+`CommonRoleCorrelatedCarrier` は observation/mask に依存しない有限保存領域を
+構成し、任意の将来の observation/mask の `Path` がそこに含まれることを証明。
+`CommonRoleCorrelatedEquations` は history-sensitive な guard/annotation を保持し、
+活性化した実関連型方程式のモデル集合と独立導出の iff を結ぶ
+（`AssocWellFormed` は明示前提）。
+
+これは int-only・unary・capture-bearing 断片の metadata の定理。
+mask/observation/固定 receiver annotation は入力であり、生成・選択は未証明。
+各経路の相関は保持するが、異なる兄弟の大域的な候補選択の整合性は証明しない。
+同じ parent/candidate/child の重複 occurrence index は区別しない。
+深さ上限は実用的なサイズ/計算量保証ではない。source lowering、feedback固定点、
+B4 全体、外側の X13–X16 は未達。全体 build/verify は今回実行していない。
