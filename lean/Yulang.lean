@@ -1361,3 +1361,7 @@ import Yulang.CommonRoleDirectedDiagnostic
 import Yulang.CommonRoleDirectedBoundsCheck
 
 import Yulang.CommonRoleDirectedGlobalChoices
+
+import Yulang.CommonRoleDirectedConflicts
+
+import Yulang.CommonRoleConflictFilteredInference

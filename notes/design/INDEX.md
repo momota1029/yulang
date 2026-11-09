@@ -200,3 +200,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle32 directed scalar-bound closure (Draft)](2026-11-09-cycle32-directed-bounds.md)
 
 - [Cycle33 directed self-output diagnostic search](2026-11-09-cycle33-directed-self-output.md) — bounded certificate/model bridge, not whole B4.
+
+- [Cycle34 directed conflict certificates](2026-11-09-cycle34-directed-conflicts.md) — Draft, sound pruning and complete model-family preservation.

@@ -7445,3 +7445,17 @@ run_cmd do
 #print axioms Yulang.CommonRoleDirectedGlobalChoices.stable_declarative
 #print axioms Yulang.CommonRoleDirectedGlobalChoices.infer_declarative_models_exact
 #print axioms Yulang.CommonRoleDirectedGlobalChoices.searched_tree_models
+
+-- Cycle34 directed conflict pruning
+#print axioms Yulang.CommonRoleDirectedConflicts.check_exact
+#print axioms Yulang.CommonRoleDirectedConflicts.conflict_no_model
+#print axioms Yulang.CommonRoleDirectedConflicts.checked_no_model
+#print axioms Yulang.CommonRoleDirectedConflicts.model_check_false
+#print axioms Yulang.CommonRoleDirectedConflicts.normalize_conflict
+#print axioms Yulang.CommonRoleDirectedConflicts.normalize_check
+#print axioms Yulang.CommonRoleConflictFilteredInference.prune_exact
+#print axioms Yulang.CommonRoleConflictFilteredInference.prune_models
+#print axioms Yulang.CommonRoleConflictFilteredInference.pruned_no_models
+#print axioms Yulang.CommonRoleConflictFilteredInference.infer_models_preserved
+#print axioms Yulang.CommonRoleConflictFilteredInference.infer_models_exact
+#print axioms Yulang.CommonRoleConflictFilteredInference.empty_excludes_stable_model

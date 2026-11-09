@@ -3327,3 +3327,11 @@ a language classification, a satisfiability claim or a role-feedback driver.
 The reciprocal-edge and directed Stable notions are not asserted equivalent.
 General B4, source lowering, state-dependent receiver generation, principality
 and role-feedback convergence remain open.
+
+### Cycle34: model-preserving conflict pruning
+`CommonRoleDirectedConflicts` detects distinct scalar lower/upper bounds at one slot,
+exactly against the independent directed derivation. Every detected conflict rules
+out all ordinary assignments. `CommonRoleConflictFilteredInference` removes only
+certified states and preserves the complete directed-Stable output model family.
+An empty pruned search has no Stable-output models. A passing check does not imply
+satisfiability; this is not a language rejected classifier or general B4.
