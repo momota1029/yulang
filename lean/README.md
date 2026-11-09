@@ -3199,3 +3199,12 @@ request has its equation in every model of the final state. The finite request
 table, fixed receivers and source-node association are explicit inputs, not yet
 derived from all source declarations. General intervals, leastness/order
 independence and full B4 classification remain unproved.
+
+### Cycle20: source-associated adapter and feedback provenance
+
+`CommonRoleSourceAssociatedAdapter` computes the finite table and emit map from
+annotations on the computed source closure, with exact annotation membership and
+final reachable-equation theorems. `CommonRoleFeedbackTrace` proves every
+collected update has an actual reachable source at an earlier legal trace state.
+Annotations and fixed receivers remain supplied. General source lowering,
+interval inference, leastness/order independence and full B4 are not proved.
