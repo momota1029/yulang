@@ -7575,3 +7575,22 @@ run_cmd do
 #print axioms Yulang.CommonRoleSaturatedStructuralInference.empty_excludes_original_model
 #print axioms Yulang.CommonRoleFiniteClosureRegression.alternating_detected
 #print axioms Yulang.CommonRoleFiniteClosureRegression.input_no_model
+
+-- Cycle40: computed structural carrier coverage
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.self_terms
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.descendants
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.expand_supported
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.pool_descendants
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.carrier_iff
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.seed_coverage
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.split_coverage
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.trans_coverage
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.derives_coverage
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.indexed_sound
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.derives_seen
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.normalize_membership
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.derives_cut
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.normalize_idempotent
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.normalize_congr
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.normalize_coverage
+#print axioms Yulang.CommonRoleStructuralCarrierCoverage.normalize_least
