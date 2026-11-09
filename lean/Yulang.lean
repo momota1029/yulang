@@ -1419,3 +1419,5 @@ import Yulang.CommonRoleDynamicIndexSourceSemantics
 import Yulang.CommonRoleDynamicIndexResidualSource
 
 import Yulang.CommonRoleDynamicIndexResidualResume
+
+import Yulang.CommonRoleDynamicIndexResidualBatches
