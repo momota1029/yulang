@@ -3275,3 +3275,15 @@ B4 全体、外側の X13–X16 は未達。全体 build/verify は今回実行�
 
 `CommonRoleGlobalChoices` computes all finite total branch certificates over full ancestor routes. Every sibling uses one table; arbitrary valid tables normalize to enumerated tables without membership loss. Uniqueness is per full route, not across distinct histories with the same source node. `CommonRoleGlobalChoiceEquations.infer_declarative_models_exact` connects the entire family to independent associated resolution (explicit AssocWellFormed). Existence, language candidate selection, feedback stability and general B4 remain unproved. Pending trees need not allow these stronger diagnostic certificates; empty search is not a language rejection rule.
 An unresolved associated request contributes no equation; associated resolution totality is not claimed.
+
+### Cycle27: 自分の出力で再検証する共有候補証拠
+
+`CommonRoleStableGlobalChoices` / `CommonRoleStableGlobalModels` は、固定の外部観測を取らず、全選択annotationから実batchで生成したordinary状態で全候補・全兄弟経路を再検証する。各annotationの実解決成功も検査する。任意のStable表の正準代表を完全探索し、出力状態は正確に一致する。全出力モデル族と独立宣言導出のiff（AssocWellFormedを明示）まで接続。
+
+これは強い診断用の完全証拠。探索が空でも言語拒否としない。sourceとannotation、first-order receiverは入力。存在・一意性・主型性、反復driver停止、source lowering、一般B4は未達。出力でguarded viewを再計算してもモデルが一致するが、構造的な反復固定点ではない。
+
+### Cycle28: 子を保持する診断tree（B4部分）
+
+`CommonRoleDiagnosticTree` は有限source断片の任意の部分候補表と観測状態から、実再帰treeを構成する。内部のPaterson由来sourceWeightで全子を保持し、訪問route iff 独立Path。全解決証拠の自己出力treeでは各nodeに一意な表内候補があり、その関連型注釈は全て解決する。出力モデルとtree上の全関連型等式のiffも接続。`CommonRoleDiagnosticTreeCheck` はordinary絞り込み後に未選択の子を消さない回帰。
+
+これは診断用の候補証拠で、言語の候補選択・最終分類・辞書ではない。exactnessはmembershipであり、順序・重複回数を保持した辞書同値は未証明。既存source carrierは同一三つ組の重複occurrenceを識別しない。source lowering・状態依存receiver・反復driver停止・一般B4は未達。全体検証は行っていない。

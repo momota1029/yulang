@@ -7273,3 +7273,39 @@ run_cmd do
 #print axioms Yulang.CommonRoleGlobalChoiceEquations.view_declarative_exact
 #print axioms Yulang.CommonRoleGlobalChoiceEquations.infer_models_exact
 #print axioms Yulang.CommonRoleGlobalChoiceEquations.infer_declarative_models_exact
+
+-- Cycle27: total associated self-consistent certificates.
+#print axioms Yulang.CommonRoleStableGlobalChoices.canonical_mem
+#print axioms Yulang.CommonRoleStableGlobalChoices.canonical_ext
+#print axioms Yulang.CommonRoleStableGlobalChoices.canonical_idempotent
+#print axioms Yulang.CommonRoleStableGlobalChoices.requests_exact
+#print axioms Yulang.CommonRoleStableGlobalChoices.output_canonical
+#print axioms Yulang.CommonRoleStableGlobalChoices.check_exact
+#print axioms Yulang.CommonRoleStableGlobalChoices.search_exact
+#print axioms Yulang.CommonRoleStableGlobalChoices.complete
+#print axioms Yulang.CommonRoleStableGlobalChoices.search_capacity
+#print axioms Yulang.CommonRoleStableGlobalChoices.resolved
+#print axioms Yulang.CommonRoleStableGlobalChoices.unknown_request_excluded
+#print axioms Yulang.CommonRoleStableGlobalModels.output_models
+#print axioms Yulang.CommonRoleStableGlobalModels.supported_view_models
+#print axioms Yulang.CommonRoleStableGlobalModels.stable_declarative
+#print axioms Yulang.CommonRoleStableGlobalModels.siblings_at_output
+#print axioms Yulang.CommonRoleStableGlobalModels.infer_models_exact
+#print axioms Yulang.CommonRoleStableGlobalModels.infer_declarative_models_exact
+
+-- Cycle28 diagnostic tree.
+#print axioms Yulang.CommonRoleDiagnosticTree.build_route
+#print axioms Yulang.CommonRoleDiagnosticTree.build_candidates
+#print axioms Yulang.CommonRoleDiagnosticTree.children_edge
+#print axioms Yulang.CommonRoleDiagnosticTree.edge_decreases
+#print axioms Yulang.CommonRoleDiagnosticTree.build_represents
+#print axioms Yulang.CommonRoleDiagnosticTree.diagnose_represents
+#print axioms Yulang.CommonRoleDiagnosticTree.visit_edge
+#print axioms Yulang.CommonRoleDiagnosticTree.visit_path
+#print axioms Yulang.CommonRoleDiagnosticTree.diagnose_visit_exact
+#print axioms Yulang.CommonRoleDiagnosticTree.valid_tree_total
+#print axioms Yulang.CommonRoleDiagnosticTree.unresolved_child_retained
+#print axioms Yulang.CommonRoleDiagnosticTree.searched_tree_complete
+#print axioms Yulang.CommonRoleDiagnosticTree.searched_tree_models
+#print axioms Yulang.CommonRoleDiagnosticTreeCheck.missing_child_after_narrowing
+#print axioms Yulang.CommonRoleDiagnosticTreeCheck.partial_not_valid
