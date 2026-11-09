@@ -3423,3 +3423,6 @@ General B4 and arbitrary role declarations remain open.
 ### Cycle 46: constructive consistency for finite string Index inputs
 `CommonRoleDynamicIndexConsistentSource` builds an actual initial State from arbitrary string seed slots and type-equality links. A concrete all-string, empty-effect assignment models both input and saturated output, so actual producer execution no longer requires a caller-supplied final model in this fragment. Checked success with a model is equivalent to request scope. Reachable receivers execute the real checked producer; a shared-source two-edge chain and an unseeded pending example are checked.
 This is not arbitrary initial-state consistency, complete evidence propagation through added equalities, or general B4 exactness. The five general bridges remain open.
+
+### Cycle47: explicit slot equality feedback
+`CommonRoleDynamicIndexEqualitySource` adds bidirectional explicit slot equality edges to the finite str Index source adapter. It proves independent derivation exactness, model-preserving equality transport, concrete all-str consistency, actual producer execution, finite stopping, leastness and membership idempotence. The reversed-equality regression is pending in the previous adapter but checked successfully here. This is not arbitrary source lowering or general B4 completeness.

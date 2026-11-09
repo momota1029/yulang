@@ -211,3 +211,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle39 finite structural closure](2026-11-09-cycle39-structural-closure.md) — Draft, finite-rule exactness rather than unrestricted ordinary completeness.
 
 - [Cycle40 structural carrier coverage](2026-11-09-cycle40-carrier.md): supported-rule completeness and membership fixed point.
+
+- [Cycle47 slot equality feedback](2026-11-09-cycle47-index-equality.md): finite str evidence transport and actual producer execution.
