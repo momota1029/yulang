@@ -3385,3 +3385,16 @@ structural closure preserves atom membership and all models. Given a model of th
 actual generated batch, endpoint/candidate observations and the entire ordered
 diagnostic tree agree. No equality of the two raw normalizers is claimed.
 General B4, source generation, and feedback termination remain open.
+
+### Cycle43: dynamic receiver Index feedback fragment
+`CommonRoleDynamicIndexClosure` computes the least finite source-slot closure of
+str evidence through actual checked Index(box str) associated-value requests.
+Receivers are read only after their evidence is present. The source edge graph
+is an input; it is not generated from the full language. Exactness is against an
+independent seed/Index derivation, with at most n fresh facts. Output models are
+exactly seed models satisfying every reachable declaration equation, not every
+seed model. Actual declaration execution requires explicit ordinary consistency.
+`CommonRoleDynamicIndexExamples` checks a downstream request initially pending
+and enabled by the first real associated output. General B4 remains open.
+
+Cycle43 additionally provides an actual-producer finite execution witness (under complete-output consistency) and unconditional re-saturation membership invariance.

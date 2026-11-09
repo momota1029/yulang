@@ -1398,3 +1398,6 @@ import Yulang.CommonRoleStructuralStateGrammar
 import Yulang.CommonRoleStructuralGlobalChoices
 
 import Yulang.CommonRoleScalarStructuralAbsorption
+
+import Yulang.CommonRoleDynamicIndexClosure
+import Yulang.CommonRoleDynamicIndexExamples

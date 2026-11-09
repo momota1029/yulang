@@ -7636,3 +7636,20 @@ run_cmd do
 #print axioms Yulang.CommonRoleScalarStructuralAbsorption.self_output_models_post
 #print axioms Yulang.CommonRoleScalarStructuralAbsorption.self_tree_pre
 #print axioms Yulang.CommonRoleScalarStructuralAbsorption.self_tree_post
+
+-- Cycle43: finite dynamic checked Index receiver feedback
+#print axioms Yulang.CommonRoleDynamicIndexClosure.saturate_exact
+#print axioms Yulang.CommonRoleDynamicIndexClosure.stopped
+#print axioms Yulang.CommonRoleDynamicIndexClosure.capacity
+#print axioms Yulang.CommonRoleDynamicIndexClosure.least
+#print axioms Yulang.CommonRoleDynamicIndexClosure.record_models
+#print axioms Yulang.CommonRoleDynamicIndexClosure.output_models
+#print axioms Yulang.CommonRoleDynamicIndexClosure.actual_index_step
+#print axioms Yulang.CommonRoleDynamicIndexClosure.actual_step_models_fixed
+#print axioms Yulang.CommonRoleDynamicIndexClosure.saturate_trace
+#print axioms Yulang.CommonRoleDynamicIndexClosure.saturate_executes
+#print axioms Yulang.CommonRoleDynamicIndexClosure.record_evidence_exact
+#print axioms Yulang.CommonRoleDynamicIndexClosure.saturate_output_fixed
+#print axioms Yulang.CommonRoleDynamicIndexExamples.downstream_initially_pending
+#print axioms Yulang.CommonRoleDynamicIndexExamples.final_present
+#print axioms Yulang.CommonRoleDynamicIndexExamples.actual_two_steps
