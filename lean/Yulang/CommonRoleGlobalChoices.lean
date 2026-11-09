@@ -4,7 +4,7 @@ import Yulang.CommonRoleSupportSearch
 /-! Shared finite branch certificates over full ancestor routes. Totality here is
 an explicitly stronger diagnostic certificate, NOT a language rejection rule.
 No existence, unique solution, stable observation or source-lowering theorem is
-claimed. Every sibling uses the same choice table; pending trees need not admit
+claimed. Every sibling uses the same choice table; pending trees need not allow
 such a total certificate. -/
 namespace Yulang.CommonRoleGlobalChoices
 open CommonRoleSettledSyntax CommonRoleOpenProducer CommonRoleMaterializedDomain
