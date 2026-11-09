@@ -7160,3 +7160,16 @@ run_cmd do
 #print axioms Yulang.CommonRoleAssociatedFeedback.final_models
 #print axioms Yulang.CommonRoleAssociatedFeedback.reachable_equation
 #print axioms Yulang.CommonRoleAssociatedFeedback.final_visits_exact
+
+-- Cycle20: computed source adapter and historical update provenance
+#print axioms Yulang.CommonRoleSourceAssociatedAdapter.entries_exact
+#print axioms Yulang.CommonRoleSourceAssociatedAdapter.emitted_sound
+#print axioms Yulang.CommonRoleSourceAssociatedAdapter.emitted_complete
+#print axioms Yulang.CommonRoleSourceAssociatedAdapter.adapter_exact
+#print axioms Yulang.CommonRoleSourceAssociatedAdapter.reachable_equation
+#print axioms Yulang.CommonRoleSourceAssociatedAdapter.bounded
+#print axioms Yulang.CommonRoleSourceAssociatedAdapter.collected_source_origin
+#print axioms Yulang.CommonRoleFeedbackTrace.trace_trans
+#print axioms Yulang.CommonRoleFeedbackTrace.loop_trace
+#print axioms Yulang.CommonRoleFeedbackTrace.trace_origin
+#print axioms Yulang.CommonRoleFeedbackTrace.collected_origin
