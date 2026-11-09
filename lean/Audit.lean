@@ -7477,3 +7477,27 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralFilteredInference.infer_models_preserved
 #print axioms Yulang.CommonRoleStructuralFilteredInference.infer_models_exact
 #print axioms Yulang.CommonRoleStructuralFilteredInference.empty_excludes_stable_model
+
+-- Cycle36 directed structural path certificates
+#print axioms Yulang.CommonRoleStructuralPaths.facts_complete
+#print axioms Yulang.CommonRoleStructuralPaths.facts_length
+#print axioms Yulang.CommonRoleStructuralPaths.edge_exact
+#print axioms Yulang.CommonRoleStructuralPaths.reach_refl
+#print axioms Yulang.CommonRoleStructuralPaths.reach_step
+#print axioms Yulang.CommonRoleStructuralPaths.rules_path
+#print axioms Yulang.CommonRoleStructuralPaths.reach_exact
+#print axioms Yulang.CommonRoleStructuralPaths.reach_capacity
+#print axioms Yulang.CommonRoleStructuralPaths.reach_stopped
+#print axioms Yulang.CommonRoleStructuralPaths.path_subtype
+#print axioms Yulang.CommonRoleStructuralPaths.pairCheck_exact
+#print axioms Yulang.CommonRoleStructuralPaths.check_exact
+#print axioms Yulang.CommonRoleStructuralPaths.certificate_no_model
+#print axioms Yulang.CommonRoleStructuralPaths.checked_no_model
+#print axioms Yulang.CommonRoleStructuralPaths.prune_models
+#print axioms Yulang.CommonRoleStructuralPaths.chain_path
+#print axioms Yulang.CommonRoleStructuralPaths.chain_checked
+#print axioms Yulang.CommonRoleStructuralPaths.chain_old_check_false
+#print axioms Yulang.CommonRoleStructuralPaths.chain_no_model
+#print axioms Yulang.CommonRolePathFilteredInference.infer_models_preserved
+#print axioms Yulang.CommonRolePathFilteredInference.infer_models_exact
+#print axioms Yulang.CommonRolePathFilteredInference.empty_excludes_stable_model

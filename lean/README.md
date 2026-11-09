@@ -3339,3 +3339,9 @@ satisfiability; this is not a language rejected classifier or general B4.
 ## Cycle35: structural outer-head certificates
 
 CommonRoleStructuralConflicts checks real ordinary atoms for direct rigid-head mismatches or mismatches across one shared slot, with arbitrary payloads and rows. Bottom-left and top-right are excluded. The check is exact for an independent finite certificate and preserves every model when used to prune. CommonRoleStructuralFilteredInference composes this after scalar pruning and preserves the independent associated-declaration model characterization. This is not full structural satisfiability or language rejection; same-head payload conflicts and long structural paths remain open.
+
+### Cycle36: structural conflicts across directed paths
+`CommonRoleStructuralPaths` detects incompatible rigid outer heads across finite
+variable paths while preserving arbitrary payloads. `CommonRolePathFilteredInference`
+connects this finite certificate search to the diagnostic model family. Absence
+of a certificate does not establish satisfiability. General B4 remains open.
