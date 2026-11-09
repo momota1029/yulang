@@ -3415,3 +3415,6 @@ or unconditional success is claimed. Re-saturation preserves fact membership
 without that premise. `CommonRoleDynamicIndexSourceExamples` tests duplicate
 source occurrences and two actual downstream calls after alias recording.
 General B4 and arbitrary role declarations remain open.
+
+### Cycle45: checked named-source Index adapter
+`CommonRoleDynamicIndexCheckedSource` checks every request endpoint before returning the existing finite-str adapter output. Its error list reports all malformed requests, retaining order and duplicates. Success has exact scope/output and model contracts; actual producer execution still requires a final output model. This is not language rejection or parser correctness. General B4 remains open.

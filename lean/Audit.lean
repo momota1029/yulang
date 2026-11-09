@@ -7674,3 +7674,20 @@ run_cmd do
 #print axioms Yulang.CommonRoleDynamicIndexSourceExamples.alias_and_downstream_present
 #print axioms Yulang.CommonRoleDynamicIndexSourceExamples.downstream_initially_pending
 #print axioms Yulang.CommonRoleDynamicIndexSourceExamples.actual_named_steps
+
+-- Cycle45: checked named-source Index entrance
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.present_exact
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.covered_exact
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.missing_exact
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.missing_nil_iff
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.run_ok_iff
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.run_error_iff
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.error_nonempty
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.success_coverage
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.success_models
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.success_executes
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.error_members
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.scope_membership_invariant
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.scope_example_valid
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.scope_example_missing
+#print axioms Yulang.CommonRoleDynamicIndexCheckedSource.malformed_run
