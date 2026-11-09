@@ -79,3 +79,6 @@ spec/04-types.md scalar/never節も確認。上界だけが異なる場合を矛
 work/dots-mainのみ、GitHubアプリの個別blobとSHA treeによる一括・非force expected-head公開。
 新規Lean2、root/Audit/README追記、設計ノート/索引、報告/心拍の9ファイル。
 中断・承認待ちなし。使用量枠は不明。短時間で終了する理由は明示部分目標の証明・検証が閉じ、別の橋は次回に分けるため。
+
+## 公開照合・終了
+2026-11-09T10:35:39Z: work/dots-main@c90336665 をfetchし、ローカル全treeとのdiff空・cleanを確認。9ファイル公開。空き終了57GB。実着手から約7分半、通知から約8分半。コード変更なしで終了記録とcompleted心拍を追加公開する。開始心拍updatedを10:30:00と手入力したが実際は約10:29で最大約1分先だった。以後はdateの実時刻だけを使用し、この終了記録で訂正。
