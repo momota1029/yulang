@@ -105,3 +105,10 @@ Build completed successfully (302 jobs).
 個別blob生成後、小さいSHA tree→commit→非force/expected-head付きref一括更新。
 開始心拍updatedに実時計より約1分先の見積りを書いたため、完了時刻を実時計で訂正する。
 公開後のtree照合と最終時間は親への報告で確定する。
+
+### 公開照合結果
+
+04:37:17 UTC、公開commit `5f695306d` のremote/local tree差分空・cleanを確認。
+ここまで8分18秒、開始・終了空き19GB。9ファイル公開済み。
+この照合記録と完了心拍時刻を追記して再公開する。10分未満のため中間心拍は不要。
+公開API停止・承認待ちなし。使用量枠は不明。
