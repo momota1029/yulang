@@ -1343,3 +1343,9 @@ import Yulang.CommonRoleDiagnosticTreeCheck
 import Yulang.CommonRoleDiagnosticCanonical
 import Yulang.CommonRoleDiagnosticCanonicalBoundary
 import Yulang.CommonRoleDiagnosticEvidenceTransfer
+
+import Yulang.CommonRoleEvidenceSaturation
+
+import Yulang.CommonRoleEvidenceNormalization
+
+import Yulang.CommonRoleEvidenceSaturationExamples

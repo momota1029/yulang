@@ -3291,3 +3291,12 @@ An unresolved associated request contributes no equation; associated resolution 
 ## Cycle29: ordered diagnostic representation and evidence transfer
 
 DiagnosticCanonical proves full ordered-tree equality under active evidence equivalence, including canonical searched representatives. Atom membership equivalence requires a named consistency witness. Registry and source enumeration remain fixed; this is not declaration-order or semantic dictionary equivalence. DiagnosticCanonicalBoundary shows equal nonempty model sets need not yield equal direct materialization. DiagnosticEvidenceTransfer checks actual reciprocal variable edges and a direct scalar pair, adds the implied pair with exact model preservation, and repairs that concrete example. It is one checked transfer, not saturation or general B4.
+
+### Cycle30: checked scalar evidence saturation (partial B4 support)
+`CommonRoleEvidenceSaturation` computes exactly the independent seed/reciprocal-variable
+transfer judgement on 4*n facts, with internal capacity and no fresh enabled fact at
+completion. `CommonRoleEvidenceNormalization` preserves every ordinary assignment,
+records exactly those scalar facts, and has membership-idempotent resaturation.
+`CommonRoleEvidenceSaturationExamples` checks a real three-slot chain with cycles.
+Only explicit paired variable edges and scalar pairs are covered. This is not arbitrary
+semantic entailment, role selection, source lowering, or the general feedback driver.

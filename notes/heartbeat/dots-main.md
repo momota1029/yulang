@@ -1,8 +1,9 @@
 cycle: 30
 status: running
 started: 2026-11-09T06:28:28Z
-updated: 2026-11-09T06:29:30Z
-elapsed_min: 1
-activity: Finite reciprocal-variable evidence closure with model preservation and termination
+updated: 2026-11-09T06:35:20Z
+elapsed_min: 7
+activity: Scalar evidence saturation verified, 311 jobs and 25 checks PASS; publishing
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-cycle6
-resume_hint: Complete finite equality evidence saturation; inspect local commits and cycle30 logs.
+last_local_commit: pending
+resume_hint: Publish cycle30 files and compare remote tree. Local report and /tmp/cycle30-build.log exist.
