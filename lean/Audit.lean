@@ -7861,3 +7861,22 @@ run_cmd do
 #print axioms Yulang.CommonRoleCanonicalSourceGraph.variable_capture_identity
 #print axioms Yulang.CommonRoleCanonicalSourceGraph.capture_type_sound
 #print axioms Yulang.CommonRoleCanonicalSourceGraph.shared_receiver_resume_regression
+
+-- Cycle57: append-only canonical roots and incremental allocation
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.allocated_source
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.representative_append
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.representative_retained
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.canonical_retained
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.allocated_alias_root
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.allocated_fresh_root
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.newRoot_exact
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.newRoot_identity_exact
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.newRoot_old_exact
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.route_retained
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.variable_capture_retained
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.shared_capture_retained
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.canonical_value_retained
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.allocated_alias_value
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.coherent_canonical_extension
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.solver_and_roots_exact
+#print axioms Yulang.CommonRoleCanonicalSourceGrowth.append_alias_regression

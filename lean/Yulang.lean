@@ -1429,3 +1429,5 @@ import Yulang.CommonRoleScalarSourceEndpoint
 import Yulang.CommonRoleScalarSourceInspection
 
 import Yulang.CommonRoleCanonicalSourceGraph
+
+import Yulang.CommonRoleCanonicalSourceGrowth

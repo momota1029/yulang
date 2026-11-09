@@ -3565,3 +3565,15 @@ General recursive source graphs, dynamic allocation, declaration-derived request
 applicability, dictionaries and four-way classification remain unproved. All five
 general B4 bridges remain open. The new module is imported and all 17 theorems are
 registered in Audit. Full build, full Audit and broad axiom gate are supervisor work.
+
+### Cycle57: canonical roots under source allocation
+
+`CommonRoleCanonicalSourceGrowth` proves that appending arbitrary finite source
+occurrences preserves every old canonical root as the same numeric slot. Its
+executable incremental `newRoot` exactly matches rebuilding the full canonical
+map: aliases of old names use old roots, and fresh names use their first appended
+occurrence. Variable/shared captures, routed capture/cycle references, and the
+full computation values at old roots are preserved. Coherent source models extend
+and the existing ordinary solver's acceptance of old constraints is unchanged.
+This is an allocation-only bridge. No new child constraints or requests are
+generated, recursive graphs are not reconstructed, and general B4 remains open.

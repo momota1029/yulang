@@ -229,3 +229,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle54 scalar-preserving endpoints](2026-11-09-cycle54-scalar-endpoints.md) — Draft; ordinary scalar identity, finite observations, and original source meaning connected to the existing graph inspector.
 
 - [Cycle56: canonical source-alias graph references](2026-11-09-cycle56-source-alias-graph.md) — Draft. Exact finite source identity, unknown alias captures, and original-source scalar inspection; general B4 remains open.
+
+- [Cycle57: canonical source allocation](2026-11-09-cycle57-canonical-source-growth.md) — Draft. Incremental root allocation equals rebuilding; old roots/captures and source models are retained.
