@@ -3273,5 +3273,11 @@ B4 全体、外側の X13–X16 は未達。全体 build/verify は今回実行�
 
 ### Cycle26: jointly correlated finite branch certificates (partial B4)
 
-`CommonRoleGlobalChoices` computes all finite total branch certificates over full ancestor routes. Every sibling uses one table; arbitrary valid tables normalize to enumerated tables without membership loss. Uniqueness is per full route, not across distinct histories with the same source node. `CommonRoleGlobalChoiceEquations.infer_declarative_models_exact` connects the entire family to independent associated resolution (explicit AssocWellFormed). Existence, language candidate selection, feedback stability and general B4 remain unproved. Pending trees need not admit these stronger diagnostic certificates; empty search is not a language rejection rule.
+`CommonRoleGlobalChoices` computes all finite total branch certificates over full ancestor routes. Every sibling uses one table; arbitrary valid tables normalize to enumerated tables without membership loss. Uniqueness is per full route, not across distinct histories with the same source node. `CommonRoleGlobalChoiceEquations.infer_declarative_models_exact` connects the entire family to independent associated resolution (explicit AssocWellFormed). Existence, language candidate selection, feedback stability and general B4 remain unproved. Pending trees need not allow these stronger diagnostic certificates; empty search is not a language rejection rule.
 An unresolved associated request contributes no equation; associated resolution totality is not claimed.
+
+### Cycle27: 自分の出力で再検証する共有候補証拠
+
+`CommonRoleStableGlobalChoices` / `CommonRoleStableGlobalModels` は、固定の外部観測を取らず、全選択annotationから実batchで生成したordinary状態で全候補・全兄弟経路を再検証する。各annotationの実解決成功も検査する。任意のStable表の正準代表を完全探索し、出力状態は正確に一致する。全出力モデル族と独立宣言導出のiff（AssocWellFormedを明示）まで接続。
+
+これは強い診断用の完全証拠。探索が空でも言語拒否としない。sourceとannotation、first-order receiverは入力。存在・一意性・主型性、反復driver停止、source lowering、一般B4は未達。出力でguarded viewを再計算してもモデルが一致するが、構造的な反復固定点ではない。

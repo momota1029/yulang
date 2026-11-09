@@ -1331,3 +1331,7 @@ import Yulang.CommonRoleCorrelatedEquations
 import Yulang.CommonRoleGlobalChoices
 
 import Yulang.CommonRoleGlobalChoiceEquations
+
+-- Cycle27: revalidate global certificates at their own output.
+import Yulang.CommonRoleStableGlobalChoices
+import Yulang.CommonRoleStableGlobalModels
