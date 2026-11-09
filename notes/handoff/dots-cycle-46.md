@@ -79,3 +79,10 @@ B4全体の残りは引き続き5橋: source_boundary_adequate, generated_work_c
 中断・クラッシュなし。開始空き48GB、ビルドキャッシュ再利用、別clone/キャッシュコピーなし。使用量の枠と消費量は取得できず不明。
 
 検証終了・公開準備 UTC 2026-11-09T17:34:28Z、ここまで6.78分。終了空き48GB。公開後の照合結果と最終所要時間は会話報告に記す。
+
+
+### 公開後の照合記録
+成果公開commit 06d624b49d789b53057bc4400365a07ce7bf805b、7ファイル。expected head ec833fdc8 に対する非force更新成功。
+fetch後の全tree比較exit0、integration先頭が祖先である検査exit0、completed心拍をGitHubアプリで読戻した。ローカル作業木clean。
+検証済みtree d07f14e1a4a7a934611f3a2968119f7b9f28a031。
+照合終了 UTC 2026-11-09T17:37:03Z、開始から9.37分。この段落と最終心拍時刻のみを追加公開する。
