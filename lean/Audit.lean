@@ -7196,3 +7196,22 @@ run_cmd do
 #print axioms Yulang.CommonRoleFirstHitSupportBoundary.frontier_not_selected
 #print axioms Yulang.CommonRoleFirstHitSupportBoundary.not_universal_child_monotone
 #print axioms Yulang.CommonRoleFirstHitSupportBoundary.reachable_disappears
+
+-- Cycle23: finite canonical self-supported feedback search, not full resolution.
+#print axioms Yulang.CommonRoleSupportSearch.filter_mem_subsets
+#print axioms Yulang.CommonRoleSupportSearch.subsets_length
+#print axioms Yulang.CommonRoleSupportSearch.subset_of_mem_subsets
+#print axioms Yulang.CommonRoleSupportSearch.check_exact
+#print axioms Yulang.CommonRoleSupportSearch.search_exact
+#print axioms Yulang.CommonRoleSupportSearch.canonical_complete
+#print axioms Yulang.CommonRoleSupportSearch.search_capacity
+#print axioms Yulang.CommonRoleSupportSearch.empty_exact
+#print axioms Yulang.CommonRoleSupportSearch.models_exact
+#print axioms Yulang.CommonRoleSupportSearch.source_models_exact
+#print axioms Yulang.CommonRoleSupportSearch.source_declarative_models_exact
+#print axioms Yulang.CommonRoleSupportSearchBoundary.actual_associated_value
+#print axioms Yulang.CommonRoleSupportSearchBoundary.decode_empty
+#print axioms Yulang.CommonRoleSupportSearchBoundary.decode_singleton
+#print axioms Yulang.CommonRoleSupportSearchBoundary.no_emission_after
+#print axioms Yulang.CommonRoleSupportSearchBoundary.no_supported_candidate
+#print axioms Yulang.CommonRoleSupportSearchBoundary.associated_not_monotone

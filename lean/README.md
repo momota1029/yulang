@@ -3220,3 +3220,23 @@ the persistent collector. This is not a convergent replacement driver.
 `CommonRoleFirstHitSupportBoundary` proves an earlier literal can displace a capture
 child after ordinary narrowing while the frontier was never selected. General B4
 and associated-decoder monotonicity remain open; see cycle22 report.
+
+### Cycle23: self-supported finite feedback diagnostics
+
+`CommonRoleSupportSearch` exhaustively enumerates canonical finite token sets and
+retains exactly those equal to their recomputed actual-source emissions. No monotonicity
+or externally supplied final-support certificate is needed. For every returned candidate,
+`source_models_exact` identifies its models with the seed plus all finally reachable
+annotation equations. This is a diagnostic finite fixed-receiver algorithm, not B4:
+existence/uniqueness, consistency, source lowering, candidate-frontier correctness and
+language classification remain open. Enumeration is exponential (at most 2^k outputs).
+An empty result is not a specification-sanctioned rejection. Arbitrary token-order
+invariance of the decoder is not proved; canonical finRange order is explicit.
+
+`CommonRoleSupportSearchBoundary` strengthens the cycle22 boundary: even a real
+checked fixed-receiver associated declaration can erase its first-hit source support.
+The one-token diagnostic search has no fixedpoint, and associated-only decoding is
+not universally emission-monotone. The association is a supplied child-to-token map;
+source parser lowering is not modeled. This is not a language counterexample:
+the first-hit frontier is pending before narrowing and ambiguous after narrowing.
+The exhaustive search is useful for detecting this boundary, not for resolving it.
