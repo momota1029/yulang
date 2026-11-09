@@ -84,3 +84,6 @@ AUDIT_EXIT=0
 work/dots-mainのみ。新規Lean2、root/Audit/README追記、設計ノート/索引、報告/心拍の9ファイル。
 個別blob作成後にSHA treeを一括で非force expected-head公開し、remote treeを取得して照合する。
 中断・承認待ちなし、使用量枠不明。部分目標と検証が閉じたため早期に区切り、次の橋は次回に分ける。
+
+## 公開照合・終了
+2026-11-09T11:05:03Z: work/dots-main@a335982db を再取得し、ローカル全treeとのdiff空、cleanを確認。9ファイル公開。空き終了49GB。コードを変えず終了記録とcompleted心拍を追加公開する。実着手から約9分、通知から約8分。
