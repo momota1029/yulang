@@ -64,3 +64,6 @@ B4主定理の残り5橋は変わらない: source_boundary_adequate / generated
 初回proofのsimp/tactic参照エラーを修正し再build/audit済み。開始心拍updatedを未来時刻で手入力した誤りを直ちに実時計から訂正。以降は時計取得。環境中断なし。利用枠は不明。成果・報告・心拍を7ファイルとして個別blob→SHA tree→非force expected-head更新で一括公開し、取得した全treeをローカルと照合する。検証後の新規コード変更なし。
 
 報告準備時刻: 2026-11-09T17:02:06Z。
+
+## 公開照合
+2026-11-09T17:05:44Z、成果commit a96f61b6ae3e903055833017418c15861d4081b5 をfetchし、git diff --exit-code HEAD FETCH_HEADは差分空・exit0、working tree clean。7ファイルの全tree一致とcompleted心拍を読戻し確認。開始から約8分。途中公開失敗なし。
