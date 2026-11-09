@@ -7255,3 +7255,21 @@ run_cmd do
 #print axioms Yulang.CommonRoleCorrelatedEquations.disabled_history_excluded
 #print axioms Yulang.CommonRoleCorrelatedEquations.view_exact
 #print axioms Yulang.CommonRoleCorrelatedEquations.view_declarative_exact
+
+-- Cycle26: finite global branch certificates, not language selection
+#print axioms Yulang.CommonRoleGlobalChoices.universe_exact
+#print axioms Yulang.CommonRoleGlobalChoices.mask_exact
+#print axioms Yulang.CommonRoleGlobalChoices.check_exact
+#print axioms Yulang.CommonRoleGlobalChoices.search_exact
+#print axioms Yulang.CommonRoleGlobalChoices.siblings_closed
+#print axioms Yulang.CommonRoleGlobalChoices.choice_unique
+#print axioms Yulang.CommonRoleGlobalChoices.searched_entry_retained
+#print axioms Yulang.CommonRoleGlobalChoices.canonical_complete
+#print axioms Yulang.CommonRoleGlobalChoices.search_capacity
+#print axioms Yulang.CommonRoleGlobalChoices.mask_ext
+#print axioms Yulang.CommonRoleGlobalChoices.valid_ext
+#print axioms Yulang.CommonRoleGlobalChoices.complete
+#print axioms Yulang.CommonRoleGlobalChoiceEquations.view_exact
+#print axioms Yulang.CommonRoleGlobalChoiceEquations.view_declarative_exact
+#print axioms Yulang.CommonRoleGlobalChoiceEquations.infer_models_exact
+#print axioms Yulang.CommonRoleGlobalChoiceEquations.infer_declarative_models_exact

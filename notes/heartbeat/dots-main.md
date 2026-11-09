@@ -1,9 +1,10 @@
 cycle: 26
-status: running
+status: completed
 started: 2026-11-09T04:28:59Z
-updated: 2026-11-09T04:31:00Z
-elapsed_min: 2
-activity: Finite global candidate choices with correlated ancestor and sibling path exactness
+updated: 2026-11-09T04:34:46Z
+elapsed_min: 5.79
+activity: Global correlated certificate model-family iff complete; focused302/16 axioms PASS
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-cycle6
-last_local_commit: 1eb6e38c0
-resume_hint: Check new global-choice modules and /tmp/cycle26 logs; focused checks only. No cycle cap.
+last_local_commit: ee12d7cfa
+report: notes/handoff/dots-cycle-26.md
+resume_hint: Next: stable observation/feedback and source annotation generation; no cycle cap, B4 open.

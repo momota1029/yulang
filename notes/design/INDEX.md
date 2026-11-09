@@ -184,3 +184,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle15 source-template closure](2026-11-08-cycle15-source-template-closure.md): Draft; computed source domain and all-state rematerialization, not saturation.
 
 - [Cycle25: ancestor-correlated candidate paths](2026-11-09-cycle25-correlated-path-carrier.md) (Draft; metadata exactness, not B4).
+
+- [Cycle26 global choices](2026-11-09-cycle26-global-choices.md) — Draft; finite correlated diagnostic certificates and model-family iff.

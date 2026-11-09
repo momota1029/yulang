@@ -3270,3 +3270,8 @@ mask/observation/固定 receiver annotation は入力であり、生成・選択
 同じ parent/candidate/child の重複 occurrence index は区別しない。
 深さ上限は実用的なサイズ/計算量保証ではない。source lowering、feedback固定点、
 B4 全体、外側の X13–X16 は未達。全体 build/verify は今回実行していない。
+
+### Cycle26: jointly correlated finite branch certificates (partial B4)
+
+`CommonRoleGlobalChoices` computes all finite total branch certificates over full ancestor routes. Every sibling uses one table; arbitrary valid tables normalize to enumerated tables without membership loss. Uniqueness is per full route, not across distinct histories with the same source node. `CommonRoleGlobalChoiceEquations.infer_declarative_models_exact` connects the entire family to independent associated resolution (explicit AssocWellFormed). Existence, language candidate selection, feedback stability and general B4 remain unproved. Pending trees need not admit these stronger diagnostic certificates; empty search is not a language rejection rule.
+An unresolved associated request contributes no equation; associated resolution totality is not claimed.
