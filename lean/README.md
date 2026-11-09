@@ -3577,3 +3577,12 @@ full computation values at old roots are preserved. Coherent source models exten
 and the existing ordinary solver's acceptance of old constraints is unchanged.
 This is an allocation-only bridge. No new child constraints or requests are
 generated, recursive graphs are not reconstructed, and general B4 remains open.
+
+Cycle58: `CommonRoleAllocatedGraph` reconstructs every structural and nominal edge
+when source storage grows. For all finite old graphs and arbitrary new raw nodes,
+old paths, direct cycles, finite observations and old-node bisimulation are exact.
+With fresh storage initialized unresolved, the actual `regularAt`, head inspectors
+and complete snapshots commute with allocation, including ordered captures and
+canonical old roots. New aliases reuse old observations; fresh names start unknown.
+Later updates to existing nodes and declaration-driven generated work remain open.
+This closes an allocation subgoal, not the general B4 theorem or its five bridges.
