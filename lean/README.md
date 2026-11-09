@@ -3211,3 +3211,43 @@ interval inference, leastness/order independence and full B4 are not proved.
 
 ## Cycle 21: conditional feedback confluence
 `CommonRoleFeedbackConfluence` proves least closure and agreement of every closed legal trace under explicitly named `EmissionMonotone`. `CommonRoleAssociatedConfluence` transports equal token membership to exact real associated-equation model-set equality. The actual source adapter has NOT been proved monotone; this is not general B4, unconditional resolve_exact, or X13–16 completion.
+
+## Cycle 22: final source support
+
+`CommonRoleFeedbackSupport` computes a final-reachable equation view and proves its
+model exactness. An executable unsupported-token check certifies agreement with
+the persistent collector. This is not a convergent replacement driver.
+`CommonRoleFirstHitSupportBoundary` proves an earlier literal can displace a capture
+child after ordinary narrowing while the frontier was never selected. General B4
+and associated-decoder monotonicity remain open; see cycle22 report.
+
+### Cycle23: self-supported finite feedback diagnostics
+
+`CommonRoleSupportSearch` exhaustively enumerates canonical finite token sets and
+retains exactly those equal to their recomputed actual-source emissions. No monotonicity
+or externally supplied final-support certificate is needed. For every returned candidate,
+`source_models_exact` identifies its models with the seed plus all finally reachable
+annotation equations. This is a diagnostic finite fixed-receiver algorithm, not B4:
+existence/uniqueness, consistency, source lowering, candidate-frontier correctness and
+language classification remain open. Enumeration is exponential (at most 2^k outputs).
+An empty result is not a specification-sanctioned rejection. Arbitrary token-order
+invariance of the decoder is not proved; canonical finRange order is explicit.
+
+`CommonRoleSupportSearchBoundary` strengthens the cycle22 boundary: even a real
+checked fixed-receiver associated declaration can erase its first-hit source support.
+The one-token diagnostic search has no fixedpoint, and associated-only decoding is
+not universally emission-monotone. The association is a supplied child-to-token map;
+source parser lowering is not modeled. This is not a language counterexample:
+the first-hit frontier is pending before narrowing and ambiguous after narrowing.
+The exhaustive search is useful for detecting this boundary, not for resolving it.
+
+### Cycle24: candidate-preserving guarded carrier (partial B4 work)
+
+`CommonRoleGuardedCandidates` computes finite all-enabled-candidate source closure.
+`CommonRoleGuardedEquations` retains source/candidate/request metadata independently
+of observation and branch mask; its active equation view is exact against independent
+source paths and checked associated declarations. `CommonRoleGuardedCandidatesBoundary`
+shows the cycle23 later-capture child survives actual associated narrowing.
+Explicit mask and observation are inputs, not a language choice or stable solution.
+Int-only capture-bearing templates, fixed receivers, supplied annotations remain.
+No feedback convergence, general B4, existence, uniqueness, or X13–X16 completion.

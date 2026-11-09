@@ -1309,3 +1309,16 @@ import Yulang.CommonRoleFeedbackTrace
 
 import Yulang.CommonRoleFeedbackConfluence
 import Yulang.CommonRoleAssociatedConfluence
+
+import Yulang.CommonRoleFeedbackSupport
+import Yulang.CommonRoleFirstHitSupportBoundary
+
+import Yulang.CommonRoleSupportSearch
+
+import Yulang.CommonRoleSupportSearchBoundary
+
+import Yulang.CommonRoleGuardedCandidates
+
+import Yulang.CommonRoleGuardedEquations
+
+import Yulang.CommonRoleGuardedCandidatesBoundary
