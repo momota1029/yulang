@@ -1327,3 +1327,7 @@ import Yulang.CommonRoleGuardedCandidatesBoundary
 import Yulang.CommonRoleCorrelatedPaths
 import Yulang.CommonRoleCorrelatedCarrier
 import Yulang.CommonRoleCorrelatedEquations
+
+import Yulang.CommonRoleGlobalChoices
+
+import Yulang.CommonRoleGlobalChoiceEquations
