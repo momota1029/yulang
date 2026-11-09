@@ -3468,3 +3468,112 @@ child allocation, arbitrary ordinary-state refinement, or Paterson/K2 terminatio
 No parser/lowering, four-way language classification, dictionary equivalence, or
 principalness result is added. The five general B4 bridges remain open. Existing
 Lean definitions and theorems are unchanged; the module is imported and audited.
+
+## Cycle52: exact original-source residual frontier
+
+`CommonRoleDynamicIndexResidualFrontier` closes the pending-obligation gap in
+cycle51. For every fixed finite source table, initial problem, finite update list
+and represented slot pair, `solve_residual_exact` identifies pending membership
+with original accumulated request membership and lack of independent source
+forcing. `solve_pending_countermodels` gives two source models disagreeing on
+the receiver; `solve_residual_checked` connects this to actual checked failure.
+`run_covers_original_requests` prevents a successful checked entrance from losing
+an original request: it remains pending or its real checker succeeds.
+
+`solve_pending_rebuild` proves equality of the entire serialized pending list
+with a full rebuild from the original accumulated input. `update_order_pending_list`
+then proves exact residual-list equality for reordered batches, preserving the
+canonical slot-pair order. Duplicate source names retain distinct slot pairs;
+duplicate request list entries do not create extra pending pairs. An alias/cycle
+regression leaves precisely the unseeded cycle pending, then closes it after a
+late seed. Existing executable definitions and earlier theorems are unchanged.
+
+This remains the fixed-carrier positive str/equality fragment. The ordinary atom
+lists and dictionaries are not equated, and no runtime speedup is claimed. There
+is no general source lowering, generated-child allocation, arbitrary state
+refinement, final four-way classification, or principal typing theorem. All five
+general B4 bridges remain open. The new module is imported and all 14 theorems
+are registered in Audit; whole-tree verification remains with the supervisor.
+
+## Cycle53: original occurrence diagnostics
+
+`CommonRoleDynamicIndexOccurrenceDiagnostics.diagnose_represents` connects the
+actual incremental result to an independent nested source relation for every
+finite table, initial problem and update list. The relation preserves batch and
+request order/multiplicity, and every represented leaf is waiting exactly when
+the original source models do not force its receiver to str. Missing names remain
+visible in a request node with an empty endpoint list. No scope-success or model
+premise is supplied. `original_order` proves literal recovery of the nested source
+request lists, including repeated requests that canonical residuals coalesce.
+`inspect_checked`, `inspect_rebuild`, and `update_order_inspect` connect these
+observations to actual checked failure, full rebuilds, and reordered updates.
+
+This is a diagnostic adapter for the existing fixed finite str/equality fragment,
+not the general recursive role tree or language-visible selected/rejected result.
+`legacy_endpoint_erases_string` proves a specific remaining boundary: the old
+int-only diagnostic endpoint decoder loses known str observations. No scalar is
+relabeled to hide that mismatch. All five general B4 bridges remain open.
+The new module is imported and all 11 theorems are registered in Audit.
+
+## Cycle54: scalar readout reaches the existing graph inspector
+
+`CommonRoleScalarSourceEndpoint` preserves int/bool/str/unit as distinct ordinary
+observations, rather than losing str at the old int-only boundary. All nested
+endpoints satisfy an independent model relation. Paired-evidence exactness,
+atom-order independence and known-scalar persistence explicitly require an
+ordinary model; arbitrary semantic entailment is not claimed.
+
+`CommonRoleScalarSourceInspection` constructs the flat scalar graph at original
+occurrence indices and connects it to the existing `inspect` and `inspectSnapshot`.
+For all finite positive-string source batches, `solve_inspect_string_exact`
+identifies actual string-head matching with forcing by every original source
+model. `solve_snapshot_unknown_exact` characterizes unknown snapshots by two
+original source models with inequivalent receiver types. No supplied consistency
+or scope-success premise is needed for these constructed-source theorems.
+`original_diagnostic_snapshot` connects the cycle53 waiting leaf to that existing
+snapshot without dropping original names or endpoint identities.
+
+These modules close a scalar-readout sub-boundary, not general B4. Unknown aliases
+are not canonicalized, recursive source graphs and general declaration generation
+remain open, and the existing int-only recursive role resolver is unchanged.
+bool/unit observation support does not extend the int/str first-order producer.
+All five general B4 bridges remain open. Both modules are imported and all 22
+named theorems are registered in Audit.
+
+## Cycle56: unknown aliases share actual graph roots
+
+`CommonRoleCanonicalSourceGraph` produces a graph together with executable
+first-occurrence root references. Two occurrences have the same root exactly when
+their source names agree, including before either is known. Distinct source names
+are not merged merely because both are unknown or have equal types. Storage is
+still occurrence-sized; this is canonical root routing, not physical compaction.
+
+For every finite positive-string/equality source table and supplied finite update
+list, `inspect_routing_exact` preserves every existing pattern's observation after
+routing its captured references. `inspect_string_exact` and `snapshot_unknown_exact`
+connect the canonical inspector to independent original source models.
+`checked_inspection_exact` and `diagnostic_snapshot_exact` preserve the actual
+Index success condition and original occurrence diagnostic leaves. Variable
+captures share exactly the declared source identity, and their types remain
+equivalent to original occurrence types in every original source model. A concrete
+regression checks unknown alias capture and a later seed at the second occurrence
+waking both the original receiver and its named target.
+
+The fixed table, flat graph, positive-string source construction and finite supplied
+updates remain explicit proof-fragment restrictions, not language rejection rules.
+General recursive source graphs, dynamic allocation, declaration-derived requests,
+applicability, dictionaries and four-way classification remain unproved. All five
+general B4 bridges remain open. The new module is imported and all 17 theorems are
+registered in Audit. Full build, full Audit and broad axiom gate are supervisor work.
+
+### Cycle57: canonical roots under source allocation
+
+`CommonRoleCanonicalSourceGrowth` proves that appending arbitrary finite source
+occurrences preserves every old canonical root as the same numeric slot. Its
+executable incremental `newRoot` exactly matches rebuilding the full canonical
+map: aliases of old names use old roots, and fresh names use their first appended
+occurrence. Variable/shared captures, routed capture/cycle references, and the
+full computation values at old roots are preserved. Coherent source models extend
+and the existing ordinary solver's acceptance of old constraints is unchanged.
+This is an allocation-only bridge. No new child constraints or requests are
+generated, recursive graphs are not reconstructed, and general B4 remains open.

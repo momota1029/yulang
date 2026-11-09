@@ -1421,3 +1421,13 @@ import Yulang.CommonRoleDynamicIndexResidualSource
 import Yulang.CommonRoleDynamicIndexResidualResume
 
 import Yulang.CommonRoleDynamicIndexResidualBatches
+
+import Yulang.CommonRoleDynamicIndexResidualFrontier
+
+import Yulang.CommonRoleDynamicIndexOccurrenceDiagnostics
+import Yulang.CommonRoleScalarSourceEndpoint
+import Yulang.CommonRoleScalarSourceInspection
+
+import Yulang.CommonRoleCanonicalSourceGraph
+
+import Yulang.CommonRoleCanonicalSourceGrowth
