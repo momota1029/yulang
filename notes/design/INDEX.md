@@ -206,3 +206,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle35 structural head certificates](2026-11-09-cycle35-structural-conflict.md) — Draft; executable finite certificates and model-preserving pruning.
 
 - [Cycle36 structural directed-path certificates](2026-11-09-cycle36-structural-paths.md)
+- [Cycle37 recursive structural refutation](2026-11-09-cycle37-recursive-structural.md) — Draft, same-head recursive certificates and model-preserving filtering.

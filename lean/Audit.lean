@@ -7501,3 +7501,30 @@ run_cmd do
 #print axioms Yulang.CommonRolePathFilteredInference.infer_models_preserved
 #print axioms Yulang.CommonRolePathFilteredInference.infer_models_exact
 #print axioms Yulang.CommonRolePathFilteredInference.empty_excludes_stable_model
+
+-- Cycle37: recursive structural refutation
+#print axioms Yulang.CommonRoleRecursiveConflicts.refutes_no_subtype
+#print axioms Yulang.CommonRoleRecursiveConflicts.fuel_sound
+#print axioms Yulang.CommonRoleRecursiveConflicts.weight_positive
+#print axioms Yulang.CommonRoleRecursiveConflicts.fuel_complete
+#print axioms Yulang.CommonRoleRecursiveConflicts.check_exact
+#print axioms Yulang.CommonRoleRecursiveConflicts.checked_no_subtype
+#print axioms Yulang.CommonRoleRecursiveConflicts.nested_pair_checked
+#print axioms Yulang.CommonRoleRecursiveConflicts.nested_pair_old_mismatch_false
+#print axioms Yulang.CommonRoleRecursiveConflicts.arrow_contravariant_checked
+#print axioms Yulang.CommonRoleRecursivePaths.recursive_exact
+#print axioms Yulang.CommonRoleRecursivePaths.pairCheck_exact
+#print axioms Yulang.CommonRoleRecursivePaths.check_exact
+#print axioms Yulang.CommonRoleRecursivePaths.certificate_no_model
+#print axioms Yulang.CommonRoleRecursivePaths.checked_no_model
+#print axioms Yulang.CommonRoleRecursivePaths.direct_exact
+#print axioms Yulang.CommonRoleRecursivePaths.check_all_exact
+#print axioms Yulang.CommonRoleRecursivePaths.checked_no_model_all
+#print axioms Yulang.CommonRoleRecursivePaths.prune_models
+#print axioms Yulang.CommonRoleRecursivePaths.nested_refutes
+#print axioms Yulang.CommonRoleRecursivePaths.nested_chain_checked
+#print axioms Yulang.CommonRoleRecursivePaths.nested_outer_mismatch_false
+#print axioms Yulang.CommonRoleRecursivePaths.nested_chain_no_model
+#print axioms Yulang.CommonRoleRecursiveFilteredInference.infer_models_preserved
+#print axioms Yulang.CommonRoleRecursiveFilteredInference.infer_models_exact
+#print axioms Yulang.CommonRoleRecursiveFilteredInference.empty_excludes_stable_model

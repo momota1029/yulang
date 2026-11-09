@@ -3345,3 +3345,13 @@ CommonRoleStructuralConflicts checks real ordinary atoms for direct rigid-head m
 variable paths while preserving arbitrary payloads. `CommonRolePathFilteredInference`
 connects this finite certificate search to the diagnostic model family. Absence
 of a certificate does not establish satisfiability. General B4 remains open.
+
+### Cycle37: recursive structural conflict certificates
+`CommonRoleRecursiveConflicts` descends through pair payloads, contravariant arrow arguments,
+covariant arrow results and equal-tag variant payloads. Its internal term-weight budget is
+complete for an independent refutation judgement, and every certificate excludes subtyping
+under every assignment. `CommonRoleRecursivePaths` lifts this through actual directed
+variable paths and handles direct constraints; its combined check is equivalent to an
+independent certificate. `CommonRoleRecursiveFilteredInference` preserves the complete
+existing directed-Stable output model family. Records and effect rows are not decomposed;
+absence of a certificate does not show satisfiability. General B4 remains open.
