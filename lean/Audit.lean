@@ -7429,3 +7429,33 @@ run_cmd do
 #print axioms Yulang.CommonRoleDirectedBoundsCheck.middle_forced
 #print axioms Yulang.CommonRoleDirectedBoundsCheck.consistent
 #print axioms Yulang.CommonRoleDirectedBoundsCheck.middle_materialized
+
+-- Cycle33: directed-normalized self-output search
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.output_canonical
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.output_evidence
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.output_models_raw
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.check_exact
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.search_exact
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.complete
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.search_capacity
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.resolved
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.output_models
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.infer_models_exact
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.searched_tree_complete
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.stable_declarative
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.infer_declarative_models_exact
+#print axioms Yulang.CommonRoleDirectedGlobalChoices.searched_tree_models
+
+-- Cycle34 directed conflict pruning
+#print axioms Yulang.CommonRoleDirectedConflicts.check_exact
+#print axioms Yulang.CommonRoleDirectedConflicts.conflict_no_model
+#print axioms Yulang.CommonRoleDirectedConflicts.checked_no_model
+#print axioms Yulang.CommonRoleDirectedConflicts.model_check_false
+#print axioms Yulang.CommonRoleDirectedConflicts.normalize_conflict
+#print axioms Yulang.CommonRoleDirectedConflicts.normalize_check
+#print axioms Yulang.CommonRoleConflictFilteredInference.prune_exact
+#print axioms Yulang.CommonRoleConflictFilteredInference.prune_models
+#print axioms Yulang.CommonRoleConflictFilteredInference.pruned_no_models
+#print axioms Yulang.CommonRoleConflictFilteredInference.infer_models_preserved
+#print axioms Yulang.CommonRoleConflictFilteredInference.infer_models_exact
+#print axioms Yulang.CommonRoleConflictFilteredInference.empty_excludes_stable_model
