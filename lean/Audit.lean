@@ -7459,3 +7459,21 @@ run_cmd do
 #print axioms Yulang.CommonRoleConflictFilteredInference.infer_models_preserved
 #print axioms Yulang.CommonRoleConflictFilteredInference.infer_models_exact
 #print axioms Yulang.CommonRoleConflictFilteredInference.empty_excludes_stable_model
+
+-- Cycle35 structural outer-head certificates
+#print axioms Yulang.CommonRoleStructuralConflicts.staticHead_sound
+#print axioms Yulang.CommonRoleStructuralConflicts.mismatch_exact
+#print axioms Yulang.CommonRoleStructuralConflicts.mismatch_no_subtype
+#print axioms Yulang.CommonRoleStructuralConflicts.direct_exact
+#print axioms Yulang.CommonRoleStructuralConflicts.through_exact
+#print axioms Yulang.CommonRoleStructuralConflicts.check_exact
+#print axioms Yulang.CommonRoleStructuralConflicts.certificate_no_model
+#print axioms Yulang.CommonRoleStructuralConflicts.checked_no_model
+#print axioms Yulang.CommonRoleStructuralConflicts.prune_models
+#print axioms Yulang.CommonRoleStructuralConflicts.pair_scalar_conflict
+#print axioms Yulang.CommonRoleStructuralConflicts.pair_slot_scalar_no_model
+#print axioms Yulang.CommonRoleStructuralConflicts.bottom_not_mismatch
+#print axioms Yulang.CommonRoleStructuralConflicts.top_target_not_mismatch
+#print axioms Yulang.CommonRoleStructuralFilteredInference.infer_models_preserved
+#print axioms Yulang.CommonRoleStructuralFilteredInference.infer_models_exact
+#print axioms Yulang.CommonRoleStructuralFilteredInference.empty_excludes_stable_model
