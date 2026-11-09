@@ -3426,3 +3426,6 @@ This is not arbitrary initial-state consistency, complete evidence propagation t
 
 ### Cycle47: explicit slot equality feedback
 `CommonRoleDynamicIndexEqualitySource` adds bidirectional explicit slot equality edges to the finite str Index source adapter. It proves independent derivation exactness, model-preserving equality transport, concrete all-str consistency, actual producer execution, finite stopping, leastness and membership idempotence. The reversed-equality regression is pending in the previous adapter but checked successfully here. This is not arbitrary source lowering or general B4 completeness.
+
+### Cycle48: semantic completeness of finite string saturation
+`CommonRoleDynamicIndexSemanticSource` constructs a separating output model assigning str exactly to derived slots and int otherwise. For arbitrary finite source tables, seeds, equality links and requests, semantic forcing of str, actual detection of str and checked producer success are equivalent to derivability. Non-derived receivers have two inequivalent output models and their producer remains pending. This closes semantic completeness of this constructed fragment, not general B4, arbitrary initial states, parser correctness, or language-visible diagnostics.

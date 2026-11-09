@@ -213,3 +213,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle40 structural carrier coverage](2026-11-09-cycle40-carrier.md): supported-rule completeness and membership fixed point.
 
 - [Cycle47 slot equality feedback](2026-11-09-cycle47-index-equality.md): finite str evidence transport and actual producer execution.
+
+- [Cycle48 finite source semantic completeness](2026-11-09-cycle48-semantic-source.md)
