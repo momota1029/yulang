@@ -1,9 +1,11 @@
 cycle: 51
-status: running
+status: completed
 started: 2026-11-09T19:57:19Z
-updated: 2026-11-09T20:07:25Z
-elapsed_min: 10.1
-activity: Finite residual batches proved; focused build, 15-theorem trust-0 audit, diff gate, and independent review passed. All nine result blobs verified; publishing SHA-only tree.
+updated: 2026-11-09T20:08:53Z
+elapsed_min: 11.6
+activity: Finite batches of seeds, equalities, and obligations preserve all source models; 15-theorem trust-0 audit and focused build passed. Nine files verified at c6b0fee4a9285754c9472f1e158d7daf86e26b59.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 350426d29
-resume_hint: Code and report are locally committed. Result tree 6cf0c02f3c0ec814ad0648f52edc2041d750367d was constructed but is not yet referenced. Update tree with this heartbeat, then commit/ref-update and read back all nine files. Full verification remains with supervisor.
+last_local_commit: 29757a230
+published_result: c6b0fee4a9285754c9472f1e158d7daf86e26b59
+report: notes/handoff/dots-cycle-51.md
+resume_hint: Read cycle51. General B4 still has five open bridges and full verification remains with supervisor. Next: exact residual membership from original obligations or str-preserving diagnostic endpoints. No pending publication operation.

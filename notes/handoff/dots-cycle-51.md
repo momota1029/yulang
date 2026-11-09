@@ -137,3 +137,16 @@ parser/lowering、growing carrier、四分類、辞書同値、主型性も未�
 integration基点からの差分は9ファイル（前回の完了追記も保持）。
 この時点は公開前であり、commitと読戻しの結果は確認後に追記する。
 開始と検証終了時の空きは48GB。使用量の枠は不明。重い未完了処理はない。
+
+### 公開と照合の完了
+成果commit `c6b0fee4a9285754c9472f1e158d7daf86e26b59`、tree `82bcd599779ff3bff10a889b132f9b69399c6b5a`。
+個別blobを作り、SHAだけのtreeを構成し、非force・expected-head指定で公開した。
+公開tree全体がローカル検証treeに一致。remote head・commit/tree・全9ファイルを再取得し、
+全blob SHAがローカルのファイルhashに一致した。未確定の公開操作はない。
+10分心拍は`98da3d058c30af1b47b8e916baefd91bf6959b29`で公開済み。
+成果commitのstatus一覧・connector対象のPR-triggered workflow run一覧は空で、CI PASSとはしない。
+全体検証は引き続き監督役が行う。
+
+最終記録時刻2026-11-09T20:08:53Z、予定開始から11.6分。25分上限内で部分目標・検証・公開・照合まで完了。
+時間を埋めるだけの補題は追加せず終了する。最終空き48GB、使用量の枠は不明。
+この追記と完了心拍だけを最後に公開し、読み戻して一致を確認する。
