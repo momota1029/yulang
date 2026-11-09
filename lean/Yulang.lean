@@ -1407,3 +1407,5 @@ import Yulang.CommonRoleDynamicIndexSourceExecution
 import Yulang.CommonRoleDynamicIndexSourceExamples
 
 import Yulang.CommonRoleDynamicIndexCheckedSource
+
+import Yulang.CommonRoleDynamicIndexConsistentSource

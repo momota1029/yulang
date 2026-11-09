@@ -3418,3 +3418,8 @@ General B4 and arbitrary role declarations remain open.
 
 ### Cycle45: checked named-source Index adapter
 `CommonRoleDynamicIndexCheckedSource` checks every request endpoint before returning the existing finite-str adapter output. Its error list reports all malformed requests, retaining order and duplicates. Success has exact scope/output and model contracts; actual producer execution still requires a final output model. This is not language rejection or parser correctness. General B4 remains open.
+
+
+### Cycle 46: constructive consistency for finite string Index inputs
+`CommonRoleDynamicIndexConsistentSource` builds an actual initial State from arbitrary string seed slots and type-equality links. A concrete all-string, empty-effect assignment models both input and saturated output, so actual producer execution no longer requires a caller-supplied final model in this fragment. Checked success with a model is equivalent to request scope. Reachable receivers execute the real checked producer; a shared-source two-edge chain and an unseeded pending example are checked.
+This is not arbitrary initial-state consistency, complete evidence propagation through added equalities, or general B4 exactness. The five general bridges remain open.
