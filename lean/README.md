@@ -3287,3 +3287,7 @@ An unresolved associated request contributes no equation; associated resolution 
 `CommonRoleDiagnosticTree` は有限source断片の任意の部分候補表と観測状態から、実再帰treeを構成する。内部のPaterson由来sourceWeightで全子を保持し、訪問route iff 独立Path。全解決証拠の自己出力treeでは各nodeに一意な表内候補があり、その関連型注釈は全て解決する。出力モデルとtree上の全関連型等式のiffも接続。`CommonRoleDiagnosticTreeCheck` はordinary絞り込み後に未選択の子を消さない回帰。
 
 これは診断用の候補証拠で、言語の候補選択・最終分類・辞書ではない。exactnessはmembershipであり、順序・重複回数を保持した辞書同値は未証明。既存source carrierは同一三つ組の重複occurrenceを識別しない。source lowering・状態依存receiver・反復driver停止・一般B4は未達。全体検証は行っていない。
+
+## Cycle29: ordered diagnostic representation and evidence transfer
+
+DiagnosticCanonical proves full ordered-tree equality under active evidence equivalence, including canonical searched representatives. Atom membership equivalence requires a named consistency witness. Registry and source enumeration remain fixed; this is not declaration-order or semantic dictionary equivalence. DiagnosticCanonicalBoundary shows equal nonempty model sets need not yield equal direct materialization. DiagnosticEvidenceTransfer checks actual reciprocal variable edges and a direct scalar pair, adds the implied pair with exact model preservation, and repairs that concrete example. It is one checked transfer, not saturation or general B4.
