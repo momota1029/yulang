@@ -99,3 +99,12 @@ Build completed successfully (297 jobs).
 10ファイル（新Lean3、追記3、design1、design index1、report1、heartbeat1）。
 GitHubアプリ経由の個別blob→小さいSHA tree→非force/expected-head一括更新。
 公開後にremote treeとlocal treeの一致を確認する。確定commit・最終所要時間は親報告。
+
+### 公開照合結果
+
+04:08:19 UTC、`714108f85`をfetchしてremote/local全tree差分空、cleanを確認。
+10ファイル公開済み。ここまで10分59秒。終了時空き19GB。
+公開準備中のREADME読取りが出力上限で一度切れたため、小さい読取りchunkで再実施し、
+全blob SHAがlocal git blobと一致することを公開前に確認した。
+10分心拍は公開処理にかかり約1分遅れ、完了心拍の公開で置き換わった。
+承認待ち・環境再生成なし。最新監査枝のfetchだけauto-review拒否（上記）。
