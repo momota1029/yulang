@@ -1,11 +1,9 @@
-cycle: 49
-status: completed
-started: 2026-11-09T18:58:25Z
-updated: 2026-11-09T19:27:42Z
-elapsed_min: 29.3
-activity: Published and read back all eight files at 1a3dc217d799e24034dae319fd58c9208d36df6f. Focused build and 12-theorem audit passed; bulk-publication stall, missed heartbeats, and 25-minute overrun are recorded.
+cycle: 50
+status: running
+started: 2026-11-09T19:27:19Z
+updated: 2026-11-09T19:31:04Z
+elapsed_min: 3.8
+activity: Close exact source-model preservation by retaining precisely the unresolved conditional Index requests alongside saturated atoms.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: c50d61bc2
-published_result: 1a3dc217d799e24034dae319fd58c9208d36df6f
-report: notes/handoff/dots-cycle-49.md
-resume_hint: Read cycle49; publication recovery is complete. General B4 still has five open bridges. Full verification remains with the supervisor; existing diagnostic endpoint decoder is int-only.
+last_local_commit: e8383bd22
+resume_hint: Cycle49 recovery verified at 328ad7eed717e13303c0d24ee7c329c7dba594a1. Integration 1a3dc217d merged; implement residual source packet, focused build and trust-0 audit, then publish with individual blobs and SHA tree by 19:52:19 UTC.
