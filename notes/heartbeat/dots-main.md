@@ -1,9 +1,10 @@
 cycle: 41
-status: running
+status: completed
 started: 2026-11-09T14:04:08Z
-updated: 2026-11-09T14:05:30Z
-elapsed_min: 1
-activity: structural closure normalization to canonical self-output diagnostics
+updated: 2026-11-09T14:10:19Z
+elapsed_min: 6
+activity: structural state closure and self-output search verified; 325 jobs and 20 trust checks PASS
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 2584ec2c3
-resume_hint: inspect cycle41 new modules and focused logs; preserve prior completed cycle40
+last_local_commit: 37ca2b3fa
+report: notes/handoff/dots-cycle-41.md
+resume_hint: structural-normalized diagnostic certificate closed; source generation and role feedback remain open

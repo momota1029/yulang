@@ -1392,3 +1392,7 @@ import Yulang.CommonRoleSaturatedStructuralInference
 import Yulang.CommonRoleFiniteClosureRegression
 
 import Yulang.CommonRoleStructuralCarrierCoverage
+
+import Yulang.CommonRoleStructuralStateGrammar
+
+import Yulang.CommonRoleStructuralGlobalChoices
