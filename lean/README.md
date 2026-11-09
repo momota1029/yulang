@@ -3373,3 +3373,7 @@ computed syntax carrier contains every such derivation, and normalization is
 membership-idempotent, least, and insensitive to seed order or duplicates.
 This is not semantic subtype completeness or role-feedback termination.
 List order and multiplicity are not equated. General B4 remains open.
+
+### Cycle41: 構造閉包と自己出力診断
+
+`CommonRoleStructuralStateGrammar` は既存 State の child/rows/width 証拠を構造分解・推移閉包が保存することを証明する。`CommonRoleStructuralGlobalChoices` はこの実 State 正規化を自己出力探索へ接続し、全新Stable表についてのモデルiffと宣言的関連型導出との接続を示す。充足モデルを前提に、再正規化でもendpoint・candidate・全順序付き診断treeは不変。旧Stableとの同値、解の存在、全言語選択、source生成、role feedback停止、一般B4は未達。

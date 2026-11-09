@@ -7594,3 +7594,25 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralCarrierCoverage.normalize_congr
 #print axioms Yulang.CommonRoleStructuralCarrierCoverage.normalize_coverage
 #print axioms Yulang.CommonRoleStructuralCarrierCoverage.normalize_least
+
+-- Cycle41: structural state closure and self-output diagnostics
+#print axioms Yulang.CommonRoleStructuralStateGrammar.upper_width
+#print axioms Yulang.CommonRoleStructuralStateGrammar.expand_good
+#print axioms Yulang.CommonRoleStructuralStateGrammar.derived_good
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.normalize_models
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.endpoint_fixedpoint
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.candidate_fixedpoint
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.tree_fixedpoint
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.output_canonical
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.output_models_raw
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.check_exact
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.search_exact
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.complete
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.search_capacity
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.resolved
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.output_models
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.infer_models_exact
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.searched_tree_complete
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.stable_declarative
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.infer_declarative_models_exact
+#print axioms Yulang.CommonRoleStructuralGlobalChoices.searched_tree_models
