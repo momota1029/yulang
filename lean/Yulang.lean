@@ -1306,3 +1306,6 @@ import Yulang.CommonRoleAssociatedFeedback
 import Yulang.CommonRoleSourceAssociatedAdapter
 
 import Yulang.CommonRoleFeedbackTrace
+
+import Yulang.CommonRoleFeedbackConfluence
+import Yulang.CommonRoleAssociatedConfluence
