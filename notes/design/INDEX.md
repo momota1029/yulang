@@ -192,3 +192,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle28 diagnostic tree](2026-11-09-cycle28-diagnostic-tree.md): child-preserving finite certificates; no language classification.
 
 - [Cycle29 ordered diagnostic representation](2026-11-09-cycle29-ordered-diagnostic.md) (Draft; finite fragment and explicit decoder boundary)
+
+- [Cycle30: finite scalar evidence saturation](2026-11-09-cycle30-evidence-saturation.md) — Draft, reciprocal-variable fragment.

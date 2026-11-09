@@ -7338,3 +7338,30 @@ run_cmd do
 #print axioms Yulang.CommonRoleDiagnosticEvidenceTransfer.normalize_materializes_int
 #print axioms Yulang.CommonRoleDiagnosticEvidenceTransfer.boundary_repaired
 #print axioms Yulang.CommonRoleDiagnosticEvidenceTransfer.boundary_repaired_endpoint
+
+-- Cycle30: finite scalar evidence closure
+#print axioms Yulang.CommonRoleEvidenceSaturation.facts_complete
+#print axioms Yulang.CommonRoleEvidenceSaturation.facts_length
+#print axioms Yulang.CommonRoleEvidenceSaturation.edge_exact
+#print axioms Yulang.CommonRoleEvidenceSaturation.seeds_exact
+#print axioms Yulang.CommonRoleEvidenceSaturation.saturate_capacity
+#print axioms Yulang.CommonRoleEvidenceSaturation.saturate_seed
+#print axioms Yulang.CommonRoleEvidenceSaturation.saturate_transfer
+#print axioms Yulang.CommonRoleEvidenceSaturation.rules_derived
+#print axioms Yulang.CommonRoleEvidenceSaturation.saturate_exact
+#print axioms Yulang.CommonRoleEvidenceSaturation.saturate_stopped
+#print axioms Yulang.CommonRoleEvidenceSaturation.saturate_least
+#print axioms Yulang.CommonRoleEvidenceSaturation.derived_models
+#print axioms Yulang.CommonRoleEvidenceNormalization.emit_atoms
+#print axioms Yulang.CommonRoleEvidenceNormalization.emit_models
+#print axioms Yulang.CommonRoleEvidenceNormalization.normalize_models
+#print axioms Yulang.CommonRoleEvidenceNormalization.normalize_linked
+#print axioms Yulang.CommonRoleEvidenceNormalization.normalize_evidence
+#print axioms Yulang.CommonRoleEvidenceNormalization.normalize_derived
+#print axioms Yulang.CommonRoleEvidenceNormalization.saturate_fixedpoint
+#print axioms Yulang.CommonRoleEvidenceNormalization.materializes_int
+#print axioms Yulang.CommonRoleEvidenceSaturationExamples.before_unknown
+#print axioms Yulang.CommonRoleEvidenceSaturationExamples.after_all_int
+#print axioms Yulang.CommonRoleEvidenceSaturationExamples.all_int_model
+#print axioms Yulang.CommonRoleEvidenceSaturationExamples.same_models
+#print axioms Yulang.CommonRoleEvidenceSaturationExamples.second_pass
