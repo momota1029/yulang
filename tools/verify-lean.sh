@@ -17,7 +17,7 @@
 #   7. lake config (lakefile.*, lake-manifest.json, lean-toolchain) unchanged, except the
 #      allowed pattern: new `[[lean_lib]]` blocks are NOT allowed here (report to the owner)
 #   8. new files are only lean/Yulang/*.lean, lean/SpecExamples*.lean or lean/Main*.lean, and each new module is imported
-#   9. Audit.lean: new lines only appended at the end of the file
+#   9. Audit.lean: new lines only appended at the end of the file (top `import` lines also allowed)
 #  10. supervisor-owned gate tools/AxiomGate.lean over every non-system module
 #
 # LIMITATION: the build runs the worker's Lean code and uses the worker's lean/.lake. For an untrusted
@@ -89,8 +89,12 @@ done
 # 9. Audit.lean: insertions only at the end
 if git cat-file -e "$base":lean/Audit.lean 2>/dev/null; then
   n=$(git show "$base":lean/Audit.lean | wc -l)
-  badhunks=$(git diff -U0 "$base"..HEAD -- lean/Audit.lean | grep '^@@' | grep -vE "^@@ -$n(,0)? ")
-  if [ -n "$badhunks" ]; then echo "FAIL: Audit.lean changed other than by appending at the end:"; echo "$badhunks"; fail=1; else echo "ok: Audit.lean only appended"; fi
+  # Allowed: appending at the end, and inserting `import ...` lines before line 1.
+  badhunks=$(git diff -U0 "$base"..HEAD -- lean/Audit.lean | grep '^@@' | grep -vE "^@@ -$n(,0)? |^@@ -0,0 ")
+  topbad=$(git diff -U0 "$base"..HEAD -- lean/Audit.lean | awk '/^@@ -0,0 /{f=1;next} /^@@/{f=0} f && /^\+/ {print}' | grep -v '^+import ')
+  if [ -n "$badhunks" ]; then echo "FAIL: Audit.lean changed other than by appending at the end:"; echo "$badhunks"; fail=1
+  elif [ -n "$topbad" ]; then echo "FAIL: Audit.lean: lines inserted at the top must be import lines:"; echo "$topbad"; fail=1
+  else echo "ok: Audit.lean only appended (plus top import lines)"; fi
 fi
 
 # 10. supervisor-owned gate
