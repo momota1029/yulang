@@ -7292,3 +7292,20 @@ run_cmd do
 #print axioms Yulang.CommonRoleStableGlobalModels.siblings_at_output
 #print axioms Yulang.CommonRoleStableGlobalModels.infer_models_exact
 #print axioms Yulang.CommonRoleStableGlobalModels.infer_declarative_models_exact
+
+-- Cycle28 diagnostic tree.
+#print axioms Yulang.CommonRoleDiagnosticTree.build_route
+#print axioms Yulang.CommonRoleDiagnosticTree.build_candidates
+#print axioms Yulang.CommonRoleDiagnosticTree.children_edge
+#print axioms Yulang.CommonRoleDiagnosticTree.edge_decreases
+#print axioms Yulang.CommonRoleDiagnosticTree.build_represents
+#print axioms Yulang.CommonRoleDiagnosticTree.diagnose_represents
+#print axioms Yulang.CommonRoleDiagnosticTree.visit_edge
+#print axioms Yulang.CommonRoleDiagnosticTree.visit_path
+#print axioms Yulang.CommonRoleDiagnosticTree.diagnose_visit_exact
+#print axioms Yulang.CommonRoleDiagnosticTree.valid_tree_total
+#print axioms Yulang.CommonRoleDiagnosticTree.unresolved_child_retained
+#print axioms Yulang.CommonRoleDiagnosticTree.searched_tree_complete
+#print axioms Yulang.CommonRoleDiagnosticTree.searched_tree_models
+#print axioms Yulang.CommonRoleDiagnosticTreeCheck.missing_child_after_narrowing
+#print axioms Yulang.CommonRoleDiagnosticTreeCheck.partial_not_valid

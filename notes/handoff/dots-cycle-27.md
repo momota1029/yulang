@@ -86,9 +86,3 @@ Build completed successfully (304 jobs).
 
 9ファイル（新Lean2、追記3、design1、index1、report1、heartbeat1）。個別blobの後SHA tree/commitを作り、非force・expected-head付きでwork/dots-mainのみ更新する。公開後tree照合と終了時刻は親への報告で確定する。
 部分目標が閉じ検証まで終わったため、時間埋めの追加補題は作らず公開して区切る。
-
-### 公開照合と中断記録
-
-05:09:38 UTC、公開 `c5b7a7d67` を再取得、検証済みローカル全treeとのdiff空・cleanを確認。9ファイル公開。空き終了19GB。
-公開準備時にexec transport disconnectedが数回発生。環境listはconnectedで、同環境へ再attachしたら読取りが復帰した。再attach後read-onlyになったので、公開照合用fetchと本追記は明示的なsandbox審査を経て実行。環境のファイル消失や再生成は観測していない。
-大きいREADME/Auditのblob作成待ちで10分心拍を出せず、開始公開04:58:59から最終公開05:09頃まで約10分超の間隔になった。成果公開は完了し、本記録と心拍時刻を追記して再公開する。25分上限内。

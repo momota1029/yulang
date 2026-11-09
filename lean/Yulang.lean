@@ -1335,3 +1335,7 @@ import Yulang.CommonRoleGlobalChoiceEquations
 -- Cycle27: revalidate global certificates at their own output.
 import Yulang.CommonRoleStableGlobalChoices
 import Yulang.CommonRoleStableGlobalModels
+
+-- Cycle28: child-preserving diagnostic certificates.
+import Yulang.CommonRoleDiagnosticTree
+import Yulang.CommonRoleDiagnosticTreeCheck
