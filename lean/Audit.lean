@@ -7551,3 +7551,27 @@ run_cmd do
 #print axioms Yulang.CommonRolePathDecomposition.hidden_old_false
 #print axioms Yulang.CommonRolePathDecomposition.hidden_checked
 #print axioms Yulang.CommonRolePathDecomposition.hidden_no_model
+
+-- Cycle39 finite structural closure
+#print axioms Yulang.CommonRoleFiniteStructuralClosure.compose_sound
+#print axioms Yulang.CommonRoleFiniteStructuralClosure.rules_sound
+#print axioms Yulang.CommonRoleFiniteStructuralClosure.model_exact
+#print axioms Yulang.CommonRoleFiniteStructuralClosure.derivation_exact
+#print axioms Yulang.CommonRoleFiniteStructuralClosure.stopped
+#print axioms Yulang.CommonRoleFiniteStructuralClosure.capacity
+#print axioms Yulang.CommonRoleFiniteStructuralClosure.normalize_exact
+#print axioms Yulang.CommonRoleFiniteStructuralClosure.seed_seen
+#print axioms Yulang.CommonRoleFiniteStructuralClosure.split_seen
+#print axioms Yulang.CommonRoleFiniteStructuralClosure.trans_seen
+#print axioms Yulang.CommonRoleFiniteStructuralClosure.exact
+#print axioms Yulang.CommonRoleAlternatingRegression.first_pass_misses
+#print axioms Yulang.CommonRoleAlternatingRegression.second_pass_detects
+#print axioms Yulang.CommonRoleAlternatingRegression.no_model
+#print axioms Yulang.CommonRoleSaturatedStructuralInference.check_exact
+#print axioms Yulang.CommonRoleSaturatedStructuralInference.checked_no_model
+#print axioms Yulang.CommonRoleSaturatedStructuralInference.prune_models
+#print axioms Yulang.CommonRoleSaturatedStructuralInference.infer_models_preserved
+#print axioms Yulang.CommonRoleSaturatedStructuralInference.infer_models_exact
+#print axioms Yulang.CommonRoleSaturatedStructuralInference.empty_excludes_original_model
+#print axioms Yulang.CommonRoleFiniteClosureRegression.alternating_detected
+#print axioms Yulang.CommonRoleFiniteClosureRegression.input_no_model

@@ -3359,3 +3359,6 @@ absence of a certificate does not show satisfiability. General B4 remains open.
 ### Cycle38: structural payload decomposition
 Pair/arrow/same-tag variant constraints are finitely decomposed with exact model preservation, exposing payload variables to path conflict pruning. Rows and unsupported constructors remain residual. No terminal-normal-form, idempotence, or full satisfiability claim; general B4 remains open.
 Actual lower/upper bounds connected by finite variable paths are first joined with model-exact entailment, then decomposed; this detects hidden payload contradictions across intermediate slots. It is one pass, not an alternating closure.
+
+### Cycle39: finite indexed structural closure
+`CommonRoleFiniteStructuralClosure` computes seed/decomposition/transitivity closure inside an explicit syntax-derived atom carrier. Internal capacity counts carrier indices; finite-rule derivation exactness and all-assignment model preservation are proved. `CommonRoleSaturatedStructuralInference` connects it to model-preserving diagnostic filtering. `CommonRoleAlternatingRegression` preserves a real two-round dependency. This is not complete structural satisfiability, full carrier coverage, re-normalization idempotence, or role-feedback termination. Rule generation has cubic carrier scanning; large-input performance is unverified.

@@ -207,3 +207,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle36 structural directed-path certificates](2026-11-09-cycle36-structural-paths.md)
 - [Cycle37 recursive structural refutation](2026-11-09-cycle37-recursive-structural.md) — Draft, same-head recursive certificates and model-preserving filtering.
+
+- [Cycle39 finite structural closure](2026-11-09-cycle39-structural-closure.md) — Draft, finite-rule exactness rather than unrestricted ordinary completeness.

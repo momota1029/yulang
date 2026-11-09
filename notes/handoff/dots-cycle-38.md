@@ -85,6 +85,3 @@ AUDIT_EXIT=0
 ~~~
 
 path生成・構造分解は一回の合成であり、反復closure/停止を完成したとはしない。部分目標は閉じたので未着手の意味論まで範囲を広げない。
-
-## 公開照合
-2026-11-09T12:37:56Z: work/dots-main@c830b3bc9をfetchし、ローカル全treeとの差分空・clean確認。9ファイル公開。実作業約9分。空き49GB。Git commit APIへの最初の追加parent指定を短いSHAで送って422になったが、既存remote parentがintegrationを祖先に含むことを確認して不要な追加parentを外し成功。ref更新の失敗や承認待ちはない。全文内容のblob SHAもローカルと一致確認。
