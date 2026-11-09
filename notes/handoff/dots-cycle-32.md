@@ -202,3 +202,6 @@ Build completed successfully (312 jobs).
 
 ## 制限と公開
 公開準備のexec transportが切断した。同じ環境へ再attachしてファイル保持を確認。read-onlyへ変わったため報告追記・local commitはsandbox審査を通す。Lean検証結果は切断前の完成版。全10変更ファイルを個別blob後、小さなSHA treeと非force expected-headでwork/dots-mainへ一括公開し、remote全treeを照合する。
+
+### 公開照合
+2026-11-09T07:44:38Z、work/dots-main@8b8adcd39を明示refspecで取得し、全treeがローカル検証版と一致、差分空・cleanを確認。自身の全10ファイル（開始心拍含む）を公開。空き終了19GB。実作業開始から10分40秒、通知から17分19秒。個別blob処理と照合の間に10分心拍が約40秒遅延した。最終の報告追記とcompleted心拍だけを追加公開する。
