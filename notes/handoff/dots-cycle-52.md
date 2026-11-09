@@ -145,3 +145,17 @@ saturated_frontier_exact、resolve_dictionary_order_sound。
 この段階は公開前。公開 commit と tree の全体一致、各 blob の読戻しは確認後に追記する。
 開始・検証時の空きは 48GB。worktree の増設・キャッシュ複製・削除はしていない。
 使用量の枠は不明。25 分上限内で、時間を埋めるだけの補題を追加せず終える。
+
+### 公開と照合の完了
+成果 commit `45e5de297fb37102cfca8f8dd82f217120471552`、
+tree `5fde4c393ec6649e1e3d08f7358d3e038f95d2b7`。
+個別 blob を作り、SHA だけの tree を組み、非 force・expected-head 指定で公開した。
+公開 tree 全体がローカル検証 tree に一致し、remote head と commit/tree も再取得した。
+変更した全 9 ファイルの内容と blob SHA を個別に読み戻し、ローカルと完全一致を確認した。
+未確定の公開操作はない。成果 commit の status 一覧と connector 対象の
+PR-triggered workflow run 一覧は空。CI PASS とは報告せず、全体検証は監督役に残す。
+
+最終記録時刻 2026-11-09T20:37:24Z、予定開始から 10.1 分。
+10 分の心拍更新を完了心拍として記録し、この追記と一緒に最終公開する。
+25 分の上限内で部分目標・focused 検証・公開・読戻しまで終え、時間を埋める作業は追加しない。
+終了時の空きも 48GB、使用量の枠は不明。既存作業場を次サイクルへ残す。
