@@ -3514,3 +3514,28 @@ not the general recursive role tree or language-visible selected/rejected result
 int-only diagnostic endpoint decoder loses known str observations. No scalar is
 relabeled to hide that mismatch. All five general B4 bridges remain open.
 The new module is imported and all 11 theorems are registered in Audit.
+
+## Cycle54: scalar readout reaches the existing graph inspector
+
+`CommonRoleScalarSourceEndpoint` preserves int/bool/str/unit as distinct ordinary
+observations, rather than losing str at the old int-only boundary. All nested
+endpoints satisfy an independent model relation. Paired-evidence exactness,
+atom-order independence and known-scalar persistence explicitly require an
+ordinary model; arbitrary semantic entailment is not claimed.
+
+`CommonRoleScalarSourceInspection` constructs the flat scalar graph at original
+occurrence indices and connects it to the existing `inspect` and `inspectSnapshot`.
+For all finite positive-string source batches, `solve_inspect_string_exact`
+identifies actual string-head matching with forcing by every original source
+model. `solve_snapshot_unknown_exact` characterizes unknown snapshots by two
+original source models with inequivalent receiver types. No supplied consistency
+or scope-success premise is needed for these constructed-source theorems.
+`original_diagnostic_snapshot` connects the cycle53 waiting leaf to that existing
+snapshot without dropping original names or endpoint identities.
+
+These modules close a scalar-readout sub-boundary, not general B4. Unknown aliases
+are not canonicalized, recursive source graphs and general declaration generation
+remain open, and the existing int-only recursive role resolver is unchanged.
+bool/unit observation support does not extend the int/str first-order producer.
+All five general B4 bridges remain open. Both modules are imported and all 22
+named theorems are registered in Audit.
