@@ -1480,3 +1480,5 @@ import Yulang.CommonRoleComputedSourceAllocation
 import Yulang.CommonRoleAnnotatedLiteralInputs
 
 import Yulang.CommonRoleScalarExpressionInputs
+
+import Yulang.CommonRoleGeneratedWhereClosure

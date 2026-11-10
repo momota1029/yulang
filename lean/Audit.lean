@@ -1,3 +1,4 @@
+import Yulang.CommonRoleGeneratedWhereClosure
 import Yulang.CommonRoleScalarExpressionInputs
 import Yulang.CommonRoleAnnotatedLiteralInputs
 import Yulang.CommonRoleComputedSourceAllocation
@@ -8268,3 +8269,29 @@ run_cmd do
 #print axioms Yulang.CommonRoleScalarExpressionInputs.models_exact
 #print axioms Yulang.CommonRoleScalarExpressionInputs.models_bindings
 #print axioms Yulang.CommonRoleScalarExpressionInputs.run_exact
+
+-- Cycle89: actual recursive where closure and independent classification.
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.unique_exact
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.children_exact
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.edge_decreases
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.closure_complete
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.closure_sound
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.closure_exact
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.reach_trans
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.generated_closed
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.edge_resolves
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.reach_resolves
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.closure_resolves
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.resolve_unique_closure
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.missing_exact
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.overlap_reach
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.ambiguous_exact
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.noImpl_exact
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.classify_eq_resolve
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.registered_exact
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.run_one_agrees
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.registered_resolves
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.run_source_agrees
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.run_source_exact
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.checked_agrees
+#print axioms Yulang.CommonRoleGeneratedWhereClosure.checked_exact

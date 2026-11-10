@@ -1139,3 +1139,42 @@ Expr/Typing, not a new resolution rule. It does not settle invocation sharing,
 nonlinear heads, role-variable scope, generic/effectful input inference or parser
 lowering. Unsupported input is not language rejection. Existing questions and
 all five B4 bridges remain. I-13 full semantic coverage is still incomplete.
+
+
+## Z. Cycle89 — actual recursive where-declaration closure
+
+Module: `CommonRoleGeneratedWhereClosure`.
+
+- `children`, `Unique`, `Edge`, `Reach`, `Missing` take a finite first-order
+  `List Roles.Impl` and goals. Declarations carry role/head/where/key. `Edge`
+  quantifies an arbitrary substitution matching the original head and a real
+  child occurrence, rather than reading executable closure or solver success.
+  The use of `Unique` follows spec 6.2; it does not infer scalar information.
+- `closure`, `classify`, `registerOne`, `runOne` and `runSource` also take existing
+  `WellFormed impls`. Recursion derives strict measure decrease from that actual
+  declaration check at every call. No caller visit sequence, fuel, graph or child
+  list survives. `checkedClassify` removes this proof input by invoking existing
+  `CheckedRoles.checkDatabase`; `checked_exact` has no WF premise.
+- `registerOne` retains the source receiver owner, not a newly invented identity
+  for declaration binders or invocation instances. `registered_exact` proves a
+  root owner and an independent reachable goal for every registered element.
+  The list preserves repeated children; membership exactness alone does not
+  identify occurrence positions or decide revisitation sharing.
+- `runSource` retains role signatures, grouped source and a scalar name/head
+  function. These are the same boundary inputs as the existing source entry;
+  `run_source_agrees` and `run_source_exact` state literal agreement and the
+  original independent discharge judgment. It is not connected to source
+  expression inference here; cycle88's expression entry remains unchanged.
+- `closure_resolves`, `registered_resolves` and `edge_resolves` explicitly take
+  the respective root success/evidence when deriving descendant success. The
+  closure construction and membership theorem themselves require no success.
+- `resolve_unique_closure`, `ambiguous_exact` and `noImpl_exact` quantify all
+  finite checked first-order registries and arbitrary goals. They are complete
+  for that carrier, not the state-dependent Common interval system. Missing and
+  overlapping siblings are both retained; ambiguity is only the final priority.
+
+Spec 6.2/6.3 governs unique heads, all-child conjunction and Paterson descent.
+Parser/name lowering, semantic-normalization adequacy and associated-where
+annotations absent from `Roles.Impl.constraints` remain unproved. This work does
+not settle pending invocation, nonlinear Common head or where-variable questions.
+Five B4 bridges and incomplete I-13 semantic coverage remain explicit.
