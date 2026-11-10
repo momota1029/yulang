@@ -3848,3 +3848,22 @@ role obligation is not checked or discharged. Visibility, registry generation,
 source scoping, general interval knownness and dynamic where remain outside.
 The checker does not define new language rejection rules. Five B4 bridges and
 the complete boundary-input audit remain open.
+
+
+### Cycle81: every finite source role obligation survives extraction
+
+`CommonRoleSourceRoleObligations` keeps one checked role obligation per clause,
+including clauses with no associated equations. Its package retains the exact
+ordered cycle80 equation projection. Scope, role arity and associated names are
+checked for every clause; checking does not establish visibility or dictionaries.
+`run_source_exact` characterizes the public computed entry by independent source
+validity and structural role discharge, without a successful-check premise.
+`run_source_permutation` proves conjunction-order independence in this fragment.
+
+The input `heads : Nat → Base` remains explicit. It is not inferred from source
+expressions, chosen from interval knownness, or connected to the associated
+saturation state's final evidence. Only existing int/str materialization is
+supported, even for a template that does not use its receiver. False is only the
+outcome of this test, not pending/ambiguous/rejected language classification.
+No stable-state assumption or final diagnostic is smuggled into this boundary.
+Parser adequacy, dynamic source closure and all five whole-B4 bridges remain open.

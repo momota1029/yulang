@@ -817,3 +817,47 @@ cycle23/24 remain unresolved. The proposed source derivation is a fragment model
 not a claim of full-language soundness or completeness. Five B4 bridges remain;
 I-13 full audit is still incomplete and its cycle72 deadline was missed. Inventory
 mention counts do not measure audited inputs.
+
+
+## R. cycle81: retain bare and associated source role obligations
+
+`CommonRoleSourceRoleObligations` takes the same finite scope-resolved Source as
+cycle80. It does not supply a Rust AST-to-Source theorem or make dynamic children.
+All new caller inputs and construction boundaries are:
+
+- `RawObligation` contains `receiver : Nat` and `goal : Roles.Goal`; `Obligation`
+  contains receiver and a checked structural Template. Public `check` computes
+  these from every Clause. `Package` contains the ordered obligation list and
+  existing equation Program. Erasure, count and occurrence theorems quantify
+  arbitrary accepted packages; callers do not choose an independent role list.
+- `ValidClause` and `ValidSource` use the existing total `Roles.RoleDecls` and
+  compute scope ≤1, signature arity and all associated names. `valid_equations`
+  establishes the previous projection's validity. `build` is an internal proof-
+  carrying constructor. `check_exact`, `check_accepts`, `check_fails` expose no
+  caller validity certificate. `checked_equations` preserves the previous entry.
+- `runOne`, `runRoles`, `runSource` and independent `Discharges` receive an impl
+  list and `WellFormed` proof, plus `heads : Nat → Inference.Base`. For each
+  receiver this map provides an explicit int/str head for existing structural
+  materialization. It is NOT computed from source inference or saturation.
+  A future outer adapter must derive heads from an appropriate stable source
+  state and prove that evidence agrees; no such adapter is claimed here.
+- `run_one_exact` additionally takes one erased obligation/source equality.
+  `run_roles_exact` and `missing_role_blocks` take an accepted package; the
+  latter takes an explicit source member and independent missing evidence.
+  `run_source_exact` computes validation internally, removing that successful-
+  check premise. `run_source_permutation` takes only a source List.Perm witness.
+
+Spec6.1–6.2 gives declaration signature shape. Spec6.3 requires every where child
+and fixes sibling conjunction. Source visibility and environment construction
+remain outside the total registry. The source-head map is a deliberately exposed
+proof interface, not a specification answer about when a receiver becomes known.
+Spec6.3 explicitly postpones language-visible finalization until sibling updates
+stabilize; this module produces only a Boolean test and does not finalize anything.
+Its int/str encoder also limits constant templates whose receiver is unused.
+Those are implementation-fragment limits, not language rejection rules.
+
+The associated-equation run and this role test are separate interfaces. No theorem
+identifies the supplied heads with associated saturation output or combines their
+results into full-source typing. Existing Q1/Q2 and cycle23/24 remain unresolved.
+No new semantic choice or question. Five B4 bridges remain and I-13 is partial;
+inventory mention counts do not measure completed input audits.

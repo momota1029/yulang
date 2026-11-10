@@ -8148,3 +8148,20 @@ run_cmd do
 #print axioms Yulang.CommonRoleAssociatedClauseExtraction.run_evidence_exact
 #print axioms Yulang.CommonRoleAssociatedClauseExtraction.run_source_exact
 #print axioms Yulang.CommonRoleAssociatedClauseExtraction.solver_source_exact
+
+-- Cycle81: retain all finite source role obligations, including bare clauses
+#print axioms Yulang.CommonRoleSourceRoleObligations.valid_equations
+#print axioms Yulang.CommonRoleSourceRoleObligations.erase_build
+#print axioms Yulang.CommonRoleSourceRoleObligations.erase_injective
+#print axioms Yulang.CommonRoleSourceRoleObligations.eraseList_injective
+#print axioms Yulang.CommonRoleSourceRoleObligations.check_exact
+#print axioms Yulang.CommonRoleSourceRoleObligations.check_accepts
+#print axioms Yulang.CommonRoleSourceRoleObligations.check_fails
+#print axioms Yulang.CommonRoleSourceRoleObligations.checked_equations
+#print axioms Yulang.CommonRoleSourceRoleObligations.checked_count
+#print axioms Yulang.CommonRoleSourceRoleObligations.checked_occurs
+#print axioms Yulang.CommonRoleSourceRoleObligations.run_one_exact
+#print axioms Yulang.CommonRoleSourceRoleObligations.run_roles_exact
+#print axioms Yulang.CommonRoleSourceRoleObligations.missing_role_blocks
+#print axioms Yulang.CommonRoleSourceRoleObligations.run_source_exact
+#print axioms Yulang.CommonRoleSourceRoleObligations.run_source_permutation
