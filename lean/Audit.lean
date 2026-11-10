@@ -7919,3 +7919,16 @@ run_cmd do
 #print axioms Yulang.CommonRoleChildSourceAllocation.allocated_identity_exact
 #print axioms Yulang.CommonRoleChildSourceAllocation.allocated_snapshot
 #print axioms Yulang.CommonRoleChildSourceAllocation.actual_child_allocation
+
+-- Cycle60: one finite occurrence allocation for all actual descendant histories
+#print axioms Yulang.CommonRoleClosureSourceAllocation.entries_exact
+#print axioms Yulang.CommonRoleClosureSourceAllocation.entry_present
+#print axioms Yulang.CommonRoleClosureSourceAllocation.dependency_present
+#print axioms Yulang.CommonRoleClosureSourceAllocation.owner_in_root
+#print axioms Yulang.CommonRoleClosureSourceAllocation.occurrence_source
+#print axioms Yulang.CommonRoleClosureSourceAllocation.allocated_root
+#print axioms Yulang.CommonRoleClosureSourceAllocation.identity_exact
+#print axioms Yulang.CommonRoleClosureSourceAllocation.allocated_snapshot
+#print axioms Yulang.CommonRoleClosureSourceAllocation.trace_closed
+#print axioms Yulang.CommonRoleClosureSourceAllocation.trace_allocated
+#print axioms Yulang.CommonRoleClosureSourceAllocation.actual_child_shared_allocation

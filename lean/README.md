@@ -3592,3 +3592,13 @@ occurrence allocation. `CommonRoleChildSourceAllocation.actual_child_allocation`
 retains the root dependency provenance, exact canonical graph references, complete
 inspection and all-future-state finite materialization domain. This is the existing
 int-only adapter, not general interval inference or the complete B4 theorem.
+
+Cycle60: `CommonRoleClosureSourceAllocation` computes one ordered occurrence table
+for the entire structural source-template closure. Enumeration is exact against
+independent structural reachability and dependency membership, retaining duplicates.
+Every finite actual production history, with arbitrary ordinary states on its
+edges, stays in this domain. Its next actual child obtains source occurrences,
+old canonical roots, and complete inspection snapshots in the same allocation.
+The caller supplies no finite-domain membership or source-name equality. This
+closes closure-wide occurrence allocation in the unary/int adapter only; general
+interval materialization, old-node updates and all five general B4 bridges remain open.
