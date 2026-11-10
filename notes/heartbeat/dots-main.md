@@ -1,10 +1,9 @@
-cycle: 83
-status: completed
-started: 2026-11-10T13:27:02Z
-updated: 2026-11-10T13:42:35Z
-elapsed_min: 15.6
-activity: Closed checked named source readiness and general source/assumption order and duplication invariance. 292-job focused build, 28 examples, 14-theorem audit and diff gate pass; exact source Core and Lean CI success. Full B4 remains open.
+cycle: 84
+status: running
+started: 2026-11-10T13:57:54Z
+updated: 2026-11-10T13:59:02Z
+elapsed_min: 1.1
+activity: Close a finite source boundary from a parent declaration's where clauses into named-source readiness, retaining explicit scope and semantic boundaries.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 543873505
-report: notes/handoff/dots-cycle-83.md
-resume_hint: Read cycle83 and refresh live integration/inbox. Source a5d5d03c has exact local/remote tree equality. Outer entry now computes Package and State from named scalar assumptions; expression inference, dynamic where and all five B4 bridges remain open. Logs ../cache/yulang83.
+last_local_commit: 1d332ef2d
+resume_hint: Cycle83 completed and source tree matches integration/work head 34920e105. Integration fetched and merged; no prior writer. Read notes/handoff/dots-cycle-83.md and cache/yulang84. Deadline 14:22:19 UTC. Only focused builds.
