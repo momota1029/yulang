@@ -127,6 +127,12 @@ verify-lean: PASS (diff checks only, NO build)
 - report と completed 心拍を含めた公開差分は10 paths。この記録後にその2 pathsを公開し、再度 tree/content を照合する。最終結果を親へ返す。
 - 報告作成時刻: 2026-11-10T13:15:09Z、開始から 17.7 分。13:22:19 UTC の期限内で、残りは最終公開・照合。25分上限内。
 
+## 公開後の確認（2026-11-10T13:16:49Z）
+
+初回の最終報告 head `6498a62e3f332e16e25f6cf7a666687724b7f3b9` を取得し、tree `5c2a521d1412a41ed0812dc2ade8121b1a692304` の全2305 entriesと変更10 pathsを照合した。ローカル検証済みtreeと完全一致し、報告の本文も GitHub から取り戻して一致した。
+
+検証済み source checkpoint `2659eca8ed5c01a5eff6cadd1e5fa902ee8a15de` の **Core CI と Lean inference kernel は両方 success** になった。Lean run は [42822304733](https://github.com/momota1029/yulang/actions/runs/42822304733)。これはその exact source commit の CI 結果であり、未実施のローカル全体検証や supervisor の統合確認を実施済みに置き換えない。この追記は報告と心拍だけの変更。初回報告 head の Core CI は確認時に in_progress だった。
+
 ## B4 に残る橋と次の候補
 
 `source_boundary_adequate`、`generated_work_closed`、`saturate_terminates_and_closes`、`saturated_frontier_exact`、`resolve_dictionary_order_sound` の **5 本**が未完。今回の有限 state-backed readiness は、その内部の狭い断片。
