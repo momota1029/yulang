@@ -904,3 +904,59 @@ not supplied by these finite carriers. The computed graph saturates before role
 checks; it is not a dynamic where driver. Existing Q1/Q2 and cycle23/24 remain
 open. No new semantic decision. Five B4 bridges and the incomplete I-13 audit
 remain; inventory mention counts are not audit completion counts.
+
+## T. Cycle83: checked source entry from named scalar assumptions
+
+`CommonRoleNamedSourceEntry` has the following public caller inputs:
+
+- `env : AssocEnv`, `roles : RoleDecls`, `wf : WellFormed env.cores`, and
+  `awf : AssocWellFormed env roles`. These existing checked declaration
+  boundaries remain explicit. Real source declaration checking, visibility,
+  namespace resolution and production of these proofs are not supplied here.
+- `src : CommonRoleAssociatedClauseExtraction.Source` is a finite list of
+  scope-resolved original clauses. Source syntax, binders, invocation identity
+  and dynamic where construction remain outside. Spec6.3 provides equations,
+  sharing and conjunction, not this parser-to-carrier construction.
+- `input : Assumptions` is `List (Nat × Inference.Base)`: explicit named scalar
+  equations, not a total head assignment. Their production from expressions is
+  still a source-inference boundary. Only names in `names src` are interpreted;
+  irrelevant bindings are outside this finite interface's domain. The module
+  does not decide whether real source syntax permits an unused annotation.
+
+Derived inputs and intermediate proof boundaries:
+
+- `names` reads original receivers and equation endpoints. `check` computes
+  the Package. `initialFacts` enumerates finite slot/base pairs and selects
+  exactly the named input equations. `initialState` emits checked equality
+  atoms. The public `runSource` computes these before saturation and role
+  discharge. Package, State, slot maps, head maps, fuel and visit orders are
+  no longer caller inputs at this entry.
+- `initial_facts_exact`, `initial_evidence_exact`, `initial_models_exact` take
+  arbitrary Package/input and, where needed, a slot/head or arbitrary valuation.
+  The valuation is quantified for a model equivalence, not a chosen solver
+  assignment. `table_names_exact` and `receiver_present` take successful check
+  evidence only in the internal allocation lemmas.
+- `Derives env roles src input name head` reads only named assumption membership
+  and independent original clause Step. `allocated_to_named` needs an existing
+  cycle82 source derivation; `named_to_allocated` additionally uses an accepted
+  package internally to reach all its matching slots. `run_evidence_exact`
+  combines these with the finite saturator and explicit wf/awf.
+- `Models` existentially quantifies a source-name type valuation satisfying
+  derived facts on the original name domain. `models_exact` relates it to the
+  internal allocated model. `ready_exact` is the checked-package intermediate.
+  `run_source_exact` removes that premise: source validity is a conclusion
+  conjunct, with Models and every original role's independent discharge.
+- `derives_transport` takes source/assumption membership implications.
+  `names_member` describes the original domain. `run_source_congr` takes
+  membership equivalences for source clauses and assumptions; both allocations
+  and states are recomputed. It permits order changes and duplicates without
+  a caller-provided reindexing or semantic preservation certificate.
+
+This entry deliberately has only named scalar assumptions, not arbitrary old
+ordinary atoms or effect constraints. The cycle82 general State entry remains
+unchanged. Bool/unit are evidence but not encoded role receivers, scope ≤ 1 is
+an implementation fragment, and false does not assign a language diagnostic.
+No new language decision. Existing Q1/Q2 and cycle23/24 remain unresolved.
+The total I-13 audit remains incomplete and the original cycle72 deadline was
+missed. Mention counts do not measure completed semantic coverage. B4 still
+has all five main bridges open.

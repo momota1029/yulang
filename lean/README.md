@@ -3885,3 +3885,29 @@ output, general interval knownness, dynamic where generation or final diagnostic
 classification. Five general B4 bridges remain. The focused module and dedicated
 trust-zero boundary checks are the local validation scope; full verification is
 left to the supervisor.
+
+## Cycle83: checked finite source entry with named assumptions
+
+`CommonRoleNamedSourceEntry.runSource` accepts original finite source clauses
+and a finite list of named scalar assumptions. It computes source validation,
+role/equation allocation, all initial scalar equality atoms, associated
+saturation, ordinary consistency, and every role check. `run_source_exact`
+relates true to `ValidSource`, independent source-name `Models` and a derived
+receiver plus independent `Discharges` for every original clause. Its independent
+side contains no Package, allocated slot, ordinary State or executed solver.
+The public caller supplies no accepted package or package-indexed state.
+`run_source_congr` proves invariance under source and assumption membership
+equivalence, including order changes and duplicate entries, with allocation
+recomputed on both sides. The model witness is existential in the conclusion.
+
+Core and associated environment well-formedness remain explicit. Assumptions
+are already known named scalar equations, not inferred expression types or a
+total head map. Only names occurring in the source domain are interpreted;
+unmentioned bindings are irrelevant in this interface. Arbitrary old ordinary
+constraints and effects are outside this new entry; cycle82 retains its more
+general State input. Scope ≤ 1, int/str role materialization, finite sources and
+existing declaration lookup remain implementation limits, not language rules.
+False is readiness failure, not final rejected/pending/ambiguous classification.
+All five general B4 bridges, dynamic where generation and source inference remain
+open. Focused checks and independent scalar propagation examples accompany the
+cycle83 report; no full local build or full Audit is claimed.
