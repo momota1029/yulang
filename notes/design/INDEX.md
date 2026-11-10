@@ -287,3 +287,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Interval work closure](2026-11-10-cycle90-interval-work-closure.md) — Draft: real recursive interval where work, explicit outside boundaries, and computed original-source allocation.
 
 - [Guarded recursive interval plans](2026-11-10-cycle91-guarded-interval-plans.md) — finite candidate alternatives, conjunctive children and one shared-source ordinary model; fixed-syntax boundary.
+
+- [Retained interval diagnostic frontier](2026-11-10-cycle92-guarded-interval-frontier.md) — Draft; incomplete child retention and exact guarded-plan erasure; fixed syntax only.

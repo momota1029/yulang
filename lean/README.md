@@ -4054,3 +4054,15 @@ major B4 bridges remain open. Theorem count is not completion of those bridges.
 ## Guarded fixed-interval plans (cycle91)
 
 `CommonRoleGuardedIntervalPlans.run_models_exact` compiles every accepted declaration alternative with the conjunction of all recursively generated where children. One source valuation is shared across the whole plan and old demands; `ordinary` emits the real cross-source ordinary comparisons. The checked public `run` also returns all unsupported local inspections from the finite potential work domain. Empty plans are not a language rejection. The source-key adapter identifies equal goal/declaration/binder tuples and does not implement occurrence-sensitive fresh allocation. Fixed endpoint syntax, no state-dependent regeneration, K2 classification, or dictionary selection is claimed.
+
+### Cycle92: retained interval diagnostic frontier
+
+`CommonRoleGuardedIntervalFrontier` computes a complete finite tree of accepted
+branches and all their children, including unsuccessful children. Unsupported
+scans and rigid rejections remain distinct. `build_plans` proves exact ordered
+list erasure to cycle91; `accepted_retained` and `branch_payload_exact` preserve
+full recursive child payloads. `run_models_exact` gives the independent original
+head/shared-source ordinary model iff without caller check or child success.
+This is fixed syntax with cycle91's tuple-key alias restriction, not state
+saturation, final four-way classification, or dictionary equivalence. Five
+general B4 bridges remain open.

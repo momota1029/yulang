@@ -1220,3 +1220,21 @@ source-domain name iff does not imply finite structural work without Paterson.
 - `old : List (Demand α)`: original ordinary demand history, retained with every alternative. `assignment` and `values` are universally quantified model/semantic inputs; `run_models_exact` existentially chooses a single `values` outside the full recursive judgment. They are not preselected witnesses.
 - `compile_exact` and `ordinary_exact` require Checked; public `run_models_exact` computes it and places it on the result side. No caller fuel, visit sequence, closure proof, child success or model existence.
 - Fixed syntax only. `run` preserves unsupported scans in its second component via `run_boundaries_exact`; the plan list itself omits them, and is not a final rejection/selection classifier. Separate declaration choices are disjoined; child plans are conjoined with cross-sibling constraints. General state-dependent materialization and dictionary equivalence remain open.
+
+## AC. CommonRoleGuardedIntervalFrontier (cycle92)
+
+- `run` inputs are registry, slots, Sources and fixed goal, exactly the AB
+  boundaries. It computes the declaration check and all child trees. No child
+  success proof, finite work domain, fuel, or source valuation is supplied.
+- `Sources` still identifies equal goal/declaration/binder tuples. This is not
+  a derived source-occurrence allocator or a resolution of invocation lifetime.
+- `ordinary` also receives old demands; `run_models_exact` quantifies arbitrary
+  assignments and existentially obtains one global source valuation.
+- `Tree` is public data, so arbitrary caller-constructed trees need not be valid.
+  Model/retention theorems explicitly concern actual `build`/`run` outputs.
+- Accepted parent branches retain their exact full recursive children regardless
+  of success. Per-node outside and rigid rejects are separate, but no final
+  language classification is assigned. Spec 6.3 supplies the all-child and
+  delayed-classification requirements, not a general state-materialization map.
+- Source lowering, state-dependent revisits, K2 and dictionary observations remain
+  the same open boundaries. Global flattened outside-list equality is not proved.

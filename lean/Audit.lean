@@ -1,3 +1,4 @@
+import Yulang.CommonRoleGuardedIntervalFrontier
 import Yulang.CommonRoleGuardedIntervalPlans
 import Yulang.CommonRoleIntervalWorkClosure
 import Yulang.CommonRoleGeneratedWhereClosure
@@ -8329,3 +8330,15 @@ run_cmd do
 #print axioms Yulang.CommonRoleGuardedIntervalPlans.ordinary_exact
 #print axioms Yulang.CommonRoleGuardedIntervalPlans.run_models_exact
 #print axioms Yulang.CommonRoleGuardedIntervalPlans.run_boundaries_exact
+
+-- Cycle92: retained incomplete interval frontier and exact erasure.
+#print axioms Yulang.CommonRoleGuardedIntervalFrontier.build_root
+#print axioms Yulang.CommonRoleGuardedIntervalFrontier.build_plans
+#print axioms Yulang.CommonRoleGuardedIntervalFrontier.accepted_retained
+#print axioms Yulang.CommonRoleGuardedIntervalFrontier.branch_sound
+#print axioms Yulang.CommonRoleGuardedIntervalFrontier.branch_payload_exact
+#print axioms Yulang.CommonRoleGuardedIntervalFrontier.outside_exact
+#print axioms Yulang.CommonRoleGuardedIntervalFrontier.rejects_exact
+#print axioms Yulang.CommonRoleGuardedIntervalFrontier.ordinary_models_exact
+#print axioms Yulang.CommonRoleGuardedIntervalFrontier.run_exact
+#print axioms Yulang.CommonRoleGuardedIntervalFrontier.run_models_exact
