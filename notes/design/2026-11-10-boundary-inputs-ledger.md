@@ -736,3 +736,39 @@ registry生成、一般interval receiver、動的whereは未接続。bool/unit�
 
 Q1/Q2とcycle23/24の未決事項を選ばず、既存質問を維持する。新規質問0件。
 B4主要5橋とI-13全量監査は依然未完。モジュール言及数は監査完了数ではない。
+
+
+## P. cycle79: checked raw associated programs
+
+`CommonRoleCheckedAssociatedPrograms` replaces proof-bearing Template inputs
+with raw goal syntax at the finite-program boundary. Caller inputs are:
+
+- `RawOccurrence`: scope-resolved receiver/output Nat names, associated Nat name,
+  and a raw `Roles.Goal`. `RawProgram` is an arbitrary finite ordered list.
+  The list's completeness and source scoping are still outside this checker.
+- `roles : Roles.RoleDecls` is the existing total Nat→RoleDecl signature function.
+  `Valid` computes goal scope ≤1, argument count = declared arity, and associated
+  name membership. A total function cannot establish source role visibility.
+  Signature lookup is not a proof of parser/name-resolution adequacy.
+- `build` internally consumes the computed pointwise validity proof. The public
+  `check` asks for no scope proof, successful resolver result, selected candidate,
+  completed frontier, fuel, assignment or source valuation.
+- `check_exact` quantifies all roles/raw/program and gives success iff erasure
+  equals raw and every row is valid. `check_accepts` and `check_fails` characterize
+  acceptance and an invalid-row witness. `erase_ofValid`, `erase_injective`,
+  `eraseProgram_injective`, `erase_build`, `checked_length`, `checked_rows`
+  support exact preservation of every occurrence and order.
+- `materialized_declared` takes a successful check, a member row and an independent
+  Materializes derivation; it concludes declared arity and name membership for
+  the actual generated goal. No dictionary existence is assumed or concluded.
+- `checked_source_exact` and `checked_solver_exact` additionally take env/core wf,
+  associated awf, an accepted program, any old state, and (model version) any
+  assignment. They package exact erasure with cycle78's model/solver iff, without
+  changing that judgment. They are not independent new raw-source adequacy proofs.
+
+Spec6.1–6.3 and existing RoleDecl/AssocComplete/AssocDeclared fix the signature
+checks. Placeholder scope ≤1 and int/str encoding remain implementation-fragment
+limits, not newly chosen language rejection rules. The runtime regression that
+role999 can pass the total signature function while dictionary resolution fails
+makes the visibility boundary explicit. Q1/Q2 and cycle23/24 remain unresolved.
+No new semantic choice or question. I-13 remains partial; five B4 bridges remain.

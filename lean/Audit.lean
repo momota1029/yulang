@@ -8116,3 +8116,17 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralAssociatedTemplates.run_evidence_exact
 #print axioms Yulang.CommonRoleStructuralAssociatedTemplates.run_source_exact
 #print axioms Yulang.CommonRoleStructuralAssociatedTemplates.solver_source_exact
+
+-- Cycle79: whole-program source checking and exact erasure
+#print axioms Yulang.CommonRoleCheckedAssociatedPrograms.erase_ofValid
+#print axioms Yulang.CommonRoleCheckedAssociatedPrograms.erase_injective
+#print axioms Yulang.CommonRoleCheckedAssociatedPrograms.eraseProgram_injective
+#print axioms Yulang.CommonRoleCheckedAssociatedPrograms.erase_build
+#print axioms Yulang.CommonRoleCheckedAssociatedPrograms.check_exact
+#print axioms Yulang.CommonRoleCheckedAssociatedPrograms.check_accepts
+#print axioms Yulang.CommonRoleCheckedAssociatedPrograms.check_fails
+#print axioms Yulang.CommonRoleCheckedAssociatedPrograms.checked_length
+#print axioms Yulang.CommonRoleCheckedAssociatedPrograms.checked_rows
+#print axioms Yulang.CommonRoleCheckedAssociatedPrograms.materialized_declared
+#print axioms Yulang.CommonRoleCheckedAssociatedPrograms.checked_source_exact
+#print axioms Yulang.CommonRoleCheckedAssociatedPrograms.checked_solver_exact

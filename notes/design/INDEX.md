@@ -261,3 +261,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Computed named associated-source models](2026-11-10-cycle77-named-associated-source-models.md): Draft; computed table and endpoint slots, independent source-name derivations, concrete evidence and shared-model exactness. General source/template adequacy and B4 remain open.
 
 - [Structural associated goal templates](2026-11-10-cycle78-structural-associated-templates.md): Draft; checked first-order template generation and independent structural source derivations; full source adequacy remains open.
+
+- [Cycle79: checked associated programs](2026-11-10-cycle79-checked-associated-programs.md) — Draft: computed whole-list scope/arity/name validation, exact erasure and existing source-model contracts.
