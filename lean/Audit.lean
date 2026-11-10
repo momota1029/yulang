@@ -1,3 +1,4 @@
+import Yulang.CommonRoleAmbientMixedSource
 import Yulang.CommonRoleCheckedOrdinaryReplay
 import Yulang.CommonRoleMaterializationProgress
 import Yulang.CommonRoleStateMaterializedFrontier
@@ -8482,3 +8483,19 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralMixedSource.solver_source_exact
 #print axioms Yulang.CommonRoleStructuralMixedSource.capacity
 #print axioms Yulang.CommonRoleStructuralMixedSource.checked_source_exact
+
+-- Cycle102: ordinary-only source variables in computed mixed allocation.
+#print axioms Yulang.CommonRoleAmbientMixedSource.name_embed
+#print axioms Yulang.CommonRoleAmbientMixedSource.receiver_source
+#print axioms Yulang.CommonRoleAmbientMixedSource.output_source
+#print axioms Yulang.CommonRoleAmbientMixedSource.prepared_evidence
+#print axioms Yulang.CommonRoleAmbientMixedSource.prepared_linked
+#print axioms Yulang.CommonRoleAmbientMixedSource.allocated_to_named
+#print axioms Yulang.CommonRoleAmbientMixedSource.named_to_allocated
+#print axioms Yulang.CommonRoleAmbientMixedSource.allocated_named_exact
+#print axioms Yulang.CommonRoleAmbientMixedSource.named_support
+#print axioms Yulang.CommonRoleAmbientMixedSource.run_evidence_exact
+#print axioms Yulang.CommonRoleAmbientMixedSource.run_source_exact
+#print axioms Yulang.CommonRoleAmbientMixedSource.solver_source_exact
+#print axioms Yulang.CommonRoleAmbientMixedSource.capacity
+#print axioms Yulang.CommonRoleAmbientMixedSource.checked_source_exact

@@ -1454,3 +1454,19 @@ source-domain name iff does not imply finite structural work without Paterson.
   ordinary entailment, table reindexing under permutation, final four-way diagnosis
   and dictionary equivalence remain open. Existing identity questions remain
   unresolved. No additional language decision. Five B4 bridges remain.
+
+## Cycle102: CommonRoleAmbientMixedSource
+
+- `p : CommonRoleStructuralAssociatedTemplates.Program`: 有限な構造的関連型occurrence。
+  raw checkとscope/arity/nameの意味保存は既存入口から接続する。実宣言のloweringは未接続。
+- `extra : List Nat`: ordinary専用のscope解決済みsource名。全公開実行・正確性定理が量化。
+  将来はordinary式/制約のloweringから収集する。spec 6.3では関連型変数も普通の変数。
+  名前の個数・並びは実装の表現であり、scope/invocation同一性の既存未決を解決しない。
+- `s : State (table p extra).length`: 元ordinary制約とchild/width/row文法の証明。
+  将来のloweringで計算する。source table、endpoint埋め込み、共有辺は内部計算になった。
+- `env`, `roles`, `wf`, `awf`: 既存の有限registryと宣言well-formedness。spec 6.3の
+  associated等式に接続する断片であり、一般のwhere生成や全宣言の検査完了ではない。
+- `v`: 任意モデルを述べるための量化変数。整合性、モデル存在、source coherence、
+  fuel、成功結果を入口の前提にしていない。`solver_source_exact` はモデル存在を結論にする。
+- `checked_source_exact` のraw/p/check等式: 実行したraw検査の結果。extraの由来や
+  sの整合性まで保証しない。新しい仕様判断は0件。B4の5橋は未完成。

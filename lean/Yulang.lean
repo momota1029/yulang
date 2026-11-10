@@ -1505,3 +1505,5 @@ import Yulang.CommonRoleMixedEvidenceClosure
 import Yulang.CommonRoleMixedEvidenceReplay
 
 import Yulang.CommonRoleStructuralMixedSource
+
+import Yulang.CommonRoleAmbientMixedSource
