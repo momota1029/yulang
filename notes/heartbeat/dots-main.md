@@ -1,10 +1,9 @@
-cycle: 88
-status: completed
-started: 2026-11-10T15:58:17Z
-updated: 2026-11-10T16:14:52Z
-elapsed_min: 16.6
-activity: Closed checked literal/variable/let scalar input lowering through both existing let rules. Focused 297 jobs, 39 examples, 12-theorem audit, inventory/diff gate and exact-source Core/Lean CI pass. All five B4 bridges remain open.
+cycle: 89
+status: running
+started: 2026-11-10T16:27:56Z
+updated: 2026-11-10T16:32:01Z
+elapsed_min: 4.1
+activity: Derive a finite recursive where-child source expansion directly from actual first-order declarations, preserving failed children and connecting generated obligations to the checked source entry.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 2b53b3e82
-report: notes/handoff/dots-cycle-88.md
-resume_hint: Refresh integration/work/inbox and read cycle88. Source a3f225e5 tree and both CI runs verified; no production Lean changed afterward. Next bridge should derive grouped clauses/annotations/names from declarations or register actual generated children. Logs ../cache/yulang88.
+last_local_commit: e36fa53b0
+resume_hint: Refreshed integration/work to e36fa53b0; cycle88 completed and no prior writer. Build only focused modules; logs ../cache/yulang89. Keep all five B4 bridges open outside the explicit first-order fragment.
