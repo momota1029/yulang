@@ -8099,3 +8099,20 @@ run_cmd do
 #print axioms Yulang.CommonRoleNamedAssociatedSourceModels.run_evidence_exact
 #print axioms Yulang.CommonRoleNamedAssociatedSourceModels.run_source_exact
 #print axioms Yulang.CommonRoleNamedAssociatedSourceModels.solver_source_exact
+
+-- Cycle78: checked structural associated templates and source exactness
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.fill_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.fills_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.fill_ground
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.fills_ground
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.check_accepts
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.checked_goal
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.encode_ground
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.materializes_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.materializes_shape
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.materializes_payload
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.step_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.derives_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.run_evidence_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.run_source_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedTemplates.solver_source_exact

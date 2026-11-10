@@ -3786,3 +3786,21 @@ including cycles and repeated names; checked core and associated declarations
 remain explicit. Source scoping, goal-template adequacy, dynamic where generation,
 general interval knownness, final classification and dictionaries are not proved.
 This is a finite implementation fragment, not a restriction chosen for Yulang.
+
+### Checked structural associated templates (cycle78)
+
+`CommonRoleStructuralAssociatedTemplates` replaces arbitrary head-to-goal
+functions with first-order goal skeletons and a computed scope check. Only
+placeholder zero is in scope. Structural filling preserves all constructors,
+argument order, arity and role; a used placeholder retains the encoded receiver.
+The existing int/str encoding is reused. Unsupported scalar encodings cannot
+pass the closed-goal guard, even for a constant skeleton. This is a fragment
+boundary, not a language rejection rule.
+
+Every finite structural program compiles exactly to the named source judgment.
+The independent source step uses structural filling and associated declarations,
+not resolver return values. Returned scalar evidence, all ordinary shared-source
+models, and actual solver acceptance are exact for that judgment. Scope checking
+constructs its own proof. Source-name binding, finite occurrence selection,
+registry generation/well-formedness, parser lowering and dynamic where generation
+remain outside this result. B4 still has five main bridges.

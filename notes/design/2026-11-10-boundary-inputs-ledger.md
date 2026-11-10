@@ -701,3 +701,38 @@ scalar decodeを使う。実resolverの出力や飽和済み集合は独立判�
 
 この接続で全言語B4、動的whereの閉包、一般区間knownness、四方向の分類、辞書順が
 完成したとは言わない。主要橋は5本のまま。I-13全量監査も部分達成のまま。
+
+## O. cycle78: structural associated template generation
+
+`CommonRoleStructuralAssociatedTemplates`の新規caller入力は次の通り。
+
+- `Template`は`goal : Roles.Goal`と`scope_ok : argsBound goal.args ≤ 1`。
+  `check : Goal → Option Template`がこの証拠を計算し、`check_accepts`/`checked_goal`
+  は受理範囲と元goalの保存を示す。変数0だけのfirst-order断片で、引数は任意個、
+  constructorは任意の有限入れ子、placeholderは0回以上・複数回出現できる。
+- `Occurrence`はreceiver/outputのscope解決済みNat名、関連name、上記Template。
+  `Program`はその任意有限リスト。compileは行数/順番と名前を保ち、template関数を
+  構造的に生成する。別のslot map、identity関数、燃料は受け取らない。
+- `fill_exact`/`fills_exact`は任意payload、scope内のterm/list、結果を量化し、
+  独立構造導出と既存Roles.substを同値にする。`fill_ground`/`fills_ground`は任意
+  ground payloadの閉性を示す。`encode_ground`は既存int/str encodingの閉性。
+- `materializes_exact`/`materializes_shape`は任意Template/head/Goalを量化し、
+  closed guardと独立Materializesのiff、role/arity保存を示す。
+  `materializes_payload`はplaceholder出現の証拠を加え、その場所に実payloadが
+  入ることを既存matcherで回収する。未使用の場合は定数skeletonを許す。
+- `step_exact`/`derives_exact`は任意env/roles、行またはprogram、旧state、名前/headを
+  取る。既存の任意関数Associated/NamedDerivesと、構造Materializesおよび独立
+  Resolves/AssocDerivesに基づくStep/Derivesを同値にする。ここはwf/awf不要。
+- `run_evidence_exact`/`run_source_exact`/`solver_source_exact`はenv/roles/wf/awf、
+  任意program/旧stateを取る。evidence版はslot/head、model版は全assignmentも量化。
+  source valuation、成功、完成frontierは結論側で、実行前提でない。
+
+これによりN節の任意template関数は、このchecked first-order断片ではsyntaxから
+導けた。spec6.2/6.3のsource共有・関連型等式に沿うが、実parserからこの有限listを
+生成する網羅性、scope名の正しさ、roleの可視性、declared arityの検査とwell-formed
+registry生成、一般interval receiver、動的whereは未接続。bool/unitのencodingを
+新設していない。unsupported用のunbound sentinelは閉性guardで必ず止まり、
+ソース意味の拒否規則にはしない。
+
+Q1/Q2とcycle23/24の未決事項を選ばず、既存質問を維持する。新規質問0件。
+B4主要5橋とI-13全量監査は依然未完。モジュール言及数は監査完了数ではない。
