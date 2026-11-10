@@ -1,9 +1,9 @@
 cycle: 86
 status: running
 started: 2026-11-10T14:56:27Z
-updated: 2026-11-10T14:58:04Z
-elapsed_min: 1.6
-activity: Compute a source-derived finite name allocator and prove canonical compaction preserves evidence, models and readiness without a caller name map.
+updated: 2026-11-10T15:06:03Z
+elapsed_min: 9.6
+activity: Computed canonical allocation proved. Focused 295-job build, 29 boundary examples and 12-theorem audit pass. Publishing source checkpoint; all five B4 bridges remain open.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 96f0dee98
-resume_hint: Refreshed integration and work at 8ee411da; cycle85 completed and no prior writer remains. Continue new cycle86 module, focused builds only; logs ../cache/yulang86. Preserve live tree and publish only work/dots-main.
+last_local_commit: 065406211
+resume_hint: Continue from cycle86 computed allocation. Logs ../cache/yulang86. Verify source publication tree and exact-source CI, then publish final report. Initial heartbeat write denial was resolved after full-tree evidence; live head 9a93291e.

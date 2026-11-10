@@ -3958,3 +3958,17 @@ not a necessary condition for two readiness Bools to agree. Failure of this
 check is not a language rejection. Declaration lowering, invocation identity,
 dynamic children, final diagnostics, dictionary observation and all five B4
 bridges remain open.
+
+
+### Cycle86: source-derived canonical allocation
+
+`CommonRoleComputedSourceAllocation.allocate` computes a numeric name map
+from source and input, with no caller map or injectivity proof. It preserves
+independent named evidence for every query, source model existence and finite
+readiness. `allocate_rename` produces identical source/input pairs after any
+renaming collision-free on computed support; `allocate_idempotent` proves that
+repeated allocation is a fixed point. Occurrence order and duplicates are kept.
+The finite capacity counts occurrences and can have unused indices. It is not
+a minimum-size distinct-name table, sibling sorting or a declaration lowering.
+Registry well-formedness and the scalar/one-binder fragment remain assumptions.
+The five B4 bridges and full I-13 semantic audit remain open.

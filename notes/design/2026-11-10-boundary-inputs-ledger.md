@@ -1034,3 +1034,35 @@ a characterization of every map whose readiness result happens to agree.
 Extraction of source/input/f from real declarations remains future work. No
 new semantic decision. Existing Q1/Q2 and cycle23/24 remain pending. All five
 B4 bridges and the total I-13 semantic audit remain incomplete.
+
+
+## W. Cycle86 — source-derived canonical allocation
+
+Module: `CommonRoleComputedSourceAllocation`.
+
+- `encode src input name` and `allocate src input` take only the existing finite
+  source/input carriers. The name map and capacity come from the first index
+  in `support src input`; the caller supplies no domain, map or injectivity.
+- `encode_bound`, `decode_encode`, `encode_safe`, `checked_allocation` and
+  `allocated_name_bound` certify finite capacity, exact decoding and acceptance.
+  Capacity counts occurrences with repetitions, not distinct identities.
+- `allocated_derives` takes arbitrary env/roles/src/input/name/head. Unlike the
+  generic finite renaming theorem, no query-support hypothesis is needed:
+  unused names encode to capacity and cannot alias any supported name.
+- `allocated_models` constructs model witnesses inside the inherited proof.
+  `allocated_readiness` takes arbitrary env/roles/wf/awf/src/input, recomputing
+  checking, allocation and saturation. No old state, chosen package, model,
+  fuel or successful solver result is passed from outside.
+- `support_rename` holds for every name map. `encode_rename` and `allocate_rename`
+  take a map collision-free on the original computed support. This is a
+  representation-comparison hypothesis, not an input to `allocate`.
+  `allocate_idempotent` has no map or collision premise. Canonicality is for
+  preserved occurrence order and multiplicity, not arbitrary source permutations.
+- Private list-index, name-list, composition and pointwise-congruence lemmas
+  are proof machinery with explicit finite membership hypotheses.
+
+Actual source/assumption extraction is still external. Spec 6.3 does not choose
+invocation sharing, and Roles.Impl.constraints does not retain grouped source
+annotations. This encoding result neither reconstructs those annotations nor
+settles existing Q1/Q2 or cycle23/24. All five B4 bridges remain open. The total
+I-13 semantic audit remains incomplete; inventory reachability is not coverage.

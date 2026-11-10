@@ -1,3 +1,4 @@
+import Yulang.CommonRoleComputedSourceAllocation
 import Yulang.CommonRoleFiniteSourceRenaming
 import Yulang.CommonRoleNamedSourceRenaming
 import Yulang.CommonRoleNamedSourceEntry
@@ -8227,3 +8228,17 @@ run_cmd do
 #print axioms Yulang.CommonRoleFiniteSourceRenaming.run_source_exact
 #print axioms Yulang.CommonRoleFiniteSourceRenaming.rename_checked_exact
 #print axioms Yulang.CommonRoleFiniteSourceRenaming.checked_readiness
+
+-- Cycle86: computed canonical finite source allocation.
+#print axioms Yulang.CommonRoleComputedSourceAllocation.encode_bound
+#print axioms Yulang.CommonRoleComputedSourceAllocation.decode_encode
+#print axioms Yulang.CommonRoleComputedSourceAllocation.encode_safe
+#print axioms Yulang.CommonRoleComputedSourceAllocation.checked_allocation
+#print axioms Yulang.CommonRoleComputedSourceAllocation.allocated_derives
+#print axioms Yulang.CommonRoleComputedSourceAllocation.allocated_models
+#print axioms Yulang.CommonRoleComputedSourceAllocation.allocated_readiness
+#print axioms Yulang.CommonRoleComputedSourceAllocation.support_rename
+#print axioms Yulang.CommonRoleComputedSourceAllocation.allocated_name_bound
+#print axioms Yulang.CommonRoleComputedSourceAllocation.encode_rename
+#print axioms Yulang.CommonRoleComputedSourceAllocation.allocate_rename
+#print axioms Yulang.CommonRoleComputedSourceAllocation.allocate_idempotent
