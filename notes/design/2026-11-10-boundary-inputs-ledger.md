@@ -1329,3 +1329,28 @@ source-domain name iff does not imply finite structural work without Paterson.
 - All results are auxiliary progress facts for the existing explicit-int
   implementation fragment, not a spec rejection policy or B4 completion. Source
   identity, all five major B4 bridges and X13-X16 outer acceptance remain open.
+
+## AH. CommonRoleFrontierReplay (cycle97)
+
+- `run` and `runGraphs` take the existing registry, original Goal, slots, Sources,
+  initial atoms and a finite update list. `runGraphs` additionally takes old
+  demands indexed by occurrence. The existing declaration checker is computed once.
+  Source extraction, invocation lifetime and the actual solver's trace remain
+  caller boundaries, not silently discharged assumptions.
+- `replayFrom` additionally takes a checked registry and a cached Tree; its
+  snapshot theorem explicitly requires that cache to equal the previous build.
+  The public entry constructs this invariant itself. No model, rank, fuel,
+  successful child, finite work list or numerical bound enters computation.
+- `run_graph_snapshots` and `runGraphs_exact` have no Chain premise: the complete
+  ordered snapshots and refreshed graph outputs equal direct public runs at all
+  states, even contradictory/nonmonotone ones. Graphs are refreshed every time;
+  neither ordinary atoms nor old source demands are discarded on tree plateaus.
+- `run_computed_bound` requires the existing Chain proposition for the supplied
+  states. It bounds builds by one plus source variable occurrences and counts
+  full preorder occurrences in rebuilt trees by that bound times the computed
+  variant domain length. Each closure is a full list block, preserving duplicates.
+  This count is not instrumented total execution work or an internal graph bound.
+- The finite list is not a proof of solver trace adequacy or termination. All
+  updates still require observation and graph refresh. General source identity,
+  scheduling fairness, final four-way classification and dictionary observation
+  remain open; all five B4 bridges remain incomplete. No new semantic choice.

@@ -4126,3 +4126,29 @@ old demands が異なっても Tree 部分だけはこの対応を満たす。
 明示 paired int に限る既存実装断片であり、仕様で他の型を拒否する決定ではない。
 B4 の5橋は引き続き未完成。両前提の必要性は、非単調な整合状態列と、
 包含するが矛盾する状態列の回帰で確かめた。
+
+## Cycle97: cached diagnostic replay and exact refreshed graph outputs
+
+`CommonRoleFrontierReplay` processes a supplied ordinary-state stream. It builds
+one initial complete diagnostic tree, then reuses it exactly when the actual
+materialized source Goal has not changed. Plateaus do not stop processing.
+`run_graph_snapshots` proves equality of every full tree snapshot with the
+existing public graph run, without consistency or monotonicity premises.
+`runGraphs_exact` additionally refreshes ordinary graphs at every state and
+proves exact equality of the full public outputs, including changed ordinary
+atoms, old demands and all plan alternatives. No graph is cached.
+
+Under the explicit `Chain` premise (adjacent atom inclusion and a model of each
+later state), `run_computed_bound` computes a finite `workDomain` and bounds
+rebuilds by `1 + potential original`, and rebuilt-tree preorder occurrences by
+that number times the domain length. The multiplicity proof uses whole closure
+blocks in the variant-domain concatenation. Set inclusion alone is not used as
+a length bound. These are accounting counts, not total runtime or all internal
+traversals. Snapshots, materialization, comparisons and refreshed graphs still
+scale with the supplied stream; graph vertices have no bound here.
+
+All 12 public theorems are auxiliary computation/correctness or progress results.
+The existing explicit paired-int fragment, fixed original Goal, fixed slots and
+caller Sources remain. No real solver trace is derived, no fairness/stop test is
+proved, and no invocation-sharing decision is made. All five B4 bridges and the
+outer X13-X16 acceptance remain open. No full local build is claimed.
