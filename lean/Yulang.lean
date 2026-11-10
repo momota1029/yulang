@@ -1460,3 +1460,5 @@ import Yulang.CommonRoleFiniteAssociatedSourceModels
 import Yulang.CommonRoleNamedAssociatedSourceModels
 
 import Yulang.CommonRoleStructuralAssociatedTemplates
+
+import Yulang.CommonRoleCheckedAssociatedPrograms

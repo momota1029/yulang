@@ -3804,3 +3804,25 @@ models, and actual solver acceptance are exact for that judgment. Scope checking
 constructs its own proof. Source-name binding, finite occurrence selection,
 registry generation/well-formedness, parser lowering and dynamic where generation
 remain outside this result. B4 still has five main bridges.
+
+
+### Cycle79: checked finite associated source programs
+
+`CommonRoleCheckedAssociatedPrograms` checks a finite list of raw associated
+obligations before structural materialization. It computes the one-placeholder
+scope bound, declared role arity and associated-name membership. Successful
+checking erases exactly to the original list, retaining every row, order,
+receiver/output name, associated name and goal. Acceptance is equivalent to
+pointwise validity; failure has an invalid input witness. Duplicates and source
+aliases are retained, not deduplicated or reassigned.
+
+Every materialized accepted row has the checked arity and declared associated
+name. The checked program feeds the previous exact ordinary-model and solver
+contracts. These two contracts reuse cycle78's semantic proof; they are not a
+new parser-to-source semantics theorem. Scope-resolved source names, the total
+role-signature function, core/associated well-formedness and finite occurrence
+selection still come from outside. A total signature function does not prove
+role visibility. Syntax checking neither requires nor guarantees a dictionary
+or a consistent ordinary model. The checker recognizes the existing structural
+fragment; failure is not a new language rejection rule. All five B4 bridges
+and the complete boundary-input audit remain open.
