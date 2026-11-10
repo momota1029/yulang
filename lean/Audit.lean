@@ -1,3 +1,4 @@
+import Yulang.CommonRoleNamedSourceRenaming
 import Yulang.CommonRoleNamedSourceEntry
 import Yulang.CommonRoleDynamicIndexConsistentSource
 import Yulang
@@ -8203,3 +8204,15 @@ run_cmd do
 #print axioms Yulang.CommonRoleNamedSourceEntry.derives_transport
 #print axioms Yulang.CommonRoleNamedSourceEntry.names_member
 #print axioms Yulang.CommonRoleNamedSourceEntry.run_source_congr
+
+-- Cycle84: exact source identity renaming and capture boundary.
+#print axioms Yulang.CommonRoleNamedSourceRenaming.step_rename
+#print axioms Yulang.CommonRoleNamedSourceRenaming.valid_clause_rename
+#print axioms Yulang.CommonRoleNamedSourceRenaming.valid_source_rename
+#print axioms Yulang.CommonRoleNamedSourceRenaming.names_rename
+#print axioms Yulang.CommonRoleNamedSourceRenaming.derives_rename
+#print axioms Yulang.CommonRoleNamedSourceRenaming.derives_original
+#print axioms Yulang.CommonRoleNamedSourceRenaming.derives_rename_exact
+#print axioms Yulang.CommonRoleNamedSourceRenaming.models_rename_exact
+#print axioms Yulang.CommonRoleNamedSourceRenaming.discharge_rename
+#print axioms Yulang.CommonRoleNamedSourceRenaming.run_source_rename

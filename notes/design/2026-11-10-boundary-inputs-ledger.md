@@ -960,3 +960,43 @@ No new language decision. Existing Q1/Q2 and cycle23/24 remain unresolved.
 The total I-13 audit remains incomplete and the original cycle72 deadline was
 missed. Mention counts do not measure completed semantic coverage. B4 still
 has all five main bridges open.
+
+
+## U. Cycle84 — source-name renaming and capture boundary
+
+Module: `CommonRoleNamedSourceRenaming`.
+
+- `renameEquation f`, `renameClause f`, `renameSource f`, `renameInput f` take
+  `f : Nat → Nat` and existing finite source/input carriers. Only original
+  receiver/output/input names change. Role IDs, associated member IDs and
+  the local structural Goal binder remain unchanged. The allocator and initial
+  ordinary state are recomputed by the cycle83 entry, not supplied by caller.
+- `step_rename`, `valid_clause_rename`, `valid_source_rename`, `names_rename`,
+  `derives_rename`, and `discharge_rename` permit any name map. They do not
+  certify that an arbitrary map is safe for equality of solver results.
+- `derives_original`, `derives_rename_exact`, `models_rename_exact`, and
+  `run_source_rename` explicitly take `Function.Injective f`. This is a proof
+  condition on the chosen encoding, not a language rule about invocation
+  identity. `models_rename_exact` existentially constructs/pulls back valuations;
+  no chosen model is a caller input. Private `originalName`/`original_image`
+  are inverse-witness proof machinery and are not used by the executable entry.
+- `run_source_rename` takes arbitrary env/roles/wf/awf/src/input. The well-formed
+  registries and finite scalar/one-binder fragment are inherited cycle83
+  boundaries. It proves equal Bool readiness, not dictionary observation or
+  final rejected/pending/ambiguous classification.
+
+Planned derivation: a future scoped source lowering must compute names and prove
+its encoding injective on distinct identities (or justify intended sharing).
+Spec §6.3 establishes associated equations and sibling conjunction, but does
+not choose invocation identity. Existing Q1/Q2 and cycle23/24 remain pending.
+The full global injectivity hypothesis in this module is a sufficient interface
+condition, not the minimal finite-support condition and not a language limit.
+
+Inspected declaration gap: `Roles.Impl.constraints : List Goal` contains core
+where goals, without the receiver/output names and associated equations of
+`CommonRoleAssociatedClauseExtraction.Clause`. `Roles.AssocImpl.assoc` contains
+associated bodies, not those source annotations. No extraction from these fields
+alone is claimed. Reuse an authoritative source carrier or establish its
+preservation before connecting this entry to full Parent/Left/Right inference.
+No new semantic decision or duplicated question note was introduced. I-13 total
+coverage remains incomplete; inventory counts are not semantic audit counts.

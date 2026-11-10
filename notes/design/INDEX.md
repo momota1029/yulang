@@ -271,3 +271,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle82 source state role discharge](2026-11-10-cycle82-source-state-role-discharge.md) — Draft: computed joint allocation and evidence-backed all-role readiness.
 
 - [Cycle83 named source entry](2026-11-10-cycle83-named-source-entry.md) — Draft: checked finite source, named scalar assumptions, independent source readiness.
+
+- [Cycle84 source renaming](2026-11-10-cycle84-source-renaming.md): Draft; capture-avoiding finite source names, independent derivations/models, and readiness invariance.
