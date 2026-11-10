@@ -1,9 +1,10 @@
 cycle: 68
-status: running
+status: completed
 started: 2026-11-10T04:57:19Z
-updated: 2026-11-10T05:09:25Z
-elapsed_min: 12.1
-activity: Published source c410cb4 with persistent registry and finite keyed-model iff. Verified exact source tree, all seven changed blobs and all untouched blobs. Focused 308 jobs, 21 axioms, 18 regressions and diff gate passed; checking exact source CI and preparing report.
+updated: 2026-11-10T05:11:30Z
+elapsed_min: 14.2
+activity: Closed persistent explicit invocation registry and finite original shared-model iff. Focused 308-job build, 21-theorem axiom audit, 18 regressions and diff gate passed. Exact source core/proof CI both succeeded; source tree verified.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
 last_local_commit: a55ca95b3
-resume_hint: Source c410cb4a0f7c00929c84a2da729bb057805c06a2 is published and verified. Fetch it, reuse existing cache. Report cycle68 is next; key derivation, associated feedback and five B4 bridges remain. Focused builds only.
+report: notes/handoff/dots-cycle-68.md
+resume_hint: Fetch integration and reread orders/inbox. Source c410cb4a0f7c00929c84a2da729bb057805c06a2 verified. Explicit invocation/binder registry now reuses names across recapture and arbitrary finite visits with independent shared-model exactness. Next derive stable keys from actual source obligations, connect associated feedback and graph adequacy, then finite goals/saturation. All five B4 main bridges remain. Reuse cache; focused builds only.
