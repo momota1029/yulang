@@ -4027,3 +4027,26 @@ the declaration carrier is synthesized. State-dependent interval children,
 source parsing/name resolution, invocation identity, K2 stabilization and
 whole-language diagnostic/dictionary equivalence remain outside. All five
 major B4 bridges remain open, despite the exact first-order local classification.
+
+
+### Cycle90: finite interval where work and original-source allocation
+
+`CommonRoleIntervalWorkClosure` computes the full recursive potential-work domain
+of the existing interval capture grammar. `compute_reach_exact` quantifies every
+finite declaration registry, root and target: computed membership is exactly the
+existing declaration check plus independent accepted-where reachability. The
+recursion uses the real stable Paterson check on both original endpoints, without
+caller-supplied fuel, finite visit lists, successful models or selected candidates.
+
+`prepared_child_closed` connects every actual `CommonRoleWhereSourceAllocation.prepare`
+child to that domain. `domain_owners` and `domain_allocation` derive canonical
+original-root owners and preserve arbitrary complete graph snapshots across the
+whole recursive domain. `boundaries_exact` retains outside scans rather than
+silently interpreting them as rejection. Registry permutation and duplicate
+records preserve work-set membership, not the traversal list or dictionaries.
+
+These are fixed-syntax interval work-domain results. Multiple accepted candidates
+are potential alternative work, not unconditionally conjoined constraints.
+Ordinary-state rematerialization, guards, general K2 saturation, associated where
+annotation lowering and final language classification remain open. All five
+major B4 bridges remain open. Theorem count is not completion of those bridges.

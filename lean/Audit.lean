@@ -1,3 +1,4 @@
+import Yulang.CommonRoleIntervalWorkClosure
 import Yulang.CommonRoleGeneratedWhereClosure
 import Yulang.CommonRoleScalarExpressionInputs
 import Yulang.CommonRoleAnnotatedLiteralInputs
@@ -8295,3 +8296,25 @@ run_cmd do
 #print axioms Yulang.CommonRoleGeneratedWhereClosure.run_source_exact
 #print axioms Yulang.CommonRoleGeneratedWhereClosure.checked_agrees
 #print axioms Yulang.CommonRoleGeneratedWhereClosure.checked_exact
+
+-- Cycle90: finite interval work domain and recursive source allocation.
+#print axioms Yulang.CommonRoleIntervalWorkClosure.children_exact
+#print axioms Yulang.CommonRoleIntervalWorkClosure.outside_exact
+#print axioms Yulang.CommonRoleIntervalWorkClosure.edge_decreases
+#print axioms Yulang.CommonRoleIntervalWorkClosure.edge_sources
+#print axioms Yulang.CommonRoleIntervalWorkClosure.closure_complete
+#print axioms Yulang.CommonRoleIntervalWorkClosure.closure_sound
+#print axioms Yulang.CommonRoleIntervalWorkClosure.closure_exact
+#print axioms Yulang.CommonRoleIntervalWorkClosure.reach_trans
+#print axioms Yulang.CommonRoleIntervalWorkClosure.generated_closed
+#print axioms Yulang.CommonRoleIntervalWorkClosure.reach_sources
+#print axioms Yulang.CommonRoleIntervalWorkClosure.domain_included
+#print axioms Yulang.CommonRoleIntervalWorkClosure.domain_owners
+#print axioms Yulang.CommonRoleIntervalWorkClosure.prepared_child_closed
+#print axioms Yulang.CommonRoleIntervalWorkClosure.boundaries_exact
+#print axioms Yulang.CommonRoleIntervalWorkClosure.compute_exact
+#print axioms Yulang.CommonRoleIntervalWorkClosure.compute_reach_exact
+#print axioms Yulang.CommonRoleIntervalWorkClosure.domain_allocation
+#print axioms Yulang.CommonRoleIntervalWorkClosure.domain_name_exact
+#print axioms Yulang.CommonRoleIntervalWorkClosure.reach_registry_ext
+#print axioms Yulang.CommonRoleIntervalWorkClosure.closure_registry_ext

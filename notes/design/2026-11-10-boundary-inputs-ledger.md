@@ -1178,3 +1178,36 @@ Parser/name lowering, semantic-normalization adequacy and associated-where
 annotations absent from `Roles.Impl.constraints` remain unproved. This work does
 not settle pending invocation, nonlinear Common head or where-variable questions.
 Five B4 bridges and incomplete I-13 semantic coverage remain explicit.
+
+
+## AA. Cycle90: CommonRoleIntervalWorkClosure
+
+- Inputs to `compute`: `registry : List Declaration`, `root : Goal`. The existing
+  declaration checker is computed internally. Visible registry and root endpoint
+  syntax still require source/ordinary lowering (spec 6.2, 6.3). There is no
+  supplied work list, stopping witness, finite source domain, or source-owner map.
+- `closure` / `domain` additionally take `Checked registry` only as internal
+  helpers. `compute_reach_exact` moves this check to the result side, not an
+  unchecked caller assumption.
+- `Edge` has original declaration, captured bindings and requirement membership,
+  with independent `Accepts`. `Reach` is an independent finite-path judgment.
+  These are proof-side derivations; executable closure computes both children and
+  termination from actual scans and the declaration check.
+- `prepared_child_closed` quantifies arbitrary slots, old demands, bindingSource,
+  actual returned candidate, and child membership. These remain the underlying
+  prepare entry's inputs, as documented in A4. They are not inputs to `compute`.
+  The theorem does not manufacture source keys or prove interval-state adequacy.
+- `domain_allocation` quantifies arbitrary graph, role and visible heads and proves
+  snapshot preservation. It does not prove graph/ordinary correspondence.
+- Endpoints are fixed syntax. `CommonRoleWhereSourceModels.run` computes its scan
+  from declaration and goal, not from old ordinary demands. State updates can
+  change future materialized goals; this closure does not cover them without a
+  separate refinement/replay theorem. Potential branches must retain guards when
+  incorporated into a solver; never conjoin all registry candidates.
+- `boundaries` retains scanner `none` at every reachable node. Nonlinear/join
+  heads remain outside the implementation fragment, not language errors. This
+  uses the existing boundary; no new meaning for pending/ambiguous is chosen.
+
+Spec 6.3 supports finite checked where descent and shared source variables.
+Invocation lifetime questions and full I-13 semantic coverage remain open. The
+source-domain name iff does not imply finite structural work without Paterson.

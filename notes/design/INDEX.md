@@ -283,3 +283,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Checked scalar expression inputs](2026-11-10-cycle88-scalar-expression-inputs.md) — Draft; structural evaluator, existing let/variable typing and independent finite source readiness. Full source lowering remains open.
 
 - [Generated where closure](2026-11-10-cycle89-generated-where-closure.md) — Draft: actual first-order recursive child closure, independent provenance and root success preservation.
+
+- [Interval work closure](2026-11-10-cycle90-interval-work-closure.md) — Draft: real recursive interval where work, explicit outside boundaries, and computed original-source allocation.
