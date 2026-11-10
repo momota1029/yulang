@@ -4002,3 +4002,28 @@ source equations, without caller atoms, map, fuel, model or solver success.
 Non-scalar syntax, free variables, general inference, parser/name resolution,
 dynamic child generation and all five B4 bridges remain outside this result.
 The inherited model domain contains source names, not every unrelated binding.
+
+
+## Cycle89: actual generated where closure
+
+`CommonRoleGeneratedWhereClosure` computes the complete finite first-order
+where-goal tree from checked declarations. The executable visits every sibling,
+retains missing and overlapping nodes, and stops expanding an overlapping head.
+`closure_exact` identifies membership with an independent declaration path using
+arbitrary matching substitutions. Paterson decrease proves recursion terminates;
+there is no fuel, supplied visit sequence, graph or successful-resolution input.
+`generated_closed` proves actual child edges stay in the computed domain.
+`resolve_unique_closure`, `ambiguous_exact` and `noImpl_exact` give the complete
+three-way classification for this first-order fragment. `classify_eq_resolve`
+proves exact agreement with the existing resolver, including ambiguity priority.
+`registerOne` retains the root receiver identity and complete source-ordered
+multiplicity, and `run_source_exact` connects the new classifier to the existing
+checked grouped-source entry. `checked_exact` computes declaration validity;
+it does not ask the caller for a termination certificate.
+
+This does not close general B4. Resolved first-order declarations, source clauses
+and scalar receiver heads remain inputs. No associated annotation absent from
+the declaration carrier is synthesized. State-dependent interval children,
+source parsing/name resolution, invocation identity, K2 stabilization and
+whole-language diagnostic/dictionary equivalence remain outside. All five
+major B4 bridges remain open, despite the exact first-order local classification.

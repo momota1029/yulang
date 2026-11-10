@@ -281,3 +281,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Checked annotated-literal inputs](2026-11-10-cycle87-annotated-literal-inputs.md) — Draft; literal typing and explicit scalar annotations produce checked source inputs, with independent finite readiness exactness.
 
 - [Checked scalar expression inputs](2026-11-10-cycle88-scalar-expression-inputs.md) — Draft; structural evaluator, existing let/variable typing and independent finite source readiness. Full source lowering remains open.
+
+- [Generated where closure](2026-11-10-cycle89-generated-where-closure.md) — Draft: actual first-order recursive child closure, independent provenance and root success preservation.
