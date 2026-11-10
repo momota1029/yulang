@@ -4050,3 +4050,7 @@ are potential alternative work, not unconditionally conjoined constraints.
 Ordinary-state rematerialization, guards, general K2 saturation, associated where
 annotation lowering and final language classification remain open. All five
 major B4 bridges remain open. Theorem count is not completion of those bridges.
+
+## Guarded fixed-interval plans (cycle91)
+
+`CommonRoleGuardedIntervalPlans.run_models_exact` compiles every accepted declaration alternative with the conjunction of all recursively generated where children. One source valuation is shared across the whole plan and old demands; `ordinary` emits the real cross-source ordinary comparisons. The checked public `run` also returns all unsupported local inspections from the finite potential work domain. Empty plans are not a language rejection. The source-key adapter identifies equal goal/declaration/binder tuples and does not implement occurrence-sensitive fresh allocation. Fixed endpoint syntax, no state-dependent regeneration, K2 classification, or dictionary selection is claimed.

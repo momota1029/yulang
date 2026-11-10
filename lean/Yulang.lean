@@ -1484,3 +1484,5 @@ import Yulang.CommonRoleScalarExpressionInputs
 import Yulang.CommonRoleGeneratedWhereClosure
 
 import Yulang.CommonRoleIntervalWorkClosure
+
+import Yulang.CommonRoleGuardedIntervalPlans

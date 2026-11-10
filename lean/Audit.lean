@@ -1,3 +1,4 @@
+import Yulang.CommonRoleGuardedIntervalPlans
 import Yulang.CommonRoleIntervalWorkClosure
 import Yulang.CommonRoleGeneratedWhereClosure
 import Yulang.CommonRoleScalarExpressionInputs
@@ -8318,3 +8319,13 @@ run_cmd do
 #print axioms Yulang.CommonRoleIntervalWorkClosure.domain_name_exact
 #print axioms Yulang.CommonRoleIntervalWorkClosure.reach_registry_ext
 #print axioms Yulang.CommonRoleIntervalWorkClosure.closure_registry_ext
+
+-- Cycle91: guarded interval plan and shared-source model exactness.
+#print axioms Yulang.CommonRoleGuardedIntervalPlans.shared_append
+#print axioms Yulang.CommonRoleGuardedIntervalPlans.products_exact
+#print axioms Yulang.CommonRoleGuardedIntervalPlans.candidates_complete
+#print axioms Yulang.CommonRoleGuardedIntervalPlans.local_models_exact
+#print axioms Yulang.CommonRoleGuardedIntervalPlans.compile_exact
+#print axioms Yulang.CommonRoleGuardedIntervalPlans.ordinary_exact
+#print axioms Yulang.CommonRoleGuardedIntervalPlans.run_models_exact
+#print axioms Yulang.CommonRoleGuardedIntervalPlans.run_boundaries_exact
