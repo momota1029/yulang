@@ -8449,3 +8449,24 @@ run_cmd do
 #print axioms Yulang.CommonRoleEvidenceReplay.run_none_iff
 #print axioms Yulang.CommonRoleEvidenceReplay.run_computed_bound
 #print axioms Yulang.CommonRoleEvidenceReplay.run_graphs_exact
+
+-- Cycle100: exact mixed associated/ordinary closure and actual checked replay.
+#print axioms Yulang.CommonRoleMixedEvidenceClosure.saturate_exact
+#print axioms Yulang.CommonRoleMixedEvidenceClosure.saturate_bounded
+#print axioms Yulang.CommonRoleMixedEvidenceClosure.saturate_nodup
+#print axioms Yulang.CommonRoleMixedEvidenceClosure.saturate_stopped
+#print axioms Yulang.CommonRoleMixedEvidenceClosure.completed_models
+#print axioms Yulang.CommonRoleMixedEvidenceClosure.completed_evidence
+#print axioms Yulang.CommonRoleMixedEvidenceClosure.completed_linked
+#print axioms Yulang.CommonRoleMixedEvidenceClosure.completed_derived
+#print axioms Yulang.CommonRoleMixedEvidenceClosure.completed_fixedpoint
+#print axioms Yulang.CommonRoleMixedEvidenceClosure.derives_order_independent
+#print axioms Yulang.CommonRoleMixedEvidenceClosure.completed_models_order_independent
+#print axioms Yulang.CommonRoleMixedEvidenceReplay.final_eq_completed
+#print axioms Yulang.CommonRoleMixedEvidenceReplay.completed_models_iff
+#print axioms Yulang.CommonRoleMixedEvidenceReplay.validate_exact
+#print axioms Yulang.CommonRoleMixedEvidenceReplay.run_exact
+#print axioms Yulang.CommonRoleMixedEvidenceReplay.run_none_iff
+#print axioms Yulang.CommonRoleMixedEvidenceReplay.batches_bounded
+#print axioms Yulang.CommonRoleMixedEvidenceReplay.run_computed_bound
+#print axioms Yulang.CommonRoleMixedEvidenceReplay.run_graphs_exact

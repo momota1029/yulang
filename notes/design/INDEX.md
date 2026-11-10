@@ -301,3 +301,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle98 checked ordinary replay](2026-11-10-cycle98-checked-ordinary-replay.md) — Draft; executable cumulative solver checks, shared models and internally derived replay Chain.
 
 - [Cycle99 evidence replay](2026-11-10-cycle99-evidence-replay.md) — Draft; internally generated finite scalar batches, exact model preservation/fixedpoint and checked replay.
+- [Cycle100 mixed associated/ordinary closure](2026-11-10-cycle100-mixed-evidence-closure.md): Draft finite mixed derivation, fixedpoint and checked replay boundary; full B4 remains open.

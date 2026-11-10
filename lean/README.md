@@ -4199,3 +4199,24 @@ bridges, the outer resolve_exact and X13-X16 outer acceptance remain incomplete.
 
 実ソース由来のstate/slot/source/invocation、関連型の新しい制約生成、動的な辺追加、
 一般の飽和schedulerと最終分類は未達。T1c全体とB4の5橋はまだ閉じていない。
+
+## Cycle100: 関連型とordinary evidenceを同じ有限閉包で解く
+
+`CommonRoleMixedEvidenceClosure` は、既存の関連型宣言から出るscalar等式と、
+ordinary stateの相互変数辺による伝播を、一つの有限Horn系で繰り返す。
+associated→ordinary→associatedのような交互の依存も、固定した一往復で
+打ち切らず閉じる。`saturate_exact` は独立な宣言導出を使う4規則のjudgmentとのiff。
+`completed_evidence` と `completed_fixedpoint` は、実際のordinary atom表現で
+その全factが見え、二回目でも新しいfactが生まれないことを示す。
+
+`CommonRoleMixedEvidenceReplay` はそのfactからbatchを内部生成し、実ordinary
+solverで検査して、cached診断と毎回のgraph生成へ接続する。snapshotは1+4*n以下。
+関連型の等式は元stateのモデルを減らし得る。成功の条件は、元stateとすべての
+独立なmixed導出を満たす共通assignment、および診断registryの既存検査。
+元stateが充足可能なだけでは成功しない。whereの列挙順と重複を変えても、
+同じidentity関係とoccurrence所属なら導出と最終モデル集合は変わらない。
+
+これはcallerが有限Source nを渡す断片。identityはscalar factの伝播規則であり、
+seedが無いidentity class全体へ任意型の等式を追加する主張ではない。新しいslotや
+変数辺、実parser由来のsource/invocation、一般のchild生成、最終四分類、辞書同値は
+未達。B4の5橋は引き続き未完成。一般のordinary entailmentや総runtime上限も含まない。

@@ -1404,3 +1404,30 @@ source-domain name iff does not imply finite structural work without Paterson.
   general state-changing scheduler adequacy, final classification and dictionary
   observations are not supplied by this connection. spec6.3 governs equality
   flow; existing source identity questions remain unresolved. No new semantics.
+
+## AK. CommonRoleMixedEvidenceClosure / CommonRoleMixedEvidenceReplay (cycle100)
+
+- Executable inputs are AssocEnv, RoleDecls, core WellFormed, finite Source n
+  (identity map, occurrence list, receiver/output slots, name, Base-to-Goal
+  templates), and grammar-certified State n. Replay also takes the diagnostic
+  registry, slots, Sources, original Goal and occurrence-indexed old demands.
+- AssocWellFormed is a correctness premise relating actual declaration
+  computation to independent DeclarativeComputed; it is not a runtime argument.
+  Caller models, Chain, fuel, finite update trace and stopping proofs are absent.
+  Fin n × four bases supplies the complete capacity internally.
+- Existing seed, source identity, reciprocal-variable edge and associated
+  output rules are combined in one closure, so newly associated output can
+  enable ordinary transfer and further associated work without a fixed sweep
+  count. Models are original models satisfying every mixed-derived scalar fact;
+  ordinary consistency alone does not establish success after association.
+- Identity maps and occurrence templates remain external. Identity transfers
+  known scalar facts and does not by itself add arbitrary shared-source type
+  equations for an unseeded class. Reciprocal edges are read from original state;
+  emitted scalar pairs cannot create a new variable edge. Literal atom-list
+  idempotence is not claimed. Existing source identity questions remain open.
+- spec6.3 supplies equality flow and sibling conjunction. Exact derivations,
+  fixedpoint and order independence concern the finite stated fragment, not
+  new slots, real source lowering, invocation identity, general dynamic children,
+  complete final classification or dictionary observational equivalence. Five
+  B4 bridges remain. Existing associated scalar decoder handles int/str only;
+  all four ordinary scalar bases remain in the fact universe.
