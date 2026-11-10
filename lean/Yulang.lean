@@ -1454,3 +1454,5 @@ import Yulang.CommonRoleFreshCaptureSources
 import Yulang.CommonRoleRegisteredCaptureSources
 
 import Yulang.CommonRoleAddressedCaptureModels
+
+import Yulang.CommonRoleFiniteAssociatedSourceModels

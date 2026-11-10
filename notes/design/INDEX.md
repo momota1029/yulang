@@ -257,3 +257,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Boundary inputs ledger](2026-11-10-boundary-inputs-ledger.md): Draft; I-13 first through fourth passes across capture, graph, annotations, concrete Protocols, DynamicIndex residual diagnostics, interval expansion/dictionaries, and Main boundaries. Two scoped questions; whole-model input audit remains incomplete.
 
 - [Boundary import inventory](2026-11-10-boundary-input-coverage.tsv): Source hashes and Main/Audit import reachability for 242 CommonRole modules; reproducible with `tools/boundary-input-inventory.py`. Name mentions are not completed input audits.
+- [Finite associated source factorization](2026-11-10-cycle76-finite-source-factorization.md): Draft; ordinary source equality before finite associated saturation, independent declaration-model exactness, and the remaining caller inputs. General B4 remains open.
