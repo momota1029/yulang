@@ -265,3 +265,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle79: checked associated programs](2026-11-10-cycle79-checked-associated-programs.md) — Draft: computed whole-list scope/arity/name validation, exact erasure and existing source-model contracts.
 
 - [Cycle80: associated clause extraction](2026-11-10-cycle80-associated-clause-extraction.md) — Draft: exact grouped equation extraction, source occurrence provenance, and independent derivation correspondence; parser and bare obligations remain outside.
+
+- [Cycle81 source role obligations](2026-11-10-cycle81-source-role-obligations.md): Draft. Lossless finite clause checking and independent role discharge; scalar heads remain explicit.
