@@ -1,9 +1,10 @@
 cycle: 86
-status: running
+status: completed
 started: 2026-11-10T14:56:27Z
-updated: 2026-11-10T15:06:03Z
-elapsed_min: 9.6
-activity: Computed canonical allocation proved. Focused 295-job build, 29 boundary examples and 12-theorem audit pass. Publishing source checkpoint; all five B4 bridges remain open.
+updated: 2026-11-10T15:11:49Z
+elapsed_min: 15.4
+activity: Closed computed canonical source allocation: exact all-query evidence, models/readiness, safe-renaming canonicality and idempotence. Focused 295 jobs, 33 examples, 12-theorem audit, diff gate and exact-source Core/Lean CI pass. Five B4 bridges remain open.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 065406211
-resume_hint: Continue from cycle86 computed allocation. Logs ../cache/yulang86. Verify source publication tree and exact-source CI, then publish final report. Initial heartbeat write denial was resolved after full-tree evidence; live head 9a93291e.
+last_local_commit: 64684c388
+report: notes/handoff/dots-cycle-86.md
+resume_hint: Refresh integration/inbox and read cycle86. Source b45db64e tree and CI verified. Computed allocation needs no caller map; declaration/input lowering and invocation-sharing boundaries remain open. Logs ../cache/yulang86. Initial heartbeat denial was resolved with full-tree evidence.
