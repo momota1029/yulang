@@ -1,3 +1,4 @@
+import Yulang.CommonRoleFrontierGraphs
 import Yulang.CommonRoleFrontierReachability
 import Yulang.CommonRoleGuardedIntervalFrontier
 import Yulang.CommonRoleGuardedIntervalPlans
@@ -8354,3 +8355,14 @@ run_cmd do
 #print axioms Yulang.CommonRoleFrontierReachability.run_reach_exact
 #print axioms Yulang.CommonRoleFrontierReachability.run_boundaries_exact
 #print axioms Yulang.CommonRoleFrontierReachability.run_failures_exact
+
+-- Cycle94: ordinary graph family, exact original readback, and state replay.
+#print axioms Yulang.CommonRoleFrontierGraphs.graph_count
+#print axioms Yulang.CommonRoleFrontierGraphs.graphs_exact
+#print axioms Yulang.CommonRoleFrontierGraphs.build_models_exact
+#print axioms Yulang.CommonRoleFrontierGraphs.run_models_exact
+#print axioms Yulang.CommonRoleFrontierGraphs.run_tree_exact
+#print axioms Yulang.CommonRoleFrontierGraphs.graph_reflects
+#print axioms Yulang.CommonRoleFrontierGraphs.graph_input_injective
+#print axioms Yulang.CommonRoleFrontierGraphs.advance_exact
+#print axioms Yulang.CommonRoleFrontierGraphs.advance_replays

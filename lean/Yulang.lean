@@ -1489,3 +1489,5 @@ import Yulang.CommonRoleIntervalWorkClosure
 import Yulang.CommonRoleGuardedIntervalPlans
 
 import Yulang.CommonRoleGuardedIntervalFrontier
+
+import Yulang.CommonRoleFrontierGraphs
