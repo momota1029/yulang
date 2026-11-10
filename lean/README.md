@@ -4066,3 +4066,11 @@ head/shared-source ordinary model iff without caller check or child success.
 This is fixed syntax with cycle91's tuple-key alias restriction, not state
 saturation, final four-way classification, or dictionary equivalence. Five
 general B4 bridges remain open.
+
+### Cycle93: 保持した区間treeの全到達診断
+
+`CommonRoleFrontierReachability` は実frontierのpreorder全node列を独立closureの
+全node構築列へリスト等式で結ぶ。順序と重複を保ち、子のplanが空でも後続診断を
+落とさない。実runのunsupportedとlocal rigid rejectionは独立Reachとのiff。
+後者はgoalの失敗分類ではない。固定Form/caller Sourcesの断片で、動的飽和、
+K2、最終4分類、辞書同値は未達。全B4の主定理の完成ではない。

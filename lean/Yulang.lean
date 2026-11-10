@@ -1,3 +1,4 @@
+import Yulang.CommonRoleFrontierReachability
 import Yulang.Variants
 import Yulang.CoreExpr
 import Yulang.CoreInference
