@@ -1,10 +1,9 @@
-cycle: 99
-status: completed
-started: 2026-11-10T21:28:27Z
-updated: 2026-11-10T21:40:59.055514Z
-elapsed_min: 12.5
-activity: Internally computed scalar closure batches preserve original models and exact evidence fixedpoint; checked replay snapshots bounded by 1+4*n. Focused345, 33 guards, 4 examples, 18 axioms and exact-source Core/Lean CI pass. All five B4 bridges remain.
+cycle: 100
+status: running
+started: 2026-11-10T21:57:01Z
+updated: 2026-11-10T21:58:42Z
+elapsed_min: 1.7
+activity: Close a general compositional boundary between generated associated constraints and scalar evidence closure, retaining exact models and checked replay.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 489489918
-report: notes/handoff/dots-cycle-99.md
-resume_hint: Refresh integration/work/inbox and read cycle99. Source819bb1e7/tree9256ed7b verified; source state/slots/maps remain inputs. Scalar reciprocal-edge closure is fixed-point complete, but general associated/role generation scheduling and invocation identity remain open. Logs ../cache/yulang99.
+last_local_commit: integration-01cf4767
+resume_hint: Integration/work refreshed at 01cf4767; cycle99 completed and no prior writer remains. Read cache/yulang100 and new design note; focused builds only. Publish individual blobs and SHA-only tree on work/dots-main with nonforce expected-head.
