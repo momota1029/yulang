@@ -3867,3 +3867,21 @@ supported, even for a template that does not use its receiver. False is only the
 outcome of this test, not pending/ambiguous/rejected language classification.
 No stable-state assumption or final diagnostic is smuggled into this boundary.
 Parser adequacy, dynamic source closure and all five whole-B4 bridges remain open.
+
+
+### Cycle82: joint source state and role discharge
+
+`CommonRoleSourceStateDischarge` allocates every role receiver, including bare
+clauses, together with associated-equation endpoints. It computes associated
+saturation, tests ordinary consistency and checks all source roles from the
+resulting scalar evidence. `ready_declarative_exact` equates this readiness test
+with independent source models and source-clause derivations plus independent
+role discharge. No caller head map, successful saturation or chosen model is a
+premise. A successfully checked finite source package, the initial ordinary state
+and checked declaration environment remain explicit inputs.
+
+The theorem covers the one-placeholder int/str fragment, not arbitrary parser
+output, general interval knownness, dynamic where generation or final diagnostic
+classification. Five general B4 bridges remain. The focused module and dedicated
+trust-zero boundary checks are the local validation scope; full verification is
+left to the supervisor.

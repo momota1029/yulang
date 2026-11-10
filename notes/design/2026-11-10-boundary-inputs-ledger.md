@@ -861,3 +861,46 @@ identifies the supplied heads with associated saturation output or combines thei
 results into full-source typing. Existing Q1/Q2 and cycle23/24 remain unresolved.
 No new semantic choice or question. Five B4 bridges remain and I-13 is partial;
 inventory mention counts do not measure completed input audits.
+
+
+## S. cycle82: joint source evidence and all-role readiness
+
+`CommonRoleSourceStateDischarge` retains the finite scope-resolved Source, total
+RoleDecls, AssocEnv, core WellFormed and AssocWellFormed inputs. The accepted
+Package is constrained by the actual cycle81 checker; it is not an arbitrary
+replacement source. The initial State is indexed by the computed joint table.
+Source expression inference and construction of that initial state remain outside.
+
+- `table`, `roleSlot`, `equationSlot`, `liftOccurrence`, `occurrences`, `graph`
+  derive every slot, name identity, equation edge and template from the Package.
+  The table consists of every role receiver followed by equation endpoints.
+  There is no caller slot map, universe, visit sequence or fuel. Bare roles do
+  not need dummy equations. `occurrence_origin` and `occurrence_present` check
+  both directions of the equation lowering; `slot_count` states its capacity.
+- `prepared` adds existing source type identities. `runState` computes finite
+  associated closure. `Derives` is the independent declaration graph judgment.
+  `SourceDerives` has only original-state Evidence and original source clause
+  equations; its step uses independent structural filling and AssocDerives.
+  `allocated_to_source`, `source_to_allocated`, `run_source_evidence_exact`
+  quantify every relevant slot/head; no successful execution is assumed.
+- `runOne`, `runRoles`, `ready` derive scalar candidates from actual output
+  evidence, call real role resolution and the ordinary solver. The caller
+  head map from cycle81 is gone at this entry. Unsupported encodings and
+  missing evidence yield false, not a new language diagnostic category.
+- `Supported` and the intermediate readiness theorem quantify package positions
+  in their conclusions. `ready_original_source_exact` removes those witnesses
+  from its source-clause condition. `SourceModels` uses the old state, source
+  coherence and SourceDerives only. `source_models_exact` and
+  `ready_declarative_exact` remove executable saturation from the independent
+  side. A valuation exists in the conclusion, never as a caller-selected map.
+- `ready_has_models` needs only the concrete true result, not associated wf;
+  it exposes the ordinary consistency guard. `derives_same_receiver` takes
+  an explicit equality of two already computed receiver names.
+
+Spec6.3 supplies source-variable sharing, associated equations, conjunctive
+where requirements and waiting for stable sibling updates. Scope resolution,
+visibility, complete semantic knownness and final language classification are
+not supplied by these finite carriers. The computed graph saturates before role
+checks; it is not a dynamic where driver. Existing Q1/Q2 and cycle23/24 remain
+open. No new semantic decision. Five B4 bridges and the incomplete I-13 audit
+remain; inventory mention counts are not audit completion counts.
