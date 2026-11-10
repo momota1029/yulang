@@ -1,9 +1,10 @@
 cycle: 60
-status: running
+status: completed
 started: 2026-11-10T00:27:19Z
-updated: 2026-11-10T00:35:24Z
-elapsed_min: 8.1
-activity: Closure-wide source occurrence allocation is proved; 307-job focused build, 11-theorem axiom audit and diff-only gate passed. Publishing the six verified source/design files now.
+updated: 2026-11-10T00:39:28Z
+elapsed_min: 12.2
+activity: Closed shared finite source occurrence allocation for arbitrary actual child histories in the unary/int adapter. Focused build, 11-theorem audit and diff gate passed; source remote tree verified. CI still in progress.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: afc80f038f
-resume_hint: Source commit afc80f038f is verified. New module CommonRoleClosureSourceAllocation connects arbitrary finite actual child histories to a single computed occurrence allocation. Finish remote tree verification and cycle60 report before 00:52:19 UTC. Full B4 and aggregate build remain open.
+last_local_commit: afc80f038fdaeb05c652e814b5ba580b960c3e5c
+report: notes/handoff/dots-cycle-60.md
+resume_hint: Refetch integration and work heads; read orders/inbox and cycle60 report. Source commit 8c00dbde76ee27996a24f7c870a453b431dba203 is verified. General interval materialization, old-node update bridge and all five B4 bridges remain open. Do not treat focused verification or pending CI as aggregate PASS.
