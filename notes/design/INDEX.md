@@ -233,3 +233,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle57: canonical source allocation](2026-11-09-cycle57-canonical-source-growth.md) — Draft. Incremental root allocation equals rebuilding; old roots/captures and source models are retained.
 
 - [Cycle58: allocated graph edges](2026-11-09-cycle58-allocated-graph.md) — Draft; exact finite observations, paths and direct cycles under source allocation.
+
+- [Cycle59: generated child source allocation](2026-11-10-cycle59-child-source-allocation.md) — Draft; computed child dependency names, root provenance and exact canonical inspection.

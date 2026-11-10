@@ -7906,3 +7906,16 @@ run_cmd do
 #print axioms Yulang.CommonRoleAllocatedGraph.allocate_new_unresolved
 #print axioms Yulang.CommonRoleAllocatedGraph.new_alias_inspection
 #print axioms Yulang.CommonRoleAllocatedGraph.fresh_snapshot_unknown
+
+-- Cycle59: generated child dependency allocation
+#print axioms Yulang.CommonRoleChildSourceAllocation.extract_dependencies
+#print axioms Yulang.CommonRoleChildSourceAllocation.plug_dependencies
+#print axioms Yulang.CommonRoleChildSourceAllocation.declaration_dependencies
+#print axioms Yulang.CommonRoleChildSourceAllocation.next_dependencies
+#print axioms Yulang.CommonRoleChildSourceAllocation.closure_dependencies
+#print axioms Yulang.CommonRoleChildSourceAllocation.owner_present
+#print axioms Yulang.CommonRoleChildSourceAllocation.occurrence_source
+#print axioms Yulang.CommonRoleChildSourceAllocation.allocated_root
+#print axioms Yulang.CommonRoleChildSourceAllocation.allocated_identity_exact
+#print axioms Yulang.CommonRoleChildSourceAllocation.allocated_snapshot
+#print axioms Yulang.CommonRoleChildSourceAllocation.actual_child_allocation
