@@ -3826,3 +3826,25 @@ role visibility. Syntax checking neither requires nor guarantees a dictionary
 or a consistent ordinary model. The checker recognizes the existing structural
 fragment; failure is not a new language rejection rule. All five B4 bridges
 and the complete boundary-input audit remain open.
+
+### Cycle80: grouped associated equations and source provenance
+
+`CommonRoleAssociatedClauseExtraction` extracts all equations from a finite list
+of scope-resolved clauses, retaining receiver/output names, goal syntax,
+associated names, multiplicity and order. Exact list decomposition, equation
+counts and indexed source positions strengthen the membership/provenance iff.
+Checking succeeds exactly when erasure is the extracted list and each equation
+passes the existing checks; failure has a source clause/equation witness.
+
+Independent derivations now read the grouped source clauses directly, using
+structural materialization and independent declaration judgments. They are
+proved equivalent to the previous structural program derivations and to actual
+saturation evidence, ordinary-model validity and solver consistency. The seed
+interface still uses the accepted program's computed table and the old state.
+
+This is a new small Lean syntax carrier, not the Rust parser AST. Only associated
+equations are projected: an empty equation list contributes no edge, but its bare
+role obligation is not checked or discharged. Visibility, registry generation,
+source scoping, general interval knownness and dynamic where remain outside.
+The checker does not define new language rejection rules. Five B4 bridges and
+the complete boundary-input audit remain open.

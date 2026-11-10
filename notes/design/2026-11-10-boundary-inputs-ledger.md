@@ -772,3 +772,48 @@ limits, not newly chosen language rejection rules. The runtime regression that
 role999 can pass the total signature function while dictionary resolution fails
 makes the visibility boundary explicit. Q1/Q2 and cycle23/24 remain unresolved.
 No new semantic choice or question. I-13 remains partial; five B4 bridges remain.
+
+## Q. cycle80: grouped associated clause extraction
+
+`CommonRoleAssociatedClauseExtraction` replaces the externally selected raw row
+list by extraction from finite grouped clauses. Its complete new caller inputs:
+
+- `Equation` has associated `name : Nat` and ordinary source `output : Nat`.
+  `Clause` has `receiver : Nat`, `goal : Roles.Goal`, and `equations : List Equation`.
+  `Source` is a finite ordered list. Scope-resolved source identities, role names,
+  raw structural goal syntax and complete clause selection still come from outside.
+  This is not the Rust parser AST or a theorem about parsing actual Yulang text.
+- `lower` computes every raw row, in clause/equation order. Caller does not supply
+  a separate flattened list, slot map, identity function, occurrence number or fuel.
+  `lower_exact`, `lower_cons`, `lower_append`, `lower_length`, `lower_position`
+  quantify arbitrary finite lists, rows or prefix/clause/suffix/within-clause
+  positions. They establish provenance plus order, counts and duplicate retention.
+- `ValidSource`, `check`, `valid_exact`, `check_exact`, `check_accepts`, `check_fails`
+  use the existing total `Roles.RoleDecls`. Validation is pointwise on equations,
+  not whole role clauses. `checked_count`/`checked_occurs` additionally quantify
+  any successful program returned by the checker. The check computes its proofs.
+- `Step` uses env/roles, a clause/equation and arbitrary input/output scalar heads.
+  It reads structural Fills and independent Resolves/AssocDerives, not resolver
+  output. `step_exact` additionally relates a structural row by exact erasure.
+- `Derives`/`derives_exact` take env/roles, source, accepted program and arbitrary
+  old state. Recursive rules read original source clauses. The initial Seed rule
+  still reads the computed table of that accepted program and existing ordinary
+  scalar Evidence; source expression inference and general semantic knownness
+  remain outside. Acceptance cannot be replaced by arbitrary program selection.
+- `run_evidence_exact`, `run_source_exact`, `solver_source_exact` also require
+  core `wf` and associated `awf`. They quantify every slot/head or assignment as
+  appropriate. Source valuations occur in the conclusion, not as caller choices.
+
+Spec6.3 fixes ordinary shared variables and associated equations. Spec6.1–6.2
+fix declared signatures, while visibility and source registry construction are
+not established by the total signature function. Empty equation lists produce no
+edges, even when the clause has an invalid arity: this is intentional projection,
+NOT proof that the bare role obligation is well formed or resolved. A regression
+records this limit. Both differently named equations and repeated equations are
+retained; duplicate source associated declarations are a separate question.
+
+No source syntax/defaulting/coherence/revisit semantics was chosen. Q1/Q2 and
+cycle23/24 remain unresolved. The proposed source derivation is a fragment model,
+not a claim of full-language soundness or completeness. Five B4 bridges remain;
+I-13 full audit is still incomplete and its cycle72 deadline was missed. Inventory
+mention counts do not measure audited inputs.

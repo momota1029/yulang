@@ -1,9 +1,10 @@
 cycle: 80
-status: running
+status: completed
 started: 2026-11-10T11:28:47Z
-updated: 2026-11-10T11:38:00Z
-elapsed_min: 9.2
-activity: Grouped associated-clause extraction is proved. Focused 289-job build, 22 examples plus 4 helpers and 16-theorem trust=0 audit pass; additional reverse-direction regression is being finalized. Publishing verified source and preparing report.
+updated: 2026-11-10T11:59:09Z
+elapsed_min: 30.4
+activity: Recovered grouped associated-clause extraction after publication interruption; 289-job focused build, 23 examples, 6 helpers, and 16-theorem trust=0 audit pass. Full verification and remote CI are not claimed.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
 last_local_commit: 6e0e84d60e91ea0a47f00ad55e8b1a74e079f43d
-resume_hint: Read live integration/work, standing orders and inbox. Source is an associated-equation projection only, not parser adequacy or bare-role discharge. All five B4 bridges remain. Logs ../cache/yulang80; deadline 11:52:19 UTC. No full local build/Audit. Read-only review found no blocker.
+report: notes/handoff/dots-cycle-80.md
+resume_hint: Read cycle80 report and crash record, then live integration/work and instructions. All five B4 bridges remain. Only associated-equation projection is proved, not parser adequacy or bare-role discharge. This cycle exceeded its 11:52:19 UTC deadline. Logs ../cache/yulang80.
