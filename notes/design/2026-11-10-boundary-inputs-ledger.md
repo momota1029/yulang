@@ -1254,3 +1254,24 @@ source-domain name iff does not imply finite structural work without Paterson.
 - No fuel, visit list, child success, model existence, or external stopping proof
   is supplied. Fixed syntax remains the scope; state rematerialization, K2,
   source lowering, invocation lifetime and dictionary observations remain open.
+
+## AE. CommonRoleFrontierGraphs (cycle94)
+
+- Public inputs: registry : List Declaration, slots : Nat -> Fin n, Sources,
+  existing : List (Atom (Fin n)), old : Plan (Fin n), goal : Goal. Registry,
+  fixed syntax, source aliasing and ambient slots have exactly the AB-AD
+  boundary. Old ordinary atoms are arbitrary, not a supplied consistency proof.
+- Graphs are actually computed by CommonPresenceConstraintGraph.compile. Their
+  independent Models semantics does not consult origin metadata. Original input
+  injection and literal readback are proved; every original row is retained.
+- `run_models_exact` derives Checked on the result side and quantifies every
+  assignment with one shared source valuation. No fuel, model, child success,
+  finite visit sequence, or caller grammar certificate is assumed.
+- `advance_exact` takes arbitrary fresh atoms; it proves only model restriction
+  on the fixed tree. `advance_replays` returns an earlier graph model with the
+  same original readback, not identical allocated graph nodes. It is not state
+  materialization, an ordinary decision procedure, or a saturation theorem.
+- Graphs exist even for inconsistent complete plans. Unsupported and missing
+  child diagnostics remain in the unchanged tree, whether or not any graph
+  exists. Spec 6.3 motivates conjunction within plans and delayed diagnostics.
+  Invocation identity and all five major B4 bridges remain open.

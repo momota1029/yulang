@@ -289,3 +289,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Guarded recursive interval plans](2026-11-10-cycle91-guarded-interval-plans.md) — finite candidate alternatives, conjunctive children and one shared-source ordinary model; fixed-syntax boundary.
 
 - [Retained interval diagnostic frontier](2026-11-10-cycle92-guarded-interval-frontier.md) — Draft; incomplete child retention and exact guarded-plan erasure; fixed syntax only.
+
+- [Cycle94 frontier ordinary graph family](2026-11-10-cycle94-frontier-ordinary-graphs.md) — Draft; all-model graph integration and replay boundary.

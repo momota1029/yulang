@@ -4074,3 +4074,16 @@ general B4 bridges remain open.
 落とさない。実runのunsupportedとlocal rigid rejectionは独立Reachとのiff。
 後者はgoalの失敗分類ではない。固定Form/caller Sourcesの断片で、動的飽和、
 K2、最終4分類、辞書同値は未達。全B4の主定理の完成ではない。
+
+### Cycle94: ordinary graphs for the retained frontier
+
+`CommonRoleFrontierGraphs.run` retains the complete diagnostic tree and compiles
+one actual ordinary graph for each complete plan. Its `run_models_exact` is an
+all-original-assignment iff with independent recursive source derivations and all
+previous atoms; `graph_reflects` covers every model of every returned graph.
+Original input slots stay injective and readback keeps rows literally unchanged.
+`advance_exact` and `advance_replays` characterize recompilation after arbitrary
+additional ordinary atoms. They keep the syntax tree fixed and do not prove
+state-dependent rematerialization. Inconsistent plans still produce graphs.
+Graph existence is not a solver success, and empty families are not final
+language rejection. All five major B4 bridges remain open.
