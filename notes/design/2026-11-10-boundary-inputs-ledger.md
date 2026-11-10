@@ -1354,3 +1354,27 @@ source-domain name iff does not imply finite structural work without Paterson.
   updates still require observation and graph refresh. General source identity,
   scheduling fairness, final four-way classification and dictionary observation
   remain open; all five B4 bridges remain incomplete. No new semantic choice.
+
+
+## AI. CommonRoleCheckedOrdinaryReplay (cycle98)
+
+- Public `run`/`runGraphs` inputs: registry, fixed original Goal, slots, Sources,
+  initial State n, finite List (State n) batches, and occurrence-indexed old
+  demands for graph output. State n includes the existing child/width/row grammar
+  certificates, not a model. All batches share Fin n; no fresh-slot allocator.
+- `append`, `final` and `trace` compute actual cumulative atom lists, preserving
+  order and duplicates. `validate` invokes the real finite ordinary solver.
+  `validate_models` equates success to one assignment satisfying every submitted
+  constraint. Neither models nor Chain nor checker proofs enter public execution.
+- `validate_chain` removes the supplied-Chain boundary of cycle97 for this
+  additive grammar-valid fragment. `run_computed_bound` uses successful execution
+  only, while `run_exact`/`run_none_iff` keep declaration checking and ordinary
+  satisfiability separate. Graph output preserves every original constraint and
+  old demand; graph feasibility or successful role children are not established.
+- Finite batch generation, grammar extraction from real source, source/invocation
+  identities and final scheduling remain outside this boundary (spec6.3 provides
+  ordinary conjunction, not an implementation allocator). The materializer remains
+  the paired-int implementation fragment. Rebuild counts do not bound validation,
+  graph compilation, total runtime or the number of submitted batches.
+- All five major B4 bridges remain incomplete. Existing source-identity questions
+  are neither answered nor bypassed. No new language semantic choice.

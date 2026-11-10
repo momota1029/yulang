@@ -297,3 +297,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle96: finite actual materialization changes](2026-11-10-cycle96-materialization-progress.md) — Draft; source-computed progress bound and entire public diagnostic-tree connection; not saturation.
 
 - [Cycle97 diagnostic replay](2026-11-10-cycle97-frontier-replay.md) — Draft, executable tree reuse and source-derived rebuild/visit bounds.
+
+- [Cycle98 checked ordinary replay](2026-11-10-cycle98-checked-ordinary-replay.md) — Draft; executable cumulative solver checks, shared models and internally derived replay Chain.

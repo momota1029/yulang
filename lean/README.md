@@ -4152,3 +4152,31 @@ The existing explicit paired-int fragment, fixed original Goal, fixed slots and
 caller Sources remain. No real solver trace is derived, no fairness/stop test is
 proved, and no invocation-sharing decision is made. All five B4 bridges and the
 outer X13-X16 acceptance remain open. No full local build is claimed.
+
+
+## Cycle98: checked cumulative ordinary replay
+
+`CommonRoleCheckedOrdinaryReplay` takes an initial grammar-valid ordinary State
+and arbitrary finite grammar-valid additive batches. It computes each cumulative
+state and uses the actual ordinary solver to validate the initial state and every
+prefix on success. `validate_models` proves this executable check equivalent to
+one shared Common assignment satisfying the initial atoms and every batch.
+Individually satisfiable batches with inconsistent conjunction are rejected.
+
+`validate_chain` derives the materialization Chain internally. `run_exact` and
+`run_none_iff` distinguish ordinary consistency from declaration validity.
+`run_computed_bound` derives snapshot length, rebuilds and preorder-occurrence
+bounds from original Goal and checked declarations, with no caller model, Chain,
+checker proof or numerical budget. `runGraphs` is a gated public graph entry;
+`run_graphs_exact` proves equality to direct existing public graph runs at every
+cumulative state with occurrence-indexed old demands. Graphs refresh on plateaus,
+and their satisfiability is not implied by the ordinary-state gate.
+
+This is an auxiliary finite additive-batch boundary, not a saturation driver.
+The caller still supplies grammar certificates, finite batches, fixed Fin n,
+registry, original Goal, slots, Sources and old demands. No fresh-slot allocation,
+source derivation, general-type materialization, complete work scheduler, total
+runtime bound or final role classification is claimed. Materialization inherits
+the existing explicit paired-int fragment. Visits count rebuilt-tree preorder
+occurrences only and exclude ordinary solving and graph refresh. All five B4
+bridges, the outer resolve_exact and X13-X16 outer acceptance remain incomplete.
