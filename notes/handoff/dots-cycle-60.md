@@ -95,3 +95,11 @@ verify-lean: PASS (diff checks only, NO build)
 1. `actual_child_shared_allocation` を一般 interval materialization/source carrier に接続し、unary/int 境界を外すための適合条件を具体化する。
 2. 同じ計算済み allocation 上で、実 ordinary constraint 生成による旧 node 更新と graph inspection/source model の関係を証明する。
 3. finite domain の構造的上界と実作業 driver を接続し、再訪・再生成後の意味的閉包を証明する。
+
+## Post-publication verification
+
+2026-11-10T00:40:13Z に報告・completed 心拍の公開 head `38eb78c25a20137fb3acd5ab79671c4e66deecef` と tree `fd4f6373ee5f737e80922207b0ba2acd0f470cdc` を API で確認した。報告と心拍の2 blob はローカルと一致し、他2148 blob は直前の source 公開から保持された。ローカル作業 tree も clean。
+
+同時刻に source commit `8c00dbde76ee27996a24f7c870a453b431dba203` の GitHub checks を再確認し、`proof` と `core` はいずれも completed / success だった。上の00:38:18時点の pending 記録をこの結果で更新する。ローカルで全体 build を実行したという主張ではない。以後の変更は報告と心拍だけで、検証済み Lean ソースは変更していない。
+
+開始心拍の elapsed_min は手入力で6となっていたが、started/updated の差は約4分だった。更新心拍以降は UTC 時刻差から計算して修正した。source 更新心拍の公開は予定10分点から1分未満遅れたが、実際の remote 更新間隔は10分未満だった。

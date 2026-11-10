@@ -3602,3 +3602,15 @@ old canonical roots, and complete inspection snapshots in the same allocation.
 The caller supplies no finite-domain membership or source-name equality. This
 closes closure-wide occurrence allocation in the unary/int adapter only; general
 interval materialization, old-node updates and all five general B4 bridges remain open.
+
+Cycle61: `CommonRoleAllocatedGraphUpdates` executes finite old-node edits after
+allocation. Reindexing each edited address and all payload edges gives exactly
+the graph obtained by editing first and allocating afterwards, including repeated
+writes and cycle changes. Every actual generated child dependency keeps its full
+post-update inspection snapshot in the shared closure allocation. A concrete
+refresh from the finite ordinary solver additionally connects original string
+entailment and two-model unknownness to those allocated dependency roots. The
+unary/int generator and positive-string ordinary adapter share source slots;
+this is not an equivalence of their full type systems or child-selection proof.
+Edits into genuinely new syntax storage, general interval solver generation,
+saturation and all five general B4 bridges remain open.
