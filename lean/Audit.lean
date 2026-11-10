@@ -7990,3 +7990,20 @@ run_cmd do
 #print axioms Yulang.CommonRoleWhereSourceModels.generated_models_exact
 #print axioms Yulang.CommonRoleWhereSourceModels.run_exact
 #print axioms Yulang.CommonRoleWhereSourceModels.returned_sources
+
+-- Cycle65: computed actual where endpoint owners and canonical graph allocation
+#print axioms Yulang.CommonRoleWhereSourceAllocation.representative_present
+#print axioms Yulang.CommonRoleWhereSourceAllocation.locate_exact
+#print axioms Yulang.CommonRoleWhereSourceAllocation.locate_sources
+#print axioms Yulang.CommonRoleWhereSourceAllocation.representative_canonical
+#print axioms Yulang.CommonRoleWhereSourceAllocation.locate_canonical
+#print axioms Yulang.CommonRoleWhereSourceAllocation.returned_included
+#print axioms Yulang.CommonRoleWhereSourceAllocation.returned_owners
+#print axioms Yulang.CommonRoleWhereSourceAllocation.ownerAt_source
+#print axioms Yulang.CommonRoleWhereSourceAllocation.ownerAt_canonical
+#print axioms Yulang.CommonRoleWhereSourceAllocation.allocated_root
+#print axioms Yulang.CommonRoleWhereSourceAllocation.allocated_snapshot
+#print axioms Yulang.CommonRoleWhereSourceAllocation.returned_allocation
+#print axioms Yulang.CommonRoleWhereSourceAllocation.prepare_conservative
+#print axioms Yulang.CommonRoleWhereSourceAllocation.prepare_exact
+#print axioms Yulang.CommonRoleWhereSourceAllocation.prepared_allocation

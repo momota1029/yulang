@@ -1444,3 +1444,5 @@ import Yulang.CommonRoleSourceIntervalBatches
 import Yulang.CommonRoleCaptureBatchModels
 
 import Yulang.CommonRoleWhereSourceModels
+
+import Yulang.CommonRoleWhereSourceAllocation

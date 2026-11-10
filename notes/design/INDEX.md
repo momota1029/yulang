@@ -244,3 +244,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle63 declaration capture and independent head models](2026-11-10-cycle63-declaration-capture-models.md) — Draft; source interval generation bridge, general B4 incomplete.
 
 - [Cycle64: original where source models](2026-11-10-cycle64-where-source-models.md) — Draft; actual capture preserves all where-template models and original endpoint provenance, without selecting a centre.
+
+- [Cycle65: actual where source allocation](2026-11-10-cycle65-where-source-allocation.md) — Draft; computed finite parent owners, no new failure, and exact arbitrary-graph snapshot preservation.
