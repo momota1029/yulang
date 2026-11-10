@@ -8063,3 +8063,21 @@ run_cmd do
 #print axioms Yulang.CommonRoleRegisteredCaptureSources.follow_shared_exact
 #print axioms Yulang.CommonRoleRegisteredCaptureSources.extend_key
 #print axioms Yulang.CommonRoleRegisteredCaptureSources.follow_models_exact
+
+-- Cycle69: structural capture addresses and finite shared-model exactness
+#print axioms Yulang.CommonRoleAddressedCaptureModels.children_goals
+#print axioms Yulang.CommonRoleAddressedCaptureModels.child_address_exact
+#print axioms Yulang.CommonRoleAddressedCaptureModels.children_addresses
+#print axioms Yulang.CommonRoleAddressedCaptureModels.children_regenerate
+#print axioms Yulang.CommonRoleAddressedCaptureModels.children_at
+#print axioms Yulang.CommonRoleAddressedCaptureModels.index_exact
+#print axioms Yulang.CommonRoleAddressedCaptureModels.compile_append
+#print axioms Yulang.CommonRoleAddressedCaptureModels.compile_bounded
+#print axioms Yulang.CommonRoleAddressedCaptureModels.compiled_identity
+#print axioms Yulang.CommonRoleAddressedCaptureModels.step_no_new_failure
+#print axioms Yulang.CommonRoleAddressedCaptureModels.step_children
+#print axioms Yulang.CommonRoleAddressedCaptureModels.follow_append
+#print axioms Yulang.CommonRoleAddressedCaptureModels.shared_models_exact
+#print axioms Yulang.CommonRoleAddressedCaptureModels.follow_models_exact
+#print axioms Yulang.CommonRoleAddressedCaptureModels.reorder_models
+#print axioms Yulang.CommonRoleAddressedCaptureModels.repeat_models
