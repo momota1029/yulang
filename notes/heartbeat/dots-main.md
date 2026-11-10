@@ -1,9 +1,10 @@
 cycle: 61
-status: running
+status: completed
 started: 2026-11-10T00:57:19Z
-updated: 2026-11-10T00:58:40Z
-elapsed_min: 1.4
-activity: Prove that finite old-node update histories commute with shared child-source allocation and preserve exact inspection snapshots.
+updated: 2026-11-10T01:47:54Z
+elapsed_min: 50.6
+activity: Recovery publication package for verified old-node allocation updates. Focused build, nine-theorem audit and diff gate passed; 25-minute limit and required heartbeat timing were missed. Aggregate verification remains unrun.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 9796f14fd6
-resume_hint: Read cycle60 and latest orders. Cycle61 will connect finite concrete old-node graph edits to the closure-wide source allocation. Worktree and previous verified Lean sources preserved; no aggregate build. Deadline 01:22:19 UTC.
+last_local_commit: 0beec71a82ac6ef7b693dc267b306b520c2b1a1b
+report: notes/handoff/dots-cycle-61.md
+resume_hint: Read cycle61 report and crash record, then fetch latest integration and orders. Recovery preserves cycle58-60 dependencies and all cycle61 sources. General interval materialization and all five B4 bridges remain open. Exact published CI completion is unconfirmed.

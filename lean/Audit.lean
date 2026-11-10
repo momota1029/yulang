@@ -7932,3 +7932,14 @@ run_cmd do
 #print axioms Yulang.CommonRoleClosureSourceAllocation.trace_closed
 #print axioms Yulang.CommonRoleClosureSourceAllocation.trace_allocated
 #print axioms Yulang.CommonRoleClosureSourceAllocation.actual_child_shared_allocation
+
+-- Cycle61: concrete old-node updates after shared source allocation
+#print axioms Yulang.CommonRoleAllocatedGraphUpdates.write_allocate
+#print axioms Yulang.CommonRoleAllocatedGraphUpdates.run_allocate
+#print axioms Yulang.CommonRoleAllocatedGraphUpdates.updated_snapshot
+#print axioms Yulang.CommonRoleAllocatedGraphUpdates.actual_history_updated_allocation
+#print axioms Yulang.CommonRoleAllocatedGraphUpdates.refresh_allocate
+#print axioms Yulang.CommonRoleAllocatedGraphUpdates.solve_snapshot_exact
+#print axioms Yulang.CommonRoleAllocatedGraphUpdates.solve_string_exact
+#print axioms Yulang.CommonRoleAllocatedGraphUpdates.solve_unknown_exact
+#print axioms Yulang.CommonRoleAllocatedGraphUpdates.actual_history_solve_exact

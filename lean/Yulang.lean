@@ -1437,3 +1437,4 @@ import Yulang.CommonRoleAllocatedGraph
 import Yulang.CommonRoleChildSourceAllocation
 
 import Yulang.CommonRoleClosureSourceAllocation
+import Yulang.CommonRoleAllocatedGraphUpdates
