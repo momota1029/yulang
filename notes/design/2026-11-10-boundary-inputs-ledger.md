@@ -1487,3 +1487,6 @@ source-domain name iff does not imply finite structural work without Paterson.
   制約の順序と重複を忘れるための正確な前提で、任意の意味的同値を仮定していない。
 - Derivesは直接paired evidenceの閉包で、一般ordinary entailmentではない。
   solver整合性はassociated要求すべての解決ではない。新しい仕様判断0件。5橋は未完成。
+
+Cycle103のextraは両端点から集めた名前を重複除去する。元の制約列とsource名の
+同一性は保ち、余分なallocationの複製だけを取り除く。

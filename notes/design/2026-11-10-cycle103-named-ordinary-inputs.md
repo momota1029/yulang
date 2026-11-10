@@ -11,7 +11,7 @@ source-name constraint interpretation and inductive derived facts.
 
 Input: existing structural Program p and a finite list of pairs of terms
 (base b or already scope-resolved source name a). Extra names are extracted from
-both endpoints. Every named constraint is lowered to every matching pair of
+both endpoints and deduplicated before allocation. Every named constraint is lowered to every matching pair of
 allocated endpoints. The result therefore contains one-way bounds, reciprocal
 edges and scalar seed pairs without a caller-supplied slot map or State proof.
 Repeated names share type values; effect components are not identified.
@@ -51,3 +51,14 @@ pairs and offers no performance bound beyond the existing finite closure.
 
 A read-only independent reviewer found no blocking mathematical mismatch and
 recommended making these inherited limits explicit. No new semantics was chosen.
+
+## Executable boundary and representation repair
+
+The first implementation allocated one extra slot per name occurrence. Its
+22-slot positive chain evidence passed, but an ordinary consistency check timed
+out at 180 seconds. Extra-name deduplication removes redundant slots while keeping
+all original inequalities and the same independently proved source meaning.
+The example now has 11 slots. This is a representation repair, not a weakened
+expected result or a language rule. Same-name structural slots remain distinct
+and continue to share type values only. Large-input complexity is still unbounded
+by this report; this is not a scalability proof.

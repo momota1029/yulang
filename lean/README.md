@@ -4276,3 +4276,7 @@ source型valuationと、独立なseed・相互辺・associated導出に対応づ
 またordinary整合性は全roleの解決成功を意味しない。未解決・unsupported・曖昧な
 associated要求が残る場合がある。実parser/式から制約を導くこと、一般Form、動的
 child、K2、最終四分類、辞書は未接続。B4の5橋は残る。
+
+Cycle103のextraは同名を重複除去してから割り当てる。元制約は削除しない。
+22-slotの整合性検査の時間超過を受け、同じ例を11-slotに減らした。意味保存の
+定理の型は変わらない。一般的な性能保証を追加したわけではない。

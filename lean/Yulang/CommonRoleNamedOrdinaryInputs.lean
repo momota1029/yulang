@@ -37,7 +37,8 @@ def Term.names : Term Nat → List Nat
   | .base _ => []
   | .var a => [a]
 
-def extra (input : Input) : List Nat := input.flatMap fun q => q.1.names ++ q.2.names
+def extra (input : Input) : List Nat :=
+  (input.flatMap fun q => q.1.names ++ q.2.names).eraseDups
 abbrev table (p : Program) (input : Input) := CommonRoleAmbientMixedSource.table p (extra input)
 abbrev name (p : Program) (input : Input) := CommonRoleAmbientMixedSource.name p (extra input)
 
@@ -117,7 +118,9 @@ theorem initial_linked (p : Program) (input : Input) (i j : Slot (table p input)
 private theorem name_present (p : Program) (input : Input) (a b : Term Nat)
     (member : (a,b) ∈ input) (x : Nat) (hx : x ∈ a.names ++ b.names) :
     ∃ i : Slot (table p input), name p input i = x := by
-  have he : x ∈ extra input := List.mem_flatMap.mpr ⟨(a,b),member,hx⟩
+  have he : x ∈ extra input := by
+    simp only [extra,List.mem_eraseDups]
+    exact List.mem_flatMap.mpr ⟨(a,b),member,hx⟩
   have ht : x ∈ table p input := List.mem_append_right _ he
   obtain ⟨i,bound,eq⟩ := List.getElem_of_mem ht
   exact ⟨⟨i,bound⟩,eq⟩
