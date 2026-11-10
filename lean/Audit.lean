@@ -8087,3 +8087,15 @@ run_cmd do
 #print axioms Yulang.CommonRoleFiniteAssociatedSourceModels.source_factorization
 #print axioms Yulang.CommonRoleFiniteAssociatedSourceModels.run_source_models_exact
 #print axioms Yulang.CommonRoleFiniteAssociatedSourceModels.solver_source_exact
+
+-- Cycle77: computed named allocation and independent source-name derivations
+#print axioms Yulang.CommonRoleNamedAssociatedSourceModels.receiver_source
+#print axioms Yulang.CommonRoleNamedAssociatedSourceModels.output_source
+#print axioms Yulang.CommonRoleNamedAssociatedSourceModels.prepared_evidence
+#print axioms Yulang.CommonRoleNamedAssociatedSourceModels.allocated_to_named
+#print axioms Yulang.CommonRoleNamedAssociatedSourceModels.named_to_allocated
+#print axioms Yulang.CommonRoleNamedAssociatedSourceModels.allocated_named_exact
+#print axioms Yulang.CommonRoleNamedAssociatedSourceModels.named_support
+#print axioms Yulang.CommonRoleNamedAssociatedSourceModels.run_evidence_exact
+#print axioms Yulang.CommonRoleNamedAssociatedSourceModels.run_source_exact
+#print axioms Yulang.CommonRoleNamedAssociatedSourceModels.solver_source_exact
