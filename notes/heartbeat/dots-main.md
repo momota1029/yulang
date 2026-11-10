@@ -1,9 +1,9 @@
 cycle: 97
 status: running
 started: 2026-11-10T20:27:36Z
-updated: 2026-11-10T20:29:18Z
-elapsed_min: 1.7
-activity: Bound a change-triggered replay schedule of complete materialized diagnostic trees by source potential and the declaration-derived Paterson visit budget.
+updated: 2026-11-10T20:36:56Z
+elapsed_min: 9.2
+activity: Cached replay and exact refreshed public graph outputs proved; final per-occurrence demand generalization and regression verification before source publication.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: b0ca52125
-resume_hint: Both live branches started at d1b6dfbb; prior cycle completed and no writer remained. Read cycle96 and cycle97 design, then continue focused replay-bound implementation. Actual solver trace adequacy and full saturation remain open. Logs ../cache/yulang97.
+last_local_commit: 666f45d47
+resume_hint: Continue final checks in ../cache/yulang97. New CommonRoleFrontierReplay is locally built; independent review passed earlier adapter. Publish only work/dots-main preserving its live tree. Full saturation and all five B4 bridges remain open.
