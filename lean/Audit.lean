@@ -8399,3 +8399,17 @@ run_cmd do
 #print axioms Yulang.CommonRoleMaterializationProgress.run_tree_equal
 #print axioms Yulang.CommonRoleMaterializationProgress.run_tree_strict
 #print axioms Yulang.CommonRoleMaterializationProgress.run_tree_plateau
+
+-- Cycle97: cached diagnostic replay and exact fresh graph outputs with source-derived bounds.
+#print axioms Yulang.CommonRoleFrontierReplay.replayFrom_snapshots
+#print axioms Yulang.CommonRoleFrontierReplay.replay_snapshots
+#print axioms Yulang.CommonRoleFrontierReplay.replayFrom_rebuilds
+#print axioms Yulang.CommonRoleFrontierReplay.replay_rebuilds
+#print axioms Yulang.CommonRoleFrontierReplay.nodeCount_le_domain
+#print axioms Yulang.CommonRoleFrontierReplay.replayFrom_visits
+#print axioms Yulang.CommonRoleFrontierReplay.replay_bounded
+#print axioms Yulang.CommonRoleFrontierReplay.run_exact
+#print axioms Yulang.CommonRoleFrontierReplay.run_graph_snapshots
+#print axioms Yulang.CommonRoleFrontierReplay.run_computed_bound
+#print axioms Yulang.CommonRoleFrontierReplay.refreshGraphs_exact
+#print axioms Yulang.CommonRoleFrontierReplay.runGraphs_exact

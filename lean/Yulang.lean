@@ -1495,3 +1495,5 @@ import Yulang.CommonRoleFrontierGraphs
 import Yulang.CommonRoleStateMaterializedFrontier
 
 import Yulang.CommonRoleMaterializationProgress
+
+import Yulang.CommonRoleFrontierReplay

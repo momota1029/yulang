@@ -295,3 +295,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [State-materialized interval frontiers](2026-11-10-cycle95-state-materialized-frontiers.md) — Draft; ordinary int evidence, all-model Form preservation and finite regenerated work.
 
 - [Cycle96: finite actual materialization changes](2026-11-10-cycle96-materialization-progress.md) — Draft; source-computed progress bound and entire public diagnostic-tree connection; not saturation.
+
+- [Cycle97 diagnostic replay](2026-11-10-cycle97-frontier-replay.md) — Draft, executable tree reuse and source-derived rebuild/visit bounds.
