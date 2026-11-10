@@ -1,3 +1,4 @@
+import Yulang.CommonRoleAnnotatedLiteralInputs
 import Yulang.CommonRoleComputedSourceAllocation
 import Yulang.CommonRoleFiniteSourceRenaming
 import Yulang.CommonRoleNamedSourceRenaming
@@ -8242,3 +8243,13 @@ run_cmd do
 #print axioms Yulang.CommonRoleComputedSourceAllocation.encode_rename
 #print axioms Yulang.CommonRoleComputedSourceAllocation.allocate_rename
 #print axioms Yulang.CommonRoleComputedSourceAllocation.allocate_idempotent
+
+-- Cycle87: checked annotated-literal source inputs.
+#print axioms Yulang.CommonRoleAnnotatedLiteralInputs.binding_meaning_exact
+#print axioms Yulang.CommonRoleAnnotatedLiteralInputs.literal_check_exact
+#print axioms Yulang.CommonRoleAnnotatedLiteralInputs.literal_does_not_force_scalar
+#print axioms Yulang.CommonRoleAnnotatedLiteralInputs.lower_exact
+#print axioms Yulang.CommonRoleAnnotatedLiteralInputs.derives_exact
+#print axioms Yulang.CommonRoleAnnotatedLiteralInputs.models_exact
+#print axioms Yulang.CommonRoleAnnotatedLiteralInputs.models_bindings
+#print axioms Yulang.CommonRoleAnnotatedLiteralInputs.run_exact

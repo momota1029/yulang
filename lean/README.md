@@ -3972,3 +3972,18 @@ The finite capacity counts occurrences and can have unused indices. It is not
 a minimum-size distinct-name table, sibling sorting or a declaration lowering.
 Registry well-formedness and the scalar/one-binder fragment remain assumptions.
 The five B4 bridges and full I-13 semantic audit remain open.
+
+
+### Cycle87: checked annotated-literal source inputs
+
+`CommonRoleAnnotatedLiteralInputs.run` checks a finite list of scope-resolved
+bindings containing existing literal expressions and explicit scalar annotations,
+extracts named facts, computes canonical allocation and runs finite readiness.
+`run_exact` relates that computation to independent original-binding seeds and
+source equations. `binding_meaning_exact` connects those seeds to the existing
+presence-aware declarative typing plus the annotation's upper bound;
+`literal_check_exact` proves the literal fragment check has precisely a value
+model. A counterexample proves that literal typing alone cannot produce scalar
+equality. Nonliteral expressions are outside this deliberately narrow fragment,
+not language errors. Grouped clauses, source-name resolution and well-formed
+registries remain caller inputs. All five B4 bridges remain open.

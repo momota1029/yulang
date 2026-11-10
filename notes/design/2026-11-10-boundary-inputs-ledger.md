@@ -1066,3 +1066,39 @@ invocation sharing, and Roles.Impl.constraints does not retain grouped source
 annotations. This encoding result neither reconstructs those annotations nor
 settles existing Q1/Q2 or cycle23/24. All five B4 bridges remain open. The total
 I-13 semantic audit remains incomplete; inventory reachability is not coverage.
+
+
+## X. Cycle87 — checked annotated-literal inputs
+
+Module: `CommonRoleAnnotatedLiteralInputs`.
+
+- `Binding` takes a scope-resolved name, existing `Inference.Expr`, and an
+  explicit scalar annotation. Name and grouped-source resolution remain outside.
+  `Valid` checks that each expression is its annotated scalar literal. This is
+  an implementation fragment boundary, not a language prohibition on other terms.
+- `BindingMeaning` uses existing `Core.PresenceGeneration.Typing Common.model`
+  and the annotation upper bound. `binding_meaning_exact` needs checked literal
+  syntax and arbitrary common value type. `literal_check_exact` quantifies all
+  literal/annotation pairs and existentially constructs or rules out a value
+  model. `literal_does_not_force_scalar` exhibits a wider literal typing, so a
+  bare expression lower bound cannot be silently converted to an equality.
+- `lower` computes ordered named facts from annotations, retaining duplicates.
+  `Seed` independently reads original bindings and checked syntax. `lower_exact`
+  requires the whole-list Valid condition, not solver success.
+- `Derives` closes original Seeds under source equations. `derives_exact` and
+  `models_exact` connect them to the previous entry under Valid. `Models` keeps
+  the inherited source-only name domain; unrelated input names are not globally
+  constrained. `models_bindings` explicitly needs source-domain membership and
+  a valuation satisfying independent facts. It proves actual literal/annotation
+  meaning for each such binding; the valuation is not an executable input.
+- `run` takes env/roles/wf/src/bindings and computes validation, facts, canonical
+  names, package/state and readiness. `run_exact` adds awf for soundness and
+  completeness. It has no caller atoms, map, fuel, model or success hypothesis.
+
+Spec 3.1 supplies literals; spec 4.2 specifies value-annotation checking and
+published type, while effects pass through. The literal fragment is pure; no
+annotation rule for fixing effect rows is introduced. Spec 6.3 supplies the
+existing role equations. Caller annotations are genuine source syntax in this
+interface, not invented ordinary constraints. Parser lowering, source identity,
+nonliteral inference and invocation sharing remain unproved. Existing questions
+and all five B4 bridges remain open. Total I-13 coverage remains incomplete.
