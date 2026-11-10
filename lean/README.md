@@ -3701,3 +3701,27 @@ and local-head models at one shared ambient assignment. Actual root-source
 provenance is retained. This is the independent fresh-invocation fragment, not a
 choice to freshen revisits or intended aliases: persistent invocation identity,
 associated feedback, general source registry and all five B4 bridges remain open.
+
+### Cycle68: persistent explicit invocation capture registry
+
+`CommonRoleRegisteredCaptureSources` computes a finite registry of
+`(invocation, binder)` keys. First-occurrence positions reserve local demand
+names above all initial demand names. Accepted endpoint refinements preserve
+exactly the declaration's binder list, fully registered revisits do not grow
+the registry, and arbitrary intervening successful captures retain every old
+allocated identity. Equal binder labels in distinct invocations stay distinct.
+Actual retained demand histories include all cross-visit interval constraints.
+
+`follow_models_exact` quantifies arbitrary finite visit lists: actual success
+with a final request model iff initial demands have a model and one keyed
+valuation satisfies all original head and where-template judgments. Its
+independent `VisitsFit` uses neither the registry nor generated constraints.
+It imposes a shared value for reused keys instead of assuming independently
+satisfiable visits are jointly satisfiable. No common-model or successful-run
+premise is supplied.
+
+This is an explicit-key local utility in the existing structural grammar.
+Invocation keys and the finite visit sequence are caller supplied. Deriving
+keys from actual source obligations, associated feedback, finite generated
+work, saturation, final classification and dictionary order remain open.
+The restriction is an implementation fragment, not a specification rejection.

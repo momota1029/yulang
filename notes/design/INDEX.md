@@ -250,3 +250,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [One root source table across actual recursive captures](2026-11-10-cycle66-root-source-history.md) — Draft。実where生成の任意有限履歴からroot source閉包、capture endpoint登録、正準ownerの同一性とgraph保持を導く。一般飽和は未達。
 
 - [Computed fresh capture demand names](2026-11-10-cycle67-fresh-capture-demand-names.md) — Draft; collision-free local binder maps and independent original-model exactness across arbitrary actual finite selected paths. Persistent invocation sharing and B4 remain open.
+- [Persistent keyed capture registry](2026-11-10-cycle68-persistent-capture-registry.md): Draft; explicit invocation/binder allocation, stable reuse and arbitrary finite original shared-model exactness.
