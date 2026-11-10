@@ -4239,3 +4239,21 @@ scope解決済みの名前、有限occurrenceの選択、registry、元stateは�
 ordinaryの一般の意味的帰結を全部検出する主張ではない。ordinary専用変数をこの
 occurrence tableの外に持つ場合も未接続。並べ替えでslot自体が変わる場合のreindexing、
 実parser、動的child、invocation identity、四分類、辞書同値は未証明。B4の5橋は残る。
+
+## Cycle102: ordinary専用変数も含む計算されたallocation
+
+`CommonRoleAmbientMixedSource` は、構造的occurrenceのtableの後ろに、有限な
+ordinary専用のsource名列を加える。receiver/output slotは既存prefixへの埋め込みで
+計算し、専用変数に架空のassociated occurrenceを作らない。任意のp/extra/stateに
+対して、associated出力とordinary相互辺の交互閉包は、元stateのseed・相互辺と
+独立な構造的associated導出からなる名前上のjudgmentに正確に一致する。
+
+`run_source_exact` は、すべての出力モデルが、元stateと単一のsource型valuationへ
+正確に対応することを証明する。ordinary専用変数から始まるseed、その変数を中継
+する辺、同名のoccurrenceとの共有、seed無しの等式にも同じ主張が成り立つ。
+effect成分は同一視しない。`solver_source_exact` はそのモデル存在と実solverを結ぶ。
+異なるscalar factは `4 * (2 * p.length + extra.length)` 以下。
+
+extraの有限な名前列と元stateは依然入力であり、実parserからのloweringは未接続。
+ordinary一般の意味的帰結の検出、新しいslotを生成するdriver、非scalar Form、
+invocation同一性、最終四分類、辞書同値は未達。B4の5橋は残る。

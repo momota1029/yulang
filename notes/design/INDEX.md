@@ -304,3 +304,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle100 mixed associated/ordinary closure](2026-11-10-cycle100-mixed-evidence-closure.md): Draft finite mixed derivation, fixedpoint and checked replay boundary; full B4 remains open.
 
 - [Cycle101: checked structural source and mixed closure](2026-11-10-cycle101-structural-mixed-source.md) — Draft, finite named-source correspondence and remaining B4 boundaries.
+- [Cycle102: ordinary-only variables in structural mixed allocation](2026-11-10-cycle102-ambient-mixed-source.md) — Computed extra slots and exact source-model correspondence; finite scope-resolved name list remains input.
