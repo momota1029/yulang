@@ -1,9 +1,11 @@
 cycle: 78
-status: running
+status: completed
 started: 2026-11-10T10:27:19Z
-updated: 2026-11-10T11:01:14Z
-elapsed_min: 33.9
-activity: Recovering interrupted source publication; retained source 8fecaaa2a passed focused 287-job build, boundary checks, 15-theorem axiom audit, inventory and diff-only gate again.
+updated: 2026-11-10T11:03:40Z
+elapsed_min: 36.4
+activity: Recovered and published checked structural associated templates; focused 287-job build, 21 examples plus 5 helper/alias declarations, 15-theorem axiom audit, inventory and diff gate passed. Original deadline and intermediate heartbeats were missed.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 8fecaaa2a
-resume_hint: Deadline 10:52:19 UTC was missed. Live remote initially held only startup heartbeat 8f8f403c. Publish validated source as one atomic tree, verify all changed blobs and entire tree, then publish cycle78 report and completed heartbeat. Recovery logs ../cache/yulang78-recovery. Do not start cycle79 until closure.
+last_local_commit: 87e0cc2a3
+source_commit: ac2cbd479a8901f9614856533eac8a05cc1680ac
+report: notes/handoff/dots-cycle-78.md
+resume_hint: Read live integration/work and standing orders/inbox. Source tree 201a842855caaabb12fb21ba207747f7f80951b0 and all 9 changed blobs matched local. Read cycle78 report/crash record and ledger O. Five B4 bridges and full I-13 audit remain open. Logs ../cache/yulang78-recovery. No full local build/Audit.
