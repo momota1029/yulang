@@ -273,3 +273,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle83 named source entry](2026-11-10-cycle83-named-source-entry.md) — Draft: checked finite source, named scalar assumptions, independent source readiness.
 
 - [Cycle84 source renaming](2026-11-10-cycle84-source-renaming.md): Draft; capture-avoiding finite source names, independent derivations/models, and readiness invariance.
+
+- [Finite-support source renaming](2026-11-10-cycle85-finite-source-renaming.md) — Draft, cycle85 executable collision boundary.

@@ -1,3 +1,4 @@
+import Yulang.CommonRoleFiniteSourceRenaming
 import Yulang.CommonRoleNamedSourceRenaming
 import Yulang.CommonRoleNamedSourceEntry
 import Yulang.CommonRoleDynamicIndexConsistentSource
@@ -8216,3 +8217,13 @@ run_cmd do
 #print axioms Yulang.CommonRoleNamedSourceRenaming.models_rename_exact
 #print axioms Yulang.CommonRoleNamedSourceRenaming.discharge_rename
 #print axioms Yulang.CommonRoleNamedSourceRenaming.run_source_rename
+
+#print axioms Yulang.CommonRoleFiniteSourceRenaming.check_exact
+#print axioms Yulang.CommonRoleFiniteSourceRenaming.check_fails
+#print axioms Yulang.CommonRoleFiniteSourceRenaming.derives_supported
+#print axioms Yulang.CommonRoleFiniteSourceRenaming.derives_original
+#print axioms Yulang.CommonRoleFiniteSourceRenaming.derives_exact
+#print axioms Yulang.CommonRoleFiniteSourceRenaming.models_exact
+#print axioms Yulang.CommonRoleFiniteSourceRenaming.run_source_exact
+#print axioms Yulang.CommonRoleFiniteSourceRenaming.rename_checked_exact
+#print axioms Yulang.CommonRoleFiniteSourceRenaming.checked_readiness

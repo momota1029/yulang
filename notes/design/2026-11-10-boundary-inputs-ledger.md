@@ -1000,3 +1000,37 @@ alone is claimed. Reuse an authoritative source carrier or establish its
 preservation before connecting this entry to full Parent/Left/Right inference.
 No new semantic decision or duplicated question note was introduced. I-13 total
 coverage remains incomplete; inventory counts are not semantic audit counts.
+
+
+## V. Cycle85 — computed finite renaming support
+
+Module: `CommonRoleFiniteSourceRenaming`.
+
+- `support src input` reads receiver/output names from existing finite source
+  and every input assumption's name. No domain list is caller-supplied.
+- `CollisionFree f src input`, its Decidable instance and `check` inspect only
+  this support. `check_exact` and `check_fails` expose the condition and a
+  concrete conflicting pair. The caller still chooses `f : Nat → Nat`; the
+  executable checker no longer asks for global Function.Injective evidence.
+- `derives_supported` has arbitrary env/roles/source/input/name/head and an
+  independent derivation. `derives_original` and `derives_exact` take the
+  finite CollisionFree proposition; the latter explicitly restricts the
+  queried name to support. An unsupported query can collide from outside,
+  so unrestricted evidence reflection is deliberately not claimed.
+- `models_exact` existentially constructs a valuation using a private supported
+  inverse witness (`originalName`/`original_image`); no model is an input.
+  These private proof helpers are not in the executable checker.
+- `run_source_exact` takes finite CollisionFree, env/roles/wf/awf and recomputes
+  allocation/state. `renameChecked` computes safe source/input output or none.
+  `rename_checked_exact` characterizes it; `checked_readiness` uses successful
+  checking, not solver success, to preserve Bool readiness without a caller
+  injectivity proof. The input map is required to be computable for execution.
+
+Spec §6.3 governs associated equalities and where conjunction, not invocation
+sharing. This cycle changes representation safety, not that unresolved policy.
+Input-only names must participate because capture can create false evidence.
+The check is conservative (including irrelevant input/input collisions), not
+a characterization of every map whose readiness result happens to agree.
+Extraction of source/input/f from real declarations remains future work. No
+new semantic decision. Existing Q1/Q2 and cycle23/24 remain pending. All five
+B4 bridges and the total I-13 semantic audit remain incomplete.

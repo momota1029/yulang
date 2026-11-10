@@ -3937,3 +3937,24 @@ source identities; `AssocImpl.assoc` is declaration bodies, not that missing
 carrier. That interface must be supplied from source before parent lowering can
 be proved. Invocation sharing, parser adequacy, dynamic generation, full
 ordinary inference, diagnostics and all five general B4 bridges remain open.
+
+
+### Cycle85: finite checked source renaming
+
+`CommonRoleFiniteSourceRenaming` computes the source/input name support and
+checks that distinct supported names have distinct images. Input-only names
+are included, preventing unrelated seeds from being captured by source names.
+A globally non-injective map is allowed when it is collision-free on this
+computed support. `check_exact` and `check_fails` characterize the executable
+check, including an explicit collision witness on failure.
+
+`derives_original`/`derives_exact` preserve and reflect independent evidence on
+supported names, `models_exact` preserves existential source models, and
+`checked_readiness` preserves recomputed `runSource` for every successful
+`renameChecked`. No global injectivity, chosen package/model, ordinary state,
+solver success or fuel is a premise. Core/associated well-formedness and the
+finite scalar/one-binder fragment remain. This is a sufficient encoding check,
+not a necessary condition for two readiness Bools to agree. Failure of this
+check is not a language rejection. Declaration lowering, invocation identity,
+dynamic children, final diagnostics, dictionary observation and all five B4
+bridges remain open.

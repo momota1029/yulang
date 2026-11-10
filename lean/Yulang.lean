@@ -1472,3 +1472,5 @@ import Yulang.CommonRoleSourceStateDischarge
 import Yulang.CommonRoleNamedSourceEntry
 
 import Yulang.CommonRoleNamedSourceRenaming
+
+import Yulang.CommonRoleFiniteSourceRenaming
