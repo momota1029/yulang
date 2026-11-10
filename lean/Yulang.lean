@@ -1470,3 +1470,5 @@ import Yulang.CommonRoleSourceRoleObligations
 import Yulang.CommonRoleSourceStateDischarge
 
 import Yulang.CommonRoleNamedSourceEntry
+
+import Yulang.CommonRoleNamedSourceRenaming

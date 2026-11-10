@@ -3911,3 +3911,29 @@ False is readiness failure, not final rejected/pending/ambiguous classification.
 All five general B4 bridges, dynamic where generation and source inference remain
 open. Focused checks and independent scalar propagation examples accompany the
 cycle83 report; no full local build or full Audit is claimed.
+
+
+## Cycle84: source-name renaming preserves readiness
+
+`CommonRoleNamedSourceRenaming.run_source_rename` closes capture-avoiding
+renaming for the finite cycle83 entry. For every injective map of source names,
+all receiver/output identities and named scalar assumptions may be renamed:
+the revalidated, reallocated, resaturated readiness result is equal. Role IDs,
+associated member IDs, and structural Goal binders are not renamed. No
+successful run, model, dependent package, ordinary state map or fuel is assumed.
+Core wf and associated awf remain explicit for executable readiness.
+
+`derives_rename_exact` and `models_rename_exact` independently preserve and
+reflect derivations and source-name model existence. Forward derivation
+transport alone allows arbitrary name maps; reflection requires injectivity.
+Boundary regressions show that collisions can both introduce an inconsistent
+alias (true becomes false) and import an unrelated assumption (false becomes
+true). Thus name freshening is safe only with an actual identity-preservation
+contract, not by equating observed scalar values.
+
+This is a complete renaming interface, not the originally considered Parent
+where extraction. `Roles.Impl.constraints` has no grouped associated-equation
+source identities; `AssocImpl.assoc` is declaration bodies, not that missing
+carrier. That interface must be supplied from source before parent lowering can
+be proved. Invocation sharing, parser adequacy, dynamic generation, full
+ordinary inference, diagnostics and all five general B4 bridges remain open.
