@@ -7956,3 +7956,18 @@ run_cmd do
 #print axioms Yulang.CommonRoleSourceIntervalBatches.run_order_independent
 #print axioms Yulang.CommonRoleSourceIntervalBatches.compile_run_exact
 #print axioms Yulang.CommonRoleSourceIntervalBatches.compiled_reflects
+
+-- Cycle63: independent declaration-head models through source capture batches
+#print axioms Yulang.CommonRoleCaptureBatchModels.capture_fits
+#print axioms Yulang.CommonRoleCaptureBatchModels.capture_arguments_fits
+#print axioms Yulang.CommonRoleCaptureBatchModels.capture_job_exact
+#print axioms Yulang.CommonRoleCaptureBatchModels.models_shared_exact
+#print axioms Yulang.CommonRoleCaptureBatchModels.demands_fits
+#print axioms Yulang.CommonRoleCaptureBatchModels.collect_exact
+#print axioms Yulang.CommonRoleCaptureBatchModels.captured_fits
+#print axioms Yulang.CommonRoleCaptureBatchModels.run_models_exact
+#print axioms Yulang.CommonRoleCaptureBatchModels.run_exact
+#print axioms Yulang.CommonRoleCaptureBatchModels.run_satisfiable_exact
+#print axioms Yulang.CommonRoleCaptureBatchModels.returned_models_exact
+#print axioms Yulang.CommonRoleCaptureBatchModels.compile_returned_exact
+#print axioms Yulang.CommonRoleCaptureBatchModels.compiled_reflects

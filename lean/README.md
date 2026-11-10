@@ -3624,3 +3624,25 @@ source names, duplicate demands, and original type/row assignments.
 `compile_run_exact` and `compiled_reflects` connect both directions to the
 existing shared presence constraint graph. This is generation exactness, not
 general materialization, solver completeness, saturation or final B4 resolution.
+
+### Cycle63: captured declarations and independent head models
+
+`CommonRoleCaptureBatchModels` connects the existing finite structural capture
+of original declaration heads to the source-named delta driver. For arbitrary
+finite declaration/goal jobs and old source demands, successful generation is
+exactly the independent original-head interval model under one shared semantic
+source valuation. Repeated captures keep both endpoints and both cross checks;
+local binder names are mapped explicitly to resolved source identities, apart
+from the ambient endpoint slot map. The existing graph compiler preserves all
+old ordinary constraints and literal type/row readback, and every graph model
+reflects the same original-head model.
+
+This is the int/pair/tick/variable head capture boundary. Join heads, unresolved
+rigid shapes and role mismatches return outside this generator. Repeated names
+are handled here but the separate candidate scanner is not expanded. The source
+identity map is supplied, not derived from a canonical graph root. No runtime
+center is chosen, and this does not close general eligibility, state-dependent
+materialization, saturation, final classification or any of the five B4 bridges.
+
+Requirements remain in each original declaration job; generating and solving
+their where children is a separate boundary.
