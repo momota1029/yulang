@@ -246,3 +246,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle64: original where source models](2026-11-10-cycle64-where-source-models.md) — Draft; actual capture preserves all where-template models and original endpoint provenance, without selecting a centre.
 
 - [Cycle65: actual where source allocation](2026-11-10-cycle65-where-source-allocation.md) — Draft; computed finite parent owners, no new failure, and exact arbitrary-graph snapshot preservation.
+
+- [One root source table across actual recursive captures](2026-11-10-cycle66-root-source-history.md) — Draft。実where生成の任意有限履歴からroot source閉包、capture endpoint登録、正準ownerの同一性とgraph保持を導く。一般飽和は未達。

@@ -1446,3 +1446,5 @@ import Yulang.CommonRoleCaptureBatchModels
 import Yulang.CommonRoleWhereSourceModels
 
 import Yulang.CommonRoleWhereSourceAllocation
+
+import Yulang.CommonRoleRecursiveSourceAllocation
