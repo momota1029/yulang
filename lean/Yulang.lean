@@ -1435,3 +1435,5 @@ import Yulang.CommonRoleCanonicalSourceGrowth
 import Yulang.CommonRoleAllocatedGraph
 
 import Yulang.CommonRoleChildSourceAllocation
+
+import Yulang.CommonRoleClosureSourceAllocation
