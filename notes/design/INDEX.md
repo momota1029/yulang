@@ -279,3 +279,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Computed source-name allocation](2026-11-10-cycle86-computed-source-allocation.md) — cycle86 proof interface: finite capacity, exact evidence/models/readiness, canonical safe-renaming invariance and idempotence; declaration lowering still open.
 
 - [Checked annotated-literal inputs](2026-11-10-cycle87-annotated-literal-inputs.md) — Draft; literal typing and explicit scalar annotations produce checked source inputs, with independent finite readiness exactness.
+
+- [Checked scalar expression inputs](2026-11-10-cycle88-scalar-expression-inputs.md) — Draft; structural evaluator, existing let/variable typing and independent finite source readiness. Full source lowering remains open.

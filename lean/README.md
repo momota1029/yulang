@@ -3987,3 +3987,18 @@ model. A counterexample proves that literal typing alone cannot produce scalar
 equality. Nonliteral expressions are outside this deliberately narrow fragment,
 not language errors. Grouped clauses, source-name resolution and well-formed
 registries remain caller inputs. All five B4 bridges remain open.
+
+### Cycle88: checked annotated scalar expression inputs
+
+`CommonRoleScalarExpressionInputs` extends the input boundary to existing
+literal/variable/let expressions, including nested lexical references and both
+value and computed let typing. `infer_exact` matches a structural independent
+`Evaluates` judgment. `evaluates_lower` handles all existing typings, including
+captured polymorphic bindings; `evaluates_typed` constructs an actual typing at
+every supertype of the computed scalar. `annotation_exact` proves that checking
+an explicit scalar annotation has exactly a value model within this fragment.
+`run_exact` connects finite readiness to original expression evaluation and
+source equations, without caller atoms, map, fuel, model or solver success.
+Non-scalar syntax, free variables, general inference, parser/name resolution,
+dynamic child generation and all five B4 bridges remain outside this result.
+The inherited model domain contains source names, not every unrelated binding.

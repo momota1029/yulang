@@ -1102,3 +1102,40 @@ existing role equations. Caller annotations are genuine source syntax in this
 interface, not invented ordinary constraints. Parser lowering, source identity,
 nonliteral inference and invocation sharing remain unproved. Existing questions
 and all five B4 bridges remain open. Total I-13 coverage remains incomplete.
+
+## Y. Cycle88 — checked scalar expression inputs
+
+Module: `CommonRoleScalarExpressionInputs`.
+
+- `infer` takes a finite scalar context and an existing `Inference.Expr`; the
+  public binding checker always uses the empty context. Only literal, variable
+  and let are supported. `infer_exact` matches independent `Evaluates` rules,
+  including lookup failure and the evaluated RHS of every let. De Bruijn names
+  inside expressions are already resolved by the existing Expr carrier.
+- `LowerEnv` is a proof interface, not a runtime input: every typed lookup of a
+  scalar context entry has its scalar lower bound. `evaluates_lower` quantifies
+  arbitrary existing environments and typings satisfying this relation, and
+  covers both existing let rules. `evaluates_typed` uses a computed canonical
+  monomorphic environment and constructs typing at every scalar supertype.
+- `annotation_exact` takes independent support `Evaluates [] e head`, not checker
+  success; it is complete only for this fragment. `meaning_exact` connects a
+  checked scalar annotation to the existing typing and annotation upper bound.
+  The upper bound is explicit source syntax, not inferred from a literal alone.
+- `Binding` reuses the prior carrier: scope-resolved name, Expr and explicit
+  scalar annotation. `Valid` is executable. `valid_exact` removes its computation
+  from the independent final statement. `Seed` requires original expression
+  evaluation; `Derives` adds only original grouped source equations.
+- `lower_exact`, `derives_exact` and `models_exact` take whole-list Valid.
+  `models_bindings` also takes source-name membership and a valuation satisfying
+  independent facts. It proves existing expression/annotation meaning there.
+- `run_exact` takes env/roles/wf/awf/src/bindings. Its right side requires original
+  evaluation for each input, valid source, an independent model and independent
+  discharge. Atoms, map, model and success are not executable inputs. Name
+  resolution and grouped clauses, annotations and registry well-formedness remain.
+
+Spec 3.1 supplies literals; 3.5 specifies let RHS then body evaluation (including
+unused RHS); 4.2 specifies annotation bounds. The module uses existing lexical
+Expr/Typing, not a new resolution rule. It does not settle invocation sharing,
+nonlinear heads, role-variable scope, generic/effectful input inference or parser
+lowering. Unsupported input is not language rejection. Existing questions and
+all five B4 bridges remain. I-13 full semantic coverage is still incomplete.
