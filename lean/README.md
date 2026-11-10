@@ -4180,3 +4180,22 @@ runtime bound or final role classification is claimed. Materialization inherits
 the existing explicit paired-int fragment. Visits count rebuilt-tree preorder
 occurrences only and exclude ordinary solving and graph refresh. All five B4
 bridges, the outer resolve_exact and X13-X16 outer acceptance remain incomplete.
+
+
+## Cycle99: 有限のordinary evidenceからreplayへ
+
+`CommonRoleEvidenceReplay` は、実ordinary stateの相互の変数辺とscalar等式から
+既存の有限Horn閉包を計算し、grammar検査済みの等式batchを内部で生成する。
+外からbatch列・model・Chain・fuel・上限を渡す必要はない。
+`completed_models` は各assignmentをそのまま保存するiff、
+`completed_evidence` は独立なseed/transfer導出とのiff、
+`completed_fixedpoint` は再計算で新しいscalar factが出ないことを示す。
+固定点はfactの所属についてで、atom列の二度目の追加が無くなるという主張ではない。
+
+実ordinary solverを通した`run_exact`は、元stateの充足可能性と宣言検査を
+成功条件とする。snapshot数は1+4*n以下、rebuild/visitは元Goalから計算した
+既存の上限に従う。graphは各時点で新しく作り、old demandやrowを捨てない。
+総runtimeやgraphサイズ、role解決成功の上限・完成を主張していない。
+
+実ソース由来のstate/slot/source/invocation、関連型の新しい制約生成、動的な辺追加、
+一般の飽和schedulerと最終分類は未達。T1c全体とB4の5橋はまだ閉じていない。

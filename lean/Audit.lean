@@ -8429,3 +8429,23 @@ run_cmd do
 #print axioms Yulang.CommonRoleCheckedOrdinaryReplay.run_none_iff
 #print axioms Yulang.CommonRoleCheckedOrdinaryReplay.run_computed_bound
 #print axioms Yulang.CommonRoleCheckedOrdinaryReplay.run_graphs_exact
+
+-- Cycle99: internally computed scalar closure batches and exact checked replay.
+#print axioms Yulang.CommonRoleEvidenceReplay.batch_models
+#print axioms Yulang.CommonRoleEvidenceReplay.completed_models
+#print axioms Yulang.CommonRoleEvidenceReplay.completed_models_iff
+#print axioms Yulang.CommonRoleEvidenceReplay.validate_exact
+#print axioms Yulang.CommonRoleEvidenceReplay.batches_length
+#print axioms Yulang.CommonRoleEvidenceReplay.batches_bounded
+#print axioms Yulang.CommonRoleEvidenceReplay.evidence_stopped
+#print axioms Yulang.CommonRoleEvidenceReplay.completed_atoms
+#print axioms Yulang.CommonRoleEvidenceReplay.completed_evidence
+#print axioms Yulang.CommonRoleEvidenceReplay.derived_exposed
+#print axioms Yulang.CommonRoleEvidenceReplay.completed_linked
+#print axioms Yulang.CommonRoleEvidenceReplay.completed_derived
+#print axioms Yulang.CommonRoleEvidenceReplay.completed_fixedpoint
+#print axioms Yulang.CommonRoleEvidenceReplay.derived_detected
+#print axioms Yulang.CommonRoleEvidenceReplay.run_exact
+#print axioms Yulang.CommonRoleEvidenceReplay.run_none_iff
+#print axioms Yulang.CommonRoleEvidenceReplay.run_computed_bound
+#print axioms Yulang.CommonRoleEvidenceReplay.run_graphs_exact
