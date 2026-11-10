@@ -1,9 +1,10 @@
 cycle: 100
-status: running
+status: completed
 started: 2026-11-10T21:57:01Z
-updated: 2026-11-10T22:06:37.227099Z
-elapsed_min: 9.6
-activity: Mixed associated/ordinary closure and checked replay proved; 351 focused jobs, 26 guards, 2 kernel examples and 19 axiom checks pass. Publishing verified source with fixedpoint and order-independent models.
+updated: 2026-11-10T22:12:11.447441Z
+elapsed_min: 15.2
+activity: Mixed associated/ordinary scalar closure, independent declaration exactness, emitted fixedpoint, order-independent models and checked replay proved. Focused351, 34 guards, 2 examples, 19 axioms and exact-source Core/Lean CI pass. Five B4 bridges remain.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: c03a5c850
-resume_hint: Check cache/yulang100. Two new modules complete finite explicit-source mixed closure; all five B4 bridges remain. Individual blobs then SHA-only tree, preserve live tree and nonforce expected-head. Full local build omitted by instruction.
+last_local_commit: d3a742629
+report: notes/handoff/dots-cycle-100.md
+resume_hint: Refresh integration/work/inbox and read cycle100. Source3708055d/tree9a2d7563 verified. Finite source/slots/maps/templates remain inputs; next connect checked structural programs and physical source coherence to mixed closure. Dynamic generation and invocation identity remain open. Logs ../cache/yulang100.
