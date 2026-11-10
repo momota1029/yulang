@@ -1491,3 +1491,5 @@ import Yulang.CommonRoleGuardedIntervalPlans
 import Yulang.CommonRoleGuardedIntervalFrontier
 
 import Yulang.CommonRoleFrontierGraphs
+
+import Yulang.CommonRoleStateMaterializedFrontier
