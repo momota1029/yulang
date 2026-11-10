@@ -1,10 +1,9 @@
-cycle: 59
-status: completed
-started: 2026-11-09T23:57:19Z
-updated: 2026-11-10T00:28:41Z
-elapsed_min: 31.4
-activity: Recovered actual child source allocation; focused 306-job build, 11-declaration axiom audit, and diff gate passed; source publication verified. The 25-minute deadline and remote heartbeat cadence were missed.
+cycle: 60
+status: running
+started: 2026-11-10T00:27:19Z
+updated: 2026-11-10T00:31:17Z
+elapsed_min: 6
+activity: Connect every structurally reachable child to one computed closure-wide source allocation, preserving old canonical roots and complete graph snapshots.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: a4c10fed4859b6e2d11b73df4997fb02b9917a4e
-report: notes/handoff/dots-cycle-59.md
-resume_hint: Refetch integration and work branches. Read cycle59 report and recovery record. Source commit c7a46b5c3fd51997a2055921538d78ee70719210 is published and verified. Closure-wide allocation, general interval materialization, and all five general B4 bridges remain open. No aggregate build was run.
+last_local_commit: c162f82ab7
+resume_hint: Cycle59 recovery is complete. Deadline 00:52:19 UTC. Read cycle59 report, preserve latest remote tree, add closure-wide allocation over existing unary/int adapter; focused builds only. Live integration and work head are 10f8e2ddfea60e9dfeab09e237a80b33bafebf3b, while git mirror is stale.
