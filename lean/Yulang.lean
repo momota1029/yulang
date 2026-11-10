@@ -1440,3 +1440,5 @@ import Yulang.CommonRoleClosureSourceAllocation
 import Yulang.CommonRoleAllocatedGraphUpdates
 
 import Yulang.CommonRoleSourceIntervalBatches
+
+import Yulang.CommonRoleCaptureBatchModels
