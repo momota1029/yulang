@@ -8470,3 +8470,15 @@ run_cmd do
 #print axioms Yulang.CommonRoleMixedEvidenceReplay.batches_bounded
 #print axioms Yulang.CommonRoleMixedEvidenceReplay.run_computed_bound
 #print axioms Yulang.CommonRoleMixedEvidenceReplay.run_graphs_exact
+
+-- Cycle101: computed structural source and physical sharing in mixed closure.
+#print axioms Yulang.CommonRoleStructuralMixedSource.prepared_linked
+#print axioms Yulang.CommonRoleStructuralMixedSource.allocated_to_named
+#print axioms Yulang.CommonRoleStructuralMixedSource.named_to_allocated
+#print axioms Yulang.CommonRoleStructuralMixedSource.allocated_named_exact
+#print axioms Yulang.CommonRoleStructuralMixedSource.named_support
+#print axioms Yulang.CommonRoleStructuralMixedSource.run_evidence_exact
+#print axioms Yulang.CommonRoleStructuralMixedSource.run_source_exact
+#print axioms Yulang.CommonRoleStructuralMixedSource.solver_source_exact
+#print axioms Yulang.CommonRoleStructuralMixedSource.capacity
+#print axioms Yulang.CommonRoleStructuralMixedSource.checked_source_exact

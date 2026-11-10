@@ -4220,3 +4220,22 @@ solverで検査して、cached診断と毎回のgraph生成へ接続する。sna
 seedが無いidentity class全体へ任意型の等式を追加する主張ではない。新しいslotや
 変数辺、実parser由来のsource/invocation、一般のchild生成、最終四分類、辞書同値は
 未達。B4の5橋は引き続き未完成。一般のordinary entailmentや総runtime上限も含まない。
+
+## Cycle101: 構造的なソースからmixed閉包へ
+
+`CommonRoleStructuralMixedSource` は、検査済みの構造的な有限occurrence列から
+source table・receiver/output slot・物理的なsource等式を計算し、関連型とordinary
+の交互閉包へ接続する。任意のprogram/stateに対して、実出力のscalar evidenceは、
+元stateの明示的なseed、相互辺、独立な構造的関連型導出からなる名前上のjudgmentと
+一致する。生成される異なるfactは8 * occurrence数以下。
+
+`run_source_exact` は任意のassignmentについて、実出力を満たす条件が、元stateを
+満たし、単一のsource型valuationへ因数分解でき、そのvaluationが全独立導出を
+満たすことと同値だと示す。seedの無い同名occurrenceも型を共有する。effectは同一視
+しない。`solver_source_exact` はそのモデル存在と実ordinary solverの受理を結ぶ。
+rawのscope/arity/関連型名の検査に成功しても、ordinary整合性までは保証しない。
+
+scope解決済みの名前、有限occurrenceの選択、registry、元stateは入力のまま。
+ordinaryの一般の意味的帰結を全部検出する主張ではない。ordinary専用変数をこの
+occurrence tableの外に持つ場合も未接続。並べ替えでslot自体が変わる場合のreindexing、
+実parser、動的child、invocation identity、四分類、辞書同値は未証明。B4の5橋は残る。
