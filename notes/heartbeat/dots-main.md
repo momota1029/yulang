@@ -1,9 +1,10 @@
 cycle: 102
-status: running
+status: completed
 started: 2026-11-10T22:57:26Z
-updated: 2026-11-10T23:07:44.195Z
-elapsed_min: 10.1
-activity: Source 12cac3cf published; all ten blobs and complete tree match local. Preparing source-exact CI checks and final report.
+updated: 2026-11-10T23:10:19.635209Z
+elapsed_min: 12.9
+activity: Ordinary-only allocation and exact mixed source models proved. Focused 358 jobs, 32 guards, 3 examples, no-seed lemma, 14 axioms and exact-source Core/Lean CI pass. Five B4 bridges remain.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
 last_local_commit: 653ccd072
-resume_hint: Source tree 67678f79 verified. Finish exact-source CI/report and completed heartbeat. Main B4 still has five open bridges. Logs ../cache/yulang102.
+report: notes/handoff/dots-cycle-102.md
+resume_hint: Refresh integration/work/inbox and read cycle102. Source 12cac3cf/tree 67678f79 verified. Next derive extra names/state from ordinary lowering or prove full-table reindexing; dynamic generation and invocation identity remain open. Logs ../cache/yulang102.
