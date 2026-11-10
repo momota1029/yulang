@@ -1507,3 +1507,5 @@ import Yulang.CommonRoleMixedEvidenceReplay
 import Yulang.CommonRoleStructuralMixedSource
 
 import Yulang.CommonRoleAmbientMixedSource
+
+import Yulang.CommonRoleNamedOrdinaryInputs
