@@ -1,9 +1,10 @@
 cycle: 85
-status: running
+status: completed
 started: 2026-11-10T14:27:52Z
-updated: 2026-11-10T14:34:07Z
-elapsed_min: 6.3
-activity: Closed finite collision checking and evidence/model/readiness preservation. Focused 294-job build, 27 examples, nine-theorem axiom audit and diff-only gate pass; publishing exact source.
+updated: 2026-11-10T14:39:06Z
+elapsed_min: 11.2
+activity: Closed finite-support collision checker and evidence/model/readiness preservation. 294-job focused build, 29 examples, nine-theorem audit, diff gate and exact-source Core/Lean CI pass. All five B4 bridges remain open.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
 last_local_commit: 71c711d51
-resume_hint: Read cycle85 design and ../cache/yulang85. Proof and boundary checks pass. Publish/verify all changed source paths against live tree, nonforce expected head. Declaration lowering and five B4 bridges remain open.
+report: notes/handoff/dots-cycle-85.md
+resume_hint: Refresh integration/inbox and read cycle85. Source 032d0e1c tree verified. Finite renaming checker includes input-only names; declaration lowering remains open. Preserve grouped source identities and do not infer invocation sharing. Logs ../cache/yulang85.
