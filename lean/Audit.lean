@@ -1,3 +1,4 @@
+import Yulang.CommonRoleCheckedOrdinaryReplay
 import Yulang.CommonRoleMaterializationProgress
 import Yulang.CommonRoleStateMaterializedFrontier
 import Yulang.CommonRoleFrontierGraphs
@@ -8413,3 +8414,18 @@ run_cmd do
 #print axioms Yulang.CommonRoleFrontierReplay.run_computed_bound
 #print axioms Yulang.CommonRoleFrontierReplay.refreshGraphs_exact
 #print axioms Yulang.CommonRoleFrontierReplay.runGraphs_exact
+
+-- Cycle98: real ordinary validation, exact cumulative models, and replay bounds.
+#print axioms Yulang.CommonRoleCheckedOrdinaryReplay.append_models
+#print axioms Yulang.CommonRoleCheckedOrdinaryReplay.final_atoms
+#print axioms Yulang.CommonRoleCheckedOrdinaryReplay.final_models
+#print axioms Yulang.CommonRoleCheckedOrdinaryReplay.final_includes
+#print axioms Yulang.CommonRoleCheckedOrdinaryReplay.final_models_initial
+#print axioms Yulang.CommonRoleCheckedOrdinaryReplay.validate_exact
+#print axioms Yulang.CommonRoleCheckedOrdinaryReplay.validate_models
+#print axioms Yulang.CommonRoleCheckedOrdinaryReplay.trace_length
+#print axioms Yulang.CommonRoleCheckedOrdinaryReplay.validate_chain
+#print axioms Yulang.CommonRoleCheckedOrdinaryReplay.run_exact
+#print axioms Yulang.CommonRoleCheckedOrdinaryReplay.run_none_iff
+#print axioms Yulang.CommonRoleCheckedOrdinaryReplay.run_computed_bound
+#print axioms Yulang.CommonRoleCheckedOrdinaryReplay.run_graphs_exact
