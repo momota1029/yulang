@@ -1,10 +1,9 @@
-cycle: 85
-status: completed
-started: 2026-11-10T14:27:52Z
-updated: 2026-11-10T14:39:06Z
-elapsed_min: 11.2
-activity: Closed finite-support collision checker and evidence/model/readiness preservation. 294-job focused build, 29 examples, nine-theorem audit, diff gate and exact-source Core/Lean CI pass. All five B4 bridges remain open.
+cycle: 86
+status: running
+started: 2026-11-10T14:56:27Z
+updated: 2026-11-10T14:58:04Z
+elapsed_min: 1.6
+activity: Compute a source-derived finite name allocator and prove canonical compaction preserves evidence, models and readiness without a caller name map.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 71c711d51
-report: notes/handoff/dots-cycle-85.md
-resume_hint: Refresh integration/inbox and read cycle85. Source 032d0e1c tree verified. Finite renaming checker includes input-only names; declaration lowering remains open. Preserve grouped source identities and do not infer invocation sharing. Logs ../cache/yulang85.
+last_local_commit: 96f0dee98
+resume_hint: Refreshed integration and work at 8ee411da; cycle85 completed and no prior writer remains. Continue new cycle86 module, focused builds only; logs ../cache/yulang86. Preserve live tree and publish only work/dots-main.
