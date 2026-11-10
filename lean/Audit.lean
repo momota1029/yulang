@@ -8165,3 +8165,24 @@ run_cmd do
 #print axioms Yulang.CommonRoleSourceRoleObligations.missing_role_blocks
 #print axioms Yulang.CommonRoleSourceRoleObligations.run_source_exact
 #print axioms Yulang.CommonRoleSourceRoleObligations.run_source_permutation
+
+-- Cycle82: joint source allocation and independent evidence-backed readiness
+#print axioms Yulang.CommonRoleSourceStateDischarge.role_source
+#print axioms Yulang.CommonRoleSourceStateDischarge.equation_source
+#print axioms Yulang.CommonRoleSourceStateDischarge.slot_count
+#print axioms Yulang.CommonRoleSourceStateDischarge.equation_identity
+#print axioms Yulang.CommonRoleSourceStateDischarge.run_evidence_exact
+#print axioms Yulang.CommonRoleSourceStateDischarge.run_models_exact
+#print axioms Yulang.CommonRoleSourceStateDischarge.run_one_exact
+#print axioms Yulang.CommonRoleSourceStateDischarge.derives_same_receiver
+#print axioms Yulang.CommonRoleSourceStateDischarge.ready_source_exact
+#print axioms Yulang.CommonRoleSourceStateDischarge.occurrence_origin
+#print axioms Yulang.CommonRoleSourceStateDischarge.occurrence_present
+#print axioms Yulang.CommonRoleSourceStateDischarge.prepared_evidence
+#print axioms Yulang.CommonRoleSourceStateDischarge.allocated_to_source
+#print axioms Yulang.CommonRoleSourceStateDischarge.source_to_allocated
+#print axioms Yulang.CommonRoleSourceStateDischarge.run_source_evidence_exact
+#print axioms Yulang.CommonRoleSourceStateDischarge.ready_original_source_exact
+#print axioms Yulang.CommonRoleSourceStateDischarge.source_models_exact
+#print axioms Yulang.CommonRoleSourceStateDischarge.ready_declarative_exact
+#print axioms Yulang.CommonRoleSourceStateDischarge.ready_has_models
