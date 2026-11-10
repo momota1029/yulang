@@ -3753,3 +3753,20 @@ reachability/completeness of generated visits, associated equality feedback,
 finite-work closure, saturation and language-visible dictionary results remain
 open. Reordering source declarations or changing where lists is not covered
 by permutation of already addressed visits. B4 still has five main bridges.
+
+### Cycle76: ordinary source identity through finite associated closure
+
+`CommonRoleFiniteAssociatedSourceModels` adds ordinary source equalities before
+finite associated saturation. Unlike scalar identity propagation alone, this
+also equates the type components of same-name slots with no scalar evidence.
+Its all-model iff uses independent associated declaration derivations and one
+existential source valuation. The actual ordinary solver accepts exactly those
+shared-source models. All old type and effect constraints remain; source type
+identity does not imply equality of effect rows.
+
+The finite table, occurrence templates, visible first-order declarations and
+explicit declaration well-formedness remain inputs. This closes the shared-model
+connection for that finite fragment, not source lowering, dynamic where closure,
+general interval knownness, candidate guards or final classification/dictionaries.
+B4 still has five main bridges. This is an implementation scope, not a new
+language rejection rule.

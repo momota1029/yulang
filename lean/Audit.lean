@@ -8081,3 +8081,9 @@ run_cmd do
 #print axioms Yulang.CommonRoleAddressedCaptureModels.follow_models_exact
 #print axioms Yulang.CommonRoleAddressedCaptureModels.reorder_models
 #print axioms Yulang.CommonRoleAddressedCaptureModels.repeat_models
+
+-- Cycle76: finite associated closure with ordinary source identity
+#print axioms Yulang.CommonRoleFiniteAssociatedSourceModels.run_models_exact
+#print axioms Yulang.CommonRoleFiniteAssociatedSourceModels.source_factorization
+#print axioms Yulang.CommonRoleFiniteAssociatedSourceModels.run_source_models_exact
+#print axioms Yulang.CommonRoleFiniteAssociatedSourceModels.solver_source_exact

@@ -594,3 +594,75 @@ B4の主要橋の数を5から増やしたという意味ではない。
 Yulang2のROLE-MORE-001〜005、X13〜X16/C3-PARENTを再読したが、未知node identity、
 graph bisimulation、内部slotBoundsのadequacyを確かめる実機oracleではない。
 新しいYulang2/parser実行はしていない。
+
+## M. cycle76: associated/where exactnessの入力とsource modelの接続
+
+Mainの既存の有限path入口と、別経路の有限associated closureを対応づけた。
+Mainから直接読むのは`stateful_finite_path_parent_exact`、
+`stateful_reverse_siblings_exact`、`named_finite_path_exact`。
+associated declaration/finite graphの全定理がMainに再掲済みという意味ではない。
+
+### M1. first-order associated型の入力
+
+| モジュール | 入力の名前・型と依存する入口 | sourceからの導出・仕様と前提の境界 |
+|---|---|---|
+| `CommonRoleAssociatedStateFlow` | `env : Roles.AssocEnv`, `roles : Roles.RoleDecls`, `wf : Roles.WellFormed env.cores`; `q : Request n`はreceiver/name/output、`s/out : State n`。`value_exact`, `source_store_agrees`, `produce_exact`。`models_exact`はcomputed/producedと全assignment、`recollect_exact`はscalar head/Computed、`visible : List Candidate`とcandidate。`recollect_shared_exact`はtable、sibling slot、source同一性の証明。 | C節の入力に加え、ordinary整合はproduceでは検査しない。source_storeは単一の出力変数等式だけをlowerする。scalarはコード0=int、1=strのみで、他RHSのnoneを言語拒否にしない。sourceの宣言可視性、receiver/name/outputのbinding、兄弟のsource同一性が外側。spec6.2/6.3。 |
+| `CommonRoleAssociatedDeclarationExact` | 同じenv/roles/wf、`g : Roles.Goal`、`name : Nat`、`result : Roles.Term`。`assocOf_sound`は返却証拠のみ、`assocOf_exact`と`computed_iff_declarative`はさらに`awf : Roles.AssocWellFormed env roles`。後者はqとscalar headも取る。 | awfは全implのhead変数へのRHS限定、署名arity/required/defaultの充足、関連名の宣言済み条件。envのcoherentは同一implの注釈一意性であり候補の非重複ではない。sourceから両well-formed証明を導く必要。6.3の糖衣参照まで扱うHeadDeterminesAssociatedへの拡張はQ2/I-8に残る。健全性だけとiffの前提を混同しない。 |
+
+ここで`Roles.RoleDecls = Nat → Roles.RoleDecl`の各宣言はarity、
+`assoc : Nat → Option (Option Term)`、defaultのscope証明を持つ。
+`some none`はrequired、`none`は未宣言。`AssocEnv.impls`の各recordはcore impl、
+関連名/RHS列、名前のNodup証明を持つ。`wf`のPatersonと`awf`の関連型検査は別である。
+任意のwell-formed引数を受けることは、parser/名前解決から構成済みという意味でない。
+
+### M2. 有限source graphの閉包
+
+| モジュール | 入力の名前・型と依存する入口 | sourceからの導出・仕様と前提の境界 |
+|---|---|---|
+| `CommonRoleFiniteAssociatedClosure` | env/roles/wf、`p : Source n`、`s : State n`、`fact : Fin n × Inference.Base`。pは`identity : Fin n → Nat`と`occurrences : List (Occurrence n)`、各occurrenceはreceiver/output slot、name、`template : Inference.Base → Roles.Goal`。`saturate_exact`, `saturate_capacity`, `associated_closed`。 | initialはordinary明示二方向scalar atom、templateの各base入力に実関連型計算を行いHorn規則を構成する。4*nのfact universeと停止は内部計算。有限occurrence列の生成/網羅性とtemplateのsource忠実性は入力のまま。nominal/record等の一般区間はcarrier外。spec6.3。 |
+| `CommonRoleFiniteAssociatedModels` | 同じ入力と`v : Fin n → Comp Common.model`。`run_models_exact`, `solver_exact`。順序比較はp/qと`SameSource p q`（identityの同値関係、occurrenceのmembership一致）。`emit_models`の任意fact列は補助入力。 | 任意の全assignmentについて旧制約とderived scalar等式を連言する。任意source名の同一性はscalar規則で伝播するだけで、未知slotのtype等式を自動追加しない。order-independentは同じslot/template集合のmodel/cache membershipであり、sourceのwhere再順序付けの辞書同値ではない。spec6.3。 |
+| `CommonRoleFiniteAssociatedStable` | env/roles/wf、p/s、fact、全assignment。`cache_stable`, `models_stable`, `run_evidence`。`extend_evidence`/`emit_evidence`はslot/baseと任意fact列。 | 同じ固定pを再実行した明示scalar evidenceと全modelの固定点。更新から新しいwhere義務やtemplateを再生成する閉包ではない。spec6.3の全安定化への中間部品。 |
+| `CommonRoleFiniteAssociatedDeclaration` | 同じ入力に`awf`を加える。`saturate_declaration_exact`, `run_declaration_exact`, `declaration_stable`。`declaration_congr`はp/qのidentity/occurrence同値と元state。 | `Computed`を独立`DeclarativeComputed`へ置換する橋は既にある。awfを消して同じiffとは言わない。source/template由来はなお未接続。spec6.2/6.3。 |
+| `CommonRoleNamedAssociatedGraph` | env/roles/wf、`p : List NamedOccurrence`、`s : State (2*p.length)`、fact。NamedOccurrenceはreceiver/outputのNat名、関連name、template関数。`named_exact`, `named_capacity`, `occurrence_origin`, `slot_origin`, `generated_fact_origin`。 | 全occurrenceの二位置を計算してcaller slot mapを除去済み。同名でもreceiver/outputの位置自体は別。scalar伝播用identityは計算するが、一般ordinary source等式を追加する入口ではない。`generated_fact_origin`は任意slotの位置由来を示し、そのfactの構文生成由来/候補到達可能性までは結論しない。有限named listを実whereから導く橋は残る。spec6.3。 |
+
+`template`は任意関数なので、引数baseを無視して固定receiver goalを返しても型が通る。
+これは現定理の反例ではない。sourceから作る際は、受け取ったbaseが元receiverの
+materializationと一致し、role/key/関連名/残り引数のscopeを保つことを示す必要がある。
+この対応は既知性・名解決・宣言生成の実装責任であり、利用者向けに新しい規則を選ばない。
+
+### M3. Mainの有限path入口
+
+| モジュール | 入力の名前・型と依存する入口 | sourceからの導出・仕様と前提の境界 |
+|---|---|---|
+| `CommonRoleStatefulIndexSweep` | `edges : List (Edge n)`（receiver/output）、`s/out : State n`、trace : List Bool。`sweep_exact`, `visit_exact`, `sweep_preserves`。後者は全assignment/model。 | stateから各visitのreceiverを再materializeするが、registryは固定Index(box payload,int)断片。任意有限visit列はsource生成器ではない。falseはそのvisitでProducedが無いことで、最終pending/rejectedの区別ではない。spec6.3。 |
+| `CommonRoleStatefulIndexPath` | `outputs : List (Fin n)`, `receiver : Fin n`, `s/out : State n`。`run_expected`はstrAssignmentのmodelとdetect=str、`expected_models`は全assignment。`from_declaration_exact`は空stateと固定Index(box str,int) seed。 | 固定strだけの証明と任意旧stateの後続入口を分ける。outputsは重複/再訪を許すが、終了はcallerの有限path列に構造再帰する。spec6.3の一般Paterson/生成閉包ではない。 |
+| `CommonRoleStatefulPathComplete` | 同じoutputs/receiver/s/out。`checked_exact`, `checked_models_exact`。低位`run_expected_of_models`はModelsと明示str evidence、`successful_state`は成功/Models/evidence。 | public checked入口は固定宣言からseedを生成し、実ordinary整合を内部検査するため、成功/Modelsを外部前提にしない。元のeffect/type制約は残る。有限path/固定seedは入力断片に残る。spec6.3。 |
+| `CommonRoleStatefulPathParent` | 同じpath/receiver/state、`argument : Roles.Term`, `answer : RoleDictionaries.Answer`。`outer_exact`, `success_visible`。 | Mainの`stateful_finite_path_parent_exact`はこの型を保つ。Parent/Left/Right registryとstr辞書は固定され、callerが任意のvisibleを渡す一般定理ではない。dict存在はFinalの結論側。`run_of_models`の仮定をpublic outer iffの外部前提に取り違えない。spec6.2/6.3。 |
+| `CommonRoleStatefulParentExample` | public runは入力なしの固定3slot例。`outer_exact`はout/argument/answerを量化。final_modelsは全assignment。 | Rightの関連型seed、逆順2edge、2sweep、固定Parent辞書が内部にある。Mainの`stateful_reverse_siblings_exact`。2passを一般停止boundとしない。旧Yulang2 C3-PARENTはsource素材だが同じ内部graphのoracleではない。 |
+| `CommonRoleNamedPath` | `seed : Nat`, `names : List Nat`、table長の任意s/out、argument/answer。`outer_exact`。`source_factorization`は成功と全modelを仮定。 | Mainの`named_finite_path_exact`。table/occurrence slots/identity atomsを内部生成し、初めにSourceIdentity.extendを通す。名前自体のscopeと有限path由来はcaller側。固定Index(box str,int)と固定Parent辞書の断片。spec6.2/6.3、Q1。 |
+
+### M4. 今回閉じた有限modelの接続
+
+新規`CommonRoleFiniteAssociatedSourceModels`はtableとoccurrence列からsource graphを作り、
+**ordinary source等式を先に追加してから**有限associated closureを実行する。
+入力はenv/roles/wf、`table : List Nat`、`List (Occurrence table.length)`、旧state。
+独立declaration版のiffにはさらにawf、model定理では全assignmentを量化する。
+`run_source_models_exact`の一つのsource valuationは結論の存在量化で、入力ではない。
+`solver_source_exact`は同じ条件のmodel存在と実ordinary solverの受理を同値にする。
+
+scratch境界検査では、同一source名の二slotにscalar seedもoccurrenceも無いとき、
+従来finite closureの出力atomsは空であり、slot0=int、slot1=strの分裂modelも満たす。
+新入口ではこの分裂modelを排除することをLeanで確認する。元のfinite閉包定理の
+誤りではなく、scopeの正しいsource共有を付け足す必要があった接続である。
+新しい意味を選ばず、effect行の同一性も勝手に追加しない。
+
+B4主要5橋は依然未完。今回閉じたのは与えられた有限graphにおける共有modelの接続。
+残るsource側義務はtable/occurrence/templateの生成とscope、動的whereの網羅性、
+一般区間knownness、候補guardと安定後の診断/辞書である。
+新規質問0件。Q1/Q2、cycle23/24の未決事項を維持する。
+
+I節で挙げた(3)の有限Main path入口とassociated閉包の対応は今回列挙した。
+他の未記載module、一般核、未監査入力は残り、**I-13は部分達成**。
+過去節の「公開も未完了」は当時の記録であり、cycle75で69〜75分が公開済み。
+新しいYulang2/parser実行はしていない。live auditのC3-PARENT/X13〜X16を読み、
+内部table/templateの妥当性を直接測るoracleではないことを確認した。
