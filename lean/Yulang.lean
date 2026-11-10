@@ -1493,3 +1493,5 @@ import Yulang.CommonRoleGuardedIntervalFrontier
 import Yulang.CommonRoleFrontierGraphs
 
 import Yulang.CommonRoleStateMaterializedFrontier
+
+import Yulang.CommonRoleMaterializationProgress

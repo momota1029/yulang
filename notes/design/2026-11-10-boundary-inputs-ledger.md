@@ -1304,3 +1304,28 @@ source-domain name iff does not imply finite structural work without Paterson.
   state-independent List Goal. The theorem does not bound internal graph nodes.
   Full generated_work_closed, saturation, stable classification and dictionary
   equivalence remain open; all five major B4 bridges are still incomplete.
+
+
+## AG. CommonRoleMaterializationProgress (cycle96)
+
+- Fixed original Goal and slots are the AF source-template boundary. The measure
+  is computed from variable occurrences in both endpoints, not caller fuel/rank.
+  It overcounts repeated names and aliased slots without requiring injectivity.
+- changes consumes arbitrary finite lists of actual ordinary atoms. Chain is an
+  explicit theorem premise: adjacent atom membership inclusion and existence of
+  a later model. No model/proof is passed to computation. A supplied trace is not
+  claimed to be a solver-generated trace or a derived saturation execution.
+- Materialization count cannot increase; equal count means identical syntax.
+  Fusion yields strict decrease for every changed Goal under Extension, hence
+  changes plus final potential is bounded by the first materialized potential.
+  The latter is at most the original syntax count, independently of trace length.
+- run_tree_equal/strict/plateau concern the entire Tree projection of actual
+  public graph runs, including unfinished descendants and all diagnostics.
+  Old demands may differ; ordinary graphs and their models need not be equal.
+- A plateau is not a stop signal; later evidence can cause another change. No
+  bound on all updates/visits, new templates, graph nodes, runtime or ordinary
+  solving follows. Contradictory inclusive states or noninclusive consistent
+  states can undo materialization, so both Chain premises are necessary.
+- All results are auxiliary progress facts for the existing explicit-int
+  implementation fragment, not a spec rejection policy or B4 completion. Source
+  identity, all five major B4 bridges and X13-X16 outer acceptance remain open.

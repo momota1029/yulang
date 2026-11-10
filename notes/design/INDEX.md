@@ -293,3 +293,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle94 frontier ordinary graph family](2026-11-10-cycle94-frontier-ordinary-graphs.md) — Draft; all-model graph integration and replay boundary.
 
 - [State-materialized interval frontiers](2026-11-10-cycle95-state-materialized-frontiers.md) — Draft; ordinary int evidence, all-model Form preservation and finite regenerated work.
+
+- [Cycle96: finite actual materialization changes](2026-11-10-cycle96-materialization-progress.md) — Draft; source-computed progress bound and entire public diagnostic-tree connection; not saturation.

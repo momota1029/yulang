@@ -1,3 +1,4 @@
+import Yulang.CommonRoleMaterializationProgress
 import Yulang.CommonRoleStateMaterializedFrontier
 import Yulang.CommonRoleFrontierGraphs
 import Yulang.CommonRoleFrontierReachability
@@ -8382,3 +8383,19 @@ run_cmd do
 #print axioms Yulang.CommonRoleStateMaterializedFrontier.run_work_present
 #print axioms Yulang.CommonRoleStateMaterializedFrontier.run_computed_bound
 #print axioms Yulang.CommonRoleStateMaterializedFrontier.domain_child_closed
+
+-- Cycle96: source-computed finite materialization progress and actual full-tree changes.
+#print axioms Yulang.CommonRoleMaterializationProgress.materialize_le
+#print axioms Yulang.CommonRoleMaterializationProgress.materialize_equal_of_count
+#print axioms Yulang.CommonRoleMaterializationProgress.arguments_le
+#print axioms Yulang.CommonRoleMaterializationProgress.arguments_equal_of_count
+#print axioms Yulang.CommonRoleMaterializationProgress.goal_le
+#print axioms Yulang.CommonRoleMaterializationProgress.goal_equal_of_count
+#print axioms Yulang.CommonRoleMaterializationProgress.goal_fusion
+#print axioms Yulang.CommonRoleMaterializationProgress.extension_le
+#print axioms Yulang.CommonRoleMaterializationProgress.extension_strict
+#print axioms Yulang.CommonRoleMaterializationProgress.changes_with_remaining
+#print axioms Yulang.CommonRoleMaterializationProgress.changes_bounded
+#print axioms Yulang.CommonRoleMaterializationProgress.run_tree_equal
+#print axioms Yulang.CommonRoleMaterializationProgress.run_tree_strict
+#print axioms Yulang.CommonRoleMaterializationProgress.run_tree_plateau

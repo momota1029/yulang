@@ -4103,3 +4103,26 @@ change materialization when reordered. No model is inferred from produced syntax
 or graphs. Sources remains keyed by the whole goal, so cross-state source aliases
 and original-goal derivability are not established. The finite bound covers
 frontier Goals, not internal graph vertices. All five general B4 bridges remain.
+
+
+### Cycle96: 実 materialization の変化回数と診断 tree の進捗
+
+`CommonRoleMaterializationProgress` は固定された元 Goal の両端点にある変数の
+出現回数を計算し、実 ordinary detector による int への置換の進捗を測る。
+任意の atom 状態列で、隣接状態間の atom 包含と後状態のモデル存在を前提に、
+`changes_with_remaining` は「実 Goal の変化回数 + 最後の残変数数 ≤ 最初の
+materialized Goal の残変数数」を示す。`changes_bounded` は元 Goal の計算済み
+出現回数で上限を与える。任意の共有・alias・重複・不変状態を含む。
+
+`run_tree_strict` は既存 public run の全診断 Tree が変化したなら同じ尺度が
+厳密に減ること、`run_tree_plateau` は尺度が同じ二状態の全 Tree が等しいことを
+示す。未完了の子や診断も含む Tree 全体であり、ordinary graph の同一性ではない。
+old demands が異なっても Tree 部分だけはこの対応を満たす。
+
+これは健全性・完全性・主型性を完成する定理ではなく、停止性の補助。
+有限 trace は定理の検査対象で、実 solver が生成した trace との対応は未達。
+不変状態の後に新証拠が来ればまた変化する。総更新数、停止時刻、graph 内部頂点数、
+任意の source template 生成、K2、最終四分類、dictionary 観察同値は扱わない。
+明示 paired int に限る既存実装断片であり、仕様で他の型を拒否する決定ではない。
+B4 の5橋は引き続き未完成。両前提の必要性は、非単調な整合状態列と、
+包含するが矛盾する状態列の回帰で確かめた。
