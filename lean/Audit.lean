@@ -8130,3 +8130,21 @@ run_cmd do
 #print axioms Yulang.CommonRoleCheckedAssociatedPrograms.materialized_declared
 #print axioms Yulang.CommonRoleCheckedAssociatedPrograms.checked_source_exact
 #print axioms Yulang.CommonRoleCheckedAssociatedPrograms.checked_solver_exact
+
+-- Cycle80: exact grouped source equation extraction and independent derivations
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.lower_exact
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.lower_cons
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.lower_append
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.lower_length
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.lower_position
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.valid_exact
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.check_exact
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.check_accepts
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.check_fails
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.checked_count
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.checked_occurs
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.step_exact
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.derives_exact
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.run_evidence_exact
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.run_source_exact
+#print axioms Yulang.CommonRoleAssociatedClauseExtraction.solver_source_exact

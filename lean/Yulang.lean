@@ -1462,3 +1462,5 @@ import Yulang.CommonRoleNamedAssociatedSourceModels
 import Yulang.CommonRoleStructuralAssociatedTemplates
 
 import Yulang.CommonRoleCheckedAssociatedPrograms
+
+import Yulang.CommonRoleAssociatedClauseExtraction

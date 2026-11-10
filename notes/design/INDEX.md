@@ -263,3 +263,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Structural associated goal templates](2026-11-10-cycle78-structural-associated-templates.md): Draft; checked first-order template generation and independent structural source derivations; full source adequacy remains open.
 
 - [Cycle79: checked associated programs](2026-11-10-cycle79-checked-associated-programs.md) — Draft: computed whole-list scope/arity/name validation, exact erasure and existing source-model contracts.
+
+- [Cycle80: associated clause extraction](2026-11-10-cycle80-associated-clause-extraction.md) — Draft: exact grouped equation extraction, source occurrence provenance, and independent derivation correspondence; parser and bare obligations remain outside.
