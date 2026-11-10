@@ -1,10 +1,9 @@
-cycle: 64
-status: completed
-started: 2026-11-10T02:57:19Z
-updated: 2026-11-10T03:09:01Z
-elapsed_min: 11.7
-activity: Closed actual where-child shared source models and original endpoint provenance. Focused 168-job build, 17-theorem audit, six regressions and diff gate passed. Exact source proof/core CI both succeeded.
+cycle: 65
+status: running
+started: 2026-11-10T03:27:19Z
+updated: 2026-11-10T03:27:26Z
+elapsed_min: 0.1
+activity: Construct actual where endpoint occurrence owners and canonical graph roots from original parent provenance, without caller supplied alias equalities.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 4972a2bdaf30021025f8838bc181c80e7e64d1cd
-report: notes/handoff/dots-cycle-64.md
-resume_hint: Fetch integration and reread orders/inbox. Verified source 668ba0179d708c645899a08f4b10aa57320a9fa7. Derive child source maps/canonical graph roots from proven original endpoint provenance, then connect associated child feedback and saturation. All five B4 main bridges remain open. Reuse workspace/cache; focused builds only.
+last_local_commit: 9ee941753
+resume_hint: Integration fetched and standing orders/inbox reread. Cycle64 completed; workspace clean. Continue CommonRoleWhereSourceModels with finite source ownership and graph allocation. Focused builds only; preserve latest remote tree. Deadline 03:52:19 UTC.
