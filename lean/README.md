@@ -3614,3 +3614,13 @@ unary/int generator and positive-string ordinary adapter share source slots;
 this is not an equivalence of their full type systems or child-selection proof.
 Edits into genuinely new syntax storage, general interval solver generation,
 saturation and all five general B4 bridges remain open.
+
+### Source-named interval batches (cycle62)
+
+`CommonRoleSourceIntervalBatches.run_exact` connects the actual incremental
+constraint list to independent original-source interval models. Arbitrary
+existing `TyTerm` endpoints are retained, with both cross-batch directions,
+source names, duplicate demands, and original type/row assignments.
+`compile_run_exact` and `compiled_reflects` connect both directions to the
+existing shared presence constraint graph. This is generation exactness, not
+general materialization, solver completeness, saturation or final B4 resolution.
