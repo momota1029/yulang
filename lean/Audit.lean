@@ -1,3 +1,4 @@
+import Yulang.CommonRoleStateMaterializedFrontier
 import Yulang.CommonRoleFrontierGraphs
 import Yulang.CommonRoleFrontierReachability
 import Yulang.CommonRoleGuardedIntervalFrontier
@@ -8366,3 +8367,18 @@ run_cmd do
 #print axioms Yulang.CommonRoleFrontierGraphs.graph_input_injective
 #print axioms Yulang.CommonRoleFrontierGraphs.advance_exact
 #print axioms Yulang.CommonRoleFrontierGraphs.advance_replays
+
+-- Cycle95: actual state materialization, semantic preservation and finite regenerated work.
+#print axioms Yulang.CommonRoleStateMaterializedFrontier.materialize_meaning
+#print axioms Yulang.CommonRoleStateMaterializedFrontier.detected_int_persists
+#print axioms Yulang.CommonRoleStateMaterializedFrontier.rematerialize_fusion
+#print axioms Yulang.CommonRoleStateMaterializedFrontier.materialize_present
+#print axioms Yulang.CommonRoleStateMaterializedFrontier.arguments_present
+#print axioms Yulang.CommonRoleStateMaterializedFrontier.goal_present
+#print axioms Yulang.CommonRoleStateMaterializedFrontier.domain_exact
+#print axioms Yulang.CommonRoleStateMaterializedFrontier.workDomain_exact
+#print axioms Yulang.CommonRoleStateMaterializedFrontier.regenerated_reach_present
+#print axioms Yulang.CommonRoleStateMaterializedFrontier.run_models_exact
+#print axioms Yulang.CommonRoleStateMaterializedFrontier.run_work_present
+#print axioms Yulang.CommonRoleStateMaterializedFrontier.run_computed_bound
+#print axioms Yulang.CommonRoleStateMaterializedFrontier.domain_child_closed

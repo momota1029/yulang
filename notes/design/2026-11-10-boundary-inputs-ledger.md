@@ -1275,3 +1275,32 @@ source-domain name iff does not imply finite structural work without Paterson.
   child diagnostics remain in the unchanged tree, whether or not any graph
   exists. Spec 6.3 motivates conjunction within plans and delayed diagnostics.
   Invocation identity and all five major B4 bridges remain open.
+
+## AF. CommonRoleStateMaterializedFrontier (cycle95)
+
+- Inputs: registry : List Declaration, original : Goal, slots : Nat -> Fin n,
+  Sources, atoms : List (Atom (Fin n)), old : Plan (Fin n). Registry, original
+  source Form, ambient slots, invocation map and old demands remain caller
+  boundaries from AB-AE. Spec 6.3 supports constraint-driven narrowing; this
+  module does not derive any of those inputs from parser/scope/annotations.
+- materialize uses the actual ordinary detector, replacing a variable only
+  when its first detected scalar is int. Other bases and absent evidence keep
+  the original source name. Consistency is not assumed by computation or finite
+  containment. Conflicting scalar pairs can make its syntax order-dependent;
+  arbitrary states are still covered by the finite domain.
+- materialize_meaning quantifies every actual state model. detected_int_persists
+  and rematerialize_fusion require atom inclusion and a later model, with the
+  same slots map. These are explicit mathematical premises, not a model oracle
+  supplied to execution. No general entailment or interval solver is claimed.
+- goalVariants and workDomain compute a finite overapproximation from the
+  original template and checked declarations. Independent occurrence choices
+  include impossible sharing combinations. Public run/workDomain require no
+  supplied fuel, finite visit list, check proof, successful child or finite bound.
+- run_models_exact has Derives at the materialized goal, not original-goal
+  derivability. Sources takes Goal as part of its key, so regeneration can change
+  aliases even with the same function. Invocation lifetime and its source
+  derivation remain the existing open semantic questions, not decided here.
+- All actual tree nodes, including unsupported/incomplete children, fit the
+  state-independent List Goal. The theorem does not bound internal graph nodes.
+  Full generated_work_closed, saturation, stable classification and dictionary
+  equivalence remain open; all five major B4 bridges are still incomplete.

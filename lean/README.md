@@ -4087,3 +4087,19 @@ additional ordinary atoms. They keep the syntax tree fixed and do not prove
 state-dependent rematerialization. Inconsistent plans still produce graphs.
 Graph existence is not a solver success, and empty families are not final
 language rejection. All five major B4 bridges remain open.
+
+## Cycle95: state-materialized interval frontiers
+
+`CommonRoleStateMaterializedFrontier` connects actual paired int evidence to all
+constructors of the existing Form grammar. It proves every-model semantic
+preservation, consistent-extension rematerialization fusion, and a computed
+finite source-template domain containing all nodes of every regenerated
+diagnostic frontier. Public `workDomain` computes the declaration check; no
+caller fuel or work list is needed. The graph output preserves original ordinary
+atoms and demands, with exact Derives meaning at the materialized goal.
+
+The detector chooses its first scalar candidate: conflicting scalar evidence can
+change materialization when reordered. No model is inferred from produced syntax
+or graphs. Sources remains keyed by the whole goal, so cross-state source aliases
+and original-goal derivability are not established. The finite bound covers
+frontier Goals, not internal graph vertices. All five general B4 bridges remain.

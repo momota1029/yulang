@@ -291,3 +291,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Retained interval diagnostic frontier](2026-11-10-cycle92-guarded-interval-frontier.md) — Draft; incomplete child retention and exact guarded-plan erasure; fixed syntax only.
 
 - [Cycle94 frontier ordinary graph family](2026-11-10-cycle94-frontier-ordinary-graphs.md) — Draft; all-model graph integration and replay boundary.
+
+- [State-materialized interval frontiers](2026-11-10-cycle95-state-materialized-frontiers.md) — Draft; ordinary int evidence, all-model Form preservation and finite regenerated work.
