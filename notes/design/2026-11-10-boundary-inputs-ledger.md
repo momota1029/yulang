@@ -1431,3 +1431,26 @@ source-domain name iff does not imply finite structural work without Paterson.
   complete final classification or dictionary observational equivalence. Five
   B4 bridges remain. Existing associated scalar decoder handles int/str only;
   all four ordinary scalar bases remain in the fact universe.
+
+## AL. CommonRoleStructuralMixedSource (cycle101)
+
+- Executable inputs: AssocEnv, RoleDecls, core WellFormed, finite structural
+  Program p, and grammar-certified State (table p).length. Correctness also uses
+  AssocWellFormed. The existing raw checker supplies scope, arity and associated
+  name membership; successful checking does not supply ordinary consistency.
+- source table, receiver/output slots, identity map and physical type equality
+  atoms are computed from the occurrence names. Source valuation is existential
+  in the all-model theorem, not a supplied map. Templates are structural one-hole
+  goals with existing int/str encoding; unsupported heads remain unresolved.
+- Independent Derives uses original scalar pairs, original reciprocal ordinary
+  edges and structural Step. Prepared identity edges add no scalar seeds. Aliases
+  with no seed still share types physically; effects are not identified.
+- Remaining inputs are scope-resolved source names, occurrence selection and
+  original state. Every original slot is one of two positions per occurrence;
+  ordinary-only variables outside this table need a later allocation extension.
+  Spec 6.3 supports conjunction/equality flow, but does not supply parser lowering,
+  general source invocation identity, dynamic allocation or scheduler adequacy.
+- The computed bound 8 * p.length counts scalar facts, not runtime. Arbitrary
+  ordinary entailment, table reindexing under permutation, final four-way diagnosis
+  and dictionary equivalence remain open. Existing identity questions remain
+  unresolved. No additional language decision. Five B4 bridges remain.
