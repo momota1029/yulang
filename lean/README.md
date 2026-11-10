@@ -3673,3 +3673,19 @@ Names are ambient endpoint syntax identities, not local declaration binders or
 observational type equality. This does not build graph adequacy from ordinary
 constraints, infer aliases between distinct ambient names, allocate compound
 endpoints as variables, solve child roles, or finish the five B4 main bridges.
+
+### Cycle66: one root source table across actual recursive captures
+
+`CommonRoleRecursiveSourceAllocation` connects arbitrary finite histories of the
+real interval candidate runner to one fixed original source table. Its executable
+`follow` threads actual accumulated demands through caller-selected child positions;
+`follow_conservative` and `follow_owners` derive root lookup totality and canonical
+owners from successful execution. `registered_binding` registers every ambient
+endpoint occurrence of a recaptured local binder, without confusing its label with
+source identity or inventing a center for compound intervals. `owner_identity_exact`
+compares occurrences from separate descendants, and `history_allocation` preserves
+full snapshots of arbitrary explicit root graphs. All 14 new public theorems are
+registered in Audit. This closes recursive endpoint-source ownership for the current
+linear structural capture fragment, not general B4: the semantic binder-demand map,
+ordinary-to-graph adequacy, associated feedback, state-dependent regeneration,
+finite goal closure, saturation and final dictionaries remain open.

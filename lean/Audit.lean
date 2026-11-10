@@ -8007,3 +8007,19 @@ run_cmd do
 #print axioms Yulang.CommonRoleWhereSourceAllocation.prepare_conservative
 #print axioms Yulang.CommonRoleWhereSourceAllocation.prepare_exact
 #print axioms Yulang.CommonRoleWhereSourceAllocation.prepared_allocation
+
+-- Cycle66: root-stable actual recursive capture allocation
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.history_included
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.captured_included
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.payload_included
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.prepareAt_conservative
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.prepareAt_exact
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.history_conservative
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.history_owners
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.owner_identity_exact
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.history_allocation
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.next_history
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.follow_history
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.follow_conservative
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.follow_owners
+#print axioms Yulang.CommonRoleRecursiveSourceAllocation.registered_binding
