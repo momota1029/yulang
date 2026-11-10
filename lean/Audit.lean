@@ -1,3 +1,4 @@
+import Yulang.CommonRoleNamedSourceEntry
 import Yulang.CommonRoleDynamicIndexConsistentSource
 import Yulang
 -- Historical, non-language defaulting experiment; audited without exporting it
@@ -8186,3 +8187,19 @@ run_cmd do
 #print axioms Yulang.CommonRoleSourceStateDischarge.source_models_exact
 #print axioms Yulang.CommonRoleSourceStateDischarge.ready_declarative_exact
 #print axioms Yulang.CommonRoleSourceStateDischarge.ready_has_models
+
+-- Cycle83: named source readiness, without a caller package or dependent state.
+#print axioms Yulang.CommonRoleNamedSourceEntry.initial_facts_exact
+#print axioms Yulang.CommonRoleNamedSourceEntry.initial_evidence_exact
+#print axioms Yulang.CommonRoleNamedSourceEntry.initial_models_exact
+#print axioms Yulang.CommonRoleNamedSourceEntry.table_names_exact
+#print axioms Yulang.CommonRoleNamedSourceEntry.receiver_present
+#print axioms Yulang.CommonRoleNamedSourceEntry.allocated_to_named
+#print axioms Yulang.CommonRoleNamedSourceEntry.named_to_allocated
+#print axioms Yulang.CommonRoleNamedSourceEntry.run_evidence_exact
+#print axioms Yulang.CommonRoleNamedSourceEntry.models_exact
+#print axioms Yulang.CommonRoleNamedSourceEntry.ready_exact
+#print axioms Yulang.CommonRoleNamedSourceEntry.run_source_exact
+#print axioms Yulang.CommonRoleNamedSourceEntry.derives_transport
+#print axioms Yulang.CommonRoleNamedSourceEntry.names_member
+#print axioms Yulang.CommonRoleNamedSourceEntry.run_source_congr
