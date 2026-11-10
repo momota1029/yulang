@@ -3689,3 +3689,15 @@ registered in Audit. This closes recursive endpoint-source ownership for the cur
 linear structural capture fragment, not general B4: the semantic binder-demand map,
 ordinary-to-graph adequacy, associated feedback, state-dependent regeneration,
 finite goal closure, saturation and final dictionaries remain open.
+
+### Cycle67: computed fresh local-binding demand sources
+
+`CommonRoleFreshCaptureSources` computes a fresh local binder map from the actual
+old demand list, proves collision freedom and binder identity, and removes the
+common-valuation premise from original-head/where model exactness. The executable
+finite selected-path driver computes every map from its actual accumulated
+requests; `follow_models_exact` is an iff against independent original capture
+and local-head models at one shared ambient assignment. Actual root-source
+provenance is retained. This is the independent fresh-invocation fragment, not a
+choice to freshen revisits or intended aliases: persistent invocation identity,
+associated feedback, general source registry and all five B4 bridges remain open.

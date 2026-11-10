@@ -8023,3 +8023,20 @@ run_cmd do
 #print axioms Yulang.CommonRoleRecursiveSourceAllocation.follow_conservative
 #print axioms Yulang.CommonRoleRecursiveSourceAllocation.follow_owners
 #print axioms Yulang.CommonRoleRecursiveSourceAllocation.registered_binding
+
+-- Cycle67: computed fresh local capture demand names and finite path models
+#print axioms Yulang.CommonRoleFreshCaptureSources.old_below
+#print axioms Yulang.CommonRoleFreshCaptureSources.fresh_ne_old
+#print axioms Yulang.CommonRoleFreshCaptureSources.fresh_identity
+#print axioms Yulang.CommonRoleFreshCaptureSources.extend_old
+#print axioms Yulang.CommonRoleFreshCaptureSources.extend_fresh
+#print axioms Yulang.CommonRoleFreshCaptureSources.extend_shared
+#print axioms Yulang.CommonRoleFreshCaptureSources.generated_models_exact
+#print axioms Yulang.CommonRoleFreshCaptureSources.run_exact
+#print axioms Yulang.CommonRoleFreshCaptureSources.generated_fresh
+#print axioms Yulang.CommonRoleFreshCaptureSources.history_owners
+#print axioms Yulang.CommonRoleFreshCaptureSources.generated_requests_exact
+#print axioms Yulang.CommonRoleFreshCaptureSources.next_exact
+#print axioms Yulang.CommonRoleFreshCaptureSources.follow_models_exact
+#print axioms Yulang.CommonRoleFreshCaptureSources.next_history
+#print axioms Yulang.CommonRoleFreshCaptureSources.follow_history
