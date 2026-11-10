@@ -1238,3 +1238,19 @@ source-domain name iff does not imply finite structural work without Paterson.
   delayed-classification requirements, not a general state-materialization map.
 - Source lowering, state-dependent revisits, K2 and dictionary observations remain
   the same open boundaries. Global flattened outside-list equality is not proved.
+
+## AD. CommonRoleFrontierReachability (cycle93)
+
+- `nodes`, `goals`, `boundaries`, `failures` read an arbitrary public Tree. Their
+  semantic theorems only concern actual `build`/`run` outputs, never forged trees.
+- Inputs are exactly the registry/slots/Sources/fixed Goal boundary of AC. No new
+  source identity or state update policy is chosen. The full tree traversal is
+  proved equal to independently generated closure, preserving list multiplicity.
+- The AC global flattened outside-list gap is closed by `build_boundaries`.
+  `run_boundaries_exact` and `run_failures_exact` put the computed Checked registry
+  condition on the RHS and expose independent Reach + local scan judgments.
+- Failures are local declaration rejections, not a failure classification of the
+  goal. Empty registry, no plans, and unsupported scans remain distinct.
+- No fuel, visit list, child success, model existence, or external stopping proof
+  is supplied. Fixed syntax remains the scope; state rematerialization, K2,
+  source lowering, invocation lifetime and dictionary observations remain open.

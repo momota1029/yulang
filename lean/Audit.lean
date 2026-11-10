@@ -1,3 +1,4 @@
+import Yulang.CommonRoleFrontierReachability
 import Yulang.CommonRoleGuardedIntervalFrontier
 import Yulang.CommonRoleGuardedIntervalPlans
 import Yulang.CommonRoleIntervalWorkClosure
@@ -8342,3 +8343,14 @@ run_cmd do
 #print axioms Yulang.CommonRoleGuardedIntervalFrontier.ordinary_models_exact
 #print axioms Yulang.CommonRoleGuardedIntervalFrontier.run_exact
 #print axioms Yulang.CommonRoleGuardedIntervalFrontier.run_models_exact
+
+-- Cycle93: exact recursive diagnostics of the retained frontier.
+#print axioms Yulang.CommonRoleFrontierReachability.candidates_children
+#print axioms Yulang.CommonRoleFrontierReachability.build_nodes
+#print axioms Yulang.CommonRoleFrontierReachability.build_goals
+#print axioms Yulang.CommonRoleFrontierReachability.build_boundaries
+#print axioms Yulang.CommonRoleFrontierReachability.boundaries_exact
+#print axioms Yulang.CommonRoleFrontierReachability.failures_exact
+#print axioms Yulang.CommonRoleFrontierReachability.run_reach_exact
+#print axioms Yulang.CommonRoleFrontierReachability.run_boundaries_exact
+#print axioms Yulang.CommonRoleFrontierReachability.run_failures_exact

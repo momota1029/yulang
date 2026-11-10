@@ -225,3 +225,13 @@ example (tree) (returned : conflicting = some tree)
   exact conflict_refutes atoms (List.mem_singleton.mp hit) assignment
 end Cycle92BoundaryCheck
 ```
+
+## Exact-source CIの完了追記（2026-11-10T18:17:56Z）
+
+source `8d32d32ce69958fd3ac4dcce097409ee972ad302` のCore CIとLean inference kernelは、両方completed/successを確認した。
+- Core: https://github.com/momota1029/yulang/actions/runs/42873255045
+- Lean: https://github.com/momota1029/yulang/actions/runs/42873255543
+
+Lean proof jobのLean action、全宣言Audit、source/value/regular/semantic-record examplesも全てsuccess。これはremote CIの結果であり、ローカル全体検証とは区別する。source公開後にproduction Leanは変更していない。報告/heartbeatだけの最終commitのCIとは区別する。
+
+最終公開準備時点の経過19.8分。時間を埋める定理は追加していない。
