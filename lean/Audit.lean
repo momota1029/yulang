@@ -8040,3 +8040,26 @@ run_cmd do
 #print axioms Yulang.CommonRoleFreshCaptureSources.follow_models_exact
 #print axioms Yulang.CommonRoleFreshCaptureSources.next_history
 #print axioms Yulang.CommonRoleFreshCaptureSources.follow_history
+
+-- Cycle68: persistent explicit invocation registry and finite shared original models
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.register_old
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.register_new
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.source_preserved
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.source_identity
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.register_idempotent
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.source_fresh
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.capture_keys
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.capture_arguments_keys
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.accepted_keys
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.run_exact
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.generated_key_present
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.generated_identity
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.generated_requests
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.recapture_registry
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.run_preserves_sources
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.follow_preserves_sources
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.generated_requests_exact
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.visits_fit_returns
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.follow_shared_exact
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.extend_key
+#print axioms Yulang.CommonRoleRegisteredCaptureSources.follow_models_exact
