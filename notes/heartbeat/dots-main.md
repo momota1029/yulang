@@ -1,9 +1,10 @@
 cycle: 87
-status: running
+status: completed
 started: 2026-11-10T15:29:19Z
-updated: 2026-11-10T15:37:00Z
-elapsed_min: 7.7
-activity: Checked annotated-literal input boundary proved. Focused 296 jobs, 27 regressions, eight-theorem audit, inventory and diff-only gate pass. Publishing source checkpoint; full B4 remains open.
+updated: 2026-11-10T15:42:34Z
+elapsed_min: 13.3
+activity: Closed checked annotated-literal input lowering with exact independent finite readiness; 296-job focused build, 31 regressions, eight-theorem audit, inventory and diff gate pass. Source tree and exact-source Core/Lean CI verified. All five B4 bridges remain open.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 46d2e08ba
-resume_hint: Preserve source 46d2e08ba. Read cycle87 design and cache/yulang87 logs. Verify checkpoint tree/CI, then publish final report. No full build/Audit run. Unannotated literals cannot be converted into exact scalar seeds.
+last_local_commit: 27344ff9b
+report: notes/handoff/dots-cycle-87.md
+resume_hint: Refresh live integration/work and read cycle87. Source 88ba4627 has API-verified complete tree; git transport briefly lagged. Preserve actual literal/annotation semantics; never infer equality from literal lower bounds alone. General source lowering/invocation sharing remain open. Logs ../cache/yulang87.
