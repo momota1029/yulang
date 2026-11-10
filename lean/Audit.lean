@@ -7971,3 +7971,22 @@ run_cmd do
 #print axioms Yulang.CommonRoleCaptureBatchModels.returned_models_exact
 #print axioms Yulang.CommonRoleCaptureBatchModels.compile_returned_exact
 #print axioms Yulang.CommonRoleCaptureBatchModels.compiled_reflects
+
+-- Cycle64: source-preserving actual where expansion
+#print axioms Yulang.CommonRoleWhereSourceModels.form_mono
+#print axioms Yulang.CommonRoleWhereSourceModels.normalized_fits
+#print axioms Yulang.CommonRoleWhereSourceModels.normalized_heads
+#print axioms Yulang.CommonRoleWhereSourceModels.lookup_member
+#print axioms Yulang.CommonRoleWhereSourceModels.instantiated_fits
+#print axioms Yulang.CommonRoleWhereSourceModels.instantiated_heads
+#print axioms Yulang.CommonRoleWhereSourceModels.accepted_where_fits
+#print axioms Yulang.CommonRoleWhereSourceModels.expanded_member_fits
+#print axioms Yulang.CommonRoleWhereSourceModels.normalize_sources
+#print axioms Yulang.CommonRoleWhereSourceModels.subst_sources
+#print axioms Yulang.CommonRoleWhereSourceModels.capture_sources
+#print axioms Yulang.CommonRoleWhereSourceModels.capture_arguments_sources
+#print axioms Yulang.CommonRoleWhereSourceModels.normalized_goal_sources
+#print axioms Yulang.CommonRoleWhereSourceModels.accepted_child_sources
+#print axioms Yulang.CommonRoleWhereSourceModels.generated_models_exact
+#print axioms Yulang.CommonRoleWhereSourceModels.run_exact
+#print axioms Yulang.CommonRoleWhereSourceModels.returned_sources
