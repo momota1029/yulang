@@ -3646,3 +3646,15 @@ materialization, saturation, final classification or any of the five B4 bridges.
 
 Requirements remain in each original declaration job; generating and solving
 their where children is a separate boundary.
+
+### Cycle64: original where models and source provenance
+
+`CommonRoleWhereSourceModels.run_exact` connects the actual finite interval
+candidate inspector and all ordered where children to independent original-head
+and original-template models under one shared source valuation. Adding these
+child interval memberships removes no parent model. `returned_sources` proves,
+without a consistency premise, that every generated child's endpoint name came
+from an original parent endpoint. This handles multiple binders, pair/tick/join
+child templates, normalization, and duplicate requirements. It does not claim
+child dictionaries or broaden the candidate grammar. Source identity maps remain
+explicit inputs; general graph materialization and all five B4 bridges are open.
