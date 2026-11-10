@@ -1,10 +1,9 @@
-cycle: 92
-status: completed
-started: 2026-11-10T17:58:10Z
-updated: 2026-11-10T18:17:56Z
-elapsed_min: 19.8
-activity: Candidate-preserving interval frontier closed. Focused 308 jobs, 18 executable checks, semantic conflict proof, 10-theorem axiom audit and independent review pass. Exact-source Core and Lean CI success. Five B4 bridges remain open.
+cycle: 93
+status: running
+started: 2026-11-10T18:26:29Z
+updated: 2026-11-10T18:28:40Z
+elapsed_min: 2.2
+activity: Close recursive diagnostic extraction from the retained interval frontier to independent reachable goals, preserving unsupported descendants behind failed siblings.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: f69125e29
-report: notes/handoff/dots-cycle-92.md
-resume_hint: Refresh integration/work/inbox and read cycle92. Source 8d32d32c fully tree verified. General materialization and final saturated classification remain open. Logs ../cache/yulang92. Exact-source Core/Lean CI both success; final report contains verified links.
+last_local_commit: c9fab4a61
+resume_hint: Read live integration/work and cycle92. Prior cycle completed with no active writer. Prove fixed-syntax recursive diagnostics, focused checks only; logs ../cache/yulang93. General state saturation and all five B4 bridges remain open.
