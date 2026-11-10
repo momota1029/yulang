@@ -3586,3 +3586,9 @@ and complete snapshots commute with allocation, including ordered captures and
 canonical old roots. New aliases reuse old observations; fresh names start unknown.
 Later updates to existing nodes and declaration-driven generated work remain open.
 This closes an allocation subgoal, not the general B4 theorem or its five bridges.
+
+Cycle59 connects actual capture-bearing unary child production to computed source
+occurrence allocation. `CommonRoleChildSourceAllocation.actual_child_allocation`
+retains the root dependency provenance, exact canonical graph references, complete
+inspection and all-future-state finite materialization domain. This is the existing
+int-only adapter, not general interval inference or the complete B4 theorem.
