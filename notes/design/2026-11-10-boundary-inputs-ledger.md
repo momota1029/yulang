@@ -1211,3 +1211,12 @@ Five B4 bridges and incomplete I-13 semantic coverage remain explicit.
 Spec 6.3 supports finite checked where descent and shared source variables.
 Invocation lifetime questions and full I-13 semantic coverage remain open. The
 source-domain name iff does not imply finite structural work without Paterson.
+
+## AB. CommonRoleGuardedIntervalPlans (cycle91)
+
+- `registry : List Declaration`, `goal : Goal`: supplied elaborated fixed Form endpoints and visibility; parser/scope/annotation adequacy remains bridge 1. `run` computes the actual declaration check, and compile termination is derived from it.
+- `slots : Nat → α`: original ambient endpoint slot assignment; unchanged boundary from WhereSourceModels. Not computed from source in this module.
+- `Sources := Goal → Declaration → Nat → Nat`: supplied invocation-local binder to source key map. Equal goal/declaration/binder tuples necessarily alias, so this adapter cannot independently name repeated identical occurrences. No fresh invocation identity or general source allocator is proved. The existing invocation-lifetime question remains open; spec 6.3 supports shared logical variables but does not derive this tuple keying.
+- `old : List (Demand α)`: original ordinary demand history, retained with every alternative. `assignment` and `values` are universally quantified model/semantic inputs; `run_models_exact` existentially chooses a single `values` outside the full recursive judgment. They are not preselected witnesses.
+- `compile_exact` and `ordinary_exact` require Checked; public `run_models_exact` computes it and places it on the result side. No caller fuel, visit sequence, closure proof, child success or model existence.
+- Fixed syntax only. `run` preserves unsupported scans in its second component via `run_boundaries_exact`; the plan list itself omits them, and is not a final rejection/selection classifier. Separate declaration choices are disjoined; child plans are conjoined with cross-sibling constraints. General state-dependent materialization and dictionary equivalence remain open.
