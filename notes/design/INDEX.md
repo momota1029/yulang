@@ -305,3 +305,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle101: checked structural source and mixed closure](2026-11-10-cycle101-structural-mixed-source.md) — Draft, finite named-source correspondence and remaining B4 boundaries.
 - [Cycle102: ordinary-only variables in structural mixed allocation](2026-11-10-cycle102-ambient-mixed-source.md) — Computed extra slots and exact source-model correspondence; finite scope-resolved name list remains input.
+
+- [Cycle103: named ordinary constraints compute allocation and state](2026-11-10-cycle103-named-ordinary-inputs.md) (Draft implementation contract).

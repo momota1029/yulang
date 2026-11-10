@@ -1,3 +1,4 @@
+import Yulang.CommonRoleNamedOrdinaryInputs
 import Yulang.CommonRoleAmbientMixedSource
 import Yulang.CommonRoleCheckedOrdinaryReplay
 import Yulang.CommonRoleMaterializationProgress
@@ -8499,3 +8500,18 @@ run_cmd do
 #print axioms Yulang.CommonRoleAmbientMixedSource.solver_source_exact
 #print axioms Yulang.CommonRoleAmbientMixedSource.capacity
 #print axioms Yulang.CommonRoleAmbientMixedSource.checked_source_exact
+
+-- Cycle103 named ordinary inputs.
+#print axioms Yulang.CommonRoleNamedOrdinaryInputs.mem_inequality
+#print axioms Yulang.CommonRoleNamedOrdinaryInputs.initial_evidence
+#print axioms Yulang.CommonRoleNamedOrdinaryInputs.initial_linked
+#print axioms Yulang.CommonRoleNamedOrdinaryInputs.allocated_to_named
+#print axioms Yulang.CommonRoleNamedOrdinaryInputs.named_to_allocated
+#print axioms Yulang.CommonRoleNamedOrdinaryInputs.derives_exact
+#print axioms Yulang.CommonRoleNamedOrdinaryInputs.initial_models
+#print axioms Yulang.CommonRoleNamedOrdinaryInputs.run_evidence_exact
+#print axioms Yulang.CommonRoleNamedOrdinaryInputs.run_source_exact
+#print axioms Yulang.CommonRoleNamedOrdinaryInputs.solver_source_exact
+#print axioms Yulang.CommonRoleNamedOrdinaryInputs.derives_congr
+#print axioms Yulang.CommonRoleNamedOrdinaryInputs.models_congr
+#print axioms Yulang.CommonRoleNamedOrdinaryInputs.solver_congr

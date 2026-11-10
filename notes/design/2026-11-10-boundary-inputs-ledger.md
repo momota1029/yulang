@@ -1470,3 +1470,23 @@ source-domain name iff does not imply finite structural work without Paterson.
   fuel、成功結果を入口の前提にしていない。`solver_source_exact` はモデル存在を結論にする。
 - `checked_source_exact` のraw/p/check等式: 実行したraw検査の結果。extraの由来や
   sの整合性まで保証しない。新しい仕様判断は0件。B4の5橋は未完成。
+
+
+## Cycle103: CommonRoleNamedOrdinaryInputs
+
+- `p : CommonRoleStructuralAssociatedTemplates.Program`: 有限な構造的associated入力。
+  実parser/宣言からのscope・occurrence・templateの導出は未接続。spec 6.3の既存意味。
+- `input : Input`: scope解決済みNat名とscalarの間の有限なsubtype制約。
+  全実行・正確性定理が量化。extra/table/slot mapと初期Stateはinputから内部計算する。
+  実式のloweringはまだ入力側であり、名前・invocation同一性の既存質問は未解決。
+- `env`, `roles`, `wf`, `awf`: 既存registryと宣言well-formedness。source全体の検査済み
+  という前提ではなく、一般where生成・動的allocatorの完成を意味しない。
+- `v`, `values`, `factor`: モデルを対応づける補助定理の量化/前提。
+  最上位solver_source_exactではモデル存在・factor・整合性・成功を仮定しない。
+- `same`: derives_congr/models_congr/solver_congrの入力membership同値。
+  制約の順序と重複を忘れるための正確な前提で、任意の意味的同値を仮定していない。
+- Derivesは直接paired evidenceの閉包で、一般ordinary entailmentではない。
+  solver整合性はassociated要求すべての解決ではない。新しい仕様判断0件。5橋は未完成。
+
+Cycle103のextraは両端点から集めた名前を重複除去する。元の制約列とsource名の
+同一性は保ち、余分なallocationの複製だけを取り除く。

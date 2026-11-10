@@ -4257,3 +4257,26 @@ effect成分は同一視しない。`solver_source_exact` はそのモデル存�
 extraの有限な名前列と元stateは依然入力であり、実parserからのloweringは未接続。
 ordinary一般の意味的帰結の検出、新しいslotを生成するdriver、非scalar Form、
 invocation同一性、最終四分類、辞書同値は未達。B4の5橋は残る。
+
+
+## Cycle103: 名前つきordinary制約からextraと初期stateを計算する
+
+`CommonRoleNamedOrdinaryInputs` は、scope解決済みの名前とscalarの間の有限な
+subtype制約列から、ordinary専用の名前列と文法証明つき初期Stateを計算する。
+callerはextra・slot map・元stateを渡さない。単方向の上下界、相互辺、scalarの
+両向きseedを扱い、associatedの構造的programと実mixed closureに接続する。
+
+`run_source_exact` は、すべての出力モデルを、元の名前つき制約を満たす単一の
+source型valuationと、独立なseed・相互辺・associated導出に対応づける。
+`solver_source_exact` はそのモデル存在とordinary整合性の同値。effectは共有しない。
+`solver_congr` は入力制約の順序・重複が変わりslot配置が変わっても整合性が不変と示す。
+
+これは一般のordinary意味的帰結の検出ではない。int <= a <= c <= intのように
+直接seed pairが無い入力では、型が意味的に固定されてもassociated生成を起動しない。
+またordinary整合性は全roleの解決成功を意味しない。未解決・unsupported・曖昧な
+associated要求が残る場合がある。実parser/式から制約を導くこと、一般Form、動的
+child、K2、最終四分類、辞書は未接続。B4の5橋は残る。
+
+Cycle103のextraは同名を重複除去してから割り当てる。元制約は削除しない。
+22-slotの整合性検査の時間超過を受け、同じ例を11-slotに減らした。意味保存の
+定理の型は変わらない。一般的な性能保証を追加したわけではない。
