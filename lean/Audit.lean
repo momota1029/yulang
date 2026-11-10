@@ -7880,3 +7880,29 @@ run_cmd do
 #print axioms Yulang.CommonRoleCanonicalSourceGrowth.coherent_canonical_extension
 #print axioms Yulang.CommonRoleCanonicalSourceGrowth.solver_and_roots_exact
 #print axioms Yulang.CommonRoleCanonicalSourceGrowth.append_alias_regression
+
+-- Cycle58: graph allocation, bisimulation, and full inspection preservation
+#print axioms Yulang.CommonRoleAllocatedGraph.grow_retained
+#print axioms Yulang.CommonRoleAllocatedGraph.successors_retained
+#print axioms Yulang.CommonRoleAllocatedGraph.path_forward
+#print axioms Yulang.CommonRoleAllocatedGraph.path_origin
+#print axioms Yulang.CommonRoleAllocatedGraph.path_exact
+#print axioms Yulang.CommonRoleAllocatedGraph.structural_cycle_exact
+#print axioms Yulang.CommonRoleAllocatedGraph.recursiveAt_retained
+#print axioms Yulang.CommonRoleAllocatedGraph.observe_retained
+#print axioms Yulang.CommonRoleAllocatedGraph.canonical_observe_retained
+#print axioms Yulang.CommonRoleAllocatedGraph.canonical_cycle_retained
+#print axioms Yulang.CommonRoleAllocatedGraph.bisimilar_retained
+#print axioms Yulang.CommonRoleAllocatedGraph.regularAt_allocated
+#print axioms Yulang.CommonRoleAllocatedGraph.inspect_allocated
+#print axioms Yulang.CommonRoleAllocatedGraph.inspectChildren_allocated
+#print axioms Yulang.CommonRoleAllocatedGraph.inspectAll_allocated
+#print axioms Yulang.CommonRoleAllocatedGraph.inspectAllChildren_allocated
+#print axioms Yulang.CommonRoleAllocatedGraph.canonical_inspect_allocated
+#print axioms Yulang.CommonRoleAllocatedGraph.inspectAllVisible_allocated
+#print axioms Yulang.CommonRoleAllocatedGraph.snapshot_allocated
+#print axioms Yulang.CommonRoleAllocatedGraph.canonical_snapshot_allocated
+#print axioms Yulang.CommonRoleAllocatedGraph.unrolling_allocation_regression
+#print axioms Yulang.CommonRoleAllocatedGraph.allocate_new_unresolved
+#print axioms Yulang.CommonRoleAllocatedGraph.new_alias_inspection
+#print axioms Yulang.CommonRoleAllocatedGraph.fresh_snapshot_unknown
