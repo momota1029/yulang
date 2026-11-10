@@ -1,9 +1,9 @@
 cycle: 95
 status: running
 started: 2026-11-10T19:27:24Z
-updated: 2026-11-10T19:34:18Z
-elapsed_min: 6.9
-activity: State-dependent int Form materialization and computed finite regenerated frontier domain closed. Focused 311 jobs, 26 executable checks, 3 kernel examples and 13-theorem audit pass; preparing verified source publication.
+updated: 2026-11-10T19:37:28Z
+elapsed_min: 10.1
+activity: Source c0d67f39 fully verified: state-dependent int materialization, semantic preservation, fusion and finite regenerated work. 311 focused jobs, 26 regressions, 3 kernel examples, 13-theorem audit pass. Exact-source Core/Lean CI running; final report underway.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 33d3849e7
-resume_hint: Continue cycle95 publication; production source passes focused tests, diff-only gate and inventory. Logs ../cache/yulang95. Full general B4 still has five bridges; Sources keys may change on materialization.
+last_local_commit: 37d4a1e19
+resume_hint: Finish cycle95 report and check CI for c0d67f39. All 9 source blobs and tree 1348a5e5 verified. Logs ../cache/yulang95. Full local verification prohibited; five general B4 bridges remain.
