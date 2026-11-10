@@ -1,9 +1,9 @@
 cycle: 89
 status: running
 started: 2026-11-10T16:27:56Z
-updated: 2026-11-10T16:32:01Z
-elapsed_min: 4.1
-activity: Derive a finite recursive where-child source expansion directly from actual first-order declarations, preserving failed children and connecting generated obligations to the checked source entry.
+updated: 2026-11-10T16:37:39Z
+elapsed_min: 9.7
+activity: Closed finite recursive first-order where closure, independent three-way classification and checked source adapter. Focused 291 jobs, 41 boundary examples, 24-theorem audit and diff-only gate pass; preparing source publication.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: e36fa53b0
-resume_hint: Refreshed integration/work to e36fa53b0; cycle88 completed and no prior writer. Build only focused modules; logs ../cache/yulang89. Keep all five B4 bridges open outside the explicit first-order fragment.
+last_local_commit: 43390d548
+resume_hint: Publish eight verified source/doc paths using individual blobs and live SHA-only base tree; then verify remote and report cycle89. Source input maps and general interval B4 remain outside. Logs ../cache/yulang89.
