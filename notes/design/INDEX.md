@@ -248,3 +248,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle65: actual where source allocation](2026-11-10-cycle65-where-source-allocation.md) — Draft; computed finite parent owners, no new failure, and exact arbitrary-graph snapshot preservation.
 
 - [One root source table across actual recursive captures](2026-11-10-cycle66-root-source-history.md) — Draft。実where生成の任意有限履歴からroot source閉包、capture endpoint登録、正準ownerの同一性とgraph保持を導く。一般飽和は未達。
+
+- [Computed fresh capture demand names](2026-11-10-cycle67-fresh-capture-demand-names.md) — Draft; collision-free local binder maps and independent original-model exactness across arbitrary actual finite selected paths. Persistent invocation sharing and B4 remain open.
