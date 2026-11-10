@@ -1,10 +1,10 @@
-cycle: 56
+cycle: 68
 status: completed
-started: 2026-11-09T22:27:19Z
-updated: 2026-11-09T22:39:40Z
-elapsed_min: 12.4
-activity: Closed finite source-alias graph roots and exact inspector capture routing; focused build and 17-declaration trust-0 audit passed.
+started: 2026-11-10T04:57:19Z
+updated: 2026-11-10T05:11:30Z
+elapsed_min: 14.2
+activity: Closed persistent explicit invocation registry and finite original shared-model iff. Focused 308-job build, 21-theorem axiom audit, 18 regressions and diff gate passed. Exact source core/proof CI both succeeded; source tree verified.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: e02dc3465
-report: notes/handoff/dots-cycle-56.md
-resume_hint: Implementation 8e05817f is published with verified tree 10ba46d0. Read the cycle56 scope and remaining bridge candidates. Keep the existing workspace/cache and run focused builds only. General B4 still has five open bridges.
+last_local_commit: a55ca95b3
+report: notes/handoff/dots-cycle-68.md
+resume_hint: Fetch integration and reread orders/inbox. Source c410cb4a0f7c00929c84a2da729bb057805c06a2 verified. Explicit invocation/binder registry now reuses names across recapture and arbitrary finite visits with independent shared-model exactness. Next derive stable keys from actual source obligations, connect associated feedback and graph adequacy, then finite goals/saturation. All five B4 main bridges remain. Reuse cache; focused builds only.
