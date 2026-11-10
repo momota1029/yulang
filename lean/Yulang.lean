@@ -1478,3 +1478,5 @@ import Yulang.CommonRoleFiniteSourceRenaming
 import Yulang.CommonRoleComputedSourceAllocation
 
 import Yulang.CommonRoleAnnotatedLiteralInputs
+
+import Yulang.CommonRoleScalarExpressionInputs

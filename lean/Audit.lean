@@ -1,3 +1,4 @@
+import Yulang.CommonRoleScalarExpressionInputs
 import Yulang.CommonRoleAnnotatedLiteralInputs
 import Yulang.CommonRoleComputedSourceAllocation
 import Yulang.CommonRoleFiniteSourceRenaming
@@ -8253,3 +8254,17 @@ run_cmd do
 #print axioms Yulang.CommonRoleAnnotatedLiteralInputs.models_exact
 #print axioms Yulang.CommonRoleAnnotatedLiteralInputs.models_bindings
 #print axioms Yulang.CommonRoleAnnotatedLiteralInputs.run_exact
+
+-- Cycle88: independently checked scalar expression inputs.
+#print axioms Yulang.CommonRoleScalarExpressionInputs.infer_exact
+#print axioms Yulang.CommonRoleScalarExpressionInputs.lowerEnv_cons
+#print axioms Yulang.CommonRoleScalarExpressionInputs.evaluates_lower
+#print axioms Yulang.CommonRoleScalarExpressionInputs.evaluates_typed
+#print axioms Yulang.CommonRoleScalarExpressionInputs.annotation_exact
+#print axioms Yulang.CommonRoleScalarExpressionInputs.meaning_exact
+#print axioms Yulang.CommonRoleScalarExpressionInputs.valid_exact
+#print axioms Yulang.CommonRoleScalarExpressionInputs.lower_exact
+#print axioms Yulang.CommonRoleScalarExpressionInputs.derives_exact
+#print axioms Yulang.CommonRoleScalarExpressionInputs.models_exact
+#print axioms Yulang.CommonRoleScalarExpressionInputs.models_bindings
+#print axioms Yulang.CommonRoleScalarExpressionInputs.run_exact
