@@ -1452,3 +1452,5 @@ import Yulang.CommonRoleRecursiveSourceAllocation
 import Yulang.CommonRoleFreshCaptureSources
 
 import Yulang.CommonRoleRegisteredCaptureSources
+
+import Yulang.CommonRoleAddressedCaptureModels

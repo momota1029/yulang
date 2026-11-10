@@ -3725,3 +3725,31 @@ Invocation keys and the finite visit sequence are caller supplied. Deriving
 keys from actual source obligations, associated feedback, finite generated
 work, saturation, final classification and dictionary order remain open.
 The restriction is an implementation fragment, not a specification rejection.
+
+
+### Cycle69: structural occurrence addresses and shared capture traces
+
+`CommonRoleAddressedCaptureModels` computes numeric invocation keys from a
+finite trace of structural root/parent-declaration/where-position addresses.
+The full candidate declaration distinguishes reused numeric declaration labels.
+Actual capture results retain all original where children, including duplicate
+goals, with distinct original positions. Re-expansion under any endpoint
+substitution preserves the ordered child-address list. Adding provenance to
+the registered candidate runner introduces no new failure.
+
+The finite table preserves every earlier invocation index when visits are
+appended. `follow_append` allows a completed prefix to resume without replay or
+renumbering. `follow_models_exact` proves actual success with a model iff the
+initial demands have a model and one structural invocation/binder valuation
+satisfies every original head and where judgment. The independent `Fits`
+mentions no allocated numeric names, registry, generated atoms or runner.
+`reorder_models` proves invariance of model existence under permutation of the
+same addressed visits; `repeat_models` proves an unchanged repeated pass adds
+no model restriction. Refined endpoint visits remain distinct constraints.
+
+This is a finite-trace implementation fragment, not a specification rejection.
+Root occurrence numbers and finite visits remain inputs. Parser elaboration,
+reachability/completeness of generated visits, associated equality feedback,
+finite-work closure, saturation and language-visible dictionary results remain
+open. Reordering source declarations or changing where lists is not covered
+by permutation of already addressed visits. B4 still has five main bridges.

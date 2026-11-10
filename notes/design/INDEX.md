@@ -251,3 +251,9 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Computed fresh capture demand names](2026-11-10-cycle67-fresh-capture-demand-names.md) — Draft; collision-free local binder maps and independent original-model exactness across arbitrary actual finite selected paths. Persistent invocation sharing and B4 remain open.
 - [Persistent keyed capture registry](2026-11-10-cycle68-persistent-capture-registry.md): Draft; explicit invocation/binder allocation, stable reuse and arbitrary finite original shared-model exactness.
+
+- [Structural addressed capture models](2026-11-10-cycle69-addressed-capture-models.md): Draft; computed finite invocation identities, real where provenance, resumable prefixes and original shared-model exactness.
+
+- [Boundary inputs ledger](2026-11-10-boundary-inputs-ledger.md): Draft; I-13 first through fourth passes across capture, graph, annotations, concrete Protocols, DynamicIndex residual diagnostics, interval expansion/dictionaries, and Main boundaries. Two scoped questions; whole-model input audit remains incomplete.
+
+- [Boundary import inventory](2026-11-10-boundary-input-coverage.tsv): Source hashes and Main/Audit import reachability for 242 CommonRole modules; reproducible with `tools/boundary-input-inventory.py`. Name mentions are not completed input audits.
