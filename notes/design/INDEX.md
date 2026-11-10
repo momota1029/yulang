@@ -238,3 +238,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Closure-wide source occurrence allocation](2026-11-10-cycle60-closure-source-allocation.md) — Draft; one finite allocation domain for all structurally reachable child dependencies in the unary/int adapter.
 
 - [Allocated graph updates](2026-11-10-cycle61-allocated-graph-updates.md) — Draft; finite old-node edit commutation and ordinary source-model readout through shared child allocation.
+
+- [Source-named interval batches](2026-11-10-cycle62-source-interval-batches.md) — Draft; exact cross-batch reconciliation of arbitrary original endpoints and shared source names.

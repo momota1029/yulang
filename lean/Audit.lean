@@ -7943,3 +7943,16 @@ run_cmd do
 #print axioms Yulang.CommonRoleAllocatedGraphUpdates.solve_string_exact
 #print axioms Yulang.CommonRoleAllocatedGraphUpdates.solve_unknown_exact
 #print axioms Yulang.CommonRoleAllocatedGraphUpdates.actual_history_solve_exact
+
+-- Cycle62: general source-named interval batches
+#print axioms Yulang.CommonRoleSourceIntervalBatches.arguments_exact
+#print axioms Yulang.CommonRoleSourceIntervalBatches.cross_exact
+#print axioms Yulang.CommonRoleSourceIntervalBatches.generate_exact
+#print axioms Yulang.CommonRoleSourceIntervalBatches.step_exact
+#print axioms Yulang.CommonRoleSourceIntervalBatches.advance_exact
+#print axioms Yulang.CommonRoleSourceIntervalBatches.run_requests
+#print axioms Yulang.CommonRoleSourceIntervalBatches.run_exact
+#print axioms Yulang.CommonRoleSourceIntervalBatches.models_perm
+#print axioms Yulang.CommonRoleSourceIntervalBatches.run_order_independent
+#print axioms Yulang.CommonRoleSourceIntervalBatches.compile_run_exact
+#print axioms Yulang.CommonRoleSourceIntervalBatches.compiled_reflects
