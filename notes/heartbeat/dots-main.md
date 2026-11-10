@@ -1,9 +1,10 @@
 cycle: 83
-status: running
+status: completed
 started: 2026-11-10T13:27:02Z
-updated: 2026-11-10T13:37:17Z
-elapsed_min: 10.3
-activity: Closed outer named source readiness and general order/duplication invariance. Focused 292-job build, 28 examples, 14-theorem trust=0 audit and no-build diff gate pass. Publishing verified source.
+updated: 2026-11-10T13:42:35Z
+elapsed_min: 15.6
+activity: Closed checked named source readiness and general source/assumption order and duplication invariance. 292-job focused build, 28 examples, 14-theorem audit and diff gate pass; exact source Core and Lean CI success. Full B4 remains open.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
 last_local_commit: 543873505
-resume_hint: Verified source in 543873505. Individual blobs for Audit and README already created; remaining publication metadata in ../cache/yulang83. Preserve live work tree and publish only work/dots-main with expected head. All five B4 bridges remain open.
+report: notes/handoff/dots-cycle-83.md
+resume_hint: Read cycle83 and refresh live integration/inbox. Source a5d5d03c has exact local/remote tree equality. Outer entry now computes Package and State from named scalar assumptions; expression inference, dynamic where and all five B4 bridges remain open. Logs ../cache/yulang83.
