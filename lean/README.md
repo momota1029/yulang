@@ -3658,3 +3658,18 @@ from an original parent endpoint. This handles multiple binders, pair/tick/join
 child templates, normalization, and duplicate requirements. It does not claim
 child dictionaries or broaden the candidate grammar. Source identity maps remain
 explicit inputs; general graph materialization and all five B4 bridges are open.
+
+
+### Cycle65: actual where source ownership and graph allocation
+
+`CommonRoleWhereSourceAllocation.prepare` computes canonical finite parent owners
+for the complete actual child endpoint occurrence list. `prepare_conservative`
+recovers the existing candidate result exactly after erasing the owner payload,
+including all three outcomes, original ordinary state, and ordered children.
+`prepared_allocation` proves that each returned occurrence uses the computed old
+root and preserves the full existing graph snapshot for arbitrary graphs and
+visible heads. No successful model or caller-supplied source equality is required.
+Names are ambient endpoint syntax identities, not local declaration binders or
+observational type equality. This does not build graph adequacy from ordinary
+constraints, infer aliases between distinct ambient names, allocate compound
+endpoints as variables, solve child roles, or finish the five B4 main bridges.
