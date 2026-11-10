@@ -1378,3 +1378,29 @@ source-domain name iff does not imply finite structural work without Paterson.
   graph compilation, total runtime or the number of submitted batches.
 - All five major B4 bridges remain incomplete. Existing source-identity questions
   are neither answered nor bypassed. No new language semantic choice.
+
+
+## AJ. CommonRoleEvidenceReplay (cycle99)
+
+- Public run/runGraphs input the existing grammar-certified State n, registry,
+  original Goal, slots, Sources and occurrence-indexed old demands (graphs only).
+  Unlike cycle98, they take no external batch list. All batches come from the
+  actual reciprocal-variable scalar closure of the initial ordinary atoms.
+- FiniteHorn enumerates Fin n × four scalar bases internally. The grammar of
+  each emitted paired equality is proved by the existing constructor. The
+  generated batch count is at most 4*n. No model, Chain, fuel or work bound is
+  caller input. Initial n and its grammar still come from the caller.
+- completed_models preserves each original assignment. completed_evidence is
+  exact for the independent seed/reciprocal-transfer Derived judgement, not all
+  semantic consequences. completed_fixedpoint concerns fact membership; a
+  second pass can append duplicate atoms. Intermediate trace order follows the
+  existing saturator output and is not claimed to be its discovery chronology.
+- run_exact/run_none_iff mean ordinary consistency and checked declarations,
+  not role success. Diagnostics still use the existing paired-int Form fragment;
+  str/bool/unit equalities are retained as ordinary constraints. Graphs are
+  refreshed at each computed occurrence, including on diagnostic plateaus.
+- All five major B4 bridges remain open. Real source/binder/invocation mapping,
+  fresh slots, newly generated associated constraints and variable edges,
+  general state-changing scheduler adequacy, final classification and dictionary
+  observations are not supplied by this connection. spec6.3 governs equality
+  flow; existing source identity questions remain unresolved. No new semantics.
