@@ -1474,3 +1474,5 @@ import Yulang.CommonRoleNamedSourceEntry
 import Yulang.CommonRoleNamedSourceRenaming
 
 import Yulang.CommonRoleFiniteSourceRenaming
+
+import Yulang.CommonRoleComputedSourceAllocation

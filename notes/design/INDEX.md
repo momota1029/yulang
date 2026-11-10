@@ -275,3 +275,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle84 source renaming](2026-11-10-cycle84-source-renaming.md): Draft; capture-avoiding finite source names, independent derivations/models, and readiness invariance.
 
 - [Finite-support source renaming](2026-11-10-cycle85-finite-source-renaming.md) — Draft, cycle85 executable collision boundary.
+
+- [Computed source-name allocation](2026-11-10-cycle86-computed-source-allocation.md) — cycle86 proof interface: finite capacity, exact evidence/models/readiness, canonical safe-renaming invariance and idempotence; declaration lowering still open.
