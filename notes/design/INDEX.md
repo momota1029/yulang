@@ -258,3 +258,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Boundary import inventory](2026-11-10-boundary-input-coverage.tsv): Source hashes and Main/Audit import reachability for 242 CommonRole modules; reproducible with `tools/boundary-input-inventory.py`. Name mentions are not completed input audits.
 - [Finite associated source factorization](2026-11-10-cycle76-finite-source-factorization.md): Draft; ordinary source equality before finite associated saturation, independent declaration-model exactness, and the remaining caller inputs. General B4 remains open.
+- [Computed named associated-source models](2026-11-10-cycle77-named-associated-source-models.md): Draft; computed table and endpoint slots, independent source-name derivations, concrete evidence and shared-model exactness. General source/template adequacy and B4 remain open.

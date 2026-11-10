@@ -3770,3 +3770,19 @@ connection for that finite fragment, not source lowering, dynamic where closure,
 general interval knownness, candidate guards or final classification/dictionaries.
 B4 still has five main bridges. This is an implementation scope, not a new
 language rejection rule.
+
+### Computed named associated-source models (cycle77)
+
+`CommonRoleNamedAssociatedSourceModels` connects the finite named allocator to
+ordinary source identity and associated saturation. The table and all endpoint
+slots are computed from the named occurrence list. An independent `NamedDerives`
+judgment works on source names, starts from original ordinary scalar evidence,
+and follows declaration-based associated outputs. The allocation is sound and
+complete for that judgment, and its derived names have original occurrences.
+`run_evidence_exact` relates the concrete final scalar detector to named facts;
+`run_source_exact` and `solver_source_exact` give the shared-source model iff and
+actual ordinary-solver iff. Programs and states are arbitrary finite inputs,
+including cycles and repeated names; checked core and associated declarations
+remain explicit. Source scoping, goal-template adequacy, dynamic where generation,
+general interval knownness, final classification and dictionaries are not proved.
+This is a finite implementation fragment, not a restriction chosen for Yulang.

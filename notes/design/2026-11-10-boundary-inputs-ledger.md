@@ -666,3 +666,38 @@ I節で挙げた(3)の有限Main path入口とassociated閉包の対応は今回
 過去節の「公開も未完了」は当時の記録であり、cycle75で69〜75分が公開済み。
 新しいYulang2/parser実行はしていない。live auditのC3-PARENT/X13〜X16を読み、
 内部table/templateの妥当性を直接測るoracleではないことを確認した。
+
+## N. cycle77: finite named allocationをsource modelへ接続
+
+`CommonRoleNamedAssociatedSourceModels`のcaller入力は、
+`env : Roles.AssocEnv`、`roles : Roles.RoleDecls`、
+`wf : Roles.WellFormed env.cores`、`p : CommonRoleNamedAssociatedGraph.Program`、
+`s : State (CommonRoleNamedAssociatedGraph.table p).length`。
+Programの各行はreceiver/outputのNat名、関連name、base→goalのtemplate関数。
+任意の有限サイズ、重複、同名、cycleを許し、別のtable、occurrence slot map、
+identity関数、燃料、成功結果、完成したfrontierを外部から受け取らない。
+
+- `receiver_source`、`output_source`は各計算slotが元行のsource名を保つ。
+- `prepared_evidence`は任意p/s/slot/headについて、ordinary identity追加が元stateの
+  明示scalar Evidenceを変えない。semantic entailment全体の定理ではない。
+- `allocated_to_named`、`named_to_allocated`、`allocated_named_exact`、`named_support`は
+  任意env/roles/p/s/fact（またはname/head）と独立導出を量化する。wf/awfは不要で、
+  executable resolverとのiffではなく二つの独立判断の対応だからである。
+- `run_evidence_exact`、`run_source_exact`、`solver_source_exact`は同じ入力に
+  `awf : Roles.AssocWellFormed env roles`を加える。model版は全assignmentを量化。
+  一つのsource型valuationは結論の存在量化であり、callerが実行を選ぶ入力ではない。
+
+`NamedDerives`のseedは**元のs**のscalar Evidenceを計算source名へ読む。
+associated stepはpの行、独立`RoleConstraints.Resolves`、`Roles.AssocDerives`、
+scalar decodeを使う。実resolverの出力や飽和済み集合は独立判断に混入しない。
+同じsource名は同じ判断なので、名前版にはidentity専用規則が無い。
+
+これによりM4のtable/slot入力は有限named programから導けた。残るcaller責任は、
+そのprogramを実where/associated構文から網羅的に作ること、scope解決済みNat名の
+正しさ、templateが受け取ったbaseをreceiverと残り引数へ忠実にmaterializeすること、
+宣言可視性とwf/awfの検査である。spec6.2/6.3はsource共有、関連等式、安定後の
+再計算を定めるが、Q1の再訪同一性、Q2の糖衣と検査、cycle23/24は未決のまま。
+今回それらの選択を仮定した導出や新しい言語意味の採用はしていない。新規質問0。
+
+この接続で全言語B4、動的whereの閉包、一般区間knownness、四方向の分類、辞書順が
+完成したとは言わない。主要橋は5本のまま。I-13全量監査も部分達成のまま。
