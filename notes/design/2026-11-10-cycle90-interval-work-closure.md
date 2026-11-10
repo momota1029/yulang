@@ -25,3 +25,10 @@ spec/06-roles.md 6.3 の宣言時 Paterson と、既存 stable checker / interva
 これは静的 interval syntax からの仕事領域。ordinary state の絞り込みで異なる endpoint が materialize される一般再生成、K2、候補 guard、associated annotation、辞書の観察同値は未達。有限 endpoint source 名だけで goal の有限性を主張せず、実 Paterson decrease を用いる。
 
 Yulang2: work/dots-audit の x-oracle C3-PARENT / C3-PARENT-NEG を新定義前に読んだ。両兄弟順と欠如の観測は参照素材であり、この interval closure 自体の新規実機比較ではない。
+
+
+## 読み取りレビュー後の境界検査
+
+独立レビューは重大な欠陥を見つけなかった。重要な区別として、既存 registry-wide `scan` は一つでも outside 宣言があれば全体で none になるが、今回の closure は個別 accepted 宣言の潜在仕事を保持し、outside は `boundaries` で別に報告する。checked な join head と tick 再帰 head が同居する registry で、scan は none、compute は実 tick descendants を返す検査を追加した。これは意図した仕事領域で、whole-registry scan の成功との同値ではない。compute の some は「全scanがsupported」を意味せず、boundariesも別に読む必要がある。
+
+次の実装候補: 既存 `CommonRoleSourceTemplateClosure.actual_child_all_states` は int-only/unary source template に限って将来stateを扱う。今回の Form 区間とはcarrierが異なる。新しい橋では、実materializationからendpoint templateを保ち、全future-stateの生成childをそのtemplateの有限閉包に含めることを示す必要がある。任意state列をcaller入力にするだけで飽和を完成させない。
