@@ -8996,3 +8996,21 @@ run_cmd do
 #print axioms Yulang.GeneralSourceBoundary.unresolved_excludes_graphK2
 #print axioms Yulang.GeneralSourceBoundary.pending_excludes_resolvedEmpty
 #print axioms Yulang.GeneralSourceBoundary.legacy_frontier_obstruction
+
+-- Item 2: checked source snapshots, deferral, and normalization counterexample.
+#print axioms Yulang.GeneralSourceState.equationAtoms_exact
+#print axioms Yulang.GeneralSourceState.models_ordinary
+#print axioms Yulang.GeneralSourceState.models_compiled
+#print axioms Yulang.GeneralSourceState.recorded_head_sound
+#print axioms Yulang.GeneralSourceState.shared_source_node
+#print axioms Yulang.GeneralSourceState.pending_graph_iff
+#print axioms Yulang.GeneralSourceState.pending_excludes_observedK2
+#print axioms Yulang.GeneralSourceState.observedK2_graph_iff
+#print axioms Yulang.GeneralSourceState.refinement_models
+#print axioms Yulang.GeneralSourceState.refinement_linked
+#print axioms Yulang.GeneralSourceState.refinement_known
+#print axioms Yulang.GeneralSourceState.refinement_pending
+#print axioms Yulang.GeneralSourceState.pending_defers_decisions
+#print axioms Yulang.GeneralSourceStateExamples.index_example
+#print axioms Yulang.GeneralSourceStateExamples.recursive_example
+#print axioms Yulang.GeneralSourceStateExamples.shadow_cycle_counterexample
