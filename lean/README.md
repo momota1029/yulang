@@ -4423,3 +4423,36 @@ original model at every generated snapshot. The final atom membership is
 exactly independent Derives, terminal closure is proved, and all diagnostic
 snapshots and fresh ordinary graphs use the generated trace. This completes
 that finite ordinary driver, not general mixed role-to-ordinary saturation.
+
+CommonRoleStructuralHornClosure and CommonRoleStructuralAssociatedClosure compute
+one finite carrier for mutually alternating structural ordinary and actual
+associated-declaration equations. The carrier and causal fresh-atom trace are
+internal. Exactness uses independent seed/split/trans/associated derivations;
+all-model semantics states the additional activated equations explicitly.
+Finite source occurrences/templates and scalar associated decoding remain
+fragment restrictions, not language rejection rules or full B4 completion.
+
+CommonRoleStructuralAssociatedSolver reconstructs a grammar-checked State from
+the initial state and all scalar equalities actually proved by the mixed closure.
+Its models are exactly the full structural closure models; the real ordinary
+solver therefore rejects exactly inconsistency of that closure.
+CommonRoleStructuralAssociatedReplay drives every generated cumulative snapshot,
+bounds tree rebuilds and all recursive child visits, and regenerates ordinary
+graphs even on unchanged-tree plateaus. Associated updates can narrow models;
+only final models are guaranteed to satisfy every earlier snapshot.
+
+CommonRoleStructuralHornSchedules gives independent causal small steps and
+fresh executions for arbitrary ordinary/associated firing orders. Every legal
+execution fits the computed syntax carrier, and every maximal execution has
+exactly independent Derives, the actual solver model set, and the same structural
+materialization. The real generated trace is proved to be such a maximal
+execution. This does not identify dictionary lists or arbitrary language schedules.
+
+CommonRoleStructuralNamedInputs computes compact slots from every source atom
+constructor (including nested arrow rows) and finite structural source templates.
+Its Boolean checker is equivalent to the existing checked State grammar.
+Present names have injective slots and never use the one unused internal slot.
+The public run constructs the State, mixed closure and ordinary consistency
+check, with exact original-name/all-model provenance. Parser/scope adequacy and
+dynamic occurrence selection remain open; grammar failure is not a new language
+rejection rule and ordinary success is not complete source-role discharge.

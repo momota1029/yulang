@@ -1637,3 +1637,44 @@ Cycle103のextraは両端点から集めた名前を重複除去する。元の�
   numerical fuel, work domain, successful check or model is supplied.
   The scope remains finite ordinary seed/split/trans closure: role feedback,
   fresh source allocation, parser lowering and final classification remain open.
+
+## Cycle110 (2026-11-11): structural mixed closure and named ordinary input
+
+- `CommonRoleStructuralHornClosure`: inputs are arbitrary initial finite atoms
+  and finite Horn clauses. Carrier, capacity, fresh causal trace and final cache
+  are computed. Independent seed/split/trans/clause exactness has no externally
+  supplied finite-domain premise. Clauses themselves remain input at this layer.
+- `CommonRoleStructuralAssociatedClosure`: actual checked declarations and finite
+  `Occurrence` values generate those clauses. Receiver and output slots, names,
+  and receiver-template functions remain input here. Associated output decoding
+  retains the existing int/str restriction. Both receiver bounds must be derived;
+  a unique impl never supplies an otherwise unknown receiver.
+- `CommonRoleStructuralAssociatedSolver`: initial grammar-checked State is input.
+  Final State is reconstructed from derived paired equalities and has exactly the
+  full mixed closure's models. The actual ordinary solver checks the final State.
+- `CommonRoleStructuralAssociatedReplay`: interval registry, original Goal,
+  ambient `slots`, invocation `Sources`, initial State and finite occurrences
+  remain input. Ordinary/associated updates and their trace are internal. Source
+  role failure/unknown diagnostics remain distinct from ordinary inconsistency.
+- `CommonRoleStructuralHornSchedules`: the actual driver is one proved maximal
+  execution of an independent causal step judgment. Any other complete fresh
+  execution has the same atom multiset, number of insertions and final diagnostic
+  tree for fixed registry/maps. This does not settle dictionary observations,
+  dynamic role admission, or the source invocation key's meaning.
+- `CommonRoleStructuralNamedInputs`: caller supplies `Atom Nat` syntax and the
+  existing finite structural `Program`, not n, slot table, State, or a receiver
+  function. All nested ordinary type/row names and occurrence endpoints are
+  collected into a compact table. A Boolean check derives exactly the existing
+  three State grammar proofs. A single unused internal slot totalizes lookup;
+  every present source name avoids it, and distinct present names cannot alias.
+  Readback preserves every original ordinary model. Structural templates produce
+  actual receiver goals; final models retain original named atoms and precisely
+  the independently activated declaration equations. `Known` still uses the
+  compiled finite independent derivation, not a new source Typing judgment.
+
+Spec6.3 remains the authority for associated equations and shared logical
+variables. The latest layer removes caller allocation for this already-scoped
+finite input fragment. It does not infer lexical scope, create dynamic child
+occurrences, give a new meaning to invocation lifetime, or connect parser ASTs.
+The existing invocation question is still open; no new answer or duplicate
+question is invented. All five major B4 bridges and full I-13 coverage remain open.

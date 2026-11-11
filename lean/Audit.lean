@@ -1,3 +1,9 @@
+import Yulang.CommonRoleStructuralNamedInputs
+import Yulang.CommonRoleStructuralHornSchedules
+import Yulang.CommonRoleStructuralAssociatedSolver
+import Yulang.CommonRoleStructuralAssociatedReplay
+import Yulang.CommonRoleStructuralHornClosure
+import Yulang.CommonRoleStructuralAssociatedClosure
 import Yulang.CommonRoleDiagnosticDictionaries
 import Yulang.CommonRoleSourceDictionaryForest
 import Yulang.CommonRoleSourceDiagnosticForest
@@ -8744,3 +8750,74 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralSaturationTrace.runGraphs_exact
 #print axioms Yulang.CommonRoleStructuralSaturationTrace.discoveries_execution
 #print axioms Yulang.CommonRoleStructuralSaturationTrace.generated_execution_complete
+
+#print axioms Yulang.CommonRoleStructuralHornClosure.derives_coverage
+#print axioms Yulang.CommonRoleStructuralHornClosure.run_closed
+#print axioms Yulang.CommonRoleStructuralHornClosure.saturate_closed
+#print axioms Yulang.CommonRoleStructuralHornClosure.saturate_exact
+#print axioms Yulang.CommonRoleStructuralHornClosure.stopped
+#print axioms Yulang.CommonRoleStructuralHornClosure.saturate_nodup
+#print axioms Yulang.CommonRoleStructuralHornClosure.saturate_bounded
+#print axioms Yulang.CommonRoleStructuralHornClosure.models_exact
+#print axioms Yulang.CommonRoleStructuralHornClosure.derives_cut
+#print axioms Yulang.CommonRoleStructuralHornClosure.saturate_idempotent
+#print axioms Yulang.CommonRoleStructuralHornClosure.generated_reverse
+#print axioms Yulang.CommonRoleStructuralHornClosure.generated_execution_complete
+#print axioms Yulang.CommonRoleStructuralAssociatedClosure.clauses_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedClosure.derives_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedClosure.saturate_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedClosure.models_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedClosure.derives_congr
+#print axioms Yulang.CommonRoleStructuralAssociatedClosure.saturate_congr
+
+#print axioms Yulang.CommonRoleStructuralAssociatedSolver.equality_models
+#print axioms Yulang.CommonRoleStructuralAssociatedSolver.knownFacts_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedSolver.completeState_models
+#print axioms Yulang.CommonRoleStructuralAssociatedSolver.solver_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedSolver.completeState_stable
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.final_membership
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.final_models
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.final_models_snapshot
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.run_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.run_computed_bound
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.runGraphs_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.final_graph_models_exact
+
+#print axioms Yulang.CommonRoleStructuralHornSchedules.step_sound
+#print axioms Yulang.CommonRoleStructuralHornSchedules.execution_sound
+#print axioms Yulang.CommonRoleStructuralHornSchedules.execution_nodup
+#print axioms Yulang.CommonRoleStructuralHornSchedules.execution_bounded
+#print axioms Yulang.CommonRoleStructuralHornSchedules.closed_complete
+#print axioms Yulang.CommonRoleStructuralHornSchedules.execution_exact
+#print axioms Yulang.CommonRoleStructuralHornSchedules.schedules_confluent
+#print axioms Yulang.CommonRoleStructuralHornSchedules.enabled_step
+#print axioms Yulang.CommonRoleStructuralHornSchedules.generated_execution
+#print axioms Yulang.CommonRoleStructuralHornSchedules.saturated_closed
+#print axioms Yulang.CommonRoleStructuralHornSchedules.generated_complete
+#print axioms Yulang.CommonRoleStructuralHornSchedules.schedule_models
+#print axioms Yulang.CommonRoleStructuralHornSchedules.schedule_materialize
+
+#print axioms Yulang.CommonRoleStructuralNamedInputs.slot_present
+#print axioms Yulang.CommonRoleStructuralNamedInputs.read_slot
+#print axioms Yulang.CommonRoleStructuralNamedInputs.slot_injective
+#print axioms Yulang.CommonRoleStructuralNamedInputs.atom_names_present
+#print axioms Yulang.CommonRoleStructuralNamedInputs.occurrence_names_present
+#print axioms Yulang.CommonRoleStructuralNamedInputs.row_eval_congr
+#print axioms Yulang.CommonRoleStructuralNamedInputs.ty_eval_congr
+#print axioms Yulang.CommonRoleStructuralNamedInputs.atom_holds_congr
+#print axioms Yulang.CommonRoleStructuralNamedInputs.allocated_models
+#print axioms Yulang.CommonRoleStructuralNamedInputs.source_models
+#print axioms Yulang.CommonRoleStructuralNamedInputs.grammar_exact
+#print axioms Yulang.CommonRoleStructuralNamedInputs.prepare_exact
+#print axioms Yulang.CommonRoleStructuralNamedInputs.run_exact
+#print axioms Yulang.CommonRoleStructuralNamedInputs.occurrence_step
+#print axioms Yulang.CommonRoleStructuralNamedInputs.complete_source_models
+#print axioms Yulang.CommonRoleStructuralNamedInputs.run_source_models
+
+#print axioms Yulang.CommonRoleStructuralHornSchedules.schedules_perm
+
+#print axioms Yulang.CommonRoleStructuralHornSchedules.schedules_length
+
+#print axioms Yulang.CommonRoleStructuralHornSchedules.schedule_tree
+
+#print axioms Yulang.CommonRoleStructuralNamedInputs.run_source_exists_iff
