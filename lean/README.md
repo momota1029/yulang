@@ -4545,3 +4545,11 @@ and obtain literal equality of complete canonical emissions under reordering.
 actual stored local inequalities, using separate type and row source maps.
 `GeneralDictionaryEquationExamples` supplies a satisfying model, repeated-output
 and source-ID regressions. These components do not fill the general B4 boundary.
+
+## Cycle123: inspection-pending target
+
+B4TargetV3 and B4SkeletonV3 retain the lossless diagnostic target and its twelve
+open general-source bridges. Inspection pending is below K2 and above empty
+rejection. Local/Classify are functional on arbitrary boundaries. Local totality
+requires explicit deterministic surviving children; a stable countermodel proves
+excluded middle alone is insufficient. No general B4 completion is claimed.

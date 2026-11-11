@@ -1590,3 +1590,11 @@ import Yulang.GeneralRegistryChildOrder
 import Yulang.GeneralDictionaryStateEquations
 import Yulang.GeneralDictionaryEquationExamples
 import Yulang.GeneralCanonicalChildOrder
+
+-- I-19: inspection-pending target and exact totality boundary.
+import Yulang.B4TargetV3
+import Yulang.B4TargetV3Functionality
+import Yulang.B4TargetV3Totality
+import Yulang.B4SkeletonV3
+import Yulang.B4TargetV3Regressions
+import Yulang.B4TargetV3TotalityRegressions
