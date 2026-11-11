@@ -1569,3 +1569,5 @@ import Yulang.CommonRoleSaturatedScalarRegistry
 
 import Yulang.CommonRoleScalarTargetObstruction
 import Yulang.GeneralSourceBoundary
+import Yulang.GeneralSourceState
+import Yulang.GeneralSourceStateExamples

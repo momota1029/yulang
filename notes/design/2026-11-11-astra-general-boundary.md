@@ -241,3 +241,308 @@ These options may be operationally equivalent after the missing graph/inspection
 rules are specified. This change keeps the distinction open: it defines no
 multiargument `RootPending`, readiness test, or executable classification. The
 approved deferral and end-of-file rules remain constraints on either choice.
+
+## Item 2
+
+Status: **partial implementation, 2026-11-12**. The owner selected option 1
+above, recorded as addendum 3 of the approved draft. The implementation follows
+whole-demand deferral. This section supersedes the earlier open question; it
+does not reopen the owner's choice.
+
+New modules:
+[GeneralSourceState](../../lean/Yulang/GeneralSourceState.lean) and
+[GeneralSourceStateExamples](../../lean/Yulang/GeneralSourceStateExamples.lean).
+No registry carrier or declaration checker was added. Existing `Roles.RoleDecls`
+supplies arity and associated-output names. Item 1 remains with its other owner.
+
+### Shared state and its invariant
+
+`GeneralSourceState.State` is a checked snapshot with a finite slot count,
+arbitrary existing ordinary type/row atoms, source type-node IDs, independent row
+IDs, centerless endpoint pairs, and typed inspection-head descriptions.
+`State.graph` computes the existing inspection graph from those descriptions;
+there is no independent arbitrary graph field. Scalar codes use the existing
+injective scalar encoding. Structural codes index an injective table of typed
+signatures, including arrow-row syntax and exact child arity.
+
+`HeadModels` has a concrete definition: each recorded scalar/constructor gives
+an equation, up to `Common.Equivalent`, between its original ordinary slot and
+the constructor applied to its original child slots. An unresolved observation
+asserts no equation. The state requires a proof that **every ordinary model**
+satisfies these equations and every registered interval's lower/upper comparison.
+Those conditions are not imposed by silently narrowing the ordinary model set.
+`models_ordinary` proves that the full snapshot `Models` is exactly ordinary
+satisfaction. `models_compiled` connects it to the real shared equation-graph
+compiler and exact original type/row readback. `recorded_head_sound` exposes the
+per-node consequence to later work.
+
+The source ID map is injective: repeated references to the same ID denote the
+same slot and graph node (`shared_source_node`). Row IDs are separate; matching
+type-node identity does not impose an equality between unrelated effect rows.
+This does not yet canonicalize **different** source names equated by ordinary
+constraints. `Models` uses a global `Nat → Comp Common.model` assignment, so
+different finite snapshots can be compared without changing the model carrier.
+
+This is not a general materializer or proof of source reachability. In
+particular, all-model implication can hold vacuously on inconsistent ordinary
+constraints, and an unresolved observation can conservatively remain even when
+the constraints entail more information. It does not certify that the recorded
+interval is the fully propagated source bound. These limits prevent claiming a
+complete source-state/normalized-inspection correspondence.
+
+### Demand and deferral
+
+`Demand roles` stores a role, exactly `roles role |>.arity` source endpoint pairs,
+and the complete supplied list of named associated-output obligations. Each
+output name must be declared by the role; its target is an ordinary source
+variable. No output RHS or default is selected in this layer. Repeated output
+obligations are retained. `Linked state demand` proves that every argument pair
+occurs in the state and that every output target has a source slot.
+
+This represents endpoints by source IDs; it does **not** normalize arbitrary
+source type expressions or establish all same-head interval simplifications.
+The fully normalized demand requested in item 2 remains missing.
+
+`Needed demand` is the permitted abstract applicability-argument set, a predicate
+on the finite positional argument indices. Item 3 must produce that set from
+the applicability rules. This layer makes no receiver-only, all-arguments, or
+singleton-implementation choice. The `Index` example supplies both positional
+arguments explicitly. Associated outputs are not silently treated as positional
+inputs.
+
+`RootPending state demand needed` holds exactly when a needed argument lacks a
+recorded lower head. On linked demands, `pending_graph_iff` identifies this with
+an actual lower source node satisfying `GeneralSourceBoundary.GraphUnresolved`.
+Only the lower endpoint is queried. An unlinked reference conservatively lacks
+a known head; the graph equivalence theorem explicitly requires `Linked`.
+The final end-of-file/stability policy is unchanged and is not implemented here.
+
+`Refines before after` is a contract for future updates, not the language `Step`:
+it supplies a source- and row-ID-preserving slot embedding, inclusion of renamed
+old atoms, preservation of recorded knownness, and retained interval pairs.
+It proves model decrease, retained linkage, and pending antitonicity for the
+**same** demand and fixed `Needed` set. Mere atom inclusion is not claimed to
+refresh observations or imply this contract. The `Index` example provides a
+concrete instance after an explicit ordinary equality for the key is added.
+
+“No retroactive rejection” is deliberately snapshot-specific:
+`pending_defers_decisions` excludes the gated graph-cycle observation and guarded
+empty-survivor reason at the old pending snapshot. Resolving a head may legitimately
+expose a cycle or no candidates in a new snapshot. No theorem says rejection
+can never occur later.
+
+### Why source RootK2 remains missing
+
+The initial all-model equation invariant was challenged by independent review.
+The following raw self-tail equation is satisfied by a finite type:
+
+```text
+x ≈ { L: int, ..x }
+x = { L: int }
+```
+
+`Common.common_shadowed_head_equivalent` proves this after hidden-field removal.
+A raw graph for the equation nevertheless has a self-cycle through the tail.
+`shadow_cycle_counterexample` now constructs that graph inside a checked,
+model-inhabited `State`, links its demand, and proves both the graph-cycle flag
+and the literal finite lower type. Thus the issue is a concrete false-positive
+family, not just an absent proof.
+
+The code therefore defines **`ObservedRootK2`**, not source `RootK2`. It preserves
+`RootCycleObserved` but gates actionable observation on `¬ RootPending`, as
+required for whole-demand deferral. `pending_excludes_observedK2` proves that
+exclusion. Neither predicate may be used as the general source K2 field.
+
+A general normalized projection also has to reconcile equivalent row syntax
+in arrow tags, required fields versus record-with-empty-tail presentations, and
+ordinary aliases of different unresolved source IDs. The injective signature
+table prevents accidental tag collisions; it does not prove semantic
+canonicalization. `Common.model` still lacks the separate nominal carrier's
+constructor. The current head vocabulary has selected Common constructors, not
+all ordinary syntax. Unsupported observations must remain deferred until a
+justified view is available; they must not become rejection.
+
+The next missing piece is an independently defined source normalization and
+inspection correspondence that excludes the hidden-tail counterexample and
+handles these canonicalization cases. A free `Normalized : Prop` assumption
+would only conceal this gap. No such field was added. This is an implementation
+gap under the existing owner decisions, not a new language-semantics question.
+
+### Current field status
+
+Here `S` means `GeneralSourceState`. “Component” is not a completed B4 field.
+
+| Requested item-2 row | Status after this change |
+| --- | --- |
+| `Vocabulary.State` | **DEFINED checked Common snapshot component:** `S.State`, `S.State.graph`. **MISSING** general normalized source observation and materialization correspondence, alias canonicalization, and nominal integration. |
+| `Vocabulary.Demand` | **DEFINED carrier:** `S.Demand`, `S.Linked`, positional arity and associated-output targets. **MISSING** general source-type/same-head normalization. |
+| `Models` | **DEFINED for this full checked snapshot:** `S.Models`; exact ordinary and compiled-graph agreement proved. No unrestricted source-state adequacy claim. |
+| `RootPending` | **DEFINED for linked snapshots and supplied applicability indices:** `S.RootPending`, `S.pending_graph_iff`. Derivation of `Needed`, complete source observation, and finalization remain missing. |
+| `RootK2` | **MISSING** for normalized source semantics. `S.RootCycleObserved` and `S.ObservedRootK2` are graph components only; a concrete counterexample prevents promoting them. |
+
+All 13 boundary fields, as required by I-18:
+
+| Field | Current status |
+| --- | --- |
+| `Checked` | **MISSING in this work**; item 1 belongs to the other owner. |
+| `Models` | **DEFINED checked-snapshot component**, `S.Models`. |
+| `Step` | **MISSING**; `S.Refines` is an update contract, not saturation. |
+| `Stable` | **MISSING**. |
+| `Generated` | **MISSING**. |
+| `RootPending` | **DEFINED snapshot component**, `S.RootPending`, conditional on the applicability set and linked source observations as above. |
+| `RootK2` | **MISSING**; only graph observation is supplied. |
+| `CandidateK2` | **MISSING**; item 3. |
+| `InspectionPending` | **MISSING**; item 3. |
+| `Survivor` | **MISSING**; item 3. |
+| `Evidence` | **MISSING**. |
+| `Reorders` | **MISSING**. |
+| `DictionaryEquivalent` | **MISSING**. |
+
+`generalVocabulary`, `generalBoundary`, and an executor remain unconstructed.
+Item 2 is not closed. The earlier assessment of fragment convergence is unchanged:
+this work adds shared interfaces and a falsifier for a proposed bridge, rather
+than another fragment-specific `Classify` theorem.
+
+### Examples and handoff to item 3
+
+- `index_example`: the two-argument Index demand is linked, all Common key types
+  still model its ordinary state, and the demand is pending. Adding an explicit
+  `key = int` equation gives an actual `Refines` witness and removes pending.
+  No implementation is supplied or allowed to infer that equation.
+- `recursive_example`: a linked unary demand has a real Common regular model
+  `μ ≈ {7: μ}`, a graph-cycle observation, and no pending argument. This is
+  **not** a general source `RootK2` theorem.
+- `shadow_cycle_counterexample`: the raw record-tail graph flags a cycle while
+  the lower endpoint is the finite type `{7: int}` in an ordinary model. A
+  normalized source K2 implementation must exclude this case.
+
+Item 3 can consume:
+
+1. `Demand.arguments`, `Demand.outputs`, and `Linked`, retaining all endpoint
+   and associated-output source identities. Capture invocations still need
+   their own identities; they must not be identified merely by type equality.
+2. `State.assignment`, `Models`, `models_ordinary`, `models_compiled`, and
+   `recorded_head_sound` for a single type/row assignment across propagation.
+3. `State.graph` and typed `Head`/`Shape` information as **checked raw views**,
+   with an additional normalized source correspondence still required before K2.
+4. `Needed` and `RootPending`: item 3 must derive the applicability set and retain
+   pending for unresolved required inputs without fixing them from candidates.
+5. `Refines` and its theorems as obligations on proposed updates. Changes to the
+   applicability set or source normalization are not covered by the fixed-set
+   pending monotonicity theorem.
+
+Item 3 must still supply candidate-local capture/reconciliation, repeated-variable
+merging, survivor filtering, every where/associated child, and inspection deferral.
+It must not reuse `ObservedRootK2` as `CandidateK2` or source `RootK2`. No registry,
+candidate, or dictionary carrier was built here.
+
+### Item-2 checks
+
+Final commands, run from `lean/`:
+
+| Command | Exit code | Result |
+| --- | --- | --- |
+| `lake build Yulang.GeneralSourceState Yulang.GeneralSourceStateExamples > /tmp/astra-state-demand-build.log 2>&1` | 0 | Both modules, 421 jobs. |
+| `lake build Yulang > /tmp/astra-state-demand-umbrella.log 2>&1` | 0 | Umbrella import, 1325 jobs. |
+| `lake env lean Audit.lean > /tmp/astra-state-demand-audit.log 2>&1` | 0 | Full audit, all 16 new public theorem entries present. |
+
+The full audit reports only `propext`, `Classical.choice`, and `Quot.sound`;
+the whitelist check passed. The new files contain none of the excluded tokens.
+The old contents of `Audit.lean` and `Yulang.lean` are unchanged byte prefixes.
+`git diff --check`, audit-entry coverage, and design-note links passed.
+
+Intermediate focused builds exited 1 on elaboration/reducibility and a tuple proof;
+those errors were fixed only in the new files. No existing Lean theorem body
+was edited. The skill's registered prover launch surface remains unavailable;
+the primary constructed the bounded proofs and a separate read-only reviewer
+challenged the design and reviewed the revised claims.
+
+### Item-2 theorem statements
+
+These are the complete public theorem signatures from the new modules.
+Implicit parameters are universally quantified: slot counts are naturals,
+`roles` is `Roles.RoleDecls`, and `before`/`after` are `State`. Names use the
+respective module namespace and its opened namespaces, as in the source.
+
+`Yulang.GeneralSourceState`:
+
+```lean
+theorem equationAtoms_exact (slot : Fin slots) (term : TyTerm (Fin slots))
+    (assignment : Fin slots → Comp Common.model) :
+    All Common.model assignment (equationAtoms slot term) ↔
+      Common.Equivalent (assignment slot).1 (term.eval Common.model assignment)
+
+theorem models_ordinary (state : State) (model : Assignment) :
+    Models state model ↔ state.OrdinaryModels model
+
+theorem models_compiled (state : State) (model : Assignment) :
+    Models state model ↔
+      ∃ values : Fin (CommonPresenceConstraintGraph.compile state.ordinary).size → Common.Ty,
+        (CommonPresenceConstraintGraph.compile state.ordinary).Models
+          (fun slot => (state.assignment model slot).2) values ∧
+        (CommonPresenceConstraintGraph.compile state.ordinary).readback
+          (fun slot => (state.assignment model slot).2) values = state.assignment model
+
+theorem recorded_head_sound (state : State) (model : Assignment) (models : Models state model)
+    (slot : Fin state.slots) (term : TyTerm (Fin state.slots))
+    (recorded : (state.heads slot).equation = some term) :
+    Common.Equivalent (model (state.source slot)).1
+      (term.eval Common.model (state.assignment model))
+
+theorem shared_source_node (state : State) (left right : Fin state.slots)
+    (same : state.source left = state.source right) :
+    left = right ∧ state.graph left = state.graph right
+
+theorem pending_graph_iff (state : State) (demand : Demand roles) (linked : Linked state demand)
+    (needed : Needed demand) :
+    RootPending state demand needed ↔
+      ∃ argument slot, needed argument ∧ state.source slot = (demand.arguments argument).1 ∧
+        GeneralSourceBoundary.GraphUnresolved state.graph slot
+
+theorem pending_excludes_observedK2 (state : State) (demand : Demand roles) (needed : Needed demand)
+    (pending : RootPending state demand needed) : ¬ ObservedRootK2 state demand needed
+
+theorem observedK2_graph_iff (state : State) (demand : Demand roles) (needed : Needed demand) :
+    ObservedRootK2 state demand needed ↔
+      ¬ RootPending state demand needed ∧
+        ∃ argument slot, state.source slot = (demand.arguments argument).1 ∧
+          GeneralSourceBoundary.GraphK2 state.graph slot
+
+theorem refinement_models (refinement : Refines before after) (model : Assignment)
+    (models : Models after model) : Models before model
+
+theorem refinement_linked (refinement : Refines before after) (demand : Demand roles)
+    (linked : Linked before demand) : Linked after demand
+
+theorem refinement_known (refinement : Refines before after) (source : Nat)
+    (known : Known before source) : Known after source
+
+theorem refinement_pending (refinement : Refines before after) (demand : Demand roles)
+    (needed : Needed demand) (pending : RootPending after demand needed) :
+    RootPending before demand needed
+
+theorem pending_defers_decisions (state : State) (demand : Demand roles) (needed : Needed demand)
+    (pending : RootPending state demand needed) (survivor : Nat → Prop) :
+    ¬ ObservedRootK2 state demand needed ∧ ¬ ResolvedEmpty state demand needed survivor
+```
+
+`Yulang.GeneralSourceStateExamples`:
+
+```lean
+theorem index_example :
+    Linked indexState indexDemand ∧ (∀ key, Models indexState (indexModel key)) ∧
+      RootPending indexState indexDemand indexNeeded ∧
+      Nonempty (Refines indexState indexAfter) ∧
+      ¬ RootPending indexAfter indexDemand indexNeeded
+
+theorem recursive_example :
+    Linked loopState loopDemand ∧ Models loopState loopModel ∧
+      ObservedRootK2 loopState loopDemand loopNeeded ∧
+      ¬ RootPending loopState loopDemand loopNeeded ∧
+      Common.Equivalent loopType (Common.required 7 loopType)
+
+theorem shadow_cycle_counterexample :
+    Linked shadowState loopDemand ∧ Models shadowState shadowModel ∧
+      ObservedRootK2 shadowState loopDemand loopNeeded ∧
+      (shadowModel 0).1 = Common.required 7 (.base .int)
+```
