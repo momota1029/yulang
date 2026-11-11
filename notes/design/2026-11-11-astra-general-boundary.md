@@ -1411,3 +1411,636 @@ completion.
 ### Owner answer to the Item 1 `Needed` question (2026-11-12)
 
 Option 1. Every unnamed role argument is needed: the demand stays pending until every unnamed argument's lower head is known, even at a position every candidate captures with a bare variable. Named associated outputs are not needed. Recorded as addendum 4 of the approved B4 draft. `G.needed` (all unnamed inputs) is therefore the intended definition, not merely a conservative placeholder.
+
+## Item 3 — candidate inspection and private interval propagation (2026-11-12)
+
+Status: **partial, not a completed general source boundary**. The source task is
+not closed. Five new modules connect existing general carriers, checked normalized
+observations, the actual ordinary solver, and complete canonical child plans.
+They do not supply the missing nominal/Common interpretation or the source
+allocator. In particular the requested positive `Display (list int)` and
+`Wrap (list 'a)` survivor examples are **not proved**. Keeping these obligations
+visible is necessary: interpreting `list` as an arbitrary record/graph tag would
+change the language.
+
+The authority is the approved [draft and addenda 1–4](2026-11-08-b4-main-statement-draft.md),
+[spec 6.3–6.4](../../spec/06-roles.md), and the current
+[V3 target](../../lean/Yulang/B4TargetV3.lean). The former Item 1 `Needed` question
+is settled: every unnamed argument is needed, including a plain-variable
+position; named associated outputs are excluded. No minimal-needed analysis is
+introduced.
+
+### Components and exact scope
+
+Abbreviations below are `I = Yulang.GeneralCandidateIntervals`,
+`Q = Yulang.GeneralCandidateInspection`, and
+`B = Yulang.GeneralCandidateBoundaryParts`.
+
+- [GeneralCandidateIntervals](../../lean/Yulang/GeneralCandidateIntervals.lean)
+  uses `CommonRoleCandidateConstraints.generate/solve`, not a head-substitution
+  search. Every occurrence of a captured variable is retained, including both
+  self comparisons and both repeated-variable cross directions. `I.propagate`
+  uses the existing `GeneralDictionaryEquationRecording.append`; each candidate
+  has its own ordinary extension. `propagate_models` is an exact equivalence at
+  the same original source assignment. `survives_iff_model` connects the actual
+  ordinary solver to existence of an actual source model, under `Covered`.
+  `MergeLinked` checks both source endpoints against union-of-lowers and
+  intersection-of-uppers. `MergeRecorded` is a finite storage condition implying
+  it. No centre is allocated.
+- `Covered` contains the existing child/width/row grammar certificates and
+  injectivity of `State.rowSource`. The last condition is required by the present assignment-lifting proof:
+  the reused solver gives independent parameters to local row slots. Shared row
+  aliases otherwise need equality atoms before solving. `row_alias_defers`
+  enforces this coverage limit; it is not a language rejection rule. The
+  underlying general State has not been restricted or changed. The ordinary
+  grammar also excludes some exact endpoint equations, including upper variant,
+  union and intersection expressions; their general solver/materialization
+  bridge is still missing. Thus repeated-capture coalescing is defined generally
+  but arbitrary coalesced endpoints are not automatically within `Covered`.
+- [GeneralCandidateInspection](../../lean/Yulang/GeneralCandidateInspection.lean)
+  traverses a finite normalized pattern and both interval endpoints. All sibling
+  captures, inspected positions, blockers, conflicts and arity problems survive
+  concatenation. Traversal is bounded by the pattern structure, not an imposed
+  resolution-depth limit. It can traverse an observed cycle mathematically to
+  determine a finite candidate footprint; K2 separately records the constructor
+  inspections in that footprint. A variable captures its interval without
+  inspecting the constructor. Merged plain variables each capture the complete
+  merged payload, as required by spec 6.3.
+- The partial translator first uses `Declaration.normalHead` and its existing
+  hidden-field/same-tag normalization. It supports explicit ordinary primitive
+  annotations, closed record spines sorted together with their payload queries,
+  and variants. `PrimitivesCompatible` checks annotated constructor arity and
+  parameter kinds against the declaration catalogue. **The annotation table is
+  an extra input, not a proved extraction from the source catalogue.** Nominal
+  applications, arrow forms, open record tails and other untranslated forms are
+  retained as deferred patterns. No annotation for `list` is supplied. Canonical
+  source/Common adequacy for all constructor names is still MISSING.
+- [GeneralCandidateBoundaryParts](../../lean/Yulang/GeneralCandidateBoundaryParts.lean)
+  uses actual source-ID lookup from `GeneralDictionaryBinderLocations.sourceSlot`.
+  `HeadReady` requires complete inspection plus a positive ordinary pass.
+  `Prepared` additionally checks captured interval materialization, the actual
+  root linkage, primitive metadata, and the supported child-emission requests.
+  Its root named-output list must currently be empty. Child inputs must be
+  normalized plain variables actually present in the computed captures; their
+  endpoints must equal the frame's captured endpoints. Supported child named
+  outputs must be output-only binders. Compound input/output materialization
+  remains deferred. **No child's resolution is checked here.**
+- `B.Survivor` is a partial, fixed-frame candidate relation. Its children are
+  exactly `GeneralDictionaryEmissionPlans.children`, built from all canonical
+  `GeneralDeclarationDemands` emissions. Where clauses are not filtered or
+  resolved. The frame's captured input endpoints are checked, but its output
+  allocation, invocation identity map, freshness and source provenance are
+  **not** derived. Different caller-supplied output IDs or a noninjective
+  invocation map are therefore not certified as faithful source allocation.
+  These are remaining premises of the partial interface, not completed fields.
+- `B.InspectionPending` retains a visible, checked, same-role declaration that
+  has not independently failed but lacks a preparation certificate. This includes
+  unresolved needed descendants and unimplemented materialization/interpretation.
+  `Failed` requires compatible primitive metadata and a genuine scalar conflict
+  or a covered empty ordinary solver result. Unsupported coverage is never
+  converted into interval failure. This is a conservative partial observation
+  relation, not a proof that the final source normalizer eventually handles
+  every language case.
+- `B.CandidateK2` requires an applicable finite head footprint with feasible
+  interval constraints, root linkage, compatible primitive annotations, no
+  demanded root associated outputs, and a normalized recurrence at a constructor
+  the candidate actually inspected. It uses `Complete` and normalized `GraphK2`,
+  then `GeneralSourceK2.graphK2_sound` to obtain the independent `RecursAt` fact.
+  It does not use raw graph-cycle flags or the absence of `InspectionPending`.
+  Child emission/materialization and child resolution are not prerequisites to
+  this K2 check. Unknown aliases are not equated merely because both display an
+  unknown observation token.
+- `B.RootK2` adapts the previous normalized root predicate to V3: after all
+  unnamed root lower heads are known, a complete recurrent lower endpoint is
+  sufficient. An unrelated incomplete descendant in another argument does not
+  suppress that root reason. The old module is unchanged. This respects the
+  owner's reached-root reading rather than whole-denotation nonfiniteness.
+
+All candidate definitions are independent of the executor. The only execution
+used in their definitions is the existing **ordinary constraint solver**, after
+capture has already been computed. No candidate type-substitution enumeration is
+introduced.
+
+### Models and the requested universal soundness claim
+
+The proved exact law is, for every assignment `m`,
+
+```text
+Models (I.propagate s captures) m
+  ↔ Models s m ∧ CommonRoleCandidateConstraints.Compatible captures (s.assignment m).
+```
+
+Thus every model of the private propagated candidate state satisfies all its
+captured constraints, and every such model preserves the original state.
+`survivor_interval_sound` states this with the actual declaration and computed
+capture report, retaining all quantifiers. `survives_has_model` proves these
+claims need not be vacuous merely because the ordinary solver returned a
+nonempty list: a shared-source model really exists within the stated coverage.
+
+This is **not** the stronger claim that feasibility of each alternative makes
+its extra constraints true in *every model of the unextended shared state*.
+That claim does not follow from feasibility. `recorded_capture_sound` proves the
+shared-state universal version with an explicit ordinary-storage premise, which
+is the connection needed after actual recording. `two_alternatives_models`
+shows that appending both alternatives' checks conjoins them; the implementation
+never silently performs that conjunction as candidate selection.
+
+### Vocabulary and all thirteen fields
+
+`B.vocabulary roles` fixes the role-declaration environment as a parameter; the
+registry itself remains `GeneralDeclarations.Registry`. `B.availableFields`
+packages only the six independently available fields below. It is **not** a
+`SourceBoundary`, and no absent field receives a placeholder value.
+
+| Vocabulary entry | Definition and status | Authority / limit |
+| --- | --- | --- |
+| Registry | `GeneralDeclarations.Registry` | Draft registry; existing checked declaration carrier, including every child equation. |
+| State | `B.Context roles` containing the unchanged `GeneralSourceState.State`, checked normalized snapshot, partial primitive annotations, fixed frames and merged endpoint locations | Draft shared state; view and frame production remain external. |
+| Demand | `GeneralSourceDictionaries.Occurrence roles`, containing `GeneralSourceState.Demand roles` | All unnamed centerless interval arguments and associated targets, with the existing occurrence carrier. Source freshness is not proved by the Nat identity. |
+| Model | `GeneralSourceState.Assignment` | Actual Common source assignments, separate type/row identities. No nominal carrier is smuggled in. |
+| Executor.run | **MISSING** | No general saturation or stable-file driver is defined. |
+
+| SourceBoundary field | Current definition/status | Why faithful; remaining limit |
+| --- | --- | --- |
+| Checked | **DEFINED on the carrier:** `B.RegistryChecked` = matching role environment and `GeneralDeclarations.Checked` | Spec 6.3, including output-only binders. Existing certificate checker adequacy limits remain. |
+| Models | **DEFINED on the carrier:** `B.StateModels` = `GeneralSourceState.Models` | Draft Common assignments and shared ordinary/graph correspondence. No general nominal model bridge. |
+| Step | **MISSING** | `I.propagate` is a private ordinary append, not source saturation or sibling regeneration. |
+| Stable | **MISSING** | No source sibling/EOF fixpoint definition or proof. |
+| Generated | **MISSING as a full field**; `emitAll`, `canonicalEmit`, and partial `B.Survivor` children are connected components | Draft all-where conjunction and addendum 2; actual source allocation/materialization remains external. |
+| RootPending | **DEFINED on checked snapshots:** `B.RootPending` using `GeneralSourceK2.RootPending` and `GeneralDeclarationDemands.needed` | Addenda 1, 3, 4: wait for every unnamed lower head, never for named outputs. Partial source normalization retains unknowns. |
+| RootK2 | **DEFINED on checked snapshots:** `B.RootK2` | Draft rejection (i), spec K2 reached-root rule; no global inspection-pending gate. Complete normalized cone required at the witnessed endpoint. |
+| CandidateK2 | **PARTIAL; full field MISSING:** `B.CandidateK2` | Draft rejection (ii) and V3 priority; normalized inspected recurrence and actual interval propagation. General source interpretation, root named-output materialization and solver coverage remain open. |
+| InspectionPending | **PARTIAL; full field MISSING:** `B.InspectionPending` | V3 unfinished inspection plus conservative implementation deferral. Full source production/progress remains open. |
+| Survivor | **PARTIAL; full field MISSING:** `B.Survivor` | Draft centerless self/cross propagation and exact all-child emission. Fixed-frame provenance, nominal/full constructor interpretation, general outputs and materialization remain open. |
+| Evidence | **MISSING as a full field**; existing dictionary/transaction/binder-location modules reused | Spec 6.4 and draft dictionary soundness still need actual general declaration-instance meaning and selected source frames. |
+| Reorders | **DEFINED:** `GeneralRegistryReordering.Reorders` | Spec sibling/visible order independence at the registry carrier. Final candidate/state order invariance is not claimed. |
+| DictionaryEquivalent | **DEFINED structurally:** `GeneralDictionaryPayloadOrder.Equivalent` (source counterpart remains `GeneralSourceDictionaries.DictionaryEquivalent`) | Addendum 2 and dictionary modules preserve payload structure/multiplicity. General semantic Evidence remains open. |
+
+None of the twelve concrete general-source `B4SkeletonV3.B4Bridges` obligations is reported
+closed. `survivor_children_functional` proves the actual same-key coherence of
+this fixed-frame partial relation. `local_total_of_extension` applies the V3
+local-totality theorem to **any future full boundary agreeing with this relation**;
+it does not construct such a boundary or prove general saturation.
+
+### Regression coverage and unfulfilled requested examples
+
+[GeneralCandidateExamples](../../lean/Yulang/GeneralCandidateExamples.lean)
+uses a real normalized record state and a satisfying regular Common model.
+The source pattern is `{8: {7: 'a}}`; the demand lower endpoint denotes
+`{8: μ}`, with `μ ≈ {7: μ}`. The declaration is checked, survives the private
+interval pass, emits no children, and triggers candidate K2 at μ.
+`reached_constructor_not_root` proves the outer demand is not root K2.
+`K2_with_other_inspection_pending` proves candidate K2 and another candidate's
+inspection-pending coexist. This is a record example, **not an encoding of list**.
+With the inner source head unresolved, `inspection_pending_example` proves
+actual inspection-pending and retains the unknown position.
+
+[GeneralCandidateConflictExamples](../../lean/Yulang/GeneralCandidateConflictExamples.lean)
+uses the existing general `indexAfter` state, with a real str/int source model,
+and a checked binary head `R 'a 'a`. Both root lower heads are known and both
+individual intervals are valid. The computed repeated capture creates the
+cross str ≤ int check, the ordinary solver eliminates the candidate, and
+`known_all_candidates_fail` proves there are no survivors and no inspection
+pending. The corresponding unresolved second input stays root-pending even
+though both head positions are plain variables. This checks addendum 4.
+
+Requested but **not completed**:
+
+1. `Display (list int)` with the list impl and `Display int` visible, exactly one
+   survivor and the child `[Display int]`. `display_application_deferred`
+   instead records the actual current limitation: the genuine list application
+   has no translation into this Common state. No fragment result is substituted.
+2. A Wrap/list survivor with the Container child and item equation. The existing
+   `GeneralDeclarationExamples.wrap_child_keeps_item` still proves exact emission
+   of that source equation under its supplied capture; it is not a survivor
+   theorem. `wrap_application_deferred` exposes the missing nominal head bridge.
+3. The literal all-model shared-state survivor claim without an added recording
+   premise; the private-extension and explicit-recording theorems are stated above.
+
+No parser/source reachability, source-frame allocator, nominal/Common adapter,
+complete normalization, complete ordinary propagation, root associated-RHS
+materialization, saturation, or final EOF classification has been verified.
+
+### What the next general integration needs
+
+- A source constructor interpretation and a nominal-aware state/model bridge.
+  `CommonNominalFullCarrier` and related modules provide a dedicated nominal
+  carrier, but are not the Common assignments used by the current State. The
+  primitive annotations here expose, rather than solve, that mismatch.
+- Exact general capture coalescing/materialization, including states whose row
+  source IDs alias. Equality atoms and a source-assignment correspondence can
+  remove the explicit row-injectivity coverage restriction.
+- A source-derived invocation frame: merged endpoint locations, independent
+  output-only binder variables, and preserved/fresh obligation identities.
+  Existing dictionary `Frame`, `Plan`, canonical emissions and binder-location
+  functions can consume it. No arbitrary frame should be promoted to a proved
+  source-generated frame.
+- General root associated-output and compound child RHS lowering, retaining
+  every named equation and never selecting one interval endpoint as its centre.
+- Actual candidate/private-state recording and regeneration in a shared Step,
+  then stable sibling/EOF handling. The new fixed-frame child coherence supplies
+  the V3 local-totality premise once the full source field is implemented.
+
+My assessment: this work is closer to the general instance than another fragment
+classifier: it imports the actual registry, state, demand, normalized observation,
+ordinary solver, source-ID lookup and complete dictionary-emission machinery.
+However, the main convergence bottleneck remains unchanged. The raw declaration
+catalogue has names/arity/kinds but no general type interpretation; State still
+uses Common without nominal layers; fixed frames still come from the caller.
+The list/Wrap positive examples cannot yet cross those interfaces. Further
+fragment classification results would not close these missing bridges.
+
+### Scope question kept open
+
+The user-facing soundness wording needs a precise state boundary; no language
+choice is made here. Consider a known pair receiver with the source head
+`impl Same ('a, 'a)`, where one component has type `int` and the other retains
+an interval with multiple possible models. A candidate's cross constraints can
+be consistent while excluding some models of the original state.
+
+1. **Defer the unextended shared-state assertion**: use the explicitly named
+   private propagated candidate state for survivor soundness, and require
+   ordinary recording before the final shared-state all-model theorem.
+2. Use the name `Survivor` only after the candidate's actual constraints are
+   recorded in the state argument; keep a distinct potential-candidate relation
+   before that point. This needs an explicit source Step/selection contract.
+
+Both avoid conjoining all alternative candidates' constraints. The implementation
+proves the private-state law and the separate recorded-state law; it does not
+assert that these two state stages are the same. An asynchronous clarification
+was sent during the task; no answer has been assumed.
+
+### Full theorem statements
+
+The following inventory is generated by Lean with `#check @...` for every new
+public theorem, including implicit parameters. Module qualifications are retained.
+
+```lean
+Yulang.GeneralCandidateIntervals.propagate_models : ∀ (state : Yulang.GeneralSourceState.State)
+  (bindings : Yulang.GeneralCandidateIntervals.Bindings state) (model : Yulang.GeneralSourceState.Assignment),
+  Yulang.GeneralSourceState.Models (Yulang.GeneralCandidateIntervals.propagate state bindings) model ↔
+    Yulang.GeneralSourceState.Models state model ∧
+      Yulang.CommonRoleCandidateConstraints.Compatible bindings (state.assignment model)
+Yulang.GeneralCandidateIntervals.propagated_capture_sound : ∀ (state : Yulang.GeneralSourceState.State)
+  (bindings : Yulang.GeneralCandidateIntervals.Bindings state) (model : Yulang.GeneralSourceState.Assignment),
+  Yulang.GeneralSourceState.Models (Yulang.GeneralCandidateIntervals.propagate state bindings) model →
+    Yulang.CommonRoleCandidateConstraints.Compatible bindings (state.assignment model)
+Yulang.GeneralCandidateIntervals.propagated_original : ∀ (state : Yulang.GeneralSourceState.State)
+  (bindings : Yulang.GeneralCandidateIntervals.Bindings state) (model : Yulang.GeneralSourceState.Assignment),
+  Yulang.GeneralSourceState.Models (Yulang.GeneralCandidateIntervals.propagate state bindings) model →
+    Yulang.GeneralSourceState.Models state model
+Yulang.GeneralCandidateIntervals.recorded_capture_sound : ∀ (state : Yulang.GeneralSourceState.State)
+  (bindings : Yulang.GeneralCandidateIntervals.Bindings state),
+  (∀ (atom : Yulang.PresenceNormalForm.Atom (Fin state.slots)),
+      atom ∈ Yulang.CommonRoleCandidateConstraints.generate bindings → atom ∈ state.ordinary) →
+    ∀ (model : Yulang.GeneralSourceState.Assignment),
+      Yulang.GeneralSourceState.Models state model →
+        Yulang.CommonRoleCandidateConstraints.Compatible bindings (state.assignment model)
+Yulang.GeneralCandidateIntervals.eliminated_no_model : ∀ (state : Yulang.GeneralSourceState.State)
+  (bindings : Yulang.GeneralCandidateIntervals.Bindings state),
+  Yulang.GeneralCandidateIntervals.Eliminated state bindings →
+    ¬∃ model, Yulang.GeneralSourceState.Models (Yulang.GeneralCandidateIntervals.propagate state bindings) model
+Yulang.GeneralCandidateIntervals.model_survives : ∀ (state : Yulang.GeneralSourceState.State)
+  (bindings : Yulang.GeneralCandidateIntervals.Bindings state),
+  Yulang.GeneralCandidateIntervals.Covered state →
+    ∀ (model : Yulang.GeneralSourceState.Assignment),
+      Yulang.GeneralSourceState.Models (Yulang.GeneralCandidateIntervals.propagate state bindings) model →
+        Yulang.GeneralCandidateIntervals.Survives state bindings
+Yulang.GeneralCandidateIntervals.uncovered_defers : ∀ (state : Yulang.GeneralSourceState.State)
+  (bindings : Yulang.GeneralCandidateIntervals.Bindings state),
+  ¬Yulang.GeneralCandidateIntervals.Covered state →
+    ¬Yulang.GeneralCandidateIntervals.Survives state bindings ∧
+      ¬Yulang.GeneralCandidateIntervals.Eliminated state bindings
+Yulang.GeneralCandidateIntervals.row_alias_defers : ∀ (state : Yulang.GeneralSourceState.State)
+  (bindings : Yulang.GeneralCandidateIntervals.Bindings state) (first last : Fin state.slots),
+  first ≠ last →
+    state.rowSource first = state.rowSource last →
+      ¬Yulang.GeneralCandidateIntervals.Survives state bindings ∧
+        ¬Yulang.GeneralCandidateIntervals.Eliminated state bindings
+Yulang.GeneralCandidateIntervals.survives_excludes_eliminated : ∀ (state : Yulang.GeneralSourceState.State)
+  (bindings : Yulang.GeneralCandidateIntervals.Bindings state),
+  Yulang.GeneralCandidateIntervals.Survives state bindings → ¬Yulang.GeneralCandidateIntervals.Eliminated state bindings
+Yulang.GeneralCandidateIntervals.survives_has_model : ∀ (state : Yulang.GeneralSourceState.State)
+  (bindings : Yulang.GeneralCandidateIntervals.Bindings state),
+  Yulang.GeneralCandidateIntervals.Survives state bindings →
+    ∃ model, Yulang.GeneralSourceState.Models (Yulang.GeneralCandidateIntervals.propagate state bindings) model
+Yulang.GeneralCandidateIntervals.survives_iff_model : ∀ (state : Yulang.GeneralSourceState.State)
+  (bindings : Yulang.GeneralCandidateIntervals.Bindings state),
+  Yulang.GeneralCandidateIntervals.Covered state →
+    (Yulang.GeneralCandidateIntervals.Survives state bindings ↔
+      ∃ model, Yulang.GeneralSourceState.Models (Yulang.GeneralCandidateIntervals.propagate state bindings) model)
+Yulang.GeneralCandidateIntervals.merge_recorded_linked : ∀ (state : Yulang.GeneralSourceState.State)
+  (bindings : Yulang.GeneralCandidateIntervals.Bindings state) (locations : Nat → Fin state.slots × Fin state.slots),
+  Yulang.GeneralCandidateIntervals.MergeRecorded state bindings locations →
+    Yulang.GeneralCandidateIntervals.MergeLinked state bindings locations
+Yulang.GeneralCandidateIntervals.singleton_merge_linked : ∀ (state : Yulang.GeneralSourceState.State) (name : Nat)
+  (bounds : Fin state.slots × Fin state.slots),
+  Yulang.GeneralCandidateIntervals.MergeLinked state [(name, bounds)] fun x => bounds
+Yulang.GeneralCandidateIntervals.two_alternatives_models : ∀ (state : Yulang.GeneralSourceState.State)
+  (first last : Yulang.GeneralCandidateIntervals.Bindings state) (model : Yulang.GeneralSourceState.Assignment),
+  Yulang.GeneralSourceState.Models
+      (Yulang.GeneralDictionaryEquationRecording.append state
+        (Yulang.CommonRoleCandidateConstraints.generate first ++ Yulang.CommonRoleCandidateConstraints.generate last))
+      model ↔
+    Yulang.GeneralSourceState.Models state model ∧
+      Yulang.CommonRoleCandidateConstraints.Compatible first (state.assignment model) ∧
+        Yulang.CommonRoleCandidateConstraints.Compatible last (state.assignment model)
+@Yulang.GeneralCandidateInspection.inspection_recurrence : ∀ {state : Yulang.GeneralSourceState.State}
+  (view : Yulang.GeneralNormalizedObservation.Snapshot state) (report : Yulang.GeneralCandidateInspection.Report state),
+  Yulang.GeneralCandidateInspection.NeedsK2 view report →
+    ∃ visit,
+      visit ∈ report.inspected ∧
+        Yulang.GeneralSourceK2.Complete view visit.bounds.fst ∧ Yulang.GeneralSourceK2.RecursAt view visit.bounds.fst
+@Yulang.GeneralCandidateInspection.append_preserves_inspections : ∀ {state : Yulang.GeneralSourceState.State}
+  (first last : Yulang.GeneralCandidateInspection.Report state) (visit : Yulang.GeneralCandidateInspection.Visit state),
+  visit ∈ (first.append last).inspected ↔ visit ∈ first.inspected ∨ visit ∈ last.inspected
+@Yulang.GeneralCandidateInspection.append_preserves_blockers : ∀ {state : Yulang.GeneralSourceState.State}
+  (first last : Yulang.GeneralCandidateInspection.Report state)
+  (issue : Yulang.GeneralCandidateInspection.Visit state × Yulang.GeneralCandidateInspection.Reason),
+  issue ∈ (first.append last).blocked ↔ issue ∈ first.blocked ∨ issue ∈ last.blocked
+@Yulang.GeneralCandidateInspection.variable_does_not_inspect : ∀ {state : Yulang.GeneralSourceState.State}
+  (view : Yulang.GeneralNormalizedObservation.Snapshot state) (names : List Nat)
+  (bounds : Yulang.GeneralCandidateInspection.Bounds state),
+  (Yulang.GeneralCandidateInspection.inspect view (Yulang.GeneralCandidateInspection.Query.variables names)
+          bounds).inspected =
+      [] ∧
+    (Yulang.GeneralCandidateInspection.inspect view (Yulang.GeneralCandidateInspection.Query.variables names)
+          bounds).captures =
+      List.map (fun name => (name, bounds)) names
+@Yulang.GeneralCandidateInspection.unresolved_constructor_defers : ∀ {state : Yulang.GeneralSourceState.State}
+  (view : Yulang.GeneralNormalizedObservation.Snapshot state) (shape : Yulang.GeneralNormalizedObservation.Shape)
+  (children : List Yulang.GeneralCandidateInspection.Query) (bounds : Yulang.GeneralCandidateInspection.Bounds state)
+  (reason : Yulang.GeneralNormalizedObservation.Deferred state.slots),
+  view.heads bounds.fst = Yulang.GeneralNormalizedObservation.Head.deferred reason →
+    (Yulang.GeneralCandidateInspection.inspect view (Yulang.GeneralCandidateInspection.Query.node shape children)
+          bounds).blocked ≠
+      []
+@Yulang.GeneralCandidateInspection.untranslated_application_defers : ∀ {state : Yulang.GeneralSourceState.State}
+  (view : Yulang.GeneralNormalizedObservation.Snapshot state)
+  (primitives : Yulang.GeneralCandidateInspection.Primitives) (constructor : Nat)
+  (arguments : List Yulang.GeneralDeclarationPatterns.Pattern)
+  (bounds : Yulang.GeneralCandidateInspection.Bounds state),
+  primitives constructor = none →
+    (Yulang.GeneralCandidateInspection.inspect view
+          (Yulang.GeneralCandidateInspection.translate primitives
+            (Yulang.GeneralDeclarationPatterns.Pattern.app constructor arguments))
+          bounds).blocked ≠
+      []
+Yulang.GeneralCandidateInspection.merged_plain_payload : ∀ (primitives : Yulang.GeneralCandidateInspection.Primitives)
+  (first last tag : Nat),
+  Yulang.GeneralCandidateInspection.translate primitives
+      (Yulang.GeneralDeclarationPatterns.Pattern.variant tag
+        ((Yulang.GeneralDeclarationPatterns.Pattern.var first).join
+          (Yulang.GeneralDeclarationPatterns.Pattern.var last))) =
+    Yulang.GeneralCandidateInspection.Query.node (Yulang.GeneralNormalizedObservation.Shape.variant tag)
+      [Yulang.GeneralCandidateInspection.Query.variables [first, last]]
+@Yulang.GeneralCandidateBoundaryParts.pending_excludes_rootK2 : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralCandidateBoundaryParts.Context roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.GeneralCandidateBoundaryParts.RootPending context root →
+    ¬Yulang.GeneralCandidateBoundaryParts.RootK2 context root
+@Yulang.GeneralCandidateBoundaryParts.pending_excludes_candidateK2 : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralCandidateBoundaryParts.Context roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.GeneralCandidateBoundaryParts.RootPending context root →
+    ¬Yulang.GeneralCandidateBoundaryParts.CandidateK2 registry context root
+@Yulang.GeneralCandidateBoundaryParts.rootK2_recurrence : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralCandidateBoundaryParts.Context roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.GeneralCandidateBoundaryParts.RootK2 context root →
+    ∃ argument slot,
+      context.state.source slot = (root.demand.arguments argument).fst ∧
+        Yulang.GeneralSourceK2.RecursAt context.view slot
+@Yulang.GeneralCandidateBoundaryParts.prepared_headReady : ∀ {roles : Yulang.Roles.RoleDecls}
+  {constructors : Yulang.GeneralDeclarationPatterns.Constructors}
+  (context : Yulang.GeneralCandidateBoundaryParts.Context roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked constructors roles declaration),
+  Yulang.GeneralCandidateBoundaryParts.Prepared context root declaration checked →
+    Yulang.GeneralCandidateBoundaryParts.HeadReady context root declaration
+@Yulang.GeneralCandidateBoundaryParts.headReady_not_failed : ∀ {roles : Yulang.Roles.RoleDecls}
+  (constructors : Yulang.GeneralDeclarationPatterns.Constructors)
+  (context : Yulang.GeneralCandidateBoundaryParts.Context roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration),
+  Yulang.GeneralCandidateBoundaryParts.HeadReady context root declaration →
+    ¬Yulang.GeneralCandidateBoundaryParts.Failed constructors context root declaration
+@Yulang.GeneralCandidateBoundaryParts.conservative_deferral : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralCandidateBoundaryParts.Context roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  ¬Yulang.GeneralCandidateBoundaryParts.RootPending context root →
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        ∀ (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration),
+          declaration.role = root.demand.role →
+            ¬Yulang.GeneralCandidateBoundaryParts.Failed registry.constructors context root declaration →
+              ¬Yulang.GeneralCandidateBoundaryParts.Prepared context root declaration checked →
+                Yulang.GeneralCandidateBoundaryParts.InspectionPending registry context root
+@Yulang.GeneralCandidateBoundaryParts.blocked_unprepared : ∀ {roles : Yulang.Roles.RoleDecls}
+  {constructors : Yulang.GeneralDeclarationPatterns.Constructors}
+  (context : Yulang.GeneralCandidateBoundaryParts.Context roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked constructors roles declaration)
+  (bounds : List (Yulang.GeneralCandidateInspection.Bounds context.state)),
+  Yulang.GeneralCandidateBoundaryParts.arguments context root = some bounds →
+    (Yulang.GeneralCandidateBoundaryParts.report context root declaration bounds).blocked ≠ [] →
+      ¬Yulang.GeneralCandidateBoundaryParts.Prepared context root declaration checked
+@Yulang.GeneralCandidateBoundaryParts.private_model_not_failed : ∀ {roles : Yulang.Roles.RoleDecls}
+  (constructors : Yulang.GeneralDeclarationPatterns.Constructors)
+  (context : Yulang.GeneralCandidateBoundaryParts.Context roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (bounds : List (Yulang.GeneralCandidateInspection.Bounds context.state)),
+  Yulang.GeneralCandidateBoundaryParts.arguments context root = some bounds →
+    (Yulang.GeneralCandidateBoundaryParts.report context root declaration bounds).conflicts = [] →
+      ∀ (model : Yulang.GeneralSourceState.Assignment),
+        Yulang.GeneralSourceState.Models
+            (Yulang.GeneralCandidateIntervals.propagate context.state
+              (Yulang.GeneralCandidateBoundaryParts.report context root declaration bounds).captures)
+            model →
+          ¬Yulang.GeneralCandidateBoundaryParts.Failed constructors context root declaration
+@Yulang.GeneralCandidateBoundaryParts.all_failed_no_survivors : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralCandidateBoundaryParts.Context roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  (∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        declaration.role = root.demand.role →
+          Yulang.GeneralCandidateBoundaryParts.Failed registry.constructors context root declaration) →
+    (∀ (key : Nat) (children : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+        ¬Yulang.GeneralCandidateBoundaryParts.Survivor registry context root key children) ∧
+      ¬Yulang.GeneralCandidateBoundaryParts.InspectionPending registry context root
+@Yulang.GeneralCandidateBoundaryParts.survivor_children_functional : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralDeclarations.Checked registry →
+    ∀ (context : Yulang.GeneralCandidateBoundaryParts.Context roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+      (first last : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+      Yulang.GeneralCandidateBoundaryParts.Survivor registry context root key first →
+        Yulang.GeneralCandidateBoundaryParts.Survivor registry context root key last → first = last
+@Yulang.GeneralCandidateBoundaryParts.survivor_interval_sound : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralCandidateBoundaryParts.Context roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (children : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+  Yulang.GeneralCandidateBoundaryParts.Survivor registry context root key children →
+    ∃ declaration,
+      declaration ∈ registry.declarations ∧
+        declaration.id = key ∧
+          ∃ bounds,
+            Yulang.GeneralCandidateBoundaryParts.arguments context root = some bounds ∧
+              ∀ (model : Yulang.GeneralSourceState.Assignment),
+                Yulang.GeneralSourceState.Models
+                    (Yulang.GeneralCandidateIntervals.propagate context.state
+                      (Yulang.GeneralCandidateBoundaryParts.report context root declaration bounds).captures)
+                    model →
+                  Yulang.GeneralSourceState.Models context.state model ∧
+                    Yulang.CommonRoleCandidateConstraints.Compatible
+                      (Yulang.GeneralCandidateBoundaryParts.report context root declaration bounds).captures
+                      (context.state.assignment model)
+@Yulang.GeneralCandidateBoundaryParts.candidateK2_inspected_recurrence : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralCandidateBoundaryParts.Context roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.GeneralCandidateBoundaryParts.CandidateK2 registry context root →
+    ∃ declaration,
+      declaration ∈ registry.declarations ∧
+        ∃ bounds,
+          Yulang.GeneralCandidateBoundaryParts.arguments context root = some bounds ∧
+            ∃ visit,
+              visit ∈ (Yulang.GeneralCandidateBoundaryParts.report context root declaration bounds).inspected ∧
+                Yulang.GeneralSourceK2.Complete context.view visit.bounds.fst ∧
+                  Yulang.GeneralSourceK2.RecursAt context.view visit.bounds.fst
+Yulang.GeneralCandidateBoundaryParts.local_total_of_extension : ∀ (roles : Yulang.Roles.RoleDecls)
+  (boundary : Yulang.B4Target.SourceBoundary (Yulang.GeneralCandidateBoundaryParts.vocabulary roles))
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralDeclarations.Checked registry →
+    ∀ (context : Yulang.GeneralCandidateBoundaryParts.Context roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      (∀ (key : Nat) (children : List (Yulang.GeneralCandidateBoundaryParts.vocabulary roles).Demand),
+          boundary.Survivor registry context root key children ↔
+            Yulang.GeneralCandidateBoundaryParts.Survivor registry context root key children) →
+        ∃ frontier, Yulang.B4TargetV3.Local boundary registry context root frontier
+Yulang.GeneralCandidateExamples.recursive_head_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralCandidateExamples.constructors Yulang.GeneralCandidateExamples.roles
+  Yulang.GeneralCandidateExamples.recursiveHead
+Yulang.GeneralCandidateExamples.root_arguments : ∀ (resolved : Bool),
+  Yulang.GeneralCandidateBoundaryParts.arguments (Yulang.GeneralCandidateExamples.context resolved)
+      Yulang.GeneralCandidateExamples.root =
+    some [(0, 0)]
+Yulang.GeneralCandidateExamples.translated_record : Yulang.GeneralCandidateInspection.headQueries
+    Yulang.GeneralCandidateExamples.primitives Yulang.GeneralCandidateExamples.recursiveHead =
+  [Yulang.GeneralCandidateInspection.Query.node (Yulang.GeneralNormalizedObservation.Shape.record [8])
+      [Yulang.GeneralCandidateInspection.Query.node (Yulang.GeneralNormalizedObservation.Shape.record [7])
+          [Yulang.GeneralCandidateInspection.Query.variables [0]]]]
+Yulang.GeneralCandidateExamples.recursive_captures : (Yulang.GeneralCandidateBoundaryParts.report
+      (Yulang.GeneralCandidateExamples.context true) Yulang.GeneralCandidateExamples.root
+      Yulang.GeneralCandidateExamples.recursiveHead [(0, 0)]).captures =
+  [(0, 1, 1)]
+Yulang.GeneralCandidateExamples.recursive_state_model : Yulang.GeneralSourceState.Models
+  (Yulang.GeneralCandidateExamples.recordState true) Yulang.GeneralCandidateExamples.recordModel
+Yulang.GeneralCandidateExamples.recursive_private_model : Yulang.GeneralSourceState.Models
+  (Yulang.GeneralCandidateIntervals.propagate (Yulang.GeneralCandidateExamples.recordState true)
+    (Yulang.GeneralCandidateBoundaryParts.report (Yulang.GeneralCandidateExamples.context true)
+        Yulang.GeneralCandidateExamples.root Yulang.GeneralCandidateExamples.recursiveHead [(0, 0)]).captures)
+  Yulang.GeneralCandidateExamples.recordModel
+Yulang.GeneralCandidateExamples.recursive_head_ready : Yulang.GeneralCandidateBoundaryParts.HeadReady
+  (Yulang.GeneralCandidateExamples.context true) Yulang.GeneralCandidateExamples.root
+  Yulang.GeneralCandidateExamples.recursiveHead
+Yulang.GeneralCandidateExamples.recursive_inspection_K2 : Yulang.GeneralCandidateInspection.NeedsK2
+  (Yulang.GeneralCandidateExamples.recordView true)
+  (Yulang.GeneralCandidateBoundaryParts.report (Yulang.GeneralCandidateExamples.context true)
+    Yulang.GeneralCandidateExamples.root Yulang.GeneralCandidateExamples.recursiveHead [(0, 0)])
+Yulang.GeneralCandidateExamples.candidate_K2_example : Yulang.GeneralCandidateBoundaryParts.CandidateK2
+  Yulang.GeneralCandidateExamples.registry (Yulang.GeneralCandidateExamples.context true)
+  Yulang.GeneralCandidateExamples.root
+Yulang.GeneralCandidateExamples.reached_constructor_not_root : ¬Yulang.GeneralCandidateBoundaryParts.RootK2
+    (Yulang.GeneralCandidateExamples.context true) Yulang.GeneralCandidateExamples.root
+Yulang.GeneralCandidateExamples.descendant_inspection_deferred : (Yulang.GeneralCandidateBoundaryParts.report
+      (Yulang.GeneralCandidateExamples.context false) Yulang.GeneralCandidateExamples.root
+      Yulang.GeneralCandidateExamples.recursiveHead [(0, 0)]).blocked ≠
+  []
+Yulang.GeneralCandidateExamples.inspection_pending_example : Yulang.GeneralCandidateBoundaryParts.InspectionPending
+  Yulang.GeneralCandidateExamples.registry (Yulang.GeneralCandidateExamples.context false)
+  Yulang.GeneralCandidateExamples.root
+Yulang.GeneralCandidateExamples.recursive_survivor : Yulang.GeneralCandidateBoundaryParts.Survivor
+  Yulang.GeneralCandidateExamples.registry (Yulang.GeneralCandidateExamples.context true)
+  Yulang.GeneralCandidateExamples.root 40 []
+Yulang.GeneralCandidateExamples.display_application_deferred : ∀ (resolved : Bool),
+  (Yulang.GeneralCandidateBoundaryParts.report (Yulang.GeneralCandidateExamples.context resolved)
+        Yulang.GeneralCandidateExamples.root Yulang.GeneralDeclarationExamples.display [(0, 0)]).blocked ≠
+    []
+Yulang.GeneralCandidateExamples.wrap_application_deferred : ∀ (resolved : Bool),
+  (Yulang.GeneralCandidateBoundaryParts.report (Yulang.GeneralCandidateExamples.context resolved)
+        Yulang.GeneralCandidateExamples.root Yulang.GeneralDeclarationExamples.wrap [(0, 0)]).blocked ≠
+    []
+Yulang.GeneralCandidateExamples.K2_with_other_inspection_pending : Yulang.GeneralCandidateBoundaryParts.CandidateK2
+    Yulang.GeneralCandidateExamples.mixedRegistry (Yulang.GeneralCandidateExamples.context true)
+    Yulang.GeneralCandidateExamples.root ∧
+  Yulang.GeneralCandidateBoundaryParts.InspectionPending Yulang.GeneralCandidateExamples.mixedRegistry
+    (Yulang.GeneralCandidateExamples.context true) Yulang.GeneralCandidateExamples.root
+Yulang.GeneralCandidateConflictExamples.repeated_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralCandidateExamples.constructors Yulang.GeneralCandidateExamples.roles
+  Yulang.GeneralCandidateConflictExamples.repeated
+Yulang.GeneralCandidateConflictExamples.repeated_capture : (Yulang.GeneralCandidateBoundaryParts.report
+      Yulang.GeneralCandidateConflictExamples.context Yulang.GeneralCandidateConflictExamples.root
+      Yulang.GeneralCandidateConflictExamples.repeated [(0, 0), (1, 1)]).captures =
+  Yulang.GeneralCandidateConflictExamples.bindings
+Yulang.GeneralCandidateConflictExamples.known_arguments : Yulang.GeneralCandidateBoundaryParts.arguments
+    Yulang.GeneralCandidateConflictExamples.context Yulang.GeneralCandidateConflictExamples.root =
+  some [(0, 0), (1, 1)]
+Yulang.GeneralCandidateConflictExamples.known_lower_heads : ¬Yulang.GeneralCandidateBoundaryParts.RootPending
+    Yulang.GeneralCandidateConflictExamples.context Yulang.GeneralCandidateConflictExamples.root
+Yulang.GeneralCandidateConflictExamples.original_has_model : Yulang.GeneralSourceState.Models
+  Yulang.GeneralSourceStateExamples.indexAfter
+  (Yulang.GeneralSourceStateExamples.indexModel (Yulang.CommonSyntax.Layer.base Yulang.Inference.Base.int))
+Yulang.GeneralCandidateConflictExamples.cross_constraints_eliminate : Yulang.GeneralCandidateIntervals.Eliminated
+  Yulang.GeneralSourceStateExamples.indexAfter Yulang.GeneralCandidateConflictExamples.bindings
+Yulang.GeneralCandidateConflictExamples.known_all_candidates_fail : (∀ (key : Nat)
+    (children : List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralCandidateExamples.roles)),
+    ¬Yulang.GeneralCandidateBoundaryParts.Survivor Yulang.GeneralCandidateConflictExamples.registry
+        Yulang.GeneralCandidateConflictExamples.context Yulang.GeneralCandidateConflictExamples.root key children) ∧
+  ¬Yulang.GeneralCandidateBoundaryParts.InspectionPending Yulang.GeneralCandidateConflictExamples.registry
+      Yulang.GeneralCandidateConflictExamples.context Yulang.GeneralCandidateConflictExamples.root
+Yulang.GeneralCandidateConflictExamples.unresolved_second_input_pending : Yulang.GeneralCandidateBoundaryParts.RootPending
+    Yulang.GeneralCandidateConflictExamples.before Yulang.GeneralCandidateConflictExamples.root ∧
+  ¬Yulang.GeneralCandidateBoundaryParts.RootK2 Yulang.GeneralCandidateConflictExamples.before
+        Yulang.GeneralCandidateConflictExamples.root ∧
+    ¬Yulang.GeneralCandidateBoundaryParts.CandidateK2 Yulang.GeneralCandidateConflictExamples.registry
+        Yulang.GeneralCandidateConflictExamples.before Yulang.GeneralCandidateConflictExamples.root
+```
+
+### Verification and review for Item 3
+
+Final commands, each run from `lean/`:
+
+| Exact command | Exit code |
+| --- | --- |
+| `lake build Yulang.GeneralCandidateIntervals Yulang.GeneralCandidateInspection Yulang.GeneralCandidateBoundaryParts Yulang.GeneralCandidateExamples Yulang.GeneralCandidateConflictExamples > /tmp/astra-candidates-focused.log 2>&1` | 0 |
+| `lake build Yulang > /tmp/astra-candidates-umbrella.log 2>&1` | 0 |
+| `lake env lean Audit.lean > /tmp/astra-candidates-audit.log 2>&1` | 0 |
+| `lake env lean /tmp/astra-candidates-signatures.lean > /tmp/astra-candidates-signatures.txt 2>&1` | 0 |
+
+The focused build completed 542 jobs; the umbrella build completed 1382 jobs.
+The full audit contained 8705 dependency reports, including all 58 new public
+theorems. Its complete dependency whitelist was exactly `propext`,
+`Classical.choice`, and `Quot.sound`. The report count includes existing entries
+and is not a count of new independent results.
+
+Append-only checks confirmed that existing `Yulang.lean` and `Audit.lean` bytes
+remain unchanged prefixes. Only five imports and 58 audit entries were added.
+New-file token/whitespace checks, theorem/signature/audit coverage, allowed-path
+checks, and `git diff --check` passed. No existing implementation module, spec,
+plan, lake configuration, commit, push, or git reference was changed.
+
+Earlier focused elaboration attempts failed while resolving dependent finite
+indices, recursive-function rewriting, and proof simplification. Those failures
+were corrected only in new modules. The initial signature harness used an
+unsupported pretty-printer option; removing it produced the recorded exit-0
+inventory. No failed command is counted as a successful final check.
+
+The `yulang-proofs` skill was applied. No registered prover role or launch
+configuration was available, so the primary constructed the bounded derivations;
+no prover agent ran. A separate read-only reviewer examined all five modules,
+source limitations, the final Item 3 table and all 58 signatures. The reviewer
+found no blocking defect in the stated partial claims, checked the append-only
+and inventory restrictions, and requested a wording correction clarifying that
+row injectivity is required by the current lifting proof, not inherently by the
+language. That correction is incorporated. The reviewer did not independently
+run Lean builds. Neither review nor these checks certify completion of Item 3,
+a full SourceBoundary, or any concrete general B4 bridge.

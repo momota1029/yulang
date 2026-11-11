@@ -59,3 +59,34 @@ or arbitrary head/output interpretation predicates. A successful headless tree
 should supply Evidence for this relation in every model of the recorded batch.
 This remains supported-variable source evidence, not full nominal/compound
 pattern semantics or a completed general B4 boundary instance.
+
+## Fresh supervisor candidate components: explicit joining boundary
+
+At22:45UTC integration advanced toac106dc2 with Astra's general candidate
+components. Inbox stayed ACTIVE78b90e434. These components were incorporated,
+without changing their definitions. Their current EmissionsReady explicitly
+requires root.demand.outputs = []. This is a conservative coverage restriction,
+not a language restriction. The new checked output-bearing producer dictionary
+is therefore outside that Survivor range for every candidate context. Record
+this mismatch as a theorem rather than claiming the two parts already compose.
+The next joint task is to feed the computed output package and source evidence
+into the candidate-owned emission readiness interface while preserving knownness,
+private candidate propagation and the supplied-frame provenance obligations.
+Astra owns that interface; dot does not relax its guard autonomously.
+
+## Removing caller-supplied source-slot positions
+
+State.source is injective and every demand already contains source identities.
+The endpoint/target slot vectors are therefore computable by existing sourceSlot,
+without choosing new identities or changing source semantics. A new localization
+function should return HeadlessInputs exactly when every unnamed endpoint and
+output target occurs in the existing source map. Linked is a sufficient stronger
+condition because it additionally records interval membership. Repeated targets
+remain repeated obligations, not deduplicated storage.
+
+A source-only finite recipe can then contain just occurrence, selected key and
+children. Localizing it computes all positional vectors before the existing
+headless whole-tree builder runs. Successful preparation should retain the same
+actual source-evidence theorem without any caller-supplied positions, head terms,
+output terms or realization proofs. Missing source identities defer. This does
+not construct the demand, frame/capture/allocation, selected key or tree shape.

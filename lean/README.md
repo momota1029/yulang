@@ -4640,3 +4640,23 @@ source localization and repeated output targets. A concrete joint model prevents
 vacuity. Missing/extra/wrong-identity child recipes and unsupported captured
 heads defer. No candidate resolution, capture discovery, known-head guard,
 nominal/compound/default semantics, saturation or general B4 completion is claimed.
+
+`GeneralDictionaryHeadlessRealization` constructs compatible binder values from
+supported checked heads for every source assignment. `GeneralDictionaryHeadlessSourceEvidence`
+then supplies an independent actual variable-declaration Instance, without local
+term packages or arbitrary meaning predicates. The fixed dictionary is valid in
+all joint models; the binder values may vary with each assignment.
+`GeneralDictionaryHeadlessSemanticOrder` transports arbitrary source Evidence
+under visible/where reordering, including evidence not produced by this compiler.
+`GeneralDictionaryHeadlessSourceExamples` demonstrates the exact limit: compatible
+unequal endpoint identities can satisfy Instance while the partial compiler defers.
+`GeneralDictionaryHeadlessCandidateBoundary` records that the freshly integrated
+partial candidate range still requires empty root outputs, so it does not yet
+certify the already materialized output-bearing dictionary fixture.
+
+`GeneralDictionaryHeadlessLocations` computes all demand endpoint and output-target
+slots, with exact source-membership coverage and completeness from Linked.
+`GeneralDictionarySourceRecipe` therefore needs only occurrences, selected keys
+and finite child shape; source positions and all term vectors are computed.
+Its all-model source-evidence theorem leaves frames/captures/allocation and
+chosen keys explicit. Missing source identities defer instead of allocating.
