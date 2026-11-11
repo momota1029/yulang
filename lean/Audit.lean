@@ -8989,3 +8989,10 @@ run_cmd do
 #print axioms Yulang.CommonRoleScalarTargetObstruction.steps_unchanged
 #print axioms Yulang.CommonRoleScalarTargetObstruction.old_target_impossible
 #print axioms Yulang.CommonRoleScalarTargetObstruction.old_bridges_impossible
+
+-- General boundary inventory: ordinary components and interface obstructions.
+#print axioms Yulang.GeneralSourceBoundary.reconcile_models
+#print axioms Yulang.GeneralSourceBoundary.reconcile_graph_models
+#print axioms Yulang.GeneralSourceBoundary.unresolved_excludes_graphK2
+#print axioms Yulang.GeneralSourceBoundary.pending_excludes_resolvedEmpty
+#print axioms Yulang.GeneralSourceBoundary.legacy_frontier_obstruction
