@@ -2044,3 +2044,680 @@ row injectivity is required by the current lifting proof, not inherently by the
 language. That correction is incorporated. The reviewer did not independently
 run Lean builds. Neither review nor these checks certify completion of Item 3,
 a full SourceBoundary, or any concrete general B4 bridge.
+
+## Item 3b — nominal/Common correspondence and derived invocation frames (2026-11-12)
+
+This increment connects the shared source identities and ordinary terms to
+`CommonNominalFullCarrier`, and proves the positive Display and Wrap examples
+with genuine nominal values. It does **not** finish general Item 3. The model
+represents arbitrary invariant type/row interval descriptors, but the supported
+nominal inspection range currently requires existing identical endpoint IDs,
+complete reachable observations, and no explicit nominal-argument recurrence.
+Other observations defer. No complete `SourceBoundary` or executor is defined.
+
+### Carrier and model correspondence
+
+`GeneralNominalCommonBridge.lift` uses
+`CommonNominalFullModelMap.value`, which preserves constructors and preserves
+and reflects Common subtyping. `row_eval`, `type_eval`, `atom_exact`, and
+`atoms_exact` transport the existing ordinary terms and constraints. The source
+and independent row identity maps are unchanged. `models_exact` proves exact
+agreement with old `GeneralSourceState.Models` **on lifted Common assignments**.
+It does not apply a Common-only certificate or the nominal retraction to an
+arbitrary full-carrier assignment.
+
+For arbitrary full assignments, the interpretation explicitly retains the
+recorded source-head equations and interval inequalities in addition to the
+ordinary atoms. Their redundancy is proved on lifted old assignments; no
+universal full-carrier `Models ↔ original ordinary atoms alone` theorem is
+claimed. Automatic production of these full source equations is still part of
+the source-generation/Step bridge. The examples here give the equations
+explicitly and construct actual full models satisfying them.
+
+`GeneralNominalState.State` extends this same finite source snapshot and its
+normalized view. A nominal descriptor carries a catalogue key, the resolved
+`Constructor.name`, its checked parameter layout, and references to the same
+source endpoint slots. `Denotes` says that the root is equivalent to a genuine
+`CommonNominalFullCarrier.nominal` value whose semantic arguments satisfy those
+intervals. These mathematical model witnesses are **not** allocated source
+centres and are never searched as candidate substitutions. Type and row
+parameters are represented independently. Nominal bodies are absent.
+
+The existing normalization derivations are replayed against arbitrary full
+assignments by `GeneralNominalCommonBridge.rewrites_sound`: hidden-field
+removal, distinct-field reordering, required-field/empty-tail equality, and
+same-tag merging all hold with nominal children. The full finite observation
+proofs reuse the existing Common normalization argument and full nominal
+constructor/probe laws. `normalization_preserves` proves that the normalized
+observations add no restriction to this full interpretation. K2 still uses the
+existing normalized structural recurrence definition, not raw graph flags;
+`embed_pending`, `embed_K2`, `atK2_recurrence`, and the regression theorems make
+that preservation explicit. Mixed nominal/structural K2 is not claimed.
+
+This implements the opacity and invariant-argument decisions of spec §6.3–6.4,
+while retaining the root-recurrence reading of draft rejection (i). It does not
+reinterpret `list` as a record or variant. Source metadata distinguishes
+primitive names from invariant nominal applications; inspection compares
+resolved `.name`, not catalogue indices. Catalogue-to-front-end provenance and
+unsupported variance/layout interpretations remain open bridges.
+
+### Why broad nominal observations still defer
+
+Interval membership by itself is insufficient as an exact inspection view.
+For example, consider two inputs fixed by ordinary equations to `list int`
+and `list str`, both recorded with coarse parameter bounds `(bottom, top)`.
+For the head `R(list 'a, list 'a)`, intersecting those coarse bounds would
+succeed despite the already fixed invariant parameters being incompatible.
+The missing piece is propagation from arbitrary nominal equations back into
+precise interval observations, preserving all original model constraints.
+This is a proof/representation gap, not a new owner semantic question.
+
+Accordingly, `typeArguments` accepts only existing identical type endpoint IDs.
+`fits_existing_endpoint` and `denotes_singleton_exact` prove the resulting
+actual-nominal correspondence. This is an explicit restricted inspection range,
+not a general interval implementation disguised as a completed field. Broad
+intervals remain representable by `Descriptor`/`Denotes` and are blocked, never
+turned into an interval failure. Different but provably equal IDs also defer
+until that normalization bridge is supplied. No new midpoint is introduced.
+
+There is a second coverage guard. A source equation such as `x ≈ list x` is
+recursion through an **explicit argument**, unlike a named declaration's opaque
+recursive body. `explicitSuccessors` follows normalized structural children
+and existing point parameter references, without body edges. `NominalSupported`
+requires all reached observations to be known and forbids cycles through any
+reached nominal parameter position. This also blocks a hidden cycle through
+an unresolved alias. It permits an acyclic nominal wrapper pointing to a known
+pure structural cycle; inspecting that structural position uses the existing
+K2 theorem. These are conservative coverage conditions, not a newly decided
+rejection rule. Every unnamed root position is included in the report, so a
+bare-variable implementation cannot bypass this coverage check. General mixed
+recurrence normalization remains MISSING.
+
+Arrow-row normalization, non-point nominal interval propagation, row-pattern
+inspection, lower/upper parameter layouts, covariance outside an invariant
+context, and alias canonicalization have not been implemented by this increment.
+Their observations stay deferred. The current catalogue lacks general variance
+metadata; `Interpretation.invariantNominal` explicitly identifies the supported
+source interpretation instead of asserting all constructors are invariant.
+
+### Allocation and candidate lifecycle
+
+`GeneralNominalIdentities.encode` injectively encodes invocation, declaration,
+purpose, clause/binder, and position. The source snapshot retains a seed and
+allocated origins. Its numeric IDs are independent of registry enumeration and
+remain identical after private reservation/propagation. Distinct invocations
+have distinct generated IDs even from the same snapshot. The finite requested
+origin list is derived from the actual declarations and clauses; it is not an
+externally supplied frame.
+
+`GeneralNominalAllocation.capture`, `allocation`, and `frame` derive capture and
+child identities. A single captured occurrence retains its original interval;
+repeated occurrences obtain separate union-of-lowers and intersection-of-uppers
+identities. `cross` generates every self and repeated-variable cross inequality.
+`propagate` reserves the generated identities, records their ownership, and
+adds these ordinary constraints to a candidate-private extension. Output-only
+binders receive fresh ordinary identities, without a value equation until the
+appropriate associated result is supplied. All ordinary free type and row IDs
+are included in `sources`, so freshness does not ignore an existing constraint
+simply because its ID is absent from the old inspection graph.
+
+`Fresh` allows an origin's revisit and blocks collisions with unrelated state
+sources. Both preparation and interval-failure classification require freshness;
+`allocation_collision_defers` prevents an accidental generated collision from
+becoming an empty-candidate rejection. `source_registry_independent` and
+`propagated_source_preserved` prove the relevant identity properties. Allocation
+under future Step updates must retain the seed and ownership records. This is
+not a proof of a source invocation-tree producer or a complete reordering bridge.
+
+`Survivor` takes registry, context, root, key, and children. It takes **no supplied
+frame or merged-slot map**. Children are exactly the existing canonical emitter's
+whole clause list, including named equations and obligation identities. Their
+source support is checked in the private extension. Child success is not a
+survivor premise; the where list remains a conjunction and candidates remain
+separate alternatives. `Consistent` is mathematical satisfiability of propagated
+full-state equations, independent of an executor. It is not an effective
+complete full-carrier solver or a substitution enumeration.
+
+`survivor_interval_sound` quantifies over **every model of that candidate's
+private propagated state**, and recovers the original state model plus all
+captured self/cross inequalities. It does not say that all models of the
+unextended state already satisfy every alternative's constraints. A general
+fresh-model extension/completeness theorem and an effective solver remain open.
+The same-key child-functionality proof gives V3 local totality only conditionally
+for a future complete boundary extending this exact relation.
+
+Associated RHS materialization is still restricted. The positive Wrap demand is
+`Wrap (list int)` with no requested root output; its implementation retains
+`out = list 'b` and its emitted Container child carries `item = 'b` at a computed,
+fresh, reserved target. The theorem does not execute Container, construct the
+root `out` value, or select a dictionary. Compound child input/output RHS requests
+and requested root outputs remain deferred. The where child itself is emitted
+before its resolution, as the draft's lossless-tree requirement demands.
+
+The new owner rule merging equal-input demands belongs to Item 4 and is not
+implemented here. Fresh identity inequalities never imply unequal denotations:
+`Models` permits equal values at different IDs. Item 4 can therefore add output
+equalities for same-role demands with equal unnamed inputs, while preserving
+obligation provenance and allocation ownership.
+
+### Vocabulary, executor, and all thirteen boundary fields
+
+All definitions below are independent of an executor result. “Partial” means
+that the general carrier exists but a complete faithful field is still MISSING;
+it must not be silently installed as a finished general boundary.
+
+| Component | Concrete definition / status | Faithfulness and remaining boundary |
+| --- | --- | --- |
+| Vocabulary.Registry | **Defined:** `GeneralDeclarations.Registry` | Full checked declarations, where equations, output-only binders and source IDs; spec §6.3. |
+| Vocabulary.State | **Defined extension:** `GeneralNominalCandidates.Context`, containing `GeneralNominalState.State` | Shared old source/row maps, full ordinary equations, nominal interval descriptors, normalized view, reservation and ownership. Snapshot construction is not source reachability. |
+| Vocabulary.Demand | **Defined:** `GeneralSourceDictionaries.Occurrence roles` / `GeneralSourceState.Demand roles` | Same role-arity-indexed unnamed intervals and named output obligations; addenda 3–4. |
+| Vocabulary.Model | **Defined:** `GeneralNominalCommonBridge.Assignment` | `Nat → Comp CommonNominalFullCarrier.model`; exact old Common lifting, genuine opaque nominal constructors. |
+| Checked | **Defined:** `GeneralDeclarations.Checked`; future adapter also requires `registry.roles = roles` | Existing general declaration rules, including output-only checking; no resolution dependence. |
+| Models | **Defined:** `GeneralNominalState.Models` | General full-carrier equations plus nominal descriptor meaning. Exact old correspondence is on lifted assignments, as stated above. |
+| Step | **MISSING** | No complete shared full-state saturation, nominal equation-to-interval propagation, materialization, or equal-input demand merging. |
+| Stable | **MISSING** | No general fixed-point/end-of-file stability predicate tied to that Step. |
+| Generated | **MISSING** | No general source producer for full checked snapshots, occurrence identities and all obligations. |
+| RootPending | **Defined on the snapshot:** `GeneralNominalState.RootPending` | Every unnamed lower root must have a normalized ordinary or nominal observation; named outputs are excluded, addenda 3–4. |
+| RootK2 | **Partial:** `GeneralNominalState.RootK2` / `AtK2` | Gated by absence of RootPending; sound against normalized structural `RecursAt`. General mixed nominal recurrence classification is **MISSING**; incomplete observations defer through coverage when candidates are inspected. |
+| CandidateK2 | **Partial:** `GeneralNominalCandidates.CandidateK2` | Uses inspected normalized structural recurrence, never raw cycles; independent of absence of InspectionPending. Mixed nominal recurrence remains **MISSING**. |
+| InspectionPending | **Partial:** `GeneralNominalCandidates.InspectionPending` | Retains visible checked candidates blocked by observation, freshness or materialization; `coverage_defers` and `allocation_collision_defers` prove conservative deferral. Complete general normalization/applicability remains **MISSING**. |
+| Survivor | **Partial:** `GeneralNominalCandidates.Survivor` | Genuine nominal positive examples and derived frames now work. Non-point nominal inspection, general materialization and a complete full solver bridge remain **MISSING**. This support restriction is explicit; it is not an int/str replacement for the model. |
+| Evidence | **MISSING for this full-state boundary** | Existing `GeneralSourceDictionaries*` / `GeneralDictionary*` carriers and transaction proofs are reused for emission, but full nominal RHS/selection soundness and feedback are not connected here. |
+| Reorders | **Defined carrier relation:** `GeneralRegistryReordering.Reorders` | Existing declaration/obligation IDs preserved, where order irrelevant. Allocated source IDs now ignore enumeration; full classifier/evidence reordering is unproved. |
+| DictionaryEquivalent | **Defined carrier relation:** `GeneralDictionaryPayloadOrder.Equivalent` | Existing dictionary payload/order equivalence; connection to full-model Evidence remains open. |
+| Executor.run | **MISSING** | No concrete general executor over this full state, Step and lossless diagnostic tree. |
+
+Consequently no `generalBoundary : SourceBoundary ...` is fabricated. The
+conditional `local_total_of_extension` is a representation result for future
+integration, not completion of a general B4 theorem or a V3 bridge instance.
+
+### Examples and convergence assessment
+
+`display_exactly_one` proves for **every** key and child list that the survivor
+relation for the checked registry containing `Display int`, the list Display
+implementation, and Wrap holds exactly for key 1 and `[displayChild]`.
+`displayChild` is the computed occurrence of `Display int` at the existing
+parameter endpoints. `wrap_survivor`, `wrap_children`, `wrap_item_equation`, and
+`item_target_fresh` prove the actual Container child and fresh item-equation
+identity. `state_models` constructs genuine `nominal 0 [int]` models.
+
+The extended regressions prove Index pending with every lifted Common key
+assignment still possible; no RootK2 at Index or the shadow example; RootK2 and
+a model for the genuine structural loop; unresolved nominal payload inspection
+pending; different parameter endpoint IDs deferred; and no survivors for the
+known str/int repeated-capture conflict in the full model. Existing Item 3
+CandidateK2, mixed-pending, and negative regressions remain included in the
+umbrella build and full audit.
+
+This is measurable convergence: the general source identities, ordinary atoms,
+normalized proofs, declaration emitter, actual nominal carrier, and derived
+frames now participate in the same positive survivor theorems. The older narrow
+solvers still do not provide the general nominal interval propagation theorem.
+The broad-descriptor counterexample explains concretely why more isolated
+scalar/settled lemmas alone cannot close that remaining gap. Current status is
+a proved correspondence and supported candidate slice, not completed Item 3.
+
+There is no new owner semantic question in this increment. All remaining cases
+above are deferred implementation/proof gaps under the existing decisions.
+
+### Full public theorem statements for Item 3b
+
+The following inventory is the Lean-generated type of every new public theorem
+(84 declarations). Private proof helpers are not claimed separately.
+
+```lean
+Yulang.GeneralNominalIdentities.pair_injective : Function.Injective fun p =>
+  Yulang.GeneralNominalIdentities.pair p.fst p.snd
+Yulang.GeneralNominalIdentities.encode_injective : Function.Injective Yulang.GeneralNominalIdentities.encode
+Yulang.GeneralNominalIdentities.invocation_le : ∀ (key : Yulang.GeneralNominalIdentities.Origin),
+  key.fst ≤ Yulang.GeneralNominalIdentities.encode key
+Yulang.GeneralNominalIdentities.source_identity : ∀ (seed : Nat) (first last : Yulang.GeneralNominalIdentities.Origin),
+  Yulang.GeneralNominalIdentities.source seed first = Yulang.GeneralNominalIdentities.source seed last ↔ first = last
+Yulang.GeneralNominalIdentities.source_above_seed : ∀ (seed : Nat) (key : Yulang.GeneralNominalIdentities.Origin),
+  seed < Yulang.GeneralNominalIdentities.source seed key
+Yulang.GeneralNominalIdentities.source_above_invocation : ∀ (seed : Nat) (key : Yulang.GeneralNominalIdentities.Origin),
+  key.fst < Yulang.GeneralNominalIdentities.source seed key
+@Yulang.GeneralNominalCommonBridge.row_eval : ∀ {α : Type}
+  (assignment : α → Yulang.Core.PresenceGeneration.Comp Yulang.Common.model)
+  (term : Yulang.Core.PresenceGeneration.RowTerm α),
+  Yulang.Core.PresenceGeneration.RowTerm.eval Yulang.CommonNominalFullCarrier.model
+      (Yulang.GeneralNominalCommonBridge.lift assignment) term =
+    Yulang.Core.PresenceGeneration.RowTerm.eval Yulang.Common.model assignment term
+@Yulang.GeneralNominalCommonBridge.type_eval : ∀ {α : Type}
+  (assignment : α → Yulang.Core.PresenceGeneration.Comp Yulang.Common.model)
+  (term : Yulang.Core.PresenceGeneration.TyTerm α),
+  Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model
+      (Yulang.GeneralNominalCommonBridge.lift assignment) term =
+    Yulang.CommonNominalFullModelMap.value
+      (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.Common.model assignment term)
+@Yulang.GeneralNominalCommonBridge.atom_exact : ∀ {α : Type}
+  (assignment : α → Yulang.Core.PresenceGeneration.Comp Yulang.Common.model) (atom : Yulang.PresenceNormalForm.Atom α),
+  Yulang.PresenceNormalForm.Atom.Holds Yulang.CommonNominalFullCarrier.model
+      (Yulang.GeneralNominalCommonBridge.lift assignment) atom ↔
+    Yulang.PresenceNormalForm.Atom.Holds Yulang.Common.model assignment atom
+@Yulang.GeneralNominalCommonBridge.atoms_exact : ∀ {α : Type}
+  (assignment : α → Yulang.Core.PresenceGeneration.Comp Yulang.Common.model)
+  (atoms : List (Yulang.PresenceNormalForm.Atom α)),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model
+      (Yulang.GeneralNominalCommonBridge.lift assignment) atoms ↔
+    Yulang.PresenceNormalForm.All Yulang.Common.model assignment atoms
+Yulang.GeneralNominalCommonBridge.assignment_lift : ∀ (state : Yulang.GeneralSourceState.State)
+  (model : Yulang.GeneralSourceState.Assignment),
+  Yulang.GeneralNominalCommonBridge.assignment state (Yulang.GeneralNominalCommonBridge.lift model) =
+    Yulang.GeneralNominalCommonBridge.lift (state.assignment model)
+Yulang.GeneralNominalCommonBridge.models_exact : ∀ (state : Yulang.GeneralSourceState.State)
+  (model : Yulang.GeneralSourceState.Assignment),
+  Yulang.GeneralNominalCommonBridge.Models state (Yulang.GeneralNominalCommonBridge.lift model) ↔
+    Yulang.GeneralSourceState.Models state model
+Yulang.GeneralNominalCommonBridge.finite_shadow : ∀ (label : Nat)
+  (a b tail : Yulang.CommonNominalFullDemand.Ty Yulang.CommonNominalFullCarrier.Row),
+  Yulang.CommonNominalFullDemand.ProducerEq Yulang.Common.rowLe
+    (Yulang.CommonNominalFinite.Ty.record label a (Yulang.CommonNominalFinite.Ty.record label b tail))
+    (Yulang.CommonNominalFinite.Ty.record label a tail)
+Yulang.GeneralNominalCommonBridge.finite_swap : ∀ (first last : Nat),
+  first ≠ last →
+    ∀ (a b tail : Yulang.CommonNominalFullDemand.Ty Yulang.CommonNominalFullCarrier.Row),
+      Yulang.CommonNominalFullDemand.ProducerEq Yulang.Common.rowLe
+        (Yulang.CommonNominalFinite.Ty.record first a (Yulang.CommonNominalFinite.Ty.record last b tail))
+        (Yulang.CommonNominalFinite.Ty.record last b (Yulang.CommonNominalFinite.Ty.record first a tail))
+Yulang.GeneralNominalCommonBridge.shadow : ∀ (label : Nat) (a b tail : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Equivalent
+    (Yulang.CommonNominalFullCarrier.record label a (Yulang.CommonNominalFullCarrier.record label b tail))
+    (Yulang.CommonNominalFullCarrier.record label a tail)
+Yulang.GeneralNominalCommonBridge.swap : ∀ (first last : Nat),
+  first ≠ last →
+    ∀ (a b tail : Yulang.CommonNominalFullCarrier.Ty),
+      Yulang.CommonNominalFullCarrier.Equivalent
+        (Yulang.CommonNominalFullCarrier.record first a (Yulang.CommonNominalFullCarrier.record last b tail))
+        (Yulang.CommonNominalFullCarrier.record last b (Yulang.CommonNominalFullCarrier.record first a tail))
+Yulang.GeneralNominalCommonBridge.variant_merge : ∀ (tag : Nat) (a b : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Equivalent
+    (Yulang.CommonNominalSyntax.Layer.union (Yulang.CommonNominalFullCarrier.variant tag a)
+      (Yulang.CommonNominalFullCarrier.variant tag b))
+    (Yulang.CommonNominalFullCarrier.variant tag (Yulang.CommonNominalSyntax.Layer.union a b))
+@Yulang.GeneralNominalCommonBridge.rewrites_sound : ∀ {state : Yulang.GeneralSourceState.State}
+  {first last : Yulang.Core.PresenceGeneration.TyTerm (Fin state.slots)},
+  Yulang.GeneralNormalizedObservation.Rewrites state first last →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalCommonBridge.Models state model →
+        Yulang.CommonNominalFullCarrier.Equivalent
+          (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model
+            (Yulang.GeneralNominalCommonBridge.assignment state model) first)
+          (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model
+            (Yulang.GeneralNominalCommonBridge.assignment state model) last)
+@Yulang.GeneralNominalCommonBridge.observation_models : ∀ {state : Yulang.GeneralSourceState.State}
+  (view : Yulang.GeneralNormalizedObservation.Snapshot state) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalCommonBridge.Models state model → Yulang.GeneralNominalCommonBridge.ObservationModels view model
+@Yulang.GeneralNominalCommonBridge.normalization_preserves : ∀ {state : Yulang.GeneralSourceState.State}
+  (view : Yulang.GeneralNormalizedObservation.Snapshot state) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalCommonBridge.Models state model ∧
+      Yulang.GeneralNominalCommonBridge.ObservationModels view model ↔
+    Yulang.GeneralNominalCommonBridge.Models state model
+Yulang.GeneralNominalState.embed_models : ∀ (base : Yulang.GeneralSourceState.State)
+  (view : Yulang.GeneralNormalizedObservation.Snapshot base)
+  (constructors : Yulang.GeneralDeclarationPatterns.Constructors) (model : Yulang.GeneralSourceState.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalState.embed base view constructors)
+      (Yulang.GeneralNominalCommonBridge.lift model) ↔
+    Yulang.GeneralSourceState.Models base model
+Yulang.GeneralNominalState.normalized_models : ∀ (state : Yulang.GeneralNominalState.State)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models state model → Yulang.GeneralNominalCommonBridge.ObservationModels state.view model
+Yulang.GeneralNominalState.nominal_models : ∀ (state : Yulang.GeneralNominalState.State)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models state model →
+    ∀ (slot : Fin state.base.slots) (descriptor : Yulang.GeneralNominalState.Descriptor state.base.slots),
+      state.nominals slot = some descriptor → Yulang.GeneralNominalState.Denotes state.base model slot descriptor
+Yulang.GeneralNominalState.atK2_recurrence : ∀ (state : Yulang.GeneralNominalState.State) (slot : Fin state.base.slots),
+  Yulang.GeneralNominalState.AtK2 state slot → Yulang.GeneralSourceK2.RecursAt state.view slot
+@Yulang.GeneralNominalState.pending_excludes_K2 : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalState.State) (demand : Yulang.GeneralSourceState.Demand roles),
+  Yulang.GeneralNominalState.RootPending state demand → ¬Yulang.GeneralNominalState.RootK2 state demand
+@Yulang.GeneralNominalState.linked_embed : ∀ {roles : Yulang.Roles.RoleDecls} (base : Yulang.GeneralSourceState.State)
+  (view : Yulang.GeneralNormalizedObservation.Snapshot base)
+  (constructors : Yulang.GeneralDeclarationPatterns.Constructors) (demand : Yulang.GeneralSourceState.Demand roles),
+  Yulang.GeneralSourceState.Linked base demand →
+    Yulang.GeneralNominalState.Linked (Yulang.GeneralNominalState.embed base view constructors) demand
+@Yulang.GeneralNominalState.embed_pending : ∀ {roles : Yulang.Roles.RoleDecls} (base : Yulang.GeneralSourceState.State)
+  (view : Yulang.GeneralNormalizedObservation.Snapshot base)
+  (constructors : Yulang.GeneralDeclarationPatterns.Constructors) (demand : Yulang.GeneralSourceState.Demand roles),
+  Yulang.GeneralNominalState.RootPending (Yulang.GeneralNominalState.embed base view constructors) demand ↔
+    Yulang.GeneralSourceK2.RootPending view demand (Yulang.GeneralDeclarationDemands.needed roles demand)
+Yulang.GeneralNominalState.embed_K2 : ∀ (base : Yulang.GeneralSourceState.State)
+  (view : Yulang.GeneralNormalizedObservation.Snapshot base)
+  (constructors : Yulang.GeneralDeclarationPatterns.Constructors) (slot : Fin base.slots),
+  Yulang.GeneralNominalState.AtK2 (Yulang.GeneralNominalState.embed base view constructors) slot ↔
+    Yulang.GeneralSourceK2.Complete view slot ∧ Yulang.GeneralSourceBoundary.GraphK2 view.graph slot
+Yulang.GeneralNominalState.extend_models : ∀ (state : Yulang.GeneralNominalState.State) (reserved : List Nat)
+  (atoms : List (Yulang.PresenceNormalForm.Atom Nat)) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalState.extend state reserved atoms) model ↔
+    Yulang.GeneralNominalState.Models state model ∧
+      Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model atoms
+@Yulang.GeneralNominalState.extend_pending : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalState.State) (reserved : List Nat) (atoms : List (Yulang.PresenceNormalForm.Atom Nat))
+  (demand : Yulang.GeneralSourceState.Demand roles),
+  Yulang.GeneralNominalState.RootPending (Yulang.GeneralNominalState.extend state reserved atoms) demand ↔
+    Yulang.GeneralNominalState.RootPending state demand
+Yulang.GeneralNominalState.fits_existing_endpoint : ∀ (state : Yulang.GeneralSourceState.State)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (slot : Fin state.slots)
+  (value : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalState.Fits state model (Yulang.GeneralNominalState.Parameter.type (slot, slot)) (Sum.inl value) →
+    Yulang.CommonNominalFullCarrier.Equivalent value (model (state.source slot)).fst
+Yulang.GeneralNominalState.singleton_nominal_congr : ∀ (name : Nat) (first last : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Equivalent first last →
+    Yulang.CommonNominalFullCarrier.Equivalent (Yulang.CommonNominalFullCarrier.nominal name [Sum.inl first])
+      (Yulang.CommonNominalFullCarrier.nominal name [Sum.inl last])
+Yulang.GeneralNominalState.denotes_singleton_exact : ∀ (state : Yulang.GeneralSourceState.State)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (root endpoint : Fin state.slots)
+  (descriptor : Yulang.GeneralNominalState.Descriptor state.slots),
+  descriptor.arguments = [Yulang.GeneralNominalState.Parameter.type (endpoint, endpoint)] →
+    (Yulang.GeneralNominalState.Denotes state model root descriptor ↔
+      Yulang.CommonNominalFullCarrier.Equivalent (model (state.source root)).fst
+        (Yulang.CommonNominalFullCarrier.nominal descriptor.declaration.name
+          [Sum.inl (model (state.source endpoint)).fst]))
+Yulang.GeneralNominalAllocation.member_le_max : ∀ (values : List Nat) (value : Nat),
+  value ∈ values → value ≤ List.foldr max 0 values
+Yulang.GeneralNominalAllocation.source_initial_fresh : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Nat) (key : Yulang.GeneralNominalAllocation.Origin)
+  (old : Nat), old ≤ state.seed → Yulang.GeneralNominalAllocation.source state registry root key ≠ old
+Yulang.GeneralNominalAllocation.source_fresh : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Nat),
+  Yulang.GeneralNominalAllocation.Fresh state registry root →
+    ∀ (key : Yulang.GeneralNominalAllocation.Origin),
+      key ∈ Yulang.GeneralNominalAllocation.keys registry root →
+        ¬key ∈ state.allocated →
+          ¬Yulang.GeneralNominalAllocation.source state registry root key ∈ Yulang.GeneralNominalState.sources state
+Yulang.GeneralNominalAllocation.source_identity : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Nat) (first last : Yulang.GeneralNominalAllocation.Origin),
+  Yulang.GeneralNominalAllocation.source state registry root first =
+      Yulang.GeneralNominalAllocation.source state registry root last ↔
+    first = last
+Yulang.GeneralNominalAllocation.source_preserved : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Nat) (reserved : List Nat)
+  (atoms : List (Yulang.PresenceNormalForm.Atom Nat)) (key : Yulang.GeneralNominalAllocation.Origin),
+  Yulang.GeneralNominalAllocation.source (Yulang.GeneralNominalState.extend state reserved atoms) registry root key =
+    Yulang.GeneralNominalAllocation.source state registry root key
+Yulang.GeneralNominalAllocation.distinct_invocations : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (first last key purpose owner position : Nat),
+  first ≠ last →
+    Yulang.GeneralNominalAllocation.source state registry first
+        (Yulang.GeneralNominalAllocation.origin first key purpose owner position) ≠
+      Yulang.GeneralNominalAllocation.source state registry last
+        (Yulang.GeneralNominalAllocation.origin last key purpose owner position)
+Yulang.GeneralNominalAllocation.later_fresh : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (first next : Nat)
+  (old new : Yulang.GeneralNominalAllocation.Origin),
+  old ≠ new →
+    Yulang.GeneralNominalAllocation.source
+        (Yulang.GeneralNominalState.extend state (Yulang.GeneralNominalAllocation.reserved state registry first) [])
+        registry next new ≠
+      Yulang.GeneralNominalAllocation.source state registry first old
+Yulang.GeneralNominalAllocation.source_registry_independent : ∀ (state : Yulang.GeneralNominalState.State)
+  (first last : Yulang.GeneralDeclarations.Registry) (invocation : Nat) (key : Yulang.GeneralNominalAllocation.Origin),
+  Yulang.GeneralNominalAllocation.source state first invocation key =
+    Yulang.GeneralNominalAllocation.source state last invocation key
+Yulang.GeneralNominalAllocation.cross_exact : ∀ (bindings : Yulang.GeneralNominalAllocation.Bindings)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalAllocation.cross bindings) ↔
+    Yulang.GeneralNominalAllocation.Compatible bindings model
+Yulang.GeneralNominalAllocation.propagate_models : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Nat) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (bindings : Yulang.GeneralNominalAllocation.Bindings) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalAllocation.propagate state registry root declaration bindings)
+      model ↔
+    Yulang.GeneralNominalState.Models state model ∧
+      Yulang.GeneralNominalAllocation.Compatible bindings model ∧
+        Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+          (Yulang.GeneralNominalAllocation.merges state registry root declaration bindings)
+Yulang.GeneralNominalAllocation.propagated_source_preserved : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Nat) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (bindings : Yulang.GeneralNominalAllocation.Bindings) (key : Yulang.GeneralNominalAllocation.Origin),
+  Yulang.GeneralNominalAllocation.source
+      (Yulang.GeneralNominalAllocation.propagate state registry root declaration bindings) registry root key =
+    Yulang.GeneralNominalAllocation.source state registry root key
+Yulang.GeneralNominalInspection.inspected_recurrence : ∀ (state : Yulang.GeneralNominalState.State)
+  (report : Yulang.GeneralNominalInspection.Report state),
+  Yulang.GeneralNominalInspection.NeedsK2 state report →
+    ∃ bounds, bounds ∈ report.inspected ∧ Yulang.GeneralSourceK2.RecursAt state.view bounds.fst
+Yulang.GeneralNominalInspection.variables_capture_intervals : ∀ (state : Yulang.GeneralNominalState.State)
+  (names : List Nat) (bounds : Yulang.GeneralNominalInspection.Bounds state),
+  Yulang.GeneralNominalInspection.inspect state (Yulang.GeneralNominalInspection.Query.variables names) bounds =
+    { captures := List.map (fun name => (name, bounds)) names }
+Yulang.GeneralNominalInspection.unknown_defers : ∀ (state : Yulang.GeneralNominalState.State) (name : Nat)
+  (patterns : List Yulang.GeneralNominalInspection.Query) (bounds : Yulang.GeneralNominalInspection.Bounds state),
+  state.nominals bounds.fst = none →
+    state.view.heads bounds.fst =
+        Yulang.GeneralNormalizedObservation.Head.deferred Yulang.GeneralNormalizedObservation.Deferred.unresolved →
+      (Yulang.GeneralNominalInspection.inspect state (Yulang.GeneralNominalInspection.Query.nominal name patterns)
+            bounds).blocked ≠
+        []
+Yulang.GeneralNominalInspection.nominal_bodies_opaque : ∀ (state : Yulang.GeneralNominalState.State) (expected : Nat)
+  (patterns : List Yulang.GeneralNominalInspection.Query) (slot : Fin state.base.slots)
+  (descriptor : Yulang.GeneralNominalState.Descriptor state.base.slots),
+  state.nominals slot = some descriptor →
+    descriptor.declaration.name = expected →
+      ∀ (arguments : List (Yulang.GeneralNominalInspection.Bounds state)),
+        Yulang.GeneralNominalInspection.typeArguments descriptor.arguments = some arguments →
+          Yulang.GeneralNominalInspection.inspect state
+              (Yulang.GeneralNominalInspection.Query.nominal expected patterns) (slot, slot) =
+            Yulang.GeneralNominalInspection.Report.visit (slot, slot)
+              (Yulang.GeneralNominalInspection.inspectMany state patterns arguments)
+@Yulang.GeneralNominalCandidates.survivor_interval_sound : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (children : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+  Yulang.GeneralNominalCandidates.Survivor registry context root key children →
+    ∃ declaration,
+      declaration ∈ registry.declarations ∧
+        declaration.id = key ∧
+          ∃ bounds,
+            Yulang.GeneralNominalCandidates.arguments context root = some bounds ∧
+              ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalState.Models
+                    (Yulang.GeneralNominalCandidates.privateState registry context root declaration bounds) model →
+                  Yulang.GeneralNominalState.Models context.state model ∧
+                    Yulang.GeneralNominalAllocation.Compatible
+                      (Yulang.GeneralNominalInspection.bindings context.state
+                        (Yulang.GeneralNominalCandidates.report context declaration bounds))
+                      model
+@Yulang.GeneralNominalCandidates.survivor_children_functional : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralDeclarations.Checked registry →
+    ∀ (context : Yulang.GeneralNominalCandidates.Context) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (key : Nat) (first last : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+      Yulang.GeneralNominalCandidates.Survivor registry context root key first →
+        Yulang.GeneralNominalCandidates.Survivor registry context root key last → first = last
+@Yulang.GeneralNominalCandidates.pending_excludes_candidateK2 : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.GeneralNominalState.RootPending context.state root.demand →
+    ¬Yulang.GeneralNominalCandidates.CandidateK2 registry context root
+@Yulang.GeneralNominalCandidates.candidateK2_recurrence : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.GeneralNominalCandidates.CandidateK2 registry context root →
+    ∃ declaration,
+      declaration ∈ registry.declarations ∧
+        ∃ bounds,
+          Yulang.GeneralNominalCandidates.arguments context root = some bounds ∧
+            ∃ visited,
+              visited ∈ (Yulang.GeneralNominalCandidates.report context declaration bounds).inspected ∧
+                Yulang.GeneralSourceK2.RecursAt context.state.view visited.fst
+@Yulang.GeneralNominalCandidates.conservative_deferral : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  ¬Yulang.GeneralNominalState.RootPending context.state root.demand →
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        ∀ (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration),
+          declaration.role = root.demand.role →
+            ¬Yulang.GeneralNominalCandidates.Failed registry context root declaration →
+              ¬Yulang.GeneralNominalCandidates.Prepared registry context root declaration checked →
+                Yulang.GeneralNominalCandidates.InspectionPending registry context root
+@Yulang.GeneralNominalCandidates.allocation_collision_defers : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  ¬Yulang.GeneralNominalState.RootPending context.state root.demand →
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration →
+          declaration.role = root.demand.role →
+            ¬Yulang.GeneralNominalAllocation.Fresh context.state registry root.identity →
+              Yulang.GeneralNominalCandidates.InspectionPending registry context root
+@Yulang.GeneralNominalCandidates.coverage_defers : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  ¬Yulang.GeneralNominalState.RootPending context.state root.demand →
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration →
+          declaration.role = root.demand.role →
+            ∀ (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state)),
+              Yulang.GeneralNominalCandidates.arguments context root = some bounds →
+                ¬Yulang.GeneralNominalInspection.Covered context.state
+                      (Yulang.GeneralNominalCandidates.report context declaration bounds) →
+                  Yulang.GeneralNominalCandidates.InspectionPending registry context root
+Yulang.GeneralNominalCandidates.local_total_of_extension : ∀ (roles : Yulang.Roles.RoleDecls)
+  (boundary : Yulang.B4Target.SourceBoundary (Yulang.GeneralNominalCandidates.vocabulary roles))
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralDeclarations.Checked registry →
+    ∀ (context : Yulang.GeneralNominalCandidates.Context) (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      (∀ (key : Nat) (children : List (Yulang.GeneralNominalCandidates.vocabulary roles).Demand),
+          boundary.Survivor registry context root key children ↔
+            Yulang.GeneralNominalCandidates.Survivor registry context root key children) →
+        ∃ frontier, Yulang.B4TargetV3.Local boundary registry context root frontier
+Yulang.GeneralNominalExamples.int_display_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralNominalExamples.intDisplay
+Yulang.GeneralNominalExamples.registry_checked : Yulang.GeneralDeclarations.Checked
+  Yulang.GeneralNominalExamples.registry
+Yulang.GeneralNominalExamples.state_models : ∀ (known : Bool),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalExamples.state known) Yulang.GeneralNominalExamples.model
+Yulang.GeneralNominalExamples.display_report : ∀ (known : Bool),
+  Yulang.GeneralNominalCandidates.report (Yulang.GeneralNominalExamples.context known)
+      Yulang.GeneralDeclarationExamples.display [(0, 0)] =
+    { captures := [(0, 1, 1)], inspected := [(0, 0), (0, 0)] }
+Yulang.GeneralNominalExamples.wrap_report : ∀ (known : Bool),
+  Yulang.GeneralNominalCandidates.report (Yulang.GeneralNominalExamples.context known)
+      Yulang.GeneralDeclarationExamples.wrap [(0, 0)] =
+    { captures := [(0, 1, 1)], inspected := [(0, 0), (0, 0)] }
+Yulang.GeneralNominalExamples.int_report : ∀ (known : Bool),
+  Yulang.GeneralNominalCandidates.report (Yulang.GeneralNominalExamples.context known)
+      Yulang.GeneralNominalExamples.intDisplay [(0, 0)] =
+    { inspected := [(0, 0), (0, 0)], conflicts := [(0, 0)] }
+Yulang.GeneralNominalExamples.display_children : Yulang.GeneralNominalAllocation.children
+    (Yulang.GeneralNominalExamples.state true) Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralDeclarationExamples.display
+    Yulang.GeneralDeclarationExamples.display_checked Yulang.GeneralNominalExamples.captured =
+  [Yulang.GeneralNominalExamples.displayChild]
+Yulang.GeneralNominalExamples.wrap_children : Yulang.GeneralNominalAllocation.children
+    (Yulang.GeneralNominalExamples.state true) Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalExamples.wrapRoot Yulang.GeneralDeclarationExamples.wrap
+    Yulang.GeneralDeclarationExamples.wrap_checked Yulang.GeneralNominalExamples.captured =
+  [Yulang.GeneralNominalExamples.wrapChild]
+Yulang.GeneralNominalExamples.wrap_item_equation : Yulang.GeneralNominalExamples.wrapChild.demand.outputs =
+  [{ name := 1, target := Yulang.GeneralNominalExamples.itemTarget }]
+Yulang.GeneralNominalExamples.item_target_fresh : ¬Yulang.GeneralNominalExamples.itemTarget ∈
+    Yulang.GeneralNominalState.sources (Yulang.GeneralNominalExamples.state true)
+Yulang.GeneralNominalExamples.display_survivor : Yulang.GeneralNominalCandidates.Survivor
+  Yulang.GeneralNominalExamples.registry (Yulang.GeneralNominalExamples.context true)
+  Yulang.GeneralNominalExamples.displayRoot 1 [Yulang.GeneralNominalExamples.displayChild]
+Yulang.GeneralNominalExamples.wrap_survivor : Yulang.GeneralNominalCandidates.Survivor
+  Yulang.GeneralNominalExamples.registry (Yulang.GeneralNominalExamples.context true)
+  Yulang.GeneralNominalExamples.wrapRoot 2 [Yulang.GeneralNominalExamples.wrapChild]
+Yulang.GeneralNominalExamples.display_exactly_one : ∀ (key : Nat)
+  (children : List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)),
+  Yulang.GeneralNominalCandidates.Survivor Yulang.GeneralNominalExamples.registry
+      (Yulang.GeneralNominalExamples.context true) Yulang.GeneralNominalExamples.displayRoot key children ↔
+    key = 1 ∧ children = [Yulang.GeneralNominalExamples.displayChild]
+Yulang.GeneralNominalRegressions.index_pending : Yulang.GeneralNominalState.RootPending
+  Yulang.GeneralNominalRegressions.indexState' Yulang.GeneralSourceStateExamples.indexDemand
+Yulang.GeneralNominalRegressions.index_not_K2 : ¬Yulang.GeneralNominalState.RootK2
+    Yulang.GeneralNominalRegressions.indexState' Yulang.GeneralSourceStateExamples.indexDemand
+Yulang.GeneralNominalRegressions.index_all_common_assignments : ∀ (key : Yulang.Common.Ty),
+  Yulang.GeneralNominalState.Models Yulang.GeneralNominalRegressions.indexState'
+    (Yulang.GeneralNominalCommonBridge.lift (Yulang.GeneralSourceStateExamples.indexModel key))
+Yulang.GeneralNominalRegressions.shadow_pending : Yulang.GeneralNominalState.RootPending
+  Yulang.GeneralNominalRegressions.shadowState' Yulang.GeneralSourceStateExamples.loopDemand
+Yulang.GeneralNominalRegressions.shadow_not_K2 : ¬Yulang.GeneralNominalState.RootK2
+    Yulang.GeneralNominalRegressions.shadowState' Yulang.GeneralSourceStateExamples.loopDemand
+Yulang.GeneralNominalRegressions.loop_K2 : Yulang.GeneralNominalState.RootK2 Yulang.GeneralNominalRegressions.loopState'
+  Yulang.GeneralSourceStateExamples.loopDemand
+Yulang.GeneralNominalRegressions.loop_model : Yulang.GeneralNominalState.Models
+  Yulang.GeneralNominalRegressions.loopState'
+  (Yulang.GeneralNominalCommonBridge.lift Yulang.GeneralSourceStateExamples.loopModel)
+Yulang.GeneralNominalRegressions.shadow_normalization_full : ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralNominalRegressions.shadowState' model →
+    Yulang.GeneralNominalCommonBridge.ObservationModels Yulang.GeneralSourceK2Examples.shadowView model
+Yulang.GeneralNominalRegressions.concrete_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralNominalRegressions.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralNominalRegressions.concreteList
+Yulang.GeneralNominalRegressions.unresolved_payload_report : Yulang.GeneralNominalCandidates.report
+    (Yulang.GeneralNominalExamples.context false) Yulang.GeneralNominalRegressions.concreteList [(0, 0)] =
+  { inspected := [(0, 0), (0, 0), (1, 1)], blocked := [(1, 1)] }
+Yulang.GeneralNominalRegressions.inspection_pending : Yulang.GeneralNominalCandidates.InspectionPending
+  Yulang.GeneralNominalRegressions.concreteRegistry (Yulang.GeneralNominalExamples.context false)
+  Yulang.GeneralNominalExamples.displayRoot
+@Yulang.GeneralNominalRegressions.different_parameter_endpoints_defer : ∀ {slots : Nat} (first last : Fin slots),
+  first ≠ last →
+    Yulang.GeneralNominalInspection.typeArguments [Yulang.GeneralNominalState.Parameter.type (first, last)] = none
+Yulang.GeneralNominalRegressions.cross_conflict : ¬∃ model,
+    Yulang.GeneralNominalState.Models Yulang.GeneralNominalRegressions.conflictState model ∧
+      Yulang.GeneralNominalAllocation.Compatible Yulang.GeneralNominalRegressions.conflicting model
+Yulang.GeneralNominalRegressions.repeated_captures : Yulang.GeneralNominalInspection.bindings
+    Yulang.GeneralNominalRegressions.conflictState
+    (Yulang.GeneralNominalCandidates.report Yulang.GeneralNominalRegressions.conflictContext
+      Yulang.GeneralCandidateConflictExamples.repeated [(0, 0), (1, 1)]) =
+  Yulang.GeneralNominalRegressions.conflicting
+Yulang.GeneralNominalRegressions.no_conflict_survivors : ∀ (key : Nat)
+  (children : List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)),
+  ¬Yulang.GeneralNominalCandidates.Survivor Yulang.GeneralCandidateConflictExamples.registry
+      Yulang.GeneralNominalRegressions.conflictContext Yulang.GeneralCandidateConflictExamples.root key children
+```
+
+### Verification and independent review for Item 3b
+
+Final commands, run from `lean/`:
+
+| Exact command | Exit code |
+| --- | --- |
+| `lake build Yulang.GeneralNominalIdentities Yulang.GeneralNominalCommonBridge Yulang.GeneralNominalState Yulang.GeneralNominalAllocation Yulang.GeneralNominalInspection Yulang.GeneralNominalCandidates Yulang.GeneralNominalExamples Yulang.GeneralNominalRegressions > /tmp/astra-nominal-focused.log 2>&1` | 0 |
+| `lake build Yulang > /tmp/astra-nominal-umbrella.log 2>&1` | 0 |
+| `lake env lean Audit.lean > /tmp/astra-nominal-audit.log 2>&1` | 0 |
+| `lake env lean /tmp/astra-nominal-signatures.lean > /tmp/astra-nominal-signatures.txt 2>&1` | 0 |
+
+The focused build completed 562 jobs and the umbrella build completed 1407 jobs.
+The full audit printed 8898 dependency reports, including all 84 new public
+theorems exactly once. The complete dependency set was `propext`,
+`Classical.choice`, and `Quot.sound`. These counts include older reports and do
+not assert 8898 new or independent results.
+
+Append-only byte-prefix checks passed for `Yulang.lean` and `Audit.lean`.
+The change adds eight imports and 84 audit entries. New-module token/docstring
+checks, theorem-to-signature-to-audit coverage, allowed-path checks, and
+`git diff --check` all passed. No existing implementation module, specification,
+plan, lake configuration, commit, push, or git reference was changed.
+Earlier elaboration failures were corrected in the new files. The first
+signature harness used an unavailable pretty-printer option; removing the
+option produced the recorded exit-0 inventory. Earlier failures are not counted
+as successful final checks.
+
+The `yulang-proofs` workflow was applied. No registered `prover` role or launch
+configuration was available, so the primary constructed these bounded results;
+no prover agent ran. A separate read-only reviewer checked all eight modules,
+the final examples, table, quantifiers, and the 84-statement inventory. Review
+exposed and led to corrections for origin persistence, same-snapshot invocation
+collisions, free-source support, broad descriptor precision, collision-induced
+false rejection, and explicit nominal recurrence/alias coverage. The final
+review found no blocking defect in the stated **partial** claims. Its independent
+restriction/inventory and whitespace checks exited 0. The reviewer did not
+independently rerun the final Lean builds or complete audit.
+
+Not verified: a complete source generator; arbitrary full-carrier equivalence
+between ordinary atoms alone and recorded graph equations; general non-point
+nominal applicability; general model-extension/completeness of candidate
+propagation; mixed nominal K2 classification; all layout/variance/alias cases;
+compound child or root associated RHS materialization; source Step/stability;
+equal-input demand merging; evidence soundness for the new full state; or a
+concrete complete B4/V3 boundary, executor, or unconditional bridge. No parser,
+runtime, or frontend execution claim is made by this increment.

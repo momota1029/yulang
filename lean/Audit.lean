@@ -1,3 +1,9 @@
+import Yulang.GeneralDictionaryPayloadReconstruction
+import Yulang.GeneralDictionaryRecipeFidelity
+import Yulang.GeneralDictionaryPayloadPreparation
+import Yulang.GeneralDictionaryPayloadReconstructionOrder
+import Yulang.GeneralDictionaryPayloadReconstructionExamples
+import Yulang.GeneralDictionaryPayloadPreparationExamples
 import Yulang.GeneralDictionaryHeadlessCandidateBoundary
 import Yulang.GeneralDictionaryHeadlessExactness
 import Yulang.GeneralDictionaryHeadlessExamples
@@ -9813,3 +9819,123 @@ run_cmd do
 #print axioms Yulang.GeneralDictionarySourceRecipeExamples.absent_output_localization_defers
 #print axioms Yulang.GeneralDictionarySourceRecipeExamples.absent_output_preparation_defers
 #print axioms Yulang.GeneralDictionarySourceRecipeExamples.omitted_child_defers
+#print axioms Yulang.GeneralNominalIdentities.pair_injective
+#print axioms Yulang.GeneralNominalIdentities.encode_injective
+#print axioms Yulang.GeneralNominalIdentities.invocation_le
+#print axioms Yulang.GeneralNominalIdentities.source_identity
+#print axioms Yulang.GeneralNominalIdentities.source_above_seed
+#print axioms Yulang.GeneralNominalIdentities.source_above_invocation
+#print axioms Yulang.GeneralNominalCommonBridge.row_eval
+#print axioms Yulang.GeneralNominalCommonBridge.type_eval
+#print axioms Yulang.GeneralNominalCommonBridge.atom_exact
+#print axioms Yulang.GeneralNominalCommonBridge.atoms_exact
+#print axioms Yulang.GeneralNominalCommonBridge.assignment_lift
+#print axioms Yulang.GeneralNominalCommonBridge.models_exact
+#print axioms Yulang.GeneralNominalCommonBridge.finite_shadow
+#print axioms Yulang.GeneralNominalCommonBridge.finite_swap
+#print axioms Yulang.GeneralNominalCommonBridge.shadow
+#print axioms Yulang.GeneralNominalCommonBridge.swap
+#print axioms Yulang.GeneralNominalCommonBridge.variant_merge
+#print axioms Yulang.GeneralNominalCommonBridge.rewrites_sound
+#print axioms Yulang.GeneralNominalCommonBridge.observation_models
+#print axioms Yulang.GeneralNominalCommonBridge.normalization_preserves
+#print axioms Yulang.GeneralNominalState.embed_models
+#print axioms Yulang.GeneralNominalState.normalized_models
+#print axioms Yulang.GeneralNominalState.nominal_models
+#print axioms Yulang.GeneralNominalState.atK2_recurrence
+#print axioms Yulang.GeneralNominalState.pending_excludes_K2
+#print axioms Yulang.GeneralNominalState.linked_embed
+#print axioms Yulang.GeneralNominalState.embed_pending
+#print axioms Yulang.GeneralNominalState.embed_K2
+#print axioms Yulang.GeneralNominalState.extend_models
+#print axioms Yulang.GeneralNominalState.extend_pending
+#print axioms Yulang.GeneralNominalState.fits_existing_endpoint
+#print axioms Yulang.GeneralNominalState.singleton_nominal_congr
+#print axioms Yulang.GeneralNominalState.denotes_singleton_exact
+#print axioms Yulang.GeneralNominalAllocation.member_le_max
+#print axioms Yulang.GeneralNominalAllocation.source_initial_fresh
+#print axioms Yulang.GeneralNominalAllocation.source_fresh
+#print axioms Yulang.GeneralNominalAllocation.source_identity
+#print axioms Yulang.GeneralNominalAllocation.source_preserved
+#print axioms Yulang.GeneralNominalAllocation.distinct_invocations
+#print axioms Yulang.GeneralNominalAllocation.later_fresh
+#print axioms Yulang.GeneralNominalAllocation.source_registry_independent
+#print axioms Yulang.GeneralNominalAllocation.cross_exact
+#print axioms Yulang.GeneralNominalAllocation.propagate_models
+#print axioms Yulang.GeneralNominalAllocation.propagated_source_preserved
+#print axioms Yulang.GeneralNominalInspection.inspected_recurrence
+#print axioms Yulang.GeneralNominalInspection.variables_capture_intervals
+#print axioms Yulang.GeneralNominalInspection.unknown_defers
+#print axioms Yulang.GeneralNominalInspection.nominal_bodies_opaque
+#print axioms Yulang.GeneralNominalCandidates.survivor_interval_sound
+#print axioms Yulang.GeneralNominalCandidates.survivor_children_functional
+#print axioms Yulang.GeneralNominalCandidates.pending_excludes_candidateK2
+#print axioms Yulang.GeneralNominalCandidates.candidateK2_recurrence
+#print axioms Yulang.GeneralNominalCandidates.conservative_deferral
+#print axioms Yulang.GeneralNominalCandidates.allocation_collision_defers
+#print axioms Yulang.GeneralNominalCandidates.coverage_defers
+#print axioms Yulang.GeneralNominalCandidates.local_total_of_extension
+#print axioms Yulang.GeneralNominalExamples.int_display_checked
+#print axioms Yulang.GeneralNominalExamples.registry_checked
+#print axioms Yulang.GeneralNominalExamples.state_models
+#print axioms Yulang.GeneralNominalExamples.display_report
+#print axioms Yulang.GeneralNominalExamples.wrap_report
+#print axioms Yulang.GeneralNominalExamples.int_report
+#print axioms Yulang.GeneralNominalExamples.display_children
+#print axioms Yulang.GeneralNominalExamples.wrap_children
+#print axioms Yulang.GeneralNominalExamples.wrap_item_equation
+#print axioms Yulang.GeneralNominalExamples.item_target_fresh
+#print axioms Yulang.GeneralNominalExamples.display_survivor
+#print axioms Yulang.GeneralNominalExamples.wrap_survivor
+#print axioms Yulang.GeneralNominalExamples.display_exactly_one
+#print axioms Yulang.GeneralNominalRegressions.index_pending
+#print axioms Yulang.GeneralNominalRegressions.index_not_K2
+#print axioms Yulang.GeneralNominalRegressions.index_all_common_assignments
+#print axioms Yulang.GeneralNominalRegressions.shadow_pending
+#print axioms Yulang.GeneralNominalRegressions.shadow_not_K2
+#print axioms Yulang.GeneralNominalRegressions.loop_K2
+#print axioms Yulang.GeneralNominalRegressions.loop_model
+#print axioms Yulang.GeneralNominalRegressions.shadow_normalization_full
+#print axioms Yulang.GeneralNominalRegressions.concrete_checked
+#print axioms Yulang.GeneralNominalRegressions.unresolved_payload_report
+#print axioms Yulang.GeneralNominalRegressions.inspection_pending
+#print axioms Yulang.GeneralNominalRegressions.different_parameter_endpoints_defer
+#print axioms Yulang.GeneralNominalRegressions.cross_conflict
+#print axioms Yulang.GeneralNominalRegressions.repeated_captures
+#print axioms Yulang.GeneralNominalRegressions.no_conflict_survivors
+
+-- Cycle128: exact reconstruction and raw-payload source evidence.
+#print axioms Yulang.GeneralDictionaryPayloadReconstruction.reconstruct_sound
+#print axioms Yulang.GeneralDictionaryPayloadReconstruction.reconstructChildren_sound
+#print axioms Yulang.GeneralDictionaryPayloadReconstruction.reconstruct_complete
+#print axioms Yulang.GeneralDictionaryPayloadReconstruction.reconstructChildren_complete
+#print axioms Yulang.GeneralDictionaryPayloadReconstruction.reconstruct_exact
+#print axioms Yulang.GeneralDictionaryPayloadReconstruction.reconstruct_exists_iff
+#print axioms Yulang.GeneralDictionaryPayloadReconstruction.reconstruct_none_iff
+#print axioms Yulang.GeneralDictionaryRecipeFidelity.localize_tree
+#print axioms Yulang.GeneralDictionaryRecipeFidelity.headless_prepare_tree
+#print axioms Yulang.GeneralDictionaryRecipeFidelity.source_prepare_tree
+#print axioms Yulang.GeneralDictionaryRecipeFidelity.recipe_tree
+#print axioms Yulang.GeneralDictionaryRecipeFidelity.recipe_root
+#print axioms Yulang.GeneralDictionaryRecipeFidelity.prepare_recipe_tree
+#print axioms Yulang.GeneralDictionaryPayloadPreparation.prepare_exact
+#print axioms Yulang.GeneralDictionaryPayloadPreparation.prepare_readback
+#print axioms Yulang.GeneralDictionaryPayloadPreparation.prepare_uniform_source
+#print axioms Yulang.GeneralDictionaryPayloadPreparation.prepare_payload_evidence
+#print axioms Yulang.GeneralDictionaryPayloadReconstructionOrder.evidence_reorders
+#print axioms Yulang.GeneralDictionaryPayloadReconstructionOrder.reconstruct_reorders
+#print axioms Yulang.GeneralDictionaryPayloadReconstructionOrder.prepare_reorders
+#print axioms Yulang.GeneralDictionaryPayloadReconstructionExamples.leaf_reconstructed
+#print axioms Yulang.GeneralDictionaryPayloadReconstructionExamples.tree_reconstructed
+#print axioms Yulang.GeneralDictionaryPayloadReconstructionExamples.omitted_child_defers
+#print axioms Yulang.GeneralDictionaryPayloadReconstructionExamples.extra_child_defers
+#print axioms Yulang.GeneralDictionaryPayloadReconstructionExamples.wrong_role_key_defers
+#print axioms Yulang.GeneralDictionaryPayloadReconstructionExamples.absent_key_defers
+#print axioms Yulang.GeneralDictionaryPayloadReconstructionExamples.source_identities_preserved
+#print axioms Yulang.GeneralDictionaryPayloadReconstructionExamples.source_readback
+#print axioms Yulang.GeneralDictionaryPayloadPreparationExamples.raw_tree_prepared
+#print axioms Yulang.GeneralDictionaryPayloadPreparationExamples.raw_uniform_source
+#print axioms Yulang.GeneralDictionaryPayloadPreparationExamples.raw_source_nonvacuous
+#print axioms Yulang.GeneralDictionaryPayloadPreparationExamples.raw_payload_evidence
+#print axioms Yulang.GeneralDictionaryPayloadPreparationExamples.raw_preparation_with_pending
+#print axioms Yulang.GeneralDictionaryPayloadPreparationExamples.absent_output_preparation_defers

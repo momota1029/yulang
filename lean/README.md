@@ -4660,3 +4660,11 @@ slots, with exact source-membership coverage and completeness from Linked.
 and finite child shape; source positions and all term vectors are computed.
 Its all-model source-evidence theorem leaves frames/captures/allocation and
 chosen keys explicit. Missing source identities defer instead of allocating.
+
+Cycle128 adds exact reconstruction of complete source obligation trees from raw
+selected-key dictionaries. The checked registry computes every descendant
+occurrence; missing and extra children defer. Localization and preparation
+preserve the complete source tree, connecting the original raw payload to one
+fixed actual-source witness in every model of the recorded batch. Fixed-input
+registry reordering preserves the full optional result. Captures, allocation,
+root and selected-key payload remain inputs; readiness and general B4 are open.

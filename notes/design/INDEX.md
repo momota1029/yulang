@@ -345,3 +345,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Checked computed output transactions](2026-11-11-cycle126-computed-output-plans.md) — Draft. One visible declaration supplies plans and computed binder outputs; head interpretation and general B4 remain open.
 
 - [Cycle127 headless dictionary recipes](2026-11-11-cycle127-headless-dictionaries.md) — Draft actual-head and whole-tree evidence bridge, item5.
+
+- [Cycle128: raw dictionary source reconstruction](2026-11-12-cycle128-payload-reconstruction.md) — Draft implementation contract for I-18 item5; exact raw-payload/readback fidelity and all-model evidence composition.
