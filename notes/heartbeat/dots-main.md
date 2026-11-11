@@ -1,8 +1,8 @@
 cycle: 123
 status: running
 started: 2026-11-11T18:28:33Z
-updated: 2026-11-11T18:48:05Z
-elapsed_min: 19.53
+updated: 2026-11-11T18:49:52Z
+elapsed_min: 21.32
 activity: I-18 item5: exact readback and uniform shared-model evidence published at bf924e21. Proving source-preserving payload sibling comparison and separating canonical ordered evidence from unordered conjunction semantics. Targets evidenceNode/dictionaryRefl/canonicalLocalOrder;12/12 remain open.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
 last_local_commit: 3bfa4cd8c
