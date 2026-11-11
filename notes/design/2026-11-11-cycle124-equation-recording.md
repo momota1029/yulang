@@ -64,3 +64,20 @@ The old single Frame keyed captures only by declaration ID. That restricted
 separate source invocations of one impl to the same bindings. Transactions use
 an Occurrence-indexed frame family instead. No revisit identity, allocator
 freshness or cross-state coherence is inferred; those existing questions remain.
+
+## Source-preserving refinement
+
+Located endpoints and targets embed into any Refines successor; head/output
+terms rename through the same embedding. Separate type/row source equalities
+prove identical equation meaning at every global assignment. Renamed ordinary
+membership preserves Recorded. The explicitly lifted package relation keeps
+the identical source-indexed dictionary, and one unchanged witness works in
+every refined-state model. This does not identify arbitrary new packages with
+the old declarations or prove a complete candidate/state narrowing step.
+
+The final regressions include genuine1-to2 slot growth with slot0 moved to1,
+unchanged global type10/row20, and the same three-node source tree in all refined
+models. Another regression supplies separate int and str witness models in one
+free snapshot, proves their joint batch has no model, and retains this failure
+under sibling order reversal. It therefore rules out replacing a common model
+with independently chosen sibling models. Repeated packages retain12 atoms.

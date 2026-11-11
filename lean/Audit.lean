@@ -1,3 +1,7 @@
+import Yulang.GeneralDictionaryBatchExamples
+import Yulang.GeneralDictionaryRefinementExamples
+import Yulang.GeneralDictionaryRefinementEvidence
+import Yulang.GeneralDictionaryInvocationExamples
 import Yulang.GeneralDictionaryBatchRecording
 import Yulang.GeneralDictionaryTransactions
 import Yulang.GeneralDictionaryRecordingExamples
@@ -9389,3 +9393,41 @@ run_cmd do
 #print axioms Yulang.GeneralDictionaryPlannedOutputs.output_plan_children
 #print axioms Yulang.GeneralDictionaryPlannedOutputs.output_plan_sources
 #print axioms Yulang.GeneralDictionaryPlannedOutputs.output_plan_covered
+
+-- Distinct source invocations retain distinct captures.
+#print axioms Yulang.GeneralDictionaryInvocationExamples.first_children
+#print axioms Yulang.GeneralDictionaryInvocationExamples.second_children
+#print axioms Yulang.GeneralDictionaryInvocationExamples.actual_distinct_source_demands
+#print axioms Yulang.GeneralDictionaryInvocationExamples.first_lookup
+#print axioms Yulang.GeneralDictionaryInvocationExamples.second_lookup
+#print axioms Yulang.GeneralDictionaryInvocationExamples.fixed_frame_outputs
+#print axioms Yulang.GeneralDictionaryInvocationExamples.fixed_frame_cannot_represent_both
+#print axioms Yulang.GeneralDictionaryInvocationExamples.both_reordered_lookups
+
+-- Arbitrary source-preserving refinement keeps the same dictionary witness.
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.transport_recorded
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.assignment_comp_embed
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.liftType_transport_eval
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.transport_holds_iff
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.stored_instance_transport
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.model_instance_transport_iff
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.indexed_transport
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.indexed_transport_all_models
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.erased_transport_uniform_witness
+
+-- Non-vacuous allocation/reindex regression.
+#print axioms Yulang.GeneralDictionaryRefinementExamples.proper_growth_and_reindex
+#print axioms Yulang.GeneralDictionaryRefinementExamples.grown_models
+#print axioms Yulang.GeneralDictionaryRefinementExamples.transported_recorded
+#print axioms Yulang.GeneralDictionaryRefinementExamples.reindexed_arrow_sources
+#print axioms Yulang.GeneralDictionaryRefinementExamples.unchanged_three_node_tree
+#print axioms Yulang.GeneralDictionaryRefinementExamples.all_refined_models
+#print axioms Yulang.GeneralDictionaryRefinementExamples.nonvacuous_refined_tree
+
+-- Siblings need one common model, not separate witnesses.
+#print axioms Yulang.GeneralDictionaryBatchExamples.free_models
+#print axioms Yulang.GeneralDictionaryBatchExamples.package_holds
+#print axioms Yulang.GeneralDictionaryBatchExamples.separately_satisfiable
+#print axioms Yulang.GeneralDictionaryBatchExamples.joint_inconsistent
+#print axioms Yulang.GeneralDictionaryBatchExamples.order_preserves_joint_failure
+#print axioms Yulang.GeneralDictionaryBatchExamples.repeated_package_atoms

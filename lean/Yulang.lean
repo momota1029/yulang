@@ -1626,3 +1626,7 @@ import Yulang.GeneralDictionaryBatchRecording
 import Yulang.GeneralDictionaryTransactions
 import Yulang.GeneralDictionaryRecordingExamples
 import Yulang.GeneralDictionaryPlannedOutputs
+import Yulang.GeneralDictionaryInvocationExamples
+import Yulang.GeneralDictionaryRefinementEvidence
+import Yulang.GeneralDictionaryRefinementExamples
+import Yulang.GeneralDictionaryBatchExamples
