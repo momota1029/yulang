@@ -1630,3 +1630,9 @@ import Yulang.GeneralDictionaryInvocationExamples
 import Yulang.GeneralDictionaryRefinementEvidence
 import Yulang.GeneralDictionaryRefinementExamples
 import Yulang.GeneralDictionaryBatchExamples
+
+import Yulang.GeneralDictionaryOutputBinderTerms
+
+import Yulang.GeneralDictionaryBinderLocations
+import Yulang.GeneralDictionaryOutputBinderExamples
+import Yulang.GeneralDictionaryBinderLocationExamples

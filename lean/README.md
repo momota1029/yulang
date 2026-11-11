@@ -4601,3 +4601,7 @@ separate calls need not share captures just because their implementation key
 is equal. The family remains supplied and has no proved revisit coherence.
 GeneralDictionaryPlannedOutputs couples canonical children and every explicit/
 default root RHS to the same actual checked visible declaration.
+
+- Cycle125: `GeneralDictionaryOutputBinderTerms` computes actual explicit output-only RHS variables, proves lookup/independent-denotation equivalence, and connects every recorded root output to its checked producer child source. Default/input/compound bodies remain deferred; all12 general B4 bridges remain unfilled.
+
+- Cycle125 follow-through: `GeneralDictionaryBinderLocations` finds source IDs in the actual injective state map and computes every local output term. `build` accepts only head/endpoints/targets, defers the whole package if any output fails, and proves actual RHS provenance after recording. Concrete checked-source and shifted-slot examples retain repeated targets and exhibit a satisfying model.
