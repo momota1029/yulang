@@ -1,3 +1,20 @@
+import Yulang.GeneralDictionaryVariableHeads
+import Yulang.GeneralDictionaryHeadExamples
+import Yulang.GeneralDictionaryVariablePreparation
+import Yulang.GeneralDictionaryPreparationExamples
+import Yulang.GeneralDictionaryVariableRealization
+import Yulang.GeneralDictionaryTerminalFixture
+import Yulang.GeneralDictionaryVariableTerms
+import Yulang.GeneralDictionaryVariableCompatibility
+import Yulang.GeneralDictionaryVariableExamples
+import Yulang.GeneralDictionaryVariablePlans
+import Yulang.GeneralDictionaryVariableTransactions
+import Yulang.GeneralDictionaryVariableMaterialization
+import Yulang.GeneralDictionaryVariableOrder
+import Yulang.GeneralDictionaryBinderOnlyBoundary
+import Yulang.GeneralDictionaryComputedTransactions
+import Yulang.GeneralDictionaryComputedOutputExamples
+import Yulang.GeneralDictionaryComputedOutputPlans
 import Yulang.GeneralDictionaryBinderLocations
 import Yulang.GeneralDictionaryOutputBinderExamples
 import Yulang.GeneralDictionaryBinderLocationExamples
@@ -9479,6 +9496,148 @@ run_cmd do
 #print axioms Yulang.GeneralDictionaryBinderLocations.compile_source_complete
 #print axioms Yulang.GeneralDictionaryBinderLocations.compile_slot_exact
 
+-- Cycle126 computed output plans.
+#print axioms Yulang.GeneralDictionaryComputedOutputPlans.lookup_exact
+#print axioms Yulang.GeneralDictionaryComputedOutputPlans.build_head
+#print axioms Yulang.GeneralDictionaryComputedOutputPlans.lookup_plan
+#print axioms Yulang.GeneralDictionaryComputedOutputPlans.lookup_terms
+#print axioms Yulang.GeneralDictionaryComputedOutputPlans.lookup_output_plan
+
+-- Cycle126 GeneralDictionaryComputedTransactions.
+#print axioms Yulang.GeneralDictionaryComputedTransactions.built_valid
+#print axioms Yulang.GeneralDictionaryComputedTransactions.transaction_stored
+#print axioms Yulang.GeneralDictionaryComputedTransactions.lifted_source_instance
+#print axioms Yulang.GeneralDictionaryComputedTransactions.transaction_uniform
+#print axioms Yulang.GeneralDictionaryComputedTransactions.source_instance_declaration
+#print axioms Yulang.GeneralDictionaryComputedTransactions.source_output_denotes
+
+-- Cycle126 GeneralDictionaryComputedOutputExamples.
+#print axioms Yulang.GeneralDictionaryComputedOutputExamples.registry_checked
+#print axioms Yulang.GeneralDictionaryComputedOutputExamples.actual_lookup
+#print axioms Yulang.GeneralDictionaryComputedOutputExamples.absent_key_defers
+#print axioms Yulang.GeneralDictionaryComputedOutputExamples.wrong_role_defers
+#print axioms Yulang.GeneralDictionaryComputedOutputExamples.computes_repeated_outputs
+#print axioms Yulang.GeneralDictionaryComputedOutputExamples.retains_distinct_targets
+#print axioms Yulang.GeneralDictionaryComputedOutputExamples.supplies_complete_plan
+#print axioms Yulang.GeneralDictionaryComputedOutputExamples.supplies_concrete_terms
+#print axioms Yulang.GeneralDictionaryComputedOutputExamples.same_visible_declaration
+#print axioms Yulang.GeneralDictionaryComputedOutputExamples.nonidentity_lookup
+#print axioms Yulang.GeneralDictionaryComputedOutputExamples.nonidentity_computed_output
+#print axioms Yulang.GeneralDictionaryComputedOutputExamples.nonidentity_repeated_targets
+#print axioms Yulang.GeneralDictionaryComputedOutputExamples.missing_binder_defers
+
+-- Cycle126 binder-only completion boundary.
+#print axioms Yulang.GeneralDictionaryBinderOnlyBoundary.output_requires_nonempty_child
+#print axioms Yulang.GeneralDictionaryBinderOnlyBoundary.built_root_outputs_empty
+
+-- Cycle126 GeneralDictionaryVariableTerms.
+#print axioms Yulang.GeneralDictionaryVariableTerms.lookup_exact
+#print axioms Yulang.GeneralDictionaryVariableTerms.output_lookup_preserved
+#print axioms Yulang.GeneralDictionaryVariableTerms.compile_interpreted
+#print axioms Yulang.GeneralDictionaryVariableTerms.build_interpreted
+#print axioms Yulang.GeneralDictionaryVariableTerms.build_head
+#print axioms Yulang.GeneralDictionaryVariableTerms.build_output_denotes
+#print axioms Yulang.GeneralDictionaryVariableTerms.built_output_models
+
+-- Cycle126 GeneralDictionaryVariableCompatibility.
+#print axioms Yulang.GeneralDictionaryVariableCompatibility.compile_preserved
+#print axioms Yulang.GeneralDictionaryVariableCompatibility.build_preserved
+
+-- Cycle126 GeneralDictionaryVariableExamples.
+#print axioms Yulang.GeneralDictionaryVariableExamples.singleton_input_lookup
+#print axioms Yulang.GeneralDictionaryVariableExamples.unequal_input_deferred
+#print axioms Yulang.GeneralDictionaryVariableExamples.output_binder_unchanged
+#print axioms Yulang.GeneralDictionaryVariableExamples.compound_deferred
+#print axioms Yulang.GeneralDictionaryVariableExamples.default_deferred
+#print axioms Yulang.GeneralDictionaryVariableExamples.nonidentity_input_compiles
+#print axioms Yulang.GeneralDictionaryVariableExamples.nonidentity_input_build
+
+-- Cycle126 GeneralDictionaryVariablePlans.
+#print axioms Yulang.GeneralDictionaryVariablePlans.lookup_exact
+#print axioms Yulang.GeneralDictionaryVariablePlans.build_head
+#print axioms Yulang.GeneralDictionaryVariablePlans.lookup_plan
+#print axioms Yulang.GeneralDictionaryVariablePlans.lookup_terms
+#print axioms Yulang.GeneralDictionaryVariablePlans.lookup_output_plan
+
+-- Cycle126 GeneralDictionaryVariableTransactions.
+#print axioms Yulang.GeneralDictionaryVariableTransactions.built_valid
+#print axioms Yulang.GeneralDictionaryVariableTransactions.transaction_stored
+#print axioms Yulang.GeneralDictionaryVariableTransactions.lifted_source_instance
+#print axioms Yulang.GeneralDictionaryVariableTransactions.transaction_uniform
+#print axioms Yulang.GeneralDictionaryVariableTransactions.source_instance_declaration
+#print axioms Yulang.GeneralDictionaryVariableTransactions.source_output_denotes
+
+-- Cycle126 GeneralDictionaryVariableMaterialization.
+#print axioms Yulang.GeneralDictionaryVariableMaterialization.compile_slot_exact
+#print axioms Yulang.GeneralDictionaryVariableMaterialization.compile_variable
+#print axioms Yulang.GeneralDictionaryVariableMaterialization.build_exact
+#print axioms Yulang.GeneralDictionaryVariableMaterialization.build_none_exact
+#print axioms Yulang.GeneralDictionaryVariableMaterialization.plan_lookup_exact
+
+-- Cycle126 GeneralDictionaryVariableOrder.
+#print axioms Yulang.GeneralDictionaryVariableOrder.bodyTerm_reorders
+#print axioms Yulang.GeneralDictionaryVariableOrder.term_lookup_reorders
+#print axioms Yulang.GeneralDictionaryVariableOrder.compile_reorders
+#print axioms Yulang.GeneralDictionaryVariableOrder.build_reorders
+#print axioms Yulang.GeneralDictionaryVariableOrder.lookup_reorders_forward
+#print axioms Yulang.GeneralDictionaryVariableOrder.lookup_reorders
+
+-- Cycle126 actual finite terminal dictionary.
+#print axioms Yulang.GeneralDictionaryTerminalFixture.leaf_checked
+#print axioms Yulang.GeneralDictionaryTerminalFixture.registry_checked
+#print axioms Yulang.GeneralDictionaryTerminalFixture.root_actual_children
+#print axioms Yulang.GeneralDictionaryTerminalFixture.child_actual_children
+#print axioms Yulang.GeneralDictionaryTerminalFixture.root_holds
+#print axioms Yulang.GeneralDictionaryTerminalFixture.child_holds
+#print axioms Yulang.GeneralDictionaryTerminalFixture.joint_model
+#print axioms Yulang.GeneralDictionaryTerminalFixture.tree_items
+#print axioms Yulang.GeneralDictionaryTerminalFixture.tree_joint_model
+#print axioms Yulang.GeneralDictionaryTerminalFixture.retained_outputs
+#print axioms Yulang.GeneralDictionaryTerminalFixture.root_build
+#print axioms Yulang.GeneralDictionaryTerminalFixture.child_build
+#print axioms Yulang.GeneralDictionaryTerminalFixture.root_lookup
+#print axioms Yulang.GeneralDictionaryTerminalFixture.child_lookup
+#print axioms Yulang.GeneralDictionaryTerminalFixture.tree_built
+#print axioms Yulang.GeneralDictionaryTerminalFixture.uniform_completion
+#print axioms Yulang.GeneralDictionaryTerminalFixture.all_model_root_child_input
+
+-- Cycle126 GeneralDictionaryVariablePreparation.
+#print axioms Yulang.GeneralDictionaryVariablePreparation.prepare_node_exact
+#print axioms Yulang.GeneralDictionaryVariablePreparation.prepare_root
+#print axioms Yulang.GeneralDictionaryVariablePreparation.prepare_built
+#print axioms Yulang.GeneralDictionaryVariablePreparation.prepare_uniform
+
+-- Cycle126 GeneralDictionaryPreparationExamples.
+#print axioms Yulang.GeneralDictionaryPreparationExamples.child_prepares
+#print axioms Yulang.GeneralDictionaryPreparationExamples.tree_prepares
+#print axioms Yulang.GeneralDictionaryPreparationExamples.missing_child_defers
+#print axioms Yulang.GeneralDictionaryPreparationExamples.extra_child_defers
+#print axioms Yulang.GeneralDictionaryPreparationExamples.wrong_identity_defers
+#print axioms Yulang.GeneralDictionaryPreparationExamples.missing_key_defers
+#print axioms Yulang.GeneralDictionaryPreparationExamples.unequal_leaf_defers
+#print axioms Yulang.GeneralDictionaryPreparationExamples.recipe_heads
+#print axioms Yulang.GeneralDictionaryPreparationExamples.prepared_built
+
+-- Cycle126 GeneralDictionaryVariableRealization.
+#print axioms Yulang.GeneralDictionaryVariableRealization.singleton_value
+#print axioms Yulang.GeneralDictionaryVariableRealization.denotes_realization
+#print axioms Yulang.GeneralDictionaryVariableRealization.built_output_realization
+
+-- Cycle126 GeneralDictionaryVariableHeads.
+#print axioms Yulang.GeneralDictionaryVariableHeads.compileAt_exact
+#print axioms Yulang.GeneralDictionaryVariableHeads.build_head_denotes
+#print axioms Yulang.GeneralDictionaryVariableHeads.build_preserves
+#print axioms Yulang.GeneralDictionaryVariableHeads.build_exact
+#print axioms Yulang.GeneralDictionaryVariableHeads.denotesAt_realization
+
+-- Cycle126 GeneralDictionaryHeadExamples.
+#print axioms Yulang.GeneralDictionaryHeadExamples.leaf_positional_compiles
+#print axioms Yulang.GeneralDictionaryHeadExamples.leaf_head_denotes
+#print axioms Yulang.GeneralDictionaryHeadExamples.leaf_head_builds
+#print axioms Yulang.GeneralDictionaryHeadExamples.leaf_concrete_head
+#print axioms Yulang.GeneralDictionaryHeadExamples.nominal_root_defers
+#print axioms Yulang.GeneralDictionaryHeadExamples.unequal_leaf_defers
+#print axioms Yulang.GeneralDictionaryHeadExamples.absent_source_defers
 #print axioms Yulang.GeneralCandidateIntervals.propagate_models
 #print axioms Yulang.GeneralCandidateIntervals.propagated_capture_sound
 #print axioms Yulang.GeneralCandidateIntervals.propagated_original

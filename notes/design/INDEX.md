@@ -342,3 +342,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle124 dictionary recording and RHS provenance](2026-11-11-cycle124-equation-recording.md) — Draft; exact equation transaction, explicit/default source obligations, and the remaining term interpretation boundary.
 
 - [Cycle125 output-only RHS terms](2026-11-12-cycle125-output-binder-terms.md) — actual source binder interpretation, producer linkage, and retained general boundary.
+- [Checked computed output transactions](2026-11-11-cycle126-computed-output-plans.md) — Draft. One visible declaration supplies plans and computed binder outputs; head interpretation and general B4 remain open.
