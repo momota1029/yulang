@@ -546,3 +546,389 @@ theorem shadow_cycle_counterexample :
       ObservedRootK2 shadowState loopDemand loopNeeded ∧
       (shadowModel 0).1 = Common.required 7 (.base .int)
 ```
+
+
+## Item 2b
+
+2026-11-12, normalized source observation and root K2. This section supersedes
+Item 2's raw-cycle status for **separately checked normalized snapshots**. It
+does not claim a total materializer, complete language classification, or a
+finished `generalBoundary`.
+
+The new modules are:
+
+- [GeneralNormalizedObservation.lean](../../lean/Yulang/GeneralNormalizedObservation.lean),
+  namespace `Yulang.GeneralNormalizedObservation` (`N` below).
+- [GeneralSourceK2.lean](../../lean/Yulang/GeneralSourceK2.lean), namespace
+  `Yulang.GeneralSourceK2` (`K` below).
+- [GeneralSourceK2Examples.lean](../../lean/Yulang/GeneralSourceK2Examples.lean),
+  namespace `Yulang.GeneralSourceK2Examples`.
+
+All are imported by `Yulang.lean`. The original state, demand, ordinary atoms,
+interval endpoints, row identities, and associated-output links are unchanged.
+There is no registry carrier, candidate choice, or executor in these modules.
+
+### What the snapshot checks
+
+`N.Rewrites state first last` is a finite, independent normalization derivation.
+Its source steps use either an actual recorded head equation or both directions
+of an equation occurring in `state.ordinary`. Its other steps are constructor
+congruence, required-field expansion, hidden-field removal, swapping distinct
+record fields, same-tag merging, and union idempotence. They reuse
+`Common.common_shadowed_head_equivalent`,
+`CommonPatternConcreteRecordTypes.record_swap`,
+`CommonCanonicalShapes.variant_union_group`, and the existing Common constructor
+congruences. This is a certificate calculus, **not an executable general
+normalization algorithm**. No caller may replace a missing derivation by an
+assertion that an inspection succeeded.
+
+`rewrites_sound` quantifies every original Common assignment satisfying the full
+shared state. `Snapshot.checked` requires such a derivation from the original
+slot for every stored term. `observation_models` and `models_preserved` prove
+that adding the checked observations discards no ordinary model. This is exact
+preservation of Models, not completeness or uniqueness of the observations.
+There is no claim that every Common-equivalent presentation has the same
+certificate or the same K2 outcome. Inconsistent ordinary states still make the
+old State's semantic head invariant vacuous; no consistency theorem or automatic
+source materialization is supplied here.
+
+Complete record signatures store **all** visible labels in strictly increasing
+order, with one child per payload. Required fields and records with an
+`emptyRecord` tail use the same signature (`required_record_same`). Distinct
+signatures have distinct table indices, enforced by `shapes_injective`.
+Consequently `{L: y, M: int}` cannot be mistaken for `{L: y}` merely because
+its first field agrees. Payload edges reset field visibility; there is no raw
+record-tail edge in the normalized graph.
+
+A residual observation stores a visible prefix and the original tail term.
+The prefix labels are the hidden-label context for that tail. A residual has
+no complete graph head: `Head.node` gives `.unresolved`. The shadow fixture
+unfolds `x` once under its record tail, exposes a duplicate `L`, removes it
+using `Rewrites.shadow`, and retains the original residual reference. It does
+**not** turn the equation `x ≈ {L: int, ..x}` into `x ≈ {L: int}`. The separate
+`shadow_residual_model` theorem exhibits a model with another visible field.
+The unknown residual is a normalization limitation, not a new rejection rule.
+This snapshot does not decide that the shadow demand is finally accepted or
+finally fails at end of file.
+
+The new observation language accepts arbitrary finite arities, arbitrary labels,
+pairs, complete records, variants, all scalar bases, and exact-empty heads.
+The ordinary state and Common model carrier remain unrestricted. Unsupported
+heads retain their terms as deferred observations. This is a partial interface
+on the general state, not a scalar/settled/unary replacement for that state,
+and there is no new fragment-specific `Classify`.
+
+### Independent root criterion and why it is not nonfiniteness
+
+The K2 decisions at the end of [spec/06-roles.md](../../spec/06-roles.md) explicitly
+say that the root of `Check {box: μ}`, with `μ = {tick: μ}`, is not recursive.
+A constructor-inspecting candidate can still trigger **candidate** K2 at `μ`.
+Similarly, `Len (list μ)` without a where child passes the root rule. The whole
+denotation of such a wrapper can require a recursive description. Therefore
+“in every model no finite equivalent type exists” would reject too much;
+changing “every” to “some” does not repair the root/descendant distinction.
+It would also confuse an unknown residual's possible model with a known source
+observation. No choice between those two proposed denotational criteria is made.
+
+Instead `K.Child`, `K.Path`, `K.Cycle`, `K.read`, and `K.RecursAt` define an
+independent normalized-observation criterion. A root either lies on a nonempty
+visible payload path returning to itself, or its observations at **every finite
+depth** agree with a root on such a cycle. A descendant's cycle alone is
+insufficient. This accounts for finite unrollings without imposing a depth
+cutoff. These definitions do not call the graph detector, a resolver, or an
+executor. Signature indices refer to the snapshot's injective canonical table.
+
+`child_graph_iff`, `path_graph_iff`, `cycle_graph_iff`, and `read_graph` prove the
+actual correspondence with the existing graph. `graphK2_sound` proves soundness
+against `RecursAt`; `graphK2_exact` proves the converse on a fully determined
+snapshot using the existing finite-observation/bisimulation theorem. The
+closed-view premise prevents distinct unresolved identities from becoming equal
+merely because both read as unknown.
+
+`K.RootPending` is defined from normalized lower-head knowledge and the supplied
+`Needed` applicability-index set. The derivation of that set still belongs to
+item 3. It replaces, for this snapshot, the earlier raw-head observation; the old
+module remains unchanged. `pending_graph_iff` connects it to `.unresolved` at
+the linked lower endpoint.
+
+`K.Complete` requires every node reachable from an endpoint to have a normalized
+head. `RootInspectionUnknown` records that some demand argument lacks such a
+complete cone. It is distinct from lower-head pending: a known pair can have an
+unsupported descendant. It ignores unrelated associated-output nodes.
+`RootK2` requires a linked demand, no lower-head pending, no inspection unknown,
+and a complete lower endpoint with graph K2. The extra inspection gate is
+**conservative partial-normalizer deferral**, not a newly approved language
+restriction. It may delay a cycle already visible on one branch while another
+branch remains unsupported. It must not be finalized as rejection merely because
+our materializer is incomplete.
+
+`rootK2_sound` retains those gates and proves independent normalized recurrence.
+`rootK2_exact` gives an iff for linked, ready, fully determined snapshots.
+`rootK2_observation_sound` additionally identifies a normalized term for the
+rejected lower endpoint and proves it equivalent to that endpoint in **every
+original model**. It does not claim that the model itself has no finite
+equivalent presentation. All public signatures are reproduced below.
+
+### Canonicalization coverage and deferral
+
+| Case | Implemented correspondence | Remaining work / required behavior |
+| --- | --- | --- |
+| Hidden same-name fields | `Rewrites.shadow`, congruence, and distinct-field swaps; full sorted signatures | Derivations must be supplied; no total source traversal or completeness theorem. |
+| Raw self-tail `x ≈ {L: int, ..x}` | Explicit unfold/remove-duplicate derivation; original tail retained in `Deferred.residual` | Root stays unknown in this snapshot, never a graph cycle or K2 rejection. No empty-tail substitution. |
+| Genuine `μ ≈ {L: μ}` | Required-field normalization retains the payload edge | The linked loop example is RootK2 and not RootPending. |
+| Same-tag variants | `Rewrites.merge` for arbitrary payload terms; `duplicate_tag` and `duplicate_tag_source` contract repeated payloads | Unequal merged payloads need a materialized union child identity and a checked fold/readback bridge. Without it, keep `Deferred.unsupported`; no full variant-row normalizer is claimed. |
+| Required field vs record with empty tail | `required_record_same`, one `Shape.record [label]` | Handled for this equivalence. |
+| Arrow row-expression equivalence | Arrows are retained as unsupported terms, never complete signatures | No comparison of raw row expressions or row-slot IDs is used to reject. Canonical row observations remain missing. |
+| Aliases with different unresolved source IDs | Literal source identities are retained; incomplete cones defer | No general alias quotient. Explicit ordinary equalities can be unfolded by certificates, but unknowns are not equated. |
+| Nominals, defaults, other Common normalization | Retain unsupported terms | Nominal integration and additional canonical observations remain missing. Named bodies must remain opaque. |
+
+`unknown_path_defers_rootK2` proves that any unresolved node on a normalized
+argument path prevents this RootK2 reason. `pending_excludes_rootK2` and
+`unknown_excludes_rootK2` state both exclusion gates explicitly. In particular,
+`¬RootK2` alone is **not** permission to select, declare ambiguity, or issue an
+empty-survivor rejection. There is still no full classification judgment here.
+
+### Field table after Item 2b
+
+`S` means `Yulang.GeneralSourceState`; all defined rows below are independent of
+any executor. References to draft items mean the approved
+[main draft and addenda](2026-11-08-b4-main-statement-draft.md).
+
+| Requested row | Status and Lean name | Faithfulness / remaining obligation |
+| --- | --- | --- |
+| `Vocabulary.State` | **DEFINED checked component:** `S.State` with `N.Snapshot state` | Shared identities/ordinary bounds retained. Snapshot checks finite normalization certificates. Full materializer, nominal integration and normalization completeness **MISSING**. Draft assumptions and spec 6.3. |
+| `Vocabulary.Demand` | **DEFINED carrier:** `S.Demand`, `S.Linked` | Existing Roles arity and associated names, centerless interval endpoints, outputs retain original identities. Deriving source demands/applicability set **MISSING**. Spec 6.2–6.3, addendum 3. |
+| `Vocabulary.Registry` | **MISSING in this lane** | Item 1 remains owned by the other prover; no registry carrier added. |
+| `Vocabulary.Model` | **DEFINED Common assignment carrier:** `S.Assignment` | One assignment supplies type and row components for all source identities; nominal integration remains missing. |
+| `Models` | **DEFINED checked-snapshot component:** `S.Models`, `N.ObservationModels`, `N.models_preserved` | Every old ordinary model is retained; no model is selected to decide K2. Draft assumptions and model preservation. |
+| `RootPending` | **DEFINED partial normalized snapshot predicate:** `K.RootPending`, `K.pending_graph_iff` | Whole demand waits for the supplied needed lower heads, including normalization-unknown heads. Final EOF handling and derivation of `Needed` **MISSING**. Addenda 1/3; spec 6.3. |
+| `RootK2` | **DEFINED on checked partial normalized snapshots:** `K.RootK2` | Sound for independent `K.RecursAt`, exact on fully determined views. General Common-equivalence adequacy/total observation coverage **MISSING**. Draft local rejected case; spec K2 root-position decision. |
+| `Checked` | **MISSING in this lane** | Item 1; snapshot checking is not impl declaration checking. |
+| `Step` | **MISSING** | Existing `S.Refines` remains an update contract, not a source saturation step. |
+| `Stable` | **MISSING** | No stable EOF or sibling-fixpoint driver. |
+| `Generated` | **MISSING** | No source-to-demand or where-child producer. |
+| `Survivor` | **MISSING** | Item 3 must integrate capture and interval propagation. |
+| `InspectionPending` | **MISSING as a complete boundary field** | `K.RootInspectionUnknown` is a defined normalization-deferral component, not complete candidate inspection. |
+| `CandidateK2` | **MISSING** | Must be based on actual surviving candidate inspections, not any recursive descendant. |
+| `Evidence` | **MISSING** | General dictionary/model correctness remains open. |
+| `Reorders` | **MISSING** | No general sibling/candidate order relation supplied. |
+| `DictionaryEquivalent` | **MISSING** | General dictionary observation relation remains open. |
+| `Executor.run` | **MISSING** | No executor introduced or used to define any field. |
+
+No row is filled by a scalar, settled or unary fragment. Existing narrow
+normalizers were surveyed but not adopted as general definitions.
+`generalVocabulary` and `generalBoundary` are still unconstructed.
+
+### Handoff to item 3 and remaining verification
+
+Item 3 can use the original `S.Demand`/`Linked`/`Models` and the new
+`N.Snapshot.checked`, `rewrites_sound`, `observation_models`, normalized graph,
+`K.Child`/`Path`, and the two distinct deferral predicates. It must:
+
+1. Derive the applicability argument set without allowing a singleton impl to
+   fix an unknown argument. Keep output obligations separate from input heads.
+2. Materialize merged payloads and record residuals with actual shared source
+   identities and checked normalization evidence; keep unsupported observations
+   deferred and revalidate snapshots after updates.
+3. Prove survivor/capture/propagation correspondence, preserve every where child,
+   and trigger candidate K2 only when a surviving candidate inspects a recursive
+   constructor. Neither raw graph cycles nor arbitrary descendant cycles suffice.
+4. Carry `RootInspectionUnknown` into inspection deferral. A negative RootK2 result
+   is insufficient evidence for any other classification.
+
+Not verified: automatic snapshot construction, unique/canonical outcomes across
+all equivalent presentations, source expression reachability, arbitrary Common
+nonfiniteness, nominal or arrow coverage, merged-child materialization, general
+alias canonicalization, new-snapshot monotonicity, saturation termination,
+finalization, candidate correctness, or any B4 bridge field. The older raw-state
+refinement theorem does not automatically transport these normalized snapshots.
+
+Assessment of convergence: this work makes concrete progress toward the general
+instance because it connects existing arbitrary-Common normalization laws to the
+shared state and original demand identities, with model-preservation and explicit
+unknown gates. The old scalar/settled/unary classification theorems still do not
+instantiate the general boundary. Their existence alone is not evidence that
+B4 is nearly complete; the table still has substantial empty fields. The useful
+reused results here are Common congruences, record/tag equivalences, finite graph
+paths, and graph bisimulation, rather than fragment-specific classifier outputs.
+
+### Semantic questions
+
+No new language decision is required for the implemented partial snapshot.
+Deferral follows the approved owner decisions; it is not a choice to reject
+unsupported types. For example `impl R {L: int, ..a} where a: R` with a goal
+whose residual has not been materialized keeps waiting. Arrow and unresolved
+alias examples likewise remain unknown. Whether a particular solver update can
+materialize a complete view is an open **proof/implementation obligation**, not
+a request to choose new language semantics. No final EOF classification for an
+implementation-unsupported observation is inferred here.
+
+### Item-2b theorem statements
+
+These are the full public signatures, copied from the source. Implicit `state`,
+`roles`, source terms, and counts are universally quantified with their inferred
+types; names resolve in each module's namespace and opened namespaces.
+
+`Yulang.GeneralNormalizedObservation`:
+
+```lean
+theorem rewrites_sound (derivation : Rewrites state first last) (model : Assignment)
+    (models : Models state model) :
+    Common.Equivalent (first.eval Common.model (state.assignment model))
+      (last.eval Common.model (state.assignment model))
+
+theorem observation_models (view : Snapshot state) (model : Assignment)
+    (models : Models state model) : ObservationModels view model
+
+theorem models_preserved (view : Snapshot state) (model : Assignment) :
+    Models state model ∧ ObservationModels view model ↔ Models state model
+
+theorem deferred_graph (view : Snapshot state) (slot : Fin state.slots)
+    (reason : Deferred state.slots) (deferred : view.heads slot = .deferred reason) :
+    GeneralSourceBoundary.GraphUnresolved view.graph slot
+
+theorem duplicate_tag (state : State) (tag : Nat) (payload : TyTerm (Fin state.slots)) :
+    Rewrites state (.union (.variant tag payload) (.variant tag payload)) (.variant tag payload)
+
+theorem duplicate_tag_source (state : State) (slot : Fin state.slots) (tag : Nat)
+    (payload : TyTerm (Fin state.slots))
+    (forward : Atom.tyLe (.var slot) (.union (.variant tag payload) (.variant tag payload)) ∈ state.ordinary)
+    (backward : Atom.tyLe (.union (.variant tag payload) (.variant tag payload)) (.var slot) ∈ state.ordinary) :
+    Rewrites state (.var slot) (.variant tag payload)
+
+theorem required_record_same (state : State) (label : Nat) (payload : Fin state.slots) :
+    Rewrites state (.required label (.var payload)) ((Shape.record [label]).term (fun _ => payload)) ∧
+      Rewrites state (.record label (.var payload) .emptyRecord)
+        ((Shape.record [label]).term (fun _ => payload))
+```
+
+`Yulang.GeneralSourceK2`:
+
+```lean
+theorem child_graph_iff (view : Snapshot state) (source target : Fin state.slots) :
+    Child view source target ↔ target ∈ successors view.graph source
+
+theorem path_graph_iff (view : Snapshot state) (first last : Fin state.slots) :
+    Path view first last ↔ FiniteWorklist.Path (successors view.graph) first last
+
+theorem cycle_graph_iff (view : Snapshot state) (root : Fin state.slots) :
+    Cycle view root ↔ StructuralCycleAt view.graph root
+
+theorem read_graph (view : Snapshot state) (depth : Nat) (slot : Fin state.slots) :
+    read view depth slot = CommonRoleGraphBisimulation.observe view.graph depth slot
+
+theorem graphK2_sound (view : Snapshot state) (root : Fin state.slots)
+    (recursive : GeneralSourceBoundary.GraphK2 view.graph root) : RecursAt view root
+
+theorem graphK2_exact (view : Snapshot state)
+    (closed : ∀ slot, view.graph slot ≠ .unresolved) (root : Fin state.slots) :
+    GeneralSourceBoundary.GraphK2 view.graph root ↔ RecursAt view root
+
+theorem pending_graph_iff (view : Snapshot state) (demand : Demand roles)
+    (linked : Linked state demand) (needed : Needed demand) :
+    RootPending view demand needed ↔ ∃ argument slot, needed argument ∧
+      state.source slot = (demand.arguments argument).1 ∧
+      GeneralSourceBoundary.GraphUnresolved view.graph slot
+
+theorem pending_excludes_rootK2 (view : Snapshot state) (demand : Demand roles)
+    (needed : Needed demand) (pending : RootPending view demand needed) :
+    ¬ RootK2 view demand needed
+
+theorem unknown_excludes_rootK2 (view : Snapshot state) (demand : Demand roles)
+    (needed : Needed demand) (unknown : RootInspectionUnknown view demand) :
+    ¬ RootK2 view demand needed
+
+theorem incomplete_defers (view : Snapshot state) (root slot : Fin state.slots)
+    (path : Path view root slot) (unknown : view.graph slot = .unresolved) :
+    ¬ Complete view root
+
+theorem unknown_path_defers_rootK2 (view : Snapshot state) (demand : Demand roles)
+    (needed : Needed demand) (argument : Fin (roles demand.role).arity)
+    (root slot : Fin state.slots) (source : state.source root = (demand.arguments argument).1)
+    (path : Path view root slot) (unknown : view.graph slot = .unresolved) :
+    ¬ RootK2 view demand needed
+
+theorem rootK2_sound (view : Snapshot state) (demand : Demand roles) (needed : Needed demand)
+    (rejected : RootK2 view demand needed) :
+    Linked state demand ∧ ¬ RootPending view demand needed ∧ ¬ RootInspectionUnknown view demand ∧
+      ∃ argument slot, state.source slot = (demand.arguments argument).1 ∧
+        Complete view slot ∧ RecursAt view slot
+
+theorem rootK2_exact (view : Snapshot state) (demand : Demand roles) (needed : Needed demand)
+    (linked : Linked state demand) (ready : ¬ RootPending view demand needed)
+    (closed : ∀ slot, view.graph slot ≠ .unresolved) :
+    RootK2 view demand needed ↔
+      ∃ argument slot, state.source slot = (demand.arguments argument).1 ∧ RecursAt view slot
+
+theorem rootK2_observation_sound (view : Snapshot state) (demand : Demand roles) (needed : Needed demand)
+    (rejected : RootK2 view demand needed) :
+    ∃ argument slot term, state.source slot = (demand.arguments argument).1 ∧
+      (view.heads slot).term = some term ∧ RecursAt view slot ∧
+      ∀ model, GeneralSourceState.Models state model →
+        Common.Equivalent (model (demand.arguments argument).1).1
+          (term.eval Common.model (state.assignment model))
+```
+
+`Yulang.GeneralSourceK2Examples`:
+
+```lean
+theorem shadow_normalization :
+    Rewrites shadowState (.var 0) (.record 7 (.var 1) (.var 0)) ∧
+      Rewrites shadowState (.record 7 (.var 1) (.record 7 (.var 1) (.var 0)))
+        (.record 7 (.var 1) (.var 0))
+
+theorem index_pending_not_rootK2 :
+    GeneralSourceState.Linked indexState indexDemand ∧
+      (∀ key, GeneralSourceState.Models indexState (indexModel key)) ∧
+      RootPending indexView indexDemand indexNeeded ∧ ¬ RootK2 indexView indexDemand indexNeeded
+
+theorem loop_rootK2 :
+    GeneralSourceState.Linked loopState loopDemand ∧
+      GeneralSourceState.Models loopState loopModel ∧
+      RootK2 loopView loopDemand loopNeeded ∧ ¬ RootPending loopView loopDemand loopNeeded ∧
+      RecursAt loopView 0
+
+theorem shadow_not_rootK2 :
+    GeneralSourceState.Linked shadowState loopDemand ∧
+      GeneralSourceState.Models shadowState shadowModel ∧
+      RootPending shadowView loopDemand loopNeeded ∧ ¬ RootK2 shadowView loopDemand loopNeeded ∧
+      ¬ GeneralSourceBoundary.GraphK2 shadowView.graph 0 ∧
+      (shadowModel 0).1 = Common.required 7 (.base .int)
+
+theorem shadow_residual_model :
+    GeneralSourceState.Models shadowState shadowWiderModel ∧
+      ObservationModels shadowView shadowWiderModel ∧
+      (shadowWiderModel 0).1 = Common.record 7 (.base .int) (Common.required 9 (.base .str))
+```
+
+
+### Item-2b checks
+
+Final commands, run from `lean/`:
+
+| Exact command | Exit code |
+| --- | --- |
+| `lake build Yulang.GeneralNormalizedObservation Yulang.GeneralSourceK2 Yulang.GeneralSourceK2Examples > /tmp/astra-normalized-k2-focused.log 2>&1` | 0 |
+| `lake build Yulang > /tmp/astra-normalized-k2-umbrella.log 2>&1` | 0 |
+| `lake env lean Audit.lean > /tmp/astra-normalized-k2-audit.log 2>&1` | 0 |
+
+The focused build completed 425 jobs; the umbrella build completed 1328 jobs.
+All 26 new public theorems have audit entries and full statements above.
+The full audit dependency whitelist contains only `propext`, `Classical.choice`,
+and `Quot.sound`. New modules contain none of the excluded tokens. Existing
+`Audit.lean` and `Yulang.lean` contents remain exact byte prefixes. Local links
+and `git diff --check` pass. No existing theorem body, specification, plan,
+lake configuration, or git reference was changed.
+
+Early focused builds exited 1 while fixing dependent constructor equality,
+finite-index elaboration and a lemma namespace; only the new files were edited.
+A preliminary audit-coverage script was run before the audit process finished
+and correctly reported missing trailing output; it passed after process exit.
+No failing proof or audit entry remains.
+
+The `yulang-proofs` skill was applied. Its referenced repository orchestration
+files and configured prover launch role were unavailable in this checkout; the
+primary constructed the bounded derivations. A separate read-only reviewer
+challenged the semantics and reviewed the final gate changes and this note.
+No prover agent ran. The reviewer ran `git diff --check`, not independent Lean
+builds; the build and audit results above are the primary's checks.
