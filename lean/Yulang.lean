@@ -1670,3 +1670,8 @@ import Yulang.GeneralDictionaryVariableRealization
 import Yulang.GeneralDictionaryVariableHeads
 
 import Yulang.GeneralDictionaryHeadExamples
+import Yulang.GeneralCandidateIntervals
+import Yulang.GeneralCandidateInspection
+import Yulang.GeneralCandidateBoundaryParts
+import Yulang.GeneralCandidateExamples
+import Yulang.GeneralCandidateConflictExamples
