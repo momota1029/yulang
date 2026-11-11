@@ -142,7 +142,18 @@ my twice(x: 'a) =
   impl Wrap(list 'a, out = list 'b) where Container('a, item = 'b)
   ```
 
-  関連型は名前つきの role 引数であり、名前なしの引数（`list 'a`）が決まれば、名前つきの引数の制約は一度に決まる。専用の仕組みは増えない。残る設計課題（上の展開に伴うもの）: (1) 停止性。右辺が作る goal を、`where` の子と同様に数え、Paterson 的な「head より小さい」条件の対象にする。(2) 関連型が head から決まる条件 `HeadDeterminesAssociated`（上）との関係。(3) 右辺の参照の循環。具体的な構文と条件は、設計して詰める（`notes/plan/m1-plan.md` の T13）。
+  関連型は名前つきの role 引数であり、名前なしの引数（`list 'a`）が決まれば、名前つきの引数の制約は一度に決まる。専用の仕組みは増えない。
+  **関連型の等式で決まる変数は、出力にだけ使える**（確定, 2026-11-12, ユーザーの決定）。展開で現れる新しい変数（上の `'b`）は、その `impl` 自身の関連型の定義と、他の `where` の子の関連型の出力（名前つき引数）にだけ書ける。`where` の子の名前なしの引数（入力）には書けない。書いた `impl` は宣言時に拒否される。Paterson 的な「head より小さい」条件と「where 中の各変数の出現回数が head を超えない」条件は、`where` の子の**名前なしの引数だけ**で数え、この出力専用の変数は数えない。
+
+  ```yulang
+  // 受理: 'b は出力にだけ使う
+  impl Wrap (list 'a) where Container('a, item = 'b):
+      type out = list 'b
+  // 拒否: 'b を別の子の入力に使う（Container の item が head より大きい型を返すと、解決が止まらない）
+  impl Show (box 'a) where Container('a, item = 'b), Show 'b
+  ```
+
+  拒否する側を後から広げる余地（関連型の定義そのものに大きさの制限をかけて、入力にも使えるようにする案）は残す。出典: `notes/questions/2026-11-10-cycle70-associated-sugar-checking.md`。残る設計課題（上の展開に伴うもの）: (1) 停止性。右辺が作る goal を、`where` の子と同様に数え、Paterson 的な「head より小さい」条件の対象にする。(2) 関連型が head から決まる条件 `HeadDeterminesAssociated`（上）との関係。(3) 右辺の参照の循環。具体的な構文と条件は、設計して詰める（`notes/plan/m1-plan.md` の T13）。
 - **`impl` の関連型の右辺は、head から決まらなければならない**（確定, 2026-11-07。ユーザーの決定）。head の**隠れた同名 field**（`{x: int, x: 'a}` の 2 つ目の `x`。型の上では無かったことになる。章4.3）を除いた head から、右辺が使う型変数が決まらない `impl` は、宣言時に拒否される。
   例: `impl R ({x: int, x: 'a}): type value = 'a`。goal `R {x: int}` に対して `'a` は任意の型で成り立つので、関連型 `value` が `int` にも `bool` にもなり、同じ `impl` のため「候補の impl が複数ある」曖昧さの検査にも当たらない。
   必要な条件は `HeadDeterminesAssociated`（任意の `impl` と、head が要求同値になる任意の二つの代入について、関連型の右辺も要求同値になる）。具体的な検査の形（隠れた field を先に除く、など）と、その十分性は未証明。
