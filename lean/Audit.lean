@@ -1,3 +1,5 @@
+import Yulang.CommonRoleStructuralRenaming
+import Yulang.CommonRoleNamedStructuralDerivations
 import Yulang.CommonRoleStructuralNamedInputs
 import Yulang.CommonRoleStructuralHornSchedules
 import Yulang.CommonRoleStructuralAssociatedSolver
@@ -8821,3 +8823,31 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralHornSchedules.schedule_tree
 
 #print axioms Yulang.CommonRoleStructuralNamedInputs.run_source_exists_iff
+
+-- Cycle111: independent original-name structural derivations.
+#print axioms Yulang.CommonRoleStructuralRenaming.weight_rename
+#print axioms Yulang.CommonRoleStructuralRenaming.expandFuel_rename
+#print axioms Yulang.CommonRoleStructuralRenaming.atom_rename
+#print axioms Yulang.CommonRoleStructuralRenaming.row_rename_congr
+#print axioms Yulang.CommonRoleStructuralRenaming.ty_rename_congr
+#print axioms Yulang.CommonRoleStructuralRenaming.atom_rename_congr
+#print axioms Yulang.CommonRoleStructuralRenaming.row_rename_comp
+#print axioms Yulang.CommonRoleStructuralRenaming.ty_rename_comp
+#print axioms Yulang.CommonRoleStructuralRenaming.atom_rename_comp
+#print axioms Yulang.CommonRoleStructuralRenaming.row_rename_id
+#print axioms Yulang.CommonRoleStructuralRenaming.ty_rename_id
+#print axioms Yulang.CommonRoleStructuralRenaming.atom_rename_id
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.equalities_rename
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.equalities_read
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.compile
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.read_atom
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.readback
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.derives_exact
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.known_exact
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.models_exact
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.run_named_exists_iff
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.equalities_models
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.all_derivations_models
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.models_congr
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.run_models
+#print axioms Yulang.CommonRoleNamedStructuralDerivations.run_named_models
