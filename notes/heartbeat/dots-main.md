@@ -1,10 +1,9 @@
-cycle: 118
-status: completed
-started: 2026-11-11T13:23:04Z
-updated: 2026-11-11T14:11:06Z
-elapsed_min: 48.04
-activity: Four scalar source-to-dictionary subgoals complete, 51 new theorems; nine focused modules passed 529 jobs and trust-zero, 119 audit declarations allowed; code CI passed.
+cycle: 119
+status: running
+started: 2026-11-11T14:30:49Z
+updated: 2026-11-11T14:32:00Z
+elapsed_min: 1.18
+activity: I-17 P0: revise B4 target to guarded rejection and lossless diagnostic trees; replace completedReadback bridge and prove functional classification.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: e4168b25a
-report: notes/handoff/dots-cycle-118.md
-resume_hint: Fetch integration afresh and obey STOP. I-17 makes B4TargetV2 plus revised bridges and functional classification the next first goal. Preserve recovered14 files and four new proof modules. Old bridges12/12 remain; new target count not yet defined. Checked code ad4abbb3cec877fe712479ab366840bc3cb5954d. No uncertain mutation remains.
+last_local_commit: e6ab34ce4
+resume_hint: Cycle118 completed and integrated at e6ab34ce4. Fresh I-17 checked. Single writer cycle119; create B4TargetV2 and B4SkeletonV2 preserving old declarations, focused tests only.
