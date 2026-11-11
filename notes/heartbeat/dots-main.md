@@ -1,9 +1,9 @@
 cycle: 122
 status: running
 started: 2026-11-11T17:27:30Z
-updated: 2026-11-11T17:35:00Z
-elapsed_min: 7.5
-activity: I-18 item 5: recover verified source dictionaries and equations; define concrete registry reordering preserving every independent declaration check. Targets evidenceNode/dictionaryRefl/canonicalLocalOrder prerequisites.
+updated: 2026-11-11T17:41:20Z
+elapsed_min: 13.83
+activity: Focused recovery and general dictionary/registry build PASS (435 jobs); no-build gate PASS. Preparing atomic source publication, targeted axiom audit pending with 3-minute cap.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: ca03ee946
-resume_hint: Cycle121 writer released. Its uncertain unreferenced tree a8f5e34fbd557a4017a3d7399c102251ce635d72 returned GitHub 404; no commit/ref was attempted. Recovery sources preserved. Recovered modules compile in ../yulang-cycle122. No full build. Publish via blob/tree/commit with expected head.
+last_local_commit: ba0037082
+resume_hint: The cycle121 uncertain tree returned 404 and no commit/ref had run. All recovery sources are committed locally, including reports119-121. Blob hashes recorded in cycle122 publication manifest; publish one tree from integration4ec4ae877 with expected work/dots-main head. Audit log cache/yulang122/audit.log; keep final all-model Evidence boundary explicit, B4 12/12 open.
