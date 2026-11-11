@@ -4592,3 +4592,12 @@ with exact lookup, declared coverage and complete output-source preservation.
 Neither module supplies full role Evidence, candidate applicability or the
 missing nominal/center-free interval term interpretation. General B4 remains
 12 unfilled bridges out of12.
+
+GeneralDictionaryBatchRecording and GeneralDictionaryTransactions now compute
+one finite ordinary transaction for every annotated dictionary node, construct
+Recorded automatically, and prove exact joint feasibility and one uniform
+source witness in every final model. Frames vary by complete root occurrence;
+separate calls need not share captures just because their implementation key
+is equal. The family remains supplied and has no proved revisit coherence.
+GeneralDictionaryPlannedOutputs couples canonical children and every explicit/
+default root RHS to the same actual checked visible declaration.

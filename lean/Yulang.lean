@@ -1620,3 +1620,9 @@ import Yulang.GeneralDictionaryPlannedEvidence
 import Yulang.GeneralDictionaryEquationRecording
 import Yulang.GeneralDictionaryAssociatedProvenance
 import Yulang.GeneralDictionaryAssociatedProvenanceExamples
+
+-- Shared finite dictionary transactions and combined output plans.
+import Yulang.GeneralDictionaryBatchRecording
+import Yulang.GeneralDictionaryTransactions
+import Yulang.GeneralDictionaryRecordingExamples
+import Yulang.GeneralDictionaryPlannedOutputs

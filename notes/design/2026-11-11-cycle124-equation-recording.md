@@ -51,3 +51,16 @@ requests have not been materialized. Spec06 §6.5 already requires center-free
 intervals, and the B5 interval design excludes encoding nominal names as variant
 tags. The implementation preserves these gaps and does not invent a centre,
 nominal carrier map, or a conversion between default and explicit binder scopes.
+
+## Whole-tree transaction and invocation frames
+
+Prepared retains a Located package at each finite source-indexed dictionary
+node. Valid checks the actual Plan and still-explicit term interpretation.
+The transaction computes all node atoms, records them in one State, constructs
+all Recorded certificates, and yields one fixed source witness for all final
+models. Exact joint feasibility and batch-order model equivalence are proved.
+
+The old single Frame keyed captures only by declaration ID. That restricted
+separate source invocations of one impl to the same bindings. Transactions use
+an Occurrence-indexed frame family instead. No revisit identity, allocator
+freshness or cross-state coherence is inferred; those existing questions remain.

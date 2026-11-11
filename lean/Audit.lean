@@ -1,3 +1,7 @@
+import Yulang.GeneralDictionaryBatchRecording
+import Yulang.GeneralDictionaryTransactions
+import Yulang.GeneralDictionaryRecordingExamples
+import Yulang.GeneralDictionaryPlannedOutputs
 import Yulang.GeneralDictionaryAssociatedProvenanceExamples
 import Yulang.GeneralDictionaryEquationRecording
 import Yulang.GeneralDictionaryAssociatedProvenance
@@ -9356,3 +9360,32 @@ run_cmd do
 #print axioms Yulang.GeneralDictionaryAssociatedProvenanceExamples.positional_default
 #print axioms Yulang.GeneralDictionaryAssociatedProvenanceExamples.undeclared_absent
 #print axioms Yulang.GeneralDictionaryAssociatedProvenanceExamples.repeated_name_distinct_targets
+
+-- Cycle124 whole-dictionary transactions.
+#print axioms Yulang.GeneralDictionaryBatchRecording.batch_models
+#print axioms Yulang.GeneralDictionaryBatchRecording.relocate_equations
+#print axioms Yulang.GeneralDictionaryBatchRecording.batch_recorded
+#print axioms Yulang.GeneralDictionaryBatchRecording.batch_order_models
+#print axioms Yulang.GeneralDictionaryBatchRecording.batch_satisfiable
+#print axioms Yulang.GeneralDictionaryBatchRecording.batch_conservative
+#print axioms Yulang.GeneralDictionaryBatchRecording.batch_append_models
+#print axioms Yulang.GeneralDictionaryTransactions.plannedAt_children_functional
+#print axioms Yulang.GeneralDictionaryTransactions.dictionary_root
+#print axioms Yulang.GeneralDictionaryTransactions.dictionaries_map
+#print axioms Yulang.GeneralDictionaryTransactions.dictionaries_roots
+#print axioms Yulang.GeneralDictionaryTransactions.childItems_member
+#print axioms Yulang.GeneralDictionaryTransactions.valid_stored_in
+#print axioms Yulang.GeneralDictionaryTransactions.transaction_stored
+#print axioms Yulang.GeneralDictionaryTransactions.transaction_uniform
+#print axioms Yulang.GeneralDictionaryTransactions.transaction_models
+#print axioms Yulang.GeneralDictionaryRecordingExamples.automatically_stored
+#print axioms Yulang.GeneralDictionaryRecordingExamples.nonvacuous
+#print axioms Yulang.GeneralDictionaryRecordingExamples.same_models
+#print axioms Yulang.GeneralDictionaryRecordingExamples.source_ids_retained
+#print axioms Yulang.GeneralDictionaryRecordingExamples.repeated_outputs_retained
+#print axioms Yulang.GeneralDictionaryRecordingExamples.incompatible_no_model
+#print axioms Yulang.GeneralDictionaryPlannedOutputs.output_plan_functional
+#print axioms Yulang.GeneralDictionaryPlannedOutputs.lookup_exact
+#print axioms Yulang.GeneralDictionaryPlannedOutputs.output_plan_children
+#print axioms Yulang.GeneralDictionaryPlannedOutputs.output_plan_sources
+#print axioms Yulang.GeneralDictionaryPlannedOutputs.output_plan_covered
