@@ -321,3 +321,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle110: structural ordinary / associated finite feedback](2026-11-11-cycle110-structural-role-feedback.md) — computed carrier, independent schedules, actual solver, and named structural input boundary.
 
 - [Cycle111: independent named structural derivations](2026-11-11-cycle111-named-derivations.md) — Draft implementation, source-name allocation/readback and ordinary solver exactness.
+- [Ordinary-state scalar registry bridge](2026-11-11-cycle114-scalar-registry.md) — Draft. Independent four-way fragment classification, actual declaration identities, and all-model dictionary evidence; general B4 remains open.

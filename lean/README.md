@@ -4458,3 +4458,19 @@ dynamic occurrence selection remain open; grammar failure is not a new language
 rejection rule and ordinary success is not complete source-role discharge.
 
 - Cycle111: `CommonRoleStructuralRenaming` and `CommonRoleNamedStructuralDerivations` prove allocation/readback exactness for independently derivable original-name structural atoms and actual ordinary-solver success iff a named model exists. Static checked single-placeholder/scalar fragment only; general B4 remains open.
+
+- `CommonRoleRawStructuralSource` removes externally checked templates: executable scope checking and ordinary grammar precede allocation and actual solver execution. Independent raw-name derivations and all-model contracts retain occurrence order and repeated endpoints. Unsupported scope is adapter failure, not a language rejection decision.
+
+## Cycle112: B4 skeleton / lossless root / scalar dictionary
+
+`B4Skeleton` preserves the existing five-clause target and proves composition
+from 12 smaller explicit obligations. No full-source bridge instance is supplied.
+`CommonRoleSettledRootClassification` retains unsuccessful children in their own
+positions and characterizes root rejection by the three local reasons.
+`CommonRoleScalarDictionaryModels` runs ordinary consistency, materialization,
+and the real singleton int/str dictionary elaborator, with evidence in every
+ordinary model. General B4 and where-order dictionary equivalence remain open.
+
+`CommonRoleSettledVisibleOrder` proves equality of the full diagnostic trees
+under permutations of visible declarations, preserving selected declaration
+identity, every child, and incomplete results. It does not permute where lists.
