@@ -4387,3 +4387,39 @@ independent expression Derives characterizes every returned full dictionary.
 Binding-only names are retained, so contradictory repeated names cannot vanish
 merely because no role clause mentions them. Unsupported expressions are outside
 this explicitly restricted fragment, not final language rejections.
+
+`CommonRoleStructuralOrdinaryMaterialization` reads paired ordinary bounds for
+closed int/pair/union/tick Forms at arbitrary depth. It replaces a variable only
+when all recorded structural payloads are syntactically the same, independent
+of atom order and duplicates. Every state model preserves the original Form
+meaning. Actual generated graph models reflect this meaning and the independent
+regenerated frontier. This is deliberately incomplete for semantic entailment:
+distinct but equivalent payloads remain unresolved. One-state idempotence is
+not saturation termination, and future arbitrary states have no derived finite
+source bound here.
+
+Cycle109 adds CommonRoleStructuralMaterializationProgress: inclusive actual
+ordinary states change structural materialization at most twice per original
+variable occurrence, including loss of uniqueness on equivalent syntax. The
+computed additive-state trace needs no caller model or Chain. This is a bound
+on diagnostic regeneration events, not termination of the batch-producing
+driver or a bound on future structural payload size.
+
+Cycle109 also adds a computed structural child domain, lossless full-diagnostic
+replay, and a bridge from actual finite decomposition/transitivity closure.
+CommonRoleDerivedStructuralMaterialization detects uniquely represented paired
+payloads by the independent seed/split/trans derivation, preserves every model,
+and bounds all replay rebuilds and generated-child visits for finite additive
+ordinary jobs. No caller supplies propagated atoms, trace, model or child list.
+The batch stream and source slot/invocation maps remain inputs. Checked State
+upper terms remain in the existing grammar; raw join/tick materialization is
+not promoted to a complete checked ordinary solver or the full B4 theorem.
+
+CommonRoleStructuralSaturationTrace removes the external batch stream for the
+existing finite ordinary seed/split/trans rules. It instruments firstFresh in
+actual discovery order, derives the carrier/capacity from original atoms,
+checks the original State with the real ordinary solver, and preserves every
+original model at every generated snapshot. The final atom membership is
+exactly independent Derives, terminal closure is proved, and all diagnostic
+snapshots and fresh ordinary graphs use the generated trace. This completes
+that finite ordinary driver, not general mixed role-to-ordinary saturation.

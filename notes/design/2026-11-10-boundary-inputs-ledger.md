@@ -1600,3 +1600,40 @@ Cycle103のextraは両端点から集めた名前を重複除去する。元の�
   ranges over every name valuation. Scope-resolved binding names and explicit
   scalar annotations remain the declared fragment boundary; non-scalar/effectful
   expressions, parser linkage and general source scoping are still open.
+
+- `CommonRoleStructuralOrdinaryMaterialization`: actual ordinary atoms and the
+  existing ambient slot map determine closed structural payloads, rather than
+  limiting replacement to int. Detector exactness requires one distinct syntax
+  payload among explicit upper/lower bounds. It is not complete for semantic
+  entailment. All-model preservation and graph reflection quantify every state
+  assignment; no model is an execution input. Slot/source maps remain external,
+  and general fresh-child allocation and future-state finite closure remain open.
+
+## Cycle109: structural materialization progress
+
+- Actual atoms, original Goal and ambient slots remain explicit inputs (spec6.3).
+- Included/Chain are theorem hypotheses for arbitrary traces, not executable
+  inputs. computed_changes_bounded constructs the trace from actual additive
+  State batches without a model, consistency or successful role premise.
+- The finite batch list is still external. Its generation and termination are
+  not proved. Conflict means syntactic detector conflict, not language rejection.
+
+- StructuralMaterializationDomain computes the palette and all recursive work
+  from an actual atom envelope. In FrontierReplay.runBatches_computed_bound,
+  that envelope is the internally accumulated final ordinary state, not an
+  externally supplied child-work list. The externally submitted finite batches
+  still determine the temporal scope of the bound.
+- DerivedStructuralMaterialization additionally computes finite seed/split/trans
+  closure at every state. Independent DerivedEvidence, all-model exactness,
+  and normalized monotonicity remove a caller-propagated-evidence boundary.
+  The run still receives slots, invocation Sources, initial State and finite
+  batches. Parser lowering, dynamic source allocation, general K2 and final
+  source-language four-way classification are not resolved (spec6.2/6.3).
+
+- StructuralSaturationTrace.run takes only the existing declaration registry,
+  ambient slots, invocation Sources, original Goal and initial checked State.
+  It computes the ordinary finite carrier, capacity, firstFresh discoveries,
+  full additive trace and diagnostic replay. No batch list, propagated evidence,
+  numerical fuel, work domain, successful check or model is supplied.
+  The scope remains finite ordinary seed/split/trans closure: role feedback,
+  fresh source allocation, parser lowering and final classification remain open.
