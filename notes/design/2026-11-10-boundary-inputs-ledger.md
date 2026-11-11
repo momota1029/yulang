@@ -1553,3 +1553,25 @@ Cycle103のextraは両端点から集めた名前を重複除去する。元の�
 - Unsupported scalar encoding and no evidence are distinct retained observations.
   The rigid compatibility status is not promoted to source final classification.
   Existing source identity questions and all five global B4 packages remain open.
+
+## Cycle107: CommonRoleDiagnosticDictionaries / CommonRoleSourceDictionaryForest
+
+- `impls`, `wf`, `g`: the existing visible rigid registry, Paterson proof and goal.
+  Projection reads only the diagnostic tree and computes each optional Plan.
+  `Dictionary` is the existing independently indexed selected-declaration tree,
+  not a new caller oracle. `dictionary_projects` quantifies over it to compare
+  payloads; `diagnose_project_exact` proves existence in both directions.
+- `src`, `env`, `roles`, `wf`, `awf`: unchanged finite scope-resolved source and
+  declaration boundary from cycles104–106 (spec6.2/6.3). Real source lowering,
+  identity and general Form remain outside the current proof. No new boundary
+  input is needed by execution. All old scalar attempts and failed trees remain.
+- `r`, `computed`, `row`, `member`, `c`, `same`, `b`, `p`: observers identifying
+  an actual returned row and a queried scalar/Plan, not supplied success evidence.
+  `run_plan_exact` characterizes every payload with source Derives, structural
+  Materializes and an indexed Dictionary whose entire erasure is equal.
+- `path`, target payload `q`: arbitrary observations, not a schedule. The source
+  path iff states root Resolves explicitly because a successful child does not
+  make a failing root successful. The execution takes no root-success premise.
+- The ordinary consistency bit is not used to fabricate or choose a Plan. Full
+  acceptance still requires Models and all source roles. Scope-wide canonical
+  obligation ordering and language-level dictionary observation remain open.

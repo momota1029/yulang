@@ -1515,3 +1515,7 @@ import Yulang.CommonRoleCheckedMixedSource
 
 import Yulang.CommonRoleRecursiveDiagnostics
 import Yulang.CommonRoleSourceDiagnosticForest
+
+import Yulang.CommonRoleDiagnosticDictionaries
+
+import Yulang.CommonRoleSourceDictionaryForest

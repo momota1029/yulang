@@ -1,3 +1,5 @@
+import Yulang.CommonRoleDiagnosticDictionaries
+import Yulang.CommonRoleSourceDictionaryForest
 import Yulang.CommonRoleSourceDiagnosticForest
 import Yulang.CommonRoleRecursiveDiagnostics
 import Yulang.CommonRoleEvidenceDischarge
@@ -8577,3 +8579,28 @@ run_cmd do
 #print axioms Yulang.CommonRoleSourceDiagnosticForest.run_path_exact
 
 #print axioms Yulang.CommonRoleSourceDiagnosticForest.run_exists_iff
+
+-- Cycle107 structural diagnostic projection and full source dictionary payloads.
+#print axioms Yulang.CommonRoleDiagnosticDictionaries.mapM_isSome
+#print axioms Yulang.CommonRoleDiagnosticDictionaries.mapM_some_of_pointwise
+#print axioms Yulang.CommonRoleDiagnosticDictionaries.project_success
+#print axioms Yulang.CommonRoleDiagnosticDictionaries.dictionary_projects
+#print axioms Yulang.CommonRoleDiagnosticDictionaries.diagnose_project_exact
+#print axioms Yulang.CommonRoleDiagnosticDictionaries.diagnose_project_elaborate
+#print axioms Yulang.CommonRoleDiagnosticDictionaries.project_all_visible
+#print axioms Yulang.CommonRoleDiagnosticDictionaries.mapM_getElem
+#print axioms Yulang.CommonRoleDiagnosticDictionaries.project_children
+#print axioms Yulang.CommonRoleDiagnosticDictionaries.project_follow_exact
+#print axioms Yulang.CommonRoleDiagnosticDictionaries.diagnose_plan_path_exact
+#print axioms Yulang.CommonRoleSourceDictionaryForest.enrichRow_erase
+#print axioms Yulang.CommonRoleSourceDictionaryForest.enrich_erase
+#print axioms Yulang.CommonRoleSourceDictionaryForest.run_erasure
+#print axioms Yulang.CommonRoleSourceDictionaryForest.attach_accepted
+#print axioms Yulang.CommonRoleSourceDictionaryForest.enrich_observation
+#print axioms Yulang.CommonRoleSourceDictionaryForest.run_success_iff
+#print axioms Yulang.CommonRoleSourceDictionaryForest.run_exists_iff
+#print axioms Yulang.CommonRoleSourceDictionaryForest.run_spec
+#print axioms Yulang.CommonRoleSourceDictionaryForest.enrichRow_plan_exact
+#print axioms Yulang.CommonRoleSourceDictionaryForest.run_plan_exact
+#print axioms Yulang.CommonRoleSourceDictionaryForest.run_plan_visible
+#print axioms Yulang.CommonRoleSourceDictionaryForest.run_plan_path_exact
