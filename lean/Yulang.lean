@@ -1690,3 +1690,12 @@ import Yulang.GeneralDictionaryHeadlessSourceEvidence
 import Yulang.GeneralDictionaryHeadlessSourceExamples
 import Yulang.GeneralDictionarySourceRecipe
 import Yulang.GeneralDictionarySourceRecipeExamples
+
+import Yulang.GeneralNominalIdentities
+import Yulang.GeneralNominalCommonBridge
+import Yulang.GeneralNominalState
+import Yulang.GeneralNominalAllocation
+import Yulang.GeneralNominalInspection
+import Yulang.GeneralNominalCandidates
+import Yulang.GeneralNominalExamples
+import Yulang.GeneralNominalRegressions
