@@ -216,3 +216,4 @@ Astra の棚卸し（`notes/design/2026-11-11-astra-general-boundary.md`、`lean
 報告には、13 項目それぞれの状態（一般の定義あり／断片のみ／MISSING）の表を毎回付ける。
 
 - Astra 担当: 項目 2（状態と需要）。2026-11-11 開始。
+- Astra 担当: 項目 1（宣言の入れ物と検査）も Astra に移す（2026-11-12、dot のサイクル 119 が止まっていて、項目 3 が項目 1 を待つため）。dot は I-17 のあと、項目 5（辞書: `Evidence`、`Reorders`、`DictionaryEquivalent`）の定義から始めること。項目 1・2 の定義（`GeneralSourceState`、`GeneralSourceK2` と、Astra がこれから足す宣言のモジュール）を部品として使ってよい。
