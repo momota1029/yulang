@@ -190,3 +190,12 @@ I-11 の「時間を埋めるための補題は足さない」は、「部分目
 ### 全体の規則
 - 各部分目標は、**`B4Bridges` のどのフィールドを閉じる（または縮める）か**を、開始時に心拍の `activity` に書く。どのフィールドにも効かない拡張は、後回しにする。
 - 優先順位は、監督役が inbox を更新して変える。dot は、自分の判断で順序を入れ替えない（ただし、上の項目が設計の判断で止まったときに下へ進むのは、I-15 の通り）。
+
+## I-17: 主定理の文の修正（ユーザー決定と監督役のレビュー, 2026-11-11）
+
+サイクル 112 の `pending_empty_survivors_obstruction` と `rejected_child_has_no_completed_readback` を受けて、承認済みの主定理の草稿に補遺を足した（`notes/design/2026-11-08-b4-main-statement-draft.md` 末尾）。
+
+1. **保留が拒否より先（ユーザー決定）**: `RejectReason` の「候補ゼロ」は、`¬ RootPending` のときだけ。`RootK2`・`CandidateK2` も、それぞれが検査の開始を前提にしているかを確かめ、`RootPending` と重ならないようにする（重なるなら同じく `¬ RootPending` を付ける。迷ったら設計ノートに書く）。
+2. **結果は診断ツリー**: 主定理 (2) を、実行版が返す診断ツリーと、独立な `Resolves (Local …) d tree` の一致として述べる。4 分類への写像は `Completed` のツリーだけ。
+3. **やり方（削除しない）**: `Main.lean` の旧 `B4Target.Statement` は消さない。新しいモジュール（例: `Yulang/B4TargetV2.lean`）に、修正した `Statement`（量化子は旧と同じ）を書き、旧との差分（どこが違うか、なぜか）を docstring に書く。`B4Skeleton` の `B4Bridges` と `b4_of_bridges` を新しい target へ移す（旧のものは残し、「旧 target 向け」と docstring に書く）。修正後の target で、`pending_empty_survivors_obstruction` に当たる阻害が**もう起きない**ことを、定理で示す（排他性の補題: 新しい `Classify` は関数的）。
+4. これを次のサイクルの**最初の部分目標**とする（I-16 の P0 の仕上げ）。その後は I-16 の P1 以降に戻る。報告の「`B4Bridges` の未証明フィールド k/m」は、新しい target の構造体で数える。
