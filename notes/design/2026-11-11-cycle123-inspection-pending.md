@@ -60,3 +60,24 @@ output equations. Its package constructor proves exact child determinism.
 The general Packages relation must still be derived from declarations/captures.
 Ordered child determinism and unordered PermutationInvariant semantics are
 different interfaces; the uniqueness theorem does not silently conflate them.
+
+## Next subgoal: runtime-payload sibling comparison
+
+The B4 payload erases source IDs. Define its least structural equivalence under
+sibling permutation, retaining selected keys and full recursive shape. Prove
+source dictionary equivalence maps to this payload relation, and independent
+payload evidence transports only when the concrete local relation is proven
+permutation-invariant. Keep this condition separate from ordered-child uniqueness.
+This supplies a concrete key-payload comparison candidate for item5; it does not
+assume capture/allocation, source dictionary semantics, or final-state order
+independence. The pending/rejected/ambiguous diagnostic tags are not collapsed.
+
+The payload comparison and semantic-order adapters are now proved. The Unordered
+package view retains a permutation witness for complete source occurrences and
+the same located equations. It is permutation-invariant and idempotent. Exact
+package child determinism becomes uniqueness up to permutation, not equality.
+A distinct-key non-vacuous regression rejects reversed payloads in the canonical
+ordered judgment, accepts them with corresponding source transport in the
+unordered judgment, and proves the unordered judgment is not child-functional.
+No role instances are fabricated: the concrete package relation is still the
+separate missing declaration/capture bridge.

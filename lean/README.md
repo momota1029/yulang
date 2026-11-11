@@ -4561,3 +4561,10 @@ the whole dictionary in every shared-state model, with one uniform source witnes
 The declaration-to-equation package relation is still unimplemented; equation
 evidence alone is not complete role Evidence. Regressions use a satisfying model
 and two distinct child source IDs with identical erased leaf payloads.
+
+GeneralDictionaryPayloadOrder gives the actual key-only payload its least
+structural sibling-permutation equivalence, preserving keys and subtrees.
+GeneralDictionarySemanticOrder transports the full source child list alongside
+payload order and proves shared-model equation evidence for every permutation.
+Canonical ordered evidence and unordered conjunction evidence are distinct;
+a regression proves the unordered relation is not literally child-functional.

@@ -1603,3 +1603,8 @@ import Yulang.B4TargetV3TotalityRegressions
 import Yulang.GeneralDictionaryReadback
 import Yulang.GeneralDictionaryModelEvidence
 import Yulang.GeneralDictionaryReadbackExamples
+
+-- Source-preserving structural payload order and unordered model evidence.
+import Yulang.GeneralDictionaryPayloadOrder
+import Yulang.GeneralDictionarySemanticOrder
+import Yulang.GeneralDictionarySemanticOrderExamples
