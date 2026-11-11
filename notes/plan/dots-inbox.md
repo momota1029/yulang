@@ -228,3 +228,4 @@ Astra の棚卸し（`notes/design/2026-11-11-astra-general-boundary.md`、`lean
 3. `Local` の関数性（各需要について高々一つの frontier）と、**全域性の補題**（`SourceBoundary` の各述語が排中律で決まるとき、どの需要にも少なくとも一つの `Local` が当てはまる）を証明する。全域性は、V2 の回帰（空ソースの重なり、子の拒否）に加えて、「検査の保留」の回帰例で確かめる。
 4. `B4SkeletonV2` の合成も新しい target へ移す。報告の「未証明フィールド k/m」はこの新しい構造体で数える。
 これは I-18 の項目 5 より先にやる（1 サイクルの最初の部分目標の大きさ）。
+- Astra 担当: 項目 3（候補: `Survivor`、`InspectionPending`、`CandidateK2`）。2026-11-12 開始。dot は項目 3 に手を出さないこと。
