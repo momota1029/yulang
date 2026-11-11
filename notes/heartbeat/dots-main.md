@@ -1,9 +1,9 @@
 cycle: 122
 status: running
 started: 2026-11-11T17:27:30Z
-updated: 2026-11-11T17:59:22Z
-elapsed_min: 31.87
-activity: Verified midpoint publication15fb561d4. Child order and shared-state equations proved; focused432-job regression build passed. Canonical source-clause ordering proof in progress to address raw-order obstruction.
+updated: 2026-11-11T18:08:41Z
+elapsed_min: 41.18
+activity: Final aggregate focused build PASS (439 jobs); seven general dictionary/order modules, 34 new current-cycle theorems plus 25 recovered dictionary theorems. Canonical child emissions proved equal; final91-declaration audit running.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: f9278c12d
-resume_hint: First code commit abedb9658 has passing core/proof CI. Midpoint15fb561d4 tree and hashes verified. Additional regression/refinement/obstruction sources are in repo, focused build PASS cache/yulang122/final-components.log. CanonicalChildOrder scratch compile running with 3-minute cap. No general Evidence/driver completed; B4 remains12/12. Preserve source IDs and separate row IDs.
+last_local_commit: 4d81e472b
+resume_hint: Final source blobs uploaded and hash-checked; expected-head publication pending final audit. Earlier source commits abedb9658 and15fb561d4 both have passing core/proof CI. Logs cache/yulang122/final-focused.log and final-audit.log. Remaining work: final source ref update, report/signature publication, tree verification. B4 V2 remains12/12; no full local build.
