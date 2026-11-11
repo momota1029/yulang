@@ -1608,3 +1608,12 @@ Cycle103のextraは両端点から集めた名前を重複除去する。元の�
   entailment. All-model preservation and graph reflection quantify every state
   assignment; no model is an execution input. Slot/source maps remain external,
   and general fresh-child allocation and future-state finite closure remain open.
+
+## Cycle109: structural materialization progress
+
+- Actual atoms, original Goal and ambient slots remain explicit inputs (spec6.3).
+- Included/Chain are theorem hypotheses for arbitrary traces, not executable
+  inputs. computed_changes_bounded constructs the trace from actual additive
+  State batches without a model, consistency or successful role premise.
+- The finite batch list is still external. Its generation and termination are
+  not proved. Conflict means syntactic detector conflict, not language rejection.

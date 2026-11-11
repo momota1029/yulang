@@ -4397,3 +4397,10 @@ regenerated frontier. This is deliberately incomplete for semantic entailment:
 distinct but equivalent payloads remain unresolved. One-state idempotence is
 not saturation termination, and future arbitrary states have no derived finite
 source bound here.
+
+Cycle109 adds CommonRoleStructuralMaterializationProgress: inclusive actual
+ordinary states change structural materialization at most twice per original
+variable occurrence, including loss of uniqueness on equivalent syntax. The
+computed additive-state trace needs no caller model or Chain. This is a bound
+on diagnostic regeneration events, not termination of the batch-producing
+driver or a bound on future structural payload size.

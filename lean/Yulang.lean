@@ -1527,3 +1527,5 @@ import Yulang.CommonRoleDiagnosticOrder
 import Yulang.CommonRoleExpressionDictionaryForest
 
 import Yulang.CommonRoleStructuralOrdinaryMaterialization
+
+import Yulang.CommonRoleStructuralMaterializationProgress
