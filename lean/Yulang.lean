@@ -1590,3 +1590,28 @@ import Yulang.GeneralRegistryChildOrder
 import Yulang.GeneralDictionaryStateEquations
 import Yulang.GeneralDictionaryEquationExamples
 import Yulang.GeneralCanonicalChildOrder
+
+-- I-19: inspection-pending target and exact totality boundary.
+import Yulang.B4TargetV3
+import Yulang.B4TargetV3Functionality
+import Yulang.B4TargetV3Totality
+import Yulang.B4SkeletonV3
+import Yulang.B4TargetV3Regressions
+import Yulang.B4TargetV3TotalityRegressions
+
+-- Exact source-indexed evidence readback and shared-state equation soundness.
+import Yulang.GeneralDictionaryReadback
+import Yulang.GeneralDictionaryModelEvidence
+import Yulang.GeneralDictionaryReadbackExamples
+
+-- Source-preserving structural payload order and unordered model evidence.
+import Yulang.GeneralDictionaryPayloadOrder
+import Yulang.GeneralDictionarySemanticOrder
+import Yulang.GeneralDictionarySemanticOrderExamples
+import Yulang.GeneralDictionarySemanticUniqueness
+import Yulang.GeneralDictionaryUniquenessExamples
+import Yulang.GeneralDictionaryEmissionPlans
+import Yulang.GeneralDictionaryEmissionPlanExamples
+import Yulang.GeneralDictionaryPlanLookup
+import Yulang.GeneralDictionaryPlanLookupExamples
+import Yulang.GeneralDictionaryPlannedEvidence

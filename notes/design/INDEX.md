@@ -336,3 +336,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [B4 target V2](2026-11-11-cycle119-b4-target-v2.md) — I-17 guarded rejection, diagnostic trees, independent functionality and revised bridge obligations.
 
 - [General dictionaries and registry order, cycles121–122](2026-11-11-cycle122-general-dictionaries.md) — Partial I-18 item 5 and remaining model/readback boundary.
+
+- [I-19 inspection-pending and local totality](2026-11-11-cycle123-inspection-pending.md) — V3 target repair; deterministic-child boundary remains explicit.

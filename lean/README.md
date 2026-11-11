@@ -4545,3 +4545,39 @@ and obtain literal equality of complete canonical emissions under reordering.
 actual stored local inequalities, using separate type and row source maps.
 `GeneralDictionaryEquationExamples` supplies a satisfying model, repeated-output
 and source-ID regressions. These components do not fill the general B4 boundary.
+
+## Cycle123: inspection-pending target
+
+B4TargetV3 and B4SkeletonV3 retain the lossless diagnostic target and its twelve
+open general-source bridges. Inspection pending is below K2 and above empty
+rejection. Local/Classify are functional on arbitrary boundaries. Local totality
+requires explicit deterministic surviving children; a stable countermodel proves
+excluded middle alone is insufficient. No general B4 completion is claimed.
+
+GeneralDictionaryReadback proves exact key-payload/indexed-evidence correspondence
+and unique readback under explicitly deterministic ordered source children.
+GeneralDictionaryModelEvidence lifts actual stored ordinary inequalities through
+the whole dictionary in every shared-state model, with one uniform source witness.
+The declaration-to-equation package relation is still unimplemented; equation
+evidence alone is not complete role Evidence. Regressions use a satisfying model
+and two distinct child source IDs with identical erased leaf payloads.
+
+GeneralDictionaryPayloadOrder gives the actual key-only payload its least
+structural sibling-permutation equivalence, preserving keys and subtrees.
+GeneralDictionarySemanticOrder transports the full source child list alongside
+payload order and proves shared-model equation evidence for every permutation.
+Canonical ordered evidence and unordered conjunction evidence are distinct;
+a regression proves the unordered relation is not literally child-functional.
+
+GeneralDictionarySemanticUniqueness proves source dictionary uniqueness modulo
+sibling order under explicit local selected-key/child uniqueness. The actual
+checked-registry EmissionPlans discharge same-key child determinism at a fixed
+capture/allocation frame. GeneralDictionaryPlanLookup is an executable exact
+lookup of those independent plans and is invariant under registry/where order.
+Plan is not Survivor: matching, feasibility, frame construction, freshness and
+declaration-to-equation semantics remain unproved general-source obligations.
+
+GeneralDictionaryPlannedEvidence couples actual executable declaration-plan
+lookup to stored all-model equation evidence. Same-key child determinism is
+derived from checked IDs and the fixed frame; the declaration-to-term relation
+remains explicit and unimplemented, and is not substituted with role satisfaction.
