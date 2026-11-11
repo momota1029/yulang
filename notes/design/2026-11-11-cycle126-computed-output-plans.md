@@ -35,3 +35,43 @@ interval interpretation is not invented. No changes to Astra-owned declaration
 or state definitions, spec, plan or lake configuration. No new fragment
 classifier. Yulang2 ROLE-MORE-001–008 were refetched; old advertised-where
 behavior is not imported into the new candidate preconditions.
+
+## Proven terminal-output obstruction and conservative next step
+
+`GeneralDictionaryBinderOnlyBoundary.built_root_outputs_empty` proves for every
+finite Built tree that its root has no output obligations. An output-only RHS
+requires an actual producer child with another output. Thus the old transaction
+theorem cannot yet witness any completed output-bearing root.
+
+We preserve that theorem and boundary, rather than weakening Produced or child
+completeness. The next partial interpreter also supports an actual explicit
+input-variable RHS only when capture.inputs assigns the exact same source ID to
+both interval endpoints. There is then no midpoint choice: the source variable
+is that shared endpoint. Unequal intervals, defaults, constructors and compound
+RHSs remain deferred. Capture/head correctness is still not proved by Capture
+itself, and the actual root/child target equations still have to be recorded.
+A finite two-node checked declaration example should end at such a singleton
+input alias, with repeated root outputs and one shared final model.
+
+## Independent materialization and fixed-input order
+
+Materializes fixes lower/upper/head/target fields to Inputs and requires, at
+every output occurrence, an actual Denotes proof for the state's source of a
+local variable slot. It contains no build or lookup success. Build iff this
+relation makes the partial compiler complete for its declared supported source
+relation. The registry lookup then iff the same actual visible checked
+declaration has key/role, canonical children and independent materialization.
+Visible and where reorderings retain output binders, head and associated RHSs,
+so lookup/build and the entire returned child/Located package are equal at fixed
+source inputs. This does not establish final-state or candidate-order invariance.
+
+## Planned whole-tree preparation
+
+To remove caller-supplied output vectors from the complete input tree, use a
+finite Recipe containing only occurrence, chosen key, Inputs and child recipes.
+Preparation computes each local package, recursively prepares children, and
+checks their full occurrence roots against the complete canonical child list.
+Failure defers the entire tree; no child is discarded. Successful preparation
+should yield Built from a recursive head-only certificate, not from manually
+provided child success/output certificates. Keys, tree shape and source frames
+remain explicit: this is not search or general saturation.

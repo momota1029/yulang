@@ -1642,3 +1642,21 @@ import Yulang.GeneralDictionaryComputedOutputPlans
 import Yulang.GeneralDictionaryComputedTransactions
 
 import Yulang.GeneralDictionaryComputedOutputExamples
+
+import Yulang.GeneralDictionaryBinderOnlyBoundary
+
+import Yulang.GeneralDictionaryVariableTerms
+
+import Yulang.GeneralDictionaryVariableCompatibility
+
+import Yulang.GeneralDictionaryVariableExamples
+
+import Yulang.GeneralDictionaryVariablePlans
+
+import Yulang.GeneralDictionaryVariableTransactions
+
+import Yulang.GeneralDictionaryVariableMaterialization
+
+import Yulang.GeneralDictionaryVariableOrder
+
+import Yulang.GeneralDictionaryTerminalFixture
