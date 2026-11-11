@@ -49,3 +49,9 @@ impl Parent (box 'a) where Child 'b
 
 関連: [台帳](../design/2026-11-10-boundary-inputs-ledger.md)、
 [HeadDeterminesAssociatedの既存判断](2026-11-07-b4-associated-head-recovery.md)。
+
+## 回答（ユーザー, 2026-11-12）: 出力専用
+
+関連型の等式で決まる変数（生成 binder、例の `'b`）は、その `impl` 自身の関連型の定義と、他の `where` の子の関連型の出力にだけ使える。`where` の子の名前なしの引数（入力）には使えず、使った `impl` は宣言時に拒否する。Paterson 条件と出現回数の条件は、子の名前なしの引数だけで数える。spec 6.3 に記録した。
+例: `impl Wrap (list 'a) where Container('a, item = 'b): type out = list 'b` は受理、`impl Show (box 'a) where Container('a, item = 'b), Show 'b` は拒否。
+将来の拡張余地: 関連型の定義に大きさの制限をかけて、入力にも使えるようにする案（今回は採らない）。

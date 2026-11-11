@@ -3,6 +3,8 @@ import Main
 /-!
 # B4 の五項へ至る局所的な橋の骨格
 
+旧 target 向け。I-17 修正版は `B4TargetV2` と `B4SkeletonV2`。
+
 既存の `B4Target.Statement` を量化子も含めてそのまま使う。
 このモジュールは source carrier の実装でも、一般 B4 の証明でもない。
 下の全フィールドを満たす source インスタンスはまだない。

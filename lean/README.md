@@ -4513,3 +4513,26 @@ language rules are unchanged.
 The saturated scalar adapter keeps its final visible scalar entries separate
 from the associated-declaration environment. Their agreement as one language
 source registry and parser/module visibility are still unconnected boundaries.
+
+## Cycle119: revised B4 target (I-17)
+
+`B4TargetV2` keeps the original unrestricted input/model quantifiers and five
+clauses, while guarding all root rejection reasons by knownness and returning
+lossless diagnostic trees. `B4TargetV2Functionality` proves independent local,
+tree and completed-classification uniqueness without an executor hypothesis.
+`B4SkeletonV2` assembles twelve local bridges into the revised target; the
+general source instance still has 12/12 unfilled fields. `B4TargetV2Regressions`
+checks the original scalar pending/empty case and preserves a rejected child
+without classifying its parent. The old target and old bridge package remain.
+
+### I-18 item 5: source dictionaries and general registry order (cycles121–122)
+
+`GeneralSourceDictionaries` retains each actual multiargument demand and source
+identity in finite dictionaries. Its structural comparison preserves identities,
+keys, multiplicities and state linkage; its `Evidence` still has an explicit
+unimplemented local-instance parameter and is not the general B4 Evidence field.
+`GeneralSourceDictionaryEquations` gives exact ordinary-atom meaning for every
+instantiated head and repeated associated output at any common assignment.
+`GeneralRegistryReordering` permits only visible/where enumeration changes and
+proves that all independent declaration checks survive. General capture,
+instantiation, candidate semantics, and the dictionary-to-B4 adapter remain open.
