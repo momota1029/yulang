@@ -1549,3 +1549,7 @@ import Yulang.CommonRoleStructuralAssociatedReplay
 import Yulang.CommonRoleStructuralHornSchedules
 
 import Yulang.CommonRoleStructuralNamedInputs
+
+import Yulang.CommonRoleStructuralRenaming
+
+import Yulang.CommonRoleNamedStructuralDerivations

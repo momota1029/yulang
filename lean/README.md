@@ -4456,3 +4456,5 @@ The public run constructs the State, mixed closure and ordinary consistency
 check, with exact original-name/all-model provenance. Parser/scope adequacy and
 dynamic occurrence selection remain open; grammar failure is not a new language
 rejection rule and ordinary success is not complete source-role discharge.
+
+- Cycle111: `CommonRoleStructuralRenaming` and `CommonRoleNamedStructuralDerivations` prove allocation/readback exactness for independently derivable original-name structural atoms and actual ordinary-solver success iff a named model exists. Static checked single-placeholder/scalar fragment only; general B4 remains open.

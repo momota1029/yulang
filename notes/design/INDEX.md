@@ -319,3 +319,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle108: source environment and diagnostic order](2026-11-11-cycle108-source-environment-congruence.md) — Draft; equal visible declarations preserve mixed source evidence, full dictionary payloads and all retained failed diagnostic structure.
 
 - [Cycle110: structural ordinary / associated finite feedback](2026-11-11-cycle110-structural-role-feedback.md) — computed carrier, independent schedules, actual solver, and named structural input boundary.
+
+- [Cycle111: independent named structural derivations](2026-11-11-cycle111-named-derivations.md) — Draft implementation, source-name allocation/readback and ordinary solver exactness.
