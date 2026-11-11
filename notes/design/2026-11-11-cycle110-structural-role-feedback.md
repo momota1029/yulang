@@ -43,3 +43,12 @@ fresh条件に従う任意scheduleについて、開始空cacheからの実行�
 実firstFresh traceがその実行判断を満たし終端であることも結ぶ。
 これでwhere occurrence順、ordinary/associatedの発火順に対する最終観測の不変性へ進む。
 途中のtrace長・木の再build数や辞書列の文字通りの一致は主張しない。
+
+## 次の部分目標: named ordinary構文からStateとallocationを内側で作る
+
+任意の有限 `Atom Nat` 列と既存の構造的Programから名前を収集し、重複除去したtableへ
+割り当てる。ordinaryの3つの既存grammar条件をBooleanで検査してStateを作る。
+外部のn、slot map、checked State、receiverを作る高階関数は受け取らない。
+空入力も扱うため末尾に未使用の内部slotを1つ置く。実入力名はそのslotへ行かず、
+異なる実入力名が同じslotへ行かないことを証明する。言語上の名前を追加しない。
+parserとscope解決、Programの有限occurrence選択は引き続き境界として明示する。

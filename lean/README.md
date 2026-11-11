@@ -4447,3 +4447,12 @@ execution fits the computed syntax carrier, and every maximal execution has
 exactly independent Derives, the actual solver model set, and the same structural
 materialization. The real generated trace is proved to be such a maximal
 execution. This does not identify dictionary lists or arbitrary language schedules.
+
+CommonRoleStructuralNamedInputs computes compact slots from every source atom
+constructor (including nested arrow rows) and finite structural source templates.
+Its Boolean checker is equivalent to the existing checked State grammar.
+Present names have injective slots and never use the one unused internal slot.
+The public run constructs the State, mixed closure and ordinary consistency
+check, with exact original-name/all-model provenance. Parser/scope adequacy and
+dynamic occurrence selection remain open; grammar failure is not a new language
+rejection rule and ordinary success is not complete source-role discharge.

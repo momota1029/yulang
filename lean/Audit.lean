@@ -1,3 +1,4 @@
+import Yulang.CommonRoleStructuralNamedInputs
 import Yulang.CommonRoleStructuralHornSchedules
 import Yulang.CommonRoleStructuralAssociatedSolver
 import Yulang.CommonRoleStructuralAssociatedReplay
@@ -8795,3 +8796,20 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralHornSchedules.generated_complete
 #print axioms Yulang.CommonRoleStructuralHornSchedules.schedule_models
 #print axioms Yulang.CommonRoleStructuralHornSchedules.schedule_materialize
+
+#print axioms Yulang.CommonRoleStructuralNamedInputs.slot_present
+#print axioms Yulang.CommonRoleStructuralNamedInputs.read_slot
+#print axioms Yulang.CommonRoleStructuralNamedInputs.slot_injective
+#print axioms Yulang.CommonRoleStructuralNamedInputs.atom_names_present
+#print axioms Yulang.CommonRoleStructuralNamedInputs.occurrence_names_present
+#print axioms Yulang.CommonRoleStructuralNamedInputs.row_eval_congr
+#print axioms Yulang.CommonRoleStructuralNamedInputs.ty_eval_congr
+#print axioms Yulang.CommonRoleStructuralNamedInputs.atom_holds_congr
+#print axioms Yulang.CommonRoleStructuralNamedInputs.allocated_models
+#print axioms Yulang.CommonRoleStructuralNamedInputs.source_models
+#print axioms Yulang.CommonRoleStructuralNamedInputs.grammar_exact
+#print axioms Yulang.CommonRoleStructuralNamedInputs.prepare_exact
+#print axioms Yulang.CommonRoleStructuralNamedInputs.run_exact
+#print axioms Yulang.CommonRoleStructuralNamedInputs.occurrence_step
+#print axioms Yulang.CommonRoleStructuralNamedInputs.complete_source_models
+#print axioms Yulang.CommonRoleStructuralNamedInputs.run_source_models

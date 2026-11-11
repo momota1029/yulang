@@ -1547,3 +1547,5 @@ import Yulang.CommonRoleStructuralAssociatedSolver
 import Yulang.CommonRoleStructuralAssociatedReplay
 
 import Yulang.CommonRoleStructuralHornSchedules
+
+import Yulang.CommonRoleStructuralNamedInputs
