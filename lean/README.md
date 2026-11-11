@@ -4431,3 +4431,12 @@ internal. Exactness uses independent seed/split/trans/associated derivations;
 all-model semantics states the additional activated equations explicitly.
 Finite source occurrences/templates and scalar associated decoding remain
 fragment restrictions, not language rejection rules or full B4 completion.
+
+CommonRoleStructuralAssociatedSolver reconstructs a grammar-checked State from
+the initial state and all scalar equalities actually proved by the mixed closure.
+Its models are exactly the full structural closure models; the real ordinary
+solver therefore rejects exactly inconsistency of that closure.
+CommonRoleStructuralAssociatedReplay drives every generated cumulative snapshot,
+bounds tree rebuilds and all recursive child visits, and regenerates ordinary
+graphs even on unchanged-tree plateaus. Associated updates can narrow models;
+only final models are guaranteed to satisfy every earlier snapshot.

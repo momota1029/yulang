@@ -1541,3 +1541,7 @@ import Yulang.CommonRoleStructuralSaturationTrace
 import Yulang.CommonRoleStructuralHornClosure
 
 import Yulang.CommonRoleStructuralAssociatedClosure
+
+import Yulang.CommonRoleStructuralAssociatedSolver
+
+import Yulang.CommonRoleStructuralAssociatedReplay

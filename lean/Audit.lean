@@ -1,3 +1,5 @@
+import Yulang.CommonRoleStructuralAssociatedSolver
+import Yulang.CommonRoleStructuralAssociatedReplay
 import Yulang.CommonRoleStructuralHornClosure
 import Yulang.CommonRoleStructuralAssociatedClosure
 import Yulang.CommonRoleDiagnosticDictionaries
@@ -8765,3 +8767,16 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralAssociatedClosure.models_exact
 #print axioms Yulang.CommonRoleStructuralAssociatedClosure.derives_congr
 #print axioms Yulang.CommonRoleStructuralAssociatedClosure.saturate_congr
+
+#print axioms Yulang.CommonRoleStructuralAssociatedSolver.equality_models
+#print axioms Yulang.CommonRoleStructuralAssociatedSolver.knownFacts_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedSolver.completeState_models
+#print axioms Yulang.CommonRoleStructuralAssociatedSolver.solver_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedSolver.completeState_stable
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.final_membership
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.final_models
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.final_models_snapshot
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.run_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.run_computed_bound
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.runGraphs_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedReplay.final_graph_models_exact
