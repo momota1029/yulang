@@ -9224,3 +9224,29 @@ run_cmd do
 #print axioms Yulang.B4TargetV3TotalityRegressions.conflicting_not_coherent
 #print axioms Yulang.B4TargetV3TotalityRegressions.conflicting_no_local
 #print axioms Yulang.B4TargetV3TotalityRegressions.unconditional_totality_false
+
+-- Cycle123 source evidence readback and all-model equation witnesses.
+#print axioms Yulang.GeneralDictionaryReadback.children_payload
+#print axioms Yulang.GeneralDictionaryReadback.indexed_to_payload
+#print axioms Yulang.GeneralDictionaryReadback.payload_to_indexed
+#print axioms Yulang.GeneralDictionaryReadback.payloads_to_indexed
+#print axioms Yulang.GeneralDictionaryReadback.payload_iff_erased
+#print axioms Yulang.GeneralDictionaryReadback.erased_evidence_node
+#print axioms Yulang.GeneralDictionaryReadback.indexed_unique
+#print axioms Yulang.GeneralDictionaryReadback.indexed_children_unique
+#print axioms Yulang.GeneralDictionaryReadback.payload_unique_readback
+#print axioms Yulang.GeneralDictionaryModelEvidence.stored_instance_models
+#print axioms Yulang.GeneralDictionaryModelEvidence.indexed_all_models
+#print axioms Yulang.GeneralDictionaryModelEvidence.erased_uniform_witness
+#print axioms Yulang.GeneralDictionaryModelEvidence.payload_all_models
+#print axioms Yulang.GeneralDictionaryModelEvidence.stored_children_functional
+#print axioms Yulang.GeneralDictionaryModelEvidence.stored_unique_readback
+#print axioms Yulang.GeneralDictionaryReadbackExamples.stored_leaf
+#print axioms Yulang.GeneralDictionaryReadbackExamples.stored_tree
+#print axioms Yulang.GeneralDictionaryReadbackExamples.exact_readback
+#print axioms Yulang.GeneralDictionaryReadbackExamples.stored_payload
+#print axioms Yulang.GeneralDictionaryReadbackExamples.nonvacuous_model
+#print axioms Yulang.GeneralDictionaryReadbackExamples.uniform_model_readback
+#print axioms Yulang.GeneralDictionaryReadbackExamples.source_children_retained
+#print axioms Yulang.GeneralDictionaryReadbackExamples.package_children_unique
+#print axioms Yulang.GeneralDictionaryReadbackExamples.unique_indexed_witness

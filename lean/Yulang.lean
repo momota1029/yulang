@@ -1598,3 +1598,8 @@ import Yulang.B4TargetV3Totality
 import Yulang.B4SkeletonV3
 import Yulang.B4TargetV3Regressions
 import Yulang.B4TargetV3TotalityRegressions
+
+-- Exact source-indexed evidence readback and shared-state equation soundness.
+import Yulang.GeneralDictionaryReadback
+import Yulang.GeneralDictionaryModelEvidence
+import Yulang.GeneralDictionaryReadbackExamples

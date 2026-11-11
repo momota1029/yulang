@@ -4553,3 +4553,11 @@ open general-source bridges. Inspection pending is below K2 and above empty
 rejection. Local/Classify are functional on arbitrary boundaries. Local totality
 requires explicit deterministic surviving children; a stable countermodel proves
 excluded middle alone is insufficient. No general B4 completion is claimed.
+
+GeneralDictionaryReadback proves exact key-payload/indexed-evidence correspondence
+and unique readback under explicitly deterministic ordered source children.
+GeneralDictionaryModelEvidence lifts actual stored ordinary inequalities through
+the whole dictionary in every shared-state model, with one uniform source witness.
+The declaration-to-equation package relation is still unimplemented; equation
+evidence alone is not complete role Evidence. Regressions use a satisfying model
+and two distinct child source IDs with identical erased leaf payloads.

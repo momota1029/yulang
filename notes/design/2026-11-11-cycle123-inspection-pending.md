@@ -30,3 +30,33 @@ Old candidate and advertised-where behavior is not a source of new semantics.
 I-19 and the approved B4 draft determine the priority order; no new runtime
 experiment is claimed. Known receiver plus unresolved inspection remains
 pending unless K2 rejects it, as the draft explicitly requires.
+
+## Verified first subgoal
+
+The six V3 modules now pass a focused 411-job build, all 50 theorem declarations
+pass trust-zero axiom inspection, and the diff gate passes. The stable
+inspection-pending fixture also demonstrates an additional V2 behavior: with
+no current survivors, V2 wrongly classifies it rejected; V3 correctly waits.
+The explicit conflicting-child counterexample is proved, not speculative.
+
+## Next subgoal: lossless source evidence readback
+
+I-18 item 5 needs an adapter from source-indexed Evidence to the key-only B4
+payload. Define independent recursive PayloadEvidence over a source occurrence
+and key dictionary, then prove it equivalent to existence of an indexed Evidence
+witness with exact erasure. This must retain every child, multiplicity and order.
+Under explicit deterministic local children, prove that a fixed source root and
+payload have at most one valid indexed witness. The arbitrary erasure operation
+remains non-injective; no source identities are reconstructed without evidence.
+These are prerequisites of evidenceNode/dictionaryRefl, not a source semantics
+or a discharged general-source B4Bridges field.
+
+The source readback and uniqueness subgoal is proved. A second adapter now
+lifts actual Recorded inequalities at every dictionary node to equations in
+every model of the shared State. The same source-indexed witness works for all
+models; it is not chosen independently per child or assignment. A non-vacuous
+fixture has source IDs100/101/102, two equal erased leaf payloads, and repeated
+output equations. Its package constructor proves exact child determinism.
+The general Packages relation must still be derived from declarations/captures.
+Ordered child determinism and unordered PermutationInvariant semantics are
+different interfaces; the uniqueness theorem does not silently conflate them.
