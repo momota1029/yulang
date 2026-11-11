@@ -32,3 +32,21 @@ premises; no empty-model soundness is sold as feasibility.
 
 Next: implement input/default and structured RHS only after their ordinary
 representation is available; actual source frame generation remains separate.
+
+## Source-slot construction
+
+`GeneralDictionaryBinderLocations.sourceSlot` searches the actual finite state,
+with exactness from source-map injectivity. `locateTerm`/`compile` retain global
+versus local identities, and every successful term lifts back to the actual RHS.
+`Inputs` has only head and endpoint/target fields: it has no output vector.
+`build` computes the entire output vector and defers the whole package on any
+unsupported body or unavailable binder source. `build_interpreted` removes the
+former caller-supplied output interpretation premise. Head instantiation remains
+explicit and is not certified by this output-only bridge.
+
+Regressions use a real checked declaration with the ordinary output-only binder
+as RHS, a five-slot state, two distinct root targets, a concrete satisfying
+assignment after recording, and a shifted source map (global12 is local2; global2
+is absent). Missing sources, compound RHS, input variables, and defaults defer;
+none is called a language rejection. No nominal carrier or interval centre is
+introduced.
