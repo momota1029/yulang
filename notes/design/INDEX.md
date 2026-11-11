@@ -338,3 +338,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [General dictionaries and registry order, cycles121–122](2026-11-11-cycle122-general-dictionaries.md) — Partial I-18 item 5 and remaining model/readback boundary.
 
 - [I-19 inspection-pending and local totality](2026-11-11-cycle123-inspection-pending.md) — V3 target repair; deterministic-child boundary remains explicit.
+
+- [Cycle124 dictionary recording and RHS provenance](2026-11-11-cycle124-equation-recording.md) — Draft; exact equation transaction, explicit/default source obligations, and the remaining term interpretation boundary.

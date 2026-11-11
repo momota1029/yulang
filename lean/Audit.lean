@@ -1,3 +1,14 @@
+import Yulang.GeneralDictionaryBatchExamples
+import Yulang.GeneralDictionaryRefinementExamples
+import Yulang.GeneralDictionaryRefinementEvidence
+import Yulang.GeneralDictionaryInvocationExamples
+import Yulang.GeneralDictionaryBatchRecording
+import Yulang.GeneralDictionaryTransactions
+import Yulang.GeneralDictionaryRecordingExamples
+import Yulang.GeneralDictionaryPlannedOutputs
+import Yulang.GeneralDictionaryAssociatedProvenanceExamples
+import Yulang.GeneralDictionaryEquationRecording
+import Yulang.GeneralDictionaryAssociatedProvenance
 import Yulang.CommonRoleRawStructuralSource
 import Yulang.CommonRoleStructuralRenaming
 import Yulang.CommonRoleNamedStructuralDerivations
@@ -9328,3 +9339,95 @@ run_cmd do
 #print axioms Yulang.GeneralDictionaryPlannedEvidence.lookup_node_all_models
 #print axioms Yulang.GeneralDictionaryPlannedEvidence.planned_unique_readback
 #print axioms Yulang.GeneralDictionaryPlannedEvidence.planned_reordered_uniform
+
+-- Cycle124 recording and provenance.
+#print axioms Yulang.GeneralDictionaryEquationRecording.append_models
+#print axioms Yulang.GeneralDictionaryEquationRecording.append_refines
+#print axioms Yulang.GeneralDictionaryEquationRecording.atoms_exact
+#print axioms Yulang.GeneralDictionaryEquationRecording.record_recorded
+#print axioms Yulang.GeneralDictionaryEquationRecording.record_models
+#print axioms Yulang.GeneralDictionaryEquationRecording.record_satisfiable
+#print axioms Yulang.GeneralDictionaryEquationRecording.record_conservative
+#print axioms Yulang.GeneralDictionaryEquationRecording.relocation_equations
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.lookup_exact
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.declared_covered
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.supplies_unique
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.lookup_reorders
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.supplies_reorders
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.outputs_length
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.outputs_sources
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.outputs_at
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.outputs_complete
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.outputs_reorders
+
+#print axioms Yulang.GeneralDictionaryAssociatedProvenanceExamples.explicit_wins
+#print axioms Yulang.GeneralDictionaryAssociatedProvenanceExamples.positional_default
+#print axioms Yulang.GeneralDictionaryAssociatedProvenanceExamples.undeclared_absent
+#print axioms Yulang.GeneralDictionaryAssociatedProvenanceExamples.repeated_name_distinct_targets
+
+-- Cycle124 whole-dictionary transactions.
+#print axioms Yulang.GeneralDictionaryBatchRecording.batch_models
+#print axioms Yulang.GeneralDictionaryBatchRecording.relocate_equations
+#print axioms Yulang.GeneralDictionaryBatchRecording.batch_recorded
+#print axioms Yulang.GeneralDictionaryBatchRecording.batch_order_models
+#print axioms Yulang.GeneralDictionaryBatchRecording.batch_satisfiable
+#print axioms Yulang.GeneralDictionaryBatchRecording.batch_conservative
+#print axioms Yulang.GeneralDictionaryBatchRecording.batch_append_models
+#print axioms Yulang.GeneralDictionaryTransactions.plannedAt_children_functional
+#print axioms Yulang.GeneralDictionaryTransactions.dictionary_root
+#print axioms Yulang.GeneralDictionaryTransactions.dictionaries_map
+#print axioms Yulang.GeneralDictionaryTransactions.dictionaries_roots
+#print axioms Yulang.GeneralDictionaryTransactions.childItems_member
+#print axioms Yulang.GeneralDictionaryTransactions.valid_stored_in
+#print axioms Yulang.GeneralDictionaryTransactions.transaction_stored
+#print axioms Yulang.GeneralDictionaryTransactions.transaction_uniform
+#print axioms Yulang.GeneralDictionaryTransactions.transaction_models
+#print axioms Yulang.GeneralDictionaryRecordingExamples.automatically_stored
+#print axioms Yulang.GeneralDictionaryRecordingExamples.nonvacuous
+#print axioms Yulang.GeneralDictionaryRecordingExamples.same_models
+#print axioms Yulang.GeneralDictionaryRecordingExamples.source_ids_retained
+#print axioms Yulang.GeneralDictionaryRecordingExamples.repeated_outputs_retained
+#print axioms Yulang.GeneralDictionaryRecordingExamples.incompatible_no_model
+#print axioms Yulang.GeneralDictionaryPlannedOutputs.output_plan_functional
+#print axioms Yulang.GeneralDictionaryPlannedOutputs.lookup_exact
+#print axioms Yulang.GeneralDictionaryPlannedOutputs.output_plan_children
+#print axioms Yulang.GeneralDictionaryPlannedOutputs.output_plan_sources
+#print axioms Yulang.GeneralDictionaryPlannedOutputs.output_plan_covered
+
+-- Distinct source invocations retain distinct captures.
+#print axioms Yulang.GeneralDictionaryInvocationExamples.first_children
+#print axioms Yulang.GeneralDictionaryInvocationExamples.second_children
+#print axioms Yulang.GeneralDictionaryInvocationExamples.actual_distinct_source_demands
+#print axioms Yulang.GeneralDictionaryInvocationExamples.first_lookup
+#print axioms Yulang.GeneralDictionaryInvocationExamples.second_lookup
+#print axioms Yulang.GeneralDictionaryInvocationExamples.fixed_frame_outputs
+#print axioms Yulang.GeneralDictionaryInvocationExamples.fixed_frame_cannot_represent_both
+#print axioms Yulang.GeneralDictionaryInvocationExamples.both_reordered_lookups
+
+-- Arbitrary source-preserving refinement keeps the same dictionary witness.
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.transport_recorded
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.assignment_comp_embed
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.liftType_transport_eval
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.transport_holds_iff
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.stored_instance_transport
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.model_instance_transport_iff
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.indexed_transport
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.indexed_transport_all_models
+#print axioms Yulang.GeneralDictionaryRefinementEvidence.erased_transport_uniform_witness
+
+-- Non-vacuous allocation/reindex regression.
+#print axioms Yulang.GeneralDictionaryRefinementExamples.proper_growth_and_reindex
+#print axioms Yulang.GeneralDictionaryRefinementExamples.grown_models
+#print axioms Yulang.GeneralDictionaryRefinementExamples.transported_recorded
+#print axioms Yulang.GeneralDictionaryRefinementExamples.reindexed_arrow_sources
+#print axioms Yulang.GeneralDictionaryRefinementExamples.unchanged_three_node_tree
+#print axioms Yulang.GeneralDictionaryRefinementExamples.all_refined_models
+#print axioms Yulang.GeneralDictionaryRefinementExamples.nonvacuous_refined_tree
+
+-- Siblings need one common model, not separate witnesses.
+#print axioms Yulang.GeneralDictionaryBatchExamples.free_models
+#print axioms Yulang.GeneralDictionaryBatchExamples.package_holds
+#print axioms Yulang.GeneralDictionaryBatchExamples.separately_satisfiable
+#print axioms Yulang.GeneralDictionaryBatchExamples.joint_inconsistent
+#print axioms Yulang.GeneralDictionaryBatchExamples.order_preserves_joint_failure
+#print axioms Yulang.GeneralDictionaryBatchExamples.repeated_package_atoms
