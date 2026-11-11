@@ -4605,3 +4605,9 @@ default root RHS to the same actual checked visible declaration.
 - Cycle125: `GeneralDictionaryOutputBinderTerms` computes actual explicit output-only RHS variables, proves lookup/independent-denotation equivalence, and connects every recorded root output to its checked producer child source. Default/input/compound bodies remain deferred; all12 general B4 bridges remain unfilled.
 
 - Cycle125 follow-through: `GeneralDictionaryBinderLocations` finds source IDs in the actual injective state map and computes every local output term. `build` accepts only head/endpoints/targets, defers the whole package if any output fails, and proves actual RHS provenance after recording. Concrete checked-source and shifted-slot examples retain repeated targets and exhibit a satisfying model.
+
+## Cycle126: computed checked output plans
+
+`GeneralDictionaryComputedOutputPlans` joins key/role-checked visibility, canonical child emission and actual output-binder localization through one declaration lookup. Its head-only remaining predicate cannot supply output meaning. Unsupported output interpretation defers the whole package; source frames, head elaboration and candidate selection remain explicit.
+
+`GeneralDictionaryComputedTransactions` builds Transactions.Valid from per-node lookup success and complete child roots. Its source witness is uniform across all models of one batch; output provenance is tied to the same visible declaration as the child plan. `GeneralDictionaryComputedOutputExamples` checks actual visibility, key/role mismatch, repeated target preservation and nonidentity source maps. This does not supply the missing terminal output interpretation or complete role semantics.
