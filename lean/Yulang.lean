@@ -1675,3 +1675,12 @@ import Yulang.GeneralCandidateInspection
 import Yulang.GeneralCandidateBoundaryParts
 import Yulang.GeneralCandidateExamples
 import Yulang.GeneralCandidateConflictExamples
+
+import Yulang.GeneralNominalIdentities
+import Yulang.GeneralNominalCommonBridge
+import Yulang.GeneralNominalState
+import Yulang.GeneralNominalAllocation
+import Yulang.GeneralNominalInspection
+import Yulang.GeneralNominalCandidates
+import Yulang.GeneralNominalExamples
+import Yulang.GeneralNominalRegressions
