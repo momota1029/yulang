@@ -27,3 +27,12 @@ already-approved pending priority, and retain the separately approved lossless
 diagnostic-tree boundary. The parent/child classification question was already
 answered; do not reopen it or invent child-failure propagation. No change to
 spec, Main or existing modules is made here.
+
+## Update received during final validation
+
+At 2026-11-11 14:03 UTC, supervisor integration `30f49167` supplied I-17 and the
+approved draft addendum: pending precedes rejection, and exactness targets the
+lossless diagnostic tree. The deferred review above is therefore resolved in
+principle. The next cycle must first implement `B4TargetV2` and its revised
+bridge structure without deleting the old target. This cycle's theorem remains
+a regression witness against the old target, not a new question to the user.
