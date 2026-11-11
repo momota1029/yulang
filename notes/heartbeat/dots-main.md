@@ -1,13 +1,13 @@
 cycle: 127
 status: running
 started: 2026-11-11T22:27:19Z
-updated: 2026-11-11T23:05:00Z
-elapsed_min: 37.68
+updated: 2026-11-11T23:12:30Z
+elapsed_min: 45.18
 deadline: 2026-11-11T23:22:19Z
-activity: Final15 modules and100 public theorems pass focused566 jobs. Exact signatures100 captured; all theorem report statements prepared. Earlier scoped axiom audit timed out124 without diagnostics and is being rerun; runtime checks pending. Final source-only recipe and output-ready boundary publication in progress.
+activity: Final source ebea49a586d9 published and all2456 tracked blobs verified. Both exact hosted core/proof succeeded: full1415 jobs, Audit8935 entries, all100 new names and allowed axioms. Local focused566 jobs and all100 scoped trust0 audit pass; optional eval/6definition audit timeout124 disclosed. Three final reports under read-only consistency review.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 2938d72a3
-source_commit: 883de7b1673172a7d1a0c413572e1b957bec14a6
-source_tree: 6c18e8ecef1b3e4e84df099c5b9447e48e3bd6ec
+last_local_commit: e618d78a5
+source_commit: ebea49a586d96b795f8194cb9f3c5811bc0c616c
+source_tree: 70d662d46f87ccbac11c7f5381518f0ccdc63c35
 writer: cycle127
-resume_hint: Freeze feature scope; finish scoped audit/runtime checks, publish final source/report with full tree readback, inspect hosted CI, and release writer before23:22:19. Report local timeout honestly; first67 theorem checkpoint is hosted-green. General B4 remains12/12.
+resume_hint: Finish final report publication/readback and completion heartbeat by23:22:19. Report type parser corrected;100 blocks roundtrip raw66661-byte signatures exactly. No local Lean processes or feature changes remain. General B4 remains12/12 unfilled.
