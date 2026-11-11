@@ -1560,3 +1560,5 @@ import Yulang.B4Skeleton
 import Yulang.CommonRoleSettledRootClassification
 import Yulang.CommonRoleScalarDictionaryModels
 import Yulang.CommonRoleSettledVisibleOrder
+
+import Yulang.CommonRoleScalarRegistry

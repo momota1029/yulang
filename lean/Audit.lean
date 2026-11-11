@@ -8930,3 +8930,29 @@ run_cmd do
 #print axioms Yulang.CommonRoleSettledVisibleOrder.resolve_permutation
 #print axioms Yulang.CommonRoleSettledVisibleOrder.legacy_classification_permutation
 #print axioms Yulang.CommonRoleSettledVisibleOrder.rejection_permutation
+
+-- Cycle118: independent ordinary scalar registry and all-model dictionaries.
+#print axioms Yulang.CommonRoleScalarRegistry.wellFormed
+#print axioms Yulang.CommonRoleScalarRegistry.leaf
+#print axioms Yulang.CommonRoleScalarRegistry.matches_entry
+#print axioms Yulang.CommonRoleScalarRegistry.candidate_exact
+#print axioms Yulang.CommonRoleScalarRegistry.unique_exact
+#print axioms Yulang.CommonRoleScalarRegistry.elaborate_selected
+#print axioms Yulang.CommonRoleScalarRegistry.resolve_leaf
+#print axioms Yulang.CommonRoleScalarRegistry.elaborate_rejected
+#print axioms Yulang.CommonRoleScalarRegistry.elaborate_ambiguous
+#print axioms Yulang.CommonRoleScalarRegistry.elaborate_exact
+#print axioms Yulang.CommonRoleScalarRegistry.materialize_exact
+#print axioms Yulang.CommonRoleScalarRegistry.run_exact
+#print axioms Yulang.CommonRoleScalarRegistry.scalar_term_injective
+#print axioms Yulang.CommonRoleScalarRegistry.run_all_models
+#print axioms Yulang.CommonRoleScalarRegistry.successful_dictionary_exact
+#print axioms Yulang.CommonRoleScalarRegistry.run_visible_set
+#print axioms Yulang.CommonRoleScalarRegistry.run_permutation
+#print axioms Yulang.CommonRoleScalarRegistry.run_duplicate
+#print axioms Yulang.CommonRoleScalarRegistry.empty_pending
+#print axioms Yulang.CommonRoleScalarRegistry.inconsistent_unavailable
+#print axioms Yulang.CommonRoleScalarRegistry.run_recorded
+#print axioms Yulang.CommonRoleScalarRegistry.known_empty_rejected
+#print axioms Yulang.CommonRoleScalarRegistry.recorded_singleton_selected
+#print axioms Yulang.CommonRoleScalarRegistry.recorded_overlap_ambiguous

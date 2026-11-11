@@ -4474,3 +4474,14 @@ ordinary model. General B4 and where-order dictionary equivalence remain open.
 `CommonRoleSettledVisibleOrder` proves equality of the full diagnostic trees
 under permutations of visible declarations, preserving selected declaration
 identity, every child, and incomplete results. It does not permute where lists.
+
+## Cycle118: ordinary-state scalar registries
+
+`CommonRoleScalarRegistry` takes arbitrary finite visible int/str leaf declarations
+and an arbitrary ordinary state. Independent source-membership candidates and
+paired-atom knownness give all four adapter outcomes exactly, including the
+actual selected dictionary. Successful dictionaries are sound for every input
+Common model. Visible-set equality preserves exact outcomes and dictionary
+payloads, covering permutation and duplicate enumeration. Unsupported scalar
+materialization remains adapter pending; inconsistent states are unavailable.
+Where children, general K2, associated equations, and general B4 are not claimed.
