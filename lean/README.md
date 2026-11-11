@@ -4333,3 +4333,18 @@ Scope-resolved grouped clauses, named ordinary inequalities and registries remai
 inputs. Parser/expression lowering, dynamically generated children, general
 state-changing saturation, four-way classification and canonical dictionary
 observations remain open. All five B4 packages remain incomplete.
+
+## Cycle106: source evidence and recursive diagnostic forests
+
+`CommonRoleRecursiveDiagnostics` constructs the complete unique-head rigid
+where tree by Paterson recursion. Independent `Represents` and declaration-index
+`Path` retain missing and overlapping children, exact child order/multiplicity,
+and arbitrary-depth subtree correspondence, with no fuel or work-table input.
+`CommonRoleSourceDiagnosticForest` connects every computed mixed-source scalar
+attempt to those trees, retains all source rows (including bare roles), and
+proves source-to-child path exactness. Its compatibility projection is exactly
+cycle105's separate ordinary/role Boolean observation; it does not introduce a
+new final classification. Equal registry references are deduplicated by the
+existing candidate identity rule; distinct declaration keys remain distinct.
+General source lowering, dynamic fresh allocation, Form saturation, final
+four-way classification and source dictionary equivalence remain unfinished.

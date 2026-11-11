@@ -1,3 +1,5 @@
+import Yulang.CommonRoleSourceDiagnosticForest
+import Yulang.CommonRoleRecursiveDiagnostics
 import Yulang.CommonRoleEvidenceDischarge
 import Yulang.CommonRoleCheckedMixedSource
 import Yulang.CommonRoleNamedOrdinaryInputs
@@ -8542,3 +8544,36 @@ run_cmd do
 #print axioms Yulang.CommonRoleEvidenceDischarge.discharged_congr
 #print axioms Yulang.CommonRoleEvidenceDischarge.all_discharged_congr
 #print axioms Yulang.CommonRoleEvidenceDischarge.run_congr
+
+-- Cycle106 complete recursive diagnostics and source forest correspondence.
+#print axioms Yulang.CommonRoleRecursiveDiagnostics.unique_iff
+#print axioms Yulang.CommonRoleRecursiveDiagnostics.diagnose_goal
+#print axioms Yulang.CommonRoleRecursiveDiagnostics.diagnose_selected
+#print axioms Yulang.CommonRoleRecursiveDiagnostics.diagnose_missing
+#print axioms Yulang.CommonRoleRecursiveDiagnostics.diagnose_overlap
+#print axioms Yulang.CommonRoleRecursiveDiagnostics.diagnose_status
+#print axioms Yulang.CommonRoleRecursiveDiagnostics.diagnose_represents
+#print axioms Yulang.CommonRoleRecursiveDiagnostics.diagnose_success_iff
+#print axioms Yulang.CommonRoleRecursiveDiagnostics.represents_goal
+#print axioms Yulang.CommonRoleRecursiveDiagnostics.represents_status
+#print axioms Yulang.CommonRoleRecursiveDiagnostics.path_nil
+#print axioms Yulang.CommonRoleRecursiveDiagnostics.path_cons
+#print axioms Yulang.CommonRoleRecursiveDiagnostics.diagnose_follow_exact
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.attempt_base
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.materializes_iff
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.attempt_explains
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.attempt_accepted
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.inspect_explains
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.inspect_accepted
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.output_rows
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.output_explains
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.observation_projection
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.run_spec
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.run_success_iff
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.attempt_materialized_iff
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.inspect_materialized_exact
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.run_materialized_exact
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.run_clause_retained
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.run_path_exact
+
+#print axioms Yulang.CommonRoleSourceDiagnosticForest.run_exists_iff

@@ -1531,3 +1531,25 @@ Cycle103のextraは両端点から集めた名前を重複除去する。元の�
   Ground templates still require receiver evidence. Unseeded and unsupported
   clauses produce false discharge without a new final language classification.
   New semantic decisions 0; all five B4 packages remain incomplete.
+
+## Cycle106: CommonRoleRecursiveDiagnostics / CommonRoleSourceDiagnosticForest
+
+- `impls`, `wf`, rigid `g`: existing caller-visible first-order role registry,
+  Paterson declaration proof and rigid goal. Spec6.2/6.3 supplies the existing
+  head-match semantics. `diagnose` derives all child goals and its recursive
+  decrease; no caller fuel, graph, finite trace, work table or success is used.
+- `src`, `env`, `roles`, `wf`, `awf`: cycle105's scope-resolved grouped clauses,
+  named inequalities and existing declaration well-formedness. Parser/expression
+  lowering, source identity and general Form are still unproved input boundaries.
+- `p`, `checked`, `o`, `c`, `same`: supporting checked-package correspondence only.
+  The public entry computes validation, allocation, saturation and scalar attempts.
+- `r`, `computed`, `row`, `member`: observations identifying the actual returned
+  report/row. They are not arbitrary successful-role or model assumptions.
+  `run_spec` proves ordinary Models iff; `run_path_exact` does not require Models
+  or role success and retains failed siblings and contradictory scalar attempts.
+- `path : List Nat`, `target : Roles.Goal`: arbitrary addressed observations,
+  not supplied execution schedules. Independent Path follows the uniquely
+  matched declaration's indexed where children; it does not consult diagnose.
+- Unsupported scalar encoding and no evidence are distinct retained observations.
+  The rigid compatibility status is not promoted to source final classification.
+  Existing source identity questions and all five global B4 packages remain open.

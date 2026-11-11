@@ -1512,3 +1512,6 @@ import Yulang.CommonRoleAmbientMixedSource
 import Yulang.CommonRoleNamedOrdinaryInputs
 
 import Yulang.CommonRoleCheckedMixedSource
+
+import Yulang.CommonRoleRecursiveDiagnostics
+import Yulang.CommonRoleSourceDiagnosticForest
