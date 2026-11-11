@@ -4536,3 +4536,12 @@ instantiated head and repeated associated output at any common assignment.
 `GeneralRegistryReordering` permits only visible/where enumeration changes and
 proves that all independent declaration checks survive. General capture,
 instantiation, candidate semantics, and the dictionary-to-B4 adapter remain open.
+
+`GeneralRegistryChildOrder` proves reorder equivalence and preservation of whole
+child emissions. Its raw-order obstruction is addressed locally by
+`GeneralCanonicalChildOrder`: sort existing unique clause IDs, preserve Checked,
+and obtain literal equality of complete canonical emissions under reordering.
+`GeneralDictionaryStateEquations` derives all-model head/output meaning from
+actual stored local inequalities, using separate type and row source maps.
+`GeneralDictionaryEquationExamples` supplies a satisfying model, repeated-output
+and source-ID regressions. These components do not fill the general B4 boundary.

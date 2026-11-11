@@ -9141,3 +9141,34 @@ run_cmd do
 #print axioms Yulang.GeneralRegistryReordering.reorders_declaration_ids
 #print axioms Yulang.GeneralRegistryReordering.reorders_visible_back
 #print axioms Yulang.GeneralRegistryReordering.reorders_checked
+
+-- General registry equivalence and complete child-emission order.
+#print axioms Yulang.GeneralRegistryChildOrder.reorders_symm
+#print axioms Yulang.GeneralRegistryChildOrder.reorders_trans
+#print axioms Yulang.GeneralRegistryChildOrder.reorders_checked_iff
+#print axioms Yulang.GeneralRegistryChildOrder.emitAll_pmap
+#print axioms Yulang.GeneralRegistryChildOrder.emitAll_permute_requirements
+
+-- Actual shared-state dictionary equations with separate type/row IDs.
+#print axioms Yulang.GeneralDictionaryStateEquations.liftType_eval
+#print axioms Yulang.GeneralDictionaryStateEquations.liftRow_eval
+#print axioms Yulang.GeneralDictionaryStateEquations.recorded_holds
+#print axioms Yulang.GeneralDictionaryStateEquations.recorded_entails
+#print axioms Yulang.GeneralDictionaryStateEquations.lifted_arrow_separates_sources
+
+-- Non-vacuous equation regressions, source order obstruction and refinement.
+#print axioms Yulang.GeneralDictionaryEquationExamples.recorded
+#print axioms Yulang.GeneralDictionaryEquationExamples.models
+#print axioms Yulang.GeneralDictionaryEquationExamples.all_model_outputs
+#print axioms Yulang.GeneralDictionaryEquationExamples.duplicate_outputs_retained
+#print axioms Yulang.GeneralDictionaryEquationExamples.separate_type_and_row_ids
+#print axioms Yulang.GeneralRegistryChildOrder.swapped_child_order_not_equal
+#print axioms Yulang.GeneralDictionaryStateEquations.entailed_refines
+
+-- Canonical source clause order preserves actual complete child emissions.
+#print axioms Yulang.GeneralCanonicalChildOrder.canonicalRequirements_perm
+#print axioms Yulang.GeneralCanonicalChildOrder.canonicalRequirements_eq
+#print axioms Yulang.GeneralCanonicalChildOrder.canonical_checked
+#print axioms Yulang.GeneralCanonicalChildOrder.canonical_declaration_eq
+#print axioms Yulang.GeneralCanonicalChildOrder.canonicalEmit_reorders
+#print axioms Yulang.GeneralCanonicalChildOrder.canonicalEmit_perm
