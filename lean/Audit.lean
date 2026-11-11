@@ -8628,3 +8628,16 @@ run_cmd do
 #print axioms Yulang.CommonRoleDiagnosticOrder.Equivalent.project_eq
 #print axioms Yulang.CommonRoleDiagnosticOrder.Equivalent.child
 #print axioms Yulang.CommonRoleDiagnosticOrder.Equivalent.follow
+
+-- Cycle108 expressions through the actual mixed dictionary forest.
+#print axioms Yulang.CommonRoleExpressionDictionaryForest.upper_exact
+#print axioms Yulang.CommonRoleExpressionDictionaryForest.lower_exact
+#print axioms Yulang.CommonRoleExpressionDictionaryForest.no_transfer
+#print axioms Yulang.CommonRoleExpressionDictionaryForest.ordinary_models
+#print axioms Yulang.CommonRoleExpressionDictionaryForest.ordinary_typing_exact
+#print axioms Yulang.CommonRoleExpressionDictionaryForest.derives_exact
+#print axioms Yulang.CommonRoleExpressionDictionaryForest.models_exact
+#print axioms Yulang.CommonRoleExpressionDictionaryForest.discharged_exact
+#print axioms Yulang.CommonRoleExpressionDictionaryForest.run_exists_iff
+#print axioms Yulang.CommonRoleExpressionDictionaryForest.run_success_iff
+#print axioms Yulang.CommonRoleExpressionDictionaryForest.run_plan_exact

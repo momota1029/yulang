@@ -58,3 +58,22 @@ remain open, while this closes a real part of order-independence across the
 source mixed-closure and dictionary boundary. No standalone concrete iff is the
 primary result. Existing production modules remain unchanged except append-only
 imports, audit registrations, and documentation.
+
+## Third subgoal: expression input to the actual dictionary forest
+
+The first two subgoals compiled and were published at 03:36 UTC. Next connect
+existing checked annotated scalar Expr (literal, variable and let) directly to
+the mixed-closure dictionary forest. Internally lower each validated binding to
+two ordinary bounds. Prove mixed Derives iff the pre-existing independent
+expression Derives, and all-model meaning of those generated bounds. Preserve
+bare clauses and binding-only names, including contradictory duplicate names.
+No caller passes equality atoms or successful head evidence. Unsupported Expr
+and mismatching annotation fail this fragment checker, not the language itself.
+
+For all env/roles/wf/awf, finite clause lists and finite bindings, the public
+runner returns some report iff bindings evaluate to their annotations and the
+clauses are well-scoped. Each dictionary payload is exactly independently
+expression-derived evidence, structural materialization and the existing typed
+Dictionary. All model statements quantify arbitrary name valuations, not just
+an existential successful solver witness. Ordinary consistency and role success
+remain separate observations.

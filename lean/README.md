@@ -4378,3 +4378,12 @@ permutation of overlap heads only. Child positions, goals, failed siblings and
 projected dictionaries are preserved at arbitrary finite addresses.
 These are finite scalar/rigid fragment theorems, not general state saturation,
 K2/final four-way classification, parser adequacy or method observational equality.
+
+`CommonRoleExpressionDictionaryForest` additionally runs the mixed closure and
+retained dictionary forest directly from checked annotated literal/variable/let
+expressions. Both ordinary bounds are generated internally. Their all-model
+meaning is exactly existing expression typing plus the annotation upper bound;
+independent expression Derives characterizes every returned full dictionary.
+Binding-only names are retained, so contradictory repeated names cannot vanish
+merely because no role clause mentions them. Unsupported expressions are outside
+this explicitly restricted fragment, not final language rejections.

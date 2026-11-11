@@ -1591,3 +1591,12 @@ Cycle103のextraは両端点から集めた名前を重複除去する。元の�
   candidate lists may permute; child positions and duplicates remain. Arbitrary
   path is an observation, not an external traversal schedule. This does not
   settle language-level dictionary interpretation or source canonical ordering.
+
+- `CommonRoleExpressionDictionaryForest`: finite closed annotated scalar Expr
+  bindings and grouped clauses are now the direct execution input. Its runner
+  validates the existing scalar evaluator, computes both ordinary inequalities,
+  allocates all names and obtains the actual source forest. No ordinary seed,
+  scalar head map, successful role or dictionary is supplied. `ordinary_typing_exact`
+  ranges over every name valuation. Scope-resolved binding names and explicit
+  scalar annotations remain the declared fragment boundary; non-scalar/effectful
+  expressions, parser linkage and general source scoping are still open.
