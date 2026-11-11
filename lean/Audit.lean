@@ -1,3 +1,4 @@
+import Yulang.CommonRoleCheckedMixedSource
 import Yulang.CommonRoleNamedOrdinaryInputs
 import Yulang.CommonRoleAmbientMixedSource
 import Yulang.CommonRoleCheckedOrdinaryReplay
@@ -8515,3 +8516,16 @@ run_cmd do
 #print axioms Yulang.CommonRoleNamedOrdinaryInputs.derives_congr
 #print axioms Yulang.CommonRoleNamedOrdinaryInputs.models_congr
 #print axioms Yulang.CommonRoleNamedOrdinaryInputs.solver_congr
+
+-- Cycle104 checked grouped clauses and named ordinary inputs.
+#print axioms Yulang.CommonRoleCheckedMixedSource.checked_derives_exact
+#print axioms Yulang.CommonRoleCheckedMixedSource.checked_evidence_exact
+#print axioms Yulang.CommonRoleCheckedMixedSource.checked_source_exact
+#print axioms Yulang.CommonRoleCheckedMixedSource.checked_solver_exact
+#print axioms Yulang.CommonRoleCheckedMixedSource.checked_roles_retained
+#print axioms Yulang.CommonRoleCheckedMixedSource.run_none_iff
+#print axioms Yulang.CommonRoleCheckedMixedSource.run_true_iff
+#print axioms Yulang.CommonRoleCheckedMixedSource.run_false_iff
+#print axioms Yulang.CommonRoleCheckedMixedSource.derives_congr
+#print axioms Yulang.CommonRoleCheckedMixedSource.models_congr
+#print axioms Yulang.CommonRoleCheckedMixedSource.run_congr
