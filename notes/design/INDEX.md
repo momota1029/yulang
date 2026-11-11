@@ -340,3 +340,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [I-19 inspection-pending and local totality](2026-11-11-cycle123-inspection-pending.md) — V3 target repair; deterministic-child boundary remains explicit.
 
 - [Cycle124 dictionary recording and RHS provenance](2026-11-11-cycle124-equation-recording.md) — Draft; exact equation transaction, explicit/default source obligations, and the remaining term interpretation boundary.
+
+- [Cycle125 output-only RHS terms](2026-11-12-cycle125-output-binder-terms.md) — actual source binder interpretation, producer linkage, and retained general boundary.

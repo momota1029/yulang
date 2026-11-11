@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionaryOutputBinderTerms
 import Yulang.GeneralDictionaryBatchExamples
 import Yulang.GeneralDictionaryRefinementExamples
 import Yulang.GeneralDictionaryRefinementEvidence
@@ -9431,3 +9432,11 @@ run_cmd do
 #print axioms Yulang.GeneralDictionaryBatchExamples.joint_inconsistent
 #print axioms Yulang.GeneralDictionaryBatchExamples.order_preserves_joint_failure
 #print axioms Yulang.GeneralDictionaryBatchExamples.repeated_package_atoms
+
+-- Cycle125: actual explicit output-only RHS terms.
+#print axioms Yulang.GeneralDictionaryOutputBinderTerms.lookup_exact
+#print axioms Yulang.GeneralDictionaryOutputBinderTerms.denotes_functional
+#print axioms Yulang.GeneralDictionaryOutputBinderTerms.denotes_has_producer
+#print axioms Yulang.GeneralDictionaryOutputBinderTerms.outputs_sources
+#print axioms Yulang.GeneralDictionaryOutputBinderTerms.recorded_output_denotes
+#print axioms Yulang.GeneralDictionaryOutputBinderTerms.recorded_output_producer

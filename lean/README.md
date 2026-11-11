@@ -4601,3 +4601,5 @@ separate calls need not share captures just because their implementation key
 is equal. The family remains supplied and has no proved revisit coherence.
 GeneralDictionaryPlannedOutputs couples canonical children and every explicit/
 default root RHS to the same actual checked visible declaration.
+
+- Cycle125: `GeneralDictionaryOutputBinderTerms` computes actual explicit output-only RHS variables, proves lookup/independent-denotation equivalence, and connects every recorded root output to its checked producer child source. Default/input/compound bodies remain deferred; all12 general B4 bridges remain unfilled.
