@@ -1,9 +1,10 @@
 cycle: 105
-status: running
+status: completed
 started: 2026-11-11T00:26:39Z
-updated: 2026-11-11T00:36:39Z
-elapsed_min: 10.0
-activity: Computed mixed evidence now discharges retained source roles without a caller head map. Source db347815 published and eight paths verified. Focused363, 21 guards, 5 kernel examples, 10 axioms, inventory and diff gate pass; final report/CI verification underway.
+updated: 2026-11-11T00:37:25.618735+00:00
+elapsed_min: 10.8
+activity: Finite computed-evidence role discharge bridge closed. Focused363, 21 guards, 5 kernel examples, 10 axiom checks and exact-source Core/Lean CI pass; all five B4 packages remain open.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
 last_local_commit: f4e421b7f
-resume_hint: Source db347815/tree f4491ae1 is verified. Read pending notes/handoff/dots-cycle-105.md and cache/yulang105. Finalize exact-source CI, publish report and completed heartbeat. All five B4 packages remain open.
+report: notes/handoff/dots-cycle-105.md
+resume_hint: Refresh integration/work/inbox and read cycle105. Source db347815/tree f4491ae1 verified. Next retain detailed source role diagnostics or derive ordinary constraints from checked expressions; dynamic child closure remains open. Logs ../cache/yulang105.
