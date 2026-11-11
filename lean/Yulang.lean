@@ -1553,3 +1553,10 @@ import Yulang.CommonRoleStructuralNamedInputs
 import Yulang.CommonRoleStructuralRenaming
 
 import Yulang.CommonRoleNamedStructuralDerivations
+
+import Yulang.CommonRoleRawStructuralSource
+
+import Yulang.B4Skeleton
+import Yulang.CommonRoleSettledRootClassification
+import Yulang.CommonRoleScalarDictionaryModels
+import Yulang.CommonRoleSettledVisibleOrder

@@ -1,3 +1,4 @@
+import Yulang.CommonRoleRawStructuralSource
 import Yulang.CommonRoleStructuralRenaming
 import Yulang.CommonRoleNamedStructuralDerivations
 import Yulang.CommonRoleStructuralNamedInputs
@@ -8851,3 +8852,81 @@ run_cmd do
 #print axioms Yulang.CommonRoleNamedStructuralDerivations.models_congr
 #print axioms Yulang.CommonRoleNamedStructuralDerivations.run_models
 #print axioms Yulang.CommonRoleNamedStructuralDerivations.run_named_models
+
+-- Cycle111 raw unchecked source boundary.
+#print axioms Yulang.CommonRoleRawStructuralSource.check_template_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.check_occurrence_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.check_program_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.erase_scoped
+#print axioms Yulang.CommonRoleRawStructuralSource.check_occurrence_accepts
+#print axioms Yulang.CommonRoleRawStructuralSource.check_program_accepts
+#print axioms Yulang.CommonRoleRawStructuralSource.step_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.derives_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.models_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.check_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.check_accepts
+#print axioms Yulang.CommonRoleRawStructuralSource.run_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.run_origin
+#print axioms Yulang.CommonRoleRawStructuralSource.run_models
+
+-- cycle112: B4Skeleton
+#print axioms Yulang.B4Skeleton.completed_summary
+#print axioms Yulang.B4Skeleton.completed_summaries
+#print axioms Yulang.B4Skeleton.completed_unique
+#print axioms Yulang.B4Skeleton.completed_child
+#print axioms Yulang.B4Skeleton.rejected_child_has_no_completed_readback
+#print axioms Yulang.B4Skeleton.target_unchanged
+#print axioms Yulang.B4Skeleton.tree_classifies
+#print axioms Yulang.B4Skeleton.children_classify
+#print axioms Yulang.B4Skeleton.render_resolves
+#print axioms Yulang.B4Skeleton.renders_resolve
+#print axioms Yulang.B4Skeleton.render_completed
+#print axioms Yulang.B4Skeleton.renders_completed
+#print axioms Yulang.B4Skeleton.classify_tree
+#print axioms Yulang.B4Skeleton.classify_tree_iff
+#print axioms Yulang.B4Skeleton.steps_models
+#print axioms Yulang.B4Skeleton.dictionary_evidence
+#print axioms Yulang.B4Skeleton.dictionaries_evidence
+#print axioms Yulang.B4Skeleton.resolves_transport
+#print axioms Yulang.B4Skeleton.resolves_children_transport
+#print axioms Yulang.B4Skeleton.b4_of_bridges
+#print axioms Yulang.B4Skeleton.pending_rejection_obstruction
+#print axioms Yulang.B4Skeleton.pending_empty_survivors_obstruction
+#print axioms Yulang.B4Skeleton.bridges_obstructed_by_pending_empty
+
+-- cycle112: CommonRoleSettledRootClassification
+#print axioms Yulang.CommonRoleSettledRootClassification.local_rejected_iff
+#print axioms Yulang.CommonRoleSettledRootClassification.resolve_exact
+#print axioms Yulang.CommonRoleSettledRootClassification.rejected_exact
+#print axioms Yulang.CommonRoleSettledRootClassification.rejected_ne_selected
+#print axioms Yulang.CommonRoleSettledRootClassification.absent_not_rejected
+#print axioms Yulang.CommonRoleSettledRootClassification.all_children
+#print axioms Yulang.CommonRoleSettledRootClassification.selected_retains_children
+#print axioms Yulang.CommonRoleSettledRootClassification.selected_child_rejection_retained
+#print axioms Yulang.CommonRoleSettledRootClassification.candidate_k2_priority
+#print axioms Yulang.CommonRoleSettledRootClassification.local_pending_iff
+#print axioms Yulang.CommonRoleSettledRootClassification.local_ambiguous_iff
+#print axioms Yulang.CommonRoleSettledRootClassification.pending_exact
+#print axioms Yulang.CommonRoleSettledRootClassification.ambiguous_exact
+#print axioms Yulang.CommonRoleSettledRootClassification.selected_exact
+#print axioms Yulang.CommonRoleSettledRootClassification.total
+
+-- cycle112: CommonRoleScalarDictionaryModels
+#print axioms Yulang.CommonRoleScalarDictionaryModels.wellFormed
+#print axioms Yulang.CommonRoleScalarDictionaryModels.matches_exact
+#print axioms Yulang.CommonRoleScalarDictionaryModels.unique
+#print axioms Yulang.CommonRoleScalarDictionaryModels.elaborate_exact
+#print axioms Yulang.CommonRoleScalarDictionaryModels.run_exact
+#print axioms Yulang.CommonRoleScalarDictionaryModels.run_all_models
+#print axioms Yulang.CommonRoleScalarDictionaryModels.successful_dictionary_exact
+#print axioms Yulang.CommonRoleScalarDictionaryModels.empty_pending
+
+-- cycle112: CommonRoleSettledVisibleOrder
+#print axioms Yulang.CommonRoleSettledVisibleOrder.scan_filterMap
+#print axioms Yulang.CommonRoleSettledVisibleOrder.scan_permutation
+#print axioms Yulang.CommonRoleSettledVisibleOrder.summarize_permutation
+#print axioms Yulang.CommonRoleSettledVisibleOrder.frontier_permutation
+#print axioms Yulang.CommonRoleSettledVisibleOrder.local_permutation
+#print axioms Yulang.CommonRoleSettledVisibleOrder.resolve_permutation
+#print axioms Yulang.CommonRoleSettledVisibleOrder.legacy_classification_permutation
+#print axioms Yulang.CommonRoleSettledVisibleOrder.rejection_permutation

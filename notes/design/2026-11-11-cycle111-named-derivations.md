@@ -19,3 +19,7 @@ Target: for every present source name and scalar head, computed finite Known iff
 ## Validation and publication
 
 Read existing Y2 audit ROLE-MORE-001/002/003/005 before implementation. Y2's where differences are not adopted. Focused builds only, scoped axiom audit, negative/positive boundary tests. Publish each coherent subgoal with imports and Audit registration, using GitHub API and expected-head non-force ref updates. No full project build or full Audit.
+
+## Second subgoal: raw structural source boundary
+
+After the named judgment closes, replace `Program` supplied with scope proofs by raw occurrence records containing endpoint names, associated name and ordinary `Roles.Goal`. A recursive checker must accept exactly raw programs whose templates use only placeholder zero. Erasure of a checked program must be inverse to checking, preserving order, multiplicity, roles and names. Define the raw associated step and raw derivation without checked templates. The public entry checks scopes, computes allocation and ordinary grammar, runs finite closure and the ordinary solver, and returns its computed source/state package. Target success iff scope, ordinary grammar and existence of a raw named model. This does not parse surface text or interpret out-of-fragment templates as language errors.
