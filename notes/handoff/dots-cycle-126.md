@@ -166,3 +166,24 @@ exact source `cb899edd91b7d414202886b2c1b9c6e3095dceec`について:
 - hostedでの検証結果であり、localで全体検証や監督役AxiomGateを実施した意味ではない。
 - これ以後の変更は報告3つとheartbeatだけ。報告treeの再取得・全件照合・完了時刻は
   completed heartbeatに記録する。
+
+## 次回の接続箇所の再確認（実装済みの主張ではない）
+
+最終sourceを読み直し、最初の部分目標を次の形に絞った。
+
+1. `GeneralDictionaryVariableHeads.heads`を固定し、任意の外部HeadInstancesを新builderの
+   入力にしない。checked registryから同じkey/roleの宣言を一度選び、その宣言のcaptureで
+   head buildとoutput buildを順に行う。独立な成功条件はHeadDenotesとMaterializesで記述し、
+   条件の中にlookup成功そのものを隠さない。checkedのkey一意性を使って、既存lookup_termsの
+   「同key/roleの全visible宣言」のhead前提へ戻す。
+2. 新しいRecipeの入力はHeadlessInputsと全child Recipeだけにする。任意checked registry、
+   state、frames、有限Recipeについて、成功から`Built ... VariableHeads.heads tree`を導く。
+   ここでは再帰Heads証明も呼出側へ要求しない。ただしactual captureのRealizes、candidate
+   inspection、解決前の全無名引数のknown-head guardは、この成功だけからは導かれない。
+3. 現在の二node terminal fixtureはrootがnominal headなので、全headless版では根でdeferする
+   のが正しい回帰となる。成功回帰には、headが明示input変数でproducer childを持つ別の
+   checked宣言を用意する。既存fixtureの供給headをactual nominal意味と読み替えない。
+   欠落/余分/identity違いのchild、非恒等source map、別targetの反復出力も同じ回帰群へ保つ。
+
+報告の独立読取レビューで、Materializesの一般宣言にはassociated-name Nodupが必要なことを
+再確認し、上の量化子説明へ追記した。定理の型と実装は最初からその前提を持ち、変更していない。
