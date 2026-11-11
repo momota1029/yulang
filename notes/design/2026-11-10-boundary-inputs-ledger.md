@@ -1511,3 +1511,23 @@ Cycle103のextraは両端点から集めた名前を重複除去する。元の�
   closure. Bare role obligations survive checking but are not discharged by this
   Boolean result. General entailment, dynamic children, full classification and
   dictionaries remain open. The five B4 packages remain incomplete.
+
+
+## Cycle105: CommonRoleEvidenceDischarge
+
+- `src : Source` retains the cycle104 finite scope-resolved clauses and named
+  ordinary input. Spec6.3 supplies role conjunction and delayed knownness; source
+  parser/expressions, invocation keys and declaration lowering remain unproved.
+- `env`, `roles`, `wf`, `awf` are the existing registry and declaration
+  well-formedness. The existing structural encoder covers int/str only.
+- `p`, `checked`, `o`, `c`, `same` are supporting correspondence inputs. The outer
+  `run_success_iff` computes checking, allocation, saturation, scalar candidates
+  and role calls. There is no caller `heads`, slot map, State, fuel or assumed
+  role-success premise. `derived_support` derives allocated support from source
+  derivations, including source names used by bare role clauses.
+- `cs`, `os` in congruence theorems are whole-clause and ordinary inequality
+  membership equivalence. They do not cover rearrangement inside one clause.
+- `AllDischarged` is evidence-backed finite discharge, separate from Models.
+  Ground templates still require receiver evidence. Unseeded and unsupported
+  clauses produce false discharge without a new final language classification.
+  New semantic decisions 0; all five B4 packages remain incomplete.

@@ -1,3 +1,4 @@
+import Yulang.CommonRoleEvidenceDischarge
 import Yulang.CommonRoleCheckedMixedSource
 import Yulang.CommonRoleNamedOrdinaryInputs
 import Yulang.CommonRoleAmbientMixedSource
@@ -8529,3 +8530,15 @@ run_cmd do
 #print axioms Yulang.CommonRoleCheckedMixedSource.derives_congr
 #print axioms Yulang.CommonRoleCheckedMixedSource.models_congr
 #print axioms Yulang.CommonRoleCheckedMixedSource.run_congr
+
+-- Cycle105 actual mixed evidence discharges retained source obligations.
+#print axioms Yulang.CommonRoleEvidenceDischarge.derived_support
+#print axioms Yulang.CommonRoleEvidenceDischarge.heads_exact
+#print axioms Yulang.CommonRoleEvidenceDischarge.run_one_exact
+#print axioms Yulang.CommonRoleEvidenceDischarge.run_roles_exact
+#print axioms Yulang.CommonRoleEvidenceDischarge.run_none_iff
+#print axioms Yulang.CommonRoleEvidenceDischarge.ordinary_projection
+#print axioms Yulang.CommonRoleEvidenceDischarge.run_success_iff
+#print axioms Yulang.CommonRoleEvidenceDischarge.discharged_congr
+#print axioms Yulang.CommonRoleEvidenceDischarge.all_discharged_congr
+#print axioms Yulang.CommonRoleEvidenceDischarge.run_congr
