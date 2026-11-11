@@ -1575,3 +1575,28 @@ Cycle103のextraは両端点から集めた名前を重複除去する。元の�
 - The ordinary consistency bit is not used to fabricate or choose a Plan. Full
   acceptance still requires Models and all source roles. Scope-wide canonical
   obligation ordering and language-level dictionary observation remain open.
+
+## Cycle108: source environments and diagnostic order
+
+- `CommonRoleSourceEnvironmentCongruence.Same left right`: compared visible
+  associated registries have the same AssocImpl members, including bodies.
+  This covers declaration order and repeated identical declarations; real
+  module visibility is still supplied (spec6.2). Fixed roles, wf/awf are the
+  existing declaration boundary. No new execution input is introduced.
+- `src`, returned reports/rows and matching raw Clause are the cycle107 boundary.
+  Observation equality preserves ordinary and role bits separately. Plan
+  equivalence compares exact payloads, not only selected status. Finite scalar
+  scope and parser/dynamic allocation limitations remain unchanged.
+- `CommonRoleDiagnosticOrder.Equivalent` compares diagnostic outputs. Only overlap
+  candidate lists may permute; child positions and duplicates remain. Arbitrary
+  path is an observation, not an external traversal schedule. This does not
+  settle language-level dictionary interpretation or source canonical ordering.
+
+- `CommonRoleExpressionDictionaryForest`: finite closed annotated scalar Expr
+  bindings and grouped clauses are now the direct execution input. Its runner
+  validates the existing scalar evaluator, computes both ordinary inequalities,
+  allocates all names and obtains the actual source forest. No ordinary seed,
+  scalar head map, successful role or dictionary is supplied. `ordinary_typing_exact`
+  ranges over every name valuation. Scope-resolved binding names and explicit
+  scalar annotations remain the declared fragment boundary; non-scalar/effectful
+  expressions, parser linkage and general source scoping are still open.

@@ -4365,3 +4365,25 @@ Ordinary consistency stays separate; plans may be present in a contradictory
 source report. No global evidence choice, method execution, final classification
 or source-level observational dictionary equivalence is established. All five
 general B4 packages remain unfinished.
+
+## Cycle108: visible environments and retained diagnostics
+
+`CommonRoleSourceEnvironmentCongruence` connects equal membership of visible
+associated declarations to independent source evidence, Models, both observable
+bits, and the full ordered dictionary Plan in every matching returned source row.
+The declaration bodies, fixed role signatures, WellFormed and AssocWellFormed
+premises are explicit; reordered or repeated identical declarations are covered.
+`CommonRoleDiagnosticOrder` preserves complete recursive diagnostics up to a
+permutation of overlap heads only. Child positions, goals, failed siblings and
+projected dictionaries are preserved at arbitrary finite addresses.
+These are finite scalar/rigid fragment theorems, not general state saturation,
+K2/final four-way classification, parser adequacy or method observational equality.
+
+`CommonRoleExpressionDictionaryForest` additionally runs the mixed closure and
+retained dictionary forest directly from checked annotated literal/variable/let
+expressions. Both ordinary bounds are generated internally. Their all-model
+meaning is exactly existing expression typing plus the annotation upper bound;
+independent expression Derives characterizes every returned full dictionary.
+Binding-only names are retained, so contradictory repeated names cannot vanish
+merely because no role clause mentions them. Unsupported expressions are outside
+this explicitly restricted fragment, not final language rejections.

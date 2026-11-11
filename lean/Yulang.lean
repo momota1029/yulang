@@ -1519,3 +1519,9 @@ import Yulang.CommonRoleSourceDiagnosticForest
 import Yulang.CommonRoleDiagnosticDictionaries
 
 import Yulang.CommonRoleSourceDictionaryForest
+
+import Yulang.CommonRoleSourceEnvironmentCongruence
+
+import Yulang.CommonRoleDiagnosticOrder
+
+import Yulang.CommonRoleExpressionDictionaryForest
