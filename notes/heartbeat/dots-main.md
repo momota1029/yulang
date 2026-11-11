@@ -1,9 +1,9 @@
 cycle: 122
 status: running
 started: 2026-11-11T17:27:30Z
-updated: 2026-11-11T17:41:20Z
-elapsed_min: 13.83
-activity: Focused recovery and general dictionary/registry build PASS (435 jobs); no-build gate PASS. Preparing atomic source publication, targeted axiom audit pending with 3-minute cap.
+updated: 2026-11-11T17:48:20Z
+elapsed_min: 20.83
+activity: Recovery and general dictionary/registry components published at abedb9658; 21 hashes verified, focused435 jobs and direct trust-zero68 declaration audit PASS. Proving actual shared-state dictionary equations and exact child-emission order.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
 last_local_commit: ba0037082
-resume_hint: The cycle121 uncertain tree returned 404 and no commit/ref had run. All recovery sources are committed locally, including reports119-121. Blob hashes recorded in cycle122 publication manifest; publish one tree from integration4ec4ae877 with expected work/dots-main head. Audit log cache/yulang122/audit.log; keep final all-model Evidence boundary explicit, B4 12/12 open.
+resume_hint: Single writer122. Child-order module proved in ../yulang-cycle122 and copied into repo, not yet published. State-equation bridge is compiling with 3-minute cap in scratch. Separate source/row identities must remain distinct. B4 V2 12/12 fields still open; no full build. Next publish partial code before 25-minute checkpoint.
