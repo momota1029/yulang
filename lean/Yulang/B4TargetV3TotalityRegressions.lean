@@ -111,3 +111,41 @@ theorem unconditional_totality_false :
   exact conflicting_no_local frontier localRule
 
 end Yulang.B4TargetV3TotalityRegressions
+
+namespace Yulang.B4TargetV3TotalityRegressions
+open CommonRoleOutermostResolver B4TargetV3
+
+/-- The precise I-19 hole: inspection is unfinished, but a survivor already exists. -/
+def nonemptyInspecting : B4Target.SourceBoundary vocabulary :=
+  { inspecting with Survivor := fun _ _ _ key children => key = 0 ∧ children = [] }
+
+theorem nonempty_inspecting_stable : nonemptyInspecting.Stable () () () := True.intro
+
+/-- V2 has no Local derivation here, even in a stable snapshot. -/
+theorem old_nonempty_inspection_hole (frontier : Frontier vocabulary.Demand) :
+    ¬ B4TargetV2.Local nonemptyInspecting () () () frontier := by
+  intro given
+  cases given with
+  | pending h => exact h
+  | rejected h =>
+      rcases h.2 with root | candidate | empty
+      · exact root
+      · exact candidate
+      · exact empty 0 [] ⟨rfl, rfl⟩
+  | ambiguous safe _ _ _ => exact safe.2.2.2 True.intro
+  | selected safe _ => exact safe.2.2.2 True.intro
+
+theorem nonempty_inspection_closed (tree : Tree) :
+    Resolves (Local nonemptyInspecting () ()) () tree ↔ tree = .pending :=
+  inspection_pending_tree_only (by simp [nonemptyInspecting, inspecting]) True.intro
+    (by simp [nonemptyInspecting, inspecting]) (by simp [nonemptyInspecting, inspecting]) tree
+
+/-- After inspection completes, no surviving candidate is genuinely a rejection. -/
+def inspectedEmpty : B4Target.SourceBoundary vocabulary :=
+  { inspecting with InspectionPending := fun _ _ _ => False }
+
+theorem inspected_empty_rejected : Local inspectedEmpty () () () .rejected :=
+  .rejected ⟨(by simp [inspectedEmpty, inspecting]),
+    .inr (.inr ⟨(by simp [inspectedEmpty]), (by simp [inspectedEmpty, inspecting])⟩)⟩
+
+end Yulang.B4TargetV3TotalityRegressions

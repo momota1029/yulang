@@ -4568,3 +4568,11 @@ GeneralDictionarySemanticOrder transports the full source child list alongside
 payload order and proves shared-model equation evidence for every permutation.
 Canonical ordered evidence and unordered conjunction evidence are distinct;
 a regression proves the unordered relation is not literally child-functional.
+
+GeneralDictionarySemanticUniqueness proves source dictionary uniqueness modulo
+sibling order under explicit local selected-key/child uniqueness. The actual
+checked-registry EmissionPlans discharge same-key child determinism at a fixed
+capture/allocation frame. GeneralDictionaryPlanLookup is an executable exact
+lookup of those independent plans and is invariant under registry/where order.
+Plan is not Survivor: matching, feasibility, frame construction, freshness and
+declaration-to-equation semantics remain unproved general-source obligations.

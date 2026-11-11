@@ -81,3 +81,46 @@ ordered judgment, accepts them with corresponding source transport in the
 unordered judgment, and proves the unordered judgment is not child-functional.
 No role instances are fabricated: the concrete package relation is still the
 separate missing declaration/capture bridge.
+
+## Next subgoal: unique semantic dictionaries up to source-preserving order
+
+For a local instance relation, expose the exact premise: at the same source
+occurrence, two valid selected instances have the same implementation key and
+child lists differing only by permutation. Prove by finite evidence induction
+that any two valid source dictionaries at that root are DictionaryEquivalent.
+Do not infer this premise for arbitrary role instances with overlapping impls.
+Derive the premise for the Unordered view of key-and-child-deterministic exact
+packages, then transport it to erased payload comparison. This connects the
+comparison relation to genuinely unique local selection while retaining the
+unimplemented general candidate-to-package premise.
+
+## Next subgoal: connect deterministic child plans to actual declarations
+
+Use actual GeneralDeclarations.Checked registry IDs, canonicalEmit, a fixed
+per-key resolved capture/allocation frame, and an explicit stable source-ID map.
+Define a dictionary emission plan for a visible declaration of the root role.
+Prove same-key child determinism from checked unique declaration IDs, and exact
+plan transport under actual registry/where reordering at a fixed frame. Do not
+call this Plan a Survivor: head matching, candidate feasibility, source allocation
+freshness and declaration equation semantics remain absent. The frame is data
+that candidate inspection must derive, not a new arbitrary semantic oracle.
+
+The semantic uniqueness theorem is proved by finite source-evidence induction.
+It aligns children by their retained source occurrences, not by erased key
+coincidence. Under local selected-key/children uniqueness up to permutation,
+any two source dictionaries at the same root are DictionaryEquivalent. Actual
+package constructor inversion supplies this premise for the distinct-key fixture.
+
+The actual declaration plan bridge is also proved. Checked registry IDs imply
+same-key declaration identity, hence deterministic complete canonical children
+at a fixed frame. Plan is invariant under actual visible/where reordering. The
+finite executable lookup returns some demands iff the independent Plan judgment,
+and none iff no such plan exists. Real Wrap/Container named-output regressions,
+a missing key, a wrong-role key, and reversed visible order all pass. The lookup
+does not test head matching, ordinary feasibility or K2, and does not build the
+resolved frame; it must not be reported as general candidate resolution.
+
+The precise nonempty-survivor inspection-pending hole is additionally verified:
+V2 has no Local derivation at that stable fixture, whereas V3 has exactly the
+pending tree. Inspection-complete emptiness still rejects. The I-19 case repair
+is complete; unrestricted abstract totality is still disproved as documented.
