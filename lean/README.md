@@ -4621,3 +4621,42 @@ The additive `GeneralDictionaryVariableTerms` accepts explicit input-variable RH
 `GeneralDictionaryVariablePreparation` takes a finite recipe with no output vectors, computes every package, and checks complete child occurrences. Success plus a head-only recursive certificate produces a uniform all-model source witness. It does not discover candidate keys, solve heads, allocate identities, or saturate a state. `GeneralDictionaryPreparationExamples` runs the real two-node tree and rejects partial materialization with missing/extra/wrong-identity children, missing keys or unequal terminal input captures. `GeneralDictionaryVariableRealization` proves computed RHS meaning for every compatible interval/output capture realization; deriving that realization from matching is still separate.
 
 `GeneralDictionaryVariableHeads` computes the head vector from actual positional variable patterns and exact captured source IDs, starting from HeadlessInputs. Its exactness and every-realization meaning hold only for this explicit supported relation; nominal/compound heads defer. `GeneralDictionaryHeadExamples` proves terminal variable-head success and nominal/unequal/absent-source deferral. It is not wired into a headless whole-tree recipe yet. No source materializer here selects candidates or bypasses the approved requirement to wait for every unnamed argument's lower head.
+
+### Cycle127: complete recipes with actual variable heads
+
+`GeneralDictionaryHeadlessPlans` computes both positional heads and associated
+RHS terms from the same checked visible declaration. `GeneralDictionaryHeadlessPreparation`
+uses a recipe with endpoint/target positions, chosen keys and children, but no
+head or output terms and no external recursive head proof. Successful preparation
+constructs a fixed source dictionary witness valid in every model of the one
+recorded batch. `GeneralDictionaryHeadlessExactness` proves an iff with an
+independent recursive materialization judgment. `GeneralDictionaryHeadlessOrder`
+preserves the whole prepared result, dictionary and recorded state under allowed
+visible/where reorderings at fixed source inputs, including failures.
+
+`GeneralDictionaryHeadlessFixture` and `GeneralDictionaryHeadlessExamples` give
+a checked binary variable-headed producer and unary terminal leaf, nonidentity
+source localization and repeated output targets. A concrete joint model prevents
+vacuity. Missing/extra/wrong-identity child recipes and unsupported captured
+heads defer. No candidate resolution, capture discovery, known-head guard,
+nominal/compound/default semantics, saturation or general B4 completion is claimed.
+
+`GeneralDictionaryHeadlessRealization` constructs compatible binder values from
+supported checked heads for every source assignment. `GeneralDictionaryHeadlessSourceEvidence`
+then supplies an independent actual variable-declaration Instance, without local
+term packages or arbitrary meaning predicates. The fixed dictionary is valid in
+all joint models; the binder values may vary with each assignment.
+`GeneralDictionaryHeadlessSemanticOrder` transports arbitrary source Evidence
+under visible/where reordering, including evidence not produced by this compiler.
+`GeneralDictionaryHeadlessSourceExamples` demonstrates the exact limit: compatible
+unequal endpoint identities can satisfy Instance while the partial compiler defers.
+`GeneralDictionaryHeadlessCandidateBoundary` records that the freshly integrated
+partial candidate range still requires empty root outputs, so it does not yet
+certify the already materialized output-bearing dictionary fixture.
+
+`GeneralDictionaryHeadlessLocations` computes all demand endpoint and output-target
+slots, with exact source-membership coverage and completeness from Linked.
+`GeneralDictionarySourceRecipe` therefore needs only occurrences, selected keys
+and finite child shape; source positions and all term vectors are computed.
+Its all-model source-evidence theorem leaves frames/captures/allocation and
+chosen keys explicit. Missing source identities defer instead of allocating.

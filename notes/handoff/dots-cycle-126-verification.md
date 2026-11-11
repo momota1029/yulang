@@ -1817,3 +1817,23 @@ Build completed successfully (543 jobs).
 `Classical.choice, Quot.sound, propext`。scoped109件の全文は上記local auditにもある。
 最終treeは `d4720a64140f622716de5b55276f5296c1b72f0f`。
 remote recursive treeのtruncated=false、各path/mode/type/blob SHAをlocal tree全2432件と比較し一致。
+
+## 報告公開後の最終整合検査（22:13UTC）
+
+同じsourceについて、報告追加後のcommit fcee0fe9dでdiff-only gateとgit diff --checkを再実行。
+ともにexit0。新しいLean sourceは追加していない。
+
+```text
+verify-lean: . @ fcee0fe9d (base origin/integration/m1-final)
+ok: no removed lines in lean/ since origin/integration/m1-final
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+ok: Audit.lean only appended (plus top import lines)
+verify-lean: PASS (diff checks only, NO build)
+```
+
+integrationからの新module17件からpublic theorem名を再抽出し109件。
+final-namesと完全一致、Audit登録不足0、Yulang集約import不足0、定理報告109項目。
+report treeの2435 tracked files（3報告を含む）もlocalとremoteのpath/mode/type/blob SHAが
+全件一致し、truncated=falseだった。source以後の差分は報告3つとheartbeatだけである。
