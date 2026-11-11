@@ -106,3 +106,27 @@ theorem emitAll_permute_requirements (invocation : Nat) (declaration : Declarati
   exact order.pmap _
 
 end Yulang.GeneralRegistryChildOrder
+
+namespace Yulang.GeneralRegistryChildOrder
+open GeneralDeclarations GeneralDeclarationDemands
+
+/-- Obstruction to feeding raw emission order into canonicalLocalOrder: swapping
+ two source clauses with distinct IDs changes the literal emitted list. The
+ prior permutation theorem remains true. An actual canonicalization bridge is
+ therefore needed; literal equality cannot silently replace sibling equivalence. -/
+theorem swapped_child_order_not_equal (invocation : Nat) (declaration : Declaration)
+    (first last : Clause) (requirements : declaration.requirements = [first, last])
+    (distinct : first.id ≠ last.id) (valid : declaration.Signature roles)
+    (valid' : ({ declaration with requirements := [last, first] } : Declaration).Signature roles)
+    (capture : Capture) (allocate : (clause : Clause) → Allocation roles clause) :
+    emitAll invocation declaration valid capture allocate ≠
+      emitAll invocation { declaration with requirements := [last, first] } valid' capture allocate := by
+  intro same
+  have identities := congrArg
+    (List.map (fun result : Emission roles => (result.invocation, result.declaration, result.clause))) same
+  rw [emitAll_identities, emitAll_identities, requirements] at identities
+  change [(invocation, declaration.id, first.id), (invocation, declaration.id, last.id)] =
+    [(invocation, declaration.id, last.id), (invocation, declaration.id, first.id)] at identities
+  exact distinct (congrArg (fun value : Nat × Nat × Nat => value.2.2) (List.cons.inj identities).1)
+
+end Yulang.GeneralRegistryChildOrder

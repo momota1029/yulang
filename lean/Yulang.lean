@@ -1588,3 +1588,5 @@ import Yulang.GeneralSourceDictionaryEquations
 import Yulang.GeneralRegistryReordering
 import Yulang.GeneralRegistryChildOrder
 import Yulang.GeneralDictionaryStateEquations
+import Yulang.GeneralDictionaryEquationExamples
+import Yulang.GeneralCanonicalChildOrder

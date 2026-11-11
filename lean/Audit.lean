@@ -9155,3 +9155,20 @@ run_cmd do
 #print axioms Yulang.GeneralDictionaryStateEquations.recorded_holds
 #print axioms Yulang.GeneralDictionaryStateEquations.recorded_entails
 #print axioms Yulang.GeneralDictionaryStateEquations.lifted_arrow_separates_sources
+
+-- Non-vacuous equation regressions, source order obstruction and refinement.
+#print axioms Yulang.GeneralDictionaryEquationExamples.recorded
+#print axioms Yulang.GeneralDictionaryEquationExamples.models
+#print axioms Yulang.GeneralDictionaryEquationExamples.all_model_outputs
+#print axioms Yulang.GeneralDictionaryEquationExamples.duplicate_outputs_retained
+#print axioms Yulang.GeneralDictionaryEquationExamples.separate_type_and_row_ids
+#print axioms Yulang.GeneralRegistryChildOrder.swapped_child_order_not_equal
+#print axioms Yulang.GeneralDictionaryStateEquations.entailed_refines
+
+-- Canonical source clause order preserves actual complete child emissions.
+#print axioms Yulang.GeneralCanonicalChildOrder.canonicalRequirements_perm
+#print axioms Yulang.GeneralCanonicalChildOrder.canonicalRequirements_eq
+#print axioms Yulang.GeneralCanonicalChildOrder.canonical_checked
+#print axioms Yulang.GeneralCanonicalChildOrder.canonical_declaration_eq
+#print axioms Yulang.GeneralCanonicalChildOrder.canonicalEmit_reorders
+#print axioms Yulang.GeneralCanonicalChildOrder.canonicalEmit_perm

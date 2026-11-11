@@ -102,3 +102,18 @@ theorem lifted_arrow_separates_sources (state : State) (input output row : Fin s
         (.var (state.source output)) (.var (state.rowSource row)) := rfl
 
 end Yulang.GeneralDictionaryStateEquations
+
+namespace Yulang.GeneralDictionaryStateEquations
+open GeneralSourceState (Refines Demand)
+open GeneralSourceDictionaryEquations (InstanceEquations Entailed)
+
+/-- Global source equations remain true after any certified source-preserving
+state refinement. The equation terms keep their global type and row identities;
+no substitution by fresh local slot numbers is performed. -/
+theorem entailed_refines (refinement : Refines before after) (demand : Demand roles)
+    (equations : InstanceEquations demand) (entailed : Entailed before equations) :
+    Entailed after equations := by
+  intro assignment model
+  exact entailed assignment (GeneralSourceState.refinement_models refinement assignment model)
+
+end Yulang.GeneralDictionaryStateEquations
