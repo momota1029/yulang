@@ -315,3 +315,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle106: source evidence and recursive diagnostic forests](2026-11-11-cycle106-source-diagnostic-forest.md) — Draft; Paterson-generated failure-preserving trees and arbitrary-depth source-to-child exactness, without caller fuel or work tables.
 
 - [Cycle107: diagnostic trees and ordered dictionary plans](2026-11-11-cycle107-diagnostic-dictionary-projection.md) — Draft; complete payload equality, failure-preserving enrichment and source-to-dictionary path exactness.
+
+- [Cycle108: source environment and diagnostic order](2026-11-11-cycle108-source-environment-congruence.md) — Draft; equal visible declarations preserve mixed source evidence, full dictionary payloads and all retained failed diagnostic structure.

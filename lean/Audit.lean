@@ -8604,3 +8604,27 @@ run_cmd do
 #print axioms Yulang.CommonRoleSourceDictionaryForest.run_plan_exact
 #print axioms Yulang.CommonRoleSourceDictionaryForest.run_plan_visible
 #print axioms Yulang.CommonRoleSourceDictionaryForest.run_plan_path_exact
+
+-- Cycle108 source environment congruence.
+#print axioms Yulang.CommonRoleSourceEnvironmentCongruence.Same.symm
+#print axioms Yulang.CommonRoleSourceEnvironmentCongruence.cores_same
+#print axioms Yulang.CommonRoleSourceEnvironmentCongruence.resolves_congr
+#print axioms Yulang.CommonRoleSourceEnvironmentCongruence.assoc_derives_congr
+#print axioms Yulang.CommonRoleSourceEnvironmentCongruence.step_congr
+#print axioms Yulang.CommonRoleSourceEnvironmentCongruence.derives_congr
+#print axioms Yulang.CommonRoleSourceEnvironmentCongruence.models_congr
+#print axioms Yulang.CommonRoleSourceEnvironmentCongruence.discharged_congr
+#print axioms Yulang.CommonRoleSourceEnvironmentCongruence.all_discharged_congr
+#print axioms Yulang.CommonRoleSourceEnvironmentCongruence.observation_congr
+#print axioms Yulang.CommonRoleSourceEnvironmentCongruence.dictionary_payload_congr
+#print axioms Yulang.CommonRoleSourceEnvironmentCongruence.run_plan_congr
+#print axioms Yulang.CommonRoleSourceEnvironmentCongruence.observation_perm
+
+-- Cycle108 failure-preserving diagnostic order.
+#print axioms Yulang.CommonRoleDiagnosticOrder.candidates_perm
+#print axioms Yulang.CommonRoleDiagnosticOrder.diagnose_equivalent
+#print axioms Yulang.CommonRoleDiagnosticOrder.Equivalent.goal
+#print axioms Yulang.CommonRoleDiagnosticOrder.Equivalent.status_eq
+#print axioms Yulang.CommonRoleDiagnosticOrder.Equivalent.project_eq
+#print axioms Yulang.CommonRoleDiagnosticOrder.Equivalent.child
+#print axioms Yulang.CommonRoleDiagnosticOrder.Equivalent.follow
