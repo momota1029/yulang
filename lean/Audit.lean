@@ -1,3 +1,5 @@
+import Yulang.CommonRoleStructuralHornClosure
+import Yulang.CommonRoleStructuralAssociatedClosure
 import Yulang.CommonRoleDiagnosticDictionaries
 import Yulang.CommonRoleSourceDictionaryForest
 import Yulang.CommonRoleSourceDiagnosticForest
@@ -8744,3 +8746,22 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralSaturationTrace.runGraphs_exact
 #print axioms Yulang.CommonRoleStructuralSaturationTrace.discoveries_execution
 #print axioms Yulang.CommonRoleStructuralSaturationTrace.generated_execution_complete
+
+#print axioms Yulang.CommonRoleStructuralHornClosure.derives_coverage
+#print axioms Yulang.CommonRoleStructuralHornClosure.run_closed
+#print axioms Yulang.CommonRoleStructuralHornClosure.saturate_closed
+#print axioms Yulang.CommonRoleStructuralHornClosure.saturate_exact
+#print axioms Yulang.CommonRoleStructuralHornClosure.stopped
+#print axioms Yulang.CommonRoleStructuralHornClosure.saturate_nodup
+#print axioms Yulang.CommonRoleStructuralHornClosure.saturate_bounded
+#print axioms Yulang.CommonRoleStructuralHornClosure.models_exact
+#print axioms Yulang.CommonRoleStructuralHornClosure.derives_cut
+#print axioms Yulang.CommonRoleStructuralHornClosure.saturate_idempotent
+#print axioms Yulang.CommonRoleStructuralHornClosure.generated_reverse
+#print axioms Yulang.CommonRoleStructuralHornClosure.generated_execution_complete
+#print axioms Yulang.CommonRoleStructuralAssociatedClosure.clauses_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedClosure.derives_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedClosure.saturate_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedClosure.models_exact
+#print axioms Yulang.CommonRoleStructuralAssociatedClosure.derives_congr
+#print axioms Yulang.CommonRoleStructuralAssociatedClosure.saturate_congr

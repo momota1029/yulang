@@ -1537,3 +1537,7 @@ import Yulang.CommonRoleStructuralFrontierReplay
 import Yulang.CommonRoleDerivedStructuralMaterialization
 
 import Yulang.CommonRoleStructuralSaturationTrace
+
+import Yulang.CommonRoleStructuralHornClosure
+
+import Yulang.CommonRoleStructuralAssociatedClosure

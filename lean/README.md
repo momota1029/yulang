@@ -4423,3 +4423,11 @@ original model at every generated snapshot. The final atom membership is
 exactly independent Derives, terminal closure is proved, and all diagnostic
 snapshots and fresh ordinary graphs use the generated trace. This completes
 that finite ordinary driver, not general mixed role-to-ordinary saturation.
+
+CommonRoleStructuralHornClosure and CommonRoleStructuralAssociatedClosure compute
+one finite carrier for mutually alternating structural ordinary and actual
+associated-declaration equations. The carrier and causal fresh-atom trace are
+internal. Exactness uses independent seed/split/trans/associated derivations;
+all-model semantics states the additional activated equations explicitly.
+Finite source occurrences/templates and scalar associated decoding remain
+fragment restrictions, not language rejection rules or full B4 completion.
