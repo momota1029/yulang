@@ -51,3 +51,20 @@ It distinguishes old advertised where clauses from real body dependencies.
 The current spec 6.3 requires every where child; old behavior is not imported.
 Spec 6.2 retains call-site visible implementation identity; spec 6.3 makes
 sibling where requirements a conjunction. No new Yulang2 runtime was run.
+
+## Second and third subgoals
+
+`GeneralRegistryChildOrder` proves the general reorder equivalence laws and the
+permutation of actual `emitAll` results, with each clause-indexed allocation held
+fixed. Complete Emission structures, not only implementation keys, are compared.
+
+The next dictionary equation bridge takes a shared State and an actual Demand.
+A located equation package stores local slots for both argument endpoints and
+each output occurrence, plus local ordinary head/RHS terms. Its explicit source
+identity equations tie those slots to the Demand. Ordinary substitution maps
+local type variables with `state.source` and local row variables with
+`state.rowSource`; a single common renaming would be wrong. If the four families
+of generated inequality atoms occur in the actual state's ordinary list, the
+bridge proves the corresponding global equations in every model of that state.
+This still does not derive the equations from declaration patterns or prove
+candidate selection. It is an independent concrete prerequisite of evidenceNode.

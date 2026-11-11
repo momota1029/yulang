@@ -9141,3 +9141,17 @@ run_cmd do
 #print axioms Yulang.GeneralRegistryReordering.reorders_declaration_ids
 #print axioms Yulang.GeneralRegistryReordering.reorders_visible_back
 #print axioms Yulang.GeneralRegistryReordering.reorders_checked
+
+-- General registry equivalence and complete child-emission order.
+#print axioms Yulang.GeneralRegistryChildOrder.reorders_symm
+#print axioms Yulang.GeneralRegistryChildOrder.reorders_trans
+#print axioms Yulang.GeneralRegistryChildOrder.reorders_checked_iff
+#print axioms Yulang.GeneralRegistryChildOrder.emitAll_pmap
+#print axioms Yulang.GeneralRegistryChildOrder.emitAll_permute_requirements
+
+-- Actual shared-state dictionary equations with separate type/row IDs.
+#print axioms Yulang.GeneralDictionaryStateEquations.liftType_eval
+#print axioms Yulang.GeneralDictionaryStateEquations.liftRow_eval
+#print axioms Yulang.GeneralDictionaryStateEquations.recorded_holds
+#print axioms Yulang.GeneralDictionaryStateEquations.recorded_entails
+#print axioms Yulang.GeneralDictionaryStateEquations.lifted_arrow_separates_sources
