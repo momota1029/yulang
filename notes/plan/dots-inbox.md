@@ -199,3 +199,18 @@ I-11 の「時間を埋めるための補題は足さない」は、「部分目
 2. **結果は診断ツリー**: 主定理 (2) を、実行版が返す診断ツリーと、独立な `Resolves (Local …) d tree` の一致として述べる。4 分類への写像は `Completed` のツリーだけ。
 3. **やり方（削除しない）**: `Main.lean` の旧 `B4Target.Statement` は消さない。新しいモジュール（例: `Yulang/B4TargetV2.lean`）に、修正した `Statement`（量化子は旧と同じ）を書き、旧との差分（どこが違うか、なぜか）を docstring に書く。`B4Skeleton` の `B4Bridges` と `b4_of_bridges` を新しい target へ移す（旧のものは残し、「旧 target 向け」と docstring に書く）。修正後の target で、`pending_empty_survivors_obstruction` に当たる阻害が**もう起きない**ことを、定理で示す（排他性の補題: 新しい `Classify` は関数的）。
 4. これを次のサイクルの**最初の部分目標**とする（I-16 の P0 の仕上げ）。その後は I-16 の P1 以降に戻る。報告の「`B4Bridges` の未証明フィールド k/m」は、新しい target の構造体で数える。
+
+## I-18: 断片の正確性をやめ、一般の入れ物を下から作る（監督役, 2026-11-11）
+
+Astra の棚卸し（`notes/design/2026-11-11-astra-general-boundary.md`、`lean/Yulang/GeneralSourceBoundary.lean`）で、`B4Target.SourceBoundary` の 13 項目のうち、一般の言語で定義できるのは部品 3 つ（Models、グラフ上の未解決、グラフ上の K2）だけで、残り 10 項目は断片の版しかないと分かった。断片ごとに独自の `Classify` を作って正確性を示す仕事は、主定理の枠へ差し込めないので、**これ以降は新しく始めない**（I-16 の P1〜P5 をこの I-18 で置き換える。I-17 の `B4TargetV2` は今まで通り最初にやる）。
+
+順序（上から。前の項目の定義ができたら次へ。証明は定義の忠実性を確かめる小さな定理と、spec の例から）:
+1. **宣言の入れ物と検査**: where の子と、その関連型の等式を持てる宣言（`Roles.Impl` の拡張ではなく新しいモジュール）と、spec 6.3 の宣言検査（隠れた field の除去、同 tag の併合、捕捉後の初めての併合の拒否、関連型の決定）を、実行と独立に定義する。→ `Vocabulary.Registry` と `Checked`。関連 sugar の検査範囲（`2026-11-10-cycle70-associated-sugar-checking.md`）に当たったら、質問ノートで止めて遅延案で進める。
+2. **状態と需要**: 一つの共有の状態（通常制約、区間の上下端、グラフの識別子）と、多引数の正規化された需要（関連型の出力の義務つき）。ソースの下界の観察と、グラフの `.unresolved` をつなぐ。多引数の保留は草稿の補遺 3（ユーザー決定）に従う。→ `State`、`Demand`、`Models`、`RootPending`、`RootK2`。
+3. **候補**: 捕捉、区間の伝播、同じ変数の併合、where の子の生成を一つの判断にまとめる。→ `Survivor`、`InspectionPending`、`CandidateK2`。
+4. **進行**: 一般の状態更新と需要の再生成。→ `Step`、`Stable`、`Generated`。
+5. **辞書**: ソース義務で索引づけた証拠と比較。→ `Evidence`、`Reorders`、`DictionaryEquivalent`。
+6. 全部を `GeneralSourceBoundary` のインスタンスにし、`B4TargetV2` の骨格のフィールドを一つずつ閉じる。
+
+**分担**: 監督役は Astra（Codex）にも、この順序の別の項目を渡す。衝突を避けるため、dot は**自分が始めた項目を心拍の `activity` に書き**、監督役が inbox の末尾に「Astra 担当: 項目 n」と書いた項目には手を出さない。既存の断片モジュールは消さない（部品として使ってよい）。
+報告には、13 項目それぞれの状態（一般の定義あり／断片のみ／MISSING）の表を毎回付ける。
