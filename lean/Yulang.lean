@@ -1566,3 +1566,5 @@ import Yulang.CommonRoleScalarRegistry
 import Yulang.CommonRoleScalarExpressionRegistry
 
 import Yulang.CommonRoleSaturatedScalarRegistry
+
+import Yulang.CommonRoleScalarTargetObstruction

@@ -8978,3 +8978,14 @@ run_cmd do
 #print axioms Yulang.CommonRoleSaturatedScalarRegistry.classify_input_congr
 #print axioms Yulang.CommonRoleSaturatedScalarRegistry.domain_input_congr
 #print axioms Yulang.CommonRoleSaturatedScalarRegistry.run_input_congr
+
+-- Cycle118: inhabited source witness for old B4 target overlap.
+#print axioms Yulang.CommonRoleScalarTargetObstruction.empty_checked
+#print axioms Yulang.CommonRoleScalarTargetObstruction.empty_has_model
+#print axioms Yulang.CommonRoleScalarTargetObstruction.empty_pending
+#print axioms Yulang.CommonRoleScalarTargetObstruction.empty_survivors
+#print axioms Yulang.CommonRoleScalarTargetObstruction.old_target_double_classification
+#print axioms Yulang.CommonRoleScalarTargetObstruction.actual_source_pending
+#print axioms Yulang.CommonRoleScalarTargetObstruction.steps_unchanged
+#print axioms Yulang.CommonRoleScalarTargetObstruction.old_target_impossible
+#print axioms Yulang.CommonRoleScalarTargetObstruction.old_bridges_impossible

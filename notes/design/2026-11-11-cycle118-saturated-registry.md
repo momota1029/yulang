@@ -25,3 +25,9 @@ Limits: the associated environment's existing well-formedness proofs remain
 inputs. Program lowering, general structural materialization, effects, where
 children of the final scalar registry, and the full B4 target remain outside.
 This is not a resolution-completeness claim for unsupported bool/unit evidence.
+
+The final scalar registry and the associated-declaration environment are separate
+inputs to this adapter. Their agreement as one language-visible source registry
+has not been established. All-model soundness is for the named source model
+predicate and the supplied final scalar entries, not method-body semantics or
+an end-to-end parser/module-visibility theorem.
