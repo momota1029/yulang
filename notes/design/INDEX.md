@@ -330,3 +330,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle118 source saturation to scalar registry classification](2026-11-11-cycle118-saturated-registry.md) (Draft).
 
 - [Cycle118 concrete source witness for old B4 target overlap](2026-11-11-cycle118-target-obstruction.md) (Draft, supervisor review).
+
+- [General B4 source boundary inventory](2026-11-11-astra-general-boundary.md) — Draft; concrete ordinary components, field-by-field missing source bridges, and frozen-target addendum mismatch.
