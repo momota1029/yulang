@@ -4493,3 +4493,11 @@ then the real solver and dictionary elaborator. Exact classification is stated
 using independent original-expression evaluation and declaration-origin matching.
 Every returned dictionary is sound for every declarative expression model
 satisfying the annotation. Unsupported syntax remains an adapter boundary.
+
+`CommonRoleSaturatedScalarRegistry` classifies an original source name after the
+existing named ordinary/associated closure computes its shared state. Allocation,
+root lookup, consistency and materialization are internal. Exactness uses original
+named derivations; every selected leaf dictionary holds in all original source
+models. Visible-set changes and ordinary-input reorder/duplication preserve the
+literal outcome and dictionary despite changed allocation. Existing associated
+environment checks remain inputs; general materialization and B4 remain open.

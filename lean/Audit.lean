@@ -8965,3 +8965,16 @@ run_cmd do
 #print axioms Yulang.CommonRoleScalarExpressionRegistry.successful_dictionary_exact
 #print axioms Yulang.CommonRoleScalarExpressionRegistry.run_visible_set
 #print axioms Yulang.CommonRoleScalarExpressionRegistry.never_pending
+
+-- Cycle118: computed named associated closure to scalar registry.
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.lookup_sound
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.lookup_exists
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.known_exact
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.classify_exact
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.run_exact
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.run_all_models
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.run_visible_set
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.known_input_congr
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.classify_input_congr
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.domain_input_congr
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.run_input_congr

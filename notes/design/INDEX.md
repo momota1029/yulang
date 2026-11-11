@@ -326,3 +326,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle118 scalar registry exactness and all-model dictionaries](2026-11-11-cycle118-scalar-registry.md) (Draft).
 
 - [Cycle118 annotated expressions to scalar registry dictionaries](2026-11-11-cycle118-expression-registry.md) (Draft).
+
+- [Cycle118 source saturation to scalar registry classification](2026-11-11-cycle118-saturated-registry.md) (Draft).

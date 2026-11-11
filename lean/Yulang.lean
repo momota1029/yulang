@@ -1564,3 +1564,5 @@ import Yulang.CommonRoleSettledVisibleOrder
 import Yulang.CommonRoleScalarRegistry
 
 import Yulang.CommonRoleScalarExpressionRegistry
+
+import Yulang.CommonRoleSaturatedScalarRegistry
