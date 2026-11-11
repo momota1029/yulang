@@ -1636,3 +1636,37 @@ import Yulang.GeneralDictionaryOutputBinderTerms
 import Yulang.GeneralDictionaryBinderLocations
 import Yulang.GeneralDictionaryOutputBinderExamples
 import Yulang.GeneralDictionaryBinderLocationExamples
+
+import Yulang.GeneralDictionaryComputedOutputPlans
+
+import Yulang.GeneralDictionaryComputedTransactions
+
+import Yulang.GeneralDictionaryComputedOutputExamples
+
+import Yulang.GeneralDictionaryBinderOnlyBoundary
+
+import Yulang.GeneralDictionaryVariableTerms
+
+import Yulang.GeneralDictionaryVariableCompatibility
+
+import Yulang.GeneralDictionaryVariableExamples
+
+import Yulang.GeneralDictionaryVariablePlans
+
+import Yulang.GeneralDictionaryVariableTransactions
+
+import Yulang.GeneralDictionaryVariableMaterialization
+
+import Yulang.GeneralDictionaryVariableOrder
+
+import Yulang.GeneralDictionaryTerminalFixture
+
+import Yulang.GeneralDictionaryVariablePreparation
+
+import Yulang.GeneralDictionaryPreparationExamples
+
+import Yulang.GeneralDictionaryVariableRealization
+
+import Yulang.GeneralDictionaryVariableHeads
+
+import Yulang.GeneralDictionaryHeadExamples
