@@ -1,9 +1,9 @@
 cycle: 124
 status: running
 started: 2026-11-11T19:30:44Z
-updated: 2026-11-11T19:40:48Z
-elapsed_min: 10.07
-activity: I-18 item5 Evidence: exact dictionary equation recording built successfully (527 focused jobs). Batch and whole-dictionary transaction checks are running; shell responsiveness is delayed. Associated RHS provenance passed isolated trust-zero check.
+updated: 2026-11-11T19:46:50Z
+elapsed_min: 16.10
+activity: Waiting on focused serial dictionary transaction build; earlier focused recording build passed. Corrected two batch proof errors without changing statements. Retained explicit/default RHS provenance source passed isolated check. Shell and compiler latency is elevated.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
 last_local_commit: a85348e96
-resume_hint: Read cache/yulang124 focused build logs. Do not launch duplicate builds; sessions have timeouts. No source publication attempted yet and no uncertain remote operation. General term instantiation remains blocked by missing nominal semantics and center-free interval representation; do not choose a center. Deadline 20:22:19 UTC.
+resume_hint: Current sole main build session30759 is capped6m; inspect cache/yulang124/focused-serial.log before another build. Stopped previous slow sessions explicitly, exit130; no uncertain remote writes. Source checkpoint will include only verified files. Deadline20:22:19UTC; nominal/interval interpretation remains an explicit gap.
