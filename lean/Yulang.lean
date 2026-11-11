@@ -1636,3 +1636,9 @@ import Yulang.GeneralDictionaryOutputBinderTerms
 import Yulang.GeneralDictionaryBinderLocations
 import Yulang.GeneralDictionaryOutputBinderExamples
 import Yulang.GeneralDictionaryBinderLocationExamples
+
+import Yulang.GeneralCandidateIntervals
+import Yulang.GeneralCandidateInspection
+import Yulang.GeneralCandidateBoundaryParts
+import Yulang.GeneralCandidateExamples
+import Yulang.GeneralCandidateConflictExamples
