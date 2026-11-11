@@ -1,10 +1,9 @@
-cycle: 105
-status: completed
-started: 2026-11-11T00:26:39Z
-updated: 2026-11-11T00:37:25.618735+00:00
-elapsed_min: 10.8
-activity: Finite computed-evidence role discharge bridge closed. Focused363, 21 guards, 5 kernel examples, 10 axiom checks and exact-source Core/Lean CI pass; all five B4 packages remain open.
+cycle: 106
+status: running
+started: 2026-11-11T00:58:45Z
+updated: 2026-11-11T01:00:45Z
+elapsed_min: 2.0
+activity: Close a finite source diagnostic-tree bridge retaining computed evidence, candidate failures and recursive where-child results rather than reducing role outcomes to Booleans.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: f4e421b7f
-report: notes/handoff/dots-cycle-105.md
-resume_hint: Refresh integration/work/inbox and read cycle105. Source db347815/tree f4491ae1 verified. Next retain detailed source role diagnostics or derive ordinary constraints from checked expressions; dynamic child closure remains open. Logs ../cache/yulang105.
+last_local_commit: none
+resume_hint: I-14 active, maximum 50 minutes with partial publication at 25 minutes. Read cycle105 and inspect CommonRoleEvidenceDischarge and existing recursive diagnostics. No prior writer; integration 125bf6e60 merged. Logs ../cache/yulang106.
