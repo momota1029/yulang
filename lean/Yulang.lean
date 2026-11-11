@@ -1578,3 +1578,11 @@ import Yulang.GeneralDeclarationPatterns
 import Yulang.GeneralDeclarations
 import Yulang.GeneralDeclarationDemands
 import Yulang.GeneralDeclarationExamples
+
+import Yulang.B4TargetV2
+import Yulang.B4TargetV2Functionality
+import Yulang.B4SkeletonV2
+import Yulang.B4TargetV2Regressions
+import Yulang.GeneralSourceDictionaries
+import Yulang.GeneralSourceDictionaryEquations
+import Yulang.GeneralRegistryReordering

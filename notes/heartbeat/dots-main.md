@@ -1,10 +1,9 @@
-cycle: 118
-status: completed
-started: 2026-11-11T13:23:04Z
-updated: 2026-11-11T14:11:06Z
-elapsed_min: 48.04
-activity: Four scalar source-to-dictionary subgoals complete, 51 new theorems; nine focused modules passed 529 jobs and trust-zero, 119 audit declarations allowed; code CI passed.
+cycle: 122
+status: running
+started: 2026-11-11T17:27:30Z
+updated: 2026-11-11T17:41:20Z
+elapsed_min: 13.83
+activity: Focused recovery and general dictionary/registry build PASS (435 jobs); no-build gate PASS. Preparing atomic source publication, targeted axiom audit pending with 3-minute cap.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: e4168b25a
-report: notes/handoff/dots-cycle-118.md
-resume_hint: Fetch integration afresh and obey STOP. I-17 makes B4TargetV2 plus revised bridges and functional classification the next first goal. Preserve recovered14 files and four new proof modules. Old bridges12/12 remain; new target count not yet defined. Checked code ad4abbb3cec877fe712479ab366840bc3cb5954d. No uncertain mutation remains.
+last_local_commit: ba0037082
+resume_hint: The cycle121 uncertain tree returned 404 and no commit/ref had run. All recovery sources are committed locally, including reports119-121. Blob hashes recorded in cycle122 publication manifest; publish one tree from integration4ec4ae877 with expected work/dots-main head. Audit log cache/yulang122/audit.log; keep final all-model Evidence boundary explicit, B4 12/12 open.
