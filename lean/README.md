@@ -4280,3 +4280,31 @@ child、K2、最終四分類、辞書は未接続。B4の5橋は残る。
 Cycle103のextraは同名を重複除去してから割り当てる。元制約は削除しない。
 22-slotの整合性検査の時間超過を受け、同じ例を11-slotに減らした。意味保存の
 定理の型は変わらない。一般的な性能保証を追加したわけではない。
+
+
+## Cycle104: checked grouped source and ordinary inequalities
+
+`CommonRoleCheckedMixedSource` connects the existing grouped associated clauses
+and named ordinary inequalities at one outer entry. It computes the lossless
+role package, structural program, extra names, slot allocation and initial State,
+then runs actual mixed closure. `run_true_iff` says, for every finite source and
+well-formed registry, that `some true` is equivalent to fragment validity and one
+source valuation satisfying all original inequalities and independent scalar
+facts. Neither a generated program nor successful checking nor an ordinary State
+is supplied as an outer premise. `none` is exactly fragment invalidity;
+`some false` is valid syntax without a model of the stated closure fragment.
+
+The original role obligation list is retained by the checker, including clauses
+with no associated equations. Ordinary consistency is not role discharge:
+unseeded or unsupported roles can remain unresolved when the result is true.
+Independent Derives uses direct scalar pairs, reciprocal edges and source
+clause equations, not arbitrary ordinary entailment. Whole-clause and ordinary
+constraint reorderings/duplications preserve the outer outcome even when
+allocation and states change. Reordering equations inside a clause is not part
+of this congruence premise. Effect rows are not unified by source type identity.
+
+This closes the checked grouped-clause/named-ordinary connection, not expression
+lowering or parser adequacy. Scope-resolved names, finite clauses, ordinary
+inequalities and declaration registries remain inputs. Dynamic where children,
+general state-changing termination, final four-way classification and canonical
+dictionary observations remain open. All five B4 packages remain incomplete.

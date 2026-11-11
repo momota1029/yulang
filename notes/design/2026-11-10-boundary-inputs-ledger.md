@@ -1490,3 +1490,24 @@ source-domain name iff does not imply finite structural work without Paterson.
 
 Cycle103のextraは両端点から集めた名前を重複除去する。元の制約列とsource名の
 同一性は保ち、余分なallocationの複製だけを取り除く。
+
+
+## Cycle104: CommonRoleCheckedMixedSource
+
+- `src : Source` contains the existing finite scope-resolved grouped clauses and
+  named ordinary inequalities. Parser/ordinary-expression lowering and source
+  binder/invocation identity remain input-side. Spec6.3 governs associated
+  equations and ordinary variables; no new language meaning is chosen.
+- `env`, `roles`, `wf`, `awf` remain the existing declaration registry and its
+  well-formedness. The checker validates scope/arity/name even for bare clauses,
+  constructs a lossless Package, and computes Program, table, extra and State.
+- `p`, `checked`, `v` occur only in supporting correspondence theorems. Outer
+  run_true_iff/run_false_iff/run_none_iff take no generated p, successful check,
+  state, model, fuel or role-success assumption. Model existence is a conclusion.
+- Clause/ordinary membership equivalences are explicit congruence hypotheses,
+  not arbitrary semantic equivalence. They cover whole-clause ordering and
+  repetition, not changing the equation list inside a clause.
+- Models is ordinary consistency plus direct-pair/reciprocal-edge/source-equation
+  closure. Bare role obligations survive checking but are not discharged by this
+  Boolean result. General entailment, dynamic children, full classification and
+  dictionaries remain open. The five B4 packages remain incomplete.

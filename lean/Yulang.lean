@@ -1509,3 +1509,5 @@ import Yulang.CommonRoleStructuralMixedSource
 import Yulang.CommonRoleAmbientMixedSource
 
 import Yulang.CommonRoleNamedOrdinaryInputs
+
+import Yulang.CommonRoleCheckedMixedSource
