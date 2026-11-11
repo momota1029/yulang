@@ -19,3 +19,26 @@ manual recipe inputs; it does not discover selected keys, frames, readiness,
 allocator provenance, or model existence. A failed materialization is deferral,
 not language rejection. The general B4 evidenceNode field remains unfilled until
 candidate/model bridges exist. No Astra candidate or driver definition changes.
+
+## Full nominal model extension after fresh integration6e1e848
+
+Astra's new CommonBridge interprets the same recorded ordinary state in the full
+nominal carrier. Dictionary equations can therefore quantify over arbitrary
+nominal assignments rather than only the Common image. The variable-pattern
+compiler remains unchanged; its source variables may denote genuine nominals.
+A constant nominal73 fixture checks that this extension is nonvacuous.
+
+The dictionary-only recording adapter also targets GeneralNominalState by
+lifting local atoms through the separate type/row source maps and appending them
+to the full state's global ordinary list. It retains base/view/descriptors,
+source ownership and reserved identities. Its exact model law is conjunction of
+the original full-state Models and every dictionary equation. This is an
+explicit finite dictionary transaction, not Step, candidate selection, new
+allocation, model existence for arbitrary input, or source stabilization.
+Item 5 candidate-readback adapter
+
+For each root/key, find the actual visible declaration with matching role, then reuse the existing nominal argument lookup and inspection report to obtain bindings. Build a per-root dictionary frame with per-key captures, retaining the nominal allocator's exact allocation and source identity functions. Empty bindings on absent lookup/arguments are only a total-function fallback; the Survivor-to-Plan proof establishes that neither absence applies.
+
+A checked registry makes the selected declaration unique. Existing Survivor premises imply the computed Plan with exactly the original candidate children. Mapping finite indexed or raw PayloadEvidence through this implication permits executable reconstruction without caller-supplied Frames or descendant occurrences.
+
+This does not establish existence of a complete candidate-evidence tree, run recursive candidate search, prove materialization success, or construct general B4. Existing Survivor readiness, root-output, freshness, consistency, coverage and emission restrictions are preserved as premises, not weakened.
