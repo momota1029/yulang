@@ -140,7 +140,8 @@ theorem generated_complete (seeds : List (Atom (Fin n))) (clauses : List (Clause
   · simpa using execution_bounded (generated_execution seeds clauses) (by simp) (by simp)
 
 /-- Any maximal legal schedule has the same all-model semantics as the actual
-implementation; schedules need not have the same list order or multiplicity. -/
+implementation; no list-order equality is required. Fresh complete caches
+have the same multiplicities, as the permutation theorem below makes explicit. -/
 theorem schedule_models {seeds : List (Atom (Fin n))} {clauses : List (Clause n)} {trace}
     (run : Execution seeds clauses [] trace) (closed : Closed seeds clauses (finish [] trace))
     (v : Fin n → Comp Common.model) :
@@ -158,5 +159,40 @@ theorem schedule_materialize {seeds : List (Atom (Fin n))} {clauses : List (Clau
   CommonRoleStructuralOrdinaryMaterialization.materialize_congr _ _
     (fun a => (execution_exact run closed a).trans (CommonRoleStructuralHornClosure.saturate_exact seeds clauses a).symm)
     slots form
+
+/-- Fresh complete caches agree as multisets, not just as sets. In particular,
+no schedule can do more atomic insertions by repeating a previously known atom. -/
+theorem schedules_perm {seeds : List (Atom (Fin n))} {clauses : List (Clause n)} {left right}
+    (lrun : Execution seeds clauses [] left) (lclosed : Closed seeds clauses (finish [] left))
+    (rrun : Execution seeds clauses [] right) (rclosed : Closed seeds clauses (finish [] right)) :
+    (finish [] left).Perm (finish [] right) :=
+  (List.perm_ext_iff_of_nodup (execution_nodup lrun (by simp)) (execution_nodup rrun (by simp))).mpr
+    (schedules_confluent lrun lclosed rrun rclosed)
+
+/-- Equal atomic insertion count does not assert equal runtime or equal numbers
+of diagnostic tree rebuilds, which may depend on the intermediate schedule. -/
+theorem schedules_length {seeds : List (Atom (Fin n))} {clauses : List (Clause n)} {left right}
+    (lrun : Execution seeds clauses [] left) (lclosed : Closed seeds clauses (finish [] left))
+    (rrun : Execution seeds clauses [] right) (rclosed : Closed seeds clauses (finish [] right)) :
+    left.length = right.length := by
+  simpa only [finish,List.length_append,List.length_reverse,List.length_nil,Nat.add_zero] using
+    (schedules_perm lrun lclosed rrun rclosed).length_eq
+
+/-- Every complete causal schedule builds literally the same final diagnostic
+root and all child branches for a fixed registry and source mapping. -/
+theorem schedule_tree {seeds : List (Atom (Fin n))} {clauses : List (Clause n)} {trace}
+    (run : Execution seeds clauses [] trace) (closed : Closed seeds clauses (finish [] trace))
+    (registry : List CommonRoleStablePaterson.Declaration) (checked : CommonRoleIntervalWorkClosure.Checked registry)
+    (slots : Nat → Fin n) (sources : CommonRoleGuardedIntervalPlans.Sources) (goal : CommonRoleIntervalPaterson.Goal) :
+    CommonRoleGuardedIntervalFrontier.build registry checked slots sources
+      (CommonRoleStructuralOrdinaryMaterialization.materializeGoal (finish [] trace) slots goal) =
+    CommonRoleGuardedIntervalFrontier.build registry checked slots sources
+      (CommonRoleStructuralOrdinaryMaterialization.materializeGoal (saturate seeds clauses) slots goal) := by
+  apply congrArg (CommonRoleGuardedIntervalFrontier.build registry checked slots sources)
+  unfold CommonRoleStructuralOrdinaryMaterialization.materializeGoal
+  congr 1
+  apply List.map_congr_left
+  intro pair _
+  simp only [schedule_materialize run closed slots]
 
 end Yulang.CommonRoleStructuralHornSchedules

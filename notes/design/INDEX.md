@@ -317,3 +317,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle107: diagnostic trees and ordered dictionary plans](2026-11-11-cycle107-diagnostic-dictionary-projection.md) — Draft; complete payload equality, failure-preserving enrichment and source-to-dictionary path exactness.
 
 - [Cycle108: source environment and diagnostic order](2026-11-11-cycle108-source-environment-congruence.md) — Draft; equal visible declarations preserve mixed source evidence, full dictionary payloads and all retained failed diagnostic structure.
+
+- [Cycle110: structural ordinary / associated finite feedback](2026-11-11-cycle110-structural-role-feedback.md) — computed carrier, independent schedules, actual solver, and named structural input boundary.

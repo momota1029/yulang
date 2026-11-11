@@ -8813,3 +8813,9 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralNamedInputs.occurrence_step
 #print axioms Yulang.CommonRoleStructuralNamedInputs.complete_source_models
 #print axioms Yulang.CommonRoleStructuralNamedInputs.run_source_models
+
+#print axioms Yulang.CommonRoleStructuralHornSchedules.schedules_perm
+
+#print axioms Yulang.CommonRoleStructuralHornSchedules.schedules_length
+
+#print axioms Yulang.CommonRoleStructuralHornSchedules.schedule_tree
