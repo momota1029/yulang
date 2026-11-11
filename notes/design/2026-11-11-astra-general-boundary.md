@@ -1407,3 +1407,7 @@ reviewer ran `git diff --check`, not independent Lean builds. No prover agent ra
 The review's two final documentation corrections (a let-containing theorem
 signature and an overstated allocation-distinctness phrase) were applied before
 completion.
+
+### Owner answer to the Item 1 `Needed` question (2026-11-12)
+
+Option 1. Every unnamed role argument is needed: the demand stays pending until every unnamed argument's lower head is known, even at a position every candidate captures with a bare variable. Named associated outputs are not needed. Recorded as addendum 4 of the approved B4 draft. `G.needed` (all unnamed inputs) is therefore the intended definition, not merely a conservative placeholder.
