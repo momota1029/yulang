@@ -1,9 +1,9 @@
-cycle: 114
+cycle: 115
 status: running
-started: 2026-11-11T09:28:28Z
-updated: 2026-11-11T09:31:00Z
-elapsed_min: 2.53
-activity: Recover checked cycle111/112 output, then shrink frontierLocal and evidenceNode with independent classification and all-model dictionaries for ordinary-state scalar registries.
+started: 2026-11-11T10:26:25Z
+updated: 2026-11-11T10:30:00Z
+elapsed_min: 3.58
+activity: Reduce B4Bridges.frontierLocal and evidenceNode: independent ordinary-state scalar registry classification and all-model dictionaries; recover checked prior modules first.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: fb93673a9
-resume_hint: Cycle113 released ownership; its stalled local read reached no GitHub write. Remote prior head 53b07e05b. Preserve all checked prior modules. General B4 has 12/12 source obligations open; target review remains necessary. Use cache/yulang114 for current validation and publication status.
+last_local_commit: 42ab51baa
+resume_hint: Cycle114 released writer ownership; its interrupted read never reached create_tree/create_commit/update_ref. Recover checked cycle111/112 files then continue the cycle114 scalar-registry design. General B4 remains 12/12 open. Validation logs and publication manifests are in cache/yulang115.
