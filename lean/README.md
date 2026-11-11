@@ -4404,3 +4404,13 @@ variable occurrence, including loss of uniqueness on equivalent syntax. The
 computed additive-state trace needs no caller model or Chain. This is a bound
 on diagnostic regeneration events, not termination of the batch-producing
 driver or a bound on future structural payload size.
+
+Cycle109 also adds a computed structural child domain, lossless full-diagnostic
+replay, and a bridge from actual finite decomposition/transitivity closure.
+CommonRoleDerivedStructuralMaterialization detects uniquely represented paired
+payloads by the independent seed/split/trans derivation, preserves every model,
+and bounds all replay rebuilds and generated-child visits for finite additive
+ordinary jobs. No caller supplies propagated atoms, trace, model or child list.
+The batch stream and source slot/invocation maps remain inputs. Checked State
+upper terms remain in the existing grammar; raw join/tick materialization is
+not promoted to a complete checked ordinary solver or the full B4 theorem.

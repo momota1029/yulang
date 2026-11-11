@@ -28,3 +28,32 @@ where handling differs from spec6.3. The measure is an executable implementation
 accounting property, not an adopted Yulang2 language classification. The existing
 Common union semantics supplies the equivalent-syntax regression. No new Y2
 execution is claimed. All five global B4 bridges remain open.
+
+## Second subgoal: computed child domain and lossless replay
+
+First progress result passed and was published at 421c0df28. Next compute a finite
+palette directly from an ordinary atom envelope: each source occurrence may
+remain a variable or use a payload with paired bounds in that envelope. For all
+substates, the palette covers materialization and the Paterson closure covers
+every recursively generated child. This envelope is the final cumulative state
+of the submitted finite batches, computed internally, not a supplied work list.
+The bound applies to this finite job; future evidence outside it may enlarge it.
+
+Reuse complete diagnostic trees only on literal materialized-goal equality;
+refresh ordinary graphs on every occurrence. Prove exact snapshots, lossless
+fresh graphs, and rebuilds bounded by one plus twice original variable count.
+The runner validates actual cumulative states using the existing ordinary solver.
+It does not generate the finite batch stream or prove general saturation.
+
+## Third subgoal: generated structural evidence, rather than direct seed pairs
+
+The domain/replay modules compile. The next bridge applies the existing finite
+structural decomposition/transitivity closure to each internally computed
+ordinary state before materialization. Paired bounds reached through source
+variable links become usable without caller-provided propagated evidence.
+Characterize detection by the independent seed/split/trans derivation, preserve
+every original model, and lift monotonicity, change budgets and child domains
+through normalization. The closure is a terminating existing finite Horn
+implementation, not arbitrary semantic entailment. Its State grammar permits
+paired int/pair upper bounds; join/tick bounds remain supported by the raw graph
+adapter but are not silently promoted to the restricted checked State grammar.

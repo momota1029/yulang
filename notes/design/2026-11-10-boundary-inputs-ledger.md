@@ -1617,3 +1617,15 @@ Cycle103のextraは両端点から集めた名前を重複除去する。元の�
   State batches without a model, consistency or successful role premise.
 - The finite batch list is still external. Its generation and termination are
   not proved. Conflict means syntactic detector conflict, not language rejection.
+
+- StructuralMaterializationDomain computes the palette and all recursive work
+  from an actual atom envelope. In FrontierReplay.runBatches_computed_bound,
+  that envelope is the internally accumulated final ordinary state, not an
+  externally supplied child-work list. The externally submitted finite batches
+  still determine the temporal scope of the bound.
+- DerivedStructuralMaterialization additionally computes finite seed/split/trans
+  closure at every state. Independent DerivedEvidence, all-model exactness,
+  and normalized monotonicity remove a caller-propagated-evidence boundary.
+  The run still receives slots, invocation Sources, initial State and finite
+  batches. Parser lowering, dynamic source allocation, general K2 and final
+  source-language four-way classification are not resolved (spec6.2/6.3).

@@ -1529,3 +1529,9 @@ import Yulang.CommonRoleExpressionDictionaryForest
 import Yulang.CommonRoleStructuralOrdinaryMaterialization
 
 import Yulang.CommonRoleStructuralMaterializationProgress
+
+import Yulang.CommonRoleStructuralMaterializationDomain
+
+import Yulang.CommonRoleStructuralFrontierReplay
+
+import Yulang.CommonRoleDerivedStructuralMaterialization
