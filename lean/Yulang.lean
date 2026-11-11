@@ -1562,3 +1562,5 @@ import Yulang.CommonRoleScalarDictionaryModels
 import Yulang.CommonRoleSettledVisibleOrder
 
 import Yulang.CommonRoleScalarRegistry
+
+import Yulang.CommonRoleScalarExpressionRegistry

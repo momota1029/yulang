@@ -4485,3 +4485,11 @@ Common model. Visible-set equality preserves exact outcomes and dictionary
 payloads, covering permutation and duplicate enumeration. Unsupported scalar
 materialization remains adapter pending; inconsistent states are unavailable.
 Where children, general K2, associated equations, and general B4 are not claimed.
+
+`CommonRoleScalarExpressionRegistry` removes the caller-supplied ordinary state
+and receiver slot for closed literal/variable/let expressions with explicit
+int/str annotations. Its source entry computes validation and paired bounds,
+then the real solver and dictionary elaborator. Exact classification is stated
+using independent original-expression evaluation and declaration-origin matching.
+Every returned dictionary is sound for every declarative expression model
+satisfying the annotation. Unsupported syntax remains an adapter boundary.

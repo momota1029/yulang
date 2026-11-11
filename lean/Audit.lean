@@ -8956,3 +8956,12 @@ run_cmd do
 #print axioms Yulang.CommonRoleScalarRegistry.known_empty_rejected
 #print axioms Yulang.CommonRoleScalarRegistry.recorded_singleton_selected
 #print axioms Yulang.CommonRoleScalarRegistry.recorded_overlap_ambiguous
+
+-- Cycle118: original annotated expression registry entry.
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.run_exact
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.run_exists_iff
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.initial_models
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.run_all_models
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.successful_dictionary_exact
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.run_visible_set
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.never_pending
