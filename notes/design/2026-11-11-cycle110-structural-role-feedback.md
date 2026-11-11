@@ -52,3 +52,14 @@ fresh条件に従う任意scheduleについて、開始空cacheからの実行�
 空入力も扱うため末尾に未使用の内部slotを1つ置く。実入力名はそのslotへ行かず、
 異なる実入力名が同じslotへ行かないことを証明する。言語上の名前を追加しない。
 parserとscope解決、Programの有限occurrence選択は引き続き境界として明示する。
+
+## 次サイクルへの具体的な境界
+
+今回の閉包は、関連出力が既存scalar decoderの有限値なので、全clause syntaxを先に
+集められる。一般の構造RHSを許す時に、初期atomのcarrierだけへ戻してはいけない。
+新しいRHSや動的childが追加する型構造・名前まで、source/Patersonから覆う必要がある。
+終端の型観測が一回同じだったという理由で停止してもいけない。
+次は、動的childから有限occurrenceを導くprovenanceと、式/宣言loweringに必要な境界を
+既存ledgerと突き合わせる。`Sources`のinvocation lifetimeは既存質問のまま保持する。
+別経路として、今の安定した完全診断木にK2と独立4分類を接続する仕事は残るが、
+ordinary consistencyをrole selectedへ読み替えない。今回の定理はそれを正当化しない。

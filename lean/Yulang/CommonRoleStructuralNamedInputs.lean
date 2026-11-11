@@ -292,4 +292,35 @@ theorem run_source_models (env : Roles.AssocEnv) (roles : Roles.RoleDecls)
       exact complete_source_models env roles wf awf src initial prepared v
     · cases returned
 
+/-- Final public existence contract in original-name model terms. The two
+explicit requirements are the existing ordinary grammar and satisfiability
+of all named ordinary atoms plus independently activated source equations.
+This is not source-role selection or whole-language typing exactness. -/
+theorem run_source_exists_iff (env : Roles.AssocEnv) (roles : Roles.RoleDecls)
+    (wf : Roles.WellFormed env.cores) (awf : Roles.AssocWellFormed env roles) (src : Source) :
+    (run env roles wf src).isSome = true ↔ Good src ∧
+      ∃ v : Fin (capacity src) → Comp Common.model, SourceModels env roles src v := by
+  cases prepared : prepare src with
+  | none =>
+    have bad : ¬ Good src := by
+      intro good
+      unfold prepare at prepared
+      rw [dite_eq_left ((grammar_exact src).mpr good)] at prepared
+      cases prepared
+    simp [run,prepared,bad]
+  | some initial =>
+    have good := ((prepare_exact src initial).mp prepared).1
+    have equivalent : (CommonRoleStructuralAssociatedSolver.completeState env roles wf
+        (occurrences src) initial).Models ↔ ∃ v, SourceModels env roles src v := by
+      exact exists_congr (complete_source_models env roles wf awf src initial prepared)
+    unfold run
+    simp only [prepared,Option.bind_some]
+    by_cases consistent : CommonRoleOpenPropagation.consistent
+        (CommonRoleStructuralAssociatedSolver.completeState env roles wf (occurrences src) initial) = true
+    · simp only [consistent,ite_true,Option.isSome_some,true_iff]
+      exact ⟨good,equivalent.mp ((CommonRoleOpenPropagation.consistent_exact _).mp consistent)⟩
+    · simp only [consistent,ite_false,Option.isSome_none,Bool.false_eq_true,false_iff,not_and]
+      intro _ models
+      exact consistent ((CommonRoleOpenPropagation.consistent_exact _).mpr (equivalent.mpr models))
+
 end Yulang.CommonRoleStructuralNamedInputs

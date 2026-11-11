@@ -8819,3 +8819,5 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralHornSchedules.schedules_length
 
 #print axioms Yulang.CommonRoleStructuralHornSchedules.schedule_tree
+
+#print axioms Yulang.CommonRoleStructuralNamedInputs.run_source_exists_iff
