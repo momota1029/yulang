@@ -1,9 +1,9 @@
 cycle: 124
 status: running
 started: 2026-11-11T19:30:44Z
-updated: 2026-11-11T19:34:00Z
-elapsed_min: 3.27
-activity: I-18 item5: implement declaration/capture-to-Located terms, narrowing the general Evidence bridge while preserving checked plan children. I-19 is already published and checked.
+updated: 2026-11-11T19:40:48Z
+elapsed_min: 10.07
+activity: I-18 item5 Evidence: exact dictionary equation recording built successfully (527 focused jobs). Batch and whole-dictionary transaction checks are running; shell responsiveness is delayed. Associated RHS provenance passed isolated trust-zero check.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: e5162d65b
-resume_hint: Read cycle123 report, fresh integration 36170f419 and inbox I-19/I-18. Astra owns items1 and2. Build only focused modules. Deadline 20:22:19 UTC. No prior active writer.
+last_local_commit: a85348e96
+resume_hint: Read cache/yulang124 focused build logs. Do not launch duplicate builds; sessions have timeouts. No source publication attempted yet and no uncertain remote operation. General term instantiation remains blocked by missing nominal semantics and center-free interval representation; do not choose a center. Deadline 20:22:19 UTC.
