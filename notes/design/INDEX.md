@@ -313,3 +313,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle105: computed evidence discharges retained source roles](2026-11-11-cycle105-evidence-role-discharge.md) — 有限sourceの実mixed evidenceから全role義務へ接続。caller head mapを除去。ordinary整合性とrole dischargeを分離し、B4全体の未達を維持。
 
 - [Cycle106: source evidence and recursive diagnostic forests](2026-11-11-cycle106-source-diagnostic-forest.md) — Draft; Paterson-generated failure-preserving trees and arbitrary-depth source-to-child exactness, without caller fuel or work tables.
+
+- [Cycle107: diagnostic trees and ordered dictionary plans](2026-11-11-cycle107-diagnostic-dictionary-projection.md) — Draft; complete payload equality, failure-preserving enrichment and source-to-dictionary path exactness.

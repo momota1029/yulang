@@ -4348,3 +4348,20 @@ new final classification. Equal registry references are deduplicated by the
 existing candidate identity rule; distinct declaration keys remain distinct.
 General source lowering, dynamic fresh allocation, Form saturation, final
 four-way classification and source dictionary equivalence remain unfinished.
+
+### Cycle107: source diagnostics carry actual dictionary plans
+
+`CommonRoleDiagnosticDictionaries` structurally projects retained trees to the
+existing `RoleDictionaries.Plan`. For every well-formed rigid registry and goal,
+the returned payload is exactly the erasure of an indexed Dictionary, preserving
+all selected declaration identities and ordered repeated child occurrences.
+Arbitrary dictionary paths agree with independent declaration paths.
+`CommonRoleSourceDictionaryForest` enriches every existing scalar attempt with an
+optional Plan. Literal erasure returns the complete original diagnostic report,
+including failures and unsupported encodings. Source-backed payload and path
+exactness use independent source derivation, structural materialization and
+indexed dictionaries. Root success is explicit for successful-root path lookup.
+Ordinary consistency stays separate; plans may be present in a contradictory
+source report. No global evidence choice, method execution, final classification
+or source-level observational dictionary equivalence is established. All five
+general B4 packages remain unfinished.
