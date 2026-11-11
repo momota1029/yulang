@@ -246,3 +246,37 @@ theorem runGraphs_exact (registry : List Declaration) (slots : Nat → Fin n) (s
   simpa only [run,valid,ite_true] using returned
 
 end Yulang.CommonRoleStructuralSaturationTrace
+
+namespace Yulang.CommonRoleStructuralSaturationTrace
+/-- An independent small-step certificate for the discovery sequence. Every
+new carrier fact is absent from the prior cache and enabled by already present
+premises. This judgment does not call firstFresh, run or discoveries. -/
+inductive Execution (rules : List (FiniteHorn.Rule α)) : List α → List α → Prop where
+  | done (seen) : Execution rules seen []
+  | step (fact) : fact ∉ seen → FiniteHorn.Enabled rules seen fact →
+      Execution rules (fact :: seen) rest → Execution rules seen (fact :: rest)
+
+/-- Every actual iteration has a causal rule witness at that exact earlier
+cache, not merely a derivation in the eventual closure. -/
+theorem discoveries_execution [DecidableEq α] (rules : List (FiniteHorn.Rule α)) (facts : List α)
+    (capacity : Nat) (seen : List α) : Execution rules seen (discoveries rules facts capacity seen) := by
+  induction capacity generalizing seen with
+  | zero => exact .done seen
+  | succ capacity ih =>
+    simp only [discoveries]
+    cases found : FiniteHorn.firstFresh rules seen facts with
+    | none => exact .done seen
+    | some fact =>
+      have selected := FiniteHorn.firstFresh_some rules seen facts found
+      exact .step fact selected.2.1 selected.2.2 (ih _)
+
+/-- The syntax-generated finite execution is both causally valid and terminal.
+Unlike a temporary role-tree plateau, no enabled fresh carrier fact remains. -/
+theorem generated_execution_complete (seeds : List (PresenceNormalForm.Atom (Fin n))) :
+    let u := carrierList seeds
+    let rules := CommonRoleFiniteStructuralClosure.rules seeds u
+    let discovered := discoveries rules (List.finRange u.length) u.length []
+    Execution rules [] discovered ∧
+      FiniteHorn.firstFresh rules discovered.reverse (List.finRange u.length) = none :=
+  ⟨discoveries_execution _ _ _ _,terminal_closed seeds⟩
+end Yulang.CommonRoleStructuralSaturationTrace

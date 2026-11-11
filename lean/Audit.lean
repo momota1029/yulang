@@ -8742,3 +8742,5 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralSaturationTrace.final_materialize
 #print axioms Yulang.CommonRoleStructuralSaturationTrace.snapshot_graph_models_exact
 #print axioms Yulang.CommonRoleStructuralSaturationTrace.runGraphs_exact
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.discoveries_execution
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.generated_execution_complete

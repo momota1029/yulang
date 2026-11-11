@@ -73,3 +73,9 @@ semantics preservation justifies all subsequent generated snapshots.
 This is a complete driver for the existing finite ordinary rules only. It does
 not feed role candidate constraints back into ordinary closure, add new source
 names, or replace the uncompleted general B4 mixed-saturation driver.
+
+Final proof review adds an independent small-step Execution certificate to the
+instrumented trace. Each fresh carrier index is enabled by premises already in
+that exact earlier cache, not merely derivable in the final closure. The public
+computed sequence satisfies this judgment and the terminal no-fresh-fact test.
+This strengthens the trace contract without changing executable behavior.
