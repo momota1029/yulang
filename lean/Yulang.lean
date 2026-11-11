@@ -1545,3 +1545,5 @@ import Yulang.CommonRoleStructuralAssociatedClosure
 import Yulang.CommonRoleStructuralAssociatedSolver
 
 import Yulang.CommonRoleStructuralAssociatedReplay
+
+import Yulang.CommonRoleStructuralHornSchedules

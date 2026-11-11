@@ -1,3 +1,4 @@
+import Yulang.CommonRoleStructuralHornSchedules
 import Yulang.CommonRoleStructuralAssociatedSolver
 import Yulang.CommonRoleStructuralAssociatedReplay
 import Yulang.CommonRoleStructuralHornClosure
@@ -8780,3 +8781,17 @@ run_cmd do
 #print axioms Yulang.CommonRoleStructuralAssociatedReplay.run_computed_bound
 #print axioms Yulang.CommonRoleStructuralAssociatedReplay.runGraphs_exact
 #print axioms Yulang.CommonRoleStructuralAssociatedReplay.final_graph_models_exact
+
+#print axioms Yulang.CommonRoleStructuralHornSchedules.step_sound
+#print axioms Yulang.CommonRoleStructuralHornSchedules.execution_sound
+#print axioms Yulang.CommonRoleStructuralHornSchedules.execution_nodup
+#print axioms Yulang.CommonRoleStructuralHornSchedules.execution_bounded
+#print axioms Yulang.CommonRoleStructuralHornSchedules.closed_complete
+#print axioms Yulang.CommonRoleStructuralHornSchedules.execution_exact
+#print axioms Yulang.CommonRoleStructuralHornSchedules.schedules_confluent
+#print axioms Yulang.CommonRoleStructuralHornSchedules.enabled_step
+#print axioms Yulang.CommonRoleStructuralHornSchedules.generated_execution
+#print axioms Yulang.CommonRoleStructuralHornSchedules.saturated_closed
+#print axioms Yulang.CommonRoleStructuralHornSchedules.generated_complete
+#print axioms Yulang.CommonRoleStructuralHornSchedules.schedule_models
+#print axioms Yulang.CommonRoleStructuralHornSchedules.schedule_materialize

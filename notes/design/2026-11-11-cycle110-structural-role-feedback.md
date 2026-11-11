@@ -33,3 +33,13 @@ K2、一般の関連型RHS、parserとの接続は閉じない。scalar decoder�
 
 work/dots-auditのy2-claims-role-boundaries-cycle-2.mdのROLE-MORE-001/002/003/005を読んだ。
 旧whereの差を新specの意味論に持ち込まない。新しいYulang2実行はしない。
+
+## 次の部分目標: 任意の因果的scheduleの順序独立
+
+firstFreshの固定順だけでなく、独立な1-step判断(seed/split/trans/clause)と
+fresh条件に従う任意scheduleについて、開始空cacheからの実行長を同じcomputed carrierで
+制限する。maximalな有限scheduleの最終membershipは独立Derivesとiff。
+終端の閉包条件は明記するが、未証明のfairness仮定で停止を主張しない。
+実firstFresh traceがその実行判断を満たし終端であることも結ぶ。
+これでwhere occurrence順、ordinary/associatedの発火順に対する最終観測の不変性へ進む。
+途中のtrace長・木の再build数や辞書列の文字通りの一致は主張しない。

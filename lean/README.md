@@ -4440,3 +4440,10 @@ CommonRoleStructuralAssociatedReplay drives every generated cumulative snapshot,
 bounds tree rebuilds and all recursive child visits, and regenerates ordinary
 graphs even on unchanged-tree plateaus. Associated updates can narrow models;
 only final models are guaranteed to satisfy every earlier snapshot.
+
+CommonRoleStructuralHornSchedules gives independent causal small steps and
+fresh executions for arbitrary ordinary/associated firing orders. Every legal
+execution fits the computed syntax carrier, and every maximal execution has
+exactly independent Derives, the actual solver model set, and the same structural
+materialization. The real generated trace is proved to be such a maximal
+execution. This does not identify dictionary lists or arbitrary language schedules.
