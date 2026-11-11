@@ -343,3 +343,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle125 output-only RHS terms](2026-11-12-cycle125-output-binder-terms.md) — actual source binder interpretation, producer linkage, and retained general boundary.
 - [Checked computed output transactions](2026-11-11-cycle126-computed-output-plans.md) — Draft. One visible declaration supplies plans and computed binder outputs; head interpretation and general B4 remain open.
+
+- [Cycle127 headless dictionary recipes](2026-11-11-cycle127-headless-dictionaries.md) — Draft actual-head and whole-tree evidence bridge, item5.
