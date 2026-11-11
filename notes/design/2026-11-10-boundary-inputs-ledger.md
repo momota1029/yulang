@@ -1629,3 +1629,11 @@ Cycle103のextraは両端点から集めた名前を重複除去する。元の�
   The run still receives slots, invocation Sources, initial State and finite
   batches. Parser lowering, dynamic source allocation, general K2 and final
   source-language four-way classification are not resolved (spec6.2/6.3).
+
+- StructuralSaturationTrace.run takes only the existing declaration registry,
+  ambient slots, invocation Sources, original Goal and initial checked State.
+  It computes the ordinary finite carrier, capacity, firstFresh discoveries,
+  full additive trace and diagnostic replay. No batch list, propagated evidence,
+  numerical fuel, work domain, successful check or model is supplied.
+  The scope remains finite ordinary seed/split/trans closure: role feedback,
+  fresh source allocation, parser lowering and final classification remain open.

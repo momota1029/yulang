@@ -57,3 +57,19 @@ through normalization. The closure is a terminating existing finite Horn
 implementation, not arbitrary semantic entailment. Its State grammar permits
 paired int/pair upper bounds; join/tick bounds remain supported by the raw graph
 adapter but are not silently promoted to the restricted checked State grammar.
+
+## Fourth subgoal: internally generated finite structural saturation trace
+
+The first three pieces are published at 9f25e9248. Remove the caller's finite
+batch sequence for the existing ordinary seed/split/trans closure: instrument
+the actual FiniteHorn.firstFresh iteration, with capacity computed from its
+syntax-derived carrier, and expose its fresh atoms in actual discovery order.
+Accumulate these atoms into ordinary snapshots and feed the proven structural
+replay. Prove final membership iff independent Derives, every snapshot's models
+exactly equal the original state models, terminal closure, and computed bounds
+for the full driver. The actual ordinary solver gates the original State;
+semantics preservation justifies all subsequent generated snapshots.
+
+This is a complete driver for the existing finite ordinary rules only. It does
+not feed role candidate constraints back into ordinary closure, add new source
+names, or replace the uncompleted general B4 mixed-saturation driver.

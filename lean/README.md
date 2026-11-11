@@ -4414,3 +4414,12 @@ ordinary jobs. No caller supplies propagated atoms, trace, model or child list.
 The batch stream and source slot/invocation maps remain inputs. Checked State
 upper terms remain in the existing grammar; raw join/tick materialization is
 not promoted to a complete checked ordinary solver or the full B4 theorem.
+
+CommonRoleStructuralSaturationTrace removes the external batch stream for the
+existing finite ordinary seed/split/trans rules. It instruments firstFresh in
+actual discovery order, derives the carrier/capacity from original atoms,
+checks the original State with the real ordinary solver, and preserves every
+original model at every generated snapshot. The final atom membership is
+exactly independent Derives, terminal closure is proved, and all diagnostic
+snapshots and fresh ordinary graphs use the generated trace. This completes
+that finite ordinary driver, not general mixed role-to-ordinary saturation.

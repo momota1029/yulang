@@ -8724,3 +8724,21 @@ run_cmd do
 #print axioms Yulang.CommonRoleDerivedStructuralMaterialization.run_computed_bound
 #print axioms Yulang.CommonRoleDerivedStructuralMaterialization.runState_models_exact
 #print axioms Yulang.CommonRoleDerivedStructuralMaterialization.runState_graph_reflects
+
+-- Cycle109 internally generated finite structural saturation trace.
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.discoveries_result
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.discoveries_length
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.final_membership
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.generated_length
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.terminal_closed
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.final_models
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.accumulate_length
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.accumulate_chain
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.accumulate_cover
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.accumulate_original
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.snapshot_models
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.run_exact
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.run_computed_bound
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.final_materialize
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.snapshot_graph_models_exact
+#print axioms Yulang.CommonRoleStructuralSaturationTrace.runGraphs_exact
